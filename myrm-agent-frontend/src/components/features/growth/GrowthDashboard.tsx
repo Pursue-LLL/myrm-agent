@@ -150,8 +150,7 @@ export default function GrowthDashboard() {
     );
   }
 
-  const { snapshot, activity_heatmap, weekly_summary, skill_events, cost_summary, skill_trends, skill_health } =
-    data;
+  const { snapshot, activity_heatmap, weekly_summary, skill_events, cost_summary, skill_trends, skill_health } = data;
 
   const kpiCards = [
     {
@@ -215,7 +214,11 @@ export default function GrowthDashboard() {
         <div className="flex flex-col sm:items-end gap-2">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleCopyMarkdown} disabled={loading}>
-              {copied ? <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
+              {copied ? (
+                <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-500" />
+              ) : (
+                <Copy className="h-3.5 w-3.5 mr-1.5" />
+              )}
               {copied ? t('export.copied') : t('export.copyMarkdown')}
             </Button>
             <Button variant="outline" size="sm" onClick={handleDownloadMarkdown} disabled={loading}>
@@ -224,20 +227,20 @@ export default function GrowthDashboard() {
             </Button>
           </div>
           <div className="flex items-center gap-1 rounded-lg border bg-muted/50 p-0.5">
-          {TIME_RANGE_OPTIONS.map((days) => (
-            <button
-              key={days}
-              onClick={() => setTimeRange(days)}
-              className={cn(
-                'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
-                timeRange === days
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {t(`timeRange.${days}d`)}
-            </button>
-          ))}
+            {TIME_RANGE_OPTIONS.map((days) => (
+              <button
+                key={days}
+                onClick={() => setTimeRange(days)}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                  timeRange === days
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {t(`timeRange.${days}d`)}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -437,10 +440,7 @@ export default function GrowthDashboard() {
                     value={weekly_summary.tool_calls}
                     previousValue={weekly_summary.previous_tool_calls}
                   />
-                  <WeeklyMetric
-                    label={t('export.memoryCitations')}
-                    value={snapshot.memory_citations_7d}
-                  />
+                  <WeeklyMetric label={t('export.memoryCitations')} value={snapshot.memory_citations_7d} />
                 </div>
               </CardContent>
             </Card>
@@ -472,15 +472,7 @@ export default function GrowthDashboard() {
   );
 }
 
-function WeeklyMetric({
-  label,
-  value,
-  previousValue,
-}: {
-  label: string;
-  value: number;
-  previousValue?: number;
-}) {
+function WeeklyMetric({ label, value, previousValue }: { label: string; value: number; previousValue?: number }) {
   const delta = previousValue !== undefined ? value - previousValue : undefined;
   const hasChange = delta !== undefined && delta !== 0;
   const isPositive = delta !== undefined && delta > 0;

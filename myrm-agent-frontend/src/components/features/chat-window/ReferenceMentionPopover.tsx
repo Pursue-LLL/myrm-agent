@@ -240,8 +240,15 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
                         )
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className={cn('text-sm truncate flex items-center gap-1.5', isAgent ? 'font-bold text-primary' : 'font-medium')}>
-                          <span className="truncate">{isSpecial ? title : highlightMatch(title, file.match_ranges)}</span>
+                        <div
+                          className={cn(
+                            'text-sm truncate flex items-center gap-1.5',
+                            isAgent ? 'font-bold text-primary' : 'font-medium',
+                          )}
+                        >
+                          <span className="truncate">
+                            {isSpecial ? title : highlightMatch(title, file.match_ranges)}
+                          </span>
                           {file.source?.startsWith('external:') && (
                             <span className="px-1.5 py-0.5 text-[10px] rounded font-medium bg-primary/10 text-primary border border-primary/20 shrink-0">
                               {file.source === 'external:claude_code'

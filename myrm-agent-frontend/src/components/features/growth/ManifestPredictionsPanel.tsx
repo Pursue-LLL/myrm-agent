@@ -90,10 +90,7 @@ const DEFAULT_SAMPLE_MANIFEST: EvaluatePredictionManifestRequest = {
 +    pattern = r"(?i)\\b(?:search|query|lookup)\\s*[:=]\\s*(.*)"`,
 };
 
-export default function ManifestPredictionsPanel({
-  className = '',
-  initialManifest,
-}: ManifestPredictionsPanelProps) {
+export default function ManifestPredictionsPanel({ className = '', initialManifest }: ManifestPredictionsPanelProps) {
   const t = useTranslations('growthDashboard.manifestPredictions');
   const [manifest, setManifest] = useState<EvaluatePredictionManifestRequest>(
     initialManifest || DEFAULT_SAMPLE_MANIFEST,
@@ -204,7 +201,7 @@ export default function ManifestPredictionsPanel({
           {
             metric_name: 'pass_rate',
             direction: 'increase',
-            baseline_value: 0.60,
+            baseline_value: 0.6,
             target_value: 0.85,
             tolerance: 0.05,
           },
@@ -217,7 +214,7 @@ export default function ManifestPredictionsPanel({
           },
         ],
         actual_metrics: {
-          pass_rate: targetCase.testPassed ? 0.90 : 0.50,
+          pass_rate: targetCase.testPassed ? 0.9 : 0.5,
           avg_latency_ms: 380.0,
         },
       });
@@ -275,10 +272,7 @@ export default function ManifestPredictionsPanel({
         );
       default:
         return (
-          <Badge
-            variant="outline"
-            className="text-xs bg-muted text-muted-foreground border-border"
-          >
+          <Badge variant="outline" className="text-xs bg-muted text-muted-foreground border-border">
             <HelpCircle className="w-3.5 h-3.5 mr-1" />
             {t('verdicts.inconclusive')}
           </Badge>
@@ -419,9 +413,7 @@ export default function ManifestPredictionsPanel({
           {/* Falsifiable Metric Predictions & Actual Attribution Table */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-foreground tracking-wide">
-                {t('metricsTitle')}
-              </span>
+              <span className="text-xs font-semibold text-foreground tracking-wide">{t('metricsTitle')}</span>
               {attribution && (
                 <span className="text-[11px] font-mono text-muted-foreground">
                   {t('confidence')}: {Math.round(attribution.confidence_score * 100)}%
@@ -444,9 +436,7 @@ export default function ManifestPredictionsPanel({
                 </thead>
                 <tbody className="divide-y divide-border/60">
                   {manifest.predictions.map((pred) => {
-                    const detail = attribution?.metric_attributions.find(
-                      (m) => m.metric_name === pred.metric_name,
-                    );
+                    const detail = attribution?.metric_attributions.find((m) => m.metric_name === pred.metric_name);
                     const actualVal = manifest.actual_metrics[pred.metric_name] ?? pred.baseline_value;
                     const delta = actualVal - pred.baseline_value;
                     const isPositiveDelta = delta > 0;
@@ -457,9 +447,7 @@ export default function ManifestPredictionsPanel({
                           {getDirectionIcon(pred.direction)}
                           {pred.metric_name}
                         </td>
-                        <td className="p-2.5 font-mono text-muted-foreground">
-                          {pred.baseline_value}
-                        </td>
+                        <td className="p-2.5 font-mono text-muted-foreground">{pred.baseline_value}</td>
                         <td className="p-2.5 font-mono font-semibold text-foreground">
                           {pred.target_value}
                           {pred.tolerance ? (
@@ -479,18 +467,16 @@ export default function ManifestPredictionsPanel({
                                 ? 'text-emerald-600 dark:text-emerald-400'
                                 : 'text-rose-600 dark:text-rose-400'
                               : pred.direction === 'decrease'
-                              ? !isPositiveDelta
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : 'text-rose-600 dark:text-rose-400'
-                              : 'text-muted-foreground',
+                                ? !isPositiveDelta
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : 'text-rose-600 dark:text-rose-400'
+                                : 'text-muted-foreground',
                           )}
                         >
                           {isPositiveDelta ? `+${delta.toFixed(3)}` : delta.toFixed(3)}
                         </td>
                         <td className="p-2.5">{getVerdictBadge(detail?.verdict)}</td>
-                        <td className="p-2.5 text-muted-foreground max-w-xs truncate">
-                          {detail?.explanation || '-'}
-                        </td>
+                        <td className="p-2.5 text-muted-foreground max-w-xs truncate">{detail?.explanation || '-'}</td>
                       </tr>
                     );
                   })}

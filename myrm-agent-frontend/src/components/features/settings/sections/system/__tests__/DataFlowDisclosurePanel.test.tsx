@@ -4,7 +4,14 @@ import { DataFlowDisclosurePanel } from '../DataFlowDisclosurePanel';
 import useProviderStore from '@/store/useProviderStore';
 import useConfigStore from '@/store/useConfigStore';
 
-const { mockIsSandbox, mockIsTauriRuntime, mockApiRequest, mockListConnectorStatus, mockListOAuthCredentials, mockListChannelStatuses } = vi.hoisted(() => ({
+const {
+  mockIsSandbox,
+  mockIsTauriRuntime,
+  mockApiRequest,
+  mockListConnectorStatus,
+  mockListOAuthCredentials,
+  mockListChannelStatuses,
+} = vi.hoisted(() => ({
   mockIsSandbox: vi.fn(() => false),
   mockIsTauriRuntime: vi.fn(() => false),
   mockApiRequest: vi.fn(),
@@ -230,9 +237,7 @@ describe('DataFlowDisclosurePanel', () => {
   });
 
   it('shows sync egress immediately while integrations are still loading', async () => {
-    mockListConnectorStatus.mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve([]), 50)),
-    );
+    mockListConnectorStatus.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve([]), 50)));
     mockListOAuthCredentials.mockResolvedValue([]);
     useProviderStore.setState({
       providers: [
@@ -301,22 +306,20 @@ describe('DataFlowDisclosurePanel', () => {
 
   it('refetches integrations when channel-status-change event is dispatched', async () => {
     mockIsTauriRuntime.mockReturnValue(true);
-    mockListChannelStatuses
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        {
-          name: 'telegram-main',
-          status: 'connected',
-          connected: true,
-          channelType: 'telegram',
-          instanceId: 'tg-inst-1',
-          displayName: 'Telegram Bot',
-          last_inbound_at: null,
-          last_outbound_at: null,
-          last_active_at: null,
-          issues: [],
-        },
-      ]);
+    mockListChannelStatuses.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        name: 'telegram-main',
+        status: 'connected',
+        connected: true,
+        channelType: 'telegram',
+        instanceId: 'tg-inst-1',
+        displayName: 'Telegram Bot',
+        last_inbound_at: null,
+        last_outbound_at: null,
+        last_active_at: null,
+        issues: [],
+      },
+    ]);
 
     render(<DataFlowDisclosurePanel />);
 
@@ -340,22 +343,20 @@ describe('DataFlowDisclosurePanel', () => {
 
   it('refetches integrations when channel-credentials-saved event is dispatched', async () => {
     mockIsTauriRuntime.mockReturnValue(true);
-    mockListChannelStatuses
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        {
-          name: 'feishu-main',
-          status: 'connected',
-          connected: true,
-          channelType: 'feishu',
-          instanceId: 'fs-inst-1',
-          displayName: 'Feishu Bot',
-          last_inbound_at: null,
-          last_outbound_at: null,
-          last_active_at: null,
-          issues: [],
-        },
-      ]);
+    mockListChannelStatuses.mockResolvedValueOnce([]).mockResolvedValueOnce([
+      {
+        name: 'feishu-main',
+        status: 'connected',
+        connected: true,
+        channelType: 'feishu',
+        instanceId: 'fs-inst-1',
+        displayName: 'Feishu Bot',
+        last_inbound_at: null,
+        last_outbound_at: null,
+        last_active_at: null,
+        issues: [],
+      },
+    ]);
 
     render(<DataFlowDisclosurePanel />);
 

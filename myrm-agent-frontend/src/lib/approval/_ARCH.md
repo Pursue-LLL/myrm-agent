@@ -21,7 +21,7 @@
 | `buildToolApprovalRequest.ts`    | SSE/WS actionRequest → ToolApprovalRequest（含 commandSpans/risks/workspaceRoot/executionIntent）                                                                          |
 | `saveSkillApproval.ts`           | save_skill / skill_manage save 审批识别 + args 归一化                                                                                                                      |
 | `shellCommandDisplay.ts`         | shell 识别、span/risk、`deriveCommandPattern` 预览（镜像 harness SSOT；vitest parity 向量）                                                                                |
-| `resumeApprovalStream.ts`        | 通过 SSE resume 恢复执行；复用 `isAgentBusySseEvent` 对 HTTP 200 + SSE busy fail-fast；流结束后 `finalizeAgentStreamTurn` 对齐 store 与 DB |
+| `resumeApprovalStream.ts`        | 通过 SSE resume 恢复执行；复用 `isAgentBusySseEvent` 对 HTTP 200 + SSE busy fail-fast；流结束后 `finalizeAgentStreamTurn` 对齐 store 与 DB                                 |
 | `approvalAlertService.ts`        | 空闲审批通知：窗口不活跃时发送 6 语言本地化系统通知（Tauri/Browser Notification + Tab 标题闪烁 + requestUserAttention）；`NOTIFICATION_I18N` 字典覆盖 en/zh/zh-TW/ja/ko/de |
 
 ## humanize 集成

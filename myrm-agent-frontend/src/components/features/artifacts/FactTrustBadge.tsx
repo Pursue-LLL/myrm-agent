@@ -22,8 +22,8 @@ export const FactTrustBadge: React.FC<FactTrustBadgeProps> = ({
     status === 'in_progress_draft' || status === 'draft'
       ? 'in_progress_draft'
       : status === 'deprecated' || status === 'blocked'
-      ? 'deprecated'
-      : 'published_truth';
+        ? 'deprecated'
+        : 'published_truth';
 
   const badgeConfig = {
     published_truth: {

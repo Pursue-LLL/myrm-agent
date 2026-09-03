@@ -19,27 +19,17 @@ function parseInputUrls(rawText: string): string[] {
 describe('WikiUrlImportDialog URL parser', () => {
   it('filters empty lines and trims whitespace', () => {
     const text = '\n  https://example.com/page-1   \n\n   \nhttps://example.com/page-2\n';
-    expect(parseInputUrls(text)).toEqual([
-      'https://example.com/page-1',
-      'https://example.com/page-2',
-    ]);
+    expect(parseInputUrls(text)).toEqual(['https://example.com/page-1', 'https://example.com/page-2']);
   });
 
   it('rejects invalid schemes such as javascript: or file://', () => {
     const text = 'javascript:alert(1)\nfile:///etc/passwd\nhttps://example.com/safe\nhttp://example.org/doc';
-    expect(parseInputUrls(text)).toEqual([
-      'https://example.com/safe',
-      'http://example.org/doc',
-    ]);
+    expect(parseInputUrls(text)).toEqual(['https://example.com/safe', 'http://example.org/doc']);
   });
 
   it('deduplicates identical URLs while preserving order', () => {
     const text = 'https://example.com/a\nhttps://example.com/b\nhttps://example.com/a\nhttps://example.com/c';
-    expect(parseInputUrls(text)).toEqual([
-      'https://example.com/a',
-      'https://example.com/b',
-      'https://example.com/c',
-    ]);
+    expect(parseInputUrls(text)).toEqual(['https://example.com/a', 'https://example.com/b', 'https://example.com/c']);
   });
 
   it('handles up to 50 items and supports slicing cleanly', () => {

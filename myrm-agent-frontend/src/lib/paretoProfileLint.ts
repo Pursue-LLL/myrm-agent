@@ -71,10 +71,20 @@ export function extractClientRootVendor(providerId?: string, model?: string): st
   }
 
   // 3. Fallback to model heuristics
-  if (normModel.includes('gpt') || normModel.includes('o1') || normModel.includes('o3') || normModel.includes('openai')) {
+  if (
+    normModel.includes('gpt') ||
+    normModel.includes('o1') ||
+    normModel.includes('o3') ||
+    normModel.includes('openai')
+  ) {
     return 'openai';
   }
-  if (normModel.includes('claude') || normModel.includes('anthropic') || normModel.includes('sonnet') || normModel.includes('haiku')) {
+  if (
+    normModel.includes('claude') ||
+    normModel.includes('anthropic') ||
+    normModel.includes('sonnet') ||
+    normModel.includes('haiku')
+  ) {
     return 'anthropic';
   }
   if (normModel.includes('deepseek')) {

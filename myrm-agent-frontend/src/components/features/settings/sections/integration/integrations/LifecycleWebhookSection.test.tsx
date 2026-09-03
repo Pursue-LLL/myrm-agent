@@ -192,7 +192,9 @@ describe('LifecycleWebhookSection - Full Flow', () => {
 
     (webhookService.listLifecycleWebhooks as any)
       .mockResolvedValueOnce([scopedWebhook])
-      .mockResolvedValueOnce([{ ...scopedWebhook, name: 'CI Webhook Updated', events: ['session_completed', 'goal_terminal'] }]);
+      .mockResolvedValueOnce([
+        { ...scopedWebhook, name: 'CI Webhook Updated', events: ['session_completed', 'goal_terminal'] },
+      ]);
     (webhookService.updateLifecycleWebhook as any).mockResolvedValueOnce({
       ...scopedWebhook,
       name: 'CI Webhook Updated',

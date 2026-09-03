@@ -1,8 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import useDeviceInspectorStore, {
-  selectScopedDeviceViewData,
-  type DeviceViewData,
-} from '../useDeviceInspectorStore';
+import useDeviceInspectorStore, { selectScopedDeviceViewData, type DeviceViewData } from '../useDeviceInspectorStore';
 
 describe('useDeviceInspectorStore & selectScopedDeviceViewData', () => {
   beforeEach(() => {

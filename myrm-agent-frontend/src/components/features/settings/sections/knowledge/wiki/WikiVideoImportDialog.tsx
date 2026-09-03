@@ -63,9 +63,7 @@ export function WikiVideoImportDialog({
     }
 
     const durationNum = parseInt(windowDuration, 10);
-    const validDuration = Number.isFinite(durationNum) && durationNum >= 10 && durationNum <= 300
-      ? durationNum
-      : 45;
+    const validDuration = Number.isFinite(durationNum) && durationNum >= 10 && durationNum <= 300 ? durationNum : 45;
 
     setIsSubmitting(true);
     try {
@@ -104,9 +102,7 @@ export function WikiVideoImportDialog({
 
         <div className="flex flex-col gap-4 py-2">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground">
-              {t('video')} URL
-            </label>
+            <label className="text-xs font-medium text-muted-foreground">{t('video')} URL</label>
             <Input
               value={videoUrl}
               onChange={(e) => setVideoUrl(e.target.value)}
@@ -118,9 +114,7 @@ export function WikiVideoImportDialog({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                {t('videoFolderLabel')}
-              </label>
+              <label className="text-xs font-medium text-muted-foreground">{t('videoFolderLabel')}</label>
               <Input
                 value={folderPath}
                 onChange={(e) => setFolderPath(e.target.value)}
@@ -131,9 +125,7 @@ export function WikiVideoImportDialog({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                {t('videoWindowDuration')}
-              </label>
+              <label className="text-xs font-medium text-muted-foreground">{t('videoWindowDuration')}</label>
               <Input
                 type="number"
                 min={10}
@@ -149,19 +141,10 @@ export function WikiVideoImportDialog({
         </div>
 
         <DialogFooter className="flex flex-row justify-end gap-2 pt-2">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
+          <Button type="button" variant="ghost" onClick={handleClose} disabled={isSubmitting}>
             {useTranslations('common')('cancel')}
           </Button>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting || !videoUrl.trim()}
-          >
+          <Button type="button" onClick={handleSubmit} disabled={isSubmitting || !videoUrl.trim()}>
             {isSubmitting ? t('videoImporting') : t('videoImportStart')}
           </Button>
         </DialogFooter>

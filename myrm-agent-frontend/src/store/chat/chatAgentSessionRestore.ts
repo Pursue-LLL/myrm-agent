@@ -21,10 +21,7 @@ import useAgentStore from '@/store/useAgentStore';
 import useChatStore from '@/store/useChatStore';
 import { useSkillStore } from '@/store/skill';
 import { disarmYoloForPreset } from '@/store/chat/securityPreset';
-import {
-  expectedSecurityPresetForAgent,
-  securityPresetNeedsSync,
-} from '@/store/chat/sessionAgentHydration';
+import { expectedSecurityPresetForAgent, securityPresetNeedsSync } from '@/store/chat/sessionAgentHydration';
 
 async function applyRestoredAgentConfig(chatId: string, agentId: string): Promise<void> {
   const agent = await useAgentStore.getState().fetchAgent(agentId);
@@ -59,10 +56,7 @@ async function applyRestoredAgentConfig(chatId: string, agentId: string): Promis
   useChatStore.getState().setAgentConfig(config);
 }
 
-export async function restoreAgentConfigFromChat(
-  chatId: string,
-  agentId: string | null | undefined,
-): Promise<void> {
+export async function restoreAgentConfigFromChat(chatId: string, agentId: string | null | undefined): Promise<void> {
   if (!agentId) {
     return;
   }

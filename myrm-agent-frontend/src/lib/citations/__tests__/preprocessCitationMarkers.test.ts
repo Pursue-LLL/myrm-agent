@@ -79,10 +79,7 @@ describe('preprocessCitationMarkers', () => {
   });
 
   it('converts citation markdown links', () => {
-    const result = preprocessCitationMarkers(
-      'Claim [citation:Paper A](https://example.com/a).',
-      sources,
-    );
+    const result = preprocessCitationMarkers('Claim [citation:Paper A](https://example.com/a).', sources);
     expect(result).toContain('<citation data-num="1"');
     expect(result).not.toContain('[citation:');
   });
@@ -171,7 +168,9 @@ describe('preprocessCitationMarkers', () => {
     expect(normalizeCitationTitle('網頁', 'https://developer.mozilla.org/zh-TW/')).toBe('developer.mozilla.org');
     expect(normalizeCitationTitle('webpage', 'https://python.org')).toBe('python.org');
     expect(normalizeCitationTitle('reference', 'https://ietf.org/rfc/rfc1234.txt')).toBe('ietf.org');
-    expect(normalizeCitationTitle('  untitled  ', 'https://news.ycombinator.com/item?id=123')).toBe('news.ycombinator.com');
+    expect(normalizeCitationTitle('  untitled  ', 'https://news.ycombinator.com/item?id=123')).toBe(
+      'news.ycombinator.com',
+    );
     expect(normalizeCitationTitle('Tokio Framework', 'https://tokio.rs')).toBe('Tokio Framework');
   });
 

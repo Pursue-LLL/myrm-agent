@@ -17,11 +17,11 @@
 
 ### 存储管理
 
-| 文件                                     | 职责                                                                                                |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `StorageCard.tsx`                        | 存储位置与会话数据库智能优化（当前路径、磁盘三元组用量、预检、FTS/VACUUM/WAL双模式瘦身、迁移、低空间预警）  |
-| `__tests__/StorageCard.test.tsx`         | 迁移目录高敏链路回归：先签发敏感操作票据，再执行迁移；目录选择取消不签发票据；拒绝/取消场景错误提示 |
-| `__tests__/StorageCard.optimize.test.tsx`| 数据库存储优化完整流程回归：三元组容量预检、Deep/Light双模式选择、活跃任务拦截门禁与优化成功 Toast 反馈 |
+| 文件                                      | 职责                                                                                                       |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `StorageCard.tsx`                         | 存储位置与会话数据库智能优化（当前路径、磁盘三元组用量、预检、FTS/VACUUM/WAL双模式瘦身、迁移、低空间预警） |
+| `__tests__/StorageCard.test.tsx`          | 迁移目录高敏链路回归：先签发敏感操作票据，再执行迁移；目录选择取消不签发票据；拒绝/取消场景错误提示        |
+| `__tests__/StorageCard.optimize.test.tsx` | 数据库存储优化完整流程回归：三元组容量预检、Deep/Light双模式选择、活跃任务拦截门禁与优化成功 Toast 反馈    |
 
 ### 网络与访问
 
@@ -53,51 +53,51 @@
 
 ### 安全策略
 
-| 文件                                  | 职责                                                                                                                                                                                                                                                                                               |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SecurityPolicySection.tsx`           | 安全策略 UI（权限规则/超时/域名白名单与 blocklist/YOLO/Smart Intent Guard；委派权限说明卡片 spawn_subagent vs invoke_external_agent；Org MAP 只读 banner + global YOLO/allow-always lock）                                                                                                         |
-| `useSecurityPolicy.ts`                | 安全策略状态 hook；复用 `useManagedPolicyEffective`（tab visible 时自动 refetch org MAP 锁）                                                                                                                                                                                                       |
-| `securityPolicyUtils.ts`              | 安全策略工具函数（常量/权限扁平化/构建/默认配置）                                                                                                                                                                                                                                                  |
-| `SecurityPrivacyPanel.tsx`            | PII 隐私保护面板（含 Privacy Routing，`id=security-privacy-routing` 锚点供 DataFlow 深链）                                                                                                                                                                                                                  |
-| `DataFlowDisclosurePanel.tsx`         | 数据流向披露 SSOT：本地域 / deploy-aware 控制平面 / LLM+MCP+OAuth 集成+Agent Connector+Tauri Channel 实时 egress（含 channel SSE 事件刷新）/ Provider training policy / 跨境路由摘要 / Your Rights 合规导出 |
-| `DataFlowYourRightsStrip.tsx`         | DataFlow 内「您的数据权利」：client-side compliance JSON 导出（routing API key 脱敏）+ Memory 设置深链 |
-| `providerDataUsageCatalog.ts`         | 内置 Provider 数据使用/训练政策静态 catalog（honest doc 外链） |
-| `__tests__/DataFlowDisclosurePanel.test.tsx` | DataFlow 面板单测（deploy / oauth / connectors / Tauri channels / channel SSE 双事件 / cross-border 负向 / API 降级 / 渐进加载 / rights）14 cases |
-| `__tests__/DataFlowYourRightsStrip.test.tsx` | 合规导出脱敏·snapshot helpers·导出点击成功/失败组件测 9 cases |
-| `__tests__/providerDataUsageCatalog.test.ts` | Provider catalog 单测 3 cases |
-| `SecurityProfileSelector.tsx`         | 安全配置模板选择器                                                                                                                                                                                                                                                                                 |
-| `NLPolicyGenerator.tsx`               | AI 自然语言策略生成器                                                                                                                                                                                                                                                                              |
-| `AllowlistSection.tsx`                | Allow Always 持久记录管理（/security/allowlist；permission/tool/exact/pattern 粒度）                                                                                                                                                                                                               |
-| `DomainAllowlistEditor.tsx`           | 域名白名单编辑器                                                                                                                                                                                                                                                                                   |
-| `DomainBlocklistEditor.tsx`           | URL 域名 blocklist 编辑器（Settings 全局策略）                                                                                                                                                                                                                                                     |
-| `CommandDenylistEditor.tsx`           | 命令禁止列表编辑器（fnmatch glob 模式，YOLO 不可绕过）                                                                                                                                                                                                                                             |
-| `__tests__/useSecurityPolicy.test.ts` | useSecurityPolicy hook 单测（command denylist toast 反馈一致性）                                                                                                                                                                                                                                   |
-| `PathPolicyEditor.tsx`                | 路径策略编辑器                                                                                                                                                                                                                                                                                     |
-| `RiskRulesSection.tsx`                | 风控规则配置                                                                                                                                                                                                                                                                                       |
-| `RiskRulesHitsPanel.tsx`              | 风控规则命中记录                                                                                                                                                                                                                                                                                   |
-| `RiskRulesTestPanel.tsx`              | 风控规则测试                                                                                                                                                                                                                                                                                       |
-| `risk-rules-types.ts`                 | 风控规则类型定义                                                                                                                                                                                                                                                                                   |
-| `ShareLinksSection.tsx`               | 分享链接管理（`GET/DELETE /api/v1/files/artifacts/shares[/{id}]`：活跃链接表格 + 一键撤销 + 空/加载/错误态 + 刷新；复制/打开优先服务端 `share_url`，无 ingress 时按后端基址/当前 origin 组装；密码分享（share_path 有值）同样渲染复制/打开，无 share_path 的历史密码分享降级为「密码保护中」提示） |
+| 文件                                         | 职责                                                                                                                                                                                                                                                                                               |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SecurityPolicySection.tsx`                  | 安全策略 UI（权限规则/超时/域名白名单与 blocklist/YOLO/Smart Intent Guard；委派权限说明卡片 spawn_subagent vs invoke_external_agent；Org MAP 只读 banner + global YOLO/allow-always lock）                                                                                                         |
+| `useSecurityPolicy.ts`                       | 安全策略状态 hook；复用 `useManagedPolicyEffective`（tab visible 时自动 refetch org MAP 锁）                                                                                                                                                                                                       |
+| `securityPolicyUtils.ts`                     | 安全策略工具函数（常量/权限扁平化/构建/默认配置）                                                                                                                                                                                                                                                  |
+| `SecurityPrivacyPanel.tsx`                   | PII 隐私保护面板（含 Privacy Routing，`id=security-privacy-routing` 锚点供 DataFlow 深链）                                                                                                                                                                                                         |
+| `DataFlowDisclosurePanel.tsx`                | 数据流向披露 SSOT：本地域 / deploy-aware 控制平面 / LLM+MCP+OAuth 集成+Agent Connector+Tauri Channel 实时 egress（含 channel SSE 事件刷新）/ Provider training policy / 跨境路由摘要 / Your Rights 合规导出                                                                                        |
+| `DataFlowYourRightsStrip.tsx`                | DataFlow 内「您的数据权利」：client-side compliance JSON 导出（routing API key 脱敏）+ Memory 设置深链                                                                                                                                                                                             |
+| `providerDataUsageCatalog.ts`                | 内置 Provider 数据使用/训练政策静态 catalog（honest doc 外链）                                                                                                                                                                                                                                     |
+| `__tests__/DataFlowDisclosurePanel.test.tsx` | DataFlow 面板单测（deploy / oauth / connectors / Tauri channels / channel SSE 双事件 / cross-border 负向 / API 降级 / 渐进加载 / rights）14 cases                                                                                                                                                  |
+| `__tests__/DataFlowYourRightsStrip.test.tsx` | 合规导出脱敏·snapshot helpers·导出点击成功/失败组件测 9 cases                                                                                                                                                                                                                                      |
+| `__tests__/providerDataUsageCatalog.test.ts` | Provider catalog 单测 3 cases                                                                                                                                                                                                                                                                      |
+| `SecurityProfileSelector.tsx`                | 安全配置模板选择器                                                                                                                                                                                                                                                                                 |
+| `NLPolicyGenerator.tsx`                      | AI 自然语言策略生成器                                                                                                                                                                                                                                                                              |
+| `AllowlistSection.tsx`                       | Allow Always 持久记录管理（/security/allowlist；permission/tool/exact/pattern 粒度）                                                                                                                                                                                                               |
+| `DomainAllowlistEditor.tsx`                  | 域名白名单编辑器                                                                                                                                                                                                                                                                                   |
+| `DomainBlocklistEditor.tsx`                  | URL 域名 blocklist 编辑器（Settings 全局策略）                                                                                                                                                                                                                                                     |
+| `CommandDenylistEditor.tsx`                  | 命令禁止列表编辑器（fnmatch glob 模式，YOLO 不可绕过）                                                                                                                                                                                                                                             |
+| `__tests__/useSecurityPolicy.test.ts`        | useSecurityPolicy hook 单测（command denylist toast 反馈一致性）                                                                                                                                                                                                                                   |
+| `PathPolicyEditor.tsx`                       | 路径策略编辑器                                                                                                                                                                                                                                                                                     |
+| `RiskRulesSection.tsx`                       | 风控规则配置                                                                                                                                                                                                                                                                                       |
+| `RiskRulesHitsPanel.tsx`                     | 风控规则命中记录                                                                                                                                                                                                                                                                                   |
+| `RiskRulesTestPanel.tsx`                     | 风控规则测试                                                                                                                                                                                                                                                                                       |
+| `risk-rules-types.ts`                        | 风控规则类型定义                                                                                                                                                                                                                                                                                   |
+| `ShareLinksSection.tsx`                      | 分享链接管理（`GET/DELETE /api/v1/files/artifacts/shares[/{id}]`：活跃链接表格 + 一键撤销 + 空/加载/错误态 + 刷新；复制/打开优先服务端 `share_url`，无 ingress 时按后端基址/当前 origin 组装；密码分享（share_path 有值）同样渲染复制/打开，无 share_path 的历史密码分享降级为「密码保护中」提示） |
 
 ### 用量与成本
 
-| 文件                          | 职责                                                                                                                               |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `UsageStatisticsSection.tsx`  | 用量统计主面板（时间范围/多维度）；含 Wiki 证据治理卡片（deep verification/requery/dwell/dropped telemetry/negative outcome rate） |
-| `UsageStatisticsCharts.tsx`   | 用量图表 barrel 导出                                                                                                               |
-| `UsageStatCard.tsx`           | 统计卡片                                                                                                                           |
-| `UsageCacheBreakTimeline.tsx` | 缓存击穿时间线                                                                                                                     |
-| `UsageDailyChart.tsx`         | 日趋势柱状图 + 缓存命中率折线                                                                                                      |
-| `UsageSessionTable.tsx`       | Top 会话表格                                                                                                                       |
-| `UsageDistributionCharts.tsx` | 周/日/小时活动分布图                                                                                                               |
-| `UsagePrivacyRoutePanel.tsx`  | 隐私路由 local/cloud 占比                                                                                                          |
-| `UsageModelBreakdown.tsx`     | 模型用量明细                                                                                                                       |
-| `AgentUsageCard.tsx`          | Agent 用量卡片                                                                                                                     |
+| 文件                          | 职责                                                                                                                                   |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `UsageStatisticsSection.tsx`  | 用量统计主面板（时间范围/多维度）；含 Wiki 证据治理卡片（deep verification/requery/dwell/dropped telemetry/negative outcome rate）     |
+| `UsageStatisticsCharts.tsx`   | 用量图表 barrel 导出                                                                                                                   |
+| `UsageStatCard.tsx`           | 统计卡片                                                                                                                               |
+| `UsageCacheBreakTimeline.tsx` | 缓存击穿时间线                                                                                                                         |
+| `UsageDailyChart.tsx`         | 日趋势柱状图 + 缓存命中率折线                                                                                                          |
+| `UsageSessionTable.tsx`       | Top 会话表格                                                                                                                           |
+| `UsageDistributionCharts.tsx` | 周/日/小时活动分布图                                                                                                                   |
+| `UsagePrivacyRoutePanel.tsx`  | 隐私路由 local/cloud 占比                                                                                                              |
+| `UsageModelBreakdown.tsx`     | 模型用量明细                                                                                                                           |
+| `AgentUsageCard.tsx`          | Agent 用量卡片                                                                                                                         |
 | `BudgetPolicySection.tsx`     | 预算策略与四级渐进式柔性限额风控面板（四级阶梯风控：可视化预警、柔性自确认卡、无损模型自动降级、冻结暂停审批；Fleet Quota 跨维度看板） |
-| `ChannelBudgetSection.tsx`    | 渠道预算管理                                                                                                                       |
-| `MemoryGuardianCard.tsx`      | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合）                                                                  |
-| `RateLimitMonitor.tsx`        | 速率限制监控                                                                                                                       |
-| `RoutingAnalyticsPanel.tsx`   | 路由分析面板（模型路由/成本格式化）                                                                                                |
+| `ChannelBudgetSection.tsx`    | 渠道预算管理                                                                                                                           |
+| `MemoryGuardianCard.tsx`      | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合）                                                                      |
+| `RateLimitMonitor.tsx`        | 速率限制监控                                                                                                                           |
+| `RoutingAnalyticsPanel.tsx`   | 路由分析面板（模型路由/成本格式化）                                                                                                    |
 
 ### Trace 可视化与调试
 

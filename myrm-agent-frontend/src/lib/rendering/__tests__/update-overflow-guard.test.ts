@@ -8,7 +8,9 @@ import {
 } from '../update-overflow-guard';
 
 const overflowError = (marker: 'minified' | 'message' = 'minified') =>
-  marker === 'minified' ? new Error('Minified React error #185; visit ...') : new Error('Maximum update depth exceeded');
+  marker === 'minified'
+    ? new Error('Minified React error #185; visit ...')
+    : new Error('Maximum update depth exceeded');
 
 describe('update-overflow-guard', () => {
   beforeEach(() => {

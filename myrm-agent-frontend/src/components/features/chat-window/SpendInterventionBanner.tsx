@@ -17,10 +17,7 @@ import { useTranslations } from 'next-intl';
 import { IconShield, IconAlertTriangle, IconCheck, IconZap } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
-import {
-  confirmSoftSpendGate,
-  type SpendInterventionDecision,
-} from '@/services/budget';
+import { confirmSoftSpendGate, type SpendInterventionDecision } from '@/services/budget';
 
 interface SpendInterventionBannerProps {
   decision: SpendInterventionDecision;
@@ -70,7 +67,10 @@ export const SpendInterventionBanner = memo<SpendInterventionBannerProps>(
           isSoftGate && 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200',
           isAutoDowngraded && 'bg-purple-500/10 border-purple-500/30 text-purple-900 dark:text-purple-200',
           isCriticalPause && 'bg-red-500/10 border-red-500/30 text-red-900 dark:text-red-200',
-          !isSoftGate && !isAutoDowngraded && !isCriticalPause && 'bg-sky-500/10 border-sky-500/30 text-sky-900 dark:text-sky-200',
+          !isSoftGate &&
+            !isAutoDowngraded &&
+            !isCriticalPause &&
+            'bg-sky-500/10 border-sky-500/30 text-sky-900 dark:text-sky-200',
           className,
         )}
       >
@@ -99,9 +99,7 @@ export const SpendInterventionBanner = memo<SpendInterventionBannerProps>(
                 ${decision.currentSpendUsd.toFixed(2)} / ${decision.quotaLimitUsd.toFixed(2)}
               </span>
             </div>
-            <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
-              {decision.message}
-            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{decision.message}</div>
           </div>
         </div>
 

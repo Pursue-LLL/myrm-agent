@@ -6,13 +6,13 @@
 
 ## 文件清单
 
-| 文件 | 职责 |
-| --- | --- |
-| `types.ts` | 扩展插槽名称枚举、贡献项契约与 Store 接口定义 |
-| `useExtensionSlotStore.ts` | Zustand 插槽注册中心，支持动态注册与注销 |
-| `ExtensionSlot.tsx` | 声明式插槽挂载容器组件，负责按 order 排序与 condition 校验并渲染 |
-| `index.ts` | 模块公开导出入口 |
-| `__tests__/ExtensionSlot.test.tsx` | 插槽挂载、条件判断、排序与注销单元测试 |
+| 文件                               | 职责                                                             |
+| ---------------------------------- | ---------------------------------------------------------------- |
+| `types.ts`                         | 扩展插槽名称枚举、贡献项契约与 Store 接口定义                    |
+| `useExtensionSlotStore.ts`         | Zustand 插槽注册中心，支持动态注册与注销                         |
+| `ExtensionSlot.tsx`                | 声明式插槽挂载容器组件，负责按 order 排序与 condition 校验并渲染 |
+| `index.ts`                         | 模块公开导出入口                                                 |
+| `__tests__/ExtensionSlot.test.tsx` | 插槽挂载、条件判断、排序与注销单元测试                           |
 
 ## 依赖关系
 

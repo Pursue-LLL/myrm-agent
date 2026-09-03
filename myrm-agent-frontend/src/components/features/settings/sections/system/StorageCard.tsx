@@ -2,27 +2,14 @@
 
 import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Database,
-  Sparkles,
-  CheckCircle2,
-  AlertCircle,
-  RefreshCw,
-  Layers,
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react';
+import { Database, Sparkles, CheckCircle2, AlertCircle, RefreshCw, Layers, ChevronDown, ChevronUp } from 'lucide-react';
 import { IconSettings } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
-import {
-  systemService,
-  type StorageOptimizePreflightResponse,
-  type StorageOptimizeResponse,
-} from '@/services/system';
+import { systemService, type StorageOptimizePreflightResponse, type StorageOptimizeResponse } from '@/services/system';
 
 interface SubdirUsage {
   name: string;
@@ -415,9 +402,7 @@ const StorageCard = memo<{
                                           })
                                         : t('storageOptimizeNoReclaim')}
                                     </div>
-                                    <div className="text-[11px] opacity-80">
-                                      {optimizeResult.message}
-                                    </div>
+                                    <div className="text-[11px] opacity-80">{optimizeResult.message}</div>
                                   </div>
                                 </div>
                               )}

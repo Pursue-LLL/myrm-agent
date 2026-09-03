@@ -21,15 +21,9 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getTemplates, type TemplateListItem } from '@/services/agent';
-import {
-  templateMatchesSearchQuery,
-  resolveTemplateKind,
-} from '@/services/templateDiscovery';
+import { templateMatchesSearchQuery, resolveTemplateKind } from '@/services/templateDiscovery';
 import { instantiateTemplateWithMetrics } from '@/services/templateSummon';
-import {
-  recordExpertSummonSearchUsed,
-  recordExpertSummonSurfaceViewed,
-} from '@/services/expertSummonMetrics';
+import { recordExpertSummonSearchUsed, recordExpertSummonSurfaceViewed } from '@/services/expertSummonMetrics';
 import useChatStore from '@/store/useChatStore';
 
 export interface ExpertSummonPopoverProps {
@@ -145,11 +139,7 @@ export const ExpertSummonPopover = memo(function ExpertSummonPopover({
 
       {open && (
         <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setOpen(false)}
-            aria-hidden="true"
-          />
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden="true" />
           <div
             data-testid="expert-summon-popover-menu"
             className="absolute bottom-full mb-2 left-0 z-50 flex w-72 sm:w-80 flex-col rounded-xl border border-border bg-popover/95 p-3 text-popover-foreground shadow-xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
@@ -186,9 +176,7 @@ export const ExpertSummonPopover = memo(function ExpertSummonPopover({
                   {t('loading')}
                 </div>
               ) : filteredTemplates.length === 0 ? (
-                <div className="py-6 text-center text-xs text-muted-foreground">
-                  {t('empty')}
-                </div>
+                <div className="py-6 text-center text-xs text-muted-foreground">{t('empty')}</div>
               ) : (
                 filteredTemplates.map((template) => {
                   const isTeam = template.agent_type === 'team';
@@ -217,19 +205,13 @@ export const ExpertSummonPopover = memo(function ExpertSummonPopover({
                           onClick={() => void handleSummon(template)}
                           className="inline-flex h-5 items-center gap-1 rounded-sm bg-primary/10 px-1.5 text-[10px] font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
                         >
-                          {isSummoning ? (
-                            <Loader2 size={10} className="animate-spin" />
-                          ) : (
-                            <Plus size={10} />
-                          )}
+                          {isSummoning ? <Loader2 size={10} className="animate-spin" /> : <Plus size={10} />}
                           {t('summonButton')}
                         </button>
                       </div>
 
                       {template.description && (
-                        <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">
-                          {template.description}
-                        </p>
+                        <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">{template.description}</p>
                       )}
 
                       {template.use_cases && template.use_cases.length > 0 && (

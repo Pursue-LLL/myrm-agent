@@ -287,7 +287,7 @@ export const LifecycleWebhookSection = memo(() => {
                     <div className="flex items-center gap-1.5 flex-wrap pt-1">
                       {hook.events.map((ev) => (
                         <span key={ev} className="text-[10px] bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded">
-                          {t(`events.${ev}` as `events.${typeof AVAILABLE_WEBHOOK_EVENT_IDS[number]}`)}
+                          {t(`events.${ev}` as `events.${(typeof AVAILABLE_WEBHOOK_EVENT_IDS)[number]}`)}
                         </span>
                       ))}
                     </div>

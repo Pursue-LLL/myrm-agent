@@ -175,11 +175,7 @@ function formatRoutingReason(reason: string, t: (key: string) => string): string
   if (reason.includes('simple_indicator') || reason === 'judge:simple') {
     return t('routingReasonSimpleIndicator');
   }
-  if (
-    reason.includes('keyword(reasoning)') ||
-    reason.includes('reasoning_keyword') ||
-    reason === 'judge:reasoning'
-  ) {
+  if (reason.includes('keyword(reasoning)') || reason.includes('reasoning_keyword') || reason === 'judge:reasoning') {
     return t('routingReasonKeywordReasoning');
   }
   if (reason.includes('keyword(standard)') || reason === 'judge:standard') {
@@ -197,7 +193,10 @@ function formatRoutingReason(reason: string, t: (key: string) => string): string
   if (reason.includes('momentum')) {
     return t('routingReasonMomentum');
   }
-  return reason.replace(/^(rule:|judge:)/, '').replace(/[_\(\)]/g, ' ').trim();
+  return reason
+    .replace(/^(rule:|judge:)/, '')
+    .replace(/[_\(\)]/g, ' ')
+    .trim();
 }
 
 const BUDGET_COLORS = {

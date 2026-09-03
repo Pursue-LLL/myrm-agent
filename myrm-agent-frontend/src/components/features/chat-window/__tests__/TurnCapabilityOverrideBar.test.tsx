@@ -62,9 +62,7 @@ describe('TurnCapabilityOverrideBar', () => {
 
   it('renders nothing when selection is null', () => {
     const onSelectionChange = vi.fn();
-    const { container } = render(
-      <TurnCapabilityOverrideBar selection={null} onSelectionChange={onSelectionChange} />,
-    );
+    const { container } = render(<TurnCapabilityOverrideBar selection={null} onSelectionChange={onSelectionChange} />);
     expect(container.firstChild).toBeNull();
   });
 

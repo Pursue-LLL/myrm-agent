@@ -75,9 +75,7 @@ describe('CouncilResultCard', () => {
 
     expect(screen.getByText('Principal Architect')).toBeInTheDocument();
     expect(screen.getByText('Security Auditor')).toBeInTheDocument();
-    expect(
-      screen.getByText('Recommend microservice decomposition for high scalability.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Recommend microservice decomposition for high scalability.')).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(toggleBtn);

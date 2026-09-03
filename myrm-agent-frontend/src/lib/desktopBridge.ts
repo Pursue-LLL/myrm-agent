@@ -15,10 +15,7 @@
  */
 
 import { isTauriEnvironment } from '@/lib/tauri';
-import {
-  desktopBridge as coreDesktopBridge,
-  type IDesktopBridge,
-} from '@/lib/desktop-bridge';
+import { desktopBridge as coreDesktopBridge, type IDesktopBridge } from '@/lib/desktop-bridge';
 
 export interface FileFilterOption {
   name: string;

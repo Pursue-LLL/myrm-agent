@@ -64,10 +64,7 @@ const CATALOG: Record<string, ProviderDataUsageEntry> = {
   lm_studio: { policyKey: 'self_hosted' },
 };
 
-export function resolveProviderDataUsage(
-  providerId: string,
-  isLocalHost: boolean,
-): ProviderDataUsageEntry {
+export function resolveProviderDataUsage(providerId: string, isLocalHost: boolean): ProviderDataUsageEntry {
   if (isLocalHost) {
     return { policyKey: 'self_hosted' };
   }

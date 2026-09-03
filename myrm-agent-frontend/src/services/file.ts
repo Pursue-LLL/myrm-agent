@@ -182,9 +182,7 @@ export interface ChatArtifactsRevealResponse {
   artifact_count: number;
 }
 
-export const revealChatArtifacts = async (
-  chatId: string,
-): Promise<ChatArtifactsRevealResponse> => {
+export const revealChatArtifacts = async (chatId: string): Promise<ChatArtifactsRevealResponse> => {
   return apiRequest<ChatArtifactsRevealResponse>(`/files/chats/${encodeURIComponent(chatId)}/reveal`, {
     method: 'POST',
   });

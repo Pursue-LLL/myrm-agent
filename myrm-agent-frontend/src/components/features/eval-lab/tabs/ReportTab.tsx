@@ -113,10 +113,7 @@ export default function ReportTab({
       )}
 
       {report.signature_clusters && report.signature_clusters.length > 0 && (
-        <FailureSignatureClusteringPanel
-          clusters={report.signature_clusters}
-          profileId={report.manifest?.profile_id}
-        />
+        <FailureSignatureClusteringPanel clusters={report.signature_clusters} profileId={report.manifest?.profile_id} />
       )}
 
       {report.manifest && (
@@ -330,7 +327,9 @@ export default function ReportTab({
                               }`}
                             >
                               {scores.pass_rate >= 1 ? '100%' : `${Math.min(99, Math.floor(scores.pass_rate * 100))}%`}
-                              {scores.tests_total !== undefined && scores.tests_total !== null && ` · ${scores.tests_passed ?? 0}/${scores.tests_total}`}
+                              {scores.tests_total !== undefined &&
+                                scores.tests_total !== null &&
+                                ` · ${scores.tests_passed ?? 0}/${scores.tests_total}`}
                             </span>
                           )}
                           {scores?.span_recall !== undefined && scores?.span_recall !== null && (
@@ -343,7 +342,9 @@ export default function ReportTab({
                               title={t('report.retrievalSpanRecallTitle') || 'Retrieval Span Recall'}
                             >
                               {`Span ${Math.round(scores.span_recall * 100)}%`}
-                              {scores.distinct_sources !== undefined && scores.distinct_sources !== null && ` · ${scores.distinct_sources} sources`}
+                              {scores.distinct_sources !== undefined &&
+                                scores.distinct_sources !== null &&
+                                ` · ${scores.distinct_sources} sources`}
                             </span>
                           )}
                         </>

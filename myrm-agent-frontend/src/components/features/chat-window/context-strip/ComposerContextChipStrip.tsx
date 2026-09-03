@@ -85,16 +85,15 @@ const SingleChip = ({ chip, disabled, onRemoveLabel }: SingleChipProps) => {
       className={cn(
         'group inline-flex h-6 max-w-[220px] items-center gap-1.5 rounded-md border border-border/70 bg-background/80 px-2 text-xs font-medium text-foreground shadow-xs transition-colors hover:border-primary/40 dark:bg-card/90',
         chip.category === 'workflow' && 'border-amber-500/30 bg-amber-500/[0.06] text-amber-900 dark:text-amber-200',
-        chip.category === 'capability' && 'border-indigo-500/30 bg-indigo-500/[0.06] text-indigo-900 dark:text-indigo-200',
+        chip.category === 'capability' &&
+          'border-indigo-500/30 bg-indigo-500/[0.06] text-indigo-900 dark:text-indigo-200',
         isClickable && 'cursor-pointer hover:border-primary/60 dark:hover:border-primary/50',
       )}
       title={chip.tooltip || chip.label}
     >
       {renderChipIcon(chip.iconType)}
       <span className="truncate">{chip.label}</span>
-      {chip.detail ? (
-        <span className="shrink-0 text-[10px] text-muted-foreground/80">({chip.detail})</span>
-      ) : null}
+      {chip.detail ? <span className="shrink-0 text-[10px] text-muted-foreground/80">({chip.detail})</span> : null}
       {chip.isRemovable && chip.onRemove && !disabled ? (
         <button
           type="button"

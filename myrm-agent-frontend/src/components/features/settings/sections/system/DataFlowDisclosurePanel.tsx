@@ -34,10 +34,7 @@ import { getProviderCategory } from '@/store/config/providerTypes';
 import { isSandbox, isTauriRuntime } from '@/lib/deploy-mode';
 import { apiRequest } from '@/lib/api';
 import { listConnectorStatus, type ConnectorStatus } from '@/services/connect';
-import {
-  listOAuthCredentials,
-  type OAuthCredentialItem,
-} from '@/services/integrations/oauthCredentials';
+import { listOAuthCredentials, type OAuthCredentialItem } from '@/services/integrations/oauthCredentials';
 import { listChannelStatuses, type ChannelStatus } from '@/services/channels/manage';
 import { resolveProviderDataUsage } from './providerDataUsageCatalog';
 import {
@@ -141,10 +138,7 @@ export const DataFlowDisclosurePanel = memo(
       () => oauthIntegrations.filter((item) => item.connected),
       [oauthIntegrations],
     );
-    const activeChannels = useMemo(
-      () => channels.filter((channel) => channel.connected),
-      [channels],
-    );
+    const activeChannels = useMemo(() => channels.filter((channel) => channel.connected), [channels]);
 
     const egressCount =
       activeProviders.length +
@@ -159,14 +153,11 @@ export const DataFlowDisclosurePanel = memo(
     const hostedControlPlane = isHostedDeployMode(isSandbox(), backendDeployMode);
 
     const hasCloudEgress = useMemo(
-      () =>
-        activeProviders.some((p) => getProviderCategory(p.id) !== 'local') ||
-        activeOAuthIntegrations.length > 0,
+      () => activeProviders.some((p) => getProviderCategory(p.id) !== 'local') || activeOAuthIntegrations.length > 0,
       [activeOAuthIntegrations.length, activeProviders],
     );
 
-    const showCrossBorderHint =
-      privacyEnabled && Boolean(privacyRouting?.localModel?.trim()) && hasCloudEgress;
+    const showCrossBorderHint = privacyEnabled && Boolean(privacyRouting?.localModel?.trim()) && hasCloudEgress;
 
     const egressSnapshot = useMemo((): ComplianceEgressSnapshot => {
       return {
@@ -386,9 +377,7 @@ export const DataFlowDisclosurePanel = memo(
               >
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-foreground">
-                      {channel.displayName || channel.name}
-                    </span>
+                    <span className="text-xs font-semibold text-foreground">{channel.displayName || channel.name}</span>
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-500/10 text-rose-600 dark:text-rose-400">
                       {t('channelCategory')}
                     </span>

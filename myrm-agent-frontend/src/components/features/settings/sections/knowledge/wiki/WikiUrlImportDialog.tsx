@@ -23,12 +23,7 @@ interface WikiUrlImportDialogProps {
   onImportFinished: (result: ImportUrlsResultResponse) => void;
 }
 
-export function WikiUrlImportDialog({
-  open,
-  onOpenChange,
-  agentScopeId,
-  onImportFinished,
-}: WikiUrlImportDialogProps) {
+export function WikiUrlImportDialog({ open, onOpenChange, agentScopeId, onImportFinished }: WikiUrlImportDialogProps) {
   const t = useTranslations('settings.wiki.import');
   const [urlText, setUrlText] = useState('');
   const [folderPath, setFolderPath] = useState('');
@@ -69,12 +64,7 @@ export function WikiUrlImportDialog({
 
     setIsSubmitting(true);
     try {
-      const res = await wikiService.importUrls(
-        finalUrls,
-        folderPath.trim() || undefined,
-        true,
-        agentScopeId,
-      );
+      const res = await wikiService.importUrls(finalUrls, folderPath.trim() || undefined, true, agentScopeId);
       toast.success(
         t('urlImportResult', {
           total: res.total_urls,
@@ -105,9 +95,7 @@ export function WikiUrlImportDialog({
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>{t('urlImportCount', { count: Math.min(parsedUrls.length, 50) })}</span>
               {parsedUrls.length > 50 ? (
-                <span className="text-amber-600 dark:text-amber-400 font-medium">
-                  {t('urlImportTooManyError')}
-                </span>
+                <span className="text-amber-600 dark:text-amber-400 font-medium">{t('urlImportTooManyError')}</span>
               ) : null}
             </div>
             <Textarea
@@ -121,9 +109,7 @@ export function WikiUrlImportDialog({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">
-              {t('urlImportFolderLabel')}
-            </label>
+            <label className="text-xs font-medium text-foreground">{t('urlImportFolderLabel')}</label>
             <Input
               value={folderPath}
               onChange={(e) => setFolderPath(e.target.value)}
@@ -138,10 +124,7 @@ export function WikiUrlImportDialog({
           <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
             {t('conflictKeepSkipped')}
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting || parsedUrls.length === 0}
-          >
+          <Button onClick={handleSubmit} disabled={isSubmitting || parsedUrls.length === 0}>
             {isSubmitting ? t('urlImporting') : t('urlImportStart')}
           </Button>
         </DialogFooter>

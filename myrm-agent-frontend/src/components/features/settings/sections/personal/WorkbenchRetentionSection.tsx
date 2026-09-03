@@ -242,7 +242,12 @@ const WorkbenchRetentionSection = memo(() => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button asChild variant="default" size="sm" className="gap-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
+            <Button
+              asChild
+              variant="default"
+              size="sm"
+              className="gap-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+            >
               <a href="/api/v1/system/takeout" download>
                 <Download className="h-3.5 w-3.5" />
                 {t('sovereignty.exportTakeout')}

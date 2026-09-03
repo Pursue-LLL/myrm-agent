@@ -220,7 +220,9 @@ export function SourceItem({ source }: { source: Source }) {
             {(source.snapshot_status || source.claim_confidence != null || source.superseded_from_uri) && (
               <div className="mt-2 space-y-1">
                 {source.snapshot_status === 'verified' && (
-                  <p className="text-[11px] text-emerald-700 dark:text-emerald-300">{tWiki('evidenceSnapshotVerified')}</p>
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                    {tWiki('evidenceSnapshotVerified')}
+                  </p>
                 )}
                 {source.snapshot_status === 'stale' && (
                   <p className="text-[11px] text-amber-700 dark:text-amber-300">{tWiki('evidenceSnapshotStale')}</p>

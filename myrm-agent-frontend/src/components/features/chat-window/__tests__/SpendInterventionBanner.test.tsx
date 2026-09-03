@@ -41,11 +41,7 @@ describe('SpendInterventionBanner', () => {
     const onConfirmMock = vi.fn();
 
     render(
-      <SpendInterventionBanner
-        decision={mockDecision}
-        sessionId="sess_test_1"
-        onBypassConfirmed={onConfirmMock}
-      />,
+      <SpendInterventionBanner decision={mockDecision} sessionId="sess_test_1" onBypassConfirmed={onConfirmMock} />,
     );
 
     expect(screen.getByText('softGateActive')).toBeInTheDocument();
@@ -79,12 +75,7 @@ describe('SpendInterventionBanner', () => {
       createdAt: '2026-09-03T12:00:00Z',
     };
 
-    render(
-      <SpendInterventionBanner
-        decision={mockDecision}
-        sessionId="sess_test_2"
-      />,
-    );
+    render(<SpendInterventionBanner decision={mockDecision} sessionId="sess_test_2" />);
 
     expect(screen.getByText('autoDowngradedActive')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /selfConfirmButton/i })).not.toBeInTheDocument();

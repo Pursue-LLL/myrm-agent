@@ -702,7 +702,8 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                 <span className="font-semibold text-sm">{title}</span>
               </div>
               <div className="text-xs text-muted-foreground font-mono">
-                {inboxFolder}{subfolder ? `/${subfolder}` : ''}
+                {inboxFolder}
+                {subfolder ? `/${subfolder}` : ''}
               </div>
             </div>
 

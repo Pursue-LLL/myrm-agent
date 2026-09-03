@@ -77,12 +77,7 @@ describe('SkillsSectionPanel', () => {
   });
 
   it('renders clear all button and hides select all when all skills equipped', () => {
-    render(
-      <SkillsSectionPanel
-        {...defaultProps}
-        localSkillIds={['skill-1', 'skill-2']}
-      />,
-    );
+    render(<SkillsSectionPanel {...defaultProps} localSkillIds={['skill-1', 'skill-2']} />);
 
     expect(screen.queryByText('(skillsZone.pureInstructionNotice)')).toBeNull();
     expect(screen.queryByText('skillsZone.emptyExplanation')).toBeNull();

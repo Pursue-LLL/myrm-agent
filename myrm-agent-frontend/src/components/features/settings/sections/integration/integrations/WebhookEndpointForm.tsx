@@ -172,9 +172,7 @@ export const WebhookEndpointForm = memo(
               );
             })}
           </div>
-          {values.events.length === 0 ? (
-            <p className="text-[11px] text-destructive">{t('eventsRequired')}</p>
-          ) : null}
+          {values.events.length === 0 ? <p className="text-[11px] text-destructive">{t('eventsRequired')}</p> : null}
         </div>
 
         <div className="flex justify-end gap-2 pt-2 border-t border-border/40">

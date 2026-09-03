@@ -92,7 +92,7 @@ describe('ExternalHarnessSyncCard', () => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Transcripts Synchronized',
-        })
+        }),
       );
     });
   });
@@ -114,7 +114,7 @@ describe('ExternalHarnessSyncCard', () => {
       expect.objectContaining({
         title: 'Directory Picker Unavailable',
         variant: 'destructive',
-      })
+      }),
     );
   });
 });

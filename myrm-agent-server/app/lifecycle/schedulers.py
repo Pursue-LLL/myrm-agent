@@ -381,6 +381,7 @@ async def _db_maintenance_job() -> None:
     7. Chat trash auto-purge — permanently delete chats trashed > 30 days
     8. Kanban data GC — clean old events/runs/workspaces for terminal tasks
     9. Artifact share registry GC — remove expired share records (TTL + retention)
+    10. Channel data plane GC — prune channel messages older than 30 days
     """
     # SQLite WAL checkpoint
     try:
@@ -543,6 +544,19 @@ async def _db_maintenance_job() -> None:
             )
     except Exception as e:
         logger.warning("Artifact share registry GC failed: %s", e)
+
+    # Channel data plane GC: prune inbound channel messages older than 30 days
+    try:
+        from app.database.repositories.channel_message_repo import ChannelMessageRepository
+        from app.platform_utils import session_factory
+
+        async with session_factory() as session:
+            pruned_count = await ChannelMessageRepository.prune_expired(session, retention_days=30)
+            await session.commit()
+        if pruned_count > 0:
+            logger.info("Channel data plane GC: %d expired messages pruned", pruned_count)
+    except Exception as e:
+        logger.warning("Channel data plane GC failed: %s", e)
 
 
 async def _incognito_cleanup_job() -> None:

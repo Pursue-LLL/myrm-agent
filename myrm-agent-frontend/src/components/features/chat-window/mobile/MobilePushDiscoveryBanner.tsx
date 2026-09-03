@@ -56,9 +56,7 @@ export function MobilePushDiscoveryBanner() {
           <Bell className="h-4 w-4" />
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-medium text-foreground leading-snug">
-            {t('pushEnableBanner')}
-          </p>
+          <p className="text-xs font-medium text-foreground leading-snug">{t('pushEnableBanner')}</p>
         </div>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">

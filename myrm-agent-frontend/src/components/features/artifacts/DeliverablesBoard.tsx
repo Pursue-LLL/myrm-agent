@@ -110,7 +110,8 @@ export const DeliverablesBoard: React.FC<DeliverablesBoardProps> = ({ manifest, 
               {manifest.title || '任务交付物全景看板'}
             </DialogTitle>
             <p className="text-xs text-muted-foreground">
-              共包含 {manifest.items.length} 份交付物 · 总大小 {formatBytes(manifest.items.reduce((acc, i) => acc + (i.size_bytes || 0), 0))}
+              共包含 {manifest.items.length} 份交付物 · 总大小{' '}
+              {formatBytes(manifest.items.reduce((acc, i) => acc + (i.size_bytes || 0), 0))}
             </p>
           </div>
           <Button onClick={handleDownloadAllZip} className="flex items-center gap-2" variant="default">
@@ -198,9 +199,7 @@ export const DeliverablesBoard: React.FC<DeliverablesBoardProps> = ({ manifest, 
           })}
 
           {filteredItems.length === 0 && (
-            <div className="col-span-full py-16 text-center text-muted-foreground text-xs">
-              未找到匹配的交付物
-            </div>
+            <div className="col-span-full py-16 text-center text-muted-foreground text-xs">未找到匹配的交付物</div>
           )}
         </div>
 

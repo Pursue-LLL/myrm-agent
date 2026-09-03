@@ -24,10 +24,7 @@ interface TurnCapabilityOverrideBarProps {
   disabled?: boolean;
 }
 
-function formatOverrideSummary(
-  t: ReturnType<typeof useTranslations>,
-  selection: TurnCapabilitySelection,
-): string {
+function formatOverrideSummary(t: ReturnType<typeof useTranslations>, selection: TurnCapabilitySelection): string {
   const parts: string[] = [];
   if (selection.skillIds !== null) {
     parts.push(t('overrideSkillsShort', { skills: selection.skillIds.length }));

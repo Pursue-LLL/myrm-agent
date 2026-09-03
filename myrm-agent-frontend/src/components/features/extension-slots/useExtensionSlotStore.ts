@@ -49,4 +49,3 @@ declare global {
 if (typeof window !== 'undefined') {
   window.__MYRM_EXTENSION_SLOT_STORE__ = useExtensionSlotStore;
 }
-

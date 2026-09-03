@@ -41,10 +41,7 @@ interface FailureSignatureClusteringPanelProps {
   profileId?: string;
 }
 
-export function FailureSignatureClusteringPanel({
-  clusters,
-  profileId,
-}: FailureSignatureClusteringPanelProps) {
+export function FailureSignatureClusteringPanel({ clusters, profileId }: FailureSignatureClusteringPanelProps) {
   const t = useTranslations('evalLab.clustering');
   const [expandedClusterId, setExpandedClusterId] = useState<string | null>(null);
   const [copiedPatchId, setCopiedPatchId] = useState<string | null>(null);
@@ -109,16 +106,12 @@ export function FailureSignatureClusteringPanel({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Layers className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold text-base text-foreground tracking-tight">
-            {t('panelTitle')}
-          </h3>
+          <h3 className="font-semibold text-base text-foreground tracking-tight">{t('panelTitle')}</h3>
           <span className="text-xs px-2 py-0.5 rounded-full bg-secondary font-medium text-muted-foreground">
             {clusters.length} {t('clustersFound')}
           </span>
         </div>
-        <p className="text-xs text-muted-foreground hidden sm:block">
-          {t('panelSubtitle')}
-        </p>
+        <p className="text-xs text-muted-foreground hidden sm:block">{t('panelSubtitle')}</p>
       </div>
 
       <div className="space-y-3">
@@ -140,11 +133,7 @@ export function FailureSignatureClusteringPanel({
                     type="button"
                     className="mt-0.5 text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {isExpanded ? (
-                      <ChevronDown className="w-4 h-4" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4" />
-                    )}
+                    {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                   </button>
                   <div className="space-y-1 flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -156,9 +145,7 @@ export function FailureSignatureClusteringPanel({
                         qi: {cluster.qi}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground line-clamp-1">
-                      {cluster.remediation_hint}
-                    </p>
+                    <p className="text-xs text-muted-foreground line-clamp-1">{cluster.remediation_hint}</p>
                   </div>
                 </div>
 
@@ -173,15 +160,10 @@ export function FailureSignatureClusteringPanel({
                 <div className="px-4 pb-4 pt-1 border-t bg-muted/20 space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                     <div>
-                      <span className="text-muted-foreground font-medium block mb-1">
-                        {t('affectedCases')}:
-                      </span>
+                      <span className="text-muted-foreground font-medium block mb-1">{t('affectedCases')}:</span>
                       <div className="flex flex-wrap gap-1">
                         {cluster.affected_case_indices.map((idx) => (
-                          <span
-                            key={idx}
-                            className="px-1.5 py-0.5 rounded bg-muted font-mono text-[11px]"
-                          >
+                          <span key={idx} className="px-1.5 py-0.5 rounded bg-muted font-mono text-[11px]">
                             Case #{idx + 1}
                           </span>
                         ))}
@@ -190,9 +172,7 @@ export function FailureSignatureClusteringPanel({
 
                     {cluster.sample_messages && cluster.sample_messages.length > 0 && (
                       <div>
-                        <span className="text-muted-foreground font-medium block mb-1">
-                          {t('sampleQueries')}:
-                        </span>
+                        <span className="text-muted-foreground font-medium block mb-1">{t('sampleQueries')}:</span>
                         <ul className="list-disc list-inside space-y-0.5 text-muted-foreground">
                           {cluster.sample_messages.map((msg, i) => (
                             <li key={i} className="truncate font-mono text-[11px]" title={msg}>
@@ -248,9 +228,7 @@ export function FailureSignatureClusteringPanel({
                       <pre className="p-2 rounded bg-muted/60 font-mono text-[11px] overflow-x-auto text-foreground">
                         {JSON.stringify([cluster.patch_proposal], null, 2)}
                       </pre>
-                      <p className="text-[11px] text-muted-foreground">
-                        {cluster.patch_proposal.rationale}
-                      </p>
+                      <p className="text-[11px] text-muted-foreground">{cluster.patch_proposal.rationale}</p>
                     </div>
                   )}
                 </div>

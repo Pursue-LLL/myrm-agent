@@ -139,15 +139,7 @@ export const DataFlowYourRightsStrip = memo(({ egressSnapshot }: DataFlowYourRig
     } finally {
       setExporting(false);
     }
-  }, [
-    egressSnapshot,
-    privacyDeepScan,
-    privacyEnabled,
-    privacyRouting,
-    privacyS2Action,
-    privacyS3Action,
-    t,
-  ]);
+  }, [egressSnapshot, privacyDeepScan, privacyEnabled, privacyRouting, privacyS2Action, privacyS3Action, t]);
 
   return (
     <div className="rounded-xl border border-border/60 bg-muted/20 p-4.5 space-y-3">

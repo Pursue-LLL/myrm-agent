@@ -358,12 +358,7 @@ describe('TokenUsageDisplay', () => {
   // --- 沙箱环境快照指示器 ---
 
   it('renders sandbox environment bootstrap snapshot badge when present', () => {
-    render(
-      <TokenUsageDisplay
-        usage={makeUsage()}
-        sandboxEnvHint="Python 3.12 · uv"
-      />,
-    );
+    render(<TokenUsageDisplay usage={makeUsage()} sandboxEnvHint="Python 3.12 · uv" />);
     const badge = screen.getByTestId('sandbox-env-badge');
     expect(badge).toBeInTheDocument();
     expect(badge).toHaveTextContent('Python 3.12 · uv');

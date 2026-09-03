@@ -14,18 +14,9 @@ import { apiRequest } from '@/lib/api';
 import type { ExpertTemplateKind } from '@/services/templateDiscovery';
 
 export type ExpertSummonMetricSurface =
-  | 'template_market'
-  | 'flow_pad_inline'
-  | 'empty_chat_featured'
-  | 'message_input_plus'
-  | 'mobile_hub_chip';
+  'template_market' | 'flow_pad_inline' | 'empty_chat_featured' | 'message_input_plus' | 'mobile_hub_chip';
 export type ExpertSummonMetricTrigger =
-  | 'template_card'
-  | 'use_case_chip'
-  | 'route_menu'
-  | 'featured_chip'
-  | 'plus_popover_card'
-  | 'mobile_chip';
+  'template_card' | 'use_case_chip' | 'route_menu' | 'featured_chip' | 'plus_popover_card' | 'mobile_chip';
 export type ExpertSummonMetricEventType =
   | 'surface_viewed'
   | 'search_used'

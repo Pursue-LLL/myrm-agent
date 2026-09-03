@@ -169,9 +169,7 @@ const AgentUsageCard = memo(() => {
                           <Globe className="w-3 h-3 text-sky-500" />
                           <span>{t('sourceWeb')}</span>
                         </div>
-                        <span className="text-xs font-semibold text-foreground">
-                          {formatCost(attr?.webUsd ?? 0)}
-                        </span>
+                        <span className="text-xs font-semibold text-foreground">{formatCost(attr?.webUsd ?? 0)}</span>
                         <span className="text-[10px] text-muted-foreground">
                           {formatTokenCount(attr?.webTokens ?? 0)} tokens
                         </span>
@@ -195,9 +193,7 @@ const AgentUsageCard = memo(() => {
                           <Clock className="w-3 h-3 text-amber-500" />
                           <span>{t('sourceCron')}</span>
                         </div>
-                        <span className="text-xs font-semibold text-foreground">
-                          {formatCost(attr?.cronUsd ?? 0)}
-                        </span>
+                        <span className="text-xs font-semibold text-foreground">{formatCost(attr?.cronUsd ?? 0)}</span>
                         <span className="text-[10px] text-muted-foreground">
                           {formatTokenCount(attr?.cronTokens ?? 0)} tokens
                         </span>

@@ -153,7 +153,7 @@ export const StorageGovernanceCard = memo(() => {
         setRestoringSnapshotId(null);
       }
     },
-    [fetchReport, t]
+    [fetchReport, t],
   );
 
   const handleDeleteSnapshot = useCallback(
@@ -175,14 +175,11 @@ export const StorageGovernanceCard = memo(() => {
         });
       }
     },
-    [fetchReport, t]
+    [fetchReport, t],
   );
 
   return (
-    <SettingsSection
-      title={t('title')}
-      description={t('description')}
-    >
+    <SettingsSection title={t('title')} description={t('description')}>
       <div className="space-y-6">
         {/* Total Usage & Disk Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -233,7 +230,11 @@ export const StorageGovernanceCard = memo(() => {
               disabled={compacting || loading}
               className="gap-1.5 text-xs h-8"
             >
-              {compacting ? <IconLoader className="w-3.5 h-3.5 animate-spin" /> : <IconWrench className="w-3.5 h-3.5" />}
+              {compacting ? (
+                <IconLoader className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <IconWrench className="w-3.5 h-3.5" />
+              )}
               {t('compactAndPurge')}
             </Button>
           </div>
@@ -249,7 +250,10 @@ export const StorageGovernanceCard = memo(() => {
                   <span className="text-xs font-semibold">{formatBytes(cat.bytes)}</span>
                 </div>
                 <div className="w-full bg-border/40 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-primary h-full transition-all" style={{ width: `${Math.min(100, Math.max(1, cat.percentage))}%` }} />
+                  <div
+                    className="bg-primary h-full transition-all"
+                    style={{ width: `${Math.min(100, Math.max(1, cat.percentage))}%` }}
+                  />
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                   <span>{t('itemsCount', { count: cat.item_count })}</span>
@@ -278,7 +282,11 @@ export const StorageGovernanceCard = memo(() => {
               disabled={creatingSnapshot || !snapshotLabel.trim()}
               className="h-8 text-xs gap-1"
             >
-              {creatingSnapshot ? <IconLoader className="w-3.5 h-3.5 animate-spin" /> : <IconCheck className="w-3.5 h-3.5" />}
+              {creatingSnapshot ? (
+                <IconLoader className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <IconCheck className="w-3.5 h-3.5" />
+              )}
               {t('createSnapshot')}
             </Button>
           </div>

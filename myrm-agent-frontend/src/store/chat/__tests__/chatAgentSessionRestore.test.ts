@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  finalizeAgentStreamTurn,
-  restoreAgentConfigFromChat,
-} from '@/store/chat/chatAgentSessionRestore';
+import { finalizeAgentStreamTurn, restoreAgentConfigFromChat } from '@/store/chat/chatAgentSessionRestore';
 
 const getChatDetailMock = vi.hoisted(() => vi.fn());
 const fetchAgentMock = vi.hoisted(() => vi.fn());
@@ -93,10 +90,10 @@ describe('chatAgentSessionRestore', () => {
 
     await restoreAgentConfigFromChat('chat-restore', 'agent-missing');
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      '[MYRM-AGENT-RESTORE] fetchAgent returned empty',
-      { chatId: 'chat-restore', agentId: 'agent-missing' },
-    );
+    expect(warnSpy).toHaveBeenCalledWith('[MYRM-AGENT-RESTORE] fetchAgent returned empty', {
+      chatId: 'chat-restore',
+      agentId: 'agent-missing',
+    });
     warnSpy.mockRestore();
   });
 

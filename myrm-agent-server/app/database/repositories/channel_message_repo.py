@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Sequence
 
 from sqlalchemy import Integer, delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.channel_message import ChannelMessageModel
@@ -23,9 +24,23 @@ class ChannelMessageRepository:
         session: AsyncSession,
         message: ChannelMessageModel,
     ) -> ChannelMessageModel:
-        """Atomically persist a single redacted and tagged channel message."""
-        session.add(message)
-        await session.flush()
+        """Atomically persist a single redacted and tagged channel message with idempotent collision handling."""
+        try:
+            if hasattr(session, "begin_nested"):
+                nested = session.begin_nested()
+                if hasattr(nested, "__aenter__"):
+                    async with nested:
+                        session.add(message)
+                        await session.flush()
+                else:
+                    session.add(message)
+                    await session.flush()
+            else:
+                session.add(message)
+                await session.flush()
+        except IntegrityError:
+            # Idempotently absorb duplicate message_id on webhook retries
+            pass
         return message
 
     @staticmethod
@@ -78,7 +93,9 @@ class ChannelMessageRepository:
     ) -> int:
         """Prune messages older than retention_days. Returns the number of pruned rows."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
-        stmt = delete(ChannelMessageModel).where(ChannelMessageModel.created_at < cutoff)
+        stmt = delete(ChannelMessageModel).where(
+            ChannelMessageModel.created_at < cutoff
+        )
         result = await session.execute(stmt)
         await session.flush()
         return int(result.rowcount or 0)

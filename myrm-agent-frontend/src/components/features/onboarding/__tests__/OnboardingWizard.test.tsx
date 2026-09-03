@@ -866,4 +866,3 @@ describe('OnboardingWizard', () => {
     });
   });
 });
-

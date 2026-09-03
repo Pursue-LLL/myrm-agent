@@ -198,14 +198,7 @@ const MessageBox = ({
     }
     let processedMessage = message.content;
     if (message.role === 'assistant' && processedMessage.includes('<')) {
-      for (const tag of [
-        'think',
-        'thinking',
-        'thought',
-        'antthinking',
-        'reasoning',
-        'REASONING_SCRATCHPAD',
-      ] as const) {
+      for (const tag of ['think', 'thinking', 'thought', 'antthinking', 'reasoning', 'REASONING_SCRATCHPAD'] as const) {
         const openRe = new RegExp(`<${tag}>`, 'gi');
         const closeRe = new RegExp(`</${tag}>`, 'gi');
         const openCount = processedMessage.match(openRe)?.length || 0;
@@ -592,9 +585,7 @@ const MessageBox = ({
         <VisualApprovalInlineSection messageId={message.messageId} chatId={chatId ?? null} />
 
         {/* 多专家 Council 编排会商与仲裁结果卡片 */}
-        {message.councilResult && (
-          <CouncilResultCard councilResult={message.councilResult} />
-        )}
+        {message.councilResult && <CouncilResultCard councilResult={message.councilResult} />}
 
         {/* 工件 */}
         {message.artifacts && message.artifacts.length > 0 && (

@@ -104,14 +104,7 @@ describe('SkillGrowthCaseCard manifest prediction rendering', () => {
       },
     });
 
-    render(
-      <SkillGrowthCaseCard
-        item={item}
-        isProcessing={false}
-        onApprove={vi.fn()}
-        onReject={vi.fn()}
-      />
-    );
+    render(<SkillGrowthCaseCard item={item} isProcessing={false} onApprove={vi.fn()} onReject={vi.fn()} />);
 
     expect(screen.getByText('Change Manifest Predictions & Attribution')).toBeInTheDocument();
     expect(screen.getByText('pass_rate')).toBeInTheDocument();
@@ -131,19 +124,10 @@ describe('SkillGrowthCaseCard manifest prediction rendering', () => {
       },
     });
 
-    render(
-      <SkillGrowthCaseCard
-        item={item}
-        isProcessing={false}
-        onApprove={vi.fn()}
-        onReject={vi.fn()}
-      />
-    );
+    render(<SkillGrowthCaseCard item={item} isProcessing={false} onApprove={vi.fn()} onReject={vi.fn()} />);
 
     expect(screen.getByText('CONFIRMED')).toBeInTheDocument();
-    expect(
-      screen.getByText('Post-apply verification achieved 100% pass rate as predicted.')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Post-apply verification achieved 100% pass rate as predicted.')).toBeInTheDocument();
   });
 
   it('renders pareto generalization verdict badge when available in manifest', () => {
@@ -158,14 +142,7 @@ describe('SkillGrowthCaseCard manifest prediction rendering', () => {
       },
     });
 
-    render(
-      <SkillGrowthCaseCard
-        item={item}
-        isProcessing={false}
-        onApprove={vi.fn()}
-        onReject={vi.fn()}
-      />
-    );
+    render(<SkillGrowthCaseCard item={item} isProcessing={false} onApprove={vi.fn()} onReject={vi.fn()} />);
 
     expect(screen.getByText('Generalization Optimal')).toBeInTheDocument();
   });

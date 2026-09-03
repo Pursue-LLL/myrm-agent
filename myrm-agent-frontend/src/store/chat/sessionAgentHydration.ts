@@ -18,15 +18,11 @@ export interface AgentHydrationSnapshot {
   loadError?: boolean;
 }
 
-export function shouldDeferMessagesReadyUntilAgentRestore(
-  agentId: string | null | undefined,
-): boolean {
+export function shouldDeferMessagesReadyUntilAgentRestore(agentId: string | null | undefined): boolean {
   return Boolean(agentId?.trim());
 }
 
-export function expectedSecurityPresetForAgent(
-  agentConfig: AgentConfig | null | undefined,
-): SecurityPreset {
+export function expectedSecurityPresetForAgent(agentConfig: AgentConfig | null | undefined): SecurityPreset {
   return normalizeSecurityPreset(agentConfig?.defaultSecurityPreset);
 }
 

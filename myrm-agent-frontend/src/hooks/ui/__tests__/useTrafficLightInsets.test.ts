@@ -9,12 +9,14 @@ import { renderHook } from '@testing-library/react';
 import { useTrafficLightInsets } from '../useTrafficLightInsets';
 import { desktopBridge } from '@/lib/desktop-bridge';
 
-function mockControls(overrides: Partial<{
-  platform: string;
-  isDesktop: boolean;
-  controlsInsetTop: number;
-  controlsInsetLeft: number;
-}> = {}) {
+function mockControls(
+  overrides: Partial<{
+    platform: string;
+    isDesktop: boolean;
+    controlsInsetTop: number;
+    controlsInsetLeft: number;
+  }> = {},
+) {
   vi.spyOn(desktopBridge, 'getWindowControlsState').mockReturnValue({
     platform: 'web',
     isDesktop: false,

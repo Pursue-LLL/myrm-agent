@@ -2,14 +2,7 @@
 
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  FolderArchive,
-  Download,
-  Eye,
-  Layers,
-  Sparkles,
-  CheckCircle2,
-} from 'lucide-react';
+import { FolderArchive, Download, Eye, Layers, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { DeliverableManifest } from './deliverableTypes';
 import { DeliverablesBoard } from './DeliverablesBoard';
@@ -45,9 +38,7 @@ export const DeliverableBundleCard: React.FC<DeliverableBundleCardProps> = ({ ma
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h4 className="font-semibold text-sm text-foreground">
-                  {manifest.title || '任务成套交付物包'}
-                </h4>
+                <h4 className="font-semibold text-sm text-foreground">{manifest.title || '任务成套交付物包'}</h4>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                   <CheckCircle2 className="w-3 h-3" />
                   已就绪 ({manifest.items.length} 份成品)
@@ -82,11 +73,7 @@ export const DeliverableBundleCard: React.FC<DeliverableBundleCardProps> = ({ ma
         </div>
       </div>
 
-      <DeliverablesBoard
-        manifest={manifest}
-        open={boardOpen}
-        onOpenChange={setBoardOpen}
-      />
+      <DeliverablesBoard manifest={manifest} open={boardOpen} onOpenChange={setBoardOpen} />
     </>
   );
 };

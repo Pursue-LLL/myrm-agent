@@ -161,9 +161,7 @@ describe('StorageCard - Database Optimization Flow', () => {
         mode: 'deep',
         create_backup: true,
       });
-      expect(toast.success).toHaveBeenCalledWith(
-        expect.stringContaining('storageOptimizeSuccess'),
-      );
+      expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('storageOptimizeSuccess'));
       expect(screen.getByText('Reclaimed 367001600 bytes (70.0%) in 120ms')).toBeInTheDocument();
     });
   });

@@ -369,37 +369,27 @@ const BudgetPolicySection = memo(() => {
                 <IconShield className="w-4 h-4 text-primary" />
                 <span>{t('fourTierSpendControlTitle')}</span>
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5">
-                {t('fourTierSpendControlDesc')}
-              </div>
+              <div className="text-xs text-muted-foreground mt-0.5">{t('fourTierSpendControlDesc')}</div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               <div className="p-2.5 rounded-xl border border-sky-500/20 bg-sky-500/5 flex flex-col gap-1">
-                <div className="font-medium text-sky-600 dark:text-sky-400">
-                  {t('tier1Label')}
-                </div>
+                <div className="font-medium text-sky-600 dark:text-sky-400">{t('tier1Label')}</div>
                 <div className="text-muted-foreground">{t('tier1Desc')}</div>
               </div>
 
               <div className="p-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5 flex flex-col gap-1">
-                <div className="font-medium text-amber-600 dark:text-amber-400">
-                  {t('tier2Label')}
-                </div>
+                <div className="font-medium text-amber-600 dark:text-amber-400">{t('tier2Label')}</div>
                 <div className="text-muted-foreground">{t('tier2Desc')}</div>
               </div>
 
               <div className="p-2.5 rounded-xl border border-purple-500/20 bg-purple-500/5 flex flex-col gap-1">
-                <div className="font-medium text-purple-600 dark:text-purple-400">
-                  {t('tier3Label')}
-                </div>
+                <div className="font-medium text-purple-600 dark:text-purple-400">{t('tier3Label')}</div>
                 <div className="text-muted-foreground">{t('tier3Desc')}</div>
               </div>
 
               <div className="p-2.5 rounded-xl border border-red-500/20 bg-red-500/5 flex flex-col gap-1">
-                <div className="font-medium text-red-600 dark:text-red-400">
-                  {t('tier4Label')}
-                </div>
+                <div className="font-medium text-red-600 dark:text-red-400">{t('tier4Label')}</div>
                 <div className="text-muted-foreground">{t('tier4Desc')}</div>
               </div>
             </div>
@@ -407,9 +397,7 @@ const BudgetPolicySection = memo(() => {
             {/* Fleet Quota Deck Telemetry */}
             {fleetItems.length > 0 && (
               <div className="mt-4 pt-3 border-t border-border/30 space-y-2">
-                <div className="text-xs font-semibold text-foreground">
-                  {t('fleetQuotaDeckTitle')}
-                </div>
+                <div className="text-xs font-semibold text-foreground">{t('fleetQuotaDeckTitle')}</div>
                 <div className="space-y-1.5">
                   {fleetItems.map((item) => (
                     <div
@@ -417,9 +405,7 @@ const BudgetPolicySection = memo(() => {
                       className="flex items-center justify-between p-2 rounded-lg bg-background/50 border border-border/40 text-xs"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-foreground font-medium">
-                          {item.identifier}
-                        </span>
+                        <span className="font-mono text-foreground font-medium">{item.identifier}</span>
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">
                           {item.dimension === 'agent_profile'
                             ? t('dimensionAgentProfile')

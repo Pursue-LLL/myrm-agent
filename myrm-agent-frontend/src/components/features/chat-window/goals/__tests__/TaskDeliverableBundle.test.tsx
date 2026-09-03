@@ -92,7 +92,7 @@ describe('TaskDeliverableBundle', () => {
 
   it('filters items when category tab is clicked', () => {
     render(<TaskDeliverableBundle goal={makeGoal()} chatId="chat-1" />);
-    
+
     // Click on Strategy tab (supports i18n mock and default message)
     const strategyTab = screen.getByText(/Strategy & Overview|策略与方案/);
     fireEvent.click(strategyTab);
@@ -105,7 +105,7 @@ describe('TaskDeliverableBundle', () => {
 
   it('supports selecting items and exporting selected subset', async () => {
     render(<TaskDeliverableBundle goal={makeGoal()} chatId="chat-1" />);
-    
+
     const checkboxes = screen.getAllByRole('checkbox');
     expect(checkboxes.length).toBe(5);
 

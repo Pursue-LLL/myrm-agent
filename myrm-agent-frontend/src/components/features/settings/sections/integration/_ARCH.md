@@ -17,7 +17,7 @@
 | `ExternalAgentsConfig.tsx` / `ExternalAgentAuthControls.tsx` | 外部 Agent 连接配置                                                            |
 | `OpenAIApiSection.tsx`                                       | Agent API 设置（OpenAI 兼容端点，仅 Agent 执行）                               |
 | `CommunicationSection.tsx`                                   | 渠道 Tab 容器（聚合 `channels/`）                                              |
-| `integrations/`                                              | Integration Catalog、Lifecycle Webhooks、连接对话框、记忆绑定                                      |
+| `integrations/`                                              | Integration Catalog、Lifecycle Webhooks、连接对话框、记忆绑定                  |
 | `channels/`                                                  | 各 IM 渠道配置卡片与路由                                                       | [channels/_ARCH.md](channels/_ARCH.md)        |
 
 ## 路由 SSOT（Settings Tab）

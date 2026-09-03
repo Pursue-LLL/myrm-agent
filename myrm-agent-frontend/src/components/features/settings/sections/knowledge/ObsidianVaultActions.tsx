@@ -94,56 +94,61 @@ export function ObsidianVaultActions({
 
   return (
     <>
-    <Card id="wiki-obsidian-vault-actions">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <IconExplore className="w-5 h-5" />
-          {t('title')}
-        </CardTitle>
-        <CardDescription>{t('description')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-xs text-muted-foreground">{t('mountHint')}</p>
-        {vaultGitEnabled && vaultGitInitialized && (
-          <p className="text-xs text-muted-foreground">
-            {vaultGitLastCommit ? t('gitHistoryHintWithCommit', { commit: vaultGitLastCommit }) : t('gitHistoryHint')}
-          </p>
-        )}
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {showLocalActions && (
-            <>
-              {obsidianLaunchAvailable && (
+      <Card id="wiki-obsidian-vault-actions">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <IconExplore className="w-5 h-5" />
+            {t('title')}
+          </CardTitle>
+          <CardDescription>{t('description')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">{t('mountHint')}</p>
+          {vaultGitEnabled && vaultGitInitialized && (
+            <p className="text-xs text-muted-foreground">
+              {vaultGitLastCommit ? t('gitHistoryHintWithCommit', { commit: vaultGitLastCommit }) : t('gitHistoryHint')}
+            </p>
+          )}
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            {showLocalActions && (
+              <>
+                {obsidianLaunchAvailable && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!vaultReady || isOpeningObsidian}
+                    onClick={() => void handleOpenObsidian()}
+                  >
+                    {isOpeningObsidian ? t('opening') : t('openObsidian')}
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={!vaultReady || isOpeningObsidian}
-                  onClick={() => void handleOpenObsidian()}
+                  disabled={!vaultReady || isRevealing}
+                  onClick={() => void handleReveal()}
                 >
-                  {isOpeningObsidian ? t('opening') : t('openObsidian')}
+                  {isRevealing ? t('opening') : t('revealFolder')}
                 </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!vaultReady || isRevealing}
-                onClick={() => void handleReveal()}
-              >
-                {isRevealing ? t('opening') : t('revealFolder')}
-              </Button>
-              <Button variant="ghost" size="sm" disabled={!wikiPath} onClick={() => void handleCopyPath()}>
-                {t('copyPath')}
-              </Button>
-            </>
-          )}
-          <Button variant="default" size="sm" disabled={!vaultReady || isExporting} onClick={() => void handleExport()}>
-            <IconDatabase className="w-4 h-4 mr-2" />
-            {isExporting ? t('exporting') : t('downloadPack')}
-          </Button>
-        </div>
-        {!showLocalActions && <p className="text-xs text-muted-foreground">{t('cloudHint')}</p>}
-      </CardContent>
-    </Card>
-    <ObsidianVaultBindingSection agentScopeId={agentScopeId} />
+                <Button variant="ghost" size="sm" disabled={!wikiPath} onClick={() => void handleCopyPath()}>
+                  {t('copyPath')}
+                </Button>
+              </>
+            )}
+            <Button
+              variant="default"
+              size="sm"
+              disabled={!vaultReady || isExporting}
+              onClick={() => void handleExport()}
+            >
+              <IconDatabase className="w-4 h-4 mr-2" />
+              {isExporting ? t('exporting') : t('downloadPack')}
+            </Button>
+          </div>
+          {!showLocalActions && <p className="text-xs text-muted-foreground">{t('cloudHint')}</p>}
+        </CardContent>
+      </Card>
+      <ObsidianVaultBindingSection agentScopeId={agentScopeId} />
     </>
   );
 }

@@ -298,9 +298,7 @@ function TeamTemplateCard({
             </span>
             {template.is_pareto_preset && (
               <span className="shrink-0 px-1.5 py-0.2 text-[10px] font-medium rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                {template.cost_reduction_ratio
-                  ? `-${Math.round(template.cost_reduction_ratio * 100)}%`
-                  : 'Pareto'}
+                {template.cost_reduction_ratio ? `-${Math.round(template.cost_reduction_ratio * 100)}%` : 'Pareto'}
               </span>
             )}
           </div>

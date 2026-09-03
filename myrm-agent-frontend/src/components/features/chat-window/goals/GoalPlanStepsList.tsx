@@ -47,7 +47,10 @@ export function GoalPlanStepsList({ goal, steps, compact = false }: GoalPlanStep
               step.status === 'in_progress' && 'border-primary/30 bg-primary/5',
               step.status === 'completed' && 'border-border/60 bg-muted/20',
               step.status === 'blocked' && 'border-amber-500/30 bg-amber-500/5',
-              step.status !== 'in_progress' && step.status !== 'completed' && step.status !== 'blocked' && 'border-border bg-card',
+              step.status !== 'in_progress' &&
+                step.status !== 'completed' &&
+                step.status !== 'blocked' &&
+                'border-border bg-card',
             )}
           >
             <StepStatusIcon status={step.status} />

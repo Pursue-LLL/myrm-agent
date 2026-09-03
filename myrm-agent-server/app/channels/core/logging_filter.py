@@ -35,8 +35,10 @@ class SensitiveDataFilter(logging.Filter):
 
     # Sensitive field patterns (case-insensitive)
     SENSITIVE_PATTERNS: ClassVar[list[re.Pattern[str]]] = [
-        re.compile(r'(token|password|secret|key|auth|credential|bearer)\s*[=:]\s*["\']?([^\s"\']+)["\']?', re.IGNORECASE),
+        re.compile(r'(token|password|secret|key|auth|credential)\s*[=:]\s*["\']?([^\s"\']+)["\']?', re.IGNORECASE),
+        re.compile(r'\b(bearer)\s+([^\s"\']{12,})', re.IGNORECASE),
         re.compile(r'(access_token|api_key|auth_header|access_key|secret_key)\s*[=:]\s*["\']?([^\s"\']+)["\']?', re.IGNORECASE),
+        re.compile(r'\b(sk-[A-Za-z0-9_\-]{16,})\b', re.IGNORECASE),
     ]
 
     # Value patterns that look like credentials
@@ -61,18 +63,20 @@ class SensitiveDataFilter(logging.Filter):
 
         return True
 
+    @classmethod
+    def _apply_sub(cls, pattern: re.Pattern[str], text: str) -> str:
+        def repl(m: re.Match[str]) -> str:
+            if m.lastindex == 2:
+                return f"{m.group(1)}={cls.REDACTION_MASK}"
+            return cls.REDACTION_MASK
+
+        return pattern.sub(repl, text)
+
     def _redact(self, text: str) -> str:
         """Redact sensitive information from text."""
         result = text
-
-        # Redact sensitive field patterns
         for pattern in self.SENSITIVE_PATTERNS:
-            result = pattern.sub(lambda m: f"{m.group(1)}={self.REDACTION_MASK}", result)
-
-        # Optionally redact credential-like values (commented out to avoid false positives)
-        # for pattern in self.VALUE_PATTERNS:
-        #     result = pattern.sub(self.REDACTION_MASK, result)
-
+            result = self._apply_sub(pattern, result)
         return result
 
 
@@ -94,7 +98,7 @@ def redact_sensitive(text: str, patterns: list[str] | None = None) -> str:
 
     # Apply built-in patterns
     for pattern in SensitiveDataFilter.SENSITIVE_PATTERNS:
-        result = pattern.sub(lambda m: f"{m.group(1)}={SensitiveDataFilter.REDACTION_MASK}", result)
+        result = SensitiveDataFilter._apply_sub(pattern, result)
 
     # Apply custom patterns
     if patterns:

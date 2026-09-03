@@ -69,10 +69,7 @@ export const dualTrackAuditService = {
     return apiRequest<DualTrackAuditEntryItem[]>(endpoint);
   },
 
-  async getStats(params?: {
-    sessionId?: string;
-    agentId?: string;
-  }): Promise<DualTrackAuditStatsResponse> {
+  async getStats(params?: { sessionId?: string; agentId?: string }): Promise<DualTrackAuditStatsResponse> {
     const query = new URLSearchParams();
     if (params?.sessionId) query.set('session_id', params.sessionId);
     if (params?.agentId) query.set('agent_id', params.agentId);
@@ -82,11 +79,7 @@ export const dualTrackAuditService = {
     return apiRequest<DualTrackAuditStatsResponse>(endpoint);
   },
 
-  getExportUrl(params?: {
-    format?: 'json' | 'csv' | 'markdown';
-    sessionId?: string;
-    agentId?: string;
-  }): string {
+  getExportUrl(params?: { format?: 'json' | 'csv' | 'markdown'; sessionId?: string; agentId?: string }): string {
     const query = new URLSearchParams();
     query.set('format', params?.format ?? 'json');
     if (params?.sessionId) query.set('session_id', params.sessionId);

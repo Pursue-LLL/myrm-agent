@@ -17,12 +17,7 @@ describe('ExtensionSlot', () => {
   });
 
   it('renders fallback when no contributions registered', () => {
-    render(
-      <ExtensionSlot
-        name="sidebar.footer.action"
-        fallback={<div data-testid="fallback">No Extensions</div>}
-      />,
-    );
+    render(<ExtensionSlot name="sidebar.footer.action" fallback={<div data-testid="fallback">No Extensions</div>} />);
 
     expect(screen.getByTestId('fallback')).toBeInTheDocument();
     expect(screen.getByText('No Extensions')).toBeInTheDocument();

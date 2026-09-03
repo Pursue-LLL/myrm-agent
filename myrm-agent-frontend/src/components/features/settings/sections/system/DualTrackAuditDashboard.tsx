@@ -76,14 +76,11 @@ export const DualTrackAuditDashboard = memo(() => {
         description: t('exportTriggeredDesc', { format: format.toUpperCase() }),
       });
     },
-    [t]
+    [t],
   );
 
   return (
-    <SettingsSection
-      title={t('title')}
-      description={t('description')}
-    >
+    <SettingsSection title={t('title')} description={t('description')}>
       <div className="space-y-6">
         {/* KPI Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -92,12 +89,8 @@ export const DualTrackAuditDashboard = memo(() => {
               <IconActivity className="w-3.5 h-3.5 text-primary" />
               {t('totalIntents')}
             </div>
-            <div className="text-2xl font-bold tracking-tight">
-              {stats ? stats.totalEntries : '...'}
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              {t('failClosedLogged')}
-            </div>
+            <div className="text-2xl font-bold tracking-tight">{stats ? stats.totalEntries : '...'}</div>
+            <div className="text-[11px] text-muted-foreground">{t('failClosedLogged')}</div>
           </div>
 
           <div className="rounded-xl border border-border/40 bg-background/50 p-3.5 space-y-1.5">
@@ -118,9 +111,7 @@ export const DualTrackAuditDashboard = memo(() => {
               <IconShieldAlert className="w-3.5 h-3.5 text-amber-500" />
               {t('policyRefusals')}
             </div>
-            <div className="text-2xl font-bold text-amber-500 tracking-tight">
-              {stats ? stats.refusedCount : '...'}
-            </div>
+            <div className="text-2xl font-bold text-amber-500 tracking-tight">{stats ? stats.refusedCount : '...'}</div>
             <div className="text-[11px] text-muted-foreground">
               {stats ? t('failedExecution', { count: stats.failedCount }) : ''}
             </div>
@@ -134,9 +125,7 @@ export const DualTrackAuditDashboard = memo(() => {
             <div className="text-2xl font-bold text-sky-500 tracking-tight">
               {stats ? stats.humanTakeTheWheelCount : '...'}
             </div>
-            <div className="text-[11px] text-muted-foreground">
-              {t('humanInterceptionTagged')}
-            </div>
+            <div className="text-[11px] text-muted-foreground">{t('humanInterceptionTagged')}</div>
           </div>
         </div>
 
@@ -217,8 +206,8 @@ export const DualTrackAuditDashboard = memo(() => {
                           entry.outcome === 'PERMITTED'
                             ? 'default'
                             : entry.outcome === 'REFUSED'
-                            ? 'destructive'
-                            : 'outline'
+                              ? 'destructive'
+                              : 'outline'
                         }
                         className="text-[10px] h-4 px-1.5"
                       >
@@ -247,9 +236,7 @@ export const DualTrackAuditDashboard = memo(() => {
                     </div>
                   </div>
 
-                  <div className="text-muted-foreground text-[11px] truncate">
-                    {entry.intentSummary}
-                  </div>
+                  <div className="text-muted-foreground text-[11px] truncate">{entry.intentSummary}</div>
 
                   {expandedId === entry.entryId && (
                     <div className="mt-2 rounded bg-muted/40 p-2 text-[11px] font-mono space-y-1">

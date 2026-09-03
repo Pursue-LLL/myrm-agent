@@ -90,7 +90,9 @@ describe('DualTrackAuditDashboard', () => {
     vi.clearAllMocks();
     vi.mocked(dualTrackAuditService.getStats).mockResolvedValue(mockStats);
     vi.mocked(dualTrackAuditService.getEntries).mockResolvedValue(mockEntries);
-    vi.mocked(dualTrackAuditService.getExportUrl).mockReturnValue('/api/v1/security/audit/dual-track/export?format=json');
+    vi.mocked(dualTrackAuditService.getExportUrl).mockReturnValue(
+      '/api/v1/security/audit/dual-track/export?format=json',
+    );
     window.open = vi.fn();
   });
 

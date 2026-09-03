@@ -12,9 +12,8 @@ export const maskCodeRegions = (markdown: string): { text: string; slots: string
     return token;
   };
 
-  let text = markdown.replace(
-    /(^|\n)(`{3,}|~{3,})[^\n]*(?:\n[\s\S]*?\n\2(?=\n|$)|[\s\S]*$)/gm,
-    (block) => pushSlot(block),
+  let text = markdown.replace(/(^|\n)(`{3,}|~{3,})[^\n]*(?:\n[\s\S]*?\n\2(?=\n|$)|[\s\S]*$)/gm, (block) =>
+    pushSlot(block),
   );
 
   text = text.replace(/(`+)[^`\n]+?\1/g, (block) => pushSlot(block));

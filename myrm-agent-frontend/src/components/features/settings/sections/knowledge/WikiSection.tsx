@@ -9,7 +9,14 @@ import { Input } from '@/components/primitives/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/primitives/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
-import { IconBook, IconGlow, IconWrench, IconDatabase, IconExplore, IconVideo } from '@/components/features/icons/PremiumIcons';
+import {
+  IconBook,
+  IconGlow,
+  IconWrench,
+  IconDatabase,
+  IconExplore,
+  IconVideo,
+} from '@/components/features/icons/PremiumIcons';
 import { Textarea } from '@/components/primitives/textarea';
 import { ApiError, apiRequest } from '@/lib/api';
 import { isTauri } from '@/lib/utils/clipboardUtils';

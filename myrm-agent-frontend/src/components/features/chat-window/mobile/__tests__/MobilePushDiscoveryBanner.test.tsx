@@ -40,9 +40,7 @@ describe('MobilePushDiscoveryBanner', () => {
 
   it('renders discovery banner when push subscription state is prompt', () => {
     render(<MobilePushDiscoveryBanner />);
-    expect(
-      screen.getByText('Enable push notifications to stay updated on task outcomes & approvals'),
-    ).toBeDefined();
+    expect(screen.getByText('Enable push notifications to stay updated on task outcomes & approvals')).toBeDefined();
     expect(screen.getByText('Enable')).toBeDefined();
   });
 
@@ -75,9 +73,7 @@ describe('MobilePushDiscoveryBanner', () => {
     const dismissBtn = screen.getByLabelText('Dismiss');
     fireEvent.click(dismissBtn);
 
-    expect(
-      screen.queryByText('Enable push notifications to stay updated on task outcomes & approvals'),
-    ).toBeNull();
+    expect(screen.queryByText('Enable push notifications to stay updated on task outcomes & approvals')).toBeNull();
     expect(window.sessionStorage.getItem('dismissed_mobile_push_banner')).toBe('1');
   });
 });

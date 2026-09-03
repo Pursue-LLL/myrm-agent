@@ -10,11 +10,7 @@ import {
   IconCheck,
 } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
-import {
-  getChannelDataPlaneStats,
-  clearChannelDataPlane,
-  type ChannelDataPlaneStats,
-} from '@/services/channels';
+import { getChannelDataPlaneStats, clearChannelDataPlane, type ChannelDataPlaneStats } from '@/services/channels';
 import { toast } from 'sonner';
 
 interface ChannelDataPlaneSectionProps {
@@ -74,12 +70,8 @@ export function ChannelDataPlaneSection({ channel }: ChannelDataPlaneSectionProp
             <IconActivity className="h-4 w-4" />
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-foreground tracking-tight">
-              {t('title')}
-            </h4>
-            <p className="text-xs text-muted-foreground">
-              {t('description')}
-            </p>
+            <h4 className="text-sm font-semibold text-foreground tracking-tight">{t('title')}</h4>
+            <p className="text-xs text-muted-foreground">{t('description')}</p>
           </div>
         </div>
 
@@ -112,30 +104,22 @@ export function ChannelDataPlaneSection({ channel }: ChannelDataPlaneSectionProp
       <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-lg bg-muted/40 p-3 border border-border/30">
           <div className="text-xs text-muted-foreground">{t('totalMessages')}</div>
-          <div className="mt-1 text-lg font-bold text-foreground tabular-nums">
-            {stats?.total_messages ?? 0}
-          </div>
+          <div className="mt-1 text-lg font-bold text-foreground tabular-nums">{stats?.total_messages ?? 0}</div>
         </div>
 
         <div className="rounded-lg bg-muted/40 p-3 border border-border/30">
           <div className="text-xs text-muted-foreground">{t('ambientMessages')}</div>
-          <div className="mt-1 text-lg font-bold text-foreground tabular-nums">
-            {stats?.ambient_messages ?? 0}
-          </div>
+          <div className="mt-1 text-lg font-bold text-foreground tabular-nums">{stats?.ambient_messages ?? 0}</div>
         </div>
 
         <div className="rounded-lg bg-muted/40 p-3 border border-border/30">
           <div className="text-xs text-muted-foreground">{t('triggerMessages')}</div>
-          <div className="mt-1 text-lg font-bold text-foreground tabular-nums">
-            {stats?.trigger_messages ?? 0}
-          </div>
+          <div className="mt-1 text-lg font-bold text-foreground tabular-nums">{stats?.trigger_messages ?? 0}</div>
         </div>
 
         <div className="rounded-lg bg-muted/40 p-3 border border-border/30">
           <div className="text-xs text-muted-foreground">{t('learningEligible')}</div>
-          <div className="mt-1 text-lg font-bold text-foreground tabular-nums">
-            {stats?.learning_eligible ?? 0}
-          </div>
+          <div className="mt-1 text-lg font-bold text-foreground tabular-nums">{stats?.learning_eligible ?? 0}</div>
         </div>
       </div>
 

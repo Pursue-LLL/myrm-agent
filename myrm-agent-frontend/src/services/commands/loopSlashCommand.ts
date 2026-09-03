@@ -23,10 +23,7 @@ export const MIN_LOOP_INTERVAL_MS = 60_000; // 1m
 /**
  * 解析中英文自然语言时间间隔为毫秒数 (最小 1 分钟，防溢出)
  */
-export function parseNaturalInterval(
-  text: string,
-  defaultMs: number = DEFAULT_LOOP_INTERVAL_MS,
-): number {
+export function parseNaturalInterval(text: string, defaultMs: number = DEFAULT_LOOP_INTERVAL_MS): number {
   const cleaned = text.trim().toLowerCase();
   if (!cleaned) {
     return defaultMs;
@@ -41,12 +38,7 @@ export function parseNaturalInterval(
   if (normalized === '半小时' || normalized === '半个小时' || normalized === '半个钟头') {
     return 1_800_000;
   }
-  if (
-    normalized === '1个半小时' ||
-    normalized === '一个半小时' ||
-    normalized === '1.5h' ||
-    normalized === '1.5小时'
-  ) {
+  if (normalized === '1个半小时' || normalized === '一个半小时' || normalized === '1.5h' || normalized === '1.5小时') {
     return 5_400_000;
   }
   if (
@@ -94,7 +86,10 @@ export function parseLoopCommandInput(rawInput: string): {
   intervalMs: number;
   prompt: string;
 } {
-  const args = rawInput.trim().replace(/^\/loop\s*/i, '').trim();
+  const args = rawInput
+    .trim()
+    .replace(/^\/loop\s*/i, '')
+    .trim();
   if (!args) {
     return { intervalMs: DEFAULT_LOOP_INTERVAL_MS, prompt: '' };
   }
@@ -224,11 +219,7 @@ export async function executeLoopSlashCommand(inputValue: string): Promise<Actio
         console.warn('[LoopSlashCommand] First-run trigger failed:', err);
       });
 
-      showI18nToast(
-        'commands.builtin.loopCreated',
-        { interval: readableInterval },
-        { type: 'success' },
-      );
+      showI18nToast('commands.builtin.loopCreated', { interval: readableInterval }, { type: 'success' });
       return { success: true, newInputValue: '' };
     }
 

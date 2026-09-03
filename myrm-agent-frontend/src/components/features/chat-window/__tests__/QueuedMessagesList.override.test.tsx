@@ -49,14 +49,7 @@ describe('QueuedMessagesList override badge', () => {
       },
     ];
 
-    render(
-      <QueuedMessagesList
-        queue={queue}
-        editMessage={vi.fn()}
-        removeMessage={vi.fn()}
-        reorder={vi.fn()}
-      />,
-    );
+    render(<QueuedMessagesList queue={queue} editMessage={vi.fn()} removeMessage={vi.fn()} reorder={vi.fn()} />);
 
     expect(screen.getByText('2 skills · 1 MCP')).toBeInTheDocument();
     expect(screen.getByText('Task with override')).toBeInTheDocument();

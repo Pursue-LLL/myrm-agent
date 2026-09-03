@@ -213,7 +213,10 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   );
 
   const chatRouteHydratedFromSelector =
-    Boolean(id) && storeChatId === id && isMessagesLoaded && (chatMessages.length > 0 || Boolean(compactedSummary?.trim()));
+    Boolean(id) &&
+    storeChatId === id &&
+    isMessagesLoaded &&
+    (chatMessages.length > 0 || Boolean(compactedSummary?.trim()));
 
   const chatRouteHydratedDirect = Boolean(id) && isChatRouteHydratedForId(id);
 

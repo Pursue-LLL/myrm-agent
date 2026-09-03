@@ -118,18 +118,10 @@ const mockSheet: FactCheckSheet = {
 
 describe('FactCheckSheetViewer', () => {
   it('renders correctly when open with sheet data', () => {
-    render(
-      <FactCheckSheetViewer
-        open={true}
-        onOpenChange={vi.fn()}
-        sheet={mockSheet}
-      />,
-    );
+    render(<FactCheckSheetViewer open={true} onOpenChange={vi.fn()} sheet={mockSheet} />);
 
     expect(screen.getByText('发布会多源事实核查与口径仲裁清单')).toBeInTheDocument();
-    expect(
-      screen.getByText('对官方零售价、首发优惠及交付时间进行了多源互证与仲裁'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('对官方零售价、首发优惠及交付时间进行了多源互证与仲裁')).toBeInTheDocument();
 
     // 统计指标
     expect(screen.getByText(/核查总项/)).toBeInTheDocument();
@@ -144,13 +136,7 @@ describe('FactCheckSheetViewer', () => {
   });
 
   it('filters items by severity', () => {
-    render(
-      <FactCheckSheetViewer
-        open={true}
-        onOpenChange={vi.fn()}
-        sheet={mockSheet}
-      />,
-    );
+    render(<FactCheckSheetViewer open={true} onOpenChange={vi.fn()} sheet={mockSheet} />);
 
     // 点击“仅看严重冲突”
     const criticalFilterBtn = screen.getByText(/仅看严重冲突/);
@@ -162,13 +148,7 @@ describe('FactCheckSheetViewer', () => {
   });
 
   it('searches and filters items by keyword', () => {
-    render(
-      <FactCheckSheetViewer
-        open={true}
-        onOpenChange={vi.fn()}
-        sheet={mockSheet}
-      />,
-    );
+    render(<FactCheckSheetViewer open={true} onOpenChange={vi.fn()} sheet={mockSheet} />);
 
     const searchInput = screen.getByPlaceholderText('搜索事实主题、采纳口径或文档...');
     fireEvent.change(searchInput, { target: { value: '铝合金' } });
@@ -179,13 +159,7 @@ describe('FactCheckSheetViewer', () => {
   });
 
   it('displays multi-source claim details and affected deliverables', () => {
-    render(
-      <FactCheckSheetViewer
-        open={true}
-        onOpenChange={vi.fn()}
-        sheet={mockSheet}
-      />,
-    );
+    render(<FactCheckSheetViewer open={true} onOpenChange={vi.fn()} sheet={mockSheet} />);
 
     expect(screen.getByText('内测发布会纪要.docx')).toBeInTheDocument();
     expect(screen.getByText('正式发布会定价通告.pdf')).toBeInTheDocument();
@@ -202,13 +176,7 @@ describe('FactCheckSheetViewer', () => {
       created_at: 1725364800,
       items: [],
     };
-    render(
-      <FactCheckSheetViewer
-        open={true}
-        onOpenChange={vi.fn()}
-        sheet={emptySheet}
-      />,
-    );
+    render(<FactCheckSheetViewer open={true} onOpenChange={vi.fn()} sheet={emptySheet} />);
     expect(screen.getByText('空核查表')).toBeInTheDocument();
     expect(screen.getByText('未检索到匹配的事实核查项')).toBeInTheDocument();
   });
@@ -219,17 +187,9 @@ describe('FactCheckSheetViewer', () => {
       json: async () => mockSheet,
     } as Response);
 
-    render(
-      <FactCheckSheetViewer
-        open={true}
-        onOpenChange={vi.fn()}
-        vaultUri="vault://test-uuid-fact-123"
-      />,
-    );
+    render(<FactCheckSheetViewer open={true} onOpenChange={vi.fn()} vaultUri="vault://test-uuid-fact-123" />);
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      'http://127.0.0.1:8080/api/v1/files/vault/test-uuid-fact-123',
-    );
+    expect(fetchSpy).toHaveBeenCalledWith('http://127.0.0.1:8080/api/v1/files/vault/test-uuid-fact-123');
     fetchSpy.mockRestore();
   });
 });

@@ -17,28 +17,45 @@ interface TaskDeliverableBundleProps {
 }
 
 export type DeliverableCategory =
-  | 'all'
-  | 'strategy'
-  | 'copywriting'
-  | 'visual'
-  | 'data_sheet'
-  | 'fact_check'
-  | 'schedule'
-  | 'code'
-  | 'other';
+  'all' | 'strategy' | 'copywriting' | 'visual' | 'data_sheet' | 'fact_check' | 'schedule' | 'code' | 'other';
 
 function inferDeliverableCategory(filename: string): DeliverableCategory {
   const lower = filename.toLowerCase();
-  if (lower.includes('fact_check') || lower.includes('factcheck') || lower.includes('verification') || lower.includes('audit')) {
+  if (
+    lower.includes('fact_check') ||
+    lower.includes('factcheck') ||
+    lower.includes('verification') ||
+    lower.includes('audit')
+  ) {
     return 'fact_check';
   }
-  if (lower.includes('schedule') || lower.includes('calendar') || lower.includes('timeline') || lower.includes('plan_7days')) {
+  if (
+    lower.includes('schedule') ||
+    lower.includes('calendar') ||
+    lower.includes('timeline') ||
+    lower.includes('plan_7days')
+  ) {
     return 'schedule';
   }
-  if (lower.includes('strategy') || lower.includes('proposal') || lower.includes('brief') || lower.includes('summary') || lower.includes('report')) {
+  if (
+    lower.includes('strategy') ||
+    lower.includes('proposal') ||
+    lower.includes('brief') ||
+    lower.includes('summary') ||
+    lower.includes('report')
+  ) {
     return 'strategy';
   }
-  if (lower.includes('wechat') || lower.includes('xhs') || lower.includes('xiaohongshu') || lower.includes('douyin') || lower.includes('script') || lower.includes('copy') || lower.includes('article') || lower.includes('post')) {
+  if (
+    lower.includes('wechat') ||
+    lower.includes('xhs') ||
+    lower.includes('xiaohongshu') ||
+    lower.includes('douyin') ||
+    lower.includes('script') ||
+    lower.includes('copy') ||
+    lower.includes('article') ||
+    lower.includes('post')
+  ) {
     return 'copywriting';
   }
   if (/\.(png|jpg|jpeg|svg|webp|gif|mp4|webm|mp3|wav)$/i.test(lower)) {
@@ -237,7 +254,10 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
         <div className="flex items-center gap-2">
           <FolderArchive className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium">{t('deliverableBundle')}</span>
-          <span className="text-xs text-muted-foreground px-1.5 py-0.5 bg-muted rounded-full" data-testid="bundle-items-count">
+          <span
+            className="text-xs text-muted-foreground px-1.5 py-0.5 bg-muted rounded-full"
+            data-testid="bundle-items-count"
+          >
             {deliverables.length}
           </span>
         </div>

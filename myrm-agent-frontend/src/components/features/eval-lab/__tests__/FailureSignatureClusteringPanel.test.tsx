@@ -5,7 +5,10 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { FailureSignatureClusteringPanel, type SignatureClusterItem } from '../components/FailureSignatureClusteringPanel';
+import {
+  FailureSignatureClusteringPanel,
+  type SignatureClusterItem,
+} from '../components/FailureSignatureClusteringPanel';
 
 // Mock next-intl
 const stableT = (key: string, params?: Record<string, unknown>) => {

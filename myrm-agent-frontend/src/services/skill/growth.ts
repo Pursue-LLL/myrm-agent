@@ -491,4 +491,3 @@ export async function evaluateManifestAttribution(
   );
   return 'data' in response ? (response as { data: ManifestAttributionResultResponse }).data : response;
 }
-

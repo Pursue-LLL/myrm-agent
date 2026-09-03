@@ -117,17 +117,10 @@ export async function getChannelAudit(channelKey: string, days = 7): Promise<Cha
 // --- Four-Tier Progressive Spend Control ---
 
 export type SpendInterventionTier =
-  | 'tier_1_visibility'
-  | 'tier_2_soft_gate'
-  | 'tier_3_auto_downgrade'
-  | 'tier_4_critical_pause';
+  'tier_1_visibility' | 'tier_2_soft_gate' | 'tier_3_auto_downgrade' | 'tier_4_critical_pause';
 
 export type InterventionAction =
-  | 'allow'
-  | 'recommend_downgrade'
-  | 'require_confirmation'
-  | 'switch_model'
-  | 'pause_for_approval';
+  'allow' | 'recommend_downgrade' | 'require_confirmation' | 'switch_model' | 'pause_for_approval';
 
 export interface SpendInterventionDecision {
   tier: SpendInterventionTier;
@@ -200,4 +193,3 @@ export async function getFleetQuotaDeck(dimension?: string): Promise<FleetQuotaD
   const q = dimension ? `?dimension=${encodeURIComponent(dimension)}` : '';
   return apiRequest<FleetQuotaDeckResponse>(`/budget/spend-control/fleet-deck${q}`, { silent: true });
 }
-

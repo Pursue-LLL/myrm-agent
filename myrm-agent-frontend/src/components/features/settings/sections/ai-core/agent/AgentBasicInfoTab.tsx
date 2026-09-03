@@ -283,9 +283,7 @@ export function AgentBasicInfoTab({
             <Sparkles className="w-3.5 h-3.5" />
             <span>{t('agent.ablationGuidance.title')}</span>
           </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            {t('agent.ablationGuidance.description')}
-          </p>
+          <p className="text-xs text-muted-foreground leading-relaxed">{t('agent.ablationGuidance.description')}</p>
         </div>
 
         <div className="space-y-2">

@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  extractClientRootVendor,
-  validateClientProviderDiversity,
-} from '../paretoProfileLint';
+import { extractClientRootVendor, validateClientProviderDiversity } from '../paretoProfileLint';
 
 describe('paretoProfileLint', () => {
   describe('extractClientRootVendor', () => {

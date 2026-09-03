@@ -15,16 +15,7 @@
 
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import {
-  CheckCircle2,
-  Copy,
-  ExternalLink,
-  QrCode,
-  Lock,
-  KeyRound,
-  Share2,
-  Check,
-} from 'lucide-react';
+import { CheckCircle2, Copy, ExternalLink, QrCode, Lock, KeyRound, Share2, Check } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { useTranslations } from 'next-intl';

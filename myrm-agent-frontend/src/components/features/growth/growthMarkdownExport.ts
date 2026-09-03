@@ -45,9 +45,7 @@ export function buildGrowthMarkdown(data: GrowthDashboardData, labels: GrowthMar
     );
   }
 
-  const rankedSkills = [...skill_health]
-    .sort((a, b) => b.health_score - a.health_score)
-    .slice(0, 10);
+  const rankedSkills = [...skill_health].sort((a, b) => b.health_score - a.health_score).slice(0, 10);
 
   if (rankedSkills.length > 0) {
     lines.push('', `## ${labels.skillHealth}`);

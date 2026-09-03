@@ -6,13 +6,13 @@ Mobile Device Live View + Interactive Inspector mirroring `browser-inspector/` a
 
 ## File Index
 
-| File                        | Role   | Description                                                                      | I/O/P |
-| --------------------------- | ------ | -------------------------------------------------------------------------------- | ----- |
-| DeviceLiveView.tsx          | Core   | Resizable panel with mobile screenshot + ElementOverlay + touch relay            | ✅    |
-| DeviceInspectorToggle.tsx   | Core   | Floating toggle when mobile tools active or device connected                     | ✅    |
-| DeviceInspectorToolbar.tsx  | Core   | Toolbar with view/inspect mode, notification redaction toggle, refresh, close   | ✅    |
-| DeviceInstructionInput.tsx  | Core   | User instruction input with mobile @ref badge                                    | ✅    |
-| index.ts                    | Export | Public component exports                                                         | ✅    |
+| File                       | Role   | Description                                                                   | I/O/P |
+| -------------------------- | ------ | ----------------------------------------------------------------------------- | ----- |
+| DeviceLiveView.tsx         | Core   | Resizable panel with mobile screenshot + ElementOverlay + touch relay         | ✅    |
+| DeviceInspectorToggle.tsx  | Core   | Floating toggle when mobile tools active or device connected                  | ✅    |
+| DeviceInspectorToolbar.tsx | Core   | Toolbar with view/inspect mode, notification redaction toggle, refresh, close | ✅    |
+| DeviceInstructionInput.tsx | Core   | User instruction input with mobile @ref badge                                 | ✅    |
+| index.ts                   | Export | Public component exports                                                      | ✅    |
 
 ## Dependencies
 

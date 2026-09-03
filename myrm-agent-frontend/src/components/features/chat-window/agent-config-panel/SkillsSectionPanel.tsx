@@ -178,9 +178,7 @@ export const SkillsSectionPanel = ({
           </span>
           <span>{tPanel('skillsZone.equippedCountSuffix')}</span>
           {localSkillIds.length === 0 && (
-            <span className="text-[11px] text-muted-foreground/75">
-              ({tPanel('skillsZone.pureInstructionNotice')})
-            </span>
+            <span className="text-[11px] text-muted-foreground/75">({tPanel('skillsZone.pureInstructionNotice')})</span>
           )}
         </div>
         <div className="flex items-center gap-1.5">

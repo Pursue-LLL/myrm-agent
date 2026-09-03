@@ -49,9 +49,7 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({
         const templates = await getTemplates();
         if (active) {
           // 挑选最多 4 个精选团队或 Pareto 预设模板
-          const featured = templates
-            .filter((tpl) => tpl.agent_type === 'team' || tpl.is_pareto_preset)
-            .slice(0, 4);
+          const featured = templates.filter((tpl) => tpl.agent_type === 'team' || tpl.is_pareto_preset).slice(0, 4);
           setFeaturedTemplates(featured);
         }
       } catch {

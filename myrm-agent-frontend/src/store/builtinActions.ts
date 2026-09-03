@@ -32,7 +32,11 @@ function parseYoloArgs(inputValue: string): { action: 'toggle' | 'on' | 'off'; t
   return { action: 'toggle' };
 }
 
-export function parseLoopCommandClient(inputValue: string): { intervalMs: number; intervalDesc: string; prompt: string } {
+export function parseLoopCommandClient(inputValue: string): {
+  intervalMs: number;
+  intervalDesc: string;
+  prompt: string;
+} {
   const DEFAULT_MS = 600_000;
   const MIN_MS = 60_000;
   const rawArgs = inputValue.replace(/^\/loop\s*/i, '').trim();

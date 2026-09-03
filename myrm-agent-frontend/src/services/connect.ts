@@ -97,9 +97,7 @@ export async function generateConnectConfig(
   });
 }
 
-export async function getAgentConnectCapabilities(
-  agentId: string,
-): Promise<AgentConnectCapabilityResponse> {
+export async function getAgentConnectCapabilities(agentId: string): Promise<AgentConnectCapabilityResponse> {
   return apiRequest<AgentConnectCapabilityResponse>(`/connect/agent-capabilities/${encodeURIComponent(agentId)}`);
 }
 

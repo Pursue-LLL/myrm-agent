@@ -48,6 +48,7 @@ def test_system_doctor_endpoint(client: TestClient):
     )
     assert "WorkspaceStorage" in component_names, "WorkspaceStorage probe should be registered"
     assert "Database" in component_names, "Database probe should be registered in Harness layer"
+    assert "SystemExhaustion" in component_names, "SystemExhaustion probe should be registered in Harness layer"
 
     # 验证 Database 报告在 Harness 层
     db_report = next((r for r in harness_reports if r["component_name"] == "Database"), None)

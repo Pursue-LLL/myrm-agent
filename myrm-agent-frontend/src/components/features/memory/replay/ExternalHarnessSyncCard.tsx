@@ -147,12 +147,7 @@ const ExternalHarnessSyncCard = memo(() => {
       });
       await fetchStatus();
     } catch (err: unknown) {
-      if (
-        typeof err === 'object' &&
-        err !== null &&
-        'name' in err &&
-        (err as { name: string }).name === 'AbortError'
-      ) {
+      if (typeof err === 'object' && err !== null && 'name' in err && (err as { name: string }).name === 'AbortError') {
         return;
       }
       const message = err instanceof Error ? err.message : String(err);
@@ -222,12 +217,14 @@ const ExternalHarnessSyncCard = memo(() => {
         </div>
         <div className="truncate">
           <span>
-            {t('defaultPath')}: <code className="text-[10px] text-foreground/80">{status?.default_directory ?? '~/.claude/projects'}</code>
+            {t('defaultPath')}:{' '}
+            <code className="text-[10px] text-foreground/80">{status?.default_directory ?? '~/.claude/projects'}</code>
           </span>
         </div>
         <div className="sm:text-right">
           <span>
-            {t('lastSynced')}: {status?.last_synced_at ? new Date(status.last_synced_at).toLocaleString() : t('neverSynced')}
+            {t('lastSynced')}:{' '}
+            {status?.last_synced_at ? new Date(status.last_synced_at).toLocaleString() : t('neverSynced')}
           </span>
         </div>
       </div>

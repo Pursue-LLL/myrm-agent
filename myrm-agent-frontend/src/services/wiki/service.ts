@@ -773,10 +773,7 @@ export const wikiService = {
     });
   },
 
-  importVideo: async (
-    body: ImportVideoRequestBody,
-    agentId?: string | null,
-  ): Promise<ImportVideoResponse> => {
+  importVideo: async (body: ImportVideoRequestBody, agentId?: string | null): Promise<ImportVideoResponse> => {
     return apiRequest<ImportVideoResponse>(buildWikiApiPath('/wiki/import/video', agentId), {
       method: 'POST',
       body: JSON.stringify({
@@ -949,7 +946,9 @@ export const wikiService = {
     });
   },
 
-  syncObsidianVaultDelta: async (agentId?: string | null): Promise<{
+  syncObsidianVaultDelta: async (
+    agentId?: string | null,
+  ): Promise<{
     success: boolean;
     vault_path: string;
     scanned_count: number;

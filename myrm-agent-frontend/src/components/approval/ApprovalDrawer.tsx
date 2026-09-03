@@ -131,7 +131,9 @@ export function ApprovalDrawer() {
         data && Array.isArray(data.resolved_ids)
           ? data.resolved_ids
           : data && Array.isArray(data.approvals)
-            ? data.approvals.map((a: { id?: string; approval_id?: string }) => a.id || a.approval_id || '').filter(Boolean)
+            ? data.approvals
+                .map((a: { id?: string; approval_id?: string }) => a.id || a.approval_id || '')
+                .filter(Boolean)
             : targetIds;
       closeApprovals(resolvedIds);
       setIsHighRiskDialogOpen(false);

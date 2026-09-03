@@ -31,7 +31,10 @@ export function formatPlayerTime(seconds: number): string {
 }
 
 export function parsePlayerTime(timeStr: string): number {
-  const parts = timeStr.trim().split(':').map((p) => parseInt(p, 10));
+  const parts = timeStr
+    .trim()
+    .split(':')
+    .map((p) => parseInt(p, 10));
   if (parts.some((n) => Number.isNaN(n))) return 0;
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
   if (parts.length === 2) return parts[0] * 60 + parts[1];
@@ -89,7 +92,10 @@ export function extractVideoNoteMeta(content: string): VideoNoteMeta | null {
   };
 }
 
-export function extractVideoEmbedInfo(url: string, seekSeconds: number = 0): {
+export function extractVideoEmbedInfo(
+  url: string,
+  seekSeconds: number = 0,
+): {
   type: 'bilibili' | 'youtube' | 'direct';
   embedUrl: string;
   sourceId: string;
@@ -161,9 +167,7 @@ export function VideoKnowledgePlayer({
             {title || sourceUrl}
           </span>
         </div>
-        <div className="text-xs text-muted-foreground font-mono">
-          {formatPlayerTime(currentSeconds)}
-        </div>
+        <div className="text-xs text-muted-foreground font-mono">{formatPlayerTime(currentSeconds)}</div>
       </div>
 
       <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black/90 shadow-inner">
@@ -194,13 +198,10 @@ export function VideoKnowledgePlayer({
 
       {chapters.length > 0 && (
         <div className="flex flex-col gap-1.5 pt-1">
-          <div className="text-xs font-medium text-muted-foreground">
-            时间戳快速导航
-          </div>
+          <div className="text-xs font-medium text-muted-foreground">时间戳快速导航</div>
           <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
             {chapters.map((ch, idx) => {
-              const isActive =
-                currentSeconds >= ch.startSeconds && currentSeconds <= ch.endSeconds;
+              const isActive = currentSeconds >= ch.startSeconds && currentSeconds <= ch.endSeconds;
               return (
                 <Button
                   key={`${ch.startSeconds}-${idx}`}

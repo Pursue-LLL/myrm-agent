@@ -56,9 +56,7 @@ describe('ComposerContextChipStrip', () => {
   };
 
   it('renders null when chips array is empty', () => {
-    const { container } = render(
-      <ComposerContextChipStrip chips={[]} summary={defaultSummary} />,
-    );
+    const { container } = render(<ComposerContextChipStrip chips={[]} summary={defaultSummary} />);
     expect(container.firstChild).toBeNull();
     expect(screen.queryByTestId('composer-context-chip-strip')).toBeNull();
   });
@@ -76,12 +74,7 @@ describe('ComposerContextChipStrip', () => {
       },
     ];
 
-    render(
-      <ComposerContextChipStrip
-        chips={chips}
-        summary={{ ...defaultSummary, totalItems: 1 }}
-      />,
-    );
+    render(<ComposerContextChipStrip chips={chips} summary={{ ...defaultSummary, totalItems: 1 }} />);
 
     expect(screen.getByTestId('composer-context-chip-strip')).toBeInTheDocument();
     expect(screen.getByText('Data Audit Template')).toBeInTheDocument();
@@ -128,12 +121,7 @@ describe('ComposerContextChipStrip', () => {
       onRemove: vi.fn(),
     }));
 
-    render(
-      <ComposerContextChipStrip
-        chips={chips}
-        summary={{ ...defaultSummary, totalItems: 6 }}
-      />,
-    );
+    render(<ComposerContextChipStrip chips={chips} summary={{ ...defaultSummary, totalItems: 6 }} />);
 
     // Default desktop maxVisible is 4, so overflow chips count is 2 (+2)
     expect(screen.getByText('+2')).toBeInTheDocument();
@@ -184,12 +172,7 @@ describe('ComposerContextChipStrip', () => {
       },
     ];
 
-    render(
-      <ComposerContextChipStrip
-        chips={chips}
-        summary={{ ...defaultSummary, totalItems: 1 }}
-      />,
-    );
+    render(<ComposerContextChipStrip chips={chips} summary={{ ...defaultSummary, totalItems: 1 }} />);
 
     const chipEl = screen.getByTestId('context-chip-chip-capability');
     expect(chipEl).toBeInTheDocument();

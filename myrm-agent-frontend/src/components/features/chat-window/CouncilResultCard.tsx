@@ -23,10 +23,7 @@ export interface CouncilResultCardProps {
   className?: string;
 }
 
-export const CouncilResultCard = memo(function CouncilResultCard({
-  councilResult,
-  className,
-}: CouncilResultCardProps) {
+export const CouncilResultCard = memo(function CouncilResultCard({ councilResult, className }: CouncilResultCardProps) {
   const t = useTranslations('expertSummon');
   const [expanded, setExpanded] = useState(false);
 
@@ -62,18 +59,14 @@ export const CouncilResultCard = memo(function CouncilResultCard({
           )}
         </div>
         {total_duration_seconds !== undefined && total_duration_seconds > 0 && (
-          <span className="text-xs text-muted-foreground">
-            {total_duration_seconds.toFixed(1)}s
-          </span>
+          <span className="text-xs text-muted-foreground">{total_duration_seconds.toFixed(1)}s</span>
         )}
       </div>
 
       {/* 首席仲裁方案核心展示 */}
       {synthesis && (
         <div className="mt-3 space-y-1.5">
-          <div className="text-xs font-semibold text-primary uppercase tracking-wider">
-            {t('chairSynthesisTitle')}
-          </div>
+          <div className="text-xs font-semibold text-primary uppercase tracking-wider">{t('chairSynthesisTitle')}</div>
           <div className="rounded-lg bg-muted/40 p-3 text-foreground whitespace-pre-wrap leading-relaxed">
             {synthesis}
           </div>
@@ -134,25 +127,14 @@ export const CouncilResultCard = memo(function CouncilResultCard({
             onClick={() => setExpanded(!expanded)}
             className="flex items-center justify-between w-full py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            <span>
-              {expanded
-                ? t('collapseOpinions')
-                : t('expandOpinions', { count: opinions.length })}
-            </span>
-            {expanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
+            <span>{expanded ? t('collapseOpinions') : t('expandOpinions', { count: opinions.length })}</span>
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
 
           {expanded && (
             <div className="mt-2 space-y-2.5 animate-in fade-in-50 duration-150">
               {opinions.map((op, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-lg border border-border/60 bg-background/80 p-3 text-xs space-y-1"
-                >
+                <div key={idx} className="rounded-lg border border-border/60 bg-background/80 p-3 text-xs space-y-1">
                   <div className="flex items-center justify-between font-medium text-foreground">
                     <div className="flex items-center gap-1.5">
                       <Bot className="h-3.5 w-3.5 text-primary" />
@@ -162,14 +144,10 @@ export const CouncilResultCard = memo(function CouncilResultCard({
                       </span>
                     </div>
                     {op.duration_seconds !== undefined && op.duration_seconds > 0 && (
-                      <span className="text-[10px] text-muted-foreground">
-                        {op.duration_seconds.toFixed(1)}s
-                      </span>
+                      <span className="text-[10px] text-muted-foreground">{op.duration_seconds.toFixed(1)}s</span>
                     )}
                   </div>
-                  <div className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                    {op.content}
-                  </div>
+                  <div className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{op.content}</div>
                 </div>
               ))}
             </div>

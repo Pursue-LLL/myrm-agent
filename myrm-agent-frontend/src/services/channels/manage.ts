@@ -336,4 +336,3 @@ export async function clearChannelDataPlane(channelName: string, chatId?: string
     body: JSON.stringify({ chat_id: chatId || null }),
   });
 }
-

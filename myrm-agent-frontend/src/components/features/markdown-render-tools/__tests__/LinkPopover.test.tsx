@@ -46,14 +46,7 @@ describe('formatRelativeDate', () => {
 
 describe('LinkPopover', () => {
   it('renders citation anchor badge when valid url is passed', () => {
-    render(
-      <LinkPopover
-        url="https://example.com/doc"
-        title="Example Documentation"
-        label="1"
-        siteName="Example"
-      />,
-    );
+    render(<LinkPopover url="https://example.com/doc" title="Example Documentation" label="1" siteName="Example" />);
 
     const anchor = screen.getByRole('link', { name: '1' });
     expect(anchor).toBeInTheDocument();
@@ -63,13 +56,7 @@ describe('LinkPopover', () => {
   });
 
   it('renders non-anchor span when url is hash or empty', () => {
-    render(
-      <LinkPopover
-        url="#"
-        title="Internal Reference"
-        label="2"
-      />,
-    );
+    render(<LinkPopover url="#" title="Internal Reference" label="2" />);
 
     const badge = screen.getByText('2');
     expect(badge.tagName).toBe('SPAN');
@@ -77,13 +64,7 @@ describe('LinkPopover', () => {
   });
 
   it('renders non-anchor span when url uses non-http unsafe protocol', () => {
-    render(
-      <LinkPopover
-        url="javascript:alert(1)"
-        title="Unsafe Link"
-        label="3"
-      />,
-    );
+    render(<LinkPopover url="javascript:alert(1)" title="Unsafe Link" label="3" />);
 
     const badge = screen.getByText('3');
     expect(badge.tagName).toBe('SPAN');

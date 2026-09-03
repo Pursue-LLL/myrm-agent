@@ -311,15 +311,7 @@ export default function MemoryCitationsButton({
   );
 }
 
-function SingleCopyButton({
-  text,
-  title,
-  ariaLabel,
-}: {
-  text: string;
-  title: string;
-  ariaLabel: string;
-}) {
+function SingleCopyButton({ text, title, ariaLabel }: { text: string; title: string; ariaLabel: string }) {
   const t = useTranslations('memoryCitations');
   const [copied, setCopied] = useState(false);
 
