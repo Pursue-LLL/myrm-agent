@@ -13,6 +13,7 @@ import psutil
 
 from app.config.settings import settings
 
+
 def _get_state_dir() -> Path:
     env_dir = os.getenv("STATE_DIR") or os.getenv("MYRM_DEV_STATE_DIR")
     if env_dir and env_dir.strip():
