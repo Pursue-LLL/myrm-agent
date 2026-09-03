@@ -466,6 +466,7 @@ def test_preview_confirm_roundtrip(client: TestClient, tmp_path: Path) -> None:
     body = confirm_response.json()
     assert body["imported_skills"] == 0
     assert body["imported_servers"] == 0
+    assert body["imported_agents"] == 0
     assert not staging_file.exists(), "confirm must clean up its session file"
 
 
@@ -543,3 +544,75 @@ def test_uninstall_plugin(client: TestClient) -> None:
         "unbound_agents": 1,
         "removed_files": True,
     }
+
+
+def test_preview_and_confirm_with_agents_and_workspace(client: TestClient, tmp_path: Path) -> None:
+    """Verifies preview and confirm endpoint support for agents and workspace files."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(
+            "team-plugin/plugin.json",
+            json.dumps(
+                {
+                    "$schema": PLUGIN_SCHEMA,
+                    "name": "team-plugin",
+                    "version": "1.0.0",
+                    "entry_agent": "coordinator",
+                }
+            ),
+        )
+        zf.writestr(
+            "team-plugin/agents/coordinator.md",
+            "---\nname: Coordinator\ndescription: Team leader\nmax_iterations: 12\nsubagents:\n  - Worker\n---\nPrompt coordinator.",
+        )
+        zf.writestr(
+            "team-plugin/agents/worker.md",
+            "---\nname: Worker\ndescription: Team worker\nis_subagent: true\n---\nPrompt worker.",
+        )
+        zf.writestr(
+            "team-plugin/workspace/guide.md",
+            "# Team Workspace Guide",
+        )
+
+    zip_data = buf.getvalue()
+
+    with (
+        patch("app.api.plugins.import_.get_evolution_skill_store_db_path", return_value=tmp_path / "skills.db"),
+        patch("app.services.plugins.import_service._load_existing_skill_ids", return_value={}),
+    ):
+        preview_res = client.post(
+            "/api/v1/plugins/import/preview",
+            files={"file": ("team-plugin.zip", zip_data, "application/zip")},
+        )
+        assert preview_res.status_code == 200
+        preview_body = preview_res.json()
+        assert len(preview_body["agents"]) == 2
+        assert preview_body["workspace_file_count"] == 1
+        session_id = preview_body["session_id"]
+
+        agent_keys = [a["virtual_id"] for a in preview_body["agents"]]
+
+        mock_created = [
+            SimpleNamespace(id="agent-worker-id", name="Worker"),
+            SimpleNamespace(id="agent-coord-id", name="Coordinator"),
+        ]
+
+        with patch("app.services.agent.agent_service.AgentService.create_agent", side_effect=mock_created):
+            confirm_res = client.post(
+                "/api/v1/plugins/import/confirm",
+                json={
+                    "session_id": session_id,
+                    "skills": [],
+                    "servers": [],
+                    "agents": [
+                        {"component": "agent", "virtual_id": agent_keys[0], "resolution": "install", "name": "Coordinator"},
+                        {"component": "agent", "virtual_id": agent_keys[1], "resolution": "install", "name": "Worker"},
+                    ],
+                },
+            )
+
+        assert confirm_res.status_code == 200
+        confirm_body = confirm_res.json()
+        assert confirm_body["imported_agents"] == 2
+        assert confirm_body["created_agent_ids"] == ["agent-worker-id", "agent-coord-id"]
+

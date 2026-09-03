@@ -1,5 +1,5 @@
 """
-@input: 依赖 app.core.infra.ingress 与 entitlement 模块、DatabaseSettings
+@input: 依赖 app.core.infra.ingress 与 entitlement 模块、app.services.system.storage_service、DatabaseSettings
 @output: 对外提供公网 ingress 获取、Ingress 需求判定、存储信息、数据库智能优化（预检与执行）、沙箱容器重建端点
 @pos: HTTP 入口层的 System API
 
@@ -16,8 +16,22 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter, HTTPException, Query, Response
 from myrm_agent_harness.utils import get_local_ip
-from pydantic import BaseModel
 
+from app.api.system.schemas import (
+    CreateSnapshotRequest,
+    IngressRequirementResponse,
+    SandboxRecreateResponse,
+    SnapshotActionResponse,
+    StateSnapshotItem,
+    StorageCategoryItem,
+    StorageCompactionRequest,
+    StorageCompactionResponse,
+    StorageGovernanceReportResponse,
+    StorageInfoResponse,
+    StorageOptimizePreflightResponse,
+    StorageOptimizeRequest,
+    StorageOptimizeResponse,
+)
 from app.config.settings import get_settings
 from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.infra.ingress_requirement import resolve_ingress_requirement
@@ -30,13 +44,6 @@ from app.platform_utils.sandbox.entitlements.entitlement_guard import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-class IngressRequirementResponse(BaseModel):
-    required: bool
-    has_public_ingress: bool
-    reasons: list[str]
-    channels: dict[str, str]
 
 
 @router.get("/ingress-requirement", response_model=IngressRequirementResponse)
@@ -84,124 +91,18 @@ async def get_local_network(
 # Storage Info & Database Optimization
 # ---------------------------------------------------------------------------
 
+from app.services.system.storage_service import (
+    DatabaseStorageBreakdown,
+    StorageOptimizePreflightData,
+    SubdirUsage,
+    check_storage_preflight,
+    dir_size_bytes,
+    execute_storage_optimization,
+    get_sqlite_breakdown,
+)
 
-def _dir_size_bytes(path: Path) -> int:
-    """Recursively sum file sizes under *path*. Returns 0 if path doesn't exist."""
-    if not path.is_dir():
-        return 0
-    total = 0
-    for entry in path.rglob("*"):
-        if entry.is_file():
-            try:
-                total += entry.stat().st_size
-            except OSError:
-                pass
-    return total
-
-
-class SubdirUsage(BaseModel):
-    name: str
-    bytes: int
-
-
-class DatabaseStorageBreakdown(BaseModel):
-    main_db_bytes: int
-    wal_bytes: int
-    shm_bytes: int
-    total_bytes: int
-
-
-class StorageInfoResponse(BaseModel):
-    data_dir: str
-    disk_total_bytes: int
-    disk_used_bytes: int
-    disk_free_bytes: int
-    subdirs: list[SubdirUsage]
-    db_breakdown: DatabaseStorageBreakdown | None = None
-
-
-def _get_sqlite_breakdown(data_dir: Path) -> DatabaseStorageBreakdown:
-    """Return physical file sizes for SQLite data.db triplet (data.db, -wal, -shm)."""
-    def _size(name: str) -> int:
-        p = data_dir / name
-        return p.stat().st_size if p.exists() else 0
-
-    main_size = _size("data.db")
-    wal_size = _size("data.db-wal")
-    shm_size = _size("data.db-shm")
-    return DatabaseStorageBreakdown(
-        main_db_bytes=main_size,
-        wal_bytes=wal_size,
-        shm_bytes=shm_size,
-        total_bytes=main_size + wal_size + shm_size,
-    )
-
-
-def _perform_sqlite_backup(src_db: Path, backup_file: Path) -> None:
-    """Perform a clean online backup using sqlite3 backup API.
-
-    Rotates existing backup file by overwriting it to prevent secondary disk bloat.
-    """
-    if not src_db.exists():
-        return
-    if backup_file.exists():
-        try:
-            backup_file.unlink()
-        except OSError:
-            pass
-    src_conn = sqlite3.connect(str(src_db))
-    dest_conn = sqlite3.connect(str(backup_file))
-    try:
-        src_conn.backup(dest_conn)
-    finally:
-        dest_conn.close()
-        src_conn.close()
-
-
-def _execute_storage_optimization(
-    data_dir: Path,
-    mode: str,
-    create_backup: bool,
-) -> tuple[int, int, str | None]:
-    """Execute optimization in worker thread: FTS optimize + VACUUM (deep) + WAL TRUNCATE."""
-    db_file = data_dir / "data.db"
-    if not db_file.exists():
-        return 0, 0, None
-
-    before_breakdown = _get_sqlite_breakdown(data_dir)
-    before_bytes = before_breakdown.total_bytes
-
-    backup_path_str: str | None = None
-    if create_backup:
-        backup_file = data_dir / "data.db.optimize_backup"
-        _perform_sqlite_backup(db_file, backup_file)
-        backup_path_str = str(backup_file)
-
-    conn = sqlite3.connect(str(db_file), timeout=10.0)
-    try:
-        cursor = conn.cursor()
-        # 1. Optimize FTS5 B-tree segments if table exists
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='messages_fts'")
-        if cursor.fetchone():
-            try:
-                cursor.execute("INSERT INTO messages_fts(messages_fts) VALUES('optimize')")
-                conn.commit()
-            except sqlite3.OperationalError as exc:
-                logger.warning("FTS optimize skipped or failed: %s", exc)
-
-        # 2. In deep mode, reclaim freelist pages via VACUUM
-        if mode == "deep":
-            cursor.execute("VACUUM")
-
-        # 3. Truncate WAL file to reclaim active log storage
-        cursor.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        cursor.close()
-    finally:
-        conn.close()
-
-    after_breakdown = _get_sqlite_breakdown(data_dir)
-    after_bytes = after_breakdown.total_bytes
-    return before_bytes, after_bytes, backup_path_str
+_dir_size_bytes = dir_size_bytes
+_get_sqlite_breakdown = get_sqlite_breakdown
 
 
 @router.get("/storage", response_model=StorageInfoResponse)
@@ -217,10 +118,12 @@ def get_storage_info() -> StorageInfoResponse:
 
     subdir_names = ["qdrant", "harness", "event_logs", "memory"]
     subdirs = [
-        SubdirUsage(name=name, bytes=_dir_size_bytes(data_dir / name)) for name in subdir_names if (data_dir / name).exists()
+        SubdirUsage(name=name, bytes=dir_size_bytes(data_dir / name))
+        for name in subdir_names
+        if (data_dir / name).exists()
     ]
 
-    db_breakdown = _get_sqlite_breakdown(data_dir)
+    db_breakdown = get_sqlite_breakdown(data_dir)
     if db_breakdown.total_bytes > 0:
         subdirs.insert(0, SubdirUsage(name="data.db", bytes=db_breakdown.total_bytes))
 
@@ -234,75 +137,22 @@ def get_storage_info() -> StorageInfoResponse:
     )
 
 
-class StorageOptimizePreflightResponse(BaseModel):
-    data_dir: str
-    db_breakdown: DatabaseStorageBreakdown
-    disk_free_bytes: int
-    can_deep_optimize: bool
-    recommended_mode: str
-    active_background_jobs: int
-    is_safe_to_optimize: bool
-    reason: str | None = None
-
-
 @router.post("/storage/optimize-preflight", response_model=StorageOptimizePreflightResponse)
 def optimize_storage_preflight() -> StorageOptimizePreflightResponse:
     """Pre-check disk headroom, database sizes, and active background jobs before optimization."""
     settings = get_settings()
     data_dir = Path(settings.database.state_dir)
-
-    try:
-        usage = shutil.disk_usage(data_dir if data_dir.exists() else data_dir.parent)
-        free_bytes = usage.free
-    except OSError:
-        free_bytes = 0
-
-    db_breakdown = _get_sqlite_breakdown(data_dir)
-
-    from myrm_agent_harness.api.hooks import count_running_background_shell_jobs
-
-    running_jobs = count_running_background_shell_jobs()
-
-    # VACUUM requires roughly a 1.2x copy headroom of the total database size
-    required_headroom = int(db_breakdown.total_bytes * 1.2)
-    can_deep = free_bytes >= required_headroom
-
-    is_safe = running_jobs == 0
-    reason: str | None = None
-    if running_jobs > 0:
-        reason = f"{running_jobs} active background job(s) running. Wait for completion before optimizing."
-    elif not can_deep and free_bytes < db_breakdown.total_bytes:
-        reason = "Low disk headroom. Deep VACUUM unavailable; light optimize (FTS + WAL truncate) recommended."
-
-    recommended_mode = "deep" if can_deep else "light"
-
+    preflight = check_storage_preflight(data_dir)
     return StorageOptimizePreflightResponse(
-        data_dir=str(data_dir),
-        db_breakdown=db_breakdown,
-        disk_free_bytes=free_bytes,
-        can_deep_optimize=can_deep,
-        recommended_mode=recommended_mode,
-        active_background_jobs=running_jobs,
-        is_safe_to_optimize=is_safe,
-        reason=reason,
+        data_dir=preflight.data_dir,
+        db_breakdown=preflight.db_breakdown,
+        disk_free_bytes=preflight.disk_free_bytes,
+        can_deep_optimize=preflight.can_deep_optimize,
+        recommended_mode=preflight.recommended_mode,
+        active_background_jobs=preflight.active_background_jobs,
+        is_safe_to_optimize=preflight.is_safe_to_optimize,
+        reason=preflight.reason,
     )
-
-
-class StorageOptimizeRequest(BaseModel):
-    mode: str = "deep"  # "deep" | "light"
-    create_backup: bool = True
-
-
-class StorageOptimizeResponse(BaseModel):
-    status: str
-    mode: str
-    before_bytes: int
-    after_bytes: int
-    reclaimed_bytes: int
-    reclaimed_percentage: float
-    backup_path: str | None = None
-    duration_ms: int
-    message: str
 
 
 @router.post("/storage/optimize", response_model=StorageOptimizeResponse)
@@ -339,7 +189,7 @@ async def optimize_storage(request: StorageOptimizeRequest) -> StorageOptimizeRe
     t0 = time.perf_counter()
     try:
         before_bytes, after_bytes, backup_path = await asyncio.to_thread(
-            _execute_storage_optimization,
+            execute_storage_optimization,
             data_dir,
             mode,
             request.create_backup,
@@ -376,11 +226,6 @@ async def optimize_storage(request: StorageOptimizeRequest) -> StorageOptimizeRe
 # ---------------------------------------------------------------------------
 # Sandbox Container Recreate (SaaS only)
 # ---------------------------------------------------------------------------
-
-
-class SandboxRecreateResponse(BaseModel):
-    status: str
-    message: str
 
 
 @router.post("/sandbox/recreate", response_model=SandboxRecreateResponse)
@@ -536,62 +381,6 @@ async def export_personal_data_takeout(
 # ---------------------------------------------------------------------------
 # Storage Governance & Compaction Suite
 # ---------------------------------------------------------------------------
-
-
-class StorageCategoryItem(BaseModel):
-    category: str
-    display_name: str
-    bytes: int
-    item_count: int
-    percentage: float
-    details: dict[str, int] = {}
-
-
-class StateSnapshotItem(BaseModel):
-    snapshot_id: str
-    label: str
-    size_bytes: int
-    created_at: str
-    checksum: str
-    file_count: int
-
-
-class StorageGovernanceReportResponse(BaseModel):
-    total_storage_bytes: int
-    disk_total_bytes: int
-    disk_free_bytes: int
-    disk_used_percentage: float
-    categories: list[StorageCategoryItem]
-    snapshots: list[StateSnapshotItem]
-    recommended_actions: list[str]
-    is_growth_healthy: bool
-    generated_at: str
-
-
-class StorageCompactionRequest(BaseModel):
-    purge_orphan_checkpoints: bool = True
-    incremental_pages: int = 500
-
-
-class StorageCompactionResponse(BaseModel):
-    success: bool
-    initial_bytes: int
-    final_bytes: int
-    freed_bytes: int
-    purged_checkpoints: int
-    wal_truncated: bool
-    duration_ms: float
-    message: str
-
-
-class CreateSnapshotRequest(BaseModel):
-    label: str
-
-
-class SnapshotActionResponse(BaseModel):
-    success: bool
-    message: str
-    snapshot: StateSnapshotItem | None = None
 
 
 @router.get("/storage/governance", response_model=StorageGovernanceReportResponse)

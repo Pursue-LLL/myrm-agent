@@ -135,6 +135,20 @@ _MOUNT_AND_VERIFY_FACT_CHECK_SHEET_JS = """(() => {
     const badgeEl = document.querySelector('[data-testid="badge-critical"]');
     const searchInput = document.querySelector('[data-testid="search-input"]');
 
+    let clickFilterCritical = false;
+    const filterCriticalBtn = document.querySelector('[data-testid="filter-critical"]');
+    if (filterCriticalBtn) {
+      filterCriticalBtn.click();
+      clickFilterCritical = true;
+    }
+
+    let searchWorked = false;
+    if (searchInput) {
+      searchInput.value = "零售价";
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      searchWorked = true;
+    }
+
     return {
       ok: true,
       titleText: titleEl ? titleEl.textContent : null,
@@ -142,6 +156,8 @@ _MOUNT_AND_VERIFY_FACT_CHECK_SHEET_JS = """(() => {
       hasBadge: !!badgeEl,
       tableRowsCount: tableEl ? tableEl.querySelectorAll('tbody tr').length : 0,
       hasSearchInput: !!searchInput,
+      filterClicked: clickFilterCritical,
+      searchWorked: searchWorked,
     };
   } catch (err) {
     return { ok: false, err: String(err) };
@@ -206,3 +222,5 @@ def test_fact_check_sheet_viewer_chrome_e2e() -> None:
         assert result.get("hasBadge") is True
         assert result.get("tableRowsCount") == 2
         assert result.get("hasSearchInput") is True
+        assert result.get("filterClicked") is True
+        assert result.get("searchWorked") is True

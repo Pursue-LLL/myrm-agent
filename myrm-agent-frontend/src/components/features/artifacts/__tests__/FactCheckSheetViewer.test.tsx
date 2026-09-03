@@ -194,4 +194,42 @@ describe('FactCheckSheetViewer', () => {
     expect(screen.getByText('01_articles/launch.md')).toBeInTheDocument();
     expect(screen.getByText('02_social_post/weibo.png')).toBeInTheDocument();
   });
+
+  it('handles empty items and displays fallback correctly', () => {
+    const emptySheet: FactCheckSheet = {
+      sheet_id: 'sheet_empty',
+      title: '空核查表',
+      created_at: 1725364800,
+      items: [],
+    };
+    render(
+      <FactCheckSheetViewer
+        open={true}
+        onOpenChange={vi.fn()}
+        sheet={emptySheet}
+      />,
+    );
+    expect(screen.getByText('空核查表')).toBeInTheDocument();
+    expect(screen.getByText('未检索到匹配的事实核查项')).toBeInTheDocument();
+  });
+
+  it('fetches sheet from vaultUri when sheet prop is not passed', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockSheet,
+    } as Response);
+
+    render(
+      <FactCheckSheetViewer
+        open={true}
+        onOpenChange={vi.fn()}
+        vaultUri="vault://test-uuid-fact-123"
+      />,
+    );
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://127.0.0.1:8080/api/v1/files/vault/test-uuid-fact-123',
+    );
+    fetchSpy.mockRestore();
+  });
 });
