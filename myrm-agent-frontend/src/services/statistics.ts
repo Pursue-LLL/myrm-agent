@@ -653,6 +653,17 @@ export interface AgentSparklinePoint {
   usd: number;
 }
 
+export interface AgentSourceAttribution {
+  webUsd: number;
+  cronUsd: number;
+  channelUsd: number;
+  subagentsUsd: number;
+  webTokens: number;
+  cronTokens: number;
+  channelTokens: number;
+  subagentsTokens: number;
+}
+
 export interface AgentUsageItem {
   agentId: string;
   name: string;
@@ -664,6 +675,7 @@ export interface AgentUsageItem {
   percentTokens: number;
   percentUsd: number;
   sparkline: AgentSparklinePoint[];
+  attribution?: AgentSourceAttribution;
 }
 
 export interface AgentUsageResponse {

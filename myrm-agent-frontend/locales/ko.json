@@ -10714,7 +10714,12 @@
     "download": "다운로드",
     "downloadBundle": "전체 다운로드 (.zip)",
     "downloadingBundle": "압축 중…",
-    "downloadBundleFailed": "번들 압축 파일을 만들지 못했습니다"
+    "downloadBundleFailed": "번들 압축 파일을 만들지 못했습니다",
+    "exposeDesktopTools": "데스크톱 제어 도구 노출",
+    "exposeDesktopToolsDesc": "메모리 도구와 함께 시맨틱 데스크톱 제어 도구(desktop_snapshot_tool, desktop_interact_tool, desktop_vision_tool)를 외부 에이전트에 노출합니다.",
+    "exposeDesktopDisabledHint": "현재 에이전트 프로필에서 컴퓨터 사용 기능이 활성화되지 않았거나 배포 환경이 데스크톱 자동화를 지원하지 않습니다.",
+    "exposeDesktopEnabledBadge": "데스크톱 제어 활성화됨",
+    "desktopToolsIncluded": "포함된 데스크톱 제어 도구: {tools}"
   },
   "securityDashboard": {
     "title": "보안 대시보드",
@@ -18034,27 +18039,6 @@
       "deleteSuccessTitle": "스냅샷 삭제됨",
       "deleteSuccessDesc": "선택한 과거 스냅샷이 제거되었습니다.",
       "deleteFailedTitle": "스냅샷 삭제 실패"
-    },
-    "dualTrackAudit": {
-      "title": "이중 트랙 사전 감사 및 규정 준수 추적",
-      "description": "Fail-Closed 의도 사전 등록, 사후 결과 대조, 규칙 차단 다차원 분석 및 프라이버시 보호 규정 준수 내보내기.",
-      "exportTriggeredTitle": "규정 준수 증빙 내보내는 중",
-      "exportTriggeredDesc": "{format} 형식 감사 보고서 생성 및 다운로드가 시작되었습니다",
-      "totalIntents": "총 의도 등록 수",
-      "failClosedLogged": "액션 실행 전 100% 사전 디스크 기록",
-      "compliancePassRate": "규정 준수 통과율",
-      "permittedVsTotal": "허용된 액션: {count} 회",
-      "policyRefusals": "정책 차단 횟수",
-      "failedExecution": "실행 예외 또는 실패: {count} 회",
-      "takeTheWheelCount": "사람 개입",
-      "humanInterceptionTagged": "실시간 개입 중 액션 전용 태그",
-      "topRulesTitle": "고빈도 차단 규칙 분석",
-      "refusalRate": "차단율 {rate}%",
-      "hitsSummary": "트리거 {total} 회 · 차단 {refused} 회",
-      "permittedSummary": "허용 {permitted} 회",
-      "recentAuditTrail": "실시간 감사 로그",
-      "loadingEntries": "감사 로그 로드 중...",
-      "noEntriesYet": "감사 로그가 아직 없습니다"
     }
   }
 }

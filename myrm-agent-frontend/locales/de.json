@@ -10714,7 +10714,12 @@
     "download": "Herunterladen",
     "downloadBundle": "Alles herunterladen (.zip)",
     "downloadingBundle": "Verpacken…",
-    "downloadBundleFailed": "Das Bundle-Archiv konnte nicht erstellt werden"
+    "downloadBundleFailed": "Das Bundle-Archiv konnte nicht erstellt werden",
+    "exposeDesktopTools": "Desktop-Steuerungstools freigeben",
+    "exposeDesktopToolsDesc": "Semantische Desktop-Steuerungstools (desktop_snapshot_tool, desktop_interact_tool, desktop_vision_tool) zusammen mit Speichertools für den externen Agenten freigeben.",
+    "exposeDesktopDisabledHint": "Das aktuelle Agentenprofil hat die Computer-Use-Fähigkeit nicht aktiviert oder die Bereitstellungsumgebung unterstützt keine Desktop-Automatisierung.",
+    "exposeDesktopEnabledBadge": "Desktop-Steuerung aktiviert",
+    "desktopToolsIncluded": "Enthaltene Desktop-Steuerungstools: {tools}"
   },
   "securityDashboard": {
     "title": "Sicherheits-Dashboard",
@@ -18034,27 +18039,6 @@
       "deleteSuccessTitle": "Snapshot gelöscht",
       "deleteSuccessDesc": "Ausgewählter historischer Snapshot wurde entfernt.",
       "deleteFailedTitle": "Löschen des Snapshots fehlgeschlagen"
-    },
-    "dualTrackAudit": {
-      "title": "Dual-Track Vorab-Auditierung & Compliance-Protokollierung",
-      "description": "Fail-Closed Absichts-Vorabregistrierung, nachträglicher Ergebnisabgleich, Regelsperren-Analyse und datenschutzkonformer Export.",
-      "exportTriggeredTitle": "Compliance-Nachweis wird exportiert",
-      "exportTriggeredDesc": "Erstellung und Download des Prüfberichts im Format {format} wurde angestoßen",
-      "totalIntents": "Registrierte Absichten gesamt",
-      "failClosedLogged": "Vor jeder Ausführung zu 100% vorab protokolliert",
-      "compliancePassRate": "Compliance-Erfolgsquote",
-      "permittedVsTotal": "Freigegebene Aktionen: {count}",
-      "policyRefusals": "Richtlinien-Blockaden",
-      "failedExecution": "Ausführungsfehler oder -abbrüche: {count}",
-      "takeTheWheelCount": "Manuelle Eingriffe",
-      "humanInterceptionTagged": "Aktionen während manueller Übernahme markiert",
-      "topRulesTitle": "Häufigste Sperrregeln",
-      "refusalRate": "Blockaderate {rate}%",
-      "hitsSummary": "{total} ausgelöst · {refused} blockiert",
-      "permittedSummary": "{permitted} freigegeben",
-      "recentAuditTrail": "Echtzeit-Audit- und Compliance-Protokoll",
-      "loadingEntries": "Audit-Protokoll wird geladen...",
-      "noEntriesYet": "Noch keine Audit-Einträge vorhanden"
     }
   }
 }

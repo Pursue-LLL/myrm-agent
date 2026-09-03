@@ -33,7 +33,7 @@ from myrm_agent_harness.toolkits.memory.strategies.blind_spot import (
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     app = FastAPI()
-    app.include_router(approvals_router, prefix="/api/v1/approvals")
+    app.include_router(approvals_router, prefix="/api/v1")
     with TestClient(app) as c:
         yield c
 
@@ -41,6 +41,7 @@ def client() -> Iterator[TestClient]:
 @pytest.mark.asyncio
 async def test_harvest_session_blind_spots_creates_approval(client: TestClient) -> None:
     msg_id = f"msg-{uuid.uuid4().hex[:8]}"
+    now = datetime.now(UTC)
 
     async with get_session() as db:
         msg = Message(
@@ -48,7 +49,8 @@ async def test_harvest_session_blind_spots_creates_approval(client: TestClient) 
             chat_id="test-chat-1",
             role="user",
             content="How do I configure the external prometheus alertmanager?",
-            created_at=datetime.now(UTC),
+            sent_at=now,
+            created_at=now,
             extra_data={
                 "missed_query": "How do I configure external prometheus alertmanager?",
                 "thumbs_down": True,

@@ -392,6 +392,23 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
               ))}
             </div>
 
+            <div className="rounded-lg border p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">{t('exposeDesktopTools')}</p>
+                  <p className="text-xs text-muted-foreground">{t('exposeDesktopToolsDesc')}</p>
+                </div>
+                <Switch
+                  checked={exposeDesktop}
+                  onCheckedChange={setExposeDesktop}
+                  disabled={!canExposeDesktop}
+                />
+              </div>
+              {!canExposeDesktop && (
+                <p className="text-[10px] text-muted-foreground/70">{t('exposeDesktopDisabledHint')}</p>
+              )}
+            </div>
+
             <Button onClick={handleGenerate} disabled={!selectedProfile || loading} className="w-full">
               <Zap className="mr-2 h-4 w-4" />
               {loading ? t('generating') : t('generate')}
@@ -435,6 +452,17 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
               </p>
               <p className="text-xs text-muted-foreground mt-1">{configResult.instructions}</p>
             </div>
+
+            {configResult.expose_desktop && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-2.5 text-xs text-primary font-medium flex items-center justify-between">
+                <span>{t('exposeDesktopEnabledBadge')}</span>
+                {configResult.desktop_tools && configResult.desktop_tools.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {t('desktopToolsIncluded', { tools: configResult.desktop_tools.join(', ') })}
+                  </span>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <div className="relative">

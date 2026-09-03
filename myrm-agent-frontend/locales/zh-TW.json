@@ -10714,7 +10714,12 @@
     "download": "下載",
     "downloadBundle": "下載全部 (.zip)",
     "downloadingBundle": "正在打包…",
-    "downloadBundleFailed": "建立外掛壓縮檔失敗"
+    "downloadBundleFailed": "建立外掛壓縮檔失敗",
+    "exposeDesktopTools": "暴露桌面控制工具",
+    "exposeDesktopToolsDesc": "在提供記憶工具的同時，向外部智慧體暴露語意桌面控制工具（desktop_snapshot_tool、desktop_interact_tool、desktop_vision_tool）。",
+    "exposeDesktopDisabledHint": "當前 Agent 設定未啟用電腦操作能力，或當前部署環境不支援桌面自動化。",
+    "exposeDesktopEnabledBadge": "已啟用桌面控制",
+    "desktopToolsIncluded": "包含桌面控制工具：{tools}"
   },
   "securityDashboard": {
     "title": "安全儀表盤",
@@ -14122,7 +14127,7 @@
         "videoUrlEmptyError": "請輸入有效的影片連結",
         "videoFolderLabel": "目標知識庫目錄（可選）",
         "videoFolderPlaceholder": "例如 videos/lectures（留空儲存在 videos 目錄）",
-          "videoWindowDuration": "滑動視窗時長 (秒)",
+        "videoWindowDuration": "滑動視窗時長 (秒)",
         "videoImporting": "正在解析與攝入影片...",
         "videoImportStart": "開始解析入庫",
         "videoImportSuccess": "影片知識攝入成功，已提交編譯隊列",
@@ -18034,27 +18039,6 @@
       "deleteSuccessTitle": "快照已刪除",
       "deleteSuccessDesc": "已移除選定的歷史快照。",
       "deleteFailedTitle": "刪除快照失敗"
-    },
-    "dualTrackAudit": {
-      "title": "雙軌前置審計與合規留痕",
-      "description": "Fail-Closed 意圖前置登記、後置結果對齊、規則攔截多維透視與零私密合規導出。",
-      "exportTriggeredTitle": "正在導出合規憑證",
-      "exportTriggeredDesc": "已觸發 {format} 格式審計報告生成並下載",
-      "totalIntents": "總意圖登記數",
-      "failClosedLogged": "所有動作執行前 100% 前置落盤",
-      "compliancePassRate": "合規通過率",
-      "permittedVsTotal": "已放行動作：{count} 次",
-      "policyRefusals": "策略攔截次數",
-      "failedExecution": "執行異常或失敗：{count} 次",
-      "takeTheWheelCount": "人類接管干預",
-      "humanInterceptionTagged": "人工實時接管期間動作專屬標記",
-      "topRulesTitle": "高頻攔截規則透視",
-      "refusalRate": "攔截率 {rate}%",
-      "hitsSummary": "觸發 {total} 次 · 攔截 {refused} 次",
-      "permittedSummary": "放行 {permitted} 次",
-      "recentAuditTrail": "實時審計與合規流水",
-      "loadingEntries": "正在加載審計流水...",
-      "noEntriesYet": "暫無審計日誌記錄"
     }
   }
 }

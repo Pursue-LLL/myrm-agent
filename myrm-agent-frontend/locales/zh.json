@@ -18039,27 +18039,6 @@
       "deleteSuccessTitle": "快照已删除",
       "deleteSuccessDesc": "已移除选定的历史快照。",
       "deleteFailedTitle": "删除快照失败"
-    },
-    "dualTrackAudit": {
-      "title": "双轨前置审计与合规留痕",
-      "description": "Fail-Closed 意图前置登记、后置结果对齐、规则拦截多维透视与零私密合规导出。",
-      "exportTriggeredTitle": "正在导出合规凭证",
-      "exportTriggeredDesc": "已触发 {format} 格式审计报告生成并下载",
-      "totalIntents": "总意图登记数",
-      "failClosedLogged": "所有动作执行前 100% 前置落盘",
-      "compliancePassRate": "合规通过率",
-      "permittedVsTotal": "已放行动作：{count} 次",
-      "policyRefusals": "策略拦截次数",
-      "failedExecution": "执行异常或失败：{count} 次",
-      "takeTheWheelCount": "人类接管干预",
-      "humanInterceptionTagged": "人工实时接管期间动作专属标记",
-      "topRulesTitle": "高频拦截规则透视",
-      "refusalRate": "拦截率 {rate}%",
-      "hitsSummary": "触发 {total} 次 · 拦截 {refused} 次",
-      "permittedSummary": "放行 {permitted} 次",
-      "recentAuditTrail": "实时审计与合规流水",
-      "loadingEntries": "正在加载审计流水...",
-      "noEntriesYet": "暂无审计日志记录"
     }
   }
 }

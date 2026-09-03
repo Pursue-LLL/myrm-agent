@@ -10714,7 +10714,12 @@
     "download": "ダウンロード",
     "downloadBundle": "すべてダウンロード (.zip)",
     "downloadingBundle": "圧縮中…",
-    "downloadBundleFailed": "バンドルのアーカイブを作成できませんでした"
+    "downloadBundleFailed": "バンドルのアーカイブを作成できませんでした",
+    "exposeDesktopTools": "デスクトップ制御ツールを公開",
+    "exposeDesktopToolsDesc": "メモリツールとともに、セマンティックデスクトップ制御ツール（desktop_snapshot_tool、desktop_interact_tool、desktop_vision_tool）を外部エージェントに公開します。",
+    "exposeDesktopDisabledHint": "現在のエージェントプロファイルでコンピュータ使用機能が有効になっていないか、デプロイ環境がデスクトップ自動化をサポートしていません。",
+    "exposeDesktopEnabledBadge": "デスクトップ制御が有効",
+    "desktopToolsIncluded": "含まれるデスクトップ制御ツール: {tools}"
   },
   "securityDashboard": {
     "title": "セキュリティダッシュボード",
@@ -18034,27 +18039,6 @@
       "deleteSuccessTitle": "スナップショットを削除しました",
       "deleteSuccessDesc": "選択した履歴スナップショットを削除しました。",
       "deleteFailedTitle": "スナップショットの削除に失敗しました"
-    },
-    "dualTrackAudit": {
-      "title": "デュアルトラック事前監査とコンプライアンス証跡",
-      "description": "Fail-Closed 意図事前登録、事後結果照合、ルール遮断の多次元分析、およびプライバシー配慮のコンプライアンスエクスポート。",
-      "exportTriggeredTitle": "コンプライアンス証跡をエクスポート中",
-      "exportTriggeredDesc": "{format} 形式の監査レポートの生成とダウンロードが開始されました",
-      "totalIntents": "総意図登録数",
-      "failClosedLogged": "アクション実行前に100%事前永続化",
-      "compliancePassRate": "コンプライアンス通過率",
-      "permittedVsTotal": "許可されたアクション：{count} 回",
-      "policyRefusals": "ポリシー遮断回数",
-      "failedExecution": "実行例外または失敗：{count} 回",
-      "takeTheWheelCount": "人間による介入",
-      "humanInterceptionTagged": "リアルタイム介入中のアクション専用タグ",
-      "topRulesTitle": "高頻度遮断ルールの分析",
-      "refusalRate": "遮断率 {rate}%",
-      "hitsSummary": "トリガー {total} 回 · 遮断 {refused} 回",
-      "permittedSummary": "許可 {permitted} 回",
-      "recentAuditTrail": "リアルタイム監査ログ",
-      "loadingEntries": "監査ログを読み込み中...",
-      "noEntriesYet": "監査ログはまだありません"
     }
   }
 }
