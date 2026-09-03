@@ -9666,6 +9666,21 @@
       "badgeDesc": "Konform mit SWE-bench / BIG-bench / WBBench Standards gegen Vorab-Trainingskontamination",
       "injectCanaryBtn": "Canary-Header einfügen"
     },
+    "clustering": {
+      "panelTitle": "Fehlersignatur-Clustering & Zwei-Achsen-Behebbarkeit",
+      "clustersFound": "Cluster gefunden",
+      "panelSubtitle": "Intelligente Aggregation normalisierter Fehlersignaturen (ci, qi, mi) zur Analyse der Harness-Behebbarkeit und Vorschlag von RFC-6902-Patches",
+      "cases": "Fälle",
+      "affectedCases": "Betroffene Fall-Indizes",
+      "sampleQueries": "Repräsentative Aufgaben-Prompts",
+      "patchProposalTitle": "RFC-6902 Konfigurations-Patch-Vorschlag",
+      "copyPatch": "Patch-JSON kopieren",
+      "copied": "Kopiert",
+      "reviewAndApply": "Patch prüfen und anwenden",
+      "verdictAddressable": "Im Harness behebbar (Addressable)",
+      "verdictModelLimit": "Modell-Fähigkeitsgrenze (Model Limit)",
+      "verdictFlake": "Vorübergehende Fluktuation / Timeout (Flake)"
+    },
     "pageTitle": "Eval-Labor",
     "pageDescription": "Testfälle verwalten und isolierte Sandbox-Evaluierungen durchführen, um die Agent-Leistung automatisch zu verifizieren",
     "tabs": {
@@ -9975,6 +9990,21 @@
       "description": "Basierend auf deterministischer Fehlerursachenanalyse: Die Erweiterung von Tools/Middleware bringt einen deutlich höheren ROI als reine Prompt-Änderungen (Tools/Middleware ≫ Prompt). Optimieren Sie Ihre Konfiguration anhand der empfohlenen Prioritäten.",
       "affectsCases": "Betrifft {count} fehlgeschlagene Fälle",
       "quickConfig": "Konfigurieren"
+    },
+    "clustering": {
+      "panelTitle": "Fehlersignatur-Clustering & Governance-Vorschläge",
+      "panelSubtitle": "Sentry-Fingerabdruckbereinigung & (ci, qi, mi) Analyse mit RFC-6902 Patch-Synthese",
+      "clustersFound": "Cluster gefunden",
+      "verdictAddressable": "Behebbar (Harness)",
+      "verdictModelLimit": "Modell-Grenze",
+      "verdictFlake": "Flüchtig / Instabil",
+      "cases": "Fälle",
+      "affectedCases": "Betroffene Testfälle",
+      "sampleQueries": "Repräsentative Prompts",
+      "patchProposalTitle": "Empfohlener Konfigurations-Patch",
+      "copyPatch": "Patch kopieren",
+      "copied": "Kopiert",
+      "reviewAndApply": "Prüfen & Anwenden"
     }
   },
   "vault": {

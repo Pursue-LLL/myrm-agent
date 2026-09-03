@@ -15,6 +15,7 @@ import {
 import { formatMib } from '../components/format';
 import { type DownloadProgress, type EvalProgress, type ReportItem } from '../hooks/useCasesEval';
 import ComponentAblationImpactRankingChip from '../components/ComponentAblationImpactRankingChip';
+import FailureSignatureClusteringPanel from '../components/FailureSignatureClusteringPanel';
 
 interface ReportTabProps {
   running: boolean;
@@ -107,6 +108,13 @@ export default function ReportTab({
       {report.ablation_recommendations && report.ablation_recommendations.length > 0 && (
         <ComponentAblationImpactRankingChip
           recommendations={report.ablation_recommendations}
+          profileId={report.manifest?.profile_id}
+        />
+      )}
+
+      {report.signature_clusters && report.signature_clusters.length > 0 && (
+        <FailureSignatureClusteringPanel
+          clusters={report.signature_clusters}
           profileId={report.manifest?.profile_id}
         />
       )}

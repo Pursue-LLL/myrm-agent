@@ -27,6 +27,8 @@
 | `import_plur.py` | 辅助 | PLUR 竞品导入解析器。解析 PLUR local YAML/JSON engrams 并映射到 profile 与 semantic 记忆分桶 | ✅ |
 | `import_trae.py` | 辅助 | TRAE 竞品导入解析器。解析 TRAE project/user rules 与 settings，映射到 procedural 与 profile 记忆分桶（Memory Center 手动导入层） | ✅ |
 | `import_windsurf.py` | 辅助 | Windsurf 竞品导入解析器。解析 Windsurf cascade memories 与 settings，映射到 semantic 与 profile 记忆分桶（Memory Center 手动导入层） | ✅ |
+| `secret_scrubber.py` | 辅助 | 敏感凭据过滤管道。在外部会话建索前脱敏 API Key、Bearer Token、AWS 秘钥和私钥 | ✅ |
+| `external_transcript_sync.py` | 核心 | 外部 Agent 转录增量同步服务。管理 Watermark 游标，驱动隐身会话存储与 ConversationRecall FTS5 建索 | ✅ |
 | `import_rollback.py` | 核心 | 记忆导入回滚辅助。封装账本条目分类、profile revision 并发冲突检测、结构化 warning 生成、普通记忆 exact mutation refs 回滚和 profile 乐观回滚 | ✅ |
 | `import_session_data.py` | 辅助 | 记忆导入会话数据转换。负责 payload 指纹、纯导入计划、normalized data JSON 转换、导入 metadata 注入、transaction item 构建和 profile 导入前后 revision snapshot 采集 | ✅ |
 | `import_session_models.py` | 辅助 | 记忆导入会话 DTO。定义 confirm、rollback preview 和含 exact ref drilldown / integrity status 的 rollback result 服务层返回对象 | ✅ |

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 
-from myrm_agent_harness.api import (
+from myrm_agent_harness.observability.spend_control import (
     FourTierSpendControlEngine,
     SpendControlConfig,
 )

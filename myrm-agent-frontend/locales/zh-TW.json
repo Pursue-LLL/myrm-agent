@@ -9666,6 +9666,21 @@
       "badgeDesc": "符合 SWE-bench / BIG-bench / WBBench 防汙染規範，防止評測集滲入模型預訓練語料庫",
       "injectCanaryBtn": "注入 Canary 防汙染聲明"
     },
+    "clustering": {
+      "panelTitle": "失敗特徵聚類與雙軸可解決性",
+      "clustersFound": "聚類發現",
+      "panelSubtitle": "歸一化錯誤簽名 (ci, qi, mi) 智慧聚合，分析 Harness 治理可行性與 RFC-6902 修補程式提議",
+      "cases": "例",
+      "affectedCases": "受影響用例索引",
+      "sampleQueries": "代表性任務 Prompt",
+      "patchProposalTitle": "RFC-6902 配置修補程式提議",
+      "copyPatch": "複製 Patch JSON",
+      "copied": "已複製",
+      "reviewAndApply": "審查並應用修補程式",
+      "verdictAddressable": "Harness 可治 (Addressable)",
+      "verdictModelLimit": "模型能力瓶頸 (Model Limit)",
+      "verdictFlake": "偶發抖動/超時 (Flake)"
+    },
     "pageTitle": "評測實驗室",
     "pageDescription": "管理測試用例並執行沙盒環境隔離評估，全自動化驗證 Agent 表現",
     "tabs": {
@@ -9975,6 +9990,21 @@
       "description": "基於評測失敗軌跡的確定性特徵歸因，消融實證表明：擴展工具/中間件防護對任務成功率的提升收益遠大於單純調試提示詞（Tools/Middleware ≫ Prompt）。建議優先按下方建議順序優化 Harness 配置。",
       "affectsCases": "關聯 {count} 個未通過用例",
       "quickConfig": "直達配置"
+    },
+    "clustering": {
+      "panelTitle": "失敗簽名聚類與治理提案",
+      "panelSubtitle": "基於 Sentry 級指紋脫敏與 (ci, qi, mi) 雙軸判定，提煉共性病灶並生成 RFC-6902 配置補丁",
+      "clustersFound": "個共性特徵簇",
+      "verdictAddressable": "框架可解 (Addressable)",
+      "verdictModelLimit": "模型瓶頸 (Model-Limit)",
+      "verdictFlake": "環境偶發 (Flake)",
+      "cases": "例集中",
+      "affectedCases": "受影響用例列表",
+      "sampleQueries": "代表性任務 Prompt",
+      "patchProposalTitle": "推薦配置變更補丁",
+      "copyPatch": "複製補丁",
+      "copied": "已複製",
+      "reviewAndApply": "預覽並套用補丁"
     }
   },
   "vault": {
@@ -17601,7 +17631,27 @@
       "actionFinalize": "優雅終結",
       "actionWarn": "僅警告",
       "actionBlock": "阻止請求",
-      "optional": "可選"
+      "optional": "可選",
+      "fourTierSpendControlTitle": "四級遞進式支出控制與防斷供軟配額",
+      "fourTierSpendControlDesc": "對標企業級成本管理：拒絕粗暴硬斷供，透過可見性、軟性閘門、自動降級與審批流保障長任務無損續跑",
+      "tier1Label": "Tier 1: 即時可見與建議",
+      "tier1Desc": "達到 70% 額度時展示消耗速率與模型降級省錢提示",
+      "tier2Label": "Tier 2: 開發者軟性支出閘門",
+      "tier2Desc": "達到 90% 額度時快顯確認卡片，開發者一鍵點選即可繼續續跑",
+      "tier3Label": "Tier 3: 自動降級至性價比模型",
+      "tier3Desc": "達到 100% 額度時自動無縫降級至高性價比模型（如 gpt-4o-mini），保住上下文現場",
+      "tier4Label": "Tier 4: 終極安全暫停與審批流",
+      "tier4Desc": "達到 130% 絕對紅線時暫停並生成審批憑證，作為管理員溝通起點而非粗暴硬斷供",
+      "fleetQuotaDeckTitle": "使用者消耗畫像與團隊配額透明度大盤",
+      "fleetQuotaDeckDesc": "按智慧體角色、團隊成員及任務類型多維下鑽支出與配額水位",
+      "dimensionAgentProfile": "智慧體角色",
+      "dimensionMember": "成員使用者",
+      "dimensionTaskType": "任務類型",
+      "utilization": "配額利用率",
+      "selfConfirmButton": "確認繼續執行 (Self-Confirm)",
+      "softGateActive": "軟閘門已觸發",
+      "autoDowngradedActive": "已平滑降級至經濟模型",
+      "criticalPauseActive": "已觸發審批暫停"
     },
     "channelBudget": {
       "title": "頻道預算配額",

@@ -92,7 +92,7 @@
 | `UsagePrivacyRoutePanel.tsx`  | 隐私路由 local/cloud 占比                                                                                                          |
 | `UsageModelBreakdown.tsx`     | 模型用量明细                                                                                                                       |
 | `AgentUsageCard.tsx`          | Agent 用量卡片                                                                                                                     |
-| `BudgetPolicySection.tsx`     | 预算策略配置                                                                                                                       |
+| `BudgetPolicySection.tsx`     | 预算策略与四级渐进式柔性限额风控面板（四级阶梯风控：可视化预警、柔性自确认卡、无损模型自动降级、冻结暂停审批；Fleet Quota 跨维度看板） |
 | `ChannelBudgetSection.tsx`    | 渠道预算管理                                                                                                                       |
 | `MemoryGuardianCard.tsx`      | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合）                                                                  |
 | `RateLimitMonitor.tsx`        | 速率限制监控                                                                                                                       |

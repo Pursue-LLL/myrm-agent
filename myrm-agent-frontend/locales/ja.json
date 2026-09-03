@@ -9666,6 +9666,21 @@
       "badgeDesc": "SWE-bench / BIG-bench / WBBench 汚染防止標準に準拠し、事前学習データへの混入を防止",
       "injectCanaryBtn": "Canaryヘッダーを挿入"
     },
+    "clustering": {
+      "panelTitle": "失敗シグネチャクラスタリングと二軸対応性",
+      "clustersFound": "件のクラスタを発見",
+      "panelSubtitle": "正規化されたエラーシグネチャ (ci, qi, mi) をクラスタリングし、Harness改修可能性の判定とRFC-6902パッチを提案",
+      "cases": "件",
+      "affectedCases": "影響を受けたケースインデックス",
+      "sampleQueries": "代表的なタスクプロンプト",
+      "patchProposalTitle": "RFC-6902 構成パッチ提案",
+      "copyPatch": "パッチJSONをコピー",
+      "copied": "コピー完了",
+      "reviewAndApply": "パッチを確認して適用",
+      "verdictAddressable": "Harness側で修正可能 (Addressable)",
+      "verdictModelLimit": "モデル能力の上限 (Model Limit)",
+      "verdictFlake": "一時的な揺らぎ/タイムアウト (Flake)"
+    },
     "pageTitle": "評価ラボ",
     "pageDescription": "テストケースを管理し、サンドボックス環境で隔離評価を実行して、エージェントのパフォーマンスを自動検証",
     "tabs": {
@@ -9975,6 +9990,21 @@
       "description": "評価失敗トレースの決定論的帰属分析に基づきます。アブレーション実証により、ツールやミドルウェアの拡張はプロンプトの微調整よりも遥かに高い投資対効果（ROI）をもたらします（Tools/Middleware ≫ Prompt）。以下の優先順位に従って設定を最適化することをお勧めします。",
       "affectsCases": "{count} 件の失敗ケースに関連",
       "quickConfig": "設定へ移動"
+    },
+    "clustering": {
+      "panelTitle": "失敗署名クラスタリングとガバナンス提案",
+      "panelSubtitle": "Sentry レベルの指紋正規化と (ci, qi, mi) 判定に基づき、共通のボトルネックを抽出し RFC-6902 パッチを生成",
+      "clustersFound": "個のクラスターが見つかりました",
+      "verdictAddressable": "フレームワークで解決可能 (Addressable)",
+      "verdictModelLimit": "モデル限界 (Model-Limit)",
+      "verdictFlake": "環境依存・一時的 (Flake)",
+      "cases": "件",
+      "affectedCases": "影響を受けるケース一覧",
+      "sampleQueries": "代表的なプロンプト",
+      "patchProposalTitle": "推奨設定変更パッチ",
+      "copyPatch": "パッチをコピー",
+      "copied": "コピー完了",
+      "reviewAndApply": "確認して適用"
     }
   },
   "vault": {

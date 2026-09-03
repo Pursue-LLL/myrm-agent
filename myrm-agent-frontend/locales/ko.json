@@ -9666,6 +9666,21 @@
       "badgeDesc": "SWE-bench / BIG-bench / WBBench 오염 방지 표준 준수, 사전 학습 데이터 혼입 방지",
       "injectCanaryBtn": "Canary 헤더 삽입"
     },
+    "clustering": {
+      "panelTitle": "실패 서명 클러스터링 및 이축 해결 가능성",
+      "clustersFound": "개의 클러스터 발견",
+      "panelSubtitle": "정규화된 오류 서명 (ci, qi, mi) 을 지능적으로 클러스터링하여 Harness 거버넌스 가능성 평가 및 RFC-6902 패치 제안",
+      "cases": "건",
+      "affectedCases": "영향받은 케이스 인덱스",
+      "sampleQueries": "대표 작업 프롬프트",
+      "patchProposalTitle": "RFC-6902 구성 패치 제안",
+      "copyPatch": "패치 JSON 복사",
+      "copied": "복사됨",
+      "reviewAndApply": "패치 검토 및 적용",
+      "verdictAddressable": "Harness 해결 가능 (Addressable)",
+      "verdictModelLimit": "모델 능력 한계 (Model Limit)",
+      "verdictFlake": "일시적 지연/타임아웃 (Flake)"
+    },
     "pageTitle": "평가 실험실",
     "pageDescription": "테스트 케이스를 관리하고 샌드박스 환경에서 격리 평가를 실행하여 에이전트 성능을 자동 검증",
     "tabs": {
@@ -9975,6 +9990,21 @@
       "description": "평가 실패 궤적의 결정론적 원인 분석에 기반합니다. 연구 실증에 따르면 도구 및 미들웨어 확장은 프롬프트 미세 조정보다 훨씬 높은 ROI를 제공합니다(Tools/Middleware ≫ Prompt). 아래의 우선순위에 따라 설정을 최적화하는 것을 권장합니다.",
       "affectsCases": "{count}개 실패 케이스 연관",
       "quickConfig": "설정으로 이동"
+    },
+    "clustering": {
+      "panelTitle": "실패 서명 클러스터링 및 거버넌스 제안",
+      "panelSubtitle": "Sentry 수준의 지문 정규화 및 (ci, qi, mi) 이중 축 해결 가능성 평가 기반 RFC-6902 패치 합성",
+      "clustersFound": "개 클러스터 발견",
+      "verdictAddressable": "해결 가능 (Harness)",
+      "verdictModelLimit": "모델 한계 (Model-Limit)",
+      "verdictFlake": "일시적 환경 오류 (Flake)",
+      "cases": "건 집중",
+      "affectedCases": "영향을 받는 케이스 목록",
+      "sampleQueries": "대표 작업 프롬프트",
+      "patchProposalTitle": "권장 구성 변경 패치",
+      "copyPatch": "패치 복사",
+      "copied": "복사됨",
+      "reviewAndApply": "검토 및 적용"
     }
   },
   "vault": {
