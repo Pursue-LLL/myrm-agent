@@ -279,6 +279,11 @@ const ConnectSection = memo(() => {
                       {connector.agent_id}
                     </span>
                   )}
+                  {connector.expose_desktop && (
+                    <span className="inline-flex items-center gap-1 rounded bg-primary/10 text-primary px-1.5 py-0.5 font-medium">
+                      {t('exposeDesktopEnabledBadge')}
+                    </span>
+                  )}
                   {connector.connected_at && (
                     <span>
                       {new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(
@@ -366,6 +371,16 @@ const ConnectSection = memo(() => {
 
           {configDialog && (
             <div className="space-y-4">
+              {configDialog.expose_desktop && (
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-2.5 text-xs text-primary font-medium flex items-center justify-between">
+                  <span>{t('exposeDesktopEnabledBadge')}</span>
+                  {configDialog.desktop_tools && configDialog.desktop_tools.length > 0 && (
+                    <span className="text-[10px] text-muted-foreground">
+                      {t('desktopToolsIncluded', { tools: configDialog.desktop_tools.join(', ') })}
+                    </span>
+                  )}
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground">{t('configFile')}</label>
                 <pre className="relative rounded-lg bg-secondary/60 p-3 text-xs font-mono overflow-x-auto max-h-48 border border-border/30">

@@ -183,7 +183,7 @@ def build_receipt_card_content(receipt: DelegationReceipt, *, platform: str = "d
 class DelegationIngressGuard:
     """Manages active delegation concurrency per (channel, user_id) tuple."""
 
-    def __init__(self, max_active_per_user: int = 3) -> None:
+    def __init__(self, max_active_per_user: int = 2) -> None:
         self.max_active = max_active_per_user
         # (channel, user_id) -> list of active task_ids
         self._user_active_tasks: dict[tuple[str, str], list[str]] = {}
