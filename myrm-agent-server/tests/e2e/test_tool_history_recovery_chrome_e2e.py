@@ -194,21 +194,49 @@ def _ensure_shpoib_api_binding(
     page: object,
     api_base: str,
     *,
-    timeout_sec: float = 45.0,
+    timeout_sec: float = 90.0,
 ) -> None:
-    api_json = json.dumps(api_base)
-    probe_js = f"""(() => {{
-      const configured = String(window.__MYRM_E2E_API_BASE__ || '').replace(/\\/$/, '');
-      const expected = {api_json};
-      return {{ ready: configured === expected, configured, expected }};
-    }})()"""
-    state = wait_for_state(
-        client,  # type: ignore[arg-type]
-        page,  # type: ignore[arg-type]
-        probe_js,
-        timeout_sec=timeout_sec,
+    """Inject and wait for SHPOIB API binding on shared :3000 UI."""
+    from cdp_chat.support import (
+        E2E_API_BINDING_PROBE_JS,
+        e2e_api_base_inject_js,
+        e2e_runtime_binding_source,
+        wait_e2e_provider_ready,
     )
-    assert state.get("ready") is True, json.dumps(state, ensure_ascii=False)
+
+    expected = api_base.rstrip("/")
+    deadline = time.monotonic() + timeout_sec
+    last_probe: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        raw = client.evaluate(  # type: ignore[attr-defined]
+            page,
+            E2E_API_BINDING_PROBE_JS,
+            timeout_sec=15.0,
+        )
+        last_probe = raw if isinstance(raw, dict) else {"value": raw}
+        actual = str(last_probe.get("apiBase") or "").rstrip("/")
+        if actual == expected:
+            return
+        try:
+            provider_ready = wait_e2e_provider_ready(api_url=expected, timeout_sec=5.0)
+        except (OSError, TimeoutError, RuntimeError, ValueError):
+            provider_ready = False
+        if provider_ready or not actual:
+            source = e2e_runtime_binding_source()
+            if source:
+                client.evaluate(  # type: ignore[attr-defined]
+                    page,
+                    f"(() => {{{source} return true; }})()",
+                    timeout_sec=15.0,
+                )
+            else:
+                client.evaluate(  # type: ignore[attr-defined]
+                    page,
+                    e2e_api_base_inject_js(expected),
+                    timeout_sec=15.0,
+                )
+        time.sleep(0.5)
+    raise AssertionError(f"SHPOIB API binding failed: expected {expected!r}, probe={last_probe!r}")
 
 
 def _run_read_ui_assertions(api_url: str, ui_url: str, chat_id: str) -> None:
