@@ -589,6 +589,10 @@
         "naked": "Minimal safety rules only. Full control via your System Prompt."
       }
     },
+    "ablationGuidance": {
+      "title": "Architect Guidance (Ablation Law: Tools/Middleware ≫ Prompt)",
+      "description": "Empirical ablation studies prove: tool schema fixes and middleware interceptors (argument repair, execution timeout, sandbox isolation) yield far higher ROI than prompt adjustments. Prefer enabling middleware in Capabilities and Security rather than hardcoding negative prompt rules that cause model distraction and context bloat."
+    },
     "personality": {
       "title": "Communication Style",
       "description": "Choose how the agent communicates. This affects the tone and style of responses.",
@@ -9753,6 +9757,15 @@
         "decontam_violation": "Decontamination Violation",
         "context_overflow_or_budget": "Context / Budget Overflow",
         "unhandled_runtime_exception": "Unhandled Runtime Exception"
+      },
+      "ablationTitle": "Harness Remediation & Ablation Leverage Ranking",
+      "ablationSubtitle": "Ablation studies prove: modifying Tools/Middleware yields far higher ROI than Prompt tweaking (Tools/Middleware ≫ Prompt). Click chips to remediate directly.",
+      "ablationRoiOrder": "Priority P{priority}",
+      "ablationTiers": {
+        "tool": "Tool Tier (Highest ROI)",
+        "middleware": "Middleware Tier (High ROI)",
+        "memory": "Memory Tier (Med ROI)",
+        "prompt": "Prompt Tier (Low ROI)"
       }
     },
     "history": {

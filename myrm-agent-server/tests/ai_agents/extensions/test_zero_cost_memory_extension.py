@@ -93,6 +93,22 @@ class TestBuildEvictionCallback:
         )
         assert ext.build_eviction_callback() is None
 
+    def test_returns_none_when_allow_l3_extraction_disabled(self, mock_extractor_llm):
+        """当 memory_policy.allow_l3_extraction=False 时，必须阻断工具淘汰记忆提取。"""
+        from myrm_agent_harness.toolkits.memory.config import AgentMemoryPolicy
+
+        mock_mm = MagicMock()
+        mock_mm.policy = AgentMemoryPolicy.preset_l2_flow(task_id="t-123")
+        ext = ZeroCostMemoryExtension(
+            enable_memory_auto_extraction=True,
+            is_subagent=False,
+            channel_name="default",
+            memory_manager=mock_mm,
+            effective_chat_id="chat-123",
+            extractor_llm=mock_extractor_llm,
+        )
+        assert ext.build_eviction_callback() is None
+
     def test_returns_callable_when_enabled(self, extension):
         cb = extension.build_eviction_callback()
         assert cb is not None

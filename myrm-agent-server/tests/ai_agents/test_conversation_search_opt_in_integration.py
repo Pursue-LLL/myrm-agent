@@ -63,6 +63,49 @@ async def test_memory_search_sessions_corpus_executes_when_opt_in_on() -> None:
 
 
 @pytest.mark.asyncio
+async def test_memory_search_sessions_corpus_with_coverage_notice_when_partial() -> None:
+    from myrm_agent_harness.toolkits.memory.conversation_search.types import ConversationIndexCoverage
+
+    class PartialCoverageProvider:
+        async def search(self, request: ConversationSearchRequest) -> ConversationSearchResponse:
+            return ConversationSearchResponse(
+                mode="search",
+                query=request.query,
+                hits=[
+                    ConversationSearchHit(
+                        conversation_id="chat-partial",
+                        title="Deployment plan",
+                        snippet="Postgres cluster",
+                        summary="Discussed Postgres cluster.",
+                        score=0.88,
+                        source="conversation_index",
+                    )
+                ],
+                coverage=ConversationIndexCoverage(
+                    total_conversations=50,
+                    indexed_conversations=20,
+                    coverage_ratio=0.40,
+                    unindexed_recent_count=30,
+                    indexing_degraded=False,
+                ),
+            )
+
+    manager = FakeMemoryManager()
+    tools = create_memory_tools(
+        manager,
+        search_policy=MemorySearchPolicy(allow_sessions=True),
+        search_backends=MemorySearchBackends(conversation_provider=PartialCoverageProvider()),
+    )
+    search_tool = next(tool for tool in tools if tool.name == "memory_search_tool")
+
+    result = await search_tool.ainvoke({"query": "Postgres", "corpus": "sessions"})
+    text = result["content"] if isinstance(result, dict) else str(result)
+    assert "Notice: Conversation search covered 20/50 sessions (40.0%)" in text
+    assert "30 sessions pending index" in text
+    assert "Deployment plan" in text
+
+
+@pytest.mark.asyncio
 async def test_memory_search_sessions_corpus_rejected_when_opt_in_off() -> None:
     manager = FakeMemoryManager()
     tools = create_memory_tools(

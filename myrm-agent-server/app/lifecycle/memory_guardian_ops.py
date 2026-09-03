@@ -10,6 +10,7 @@
 - create_guardian_memory_manager: guardian 上下文 MemoryManager 工厂
 - auto_resolve_expired_conflicts: keep_old resolve for expired low-risk conflicts
 - purge_expired_archives: hard-delete archived memories past their TTL
+- harvest_session_blind_spots: harvest missed queries & negative signals into knowledge patch approvals
 
 [POS]
 Guardian 维护子任务与工厂。纯数据/对象操作，不依赖调度状态，

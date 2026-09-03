@@ -1540,7 +1540,11 @@
     "busyInputModeDesc": "エージェントがタスク実行中に新しいメッセージを受信した際の動作を設定します。",
     "busyInputRedirect": "リダイレクト",
     "busyInputSteer": "誘導（ステアリング）",
-    "busyInputQueue": "キューに追加"
+    "busyInputQueue": "キューに追加",
+    "ablationGuidance": {
+      "title": "アーキテクトガイダンス（アブレーションレバレッジの法則：Tools/Middleware ≫ Prompt）",
+      "description": "アブレーション実験によると、ツール定義とミドルウェアインターセプト（引数修復、タイムアウト制御、サンドボックス分離）の修復ROIは、プロンプトの調整よりもはるかに高くなります。呼び出しの欠陥が発生した場合は、プロンプトに冗長なルールをハードコーディングしてオーバーフィッティングやコンテキストの浪費を引き起こすのを避け、「機能」と「セキュリティ」で対応するミドルウェアを優先的に有効にしてください。"
+    }
   },
   "common": {
     "keyValueEditor": {
@@ -9753,6 +9757,15 @@
         "decontam_violation": "評価データ汚染違反",
         "context_overflow_or_budget": "コンテキスト超過または予算枯渇",
         "unhandled_runtime_exception": "未処理のランタイム例外"
+      },
+      "ablationTitle": "Harness ガバナンスの推奨事項とアブレーションレバレッジの順位付け",
+      "ablationSubtitle": "アブレーション実験により、Tools/Middleware の変更の ROI は Prompt の変更よりもはるかに高いことが確認されています（Tools/Middleware ≫ Prompt）。",
+      "ablationRoiOrder": "優先度 P{priority}",
+      "ablationTiers": {
+        "tool": "ツール層 (最高 ROI)",
+        "middleware": "ミドルウェア層 (高 ROI)",
+        "memory": "メモリ層 (中 ROI)",
+        "prompt": "プロンプト層 (低 ROI)"
       }
     },
     "history": {
@@ -9936,7 +9949,7 @@
     },
     "ablation": {
       "title": "コンポーネントアブレーション影響と Harness 編集推奨",
-      "subtitle": "AHE Ablation Priority Ranking",
+      "subtitle": "AHE アブレーション優先度ランキング",
       "description": "評価失敗トレースの決定論的帰属分析に基づきます。アブレーション実証により、ツールやミドルウェアの拡張はプロンプトの微調整よりも遥かに高い投資対効果（ROI）をもたらします（Tools/Middleware ≫ Prompt）。以下の優先順位に従って設定を最適化することをお勧めします。",
       "affectsCases": "{count} 件の失敗ケースに関連",
       "quickConfig": "設定へ移動"
@@ -17987,6 +18000,27 @@
       "deleteSuccessTitle": "スナップショットを削除しました",
       "deleteSuccessDesc": "選択した履歴スナップショットを削除しました。",
       "deleteFailedTitle": "スナップショットの削除に失敗しました"
+    },
+    "dualTrackAudit": {
+      "title": "デュアルトラック事前監査とコンプライアンス証跡",
+      "description": "Fail-Closed 意図事前登録、事後結果照合、ルール遮断の多次元分析、およびプライバシー配慮のコンプライアンスエクスポート。",
+      "exportTriggeredTitle": "コンプライアンス証跡をエクスポート中",
+      "exportTriggeredDesc": "{format} 形式の監査レポートの生成とダウンロードが開始されました",
+      "totalIntents": "総意図登録数",
+      "failClosedLogged": "アクション実行前に100%事前永続化",
+      "compliancePassRate": "コンプライアンス通過率",
+      "permittedVsTotal": "許可されたアクション：{count} 回",
+      "policyRefusals": "ポリシー遮断回数",
+      "failedExecution": "実行例外または失敗：{count} 回",
+      "takeTheWheelCount": "人間による介入",
+      "humanInterceptionTagged": "リアルタイム介入中のアクション専用タグ",
+      "topRulesTitle": "高頻度遮断ルールの分析",
+      "refusalRate": "遮断率 {rate}%",
+      "hitsSummary": "トリガー {total} 回 · 遮断 {refused} 回",
+      "permittedSummary": "許可 {permitted} 回",
+      "recentAuditTrail": "リアルタイム監査ログ",
+      "loadingEntries": "監査ログを読み込み中...",
+      "noEntriesYet": "監査ログはまだありません"
     }
   }
 }

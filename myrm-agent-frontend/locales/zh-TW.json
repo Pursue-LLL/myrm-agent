@@ -521,6 +521,18 @@
   },
   "agent": {
     "title": "智慧體",
+    "ablationGuide": {
+      "title": "Harness 槓桿率指南",
+      "badge": "AHE 消融實證",
+      "expand": "展開指南",
+      "collapse": "收起",
+      "description": "消融實驗（Ablation Study）實證表明：對於任務成功率和執行穩定性，組件槓桿率從高到低依次為：",
+      "toolTier": "工具/技能 (Tools/Skills)",
+      "middlewareTier": "中間件防護 (Middleware)",
+      "memoryTier": "記憶檢索 (Memory)",
+      "promptTier": "單純提示詞 (Prompt-only)",
+      "cacheTip": "建議優先通過配置工具與中間件擴展能力，避免頻繁修改 System Prompt 導致大模型前綴快取 (Prompt Cache) 失效。"
+    },
     "description": "建立專屬 AI 助手，定製行為和能力",
     "indicator": {
       "default": "智慧體",
@@ -1528,6 +1540,10 @@
       "pushEnableButton": "開啟通知",
       "pushDismiss": "忽略",
       "pushEnabled": "推播已開啟"
+    },
+    "ablationGuidance": {
+      "title": "架構師指引（消融槓桿律：Tools/Middleware ≫ Prompt）",
+      "description": "消融實驗表明：工具定義與中間件攔截（如參數修復、超時控制、沙盒隔離）的修復 ROI 遠高於修改提示詞。遇到調用缺陷時，請優先在「能力 (Capabilities)」與「安全 (Security)」中啟用對應中間件，避免在 Prompt 中硬編碼冗長規約造成模型過擬合與上下文浪費。"
     }
   },
   "common": {
@@ -9741,6 +9757,15 @@
         "decontam_violation": "評估集汙染違規",
         "context_overflow_or_budget": "上下文超限或預算耗盡",
         "unhandled_runtime_exception": "未捕獲運行時異常"
+      },
+      "ablationTitle": "Harness 治理建議與消融槓桿排序",
+      "ablationSubtitle": "消融實驗證實：修改 Tools/Middleware 的 ROI 遠高於修改 Prompt（Tools/Middleware ≫ Prompt）。點擊直達對應配置項治理。",
+      "ablationRoiOrder": "優先級 P{priority}",
+      "ablationTiers": {
+        "tool": "工具層 (最高 ROI)",
+        "middleware": "中間件層 (高 ROI)",
+        "memory": "記憶層 (中 ROI)",
+        "prompt": "提示詞層 (低 ROI)"
       }
     },
     "history": {
@@ -9921,6 +9946,13 @@
       "confirmStart": "開始評測",
       "confirmCancel": "取消",
       "confirmProfileHint": "將使用該智能體配置評測"
+    },
+    "ablation": {
+      "title": "組件消融影響與 Harness 編輯建議",
+      "subtitle": "AHE 消融優先級排序",
+      "description": "基於評測失敗軌跡的確定性特徵歸因，消融實證表明：擴展工具/中間件防護對任務成功率的提升收益遠大於單純調試提示詞（Tools/Middleware ≫ Prompt）。建議優先按下方建議順序優化 Harness 配置。",
+      "affectsCases": "關聯 {count} 個未通過用例",
+      "quickConfig": "直達配置"
     }
   },
   "vault": {
@@ -17968,6 +18000,27 @@
       "deleteSuccessTitle": "快照已刪除",
       "deleteSuccessDesc": "已移除選定的歷史快照。",
       "deleteFailedTitle": "刪除快照失敗"
+    },
+    "dualTrackAudit": {
+      "title": "雙軌前置審計與合規留痕",
+      "description": "Fail-Closed 意圖前置登記、後置結果對齊、規則攔截多維透視與零私密合規導出。",
+      "exportTriggeredTitle": "正在導出合規憑證",
+      "exportTriggeredDesc": "已觸發 {format} 格式審計報告生成並下載",
+      "totalIntents": "總意圖登記數",
+      "failClosedLogged": "所有動作執行前 100% 前置落盤",
+      "compliancePassRate": "合規通過率",
+      "permittedVsTotal": "已放行動作：{count} 次",
+      "policyRefusals": "策略攔截次數",
+      "failedExecution": "執行異常或失敗：{count} 次",
+      "takeTheWheelCount": "人類接管干預",
+      "humanInterceptionTagged": "人工實時接管期間動作專屬標記",
+      "topRulesTitle": "高頻攔截規則透視",
+      "refusalRate": "攔截率 {rate}%",
+      "hitsSummary": "觸發 {total} 次 · 攔截 {refused} 次",
+      "permittedSummary": "放行 {permitted} 次",
+      "recentAuditTrail": "實時審計與合規流水",
+      "loadingEntries": "正在加載審計流水...",
+      "noEntriesYet": "暫無審計日誌記錄"
     }
   }
 }

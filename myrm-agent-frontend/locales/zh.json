@@ -9949,7 +9949,7 @@
     },
     "ablation": {
       "title": "组件消融影响与 Harness 编辑建议",
-      "subtitle": "AHE Ablation Priority Ranking",
+      "subtitle": "AHE 消融优先级排序",
       "description": "基于评测失败轨迹的确定性特征归因，消融实证表明：扩展工具/中间件防护对任务成功率的提升收益远大于单纯调试提示词（Tools/Middleware ≫ Prompt）。建议优先按下方建议顺序优化 Harness 配置。",
       "affectsCases": "关联 {count} 个未通过用例",
       "quickConfig": "直达配置"

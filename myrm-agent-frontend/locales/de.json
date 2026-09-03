@@ -521,6 +521,18 @@
   },
   "agent": {
     "title": "Agenten",
+    "ablationGuide": {
+      "title": "Harness-Hebelwirkung Leitfaden",
+      "badge": "AHE Empirische Erkenntnis",
+      "expand": "Leitfaden öffnen",
+      "collapse": "Einklappen",
+      "description": "Empirische Ablationsstudien zeigen folgende Hebelwirkungs-Rangfolge für Aufgabenerfolg und Stabilität:",
+      "toolTier": "Werkzeuge / Skills",
+      "middlewareTier": "Middleware-Schutz",
+      "memoryTier": "Speicherabruf (Memory)",
+      "promptTier": "Nur Prompt (Prompt-only)",
+      "cacheTip": "Bevorzugen Sie die Konfiguration von Tools und Middleware vor endlosen Prompt-Erweiterungen, um den LLM Prompt Cache zu schützen."
+    },
     "description": "Erstellen Sie eigene KI-Assistenten mit individuellem Verhalten und Fähigkeiten",
     "indicator": {
       "default": "KI-Agent",
@@ -1528,6 +1540,10 @@
       "ready": "Bereit",
       "warning": "Einige Konfigurationen erfordern Aufmerksamkeit",
       "blocked": "Agent kann nicht ausgeführt werden — Korrektur erforderlich"
+    },
+    "ablationGuidance": {
+      "title": "Architekten-Leitfaden (Ablations-Hebelgesetz: Tools/Middleware ≫ Prompt)",
+      "description": "Ablationsexperimente zeigen: Tool-Definitionen und Middleware-Guardrails (z. B. Parameterreparatur, Timeout-Kontrolle, Sandbox-Isolation) liefern einen weitaus höheren ROI als reine Prompt-Anpassungen. Aktivieren Sie bei Aufruffehlern vorrangig entsprechende Middleware in Funktionen und Sicherheit, anstatt lange System-Prompts zu pflegen."
     }
   },
   "common": {
@@ -9741,6 +9757,15 @@
         "decontam_violation": "Evaluierungsdaten-Kontaminationsverletzung",
         "context_overflow_or_budget": "Kontextüberlauf oder Budget erschöpft",
         "unhandled_runtime_exception": "Unbehandelte Laufzeitausnahme"
+      },
+      "ablationTitle": "Harness-Governance-Empfehlungen und Ablations-Priorisierung",
+      "ablationSubtitle": "Ablationsexperimente belegen: Die Anpassung von Tools/Middleware hat einen weitaus höheren ROI als Prompt-Tuning (Tools/Middleware ≫ Prompt).",
+      "ablationRoiOrder": "Priorität P{priority}",
+      "ablationTiers": {
+        "tool": "Tool-Ebene (höchster ROI)",
+        "middleware": "Middleware-Ebene (hoher ROI)",
+        "memory": "Speicher-Ebene (mittlerer ROI)",
+        "prompt": "Prompt-Ebene (niedriger ROI)"
       }
     },
     "history": {
@@ -9924,7 +9949,7 @@
     },
     "ablation": {
       "title": "Komponenten-Ablationseinfluss & Harness-Empfehlungen",
-      "subtitle": "AHE Ablation Priority Ranking",
+      "subtitle": "AHE Ablations-Prioritätsranking",
       "description": "Basierend auf deterministischer Fehlerursachenanalyse: Die Erweiterung von Tools/Middleware bringt einen deutlich höheren ROI als reine Prompt-Änderungen (Tools/Middleware ≫ Prompt). Optimieren Sie Ihre Konfiguration anhand der empfohlenen Prioritäten.",
       "affectsCases": "Betrifft {count} fehlgeschlagene Fälle",
       "quickConfig": "Konfigurieren"
@@ -17975,6 +18000,27 @@
       "deleteSuccessTitle": "Snapshot gelöscht",
       "deleteSuccessDesc": "Ausgewählter historischer Snapshot wurde entfernt.",
       "deleteFailedTitle": "Löschen des Snapshots fehlgeschlagen"
+    },
+    "dualTrackAudit": {
+      "title": "Dual-Track Vorab-Auditierung & Compliance-Protokollierung",
+      "description": "Fail-Closed Absichts-Vorabregistrierung, nachträglicher Ergebnisabgleich, Regelsperren-Analyse und datenschutzkonformer Export.",
+      "exportTriggeredTitle": "Compliance-Nachweis wird exportiert",
+      "exportTriggeredDesc": "Erstellung und Download des Prüfberichts im Format {format} wurde angestoßen",
+      "totalIntents": "Registrierte Absichten gesamt",
+      "failClosedLogged": "Vor jeder Ausführung zu 100% vorab protokolliert",
+      "compliancePassRate": "Compliance-Erfolgsquote",
+      "permittedVsTotal": "Freigegebene Aktionen: {count}",
+      "policyRefusals": "Richtlinien-Blockaden",
+      "failedExecution": "Ausführungsfehler oder -abbrüche: {count}",
+      "takeTheWheelCount": "Manuelle Eingriffe",
+      "humanInterceptionTagged": "Aktionen während manueller Übernahme markiert",
+      "topRulesTitle": "Häufigste Sperrregeln",
+      "refusalRate": "Blockaderate {rate}%",
+      "hitsSummary": "{total} ausgelöst · {refused} blockiert",
+      "permittedSummary": "{permitted} freigegeben",
+      "recentAuditTrail": "Echtzeit-Audit- und Compliance-Protokoll",
+      "loadingEntries": "Audit-Protokoll wird geladen...",
+      "noEntriesYet": "Noch keine Audit-Einträge vorhanden"
     }
   }
 }

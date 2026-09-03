@@ -1181,6 +1181,10 @@
         "naked": "최소 안전 규칙만. 시스템 프롬프트로 완전한 제어."
       }
     },
+    "ablationGuidance": {
+      "title": "아키텍트 가이드 (절제 레버리지 법칙: Tools/Middleware ≫ Prompt)",
+      "description": "절제 실험에 따르면 도구 정의 및 미들웨어 인터셉트(인자 복구, 타임아웃 제어, 샌드박스 격리)의 복구 ROI가 프롬프트 수정보다 훨씬 높습니다. 호출 결함이 발생할 경우 프롬프트에 장황한 규칙을 하드코딩하여 과적합과 컨텍스트 낭비를 유발하지 말고 「기능」 및 「보안」에서 해당 미들웨어를 우선 활성화하세요."
+    },
     "advancedEngineParams": "고급 엔진 매개변수",
     "advancedEngineParamsDesc": "내부 엔진 제한 및 토폴로지 스위치 구성",
     "engineParam": {
@@ -9753,6 +9757,15 @@
         "decontam_violation": "평가 데이터 오염 위반",
         "context_overflow_or_budget": "컨텍스트 초과 또는 예산 소진",
         "unhandled_runtime_exception": "처리되지 않은 런타임 예외"
+      },
+      "ablationTitle": "Harness 거버넌스 권장사항 및 절제 레버리지 순위",
+      "ablationSubtitle": "절제 실험을 통해 Tools/Middleware 수정의 ROI가 Prompt 수정보다 훨씬 높음이 입증되었습니다 (Tools/Middleware ≫ Prompt).",
+      "ablationRoiOrder": "우선순위 P{priority}",
+      "ablationTiers": {
+        "tool": "도구 계층 (최고 ROI)",
+        "middleware": "미들웨어 계층 (높은 ROI)",
+        "memory": "메모리 계층 (중간 ROI)",
+        "prompt": "프롬프트 계층 (낮은 ROI)"
       }
     },
     "history": {
@@ -9936,7 +9949,7 @@
     },
     "ablation": {
       "title": "컴포넌트 제거(Ablation) 영향 및 Harness 편집 권장",
-      "subtitle": "AHE Ablation Priority Ranking",
+      "subtitle": "AHE 절제 우선순위 랭킹",
       "description": "평가 실패 궤적의 결정론적 원인 분석에 기반합니다. 연구 실증에 따르면 도구 및 미들웨어 확장은 프롬프트 미세 조정보다 훨씬 높은 ROI를 제공합니다(Tools/Middleware ≫ Prompt). 아래의 우선순위에 따라 설정을 최적화하는 것을 권장합니다.",
       "affectsCases": "{count}개 실패 케이스 연관",
       "quickConfig": "설정으로 이동"
@@ -17987,6 +18000,27 @@
       "deleteSuccessTitle": "스냅샷 삭제됨",
       "deleteSuccessDesc": "선택한 과거 스냅샷이 제거되었습니다.",
       "deleteFailedTitle": "스냅샷 삭제 실패"
+    },
+    "dualTrackAudit": {
+      "title": "이중 트랙 사전 감사 및 규정 준수 추적",
+      "description": "Fail-Closed 의도 사전 등록, 사후 결과 대조, 규칙 차단 다차원 분석 및 프라이버시 보호 규정 준수 내보내기.",
+      "exportTriggeredTitle": "규정 준수 증빙 내보내는 중",
+      "exportTriggeredDesc": "{format} 형식 감사 보고서 생성 및 다운로드가 시작되었습니다",
+      "totalIntents": "총 의도 등록 수",
+      "failClosedLogged": "액션 실행 전 100% 사전 디스크 기록",
+      "compliancePassRate": "규정 준수 통과율",
+      "permittedVsTotal": "허용된 액션: {count} 회",
+      "policyRefusals": "정책 차단 횟수",
+      "failedExecution": "실행 예외 또는 실패: {count} 회",
+      "takeTheWheelCount": "사람 개입",
+      "humanInterceptionTagged": "실시간 개입 중 액션 전용 태그",
+      "topRulesTitle": "고빈도 차단 규칙 분석",
+      "refusalRate": "차단율 {rate}%",
+      "hitsSummary": "트리거 {total} 회 · 차단 {refused} 회",
+      "permittedSummary": "허용 {permitted} 회",
+      "recentAuditTrail": "실시간 감사 로그",
+      "loadingEntries": "감사 로그 로드 중...",
+      "noEntriesYet": "감사 로그가 아직 없습니다"
     }
   }
 }

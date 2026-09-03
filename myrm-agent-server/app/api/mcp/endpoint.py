@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextvars import ContextVar, Token
 from typing import TYPE_CHECKING
 
 from starlette.requests import Request
@@ -48,8 +49,6 @@ _session_manager_task: asyncio.Task[None] | None = None
 _session_manager_ready = asyncio.Event()
 _embedding_cfg: EmbeddingConfig | None = None
 _mcp_desktop_sessions: dict[str, DesktopSession] = {}
-
-from contextvars import ContextVar, Token
 
 _request_desktop_enabled: ContextVar[bool] = ContextVar(
     "myrm_mcp_request_desktop_enabled",
@@ -351,6 +350,7 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
 async def shutdown_mcp_endpoint() -> None:
     """Cancel the MCP session manager background task on shutdown."""
     global _session_manager_task
+    clear_mcp_desktop_sessions()
     if _session_manager_task is not None:
         _session_manager_task.cancel()
         try:
