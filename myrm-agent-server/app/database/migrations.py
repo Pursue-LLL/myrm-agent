@@ -977,6 +977,8 @@ INDEX_STATEMENTS = [
     "ALTER TABLE shared_contexts ADD COLUMN visibility VARCHAR(20) NOT NULL DEFAULT 'team'",
     "ALTER TABLE shared_contexts ADD COLUMN access_count INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE shared_contexts ADD COLUMN last_accessed_at TIMESTAMP",
+    "ALTER TABLE interrupted_turn_markers ADD COLUMN message_id VARCHAR(255) NOT NULL DEFAULT ''",
+    "ALTER TABLE interrupted_turn_markers ADD COLUMN pending_steering_messages JSON",
 ]
 
 
