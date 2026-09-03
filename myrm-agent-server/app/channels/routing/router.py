@@ -88,6 +88,12 @@ from app.channels.core.bus import (
     set_correlation_context,
 )
 from app.channels.i18n import channel_t, get_text, resolve_message_locale
+from app.channels.delegation.delegation_coordinator import DelegationCoordinator
+from app.channels.delegation.delegation_ingress import (
+    DelegationIngressGuard,
+    build_delegation_task,
+    is_delegation_intent,
+)
 from app.channels.media.contact_enrichment import (
     enrich_contact_inbound,
     has_contact_attachment,
@@ -318,6 +324,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         self._stream_metrics = StreamMetrics()
         self._admin_checker = admin_checker
         self._locale_provider = locale_provider
+        self._delegation_coordinator = DelegationCoordinator()
+        self._delegation_guard = DelegationIngressGuard()
+
 
         stream_config = stream_config or StreamConfig()
         self._session_rate_limiter = SessionRateLimiter(max_updates_per_minute=60)

@@ -310,6 +310,7 @@ class DelegationCoordinator:
     ) -> None:
         """Run delegated task lifecycle in background, handle status transitions, and publish delivery card."""
         from dataclasses import replace
+
         from app.channels.types import OutboundMessage, StreamingText
 
         self.update_task_status(task.task_id, DelegationStatus.RUNNING)
