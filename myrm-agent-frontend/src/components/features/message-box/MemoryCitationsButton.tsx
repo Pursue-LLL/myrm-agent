@@ -31,6 +31,7 @@ import { listSharedContexts, type SharedContext } from '@/services/memory/shared
 import { SourceItem } from '@/components/features/message-actions/SourcesButton';
 import type { CitedMemoryReference, Source } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
+import { normalizeCitationTitle } from '@/lib/citations/preprocessCitationMarkers';
 
 interface MemoryCitationsButtonProps {
   memoryIds?: string[];
@@ -123,7 +124,8 @@ export default function MemoryCitationsButton({
       lines.push(`### ${t('sectionSources')}`);
       messageSources.forEach((src) => {
         const url = resolveSourceClickUrl(src) || src.url || '';
-        const title = src.title || src.filename || src.kb_name || 'Untitled';
+        const rawTitle = src.title || src.filename || src.kb_name || '';
+        const title = normalizeCitationTitle(rawTitle, url);
         lines.push(`- [${src.index}] [${title}](${url})`);
       });
     }
@@ -269,14 +271,83 @@ export default function MemoryCitationsButton({
                   {t('sectionSources')}
                 </h3>
               )}
-              {messageSources.map((source, index) => (
-                <SourceItem key={`${source.index}-${index}`} source={source} />
-              ))}
+              {messageSources.map((source, index) => {
+                const url = resolveSourceClickUrl(source) || source.url || '';
+                const rawTitle = source.title || source.filename || source.kb_name || '';
+                const title = normalizeCitationTitle(rawTitle, url);
+                const singleMarkdown = url ? `[${title}](${url})` : title;
+                return (
+                  <div key={`${source.index}-${index}`} className="relative group">
+                    <SourceItem source={source} />
+                    <div className="absolute top-2.5 right-2.5 z-10">
+                      <SingleCopyButton
+                        text={singleMarkdown}
+                        title={t('copyMarkdown')}
+                        ariaLabel={`${t('copyMarkdown')} [${source.index}]`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </section>
           )}
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function SingleCopyButton({
+  text,
+  title,
+  ariaLabel,
+}: {
+  text: string;
+  title: string;
+  ariaLabel: string;
+}) {
+  const t = useTranslations('memoryCitations');
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!text) {
+        return;
+      }
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }
+      } catch {
+        // ignore
+      }
+    },
+    [text],
+  );
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className={cn(
+        'inline-flex items-center justify-center p-1 rounded-md transition-all',
+        'opacity-0 group-hover:opacity-100 focus:opacity-100',
+        'bg-background/80 hover:bg-muted border border-border/40 text-muted-foreground hover:text-foreground',
+        copied && 'opacity-100 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+      )}
+      title={copied ? t('copied') : title}
+      aria-label={copied ? t('copied') : ariaLabel}
+    >
+      {copied ? (
+        <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+      ) : (
+        <Copy className="h-3.5 w-3.5" />
+      )}
+    </button>
   );
 }
 
@@ -299,17 +370,24 @@ function MemoryCitationItem({
       : reference.memoryType;
 
   return (
-    <article className="rounded-2xl border border-border/60 bg-card p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary" className="font-mono">
-          #{index}
-        </Badge>
-        {memoryTypeLabel && <Badge variant="outline">{memoryTypeLabel}</Badge>}
-        {score !== null && (
-          <Badge variant="outline" className="text-emerald-600 dark:text-emerald-300">
-            {t('score', { score })}
+    <article className="relative group rounded-2xl border border-border/60 bg-card p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="font-mono">
+            #{index}
           </Badge>
-        )}
+          {memoryTypeLabel && <Badge variant="outline">{memoryTypeLabel}</Badge>}
+          {score !== null && (
+            <Badge variant="outline" className="text-emerald-600 dark:text-emerald-300">
+              {t('score', { score })}
+            </Badge>
+          )}
+        </div>
+        <SingleCopyButton
+          text={reference.content?.trim() || reference.id}
+          title={t('copyMarkdown')}
+          ariaLabel={`${t('copyMarkdown')} #${index}`}
+        />
       </div>
 
       <p className="mt-3 text-sm leading-relaxed text-foreground">

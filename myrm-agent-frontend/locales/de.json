@@ -5400,7 +5400,15 @@
         "publicationStatus": "Status: {status}",
         "networkLost": "Verbindung verloren.",
         "unexpected": "Unerwarteter Fehler"
-      }
+      },
+      "protectedBadge": "Passwortgeschützt",
+      "publicBadge": "Öffentlicher Zugriff",
+      "copyShareInfo": "Freigabedetails kopieren",
+      "copyPassword": "Passwort kopieren",
+      "scanQrCode": "QR-Code auf dem Handy scannen",
+      "urlCopied": "Link kopiert",
+      "passwordCopied": "Passwort kopiert",
+      "shareInfoCopied": "Freigabedetails kopiert"
     },
     "deploy": {
       "title": "Im Web bereitstellen",
@@ -8310,7 +8318,19 @@
     "mcpElicitationTitle": "MCP Serverbestätigung",
     "mcpElicitationServer": "Serverinstanz",
     "clarificationRequired": "Fehlerklärung erforderlich",
-    "fixParameters": "Parameter korrigieren (JSON)"
+    "fixParameters": "Parameter korrigieren (JSON)",
+    "knowledgePatch": {
+      "title": "Wissens-Patch für Sitzungs-Blindstellen",
+      "targetType": "Ziel-Speicherort",
+      "typeWiki": "Wiki-Wissensdatenbank",
+      "typeProcedural": "Verfahrensregeln & Präferenzen",
+      "typeSkillGap": "Fehlende Fähigkeiten & Skill-Lücke",
+      "triggerCondition": "Auslösebedingung",
+      "rationale": "Begründung & Belege",
+      "sourceQueries": "Zugehörige Quell-Suchanfragen",
+      "confidence": "Konfidenz",
+      "content": "Patch-Inhalt"
+    }
   },
   "notifications": {
     "pairingPending": "Neue Kopplungsanfrage von {sender} am {channel}",
@@ -14080,7 +14100,19 @@
         "urlImportFolderLabel": "Ziel-Vault-Ordner (optional)",
         "urlImportFolderPlaceholder": "z.B. web/docs (leer lassen für Hauptverzeichnis)",
         "urlImporting": "Wird importiert...",
-        "urlImportStart": "Aufnahme starten"
+        "urlImportStart": "Aufnahme starten",
+        "video": "Video-Wissen importieren",
+        "videoImportTitle": "Wissen aus Video-Link importieren",
+        "videoImportDescription": "Bilibili- oder YouTube-Untertitel in strukturierte Notizen mit sekundengenauen Zeitstempeln extrahieren",
+        "videoUrlPlaceholder": "https://www.bilibili.com/video/BV... oder https://www.youtube.com/watch?v=...",
+        "videoUrlEmptyError": "Bitte geben Sie eine gültige Video-URL ein",
+        "videoFolderLabel": "Ziel-Vault-Ordner (optional)",
+        "videoFolderPlaceholder": "z. B. videos/lectures (leer lassen für Standard-Videos-Ordner)",
+        "videoWindowDuration": "Schiebefenster-Dauer (Sek.)",
+        "videoImporting": "Video wird analysiert und importiert...",
+        "videoImportStart": "Import starten",
+        "videoImportSuccess": "Video-Transkript importiert und in die Kompilierungs-Warteschlange eingereiht",
+        "videoPlayerTitle": "Videowiedergabe & Zeitstempel-Suche"
       },
       "tabs": {
         "overview": "Übersicht",

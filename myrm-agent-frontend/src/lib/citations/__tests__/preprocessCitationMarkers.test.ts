@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Source } from '@/store/chat/types';
 import { maskCodeRegions, unmaskCodeRegions } from '../maskCodeRegions';
 import {
+  normalizeCitationTitle,
   preprocessCitationMarkers,
   stripUnsupportedCitationControlMarkers,
 } from '../preprocessCitationMarkers';
@@ -145,6 +146,29 @@ describe('preprocessCitationMarkers', () => {
     expect(rendered).toContain('<citation data-num="1"');
     expect(rendered).not.toContain('\uE200');
     expect(rendered).not.toContain('\uE201');
+  });
+
+  it('converts citation markdown links containing balanced parentheses in URL', () => {
+    const customSources: Source[] = [
+      {
+        index: 1,
+        type: 'web_search',
+        title: 'Tokio Wiki',
+        url: 'https://en.wikipedia.org/wiki/Tokio_(software)',
+      },
+    ];
+    const text = 'Tokio is an async runtime [citation:Tokio Wiki](https://en.wikipedia.org/wiki/Tokio_(software)).';
+    const result = preprocessCitationMarkers(text, customSources);
+    expect(result).toContain('<citation data-num="1" data-source-index="0"');
+    expect(result).toContain('data-url="https://en.wikipedia.org/wiki/Tokio_(software)"');
+    expect(result).not.toContain('(software))');
+  });
+
+  it('normalizes generic citation titles to clean domain', () => {
+    expect(normalizeCitationTitle('source', 'https://github.com/tokio-rs/tokio')).toBe('github.com');
+    expect(normalizeCitationTitle('来源', 'https://en.wikipedia.org/wiki/Rust')).toBe('en.wikipedia.org');
+    expect(normalizeCitationTitle('  untitled  ', 'https://news.ycombinator.com/item?id=123')).toBe('news.ycombinator.com');
+    expect(normalizeCitationTitle('Tokio Framework', 'https://tokio.rs')).toBe('Tokio Framework');
   });
 });
 

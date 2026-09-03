@@ -1823,6 +1823,15 @@ export function WikiSection() {
                   <IconGlow className="w-4 h-4 mr-2" />
                   {t('import.urls')}
                 </Button>
+                <Button
+                  onClick={() => setVideoImportDialogOpen(true)}
+                  disabled={isImporting}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <IconVideo className="w-4 h-4 mr-2" />
+                  {t('import.video')}
+                </Button>
                 <input ref={zipInputRef} type="file" accept=".zip" onChange={handleImportZip} className="hidden" />
                 {!isTauriEnv && (
                   <input
@@ -1956,6 +1965,19 @@ export function WikiSection() {
             await loadStats();
             setTreeSyncNonce((val) => val + 1);
             if (result.enqueued_count > 0) {
+              toast.message(t('import.dedupScanStarted'));
+              handleWikiTabChange('duplicateReview');
+            }
+          }}
+        />
+        <WikiVideoImportDialog
+          open={videoImportDialogOpen}
+          onOpenChange={setVideoImportDialogOpen}
+          agentScopeId={agentScopeId}
+          onImportFinished={async (result) => {
+            await loadStats();
+            setTreeSyncNonce((val) => val + 1);
+            if (result.success && result.status !== 'skipped_conflict') {
               toast.message(t('import.dedupScanStarted'));
               handleWikiTabChange('duplicateReview');
             }

@@ -5400,7 +5400,15 @@
         "publicationStatus": "게시 상태: {status}",
         "networkLost": "연결이 끊어졌습니다.",
         "unexpected": "예기치 않은 오류가 발생했습니다"
-      }
+      },
+      "protectedBadge": "비밀번호 보호",
+      "publicBadge": "공개 접근",
+      "copyShareInfo": "공유 정보 복사",
+      "copyPassword": "비밀번호 복사",
+      "scanQrCode": "모바일에서 QR 코드 스캔",
+      "urlCopied": "링크가 복사되었습니다",
+      "passwordCopied": "비밀번호가 복사되었습니다",
+      "shareInfoCopied": "공유 정보가 복사되었습니다"
     },
     "deploy": {
       "title": "웹에 배포",
@@ -8310,7 +8318,19 @@
     "mcpElicitationTitle": "MCP 서버 확인",
     "mcpElicitationServer": "서버",
     "clarificationRequired": "오류 명확화 필요",
-    "fixParameters": "매개변수 수정(JSON)"
+    "fixParameters": "매개변수 수정(JSON)",
+    "knowledgePatch": {
+      "title": "세션 사각지대 지식 패치 제안",
+      "targetType": "저장 대상",
+      "typeWiki": "Wiki 지식 베이스",
+      "typeProcedural": "실행 규칙 및 환경설정",
+      "typeSkillGap": "누락된 기능 및 스킬 격차",
+      "triggerCondition": "트리거 조건",
+      "rationale": "근거 및 증거",
+      "sourceQueries": "관련 이전 쿼리",
+      "confidence": "신뢰도",
+      "content": "패치 내용"
+    }
   },
   "notifications": {
     "pairingPending": "{channel}에서 {sender}의 새 페어링 요청",
@@ -14080,7 +14100,19 @@
         "urlImportFolderLabel": "대상 저장소 폴더 (선택 사항)",
         "urlImportFolderPlaceholder": "예: web/docs (비워두면 루트)",
         "urlImporting": "가져오는 중...",
-        "urlImportStart": "수집 시작"
+        "urlImportStart": "수집 시작",
+        "video": "비디오 지식 가져오기",
+        "videoImportTitle": "비디오 링크에서 지식 가져오기",
+        "videoImportDescription": "Bilibili 또는 YouTube 동영상 자막을 분석하여 타임스탬프가 포함된 구조화된 노트 생성",
+        "videoUrlPlaceholder": "https://www.bilibili.com/video/BV... 또는 https://www.youtube.com/watch?v=...",
+        "videoUrlEmptyError": "유효한 동영상 링크를 입력하세요",
+        "videoFolderLabel": "대상 지식 베이스 폴더 (선택 사항)",
+        "videoFolderPlaceholder": "예: videos/lectures (비워두면 기본 videos 폴더 사용)",
+        "videoWindowDuration": "슬라이딩 윈도우 시간 (초)",
+        "videoImporting": "동영상 분석 및 가져오는 중...",
+        "videoImportStart": "지식 수집 시작",
+        "videoImportSuccess": "비디오 지식 수집 완료, 컴파일 대기열에 등록됨",
+        "videoPlayerTitle": "비디오 재생 및 타임스탬프 이동"
       },
       "tabs": {
         "overview": "개요",

@@ -6,11 +6,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
-import { Loader2, Globe, CheckCircle2, XCircle, Copy, ExternalLink } from 'lucide-react';
+import { Loader2, Globe, XCircle } from 'lucide-react';
 import { Artifact } from '@/store/chat/types';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+import { PublishShareCard } from './PublishShareCard';
 import {
   buildPublishStatusWsUrl,
   fetchArtifactPublications,
@@ -57,7 +58,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   const [logs, setLogs] = useState<string[]>([]);
   const [publishUrl, setPublishUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [copiedType, setCopiedType] = useState<'none' | 'url' | 'password' | 'all'>('none');
   const [loading, setLoading] = useState(false);
   const [platformAvailable, setPlatformAvailable] = useState(false);
   const [preflight, setPreflight] = useState<PublishPreflight | null>(null);
@@ -88,7 +89,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
     setLogs([]);
     setPublishUrl('');
     setErrorMsg('');
-    setCopied(false);
+    setCopiedType('none');
     setPlatformAvailable(false);
     setTokenOverride('');
     setEnablePassword(false);
@@ -260,16 +261,50 @@ export const PublishModal: React.FC<PublishModalProps> = ({
     }
   };
 
-  const handleCopy = async () => {
+  const handleCopyUrl = async () => {
     if (!publishUrl) {
       return;
     }
     try {
       await writeToClipboard(publishUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopiedType('url');
+      toast.success(t('urlCopied'));
+      setTimeout(() => setCopiedType('none'), 2000);
     } catch (err) {
-      console.error('Failed to copy', err);
+      console.error('Failed to copy URL', err);
+    }
+  };
+
+  const handleCopyPassword = async () => {
+    if (!password) {
+      return;
+    }
+    try {
+      await writeToClipboard(password);
+      setCopiedType('password');
+      toast.success(t('passwordCopied'));
+      setTimeout(() => setCopiedType('none'), 2000);
+    } catch (err) {
+      console.error('Failed to copy password', err);
+    }
+  };
+
+  const handleCopyShareDetails = async () => {
+    if (!publishUrl) {
+      return;
+    }
+    try {
+      const title = artifact.filename || t('title');
+      const shareText =
+        enablePassword && password
+          ? `${title}\n${publishUrl}\n${t('passwordLabel')}: ${password}`
+          : `${title}\n${publishUrl}`;
+      await writeToClipboard(shareText);
+      setCopiedType('all');
+      toast.success(t('shareInfoCopied'));
+      setTimeout(() => setCopiedType('none'), 2000);
+    } catch (err) {
+      console.error('Failed to copy share details', err);
     }
   };
 
@@ -420,52 +455,17 @@ export const PublishModal: React.FC<PublishModalProps> = ({
           )}
 
           {status === 'SUCCESS' && (
-            <div className="space-y-6 text-center animate-in fade-in zoom-in-95 duration-500">
-              <div className="flex justify-center">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-green-500/20 rounded-full blur-xl animate-pulse" />
-                  <CheckCircle2 className="w-16 h-16 text-green-500 relative z-10" />
-                </div>
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-foreground">{t('successTitle')}</h3>
-                <p className="text-sm text-muted-foreground mt-2">{t('successDescription')}</p>
-              </div>
-
-              <div className="flex items-center gap-2 p-2 bg-muted/40 border border-border rounded-xl">
-                <Input
-                  value={publishUrl}
-                  readOnly
-                  className="bg-transparent border-none focus-visible:ring-0 font-mono text-sm text-primary"
-                />
-                <div className="flex gap-1 pr-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => void handleCopy()}
-                    className="hover:bg-muted rounded-xl"
-                  >
-                    {copied ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <Copy className="w-4 h-4 text-muted-foreground" />
-                    )}
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => window.open(publishUrl, '_blank')}
-                    className="hover:bg-muted rounded-xl"
-                  >
-                    <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                  </Button>
-                </div>
-              </div>
-
-              <Button onClick={onClose} variant="outline" className="w-full rounded-xl">
-                {t('done')}
-              </Button>
-            </div>
+            <PublishShareCard
+              publishUrl={publishUrl}
+              artifactTitle={artifact.filename}
+              isProtected={enablePassword}
+              password={password}
+              copiedType={copiedType}
+              onCopyUrl={() => void handleCopyUrl()}
+              onCopyPassword={() => void handleCopyPassword()}
+              onCopyShareDetails={() => void handleCopyShareDetails()}
+              onDone={onClose}
+            />
           )}
 
           {status === 'ERROR' && (

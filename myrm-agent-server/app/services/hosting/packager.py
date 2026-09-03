@@ -6,6 +6,7 @@
 [OUTPUT]
 - PublishFile: dataclass for a single deployable file
 - collect_publish_files: read vault file/directory + HTML-relative static assets
+- ensure_index_html_alias: scaffold index.html alias for single HTML entry points
 - validate_publish_payload: ensure deployable HTML entry exists
 
 [POS]

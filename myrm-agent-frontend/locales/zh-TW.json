@@ -5300,7 +5300,15 @@
         "publicationStatus": "釋出狀態：{status}",
         "networkLost": "連線中斷。請重新整理頁面檢視釋出狀態。",
         "unexpected": "發生意外錯誤"
-      }
+      },
+      "protectedBadge": "密碼保護",
+      "publicBadge": "公開訪問",
+      "copyShareInfo": "複製分享資訊",
+      "copyPassword": "複製密碼",
+      "scanQrCode": "手機掃碼快速訪問",
+      "urlCopied": "連結已複製",
+      "passwordCopied": "密碼已複製",
+      "shareInfoCopied": "分享資訊已複製"
     },
     "deploy": {
       "title": "部署到 Web",
@@ -8310,7 +8318,19 @@
     "mcpElicitationTitle": "MCP 服務確認",
     "mcpElicitationServer": "服務",
     "clarificationRequired": "需要錯誤釐清",
-    "fixParameters": "修正參數（JSON）"
+    "fixParameters": "修正參數（JSON）",
+    "knowledgePatch": {
+      "title": "會話盲點知識轉正建議",
+      "targetType": "沉澱目標",
+      "typeWiki": "Wiki 知識庫",
+      "typeProcedural": "執行規範與偏好",
+      "typeSkillGap": "缺失能力與工具訴求",
+      "triggerCondition": "適用觸發場景",
+      "rationale": "歸納依據與信號",
+      "sourceQueries": "關聯歷史使用者提問",
+      "confidence": "置信度",
+      "content": "沉澱內容"
+    }
   },
   "notifications": {
     "title": "系統通知",
@@ -14094,7 +14114,19 @@
         "urlImportFolderLabel": "目標知識庫目錄（選填）",
         "urlImportFolderPlaceholder": "例如 web/docs（留空儲存在根目錄）",
         "urlImporting": "正在匯入...",
-        "urlImportStart": "開始擷取"
+        "urlImportStart": "開始擷取",
+        "video": "匯入影片知識",
+        "videoImportTitle": "從影片連結匯入知識",
+        "videoImportDescription": "解析 Bilibili 或 YouTube 線上影片字幕，生成結構化秒級時間戳筆記",
+        "videoUrlPlaceholder": "https://www.bilibili.com/video/BV... 或 https://www.youtube.com/watch?v=...",
+        "videoUrlEmptyError": "請輸入有效的影片連結",
+        "videoFolderLabel": "目標知識庫目錄（可選）",
+        "videoFolderPlaceholder": "例如 videos/lectures（留空儲存在 videos 目錄）",
+          "videoWindowDuration": "滑動視窗時長 (秒)",
+        "videoImporting": "正在解析與攝入影片...",
+        "videoImportStart": "開始解析入庫",
+        "videoImportSuccess": "影片知識攝入成功，已提交編譯隊列",
+        "videoPlayerTitle": "影片播放與時間戳定位"
       },
       "tabs": {
         "overview": "總覽",

@@ -5300,7 +5300,15 @@
         "publicationStatus": "リリースステータス：{status}",
         "networkLost": "接続が切断されました。",
         "unexpected": "予期しないエラーが発生しました"
-      }
+      },
+      "protectedBadge": "パスワード保護",
+      "publicBadge": "公開アクセス",
+      "copyShareInfo": "共有情報をコピー",
+      "copyPassword": "パスワードをコピー",
+      "scanQrCode": "モバイルでQRコードをスキャン",
+      "urlCopied": "リンクをコピーしました",
+      "passwordCopied": "パスワードをコピーしました",
+      "shareInfoCopied": "共有情報をコピーしました"
     },
     "deploy": {
       "title": "デプロイまで Web",
@@ -8310,7 +8318,19 @@
     "mcpElicitationTitle": "MCPサーバーの確認",
     "mcpElicitationServer": "サーバー",
     "clarificationRequired": "エラーの明確化が必要です",
-    "fixParameters": "パラメータを修正（JSON）"
+    "fixParameters": "パラメータを修正（JSON）",
+    "knowledgePatch": {
+      "title": "セッション盲点ナレッジ修正パッチ",
+      "targetType": "保存先",
+      "typeWiki": "Wikiナレッジベース",
+      "typeProcedural": "実行ルールと好み",
+      "typeSkillGap": "不足機能とスキルギャップ",
+      "triggerCondition": "トリガー条件",
+      "rationale": "根拠とエビデンス",
+      "sourceQueries": "関連する過去のクエリ",
+      "confidence": "信頼度",
+      "content": "パッチ内容"
+    }
   },
   "notifications": {
     "title": "システム通知",
@@ -14094,7 +14114,19 @@
         "urlImportFolderLabel": "保存先フォルダ（任意）",
         "urlImportFolderPlaceholder": "例: web/docs（未指定の場合はルート）",
         "urlImporting": "インポート中...",
-        "urlImportStart": "取り込みを開始"
+        "urlImportStart": "取り込みを開始",
+        "video": "動画ナレッジのインポート",
+        "videoImportTitle": "動画リンクからナレッジをインポート",
+        "videoImportDescription": "BilibiliまたはYouTubeの動画字幕を解析し、タイムスタンプ付き構造化ノートを生成",
+        "videoUrlPlaceholder": "https://www.bilibili.com/video/BV... または https://www.youtube.com/watch?v=...",
+        "videoUrlEmptyError": "有効な動画リンクを入力してください",
+        "videoFolderLabel": "保存先ナレッジベースフォルダ（任意）",
+        "videoFolderPlaceholder": "例: videos/lectures（空欄の場合は videos フォルダ）",
+        "videoWindowDuration": "スライドウィンドウの長さ (秒)",
+        "videoImporting": "動画を解析してインポート中...",
+        "videoImportStart": "インポートを開始",
+        "videoImportSuccess": "動画ナレッジの取り込みが完了し、コンパイルキューに追加されました",
+        "videoPlayerTitle": "動画再生とタイムスタンプシーク"
       },
       "tabs": {
         "overview": "概要",

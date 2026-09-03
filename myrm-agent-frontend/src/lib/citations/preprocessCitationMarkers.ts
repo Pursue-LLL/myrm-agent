@@ -2,10 +2,29 @@ import type { Source } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { maskCodeRegions, unmaskCodeRegions } from './maskCodeRegions';
 
-const CITATION_MARKDOWN_LINK_RE = /\[citation:([^\]]*)\]\(([^)]+)\)/gi;
+const CITATION_MARKDOWN_LINK_RE =
+  /(?<!!)\[citation:\s*([^\]]*?)\]\((https?:\/\/(?:[^\s()]|\([^\s()]*\))+)\)/gi;
 const CITATION_BRACKET_RE = /(?:【|［|〔|\[)([\d\uFF10-\uFF19\s,，、\-~－]+)(?:】|］|〕|\])(?!\()/g;
 const UNSUPPORTED_CITATION_CONTROL_MARKER_RE = /[\uE200-\uE203]cite(?:[\uE200-\uE203][^\uE200-\uE203]*)?[\uE200-\uE203]/g;
 const TRAILING_UNSUPPORTED_CITATION_CONTROL_MARKER_RE = /[ \t]*[\uE200-\uE203]cite(?:[\uE200-\uE203][^\uE200-\uE203]*)?[\uE200-\uE203](?=\r?\n|$)/g;
+
+const GENERIC_CITATION_TITLES = new Set(['source', '来源', 'untitled', 'link', '网页']);
+
+/** Normalize citation title, falling back to clean domain when generic or empty. */
+export const normalizeCitationTitle = (title: string, url?: string): string => {
+  const compact = title.replace(/\s+/g, ' ').trim();
+  if (!compact || GENERIC_CITATION_TITLES.has(compact.toLowerCase())) {
+    if (url) {
+      try {
+        return new URL(url).hostname.replace(/^www\./i, '');
+      } catch {
+        // fallback to compact
+      }
+    }
+    return compact || 'Source';
+  }
+  return compact;
+};
 
 /** Strip unsupported private Unicode citation control tokens emitted by certain LLMs. */
 export const stripUnsupportedCitationControlMarkers = (text: string): string =>

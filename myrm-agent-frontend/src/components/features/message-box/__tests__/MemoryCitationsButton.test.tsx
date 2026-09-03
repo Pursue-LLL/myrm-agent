@@ -164,4 +164,34 @@ describe('MemoryCitationsButton', () => {
     expect(copiedText).toContain('### sectionSources');
     expect(copiedText).toContain('- [1] [Doc Alpha](https://example.com/alpha)');
   });
+
+  it('copies single source as markdown and normalizes generic titles', async () => {
+    const user = userEvent.setup();
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextSpy },
+      configurable: true,
+    });
+
+    render(
+      <MemoryCitationsButton
+        sources={[
+          {
+            index: 1,
+            type: 'web_search',
+            title: 'source',
+            url: 'https://news.ycombinator.com/item?id=123',
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /buttonAria/ }));
+    const singleCopyBtn = screen.getByRole('button', { name: 'copyMarkdown [1]' });
+    expect(singleCopyBtn).toBeInTheDocument();
+
+    await user.click(singleCopyBtn);
+    expect(writeTextSpy).toHaveBeenCalledTimes(1);
+    expect(writeTextSpy).toHaveBeenCalledWith('[news.ycombinator.com](https://news.ycombinator.com/item?id=123)');
+  });
 });
