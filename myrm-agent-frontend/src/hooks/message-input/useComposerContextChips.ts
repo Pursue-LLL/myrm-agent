@@ -44,9 +44,12 @@ export interface UseComposerContextChipsParams {
     fileId?: string;
     url?: string;
     label: string;
+    startLine?: number;
+    endLine?: number;
   }>;
   removeMentionReference: (key: string) => void;
   onOpenCapabilityEditor?: () => void;
+  hideAttachList?: boolean;
 }
 
 export interface ComposerContextSummary {
@@ -63,8 +66,10 @@ const mentionReferenceKey = (reference: {
   fileId?: string;
   url?: string;
   label: string;
+  startLine?: number;
+  endLine?: number;
 }): string => {
-  return `${reference.type}:${reference.path ?? reference.fileId ?? reference.url ?? reference.label}`;
+  return `${reference.type}:${reference.path ?? reference.fileId ?? reference.url ?? reference.label}:${reference.startLine ?? ''}:${reference.endLine ?? ''}`;
 };
 
 export function useComposerContextChips({
@@ -76,6 +81,7 @@ export function useComposerContextChips({
   mentionReferences,
   removeMentionReference,
   onOpenCapabilityEditor,
+  hideAttachList = false,
 }: UseComposerContextChipsParams) {
   const tChat = useTranslations('chat');
   const tTurn = useTranslations('chat.turnCapabilities');
@@ -185,8 +191,8 @@ export function useComposerContextChips({
       });
     }
 
-    // 5. 附加文件 (Attachments)
-    if (files.length > 0) {
+    // 5. 附加文件 (Attachments) - 仅在 AttachList 被折叠隐藏时作为紧凑胶囊呈现，避免双重卡片堆叠
+    if (hideAttachList && files.length > 0) {
       files.forEach((file) => {
         const isImg = file.type?.startsWith('image/') || file.fileName?.match(/\.(png|jpe?g|webp|gif|svg)$/i);
         list.push({
@@ -210,6 +216,7 @@ export function useComposerContextChips({
     turnCapabilitySelection,
     mentionReferences,
     files,
+    hideAttachList,
     tWorkflow,
     tTurn,
     tChat,

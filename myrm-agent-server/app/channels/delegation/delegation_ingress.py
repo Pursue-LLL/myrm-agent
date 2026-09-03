@@ -128,7 +128,7 @@ def build_delegation_task(
     origin_user_id: str,
     origin_chat_id: str,
     raw_prompt: str,
-    normalized_prompt: str,
+    normalized_prompt: str = "",
     *,
     timeout_seconds: float = 3600.0,
 ) -> DelegationTask:
@@ -140,10 +140,11 @@ def build_delegation_task(
         origin_user_id=origin_user_id,
         origin_chat_id=origin_chat_id,
         raw_prompt=raw_prompt,
-        normalized_prompt=normalized_prompt,
+        normalized_prompt=normalized_prompt or raw_prompt,
         status=DelegationStatus.PENDING,
         timeout_seconds=timeout_seconds,
     )
+
 
 
 def build_receipt_card_content(receipt: DelegationReceipt, *, platform: str = "default") -> str:

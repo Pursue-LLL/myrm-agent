@@ -36,6 +36,7 @@ export interface ComposerContextChipStripProps {
   summary: ComposerContextSummary;
   className?: string;
   disabled?: boolean;
+  onOpenCapabilityEditor?: () => void;
 }
 
 const renderChipIcon = (iconType: ContextChipItem['iconType']) => {
@@ -63,13 +64,28 @@ interface SingleChipProps {
 }
 
 const SingleChip = ({ chip, disabled, onRemoveLabel }: SingleChipProps) => {
+  const isClickable = Boolean(chip.onAction && !disabled);
   return (
     <div
       data-testid={`context-chip-${chip.id}`}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={isClickable ? chip.onAction : undefined}
+      onKeyDown={
+        isClickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                chip.onAction?.();
+              }
+            }
+          : undefined
+      }
       className={cn(
         'group inline-flex h-6 max-w-[220px] items-center gap-1.5 rounded-md border border-border/70 bg-background/80 px-2 text-xs font-medium text-foreground shadow-xs transition-colors hover:border-primary/40 dark:bg-card/90',
         chip.category === 'workflow' && 'border-amber-500/30 bg-amber-500/[0.06] text-amber-900 dark:text-amber-200',
         chip.category === 'capability' && 'border-indigo-500/30 bg-indigo-500/[0.06] text-indigo-900 dark:text-indigo-200',
+        isClickable && 'cursor-pointer hover:border-primary/60 dark:hover:border-primary/50',
       )}
       title={chip.tooltip || chip.label}
     >
@@ -100,6 +116,7 @@ export function ComposerContextChipStrip({
   summary,
   className,
   disabled = false,
+  onOpenCapabilityEditor,
 }: ComposerContextChipStripProps) {
   const t = useTranslations('chat.contextStrip');
   const isMobile = useIsMobile();
@@ -172,13 +189,27 @@ export function ComposerContextChipStrip({
       {/* 负载提示与微徽章 */}
       <div className="ml-auto flex items-center gap-1.5 shrink-0">
         {summary.isOverloaded ? (
-          <span
-            className="inline-flex items-center gap-1 rounded-xs bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
-            title={t('overloadWarning')}
-          >
-            <AlertTriangle size={10} />
-            <span>{t('heavyPayload')}</span>
-          </span>
+          onOpenCapabilityEditor && !disabled ? (
+            <button
+              type="button"
+              onClick={onOpenCapabilityEditor}
+              data-testid="composer-overload-nudge"
+              className="inline-flex cursor-pointer items-center gap-1 rounded-xs bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 transition-colors hover:bg-amber-500/20 focus:outline-hidden dark:text-amber-300 dark:hover:bg-amber-500/25"
+              title={t('overloadWarning')}
+              aria-label={t('overloadAria')}
+            >
+              <AlertTriangle size={10} />
+              <span>{t('heavyPayload')}</span>
+            </button>
+          ) : (
+            <span
+              className="inline-flex items-center gap-1 rounded-xs bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
+              title={t('overloadWarning')}
+            >
+              <AlertTriangle size={10} />
+              <span>{t('heavyPayload')}</span>
+            </span>
+          )
         ) : null}
         <span className="text-[10px] font-medium text-muted-foreground/70">
           {t('activeSummary', { count: summary.totalItems })}
