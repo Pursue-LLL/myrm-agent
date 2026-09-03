@@ -67,7 +67,8 @@ const SingleChip = ({ chip, disabled, onRemoveLabel }: SingleChipProps) => {
   const isClickable = Boolean(chip.onAction && !disabled);
   return (
     <div
-      data-testid={`context-chip-${chip.id}`}
+      data-testid={chip.category === 'skill' ? 'skill-activation-chips' : `context-chip-${chip.id}`}
+      data-context-chip-id={chip.id}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
       onClick={isClickable ? chip.onAction : undefined}
@@ -163,7 +164,12 @@ export function ComposerContextChipStrip({
               </div>
               <div className="flex max-h-48 flex-col gap-1.5 overflow-y-auto pr-1">
                 {overflowChips.map((chip) => (
-                  <div key={chip.id} className="flex items-center justify-between gap-1 rounded-md p-1 hover:bg-muted/50">
+                  <div
+                    key={chip.id}
+                    data-testid={chip.category === 'skill' ? 'skill-activation-chips' : `context-chip-${chip.id}`}
+                    data-context-chip-id={chip.id}
+                    className="flex items-center justify-between gap-1 rounded-md p-1 hover:bg-muted/50"
+                  >
                     <div className="flex items-center gap-1.5 min-w-0">
                       {renderChipIcon(chip.iconType)}
                       <span className="truncate text-xs font-medium text-foreground">{chip.label}</span>

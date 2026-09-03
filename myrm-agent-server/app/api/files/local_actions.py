@@ -186,8 +186,13 @@ async def _resolve_chat_artifacts_path(
     elif len(candidate_files) == 1:
         target_dir = candidate_files[0].parent
     else:
-        common = os.path.commonpath([str(p.parent) for p in candidate_files])
-        target_dir = Path(common)
+        try:
+            common = os.path.commonpath([str(p.parent) for p in candidate_files])
+            target_dir = Path(common)
+            if target_dir.resolve() == workspace_resolved:
+                target_dir = candidate_files[0].parent
+        except ValueError:
+            target_dir = candidate_files[0].parent
 
     target_resolved = target_dir.resolve()
     if not target_resolved.is_relative_to(workspace_resolved):
