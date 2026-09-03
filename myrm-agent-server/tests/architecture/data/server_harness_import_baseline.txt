@@ -490,6 +490,7 @@ myrm_agent_harness.toolkits.wiki.retrieval.asset_index
 myrm_agent_harness.toolkits.wiki.retrieval.indexer
 myrm_agent_harness.toolkits.wiki.retrieval.reindex_vectors
 myrm_agent_harness.toolkits.wiki.retrieval.source_citations
+myrm_agent_harness.toolkits.wiki.wiki_agent_tools
 myrm_agent_harness.utils
 myrm_agent_harness.utils.chat_utils
 myrm_agent_harness.utils.coercion
