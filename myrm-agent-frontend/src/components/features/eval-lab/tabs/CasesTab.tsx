@@ -119,3 +119,18 @@ export default function CasesTab({ casesDraft = '', onDraftChange }: CasesTabPro
           )}
         </div>
       </div>
+
+      <CaseFormatReference t={t} />
+      <div className="flex-1 min-h-0">
+        <Editor
+          height="100%"
+          defaultLanguage="json"
+          theme="vs-dark"
+          value={casesDraft}
+          onChange={(value) => onDraftChange(value || '')}
+          options={{ minimap: { enabled: false }, wordWrap: 'on' }}
+        />
+      </div>
+    </>
+  );
+}
