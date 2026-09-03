@@ -362,8 +362,9 @@ class TestRevealChatArtifacts:
 
     @pytest.mark.asyncio
     async def test_missing_on_disk_status(self):
-        from app.api.files.local_actions import _resolve_chat_artifacts_path
         from unittest.mock import AsyncMock, MagicMock
+
+        from app.api.files.local_actions import _resolve_chat_artifacts_path
 
         mock_db = MagicMock()
         mock_art = MagicMock()

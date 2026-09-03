@@ -1859,6 +1859,14 @@
       "noMessages": "無訊息可匯出",
       "print": "列印"
     },
+    "revealArtifacts": {
+      "action": "在檔案總管中顯示產物",
+      "revealing": "正在開啟資料夾...",
+      "success": "已在檔案總管中開啟產物目錄",
+      "noArtifacts": "目前對話暫無產生的檔案產物",
+      "missingOnDisk": "產物檔案在磁碟上已不存在",
+      "error": "開啟產物目錄失敗"
+    },
     "share": {
       "share": "分享",
       "title": "分享對話",

@@ -521,6 +521,18 @@
   },
   "agent": {
     "title": "智能体",
+    "ablationGuide": {
+      "title": "Harness 杠杆率指南",
+      "badge": "AHE 消融实证",
+      "expand": "展开指南",
+      "collapse": "收起",
+      "description": "消融实验（Ablation Study）实证表明：对于任务成功率和执行稳定性，组件杠杆率从高到低依次为：",
+      "toolTier": "工具/技能 (Tools/Skills)",
+      "middlewareTier": "中间件防护 (Middleware)",
+      "memoryTier": "记忆检索 (Memory)",
+      "promptTier": "单纯提示词 (Prompt-only)",
+      "cacheTip": "建议优先通过配置工具与中间件扩展能力，避免频繁修改 System Prompt 导致大模型前缀缓存 (Prompt Cache) 失效。"
+    },
     "description": "创建专属 AI 助手，定制行为和能力",
     "indicator": {
       "default": "智能体",
@@ -9921,6 +9933,13 @@
       "confirmStart": "开始评测",
       "confirmCancel": "取消",
       "confirmProfileHint": "将使用该智能体配置评测"
+    },
+    "ablation": {
+      "title": "组件消融影响与 Harness 编辑建议",
+      "subtitle": "AHE Ablation Priority Ranking",
+      "description": "基于评测失败轨迹的确定性特征归因，消融实证表明：扩展工具/中间件防护对任务成功率的提升收益远大于单纯调试提示词（Tools/Middleware ≫ Prompt）。建议优先按下方建议顺序优化 Harness 配置。",
+      "affectsCases": "关联 {count} 个未通过用例",
+      "quickConfig": "直达配置"
     }
   },
   "vault": {
