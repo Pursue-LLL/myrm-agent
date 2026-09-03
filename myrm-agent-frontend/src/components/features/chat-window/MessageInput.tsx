@@ -60,6 +60,7 @@ import DirectoryApprovalInput from '../message-box/DirectoryApprovalInput';
 import SessionAccessRootsBar from './SessionAccessRootsBar';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
+import { useComposerContextChips } from '@/hooks/message-input/useComposerContextChips';
 import useChatStore from '@/store/useChatStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useProjectStore } from '@/store/useProjectStore';
@@ -236,6 +237,16 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
 
   const mobileSheetEntries = useMobileSheetEntries({
     onClose: () => setIsMobileSheetOpen(false),
+  });
+
+  const { chips: composerContextChips, summary: composerContextSummary } = useComposerContextChips({
+    turnCapabilitySelection,
+    setTurnCapabilitySelection,
+    files,
+    setFiles,
+    clearCurrentSessionMessageId: () => {},
+    mentionReferences,
+    removeMentionReference,
   });
 
   const handleTranscript = React.useCallback(
@@ -513,8 +524,8 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
               <>
                 <FeaturedExpertChips />
                 <ComposerContextChipStrip
-                  turnCapabilitySelection={turnCapabilitySelection}
-                  onTurnCapabilityChange={setTurnCapabilitySelection}
+                  chips={composerContextChips}
+                  summary={composerContextSummary}
                   disabled={loading}
                 />
                 <WechatArticleComposerHint inputMessage={inputMessage} />

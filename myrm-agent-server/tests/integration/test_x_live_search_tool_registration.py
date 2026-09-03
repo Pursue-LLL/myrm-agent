@@ -100,3 +100,52 @@ class TestXLiveSearchSandboxScript:
             )
         assert ret == 1
         assert "cannot be used together" in buf.getvalue()
+
+    def test_extract_response_text_both_formats(self) -> None:
+        # 1. direct output_text
+        payload1 = {"output_text": "Direct answer here"}
+        assert x_search_script._extract_response_text(payload1) == "Direct answer here"
+
+        # 2. structured output list
+        payload2 = {
+            "output": [
+                {
+                    "type": "message",
+                    "content": [
+                        {"type": "output_text", "text": "Structured part 1"},
+                        {"type": "text", "text": "Structured part 2"},
+                    ],
+                }
+            ]
+        }
+        assert x_search_script._extract_response_text(payload2) == "Structured part 1\n\nStructured part 2"
+
+    def test_extract_inline_citations(self) -> None:
+        payload = {
+            "output": [
+                {
+                    "type": "message",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": "Check this out",
+                            "annotations": [
+                                {"type": "url_citation", "url": "https://x.com/user/status/123", "title": "Post Title"}
+                            ],
+                        }
+                    ],
+                }
+            ]
+        }
+        citations = x_search_script._extract_inline_citations(payload)
+        assert len(citations) == 1
+        assert citations[0]["url"] == "https://x.com/user/status/123"
+        assert citations[0]["title"] == "Post Title"
+
+    def test_validate_base_url_security(self) -> None:
+        # Allowed host
+        assert x_search_script._validate_base_url("https://api.x.ai/v1") == "https://api.x.ai/v1"
+        # Disallowed scheme / host fallback to default
+        assert x_search_script._validate_base_url("http://malicious.site/v1") == x_search_script._DEFAULT_XAI_BASE_URL
+        assert x_search_script._validate_base_url("https://attacker.com/v1") == x_search_script._DEFAULT_XAI_BASE_URL
+

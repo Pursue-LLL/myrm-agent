@@ -1674,6 +1674,7 @@
       "actualModelLabel": "实际调用模型"
     },
     "contextStrip": {
+      "remove": "移除",
       "removeSkill": "移除技能",
       "overloadAria": "高工具负载预警：点击收窄本轮生效能力",
       "badgeAria": "{count} 项生效能力",
@@ -1683,7 +1684,11 @@
       "mcpCountDesc": "{count} 个已挂载 MCP 服务",
       "overloadWarning": "已挂载较多外部工具。点击打开能力管理器进行收窄，可大幅节省 Token 并提升响应速度。",
       "moreChipsAria": "查看其余 {count} 项上下文",
-      "moreContextTitle": "已挂载上下文与能力"
+      "moreContextTitle": "已挂载上下文与能力",
+      "moreItems": "查看其余 {count} 项上下文",
+      "attachedContextTitle": "已挂载上下文",
+      "heavyPayload": "高工具负载",
+      "activeSummary": "{count} 项生效上下文"
     },
     "uploadFailed": "上传失败",
     "skillActivation": {
@@ -1704,6 +1709,7 @@
     },
     "newChat": "新对话",
     "placeholder": "有问题尽管问我......",
+    "uploading": "上传中...",
     "uploadingImage": "正在上传图片...",
     "send": "发送",
     "copy": "复制",
@@ -2609,6 +2615,7 @@
       "tooltip": "下一条消息能力",
       "popoverTitle": "下一条消息能力范围",
       "activeCount": "技能 {skills} 项，MCP 服务 {mcps} 项",
+      "activeSummary": "自定义能力覆盖",
       "clearOverride": "恢复默认",
       "skillsSection": "技能",
       "mcpSection": "MCP 服务",

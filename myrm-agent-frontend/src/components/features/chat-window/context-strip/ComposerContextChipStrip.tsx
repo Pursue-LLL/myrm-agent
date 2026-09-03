@@ -95,7 +95,7 @@ const SingleChip = ({ chip, disabled, onRemoveLabel }: SingleChipProps) => {
   );
 };
 
-export default function ComposerContextChipStrip({
+export function ComposerContextChipStrip({
   chips,
   summary,
   className,

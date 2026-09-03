@@ -41,3 +41,35 @@ async def test_conversation_recall_health_detects_corrupted_fts() -> None:
     assert health.segments_fts_ready is True
     assert health.indexed_conversations == 10
     assert health.indexed_segments == 20
+
+
+@pytest.mark.asyncio
+async def test_conversation_recall_search_resilient_on_fts_corruption() -> None:
+    db = AsyncMock()
+    # Mock segment query throwing corruption error, document query returning empty list
+    mock_doc_result = MagicMock()
+    mock_doc_result.mappings.return_value.all.return_value = []
+
+    db.execute.side_effect = [
+        # segment query fails with corruption
+        RuntimeError("database disk image is malformed"),
+        # auto-rebuild executes
+        MagicMock(),
+        # document query succeeds
+        mock_doc_result,
+    ]
+
+    results = await ConversationRecallRepository.search(
+        db,
+        safe_query="test query",
+        limit=10,
+        current_chat_id=None,
+        agent_id=None,
+        current_source=None,
+        scope="all",
+        lineage_chat_ids=[],
+        since=None,
+        until=None,
+    )
+    assert isinstance(results, list)
+    assert len(results) == 0

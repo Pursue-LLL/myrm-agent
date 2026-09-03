@@ -1946,6 +1946,19 @@ export function WikiSection() {
             setImportSecurityRedactedPaths([]);
           }}
         />
+        <WikiUrlImportDialog
+          open={urlImportDialogOpen}
+          onOpenChange={setUrlImportDialogOpen}
+          agentScopeId={agentScopeId}
+          onImportFinished={async (result) => {
+            await loadStats();
+            setTreeSyncNonce((val) => val + 1);
+            if (result.enqueued_count > 0) {
+              toast.message(t('import.dedupScanStarted'));
+              handleWikiTabChange('duplicateReview');
+            }
+          }}
+        />
       </div>
     </WikiAgentScopeProvider>
   );

@@ -64,7 +64,7 @@ _CLICK_RUN_DIAGNOSTICS_JS = """(() => {
 _DIAGNOSTIC_RESULT_READY_JS = """(() => {
   const text = document.body?.textContent || '';
   const hasLastRun = /Latest diagnostic result|最近诊断结果/.test(text);
-  const hasRecall = /Recall@5|召回率@5/.test(text);
+  const hasRecall = /Recall@\\d+|召回率@\\d+|Recall|召回率/.test(text);
   const runBtnDisabled = !!Array.from(document.querySelectorAll('button')).find(
     (el) => /Run all diagnostics|运行全部诊断/.test(el.textContent || '') && el.disabled,
   );

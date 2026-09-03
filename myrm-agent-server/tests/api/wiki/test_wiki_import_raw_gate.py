@@ -165,3 +165,165 @@ def test_import_folder_blocks_credential_content(tmp_path: Path) -> None:
     assert data["files_security_blocked"] == 1
     assert data["security_blocked_paths"] == ["note.md"]
     assert not structure.get_raw_file_path("note.md").exists()
+
+
+def test_import_urls_success(tmp_path: Path) -> None:
+    client, _archiver, structure = _build_import_client(tmp_path)
+
+    with patch(
+        "app.api.wiki.router._fetch_url_as_markdown",
+        return_value="# Test Title\n\nArticle body content.",
+    ):
+        try:
+            response = client.post(
+                "/api/v1/wiki/import/urls",
+                json={
+                    "urls": ["https://example.com/article-1"],
+                    "folder_path": "Articles/Web",
+                    "auto_compile": False,
+                    "on_conflict": "skip",
+                },
+            )
+        finally:
+            client.app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["total_urls"] == 1
+    assert data["enqueued_count"] == 1
+    assert data["results"][0]["status"] == "success"
+    assert data["results"][0]["url"] == "https://example.com/article-1"
+    rel_path = data["results"][0]["relative_path"]
+    assert rel_path.startswith("Articles/Web/")
+    raw_path = structure.get_raw_file_path(rel_path)
+    assert raw_path.is_file()
+    content = raw_path.read_text(encoding="utf-8")
+    assert "source_url: https://example.com/article-1" in content
+    assert "Article body content." in content
+
+
+def test_import_urls_ssrf_blocked(tmp_path: Path) -> None:
+    client, _archiver, _structure = _build_import_client(tmp_path)
+
+    try:
+        response = client.post(
+            "/api/v1/wiki/import/urls",
+            json={
+                "urls": ["http://127.0.0.1:8000/internal-secrets"],
+                "auto_compile": False,
+                "on_conflict": "skip",
+            },
+        )
+    finally:
+        client.app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["error_count"] == 1
+    assert data["enqueued_count"] == 0
+    assert data["results"][0]["status"] == "error"
+    assert "SSRF blocked" in data["results"][0]["error"]
+
+
+def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
+    client, _archiver, structure = _build_import_client(tmp_path)
+
+    with patch(
+        "app.api.wiki.router._fetch_url_as_markdown",
+        return_value="# Version 1\n\nFirst edition.",
+    ):
+        try:
+            resp1 = client.post(
+                "/api/v1/wiki/import/urls",
+                json={
+                    "urls": ["https://example.com/shared-doc"],
+                    "auto_compile": False,
+                    "on_conflict": "skip",
+                },
+            )
+        finally:
+            pass
+
+    assert resp1.status_code == 200
+    data1 = resp1.json()
+    assert data1["enqueued_count"] == 1
+    rel_path = data1["results"][0]["relative_path"]
+    raw_file = structure.get_raw_file_path(rel_path)
+    assert "First edition." in raw_file.read_text(encoding="utf-8")
+
+    # Conflict skip
+    with patch(
+        "app.api.wiki.router._fetch_url_as_markdown",
+        return_value="# Version 2\n\nSecond edition.",
+    ):
+        try:
+            resp2 = client.post(
+                "/api/v1/wiki/import/urls",
+                json={
+                    "urls": ["https://example.com/shared-doc"],
+                    "auto_compile": False,
+                    "on_conflict": "skip",
+                },
+            )
+        finally:
+            pass
+
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["skipped_conflict_count"] == 1
+    assert data2["results"][0]["status"] == "skipped_conflict"
+    assert "First edition." in raw_file.read_text(encoding="utf-8")
+
+    # Supersede
+    with patch(
+        "app.api.wiki.router._fetch_url_as_markdown",
+        return_value="# Version 2\n\nSecond edition.",
+    ):
+        try:
+            resp3 = client.post(
+                "/api/v1/wiki/import/urls",
+                json={
+                    "urls": ["https://example.com/shared-doc"],
+                    "auto_compile": False,
+                    "on_conflict": "supersede",
+                    "supersede_reason": "Updated from upstream website",
+                },
+            )
+        finally:
+            client.app.dependency_overrides.clear()
+
+    assert resp3.status_code == 200
+    data3 = resp3.json()
+    assert data3["superseded_count"] == 1
+    assert data3["results"][0]["status"] == "superseded"
+    assert "Second edition." in raw_file.read_text(encoding="utf-8")
+
+
+def test_import_urls_security_blocked(tmp_path: Path) -> None:
+    client, _archiver, _structure = _build_import_client(tmp_path)
+    secret = "sk-1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd"
+
+    with patch(
+        "app.api.wiki.router._fetch_url_as_markdown",
+        return_value=f"# Leaked Page\n\nOPENAI_API_KEY={secret}",
+    ):
+        try:
+            response = client.post(
+                "/api/v1/wiki/import/urls",
+                json={
+                    "urls": ["https://example.com/leak"],
+                    "auto_compile": False,
+                    "on_conflict": "skip",
+                },
+            )
+        finally:
+            client.app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["security_blocked_count"] == 1
+    assert data["enqueued_count"] == 0
+    assert data["results"][0]["status"] == "security_blocked"
+
