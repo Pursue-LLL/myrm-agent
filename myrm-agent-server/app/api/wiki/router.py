@@ -2886,20 +2886,20 @@ async def import_urls(
         try:
             doc = await web_fetch_tools.crawl(url)
             if doc and doc.page_content:
-                return doc.page_content
-        except Exception as e:
-            logger.warning("web_fetch_tools crawl failed for %s: %s", url, e)
+                return str(doc.page_content)
+        except Exception as exc:
+            logger.warning("web_fetch_tools crawl failed for %s: %s", url, exc)
         return ""
 
     async def _process_single_url(target_url: str) -> UrlImportItemResult:
         async with semaphore:
             try:
                 ssrf_res = await async_validate_url_for_ssrf(target_url)
-                if not ssrf_res.is_safe:
+                if not ssrf_res.safe:
                     return UrlImportItemResult(
                         url=target_url,
                         status="error",
-                        error=f"SSRF blocked or invalid URL: {ssrf_res.error_message}",
+                        error=f"SSRF blocked or invalid URL: {ssrf_res.error}",
                     )
 
                 markdown = await _fetch_url_markdown(target_url)

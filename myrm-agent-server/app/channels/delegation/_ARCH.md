@@ -7,6 +7,7 @@ Asynchronous delegation coordination, in-flight steering pipeline, and remote ap
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
+| `__init__.py` | Package Root | Subsystem initialization. | ✅ |
 | `delegation_models.py` | Models | Core data models for tasks, steering messages, approvals, beacons, and events. | ✅ |
 | `delegation_coordinator.py` | Core | Central coordinator managing task state machines, steering, and remote approvals. | ✅ |
 | `delegation_ingress.py` | Ingress | Channel message parsing, delegation trigger extraction, and permission checks. | ✅ |

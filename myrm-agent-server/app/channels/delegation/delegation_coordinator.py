@@ -22,11 +22,13 @@ import asyncio
 import logging
 import time
 import uuid
-from typing import Callable, Literal
+from pathlib import Path
+from typing import TYPE_CHECKING, Callable, Literal
 
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
+from .delegation_delivery import build_delivery_card_content, scan_workspace_artifacts
 from .delegation_models import (
     ApprovalRequest,
     ApprovalResponse,
@@ -36,6 +38,11 @@ from .delegation_models import (
     RiskLevel,
     SteeringMessage,
 )
+
+if TYPE_CHECKING:
+    from app.channels.core.bus import MessageBus
+    from app.channels.protocols.agent import AgentExecutor
+    from app.channels.types import InboundMessage
 
 logger = logging.getLogger("myrm.channels.delegation.coordinator")
 
@@ -245,3 +252,117 @@ class DelegationCoordinator:
             if req.task_id == task_id:
                 return req
         return None
+
+    def find_active_task(self, channel: str, user_id: str) -> DelegationTask | None:
+        """Find the currently active or running task for a user in a channel."""
+        for task in self._tasks.values():
+            if (
+                task.origin_channel == channel
+                and task.origin_user_id == user_id
+                and task.status in (DelegationStatus.PENDING, DelegationStatus.RUNNING, DelegationStatus.SUSPENDED_FOR_APPROVAL)
+            ):
+                return task
+        return None
+
+    def get_steering_token(self, task_id: str) -> SteeringToken | None:
+        """Retrieve the steering token for a task."""
+        return self._steering_tokens.get(task_id)
+
+    def get_cancellation_token(self, task_id: str) -> CancellationToken | None:
+        """Retrieve the cancellation token for a task."""
+        return self._cancellation_tokens.get(task_id)
+
+    def reap_stale_tasks(self, max_age_seconds: float = 7200.0) -> list[str]:
+        """Reap tasks that have exceeded their timeout or run past max age.
+
+        Returns:
+            List of reaped task IDs.
+        """
+        now = time.time()
+        reaped: list[str] = []
+        for task_id, task in list(self._tasks.items()):
+            if task.status in (DelegationStatus.COMPLETED, DelegationStatus.FAILED, DelegationStatus.CANCELLED):
+                continue
+            started = task.started_at or task.created_at
+            timeout = task.timeout_seconds or max_age_seconds
+            if now - started > timeout:
+                self.update_task_status(
+                    task_id,
+                    DelegationStatus.FAILED,
+                    error_message=f"Task timed out after {int(now - started)} seconds",
+                )
+                cancel_token = self._cancellation_tokens.get(task_id)
+                if cancel_token:
+                    cancel_token.cancel()
+                reaped.append(task_id)
+                logger.warning("DelegationCoordinator: Reaped stale task %s", task_id)
+        return reaped
+
+    async def execute_task_lifecycle(
+        self,
+        task: DelegationTask,
+        executor: AgentExecutor,
+        bus: MessageBus,
+        original_msg: InboundMessage,
+        *,
+        workspace_dir: str | Path = "",
+        server_base_url: str = "",
+    ) -> None:
+        """Run delegated task lifecycle in background, handle status transitions, and publish delivery card."""
+        from dataclasses import replace
+        from app.channels.types import OutboundMessage, StreamingText
+
+        self.update_task_status(task.task_id, DelegationStatus.RUNNING)
+        cancel_token = self.get_cancellation_token(task.task_id)
+        steering_token = self.get_steering_token(task.task_id)
+
+        try:
+            task_msg = replace(original_msg, content=task.normalized_prompt)
+            result_text = ""
+
+            async for event in executor.execute_stream(
+                task_msg,
+                task.origin_user_id,
+                cancel_token=cancel_token,
+                steering_token=steering_token,
+            ):
+                if isinstance(event, StreamingText):
+                    result_text += event.text
+
+            artifacts = []
+            if workspace_dir:
+                artifacts = scan_workspace_artifacts(
+                    workspace_dir,
+                    server_base_url=server_base_url,
+                )
+                task.artifacts = artifacts
+
+            self.update_task_status(
+                task.task_id,
+                DelegationStatus.COMPLETED,
+                result_summary=result_text[:200] if result_text else "Task finished successfully.",
+            )
+
+            card_content = build_delivery_card_content(task, artifacts, server_base_url=server_base_url)
+            outbound = OutboundMessage(
+                channel=task.origin_channel,
+                recipient_id=task.origin_chat_id,
+                content=card_content,
+                user_id=task.origin_user_id,
+                metadata={"delegation_task_id": task.task_id, "is_delegation_delivery": True},
+            )
+            await bus.publish_outbound(outbound)
+            logger.info("DelegationCoordinator: Task %s completed and delivered to %s", task.task_id, task.origin_chat_id)
+
+        except Exception as exc:
+            logger.exception("DelegationCoordinator: Task %s failed: %s", task.task_id, exc)
+            self.update_task_status(task.task_id, DelegationStatus.FAILED, error_message=str(exc))
+            fail_msg = OutboundMessage(
+                channel=task.origin_channel,
+                recipient_id=task.origin_chat_id,
+                content=f"❌ 异步任务 `[{task.task_id}]` 执行失败：{exc}",
+                user_id=task.origin_user_id,
+            )
+            await bus.publish_outbound(fail_msg)
+
+

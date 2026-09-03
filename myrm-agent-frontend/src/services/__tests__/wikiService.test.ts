@@ -28,4 +28,9 @@ describe('buildWikiApiPath', () => {
     expect(buildWikiApiPath('/wiki/pending', 'agent-a')).toBe('/wiki/pending?agent_id=agent-a');
     expect(buildWikiApiPath('/wiki/concepts?limit=10', 'agent/b')).toBe('/wiki/concepts?limit=10&agent_id=agent%2Fb');
   });
+
+  it('formats import urls path correctly', () => {
+    expect(buildWikiApiPath('/wiki/import/urls', null)).toBe('/wiki/import/urls');
+    expect(buildWikiApiPath('/wiki/import/urls', 'agent-kb')).toBe('/wiki/import/urls?agent_id=agent-kb');
+  });
 });

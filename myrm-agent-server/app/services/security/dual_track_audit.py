@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.schemas.security.dashboard (POS: Dual-track audit DTO schemas)
-- myrm_agent_harness.observability.audit_trail (POS: Harness compliance audit collector & exporter)
+- myrm_agent_harness.api (POS: Harness compliance audit collector & exporter)
 
 [OUTPUT]
 - get_default_audit_collector
@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi.responses import Response
-from myrm_agent_harness.observability.audit_trail import (
+from myrm_agent_harness.api import (
     ComplianceOutcome,
     ComplianceTrailExporter,
     DualTrackAuditCollector,

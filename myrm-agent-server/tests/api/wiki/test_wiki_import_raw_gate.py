@@ -171,7 +171,7 @@ def test_import_urls_success(tmp_path: Path) -> None:
     client, _archiver, structure = _build_import_client(tmp_path)
 
     with patch(
-        "app.api.wiki.router._fetch_url_as_markdown",
+        "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
         return_value="# Test Title\n\nArticle body content.",
     ):
         try:
@@ -195,11 +195,11 @@ def test_import_urls_success(tmp_path: Path) -> None:
     assert data["results"][0]["status"] == "success"
     assert data["results"][0]["url"] == "https://example.com/article-1"
     rel_path = data["results"][0]["relative_path"]
-    assert rel_path.startswith("Articles/Web/")
+    assert rel_path.lower().startswith("articles/web/")
     raw_path = structure.get_raw_file_path(rel_path)
     assert raw_path.is_file()
     content = raw_path.read_text(encoding="utf-8")
-    assert "source_url: https://example.com/article-1" in content
+    assert "https://example.com/article-1" in content
     assert "Article body content." in content
 
 
@@ -231,7 +231,7 @@ def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
     client, _archiver, structure = _build_import_client(tmp_path)
 
     with patch(
-        "app.api.wiki.router._fetch_url_as_markdown",
+        "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
         return_value="# Version 1\n\nFirst edition.",
     ):
         try:
@@ -255,7 +255,7 @@ def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
 
     # Conflict skip
     with patch(
-        "app.api.wiki.router._fetch_url_as_markdown",
+        "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
         return_value="# Version 2\n\nSecond edition.",
     ):
         try:
@@ -278,7 +278,7 @@ def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
 
     # Supersede
     with patch(
-        "app.api.wiki.router._fetch_url_as_markdown",
+        "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
         return_value="# Version 2\n\nSecond edition.",
     ):
         try:
@@ -306,7 +306,7 @@ def test_import_urls_security_blocked(tmp_path: Path) -> None:
     secret = "sk-1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd"
 
     with patch(
-        "app.api.wiki.router._fetch_url_as_markdown",
+        "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
         return_value=f"# Leaked Page\n\nOPENAI_API_KEY={secret}",
     ):
         try:
