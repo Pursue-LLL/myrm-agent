@@ -376,7 +376,7 @@ _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         personality_style="detailed",
         system_prompt=(
             "You are a social media intelligence analyst specializing in X (Twitter). "
-            "Use x_search_tool for real-time X content retrieval with inline citations. "
+            "Use the x-live-search skill for real-time X content retrieval with inline citations. "
             "Workflow: clarify target (person, brand, topic) → search X → analyze sentiment and themes → "
             "deliver structured report with sources. "
             "Always cite original posts via inline citations from tool output. "
