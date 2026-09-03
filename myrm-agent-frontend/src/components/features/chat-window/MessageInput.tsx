@@ -366,6 +366,15 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
               return;
             }
 
+            if (e.key === 'Backspace' && inputMessage === '') {
+              const lastRemovableChip = [...composerContextChips].reverse().find((c) => c.isRemovable && c.onRemove);
+              if (lastRemovableChip) {
+                e.preventDefault();
+                lastRemovableChip.onRemove?.();
+                return;
+              }
+            }
+
             if (isExpanded && e.key === 'Escape') {
               e.preventDefault();
               setIsExpanded(false);
@@ -585,6 +594,8 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                         selection={turnCapabilitySelection}
                         onSelectionChange={setTurnCapabilitySelection}
                         disabled={loading}
+                        open={isTurnCapabilityOpen}
+                        onOpenChange={setIsTurnCapabilityOpen}
                       />
                       <ToolsPanel />
                       {!hideChatWorkspacePicker && <WorkspaceDirPicker />}

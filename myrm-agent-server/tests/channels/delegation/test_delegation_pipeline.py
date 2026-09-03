@@ -26,7 +26,6 @@ from app.channels.delegation.delegation_models import (
 from app.channels.routing.router import AgentRouter
 from app.channels.types import InboundMessage, StreamingText
 
-
 # ── Ingress Intent Tests ──────────────────────────────────────────────
 
 

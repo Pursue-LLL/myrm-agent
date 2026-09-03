@@ -138,4 +138,62 @@ describe('ComposerContextChipStrip', () => {
     // Default desktop maxVisible is 4, so overflow chips count is 2 (+2)
     expect(screen.getByText('+2')).toBeInTheDocument();
   });
+
+  it('triggers onOpenCapabilityEditor when amber overload badge is clicked', () => {
+    const onOpenCapabilityEditor = vi.fn();
+    const chips: ContextChipItem[] = [
+      {
+        id: 'chip-1',
+        category: 'capability',
+        label: 'Loaded MCPs',
+        iconType: 'capability',
+        isRemovable: false,
+      },
+    ];
+
+    render(
+      <ComposerContextChipStrip
+        chips={chips}
+        summary={{
+          totalItems: 1,
+          totalSkills: 5,
+          totalMcp: 3,
+          totalFiles: 0,
+          isOverloaded: true,
+        }}
+        onOpenCapabilityEditor={onOpenCapabilityEditor}
+      />,
+    );
+
+    const overloadBtn = screen.getByTestId('composer-overload-nudge');
+    expect(overloadBtn).toBeInTheDocument();
+    fireEvent.click(overloadBtn);
+    expect(onOpenCapabilityEditor).toHaveBeenCalledTimes(1);
+  });
+
+  it('triggers chip.onAction when clickable chip is clicked', () => {
+    const onAction = vi.fn();
+    const chips: ContextChipItem[] = [
+      {
+        id: 'chip-capability',
+        category: 'capability',
+        label: 'Configure Scope',
+        iconType: 'capability',
+        isRemovable: false,
+        onAction,
+      },
+    ];
+
+    render(
+      <ComposerContextChipStrip
+        chips={chips}
+        summary={{ ...defaultSummary, totalItems: 1 }}
+      />,
+    );
+
+    const chipEl = screen.getByTestId('context-chip-chip-capability');
+    expect(chipEl).toBeInTheDocument();
+    fireEvent.click(chipEl);
+    expect(onAction).toHaveBeenCalledTimes(1);
+  });
 });

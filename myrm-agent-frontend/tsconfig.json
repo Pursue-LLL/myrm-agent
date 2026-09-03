@@ -55,7 +55,9 @@
     ".next-isolated-chrome-test_tools_panel_shows_semantic_layer_ba-09efb943-54676-f057340f/types/**/*.ts",
     ".next-isolated-chrome-test_tools_panel_shows_semantic_layer_ba-09efb943-54676-f057340f/dev/types/**/*.ts",
     ".next-isolated-chrome-test_tools_panel_shows_semantic_layer_ba-09efb943-35268-cf672d80/types/**/*.ts",
-    ".next-isolated-chrome-test_tools_panel_shows_semantic_layer_ba-09efb943-35268-cf672d80/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_tools_panel_shows_semantic_layer_ba-09efb943-35268-cf672d80/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_fast_search_web_search_citations_li-f65262c4-84929-e3e9be68/types/**/*.ts",
+    ".next-isolated-chrome-test_fast_search_web_search_citations_li-f65262c4-84929-e3e9be68/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
