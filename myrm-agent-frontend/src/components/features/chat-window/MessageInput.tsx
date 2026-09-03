@@ -451,30 +451,6 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
             />
           )}
 
-          {/* @ 引用列表 */}
-          {mentionReferences.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {mentionReferences.map((f) => (
-                <span
-                  key={mentionReferenceKey(f)}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs border border-primary/20"
-                >
-                  <span className="truncate max-w-[180px]" title={f.path ?? f.fileId ?? f.url ?? f.label}>
-                    {f.label}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeMentionReference(mentionReferenceKey(f))}
-                    className="hover:text-destructive transition-colors"
-                    aria-label={chatT('fileMention.removeReference', { label: f.label })}
-                  >
-                    <X size={12} />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
           {/* 动态工作记忆面板 (Active Working Memory) */}
           <ActiveWorkingMemoryPanel />
 
@@ -524,6 +500,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                   chips={composerContextChips}
                   summary={composerContextSummary}
                   disabled={loading}
+                  onOpenCapabilityEditor={handleOpenCapabilityEditor}
                 />
                 <WechatArticleComposerHint inputMessage={inputMessage} />
                 {showBtwDisambiguation ? (
