@@ -327,3 +327,71 @@ def test_import_urls_security_blocked(tmp_path: Path) -> None:
     assert data["enqueued_count"] == 0
     assert data["results"][0]["status"] == "security_blocked"
 
+
+def test_import_video_bilibili_success(tmp_path: Path) -> None:
+    from langchain_core.documents import Document
+
+    client, archiver, structure = _build_import_client(tmp_path)
+    fake_doc = Document(
+        page_content="00:00 Welcome\n00:30 System Architecture Design",
+        metadata={
+            "title": "Clean Arch Video",
+            "author_name": "Software Guru",
+            "duration": "10:00",
+            "bvid": "BV1xx411c7Xz",
+        },
+    )
+
+    with patch(
+        "myrm_agent_harness.toolkits.wiki.pipeline.ingress.video_ingress.extract_bilibili_subtitle",
+        new=AsyncMock(return_value=fake_doc),
+    ):
+        try:
+            response = client.post(
+                "/api/v1/wiki/import/video",
+                json={
+                    "url": "https://www.bilibili.com/video/BV1xx411c7Xz",
+                    "folder_path": "videos",
+                    "auto_compile": False,
+                    "on_conflict": "skip",
+                },
+            )
+        finally:
+            client.app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["status"] == "success"
+    rel_path = data["relative_path"]
+    assert rel_path.lower().startswith("videos/")
+    raw_path = structure.get_raw_file_path(rel_path)
+    assert raw_path.is_file()
+    content = raw_path.read_text(encoding="utf-8")
+    assert "Clean Arch Video" in content
+    assert "Software Guru" in content
+
+
+def test_import_video_ssrf_blocked(tmp_path: Path) -> None:
+    client, _archiver, _structure = _build_import_client(tmp_path)
+
+    try:
+        response = client.post(
+            "/api/v1/wiki/import/video",
+            json={
+                "url": "http://127.0.0.1:8000/internal-video",
+                "folder_path": "videos",
+                "auto_compile": False,
+                "on_conflict": "skip",
+            },
+        )
+    finally:
+        client.app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is False
+    assert data["status"] == "error"
+    assert "SSRF blocked" in data["error"]
+
+
