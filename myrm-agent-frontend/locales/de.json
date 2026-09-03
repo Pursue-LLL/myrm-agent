@@ -1959,6 +1959,7 @@
       "privacyRoute": "Routenführung",
       "privacyRouteLocal": "Lokal",
       "privacyRouteCloud": "Wolke",
+      "sandboxEnv": "Sandbox-Umgebung",
       "contextWindow": "Kontextfenster",
       "contextUsed": "Kontext genutzt",
       "contextWarning": "Kontextkomprimierung wird bald ausgelöst. Halten Sie Prompts prägnant.",
