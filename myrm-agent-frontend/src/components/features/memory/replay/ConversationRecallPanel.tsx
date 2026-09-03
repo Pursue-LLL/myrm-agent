@@ -135,6 +135,8 @@ const ConversationRecallPanel = memo(() => {
 
   return (
     <div className="space-y-4">
+      <ExternalHarnessSyncCard />
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-base font-semibold text-foreground">{t('title')}</h3>
@@ -192,8 +194,19 @@ const ConversationRecallPanel = memo(() => {
                       <h4 className="max-w-full truncate text-sm font-semibold text-foreground">
                         {entry.title || t('untitled')}
                       </h4>
-                      <span className="rounded-full border border-border/60 px-2 py-0.5 text-xs text-muted-foreground">
-                        {entry.source}
+                      <span
+                        className={cn(
+                          'rounded-full px-2 py-0.5 text-xs',
+                          entry.source?.startsWith('external:')
+                            ? 'border border-primary/20 bg-primary/10 font-medium text-primary'
+                            : 'border border-border/60 text-muted-foreground',
+                        )}
+                      >
+                        {entry.source === 'external:claude_code'
+                          ? 'Claude Code'
+                          : entry.source === 'external:codex'
+                            ? 'Codex'
+                            : entry.source}
                       </span>
                       {entry.is_excluded && (
                         <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs text-destructive">

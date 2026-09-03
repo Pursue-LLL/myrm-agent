@@ -9668,19 +9668,19 @@
       "injectCanaryBtn": "注入 Canary 防污染声明"
     },
     "clustering": {
-      "panelTitle": "失败特征聚类与双轴可解决性",
-      "clustersFound": "聚类发现",
-      "panelSubtitle": "归一化错误签名 (ci, qi, mi) 智能聚合，分析 Harness 治理可行性与 RFC-6902 补丁提议",
-      "cases": "例",
-      "affectedCases": "受影响用例索引",
+      "panelTitle": "失败签名聚类与治理提案",
+      "panelSubtitle": "基于 Sentry 级指纹脱敏与 (ci, qi, mi) 双轴判定，提炼共性病灶并生成 RFC-6902 配置补丁",
+      "clustersFound": "个共性特征簇",
+      "verdictAddressable": "框架可解 (Addressable)",
+      "verdictModelLimit": "模型瓶颈 (Model-Limit)",
+      "verdictFlake": "环境偶发 (Flake)",
+      "cases": "例集中",
+      "affectedCases": "受影响用例列表",
       "sampleQueries": "代表性任务 Prompt",
-      "patchProposalTitle": "RFC-6902 配置补丁提议",
-      "copyPatch": "复制 Patch JSON",
+      "patchProposalTitle": "推荐配置变更补丁",
+      "copyPatch": "复制补丁",
       "copied": "已复制",
-      "reviewAndApply": "审查并应用补丁",
-      "verdictAddressable": "Harness 可治 (Addressable)",
-      "verdictModelLimit": "模型能力瓶颈 (Model Limit)",
-      "verdictFlake": "偶发抖动/超时 (Flake)"
+      "reviewAndApply": "预览并应用补丁"
     },
     "pageTitle": "评测实验室",
     "pageDescription": "管理测试用例并执行沙盒环境隔离评估，全自动化验证 Agent 表现",
@@ -9991,21 +9991,6 @@
       "description": "基于评测失败轨迹的确定性特征归因，消融实证表明：扩展工具/中间件防护对任务成功率的提升收益远大于单纯调试提示词（Tools/Middleware ≫ Prompt）。建议优先按下方建议顺序优化 Harness 配置。",
       "affectsCases": "关联 {count} 个未通过用例",
       "quickConfig": "直达配置"
-    },
-    "clustering": {
-      "panelTitle": "失败签名聚类与治理提案",
-      "panelSubtitle": "基于 Sentry 级指纹脱敏与 (ci, qi, mi) 双轴判定，提炼共性病灶并生成 RFC-6902 配置补丁",
-      "clustersFound": "个共性特征簇",
-      "verdictAddressable": "框架可解 (Addressable)",
-      "verdictModelLimit": "模型瓶颈 (Model-Limit)",
-      "verdictFlake": "环境偶发 (Flake)",
-      "cases": "例集中",
-      "affectedCases": "受影响用例列表",
-      "sampleQueries": "代表性任务 Prompt",
-      "patchProposalTitle": "推荐配置变更补丁",
-      "copyPatch": "复制补丁",
-      "copied": "已复制",
-      "reviewAndApply": "预览并应用补丁"
     }
   },
   "vault": {

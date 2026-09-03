@@ -9668,19 +9668,19 @@
       "injectCanaryBtn": "Inject Canary Header"
     },
     "clustering": {
-      "panelTitle": "Failure Signature Clustering & Dual-Axis Addressability",
-      "clustersFound": "Clusters Found",
-      "panelSubtitle": "Intelligently clusters normalized error signatures (ci, qi, mi) to evaluate Harness remediability and propose RFC-6902 patches",
+      "panelTitle": "Failure Signature Clustering & Governance Proposals",
+      "panelSubtitle": "Sentry-grade fingerprint normalization & (ci, qi, mi) dual-axis addressability evaluation with RFC-6902 patch synthesis",
+      "clustersFound": "clusters found",
+      "verdictAddressable": "Addressable (Harness)",
+      "verdictModelLimit": "Model-Limit",
+      "verdictFlake": "Flake (Transient)",
       "cases": "cases",
-      "affectedCases": "Affected Case Indices",
-      "sampleQueries": "Representative Task Prompts",
-      "patchProposalTitle": "RFC-6902 Configuration Patch Proposal",
-      "copyPatch": "Copy Patch JSON",
+      "affectedCases": "Affected Cases",
+      "sampleQueries": "Representative Prompts",
+      "patchProposalTitle": "Recommended Patch Proposal",
+      "copyPatch": "Copy Patch",
       "copied": "Copied",
-      "reviewAndApply": "Review & Apply Patch",
-      "verdictAddressable": "Harness Addressable",
-      "verdictModelLimit": "Model Capability Limit",
-      "verdictFlake": "Transient Flake / Timeout"
+      "reviewAndApply": "Review & Apply"
     },
     "pageTitle": "Eval Lab",
     "pageDescription": "Manage test cases and run sandboxed evaluations to automatically verify agent performance",
@@ -9991,21 +9991,6 @@
       "description": "Deterministic trajectory failure attribution indicates: expanding Tools/Middleware brings significantly higher ROI than Prompt-only adjustments (Tools/Middleware ≫ Prompt). Optimize your Harness configuration following the prioritized recommendations below.",
       "affectsCases": "Affects {count} failed cases",
       "quickConfig": "Configure"
-    },
-    "clustering": {
-      "panelTitle": "Failure Signature Clustering & Governance Proposals",
-      "panelSubtitle": "Sentry-grade fingerprint normalization & (ci, qi, mi) dual-axis addressability evaluation with RFC-6902 patch synthesis",
-      "clustersFound": "clusters found",
-      "verdictAddressable": "Addressable (Harness)",
-      "verdictModelLimit": "Model-Limit",
-      "verdictFlake": "Flake (Transient)",
-      "cases": "cases",
-      "affectedCases": "Affected Cases",
-      "sampleQueries": "Representative Prompts",
-      "patchProposalTitle": "Recommended Patch Proposal",
-      "copyPatch": "Copy Patch",
-      "copied": "Copied",
-      "reviewAndApply": "Review & Apply"
     }
   },
   "vault": {
