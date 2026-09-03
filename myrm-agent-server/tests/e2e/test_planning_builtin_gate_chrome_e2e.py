@@ -1,4 +1,4 @@
-"""Real Chrome MCP E2E for planning builtin tool toggle in agent settings."""
+"""Real Chrome MCP E2E for planning builtin tool and task progress rendering."""
 
 from __future__ import annotations
 

@@ -47,6 +47,8 @@ export function mapTaskStepStatus(status: string | undefined): ProgressItem['sta
     case 'cancelled':
     case 'skipped':
       return 'cancelled';
+    case 'blocked':
+      return 'blocked';
     default:
       // running / pending / in_progress — in-flight steps (no terminal badge)
       return undefined;

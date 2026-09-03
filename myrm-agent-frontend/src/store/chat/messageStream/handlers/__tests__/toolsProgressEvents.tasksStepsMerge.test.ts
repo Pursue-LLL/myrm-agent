@@ -145,6 +145,19 @@ describe('toolsProgressEvents TASKS_STEPS step_key merge', () => {
     expect(state.messages[0].progressSteps![0].status).toBe('cancelled');
   });
 
+  it('maps blocked harness status to blocked on merge', async () => {
+    const state = makeMessagesState();
+    const setMessages = vi.fn((updater: (s: StreamMutableState) => void) => {
+      updater(state as unknown as StreamMutableState);
+    });
+
+    const ctx = makeTasksStepsCtx('blocked', 'todo_step_blocked');
+    ctx.actions.setMessages = setMessages;
+    await toolsProgressEvents(ctx);
+
+    expect(state.messages[0].progressSteps![0].status).toBe('blocked');
+  });
+
   it('merges is_plan todo tree by step_key (progress_root + todo_step_*)', async () => {
     const state = makeMessagesState();
     const setMessages = vi.fn((updater: (s: StreamMutableState) => void) => {

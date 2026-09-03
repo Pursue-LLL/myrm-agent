@@ -113,8 +113,9 @@ export default function MemoryCitationsButton({
     if (citationRefs.length > 0) {
       lines.push(`### ${t('sectionMemories')}`);
       citationRefs.forEach((ref, idx) => {
-        const title = ref.content || ref.id;
-        lines.push(`- [${idx + 1}] ${title}`);
+        const rawTitle = ref.content || ref.id;
+        const cleanTitle = rawTitle.replace(/\s*\n+\s*/g, ' ').trim();
+        lines.push(`- [${idx + 1}] ${cleanTitle}`);
       });
     }
     if (messageSources.length > 0) {
@@ -249,19 +250,31 @@ export default function MemoryCitationsButton({
                   {t('sectionMemories')}
                 </h3>
               )}
-              {citationRefs.map((ref, index) => (
-                <MemoryCitationItem
-                  key={ref.id}
-                  index={index + 1}
-                  reference={ref}
-                  namespace={namespaceLabel(ref, contextsById)}
-                  onNavigate={(chatId, messageId) => {
-                    setOpen(false);
-                    const url = messageId ? `/${chatId}?highlight=${messageId}` : `/${chatId}`;
-                    router.push(url);
-                  }}
-                />
-              ))}
+              {citationRefs.map((ref, index) => {
+                const rawTitle = ref.content || ref.id;
+                const cleanTitle = rawTitle.replace(/\s*\n+\s*/g, ' ').trim();
+                return (
+                  <div key={ref.id} className="relative group">
+                    <MemoryCitationItem
+                      index={index + 1}
+                      reference={ref}
+                      namespace={namespaceLabel(ref, contextsById)}
+                      onNavigate={(chatId, messageId) => {
+                        setOpen(false);
+                        const url = messageId ? `/${chatId}?highlight=${messageId}` : `/${chatId}`;
+                        router.push(url);
+                      }}
+                    />
+                    <div className="absolute top-2.5 right-2.5 z-10">
+                      <SingleCopyButton
+                        text={cleanTitle}
+                        title={t('copyMarkdown')}
+                        ariaLabel={`${t('copyMarkdown')} [${index + 1}]`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </section>
           )}
 

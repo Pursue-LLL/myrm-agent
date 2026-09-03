@@ -227,6 +227,44 @@ describe('MemoryCitationsButton', () => {
     expect(writeTextSpy).toHaveBeenCalledWith('[news.ycombinator.com](https://news.ycombinator.com/item?id=123)');
   });
 
+  it('copies single memory reference and cleans newlines in bulk copy', async () => {
+    const user = userEvent.setup();
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextSpy },
+      configurable: true,
+    });
+
+    render(
+      <MemoryCitationsButton
+        references={[
+          {
+            id: 'mem-multi-line',
+            content: 'Rule line 1\nRule line 2\n\nRule line 3',
+            type: 'semantic',
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /buttonAria/ }));
+    const singleCopyBtn = screen.getByRole('button', { name: 'copyMarkdown [1]' });
+    expect(singleCopyBtn).toBeInTheDocument();
+
+    await user.click(singleCopyBtn);
+    expect(writeTextSpy).toHaveBeenCalledWith('Rule line 1 Rule line 2 Rule line 3');
+
+    // Test bulk copy also flattens newlines
+    writeTextSpy.mockClear();
+    const bulkCopyBtn = screen.getByRole('button', { name: 'copyMarkdown' });
+    await user.click(bulkCopyBtn);
+    expect(writeTextSpy).toHaveBeenCalledTimes(1);
+    const bulkCopiedText = writeTextSpy.mock.calls[0][0];
+    expect(bulkCopiedText).toContain('### sectionMemories');
+    expect(bulkCopiedText).toContain('- [1] Rule line 1 Rule line 2 Rule line 3');
+    expect(bulkCopiedText).not.toContain('\nRule line 2');
+  });
+
   it('returns null when evidence count is zero and not degraded', () => {
     const { container } = render(<MemoryCitationsButton sources={[]} references={[]} />);
     expect(container.firstChild).toBeNull();

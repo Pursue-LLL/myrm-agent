@@ -155,3 +155,48 @@ def test_planning_default_off_no_todo_write_without_planning(client: TestClient)
     todo_events = [e for e in events if e.get("tool_name") == "todo_write"]
     assert not todo_events, "todo_write must not appear when planning is disabled and no prior todos"
     assert asyncio.run(_read_workspace_todos(chat_id)) is None
+
+
+@pytest.mark.e2e
+@pytest.mark.skipif(
+    not os.environ.get("LITE_API_KEY") and not os.environ.get("BASIC_API_KEY"),
+    reason="E2E test requires LITE_API_KEY or BASIC_API_KEY",
+)
+def test_planning_todo_write_blocked_status_and_replanning(client: TestClient) -> None:
+    """Full-chain E2E: model creates blocked task, progress middleware and SSE stream reflect it."""
+    chat_id = f"planning_blocked_{uuid.uuid4().hex[:10]}"
+    assert client.post("/api/v1/chats/", json={"chat_id": chat_id}).status_code == 200
+
+    payload: dict[str, object] = {
+        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
+        "chatId": chat_id,
+        "query": (
+            "You MUST call the todo_write tool exactly once with merge=false and goal 'Blocked test'. "
+            "Todos: ["
+            '{"id":"task_ext","content":"Fetch external API key","status":"blocked"},'
+            '{"id":"task_local","content":"Setup local database","status":"in_progress"}'
+            "]. Do not use any other tools. After calling todo_write, reply DONE."
+        ),
+        "modelSelection": get_lite_model_selection(),
+        "actionMode": "agent",
+        "agentConfig": {
+            "enabledBuiltinTools": ["planning"],
+        },
+    }
+
+    events = _collect_agent_stream(client, payload)
+    check_e2e_errors(events)
+
+    todo_step_events = [
+        event for event in events if event.get("type") == "tasks_steps" and event.get("tool_name") == "todo_write"
+    ]
+    assert todo_step_events, "Expected tasks_steps events for todo_write"
+
+    store = asyncio.run(_read_workspace_todos(chat_id))
+    assert store is not None, "todo_write should persist todos.json in workspace SSOT"
+    assert store.goal == "Blocked test"
+    todos_by_id = {item.id: item for item in store.todos}
+    assert "task_ext" in todos_by_id
+    assert todos_by_id["task_ext"].status.value == "blocked"
+    assert todos_by_id["task_local"].status.value == "in_progress"
+

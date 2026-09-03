@@ -117,4 +117,17 @@ describe('ProgressSteps fault-side badge', () => {
     await userEvent.click(screen.getByTestId('progress-steps-toggle'));
     expect(screen.queryByText(/^faultSides\./)).not.toBeInTheDocument();
   });
+
+  it('renders blocked step status without error state', async () => {
+    const blockedStep: ProgressItem = {
+      step_key: 'todo_blocked_task',
+      tool_name: 'todo_write',
+      status: 'blocked',
+      is_plan: true,
+      items: 'Waiting for external resource',
+    };
+    render(<ProgressSteps messageId="m-1" steps={[blockedStep]} loading={false} />);
+    await userEvent.click(screen.getByTestId('progress-steps-toggle'));
+    expect(screen.getByText('progress.kanban')).toBeInTheDocument();
+  });
 });
