@@ -108,7 +108,7 @@ async def test_install_api_enables_catalog_and_runtime_includes_skill(
     user_config = await skills_service.user_config.get_config()
     assert catalog_id in user_config.enabled_local_skill_ids
 
-    runtime_ids = await resolve_runtime_skill_ids([])
+    runtime_ids = await resolve_runtime_skill_ids([catalog_id])
     assert catalog_id in runtime_ids
 
     update_agent.assert_not_called()
@@ -169,7 +169,7 @@ async def test_install_api_skips_enable_when_mount_disabled(
     assert catalog_id not in user_config.enabled_local_skill_ids
 
     runtime_ids = await resolve_runtime_skill_ids([])
-    assert catalog_id not in runtime_ids
+    assert runtime_ids == []
 
 
 @pytest.mark.asyncio
@@ -295,7 +295,7 @@ async def test_prebuilt_install_enables_catalog(
     user_config = await skills_service.user_config.get_config()
     assert prebuilt_id in user_config.enabled_prebuilt_ids
 
-    runtime_ids = await resolve_runtime_skill_ids([])
+    runtime_ids = await resolve_runtime_skill_ids([prebuilt_id])
     assert prebuilt_id in runtime_ids
 
 
@@ -415,7 +415,7 @@ async def test_install_failure_passes_error_and_error_code(
     user_config = await skills_service.user_config.get_config()
     assert "local::evil-skill" not in user_config.enabled_local_skill_ids
     runtime_ids = await resolve_runtime_skill_ids([])
-    assert "local::evil-skill" not in runtime_ids
+    assert runtime_ids == []
 
 
 @pytest.mark.asyncio

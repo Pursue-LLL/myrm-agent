@@ -9,6 +9,7 @@ Product-layer LangChain adapters for image/video/TTS generation. Engines live in
 
 | File | Role |
 |------|------|
+| `__init__.py` | 包级统一出口门面（SSOT Facade），导出 `clamp_image_payload`、`create_image_generation_tool`、`create_video_generation_tool`、`create_tts_tool`、`create_media_persist_callback` |
 | `image_clamp.py` | `clamp_image_payload` 纯函数（防 413 Payload 超限、EXIF 拍摄角度物理纠偏、RGBA 透明底板 Alpha 混合合成纯净 RGB、坏图优雅降级与小图无损直通） |
 | `image_agent_tool.py` | `create_image_generation_tool` → `image_tool` (generate async via TaskStore + `payload_postprocessor=seal_task_payload_secrets` before persist; status 支持按 task_id 查询统一任务进度与成品 URL；edit/list sync；自动调用 `clamp_image_payload` 守护下载输入图) |
 | `media_persist.py` | Shared media library persist callback for sync + async image paths |

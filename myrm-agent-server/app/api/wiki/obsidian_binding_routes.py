@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -28,13 +28,11 @@ from app.api.dependencies import get_optional_llm_for_user, get_optional_memory_
 from app.services.wiki.obsidian.adapter import prepare_obsidian_file
 from app.services.wiki.obsidian.binding import (
     ObsidianVaultBinding,
-    VaultDeltaScanResult,
     get_obsidian_vault_binding,
     scan_vault_mtime_watermark,
     set_obsidian_vault_binding,
 )
 from app.services.wiki.vault import get_wiki_archiver
-from app.services.wiki.vault.service import MemoryToWikiArchiver
 
 logger = logging.getLogger(__name__)
 

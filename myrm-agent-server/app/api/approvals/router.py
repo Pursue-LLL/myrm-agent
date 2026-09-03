@@ -308,6 +308,9 @@ async def batch_resolve_approvals(
             if record.action_type == "knowledge_patch":
                 await _handle_knowledge_patch_resolution(record, normalized_decision)
 
+            if record.action_type == "obsidian_inbox_write":
+                await _handle_obsidian_inbox_resolution(record, normalized_decision)
+
             if record.thread_id:
                 try:
                     from app.services.event.app_event_bus import (

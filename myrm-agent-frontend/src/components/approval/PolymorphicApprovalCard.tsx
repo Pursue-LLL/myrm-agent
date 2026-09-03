@@ -684,6 +684,43 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
           </div>
         );
       }
+      case 'obsidian_inbox_write': {
+        const payload = approval.payload ?? {};
+        const title = (payload.title as string) || approval.reason || t('obsidianInbox.defaultTitle');
+        const content = (payload.content as string) || '';
+        const targetVault = (payload.target_vault as string) || '';
+        const inboxFolder = (payload.inbox_folder as string) || '_Myrm_Inbox';
+        const subfolder = (payload.subfolder as string) || '';
+
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-1 text-xs font-medium">
+                  {t('obsidianInbox.badge')}
+                </span>
+                <span className="font-semibold text-sm">{title}</span>
+              </div>
+              <div className="text-xs text-muted-foreground font-mono">
+                {inboxFolder}{subfolder ? `/${subfolder}` : ''}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <h5 className="font-medium text-xs text-muted-foreground">{t('obsidianInbox.noteContent')}</h5>
+              <div className="rounded-lg bg-muted p-3 font-mono text-xs whitespace-pre-wrap overflow-x-auto leading-relaxed max-h-60">
+                {content || t('noContent')}
+              </div>
+            </div>
+
+            {targetVault && (
+              <div className="text-[11px] text-muted-foreground px-1 font-mono truncate" title={targetVault}>
+                {t('obsidianInbox.destination')}: {targetVault}
+              </div>
+            )}
+          </div>
+        );
+      }
       case 'batch_cost_approval': {
         const taskCount = (approval.payload?.task_count as number) || 0;
         const estimatedCost = (approval.payload?.estimated_cost_usd as number) || 0;

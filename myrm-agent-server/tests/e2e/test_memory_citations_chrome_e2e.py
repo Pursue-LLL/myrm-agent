@@ -265,3 +265,67 @@ def test_memory_citations_evidence_button_opens_unified_sheet() -> None:
             timeout_sec=45.0,
         )
         assert sheet.get("ready") is True, sheet
+
+
+_NAVIGATE_RECALL_TAB_AND_VERIFY_EXTERNAL_SYNC_CARD_JS = """(() => {
+  const text = document.body?.innerText || '';
+  const buttons = Array.from(document.querySelectorAll('button'));
+  const recallTabBtn = buttons.find(
+    (btn) => /会话召回|Conversation Recall|召回|Recall/i.test(btn.textContent || '')
+  );
+  if (!recallTabBtn) {
+    return { ready: false, err: 'recall-tab-not-found', buttons: buttons.map(b => b.textContent?.trim()).slice(0, 15) };
+  }
+
+  // Click the recall tab if not active
+  recallTabBtn.click();
+
+  // Check if ExternalHarnessSyncCard is rendered
+  const hasCardTitle = /外部 Agent 会话召回|External Agent Transcript Recall|External Harness/i.test(text);
+  const hasSyncNowBtn = buttons.some(
+    (btn) => /立即增量同步|Sync Now|增量同步/i.test(btn.textContent || '')
+  );
+  const hasPickDirBtn = buttons.some(
+    (btn) => /选择本地目录|Pick Directory|选择目录/i.test(btn.textContent || '')
+  );
+
+  return {
+    ready: hasCardTitle && hasSyncNowBtn,
+    hasCardTitle,
+    hasSyncNowBtn,
+    hasPickDirBtn,
+    bodySnippet: text.slice(0, 500),
+  };
+})()"""
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(240)
+def test_memory_external_transcripts_sync_card_in_recall_tab() -> None:
+    """Real Chrome MCP E2E: verify ExternalHarnessSyncCard appears and interacts in Conversation Recall tab."""
+    warm_ui_route("/settings/memory")
+    ui_base = get_e2e_ui_url().rstrip("/")
+    page_url = f"{ui_base}/settings/memory"
+
+    with open_mcp_page(page_url, timeout_ms=90_000) as (client, page):
+        client.navigate(page, page_url, timeout_ms=90_000)
+        shell = wait_for_state(client, page, SETTINGS_SHELL_READY_JS, timeout_sec=90.0)
+        assert shell.get("ready") is True, shell
+
+        memory_on = client.evaluate(page, ENABLE_MEMORY_JS, timeout_sec=15.0)
+        assert isinstance(memory_on, dict) and memory_on.get("ok") is True, memory_on
+        time.sleep(1.0)
+
+        card_ready = wait_for_state(
+            client,
+            page,
+            _NAVIGATE_RECALL_TAB_AND_VERIFY_EXTERNAL_SYNC_CARD_JS,
+            timeout_sec=60.0,
+            page_url=page_url,
+        )
+        assert card_ready.get("ready") is True, card_ready

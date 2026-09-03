@@ -237,5 +237,61 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
             assert resp_vision.status_code == 200
             assert resp_vision.json().get("result", {}).get("content", [])[0]["text"] == "Vision Captured"
 
+            # 11. Real-World LLM Tool Call Scenario: Bind real LLM from .env.test and let it call desktop_snapshot_tool via MCP
+            import os
+            api_key = os.environ.get("BASIC_API_KEY", "").strip()
+            base_url = (os.environ.get("BASIC_BASE_URL") or "").strip() or None
+            raw_model = (os.environ.get("BASIC_MODEL") or "").strip()
+
+            if api_key and raw_model:
+                from langchain_core.messages import HumanMessage
+                from langchain_core.tools import StructuredTool
+                from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+
+                from tests.api.agent.utils import _convert_litellm_model
+
+                llm = create_litellm_model(
+                    model=_convert_litellm_model(raw_model),
+                    api_key=api_key,
+                    base_url=base_url,
+                    temperature=0,
+                )
+
+                # Wrap the MCP tool as an external client tool
+                async def mcp_desktop_snapshot_proxy(scope: str = "foreground", app_name: str = "") -> str:
+                    rpc = {
+                        "jsonrpc": "2.0",
+                        "id": 99,
+                        "method": "tools/call",
+                        "params": {
+                            "name": "desktop_snapshot_tool",
+                            "arguments": {"scope": scope, "app_name": app_name},
+                        },
+                    }
+                    r = client.post("/mcp", headers=headers_desk, json=rpc)
+                    data = r.json()
+                    content = data.get("result", {}).get("content", [])
+                    return content[0]["text"] if content else ""
+
+                snapshot_tool = StructuredTool.from_function(
+                    coroutine=mcp_desktop_snapshot_proxy,
+                    name="desktop_snapshot_tool",
+                    description="Capture desktop UI tree and active applications.",
+                )
+
+                llm_with_tools = llm.bind_tools([snapshot_tool])
+                ai_msg = await llm_with_tools.ainvoke([
+                    HumanMessage(content="Please inspect the active desktop window by taking a snapshot.")
+                ])
+                assert ai_msg.tool_calls is not None
+                assert len(ai_msg.tool_calls) > 0
+                assert ai_msg.tool_calls[0]["name"] == "desktop_snapshot_tool"
+                print(f"[Real-LLM MCP Test] Model {raw_model} successfully issued tool call: {ai_msg.tool_calls}")
+
+                # Execute the tool call
+                tool_output = await mcp_desktop_snapshot_proxy(**ai_msg.tool_calls[0]["args"])
+                assert tool_output == "Desktop AX Tree Root"
+                print(f"[Real-LLM MCP Test] MCP endpoint successfully executed tool call and returned: {tool_output}")
+
         finally:
             await shutdown_mcp_endpoint()

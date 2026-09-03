@@ -18,11 +18,9 @@ Tracks local vault directory, last sync watermark, and calculates delta files.
 from __future__ import annotations
 
 import logging
-import os
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
 
 from sqlalchemy import select
 
