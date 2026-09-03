@@ -30,6 +30,7 @@ import NLPolicyGenerator from './NLPolicyGenerator';
 import SecurityProfileSelector from './SecurityProfileSelector';
 import SecurityPrivacyPanel from './SecurityPrivacyPanel';
 import { DataFlowDisclosurePanel } from './DataFlowDisclosurePanel';
+import { DualTrackAuditDashboard } from './DualTrackAuditDashboard';
 import { BUILTIN_BLACKLIST, KNOWN_PERMISSIONS, buildPermissions } from './securityPolicyUtils';
 import { useSecurityPolicy } from './useSecurityPolicy';
 
@@ -107,6 +108,8 @@ const SecurityPolicySection = memo(() => {
       <SecurityPrivacyPanel />
 
       <DataFlowDisclosurePanel />
+
+      <DualTrackAuditDashboard />
 
       <SettingsSection title={t('title')} description={t('description')}>
         <div className="space-y-4">

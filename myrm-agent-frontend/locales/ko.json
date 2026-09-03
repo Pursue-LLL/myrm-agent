@@ -521,6 +521,18 @@
   },
   "agent": {
     "title": "에이전트",
+    "ablationGuide": {
+      "title": "Harness 레버리지 가이드",
+      "badge": "AHE 실증 연구",
+      "expand": "가이드 펼치기",
+      "collapse": "접기",
+      "description": "Ablation 연구 실증에 따르면 작업 성공률 및 안정성에 대한 컴포넌트 레버리지 순위는 다음과 같습니다:",
+      "toolTier": "도구 / 스킬 (Tools/Skills)",
+      "middlewareTier": "미들웨어 가드레일 (Middleware)",
+      "memoryTier": "메모리 검색 (Memory)",
+      "promptTier": "프롬프트 전용 (Prompt-only)",
+      "cacheTip": "프롬프트를 끊임없이 수정하기보다는 도구와 미들웨어를 우선 구성하여 LLM Prompt Cache를 보존하세요."
+    },
     "description": "사용자 정의 동작과 역량을 가진 나만의 AI 어시스턴트 생성",
     "indicator": {
       "default": "에이전트",
@@ -1785,6 +1797,14 @@
       "error": "내보내기 실패",
       "noMessages": "내보낼 메시지가 없습니다",
       "print": "인쇄"
+    },
+    "revealArtifacts": {
+      "action": "파일 탐색기에서 생성물 표시",
+      "revealing": "폴더를 여는 중...",
+      "success": "파일 탐색기에서 생성물 폴더를 열었습니다",
+      "noArtifacts": "이 대화에 생성된 파일이 없습니다",
+      "missingOnDisk": "생성물 파일이 디스크에 존재하지 않습니다",
+      "error": "생성물 폴더 열기 실패"
     },
     "exportMessage": {
       "markdown": "Markdown로 내보내기",
@@ -9913,6 +9933,13 @@
       "confirmStart": "평가 시작",
       "confirmCancel": "취소",
       "confirmProfileHint": "이 프로필로 평가합니다"
+    },
+    "ablation": {
+      "title": "컴포넌트 제거(Ablation) 영향 및 Harness 편집 권장",
+      "subtitle": "AHE Ablation Priority Ranking",
+      "description": "평가 실패 궤적의 결정론적 원인 분석에 기반합니다. 연구 실증에 따르면 도구 및 미들웨어 확장은 프롬프트 미세 조정보다 훨씬 높은 ROI를 제공합니다(Tools/Middleware ≫ Prompt). 아래의 우선순위에 따라 설정을 최적화하는 것을 권장합니다.",
+      "affectsCases": "{count}개 실패 케이스 연관",
+      "quickConfig": "설정으로 이동"
     }
   },
   "vault": {

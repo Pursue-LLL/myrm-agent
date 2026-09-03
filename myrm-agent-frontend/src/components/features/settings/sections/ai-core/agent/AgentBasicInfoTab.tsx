@@ -277,6 +277,17 @@ export function AgentBasicInfoTab({
           <p className="text-xs text-muted-foreground/80 italic">{t(`agent.promptMode.hints.${promptMode}`)}</p>
         </div>
 
+        {/* Ablation Study Architecture Guidance Notice */}
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 space-y-1">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{t('agent.ablationGuidance.title')}</span>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {t('agent.ablationGuidance.description')}
+          </p>
+        </div>
+
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">{t('agent.personality.title')}</label>
           <p className="text-xs text-muted-foreground">{t('agent.personality.description')}</p>

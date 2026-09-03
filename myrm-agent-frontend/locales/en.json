@@ -521,6 +521,18 @@
   },
   "agent": {
     "title": "Agents",
+    "ablationGuide": {
+      "title": "Harness Leverage Guide",
+      "badge": "AHE Empirical Finding",
+      "expand": "Expand Guide",
+      "collapse": "Collapse",
+      "description": "Empirical ablation studies show the following component leverage ranking for task success and stability:",
+      "toolTier": "Tools / Skills",
+      "middlewareTier": "Middleware Guardrails",
+      "memoryTier": "Memory Retrieval",
+      "promptTier": "Prompt-only",
+      "cacheTip": "Prefer configuring tools and middleware over endlessly expanding system prompts, preserving LLM Prompt Cache."
+    },
     "description": "Create your own AI assistants with custom behaviors and capabilities",
     "indicator": {
       "default": "Agent",
@@ -9921,6 +9933,13 @@
       "confirmStart": "Start Evaluation",
       "confirmCancel": "Cancel",
       "confirmProfileHint": "Will evaluate with this profile"
+    },
+    "ablation": {
+      "title": "Component Ablation Impact & Harness Edit Recommendations",
+      "subtitle": "AHE Ablation Priority Ranking",
+      "description": "Deterministic trajectory failure attribution indicates: expanding Tools/Middleware brings significantly higher ROI than Prompt-only adjustments (Tools/Middleware ≫ Prompt). Optimize your Harness configuration following the prioritized recommendations below.",
+      "affectsCases": "Affects {count} failed cases",
+      "quickConfig": "Configure"
     }
   },
   "vault": {

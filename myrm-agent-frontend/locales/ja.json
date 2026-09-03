@@ -521,6 +521,18 @@
   },
   "agent": {
     "title": "エージェント",
+    "ablationGuide": {
+      "title": "Harness レバレッジガイド",
+      "badge": "AHE アブレーション実証",
+      "expand": "ガイドを展開",
+      "collapse": "折りたたむ",
+      "description": "アブレーション実験の実証によると、タスクの成功率と安定性に対するコンポーネントのレバレッジは以下の順になります：",
+      "toolTier": "ツール / スキル (Tools/Skills)",
+      "middlewareTier": "ミドルウェア保護 (Middleware)",
+      "memoryTier": "メモリ検索 (Memory)",
+      "promptTier": "プロンプトのみ (Prompt-only)",
+      "cacheTip": "プロンプトを際限なく変更するのではなく、ツールとミドルウェアを優先して拡張することで、Prompt Cache のヒット率を維持します。"
+    },
     "description": "専用の AI アシスタントを作成し、アクションと能力をカスタマイズ",
     "indicator": {
       "default": "エージェント",
@@ -1874,6 +1886,14 @@
       "error": "エクスポートに失敗しました",
       "noMessages": "なしメッセージ可エクスポート",
       "print": "印刷"
+    },
+    "revealArtifacts": {
+      "action": "ファイルマネージャーで生成物を表示",
+      "revealing": "フォルダーを開いています...",
+      "success": "ファイルマネージャーでフォルダーを開きました",
+      "noArtifacts": "このセッションの生成物はありません",
+      "missingOnDisk": "生成物ファイルがディスク上に見つかりません",
+      "error": "フォルダーを開けませんでした"
     },
     "share": {
       "share": "共有",
@@ -9913,6 +9933,13 @@
       "confirmStart": "評価を開始",
       "confirmCancel": "キャンセル",
       "confirmProfileHint": "このプロファイルで評価します"
+    },
+    "ablation": {
+      "title": "コンポーネントアブレーション影響と Harness 編集推奨",
+      "subtitle": "AHE Ablation Priority Ranking",
+      "description": "評価失敗トレースの決定論的帰属分析に基づきます。アブレーション実証により、ツールやミドルウェアの拡張はプロンプトの微調整よりも遥かに高い投資対効果（ROI）をもたらします（Tools/Middleware ≫ Prompt）。以下の優先順位に従って設定を最適化することをお勧めします。",
+      "affectsCases": "{count} 件の失敗ケースに関連",
+      "quickConfig": "設定へ移動"
     }
   },
   "vault": {

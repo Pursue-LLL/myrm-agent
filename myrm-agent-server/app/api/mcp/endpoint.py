@@ -38,6 +38,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
+    from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
 
@@ -46,6 +47,35 @@ logger = logging.getLogger(__name__)
 _session_manager_task: asyncio.Task[None] | None = None
 _session_manager_ready = asyncio.Event()
 _embedding_cfg: EmbeddingConfig | None = None
+_mcp_desktop_sessions: dict[str, DesktopSession] = {}
+
+from contextvars import ContextVar, Token
+
+_request_desktop_enabled: ContextVar[bool] = ContextVar(
+    "myrm_mcp_request_desktop_enabled",
+    default=False,
+)
+
+
+def set_request_desktop_enabled(enabled: bool) -> Token[bool]:
+    """Bind whether desktop tools are exposed for the current MCP request."""
+    return _request_desktop_enabled.set(enabled)
+
+
+def reset_request_desktop_enabled(token: Token[bool]) -> None:
+    """Restore previous desktop tools exposed flag."""
+    _request_desktop_enabled.reset(token)
+
+
+def get_request_desktop_enabled() -> bool:
+    """Return whether desktop tools are exposed for the current MCP request."""
+    return _request_desktop_enabled.get()
+
+
+def clear_mcp_desktop_sessions() -> None:
+    """Clear cached external MCP desktop sessions (used in testing and shutdown)."""
+    global _mcp_desktop_sessions
+    _mcp_desktop_sessions.clear()
 
 
 async def _require_embedding_config() -> EmbeddingConfig:
@@ -68,6 +98,64 @@ async def _wiki_boundary_enabled_for_agent(agent_id: str) -> bool:
         return False
     flags = resolve_builtin_tool_flags(resolved.enabled_builtin_tools)
     return bool(flags["enable_wiki"])
+
+
+async def _is_desktop_control_enabled_for_agent(agent_id: str) -> bool:
+    try:
+        from app.config.computer_use_deploy import is_computer_use_deploy_supported
+
+        if not is_computer_use_deploy_supported():
+            return False
+        from app.services.agent.profile.profile_resolver import (
+            get_agent_profile_resolver,
+            resolve_builtin_tool_flags,
+        )
+
+        resolved = await get_agent_profile_resolver().resolve(agent_id)
+        if resolved is None:
+            return False
+        flags = resolve_builtin_tool_flags(resolved.enabled_builtin_tools)
+        return bool(flags.get("enable_computer_use"))
+    except Exception as exc:
+        logger.debug("Desktop control check failed for agent=%s: %s", agent_id, exc)
+        return False
+
+
+def _desktop_session_for_agent(agent_id: str) -> DesktopSession | None:
+    try:
+        from app.services.agent.gateway import get_agent_gateway
+
+        gateway = get_agent_gateway()
+        active_session = gateway.get_active_desktop_session()
+        if active_session is not None and hasattr(active_session, "desktop_snapshot"):
+            return active_session  # type: ignore[return-value]
+    except Exception:
+        pass
+
+    global _mcp_desktop_sessions
+    if agent_id not in _mcp_desktop_sessions:
+        try:
+            from myrm_agent_harness.toolkits.computer_use import create_desktop_session
+            from myrm_agent_harness.toolkits.computer_use.types import (
+                ComputerUseConfig,
+                ExecutionMode,
+            )
+
+            from app.ai_agents.desktop_control.gate import DesktopControlGate
+            from app.config.computer_use_deploy import is_computer_use_deploy_supported
+            from app.config.deploy_mode import is_local_mode, is_sandbox
+
+            auto_grant = is_sandbox() and is_computer_use_deploy_supported() and not is_local_mode()
+            execution_mode = (
+                ExecutionMode.background_strict if is_local_mode() else ExecutionMode.background_best_effort
+            )
+            gate = DesktopControlGate(workspace_root=None, auto_grant=auto_grant)
+            config = ComputerUseConfig(execution_mode=execution_mode)
+            _mcp_desktop_sessions[agent_id] = create_desktop_session(config=config, permission_callback=gate)
+        except Exception as exc:
+            logger.warning("Failed to create MCP desktop session for agent=%s: %s", agent_id, exc)
+            return None
+    return _mcp_desktop_sessions.get(agent_id)
 
 
 async def _memory_manager_for_agent(agent_id: str) -> MemoryManager:
@@ -142,15 +230,30 @@ class _MCPTokenAuthMiddleware:
 
         ctx_token = None
         wiki_token = None
+        desktop_token = None
+        desktop_enabled_token = None
         try:
             manager = await _memory_manager_for_agent(resolved.agent_id)
             ctx_token = set_request_memory_manager(manager)
             wiki_token = set_request_wiki_boundary_enabled(await _wiki_boundary_enabled_for_agent(resolved.agent_id))
+
+            from myrm_agent_harness.toolkits.computer_use.mcp_server import (
+                reset_request_desktop_session,
+                set_request_desktop_session,
+            )
+
+            desktop_eligible = await _is_desktop_control_enabled_for_agent(resolved.agent_id)
+            allow_desktop = desktop_eligible and getattr(resolved, "expose_desktop", False)
+            desktop_enabled_token = set_request_desktop_enabled(allow_desktop)
+            if allow_desktop:
+                desktop_session = _desktop_session_for_agent(resolved.agent_id)
+                desktop_token = set_request_desktop_session(desktop_session)
+
             service.mark_ready(resolved.profile_id)
             await self.app(scope, receive, send)
         except Exception:
             logger.exception(
-                "MCP memory scope resolution failed for profile=%s agent=%s",
+                "MCP scope resolution failed for profile=%s agent=%s",
                 resolved.profile_id,
                 resolved.agent_id,
             )
@@ -160,6 +263,10 @@ class _MCPTokenAuthMiddleware:
             )
             await response(scope, receive, send)
         finally:
+            if desktop_token is not None:
+                reset_request_desktop_session(desktop_token)
+            if desktop_enabled_token is not None:
+                reset_request_desktop_enabled(desktop_enabled_token)
             if wiki_token is not None:
                 reset_request_wiki_boundary_enabled(wiki_token)
             if ctx_token is not None:

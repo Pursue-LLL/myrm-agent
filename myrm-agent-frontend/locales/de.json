@@ -1786,6 +1786,14 @@
       "noMessages": "Keine Nachrichten zum Exportieren",
       "print": "Drucken"
     },
+    "revealArtifacts": {
+      "action": "Artefakte im Datei-Manager anzeigen",
+      "revealing": "Ordner wird geöffnet...",
+      "success": "Artefakt-Ordner im Datei-Manager geöffnet",
+      "noArtifacts": "Keine Artefakte für diese Sitzung gefunden",
+      "missingOnDisk": "Artefaktdateien existieren nicht mehr auf dem Datenträger",
+      "error": "Artefakt-Ordner konnte nicht geöffnet werden"
+    },
     "exportMessage": {
       "markdown": "Als Markdown exportieren",
       "word": "Als Word exportieren",
@@ -9913,6 +9921,13 @@
       "confirmStart": "Evaluation starten",
       "confirmCancel": "Abbrechen",
       "confirmProfileHint": "Die Bewertung verwendet dieses Profil"
+    },
+    "ablation": {
+      "title": "Komponenten-Ablationseinfluss & Harness-Empfehlungen",
+      "subtitle": "AHE Ablation Priority Ranking",
+      "description": "Basierend auf deterministischer Fehlerursachenanalyse: Die Erweiterung von Tools/Middleware bringt einen deutlich höheren ROI als reine Prompt-Änderungen (Tools/Middleware ≫ Prompt). Optimieren Sie Ihre Konfiguration anhand der empfohlenen Prioritäten.",
+      "affectsCases": "Betrifft {count} fehlgeschlagene Fälle",
+      "quickConfig": "Konfigurieren"
     }
   },
   "vault": {
