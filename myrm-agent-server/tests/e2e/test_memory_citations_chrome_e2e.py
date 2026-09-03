@@ -150,12 +150,19 @@ _ENSURE_INJECT_AND_OPEN_SHEET_JS = """(() => {
       return null;
     }
     const text = dialog.innerText || '';
+    const copyBtns = Array.from(dialog.querySelectorAll('button')).filter((b) => {
+      const aria = b.getAttribute('aria-label') || '';
+      const title = b.getAttribute('title') || '';
+      return /Markdown/i.test(aria) || /Markdown/i.test(title);
+    });
     return {
       hasTitle: /Sources & Memories|依据与记忆/.test(text),
       hasMemories: /Memories|记忆/.test(text),
       hasSources: /Other sources|其他来源/.test(text),
       hasMemoryBody: /Brand primary color/i.test(text),
       hasHistoryBody: /Prior design chat/i.test(text),
+      hasCopyMarkdown: copyBtns.length > 0,
+      copyBtnCount: copyBtns.length,
       sample: text.slice(0, 400),
     };
   };
@@ -177,7 +184,8 @@ _ENSURE_INJECT_AND_OPEN_SHEET_JS = """(() => {
       sheet.hasMemories &&
       sheet.hasSources &&
       sheet.hasMemoryBody &&
-      sheet.hasHistoryBody,
+      sheet.hasHistoryBody &&
+      sheet.hasCopyMarkdown,
     ...sheet,
     clicked: true,
     reinjected: !hasInjected,

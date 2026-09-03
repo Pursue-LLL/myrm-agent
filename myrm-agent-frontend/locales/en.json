@@ -12930,7 +12930,27 @@
         "invoke_external_agent": "External CLI agent"
       }
     },
-    "dualTrackAudit": {},
+    "dualTrackAudit": {
+      "title": "Dual-Track Intent Audit & Compliance",
+      "description": "Audit agent execution intents, policy enforcement, and export compliance evidence",
+      "exportTriggeredTitle": "Audit Export Triggered",
+      "exportTriggeredDesc": "Generated {format} audit export in a new tab",
+      "totalIntents": "Total Intents",
+      "failClosedLogged": "Full-chain fail-closed logged",
+      "compliancePassRate": "Compliance Pass Rate",
+      "permittedVsTotal": "{count} calls permitted",
+      "policyRefusals": "Policy Refusals",
+      "failedExecution": "{count} failed executions",
+      "takeTheWheelCount": "Human Takeovers",
+      "humanInterceptionTagged": "Tagged human interventions",
+      "topRulesTitle": "Top Policy Rules & Refusal Rates",
+      "refusalRate": "Refusal {rate}%",
+      "hitsSummary": "Triggered {total} / Refused {refused}",
+      "permittedSummary": "Permitted {permitted}",
+      "recentAuditTrail": "Recent Execution Audit Trail",
+      "loadingEntries": "Loading audit entries...",
+      "noEntriesYet": "No audit entries recorded yet"
+    },
     "retrieval": {
       "embeddingConfig": "Embedding Model Configuration",
       "rerankerConfig": "Reranker Model Configuration",

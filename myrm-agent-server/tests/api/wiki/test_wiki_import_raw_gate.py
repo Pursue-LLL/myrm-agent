@@ -34,7 +34,9 @@ def _bypass_auth() -> None:
         yield
 
 
-def _build_import_client(tmp_path: Path) -> tuple[TestClient, MemoryToWikiArchiver, WikiStructure]:
+def _build_import_client(
+    tmp_path: Path,
+) -> tuple[TestClient, MemoryToWikiArchiver, WikiStructure]:
     from app.api.wiki.router import _get_wiki_archiver
 
     archiver = MemoryToWikiArchiver(MagicMock(), wiki_dir=str(tmp_path / "wiki"))
@@ -412,5 +414,3 @@ def test_import_video_ssrf_blocked(tmp_path: Path) -> None:
     assert data["success"] is False
     assert data["status"] == "error"
     assert "SSRF blocked" in data["error"]
-
-

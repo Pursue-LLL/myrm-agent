@@ -42,6 +42,7 @@ const TRANSLATIONS: Record<string, string> = {
   close: 'Close',
   regenerateConfirm: 'regenerateConfirm',
   revokeConfirm: 'revokeConfirm',
+  exposeDesktopEnabledBadge: 'Desktop Automation Enabled',
 };
 
 const stableT = (key: string, values?: Record<string, string | number>): string => {
@@ -181,5 +182,10 @@ describe('ConnectSection', () => {
     await renderSection();
     fireEvent.click(screen.getByRole('button', { name: 'Doctor' }));
     await waitFor(() => expect(toastErrorMock).toHaveBeenCalledWith('Doctor failed'));
+  });
+
+  it('renders desktop enabled badge when connector has expose_desktop', async () => {
+    await renderSection({ expose_desktop: true });
+    expect(screen.getByText('Desktop Automation Enabled')).toBeInTheDocument();
   });
 });

@@ -30,7 +30,10 @@ logger = logging.getLogger(__name__)
 
 async def create_guardian_memory_manager() -> MemoryManager:
     """Create a MemoryManager for background maintenance (no user session context)."""
-    from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
+    from app.core.memory.adapters.setup import (
+        create_memory_manager,
+        resolve_context_binding,
+    )
     from app.services.agent.platform_config import require_platform_embedding_config
 
     binding = resolve_context_binding(
@@ -99,7 +102,9 @@ async def purge_expired_archives(manager: MemoryManager) -> int:
     total_purged = 0
     for mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
         try:
-            memories = await manager.list_memories(mem_type, limit=10000, include_archived=True)
+            memories = await manager.list_memories(
+                mem_type, limit=10000, include_archived=True
+            )
             expired_ids: list[str] = []
             now = datetime.now(UTC)
 
@@ -119,7 +124,11 @@ async def purge_expired_archives(manager: MemoryManager) -> int:
             if not expired_ids:
                 continue
 
-            coll = manager.config.semantic_collection if mem_type == MemoryType.SEMANTIC else manager.config.episodic_collection
+            coll = (
+                manager.config.semantic_collection
+                if mem_type == MemoryType.SEMANTIC
+                else manager.config.episodic_collection
+            )
             deleted = await manager.delete_memory(coll, expired_ids)
             total_purged += deleted
             logger.info(
@@ -129,7 +138,11 @@ async def purge_expired_archives(manager: MemoryManager) -> int:
                 mem_type.value,
             )
         except Exception as exc:
-            logger.warning("Memory guardian: failed to purge expired %s archives: %s", mem_type.value, exc)
+            logger.warning(
+                "Memory guardian: failed to purge expired %s archives: %s",
+                mem_type.value,
+                exc,
+            )
     return total_purged
 
 
@@ -216,10 +229,15 @@ async def harvest_session_blind_spots(
 
         llm = await load_platform_llm(streaming=False, temperature=0.0)
     except Exception as exc:
-        logger.info("Memory guardian: platform LLM not configured for blind spot harvesting: %s", exc)
+        logger.info(
+            "Memory guardian: platform LLM not configured for blind spot harvesting: %s",
+            exc,
+        )
         return 0
 
-    report = await extract_blind_spot_patches(candidates, llm, min_candidates=min_candidates)
+    report = await extract_blind_spot_patches(
+        candidates, llm, min_candidates=min_candidates
+    )
     if report.skipped or not report.has_patches:
         return 0
 
@@ -232,7 +250,9 @@ async def harvest_session_blind_spots(
         res = await db.execute(stmt_existing)
         existing_payloads = [r[0] for r in res.all() if isinstance(r[0], dict)]
         existing_titles = {
-            str(p.get("title", "")).strip().lower() for p in existing_payloads if p.get("title")
+            str(p.get("title", "")).strip().lower()
+            for p in existing_payloads
+            if p.get("title")
         }
 
     for patch in report.patches:
@@ -263,4 +283,3 @@ async def harvest_session_blind_spots(
         len(candidates),
     )
     return created_count
-

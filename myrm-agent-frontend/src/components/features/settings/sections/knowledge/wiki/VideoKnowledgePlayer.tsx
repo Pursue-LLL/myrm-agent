@@ -148,7 +148,10 @@ export function VideoKnowledgePlayer({
   }, [initialSeconds]);
 
   return (
-    <div className={`flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-sm ${className}`}>
+    <div
+      data-testid="video-knowledge-player"
+      className={`flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-sm ${className}`}
+    >
       <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">

@@ -12930,7 +12930,27 @@
         }
       }
     },
-    "dualTrackAudit": {},
+    "dualTrackAudit": {
+      "title": "雙軌意圖審計與合規看板",
+      "description": "審計智慧體執行意圖與安全策略攔截，提供全流程合規追溯與證據匯出",
+      "exportTriggeredTitle": "審計報告匯出已觸發",
+      "exportTriggeredDesc": "已在新分頁中生成 {format} 格式的審計資料",
+      "totalIntents": "總執行意圖",
+      "failClosedLogged": "全鏈路故障閉合留痕",
+      "compliancePassRate": "合規放行率",
+      "permittedVsTotal": "已放行 {count} 次呼叫",
+      "policyRefusals": "策略攔截",
+      "failedExecution": "執行失敗 {count} 次",
+      "takeTheWheelCount": "人工接管干預",
+      "humanInterceptionTagged": "人工接管標記",
+      "topRulesTitle": "高頻觸發策略與攔截率",
+      "refusalRate": "攔截率 {rate}%",
+      "hitsSummary": "觸發 {total} 次 / 攔截 {refused} 次",
+      "permittedSummary": "放行 {permitted} 次",
+      "recentAuditTrail": "近期執行審計日誌",
+      "loadingEntries": "正在載入審計條目...",
+      "noEntriesYet": "暫無審計記錄"
+    },
     "retrieval": {
       "embeddingConfig": "嵌入模型配置",
       "rerankerConfig": "重排序模型配置",
@@ -17065,6 +17085,12 @@
       "refresh": "重新整理",
       "retry": "重試",
       "agentUsageTitle": "智慧體用量分佈",
+      "whySpent": "花費去向分析",
+      "whySpentDesc": "按任務來源與執行形態拆解成本歸因",
+      "sourceWeb": "Web 互動",
+      "sourceSubagents": "子智慧體 (Subagent)",
+      "sourceCron": "Cron 排程任務",
+      "sourceChannel": "外部訊息管道",
       "routingTitle": "智慧路由分析",
       "routingDistribution": "路由層級分佈",
       "tierSimple": "輕量",
@@ -17117,13 +17143,7 @@
       "wikiNegativeOutcomeRate": "負向結果率",
       "wikiVerificationDwell": "平均驗證停留",
       "wikiTelemetryDrops": "遙測遺失事件",
-      "wikiEvidenceWindow": "統計視窗：{days} 天；保留期：{retentionDays} 天",
-      "whySpent": "花費去向分析",
-      "whySpentDesc": "按任務來源與執行形態拆解成本歸因",
-      "sourceWeb": "Web 互動",
-      "sourceSubagents": "子智慧體 (Subagent)",
-      "sourceCron": "Cron 排程任務",
-      "sourceChannel": "外部訊息管道"
+      "wikiEvidenceWindow": "統計視窗：{days} 天；保留期：{retentionDays} 天"
     },
     "workingState": {
       "title": "工作記憶",

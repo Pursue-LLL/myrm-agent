@@ -399,6 +399,7 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
                   <p className="text-xs text-muted-foreground">{t('exposeDesktopToolsDesc')}</p>
                 </div>
                 <Switch
+                  aria-label={t('exposeDesktopTools')}
                   checked={exposeDesktop}
                   onCheckedChange={setExposeDesktop}
                   disabled={!canExposeDesktop}

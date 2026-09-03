@@ -313,7 +313,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         self._active_tasks: dict[str, _ActiveTask] = {}
         self._cleanups: dict[str, _CleanupEntry] = {}
         self._approval_msg_ids: dict[str, str] = {}
-        self._approval_co_approvers: frozenset[str] = approval_co_approvers or frozenset()
+        self._approval_co_approvers: frozenset[str] = (
+            approval_co_approvers or frozenset()
+        )
         self._janitor_task: asyncio.Task[None] | None = None
         self._seen_messages: dict[str, float] = {}
         self._new_session_peers: dict[str, float] = {}
@@ -327,7 +329,6 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         self._delegation_coordinator = DelegationCoordinator()
         self._delegation_guard = DelegationIngressGuard()
 
-
         stream_config = stream_config or StreamConfig()
         self._session_rate_limiter = SessionRateLimiter(max_updates_per_minute=60)
         self._degradation_controller = GracefulDegradationController(
@@ -336,7 +337,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             max_level=4,
         )
 
-        self._progress_estimator = ProgressEstimator(session_ttl_seconds=stream_config.progress_session_ttl_seconds)
+        self._progress_estimator = ProgressEstimator(
+            session_ttl_seconds=stream_config.progress_session_ttl_seconds
+        )
 
         chunker = BlockChunker(
             ChunkConfig(
@@ -428,7 +431,11 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         while True:
             await asyncio.sleep(60)
             now = time.monotonic()
-            expired_keys = [key for key, entry in self._cleanups.items() if now - entry.created_at > _CLEANUP_TTL]
+            expired_keys = [
+                key
+                for key, entry in self._cleanups.items()
+                if now - entry.created_at > _CLEANUP_TTL
+            ]
             for key in expired_keys:
                 entry = self._cleanups.pop(key, None)
                 if entry:
@@ -437,7 +444,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     except Exception as e:
                         logger.warning("[JANITOR] Cleanup failed for %s: %s", key, e)
             if expired_keys:
-                logger.info("[JANITOR] Cleaned up %d expired callbacks", len(expired_keys))
+                logger.info(
+                    "[JANITOR] Cleaned up %d expired callbacks", len(expired_keys)
+                )
 
             coordinator_cleaned = self._stream_coordinator.cleanup_expired_sessions()
             estimator_cleaned = self._progress_estimator.cleanup_expired_sessions()
@@ -454,20 +463,28 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
     def _cleanup_stale_session_state(self, now_monotonic: float) -> None:
         """Evict stale entries from _new_session_peers, _session_yolo, _session_personality."""
         peer_cutoff = now_monotonic - self._NEW_SESSION_PEER_TTL
-        stale_peers = [k for k, ts in self._new_session_peers.items() if ts < peer_cutoff]
+        stale_peers = [
+            k for k, ts in self._new_session_peers.items() if ts < peer_cutoff
+        ]
         for k in stale_peers:
             del self._new_session_peers[k]
 
         # _session_yolo uses time.time() (wall clock), not monotonic
         wall_now = time.time()
         yolo_cutoff = wall_now - self._SESSION_STATE_TTL
-        stale_yolo = [k for k, (enabled_at, _timeout) in self._session_yolo.items() if enabled_at < yolo_cutoff]
+        stale_yolo = [
+            k
+            for k, (enabled_at, _timeout) in self._session_yolo.items()
+            if enabled_at < yolo_cutoff
+        ]
         for k in stale_yolo:
             del self._session_yolo[k]
 
         if len(self._session_personality) > 1000:
             stale_personality = [
-                k for k in self._session_personality if k not in self._session_yolo and k not in self._active_tasks
+                k
+                for k in self._session_personality
+                if k not in self._session_yolo and k not in self._active_tasks
             ]
             for k in stale_personality:
                 del self._session_personality[k]
@@ -522,7 +539,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 await self._fx.stop_typing_keepalive(entry.channel, entry.chat_id)
                 await self._fx.set_typing(entry.channel, entry.chat_id, composing=False)
             except Exception:
-                logger.debug("[JANITOR] Typing cleanup failed for %s (non-critical)", state_key)
+                logger.debug(
+                    "[JANITOR] Typing cleanup failed for %s (non-critical)", state_key
+                )
 
             timeout_msg = get_text(
                 synthetic_msg,
@@ -531,9 +550,14 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             )
             if entry.placeholder_id:
                 try:
-                    await self._fx.cleanup_placeholder(entry.channel, entry.chat_id, entry.placeholder_id, timeout_msg)
+                    await self._fx.cleanup_placeholder(
+                        entry.channel, entry.chat_id, entry.placeholder_id, timeout_msg
+                    )
                 except Exception:
-                    logger.debug("[JANITOR] Placeholder cleanup failed for %s (non-critical)", state_key)
+                    logger.debug(
+                        "[JANITOR] Placeholder cleanup failed for %s (non-critical)",
+                        state_key,
+                    )
             else:
                 try:
                     reply = OutboundMessage(
@@ -544,10 +568,15 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     )
                     await self._bus.publish_outbound(reply)
                 except Exception:
-                    logger.debug("[JANITOR] Timeout notification failed for %s (non-critical)", state_key)
+                    logger.debug(
+                        "[JANITOR] Timeout notification failed for %s (non-critical)",
+                        state_key,
+                    )
 
             self._gate.on_task_complete(synthetic_msg)
-            logger.info("[JANITOR] Stuck task reaped: key=%s elapsed=%ds", state_key, elapsed)
+            logger.info(
+                "[JANITOR] Stuck task reaped: key=%s elapsed=%ds", state_key, elapsed
+            )
 
         if stuck_entries:
             logger.warning("[JANITOR] Reaped %d stuck task(s)", len(stuck_entries))
@@ -591,13 +620,19 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             if is_reaction:
                 approval_cmd = parse_approval_command(msg.content)
                 if approval_cmd is not None and self._is_reaction_approval_valid(msg):
-                    asyncio.create_task(self._handle_approval_command(msg, approval_cmd))
+                    asyncio.create_task(
+                        self._handle_approval_command(msg, approval_cmd)
+                    )
                 continue
 
             approval_cmd = parse_approval_command(msg.content)
             if approval_cmd is not None:
-                if is_explicit_approval_command(msg.content) or self._has_pending_approval(msg):
-                    asyncio.create_task(self._handle_approval_command(msg, approval_cmd))
+                if is_explicit_approval_command(
+                    msg.content
+                ) or self._has_pending_approval(msg):
+                    asyncio.create_task(
+                        self._handle_approval_command(msg, approval_cmd)
+                    )
                     continue
 
             resolved = self._registry.resolve(msg.content)
@@ -620,38 +655,65 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             chat_id = msg.chat_id or msg.sender_id
             session_key = routing_session_key(msg.channel, chat_id)
             active = self._active_tasks.get(session_key)
-            if active and active.steering_token and msg.content and isinstance(msg.content, str):
-                mode = active.busy_input_mode or (str(msg.metadata.get("busy_input_mode", "")).strip() if msg.metadata else None)
+            if (
+                active
+                and active.steering_token
+                and msg.content
+                and isinstance(msg.content, str)
+            ):
+                mode = active.busy_input_mode or (
+                    str(msg.metadata.get("busy_input_mode", "")).strip()
+                    if msg.metadata
+                    else None
+                )
                 if mode == "steer":
                     active.steering_token.steer(msg.content.strip())
-                    preview = msg.content.strip()[:80] + "..." if len(msg.content.strip()) > 80 else msg.content.strip()
+                    preview = (
+                        msg.content.strip()[:80] + "..."
+                        if len(msg.content.strip()) > 80
+                        else msg.content.strip()
+                    )
                     reply = OutboundMessage(
                         channel=msg.channel,
                         recipient_id=chat_id,
                         content=get_text(msg, "steering_applied", preview=preview),
                         user_id=msg.user_id or "",
                         thread_id=msg.thread_id,
-                        reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                        reply_to_id=(
+                            (msg.message_id or str(msg.metadata.get("message_id", "")))
+                            if msg.is_group
+                            else None
+                        ),
                     )
                     asyncio.create_task(self._bus.publish_outbound(reply))
                     continue
                 elif mode == "redirect":
                     active.steering_token.redirect(msg.content.strip())
-                    preview = msg.content.strip()[:80] + "..." if len(msg.content.strip()) > 80 else msg.content.strip()
+                    preview = (
+                        msg.content.strip()[:80] + "..."
+                        if len(msg.content.strip()) > 80
+                        else msg.content.strip()
+                    )
                     reply = OutboundMessage(
                         channel=msg.channel,
                         recipient_id=chat_id,
                         content=get_text(msg, "steering_applied", preview=preview),
                         user_id=msg.user_id or "",
                         thread_id=msg.thread_id,
-                        reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                        reply_to_id=(
+                            (msg.message_id or str(msg.metadata.get("message_id", "")))
+                            if msg.is_group
+                            else None
+                        ),
                     )
                     asyncio.create_task(self._bus.publish_outbound(reply))
                     continue
 
             # Check for Mobile-to-Desktop Asynchronous Task Delegation
             if msg.content and isinstance(msg.content, str):
-                is_delegated, confidence, clean_prompt = is_delegation_intent(msg.content)
+                is_delegated, confidence, clean_prompt = is_delegation_intent(
+                    msg.content
+                )
                 if is_delegated and confidence >= 0.85:
                     if not clean_prompt:
                         reply = OutboundMessage(
@@ -663,13 +725,17 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                         )
                         asyncio.create_task(self._bus.publish_outbound(reply))
                         continue
-                    handled_delegation = await self._handle_delegation_inbound(msg, clean_prompt)
+                    handled_delegation = await self._handle_delegation_inbound(
+                        msg, clean_prompt
+                    )
                     if handled_delegation:
                         continue
 
             # In-flight steering for active delegation task
             user_id = msg.user_id or chat_id
-            active_del = self._delegation_coordinator.find_active_task(msg.channel, user_id)
+            active_del = self._delegation_coordinator.find_active_task(
+                msg.channel, user_id
+            )
             if (
                 active_del
                 and msg.content
@@ -677,7 +743,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 and not msg.content.startswith("/")
                 and not self._active_tasks.get(session_key)
             ):
-                injected = self._delegation_coordinator.inject_steering(active_del.task_id, msg.content.strip(), user_id)
+                injected = self._delegation_coordinator.inject_steering(
+                    active_del.task_id, msg.content.strip(), user_id
+                )
                 if injected:
                     reply = OutboundMessage(
                         channel=msg.channel,
@@ -696,7 +764,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         """Access the delegation coordinator instance."""
         return self._delegation_coordinator
 
-    async def _handle_delegation_inbound(self, msg: InboundMessage, clean_prompt: str) -> bool:
+    async def _handle_delegation_inbound(
+        self, msg: InboundMessage, clean_prompt: str
+    ) -> bool:
         """Handle mobile task delegation: issue sub-second receipt and launch background task."""
         chat_id = msg.chat_id or msg.sender_id
         user_id = msg.user_id or chat_id
@@ -720,7 +790,6 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         )
         self._delegation_coordinator.register_task(task)
         self._delegation_guard.acquire(msg.channel, user_id, task.task_id)
-
 
         receipt_text = (
             f"📋 **已收到异步任务委派** `[{task.task_id}]`\n\n"
@@ -751,7 +820,6 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
         asyncio.create_task(_run_bg())
         return True
-
 
     async def _enrich_message_locale(self, msg: InboundMessage) -> InboundMessage:
         """Inject resolved locale into inbound message metadata."""
@@ -807,7 +875,11 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 content=get_text(msg, "permission_denied", cmd=cmd.name),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                reply_to_id=(
+                    (msg.message_id or str(msg.metadata.get("message_id", "")))
+                    if msg.is_group
+                    else None
+                ),
             )
             asyncio.create_task(self._bus.publish_outbound(reply))
             return True
@@ -864,7 +936,11 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     content=get_text(msg, "yolo_invalid_usage"),
                     user_id=msg.user_id or "",
                     thread_id=msg.thread_id,
-                    reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                    reply_to_id=(
+                        (msg.message_id or str(msg.metadata.get("message_id", "")))
+                        if msg.is_group
+                        else None
+                    ),
                 )
                 asyncio.create_task(self._bus.publish_outbound(reply))
             return True
@@ -936,7 +1012,18 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             return False
         # Only intercept explicit raw shell execution syntax, avoiding group prefixes like !ai, !ask
         first_word = trimmed.split()[0].lower() if trimmed.split() else ""
-        if first_word in ("!sh", "!bash", "!exec", "!cmd", "!shell", "！sh", "！bash", "！exec", "！cmd", "！shell"):
+        if first_word in (
+            "!sh",
+            "!bash",
+            "!exec",
+            "!cmd",
+            "!shell",
+            "！sh",
+            "！bash",
+            "！exec",
+            "！cmd",
+            "！shell",
+        ):
             return True
         return False
 
@@ -949,7 +1036,11 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             content=get_text(msg, "bang_command_unsupported"),
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            reply_to_id=(
+                (msg.message_id or str(msg.metadata.get("message_id", "")))
+                if msg.is_group
+                else None
+            ),
         )
         await self._bus.publish_outbound(reply)
 
@@ -969,12 +1060,18 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 content=get_text(msg, "skill_not_configured", cmd=cmd.name),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                reply_to_id=(
+                    (msg.message_id or str(msg.metadata.get("message_id", "")))
+                    if msg.is_group
+                    else None
+                ),
             )
             await self._bus.publish_outbound(reply)
             return
 
-        skill_msg = await self._skill_command_handler(msg, cmd.skill_ids, raw_args, cmd.instruction)
+        skill_msg = await self._skill_command_handler(
+            msg, cmd.skill_ids, raw_args, cmd.instruction
+        )
         if skill_msg is None:
             reply = OutboundMessage(
                 channel=msg.channel,
@@ -982,7 +1079,11 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 content=get_text(msg, "skill_load_failed", cmd=cmd.name),
                 user_id=msg.user_id or "",
                 thread_id=msg.thread_id,
-                reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+                reply_to_id=(
+                    (msg.message_id or str(msg.metadata.get("message_id", "")))
+                    if msg.is_group
+                    else None
+                ),
             )
             await self._bus.publish_outbound(reply)
             return
@@ -1001,7 +1102,11 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             content=content,
             user_id=msg.user_id or "",
             thread_id=msg.thread_id,
-            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+            reply_to_id=(
+                (msg.message_id or str(msg.metadata.get("message_id", "")))
+                if msg.is_group
+                else None
+            ),
         )
         await self._bus.publish_outbound(reply)
 
@@ -1024,7 +1129,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
         if len(self._seen_messages) > _DEDUP_MAX_SIZE:
             cutoff = now - _DEDUP_TTL
-            self._seen_messages = {k: v for k, v in self._seen_messages.items() if v > cutoff}
+            self._seen_messages = {
+                k: v for k, v in self._seen_messages.items() if v > cutoff
+            }
 
         return False
 
@@ -1055,7 +1162,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
         channel_instance = self._bus.get_channel(msg.channel)
         if channel_instance and msg.channel_capabilities is None:
-            msg = dataclasses.replace(msg, channel_capabilities=channel_instance.capabilities)
+            msg = dataclasses.replace(
+                msg, channel_capabilities=channel_instance.capabilities
+            )
 
         from app.channels.routing.router_keys import (
             routing_session_key,
@@ -1090,14 +1199,18 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             exec_for_error = msg
 
         if msg.metadata.get("is_sticker") and self._sticker_vision:
-            msg = await describe_sticker_inbound(msg, self._sticker_vision, self._bus.get_channel)
+            msg = await describe_sticker_inbound(
+                msg, self._sticker_vision, self._bus.get_channel
+            )
             exec_for_error = msg
 
         if not is_resume and has_video_attachment_fn(msg):
             msg = enrich_video_inbound(msg)
             exec_for_error = msg
             if has_video_with_audio(msg):
-                msg = await transcribe_video_inbound(msg, self._voice, self._bus.get_channel)
+                msg = await transcribe_video_inbound(
+                    msg, self._voice, self._bus.get_channel
+                )
                 exec_for_error = msg
 
         if not is_resume and has_image_attachment_fn(msg):
@@ -1110,7 +1223,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
         if not is_resume and has_document_attachment(msg):
             from app.core.channel_bridge.config_loader import load_user_configs
-            from app.services.files.attachment_settings import should_extract_document_text
+            from app.services.files.attachment_settings import (
+                should_extract_document_text,
+            )
 
             configs = await load_user_configs()
             extract_docs = should_extract_document_text(configs.personal_settings_dict)
@@ -1131,7 +1246,11 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     locale = resolve_message_locale(msg)
                     blocked_reply = OutboundMessage(
                         channel=msg.channel,
-                        recipient_id=msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id,
+                        recipient_id=(
+                            msg.chat_id
+                            if msg.is_group and msg.chat_id
+                            else msg.sender_id
+                        ),
                         content=channel_t(locale, "risk_inbound_blocked"),
                         user_id=msg.user_id or "",
                         reply_to_id=msg.message_id,
@@ -1143,12 +1262,20 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                         msg.sender_id,
                         [m.display_name for m in risk_result.matches],
                     )
-                    asyncio.ensure_future(_record_inbound_risk_hits(risk_result.matches, msg))
+                    asyncio.ensure_future(
+                        _record_inbound_risk_hits(risk_result.matches, msg)
+                    )
                     return
 
         agent_route_resolved = self._registry.resolve(msg.content)
-        if agent_route_resolved and agent_route_resolved.command_def.kind == CommandKind.AGENT_ROUTE:
-            agent_id = agent_route_resolved.command_def.agent_id or agent_route_resolved.command_def.name
+        if (
+            agent_route_resolved
+            and agent_route_resolved.command_def.kind == CommandKind.AGENT_ROUTE
+        ):
+            agent_id = (
+                agent_route_resolved.command_def.agent_id
+                or agent_route_resolved.command_def.name
+            )
             if agent_route_resolved.raw_args:
                 msg = dataclasses.replace(msg, content=agent_route_resolved.raw_args)
                 msg.metadata["route_agent_id"] = agent_id
@@ -1226,7 +1353,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
                     resolved_placeholder: str | None = None
                     if isinstance(scratch.deferred_placeholder, DeferredPlaceholder):
-                        resolved_placeholder = await scratch.deferred_placeholder.wait_for_id()
+                        resolved_placeholder = (
+                            await scratch.deferred_placeholder.wait_for_id()
+                        )
                     if resolved_placeholder and chat_id:
                         await self._fx.cleanup_placeholder(
                             exec_for_error.channel,
@@ -1241,7 +1370,9 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             self._gate.on_task_complete(msg)
 
 
-async def _record_inbound_risk_hits(matches: tuple[object, ...], msg: InboundMessage) -> None:
+async def _record_inbound_risk_hits(
+    matches: tuple[object, ...], msg: InboundMessage
+) -> None:
     """Fire-and-forget: persist risk hit records for inbound blocked messages."""
     try:
         import uuid

@@ -108,7 +108,9 @@ class TestConnectorState:
         assert state.doctor_ok is False
 
     @pytest.mark.asyncio
-    async def test_connected_at_set_on_first_ready_not_generate(self, service: ConnectService):
+    async def test_connected_at_set_on_first_ready_not_generate(
+        self, service: ConnectService
+    ):
         """connected_at records first real connection, not config generation."""
         await service.generate_config("cursor")
         state = service.get_connector_status("cursor")
@@ -129,7 +131,9 @@ class TestConnectorState:
         service.mark_ready("unknown_profile")
 
     @pytest.mark.asyncio
-    async def test_state_persists_agent_id(self, service: ConnectService, tmp_data_dir: Path):
+    async def test_state_persists_agent_id(
+        self, service: ConnectService, tmp_data_dir: Path
+    ):
         await service.generate_config("codex", agent_id="ops-agent")
 
         service2 = ConnectService(data_dir=tmp_data_dir)
@@ -137,7 +141,9 @@ class TestConnectorState:
         assert state.agent_id == "ops-agent"
 
     @pytest.mark.asyncio
-    async def test_state_persists_to_disk(self, service: ConnectService, tmp_data_dir: Path):
+    async def test_state_persists_to_disk(
+        self, service: ConnectService, tmp_data_dir: Path
+    ):
         await service.generate_config("windsurf")
 
         service2 = ConnectService(data_dir=tmp_data_dir)
@@ -187,7 +193,9 @@ class TestDoctor:
         assert state.last_doctor_detail == "token_valid"
 
     @pytest.mark.asyncio
-    async def test_doctor_token_env_uses_info_not_warning(self, service: ConnectService, caplog):
+    async def test_doctor_token_env_uses_info_not_warning(
+        self, service: ConnectService, caplog
+    ):
         """Env-var token references are a blind spot, not a failure: log at INFO."""
         await service.generate_config("cursor")
         with (
@@ -195,7 +203,9 @@ class TestDoctor:
             patch("app.services.connect.service.is_local_mode", return_value=True),
             patch(
                 "app.services.connect.service.verify_connector_config",
-                return_value=DoctorVerdict(healthy=False, detail="token_env", severity="warn"),
+                return_value=DoctorVerdict(
+                    healthy=False, detail="token_env", severity="warn"
+                ),
             ),
         ):
             result = await service.doctor("cursor")
@@ -219,7 +229,9 @@ class TestDoctor:
         assert any(r.levelno >= 30 for r in caplog.records)
 
     @pytest.mark.asyncio
-    async def test_doctor_detail_persists_across_instances(self, service: ConnectService, tmp_data_dir: Path):
+    async def test_doctor_detail_persists_across_instances(
+        self, service: ConnectService, tmp_data_dir: Path
+    ):
         """Doctor detail survives a service reload (drives card severity)."""
         await service.generate_config("cursor")
         with patch("app.services.connect.service.is_local_mode", return_value=False):
@@ -231,7 +243,9 @@ class TestDoctor:
         assert state.doctor_ok is True
 
     @pytest.mark.asyncio
-    async def test_doctor_detail_defaults_empty_for_legacy_state(self, service: ConnectService, tmp_data_dir: Path):
+    async def test_doctor_detail_defaults_empty_for_legacy_state(
+        self, service: ConnectService, tmp_data_dir: Path
+    ):
         """Legacy state files without the field load with an empty detail."""
         state_file = tmp_data_dir / "connect_state.json"
         state_file.write_text(
@@ -267,7 +281,9 @@ class TestDoctor:
         assert result.detail == "verified"
 
     @pytest.mark.asyncio
-    async def test_doctor_local_mismatched_config_reports_unhealthy(self, service: ConnectService):
+    async def test_doctor_local_mismatched_config_reports_unhealthy(
+        self, service: ConnectService
+    ):
         """A stale on-disk token makes the connector unhealthy in local mode."""
         await service.generate_config("cursor")
         with (
@@ -378,7 +394,10 @@ class TestSnippetBuilderExposeDesktop:
         assert "myrm" not in data["mcpServers"]
         server_entry = data["mcpServers"]["myrm-memory"]
         assert server_entry["url"] == "http://127.0.0.1:8080/mcp"
-        assert server_entry["headers"]["Authorization"] == "Bearer myrm_mcp_test_token_123456"
+        assert (
+            server_entry["headers"]["Authorization"]
+            == "Bearer myrm_mcp_test_token_123456"
+        )
 
     def test_build_config_json_expose_desktop_uses_myrm_key(self) -> None:
         profile = PROFILES["claude_code"]
@@ -449,8 +468,12 @@ class TestConnectServiceDesktopExpose:
     """Test state persistence and token resolution with expose_desktop."""
 
     @pytest.mark.asyncio
-    async def test_generate_config_stores_expose_desktop(self, service: ConnectService) -> None:
-        snippet = await service.generate_config("cursor", agent_id="agent-desk", expose_desktop=True)
+    async def test_generate_config_stores_expose_desktop(
+        self, service: ConnectService
+    ) -> None:
+        snippet = await service.generate_config(
+            "cursor", agent_id="agent-desk", expose_desktop=True
+        )
         assert snippet.expose_desktop is True
 
         status = service.get_connector_status("cursor")
@@ -464,9 +487,13 @@ class TestConnectServiceDesktopExpose:
         assert resolved.expose_desktop is True
 
     @pytest.mark.asyncio
-    async def test_reload_service_preserves_expose_desktop(self, tmp_data_dir: Path) -> None:
+    async def test_reload_service_preserves_expose_desktop(
+        self, tmp_data_dir: Path
+    ) -> None:
         svc1 = ConnectService(data_dir=tmp_data_dir)
-        snippet = await svc1.generate_config("claude_code", agent_id="agent-c", expose_desktop=True)
+        snippet = await svc1.generate_config(
+            "claude_code", agent_id="agent-c", expose_desktop=True
+        )
 
         svc2 = ConnectService(data_dir=tmp_data_dir)
         status = svc2.get_connector_status("claude_code")

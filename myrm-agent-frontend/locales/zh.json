@@ -12930,7 +12930,27 @@
         "invoke_external_agent": "外部 CLI 智能体"
       }
     },
-    "dualTrackAudit": {},
+    "dualTrackAudit": {
+      "title": "双轨意图审计与合规看板",
+      "description": "审计智能体执行意图与安全策略拦截，提供全流程合规追溯与证据导出",
+      "exportTriggeredTitle": "审计报告导出已触发",
+      "exportTriggeredDesc": "已在新标签页中生成 {format} 格式的审计数据",
+      "totalIntents": "总执行意图",
+      "failClosedLogged": "全链路故障闭合留痕",
+      "compliancePassRate": "合规放行率",
+      "permittedVsTotal": "已放行 {count} 次调用",
+      "policyRefusals": "策略拦截",
+      "failedExecution": "执行失败 {count} 次",
+      "takeTheWheelCount": "人工接管干预",
+      "humanInterceptionTagged": "人工接管标记",
+      "topRulesTitle": "高频触发策略与拦截率",
+      "refusalRate": "拦截率 {rate}%",
+      "hitsSummary": "触发 {total} 次 / 拦截 {refused} 次",
+      "permittedSummary": "放行 {permitted} 次",
+      "recentAuditTrail": "近期执行审计日志",
+      "loadingEntries": "正在加载审计条目...",
+      "noEntriesYet": "暂无审计记录"
+    },
     "retrieval": {
       "embeddingConfig": "嵌入模型配置",
       "rerankerConfig": "重排序模型配置",

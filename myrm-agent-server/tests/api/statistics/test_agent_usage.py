@@ -11,7 +11,9 @@ from app.api.statistics.agent_usage import get_usage_by_agent
 
 
 def _make_totals_row(agent_id: str, tokens: int, usd: float, calls: int, sessions: int):
-    return SimpleNamespace(agent_id=agent_id, tokens=tokens, usd=usd, calls=calls, sessions=sessions)
+    return SimpleNamespace(
+        agent_id=agent_id, tokens=tokens, usd=usd, calls=calls, sessions=sessions
+    )
 
 
 def _make_agent_row(id: str, name: str, avatar: str | None = None):
@@ -51,7 +53,9 @@ class TestGetUsageByAgent:
 
         agents_result = MagicMock()
         agents_result.all.return_value = [
-            _make_agent_row("agent-1", "Research Assistant", "https://avatar.url/1.png"),
+            _make_agent_row(
+                "agent-1", "Research Assistant", "https://avatar.url/1.png"
+            ),
         ]
 
         daily_result = MagicMock()
@@ -265,13 +269,31 @@ class TestGetUsageByAgent:
         mock_db = AsyncMock()
 
         web_row = SimpleNamespace(
-            agent_id="agent-pro", tokens=500, usd=0.02, calls=5, sessions=2, source="web", has_subagents=False
+            agent_id="agent-pro",
+            tokens=500,
+            usd=0.02,
+            calls=5,
+            sessions=2,
+            source="web",
+            has_subagents=False,
         )
         cron_row = SimpleNamespace(
-            agent_id="agent-pro", tokens=300, usd=0.015, calls=3, sessions=1, source="cron", has_subagents=False
+            agent_id="agent-pro",
+            tokens=300,
+            usd=0.015,
+            calls=3,
+            sessions=1,
+            source="cron",
+            has_subagents=False,
         )
         subagent_row = SimpleNamespace(
-            agent_id="agent-pro", tokens=200, usd=0.01, calls=2, sessions=1, source="web", has_subagents=True
+            agent_id="agent-pro",
+            tokens=200,
+            usd=0.01,
+            calls=2,
+            sessions=1,
+            source="web",
+            has_subagents=True,
         )
 
         totals_result = MagicMock()
@@ -305,4 +327,3 @@ class TestGetUsageByAgent:
         assert attribution["webTokens"] == 500
         assert attribution["cronTokens"] == 300
         assert attribution["subagentsTokens"] == 200
-

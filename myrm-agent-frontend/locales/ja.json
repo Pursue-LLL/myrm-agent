@@ -12930,7 +12930,27 @@
         }
       }
     },
-    "dualTrackAudit": {},
+    "dualTrackAudit": {
+      "title": "デュアルトラック意図監査およびコンプライアンス",
+      "description": "エージェントの実行意図とセキュリティポリシーの遮断を監査し、証拠のエクスポートを提供します",
+      "exportTriggeredTitle": "監査エクスポートがトリガーされました",
+      "exportTriggeredDesc": "新しいタブで {format} 形式の監査データを生成しました",
+      "totalIntents": "総実行意図",
+      "failClosedLogged": "フルチェーンフェイルクローズログ記録済み",
+      "compliancePassRate": "コンプライアンス通過率",
+      "permittedVsTotal": "{count} 回の呼び出しを許可",
+      "policyRefusals": "ポリシー拒否",
+      "failedExecution": "実行失敗 {count} 回",
+      "takeTheWheelCount": "手動介入",
+      "humanInterceptionTagged": "手動介入タグ付き",
+      "topRulesTitle": "高頻度トリガールールと拒否率",
+      "refusalRate": "拒否率 {rate}%",
+      "hitsSummary": "トリガー {total} 回 / 拒否 {refused} 回",
+      "permittedSummary": "許可 {permitted} 回",
+      "recentAuditTrail": "最近の実行監査ログ",
+      "loadingEntries": "監査エントリを読み込み中...",
+      "noEntriesYet": "監査レコードはまだありません"
+    },
     "retrieval": {
       "embeddingConfig": "エンベディングモデル設定",
       "rerankerConfig": "リランカーモデル設定",
