@@ -159,6 +159,10 @@ _CITATION_LIVE_READY_JS = """(() => {
     .map((s) => s?.tool_name || s?.title || s?.label || '')
     .filter(Boolean)
     .slice(0, 12);
+  const firstTrigger = citationTriggers[0];
+  const triggerTag = firstTrigger?.tagName || null;
+  const triggerHref = firstTrigger?.getAttribute?.('href') || null;
+  const triggerDataNum = firstTrigger?.getAttribute?.('data-num') || null;
   return {
     ready:
       !store.loading &&
@@ -176,6 +180,9 @@ _CITATION_LIVE_READY_JS = """(() => {
     secondaryClassHits,
     proseHasFullwidth,
     digitOnlyNodes,
+    triggerTag,
+    triggerHref,
+    triggerDataNum,
     hasMessageEl: Boolean(messageEl),
     hasEvidenceButton: Boolean(evidenceBtn),
     hasCiteOk,
