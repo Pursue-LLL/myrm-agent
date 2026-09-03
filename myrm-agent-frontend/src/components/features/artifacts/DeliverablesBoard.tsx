@@ -24,6 +24,7 @@ import { formatBytes } from './artifactUtils';
 import { getApiUrl } from '@/lib/api';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import { Artifact } from '@/store/chat/types';
+import { FactCheckSheetViewer } from './FactCheckSheetViewer';
 
 interface DeliverablesBoardProps {
   manifest: DeliverableManifest;
@@ -31,7 +32,10 @@ interface DeliverablesBoardProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const CATEGORY_LABELS: Record<DeliverableCategory, { zh: string; en: string; icon: any }> = {
+const CATEGORY_LABELS: Record<
+  DeliverableCategory,
+  { zh: string; en: string; icon: React.ComponentType<{ className?: string }> }
+> = {
   article: { zh: '长文专栏', en: 'Articles', icon: FileText },
   social_post: { zh: '社交短图文', en: 'Social Posts', icon: FileText },
   script: { zh: '分镜与脚本', en: 'Scripts', icon: Film },
@@ -47,6 +51,9 @@ const CATEGORY_LABELS: Record<DeliverableCategory, { zh: string; en: string; ico
 export const DeliverablesBoard: React.FC<DeliverablesBoardProps> = ({ manifest, open, onOpenChange }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
+  const [factCheckViewerOpen, setFactCheckViewerOpen] = useState<boolean>(false);
+  const [activeFactCheckUri, setActiveFactCheckUri] = useState<string | null>(null);
+  const [activeFactCheckTitle, setActiveFactCheckTitle] = useState<string>('');
   const { openPortalWithArtifact } = useArtifactPortalStore();
 
   const categories = useMemo(() => {
@@ -73,10 +80,18 @@ export const DeliverablesBoard: React.FC<DeliverablesBoardProps> = ({ manifest, 
   };
 
   const handlePreviewItem = (item: DeliverableItem) => {
+    // 若点击事实核查 JSON 数据，直接唤起专属高保真事实核查矩阵面板
+    if (item.category === 'fact_check' && item.mime_type === 'application/json') {
+      setActiveFactCheckUri(item.vault_uri);
+      setActiveFactCheckTitle(item.title);
+      setFactCheckViewerOpen(true);
+      return;
+    }
+
     // 转换为基础 Artifact 格式并唤起 Portal
     const syntheticArtifact: Artifact = {
       id: item.id,
-      type: (item.mime_type?.includes('image') ? 'image' : 'document') as any,
+      type: (item.mime_type?.includes('image') ? 'image' : 'document') as Artifact['type'],
       filename: item.title,
       size: item.size_bytes || 0,
       url: `/api/v1/files/vault/${item.vault_uri.replace('vault://', '')}`,
@@ -188,6 +203,14 @@ export const DeliverablesBoard: React.FC<DeliverablesBoardProps> = ({ manifest, 
             </div>
           )}
         </div>
+
+        {/* 专属事实核查矩阵面板 */}
+        <FactCheckSheetViewer
+          open={factCheckViewerOpen}
+          onOpenChange={setFactCheckViewerOpen}
+          vaultUri={activeFactCheckUri || undefined}
+          title={activeFactCheckTitle}
+        />
       </DialogContent>
     </Dialog>
   );
