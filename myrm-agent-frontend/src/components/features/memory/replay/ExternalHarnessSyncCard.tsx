@@ -24,6 +24,17 @@ import {
   type ExternalTranscriptStatus,
 } from '@/services/memory/externalTranscripts';
 
+interface FileSystemEntryLike {
+  kind: 'file' | 'directory';
+  name: string;
+  getFile?(): Promise<File>;
+  values?(): AsyncIterable<FileSystemEntryLike>;
+}
+
+interface WindowWithDirectoryPicker {
+  showDirectoryPicker?: () => Promise<FileSystemEntryLike>;
+}
+
 const ExternalHarnessSyncCard = memo(() => {
   const t = useTranslations('memory.externalHarness');
   const [status, setStatus] = useState<ExternalTranscriptStatus | null>(null);
@@ -79,7 +90,8 @@ const ExternalHarnessSyncCard = memo(() => {
   }, [fetchStatus, t]);
 
   const handlePickLocalDirectory = useCallback(async () => {
-    if (typeof window === 'undefined' || !('showDirectoryPicker' in window)) {
+    const win = window as unknown as WindowWithDirectoryPicker;
+    if (!win.showDirectoryPicker) {
       toast({
         title: t('browserNotSupported'),
         description: t('browserNotSupportedDesc'),
@@ -90,14 +102,16 @@ const ExternalHarnessSyncCard = memo(() => {
 
     try {
       setIsSyncing(true);
-      // @ts-expect-error File System Access API
-      const dirHandle = await window.showDirectoryPicker();
+      const dirHandle = await win.showDirectoryPicker();
       const files: ExternalFilePayload[] = [];
 
       // Recursively traverse directory for .jsonl files
-      async function traverse(handle: any, prefix = '') {
+      async function traverse(handle: FileSystemEntryLike, prefix = '') {
+        if (!handle.values) {
+          return;
+        }
         for await (const entry of handle.values()) {
-          if (entry.kind === 'file' && entry.name.endsWith('.jsonl')) {
+          if (entry.kind === 'file' && entry.name.endsWith('.jsonl') && entry.getFile) {
             const file = await entry.getFile();
             const content = await file.text();
             files.push({
@@ -132,13 +146,19 @@ const ExternalHarnessSyncCard = memo(() => {
         }),
       });
       await fetchStatus();
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
+    } catch (err: unknown) {
+      if (
+        typeof err === 'object' &&
+        err !== null &&
+        'name' in err &&
+        (err as { name: string }).name === 'AbortError'
+      ) {
         return;
       }
+      const message = err instanceof Error ? err.message : String(err);
       toast({
         title: t('syncFailed'),
-        description: err.message || String(err),
+        description: message,
         variant: 'destructive',
       });
     } finally {

@@ -52,6 +52,12 @@ def memory_policy_from_dict(raw: Mapping[str, object] | None) -> AgentMemoryPoli
     conversation_id_raw = raw.get("conversation_id")
     task_id_raw = raw.get("task_id")
 
+    allow_l3_raw = raw.get("allow_l3_extraction")
+    allow_l3_extraction = allow_l3_raw if isinstance(allow_l3_raw, bool) else True
+
+    auto_cleanup_raw = raw.get("auto_cleanup")
+    auto_cleanup = auto_cleanup_raw if isinstance(auto_cleanup_raw, bool) else False
+
     return AgentMemoryPolicy(
         agent_id=agent_id_raw if isinstance(agent_id_raw, str) else None,
         channel_id=channel_id_raw if isinstance(channel_id_raw, str) else None,
@@ -59,6 +65,8 @@ def memory_policy_from_dict(raw: Mapping[str, object] | None) -> AgentMemoryPoli
         task_id=task_id_raw if isinstance(task_id_raw, str) else None,
         read_scopes=read_scopes,
         write_policy=write_policy,
+        allow_l3_extraction=allow_l3_extraction,
+        auto_cleanup=auto_cleanup,
     )
 
 
@@ -72,6 +80,8 @@ def memory_policy_to_dict(policy: AgentMemoryPolicy | None) -> dict[str, object]
         "task_id": policy.task_id,
         "read_scopes": [scope.value for scope in policy.read_scopes] if policy.read_scopes is not None else None,
         "write_policy": policy.write_policy.value,
+        "allow_l3_extraction": policy.allow_l3_extraction,
+        "auto_cleanup": policy.auto_cleanup,
     }
 
 

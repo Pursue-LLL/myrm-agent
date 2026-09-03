@@ -263,6 +263,20 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
 
         {step === 'migration' && (
           <div className="space-y-6">
+            {!isLocalDeployment && (
+              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6 mb-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="space-y-1 text-center sm:text-left">
+                  <div className="font-semibold text-foreground flex items-center justify-center sm:justify-start gap-2">
+                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    {t('onboarding.instantStartTitle')}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t('onboarding.instantStartDescription')}</p>
+                </div>
+                <Button onClick={handleFinish} className="gap-2 shrink-0">
+                  {t('onboarding.instantStartButton')}
+                </Button>
+              </div>
+            )}
             <div className="text-center space-y-2 mb-8">
               <h1 className="text-2xl font-bold">
                 {isLocalDeployment ? t('onboarding.migrationTitle') : t('onboarding.migrationCloudTitle')}

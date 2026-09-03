@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * - @/services/chat (POS: Frontend chat and Conversation Recall API client)
+ * - ./ExternalHarnessSyncCard::ExternalHarnessSyncCard (POS: 外部 Agent 会话召回管理卡片)
  * - next-intl::useTranslations (POS: 多语言国际化钩子)
  *
  * [OUTPUT]

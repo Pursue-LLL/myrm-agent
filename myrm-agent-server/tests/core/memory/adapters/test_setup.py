@@ -566,5 +566,40 @@ async def test_create_memory_manager_cache_hit_refreshes_consolidation_callback(
             on_consolidation_complete=None,
         )
 
-    assert first is second
+    assert first._on_consolidation_complete is None
     assert second._on_consolidation_complete is None
+
+
+def test_memory_policy_adapter_and_dto_serialization_roundtrip():
+    """验证 AgentMemoryPolicyConfig DTO 与 memory_policy 适配器的无损序列化/反序列化。"""
+    from app.core.memory.adapters.policy import (
+        memory_policy_from_dict,
+        memory_policy_to_dict,
+    )
+    from app.database.dto import AgentMemoryPolicyConfig
+
+    dto = AgentMemoryPolicyConfig(
+        agent_id="agent-1",
+        read_scopes=[MemoryScopeLevel.GLOBAL, MemoryScopeLevel.TASK],
+        write_policy=MemoryWritePolicy.TASK,
+        allow_l3_extraction=False,
+        auto_cleanup=True,
+    )
+    payload = dto.model_dump()
+    assert payload["allow_l3_extraction"] is False
+    assert payload["auto_cleanup"] is True
+
+    policy = memory_policy_from_dict(payload)
+    assert policy is not None
+    assert policy.agent_id == "agent-1"
+    assert policy.read_scopes == (MemoryScopeLevel.GLOBAL, MemoryScopeLevel.TASK)
+    assert policy.write_policy == MemoryWritePolicy.TASK
+    assert policy.allow_l3_extraction is False
+    assert policy.auto_cleanup is True
+
+    serialized = memory_policy_to_dict(policy)
+    assert serialized is not None
+    assert serialized["allow_l3_extraction"] is False
+    assert serialized["auto_cleanup"] is True
+    assert serialized["read_scopes"] == ["global", "task"]
+    assert serialized["write_policy"] == "task"

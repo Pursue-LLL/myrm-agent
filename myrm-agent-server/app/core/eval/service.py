@@ -35,7 +35,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.eval import (
+    AgentResponse,
+    EvalCase,
     EvalRunner,
+    EvalTurnResult,
     FleetEvalRunner,
     JsonlReporter,
     aggregate_failure_modes,
@@ -116,7 +119,7 @@ def get_eval_status() -> dict[str, object]:
     return _eval_state.copy()
 
 
-def _load_completed_turn_results(reports_dir: Path) -> list[object]:
+def _load_completed_turn_results(reports_dir: Path) -> list[EvalTurnResult]:
     """Load previously completed turn results from latest.jsonl for resume."""
     import json
 
@@ -125,8 +128,6 @@ def _load_completed_turn_results(reports_dir: Path) -> list[object]:
         return []
     res: list[EvalTurnResult] = []
     try:
-        from myrm_agent_harness.eval import AgentResponse, EvalCase, EvalTurnResult
-
         with latest_path.open("r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()

@@ -354,6 +354,14 @@ class AgentMemoryPolicyConfig(BaseModel):
         default=MemoryWritePolicy.INHERIT,
         description="Target scope for new private memories",
     )
+    allow_l3_extraction: bool = Field(
+        default=True,
+        description="Whether background L3 LLM memory extraction is allowed",
+    )
+    auto_cleanup: bool = Field(
+        default=False,
+        description="Whether ephemeral session/task state is cleaned up upon task end",
+    )
 
 
 SessionResetModeLiteral = Literal["persistent", "daily", "idle"]

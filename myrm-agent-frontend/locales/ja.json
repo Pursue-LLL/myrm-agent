@@ -2135,6 +2135,13 @@
       "routingCode": "コード",
       "routingLongDoc": "長文ドキュメント",
       "routingReasonTitle": "スマートルーティングの判定理由",
+      "routingReasonSimpleIndicator": "日常的なQ&A・簡易対話パターンに合致",
+      "routingReasonKeywordReasoning": "深層論理推論と複雑タスク需要を検出",
+      "routingReasonKeywordStandard": "標準プログラミング・汎用タスク特徴に合致",
+      "routingReasonSpecialtyCode": "コード特化モデル戦略に合致",
+      "routingReasonSpecialtyLongDoc": "長文ドキュメント・深層コンテキスト解析に合致",
+      "routingReasonComplaintUp": "再試行リクエストに基づき上位モデルへ自動昇格",
+      "routingReasonMomentum": "以前のターンの深層コンテキストを継承",
       "privacyLevel": "プライバシー",
       "privacyPseudonymized": "保護済み",
       "privacyS2": "機密",
@@ -5037,25 +5044,6 @@
       "conversationHint": "現在の会話セッションのみ有効",
       "agentHint": "このエージェントの全会話で有効",
       "globalHint": "すべてのエージェントとセッションで永続有効"
-    },
-    "externalHarness": {
-      "title": "External Agent Recall",
-      "description": "Seamlessly recall past sessions from Claude Code or Codex. These transcripts are indexed for natural search and @chat references without cluttering your main chat list.",
-      "activeBadge": "Real-time Sync Active",
-      "pickDirectoryBtn": "Pick Local Folder",
-      "syncNowBtn": "Sync Now",
-      "trackedFiles": "Tracked Transcripts",
-      "defaultPath": "Auto-scan Path",
-      "lastSynced": "Last Synced",
-      "neverSynced": "Never",
-      "syncSuccess": "Transcripts Synchronized",
-      "syncSuccessDesc": "Successfully synced {files} files with {turns} new turns.",
-      "syncPartialWarning": "Partial Sync Warning",
-      "syncFailed": "Synchronization Failed",
-      "browserNotSupported": "Directory Picker Unavailable",
-      "browserNotSupportedDesc": "Your browser environment does not support directory selection. Automatic local path scanning is still active.",
-      "noJsonlFound": "No Transcripts Found",
-      "noJsonlFoundDesc": "No .jsonl session transcripts were found in the selected folder."
     }
   },
   "sharedContextTargetBinding": {
@@ -10393,6 +10381,10 @@
     "onboarding": {
       "migrationTitle": "履歴データを検出",
       "migrationDescription": "他の AI アシスタントからデータが見つかりました。ワンクリックでシームレスにインポートしますか？",
+      "instantStartTitle": "すぐに使える体験",
+      "instantStartDescription": "汎用アシスタント、ドキュメントスペシャリスト、コーディングエージェントが事前設定されています。設定なしですぐに対話を開始できます。",
+      "instantStartButton": "今すぐ体験を開始",
+      "customSetupButton": "高度なカスタム設定",
       "skipStep": "このステップをスキップ",
       "capabilitiesTitle": "AI エンジンを設定",
       "capabilitiesDescription": "ローカルモデルとウェブ検索を接続して、すぐ使える AI 体験を実現します。外部ツール統合は設定 → エージェント API で設定してください。",
@@ -11924,6 +11916,7 @@
       "sovereignty": {
         "title": "データ主権と中立プラットフォームの優位性",
         "subtitle": "独自のクローズドエコシステムによる拘束を打破。ベンダーロックインの心配がなく、すべての資産が透過的でポータブルです。",
+        "exportTakeout": "全資産一括テイクアウトアーカイブ",
         "exportConfig": "ワークスペース設定をエクスポート",
         "exportMemory": "メモリ資産をバックアップ",
         "points": {

@@ -843,5 +843,27 @@ describe('OnboardingWizard', () => {
         expect(mockCompleteOnboarding).toHaveBeenCalled();
       });
     });
+
+    it('allows cloud users to trigger Instant Squad start from migration step', async () => {
+      mockIsLocalMode.value = false;
+      const onComplete = vi.fn();
+      render(<OnboardingWizard onComplete={onComplete} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('onboarding.instantStartButton')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('onboarding.instantStartButton'));
+
+      await waitFor(() => {
+        expect(mockCompleteOnboarding).toHaveBeenCalled();
+        expect(onComplete).toHaveBeenCalled();
+      });
+    });
   });
 });
+

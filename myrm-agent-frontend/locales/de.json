@@ -3725,6 +3725,25 @@
       "excludeFailed": "Ausschließen fehlgeschlagen",
       "unknownError": "Unbekannter Fehler"
     },
+    "externalHarness": {
+      "title": "Externer Agenten-Sitzungsrückruf",
+      "description": "Nahtloser Abruf vergangener Terminalsitzungen von Claude Code oder Codex. Diese Transkripte werden für die natürliche Suche und @chat-Referenzen indiziert, ohne die Haupt-Chat-Liste zu überladen.",
+      "activeBadge": "Echtzeit-Synchronisierung aktiv",
+      "pickDirectoryBtn": "Lokalen Ordner auswählen",
+      "syncNowBtn": "Jetzt synchronisieren",
+      "trackedFiles": "Überwachte Transkripte",
+      "defaultPath": "Auto-Scan-Pfad",
+      "lastSynced": "Zuletzt synchronisiert",
+      "neverSynced": "Nie",
+      "syncSuccess": "Transkripte synchronisiert",
+      "syncSuccessDesc": "{files} Dateien mit {turns} neuen Gesprächszügen erfolgreich synchronisiert.",
+      "syncPartialWarning": "Warnung bei teilweiser Synchronisierung",
+      "syncFailed": "Synchronisierung fehlgeschlagen",
+      "browserNotSupported": "Ordnerauswahl nicht verfügbar",
+      "browserNotSupportedDesc": "Ihre Browserumgebung unterstützt die Verzeichnisauswahl nicht. Das automatische Scannen des lokalen Pfads im Hintergrund ist weiterhin aktiv.",
+      "noJsonlFound": "Keine Transkripte gefunden",
+      "noJsonlFoundDesc": "Im ausgewählten Ordner wurden keine .jsonl-Sitzungstranskripte gefunden."
+    },
     "sharedContexts": {
       "tab": "Gemeinsame Kontexte",
       "title": "Gemeinsame Kontexte",
@@ -11905,6 +11924,7 @@
       "sovereignty": {
         "title": "Datensouveränität & Portabilität",
         "subtitle": "Ihr KI-Arbeitsbereich läuft unabhängig auf offenen Standards mit vollständigen Exportfunktionen.",
+        "exportTakeout": "Vollständiges Asset-Takeout-Archiv",
         "exportConfig": "Vollständige Konfiguration exportieren",
         "exportMemory": "Erinnerungen exportieren",
         "points": {

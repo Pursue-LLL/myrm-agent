@@ -147,6 +147,7 @@ class TestSteeringRegistry:
         assert SteeringRegistry.redirect("chat-redir-buf", "urgent hint", buffer_if_missing=True)
         token = SteeringToken()
         SteeringRegistry.register("chat-redir-buf", token)
+        assert token.redirect_requested
         msgs = token.activate()
         assert msgs == ["urgent hint"]
 

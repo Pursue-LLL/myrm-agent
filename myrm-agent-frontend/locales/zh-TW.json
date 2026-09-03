@@ -2118,6 +2118,13 @@
       "routingCode": "程式碼",
       "routingLongDoc": "長文件",
       "routingReasonTitle": "智能調度歸因與分流判定",
+      "routingReasonSimpleIndicator": "命中日常問答與簡短互動特徵",
+      "routingReasonKeywordReasoning": "檢測到多步邏輯推理與複雜推演需求",
+      "routingReasonKeywordStandard": "匹配標準業務程式設計與通用任務特徵",
+      "routingReasonSpecialtyCode": "匹配程式碼重構與專精開發策略",
+      "routingReasonSpecialtyLongDoc": "匹配長文件與海量上下文解析策略",
+      "routingReasonComplaintUp": "響應用戶更強模型重試，已自動升檔算力",
+      "routingReasonMomentum": "繼承前序對話深度分析上下文",
       "routingSimpleTooltip": "任務屬於日常問答/簡易對話，已自動分派至高吞吐輕量模型以大幅節省算力與回應耗時。",
       "routingStandardTooltip": "任務屬於標準開發/文字處理，已自動分派至通用標準模型以兼顧品質與效能。",
       "routingReasoningTooltip": "任務屬於深度邏輯推理/複雜架構設計，已自動分派至頂級推理大模型以保證嚴謹性。",
@@ -5037,26 +5044,7 @@
     "confidenceLow": "待核驗",
     "extractionReason": "提取依據",
     "validPermanent": "長期有效",
-    "manualReviewRequired": "需人工確認 · 永不自動覆蓋",
-    "externalHarness": {
-      "title": "External Agent Recall",
-      "description": "Seamlessly recall past sessions from Claude Code or Codex. These transcripts are indexed for natural search and @chat references without cluttering your main chat list.",
-      "activeBadge": "Real-time Sync Active",
-      "pickDirectoryBtn": "Pick Local Folder",
-      "syncNowBtn": "Sync Now",
-      "trackedFiles": "Tracked Transcripts",
-      "defaultPath": "Auto-scan Path",
-      "lastSynced": "Last Synced",
-      "neverSynced": "Never",
-      "syncSuccess": "Transcripts Synchronized",
-      "syncSuccessDesc": "Successfully synced {files} files with {turns} new turns.",
-      "syncPartialWarning": "Partial Sync Warning",
-      "syncFailed": "Synchronization Failed",
-      "browserNotSupported": "Directory Picker Unavailable",
-      "browserNotSupportedDesc": "Your browser environment does not support directory selection. Automatic local path scanning is still active.",
-      "noJsonlFound": "No Transcripts Found",
-      "noJsonlFoundDesc": "No .jsonl session transcripts were found in the selected folder."
-    }
+    "manualReviewRequired": "需人工確認 · 永不自動覆蓋"
   },
   "sharedContextTargetBinding": {
     "title": "繼承的共享上下文",
@@ -10393,6 +10381,10 @@
     "onboarding": {
       "migrationTitle": "發現歷史資料",
       "migrationDescription": "我們掃描到了您在其他 AI 助手中的資料，是否一鍵無縫匯入？",
+      "instantStartTitle": "開箱即用體驗",
+      "instantStartDescription": "已為您預置通用助手、辦公文件助手與程式碼智慧體，零配置立即開啟對話。",
+      "instantStartButton": "即刻開啟體驗",
+      "customSetupButton": "高級配置嚮導",
       "skipStep": "跳過此步",
       "capabilitiesTitle": "配置 AI 引擎",
       "capabilitiesDescription": "連線本地大模型與聯網搜尋，實現開箱即用的 AI 體驗。",
@@ -11924,8 +11916,10 @@
       "sovereignty": {
         "title": "資料主權與中立平台優勢",
         "subtitle": "打破專有閉源生態綁定。無需擔心供應商鎖定，一切資產透明可控、隨取隨走。",
+        "exportTakeout": "一鍵全量資產 Takeout 匯出",
         "exportConfig": "匯出工作區配置",
         "exportMemory": "備份記憶資產",
+        "exportTakeout": "一鍵全量資產 Takeout 匯出",
         "points": {
           "decouplingTitle": "模型與資產解耦",
           "decouplingDesc": "隨時無縫熱切換 Claude、DeepSeek、GPT、Gemini 等任意大模型，歷史資產與技能 100% 保持連續可用。",
