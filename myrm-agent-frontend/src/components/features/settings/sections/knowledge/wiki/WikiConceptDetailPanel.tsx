@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
@@ -9,6 +10,7 @@ import { Input } from '@/components/primitives/input';
 import { IconBook, IconEdit, IconLoader, IconSave, IconX } from '@/components/features/icons/PremiumIcons';
 import MarkdownContent from '@/components/features/message-box/MarkdownContent';
 import { WikiMarkdownEditor } from './WikiMarkdownEditor';
+import { VideoKnowledgePlayer, extractVideoNoteMeta } from './VideoKnowledgePlayer';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { Concept } from '@/services/wikiService';
 import type { WikiEditTab } from './useWikiConceptsList';
@@ -83,6 +85,10 @@ export function WikiConceptDetailPanel({
     metadata: t('editTabMetadata'),
     advanced: t('editTabAdvanced'),
   };
+
+  const videoNoteMeta = useMemo(() => {
+    return selectedConcept ? extractVideoNoteMeta(selectedConcept.content) : null;
+  }, [selectedConcept?.content]);
 
   return (
     <Card className="col-span-1 md:col-span-2 h-full overflow-hidden flex flex-col min-h-0">
@@ -228,6 +234,14 @@ export function WikiConceptDetailPanel({
               </div>
             ) : (
               <>
+                {videoNoteMeta && (
+                  <VideoKnowledgePlayer
+                    sourceUrl={videoNoteMeta.sourceUrl}
+                    title={videoNoteMeta.title || selectedConcept.name}
+                    chapters={videoNoteMeta.chapters}
+                    className="mb-4"
+                  />
+                )}
                 <div className="prose dark:prose-invert max-w-none">
                   <MarkdownContent
                     content={selectedConcept.content}

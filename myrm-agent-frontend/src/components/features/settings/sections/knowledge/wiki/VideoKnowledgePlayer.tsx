@@ -30,6 +30,65 @@ export function formatPlayerTime(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+export function parsePlayerTime(timeStr: string): number {
+  const parts = timeStr.trim().split(':').map((p) => parseInt(p, 10));
+  if (parts.some((n) => Number.isNaN(n))) return 0;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 1) return parts[0] || 0;
+  return 0;
+}
+
+export interface VideoNoteMeta {
+  sourceUrl: string;
+  title?: string;
+  chapters: VideoTimestampChapter[];
+}
+
+export function extractVideoNoteMeta(content: string): VideoNoteMeta | null {
+  if (!content) return null;
+  const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!fmMatch) return null;
+  const block = fmMatch[1];
+
+  const contentTypeMatch = block.match(/^content_type:\s*(?:"([^"]+)"|'([^']+)'|(\S+))/m);
+  const contentType = (contentTypeMatch?.[1] ?? contentTypeMatch?.[2] ?? contentTypeMatch?.[3])?.trim();
+
+  const sourceUrlMatch = block.match(/^source_url:\s*(?:"([^"]+)"|'([^']+)'|(\S+))/m);
+  const sourceUrl = (sourceUrlMatch?.[1] ?? sourceUrlMatch?.[2] ?? sourceUrlMatch?.[3])?.trim();
+
+  if (!sourceUrl) return null;
+
+  const isVideoType = contentType === 'video';
+  const isVideoUrl = /(?:bilibili\.com|b23\.tv|youtube\.com|youtu\.be|\.mp4|\.webm)/i.test(sourceUrl);
+  if (!isVideoType && !isVideoUrl) return null;
+
+  const titleMatch = block.match(/^title:\s*(?:"([^"]+)"|'([^']+)'|(\S+))/m);
+  const title = (titleMatch?.[1] ?? titleMatch?.[2] ?? titleMatch?.[3])?.trim();
+
+  const chapters: VideoTimestampChapter[] = [];
+  const chapterRegex = /###\s+\[(\d{1,2}:\d{2}(?::\d{2})?)(?:\s*-\s*(\d{1,2}:\d{2}(?::\d{2})?))?\](?:\s*(.+))?/g;
+  let match: RegExpExecArray | null;
+  while ((match = chapterRegex.exec(content)) !== null) {
+    const startStr = match[1];
+    const endStr = match[2];
+    const label = match[3]?.trim() || '';
+    const startSeconds = parsePlayerTime(startStr);
+    const endSeconds = endStr ? parsePlayerTime(endStr) : startSeconds + 30;
+    chapters.push({
+      startSeconds,
+      endSeconds,
+      label: label || `${startStr}${endStr ? ` - ${endStr}` : ''}`,
+    });
+  }
+
+  return {
+    sourceUrl,
+    title: title || undefined,
+    chapters,
+  };
+}
+
 export function extractVideoEmbedInfo(url: string, seekSeconds: number = 0): {
   type: 'bilibili' | 'youtube' | 'direct';
   embedUrl: string;

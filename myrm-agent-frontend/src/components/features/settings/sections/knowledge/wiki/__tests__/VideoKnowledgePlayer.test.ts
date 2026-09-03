@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   extractVideoEmbedInfo,
   formatPlayerTime,
+  parsePlayerTime,
+  extractVideoNoteMeta,
 } from '../VideoKnowledgePlayer';
 import { isValidVideoUrl } from '../WikiVideoImportDialog';
 import { buildWikiApiPath } from '@/services/wikiService';
@@ -66,5 +68,60 @@ describe('wikiService video API path builder', () => {
   it('formats import video path correctly with and without agent scope', () => {
     expect(buildWikiApiPath('/wiki/import/video', null)).toBe('/wiki/import/video');
     expect(buildWikiApiPath('/wiki/import/video', 'agent-kb')).toBe('/wiki/import/video?agent_id=agent-kb');
+  });
+});
+
+describe('VideoKnowledgePlayer time parser and note metadata extractor', () => {
+  it('parses player time string to total seconds', () => {
+    expect(parsePlayerTime('00:00')).toBe(0);
+    expect(parsePlayerTime('01:15')).toBe(75);
+    expect(parsePlayerTime('01:02:03')).toBe(3723);
+    expect(parsePlayerTime('invalid')).toBe(0);
+  });
+
+  it('extracts video note metadata and timestamp chapters from Markdown with frontmatter', () => {
+    const markdown = `---
+title: "Distributed Systems Lecture"
+source_url: "https://www.bilibili.com/video/BV1xx411c7Xz"
+content_type: "video"
+platform: "bilibili"
+duration: "45:00"
+author: "TechGuru"
+---
+
+# Distributed Systems Lecture
+
+### [00:00 - 05:30] Introduction
+Course overview and architecture basics.
+
+### [05:30 - 15:45] Consensus Protocols
+Paxos and Raft comparison.
+`;
+
+    const meta = extractVideoNoteMeta(markdown);
+    expect(meta).not.toBeNull();
+    expect(meta?.sourceUrl).toBe('https://www.bilibili.com/video/BV1xx411c7Xz');
+    expect(meta?.title).toBe('Distributed Systems Lecture');
+    expect(meta?.chapters).toHaveLength(2);
+
+    expect(meta?.chapters[0].startSeconds).toBe(0);
+    expect(meta?.chapters[0].endSeconds).toBe(330);
+    expect(meta?.chapters[0].label).toBe('Introduction');
+
+    expect(meta?.chapters[1].startSeconds).toBe(330);
+    expect(meta?.chapters[1].endSeconds).toBe(945);
+    expect(meta?.chapters[1].label).toBe('Consensus Protocols');
+  });
+
+  it('returns null for non-video markdown content', () => {
+    const regularMarkdown = `---
+title: "Standard Note"
+source_chat: "chat-123"
+---
+
+Just regular text without video frontmatter.
+`;
+    expect(extractVideoNoteMeta(regularMarkdown)).toBeNull();
+    expect(extractVideoNoteMeta('')).toBeNull();
   });
 });
