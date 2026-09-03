@@ -299,7 +299,7 @@ async def sync_external_harness_transcripts(
     import os
     from pathlib import Path
 
-    from app.database.session import get_session
+    from app.database.connection import get_session
     from app.services.memory.imports.external_transcript_sync import (
         ExternalTranscriptSyncService,
     )
