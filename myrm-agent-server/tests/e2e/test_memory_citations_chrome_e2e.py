@@ -185,7 +185,8 @@ _ENSURE_INJECT_AND_OPEN_SHEET_JS = """(() => {
       sheet.hasSources &&
       sheet.hasMemoryBody &&
       sheet.hasHistoryBody &&
-      sheet.hasCopyMarkdown,
+      sheet.hasCopyMarkdown &&
+      sheet.copyBtnCount >= 2,
     ...sheet,
     clicked: true,
     reinjected: !hasInjected,
