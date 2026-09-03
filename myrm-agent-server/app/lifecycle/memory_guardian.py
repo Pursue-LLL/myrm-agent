@@ -45,6 +45,7 @@ from app.lifecycle.memory_guardian_ops import (
     create_guardian_memory_manager,
     harvest_session_blind_spots,
     purge_expired_archives,
+    sync_external_harness_transcripts,
 )
 from app.services.memory.ledger.guardian_events import (
     HEALTH_THRESHOLD,
@@ -279,6 +280,13 @@ async def _run_guardian_cycle(
             logger.info("Memory guardian: harvested %d knowledge patches into approvals", harvested)
     except Exception as exc:
         logger.warning("Memory guardian: blind spot harvesting pass failed (non-fatal): %s", exc)
+
+    try:
+        synced_turns = await sync_external_harness_transcripts()
+        if synced_turns > 0:
+            logger.info("Memory guardian: synced %d turns from external transcripts", synced_turns)
+    except Exception as exc:
+        logger.warning("Memory guardian: external transcript sync pass failed (non-fatal): %s", exc)
 
     _run_sqlite_backup()
     if report and report.skipped:

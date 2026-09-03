@@ -19,6 +19,7 @@ from app.api.memory.operations import (
     command_center_consolidation,
     command_center_diagnostics,
     crud,
+    external_transcripts,
     guardian,
     pending,
     reindex,
@@ -50,5 +51,6 @@ router.include_router(backup.router, tags=["memory-backup"])
 router.include_router(backup_remote.router, tags=["memory-backup-remote"])
 router.include_router(reindex.router, tags=["memory-reindex"])
 router.include_router(archive_restore.router, tags=["memory-archive-restore"])
+router.include_router(external_transcripts.router, tags=["memory-external-transcripts"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
 router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])

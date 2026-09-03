@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from pathlib import Path
 
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
 from myrm_agent_harness.toolkits.memory.types import MemoryStatus
@@ -297,6 +298,7 @@ async def sync_external_harness_transcripts(
     """
     import os
     from pathlib import Path
+
     from app.database.session import get_session
     from app.services.memory.imports.external_transcript_sync import (
         ExternalTranscriptSyncService,
