@@ -6,14 +6,15 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from myrm_agent_harness.toolkits.wiki.portability.obsidian_tools import (
+    create_obsidian_tools,
+)
+
 from app.api.approvals.obsidian_inbox import handle_obsidian_inbox_resolution
 from app.database.models.approval import ApprovalRecord
 from app.services.wiki.obsidian.binding import (
     ObsidianVaultBinding,
     scan_vault_mtime_watermark,
-)
-from myrm_agent_harness.toolkits.wiki.portability.obsidian_tools import (
-    create_obsidian_tools,
 )
 
 
