@@ -160,11 +160,10 @@ async def optimize_storage(request: StorageOptimizeRequest) -> StorageOptimizeRe
 
     from myrm_agent_harness.api.hooks import count_running_background_shell_jobs
 
-    running_jobs = count_running_background_shell_jobs()
-    if running_jobs > 0:
+    if count_running_background_shell_jobs() > 0:
         raise HTTPException(
             status_code=409,
-            detail=f"Cannot optimize database while {running_jobs} background job(s) are active.",
+            detail="Cannot optimize database while background job(s) are active.",
         )
 
     settings = get_settings()
@@ -254,14 +253,10 @@ async def recreate_sandbox_container() -> SandboxRecreateResponse:
 
     from myrm_agent_harness.api.hooks import count_running_background_shell_jobs
 
-    running = count_running_background_shell_jobs()
-    if running > 0:
+    if count_running_background_shell_jobs() > 0:
         raise HTTPException(
             status_code=409,
-            detail=(
-                f"Cannot recreate container while {running} background shell job(s) are still running. "
-                "Cancel or wait for them to finish first."
-            ),
+            detail="Cannot recreate container while background shell job(s) are still running. Cancel or wait for them to finish first.",
         )
 
     recreate_url = f"{cp_url}/api/internal/sandboxes/{sandbox_id}/recreate"
@@ -483,18 +478,14 @@ def create_state_snapshot(req: CreateSnapshotRequest) -> SnapshotActionResponse:
         raise HTTPException(status_code=500, detail=f"Failed to create snapshot: {exc}") from exc
 
 
-def _create_snapshot_manager() -> tuple[Path, object]:
+@router.post("/storage/snapshots/{snapshot_id}/restore", response_model=SnapshotActionResponse)
+def restore_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
+    """Restore database state to a specific historical snapshot."""
     from myrm_agent_harness.observability.storage_governance import StateSnapshotManager
 
     settings = get_settings()
     data_dir = Path(settings.database.state_dir)
-    return data_dir, StateSnapshotManager(data_dir)
-
-
-@router.post("/storage/snapshots/{snapshot_id}/restore", response_model=SnapshotActionResponse)
-def restore_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
-    """Restore database state to a specific historical snapshot."""
-    _, snapshot_mgr = _create_snapshot_manager()
+    snapshot_mgr = StateSnapshotManager(data_dir)
     success = snapshot_mgr.restore_snapshot(snapshot_id)
     if not success:
         raise HTTPException(status_code=400, detail=f"Failed to restore snapshot '{snapshot_id}'.")
@@ -507,7 +498,11 @@ def restore_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
 @router.delete("/storage/snapshots/{snapshot_id}", response_model=SnapshotActionResponse)
 def delete_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
     """Permanently delete a state snapshot."""
-    _, snapshot_mgr = _create_snapshot_manager()
+    from myrm_agent_harness.observability.storage_governance import StateSnapshotManager
+
+    settings = get_settings()
+    data_dir = Path(settings.database.state_dir)
+    snapshot_mgr = StateSnapshotManager(data_dir)
     success = snapshot_mgr.delete_snapshot(snapshot_id)
     if not success:
         raise HTTPException(status_code=404, detail=f"Snapshot '{snapshot_id}' not found.")
