@@ -660,6 +660,7 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 and active.steering_token
                 and msg.content
                 and isinstance(msg.content, str)
+                and not msg.content.startswith("/")
             ):
                 mode = active.busy_input_mode or (
                     str(msg.metadata.get("busy_input_mode", "")).strip()

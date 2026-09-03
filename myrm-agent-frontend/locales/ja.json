@@ -4803,6 +4803,25 @@
       "excludeFailed": "排除失敗",
       "unknownError": "不明なエラー"
     },
+    "externalHarness": {
+      "title": "外部エージェントセッションリコール",
+      "description": "Claude Code や Codex などのターミナル作業セッションをリアルタイムで同期・インデックス化。入力欄の @chat や自然言語での質問からツール横断でリコール可能で、メインのチャット一覧を汚しません。",
+      "activeBadge": "リアルタイム同期有効",
+      "pickDirectoryBtn": "ローカルフォルダーを選択",
+      "syncNowBtn": "今すぐ同期",
+      "trackedFiles": "追跡中セッション数",
+      "defaultPath": "自動スキャンパス",
+      "lastSynced": "最終同期日時",
+      "neverSynced": "未同期",
+      "syncSuccess": "セッション同期完了",
+      "syncSuccessDesc": "{files} 個のファイルを正常に同期し、{turns} ターンの会話コンテキストを追加しました。",
+      "syncPartialWarning": "一部ファイルの同期警告",
+      "syncFailed": "同期に失敗しました",
+      "browserNotSupported": "フォルダー選択を利用できません",
+      "browserNotSupportedDesc": "現在のブラウザ環境はディレクトリ選択をサポートしていませんが、サーバーの自動バックグラウンドスキャンは引き続き有効です。",
+      "noJsonlFound": "セッション履歴が見つかりません",
+      "noJsonlFoundDesc": "選択されたフォルダー内に .jsonl 形式のセッション履歴ファイルが見つかりませんでした。"
+    },
     "sharedContexts": {
       "tab": "共有コンテキスト",
       "title": "共有コンテキスト",
@@ -5018,6 +5037,25 @@
       "conversationHint": "現在の会話セッションのみ有効",
       "agentHint": "このエージェントの全会話で有効",
       "globalHint": "すべてのエージェントとセッションで永続有効"
+    },
+    "externalHarness": {
+      "title": "External Agent Recall",
+      "description": "Seamlessly recall past sessions from Claude Code or Codex. These transcripts are indexed for natural search and @chat references without cluttering your main chat list.",
+      "activeBadge": "Real-time Sync Active",
+      "pickDirectoryBtn": "Pick Local Folder",
+      "syncNowBtn": "Sync Now",
+      "trackedFiles": "Tracked Transcripts",
+      "defaultPath": "Auto-scan Path",
+      "lastSynced": "Last Synced",
+      "neverSynced": "Never",
+      "syncSuccess": "Transcripts Synchronized",
+      "syncSuccessDesc": "Successfully synced {files} files with {turns} new turns.",
+      "syncPartialWarning": "Partial Sync Warning",
+      "syncFailed": "Synchronization Failed",
+      "browserNotSupported": "Directory Picker Unavailable",
+      "browserNotSupportedDesc": "Your browser environment does not support directory selection. Automatic local path scanning is still active.",
+      "noJsonlFound": "No Transcripts Found",
+      "noJsonlFoundDesc": "No .jsonl session transcripts were found in the selected folder."
     }
   },
   "sharedContextTargetBinding": {

@@ -66,4 +66,24 @@ describe('HoldToApproveButton', () => {
 
     expect(onTrigger).not.toHaveBeenCalled();
   });
+
+  it('cancels when pointer event is cancelled (e.g. touch scroll)', () => {
+    const onTrigger = vi.fn();
+    render(<HoldToApproveButton label="Approve All" onTrigger={onTrigger} durationMs={500} />);
+
+    const button = screen.getByRole('button');
+    fireEvent.pointerDown(button);
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    fireEvent.pointerCancel(button);
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(onTrigger).not.toHaveBeenCalled();
+  });
 });

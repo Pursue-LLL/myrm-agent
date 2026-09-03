@@ -4843,6 +4843,25 @@
       "excludeFailed": "Exclude failed",
       "unknownError": "Unknown error"
     },
+    "externalHarness": {
+      "title": "External Agent Recall",
+      "description": "Seamlessly recall past sessions from Claude Code or Codex. These transcripts are indexed for natural search and @chat references without cluttering your main chat list.",
+      "activeBadge": "Real-time Sync Active",
+      "pickDirectoryBtn": "Pick Local Folder",
+      "syncNowBtn": "Sync Now",
+      "trackedFiles": "Tracked Transcripts",
+      "defaultPath": "Auto-scan Path",
+      "lastSynced": "Last Synced",
+      "neverSynced": "Never",
+      "syncSuccess": "Transcripts Synchronized",
+      "syncSuccessDesc": "Successfully synced {files} files with {turns} new turns.",
+      "syncPartialWarning": "Partial Sync Warning",
+      "syncFailed": "Synchronization Failed",
+      "browserNotSupported": "Directory Picker Unavailable",
+      "browserNotSupportedDesc": "Your browser environment does not support directory selection. Automatic local path scanning is still active.",
+      "noJsonlFound": "No Transcripts Found",
+      "noJsonlFoundDesc": "No .jsonl session transcripts were found in the selected folder."
+    },
     "sharedContexts": {
       "tab": "Shared Contexts",
       "title": "Shared Contexts",

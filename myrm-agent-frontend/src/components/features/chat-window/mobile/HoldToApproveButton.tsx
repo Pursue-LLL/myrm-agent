@@ -76,6 +76,7 @@ export const HoldToApproveButton: React.FC<HoldToApproveButtonProps> = ({
       onPointerDown={startPress}
       onPointerUp={cancelPress}
       onPointerLeave={cancelPress}
+      onPointerCancel={cancelPress}
       onContextMenu={(e) => e.preventDefault()}
       disabled={disabled}
       className={cn(

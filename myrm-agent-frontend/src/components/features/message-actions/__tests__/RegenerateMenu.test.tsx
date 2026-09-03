@@ -46,9 +46,7 @@ describe('RegenerateMenu', () => {
     expect(frontierBtn).toBeInTheDocument();
 
     fireEvent.click(frontierBtn);
-    expect(onRegenerateMock).toHaveBeenCalledWith(
-      'Retry with frontier model reasoning and comprehensive deep analysis',
-    );
+    expect(onRegenerateMock).toHaveBeenCalledWith('__complaint_up__');
   });
 
   it('allows custom instruction submission', () => {

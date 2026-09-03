@@ -4847,6 +4847,25 @@
       "excludeFailed": "排除失败",
       "unknownError": "未知错误"
     },
+    "externalHarness": {
+      "title": "外部 Agent 会话召回",
+      "description": "实时同步并索引来自 Claude Code 或 Codex 的终端工作会话。支持在输入框 @chat 或自然语言提问中跨工具召回，且不会干扰主会话列表。",
+      "activeBadge": "实时同步就绪",
+      "pickDirectoryBtn": "选择本地目录",
+      "syncNowBtn": "立即同步",
+      "trackedFiles": "已追踪会话数",
+      "defaultPath": "自动扫描路径",
+      "lastSynced": "最后同步时间",
+      "neverSynced": "从未同步",
+      "syncSuccess": "会话同步成功",
+      "syncSuccessDesc": "成功同步 {files} 个文件，新增 {turns} 轮对话上下文。",
+      "syncPartialWarning": "部分文件同步告警",
+      "syncFailed": "同步失败",
+      "browserNotSupported": "环境不支持目录选择器",
+      "browserNotSupportedDesc": "当前浏览器环境不支持一键目录授权，服务端默认后台扫描仍正常运行。",
+      "noJsonlFound": "未发现会话记录",
+      "noJsonlFoundDesc": "所选文件夹内未包含任何 .jsonl 格式的会话转录文件。"
+    },
     "sharedContexts": {
       "tab": "共享上下文",
       "title": "共享上下文",

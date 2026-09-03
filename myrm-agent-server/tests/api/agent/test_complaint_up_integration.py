@@ -212,3 +212,38 @@ class TestComplaintUpEscalation:
 
         call_kwargs = mock_route.call_args
         assert call_kwargs.kwargs.get("min_tier") is None
+
+    @pytest.mark.asyncio
+    async def test_regenerate_with_explicit_complaint_up_instruction(self, base_request: dict[str, object]) -> None:
+        """sibling_group_id + regenerate_instruction='__complaint_up__' triggers complaint-up escalation."""
+        base_request["sibling_group_id"] = "sg-test-5"
+        base_request["regenerate_instruction"] = "__complaint_up__"
+        request = AgentRequest(**base_request)
+
+        mock_route = AsyncMock(return_value=_make_routing_result(RoutingTier.STANDARD))
+
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.llms.routing.complexity_router.route_task",
+                mock_route,
+            ),
+            patch(
+                "app.database.repositories.chat_repo.ChatRepository.get_recent_routing_tiers",
+                new_callable=AsyncMock,
+                return_value=["simple"],
+            ),
+            patch(
+                "myrm_agent_harness.toolkits.llms.routing.complexity_router.record_misroute",
+            ) as mock_misroute,
+        ):
+            from app.services.agent.params.converter import (
+                convert_to_general_agent_params,
+            )
+
+            params, routing_tier, *rest = await convert_to_general_agent_params(request, [])
+
+        call_kwargs = mock_route.call_args
+        assert call_kwargs.kwargs.get("min_tier") == RoutingTier.STANDARD
+        mock_misroute.assert_called_once_with(RoutingTier.SIMPLE)
+        assert "__complaint_up__" not in (params.user_instructions or "")
+

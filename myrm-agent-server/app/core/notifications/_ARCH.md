@@ -48,10 +48,11 @@ are silently skipped — they are high-frequency or internal and not suitable fo
 
 ## Files
 
-| File | Role | Description |
-|------|------|-------------|
-| `dispatcher.py` | Core | `NotificationDispatcher` — subscribes to ServerEventBus, formats messages, sends to all configured targets via Gateway |
-| `adaptive_cards.py` | Formatting | `AdaptiveCardFormatter` — transforms AppEvents into rich OutboundMessage payloads with ActionButtons and indicator headers |
+| File | Role | Description | I/O/P |
+|------|------|-------------|-------|
+| `__init__.py` | Facade | Module public facade — exports NotificationDispatcher, FormattedNotification, format_notification | ✅ |
+| `dispatcher.py` | Core | `NotificationDispatcher` — subscribes to ServerEventBus, formats messages, sends to all configured targets via Gateway | ✅ |
+| `adaptive_cards.py` | Core | `AdaptiveCardFormatter` — transforms AppEvents into rich OutboundMessage payloads with ActionButtons and indicator headers | ✅ |
 
 ## Configuration
 

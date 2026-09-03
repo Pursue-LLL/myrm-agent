@@ -102,8 +102,10 @@
 
 | 文件                               | 地位 | 职责                                                                                                                                  | I/O/P |
 | ---------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `HoldToApproveButton.tsx`          | 组件 | 移动端高危审批长按确认按钮（700ms 动态环形进度条与触觉振动反馈防误触）                                                                 | ✅    |
 | `MobileActionSheet.tsx`            | 组件 | 移动端底部动作 Sheet（`useMobileSheetEntries` 驱动）                                                                                  | ✅    |
 | `MobileStatusBoard.tsx`            | 核心 | 移动端 Command Center 壳层（审批/预览/进度/快捷输入 + Co-Pilot chip/Advisor；run 中「查看完整对话」→ 主 Chat 复用 QuoteToolbar 划词） | ✅    |
+| `MobilePushDiscoveryBanner.tsx`    | 组件 | 移动端 Web Push 发现与一键授权引导横幅（PWA 离线任务与审批通知）                                                                      | ✅    |
 | `MobileStatusApprovalsSection.tsx` | 组件 | 移动端待审批队列区块                                                                                                                  | ✅    |
 | `MobileStatusLivePreview.tsx`      | 组件 | 浏览器/桌面 Live Preview 与 Lightbox                                                                                                  | ✅    |
 | `MobileStatusMessageBody.tsx`      | 组件 | 进度/验证/思考/结果/Artifact 交付物列表与 Plan 步骤；run 结束后 result 卡片「查看完整对话」跳转主 Chat                                | ✅    |

@@ -5018,7 +5018,26 @@
     "confidenceLow": "Niedrige Zuverlässigkeit",
     "extractionReason": "Extraktionsgrund",
     "validPermanent": "Dauerhaft",
-    "manualReviewRequired": "Manuelle Überprüfung erforderlich · Kein automatisches Überschreiben"
+    "manualReviewRequired": "Manuelle Überprüfung erforderlich · Kein automatisches Überschreiben",
+    "externalHarness": {
+      "title": "Externer Agent-Gesprächs-Recall",
+      "description": "Synchronisiert und indiziert Terminal-Sitzungen von Claude Code oder Codex in Echtzeit. Ermöglicht nahtlosen Recall via @chat oder Freitextsuche, ohne die Haupt-Chatliste zu belasten.",
+      "activeBadge": "Echtzeit-Synchronisierung aktiv",
+      "pickDirectoryBtn": "Lokalen Ordner wählen",
+      "syncNowBtn": "Jetzt synchronisieren",
+      "trackedFiles": "Verfolgte Sitzungsdateien",
+      "defaultPath": "Automatischer Scan-Pfad",
+      "lastSynced": "Zuletzt synchronisiert",
+      "neverSynced": "Nie",
+      "syncSuccess": "Sitzungen erfolgreich synchronisiert",
+      "syncSuccessDesc": "{files} Dateien mit {turns} neuen Gesprächszügen erfolgreich synchronisiert.",
+      "syncPartialWarning": "Teilweise Synchronisierungswarnung",
+      "syncFailed": "Synchronisierung fehlgeschlagen",
+      "browserNotSupported": "Verzeichnisauswahl nicht verfügbar",
+      "browserNotSupportedDesc": "Ihre Browserumgebung unterstützt die Verzeichnisauswahl nicht. Der automatische Hintergrundscan des Servers bleibt aktiv.",
+      "noJsonlFound": "Keine Sitzungsdaten gefunden",
+      "noJsonlFoundDesc": "Im ausgewählten Ordner wurden keine .jsonl-Sitzungstranskripte gefunden."
+    }
   },
   "sharedContextTargetBinding": {
     "title": "Geerbte gemeinsame Kontexte",

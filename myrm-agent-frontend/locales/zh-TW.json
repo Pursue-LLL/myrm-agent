@@ -4847,6 +4847,25 @@
       "excludeFailed": "排除失敗",
       "unknownError": "未知錯誤"
     },
+    "externalHarness": {
+      "title": "外部 Agent 會話召回",
+      "description": "即時同步並索引來自 Claude Code 或 Codex 的終端工作會話。支援在輸入框 @chat 或自然語言提問中跨工具召回，且不會干擾主會話列表。",
+      "activeBadge": "即時同步就緒",
+      "pickDirectoryBtn": "選擇本機目錄",
+      "syncNowBtn": "立即同步",
+      "trackedFiles": "已追蹤會話數",
+      "defaultPath": "自動掃描路徑",
+      "lastSynced": "最後同步時間",
+      "neverSynced": "從未同步",
+      "syncSuccess": "會話同步成功",
+      "syncSuccessDesc": "成功同步 {files} 個檔案，新增 {turns} 輪對話上下文。",
+      "syncPartialWarning": "部分檔案同步告警",
+      "syncFailed": "同步失敗",
+      "browserNotSupported": "環境不支援目錄選擇器",
+      "browserNotSupportedDesc": "當前瀏覽器環境不支援一鍵目錄授權，服務端預設後台掃描仍正常執行。",
+      "noJsonlFound": "未發現會話記錄",
+      "noJsonlFoundDesc": "所選資料夾內未包含任何 .jsonl 格式的會話轉錄檔案。"
+    },
     "sharedContexts": {
       "tab": "共享上下文",
       "title": "共享上下文",
@@ -5018,7 +5037,26 @@
     "confidenceLow": "待核驗",
     "extractionReason": "提取依據",
     "validPermanent": "長期有效",
-    "manualReviewRequired": "需人工確認 · 永不自動覆蓋"
+    "manualReviewRequired": "需人工確認 · 永不自動覆蓋",
+    "externalHarness": {
+      "title": "External Agent Recall",
+      "description": "Seamlessly recall past sessions from Claude Code or Codex. These transcripts are indexed for natural search and @chat references without cluttering your main chat list.",
+      "activeBadge": "Real-time Sync Active",
+      "pickDirectoryBtn": "Pick Local Folder",
+      "syncNowBtn": "Sync Now",
+      "trackedFiles": "Tracked Transcripts",
+      "defaultPath": "Auto-scan Path",
+      "lastSynced": "Last Synced",
+      "neverSynced": "Never",
+      "syncSuccess": "Transcripts Synchronized",
+      "syncSuccessDesc": "Successfully synced {files} files with {turns} new turns.",
+      "syncPartialWarning": "Partial Sync Warning",
+      "syncFailed": "Synchronization Failed",
+      "browserNotSupported": "Directory Picker Unavailable",
+      "browserNotSupportedDesc": "Your browser environment does not support directory selection. Automatic local path scanning is still active.",
+      "noJsonlFound": "No Transcripts Found",
+      "noJsonlFoundDesc": "No .jsonl session transcripts were found in the selected folder."
+    }
   },
   "sharedContextTargetBinding": {
     "title": "繼承的共享上下文",

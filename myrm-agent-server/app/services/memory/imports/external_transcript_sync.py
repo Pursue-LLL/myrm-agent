@@ -1,7 +1,7 @@
 """External transcript incremental synchronization service.
 
 [INPUT]
-- myrm_agent_harness.toolkits.memory.strategies.incremental_transcript::IncrementalTranscriptParser (POS: 增量转录流解析器)
+- myrm_agent_harness.api::IncrementalTranscriptParser, TranscriptTurn (POS: 增量转录流解析器)
 - app.services.memory.imports.secret_scrubber::scrub_sensitive_data (POS: 敏感凭据过滤管道)
 - app.services.chat.conversation_recall_index_service::ConversationRecallIndexService (POS: 会话召回索引生命周期服务)
 - app.database.models.chat::Chat (POS: 聊天会话域模型)

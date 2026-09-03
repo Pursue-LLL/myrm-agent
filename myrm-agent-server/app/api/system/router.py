@@ -258,6 +258,47 @@ async def export_support_debug_bundle(
 
 
 # ---------------------------------------------------------------------------
+# Personal Data Sovereignty & Takeout Export
+# ---------------------------------------------------------------------------
+
+
+@router.get("/takeout")
+async def export_personal_data_takeout(
+    include_db: bool = Query(True, description="Include SQLite database consistent backup"),
+    include_wiki: bool = Query(True, description="Include Wiki Markdown knowledge vault"),
+    include_skills: bool = Query(True, description="Include custom and downloaded skills"),
+    include_deliverables: bool = Query(True, description="Include final workspace deliverables and artifacts"),
+) -> Response:
+    """Generate and download a self-contained, portable Takeout ZIP of all user personal data assets."""
+    from datetime import datetime, timezone
+
+    from app.services.system.takeout_service import UserTakeoutService
+
+    try:
+        zip_bytes = await UserTakeoutService.build_takeout_zip(
+            include_db=include_db,
+            include_wiki=include_wiki,
+            include_skills=include_skills,
+            include_deliverables=include_deliverables,
+        )
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        filename = f"myrm-takeout-{timestamp}.zip"
+
+        return Response(
+            content=zip_bytes,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Takeout-Version": "1.0.0",
+            },
+        )
+    except Exception as exc:
+        logger.error("Failed to generate personal data takeout archive: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to generate personal data takeout archive") from exc
+
+
+
+# ---------------------------------------------------------------------------
 # Storage Governance & Compaction Suite
 # ---------------------------------------------------------------------------
 

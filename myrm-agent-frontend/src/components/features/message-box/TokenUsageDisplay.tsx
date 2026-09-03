@@ -535,6 +535,11 @@ export default function TokenUsageDisplay({
                               : 'routingStandardTooltip',
                     )}
                   </p>
+                  {routingReason && (
+                    <div className="mt-1.5 pt-1.5 border-t border-border/40 text-[10px] font-mono text-foreground/80 break-words">
+                      {routingReason}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -625,9 +630,8 @@ export default function TokenUsageDisplay({
                             )}
                           </p>
                           {routingReason && (
-                            <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground flex flex-col gap-0.5">
-                              <span className="font-medium text-foreground/80">{t('routingReasonTitle')}</span>
-                              <span className="font-mono text-[9.5px] opacity-90 break-words">{routingReason}</span>
+                            <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] font-mono text-muted-foreground break-words">
+                              {routingReason}
                             </div>
                           )}
                         </TooltipContent>

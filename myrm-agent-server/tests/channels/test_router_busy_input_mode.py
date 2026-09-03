@@ -119,3 +119,46 @@ async def test_auto_busy_input_mode_redirect() -> None:
     # Verify redirect was triggered
     assert steering_token.has_pending
     assert steering_token.redirect_requested
+
+
+@pytest.mark.asyncio
+async def test_router_busy_input_mode_skips_slash_commands() -> None:
+    bus = _make_bus()
+    router = _make_router(bus=bus)
+
+    channel = "telegram"
+    chat_id = "chat-slash-99"
+    session_key = routing_session_key(channel, chat_id)
+
+    steering_token = SteeringToken()
+    current_task = asyncio.current_task()
+    assert current_task is not None
+
+    active_task = _ActiveTask(
+        task=current_task,
+        cancel_token=CancellationToken(),
+        channel=channel,
+        chat_id=chat_id,
+        placeholder_id=None,
+        started_at=0.0,
+        steering_token=steering_token,
+        busy_input_mode="steer",
+    )
+    router._active_tasks[session_key] = active_task
+
+    # An unknown slash command (not in registry) should not be consumed as steering
+    msg = InboundMessage(
+        channel=channel,
+        sender_id="user-1",
+        content="/unknown_custom_command",
+        chat_id=chat_id,
+        message_id="msg-103",
+    )
+
+    router._running = True
+    bus.consume_inbound = AsyncMock(side_effect=[msg, asyncio.CancelledError])
+    await router._consume_loop()
+
+    # Steering token should NOT receive slash commands
+    assert not steering_token.has_pending
+

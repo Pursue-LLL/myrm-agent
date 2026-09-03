@@ -179,6 +179,19 @@ describe('TokenUsageDisplay', () => {
     expect(screen.getByText('routingLongDoc')).toBeInTheDocument();
   });
 
+  it('displays routing reason in tooltip content when routingReason is provided', () => {
+    render(
+      <TokenUsageDisplay
+        usage={makeUsage()}
+        modelName="test"
+        routingTier="reasoning"
+        routingReason="rule:keyword(reasoning)"
+      />,
+    );
+    expect(screen.getByText('routingReasonTitle')).toBeInTheDocument();
+    expect(screen.getAllByText('rule:keyword(reasoning)').length).toBeGreaterThanOrEqual(1);
+  });
+
   // --- 模型兼容层 ---
 
   it('displays model tier when provided', () => {
