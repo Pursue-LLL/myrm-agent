@@ -11,9 +11,14 @@ vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
 
-vi.mock('@/lib/deploy-mode', () => ({
-  isTauriRuntime: () => true,
-}));
+vi.mock('@/lib/deploy-mode', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
+  return {
+    ...actual,
+    isTauriRuntime: () => true,
+    isLocalMode: () => false,
+  };
+});
 
 vi.mock('@/lib/utils/apiConfig', () => ({
   getBackendUrl: () => 'http://localhost:8000',

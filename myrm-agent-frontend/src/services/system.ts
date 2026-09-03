@@ -133,4 +133,56 @@ export const systemService = {
       method: 'DELETE',
     });
   },
+
+  /**
+   * Database storage optimization (FTS B-tree compaction, VACUUM freelist reclaim, WAL truncate)
+   */
+  async getStorageOptimizePreflight(): Promise<StorageOptimizePreflightResponse> {
+    return apiRequest<StorageOptimizePreflightResponse>('/system/storage/optimize-preflight', {
+      method: 'POST',
+    });
+  },
+
+  async executeStorageOptimize(req: StorageOptimizeRequest): Promise<StorageOptimizeResponse> {
+    return apiRequest<StorageOptimizeResponse>('/system/storage/optimize', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  },
 };
+
+export interface DatabaseStorageBreakdown {
+  main_db_bytes: number;
+  wal_bytes: number;
+  shm_bytes: number;
+  total_bytes: number;
+}
+
+export interface StorageOptimizePreflightResponse {
+  data_dir: string;
+  db_breakdown: DatabaseStorageBreakdown;
+  disk_free_bytes: number;
+  can_deep_optimize: boolean;
+  recommended_mode: 'deep' | 'light';
+  active_background_jobs: number;
+  is_safe_to_optimize: boolean;
+  reason: string | null;
+}
+
+export interface StorageOptimizeRequest {
+  mode: 'deep' | 'light';
+  create_backup?: boolean;
+}
+
+export interface StorageOptimizeResponse {
+  status: string;
+  mode: string;
+  before_bytes: number;
+  after_bytes: number;
+  reclaimed_bytes: number;
+  reclaimed_percentage: number;
+  backup_path: string | null;
+  duration_ms: number;
+  message: string;
+}
+

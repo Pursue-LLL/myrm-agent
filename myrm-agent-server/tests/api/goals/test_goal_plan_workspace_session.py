@@ -41,7 +41,10 @@ async def test_get_goal_plan_uses_chat_workspace_session(goals_client: tuple[Tes
         workspace_root,
         TodoStore(
             goal="Prepare launch checklist",
-            todos=[TodoItem(id="todo_1", content="Draft outline", status=TodoStatus.PENDING)],
+            todos=[
+                TodoItem(id="todo_1", content="Draft outline", status=TodoStatus.PENDING),
+                TodoItem(id="todo_2", content="External API key", status=TodoStatus.BLOCKED),
+            ],
         ),
     )
 
@@ -55,6 +58,9 @@ async def test_get_goal_plan_uses_chat_workspace_session(goals_client: tuple[Tes
     assert payload["plan"]["goal"] == "Prepare launch checklist"
     assert payload["plan"]["steps"][0]["step_id"] == "todo_1"
     assert payload["plan"]["steps"][0]["description"] == "Draft outline"
+    assert payload["plan"]["steps"][0]["status"] == "pending"
+    assert payload["plan"]["steps"][1]["step_id"] == "todo_2"
+    assert payload["plan"]["steps"][1]["status"] == "blocked"
 
 
 @pytest.mark.asyncio

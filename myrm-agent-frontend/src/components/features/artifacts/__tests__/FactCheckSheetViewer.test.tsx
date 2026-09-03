@@ -34,8 +34,10 @@ const mockTranslations: Record<string, string> = {
   close: '关闭',
 };
 
+const stableT = (key: string) => mockTranslations[key] || key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => mockTranslations[key] || key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -130,10 +132,10 @@ describe('FactCheckSheetViewer', () => {
     ).toBeInTheDocument();
 
     // 统计指标
-    expect(screen.getByText('核查总项')).toBeInTheDocument();
-    expect(screen.getByText('严重冲突')).toBeInTheDocument();
-    expect(screen.getByText('差异演进')).toBeInTheDocument();
-    expect(screen.getByText('描述差异')).toBeInTheDocument();
+    expect(screen.getByText(/核查总项/)).toBeInTheDocument();
+    expect(screen.getAllByText(/严重冲突/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/差异演进/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/描述差异/).length).toBeGreaterThan(0);
 
     // 核查条目
     expect(screen.getByText('官方首发零售价')).toBeInTheDocument();

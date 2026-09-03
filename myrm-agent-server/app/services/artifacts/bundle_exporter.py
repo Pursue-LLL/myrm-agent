@@ -17,12 +17,16 @@ from __future__ import annotations
 
 import io
 import logging
-import time
 import zipfile
 from collections.abc import Generator
 
 from myrm_agent_harness.agent.artifacts.vault import VAULT_PREFIX, ArtifactVault
-from myrm_agent_harness.core.artifacts.manifest import DeliverableManifest
+from myrm_agent_harness.core.artifacts.manifest import (
+    CATEGORY_DIRECTORY_MAPPING,
+    DeliverableManifest,
+)
+
+from app.services.artifacts.bundle_builder import generate_bundle_readme
 
 logger = logging.getLogger(__name__)
 
@@ -69,9 +73,11 @@ class BundleExporter:
         )
 
         try:
-            # 1. 写入 manifest.json 根描述
+            # 1. 写入 manifest.json 与 README.md 根描述
             manifest_json = manifest.model_dump_json(indent=2)
             zip_file.writestr("manifest.json", manifest_json.encode("utf-8"))
+            readme_content = generate_bundle_readme(manifest)
+            zip_file.writestr("README.md", readme_content.encode("utf-8"))
             chunk = stream_buf.read_and_clear()
             if chunk:
                 yield chunk
@@ -93,10 +99,14 @@ class BundleExporter:
                     )
                     continue
 
-                # 规范化相对路径，防路径穿越
-                clean_rel_path = self._sanitize_relative_path(
-                    item.relative_path or item.title
-                )
+                # 规范化相对路径，防路径穿越；若无目录前缀则根据工件分类自动映射标准子目录
+                raw_rel_path = item.relative_path or item.filename or item.title
+                if "/" not in raw_rel_path and item.category:
+                    folder = CATEGORY_DIRECTORY_MAPPING.get(item.category)
+                    if folder:
+                        raw_rel_path = f"{folder}/{raw_rel_path}"
+
+                clean_rel_path = self._sanitize_relative_path(raw_rel_path)
 
                 # 写入 ZipEntry 并流式读取源文件写入
                 zinfo = zipfile.ZipInfo(clean_rel_path, date_time=time.localtime()[:6])

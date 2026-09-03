@@ -20,6 +20,8 @@
 |------|------|------|
 | `share/`（子包） | 核心 | 工件分享子域：`share/share_bundle.py`（物化 share 静态包）、`share/share_token.py`（分享令牌签发/校验/重建）、`share/share_registry.py`（分享链接生命周期治理）。`share/__init__.py` 为聚合门面 |
 | `bundle_builder.py` | 业务 | 提供 `build_zip_deliverable_bundle` 与 `generate_bundle_readme`，支持按 DeliverableManifest 分层流式压缩打包多工件资产 |
+| `bundle_exporter.py` | 业务 | 流式低内存 (<1MB) ZIP 导出管道，支持 chunked 传输与客户端断开优雅清理 |
+| `fact_check_service.py` | 业务 | 事实核查表持久化服务，支持 JSON + Markdown 双模物化与成套交付物清单挂载 |
 
 ---
 

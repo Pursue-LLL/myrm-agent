@@ -743,3 +743,42 @@ async def test_agent_default_security_preset_crud(async_client: AsyncClient, tes
 
     # Cleanup
     await async_client.delete(f"/api/agents/{agent_id}")
+
+
+@pytest.mark.asyncio
+async def test_agent_skill_ids_explicit_zero_and_wysiwyg_e2e(async_client: AsyncClient):
+    """WYSIWYG: agent created or updated with skill_ids=[] persists empty list without silent fallback."""
+    create_payload = {
+        "name": "Zero Skills Agent",
+        "description": "Agent with explicitly zero skills",
+        "system_prompt": "You are a pure instruction agent.",
+        "skill_ids": [],
+    }
+    response = await async_client.post("/api/agents", json=create_payload)
+    assert response.status_code == 200
+    created = response.json()["data"]
+    agent_id = created["id"]
+    assert created["skill_ids"] == []
+
+    # Read back confirms exact empty list
+    get_resp = await async_client.get(f"/api/agents/{agent_id}")
+    assert get_resp.status_code == 200
+    assert get_resp.json()["data"]["skill_ids"] == []
+
+    # Update to non-empty
+    update_resp = await async_client.put(f"/api/agents/{agent_id}", json={"skill_ids": ["search", "bash"]})
+    assert update_resp.status_code == 200
+    assert update_resp.json()["data"]["skill_ids"] == ["search", "bash"]
+
+    # Clear back to empty list []
+    clear_resp = await async_client.put(f"/api/agents/{agent_id}", json={"skill_ids": []})
+    assert clear_resp.status_code == 200
+    assert clear_resp.json()["data"]["skill_ids"] == []
+
+    # Verify cleared state
+    get_cleared = await async_client.get(f"/api/agents/{agent_id}")
+    assert get_cleared.status_code == 200
+    assert get_cleared.json()["data"]["skill_ids"] == []
+
+    await async_client.delete(f"/api/agents/{agent_id}")
+

@@ -331,10 +331,26 @@ async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> str:
     assert thumbnail_probe.get("ready") is True, f"attachment thumbnail never appeared (upload failed): {thumbnail_probe}"
     _LOGGER.info("STAGE: thumbnail ready, sending message")
 
-    send_result = await chat.send_message(_PROMPT, _PROMPT)
-    _LOGGER.info("STAGE: send_result=%s", send_result)
-    chat_id = str(send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or "").strip()
-    assert chat_id, f"image turn did not start: {send_result}"
+    # When attachments are staged in the composer DOM, native button click
+    # routes the turn through standard WebUI submit handlers with uploaded files intact.
+    submit_res = await chat.submit_native_click()
+    _LOGGER.info("STAGE: submit_native_click result=%s", submit_res)
+    started = await chat._submit_started()
+    chat_id = (
+        str(started.get("bridgeChatId") or "").strip()
+        or chat_id_from_path(str(started.get("path") or ""))
+        or await chat.bridge_chat_id()
+        or ""
+    )
+    if not chat_id:
+        send_result = await chat.send_message(_PROMPT, _PROMPT)
+        _LOGGER.info("STAGE: fallback send_message result=%s", send_result)
+        chat_id = str(
+            send_result.get("started", {}).get("chatId")
+            or send_result.get("submit", {}).get("chatId")
+            or ""
+        ).strip()
+    assert chat_id, f"image turn did not start: started={started}"
     _LOGGER.info("STAGE: awaiting assistant reply (chat_id=%s)", chat_id)
 
     reply = await _await_assistant_reply(

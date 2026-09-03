@@ -14,19 +14,25 @@ class TestDirSizeBytes:
         assert _dir_size_bytes(tmp_path / "nonexistent") == 0
 
     def test_empty_dir(self, tmp_path: Path) -> None:
-        assert _dir_size_bytes(tmp_path) == 0
+        target = tmp_path / "empty_dir"
+        target.mkdir()
+        assert _dir_size_bytes(target) == 0
 
     def test_single_file(self, tmp_path: Path) -> None:
-        f = tmp_path / "test.txt"
+        target = tmp_path / "single_file_dir"
+        target.mkdir()
+        f = target / "test.txt"
         f.write_bytes(b"x" * 100)
-        assert _dir_size_bytes(tmp_path) == 100
+        assert _dir_size_bytes(target) == 100
 
     def test_nested_files(self, tmp_path: Path) -> None:
-        sub = tmp_path / "sub"
+        target = tmp_path / "nested_dir"
+        target.mkdir()
+        sub = target / "sub"
         sub.mkdir()
-        (tmp_path / "a.txt").write_bytes(b"x" * 50)
+        (target / "a.txt").write_bytes(b"x" * 50)
         (sub / "b.txt").write_bytes(b"x" * 30)
-        assert _dir_size_bytes(tmp_path) == 80
+        assert _dir_size_bytes(target) == 80
 
     def test_file_path_returns_zero(self, tmp_path: Path) -> None:
         f = tmp_path / "file.txt"

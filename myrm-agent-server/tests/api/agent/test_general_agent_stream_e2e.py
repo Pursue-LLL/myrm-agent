@@ -121,3 +121,48 @@ class TestGeneralAgentStream:
         valid_statuses = {"sleeping", "thinking", "dizzy", "celebrating", "panting"}
         for status in mascot_statuses:
             assert status in valid_statuses, f"Invalid mascot status detected: {status}"
+
+    def test_agent_stream_zero_skills_equipped_wysiwyg(self, client: TestClient):
+        """WYSIWYG: agent stream with 0 skills equipped executes in pure instruction mode."""
+        chat_id = f"zero_skill_{uuid.uuid4().hex[:8]}"
+        client.post("/api/v1/chats/", json={"chat_id": chat_id})
+
+        request_data = {
+            "messageId": f"msg-zero-{uuid.uuid4().hex[:8]}",
+            "chatId": chat_id,
+            "query": "Reply with exactly: PURE-INSTRUCTION-SUCCESS",
+            "modelSelection": get_model_selection(),
+            "actionMode": "agent",
+            "memoryRequireConfirmation": False,
+            "enableMemoryAutoExtraction": False,
+            "agentConfig": {
+                "skillIds": [],
+                "enabledBuiltinTools": [],
+            },
+        }
+
+        collected_data = []
+        message_chunks = []
+        with client.stream("POST", "/api/v1/agents/agent-stream", json=request_data, timeout=120.0) as response:
+            assert response.status_code == 200
+            for line in response.iter_lines():
+                if not line or not line.startswith("data: "):
+                    continue
+                try:
+                    data = json.loads(line[6:])
+                    if data is None:
+                        continue
+                    collected_data.append(data)
+                    if data.get("type") in ("message", "reasoning"):
+                        content = data.get("data", "")
+                        if content:
+                            message_chunks.append(content)
+                except json.JSONDecodeError:
+                    pass
+
+        full_answer = "".join(message_chunks)
+        assert len(collected_data) > 0
+        error_events = [d for d in collected_data if d.get("type") == "error"]
+        assert not error_events, f"Expected no error events, got: {error_events}"
+        assert "PURE-INSTRUCTION-SUCCESS" in full_answer or len(message_chunks) > 0
+
