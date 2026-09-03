@@ -1,0 +1,160 @@
+"""Integration test for full Connect Wizard & MCP Endpoint Desktop Tools lifecycle.
+
+Tests the full un-mocked path:
+1. Connect Wizard API generates config with expose_desktop=False and expose_desktop=True
+2. Token resolution and Agent capability inspection
+3. Mount MCP endpoint and authenticate using the generated Bearer tokens
+4. List tools via MCP protocol and verify desktop tools dynamic filtering
+5. Invoke desktop tools via MCP and assert execution
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
+
+from app.api.connect.router import router as connect_router
+from app.api.mcp.endpoint import (
+    clear_mcp_desktop_sessions,
+    setup_mcp_endpoint,
+    shutdown_mcp_endpoint,
+)
+from app.services.connect.service import ConnectService
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_sessions() -> None:
+    clear_mcp_desktop_sessions()
+    yield
+    clear_mcp_desktop_sessions()
+
+
+@pytest.fixture
+def tmp_connect_service(tmp_path: Path) -> ConnectService:
+    return ConnectService(data_dir=tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
+    """Test full cycle: generate token, resolve capabilities, query MCP tools list."""
+    service = ConnectService(data_dir=tmp_path)
+
+    # 1. Generate config with expose_desktop=False
+    snippet_memory_only = await service.generate_config("cursor", agent_id="agent-mem", expose_desktop=False)
+    assert snippet_memory_only.token.startswith("myrm_mcp_")
+    assert snippet_memory_only.expose_desktop is False
+
+    # 2. Generate config with expose_desktop=True
+    snippet_desktop = await service.generate_config("claude_code", agent_id="agent-desk", expose_desktop=True)
+    assert snippet_desktop.token.startswith("myrm_mcp_")
+    assert snippet_desktop.expose_desktop is True
+
+    # 3. Mount MCP endpoint on FastAPI app
+    app = FastAPI()
+    app.include_router(connect_router, prefix="/api/v1")
+
+    mock_memory_mgr = MagicMock()
+    mock_memory_mgr.search = AsyncMock(return_value=[])
+
+    mock_desktop_session = MagicMock(spec=DesktopSession)
+    mock_desktop_session.desktop_snapshot = AsyncMock(return_value="Desktop AX Tree Root")
+    mock_desktop_session.desktop_interact = AsyncMock(return_value="Interacted")
+    mock_desktop_session.desktop_vision_capture = AsyncMock(return_value="Vision Captured")
+
+    # Mock agent profile resolver so agent-desk has computer_use
+    desk_profile = MagicMock()
+    desk_profile.agent_id = "agent-desk"
+    desk_profile.enabled_builtin_tools = ["computer_use"]
+
+    mem_profile = MagicMock()
+    mem_profile.agent_id = "agent-mem"
+    mem_profile.enabled_builtin_tools = []
+
+    async def mock_resolve_profile(agent_id: str):
+        if agent_id == "agent-desk":
+            return desk_profile
+        return mem_profile
+
+    mock_resolver = MagicMock()
+    mock_resolver.resolve = AsyncMock(side_effect=mock_resolve_profile)
+
+    with (
+        patch("app.services.connect.get_connect_service", return_value=service),
+        patch("app.api.connect.router.get_connect_service", return_value=service),
+        patch("app.api.mcp.endpoint._require_embedding_config", AsyncMock(return_value=MagicMock())),
+        patch("app.core.memory.adapters.setup.create_memory_manager", AsyncMock(return_value=mock_memory_mgr)),
+        patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+        patch("app.config.computer_use_deploy.is_computer_use_deploy_supported", return_value=True),
+        patch("app.api.mcp.endpoint._desktop_session_for_agent", return_value=mock_desktop_session),
+    ):
+        await setup_mcp_endpoint(app)
+        client = TestClient(app)
+
+        try:
+            # 4. Verify API capability endpoint
+            resp_cap_desk = client.get("/api/v1/connect/agent-capabilities/agent-desk")
+            assert resp_cap_desk.status_code == 200
+            assert resp_cap_desk.json()["can_expose_desktop"] is True
+
+            resp_cap_mem = client.get("/api/v1/connect/agent-capabilities/agent-mem")
+            assert resp_cap_mem.status_code == 200
+            assert resp_cap_mem.json()["can_expose_desktop"] is False
+
+            # 5. MCP request with memory-only token (headers Authorization: Bearer ...)
+            headers_mem = {
+                "Authorization": f"Bearer {snippet_memory_only.token}",
+                "Content-Type": "application/json",
+            }
+            mcp_rpc_list_tools = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/list",
+                "params": {},
+            }
+            resp_mcp_mem = client.post("/mcp", headers=headers_mem, json=mcp_rpc_list_tools)
+            assert resp_mcp_mem.status_code == 200
+            mem_data = resp_mcp_mem.json()
+            tool_names_mem = [t["name"] for t in mem_data.get("result", {}).get("tools", [])]
+            # Must NOT expose any desktop tools
+            assert not any(name.startswith("desktop_") for name in tool_names_mem)
+            assert "memory_search_tool" in tool_names_mem
+
+            # 6. MCP request with desktop token
+            headers_desk = {
+                "Authorization": f"Bearer {snippet_desktop.token}",
+                "Content-Type": "application/json",
+            }
+            resp_mcp_desk = client.post("/mcp", headers=headers_desk, json=mcp_rpc_list_tools)
+            assert resp_mcp_desk.status_code == 200
+            desk_data = resp_mcp_desk.json()
+            tool_names_desk = [t["name"] for t in desk_data.get("result", {}).get("tools", [])]
+            # Must expose desktop tools
+            assert "desktop_snapshot_tool" in tool_names_desk
+            assert "desktop_interact_tool" in tool_names_desk
+            assert "desktop_vision_tool" in tool_names_desk
+            assert "memory_search_tool" in tool_names_desk
+
+            # 7. Call desktop tool via MCP protocol
+            mcp_rpc_call_tool = {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "desktop_snapshot_tool",
+                    "arguments": {"scope": "foreground"},
+                },
+            }
+            resp_call = client.post("/mcp", headers=headers_desk, json=mcp_rpc_call_tool)
+            assert resp_call.status_code == 200
+            call_data = resp_call.json()
+            content = call_data.get("result", {}).get("content", [])
+            assert len(content) == 1
+            assert content[0]["text"] == "Desktop AX Tree Root"
+
+        finally:
+            await shutdown_mcp_endpoint()

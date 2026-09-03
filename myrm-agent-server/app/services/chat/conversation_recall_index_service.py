@@ -177,6 +177,7 @@ class ConversationRecallIndexService:
                         "sent_at": sent_at,
                         "chat_title": title,
                         "snippet": snippet,
+                        "source": row.source,
                     }
                 )
 
@@ -189,11 +190,16 @@ async def _public_chat_ids(session: AsyncSession, chat_ids: list[str]) -> set[st
     unique_ids = list(dict.fromkeys(chat_ids))
     if not unique_ids:
         return set()
+    from sqlalchemy import or_
+
     rows = (
         await session.execute(
             select(Chat.id).where(
                 Chat.id.in_(unique_ids),
-                Chat.is_incognito.is_(False),
+                or_(
+                    Chat.is_incognito.is_(False),
+                    Chat.source.like("external:%"),
+                ),
             )
         )
     ).scalars()

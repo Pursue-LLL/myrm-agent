@@ -303,7 +303,7 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
             approval_required=False,
         )
 
-        mcp_server = MemoryMCPServer(memory_manager)
+        mcp_server = MemoryMCPServer(memory_manager, stateless_http=True)
 
         from myrm_agent_harness.toolkits.computer_use.mcp_server import (
             get_request_desktop_session,
@@ -321,7 +321,7 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
             return tools
 
         mcp_server.mcp.list_tools = _filtered_list_tools  # type: ignore[method-assign]
-        mcp_asgi_app = mcp_server.get_streamable_http_app(stateless=True)
+        mcp_asgi_app = mcp_server.get_streamable_http_app()
 
         # FastAPI mount() does not propagate lifespan to sub-apps, so the
         # Starlette sub-app's lifespan (which calls session_manager.run())
