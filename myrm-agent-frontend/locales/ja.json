@@ -9693,6 +9693,10 @@
       "badgeDesc": "SWE-bench / BIG-bench / WBBench 汚染防止標準に準拠し、事前学習データへの混入を防止",
       "injectCanaryBtn": "Canaryヘッダーを挿入"
     },
+    "leakageGuard": {
+      "autoSplitBtn": "7:3 自動分割",
+      "autoSplitTooltip": "70% Search (探索サブセット) と 30% Test (ホールドアウト検証セット) に階層化自動分割"
+    },
     "clustering": {
       "panelTitle": "失敗署名クラスタリングとガバナンス提案",
       "panelSubtitle": "Sentry レベルの指紋正規化と (ci, qi, mi) 判定に基づき、共通のボトルネックを抽出し RFC-6902 パッチを生成",
@@ -9751,6 +9755,7 @@
     "assertionExample": "サンプル",
     "assertions": {
       "expected_tools": "エージェントが指定ツールを呼び出したか検証",
+      "split": "データセット分割ラベル: 探索学習用の 'search'、検証用の 'test'",
       "contains": "出力に指定テキストが含まれる",
       "not_contains": "出力に指定テキストが含まれない",
       "regex": "出力が正規表現にマッチ",
@@ -15299,6 +15304,14 @@
             "REFUTED": "REFUTED",
             "REGRESSION": "REGRESSION",
             "INCONCLUSIVE": "INCONCLUSIVE"
+          },
+          "paretoVerdict": {
+            "pareto_optimal": "汎化性能向上 (Pareto 最適)",
+            "overfitting": "過学習警告",
+            "generalization_collapse": "汎化崩壊の深刻な劣化",
+            "stable_parity": "両軸安定",
+            "regression": "両軸リグレッション",
+            "insufficient_holdout": "検証セットのサンプル不足"
           },
           "metricDeltas": "観測された指標の変化",
           "unpredictedRegressions": "予期しないリグレッション警告"

@@ -92,3 +92,27 @@ def test_completed_todos_do_not_block_guard(tmp_path: Path) -> None:
     checklist, has_critical = build_checklist([], workspace_root=str(workspace))
     assert not has_critical
     assert "incomplete todos" not in checklist
+
+
+def test_blocked_todos_checklist_guidance(tmp_path: Path) -> None:
+    workspace = tmp_path / "ws_blocked"
+    workspace.mkdir()
+    store = TodoStore(
+        goal="Blocked task",
+        todos=[TodoItem(id="1", content="External sync", status=TodoStatus.BLOCKED)],
+    )
+    write_todos_sync_to_workspace(str(workspace), store)
+
+    records = [
+        CallRecord(
+            tool_name="file_write_tool",
+            args_hash="w1",
+            args={"path": "/src/app.py", "content": "x"},
+            success_level=SuccessLevel.FULL_SUCCESS,
+        )
+    ]
+    checklist, has_critical = build_checklist(records, workspace_root=str(workspace))
+    assert has_critical
+    assert "For blocked todos" in checklist
+    assert "cancelled" in checklist
+

@@ -9693,6 +9693,10 @@
       "badgeDesc": "Konform mit SWE-bench / BIG-bench / WBBench Standards gegen Vorab-Trainingskontamination",
       "injectCanaryBtn": "Canary-Header einfügen"
     },
+    "leakageGuard": {
+      "autoSplitBtn": "7:3 Auto-Aufteilung",
+      "autoSplitTooltip": "Automatische Aufteilung in 70% Suche und 30% Test"
+    },
     "clustering": {
       "panelTitle": "Fehlersignatur-Clustering & Governance-Vorschläge",
       "panelSubtitle": "Sentry-Fingerabdruckbereinigung & (ci, qi, mi) Analyse mit RFC-6902 Patch-Synthese",
@@ -9751,6 +9755,7 @@
     "assertionExample": "Beispiel",
     "assertions": {
       "expected_tools": "Prüft ob Agent bestimmte Tools aufgerufen hat",
+      "split": "Datensatz-Aufteilung: 'search' für Suche, 'test' für Test",
       "contains": "Ausgabe enthält bestimmten Text",
       "not_contains": "Ausgabe enthält bestimmten Text nicht",
       "regex": "Ausgabe stimmt mit Regex überein",
@@ -15473,6 +15478,14 @@
             "REFUTED": "REFUTED",
             "REGRESSION": "REGRESSION",
             "INCONCLUSIVE": "INCONCLUSIVE"
+          },
+          "paretoVerdict": {
+            "pareto_optimal": "Generalisierung optimal",
+            "overfitting": "Überanpassungs-Warnung",
+            "generalization_collapse": "Generalisierungszusammenbruch",
+            "stable_parity": "Stabile Parität",
+            "regression": "Regression erkannt",
+            "insufficient_holdout": "Unzureichender Testdatensatz"
           },
           "metricDeltas": "Beobachtete Metrikänderungen",
           "unpredictedRegressions": "Unerwartete Regressionen"

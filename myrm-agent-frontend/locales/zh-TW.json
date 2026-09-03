@@ -9693,6 +9693,10 @@
       "badgeDesc": "符合 SWE-bench / BIG-bench / WBBench 防汙染規範，防止評測集滲入模型預訓練語料庫",
       "injectCanaryBtn": "注入 Canary 防汙染聲明"
     },
+    "leakageGuard": {
+      "autoSplitBtn": "7:3 自動切分",
+      "autoSplitTooltip": "按 70% Search (探索子集) 與 30% Test (留出驗證集) 智慧分層打標"
+    },
     "clustering": {
       "panelTitle": "失敗簽名聚類與治理提案",
       "panelSubtitle": "基於 Sentry 級指紋脫敏與 (ci, qi, mi) 雙軸判定，提煉共性病灶並生成 RFC-6902 配置補丁",
@@ -9751,6 +9755,7 @@
     "assertionExample": "示例",
     "assertions": {
       "expected_tools": "驗證 Agent 呼叫了指定工具",
+      "split": "資料集切分標籤：'search' 用於訓練探索，'test' 用於留出盲測驗證",
       "contains": "輸出包含指定文字",
       "not_contains": "輸出不包含指定文字",
       "regex": "輸出匹配正規表示式",
@@ -15299,6 +15304,14 @@
             "REFUTED": "REFUTED",
             "REGRESSION": "REGRESSION",
             "INCONCLUSIVE": "INCONCLUSIVE"
+          },
+          "paretoVerdict": {
+            "pareto_optimal": "泛化提升 (Pareto 最優)",
+            "overfitting": "疑似過擬合告警",
+            "generalization_collapse": "泛化崩塌嚴重退化",
+            "stable_parity": "雙軸平穩",
+            "regression": "雙軸回退",
+            "insufficient_holdout": "驗證集樣本不足"
           },
           "metricDeltas": "實測指標變化",
           "unpredictedRegressions": "未預期退化警告"

@@ -9693,6 +9693,10 @@
       "badgeDesc": "SWE-bench / BIG-bench / WBBench 오염 방지 표준 준수, 사전 학습 데이터 혼입 방지",
       "injectCanaryBtn": "Canary 헤더 삽입"
     },
+    "leakageGuard": {
+      "autoSplitBtn": "7:3 자동 분할",
+      "autoSplitTooltip": "70% Search (탐색 서브셋) 및 30% Test (검증 세트)로 계층화 자동 분할"
+    },
     "clustering": {
       "panelTitle": "실패 서명 클러스터링 및 거버넌스 제안",
       "panelSubtitle": "Sentry 수준의 지문 정규화 및 (ci, qi, mi) 이중 축 해결 가능성 평가 기반 RFC-6902 패치 합성",
@@ -9751,6 +9755,7 @@
     "assertionExample": "예시",
     "assertions": {
       "expected_tools": "에이전트가 지정 도구를 호출했는지 검증",
+      "split": "데이터셋 분할 레이블: 학습 탐색용 'search', 홀드아웃 검증용 'test'",
       "contains": "출력에 지정 텍스트 포함",
       "not_contains": "출력에 지정 텍스트 미포함",
       "regex": "출력이 정규식에 매칭",
@@ -15473,6 +15478,14 @@
             "REFUTED": "REFUTED",
             "REGRESSION": "REGRESSION",
             "INCONCLUSIVE": "INCONCLUSIVE"
+          },
+          "paretoVerdict": {
+            "pareto_optimal": "일반화 향상 (Pareto 최적)",
+            "overfitting": "과적합 경고",
+            "generalization_collapse": "일반화 붕괴 심각한 퇴화",
+            "stable_parity": "양축 안정",
+            "regression": "양축 회귀",
+            "insufficient_holdout": "검증 세트 샘플 부족"
           },
           "metricDeltas": "관측된 지표 변화",
           "unpredictedRegressions": "예상치 못한 성능 저하 경고"

@@ -399,10 +399,8 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 ImageGenerationTools,
             )
 
-            from app.ai_agents.media_tools.image_agent_tool import (
+            from app.ai_agents.media_tools import (
                 create_image_generation_tool,
-            )
-            from app.ai_agents.media_tools.media_persist import (
                 create_media_persist_callback,
             )
             from app.config.deploy_mode import is_local_mode
@@ -468,7 +466,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 VideoGenerationTools,
             )
 
-            from app.ai_agents.media_tools.video_agent_tool import (
+            from app.ai_agents.media_tools import (
                 create_video_generation_tool,
             )
 
@@ -537,7 +535,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         try:
             from myrm_agent_harness.toolkits.llms.tts import TTSConfig
 
-            from app.ai_agents.media_tools.tts_agent_tool import create_tts_tool
+            from app.ai_agents.media_tools import create_tts_tool
 
             config = TTSConfig(
                 provider=params.provider,
@@ -577,7 +575,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
         source: str,
     ) -> MediaCallback | None:
         """Generic media persist callback factory."""
-        from app.ai_agents.media_tools.media_persist import (
+        from app.ai_agents.media_tools import (
             create_media_persist_callback,
         )
 

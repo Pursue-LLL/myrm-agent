@@ -41,6 +41,13 @@ async def _handle_knowledge_patch_resolution(record: ApprovalRecord, decision: s
     await handle_knowledge_patch_resolution(record, decision)
 
 
+async def _handle_obsidian_inbox_resolution(record: ApprovalRecord, decision: str) -> None:
+    """Delegate approved obsidian inbox write resolution to obsidian_inbox module."""
+    from app.api.approvals.obsidian_inbox import handle_obsidian_inbox_resolution
+
+    await handle_obsidian_inbox_resolution(record, decision)
+
+
 class AllowAlwaysValue(BaseModel):
     tool: bool | None = None
     args: bool | None = None
@@ -123,6 +130,10 @@ async def resolve_approval(
 
     if record.action_type == "knowledge_patch":
         await _handle_knowledge_patch_resolution(record, normalized_decision)
+        return ApprovalRecordResponse.from_orm(record)
+
+    if record.action_type == "obsidian_inbox_write":
+        await _handle_obsidian_inbox_resolution(record, normalized_decision)
         return ApprovalRecordResponse.from_orm(record)
 
     if record.action_type == "mcp_elicitation":

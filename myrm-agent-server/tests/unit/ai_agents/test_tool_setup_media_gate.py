@@ -256,7 +256,7 @@ def test_tts_tools_load_failure_is_swallowed() -> None:
             return_value=None,
         ),
         patch(
-            "app.ai_agents.media_tools.tts_agent_tool.create_tts_tool",
+            "app.ai_agents.media_tools.create_tts_tool",
             side_effect=RuntimeError("tts init failed"),
         ),
     ):

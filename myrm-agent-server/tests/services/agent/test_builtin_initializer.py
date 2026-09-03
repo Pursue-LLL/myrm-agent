@@ -361,7 +361,12 @@ async def test_search_agents_have_correct_extended_fields(test_db: sessionmaker)
     assert fast.prompt_mode == "search"
     assert fast.engine_params == {"max_tool_calls": 8}
     assert fast.max_iterations == 30
-    assert fast.memory_policy == {"write_policy": "conversation"}
+    assert fast.memory_policy == {
+        "read_scopes": ["global", "conversation"],
+        "write_policy": "conversation",
+        "allow_l3_extraction": False,
+        "auto_cleanup": True,
+    }
     # 搜索提示词由 prompt_mode="search" 单一提供，system_prompt 留空避免重复注入
     assert not fast.system_prompt
 
@@ -370,7 +375,12 @@ async def test_search_agents_have_correct_extended_fields(test_db: sessionmaker)
     assert deep.prompt_mode == "search"
     assert deep.engine_params == {"max_tool_calls": 20}
     assert deep.max_iterations == 50
-    assert deep.memory_policy == {"write_policy": "conversation"}
+    assert deep.memory_policy == {
+        "read_scopes": ["global", "conversation"],
+        "write_policy": "conversation",
+        "allow_l3_extraction": False,
+        "auto_cleanup": True,
+    }
     assert not deep.system_prompt
 
 
@@ -410,7 +420,12 @@ async def test_search_agents_update_syncs_extended_fields(test_db: sessionmaker)
     assert agent.prompt_mode == "search"
     assert agent.engine_params == {"max_tool_calls": 8}
     assert agent.max_iterations == 30
-    assert agent.memory_policy == {"write_policy": "conversation"}
+    assert agent.memory_policy == {
+        "read_scopes": ["global", "conversation"],
+        "write_policy": "conversation",
+        "allow_l3_extraction": False,
+        "auto_cleanup": True,
+    }
     # 旧的冗余 system_prompt 被同步清空，避免双重注入
     assert not agent.system_prompt
 

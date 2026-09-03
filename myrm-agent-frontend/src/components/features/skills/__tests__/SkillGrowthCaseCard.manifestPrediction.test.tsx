@@ -16,6 +16,8 @@ const TRANSLATIONS: Record<string, string> = {
   'settings.skills.growth.manifestPrediction.target': 'Target',
   'settings.skills.growth.manifestPrediction.verdictBadge.CONFIRMED': 'CONFIRMED',
   'settings.skills.growth.manifestPrediction.verdictBadge.REGRESSION': 'REGRESSION',
+  'settings.skills.growth.manifestPrediction.paretoVerdict.pareto_optimal': 'Generalization Optimal',
+  'settings.skills.growth.manifestPrediction.paretoVerdict.overfitting': 'Overfitting Alert',
   'settings.skills.growth.manifestPrediction.falsificationConditions': 'Falsification Conditions',
   'settings.skills.growth.manifestPrediction.unpredictedRegressions': 'Unpredicted Regressions',
   'settings.skills.growth.source.manualEvolution': 'Manual Evolution',

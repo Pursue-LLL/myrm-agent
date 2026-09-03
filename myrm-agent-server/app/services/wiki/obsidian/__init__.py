@@ -26,6 +26,13 @@ from app.services.wiki.obsidian.adapter import (
     prepare_obsidian_file,
     rewrite_image_embeds,
 )
+from app.services.wiki.obsidian.binding import (
+    ObsidianVaultBinding,
+    VaultDeltaScanResult,
+    get_obsidian_vault_binding,
+    scan_vault_mtime_watermark,
+    set_obsidian_vault_binding,
+)
 from app.services.wiki.obsidian.export import (
     build_obsidian_graph_json,
     build_obsidian_vault_zip,
@@ -34,12 +41,17 @@ from app.services.wiki.obsidian.export import (
 __all__ = [
     "ObsidianImportStats",
     "ObsidianRawPrepared",
+    "ObsidianVaultBinding",
+    "VaultDeltaScanResult",
     "adapt_obsidian_file",
     "build_obsidian_graph_json",
     "build_obsidian_vault_zip",
     "extract_inline_obsidian_tags",
+    "get_obsidian_vault_binding",
     "merge_obsidian_tags",
     "parse_frontmatter",
     "prepare_obsidian_file",
     "rewrite_image_embeds",
+    "scan_vault_mtime_watermark",
+    "set_obsidian_vault_binding",
 ]

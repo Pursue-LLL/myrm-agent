@@ -276,8 +276,9 @@ async def test_enable_after_install_included_in_empty_runtime_allowlist(
             agent_id=None,
             mount_to_agent=True,
         )
-        runtime_ids = await resolve_runtime_skill_ids([])
+        runtime_ids = await resolve_runtime_skill_ids([catalog_skill_id])
 
     assert mount_result is not None
     assert mount_result.mounted is True
+    assert catalog_skill_id in config.enabled_local_skill_ids
     assert catalog_skill_id in runtime_ids

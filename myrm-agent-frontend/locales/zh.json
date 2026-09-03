@@ -9755,6 +9755,7 @@
     "assertionExample": "示例",
     "assertions": {
       "expected_tools": "验证 Agent 调用了指定工具",
+      "split": "数据集切分标签：'search' 用于训练探索，'test' 用于留出盲测验证",
       "contains": "输出包含指定文本",
       "not_contains": "输出不包含指定文本",
       "regex": "输出匹配正则表达式",
@@ -15297,6 +15298,14 @@
             "REFUTED": "未达预期",
             "REGRESSION": "发生退化",
             "INCONCLUSIVE": "证据不足"
+          },
+          "paretoVerdict": {
+            "pareto_optimal": "泛化提升 (Pareto 最优)",
+            "overfitting": "疑似过拟合告警",
+            "generalization_collapse": "泛化崩塌严重退化",
+            "stable_parity": "双轴平稳",
+            "regression": "双轴回退",
+            "insufficient_holdout": "验证集样本不足"
           },
           "metricDeltas": "实测指标变化",
           "unpredictedRegressions": "未预期退化警告"
