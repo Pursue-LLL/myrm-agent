@@ -155,5 +155,27 @@ def test_skill_market_and_manage_builtin_cards_default_off_and_togglable() -> No
 
             enabled = wait_for_state(client, page, _SKILL_MARKET_ENABLED_JS, timeout_sec=15.0)
             assert enabled.get("ready") is True, f"skill_market should be enabled after toggle: {enabled}"
+
+            # Step 2: WYSIWYG Skills section inspection
+            client.evaluate(page, _CLICK_CAPABILITIES_JS, timeout_sec=10.0)
+            skills_panel_state = client.evaluate(
+                page,
+                """(() => {
+                  const text = document.body?.innerText || '';
+                  const hasEquippedText = /Equipped|已装配/i.test(text);
+                  const hasSelectAll = /Select All|全选/i.test(text);
+                  const hasPureNotice = /Pure instruction|纯指令模式/i.test(text);
+                  return {
+                    ok: hasEquippedText || hasSelectAll || hasPureNotice,
+                    hasEquippedText,
+                    hasSelectAll,
+                    hasPureNotice,
+                    snippet: text.slice(0, 300),
+                  };
+                })()""",
+                timeout_sec=10.0,
+            )
+            assert isinstance(skills_panel_state, dict)
+            assert skills_panel_state.get("ok") is True, f"WYSIWYG Skills section state invalid: {skills_panel_state}"
     finally:
         _delete_agent(api_url, agent_id)

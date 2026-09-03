@@ -56,7 +56,13 @@ function makeStorageResponse() {
       disk_total_bytes: 1024 * 1024 * 1024 * 10,
       disk_used_bytes: 1024 * 1024 * 1024 * 2,
       disk_free_bytes: 1024 * 1024 * 1024 * 8,
-      subdirs: [],
+      subdirs: [{ name: 'data.db', bytes: 1024 * 1024 * 50 }],
+      db_breakdown: {
+        main_db_bytes: 1024 * 1024 * 40,
+        wal_bytes: 1024 * 1024 * 9,
+        shm_bytes: 1024 * 1024 * 1,
+        total_bytes: 1024 * 1024 * 50,
+      },
     }),
   } as Response;
 }
@@ -148,5 +154,39 @@ describe('StorageCard security-sensitive migration flow', () => {
     });
 
     expect(onDataDirChange).not.toHaveBeenCalled();
+  });
+
+  it('renders database storage optimization section and triggers preflight', async () => {
+    const { systemService } = await import('@/services/system');
+    const mockPreflight = vi.spyOn(systemService, 'getStorageOptimizePreflight').mockResolvedValue({
+      data_dir: '/Users/test/.myrm',
+      db_breakdown: {
+        main_db_bytes: 1024 * 1024 * 40,
+        wal_bytes: 1024 * 1024 * 9,
+        shm_bytes: 1024 * 1024 * 1,
+        total_bytes: 1024 * 1024 * 50,
+      },
+      disk_free_bytes: 1024 * 1024 * 1024 * 8,
+      can_deep_optimize: true,
+      recommended_mode: 'deep',
+      active_background_jobs: 0,
+      is_safe_to_optimize: true,
+      reason: null,
+    });
+
+    render(<StorageCard onDataDirChange={onDataDirChange} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('storageOptimizeTitle')).toBeInTheDocument();
+    });
+
+    // Expand optimize panel
+    fireEvent.click(screen.getByText('storageOptimizeTitle'));
+
+    await waitFor(() => {
+      expect(mockPreflight).toHaveBeenCalled();
+      expect(screen.getByText('storageOptimizeModeDeep')).toBeInTheDocument();
+      expect(screen.getByText('storageOptimizeModeLight')).toBeInTheDocument();
+    });
   });
 });
