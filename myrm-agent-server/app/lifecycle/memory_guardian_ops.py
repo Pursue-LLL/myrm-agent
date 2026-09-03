@@ -148,16 +148,16 @@ async def harvest_session_blind_spots(
     """
     from datetime import timedelta
 
+    from myrm_agent_harness.toolkits.memory.strategies.blind_spot import (
+        BlindSpotCandidate,
+        extract_blind_spot_patches,
+    )
     from sqlalchemy import select
 
     from app.database.connection import get_session
     from app.database.models.approvals import ApprovalRecord
     from app.database.models.chat import Message
     from app.services.approvals.registry import ApprovalRegistry
-    from myrm_agent_harness.toolkits.memory.strategies.blind_spot import (
-        BlindSpotCandidate,
-        extract_blind_spot_patches,
-    )
 
     cutoff = datetime.now(UTC) - timedelta(hours=since_hours)
     candidates: list[BlindSpotCandidate] = []

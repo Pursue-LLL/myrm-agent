@@ -11,12 +11,9 @@ from pathlib import Path
 import pytest
 
 from app.services.connect.doctor_check import (
-    DoctorVerdict,
     _find_mym_entry,
-    hash_token,
-    verify_connector_config,
 )
-from app.services.connect.profiles import PROFILES, ConnectionProfile
+from app.services.connect.profiles import PROFILES
 from app.services.connect.service import (
     ConfigSnippet,
     ConnectorStatus,

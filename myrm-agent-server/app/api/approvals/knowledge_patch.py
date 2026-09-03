@@ -40,13 +40,14 @@ async def handle_knowledge_patch_resolution(record: ApprovalRecord, decision: st
 
     if target_type == "wiki":
         try:
-            from app.services.wiki.vault.resolver import resolve_wiki_vault_path
             from myrm_agent_harness.toolkits.wiki import WikiStructure
             from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import (
                 RawConflictPolicy,
                 RawPublishRequest,
                 publish_raw,
             )
+
+            from app.services.wiki.vault.resolver import resolve_wiki_vault_path
 
             vault_path = resolve_wiki_vault_path(agent_id)
             structure = WikiStructure(vault_path)
@@ -77,11 +78,12 @@ async def handle_knowledge_patch_resolution(record: ApprovalRecord, decision: st
 
     elif target_type == "procedural":
         try:
-            from app.lifecycle.memory_guardian_ops import create_guardian_memory_manager
             from myrm_agent_harness.toolkits.memory.types import (
                 ProceduralMemory,
                 RuleSource,
             )
+
+            from app.lifecycle.memory_guardian_ops import create_guardian_memory_manager
 
             manager = await create_guardian_memory_manager()
             rel = getattr(manager, "relational_store", None)
