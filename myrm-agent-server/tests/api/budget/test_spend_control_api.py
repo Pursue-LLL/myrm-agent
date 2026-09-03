@@ -1,15 +1,15 @@
 """Unit tests for Spend Control and Soft Quota Intervention API handlers."""
 
 import json
+
 import pytest
+
 from app.api.budget.spend_control_router import (
-    SoftGateConfirmRequest,
-    Tier4ApprovalRequest,
     FleetSpendRecordRequest,
-    get_spend_intervention_decision,
+    SoftGateConfirmRequest,
     confirm_soft_gate,
-    approve_tier4_pause,
     get_fleet_quota_deck,
+    get_spend_intervention_decision,
     record_fleet_spend,
 )
 

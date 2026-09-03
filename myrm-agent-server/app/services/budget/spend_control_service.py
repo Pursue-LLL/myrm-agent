@@ -13,6 +13,7 @@ Server-side bridge providing the FourTierSpendControlEngine singleton instance.
 from __future__ import annotations
 
 import logging
+
 from myrm_agent_harness.observability.spend_control import (
     FourTierSpendControlEngine,
     SpendControlConfig,

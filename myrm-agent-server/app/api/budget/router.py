@@ -28,9 +28,13 @@ from pydantic import BaseModel, Field
 
 from app.core.utils.errors import internal_error, validation_error
 from app.core.utils.response_utils import success_response
+from app.api.budget.spend_control_router import router as spend_control_router
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+router.include_router(spend_control_router, prefix="/spend-control", tags=["spend-control"])
+
 
 
 class BudgetPolicyRequest(BaseModel):
@@ -278,8 +282,7 @@ async def get_channel_audit(channel_key: str, days: int = 7) -> JSONResponse:
         raise internal_error(operation="Get channel audit", exception=e) from e
 
 
-from app.api.budget.spend_control_router import router as spend_control_router
 
-router.include_router(spend_control_router, prefix="/spend-control", tags=["spend-control"])
+
 
 
