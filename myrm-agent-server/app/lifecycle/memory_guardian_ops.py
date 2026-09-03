@@ -11,6 +11,7 @@
 - auto_resolve_expired_conflicts: keep_old resolve for expired low-risk conflicts
 - purge_expired_archives: hard-delete archived memories past their TTL
 - harvest_session_blind_spots: harvest missed queries & negative signals into knowledge patch approvals
+- sync_external_harness_transcripts: 增量扫描并同步外部 Agent 会话记录到会话召回索引
 
 [POS]
 Guardian 维护子任务与工厂。纯数据/对象操作，不依赖调度状态，
@@ -283,3 +284,47 @@ async def harvest_session_blind_spots(
         len(candidates),
     )
     return created_count
+
+
+async def sync_external_harness_transcripts(
+    directory_path: str | Path | None = None,
+    *,
+    source: str = "external:claude_code",
+) -> int:
+    """Incrementally scan and index external transcripts into conversation recall.
+
+    Returns the number of newly indexed turns.
+    """
+    import os
+    from pathlib import Path
+    from app.database.session import get_session
+    from app.services.memory.imports.external_transcript_sync import (
+        ExternalTranscriptSyncService,
+    )
+
+    if directory_path is None:
+        env_dir = os.getenv("EXTERNAL_TRANSCRIPT_DIR")
+        if env_dir:
+            directory_path = Path(env_dir)
+        else:
+            default_claude_dir = Path.home() / ".claude" / "projects"
+            if default_claude_dir.is_dir():
+                directory_path = default_claude_dir
+            else:
+                return 0
+
+    dir_p = Path(directory_path).expanduser()
+    if not dir_p.is_dir():
+        return 0
+
+    service = ExternalTranscriptSyncService()
+    async with get_session() as db:
+        res = await service.sync_directory(db, dir_p, source=source)
+        await db.commit()
+        if res.new_turns > 0:
+            logger.info(
+                "Memory guardian external transcript sync: %d new turns indexed across %d files",
+                res.new_turns,
+                res.synced_files,
+            )
+        return res.new_turns

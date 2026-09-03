@@ -22,11 +22,14 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from myrm_agent_harness.toolkits.memory.strategies.incremental_transcript import (
+    IncrementalTranscriptParser,
+    TranscriptTurn,
+)
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,10 +38,6 @@ from app.services.chat.conversation_recall_index_service import (
     ConversationRecallIndexService,
 )
 from app.services.memory.imports.secret_scrubber import scrub_sensitive_data
-from myrm_agent_harness.toolkits.memory.strategies.incremental_transcript import (
-    IncrementalTranscriptParser,
-    TranscriptTurn,
-)
 
 logger = logging.getLogger(__name__)
 
