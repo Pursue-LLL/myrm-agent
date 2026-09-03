@@ -2043,6 +2043,7 @@
     "previewLinks": "Link preview",
     "regenerate": "Regenerate",
     "regenerate_try_again": "Try Again",
+    "regenerate_frontier": "Retry with Stronger Model",
     "regenerate_concise": "More Concise",
     "regenerate_detailed": "More Detailed",
     "regenerate_creative": "More Creative",

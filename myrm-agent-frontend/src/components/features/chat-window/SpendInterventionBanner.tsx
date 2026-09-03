@@ -31,7 +31,7 @@ interface SpendInterventionBannerProps {
 
 export const SpendInterventionBanner = memo<SpendInterventionBannerProps>(
   ({ decision, sessionId, onBypassConfirmed, className }) => {
-    const t = useTranslations('settings.budget');
+    const t = useTranslations('budget');
     const [submitting, setSubmitting] = useState(false);
     const [confirmed, setConfirmed] = useState(false);
 

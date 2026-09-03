@@ -151,7 +151,7 @@ function staticSpecialMatches(query: string): ReferenceSuggestion[] {
 function historyResultToSuggestion(item: SearchResult): ReferenceSuggestion {
   const title = item.chat_title?.trim() || 'Untitled conversation';
   return {
-    source: 'special',
+    source: item.source || 'special',
     reference_type: 'prior_chat',
     kind: 'reference',
     label: `@chat:${title}`,

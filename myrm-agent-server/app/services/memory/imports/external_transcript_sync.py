@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.memory.strategies.incremental_transcript import (
+from myrm_agent_harness.api import (
     IncrementalTranscriptParser,
     TranscriptTurn,
 )

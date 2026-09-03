@@ -25,6 +25,7 @@ import {
   type ConversationRecallEntry,
   type PaginationInfo,
 } from '@/services/chat';
+import ExternalHarnessSyncCard from './ExternalHarnessSyncCard';
 
 type RecallFilter = 'excluded' | 'active' | 'all';
 

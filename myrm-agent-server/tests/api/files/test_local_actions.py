@@ -373,9 +373,9 @@ class TestRevealChatArtifacts:
         mock_ver.created_at = 1000
         mock_art.versions = [mock_ver]
 
-        mock_exec = AsyncMock()
-        mock_exec.scalars.return_value.all.return_value = [mock_art]
-        mock_db.execute = AsyncMock(return_value=mock_exec)
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [mock_art]
+        mock_db.execute = AsyncMock(return_value=mock_result)
 
         with tempfile.TemporaryDirectory() as workspace:
             with patch("app.api.files.local_actions._get_workspace_dir", return_value=workspace):

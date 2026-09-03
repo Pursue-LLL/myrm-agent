@@ -167,6 +167,7 @@ export interface SearchResult {
   sent_at: string;
   chat_title: string | null;
   snippet: string;
+  source?: string;
 }
 
 export interface SearchResponse {

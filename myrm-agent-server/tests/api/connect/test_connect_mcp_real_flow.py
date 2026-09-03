@@ -116,20 +116,20 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
                 "method": "tools/list",
                 "params": {},
             }
-            resp_mcp_mem = client.post("/mcp", headers=headers_mem, json=mcp_rpc_list_tools)
+            resp_mcp_mem = client.post("/mcp/", headers=headers_mem, json=mcp_rpc_list_tools)
             assert resp_mcp_mem.status_code == 200
             mem_data = resp_mcp_mem.json()
             tool_names_mem = [t["name"] for t in mem_data.get("result", {}).get("tools", [])]
             # Must NOT expose any desktop tools
             assert not any(name.startswith("desktop_") for name in tool_names_mem)
-            assert "memory_search_tool" in tool_names_mem
+            assert "memory_recall" in tool_names_mem
 
             # 6. MCP request with desktop token
             headers_desk = {
                 "Authorization": f"Bearer {snippet_desktop.token}",
                 "Content-Type": "application/json",
             }
-            resp_mcp_desk = client.post("/mcp", headers=headers_desk, json=mcp_rpc_list_tools)
+            resp_mcp_desk = client.post("/mcp/", headers=headers_desk, json=mcp_rpc_list_tools)
             assert resp_mcp_desk.status_code == 200
             desk_data = resp_mcp_desk.json()
             tool_names_desk = [t["name"] for t in desk_data.get("result", {}).get("tools", [])]
@@ -137,7 +137,7 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
             assert "desktop_snapshot_tool" in tool_names_desk
             assert "desktop_interact_tool" in tool_names_desk
             assert "desktop_vision_tool" in tool_names_desk
-            assert "memory_search_tool" in tool_names_desk
+            assert "memory_recall" in tool_names_desk
 
             # 7. Call desktop tool via MCP protocol
             mcp_rpc_call_tool = {
@@ -149,7 +149,7 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
                     "arguments": {"scope": "foreground"},
                 },
             }
-            resp_call = client.post("/mcp", headers=headers_desk, json=mcp_rpc_call_tool)
+            resp_call = client.post("/mcp/", headers=headers_desk, json=mcp_rpc_call_tool)
             assert resp_call.status_code == 200
             call_data = resp_call.json()
             content = call_data.get("result", {}).get("content", [])

@@ -73,7 +73,7 @@ export default function RegenerateMenu({ onRegenerate }: RegenerateMenuProps) {
     {
       icon: Sparkles,
       labelKey: 'regenerate_frontier' as const,
-      instruction: 'Retry with frontier model reasoning and comprehensive deep analysis',
+      instruction: '__complaint_up__',
       highlight: true,
     },
     { icon: AlignLeft, labelKey: 'regenerate_concise' as const, instruction: 'Be more concise and to the point' },
