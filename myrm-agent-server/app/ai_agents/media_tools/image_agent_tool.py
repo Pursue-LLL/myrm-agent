@@ -3,6 +3,7 @@
 - myrm_agent_harness.toolkits.llms.image.async_image_engine::AsyncImageGenerationTools (POS: async generate enqueue)
 - myrm_agent_harness.toolkits.llms.image.models::ImageGenerationConfig (POS: shared engine config)
 - myrm_agent_harness.core.security.http.secure_fetch::secure_get (POS: SSRF-protected edit/mask URL fetch)
+- app.ai_agents.media_tools.image_clamp::clamp_image_payload (POS: payload downsampling and format normalization)
 
 [OUTPUT]
 - create_image_generation_tool(): LangChain BaseTool adapter for image generation

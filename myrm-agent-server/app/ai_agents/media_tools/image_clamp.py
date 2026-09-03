@@ -45,6 +45,7 @@ def _composite_alpha_on_white(img: Image.Image) -> Image.Image:
     rgba_img = img.convert("RGBA")
     background = Image.new("RGB", rgba_img.size, (255, 255, 255))
     background.paste(rgba_img, mask=rgba_img.split()[3])
+    rgba_img.close()
     return background
 
 
@@ -90,26 +91,33 @@ def clamp_image_payload(
             # 1. Physical orientation baking
             working_img = ImageOps.exif_transpose(raw_img) if needs_rotation else raw_img.copy()
 
-            # 2. Alpha compositing to RGB
-            if has_alpha:
-                working_img = _composite_alpha_on_white(working_img)
-            elif working_img.mode != "RGB":
-                working_img = working_img.convert("RGB")
+            try:
+                # 2. Alpha compositing to RGB
+                if has_alpha:
+                    blended = _composite_alpha_on_white(working_img)
+                    working_img.close()
+                    working_img = blended
+                elif working_img.mode != "RGB":
+                    converted = working_img.convert("RGB")
+                    working_img.close()
+                    working_img = converted
 
-            # 3. Proportional downsampling
-            if max(working_img.width, working_img.height) > max_dimension:
-                working_img.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
+                # 3. Proportional downsampling
+                if max(working_img.width, working_img.height) > max_dimension:
+                    working_img.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
 
-            # 4. Save to optimized JPEG
-            out_buf = io.BytesIO()
-            working_img.save(
-                out_buf,
-                format="JPEG",
-                quality=quality,
-                optimize=True,
-            )
-            clamped_bytes = out_buf.getvalue()
-            return clamped_bytes, "image/jpeg", len(clamped_bytes)
+                # 4. Save to optimized JPEG
+                out_buf = io.BytesIO()
+                working_img.save(
+                    out_buf,
+                    format="JPEG",
+                    quality=quality,
+                    optimize=True,
+                )
+                clamped_bytes = out_buf.getvalue()
+                return clamped_bytes, "image/jpeg", len(clamped_bytes)
+            finally:
+                working_img.close()
 
     except (UnidentifiedImageError, OSError, ValueError, Exception) as exc:
         logger.warning("Image downsample guard skipped due to decode error: %s", exc)

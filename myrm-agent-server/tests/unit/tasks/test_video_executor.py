@@ -12,8 +12,9 @@ from app.tasks.executors.video_executor import VideoTaskExecutor
 
 @pytest.mark.asyncio
 async def test_video_task_executor_clamps_resolved_images() -> None:
-    from PIL import Image
     import io
+
+    from PIL import Image
 
     # Generate oversized image
     raw_img = Image.new("RGB", (2500, 1500), (0, 255, 0))

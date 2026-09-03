@@ -1,4 +1,16 @@
-"""Video task executor implementation."""
+"""Video task executor implementation.
+
+[INPUT]
+- myrm_agent_harness.toolkits.llms.video::VideoGenerator (POS: engine)
+- myrm_agent_harness.toolkits.tasks::Task (POS: async task entity)
+- app.tasks.video_config_resolver::VideoGenerationConfigResolver (POS: config resolver)
+
+[OUTPUT]
+- VideoTaskExecutor: AsyncTaskExecutor implementation for video_generate tasks
+
+[POS]
+Server task worker executor for async video generation with payload image clamping.
+"""
 
 from __future__ import annotations
 

@@ -1,6 +1,7 @@
 """[INPUT]
 - myrm_agent_harness.toolkits.llms.video.video_engine::VideoGenerationTools (POS: sync video engine)
 - myrm_agent_harness.toolkits.llms.video.async_video_engine::AsyncVideoGenerationTools (POS: async enqueue adapter)
+- app.ai_agents.media_tools.image_clamp::clamp_image_payload (POS: reference media downsampling and orientation normalization)
 
 [OUTPUT]
 - create_video_generation_tool(): LangChain BaseTool adapter for video generation
