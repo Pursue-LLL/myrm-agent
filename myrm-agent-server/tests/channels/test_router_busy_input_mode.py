@@ -69,9 +69,9 @@ async def test_auto_busy_input_mode_steer() -> None:
     )
 
     # Inbound consumer iteration
-    bus.consume_inbound = AsyncMock(side_effect=[msg, TimeoutError])
-    with pytest.raises(TimeoutError):
-        await router._consume_inbound()
+    router._running = True
+    bus.consume_inbound = AsyncMock(side_effect=[msg, asyncio.CancelledError])
+    await router._consume_loop()
 
     # Verify steering_token received the message
     assert steering_token.has_pending
@@ -112,9 +112,9 @@ async def test_auto_busy_input_mode_redirect() -> None:
         message_id="msg-102",
     )
 
-    bus.consume_inbound = AsyncMock(side_effect=[msg, TimeoutError])
-    with pytest.raises(TimeoutError):
-        await router._consume_inbound()
+    router._running = True
+    bus.consume_inbound = AsyncMock(side_effect=[msg, asyncio.CancelledError])
+    await router._consume_loop()
 
     # Verify redirect was triggered
     assert steering_token.has_pending

@@ -111,17 +111,6 @@ import {
 } from '@/components/primitives/alert-dialog';
 import { AlertTriangle } from 'lucide-react';
 
-const mentionReferenceKey = (reference: {
-  type: string;
-  path?: string;
-  fileId?: string;
-  url?: string;
-  label: string;
-  startLine?: number;
-  endLine?: number;
-}) =>
-  `${reference.type}:${reference.path ?? reference.fileId ?? reference.url ?? reference.label}:${reference.startLine ?? ''}:${reference.endLine ?? ''}`;
-
 interface MessageInputProps {
   loading: boolean;
   hideWorkspacePicker?: boolean;
@@ -239,14 +228,22 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
     onClose: () => setIsMobileSheetOpen(false),
   });
 
+  const [isTurnCapabilityOpen, setIsTurnCapabilityOpen] = React.useState(false);
+  const handleOpenCapabilityEditor = React.useCallback(() => {
+    setIsTurnCapabilityOpen(true);
+    setIsMobileSheetOpen(true);
+  }, []);
+
   const { chips: composerContextChips, summary: composerContextSummary } = useComposerContextChips({
     turnCapabilitySelection,
     setTurnCapabilitySelection,
     files,
     setFiles,
-    clearCurrentSessionMessageId: () => {},
+    clearCurrentSessionMessageId,
     mentionReferences,
     removeMentionReference,
+    onOpenCapabilityEditor: handleOpenCapabilityEditor,
+    hideAttachList,
   });
 
   const handleTranscript = React.useCallback(

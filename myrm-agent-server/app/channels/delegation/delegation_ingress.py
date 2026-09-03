@@ -124,23 +124,32 @@ def is_delegation_intent(text: str, *, explicit_only: bool = False) -> tuple[boo
 
 
 def build_delegation_task(
-    origin_channel: str,
-    origin_user_id: str,
-    origin_chat_id: str,
-    raw_prompt: str,
+    origin_channel: str = "default",
+    origin_user_id: str = "default",
+    origin_chat_id: str = "default",
+    raw_prompt: str = "",
     normalized_prompt: str = "",
     *,
+    prompt: str = "",
+    channel: str = "",
+    user_id: str = "",
+    chat_id: str = "",
     timeout_seconds: float = 3600.0,
 ) -> DelegationTask:
     """Create a persistent DelegationTask instance with global unique ID."""
+    eff_channel = channel or origin_channel
+    eff_user_id = user_id or origin_user_id
+    eff_chat_id = chat_id or origin_chat_id
+    eff_prompt = prompt or raw_prompt
+    eff_normalized = normalized_prompt or eff_prompt
     task_id = f"tsk_{uuid.uuid4().hex[:12]}"
     return DelegationTask(
         task_id=task_id,
-        origin_channel=origin_channel,
-        origin_user_id=origin_user_id,
-        origin_chat_id=origin_chat_id,
-        raw_prompt=raw_prompt,
-        normalized_prompt=normalized_prompt or raw_prompt,
+        origin_channel=eff_channel,
+        origin_user_id=eff_user_id,
+        origin_chat_id=eff_chat_id,
+        raw_prompt=eff_prompt,
+        normalized_prompt=eff_normalized,
         status=DelegationStatus.PENDING,
         timeout_seconds=timeout_seconds,
     )
@@ -201,6 +210,11 @@ class DelegationIngressGuard:
             ]
             if not self._user_active_tasks[key]:
                 self._user_active_tasks.pop(key, None)
+
+    # Idiomatic aliases
+    can_accept = can_delegate
+    acquire = register_active_task
+    release = release_task
 
     def get_latest_active_task(self, channel: str, user_id: str) -> str | None:
         """Get the most recent active task_id for in-flight steering."""

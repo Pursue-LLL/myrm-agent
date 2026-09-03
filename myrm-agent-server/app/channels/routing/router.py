@@ -702,13 +702,15 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             return True
 
         task = build_delegation_task(
-            prompt=clean_prompt,
-            channel=msg.channel,
-            user_id=user_id,
-            chat_id=chat_id,
+            origin_channel=msg.channel,
+            origin_user_id=user_id,
+            origin_chat_id=chat_id,
+            raw_prompt=msg.content or clean_prompt,
+            normalized_prompt=clean_prompt,
         )
         self._delegation_coordinator.register_task(task)
         self._delegation_guard.acquire(msg.channel, user_id, task.task_id)
+
 
         receipt_text = (
             f"📋 **已收到异步任务委派** `[{task.task_id}]`\n\n"

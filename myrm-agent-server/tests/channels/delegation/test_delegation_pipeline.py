@@ -20,10 +20,7 @@ from app.channels.delegation.delegation_ingress import (
     is_delegation_intent,
 )
 from app.channels.delegation.delegation_models import (
-    DelegationReceipt,
     DelegationStatus,
-    DelegationTask,
-    DeliveryArtifact,
     RiskLevel,
 )
 from app.channels.routing.router import AgentRouter
@@ -85,10 +82,11 @@ async def test_coordinator_lifecycle_and_steering() -> None:
     """Test registration, status transition, steering, and approval relay."""
     coordinator = DelegationCoordinator()
     task = build_delegation_task(
-        prompt="生成竞品报告",
-        channel="telegram",
-        user_id="user_456",
-        chat_id="chat_789",
+        origin_channel="telegram",
+        origin_user_id="user_456",
+        origin_chat_id="chat_789",
+        raw_prompt="生成竞品报告",
+        normalized_prompt="生成竞品报告",
     )
 
     coordinator.register_task(task)
@@ -133,10 +131,11 @@ def test_coordinator_reap_stale_tasks() -> None:
     """Test watchdog reaping of timed out tasks."""
     coordinator = DelegationCoordinator()
     task = build_delegation_task(
-        prompt="测试超时任务",
-        channel="wechat",
-        user_id="user_timeout",
-        chat_id="chat_timeout",
+        origin_channel="wechat",
+        origin_user_id="user_timeout",
+        origin_chat_id="chat_timeout",
+        raw_prompt="测试超时任务",
+        normalized_prompt="测试超时任务",
         timeout_seconds=0.1,
     )
     coordinator.register_task(task)
@@ -166,10 +165,11 @@ def test_scan_workspace_artifacts_and_card(tmp_path: Path) -> None:
     assert len(artifacts) == 2
 
     task = build_delegation_task(
-        prompt="生成竞品 PPT 和预算表",
-        channel="feishu",
-        user_id="user_feishu",
-        chat_id="chat_feishu",
+        origin_channel="feishu",
+        origin_user_id="user_feishu",
+        origin_chat_id="chat_feishu",
+        raw_prompt="生成竞品 PPT 和预算表",
+        normalized_prompt="生成竞品 PPT 和预算表",
     )
     task.artifacts = artifacts
     card = build_delivery_card_content(task, artifacts, server_base_url="https://agent.myrm.io")
@@ -177,6 +177,7 @@ def test_scan_workspace_artifacts_and_card(tmp_path: Path) -> None:
     assert "Competitor_Analysis.pptx" in card
     assert "Q3_Budget.xlsx" in card
     assert "https://agent.myrm.io" in card
+
 
 
 def test_format_file_size() -> None:

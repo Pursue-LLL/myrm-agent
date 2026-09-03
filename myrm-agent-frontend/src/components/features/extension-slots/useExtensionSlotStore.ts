@@ -39,3 +39,14 @@ export const useExtensionSlotStore = create<ExtensionSlotState>((set, get) => ({
       .sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
   },
 }));
+
+declare global {
+  interface Window {
+    __MYRM_EXTENSION_SLOT_STORE__?: typeof useExtensionSlotStore;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.__MYRM_EXTENSION_SLOT_STORE__ = useExtensionSlotStore;
+}
+
