@@ -2189,6 +2189,50 @@ class ImportUrlsResultResponse(BaseModel):
     message: str
 
 
+class ImportVideoRequest(BaseModel):
+    url: str = Field(
+        ...,
+        min_length=1,
+        description="Online video URL (e.g. Bilibili, YouTube)",
+    )
+    folder_path: str = Field(
+        default="videos",
+        description="Logical folder path in wiki raw folder (e.g. 'videos' or 'lectures')",
+    )
+    preferred_languages: list[str] = Field(
+        default=["zh-Hans", "zh-CN", "zh", "en"],
+        description="Preferred transcript languages in priority order",
+    )
+    window_duration_seconds: int = Field(
+        default=45,
+        ge=10,
+        le=300,
+        description="Semantic merge sliding window duration in seconds",
+    )
+    auto_compile: bool = Field(
+        default=True,
+        description="Start compilation after import",
+    )
+    on_conflict: Literal["skip", "supersede"] = Field(
+        default="skip",
+        description="When a raw file already exists with different content",
+    )
+    supersede_reason: str = Field(
+        default="",
+        description="Required when on_conflict is supersede",
+    )
+
+
+class ImportVideoResponse(BaseModel):
+    success: bool
+    url: str
+    relative_path: str = ""
+    status: Literal["success", "skipped_conflict", "superseded", "security_blocked", "error"]
+    error: str = ""
+    message: str
+
+
+
 class ObsidianImportRequest(BaseModel):
     vault_path: str = Field(..., min_length=1, description="Absolute path to Obsidian vault folder")
     auto_compile: bool = Field(default=True, description="Start compilation after import")

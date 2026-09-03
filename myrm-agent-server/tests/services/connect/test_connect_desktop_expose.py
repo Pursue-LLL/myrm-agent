@@ -40,16 +40,9 @@ class TestSnippetBuilderExposeDesktop:
 
     def test_build_config_json_default_memory_only(self) -> None:
         profile = PROFILES["claude_code"]
-        snippet = ConfigSnippet(
-            profile_id="claude_code",
-            agent_id="default",
-            token="myrm_mcp_test_token_123456",
-            mcp_url="http://127.0.0.1:8080/mcp",
-            config_json={},
-            instructions="",
-            expose_desktop=False,
-        )
-        data = build_config_json(profile, snippet, expose_desktop=False)
+        mcp_url = "http://127.0.0.1:8080/mcp"
+        token = "myrm_mcp_test_token_123456"
+        data = build_config_json(profile, mcp_url, token, expose_desktop=False)
         assert "mcpServers" in data
         assert "myrm-memory" in data["mcpServers"]
         assert "myrm" not in data["mcpServers"]
@@ -59,16 +52,9 @@ class TestSnippetBuilderExposeDesktop:
 
     def test_build_config_json_expose_desktop_uses_myrm_key(self) -> None:
         profile = PROFILES["claude_code"]
-        snippet = ConfigSnippet(
-            profile_id="claude_code",
-            agent_id="default",
-            token="myrm_mcp_test_token_123456",
-            mcp_url="http://127.0.0.1:8080/mcp",
-            config_json={},
-            instructions="",
-            expose_desktop=True,
-        )
-        data = build_config_json(profile, snippet, expose_desktop=True)
+        mcp_url = "http://127.0.0.1:8080/mcp"
+        token = "myrm_mcp_test_token_123456"
+        data = build_config_json(profile, mcp_url, token, expose_desktop=True)
         assert "mcpServers" in data
         assert "myrm" in data["mcpServers"]
         assert "myrm-memory" not in data["mcpServers"]
@@ -77,49 +63,26 @@ class TestSnippetBuilderExposeDesktop:
 
     def test_build_config_json_codex_toml_expose_desktop(self) -> None:
         profile = PROFILES["codex"]
-        snippet = ConfigSnippet(
-            profile_id="codex",
-            agent_id="default",
-            token="myrm_mcp_test_token_123456",
-            mcp_url="http://127.0.0.1:8080/mcp",
-            config_json={},
-            instructions="",
-            expose_desktop=True,
-        )
-        data = build_config_json(profile, snippet, expose_desktop=True)
+        mcp_url = "http://127.0.0.1:8080/mcp"
+        token = "myrm_mcp_test_token_123456"
+        data = build_config_json(profile, mcp_url, token, expose_desktop=True)
         assert data["_format"] == "toml"
         assert "[mcp_servers.myrm]" in data["_toml_snippet"]
         assert "[mcp_servers.myrm-memory]" not in data["_toml_snippet"]
 
     def test_build_instructions_desktop_enabled(self) -> None:
         profile = PROFILES["cursor"]
-        snippet = ConfigSnippet(
-            profile_id="cursor",
-            agent_id="default",
-            token="myrm_mcp_test_token_123456",
-            mcp_url="http://127.0.0.1:8080/mcp",
-            config_json={},
-            instructions="",
-            expose_desktop=True,
-        )
-        instructions = build_instructions(profile, snippet, expose_desktop=True)
-        assert "desktop automation tools" in instructions
-        assert "desktop_snapshot_tool" in instructions
-        assert "desktop_interact_tool" in instructions
+        mcp_url = "http://127.0.0.1:8080/mcp"
+        instructions = build_instructions(profile, mcp_url, expose_desktop=True)
+        assert "semantic desktop control tools" in instructions
+        assert "myrm" in instructions
 
     def test_build_instructions_desktop_disabled(self) -> None:
         profile = PROFILES["cursor"]
-        snippet = ConfigSnippet(
-            profile_id="cursor",
-            agent_id="default",
-            token="myrm_mcp_test_token_123456",
-            mcp_url="http://127.0.0.1:8080/mcp",
-            config_json={},
-            instructions="",
-            expose_desktop=False,
-        )
-        instructions = build_instructions(profile, snippet, expose_desktop=False)
-        assert "desktop automation tools" not in instructions
+        mcp_url = "http://127.0.0.1:8080/mcp"
+        instructions = build_instructions(profile, mcp_url, expose_desktop=False)
+        assert "semantic desktop control tools" not in instructions
+        assert "myrm-memory" in instructions
 
 
 class TestDoctorCheckServerEntries:

@@ -5119,7 +5119,9 @@
       "conversation": "Konversation",
       "claim": "Aussage",
       "task_digest": "Aufgabenzusammenfassung"
-    }
+    },
+    "copyMarkdown": "Als Markdown kopieren",
+    "copied": "Kopiert"
   },
   "codeBlock": {
     "code": "Quellcode",

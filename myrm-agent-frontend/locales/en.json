@@ -5119,7 +5119,9 @@
       "conversation": "Conversation",
       "claim": "Claim",
       "task_digest": "Task digest"
-    }
+    },
+    "copyMarkdown": "Copy as Markdown",
+    "copied": "Copied"
   },
   "codeBlock": {
     "code": "Code",

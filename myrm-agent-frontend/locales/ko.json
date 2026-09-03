@@ -5119,7 +5119,9 @@
       "conversation": "대화",
       "claim": "클레임",
       "task_digest": "작업 요약"
-    }
+    },
+    "copyMarkdown": "Markdown으로 복사",
+    "copied": "복사됨"
   },
   "codeBlock": {
     "code": "코드",

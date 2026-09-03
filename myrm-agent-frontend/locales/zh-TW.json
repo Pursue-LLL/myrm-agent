@@ -5119,7 +5119,9 @@
       "conversation": "會話",
       "claim": "主張",
       "task_digest": "任務摘要"
-    }
+    },
+    "copyMarkdown": "複製為 Markdown",
+    "copied": "已複製"
   },
   "codeBlock": {
     "code": "程式碼",

@@ -68,9 +68,9 @@ async def handle_knowledge_patch_resolution(record: ApprovalRecord, decision: st
                 RawPublishRequest(
                     relative_path=file_name,
                     content=doc_content,
-                    conflict_policy=RawConflictPolicy.RENAME,
+                    conflict_policy=RawConflictPolicy.SUPERSEDE,
                 ),
-                caller="guardian_blind_spot",
+                caller="settings",
             )
             logger.info("Knowledge patch %s written to wiki vault: %s", record.id, file_name)
         except Exception as exc:

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Source } from '@/store/chat/types';
 import { maskCodeRegions, unmaskCodeRegions } from '../maskCodeRegions';
-import { preprocessCitationMarkers } from '../preprocessCitationMarkers';
+import {
+  preprocessCitationMarkers,
+  stripUnsupportedCitationControlMarkers,
+} from '../preprocessCitationMarkers';
 
 const sources: Source[] = [
   {
@@ -131,6 +134,17 @@ describe('preprocessCitationMarkers', () => {
     const resultFwComposite = preprocessCitationMarkers('Python 3.14 新特性【１，２】。', sources);
     expect(resultFwComposite).toContain('<citation data-num="1"');
     expect(resultFwComposite).toContain('<citation data-num="2"');
+  });
+
+  it('strips unsupported private Unicode citation control tokens', () => {
+    const rawWithControl = 'Search answer.\uE200cite\uE202turn0search1\uE201 [1] \uE200cite\uE201';
+    const cleaned = stripUnsupportedCitationControlMarkers(rawWithControl);
+    expect(cleaned).toBe('Search answer. [1]');
+
+    const rendered = preprocessCitationMarkers(rawWithControl, sources);
+    expect(rendered).toContain('<citation data-num="1"');
+    expect(rendered).not.toContain('\uE200');
+    expect(rendered).not.toContain('\uE201');
   });
 });
 
