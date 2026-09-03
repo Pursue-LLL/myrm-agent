@@ -28,9 +28,11 @@ import { cn } from '@/lib/utils/classnameUtils';
 import {
   getBudgetPolicy,
   getBudgetStatus,
+  getFleetQuotaDeck,
   updateBudgetPolicy,
   type BudgetPolicy,
   type BudgetStatus,
+  type FleetQuotaItem,
 } from '@/services/budget';
 
 const STATUS_COLORS = {

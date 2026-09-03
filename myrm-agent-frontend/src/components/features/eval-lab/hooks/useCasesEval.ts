@@ -109,6 +109,25 @@ export interface ReportItem {
     affected_case_count: number;
     evidence_modes: string[];
   }>;
+  signature_clusters?: Array<{
+    cluster_id: string;
+    ci: string;
+    qi: string;
+    mi: string;
+    failure_mode: string;
+    verdict: 'addressable' | 'model_limit' | 'flake';
+    case_count: number;
+    affected_case_indices: number[];
+    sample_messages: string[];
+    remediation_hint: string;
+    patch_proposal?: {
+      op: string;
+      path: string;
+      value: unknown;
+      rationale: string;
+      target_component: string;
+    } | null;
+  }>;
 }
 
 export interface EvalProgress {
