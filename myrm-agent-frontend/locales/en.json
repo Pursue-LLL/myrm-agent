@@ -2215,6 +2215,7 @@
       "privacyRoute": "Routing",
       "privacyRouteLocal": "Local",
       "privacyRouteCloud": "Cloud",
+      "sandboxEnv": "Sandbox Env",
       "compatMode": "Compatibility",
       "compatWeak": "Lite Mode",
       "compatMedium": "Balanced",

@@ -2214,6 +2214,7 @@
       "privacyRoute": "路由",
       "privacyRouteLocal": "本地",
       "privacyRouteCloud": "云端",
+      "sandboxEnv": "沙箱环境",
       "compatMode": "兼容模式",
       "compatWeak": "轻量模式",
       "compatMedium": "均衡模式",

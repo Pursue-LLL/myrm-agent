@@ -135,6 +135,7 @@ interface TokenUsageDisplayProps {
   privacyAction?: string;
   privacyRoute?: string;
   contextBudget?: ContextBudget;
+  sandboxEnvHint?: string;
 }
 
 function formatTokens(tokens: number): string {
@@ -278,6 +279,7 @@ export default function TokenUsageDisplay({
   privacyAction,
   privacyRoute,
   contextBudget,
+  sandboxEnvHint,
 }: TokenUsageDisplayProps) {
   const t = useTranslations('chat.tokenUsage');
   const enableCostEstimation = useConfigStore((state) => state.enableCostEstimation);
@@ -724,6 +726,20 @@ export default function TokenUsageDisplay({
                     }`}
                   >
                     {privacyRoute.includes('local') ? t('privacyRouteLocal') : t('privacyRouteCloud')}
+                  </span>
+                </div>
+              )}
+
+              {/* Sandbox Environment Bootstrap Snapshot */}
+              {sandboxEnvHint && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{t('sandboxEnv')}</span>
+                  <span
+                    data-testid="sandbox-env-badge"
+                    className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 font-mono"
+                    title={sandboxEnvHint}
+                  >
+                    {sandboxEnvHint}
                   </span>
                 </div>
               )}

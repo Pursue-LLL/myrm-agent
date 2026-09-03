@@ -99,7 +99,7 @@ export function ObsidianVaultBindingSection({ agentScopeId }: ObsidianVaultBindi
   }, [agentScopeId, t]);
 
   return (
-    <Card id="wiki-obsidian-vault-binding">
+    <Card id="wiki-obsidian-vault-binding" data-testid="wiki-obsidian-vault-binding">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <IconFolder className="w-5 h-5 text-purple-600 dark:text-purple-400" />
