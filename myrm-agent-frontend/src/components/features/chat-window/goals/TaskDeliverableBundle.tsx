@@ -231,13 +231,13 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
   };
 
   return (
-    <div className="mt-3 rounded-lg border bg-card p-3 shadow-sm">
+    <div className="mt-3 rounded-lg border bg-card p-3 shadow-sm" data-testid="task-deliverable-bundle-board">
       {/* Header bar */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <FolderArchive className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium">{t('deliverableBundle')}</span>
-          <span className="text-xs text-muted-foreground px-1.5 py-0.5 bg-muted rounded-full">
+          <span className="text-xs text-muted-foreground px-1.5 py-0.5 bg-muted rounded-full" data-testid="bundle-items-count">
             {deliverables.length}
           </span>
         </div>
@@ -249,6 +249,7 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
               className="h-7 px-2 text-xs gap-1 text-primary border-primary/30"
               onClick={handleDownloadSelected}
               disabled={downloading}
+              data-testid="bundle-export-selected-btn"
             >
               <Download className="h-3 w-3" />
               {t('bundleExportSelected', { count: selectedIds.size, defaultMessage: `导出选中 (${selectedIds.size})` })}
@@ -260,6 +261,7 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
             className="h-7 px-2 text-xs gap-1"
             onClick={handleDownloadAll}
             disabled={downloading}
+            data-testid="bundle-download-all-btn"
           >
             <Download className="h-3 w-3" />
             {downloading ? t('bundleDownloading') : t('bundleDownloadAll')}
@@ -269,7 +271,7 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
 
       {/* Category filter tabs if multiple categories exist */}
       {availableCategories.length > 2 && (
-        <div className="flex items-center gap-1 mb-2.5 overflow-x-auto pb-1 text-xs">
+        <div className="flex items-center gap-1 mb-2.5 overflow-x-auto pb-1 text-xs" data-testid="bundle-category-tabs">
           {availableCategories.map((cat) => {
             const count = cat === 'all' ? enrichedItems.length : enrichedItems.filter((i) => i.category === cat).length;
             const isActive = activeCategory === cat;
@@ -277,6 +279,7 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
               <button
                 key={cat}
                 type="button"
+                data-testid={`bundle-category-tab-${cat}`}
                 onClick={() => setActiveCategory(cat)}
                 className={`px-2 py-0.5 rounded-full whitespace-nowrap transition-colors flex items-center gap-1 ${
                   isActive
@@ -293,7 +296,7 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
       )}
 
       {/* Deliverable item grid */}
-      <div className="grid gap-1.5 sm:grid-cols-2">
+      <div className="grid gap-1.5 sm:grid-cols-2" data-testid="bundle-items-grid">
         {filteredItems.map((item) => {
           const type = inferArtifactType(item.filename);
           const Icon = getArtifactIcon(type, item.filename);
@@ -302,12 +305,14 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
           return (
             <div
               key={item.id}
+              data-testid={`bundle-item-${item.id}`}
               className={`flex items-center gap-2 rounded-md border px-2.5 py-2 text-left text-xs transition-colors group ${
                 isSelected ? 'bg-primary/5 border-primary/40' : 'hover:bg-muted/50 border-border'
               }`}
             >
               <input
                 type="checkbox"
+                data-testid={`bundle-item-checkbox-${item.id}`}
                 checked={isSelected}
                 onChange={() => toggleSelect(item.id)}
                 className="h-3.5 w-3.5 rounded border-muted-foreground/40 text-primary focus:ring-primary cursor-pointer"

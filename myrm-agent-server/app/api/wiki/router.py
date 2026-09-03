@@ -3068,6 +3068,131 @@ async def import_urls(
     )
 
 
+@router.post("/import/video", response_model=ImportVideoResponse)
+async def import_video(
+    request: ImportVideoRequest,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+) -> ImportVideoResponse:
+    """Import video transcript into Wiki as timestamped Markdown with SSRF security checks."""
+    _validate_import_conflict_options(request.on_conflict, request.supersede_reason)
+    target_url = request.url.strip()
+    if not target_url:
+        raise HTTPException(status_code=400, detail="Video URL cannot be empty")
+
+    from myrm_agent_harness.core.security.guards.ssrf import async_validate_url_for_ssrf
+    from myrm_agent_harness.toolkits.wiki.pipeline.ingress import (
+        VideoUrlIngressRequest,
+        publish_video_url_ingress,
+    )
+    from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import RawConflictPolicy
+
+    ssrf_res = await async_validate_url_for_ssrf(target_url)
+    if not ssrf_res.safe:
+        return ImportVideoResponse(
+            success=False,
+            url=target_url,
+            status="error",
+            error=f"SSRF blocked or invalid URL: {ssrf_res.error}",
+            message="URL verification failed",
+        )
+
+    conflict_policy = (
+        RawConflictPolicy.SUPERSEDE
+        if request.on_conflict == "supersede"
+        else RawConflictPolicy.SKIP
+    )
+
+    try:
+        ingress_res = await publish_video_url_ingress(
+            archiver._structure,
+            VideoUrlIngressRequest(
+                url=target_url,
+                folder_path=request.folder_path,
+                preferred_languages=tuple(request.preferred_languages),
+                window_duration_seconds=request.window_duration_seconds,
+                conflict_policy=conflict_policy,
+                supersede_reason=request.supersede_reason,
+                caller="settings",
+            ),
+        )
+    except Exception as exc:
+        logger.warning("Failed to extract or ingest video transcript for %s: %s", target_url, exc)
+        return ImportVideoResponse(
+            success=False,
+            url=target_url,
+            status="error",
+            error=str(exc),
+            message="Video transcript extraction or ingestion failed",
+        )
+
+    if ingress_res.security_blocked:
+        return ImportVideoResponse(
+            success=False,
+            url=target_url,
+            relative_path=ingress_res.relative_path,
+            status="security_blocked",
+            error="Content blocked by security scanner",
+            message="Security policy violation",
+        )
+
+    if ingress_res.conflict:
+        return ImportVideoResponse(
+            success=True,
+            url=target_url,
+            relative_path=ingress_res.relative_path,
+            status="skipped_conflict",
+            message="File already exists (skipped conflict)",
+        )
+
+    if ingress_res.superseded:
+        raw_path = archiver._structure.get_raw_file_path(ingress_res.relative_path)
+        archiver._queue.add_batch([raw_path])
+        if request.auto_compile:
+            archiver._compiler.start_background_worker()
+        await _after_wiki_vault_mutation(archiver, "import video (superseded)")
+        await _schedule_post_import_dedup_scan(agent_id)
+        return ImportVideoResponse(
+            success=True,
+            url=target_url,
+            relative_path=ingress_res.relative_path,
+            status="superseded",
+            message="Video document superseded and enqueued",
+        )
+
+    if ingress_res.written:
+        raw_path = archiver._structure.get_raw_file_path(ingress_res.relative_path)
+        archiver._queue.add_batch([raw_path])
+        if request.auto_compile:
+            archiver._compiler.start_background_worker()
+        else:
+            _refresh_wiki_cognitive_map(
+                archiver,
+                WikiMapEventType.IMPORT,
+                "Imported video document without auto-compile",
+                {"file": ingress_res.relative_path, "source": "video"},
+            )
+        await _after_wiki_vault_mutation(archiver, "import video")
+        await _schedule_post_import_dedup_scan(agent_id)
+        return ImportVideoResponse(
+            success=True,
+            url=target_url,
+            relative_path=ingress_res.relative_path,
+            status="success",
+            message="Video transcript imported and enqueued for compilation",
+        )
+
+    return ImportVideoResponse(
+        success=False,
+        url=target_url,
+        relative_path=ingress_res.relative_path,
+        status="error",
+        error="Ingress was not written",
+        message="Unknown ingestion outcome",
+    )
+
+
+
 from app.api.wiki.ingest_stream import register_ingest_stream_routes  # noqa: E402
 from app.api.wiki.routes.clip import router as wiki_clip_router  # noqa: E402
 from app.api.wiki.sources import router as wiki_sources_router  # noqa: E402

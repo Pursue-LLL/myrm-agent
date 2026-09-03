@@ -12,10 +12,10 @@
  * Chat message provenance action. Merges cited memory refs and SSE sources (web/mcp/conversation history) in one sheet.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Copy, Check } from 'lucide-react';
 import { Badge } from '@/components/primitives/badge';
 import {
   Sheet,
@@ -30,6 +30,7 @@ import { IconBrain, IconFolder } from '@/components/features/icons/PremiumIcons'
 import { listSharedContexts, type SharedContext } from '@/services/memory/sharedContexts';
 import { SourceItem } from '@/components/features/message-actions/SourcesButton';
 import type { CitedMemoryReference, Source } from '@/store/chat/types';
+import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 
 interface MemoryCitationsButtonProps {
   memoryIds?: string[];
@@ -95,6 +96,7 @@ export default function MemoryCitationsButton({
   const t = useTranslations('memoryCitations');
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [contextsById, setContextsById] = useState<Map<string, SharedContext>>(new Map());
   const citationRefs = useMemo(() => uniqueReferences(memoryIds, references), [memoryIds, references]);
   const messageSources = useMemo(() => sources ?? [], [sources]);
@@ -104,6 +106,40 @@ export default function MemoryCitationsButton({
     () => citationRefs.map(sharedContextIdFromRef).filter((id): id is string => id !== null),
     [citationRefs],
   );
+
+  const handleCopyMarkdown = useCallback(async () => {
+    const lines: string[] = [];
+    if (citationRefs.length > 0) {
+      lines.push(`### ${t('sectionMemories')}`);
+      citationRefs.forEach((ref, idx) => {
+        const title = ref.content || ref.id;
+        lines.push(`- [${idx + 1}] ${title}`);
+      });
+    }
+    if (messageSources.length > 0) {
+      if (lines.length > 0) {
+        lines.push('');
+      }
+      lines.push(`### ${t('sectionSources')}`);
+      messageSources.forEach((src) => {
+        const url = resolveSourceClickUrl(src) || src.url || '';
+        const title = src.title || src.filename || src.kb_name || 'Untitled';
+        lines.push(`- [${src.index}] [${title}](${url})`);
+      });
+    }
+    if (lines.length === 0) {
+      return;
+    }
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(lines.join('\n'));
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {
+      // ignore
+    }
+  }, [citationRefs, messageSources, t]);
 
   useEffect(() => {
     if (!open || sharedContextIds.length === 0) {
@@ -175,10 +211,30 @@ export default function MemoryCitationsButton({
 
       <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <IconBrain className="h-5 w-5 text-amber-600 dark:text-amber-300" />
-            {t('title')}
-          </SheetTitle>
+          <div className="flex items-center justify-between gap-2">
+            <SheetTitle className="flex items-center gap-2">
+              <IconBrain className="h-5 w-5 text-amber-600 dark:text-amber-300" />
+              {t('title')}
+            </SheetTitle>
+            <button
+              type="button"
+              onClick={handleCopyMarkdown}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+                'border border-border/40 hover:bg-muted text-muted-foreground hover:text-foreground',
+                copied && 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
+              )}
+              title={t('copyMarkdown')}
+              aria-label={t('copyMarkdown')}
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+              <span>{copied ? t('copied') : t('copyMarkdown')}</span>
+            </button>
+          </div>
           <SheetDescription>{t('description')}</SheetDescription>
         </SheetHeader>
 

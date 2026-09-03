@@ -123,4 +123,46 @@ describe('MemoryCitationsButton', () => {
     expect(screen.getByText('button')).toBeInTheDocument();
     expect(container.querySelector('[title="degradedNoticeTitle"]')).toBeNull();
   });
+
+  it('copies citations as markdown when clicking copy button', async () => {
+    const user = userEvent.setup();
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextSpy,
+      },
+    });
+
+    render(
+      <MemoryCitationsButton
+        sources={[
+          {
+            index: 1,
+            type: 'web_search',
+            title: 'Doc Alpha',
+            url: 'https://example.com/alpha',
+          },
+        ]}
+        references={[
+          {
+            id: 'mem-1',
+            memoryType: 'semantic',
+            content: 'Brand color is blue',
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /buttonAria/ }));
+    const copyBtn = screen.getByRole('button', { name: 'copyMarkdown' });
+    expect(copyBtn).toBeInTheDocument();
+
+    await user.click(copyBtn);
+    expect(writeTextSpy).toHaveBeenCalledTimes(1);
+    const copiedText = writeTextSpy.mock.calls[0][0];
+    expect(copiedText).toContain('### sectionMemories');
+    expect(copiedText).toContain('- [1] Brand color is blue');
+    expect(copiedText).toContain('### sectionSources');
+    expect(copiedText).toContain('- [1] [Doc Alpha](https://example.com/alpha)');
+  });
 });
