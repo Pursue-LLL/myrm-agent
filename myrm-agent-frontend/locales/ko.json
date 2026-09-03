@@ -17118,12 +17118,12 @@
       "wikiVerificationDwell": "평균 검증 체류 시간",
       "wikiTelemetryDrops": "텔레메트리 유실",
       "wikiEvidenceWindow": "집계 기간: {days}일; 보관 기간: {retentionDays}일",
-      "whySpent": "비용 원인 분석",
-      "whySpentDesc": "호출 출처 및 실행 형태별 비용 내역",
-      "sourceWeb": "웹 상호작용",
+      "whySpent": "비용 귀속 분석",
+      "whySpentDesc": "호출 소스 및 실행 워크로드별 비용 분석",
+      "sourceWeb": "웹 대화형",
       "sourceSubagents": "서브에이전트",
-      "sourceCron": "Cron 정기 작업",
-      "sourceChannel": "외부 메시징 채널"
+      "sourceCron": "Cron 예약 작업",
+      "sourceChannel": "메시징 채널"
     },
     "workingState": {
       "title": "작업 메모리",
