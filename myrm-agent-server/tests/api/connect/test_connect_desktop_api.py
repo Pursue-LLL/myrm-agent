@@ -72,10 +72,11 @@ class TestConnectGenerateDesktopAPI:
             f"{API_PREFIX}/connect/generate",
             json={"profile_id": "windsurf", "expose_desktop": True},
         )
-        response = client.get(f"{API_PREFIX}/connect/status/windsurf")
+        response = client.get(f"{API_PREFIX}/connect/status")
         assert response.status_code == 200
-        data = response.json()
-        assert data["expose_desktop"] is True
+        items = [i for i in response.json() if i["profile_id"] == "windsurf"]
+        assert len(items) == 1
+        assert items[0]["expose_desktop"] is True
 
 
 class TestAgentCapabilitiesAPI:
@@ -90,12 +91,16 @@ class TestAgentCapabilitiesAPI:
             mock_resolver_fn.return_value = mock_resolver
 
             response = client.get(f"{API_PREFIX}/connect/agent-capabilities/nonexistent_agent")
-            assert response.status_code == 404
+            assert response.status_code == 200
+            data = response.json()
+            assert data["agent_id"] == "nonexistent_agent"
+            assert data["has_computer_use"] is False
+            assert data["can_expose_desktop"] is False
 
     def test_agent_capabilities_desktop_supported(self, client: TestClient) -> None:
         mock_profile = MagicMock()
         mock_profile.agent_id = "desk-agent"
-        mock_profile.enabled_builtin_tools = ["enable_computer_use"]
+        mock_profile.enabled_builtin_tools = ["computer_use"]
 
         with (
             patch(
@@ -115,7 +120,7 @@ class TestAgentCapabilitiesAPI:
             data = response.json()
             assert data["agent_id"] == "desk-agent"
             assert data["has_computer_use"] is True
-            assert data["desktop_supported"] is True
+            assert data["desktop_deploy_supported"] is True
             assert data["can_expose_desktop"] is True
 
     def test_agent_capabilities_desktop_unsupported(self, client: TestClient) -> None:

@@ -151,8 +151,9 @@ async def seed_deliverable_bundle_goal_fixture() -> dict[str, object]:
     )
 
     # 2. Setup Goal in GoalRegistry with COMPLETE status and 3 deliverables across categories
-    from app.services.agent.goals.goal_registry import GoalRegistry
     from myrm_agent_harness.agent.goals.types import Goal, GoalStatus
+
+    from app.services.agent.goals.goal_registry import GoalRegistry
 
     deliverables = [
         {"id": "deliv-1", "filename": "campaign_strategy.md"},

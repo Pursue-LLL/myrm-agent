@@ -115,14 +115,11 @@ describe('DualTrackAuditDashboard', () => {
       expect(screen.getByText('TakeTheWheel')).toBeInTheDocument();
     });
 
-    const eyeButtons = screen.getAllByRole('button');
-    const firstEye = eyeButtons.find((b) => b.querySelector('svg'));
-    if (firstEye) {
-      fireEvent.click(firstEye);
-      await waitFor(() => {
-        expect(screen.getByText(/SANDBOX_EXEC/)).toBeInTheDocument();
-      });
-    }
+    const eyeBtn = screen.getByTestId('toggle-entry-ent_001');
+    fireEvent.click(eyeBtn);
+    await waitFor(() => {
+      expect(screen.getByText(/SANDBOX_EXEC/)).toBeInTheDocument();
+    });
   });
 
   it('triggers export for JSON, CSV, and Markdown', async () => {

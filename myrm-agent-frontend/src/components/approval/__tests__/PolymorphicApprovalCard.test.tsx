@@ -266,4 +266,32 @@ describe('PolymorphicApprovalCard', () => {
 
     expect(screen.getByText('https://example.com/account')).toBeInTheDocument();
   });
+
+  it('renders knowledge patch approval card with target type, content and rationale', () => {
+    renderCard({
+      approval_id: 'approval-knowledge-patch-1',
+      user_id: 'user-1',
+      action_type: 'knowledge_patch',
+      status: 'PENDING',
+      severity: 'info',
+      reason: 'Session blind spot recommendation',
+      payload: {
+        title: 'Bastion SSH Setup',
+        target_type: 'wiki',
+        content: 'Bastion host is bastion.internal.org on port 2222',
+        trigger_condition: 'Questions about bastion or SSH gateways',
+        rationale: 'User asked repeatedly after query missed in conversation',
+        confidence: 0.9,
+        source_queries: ['How to connect to bastion?'],
+      },
+    });
+
+    expect(screen.getByText('Bastion SSH Setup')).toBeInTheDocument();
+    expect(screen.getByText('toolApproval.knowledgePatch.typeWiki')).toBeInTheDocument();
+    expect(screen.getByText('Bastion host is bastion.internal.org on port 2222')).toBeInTheDocument();
+    expect(screen.getByText('Questions about bastion or SSH gateways')).toBeInTheDocument();
+    expect(screen.getByText('User asked repeatedly after query missed in conversation')).toBeInTheDocument();
+    expect(screen.getByText('How to connect to bastion?')).toBeInTheDocument();
+    expect(screen.getByText('90%')).toBeInTheDocument();
+  });
 });
