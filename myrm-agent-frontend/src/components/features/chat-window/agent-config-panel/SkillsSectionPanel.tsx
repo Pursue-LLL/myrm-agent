@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/primitives/input';
 import { Skill } from '@/store/skill/types';
@@ -93,6 +93,30 @@ export const SkillsSectionPanel = ({
     [agentId],
   );
 
+  const ownEnabledSkills = useMemo(
+    () => (enabledSkills || []).filter((s) => isOwnSkill(s)),
+    [enabledSkills, isOwnSkill],
+  );
+
+  const handleSelectAll = useCallback(() => {
+    const allIds = ownEnabledSkills.map((s) => s.id);
+    setLocalSkillIds(allIds);
+    setLocalSkillConfigs((prev) => {
+      const next = { ...prev };
+      for (const id of allIds) {
+        if (!next[id]) {
+          next[id] = { is_core: false };
+        }
+      }
+      return next;
+    });
+  }, [ownEnabledSkills, setLocalSkillIds, setLocalSkillConfigs]);
+
+  const handleClearAll = useCallback(() => {
+    setLocalSkillIds([]);
+    setLocalSkillConfigs({});
+  }, [setLocalSkillIds, setLocalSkillConfigs]);
+
   const toggleSkill = (id: string) => {
     setLocalSkillIds((prev) => {
       const isSelected = prev.includes(id);
@@ -146,6 +170,46 @@ export const SkillsSectionPanel = ({
           className="pl-10 h-10 bg-muted/40 border-0 rounded-xl placeholder:text-muted-foreground/50 focus:bg-muted/60 transition-colors"
         />
       </div>
+
+      <div className="flex items-center justify-between gap-2 px-1 text-xs">
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <span className="font-semibold text-foreground tabular-nums">
+            {localSkillIds.length} / {ownEnabledSkills.length}
+          </span>
+          <span>{tPanel('skillsZone.equippedCountSuffix')}</span>
+          {localSkillIds.length === 0 && (
+            <span className="text-[11px] text-muted-foreground/75">
+              ({tPanel('skillsZone.pureInstructionNotice')})
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
+          {localSkillIds.length < ownEnabledSkills.length && (
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className="text-xs px-2 py-0.5 rounded-md hover:bg-muted text-primary font-medium transition-colors cursor-pointer"
+            >
+              {tPanel('skillsZone.selectAll')}
+            </button>
+          )}
+          {localSkillIds.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="text-xs px-2 py-0.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              {tPanel('skillsZone.clearAll')}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {localSkillIds.length === 0 && (
+        <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground leading-relaxed">
+          {tPanel('skillsZone.emptyExplanation')}
+        </div>
+      )}
 
       <NoiseGauge
         isNoiseHigh={isNoiseHigh}

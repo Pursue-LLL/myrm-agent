@@ -252,6 +252,11 @@ export function WikiSection() {
       setActiveTab(tab);
       return;
     }
+    const conceptPath = searchParams.get('conceptPath');
+    if (conceptPath) {
+      setActiveTab('concepts');
+      return;
+    }
     if (!tab) {
       setActiveTab('overview');
     }

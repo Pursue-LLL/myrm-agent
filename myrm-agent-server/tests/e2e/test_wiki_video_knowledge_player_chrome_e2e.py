@@ -150,7 +150,7 @@ def test_wiki_video_knowledge_player_chrome_e2e() -> None:
 
     concept_path = _seed_video_concept(api_url)
     warm_ui_route("/settings/wiki")
-    wiki_page_url = f"{ui_url.rstrip('/')}/settings/wiki?conceptPath={urllib.parse.quote(concept_path, safe='')}"
+    wiki_page_url = f"{ui_url.rstrip('/')}/settings/wiki?wikiTab=concepts&conceptPath={urllib.parse.quote(concept_path, safe='')}"
 
     with open_wiki_settings_mcp_page(
         wiki_page_url,

@@ -145,4 +145,28 @@ describe('SkillGrowthCaseCard manifest prediction rendering', () => {
       screen.getByText('Post-apply verification achieved 100% pass rate as predicted.')
     ).toBeInTheDocument();
   });
+
+  it('renders pareto generalization verdict badge when available in manifest', () => {
+    const item = makeItem({
+      predictionManifest: {
+        manifest_id: 'man-pareto',
+        change_id: 'chg-pareto',
+        created_at: '2026-09-01T10:00:00.000Z',
+        predictions: [],
+        falsification_conditions: [],
+        pareto_generalization_verdict: 'pareto_optimal',
+      },
+    });
+
+    render(
+      <SkillGrowthCaseCard
+        item={item}
+        isProcessing={false}
+        onApprove={vi.fn()}
+        onReject={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Generalization Optimal')).toBeInTheDocument();
+  });
 });

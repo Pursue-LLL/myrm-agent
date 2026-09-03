@@ -237,6 +237,7 @@ async def setup_test_database(tmp_path: Path):
     from sqlalchemy.orm import sessionmaker
     from sqlalchemy.pool import StaticPool
 
+    import app.database.models  # noqa: F401
     from app.database.models import Base
 
     db_file = tmp_path / "test_agent.db"

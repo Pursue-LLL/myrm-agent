@@ -1162,6 +1162,19 @@
         "placeholder": "選擇執行個體",
         "staleClear": "清除",
         "staleWarning": "執行個體「{name}」已過期或無法使用"
+      },
+      "noSkillsEquipped": "未裝配技能（純指令模式）",
+      "skillsZone": {
+        "coreTitle": "核心常駐技能",
+        "coreHint": "完整注入，極速響應",
+        "peripheralTitle": "外圍技能",
+        "peripheralHint": "按需加載，極低負擔",
+        "availableTitle": "可選技能",
+        "selectAll": "全選",
+        "clearAll": "清空",
+        "equippedCountSuffix": "已裝配",
+        "pureInstructionNotice": "未裝配技能 · 純指令模式",
+        "emptyExplanation": "當前未勾選裝配任何技能。該智能體將以純語言模型指令模式運行；可點擊上方「全選」或在下方勾選裝配所需技能。"
       }
     },
     "validation": {
@@ -1317,7 +1330,12 @@
         "coreHint": "完整注入，極速響應",
         "peripheralTitle": "外圍技能",
         "peripheralHint": "按需加載，極低負擔",
-        "availableTitle": "可選技能"
+        "availableTitle": "可選技能",
+        "selectAll": "全選",
+        "clearAll": "清空",
+        "equippedCountSuffix": "已裝配",
+        "pureInstructionNotice": "未裝配技能 · 純指令模式",
+        "emptyExplanation": "當前未勾選裝配任何技能。該智能體將以純語言模型指令模式運行；可點擊上方「全選」或在下方勾選裝配所需技能。"
       },
       "skillInstance": {
         "label": "實例",
@@ -8215,6 +8233,24 @@
     "viewChanges": "檢視變更",
     "hideChanges": "收起變更",
     "memoryUpdate": "記憶更新",
+    "knowledgePatch": {
+      "title": "會話盲點知識轉正建議",
+      "targetType": "沉澱目標",
+      "typeWiki": "Wiki 知識庫",
+      "typeProcedural": "執行規範與偏好",
+      "typeSkillGap": "缺失能力與工具訴求",
+      "triggerCondition": "適用觸發場景",
+      "rationale": "歸納依據與信號",
+      "sourceQueries": "關聯歷史使用者提問",
+      "confidence": "置信度",
+      "content": "沉澱內容"
+    },
+    "obsidianInbox": {
+      "defaultTitle": "Obsidian 筆記",
+      "badge": "Obsidian 收集箱",
+      "noteContent": "筆記內容",
+      "destination": "知識庫"
+    },
     "noContent": "無內容可預覽",
     "payloadData": "審批資料",
     "commentsOptional": "備註（可選）",
@@ -8345,19 +8381,7 @@
     "mcpElicitationTitle": "MCP 服務確認",
     "mcpElicitationServer": "服務",
     "clarificationRequired": "需要錯誤釐清",
-    "fixParameters": "修正參數（JSON）",
-    "knowledgePatch": {
-      "title": "會話盲點知識轉正建議",
-      "targetType": "沉澱目標",
-      "typeWiki": "Wiki 知識庫",
-      "typeProcedural": "執行規範與偏好",
-      "typeSkillGap": "缺失能力與工具訴求",
-      "triggerCondition": "適用觸發場景",
-      "rationale": "歸納依據與信號",
-      "sourceQueries": "關聯歷史使用者提問",
-      "confidence": "置信度",
-      "content": "沉澱內容"
-    }
+    "fixParameters": "修正參數（JSON）"
   },
   "notifications": {
     "title": "系統通知",
@@ -14600,6 +14624,26 @@
         "gitHistoryHint": "本地知識庫會記錄 git 變更歷史，便於審計與回溯。",
         "gitHistoryHintWithCommit": "最近快照：{commit}"
       },
+      "obsidianBinding": {
+        "title": "Obsidian 外部倉庫即時綁定與增量同步",
+        "description": "綁定本機或持久卷中的 Obsidian 目錄，支援毫秒級 mtime 水位比對、Canvas 白板內容提取與安全 Inbox 回寫。",
+        "loading": "正在載入綁定狀態...",
+        "statusBound": "已成功綁定即時倉庫",
+        "watermarkLabel": "最後增量同步水位",
+        "syncDelta": "同步增量變更",
+        "syncing": "增量比對中...",
+        "boundHint": "已開啟變更監聽與召回預熱。當筆記或白板發生修改時，可手動或在對話召回時自動比對 mtime 增量入庫。",
+        "unboundHint": "支援絕對路徑綁定。綁定後 Agent 擁有 obsidian_vault_search 與 obsidian_vault_read 工具權限。",
+        "pathPlaceholder": "請輸入 Obsidian Vault 絕對路徑 (例如: /Users/name/Documents/ObsidianVault)",
+        "bindButton": "立即綁定",
+        "binding": "正在綁定...",
+        "bindSuccess": "成功綁定 Obsidian 倉庫",
+        "bindFailed": "綁定失敗，請檢查目錄路徑是否存在",
+        "unbindSuccess": "已解綁 Obsidian 倉庫",
+        "unbindFailed": "解綁失敗",
+        "syncSuccess": "增量同步完成",
+        "syncFailed": "增量同步失敗"
+      },
       "repairingTypes": "修復中...",
       "repairingPublication": "修復發布狀態中...",
       "reindexingVectors": "重建向量索引中...",
@@ -14742,7 +14786,27 @@
       "evidenceSnapshotStale": "快照可能已過期。",
       "evidenceSnapshotVerified": "快照已對照目前頁面驗證。",
       "evidenceStructuredClaim": "結構化宣告",
-      "evidenceSupersededFrom": "已被以下內容取代：{uri}"
+      "evidenceSupersededFrom": "已被以下內容取代：{uri}",
+      "obsidianBinding": {
+        "bindSuccess": "已綁定 Obsidian 知識庫",
+        "bindFailed": "綁定 Obsidian 知識庫失敗",
+        "unbindSuccess": "已解綁 Obsidian 知識庫",
+        "unbindFailed": "解綁 Obsidian 知識庫失敗",
+        "syncSuccess": "同步成功",
+        "syncFailed": "同步失敗",
+        "title": "Obsidian 本地知識庫綁定",
+        "description": "將本地 Obsidian 筆記目錄綁定至知識庫，支援自動增量同步與收集箱寫入。",
+        "loading": "載入中...",
+        "statusBound": "已綁定",
+        "watermarkLabel": "上次同步時間戳",
+        "syncing": "同步中...",
+        "syncDelta": "增量同步",
+        "boundHint": "知識庫將定期監測本地目錄變動並增量索引。",
+        "pathPlaceholder": "輸入本地 Obsidian 知識庫絕對路徑（例如：/Users/name/Documents/Vault）",
+        "binding": "綁定中...",
+        "bindButton": "綁定知識庫",
+        "unboundHint": "綁定後，Agent 可直接搜尋該知識庫中的筆記，並將關鍵成果歸檔至知識庫收集箱。"
+      }
     },
     "skills": {
       "title": "技能管理",

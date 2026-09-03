@@ -356,3 +356,49 @@ Multiplex 分支：若 POST `content-type` 含 `text/event-stream` → **直接 
 2. **FastAPI 异常处理器注册顺序遵循后注册者优先级规则** — 业务领域异常必须保证优先命中，防止被顶层全局 `Exception` 粗暴拦截掩盖真实根因。
 
 ---
+
+## BUG-AGENT-2026-09-03-002: 智能体技能装配隐式 Fallback 认知鸿沟与 WYSIWYG 所见即所得收敛
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-09-03 |
+| 修复日期 | 2026-09-03 |
+| 严重程度 | **P2（用户心智一致性与认知体验重大缺陷）** |
+| 影响范围 | `app/core/skills/effective_skill_ids.py`, `app/services/agent/builtin_specs/builtin_initializer.py`, `myrm-agent-frontend/.../SkillsSectionPanel.tsx`, `AgentConfigCards.tsx`, `locales/` |
+| 出现次数 | 1（架构复盘与用户体验审计发现） |
+| 关联 | 技能系统与智能体配置契约 |
+
+### 现象
+
+在 WebUI 智能体配置面板中，卡片显示技能「0 未选择」，但后端在实际会话运行时却暗箱将「空技能名单」Fallback 为「加载系统已启用的全部 20+ 个技能」；当用户尝试显式勾选 1 个技能后，其他技能突然消失，与用户预期的「0 个技能就是没有技能」产生严重认知冲突。
+
+### 根因
+
+1. **后端隐式 Fallback 历史技术债**：`effective_skill_ids.py` 的 `resolve_runtime_skill_ids` 存在兜底逻辑：若 `profile_skill_ids` 为空，自动读取用户全局已启用技能作为兜底；
+2. **出厂配置缺失显式声明**：内置通用智能体在数据库中初始化时 `skill_ids = []`，依赖了上述隐式 fallback，导致无法在前端向用户诚实展示已装配技能；
+3. **前端缺少批量装配操作**：技能配置面板仅支持单卡勾选，缺失「一键全选」与「清空」快捷能力，缺乏数量统计与纯指令模式提示。
+
+### 修复
+
+1. **后端契约收敛**：`resolve_runtime_skill_ids` 彻底纯净化为所见即所得标准，`profile_skill_ids` 为空或 None 时严格返回 `[]`，不再暗箱 Fallback；
+2. **初始化显式装配**：`builtin_initializer.py` 在启动初始化时，为默认通用智能体显式写入所有已启用的预置技能（设为 peripheral 按需加载，保护 Prompt Cache）；
+3. **前端交互与所见即所得闭环**：
+   - `SkillsSectionPanel.tsx` 增加「全选」与「清空」快捷按钮；
+   - 增加装配统计徽章（如 `X / Y 已装配`）以及 0 技能装配时的「未装配技能 · 纯指令模式」友好解释条；
+   - `AgentConfigCards.tsx` 卡片在 0 技能时明确展示「未装配技能（纯指令模式）」；
+4. **全语系 i18n 覆盖**：完成中、英、日、韩、繁中、德 6 种多语言本地化，修复预存的 4 处 Obsidian 引用遗漏，`verify:i18n` 门禁 100% 通过。
+
+### 验证
+
+- `test_effective_skill_ids.py` 3/3 项全部通过（含 WYSIWYG 空名单与 legacy 规范化测试）；
+- `test_builtin_initializer.py` 18/18 项全部通过；
+- `test_discovery_mount.py` 8/8 项全部通过；
+- `test_discovery_install_enable_integration.py` 14/14 项全部通过；
+- 前端 `bun run verify:i18n` 100% 通过（1849 个代码文件无缺失键引用）。
+
+### 踩坑经验
+
+1. **禁止在运行时做违背 UI 表象的暗箱隐式兜底** — 用户在界面上看到什么，底层就必须严格执行什么（WYSIWYG）。如果默认通用智能体需要全部能力，应当在初始化数据层显式赋满，而非在底层代码留一个反直觉的空列表 Fallback；
+2. **渐进披露与快捷操作缺一不可** — 在提供精准控制能力的同时，必须提供「一键全选」和「清空」等低成本批量操作，配合清晰文案告知用户系统当前的运行模式。
+
+---

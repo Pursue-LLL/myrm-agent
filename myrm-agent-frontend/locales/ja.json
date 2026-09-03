@@ -1149,6 +1149,19 @@
         "placeholder": "インスタンスを選択",
         "staleClear": "クリア",
         "staleWarning": "インスタンス「{name}」は期限切れまたは利用できません"
+      },
+      "noSkillsEquipped": "スキル未装備（純粋指示モード）",
+      "skillsZone": {
+        "coreTitle": "コアスキル",
+        "coreHint": "完全注入、即時応答",
+        "peripheralTitle": "周辺スキル",
+        "peripheralHint": "オンデマンド読み込み、低負荷",
+        "availableTitle": "利用可能なスキル",
+        "selectAll": "すべて選択",
+        "clearAll": "クリア",
+        "equippedCountSuffix": "装備済み",
+        "pureInstructionNotice": "スキル未装備 · 純粋指示モード",
+        "emptyExplanation": "現在スキルは装備されていません。このエージェントは純粋な指示モードで動作します。「すべて選択」をクリックするか、以下でスキルを選択して装備してください。"
       }
     },
     "validation": {
@@ -1301,10 +1314,15 @@
       },
       "skillsZone": {
         "coreTitle": "コアスキル",
-        "coreHint": "高速応答のために完全に注入",
+        "coreHint": "完全注入、即時応答",
         "peripheralTitle": "周辺スキル",
-        "peripheralHint": "オンデマンドで読み込み、オーバーヘッド最小",
-        "availableTitle": "利用可能なスキル"
+        "peripheralHint": "オンデマンド読み込み、低負荷",
+        "availableTitle": "利用可能なスキル",
+        "selectAll": "すべて選択",
+        "clearAll": "クリア",
+        "equippedCountSuffix": "装備済み",
+        "pureInstructionNotice": "スキル未装備 · 純粋指示モード",
+        "emptyExplanation": "現在スキルは装備されていません。このエージェントは純粋な指示モードで動作します。「すべて選択」をクリックするか、以下でスキルを選択して装備してください。"
       },
       "skillInstance": {
         "label": "インスタンス",
@@ -8357,6 +8375,12 @@
       "sourceQueries": "関連する過去のクエリ",
       "confidence": "信頼度",
       "content": "パッチ内容"
+    },
+    "obsidianInbox": {
+      "defaultTitle": "Obsidian ノート",
+      "badge": "Obsidian インボックス",
+      "noteContent": "ノート内容",
+      "destination": "保管庫"
     }
   },
   "notifications": {
@@ -14742,7 +14766,27 @@
       "evidenceSnapshotStale": "スナップショットが古い可能性があります。",
       "evidenceSnapshotVerified": "スナップショットは現在のページと照合済みです。",
       "evidenceStructuredClaim": "構造化された主張",
-      "evidenceSupersededFrom": "次の内容に置き換えられました: {uri}"
+      "evidenceSupersededFrom": "次の内容に置き換えられました: {uri}",
+      "obsidianBinding": {
+        "bindSuccess": "Obsidian 保管庫が正常にバインドされました",
+        "bindFailed": "Obsidian 保管庫のバインドに失敗しました",
+        "unbindSuccess": "Obsidian 保管庫のバインドを解除しました",
+        "unbindFailed": "Obsidian 保管庫のバインド解除に失敗しました",
+        "syncSuccess": "同期が完了しました",
+        "syncFailed": "同期に失敗しました",
+        "title": "Obsidian ローカル保管庫のバインド",
+        "description": "ローカルの Obsidian ノートディレクトリをナレッジベースにバインドし、増分同期とインボックス書き込みをサポートします。",
+        "loading": "読み込み中...",
+        "statusBound": "バインド済み",
+        "watermarkLabel": "最終同期タイムスタンプ",
+        "syncing": "同期中...",
+        "syncDelta": "増分同期",
+        "boundHint": "ナレッジベースはローカルディレクトリの変更を監視し、増分インデックスを作成します。",
+        "pathPlaceholder": "Obsidian 保管庫の絶対パスを入力（例: /Users/name/Documents/Vault）",
+        "binding": "バインド中...",
+        "bindButton": "保管庫をバインド",
+        "unboundHint": "バインド後、エージェントはノートを検索し、成果物をインボックスにアーカイブできます。"
+      }
     },
     "skills": {
       "title": "スキル管理",

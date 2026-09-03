@@ -59,11 +59,11 @@ discovery/mount 安装/更新后 catalog enable 入口（prebuilt/local）
 discovery/adopt   显式 agent.skill_ids 非空时，Discover install 自动 append 新技能（采纳契约）
 marketplace/clawhub_registry UserSkillConfig.clawhub_registry_url → CLAWHUB_URL（运行时 SSOT）；bootstrap 迁移 OpenClaw legacy env；CN 预设 skill.xfyun.cn；legacy skillhub.cn 自动迁移；strict probe 验 ClawHub dict JSON
 marketplace/clawhub_probe     切换国内镜像前 Block 0 可达性探测（GET /skills/discovery/registry-probe）
-effective_skill_ids  Agent 空 skill allowlist 时解析 runtime skill_ids；legacy local::{name} 读时迁移（全 local_skill_paths 根）
+effective_skill_ids  解析 Agent 显式 allowlist（所见即所得标准：空名单装配 0 技能）；legacy local::{name} 读时迁移（全 local_skill_paths 根）
 local_skill_id (harness)  local::{16hex} path-hash SSOT；install/uninstall/catalog 对齐
 ```
 
-**运维**：SAL 前误写入 agent.profile `skill_ids` 的 Agent 可在 Agent 设置清空白名单恢复「全部已启用」行为。Discover install 在显式 allowlist 下会自动 append 新安装技能。
+**契约与运维**：Agent 技能装配遵循所见即所得（WYSIWYG）原则，Agent 配置的 `skill_ids` 为空时运行时严格装配 0 个技能（纯指令模式）。默认通用智能体在出厂与启动初始化时显式写入全部预置技能。前端提供「全选」与「清空」快捷操作，支持按需一键装配。Discover install 在显式 allowlist 下会自动 append 新安装技能。
 
 ### 3.3 打包与解包
 

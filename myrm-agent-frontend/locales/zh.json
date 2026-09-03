@@ -1166,6 +1166,19 @@
         "placeholder": "选择实例",
         "staleClear": "清除",
         "staleWarning": "实例 \"{name}\" 已过期或不可用"
+      },
+      "noSkillsEquipped": "未装配技能（纯指令模式）",
+      "skillsZone": {
+        "coreTitle": "核心常驻技能",
+        "coreHint": "完整注入，极速响应",
+        "peripheralTitle": "外围技能",
+        "peripheralHint": "按需加载，极低负担",
+        "availableTitle": "可选技能",
+        "selectAll": "全选",
+        "clearAll": "清空",
+        "equippedCountSuffix": "已装配",
+        "pureInstructionNotice": "未装配技能 · 纯指令模式",
+        "emptyExplanation": "当前未勾选装配任何技能。该智能体将以纯语言模型指令模式运行；可点击上方「全选」或在下方勾选装配所需技能。"
       }
     },
     "validation": {
@@ -1254,7 +1267,12 @@
         "coreHint": "完整注入，极速响应",
         "peripheralTitle": "外围技能",
         "peripheralHint": "按需加载，极低负担",
-        "availableTitle": "可选技能"
+        "availableTitle": "可选技能",
+        "selectAll": "全选",
+        "clearAll": "清空",
+        "equippedCountSuffix": "已装配",
+        "pureInstructionNotice": "未装配技能 · 纯指令模式",
+        "emptyExplanation": "当前未勾选装配任何技能。该智能体将以纯语言模型指令模式运行；可点击上方「全选」或在下方勾选装配所需技能。"
       },
       "skillInstance": {
         "label": "实例",
@@ -8227,6 +8245,12 @@
       "confidence": "置信度",
       "content": "沉淀内容"
     },
+    "obsidianInbox": {
+      "defaultTitle": "Obsidian 笔记",
+      "badge": "Obsidian 收集箱",
+      "noteContent": "笔记内容",
+      "destination": "知识库"
+    },
     "noContent": "无内容可预览",
     "mcpElicitationTitle": "MCP 服务确认",
     "mcpElicitationServer": "服务",
@@ -14184,6 +14208,26 @@
         "gitHistoryHint": "本地知识库会记录 git 变更历史，便于审计与回溯。",
         "gitHistoryHintWithCommit": "最近快照：{commit}"
       },
+      "obsidianBinding": {
+        "title": "Obsidian 外部仓库实时绑定与增量同步",
+        "description": "绑定本机或持久卷中的 Obsidian 目录，支持毫秒级 mtime 水位比对、Canvas 白板内容提取与安全 Inbox 回写。",
+        "loading": "正在加载绑定状态...",
+        "statusBound": "已成功绑定实时仓库",
+        "watermarkLabel": "最后增量同步水位",
+        "syncDelta": "同步增量变更",
+        "syncing": "增量比对中...",
+        "boundHint": "已开启变更监听与召回预热。当笔记或白板发生修改时，可手动或在对话召回时自动比对 mtime 增量入库。",
+        "unboundHint": "支持绝对路径绑定。绑定后 Agent 拥有 obsidian_vault_search 与 obsidian_vault_read 工具权限。",
+        "pathPlaceholder": "请输入 Obsidian Vault 绝对路径 (例如: /Users/name/Documents/ObsidianVault)",
+        "bindButton": "立即绑定",
+        "binding": "正在绑定...",
+        "bindSuccess": "成功绑定 Obsidian 仓库",
+        "bindFailed": "绑定失败，请检查目录路径是否存在",
+        "unbindSuccess": "已解绑 Obsidian 仓库",
+        "unbindFailed": "解绑失败",
+        "syncSuccess": "增量同步完成",
+        "syncFailed": "增量同步失败"
+      },
       "querying": "查询中...",
       "compiling": "编译中...",
       "maintaining": "维护中...",
@@ -14742,7 +14786,27 @@
       "evidenceSnapshotStale": "快照可能已过期。",
       "evidenceSnapshotVerified": "快照已对照当前页面验证。",
       "evidenceStructuredClaim": "结构化声明",
-      "evidenceSupersededFrom": "已被以下内容取代：{uri}"
+      "evidenceSupersededFrom": "已被以下内容取代：{uri}",
+      "obsidianBinding": {
+        "bindSuccess": "已绑定 Obsidian 知识库",
+        "bindFailed": "绑定 Obsidian 知识库失败",
+        "unbindSuccess": "已解绑 Obsidian 知识库",
+        "unbindFailed": "解绑 Obsidian 知识库失败",
+        "syncSuccess": "同步成功",
+        "syncFailed": "同步失败",
+        "title": "Obsidian 本地知识库绑定",
+        "description": "将本地 Obsidian 笔记目录绑定至知识库，支持自动增量同步与收集箱写入。",
+        "loading": "加载中...",
+        "statusBound": "已绑定",
+        "watermarkLabel": "上次同步时间戳",
+        "syncing": "同步中...",
+        "syncDelta": "增量同步",
+        "boundHint": "知识库将定期监测本地目录变动并增量索引。",
+        "pathPlaceholder": "输入本地 Obsidian 知识库绝对路径（例如：/Users/name/Documents/Vault）",
+        "binding": "绑定中...",
+        "bindButton": "绑定知识库",
+        "unboundHint": "绑定后，Agent 可直接搜索该知识库中的笔记，并将关键成果归档至知识库收集箱。"
+      }
     },
     "skills": {
       "title": "技能管理",

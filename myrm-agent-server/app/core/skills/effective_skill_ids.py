@@ -13,7 +13,6 @@
 [POS]
 Runtime skill ID resolver. Strictly respects explicit Agent profile allowlist:
 WYSIWYG standard — if profile_skill_ids is empty or None, returns empty list [].
-No silent/implicit fallback to all user-enabled skills.
 """
 
 from __future__ import annotations
@@ -99,7 +98,7 @@ async def migrate_legacy_local_skill_ids() -> list[str]:
 
 
 async def resolve_runtime_skill_ids(profile_skill_ids: list[str] | None) -> list[str]:
-    """Return explicit Agent allowlist (WYSIWYG: empty = 0 skills)."""
+    """Return explicit Agent allowlist (empty = 0 skills)."""
     if not profile_skill_ids:
         return []
 

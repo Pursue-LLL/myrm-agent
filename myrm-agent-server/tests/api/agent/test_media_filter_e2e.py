@@ -98,6 +98,15 @@ def _skip_on_flaky(collected: list[dict[str, object]]) -> None:
             pytest.skip(f"Upstream flaky: {sig}")
 
 
+@pytest.fixture(autouse=True)
+def _clean_capability_learner():
+    from myrm_agent_harness.toolkits.llms.capability_learner import get_capability_learner
+
+    get_capability_learner().clear()
+    yield
+    get_capability_learner().clear()
+
+
 @pytest.mark.e2e
 def test_proactive_media_stripped_when_vision_disabled(client: TestClient) -> None:
     """supportsVision=false + image -> media_stripped STATUS before LLM call."""

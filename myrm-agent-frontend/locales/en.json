@@ -1166,6 +1166,19 @@
         "placeholder": "Select instance",
         "staleClear": "Clear",
         "staleWarning": "Instance \"{name}\" is stale or unavailable"
+      },
+      "noSkillsEquipped": "No skills equipped (Pure instruction mode)",
+      "skillsZone": {
+        "coreTitle": "Core Skills",
+        "coreHint": "Full injection, instant response",
+        "peripheralTitle": "Peripheral Skills",
+        "peripheralHint": "On-demand loading, minimal overhead",
+        "availableTitle": "Available Skills",
+        "selectAll": "Select All",
+        "clearAll": "Clear",
+        "equippedCountSuffix": "Equipped",
+        "pureInstructionNotice": "No skills equipped · Pure instruction mode",
+        "emptyExplanation": "No skills are currently equipped. The agent will run in pure instruction mode. Click \"Select All\" above or check skills below to equip them."
       }
     },
     "validation": {
@@ -1250,11 +1263,16 @@
         "turn1CatalogOverCapHint": "Only the first {cap} Core skills (alphabetical) appear inline at conversation start. Move rarely used skills to Peripheral to disable search and save ~203 tokens per turn."
       },
       "skillsZone": {
-        "coreTitle": "Core skills",
-        "coreHint": "Fully injected for fast response",
-        "peripheralTitle": "Peripheral skills",
-        "peripheralHint": "Loaded on demand, minimal overhead",
-        "availableTitle": "Available skills"
+        "coreTitle": "Core Skills",
+        "coreHint": "Full injection, instant response",
+        "peripheralTitle": "Peripheral Skills",
+        "peripheralHint": "On-demand loading, minimal overhead",
+        "availableTitle": "Available Skills",
+        "selectAll": "Select All",
+        "clearAll": "Clear",
+        "equippedCountSuffix": "Equipped",
+        "pureInstructionNotice": "No skills equipped · Pure instruction mode",
+        "emptyExplanation": "No skills are currently equipped. The agent will run in pure instruction mode. Click \"Select All\" above or check skills below to equip them."
       },
       "skillInstance": {
         "label": "Instance",
@@ -8231,6 +8249,12 @@
       "confidence": "Confidence",
       "content": "Patch Content"
     },
+    "obsidianInbox": {
+      "defaultTitle": "Obsidian Note",
+      "badge": "Obsidian Inbox",
+      "noteContent": "Note Content",
+      "destination": "Vault"
+    },
     "noContent": "No content to preview",
     "mcpElicitationTitle": "MCP Server Confirmation",
     "mcpElicitationServer": "Server",
@@ -14184,6 +14208,26 @@
         "gitHistoryHint": "This vault keeps a local git history for auditing changes.",
         "gitHistoryHintWithCommit": "Latest snapshot: {commit}"
       },
+      "obsidianBinding": {
+        "title": "Obsidian External Vault Live Binding & Delta Sync",
+        "description": "Bind a local or persistent volume Obsidian directory, supporting sub-millisecond mtime watermark diffing, Canvas text extraction, and safe Inbox write-back.",
+        "loading": "Loading binding status...",
+        "statusBound": "Live Vault Bound",
+        "watermarkLabel": "Last Sync Watermark",
+        "syncDelta": "Sync Delta Changes",
+        "syncing": "Diffing changes...",
+        "boundHint": "Change listening and recall pre-warming enabled. When notes or canvas boards change, changes can be synced manually or automatically during recall.",
+        "unboundHint": "Supports absolute path binding. Once bound, Agent gains obsidian_vault_search and obsidian_vault_read tool capabilities.",
+        "pathPlaceholder": "Enter Obsidian Vault absolute path (e.g. /Users/name/Documents/ObsidianVault)",
+        "bindButton": "Bind Vault",
+        "binding": "Binding...",
+        "bindSuccess": "Obsidian vault successfully bound",
+        "bindFailed": "Failed to bind vault. Please verify directory path.",
+        "unbindSuccess": "Obsidian vault unpinned",
+        "unbindFailed": "Failed to unpin vault",
+        "syncSuccess": "Delta sync completed",
+        "syncFailed": "Delta sync failed"
+      },
       "querying": "Querying...",
       "compiling": "Compiling...",
       "maintaining": "Maintaining...",
@@ -14742,7 +14786,27 @@
       "evidenceSnapshotStale": "Snapshot may be out of date.",
       "evidenceSnapshotVerified": "Snapshot verified against the current page.",
       "evidenceStructuredClaim": "Structured Claim",
-      "evidenceSupersededFrom": "Superseded by: {uri}"
+      "evidenceSupersededFrom": "Superseded by: {uri}",
+      "obsidianBinding": {
+        "bindSuccess": "Obsidian vault successfully bound",
+        "bindFailed": "Failed to bind Obsidian vault",
+        "unbindSuccess": "Obsidian vault unbound",
+        "unbindFailed": "Failed to unbind Obsidian vault",
+        "syncSuccess": "Synced successfully",
+        "syncFailed": "Sync failed",
+        "title": "Obsidian Vault Binding",
+        "description": "Bind a local Obsidian vault to the knowledge base with incremental sync and inbox writes.",
+        "loading": "Loading...",
+        "statusBound": "Bound",
+        "watermarkLabel": "Last Sync Watermark",
+        "syncing": "Syncing...",
+        "syncDelta": "Sync Delta",
+        "boundHint": "Knowledge base monitors local directory changes and indexes incrementally.",
+        "pathPlaceholder": "Enter absolute path to Obsidian vault (e.g., /Users/name/Documents/Vault)",
+        "binding": "Binding...",
+        "bindButton": "Bind Vault",
+        "unboundHint": "Once bound, agents can search notes and archive key deliverables to the inbox."
+      }
     },
     "skills": {
       "title": "Skills Management",

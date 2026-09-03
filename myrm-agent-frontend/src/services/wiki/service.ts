@@ -908,4 +908,59 @@ export const wikiService = {
       body: JSON.stringify({ relative_path: relativePath }),
     });
   },
+
+  getObsidianVaultBinding: async (): Promise<{
+    is_bound: boolean;
+    vault_path: string;
+    is_active: boolean;
+    last_sync_watermark: number;
+    auto_sync_on_recall: boolean;
+    allow_inbox_write: boolean;
+    inbox_folder_name: string;
+    updated_at: number;
+  }> => {
+    return apiRequest(buildWikiApiPath('/wiki/vault/binding'));
+  },
+
+  bindObsidianVault: async (body: {
+    vault_path: string;
+    auto_sync_on_recall?: boolean;
+    allow_inbox_write?: boolean;
+    inbox_folder_name?: string;
+  }): Promise<{
+    is_bound: boolean;
+    vault_path: string;
+    is_active: boolean;
+    last_sync_watermark: number;
+    auto_sync_on_recall: boolean;
+    allow_inbox_write: boolean;
+    inbox_folder_name: string;
+    updated_at: number;
+  }> => {
+    return apiRequest(buildWikiApiPath('/wiki/vault/bind'), {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  unbindObsidianVault: async (): Promise<{ is_bound: boolean }> => {
+    return apiRequest(buildWikiApiPath('/wiki/vault/unbind'), {
+      method: 'POST',
+    });
+  },
+
+  syncObsidianVaultDelta: async (agentId?: string | null): Promise<{
+    success: boolean;
+    vault_path: string;
+    scanned_count: number;
+    synced_count: number;
+    skipped_count: number;
+    synced_files: string[];
+    new_watermark: number;
+    message: string;
+  }> => {
+    return apiRequest(buildWikiApiPath('/wiki/vault/sync-delta', agentId), {
+      method: 'POST',
+    });
+  },
 };

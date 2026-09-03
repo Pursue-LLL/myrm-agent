@@ -156,7 +156,7 @@ def _sync_existing_agent(
 ) -> bool:
     """Sync spec-controlled fields to an existing DB agent. Returns True if any field changed."""
     changed = False
-    if not agent.skill_ids and default_skills:
+    if not agent.skill_ids and agent.skill_configs is None and default_skills:
         agent.skill_ids = default_skills
         agent.skill_configs = default_skill_configs or None
         changed = True

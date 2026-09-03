@@ -920,6 +920,19 @@
         "placeholder": "Instanz auswählen",
         "staleClear": "Leeren",
         "staleWarning": "Instanz „{name}“ ist veraltet oder nicht verfügbar"
+      },
+      "noSkillsEquipped": "Keine Fähigkeiten ausgerüstet (Reiner Anweisungsmodus)",
+      "skillsZone": {
+        "coreTitle": "Kernfähigkeiten",
+        "coreHint": "Vollständig injiziert, sofortige Antwort",
+        "peripheralTitle": "Periphere Fähigkeiten",
+        "peripheralHint": "Bedarfsgesteuert, minimaler Overhead",
+        "availableTitle": "Verfügbare Fähigkeiten",
+        "selectAll": "Alle auswählen",
+        "clearAll": "Leeren",
+        "equippedCountSuffix": "Ausgerüstet",
+        "pureInstructionNotice": "Keine Fähigkeiten ausgerüstet · Reiner Anweisungsmodus",
+        "emptyExplanation": "Derzeit sind keine Fähigkeiten ausgerüstet. Der Agent läuft im reinen Anweisungsmodus. Klicken Sie oben auf \"Alle auswählen\" oder wählen Sie unten Fähigkeiten aus."
       }
     },
     "validation": {
@@ -1025,11 +1038,16 @@
       "aiGenerateConfigMissing": "LLM-Anbieter ist nicht konfiguriert",
       "aiGenerateFailed": "Prompt konnte nicht generiert werden",
       "skillsZone": {
-        "coreTitle": "Kern-Fähigkeiten",
-        "coreHint": "Vollständig injiziert für schnelle Antwort",
+        "coreTitle": "Kernfähigkeiten",
+        "coreHint": "Vollständig injiziert, sofortige Antwort",
         "peripheralTitle": "Periphere Fähigkeiten",
-        "peripheralHint": "Bei Bedarf geladen, minimaler Overhead",
-        "availableTitle": "Verfügbare Fähigkeiten"
+        "peripheralHint": "Bedarfsgesteuert, minimaler Overhead",
+        "availableTitle": "Verfügbare Fähigkeiten",
+        "selectAll": "Alle auswählen",
+        "clearAll": "Leeren",
+        "equippedCountSuffix": "Ausgerüstet",
+        "pureInstructionNotice": "Keine Fähigkeiten ausgerüstet · Reiner Anweisungsmodus",
+        "emptyExplanation": "Derzeit sind keine Fähigkeiten ausgerüstet. Der Agent läuft im reinen Anweisungsmodus. Klicken Sie oben auf \"Alle auswählen\" oder wählen Sie unten Fähigkeiten aus."
       },
       "skillInstance": {
         "label": "Instanz",
@@ -8357,6 +8375,12 @@
       "sourceQueries": "Zugehörige Quell-Suchanfragen",
       "confidence": "Konfidenz",
       "content": "Patch-Inhalt"
+    },
+    "obsidianInbox": {
+      "defaultTitle": "Obsidian-Notiz",
+      "badge": "Obsidian-Eingang",
+      "noteContent": "Notizinhalt",
+      "destination": "Tresor"
     }
   },
   "notifications": {
@@ -14742,7 +14766,27 @@
       "evidenceSnapshotStale": "Snapshot ist möglicherweise veraltet.",
       "evidenceSnapshotVerified": "Snapshot wurde mit der aktuellen Seite abgeglichen.",
       "evidenceStructuredClaim": "Strukturierter Anspruch",
-      "evidenceSupersededFrom": "Ersetzt durch: {uri}"
+      "evidenceSupersededFrom": "Ersetzt durch: {uri}",
+      "obsidianBinding": {
+        "bindSuccess": "Obsidian-Tresor erfolgreich verknüpft",
+        "bindFailed": "Verknüpfung mit Obsidian-Tresor fehlgeschlagen",
+        "unbindSuccess": "Obsidian-Tresor getrennt",
+        "unbindFailed": "Trennen des Obsidian-Tresors fehlgeschlagen",
+        "syncSuccess": "Erfolgreich synchronisiert",
+        "syncFailed": "Synchronisierung fehlgeschlagen",
+        "title": "Obsidian-Tresor-Verknüpfung",
+        "description": "Verknüpfen Sie ein lokales Obsidian-Notizverzeichnis mit der Wissensdatenbank für inkrementelle Synchronisierung.",
+        "loading": "Wird geladen...",
+        "statusBound": "Verknüpft",
+        "watermarkLabel": "Letzter Synchronisierungszeitstempel",
+        "syncing": "Synchronisierung...",
+        "syncDelta": "Delta-Sync",
+        "boundHint": "Die Wissensdatenbank überwacht lokale Änderungen und indiziert inkrementell.",
+        "pathPlaceholder": "Geben Sie den absoluten Pfad zum Obsidian-Tresor ein (z. B. /Users/name/Documents/Vault)",
+        "binding": "Verknüpfung läuft...",
+        "bindButton": "Tresor verknüpfen",
+        "unboundHint": "Nach der Verknüpfung können Agents Notizen durchsuchen und wichtige Ergebnisse im Eingang archivieren."
+      }
     },
     "skills": {
       "title": "Fähigkeitenverwaltung",

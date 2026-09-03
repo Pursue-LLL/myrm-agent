@@ -205,3 +205,47 @@ async def test_pdf_generator_skill_content_structure() -> None:
     assert "Phase 5: Visual Self-Correction" in content
     assert "potential_traps" in content
     assert "verification_steps" in content
+
+
+@pytest.mark.asyncio
+async def test_pdf_reader_physical_slicing_and_extraction_roundtrip(temp_workspace_dir: Path) -> None:
+    """验证使用底层 PDF 解析管线对生成的真实 PDF 进行读取，确保 physical page slicing 和文本抽取 100% 正常。"""
+    from myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor import (
+        PDFExtractConfig,
+        extract_pdf_content,
+    )
+
+    pdf_path = temp_workspace_dir / "roundtrip_test.pdf"
+    content = (
+        b"%PDF-1.4\n"
+        b"%\xe2\xe3\xcf\xd3\n"
+        b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+        b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
+        b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+        b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n"
+        b"4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n"
+        b"5 0 obj\n<< /Length 110 >>\nstream\n"
+        b"BT\n/F1 24 Tf\n50 720 Td\n(INVOICE #INV-2026-001) Tj\nET\n"
+        b"BT\n/F1 12 Tf\n50 680 Td\n(Client: Global Enterprise Corp.) Tj\nET\n"
+        b"BT\n/F1 12 Tf\n50 650 Td\n(Total Amount Due: $12,500.00 USD) Tj\nET\n"
+        b"endstream\nendobj\n"
+        b"xref\n0 6\n"
+        b"0000000000 65535 f \n"
+        b"0000000015 00000 n \n"
+        b"0000000068 00000 n \n"
+        b"0000000125 00000 n \n"
+        b"0000000242 00000 n \n"
+        b"0000000319 00000 n \n"
+        b"trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n480\n%%EOF\n"
+    )
+    pdf_path.write_bytes(content)
+
+    config = PDFExtractConfig(max_pages=10)
+    result = await extract_pdf_content(str(pdf_path), config=config)
+
+    assert result.page_count == 1
+    assert result.parsed_pages == 1
+    assert "INVOICE #INV-2026-001" in result.text
+    assert "Global Enterprise Corp." in result.text
+
+

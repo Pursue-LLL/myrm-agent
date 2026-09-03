@@ -24,7 +24,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.api.dependencies import get_optional_llm_for_user, get_optional_memory_manager
+from app.api.dependencies import get_optional_llm_for_user
+from app.api.memory.utils import get_optional_memory_manager
 from app.services.wiki.obsidian.adapter import prepare_obsidian_file
 from app.services.wiki.obsidian.binding import (
     ObsidianVaultBinding,

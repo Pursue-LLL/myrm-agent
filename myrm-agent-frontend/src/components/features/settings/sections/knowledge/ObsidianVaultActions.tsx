@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { IconDatabase, IconExplore } from '@/components/features/icons/PremiumIcons';
 import { wikiService } from '@/services/wikiService';
 import { isLocalMode, isTauriRuntime } from '@/lib/deploy-mode';
+import { ObsidianVaultBindingSection } from './ObsidianVaultBindingSection';
 
 interface ObsidianVaultActionsProps {
   agentScopeId?: string | null;
@@ -92,6 +93,7 @@ export function ObsidianVaultActions({
   }, [agentScopeId, t]);
 
   return (
+    <>
     <Card id="wiki-obsidian-vault-actions">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -141,5 +143,7 @@ export function ObsidianVaultActions({
         {!showLocalActions && <p className="text-xs text-muted-foreground">{t('cloudHint')}</p>}
       </CardContent>
     </Card>
+    <ObsidianVaultBindingSection agentScopeId={agentScopeId} />
+    </>
   );
 }

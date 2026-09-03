@@ -41,7 +41,7 @@
 | `curator/__init__.py` | 子域 | 技能生命周期治理域聚合出口 | — |
 | `curator/service.py` | 核心 | Curator 业务服务 — sweep/配置/历史/后台任务编排；`get_stats_collector()` 注入 harness `usage_recorder` | ✅ |
 | `curator/consolidation.py` | 核心 | 技能合并（umbrella merge）集成 — preview/execute/agent refs 重写，共享 sweep 锁 | ✅ |
-| `effective_skill_ids.py` | 核心 | Agent 空 allowlist 时解析运行时 skill_ids（enabled prebuilt + local） | ✅ |
+| `effective_skill_ids.py` | 核心 | 解析 Agent 显式 allowlist（所见即所得标准：空名单装配 0 技能；规范化 legacy local ID） | ✅ |
 | `discovery/` | 子域 | 技能发现聚合出口：`adopt`（显式 allowlist 时 install 自动 append）、`mount`（安装/更新后 catalog enable）、`autoupdate`（上游版本检测） | ✅ |
 | `marketplace/` | 子域 | 市场聚合出口：`market_service`（GitHub 源分析、自定义源、ClawHub 镜像懒加载）、`clawhub_registry`（镜像 URL 持久化/apply，CLAWHUB_URL SSOT）、`clawhub_probe`（连通性探测）、`custom_source_config`（自定义源持久化） | ✅ |
 | `gates/` | 子域 | 集成 gate 聚合出口：`oauth_availability`（OAuth/xAI/env/CLI bins 凭证 gate）、`x_live_search_skill_enable`（xAI provider 保存后 auto-enable）、`disabled_skill_roots`（未启用技能 storage 根注入 runtime）、`dependency_guard`（依赖影响面查询）、`permission_logger`（权限使用日志） | ✅ |

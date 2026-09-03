@@ -60,7 +60,7 @@ const AgentConfigCards = ({
               .slice(0, 2)
               .map((s) => s.name)
               .join(', ') + (selectedSkills.length > 2 ? '...' : '')
-          : t('noSelected'),
+          : t('noSkillsEquipped'),
     },
     {
       type: 'mcp',

@@ -897,6 +897,19 @@
         "placeholder": "인스턴스 선택",
         "staleClear": "지우기",
         "staleWarning": "인스턴스 \"{name}\"이(가) 오래되었거나 사용할 수 없습니다"
+      },
+      "noSkillsEquipped": "스킬 미장착 (순수 지시 모드)",
+      "skillsZone": {
+        "coreTitle": "핵심 스킬",
+        "coreHint": "전체 주입, 즉각 응답",
+        "peripheralTitle": "주변 스킬",
+        "peripheralHint": "온디맨드 로딩, 최소 부담",
+        "availableTitle": "사용 가능한 스킬",
+        "selectAll": "모두 선택",
+        "clearAll": "지우기",
+        "equippedCountSuffix": "장착됨",
+        "pureInstructionNotice": "스킬 미장착 · 순수 지시 모드",
+        "emptyExplanation": "현재 장착된 스킬이 없습니다. 이 에이전트는 순수 지시 모드로 실행됩니다. 위의 \"모두 선택\"을 클릭하거나 아래에서 스킬을 선택하여 장착할 수 있습니다."
       }
     },
     "validation": {
@@ -1003,10 +1016,15 @@
       "aiGenerateFailed": "프롬프트 생성에 실패했습니다",
       "skillsZone": {
         "coreTitle": "핵심 스킬",
-        "coreHint": "빠른 응답을 위해 완전히 주입됨",
+        "coreHint": "전체 주입, 즉각 응답",
         "peripheralTitle": "주변 스킬",
-        "peripheralHint": "요청 시 로드되어 오버헤드 최소화",
-        "availableTitle": "사용 가능한 스킬"
+        "peripheralHint": "온디맨드 로딩, 최소 부담",
+        "availableTitle": "사용 가능한 스킬",
+        "selectAll": "모두 선택",
+        "clearAll": "지우기",
+        "equippedCountSuffix": "장착됨",
+        "pureInstructionNotice": "스킬 미장착 · 순수 지시 모드",
+        "emptyExplanation": "현재 장착된 스킬이 없습니다. 이 에이전트는 순수 지시 모드로 실행됩니다. 위의 \"모두 선택\"을 클릭하거나 아래에서 스킬을 선택하여 장착할 수 있습니다."
       },
       "skillInstance": {
         "label": "인스턴스",
@@ -8357,6 +8375,12 @@
       "sourceQueries": "관련 이전 쿼리",
       "confidence": "신뢰도",
       "content": "패치 내용"
+    },
+    "obsidianInbox": {
+      "defaultTitle": "Obsidian 메모",
+      "badge": "Obsidian 수집함",
+      "noteContent": "메모 내용",
+      "destination": "보관함"
     }
   },
   "notifications": {
@@ -14742,7 +14766,27 @@
       "evidenceSnapshotStale": "스냅샷이 오래되었을 수 있습니다.",
       "evidenceSnapshotVerified": "스냅샷이 현재 페이지와 일치하는지 확인되었습니다.",
       "evidenceStructuredClaim": "구조화된 주장",
-      "evidenceSupersededFrom": "다음으로 대체됨: {uri}"
+      "evidenceSupersededFrom": "다음으로 대체됨: {uri}",
+      "obsidianBinding": {
+        "bindSuccess": "Obsidian 보관함이 연결되었습니다",
+        "bindFailed": "Obsidian 보관함 연결 실패",
+        "unbindSuccess": "Obsidian 보관함 연결이 해제되었습니다",
+        "unbindFailed": "Obsidian 보관함 연결 해제 실패",
+        "syncSuccess": "동기화 완료",
+        "syncFailed": "동기화 실패",
+        "title": "Obsidian 로컬 보관함 연결",
+        "description": "로컬 Obsidian 노트 디렉터리를 지식베이스에 연결하여 증분 동기화 및 수집함 작성을 지원합니다.",
+        "loading": "로딩 중...",
+        "statusBound": "연결됨",
+        "watermarkLabel": "마지막 동기화 타임스탬프",
+        "syncing": "동기화 중...",
+        "syncDelta": "증분 동기화",
+        "boundHint": "지식베이스가 로컬 디렉터리 변경 사항을 정기적으로 감지하고 증분 인덱싱합니다.",
+        "pathPlaceholder": "Obsidian 보관함의 절대 경로 입력 (예: /Users/name/Documents/Vault)",
+        "binding": "연결 중...",
+        "bindButton": "보관함 연결",
+        "unboundHint": "연결 후 에이전트가 노트를 검색하고 결과물을 수집함에 보관할 수 있습니다."
+      }
     },
     "skills": {
       "title": "스킬 관리",
