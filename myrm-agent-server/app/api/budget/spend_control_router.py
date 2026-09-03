@@ -79,7 +79,9 @@ async def get_spend_intervention_decision(
             }
         )
     except Exception as e:
-        raise internal_error(operation="Evaluate spend intervention", exception=e) from e
+        raise internal_error(
+            operation="Evaluate spend intervention", exception=e
+        ) from e
 
 
 @router.post("/confirm-soft-gate")
@@ -160,4 +162,6 @@ async def record_fleet_spend(req: FleetSpendRecordRequest) -> JSONResponse:
             }
         )
     except Exception as e:
-        raise internal_error(operation="Record fleet spend attribution", exception=e) from e
+        raise internal_error(
+            operation="Record fleet spend attribution", exception=e
+        ) from e

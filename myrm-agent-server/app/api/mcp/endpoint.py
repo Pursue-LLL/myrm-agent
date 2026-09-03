@@ -144,15 +144,25 @@ def _desktop_session_for_agent(agent_id: str) -> DesktopSession | None:
             from app.config.computer_use_deploy import is_computer_use_deploy_supported
             from app.config.deploy_mode import is_local_mode, is_sandbox
 
-            auto_grant = is_sandbox() and is_computer_use_deploy_supported() and not is_local_mode()
+            auto_grant = (
+                is_sandbox()
+                and is_computer_use_deploy_supported()
+                and not is_local_mode()
+            )
             execution_mode = (
-                ExecutionMode.background_strict if is_local_mode() else ExecutionMode.background_best_effort
+                ExecutionMode.background_strict
+                if is_local_mode()
+                else ExecutionMode.background_best_effort
             )
             gate = DesktopControlGate(workspace_root=None, auto_grant=auto_grant)
             config = ComputerUseConfig(execution_mode=execution_mode)
-            _mcp_desktop_sessions[agent_id] = create_desktop_session(config=config, permission_callback=gate)
+            _mcp_desktop_sessions[agent_id] = create_desktop_session(
+                config=config, permission_callback=gate
+            )
         except Exception as exc:
-            logger.warning("Failed to create MCP desktop session for agent=%s: %s", agent_id, exc)
+            logger.warning(
+                "Failed to create MCP desktop session for agent=%s: %s", agent_id, exc
+            )
             return None
     return _mcp_desktop_sessions.get(agent_id)
 
@@ -162,7 +172,9 @@ async def _memory_manager_for_agent(agent_id: str) -> MemoryManager:
         create_memory_manager,
         resolve_context_binding,
     )
-    from app.services.memory.shared_context.shared_context import resolve_shared_context_ids
+    from app.services.memory.shared_context.shared_context import (
+        resolve_shared_context_ids,
+    )
 
     shared_context_ids = await resolve_shared_context_ids(agent_id=agent_id)
     binding = resolve_context_binding(
@@ -234,15 +246,21 @@ class _MCPTokenAuthMiddleware:
         try:
             manager = await _memory_manager_for_agent(resolved.agent_id)
             ctx_token = set_request_memory_manager(manager)
-            wiki_token = set_request_wiki_boundary_enabled(await _wiki_boundary_enabled_for_agent(resolved.agent_id))
+            wiki_token = set_request_wiki_boundary_enabled(
+                await _wiki_boundary_enabled_for_agent(resolved.agent_id)
+            )
 
             from myrm_agent_harness.toolkits.computer_use.mcp_server import (
                 reset_request_desktop_session,
                 set_request_desktop_session,
             )
 
-            desktop_eligible = await _is_desktop_control_enabled_for_agent(resolved.agent_id)
-            allow_desktop = desktop_eligible and getattr(resolved, "expose_desktop", False)
+            desktop_eligible = await _is_desktop_control_enabled_for_agent(
+                resolved.agent_id
+            )
+            allow_desktop = desktop_eligible and getattr(
+                resolved, "expose_desktop", False
+            )
             desktop_enabled_token = set_request_desktop_enabled(allow_desktop)
             if allow_desktop:
                 desktop_session = _desktop_session_for_agent(resolved.agent_id)
@@ -317,11 +335,22 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
         async def _filtered_list_tools() -> list[object]:
             tools = await orig_list_tools()
             if not get_request_desktop_enabled():
-                return [t for t in tools if not getattr(t, "name", "").startswith("desktop_")]
+                return [
+                    t
+                    for t in tools
+                    if not getattr(t, "name", "").startswith("desktop_")
+                ]
             return tools
 
+        from mcp.server.transport_security import TransportSecuritySettings
+
         mcp_server.mcp.list_tools = _filtered_list_tools  # type: ignore[method-assign]
-        mcp_asgi_app = mcp_server.get_streamable_http_app()
+        mcp_asgi_app = mcp_server.get_streamable_http_app(
+            streamable_http_path="/",
+            transport_security=TransportSecuritySettings(
+                allowed_hosts=["localhost:*", "127.0.0.1:*", "testserver", "testserver:*"]
+            )
+        )
 
         # FastAPI mount() does not propagate lifespan to sub-apps, so the
         # Starlette sub-app's lifespan (which calls session_manager.run())

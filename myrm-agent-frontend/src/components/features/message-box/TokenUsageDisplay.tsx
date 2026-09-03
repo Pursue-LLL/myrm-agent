@@ -169,6 +169,36 @@ function formatModelName(model: string): string {
   return parts[parts.length - 1];
 }
 
+function formatRoutingReason(reason: string, t: (key: string) => string): string {
+  if (!reason) return '';
+  if (reason.includes('simple_indicator') || reason === 'judge:simple') {
+    return t('routingReasonSimpleIndicator');
+  }
+  if (
+    reason.includes('keyword(reasoning)') ||
+    reason.includes('reasoning_keyword') ||
+    reason === 'judge:reasoning'
+  ) {
+    return t('routingReasonKeywordReasoning');
+  }
+  if (reason.includes('keyword(standard)') || reason === 'judge:standard') {
+    return t('routingReasonKeywordStandard');
+  }
+  if (reason.includes('code')) {
+    return t('routingReasonSpecialtyCode');
+  }
+  if (reason.includes('long_doc')) {
+    return t('routingReasonSpecialtyLongDoc');
+  }
+  if (reason.includes('complaint_up')) {
+    return t('routingReasonComplaintUp');
+  }
+  if (reason.includes('momentum')) {
+    return t('routingReasonMomentum');
+  }
+  return reason.replace(/^(rule:|judge:)/, '').replace(/[_\(\)]/g, ' ').trim();
+}
+
 const BUDGET_COLORS = {
   healthy: {
     stroke: 'rgb(34, 197, 94)',
@@ -536,8 +566,9 @@ export default function TokenUsageDisplay({
                     )}
                   </p>
                   {routingReason && (
-                    <div className="mt-1.5 pt-1.5 border-t border-border/40 text-[10px] font-mono text-foreground/80 break-words">
-                      {routingReason}
+                    <div className="mt-1.5 pt-1.5 border-t border-border/40 text-[10px] text-foreground/80 break-words flex items-center gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-primary/60 shrink-0" />
+                      <span>{formatRoutingReason(routingReason, t)}</span>
                     </div>
                   )}
                 </div>
@@ -630,8 +661,9 @@ export default function TokenUsageDisplay({
                             )}
                           </p>
                           {routingReason && (
-                            <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] font-mono text-muted-foreground break-words">
-                              {routingReason}
+                            <div className="mt-1.5 pt-1.5 border-t border-border/50 text-[10px] text-muted-foreground flex items-center gap-1.5">
+                              <span className="w-1 h-1 rounded-full bg-primary/60 shrink-0" />
+                              <span>{formatRoutingReason(routingReason, t)}</span>
                             </div>
                           )}
                         </TooltipContent>

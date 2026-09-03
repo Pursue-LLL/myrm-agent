@@ -46,7 +46,8 @@ class ExternalTranscriptSyncRequest(BaseModel):
         None, description="Local folder path (e.g. ~/.claude/projects)"
     )
     source: str = Field(
-        "external:claude_code", description="Source identifier (external:claude_code, external:codex)"
+        "external:claude_code",
+        description="Source identifier (external:claude_code, external:codex)",
     )
     uploaded_files: list[ExternalFilePayload] | None = Field(
         None, description="Batch uploaded files for cloud/sandbox mode"
@@ -115,6 +116,9 @@ async def sync_external_transcripts(
                 cache_dir = Path("data/external_transcripts_cache")
                 cache_dir.mkdir(parents=True, exist_ok=True)
                 target_file = cache_dir / Path(up_file.filename).name
+                # Remove cached file if present to guarantee fresh upload detection
+                if target_file.exists():
+                    watermarks.pop(str(target_file.resolve()), None)
                 target_file.write_text(up_file.content, encoding="utf-8")
 
                 turns_count, chat_id = await service.sync_file(

@@ -12,13 +12,19 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.api.memory.operations.external_transcripts import router as external_transcripts_router
+from app.api.memory.operations.external_transcripts import (
+    router as external_transcripts_router,
+)
 from app.database.connection import get_db
 from app.database.models import Base
-from app.database.repositories.conversation_recall.sql import CONVERSATION_RECALL_SCHEMA_SQL
+from app.database.repositories.conversation_recall.sql import (
+    CONVERSATION_RECALL_SCHEMA_SQL,
+)
 
 FIXTURE_PATH = (
-    Path(__file__).resolve().parents[2] / "fixtures" / "test_claude_code_transcript.jsonl"
+    Path(__file__).resolve().parents[2]
+    / "fixtures"
+    / "test_claude_code_transcript.jsonl"
 )
 
 
@@ -36,6 +42,7 @@ def app_with_db(tmp_path: Path):
                 await conn.execute(text(ddl))
 
     import asyncio
+
     asyncio.run(init_schema())
 
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -91,19 +98,29 @@ def test_sync_with_directory_endpoint(app_with_db: TestClient, tmp_path: Path) -
 
 
 def test_sync_with_uploaded_files_endpoint(app_with_db: TestClient) -> None:
-    content = json.dumps({
-        "type": "user",
-        "message": {"role": "user", "content": "How to debug asyncio tasks?"},
-    }) + "\n" + json.dumps({
-        "type": "assistant",
-        "message": {"role": "assistant", "content": "Use asyncio.current_task()"},
-    }) + "\n"
+    content = (
+        json.dumps(
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "How to debug asyncio tasks?"},
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "type": "assistant",
+                "message": {
+                    "role": "assistant",
+                    "content": "Use asyncio.current_task()",
+                },
+            }
+        )
+        + "\n"
+    )
 
     payload = {
         "source": "external:codex",
-        "uploaded_files": [
-            {"filename": "uploaded_session.jsonl", "content": content}
-        ],
+        "uploaded_files": [{"filename": "uploaded_session.jsonl", "content": content}],
     }
 
     res = app_with_db.post("/api/v1/memory/external-transcripts/sync", json=payload)

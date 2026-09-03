@@ -11919,7 +11919,6 @@
         "exportTakeout": "一鍵全量資產 Takeout 匯出",
         "exportConfig": "匯出工作區配置",
         "exportMemory": "備份記憶資產",
-        "exportTakeout": "一鍵全量資產 Takeout 匯出",
         "points": {
           "decouplingTitle": "模型與資產解耦",
           "decouplingDesc": "隨時無縫熱切換 Claude、DeepSeek、GPT、Gemini 等任意大模型，歷史資產與技能 100% 保持連續可用。",

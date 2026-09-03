@@ -144,7 +144,9 @@ def _load_completed_turn_results(reports_dir: Path) -> list[EvalTurnResult]:
                     )
                     resp = AgentResponse(
                         answer=resp_data.get("answer", ""),
-                        tools_called=resp_data.get("tools_called", resp_data.get("tools_used", [])),
+                        tools_called=resp_data.get(
+                            "tools_called", resp_data.get("tools_used", [])
+                        ),
                         cost=resp_data.get("cost", 0.0),
                         token_usage=resp_data.get("token_usage", {}),
                     )
@@ -158,7 +160,9 @@ def _load_completed_turn_results(reports_dir: Path) -> list[EvalTurnResult]:
                     )
                     res.append(turn_res)
     except Exception as exc:
-        logger.warning("Failed to load completed turn results from %s: %s", latest_path, exc)
+        logger.warning(
+            "Failed to load completed turn results from %s: %s", latest_path, exc
+        )
     return res
 
 
@@ -444,7 +448,9 @@ async def run_eval_suite(
             cases_path.parent.mkdir(parents=True, exist_ok=True)
             with cases_path.open("w", encoding="utf-8") as f:
                 f.write('{"message": "Hello, world!"}\n')
-                f.write('{"message": "What is 2+2?", "expected_tools": ["code_exec"]}\n')
+                f.write(
+                    '{"message": "What is 2+2?", "expected_tools": ["code_exec"]}\n'
+                )
 
         from myrm_agent_harness.eval import load_multi_turn_cases
 
@@ -453,7 +459,9 @@ async def run_eval_suite(
         # Group cases by profile_id to maximize LLM Prompt Cache hits
         cases.sort(key=lambda c: str(c.metadata.get("profile_id", "default")))
         grouped_cases = []
-        for _, group in groupby(cases, key=lambda c: str(c.metadata.get("profile_id", "default"))):
+        for _, group in groupby(
+            cases, key=lambda c: str(c.metadata.get("profile_id", "default"))
+        ):
             grouped_cases.extend(list(group))
         cases = grouped_cases
 
@@ -508,7 +516,11 @@ async def run_eval_suite(
         difficulty_filter or "all",
     )
 
-    use_fleet = n_attempts > 1 or resume or (bool(difficulty_filter) and difficulty_filter.lower() != "all")
+    use_fleet = (
+        n_attempts > 1
+        or resume
+        or (bool(difficulty_filter) and difficulty_filter.lower() != "all")
+    )
 
     if use_fleet:
         fleet_runner = FleetEvalRunner(
@@ -607,8 +619,17 @@ async def run_eval_suite(
         "signature_clusters": sig_clusters,
         **(
             {"variance_metrics": to_dict_fn()}
-            if (to_dict_fn := getattr(getattr(result, "variance_metrics", None), "to_dict", None)) and callable(to_dict_fn)
+            if (
+                to_dict_fn := getattr(
+                    getattr(result, "variance_metrics", None), "to_dict", None
+                )
+            )
+            and callable(to_dict_fn)
             else {}
         ),
-        **({"avg_pass_rate": result.avg_pass_rate} if result.avg_pass_rate is not None else {}),
+        **(
+            {"avg_pass_rate": result.avg_pass_rate}
+            if result.avg_pass_rate is not None
+            else {}
+        ),
     }

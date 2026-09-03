@@ -51,6 +51,14 @@ class VideoToolInput(BaseModel):
         default=None,
         description="Optional video URLs or local paths for video-to-video (V2V) transformation.",
     )
+    negative_prompt: str | None = Field(
+        default=None,
+        description="Negative prompt specifying elements to avoid (e.g. 'distorted faces, blurry, watermark, extra limbs').",
+    )
+    seed: int | None = Field(
+        default=None,
+        description="Random seed for reproducible video generation across multiple storyboard scenes.",
+    )
     force: bool = Field(default=False, description="Force enqueue a new generation even if an existing session task is active.")
     task_id: str | None = Field(
         default=None,
@@ -112,22 +120,32 @@ def create_video_generation_tool(
         enable_audio: bool | None,
         reference_images: list[str] | None,
         reference_videos: list[str] | None,
+        negative_prompt: str | None = None,
+        seed: int | None = None,
         force: bool,
     ) -> str:
+        extra_params: dict[str, object] = {}
+        if negative_prompt:
+            extra_params["negative_prompt"] = negative_prompt
+        if seed is not None:
+            extra_params["seed"] = seed
+
         if async_config is None:
-            return await engine.execute(
-                "generate",
-                prompt=prompt,
-                provider=provider,
-                model=model,
-                duration_seconds=duration_seconds,
-                aspect_ratio=aspect_ratio,
-                resolution=resolution,
-                enable_audio=enable_audio,
-                reference_images=reference_images,
-                reference_videos=reference_videos,
-                force=force,
-            )
+            kwargs: dict[str, object] = {
+                "prompt": prompt,
+                "provider": provider,
+                "model": model,
+                "duration_seconds": duration_seconds,
+                "aspect_ratio": aspect_ratio,
+                "resolution": resolution,
+                "enable_audio": enable_audio,
+                "reference_images": reference_images,
+                "reference_videos": reference_videos,
+                "force": force,
+            }
+            if extra_params:
+                kwargs["extra_params"] = extra_params
+            return await engine.execute("generate", **kwargs)
         try:
             from app.lifecycle.task_worker import get_task_store
             from app.tasks.task_payload_crypto import seal_task_payload_secrets
@@ -147,6 +165,7 @@ def create_video_generation_tool(
                 enable_audio=enable_audio,
                 reference_images=reference_images,
                 reference_videos=reference_videos,
+                extra_params=extra_params or None,
                 force=force,
                 user_id=task_user_id,
                 agent_id=agent_id,
@@ -165,6 +184,7 @@ def create_video_generation_tool(
                 enable_audio=enable_audio,
                 reference_images=reference_images,
                 reference_videos=reference_videos,
+                extra_params=extra_params or None,
                 force=force,
             )
 
@@ -221,6 +241,8 @@ def create_video_generation_tool(
         enable_audio: bool | None = None,
         reference_images: list[str] | None = None,
         reference_videos: list[str] | None = None,
+        negative_prompt: str | None = None,
+        seed: int | None = None,
         force: bool = False,
         task_id: str | None = None,
     ) -> str:
@@ -259,6 +281,8 @@ def create_video_generation_tool(
             enable_audio=enable_audio,
             reference_images=reference_images,
             reference_videos=reference_videos,
+            negative_prompt=negative_prompt,
+            seed=seed,
             force=force,
         )
 

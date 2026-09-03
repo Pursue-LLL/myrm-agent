@@ -198,3 +198,37 @@ async def test_video_tool_status_with_task_id_reads_task_store() -> None:
     assert payload["task_type"] == "video_generate"
     mock_store.get_task.assert_awaited_once_with("vid-1")
     engine.execute.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_video_tool_generate_passes_negative_prompt_and_seed() -> None:
+    engine = MagicMock()
+    engine.execute = AsyncMock(return_value='{"task_id":"t2"}')
+    engine.tool_description = "Video generation tool."
+    tool = create_video_generation_tool(engine)
+
+    result = await tool.ainvoke(
+        {
+            "action": "generate",
+            "prompt": "a sunset",
+            "negative_prompt": "blurry, distorted",
+            "seed": 42,
+        }
+    )
+
+    assert "task_id" in result
+    engine.execute.assert_awaited_once_with(
+        "generate",
+        prompt="a sunset",
+        provider=None,
+        model=None,
+        duration_seconds=None,
+        aspect_ratio=None,
+        resolution=None,
+        enable_audio=None,
+        reference_images=None,
+        reference_videos=None,
+        extra_params={"negative_prompt": "blurry, distorted", "seed": 42},
+        force=False,
+    )
+

@@ -189,7 +189,7 @@ describe('TokenUsageDisplay', () => {
       />,
     );
     expect(screen.getByText('routingReasonTitle')).toBeInTheDocument();
-    expect(screen.getAllByText('rule:keyword(reasoning)').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('routingReasonKeywordReasoning').length).toBeGreaterThanOrEqual(1);
   });
 
   // --- 模型兼容层 ---

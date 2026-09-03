@@ -334,6 +334,7 @@ async def test_image_tool_async_config_description_contains_workflow() -> None:
     tool = create_image_generation_tool(engine, async_config=async_config)
     assert "Workflow:" in tool.description
     assert "action='generate'" in tool.description
+    assert "action='status'" in tool.description
     assert "action='edit'" in tool.description
     assert "dalle-3" in tool.description
 
@@ -344,3 +345,45 @@ def test_create_image_generation_tool_returns_basetool() -> None:
     tool = create_image_generation_tool(engine)
     assert isinstance(tool, BaseTool)
     assert tool.name == "image_tool"
+
+
+@pytest.mark.asyncio
+async def test_image_tool_status_requires_task_id() -> None:
+    engine = MagicMock()
+    tool = create_image_generation_tool(engine)
+    result = await tool.ainvoke({"action": "status"})
+    payload = json.loads(result)
+    assert "task_id is required" in payload["error"]
+
+
+@pytest.mark.asyncio
+async def test_image_tool_status_with_task_id_reads_task_store() -> None:
+    from myrm_agent_harness.toolkits.tasks import Task, TaskStatus
+
+    engine = MagicMock()
+    task = Task(
+        task_id="img-123",
+        task_type="image_generate",
+        user_id="user-1",
+        status=TaskStatus.SUCCEEDED,
+        payload={"prompt": "cyberpunk city"},
+        result={"images": [{"url": "https://vault.example.com/img-123.png"}]},
+        progress=1.0,
+    )
+    mock_store = MagicMock()
+    mock_store.get_task = AsyncMock(return_value=task)
+
+    with patch(
+        "app.lifecycle.task_worker.get_task_store",
+        return_value=mock_store,
+    ):
+        tool = create_image_generation_tool(engine)
+        result = await tool.ainvoke({"action": "status", "task_id": "img-123"})
+
+    payload = json.loads(result)
+    assert payload["task_id"] == "img-123"
+    assert payload["status"] == "succeeded"
+    assert payload["task_type"] == "image_generate"
+    assert payload["result"]["images"][0]["url"] == "https://vault.example.com/img-123.png"
+    mock_store.get_task.assert_awaited_once_with("img-123")
+

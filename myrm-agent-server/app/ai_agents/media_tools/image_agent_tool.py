@@ -28,9 +28,9 @@ logger = logging.getLogger(__name__)
 
 
 class ImageToolInput(BaseModel):
-    action: Literal["generate", "edit", "list"] = Field(
+    action: Literal["generate", "edit", "list", "status"] = Field(
         default="generate",
-        description="Action to perform: 'generate' (create new images from text prompt), 'edit' (modify an existing image via image_url and prompt), 'list' (discover available models and capabilities).",
+        description="Action to perform: 'generate' (create new images from text prompt), 'edit' (modify an existing image via image_url and prompt), 'list' (discover available models and capabilities), 'status' (query progress and final URL of task_id).",
     )
     prompt: str = Field(
         default="",
@@ -66,6 +66,39 @@ class ImageToolInput(BaseModel):
         default=None,
         description="Optional mask image URL for inpainting when action='edit' (transparent areas will be regenerated).",
     )
+    task_id: str | None = Field(
+        default=None,
+        description="Task ID returned from a previous action='generate' call (required when action='status').",
+    )
+
+
+def _serialize_task(task: object) -> dict[str, object]:
+    """Serialize a queue task for status output."""
+    from myrm_agent_harness.toolkits.tasks import Task
+
+    if not isinstance(task, Task):
+        return {}
+
+    return {
+        "task_id": task.task_id,
+        "task_type": task.task_type,
+        "status": task.status.value,
+        "result": task.result,
+        "error": {
+            "error_type": task.error.error_type,
+            "message": task.error.message,
+            "recoverable": task.error.recoverable.value,
+        }
+        if task.error
+        else None,
+        "priority": task.priority,
+        "progress": task.progress,
+        "progress_message": task.progress_message,
+        "created_at": task.created_at.isoformat(),
+        "updated_at": task.updated_at.isoformat(),
+        "started_at": task.started_at.isoformat() if task.started_at else None,
+        "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+    }
 
 
 async def _fetch_image_bytes(url: str, *, allow_private_networks: bool = False) -> tuple[bytes, str | None, int]:
@@ -154,9 +187,32 @@ def create_image_generation_tool(
                 reference_image_urls=reference_image_urls,
             )
 
+    async def _status(task_id: str | None) -> str:
+        if not task_id:
+            return json.dumps(
+                {"error": "task_id is required when action=status"},
+                ensure_ascii=False,
+            )
+        try:
+            from app.lifecycle.task_worker import get_task_store
+
+            task = await get_task_store().get_task(task_id)
+            if task is None:
+                return json.dumps(
+                    {"error": "Task not found", "task_id": task_id},
+                    ensure_ascii=False,
+                )
+            return json.dumps(_serialize_task(task), ensure_ascii=False)
+        except RuntimeError as exc:
+            logger.warning("Task store unavailable for image status lookup: %s", exc)
+            return json.dumps(
+                {"error": "Task store unavailable", "task_id": task_id},
+                ensure_ascii=False,
+            )
+
     @tool("image_tool", args_schema=ImageToolInput)
     async def image_tool(
-        action: Literal["generate", "edit", "list"] = "generate",
+        action: Literal["generate", "edit", "list", "status"] = "generate",
         prompt: str = "",
         size: str | None = None,
         quality: str | None = None,
@@ -165,16 +221,20 @@ def create_image_generation_tool(
         reference_image_urls: list[str] | None = None,
         image_url: str | None = None,
         mask_url: str | None = None,
+        task_id: str | None = None,
     ) -> str:
-        """Generate, edit, or list image generation models.
+        """Generate, edit, poll status of, or list image generation models.
 
         Workflow:
         1) To create new images, call with action='generate' and a descriptive prompt.
         2) To modify an existing image, call with action='edit', image_url='<URL>', and prompt describing changes.
         3) To inspect available providers/models, call with action='list'.
+        4) To inspect progress and retrieve the final image URL, call with action='status' and task_id='<ID>'.
         """
         if action == "list":
             return engine.list_models()
+        if action == "status":
+            return await _status(task_id)
         if action == "edit":
             if not image_url or not image_url.strip():
                 return json.dumps({"error": "image_url is required when action=edit"}, ensure_ascii=False)
@@ -228,8 +288,9 @@ def create_image_generation_tool(
         image_tool.description = (
             f"{engine.tool_description} "
             "Workflow: 1) Call action='generate' with prompt to start and receive task_id. "
-            "2) Call action='edit' with image_url and prompt to modify an existing image. "
-            "3) Call action='list' to inspect available providers/models."
+            "2) Call action='status' with task_id to inspect progress and retrieve the final image URL upon completion. "
+            "3) Call action='edit' with image_url and prompt to modify an existing image. "
+            "4) Call action='list' to inspect available providers/models."
         )
     else:
         image_tool.description = engine.tool_description
