@@ -170,6 +170,12 @@ describe('preprocessCitationMarkers', () => {
     expect(normalizeCitationTitle('  untitled  ', 'https://news.ycombinator.com/item?id=123')).toBe('news.ycombinator.com');
     expect(normalizeCitationTitle('Tokio Framework', 'https://tokio.rs')).toBe('Tokio Framework');
   });
+
+  it('handles empty or malformed URLs gracefully during generic title normalization', () => {
+    expect(normalizeCitationTitle('source', '')).toBe('source');
+    expect(normalizeCitationTitle('来源', 'not-a-valid-url')).toBe('来源');
+    expect(normalizeCitationTitle('   ', '')).toBe('Source');
+  });
 });
 
 describe('maskCodeRegions', () => {

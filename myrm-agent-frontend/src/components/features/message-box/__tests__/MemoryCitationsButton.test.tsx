@@ -194,4 +194,14 @@ describe('MemoryCitationsButton', () => {
     expect(writeTextSpy).toHaveBeenCalledTimes(1);
     expect(writeTextSpy).toHaveBeenCalledWith('[news.ycombinator.com](https://news.ycombinator.com/item?id=123)');
   });
+
+  it('handles empty sources and memory lists gracefully without crashing', async () => {
+    const user = userEvent.setup();
+    render(<MemoryCitationsButton sources={[]} references={[]} />);
+
+    const btn = screen.getByRole('button', { name: /buttonAria/ });
+    await user.click(btn);
+    expect(screen.getByText('title')).toBeInTheDocument();
+    expect(screen.getByText('emptySources')).toBeInTheDocument();
+  });
 });
