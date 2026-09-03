@@ -348,8 +348,13 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
         mcp_asgi_app = mcp_server.get_streamable_http_app(
             streamable_http_path="/",
             transport_security=TransportSecuritySettings(
-                allowed_hosts=["localhost:*", "127.0.0.1:*", "testserver", "testserver:*"]
-            )
+                allowed_hosts=[
+                    "localhost:*",
+                    "127.0.0.1:*",
+                    "testserver",
+                    "testserver:*",
+                ]
+            ),
         )
 
         # FastAPI mount() does not propagate lifespan to sub-apps, so the
