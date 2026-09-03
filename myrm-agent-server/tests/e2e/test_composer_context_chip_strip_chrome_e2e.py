@@ -113,7 +113,7 @@ _REMOVE_CHIP_VIA_BUTTON_JS = """(() => {
 
 _CHECK_CHIP_REMOVED_JS = """(() => {
   const strip = document.querySelector('[data-testid="composer-context-chip-strip"]');
-  const chip = document.querySelector('[data-testid="skill-activation-chips"]');
+  const chip = strip?.querySelector('[data-context-chip-id]');
   return {
     ready: !strip && !chip,
     stripPresent: Boolean(strip),
