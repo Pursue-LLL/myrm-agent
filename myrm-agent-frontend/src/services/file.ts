@@ -175,3 +175,17 @@ export const extractDocumentContent = async (
     body: JSON.stringify(params),
   });
 };
+
+export interface ChatArtifactsRevealResponse {
+  status: 'ok' | 'no_artifacts' | 'missing_on_disk' | string;
+  path: string | null;
+  artifact_count: number;
+}
+
+export const revealChatArtifacts = async (
+  chatId: string,
+): Promise<ChatArtifactsRevealResponse> => {
+  return apiRequest<ChatArtifactsRevealResponse>(`/files/chats/${encodeURIComponent(chatId)}/reveal`, {
+    method: 'POST',
+  });
+};

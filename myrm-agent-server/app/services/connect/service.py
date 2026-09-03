@@ -67,6 +67,7 @@ class ConnectorState:
     last_doctor_at: datetime | None = None
     doctor_ok: bool = False
     last_doctor_detail: str = ""
+    expose_desktop: bool = False
 
 
 @dataclass(frozen=True)
@@ -75,6 +76,7 @@ class VerifiedConnectToken:
 
     profile_id: str
     agent_id: str
+    expose_desktop: bool = False
 
 
 @dataclass(frozen=True)
@@ -96,6 +98,7 @@ class ConfigSnippet:
     mcp_url: str
     token: str
     instructions: str
+    expose_desktop: bool = False
 
 
 class ConnectService:
@@ -131,6 +134,7 @@ class ConnectService:
                     last_doctor_at=(datetime.fromisoformat(data["last_doctor_at"]) if data.get("last_doctor_at") else None),
                     doctor_ok=data.get("doctor_ok", False),
                     last_doctor_detail=data.get("last_doctor_detail", ""),
+                    expose_desktop=bool(data.get("expose_desktop", False)),
                 )
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             logger.warning("Failed to load connect state, starting fresh: %s", e)
@@ -149,6 +153,7 @@ class ConnectService:
                 "last_doctor_at": (state.last_doctor_at.isoformat() if state.last_doctor_at else None),
                 "doctor_ok": state.doctor_ok,
                 "last_doctor_detail": state.last_doctor_detail,
+                "expose_desktop": state.expose_desktop,
             }
         path.write_text(json.dumps(data, indent=2))
 
@@ -169,7 +174,13 @@ class ConnectService:
             result.append(self.get_connector_status(pid))
         return result
 
-    async def generate_config(self, profile_id: str, *, agent_id: str = "default") -> ConfigSnippet:
+    async def generate_config(
+        self,
+        profile_id: str,
+        *,
+        agent_id: str = "default",
+        expose_desktop: bool = False,
+    ) -> ConfigSnippet:
         """Generate MCP config snippet and token for an external agent.
 
         Creates a new API token, generates the appropriate JSON config,
@@ -192,14 +203,15 @@ class ConnectService:
 
         mcp_url = f"{base_url}/mcp"
 
-        config_json = build_config_json(profile, mcp_url, token)
-        instructions = build_instructions(profile, mcp_url)
+        config_json = build_config_json(profile, mcp_url, token, expose_desktop=expose_desktop)
+        instructions = build_instructions(profile, mcp_url, expose_desktop=expose_desktop)
 
         self._states[profile_id] = ConnectorState(
             profile_id=profile_id,
             status=ConnectorStatus.CONFIGURED,
             token_hash=hash_token(token),
             agent_id=normalized_agent_id,
+            expose_desktop=expose_desktop,
         )
         self._save_state()
 
@@ -210,6 +222,7 @@ class ConnectService:
             mcp_url=mcp_url,
             token=token,
             instructions=instructions,
+            expose_desktop=expose_desktop,
         )
 
     def resolve_token(self, token: str) -> VerifiedConnectToken | None:
@@ -217,7 +230,11 @@ class ConnectService:
         token_hash = hash_token(token)
         for pid, state in self._states.items():
             if state.token_hash and state.token_hash == token_hash:
-                return VerifiedConnectToken(profile_id=pid, agent_id=state.agent_id)
+                return VerifiedConnectToken(
+                    profile_id=pid,
+                    agent_id=state.agent_id,
+                    expose_desktop=state.expose_desktop,
+                )
         return None
 
     async def generate_agent_plugin_bundle(self, *, agent_id: str = "default", embed_token: bool = False) -> "AgentPluginBundle":

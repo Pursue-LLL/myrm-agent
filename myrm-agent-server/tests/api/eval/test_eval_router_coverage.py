@@ -112,6 +112,31 @@ def test_eval_router_coverage(client: TestClient):
         res8 = client.get("/api/v1/eval/reports/latest")
         assert res8.status_code == 200
 
+    with patch(
+        "app.api.eval.router.get_latest_report_summary",
+        return_value={
+            "type": "summary",
+            "ablation_recommendations": [
+                {
+                    "component": "middleware",
+                    "priority": 1,
+                    "action_key": "enable_argument_repair_middleware",
+                    "title": "Tool Argument Serialization Failure",
+                    "reason": "Model generated invalid parameters.",
+                    "target_config_tab": "capabilities",
+                    "target_setting_key": "tool_interceptor",
+                    "affected_case_count": 2,
+                    "evidence_modes": ["tool_argument_malformed"],
+                }
+            ],
+        },
+    ):
+        res_ab = client.get("/api/v1/eval/reports/latest")
+        assert res_ab.status_code == 200
+        summary_data = res_ab.json()["summary"]
+        assert len(summary_data["ablation_recommendations"]) == 1
+        assert summary_data["ablation_recommendations"][0]["component"] == "middleware"
+
     with patch("app.api.eval.router.get_all_report_summaries", return_value=[{"type": "summary"}]):
         res9 = client.get("/api/v1/eval/reports")
         assert res9.status_code == 200

@@ -92,6 +92,17 @@ export interface ReportItem {
     attempt_pass_rates: number[];
     difficulty_breakdown?: Record<string, { total_runs: number; pass_rate: number }>;
   };
+  ablation_recommendations?: Array<{
+    component: 'tool' | 'middleware' | 'memory' | 'prompt';
+    priority: number;
+    action_key: string;
+    title: string;
+    reason: string;
+    target_config_tab: string;
+    target_setting_key: string;
+    affected_case_count: number;
+    evidence_modes: string[];
+  }>;
 }
 
 export interface EvalProgress {

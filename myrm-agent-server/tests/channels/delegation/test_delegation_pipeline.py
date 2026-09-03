@@ -170,12 +170,15 @@ def test_scan_workspace_artifacts_and_card(tmp_path: Path) -> None:
         raw_prompt="生成竞品 PPT 和预算表",
         normalized_prompt="生成竞品 PPT 和预算表",
     )
+    task.status = DelegationStatus.COMPLETED
     task.artifacts = artifacts
     card = build_delivery_card_content(task, artifacts, server_base_url="https://agent.myrm.io")
 
     assert "Competitor_Analysis.pptx" in card
     assert "Q3_Budget.xlsx" in card
     assert "https://agent.myrm.io" in card
+    assert "✅" in card
+
 
 
 

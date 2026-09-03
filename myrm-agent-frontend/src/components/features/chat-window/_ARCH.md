@@ -60,6 +60,7 @@
 | `mobile/`                                   | 目录      | 移动端 Command Center 壳层与状态面板（MobileStatusBoard 等）                                                                                                                                                                           | 见下表                                                            |
 | `catchup/`                                  | 目录      | 会话 catch-up 摘要收件箱 UI（Companion SSE `catchup_snapshot` 消费）                                                                                                                                                                   | 见 [catchup/_ARCH.md](catchup/_ARCH.md)                           |
 | `virtual-message-list/`                     | 目录      | 虚拟化消息列表（`@tanstack/react-virtual` 高度缓存）                                                                                                                                                                                   | 见 [virtual-message-list/_ARCH.md](virtual-message-list/_ARCH.md) |
+| `context-strip/`                            | 目录      | 输入区上方统一内联上下文胶囊流与超载治理（ComposerContextChipStrip）                                                                                                                                                                     | 见 [context-strip/_ARCH.md](context-strip/_ARCH.md)               |
 
 ## agent-config-panel/
 

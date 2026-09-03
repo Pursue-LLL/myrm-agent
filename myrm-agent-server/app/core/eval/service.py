@@ -38,6 +38,8 @@ from myrm_agent_harness.eval import (
     EvalRunner,
     FleetEvalRunner,
     JsonlReporter,
+    aggregate_failure_modes,
+    derive_ablation_recommendations,
     get_benchmark,
 )
 
@@ -570,6 +572,19 @@ async def run_eval_suite(
     # Use copy instead of symlink to avoid cross-platform issues
     shutil.copy2(report_path, latest_path)
 
+    ablation_recs: list[dict[str, object]] = []
+    failure_agg: dict[str, object] = {}
+    if result.fail_count > 0 or result.error_count > 0:
+        raw_failure = aggregate_failure_modes(result)
+        if raw_failure.get("total_failures", 0) > 0:
+            failure_agg = raw_failure
+            ablation_recs = [
+                r.to_dict()
+                for r in derive_ablation_recommendations(
+                    raw_failure.get("failure_distribution", {})
+                )
+            ]
+
     return {
         "total_cases": result.total_cases,
         "pass_count": result.pass_count,
@@ -582,6 +597,8 @@ async def run_eval_suite(
         "report_path": str(report_path),
         "decontam_active": bool(blocked_hostnames or blocked_terms),
         "manifest": manifest.to_dict(),
+        "ablation_recommendations": ablation_recs,
+        "failure_analysis": failure_agg,
         **(
             {"variance_metrics": result.variance_metrics.to_dict()}
             if getattr(result, "variance_metrics", None) is not None and hasattr(result.variance_metrics, "to_dict")

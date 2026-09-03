@@ -3,8 +3,10 @@ import { renderHook, act } from '@testing-library/react';
 import { useComposerContextChips } from '../useComposerContextChips';
 import useChatStore, { File as FileType } from '@/store/useChatStore';
 
+const stableT = (key: string) => key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 describe('useComposerContextChips', () => {
@@ -46,7 +48,7 @@ describe('useComposerContextChips', () => {
     expect(result.current.chips[0].category).toBe('workflow');
     expect(result.current.chips[0].label).toBe('Security Audit Workflow');
     expect(result.current.chips[1].category).toBe('skill');
-    expect(result.current.chips[1].label).toBe('github_pr_analyzer');
+    expect(result.current.chips[1].label).toBe('github pr analyzer');
     expect(result.current.summary.totalItems).toBe(2);
   });
 

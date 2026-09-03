@@ -201,7 +201,11 @@ def build_delivery_card_content(
                 if art.direct_download_url:
                     lines.append(f"   ↳ [点击极速下载]({art.direct_download_url})")
             else:
-                lines.append(f"{idx}. {icon} **{art.file_name}** `[{size_fmt}]`")
+                if art.direct_download_url:
+                    lines.append(f"{idx}. {icon} **[{art.file_name}]({art.direct_download_url})** `[{size_fmt}]`")
+                else:
+                    lines.append(f"{idx}. {icon} **{art.file_name}** `[{size_fmt}]`")
+
 
     if tracking_deep_link:
         lines.extend(["", f"🔗 [在桌面端/WebUI打开完整工作区]({tracking_deep_link})"])

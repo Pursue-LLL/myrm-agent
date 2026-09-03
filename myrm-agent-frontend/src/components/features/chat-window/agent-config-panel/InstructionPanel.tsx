@@ -4,6 +4,7 @@ import { Loader2, Eye } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Switch } from '@/components/primitives/switch';
 import dynamic from 'next/dynamic';
+import HarnessAblationLeverageTooltip from './HarnessAblationLeverageTooltip';
 
 const SmartPromptEditor = dynamic(
   () => import('./SmartPromptEditor').then((module) => ({ default: module.SmartPromptEditor })),
@@ -55,6 +56,8 @@ export const InstructionPanel = ({
         </div>
         <Switch checked={localUseGlobalInstruction} onCheckedChange={setLocalUseGlobalInstruction} />
       </div>
+
+      <HarnessAblationLeverageTooltip />
 
       {isSystemPromptHidden && localPrompt === '⚠️ [Hidden for security]' && (
         <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">

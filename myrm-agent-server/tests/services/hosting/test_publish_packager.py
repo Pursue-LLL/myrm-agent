@@ -342,7 +342,7 @@ def test_collect_directory_skips_non_allowed_files(tmp_path: Path) -> None:
 def test_collect_directory_skips_sensitive_dirs(tmp_path: Path) -> None:
     (tmp_path / "index.html").write_text("<h1>Hi</h1>", encoding="utf-8")
     mem = tmp_path / "memory"
-    mem.mkdir()
+    mem.mkdir(parents=True, exist_ok=True)
     (mem / "notes.txt").write_text("secret", encoding="utf-8")
     files = collect_publish_files(tmp_path)
     assert "memory/notes.txt" not in files

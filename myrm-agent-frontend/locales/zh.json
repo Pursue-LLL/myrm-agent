@@ -1911,6 +1911,14 @@
       "noMessages": "无消息可导出",
       "print": "打印"
     },
+    "revealArtifacts": {
+      "action": "在文件管理器中显示产物",
+      "revealing": "正在打开文件夹...",
+      "success": "已在文件管理器中打开产物目录",
+      "noArtifacts": "当前会话暂无生成的文件产物",
+      "missingOnDisk": "产物文件在磁盘上已不存在",
+      "error": "打开产物目录失败"
+    },
     "share": {
       "share": "分享",
       "title": "分享对话",

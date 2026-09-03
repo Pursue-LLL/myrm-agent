@@ -1911,6 +1911,14 @@
       "noMessages": "No messages to export",
       "print": "Print"
     },
+    "revealArtifacts": {
+      "action": "Reveal Artifacts in Folder",
+      "revealing": "Opening Folder...",
+      "success": "Opened artifacts folder in file manager",
+      "noArtifacts": "No artifacts found for this session",
+      "missingOnDisk": "Artifact files no longer exist on disk",
+      "error": "Failed to open artifacts folder"
+    },
     "share": {
       "share": "Share",
       "title": "Share Conversation",

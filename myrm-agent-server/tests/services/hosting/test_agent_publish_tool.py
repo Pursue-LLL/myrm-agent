@@ -77,3 +77,57 @@ async def test_artifact_publish_succeeds_with_default_target() -> None:
     assert result["metadata"].get("error") is not True
     assert "https://my-app.vercel.app" in result["content"]
     assert result["metadata"]["hosting_target_id"] == "tgt-001"
+
+
+@pytest.mark.asyncio
+async def test_artifact_publish_passes_password_to_orchestrator() -> None:
+    tool = create_artifact_publish_tool()
+    default_target = HostingTarget(
+        id="tgt-002",
+        name="Encrypted Target",
+        provider_type="cloudflare_pages",
+        is_default=True,
+    )
+    pub_result = PublicationResult(
+        success=True,
+        url="https://secure.pages.dev",
+        publication_id="pub-002",
+        project_ref="proj-002",
+        status="DEPLOYED",
+    )
+
+    mock_db = AsyncMock()
+    mock_ctx = AsyncMock()
+    mock_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+    mock_ctx.__aexit__ = AsyncMock(return_value=False)
+
+    mock_publish = AsyncMock(return_value=pub_result)
+
+    with (
+        patch("app.database.connection.get_session", return_value=mock_ctx),
+        patch(
+            "app.services.hosting.targets.get_default_hosting_target",
+            new_callable=AsyncMock,
+            return_value=default_target,
+        ),
+        patch(
+            "app.services.hosting.orchestrator.publish_artifact_to_target",
+            new=mock_publish,
+        ),
+        patch(
+            "app.platform_utils.workspace_root.get_workspace_root",
+            return_value="/test/workspace",
+        ),
+    ):
+        result = await tool.ainvoke({
+            "artifact_id": "art-789",
+            "password": "SuperSecretPass2026",
+        })
+
+    assert result["metadata"].get("error") is not True
+    assert "https://secure.pages.dev" in result["content"]
+    # Verify orchestrator was invoked with the exact password
+    assert mock_publish.call_count == 1
+    call_kwargs = mock_publish.call_args.kwargs
+    assert call_kwargs.get("password") == "SuperSecretPass2026"
+

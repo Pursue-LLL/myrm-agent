@@ -7,7 +7,7 @@ myrm_agent_harness.toolkits.memory.protocols.conversation_search::ConversationSe
 
 [OUTPUT]
 ConversationHistorySearchProvider: Server adapter implementing Harness conversation search protocol.
-ConversationSearchService: Business service for exact + semantic conversation recall, cron source demotion, and expand_message_id windows.
+ConversationSearchService: Business service for exact + semantic conversation recall, index coverage reporting, cron source demotion, and expand_message_id windows.
 
 [POS]
 会话历史召回服务。将 Server 的 Chat DB、FTS5、预计算摘要与 Harness MemoryManager 语义召回组合为 agent 可用的只读工具能力。

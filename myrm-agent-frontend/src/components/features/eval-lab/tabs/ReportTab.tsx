@@ -8,11 +8,14 @@ import {
   RefreshCw,
   ShieldAlert,
   ShieldCheck,
+  Sliders,
+  Sparkles,
   XCircle,
 } from 'lucide-react';
 
 import { formatMib } from '../components/format';
 import { type DownloadProgress, type EvalProgress, type ReportItem } from '../hooks/useCasesEval';
+import ComponentAblationImpactRankingChip from '../components/ComponentAblationImpactRankingChip';
 
 interface ReportTabProps {
   running: boolean;
@@ -101,6 +104,13 @@ export default function ReportTab({
           <span className="text-3xl font-bold mt-1">{Math.round(report.avg_total_tokens || 0)}</span>
         </div>
       </div>
+
+      {report.ablation_recommendations && report.ablation_recommendations.length > 0 && (
+        <ComponentAblationImpactRankingChip
+          recommendations={report.ablation_recommendations}
+          profileId={report.manifest?.profile_id}
+        />
+      )}
 
       {report.manifest && (
         <div className="border rounded-lg p-4 bg-muted/10">
@@ -212,6 +222,71 @@ export default function ReportTab({
                     <div className="bg-amber-500 h-full rounded-full" style={{ width: `${pct}%` }} />
                   </div>
                   <span className="text-[10px] text-muted-foreground">{count} cases</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Component Ablation Leverage & Harness Edit Ranking Chips */}
+      {report.ablation_recommendations && report.ablation_recommendations.length > 0 && (
+        <div className="border rounded-lg p-4 bg-muted/10 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              {t('report.ablationTitle')}
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              {t('report.ablationSubtitle')}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {report.ablation_recommendations.map((rec, idx) => {
+              const tierBadgeClass =
+                rec.component === 'tool'
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                  : rec.component === 'middleware'
+                  ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20'
+                  : rec.component === 'memory'
+                  ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20'
+                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+
+              return (
+                <div
+                  key={idx}
+                  className="p-3.5 rounded-lg border bg-card flex flex-col justify-between gap-2.5 transition-all hover:border-primary/40 shadow-2xs"
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase border ${tierBadgeClass}`}>
+                          {t(`report.ablationTiers.${rec.component}`) || rec.component}
+                        </span>
+                        <span className="text-xs font-semibold text-foreground">
+                          {rec.title}
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                        {rec.affected_case_count} cases
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {rec.reason}
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-t flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1 font-mono">
+                      <Sliders className="w-3 h-3 text-primary/70" />
+                      {rec.target_config_tab} → {rec.target_setting_key}
+                    </span>
+                    <span className="text-[10px] font-medium text-primary">
+                      {t('report.ablationRoiOrder', { priority: rec.priority })}
+                    </span>
+                  </div>
                 </div>
               );
             })}

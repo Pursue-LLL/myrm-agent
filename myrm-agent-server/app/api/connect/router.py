@@ -36,6 +36,7 @@ class ProfileResponse(BaseModel):
 class GenerateConfigRequest(BaseModel):
     profile_id: str
     agent_id: str = "default"
+    expose_desktop: bool = False
 
 
 class GenerateConfigResponse(BaseModel):
@@ -45,6 +46,8 @@ class GenerateConfigResponse(BaseModel):
     token: str
     config_json: dict[str, object]
     instructions: str
+    expose_desktop: bool = False
+    desktop_tools: list[str] = []
 
 
 class DoctorRequest(BaseModel):
@@ -92,6 +95,14 @@ class ConnectorStatusResponse(BaseModel):
     last_doctor_detail: str = ""
     connected_at: str | None
     last_doctor_at: str | None
+    expose_desktop: bool = False
+
+
+class AgentConnectCapabilityResponse(BaseModel):
+    agent_id: str
+    has_computer_use: bool
+    desktop_deploy_supported: bool
+    can_expose_desktop: bool
 
 
 @router.get("/connect/profiles")
@@ -117,11 +128,20 @@ async def generate_config(body: GenerateConfigRequest) -> GenerateConfigResponse
     """Generate MCP config and token for an external agent."""
     service = get_connect_service()
     try:
-        snippet = await service.generate_config(body.profile_id, agent_id=body.agent_id)
+        snippet = await service.generate_config(
+            body.profile_id,
+            agent_id=body.agent_id,
+            expose_desktop=body.expose_desktop,
+        )
     except ValueError as e:
         from fastapi import HTTPException
 
         raise HTTPException(status_code=400, detail=str(e)) from e
+    desktop_tools = (
+        ["desktop_snapshot_tool", "desktop_interact_tool", "desktop_vision_tool"]
+        if snippet.expose_desktop
+        else []
+    )
     return GenerateConfigResponse(
         profile_id=snippet.profile_id,
         agent_id=snippet.agent_id,
@@ -129,6 +149,8 @@ async def generate_config(body: GenerateConfigRequest) -> GenerateConfigResponse
         token=snippet.token,
         config_json=snippet.config_json,
         instructions=snippet.instructions,
+        expose_desktop=snippet.expose_desktop,
+        desktop_tools=desktop_tools,
     )
 
 
@@ -197,6 +219,33 @@ async def list_connector_status() -> list[ConnectorStatusResponse]:
             last_doctor_detail=s.last_doctor_detail,
             connected_at=s.connected_at.isoformat() if s.connected_at else None,
             last_doctor_at=s.last_doctor_at.isoformat() if s.last_doctor_at else None,
+            expose_desktop=s.expose_desktop,
         )
         for s in states
     ]
+
+
+@router.get("/connect/agent-capabilities/{agent_id}")
+async def get_agent_connect_capabilities(agent_id: str) -> AgentConnectCapabilityResponse:
+    """Inspect whether an Agent Profile can expose desktop control tools via MCP."""
+    from app.config.computer_use_deploy import is_computer_use_deploy_supported
+    from app.services.agent.profile.profile_resolver import (
+        get_agent_profile_resolver,
+        resolve_builtin_tool_flags,
+    )
+
+    deploy_supported = is_computer_use_deploy_supported()
+    resolver = get_agent_profile_resolver()
+    profile = await resolver.resolve(agent_id)
+    has_computer_use = False
+    if profile is not None:
+        flags = resolve_builtin_tool_flags(profile.enabled_builtin_tools)
+        has_computer_use = bool(flags.get("enable_computer_use"))
+
+    can_expose_desktop = has_computer_use and deploy_supported
+    return AgentConnectCapabilityResponse(
+        agent_id=agent_id,
+        has_computer_use=has_computer_use,
+        desktop_deploy_supported=deploy_supported,
+        can_expose_desktop=can_expose_desktop,
+    )

@@ -8,6 +8,7 @@ import {
   revokeChatShare,
   getChatShareStatus,
 } from '@/services/chat';
+import { revealChatArtifacts } from '@/services/file';
 import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown, printChat } from '@/lib/utils/chatExport';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/shared/useToast';
@@ -33,6 +34,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
   const [shareRevoked, setShareRevoked] = useState(false);
   const [sharePasswordProtected, setSharePasswordProtected] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
+  const [revealingArtifactsChatId, setRevealingArtifactsChatId] = useState<string | null>(null);
 
   const { pinChat, unpinChat } = useChatStore();
 
@@ -278,6 +280,34 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     }
   }, [shareChatId, t]);
 
+  const handleRevealArtifacts = useCallback(
+    async (chatId: string) => {
+      setRevealingArtifactsChatId(chatId);
+      try {
+        const res = await revealChatArtifacts(chatId);
+        if (res.status === 'ok') {
+          toast({ title: t('chat.revealArtifacts.success'), variant: 'default' });
+        } else if (res.status === 'no_artifacts') {
+          toast({ title: t('chat.revealArtifacts.noArtifacts'), variant: 'default' });
+        } else if (res.status === 'missing_on_disk') {
+          toast({ title: t('chat.revealArtifacts.missingOnDisk'), variant: 'destructive' });
+        } else {
+          toast({ title: t('chat.revealArtifacts.error'), variant: 'destructive' });
+        }
+      } catch (error) {
+        console.error('Failed to reveal artifacts:', error);
+        toast({
+          title: t('chat.revealArtifacts.error'),
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive',
+        });
+      } finally {
+        setRevealingArtifactsChatId(null);
+      }
+    },
+    [t],
+  );
+
   return {
     renameId,
     renameValue,
@@ -307,6 +337,8 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     handleShare,
     handleShareCreate,
     handleShareRevoke,
+    handleRevealArtifacts,
+    revealingArtifactsChatId,
     shareDialogOpen,
     setShareDialogOpen,
     shareChatId,

@@ -91,3 +91,52 @@ def test_crypto_packager_empty_password():
     }
     result = package_encrypted_publish_files(files, "")
     assert result == files
+
+
+def test_crypto_packager_binary_asset_roundtrip():
+    # Base64 encoded 1x1 transparent PNG
+    png_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+    files = {
+        "index.html": PublishFile(
+            path="index.html",
+            content="<h1>Graph</h1><img src='logo.png' />",
+            encoding="utf-8",
+        ),
+        "logo.png": PublishFile(
+            path="logo.png",
+            content=png_b64,
+            encoding="base64",
+        ),
+    }
+    encrypted_files = package_encrypted_publish_files(files, "Pass1234", title="Asset Bundle")
+    entry = encrypted_files["index.html"]
+
+    start_marker = "const encryptedData = "
+    start_idx = entry.content.index(start_marker) + len(start_marker)
+    end_idx = entry.content.index(";\n", start_idx)
+    encrypted_dict = json.loads(entry.content[start_idx:end_idx])
+
+    decrypted_bytes = _decrypt_payload(encrypted_dict, "Pass1234")
+    vfs = json.loads(decrypted_bytes.decode("utf-8"))
+
+    assert "logo.png" in vfs
+    assert vfs["logo.png"]["encoding"] == "base64"
+    assert vfs["logo.png"]["content"] == png_b64
+
+
+def test_crypto_packager_xss_prevention_in_title():
+    files = {
+        "index.html": PublishFile(
+            path="index.html",
+            content="<h1>Safe</h1>",
+            encoding="utf-8",
+        )
+    }
+    malicious_title = "<script>alert('xss')</script>\"&'<h1>"
+    encrypted_files = package_encrypted_publish_files(files, "Pass1234", title=malicious_title)
+    entry_content = encrypted_files["index.html"].content
+
+    # Raw script tags in title must be escaped
+    assert "<script>alert('xss')</script>" not in entry_content
+    assert "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;" in entry_content or "&lt;script&gt;" in entry_content
+

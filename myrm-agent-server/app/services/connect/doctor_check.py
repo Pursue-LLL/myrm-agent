@@ -120,7 +120,7 @@ def _find_mym_entry(raw: dict[str, object], instructions_key: str) -> dict[str, 
     servers = raw.get(instructions_key)
     if not isinstance(servers, dict):
         return None
-    entry = servers.get("myrm-memory")
+    entry = servers.get("myrm") or servers.get("myrm-memory")
     return entry if isinstance(entry, dict) else None
 
 

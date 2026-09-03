@@ -26,6 +26,7 @@ import {
   GitFork,
   GripVertical,
   Share2,
+  FolderOpen,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -91,6 +92,8 @@ export interface ChatHistoryRowProps {
   onHandoff?: (chatId: string, chatTitle: string, source?: string) => void;
   onFork?: (chatId: string) => void;
   onOpenInNewWindow?: (chatId: string) => void;
+  onRevealArtifacts?: (chatId: string) => void;
+  isRevealingArtifacts?: boolean;
   sessionDragEnabled?: boolean;
   onSessionDragStart?: (chat: ChatItem, event: DragEvent<HTMLElement>) => void;
   t: ReturnType<typeof useTranslations>;
@@ -125,6 +128,8 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
     onHandoff,
     onFork,
     onOpenInNewWindow,
+    onRevealArtifacts,
+    isRevealingArtifacts = false,
     sessionDragEnabled = false,
     onSessionDragStart,
     t,
@@ -415,6 +420,16 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                   >
                     <Share2 size={isMobile ? 16 : 14} className="mr-2" />
                     {t('chat.share.share')}
+                  </DropdownMenuItem>
+                )}
+                {onRevealArtifacts && (
+                  <DropdownMenuItem
+                    onClick={() => onRevealArtifacts(chat.id)}
+                    disabled={isRevealingArtifacts}
+                    className={cn(isMobile && 'py-3 text-xs min-h-[44px]')}
+                  >
+                    <FolderOpen size={isMobile ? 16 : 14} className="mr-2" />
+                    {isRevealingArtifacts ? t('chat.revealArtifacts.revealing') : t('chat.revealArtifacts.action')}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem

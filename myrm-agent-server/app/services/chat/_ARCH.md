@@ -36,7 +36,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `compact_service.py` | ✅ 核心 | 无损上下文压缩 **facade**（实现见 `compact/` 子包）；导出 `compact_chat` / idle estimate / cooldown / anti-thrash 接线 | ✅ |
 | `compact/` | ✅ 核心 | 压缩子模块：`service.py`（compact_chat）、`persist.py`、`idle_estimate.py`、`message_io.py`、`summarize_guard.py`、`llm_config.py`、`archive.py` | ✅ |
 | `stale_compact_gate.py` | ✅ 核心 | Pre-reply idle stale compaction gate（`engine_params.idle_compact_after_seconds`，默认 0；idle 锚点=最后消息时间；**Hermes predicate：tokens>floor only（无 min_messages）**；request-level token floor（summary+tail+overhead）；gate 向 `compact_chat` 传递 `request_tokens_for_guard` 与 anti-thrash 同口径；**compression failure cooldown** + **anti-thrash**；**模型窗口不可用 fail-closed**；Web 经 `pre_reply_compact_sse` 发 active/completed/failure SSE；Channel 入站前 best-effort 调用） | ✅ |
-| `conversation_search_service.py` | ✅ 核心 | Agent 历史会话召回服务；FTS5+semantic、`_source_interaction_boost`（cron demote / interactive boost）、`expand_message_id` 窗口、可见性策略与 source refs | ✅ |
+| `conversation_search_service.py` | ✅ 核心 | Agent 历史会话召回服务；FTS5+semantic、索引覆盖度元数据注入、`_source_interaction_boost`（cron demote / interactive boost）、`expand_message_id` 窗口、可见性策略与 source refs | ✅ |
 | `conversation_recall_query.py` | ✅ 辅助 | Conversation Recall 查询规划；精确 FTS 优先，并在结果不足时提供无 LLM 的本地 OR/term 宽召回兜底。 | ✅ |
 | `conversation_recall_index_service.py` | ✅ 核心 | Conversation Recall 索引生命周期服务；统一回填（**startup `bootstrap_missing`**）、重建、增量追加、排除/恢复、删除、健康检查、管理列表、**GUI `@chat:` `search_citable_chats` SSOT**。 | ✅ |
 | `session_continuity_service.py` | ✅ 核心 | truncate/undo/retry/rewind 后 DB→LangGraph checkpoint fail-closed 对齐；rewind 成功后 pause active Goal | ✅ |

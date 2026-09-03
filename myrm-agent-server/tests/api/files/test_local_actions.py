@@ -327,3 +327,67 @@ class TestObsidianLaunchAvailability:
                 return_value=Path("/usr/bin/obsidian"),
             ):
                 assert is_obsidian_direct_launch_available() is False
+
+
+class TestRevealChatArtifacts:
+    """Tests for chat-level artifacts directory reveal."""
+
+    @pytest.mark.asyncio
+    async def test_no_artifacts_returns_no_artifacts_status(self):
+        from app.api.files.local_actions import _resolve_chat_artifacts_path
+
+        with tempfile.TemporaryDirectory() as workspace:
+            with patch("app.api.files.local_actions._get_workspace_dir", return_value=workspace):
+                status, path, count = await _resolve_chat_artifacts_path("chat-no-files", db=None)
+                assert status == "no_artifacts"
+                assert path is None
+                assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_sandbox_files_returns_ok_and_sandbox_dir(self):
+        from app.api.files.local_actions import _resolve_chat_artifacts_path
+
+        with tempfile.TemporaryDirectory() as workspace:
+            chat_id = "chat-with-files"
+            sandbox_dir = Path(workspace) / "sandboxes" / chat_id
+            sandbox_dir.mkdir(parents=True, exist_ok=True)
+            output_file = sandbox_dir / "report.pdf"
+            output_file.write_text("dummy report content")
+
+            with patch("app.api.files.local_actions._get_workspace_dir", return_value=workspace):
+                status, path, count = await _resolve_chat_artifacts_path(chat_id, db=None)
+                assert status == "ok"
+                assert path == sandbox_dir.resolve()
+                assert count == 1
+
+    @pytest.mark.asyncio
+    async def test_missing_on_disk_status(self):
+        from app.api.files.local_actions import _resolve_chat_artifacts_path
+        from unittest.mock import AsyncMock, MagicMock
+
+        mock_db = MagicMock()
+        mock_art = MagicMock()
+        mock_ver = MagicMock()
+        mock_ver.vault_uri = "vault://missing-uuid"
+        mock_ver.created_at = 1000
+        mock_art.versions = [mock_ver]
+
+        mock_exec = AsyncMock()
+        mock_exec.scalars.return_value.all.return_value = [mock_art]
+        mock_db.execute = AsyncMock(return_value=mock_exec)
+
+        with tempfile.TemporaryDirectory() as workspace:
+            with patch("app.api.files.local_actions._get_workspace_dir", return_value=workspace):
+                status, path, count = await _resolve_chat_artifacts_path("chat-missing", db=mock_db)
+                assert status == "missing_on_disk"
+                assert path is None
+                assert count == 1
+
+    @pytest.mark.asyncio
+    async def test_reveal_chat_artifacts_endpoint_forbids_non_local(self):
+        from app.api.files.local_actions import reveal_chat_artifacts
+
+        with patch("app.api.files.local_actions._validate_local_mode", side_effect=HTTPException(status_code=403, detail="File actions only available in local mode")):
+            with pytest.raises(HTTPException) as exc_info:
+                await reveal_chat_artifacts("chat-1", db=MagicMock())
+            assert exc_info.value.status_code == 403
