@@ -10,3 +10,4 @@ Token 预算与 Work Unit 查询 HTTP 层。上级文档：[../_ARCH.md](../_ARC
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包入口与导出 | — |
 | `router.py` | 路由 | Budget management API. | ✅ |
+| `spend_control_router.py` | 路由 | Four-Tier progressive spend control and soft quota intervention API. | ✅ |

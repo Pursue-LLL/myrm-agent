@@ -24,6 +24,7 @@
 | `__init__.py`       | 入口   | 模块初始化                                                                                       | ✅    |
 | `enforcer.py`       | 核心   | BudgetPolicy 模型 + MultidimensionalBudgetGuard 单例管理 + DB 读写 + SSE 告警 (warning/finalization/exceeded) + should_block_execution 执行门禁 + reset_session_budget + 花费持续性；Sandbox 模式注入 PlatformBudgetAdapter | ✅    |
 | `channel_budget.py` | 核心   | ChannelBudgetPolicy + ChannelBudgetRegistry（per-channel DailyBudgetGuard 注册表）+ DB 持久化 + channel 级 SSE 告警 + should_block_channel + record_channel_cost + 审计归因查询 | ✅ |
+| `spend_control_service.py` | 核心 | FourTierSpendControlEngine 进程级单例提供与配额治理 | ✅ |
 
 ## 依赖关系
 

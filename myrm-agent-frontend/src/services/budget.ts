@@ -113,3 +113,91 @@ export async function getChannelAudit(channelKey: string, days = 7): Promise<Cha
     silent: true,
   });
 }
+
+// --- Four-Tier Progressive Spend Control ---
+
+export type SpendInterventionTier =
+  | 'tier_1_visibility'
+  | 'tier_2_soft_gate'
+  | 'tier_3_auto_downgrade'
+  | 'tier_4_critical_pause';
+
+export type InterventionAction =
+  | 'allow'
+  | 'recommend_downgrade'
+  | 'require_confirmation'
+  | 'switch_model'
+  | 'pause_for_approval';
+
+export interface SpendInterventionDecision {
+  tier: SpendInterventionTier;
+  action: InterventionAction;
+  currentSpendUsd: number;
+  quotaLimitUsd: number;
+  spendRatio: number;
+  message: string;
+  downgradeModelId?: string | null;
+  bypassToken?: string | null;
+  approvalToken?: string | null;
+  isBlocked: boolean;
+  decisionId: string;
+  createdAt: string;
+}
+
+export interface FleetQuotaItem {
+  dimension: string;
+  identifier: string;
+  spendUsd: number;
+  allocatedQuotaUsd: number;
+  utilizationPct: number;
+  tier: SpendInterventionTier;
+  activeSessions: number;
+  updatedAt: string;
+}
+
+export interface FleetQuotaDeckResponse {
+  items: FleetQuotaItem[];
+}
+
+export async function getSpendInterventionDecision(params: {
+  currentSpendUsd: number;
+  quotaLimitUsd: number;
+  sessionId?: string;
+}): Promise<SpendInterventionDecision> {
+  const q = new URLSearchParams({
+    current_spend_usd: params.currentSpendUsd.toString(),
+    quota_limit_usd: params.quotaLimitUsd.toString(),
+  });
+  if (params.sessionId) {
+    q.set('session_id', params.sessionId);
+  }
+  return apiRequest<SpendInterventionDecision>(`/budget/spend-control/decision?${q.toString()}`, { silent: true });
+}
+
+export async function confirmSoftSpendGate(params: {
+  sessionId: string;
+  bypassToken: string;
+}): Promise<{ confirmed: boolean; sessionId: string }> {
+  return apiRequest<{ confirmed: boolean; sessionId: string }>('/budget/spend-control/confirm-soft-gate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: params.sessionId, bypass_token: params.bypassToken }),
+  });
+}
+
+export async function approveTier4SpendPause(params: {
+  sessionId: string;
+  approvalToken: string;
+}): Promise<{ approved: boolean; sessionId: string }> {
+  return apiRequest<{ approved: boolean; sessionId: string }>('/budget/spend-control/approve-pause', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: params.sessionId, approval_token: params.approvalToken }),
+  });
+}
+
+export async function getFleetQuotaDeck(dimension?: string): Promise<FleetQuotaDeckResponse> {
+  const q = dimension ? `?dimension=${encodeURIComponent(dimension)}` : '';
+  return apiRequest<FleetQuotaDeckResponse>(`/budget/spend-control/fleet-deck${q}`, { silent: true });
+}
+
