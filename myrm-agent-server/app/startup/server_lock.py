@@ -13,7 +13,12 @@ import psutil
 
 from app.config.settings import settings
 
-_state_dir = Path(settings.database.state_dir)
+def _get_state_dir() -> Path:
+    env_dir = os.getenv("STATE_DIR") or os.getenv("MYRM_DEV_STATE_DIR")
+    if env_dir and env_dir.strip():
+        return Path(env_dir.strip()).expanduser().resolve()
+    return Path(settings.database.state_dir)
+
 _server_lock = None
 
 
@@ -92,8 +97,10 @@ def acquire_server_lock(
         return
 
     global _server_lock
-    lock_file = _state_dir / ".server.oslock"
-    pid_file = _state_dir / ".server.pid"
+    state_dir = _get_state_dir()
+    state_dir.mkdir(parents=True, exist_ok=True)
+    lock_file = state_dir / f".server_{target_port}.oslock"
+    pid_file = state_dir / f".server_{target_port}.pid"
 
     _server_lock = FileLock(str(lock_file), timeout=0)
 
