@@ -87,13 +87,13 @@ from app.channels.core.bus import (
     MessageBus,
     set_correlation_context,
 )
-from app.channels.i18n import channel_t, get_text, resolve_message_locale
 from app.channels.delegation.delegation_coordinator import DelegationCoordinator
 from app.channels.delegation.delegation_ingress import (
     DelegationIngressGuard,
     build_delegation_task,
     is_delegation_intent,
 )
+from app.channels.i18n import channel_t, get_text, resolve_message_locale
 from app.channels.media.contact_enrichment import (
     enrich_contact_inbound,
     has_contact_attachment,
@@ -552,6 +552,8 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
         if stuck_entries:
             logger.warning("[JANITOR] Reaped %d stuck task(s)", len(stuck_entries))
 
+        self._delegation_coordinator.reap_stale_tasks()
+
     async def _consume_loop(self) -> None:
         """Continuously consume inbound messages and dispatch via SessionGate.
 
@@ -647,7 +649,97 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     asyncio.create_task(self._bus.publish_outbound(reply))
                     continue
 
+            # Check for Mobile-to-Desktop Asynchronous Task Delegation
+            if msg.content and isinstance(msg.content, str):
+                is_delegated, confidence, clean_prompt = is_delegation_intent(msg.content)
+                if is_delegated and confidence >= 0.85 and clean_prompt:
+                    handled_delegation = await self._handle_delegation_inbound(msg, clean_prompt)
+                    if handled_delegation:
+                        continue
+
+            # In-flight steering for active delegation task
+            user_id = msg.user_id or chat_id
+            active_del = self._delegation_coordinator.find_active_task(msg.channel, user_id)
+            if (
+                active_del
+                and msg.content
+                and isinstance(msg.content, str)
+                and not msg.content.startswith("/")
+                and not self._active_tasks.get(session_key)
+            ):
+                injected = self._delegation_coordinator.inject_steering(active_del.task_id, msg.content.strip(), user_id)
+                if injected:
+                    reply = OutboundMessage(
+                        channel=msg.channel,
+                        recipient_id=chat_id,
+                        content=f"🎯 已将补充指引动态注入后台任务 `[{active_del.task_id}]`",
+                        user_id=msg.user_id or "",
+                        thread_id=msg.thread_id,
+                    )
+                    asyncio.create_task(self._bus.publish_outbound(reply))
+                    continue
+
             self._gate.submit(msg)
+
+    @property
+    def delegation_coordinator(self) -> DelegationCoordinator:
+        """Access the delegation coordinator instance."""
+        return self._delegation_coordinator
+
+    async def _handle_delegation_inbound(self, msg: InboundMessage, clean_prompt: str) -> bool:
+        """Handle mobile task delegation: issue sub-second receipt and launch background task."""
+        chat_id = msg.chat_id or msg.sender_id
+        user_id = msg.user_id or chat_id
+        if not self._delegation_guard.can_accept(msg.channel, user_id):
+            reject_msg = OutboundMessage(
+                channel=msg.channel,
+                recipient_id=chat_id,
+                content="⚠️ 当前已有 2 个后台长任务正在执行中，请等待上一任务完成后再提交委派。",
+                user_id=user_id,
+                thread_id=msg.thread_id,
+            )
+            await self._bus.publish_outbound(reject_msg)
+            return True
+
+        task = build_delegation_task(
+            prompt=clean_prompt,
+            channel=msg.channel,
+            user_id=user_id,
+            chat_id=chat_id,
+        )
+        self._delegation_coordinator.register_task(task)
+        self._delegation_guard.acquire(msg.channel, user_id, task.task_id)
+
+        receipt_text = (
+            f"📋 **已收到异步任务委派** `[{task.task_id}]`\n\n"
+            f"💡 **任务内容**：{clean_prompt[:120]}\n"
+            f"⏳ **状态**：后台沙箱自主接管中，您可以放心退出聊天，执行完成后将自动推送成果卡片。\n"
+            f"*(提示：中途可直接发送消息为任务补充指引)*"
+        )
+        receipt_outbound = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=chat_id,
+            content=receipt_text,
+            user_id=user_id,
+            thread_id=msg.thread_id,
+            metadata={"delegation_task_id": task.task_id, "is_receipt": True},
+        )
+        await self._bus.publish_outbound(receipt_outbound)
+
+        async def _run_bg() -> None:
+            try:
+                await self._delegation_coordinator.execute_task_lifecycle(
+                    task,
+                    self._executor,
+                    self._bus,
+                    msg,
+                )
+            finally:
+                self._delegation_guard.release(msg.channel, user_id, task.task_id)
+
+        asyncio.create_task(_run_bg())
+        return True
+
 
     async def _enrich_message_locale(self, msg: InboundMessage) -> InboundMessage:
         """Inject resolved locale into inbound message metadata."""
