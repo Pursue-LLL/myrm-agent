@@ -307,3 +307,33 @@ export async function setChannelDefaultAgent(channel: string, agentId: string | 
     body: JSON.stringify({ agentId }),
   });
 }
+
+// ── Channel Data Plane ──
+
+export interface ChannelDataPlaneStats {
+  channel: string;
+  total_messages: number;
+  learning_eligible: number;
+  trigger_messages: number;
+  ambient_messages: number;
+  retention_days: number;
+  secret_scrubber_active: boolean;
+}
+
+export interface ClearDataPlaneResult {
+  channel: string;
+  deleted_count: number;
+  success: boolean;
+}
+
+export async function getChannelDataPlaneStats(channelName: string): Promise<ChannelDataPlaneStats> {
+  return apiRequest(`/channels/manage/${channelName}/data-plane`);
+}
+
+export async function clearChannelDataPlane(channelName: string, chatId?: string): Promise<ClearDataPlaneResult> {
+  return apiRequest(`/channels/manage/${channelName}/data-plane/clear`, {
+    method: 'POST',
+    body: JSON.stringify({ chat_id: chatId || null }),
+  });
+}
+

@@ -7110,6 +7110,23 @@
       "copyInstallCommand": "Copy command",
       "copiedInstallCommand": "Copied"
     },
+    "dataPlane": {
+      "title": "Inbound Data Plane & Ambient Context",
+      "description": "Monitor message ingestion telemetry, credential redaction defense, and 30-day lifecycle governance.",
+      "totalMessages": "Ingested Messages",
+      "ambientMessages": "Ambient Messages",
+      "triggerMessages": "Triggered Interactions",
+      "learningEligible": "Knowledge Candidates",
+      "retention": "Retention Lifecycle",
+      "retentionDays": "30 Days",
+      "secretScrubber": "Secret Redaction",
+      "secretScrubberActive": "Active (Zero Leakage)",
+      "clearHistory": "Clear Ambient Context",
+      "clearConfirm": "Are you sure you want to clear all ambient message records for this channel? This action cannot be undone (GDPR compliant).",
+      "clearedSuccess": "Successfully cleared records",
+      "clearing": "Clearing...",
+      "refresh": "Refresh Metrics"
+    },
     "groupsTitle": "Group Management",
     "groupsDesc": "Select which groups the bot should respond in. Unselected groups will be ignored.",
     "groupsFreeResponseTitle": "Free Response (No Mention)",

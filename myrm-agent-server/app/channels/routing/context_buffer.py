@@ -64,6 +64,26 @@ class GroupContextBuffer:
         cutoff = time.monotonic() - self._max_age
         return tuple(e for e in buf if e.timestamp >= cutoff)
 
+    async def drain_async(self, channel: str, chat_id: str) -> tuple[ContextEntry, ...]:
+        """Asynchronously load context from persistent data plane with in-memory fallback."""
+        try:
+            from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+
+            persisted = await ChannelDataPlaneService.get_recent_context_entries(
+                channel=channel,
+                chat_id=chat_id,
+                limit=self._max_per_group,
+            )
+            # Clear in-memory buffer on successful drain
+            self._store.pop(chat_id, None)
+            if persisted:
+                return tuple(persisted)
+        except Exception:
+            pass
+
+        # Fallback to local memory buffer if DB query fails or empty
+        return self.drain(chat_id)
+
     def clear(self, chat_id: str) -> None:
         """Explicitly clear a group's buffer (e.g. when group is disabled)."""
         self._store.pop(chat_id, None)

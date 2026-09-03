@@ -283,6 +283,18 @@ class RouterExecutionMixin:
                 await self._fx.edit_placeholder(msg.channel, chat_id, placeholder_id, result)
             else:
                 await self._bus.publish_outbound(result)
+
+            from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+
+            asyncio.create_task(
+                ChannelDataPlaneService.record_outbound(
+                    channel=msg.channel,
+                    chat_id=chat_id,
+                    content=str(result.content or ""),
+                    thread_id=msg.thread_id,
+                    reply_to_id=result.reply_to_id,
+                )
+            )
         elif placeholder_id:
             await self._fx.cleanup_placeholder(
                 msg.channel,

@@ -741,7 +741,12 @@ async def _shutdown(app_instance: FastAPI) -> None:
         engine = get_database_engine()
         try:
             async with engine.begin() as conn:
-                await conn.exec_driver_sql("PRAGMA wal_checkpoint(PASSIVE)")
+                # Use TRUNCATE to flush dirty WAL pages into main DB and reset WAL file to 0 bytes,
+                # eliminating torn write risks upon process exit or cold restart. Fall back to PASSIVE if locked.
+                try:
+                    await conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
+                except Exception:
+                    await conn.exec_driver_sql("PRAGMA wal_checkpoint(PASSIVE)")
         except Exception as e:
             logger.warning("[Shutdown] Database WAL checkpoint failed (ignoring): %s", e)
         await engine.dispose()

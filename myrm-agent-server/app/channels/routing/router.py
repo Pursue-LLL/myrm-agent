@@ -608,6 +608,16 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
 
             msg = await self._enrich_message_locale(msg)
 
+            # Record all sanitized inbound messages to the Channel Data Plane DWD ledger
+            from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+
+            asyncio.create_task(
+                ChannelDataPlaneService.record_inbound(
+                    msg,
+                    is_trigger=True,
+                )
+            )
+
             if (
                 msg.metadata.get("callback_prefix") == "act"
                 and isinstance(msg.content, str)

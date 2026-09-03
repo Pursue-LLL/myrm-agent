@@ -20,6 +20,7 @@ Router holds an instance via composition and calls resolve_group_user / resolve_
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import logging
 import time
@@ -101,7 +102,10 @@ class PolicyResolver:
         chat_id = msg.chat_id or msg.sender_id
 
         should_respond, cleaned = await self._should_respond_in_group(msg)
+        from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+
         if not should_respond:
+            asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=False))
             self._context_buffer.append(
                 chat_id,
                 ContextEntry(
@@ -113,6 +117,8 @@ class PolicyResolver:
             )
             return None
 
+        asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=True))
+
         # Clean thread-mute message from processing to prevent agent triggering on confirmations
         if cleaned == "___MUTE_CONFIRMED___":
             return None
@@ -120,7 +126,10 @@ class PolicyResolver:
         if cleaned != msg.content:
             msg = dataclasses.replace(msg, content=cleaned)
 
-        context = self._context_buffer.drain(chat_id)
+        if hasattr(self._context_buffer, "drain_async"):
+            context = await self._context_buffer.drain_async(msg.channel, chat_id)
+        else:
+            context = self._context_buffer.drain(chat_id)
         if context:
             msg = dataclasses.replace(msg, context_messages=context)
 
@@ -162,6 +171,11 @@ class PolicyResolver:
 
         if user_id and msg.sender_name:
             await self._touch_display_name(msg)
+
+        if user_id:
+            from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+
+            asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=True))
 
         return user_id
 

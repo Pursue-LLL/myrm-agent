@@ -125,7 +125,7 @@ deadlocks when an agent execution hangs without crashing.
 | command_defs.py | Core | CommandDef data model, CommandAction/CommandKind enums, built-in SYSTEM_COMMANDS tuple (stop, new, compact, retry, undo, yolo, personality, bind, unbind, topic, goal, steer, queue, background, kanban, memory, learn, handoff, status, help). | — |
 | command_registry.py | Core | CommandRegistry: central O(1) lookup for slash commands. Validates names and prevents system command overwriting. | — |
 | commands/（子包） | Core | 命令域子包：`commands.py`（参数解析 + 高层 handler）、`router_commands.py`（聚合 `RouterCommandsMixin`）、`router_commands_approval.py`（`/stop`、reaction/button approval）、`router_commands_session.py`（`/new`、`/compact`、`/retry`、`/undo`、topic）、`router_commands_modes.py`（`/yolo`、`/personality`、`/steer`、`/queue`）、`router_commands_goals.py`（`/goal`、`/subgoal`、`/background`、`/handoff`）、`router_commands_memory.py`（`/status`、`/kanban`、`/learn`、`/memory`）。`commands/__init__.py` 为聚合门面 | ✅ |
-| context_buffer.py | Core | Pure in-memory buffer, no I/O, no lifecycle management. | ✅ |
+| context_buffer.py | Core | GroupContextBuffer: 结合持久化数据平面异步拉取与内存兜底的上下文缓冲。 | ✅ |
 | graceful_degradation.py | Core | Graceful degradation controller for smooth quality adaptation. | ✅ |
 | message_effects.py | Core | Message side-effect operations (typing/keepalive, reactions, placeholder, reply, busy ack). `edit_placeholder` uses `render()`; `edit_progress` caps preview via `cap_stream_preview()`. | ✅ |
 | placeholder_strategy.py | Core | Adaptive placeholder defer (180ms) and short-circuit for fast replies; eager materialize on stream activity. | ✅ |
@@ -141,6 +141,7 @@ deadlocks when an agent execution hangs without crashing.
 | router_stream.py | Core | RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance; includes edit-in-place heartbeat loop for long-task silence detection (sends once, then edits the same message with elapsed time). | — |
 | router_stream_scrubber.py | Core | Stream content and progress scrubbing utilities: filters `<think>` tags and normalizes raw tool executions into user-friendly Stage descriptions. | ✅ |
 | router_stream_throttle.py | Core | Pure time-interval checks for placeholder progress edits during execute_stream. | ✅ |
+| channel_data_plane.py | Core | ChannelDataPlaneService: 渠道入站脱敏持久化、上下文拉取、知识提取自适应打标与自产回复追溯。 | ✅ |
 | session_gate.py | Core | Sits between Router's consume loop and the per-message handler. Supports optional `on_busy_ack` callback (30s debounce) for immediate user feedback when messages are queued or dropped. | ✅ |
 | session_rate_limiter.py | Core | Session-level rate limiting for single-instance self-protection. | ✅ |
 | stream_config.py | Config | Unified configuration for streaming components. | ✅ |

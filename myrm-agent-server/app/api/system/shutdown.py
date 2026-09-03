@@ -28,7 +28,7 @@ router = APIRouter()
 
 
 async def graceful_shutdown_task() -> None:
-    """Execute graceful shutdown: drain active Agent turns, then SIGTERM."""
+    """Execute graceful shutdown: drain active Agent turns, flush WAL, close resources, then SIGTERM."""
     logger.info("[GracefulShutdown] Starting graceful shutdown process...")
 
     from app.services.agent.gateway import get_agent_gateway
@@ -36,6 +36,21 @@ async def graceful_shutdown_task() -> None:
     gateway = get_agent_gateway()
     logger.info("[GracefulShutdown] Draining %d active Agent session(s)...", gateway.active_count)
     await gateway.begin_drain()
+
+    # Stage 2: Force WAL Checkpoint flush to disk to prevent torn writes
+    try:
+        from app.platform_utils import get_database_engine
+
+        engine = get_database_engine()
+        async with engine.begin() as conn:
+            try:
+                await conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
+                logger.info("[GracefulShutdown] WAL checkpoint TRUNCATE completed")
+            except Exception:
+                await conn.exec_driver_sql("PRAGMA wal_checkpoint(PASSIVE)")
+                logger.info("[GracefulShutdown] WAL checkpoint PASSIVE fallback completed")
+    except Exception as exc:
+        logger.warning("[GracefulShutdown] Pre-shutdown WAL checkpoint skipped: %s", exc)
 
     logger.info("[GracefulShutdown] Closing Harness resources...")
     from app.lifecycle.harness_bridge import close_harness_resources

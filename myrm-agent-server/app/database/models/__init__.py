@@ -15,6 +15,7 @@ from .assessment_import_metric import AssessmentImportMetricEvent
 from .base import Base
 from .batch_directory import BatchDirectoryProjectModel
 from .channel import ChannelPairingModel
+from .channel_message import ChannelMessageModel
 from .chat import (
     Chat,
     ConversationFork,
@@ -134,6 +135,7 @@ __all__ = [
     "LifecycleWebhookModel",
     # Channel
     "ChannelPairingModel",
+    "ChannelMessageModel",
     # Media
     "BatchImageJob",
     "MediaLibrary",

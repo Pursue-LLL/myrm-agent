@@ -8,6 +8,7 @@ import { Navigation } from 'lucide-react';
 import SettingsSection from '../../SettingsSection';
 import { PolicySelector } from './DmPolicySelector';
 import { ChannelPolicyOverride } from './ChannelPolicyOverride';
+import { ChannelDataPlaneSection } from './ChannelDataPlaneSection';
 import { GroupManager, CHANNELS_WITH_GROUPS } from './GroupManager';
 import ChannelList, { buildChannelEntries } from './ChannelList';
 import { useChannelsState } from './useChannelsState';
@@ -547,6 +548,7 @@ export default function ChannelsSection() {
             saving={state.policySaving}
             t={t}
           />
+          <ChannelDataPlaneSection channel={ch} />
         </div>
       );
     },

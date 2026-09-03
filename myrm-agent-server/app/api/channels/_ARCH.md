@@ -9,6 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Channel webhook API routes. | ✅ |
+| `data_plane.py` | 模块 | 渠道数据平面管理端点：提供明细消息统计、手动滚动修剪与 GDPR 遗忘权一键清空 | ✅ |
 | `channel_ingress.py` | 模块 | Control Plane 沙箱内部入站：仅 `_handle_inbound` 入队；cron event dispatch 由 AgentRouter 统一处理 | ✅ |
 | `dlq.py` | 模块 | Get failed messages from the Dead Letter Queue. | ✅ |
 | `feishu_register.py` | 模块 | 飞书/Lark QR 扫码注册路由。提供注册会话管理（TTL）、轮询与凭据落库；多应用场景下 provision 新实例，失败自动回滚持久化凭据；布尔凭据统一转小写字符串。`display_name` 空白归一化为 None（无标签视为刷新默认实例）；成功分支以 `consumed` 原子标志（检查与置位间无 `await`）保证并发 poll 只创建一次实例，已消费的并发请求保持 pending 等待首个请求真实结果；provision 失败即丢弃会话，后续 poll 404 而非假成功。poll 成功时以 `probe_bot` 校验凭据（无法确认 bot 身份返回 502 并丢弃会话），不再持久化 `botName`/`botOpenId`。 | ✅ |

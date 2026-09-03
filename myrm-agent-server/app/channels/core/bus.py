@@ -171,6 +171,24 @@ async def _record_outbound_risk_hits(matches: tuple[object, ...], msg: OutboundM
         logger.debug("Failed to record outbound risk hits (non-critical)", exc_info=True)
 
 
+def _record_data_plane_outbound(msg: OutboundMessage) -> None:
+    """Fire-and-forget: persist outbound agent message to the channel data plane."""
+    try:
+        from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+
+        asyncio.create_task(
+            ChannelDataPlaneService.record_outbound(
+                channel=msg.channel,
+                chat_id=msg.chat_id,
+                content=msg.content,
+                thread_id=msg.thread_id,
+                reply_to_id=msg.reply_to_id,
+            )
+        )
+    except Exception as exc:
+        logger.debug("Failed to schedule data plane outbound recording: %s", exc)
+
+
 def create_default_message_bus(
     dlq_dir: Path | None = None,
     on_permanent_failure: (Callable[[QueuedDelivery, str], Awaitable[None]] | None) = None,
@@ -556,6 +574,7 @@ class MessageBus:
                 await self._durable_outbound.ack(msg)
                 latency_ms = (time.monotonic() - t0) * 1000
                 channel.activity.record_outbound(latency_ms=latency_ms)
+                _record_data_plane_outbound(msg)
                 if rate_limit > 0:
                     self._last_send_times[msg.channel] = time.monotonic()
                 return "cp_egress"
@@ -578,6 +597,7 @@ class MessageBus:
             await self._durable_outbound.ack(msg)
             latency_ms = (time.monotonic() - t0) * 1000
             channel.activity.record_outbound(latency_ms=latency_ms)
+            _record_data_plane_outbound(msg)
             if rate_limit > 0:
                 self._last_send_times[msg.channel] = time.monotonic()
             return result
@@ -815,6 +835,7 @@ class MessageBus:
                     latency_ms = (time.monotonic() - t0) * 1000
                     channel.activity.record_outbound(latency_ms=latency_ms)
                     channel.health.record_success()
+                    _record_data_plane_outbound(msg)
                     if rate_limit > 0:
                         self._last_send_times[msg.channel] = time.monotonic()
                     continue
@@ -838,6 +859,7 @@ class MessageBus:
                 latency_ms = (time.monotonic() - t0) * 1000
                 channel.activity.record_outbound(latency_ms=latency_ms)
                 channel.health.record_success()
+                _record_data_plane_outbound(msg)
                 if rate_limit > 0:
                     self._last_send_times[msg.channel] = time.monotonic()
             except Exception as e:

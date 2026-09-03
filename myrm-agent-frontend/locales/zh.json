@@ -7110,6 +7110,23 @@
       "copyInstallCommand": "复制命令",
       "copiedInstallCommand": "已复制"
     },
+    "dataPlane": {
+      "title": "入站数据平面与环境感知",
+      "description": "监控消息流转明细、凭据脱敏防线与 30 天冷热生命周期治理。",
+      "totalMessages": "已入库明细",
+      "ambientMessages": "环境背景消息",
+      "triggerMessages": "直接触发交互",
+      "learningEligible": "可提炼知识",
+      "retention": "滚动生命周期",
+      "retentionDays": "30 天",
+      "secretScrubber": "凭据脱敏引擎",
+      "secretScrubberActive": "已激活 (零凭据泄露)",
+      "clearHistory": "清空历史上下文",
+      "clearConfirm": "确定清空该渠道的所有背景上下文记录吗？此操作不可撤销（符合 GDPR 遗忘权）。",
+      "clearedSuccess": "已成功清除历史明细",
+      "clearing": "清除中...",
+      "refresh": "刷新统计"
+    },
     "groupsTitle": "群组管理",
     "groupsDesc": "选择机器人应在哪些群组中响应。未选中的群组将被忽略。",
     "groupsFreeResponseTitle": "免 @ 触发直接对话",

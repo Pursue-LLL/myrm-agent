@@ -10,7 +10,11 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from myrm_agent_harness.agent.meta_tools.progress.storage import read_todos_sync_from_workspace
+from myrm_agent_harness.agent.meta_tools.progress.schemas import TodoItem, TodoStatus, TodoStore
+from myrm_agent_harness.agent.meta_tools.progress.storage import (
+    read_todos_sync_from_workspace,
+    write_todos_sync_to_workspace,
+)
 from myrm_agent_harness.toolkits.code_execution import create_workspace_service
 
 from app.config.settings import get_settings
@@ -43,6 +47,14 @@ async def _read_workspace_todos(chat_id: str) -> object | None:
     workspace = await workspace_svc.get_or_create(session_id=to_workspace_session_id(chat_id))
     workspace_root = workspace_svc.get_workspace_absolute_path(workspace)
     return read_todos_sync_from_workspace(workspace_root)
+
+
+async def _write_workspace_todos(chat_id: str, store: TodoStore) -> None:
+    harness_root = Path(get_settings().database.harness_dir)
+    workspace_svc = create_workspace_service(root_dir=harness_root)
+    workspace = await workspace_svc.get_or_create(session_id=to_workspace_session_id(chat_id))
+    workspace_root = workspace_svc.get_workspace_absolute_path(workspace)
+    write_todos_sync_to_workspace(workspace_root, store)
 
 
 @pytest.mark.e2e
@@ -207,51 +219,43 @@ def test_planning_todo_write_blocked_status_and_replanning(client: TestClient) -
     reason="E2E test requires LITE_API_KEY or BASIC_API_KEY",
 )
 def test_planning_todo_write_all_blocked_and_replan_self_healing(client: TestClient) -> None:
-    """Multi-turn E2E: model detects all tasks blocked, replans by marking blocked task cancelled."""
+    """E2E: model detects all tasks blocked, receives instruction and cancels blocked task."""
     chat_id = f"planning_heal_{uuid.uuid4().hex[:10]}"
     assert client.post("/api/v1/chats/", json={"chat_id": chat_id}).status_code == 200
 
-    # Turn 1: Seed task list where only task is blocked
-    turn1_payload: dict[str, object] = {
-        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
-        "chatId": chat_id,
-        "query": (
-            "You MUST call todo_write exactly once (merge=false, goal='Heal test'): "
-            '[{"id":"b1","content":"External service dependency","status":"blocked"}]. '
-            "Do not call any other tools. Reply BLOCKED."
-        ),
-        "modelSelection": get_lite_model_selection(),
-        "actionMode": "agent",
-        "agentConfig": {"enabledBuiltinTools": ["planning"]},
-    }
-    events1 = _collect_agent_stream(client, turn1_payload)
-    check_e2e_errors(events1)
+    # Seed initial workspace state where the only remaining task is blocked
+    initial_store = TodoStore(
+        goal="Heal test",
+        todos=[
+            TodoItem(id="b1", content="External service dependency", status=TodoStatus.BLOCKED),
+        ],
+    )
+    asyncio.run(_write_workspace_todos(chat_id, initial_store))
+    seeded_store = asyncio.run(_read_workspace_todos(chat_id))
+    assert seeded_store is not None
+    assert seeded_store.todos[0].status.value == "blocked"
 
-    store1 = asyncio.run(_read_workspace_todos(chat_id))
-    assert store1 is not None
-    assert store1.todos[0].status.value == "blocked"
-
-    # Turn 2: Model resumes with all tasks blocked; receives [ALL REMAINING TASKS BLOCKED] instruction;
+    # Model resumes with all tasks blocked; receives [ALL REMAINING TASKS BLOCKED] instruction from progress_middleware;
     # calls todo_write(merge=true) to cancel it and complete session gracefully.
-    turn2_payload: dict[str, object] = {
+    payload: dict[str, object] = {
         "messageId": f"msg_{uuid.uuid4().hex[:8]}",
         "chatId": chat_id,
         "query": (
-            "The external dependency cannot be met. Call todo_write once with merge=true "
-            "to mark task 'b1' as 'cancelled'. Then finish and reply RESOLVED."
+            "The external dependency cannot be met. You MUST call todo_write once with merge=true "
+            "to mark task 'b1' as 'cancelled'. Do not call any other tools. After todo_write succeeds, reply RESOLVED."
         ),
         "modelSelection": get_lite_model_selection(),
         "actionMode": "agent",
         "agentConfig": {"enabledBuiltinTools": ["planning"]},
     }
-    events2 = _collect_agent_stream(client, turn2_payload)
-    check_e2e_errors(events2)
+    events = _collect_agent_stream(client, payload)
+    check_e2e_errors(events)
 
-    store2 = asyncio.run(_read_workspace_todos(chat_id))
-    assert store2 is not None
-    assert store2.todos[0].id == "b1"
-    assert store2.todos[0].status.value == "cancelled"
+    store = asyncio.run(_read_workspace_todos(chat_id))
+    assert store is not None
+    assert store.todos[0].id == "b1"
+    assert store.todos[0].status.value == "cancelled"
     # All incomplete tasks resolved
-    assert len(store2.incomplete_todos()) == 0
+    assert len(store.incomplete_todos()) == 0
 
 

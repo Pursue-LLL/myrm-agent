@@ -7998,7 +7998,24 @@
     "imessageAppleWatchGuideDesc": "에이전트가 민감한 작업 승인을 요청할 때 Apple Watch 또는 iPhone에서 iMessage 말풍선을 길게 누르고 👍(승인) 또는 👎(거부)로 반응하여 즉각적인 인간 참여형 승인을 완료하세요.",
     "imessageDeployGuideTitle": "배포 모드 가이드",
     "imessageDeployGuideLocal": "로컬 / 데스크톱: Mac에서 실행 중인 BlueBubbles 서비스에 직접 연결합니다(예: http://localhost:1234).",
-    "imessageDeployGuideCloud": "클라우드: Cloudflare Tunnel, Tailscale 또는 Ngrok을 통해 Mac의 BlueBubbles 서버에 안전하게 연결합니다."
+    "imessageDeployGuideCloud": "클라우드: Cloudflare Tunnel, Tailscale 또는 Ngrok을 통해 Mac의 BlueBubbles 서버에 안전하게 연결합니다.",
+    "dataPlane": {
+      "title": "인바운드 데이터 플레인 및 환경 컨텍스트",
+      "description": "메시지 수집 텔레메트리, 자격 증명 마스킹 방어 및 30일 보존 수명 주기 관리를 모니터링합니다.",
+      "totalMessages": "수집된 메시지",
+      "ambientMessages": "환경 배경 메시지",
+      "triggerMessages": "직접 트리거 대화",
+      "learningEligible": "지식 추출 후보",
+      "retention": "보존 주기",
+      "retentionDays": "30 일",
+      "secretScrubber": "자격 증명 마스킹",
+      "secretScrubberActive": "활성 (유출 방지)",
+      "clearHistory": "컨텍스트 기록 삭제",
+      "clearConfirm": "이 채널의 모든 배경 컨텍스트 기록을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다(GDPR 준수).",
+      "clearedSuccess": "기록을 성공적으로 삭제했습니다",
+      "clearing": "삭제 중...",
+      "refresh": "지표 새로고침"
+    }
   },
   "voice": {
     "sectionTitle": "음성 설정",

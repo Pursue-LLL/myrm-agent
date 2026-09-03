@@ -7998,7 +7998,24 @@
     "imessageAppleWatchGuideDesc": "エージェントが機密操作の承認を要求したとき、Apple Watch または iPhone でメッセージを長押しして 👍（承認）または 👎（拒否）をタップするだけで、即座にヒューマン・イン・ザ・ループ承認が完了します。",
     "imessageDeployGuideTitle": "デプロイモードガイド",
     "imessageDeployGuideLocal": "ローカル / デスクトップ: Mac で実行中の BlueBubbles サービスに直接接続します（例: http://localhost:1234）。",
-    "imessageDeployGuideCloud": "クラウド: Cloudflare Tunnel、Tailscale、または Ngrok 経由で Mac の BlueBubbles サーバーに安全に接続します。"
+    "imessageDeployGuideCloud": "クラウド: Cloudflare Tunnel、Tailscale、または Ngrok 経由で Mac の BlueBubbles サーバーに安全に接続します。",
+    "dataPlane": {
+      "title": "受信データプレーンと環境コンテキスト",
+      "description": "メッセージ収集テレメトリ、機密情報マスキング防御、30日間のライフサイクル管理を監視します。",
+      "totalMessages": "取り込み済みメッセージ",
+      "ambientMessages": "環境背景メッセージ",
+      "triggerMessages": "直接トリガー対話",
+      "learningEligible": "学習対象ナレッジ",
+      "retention": "保持サイクル",
+      "retentionDays": "30 日間",
+      "secretScrubber": "機密マスキング",
+      "secretScrubberActive": "有効（漏洩防止）",
+      "clearHistory": "コンテキスト履歴消去",
+      "clearConfirm": "このチャンネルのすべての背景コンテキスト記録を消去しますか？この操作は取り消せません（GDPR準拠）。",
+      "clearedSuccess": "履歴レコードを正常に消去しました",
+      "clearing": "消去中...",
+      "refresh": "メトリクス更新"
+    }
   },
   "voice": {
     "sectionTitle": "音声設定",

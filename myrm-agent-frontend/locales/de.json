@@ -7998,7 +7998,24 @@
     "imessageAppleWatchGuideDesc": "Wenn ein Agent eine Genehmigung anfordert, tippen Sie lange auf die iMessage-Nachricht auf Ihrer Apple Watch oder Ihrem iPhone und reagieren Sie mit 👍 (Genehmigen) oder 👎 (Ablehnen).",
     "imessageDeployGuideTitle": "Bereitstellungsmodi",
     "imessageDeployGuideLocal": "Lokal / Tauri: Direkt mit BlueBubbles auf Ihrem Mac verbinden (z. B. http://localhost:1234).",
-    "imessageDeployGuideCloud": "Cloud: Über Cloudflare Tunnel, Tailscale oder Ngrok mit Ihrem Mac BlueBubbles-Server verbinden."
+    "imessageDeployGuideCloud": "Cloud: Über Cloudflare Tunnel, Tailscale oder Ngrok mit Ihrem Mac BlueBubbles-Server verbinden.",
+    "dataPlane": {
+      "title": "Inbound-Datenebene & Umgebungskontext",
+      "description": "Überwachung der Nachrichtenerfassung, Schwärzung von Anmeldedaten und 30-tägige Lebenszyklusverwaltung.",
+      "totalMessages": "Erfasste Nachrichten",
+      "ambientMessages": "Umgebungsnachrichten",
+      "triggerMessages": "Ausgelöste Interaktionen",
+      "learningEligible": "Wissenskandidaten",
+      "retention": "Aufbewahrungszyklus",
+      "retentionDays": "30 Tage",
+      "secretScrubber": "Schwärzungsfilter",
+      "secretScrubberActive": "Aktiv (Kein Datenleck)",
+      "clearHistory": "Kontext leeren",
+      "clearConfirm": "Möchten Sie alle Umgebungskontext-Einträge für diesen Kanal wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden (DSGVO-konform).",
+      "clearedSuccess": "Einträge erfolgreich gelöscht",
+      "clearing": "Löschen...",
+      "refresh": "Metriken aktualisieren"
+    }
   },
   "voice": {
     "sectionTitle": "Spracheinstellungen",
