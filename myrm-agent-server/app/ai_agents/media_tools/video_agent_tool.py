@@ -99,8 +99,9 @@ def _clamp_reference_sources(sources: list[str] | None) -> list[str] | None:
     """Auto-clamp local reference image paths to prevent oversize / orientation faults."""
     if not sources:
         return None
-    from pathlib import Path
     import tempfile
+    from pathlib import Path
+
     from app.ai_agents.media_tools.image_clamp import clamp_image_payload
 
     sanitized: list[str] = []

@@ -126,7 +126,8 @@ export default function MemoryCitationsButton({
         const url = resolveSourceClickUrl(src) || src.url || '';
         const rawTitle = src.title || src.filename || src.kb_name || '';
         const title = normalizeCitationTitle(rawTitle, url);
-        lines.push(`- [${src.index}] [${title}](${url})`);
+        const entry = url ? `[${title}](${url})` : title;
+        lines.push(`- [${src.index}] ${entry}`);
       });
     }
     if (lines.length === 0) {

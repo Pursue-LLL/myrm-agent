@@ -412,28 +412,56 @@ export default function SkillGrowthCaseCard({
               <TrendingUp className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
               {t('manifestPrediction.title')}
             </p>
-            {item.attributionResult && (
-              <Badge
-                variant="outline"
-                className={cn(
-                  'text-[11px] font-medium inline-flex items-center gap-1',
-                  item.attributionResult.verdict === 'CONFIRMED'
-                    ? 'border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                    : item.attributionResult.verdict === 'REGRESSION'
-                      ? 'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-                      : 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
-                )}
-              >
-                {item.attributionResult.verdict === 'CONFIRMED' ? (
-                  <CheckCircle2 className="h-3 w-3" />
-                ) : item.attributionResult.verdict === 'REGRESSION' ? (
-                  <XCircle className="h-3 w-3" />
-                ) : (
-                  <AlertTriangle className="h-3 w-3" />
-                )}
-                {t(`manifestPrediction.verdictBadge.${item.attributionResult.verdict}` as Parameters<typeof t>[0])}
-              </Badge>
-            )}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {item.predictionManifest?.pareto_generalization_verdict && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'text-[11px] font-medium inline-flex items-center gap-1',
+                    item.predictionManifest.pareto_generalization_verdict === 'pareto_optimal'
+                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                      : item.predictionManifest.pareto_generalization_verdict === 'overfitting'
+                        ? 'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                        : 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+                  )}
+                >
+                  {item.predictionManifest.pareto_generalization_verdict === 'pareto_optimal' ? (
+                    <ShieldCheck className="h-3 w-3" />
+                  ) : item.predictionManifest.pareto_generalization_verdict === 'overfitting' ? (
+                    <AlertTriangle className="h-3 w-3" />
+                  ) : (
+                    <Clock3 className="h-3 w-3" />
+                  )}
+                  {t(
+                    `manifestPrediction.paretoVerdict.${item.predictionManifest.pareto_generalization_verdict}` as Parameters<
+                      typeof t
+                    >[0],
+                  )}
+                </Badge>
+              )}
+              {item.attributionResult && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'text-[11px] font-medium inline-flex items-center gap-1',
+                    item.attributionResult.verdict === 'CONFIRMED'
+                      ? 'border-emerald-400 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                      : item.attributionResult.verdict === 'REGRESSION'
+                        ? 'border-rose-400 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+                        : 'border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+                  )}
+                >
+                  {item.attributionResult.verdict === 'CONFIRMED' ? (
+                    <CheckCircle2 className="h-3 w-3" />
+                  ) : item.attributionResult.verdict === 'REGRESSION' ? (
+                    <XCircle className="h-3 w-3" />
+                  ) : (
+                    <AlertTriangle className="h-3 w-3" />
+                  )}
+                  {t(`manifestPrediction.verdictBadge.${item.attributionResult.verdict}` as Parameters<typeof t>[0])}
+                </Badge>
+              )}
+            </div>
           </div>
 
           {item.predictionManifest?.predictions && item.predictionManifest.predictions.length > 0 && (

@@ -167,6 +167,10 @@ describe('preprocessCitationMarkers', () => {
   it('normalizes generic citation titles to clean domain', () => {
     expect(normalizeCitationTitle('source', 'https://github.com/tokio-rs/tokio')).toBe('github.com');
     expect(normalizeCitationTitle('来源', 'https://en.wikipedia.org/wiki/Rust')).toBe('en.wikipedia.org');
+    expect(normalizeCitationTitle('來源', 'https://zh.wikipedia.org/wiki/Rust')).toBe('zh.wikipedia.org');
+    expect(normalizeCitationTitle('網頁', 'https://developer.mozilla.org/zh-TW/')).toBe('developer.mozilla.org');
+    expect(normalizeCitationTitle('webpage', 'https://python.org')).toBe('python.org');
+    expect(normalizeCitationTitle('reference', 'https://ietf.org/rfc/rfc1234.txt')).toBe('ietf.org');
     expect(normalizeCitationTitle('  untitled  ', 'https://news.ycombinator.com/item?id=123')).toBe('news.ycombinator.com');
     expect(normalizeCitationTitle('Tokio Framework', 'https://tokio.rs')).toBe('Tokio Framework');
   });

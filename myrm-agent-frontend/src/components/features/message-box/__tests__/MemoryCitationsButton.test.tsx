@@ -165,6 +165,38 @@ describe('MemoryCitationsButton', () => {
     expect(copiedText).toContain('- [1] [Doc Alpha](https://example.com/alpha)');
   });
 
+  it('copies unified markdown without broken empty link syntax when source url is missing', async () => {
+    const user = userEvent.setup();
+    const writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextSpy },
+      configurable: true,
+    });
+
+    render(
+      <MemoryCitationsButton
+        sources={[
+          {
+            index: 1,
+            type: 'knowledge_base',
+            title: 'Local Policy Guide',
+            url: '',
+          },
+        ]}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: /buttonAria/ }));
+    const copyBtn = screen.getByRole('button', { name: 'copyMarkdown' });
+    await user.click(copyBtn);
+
+    expect(writeTextSpy).toHaveBeenCalledTimes(1);
+    const copiedText = writeTextSpy.mock.calls[0][0];
+    expect(copiedText).toContain('### sectionSources');
+    expect(copiedText).toContain('- [1] Local Policy Guide');
+    expect(copiedText).not.toContain('[Local Policy Guide]()');
+  });
+
   it('copies single source as markdown and normalizes generic titles', async () => {
     const user = userEvent.setup();
     const writeTextSpy = vi.fn().mockResolvedValue(undefined);

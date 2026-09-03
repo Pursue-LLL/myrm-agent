@@ -23,7 +23,17 @@ const CITATION_BRACKET_RE = /(?:【|［|〔|\[)([\d\uFF10-\uFF19\s,，、\-~－]
 const UNSUPPORTED_CITATION_CONTROL_MARKER_RE = /[\uE200-\uE203]cite(?:[\uE200-\uE203][^\uE200-\uE203]*)?[\uE200-\uE203]/g;
 const TRAILING_UNSUPPORTED_CITATION_CONTROL_MARKER_RE = /[ \t]*[\uE200-\uE203]cite(?:[\uE200-\uE203][^\uE200-\uE203]*)?[\uE200-\uE203](?=\r?\n|$)/g;
 
-const GENERIC_CITATION_TITLES = new Set(['source', '来源', 'untitled', 'link', '网页']);
+const GENERIC_CITATION_TITLES = new Set([
+  'source',
+  '来源',
+  '來源',
+  'untitled',
+  'link',
+  '网页',
+  '網頁',
+  'webpage',
+  'reference',
+]);
 
 /** Normalize citation title, falling back to clean domain when generic or empty. */
 export const normalizeCitationTitle = (title: string, url?: string): string => {

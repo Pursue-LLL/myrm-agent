@@ -94,8 +94,8 @@ const LinkPopover: React.FC<LinkPopoverProps> = React.memo(
     };
 
     const domain = getDomain(url);
-    const isValidUrl = url && url !== '#';
-    const faviconUrl = `https://s2.googleusercontent.com/s2/favicons?domain_url=${url}`;
+    const isValidUrl = Boolean(url && /^https?:\/\//i.test(url));
+    const faviconUrl = isValidUrl ? `https://s2.googleusercontent.com/s2/favicons?domain_url=${url}` : '';
 
     const handlePopoverClick = useCallback(() => {
       if (isValidUrl) {

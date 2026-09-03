@@ -75,4 +75,18 @@ describe('LinkPopover', () => {
     expect(badge.tagName).toBe('SPAN');
     expect(screen.queryByRole('link')).toBeNull();
   });
+
+  it('renders non-anchor span when url uses non-http unsafe protocol', () => {
+    render(
+      <LinkPopover
+        url="javascript:alert(1)"
+        title="Unsafe Link"
+        label="3"
+      />,
+    );
+
+    const badge = screen.getByText('3');
+    expect(badge.tagName).toBe('SPAN');
+    expect(screen.queryByRole('link')).toBeNull();
+  });
 });

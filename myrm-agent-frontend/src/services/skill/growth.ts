@@ -57,6 +57,9 @@ export interface PredictionManifestDto {
   predictions: MetricPredictionDto[];
   falsification_conditions: string[];
   verdict?: string | null;
+  pareto_generalization_verdict?: string | null;
+  search_pass_rate?: number | null;
+  test_pass_rate?: number | null;
 }
 
 export interface AttributionResultDto {
