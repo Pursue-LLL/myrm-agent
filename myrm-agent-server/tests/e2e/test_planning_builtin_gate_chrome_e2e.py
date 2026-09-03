@@ -159,3 +159,4 @@ def test_planning_builtin_card_visible_and_togglable_in_chrome_ui() -> None:
             assert enabled.get("ready") is True, f"planning should be enabled after toggle: {enabled}"
     finally:
         _delete_agent(api_url, agent_id)
+

@@ -130,4 +130,20 @@ describe('ProgressSteps fault-side badge', () => {
     await userEvent.click(screen.getByTestId('progress-steps-toggle'));
     expect(screen.getByText('progress.kanban')).toBeInTheDocument();
   });
+
+  it('renders collapsed state for blocked step with amber styling and no error styling', () => {
+    const blockedStep: ProgressItem = {
+      step_key: 'todo_blocked_task',
+      tool_name: 'todo_write',
+      status: 'blocked',
+      is_plan: true,
+      items: 'Waiting for external resource',
+    };
+    const { container } = render(<ProgressSteps messageId="m-2" steps={[blockedStep]} loading={false} />);
+    // Check that collapsed step rendered without destructive/error class
+    const title = container.querySelector('h4');
+    expect(title).toBeInTheDocument();
+    expect(title?.className).toContain('text-amber-600');
+    expect(title?.className).not.toContain('text-destructive');
+  });
 });

@@ -200,3 +200,58 @@ def test_planning_todo_write_blocked_status_and_replanning(client: TestClient) -
     assert todos_by_id["task_ext"].status.value == "blocked"
     assert todos_by_id["task_local"].status.value == "in_progress"
 
+
+@pytest.mark.e2e
+@pytest.mark.skipif(
+    not os.environ.get("LITE_API_KEY") and not os.environ.get("BASIC_API_KEY"),
+    reason="E2E test requires LITE_API_KEY or BASIC_API_KEY",
+)
+def test_planning_todo_write_all_blocked_and_replan_self_healing(client: TestClient) -> None:
+    """Multi-turn E2E: model detects all tasks blocked, replans by marking blocked task cancelled."""
+    chat_id = f"planning_heal_{uuid.uuid4().hex[:10]}"
+    assert client.post("/api/v1/chats/", json={"chat_id": chat_id}).status_code == 200
+
+    # Turn 1: Seed task list where only task is blocked
+    turn1_payload: dict[str, object] = {
+        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
+        "chatId": chat_id,
+        "query": (
+            "You MUST call todo_write exactly once (merge=false, goal='Heal test'): "
+            '[{"id":"b1","content":"External service dependency","status":"blocked"}]. '
+            "Do not call any other tools. Reply BLOCKED."
+        ),
+        "modelSelection": get_lite_model_selection(),
+        "actionMode": "agent",
+        "agentConfig": {"enabledBuiltinTools": ["planning"]},
+    }
+    events1 = _collect_agent_stream(client, turn1_payload)
+    check_e2e_errors(events1)
+
+    store1 = asyncio.run(_read_workspace_todos(chat_id))
+    assert store1 is not None
+    assert store1.todos[0].status.value == "blocked"
+
+    # Turn 2: Model resumes with all tasks blocked; receives [ALL REMAINING TASKS BLOCKED] instruction;
+    # calls todo_write(merge=true) to cancel it and complete session gracefully.
+    turn2_payload: dict[str, object] = {
+        "messageId": f"msg_{uuid.uuid4().hex[:8]}",
+        "chatId": chat_id,
+        "query": (
+            "The external dependency cannot be met. Call todo_write once with merge=true "
+            "to mark task 'b1' as 'cancelled'. Then finish and reply RESOLVED."
+        ),
+        "modelSelection": get_lite_model_selection(),
+        "actionMode": "agent",
+        "agentConfig": {"enabledBuiltinTools": ["planning"]},
+    }
+    events2 = _collect_agent_stream(client, turn2_payload)
+    check_e2e_errors(events2)
+
+    store2 = asyncio.run(_read_workspace_todos(chat_id))
+    assert store2 is not None
+    assert store2.todos[0].id == "b1"
+    assert store2.todos[0].status.value == "cancelled"
+    # All incomplete tasks resolved
+    assert len(store2.incomplete_todos()) == 0
+
+

@@ -148,7 +148,8 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
   const isCollapsedStepCurrent = loading;
   const isCollapsedCompleted = !collapsedStep.error && !isCollapsedStepCurrent;
   const isCollapsedWarning = collapsedStep.status === 'warning';
-  const isCollapsedError = collapsedStep.error && !isCollapsedWarning;
+  const isCollapsedBlocked = collapsedStep.status === 'blocked';
+  const isCollapsedError = collapsedStep.error && !isCollapsedWarning && !isCollapsedBlocked;
 
   const renderTreeNode = (node: TreeNode, depth: number = 0) => {
     const { step, originalIndex: index, children } = node;
@@ -572,13 +573,15 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                   'relative w-[16px] sm:w-[20px] h-[16px] sm:h-[20px] rounded-full bg-background border-2 sm:border-3 z-10 transition-all duration-300',
                   isCollapsedWarning
                     ? 'border-amber-500 shadow-lg shadow-amber-500/20'
-                    : isCollapsedError
-                      ? 'border-destructive shadow-lg shadow-destructive/20'
-                      : isCollapsedStepCurrent
-                        ? 'border-primary shadow-lg shadow-primary/20 animate-rotate-step'
-                        : isCollapsedCompleted
-                          ? 'border-primary/70 shadow-lg shadow-primary/15'
-                          : 'border-muted-foreground/40 shadow-lg shadow-muted/10',
+                    : isCollapsedBlocked
+                      ? 'border-amber-600/70 dark:border-amber-500/70 shadow-lg shadow-amber-500/15'
+                      : isCollapsedError
+                        ? 'border-destructive shadow-lg shadow-destructive/20'
+                        : isCollapsedStepCurrent
+                          ? 'border-primary shadow-lg shadow-primary/20 animate-rotate-step'
+                          : isCollapsedCompleted
+                            ? 'border-primary/70 shadow-lg shadow-primary/15'
+                            : 'border-muted-foreground/40 shadow-lg shadow-muted/10',
                 )}
               >
                 <div
@@ -586,13 +589,15 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                     'absolute inset-[3px] sm:inset-[4px] rounded-full transition-all duration-300',
                     isCollapsedWarning
                       ? 'bg-amber-500'
-                      : isCollapsedError
-                        ? 'bg-destructive'
-                        : isCollapsedStepCurrent
-                          ? 'bg-primary animate-rotate-step'
-                          : isCollapsedCompleted
-                            ? 'bg-primary/70'
-                            : 'bg-muted-foreground/40',
+                      : isCollapsedBlocked
+                        ? 'bg-amber-600/80 dark:bg-amber-500/80'
+                        : isCollapsedError
+                          ? 'bg-destructive'
+                          : isCollapsedStepCurrent
+                            ? 'bg-primary animate-rotate-step'
+                            : isCollapsedCompleted
+                              ? 'bg-primary/70'
+                              : 'bg-muted-foreground/40',
                   )}
                 />
               </div>
@@ -604,7 +609,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
               size={16}
               className={cn(
                 'flex-shrink-0 transition-colors duration-200',
-                isCollapsedWarning
+                isCollapsedWarning || isCollapsedBlocked
                   ? 'text-amber-600 dark:text-amber-500'
                   : isCollapsedError
                     ? 'text-destructive'
@@ -617,7 +622,7 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
             <h4
               className={cn(
                 'text-sm font-normal transition-colors duration-200 line-clamp-1 flex-1',
-                isCollapsedWarning
+                isCollapsedWarning || isCollapsedBlocked
                   ? 'text-amber-600 dark:text-amber-400'
                   : isCollapsedError
                     ? 'text-destructive'
