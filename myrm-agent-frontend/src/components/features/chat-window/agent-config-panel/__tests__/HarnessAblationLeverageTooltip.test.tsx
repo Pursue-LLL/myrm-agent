@@ -8,22 +8,21 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { HarnessAblationLeverageTooltip } from '../HarnessAblationLeverageTooltip';
 
 // Mock next-intl
+const translations: Record<string, string> = {
+  title: 'Harness Leverage Guide',
+  badge: 'AHE Empirical Finding',
+  expand: 'Expand Guide',
+  collapse: 'Collapse',
+  description: 'Empirical ablation ranking',
+  toolTier: 'Tools / Skills',
+  middlewareTier: 'Middleware Guardrails',
+  memoryTier: 'Memory Retrieval',
+  promptTier: 'Prompt-only',
+  cacheTip: 'Prefer configuring tools and middleware over endlessly expanding system prompts.',
+};
+const stableT = (key: string) => translations[key] || key;
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const translations: Record<string, string> = {
-      title: 'Harness Leverage Guide',
-      badge: 'AHE Empirical Finding',
-      expand: 'Expand Guide',
-      collapse: 'Collapse',
-      description: 'Empirical ablation ranking',
-      toolTier: 'Tools / Skills',
-      middlewareTier: 'Middleware Guardrails',
-      memoryTier: 'Memory Retrieval',
-      promptTier: 'Prompt-only',
-      cacheTip: 'Prefer configuring tools and middleware over endlessly expanding system prompts.',
-    };
-    return translations[key] || key;
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('HarnessAblationLeverageTooltip', () => {

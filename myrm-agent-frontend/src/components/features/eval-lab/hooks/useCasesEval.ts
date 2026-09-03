@@ -40,7 +40,13 @@ export interface ReportItem {
     passed: boolean | null;
     time_secs?: number;
     details?: unknown;
-    scores?: { pass_rate?: number; tests_passed?: number; tests_total?: number };
+    scores?: {
+      pass_rate?: number;
+      tests_passed?: number;
+      tests_total?: number;
+      span_recall?: number;
+      distinct_sources?: number;
+    };
     usage?: { total_tokens?: number };
     actual_tools?: unknown[];
     actual_output?: string;

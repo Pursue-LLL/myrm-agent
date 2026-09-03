@@ -8,20 +8,16 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.channels.delegation.delegation_coordinator import DelegationCoordinator
-from app.channels.delegation.delegation_delivery import (
-    build_delivery_card_content,
-    format_file_size,
-    scan_workspace_artifacts,
-)
-from app.channels.delegation.delegation_ingress import (
+from app.channels.delegation import (
+    DelegationCoordinator,
     DelegationIngressGuard,
-    build_delegation_task,
-    is_delegation_intent,
-)
-from app.channels.delegation.delegation_models import (
     DelegationStatus,
     RiskLevel,
+    build_delivery_card_content,
+    build_delegation_task,
+    format_file_size,
+    is_delegation_intent,
+    scan_workspace_artifacts,
 )
 from app.channels.routing.router import AgentRouter
 from app.channels.types import InboundMessage, StreamingText

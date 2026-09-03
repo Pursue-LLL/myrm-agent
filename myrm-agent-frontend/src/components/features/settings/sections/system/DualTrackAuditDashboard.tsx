@@ -239,6 +239,7 @@ export const DualTrackAuditDashboard = memo(() => {
                         size="sm"
                         onClick={() => setExpandedId(expandedId === entry.entryId ? null : entry.entryId)}
                         className="h-5 w-5 p-0"
+                        aria-label="View entry details"
                       >
                         <IconEye className="w-3 h-3 text-muted-foreground hover:text-foreground" />
                       </Button>

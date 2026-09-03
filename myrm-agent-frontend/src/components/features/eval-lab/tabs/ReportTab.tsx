@@ -362,31 +362,46 @@ export default function ReportTab({
                     <span className="block truncate" title={c.case?.message}>
                       {c.case?.message || t('report.multiTurn')}
                     </span>
-                    {c.scores?.pass_rate != null && (
-                      <span
-                        className={`ml-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${
-                          c.scores.pass_rate >= 1
-                            ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                        }`}
-                      >
-                        {c.scores.pass_rate >= 1 ? '100%' : `${Math.min(99, Math.floor(c.scores.pass_rate * 100))}%`}
-                        {c.scores.tests_total != null && ` · ${c.scores.tests_passed ?? 0}/${c.scores.tests_total}`}
-                      </span>
-                    )}
-                    {c.scores?.span_recall != null && (
-                      <span
-                        className={`ml-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${
-                          c.scores.span_recall >= 1
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                        }`}
-                        title={t('report.retrievalSpanRecallTitle') || 'Retrieval Span Recall'}
-                      >
-                        {`Span ${Math.round(c.scores.span_recall * 100)}%`}
-                        {c.scores.distinct_sources != null && ` · ${c.scores.distinct_sources} sources`}
-                      </span>
-                    )}
+                    {(() => {
+                      const scores = c.scores as
+                        | {
+                            pass_rate?: number;
+                            tests_passed?: number;
+                            tests_total?: number;
+                            span_recall?: number;
+                            distinct_sources?: number;
+                          }
+                        | undefined;
+                      return (
+                        <>
+                          {scores?.pass_rate != null && (
+                            <span
+                              className={`ml-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${
+                                scores.pass_rate >= 1
+                                  ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                              }`}
+                            >
+                              {scores.pass_rate >= 1 ? '100%' : `${Math.min(99, Math.floor(scores.pass_rate * 100))}%`}
+                              {scores.tests_total != null && ` · ${scores.tests_passed ?? 0}/${scores.tests_total}`}
+                            </span>
+                          )}
+                          {scores?.span_recall != null && (
+                            <span
+                              className={`ml-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium ${
+                                scores.span_recall >= 1
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                              }`}
+                              title={t('report.retrievalSpanRecallTitle') || 'Retrieval Span Recall'}
+                            >
+                              {`Span ${Math.round(scores.span_recall * 100)}%`}
+                              {scores.distinct_sources != null && ` · ${scores.distinct_sources} sources`}
+                            </span>
+                          )}
+                        </>
+                      );
+                    })()}
                     {(c.limit_reached ||
                       (c.blocked_count ?? 0) > 0 ||
                       (c.tool_call_details?.length ?? 0) > 0 ||

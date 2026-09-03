@@ -43,6 +43,7 @@ from myrm_agent_harness.toolkits.memory.health import MaintenanceReport
 from app.lifecycle.memory_guardian_ops import (
     auto_resolve_expired_conflicts,
     create_guardian_memory_manager,
+    harvest_session_blind_spots,
     purge_expired_archives,
 )
 from app.services.memory.ledger.guardian_events import (
@@ -271,6 +272,13 @@ async def _run_guardian_cycle(
             await record_conflict_auto_resolve_event(resolved_count)
     except Exception as exc:
         logger.warning("Memory guardian: conflict auto-resolve failed (non-fatal): %s", exc)
+
+    try:
+        harvested = await harvest_session_blind_spots()
+        if harvested > 0:
+            logger.info("Memory guardian: harvested %d knowledge patches into approvals", harvested)
+    except Exception as exc:
+        logger.warning("Memory guardian: blind spot harvesting pass failed (non-fatal): %s", exc)
 
     _run_sqlite_backup()
     if report and report.skipped:

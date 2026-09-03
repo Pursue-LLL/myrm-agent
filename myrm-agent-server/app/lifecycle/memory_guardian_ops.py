@@ -131,3 +131,136 @@ async def purge_expired_archives(manager: MemoryManager) -> int:
         except Exception as exc:
             logger.warning("Memory guardian: failed to purge expired %s archives: %s", mem_type.value, exc)
     return total_purged
+
+
+async def harvest_session_blind_spots(
+    *,
+    limit: int = 50,
+    since_hours: int = 168,
+    min_candidates: int = 1,
+) -> int:
+    """Harvest missed queries from recent session messages and extract knowledge patches.
+
+    1. Scans recent messages with missed_query / user_correction / negative feedback.
+    2. Runs extract_blind_spot_patches via WebUI default platform LLM.
+    3. Persists patches as pending ApprovalRecord (action_type="knowledge_patch") for HITL review.
+    Returns the count of created approval records.
+    """
+    from datetime import timedelta
+
+    from sqlalchemy import select
+
+    from app.database.connection import get_session
+    from app.database.models.approvals import ApprovalRecord
+    from app.database.models.chat import Message
+    from app.services.approvals.registry import ApprovalRegistry
+    from myrm_agent_harness.toolkits.memory.strategies.blind_spot import (
+        BlindSpotCandidate,
+        extract_blind_spot_patches,
+    )
+
+    cutoff = datetime.now(UTC) - timedelta(hours=since_hours)
+    candidates: list[BlindSpotCandidate] = []
+
+    async with get_session() as db:
+        stmt = (
+            select(Message)
+            .where(
+                Message.created_at >= cutoff,
+                Message.extra_data.isnot(None),
+            )
+            .order_by(Message.created_at.desc())
+            .limit(limit * 2)
+        )
+        result = await db.execute(stmt)
+        messages = list(result.scalars().all())
+
+    for msg in messages:
+        extra = msg.extra_data or {}
+        if not isinstance(extra, dict):
+            continue
+
+        missed = extra.get("missed_query")
+        correction = extra.get("user_correction")
+        is_candidate = extra.get("blind_spot_candidate") is True
+        is_thumbs_down = bool(
+            extra.get("thumbs_down")
+            or extra.get("reaction") == "thumbsdown"
+            or extra.get("rating") == "negative"
+        )
+
+        query_text = ""
+        if isinstance(missed, str) and missed.strip():
+            query_text = missed.strip()
+        elif is_candidate or is_thumbs_down or correction:
+            if msg.role == "user" and msg.content and msg.content.strip():
+                query_text = msg.content.strip()
+
+        if query_text:
+            candidates.append(
+                BlindSpotCandidate(
+                    query=query_text,
+                    session_id=str(msg.chat_id or ""),
+                    turn_index=0,
+                    user_correction=str(correction).strip() if correction else None,
+                    thumbs_down=is_thumbs_down,
+                    created_at_iso=msg.created_at.isoformat() if msg.created_at else "",
+                )
+            )
+
+    if not candidates:
+        return 0
+
+    try:
+        from app.services.agent.platform_config import load_platform_llm
+
+        llm = await load_platform_llm(streaming=False, temperature=0.0)
+    except Exception as exc:
+        logger.info("Memory guardian: platform LLM not configured for blind spot harvesting: %s", exc)
+        return 0
+
+    report = await extract_blind_spot_patches(candidates, llm, min_candidates=min_candidates)
+    if report.skipped or not report.has_patches:
+        return 0
+
+    created_count = 0
+    async with get_session() as db:
+        stmt_existing = select(ApprovalRecord.payload).where(
+            ApprovalRecord.action_type == "knowledge_patch",
+            ApprovalRecord.status == "PENDING",
+        )
+        res = await db.execute(stmt_existing)
+        existing_payloads = [r[0] for r in res.all() if isinstance(r[0], dict)]
+        existing_titles = {
+            str(p.get("title", "")).strip().lower() for p in existing_payloads if p.get("title")
+        }
+
+    for patch in report.patches:
+        if patch.title.strip().lower() in existing_titles:
+            continue
+        await ApprovalRegistry.create_approval(
+            agent_id="default",
+            action_type="knowledge_patch",
+            reason=f"会话盲点知识转正建议: {patch.title}",
+            severity="info",
+            payload={
+                "title": patch.title,
+                "target_type": patch.target_type.value,
+                "content": patch.content,
+                "trigger_condition": patch.trigger_condition,
+                "rationale": patch.rationale,
+                "confidence": patch.confidence,
+                "source_queries": patch.source_queries,
+                "suggested_action": patch.suggested_action,
+            },
+        )
+        existing_titles.add(patch.title.strip().lower())
+        created_count += 1
+
+    logger.info(
+        "Memory guardian: harvested %d knowledge patch approvals from %d candidates",
+        created_count,
+        len(candidates),
+    )
+    return created_count
+

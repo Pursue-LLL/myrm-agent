@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,7 @@ _BANNED_PHRASES = (
     "本目录模块说明",
 )
 
-# Scope: product code trees (exclude .venv, node_modules, caches).
+# Scope: product code trees (exclude .venv, node_modules, caches, build targets).
 _SCAN_ROOTS = (
     _REPO_ROOT / "myrm-agent-server" / "app",
     _REPO_ROOT / "myrm-agent-frontend" / "src",
@@ -21,6 +22,7 @@ _SCAN_ROOTS = (
     _REPO_ROOT / "myrm-agent-extension",
     _REPO_ROOT / "scripts",
 )
+_SKIP_DIRNAMES = frozenset({"node_modules", ".venv", "__pycache__", ".next", "target", "dist", "build", ".git"})
 
 
 def _arch_files_under_roots() -> list[Path]:
@@ -28,11 +30,10 @@ def _arch_files_under_roots() -> list[Path]:
     for root in _SCAN_ROOTS:
         if not root.is_dir():
             continue
-        for path in root.rglob("_ARCH.md"):
-            parts = set(path.parts)
-            if parts & {"node_modules", ".venv", "__pycache__", ".next"}:
-                continue
-            files.append(path)
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRNAMES]
+            if "_ARCH.md" in filenames:
+                files.append(Path(dirpath) / "_ARCH.md")
     return sorted(files)
 
 

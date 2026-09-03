@@ -9,17 +9,18 @@ import { ComponentAblationImpactRankingChip } from '../components/ComponentAblat
 import type { AblationRecommendationItem } from '../hooks/useCasesEval';
 
 // Mock next-intl
+const stableT = (key: string, params?: Record<string, unknown>) => {
+  const translations: Record<string, string> = {
+    title: 'Component Ablation Impact & Harness Edit Recommendations',
+    subtitle: 'AHE Ablation Priority Ranking',
+    description: 'Empirical ablation ranking',
+    affectsCases: `Affects ${params?.count ?? 0} failed cases`,
+    quickConfig: 'Configure',
+  };
+  return translations[key] || key;
+};
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    const translations: Record<string, string> = {
-      title: 'Component Ablation Impact & Harness Edit Recommendations',
-      subtitle: 'AHE Ablation Priority Ranking',
-      description: 'Empirical ablation ranking',
-      affectsCases: `Affects ${params?.count ?? 0} failed cases`,
-      quickConfig: 'Configure',
-    };
-    return translations[key] || key;
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('ComponentAblationImpactRankingChip', () => {

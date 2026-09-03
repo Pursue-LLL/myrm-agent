@@ -87,8 +87,8 @@ from app.channels.core.bus import (
     MessageBus,
     set_correlation_context,
 )
-from app.channels.delegation.delegation_coordinator import DelegationCoordinator
-from app.channels.delegation.delegation_ingress import (
+from app.channels.delegation import (
+    DelegationCoordinator,
     DelegationIngressGuard,
     build_delegation_task,
     is_delegation_intent,
