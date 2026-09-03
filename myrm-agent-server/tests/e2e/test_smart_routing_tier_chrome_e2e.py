@@ -260,6 +260,7 @@ _HOVER_TOKEN_BTN_JS = """(() => {
   // or "{n} tokens" — match any of those forms. Fall back to the single inline
   // tabular-nums button if the label probe misses.
   const btn =
+    candidates[candidates.length - 1] ||
     candidates[0] ||
     Array.from(document.querySelectorAll('button')).find((b) =>
       /inline-flex.*tabular-nums/.test(b.className || '')
@@ -272,6 +273,8 @@ _HOVER_TOKEN_BTN_JS = """(() => {
   btn.dispatchEvent(new PointerEvent('pointerover', opts));
   btn.dispatchEvent(new MouseEvent('mouseover', opts));
   btn.dispatchEvent(new MouseEvent('mouseenter', opts));
+  btn.focus();
+  btn.click();
   return { ok: true, aria: btn.getAttribute('aria-label') };
 })()"""
 

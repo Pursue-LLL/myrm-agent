@@ -343,11 +343,12 @@ export default function TokenUsageDisplay({
   const budgetColors = contextBudget ? BUDGET_COLORS[contextBudget.health_status] : null;
 
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={100}>
       <Tooltip open={tooltipOpen} onOpenChange={setTooltipOpen}>
         <TooltipTrigger asChild>
           <button
             type="button"
+            onClick={() => setTooltipOpen((v) => !v)}
             className="inline-flex items-center gap-1 px-2 py-1 text-black/70 dark:text-white/70 rounded-xl hover:bg-light-secondary dark:hover:bg-dark-secondary active:scale-95 transition duration-200 hover:text-black dark:hover:text-white"
             aria-label={
               contextBudget
@@ -567,14 +568,16 @@ export default function TokenUsageDisplay({
                 </div>
               )}
 
-              {/* 模型 */}
-              {modelName && (
+              {/* 模型与调度 */}
+              {(modelName || routingTier) && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">{t('model')}</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-mono text-muted-foreground truncate max-w-[120px]">
-                      {formatModelName(modelName)}
-                    </span>
+                    {modelName && (
+                      <span className="text-xs font-mono text-muted-foreground truncate max-w-[120px]">
+                        {formatModelName(modelName)}
+                      </span>
+                    )}
                     {routingTier && (
                       <Tooltip>
                         <TooltipTrigger asChild>
