@@ -512,24 +512,17 @@ def test_composer_context_chip_send_turn_e2e_flow() -> None:
         )
         assert send_btn_ready.get("ready") is True, send_btn_ready
 
-        # Submit via bridge / form dispatch to trigger React handleSubmit lifecycle
-        submitted = client.evaluate(
+        btn_clicked = client.evaluate(
             page,
             """(() => {
-              if (window.__MYRM_E2E_CHAT__?.handleSubmit) {
-                window.__MYRM_E2E_CHAT__.handleSubmit();
-                return { ok: true, via: 'bridge' };
-              }
               const btn = document.querySelector('.message-send-btn');
-              if (btn && !btn.disabled) {
-                btn.click();
-                return { ok: true, via: 'click' };
-              }
-              return { ok: false, err: 'no-submit-target' };
+              if (!btn || btn.disabled) return false;
+              btn.click();
+              return true;
             })()""",
-            timeout_sec=10.0,
+            timeout_sec=5.0,
         )
-        assert isinstance(submitted, dict) and submitted.get("ok") is True, submitted
+        assert btn_clicked is True, "Send button click failed"
 
         # 5. Assert input textarea cleared and composer chip strip unmounted
         wait_for_state(

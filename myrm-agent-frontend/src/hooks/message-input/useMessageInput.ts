@@ -640,6 +640,7 @@ export const useMessageInput = () => {
     setHideAttachList(true);
     recordChatQueryMetric();
 
+    setInputMessage('');
     const finalMessage = _injectDirtyArtifacts(composeOutboundUserMessage(inputMessage));
     const archiveRestoreActions = resolveArchiveRestoreActionsForMessage(finalMessage, pendingArchiveRestoreActions);
     setPendingArchiveRestoreActions([]);

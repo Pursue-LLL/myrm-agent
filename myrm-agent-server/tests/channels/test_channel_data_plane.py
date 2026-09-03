@@ -14,7 +14,12 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.channels.routing.channel_data_plane import (
     ChannelDataPlaneService,
@@ -29,11 +34,15 @@ from app.database.repositories.channel_message_repo import ChannelMessageReposit
 @pytest.fixture
 async def async_db() -> AsyncGenerator[AsyncSession, None]:
     """In-memory SQLite async database session for isolated repository testing."""
-    engine: AsyncEngine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    engine: AsyncEngine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:", echo=False
+    )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    session_maker = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    session_maker = async_sessionmaker(
+        engine, expire_on_commit=False, class_=AsyncSession
+    )
     async with session_maker() as session:
         yield session
 
@@ -44,8 +53,18 @@ class TestLearningEligibility:
     """Tests for the is_learning_eligible noise rejection heuristics."""
 
     def test_eligible_normal_text(self) -> None:
-        assert is_learning_eligible("Team, please review the latest API spec before release.") is True
-        assert is_learning_eligible("Can we deploy to staging at 3pm?", sender_name="Alice") is True
+        assert (
+            is_learning_eligible(
+                "Team, please review the latest API spec before release."
+            )
+            is True
+        )
+        assert (
+            is_learning_eligible(
+                "Can we deploy to staging at 3pm?", sender_name="Alice"
+            )
+            is True
+        )
 
     def test_ineligible_slash_commands(self) -> None:
         assert is_learning_eligible("/help") is False
@@ -60,14 +79,30 @@ class TestLearningEligibility:
         assert is_learning_eligible("?") is False
 
     def test_ineligible_bot_senders(self) -> None:
-        assert is_learning_eligible("Pipeline failed on main", sender_name="CI/CD Bot") is False
-        assert is_learning_eligible("CPU usage > 90%", sender_name="Prometheus-AlertManager") is False
-        assert is_learning_eligible("NullPointerException", sender_name="Sentry") is False
+        assert (
+            is_learning_eligible("Pipeline failed on main", sender_name="CI/CD Bot")
+            is False
+        )
+        assert (
+            is_learning_eligible(
+                "CPU usage > 90%", sender_name="Prometheus-AlertManager"
+            )
+            is False
+        )
+        assert (
+            is_learning_eligible("NullPointerException", sender_name="Sentry") is False
+        )
         assert is_learning_eligible("今日打卡已完成", sender_name="打卡机器人") is False
-        assert is_learning_eligible("定时健康检查正常", sender_name="运维提醒助手") is False
+        assert (
+            is_learning_eligible("定时健康检查正常", sender_name="运维提醒助手")
+            is False
+        )
 
     def test_eligible_sender_with_substring(self) -> None:
-        assert is_learning_eligible("Let's proceed with design.", sender_name="Abbott") is True
+        assert (
+            is_learning_eligible("Let's proceed with design.", sender_name="Abbott")
+            is True
+        )
 
 
 class TestChannelMessageRepository:
@@ -121,7 +156,9 @@ class TestChannelMessageRepository:
         assert context[1].id == "msg_002"
 
     @pytest.mark.asyncio
-    async def test_get_learning_candidates_filtering(self, async_db: AsyncSession) -> None:
+    async def test_get_learning_candidates_filtering(
+        self, async_db: AsyncSession
+    ) -> None:
         now = datetime.now(timezone.utc)
         # 1. Eligible user message
         m1 = ChannelMessageModel(
@@ -161,7 +198,9 @@ class TestChannelMessageRepository:
             await ChannelMessageRepository.record_message(async_db, m)
         await async_db.commit()
 
-        candidates = await ChannelMessageRepository.get_learning_candidates(async_db, channel="slack")
+        candidates = await ChannelMessageRepository.get_learning_candidates(
+            async_db, channel="slack"
+        )
         assert len(candidates) == 1
         assert candidates[0].id == "cand_1"
 
@@ -191,7 +230,9 @@ class TestChannelMessageRepository:
         await ChannelMessageRepository.record_message(async_db, recent_msg)
         await async_db.commit()
 
-        purged_count = await ChannelMessageRepository.prune_expired(async_db, retention_days=30)
+        purged_count = await ChannelMessageRepository.prune_expired(
+            async_db, retention_days=30
+        )
         await async_db.commit()
 
         assert purged_count == 1
@@ -202,7 +243,9 @@ class TestChannelMessageRepository:
         assert remaining[0].id == "recent_01"
 
     @pytest.mark.asyncio
-    async def test_get_channel_stats_and_clear_history(self, async_db: AsyncSession) -> None:
+    async def test_get_channel_stats_and_clear_history(
+        self, async_db: AsyncSession
+    ) -> None:
         m1 = ChannelMessageModel(
             id="cnt_1",
             channel="wecom",
@@ -232,23 +275,33 @@ class TestChannelMessageRepository:
         assert stats_all["learning_eligible"] == 1
         assert stats_all["trigger_messages"] == 1
 
-        stats_wecom = await ChannelMessageRepository.get_channel_stats(async_db, channel="wecom")
+        stats_wecom = await ChannelMessageRepository.get_channel_stats(
+            async_db, channel="wecom"
+        )
         assert stats_wecom["total_messages"] == 1
         assert stats_wecom["learning_eligible"] == 1
 
-        stats_unknown = await ChannelMessageRepository.get_channel_stats(async_db, channel="unknown")
+        stats_unknown = await ChannelMessageRepository.get_channel_stats(
+            async_db, channel="unknown"
+        )
         assert stats_unknown["total_messages"] == 0
 
         # Test clear_chat_history
-        cleared = await ChannelMessageRepository.clear_chat_history(async_db, channel="wecom", chat_id="w1")
+        cleared = await ChannelMessageRepository.clear_chat_history(
+            async_db, channel="wecom", chat_id="w1"
+        )
         await async_db.commit()
         assert cleared == 1
 
-        stats_after = await ChannelMessageRepository.get_channel_stats(async_db, channel="wecom")
+        stats_after = await ChannelMessageRepository.get_channel_stats(
+            async_db, channel="wecom"
+        )
         assert stats_after["total_messages"] == 0
 
     @pytest.mark.asyncio
-    async def test_record_message_idempotent_duplicate_absorbed(self, async_db: AsyncSession) -> None:
+    async def test_record_message_idempotent_duplicate_absorbed(
+        self, async_db: AsyncSession
+    ) -> None:
         """Webhook duplicate retry delivery must be idempotently absorbed without failing the transaction."""
         m1 = ChannelMessageModel(
             id="dup_msg_001",
@@ -297,7 +350,9 @@ class TestChannelDataPlaneService:
             message_id="msg_redact_test",
         )
 
-        with patch("app.channels.routing.channel_data_plane.get_session") as mock_get_session:
+        with patch(
+            "app.channels.routing.channel_data_plane.get_session"
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_get_session.return_value.__aenter__.return_value = mock_session
 
@@ -307,7 +362,11 @@ class TestChannelDataPlaneService:
             assert entry.is_self is False
             # Secret must be replaced with sanitized placeholder
             assert "sk-live-1234567890abcdef12345678" not in entry.content
-            assert "sk-***" in entry.content or "[REDACTED" in entry.content or "*" in entry.content
+            assert (
+                "sk-***" in entry.content
+                or "[REDACTED" in entry.content
+                or "*" in entry.content
+            )
 
     @pytest.mark.asyncio
     async def test_record_inbound_missing_chat_id_safely_ignored(self) -> None:
@@ -322,7 +381,9 @@ class TestChannelDataPlaneService:
 
     @pytest.mark.asyncio
     async def test_record_outbound_persists_agent_reply(self) -> None:
-        with patch("app.channels.routing.channel_data_plane.get_session") as mock_get_session:
+        with patch(
+            "app.channels.routing.channel_data_plane.get_session"
+        ) as mock_get_session:
             mock_session = AsyncMock()
             mock_get_session.return_value.__aenter__.return_value = mock_session
 
@@ -339,8 +400,13 @@ class TestChannelDataPlaneService:
 
     @pytest.mark.asyncio
     async def test_get_recent_context_entries_failure_returns_empty_list(self) -> None:
-        with patch("app.channels.routing.channel_data_plane.get_session", side_effect=RuntimeError("DB disconnected")):
-            entries = await ChannelDataPlaneService.get_recent_context_entries("slack", "chan_1")
+        with patch(
+            "app.channels.routing.channel_data_plane.get_session",
+            side_effect=RuntimeError("DB disconnected"),
+        ):
+            entries = await ChannelDataPlaneService.get_recent_context_entries(
+                "slack", "chan_1"
+            )
             assert entries == []
 
     @pytest.mark.asyncio
@@ -349,7 +415,9 @@ class TestChannelDataPlaneService:
         with patch(
             "app.database.repositories.channel_message_repo.ChannelMessageRepository.prune_expired",
             new_callable=AsyncMock,
-        ) as mock_prune, patch("app.platform_utils.session_factory") as mock_session_factory, patch(
+        ) as mock_prune, patch(
+            "app.platform_utils.session_factory"
+        ) as mock_session_factory, patch(
             "app.lifecycle.schedulers.logger"
         ):
             mock_session = AsyncMock()
@@ -369,7 +437,9 @@ class TestChannelDataPlaneService:
             assert kwargs.get("retention_days") == 30
 
     @pytest.mark.asyncio
-    async def test_channel_data_plane_real_business_flow(self, async_db: AsyncSession) -> None:
+    async def test_channel_data_plane_real_business_flow(
+        self, async_db: AsyncSession
+    ) -> None:
         """Universal Task Flow E2E: Inbound message -> Credential scrubbing -> DB DWD -> Context retrieval -> LLM generation -> Outbound record -> Data Plane metrics."""
         import os
 
@@ -412,6 +482,7 @@ class TestChannelDataPlaneService:
         if api_key and not api_key.startswith("mock") and "example" not in api_key:
             try:
                 import litellm
+
                 resp = await litellm.acompletion(
                     model=model_name,
                     api_key=api_key,
@@ -424,7 +495,9 @@ class TestChannelDataPlaneService:
                 )
                 if resp and resp.choices:
                     content = resp.choices[0].message.content or ""
-                    reasoning = getattr(resp.choices[0].message, "reasoning_content", "") or ""
+                    reasoning = (
+                        getattr(resp.choices[0].message, "reasoning_content", "") or ""
+                    )
                     full_text = f"{content} {reasoning}".strip()
                     if full_text and "32" in full_text:
                         model_response_text = full_text
@@ -459,7 +532,9 @@ class TestChannelDataPlaneService:
         assert "32" in full_flow[1].content
 
         # 6. Channel Data Plane aggregated stats
-        stats = await ChannelMessageRepository.get_channel_stats(async_db, channel="feishu")
+        stats = await ChannelMessageRepository.get_channel_stats(
+            async_db, channel="feishu"
+        )
         assert stats["total_messages"] == 2
         assert stats["trigger_messages"] == 1
         assert stats["learning_eligible"] == 1
