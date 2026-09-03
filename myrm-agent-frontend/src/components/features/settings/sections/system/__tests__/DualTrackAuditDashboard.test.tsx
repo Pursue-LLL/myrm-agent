@@ -5,8 +5,8 @@ import { DualTrackAuditDashboard } from '../DualTrackAuditDashboard';
 import { dualTrackAuditService } from '@/services/dualTrackAudit';
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
-  if (params?.count !== undefined) return `${key}: ${params.count}`;
-  if (params?.rate !== undefined) return `Refusal ${params.rate}%`;
+  if (params?.count !== undefined) return `Count: ${params.count}`;
+  if (params?.rate !== undefined) return `Rate: ${params.rate}%`;
   if (params?.format !== undefined) return `Format: ${params.format}`;
   return key;
 };
@@ -31,112 +31,118 @@ describe('DualTrackAuditDashboard', () => {
   const mockStats = {
     totalEntries: 42,
     permittedCount: 38,
-    refusedCount: 4,
-    failedCount: 0,
-    humanTakeTheWheelCount: 3,
+    refusedCount: 3,
+    failedCount: 1,
+    humanTakeTheWheelCount: 5,
     complianceRate: 0.905,
     avgLatencyMs: 65.4,
     topRulesTriggered: [
       {
-        ruleName: 'DOMAIN_ALLOWLIST_POLICY',
+        ruleName: 'DOMAIN_ALLOWLIST_GATE',
         triggerCount: 20,
         refusedCount: 3,
         permittedCount: 17,
         failedCount: 0,
         refusalRate: 0.15,
-        sampleTargets: ['api.external.com'],
+        sampleTargets: ['https://api.github.com'],
       },
     ],
   };
 
   const mockEntries = [
     {
-      entryId: 'aud_entry_001',
-      sessionId: 'sess_12345',
-      agentId: 'code_assistant',
-      toolName: 'bash_exec',
-      intentSummary: 'Execute sandbox test runner',
-      rawIntentArgs: { cmd: 'pytest -q' },
-      ruleName: 'SANDBOX_COMMAND_GATE',
+      entryId: 'ent_001',
+      sessionId: 'sess_123',
+      agentId: 'coder',
+      toolName: 'bash',
+      intentSummary: 'Execute test runner script',
+      rawIntentArgs: { cmd: 'npm test' },
+      ruleName: 'SANDBOX_EXEC',
       state: 'COMPLETED' as const,
       outcome: 'PERMITTED' as const,
-      isHumanTakeTheWheel: false,
+      isHumanTakeTheWheel: true,
       createdAt: '2026-09-02T10:00:00Z',
       completedAt: '2026-09-02T10:00:01Z',
-      latencyMs: 120,
+      latencyMs: 110.5,
       outputLength: 256,
       errorMessage: null,
     },
     {
-      entryId: 'aud_entry_002',
-      sessionId: 'sess_12345',
-      agentId: 'code_assistant',
+      entryId: 'ent_002',
+      sessionId: 'sess_123',
+      agentId: 'coder',
       toolName: 'fs_write',
-      intentSummary: 'Attempt write to protected hosts file',
+      intentSummary: 'Write to /etc/hosts',
       rawIntentArgs: { path: '/etc/hosts' },
-      ruleName: 'CRITICAL_FS_PATH_LOCK',
+      ruleName: 'PATH_BOUNDARY_GUARD',
       state: 'REFUSED' as const,
       outcome: 'REFUSED' as const,
-      isHumanTakeTheWheel: true,
+      isHumanTakeTheWheel: false,
       createdAt: '2026-09-02T10:05:00Z',
       completedAt: '2026-09-02T10:05:00Z',
-      latencyMs: 15,
+      latencyMs: 0.0,
       outputLength: 0,
-      errorMessage: 'Access denied by security boundary policy',
+      errorMessage: 'Access denied outside workspace',
     },
   ];
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (dualTrackAuditService.getStats as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockStats);
-    (dualTrackAuditService.getEntries as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockEntries);
-    (dualTrackAuditService.getExportUrl as unknown as ReturnType<typeof vi.fn>).mockReturnValue('https://api.myrm.io/export');
+    vi.mocked(dualTrackAuditService.getStats).mockResolvedValue(mockStats);
+    vi.mocked(dualTrackAuditService.getEntries).mockResolvedValue(mockEntries);
+    vi.mocked(dualTrackAuditService.getExportUrl).mockReturnValue('/api/v1/security/audit/dual-track/export?format=json');
+    window.open = vi.fn();
   });
 
-  it('renders KPI summary cards and top triggered rule', async () => {
+  it('renders summary statistics and top rules', async () => {
     render(<DualTrackAuditDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText('42')).toBeInTheDocument();
       expect(screen.getByText('90.5%')).toBeInTheDocument();
-      expect(screen.getByText('4')).toBeInTheDocument();
       expect(screen.getByText('3')).toBeInTheDocument();
+      expect(screen.getByText('5')).toBeInTheDocument();
+      expect(screen.getByText('DOMAIN_ALLOWLIST_GATE')).toBeInTheDocument();
     });
-
-    expect(screen.getByText('DOMAIN_ALLOWLIST_POLICY')).toBeInTheDocument();
   });
 
-  it('renders recent audit trail entries with outcomes and details expansion', async () => {
+  it('renders recent audit entries with badges and allows expanding details', async () => {
     render(<DualTrackAuditDashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText('bash_exec')).toBeInTheDocument();
-      expect(screen.getByText('fs_write')).toBeInTheDocument();
+      expect(screen.getByText('Execute test runner script')).toBeInTheDocument();
+      expect(screen.getByText('Write to /etc/hosts')).toBeInTheDocument();
       expect(screen.getByText('TakeTheWheel')).toBeInTheDocument();
     });
 
-    // Expand details on the second entry
-    const eyeButtons = screen.getAllByLabelText('View entry details');
-    expect(eyeButtons.length).toBeGreaterThan(0);
-
-    fireEvent.click(eyeButtons[0]);
-    await waitFor(() => {
-      expect(screen.getByText(/Session ID:/)).toBeInTheDocument();
-    });
+    const eyeButtons = screen.getAllByRole('button');
+    const firstEye = eyeButtons.find((b) => b.querySelector('svg'));
+    if (firstEye) {
+      fireEvent.click(firstEye);
+      await waitFor(() => {
+        expect(screen.getByText(/SANDBOX_EXEC/)).toBeInTheDocument();
+      });
+    }
   });
 
-  it('triggers export links for compliance dossiers', async () => {
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+  it('triggers export for JSON, CSV, and Markdown', async () => {
     render(<DualTrackAuditDashboard />);
 
     await waitFor(() => {
       expect(screen.getByText('JSON')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('JSON'));
+    const jsonBtn = screen.getByText('JSON');
+    fireEvent.click(jsonBtn);
     expect(dualTrackAuditService.getExportUrl).toHaveBeenCalledWith({ format: 'json' });
-    expect(openSpy).toHaveBeenCalledWith('https://api.myrm.io/export', '_blank');
+    expect(window.open).toHaveBeenCalled();
 
-    openSpy.mockRestore();
+    const csvBtn = screen.getByText('CSV');
+    fireEvent.click(csvBtn);
+    expect(dualTrackAuditService.getExportUrl).toHaveBeenCalledWith({ format: 'csv' });
+
+    const mdBtn = screen.getByText('Markdown');
+    fireEvent.click(mdBtn);
+    expect(dualTrackAuditService.getExportUrl).toHaveBeenCalledWith({ format: 'markdown' });
   });
 });

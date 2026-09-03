@@ -10,6 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包导出 | — |
 | `router.py` | 路由 | `GET /approvals`、`POST /{id}/resolve`、`POST /batch-resolve`、`POST /test/seed-mock`（local E2E） | ✅ |
+| `knowledge_patch.py` | 辅助 | 知识补丁审批通过后的 Wiki/Procedural 规则写入处理 | ✅ |
 
 ## 路由（前缀 `/api/v1/approvals`）
 

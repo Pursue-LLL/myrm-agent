@@ -2,12 +2,11 @@
  * Unit tests for ChatHistoryRow and useChatActions artifact reveal.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { ChatHistoryRow } from '../ChatHistoryRow';
 import type { ChatItem } from '@/services/chat';
-import * as fileServices from '@/services/file';
 
 vi.mock('next/link', () => ({
   default: ({ children, href, className, onClick }: any) => (
@@ -23,6 +22,28 @@ vi.mock('hugeicons-react', () => ({
 
 vi.mock('@/components/features/settings/sections/integration/channels/ChannelIcon', () => ({
   default: () => <span data-testid="channel-icon" />,
+}));
+
+vi.mock('@/components/primitives/dropdown-menu', () => ({
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuItem: ({
+    children,
+    onClick,
+    disabled,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+  }) => (
+    <button type="button" onClick={onClick} disabled={disabled}>
+      {children}
+    </button>
+  ),
+  DropdownMenuSub: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuSubTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuSubContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 const mockT = ((key: string) => {
@@ -44,7 +65,7 @@ describe('ChatHistoryRow Artifact Reveal', () => {
     updatedAt: new Date(),
   };
 
-  it('renders reveal artifacts menu item and triggers callback', async () => {
+  it('renders reveal artifacts menu item and triggers callback', () => {
     const onRevealArtifacts = vi.fn();
 
     render(
@@ -69,17 +90,14 @@ describe('ChatHistoryRow Artifact Reveal', () => {
       />,
     );
 
-    const trigger = screen.getByRole('button', { name: /more options/i });
-    fireEvent.click(trigger);
-
-    const revealItem = await screen.findByText('Reveal Artifacts in Folder');
+    const revealItem = screen.getByText('Reveal Artifacts in Folder');
     expect(revealItem).toBeInTheDocument();
 
     fireEvent.click(revealItem);
     expect(onRevealArtifacts).toHaveBeenCalledWith('chat-test-123');
   });
 
-  it('displays revealing state when in progress', async () => {
+  it('displays revealing state when in progress', () => {
     render(
       <ChatHistoryRow
         chat={dummyChat}
@@ -103,10 +121,7 @@ describe('ChatHistoryRow Artifact Reveal', () => {
       />,
     );
 
-    const trigger = screen.getByRole('button', { name: /more options/i });
-    fireEvent.click(trigger);
-
-    const revealingItem = await screen.findByText('Opening Folder...');
+    const revealingItem = screen.getByText('Opening Folder...');
     expect(revealingItem).toBeInTheDocument();
   });
 });

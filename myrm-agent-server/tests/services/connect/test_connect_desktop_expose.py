@@ -44,6 +44,8 @@ class TestSnippetBuilderExposeDesktop:
     def test_build_config_json_default_memory_only(self) -> None:
         profile = PROFILES["claude_code"]
         snippet = ConfigSnippet(
+            profile_id="claude_code",
+            agent_id="default",
             token="myrm_mcp_test_token_123456",
             mcp_url="http://127.0.0.1:8080/mcp",
             config_json={},
@@ -61,6 +63,8 @@ class TestSnippetBuilderExposeDesktop:
     def test_build_config_json_expose_desktop_uses_myrm_key(self) -> None:
         profile = PROFILES["claude_code"]
         snippet = ConfigSnippet(
+            profile_id="claude_code",
+            agent_id="default",
             token="myrm_mcp_test_token_123456",
             mcp_url="http://127.0.0.1:8080/mcp",
             config_json={},
@@ -77,6 +81,8 @@ class TestSnippetBuilderExposeDesktop:
     def test_build_config_json_codex_toml_expose_desktop(self) -> None:
         profile = PROFILES["codex"]
         snippet = ConfigSnippet(
+            profile_id="codex",
+            agent_id="default",
             token="myrm_mcp_test_token_123456",
             mcp_url="http://127.0.0.1:8080/mcp",
             config_json={},
@@ -91,6 +97,8 @@ class TestSnippetBuilderExposeDesktop:
     def test_build_instructions_desktop_enabled(self) -> None:
         profile = PROFILES["cursor"]
         snippet = ConfigSnippet(
+            profile_id="cursor",
+            agent_id="default",
             token="myrm_mcp_test_token_123456",
             mcp_url="http://127.0.0.1:8080/mcp",
             config_json={},
@@ -105,6 +113,8 @@ class TestSnippetBuilderExposeDesktop:
     def test_build_instructions_desktop_disabled(self) -> None:
         profile = PROFILES["cursor"]
         snippet = ConfigSnippet(
+            profile_id="cursor",
+            agent_id="default",
             token="myrm_mcp_test_token_123456",
             mcp_url="http://127.0.0.1:8080/mcp",
             config_json={},
