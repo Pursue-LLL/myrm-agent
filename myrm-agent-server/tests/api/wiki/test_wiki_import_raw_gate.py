@@ -262,6 +262,9 @@ def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
 
     # Conflict skip
     with patch(
+        "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
+        new=AsyncMock(return_value=SSRFResult(safe=True)),
+    ), patch(
         "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
         return_value="# Version 2\n\nSecond edition.",
     ):
@@ -285,6 +288,9 @@ def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
 
     # Supersede
     with patch(
+        "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
+        new=AsyncMock(return_value=SSRFResult(safe=True)),
+    ), patch(
         "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
         return_value="# Version 2\n\nSecond edition.",
     ):
@@ -313,6 +319,9 @@ def test_import_urls_security_blocked(tmp_path: Path) -> None:
     secret = "sk-1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd"
 
     with patch(
+        "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
+        new=AsyncMock(return_value=SSRFResult(safe=True)),
+    ), patch(
         "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
         return_value=f"# Leaked Page\n\nOPENAI_API_KEY={secret}",
     ):

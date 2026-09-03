@@ -155,7 +155,7 @@ async def harvest_session_blind_spots(
     from sqlalchemy import select
 
     from app.database.connection import get_session
-    from app.database.models.approvals import ApprovalRecord
+    from app.database.models.approval import ApprovalRecord
     from app.database.models.chat import Message
     from app.services.approvals.registry import ApprovalRegistry
 

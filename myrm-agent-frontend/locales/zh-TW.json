@@ -12930,6 +12930,7 @@
         }
       }
     },
+    "dualTrackAudit": {},
     "retrieval": {
       "embeddingConfig": "嵌入模型配置",
       "rerankerConfig": "重排序模型配置",
@@ -17117,12 +17118,12 @@
       "wikiVerificationDwell": "平均驗證停留",
       "wikiTelemetryDrops": "遙測遺失事件",
       "wikiEvidenceWindow": "統計視窗：{days} 天；保留期：{retentionDays} 天",
-      "whySpent": "Cost Attribution Breakdown",
-      "whySpentDesc": "Cost breakdown by invocation source and execution workload",
-      "sourceWeb": "Web Interactive",
-      "sourceSubagents": "Subagents",
-      "sourceCron": "Cron Jobs",
-      "sourceChannel": "Messaging Channels"
+      "whySpent": "花費去向分析",
+      "whySpentDesc": "按任務來源與執行形態拆解成本歸因",
+      "sourceWeb": "Web 互動",
+      "sourceSubagents": "子智慧體 (Subagent)",
+      "sourceCron": "Cron 排程任務",
+      "sourceChannel": "外部訊息管道"
     },
     "workingState": {
       "title": "工作記憶",

@@ -12930,6 +12930,7 @@
         "invoke_external_agent": "外部 CLI 智能体"
       }
     },
+    "dualTrackAudit": {},
     "retrieval": {
       "embeddingConfig": "嵌入模型配置",
       "rerankerConfig": "重排序模型配置",

@@ -12930,6 +12930,7 @@
         }
       }
     },
+    "dualTrackAudit": {},
     "retrieval": {
       "embeddingConfig": "Embedding-Modellkonfiguration",
       "rerankerConfig": "Reranker-Modellkonfiguration",
@@ -17117,12 +17118,12 @@
       "wikiVerificationDwell": "Ø Verifikationsdauer",
       "wikiTelemetryDrops": "Verlorene Telemetrie",
       "wikiEvidenceWindow": "Fenster: {days} Tage; Aufbewahrung: {retentionDays} Tage",
-      "whySpent": "Cost Attribution Breakdown",
-      "whySpentDesc": "Cost breakdown by invocation source and execution workload",
-      "sourceWeb": "Web Interactive",
-      "sourceSubagents": "Subagents",
-      "sourceCron": "Cron Jobs",
-      "sourceChannel": "Messaging Channels"
+      "whySpent": "Kostenverursachungs-Aufschlüsselung",
+      "whySpentDesc": "Kostenaufschlüsselung nach Aufrufquelle und Ausführungs-Workload",
+      "sourceWeb": "Web-Interaktiv",
+      "sourceSubagents": "Sub-Agenten",
+      "sourceCron": "Cron-Aufträge",
+      "sourceChannel": "Nachrichtenkanäle"
     },
     "workingState": {
       "title": "Arbeitsgedächtnis",

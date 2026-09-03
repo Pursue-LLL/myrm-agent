@@ -12930,6 +12930,7 @@
         "invoke_external_agent": "External CLI agent"
       }
     },
+    "dualTrackAudit": {},
     "retrieval": {
       "embeddingConfig": "Embedding Model Configuration",
       "rerankerConfig": "Reranker Model Configuration",

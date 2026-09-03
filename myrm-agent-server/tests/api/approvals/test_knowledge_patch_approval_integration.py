@@ -22,7 +22,7 @@ from myrm_agent_harness.toolkits.memory.strategies.blind_spot import (
 from app.api.approvals.knowledge_patch import handle_knowledge_patch_resolution
 from app.database.connection import get_session
 from app.database.models.approval import ApprovalRecord
-from app.database.models.chat import Message
+from app.database.models.chat import Chat, Message
 from app.lifecycle.memory_guardian_ops import harvest_session_blind_spots
 from app.services.approvals.registry import ApprovalRegistry
 
@@ -33,12 +33,15 @@ async def test_harvest_session_blind_spots_creates_approval(app, setup_test_data
     now = datetime.now(UTC)
 
     async with get_session() as db:
+        chat = Chat(id="test-chat-1", title="Test Chat")
+        db.add(chat)
         msg = Message(
             id=msg_id,
             chat_id="test-chat-1",
             role="user",
             content="How do I configure the external prometheus alertmanager?",
             sent_at=now,
+            sent_timezone="UTC",
             created_at=now,
             extra_data={
                 "missed_query": "How do I configure external prometheus alertmanager?",
