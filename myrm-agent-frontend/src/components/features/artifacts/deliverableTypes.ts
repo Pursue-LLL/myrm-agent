@@ -38,3 +38,38 @@ export interface DeliverableManifest {
   items: DeliverableItem[];
   metadata?: Record<string, string>;
 }
+
+export type ConflictSeverity = 'critical' | 'warning' | 'info';
+export type ResolutionStatus = 'resolved' | 'unresolved' | 'conditional';
+
+export interface SourceClaim {
+  source_uri: string;
+  document_title: string;
+  line_anchor?: string;
+  claimed_value: string;
+  snippet?: string;
+  timestamp_hint?: string;
+}
+
+export interface FactCheckItem {
+  id: string;
+  claim_topic: string;
+  severity: ConflictSeverity;
+  status: ResolutionStatus;
+  sources: SourceClaim[];
+  adopted_value: string;
+  resolution_rationale: string;
+  confidence_score: number;
+  affected_artifacts?: string[];
+  metadata?: Record<string, string>;
+}
+
+export interface FactCheckSheet {
+  sheet_id: string;
+  session_id?: string;
+  title: string;
+  created_at: number;
+  summary?: string;
+  items: FactCheckItem[];
+  metadata?: Record<string, string>;
+}

@@ -805,3 +805,60 @@ async def test_dispatch_cleanup_failure_is_swallowed():
         from app.lifecycle.auto_continue import _dispatch_auto_continue
 
         await _dispatch_auto_continue(marker, factory)
+
+
+@pytest.mark.asyncio
+async def test_auto_continue_restores_pending_steering_messages():
+    """Validates that marker.pending_steering_messages are injected into SteeringToken upon auto-continue."""
+    marker = _make_marker(
+        pending_steering_messages=["Stop doing X and focus on Y", "Format output as JSON"]
+    )
+    factory, db = _mock_session_factory()
+
+    async def _fake_stream(*_a, **_kw):
+        yield {"type": "message", "data": "acknowledged"}
+
+    mock_set_steering = MagicMock()
+
+    with (
+        patch("app.platform_utils.get_session_factory", return_value=factory),
+        patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
+        patch(
+            "app.services.agent.streaming.ai_agent_service_stream",
+            side_effect=_fake_stream,
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.load_web_chat_history",
+            AsyncMock(return_value=[]),
+        ),
+        patch(
+            "app.services.chat.chat_service.ChatService.persist_assistant_message_safe",
+            AsyncMock(),
+        ),
+        patch(
+            "app.services.infra.system_notification.SystemNotificationService.create_notification",
+            AsyncMock(),
+        ),
+        patch(
+            "myrm_agent_harness.utils.runtime.steering.set_steering_token",
+            mock_set_steering,
+        ),
+    ):
+        mock_params_cls.model_validate.return_value = MagicMock(
+            model_cfg=MagicMock(),
+            chat_id="chat-auto-001",
+            message_id="msg-user-001",
+            timezone="UTC",
+        )
+
+        from app.lifecycle.auto_continue import _dispatch_auto_continue
+
+        await _dispatch_auto_continue(marker, factory)
+
+    mock_set_steering.assert_called_once()
+    token = mock_set_steering.call_args[0][0]
+    assert token.collect_all_steering_messages() == [
+        "Stop doing X and focus on Y",
+        "Format output as JSON",
+    ]
+

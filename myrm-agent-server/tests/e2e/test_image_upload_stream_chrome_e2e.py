@@ -20,10 +20,13 @@ import asyncio
 import base64
 import io
 import json
+import logging
 import sys
 from pathlib import Path
 
 import pytest
+
+_LOGGER = logging.getLogger("test_image_upload_stream_chrome_e2e")
 
 _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
@@ -252,12 +255,20 @@ async def _await_assistant_reply(
         last_assistant_count = count
         if assistant_rows and not streaming and settled_since:
             content = str(assistant_rows[-1].get("content") or "")
+            _LOGGER.info("STAGE: assistant settled! content=%s", content[:100])
             return {
                 "ready": True,
                 "content": (content or "(tool-turn)")[:200],
                 "assistantCount": count,
                 "via": "api",
             }
+        _LOGGER.info(
+            "POLL: isStreaming=%s, assistant_rows=%s, count=%s, last_ui=%s",
+            streaming,
+            len(assistant_rows),
+            count,
+            last_ui,
+        )
         if __import__("time").monotonic() >= deadline:
             dump = json.dumps(
                 fetch_chat_messages(chat_id, api_url=api_url),
@@ -270,8 +281,13 @@ async def _await_assistant_reply(
 
 async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> str:
     ui_base = get_e2e_ui_url().rstrip("/")
+    _LOGGER.info(
+        "STAGE: run_image_flow start (ui_base=%s, api_url=%s)", ui_base, api_url
+    )
     await chat.bootstrap(ui_base, navigate=False, timeout_sec=120.0)
+    _LOGGER.info("STAGE: bootstrapped, click_new_chat")
     await chat.click_new_chat()
+    _LOGGER.info("STAGE: clicked new chat, pinBasicModelForE2e")
 
     pin_raw = await chat.evaluate(
         """(async () => {
@@ -295,6 +311,7 @@ async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> str:
         intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert isinstance(injected, dict) and injected.get("ok") is True, injected
+    _LOGGER.info("STAGE: attachment injected, wait thumbnail")
 
     thumbnail_probe: dict[str, object] = {}
     upload_deadline = __import__("time").monotonic() + 90.0
@@ -312,10 +329,13 @@ async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> str:
             break
         await asyncio.sleep(1.0)
     assert thumbnail_probe.get("ready") is True, f"attachment thumbnail never appeared (upload failed): {thumbnail_probe}"
+    _LOGGER.info("STAGE: thumbnail ready, sending message")
 
     send_result = await chat.send_message(_PROMPT, _PROMPT)
+    _LOGGER.info("STAGE: send_result=%s", send_result)
     chat_id = str(send_result.get("started", {}).get("chatId") or send_result.get("submit", {}).get("chatId") or "").strip()
     assert chat_id, f"image turn did not start: {send_result}"
+    _LOGGER.info("STAGE: awaiting assistant reply (chat_id=%s)", chat_id)
 
     reply = await _await_assistant_reply(
         chat,

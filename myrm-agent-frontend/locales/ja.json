@@ -5206,8 +5206,37 @@
       "desc": "cron スケジュールで定期的なタスクを自動化します",
       "statLabel": "個タスク"
     },
-    "artifacts": {
-      "title": "アーティファクト",
+  "artifacts": {
+    "factCheck": {
+      "title": "マルチソース事実確認および対立仲裁シート",
+      "summaryTitle": "品質監査概要および仲裁サマリー",
+      "totalItems": "総検証項目",
+      "criticalConflicts": "深刻な対立",
+      "warnings": "仕様の差異",
+      "infoDifferences": "軽微な表記揺れ",
+      "unresolvedItems": "確認待ち",
+      "searchPlaceholder": "トピック、採用基準または文書を検索...",
+      "filterAll": "すべての重要度",
+      "filterCritical": "深刻な対立のみ",
+      "filterWarning": "仕様の差異のみ",
+      "filterInfo": "表記揺れのみ",
+      "adoptedStandard": "採用された公式基準",
+      "rationale": "仲裁根拠",
+      "confidence": "信頼度",
+      "multiSourceMatrix": "マルチソース比較マトリクス",
+      "sourceDoc": "ソース文書",
+      "claimedValue": "主張値",
+      "anchorTimestamp": "アンカー / タイムスタンプ",
+      "contextSnippet": "文脈抜粋",
+      "affectedDeliverables": "反映された納品物",
+      "statusResolved": "最新の公式基準を採用済み",
+      "statusUnresolved": "人間の最終確認待ち",
+      "statusConditional": "条件付き分岐適用",
+      "noItemsFound": "一致する事実確認項目が見つかりません",
+      "loading": "事実確認シートを読み込み中...",
+      "close": "閉じる"
+    },
+    "title": "アーティファクト",
       "desc": "バージョン管理された成果物と納品物を閲覧・管理"
     },
     "memorySpaces": {

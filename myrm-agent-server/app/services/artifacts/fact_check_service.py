@@ -17,15 +17,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from pathlib import Path
-from uuid import uuid4
 
 from myrm_agent_harness.agent.artifacts.vault import VAULT_PREFIX, ArtifactVault
 from myrm_agent_harness.api import (
-    ConflictSeverity,
-    FactCheckItem,
     FactCheckSheet,
-    ResolutionStatus,
 )
 from myrm_agent_harness.core.artifacts.manifest import (
     DeliverableCategory,
@@ -60,14 +55,11 @@ class FactCheckService:
         json_content = sheet.model_dump_json(indent=2)
         json_bytes = json_content.encode("utf-8")
         json_sha256 = hashlib.sha256(json_bytes).hexdigest()
-        json_obj = self.vault.store(
-            data=json_bytes,
-            mime_type="application/json",
-            metadata={
-                "sheet_id": sheet.sheet_id,
-                "type": "fact_check_sheet_json",
-                "title": sheet.title,
-            },
+        json_vault_uri = self.vault.put(
+            content=json_bytes,
+            filename="fact_check.json",
+            content_type="application/json",
+            description=f"{sheet.title} (JSON)",
         )
 
         json_item = DeliverableItem(
@@ -76,7 +68,7 @@ class FactCheckService:
             title=f"{sheet.title} (JSON 数据)",
             category=DeliverableCategory.FACT_CHECK,
             status=DeliverableStatus.VERIFIED,
-            vault_uri=f"{VAULT_PREFIX}{json_obj.id}",
+            vault_uri=json_vault_uri,
             sha256_hash=json_sha256,
             size_bytes=len(json_bytes),
             mime_type="application/json",
@@ -94,14 +86,11 @@ class FactCheckService:
         md_content = sheet.to_markdown()
         md_bytes = md_content.encode("utf-8")
         md_sha256 = hashlib.sha256(md_bytes).hexdigest()
-        md_obj = self.vault.store(
-            data=md_bytes,
-            mime_type="text/markdown",
-            metadata={
-                "sheet_id": sheet.sheet_id,
-                "type": "fact_check_report_markdown",
-                "title": f"{sheet.title} 报告",
-            },
+        md_vault_uri = self.vault.put(
+            content=md_bytes,
+            filename="fact_check_report.md",
+            content_type="text/markdown",
+            description=f"{sheet.title} 报告",
         )
 
         md_item = DeliverableItem(
@@ -110,7 +99,7 @@ class FactCheckService:
             title=f"{sheet.title} 报告",
             category=DeliverableCategory.FACT_CHECK,
             status=DeliverableStatus.VERIFIED,
-            vault_uri=f"{VAULT_PREFIX}{md_obj.id}",
+            vault_uri=md_vault_uri,
             sha256_hash=md_sha256,
             size_bytes=len(md_bytes),
             mime_type="text/markdown",
@@ -128,14 +117,9 @@ class FactCheckService:
         if not vault_uri.startswith(VAULT_PREFIX):
             return None
 
-        obj_id = vault_uri[len(VAULT_PREFIX) :]
-        obj_path = self.vault.get_object_path(obj_id)
-        if not obj_path.exists() or not obj_path.is_file():
-            return None
-
         try:
-            raw_text = obj_path.read_text(encoding="utf-8")
-            data = json.loads(raw_text)
+            content_bytes = self.vault.get(vault_uri)
+            data = json.loads(content_bytes.decode("utf-8"))
             return FactCheckSheet.model_validate(data)
         except Exception as e:
             logger.error("Failed to load FactCheckSheet from %s: %s", vault_uri, e)
