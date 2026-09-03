@@ -132,3 +132,19 @@ def test_load_fact_check_sheet_invalid_uri(tmp_path: Path) -> None:
 
     assert service.load_fact_check_sheet("file:///invalid/path") is None
     assert service.load_fact_check_sheet("vault://non_existent_id_9999") is None
+
+
+def test_persist_fact_check_sheet_custom_relative_dir(tmp_path: Path) -> None:
+    vault = ArtifactVault(str(tmp_path))
+    service = FactCheckService(vault)
+
+    sheet = FactCheckSheet(
+        sheet_id="fcs_custom_dir",
+        title="自定义目录核查单",
+        items=[],
+    )
+
+    items = service.persist_fact_check_sheet(sheet, relative_dir="custom_audit_dir")
+    assert len(items) == 2
+    assert items[0].relative_path == "custom_audit_dir/fact_check.json"
+    assert items[1].relative_path == "custom_audit_dir/fact_check_report.md"

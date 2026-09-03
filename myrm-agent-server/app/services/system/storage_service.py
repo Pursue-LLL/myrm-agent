@@ -19,9 +19,8 @@ import logging
 import shutil
 import sqlite3
 from pathlib import Path
-from pydantic import BaseModel
 
-from app.config.settings import get_settings
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 

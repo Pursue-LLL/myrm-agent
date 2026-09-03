@@ -40,6 +40,12 @@ from app.platform_utils.sandbox.entitlements.entitlement_guard import (
     EntitlementGuardError,
     require_public_ingress_entitlement,
 )
+from app.services.system.storage_service import (
+    check_storage_preflight,
+    dir_size_bytes,
+    execute_storage_optimization,
+    get_sqlite_breakdown,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -91,16 +97,6 @@ async def get_local_network(
 # Storage Info & Database Optimization
 # ---------------------------------------------------------------------------
 
-from app.services.system.storage_service import (
-    DatabaseStorageBreakdown,
-    StorageOptimizePreflightData,
-    SubdirUsage,
-    check_storage_preflight,
-    dir_size_bytes,
-    execute_storage_optimization,
-    get_sqlite_breakdown,
-)
-
 _dir_size_bytes = dir_size_bytes
 _get_sqlite_breakdown = get_sqlite_breakdown
 
@@ -118,14 +114,14 @@ def get_storage_info() -> StorageInfoResponse:
 
     subdir_names = ["qdrant", "harness", "event_logs", "memory"]
     subdirs = [
-        SubdirUsage(name=name, bytes=dir_size_bytes(data_dir / name))
+        {"name": name, "bytes": dir_size_bytes(data_dir / name)}
         for name in subdir_names
         if (data_dir / name).exists()
     ]
 
     db_breakdown = get_sqlite_breakdown(data_dir)
     if db_breakdown.total_bytes > 0:
-        subdirs.insert(0, SubdirUsage(name="data.db", bytes=db_breakdown.total_bytes))
+        subdirs.insert(0, {"name": "data.db", "bytes": db_breakdown.total_bytes})
 
     return StorageInfoResponse(
         data_dir=str(data_dir),
@@ -487,14 +483,18 @@ def create_state_snapshot(req: CreateSnapshotRequest) -> SnapshotActionResponse:
         raise HTTPException(status_code=500, detail=f"Failed to create snapshot: {exc}") from exc
 
 
-@router.post("/storage/snapshots/{snapshot_id}/restore", response_model=SnapshotActionResponse)
-def restore_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
-    """Restore database state to a specific historical snapshot."""
+def _create_snapshot_manager() -> tuple[Path, object]:
     from myrm_agent_harness.observability.storage_governance import StateSnapshotManager
 
     settings = get_settings()
     data_dir = Path(settings.database.state_dir)
-    snapshot_mgr = StateSnapshotManager(data_dir)
+    return data_dir, StateSnapshotManager(data_dir)
+
+
+@router.post("/storage/snapshots/{snapshot_id}/restore", response_model=SnapshotActionResponse)
+def restore_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
+    """Restore database state to a specific historical snapshot."""
+    _, snapshot_mgr = _create_snapshot_manager()
     success = snapshot_mgr.restore_snapshot(snapshot_id)
     if not success:
         raise HTTPException(status_code=400, detail=f"Failed to restore snapshot '{snapshot_id}'.")
@@ -507,11 +507,7 @@ def restore_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
 @router.delete("/storage/snapshots/{snapshot_id}", response_model=SnapshotActionResponse)
 def delete_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
     """Permanently delete a state snapshot."""
-    from myrm_agent_harness.observability.storage_governance import StateSnapshotManager
-
-    settings = get_settings()
-    data_dir = Path(settings.database.state_dir)
-    snapshot_mgr = StateSnapshotManager(data_dir)
+    _, snapshot_mgr = _create_snapshot_manager()
     success = snapshot_mgr.delete_snapshot(snapshot_id)
     if not success:
         raise HTTPException(status_code=404, detail=f"Snapshot '{snapshot_id}' not found.")

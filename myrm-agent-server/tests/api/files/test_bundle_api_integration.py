@@ -3,15 +3,11 @@
 from __future__ import annotations
 
 import io
-import json
 import zipfile
 from pathlib import Path
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from app.api.files.bundle_api import _get_vault, router as bundle_router
 from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 from myrm_agent_harness.api import (
     ConflictSeverity,
@@ -20,6 +16,9 @@ from myrm_agent_harness.api import (
     ResolutionStatus,
     SourceClaim,
 )
+
+from app.api.files.bundle_api import _get_vault
+from app.api.files.bundle_api import router as bundle_router
 from app.services.artifacts.fact_check_service import FactCheckService
 
 
