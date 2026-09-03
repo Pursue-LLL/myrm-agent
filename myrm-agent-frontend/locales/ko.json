@@ -17116,7 +17116,13 @@
       "wikiNegativeOutcomeRate": "부정 결과 비율",
       "wikiVerificationDwell": "평균 검증 체류 시간",
       "wikiTelemetryDrops": "텔레메트리 유실",
-      "wikiEvidenceWindow": "집계 기간: {days}일; 보관 기간: {retentionDays}일"
+      "wikiEvidenceWindow": "집계 기간: {days}일; 보관 기간: {retentionDays}일",
+      "whySpent": "Cost Attribution Breakdown",
+      "whySpentDesc": "Cost breakdown by invocation source and execution workload",
+      "sourceWeb": "Web Interactive",
+      "sourceSubagents": "Subagents",
+      "sourceCron": "Cron Jobs",
+      "sourceChannel": "Messaging Channels"
     },
     "workingState": {
       "title": "작업 메모리",

@@ -172,6 +172,9 @@ def test_import_urls_success(tmp_path: Path) -> None:
     client, _archiver, structure = _build_import_client(tmp_path)
 
     with patch(
+        "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
+        new=AsyncMock(return_value=SSRFResult(safe=True)),
+    ), patch(
         "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
         return_value="# Test Title\n\nArticle body content.",
     ):
@@ -232,6 +235,9 @@ def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
     client, _archiver, structure = _build_import_client(tmp_path)
 
     with patch(
+        "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
+        new=AsyncMock(return_value=SSRFResult(safe=True)),
+    ), patch(
         "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
         return_value="# Version 1\n\nFirst edition.",
     ):

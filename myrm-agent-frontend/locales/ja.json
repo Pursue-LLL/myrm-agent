@@ -17116,7 +17116,13 @@
       "wikiNegativeOutcomeRate": "負の結果率",
       "wikiVerificationDwell": "平均検証滞在時間",
       "wikiTelemetryDrops": "テレメトリ欠損",
-      "wikiEvidenceWindow": "集計期間: {days}日; 保持期間: {retentionDays}日"
+      "wikiEvidenceWindow": "集計期間: {days}日; 保持期間: {retentionDays}日",
+      "whySpent": "Cost Attribution Breakdown",
+      "whySpentDesc": "Cost breakdown by invocation source and execution workload",
+      "sourceWeb": "Web Interactive",
+      "sourceSubagents": "Subagents",
+      "sourceCron": "Cron Jobs",
+      "sourceChannel": "Messaging Channels"
     },
     "workingState": {
       "title": "工作メモリ",

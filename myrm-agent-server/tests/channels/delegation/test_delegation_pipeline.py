@@ -110,8 +110,12 @@ async def test_coordinator_lifecycle_and_steering() -> None:
         )
     )
 
-    await asyncio.sleep(0.01)
-    pending_req = coordinator.get_pending_approval_by_task(task.task_id)
+    pending_req = None
+    for _ in range(20):
+        pending_req = coordinator.get_pending_approval_by_task(task.task_id)
+        if pending_req is not None:
+            break
+        await asyncio.sleep(0.05)
     assert pending_req is not None
 
     resolved = coordinator.resolve_approval(pending_req.request_id, "approve", "user_456")
@@ -232,7 +236,10 @@ async def test_router_delegation_inbound_integration(tmp_path: Path) -> None:
     assert receipt_outbound.metadata.get("is_receipt") is True
 
     # Allow background execution task to run
-    await asyncio.sleep(0.1)
+    for _ in range(30):
+        if bus.publish_outbound.call_count >= 2:
+            break
+        await asyncio.sleep(0.05)
 
     # 2. Verify second outbound message for delivery
     assert bus.publish_outbound.call_count >= 2
@@ -308,8 +315,9 @@ async def test_router_delegation_failure_lifecycle_and_error_notification() -> N
 
     # Mock an executor that raises sandbox execution error
     async def _failing_stream(msg: InboundMessage, user_id: str, **kwargs: object):
+        if False:
+            yield StreamingText(text="")
         raise RuntimeError("Sandbox container out of memory")
-        yield  # make it an async generator
 
     executor = MagicMock()
     executor.execute_stream = _failing_stream
@@ -332,7 +340,10 @@ async def test_router_delegation_failure_lifecycle_and_error_notification() -> N
     assert handled is True
 
     # Allow background execution to catch exception and report failure
-    await asyncio.sleep(0.1)
+    for _ in range(30):
+        if bus.publish_outbound.call_count >= 2:
+            break
+        await asyncio.sleep(0.05)
 
     # Bus should have receipt + error notification
     assert bus.publish_outbound.call_count >= 2

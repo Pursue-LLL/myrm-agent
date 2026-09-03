@@ -17116,7 +17116,13 @@
       "wikiNegativeOutcomeRate": "Negative Ergebnisrate",
       "wikiVerificationDwell": "Ø Verifikationsdauer",
       "wikiTelemetryDrops": "Verlorene Telemetrie",
-      "wikiEvidenceWindow": "Fenster: {days} Tage; Aufbewahrung: {retentionDays} Tage"
+      "wikiEvidenceWindow": "Fenster: {days} Tage; Aufbewahrung: {retentionDays} Tage",
+      "whySpent": "Cost Attribution Breakdown",
+      "whySpentDesc": "Cost breakdown by invocation source and execution workload",
+      "sourceWeb": "Web Interactive",
+      "sourceSubagents": "Subagents",
+      "sourceCron": "Cron Jobs",
+      "sourceChannel": "Messaging Channels"
     },
     "workingState": {
       "title": "Arbeitsgedächtnis",

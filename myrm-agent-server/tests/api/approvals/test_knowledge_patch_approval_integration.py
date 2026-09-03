@@ -8,38 +8,27 @@ Tests:
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
-from app.api.approvals.knowledge_patch import handle_knowledge_patch_resolution
-from app.api.approvals.router import router as approvals_router
-from app.database.connection import get_session
-from app.database.models.approval import ApprovalRecord
-from app.database.models.chat import Message
-from app.lifecycle.memory_guardian_ops import harvest_session_blind_spots
-from app.services.approvals.registry import ApprovalRegistry
+from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.toolkits.memory.strategies.blind_spot import (
     BlindSpotKnowledgePatch,
     BlindSpotResponse,
     PatchTargetType,
 )
 
-
-@pytest.fixture
-def client() -> Iterator[TestClient]:
-    app = FastAPI()
-    app.include_router(approvals_router, prefix="/api/v1")
-    with TestClient(app) as c:
-        yield c
+from app.api.approvals.knowledge_patch import handle_knowledge_patch_resolution
+from app.database.connection import get_session
+from app.database.models.approval import ApprovalRecord
+from app.database.models.chat import Message
+from app.lifecycle.memory_guardian_ops import harvest_session_blind_spots
+from app.services.approvals.registry import ApprovalRegistry
 
 
 @pytest.mark.asyncio
-async def test_harvest_session_blind_spots_creates_approval(client: TestClient) -> None:
+async def test_harvest_session_blind_spots_creates_approval(app, setup_test_database) -> None:
     msg_id = f"msg-{uuid.uuid4().hex[:8]}"
     now = datetime.now(UTC)
 
@@ -86,18 +75,19 @@ async def test_harvest_session_blind_spots_creates_approval(client: TestClient) 
         created_count = await harvest_session_blind_spots(limit=10, since_hours=24)
         assert created_count >= 1
 
-    resp = client.get("/api/v1/approvals?limit=100&offset=0")
-    assert resp.status_code == 200
-    approvals = resp.json()["approvals"]
-    patch_appr = next((a for a in approvals if a["action_type"] == "knowledge_patch"), None)
-    assert patch_appr is not None
-    assert patch_appr["payload"]["title"] == "Prometheus Alertmanager Webhook"
-    assert patch_appr["payload"]["target_type"] == "wiki"
-    assert patch_appr["payload"]["confidence"] == 0.92
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        resp = await ac.get("/api/v1/approvals?limit=100&offset=0")
+        assert resp.status_code == 200
+        approvals = resp.json()["approvals"]
+        patch_appr = next((a for a in approvals if a["action_type"] == "knowledge_patch"), None)
+        assert patch_appr is not None
+        assert patch_appr["payload"]["title"] == "Prometheus Alertmanager Webhook"
+        assert patch_appr["payload"]["target_type"] == "wiki"
+        assert patch_appr["payload"]["confidence"] == 0.92
 
 
 @pytest.mark.asyncio
-async def test_resolve_knowledge_patch_wiki_target(client: TestClient) -> None:
+async def test_resolve_knowledge_patch_wiki_target(app, setup_test_database) -> None:
     record = await ApprovalRegistry.create_approval(
         agent_id="test-agent",
         action_type="knowledge_patch",
@@ -115,17 +105,18 @@ async def test_resolve_knowledge_patch_wiki_target(client: TestClient) -> None:
     )
 
     with patch("myrm_agent_harness.toolkits.wiki.pipeline.raw_gate.publish_raw", AsyncMock()) as mock_publish:
-        resp = client.post(
-            f"/api/v1/approvals/{record.id}/resolve",
-            json={"decision": "approve"},
-        )
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "APPROVED"
-        mock_publish.assert_awaited_once()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            resp = await ac.post(
+                f"/api/v1/approvals/{record.id}/resolve",
+                json={"decision": "approve"},
+            )
+            assert resp.status_code == 200
+            assert resp.json()["status"] == "APPROVED"
+            mock_publish.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_resolve_knowledge_patch_procedural_target(client: TestClient) -> None:
+async def test_resolve_knowledge_patch_procedural_target(app, setup_test_database) -> None:
     record = await ApprovalRegistry.create_approval(
         agent_id="test-agent",
         action_type="knowledge_patch",
@@ -149,17 +140,18 @@ async def test_resolve_knowledge_patch_procedural_target(client: TestClient) -> 
         "app.lifecycle.memory_guardian_ops.create_guardian_memory_manager",
         AsyncMock(return_value=mock_manager),
     ):
-        resp = client.post(
-            f"/api/v1/approvals/{record.id}/resolve",
-            json={"decision": "approve"},
-        )
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "APPROVED"
-        mock_rel_store.add_procedural_rule.assert_awaited_once()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            resp = await ac.post(
+                f"/api/v1/approvals/{record.id}/resolve",
+                json={"decision": "approve"},
+            )
+            assert resp.status_code == 200
+            assert resp.json()["status"] == "APPROVED"
+            mock_rel_store.add_procedural_rule.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_resolve_knowledge_patch_rejected(client: TestClient) -> None:
+async def test_resolve_knowledge_patch_rejected(app, setup_test_database) -> None:
     record = await ApprovalRegistry.create_approval(
         agent_id="test-agent",
         action_type="knowledge_patch",
@@ -173,13 +165,14 @@ async def test_resolve_knowledge_patch_rejected(client: TestClient) -> None:
     )
 
     with patch("myrm_agent_harness.toolkits.wiki.pipeline.raw_gate.publish_raw", AsyncMock()) as mock_publish:
-        resp = client.post(
-            f"/api/v1/approvals/{record.id}/resolve",
-            json={"decision": "deny"},
-        )
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "REJECTED"
-        mock_publish.assert_not_awaited()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            resp = await ac.post(
+                f"/api/v1/approvals/{record.id}/resolve",
+                json={"decision": "deny"},
+            )
+            assert resp.status_code == 200
+            assert resp.json()["status"] == "REJECTED"
+            mock_publish.assert_not_awaited()
 
 
 @pytest.mark.asyncio

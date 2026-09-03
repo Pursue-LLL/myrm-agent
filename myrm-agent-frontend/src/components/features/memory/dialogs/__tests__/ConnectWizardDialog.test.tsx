@@ -7,6 +7,7 @@ import { ConnectWizardDialog } from '../ConnectWizardDialog';
 const listConnectProfilesMock = vi.hoisted(() => vi.fn());
 const generateConnectConfigMock = vi.hoisted(() => vi.fn());
 const generateAgentPluginBundleMock = vi.hoisted(() => vi.fn());
+const getAgentConnectCapabilitiesMock = vi.hoisted(() => vi.fn());
 const revokeConnectMock = vi.hoisted(() => vi.fn());
 const runConnectDoctorMock = vi.hoisted(() => vi.fn());
 const listAgentsMock = vi.hoisted(() => vi.fn());
@@ -55,6 +56,11 @@ const TRANSLATIONS: Record<string, string> = {
   doctorDetailTokenEnv: 'doctorDetailTokenEnv',
   doctorDetailTokenMismatch: 'doctorDetailTokenMismatch',
   doctorUnhealthy: 'doctorUnhealthy',
+  exposeDesktopTools: 'Expose Desktop Control Tools',
+  exposeDesktopToolsDesc: 'Expose Semantic Desktop Control tools',
+  exposeDesktopDisabledHint: 'Desktop automation not supported',
+  exposeDesktopEnabledBadge: 'Desktop Automation Enabled',
+  desktopToolsIncluded: 'Desktop tools: {tools}',
 };
 
 const stableT = (key: string, values?: Record<string, string | number>): string => {
@@ -77,6 +83,7 @@ vi.mock('@/services/connect', () => ({
   listConnectProfiles: listConnectProfilesMock,
   generateConnectConfig: generateConnectConfigMock,
   generateAgentPluginBundle: generateAgentPluginBundleMock,
+  getAgentConnectCapabilities: getAgentConnectCapabilitiesMock,
   revokeConnect: revokeConnectMock,
   runConnectDoctor: runConnectDoctorMock,
 }));
@@ -142,6 +149,12 @@ describe('ConnectWizardDialog bundle download', () => {
     vi.clearAllMocks();
     listConnectProfilesMock.mockResolvedValue([PROFILE]);
     listAgentsMock.mockResolvedValue({ items: AGENTS });
+    getAgentConnectCapabilitiesMock.mockResolvedValue({
+      agent_id: 'default',
+      has_computer_use: false,
+      desktop_deploy_supported: false,
+      can_expose_desktop: false,
+    });
     generateConnectConfigMock.mockResolvedValue({
       agent_id: 'default',
       token: 'cfg_tok',
@@ -261,6 +274,12 @@ describe('ConnectWizardDialog doctor check', () => {
     vi.clearAllMocks();
     listConnectProfilesMock.mockResolvedValue([PROFILE]);
     listAgentsMock.mockResolvedValue({ items: AGENTS });
+    getAgentConnectCapabilitiesMock.mockResolvedValue({
+      agent_id: 'default',
+      has_computer_use: false,
+      desktop_deploy_supported: false,
+      can_expose_desktop: false,
+    });
     generateConnectConfigMock.mockResolvedValue({
       agent_id: 'default',
       token: 'cfg_tok',
@@ -314,5 +333,78 @@ describe('ConnectWizardDialog doctor check', () => {
 
     const box = await screen.findByText('doctorUnhealthy');
     expect(box.className).toContain('border-red-500/20');
+  });
+});
+
+describe('ConnectWizardDialog desktop tools exposure', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listConnectProfilesMock.mockResolvedValue([PROFILE]);
+    listAgentsMock.mockResolvedValue({ items: AGENTS });
+    getAgentConnectCapabilitiesMock.mockResolvedValue({
+      agent_id: 'default',
+      has_computer_use: true,
+      desktop_deploy_supported: true,
+      can_expose_desktop: true,
+    });
+    generateConnectConfigMock.mockResolvedValue({
+      agent_id: 'default',
+      token: 'cfg_tok',
+      instructions: 'Add to cursor',
+      config_json: { mcpServers: {} },
+      expose_desktop: true,
+      desktop_tools: ['desktop_snapshot_tool', 'desktop_interact_tool', 'desktop_vision_tool'],
+    });
+  });
+
+  it('renders desktop toggle enabled when agent supports desktop control', async () => {
+    render(<ConnectWizardDialog open onOpenChange={() => {}} />);
+    await screen.findByText('Cursor');
+    const toggle = await screen.findByRole('switch', { name: /Expose Desktop Control Tools/i });
+    expect(toggle).not.toBeDisabled();
+  });
+
+  it('renders desktop toggle disabled when agent does not support desktop control', async () => {
+    getAgentConnectCapabilitiesMock.mockResolvedValue({
+      agent_id: 'default',
+      has_computer_use: false,
+      desktop_deploy_supported: false,
+      can_expose_desktop: false,
+    });
+    render(<ConnectWizardDialog open onOpenChange={() => {}} />);
+    await screen.findByText('Cursor');
+    const toggle = await screen.findByRole('switch', { name: /Expose Desktop Control Tools/i });
+    expect(toggle).toBeDisabled();
+    expect(screen.getByText('Desktop automation not supported')).toBeInTheDocument();
+  });
+
+  it('passes expose_desktop true to generateConnectConfig when toggled', async () => {
+    render(<ConnectWizardDialog open onOpenChange={() => {}} />);
+    await screen.findByText('Cursor');
+    fireEvent.click(screen.getByText('Cursor'));
+
+    const toggle = await screen.findByRole('switch', { name: /Expose Desktop Control Tools/i });
+    fireEvent.click(toggle);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
+
+    await waitFor(() => {
+      expect(generateConnectConfigMock).toHaveBeenCalledWith('cursor', 'default', true);
+    });
+  });
+
+  it('displays desktop enabled badge and tool names in config step', async () => {
+    render(<ConnectWizardDialog open onOpenChange={() => {}} />);
+    await screen.findByText('Cursor');
+    fireEvent.click(screen.getByText('Cursor'));
+
+    const toggle = await screen.findByRole('switch', { name: /Expose Desktop Control Tools/i });
+    fireEvent.click(toggle);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
+
+    await screen.findByText('configReady');
+    expect(screen.getByText('Desktop Automation Enabled')).toBeInTheDocument();
+    expect(screen.getByText(/desktop_snapshot_tool/)).toBeInTheDocument();
   });
 });
