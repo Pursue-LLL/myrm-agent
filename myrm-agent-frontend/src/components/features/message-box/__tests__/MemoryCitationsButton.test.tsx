@@ -127,10 +127,9 @@ describe('MemoryCitationsButton', () => {
   it('copies citations as markdown when clicking copy button', async () => {
     const user = userEvent.setup();
     const writeTextSpy = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: writeTextSpy,
-      },
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: writeTextSpy },
+      configurable: true,
     });
 
     render(

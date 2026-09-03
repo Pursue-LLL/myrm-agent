@@ -5,7 +5,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import { ChatHistoryRow } from '../ChatHistoryRow';
 import type { ChatItem } from '@/services/chat';
 
 vi.mock('next/link', () => ({
@@ -45,6 +44,8 @@ vi.mock('@/components/primitives/dropdown-menu', () => ({
   DropdownMenuSubTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuSubContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
+
+import { ChatHistoryRow } from '../ChatHistoryRow';
 
 const mockT = ((key: string) => {
   const dict: Record<string, string> = {

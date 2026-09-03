@@ -303,6 +303,28 @@ def _merge_disk_assets(
     return files, total_bytes
 
 
+def ensure_index_html_alias(files: dict[str, PublishFile]) -> dict[str, PublishFile]:
+    """Ensure deployable payload has an index.html entry point.
+
+    If 'index.html' is missing but there is exactly one HTML/HTM file at the root,
+    create an 'index.html' alias of it so static hosting platforms serve it at '/'.
+    """
+    if "index.html" in files:
+        return files
+
+    root_html_entries = [
+        name for name in files if "/" not in name and name.lower().endswith((".html", ".htm"))
+    ]
+    if len(root_html_entries) == 1:
+        primary = root_html_entries[0]
+        files["index.html"] = PublishFile(
+            path="index.html",
+            content=files[primary].content,
+            encoding=files[primary].encoding,
+        )
+    return files
+
+
 def collect_publish_files(
     obj_path: Path,
     *,
@@ -334,7 +356,7 @@ def collect_publish_files(
         if allowed_root is not None:
             hint = entry_hint or obj_path
             files, total_bytes = _merge_disk_assets(files, total_bytes, allowed_root=allowed_root, entry_hint=hint)
-        return files
+        return ensure_index_html_alias(files)
 
     if obj_path.is_dir():
         root = obj_path.resolve()
@@ -353,7 +375,7 @@ def collect_publish_files(
             files[entry_name] = deploy_file
         if not files:
             raise ValueError("Artifact directory contains no deployable files")
-        return files
+        return ensure_index_html_alias(files)
 
     raise ValueError("Invalid artifact physical format")
 
@@ -365,6 +387,6 @@ def validate_publish_payload(files: dict[str, PublishFile]) -> None:
     if "index.html" in files:
         return
     html_entries = [name for name in files if name.lower().endswith((".html", ".htm"))]
-    if len(html_entries) == 1 and len(files) <= 2:
+    if len(html_entries) == 1:
         return
-    raise ValueError("Deploy payload must include index.html or a single HTML entry")
+    raise ValueError("Deploy payload must include index.html or an HTML entry")

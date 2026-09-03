@@ -6,6 +6,8 @@ SaaS/Sandbox mode returns 403 Forbidden.
 [INPUT]
 - app.config.deploy_mode::is_local_mode (POS: Deployment mode check)
 - app.core.storage::files_service (POS: File service for metadata lookup)
+- app.database.connection::get_db (POS: 获取数据库会话依赖注入)
+- app.database.models.artifact::Artifact (POS: Provides enterprise artifact models with tamper-evident tracking)
 
 [OUTPUT]
 - POST /files/{file_id}/reveal — Open the file's parent directory in the system file manager

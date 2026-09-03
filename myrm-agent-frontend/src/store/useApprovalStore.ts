@@ -58,6 +58,14 @@ export interface ApprovalPayloadData {
   /** MCP elicitation approval: server name and requested input schema */
   server_name?: string;
   requested_schema?: Record<string, unknown>;
+  /** knowledge_patch approval fields */
+  title?: string;
+  target_type?: 'wiki' | 'procedural' | 'skill_gap' | string;
+  trigger_condition?: string;
+  rationale?: string;
+  confidence?: number;
+  source_queries?: string[];
+  suggested_action?: string;
 }
 
 export interface ApprovalPayload {

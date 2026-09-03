@@ -15,7 +15,6 @@ from app.services.connect.doctor_check import (
 )
 from app.services.connect.profiles import PROFILES
 from app.services.connect.service import (
-    ConfigSnippet,
     ConnectorStatus,
     ConnectService,
 )

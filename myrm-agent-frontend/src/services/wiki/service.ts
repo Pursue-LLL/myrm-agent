@@ -485,6 +485,25 @@ export interface ImportUrlsRequestBody {
   supersede_reason?: string;
 }
 
+export interface ImportVideoRequestBody {
+  url: string;
+  folder_path?: string;
+  preferred_languages?: string[];
+  window_duration_seconds?: number;
+  auto_compile?: boolean;
+  on_conflict?: WikiImportConflictPolicy;
+  supersede_reason?: string;
+}
+
+export interface ImportVideoResponse {
+  success: boolean;
+  url: string;
+  relative_path: string;
+  status: 'success' | 'skipped_conflict' | 'superseded' | 'security_blocked' | 'error';
+  error: string;
+  message: string;
+}
+
 export type WikiImportConflictPolicy = 'skip' | 'supersede';
 
 export interface WikiImportConflictOptions {
@@ -750,6 +769,24 @@ export const wikiService = {
         auto_compile: autoCompile,
         on_conflict: conflictOptions?.onConflict ?? 'skip',
         supersede_reason: conflictOptions?.supersedeReason ?? '',
+      }),
+    });
+  },
+
+  importVideo: async (
+    body: ImportVideoRequestBody,
+    agentId?: string | null,
+  ): Promise<ImportVideoResponse> => {
+    return apiRequest<ImportVideoResponse>(buildWikiApiPath('/wiki/import/video', agentId), {
+      method: 'POST',
+      body: JSON.stringify({
+        url: body.url,
+        folder_path: body.folder_path ?? 'videos',
+        preferred_languages: body.preferred_languages ?? ['zh-Hans', 'zh-CN', 'zh', 'en'],
+        window_duration_seconds: body.window_duration_seconds ?? 45,
+        auto_compile: body.auto_compile ?? true,
+        on_conflict: body.on_conflict ?? 'skip',
+        supersede_reason: body.supersede_reason ?? '',
       }),
     });
   },

@@ -44,7 +44,11 @@ class ArtifactPublishInput(BaseModel):
     )
     password: str = Field(
         default="",
-        description="Optional password to encrypt the static artifact with zero-knowledge AES-256-GCM protection.",
+        description=(
+            "Optional password to protect the published artifact. Provide this only when "
+            "the user explicitly asks to password-protect, encrypt, or lock access to the deployment. "
+            "Leave empty for public access."
+        ),
     )
 
 

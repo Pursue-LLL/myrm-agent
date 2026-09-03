@@ -38,14 +38,18 @@ def _arch_files_under_roots() -> list[Path]:
 
 
 @pytest.mark.architecture
-@pytest.mark.parametrize("arch_path", _arch_files_under_roots(), ids=lambda p: p.name)
-def test_arch_md_has_no_lazy_placeholders(arch_path: Path) -> None:
-    text = arch_path.read_text(encoding="utf-8")
-    for phrase in _BANNED_PHRASES:
-        if phrase in text:
-            rel = arch_path.relative_to(_REPO_ROOT)
-            line_no = next(
-                (idx for idx, line in enumerate(text.splitlines(), start=1) if phrase in line),
-                None,
-            )
-            pytest.fail(f"{rel}:{line_no}: _ARCH.md contains banned placeholder {phrase!r}. Replace with concrete职责 / I/O/P.")
+def test_arch_md_has_no_lazy_placeholders() -> None:
+    violations: list[str] = []
+    for arch_path in _arch_files_under_roots():
+        text = arch_path.read_text(encoding="utf-8")
+        for phrase in _BANNED_PHRASES:
+            if phrase in text:
+                rel = arch_path.relative_to(_REPO_ROOT)
+                line_no = next(
+                    (idx for idx, line in enumerate(text.splitlines(), start=1) if phrase in line),
+                    None,
+                )
+                violations.append(
+                    f"{rel}:{line_no}: _ARCH.md contains banned placeholder {phrase!r}. Replace with concrete职责 / I/O/P."
+                )
+    assert not violations, "\n".join(violations)

@@ -391,3 +391,32 @@ def test_merge_disk_assets_none_hint(tmp_path: Path) -> None:
     files = {}
     merged, _ = _merge_disk_assets(files, 0, allowed_root=tmp_path.resolve(), entry_hint=None)
     assert merged == files
+
+
+def test_ensure_index_html_alias_scaffold() -> None:
+    from app.services.hosting.packager import ensure_index_html_alias
+
+    files = {
+        "report.html": PublishFile(path="report.html", content="<h1>Report</h1>"),
+        "styles.css": PublishFile(path="styles.css", content="body{margin:0}"),
+        "data.json": PublishFile(path="data.json", content="{}"),
+    }
+    result = ensure_index_html_alias(files)
+    assert "index.html" in result
+    assert result["index.html"].content == "<h1>Report</h1>"
+    assert result["report.html"].content == "<h1>Report</h1>"
+
+
+def test_collect_directory_scaffolds_index_html(tmp_path: Path) -> None:
+    dir_path = tmp_path / "bundle"
+    dir_path.mkdir()
+    (dir_path / "dashboard.html").write_text("<h1>Dashboard</h1>", encoding="utf-8")
+    (dir_path / "style.css").write_text("body{}", encoding="utf-8")
+    (dir_path / "chart.js").write_text("console.log(1)", encoding="utf-8")
+
+    collected = collect_publish_files(dir_path)
+    assert "index.html" in collected
+    assert collected["index.html"].content == "<h1>Dashboard</h1>"
+    assert "dashboard.html" in collected
+    validate_publish_payload(collected)
+

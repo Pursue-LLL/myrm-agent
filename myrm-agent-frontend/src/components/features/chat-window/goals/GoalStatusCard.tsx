@@ -321,7 +321,11 @@ function GoalStatusHeader({
   const statusText = getStatusText(goal, t);
 
   return (
-    <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-muted/50" onClick={onToggleExpand}>
+    <div
+      data-testid="goal-status-header"
+      className="p-3 flex items-center justify-between cursor-pointer hover:bg-muted/50"
+      onClick={onToggleExpand}
+    >
       <div className="flex items-center gap-3 overflow-hidden">
         <div className="flex-shrink-0">{statusIcon}</div>
         <div className="flex flex-col overflow-hidden">
