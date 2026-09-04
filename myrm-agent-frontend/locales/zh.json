@@ -2849,10 +2849,18 @@
     "routingCodeTooltip": "检测到代码编写、重构或 Debug 任务，已分流至代码专长模型",
     "routingLongDocTooltip": "检测到长篇文档或超大上下文，已分流至长文档专长模型",
     "captureEvalCase": {
-      "action": "淬炼为评测用例",
-      "success": "已成功淬炼为评测用例",
-      "successDesc": "已将该对话轨迹完整提取并写入评测基准数据集",
-      "error": "淬炼评测用例失败"
+      "action": "沉淀为评测用例",
+      "title": "沉淀为评测用例",
+      "description": "将本轮对话的真实交互轨迹安全清洗并固化为您私人评测实验室的回归测试用例。",
+      "selectDataset": "目标数据集",
+      "newDataset": "新建",
+      "newDatasetPlaceholder": "输入新数据集名称（如 regressions）",
+      "chooseExisting": "选择已有数据集",
+      "emptyDatasetError": "数据集名称不能为空",
+      "confirm": "确认沉淀",
+      "success": "已成功沉淀为评测用例",
+      "successDesc": "已将该对话轨迹安全清洗并写入评测基准数据集",
+      "error": "沉淀评测用例失败"
     }
   },
   "mode": {
@@ -13470,6 +13478,11 @@
       "resetCooldowns": "重置冷却",
       "resetCooldownsSuccess": "已重置 {count} 个密钥的冷却计时",
       "noActivePools": "暂无活跃调用池数据",
+      "externalSecretBadge": "外部密钥源",
+      "externalSecretDesc": "动态从 1Password / Bitwarden 内存解析，磁盘零明文存储",
+      "externalSecretValid": "外部密钥解析有效: {preview}",
+      "externalSecretInvalid": "外部密钥解析失败: {error}",
+      "validateExternalKey": "测试外部源",
       "strategyRoundRobin": "轮询",
       "strategyFillFirst": "优先填充",
       "strategyLeastUsed": "最少使用",

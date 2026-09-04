@@ -790,3 +790,25 @@ export const resetCredentialPoolCooldowns = async (keySuffix?: string): Promise<
   }
 };
 
+export interface ValidateExternalSecretResult {
+  valid: boolean;
+  masked_preview?: string | null;
+  error?: string | null;
+}
+
+export const validateExternalSecretReference = async (reference: string): Promise<ValidateExternalSecretResult> => {
+  try {
+    const res = await apiRequest<{ data: ValidateExternalSecretResult }>(
+      '/integrations/llm/credential-pool/validate-secret-reference',
+      {
+        method: 'POST',
+        body: JSON.stringify({ reference }),
+      },
+    );
+    return res.data || { valid: false, error: 'Empty response' };
+  } catch (e) {
+    return { valid: false, error: e instanceof Error ? e.message : 'Request failed' };
+  }
+};
+
+

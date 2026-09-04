@@ -374,6 +374,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     revealingArtifactsChatId,
     captureEvalDialogOpen,
     setCaptureEvalDialogOpen,
+    captureEvalChatId,
     captureEvalDatasetId,
     setCaptureEvalDatasetId,
     captureEvalLoading,

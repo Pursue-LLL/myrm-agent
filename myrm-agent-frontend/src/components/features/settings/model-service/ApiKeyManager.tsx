@@ -8,6 +8,7 @@ import { ApiKeyConfig, CredentialPoolStrategy } from '@/store/config/providerTyp
 import { toast } from '@/hooks/shared/useToast';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { validateExternalSecretReference } from '@/services/llm-config';
 import { CredentialPoolStatsPanel } from './CredentialPoolStatsPanel';
 
 type KeyHealthStatus = 'unchecked' | 'checking' | 'valid' | 'invalid';
@@ -280,6 +281,26 @@ const ApiKeyManager = memo<ApiKeyManagerProps>(
 
     const activeCount = (apiKeys ?? []).filter((k) => k.isActive).length;
 
+    const isExternalRef = (key: string) => {
+      const trimmed = key.trim();
+      return trimmed.startsWith('op://') || trimmed.startsWith('bw://') || trimmed.startsWith('bws://');
+    };
+
+    const handleValidateExternal = async (ref: string) => {
+      const res = await validateExternalSecretReference(ref);
+      if (res.valid) {
+        toast({
+          title: t('externalSecretValid', { preview: res.masked_preview || '***' }),
+          duration: 4000,
+        });
+      } else {
+        toast({
+          title: t('externalSecretInvalid', { error: res.error || t('keyInvalid') }),
+          duration: 5000,
+        });
+      }
+    };
+
     return (
       <div className="space-y-4">
         {/* Pool status indicator + strategy selector */}
@@ -398,6 +419,20 @@ const ApiKeyManager = memo<ApiKeyManagerProps>(
                     {showKeys[apiKey.id] ? apiKey.key : maskKey(apiKey.key)}
                   </code>
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    {isExternalRef(apiKey.key) && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => handleValidateExternal(apiKey.key)}
+                            className="px-2 py-1 text-[11px] font-medium rounded bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+                          >
+                            {t('validateExternalKey')}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>{t('externalSecretDesc')}</TooltipContent>
+                      </Tooltip>
+                    )}
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="p-2 text-emerald-500 dark:text-emerald-400 cursor-default">
@@ -442,14 +477,14 @@ const ApiKeyManager = memo<ApiKeyManagerProps>(
                 type="text"
                 value={newKey}
                 onChange={(e) => setNewKey(e.target.value)}
-                placeholder="sk-..."
+                placeholder="sk-... or op://vault/item/field or bw://item"
                 className="w-full px-4 py-3 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
                 autoComplete="new-password"
                 autoFocus
               />
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
-                <span>{t('apiKeySecurityHint')}</span>
+                <span>{isExternalRef(newKey) ? t('externalSecretDesc') : t('apiKeySecurityHint')}</span>
               </div>
             </div>
             <div className="flex gap-3">

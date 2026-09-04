@@ -109,3 +109,32 @@ class TestCredentialPoolApi:
             assert data["success"] is True
             assert data["data"]["reset_count"] == 1
             mock_reset.assert_called_once_with(key_suffix="5678")
+
+    def test_validate_external_secret_valid(self, client: TestClient) -> None:
+        """Validate resolution of an external secret reference."""
+        with patch(
+            "myrm_agent_harness.backends.secrets.resolve_external_secret",
+            return_value="sk-real-secret-123456",
+        ):
+            response = client.post(
+                "/api/v1/integrations/llm/credential-pool/validate-secret-reference",
+                json={"reference": "op://Vault/OpenAI/credential"},
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert data["data"]["valid"] is True
+            assert data["data"]["masked_preview"] == "sk-...456"
+
+    def test_validate_external_secret_invalid_scheme(self, client: TestClient) -> None:
+        """Reject non-URI strings."""
+        response = client.post(
+            "/api/v1/integrations/llm/credential-pool/validate-secret-reference",
+            json={"reference": "sk-plain-text-key"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["valid"] is False
+        assert "Not a recognized" in data["data"]["error"]
+

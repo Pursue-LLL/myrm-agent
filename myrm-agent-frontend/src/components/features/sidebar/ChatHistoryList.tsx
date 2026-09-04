@@ -24,6 +24,7 @@ import { ChatHistoryRow, SortablePinnedRow } from './ChatHistoryRow';
 import CronJobCreateDialog from '@/components/features/cron/CronJobCreateDialog';
 import { HandoffDialog } from './HandoffDialog';
 import { ShareConversationDialog } from './ShareConversationDialog';
+import { CaptureEvalCaseDialog } from './CaptureEvalCaseDialog';
 import { groupChatsByDate, useCollapsedGroups } from './dateGroupUtils';
 import BatchOperationBar from './BatchOperationBar';
 import ProjectBar from './ProjectBar';
@@ -276,6 +277,7 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     onOpenInNewWindow: isTauriRuntime() ? handleOpenInNewWindow : undefined,
     onRevealArtifacts: actions.handleRevealArtifacts,
     isRevealingArtifacts: actions.revealingArtifactsChatId === chat.id,
+    onCaptureEvalCase: actions.handleOpenCaptureEval,
     sessionDragEnabled,
     onSessionDragStart: sessionDragEnabled ? handleSessionDragStart : undefined,
     t,
@@ -558,6 +560,12 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
         loading={actions.shareLoading}
         onCreateLink={actions.handleShareCreate}
         onRevoke={actions.handleShareRevoke}
+      />
+
+      <CaptureEvalCaseDialog
+        open={actions.captureEvalDialogOpen}
+        onOpenChange={actions.setCaptureEvalDialogOpen}
+        chatId={actions.captureEvalChatId}
       />
     </div>
   );

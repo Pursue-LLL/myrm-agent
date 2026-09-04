@@ -89,7 +89,25 @@ export interface EmbedCanaryResponse {
   canary_guid: string;
 }
 
+export interface EvalDatasetItem {
+  id: string;
+  name?: string;
+  count?: number;
+}
+
+export interface EvalDatasetsResponse {
+  status: string;
+  datasets: EvalDatasetItem[];
+}
+
 export const evalService = {
+  /**
+   * List all evaluation datasets
+   */
+  async getDatasets(): Promise<EvalDatasetsResponse> {
+    return apiRequest('/eval/datasets');
+  },
+
   /**
    * Audit benchmark datasets against anti-contamination canary standards
    */
