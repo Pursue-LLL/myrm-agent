@@ -136,3 +136,20 @@ async def test_execute_wiki_knowledge_query_with_federated_vaults(
     assert "pre-approved" in result.answer
 
     reset_wiki_archiver_cache_for_tests()
+
+
+def test_general_agent_resolves_wiki_public_dir_labels_from_context_names() -> None:
+    """Verify GeneralAgent uses memory_shared_context_names without DB lookups."""
+    from app.ai_agents.general_agent import GeneralAgent
+
+    agent = GeneralAgent.__new__(GeneralAgent)
+    agent.memory_shared_context_ids = ["kb-policy", "kb-security"]
+    agent.memory_shared_context_names = {
+        "kb-policy": "Company Policy 2026",
+        "kb-security": "Security Guidelines",
+    }
+
+    labels = agent._resolve_wiki_public_dir_labels()
+    assert labels.get("kb-policy") == "Company Policy 2026"
+    assert labels.get("kb-security") == "Security Guidelines"
+

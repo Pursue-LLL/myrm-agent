@@ -93,7 +93,11 @@ def resolve_shared_wiki_vault_path(context_id: str) -> Path:
     return wiki_root() / "shared" / safe_id
 
 
-def resolve_shared_wiki_vault_paths(context_ids: list[str] | None) -> tuple[Path, ...]:
+def resolve_shared_wiki_vault_paths(
+    context_ids: list[str] | None,
+    *,
+    must_exist: bool = False,
+) -> tuple[Path, ...]:
     """Return shared wiki vault paths deduplicated in request order (capped at MAX_SHARED_WIKI_VAULTS)."""
     if not context_ids:
         return ()
@@ -104,7 +108,11 @@ def resolve_shared_wiki_vault_paths(context_ids: list[str] | None) -> tuple[Path
         if safe_id in seen:
             continue
         seen.add(safe_id)
-        paths.append(wiki_root() / "shared" / safe_id)
+        path = wiki_root() / "shared" / safe_id
+        if must_exist and not (path.exists() and path.is_dir()):
+            logger.warning("Shared wiki vault directory does not exist or is not a directory: %s", path)
+            continue
+        paths.append(path)
         if len(paths) >= MAX_SHARED_WIKI_VAULTS:
             break
     return tuple(paths)
@@ -263,14 +271,26 @@ def is_agent_layout_migration_complete() -> bool:
     return marker.is_file()
 
 
-def is_vault_ready(agent_id: str | None = None) -> bool:
-    """Return True when the agent wiki vault directory layout exists."""
+def is_vault_ready(
+    agent_id: str | None = None,
+    shared_context_ids: list[str] | None = None,
+) -> bool:
+    """Return True when the agent wiki vault or any attached shared vault is ready."""
     vault = resolve_agent_wiki_vault_path(agent_id)
-    return vault.is_dir() and (vault / "raw").is_dir()
+    if vault.is_dir() and (vault / "raw").is_dir():
+        return True
+    if shared_context_ids:
+        for p in resolve_shared_wiki_vault_paths(shared_context_ids, must_exist=True):
+            if p.is_dir():
+                return True
+    return False
 
 
-def vault_has_wiki_content(agent_id: str | None = None) -> bool:
-    """Return True when the agent vault has at least one raw file or concept page."""
+def vault_has_wiki_content(
+    agent_id: str | None = None,
+    shared_context_ids: list[str] | None = None,
+) -> bool:
+    """Return True when the agent vault or any attached shared vault has at least one raw file or concept page."""
     from myrm_agent_harness.toolkits.wiki import WikiStructure
 
     vault_path = resolve_agent_wiki_vault_path(agent_id)
@@ -278,9 +298,21 @@ def vault_has_wiki_content(agent_id: str | None = None) -> bool:
     try:
         raw_count = len(structure.list_raw_files())
         concept_count = len(structure.list_concepts())
+        if raw_count > 0 or concept_count > 0:
+            return True
     except Exception:
-        return False
-    return raw_count > 0 or concept_count > 0
+        pass
+
+    if shared_context_ids:
+        for p in resolve_shared_wiki_vault_paths(shared_context_ids, must_exist=True):
+            try:
+                shared_struct = WikiStructure(p)
+                if len(shared_struct.list_raw_files()) > 0 or len(shared_struct.list_concepts()) > 0:
+                    return True
+            except Exception:
+                continue
+
+    return False
 
 
 def seed_agent_vault_from_default(target_agent_id: str) -> WikiVaultSeedResult:

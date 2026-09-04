@@ -88,6 +88,7 @@ class SharedContextBindingItem(BaseModel):
 
     id: str
     context_id: str
+    context_name: str | None = None
     target_type: SharedContextTargetType
     target_id: str
     created_at: datetime

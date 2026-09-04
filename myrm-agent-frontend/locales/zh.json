@@ -8436,7 +8436,17 @@
       "scopePatternDesc": "自动允许开头相同的后续命令",
       "scopePatternPreview": "将记住类似命令：{pattern}",
       "scopePatternUnavailable": "链式命令无法使用相似命令匹配。",
-      "scopePermissionDesc": "自动允许所有 {permissionType} 类型的工具"
+      "scopePermissionDesc": "自动允许所有 {permissionType} 类型的工具",
+      "durationLabel": "授权有效时限",
+      "durationSession": "仅当前会话有效（推荐）",
+      "duration15m": "15 分钟内临时有效（短期跑批）",
+      "duration1h": "1 小时内有效（密集联调）",
+      "durationPermanent": "永久允许（高风险）",
+      "durationSessionDesc": "当前聊天会话结束或刷新后，临时授权将自动注销收回。",
+      "duration15mDesc": "15 分钟内自动跳过审批，超时后自动恢复安全拦截。",
+      "duration1hDesc": "1 小时内自动跳过审批，超时后自动恢复安全拦截。",
+      "durationPermanentDesc": "永久加入全局免审批白名单，系统将不再拦截该操作。",
+      "permanentRiskWarning": "警告：永久免审批将长期开放此操作权限，若智能体遭遇恶意间接提示注入可能存在越权风险。"
     },
     "spanRiskReasons": {
       "safe": "安全 — 只读命令，已自动放行",

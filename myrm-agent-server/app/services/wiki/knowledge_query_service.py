@@ -85,7 +85,7 @@ async def execute_wiki_knowledge_query(
             resolve_shared_wiki_vault_paths,
         )
 
-        public_dirs = list(resolve_shared_wiki_vault_paths(shared_context_ids))
+        public_dirs = list(resolve_shared_wiki_vault_paths(shared_context_ids, must_exist=True))
         public_dir_labels = resolve_shared_wiki_vault_labels(
             shared_context_ids,
             context_name_map=context_name_map,

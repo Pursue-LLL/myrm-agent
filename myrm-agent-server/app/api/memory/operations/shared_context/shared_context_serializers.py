@@ -62,10 +62,18 @@ def context_to_item(
     )
 
 
-def binding_to_item(binding: SharedContextBindingModel) -> SharedContextBindingItem:
+def binding_to_item(
+    binding: SharedContextBindingModel,
+    *,
+    context_name: str | None = None,
+) -> SharedContextBindingItem:
+    resolved_name = context_name
+    if resolved_name is None and getattr(binding, "context", None) is not None:
+        resolved_name = getattr(binding.context, "name", None)
     return SharedContextBindingItem(
         id=binding.id,
         context_id=binding.context_id,
+        context_name=resolved_name,
         target_type=cast(SharedContextTargetType, binding.target_type),
         target_id=binding.target_id,
         created_at=binding.created_at,

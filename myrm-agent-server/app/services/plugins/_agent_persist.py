@@ -160,6 +160,8 @@ async def persist_imported_agents(
             payload["metadata"] = sanitize_imported_security_overrides(
                 dict(agent.metadata)
             )
+        if workspace_templates:
+            payload["engine_params"] = {"template_workspace_files": workspace_templates}
         agent_data = AgentCreate.model_validate(payload)
         new_sub = await AgentService.create_agent(agent_data)
         name_to_id[agent.name] = new_sub.id

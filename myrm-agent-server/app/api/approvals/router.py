@@ -51,6 +51,8 @@ async def _handle_obsidian_inbox_resolution(record: ApprovalRecord, decision: st
 class AllowAlwaysValue(BaseModel):
     tool: bool | None = None
     args: bool | None = None
+    pattern: bool | None = None
+    ttl_seconds: int | float | None = None
 
 
 class ResolveApprovalRequest(BaseModel):
@@ -58,6 +60,7 @@ class ResolveApprovalRequest(BaseModel):
     edited_payload: dict[str, Any] | None = None
     comment: str | None = None
     allow_always: bool | AllowAlwaysValue | None = None
+    ttl_seconds: int | float | None = None
 
 
 class BatchResolveApprovalRequest(BaseModel):
@@ -95,6 +98,73 @@ class ApprovalRecordResponse(BaseModel):
 
 class ApprovalListResponse(BaseModel):
     approvals: list[ApprovalRecordResponse]
+
+
+class ActiveGrantResponse(BaseModel):
+    permission: str
+    tool_name: str | None = None
+    tool_args_hash: str | None = None
+    command_pattern: str | None = None
+    agent_id: str | None = None
+    created_at: float
+    expires_at: float | None = None
+
+
+class ActiveGrantListResponse(BaseModel):
+    grants: list[ActiveGrantResponse]
+
+
+class RevokeGrantRequest(BaseModel):
+    permission: str
+    tool_name: str | None = None
+    tool_args_hash: str | None = None
+    command_pattern: str | None = None
+    agent_id: str | None = None
+
+
+@router.get("/grants", response_model=ActiveGrantListResponse)
+async def list_active_grants(
+    user_id: str = Query("sandbox", description="User identifier"),
+) -> ActiveGrantListResponse:
+    """List currently active time-bound and permanent permission grants."""
+    from myrm_agent_harness.agent.security.approval_flow import get_allowlist
+
+    allowlist = get_allowlist()
+    entries = await allowlist.list_active_grants(user_id)
+    return ActiveGrantListResponse(
+        grants=[
+            ActiveGrantResponse(
+                permission=e.permission,
+                tool_name=e.tool_name,
+                tool_args_hash=e.tool_args_hash,
+                command_pattern=e.command_pattern,
+                agent_id=e.agent_id,
+                created_at=e.created_at,
+                expires_at=e.expires_at,
+            )
+            for e in entries
+        ]
+    )
+
+
+@router.post("/grants/revoke")
+async def revoke_active_grant(
+    req: RevokeGrantRequest,
+    user_id: str = Query("sandbox", description="User identifier"),
+) -> dict[str, str]:
+    """Revoke an active permission grant."""
+    from myrm_agent_harness.agent.security.approval_flow import get_allowlist
+
+    allowlist = get_allowlist()
+    await allowlist.remove(
+        user_id=user_id,
+        permission=req.permission,
+        tool_name=req.tool_name,
+        tool_args_hash=req.tool_args_hash,
+        command_pattern=req.command_pattern,
+        agent_id=req.agent_id,
+    )
+    return {"status": "ok", "message": "Grant revoked"}
 
 
 @router.get("", response_model=ApprovalListResponse)
@@ -177,6 +247,7 @@ async def resolve_approval(
                         "decision": normalized_decision,
                         "comment": req.comment,
                         "allow_always": req.allow_always,
+                        "ttl_seconds": req.ttl_seconds,
                         "edited_payload": req.edited_payload,
                     },
                 )

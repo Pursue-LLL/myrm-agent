@@ -1,3 +1,5 @@
+import type { AllowAlwaysValue } from '@/lib/approval/allowAlwaysScope';
+
 type DecisionType = 'approve' | 'edit' | 'reject';
 
 export interface ApprovalDecision {
@@ -6,7 +8,7 @@ export interface ApprovalDecision {
   feedback?: string;
   guidance?: string;
   extensions: {
-    allowAlways: boolean | { tool?: boolean; args?: boolean; pattern?: boolean };
+    allowAlways: AllowAlwaysValue;
     allowDomain?: boolean;
     grantDirectory?: boolean;
     grantDirectoryMeta?: { path: string; writable: boolean };
@@ -35,7 +37,7 @@ export interface ToolApprovalResolveExtra {
   edited_args?: Record<string, unknown>;
   feedback?: string;
   guidance?: string;
-  allow_always?: boolean | { tool?: boolean; args?: boolean; pattern?: boolean };
+  allow_always?: AllowAlwaysValue;
   allow_domain?: boolean;
   grant_directory?: boolean;
   grant_directory_path?: string;

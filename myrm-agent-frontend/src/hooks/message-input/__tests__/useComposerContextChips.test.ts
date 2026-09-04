@@ -213,4 +213,37 @@ describe('useComposerContextChips', () => {
 
     expect(useChatStore.getState().activeKnowledgeBaseIds).toEqual(['kb-2']);
   });
+
+  it('renders maximum mounted knowledge base limit gracefully', () => {
+    act(() => {
+      useChatStore.setState({
+        activeKnowledgeBaseIds: ['kb-1', 'kb-2', 'kb-3', 'kb-4', 'kb-5', 'kb-6'],
+        activeKnowledgeBaseNames: {
+          'kb-1': 'KB 1',
+          'kb-2': 'KB 2',
+          'kb-3': 'KB 3',
+          'kb-4': 'KB 4',
+          'kb-5': 'KB 5',
+          'kb-6': 'KB 6',
+        },
+      });
+    });
+
+    const { result } = renderHook(() =>
+      useComposerContextChips({
+        turnCapabilitySelection: null,
+        setTurnCapabilitySelection: vi.fn(),
+        files: [],
+        setFiles: vi.fn(),
+        clearCurrentSessionMessageId: vi.fn(),
+        mentionReferences: [],
+        removeMentionReference: vi.fn(),
+      }),
+    );
+
+    const kbChips = result.current.chips.filter((c) => c.category === 'knowledge');
+    expect(kbChips).toHaveLength(6);
+    expect(result.current.summary.totalItems).toBe(6);
+  });
 });
+
