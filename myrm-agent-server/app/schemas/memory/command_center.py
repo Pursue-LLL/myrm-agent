@@ -647,3 +647,32 @@ class MemoryBehavioralInsightsResponse(BaseModel):
     top_collaborators: list[tuple[str, int]] = Field(default_factory=list)
     offset_minutes: int = 480
     source: str = "persisted"
+
+
+class MemoryEvidencePlaybackTurn(BaseModel):
+    """Single turn/message in an evidence conversation playback slice."""
+
+    message_id: str
+    role: str
+    sender_name: str | None = None
+    content: str
+    sent_at: datetime
+    is_target: bool = False
+    is_self: bool | None = None
+
+
+class MemoryEvidencePlaybackResponse(BaseModel):
+    """Structured context slice playback response for evidence verification."""
+
+    status: Literal["live_context", "archived_snapshot", "not_found"]
+    source_type: Literal["chat", "channel", "unknown"] = "chat"
+    source_id: str | None = None
+    target_message_id: str | None = None
+    channel: str | None = None
+    quote_snippet: str | None = None
+    author_name: str | None = None
+    author_id: str | None = None
+    occurred_at: datetime | None = None
+    turns: list[MemoryEvidencePlaybackTurn] = Field(default_factory=list)
+    is_user_locked: bool = False
+

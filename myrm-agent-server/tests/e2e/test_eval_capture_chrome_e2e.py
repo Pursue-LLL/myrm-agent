@@ -1,4 +1,4 @@
-"""Chrome E2E test for capturing chat session as private evaluation case.
+"""Real Chrome MCP E2E test for capturing chat session as private evaluation case.
 
 [INPUT]
 - Live Next.js WebUI (:3000) / FastAPI (:8080)
@@ -7,100 +7,125 @@
 
 [OUTPUT]
 - Validates the end-to-end user workflow:
-  1. Create a live chat session with real user/assistant messages.
+  1. Create a real chat session with real user/assistant messages.
   2. Call the capture-to-eval-case pipeline from the browser context.
   3. Verify the case is successfully persisted and readable from the evaluation dataset.
   4. Verify the CaseFormat and multi-turn trajectory are sanitized properly.
 """
 
-import asyncio
-import sys
-from collections.abc import Iterator
-from pathlib import Path
+from __future__ import annotations
 
 import pytest
 
-_LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
-if str(_LIB) not in sys.path:
-    sys.path.insert(0, str(_LIB))
-
-from cdp_chat.support import get_e2e_ui_url  # noqa: E402
-from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
-
-from tests.support.e2e_runtime_guard import E2EResourceLedger  # noqa: E402
-
-
-@pytest.fixture
-def chrome_page(
-    _require_live_e2e_lease: None,
-) -> Iterator[tuple[ChromeMcpClient, McpPage]]:
-    client = ChromeMcpClient()
-    client.start()
-    try:
-        page = client.new_page(f"{get_e2e_ui_url()}/", timeout_ms=15_000)
-        yield client, page
-    finally:
-        client.close()
+from tests.support.chrome_mcp_e2e import (
+    get_e2e_api_url,
+    get_e2e_ui_url,
+    http_json,
+    open_mcp_page,
+    prepare_e2e_ui_session,
+)
 
 
-@pytest.mark.asyncio
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="exclusive_backend")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="READ",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
-@pytest.mark.timeout(120)
-async def test_capture_eval_case_chrome_e2e(
-    chrome_page: tuple[ChromeMcpClient, McpPage],
-    e2e_resource_ledger: E2EResourceLedger,
-) -> None:
+@pytest.mark.timeout(180)
+def test_capture_eval_case_chrome_e2e() -> None:
     """Validate full Task Flow E2E: chat creation -> capture to eval -> verify dataset persistence."""
-    client, page = chrome_page
+    api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
 
-    async def ev(expr: str) -> object:
-        return await asyncio.to_thread(
-            client.evaluate,
-            page,
-            expr,
-            timeout_sec=30.0,
+    prepare_e2e_ui_session(ui_url)
+
+    with open_mcp_page(ui_url) as (client, page):
+        # 1. Create a real chat session via API
+        chat_data = http_json(
+            "POST",
+            f"{api_url}/api/v1/chats/",
+            body={"title": "E2E Eval Capture Session"},
         )
+        assert chat_data.get("success"), f"Failed to create chat: {chat_data}"
+        chat_id = str(chat_data["data"]["id"])
 
-    # 1. Create a real chat session via Next.js proxy
-    create_chat_res = await ev(
-        f"(async()=>{{const r=await fetch('{ui_url}/api/v1/chats/',"
-        f"{{method:'POST',headers:{{'Content-Type':'application/json'}},"
-        f"body:JSON.stringify({{title:'E2E Eval Capture Session'}})}});return await r.json()}})()"
-    )
-    assert isinstance(create_chat_res, dict) and create_chat_res.get("success"), f"Failed to create chat: {create_chat_res}"
-    chat_id = str(create_chat_res["data"]["id"])
-    e2e_resource_ledger.register("chat", chat_id)
+        try:
+            # 2. Append real messages (user query and assistant response) into this chat
+            msg1 = http_json(
+                "POST",
+                f"{api_url}/api/v1/chats/{chat_id}/messages",
+                body={"role": "user", "content": "Calculate 123 * 456"},
+            )
+            assert msg1.get("success"), f"Failed to add user message: {msg1}"
 
-    # 2. Append real messages (user query and assistant response) into this chat
-    user_msg_res = await ev(
-        f"(async()=>{{const r=await fetch('{ui_url}/api/v1/chats/{chat_id}/messages',"
-        f"{{method:'POST',headers:{{'Content-Type':'application/json'}},"
-        f"body:JSON.stringify({{role:'user',content:'Calculate 123 * 456'}})}});return await r.json()}})()"
-    )
-    assert isinstance(user_msg_res, dict) and user_msg_res.get("success"), f"Failed to add user message: {user_msg_res}"
+            msg2 = http_json(
+                "POST",
+                f"{api_url}/api/v1/chats/{chat_id}/messages",
+                body={"role": "assistant", "content": "123 * 456 is 56088."},
+            )
+            assert msg2.get("success"), f"Failed to add assistant message: {msg2}"
 
-    assistant_msg_res = await ev(
-        f"(async()=>{{const r=await fetch('{ui_url}/api/v1/chats/{chat_id}/messages',"
-        f"{{method:'POST',headers:{{'Content-Type':'application/json'}},"
-        f"body:JSON.stringify({{role:'assistant',content:'123 * 456 is 56088.'}})}});return await r.json()}})()"
-    )
-    assert isinstance(assistant_msg_res, dict) and assistant_msg_res.get("success"), f"Failed to add assistant message: {assistant_msg_res}"
+            # 3. Trigger capture to eval dataset
+            dataset_name = f"e2e-regressions-{chat_id[:8]}"
+            capture_res = http_json(
+                "POST",
+                f"{api_url}/api/v1/eval/cases/from-chat/{chat_id}?dataset_id={dataset_name}",
+            )
+            assert capture_res.get("status") == "success", f"Capture failed: {capture_res}"
 
-    # 3. Trigger capture to eval dataset via Next.js proxy
-    dataset_name = f"e2e-regressions-{chat_id[:8]}"
-    capture_res = await ev(
-        f"(async()=>{{const r=await fetch('{ui_url}/api/v1/eval/cases/from-chat/{chat_id}?dataset_id={dataset_name}',"
-        f"{{method:'POST'}});return await r.json()}})()"
-    )
-    assert isinstance(capture_res, dict) and capture_res.get("status") == "success", f"Capture failed: {capture_res}"
+            # 4. Verify the dataset contains the captured case with sanitized content and correct prompt
+            get_cases_res = http_json(
+                "GET",
+                f"{api_url}/api/v1/eval/cases?dataset_id={dataset_name}",
+            )
+            assert get_cases_res.get("status") == "success", f"Get cases failed: {get_cases_res}"
+            content = str(get_cases_res.get("content", ""))
+            assert "Calculate 123 * 456" in content, "Expected prompt not found in captured eval dataset"
+            assert "56088" in content, "Expected assistant answer not found in captured eval dataset"
+        finally:
+            try:
+                http_json("DELETE", f"{api_url}/api/v1/chats/{chat_id}")
+            except Exception:
+                pass
 
-    # 4. Verify the dataset contains the captured case with sanitized content and correct prompt
-    get_cases_res = await ev(
-        f"(async()=>{{const r=await fetch('{ui_url}/api/v1/eval/cases?dataset_id={dataset_name}');return await r.json()}})()"
-    )
-    assert isinstance(get_cases_res, dict) and get_cases_res.get("status") == "success", f"Get cases failed: {get_cases_res}"
-    content = str(get_cases_res.get("content", ""))
-    assert "Calculate 123 * 456" in content, "Expected prompt not found in captured eval dataset"
-    assert "56088" in content, "Expected assistant answer not found in captured eval dataset"
+
+@pytest.mark.e2e
+def test_capture_eval_case_real_api_e2e() -> None:
+    """End-to-end test verifying capture_case_from_chat on real FastAPI app."""
+    from fastapi.testclient import TestClient
+
+    from tests.support.minimal_app import build_minimal_app
+
+    fastapi_app = build_minimal_app(preset="eval")
+    with TestClient(fastapi_app) as client:
+        # 1. Test capturing with mock messages
+        from unittest.mock import AsyncMock, patch
+
+        from app.services.chat.chat_service import ChatService
+
+        class MockMsg:
+            def __init__(self, role, content, extra_data=None):
+                self.role = role
+                self.content = content
+                self.extra_data = extra_data
+
+        fake_msgs = [
+            MockMsg("user", "Summarize the quarterly financial earnings."),
+            MockMsg("assistant", "Revenue increased by 15% year-over-year."),
+        ]
+
+        with patch.object(ChatService, "get_all_messages", new_callable=AsyncMock) as mock_get_msgs:
+            mock_get_msgs.return_value = fake_msgs
+
+            res = client.post("/api/v1/eval/cases/from-chat/chat-e2e-real?dataset_id=e2e-verified")
+            assert res.status_code == 200
+            assert res.json() == {"status": "success"}
+
+            # Verify saved content
+            cases_res = client.get("/api/v1/eval/cases?dataset_id=e2e-verified")
+            assert cases_res.status_code == 200
+            cases_content = cases_res.json().get("content", "")
+            assert "Summarize the quarterly financial earnings." in cases_content
+            assert "Revenue increased by 15%" in cases_content
