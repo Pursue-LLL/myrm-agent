@@ -301,3 +301,91 @@ async def _import_team_agent(data: dict[str, Any]) -> JSONResponse:
             except Exception:
                 logger.warning("Rollback: failed to delete member %s", mid)
         raise
+
+
+class WorkspaceBundleSyncRequest(BaseModel):
+    workspace_dir: str = Field(..., description="Target workspace directory path", min_length=1)
+
+
+class WorkspaceBundleImportRequest(BaseModel):
+    workspace_dir: str = Field(..., description="Target workspace directory path", min_length=1)
+    agent_id: str = Field(..., description="Agent bundle subfolder name", min_length=1)
+
+
+@router.get("/{agent_id}/bundle", response_model=None)
+async def export_agent_bundle(
+    agent_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Export agent as filesystem bundle data (AGENTS.md, manifest.yaml, mcp.json)."""
+    try:
+        bundle = await AgentBundleService.export_bundle(agent_id)
+        return success_response(
+            data={
+                "agent_id": bundle.agent_id,
+                "name": bundle.name,
+                "prompt": bundle.prompt,
+                "manifest_yaml": bundle.manifest_yaml,
+                "mcp_json": bundle.mcp_json,
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Export agent bundle", exception=e) from e
+
+
+@router.post("/{agent_id}/bundle/sync-to-workspace", response_model=None)
+async def sync_agent_bundle_to_workspace(
+    agent_id: str,
+    body: WorkspaceBundleSyncRequest,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Serialize and write agent filesystem bundle into workspace (.myrm/agents/{agent_id}/)."""
+    try:
+        written_dir = await AgentBundleService.write_bundle_to_workspace(agent_id, body.workspace_dir)
+        return success_response(
+            data={
+                "agent_id": agent_id,
+                "bundle_dir": str(written_dir),
+                "synced": True,
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Sync agent bundle to workspace", exception=e) from e
+
+
+@router.post("/{agent_id}/bundle/sync-from-workspace", response_model=None)
+async def sync_agent_bundle_from_workspace(
+    agent_id: str,
+    body: WorkspaceBundleSyncRequest,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Update existing agent in DB by parsing .myrm/agents/{agent_id}/ bundle from workspace."""
+    try:
+        result = await AgentBundleService.sync_workspace_to_agent(agent_id, body.workspace_dir)
+        return success_response(data=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Sync workspace bundle to agent", exception=e) from e
+
+
+@router.post("/bundle/import-from-workspace", response_model=None)
+async def import_agent_from_workspace_bundle(
+    body: WorkspaceBundleImportRequest,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Create a new agent by importing a bundle from .myrm/agents/{agent_id}/."""
+    try:
+        agent_dto = AgentBundleService.read_bundle_from_workspace(body.agent_id, body.workspace_dir)
+        agent_dto.is_built_in = False
+        new_agent = await AgentService.create_agent(agent_dto)
+        return success_response(data=_to_agent_response(new_agent).model_dump())
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Import agent from workspace bundle", exception=e) from e
+
