@@ -5097,7 +5097,8 @@
     "confidenceLow": "Low confidence",
     "extractionReason": "Extraction Reason",
     "validPermanent": "Permanent",
-    "manualReviewRequired": "Manual review required · Never auto-overwrites"
+    "manualReviewRequired": "Manual review required · Never auto-overwrites",
+    "sourceEvidence": "Source Evidence"
   },
   "sharedContextTargetBinding": {
     "title": "Inherited Shared Contexts",

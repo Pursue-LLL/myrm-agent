@@ -5097,7 +5097,8 @@
       "conversationHint": "現在の会話セッションのみ有効",
       "agentHint": "このエージェントの全会話で有効",
       "globalHint": "すべてのエージェントとセッションで永続有効"
-    }
+    },
+    "sourceEvidence": "根拠となる発言"
   },
   "sharedContextTargetBinding": {
     "title": "継承された共有コンテキスト",

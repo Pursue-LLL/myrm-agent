@@ -7,12 +7,16 @@ export interface ApprovalDecision {
   args?: Record<string, unknown>;
   feedback?: string;
   guidance?: string;
+  action_digest?: string;
+  actionDigest?: string;
   extensions: {
     allowAlways: AllowAlwaysValue;
     ttlSeconds?: number;
     allowDomain?: boolean;
     grantDirectory?: boolean;
     grantDirectoryMeta?: { path: string; writable: boolean };
+    actionDigest?: string;
+    action_digest?: string;
   };
 }
 
@@ -44,6 +48,8 @@ export interface ToolApprovalResolveExtra {
   grant_directory?: boolean;
   grant_directory_path?: string;
   grant_directory_writable?: boolean;
+  action_digest?: string;
+  actionDigest?: string;
 }
 
 /**

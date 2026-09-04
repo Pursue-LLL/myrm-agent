@@ -5097,7 +5097,8 @@
     "confidenceLow": "待核驗",
     "extractionReason": "提取依據",
     "validPermanent": "長期有效",
-    "manualReviewRequired": "需人工確認 · 永不自動覆蓋"
+    "manualReviewRequired": "需人工確認 · 永不自動覆蓋",
+    "sourceEvidence": "依據發言"
   },
   "sharedContextTargetBinding": {
     "title": "繼承的共享上下文",

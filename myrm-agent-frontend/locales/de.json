@@ -5097,7 +5097,8 @@
     "confidenceLow": "Niedrige Zuverlässigkeit",
     "extractionReason": "Extraktionsgrund",
     "validPermanent": "Dauerhaft",
-    "manualReviewRequired": "Manuelle Überprüfung erforderlich · Kein automatisches Überschreiben"
+    "manualReviewRequired": "Manuelle Überprüfung erforderlich · Kein automatisches Überschreiben",
+    "sourceEvidence": "Quellenbeleg"
   },
   "sharedContextTargetBinding": {
     "title": "Geerbte gemeinsame Kontexte",

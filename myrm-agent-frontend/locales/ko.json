@@ -5097,7 +5097,8 @@
       "conversationHint": "현재 대화 세션에만 유효",
       "agentHint": "이 에이전트의 모든 대화에 지속 적용",
       "globalHint": "모든 에이전트 및 세션에 영구 적용"
-    }
+    },
+    "sourceEvidence": "근거 발언"
   },
   "sharedContextTargetBinding": {
     "title": "상속된 공유 컨텍스트",
