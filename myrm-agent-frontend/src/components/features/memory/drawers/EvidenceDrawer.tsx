@@ -311,7 +311,7 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
                       onClick={() => setIsCorrecting(false)}
                       className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-accent"
                     >
-                      {t('cancel')}
+                      {t('cancel' as any)}
                     </button>
                     <button
                       type="button"

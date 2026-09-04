@@ -4619,6 +4619,21 @@
         "success": "성공",
         "failed": "실패",
         "no_output": "어시스턴트 응답 없음"
+      },
+      "evidence": {
+        "badgeLabel": "출처 증거",
+        "badgeTooltip": "당시 대화 컨텍스트 슬라이스 확인",
+        "drawerTitle": "메모리 증거 체인 추적",
+        "statusLive": "실시간 대화 슬라이스",
+        "statusArchived": "아카이브 인용 스냅샷",
+        "lockedLabel": "사용자 잠금됨",
+        "contextSection": "당시 컨텍스트 기록",
+        "noTurns": "전후 대화 턴이 없습니다",
+        "correctPrompt": "현장에서 사실 인식 수정",
+        "correctPlaceholder": "수정할 사실 또는 규칙 입력...",
+        "saveAndLock": "저장 및 잠금 보호",
+        "markFalsePositive": "오판으로 표시 및 삭제",
+        "correctAndLock": "사실 수정"
       }
     },
     "importReview": {

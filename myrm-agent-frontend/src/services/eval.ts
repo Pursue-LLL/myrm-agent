@@ -239,4 +239,27 @@ export const evalService = {
   > {
     return apiRequest('/eval/skill-ab/reports');
   },
+
+  /**
+   * Capture a conversation as an evaluation test case in a specified dataset.
+   */
+  async captureEvalCaseFromChat(
+    chatId: string,
+    params: {
+      dataset_id?: string;
+      tags?: string[];
+      category?: string;
+    } = {},
+  ): Promise<{
+    case_id: string;
+    dataset_id: string;
+    file_path: string;
+    tags: string[];
+    turn_count: number;
+  }> {
+    return apiRequest(`/eval/cases/from-chat/${encodeURIComponent(chatId)}`, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
 };

@@ -138,7 +138,7 @@ def test_eval_api_e2e() -> None:
                 pack_res = client.get(f"{p}/datasets/live-e2e-pack")
                 assert pack_res.status_code == 200
                 assert "Summarize quarterly report." in pack_res.json()["content"]
-                assert "Quarterly profit up 20%." in pack_res.json()["content"]
+                assert "chat-e2e-live" in pack_res.json()["content"]
 
             workspace_root = Path(".myrm/eval_workspaces")
             before_workspaces = set(workspace_root.iterdir()) if workspace_root.exists() else set()

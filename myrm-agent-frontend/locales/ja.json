@@ -4400,6 +4400,21 @@
         "success": "成功",
         "failed": "失敗",
         "no_output": "アシスタントの返信なし"
+      },
+      "evidence": {
+        "badgeLabel": "根拠証拠",
+        "badgeTooltip": "当時の対話スライスを確認",
+        "drawerTitle": "証拠チェーンの追跡",
+        "statusLive": "リアルタイム対話スライス",
+        "statusArchived": "アーカイブ引用スナップショット",
+        "lockedLabel": "ユーザーロック済み",
+        "contextSection": "当時の文脈履歴",
+        "noTurns": "前後の対話が見つかりません",
+        "correctPrompt": "事実認知をその場で修正",
+        "correctPlaceholder": "修正後の事実またはルールを入力...",
+        "saveAndLock": "保存してロック",
+        "markFalsePositive": "誤認として破棄",
+        "correctAndLock": "事実を修正"
       }
     },
     "createDialog": {
