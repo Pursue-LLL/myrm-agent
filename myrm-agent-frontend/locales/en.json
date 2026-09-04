@@ -8328,6 +8328,12 @@
   },
   "toolApproval": {
     "title": "Tool Execution Approval",
+    "spendProtection": {
+      "title": "Financial Spend Protection",
+      "description": "Financial transaction detected. Please verify the amount and recipient.",
+      "amount": "Spend Amount",
+      "tamperProtected": "Tamper-proof Protected"
+    },
     "batchTitle": "Batch Approval ({count} tools)",
     "batchHighRisk": {
       "dialogTitle": "High-Risk Operations Confirmation",

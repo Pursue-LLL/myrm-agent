@@ -81,6 +81,10 @@ export function classifySingleApprovalRisk(item: ApprovalPayload): { riskLevel: 
   if (Array.isArray(reviewConfigs)) {
     for (const cfg of reviewConfigs) {
       if (cfg && typeof cfg === 'object') {
+        if (cfg.isSpend) {
+          const amountStr = cfg.spendAmount !== undefined ? ` (${cfg.spendAmount} ${cfg.spendCurrency || 'USD'})` : '';
+          return { riskLevel: 'high', reason: `Financial transaction detected${amountStr}` };
+        }
         if (cfg.smartDenied || cfg.hideAllowAlways) {
           return { riskLevel: 'high', reason: item.reason || 'High-risk review configuration detected' };
         }

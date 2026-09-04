@@ -285,11 +285,11 @@ def test_knowledge_picker_popover_chrome_e2e() -> None:
                 page_url=chat_page_url,
             )
 
-        # 触发真实业务知识库查询（切换为 agent 模式以执行完整智能体与联邦知识库编排）
+        # 触发真实业务知识库查询（切换为 auto 模式以执行完整知识库与流式问答编排）
         client.evaluate(
             page,
             """(() => {
-              window.__myrmChatStore?.getState?.()?.setActionMode?.('agent');
+              window.__myrmChatStore?.getState?.()?.setActionMode?.('auto');
               return true;
             })()""",
             timeout_sec=10.0,

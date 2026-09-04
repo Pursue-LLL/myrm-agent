@@ -56,6 +56,7 @@ export function ApprovalDrawer() {
           edited_payload: action === 'edit' ? extra?.edited_args : edited_payload,
           allow_always: extra?.allow_always,
           ttl_seconds: extra?.ttl_seconds,
+          action_digest: extra?.action_digest || extra?.actionDigest,
         }),
       });
 

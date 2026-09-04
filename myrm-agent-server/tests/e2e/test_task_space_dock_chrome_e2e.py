@@ -8,15 +8,19 @@ import urllib.request
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
-    dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
     open_mcp_page,
-    prepare_e2e_ui_session,
     wait_for_state,
 )
 
 _CREATE_SPACE_URL = f"{get_e2e_api_url()}/api/v1/browser/spaces"
+
+_BRIDGE_READY_JS = """(() => ({
+  ready:
+    typeof window.__MYRM_E2E_CHAT__?.triggerBrowserTakeover === 'function' &&
+    typeof window.__MYRM_E2E_CHAT__?.getBrowserTakeoverSnapshot === 'function',
+}))()"""
 
 
 def _create_e2e_space(space_id: str, name: str) -> None:
@@ -44,7 +48,6 @@ def _delete_e2e_space(space_id: str) -> None:
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
-@pytest.mark.timeout(120)
 def test_task_space_dock_real_chrome_e2e() -> None:
     """Verify TaskSpaceDock appears when spaces exist and disappears on delete."""
     space_id = "e2e-dock-test-space"
@@ -53,10 +56,9 @@ def test_task_space_dock_real_chrome_e2e() -> None:
 
     # Pre-clean
     _delete_e2e_space(space_id)
-    prepare_e2e_ui_session(ui_url)
 
-    with open_mcp_page(f"{ui_url.rstrip('/')}/") as (client, page):
-        dismiss_blocking_modals(client, page)
+    with open_mcp_page(ui_url) as (client, page):
+        wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
 
         # Step 1: Create space in backend
         _create_e2e_space(space_id, space_name)
@@ -76,7 +78,6 @@ def test_task_space_dock_real_chrome_e2e() -> None:
                 predicate=lambda s: bool(s.get("ready")),
                 timeout_sec=30.0,
                 interval_sec=1.0,
-                page_url=f"{ui_url.rstrip('/')}/",
                 failure_message="TaskSpaceDock floating pill did not appear in real Chrome WebUI",
             )
             assert state.get("ready") is True

@@ -164,7 +164,7 @@ export const UnderstandSection = ({
 }) => (
   <div className="space-y-4">
     {/* Deterministic Behavioral Routine Metrics Panel (Zero Model Cost) */}
-    <BehavioralMetricsPanel />
+    <BehavioralMetricsPanel t={t} />
 
     <div className="grid gap-4 xl:grid-cols-2">
       <Panel title={t('commandCenter.influenceTitle')}>

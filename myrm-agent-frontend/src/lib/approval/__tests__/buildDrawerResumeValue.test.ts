@@ -53,6 +53,23 @@ describe('buildDrawerResumeValue', () => {
     }
   });
 
+  it('forwards action_digest to approval decision when present in extra', () => {
+    const digest = 'test_spend_action_digest_xyz123';
+    const resumeValue = buildDrawerResumeValue(baseApproval, 'approve', {
+      action_digest: digest,
+      feedback: 'Approved spend',
+    });
+
+    const decisions = decisionsOf(resumeValue);
+    expect(decisions).toHaveLength(2);
+    for (const decision of decisions) {
+      expect(decision.action_digest).toBe(digest);
+      expect(decision.actionDigest).toBe(digest);
+      expect(decision.extensions.action_digest).toBe(digest);
+      expect(decision.extensions.actionDigest).toBe(digest);
+    }
+  });
+
   it('builds reject decisions with feedback', () => {
     const resumeValue = buildDrawerResumeValue(baseApproval, 'reject', { feedback: 'no' });
     const decisions = decisionsOf(resumeValue);

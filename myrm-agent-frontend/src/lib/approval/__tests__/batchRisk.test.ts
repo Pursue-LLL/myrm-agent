@@ -44,6 +44,29 @@ describe('batchRisk classification logic', () => {
     expect(res.riskLevel).toBe('high');
   });
 
+  it('correctly classifies isSpend as high risk to prevent financial accidental approval', () => {
+    const item: ApprovalPayload = {
+      approval_id: 'appr-spend-1',
+      user_id: 'u1',
+      action_type: 'subagent_approval',
+      status: 'PENDING',
+      severity: 'info',
+      payload: {
+        reviewConfigs: [
+          {
+            isSpend: true,
+            spendAmount: 25.0,
+            spendCurrency: 'USD',
+            actionDigest: 'digest_spend_abc',
+          },
+        ],
+      },
+    };
+    const res = classifySingleApprovalRisk(item);
+    expect(res.riskLevel).toBe('high');
+    expect(res.reason).toContain('Financial transaction');
+  });
+
   it('detects deep destructive shell patterns in generic bash tool payload', () => {
     const item: ApprovalPayload = {
       approval_id: 'bash-1',
