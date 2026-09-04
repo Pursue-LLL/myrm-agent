@@ -142,3 +142,55 @@ def test_crypto_packager_xss_prevention_in_title():
     assert "checkSecureContext" in entry_content
     assert "Security Notice: Web Cryptography requires a Secure Context" in entry_content
 
+
+def test_crypto_packager_css_cascade_topological_resolution():
+    """Verify that CSS cascade replacement logic and TextDecoder are properly embedded."""
+    png_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+    files = {
+        "index.html": PublishFile(
+            path="index.html",
+            content="<html><head><link rel='stylesheet' href='style.css'></head><body><div class='hero'>Test</div></body></html>",
+            encoding="utf-8",
+        ),
+        "style.css": PublishFile(
+            path="style.css",
+            content=".hero { background: url('./bg.png'); } .icon { background: url('icons/arrow.svg'); }",
+            encoding="utf-8",
+        ),
+        "bg.png": PublishFile(
+            path="bg.png",
+            content=png_b64,
+            encoding="base64",
+        ),
+        "icons/arrow.svg": PublishFile(
+            path="icons/arrow.svg",
+            content="<svg></svg>",
+            encoding="utf-8",
+        ),
+    }
+
+    encrypted_files = package_encrypted_publish_files(files, "SecretCascadePass", title="Cascade Test")
+    entry_html = encrypted_files["index.html"].content
+
+    # Verify decryptor runtime script contains two-phase topological logic
+    assert "leafBlobMap" in entry_html
+    assert "cssBlobMap" in entry_html
+    assert "TextDecoder" in entry_html
+    assert "getMimeType" in entry_html
+
+    # Decrypt and verify round-trip fidelity
+    start_marker = "const encryptedData = "
+    start_idx = entry_html.index(start_marker) + len(start_marker)
+    end_idx = entry_html.index(";\n", start_idx)
+    encrypted_dict = json.loads(entry_html[start_idx:end_idx])
+
+    decrypted_bytes = _decrypt_payload(encrypted_dict, "SecretCascadePass")
+    vfs = json.loads(decrypted_bytes.decode("utf-8"))
+
+    assert "index.html" in vfs
+    assert "style.css" in vfs
+    assert "bg.png" in vfs
+    assert "icons/arrow.svg" in vfs
+    assert vfs["style.css"]["content"] == files["style.css"].content
+
+

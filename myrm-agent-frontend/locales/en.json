@@ -2546,8 +2546,6 @@
       "instructionPlaceholder": "Describe what you want to do on the device...",
       "instructionWithElement": "What should the agent do with this mobile element?",
       "send": "Send instruction",
-      "doctorAdbMissing": "ADB tools not found. Please install Android platform-tools.",
-      "doctorDeviceOffline": "No mobile device or emulator connected. Please enable USB debugging.",
       "doctorAdbMissing": "ADB toolchain not detected. Please install Android platform-tools.",
       "doctorDeviceOffline": "No mobile device or emulator connected. Enable USB debugging and connect."
     },

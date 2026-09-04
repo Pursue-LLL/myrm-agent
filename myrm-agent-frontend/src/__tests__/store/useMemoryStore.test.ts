@@ -605,5 +605,18 @@ describe('useMemoryStore - pending memory operations', () => {
       expect(state.selectedPendingIds.size).toBe(0);
       expect(state.pendingError).toBeNull();
     });
+
+    it('deleteMemory passes permanent flag to api', async () => {
+      const { deleteMemory: apiDeleteMemory } = await import('@/services/memory');
+      await act(async () => {
+        await useMemoryStore.getState().deleteMemory('m1', 'semantic', true);
+      });
+      expect(apiDeleteMemory).toHaveBeenCalledWith('m1', 'semantic', true);
+
+      await act(async () => {
+        await useMemoryStore.getState().deleteMemory('m2', 'episodic', false);
+      });
+      expect(apiDeleteMemory).toHaveBeenCalledWith('m2', 'episodic', false);
+    });
   });
 });

@@ -18,8 +18,7 @@ import useChatStore, { File as FileType } from '@/store/useChatStore';
 import type { TurnCapabilitySelection } from '@/hooks/message-input/turnCapabilityOverrideCore';
 import { formatSkillChipLabel } from '@/lib/utils/messageUtils';
 import {
-  listSharedContextBindingsForTarget,
-  deleteSharedContextBinding,
+  deleteSharedContextBindingByTarget,
 } from '@/services/memory/sharedContexts';
 
 export type ContextChipCategory = 'skill' | 'workflow' | 'capability' | 'mention' | 'attachment' | 'knowledge';
@@ -122,11 +121,7 @@ export function useComposerContextChips({
       removeActiveKnowledgeBase(kbId);
       if (chatId && !incognitoMode) {
         try {
-          const res = await listSharedContextBindingsForTarget('conversation', chatId);
-          const match = res.items?.find((b) => b.context_id === kbId);
-          if (match) {
-            await deleteSharedContextBinding(kbId, match.id);
-          }
+          await deleteSharedContextBindingByTarget(kbId, 'conversation', chatId);
         } catch {
           // 静默降级
         }

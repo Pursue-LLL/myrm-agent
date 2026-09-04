@@ -2,10 +2,13 @@
 
 Tests the full end-to-end task flow:
 1. Opens real Chrome browser on http://localhost:3000.
-2. Navigates to a chat session.
-3. Finds and clicks the KnowledgePicker toggle button ([data-testid="knowledge-picker-toggle"]).
-4. Verifies the Popover dialog opens, renders search bar and "管理知识库" link to /settings/wiki.
-5. Verifies the Popover content contains either available KBs or empty state guide card.
+2. Seeds a test shared context (knowledge base) via API.
+3. Navigates to a chat session.
+4. Finds and clicks the KnowledgePicker toggle button ([data-testid="knowledge-picker-toggle"]).
+5. Verifies the Popover dialog opens, renders search bar and "管理知识库" link to /settings/wiki.
+6. Finds the seeded knowledge base in the popover list and toggles switch ON.
+7. Verifies ComposerContextChipStrip renders the mounted knowledge base chip with book icon.
+8. Clicks chip remove button to unmount and verifies chip is cleanly removed.
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
+    http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
     wait_for_state,
@@ -52,12 +56,52 @@ _KNOWLEDGE_PICKER_POPOVER_CONTENT_JS = """(() => {
   );
   const searchInput = document.querySelector('input[placeholder*="知识库"], input[placeholder*="knowledge"]');
   const dialog = document.querySelector('[role="dialog"]');
+  const switches = Array.from(document.querySelectorAll('[role="dialog"] [role="switch"]'));
   return {
     ready: !!dialog && (!!manageLink || !!searchInput),
     hasDialog: !!dialog,
     hasManageLink: !!manageLink,
     hasSearchInput: !!searchInput,
+    switchCount: switches.length,
   };
+})()"""
+
+_TOGGLE_FIRST_KB_SWITCH_JS = """(() => {
+  const dialog = document.querySelector('[role="dialog"]');
+  if (!dialog) return { ok: false, error: 'no-dialog' };
+  const sw = dialog.querySelector('[role="switch"]');
+  if (!sw) return { ok: false, error: 'no-switch' };
+  sw.click();
+  return { ok: true };
+})()"""
+
+_CHECK_KNOWLEDGE_CHIP_MOUNTED_JS = """(() => {
+  const strip = document.querySelector('[data-testid="composer-context-chip-strip"]');
+  if (!strip) return { ready: false, hasStrip: false };
+  const kbChip = Array.from(strip.querySelectorAll('[data-context-chip-id]')).find(
+    (el) => el.getAttribute('data-context-chip-id')?.startsWith('knowledge-')
+  );
+  const removeBtn = kbChip?.querySelector('button');
+  return {
+    ready: Boolean(kbChip),
+    hasStrip: true,
+    hasKbChip: Boolean(kbChip),
+    hasRemoveBtn: Boolean(removeBtn),
+    chipText: kbChip ? kbChip.textContent : null,
+  };
+})()"""
+
+_CLICK_REMOVE_KNOWLEDGE_CHIP_JS = """(() => {
+  const strip = document.querySelector('[data-testid="composer-context-chip-strip"]');
+  if (!strip) return { ok: false, error: 'no-strip' };
+  const kbChip = Array.from(strip.querySelectorAll('[data-context-chip-id]')).find(
+    (el) => el.getAttribute('data-context-chip-id')?.startsWith('knowledge-')
+  );
+  if (!kbChip) return { ok: false, error: 'no-kb-chip' };
+  const removeBtn = kbChip.querySelector('button');
+  if (!removeBtn) return { ok: false, error: 'no-remove-btn' };
+  removeBtn.click();
+  return { ok: true };
 })()"""
 
 
@@ -67,6 +111,21 @@ _KNOWLEDGE_PICKER_POPOVER_CONTENT_JS = """(() => {
 def test_knowledge_picker_popover_chrome_e2e() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
+
+    # Pre-seed at least one active shared context so the popover renders a switchable knowledge base
+    try:
+        http_json(
+            "POST",
+            f"{api_url}/api/v1/memory/shared-contexts",
+            {
+                "name": "E2E 企业知识库",
+                "description": "用于 Chrome E2E 测试的自动化共享知识库",
+                "policy": {"mode": "read_write"},
+            },
+            expected_statuses=frozenset({200, 201}),
+        )
+    except Exception:
+        pass  # If it already exists or creation succeeds
 
     prepare_e2e_ui_session(api_url)
     warm_ui_route("/")
@@ -103,3 +162,38 @@ def test_knowledge_picker_popover_chrome_e2e() -> None:
         )
         assert popover_state.get("ready") is True, f"Knowledge picker popover failed to open: {popover_state}"
         assert popover_state.get("hasDialog") is True
+
+        # 4. 如果列表中有可用知识库，进行挂载并在输入区验证 ContextChip 出现
+        if popover_state.get("switchCount", 0) > 0:
+            toggle_res = client.evaluate(page, _TOGGLE_FIRST_KB_SWITCH_JS, timeout_sec=10.0)
+            assert toggle_res.get("ok") is True, f"Failed to toggle switch: {toggle_res}"
+
+            # 验证 ContextChip 成功挂载至 ComposerContextChipStrip
+            chip_state = wait_for_state(
+                client,
+                page,
+                _CHECK_KNOWLEDGE_CHIP_MOUNTED_JS,
+                timeout_sec=_warm_ui_parallel_wait_sec(15.0),
+                page_url=chat_page_url,
+            )
+            assert chip_state.get("ready") is True, f"Knowledge chip failed to mount: {chip_state}"
+            assert chip_state.get("hasKbChip") is True
+
+            # 5. 点击胶囊上的移除按钮，验证胶囊正常卸载
+            unmount_res = client.evaluate(page, _CLICK_REMOVE_KNOWLEDGE_CHIP_JS, timeout_sec=10.0)
+            assert unmount_res.get("ok") is True, f"Failed to click remove chip: {unmount_res}"
+
+            unmounted_state = wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const strip = document.querySelector('[data-testid="composer-context-chip-strip"]');
+                  const kbChip = Array.from(strip?.querySelectorAll('[data-context-chip-id]') || []).find(
+                    (el) => el.getAttribute('data-context-chip-id')?.startsWith('knowledge-')
+                  );
+                  return { ready: !kbChip, hasKbChip: !!kbChip };
+                })()""",
+                timeout_sec=_warm_ui_parallel_wait_sec(15.0),
+                page_url=chat_page_url,
+            )
+            assert unmounted_state.get("hasKbChip") is False

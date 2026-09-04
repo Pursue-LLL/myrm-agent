@@ -245,14 +245,30 @@ const useChatStore = create<ChatState>()(
         });
         useQuoteStore.getState().clearQuote();
         if (id) {
-          import('@/services/memory/sharedContexts').then(({ listSharedContextBindingsForTarget }) => {
-            listSharedContextBindingsForTarget('conversation', id)
-              .then((res) => {
+          import('@/services/memory/sharedContexts').then(({ listSharedContexts, listSharedContextBindingsForTarget }) => {
+            Promise.allSettled([
+              listSharedContexts('active'),
+              listSharedContextBindingsForTarget('conversation', id),
+            ])
+              .then(([contextsResult, bindingsResult]) => {
                 const currentChatId = get().chatId;
-                if (currentChatId === id && res.items?.length) {
-                  const boundIds = res.items.map((b) => b.context_id);
+                if (currentChatId !== id) return;
+
+                if (bindingsResult.status === 'fulfilled' && bindingsResult.value.items?.length) {
+                  const boundIds = bindingsResult.value.items.map((b) => b.context_id);
+                  const namesMap: Record<string, string> = {};
+
+                  if (contextsResult.status === 'fulfilled' && contextsResult.value.items?.length) {
+                    contextsResult.value.items.forEach((c) => {
+                      if (boundIds.includes(c.id)) {
+                        namesMap[c.id] = c.name;
+                      }
+                    });
+                  }
+
                   set((state) => {
                     state.activeKnowledgeBaseIds = boundIds;
+                    state.activeKnowledgeBaseNames = namesMap;
                   });
                 }
               })

@@ -101,6 +101,7 @@ async def get_device_doctor() -> JSONResponse:
     return JSONResponse(
         content={
             "adb_installed": doctor.adb_installed,
+            "adb_available": doctor.adb_installed,
             "adb_path": doctor.adb_path,
             "connected": doctor.connected,
             "active_device_serial": doctor.active_device_serial,

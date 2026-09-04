@@ -214,9 +214,20 @@ export const DeviceLiveView: React.FC<DeviceLiveViewProps> = ({ onSendInstructio
       />
 
       {scopedViewData && !scopedViewData.connected && (
-        <div className="px-3 py-2 text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border-b border-amber-500/20 flex items-center gap-2">
-          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-          <span className="flex-1 min-w-0">{t('deviceDisconnected')}</span>
+        <div className="px-3 py-2 text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border-b border-amber-500/20 flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="flex-1 min-w-0 font-medium">
+              {scopedViewData.doctor && !scopedViewData.doctor.adb_installed
+                ? t('doctorAdbMissing')
+                : t('doctorDeviceOffline')}
+            </span>
+          </div>
+          {scopedViewData.doctor?.remediation_hint && (
+            <span className="text-[11px] opacity-80 pl-5">
+              {scopedViewData.doctor.remediation_hint}
+            </span>
+          )}
         </div>
       )}
 

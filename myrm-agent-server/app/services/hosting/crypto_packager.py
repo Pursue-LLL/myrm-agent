@@ -297,31 +297,80 @@ def _render_decryptor_html(encrypted_data: dict[str, str], title: str = "Protect
         return;
       }}
 
-      let htmlContent = entryFile.encoding === "base64" ? atob(entryFile.content) : entryFile.content;
+      let htmlContent = entryFile.encoding === "base64"
+        ? new TextDecoder().decode(b64ToBuf(entryFile.content))
+        : entryFile.content;
 
-      // Replace static assets with Blob URLs in HTML (sorted by descending length to prevent partial prefix replacement)
-      const assetKeys = Object.keys(vfs)
+      function getMimeType(path) {{
+        if (path.endsWith(".css")) return "text/css";
+        if (path.endsWith(".js") || path.endsWith(".mjs")) return "application/javascript";
+        if (path.endsWith(".json")) return "application/json";
+        if (path.endsWith(".svg")) return "image/svg+xml";
+        if (path.endsWith(".png")) return "image/png";
+        if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+        if (path.endsWith(".webp")) return "image/webp";
+        if (path.endsWith(".gif")) return "image/gif";
+        if (path.endsWith(".woff2")) return "font/woff2";
+        if (path.endsWith(".woff")) return "font/woff";
+        if (path.endsWith(".ttf")) return "font/ttf";
+        if (path.endsWith(".mp3")) return "audio/mpeg";
+        if (path.endsWith(".mp4")) return "video/mp4";
+        return "application/octet-stream";
+      }}
+
+      function createAssetBlob(file, path) {{
+        const mime = getMimeType(path);
+        if (file.encoding === "base64") {{
+          return new Blob([b64ToBuf(file.content)], {{ type: mime }});
+        }}
+        return new Blob([file.content], {{ type: mime }});
+      }}
+
+      // Step 1: Create Blob URLs for all leaf/media/font assets first (non-HTML, non-CSS, non-JS)
+      const leafBlobMap = {{}};
+      const cssPaths = [];
+      const jsPaths = [];
+      const allAssetKeys = Object.keys(vfs)
         .filter(k => k !== "index.html" && !k.endsWith(".html"))
         .sort((a, b) => b.length - a.length);
 
-      for (const path of assetKeys) {{
-        const file = vfs[path];
-        let mime = "application/octet-stream";
-        if (path.endsWith(".css")) mime = "text/css";
-        else if (path.endsWith(".js") || path.endsWith(".mjs")) mime = "application/javascript";
-        else if (path.endsWith(".json")) mime = "application/json";
-        else if (path.endsWith(".svg")) mime = "image/svg+xml";
-        else if (path.endsWith(".png")) mime = "image/png";
-        else if (path.endsWith(".jpg") || path.endsWith(".jpeg")) mime = "image/jpeg";
-        else if (path.endsWith(".webp")) mime = "image/webp";
-
-        let blob;
-        if (file.encoding === "base64") {{
-          blob = new Blob([b64ToBuf(file.content)], {{ type: mime }});
+      for (const path of allAssetKeys) {{
+        if (path.endsWith(".css")) {{
+          cssPaths.push(path);
+        }} else if (path.endsWith(".js") || path.endsWith(".mjs")) {{
+          jsPaths.push(path);
         }} else {{
-          blob = new Blob([file.content], {{ type: mime }});
+          leafBlobMap[path] = URL.createObjectURL(createAssetBlob(vfs[path], path));
         }}
-        const blobUrl = URL.createObjectURL(blob);
+      }}
+
+      // Step 2: For CSS files, substitute leaf asset Blob URLs before creating CSS Blob URLs
+      const cssBlobMap = {{}};
+      for (const path of cssPaths) {{
+        let cssText = vfs[path].encoding === "base64"
+          ? new TextDecoder().decode(b64ToBuf(vfs[path].content))
+          : vfs[path].content;
+        for (const leafPath of Object.keys(leafBlobMap).sort((a, b) => b.length - a.length)) {{
+          const leafUrl = leafBlobMap[leafPath];
+          cssText = cssText.split("./" + leafPath).join(leafUrl);
+          cssText = cssText.split("/" + leafPath).join(leafUrl);
+          cssText = cssText.split(leafPath).join(leafUrl);
+        }}
+        const cssBlob = new Blob([cssText], {{ type: "text/css" }});
+        cssBlobMap[path] = URL.createObjectURL(cssBlob);
+      }}
+
+      // Step 3: For JS files, create their Blob URLs
+      const jsBlobMap = {{}};
+      for (const path of jsPaths) {{
+        jsBlobMap[path] = URL.createObjectURL(createAssetBlob(vfs[path], path));
+      }}
+
+      // Step 4: Replace all resolved asset URLs in htmlContent (sorted by descending length)
+      const allResolvedBlobs = Object.assign({{}}, leafBlobMap, cssBlobMap, jsBlobMap);
+      const sortedResolvedKeys = Object.keys(allResolvedBlobs).sort((a, b) => b.length - a.length);
+      for (const path of sortedResolvedKeys) {{
+        const blobUrl = allResolvedBlobs[path];
         htmlContent = htmlContent.split("./" + path).join(blobUrl);
         htmlContent = htmlContent.split("/" + path).join(blobUrl);
         htmlContent = htmlContent.split(path).join(blobUrl);

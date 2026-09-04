@@ -1,7 +1,17 @@
 """Mobile Device Bridge service for WebUI Inspector and Agent live-view.
 
-Provides ADB process lifecycle management, physical screen capture with
-server-side notification redaction, and touch/pointer command relay.
+[INPUT]
+- system adb binary (via PATH or MYRM_ADB_PATH)
+- TouchRelayCommand (from WebUI Inspector or Agent turn event)
+
+[OUTPUT]
+- DeviceDoctorResult (ADB subsystem health and device list)
+- DeviceSnapshotPayload (redacted screen frame and physical viewport dimensions)
+- Touch relay execution status
+
+[POS]
+app.services.webui.device_bridge: singleton service bridging WebUI Device
+Inspector and mobile devices (USB/TCP ADB) with subprocess lifecycle control.
 """
 
 from __future__ import annotations
@@ -41,12 +51,18 @@ class DeviceDoctorResult(BaseModel):
     """Diagnostic health check for the local/remote ADB subsystem."""
 
     adb_available: bool
+    adb_installed: bool = True
     adb_path: str | None = None
     server_running: bool = False
     devices: list[DeviceInfo] = Field(default_factory=list)
     default_device: str | None = None
     is_cloud_environment: bool = False
     diagnostic_message: str = ""
+
+    def __init__(self, **data: object) -> None:
+        if "adb_installed" not in data and "adb_available" in data:
+            data["adb_installed"] = bool(data["adb_available"])
+        super().__init__(**data)
 
 
 class DeviceSnapshotPayload(BaseModel):

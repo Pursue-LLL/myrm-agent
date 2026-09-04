@@ -213,6 +213,7 @@ async def test_router_endpoints() -> None:
         res_doc = await client.get("/webui/device/doctor")
         assert res_doc.status_code == 200
         doc_json = res_doc.json()
+        assert "adb_installed" in doc_json
         assert "adb_available" in doc_json
         assert "devices" in doc_json
 
