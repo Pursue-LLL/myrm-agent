@@ -1132,7 +1132,11 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
             <Button
               variant="outline"
               onClick={() => {
-                onResolve('approve', comment, undefined, { feedback: comment || undefined });
+                onResolve('approve', comment, undefined, {
+                  feedback: comment || undefined,
+                  action_digest: spendConfig?.actionDigest,
+                  actionDigest: spendConfig?.actionDigest,
+                });
               }}
               disabled={isSubmitting}
             >

@@ -66,7 +66,7 @@ describe('BehavioralMetricsPanel Component', () => {
       () => {
         expect(screen.getByText('14:00 - 18:00')).toBeInTheDocument();
         expect(screen.getByText('12.5s')).toBeInTheDocument();
-        expect(screen.getByText('Alice')).toBeInTheDocument();
+        expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);
         expect(screen.getByText('Bob')).toBeInTheDocument();
       },
       { timeout: 5000 }

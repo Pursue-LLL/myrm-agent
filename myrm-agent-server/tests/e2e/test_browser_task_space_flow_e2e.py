@@ -11,8 +11,10 @@ Validates the complete real-world user & agent workflow:
 from __future__ import annotations
 
 import asyncio
+
 import pytest
 from myrm_agent_harness.toolkits.browser.spaces.space_manager import HarnessTaskSpaceManager
+
 from app.services.browser_spaces.task_space_service import TaskSpaceService
 
 

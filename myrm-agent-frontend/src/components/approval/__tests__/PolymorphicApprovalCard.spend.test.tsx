@@ -114,4 +114,52 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
       })
     );
   });
+
+  it('passes action_digest when user overrides smart-denied financial spend', () => {
+    const mockOnResolve = vi.fn().mockResolvedValue(undefined);
+    const approval: ApprovalPayload = {
+      approval_id: 'app_spend_smart_denied',
+      user_id: 'usr_1',
+      action_type: 'subagent_approval',
+      status: 'pending',
+      severity: 'high',
+      payload: {
+        tool_calls: [
+          { name: 'cloud_purchase_tool', args: { amount: 150.0, currency: 'USD' } },
+        ],
+        reviewConfigs: [
+          {
+            isSpend: true,
+            spendAmount: 150.0,
+            spendCurrency: 'USD',
+            actionDigest: 'sha256_smart_denied_digest_789',
+            smartDenied: true,
+            hideAllowAlways: true,
+          },
+        ],
+      },
+    };
+
+    render(
+      <PolymorphicApprovalCard
+        approval={approval}
+        onResolve={mockOnResolve}
+        isSubmitting={false}
+      />
+    );
+
+    const overrideBtn = screen.getByText('smartDenied.overrideOnce');
+    fireEvent.click(overrideBtn);
+
+    expect(mockOnResolve).toHaveBeenCalledTimes(1);
+    expect(mockOnResolve).toHaveBeenCalledWith(
+      'approve',
+      '',
+      undefined,
+      expect.objectContaining({
+        action_digest: 'sha256_smart_denied_digest_789',
+        actionDigest: 'sha256_smart_denied_digest_789',
+      })
+    );
+  });
 });
