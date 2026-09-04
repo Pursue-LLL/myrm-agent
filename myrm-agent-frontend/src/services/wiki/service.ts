@@ -266,6 +266,15 @@ export type WikiApplyCaller = 'agent' | 'settings' | 'chat';
 export type WikiApplyOp =
   'update_metadata' | 'patch_compiled_truth' | 'append_timeline' | 'create_note' | 'replace_full_document';
 
+export interface WikiApplyClaimPatchItem {
+  id: string;
+  text: string;
+  status: WikiClaimStatus;
+  confidence?: number;
+  updated_at?: string;
+  evidence?: WikiClaimEvidence[];
+}
+
 export interface WikiApplyRequestBody {
   op: WikiApplyOp;
   concept_name: string;
@@ -276,6 +285,7 @@ export interface WikiApplyRequestBody {
   tags?: string[];
   aliases?: string[];
   sources?: string[];
+  claims?: WikiApplyClaimPatchItem[];
   clear_confidence?: boolean;
   page_type?: string;
   provenance?: string;
@@ -1032,6 +1042,16 @@ export const wikiService = {
     agentId?: string | null,
   ): Promise<{ success: boolean; affected_count: number; message: string }> => {
     return apiRequest(buildWikiApiPath('/wiki/governance/revive', agentId), {
+      method: 'POST',
+      body: JSON.stringify({ concept_names: conceptNames }),
+    });
+  },
+
+  healConceptClaims: async (
+    conceptNames: string[],
+    agentId?: string | null,
+  ): Promise<{ success: boolean; total_healed_evidence: number; details: Record<string, number> }> => {
+    return apiRequest(buildWikiApiPath('/wiki/governance/claims/heal', agentId), {
       method: 'POST',
       body: JSON.stringify({ concept_names: conceptNames }),
     });
