@@ -24,7 +24,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.agents._agent_response import _to_agent_response
@@ -32,6 +32,7 @@ from app.core.utils.errors import internal_error, not_found_error, validation_er
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
 from app.database.dto import AgentCreate
+from app.services.agent.agent_bundle_service import AgentBundleService
 from app.services.agent.agent_service import AgentService
 
 logger = logging.getLogger(__name__)
