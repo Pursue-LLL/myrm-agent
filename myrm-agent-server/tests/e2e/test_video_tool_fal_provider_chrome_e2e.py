@@ -42,7 +42,7 @@ def test_fal_media_provider_settings_and_doctor_lifecycle() -> None:
     prepare_e2e_ui_session(api_url)
 
     # 1. Verify backend media-provider-status returns fal provider with models
-    status_res = http_json("GET", f"{api_url}/agents/media-provider-status")
+    status_res = http_json("GET", f"{api_url}/api/v1/agents/media-provider-status")
     assert isinstance(status_res, dict)
     assert status_res.get("success") is True
     providers = status_res.get("data", {}).get("providers", {})
@@ -54,7 +54,7 @@ def test_fal_media_provider_settings_and_doctor_lifecycle() -> None:
     # 2. Verify backend test-media-config endpoint responds properly for fal
     test_res = http_json(
         "POST",
-        f"{api_url}/agents/test-media-config",
+        f"{api_url}/api/v1/agents/test-media-config",
         body={"mediaType": "video", "provider": "fal", "model": "fal-ai/flux-3-video"},
     )
     assert isinstance(test_res, dict)

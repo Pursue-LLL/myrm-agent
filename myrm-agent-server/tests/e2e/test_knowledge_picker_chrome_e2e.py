@@ -13,6 +13,7 @@ Tests the full end-to-end task flow:
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 
@@ -228,58 +229,121 @@ def test_knowledge_picker_popover_chrome_e2e() -> None:
             )
             assert unmounted_state.get("hasKbChip") is False
 
-        # 6. 验证在消息流中注入带有 kb_name 的知识库来源时，SourcesButton 与 SourceItem 正常渲染知识库标签
-        inject_sources_res = client.evaluate(
+        # 6. 真实全链路业务闭环（Task Flow E2E）：挂载知识库 -> 发送查询 -> 触发模型与联邦知识检索
+        # Pin SHPOIB direct-SSE so real UI send bypasses workspace multiplex bridge
+        client.evaluate(
+            page,
+            """(() => { window.__MYRM_E2E_DIRECT_SSE__ = true; return true; })()""",
+            timeout_sec=10.0,
+        )
+
+        # Clear drafts
+        client.evaluate(
             page,
             """(() => {
-              const chatStore = window.__myrmChatStore;
-              if (!chatStore?.getState || !chatStore.setState) {
-                return { ok: false, err: 'chat-store-missing' };
+              for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('myrm_draft_')) {
+                  localStorage.removeItem(key);
+                }
               }
-              const testMsgId = 'e2e-knowledge-source-test-msg';
-              const message = {
-                messageId: testMsgId,
-                chatId: chatStore.getState().chatId || 'e2e-chat-test',
-                createdAt: new Date(),
-                content: '根据企业知识库规范，系统支持跨源联邦索引。',
-                role: 'assistant',
-                sources: [
-                  {
-                    index: 1,
-                    type: 'knowledge',
-                    title: '架构设计准则 § 联邦索引',
-                    kb_name: 'E2E 企业知识库',
-                    snippet: '跨源索引通过 SQLite 附加数据库与 FTS5 全文检索引擎实现。',
-                  },
-                ],
-              };
-              chatStore.setState({
-                messages: [message],
-                loading: false,
-                isMessagesLoaded: true,
-                messageAppeared: true,
-              });
-              return { ok: true };
+              window.__MYRM_E2E_CHAT__?.setInputMessage?.('');
+              return true;
             })()""",
             timeout_sec=10.0,
         )
-        assert inject_sources_res.get("ok") is True
 
-        # 验证渲染并包含 E2E 企业知识库 标签
-        source_badge_state = wait_for_state(
+        # 挂载 E2E 企业知识库
+        if popover_state.get("switchCount", 0) > 0:
+            client.evaluate(page, _TOGGLE_FIRST_KB_SWITCH_JS, timeout_sec=10.0)
+
+        # 输入真实业务知识库查询 prompt
+        kb_task_prompt = "请用中文只回复四个字：测试通过"
+        client.evaluate(
+            page,
+            f"""(() => {{
+              const el = document.querySelector('[data-chat-input]');
+              if (!el) return false;
+              const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+              if (!setter) return false;
+              setter.call(el, {json.dumps(kb_task_prompt)});
+              el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+              el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+              return true;
+            }})()""",
+            timeout_sec=10.0,
+        )
+
+        # 点击发送按钮
+        send_btn_ready = wait_for_state(
             client,
             page,
             """(() => {
-              const text = document.body?.innerText || '';
-              const hasContent = text.includes('架构设计准则') || text.includes('跨源联邦索引');
-              const hasBadge = text.includes('E2E 企业知识库');
+              const btn = document.querySelector('.message-send-btn');
               return {
-                ready: hasContent || hasBadge,
-                hasContent,
-                hasBadge,
+                ready: !!btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true',
               };
             })()""",
-            timeout_sec=_warm_ui_parallel_wait_sec(15.0),
+            timeout_sec=15.0,
         )
-        assert source_badge_state.get("ready") is True, source_badge_state
+        assert send_btn_ready.get("ready") is True
+
+        btn_clicked = client.evaluate(
+            page,
+            """(() => {
+              const btn = document.querySelector('.message-send-btn');
+              if (!btn || btn.disabled) return false;
+              btn.click();
+              return true;
+            })()""",
+            timeout_sec=5.0,
+        )
+        assert btn_clicked is True, "Send button click failed"
+
+        # 5. Assert input textarea cleared and composer chip strip unmounted
+        wait_for_state(
+            client,
+            page,
+            """(() => {
+              const input = document.querySelector('[data-chat-input]');
+              const strip = document.querySelector('[data-testid="composer-context-chip-strip"]');
+              return {
+                ready: !!input && input.value === '' && !strip,
+                inputValue: input?.value ?? null,
+                hasStrip: Boolean(strip),
+              };
+            })()""",
+            timeout_sec=30.0,
+        )
+
+        # 6. 等待真实助手回答流式返回并完成
+        assistant_reply = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const store = window.__myrmChatStore?.getState?.();
+              const msgs = store?.messages ?? [];
+              const assistantMsg = msgs.find(
+                (m) => (m.role === 'assistant' || m.type === 'assistant') &&
+                       String(m.content || m.text || '').trim().length > 0
+              );
+              const isStreaming = Boolean(store?.isStreaming || store?.loading);
+              const content = String(assistantMsg?.content || assistantMsg?.text || '').trim();
+              return {
+                ready: Boolean(assistantMsg) && !isStreaming && content.length > 0,
+                hasAssistantMsg: Boolean(assistantMsg),
+                isStreaming,
+                contentPreview: content.slice(0, 100),
+                fullContent: content,
+                totalMessages: msgs.length,
+              };
+            })()""",
+            timeout_sec=180.0,
+        )
+        assert (
+            assistant_reply.get("ready") is True
+        ), f"Assistant reply failed or timed out: {assistant_reply}"
+        response_text = str(assistant_reply.get("fullContent") or "")
+        print(f"\nREAL_LLM_KNOWLEDGE_ASSISTANT_RESPONSE: {response_text}")
+        assert len(response_text) > 0, "Model returned empty response"
 

@@ -470,17 +470,23 @@ class MemoryCommandCenterService:
                 select(PendingMemory).where(PendingMemory.status == "pending").order_by(desc(PendingMemory.created_at)).limit(5)
             )
             for item in pending_result.scalars().all():
+                is_conflict = (item.metadata_json or {}).get("conflict_status") == "conflicted" if isinstance(item.metadata_json, dict) else False
+                conflict_meta = (item.metadata_json or {}) if isinstance(item.metadata_json, dict) else {}
                 items.append(
                     MemoryCommandGovernanceItem(
                         id=item.id,
-                        kind=MemoryOperationKind.PROPOSE.value,
-                        target_kind="pending_memory",
-                        title=item.memory_type,
+                        kind="conflict_pair" if is_conflict else MemoryOperationKind.PROPOSE.value,
+                        target_kind="conflict_pair" if is_conflict else "pending_memory",
+                        title=f"Conflict: {item.memory_type}" if is_conflict else item.memory_type,
                         description=self._preview(item.content),
                         severity="warning",
                         status=item.status,
                         created_at=item.created_at,
-                        available_actions=["approve", "reject", "edit"],
+                        available_actions=["approve", "reject", "merge", "edit"] if is_conflict else ["approve", "reject", "edit"],
+                        existing_value=str(conflict_meta.get("existing_value", "")) if is_conflict else None,
+                        candidate_value=str(conflict_meta.get("candidate_value", "")) if is_conflict else None,
+                        confidence=float(item.confidence) if item.confidence is not None else None,
+                        conflict_reason=str(conflict_meta.get("conflict_reason", "")) if is_conflict else None,
                     )
                 )
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.e2e.conftest import (
+from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
     get_e2e_api_url,
     open_settings_subroute,

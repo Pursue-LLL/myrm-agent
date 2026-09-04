@@ -191,7 +191,7 @@ async def resolve_proactive_snippets_from_vaults(
             try:
                 fts_query = ""
                 try:
-                    from myrm_agent_harness.toolkits.wiki.retrieval.tokenizer import tokenize_for_fts
+                    from myrm_agent_harness.api import tokenize_for_fts
                     fts_query = tokenize_for_fts(trimmed_query)
                 except ImportError:
                     safe_fts_terms = [

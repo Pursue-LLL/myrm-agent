@@ -9,11 +9,10 @@ from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
     ensure_desktop_viewport,
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
-    wait_for_react_e2e_bridge,
+    wait_for_settings_layout,
     warm_ui_route,
 )
 
@@ -56,10 +55,10 @@ def test_fal_media_config_api_and_settings_chrome_e2e() -> None:
 
     # 2. Warm up Settings UI route and verify with Chrome MCP
     warm_ui_route("/settings")
-    with open_mcp_page(f"{ui_url}/settings?tab=media") as (client, page):
+    with open_settings_subroute("/settings?tab=media", timeout_ms=90_000) as (client, page):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
-        wait_for_react_e2e_bridge(client, page)
+        wait_for_settings_layout(client, page)
 
         dom_res = client.evaluate(page, _VERIFY_FAL_MEDIA_SETTINGS_JS, timeout_sec=10.0)
         assert isinstance(dom_res, dict)

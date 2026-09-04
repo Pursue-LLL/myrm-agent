@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.memory.strategies.distillation_guards import (
+    from myrm_agent_harness.api import (
         DistillationCandidate,
     )
 
@@ -201,7 +201,7 @@ class ChannelDataPlaneService:
         Maps channel-level properties (is_self, sender, bot signals) to the
         tri-state identity and provenance structure enforced by distillation guards.
         """
-        from myrm_agent_harness.toolkits.memory.strategies.distillation_guards import (
+        from myrm_agent_harness.api import (
             DistillationCandidate,
             DistillationOrigin,
             EvidenceReference,

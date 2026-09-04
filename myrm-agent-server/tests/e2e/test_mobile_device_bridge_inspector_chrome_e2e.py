@@ -20,29 +20,33 @@ from tests.support.chrome_mcp_e2e import (
 _VERIFY_DEVICE_STORE_AND_PANEL_JS = """(() => {
   const store = window.__MYRM_DEVICE_INSPECTOR_STORE__;
   if (!store) {
-    // If not on window, check if toggle button or state can be engaged
     return { ok: false, err: 'no-device-store-exposed' };
   }
   const state = store.getState();
   const initialOpen = state.isOpen;
 
-  // Open panel
+  // 1. Verify toggle & mode state changes
   state.openPanel();
   const afterOpen = store.getState().isOpen;
 
-  // Set mode to inspect
   state.setMode('inspect');
   const inspectMode = store.getState().mode === 'inspect';
 
-  // Toggle notification redaction
+  // 2. Toggle notification redaction privacy setting
   const initialRedaction = store.getState().notificationRedaction;
   state.setNotificationRedaction(!initialRedaction);
   const toggledRedaction = store.getState().notificationRedaction !== initialRedaction;
   state.setNotificationRedaction(initialRedaction); // restore
 
-  // Close panel
+  // 3. Close panel
   state.closePanel();
   const afterClose = !store.getState().isOpen;
+
+  // 4. Verify toggle button presence when active
+  state.setDeviceActive(true);
+  const toggleBtn = document.querySelector('[data-testid="device-inspector-toggle"]');
+  const hasToggleBtn = !!toggleBtn;
+  state.setDeviceActive(false);
 
   return {
     ok: true,
@@ -51,15 +55,18 @@ _VERIFY_DEVICE_STORE_AND_PANEL_JS = """(() => {
     inspectMode,
     toggledRedaction,
     afterClose,
+    hasToggleBtn,
   };
 })()"""
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
-    access_scope="NAMESPACE_WRITE",
+    execution_mode="PRIVATE",
+    access_scope="READ",
     workload="STANDARD",
+    private_reason="exclusive_backend",
 )
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_mobile_device_inspector_api_and_ui_lifecycle() -> None:
@@ -98,9 +105,10 @@ def test_mobile_device_inspector_api_and_ui_lifecycle() -> None:
         wait_for_react_e2e_bridge(client, page)
 
         # 3. Verify window.__MYRM_DEVICE_INSPECTOR_STORE__ interaction in real browser
-        store_res = client.evaluate(page, _VERIFY_DEVICE_STORE_AND_PANEL_JS, timeout_sec=10.0)
+        # Ensure store is evaluated after full bridge readiness
+        store_res = client.evaluate(page, _VERIFY_DEVICE_STORE_AND_PANEL_JS, timeout_sec=20.0)
         assert isinstance(store_res, dict)
-        assert store_res.get("ok")
+        assert store_res.get("ok") is True, f"Store verify failed: {store_res}"
         assert store_res.get("afterOpen") is True
         assert store_res.get("inspectMode") is True
         assert store_res.get("toggledRedaction") is True

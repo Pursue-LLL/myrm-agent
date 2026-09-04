@@ -49,13 +49,17 @@ class MemoryCommandGovernanceItem(BaseModel):
 
     id: str
     kind: str
-    target_kind: Literal["pending_memory", "shared_context_proposal", "memory"] = "memory"
+    target_kind: Literal["pending_memory", "shared_context_proposal", "memory", "conflict_pair"] = "memory"
     title: str
     description: str
     severity: Literal["info", "warning", "critical"] = "info"
     status: str
     created_at: datetime
     available_actions: list[str] = Field(default_factory=list)
+    existing_value: str | None = None
+    candidate_value: str | None = None
+    confidence: float | None = None
+    conflict_reason: str | None = None
 
 
 class MemoryCommandHealth(BaseModel):

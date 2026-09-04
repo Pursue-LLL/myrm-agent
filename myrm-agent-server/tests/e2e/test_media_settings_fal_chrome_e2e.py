@@ -8,11 +8,10 @@ from tests.support.chrome_mcp_e2e import (
     _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
-    wait_for_react_e2e_bridge,
+    wait_for_settings_layout,
     warm_ui_route,
 )
 
@@ -43,7 +42,7 @@ def test_media_settings_fal_provider_e2e_lifecycle() -> None:
     prepare_e2e_ui_session(api_url)
 
     # 1. Direct REST contract check on live backend
-    status_res = http_json("GET", f"{api_url}/agents/media-provider-status")
+    status_res = http_json("GET", f"{api_url}/api/v1/agents/media-provider-status")
     assert isinstance(status_res, dict)
     assert status_res.get("success") is True
     providers = status_res.get("data", {}).get("providers", {})
@@ -53,14 +52,9 @@ def test_media_settings_fal_provider_e2e_lifecycle() -> None:
 
     # 2. Warm up Settings UI route
     warm_ui_route("/settings")
-    with open_mcp_page(f"{ui_url}/settings", timeout_ms=90_000) as (client, page):
+    with open_settings_subroute("/settings", timeout_ms=90_000) as (client, page):
         dismiss_blocking_modals(client, page)
-        wait_for_react_e2e_bridge(
-            client,
-            page,
-            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
-            page_url=f"{ui_url}/settings",
-        )
+        wait_for_settings_layout(client, page)
 
         res = client.evaluate(page, _VERIFY_MEDIA_SETTINGS_FAL_JS, timeout_sec=10.0)
         assert isinstance(res, dict)

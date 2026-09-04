@@ -31,7 +31,7 @@ class ChannelMessageModel(Base):
     sender_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     is_trigger: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
-    is_self: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_self: Mapped[bool | None] = mapped_column(Boolean, default=None, nullable=True)
     is_group: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     learning_eligible: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
