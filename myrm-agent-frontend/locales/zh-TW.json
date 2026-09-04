@@ -18453,7 +18453,7 @@
   },
   "continualOverlay": {
     "activeTitle": "活躍對話覆蓋層",
-    "remainingTurns": "{count, plural, =1 {1 turn left} other {# turns left}}",
+    "remainingTurns": "{count, plural, =1 {剩餘 1 輪} other {剩餘 # 輪}}",
     "rollbackTooltip": "回滾此對話覆蓋層",
     "rollback": "回滾",
     "collapse": "收起",
