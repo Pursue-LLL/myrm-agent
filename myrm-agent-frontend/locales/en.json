@@ -2847,7 +2847,13 @@
     "routingStandardTooltip": "Processed by standard primary model for everyday tasks",
     "routingReasoningTooltip": "Complex logic or multi-step reasoning detected; scaled up to deep reasoning compute",
     "routingCodeTooltip": "Coding, refactoring, or debug task detected; routed to code specialty model",
-    "routingLongDocTooltip": "Long document or large context detected; routed to long-document specialty model"
+    "routingLongDocTooltip": "Long document or large context detected; routed to long-document specialty model",
+    "captureEvalCase": {
+      "action": "Capture as Eval Case",
+      "success": "Captured as Eval Case",
+      "successDesc": "Successfully crystallized chat into evaluation benchmark dataset",
+      "error": "Failed to capture eval case"
+    }
   },
   "mode": {
     "fast": "Fast Search",
@@ -8329,10 +8335,10 @@
   "toolApproval": {
     "title": "Tool Execution Approval",
     "spendProtection": {
-      "title": "Financial Spend Protection",
-      "description": "Financial transaction detected. Please verify the amount and recipient.",
-      "amount": "Spend Amount",
-      "tamperProtected": "Tamper-proof Protected"
+      "title": "Financial Transaction Protection",
+      "description": "The agent is requesting an external financial charge. Parameter integrity is cryptographically sealed.",
+      "amount": "Charge Amount",
+      "tamperProtected": "SHA-256 Tamper Protected"
     },
     "batchTitle": "Batch Approval ({count} tools)",
     "batchHighRisk": {
@@ -8518,12 +8524,6 @@
     "smartDenied": {
       "title": "Security reviewer recommends denial",
       "overrideOnce": "Override Once"
-    },
-    "spendProtection": {
-      "title": "Financial Transaction Protection",
-      "description": "The agent is requesting an external financial charge. Parameter integrity is cryptographically sealed.",
-      "amount": "Charge Amount",
-      "tamperProtected": "SHA-256 Tamper Protected"
     },
     "batchCostTitle": "Batch Task Cost Approval",
     "batchCostDescription": "The agent wants to spawn multiple subagents. Review the estimated cost before proceeding.",
@@ -13461,6 +13461,15 @@
       "keyEnabled": "Enabled · Participates in key pool rotation",
       "keyDisabled": "Disabled · Excluded from key pool rotation",
       "keyPoolActive": "{count} keys participating in auto load balancing & failover",
+      "poolStatsTitle": "Credential Pool Runtime Stats",
+      "poolStatsTooltip": "View runtime call metrics, 429 rate limit errors, and cooldown status",
+      "poolCalls": "{count} calls",
+      "poolRateLimits": "{count} rate limits",
+      "poolInCooldown": "Cooldown ({seconds}s)",
+      "poolReady": "Ready",
+      "resetCooldowns": "Reset Cooldowns",
+      "resetCooldownsSuccess": "Reset cooldown for {count} keys",
+      "noActivePools": "No active pool metrics yet",
       "strategyRoundRobin": "Round Robin",
       "strategyFillFirst": "Fill First",
       "strategyLeastUsed": "Least Used",

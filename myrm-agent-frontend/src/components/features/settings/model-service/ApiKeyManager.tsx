@@ -8,6 +8,7 @@ import { ApiKeyConfig, CredentialPoolStrategy } from '@/store/config/providerTyp
 import { toast } from '@/hooks/shared/useToast';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
+import { CredentialPoolStatsPanel } from './CredentialPoolStatsPanel';
 
 type KeyHealthStatus = 'unchecked' | 'checking' | 'valid' | 'invalid';
 
@@ -313,6 +314,9 @@ const ApiKeyManager = memo<ApiKeyManagerProps>(
             )}
           </div>
         )}
+
+        {/* Runtime pool observability & cooldown management */}
+        <CredentialPoolStatsPanel hasMultipleKeys={activeCount > 1} />
 
         {/* Key list */}
         {(apiKeys?.length ?? 0) > 0 && (

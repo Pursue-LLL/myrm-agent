@@ -2847,6 +2847,12 @@
         "delivery_artifact": "Lieferartefakt",
         "acceptance_verification": "Abnahmeüberprüfung"
       }
+    },
+    "captureEvalCase": {
+      "action": "Als Eval-Fall erfassen",
+      "success": "Als Eval-Fall erfasst",
+      "successDesc": "Chat-Verlauf erfolgreich als Benchmark-Datensatz extrahiert",
+      "error": "Fehler beim Erfassen des Eval-Falls"
     }
   },
   "mode": {
@@ -8329,10 +8335,10 @@
   "toolApproval": {
     "title": "Genehmigung der Werkzeugausführung",
     "spendProtection": {
-      "title": "Finanzieller Ausgabenschutz",
-      "description": "Finanztransaktion erkannt. Bitte Betrag und Empfänger sorgfältig prüfen.",
-      "amount": "Ausgabebetrag",
-      "tamperProtected": "Kryptografischer Manipulationsschutz aktiv"
+      "title": "Schutz vor Finanztransaktionen",
+      "description": "Der Agent fordert eine externe Finanzbuchung an. Die Parameterintegrität ist kryptografisch versiegelt.",
+      "amount": "Abbuchungsbetrag",
+      "tamperProtected": "SHA-256 manipulationsgeschützt"
     },
     "batchTitle": "Chargengenehmigung ({count}-Tools)",
     "batchHighRisk": {
@@ -8532,12 +8538,6 @@
       "badge": "Obsidian-Eingang",
       "noteContent": "Notizinhalt",
       "destination": "Tresor"
-    },
-    "spendProtection": {
-      "title": "Schutz vor Finanztransaktionen",
-      "description": "Der Agent fordert eine externe Finanzbuchung an. Die Parameterintegrität ist kryptografisch versiegelt.",
-      "amount": "Abbuchungsbetrag",
-      "tamperProtected": "SHA-256 manipulationsgeschützt"
     }
   },
   "notifications": {
@@ -10268,6 +10268,9 @@
       "description": "Basierend auf deterministischer Fehlerursachenanalyse: Die Erweiterung von Tools/Middleware bringt einen deutlich höheren ROI als reine Prompt-Änderungen (Tools/Middleware ≫ Prompt). Optimieren Sie Ihre Konfiguration anhand der empfohlenen Prioritäten.",
       "affectsCases": "Betrifft {count} fehlgeschlagene Fälle",
       "quickConfig": "Konfigurieren"
+    },
+    "golden5Pack": {
+      "initCheckbox": "Mit Golden 5-Pack-Vorlage initialisieren"
     }
   },
   "vault": {
@@ -13663,7 +13666,16 @@
         "agenticTooltip": "Automatisch abgeleitetes 64K-Kontext-Modelfile für produktionsreife Tool-Aufrufe und Langzeitgedächtnis",
         "keepAliveTipTitle": "24/7-Keep-Alive & GPU-Freigabe-Leitfaden",
         "keepAliveTipDesc": "Modelle für 24/7-Hintergrundbots im Speicher halten oder entladen, um VRAM für rechenintensive Aufgaben freizugeben."
-      }
+      },
+      "poolStatsTitle": "Schlüsselpool-Laufzeitstatus",
+      "poolStatsTooltip": "Laufzeit-Aufrufmetriken, 429-Ratenbegrenzungsfehler und Abkühlstatus anzeigen",
+      "poolCalls": "{count} Aufrufe",
+      "poolRateLimits": "{count} Ratenbegrenzungen",
+      "poolInCooldown": "Abkühlung ({seconds}s)",
+      "poolReady": "Bereit",
+      "resetCooldowns": "Abkühlung zurücksetzen",
+      "resetCooldownsSuccess": "Abkühlung für {count} Schlüssel zurückgesetzt",
+      "noActivePools": "Noch keine aktiven Pool-Metriken"
     },
     "defaultModel": {
       "localModelWarning": "Lokale Leichtgewichtsmodelle neigen stark zu Halluzinationen oder Endlosschleifen bei komplexen Agent-Workflows. Für lange Aufgaben werden Modelle ab 30B oder Cloud-basierte fortschrittliche Modelle (wie Claude 3.5 Sonnet) empfohlen.",

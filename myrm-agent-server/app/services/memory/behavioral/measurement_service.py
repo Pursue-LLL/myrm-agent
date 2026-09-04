@@ -151,12 +151,9 @@ class BehavioralMeasurementService:
                 continue
 
             try:
-                await self._manager.upsert_profile(
+                await self._manager.set_system_profile_attribute(
                     key=cand.profile_key,
                     value=cand.profile_value,
-                    confidence=cand.confidence,
-                    importance=cand.importance,
-                    evidence=[ref.model_dump(mode="json") for ref in cand.evidence],
                 )
                 updated_keys.append(cand.profile_key)
             except Exception as e:

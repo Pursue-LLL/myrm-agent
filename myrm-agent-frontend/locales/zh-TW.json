@@ -2847,6 +2847,12 @@
         "delivery_artifact": "交付產物",
         "acceptance_verification": "驗收驗證"
       }
+    },
+    "captureEvalCase": {
+      "action": "淬鍊為評測用例",
+      "success": "已成功淬鍊為評測用例",
+      "successDesc": "已將該對話軌跡完整擷取並寫入評測基準資料集",
+      "error": "淬鍊評測用例失敗"
     }
   },
   "mode": {
@@ -4389,11 +4395,11 @@
       "behavioral": {
         "title": "行為特徵測量",
         "zeroCostBadge": "零模型成本",
-        "subtitle": "純確定性本機統計分析，聚合多渠道對話作息與時延，零 Token 消耗。",
+        "subtitle": "純確定性本地統計分析，聚合多渠道會話作息與時延，零 Token 消耗。",
         "refresh": "重新整理統計",
         "syncProfile": "沉澱到畫像",
         "syncing": "沉澱中...",
-        "analyzing": "正在分析本機行為事件...",
+        "analyzing": "正在分析本地行為事件...",
         "peakActivity": "作息活躍高峰",
         "flexibleTime": "彈性分佈",
         "sampleBase": "基於 {count} 條樣本",
@@ -4403,7 +4409,7 @@
         "primaryCollaborator": "最高頻協作者",
         "noneObserved": "暫無高頻協作者",
         "interactions": "{count} 次互動",
-        "groupDiscussions": "群聊與多方對話",
+        "groupDiscussions": "群聊與多方會話",
         "activeDistribution24h": "24小時活躍度分佈",
         "workday": "工作日",
         "weekend": "週末",
@@ -4430,34 +4436,6 @@
         "success": "成功",
         "failed": "失敗",
         "no_output": "無助手回復"
-      },
-      "behavioral": {
-        "title": "行為特徵測量",
-        "zeroCostBadge": "零模型成本",
-        "subtitle": "純確定性本地統計分析，聚合多渠道會話作息與時延，零 Token 消耗。",
-        "refresh": "重新整理統計",
-        "syncProfile": "沉澱到畫像",
-        "syncing": "沉澱中...",
-        "analyzing": "正在分析本地行為事件...",
-        "peakActivity": "作息活躍高峰",
-        "flexibleTime": "彈性分佈",
-        "sampleBase": "基於 {count} 條樣本",
-        "replyLatency": "回覆響應時延",
-        "notEnoughData": "資料積累中",
-        "minTurnsRequired": "需至少 10 輪互動",
-        "primaryCollaborator": "最高頻協作者",
-        "noneObserved": "暫無高頻協作者",
-        "interactions": "{count} 次互動",
-        "groupDiscussions": "群聊與多方會話",
-        "activeDistribution24h": "24小時活躍度分佈",
-        "workday": "工作日",
-        "weekend": "週末",
-        "allDays": "全週期",
-        "frequentCollaborators": "高頻協作夥伴 (Top-5)",
-        "loadError": "獲取行為特徵失敗",
-        "syncSuccess": "已成功將 {count} 項客觀特徵沉澱至使用者畫像",
-        "syncNoEligible": "暫無滿足置信度樣本門檻的特徵",
-        "syncError": "畫像特徵沉澱失敗"
       }
     },
     "createDialog": {
@@ -8357,10 +8335,10 @@
   "toolApproval": {
     "title": "工具執行審批",
     "spendProtection": {
-      "title": "財務支出保護",
-      "description": "檢測到涉及真實資金扣款的操作。請仔細核對金額與操作目標。",
+      "title": "金融交易支出保護",
+      "description": "智慧體正在請求外部資金支出，參數完整性已由密碼學封籤保護。",
       "amount": "支出金額",
-      "tamperProtected": "密碼學防篡改已啟動"
+      "tamperProtected": "SHA-256 防篡改保護"
     },
     "batchTitle": "批次審批 ({count} 個工具)",
     "batchHighRisk": {
@@ -8560,13 +8538,7 @@
     "mcpElicitationTitle": "MCP 服務確認",
     "mcpElicitationServer": "服務",
     "clarificationRequired": "需要錯誤釐清",
-    "fixParameters": "修正參數（JSON）",
-    "spendProtection": {
-      "title": "金融交易支出保護",
-      "description": "智慧體正在請求外部資金支出，參數完整性已由密碼學封籤保護。",
-      "amount": "支出金額",
-      "tamperProtected": "SHA-256 防篡改保護"
-    }
+    "fixParameters": "修正參數（JSON）"
   },
   "notifications": {
     "title": "系統通知",
@@ -13694,7 +13666,16 @@
       "acpTimeoutUnit": "秒",
       "testConnection": "測試連線",
       "connectionSuccess": "連線成功",
-      "connectionFailed": "連線失敗"
+      "connectionFailed": "連線失敗",
+      "poolStatsTitle": "金鑰池執行狀態",
+      "poolStatsTooltip": "檢視執行階段呼叫統計、429 頻控次數與冷卻狀態",
+      "poolCalls": "{count} 次呼叫",
+      "poolRateLimits": "{count} 次限流",
+      "poolInCooldown": "冷卻中 ({seconds}秒)",
+      "poolReady": "就緒",
+      "resetCooldowns": "重置冷卻",
+      "resetCooldownsSuccess": "已重置 {count} 個金鑰的冷卻計時",
+      "noActivePools": "暫無作用中呼叫池資料"
     },
     "defaultModel": {
       "localModelWarning": "本地輕量模型在處理複雜 Agent 工具鏈時極易產生幻覺或陷入死迴圈。執行長任務建議使用 30B 以上規模模型或雲端高階模型（如 Claude 3.5 Sonnet）。",

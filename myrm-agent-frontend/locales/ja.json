@@ -2847,7 +2847,13 @@
     "routingStandardTooltip": "標準のメインモデルで日常タスクを処理",
     "routingReasoningTooltip": "複雑な論理または推論タスクを検出し、高精度な深層推論モデルを自動割り当て",
     "routingCodeTooltip": "コーディング、リファクタリング、デバッグタスクを検出し、コード専門モデルにルーティング",
-    "routingLongDocTooltip": "長文ドキュメントまたは大規模コンテキストを検出し、長文専門モデルにルーティング"
+    "routingLongDocTooltip": "長文ドキュメントまたは大規模コンテキストを検出し、長文専門モデルにルーティング",
+    "captureEvalCase": {
+      "action": "評価ケースとして抽出",
+      "success": "評価ケースとして正常に抽出しました",
+      "successDesc": "会話履歴を評価ベンチマークデータセットに書き込みました",
+      "error": "評価ケースの抽出に失敗しました"
+    }
   },
   "mode": {
     "fast": "高速検索",
@@ -4343,51 +4349,6 @@
       "demoSeedSuccessDesc": "記憶グラフとセマンティック検索を探索できます。",
       "demoRollbackSuccess": "デモデータが正常に削除されました！",
       "behavioral": {
-        "title": "行動特徴の計測",
-        "zeroCostBadge": "モデルコスト0",
-        "subtitle": "モデルトークン消費なし、完全ローカル確定性アルゴリズムでマルチチャネルの対話リズムと応答遅延を集計。",
-        "refresh": "統計を更新",
-        "syncProfile": "プロファイルに反映",
-        "syncing": "反映中...",
-        "analyzing": "ローカル行動イベントを分析中...",
-        "peakActivity": "アクティブピーク時間帯",
-        "flexibleTime": "フレキシブル",
-        "sampleBase": "{count} 件のサンプルに基づく",
-        "replyLatency": "応答レスポンス遅延",
-        "notEnoughData": "データを収集中",
-        "minTurnsRequired": "最低10ターンの対話が必要",
-        "primaryCollaborator": "主要な協作者",
-        "noneObserved": "協作者の記録なし",
-        "interactions": "{count} 回のやり取り",
-        "groupDiscussions": "グループチャット・多人数対話",
-        "activeDistribution24h": "24時間アクティビティ分布",
-        "workday": "平日",
-        "weekend": "週末",
-        "allDays": "全日",
-        "frequentCollaborators": "頻出コラボレーター (Top-5)",
-        "loadError": "行動インサイトの読み込みに失敗しました",
-        "syncSuccess": "{count} 件の客観的特徴をユーザープロファイルに正常に反映しました",
-        "syncNoEligible": "サンプルの信頼性基準を満たす特徴がまだありません",
-        "syncError": "プロファイルへの反映に失敗しました"
-      },
-      "allProjects": "すべてのプロジェクト",
-      "clearFilter": "クリア",
-      "migrationAdapterStatusTitle": "アダプターの準備状態",
-      "migrationAdapterStatus": {
-        "ready": "準備完了",
-        "planned": "計画済み",
-        "missing": "利用不可"
-      },
-      "migrationAdapterMissingHint": "{source} はまだ直接利用できません。マイグレーションウィザードの互換インポート形式で続行できます。",
-      "migrationAdapterOpenWizard": "インポートウィザードを開く",
-      "lastImportReadiness": "実行準備: {status}",
-      "lastImportFirstTurn": "インポート後の最初のチャット: {outcome}",
-      "firstTurnOutcome": {
-        "success": "成功",
-        "failed": "失敗",
-        "no_output": "アシスタントの返信なし"
-      },
-      "behavioral": {
         "title": "行動特性測定",
         "zeroCostBadge": "モデルコストゼロ",
         "subtitle": "純粋な決定論的ローカル統計分析。トークン消費ゼロで複数チャネルの活動時間を集計。",
@@ -4414,6 +4375,23 @@
         "syncSuccess": "{count} 件の客観的特徴をユーザープロファイルに保存しました",
         "syncNoEligible": "サンプルのしきい値を満たす特徴はありません",
         "syncError": "プロファイルの同期に失敗しました"
+      },
+      "allProjects": "すべてのプロジェクト",
+      "clearFilter": "クリア",
+      "migrationAdapterStatusTitle": "アダプターの準備状態",
+      "migrationAdapterStatus": {
+        "ready": "準備完了",
+        "planned": "計画済み",
+        "missing": "利用不可"
+      },
+      "migrationAdapterMissingHint": "{source} はまだ直接利用できません。マイグレーションウィザードの互換インポート形式で続行できます。",
+      "migrationAdapterOpenWizard": "インポートウィザードを開く",
+      "lastImportReadiness": "実行準備: {status}",
+      "lastImportFirstTurn": "インポート後の最初のチャット: {outcome}",
+      "firstTurnOutcome": {
+        "success": "成功",
+        "failed": "失敗",
+        "no_output": "アシスタントの返信なし"
       }
     },
     "createDialog": {
@@ -8357,10 +8335,10 @@
   "toolApproval": {
     "title": "ツール実行承認",
     "spendProtection": {
-      "title": "財務支出保護",
-      "description": "実資金決済を伴う操作が検出されました。金額と送金先を確認してください。",
+      "title": "金融取引支出保護",
+      "description": "エージェントが外部資金の支出をリクエストしています。パラメータの完全性は暗号学的に保護されています。",
       "amount": "支出金額",
-      "tamperProtected": "暗号学的改ざん防止が有効"
+      "tamperProtected": "SHA-256 改ざん防止保護"
     },
     "batchTitle": "一括承認 ({count} 個ツール)",
     "batchHighRisk": {
@@ -8560,12 +8538,6 @@
       "badge": "Obsidian インボックス",
       "noteContent": "ノート内容",
       "destination": "保管庫"
-    },
-    "spendProtection": {
-      "title": "金融取引支出保護",
-      "description": "エージェントが外部資金の支出をリクエストしています。パラメータの完全性は暗号学的に保護されています。",
-      "amount": "支出金額",
-      "tamperProtected": "SHA-256 改ざん防止保護"
     }
   },
   "notifications": {
@@ -13694,7 +13666,16 @@
       "acpTimeoutUnit": "秒",
       "testConnection": "テスト接続",
       "connectionSuccess": "接続しました",
-      "connectionFailed": "接続失敗"
+      "connectionFailed": "接続失敗",
+      "poolStatsTitle": "キープール稼働状況",
+      "poolStatsTooltip": "ランタイム呼び出しメトリクス、429レート制限エラー、クールダウン状態を確認",
+      "poolCalls": "{count} 回の呼び出し",
+      "poolRateLimits": "{count} 回のレート制限",
+      "poolInCooldown": "クールダウン中 ({seconds}秒)",
+      "poolReady": "準備完了",
+      "resetCooldowns": "クールダウンをリセット",
+      "resetCooldownsSuccess": "{count} 個のキーのクールダウンをリセットしました",
+      "noActivePools": "アクティブなプールメトリクスはまだありません"
     },
     "defaultModel": {
       "localModelWarning": "ローカルの軽量モデルは、複雑な Agent ツールチェーンを処理する際に幻覚や無限ループを起こしやすいです。長時間タスクには 30B 以上のモデルか、クラウドの高度なモデル（Claude 3.5 Sonnet など）の使用を推奨します。",

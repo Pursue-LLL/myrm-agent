@@ -2847,7 +2847,13 @@
     "routingStandardTooltip": "使用主力常规模型处理日常任务",
     "routingReasoningTooltip": "检测到复杂逻辑或多步推理，已自动调集强力深度推理算力",
     "routingCodeTooltip": "检测到代码编写、重构或 Debug 任务，已分流至代码专长模型",
-    "routingLongDocTooltip": "检测到长篇文档或超大上下文，已分流至长文档专长模型"
+    "routingLongDocTooltip": "检测到长篇文档或超大上下文，已分流至长文档专长模型",
+    "captureEvalCase": {
+      "action": "淬炼为评测用例",
+      "success": "已成功淬炼为评测用例",
+      "successDesc": "已将该对话轨迹完整提取并写入评测基准数据集",
+      "error": "淬炼评测用例失败"
+    }
   },
   "mode": {
     "fast": "快速搜索",
@@ -8329,10 +8335,10 @@
   "toolApproval": {
     "title": "工具执行审批",
     "spendProtection": {
-      "title": "财务支出保护",
-      "description": "检测到涉及真实资金扣款的操作。请仔细核对金额与操作目标。",
+      "title": "金融交易支出保护",
+      "description": "智能体正在请求外部资金支出，参数完整性已由密码学封签保护。",
       "amount": "支出金额",
-      "tamperProtected": "密码学防篡改已激活"
+      "tamperProtected": "SHA-256 防篡改保护"
     },
     "batchTitle": "批量审批 ({count} 个工具)",
     "batchHighRisk": {
@@ -8532,13 +8538,7 @@
     "action": "操作",
     "jsExpression": "JavaScript 表达式",
     "clarificationRequired": "需要错误澄清",
-    "fixParameters": "修复参数（JSON）",
-    "spendProtection": {
-      "title": "金融交易支出保护",
-      "description": "智能体正在请求外部资金支出，参数完整性已由密码学封签保护。",
-      "amount": "支出金额",
-      "tamperProtected": "SHA-256 防篡改保护"
-    }
+    "fixParameters": "修复参数（JSON）"
   },
   "notifications": {
     "title": "系统通知",
@@ -13461,6 +13461,15 @@
       "keyEnabled": "已启用 · 参与密钥池轮转",
       "keyDisabled": "已禁用 · 不参与密钥池轮转",
       "keyPoolActive": "{count} 个密钥参与自动负载均衡与故障转移",
+      "poolStatsTitle": "密钥池运行状态",
+      "poolStatsTooltip": "查看运行时调用统计、429 频控次数与冷却状态",
+      "poolCalls": "{count} 次调用",
+      "poolRateLimits": "{count} 次限流",
+      "poolInCooldown": "冷却中 ({seconds}秒)",
+      "poolReady": "就绪",
+      "resetCooldowns": "重置冷却",
+      "resetCooldownsSuccess": "已重置 {count} 个密钥的冷却计时",
+      "noActivePools": "暂无活跃调用池数据",
       "strategyRoundRobin": "轮询",
       "strategyFillFirst": "优先填充",
       "strategyLeastUsed": "最少使用",
