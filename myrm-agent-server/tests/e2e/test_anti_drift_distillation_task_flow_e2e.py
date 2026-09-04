@@ -58,7 +58,7 @@ if TYPE_CHECKING:
 
 @pytest.mark.asyncio
 async def test_anti_drift_distillation_full_business_task_flow(
-    async_db: AsyncSession,
+    db_session: AsyncSession,
 ) -> None:
     """Full-chain real business closed loop for Anti-Drift Distillation Guards and Provenance anchoring."""
     channel = "feishu"
@@ -150,12 +150,12 @@ async def test_anti_drift_distillation_full_business_task_flow(
     ]
 
     for msg in raw_messages:
-        await ChannelMessageRepository.record_message(async_db, msg)
-    await async_db.commit()
+        await ChannelMessageRepository.record_message(db_session, msg)
+    await db_session.commit()
 
     # Verify DWD persistence
     stored_history = await ChannelMessageRepository.get_recent_context(
-        async_db, channel=channel, chat_id=chat_id, limit=10
+        db_session, channel=channel, chat_id=chat_id, limit=10
     )
     assert len(stored_history) == 6
 

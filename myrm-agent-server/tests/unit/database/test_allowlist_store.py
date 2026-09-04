@@ -87,6 +87,7 @@ class TestDBAllowlistStore:
         import time
         from app import platform_utils
 
+        await clear_allowlist_entries()
         factory = platform_utils.get_session_factory()
         store = DBAllowlistStore(factory)
         user_id = "sandbox"
@@ -101,6 +102,7 @@ class TestDBAllowlistStore:
         await store.save(user_id, entry)
 
         entries = await store.load(user_id)
+        print("DEBUG ENTRIES IN TEST:", len(entries), entries)
         assert len(entries) == 1
         assert entries[0].expires_at is not None
         assert abs(entries[0].expires_at - future_ts) < 2.0

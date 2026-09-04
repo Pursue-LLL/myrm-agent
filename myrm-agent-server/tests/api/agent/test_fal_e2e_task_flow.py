@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
-import json
+import asyncio
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.backends.skills._utils import parse_skill_frontmatter
+from myrm_agent_harness.toolkits.llms.video import VideoGenerationConfig
+from myrm_agent_harness.toolkits.llms.video.providers.fal_provider import FalVideoProvider
+from pydantic import SecretStr
 
 from tests.support.minimal_app import build_minimal_app
 
@@ -69,9 +74,6 @@ def test_fal_video_task_flow_full_lifecycle(client: TestClient) -> None:
         assert test_data["data"]["status"] == "ok"
 
     # Step 3: Verify prebuilt skill flux3-prompting-guide availability
-    from pathlib import Path
-    from myrm_agent_harness.backends.skills._utils import parse_skill_frontmatter
-
     server_root = Path(__file__).resolve().parents[3]
     skill_file = server_root / "assets" / "prebuilt_skills" / "flux3-prompting-guide" / "SKILL.md"
     assert skill_file.exists(), "Prebuilt skill flux3-prompting-guide must exist"
@@ -80,13 +82,6 @@ def test_fal_video_task_flow_full_lifecycle(client: TestClient) -> None:
     assert "video_tool" in parsed_skill.allowed_tools
 
     # Step 4: Verify Harness level FAL continuation & keyframe synthesis execution
-    from myrm_agent_harness.toolkits.llms.video import (
-        VideoGenerationConfig,
-        VideoAsset,
-    )
-    from myrm_agent_harness.toolkits.llms.video.providers.fal_provider import FalVideoProvider
-    from pydantic import SecretStr
-
     provider = FalVideoProvider()
     cfg = VideoGenerationConfig(
         provider="fal",
@@ -128,7 +123,6 @@ def test_fal_video_task_flow_full_lifecycle(client: TestClient) -> None:
         mock_client_factory.return_value = mock_http
 
         # Generate Clip 1: Keyframe mode
-        import asyncio
         clip1_output = asyncio.run(
             provider.generate(
                 prompt="A stylish hero walking down a neon street, camera tracking back",
