@@ -18,6 +18,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
+import re
 
 from myrm_agent_harness.eval.builder import extract_case_from_trajectory
 
@@ -25,6 +26,28 @@ from app.core.eval.datasets import get_eval_cases, save_eval_cases
 from app.services.chat.chat_service import ChatService
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_content(content: object) -> object:
+    """Sanitize message content to prevent massive base64 payloads from bloating eval JSONL."""
+    if isinstance(content, str):
+        if "data:image/" in content and ";base64," in content:
+            return re.sub(r"data:image\/[a-zA-Z0-9.+_-]+;base64,[A-Za-z0-9+/=]+", "[image: base64 omitted]", content)
+        return content
+    if isinstance(content, list):
+        sanitized_list = []
+        for item in content:
+            if isinstance(item, dict):
+                clean_item = dict(item)
+                if clean_item.get("type") == "image_url":
+                    clean_item["image_url"] = {"url": "[image: base64 omitted]"}
+                elif "image" in clean_item:
+                    clean_item["image"] = "[image: base64 omitted]"
+                sanitized_list.append(clean_item)
+            else:
+                sanitized_list.append(item)
+        return sanitized_list
+    return content
 
 
 async def capture_case_from_chat(chat_id: str, dataset_id: str | None = None) -> bool:
@@ -60,7 +83,7 @@ async def capture_case_from_chat(chat_id: str, dataset_id: str | None = None) ->
                         elif hasattr(tool_call, "name"):
                             tools_called.append({"name": tool_call.name})
 
-        trajectory.append({"role": msg.role, "content": msg.content})
+        trajectory.append({"role": msg.role, "content": _sanitize_content(msg.content)})
 
     chat_meta = await ChatService.get_chat_metadata(chat_id)
     profile_id = chat_meta.agent_id if chat_meta and chat_meta.agent_id else "default"

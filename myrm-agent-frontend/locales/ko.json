@@ -8328,6 +8328,12 @@
   },
   "toolApproval": {
     "title": "도구 실행 승인",
+    "spendProtection": {
+      "title": "재무 지출 보호",
+      "description": "실제 자금 결제 작업이 감지되었습니다. 금액과 수취 대상을 확인하십시오.",
+      "amount": "지출 금액",
+      "tamperProtected": "암호화 위변조 방지 활성화"
+    },
     "batchTitle": "배치 승인 ({count}개 도구)",
     "batchHighRisk": {
       "dialogTitle": "고위험 작업 2차 확인",

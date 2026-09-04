@@ -55,13 +55,17 @@ class TaskSpaceService:
 
     def __init__(
         self,
+        manager: HarnessTaskSpaceManager | None = None,
         max_active_spaces: int = 5,
         default_idle_ttl_seconds: float = 900.0,
     ) -> None:
-        self.manager = HarnessTaskSpaceManager(
-            max_active_spaces=max_active_spaces,
-            default_idle_ttl_seconds=default_idle_ttl_seconds,
-        )
+        if manager is not None:
+            self.manager = manager
+        else:
+            self.manager = HarnessTaskSpaceManager(
+                max_active_spaces=max_active_spaces,
+                default_idle_ttl_seconds=default_idle_ttl_seconds,
+            )
         self._space_states: dict[str, dict[str, object]] = {}
 
     async def list_spaces(self) -> list[TaskSpaceInfo]:

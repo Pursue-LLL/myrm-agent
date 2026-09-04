@@ -116,6 +116,16 @@ export const evalService = {
   },
 
   /**
+   * Capture a chat session and append it to evaluation cases
+   */
+  async captureCaseFromChat(chatId: string, datasetId?: string): Promise<{ status: string }> {
+    const query = datasetId ? `?dataset_id=${encodeURIComponent(datasetId)}` : '';
+    return apiRequest(`/eval/cases/from-chat/${encodeURIComponent(chatId)}${query}`, {
+      method: 'POST',
+    });
+  },
+
+  /**
    * Update the evaluation cases
    */
   async saveEvalCases(content: string): Promise<{ status: string }> {

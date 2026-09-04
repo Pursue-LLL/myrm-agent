@@ -8356,6 +8356,12 @@
   },
   "toolApproval": {
     "title": "工具執行審批",
+    "spendProtection": {
+      "title": "財務支出保護",
+      "description": "檢測到涉及真實資金扣款的操作。請仔細核對金額與操作目標。",
+      "amount": "支出金額",
+      "tamperProtected": "密碼學防篡改已啟動"
+    },
     "batchTitle": "批次審批 ({count} 個工具)",
     "batchHighRisk": {
       "dialogTitle": "高風險操作二次確認",

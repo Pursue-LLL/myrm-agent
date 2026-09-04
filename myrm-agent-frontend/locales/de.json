@@ -8328,6 +8328,12 @@
   },
   "toolApproval": {
     "title": "Genehmigung der Werkzeugausführung",
+    "spendProtection": {
+      "title": "Finanzieller Ausgabenschutz",
+      "description": "Finanztransaktion erkannt. Bitte Betrag und Empfänger sorgfältig prüfen.",
+      "amount": "Ausgabebetrag",
+      "tamperProtected": "Kryptografischer Manipulationsschutz aktiv"
+    },
     "batchTitle": "Chargengenehmigung ({count}-Tools)",
     "batchHighRisk": {
       "dialogTitle": "Bestätigung von Hochrisiko-Aktionen",

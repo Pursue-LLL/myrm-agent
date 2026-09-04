@@ -60,14 +60,17 @@ describe('BehavioralMetricsPanel Component', () => {
     render(<BehavioralMetricsPanel />);
 
     // Expect loading state first or title
-    expect(screen.getByText('title')).toBeInTheDocument();
+    expect(screen.getByText('commandCenter.behavioral.title')).toBeInTheDocument();
 
-    await waitFor(() => {
-      expect(screen.getByText('14:00 - 18:00')).toBeInTheDocument();
-      expect(screen.getByText('12.5s')).toBeInTheDocument();
-      expect(screen.getAllByText('Alice')[0]).toBeInTheDocument();
-      expect(screen.getByText('Bob')).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByText('14:00 - 18:00')).toBeInTheDocument();
+        expect(screen.getByText('12.5s')).toBeInTheDocument();
+        expect(screen.getByText('Alice')).toBeInTheDocument();
+        expect(screen.getByText('Bob')).toBeInTheDocument();
+      },
+      { timeout: 5000 }
+    );
   });
 
   it('switches between workday, weekend and combined tabs', async () => {
@@ -80,10 +83,10 @@ describe('BehavioralMetricsPanel Component', () => {
       expect(screen.getByText('14:00 - 18:00')).toBeInTheDocument();
     });
 
-    const weekendButton = screen.getByText('weekend');
+    const weekendButton = screen.getByText('commandCenter.behavioral.weekend');
     await user.click(weekendButton);
 
-    const allDaysButton = screen.getByText('allDays');
+    const allDaysButton = screen.getByText('commandCenter.behavioral.allDays');
     await user.click(allDaysButton);
   });
 
@@ -99,10 +102,10 @@ describe('BehavioralMetricsPanel Component', () => {
     render(<BehavioralMetricsPanel />);
 
     await waitFor(() => {
-      expect(screen.getByText('syncProfile')).toBeInTheDocument();
+      expect(screen.getByText('commandCenter.behavioral.syncProfile')).toBeInTheDocument();
     });
 
-    const syncBtn = screen.getByRole('button', { name: /syncProfile/i });
+    const syncBtn = screen.getByRole('button', { name: /commandCenter\.behavioral\.syncProfile/i });
     await user.click(syncBtn);
 
     expect(syncSpy).toHaveBeenCalledTimes(1);

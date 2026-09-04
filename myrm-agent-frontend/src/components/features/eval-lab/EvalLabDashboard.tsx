@@ -1,3 +1,4 @@
+// EvalLabDashboard with Golden 5-Pack
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { LazyMonacoDiffEditor as DiffEditor } from '@/components/features/app-shell/lazy-monaco-editor';
@@ -19,6 +20,7 @@ import { useCasesEval, type EvalDataset, type EvalProfile } from './hooks/useCas
 import { useMatrixEval } from './hooks/useMatrixEval';
 import { useMemoryAbEval } from './hooks/useMemoryAbEval';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
+import { getGolden5PackJson } from './constants/golden5PackTemplate';
 
 export default function EvalLabDashboard() {
   const locale = useLocale();
@@ -31,6 +33,7 @@ export default function EvalLabDashboard() {
   const [activeTab, setActiveTab] = useState('cases');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newDatasetName, setNewDatasetName] = useState('new_dataset');
+  const [useGoldenTemplate, setUseGoldenTemplate] = useState(true);
   const [globalReady, setGlobalReady] = useState(false);
 
   const casesEval = useCasesEval(selectedDatasetId);
@@ -152,10 +155,11 @@ export default function EvalLabDashboard() {
     }
     setCreateDialogOpen(false);
     try {
+      const initialContent = useGoldenTemplate ? getGolden5PackJson(true) : '';
       const res = await fetch(`/api/v1/eval/datasets/${name}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: '' }),
+        body: JSON.stringify({ content: initialContent }),
       });
       if (res.ok) {
         toast.success(t('datasetCreated'));

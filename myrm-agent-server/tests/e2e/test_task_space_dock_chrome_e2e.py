@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import urllib.request
-
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
@@ -21,6 +20,12 @@ _BRIDGE_READY_JS = """(() => ({
     typeof window.__MYRM_E2E_CHAT__?.triggerBrowserTakeover === 'function' &&
     typeof window.__MYRM_E2E_CHAT__?.getBrowserTakeoverSnapshot === 'function',
 }))()"""
+
+_CHECK_DOCK_JS = """(() => {
+  const bodyText = document.body.innerText || '';
+  const hasPill = bodyText.includes('并行任务空间') || bodyText.includes('Parallel Task Spaces');
+  return { ready: hasPill };
+})()"""
 
 
 def _create_e2e_space(space_id: str, name: str) -> None:
@@ -65,20 +70,11 @@ def test_task_space_dock_real_chrome_e2e() -> None:
 
         try:
             # Step 2: Poll DOM in real Chrome until TaskSpaceDock floating pill appears
-            check_dock_js = """(() => {
-                const bodyText = document.body.innerText || '';
-                const hasPill = bodyText.includes('并行任务空间') || bodyText.includes('Parallel Task Spaces');
-                return { ready: hasPill };
-            })()"""
-
             state = wait_for_state(
                 client,
                 page,
-                check_dock_js,
-                predicate=lambda s: bool(s.get("ready")),
+                _CHECK_DOCK_JS,
                 timeout_sec=30.0,
-                interval_sec=1.0,
-                failure_message="TaskSpaceDock floating pill did not appear in real Chrome WebUI",
             )
             assert state.get("ready") is True
 

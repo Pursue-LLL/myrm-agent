@@ -38,7 +38,9 @@ interface BehavioralMetricsPanelProps {
 export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
   className,
 }: BehavioralMetricsPanelProps) {
-  const t = useTranslations('memory.commandCenter.behavioral');
+  const t = useTranslations('settings.memory.commandCenter.behavioral');
+  const tb = (key: string, values?: Record<string, string | number>) =>
+    t(`commandCenter.behavioral.${key}` as Parameters<typeof t>[0], values);
   const [data, setData] = useState<MemoryBehavioralInsights | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [syncing, setSyncing] = useState<boolean>(false);
@@ -50,7 +52,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
       const res = await getBehavioralInsights(30);
       setData(res);
     } catch {
-      toast.error(t('loadError'));
+      toast.error(tb('loadError'));
     } finally {
       setLoading(false);
     }
@@ -65,13 +67,13 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
       setSyncing(true);
       const res = await triggerBehavioralSync(30);
       if (res.count > 0) {
-        toast.success(t('syncSuccess', { count: res.count }));
+        toast.success(tb('syncSuccess', { count: res.count }));
         await loadInsights();
       } else {
-        toast.info(t('syncNoEligible'));
+        toast.info(tb('syncNoEligible'));
       }
     } catch {
-      toast.error(t('syncError'));
+      toast.error(tb('syncError'));
     } finally {
       setSyncing(false);
     }
@@ -101,14 +103,14 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
               <IconActivity className="w-4 h-4" />
             </span>
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              {t('title')}
+              {tb('title')}
             </h3>
             <span className="px-2 py-0.5 text-[11px] font-medium tracking-wide rounded-full bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-800/40">
-              {t('zeroCostBadge')}
+              {tb('zeroCostBadge')}
             </span>
           </div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            {t('subtitle')}
+            {tb('subtitle')}
           </p>
         </div>
 
@@ -117,7 +119,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
             type="button"
             onClick={() => void loadInsights()}
             disabled={loading}
-            aria-label={t('refresh')}
+            aria-label={tb('refresh')}
             className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
           >
             <IconRotateCcw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
@@ -129,7 +131,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-xs transition-colors disabled:opacity-50"
           >
             <IconCheckCircle className={cn('w-3.5 h-3.5', syncing && 'animate-pulse')} />
-            <span>{syncing ? t('syncing') : t('syncProfile')}</span>
+            <span>{syncing ? tb('syncing') : tb('syncProfile')}</span>
           </button>
         </div>
       </div>
@@ -137,7 +139,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
       {loading && !data ? (
         <div className="py-12 flex flex-col items-center justify-center text-xs text-zinc-400 dark:text-zinc-500 animate-pulse">
           <IconChart className="w-6 h-6 mb-2 opacity-40" />
-          <span>{t('analyzing')}</span>
+          <span>{tb('analyzing')}</span>
         </div>
       ) : (
         <div className="space-y-6 pt-4">
@@ -147,13 +149,13 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
             <div className="p-3.5 rounded-lg border border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-800/30">
               <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 text-xs mb-1">
                 <IconClock className="w-3.5 h-3.5 text-indigo-500" />
-                <span>{t('peakActivity')}</span>
+                <span>{tb('peakActivity')}</span>
               </div>
               <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-                {data?.workday_peak_window || data?.peak_active_window || t('flexibleTime')}
+                {data?.workday_peak_window || data?.peak_active_window || tb('flexibleTime')}
               </div>
               <div className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">
-                {t('sampleBase', { count: data?.self_message_count ?? 0 })}
+                {tb('sampleBase', { count: data?.self_message_count ?? 0 })}
               </div>
             </div>
 
@@ -161,17 +163,17 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
             <div className="p-3.5 rounded-lg border border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-800/30">
               <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 text-xs mb-1">
                 <IconActivity className="w-3.5 h-3.5 text-amber-500" />
-                <span>{t('replyLatency')}</span>
+                <span>{tb('replyLatency')}</span>
               </div>
               <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
                 {data?.reply_latency_p50_ms != null
                   ? `${(data.reply_latency_p50_ms / 1000).toFixed(1)}s`
-                  : t('notEnoughData')}
+                  : tb('notEnoughData')}
               </div>
               <div className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">
                 {data?.reply_latency_p90_ms != null
                   ? `P90: ${(data.reply_latency_p90_ms / 1000).toFixed(1)}s (${data.latency_sample_count} turns)`
-                  : t('minTurnsRequired')}
+                  : tb('minTurnsRequired')}
               </div>
             </div>
 
@@ -179,17 +181,17 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
             <div className="p-3.5 rounded-lg border border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-800/30">
               <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 text-xs mb-1">
                 <IconUsers className="w-3.5 h-3.5 text-emerald-500" />
-                <span>{t('primaryCollaborator')}</span>
+                <span>{tb('primaryCollaborator')}</span>
               </div>
               <div className="text-base font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                 {data?.top_collaborators && data.top_collaborators.length > 0
                   ? data.top_collaborators[0][0]
-                  : t('noneObserved')}
+                  : tb('noneObserved')}
               </div>
               <div className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">
                 {data?.top_collaborators && data.top_collaborators.length > 0
-                  ? t('interactions', { count: data.top_collaborators[0][1] })
-                  : t('groupDiscussions')}
+                  ? tb('interactions', { count: data.top_collaborators[0][1] })
+                  : tb('groupDiscussions')}
               </div>
             </div>
           </div>
@@ -198,7 +200,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                {t('activeDistribution24h')}
+                {tb('activeDistribution24h')}
               </span>
               <div className="flex items-center rounded-lg p-0.5 bg-zinc-100 dark:bg-zinc-800 text-[11px]">
                 <button
@@ -211,7 +213,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
                       : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
                   )}
                 >
-                  {t('workday')}
+                  {tb('workday')}
                 </button>
                 <button
                   type="button"
@@ -223,7 +225,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
                       : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
                   )}
                 >
-                  {t('weekend')}
+                  {tb('weekend')}
                 </button>
                 <button
                   type="button"
@@ -235,7 +237,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
                       : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
                   )}
                 >
-                  {t('allDays')}
+                  {tb('allDays')}
                 </button>
               </div>
             </div>
@@ -288,7 +290,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
           {data?.top_collaborators && data.top_collaborators.length > 0 && (
             <div className="pt-1">
               <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2 block">
-                {t('frequentCollaborators')}
+                {tb('frequentCollaborators')}
               </span>
               <div className="flex flex-wrap gap-2">
                 {data.top_collaborators.map(([name, count]) => (

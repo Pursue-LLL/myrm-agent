@@ -8356,6 +8356,12 @@
   },
   "toolApproval": {
     "title": "ツール実行承認",
+    "spendProtection": {
+      "title": "財務支出保護",
+      "description": "実資金決済を伴う操作が検出されました。金額と送金先を確認してください。",
+      "amount": "支出金額",
+      "tamperProtected": "暗号学的改ざん防止が有効"
+    },
     "batchTitle": "一括承認 ({count} 個ツール)",
     "batchHighRisk": {
       "dialogTitle": "高リスクな操作が検出されました",
