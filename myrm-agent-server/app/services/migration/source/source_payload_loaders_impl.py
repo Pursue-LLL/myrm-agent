@@ -93,6 +93,15 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
             pool_data = auth_data.get("credential_pool") or auth_data.get("credential_pools")
             if isinstance(pool_data, dict):
                 result["credential_pool"] = pool_data
+                existing_env_keys: list[dict[str, str]] = list(result.get("env_keys") or [])  # type: ignore[arg-type]
+                existing_names = {k.get("name") for k in existing_env_keys if isinstance(k, dict)}
+                for prov in pool_data:
+                    norm = str(prov).strip().upper()
+                    key_name = f"{norm}_API_KEY"
+                    if key_name not in existing_names:
+                        existing_env_keys.append({"name": key_name})
+                        existing_names.add(key_name)
+                result["env_keys"] = existing_env_keys
             strategies = auth_data.get("credential_pool_strategies") or auth_data.get("pool_strategies")
             if isinstance(strategies, dict):
                 result["credential_pool_strategies"] = strategies
