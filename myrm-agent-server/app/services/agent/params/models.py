@@ -23,6 +23,10 @@ class ModelSelection(BaseModel):
     base_url: str | None = None
     model_kwargs: dict[str, object] | None = None
     credential_pool_strategy: str | None = None
+    reasoning_effort: str | None = Field(
+        default=None,
+        description="Reasoning effort level (e.g. low, medium, high, max)",
+    )
     supports_vision: bool | None = Field(
         default=None,
         description="Whether the model supports image input (from frontend customModelInfo)",

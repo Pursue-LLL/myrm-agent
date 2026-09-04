@@ -34,3 +34,12 @@ def test_provider_slash_model_key() -> None:
     cfg = ModelConfig(model="openai/mimo-v2.5-pro", api_key="k")
     cfg = enrich_model_capabilities(cfg, providers)
     assert cfg.supports_vision is False
+
+
+def test_model_config_reasoning_effort_roundtrip() -> None:
+    cfg = ModelConfig(model="deepseek/deepseek-v4-pro", api_key="k", reasoning_effort="max")
+    assert cfg.reasoning_effort == "max"
+    dumped = cfg.model_dump(by_alias=True)
+    assert dumped["reasoningEffort"] == "max"
+    restored = ModelConfig.model_validate(dumped)
+    assert restored.reasoning_effort == "max"

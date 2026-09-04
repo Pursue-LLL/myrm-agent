@@ -51,11 +51,19 @@ export const TaskSpaceDock: React.FC<TaskSpaceDockProps> = ({
   useEffect(() => {
     void loadSpaces();
     if (autoRefreshIntervalMs <= 0) return;
+
+    // Adaptive polling: relax interval when empty to conserve network & battery,
+    // resume high-frequency poll when spaces are active or dock is expanded.
+    const effectiveInterval =
+      spaces.length === 0 && !isExpanded
+        ? Math.max(autoRefreshIntervalMs * 2, 10000)
+        : autoRefreshIntervalMs;
+
     const timer = setInterval(() => {
       void loadSpaces();
-    }, autoRefreshIntervalMs);
+    }, effectiveInterval);
     return () => clearInterval(timer);
-  }, [loadSpaces, autoRefreshIntervalMs]);
+  }, [loadSpaces, autoRefreshIntervalMs, spaces.length, isExpanded]);
 
   const handleToggleTakeover = async (space: TaskSpaceInfo) => {
     setTakeoverLoadingId(space.space_id);
@@ -96,8 +104,8 @@ export const TaskSpaceDock: React.FC<TaskSpaceDockProps> = ({
     <div
       className={cn(
         'fixed z-50 transition-all duration-200 select-none',
-        // Responsive position: bottom-center on mobile, bottom-right on desktop
-        'bottom-4 right-4 sm:right-6 sm:bottom-6 max-w-[calc(100vw-2rem)] sm:max-w-md',
+        // Responsive position: bottom-center on mobile with safe-area support, bottom-right on desktop
+        'bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-4 sm:right-6 sm:bottom-6 max-w-[calc(100vw-2rem)] sm:max-w-md',
         className,
       )}
     >

@@ -1807,6 +1807,13 @@
         "violated": "Violated",
         "inProgress": "In Progress",
         "pending": "Pending"
+      },
+      "phases": {
+        "task_intent": "Task Intent",
+        "scene_environment": "Environment",
+        "action_execution": "Action Execution",
+        "delivery_artifact": "Delivery Artifact",
+        "acceptance_verification": "Acceptance Verification"
       }
     },
     "snapshot": {

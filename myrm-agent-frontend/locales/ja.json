@@ -1807,6 +1807,13 @@
         "violated": "違反",
         "inProgress": "進行中",
         "pending": "保留中"
+      },
+      "phases": {
+        "task_intent": "タスク意図",
+        "scene_environment": "実行環境",
+        "action_execution": "アクション実行",
+        "delivery_artifact": "成果物",
+        "acceptance_verification": "検収検証"
       }
     },
     "deleteChat": {
@@ -14970,7 +14977,26 @@
         "binding": "バインド中...",
         "bindButton": "保管庫をバインド",
         "unboundHint": "バインド後、エージェントはノートを検索し、成果物をインボックスにアーカイブできます。"
-      }
+      },
+      "needsReview": "Needs Review",
+      "countUnit": "articles",
+      "itemUnit": "items",
+      "expiringListTitle": "Expiring Concepts for Review",
+      "archivedListTitle": "Archived Concepts in Isolation",
+      "totalItems": "{count} items in total",
+      "emptyExpiring": "No expiring concepts. All knowledge is actively maintained.",
+      "emptyArchived": "No archived concepts.",
+      "daysUnchanged": "Unchanged for {days} days",
+      "isolatedInArchive": "Isolated in archive/ directory",
+      "extendButton": "Extend 90 Days",
+      "archiveButton": "Archive",
+      "reviveButton": "Revive",
+      "refreshGovernance": "Refresh governance data",
+      "extendSuccess": "Successfully extended 90 days: {name}",
+      "archiveSuccess": "Successfully archived (undoable within 30s): {name}",
+      "undoSuccess": "Successfully undone archive and restored concept",
+      "reviveSuccess": "Successfully revived concept: {name}",
+      "actionError": "Governance action failed, please try again"
     },
     "skills": {
       "title": "スキル管理",
@@ -18427,7 +18453,7 @@
   },
   "continualOverlay": {
     "activeTitle": "アクティブなオーバーレイ",
-    "remainingTurns": "残り {count} ターン",
+    "remainingTurns": "{count, plural, =1 {1 turn left} other {# turns left}}",
     "rollbackTooltip": "このセッションオーバーレイをロールバック",
     "rollback": "ロールバック",
     "collapse": "折りたたむ",

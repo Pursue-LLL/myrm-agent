@@ -1,8 +1,9 @@
+/** @vitest-environment jsdom */
 'use client';
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 import { TaskSpaceDock } from '../TaskSpaceDock';
 import * as api from '@/services/browserTaskSpaces';
 
@@ -36,7 +37,7 @@ describe('TaskSpaceDock Component', () => {
   });
 
   it('renders nothing when space list is empty', async () => {
-    vi.mocked(api.fetchTaskSpaces).mockResolvedValueOnce([]);
+    (api.fetchTaskSpaces as unknown as Mock).mockResolvedValueOnce([]);
     const { container } = render(<TaskSpaceDock autoRefreshIntervalMs={0} />);
     await waitFor(() => {
       expect(api.fetchTaskSpaces).toHaveBeenCalled();
@@ -45,7 +46,7 @@ describe('TaskSpaceDock Component', () => {
   });
 
   it('renders minimized dock pill when spaces exist and expands on click', async () => {
-    vi.mocked(api.fetchTaskSpaces).mockResolvedValue(mockSpaces);
+    (api.fetchTaskSpaces as unknown as Mock).mockResolvedValue(mockSpaces);
     render(<TaskSpaceDock autoRefreshIntervalMs={0} />);
 
     await waitFor(() => {
@@ -61,8 +62,8 @@ describe('TaskSpaceDock Component', () => {
   });
 
   it('toggles takeover state on button click', async () => {
-    vi.mocked(api.fetchTaskSpaces).mockResolvedValue(mockSpaces);
-    vi.mocked(api.toggleTaskSpaceTakeover).mockResolvedValueOnce({
+    (api.fetchTaskSpaces as unknown as Mock).mockResolvedValue(mockSpaces);
+    (api.toggleTaskSpaceTakeover as unknown as Mock).mockResolvedValueOnce({
       ...mockSpaces[0],
       takeover_active: true,
       status: 'takeover',
@@ -85,8 +86,8 @@ describe('TaskSpaceDock Component', () => {
   });
 
   it('closes space on close button click', async () => {
-    vi.mocked(api.fetchTaskSpaces).mockResolvedValue(mockSpaces);
-    vi.mocked(api.closeTaskSpace).mockResolvedValueOnce(true);
+    (api.fetchTaskSpaces as unknown as Mock).mockResolvedValue(mockSpaces);
+    (api.closeTaskSpace as unknown as Mock).mockResolvedValueOnce(true);
 
     render(<TaskSpaceDock autoRefreshIntervalMs={0} />);
 

@@ -62,7 +62,12 @@ const PROVIDER_MODELS: Record<string, string[]> = {
     'claude-3-haiku-20240307',
   ],
   gemini: ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
-  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+  deepseek: [
+    'deepseek-chat',
+    'deepseek-reasoner',
+    'deepseek-v4-pro',
+    'deepseek-v4-flash',
+  ],
   openrouter: [
     'openai/gpt-4o',
     'anthropic/claude-3.5-sonnet',

@@ -2462,6 +2462,13 @@
         "violated": "위반됨",
         "inProgress": "진행 중",
         "pending": "대기 중"
+      },
+      "phases": {
+        "task_intent": "작업 의도",
+        "scene_environment": "실행 환경",
+        "action_execution": "작업 수행",
+        "delivery_artifact": "전달 산출물",
+        "acceptance_verification": "검수 검증"
       }
     },
     "subagent": {
@@ -14970,7 +14977,26 @@
         "binding": "연결 중...",
         "bindButton": "보관함 연결",
         "unboundHint": "연결 후 에이전트가 노트를 검색하고 결과물을 수집함에 보관할 수 있습니다."
-      }
+      },
+      "needsReview": "Needs Review",
+      "countUnit": "articles",
+      "itemUnit": "items",
+      "expiringListTitle": "Expiring Concepts for Review",
+      "archivedListTitle": "Archived Concepts in Isolation",
+      "totalItems": "{count} items in total",
+      "emptyExpiring": "No expiring concepts. All knowledge is actively maintained.",
+      "emptyArchived": "No archived concepts.",
+      "daysUnchanged": "Unchanged for {days} days",
+      "isolatedInArchive": "Isolated in archive/ directory",
+      "extendButton": "Extend 90 Days",
+      "archiveButton": "Archive",
+      "reviveButton": "Revive",
+      "refreshGovernance": "Refresh governance data",
+      "extendSuccess": "Successfully extended 90 days: {name}",
+      "archiveSuccess": "Successfully archived (undoable within 30s): {name}",
+      "undoSuccess": "Successfully undone archive and restored concept",
+      "reviveSuccess": "Successfully revived concept: {name}",
+      "actionError": "Governance action failed, please try again"
     },
     "skills": {
       "title": "스킬 관리",
@@ -18427,7 +18453,7 @@
   },
   "continualOverlay": {
     "activeTitle": "활성 오버레이",
-    "remainingTurns": "{count}턴 남음",
+    "remainingTurns": "{count, plural, =1 {1 turn left} other {# turns left}}",
     "rollbackTooltip": "이 세션 오버레이 롤백",
     "rollback": "롤백",
     "collapse": "접기",

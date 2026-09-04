@@ -101,6 +101,26 @@ class ChannelMessageRepository:
         return int(result.rowcount or 0)
 
     @staticmethod
+    async def get_messages_for_behavioral_analysis(
+        session: AsyncSession,
+        channel: str | None = None,
+        since: datetime | None = None,
+        limit: int = 2000,
+    ) -> list[ChannelMessageModel]:
+        """Fetch chronological interaction messages for pure-deterministic routine measurement."""
+        stmt = select(ChannelMessageModel).where(
+            ChannelMessageModel.learning_eligible.is_(True),
+        )
+        if channel:
+            stmt = stmt.where(ChannelMessageModel.channel == channel)
+        if since:
+            stmt = stmt.where(ChannelMessageModel.created_at >= since)
+
+        stmt = stmt.order_by(ChannelMessageModel.created_at.asc()).limit(limit)
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+    @staticmethod
     async def get_channel_stats(
         session: AsyncSession,
         channel: str | None = None,

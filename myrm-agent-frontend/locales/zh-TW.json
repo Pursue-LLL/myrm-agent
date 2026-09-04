@@ -2839,6 +2839,13 @@
         "violated": "違背",
         "inProgress": "進行中",
         "pending": "等待中"
+      },
+      "phases": {
+        "task_intent": "任務意圖",
+        "scene_environment": "場景環境",
+        "action_execution": "動作執行",
+        "delivery_artifact": "交付產物",
+        "acceptance_verification": "驗收驗證"
       }
     }
   },
@@ -14970,7 +14977,26 @@
       "pendingQueue": "待審核草稿",
       "expiringQueue": "即將過期",
       "gapsQueue": "知識盲區",
-      "archivedQueue": "已歸檔概念"
+      "archivedQueue": "已歸檔概念",
+      "needsReview": "Needs Review",
+      "countUnit": "articles",
+      "itemUnit": "items",
+      "expiringListTitle": "Expiring Concepts for Review",
+      "archivedListTitle": "Archived Concepts in Isolation",
+      "totalItems": "{count} items in total",
+      "emptyExpiring": "No expiring concepts. All knowledge is actively maintained.",
+      "emptyArchived": "No archived concepts.",
+      "daysUnchanged": "Unchanged for {days} days",
+      "isolatedInArchive": "Isolated in archive/ directory",
+      "extendButton": "Extend 90 Days",
+      "archiveButton": "Archive",
+      "reviveButton": "Revive",
+      "refreshGovernance": "Refresh governance data",
+      "extendSuccess": "Successfully extended 90 days: {name}",
+      "archiveSuccess": "Successfully archived (undoable within 30s): {name}",
+      "undoSuccess": "Successfully undone archive and restored concept",
+      "reviveSuccess": "Successfully revived concept: {name}",
+      "actionError": "Governance action failed, please try again"
     },
     "skills": {
       "title": "技能管理",
@@ -18427,7 +18453,7 @@
   },
   "continualOverlay": {
     "activeTitle": "活躍對話覆蓋層",
-    "remainingTurns": "剩餘 {count} 輪",
+    "remainingTurns": "{count, plural, =1 {1 turn left} other {# turns left}}",
     "rollbackTooltip": "回滾此對話覆蓋層",
     "rollback": "回滾",
     "collapse": "收起",
@@ -18461,5 +18487,18 @@
       "skills": "業務技能",
       "sandbox": "沙箱執行"
     }
+  },
+  "taskSpaces": {
+    "title": "Parallel Browser Spaces",
+    "badgeRunning": "Running",
+    "badgeIdle": "Idle",
+    "badgeTakeover": "Human Takeover",
+    "takeoverBtn": "Takeover",
+    "releaseTakeoverBtn": "Release to Agent",
+    "closeSpaceBtn": "Close Space",
+    "activePages": "{count} active tabs",
+    "emptyState": "No active parallel browser spaces",
+    "snapshotPreview": "Live Space Snapshot",
+    "takeoverHint": "You have full control of this workspace. Click release when done."
   }
 }

@@ -33,8 +33,11 @@ describe('isReasoningModelByName', () => {
 
   it('should detect DeepSeek reasoning models', () => {
     expect(isReasoningModelByName('deepseek-r1')).toBe(true);
+    expect(isReasoningModelByName('deepseek-reasoner')).toBe(true);
     expect(isReasoningModelByName('deepseek-v3')).toBe(true);
     expect(isReasoningModelByName('deepseek-chat-v3')).toBe(true);
+    expect(isReasoningModelByName('deepseek-v4-pro')).toBe(true);
+    expect(isReasoningModelByName('deepseek-v4-flash')).toBe(true);
   });
 
   it('should detect Qwen reasoning models', () => {

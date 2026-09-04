@@ -95,6 +95,7 @@ class TestEnrichModelContextWindow:
             api_key="sk-test",
             base_url="https://custom.api",
             api_keys=["sk-1", "sk-2"],
+            reasoning_effort="high",
         )
         with patch(f"{_MOD}._resolve_model_max_input_tokens", return_value=128_000):
             result = enrich_model_context_window(cfg, {"providers": []})
@@ -103,6 +104,7 @@ class TestEnrichModelContextWindow:
         assert result.base_url == "https://custom.api"
         assert result.api_keys == ["sk-1", "sk-2"]
         assert result.max_context_tokens == 128_000
+        assert result.reasoning_effort == "high"
 
 
 class TestBuildPlatformHeaders:

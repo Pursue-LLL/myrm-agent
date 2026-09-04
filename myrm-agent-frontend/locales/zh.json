@@ -1807,6 +1807,13 @@
         "violated": "违背",
         "inProgress": "进行中",
         "pending": "等待中"
+      },
+      "phases": {
+        "task_intent": "任务意图",
+        "scene_environment": "场景环境",
+        "action_execution": "动作执行",
+        "delivery_artifact": "交付工件",
+        "acceptance_verification": "验收验证"
       }
     },
     "snapshot": {
@@ -18446,7 +18453,7 @@
   },
   "continualOverlay": {
     "activeTitle": "活跃会话覆盖层",
-    "remainingTurns": "剩余 {count} 轮",
+    "remainingTurns": "{count, plural, =1 {1 turn left} other {# turns left}}",
     "rollbackTooltip": "回滚此会话覆盖层",
     "rollback": "回滚",
     "collapse": "折叠",

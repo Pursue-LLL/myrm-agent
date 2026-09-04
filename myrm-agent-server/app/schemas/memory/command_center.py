@@ -627,3 +627,19 @@ class MemoryRecallBoundaryData(BaseModel):
     budget_overflow_risk: Literal["safe", "approaching_limit", "overflow"] = "safe"
     total_candidates: int = 0
     total_approved: int = 0
+
+
+class MemoryBehavioralInsightsResponse(BaseModel):
+    """Deterministic behavioral routine insights response."""
+
+    hour_histogram: list[int] = Field(default_factory=lambda: [0] * 24)
+    weekday_histogram: list[int] = Field(default_factory=lambda: [0] * 7)
+    reply_latency_p50_ms: float | None = None
+    reply_latency_p90_ms: float | None = None
+    self_message_count: int = 0
+    latency_sample_count: int = 0
+    channel_distribution: dict[str, int] = Field(default_factory=dict)
+    peak_active_window: str | None = None
+    offset_minutes: int = 480
+    source: str = "persisted"
+

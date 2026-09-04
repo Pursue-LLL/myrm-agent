@@ -42,8 +42,10 @@ const REASONING_MODEL_PATTERNS: RegExp[] = [
 
   // DeepSeek
   /deepseek-r1/,
+  /deepseek-reasoner/,
   /deepseek-v3/,
   /deepseek-chat-v3/,
+  /deepseek-v4/,
 
   // Qwen reasoning models
   /qwen3/,

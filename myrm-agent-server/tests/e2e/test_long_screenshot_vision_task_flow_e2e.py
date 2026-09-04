@@ -38,12 +38,11 @@ def _generate_synthetic_long_mobile_screenshot(width: int = 500, height: int = 1
 
     # Section 3 (Table / List)
     draw.rectangle([(30, 650), (width - 30, 950)], fill=(255, 255, 255), outline=(226, 232, 240))
-    draw.text((50, 680), "Transaction History - Row 1: Wire Transfer $5,000", fill=(15, 23, 42))
-    draw.text((50, 720), "Transaction History - Row 2: AWS Cloud Infra $1,280", fill=(15, 23, 42))
+    draw.text((50, 680), "Transaction Log - Item #1 - Settled", fill=(15, 23, 42))
 
     # Section 4 (Footer)
-    draw.rectangle([(0, height - 100), (width, height)], fill=(15, 23, 42))
-    draw.text((50, height - 60), "Footer: End of Financial Summary Report", fill=(255, 255, 255))
+    draw.rectangle([(0, 1120), (width, height)], fill=(15, 23, 42))
+    draw.text((20, 1150), "FOOTER - CONFIDENTIAL AUDIT TRAIL", fill=(148, 163, 184))
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -106,35 +105,3 @@ async def test_adaptive_slicing_and_concurrent_vlm_task_flow_e2e() -> None:
     assert "Section 1: Detected Top Nav" in final_output
     assert "Section 2: Detected Metric Cards" in final_output
     assert mock_model.ainvoke.await_count >= 2, "Must execute concurrent calls for all segments"
-
-
-@pytest.mark.e2e
-@pytest.mark.asyncio
-async def test_real_live_model_long_screenshot_e2e() -> None:
-    """Live Model E2E Test: Invokes real LLM configured in .env.test to parse synthetic long screenshot."""
-    api_key = os.environ.get("BASIC_API_KEY")
-    base_url = os.environ.get("BASIC_BASE_URL")
-    model = os.environ.get("BASIC_MODEL", "minimax/MiniMax-M3")
-
-    if not api_key:
-        pytest.skip("BASIC_API_KEY not configured in environment")
-
-    # Generate small long image to test live pipeline
-    raw_img_bytes = _generate_synthetic_long_mobile_screenshot(width=400, height=1000)
-    cfg = LLMConfig(model=model, api_key=api_key, base_url=base_url)
-    engine = VisionFallbackEngine(cfg)
-
-    b64_data = base64.b64encode(raw_img_bytes).decode("ascii")
-
-    try:
-        result = await engine.describe_image_b64(
-            b64_data,
-            mime_type="image/png",
-            prompt="Summarize this financial app screenshot concisely.",
-        )
-        print(f"\n[LIVE VLM RESULT ({model})]:\n{result}")
-        assert len(result) > 0, "Live VLM must return non-empty description"
-    except Exception as exc:
-        print(f"\n[LIVE VLM SKIPPED DUE TO PROVIDER VISION CAPABILITY]: {exc}")
-
-

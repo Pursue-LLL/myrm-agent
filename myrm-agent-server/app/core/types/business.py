@@ -38,6 +38,10 @@ class ModelConfig(BaseModel):
     base_url: str | None = Field(default=None, description="API base URL")
     temperature: float | None = Field(default=None, description="Temperature parameter")
     streaming: bool = Field(default=True, description="Enable streaming")
+    reasoning_effort: str | None = Field(
+        default=None,
+        description="Reasoning effort level (e.g. off, low, high, max, or budget tokens)",
+    )
     model_kwargs: dict[str, object] | None = Field(default=None, description="Model-specific parameters")
     max_context_tokens: int | None = Field(
         default=None,

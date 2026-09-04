@@ -81,6 +81,12 @@ async def _resolve_model_config(
 
     full_model = _to_litellm_model(selection.provider_id, selection.model, provider_type)
 
+    effort = selection.reasoning_effort or (
+        str(selection.model_kwargs.get("reasoning_effort"))
+        if selection.model_kwargs and selection.model_kwargs.get("reasoning_effort") is not None
+        else None
+    )
+
     return enrich_model_config(
         ModelConfig(
             model=full_model,
@@ -89,6 +95,7 @@ async def _resolve_model_config(
             model_kwargs=selection.model_kwargs,
             api_keys=all_keys if len(all_keys) > 1 else None,
             credential_pool_strategy=selection.credential_pool_strategy,
+            reasoning_effort=effort,
         ),
         provider_id=selection.provider_id,
     )

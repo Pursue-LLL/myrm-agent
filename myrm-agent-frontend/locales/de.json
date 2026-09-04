@@ -2839,6 +2839,13 @@
         "violated": "Verletzt",
         "inProgress": "In Bearbeitung",
         "pending": "Ausstehend"
+      },
+      "phases": {
+        "task_intent": "Aufgabenabsicht",
+        "scene_environment": "Umgebung",
+        "action_execution": "Aktionsausführung",
+        "delivery_artifact": "Lieferartefakt",
+        "acceptance_verification": "Abnahmeüberprüfung"
       }
     }
   },
@@ -14970,7 +14977,26 @@
         "binding": "Verknüpfung läuft...",
         "bindButton": "Tresor verknüpfen",
         "unboundHint": "Nach der Verknüpfung können Agents Notizen durchsuchen und wichtige Ergebnisse im Eingang archivieren."
-      }
+      },
+      "needsReview": "Needs Review",
+      "countUnit": "articles",
+      "itemUnit": "items",
+      "expiringListTitle": "Expiring Concepts for Review",
+      "archivedListTitle": "Archived Concepts in Isolation",
+      "totalItems": "{count} items in total",
+      "emptyExpiring": "No expiring concepts. All knowledge is actively maintained.",
+      "emptyArchived": "No archived concepts.",
+      "daysUnchanged": "Unchanged for {days} days",
+      "isolatedInArchive": "Isolated in archive/ directory",
+      "extendButton": "Extend 90 Days",
+      "archiveButton": "Archive",
+      "reviveButton": "Revive",
+      "refreshGovernance": "Refresh governance data",
+      "extendSuccess": "Successfully extended 90 days: {name}",
+      "archiveSuccess": "Successfully archived (undoable within 30s): {name}",
+      "undoSuccess": "Successfully undone archive and restored concept",
+      "reviveSuccess": "Successfully revived concept: {name}",
+      "actionError": "Governance action failed, please try again"
     },
     "skills": {
       "title": "Fähigkeitenverwaltung",

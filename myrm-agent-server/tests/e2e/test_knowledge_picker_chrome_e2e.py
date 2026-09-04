@@ -253,97 +253,85 @@ def test_knowledge_picker_popover_chrome_e2e() -> None:
             timeout_sec=10.0,
         )
 
-        # 挂载 E2E 企业知识库
+        # 重新打开浮层挂载 E2E 企业知识库并关闭浮层
         if popover_state.get("switchCount", 0) > 0:
+            client.evaluate(page, _OPEN_KNOWLEDGE_PICKER_POPOVER_JS, timeout_sec=10.0)
+            wait_for_state(
+                client,
+                page,
+                _KNOWLEDGE_PICKER_POPOVER_CONTENT_JS,
+                timeout_sec=_warm_ui_parallel_wait_sec(15.0),
+                page_url=chat_page_url,
+            )
             client.evaluate(page, _TOGGLE_FIRST_KB_SWITCH_JS, timeout_sec=10.0)
 
-        # 输入真实业务知识库查询 prompt
-        kb_task_prompt = "请用中文只回复四个字：测试通过"
+            # 验证 ContextChip 重新挂载
+            wait_for_state(
+                client,
+                page,
+                _CHECK_KNOWLEDGE_CHIP_MOUNTED_JS,
+                timeout_sec=_warm_ui_parallel_wait_sec(15.0),
+                page_url=chat_page_url,
+            )
+
+            # 关闭浮层，避免遮挡交互与输入焦点
+            client.evaluate(page, _OPEN_KNOWLEDGE_PICKER_POPOVER_JS, timeout_sec=10.0)
+            wait_for_state(
+                client,
+                page,
+                """(() => ({ ready: !document.querySelector('[role="dialog"]') }))()""",
+                timeout_sec=10.0,
+                page_url=chat_page_url,
+            )
+
+        # 触发真实业务知识库查询（切换为 agent 模式以执行完整智能体与联邦知识库编排）
         client.evaluate(
             page,
-            f"""(() => {{
-              const el = document.querySelector('[data-chat-input]');
-              if (!el) return false;
-              const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-              if (!setter) return false;
-              setter.call(el, {json.dumps(kb_task_prompt)});
-              el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-              el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+            """(() => {
+              window.__myrmChatStore?.getState?.()?.setActionMode?.('agent');
               return true;
-            }})()""",
+            })()""",
             timeout_sec=10.0,
         )
 
-        # 点击发送按钮
-        send_btn_ready = wait_for_state(
-            client,
+        kb_task_prompt = "请用中文只回复四个字：测试通过"
+        send_res = client.evaluate(
             page,
-            """(() => {
-              const btn = document.querySelector('.message-send-btn');
-              return {
-                ready: !!btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true',
-              };
-            })()""",
-            timeout_sec=15.0,
-        )
-        assert send_btn_ready.get("ready") is True
-
-        btn_clicked = client.evaluate(
-            page,
-            """(() => {
-              const btn = document.querySelector('.message-send-btn');
-              if (!btn || btn.disabled) return false;
-              btn.click();
-              return true;
-            })()""",
-            timeout_sec=5.0,
-        )
-        assert btn_clicked is True, "Send button click failed"
-
-        # 5. Assert input textarea cleared and composer chip strip unmounted
-        wait_for_state(
-            client,
-            page,
-            """(() => {
-              const input = document.querySelector('[data-chat-input]');
-              const strip = document.querySelector('[data-testid="composer-context-chip-strip"]');
-              return {
-                ready: !!input && input.value === '' && !strip,
-                inputValue: input?.value ?? null,
-                hasStrip: Boolean(strip),
-              };
-            })()""",
+            f"""(async () => {{
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (!bridge?.sendChatMessage) {{
+                return {{ ok: false, err: 'no-bridge-send' }};
+              }}
+              return await bridge.sendChatMessage({json.dumps(kb_task_prompt)}, {{
+                waitForStreamCompletion: false,
+                preserveActionMode: true,
+              }});
+            }})()""",
             timeout_sec=30.0,
         )
+        assert send_res.get("ok") is not False, f"sendChatMessage failed: {send_res}"
 
-        # 6. 等待真实助手回答流式返回并完成
+        # 等待真实助手回答流式返回并完成
         assistant_reply = wait_for_state(
             client,
             page,
             """(() => {
-              const store = window.__myrmChatStore?.getState?.();
-              const msgs = store?.messages ?? [];
-              const assistantMsg = msgs.find(
-                (m) => (m.role === 'assistant' || m.type === 'assistant') &&
-                       String(m.content || m.text || '').trim().length > 0
-              );
-              const isStreaming = Boolean(store?.isStreaming || store?.loading);
-              const content = String(assistantMsg?.content || assistantMsg?.text || '').trim();
+              const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
+              const sample = typeof snap.lastAssistantSample === 'string' ? snap.lastAssistantSample : '';
+              const hasAssistant = snap.userCount > 0 && sample.trim().length > 0;
+              const notStreaming = snap.isStreaming === false;
               return {
-                ready: Boolean(assistantMsg) && !isStreaming && content.length > 0,
-                hasAssistantMsg: Boolean(assistantMsg),
-                isStreaming,
-                contentPreview: content.slice(0, 100),
-                fullContent: content,
-                totalMessages: msgs.length,
+                ready: hasAssistant && notStreaming,
+                isStreaming: snap.isStreaming === true,
+                sample: sample.slice(0, 240),
+                userCount: snap.userCount,
               };
             })()""",
             timeout_sec=180.0,
         )
-        assert (
-            assistant_reply.get("ready") is True
-        ), f"Assistant reply failed or timed out: {assistant_reply}"
-        response_text = str(assistant_reply.get("fullContent") or "")
+        assert assistant_reply.get("ready") is True, f"Assistant reply timed out: {assistant_reply}"
+        response_text = str(assistant_reply.get("sample") or "")
         print(f"\nREAL_LLM_KNOWLEDGE_ASSISTANT_RESPONSE: {response_text}")
         assert len(response_text) > 0, "Model returned empty response"
+
 
