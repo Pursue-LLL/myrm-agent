@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from myrm_agent_harness.agent.continual.overlay import (
+from myrm_agent_harness.api import (
     OverlayScope,
     OverlayShellType,
     SessionOverlay,

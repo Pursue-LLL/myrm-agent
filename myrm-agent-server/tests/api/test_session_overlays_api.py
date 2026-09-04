@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from myrm_agent_harness.agent.session_overlay.manager import get_session_overlay_manager
-from myrm_agent_harness.agent.session_overlay.schema import (
+from myrm_agent_harness.api import (
     OverlayScope,
     OverlayStatus,
     OverlayTargetType,
     SessionOverlay,
+    get_session_overlay_manager,
 )
 
 from tests.support.minimal_app import build_minimal_app

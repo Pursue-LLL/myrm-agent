@@ -280,7 +280,7 @@ async def _phase_1a_sequential() -> None:
 
         db_path = settings.database.sqlite_path
 
-        # 1. Try .iterdump rescue (last-resort row-level data salvage)
+        # 1. Try B-Tree page-skipping rowid salvage rescue (last-resort row-level data salvage)
         if rescue_database(db_path):
             system_status.database_recovered = True
             await reset_database_engine()

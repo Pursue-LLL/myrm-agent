@@ -41,9 +41,7 @@ class ActiveOverlayResponse(BaseModel):
 async def get_session_overlays(session_id: str) -> StandardSuccessResponse:
     """Retrieve active session overlays for a given session."""
     try:
-        from myrm_agent_harness.agent.session_overlay.manager import (
-            get_session_overlay_manager,
-        )
+        from myrm_agent_harness.api import get_session_overlay_manager
 
         mgr = get_session_overlay_manager(session_id)
         active = mgr.get_active_overlays()
@@ -76,9 +74,7 @@ async def get_session_overlays(session_id: str) -> StandardSuccessResponse:
 async def rollback_session_overlay(session_id: str, overlay_id: str) -> StandardSuccessResponse:
     """Manually rollback an active session overlay."""
     try:
-        from myrm_agent_harness.agent.session_overlay.manager import (
-            get_session_overlay_manager,
-        )
+        from myrm_agent_harness.api import get_session_overlay_manager
 
         mgr = get_session_overlay_manager(session_id)
         success = mgr.rollback_overlay(overlay_id)

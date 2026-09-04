@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from app.services.skills.draft_notification import persist_skill_draft_record
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.agent.continual.overlay import SessionOverlay
+    from myrm_agent_harness.api import SessionOverlay
 
 logger = logging.getLogger(__name__)
 

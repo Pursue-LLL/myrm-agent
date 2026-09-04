@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from myrm_agent_harness.eval.metric_contract import (
+from myrm_agent_harness.api import (
     evaluate_metric_proxy_alignment,
 )
 
