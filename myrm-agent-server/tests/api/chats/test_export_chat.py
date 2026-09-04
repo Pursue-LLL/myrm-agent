@@ -522,3 +522,156 @@ async def test_export_tool_call_details_sanitizes_sensitive_args(
     assert "***" in details[0]["argsSummary"]
     assert "https://example.com" in details[0]["argsSummary"]
     assert details[0]["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_export_chat_redacts_messages_and_reasoning_and_title(
+    async_client: httpx.AsyncClient,
+) -> None:
+    """Full-structure secret redaction masks sensitive credentials across chat elements."""
+    from datetime import datetime, timezone
+    from app.database.models.chat import Chat, Message
+    from app.platform_utils import get_session_factory
+
+    chat_id = f"test-export-redact-{uuid.uuid4().hex[:8]}"
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        chat = Chat(
+            id=chat_id,
+            title="Inspect postgres://admin:super_secret_pw@db.internal:5432/main",
+            action_mode="fast",
+            source="web",
+            total_calls=1,
+            total_tokens=100,
+            total_usd=0.01,
+        )
+        db.add(chat)
+
+        now = datetime.now(tz=timezone.utc)
+        db.add(
+            Message(
+                id=f"msg-user-{uuid.uuid4().hex[:8]}",
+                chat_id=chat_id,
+                role="user",
+                content="Here is my key: OPENAI_API_KEY=sk-proj-abc123456789012345678901234567890",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+        db.add(
+            Message(
+                id=f"msg-asst-{uuid.uuid4().hex[:8]}",
+                chat_id=chat_id,
+                role="assistant",
+                content="<think>Using Bearer ghp_abcdefghijklmnopqrstuvwxyz0123456789</think>Configured.",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+        await db.commit()
+
+    res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
+    assert res.status_code == 200, res.text
+    data = res.json()["data"]
+
+    assert data["redacted"] is True
+    # Title masked
+    assert "super_secret_pw" not in data["chat"]["title"]
+    assert "postgres://admin:***@" in data["chat"]["title"]
+
+    # User message masked
+    user_msg = next(m for m in data["messages"] if m["role"] == "user")
+    assert "sk-proj-abc123456789012345678901234567890" not in user_msg["content"]
+    assert "OPENAI_API_KEY=" in user_msg["content"]
+
+    # Assistant reasoning masked
+    asst_msg = next(m for m in data["messages"] if m["role"] == "assistant")
+    reasoning = asst_msg["metadata"]["reasoning_content"]
+    assert "ghp_abcdefghijklmnopqrstuvwxyz0123456789" not in reasoning
+    assert "ghp_***" in reasoning
+
+
+@pytest.mark.asyncio
+async def test_export_chat_redact_secrets_false_preserves_plaintext(
+    async_client: httpx.AsyncClient,
+) -> None:
+    """Disabling redact_secrets preserves raw plaintext for diagnostic purposes."""
+    from datetime import datetime, timezone
+    from app.database.models.chat import Chat, Message
+    from app.platform_utils import get_session_factory
+
+    chat_id = f"test-export-noredact-{uuid.uuid4().hex[:8]}"
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        chat = Chat(
+            id=chat_id,
+            title="Inspect postgres://admin:super_secret_pw@db.internal:5432/main",
+            action_mode="fast",
+            source="web",
+            total_calls=1,
+            total_tokens=100,
+            total_usd=0.01,
+        )
+        db.add(chat)
+
+        now = datetime.now(tz=timezone.utc)
+        db.add(
+            Message(
+                id=f"msg-user-{uuid.uuid4().hex[:8]}",
+                chat_id=chat_id,
+                role="user",
+                content="Here is my key: OPENAI_API_KEY=sk-proj-abc123456789012345678901234567890",
+                sent_at=now,
+                sent_timezone="UTC",
+            )
+        )
+        await db.commit()
+
+    res = await async_client.get(f"/api/v1/chats/{chat_id}/export?redact_secrets=false")
+    assert res.status_code == 200, res.text
+    data = res.json()["data"]
+
+    assert data["redacted"] is False
+    assert "super_secret_pw" in data["chat"]["title"]
+    user_msg = next(m for m in data["messages"] if m["role"] == "user")
+    assert "sk-proj-abc123456789012345678901234567890" in user_msg["content"]
+
+
+@pytest.mark.asyncio
+async def test_export_tool_call_nested_command_redaction(
+    async_client: httpx.AsyncClient,
+) -> None:
+    """Tool call details redact tokens embedded in bash commands."""
+    from datetime import datetime, timezone
+
+    chat_id = f"test-export-nested-cmd-{uuid.uuid4().hex[:8]}"
+    await _create_chat_with_messages(chat_id)
+
+    base_ts = datetime.now(tz=timezone.utc).timestamp() - 10
+    _write_event_log(
+        chat_id,
+        [
+            {
+                "ts": base_ts,
+                "type": "tool_start",
+                "data": {
+                    "tool_name": "bash",
+                    "tool_call_id": "call-nested-1",
+                    "command": "curl -H 'Authorization: Bearer sk-ant-secret123456' http://api.internal",
+                },
+            },
+            {
+                "ts": base_ts + 0.1,
+                "type": "tool_end",
+                "data": {"tool_name": "bash", "tool_call_id": "call-nested-1", "duration_ms": 100},
+            },
+        ],
+    )
+
+    res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
+    assert res.status_code == 200, res.text
+
+    details = res.json()["data"]["toolCallDetails"]
+    assert len(details) == 1
+    assert "sk-ant-secret123456" not in details[0]["argsSummary"]
+    assert details[0]["success"] is True

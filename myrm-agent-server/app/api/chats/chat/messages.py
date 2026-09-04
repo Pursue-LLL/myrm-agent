@@ -6,13 +6,12 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
-from myrm_agent_harness.agent.event_log.trace_builder import build_trace
-from myrm_agent_harness.agent.event_log.trace_types import ToolCallRecord
-from myrm_agent_harness.core.security.redact.engine import redact_sensitive_text
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.api.chats.chat.export_helpers import (
+    build_agent_info,
+    build_tool_call_details,
+    build_tool_summary,
+    redact_export_payload,
+)
 from app.config.settings import settings
 from app.core.utils.errors import internal_error, not_found_error
 from app.core.utils.response_utils import success_response
@@ -307,12 +306,11 @@ async def _build_agent_info(agent_id: str | None, db: AsyncSession) -> dict[str,
     }
 
 
-_SENSITIVE_KEY_PATTERN_PARTS = ("key", "secret", "token", "password", "credential", "auth")
 _ARG_SUMMARY_MAX_LEN = 200
 
 
-def _sanitize_args_summary(payload: dict) -> str:
-    """Extract a truncated, sanitized summary of tool call arguments.
+def _build_args_summary(payload: dict) -> str:
+    """Extract a truncated summary of tool call arguments.
 
     Accepts the raw tool input (event-log ``input_data``) directly, or a payload
     that wraps arguments under ``arguments``/``args``/``input``.
@@ -331,14 +329,10 @@ def _sanitize_args_summary(payload: dict) -> str:
         parts: list[str] = []
         items = args.items() if isinstance(args, dict) else []
         for k, v in items:
-            k_lower = k.lower()
-            if any(pat in k_lower for pat in _SENSITIVE_KEY_PATTERN_PARTS):
-                parts.append(f"{k}=***")
-            else:
-                val_str = str(v) if not isinstance(v, str) else v
-                if len(val_str) > 80:
-                    val_str = val_str[:77] + "..."
-                parts.append(f"{k}={val_str}")
+            val_str = str(v) if not isinstance(v, str) else v
+            if len(val_str) > 80:
+                val_str = val_str[:77] + "..."
+            parts.append(f"{k}={val_str}")
         text = ", ".join(parts)
 
     if len(text) > _ARG_SUMMARY_MAX_LEN:
@@ -375,7 +369,7 @@ async def _build_tool_call_details(chat_id: str, db: AsyncSession) -> list[dict[
         details.append({
             "turnIndex": turn_index,
             "name": call.tool_name,
-            "argsSummary": _sanitize_args_summary(call.input_data),
+            "argsSummary": _build_args_summary(call.input_data),
             "durationMs": int(call.duration_ms) if call.duration_ms is not None else None,
             "success": call.success,
         })

@@ -24,6 +24,7 @@ from app.api.memory.operations import command_center as command_center_operation
 from app.api.memory.utils import get_crud_memory_manager
 from app.database.models.base import Base
 from app.database.models.channel_message import ChannelMessageModel
+from app.database.models.chat import Message
 from app.services.memory.behavioral.measurement_service import BehavioralMeasurementService
 
 
@@ -34,7 +35,12 @@ async def real_db_env():
         echo=False,
     )
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(
+            lambda sync_conn: Base.metadata.create_all(
+                sync_conn,
+                tables=[ChannelMessageModel.__table__, Message.__table__],
+            )
+        )
 
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 

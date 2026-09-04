@@ -17,6 +17,7 @@
 | `rewind.py` | 模块 | Rewind conversation to before a user message; optional `scope` (conversation/files/both) reverts file snapshots and returns reverted-file details. | ✅ |
 | `handoff.py` | 模块 | Web→Channel handoff API. | ✅ |
 | `messages.py` | 模块 | Message search (FTS5), paginated loading, focus-flush, export (metadata + messages + agentInfo + toolCallDetails + usageSummary + toolSummary). | ✅ |
+| `export_builder.py` | 模块 | Chat export 数据载荷聚合（工具统计/工具详情/智能体元数据）与凭据脱敏。 | ✅ |
 | `sandbox.py` | 模块 | Chat sandbox session management (enable/disable/merge/status/diff). Git worktree isolation for agent experimentation. `disable` explicitly discards the sandbox worktree (force-remove even when dirty). `merge` rolls the merge back on conflict (abort) and reports the conflicting file count. | ✅ |
 | `title.py` | 模块 | if not chat_id.strip(): | ✅ |
 | `trash.py` | 模块 | Chat trash (recycle bin) API endpoints. | ✅ |
