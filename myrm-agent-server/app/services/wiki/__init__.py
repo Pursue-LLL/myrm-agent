@@ -8,7 +8,7 @@
 
 [POS]
 Top-level wiki facade. Domain subpackages (vault / maintain / obsidian /
-source_sync) live under this package and expose their own facades.
+source_sync / clip / knowledge_pack) live under this package and expose their own facades.
 """
 
 from __future__ import annotations

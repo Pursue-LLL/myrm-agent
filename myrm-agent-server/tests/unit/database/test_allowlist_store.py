@@ -6,14 +6,12 @@ import pytest
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry
 
 from app.database.allowlist_store import DBAllowlistStore
-from app.database.connection import init_database
 from app.platform_utils import get_session_factory
 from tests.support.allowlist_test_seed import clear_allowlist_entries
 
 
 @pytest.fixture(autouse=True)
 async def _setup_db():
-    await init_database()
     await clear_allowlist_entries()
     yield
     await clear_allowlist_entries()

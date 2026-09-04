@@ -7,6 +7,7 @@ import SingleApprovalCard from '@/components/features/chat-window/SingleApproval
 import type { ToolApprovalRequest } from '@/store/chat/types';
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: (namespace: string) => (key: string, values?: Record<string, string | number>) => {
     const dict: Record<string, Record<string, string>> = {
       toolApproval: {
@@ -19,6 +20,7 @@ vi.mock('next-intl', () => ({
         approve: 'Approve',
         reject: 'Reject',
         edit: 'Edit',
+        allowAlways: 'Always Allow',
         expiresIn: 'Expires in {seconds}s',
         'permissionTypes.default': 'Tool',
       },
@@ -92,6 +94,6 @@ describe('SingleApprovalCard save_skill', () => {
     };
 
     render(<SingleApprovalCard request={regularShellRequest} onResolve={async () => {}} isLoading={false} />);
-    expect(screen.getByText('toolApproval.allowAlways')).toBeInTheDocument();
+    expect(screen.getByText('Always Allow')).toBeInTheDocument();
   });
 });

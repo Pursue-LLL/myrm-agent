@@ -160,3 +160,36 @@ def test_agent_resolves_wiki_public_dir_labels_from_context_names() -> None:
     )
     assert labels.get("kb-policy") == "Company Policy 2026"
     assert labels.get("kb-security") == "Security Guidelines"
+
+
+@pytest.mark.asyncio
+async def test_execute_wiki_knowledge_query_empty_context_fallback(
+    tmp_path: Path, mock_llm: MagicMock
+) -> None:
+    """Verify execute_wiki_knowledge_query gracefully handles empty/None shared_context_ids."""
+    reset_wiki_archiver_cache_for_tests()
+
+    archiver = MemoryToWikiArchiver(
+        llm=mock_llm,
+        wiki_dir=tmp_path / "primary_wiki",
+    )
+    archiver.query_wiki = AsyncMock(
+        return_value=QueryResult(
+            question="hello",
+            answer="No relevant information found in wiki.",
+            confidence_score=0.0,
+            source_snippets=[],
+            related_articles=[],
+        )
+    )
+
+    result = await execute_wiki_knowledge_query(
+        agent_id="test-agent",
+        question="hello",
+        archiver=archiver,
+        shared_context_ids=[],
+    )
+    assert result.confidence_score == 0.0
+    assert len(result.sources) == 0
+
+    reset_wiki_archiver_cache_for_tests()
