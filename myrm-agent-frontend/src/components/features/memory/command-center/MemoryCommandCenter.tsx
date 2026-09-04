@@ -232,6 +232,30 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
     [loadSnapshot, t],
   );
 
+  const resolveConflict = useCallback(
+    async (conflictId: string, action: 'keep_new' | 'keep_old' | 'coexist') => {
+      setActionId(`conflict:${conflictId}:${action}`);
+      try {
+        await runMemoryCommandAction({
+          target_kind: 'conflict_pair',
+          target_id: conflictId,
+          action,
+        });
+        toast({ title: t('commandCenter.actionSuccess') });
+        await loadSnapshot();
+      } catch (err) {
+        toast({
+          title: t('commandCenter.actionFailed'),
+          description: err instanceof Error ? err.message : t('unknownError'),
+          variant: 'destructive',
+        });
+      } finally {
+        setActionId(null);
+      }
+    },
+    [loadSnapshot, t],
+  );
+
   const runDoctorAction = useCallback(
     async (action: DoctorAction) => {
       setActiveSection('verify');
@@ -573,7 +597,14 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
       {activeSection === 'observe' && (
         <ObserveSection snapshot={snapshot} liveStream={liveStream} t={t} onEventClick={openReplayForEvent} />
       )}
-      {activeSection === 'understand' && <UnderstandSection snapshot={snapshot} t={t} />}
+      {activeSection === 'understand' && (
+        <UnderstandSection
+          snapshot={snapshot}
+          t={t}
+          onResolveConflict={resolveConflict}
+          actionId={actionId}
+        />
+      )}
       {activeSection === 'act' && (
         <ActSection
           snapshot={snapshot}

@@ -33,6 +33,7 @@ import { MemoryAdvancedVerifyPanels } from './MemoryCommandCenterAdvancedPanels'
 import { type DoctorExecutableAction } from './MemoryCommandCenterDoctorPanel';
 import { MemoryLayerGuide } from '../guides/MemoryLayerGuide';
 import { resolveReplaySessionId } from '../replay/memoryLiveStream';
+import { ConflictResolutionCard } from '../cards/ConflictResolutionCard';
 
 const MemoryHealthDashboard = lazy(() => import('../insights/MemoryHealthDashboard'));
 
@@ -149,7 +150,17 @@ export const ObserveSection = ({
   </div>
 );
 
-export const UnderstandSection = ({ snapshot, t }: { snapshot: MemoryCommandCenterResponse; t: MemoryTranslation }) => (
+export const UnderstandSection = ({
+  snapshot,
+  t,
+  onResolveConflict,
+  actionId,
+}: {
+  snapshot: MemoryCommandCenterResponse;
+  t: MemoryTranslation;
+  onResolveConflict?: (conflictId: string, action: 'keep_new' | 'keep_old' | 'coexist') => Promise<void>;
+  actionId?: string | null;
+}) => (
   <div className="space-y-4">
     <div className="grid gap-4 xl:grid-cols-2">
       <Panel title={t('commandCenter.influenceTitle')}>
@@ -165,9 +176,14 @@ export const UnderstandSection = ({ snapshot, t }: { snapshot: MemoryCommandCent
       </Panel>
       <Panel title={t('commandCenter.conflictsTitle')}>
         {snapshot.conflicts.length ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {snapshot.conflicts.map((item) => (
-              <ConflictRow key={item.id} item={item} t={t} />
+              <ConflictResolutionCard
+                key={item.id}
+                item={item}
+                onResolve={onResolveConflict}
+                resolving={Boolean(actionId?.startsWith(`conflict:${item.id}`))}
+              />
             ))}
           </div>
         ) : (

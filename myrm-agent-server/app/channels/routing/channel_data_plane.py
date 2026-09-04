@@ -223,7 +223,8 @@ class ChannelDataPlaneService:
             if model.is_self is True:
                 identity = SelfIdentityState.SELF
             elif model.is_self is False:
-                identity = SelfIdentityState.OTHER
+                # Private non-self messages without confirmed identity are UNCONFIRMED; group peers are OTHER
+                identity = SelfIdentityState.UNCONFIRMED if not model.is_group else SelfIdentityState.OTHER
             else:
                 identity = SelfIdentityState.UNCONFIRMED
 
@@ -248,6 +249,7 @@ class ChannelDataPlaneService:
         )
 
         from myrm_agent_harness.api import check_distillable
+
         from app.services.agent.memory_brief_telemetry.metrics import record_distillation_rejection
 
         check = check_distillable(candidate)

@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
-import { AlertTriangle, Zap, MessageSquare } from 'lucide-react';
+import { AlertTriangle, Zap, MessageSquare, Quote } from 'lucide-react';
 import type { Memory } from '@/store/memory';
 import MemoryTypeIcon from './MemoryTypeIcon';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/primitives/sheet';
@@ -190,6 +190,19 @@ const MemoryDetailSheet = memo<MemoryDetailSheetProps>(({ memory, open, onOpenCh
                   </span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Evidence quote snippet */}
+          {Boolean(memory.metadata?.quote_snippet) && (
+            <div className="space-y-1.5 p-3 rounded-xl bg-accent/20 border border-border/40 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5 font-medium text-foreground/80">
+                <Quote size={13} className="text-primary shrink-0" />
+                <span>{t('sourceEvidence') ?? '依据发言'}</span>
+              </div>
+              <p className="italic text-foreground/90 pl-4 border-l-2 border-primary/30 py-0.5 whitespace-pre-wrap leading-relaxed">
+                "{String(memory.metadata?.quote_snippet)}"
+              </p>
             </div>
           )}
 

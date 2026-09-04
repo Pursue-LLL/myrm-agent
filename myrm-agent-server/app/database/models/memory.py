@@ -416,3 +416,24 @@ class MemoryExtractRetryModel(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class MemoryConflictModel(Base):
+    """记忆待决冲突持久化表。
+
+    存储检测到但尚未裁决的互斥事实（双结论挂起），供前端记忆抽屉仲裁与 14 天平滑自愈。
+    """
+
+    __tablename__ = "memory_conflicts"
+
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    existing_memory_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    candidate_memory_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    candidate_content: Mapped[str] = mapped_column(Text, nullable=False)
+    existing_content: Mapped[str] = mapped_column(Text, nullable=False)
+    facet: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending", index=True)
+    activation_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolution_action: Mapped[str | None] = mapped_column(String(32), nullable=True)

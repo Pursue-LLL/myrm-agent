@@ -86,6 +86,17 @@ async def run_shared_proposal_action(body: MemoryCommandActionRequest, db: Async
     )
 
 
+async def run_conflict_action(body: MemoryCommandActionRequest, db: AsyncSession, manager: MemoryManager) -> None:
+    from app.services.memory.conflict_service import MemoryConflictService
+    service = MemoryConflictService(db, manager)
+    conflict_id = body.target_id.replace("conflict:", "")
+    if body.action not in ("keep_new", "keep_old", "coexist"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported conflict resolution action")
+    success = await service.resolve_conflict(conflict_id, action=body.action)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pending conflict not found or already resolved")
+
+
 async def run_memory_action(body: MemoryCommandActionRequest, manager: MemoryManager) -> None:
     if body.action == "correct":
         if not body.content or not body.content.strip():

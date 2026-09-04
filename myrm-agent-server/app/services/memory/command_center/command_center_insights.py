@@ -142,6 +142,29 @@ class MemoryCommandCenterInsights:
 
     async def build_conflicts(self) -> list[MemoryCommandConflictItem]:
         items: list[MemoryCommandConflictItem] = []
+
+        # 1. Active pending conflicts from memory_conflicts table
+        try:
+            from sqlalchemy import select
+            from app.database.models.memory import MemoryConflictModel
+            stmt = select(MemoryConflictModel).where(MemoryConflictModel.status == "pending").order_by(MemoryConflictModel.detected_at.desc()).limit(8)
+            res = await self._db.execute(stmt)
+            for conflict in res.scalars().all():
+                items.append(
+                    MemoryCommandConflictItem(
+                        id=f"conflict:{conflict.id}",
+                        kind="pending_conflict",
+                        status="pending",
+                        memory_id=conflict.existing_memory_id,
+                        related_memory_id=conflict.candidate_memory_id or "",
+                        title=f"偏好冲突: {conflict.facet or '通用事实'}",
+                        description=f"当前认知：{conflict.existing_content} ⟷ 最新陈述：{conflict.candidate_content}",
+                        created_at=conflict.detected_at,
+                    )
+                )
+        except Exception as exc:
+            logger.warning("Failed to query pending memory conflicts: %s", exc)
+
         for memory_type in (MemoryType.SEMANTIC, MemoryType.CLAIM):
             try:
                 memories = await self._memory_manager.list_memories(memory_type, limit=80)

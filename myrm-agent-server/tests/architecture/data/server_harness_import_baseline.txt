@@ -300,6 +300,7 @@ myrm_agent_harness.toolkits.browser.pool.proxy
 myrm_agent_harness.toolkits.browser.session
 myrm_agent_harness.toolkits.browser.session.view_update_payload
 myrm_agent_harness.toolkits.browser.snapshot.page_snapshot
+myrm_agent_harness.toolkits.browser.spaces
 myrm_agent_harness.toolkits.code_execution
 myrm_agent_harness.toolkits.code_execution.config
 myrm_agent_harness.toolkits.code_execution.container.manager

@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_db_session
 from app.api.memory.operations.command_center_actions import (
     action_to_operation,
+    run_conflict_action,
     run_memory_action,
     run_pending_action,
     run_shared_proposal_action,
@@ -161,6 +162,8 @@ async def run_memory_command_action(
         await run_pending_action(body, db, memory_manager)
     elif body.target_kind == "shared_context_proposal":
         await run_shared_proposal_action(body, db)
+    elif body.target_kind == "conflict_pair" or body.action in ("keep_new", "keep_old", "coexist"):
+        await run_conflict_action(body, db, memory_manager)
     else:
         await run_memory_action(body, memory_manager)
 

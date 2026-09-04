@@ -18461,5 +18461,18 @@
       "skills": "Skills",
       "sandbox": "Sandbox"
     }
+  },
+  "taskSpaces": {
+    "title": "Parallel Browser Spaces",
+    "badgeRunning": "Running",
+    "badgeIdle": "Idle",
+    "badgeTakeover": "Human Takeover",
+    "takeoverBtn": "Takeover",
+    "releaseTakeoverBtn": "Release to Agent",
+    "closeSpaceBtn": "Close Space",
+    "activePages": "{count} active tabs",
+    "emptyState": "No active parallel browser spaces",
+    "snapshotPreview": "Live Space Snapshot",
+    "takeoverHint": "You have full control of this workspace. Click release when done."
   }
 }
