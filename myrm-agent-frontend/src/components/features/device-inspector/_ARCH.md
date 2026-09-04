@@ -32,3 +32,4 @@ Mobile Device Live View + Interactive Inspector mirroring `browser-inspector/` a
 
 1. **Notification Redaction**: Automatically overlays top status bar to prevent sensitive push notifications & OTPs from entering prompt context.
 2. **Touch Relay Safeguards**: Translates relative viewport coordinates to device native resolution with bounding box validation.
+3. **Android Virtual Navigation**: Integrated floating Back/Home/Recents/Power navbar directly dispatches sanitized keyevents to escape full-screen modals.
