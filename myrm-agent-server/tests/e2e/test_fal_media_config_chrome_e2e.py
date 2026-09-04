@@ -40,7 +40,6 @@ def test_fal_media_config_api_and_settings_chrome_e2e() -> None:
     """Validate backend FAL provider status contract and frontend settings render in real Chrome."""
     _require_e2e_cdp_ready()
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
 
     # 1. Direct REST probe to /api/v1/agents/media-provider-status

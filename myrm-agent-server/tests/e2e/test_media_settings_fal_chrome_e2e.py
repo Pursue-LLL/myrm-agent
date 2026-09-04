@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
-    _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
     http_json,
@@ -38,7 +37,6 @@ _VERIFY_MEDIA_SETTINGS_FAL_JS = """(() => {
 def test_media_settings_fal_provider_e2e_lifecycle() -> None:
     """Validate backend FAL status contract and frontend settings render readiness."""
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
 
     # 1. Direct REST contract check on live backend
