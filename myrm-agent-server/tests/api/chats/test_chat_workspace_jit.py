@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -10,11 +11,11 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
+from app.services.agent.params.workspace_resolve import _materialize_agent_template_files
+from app.services.chat.chat_service import ChatService
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="chats")
-from app.services.chat.chat_service import ChatService
-from app.services.agent.params.workspace_resolve import _materialize_agent_template_files
 
 
 @pytest.fixture

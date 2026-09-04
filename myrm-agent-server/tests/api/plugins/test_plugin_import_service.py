@@ -1445,6 +1445,78 @@ class TestAgentPluginImportWithAgents:
         assert res["created_agent_ids"] == ["agent-sub-1", "agent-lead-1"]
         assert mock_create.call_count == 2
 
+    @pytest.mark.asyncio
+    async def test_confirm_skips_oversized_template_files(self) -> None:
+        from app.services.plugins._agent_persist import MAX_TEMPLATE_FILE_BYTES
+
+        zip_bytes = _plugin_zip_with_agents_bytes()
+        result = parse_plugin_zip(zip_bytes)
+        # Add an oversized file to workspace_files
+        result.workspace_files["huge_data.bin"] = b"X" * (MAX_TEMPLATE_FILE_BYTES + 10)
+        result.workspace_files["normal.txt"] = b"normal content"
+
+        skills_by_key = {f"skill:{idx}": skill for idx, skill in enumerate(result.skills)}
+        servers_by_key = {f"mcp:{idx}": server for idx, server in enumerate(result.servers)}
+        agents_by_key = {f"agent:{idx}": agent for idx, agent in enumerate(result.agents)}
+
+        session = PluginImportSession(
+            plugin_result=result,
+            skills_by_key=skills_by_key,
+            servers_by_key=servers_by_key,
+            agents_by_key=agents_by_key,
+        )
+
+        agent_decisions = [
+            PluginConfirmItem(
+                component="agent",
+                virtual_id=f"agent:{idx}",
+                resolution="install",
+                name=agent.name,
+            )
+            for idx, agent in enumerate(result.agents)
+        ]
+
+        captured_engine_params: list[dict] = []
+
+        async def capture_create_agent(dto):
+            if dto.engine_params:
+                captured_engine_params.append(dto.engine_params)
+            return SimpleNamespace(id=f"id-{dto.name}", name=dto.name)
+
+        with (
+            patch("app.services.agent.agent_service.AgentService.create_agent", side_effect=capture_create_agent),
+            patch("app.services.plugins.import_service._write_skills", AsyncMock()),
+            patch("app.services.plugins.import_service._load_existing_skill_ids", return_value={}),
+        ):
+            await confirm_plugin_import(
+                session,
+                skill_decisions=[],
+                server_decisions=[],
+                agent_decisions=agent_decisions,
+            )
+
+        assert len(captured_engine_params) > 0
+        templates = captured_engine_params[0]["template_workspace_files"]
+        # Normal files are included
+        assert "template.xlsx" in templates or "normal.txt" in templates
+        # Oversized file is safely skipped!
+        assert "huge_data.bin" not in templates
+
+    def test_preview_warns_oversized_template_files(self) -> None:
+        from app.services.plugins._agent_persist import MAX_TEMPLATE_FILE_BYTES
+        from app.services.plugins._preview import build_preview_result
+
+        zip_bytes = _plugin_zip_with_agents_bytes()
+        result = parse_plugin_zip(zip_bytes)
+        result.workspace_files["oversized_data.bin"] = b"Y" * (MAX_TEMPLATE_FILE_BYTES + 50)
+
+        preview = build_preview_result(result)
+        codes = [d["code"] for d in preview["diagnostics"]]
+        assert "OVERSIZED_TEMPLATE_FILE" in codes
+        warning_msg = next(d["message"] for d in preview["diagnostics"] if d["code"] == "OVERSIZED_TEMPLATE_FILE")
+        assert "oversized_data.bin" in warning_msg
+        assert "exceeds 1MB limit" in warning_msg
+
 
 def _plugin_zip_with_agents_bytes() -> bytes:
     buf = io.BytesIO()
