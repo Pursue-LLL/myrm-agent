@@ -66,9 +66,9 @@
     "statusBudgetLimited": "予算使い切り",
     "statusComplete": "完了",
     "statusCancelled": "キャンセル済み",
-    "statusDriftPaused": "ゴール逸脱のため一時停止",
-    "statusSandboxPaused": "サンドボックス境界のため一時停止",
-    "reasonDriftDetected": "ゴール逸脱を検出 — レビュー待ち",
+    "statusDriftPaused": "目標逸脱",
+    "statusSandboxPaused": "サンドボックス境界",
+    "reasonDriftDetected": "目標からの逸脱を検出 — レビュー待ち",
     "reasonSandboxBoundary": "サンドボックス境界に到達 — レビュー待ち",
     "tokenUsage": "Token 消費",
     "turnsUsed": "実行ターン",
@@ -152,10 +152,6 @@
     "reasonBudgetExhausted": "予算枯渇",
     "reasonWaitTimeout": "待機タイムアウト — 一時停止中",
     "reasonConvergence": "新しい進展がないまま完了",
-    "reasonDriftDetected": "目標からの逸脱を検出 — レビュー待ち",
-    "reasonSandboxBoundary": "サンドボックス境界に到達 — レビュー待ち",
-    "statusDriftPaused": "目標逸脱",
-    "statusSandboxPaused": "サンドボックス境界",
     "draftSection": "ゴール設定アシスタント",
     "draftObjectivePlaceholder": "Agent に達成してほしいゴールを説明…",
     "suggestCriteria": "検収基準をスマートに生成",
@@ -8549,13 +8545,13 @@
       "overrideOnce": "一度だけ上書き"
     },
     "autoModeSuspended": {
-      "title": "自動モードは中断されました",
-      "consecutiveReason": "3回連続でセキュリティ拒否が発生したため、自動モードを中断して明示的な手動レビューに戻しました。",
-      "totalReason": "合計20回のセキュリティ拒否に達したため、自動モードを中断して明示的な手动レビューに戻しました。"
+      "title": "自動モードが一時停止されました",
+      "consecutiveReason": "安全性の拒否が3回連続したため、自動モードを一時停止し、手動レビューに切り替えます。",
+      "totalReason": "セキュリティ拒否の累計が20回に達したため、自動モードを一時停止し、手動レビューに切り替えます。"
     },
     "sociallyIrreversible": {
-      "title": "社会的に不可逆な操作",
-      "description": "この操作は外部システム（リモートプッシュ、通知送信、パッケージ公開）に影響を与え、ローカルで取り消すことはできません。明示的な承認が必要です。"
+      "title": "不可逆的な外部操作",
+      "description": "この操作は外部システム（リモートプッシュ、通知ブロードキャスト、パッケージ公開）に影響を与え、ローカルで取り消すことはできません。明示的な承認が必要です。"
     },
     "batchCostTitle": "バッチタスク費使用確認",
     "batchCostDescription": "エージェントが複数のサブエージェントを起動しようとしています。推定費使用を確認してから続行してください。",
@@ -13513,8 +13509,8 @@
       "keyEnabled": "有効 · キープールのローテーションに参加",
       "keyDisabled": "無効 · キープールのローテーションから除外",
       "keyPoolActive": "{count} 個のキーが自動ロードバランシングとフェイルオーバーに参加中",
-      "poolStatsTitle": "認証プール実行状態",
-      "poolStatsTooltip": "実行時の呼び出しメトリクス、429 レート制限エラー、およびクールダウン状態を表示",
+      "poolStatsTitle": "キープール稼働状況",
+      "poolStatsTooltip": "ランタイム呼び出しメトリクス、429レート制限エラー、クールダウン状態を確認",
       "poolCalls": "{count} 回の呼び出し",
       "poolRateLimits": "{count} 回のレート制限",
       "poolInCooldown": "クールダウン中 ({seconds}秒)",
@@ -13732,16 +13728,7 @@
       "acpTimeoutUnit": "秒",
       "testConnection": "テスト接続",
       "connectionSuccess": "接続しました",
-      "connectionFailed": "接続失敗",
-      "poolStatsTitle": "キープール稼働状況",
-      "poolStatsTooltip": "ランタイム呼び出しメトリクス、429レート制限エラー、クールダウン状態を確認",
-      "poolCalls": "{count} 回の呼び出し",
-      "poolRateLimits": "{count} 回のレート制限",
-      "poolInCooldown": "クールダウン中 ({seconds}秒)",
-      "poolReady": "準備完了",
-      "resetCooldowns": "クールダウンをリセット",
-      "resetCooldownsSuccess": "{count} 個のキーのクールダウンをリセットしました",
-      "noActivePools": "アクティブなプールメトリクスはまだありません"
+      "connectionFailed": "接続失敗"
     },
     "defaultModel": {
       "localModelWarning": "ローカルの軽量モデルは、複雑な Agent ツールチェーンを処理する際に幻覚や無限ループを起こしやすいです。長時間タスクには 30B 以上のモデルか、クラウドの高度なモデル（Claude 3.5 Sonnet など）の使用を推奨します。",

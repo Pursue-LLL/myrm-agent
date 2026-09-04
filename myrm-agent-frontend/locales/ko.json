@@ -8577,6 +8577,15 @@
       "badge": "Obsidian 수집함",
       "noteContent": "메모 내용",
       "destination": "보관함"
+    },
+    "autoModeSuspended": {
+      "title": "자동 모드 일시 정지됨",
+      "consecutiveReason": "연속 3회 보안 거부로 인해 자동 모드가 일시 정지되었으며 명시적 수동 검토로 전환됩니다.",
+      "totalReason": "누적 20회 보안 거부로 인해 자동 모드가 일시 정지되었으며 명시적 수동 검토로 전환됩니다."
+    },
+    "sociallyIrreversible": {
+      "title": "사회적 비가역적 작업",
+      "description": "이 작업은 외부 시스템(원격 푸시, 알림 전송, 패키지 게시)에 영향을 미치며 로컬에서 취소할 수 없습니다. 명시적 승인이 필요합니다."
     }
   },
   "notifications": {
@@ -13470,15 +13479,15 @@
       "keyEnabled": "활성화됨 · 키 풀 로테이션 참여",
       "keyDisabled": "비활성화됨 · 키 풀 로테이션 제외",
       "keyPoolActive": "{count}개 키가 자동 로드 밸런싱 및 장애 조치에 참여 중",
-      "poolStatsTitle": "인증 풀 런타임 상태",
-      "poolStatsTooltip": "런타임 호출 지표, 429 속도 제한 오류 및 쿨다운 상태 보기",
+      "poolStatsTitle": "키 풀 런타임 상태",
+      "poolStatsTooltip": "런타임 호출 지표, 429 속도 제한 오류 및 쿨다운 상태 확인",
       "poolCalls": "{count}회 호출",
       "poolRateLimits": "{count}회 속도 제한",
       "poolInCooldown": "쿨다운 중 ({seconds}초)",
-      "poolReady": "준비됨",
-      "resetCooldowns": "쿨다운 재설정",
-      "resetCooldownsSuccess": "{count}개 키의 쿨다운을 재설정했습니다",
-      "noActivePools": "아직 활성 풀 지표가 없습니다",
+      "poolReady": "준비 완료",
+      "resetCooldowns": "쿨다운 초기화",
+      "resetCooldownsSuccess": "{count}개 키의 쿨다운을 초기화했습니다",
+      "noActivePools": "활성 풀 지표가 아직 없습니다",
       "externalSecretBadge": "외부 시크릿 소스",
       "externalSecretDesc": "1Password / Bitwarden 메모리에서 동적 확인, 디스크 평문 저장 제로",
       "externalSecretValid": "시크릿 확인 완료: {preview}",
@@ -13719,16 +13728,7 @@
         "agenticTooltip": "도구 호출 및 장기 기억을 위한 64K 컨텍스트 Modelfile 자동 파생",
         "keepAliveTipTitle": "24/7 상주 및 GPU 메모리 해제 가이드",
         "keepAliveTipDesc": "백그라운드 봇의 경우 상주를 유지하고, 대규모 훈련이나 렌더링 시에는 언로드하여 VRAM을 해제하세요."
-      },
-      "poolStatsTitle": "키 풀 런타임 상태",
-      "poolStatsTooltip": "런타임 호출 지표, 429 속도 제한 오류 및 쿨다운 상태 확인",
-      "poolCalls": "{count}회 호출",
-      "poolRateLimits": "{count}회 속도 제한",
-      "poolInCooldown": "쿨다운 중 ({seconds}초)",
-      "poolReady": "준비 완료",
-      "resetCooldowns": "쿨다운 초기화",
-      "resetCooldownsSuccess": "{count}개 키의 쿨다운을 초기화했습니다",
-      "noActivePools": "활성 풀 지표가 아직 없습니다"
+      }
     },
     "defaultModel": {
       "localModelWarning": "로컬 경량 모델은 복잡한 에이전트 도구 체인을 처리할 때 환각이나 무한 루프에 빠지기 쉽습니다. 긴 작업에는 30B+ 규모 모델이나 클라우드 고급 모델(예: Claude 3.5 Sonnet)을 권장합니다.",

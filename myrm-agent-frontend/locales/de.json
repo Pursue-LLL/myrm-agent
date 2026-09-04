@@ -8577,6 +8577,15 @@
       "badge": "Obsidian-Eingang",
       "noteContent": "Notizinhalt",
       "destination": "Tresor"
+    },
+    "autoModeSuspended": {
+      "title": "Auto-Modus ausgesetzt",
+      "consecutiveReason": "Nach 3 aufeinanderfolgenden Sicherheitsverweigerungen ausgesetzt. Rückfall auf manuelle Überprüfung.",
+      "totalReason": "Nach 20 gesamten Sicherheitsverweigerungen ausgesetzt. Rückfall auf manuelle Überprüfung."
+    },
+    "sociallyIrreversible": {
+      "title": "Sozial irreversible Aktion",
+      "description": "Dieser Vorgang wirkt sich auf externe Systeme aus (Remote-Push, Benachrichtigung oder Veröffentlichung) und kann lokal nicht rückgängig gemacht werden. Ausdrückliche Genehmigung erforderlich."
     }
   },
   "notifications": {
@@ -13472,7 +13481,7 @@
       "keyPoolActive": "{count} Schlüssel, die am automatischen Lastausgleich und Failover teilnehmen",
       "poolInCooldown": "Abkühlung ({seconds}s)",
       "poolReady": "Bereit",
-      "resetCooldowns": "Abkühlungen zurücksetzen",
+      "resetCooldowns": "Abkühlung zurücksetzen",
       "resetCooldownsSuccess": "Abkühlung für {count} Schlüssel zurückgesetzt",
       "noActivePools": "Noch keine aktiven Pool-Metriken",
       "externalSecretBadge": "Externe Geheimnisquelle",
@@ -13719,12 +13728,7 @@
       "poolStatsTitle": "Schlüsselpool-Laufzeitstatus",
       "poolStatsTooltip": "Laufzeit-Aufrufmetriken, 429-Ratenbegrenzungsfehler und Abkühlstatus anzeigen",
       "poolCalls": "{count} Aufrufe",
-      "poolRateLimits": "{count} Ratenbegrenzungen",
-      "poolInCooldown": "Abkühlung ({seconds}s)",
-      "poolReady": "Bereit",
-      "resetCooldowns": "Abkühlung zurücksetzen",
-      "resetCooldownsSuccess": "Abkühlung für {count} Schlüssel zurückgesetzt",
-      "noActivePools": "Noch keine aktiven Pool-Metriken"
+      "poolRateLimits": "{count} Ratenbegrenzungen"
     },
     "defaultModel": {
       "localModelWarning": "Lokale Leichtgewichtsmodelle neigen stark zu Halluzinationen oder Endlosschleifen bei komplexen Agent-Workflows. Für lange Aufgaben werden Modelle ab 30B oder Cloud-basierte fortschrittliche Modelle (wie Claude 3.5 Sonnet) empfohlen.",

@@ -18,7 +18,6 @@ const stableT = (key: string) => {
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
-  useLocale: () => 'en',
 }));
 
 vi.mock('next-themes', () => ({
@@ -40,7 +39,7 @@ describe('PolymorphicApprovalCard Auto Mode Production Hardening', () => {
       severity: 'high',
       payload: {
         tool_calls: [
-          { name: 'bash_code_execute_tool', args: { command: 'python script.py' } },
+          { name: 'mcp__custom__exec', args: { task: 'migration' } },
         ],
         reviewConfigs: [
           {
@@ -73,7 +72,7 @@ describe('PolymorphicApprovalCard Auto Mode Production Hardening', () => {
       severity: 'high',
       payload: {
         tool_calls: [
-          { name: 'bash_code_execute_tool', args: { command: 'python script.py' } },
+          { name: 'mcp__custom__exec', args: { task: 'migration' } },
         ],
         reviewConfigs: [
           {
