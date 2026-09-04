@@ -1,6 +1,5 @@
 """Tests for eval capture Base64 sanitization and capture_case_from_chat."""
 
-import pytest
 from app.core.eval.capture import _sanitize_content
 
 
