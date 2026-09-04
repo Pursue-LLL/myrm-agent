@@ -150,3 +150,34 @@ async def revive_concepts_endpoint(
     )
     result = await service.revive_concepts(body.concept_names)
     return result.to_dict()
+
+
+class HealClaimEvidenceBody(BaseModel):
+    concept_names: list[str] = Field(..., description="List of concept names to heal claims for")
+
+
+@router.post("/claims/heal")
+async def heal_concept_claims_endpoint(
+    body: HealClaimEvidenceBody,
+    agent_id: Annotated[str | None, Query(description="Agent ID scope")] = None,
+) -> dict[str, object]:
+    """Auto-heal shifted line ranges and refresh content_sha256 for concept claims."""
+    archiver = _get_archiver(agent_id)
+    from myrm_agent_harness.toolkits.wiki.core.claims_contract import (
+        heal_claim_evidence_snapshot,
+    )
+
+    total_healed = 0
+    results: dict[str, int] = {}
+    for name in body.concept_names:
+        healed, count = heal_claim_evidence_snapshot(name, archiver._structure)
+        if healed:
+            total_healed += count
+            results[name] = count
+
+    return {
+        "success": True,
+        "total_healed_evidence": total_healed,
+        "details": results,
+    }
+
