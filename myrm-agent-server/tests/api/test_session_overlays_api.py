@@ -8,6 +8,8 @@
 - POST /{session_id}/overlays/{overlay_id}/rollback updates status
 """
 
+from __future__ import annotations
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -20,7 +22,6 @@ from myrm_agent_harness.agent.session_overlay.schema import (
     OverlayTargetType,
     SessionOverlay,
 )
-
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="chats")
