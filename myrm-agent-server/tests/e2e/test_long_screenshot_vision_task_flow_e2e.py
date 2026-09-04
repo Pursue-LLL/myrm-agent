@@ -12,12 +12,12 @@ from __future__ import annotations
 import base64
 import io
 import os
-import pytest
-from PIL import Image, ImageDraw
 
+import pytest
 from myrm_agent_harness.core.config.llm import LLMConfig
 from myrm_agent_harness.toolkits.llms.vision.fallback_engine import VisionFallbackEngine
 from myrm_agent_harness.utils.media.image_compressor import image_compressor
+from PIL import Image, ImageDraw
 
 
 def _generate_synthetic_long_mobile_screenshot(width: int = 500, height: int = 1200) -> bytes:
@@ -61,7 +61,7 @@ async def test_adaptive_slicing_and_concurrent_vlm_task_flow_e2e() -> None:
     slices = image_compressor.slice_long_image_if_needed(raw_img_bytes)
     assert len(slices) >= 2, f"Expected at least 2 slices for 500x1200 screenshot, got {len(slices)}"
 
-    for idx, s_bytes in enumerate(slices):
+    for _idx, s_bytes in enumerate(slices):
         with Image.open(io.BytesIO(s_bytes)) as tile:
             assert tile.width == 500, "Horizontal resolution must be 100% preserved"
             assert tile.height <= 2048, "Vertical height must be within bounds"

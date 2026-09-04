@@ -287,12 +287,17 @@ async def test_anti_drift_distillation_full_business_task_flow(
         assert len(mem.evidence) > 0
         assert any(ev.quote_snippet is not None or ev.message_id in ("msg_005_user_preference", "msg_006_user_correction") for ev in mem.evidence)
 
-    # Convert to concrete storage memories
-    concrete_memories = extractor.to_concrete_memories(extracted)
-    assert len(concrete_memories) == len(extracted)
-    for cmem in concrete_memories:
-        assert cmem.metadata.get("evidence_quote") is not None
-        assert cmem.metadata.get("evidence_count", 0) >= 1
+        # Convert to concrete storage memories
+        from myrm_agent_harness.toolkits.memory.types import BaseMemory, ProfileEntry
+
+        concrete_memories = extractor.to_concrete_memories(extracted)
+        assert len(concrete_memories) == len(extracted)
+        for cmem in concrete_memories:
+            if isinstance(cmem, BaseMemory):
+                assert cmem.metadata.get("evidence_quote") is not None
+                assert cmem.metadata.get("evidence_count", 0) >= 1
+            else:
+                assert isinstance(cmem, ProfileEntry)
 
     # -------------------------------------------------------------------------
     # Step 6: Physical Storage Gate (filter_memories_with_evidence) & Persistence
@@ -313,6 +318,7 @@ async def test_anti_drift_distillation_full_business_task_flow(
 
     from myrm_agent_harness.toolkits.memory.protocols.vector import VectorDocument, VectorSearchResult
 
+    semantic_mem = next(m for m in grounded if isinstance(m, SemanticMemory))
     mock_vec = AsyncMock()
     mock_vec.search = AsyncMock(
         return_value=[
@@ -321,8 +327,8 @@ async def test_anti_drift_distillation_full_business_task_flow(
                 score=0.96,
                 document=VectorDocument(
                     id="doc-1",
-                    content=grounded[0].content,
-                    metadata=grounded[0].metadata,
+                    content=semantic_mem.content,
+                    metadata=semantic_mem.metadata,
                     embedding=[0.1] * 768,
                 ),
             )
