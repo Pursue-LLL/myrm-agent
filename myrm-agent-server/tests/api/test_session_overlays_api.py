@@ -10,7 +10,6 @@
 
 import pytest
 from fastapi.testclient import TestClient
-
 from myrm_agent_harness.agent.session_overlay.manager import (
     get_session_overlay_manager,
 )
