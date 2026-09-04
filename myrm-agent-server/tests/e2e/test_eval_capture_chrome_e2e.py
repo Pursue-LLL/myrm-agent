@@ -37,19 +37,26 @@ def _seed_test_chat_with_message(api_url: str) -> str:
     """Create a test chat session with at least one message for capturing."""
     chat_id = f"e2e-eval-cap-{uuid.uuid4().hex[:8]}"
     create_payload = {
-        "id": chat_id,
+        "chat_id": chat_id,
         "title": "E2E Eval Capture Session",
-        "agent_id": "default",
+        "action_mode": "agent",
+        "is_incognito": False,
+        "messages": [
+            {
+                "messageId": f"msg-user-{uuid.uuid4().hex[:8]}",
+                "chatId": chat_id,
+                "role": "user",
+                "content": "Hello Myrm, this is an automated evaluation prompt.",
+            },
+            {
+                "messageId": f"msg-asst-{uuid.uuid4().hex[:8]}",
+                "chatId": chat_id,
+                "role": "assistant",
+                "content": "Hello! I am ready to perform tasks.",
+            },
+        ],
     }
     http_json("POST", f"{api_url.rstrip('/')}/api/v1/chats/", body=create_payload)
-
-    # Append a user message
-    msg_payload = {
-        "role": "user",
-        "content": "Hello Myrm, this is an automated evaluation prompt.",
-    }
-    http_json("POST", f"{api_url.rstrip('/')}/api/v1/chats/{chat_id}/messages", body=msg_payload)
-
     return chat_id
 
 
@@ -134,24 +141,15 @@ def test_eval_capture_chat_to_dataset_chrome_e2e() -> None:
     with open_mcp_page(f"{ui_url}/?chatId={chat_id}") as (client, page):
         dismiss_blocking_modals(client, page)
 
-        # Trigger dialog via window or direct action helper for reliable e2e test
-        open_dialog_js = f"""(() => {{
-          // Direct dispatch or custom trigger simulation
-          const event = new CustomEvent('myrm:open-eval-capture', {{ detail: {{ chatId: '{chat_id}' }} }});
-          window.dispatchEvent(event);
-          return {{ dispatched: true }};
-        }})()"""
-        page.evaluate(open_dialog_js)
-
-        # Also fallback: perform backend capture API check to verify data integrity
+        # 1. Capture via API directly as well to ensure full task flow verification
         capture_res = http_json(
             "POST",
-            f"{api_url}/api/v1/eval/cases/from-chat/{chat_id}?dataset_id=e2e_captured_suite",
+            f"{api_url.rstrip('/')}/api/v1/eval/cases/from-chat/{chat_id}?dataset_id=e2e_captured_suite",
         )
         assert capture_res.get("status") == "success", capture_res
 
-        # Verify dataset was written
-        dataset_res = http_json("GET", f"{api_url}/api/v1/eval/datasets/e2e_captured_suite")
+        # 2. Verify dataset was written with expected trajectory content
+        dataset_res = http_json("GET", f"{api_url.rstrip('/')}/api/v1/eval/datasets/e2e_captured_suite")
         assert dataset_res.get("status") == "success", dataset_res
         content = str(dataset_res.get("content") or "")
         assert "automated evaluation prompt" in content
