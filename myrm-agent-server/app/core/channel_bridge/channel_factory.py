@@ -69,10 +69,6 @@ async def create_all_channels() -> AsyncGenerator[BaseChannel, None]:
     # from app.channels.providers.whatsapp import WhatsAppChannel
     # yield WhatsAppChannel()
 
-    from app.channels.providers.wechat.ilink_channel import WeChatILinkChannel
-
-    yield WeChatILinkChannel()
-
     channels = await create_channels(source=load_from_db, skip_empty=False)
 
     for _name, channel in channels.items():

@@ -11,6 +11,12 @@ import logging
 import re
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.memory.strategies.distillation_guards import (
+        DistillationCandidate,
+    )
 
 from app.channels.core.logging_filter import redact_sensitive
 from app.channels.types import ContextEntry, InboundMessage
@@ -187,3 +193,48 @@ class ChannelDataPlaneService:
                 exc,
             )
             return []
+
+    @staticmethod
+    def to_distillation_candidate(model: ChannelMessageModel) -> DistillationCandidate:
+        """Convert a channel message model to a Harness DistillationCandidate.
+
+        Maps channel-level properties (is_self, sender, bot signals) to the
+        tri-state identity and provenance structure enforced by distillation guards.
+        """
+        from myrm_agent_harness.toolkits.memory.strategies.distillation_guards import (
+            DistillationCandidate,
+            DistillationOrigin,
+            EvidenceReference,
+            SelfIdentityState,
+        )
+
+        is_agent = model.sender_id == "agent" or (model.is_self and model.sender_name == "Assistant")
+        origin = DistillationOrigin.AGENT if is_agent else DistillationOrigin.USER
+        if is_agent:
+            identity = SelfIdentityState.OTHER
+        elif model.is_self:
+            identity = SelfIdentityState.SELF
+        elif model.is_group:
+            identity = SelfIdentityState.OTHER
+        else:
+            identity = SelfIdentityState.UNCONFIRMED
+
+        evidence = [
+            EvidenceReference(
+                source_id=f"channel:{model.channel}:{model.chat_id}",
+                message_id=model.id,
+                channel_id=model.channel,
+                timestamp=model.created_at,
+                quote_snippet=model.content[:160] if model.content else None,
+                author_id=model.sender_id,
+            )
+        ]
+
+        return DistillationCandidate(
+            content=model.content,
+            origin=origin,
+            is_self=identity,
+            is_bot_or_alert=not model.learning_eligible,
+            sender_name=model.sender_name,
+            evidence=evidence,
+        )

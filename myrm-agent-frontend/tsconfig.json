@@ -59,7 +59,9 @@
     ".next-isolated-chrome-test_fast_search_web_search_citations_li-f65262c4-84929-e3e9be68/types/**/*.ts",
     ".next-isolated-chrome-test_fast_search_web_search_citations_li-f65262c4-84929-e3e9be68/dev/types/**/*.ts",
     ".next-isolated-chrome-test_fast_search_web_search_citations_li-f65262c4-21583-026c0e36/types/**/*.ts",
-    ".next-isolated-chrome-test_fast_search_web_search_citations_li-f65262c4-21583-026c0e36/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_fast_search_web_search_citations_li-f65262c4-21583-026c0e36/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_skill_market_and_manage_builtin_car-4c6a0413-4441-119dcda8/types/**/*.ts",
+    ".next-isolated-chrome-test_skill_market_and_manage_builtin_car-4c6a0413-4441-119dcda8/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

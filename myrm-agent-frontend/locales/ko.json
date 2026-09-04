@@ -11938,46 +11938,6 @@
       "empty": "이 단계의 세부 증거가 없습니다"
     }
   },
-  "executionPhaseStepper": {
-    "phases": {
-      "planning": {
-        "title": "요청 이해 및 계획",
-        "subtitle": "의도 분석 · 슬롯 검증 · 경계 정렬"
-      },
-      "executing": {
-        "title": "실행 협업 및 반성",
-        "subtitle": "다중 레인 협업 · 도구 실행 · 관측 반성"
-      },
-      "verifying": {
-        "title": "다차원 검증 및 전달",
-        "subtitle": "목표 검증 · 결과물 저장 · 결과 전달"
-      },
-      "completed": {
-        "title": "전달 완료",
-        "subtitle": "프로덕션 30개 노드 전체 검증 통과"
-      }
-    },
-    "lanes": {
-      "user": "사용자 승인",
-      "agent": "코어 스케줄링",
-      "skills": "스킬 및 프롬프트",
-      "llm": "LLM 심층 추론",
-      "mcp": "MCP 연동",
-      "sandbox": "샌드박스 실행"
-    },
-    "badge": "30개 노드 검증 통과",
-    "waitingApproval": "사용자 승인 대기 중",
-    "telemetryDeck": "라이프사이클 실행 텔레메트리",
-    "activeLane": "활성 레인",
-    "currentNode": "노드 {nodeId}",
-    "expandTelemetry": "텔레메트리 펼치기",
-    "collapseTelemetry": "텔레메트리 접기",
-    "totalDuration": "총 {ms}ms",
-    "completedBadge": "30개 노드 검증 통과",
-    "hideDetails": "세부정보 숨기기",
-    "viewDetails": "세부정보 보기",
-    "nodePrefix": "노드"
-  },
   "settings": {
     "lockedUse": {
       "title": "컴퓨터 사용 / 잠금 사용",
@@ -18460,14 +18420,40 @@
     }
   },
   "continualOverlay": {
-    "activeTitle": "세션 오버레이 적용 중",
-    "remainingTurns": "남은 턴 {count}회",
+    "activeTitle": "활성 오버레이",
+    "remainingTurns": "{count}턴 남음",
     "rollbackTooltip": "이 세션 오버레이 롤백",
     "rollback": "롤백",
     "collapse": "접기",
     "expand": "펼치기",
-    "howItWorks": "제로 리셋 자가 치유 메커니즘",
-    "howItWorksDesc": "도구 또는 형식 오류가 감지되면 임시 세션 패치를 주입하며, 남은 턴이 경과한 후 자동으로 종료됩니다.",
-    "allActiveOverlays": "활성화된 모든 오버레이 ({count}개)"
+    "howItWorks": "작동 원리",
+    "howItWorksDesc": "오버레이는 제로 리셋 장애 복구를 제공하며 지정된 턴 예산 내에서 자동으로 적용되고 만료 후 정상적으로 종료됩니다.",
+    "allActiveOverlays": "모든 활성 오버레이 ({count})"
+  },
+  "executionPhaseStepper": {
+    "badge": "완료됨",
+    "waitingApproval": "승인 대기 중",
+    "collapseTelemetry": "원격 측정 접기",
+    "expandTelemetry": "원격 측정 펼치기",
+    "currentNode": "노드 #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "계획 수립"
+      },
+      "executing": {
+        "title": "도구 실행"
+      },
+      "verifying": {
+        "title": "결과 검증"
+      }
+    },
+    "lanes": {
+      "agent": "에이전트 코어",
+      "user": "사용자",
+      "llm": "LLM",
+      "mcp": "MCP",
+      "skills": "스킬",
+      "sandbox": "샌드박스"
+    }
   }
 }

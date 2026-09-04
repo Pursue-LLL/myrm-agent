@@ -11938,46 +11938,6 @@
       "empty": "Keine Detailnachweise für diese Stufe"
     }
   },
-  "executionPhaseStepper": {
-    "phases": {
-      "planning": {
-        "title": "Planung & Verständnis",
-        "subtitle": "Absichtsanalyse · Slot-Verifizierung · Grenzenausrichtung"
-      },
-      "executing": {
-        "title": "Ausführung & Reflexion",
-        "subtitle": "Multi-Lane-Kollaboration · Werkzeugausführung · Reflexion"
-      },
-      "verifying": {
-        "title": "Verifizierung & Übergabe",
-        "subtitle": "Zielverifizierung · Artefaktspeicherung · Ergebnisübergabe"
-      },
-      "completed": {
-        "title": "Erfolgreich geliefert",
-        "subtitle": "Alle 30 Produktionslebenszyklusknoten verifiziert"
-      }
-    },
-    "lanes": {
-      "user": "Benutzergenehmigung",
-      "agent": "Agenten-Kern-Dispatch",
-      "skills": "Fähigkeiten & Prompts",
-      "llm": "LLM-Tiefeninferenz",
-      "mcp": "MCP-Integration",
-      "sandbox": "Sandbox-Ausführung"
-    },
-    "badge": "30 Knoten verifiziert",
-    "waitingApproval": "Warten auf Benutzergenehmigung",
-    "telemetryDeck": "Lebenszyklus-Ausführungstelemetrie",
-    "activeLane": "Aktive Lane",
-    "currentNode": "Knoten {nodeId}",
-    "expandTelemetry": "Telemetrie erweitern",
-    "collapseTelemetry": "Telemetrie reduzieren",
-    "totalDuration": "Gesamt {ms}ms",
-    "completedBadge": "30 Knoten verifiziert",
-    "hideDetails": "Details ausblenden",
-    "viewDetails": "Details anzeigen",
-    "nodePrefix": "Knoten"
-  },
   "settings": {
     "lockedUse": {
       "title": "Computernutzung / gesperrte Nutzung",
@@ -18460,14 +18420,40 @@
     }
   },
   "continualOverlay": {
-    "activeTitle": "Aktives Sitzungs-Overlay",
-    "remainingTurns": "{count} Züge verbleibend",
+    "activeTitle": "Aktives Overlay",
+    "remainingTurns": "{count, plural, =1 {1 Runde verbleibend} other {# Runden verbleibend}}",
     "rollbackTooltip": "Dieses Sitzungs-Overlay zurücksetzen",
     "rollback": "Zurücksetzen",
     "collapse": "Einklappen",
     "expand": "Ausklappen",
-    "howItWorks": "Zero-Reset Selbstreparatur",
-    "howItWorksDesc": "Temporärer Sitzungs-Patch nach Tool- oder Formatierungsfehlern, der nach den verbleibenden Zügen automatisch abläuft.",
+    "howItWorks": "Funktionsweise",
+    "howItWorksDesc": "Overlays bieten eine unterbrechungsfreie Fehlerbehebung, sind für ein festgelegtes Rundenbudget aktiv und werden danach nahtlos deaktiviert.",
     "allActiveOverlays": "Alle aktiven Overlays ({count})"
+  },
+  "executionPhaseStepper": {
+    "badge": "Abgeschlossen",
+    "waitingApproval": "Wartet auf Genehmigung",
+    "collapseTelemetry": "Telemetrie einklappen",
+    "expandTelemetry": "Telemetrie ausklappen",
+    "currentNode": "Knoten #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "Planung"
+      },
+      "executing": {
+        "title": "Ausführung"
+      },
+      "verifying": {
+        "title": "Verifizierung"
+      }
+    },
+    "lanes": {
+      "agent": "Agenten-Kern",
+      "user": "Benutzer",
+      "llm": "LLM",
+      "mcp": "MCP",
+      "skills": "Fähigkeiten",
+      "sandbox": "Sicherheits-Sandbox"
+    }
   }
 }

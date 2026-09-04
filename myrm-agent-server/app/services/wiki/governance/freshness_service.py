@@ -178,7 +178,10 @@ class WikiGovernanceFreshnessService:
 
     def extend_concepts(self, concept_names: list[str]) -> GovernanceActionResult:
         """Reset the expiration clock on concepts by touching their mtime."""
+<<<<<<< HEAD
         now = time.time()
+=======
+>>>>>>> bd6468f71 (fix(arch): register device domain in SERVICES_ONLY_DOMAINS)
         success_count = 0
         for name in concept_names:
             path = self._structure.get_concept_file_path(name)

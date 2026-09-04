@@ -7,5 +7,6 @@
   "fireworks": "fireworks_ai",
   "cohere": "cohere_chat",
   "xiaomi": "xiaomi_mimo",
-  "qwen": "dashscope"
+  "qwen": "dashscope",
+  "fal_ai": "fal"
 }

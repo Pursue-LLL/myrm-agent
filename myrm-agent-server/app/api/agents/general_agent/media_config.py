@@ -60,14 +60,16 @@ async def test_media_config(
             from myrm_agent_harness.toolkits.llms.video import VideoGenerationConfig
             from myrm_agent_harness.toolkits.llms.video.providers import get_registry
 
-            config = VideoGenerationConfig(
-                provider=request.provider,
-                model=request.model or "sora",
-                api_key=api_key,
-            )
             provider = get_registry().get(request.provider)
             if not provider:
                 return error_response(message=f"Provider '{request.provider}' not supported")
+
+            default_model = getattr(provider, "default_model", "sora")
+            config = VideoGenerationConfig(
+                provider=request.provider,
+                model=request.model or default_model,
+                api_key=api_key,
+            )
 
             async with asyncio.timeout(15):
                 healthy = await provider.health_check(config)

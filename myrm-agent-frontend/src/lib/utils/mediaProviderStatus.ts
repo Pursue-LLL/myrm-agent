@@ -25,6 +25,7 @@ export const VIDEO_PROVIDER_CONFIG_IDS: Record<VideoGenerationProvider, string> 
   qwen: 'dashscope',
   minimax: 'minimax',
   xai: 'xai',
+  fal: 'fal',
 };
 
 export async function fetchMediaProviderStatus(): Promise<Record<string, MediaProviderStatus>> {

@@ -11938,46 +11938,6 @@
       "empty": "暂无该阶段的详细证据"
     }
   },
-  "executionPhaseStepper": {
-    "phases": {
-      "planning": {
-        "title": "请求理解与规划",
-        "subtitle": "意图解析 · 槽位核验 · 边界对齐"
-      },
-      "executing": {
-        "title": "执行协作与反思",
-        "subtitle": "多泳道协作 · 工具执行 · 观测反思"
-      },
-      "verifying": {
-        "title": "多维验收与交付",
-        "subtitle": "目标核验 · 交付物落盘 · 结果交付"
-      },
-      "completed": {
-        "title": "闭环交付完成",
-        "subtitle": "生产级 30 节点全闭环通过"
-      }
-    },
-    "lanes": {
-      "user": "用户决策 / 审批",
-      "agent": "智能体核心调度",
-      "skills": "技能与提示词",
-      "llm": "大模型深度推理",
-      "mcp": "MCP 外部协议集成",
-      "sandbox": "工具沙箱 / 执行环境"
-    },
-    "badge": "30 节点全闭环通过",
-    "waitingApproval": "等待用户审批中",
-    "telemetryDeck": "全流程六泳道执行透视",
-    "activeLane": "当前活跃泳道",
-    "currentNode": "节点 {nodeId}",
-    "expandTelemetry": "展开执行遥测",
-    "collapseTelemetry": "收起执行遥测",
-    "totalDuration": "总耗时 {ms}ms",
-    "completedBadge": "30 节点全闭环通过",
-    "hideDetails": "收起详情",
-    "viewDetails": "查看详情",
-    "nodePrefix": "节点"
-  },
   "settings": {
     "lockedUse": {
       "title": "计算机使用 / 锁定使用",
@@ -18460,14 +18420,40 @@
     }
   },
   "continualOverlay": {
-    "activeTitle": "动态干预生效中",
+    "activeTitle": "活跃会话覆盖层",
     "remainingTurns": "剩余 {count} 轮",
-    "rollbackTooltip": "回滚此会话层干预",
+    "rollbackTooltip": "回滚此会话覆盖层",
     "rollback": "回滚",
     "collapse": "折叠",
     "expand": "展开",
-    "howItWorks": "零重启自愈机制",
-    "howItWorksDesc": "当会话遇到工具或格式错误时，系统注入临时会话层补丁，并在剩余轮次后自动褪去。",
-    "allActiveOverlays": "全部生效中的干预（共 {count} 个）"
+    "howItWorks": "运行机制",
+    "howItWorksDesc": "会话覆盖层提供零重置故障恢复，在指定轮次预算内自动生效并在到期后平滑撤出。",
+    "allActiveOverlays": "全部活跃覆盖层 ({count})"
+  },
+  "executionPhaseStepper": {
+    "badge": "执行完毕",
+    "waitingApproval": "等待审批",
+    "collapseTelemetry": "折叠遥测",
+    "expandTelemetry": "展开遥测",
+    "currentNode": "节点 #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "意图规划"
+      },
+      "executing": {
+        "title": "工具执行"
+      },
+      "verifying": {
+        "title": "交付验证"
+      }
+    },
+    "lanes": {
+      "agent": "Agent 核心",
+      "user": "用户交互",
+      "llm": "LLM 推理",
+      "mcp": "MCP 工具",
+      "skills": "业务技能",
+      "sandbox": "沙箱执行"
+    }
   }
 }

@@ -52,7 +52,12 @@ _VERIFY_DEVICE_STORE_AND_PANEL_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="READ",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_mobile_device_inspector_api_and_ui_lifecycle() -> None:
@@ -76,7 +81,7 @@ def test_mobile_device_inspector_api_and_ui_lifecycle() -> None:
     relay_res = http_json(
         "POST",
         f"{api_url}/webui/device/relay",
-        json={"action": "tap", "x": 500, "y": 1000},
+        body={"action": "tap", "x": 500, "y": 1000},
     )
     assert isinstance(relay_res, dict)
     assert relay_res.get("action") == "tap"

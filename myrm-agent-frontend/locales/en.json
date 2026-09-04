@@ -11938,46 +11938,6 @@
       "empty": "No evidence details for this stage"
     }
   },
-  "executionPhaseStepper": {
-    "phases": {
-      "planning": {
-        "title": "Planning & Understanding",
-        "subtitle": "Intent parsing · Slot verification · Boundary alignment"
-      },
-      "executing": {
-        "title": "Execution & Reflection",
-        "subtitle": "Multi-lane collaboration · Tool invocation · Reflection"
-      },
-      "verifying": {
-        "title": "Verification & Delivery",
-        "subtitle": "Goal verification · Deliverable persistence · Result delivery"
-      },
-      "completed": {
-        "title": "Delivered Successfully",
-        "subtitle": "All 30 production lifecycle nodes verified"
-      }
-    },
-    "lanes": {
-      "user": "User Approval",
-      "agent": "Agent Core Dispatch",
-      "skills": "Skills & Prompts",
-      "llm": "LLM Deep Inference",
-      "mcp": "MCP Integration",
-      "sandbox": "Sandbox Execution"
-    },
-    "badge": "30 Nodes Verified",
-    "waitingApproval": "Awaiting User Approval",
-    "telemetryDeck": "Lifecycle Execution Telemetry",
-    "activeLane": "Active Lane",
-    "currentNode": "Node {nodeId}",
-    "expandTelemetry": "Expand Telemetry",
-    "collapseTelemetry": "Collapse Telemetry",
-    "totalDuration": "Total {ms}ms",
-    "completedBadge": "30 Nodes Verified",
-    "hideDetails": "Hide Details",
-    "viewDetails": "View Details",
-    "nodePrefix": "Node"
-  },
   "settings": {
     "lockedUse": {
       "title": "Computer Use / Locked Use",
@@ -18460,14 +18420,40 @@
     }
   },
   "continualOverlay": {
-    "activeTitle": "Active Session Overlay",
-    "remainingTurns": "{count} turns remaining",
-    "rollbackTooltip": "Roll back this session overlay",
+    "activeTitle": "Active Overlay",
+    "remainingTurns": "{count, plural, =1 {1 turn left} other {# turns left}}",
+    "rollbackTooltip": "Rollback this session overlay",
     "rollback": "Rollback",
     "collapse": "Collapse",
     "expand": "Expand",
-    "howItWorks": "Zero-Reset Self-Healing",
-    "howItWorksDesc": "Temporary session patch injected after tool or format faults, automatically retiring after remaining turns.",
+    "howItWorks": "How It Works",
+    "howItWorksDesc": "Overlays provide zero-reset fault recovery, active for a set turn budget and smoothly retiring afterwards.",
     "allActiveOverlays": "All Active Overlays ({count})"
+  },
+  "executionPhaseStepper": {
+    "badge": "Completed",
+    "waitingApproval": "Waiting Approval",
+    "collapseTelemetry": "Collapse Telemetry",
+    "expandTelemetry": "Expand Telemetry",
+    "currentNode": "Node #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "Planning"
+      },
+      "executing": {
+        "title": "Executing"
+      },
+      "verifying": {
+        "title": "Verifying"
+      }
+    },
+    "lanes": {
+      "agent": "Agent",
+      "user": "User",
+      "llm": "LLM",
+      "mcp": "MCP",
+      "skills": "Skills",
+      "sandbox": "Sandbox"
+    }
   }
 }

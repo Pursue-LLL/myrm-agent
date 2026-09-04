@@ -619,6 +619,7 @@ MIGRATION_STATEMENTS: list[str] = [
     "DROP INDEX IF EXISTS uq_user_allowlist_final",
     """CREATE UNIQUE INDEX IF NOT EXISTS uq_user_allowlist_final
         ON user_tool_allowlist(permission, tool_name, tool_args_hash, command_pattern, agent_id)""",
+    "ALTER TABLE user_tool_allowlist ADD COLUMN expires_at TIMESTAMP",
 ]
 
 # 创建索引的SQL语句列表
@@ -977,7 +978,6 @@ INDEX_STATEMENTS = [
     "ALTER TABLE shared_contexts ADD COLUMN last_accessed_at TIMESTAMP",
     "ALTER TABLE interrupted_turn_markers ADD COLUMN message_id VARCHAR(255) NOT NULL DEFAULT ''",
     "ALTER TABLE interrupted_turn_markers ADD COLUMN pending_steering_messages JSON",
-    "ALTER TABLE user_tool_allowlist ADD COLUMN expires_at TIMESTAMP",
 ]
 
 

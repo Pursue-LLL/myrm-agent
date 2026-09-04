@@ -49,6 +49,7 @@ const FALLBACK_VIDEO_PROVIDERS: {
   { value: 'qwen', label: 'Qwen Wan', description: 'wan2.6-t2v' },
   { value: 'minimax', label: 'MiniMax Hailuo', description: 'MiniMax-Hailuo-2.3' },
   { value: 'xai', label: 'xAI Grok', description: 'grok-imagine-video' },
+  { value: 'fal', label: 'FAL.ai', description: 'fal-ai/flux-3-video & Kling' },
 ];
 
 const PROVIDER_CONFIG_IDS = VIDEO_PROVIDER_CONFIG_IDS;

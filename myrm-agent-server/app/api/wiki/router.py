@@ -3419,6 +3419,7 @@ async def import_video(
     )
 
 
+from app.api.wiki.governance_routes import router as wiki_governance_router  # noqa: E402
 from app.api.wiki.ingest_stream import register_ingest_stream_routes  # noqa: E402
 from app.api.wiki.obsidian_binding_routes import router as wiki_obsidian_binding_router  # noqa: E402
 from app.api.wiki.routes.clip import router as wiki_clip_router  # noqa: E402
@@ -3428,3 +3429,4 @@ register_ingest_stream_routes(router)
 router.include_router(wiki_clip_router)
 router.include_router(wiki_sources_router)
 router.include_router(wiki_obsidian_binding_router)
+router.include_router(wiki_governance_router)

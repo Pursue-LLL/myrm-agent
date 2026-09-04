@@ -11938,46 +11938,6 @@
       "empty": "この段階の詳細証拠はありません"
     }
   },
-  "executionPhaseStepper": {
-    "phases": {
-      "planning": {
-        "title": "リクエスト理解と計画",
-        "subtitle": "意図解析 · スロット検証 · 境界調整"
-      },
-      "executing": {
-        "title": "実行連携と内省",
-        "subtitle": "複数レーン連携 · ツール実行 · 観測内省"
-      },
-      "verifying": {
-        "title": "多次元検証と納品",
-        "subtitle": "目標検証 · 成果物保存 · 結果納品"
-      },
-      "completed": {
-        "title": "完了と納品",
-        "subtitle": "本番30ノードすべて検証合格"
-      }
-    },
-    "lanes": {
-      "user": "ユーザー承認",
-      "agent": "コアスケジューリング",
-      "skills": "スキルとプロンプト",
-      "llm": "LLM深層推論",
-      "mcp": "MCP統合",
-      "sandbox": "サンドボックス実行"
-    },
-    "badge": "30ノード検証合格",
-    "waitingApproval": "ユーザー承認待ち",
-    "telemetryDeck": "ライフサイクル実行テレメトリ",
-    "activeLane": "アクティブレーン",
-    "currentNode": "ノード {nodeId}",
-    "expandTelemetry": "テレメトリを展開",
-    "collapseTelemetry": "テレメトリを折りたたむ",
-    "totalDuration": "合計 {ms}ms",
-    "completedBadge": "30ノード検証合格",
-    "hideDetails": "詳細を非表示",
-    "viewDetails": "詳細を表示",
-    "nodePrefix": "ノード"
-  },
   "settings": {
     "lockedUse": {
       "title": "コンピューター使用 / ロック使用",
@@ -18460,14 +18420,40 @@
     }
   },
   "continualOverlay": {
-    "activeTitle": "セッションオーバーレイ適用中",
+    "activeTitle": "アクティブなオーバーレイ",
     "remainingTurns": "残り {count} ターン",
     "rollbackTooltip": "このセッションオーバーレイをロールバック",
     "rollback": "ロールバック",
     "collapse": "折りたたむ",
     "expand": "展開",
-    "howItWorks": "ゼロリセット自己修復機能",
-    "howItWorksDesc": "ツールや形式のエラーが発生した際、一時的なパッチを注入し、指定ターン経過後に自動的に解除されます。",
-    "allActiveOverlays": "適用中のオーバーレイ一覧（全 {count} 件）"
+    "howItWorks": "仕組み",
+    "howItWorksDesc": "オーバーレイはゼロリセットの障害回復を提供し、指定されたターン予算内で自動的に有効になり、期限切れ後はスムーズに終了します。",
+    "allActiveOverlays": "すべてのアクティブオーバーレイ ({count})"
+  },
+  "executionPhaseStepper": {
+    "badge": "完了",
+    "waitingApproval": "承認待ち",
+    "collapseTelemetry": "テレメトリを折りたたむ",
+    "expandTelemetry": "テレメトリを展開",
+    "currentNode": "ノード #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "計画"
+      },
+      "executing": {
+        "title": "実行"
+      },
+      "verifying": {
+        "title": "検証"
+      }
+    },
+    "lanes": {
+      "agent": "エージェントコア",
+      "user": "ユーザー",
+      "llm": "LLM",
+      "mcp": "MCP",
+      "skills": "スキル",
+      "sandbox": "サンドボックス"
+    }
   }
 }
