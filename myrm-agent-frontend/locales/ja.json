@@ -4412,6 +4412,7 @@
         "noTurns": "前後の対話が見つかりません",
         "correctPrompt": "事実認知をその場で修正",
         "correctPlaceholder": "修正後の事実またはルールを入力...",
+        "cancel": "キャンセル",
         "saveAndLock": "保存してロック",
         "markFalsePositive": "誤認として破棄",
         "correctAndLock": "事実を修正"

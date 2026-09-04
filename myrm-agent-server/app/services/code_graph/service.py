@@ -1,8 +1,18 @@
+"""Code graph service orchestration facade for AST indexing and graph queries.
+
+[INPUT]
+- ast_extractor.py::(JsTsRegexExtractor, PythonAstExtractor)
+- graph_store.py::CodeGraphStore
+- models.py::IndexStats
+
+[OUTPUT]
+- CodeGraphService: 代码图谱业务管理与确定性图遍历服务门面
+
+[POS]
+Server 业务服务层。集成全量目录扫描与单文件增量更新，提供 8 大确定性图遍历操作。
 """
-@input: 依赖 ast_extractor.py 与 graph_store.py
-@output: 对外提供 8 大确定性图遍历操作及单文件增量 reingest
-@pos: 代码图谱业务管理与工具服务门面
-"""
+
+from __future__ import annotations
 
 import time
 from pathlib import Path
