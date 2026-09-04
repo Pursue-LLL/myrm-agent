@@ -7,7 +7,7 @@
 - MemoryToWikiArchiver: wiki archiving facade for API / background consumers
 
 [POS]
-Top-level wiki facade. Domain subpackages (vault / maintain / obsidian /
+Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian /
 source_sync / clip / knowledge_pack) live under this package and expose their own facades.
 """
 

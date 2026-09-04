@@ -38,7 +38,7 @@ interface BehavioralMetricsPanelProps {
 export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
   className,
 }: BehavioralMetricsPanelProps) {
-  const t = useTranslations('settings.memory.commandCenter.behavioral');
+  const t = useTranslations('memory.commandCenter.behavioral');
   const [data, setData] = useState<MemoryBehavioralInsights | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [syncing, setSyncing] = useState<boolean>(false);

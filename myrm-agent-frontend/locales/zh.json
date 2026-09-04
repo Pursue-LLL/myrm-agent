@@ -8328,6 +8328,12 @@
   },
   "toolApproval": {
     "title": "工具执行审批",
+    "spendProtection": {
+      "title": "财务支出保护",
+      "description": "检测到涉及真实资金扣款的操作。请仔细核对金额与操作目标。",
+      "amount": "支出金额",
+      "tamperProtected": "密码学防篡改已激活"
+    },
     "batchTitle": "批量审批 ({count} 个工具)",
     "batchHighRisk": {
       "dialogTitle": "高风险操作二次确认",
