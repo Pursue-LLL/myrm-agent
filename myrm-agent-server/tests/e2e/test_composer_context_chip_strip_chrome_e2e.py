@@ -273,7 +273,9 @@ def test_composer_inline_context_chip_strip_lifecycle_and_removal() -> None:
                 _SKILL_PALETTE_ITEM_READY_JS,
                 timeout_sec=_warm_ui_parallel_wait_sec(60.0),
             )
-            clicked = client.evaluate(page, _CLICK_SKILL_PALETTE_ITEM_JS, timeout_sec=15.0)
+            clicked = client.evaluate(
+                page, _CLICK_SKILL_PALETTE_ITEM_JS, timeout_sec=15.0
+            )
             assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
 
         # Phase 1: Pick skill -> ComposerContextChipStrip mounts with SingleChip
@@ -288,15 +290,25 @@ def test_composer_inline_context_chip_strip_lifecycle_and_removal() -> None:
         assert mounted.get("hasChip") is True, mounted
 
         # Phase 2: Edge Case Guard - Non-empty input Backspace must NEVER delete chip
-        client.evaluate(page, f"({_SET_INPUT_TEXT_JS})('safety test')", timeout_sec=10.0)
-        bs_guarded = client.evaluate(page, _TRIGGER_BACKSPACE_ON_INPUT_JS, timeout_sec=10.0)
+        client.evaluate(
+            page, f"({_SET_INPUT_TEXT_JS})('safety test')", timeout_sec=10.0
+        )
+        bs_guarded = client.evaluate(
+            page, _TRIGGER_BACKSPACE_ON_INPUT_JS, timeout_sec=10.0
+        )
         assert isinstance(bs_guarded, dict) and bs_guarded.get("ok") is True, bs_guarded
 
         # Verify chip strip is still mounted and intact
-        guarded_check = client.evaluate(page, _CHECK_CHIP_STRIP_MOUNTED_JS, timeout_sec=10.0)
+        guarded_check = client.evaluate(
+            page, _CHECK_CHIP_STRIP_MOUNTED_JS, timeout_sec=10.0
+        )
         assert isinstance(guarded_check, dict)
-        assert guarded_check.get("hasStrip") is True, "Chip strip must NOT be removed when input has text"
-        assert guarded_check.get("hasChip") is True, "Chip must NOT be removed when input has text"
+        assert (
+            guarded_check.get("hasStrip") is True
+        ), "Chip strip must NOT be removed when input has text"
+        assert (
+            guarded_check.get("hasChip") is True
+        ), "Chip must NOT be removed when input has text"
 
         # Clear text so input becomes empty
         client.evaluate(page, f"({_SET_INPUT_TEXT_JS})('')", timeout_sec=10.0)
@@ -360,7 +372,9 @@ def test_composer_context_chip_strip_overflow_popover_and_overload_nudge() -> No
         )
 
         # 1. Inject high-density multi-capability payload (1 workflow + 6 skills = 7 chips)
-        injected = client.evaluate(page, _SET_MULTI_CAPABILITY_STATE_JS, timeout_sec=10.0)
+        injected = client.evaluate(
+            page, _SET_MULTI_CAPABILITY_STATE_JS, timeout_sec=10.0
+        )
         assert isinstance(injected, dict) and injected.get("ok") is True, injected
 
         # 2. Wait for strip to render with 4 visible chips, "+3" overflow button, and amber overload nudge
@@ -377,15 +391,23 @@ def test_composer_context_chip_strip_overflow_popover_and_overload_nudge() -> No
 
         # 3. Click "+3" overflow button to open Radix Popover
         click_popover = client.evaluate(page, _CLICK_OVERFLOW_BTN_JS, timeout_sec=10.0)
-        assert isinstance(click_popover, dict) and click_popover.get("ok") is True, click_popover
+        assert (
+            isinstance(click_popover, dict) and click_popover.get("ok") is True
+        ), click_popover
 
         # 4. Remove one chip inside the Popover
-        removed_inside = client.evaluate(page, _CHECK_POPOVER_OPEN_AND_REMOVE_ONE_JS, timeout_sec=10.0)
-        assert isinstance(removed_inside, dict) and removed_inside.get("ok") is True, removed_inside
+        removed_inside = client.evaluate(
+            page, _CHECK_POPOVER_OPEN_AND_REMOVE_ONE_JS, timeout_sec=10.0
+        )
+        assert (
+            isinstance(removed_inside, dict) and removed_inside.get("ok") is True
+        ), removed_inside
         assert removed_inside.get("removedCountBefore") == 3, removed_inside
 
         # 5. Clean up multi-capability state
-        cleaned = client.evaluate(page, _CLEAR_MULTI_CAPABILITY_STATE_JS, timeout_sec=10.0)
+        cleaned = client.evaluate(
+            page, _CLEAR_MULTI_CAPABILITY_STATE_JS, timeout_sec=10.0
+        )
         assert isinstance(cleaned, dict) and cleaned.get("ok") is True, cleaned
 
         state_after_clean = wait_for_state(
@@ -485,7 +507,9 @@ def test_composer_context_chip_send_turn_e2e_flow() -> None:
 
         # 2. Type real task prompt into input
         task_prompt = "请用中文只回复四个字：测试通过"
-        client.evaluate(page, f"({_SET_INPUT_TEXT_JS})({json.dumps(task_prompt)})", timeout_sec=10.0)
+        client.evaluate(
+            page, f"({_SET_INPUT_TEXT_JS})({json.dumps(task_prompt)})", timeout_sec=10.0
+        )
 
         # 3. Assert wire message protocol carries [use systematic-debugging] prefix while input text is clean
         wire = client.evaluate(
@@ -564,7 +588,9 @@ def test_composer_context_chip_send_turn_e2e_flow() -> None:
             })()""",
             timeout_sec=180.0,
         )
-        assert assistant_reply.get("ready") is True, f"Assistant reply failed or timed out: {assistant_reply}"
+        assert (
+            assistant_reply.get("ready") is True
+        ), f"Assistant reply failed or timed out: {assistant_reply}"
         response_text = str(assistant_reply.get("fullContent") or "")
         print(f"\nREAL_LLM_ASSISTANT_RESPONSE: {response_text}")
         assert len(response_text) > 0, "Model returned empty response"
