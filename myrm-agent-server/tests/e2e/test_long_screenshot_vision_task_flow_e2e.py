@@ -132,8 +132,9 @@ async def test_real_live_model_long_screenshot_e2e() -> None:
             mime_type="image/png",
             prompt="Summarize this financial app screenshot concisely.",
         )
-        print(f"\n[LIVE VLM RESULT]:\n{result}")
+        print(f"\n[LIVE VLM RESULT ({model})]:\n{result}")
         assert len(result) > 0, "Live VLM must return non-empty description"
     except Exception as exc:
         print(f"\n[LIVE VLM SKIPPED DUE TO PROVIDER VISION CAPABILITY]: {exc}")
+
 

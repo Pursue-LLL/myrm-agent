@@ -60,6 +60,28 @@ def test_settings_security_shows_pattern_allowlist_entry() -> None:
         visible = wait_for_state(client, page, allowlist_pattern_visible_js(), timeout_sec=60.0)
         assert visible.get("ready") is True, visible
 
+        # Also verify time-bound seed entry displays time-bound badge
+        client.evaluate(
+            page,
+            """(() => fetch('/api/v1/security/allowlist/test/seed-pattern-fixture?ttl_seconds=3600', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+}).then(r => r.json()).catch(() => ({})))()""",
+            timeout_sec=15.0,
+        )
+        client.evaluate(page, REFRESH_ALLOWLIST_JS, timeout_sec=15.0)
+        time_bound_check = wait_for_state(
+            client,
+            page,
+            """(() => {
+  const text = document.body?.innerText || '';
+  const hasTimeBound = /Time-bound|限时|1h|15m/i.test(text);
+  return { ready: hasTimeBound, sample: text.slice(0, 500) };
+})()""",
+            timeout_sec=30.0,
+        )
+        assert time_bound_check.get("ready") is True, time_bound_check
+
     http_json(
         "DELETE",
         f"{api_base}/api/v1/security/allowlist/test/clear-pattern-fixture",

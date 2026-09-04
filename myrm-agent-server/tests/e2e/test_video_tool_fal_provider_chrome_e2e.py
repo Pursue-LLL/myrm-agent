@@ -8,18 +8,16 @@ from tests.support.chrome_mcp_e2e import (
     _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
-    wait_for_react_e2e_bridge,
+    wait_for_settings_layout,
     warm_ui_route,
 )
 
 _VERIFY_MEDIA_SECTION_JS = """(() => {
-  // Check if media section or settings container exists
   const textContent = document.body.innerText || '';
-  const hasFalLabel = textContent.includes('FAL.ai') || textContent.includes('flux-3') || textContent.includes('Media');
+  const hasFalLabel = textContent.includes('FAL.ai') || textContent.includes('fal-ai') || textContent.includes('flux-3') || textContent.includes('Media');
   return {
     ok: true,
     hasFalLabel,
@@ -29,17 +27,16 @@ _VERIFY_MEDIA_SECTION_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="READ",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_fal_media_provider_settings_and_doctor_lifecycle() -> None:
     """Validate backend FAL media provider status, test-media-config, and frontend media settings interaction."""
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
 
     # 1. Verify backend media-provider-status returns fal provider with models
@@ -61,17 +58,13 @@ def test_fal_media_provider_settings_and_doctor_lifecycle() -> None:
     assert isinstance(test_res, dict)
     assert "success" in test_res
 
-    # 3. Warm up UI route and inspect page state
-    warm_ui_route("/")
-    with open_mcp_page(f"{ui_url}/", timeout_ms=90_000) as (client, page):
+    # 3. Warm up Settings UI route and verify frontend rendering in real Chrome
+    warm_ui_route("/settings")
+    with open_settings_subroute("/settings", timeout_ms=90_000) as (client, page):
         dismiss_blocking_modals(client, page)
-        wait_for_react_e2e_bridge(
-            client,
-            page,
-            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
-            page_url=f"{ui_url}/",
-        )
+        wait_for_settings_layout(client, page)
 
         res = client.evaluate(page, _VERIFY_MEDIA_SECTION_JS, timeout_sec=10.0)
         assert isinstance(res, dict)
         assert res.get("ok") is True
+

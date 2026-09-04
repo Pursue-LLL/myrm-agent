@@ -304,14 +304,13 @@ async def test_anti_drift_distillation_full_business_task_flow(
     # -------------------------------------------------------------------------
     # Test adversarial ungrounded memory (simulated hallucination)
     hallucinated_mem = SemanticMemory(
-        name="user_unverified_habit",
         content="User secretly prefers Docker Desktop and Vim",
         metadata={},  # Lacks evidence
     )
     grounded, ungrounded = filter_memories_with_evidence([*concrete_memories, hallucinated_mem])
     assert len(grounded) == len(concrete_memories)
     assert len(ungrounded) == 1
-    assert ungrounded[0].name == "user_unverified_habit"
+    assert ungrounded[0].content == "User secretly prefers Docker Desktop and Vim"
 
     # Persist grounded memories into MemoryManager
     from unittest.mock import AsyncMock
@@ -339,7 +338,7 @@ async def test_anti_drift_distillation_full_business_task_flow(
     mock_emb.dimension = 768
 
     memory_manager = MemoryManager(
-        MemoryConfig(),
+        MemoryConfig("text-embedding-3-small"),
         user_id="user_owner_01",
         vector=mock_vec,
         embedding=mock_emb,

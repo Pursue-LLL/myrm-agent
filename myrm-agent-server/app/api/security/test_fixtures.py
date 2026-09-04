@@ -41,7 +41,9 @@ async def _clear_allowlist_rows() -> None:
 
 
 @router.post("/test/seed-pattern-fixture", include_in_schema=False)
-async def seed_pattern_allowlist_fixture() -> dict[str, str]:
+async def seed_pattern_allowlist_fixture(
+    ttl_seconds: int | None = None,
+) -> dict[str, str | None]:
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
 
@@ -49,11 +51,15 @@ async def seed_pattern_allowlist_fixture() -> dict[str, str]:
     allowlist = get_allowlist()
     await allowlist.clear_user(DEFAULT_USER_ID)
 
+    import time
+    expires_at = time.time() + ttl_seconds if (ttl_seconds is not None and ttl_seconds > 0) else None
+
     entry = AllowlistEntry(
         permission=_PATTERN_PERMISSION,
         tool_name=_PATTERN_TOOL,
         tool_args_hash=None,
         command_pattern=_PATTERN_COMMAND,
+        expires_at=expires_at,
     )
     await allowlist.add(DEFAULT_USER_ID, entry)
 
@@ -72,6 +78,7 @@ async def seed_pattern_allowlist_fixture() -> dict[str, str]:
         "entry_id": row.id,
         "command_pattern": _PATTERN_COMMAND,
         "tool_name": _PATTERN_TOOL,
+        "expires_at": row.expires_at.isoformat() if row.expires_at else None,
     }
 
 

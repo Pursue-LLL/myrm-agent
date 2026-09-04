@@ -12,7 +12,10 @@ from fastapi.testclient import TestClient
 from app.api.dependencies import get_db_session
 from app.api.memory.operations import command_center as command_center_operation
 from app.api.memory.utils import get_crud_memory_manager
-from app.schemas.memory.command_center import MemoryCommandCenterResponse
+from app.schemas.memory.command_center import (
+    MemoryCommandCenterResponse,
+    MemoryCommandGovernanceItem,
+)
 
 
 def _build_empty_snapshot() -> MemoryCommandCenterResponse:
@@ -87,6 +90,30 @@ def client() -> TestClient:
         with TestClient(app) as test_client:
             yield test_client
     app.dependency_overrides.clear()
+
+
+def test_command_center_governance_item_schema_supports_conflict_pair() -> None:
+    """Ensure governance schema natively supports conflict_pair and detailed diff fields."""
+    item = MemoryCommandGovernanceItem(
+        id="gov_1",
+        kind="conflict_pair",
+        target_kind="conflict_pair",
+        title="Conflict: procedural",
+        description="Diff between formatting rules",
+        severity="warning",
+        status="pending",
+        created_at=datetime.now(UTC),
+        available_actions=["approve", "reject", "merge", "edit"],
+        existing_value="prettier",
+        candidate_value="biome",
+        confidence=0.30,
+        conflict_reason="Mutually exclusive tool choices",
+    )
+    assert item.target_kind == "conflict_pair"
+    assert item.existing_value == "prettier"
+    assert item.candidate_value == "biome"
+    assert item.confidence == 0.30
+    assert "merge" in item.available_actions
 
 
 def test_command_center_without_project_id(client: TestClient) -> None:

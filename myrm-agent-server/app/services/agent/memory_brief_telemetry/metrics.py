@@ -38,6 +38,24 @@ else:  # pragma: no cover - optional dependency in some runtimes
     MEMORY_STATUS_FLUSH_HTTP_ERRORS = None
     MEMORY_STATUS_FLUSH_ATTEMPTS = None
 
+if Counter is not None:
+    MEMORY_DISTILLATION_REJECTIONS_TOTAL = Counter(
+        "myrm_memory_distillation_rejections_total",
+        "Total number of memory distillation candidates rejected by admission guards.",
+        labelnames=("rejection_code",),
+    )
+else:  # pragma: no cover - optional dependency in some runtimes
+    MEMORY_DISTILLATION_REJECTIONS_TOTAL = None
+
+
+def record_distillation_rejection(rejection_code: str) -> None:
+    """Record a memory distillation guard rejection event. Graceful no-op when client absent."""
+    if MEMORY_DISTILLATION_REJECTIONS_TOTAL is not None:
+        try:
+            MEMORY_DISTILLATION_REJECTIONS_TOTAL.labels(rejection_code=rejection_code).inc()
+        except Exception:  # pragma: no cover
+            pass
+
 if Gauge is not None:
     MEMORY_STATUS_QUEUE_DEPTH = Gauge(
         "myrm_memory_brief_status_telemetry_queue_depth",
