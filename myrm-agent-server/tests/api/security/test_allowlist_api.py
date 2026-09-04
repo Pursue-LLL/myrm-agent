@@ -32,7 +32,7 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=False)
 def _clean_allowlist_table() -> None:
     from app.database.connection import init_database
 
@@ -44,6 +44,7 @@ def _clean_allowlist_table() -> None:
 
 class TestAllowlistAPI:
     def test_list_empty(self, client: TestClient):
+        asyncio.run(clear_allowlist_entries())
         response = client.get("/api/v1/security/allowlist")
         assert response.status_code == 200
         body = response.json()
@@ -88,6 +89,7 @@ class TestAllowlistProtocolAlignment:
 
 class TestAllowlistPatternIntegration:
     def test_list_returns_pattern_granularity(self, client: TestClient) -> None:
+        asyncio.run(clear_allowlist_entries())
         entry_id = asyncio.run(seed_pattern_allowlist_entry())
 
         response = client.get("/api/v1/security/allowlist")
@@ -101,8 +103,10 @@ class TestAllowlistPatternIntegration:
         assert row["tool_args_hash"] is None
         assert row["command_pattern"] == PATTERN_ENTRY_COMMAND_PATTERN
         assert row["granularity"] == "pattern"
+        asyncio.run(clear_allowlist_entries())
 
     def test_delete_pattern_entry_removes_from_list(self, client: TestClient) -> None:
+        asyncio.run(clear_allowlist_entries())
         entry_id = asyncio.run(seed_pattern_allowlist_entry())
 
         delete_response = client.delete(f"/api/v1/security/allowlist/{entry_id}")
@@ -112,8 +116,10 @@ class TestAllowlistPatternIntegration:
         list_response = client.get("/api/v1/security/allowlist")
         assert list_response.status_code == 200
         assert list_response.json()["data"] == []
+        asyncio.run(clear_allowlist_entries())
 
     def test_list_and_delete_agent_scoped_entry(self, client: TestClient) -> None:
+        asyncio.run(clear_allowlist_entries())
         import uuid
 
         from app.database.models import UserToolAllowlist
@@ -147,8 +153,10 @@ class TestAllowlistPatternIntegration:
 
         del_resp = client.delete(f"/api/v1/security/allowlist/{entry_id}")
         assert del_resp.status_code == 200
+        asyncio.run(clear_allowlist_entries())
 
     def test_list_and_manage_time_bound_allowlist_entry(self, client: TestClient) -> None:
+        asyncio.run(clear_allowlist_entries())
         import uuid
         from datetime import datetime, timedelta, timezone
 
@@ -187,3 +195,4 @@ class TestAllowlistPatternIntegration:
         del_resp2 = client.delete(f"/api/v1/security/allowlist/{entry_id}")
         assert del_resp2.status_code == 200
         assert del_resp2.json()["data"]["deleted"] is True
+        asyncio.run(clear_allowlist_entries())

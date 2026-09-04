@@ -106,6 +106,7 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "compliance",
         "continual",
         "copilot",
+        "device",
         "event",
         "hosting",
         "infra",
