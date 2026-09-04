@@ -589,8 +589,7 @@ async def test_export_chat_redacts_messages_and_reasoning_and_title(
     asst_msg = next(m for m in data["messages"] if m["role"] == "assistant")
     reasoning = asst_msg["metadata"]["reasoning_content"]
     assert "ghp_abcdefghijklmnopqrstuvwxyz0123456789" not in reasoning
-    assert "ghp_" in reasoning
-    assert "..." in reasoning
+    assert "Authorization: Bearer ***" in reasoning
 
 
 @pytest.mark.asyncio
@@ -678,3 +677,73 @@ async def test_export_tool_call_nested_command_redaction(
     assert len(details) == 1
     assert "sk-ant-secret123456" not in details[0]["argsSummary"]
     assert details[0]["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_export_chat_deep_redacts_nested_metadata_structures(
+    async_client: httpx.AsyncClient,
+) -> None:
+    """Deep recursive redaction sanitizes arbitrary nested dicts and lists inside metadata."""
+    from datetime import datetime, timezone
+
+    from app.database.models.chat import Chat, Message
+    from app.platform_utils import get_session_factory
+
+    chat_id = f"test-export-deep-meta-{uuid.uuid4().hex[:8]}"
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        chat = Chat(
+            id=chat_id,
+            title="Deep metadata audit session",
+            action_mode="fast",
+            source="web",
+            total_calls=1,
+            total_tokens=50,
+            total_usd=0.005,
+        )
+        db.add(chat)
+
+        now = datetime.now(tz=timezone.utc)
+        nested_extra = {
+            "debug_trace": {
+                "auth_headers": {
+                    "X-Api-Key": "sk-proj-nestedsecret1234567890123456789012345",
+                },
+                "log_lines": [
+                    "Connected to redis://default:redis_super_pass@redis.corp:6379",
+                    "Status: OK",
+                ],
+            },
+            "custom_tokens": ["ghp_nestedgithubtoken0123456789012345678"],
+        }
+        db.add(
+            Message(
+                id=f"msg-deep-{uuid.uuid4().hex[:8]}",
+                chat_id=chat_id,
+                role="assistant",
+                content="Task finished successfully.",
+                sent_at=now,
+                sent_timezone="UTC",
+                extra_data=nested_extra,
+            )
+        )
+        await db.commit()
+
+    res = await async_client.get(f"/api/v1/chats/{chat_id}/export")
+    assert res.status_code == 200, res.text
+    data = res.json()["data"]
+
+    asst_msg = next(m for m in data["messages"] if m["role"] == "assistant")
+    meta = asst_msg["metadata"]
+
+    # Verify nested dict redaction
+    assert "sk-proj-nestedsecret1234567890123456789012345" not in str(meta)
+    assert meta["debug_trace"]["auth_headers"]["X-Api-Key"] != "sk-proj-nestedsecret1234567890123456789012345"
+
+    # Verify nested list of strings (URI password redaction)
+    assert "redis_super_pass" not in str(meta)
+
+    # Verify nested list of tokens
+    assert "ghp_nestedgithubtoken0123456789012345678" not in str(meta)
+    assert meta["custom_tokens"][0] != "ghp_nestedgithubtoken0123456789012345678"
+

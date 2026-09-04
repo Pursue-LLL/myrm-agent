@@ -8566,6 +8566,15 @@
       "title": "安全审查建议拒绝此操作",
       "overrideOnce": "覆写一次"
     },
+    "autoModeSuspended": {
+      "title": "自动模式已自动挂起",
+      "consecutiveReason": "因连续触发 3 次安全阻断，自动模式已挂起并切回人工显式审批。",
+      "totalReason": "因累计触发 20 次安全阻断，自动模式已挂起并切回人工显式审批。"
+    },
+    "sociallyIrreversible": {
+      "title": "社会性不可逆操作",
+      "description": "此操作涉及外部系统（远程主干推送、外部通知广播或版本发布），无法在本地撤回，必须由您显式批准。"
+    },
     "batchCostTitle": "批量任务费用确认",
     "batchCostDescription": "智能体即将派发多个子任务。请确认预估费用后再继续。",
     "batchCostEstimated": "预估费用",

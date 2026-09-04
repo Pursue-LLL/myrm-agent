@@ -64,6 +64,7 @@ export interface ExportData {
   usageSummary?: UsageSummary | null;
   agentInfo?: AgentInfo | null;
   toolCallDetails?: ToolCallDetail[] | null;
+  redacted?: boolean;
 }
 
 const VISIBLE_ROLES = new Set(['user', 'assistant']);
@@ -146,6 +147,10 @@ function buildSummarySection(data: ExportData): string[] {
 export function formatChatAsMarkdown(data: ExportData): string {
   const title = data.chat.title || 'Untitled';
   const lines: string[] = [`# ${title}`, '', `> Exported from Myrm · ${new Date().toLocaleString()}`, ''];
+
+  if (data.redacted) {
+    lines.push('> 🔒 Sensitive secrets and credentials have been automatically redacted.', '');
+  }
 
   if (data.agentInfo) {
     const a = data.agentInfo;

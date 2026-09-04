@@ -8566,6 +8566,15 @@
       "title": "Security reviewer recommends denial",
       "overrideOnce": "Override Once"
     },
+    "autoModeSuspended": {
+      "title": "Auto Mode Suspended",
+      "consecutiveReason": "Suspended after 3 consecutive safety denials. Falling back to explicit human review.",
+      "totalReason": "Suspended after reaching 20 total security denials. Falling back to explicit human review."
+    },
+    "sociallyIrreversible": {
+      "title": "Socially Irreversible Action",
+      "description": "This operation affects external systems (remote push, notification, or package publishing) and cannot be undone locally. Explicit approval is required."
+    },
     "batchCostTitle": "Batch Task Cost Approval",
     "batchCostDescription": "The agent wants to spawn multiple subagents. Review the estimated cost before proceeding.",
     "batchCostEstimated": "Estimated Cost",

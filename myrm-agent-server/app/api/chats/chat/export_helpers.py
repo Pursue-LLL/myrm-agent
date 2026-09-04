@@ -4,7 +4,7 @@
 app.database.models.agent::Agent
 myrm_agent_harness.agent.event_log.backends.file_backend::FileEventLogBackend
 myrm_agent_harness.agent.event_log.trace_builder::build_trace
-myrm_agent_harness.core.security.redact.engine::redact_sensitive_text
+myrm_agent_harness.api::redact_sensitive_text
 sqlalchemy.ext.asyncio::AsyncSession
 
 [OUTPUT]
@@ -42,28 +42,34 @@ _SENSITIVE_KEY_PATTERN_PARTS: Final[tuple[str, ...]] = (
 _ARG_SUMMARY_MAX_LEN: Final[int] = 200
 
 
+def _deep_redact_sensitive(data: object, max_depth: int = 15) -> object:
+    """Recursively sanitize secrets across any nested dict, list, or string structure."""
+    if max_depth <= 0:
+        return data
+
+    if isinstance(data, str):
+        return redact_sensitive_text(data)
+
+    if isinstance(data, dict):
+        return {
+            (redact_sensitive_text(k) if isinstance(k, str) else k): _deep_redact_sensitive(v, max_depth - 1)
+            for k, v in data.items()
+        }
+
+    if isinstance(data, list):
+        return [_deep_redact_sensitive(item, max_depth - 1) for item in data]
+
+    if isinstance(data, tuple):
+        return tuple(_deep_redact_sensitive(item, max_depth - 1) for item in data)
+
+    return data
+
+
 def redact_export_payload(payload: dict[str, object]) -> dict[str, object]:
-    """Sanitize secrets across all exported chat structures."""
-    chat_meta = payload.get("chat")
-    if isinstance(chat_meta, dict) and isinstance(chat_meta.get("title"), str):
-        chat_meta["title"] = redact_sensitive_text(chat_meta["title"])
-
-    for msg in payload.get("messages") or []:
-        if isinstance(msg, dict):
-            if isinstance(msg.get("content"), str):
-                msg["content"] = redact_sensitive_text(msg["content"])
-            meta = msg.get("metadata")
-            if isinstance(meta, dict) and isinstance(meta.get("reasoning_content"), str):
-                meta["reasoning_content"] = redact_sensitive_text(meta["reasoning_content"])
-
-    for tool_call in payload.get("toolCallDetails") or []:
-        if isinstance(tool_call, dict) and isinstance(tool_call.get("argsSummary"), str):
-            tool_call["argsSummary"] = redact_sensitive_text(tool_call["argsSummary"])
-
-    agent_info = payload.get("agentInfo")
-    if isinstance(agent_info, dict) and isinstance(agent_info.get("description"), str):
-        agent_info["description"] = redact_sensitive_text(agent_info["description"])
-
+    """Sanitize secrets across all exported chat structures recursively."""
+    sanitized = _deep_redact_sensitive(payload)
+    if isinstance(sanitized, dict):
+        return sanitized
     return payload
 
 

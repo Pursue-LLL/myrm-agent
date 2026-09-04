@@ -272,6 +272,23 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     }
     return configs.some((c) => c?.smartDenied === true);
   }, [approval.payload?.reviewConfigs]);
+
+  const autoModeSuspendedBreach = useMemo(() => {
+    const configs = approval.payload?.reviewConfigs;
+    if (!configs || !Array.isArray(configs)) {
+      return undefined;
+    }
+    const found = configs.find((c) => typeof c?.autoModeSuspended === 'string' && c.autoModeSuspended.length > 0);
+    return found?.autoModeSuspended;
+  }, [approval.payload?.reviewConfigs]);
+
+  const isSociallyIrreversible = useMemo(() => {
+    const configs = approval.payload?.reviewConfigs;
+    if (!configs || !Array.isArray(configs)) {
+      return false;
+    }
+    return configs.some((c) => c?.sociallyIrreversible === true);
+  }, [approval.payload?.reviewConfigs]);
   const hasAnyHideAllowAlways = useMemo(() => {
     const configs = approval.payload?.reviewConfigs;
     if (!configs || !Array.isArray(configs)) {
@@ -1091,6 +1108,36 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
               </span>
             </div>
           )}
+        </div>
+      )}
+
+      {autoModeSuspendedBreach && (
+        <div className="flex items-center gap-2 rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3">
+          <AlertTriangle className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
+          <div>
+            <h4 className="font-semibold text-sm text-red-700 dark:text-red-300">
+              {t('autoModeSuspended.title')}
+            </h4>
+            <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-0.5">
+              {autoModeSuspendedBreach === 'consecutive'
+                ? t('autoModeSuspended.consecutiveReason')
+                : t('autoModeSuspended.totalReason')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isSociallyIrreversible && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3">
+          <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+          <div>
+            <h4 className="font-semibold text-sm text-amber-700 dark:text-amber-300">
+              {t('sociallyIrreversible.title')}
+            </h4>
+            <p className="text-xs text-amber-600/80 dark:text-amber-400/80 mt-0.5">
+              {t('sociallyIrreversible.description')}
+            </p>
+          </div>
         </div>
       )}
 
