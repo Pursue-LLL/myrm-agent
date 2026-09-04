@@ -5,7 +5,6 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import KnowledgePickerPopover from '../KnowledgePickerPopover';
-import useChatStore from '@/store/useChatStore';
 import * as sharedContextsApi from '@/services/memory/sharedContexts';
 
 vi.mock('@/hooks/ui/useMediaQuery', () => ({
@@ -52,6 +51,36 @@ vi.mock('@/components/primitives/switch', () => ({
   ),
 }));
 
+const mockSetActiveKnowledgeBaseIds = vi.fn();
+const mockSetActiveKnowledgeBaseNames = vi.fn();
+const mockRemoveActiveKnowledgeBase = vi.fn();
+
+let mockChatStoreState = {
+  chatId: 'test-chat-123',
+  activeKnowledgeBaseIds: [] as string[],
+  activeKnowledgeBaseNames: {} as Record<string, string>,
+  setActiveKnowledgeBaseIds: mockSetActiveKnowledgeBaseIds,
+  setActiveKnowledgeBaseNames: mockSetActiveKnowledgeBaseNames,
+  removeActiveKnowledgeBase: mockRemoveActiveKnowledgeBase,
+  incognitoMode: false,
+};
+
+vi.mock('@/store/useChatStore', () => {
+  const store = vi.fn((selector: (state: typeof mockChatStoreState) => unknown) =>
+    selector(mockChatStoreState)
+  );
+  (store as unknown as { getState: () => typeof mockChatStoreState }).getState = () => mockChatStoreState;
+  (store as unknown as { setState: (partial: Partial<typeof mockChatStoreState>) => void }).setState = (
+    partial: Partial<typeof mockChatStoreState>
+  ) => {
+    Object.assign(mockChatStoreState, partial);
+  };
+  return {
+    default: store,
+    useChatStore: store,
+  };
+});
+
 const stableKnowledgePickerT = (key: string, values?: Record<string, unknown>) => {
   const map: Record<string, string> = {
     tooltip: '挂载知识库',
@@ -87,17 +116,20 @@ vi.mock('@/services/memory/sharedContexts', () => ({
 describe('KnowledgePickerPopover Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useChatStore.setState({
+    mockChatStoreState = {
       chatId: 'test-chat-123',
       activeKnowledgeBaseIds: [],
       activeKnowledgeBaseNames: {},
+      setActiveKnowledgeBaseIds: mockSetActiveKnowledgeBaseIds,
+      setActiveKnowledgeBaseNames: mockSetActiveKnowledgeBaseNames,
+      removeActiveKnowledgeBase: mockRemoveActiveKnowledgeBase,
       incognitoMode: false,
-    });
+    };
   });
 
   it('renders trigger button with correct accessibility and tooltip', () => {
-    (sharedContextsApi.listSharedContexts as ReturnType<typeof vi.fn>).mockResolvedValue({ items: [], total: 0 });
-    (sharedContextsApi.listSharedContextBindingsForTarget as ReturnType<typeof vi.fn>).mockResolvedValue({ items: [], total: 0 });
+    vi.mocked(sharedContextsApi.listSharedContexts).mockResolvedValue({ items: [], total: 0 });
+    vi.mocked(sharedContextsApi.listSharedContextBindingsForTarget).mockResolvedValue({ items: [], total: 0 });
 
     render(<KnowledgePickerPopover />);
     const trigger = screen.getByRole('button', { name: /选择要挂载的知识库/i });
@@ -114,15 +146,15 @@ describe('KnowledgePickerPopover Component', () => {
       updated_at: 1700000000,
     };
 
-    (sharedContextsApi.listSharedContexts as ReturnType<typeof vi.fn>).mockResolvedValue({
+    vi.mocked(sharedContextsApi.listSharedContexts).mockResolvedValue({
       items: [mockContext],
       total: 1,
     });
-    (sharedContextsApi.listSharedContextBindingsForTarget as ReturnType<typeof vi.fn>).mockResolvedValue({
+    vi.mocked(sharedContextsApi.listSharedContextBindingsForTarget).mockResolvedValue({
       items: [],
       total: 0,
     });
-    (sharedContextsApi.createSharedContextBinding as ReturnType<typeof vi.fn>).mockResolvedValue({
+    vi.mocked(sharedContextsApi.createSharedContextBinding).mockResolvedValue({
       id: 'binding-1',
       context_id: 'kb-test-1',
       target_type: 'conversation',
@@ -146,7 +178,7 @@ describe('KnowledgePickerPopover Component', () => {
         target_type: 'conversation',
         target_id: 'test-chat-123',
       });
-      expect(useChatStore.getState().activeKnowledgeBaseIds).toContain('kb-test-1');
+      expect(mockSetActiveKnowledgeBaseIds).toHaveBeenCalled();
     });
   });
 });

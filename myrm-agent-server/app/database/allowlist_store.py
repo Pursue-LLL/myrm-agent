@@ -124,23 +124,22 @@ class DBAllowlistStore:
                     entry.agent_id,
                 )
                 if expires_dt is not None:
-                    async with self._session_factory() as update_session:
-                        await update_session.execute(
-                            update(UserToolAllowlist)
-                            .where(
-                                UserToolAllowlist.permission == entry.permission,
-                                UserToolAllowlist.tool_name
-                                == _to_db_value(entry.tool_name),
-                                UserToolAllowlist.tool_args_hash
-                                == _to_db_value(entry.tool_args_hash),
-                                UserToolAllowlist.command_pattern
-                                == _to_db_value(entry.command_pattern),
-                                UserToolAllowlist.agent_id
-                                == _to_db_value(entry.agent_id),
-                            )
-                            .values(expires_at=expires_dt)
+                    await session.execute(
+                        update(UserToolAllowlist)
+                        .where(
+                            UserToolAllowlist.permission == entry.permission,
+                            UserToolAllowlist.tool_name
+                            == _to_db_value(entry.tool_name),
+                            UserToolAllowlist.tool_args_hash
+                            == _to_db_value(entry.tool_args_hash),
+                            UserToolAllowlist.command_pattern
+                            == _to_db_value(entry.command_pattern),
+                            UserToolAllowlist.agent_id
+                            == _to_db_value(entry.agent_id),
                         )
-                        await update_session.commit()
+                        .values(expires_at=expires_dt)
+                    )
+                    await session.commit()
                 return
             logger.info(
                 "[DB_ALLOWLIST] Saved (%s, tool=%s, args_hash=%s, pattern=%s, agent=%s)",

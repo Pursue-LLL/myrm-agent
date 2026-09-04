@@ -67,7 +67,7 @@ describe('useChatStore - Knowledge Base Mount State & Actions', () => {
     expect(updated.activeKnowledgeBaseNames).toEqual({});
   });
 
-  it('cleans active knowledge base IDs upon switching chatId', () => {
+  it('cleans active knowledge base IDs upon switching from one existing chatId to another', () => {
     useChatStore.setState({
       activeKnowledgeBaseIds: ['kb-1'],
       activeKnowledgeBaseNames: { 'kb-1': 'Knowledge 1' },
@@ -79,6 +79,27 @@ describe('useChatStore - Knowledge Base Mount State & Actions', () => {
     const updated = useChatStore.getState();
     expect(updated.activeKnowledgeBaseIds).toEqual([]);
     expect(updated.chatId).toBe('chat-new');
+  });
+
+  it('preserves pre-selected knowledge base IDs when creating a brand new chat from cold start', () => {
+    useChatStore.setState({
+      activeKnowledgeBaseIds: ['kb-pre-1', 'kb-pre-2'],
+      activeKnowledgeBaseNames: {
+        'kb-pre-1': 'Engineering Docs',
+        'kb-pre-2': 'Security Policy',
+      },
+      chatId: undefined,
+    });
+
+    useChatStore.getState().setChatId('chat-created-new');
+
+    const updated = useChatStore.getState();
+    expect(updated.activeKnowledgeBaseIds).toEqual(['kb-pre-1', 'kb-pre-2']);
+    expect(updated.activeKnowledgeBaseNames).toEqual({
+      'kb-pre-1': 'Engineering Docs',
+      'kb-pre-2': 'Security Policy',
+    });
+    expect(updated.chatId).toBe('chat-created-new');
   });
 
   it('handles empty knowledge base lists gracefully', () => {

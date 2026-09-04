@@ -232,10 +232,16 @@ const useChatStore = create<ChatState>()(
 
       // 设置方法
       setChatId: (id) => {
+        const prevChatId = get().chatId;
+        const isNewChatEntry = !prevChatId && Boolean(id);
+        const pendingKbIds = isNewChatEntry ? get().activeKnowledgeBaseIds : [];
+        const pendingKbNames = isNewChatEntry ? get().activeKnowledgeBaseNames : {};
+        const isIncognito = get().incognitoMode;
+
         set({
           chatId: id,
-          activeKnowledgeBaseIds: [],
-          activeKnowledgeBaseNames: {},
+          activeKnowledgeBaseIds: pendingKbIds,
+          activeKnowledgeBaseNames: pendingKbNames,
           lastCompactionMeta: null,
           compactionRefreshNonce: 0,
           contextBranches: [],
@@ -245,43 +251,59 @@ const useChatStore = create<ChatState>()(
         });
         useQuoteStore.getState().clearQuote();
         if (id) {
-          import('@/services/memory/sharedContexts').then(({ listSharedContexts, listSharedContextBindingsForTarget }) => {
-            Promise.allSettled([
-              listSharedContexts('active'),
-              listSharedContextBindingsForTarget('conversation', id),
-            ])
-              .then(([contextsResult, bindingsResult]) => {
-                const currentChatId = get().chatId;
-                if (currentChatId !== id) return;
+          import('@/services/memory/sharedContexts').then(
+            ({ listSharedContexts, listSharedContextBindingsForTarget, createSharedContextBinding }) => {
+              const syncPending =
+                isNewChatEntry && pendingKbIds.length > 0 && !isIncognito
+                  ? Promise.allSettled(
+                      pendingKbIds.map((cid) =>
+                        createSharedContextBinding(cid, {
+                          target_type: 'conversation',
+                          target_id: id,
+                        }),
+                      ),
+                    )
+                  : Promise.resolve();
 
-                  if (bindingsResult.status === 'fulfilled' && bindingsResult.value.items?.length) {
-                    const boundIds = bindingsResult.value.items.map((b) => b.context_id);
-                    const namesMap: Record<string, string> = {};
+              syncPending.then(() => {
+                Promise.allSettled([
+                  listSharedContexts('active'),
+                  listSharedContextBindingsForTarget('conversation', id),
+                ])
+                  .then(([contextsResult, bindingsResult]) => {
+                    const currentChatId = get().chatId;
+                    if (currentChatId !== id) return;
 
-                    bindingsResult.value.items.forEach((b) => {
-                      if (b.context_name) {
-                        namesMap[b.context_id] = b.context_name;
-                      }
-                    });
+                    if (bindingsResult.status === 'fulfilled' && bindingsResult.value.items?.length) {
+                      const boundIds = bindingsResult.value.items.map((b) => b.context_id);
+                      const namesMap: Record<string, string> = {};
 
-                    if (contextsResult.status === 'fulfilled' && contextsResult.value.items?.length) {
-                      contextsResult.value.items.forEach((c) => {
-                        if (boundIds.includes(c.id) && !namesMap[c.id]) {
-                          namesMap[c.id] = c.name;
+                      bindingsResult.value.items.forEach((b) => {
+                        if (b.context_name) {
+                          namesMap[b.context_id] = b.context_name;
                         }
                       });
-                    }
 
-                    set((state) => {
-                      state.activeKnowledgeBaseIds = boundIds;
-                      state.activeKnowledgeBaseNames = namesMap;
-                    });
-                  }
-              })
-              .catch(() => {
-                // Ignore background fetch error
+                      if (contextsResult.status === 'fulfilled' && contextsResult.value.items?.length) {
+                        contextsResult.value.items.forEach((c) => {
+                          if (boundIds.includes(c.id) && !namesMap[c.id]) {
+                            namesMap[c.id] = c.name;
+                          }
+                        });
+                      }
+
+                      set((state) => {
+                        state.activeKnowledgeBaseIds = boundIds;
+                        state.activeKnowledgeBaseNames = namesMap;
+                      });
+                    }
+                  })
+                  .catch(() => {
+                    // Ignore background fetch error
+                  });
               });
-          });
+            },
+          );
         }
       },
       setNewChatCreated: (created) => set({ newChatCreated: created }),

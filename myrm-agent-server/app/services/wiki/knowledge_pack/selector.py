@@ -27,15 +27,35 @@ from app.services.wiki.knowledge_pack.schemas import (
 
 logger = logging.getLogger(__name__)
 
-_WORD_PATTERN = re.compile(r"[\w\u4e00-\u9fa5]+", re.UNICODE)
+_EN_NUM_PATTERN = re.compile(r"[a-z0-9]+", re.ASCII)
+
+
+def tokenize_text(text: str) -> set[str]:
+    """Tokenize text into alphanumeric words and CJK unigrams + bigrams."""
+    if not text:
+        return set()
+    cleaned = text.lower()
+    tokens: set[str] = set()
+
+    # 1. Alphanumeric tokens (words/numbers)
+    for match in _EN_NUM_PATTERN.finditer(cleaned):
+        tokens.add(match.group(0))
+
+    # 2. CJK characters + 2-grams
+    cjk_chars = [c for c in cleaned if "\u4e00" <= c <= "\u9fa5"]
+    tokens.update(cjk_chars)
+    for i in range(len(cjk_chars) - 1):
+        tokens.add(cjk_chars[i] + cjk_chars[i + 1])
+
+    return tokens
 
 
 def calculate_jaccard_similarity(text_a: str, text_b: str) -> float:
     """Calculate token-level Jaccard similarity for content deduplication."""
     if not text_a or not text_b:
         return 0.0
-    words_a = set(_WORD_PATTERN.findall(text_a.lower()))
-    words_b = set(_WORD_PATTERN.findall(text_b.lower()))
+    words_a = tokenize_text(text_a)
+    words_b = tokenize_text(text_b)
     if not words_a or not words_b:
         return 0.0
     intersection = words_a.intersection(words_b)
@@ -159,34 +179,44 @@ async def resolve_proactive_snippets_from_vaults(
             return found
 
         # Quick match on concept markdown files
-        terms = set(_WORD_PATTERN.findall(trimmed_query.lower()))
+        terms = tokenize_text(trimmed_query)
         if not terms:
             return found
+
+        # Prefer multi-char tokens for meaningful matching
+        match_terms = {t for t in terms if len(t) >= 2} or terms
 
         try:
             # Shallow traversal of top markdown files to keep retrieval well under 50ms
             md_files = list(vault_path.glob("*.md"))[:20]
             for md_file in md_files:
-                title = md_file.stem
-                title_matches = sum(1 for t in terms if t in title.lower())
+                title = md_file.stem.lower()
+                title_matches = sum(1 for t in match_terms if t in title)
                 try:
                     content = md_file.read_text(encoding="utf-8", errors="ignore")
                 except Exception:
                     continue
 
-                paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
-                for p in paragraphs:
-                    if p.startswith("#"):
+                raw_paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
+                for p in raw_paragraphs:
+                    # Strip markdown heading lines from the paragraph to avoid discarding text with single newline
+                    content_lines = [
+                        line.strip()
+                        for line in p.split("\n")
+                        if line.strip() and not line.strip().startswith("#")
+                    ]
+                    if not content_lines:
                         continue
-                    p_lower = p.lower()
-                    content_matches = sum(1 for t in terms if t in p_lower)
+                    body_text = " ".join(content_lines)
+                    p_lower = body_text.lower()
+                    content_matches = sum(1 for t in match_terms if t in p_lower)
                     if content_matches > 0 or title_matches > 0:
-                        score = (title_matches * 2.0 + content_matches) / (len(terms) + 1.0)
+                        score = (title_matches * 2.0 + content_matches) / (len(match_terms) + 1.0)
                         found.append(
                             RelevantSnippet(
                                 kb_name=label,
-                                article_title=title,
-                                snippet=p,
+                                article_title=md_file.stem,
+                                snippet=body_text,
                                 confidence=min(1.0, score),
                                 source_path=str(md_file),
                             )

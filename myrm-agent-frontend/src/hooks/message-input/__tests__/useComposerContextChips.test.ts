@@ -1,7 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { JSDOM } from 'jsdom';
 import { useComposerContextChips } from '../useComposerContextChips';
 import useChatStore, { File as FileType } from '@/store/useChatStore';
+
+if (typeof document === 'undefined') {
+  const dom = new JSDOM('<!doctype html><html><body></body></html>');
+  // @ts-expect-error polyfill document/window for non-browser testing runner
+  globalThis.window = dom.window;
+  globalThis.document = dom.window.document;
+  globalThis.navigator = dom.window.navigator;
+}
 
 const stableT = (key: string) => key;
 
