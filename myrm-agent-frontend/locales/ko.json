@@ -13683,12 +13683,7 @@
       "poolReady": "준비 완료",
       "resetCooldowns": "쿨다운 초기화",
       "resetCooldownsSuccess": "{count}개 키의 쿨다운을 초기화했습니다",
-      "noActivePools": "활성 풀 지표가 아직 없습니다",
-      "externalSecretBadge": "외부 시크릿 소스",
-      "externalSecretDesc": "1Password / Bitwarden에서 메모리로 동적 확인되며 디스크 일반 텍스트 저장 없음",
-      "externalSecretValid": "시크릿 확인 완료: {preview}",
-      "externalSecretInvalid": "시크릿 확인 실패: {error}",
-      "validateExternalKey": "외부 시크릿 테스트"
+      "noActivePools": "활성 풀 지표가 아직 없습니다"
     },
     "defaultModel": {
       "localModelWarning": "로컬 경량 모델은 복잡한 에이전트 도구 체인을 처리할 때 환각이나 무한 루프에 빠지기 쉽습니다. 긴 작업에는 30B+ 규모 모델이나 클라우드 고급 모델(예: Claude 3.5 Sonnet)을 권장합니다.",
