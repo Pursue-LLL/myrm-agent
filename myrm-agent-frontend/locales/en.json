@@ -1951,7 +1951,9 @@
       "copyMarkdown": "Copy as Markdown",
       "exporting": "Exporting...",
       "success": "Exported successfully",
+      "successRedacted": "Exported successfully (secrets redacted)",
       "copySuccess": "Copied to clipboard",
+      "copySuccessRedacted": "Copied to clipboard (secrets redacted)",
       "error": "Export failed",
       "noMessages": "No messages to export",
       "print": "Print"

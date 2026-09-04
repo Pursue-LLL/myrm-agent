@@ -1951,7 +1951,9 @@
       "copyMarkdown": "复制为 Markdown",
       "exporting": "导出中...",
       "success": "导出成功",
+      "successRedacted": "导出成功（已自动脱敏敏感凭据）",
       "copySuccess": "已复制到剪贴板",
+      "copySuccessRedacted": "已复制到剪贴板（已自动脱敏敏感凭据）",
       "error": "导出失败",
       "noMessages": "无消息可导出",
       "print": "打印"

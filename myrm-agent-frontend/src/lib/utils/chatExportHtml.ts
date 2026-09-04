@@ -496,6 +496,7 @@ export async function buildHtmlDocument(
 <button class="theme-toggle" id="theme-toggle">${themeToggleText}</button>
 <div class="export-title">${esc(title)}</div>
 <div class="export-meta">${labels.exported} · ${exportDate}</div>
+${data.redacted ? `<div class="redacted-notice">${lang === 'zh' ? '🔒 本会话已启用敏感凭据自动脱敏安全保护' : '🔒 Sensitive secrets and credentials have been automatically redacted.'}</div>` : ''}
 ${agentCardHtml}
 <div class="stats">
 <div class="stat-item"><span class="stat-label">${labels.msgs}:</span><span class="stat-value">${stats.messageCount}</span></div>
