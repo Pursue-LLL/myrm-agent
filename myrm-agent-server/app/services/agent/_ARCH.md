@@ -61,6 +61,7 @@ Design notes:
 | `gateway.py` | ✅ 核心 | Agent 执行网关 — 并发/内存压力熔断/排队与执行超时/优雅排空/活跃会话元数据；**`reserve_session` / `release_session`**（persist 前预占，`reserved_only`→`execute_stream`）；**`release_if_reserved_only`**（turn 在 `execute_stream` 接管前退出时清理残留预占，避免 chat 永久 busy）；互斥 busy 经 SSE **`error_type:AgentBusyError`**（HTTP 200，非 HTTP 409）；`interrupt()` / `interrupt_session`；`ActiveSessionInfo` 弱引用 + `current_message_id` |
 | `confidence_approval_flow.py` | ✅ 核心 | 多信号风控审批流 — 基于置信度 + 2 个客观确定性信号（diff 变化范围、历史成功率）的智能审批。高分且全部风控信号绿灯时静默自动合并，任何红灯或 runtime failure 修复即降级人工 Diff Review。`ApprovalResult.risk_signals` 记录降级原因；risk_signals / runtime evidence 持久化为 `reason_code`、`remediation` 和审核证据供前端展示 |
 | `agent_service.py` | ✅ 核心 | Agent CRUD。WebUI mutable 变更前委托 `ProfileSnapshotService`；`update_agent` 返回 `AgentUpdateOutcome`（含 `snapshot_saved`）。MCP 变更后 POOLED 单元由 `compute_execution_fingerprint` 在下一 turn 重建。创建/更新/删除/回滚后失效 `AgentProfileResolver` 缓存并热重载 CommandRegistry。 |
+| `agent_bundle_service.py` | ✅ 核心 | Agent 文件系统 Bundle 管理服务（Dual-Track SSOT）— 提供 `.myrm/agents/{id}/` 目录双向同步、AGENTS.md / manifest.yaml / mcp.json 序列化与凭据敏感信息脱敏导出 |
 | `mcp_runtime_prepare.py` | ✅ 核心 | MCP 配置 secret/OAuth 注入 SSOT；factory build 共用 | ✅ |
 | `moa_preset_resolver.py` | ✅ 核心 | 会话级 MoA preset 激活：`presets.{default,review,fast}` 独立 ref 池 + 参数模板；profile `moa_overlay.enabled` 为 picker SSOT；请求 `active_moa_preset_id` 决定运行时 overlay `enabled` 与 ref 解析 | ✅ |
 | `mcp_surface_mode.py` | ✅ 辅助 | `engine_params.mcp_surface_mode` 归一化（obsolete `catalog_invoke` → `auto`） | ✅ |

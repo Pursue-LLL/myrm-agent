@@ -44,6 +44,7 @@
   "model_escalated",
   "model_failover",
   "model_recovery",
+  "phase_transition",
   "privacy_level",
   "privacy_route",
   "ptc_notify",

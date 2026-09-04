@@ -89,6 +89,7 @@
 | `MemoryKnowledgeGraph.tsx`        | 组件 | 记忆知识图谱 force-graph 可视化                                                         | ✅    |
 | `RankedHubSidebar.tsx`            | 组件 | 知识图谱核心主张与冲突焦点侧栏（双重视图、连通度度数与焦点筛选）                         | ✅    |
 | `GraphDiagnosticEmptyState.tsx`   | 组件 | 知识图谱三态排障空态组件（存储离线、零主张与孤立散点态）                                 | ✅    |
+| `GraphEmptyState.tsx`             | 组件 | 知识图谱三态精细化诊断引导与恢复空态组件（存储离线、零主张与孤岛散点态）                 | ✅    |
 
 ### pending/
 

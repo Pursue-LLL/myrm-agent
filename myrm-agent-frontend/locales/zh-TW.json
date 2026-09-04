@@ -3855,7 +3855,15 @@
           "CONTRADICTED_BY": "矛盾",
           "SUPERSEDED_BY": "取代",
           "CONSTRAINED_BY": "約束"
-        }
+        },
+        "rankedHubsTitle": "核心節點樞紐",
+        "tabAll": "全部",
+        "tabGrounded": "證據充分",
+        "tabConflicted": "存在衝突",
+        "noRankedHubs": "暫無匹配的樞紐節點",
+        "degreeConnections": "條關聯",
+        "supportedEvidence": "條證據支援",
+        "conflictFlag": "存在衝突"
       },
       "typesTitle": "記憶型別",
       "spacesTitle": "記憶空間",

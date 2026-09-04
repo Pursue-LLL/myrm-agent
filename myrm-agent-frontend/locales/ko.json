@@ -4030,7 +4030,15 @@
           "CONTRADICTED_BY": "모순됨",
           "SUPERSEDED_BY": "대체됨",
           "CONSTRAINED_BY": "제한됨"
-        }
+        },
+        "rankedHubsTitle": "핵심 허브 노드",
+        "tabAll": "전체",
+        "tabGrounded": "근거 충분",
+        "tabConflicted": "충돌 있음",
+        "noRankedHubs": "일치하는 허브 노드가 없습니다",
+        "degreeConnections": "개 연결",
+        "supportedEvidence": "개 근거 지원",
+        "conflictFlag": "충돌 있음"
       },
       "typesTitle": "메모리 유형",
       "spacesTitle": "메모리 공간",
