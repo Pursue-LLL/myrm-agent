@@ -47,9 +47,7 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
       setError(null);
       setTrustedSourceConfirmed(false);
 
-      // If we have an initial URL, automatically trigger analysis
       if (initialUrl && initialUrl.trim() !== '') {
-        // Need to use a timeout to ensure the state is set before analyzing
         setTimeout(() => {
           handleAnalyze(initialUrl);
         }, 100);
@@ -68,6 +66,7 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
       }
       setIsAnalyzing(true);
       setError(null);
+      setTrustedSourceConfirmed(false);
       try {
         const res = await analyzeDiscoveryUrl(targetUrl.trim());
         if (res.urls && res.urls.length > 0) {
@@ -75,12 +74,6 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
           // Default select all NOT installed
           const notInstalled = res.urls.filter((u) => !u.is_installed).map((u) => u.url);
           setSelectedUrls(new Set(notInstalled));
-
-          if (res.urls.length === 1 && !res.urls[0].is_installed) {
-            if (trustedSourceConfirmed) {
-              await handleInstallList([res.urls[0].url]);
-            }
-          }
         } else {
           setError(t('analyzeFailed') || 'No valid skills found at this URL');
         }
@@ -136,11 +129,11 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
 
   const handleImportSelected = useCallback(() => {
     const urlsToInstall = Array.from(selectedUrls);
-    if (urlsToInstall.length === 0) {
+    if (urlsToInstall.length === 0 || !trustedSourceConfirmed) {
       return;
     }
     handleInstallList(urlsToInstall);
-  }, [selectedUrls]);
+  }, [selectedUrls, trustedSourceConfirmed]);
 
   const toggleSelection = (u: string) => {
     setSelectedUrls((prev) => {
@@ -154,9 +147,19 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
     });
   };
 
+  const handleUrlChange = (newUrl: string) => {
+    setUrl(newUrl);
+    if (analyzedUrls.length > 0) {
+      setAnalyzedUrls([]);
+      setSelectedUrls(new Set());
+      setTrustedSourceConfirmed(false);
+      setError(null);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <LinkIcon className="h-5 w-5 text-primary" />
@@ -165,58 +168,36 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
           <DialogDescription>{t('importUrlPlaceholder')}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 dark:text-amber-300">
-              <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
-              <span>{t('securityDisclosureTitle')}</span>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {isLocalMode() ? t('securityDisclosureLocal') : t('securityDisclosureCloud')}
-            </p>
-            <div className="flex items-start gap-2 pt-1">
-              <Checkbox
-                id="trusted-source-checkbox"
-                checked={trustedSourceConfirmed}
-                onCheckedChange={(c) => setTrustedSourceConfirmed(!!c)}
-                disabled={isAnalyzing || isInstalling}
-                className="mt-0.5"
-              />
-              <label
-                htmlFor="trusted-source-checkbox"
-                className="text-xs font-medium text-foreground cursor-pointer leading-tight select-none"
-              >
-                {t('trustedSourceConfirm')}
-              </label>
-            </div>
-          </div>
-
+        <div className="space-y-4 py-3">
           <div className="flex items-center gap-2">
             <Input
+              data-testid="skill-url-input"
               placeholder="https://github.com/..."
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => handleUrlChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  if (!trustedSourceConfirmed) {
-                    setError(t('trustedSourceConfirmRequired') || t('trustedSourceConfirm'));
-                    return;
-                  }
                   handleAnalyze();
                 }
               }}
-              disabled={isAnalyzing || isInstalling || analyzedUrls.length > 1}
+              disabled={isAnalyzing || isInstalling}
               className="flex-1"
             />
-            {analyzedUrls.length <= 1 && (
-              <Button
-                onClick={() => void handleAnalyze()}
-                disabled={!url.trim() || isAnalyzing || isInstalling || !trustedSourceConfirmed}
-              >
-                {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : t('import')}
-              </Button>
-            )}
+            <Button
+              data-testid="analyze-url-btn"
+              onClick={() => void handleAnalyze()}
+              disabled={!url.trim() || isAnalyzing || isInstalling}
+            >
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  {t('analyzingUrl')}
+                </>
+              ) : (
+                t('import')
+              )}
+            </Button>
           </div>
 
           {error && (
@@ -226,60 +207,95 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
             </Alert>
           )}
 
-          {analyzedUrls.length > 1 && (
-            <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
-              <p className="text-sm font-medium">{t('selectSkillsToImport')}</p>
-              <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2">
-                {analyzedUrls.map((uInfo) => {
-                  const u = uInfo.url;
-                  const displayName = uInfo.name || u;
-                  const isInstalled = uInfo.is_installed;
+          {analyzedUrls.length > 0 && (
+            <div className="space-y-3.5">
+              <div
+                className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2 text-xs text-amber-900 dark:text-amber-200"
+                data-testid="security-disclosure-card"
+              >
+                <div className="flex items-center gap-2 font-semibold text-amber-800 dark:text-amber-300">
+                  <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>{t('securityDisclosureTitle')}</span>
+                </div>
+                <p className="text-muted-foreground leading-relaxed">
+                  {isLocalMode() ? t('securityDisclosureLocal') : t('securityDisclosureCloud')}
+                </p>
+                <div className="flex items-start gap-2 pt-1 border-t border-amber-500/20">
+                  <Checkbox
+                    id="trusted-source-checkbox"
+                    data-testid="trusted-source-checkbox"
+                    checked={trustedSourceConfirmed}
+                    onCheckedChange={(c) => setTrustedSourceConfirmed(!!c)}
+                    disabled={isInstalling}
+                    className="mt-0.5"
+                  />
+                  <label
+                    htmlFor="trusted-source-checkbox"
+                    className="text-xs font-medium text-foreground cursor-pointer leading-tight select-none"
+                  >
+                    {t('trustedSourceConfirm')}
+                  </label>
+                </div>
+              </div>
 
-                  return (
-                    <div
-                      key={u}
-                      className={`flex items-start space-x-2 p-2 rounded-lg transition-colors ${isInstalled ? 'opacity-50 bg-muted/20' : 'hover:bg-muted/50'}`}
-                    >
-                      <Checkbox
-                        id={`url-${u}`}
-                        checked={selectedUrls.has(u)}
-                        onCheckedChange={() => !isInstalled && toggleSelection(u)}
-                        disabled={isInstalling || isInstalled}
-                        className="mt-0.5"
-                      />
-                      <div className="grid gap-1.5 leading-none w-full">
-                        <div className="flex items-center justify-between">
-                          <label
-                            htmlFor={`url-${u}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                          >
-                            {displayName}
-                          </label>
-                          {isInstalled && (
-                            <span className="text-[10px] bg-secondary px-1.5 py-0.5 rounded text-secondary-foreground">
-                              {t('alreadyInstalled')}
-                            </span>
+              <div className="border rounded-lg p-3 space-y-2.5 bg-muted/30">
+                <p className="text-sm font-medium">{t('selectSkillsToImport')}</p>
+                <div className="max-h-[180px] overflow-y-auto space-y-2 pr-1">
+                  {analyzedUrls.map((uInfo) => {
+                    const u = uInfo.url;
+                    const displayName = uInfo.name || u;
+                    const isInstalled = uInfo.is_installed;
+
+                    return (
+                      <div
+                        key={u}
+                        data-testid={`skill-item-${displayName}`}
+                        className={`flex items-start space-x-2 p-2 rounded-lg transition-colors ${
+                          isInstalled ? 'opacity-50 bg-muted/20' : 'hover:bg-muted/50'
+                        }`}
+                      >
+                        <Checkbox
+                          id={`url-${u}`}
+                          checked={selectedUrls.has(u)}
+                          onCheckedChange={() => !isInstalled && toggleSelection(u)}
+                          disabled={isInstalling || isInstalled}
+                          className="mt-0.5"
+                        />
+                        <div className="grid gap-1 leading-none w-full">
+                          <div className="flex items-center justify-between">
+                            <label
+                              htmlFor={`url-${u}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                            >
+                              {displayName}
+                            </label>
+                            {isInstalled && (
+                              <span className="text-[10px] bg-secondary px-1.5 py-0.5 rounded text-secondary-foreground">
+                                {t('alreadyInstalled')}
+                              </span>
+                            )}
+                          </div>
+                          {uInfo.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-1">{uInfo.description}</p>
                           )}
+                          <p className="text-[10px] text-muted-foreground/60 break-all">{u}</p>
                         </div>
-                        {uInfo.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-1">{uInfo.description}</p>
-                        )}
-                        <p className="text-[10px] text-muted-foreground/60 break-all">{u}</p>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {analyzedUrls.length > 1 && (
-          <DialogFooter>
+        {analyzedUrls.length > 0 && (
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isInstalling}>
               {t('cancel')}
             </Button>
             <Button
+              data-testid="import-skills-btn"
               onClick={handleImportSelected}
               disabled={selectedUrls.size === 0 || isInstalling || !trustedSourceConfirmed}
             >

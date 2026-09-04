@@ -10,6 +10,7 @@ from myrm_agent_harness.utils import get_local_ip
 from pydantic import BaseModel
 
 from app.api.webui.auth_routes import router as webui_auth_router
+from app.api.webui.device_routes import router as device_router
 from app.api.webui.vnc_routes import router as vnc_router
 from app.config.settings import settings
 from app.services.webui.og_metadata import fetch_og_metadata
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/webui", tags=["webui"])
 router.include_router(webui_auth_router)
 router.include_router(vnc_router)
+router.include_router(device_router)
 
 
 @router.get("/og-metadata")
@@ -528,48 +530,6 @@ async def list_pending_desktop_approvals() -> JSONResponse:
 
     pending_ids = DesktopApprovalRegistry.pending_snapshot()
     return JSONResponse(content={"pending": pending_ids, "count": len(pending_ids)})
-
-
-class TouchRelayBody(BaseModel):
-    action: str
-    x: int | None = None
-    y: int | None = None
-    endX: int | None = None
-    endY: int | None = None
-    durationMs: int | None = None
-    keycode: str | None = None
-
-
-@router.post("/device/relay")
-async def relay_device_touch(body: TouchRelayBody) -> JSONResponse:
-    """Relay user pointer/touch interaction (tap/swipe/hold) to mobile device."""
-    logger.info(
-        "Device touch relay received: action=%s, pos=(%s, %s)",
-        body.action,
-        body.x,
-        body.y,
-    )
-    return JSONResponse(content={"ok": True, "action": body.action})
-
-
-@router.get("/device/snapshot")
-async def get_device_snapshot(
-    chat_id: str | None = None,
-) -> JSONResponse:
-    """Get mobile device snapshot for the Device Inspector panel."""
-    # Lightweight dummy/mock or ADB connected state response
-    payload = {
-        "screenshot_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
-        "mime_type": "image/png",
-        "refs": {},
-        "device_id": "emulator-5554",
-        "device_name": "Pixel 8 Pro (ADB)",
-        "platform": "android",
-        "connected": True,
-        "viewport_width": 1080,
-        "viewport_height": 2400,
-    }
-    return JSONResponse(content=payload)
 
 
 class DesktopApprovalResolveBody(BaseModel):

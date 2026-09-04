@@ -51,6 +51,7 @@ export default function KnowledgePickerPopover() {
     setActiveKnowledgeBaseIds,
     setActiveKnowledgeBaseNames,
     removeActiveKnowledgeBase,
+    incognitoMode,
   } = useChatStore(
     useShallow((s) => ({
       chatId: s.chatId,
@@ -59,6 +60,7 @@ export default function KnowledgePickerPopover() {
       setActiveKnowledgeBaseIds: s.setActiveKnowledgeBaseIds,
       setActiveKnowledgeBaseNames: s.setActiveKnowledgeBaseNames,
       removeActiveKnowledgeBase: s.removeActiveKnowledgeBase,
+      incognitoMode: s.incognitoMode,
     })),
   );
 
@@ -66,46 +68,54 @@ export default function KnowledgePickerPopover() {
   const isMounted = activeCount > 0;
 
   // 加载可用知识库与当前会话绑定关系
-  const loadKnowledgeData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const listRes = await listSharedContexts('active');
-      const loadedContexts = listRes.items || [];
-      setContexts(loadedContexts);
+  const loadKnowledgeData = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const listRes = await listSharedContexts('active');
+        const loadedContexts = listRes.items || [];
+        setContexts(loadedContexts);
 
-      // 如果当前存在真实会话 ID，拉取其已有绑定
-      if (chatId) {
-        const bindRes = await listSharedContextBindingsForTarget('conversation', chatId);
-        const map: Record<string, string> = {};
-        const activeIds: string[] = [];
-        const activeNames: Record<string, string> = {};
+        // 如果当前存在真实会话 ID 且非隐私模式，拉取其已有绑定并同步
+        if (chatId && !incognitoMode) {
+          const bindRes = await listSharedContextBindingsForTarget('conversation', chatId);
+          const map: Record<string, string> = {};
+          const activeIds: string[] = [];
+          const activeNames: Record<string, string> = {};
 
-        bindRes.items.forEach((b) => {
-          map[b.context_id] = b.id;
-          activeIds.push(b.context_id);
-          const matched = loadedContexts.find((c) => c.id === b.context_id);
-          if (matched) {
-            activeNames[b.context_id] = matched.name;
-          }
-        });
+          bindRes.items.forEach((b) => {
+            map[b.context_id] = b.id;
+            activeIds.push(b.context_id);
+            const matched = loadedContexts.find((c) => c.id === b.context_id);
+            if (matched) {
+              activeNames[b.context_id] = matched.name;
+            }
+          });
 
-        setBindingsMap(map);
-        // 若 Store 与服务器数据差异，以服务器已持久化数据为基准进行同步
-        if (activeIds.length > 0) {
+          setBindingsMap(map);
           setActiveKnowledgeBaseIds(activeIds);
           setActiveKnowledgeBaseNames(activeNames);
         }
+      } catch (err) {
+        console.error('[KnowledgePicker] Failed to load data:', err);
+      } finally {
+        if (!silent) setLoading(false);
       }
-    } catch (err) {
-      console.error('[KnowledgePicker] Failed to load data:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [chatId, setActiveKnowledgeBaseIds, setActiveKnowledgeBaseNames]);
+    },
+    [chatId, incognitoMode, setActiveKnowledgeBaseIds, setActiveKnowledgeBaseNames],
+  );
 
+  // 会话切换时自动同步已绑定知识库
+  useEffect(() => {
+    if (chatId && !incognitoMode) {
+      void loadKnowledgeData(true);
+    }
+  }, [chatId, incognitoMode, loadKnowledgeData]);
+
+  // 打开弹窗时刷新
   useEffect(() => {
     if (open) {
-      void loadKnowledgeData();
+      void loadKnowledgeData(false);
     }
   }, [open, loadKnowledgeData]);
 
@@ -119,7 +129,7 @@ export default function KnowledgePickerPopover() {
         if (isCurrentlyActive) {
           // 解绑
           const bindingId = bindingsMap[context.id];
-          if (chatId && bindingId) {
+          if (chatId && !incognitoMode && bindingId) {
             await deleteSharedContextBinding(context.id, bindingId);
             setBindingsMap((prev) => {
               const copy = { ...prev };
@@ -128,15 +138,14 @@ export default function KnowledgePickerPopover() {
             });
           }
           removeActiveKnowledgeBase(context.id);
-          toast.success(t('unbindSuccess'));
         } else {
           // 挂载前检查上限
           if (activeKnowledgeBaseIds.length >= MAX_MOUNTED_KNOWLEDGE_BASES) {
-            toast.error(t('maxLimitReached'));
+            toast.error(t('maxLimitReached', { max: MAX_MOUNTED_KNOWLEDGE_BASES }));
             return;
           }
 
-          if (chatId) {
+          if (chatId && !incognitoMode) {
             const binding = await createSharedContextBinding(context.id, {
               target_type: 'conversation',
               target_id: chatId,
@@ -149,11 +158,10 @@ export default function KnowledgePickerPopover() {
             ...activeKnowledgeBaseNames,
             [context.id]: context.name,
           });
-          toast.success(t('bindSuccess'));
         }
       } catch (err) {
         console.error('[KnowledgePicker] Toggle error:', err);
-        toast.error(t('actionError'));
+        toast.error(t('operationFailed'));
       } finally {
         setPendingId(null);
       }
@@ -163,6 +171,7 @@ export default function KnowledgePickerPopover() {
       activeKnowledgeBaseNames,
       bindingsMap,
       chatId,
+      incognitoMode,
       removeActiveKnowledgeBase,
       setActiveKnowledgeBaseIds,
       setActiveKnowledgeBaseNames,
@@ -215,14 +224,14 @@ export default function KnowledgePickerPopover() {
           <div className="px-3 py-2.5 border-b border-border/50 flex items-center justify-between">
             <div className="flex items-center gap-1.5 min-w-0">
               <BookOpen size={14} className="text-violet-500 shrink-0" />
-              <span className="text-xs font-semibold truncate text-foreground">{t('popoverTitle')}</span>
+              <span className="text-xs font-semibold truncate text-foreground">{t('title')}</span>
             </div>
             <Link
               href="/settings/wiki"
               className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5 shrink-0"
               onClick={() => setOpen(false)}
             >
-              <span>{t('manageKnowledge')}</span>
+              <span>{t('manage')}</span>
               <ExternalLink size={10} />
             </Link>
           </div>
@@ -250,14 +259,14 @@ export default function KnowledgePickerPopover() {
               </div>
             ) : filteredContexts.length === 0 ? (
               <div className="px-4 py-6 text-center text-xs text-muted-foreground">
-                <p>{contexts.length === 0 ? t('noKnowledgeBases') : t('noSearchResults')}</p>
+                <p>{contexts.length === 0 ? t('emptyKnowledgeBases') : t('noSearchResults')}</p>
                 {contexts.length === 0 && (
                   <Link
                     href="/settings/wiki"
                     onClick={() => setOpen(false)}
                     className="mt-2.5 inline-block text-violet-600 dark:text-violet-400 font-medium hover:underline"
                   >
-                    {t('manageKnowledge')} &rarr;
+                    {t('manage')} &rarr;
                   </Link>
                 )}
               </div>
@@ -291,6 +300,12 @@ export default function KnowledgePickerPopover() {
               })
             )}
           </div>
+
+          {incognitoMode && (
+            <div className="px-3 py-1.5 border-t border-border/50 bg-amber-500/[0.05] text-[10px] text-amber-600 dark:text-amber-400">
+              {t('incognitoNotice')}
+            </div>
+          )}
         </PopoverContent>
       </Popover>
     </TooltipProvider>

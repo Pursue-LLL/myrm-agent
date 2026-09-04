@@ -19,6 +19,7 @@ WebUI 辅助服务：二维码/URL 组装，以及**本地/远程单机**下的�
 | `access_policy.py` | API 是否要求 WebUI 会话 + Cookie 解析 |
 | `protection_store.py` | `require_password` GUI 开关持久化 |
 | `pending_setup_store.py` | setup token 磁盘 TTL |
+| `device_bridge.py` | 移动设备桥接服务（ADB Doctor 探针、物理屏幕截屏、状态栏通知脱敏、指针/触控中继） |
 
 ## HTTP 路由
 

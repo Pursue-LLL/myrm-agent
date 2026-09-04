@@ -76,9 +76,15 @@ def test_get_wiki_archiver_cache_isolation_by_public_dirs(mock_llm: MagicMock, t
     assert len(archiver_ab._structure.public_dirs) == 2
     assert archiver_ab is not archiver_a
 
-    # Instance 4: fetch with identical public_dirs -> should hit cache
+    # Instance 4: fetch with identical public_dirs and labels -> should hit cache
     archiver_ab_cached = get_wiki_archiver(mock_llm, agent_id="agent-1", public_dirs=[dir_b, dir_a])
     assert archiver_ab_cached is archiver_ab
+
+    # Instance 5: fetch with different labels -> should isolate cache
+    archiver_ab_diff_labels = get_wiki_archiver(
+        mock_llm, agent_id="agent-1", public_dirs=[dir_a, dir_b], public_dir_labels={str(dir_a): "Vault A"}
+    )
+    assert archiver_ab_diff_labels is not archiver_ab
 
     reset_wiki_archiver_cache_for_tests()
 

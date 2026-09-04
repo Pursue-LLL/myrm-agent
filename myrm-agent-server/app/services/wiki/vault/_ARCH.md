@@ -14,7 +14,7 @@ Wiki vault 域子包 — 路径 SSOT、生命周期、导出与 git 钩子。
 |------|------|------|-------|
 | `__init__.py` | 门面 | 聚合导出 resolver/service/export/git 全量公开符号 | ✅ |
 | `resolver.py` | SSOT | 路径解析 + legacy 迁移 + `seed_agent_vault_from_default`（Second Brain preset 默认 vault→新 agent + SCHEMA.md seed） | ✅ |
-| `service.py` | 生命周期 | 启动迁移、共享 archiver（cache key: llm + agent_id + manager） | ✅ |
+| `service.py` | 生命周期 | 启动迁移、共享 archiver（cache key: llm + agent_id + manager + resolved_public_dirs，支持跨源共享知识库动态挂载与名称映射注入） | ✅ |
 | `export.py` | 核心 | Obsidian-ready full vault ZIP（harness archive + server graph preset） | ✅ |
 | `git_snapshot.py` | 钩子 | `after_wiki_vault_mutation` SSOT + async git schedule (#23) | ✅ |
 | `git_status.py` | 辅助 | `/wiki/stats` vault git visibility fields (Local/Tauri) | ✅ |

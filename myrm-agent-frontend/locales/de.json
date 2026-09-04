@@ -2444,7 +2444,9 @@
       "notificationRedactedHint": "Die Systembenachrichtigungsleiste wird automatisch unkenntlich gemacht, damit private Daten und Codes nicht in den Prompt gelangen",
       "instructionPlaceholder": "Beschreiben Sie, was Sie auf dem Mobilgerät tun möchten...",
       "instructionWithElement": "Was soll der Agent mit diesem mobilen Element tun?",
-      "send": "Anweisung senden"
+      "send": "Anweisung senden",
+      "doctorAdbMissing": "ADB-Toolchain nicht erkannt. Bitte Android platform-tools installieren.",
+      "doctorDeviceOffline": "Kein Mobilgerät oder Emulator verbunden. USB-Debugging aktivieren und anschließen."
     },
     "subagent": {
       "viewResults": "Ergebnisse anzeigen"
@@ -4776,6 +4778,9 @@
         "exportBackup": "Backup exportieren",
         "exportingBackup": "Exportieren...",
         "importSecretsLabel": "Importieren Sie auch API-Schlüssel aus dem externen Assistenten .env (Opt-in, schreibt in die Anbietereinstellungen)",
+        "trustedSourceTitle": "Sicherheitshinweis zu externen Erweiterungen und Fähigkeiten",
+        "trustedSourceDesc": "Externe Erweiterungen oder Fähigkeiten zum Importieren erkannt. Fähigkeiten verfügen über Werkzeugausführungsfunktionen; bösartige Erweiterungen könnten Systembefehle über Prompt-Injektionen ausführen. Im lokalen/Desktop-Modus laufen Werkzeuge mit Ihren Betriebssystemrechten; der Cloud-Modus isoliert sie in Sandbox-Containern.",
+        "trustedSourceConfirmLabel": "Ich bestätige, dass externe Fähigkeiten über Befehlsausführungsfunktionen verfügen, und bestätige diese Quelle als vertrauenswürdig",
         "dryRunId": "Rezensions-ID",
         "expiresAt": "Läuft ab um",
         "mappings": "Mapping-Details",
@@ -15101,6 +15106,7 @@
         "securityDisclosureLocal": "Derzeit im lokalen/Desktop-Modus ausgeführt. Der Agent führt Werkzeuge mit Ihren Host-Berechtigungen aus.",
         "securityDisclosureCloud": "Derzeit im isolierten MicroVM-Container ausgeführt. Stellen Sie sicher, dass alle Erweiterungen vertrauenswürdig sind.",
         "trustedSourceConfirm": "Ich bestätige, dass diese Erweiterung Systemwerkzeug-Ausführungsrechte besitzt und vertrauenswürdig ist",
+        "trustedSourceConfirmRequired": "Bitte bestätigen Sie vor dem Fortfahren, dass diese Quelle vertrauenswürdig ist",
         "analyzingUrl": "Analysieren...",
         "analyzeFailed": "Analyse der URL fehlgeschlagen",
         "selectSkillsToImport": "Folgende Fähigkeiten gefunden, bitte zum Importieren auswählen:",

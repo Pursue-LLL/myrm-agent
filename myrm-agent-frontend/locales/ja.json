@@ -2473,7 +2473,9 @@
       "notificationRedactedHint": "上部のシステム通知バーは自動的にぼかし遮蔽され、個人情報や認証コードがプロンプトに漏れるのを防ぎます",
       "instructionPlaceholder": "モバイルデバイスで何をしたいかを記述してください...",
       "instructionWithElement": "Agent はこのモバイル要素をどうしますか？",
-      "send": "指示を送信"
+      "send": "指示を送信",
+      "doctorAdbMissing": "ADB ツールチェーンが検出されませんでした。Android platform-tools をインストールしてください。",
+      "doctorDeviceOffline": "利用可能なモバイルデバイスまたはエミュレータが接続されていません。USB デバッグを有効にして接続してください。"
     },
     "clarification": {
       "formTitle": "確認フォーム",
@@ -4577,6 +4579,9 @@
         "exportBackup": "バックアップをエクスポート",
         "exportingBackup": "中エクスポート...",
         "importSecretsLabel": "外部アシスタントの .env から API キーもインポート（オプトイン、プロバイダー設定に書き込みます）",
+        "trustedSourceTitle": "外部拡張・スキルのセキュリティ開示",
+        "trustedSourceDesc": "インポート対象に外部拡張またはスキルが含まれています。スキルにはツール実行権限があります。ローカル／デスクトップ環境ではホストOS権限で動作し、クラウド環境ではサンドボックス内で分離されます。",
+        "trustedSourceConfirmLabel": "外部スキルにコマンド実行能力があることを理解し、提供元が信頼できることを確認しました",
         "dryRunId": "審査 ID",
         "expiresAt": "有効期限至",
         "mappings": "映射詳細",
@@ -15084,6 +15089,7 @@
         "securityDisclosureLocal": "現在はローカル／デスクトップ実行モードです。エージェントはホストOSの権限でツールを実行します。悪意のある拡張機能がプロンプトインジェクションを通じてBash実行やファイル読み書き、認証情報の外部送信を間接的に誘発する危険性があります。信頼できるソースからのみインポートしてください。",
         "securityDisclosureCloud": "現在は独立したマイクロVMコンテナサンドボックス（永続ボリューム分離）で動作しています。ワークスペースの安全のため、信頼できるソースからのみインポートしてください。",
         "trustedSourceConfirm": "この拡張機能にシステムツール実行権限があることを理解し、提供元が信頼できることを確認しました",
+        "trustedSourceConfirmRequired": "続行する前に、このソースが信頼できることを確認するチェックボックスをオンにしてください",
         "analyzingUrl": "解析中...",
         "analyzeFailed": "URL の解析に失敗しました",
         "selectSkillsToImport": "以下のスキルが見つかりました。インポートする項目を選択してください：",

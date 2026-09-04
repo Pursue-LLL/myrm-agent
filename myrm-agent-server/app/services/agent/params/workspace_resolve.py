@@ -56,10 +56,9 @@ async def resolve_default_chat_workspace_dir(
 
 async def _materialize_agent_template_files(chat_id: str, workspace_dir: str) -> None:
     """Materialize agent's bundled template_workspace_files safely into the session workspace."""
-    import base64
-
     from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
     from app.services.chat.chat_service import ChatService
+    from app.services.plugins._agent_persist import materialize_template_workspace_files
 
     try:
         chat = await ChatService.get_chat_metadata(chat_id)
@@ -80,28 +79,7 @@ async def _materialize_agent_template_files(chat_id: str, workspace_dir: str) ->
             return
 
         template_files = engine_params.get("template_workspace_files")
-        if not isinstance(template_files, dict) or not template_files:
-            return
-
-        ws_path = Path(workspace_dir).resolve()
-        for raw_rel_path, content in template_files.items():
-            if not isinstance(raw_rel_path, str) or not raw_rel_path.strip():
-                continue
-            # Normalize slashes and strip leading separators to prevent Windows/posix path mismatch
-            clean_rel_path = raw_rel_path.replace("\\", "/").lstrip("/")
-            # Path traversal defense (guarantee target_path is strictly within ws_path)
-            target_path = (ws_path / clean_rel_path).resolve()
-            if not target_path.is_relative_to(ws_path):
-                logger.warning("Blocked path traversal in template workspace file: %s", raw_rel_path)
-                continue
-
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            if not target_path.exists():
-                if isinstance(content, str):
-                    if content.startswith("base64:"):
-                        raw_bytes = base64.b64decode(content[len("base64:") :])
-                        target_path.write_bytes(raw_bytes)
-                    else:
-                        target_path.write_text(content, encoding="utf-8")
+        if isinstance(template_files, dict):
+            materialize_template_workspace_files(template_files, workspace_dir)
     except Exception as exc:
         logger.warning("Failed to materialize template files for chat %s: %s", chat_id, exc)

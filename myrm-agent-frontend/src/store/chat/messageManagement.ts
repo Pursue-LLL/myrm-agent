@@ -266,6 +266,32 @@ export const loadMessages = async (
       useChatStore.getState().setContextBranches([]);
       useChatStore.getState().setContextBranchesLoadError(null);
     }
+
+    // 恢复当前会话已绑定的共享知识库上下文 (Restores session-bound shared knowledge bases)
+    import('@/services/memory/sharedContexts')
+      .then(async ({ listSharedContexts, listSharedContextBindingsForTarget }) => {
+        try {
+          const [bindRes, ctxRes] = await Promise.all([
+            listSharedContextBindingsForTarget('conversation', chatId),
+            listSharedContexts('active'),
+          ]);
+          if (useChatStore.getState().chatId === chatId) {
+            const loadedContexts = ctxRes.items || [];
+            const activeIds = bindRes.items.map((b) => b.context_id);
+            const activeNames: Record<string, string> = {};
+            bindRes.items.forEach((b) => {
+              const matched = loadedContexts.find((c) => c.id === b.context_id);
+              if (matched) {
+                activeNames[b.context_id] = matched.name;
+              }
+            });
+            useChatStore.getState().setActiveKnowledgeBaseIds(activeIds, activeNames);
+          }
+        } catch {
+          // 静默降级
+        }
+      })
+      .catch(() => {});
   } catch (error) {
     console.error('Failed to load chat messages:', error, chatId);
 

@@ -1102,6 +1102,11 @@ async def convert_to_general_agent_params(
             task_id=None,
             project_id=chat.project_id if chat_loaded and chat else None,
         )
+        if request.session_knowledge_base_ids:
+            for kb_id in request.session_knowledge_base_ids:
+                if kb_id and kb_id not in memory_shared_context_ids:
+                    memory_shared_context_ids.append(kb_id)
+
         if memory_shared_context_ids:
             from app.database import get_session
 

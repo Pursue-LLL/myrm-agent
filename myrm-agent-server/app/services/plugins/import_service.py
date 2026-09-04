@@ -76,7 +76,7 @@ from ._preview import (
     skill_content_too_large,
 )
 from ._staging import PluginStaging
-from ._uninstall import list_installed_plugins, uninstall_plugin
+from ._uninstall import _plugin_dir_exists, list_installed_plugins, uninstall_plugin
 
 MAX_SKILL_CONTENT_CHARS = SkillStore.MAX_SKILL_CONTENT_CHARS
 
@@ -85,6 +85,7 @@ _load_existing_skill_ids = load_existing_skill_ids
 _scan_skill_security = scan_skill_security
 _skill_content_too_large = skill_content_too_large
 _persist_agents = persist_imported_agents
+_plugin_dir_exists = _plugin_dir_exists
 
 logger = logging.getLogger(__name__)
 

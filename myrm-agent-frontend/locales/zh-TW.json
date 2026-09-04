@@ -2481,7 +2481,9 @@
       "notificationRedactedHint": "頂部系統通知欄已自動模糊遮蔽，防止私密資訊與驗證碼洩漏入 Prompt",
       "instructionPlaceholder": "描述你想在行動裝置上做什麼...",
       "instructionWithElement": "Agent 應該對這個行動端元素做什麼？",
-      "send": "傳送指令"
+      "send": "傳送指令",
+      "doctorAdbMissing": "未檢測到 ADB 工具鏈，請安裝 Android platform-tools",
+      "doctorDeviceOffline": "未連接可用行動裝置或模擬器，請開啟 USB 除錯並連線"
     },
     "clarification": {
       "formTitle": "澄清表單",
@@ -4621,6 +4623,9 @@
         "exportBackup": "匯出備份",
         "exportingBackup": "正在匯出...",
         "importSecretsLabel": "同時從外部助手 .env 匯入 API Key（opt-in，寫入模型服務商配置）",
+        "trustedSourceTitle": "外部擴展與技能安全披露",
+        "trustedSourceDesc": "檢測到待匯入的外部擴展或技能。技能具備系統工具調用潛力；惡意擴展可能通過間接提示詞注入誘導大模型執行命令。在本地或桌面模式下，工具以當前作業系統權限執行；雲端模式在獨立沙箱卷中隔離。",
+        "trustedSourceConfirmLabel": "我已知曉外部技能具備命令執行潛力，確認此來源安全可信",
         "dryRunId": "審查 ID",
         "expiresAt": "有效期至",
         "mappings": "對映詳情",
@@ -15084,6 +15089,7 @@
         "securityDisclosureLocal": "當前為本地或桌面運行模式，智能體以您宿主操作系統的權限執行工具。惡意擴展可能通過間接提示詞注入誘導執行 Bash、讀寫本地檔案或外傳敏感憑證，請務必只從可信來源導入。",
         "securityDisclosureCloud": "當前運行在獨立微容器沙箱中，具備獨立持久化卷隔離。為保障多智能體協作與工作區數據安全，請確保導入的擴展來源可信。",
         "trustedSourceConfirm": "我已知曉該擴展具備系統工具調用權限，確認此來源安全可信",
+        "trustedSourceConfirmRequired": "請先勾選確認此來源安全可信",
         "analyzingUrl": "解析中...",
         "analyzeFailed": "解析 URL 失敗",
         "selectSkillsToImport": "發現以下技能，請選擇要匯入的項：",

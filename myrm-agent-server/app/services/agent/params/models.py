@@ -313,6 +313,10 @@ class AgentRequest(BaseModel):
         max_length=64,
         description="Target MoA preset id to activate when auto_moa_reasoning triggers (defaults to 'review').",
     )
+    session_knowledge_base_ids: list[str] | None = Field(
+        default=None,
+        description="Explicit session-mounted knowledge base (shared context) IDs from Unified Knowledge Base Picker.",
+    )
 
     resume_value: dict[str, object] | None = None
     sibling_group_id: str | None = None

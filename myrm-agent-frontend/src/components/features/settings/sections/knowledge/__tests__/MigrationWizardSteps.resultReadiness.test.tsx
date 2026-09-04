@@ -2,7 +2,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ResultStep, type TranslationFn } from '../MigrationWizardSteps';
+import { PreviewStep, ResultStep, type TranslationFn } from '../MigrationWizardSteps';
 
 const mockPush = vi.fn();
 const mockQueueMigrationChatAgent = vi.fn();
@@ -337,5 +337,107 @@ describe('ResultStep conversation search opt-in', () => {
       'href',
       '/settings?tab=agent',
     );
+  });
+});
+
+describe('PreviewStep trusted source disclosure gate', () => {
+  const dummyDryRun = {
+    dry_run_id: 'dry-run-123',
+    expires_at: 1800000000,
+    result: {
+      summary: {
+        total_items: 5,
+        status: 'ready' as const,
+        source: 'pi',
+        counts: { memory: 3, skills: 2 },
+      },
+      mappings: [],
+      warnings: [],
+      integrity_report: null,
+      diagnostic_report: null,
+      security_summary: null,
+      recommended_action: 'proceed',
+    },
+    pending_skills: [
+      {
+        name: 'test-skill',
+        description: 'a test skill',
+        content_preview: 'echo hi',
+      },
+    ],
+  };
+
+  it('requires trusted source checkbox when importing from pi competitor', () => {
+    const onConfirm = vi.fn();
+    const { rerender } = render(
+      <PreviewStep
+        source={{
+          id: 'src-1',
+          name: 'Pi Agent Source',
+          competitor: 'pi',
+          status: 'ready',
+          item_count: 5,
+          skill_count: 2,
+        }}
+        dryRun={dummyDryRun}
+        importing={false}
+        importSecrets={false}
+        onImportSecretsChange={vi.fn()}
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        t={t}
+      />,
+    );
+
+    const checkbox = screen.getByTestId('migration-trusted-source-checkbox');
+    expect(checkbox).not.toBeChecked();
+
+    const confirmBtn = screen.getByRole('button', { name: 'preview.confirmImport' });
+    expect(confirmBtn).toBeDisabled();
+
+    fireEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+    expect(confirmBtn).not.toBeDisabled();
+
+    fireEvent.click(confirmBtn);
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not render trusted source disclosure when source is not pi and has no skills', () => {
+    const onConfirm = vi.fn();
+    render(
+      <PreviewStep
+        source={{
+          id: 'src-2',
+          name: 'Hermes Source',
+          competitor: 'hermes',
+          status: 'ready',
+          item_count: 3,
+          skill_count: 0,
+        }}
+        dryRun={{
+          ...dummyDryRun,
+          pending_skills: [],
+          result: {
+            ...dummyDryRun.result,
+            summary: {
+              ...dummyDryRun.result.summary,
+              source: 'hermes',
+              counts: { memory: 3 },
+            },
+          },
+        }}
+        importing={false}
+        importSecrets={false}
+        onImportSecretsChange={vi.fn()}
+        onConfirm={onConfirm}
+        onBack={vi.fn()}
+        t={t}
+      />,
+    );
+
+    expect(screen.queryByTestId('migration-trusted-source-checkbox')).toBeNull();
+    const confirmBtn = screen.getByRole('button', { name: 'preview.confirmImport' });
+    expect(confirmBtn).not.toBeDisabled();
   });
 });

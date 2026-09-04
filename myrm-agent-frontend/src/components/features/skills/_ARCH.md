@@ -39,7 +39,8 @@
 | `SkillQualityGuardian.tsx`                             | 核心 | Shadow A/B：idle 启动、running promote/stop（i18n）                                                                                  | ✅    |
 | `SkillVersionsPanel.tsx`                               | 核心 | 技能版本列表、diff 对比、版本回滚（接 skill-optimization API）                                                                       | ✅    |
 | `SkillSyncIndicator.tsx`                               | 辅助 | 技能与远端同步状态指示                                                                                                               | ✅    |
-| `SkillUrlImportDialog.tsx`                             | 组件 | 从 URL 导入技能对话框                                                                                                                | ✅    |
+| `SkillUrlImportDialog.tsx`                             | 组件 | 从 URL 导入技能对话框（集成安全与沙箱边界披露卡、Trusted Source 强制勾选门禁，彻底阻断单 URL 静默自动安装）                         | ✅    |
+| `__tests__/SkillUrlImportDialog.test.tsx`              | 测试 | URL 导入安全门禁测试（阻断单 URL 静默安装、未勾选禁用导入、勾选后正常安装、本地与云端沙箱文案区分）                                | ✅    |
 | `skillCategories.ts`                                   | 辅助 | 技能分类常量与 i18n 键映射                                                                                                           | ✅    |
 | `PendingEvolutionsDashboard.tsx`                       | 核心 | 待审核技能进化列表（cases API total + stats 顶栏/filter 计数）；卡片展开按需 detail；Simple/Detailed 视图切换（localStorage 持久化） | ✅    |
 | `pendingEvolutionsDashboardShared.tsx`                 | 辅助 | Dashboard 过滤器常量、`matchesFilter`、`SummaryCard` 子组件                                                                          | ✅    |

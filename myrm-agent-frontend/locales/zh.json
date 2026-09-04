@@ -2540,11 +2540,13 @@
       "deviceDisconnected": "移动设备已断开连接，请检查 ADB 或网络状态",
       "notificationRedaction": "顶部状态栏隐私脱敏",
       "redactionBadge": "隐私脱敏",
-      "notificationRedacted": "🔒 状态栏通知已脱敏遮蔽",
+      "notificationRedacted": "状态栏通知已脱敏遮蔽",
       "notificationRedactedHint": "顶部系统通知栏已自动模糊遮蔽，防止私密信息与验证码泄露入 Prompt",
       "instructionPlaceholder": "描述你想在移动设备上做什么...",
       "instructionWithElement": "Agent 应该对这个移动端元素做什么？",
-      "send": "发送指令"
+      "send": "发送指令",
+      "doctorAdbMissing": "未检测到 ADB 工具链，请安装 Android platform-tools",
+      "doctorDeviceOffline": "未连接可用移动设备或模拟器，请开启 USB 调试并连线"
     },
     "clarification": {
       "formTitle": "澄清表单",
@@ -2662,7 +2664,6 @@
       "searchPlaceholder": "搜索可用知识库...",
       "loading": "加载知识库中...",
       "activeCount": "已挂载 {count} 个",
-      "chipDetail": "知识库",
       "emptyKnowledgeBases": "暂无可用的知识库",
       "emptyGuide": "前往知识库管理创建你的专属知识库",
       "createFirst": "创建知识库",
@@ -4622,6 +4623,9 @@
         "exportBackup": "导出备份",
         "exportingBackup": "正在导出...",
         "importSecretsLabel": "同时从外部助手 .env 导入 API Key（opt-in，写入模型服务商配置）",
+        "trustedSourceTitle": "外部扩展与技能安全披露",
+        "trustedSourceDesc": "检测到待导入的外部扩展或技能。技能具备系统工具调用潜力；恶意扩展可能通过间接提示词注入诱导大模型执行命令。在本地或桌面模式下，工具以当前操作系统权限执行；云端模式在独立沙箱卷中隔离。",
+        "trustedSourceConfirmLabel": "我已知晓外部技能具备命令执行潜力，确认此来源安全可信",
         "dryRunId": "审查 ID",
         "expiresAt": "有效期至",
         "mappings": "映射详情",

@@ -2545,7 +2545,11 @@
       "notificationRedactedHint": "Top status bar notifications are blurred to protect OTPs and sensitive messages",
       "instructionPlaceholder": "Describe what you want to do on the device...",
       "instructionWithElement": "What should the agent do with this mobile element?",
-      "send": "Send instruction"
+      "send": "Send instruction",
+      "doctorAdbMissing": "ADB tools not found. Please install Android platform-tools.",
+      "doctorDeviceOffline": "No mobile device or emulator connected. Please enable USB debugging.",
+      "doctorAdbMissing": "ADB toolchain not detected. Please install Android platform-tools.",
+      "doctorDeviceOffline": "No mobile device or emulator connected. Enable USB debugging and connect."
     },
     "clarification": {
       "formTitle": "Clarification form",
@@ -2663,7 +2667,6 @@
       "searchPlaceholder": "Search available knowledge bases...",
       "loading": "Loading knowledge bases...",
       "activeCount": "{count} mounted",
-      "chipDetail": "Knowledge",
       "emptyKnowledgeBases": "No available knowledge bases",
       "emptyGuide": "Go to Knowledge Management to create your custom knowledge base",
       "createFirst": "Create Knowledge Base",
@@ -3745,6 +3748,9 @@
       "autoDeleteHint": "Memories in trash will be permanently removed 7 days after deletion"
     },
     "filterAll": "All",
+    "context": {
+      "tab": "Identity & Relations"
+    },
     "searchPlaceholder": "Search memories...",
     "importance": "Importance",
     "lastAccessed": "Last Accessed",
@@ -4618,6 +4624,9 @@
         "exportBackup": "Export backup",
         "exportingBackup": "Exporting...",
         "importSecretsLabel": "Also import API keys from external assistant .env (opt-in, writes to provider settings)",
+        "trustedSourceTitle": "External Extension & Skill Security Disclosure",
+        "trustedSourceDesc": "Detected external extensions or skills to import. Skills have tool execution capabilities; malicious extensions could invoke system commands via prompt injection. In local/desktop mode, tools run with your OS permissions; cloud mode isolates them inside sandbox containers.",
+        "trustedSourceConfirmLabel": "I acknowledge external skills have command execution potential and confirm this source is trusted",
         "dryRunId": "Review ID",
         "expiresAt": "Expires at",
         "mappings": "Mapping Details",
@@ -5072,9 +5081,6 @@
       "openGuide": "Memory Types Guide",
       "openGuideHint": "Learn what each of the 7 memory types means",
       "gotIt": "Got it"
-    },
-    "context": {
-      "tab": "Identity & Relations"
     },
     "enabled": "Enabled",
     "confidenceHigh": "High confidence",
@@ -15085,6 +15091,7 @@
         "securityDisclosureLocal": "Currently running in local/desktop mode. The agent executes tools with your host operating system permissions. Malicious extensions could indirectly invoke Bash commands, read/write local files, or exfiltrate credentials via prompt injection. Only import from trusted sources.",
         "securityDisclosureCloud": "Currently running in an isolated microVM container with persistent volume isolation. To protect multi-agent collaboration and workspace data, ensure all imported extensions come from trusted sources.",
         "trustedSourceConfirm": "I understand this extension has system tool execution permissions and confirm this source is trusted",
+        "trustedSourceConfirmRequired": "Please check the box to confirm that this source is trusted before continuing",
         "analyzingUrl": "Analyzing...",
         "analyzeFailed": "Failed to analyze URL",
         "selectSkillsToImport": "Found the following skills, please select to import:",

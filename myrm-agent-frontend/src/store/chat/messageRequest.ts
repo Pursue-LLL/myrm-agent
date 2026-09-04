@@ -839,6 +839,9 @@ export const createMessageRequest = async (
     ...(isAgentMode && {
       security_preset: useChatStore.getState().securityPreset,
     }),
+    ...(state.activeKnowledgeBaseIds?.length > 0 && {
+      session_knowledge_base_ids: state.activeKnowledgeBaseIds,
+    }),
     ...(isStreamingMode &&
       useConfigStore.getState().privacyEnabled && {
         privacy_enabled: true,

@@ -18,6 +18,16 @@ import type { BrowserRefInfo } from '@/store/chat/types';
 
 type InspectorMode = 'view' | 'inspect';
 
+export interface DeviceDoctorInfo {
+  adb_installed: boolean;
+  adb_path: string | null;
+  connected: boolean;
+  active_device_serial: string | null;
+  diagnostic_message: string;
+  remediation_hint: string | null;
+  devices_count?: number;
+}
+
 export interface DeviceViewData {
   screenshotBase64: string;
   mimeType: string;
@@ -30,6 +40,7 @@ export interface DeviceViewData {
   viewportWidth: number;
   viewportHeight: number;
   sourceChatId: string;
+  doctor?: DeviceDoctorInfo;
   /** True when produced by an agent turn event (DEVICE_VIEW_UPDATE); false for manual snapshots. */
   isTurnView?: boolean;
   updatedAt: number;
@@ -100,6 +111,7 @@ interface DeviceSnapshotResponse {
   connected: boolean;
   viewport_width: number;
   viewport_height: number;
+  doctor?: DeviceDoctorInfo;
 }
 
 const useDeviceInspectorStore = create<DeviceInspectorState>((set, get) => ({
@@ -161,13 +173,18 @@ const useDeviceInspectorStore = create<DeviceInspectorState>((set, get) => ({
   fetchSnapshot: async (isTurnView = false) => {
     set({ isSnapshotLoading: true });
     try {
-      const data = await apiRequest<DeviceSnapshotResponse>('/webui/device/snapshot', {
+      const { default: useChatStore } = await import('@/store/useChatStore');
+      const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
+      const params = new URLSearchParams();
+      if (activeChatId) {
+        params.set('chat_id', activeChatId);
+      }
+      params.set('redact_notifications', String(get().notificationRedaction));
+
+      const queryStr = params.toString() ? `?${params.toString()}` : '';
+      const data = await apiRequest<DeviceSnapshotResponse>(`/webui/device/snapshot${queryStr}`, {
         silent: true,
       });
-      const activeChatId =
-        (typeof window !== 'undefined'
-          ? (window as unknown as { __CURRENT_CHAT_ID__?: string }).__CURRENT_CHAT_ID__
-          : '') || '';
 
       const viewData: DeviceViewData = {
         screenshotBase64: data.screenshot_base64,
@@ -181,6 +198,7 @@ const useDeviceInspectorStore = create<DeviceInspectorState>((set, get) => ({
         viewportWidth: data.viewport_width || 1080,
         viewportHeight: data.viewport_height || 2400,
         sourceChatId: activeChatId,
+        doctor: data.doctor,
         isTurnView,
         updatedAt: Date.now(),
       };

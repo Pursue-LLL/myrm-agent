@@ -73,6 +73,56 @@ async def test_wiki_knowledge_lane_emits_sources_message_and_lane_end(
 
 
 @pytest.mark.asyncio
+async def test_wiki_knowledge_lane_forwards_shared_context_ids_and_names(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_kwargs: dict[str, object] = {}
+
+    fake_result = WikiKnowledgeQueryResult(
+        answer="Federated answer from shared vaults.",
+        sources=[{"path": "concepts/guide.md", "filename": "guide.md", "snippet": "Text", "kb_name": "Shared KB"}],
+        related_articles=["guide"],
+        confidence_score=0.9,
+        retrieval_result=QueryResult(
+            question="What is the shared policy?",
+            answer="Federated answer from shared vaults.",
+            related_articles=["guide"],
+        ),
+    )
+
+    async def _inspect_execute(**kwargs: object) -> WikiKnowledgeQueryResult:
+        captured_kwargs.update(kwargs)
+        return fake_result
+
+    monkeypatch.setattr(
+        "app.services.agent.stream_session.lanes.wiki_knowledge_lane.execute_wiki_knowledge_query",
+        _inspect_execute,
+    )
+
+    params = GeneralAgentParams(
+        message_id="msg-lane-shared",
+        chat_id="chat-lane-shared",
+        agent_id="default",
+        query="What is the shared policy?",
+        model_cfg=ModelConfig(model="test/model", api_key="k"),
+        enable_wiki=True,
+        memory_shared_context_ids=["kb-vault-1", "kb-vault-2"],
+    )
+
+    events = [
+        event
+        async for event in create_wiki_knowledge_lane_stream(
+            params,
+            cast(object, _FakeCancelToken()),
+        )
+    ]
+
+    assert captured_kwargs.get("shared_context_ids") == ["kb-vault-1", "kb-vault-2"]
+    assert events[1]["type"] == "sources"
+    assert events[1]["data"][0]["kb_name"] == "Shared KB"
+
+
+@pytest.mark.asyncio
 async def test_wiki_knowledge_lane_query_failure_yields_failed_end(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

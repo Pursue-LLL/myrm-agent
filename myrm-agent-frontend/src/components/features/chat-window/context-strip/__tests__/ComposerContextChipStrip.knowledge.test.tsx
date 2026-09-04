@@ -9,16 +9,16 @@ vi.mock('@/hooks/ui/useMediaQuery', () => ({
   useIsMobile: () => false,
 }));
 
+const stableT = (key: string) => {
+  const map: Record<string, string> = {
+    remove: '移除',
+    overloadedNotice: '当前挂载的上下文较多',
+  };
+  return map[key] ?? key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => {
-    return (key: string) => {
-      const map: Record<string, string> = {
-        remove: '移除',
-        overloadedNotice: '当前挂载的上下文较多',
-      };
-      return map[key] ?? key;
-    };
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('ComposerContextChipStrip Knowledge Base Chips', () => {

@@ -41,6 +41,11 @@ const stableT: (key: string) => string = (key) => {
     'security.blocked': 'Blocked: {count} security risk(s) found — automatically skipped',
     'security.oversized': 'Skill content exceeds the storage size limit (64 KB) — automatically skipped',
     'security.conflict': 'A skill with this name already exists — Replace upgrades it, or Skip to keep the current one',
+    'security.trustDisclosureTitle': 'Trusted Source & System Permissions Security Disclosure',
+    'security.trustDisclosureLocal': 'Running in Local/Desktop mode. Full host OS permissions.',
+    'security.trustDisclosureCloud': 'Running in Cloud Sandbox mode. Dedicated isolated volume.',
+    'security.trustRiskHint': 'Untrusted extensions may contain prompt injection.',
+    'security.trustedCheckboxLabel': 'I confirm this plugin is from a trusted source',
   };
   return map[key] ?? key;
 };
@@ -296,6 +301,7 @@ describe('PluginImportDialog', () => {
     fireEvent.change(screen.getByTestId('agent-select'), {
       target: { value: 'agent-1' },
     });
+    fireEvent.click(screen.getByTestId('trusted-source-checkbox'));
     fireEvent.click(screen.getByText('Import'));
 
     await waitFor(() => {
@@ -312,6 +318,7 @@ describe('PluginImportDialog', () => {
               { component: 'skill', virtual_id: 'skill:1', name: 'extract', resolution: 'install' },
             ],
             servers: [{ component: 'mcp', virtual_id: 'mcp:0', name: 'pdf-server', resolution: 'install' }],
+            agents: [],
             bind_agent_id: 'agent-1',
           }),
         }),
@@ -335,6 +342,7 @@ describe('PluginImportDialog', () => {
     selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
     await screen.findByText('reports-plugin');
 
+    fireEvent.click(screen.getByTestId('trusted-source-checkbox'));
     fireEvent.click(screen.getByText('Import'));
 
     await waitFor(() => {
@@ -542,6 +550,7 @@ describe('PluginImportDialog', () => {
     await screen.findByText(/already exists/);
     // Switch from default skip to replace, then confirm.
     fireEvent.click(screen.getByText('Skip'));
+    fireEvent.click(screen.getByTestId('trusted-source-checkbox'));
     fireEvent.click(screen.getByText('Import'));
 
     await waitFor(() => {
@@ -555,10 +564,32 @@ describe('PluginImportDialog', () => {
             session_id: 'sess-1',
             skills: [{ component: 'skill', virtual_id: 'skill:0', name: 'summarize', resolution: 'replace' }],
             servers: [{ component: 'mcp', virtual_id: 'mcp:0', name: 'pdf-server', resolution: 'install' }],
+            agents: [],
             bind_agent_id: null,
           }),
         }),
       );
     });
+  });
+
+  it('disables the Import button until trusted source checkbox is checked', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => PLUGIN_PREVIEW });
+    await renderDialog();
+    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+    await screen.findByText('reports-plugin');
+
+    const importButton = screen.getByRole('button', { name: 'Import' });
+    expect(importButton).toBeDisabled();
+
+    const checkbox = screen.getByTestId('trusted-source-checkbox');
+    expect(checkbox).not.toBeChecked();
+
+    fireEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+    expect(importButton).not.toBeDisabled();
+
+    fireEvent.click(checkbox);
+    expect(checkbox).not.toBeChecked();
+    expect(importButton).toBeDisabled();
   });
 });

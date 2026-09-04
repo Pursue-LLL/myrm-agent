@@ -7,17 +7,19 @@ vi.mock('@/lib/deploy-mode', () => ({
   isSandbox: () => mockIsSandbox(),
 }));
 
+const stableT = (key: string) => {
+  const map: Record<string, string> = {
+    trustDisclosureTitle: 'Trusted Source & System Permissions Security Disclosure',
+    trustDisclosureLocal: 'Running in Local/Desktop mode. Full host OS permissions.',
+    trustDisclosureCloud: 'Running in Cloud Sandbox mode. Dedicated isolated volume.',
+    trustRiskHint: 'Untrusted extensions may contain prompt injection.',
+    trustedCheckboxLabel: 'I confirm this plugin is from a trusted source',
+  };
+  return map[key] ?? key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const map: Record<string, string> = {
-      trustDisclosureTitle: 'Trusted Source & System Permissions Security Disclosure',
-      trustDisclosureLocal: 'Running in Local/Desktop mode. Full host OS permissions.',
-      trustDisclosureCloud: 'Running in Cloud Sandbox mode. Dedicated isolated volume.',
-      trustRiskHint: 'Untrusted extensions may contain prompt injection.',
-      trustedCheckboxLabel: 'I confirm this plugin is from a trusted source',
-    };
-    return map[key] ?? key;
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('PluginTrustedSourceDisclosure', () => {

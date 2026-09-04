@@ -1,5 +1,7 @@
+/** @vitest-environment jsdom */
 'use client';
 
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import KnowledgePickerPopover from '../KnowledgePickerPopover';
@@ -8,6 +10,48 @@ import * as sharedContextsApi from '@/services/memory/sharedContexts';
 
 vi.mock('@/hooks/ui/useMediaQuery', () => ({
   useIsMobile: () => false,
+}));
+
+vi.mock('@/components/primitives/tooltip', () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock('@/components/primitives/popover', () => ({
+  Popover: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="mock-popover">{children}</div>
+  ),
+  PopoverTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="mock-popover-trigger">{children}</div>
+  ),
+  PopoverContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="mock-popover-content">{children}</div>
+  ),
+}));
+
+vi.mock('@/components/primitives/switch', () => ({
+  Switch: ({
+    checked,
+    disabled,
+    onCheckedChange,
+    'aria-label': ariaLabel,
+  }: {
+    checked?: boolean;
+    disabled?: boolean;
+    onCheckedChange?: (checked: boolean) => void;
+    'aria-label'?: string;
+  }) => (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={() => onCheckedChange?.(!checked)}
+    />
+  ),
 }));
 
 vi.mock('next-intl', () => ({
@@ -22,6 +66,7 @@ vi.mock('next-intl', () => ({
         noKnowledgeBases: '暂无可用的知识库',
         noSearchResults: '未找到匹配的知识库',
         manageKnowledge: '管理知识库',
+        manage: '管理',
         maxLimitReached: '单个会话最多可同时挂载 6 个知识库',
         bindSuccess: '已成功挂载知识库',
         unbindSuccess: '已取消挂载知识库',
@@ -94,8 +139,8 @@ describe('KnowledgePickerPopover Component', () => {
       expect(screen.getByText('研发规范与架构守则')).toBeDefined();
     });
 
-    const itemCheckbox = screen.getByRole('switch', { name: /研发规范与架构守则/i });
-    fireEvent.click(itemCheckbox);
+    const itemSwitch = screen.getByRole('switch', { name: /研发规范与架构守则/i });
+    fireEvent.click(itemSwitch);
 
     await waitFor(() => {
       expect(sharedContextsApi.createSharedContextBinding).toHaveBeenCalledWith('kb-test-1', {

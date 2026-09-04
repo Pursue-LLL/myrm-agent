@@ -716,6 +716,8 @@ const useChatStore = create<ChatState>()(
           contextBranchesLoadError: null,
           contextPinnedFilesLoadError: null,
           sessionSkillOverrides: null,
+          activeKnowledgeBaseIds: [],
+          activeKnowledgeBaseNames: {},
           sessionAccessRoots: [],
           regenerateSiblingGroupId: undefined,
           regenerateInstruction: undefined,

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import base64
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from app.database.dto import AgentCreate
@@ -36,6 +37,7 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "MAX_TEMPLATE_FILE_BYTES",
     "MAX_TOTAL_TEMPLATE_BYTES",
+    "materialize_template_workspace_files",
     "persist_imported_agents",
     "sanitize_imported_security_overrides",
 ]
@@ -209,3 +211,43 @@ async def persist_imported_agents(
         created_agent_ids.append(new_main.id)
 
     return created_agent_ids, skipped
+
+
+def materialize_template_workspace_files(
+    template_files: dict[str, object] | None,
+    workspace_dir: str | Path,
+) -> list[str]:
+    """Materialize agent's bundled template_workspace_files safely into the session workspace.
+
+    Defends against path traversal attacks and ensures only files strictly within
+    the target workspace directory are materialized. Does not overwrite pre-existing files.
+    Returns list of relative file paths successfully written.
+    """
+    if not isinstance(template_files, dict) or not template_files:
+        return []
+
+    ws_path = Path(workspace_dir).resolve()
+    written: list[str] = []
+
+    for raw_rel_path, content in template_files.items():
+        if not isinstance(raw_rel_path, str) or not raw_rel_path.strip():
+            continue
+        # Normalize slashes and strip leading separators to prevent Windows/posix path mismatch
+        clean_rel_path = raw_rel_path.replace("\\", "/").lstrip("/")
+        # Path traversal defense (guarantee target_path is strictly within ws_path)
+        target_path = (ws_path / clean_rel_path).resolve()
+        if not target_path.is_relative_to(ws_path):
+            logger.warning("Blocked path traversal in template workspace file: %s", raw_rel_path)
+            continue
+
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        if not target_path.exists():
+            if isinstance(content, str):
+                if content.startswith("base64:"):
+                    raw_bytes = base64.b64decode(content[len("base64:") :])
+                    target_path.write_bytes(raw_bytes)
+                else:
+                    target_path.write_text(content, encoding="utf-8")
+                written.append(clean_rel_path)
+    return written
+
