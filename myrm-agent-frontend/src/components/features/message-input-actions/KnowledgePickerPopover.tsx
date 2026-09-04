@@ -29,6 +29,7 @@ import {
   listSharedContextBindingsForTarget,
   createSharedContextBinding,
   deleteSharedContextBinding,
+  deleteSharedContextBindingByTarget,
   type SharedContext,
 } from '@/services/memory/sharedContexts';
 import { toast } from '@/lib/utils/toast';
@@ -128,9 +129,13 @@ export default function KnowledgePickerPopover() {
       try {
         if (isCurrentlyActive) {
           // 解绑
-          const bindingId = bindingsMap[context.id];
-          if (chatId && !incognitoMode && bindingId) {
-            await deleteSharedContextBinding(context.id, bindingId);
+          if (chatId && !incognitoMode) {
+            const bindingId = bindingsMap[context.id];
+            if (bindingId) {
+              await deleteSharedContextBinding(context.id, bindingId);
+            } else {
+              await deleteSharedContextBindingByTarget(context.id, 'conversation', chatId);
+            }
             setBindingsMap((prev) => {
               const copy = { ...prev };
               delete copy[context.id];
@@ -196,6 +201,7 @@ export default function KnowledgePickerPopover() {
               <button
                 type="button"
                 data-testid="knowledge-picker-toggle"
+                onClick={() => setOpen((prev) => !prev)}
                 aria-label={t('ariaLabel')}
                 className={cn(
                   'flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors shrink-0',

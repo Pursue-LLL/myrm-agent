@@ -13,6 +13,7 @@ from app.services.agent.params.models import AgentRequest, ModelSelection
 @pytest.mark.asyncio
 async def test_converter_merges_explicit_session_knowledge_base_ids() -> None:
     req = AgentRequest(
+        message_id="msg-test-kb-1",
         query="Explain architecture principles",
         agent_id="test-agent",
         chat_id="chat-kb-test",
@@ -23,7 +24,6 @@ async def test_converter_merges_explicit_session_knowledge_base_ids() -> None:
 
     with (
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=None)),
-        patch("app.services.agent.params.converter.load_user_configs", AsyncMock(return_value=None)),
         patch("app.services.agent.params.converter._resolve_model_config", AsyncMock(return_value=None)),
         patch("app.services.agent.params.converter.extract_providers", return_value={"providers": []}),
         patch(

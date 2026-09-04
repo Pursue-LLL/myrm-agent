@@ -60,6 +60,20 @@ class TestGetWikiArchiver:
             second = get_wiki_archiver(llm, manager=MagicMock())
         assert first is not second
 
+    def test_recreates_when_public_dirs_or_labels_change(self, tmp_path: Path) -> None:
+        harness = tmp_path / "harness"
+        pub1 = tmp_path / "pub1"
+        pub2 = tmp_path / "pub2"
+        llm = MagicMock()
+        with patch("app.config.settings.settings") as mock_settings:
+            mock_settings.database.harness_dir = str(harness)
+            mock_settings.database.state_dir = str(tmp_path)
+            first = get_wiki_archiver(llm, public_dirs=[pub1], public_dir_labels={"pub1": "Vault A"})
+            second = get_wiki_archiver(llm, public_dirs=[pub1], public_dir_labels={"pub1": "Vault A"})
+            third = get_wiki_archiver(llm, public_dirs=[pub1, pub2], public_dir_labels={"pub1": "Vault A", "pub2": "Vault B"})
+        assert first is second
+        assert first is not third
+
 
 @pytest.mark.asyncio
 async def test_init_wiki_vault_at_startup_runs_migration(tmp_path: Path) -> None:

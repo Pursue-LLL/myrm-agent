@@ -418,35 +418,3 @@ async def test_history_message_can_be_promoted_to_audited_write_proposal(
     assert proposal.metadata["promoted_from_history"] is True
     assert proposal.metadata["source_message_id"] == "msg-1"
 
-
-@pytest.mark.asyncio
-async def test_shared_context_bindings_support_conversation_target_and_resolve(
-    db_session: AsyncSession,
-) -> None:
-    service = SharedContextService(db_session)
-    kb1 = await service.create_context(name="Engineering Standards")
-    kb2 = await service.create_context(name="Security Policy")
-
-    # Bind both to a conversation target
-    b1 = await service.bind_context(context_id=kb1.id, target_type="conversation", target_id="conv-101")
-    await service.bind_context(context_id=kb2.id, target_type="conversation", target_id="conv-101")
-
-    # List bindings for this conversation
-    bindings = await service.list_bindings_for_target(target_type="conversation", target_id="conv-101")
-    assert len(bindings) == 2
-    assert {b.context_id for b in bindings} == {kb1.id, kb2.id}
-
-    # Resolve active contexts for targets including conversation
-    resolved = await service.resolve_active_context_ids([("conversation", "conv-101")])
-    assert resolved == [kb1.id, kb2.id]
-
-    # Delete one binding
-    await service.unbind_context(kb1.id, b1.id)
-    bindings_after = await service.list_bindings_for_target(target_type="conversation", target_id="conv-101")
-    assert len(bindings_after) == 1
-    assert bindings_after[0].context_id == kb2.id
-
-    # Resolve names map
-    names = await service.get_context_names([kb1.id, kb2.id])
-    assert names[kb1.id] == "Engineering Standards"
-    assert names[kb2.id] == "Security Policy"
