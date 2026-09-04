@@ -14,6 +14,7 @@
 | `__tests__/SortablePinnedRow.test.tsx` | 测试 | pinned 行：pin reorder grip 与 session cite draggable 分离 | ✅ |
 | `__tests__/ChatHistoryRow.reveal.test.tsx` | 测试 | 单行会话产物文件夹定位菜单项与状态触发单元测试 | ✅ |
 | `__tests__/useChatActionsReveal.test.tsx` | 测试 | useChatActions 会话产物目录定位动作、Toast 状态映射与异常处理单元测试 | ✅ |
+| `__tests__/CaptureEvalCaseDialog.test.tsx` | 测试 | 会话一键沉淀为评测用例对话框单元测试（数据集拉取、切换新建、确认提交与状态流转） | ✅ |
 | `CaptureEvalCaseDialog.tsx` | 组件 | 会话一键沉淀为评测用例对话框：拉取已有数据集或输入新数据集，将当前会话提取并固化为私有回归用例 | ✅ |
 | `HandoffDialog.tsx` | 组件 | 会话 Handoff 到其他 Agent/设备的确认对话框 | ✅ |
 | `MobileDragButton.tsx` | 辅助 | 移动端侧栏拖拽排序手柄 | ✅ |
