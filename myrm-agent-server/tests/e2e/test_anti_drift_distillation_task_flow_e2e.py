@@ -350,8 +350,8 @@ async def test_anti_drift_distillation_full_business_task_flow(
     search_results = await memory_manager.search("package manager uv bun", limit=5)
     assert len(search_results) > 0
 
-    top_memory = search_results[0]
-    assert "uv" in top_memory.content.lower() or "bun" in top_memory.content.lower()
+    top_result = search_results[0]
+    assert "uv" in top_result.memory.content.lower() or "bun" in top_result.memory.content.lower()
     # Confirm provenance metadata survived storage round-trip
-    assert top_memory.metadata.get("evidence_quote") is not None
-    assert top_memory.metadata.get("evidence_count", 0) >= 1
+    assert top_result.memory.metadata.get("evidence_quote") is not None
+    assert top_result.memory.metadata.get("evidence_count", 0) >= 1
