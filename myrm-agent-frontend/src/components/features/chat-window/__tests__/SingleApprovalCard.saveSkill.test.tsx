@@ -82,4 +82,16 @@ describe('SingleApprovalCard save_skill', () => {
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
     expect(screen.queryByText(/"action"/)).not.toBeInTheDocument();
   });
+
+  it('renders time-bound allow always trigger for regular tools', () => {
+    const regularShellRequest: ToolApprovalRequest = {
+      ...saveSkillRequest,
+      requestId: 'req-shell',
+      toolName: 'bash_code_execute_tool',
+      toolInput: { command: 'npm run test' },
+    };
+
+    render(<SingleApprovalCard request={regularShellRequest} onResolve={async () => {}} isLoading={false} />);
+    expect(screen.getByText('toolApproval.allowAlways')).toBeInTheDocument();
+  });
 });

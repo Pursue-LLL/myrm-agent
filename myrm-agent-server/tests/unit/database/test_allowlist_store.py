@@ -14,11 +14,11 @@ from tests.support.allowlist_test_seed import clear_allowlist_entries
 
 
 @pytest.fixture(autouse=True)
-def _setup_db():
-    asyncio.run(init_database())
-    asyncio.run(clear_allowlist_entries())
+async def _setup_db():
+    await init_database()
+    await clear_allowlist_entries()
     yield
-    asyncio.run(clear_allowlist_entries())
+    await clear_allowlist_entries()
 
 
 class TestDBAllowlistStore:

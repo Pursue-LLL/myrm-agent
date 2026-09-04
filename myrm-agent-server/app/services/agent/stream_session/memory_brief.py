@@ -64,12 +64,64 @@ def _snapshot_id(memory_ctx: MemoryContextPayload, learned_ctx: LearnedMemoryPay
     return hashlib.blake2s(raw, digest_size=10).hexdigest()
 
 
+async def _resolve_proactive_knowledge_pack(
+    params: GeneralAgentParams,
+) -> dict[str, object] | None:
+    """Asynchronously retrieve paragraph snippets for mounted knowledge bases under 150ms timeout."""
+    if not params.memory_shared_context_ids:
+        return None
+
+    query_text = ""
+    if isinstance(params.query, str):
+        query_text = params.query
+    elif isinstance(params.query, list):
+        query_text = " ".join(
+            str(item.get("text", ""))
+            for item in params.query
+            if isinstance(item, dict) and item.get("type") == "text"
+        )
+    if not query_text.strip():
+        return None
+
+    try:
+        from app.services.wiki.knowledge_pack import resolve_proactive_snippets_from_vaults
+        from app.services.wiki.vault import (
+            resolve_shared_wiki_vault_labels,
+            resolve_shared_wiki_vault_paths,
+        )
+
+        vault_paths = resolve_shared_wiki_vault_paths(
+            params.memory_shared_context_ids,
+            must_exist=True,
+        )
+        if not vault_paths:
+            return None
+
+        vault_labels = resolve_shared_wiki_vault_labels(
+            params.memory_shared_context_ids,
+            context_name_map=params.memory_shared_context_names,
+        )
+
+        result = await resolve_proactive_snippets_from_vaults(
+            query=query_text,
+            vault_paths=vault_paths,
+            vault_labels=vault_labels,
+            timeout_seconds=0.150,
+        )
+        if result.snippets:
+            return result.to_dict()
+    except Exception as exc:
+        logger.debug("Proactive knowledge pack resolution skipped: %s", exc)
+    return None
+
+
 def _build_preview(
     *,
     snapshot_id: str,
     namespaces: list[str],
     memory_ctx: MemoryContextPayload,
     learned_ctx: LearnedMemoryPayload,
+    proactive_pack: dict[str, object] | None = None,
 ) -> MemoryBriefPreview:
     global_profile = memory_ctx.get("global_profile")
     if isinstance(global_profile, dict):
@@ -96,7 +148,7 @@ def _build_preview(
         and len(learned_rules) == 0
     )
 
-    return {
+    preview_data: MemoryBriefPreview = {
         "snapshot_id": snapshot_id,
         "generated_at_ms": int(datetime.now(tz=UTC).timestamp() * 1000),
         "namespaces": namespaces,
@@ -115,6 +167,14 @@ def _build_preview(
             "rule_ids": _safe_ids(learned_rules),
         },
     }
+    if proactive_pack is not None:
+        preview_data["proactive_knowledge_pack"] = {
+            "snippet_count": len(proactive_pack.get("snippets", [])),
+            "source_count": proactive_pack.get("source_count", 0),
+            "total_chars": proactive_pack.get("total_chars", 0),
+            "latency_ms": proactive_pack.get("latency_ms", 0.0),
+        }
+    return preview_data
 
 
 async def build_memory_brief_snapshot(
@@ -153,9 +213,13 @@ async def build_memory_brief_snapshot(
         approval_required=params.memory_require_confirmation,
     )
 
-    static_result, learned_result = await asyncio.gather(
+    gather_tasks = [
         manager.get_context(include_profile=True, include_rules=True, include_agent_instructions=True),
         manager.get_learned_context(),
+        _resolve_proactive_knowledge_pack(params),
+    ]
+    static_result, learned_result, proactive_result = await asyncio.gather(
+        *gather_tasks,
         return_exceptions=True,
     )
 
@@ -168,20 +232,31 @@ async def build_memory_brief_snapshot(
     else:
         learned_payload = _normalize_learned_payload(learned_result)
 
+    proactive_pack = (
+        proactive_result
+        if isinstance(proactive_result, dict)
+        else None
+    )
+
     if not isinstance(static_result, dict):
         logger.warning("Memory brief static context has unexpected type: %s", type(static_result).__name__)
         return None
-    memory_payload = static_result
+    memory_payload = dict(static_result)
+    if proactive_pack is not None:
+        memory_payload["proactive_knowledge_pack"] = proactive_pack
+
     snapshot_id = _snapshot_id(memory_payload, learned_payload)
     preview = _build_preview(
         snapshot_id=snapshot_id,
         namespaces=list(binding.namespaces),
         memory_ctx=memory_payload,
         learned_ctx=learned_payload,
+        proactive_pack=proactive_pack,
     )
     snapshot: MemoryBriefSnapshot = {
         "snapshot_id": snapshot_id,
         "memory_ctx": memory_payload,
         "learned_ctx": learned_payload,
+        "proactive_knowledge_pack": proactive_pack,
     }
     return preview, snapshot
