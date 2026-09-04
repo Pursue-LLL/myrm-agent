@@ -2,19 +2,22 @@
 
 from __future__ import annotations
 
+import asyncio
+import time
+
 import pytest
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry
+from sqlalchemy import select
 
 from app.database.allowlist_store import DBAllowlistStore
+from app.database.connection import init_database
+from app.database.models import UserToolAllowlist
 from app.platform_utils import get_session_factory
 from tests.support.allowlist_test_seed import clear_allowlist_entries
 
 
 @pytest.fixture(autouse=True)
 def _setup_db():
-    from app import platform_utils
-    from app.database.connection import init_database
-    import asyncio
     asyncio.run(init_database())
     asyncio.run(clear_allowlist_entries())
     yield
@@ -24,8 +27,7 @@ def _setup_db():
 class TestDBAllowlistStore:
     @pytest.mark.asyncio
     async def test_save_and_load_with_agent_scope(self):
-        from app import platform_utils
-        factory = platform_utils.get_session_factory()
+        factory = get_session_factory()
         store = DBAllowlistStore(factory)
         user_id = "sandbox"
 
@@ -48,8 +50,7 @@ class TestDBAllowlistStore:
 
     @pytest.mark.asyncio
     async def test_remove_with_agent_scope(self):
-        from app import platform_utils
-        factory = platform_utils.get_session_factory()
+        factory = get_session_factory()
         store = DBAllowlistStore(factory)
         user_id = "sandbox"
 
@@ -84,11 +85,8 @@ class TestDBAllowlistStore:
 
     @pytest.mark.asyncio
     async def test_save_and_load_with_expires_at(self):
-        import time
-        from app import platform_utils
-
         await clear_allowlist_entries()
-        factory = platform_utils.get_session_factory()
+        factory = get_session_factory()
         store = DBAllowlistStore(factory)
         user_id = "sandbox"
         future_ts = time.time() + 3600.0
@@ -102,17 +100,17 @@ class TestDBAllowlistStore:
         await store.save(user_id, entry)
 
         entries = await store.load(user_id)
-        print("DEBUG ENTRIES IN TEST:", len(entries), entries)
+        async with factory() as session:
+            res = await session.execute(select(UserToolAllowlist))
+            db_rows = res.scalars().all()
+            assert len(db_rows) == 1
         assert len(entries) == 1
         assert entries[0].expires_at is not None
         assert abs(entries[0].expires_at - future_ts) < 2.0
 
     @pytest.mark.asyncio
     async def test_expired_entry_auto_cleanup(self):
-        import time
-        from app import platform_utils
-
-        factory = platform_utils.get_session_factory()
+        factory = get_session_factory()
         store = DBAllowlistStore(factory)
         user_id = "sandbox"
         past_ts = time.time() - 3600.0
@@ -130,10 +128,7 @@ class TestDBAllowlistStore:
 
     @pytest.mark.asyncio
     async def test_update_expires_at_on_duplicate_save(self):
-        import time
-        from app import platform_utils
-
-        factory = platform_utils.get_session_factory()
+        factory = get_session_factory()
         store = DBAllowlistStore(factory)
         user_id = "sandbox"
         t1 = time.time() + 1000.0

@@ -28,32 +28,27 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.database.models.channel_message import ChannelMessageModel
-from app.database.repositories.channel_message_repo import ChannelMessageRepository
-from app.channels.routing.channel_data_plane import ChannelDataPlaneService
-from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
+from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.strategies.distillation_guards import (
-    DistillationCandidate,
-    DistillationOrigin,
     DistillationRejectionCode,
-    EvidenceReference,
-    SelfIdentityState,
     check_distillable,
     filter_distillable_messages,
     filter_memories_with_evidence,
 )
 from myrm_agent_harness.toolkits.memory.strategies.extractor import (
-    ExtractedMemory,
     MemoryExtractor,
     extract_memories_from_conversation,
 )
 from myrm_agent_harness.toolkits.memory.types import SemanticMemory
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+from app.database.models.channel_message import ChannelMessageModel
+from app.database.repositories.channel_message_repo import ChannelMessageRepository
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    pass
 
 
 @pytest.mark.asyncio
