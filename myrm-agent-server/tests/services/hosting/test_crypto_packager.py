@@ -192,5 +192,3 @@ def test_crypto_packager_css_cascade_topological_resolution():
     assert "bg.png" in vfs
     assert "icons/arrow.svg" in vfs
     assert vfs["style.css"]["content"] == files["style.css"].content
-
-

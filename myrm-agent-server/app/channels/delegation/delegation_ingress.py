@@ -75,9 +75,7 @@ _IMMEDIATE_FAST_QUERY_PATTERNS: tuple[str, ...] = (
 )
 
 
-def is_delegation_intent(
-    text: str, *, explicit_only: bool = False
-) -> tuple[bool, float, str]:
+def is_delegation_intent(text: str, *, explicit_only: bool = False) -> tuple[bool, float, str]:
     """Classify whether inbound text conveys an asynchronous delegation intent.
 
     Args:
@@ -118,9 +116,7 @@ def is_delegation_intent(
     # Text length and multi-step indication booster
     if len(cleaned) > 50:
         score += 0.2
-    if any(
-        sep in cleaned for sep in ("第一步", "然后", "接着", "最后", "并且", "同时")
-    ):
+    if any(sep in cleaned for sep in ("第一步", "然后", "接着", "最后", "并且", "同时")):
         score += 0.25
 
     is_delegated = score >= 0.85
@@ -159,9 +155,7 @@ def build_delegation_task(
     )
 
 
-def build_receipt_card_content(
-    receipt: DelegationReceipt, *, platform: str = "default"
-) -> str:
+def build_receipt_card_content(receipt: DelegationReceipt, *, platform: str = "default") -> str:
     """Build user-facing immediate acknowledgment text or Markdown card.
 
     Args:
@@ -180,9 +174,7 @@ def build_receipt_card_content(
         "• **执行说明**：您可以锁屏或处理其他事务。执行完毕后，生成的交付物（PPT/报表/文档）将自动在此向您推送。",
     ]
     if receipt.tracking_deep_link:
-        lines.append(
-            f"• **实时看板**：[点击查看执行轨迹]({receipt.tracking_deep_link})"
-        )
+        lines.append(f"• **实时看板**：[点击查看执行轨迹]({receipt.tracking_deep_link})")
 
     return "\n".join(lines)
 
@@ -212,9 +204,7 @@ class DelegationIngressGuard:
         """Release completed or failed task from active tracker."""
         key = (channel, user_id)
         if key in self._user_active_tasks:
-            self._user_active_tasks[key] = [
-                tid for tid in self._user_active_tasks[key] if tid != task_id
-            ]
+            self._user_active_tasks[key] = [tid for tid in self._user_active_tasks[key] if tid != task_id]
             if not self._user_active_tasks[key]:
                 self._user_active_tasks.pop(key, None)
 

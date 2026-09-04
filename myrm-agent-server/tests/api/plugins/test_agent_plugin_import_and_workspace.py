@@ -16,7 +16,7 @@ import json
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI
@@ -30,7 +30,6 @@ from myrm_agent_harness.agent.plugins.models import (
 from app.api.plugins import import_ as import_module
 from app.services.plugins._agent_persist import (
     MAX_TEMPLATE_FILE_BYTES,
-    MAX_TOTAL_TEMPLATE_BYTES,
     materialize_template_workspace_files,
     persist_imported_agents,
     sanitize_imported_security_overrides,
@@ -143,9 +142,7 @@ class TestAgentPluginPersist:
         assert lead_create_arg.max_iterations == 12
         assert lead_create_arg.skill_ids == ["skill-search"]
         assert lead_create_arg.mcp_ids == ["fetch-mcp"]
-        assert lead_create_arg.engine_params == {
-            "template_workspace_files": {"starter.txt": "Starter workspace note"}
-        }
+        assert lead_create_arg.engine_params == {"template_workspace_files": {"starter.txt": "Starter workspace note"}}
 
     @pytest.mark.asyncio
     async def test_persist_imported_agents_skips_oversized_workspace_files(self) -> None:

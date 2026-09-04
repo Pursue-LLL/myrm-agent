@@ -113,9 +113,7 @@ def test_desktop_bridge_extension_slot_and_zero_chrome_parity() -> None:
         )
         assert state.get("ready") is True, f"State check failed: {state}"
         assert state.get("hasNavBar") is True, "NavBar must be mounted in WebUI"
-        assert state.get("isZeroChromeWeb") is True, (
-            f"Expected 0px top inset in Web mode, got {state.get('topInset')}"
-        )
+        assert state.get("isZeroChromeWeb") is True, f"Expected 0px top inset in Web mode, got {state.get('topInset')}"
 
         # 2. Verify ExtensionSlot Store Lifecycle in Browser
         slot_eval = client.evaluate(page, _TEST_EXTENSION_SLOT_STORE_JS, timeout_sec=20.0)

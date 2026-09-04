@@ -372,12 +372,10 @@ async def _process_human_content(
         import asyncio
 
         has_media = any(
-            isinstance(item, dict) and item.get("type") in ("image_url", "image", "video_url", "video")
-            for item in content
+            isinstance(item, dict) and item.get("type") in ("image_url", "image", "video_url", "video") for item in content
         )
         has_text_content = any(
-            isinstance(item, dict) and item.get("type") == "text" and str(item.get("text") or "").strip()
-            for item in content
+            isinstance(item, dict) and item.get("type") == "text" and str(item.get("text") or "").strip() for item in content
         )
 
         tasks = []

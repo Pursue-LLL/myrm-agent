@@ -1544,9 +1544,7 @@ class TestAgentPluginImportWithAgents:
             }
         )
 
-        mock_resolver = SimpleNamespace(
-            resolve=AsyncMock(return_value=mock_profile)
-        )
+        mock_resolver = SimpleNamespace(resolve=AsyncMock(return_value=mock_profile))
 
         with (
             patch("app.services.chat.chat_service.ChatService.get_chat_metadata", AsyncMock(return_value=mock_chat)),
@@ -1571,7 +1569,6 @@ class TestAgentPluginImportWithAgents:
         # 4. Path traversal blocked
         escape_file = tmp_path / "escape.txt"
         assert not escape_file.exists()
-
 
 
 def _plugin_zip_with_agents_bytes() -> bytes:

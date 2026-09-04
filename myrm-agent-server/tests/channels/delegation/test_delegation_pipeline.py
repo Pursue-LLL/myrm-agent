@@ -118,9 +118,7 @@ async def test_coordinator_lifecycle_and_steering() -> None:
         await asyncio.sleep(0.05)
     assert pending_req is not None
 
-    resolved = coordinator.resolve_approval(
-        pending_req.request_id, "approve", "user_456"
-    )
+    resolved = coordinator.resolve_approval(pending_req.request_id, "approve", "user_456")
     assert resolved is True
 
     resp = await approval_task
@@ -162,9 +160,7 @@ def test_scan_workspace_artifacts_and_card(tmp_path: Path) -> None:
     xlsx_file = workspace / "Q3_Budget.xlsx"
     xlsx_file.write_bytes(b"PK\x03\x04dummy_xlsx_data")
 
-    artifacts = scan_workspace_artifacts(
-        workspace, server_base_url="https://agent.myrm.io"
-    )
+    artifacts = scan_workspace_artifacts(workspace, server_base_url="https://agent.myrm.io")
     assert len(artifacts) == 2
 
     task = build_delegation_task(
@@ -176,9 +172,7 @@ def test_scan_workspace_artifacts_and_card(tmp_path: Path) -> None:
     )
     task.status = DelegationStatus.COMPLETED
     task.artifacts = artifacts
-    card = build_delivery_card_content(
-        task, artifacts, server_base_url="https://agent.myrm.io"
-    )
+    card = build_delivery_card_content(task, artifacts, server_base_url="https://agent.myrm.io")
 
     assert "Competitor_Analysis.pptx" in card
     assert "Q3_Budget.xlsx" in card
@@ -228,9 +222,7 @@ async def test_router_delegation_inbound_integration(tmp_path: Path) -> None:
     )
 
     # Dispatch via _handle_delegation_inbound directly
-    handled = await router._handle_delegation_inbound(
-        inbound, "分析 2026 年行业动向并生成汇报 PPT"
-    )
+    handled = await router._handle_delegation_inbound(inbound, "分析 2026 年行业动向并生成汇报 PPT")
     assert handled is True
 
     # 1. Verify immediate receipt outbound message (<1s)

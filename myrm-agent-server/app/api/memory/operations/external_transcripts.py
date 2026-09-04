@@ -42,16 +42,12 @@ class ExternalFilePayload(BaseModel):
 class ExternalTranscriptSyncRequest(BaseModel):
     """Request payload to trigger incremental transcript sync."""
 
-    directory_path: str | None = Field(
-        None, description="Local folder path (e.g. ~/.claude/projects)"
-    )
+    directory_path: str | None = Field(None, description="Local folder path (e.g. ~/.claude/projects)")
     source: str = Field(
         "external:claude_code",
         description="Source identifier (external:claude_code, external:codex)",
     )
-    uploaded_files: list[ExternalFilePayload] | None = Field(
-        None, description="Batch uploaded files for cloud/sandbox mode"
-    )
+    uploaded_files: list[ExternalFilePayload] | None = Field(None, description="Batch uploaded files for cloud/sandbox mode")
 
 
 class ExternalTranscriptSyncResponse(BaseModel):
@@ -121,9 +117,7 @@ async def sync_external_transcripts(
                     watermarks.pop(str(target_file.resolve()), None)
                 target_file.write_text(up_file.content, encoding="utf-8")
 
-                turns_count, chat_id = await service.sync_file(
-                    db, target_file, source=req.source, watermarks=watermarks
-                )
+                turns_count, chat_id = await service.sync_file(db, target_file, source=req.source, watermarks=watermarks)
                 if turns_count > 0 and chat_id:
                     result_synced_files += 1
                     result_new_turns += turns_count

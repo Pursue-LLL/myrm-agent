@@ -19,16 +19,12 @@ import re
 _PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # Private Key blocks
     (
-        re.compile(
-            r"-----BEGIN [A-Z ]+ PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+ PRIVATE KEY-----"
-        ),
+        re.compile(r"-----BEGIN [A-Z ]+ PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+ PRIVATE KEY-----"),
         "[REDACTED_PRIVATE_KEY]",
     ),
     # Common API Keys (OpenAI, Anthropic, Gemini, Stripe)
     (
-        re.compile(
-            r"\b(?:sk-[a-zA-Z0-9_\-]{20,}|sk-ant-[a-zA-Z0-9_\-]{20,}|AIza[0-9A-Za-z-_]{35})\b"
-        ),
+        re.compile(r"\b(?:sk-[a-zA-Z0-9_\-]{20,}|sk-ant-[a-zA-Z0-9_\-]{20,}|AIza[0-9A-Za-z-_]{35})\b"),
         "[REDACTED_API_KEY]",
     ),
     # GitHub Tokens (Personal access, OAuth, Fine-grained)
@@ -48,9 +44,7 @@ _PATTERNS: list[tuple[re.Pattern[str], str]] = [
     ),
     # Key-value assignment of credentials
     (
-        re.compile(
-            r"(?i)\b(password|passwd|secret|api_key|access_token|client_secret)\s*[:=]\s*[\"']?([^\s\"'`]{6,})[\"']?"
-        ),
+        re.compile(r"(?i)\b(password|passwd|secret|api_key|access_token|client_secret)\s*[:=]\s*[\"']?([^\s\"'`]{6,})[\"']?"),
         r"\1=[REDACTED_SECRET]",
     ),
 ]

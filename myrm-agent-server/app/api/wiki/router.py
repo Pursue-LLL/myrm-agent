@@ -77,9 +77,7 @@ def _refresh_wiki_cognitive_map(
     )
 
 
-async def _after_wiki_vault_mutation(
-    archiver: MemoryToWikiArchiver, reason: str
-) -> None:
+async def _after_wiki_vault_mutation(archiver: MemoryToWikiArchiver, reason: str) -> None:
     """Drop stats cache and commit vault git snapshot after wiki mutations."""
     from app.services.wiki.vault import after_wiki_vault_mutation
 
@@ -184,9 +182,7 @@ class CompileRunResponse(BaseModel):
     state: Literal["running", "paused"]
     pause_reason: str = ""
     primary_error_kind: str = ""
-    phase: Literal["idle", "structure_survey", "semantic_compile", "postprocess"] = (
-        "idle"
-    )
+    phase: Literal["idle", "structure_survey", "semantic_compile", "postprocess"] = "idle"
     facet_count: int = 0
     warning_count: int = 0
     survey_skipped: bool = False
@@ -273,16 +269,10 @@ class WikiStatsResponse(BaseModel):
     vault_git_enabled: bool = False
     vault_git_initialized: bool = False
     vault_git_last_commit: str | None = None
-    structural_issues: WikiStructuralIssuesResponse = Field(
-        default_factory=WikiStructuralIssuesResponse
-    )
+    structural_issues: WikiStructuralIssuesResponse = Field(default_factory=WikiStructuralIssuesResponse)
     dedup_stats: WikiDedupStatsResponse = Field(default_factory=WikiDedupStatsResponse)
-    maintain_state: WikiMaintainStateResponse = Field(
-        default_factory=WikiMaintainStateResponse
-    )
-    asset_index: WikiAssetIndexStatsResponse = Field(
-        default_factory=WikiAssetIndexStatsResponse
-    )
+    maintain_state: WikiMaintainStateResponse = Field(default_factory=WikiMaintainStateResponse)
+    asset_index: WikiAssetIndexStatsResponse = Field(default_factory=WikiAssetIndexStatsResponse)
 
 
 class GraphNodeItem(BaseModel):
@@ -318,9 +308,7 @@ class ConceptResponse(BaseModel):
     source_chat: str | None = None
     source_message: str | None = None
     claims: list[WikiClaimItem] = Field(default_factory=list)
-    editor_sections: WikiEditorSectionsResponse = Field(
-        default_factory=WikiEditorSectionsResponse
-    )
+    editor_sections: WikiEditorSectionsResponse = Field(default_factory=WikiEditorSectionsResponse)
 
 
 class ConceptListResponse(BaseModel):
@@ -462,9 +450,7 @@ class ReindexVectorsResponse(BaseModel):
 async def _get_wiki_archiver(
     llm: Annotated[BaseChatModel, Depends(get_optional_llm_for_user)],
     manager: Annotated[MemoryManager | None, Depends(get_optional_memory_manager)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> MemoryToWikiArchiver:
     """Get wiki archiver bound to an agent-scoped vault path."""
     from app.services.wiki.vault import get_wiki_archiver
@@ -616,12 +602,7 @@ def _retrieval_trace_to_response(
     ]
     sidecar_directories = list(trace.sidecar_directories)
     selected_concepts = list(trace.selected_concepts)
-    if (
-        not index_hits
-        and not seeds
-        and not sidecar_directories
-        and not selected_concepts
-    ):
+    if not index_hits and not seeds and not sidecar_directories and not selected_concepts:
         return None
     return WikiRetrievalTraceResponse(
         index_hits=index_hits,
@@ -638,9 +619,7 @@ def _retrieval_trace_to_response(
 async def query_wiki(
     request: WikiQueryRequest,
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiQueryResponse:
     try:
         from app.services.wiki.knowledge_query_service import (
@@ -700,9 +679,7 @@ async def serve_wiki_asset(
 @router.post("/compile", response_model=WikiCompileResponse)
 async def compile_wiki(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiCompileResponse:
     from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
 
@@ -741,9 +718,7 @@ async def compile_wiki(
 @router.post("/maintain", response_model=WikiMaintenanceResponse)
 async def maintain_wiki(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
     mode: Annotated[
         Literal["structural", "full"],
         Query(description="Maintenance intensity: structural (default) or full"),
@@ -780,11 +755,7 @@ async def maintain_wiki(
                     location=str(item["location"]),
                     description=str(item["description"]),
                     action_kind=str(item["action_kind"]),
-                    suggested_fix=(
-                        str(item["suggested_fix"])
-                        if item.get("suggested_fix") is not None
-                        else None
-                    ),
+                    suggested_fix=(str(item["suggested_fix"]) if item.get("suggested_fix") is not None else None),
                 )
                 for item in result.lint_issues
             ],
@@ -799,9 +770,7 @@ async def maintain_wiki(
 @router.get("/health-report", response_model=WikiHealthReportResponse)
 async def get_wiki_health_report(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiHealthReportResponse:
     """Return a zero-LLM structural health report with actionable lint issues."""
     try:
@@ -907,9 +876,7 @@ async def _schedule_post_import_dedup_scan(agent_id: str | None) -> None:
 
 @router.post("/dedup/scan", response_model=WikiDedupScanResponse, status_code=202)
 async def scan_wiki_duplicates(
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
     incremental: Annotated[bool, Query(description="Incremental scan mode")] = True,
 ) -> WikiDedupScanResponse:
     from app.services.wiki.dedup_runner import schedule_wiki_dedup_scan
@@ -929,9 +896,7 @@ async def scan_wiki_duplicates(
 
 @router.get("/dedup/groups", response_model=list[WikiDedupGroupResponse])
 async def list_wiki_duplicate_groups(
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> list[WikiDedupGroupResponse]:
     from app.services.wiki.dedup_runner import list_wiki_dedup_groups
 
@@ -962,9 +927,7 @@ async def list_wiki_duplicate_groups(
 )
 async def get_wiki_dedup_group_snippets(
     group_id: int,
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> list[WikiDedupMemberSnippetResponse]:
     from app.services.wiki.dedup_runner import get_wiki_dedup_group_snippets
 
@@ -972,36 +935,22 @@ async def get_wiki_dedup_group_snippets(
         snippets = get_wiki_dedup_group_snippets(agent_id=agent_id, group_id=group_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return [
-        WikiDedupMemberSnippetResponse(
-            relative_path=item.relative_path, snippet=item.snippet
-        )
-        for item in snippets
-    ]
+    return [WikiDedupMemberSnippetResponse(relative_path=item.relative_path, snippet=item.snippet) for item in snippets]
 
 
-@router.post(
-    "/dedup/groups/{group_id}/disposition", response_model=WikiDedupDispositionResponse
-)
+@router.post("/dedup/groups/{group_id}/disposition", response_model=WikiDedupDispositionResponse)
 async def apply_wiki_duplicate_disposition(
     group_id: int,
     request: WikiDedupDispositionRequest,
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiDedupDispositionResponse:
     from myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup import DispositionAction
 
     from app.services.wiki.dedup_runner import apply_wiki_dedup_disposition
 
     action = DispositionAction(request.action)
-    if (
-        action in {DispositionAction.TRASH, DispositionAction.EXCLUDE}
-        and not request.reason.strip()
-    ):
-        raise HTTPException(
-            status_code=422, detail="reason is required for trash/exclude dispositions"
-        )
+    if action in {DispositionAction.TRASH, DispositionAction.EXCLUDE} and not request.reason.strip():
+        raise HTTPException(status_code=422, detail="reason is required for trash/exclude dispositions")
     try:
         result = await apply_wiki_dedup_disposition(
             agent_id=agent_id,
@@ -1021,9 +970,7 @@ async def apply_wiki_duplicate_disposition(
 
 @router.get("/dedup/progress", response_model=WikiDedupProgressResponse)
 async def get_wiki_dedup_progress(
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiDedupProgressResponse:
     from app.services.wiki.dedup_runner import get_wiki_dedup_progress
 
@@ -1039,9 +986,7 @@ async def get_wiki_dedup_progress(
 
 @router.get("/dedup/vault-hygiene", response_model=WikiDedupVaultHygieneResponse)
 async def get_wiki_dedup_vault_hygiene(
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiDedupVaultHygieneResponse:
     from app.services.wiki.dedup_runner import get_wiki_dedup_vault_hygiene
 
@@ -1070,16 +1015,12 @@ async def get_wiki_dedup_vault_hygiene(
 @router.post("/dedup/trash/restore", response_model=WikiDedupTrashedEntryResponse)
 async def restore_wiki_dedup_trashed_raw(
     request: WikiDedupPathActionRequest,
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiDedupTrashedEntryResponse:
     from app.services.wiki.dedup_runner import restore_wiki_dedup_trashed
 
     try:
-        restored = await restore_wiki_dedup_trashed(
-            agent_id=agent_id, relative_path=request.relative_path
-        )
+        restored = await restore_wiki_dedup_trashed(agent_id=agent_id, relative_path=request.relative_path)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return WikiDedupTrashedEntryResponse(
@@ -1093,16 +1034,12 @@ async def restore_wiki_dedup_trashed_raw(
 @router.post("/dedup/excluded/undo", response_model=WikiDedupExcludedEntryResponse)
 async def undo_wiki_dedup_excluded_raw(
     request: WikiDedupPathActionRequest,
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiDedupExcludedEntryResponse:
     from app.services.wiki.dedup_runner import undo_wiki_dedup_excluded
 
     try:
-        restored = await undo_wiki_dedup_excluded(
-            agent_id=agent_id, relative_path=request.relative_path
-        )
+        restored = await undo_wiki_dedup_excluded(agent_id=agent_id, relative_path=request.relative_path)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return WikiDedupExcludedEntryResponse(
@@ -1115,9 +1052,7 @@ async def undo_wiki_dedup_excluded_raw(
 @router.get("/stats", response_model=WikiStatsResponse)
 async def get_wiki_stats(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> WikiStatsResponse:
     try:
         from app.services.wiki.vault import (
@@ -1159,11 +1094,7 @@ async def get_wiki_stats(
             )
         else:
             assets_dir = archiver._structure.wiki_dir / "assets"
-            total_files = (
-                len([p for p in assets_dir.iterdir() if p.is_file()])
-                if assets_dir.is_dir()
-                else 0
-            )
+            total_files = len([p for p in assets_dir.iterdir() if p.is_file()]) if assets_dir.is_dir() else 0
             asset_index = WikiAssetIndexStatsResponse(
                 total_files=total_files,
                 pending=total_files,
@@ -1176,9 +1107,7 @@ async def get_wiki_stats(
         async with get_session() as db:
             maintain = await load_wiki_maintain_state(db, agent_id=agent_id)
         maintain_state = WikiMaintainStateResponse(
-            last_run_at=(
-                maintain.last_run_at.isoformat() if maintain.last_run_at else None
-            ),
+            last_run_at=(maintain.last_run_at.isoformat() if maintain.last_run_at else None),
             last_mode=maintain.last_mode,
             last_issues_found=maintain.last_issues_found,
             last_issues_fixed=maintain.last_issues_fixed,
@@ -1227,9 +1156,7 @@ async def get_wiki_stats(
         )
     except Exception as e:
         logger.error("Wiki full state retrieval failed: %s", e)
-        raise HTTPException(
-            status_code=500, detail="Wiki state retrieval failed"
-        ) from e
+        raise HTTPException(status_code=500, detail="Wiki state retrieval failed") from e
 
 
 # --- Concepts CRUD Endpoints ---
@@ -1245,18 +1172,14 @@ async def list_concepts(
     """List or search concept names with pagination."""
     if query:
         # Use FTS5 indexer for fast search
-        results = await archiver._query_engine._indexer.search(
-            query, limit=limit + 1, offset=offset
-        )
+        results = await archiver._query_engine._indexer.search(query, limit=limit + 1, offset=offset)
         concept_names = [name for name, _ in results]
 
         has_more = len(concept_names) > limit
         if has_more:
             concept_names = concept_names[:limit]
 
-        return ConceptListResponse(
-            concepts=concept_names, total=len(concept_names), has_more=has_more
-        )
+        return ConceptListResponse(concepts=concept_names, total=len(concept_names), has_more=has_more)
     else:
         paths = archiver._structure.list_concepts()
         concept_names = []
@@ -1297,9 +1220,7 @@ async def get_wiki_tree(
             if item.is_dir():
                 rel_id = str(item.relative_to(rel_base)).replace("\\", "/")
                 children = build_tree(item, rel_base)
-                child_statuses = [
-                    child.ingest_status for child in children if child.ingest_status
-                ]
+                child_statuses = [child.ingest_status for child in children if child.ingest_status]
                 folder_status: str | None = None
                 if any(status == "tracked-modified" for status in child_statuses):
                     folder_status = "tracked-modified"
@@ -1315,17 +1236,13 @@ async def get_wiki_tree(
                     )
                 )
             elif item.suffix == ".md":
-                rel_id = str(item.relative_to(rel_base).with_suffix("")).replace(
-                    "\\", "/"
-                )
+                rel_id = str(item.relative_to(rel_base).with_suffix("")).replace("\\", "/")
                 ingest_status: str | None = None
                 if stale_paths:
                     try:
                         concept_content = item.read_text(encoding="utf-8")
                         ingest_status = (
-                            "tracked-modified"
-                            if concept_uses_stale_sources(concept_content, stale_paths)
-                            else "tracked-clean"
+                            "tracked-modified" if concept_uses_stale_sources(concept_content, stale_paths) else "tracked-clean"
                         )
                     except OSError:
                         ingest_status = None
@@ -1368,9 +1285,7 @@ async def get_wiki_raw_tree(
             rel_id = str(rel_path).replace("\\", "/")
             if item.is_dir():
                 children = build_raw_tree(item, rel_base)
-                child_statuses = [
-                    child.ingest_status for child in children if child.ingest_status
-                ]
+                child_statuses = [child.ingest_status for child in children if child.ingest_status]
                 folder_status: str | None = None
                 if any(status == "tracked-modified" for status in child_statuses):
                     folder_status = "tracked-modified"
@@ -1466,9 +1381,7 @@ async def move_wiki_node(
 
         mappings: list[ConceptPathMapping] = []
         if old_path.is_file():
-            mappings.append(
-                ConceptPathMapping(old_concept=safe_source, new_concept=safe_target)
-            )
+            mappings.append(ConceptPathMapping(old_concept=safe_source, new_concept=safe_target))
         else:
             for md_file in new_path.rglob("*.md"):
                 rel_new = md_file.relative_to(concepts_dir)
@@ -1477,9 +1390,7 @@ async def move_wiki_node(
                 old_md_file = old_path / rel_to_new_dir
                 rel_old = old_md_file.relative_to(concepts_dir)
                 concept_old = str(rel_old.with_suffix("")).replace("\\", "/")
-                mappings.append(
-                    ConceptPathMapping(old_concept=concept_old, new_concept=concept_new)
-                )
+                mappings.append(ConceptPathMapping(old_concept=concept_old, new_concept=concept_new))
 
         await reindex_concepts_after_move(
             archiver._structure,
@@ -1488,9 +1399,7 @@ async def move_wiki_node(
         )
 
         await _after_wiki_vault_mutation(archiver, "move concept")
-        return OperationResult(
-            success=True, message=f"Moved successfully. Updated {updated_count} files."
-        )
+        return OperationResult(success=True, message=f"Moved successfully. Updated {updated_count} files.")
     except Exception as e:
         logger.error("Wiki node move failed: %s", e)
         raise HTTPException(status_code=500, detail="Move operation failed") from e
@@ -1503,22 +1412,16 @@ async def delete_wiki_folder(
 ) -> OperationResult:
     """Safely delete a folder and clear all its files from the indexer."""
     try:
-        deleted_count = await archiver._structure.delete_folder_safe(
-            path, archiver._query_engine._indexer
-        )
+        deleted_count = await archiver._structure.delete_folder_safe(path, archiver._query_engine._indexer)
         await _after_wiki_vault_mutation(archiver, "delete folder")
-        return OperationResult(
-            success=True, message=f"Folder deleted. Unindexed {deleted_count} files."
-        )
+        return OperationResult(success=True, message=f"Folder deleted. Unindexed {deleted_count} files.")
     except Exception as e:
         logger.error("Wiki folder deletion failed: %s", e)
         raise HTTPException(status_code=500, detail="Folder deletion failed") from e
 
 
 @router.get("/concepts/{name:path}", response_model=ConceptResponse)
-async def get_concept(
-    name: str, archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
-) -> ConceptResponse:
+async def get_concept(name: str, archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> ConceptResponse:
     """Get content of a specific concept."""
     path = archiver._structure.resolve_concept_file_path(name)
     if path is None or not path.exists():
@@ -1565,9 +1468,7 @@ async def apply_wiki_mutation_endpoint(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
     caller: Annotated[
         Literal["agent", "settings", "chat"],
-        Query(
-            description="Apply caller surface; full-document replace is settings-only"
-        ),
+        Query(description="Apply caller surface; full-document replace is settings-only"),
     ] = "settings",
 ) -> WikiApplyResponse:
     """Apply a narrow wiki mutation through the WPG publish gate."""
@@ -1671,9 +1572,7 @@ async def compound_chat_message_to_wiki(
         ) from exc
     except Exception as exc:
         logger.error("Wiki chat compound failed: %s", exc)
-        raise HTTPException(
-            status_code=500, detail="Wiki chat compound failed"
-        ) from exc
+        raise HTTPException(status_code=500, detail="Wiki chat compound failed") from exc
 
     return WikiCompoundResponse(
         success=True,
@@ -1684,9 +1583,7 @@ async def compound_chat_message_to_wiki(
 
 
 @router.delete("/concepts/{name:path}", response_model=OperationResult)
-async def delete_concept(
-    name: str, archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]
-) -> OperationResult:
+async def delete_concept(name: str, archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)]) -> OperationResult:
     """Delete a concept file manually."""
     path = archiver._structure.get_concept_file_path(name)
     if not path.exists():
@@ -1702,9 +1599,7 @@ async def delete_concept(
 
 
 class DeleteRawRequest(BaseModel):
-    forget_reason: str = Field(
-        ..., min_length=1, description="Why this raw evidence is being removed"
-    )
+    forget_reason: str = Field(..., min_length=1, description="Why this raw evidence is being removed")
 
 
 @router.delete("/raw/{path:path}", response_model=OperationResult)
@@ -1732,9 +1627,7 @@ async def delete_raw_source(
         if exc.code == "not_found":
             raise HTTPException(status_code=404, detail=exc.message) from exc
         if exc.code in {"invalid_request", "forbidden_for_caller"}:
-            raise HTTPException(
-                status_code=422, detail={"code": exc.code, "message": exc.message}
-            ) from exc
+            raise HTTPException(status_code=422, detail={"code": exc.code, "message": exc.message}) from exc
         raise HTTPException(status_code=500, detail=exc.message) from exc
 
     affected = len(result.affected_concepts)
@@ -1768,9 +1661,7 @@ async def get_queue_status(
 @router.post("/queue/cancel", response_model=OperationResult)
 async def cancel_queue(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> OperationResult:
     """Cancel all pending ingestion jobs."""
     from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
@@ -1783,26 +1674,20 @@ async def cancel_queue(
 @router.post("/queue/retry", response_model=OperationResult)
 async def retry_queue_failed(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> OperationResult:
     """Reset transient failed jobs back to pending."""
     from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
 
     count = archiver._queue.reset_transient_failed()
     await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
-    return OperationResult(
-        success=True, message=f"Reset {count} transient failed jobs to pending"
-    )
+    return OperationResult(success=True, message=f"Reset {count} transient failed jobs to pending")
 
 
 @router.post("/queue/retry-all", response_model=OperationResult)
 async def retry_queue_failed_all(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> OperationResult:
     """Reset all failed jobs back to pending."""
     from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
@@ -1810,17 +1695,13 @@ async def retry_queue_failed_all(
     count = archiver._queue.reset_failed()
     archiver._compiler.resume_compile_worker()
     await publish_wiki_ingest_snapshot(archiver, agent_id=agent_id)
-    return OperationResult(
-        success=True, message=f"Reset {count} failed jobs to pending"
-    )
+    return OperationResult(success=True, message=f"Reset {count} failed jobs to pending")
 
 
 @router.post("/queue/resume-circuit", response_model=OperationResult)
 async def resume_compile_circuit(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> OperationResult:
     """Resume compile worker after a circuit pause."""
     from app.services.wiki.ingest_events import publish_wiki_ingest_snapshot
@@ -1859,9 +1740,7 @@ async def approve_pending_edit(
     )
 
     try:
-        success = await archiver._pending_mgr.approve_edit(
-            edit_id, request.modified_content
-        )
+        success = await archiver._pending_mgr.approve_edit(edit_id, request.modified_content)
     except FrontmatterValidationError as exc:
         raise HTTPException(
             status_code=422,
@@ -1880,9 +1759,7 @@ async def approve_pending_edit(
             },
         ) from exc
     if not success:
-        raise HTTPException(
-            status_code=400, detail="Edit not found or already processed"
-        )
+        raise HTTPException(status_code=400, detail="Edit not found or already processed")
     _refresh_wiki_cognitive_map(
         archiver,
         WikiMapEventType.PENDING_APPROVE,
@@ -1900,9 +1777,7 @@ async def reject_pending_edit(
     """Reject a pending edit."""
     success = archiver._pending_mgr.reject_edit(edit_id)
     if not success:
-        raise HTTPException(
-            status_code=400, detail="Edit not found or already processed"
-        )
+        raise HTTPException(status_code=400, detail="Edit not found or already processed")
     return OperationResult(success=True, message=f"Rejected edit {edit_id}")
 
 
@@ -1916,9 +1791,7 @@ async def repair_wiki_frontmatter_types(
     )
 
     result = repair_missing_types(archiver._structure)
-    message = (
-        f"Repaired {result.files_repaired} of {result.files_scanned} scanned files"
-    )
+    message = f"Repaired {result.files_repaired} of {result.files_scanned} scanned files"
     if result.errors:
         message = f"{message}; {len(result.errors)} errors"
     if result.files_repaired > 0:
@@ -1951,9 +1824,7 @@ async def repair_wiki_publication(
         repair_publication_status,
     )
 
-    result = await repair_publication_status(
-        archiver._structure, archiver._query_engine._indexer
-    )
+    result = await repair_publication_status(archiver._structure, archiver._query_engine._indexer)
     message = f"Repaired {result.files_repaired} of {result.files_scanned} scanned files; reindexed {result.reindexed}"
     if result.files_skipped_intentional_drafts > 0:
         message = f"{message}; skipped {result.files_skipped_intentional_drafts} intentional draft pages"
@@ -1987,9 +1858,7 @@ async def repair_wiki_publication(
 @router.post("/reindex-vectors", response_model=ReindexVectorsResponse)
 async def reindex_wiki_vectors(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> ReindexVectorsResponse:
     """Rebuild published concept, sidecar, and optional asset vectors with the current embedding model."""
     from myrm_agent_harness.toolkits.wiki.retrieval.reindex_vectors import (
@@ -2040,9 +1909,7 @@ class PurposeResponse(BaseModel):
 
 
 class PurposeUpdateRequest(BaseModel):
-    purpose: str = Field(
-        ..., max_length=2000, description="Knowledge base direction/scope"
-    )
+    purpose: str = Field(..., max_length=2000, description="Knowledge base direction/scope")
 
 
 @router.get("/purpose", response_model=PurposeResponse)
@@ -2091,12 +1958,8 @@ def get_graph_insights(
 
 
 class DeepResearchRequest(BaseModel):
-    topic: str = Field(
-        ..., min_length=1, description="Topic to research and add to wiki"
-    )
-    search_queries: list[str] = Field(
-        default_factory=list, description="Optional custom search queries"
-    )
+    topic: str = Field(..., min_length=1, description="Topic to research and add to wiki")
+    search_queries: list[str] = Field(default_factory=list, description="Optional custom search queries")
 
 
 @router.post("/research", response_model=OperationResult)
@@ -2134,9 +1997,7 @@ async def deep_research(
 
         for query in queries[:3]:
             try:
-                summary, _docs, _err = await searcher.search_and_process(
-                    query, num_results=5
-                )
+                summary, _docs, _err = await searcher.search_and_process(query, num_results=5)
                 if summary:
                     all_content.append(f"# Research: {query}\n\n{summary}")
             except Exception as e:
@@ -2157,18 +2018,14 @@ async def deep_research(
             message=f"Research on '{request.topic}' ingested, compilation started",
         )
     except ImportError:
-        return OperationResult(
-            success=False, message="Web search toolkit not configured"
-        )
+        return OperationResult(success=False, message="Web search toolkit not configured")
     except Exception as e:
         logger.error(f"Deep research failed: {e}")
         raise HTTPException(status_code=500, detail="Deep research failed") from e
 
 
 class IngestArtifactRequest(BaseModel):
-    artifact_id: str = Field(
-        ..., min_length=1, description="Artifact ID to ingest into wiki"
-    )
+    artifact_id: str = Field(..., min_length=1, description="Artifact ID to ingest into wiki")
 
 
 @router.post("/ingest", response_model=OperationResult)
@@ -2176,9 +2033,7 @@ async def ingest_artifact(
     request: IngestArtifactRequest,
     llm: Annotated[BaseChatModel, Depends(get_optional_llm_for_user)],
     manager: Annotated[MemoryManager | None, Depends(get_optional_memory_manager)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> OperationResult:
     """Ingest an artifact's content into the wiki knowledge base."""
     from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
@@ -2197,9 +2052,7 @@ async def ingest_artifact(
             stmt = (
                 select(Artifact)
                 .options(selectinload(Artifact.versions))
-                .where(
-                    Artifact.id == request.artifact_id, Artifact.is_deleted.is_(False)
-                )
+                .where(Artifact.id == request.artifact_id, Artifact.is_deleted.is_(False))
             )
             result = await db.execute(stmt)
             artifact = result.scalars().first()
@@ -2212,22 +2065,14 @@ async def ingest_artifact(
         effective_agent_id = agent_id or await resolve_chat_agent_id(artifact.chat_id)
         archiver = get_wiki_archiver(llm, manager, agent_id=effective_agent_id)
 
-        latest_version = sorted(
-            artifact.versions, key=lambda v: v.created_at, reverse=True
-        )[0]
+        latest_version = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
         vault = ArtifactVault(workspace_root)
         vault_uri = latest_version.vault_uri
-        obj_id = (
-            vault_uri[len("vault://") :]
-            if vault_uri.startswith("vault://")
-            else vault_uri
-        )
+        obj_id = vault_uri[len("vault://") :] if vault_uri.startswith("vault://") else vault_uri
         obj_path = vault.get_object_path(obj_id)
 
         if not obj_path.exists():
-            raise HTTPException(
-                status_code=404, detail="Artifact content not found on disk"
-            )
+            raise HTTPException(status_code=404, detail="Artifact content not found on disk")
 
         content = obj_path.read_text(encoding="utf-8")
         if not content.strip():
@@ -2254,9 +2099,7 @@ async def ingest_artifact(
 @router.get("/graph", response_model=WikiGraphResponse)
 def get_wiki_graph(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    center_node: str | None = Query(
-        None, description="Center node for progressive loading"
-    ),
+    center_node: str | None = Query(None, description="Center node for progressive loading"),
     depth: int = Query(1, description="Depth of neighborhood to load"),
     limit: int = Query(500, description="Max nodes to return"),
 ) -> WikiGraphResponse:
@@ -2264,38 +2107,28 @@ def get_wiki_graph(
     try:
         # Note: get_knowledge_graph is synchronous. By making this route `def` instead of `async def`,
         # FastAPI will automatically run it in a threadpool, preventing event loop blocking.
-        graph = archiver._query_engine._indexer.get_knowledge_graph(
-            center_node, depth, limit
-        )
+        graph = archiver._query_engine._indexer.get_knowledge_graph(center_node, depth, limit)
         return WikiGraphResponse(nodes=graph["nodes"], edges=graph["edges"])
     except Exception as e:
         logger.error(f"Wiki graph retrieval failed: {e}")
-        raise HTTPException(
-            status_code=500, detail="Wiki graph retrieval failed"
-        ) from e
+        raise HTTPException(status_code=500, detail="Wiki graph retrieval failed") from e
 
 
 # --- Batch Import Endpoints ---
 
 
 class ImportFolderRequest(BaseModel):
-    folder_path: str = Field(
-        ..., min_length=1, description="Absolute path to local folder"
-    )
+    folder_path: str = Field(..., min_length=1, description="Absolute path to local folder")
     extensions: list[str] = Field(
         default=[".md", ".txt", ".org"],
         description="File extensions to include",
     )
-    auto_compile: bool = Field(
-        default=True, description="Start compilation after import"
-    )
+    auto_compile: bool = Field(default=True, description="Start compilation after import")
     on_conflict: Literal["skip", "supersede"] = Field(
         default="skip",
         description="When a raw file already exists with different content",
     )
-    supersede_reason: str = Field(
-        default="", description="Required when on_conflict is supersede"
-    )
+    supersede_reason: str = Field(default="", description="Required when on_conflict is supersede")
 
 
 class ImportResultResponse(BaseModel):
@@ -2403,20 +2236,14 @@ class ImportVideoResponse(BaseModel):
     success: bool
     url: str
     relative_path: str = ""
-    status: Literal[
-        "success", "skipped_conflict", "superseded", "security_blocked", "error"
-    ]
+    status: Literal["success", "skipped_conflict", "superseded", "security_blocked", "error"]
     error: str = ""
     message: str
 
 
 class ObsidianImportRequest(BaseModel):
-    vault_path: str = Field(
-        ..., min_length=1, description="Absolute path to Obsidian vault folder"
-    )
-    auto_compile: bool = Field(
-        default=True, description="Start compilation after import"
-    )
+    vault_path: str = Field(..., min_length=1, description="Absolute path to Obsidian vault folder")
+    auto_compile: bool = Field(default=True, description="Start compilation after import")
     on_conflict: Literal["skip", "supersede"] = Field(default="skip")
     supersede_reason: str = Field(default="")
 
@@ -2453,11 +2280,7 @@ async def _publish_import_raw(
         publish_raw,
     )
 
-    policy = (
-        RawConflictPolicy.SUPERSEDE
-        if on_conflict == "supersede"
-        else RawConflictPolicy.SKIP
-    )
+    policy = RawConflictPolicy.SUPERSEDE if on_conflict == "supersede" else RawConflictPolicy.SKIP
     try:
         return await publish_raw(
             structure,
@@ -2535,9 +2358,7 @@ def _build_import_message(
         parts.append(f"{security_blocked} blocked (sensitive content)")
     if security_redacted:
         parts.append(f"{security_redacted} redacted")
-    parts.append(
-        "compilation started" if auto_compile else "queued without auto-compile"
-    )
+    parts.append("compilation started" if auto_compile else "queued without auto-compile")
     return ", ".join(parts)
 
 
@@ -2545,9 +2366,7 @@ def _build_import_message(
 async def import_folder(
     request: ImportFolderRequest,
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> ImportResultResponse:
     """Batch import all text documents from a local folder into the wiki raw/ directory."""
     _validate_import_conflict_options(request.on_conflict, request.supersede_reason)
@@ -2654,12 +2473,8 @@ async def import_zip(
         "skip",
         description="When a raw file already exists with different content",
     ),
-    supersede_reason: str = Query(
-        "", description="Required when on_conflict is supersede"
-    ),
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    supersede_reason: str = Query("", description="Required when on_conflict is supersede"),
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> ImportResultResponse:
     """Upload and import a ZIP archive of documents into the wiki."""
     import tempfile
@@ -2683,9 +2498,7 @@ async def import_zip(
 
             content = await file.read()
             if len(content) > _MAX_ZIP_BYTES:
-                raise HTTPException(
-                    status_code=413, detail="ZIP file too large (max 100 MB)"
-                )
+                raise HTTPException(status_code=413, detail="ZIP file too large (max 100 MB)")
             zip_path.write_bytes(content)
 
             with zipfile.ZipFile(zip_path, "r") as zf:
@@ -2876,9 +2689,7 @@ async def _process_obsidian_vault(
     if stats.files_superseded:
         message_parts.append(f"{stats.files_superseded} superseded")
     if security_blocked_paths:
-        message_parts.append(
-            f"{len(security_blocked_paths)} blocked (sensitive content)"
-        )
+        message_parts.append(f"{len(security_blocked_paths)} blocked (sensitive content)")
     if security_redacted_paths:
         message_parts.append(f"{len(security_redacted_paths)} redacted")
     if stats.files_skipped:
@@ -2915,9 +2726,7 @@ async def _process_obsidian_vault(
 async def import_obsidian_vault(
     request: ObsidianImportRequest,
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> ObsidianImportResultResponse:
     """Import an Obsidian vault with frontmatter parsing and image embed handling."""
     _validate_import_conflict_options(request.on_conflict, request.supersede_reason)
@@ -2940,9 +2749,7 @@ async def import_obsidian_vault(
         raise
     except Exception as e:
         logger.error("Obsidian vault import failed: %s", e)
-        raise HTTPException(
-            status_code=500, detail="Obsidian vault import failed"
-        ) from e
+        raise HTTPException(status_code=500, detail="Obsidian vault import failed") from e
 
 
 @router.post("/import/obsidian-zip", response_model=ObsidianImportResultResponse)
@@ -2952,9 +2759,7 @@ async def import_obsidian_zip(
     auto_compile: bool = Query(True),
     on_conflict: Literal["skip", "supersede"] = Query("skip"),
     supersede_reason: str = Query(""),
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> ObsidianImportResultResponse:
     """Upload an Obsidian vault as ZIP (for WebUI / cloud-hosted deployments)."""
     import tempfile
@@ -2974,9 +2779,7 @@ async def import_obsidian_zip(
             zip_path = tmp_path / "vault.zip"
             raw_bytes = await file.read()
             if len(raw_bytes) > _MAX_ZIP_BYTES:
-                raise HTTPException(
-                    status_code=413, detail="ZIP file too large (max 100 MB)"
-                )
+                raise HTTPException(status_code=413, detail="ZIP file too large (max 100 MB)")
             zip_path.write_bytes(raw_bytes)
 
             with zipfile.ZipFile(zip_path, "r") as zf:
@@ -3008,18 +2811,14 @@ async def import_obsidian_zip(
 @router.post("/vault/reveal", response_model=OperationResult)
 async def reveal_wiki_vault(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> OperationResult:
     """Reveal the agent wiki vault folder in the local file manager (local mode only)."""
     from app.config.deploy_mode import is_local_mode
     from app.services.files.reveal_utils import reveal_path_in_file_manager
 
     if not is_local_mode():
-        raise HTTPException(
-            status_code=403, detail="Vault reveal is only available in local mode"
-        )
+        raise HTTPException(status_code=403, detail="Vault reveal is only available in local mode")
 
     vault_path = archiver.get_wiki_path().resolve()
     if not vault_path.is_dir():
@@ -3032,9 +2831,7 @@ async def reveal_wiki_vault(
 @router.post("/vault/open-obsidian", response_model=OperationResult)
 async def open_wiki_vault_in_obsidian(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> OperationResult:
     """Open the wiki vault in Obsidian when available, otherwise reveal the folder (local mode only)."""
     from app.config.deploy_mode import is_local_mode
@@ -3044,9 +2841,7 @@ async def open_wiki_vault_in_obsidian(
     )
 
     if not is_local_mode():
-        raise HTTPException(
-            status_code=403, detail="Obsidian open is only available in local mode"
-        )
+        raise HTTPException(status_code=403, detail="Obsidian open is only available in local mode")
 
     vault_path = archiver.get_wiki_path().resolve()
     if not vault_path.is_dir():
@@ -3062,9 +2857,7 @@ async def open_wiki_vault_in_obsidian(
 @router.get("/portability/export")
 async def export_wiki_vault(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to export")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to export")] = None,
 ) -> StreamingResponse:
     """Export the full wiki vault as an Obsidian-ready ZIP (raw + wiki + graph preset)."""
     from myrm_agent_harness.toolkits.wiki.portability.vault_archive import (
@@ -3077,9 +2870,7 @@ async def export_wiki_vault(
     if not iter_vault_files(structure):
         raise HTTPException(status_code=400, detail="Wiki vault is empty")
     try:
-        memory_file = await asyncio.to_thread(
-            build_wiki_export_zip, structure, agent_id
-        )
+        memory_file = await asyncio.to_thread(build_wiki_export_zip, structure, agent_id)
         scope = agent_id or "default"
         filename = f"myrm_wiki_obsidian_{scope}.zip"
 
@@ -3100,9 +2891,7 @@ async def export_wiki_vault(
 async def import_urls(
     request: ImportUrlsRequest,
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> ImportUrlsResultResponse:
     """Batch import web URLs into Wiki with SSRF protection, content extraction, and raw gate verification."""
     _validate_import_conflict_options(request.on_conflict, request.supersede_reason)
@@ -3130,11 +2919,7 @@ async def import_urls(
     from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import RawConflictPolicy
     from myrm_agent_harness.toolkits.wiki.wiki_agent_tools import _fetch_url_as_markdown
 
-    conflict_policy = (
-        RawConflictPolicy.SUPERSEDE
-        if request.on_conflict == "supersede"
-        else RawConflictPolicy.SKIP
-    )
+    conflict_policy = RawConflictPolicy.SUPERSEDE if request.on_conflict == "supersede" else RawConflictPolicy.SKIP
 
     semaphore = asyncio.Semaphore(5)
     results: list[UrlImportItemResult] = []
@@ -3159,9 +2944,7 @@ async def import_urls(
                 try:
                     markdown = await _fetch_url_as_markdown(target_url)
                 except Exception as exc:
-                    logger.warning(
-                        "_fetch_url_as_markdown failed for %s: %s", target_url, exc
-                    )
+                    logger.warning("_fetch_url_as_markdown failed for %s: %s", target_url, exc)
                     markdown = ""
 
                 ingress_res = await publish_url_markdown_ingress(
@@ -3199,11 +2982,7 @@ async def import_urls(
                     return UrlImportItemResult(
                         url=target_url,
                         relative_path=ingress_res.relative_path,
-                        status=(
-                            "security_redacted"
-                            if ingress_res.security_redacted
-                            else "success"
-                        ),
+                        status=("security_redacted" if ingress_res.security_redacted else "success"),
                     )
                 return UrlImportItemResult(
                     url=target_url,
@@ -3260,9 +3039,7 @@ async def import_urls(
     if enqueued_paths:
         await _schedule_post_import_dedup_scan(agent_id)
 
-    message_parts = [
-        f"Processed {len(cleaned_urls)} URL(s), {len(enqueued_paths)} enqueued"
-    ]
+    message_parts = [f"Processed {len(cleaned_urls)} URL(s), {len(enqueued_paths)} enqueued"]
     if skipped_conflict_count:
         message_parts.append(f"{skipped_conflict_count} skipped (conflict)")
     if superseded_count:
@@ -3295,9 +3072,7 @@ async def import_urls(
 async def import_video(
     request: ImportVideoRequest,
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
-    agent_id: Annotated[
-        str | None, Query(description="Agent whose wiki vault to use")
-    ] = None,
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
 ) -> ImportVideoResponse:
     """Import video transcript into Wiki as timestamped Markdown with SSRF security checks."""
     _validate_import_conflict_options(request.on_conflict, request.supersede_reason)
@@ -3322,11 +3097,7 @@ async def import_video(
             message="URL verification failed",
         )
 
-    conflict_policy = (
-        RawConflictPolicy.SUPERSEDE
-        if request.on_conflict == "supersede"
-        else RawConflictPolicy.SKIP
-    )
+    conflict_policy = RawConflictPolicy.SUPERSEDE if request.on_conflict == "supersede" else RawConflictPolicy.SKIP
 
     try:
         ingress_res = await publish_video_url_ingress(
@@ -3342,9 +3113,7 @@ async def import_video(
             ),
         )
     except Exception as exc:
-        logger.warning(
-            "Failed to extract or ingest video transcript for %s: %s", target_url, exc
-        )
+        logger.warning("Failed to extract or ingest video transcript for %s: %s", target_url, exc)
         return ImportVideoResponse(
             success=False,
             url=target_url,

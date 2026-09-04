@@ -11,9 +11,7 @@ from app.api.statistics.agent_usage import get_usage_by_agent
 
 
 def _make_totals_row(agent_id: str, tokens: int, usd: float, calls: int, sessions: int):
-    return SimpleNamespace(
-        agent_id=agent_id, tokens=tokens, usd=usd, calls=calls, sessions=sessions
-    )
+    return SimpleNamespace(agent_id=agent_id, tokens=tokens, usd=usd, calls=calls, sessions=sessions)
 
 
 def _make_agent_row(id: str, name: str, avatar: str | None = None):
@@ -53,9 +51,7 @@ class TestGetUsageByAgent:
 
         agents_result = MagicMock()
         agents_result.all.return_value = [
-            _make_agent_row(
-                "agent-1", "Research Assistant", "https://avatar.url/1.png"
-            ),
+            _make_agent_row("agent-1", "Research Assistant", "https://avatar.url/1.png"),
         ]
 
         daily_result = MagicMock()

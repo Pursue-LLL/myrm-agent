@@ -470,7 +470,11 @@ class MemoryCommandCenterService:
                 select(PendingMemory).where(PendingMemory.status == "pending").order_by(desc(PendingMemory.created_at)).limit(5)
             )
             for item in pending_result.scalars().all():
-                is_conflict = (item.metadata_json or {}).get("conflict_status") == "conflicted" if isinstance(item.metadata_json, dict) else False
+                is_conflict = (
+                    (item.metadata_json or {}).get("conflict_status") == "conflicted"
+                    if isinstance(item.metadata_json, dict)
+                    else False
+                )
                 conflict_meta = (item.metadata_json or {}) if isinstance(item.metadata_json, dict) else {}
                 items.append(
                     MemoryCommandGovernanceItem(
@@ -482,7 +486,9 @@ class MemoryCommandCenterService:
                         severity="warning",
                         status=item.status,
                         created_at=item.created_at,
-                        available_actions=["approve", "reject", "merge", "edit"] if is_conflict else ["approve", "reject", "edit"],
+                        available_actions=["approve", "reject", "merge", "edit"]
+                        if is_conflict
+                        else ["approve", "reject", "edit"],
                         existing_value=str(conflict_meta.get("existing_value", "")) if is_conflict else None,
                         candidate_value=str(conflict_meta.get("candidate_value", "")) if is_conflict else None,
                         confidence=float(item.confidence) if item.confidence is not None else None,

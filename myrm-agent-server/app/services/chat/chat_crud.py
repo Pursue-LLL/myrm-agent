@@ -192,17 +192,13 @@ class _ChatCrudMixin(_ChatServiceBase):
             sess = uow.session
             assert sess is not None
             if chat_data.initial_shared_context_ids:
-                await _ChatCrudMixin._bind_initial_shared_contexts(
-                    sess, chat_data.chat_id, chat_data.initial_shared_context_ids
-                )
+                await _ChatCrudMixin._bind_initial_shared_contexts(sess, chat_data.chat_id, chat_data.initial_shared_context_ids)
             await sess.flush()
             await ConversationRecallIndexService.rebuild_chat(sess, chat_data.chat_id)
             return chat
 
     @staticmethod
-    async def _bind_initial_shared_contexts(
-        sess: AsyncSession, chat_id: str, context_ids: list[str]
-    ) -> None:
+    async def _bind_initial_shared_contexts(sess: AsyncSession, chat_id: str, context_ids: list[str]) -> None:
         """Bind initial shared memory contexts to the conversation within the same transaction."""
         from nanoid import generate as nanoid
         from sqlalchemy import select

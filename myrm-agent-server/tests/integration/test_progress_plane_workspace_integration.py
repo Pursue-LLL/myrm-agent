@@ -115,4 +115,3 @@ def test_blocked_todos_checklist_guidance(tmp_path: Path) -> None:
     assert has_critical
     assert "For blocked todos" in checklist
     assert "cancelled" in checklist
-

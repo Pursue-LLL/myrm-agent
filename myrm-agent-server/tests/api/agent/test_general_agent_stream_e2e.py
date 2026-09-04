@@ -165,4 +165,3 @@ class TestGeneralAgentStream:
         error_events = [d for d in collected_data if d.get("type") == "error"]
         assert not error_events, f"Expected no error events, got: {error_events}"
         assert "PURE-INSTRUCTION-SUCCESS" in full_answer or len(message_chunks) > 0
-

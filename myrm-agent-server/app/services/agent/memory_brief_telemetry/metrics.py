@@ -56,6 +56,7 @@ def record_distillation_rejection(rejection_code: str) -> None:
         except Exception:  # pragma: no cover
             pass
 
+
 if Gauge is not None:
     MEMORY_STATUS_QUEUE_DEPTH = Gauge(
         "myrm_memory_brief_status_telemetry_queue_depth",

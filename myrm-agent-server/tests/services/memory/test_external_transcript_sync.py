@@ -18,9 +18,7 @@ from app.services.memory.imports.external_transcript_sync import (
     ExternalTranscriptSyncService,
 )
 
-FIXTURE_PATH = (
-    Path(__file__).resolve().parents[2] / "fixtures" / "test_claude_code_transcript.jsonl"
-)
+FIXTURE_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "test_claude_code_transcript.jsonl"
 
 
 @pytest_asyncio.fixture
@@ -41,18 +39,14 @@ async def db_session() -> AsyncIterator[AsyncSession]:
 
 
 @pytest.mark.asyncio
-async def test_sync_file_creates_incognito_chat_and_watermark(
-    db_session: AsyncSession, tmp_path: Path
-) -> None:
+async def test_sync_file_creates_incognito_chat_and_watermark(db_session: AsyncSession, tmp_path: Path) -> None:
     assert FIXTURE_PATH.is_file(), f"Fixture missing at {FIXTURE_PATH}"
 
     wm_file = tmp_path / "watermarks.json"
     service = ExternalTranscriptSyncService(watermark_path=wm_file)
     watermarks: dict[str, dict[str, object]] = {}
 
-    turns_count, chat_id = await service.sync_file(
-        db_session, FIXTURE_PATH, source="external:claude_code", watermarks=watermarks
-    )
+    turns_count, chat_id = await service.sync_file(db_session, FIXTURE_PATH, source="external:claude_code", watermarks=watermarks)
     await db_session.commit()
 
     assert turns_count == 3
@@ -72,32 +66,38 @@ async def test_sync_file_creates_incognito_chat_and_watermark(
     assert int(watermarks[path_key]["offset"]) > 0
 
     # Second run without changes should skip
-    re_turns, re_chat = await service.sync_file(
-        db_session, FIXTURE_PATH, source="external:claude_code", watermarks=watermarks
-    )
+    re_turns, re_chat = await service.sync_file(db_session, FIXTURE_PATH, source="external:claude_code", watermarks=watermarks)
     assert re_turns == 0
     assert re_chat is None
 
 
 @pytest.mark.asyncio
-async def test_sync_file_scrubs_secrets_before_indexing(
-    db_session: AsyncSession, tmp_path: Path
-) -> None:
+async def test_sync_file_scrubs_secrets_before_indexing(db_session: AsyncSession, tmp_path: Path) -> None:
     sensitive_file = tmp_path / "sensitive.jsonl"
-    line1 = json.dumps({
-        "type": "user",
-        "message": {
-            "role": "user",
-            "content": "My OpenAI key is sk-12345678901234567890abcdef and token is Bearer super-secret-bearer-token-12345",
-        },
-    }) + "\n"
-    line2 = json.dumps({
-        "type": "assistant",
-        "message": {
-            "role": "assistant",
-            "content": "Received secret. Password is password=\"topsecret123\"",
-        },
-    }) + "\n"
+    line1 = (
+        json.dumps(
+            {
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": "My OpenAI key is sk-12345678901234567890abcdef and token is Bearer super-secret-bearer-token-12345",
+                },
+            }
+        )
+        + "\n"
+    )
+    line2 = (
+        json.dumps(
+            {
+                "type": "assistant",
+                "message": {
+                    "role": "assistant",
+                    "content": 'Received secret. Password is password="topsecret123"',
+                },
+            }
+        )
+        + "\n"
+    )
     sensitive_file.write_text(line1 + line2, encoding="utf-8")
 
     service = ExternalTranscriptSyncService(watermark_path=tmp_path / "wm.json")
@@ -122,9 +122,7 @@ async def test_sync_file_scrubs_secrets_before_indexing(
 
 
 @pytest.mark.asyncio
-async def test_sync_directory_scans_and_persists_watermarks(
-    db_session: AsyncSession, tmp_path: Path
-) -> None:
+async def test_sync_directory_scans_and_persists_watermarks(db_session: AsyncSession, tmp_path: Path) -> None:
     proj_dir = tmp_path / "claude_projects"
     sub_dir = proj_dir / "project_alpha"
     sub_dir.mkdir(parents=True)
@@ -132,13 +130,22 @@ async def test_sync_directory_scans_and_persists_watermarks(
     file_a = sub_dir / "chat_1.jsonl"
     file_b = sub_dir / "chat_2.jsonl"
 
-    turn_data = json.dumps({
-        "type": "user",
-        "message": {"role": "user", "content": "How to configure SQLite?"},
-    }) + "\n" + json.dumps({
-        "type": "assistant",
-        "message": {"role": "assistant", "content": "Use PRAGMA journal_mode=WAL;"},
-    }) + "\n"
+    turn_data = (
+        json.dumps(
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "How to configure SQLite?"},
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "type": "assistant",
+                "message": {"role": "assistant", "content": "Use PRAGMA journal_mode=WAL;"},
+            }
+        )
+        + "\n"
+    )
 
     file_a.write_text(turn_data, encoding="utf-8")
     file_b.write_text(turn_data, encoding="utf-8")
@@ -168,44 +175,56 @@ async def test_sync_directory_scans_and_persists_watermarks(
 
 
 @pytest.mark.asyncio
-async def test_sync_file_incremental_append_growth(
-    db_session: AsyncSession, tmp_path: Path
-) -> None:
+async def test_sync_file_incremental_append_growth(db_session: AsyncSession, tmp_path: Path) -> None:
     grow_file = tmp_path / "growing_session.jsonl"
     wm_file = tmp_path / "wm_grow.json"
     service = ExternalTranscriptSyncService(watermark_path=wm_file)
     watermarks: dict[str, dict[str, object]] = {}
 
     # Write first turn
-    turn1 = json.dumps({
-        "type": "user",
-        "message": {"role": "user", "content": "First turn prompt"},
-    }) + "\n" + json.dumps({
-        "type": "assistant",
-        "message": {"role": "assistant", "content": "First turn response"},
-    }) + "\n"
+    turn1 = (
+        json.dumps(
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "First turn prompt"},
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "type": "assistant",
+                "message": {"role": "assistant", "content": "First turn response"},
+            }
+        )
+        + "\n"
+    )
     grow_file.write_text(turn1, encoding="utf-8")
 
-    turns1, cid1 = await service.sync_file(
-        db_session, grow_file, watermarks=watermarks
-    )
+    turns1, cid1 = await service.sync_file(db_session, grow_file, watermarks=watermarks)
     assert turns1 == 1
     offset_after_first = int(watermarks[str(grow_file.resolve())]["offset"])
 
     # Append second turn to the same file
-    turn2 = json.dumps({
-        "type": "user",
-        "message": {"role": "user", "content": "Second turn prompt"},
-    }) + "\n" + json.dumps({
-        "type": "assistant",
-        "message": {"role": "assistant", "content": "Second turn response"},
-    }) + "\n"
+    turn2 = (
+        json.dumps(
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "Second turn prompt"},
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "type": "assistant",
+                "message": {"role": "assistant", "content": "Second turn response"},
+            }
+        )
+        + "\n"
+    )
     with open(grow_file, "a", encoding="utf-8") as f:
         f.write(turn2)
 
-    turns2, cid2 = await service.sync_file(
-        db_session, grow_file, watermarks=watermarks
-    )
+    turns2, cid2 = await service.sync_file(db_session, grow_file, watermarks=watermarks)
     assert turns2 == 1
     assert cid2 == cid1
     offset_after_second = int(watermarks[str(grow_file.resolve())]["offset"])
@@ -213,51 +232,61 @@ async def test_sync_file_incremental_append_growth(
 
 
 @pytest.mark.asyncio
-async def test_sync_file_truncation_or_rotation_recovery(
-    db_session: AsyncSession, tmp_path: Path
-) -> None:
+async def test_sync_file_truncation_or_rotation_recovery(db_session: AsyncSession, tmp_path: Path) -> None:
     rotate_file = tmp_path / "rotating_session.jsonl"
     wm_file = tmp_path / "wm_rotate.json"
     service = ExternalTranscriptSyncService(watermark_path=wm_file)
     watermarks: dict[str, dict[str, object]] = {}
 
-    initial_content = json.dumps({
-        "type": "user",
-        "message": {"role": "user", "content": "Initial prompt before truncation"},
-    }) + "\n" + json.dumps({
-        "type": "assistant",
-        "message": {"role": "assistant", "content": "Initial long response" * 5},
-    }) + "\n"
+    initial_content = (
+        json.dumps(
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "Initial prompt before truncation"},
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "type": "assistant",
+                "message": {"role": "assistant", "content": "Initial long response" * 5},
+            }
+        )
+        + "\n"
+    )
     rotate_file.write_text(initial_content, encoding="utf-8")
 
-    turns1, cid1 = await service.sync_file(
-        db_session, rotate_file, watermarks=watermarks
-    )
+    turns1, cid1 = await service.sync_file(db_session, rotate_file, watermarks=watermarks)
     assert turns1 == 1
 
     # Truncate and rewrite with smaller content (simulating rotation/rewrite)
-    smaller_content = json.dumps({
-        "type": "user",
-        "message": {"role": "user", "content": "New shorter session"},
-    }) + "\n" + json.dumps({
-        "type": "assistant",
-        "message": {"role": "assistant", "content": "Short reply"},
-    }) + "\n"
+    smaller_content = (
+        json.dumps(
+            {
+                "type": "user",
+                "message": {"role": "user", "content": "New shorter session"},
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "type": "assistant",
+                "message": {"role": "assistant", "content": "Short reply"},
+            }
+        )
+        + "\n"
+    )
     assert len(smaller_content.encode("utf-8")) < len(initial_content.encode("utf-8"))
     rotate_file.write_text(smaller_content, encoding="utf-8")
 
-    turns2, cid2 = await service.sync_file(
-        db_session, rotate_file, watermarks=watermarks
-    )
+    turns2, cid2 = await service.sync_file(db_session, rotate_file, watermarks=watermarks)
     assert turns2 == 1
     assert cid2 == cid1
     assert watermarks[str(rotate_file.resolve())]["offset"] == len(smaller_content.encode("utf-8"))
 
 
 @pytest.mark.asyncio
-async def test_sync_empty_or_nonexistent_file(
-    db_session: AsyncSession, tmp_path: Path
-) -> None:
+async def test_sync_empty_or_nonexistent_file(db_session: AsyncSession, tmp_path: Path) -> None:
     service = ExternalTranscriptSyncService()
     turns, cid = await service.sync_file(db_session, tmp_path / "nonexistent.jsonl")
     assert turns == 0

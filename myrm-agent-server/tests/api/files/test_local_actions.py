@@ -388,7 +388,10 @@ class TestRevealChatArtifacts:
     async def test_reveal_chat_artifacts_endpoint_forbids_non_local(self):
         from app.api.files.local_actions import reveal_chat_artifacts
 
-        with patch("app.api.files.local_actions._validate_local_mode", side_effect=HTTPException(status_code=403, detail="File actions only available in local mode")):
+        with patch(
+            "app.api.files.local_actions._validate_local_mode",
+            side_effect=HTTPException(status_code=403, detail="File actions only available in local mode"),
+        ):
             with pytest.raises(HTTPException) as exc_info:
                 await reveal_chat_artifacts("chat-1", db=MagicMock())
             assert exc_info.value.status_code == 403

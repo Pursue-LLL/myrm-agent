@@ -39,6 +39,7 @@ def test_dual_track_audit_api_handlers():
 
     # 1. get_dual_track_audit_entries
     import asyncio
+
     entries = asyncio.run(get_dual_track_audit_entries(session_id="sess_server_001"))
     assert len(entries) == 2
     assert entries[0].rule_name in ("SANDBOX_POLICY", "CRITICAL_PATH_GUARD")

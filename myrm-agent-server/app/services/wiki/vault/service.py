@@ -67,16 +67,8 @@ def get_wiki_archiver(
     from pathlib import Path as _FsPath
 
     manager_key = id(manager) if manager is not None else 0
-    resolved_public_dirs = (
-        tuple(sorted(str(_FsPath(p).expanduser().resolve()) for p in public_dirs))
-        if public_dirs
-        else ()
-    )
-    resolved_labels = (
-        tuple(sorted(public_dir_labels.items()))
-        if public_dir_labels
-        else ()
-    )
+    resolved_public_dirs = tuple(sorted(str(_FsPath(p).expanduser().resolve()) for p in public_dirs)) if public_dirs else ()
+    resolved_labels = tuple(sorted(public_dir_labels.items())) if public_dir_labels else ()
     cache_key = (
         id(llm),
         sanitize_wiki_scope_id(agent_id),

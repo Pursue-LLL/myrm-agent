@@ -204,4 +204,3 @@ class TestSteerEndpoint:
         SteeringRegistry.register("chat-buffered-e2e", token)
         assert token.redirect_requested
         assert token.activate() == ["redirect immediately"]
-

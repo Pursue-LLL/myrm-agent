@@ -119,10 +119,12 @@ async def test_artifact_publish_passes_password_to_orchestrator() -> None:
             return_value="/test/workspace",
         ),
     ):
-        result = await tool.ainvoke({
-            "artifact_id": "art-789",
-            "password": "SuperSecretPass2026",
-        })
+        result = await tool.ainvoke(
+            {
+                "artifact_id": "art-789",
+                "password": "SuperSecretPass2026",
+            }
+        )
 
     assert result["metadata"].get("error") is not True
     assert "https://secure.pages.dev" in result["content"]
@@ -130,4 +132,3 @@ async def test_artifact_publish_passes_password_to_orchestrator() -> None:
     assert mock_publish.call_count == 1
     call_kwargs = mock_publish.call_args.kwargs
     assert call_kwargs.get("password") == "SuperSecretPass2026"
-

@@ -299,9 +299,7 @@ def get_matrix_report_history(
                         else None
                     ),
                     "paired_significance_count": (
-                        len(data.get("paired_significance"))
-                        if isinstance(data.get("paired_significance"), dict)
-                        else 0
+                        len(data.get("paired_significance")) if isinstance(data.get("paired_significance"), dict) else 0
                     ),
                     "limit": data.get("limit"),
                     "aborted": data.get("aborted", False),

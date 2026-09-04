@@ -68,15 +68,11 @@ class TestConnectGenerateAPI:
     """Test POST /connect/generate endpoint."""
 
     def test_generate_config_returns_200(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/generate", json={"profile_id": "claude_code"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "claude_code"})
         assert response.status_code == 200
 
     def test_generate_returns_token(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/generate", json={"profile_id": "cursor"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "cursor"})
         data = response.json()
         assert data["token"].startswith("myrm_mcp_")
         assert data["mcp_url"].endswith("/mcp")
@@ -84,23 +80,17 @@ class TestConnectGenerateAPI:
         assert data["instructions"]
 
     def test_generate_unknown_profile_returns_error(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/generate", json={"profile_id": "nonexistent"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "nonexistent"})
         assert response.status_code in (400, 422, 500)
 
     def test_generate_codex_returns_toml(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/generate", json={"profile_id": "codex"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "codex"})
         data = response.json()
         assert data["config_json"]["_format"] == "toml"
         assert "[mcp_servers.myrm-memory]" in data["config_json"]["_toml_snippet"]
 
     def test_generate_default_expose_desktop_false(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/generate", json={"profile_id": "claude_code"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "claude_code"})
         assert response.status_code == 200
         data = response.json()
         assert data["expose_desktop"] is False
@@ -129,9 +119,7 @@ class TestConnectDoctorAPI:
 
     def test_doctor_after_generate_returns_healthy(self, client: TestClient):
         client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "windsurf"})
-        response = client.post(
-            f"{API_PREFIX}/connect/doctor", json={"profile_id": "windsurf"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/doctor", json={"profile_id": "windsurf"})
         assert response.status_code == 200
         data = response.json()
         assert data["healthy"] is True
@@ -139,18 +127,14 @@ class TestConnectDoctorAPI:
         assert data["severity"] == "warn"
 
     def test_doctor_response_has_detail_field(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/doctor", json={"profile_id": "cursor"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/doctor", json={"profile_id": "cursor"})
         assert response.status_code == 200
         assert "detail" in response.json()
         assert isinstance(response.json()["detail"], str)
         assert "severity" in response.json()
 
     def test_doctor_unconfigured_returns_unhealthy(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/doctor", json={"profile_id": "gemini_cli"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/doctor", json={"profile_id": "gemini_cli"})
         assert response.status_code == 200
         data = response.json()
         assert data["healthy"] is False
@@ -161,28 +145,20 @@ class TestConnectRevokeAPI:
     """Test POST /connect/revoke endpoint."""
 
     def test_revoke_configured_returns_true(self, client: TestClient):
-        client.post(
-            f"{API_PREFIX}/connect/generate", json={"profile_id": "claude_code"}
-        )
-        response = client.post(
-            f"{API_PREFIX}/connect/revoke", json={"profile_id": "claude_code"}
-        )
+        client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "claude_code"})
+        response = client.post(f"{API_PREFIX}/connect/revoke", json={"profile_id": "claude_code"})
         assert response.status_code == 200
         assert response.json()["revoked"] is True
 
     def test_revoke_unknown_returns_false(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/revoke", json={"profile_id": "unknown_agent"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/revoke", json={"profile_id": "unknown_agent"})
         assert response.status_code == 200
         assert response.json()["revoked"] is False
 
     def test_revoke_invalidates_doctor(self, client: TestClient):
         client.post(f"{API_PREFIX}/connect/generate", json={"profile_id": "cursor"})
         client.post(f"{API_PREFIX}/connect/revoke", json={"profile_id": "cursor"})
-        response = client.post(
-            f"{API_PREFIX}/connect/doctor", json={"profile_id": "cursor"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/doctor", json={"profile_id": "cursor"})
         assert response.json()["healthy"] is False
 
 
@@ -231,15 +207,11 @@ class TestAgentPluginAPI:
     """Test POST /connect/agent-plugin endpoint."""
 
     def test_generate_bundle_returns_200(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/agent-plugin", json={"agent_id": "default"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/agent-plugin", json={"agent_id": "default"})
         assert response.status_code == 200
 
     def test_generate_bundle_file_set(self, client: TestClient):
-        response = client.post(
-            f"{API_PREFIX}/connect/agent-plugin", json={"agent_id": "default"}
-        )
+        response = client.post(f"{API_PREFIX}/connect/agent-plugin", json={"agent_id": "default"})
         data = response.json()
         assert set(data["files"]) == {
             "plugin.json",
@@ -267,15 +239,11 @@ class TestAgentPluginAPI:
 
     def test_revoke_agent_plugin_through_api(self, client: TestClient):
         client.post(f"{API_PREFIX}/connect/agent-plugin", json={"agent_id": "default"})
-        revoke = client.post(
-            f"{API_PREFIX}/connect/revoke", json={"profile_id": "agent_plugin"}
-        )
+        revoke = client.post(f"{API_PREFIX}/connect/revoke", json={"profile_id": "agent_plugin"})
         assert revoke.status_code == 200
         assert revoke.json()["revoked"] is True
         # The revoked token must no longer authenticate (doctor reports unhealthy).
-        doctor = client.post(
-            f"{API_PREFIX}/connect/doctor", json={"profile_id": "agent_plugin"}
-        )
+        doctor = client.post(f"{API_PREFIX}/connect/doctor", json={"profile_id": "agent_plugin"})
         assert doctor.json()["healthy"] is False
 
 
@@ -283,16 +251,12 @@ class TestConnectAgentCapabilitiesAPI:
     """Test GET /connect/agent-capabilities/{agent_id} endpoint."""
 
     def test_agent_capabilities_not_found(self, client: TestClient):
-        with patch(
-            "app.services.agent.profile.profile_resolver.get_agent_profile_resolver"
-        ) as mock_resolver_fn:
+        with patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver") as mock_resolver_fn:
             mock_resolver = MagicMock()
             mock_resolver.resolve = AsyncMock(return_value=None)
             mock_resolver_fn.return_value = mock_resolver
 
-            response = client.get(
-                f"{API_PREFIX}/connect/agent-capabilities/nonexistent_agent"
-            )
+            response = client.get(f"{API_PREFIX}/connect/agent-capabilities/nonexistent_agent")
             assert response.status_code == 200
             data = response.json()
             assert data["agent_id"] == "nonexistent_agent"
@@ -305,9 +269,7 @@ class TestConnectAgentCapabilitiesAPI:
         mock_profile.enabled_builtin_tools = ["computer_use"]
 
         with (
-            patch(
-                "app.services.agent.profile.profile_resolver.get_agent_profile_resolver"
-            ) as mock_resolver_fn,
+            patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver") as mock_resolver_fn,
             patch(
                 "app.config.computer_use_deploy.is_computer_use_deploy_supported",
                 return_value=True,
@@ -331,9 +293,7 @@ class TestConnectAgentCapabilitiesAPI:
         mock_profile.enabled_builtin_tools = []
 
         with (
-            patch(
-                "app.services.agent.profile.profile_resolver.get_agent_profile_resolver"
-            ) as mock_resolver_fn,
+            patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver") as mock_resolver_fn,
             patch(
                 "app.config.computer_use_deploy.is_computer_use_deploy_supported",
                 return_value=True,
@@ -343,9 +303,7 @@ class TestConnectAgentCapabilitiesAPI:
             mock_resolver.resolve = AsyncMock(return_value=mock_profile)
             mock_resolver_fn.return_value = mock_resolver
 
-            response = client.get(
-                f"{API_PREFIX}/connect/agent-capabilities/plain-agent"
-            )
+            response = client.get(f"{API_PREFIX}/connect/agent-capabilities/plain-agent")
             assert response.status_code == 200
             data = response.json()
             assert data["agent_id"] == "plain-agent"

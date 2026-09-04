@@ -296,7 +296,9 @@ class ConversationRecallRepository:
         except Exception as exc:
             logger.warning("conversation_recall_segments_fts MATCH failed (degraded/rebuilding): %s", exc)
             try:
-                await db.execute(text("INSERT INTO conversation_recall_segments_fts(conversation_recall_segments_fts) VALUES('rebuild')"))
+                await db.execute(
+                    text("INSERT INTO conversation_recall_segments_fts(conversation_recall_segments_fts) VALUES('rebuild')")
+                )
                 logger.info("Auto-rebuilt conversation_recall_segments_fts successfully")
             except Exception:
                 pass
@@ -524,7 +526,11 @@ class ConversationRecallRepository:
                 fts_intact = False
         if segments_fts_intact:
             try:
-                await db.execute(text("INSERT INTO conversation_recall_segments_fts(conversation_recall_segments_fts) VALUES('integrity-check')"))
+                await db.execute(
+                    text(
+                        "INSERT INTO conversation_recall_segments_fts(conversation_recall_segments_fts) VALUES('integrity-check')"
+                    )
+                )
             except Exception:
                 segments_fts_intact = False
 

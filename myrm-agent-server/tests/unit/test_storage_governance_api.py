@@ -30,8 +30,10 @@ def test_storage_governance_api_handlers() -> None:
         mock_settings.database.state_dir = str(data_dir)
         mock_disk = MagicMock(total=100_000_000_000, free=80_000_000_000, used=20_000_000_000)
 
-        with patch("app.api.system.router.get_settings", return_value=mock_settings), \
-             patch("shutil.disk_usage", return_value=mock_disk):
+        with (
+            patch("app.api.system.router.get_settings", return_value=mock_settings),
+            patch("shutil.disk_usage", return_value=mock_disk),
+        ):
             # 1. get_storage_governance_report
             report = get_storage_governance_report()
             assert report.total_storage_bytes > 0
@@ -39,9 +41,7 @@ def test_storage_governance_api_handlers() -> None:
             assert isinstance(report.is_growth_healthy, bool)
 
             # 2. execute_storage_compaction
-            comp_res = execute_storage_compaction(
-                StorageCompactionRequest(purge_orphan_checkpoints=True, incremental_pages=100)
-            )
+            comp_res = execute_storage_compaction(StorageCompactionRequest(purge_orphan_checkpoints=True, incremental_pages=100))
             assert comp_res.success is True
             assert comp_res.wal_truncated is True
 

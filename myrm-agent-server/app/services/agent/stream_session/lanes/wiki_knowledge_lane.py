@@ -60,9 +60,7 @@ async def create_wiki_knowledge_lane_stream(
                 )
 
                 async with get_session() as session:
-                    context_name_map = await SharedContextService(session).get_context_names(
-                        params.memory_shared_context_ids
-                    )
+                    context_name_map = await SharedContextService(session).get_context_names(params.memory_shared_context_ids)
             except Exception as name_map_err:
                 logger.warning("Could not resolve context names for wiki lane: %s", name_map_err)
 

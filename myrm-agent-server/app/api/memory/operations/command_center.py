@@ -39,7 +39,6 @@ from app.schemas.memory.command_center import (
     MemoryCommandPlaneSummary,
     MemoryCommandTimelineEvent,
     MemoryRecallBoundaryData,
-    MemoryBehavioralInsightsResponse,
 )
 from app.services.memory.command_center.command_center import MemoryCommandCenterService
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService

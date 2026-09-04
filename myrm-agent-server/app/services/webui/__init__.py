@@ -29,4 +29,3 @@ __all__ = [
     "TouchRelayCommand",
     "device_bridge_service",
 ]
-

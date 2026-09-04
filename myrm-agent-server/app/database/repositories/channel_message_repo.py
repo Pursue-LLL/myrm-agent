@@ -93,9 +93,7 @@ class ChannelMessageRepository:
     ) -> int:
         """Prune messages older than retention_days. Returns the number of pruned rows."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
-        stmt = delete(ChannelMessageModel).where(
-            ChannelMessageModel.created_at < cutoff
-        )
+        stmt = delete(ChannelMessageModel).where(ChannelMessageModel.created_at < cutoff)
         result = await session.execute(stmt)
         await session.flush()
         return int(result.rowcount or 0)

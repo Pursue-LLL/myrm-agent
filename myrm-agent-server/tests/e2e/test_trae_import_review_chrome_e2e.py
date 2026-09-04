@@ -88,9 +88,7 @@ def _assert_review_dialog(
     raise AssertionError(f"Review dialog did not become ready: {last!r}")
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_trae_import_review_chrome_e2e() -> None:
@@ -114,14 +112,10 @@ def test_trae_import_review_chrome_e2e() -> None:
             page_url=page_url,
             blank_heal_mode="direct",
         )
-        assert (
-            memory_ready.get("ready") is True
-        ), f"MemorySection not ready: {memory_ready!r}"
+        assert memory_ready.get("ready") is True, f"MemorySection not ready: {memory_ready!r}"
 
         upload = client.evaluate(page, _UPLOAD_TRAE_JS, timeout_sec=20.0)
-        assert (
-            isinstance(upload, dict) and upload.get("ok") is True
-        ), f"Upload failed: {upload!r}"
+        assert isinstance(upload, dict) and upload.get("ok") is True, f"Upload failed: {upload!r}"
 
         state = _assert_review_dialog(client, page, timeout_sec=60.0)
         assert state.get("hasTraeBucket") is True, f"trae bucket missing: {state!r}"

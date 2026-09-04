@@ -257,5 +257,3 @@ def test_planning_todo_write_all_blocked_and_replan_self_healing(client: TestCli
     assert store.todos[0].status.value == "cancelled"
     # All incomplete tasks resolved
     assert len(store.incomplete_todos()) == 0
-
-

@@ -386,4 +386,3 @@ async def test_image_tool_status_with_task_id_reads_task_store() -> None:
     assert payload["task_type"] == "image_generate"
     assert payload["result"]["images"][0]["url"] == "https://vault.example.com/img-123.png"
     mock_store.get_task.assert_awaited_once_with("img-123")
-

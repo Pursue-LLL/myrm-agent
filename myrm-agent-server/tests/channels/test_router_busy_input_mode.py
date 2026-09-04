@@ -161,4 +161,3 @@ async def test_router_busy_input_mode_skips_slash_commands() -> None:
 
     # Steering token should NOT receive slash commands
     assert not steering_token.has_pending
-

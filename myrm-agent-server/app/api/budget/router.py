@@ -33,9 +33,7 @@ from app.core.utils.response_utils import success_response
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-router.include_router(
-    spend_control_router, prefix="/spend-control", tags=["spend-control"]
-)
+router.include_router(spend_control_router, prefix="/spend-control", tags=["spend-control"])
 
 
 class BudgetPolicyRequest(BaseModel):
@@ -45,9 +43,7 @@ class BudgetPolicyRequest(BaseModel):
     per_call_limit_usd: float | None = Field(default=None, ge=0.01, le=1000.0)
     warning_threshold: float = Field(default=0.8, ge=0.1, le=1.0)
     finalization_reserve_pct: float = Field(default=0.15, ge=0.05, le=0.5)
-    action_on_exceeded: str = Field(
-        default="finalize", pattern=r"^(warn|block|finalize)$"
-    )
+    action_on_exceeded: str = Field(default="finalize", pattern=r"^(warn|block|finalize)$")
 
 
 @router.get("/policy")
@@ -194,9 +190,7 @@ async def get_channel_budgets() -> JSONResponse:
 
 
 @router.put("/channels/{channel_key:path}")
-async def update_channel_budget(
-    channel_key: str, req: ChannelBudgetPolicyRequest
-) -> JSONResponse:
+async def update_channel_budget(channel_key: str, req: ChannelBudgetPolicyRequest) -> JSONResponse:
     """Create or update a channel budget policy."""
     try:
         from app.services.budget.channel_budget import (
@@ -245,9 +239,7 @@ async def get_channel_audit(channel_key: str, days: int = 7) -> JSONResponse:
         from app.platform_utils import get_session_factory
 
         session_factory = get_session_factory()
-        since = datetime.combine(
-            date.today() - timedelta(days=days), datetime.min.time()
-        )
+        since = datetime.combine(date.today() - timedelta(days=days), datetime.min.time())
         cost_expr = func.json_extract(Message.extra_data, "$.costUsd")
         sender_expr = func.json_extract(Message.extra_data, "$.channelSenderId")
 
@@ -287,9 +279,7 @@ async def get_channel_audit(channel_key: str, days: int = 7) -> JSONResponse:
                 "channel_key": channel_key,
                 "period_days": days,
                 "entries": audit_entries,
-                "total_cost_usd": round(
-                    sum(e["total_cost_usd"] for e in audit_entries), 6
-                ),
+                "total_cost_usd": round(sum(e["total_cost_usd"] for e in audit_entries), 6),
             }
         )
     except Exception as e:

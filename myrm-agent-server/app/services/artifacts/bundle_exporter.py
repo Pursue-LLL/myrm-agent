@@ -69,9 +69,7 @@ class BundleExporter:
         2. 各个工件按 DeliverableItem.relative_path 组织逻辑子目录
         """
         stream_buf = ZipStreamBuffer()
-        zip_file = zipfile.ZipFile(
-            stream_buf, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=True
-        )
+        zip_file = zipfile.ZipFile(stream_buf, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=True)
 
         try:
             # 1. 写入 manifest.json 与 README.md 根描述
@@ -87,17 +85,13 @@ class BundleExporter:
             for item in manifest.items:
                 vault_uri = item.vault_uri
                 if not vault_uri or not vault_uri.startswith(VAULT_PREFIX):
-                    logger.warning(
-                        "跳过非法 Vault 指针工件: %s (%s)", item.title, vault_uri
-                    )
+                    logger.warning("跳过非法 Vault 指针工件: %s (%s)", item.title, vault_uri)
                     continue
 
                 obj_id = vault_uri[len(VAULT_PREFIX) :]
                 obj_path = self.vault.get_object_path(obj_id)
                 if not obj_path.exists() or not obj_path.is_file():
-                    logger.warning(
-                        "Vault 物理文件不存在: %s (%s)", item.title, obj_path
-                    )
+                    logger.warning("Vault 物理文件不存在: %s (%s)", item.title, obj_path)
                     continue
 
                 # 规范化相对路径，防路径穿越；若无目录前缀则根据工件分类自动映射标准子目录
@@ -134,9 +128,7 @@ class BundleExporter:
                 pass
             raise
         except Exception as e:
-            logger.error(
-                "交付包流式打包异常: %s, error=%s", manifest.bundle_id, e, exc_info=True
-            )
+            logger.error("交付包流式打包异常: %s, error=%s", manifest.bundle_id, e, exc_info=True)
             try:
                 zip_file.close()
             except Exception:

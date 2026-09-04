@@ -238,6 +238,7 @@ def test_list_and_revoke_active_grants(client: TestClient):
         expires_at=now - 10.0,
     )
     import asyncio
+
     asyncio.run(allowlist.add("test_user_ttl", active_entry))
     asyncio.run(allowlist.add("test_user_ttl", expired_entry))
 
@@ -263,4 +264,3 @@ def test_list_and_revoke_active_grants(client: TestClient):
     after_resp = client.get("/approvals/grants?user_id=test_user_ttl")
     assert after_resp.status_code == 200
     assert len(after_resp.json()["grants"]) == 0
-

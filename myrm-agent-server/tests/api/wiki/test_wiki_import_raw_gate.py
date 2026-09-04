@@ -173,12 +173,15 @@ def test_import_folder_blocks_credential_content(tmp_path: Path) -> None:
 def test_import_urls_success(tmp_path: Path) -> None:
     client, _archiver, structure = _build_import_client(tmp_path)
 
-    with patch(
-        "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
-        new=AsyncMock(return_value=SSRFResult(safe=True)),
-    ), patch(
-        "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
-        return_value="# Test Title\n\nArticle body content.",
+    with (
+        patch(
+            "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
+            new=AsyncMock(return_value=SSRFResult(safe=True)),
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
+            return_value="# Test Title\n\nArticle body content.",
+        ),
     ):
         try:
             response = client.post(
@@ -236,12 +239,15 @@ def test_import_urls_ssrf_blocked(tmp_path: Path) -> None:
 def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
     client, _archiver, structure = _build_import_client(tmp_path)
 
-    with patch(
-        "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
-        new=AsyncMock(return_value=SSRFResult(safe=True)),
-    ), patch(
-        "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
-        return_value="# Version 1\n\nFirst edition.",
+    with (
+        patch(
+            "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
+            new=AsyncMock(return_value=SSRFResult(safe=True)),
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
+            return_value="# Version 1\n\nFirst edition.",
+        ),
     ):
         try:
             resp1 = client.post(
@@ -263,12 +269,15 @@ def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
     assert "First edition." in raw_file.read_text(encoding="utf-8")
 
     # Conflict skip
-    with patch(
-        "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
-        new=AsyncMock(return_value=SSRFResult(safe=True)),
-    ), patch(
-        "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
-        return_value="# Version 2\n\nSecond edition.",
+    with (
+        patch(
+            "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
+            new=AsyncMock(return_value=SSRFResult(safe=True)),
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
+            return_value="# Version 2\n\nSecond edition.",
+        ),
     ):
         try:
             resp2 = client.post(
@@ -289,12 +298,15 @@ def test_import_urls_conflict_skip_and_supersede(tmp_path: Path) -> None:
     assert "First edition." in raw_file.read_text(encoding="utf-8")
 
     # Supersede
-    with patch(
-        "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
-        new=AsyncMock(return_value=SSRFResult(safe=True)),
-    ), patch(
-        "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
-        return_value="# Version 2\n\nSecond edition.",
+    with (
+        patch(
+            "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
+            new=AsyncMock(return_value=SSRFResult(safe=True)),
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
+            return_value="# Version 2\n\nSecond edition.",
+        ),
     ):
         try:
             resp3 = client.post(
@@ -320,12 +332,15 @@ def test_import_urls_security_blocked(tmp_path: Path) -> None:
     client, _archiver, _structure = _build_import_client(tmp_path)
     secret = "sk-1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd"
 
-    with patch(
-        "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
-        new=AsyncMock(return_value=SSRFResult(safe=True)),
-    ), patch(
-        "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
-        return_value=f"# Leaked Page\n\nOPENAI_API_KEY={secret}",
+    with (
+        patch(
+            "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
+            new=AsyncMock(return_value=SSRFResult(safe=True)),
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.wiki.wiki_agent_tools._fetch_url_as_markdown",
+            return_value=f"# Leaked Page\n\nOPENAI_API_KEY={secret}",
+        ),
     ):
         try:
             response = client.post(
@@ -360,12 +375,15 @@ def test_import_video_bilibili_success(tmp_path: Path) -> None:
         },
     )
 
-    with patch(
-        "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
-        new=AsyncMock(return_value=SSRFResult(safe=True)),
-    ), patch(
-        "myrm_agent_harness.toolkits.wiki.pipeline.ingress.video_ingress.extract_bilibili_subtitle",
-        new=AsyncMock(return_value=fake_doc),
+    with (
+        patch(
+            "myrm_agent_harness.core.security.guards.ssrf.async_validate_url_for_ssrf",
+            new=AsyncMock(return_value=SSRFResult(safe=True)),
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.wiki.pipeline.ingress.video_ingress.extract_bilibili_subtitle",
+            new=AsyncMock(return_value=fake_doc),
+        ),
     ):
         try:
             response = client.post(

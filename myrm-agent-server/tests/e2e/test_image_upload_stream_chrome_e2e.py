@@ -471,4 +471,3 @@ async def test_image_upload_stream_empty_prompt_fallback(
     finally:
         if isinstance(backup, dict) and backup:
             put_config_value("providers", backup, api_url=api_url)
-

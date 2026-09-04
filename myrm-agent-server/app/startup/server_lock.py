@@ -20,6 +20,7 @@ def _get_state_dir() -> Path:
         return Path(env_dir.strip()).expanduser().resolve()
     return Path(settings.database.state_dir)
 
+
 _server_lock = None
 
 

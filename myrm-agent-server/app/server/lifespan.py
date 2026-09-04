@@ -99,9 +99,7 @@ async def _dispatch_startup_event() -> None:
 
         scheduler = get_cron_scheduler()
         if scheduler:
-            count = await scheduler.dispatch_system_event(
-                source="app", event_type="startup", payload={}
-            )
+            count = await scheduler.dispatch_system_event(source="app", event_type="startup", payload={})
             if count:
                 logger.info("[Startup] @startup trigger fired %d job(s)", count)
     except Exception as e:
@@ -130,9 +128,7 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     from myrm_agent_harness.infra.tls_compat import apply_global_tls_relaxation
 
     if apply_global_tls_relaxation():
-        logger.info(
-            "[Startup] Enterprise TLS compatibility enabled (MYRM_TLS_STRICT=0)"
-        )
+        logger.info("[Startup] Enterprise TLS compatibility enabled (MYRM_TLS_STRICT=0)")
 
     timer = StartupTimer()
     logger.info("[Startup] Application starting...")
@@ -189,13 +185,9 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
         if isinstance(cron_result, Exception):
             logger.error("[Startup] Cron scheduler failed to start: %s", cron_result)
         if isinstance(kanban_result, Exception):
-            logger.error(
-                "[Startup] Kanban dispatchers failed to start: %s", kanban_result
-            )
+            logger.error("[Startup] Kanban dispatchers failed to start: %s", kanban_result)
         if isinstance(backup_result, Exception):
-            logger.error(
-                "[Startup] Remote backup scheduler failed to start: %s", backup_result
-            )
+            logger.error("[Startup] Remote backup scheduler failed to start: %s", backup_result)
 
     try:
         from app.core.channel_bridge import init_channel_routes
@@ -309,9 +301,7 @@ async def _phase_1a_sequential() -> None:
 
             # 3. Degrade to in-memory as ultimate fallback
             if not restored:
-                logger.warning(
-                    "[Startup] All recovery methods exhausted, degrading to in-memory mode"
-                )
+                logger.warning("[Startup] All recovery methods exhausted, degrading to in-memory mode")
                 system_status.database_degraded = True
                 settings.database.sqlite_path = ":memory:"
                 await reset_database_engine()
@@ -364,15 +354,11 @@ async def _phase_1a_sequential() -> None:
             async with get_session() as db:
                 stats = await migrate_configs_to_encrypted(db)
                 if stats["migrated"] > 0:
-                    logger.info(
-                        f"[Startup] Config encryption migration complete: {stats}"
-                    )
+                    logger.info(f"[Startup] Config encryption migration complete: {stats}")
                 else:
                     logger.debug(f"[Startup] No configs to migrate: {stats}")
         except Exception as e:
-            logger.warning(
-                "[Startup] Config encryption migration failed (non-critical): %s", e
-            )
+            logger.warning("[Startup] Config encryption migration failed (non-critical): %s", e)
 
     try:
         from app.services.config.key_consolidation import (
@@ -383,9 +369,7 @@ async def _phase_1a_sequential() -> None:
         if stats.get("merged") or stats.get("deleted"):
             logger.info("[Startup] Providers key consolidation complete: %s", stats)
     except Exception as e:
-        logger.warning(
-            "[Startup] Providers key consolidation failed (non-critical): %s", e
-        )
+        logger.warning("[Startup] Providers key consolidation failed (non-critical): %s", e)
 
     try:
         from app.core.infra.tls_config import apply_tls_config_from_db
@@ -480,9 +464,7 @@ async def _phase_1b_parallel() -> None:
             load_managed_approval_policy_from_env,
         )
 
-        configure_process_managed_approval_policy(
-            load_managed_approval_policy_from_env()
-        )
+        configure_process_managed_approval_policy(load_managed_approval_policy_from_env())
         logger.info("[Startup] Managed approval policy initialized from env")
 
     async def _init_permission_logger_task() -> None:
@@ -500,18 +482,14 @@ async def _phase_1b_parallel() -> None:
         )
         from myrm_agent_harness.toolkits.code_execution import create_workspace_service
 
-        workspace_svc = create_workspace_service(
-            root_dir=Path(settings.database.harness_dir)
-        )
+        workspace_svc = create_workspace_service(root_dir=Path(settings.database.harness_dir))
         sandboxes_root = workspace_svc.workspaces_root
 
         if sandboxes_root.exists():
             scheduler = ContextCleanupScheduler(sandboxes_root, interval_hours=24)
             scheduler.start()
             _context_cleanup_scheduler_instance = scheduler
-            logger.info(
-                "[Startup] Context cleanup task started (root: %s)", sandboxes_root
-            )
+            logger.info("[Startup] Context cleanup task started (root: %s)", sandboxes_root)
         else:
             logger.debug(
                 "[Startup] Sandboxes root not found, skip cleanup task: %s",
@@ -528,13 +506,9 @@ async def _phase_1b_parallel() -> None:
         if optimization_scheduler:
             set_optimization_scheduler(optimization_scheduler)
             await optimization_scheduler.start_monitoring()
-            logger.info(
-                "[Startup] OptimizationScheduler initialized and worker started successfully"
-            )
+            logger.info("[Startup] OptimizationScheduler initialized and worker started successfully")
         else:
-            logger.warning(
-                "[Startup] OptimizationScheduler initialization skipped (dependencies missing)"
-            )
+            logger.warning("[Startup] OptimizationScheduler initialization skipped (dependencies missing)")
 
     async def _init_idle_handlers_task() -> None:
         from app.core.infra.idle_handlers import register_all_idle_handlers
@@ -550,9 +524,7 @@ async def _phase_1b_parallel() -> None:
         storage = get_storage_provider()
         sync_result = await sync_prebuilt_seeds(storage)
         if sync_result.skill_ids:
-            await skills_service.user_config.ensure_prebuilt_enabled_after_sync(
-                list(sync_result.skill_ids)
-            )
+            await skills_service.user_config.ensure_prebuilt_enabled_after_sync(list(sync_result.skill_ids))
 
     async def _init_builtin_agents() -> None:
         from app.services.agent.builtin_specs.builtin_initializer import (
@@ -576,13 +548,9 @@ async def _phase_1b_parallel() -> None:
         try:
             reviewer = DynamicLLMSecurityReviewer(timeout_seconds=3.0)
             register_security_reviewer(reviewer)
-            logger.info(
-                "[Startup] DynamicLLMSecurityReviewer initialized and registered"
-            )
+            logger.info("[Startup] DynamicLLMSecurityReviewer initialized and registered")
         except Exception as e:
-            logger.warning(
-                "[Startup] Failed to initialize DynamicLLMSecurityReviewer: %s", e
-            )
+            logger.warning("[Startup] Failed to initialize DynamicLLMSecurityReviewer: %s", e)
 
     async def _init_vault_credentials_task() -> None:
         from app.services.security.vault_credential_service import (
@@ -791,9 +759,7 @@ async def _shutdown(app_instance: FastAPI) -> None:
                 except Exception:
                     await conn.exec_driver_sql("PRAGMA wal_checkpoint(PASSIVE)")
         except Exception as e:
-            logger.warning(
-                "[Shutdown] Database WAL checkpoint failed (ignoring): %s", e
-            )
+            logger.warning("[Shutdown] Database WAL checkpoint failed (ignoring): %s", e)
         await engine.dispose()
         logger.info("[Shutdown] Database engine disposed")
 
@@ -817,9 +783,7 @@ def _apply_code_execution_config() -> None:
     ce = settings.code_execution
     allowed_hosts: frozenset[str] | None = None
     if ce.allowed_hosts:
-        allowed_hosts = frozenset(
-            h.strip() for h in ce.allowed_hosts.split(",") if h.strip()
-        )
+        allowed_hosts = frozenset(h.strip() for h in ce.allowed_hosts.split(",") if h.strip())
 
     config = ExecutionConfig(
         network=NetworkConfig(

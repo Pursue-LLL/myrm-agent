@@ -58,4 +58,3 @@ __all__ = [
     "is_delegation_intent",
     "scan_workspace_artifacts",
 ]
-

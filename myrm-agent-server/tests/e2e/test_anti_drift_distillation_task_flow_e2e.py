@@ -149,17 +149,13 @@ async def test_anti_drift_distillation_full_business_task_flow(
     await db_session.commit()
 
     # Verify DWD persistence
-    stored_history = await ChannelMessageRepository.get_recent_context(
-        db_session, channel=channel, chat_id=chat_id, limit=10
-    )
+    stored_history = await ChannelMessageRepository.get_recent_context(db_session, channel=channel, chat_id=chat_id, limit=10)
     assert len(stored_history) == 6
 
     # -------------------------------------------------------------------------
     # Step 2 & 3: Channel Data Plane Candidate Conversion & Guard Evaluation
     # -------------------------------------------------------------------------
-    candidates = [
-        ChannelDataPlaneService.to_distillation_candidate(m) for m in stored_history
-    ]
+    candidates = [ChannelDataPlaneService.to_distillation_candidate(m) for m in stored_history]
     assert len(candidates) == 6
 
     # Test individual candidate assertions
@@ -216,9 +212,7 @@ async def test_anti_drift_distillation_full_business_task_flow(
         for m in stored_history
     ]
 
-    admitted_msgs, rejections = filter_distillable_messages(
-        conversation_stream, default_source_id=f"channel:{channel}:{chat_id}"
-    )
+    admitted_msgs, rejections = filter_distillable_messages(conversation_stream, default_source_id=f"channel:{channel}:{chat_id}")
     # Only the two user messages should be admitted for profile extraction
     assert len(admitted_msgs) == 2
     assert all("strictly use uv" in str(m.get("content")) or "Correction" in str(m.get("content")) for m in admitted_msgs)
@@ -228,6 +222,7 @@ async def test_anti_drift_distillation_full_business_task_flow(
     # Step 5: Memory Extractor Pipeline & Grounded Provenance Assertion
     # -------------------------------------------------------------------------
     import json
+
     model_name = os.environ.get("BASIC_MODEL", "minimax/MiniMax-M3")
     api_key = os.environ.get("BASIC_API_KEY", "")
     api_base = os.environ.get("BASIC_BASE_URL", "")
@@ -254,18 +249,20 @@ async def test_anti_drift_distillation_full_business_task_flow(
             except Exception:
                 pass
 
-        return json.dumps([
-            {
-                "memory_type": "semantic",
-                "name": "user_package_manager_preference",
-                "content": "User strictly prefers uv for Python and bun for frontend, rejecting poetry and yarn.",
-                "confidence": 0.95,
-                "importance": 0.9,
-                "metadata": {
-                    "evidence_quote": "I strictly use uv for Python and bun for frontend. Never use poetry or yarn.",
-                },
-            }
-        ])
+        return json.dumps(
+            [
+                {
+                    "memory_type": "semantic",
+                    "name": "user_package_manager_preference",
+                    "content": "User strictly prefers uv for Python and bun for frontend, rejecting poetry and yarn.",
+                    "confidence": 0.95,
+                    "importance": 0.9,
+                    "metadata": {
+                        "evidence_quote": "I strictly use uv for Python and bun for frontend. Never use poetry or yarn.",
+                    },
+                }
+            ]
+        )
 
     extractor = MemoryExtractor(llm_func=real_or_grounded_llm_func)
 
@@ -285,7 +282,10 @@ async def test_anti_drift_distillation_full_business_task_flow(
         assert "yarn berry" not in content_lower
         # Check that evidence chain is strictly populated
         assert len(mem.evidence) > 0
-        assert any(ev.quote_snippet is not None or ev.message_id in ("msg_005_user_preference", "msg_006_user_correction") for ev in mem.evidence)
+        assert any(
+            ev.quote_snippet is not None or ev.message_id in ("msg_005_user_preference", "msg_006_user_correction")
+            for ev in mem.evidence
+        )
 
         # Convert to concrete storage memories
         from myrm_agent_harness.toolkits.memory.types import BaseMemory, ProfileEntry

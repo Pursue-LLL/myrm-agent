@@ -412,8 +412,11 @@ async def approve_request(
     if approval.approved and approval.always_allow:
         try:
             import time
+
             permission_type = _action_to_permission(pending.action)
-            expires_at = (time.time() + float(approval.ttl_seconds)) if approval.ttl_seconds and approval.ttl_seconds > 0 else None
+            expires_at = (
+                (time.time() + float(approval.ttl_seconds)) if approval.ttl_seconds and approval.ttl_seconds > 0 else None
+            )
             entry = AllowlistEntry(
                 permission=permission_type,
                 tool_name=None,  # Permission-level match (all tools of this type)
@@ -482,6 +485,7 @@ async def get_allowlist_entries() -> AllowlistResponse:
         entries = []
         if LOCAL_USER_ID in allowlist._entries:
             import time
+
             now = time.time()
             for entry in allowlist._entries[LOCAL_USER_ID].values():
                 if entry.expires_at is not None and entry.expires_at <= now:

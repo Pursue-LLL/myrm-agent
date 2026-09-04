@@ -38,11 +38,7 @@ def context_to_item(
     resolved_agent_ids = assigned_agent_ids
     if resolved_agent_ids is None:
         try:
-            resolved_agent_ids = [
-                b.target_id
-                for b in (context.bindings or [])
-                if getattr(b, "target_type", None) == "agent"
-            ]
+            resolved_agent_ids = [b.target_id for b in (context.bindings or []) if getattr(b, "target_type", None) == "agent"]
         except Exception:
             resolved_agent_ids = []
 

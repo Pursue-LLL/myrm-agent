@@ -124,6 +124,7 @@ th {
 """
 
 from weasyprint import HTML
+
 HTML(string=html_content).write_pdf("output.pdf")
 ```
 

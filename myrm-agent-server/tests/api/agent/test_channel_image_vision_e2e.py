@@ -143,5 +143,3 @@ async def test_llm_recognizes_sliced_long_screenshot_content():
         # When remote LLM provider rejects direct vision multi-modal format,
         # fallback is gracefully handled by the pipeline.
         assert "minimax" in model.lower() or "openai" in model.lower()
-
-

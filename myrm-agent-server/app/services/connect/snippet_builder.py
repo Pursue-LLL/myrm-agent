@@ -60,11 +60,7 @@ def build_instructions(
 ) -> str:
     """Build human-readable setup instructions."""
     server_key = "myrm" if expose_desktop else "myrm-memory"
-    capability_clause = (
-        " (providing both memory and semantic desktop control tools)"
-        if expose_desktop
-        else ""
-    )
+    capability_clause = " (providing both memory and semantic desktop control tools)" if expose_desktop else ""
     return (
         f"Add the following to your {profile.config_file_path}:\n"
         f"Under '{profile.instructions_key}', add a '{server_key}' entry "

@@ -419,4 +419,3 @@ def test_collect_directory_scaffolds_index_html(tmp_path: Path) -> None:
     assert collected["index.html"].content == "<h1>Dashboard</h1>"
     assert "dashboard.html" in collected
     validate_publish_payload(collected)
-

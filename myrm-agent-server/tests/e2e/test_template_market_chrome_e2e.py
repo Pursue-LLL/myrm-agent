@@ -70,4 +70,3 @@ def test_expert_summon_funnel_summary_api():
     assert summary["days"] == 30
     assert "viewed_by_surface" in summary
     assert "attempted_by_trigger" in summary
-

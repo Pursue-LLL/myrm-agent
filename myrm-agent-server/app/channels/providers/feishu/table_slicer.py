@@ -159,11 +159,7 @@ def slice_card_markdown(
             if in_table and table_header_row and table_sep_row:
                 current_lines.append(table_header_row)
                 current_lines.append(table_sep_row)
-                current_bytes += (
-                    _get_utf8_byte_length(table_header_row)
-                    + _get_utf8_byte_length(table_sep_row)
-                    + 2
-                )
+                current_bytes += _get_utf8_byte_length(table_header_row) + _get_utf8_byte_length(table_sep_row) + 2
 
         current_lines.append(line)
         current_bytes += line_bytes

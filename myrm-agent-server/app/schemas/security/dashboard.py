@@ -179,4 +179,3 @@ class DualTrackAuditStatsResponse(_CamelModel):
     compliance_rate: float
     avg_latency_ms: float
     top_rules_triggered: list[RuleTriggerHitItem]
-

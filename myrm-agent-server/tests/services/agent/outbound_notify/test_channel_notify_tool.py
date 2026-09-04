@@ -395,4 +395,3 @@ def test_factory_wiring_respects_readonly_mode() -> None:
     count = append_channel_notify_tool(targets, tools, is_readonly=False)
     assert count == 1
     assert len(tools) == 1
-

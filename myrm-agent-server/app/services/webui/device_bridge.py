@@ -32,9 +32,7 @@ from pydantic import BaseModel, Field, model_validator
 logger = logging.getLogger(__name__)
 
 # Fallback 1x1 transparent PNG if capture fails completely
-FALLBACK_PNG_B64 = (
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
-)
+FALLBACK_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
 
 
 class DeviceInfo(BaseModel):
@@ -293,22 +291,14 @@ class DeviceBridgeService:
     ) -> DeviceSnapshotPayload:
         """Capture screen from the targeted ADB device with redaction and caching."""
         now = time.time()
-        if (
-            not bypass_cache
-            and self._cached_snapshot is not None
-            and (now - self._cache_timestamp) < self._cache_ttl
-        ):
+        if not bypass_cache and self._cached_snapshot is not None and (now - self._cache_timestamp) < self._cache_ttl:
             return self._cached_snapshot
 
         doctor_res = await self.doctor()
         target_serial = device_id or doctor_res.default_device
 
         if not doctor_res.adb_available or not target_serial:
-            device_name = (
-                "Cloud Sandbox (No Tunnel)"
-                if doctor_res.is_cloud_environment
-                else "No Device Connected"
-            )
+            device_name = "Cloud Sandbox (No Tunnel)" if doctor_res.is_cloud_environment else "No Device Connected"
             fallback_payload = DeviceSnapshotPayload(
                 screenshot_base64=FALLBACK_PNG_B64,
                 mime_type="image/png",
@@ -356,11 +346,7 @@ class DeviceBridgeService:
         b64_img = base64.b64encode(raw_png).decode("utf-8")
 
         matched_device = next((d for d in doctor_res.devices if d.serial == target_serial), None)
-        device_name = (
-            f"{matched_device.model} ({target_serial})"
-            if matched_device
-            else f"Device ({target_serial})"
-        )
+        device_name = f"{matched_device.model} ({target_serial})" if matched_device else f"Device ({target_serial})"
 
         payload = DeviceSnapshotPayload(
             screenshot_base64=b64_img,
@@ -399,9 +385,7 @@ class DeviceBridgeService:
             if command.action == "tap":
                 x = max(0, min(width, command.x if command.x is not None else width // 2))
                 y = max(0, min(height, command.y if command.y is not None else height // 2))
-                code, out = await self._run_adb_cmd(
-                    ["-s", target_serial, "shell", "input", "tap", str(x), str(y)]
-                )
+                code, out = await self._run_adb_cmd(["-s", target_serial, "shell", "input", "tap", str(x), str(y)])
                 return code == 0, out.decode("utf-8", errors="replace")
 
             if command.action == "swipe":
@@ -474,9 +458,7 @@ class DeviceBridgeService:
                 if not re.match(r"^[A-Za-z0-9_]+$", keycode):
                     return False, f"Invalid keycode format: {keycode}"
 
-                code, out = await self._run_adb_cmd(
-                    ["-s", target_serial, "shell", "input", "keyevent", keycode]
-                )
+                code, out = await self._run_adb_cmd(["-s", target_serial, "shell", "input", "keyevent", keycode])
                 return code == 0, out.decode("utf-8", errors="replace")
 
             return False, f"Unsupported touch relay action: {command.action}"

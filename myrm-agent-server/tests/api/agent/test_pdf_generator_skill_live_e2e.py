@@ -247,5 +247,3 @@ async def test_pdf_reader_physical_slicing_and_extraction_roundtrip(temp_workspa
     assert result.parsed_pages == 1
     assert "INVOICE #INV-2026-001" in result.text
     assert "Global Enterprise Corp." in result.text
-
-

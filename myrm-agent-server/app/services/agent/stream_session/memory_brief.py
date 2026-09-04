@@ -76,9 +76,7 @@ async def _resolve_proactive_knowledge_pack(
         query_text = params.query
     elif isinstance(params.query, list):
         query_text = " ".join(
-            str(item.get("text", ""))
-            for item in params.query
-            if isinstance(item, dict) and item.get("type") == "text"
+            str(item.get("text", "")) for item in params.query if isinstance(item, dict) and item.get("type") == "text"
         )
     if not query_text.strip():
         return None
@@ -232,11 +230,7 @@ async def build_memory_brief_snapshot(
     else:
         learned_payload = _normalize_learned_payload(learned_result)
 
-    proactive_pack = (
-        proactive_result
-        if isinstance(proactive_result, dict)
-        else None
-    )
+    proactive_pack = proactive_result if isinstance(proactive_result, dict) else None
 
     if not isinstance(static_result, dict):
         logger.warning("Memory brief static context has unexpected type: %s", type(static_result).__name__)

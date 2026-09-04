@@ -235,9 +235,7 @@ async def test_resolve_proactive_snippets_with_real_wiki_concepts_dir(tmp_path: 
 
     doc_path = concepts_dir / "code_review_guideline.md"
     doc_path.write_text(
-        "# 代码规范\n\n"
-        "所有对外服务接口必须统一返回 APIResponse 模型。\n\n"
-        "禁止在代码中硬编码秘钥。",
+        "# 代码规范\n\n所有对外服务接口必须统一返回 APIResponse 模型。\n\n禁止在代码中硬编码秘钥。",
         encoding="utf-8",
     )
 
@@ -252,4 +250,3 @@ async def test_resolve_proactive_snippets_with_real_wiki_concepts_dir(tmp_path: 
     assert result.snippets[0].kb_name == "研发规范"
     assert result.snippets[0].article_title == "code_review_guideline"
     assert "APIResponse" in result.snippets[0].snippet
-

@@ -18,9 +18,9 @@ Server 业务服务层。协调多渠道入站明细、Harness 确定性统计�
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import json
 import logging
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -92,9 +92,7 @@ class BehavioralMeasurementService:
             if not candidate.profile_key:
                 continue
 
-            stmt = select(ProfileAttribute).where(
-                ProfileAttribute.attribute_key == candidate.profile_key
-            )
+            stmt = select(ProfileAttribute).where(ProfileAttribute.attribute_key == candidate.profile_key)
             res = await session.execute(stmt)
             existing = res.scalar_one_or_none()
 

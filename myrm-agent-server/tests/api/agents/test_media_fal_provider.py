@@ -160,4 +160,3 @@ def test_find_fal_provider_api_key() -> None:
     assert _find_provider_api_key(providers_dict, "fal") == "fal-secret-key-123"
     assert _find_provider_api_key(providers_dict, "fal_ai") == "fal-secret-key-123"
     assert _find_provider_api_key(providers_dict, "fal-ai") == "fal-secret-key-123"
-

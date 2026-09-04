@@ -64,6 +64,7 @@ def dir_size_bytes(path: Path) -> int:
 
 def get_sqlite_breakdown(data_dir: Path) -> DatabaseStorageBreakdown:
     """Return physical file sizes for SQLite data.db triplet (data.db, -wal, -shm)."""
+
     def _size(name: str) -> int:
         p = data_dir / name
         return p.stat().st_size if p.exists() else 0

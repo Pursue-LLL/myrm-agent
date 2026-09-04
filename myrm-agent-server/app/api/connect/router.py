@@ -137,11 +137,7 @@ async def generate_config(body: GenerateConfigRequest) -> GenerateConfigResponse
         from fastapi import HTTPException
 
         raise HTTPException(status_code=400, detail=str(e)) from e
-    desktop_tools = (
-        ["desktop_snapshot_tool", "desktop_interact_tool", "desktop_vision_tool"]
-        if snippet.expose_desktop
-        else []
-    )
+    desktop_tools = ["desktop_snapshot_tool", "desktop_interact_tool", "desktop_vision_tool"] if snippet.expose_desktop else []
     return GenerateConfigResponse(
         profile_id=snippet.profile_id,
         agent_id=snippet.agent_id,

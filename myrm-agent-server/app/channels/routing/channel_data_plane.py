@@ -211,7 +211,7 @@ class ChannelDataPlaneService:
 
         is_bot = not model.learning_eligible or is_alert_or_bot_sender(model.sender_name)
         is_agent = model.sender_id == "agent" or (model.is_self and model.sender_name == "Assistant")
-        
+
         if is_agent:
             origin = DistillationOrigin.AGENT
             identity = SelfIdentityState.OTHER

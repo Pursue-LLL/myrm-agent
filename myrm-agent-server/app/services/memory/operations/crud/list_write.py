@@ -350,11 +350,7 @@ async def delete_memory_by_id(
 
     if mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
         if permanent:
-            coll = (
-                manager.config.semantic_collection
-                if mem_type == MemoryType.SEMANTIC
-                else manager.config.episodic_collection
-            )
+            coll = manager.config.semantic_collection if mem_type == MemoryType.SEMANTIC else manager.config.episodic_collection
             deleted = await manager.delete_memory(coll, [memory_id])
             if deleted == 0:
                 raise HTTPException(status_code=404, detail="Memory not found or could not be permanently deleted")

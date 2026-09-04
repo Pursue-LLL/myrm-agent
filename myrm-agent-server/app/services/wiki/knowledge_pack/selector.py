@@ -192,12 +192,10 @@ async def resolve_proactive_snippets_from_vaults(
                 fts_query = ""
                 try:
                     from myrm_agent_harness.api import tokenize_for_fts
+
                     fts_query = tokenize_for_fts(trimmed_query)
                 except ImportError:
-                    safe_fts_terms = [
-                        t for t in match_terms
-                        if t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t)
-                    ]
+                    safe_fts_terms = [t for t in match_terms if t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t)]
                     if safe_fts_terms:
                         fts_query = " OR ".join(f'"{t}"' for t in safe_fts_terms[:8])
 
@@ -223,9 +221,7 @@ async def resolve_proactive_snippets_from_vaults(
                             best_matches = 0
                             for p in paras:
                                 lines = [
-                                    line.strip()
-                                    for line in p.split("\n")
-                                    if line.strip() and not line.strip().startswith("#")
+                                    line.strip() for line in p.split("\n") if line.strip() and not line.strip().startswith("#")
                                 ]
                                 if not lines:
                                     continue
@@ -275,11 +271,7 @@ async def resolve_proactive_snippets_from_vaults(
 
                 raw_paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
                 for p in raw_paragraphs:
-                    content_lines = [
-                        line.strip()
-                        for line in p.split("\n")
-                        if line.strip() and not line.strip().startswith("#")
-                    ]
+                    content_lines = [line.strip() for line in p.split("\n") if line.strip() and not line.strip().startswith("#")]
                     if not content_lines:
                         continue
                     body_text = " ".join(content_lines)
@@ -303,10 +295,7 @@ async def resolve_proactive_snippets_from_vaults(
         return found
 
     try:
-        tasks = [
-            _scan_vault(p, vault_labels.get(str(p), vault_labels.get(p.name, p.name)))
-            for p in vault_paths
-        ]
+        tasks = [_scan_vault(p, vault_labels.get(str(p), vault_labels.get(p.name, p.name))) for p in vault_paths]
         results = await asyncio.wait_for(
             asyncio.gather(*tasks, return_exceptions=True),
             timeout=timeout_seconds,

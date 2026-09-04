@@ -96,11 +96,7 @@ async def test_auto_continue_success_persists_message():
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch(
             "app.core.channel_bridge.config_loader.load_user_configs",
-            AsyncMock(
-                return_value=MagicMock(
-                    personal_settings_dict={"autoContinueInterruptedTurns": True}
-                )
-            ),
+            AsyncMock(return_value=MagicMock(personal_settings_dict={"autoContinueInterruptedTurns": True})),
         ),
         patch("app.ai_agents.GeneralAgentParams") as mock_params_cls,
         patch(
@@ -139,9 +135,7 @@ async def test_auto_continue_success_persists_message():
     assert persist_args[0][0] == "chat-auto-001"
     assert persist_args[0][1] == "Hello world"
 
-    success_calls = [
-        c for c in mock_notif.call_args_list if c[1].get("type") == "success"
-    ]
+    success_calls = [c for c in mock_notif.call_args_list if c[1].get("type") == "success"]
     assert len(success_calls) >= 1
 
 
@@ -319,11 +313,7 @@ async def test_auto_continue_disabled_by_preference():
         patch("app.platform_utils.get_session_factory", return_value=factory),
         patch(
             "app.core.channel_bridge.config_loader.load_user_configs",
-            AsyncMock(
-                return_value=MagicMock(
-                    personal_settings_dict={"autoContinueInterruptedTurns": False}
-                )
-            ),
+            AsyncMock(return_value=MagicMock(personal_settings_dict={"autoContinueInterruptedTurns": False})),
         ),
     ):
         from app.lifecycle.auto_continue import auto_continue_interrupted_turns
@@ -382,9 +372,7 @@ async def test_dispatch_skips_missing_params():
 
         await _dispatch_auto_continue(marker, factory)
 
-    success_calls = [
-        c for c in mock_notif.call_args_list if c[1].get("type") == "success"
-    ]
+    success_calls = [c for c in mock_notif.call_args_list if c[1].get("type") == "success"]
     assert len(success_calls) == 0
 
 
@@ -540,9 +528,7 @@ async def test_config_loader_failure_defaults_to_enabled():
         await auto_continue_interrupted_turns()
         await asyncio.sleep(0.15)
 
-    success_calls = [
-        c for c in mock_notif.call_args_list if c[1].get("type") == "success"
-    ]
+    success_calls = [c for c in mock_notif.call_args_list if c[1].get("type") == "success"]
     assert len(success_calls) >= 1, "Should proceed despite config failure"
 
 
@@ -598,9 +584,7 @@ async def test_dispatch_loads_chat_history():
     marker = _make_marker()
     factory, db = _mock_session_factory()
 
-    mock_load_history = AsyncMock(
-        return_value=[["user", "previous msg"], ["assistant", "prev reply"]]
-    )
+    mock_load_history = AsyncMock(return_value=[["user", "previous msg"], ["assistant", "prev reply"]])
 
     async def _fake_stream(*_a, **_kw):
         yield {"type": "message", "data": "ok"}
@@ -810,9 +794,7 @@ async def test_dispatch_cleanup_failure_is_swallowed():
 @pytest.mark.asyncio
 async def test_auto_continue_restores_pending_steering_messages():
     """Validates that marker.pending_steering_messages are injected into SteeringToken upon auto-continue."""
-    marker = _make_marker(
-        pending_steering_messages=["Stop doing X and focus on Y", "Format output as JSON"]
-    )
+    marker = _make_marker(pending_steering_messages=["Stop doing X and focus on Y", "Format output as JSON"])
     factory, db = _mock_session_factory()
 
     async def _fake_stream(*_a, **_kw):
@@ -861,4 +843,3 @@ async def test_auto_continue_restores_pending_steering_messages():
         "Stop doing X and focus on Y",
         "Format output as JSON",
     ]
-

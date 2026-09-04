@@ -51,13 +51,7 @@ def test_obsidian_tools(tmp_path: Path):
 
     canvas = vault / "Architecture.canvas"
     canvas.write_text(
-        json.dumps(
-            {
-                "nodes": [
-                    {"id": "1", "type": "text", "text": "Microservices Cluster Alpha"}
-                ]
-            }
-        ),
+        json.dumps({"nodes": [{"id": "1", "type": "text", "text": "Microservices Cluster Alpha"}]}),
         encoding="utf-8",
     )
 

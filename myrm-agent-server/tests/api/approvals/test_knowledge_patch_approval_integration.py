@@ -28,9 +28,7 @@ from app.services.approvals.registry import ApprovalRegistry
 
 
 @pytest.mark.asyncio
-async def test_harvest_session_blind_spots_creates_approval(
-    app, setup_test_database
-) -> None:
+async def test_harvest_session_blind_spots_creates_approval(app, setup_test_database) -> None:
     msg_id = f"msg-{uuid.uuid4().hex[:8]}"
     now = datetime.now(UTC)
 
@@ -80,15 +78,11 @@ async def test_harvest_session_blind_spots_creates_approval(
         created_count = await harvest_session_blind_spots(limit=10, since_hours=24)
         assert created_count >= 1
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         resp = await ac.get("/api/v1/approvals?limit=100&offset=0")
         assert resp.status_code == 200
         approvals = resp.json()["approvals"]
-        patch_appr = next(
-            (a for a in approvals if a["action_type"] == "knowledge_patch"), None
-        )
+        patch_appr = next((a for a in approvals if a["action_type"] == "knowledge_patch"), None)
         assert patch_appr is not None
         assert patch_appr["payload"]["title"] == "Prometheus Alertmanager Webhook"
         assert patch_appr["payload"]["target_type"] == "wiki"
@@ -113,12 +107,8 @@ async def test_resolve_knowledge_patch_wiki_target(app, setup_test_database) -> 
         },
     )
 
-    with patch(
-        "myrm_agent_harness.toolkits.wiki.pipeline.raw_gate.publish_raw", AsyncMock()
-    ) as mock_publish:
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
+    with patch("myrm_agent_harness.toolkits.wiki.pipeline.raw_gate.publish_raw", AsyncMock()) as mock_publish:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             resp = await ac.post(
                 f"/api/v1/approvals/{record.id}/resolve",
                 json={"decision": "approve"},
@@ -129,9 +119,7 @@ async def test_resolve_knowledge_patch_wiki_target(app, setup_test_database) -> 
 
 
 @pytest.mark.asyncio
-async def test_resolve_knowledge_patch_procedural_target(
-    app, setup_test_database
-) -> None:
+async def test_resolve_knowledge_patch_procedural_target(app, setup_test_database) -> None:
     record = await ApprovalRegistry.create_approval(
         agent_id="test-agent",
         action_type="knowledge_patch",
@@ -155,9 +143,7 @@ async def test_resolve_knowledge_patch_procedural_target(
         "app.lifecycle.memory_guardian_ops.create_guardian_memory_manager",
         AsyncMock(return_value=mock_manager),
     ):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             resp = await ac.post(
                 f"/api/v1/approvals/{record.id}/resolve",
                 json={"decision": "approve"},
@@ -181,12 +167,8 @@ async def test_resolve_knowledge_patch_rejected(app, setup_test_database) -> Non
         },
     )
 
-    with patch(
-        "myrm_agent_harness.toolkits.wiki.pipeline.raw_gate.publish_raw", AsyncMock()
-    ) as mock_publish:
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
+    with patch("myrm_agent_harness.toolkits.wiki.pipeline.raw_gate.publish_raw", AsyncMock()) as mock_publish:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             resp = await ac.post(
                 f"/api/v1/approvals/{record.id}/resolve",
                 json={"decision": "deny"},

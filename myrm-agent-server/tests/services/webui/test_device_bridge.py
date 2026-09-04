@@ -164,9 +164,7 @@ async def test_relay_touch_commands(bridge_service: DeviceBridgeService) -> None
         swipe_cmd = TouchRelayCommand(action="swipe", x=100, y=200, endX=300, endY=800, durationMs=500)
         ok, _ = await bridge_service.relay_touch(swipe_cmd)
         assert ok
-        mock_cmd.assert_called_with(
-            ["-s", "dev1", "shell", "input", "swipe", "100", "200", "300", "800", "500"]
-        )
+        mock_cmd.assert_called_with(["-s", "dev1", "shell", "input", "swipe", "100", "200", "300", "800", "500"])
 
         # 3. Keyevent
         key_cmd = TouchRelayCommand(action="keyevent", keycode="KEYCODE_HOME")

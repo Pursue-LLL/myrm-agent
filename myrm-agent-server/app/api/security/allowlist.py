@@ -37,10 +37,7 @@ async def list_allowlist_entries(
     now = datetime.now(timezone.utc)
     stmt = (
         select(UserToolAllowlist)
-        .where(
-            (UserToolAllowlist.expires_at.is_(None))
-            | (UserToolAllowlist.expires_at > now)
-        )
+        .where((UserToolAllowlist.expires_at.is_(None)) | (UserToolAllowlist.expires_at > now))
         .order_by(UserToolAllowlist.created_at.desc())
     )
     result = await db.execute(stmt)

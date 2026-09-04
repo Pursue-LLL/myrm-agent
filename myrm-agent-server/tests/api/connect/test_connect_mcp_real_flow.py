@@ -45,16 +45,12 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
     service = ConnectService(data_dir=tmp_path)
 
     # 1. Generate config with expose_desktop=False
-    snippet_memory_only = await service.generate_config(
-        "cursor", agent_id="agent-mem", expose_desktop=False
-    )
+    snippet_memory_only = await service.generate_config("cursor", agent_id="agent-mem", expose_desktop=False)
     assert snippet_memory_only.token.startswith("myrm_mcp_")
     assert snippet_memory_only.expose_desktop is False
 
     # 2. Generate config with expose_desktop=True
-    snippet_desktop = await service.generate_config(
-        "claude_code", agent_id="agent-desk", expose_desktop=True
-    )
+    snippet_desktop = await service.generate_config("claude_code", agent_id="agent-desk", expose_desktop=True)
     assert snippet_desktop.token.startswith("myrm_mcp_")
     assert snippet_desktop.expose_desktop is True
 
@@ -66,13 +62,9 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
     mock_memory_mgr.search = AsyncMock(return_value=[])
 
     mock_desktop_session = MagicMock(spec=DesktopSession)
-    mock_desktop_session.desktop_snapshot = AsyncMock(
-        return_value="Desktop AX Tree Root"
-    )
+    mock_desktop_session.desktop_snapshot = AsyncMock(return_value="Desktop AX Tree Root")
     mock_desktop_session.desktop_interact = AsyncMock(return_value="Interacted")
-    mock_desktop_session.desktop_vision_capture = AsyncMock(
-        return_value="Vision Captured"
-    )
+    mock_desktop_session.desktop_vision_capture = AsyncMock(return_value="Vision Captured")
 
     # Mock agent profile resolver so agent-desk has computer_use
     desk_profile = MagicMock()
@@ -139,14 +131,10 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
                 "method": "tools/list",
                 "params": {},
             }
-            resp_mcp_mem = client.post(
-                "/mcp", headers=headers_mem, json=mcp_rpc_list_tools
-            )
+            resp_mcp_mem = client.post("/mcp", headers=headers_mem, json=mcp_rpc_list_tools)
             assert resp_mcp_mem.status_code == 200
             mem_data = resp_mcp_mem.json()
-            tool_names_mem = [
-                t["name"] for t in mem_data.get("result", {}).get("tools", [])
-            ]
+            tool_names_mem = [t["name"] for t in mem_data.get("result", {}).get("tools", [])]
             # Must NOT expose any desktop tools
             assert not any(name.startswith("desktop_") for name in tool_names_mem)
             assert "memory_recall" in tool_names_mem
@@ -156,14 +144,10 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
                 "Authorization": f"Bearer {snippet_desktop.token}",
                 "Content-Type": "application/json",
             }
-            resp_mcp_desk = client.post(
-                "/mcp", headers=headers_desk, json=mcp_rpc_list_tools
-            )
+            resp_mcp_desk = client.post("/mcp", headers=headers_desk, json=mcp_rpc_list_tools)
             assert resp_mcp_desk.status_code == 200
             desk_data = resp_mcp_desk.json()
-            tool_names_desk = [
-                t["name"] for t in desk_data.get("result", {}).get("tools", [])
-            ]
+            tool_names_desk = [t["name"] for t in desk_data.get("result", {}).get("tools", [])]
             # Must expose desktop tools
             assert "desktop_snapshot_tool" in tool_names_desk
             assert "desktop_interact_tool" in tool_names_desk
@@ -180,9 +164,7 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
                     "arguments": {"scope": "foreground"},
                 },
             }
-            resp_call = client.post(
-                "/mcp", headers=headers_desk, json=mcp_rpc_call_tool
-            )
+            resp_call = client.post("/mcp", headers=headers_desk, json=mcp_rpc_call_tool)
             assert resp_call.status_code == 200
             call_data = resp_call.json()
             content = call_data.get("result", {}).get("content", [])
@@ -190,9 +172,7 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
             assert content[0]["text"] == "Desktop AX Tree Root"
 
             # 8. Edge Case: Unauthorized desktop call with memory-only token
-            resp_unauth_call = client.post(
-                "/mcp", headers=headers_mem, json=mcp_rpc_call_tool
-            )
+            resp_unauth_call = client.post("/mcp", headers=headers_mem, json=mcp_rpc_call_tool)
             assert resp_unauth_call.status_code == 200
             unauth_data = resp_unauth_call.json()
             # In MCP protocol, requesting a non-existent / masked tool returns an error or empty/unknown tool result
@@ -216,9 +196,7 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
                     "arguments": {"ref": "@dref_1", "action": "click"},
                 },
             }
-            resp_interact = client.post(
-                "/mcp", headers=headers_desk, json=mcp_rpc_call_interact
-            )
+            resp_interact = client.post("/mcp", headers=headers_desk, json=mcp_rpc_call_interact)
             assert resp_interact.status_code == 200
             assert resp_interact.json().get("result", {}).get("content", [])[0]["text"] == "Interacted"
 
@@ -231,14 +209,13 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
                     "arguments": {"action": "capture"},
                 },
             }
-            resp_vision = client.post(
-                "/mcp", headers=headers_desk, json=mcp_rpc_call_vision
-            )
+            resp_vision = client.post("/mcp", headers=headers_desk, json=mcp_rpc_call_vision)
             assert resp_vision.status_code == 200
             assert resp_vision.json().get("result", {}).get("content", [])[0]["text"] == "Vision Captured"
 
             # 11. Real-World LLM Tool Call Scenario: Bind real LLM from .env.test and let it call desktop_snapshot_tool via MCP
             import os
+
             api_key = os.environ.get("BASIC_API_KEY", "").strip()
             base_url = (os.environ.get("BASIC_BASE_URL") or "").strip() or None
             raw_model = (os.environ.get("BASIC_MODEL") or "").strip()
@@ -280,9 +257,9 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
                 )
 
                 llm_with_tools = llm.bind_tools([snapshot_tool])
-                ai_msg = await llm_with_tools.ainvoke([
-                    HumanMessage(content="Please inspect the active desktop window by taking a snapshot.")
-                ])
+                ai_msg = await llm_with_tools.ainvoke(
+                    [HumanMessage(content="Please inspect the active desktop window by taking a snapshot.")]
+                )
                 assert ai_msg.tool_calls is not None
                 assert len(ai_msg.tool_calls) > 0
                 assert ai_msg.tool_calls[0]["name"] == "desktop_snapshot_tool"

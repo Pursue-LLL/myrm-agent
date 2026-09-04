@@ -1,10 +1,10 @@
 """Unit tests for BehavioralMeasurementService."""
 
+import json
+import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-import json
 from pathlib import Path
-import uuid
 
 import pytest
 import pytest_asyncio

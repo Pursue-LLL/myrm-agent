@@ -54,8 +54,7 @@ async def test_device_bridge_probe_doctor_not_installed() -> None:
 async def test_device_bridge_probe_doctor_connected() -> None:
     service = DeviceBridgeService(adb_path_override="/usr/bin/adb")
     fake_devices_output = (
-        b"List of devices attached\n"
-        b"emulator-5554          device product:sdk_gphone64_arm64 model:Pixel_8_Pro device:emu64a\n"
+        b"List of devices attached\nemulator-5554          device product:sdk_gphone64_arm64 model:Pixel_8_Pro device:emu64a\n"
     )
 
     with (

@@ -113,11 +113,7 @@ def get_storage_info() -> StorageInfoResponse:
         usage = shutil.disk_usage(Path.home())
 
     subdir_names = ["qdrant", "harness", "event_logs", "memory"]
-    subdirs = [
-        {"name": name, "bytes": dir_size_bytes(data_dir / name)}
-        for name in subdir_names
-        if (data_dir / name).exists()
-    ]
+    subdirs = [{"name": name, "bytes": dir_size_bytes(data_dir / name)} for name in subdir_names if (data_dir / name).exists()]
 
     db_breakdown = get_sqlite_breakdown(data_dir)
     if db_breakdown.total_bytes > 0:
@@ -191,9 +187,7 @@ async def optimize_storage(request: StorageOptimizeRequest) -> StorageOptimizeRe
         )
     except sqlite3.OperationalError as exc:
         logger.error("Storage optimization failed: %s", exc, exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Database optimization failed: {exc}"
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Database optimization failed: {exc}") from exc
 
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
     reclaimed = max(0, before_bytes - after_bytes)
@@ -366,7 +360,6 @@ async def export_personal_data_takeout(
     except Exception as exc:
         logger.error("Failed to generate personal data takeout archive: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to generate personal data takeout archive") from exc
-
 
 
 # ---------------------------------------------------------------------------

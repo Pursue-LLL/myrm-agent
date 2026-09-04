@@ -350,5 +350,3 @@ async def export_platform_audit_logs(*, export_format: Literal["csv", "json"]) -
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=platform_audit.csv"},
     )
-
-

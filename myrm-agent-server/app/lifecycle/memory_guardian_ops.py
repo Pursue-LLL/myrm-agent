@@ -104,9 +104,7 @@ async def purge_expired_archives(manager: MemoryManager) -> int:
     total_purged = 0
     for mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
         try:
-            memories = await manager.list_memories(
-                mem_type, limit=10000, include_archived=True
-            )
+            memories = await manager.list_memories(mem_type, limit=10000, include_archived=True)
             expired_ids: list[str] = []
             now = datetime.now(UTC)
 
@@ -126,11 +124,7 @@ async def purge_expired_archives(manager: MemoryManager) -> int:
             if not expired_ids:
                 continue
 
-            coll = (
-                manager.config.semantic_collection
-                if mem_type == MemoryType.SEMANTIC
-                else manager.config.episodic_collection
-            )
+            coll = manager.config.semantic_collection if mem_type == MemoryType.SEMANTIC else manager.config.episodic_collection
             deleted = await manager.delete_memory(coll, expired_ids)
             total_purged += deleted
             logger.info(
@@ -199,9 +193,7 @@ async def harvest_session_blind_spots(
         correction = extra.get("user_correction")
         is_candidate = extra.get("blind_spot_candidate") is True
         is_thumbs_down = bool(
-            extra.get("thumbs_down")
-            or extra.get("reaction") == "thumbsdown"
-            or extra.get("rating") == "negative"
+            extra.get("thumbs_down") or extra.get("reaction") == "thumbsdown" or extra.get("rating") == "negative"
         )
 
         query_text = ""
@@ -237,9 +229,7 @@ async def harvest_session_blind_spots(
         )
         return 0
 
-    report = await extract_blind_spot_patches(
-        candidates, llm, min_candidates=min_candidates
-    )
+    report = await extract_blind_spot_patches(candidates, llm, min_candidates=min_candidates)
     if report.skipped or not report.has_patches:
         return 0
 
@@ -251,11 +241,7 @@ async def harvest_session_blind_spots(
         )
         res = await db.execute(stmt_existing)
         existing_payloads = [r[0] for r in res.all() if isinstance(r[0], dict)]
-        existing_titles = {
-            str(p.get("title", "")).strip().lower()
-            for p in existing_payloads
-            if p.get("title")
-        }
+        existing_titles = {str(p.get("title", "")).strip().lower() for p in existing_payloads if p.get("title")}
 
     for patch in report.patches:
         if patch.title.strip().lower() in existing_titles:

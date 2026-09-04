@@ -21,11 +21,7 @@ from app.database.repositories.conversation_recall.sql import (
     CONVERSATION_RECALL_SCHEMA_SQL,
 )
 
-FIXTURE_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "fixtures"
-    / "test_claude_code_transcript.jsonl"
-)
+FIXTURE_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "test_claude_code_transcript.jsonl"
 
 
 @pytest.fixture

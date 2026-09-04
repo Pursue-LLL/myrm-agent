@@ -111,13 +111,9 @@ async def get_usage_by_agent(
         grand_total_tokens = sum(item["tokens"] for item in agent_agg.values())
         grand_total_usd = sum(item["usd"] for item in agent_agg.values())
 
-        agents_stmt = select(Agent.id, Agent.name, Agent.avatar).where(
-            Agent.id.in_(agent_ids)
-        )
+        agents_stmt = select(Agent.id, Agent.name, Agent.avatar).where(Agent.id.in_(agent_ids))
         agents_result = await db.execute(agents_stmt)
-        agent_map: dict[str, tuple[str, str | None]] = {
-            row.id: (row.name, row.avatar) for row in agents_result.all()
-        }
+        agent_map: dict[str, tuple[str, str | None]] = {row.id: (row.name, row.avatar) for row in agents_result.all()}
 
         start_dt = datetime.now(timezone.utc) - timedelta(days=days)
         daily_stmt = (
@@ -139,15 +135,11 @@ async def get_usage_by_agent(
             }
 
         agents_data = []
-        for aid, item in sorted(
-            agent_agg.items(), key=lambda pair: pair[1]["usd"], reverse=True
-        ):
+        for aid, item in sorted(agent_agg.items(), key=lambda pair: pair[1]["usd"], reverse=True):
             name, avatar = agent_map.get(aid, (aid, None))
             tokens = item["tokens"]
             usd = item["usd"]
-            percent_tokens = (
-                (tokens / grand_total_tokens * 100) if grand_total_tokens > 0 else 0
-            )
+            percent_tokens = (tokens / grand_total_tokens * 100) if grand_total_tokens > 0 else 0
             percent_usd = (usd / grand_total_usd * 100) if grand_total_usd > 0 else 0
 
             sparkline = []
@@ -193,6 +185,4 @@ async def get_usage_by_agent(
             }
         )
     except Exception as e:
-        raise internal_error(
-            operation="Get per-agent usage analytics", exception=e
-        ) from e
+        raise internal_error(operation="Get per-agent usage analytics", exception=e) from e

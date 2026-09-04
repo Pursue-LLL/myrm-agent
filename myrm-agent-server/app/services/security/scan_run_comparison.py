@@ -32,9 +32,7 @@ class ScanRunComparisonService:
     def __init__(self, persistence_path: str | Path | None = None) -> None:
         self._runs: dict[str, ScanRunSummary] = {}
         self._resolved_history: set[str] = set()
-        self._persistence_path: Path | None = (
-            Path(persistence_path) if persistence_path else None
-        )
+        self._persistence_path: Path | None = Path(persistence_path) if persistence_path else None
         if self._persistence_path:
             self._load_persisted_runs()
 
@@ -79,9 +77,7 @@ class ScanRunComparisonService:
         """Retrieve a scan run by run_id."""
         return self._runs.get(run_id)
 
-    def list_runs(
-        self, session_id: str | None = None, limit: int = 20
-    ) -> list[ScanRunSummary]:
+    def list_runs(self, session_id: str | None = None, limit: int = 20) -> list[ScanRunSummary]:
         """List scan runs sorted by created_at descending."""
         runs = list(self._runs.values())
         if session_id:
@@ -123,9 +119,7 @@ class ScanRunComparisonService:
             raise ValueError(f"Base run {base_run_id} not found.")
 
         base_map: dict[str, FindingItem] = {f.fingerprint: f for f in base_run.findings}
-        target_map: dict[str, FindingItem] = {
-            f.fingerprint: f for f in target_run.findings
-        }
+        target_map: dict[str, FindingItem] = {f.fingerprint: f for f in target_run.findings}
 
         new_findings: list[FindingItem] = []
         persisting_findings: list[FindingItem] = []
@@ -155,9 +149,7 @@ class ScanRunComparisonService:
                 resolved_findings.append(item)
                 self._resolved_history.add(fp)
 
-        total_delta = (len(new_findings) + len(regressed_findings)) - len(
-            resolved_findings
-        )
+        total_delta = (len(new_findings) + len(regressed_findings)) - len(resolved_findings)
         summary = (
             f"Comparison with {base_run_id}: "
             f"+{len(new_findings)} new, +{len(regressed_findings)} regressed, "
@@ -215,26 +207,16 @@ class ScanRunComparisonService:
         )
 
         if not run.findings:
-            report_lines.append(
-                "✅ No security vulnerabilities detected in the target scope.\n"
-            )
+            report_lines.append("✅ No security vulnerabilities detected in the target scope.\n")
         else:
             for idx, finding in enumerate(run.findings, 1):
-                poc_badge = (
-                    "🛡️ **[PoC VERIFIED]**"
-                    if finding.poc_verified
-                    else "⚠️ [STATIC INFERENCE]"
-                )
+                poc_badge = "🛡️ **[PoC VERIFIED]**" if finding.poc_verified else "⚠️ [STATIC INFERENCE]"
                 report_lines.extend(
                     [
                         f"### {idx}. [{finding.severity.upper()}] {finding.title} ({finding.cwe})",
                         f"- **Status**: `{finding.status.upper()}` · **Fingerprint**: `{finding.fingerprint}`",
                         f"- **Location**: `{finding.file_path}`"
-                        + (
-                            f" (Lines: `{finding.line_range}`)"
-                            if finding.line_range
-                            else ""
-                        ),
+                        + (f" (Lines: `{finding.line_range}`)" if finding.line_range else ""),
                         f"- **Verification**: {poc_badge}",
                     ]
                 )

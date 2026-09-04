@@ -52,6 +52,7 @@ async def seed_pattern_allowlist_fixture(
     await allowlist.clear_user(DEFAULT_USER_ID)
 
     import time
+
     expires_at = time.time() + ttl_seconds if (ttl_seconds is not None and ttl_seconds > 0) else None
 
     entry = AllowlistEntry(

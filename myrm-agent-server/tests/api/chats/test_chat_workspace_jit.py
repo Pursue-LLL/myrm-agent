@@ -83,4 +83,3 @@ async def test_get_chat_preserves_existing_workspace_dir(
     res = await async_client.get(f"/api/v1/chats/{chat_id}")
     assert res.status_code == 200, res.text
     assert res.json()["data"]["chat"]["workspace_dir"] == existing
-

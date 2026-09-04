@@ -315,4 +315,3 @@ async def test_process_human_content_supplies_default_prompt_for_empty_text_with
     assert isinstance(result, list)
     text_item = next(item for item in result if isinstance(item, dict) and item.get("type") == "text")
     assert text_item["text"] == "请分析附带的媒体内容。"
-

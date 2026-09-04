@@ -163,19 +163,14 @@ def build_result_card(
 
     if sources:
         elements.append({"tag": "hr"})
-        source_lines = [
-            f"[{s.get('title', s.get('url', 'source'))}]({s['url']})"
-            for s in sources
-            if s.get("url")
-        ]
+        source_lines = [f"[{s.get('title', s.get('url', 'source'))}]({s['url']})" for s in sources if s.get("url")]
         if source_lines:
             elements.append(
                 {
                     "tag": "div",
                     "text": {
                         "tag": "lark_md",
-                        "content": "**refusesource: **\n"
-                        + "\n".join(source_lines[:10]),
+                        "content": "**refusesource: **\n" + "\n".join(source_lines[:10]),
                     },
                 }
             )
@@ -246,11 +241,7 @@ def build_card_actions(
         for comp in row:
             if isinstance(comp, ActionButton):
                 btn_type = _FEISHU_BUTTON_TYPE.get(
-                    (
-                        comp.style.value
-                        if isinstance(comp.style, ButtonStyle)
-                        else str(comp.style)
-                    ),
+                    (comp.style.value if isinstance(comp.style, ButtonStyle) else str(comp.style)),
                     "default",
                 )
                 btn: dict[str, object] = {
@@ -425,9 +416,7 @@ def _parse_post_line(line: str) -> list[dict[str, object]]:
         if m.group(2) is not None:
             elements.append({"tag": "text", "text": m.group(2), "style": ["bold"]})
         elif m.group(4) is not None:
-            elements.append(
-                {"tag": "text", "text": m.group(4), "style": ["lineThrough"]}
-            )
+            elements.append({"tag": "text", "text": m.group(4), "style": ["lineThrough"]})
         elif m.group(6) is not None:
             elements.append({"tag": "text", "text": m.group(6), "style": ["code"]})
         elif m.group(8) is not None:

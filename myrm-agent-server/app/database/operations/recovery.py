@@ -104,8 +104,7 @@ def rescue_database_detailed(db_path: str) -> SalvageResult:
 
         if result.success:
             logger.info(
-                "Database salvage succeeded: recovered %d rows across %d tables, "
-                "%d orphan sessions reconstructed in %.1fms",
+                "Database salvage succeeded: recovered %d rows across %d tables, %d orphan sessions reconstructed in %.1fms",
                 result.total_recovered_rows,
                 len(result.table_stats),
                 result.orphans_reconstructed,

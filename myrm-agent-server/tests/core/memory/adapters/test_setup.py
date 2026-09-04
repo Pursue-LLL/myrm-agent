@@ -61,9 +61,7 @@ def _patch_memory_path(path: str):
 async def test_create_memory_manager_with_custom_path(tmp_path: Path):
     custom_base_path = tmp_path / "custom_memory_path"
 
-    embedding_config = EmbeddingConfig(
-        model="openai/text-embedding-3-small", api_key="sk-test"
-    )
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
 
     with _patch_memory_path(str(custom_base_path)):
         manager = await create_memory_manager(
@@ -86,9 +84,7 @@ async def test_create_memory_manager_with_custom_path(tmp_path: Path):
 async def test_create_memory_manager_default_path(tmp_path: Path):
     default_path = tmp_path / "default_memory"
 
-    embedding_config = EmbeddingConfig(
-        model="openai/text-embedding-3-small", api_key="sk-test"
-    )
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
 
     with _patch_memory_path(str(default_path)):
         manager = await create_memory_manager(
@@ -110,9 +106,7 @@ async def test_create_memory_manager_default_path(tmp_path: Path):
 @pytest.mark.asyncio
 async def test_create_memory_manager_merges_scope_namespaces(tmp_path: Path):
     custom_base_path = tmp_path / "scoped_memory"
-    embedding_config = EmbeddingConfig(
-        model="openai/text-embedding-3-small", api_key="sk-test"
-    )
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
 
     with _patch_memory_path(str(custom_base_path)):
         manager = await create_memory_manager(
@@ -139,9 +133,7 @@ async def test_create_memory_manager_merges_scope_namespaces(tmp_path: Path):
 @pytest.mark.asyncio
 async def test_create_memory_manager_appends_shared_context_namespaces(tmp_path: Path):
     custom_base_path = tmp_path / "shared_context_memory"
-    embedding_config = EmbeddingConfig(
-        model="openai/text-embedding-3-small", api_key="sk-test"
-    )
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
 
     with _patch_memory_path(str(custom_base_path)):
         manager = await create_memory_manager(
@@ -170,9 +162,7 @@ async def test_create_memory_manager_appends_shared_context_namespaces(tmp_path:
 @pytest.mark.asyncio
 async def test_create_memory_manager_applies_binding_memory_policy(tmp_path: Path):
     custom_base_path = tmp_path / "policy_memory"
-    embedding_config = EmbeddingConfig(
-        model="openai/text-embedding-3-small", api_key="sk-test"
-    )
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
 
     with _patch_memory_path(str(custom_base_path)):
         manager = await create_memory_manager(
@@ -206,9 +196,7 @@ async def test_create_memory_manager_reuses_vector_backend_across_approval_modes
     tmp_path: Path,
 ):
     custom_base_path = tmp_path / "shared_backend_memory"
-    embedding_config = EmbeddingConfig(
-        model="openai/text-embedding-3-small", api_key="sk-test"
-    )
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
 
     with _patch_memory_path(str(custom_base_path)):
         binding = resolve_context_binding(
@@ -244,9 +232,7 @@ async def test_create_memory_manager_isolated_base_path_skips_global_vector_stor
     from unittest.mock import patch as mock_patch
 
     custom_base_path = tmp_path / "isolated_memory"
-    embedding_config = EmbeddingConfig(
-        model="openai/text-embedding-3-small", api_key="sk-test"
-    )
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
 
     with mock_patch(
         "app.core.retriever.vector.defaults.create_default_vector_store",
@@ -282,9 +268,7 @@ async def test_create_memory_manager_isolated_base_path_evicts_only_that_volume(
 
     iso_a = tmp_path / "iso_a"
     iso_b = tmp_path / "iso_b"
-    embedding_config = EmbeddingConfig(
-        model="openai/text-embedding-3-small", api_key="sk-test"
-    )
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
 
     with mock_patch(
         "app.core.retriever.vector.defaults.create_default_vector_store",
@@ -361,9 +345,7 @@ async def test_evict_cached_memory_manager_logs_close_failure(tmp_path: Path) ->
     from app.core.memory.adapters.setup import evict_cached_memory_manager
 
     custom_base_path = tmp_path / "close_failure_memory"
-    embedding_config = EmbeddingConfig(
-        model="openai/text-embedding-3-small", api_key="sk-test"
-    )
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
 
     with mock_patch(
         "app.core.retriever.vector.defaults.create_default_vector_store",
@@ -400,9 +382,7 @@ async def test_shutdown_cached_memory_managers_logs_close_failure(
     from app.core.memory.adapters.setup import shutdown_cached_memory_managers
 
     custom_base_path = tmp_path / "shutdown_failure_memory"
-    embedding_config = EmbeddingConfig(
-        model="openai/text-embedding-3-small", api_key="sk-test"
-    )
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
 
     with mock_patch(
         "app.core.retriever.vector.defaults.create_default_vector_store",
@@ -438,9 +418,7 @@ async def test_create_memory_tools_for_user_propagates_optional_kwargs(
 
     from app.core.memory.adapters.setup import create_memory_tools_for_user
 
-    embedding_config = EmbeddingConfig(
-        model="openai/text-embedding-3-small", api_key="sk-test"
-    )
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
     fake_manager = MagicMock()
     fake_tools = [MagicMock(), MagicMock()]
 
@@ -567,9 +545,7 @@ async def test_create_memory_manager_cache_hit_refreshes_consolidation_callback(
     tmp_path: Path,
 ) -> None:
     custom_base_path = tmp_path / "callback_refresh_memory"
-    embedding_config = EmbeddingConfig(
-        model="openai/text-embedding-3-small", api_key="sk-test"
-    )
+    embedding_config = EmbeddingConfig(model="openai/text-embedding-3-small", api_key="sk-test")
 
     async def _wiki_hook(_stats: object) -> None:
         return None

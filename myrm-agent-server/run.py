@@ -175,9 +175,7 @@ if __name__ == "__main__":
         if port != preferred_port:
             print(f"\n⚠️  端口 {preferred_port} 已被占用，已自动切换到 {port}")
             print(f"💡 后端实际端口: http://{host}:{port}")
-            print(
-                f"📌 如需固定端口，请先释放 {preferred_port} 端口上的占用进程，或通过 -p 指定其它可用端口\n"
-            )
+            print(f"📌 如需固定端口，请先释放 {preferred_port} 端口上的占用进程，或通过 -p 指定其它可用端口\n")
         else:
             port = preferred_port
     else:
@@ -196,9 +194,7 @@ if __name__ == "__main__":
     if args.webui:
         print("💡 WebUI mode — or use: myrm start")
     else:
-        print(
-            f"💡 Backend :{port} — UI: myrm start  or  bun run dev → http://localhost:3000"
-        )
+        print(f"💡 Backend :{port} — UI: myrm start  or  bun run dev → http://localhost:3000")
 
     if _should_use_granian():
         start_with_granian(

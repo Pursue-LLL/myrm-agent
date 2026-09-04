@@ -58,6 +58,7 @@ async def test_execute_wiki_knowledge_query_empty_answer_fallback() -> None:
 @pytest.mark.asyncio
 async def test_execute_wiki_knowledge_query_resolves_shared_context_paths() -> None:
     from unittest.mock import patch
+
     archiver = MagicMock()
     archiver.query_wiki = AsyncMock(
         return_value=QueryResult(
@@ -69,13 +70,16 @@ async def test_execute_wiki_knowledge_query_resolves_shared_context_paths() -> N
     )
     archiver._structure = MagicMock()
 
-    with patch(
-        "app.services.wiki.knowledge_query_service.get_wiki_archiver",
-        return_value=archiver,
-    ) as mock_get_archiver, patch(
-        "app.services.wiki.knowledge_query_service.resolve_wiki_knowledge_llm",
-        new_callable=AsyncMock,
-    ) as mock_resolve_llm:
+    with (
+        patch(
+            "app.services.wiki.knowledge_query_service.get_wiki_archiver",
+            return_value=archiver,
+        ) as mock_get_archiver,
+        patch(
+            "app.services.wiki.knowledge_query_service.resolve_wiki_knowledge_llm",
+            new_callable=AsyncMock,
+        ) as mock_resolve_llm,
+    ):
         mock_llm = MagicMock()
         mock_resolve_llm.return_value = mock_llm
 
@@ -92,4 +96,3 @@ async def test_execute_wiki_knowledge_query_resolves_shared_context_paths() -> N
         assert kwargs["agent_id"] == "test_agent"
         assert len(kwargs["public_dirs"]) == 2
         assert kwargs["public_dir_labels"].get("kb_ctx_1") == "Team Wiki"
-

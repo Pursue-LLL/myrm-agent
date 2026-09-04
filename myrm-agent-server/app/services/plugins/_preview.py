@@ -93,9 +93,7 @@ def _server_has_placeholders(server: PluginMcpServer) -> bool:
     return has_placeholders(*values)
 
 
-def _preview_skill(
-    idx: int, skill: PluginSkill, existing_names: set[str]
-) -> dict[str, object]:
+def _preview_skill(idx: int, skill: PluginSkill, existing_names: set[str]) -> dict[str, object]:
     """Serialize one skill for the preview payload."""
     oversized = skill_content_too_large(skill)
     scan_fn = scan_skill_security
@@ -182,10 +180,7 @@ def build_preview_result(
             "license": meta.license if meta else None,
             "keywords": list(meta.keywords) if meta else [],
         },
-        "skills": [
-            _preview_skill(idx, skill, existing)
-            for idx, skill in enumerate(result.skills)
-        ],
+        "skills": [_preview_skill(idx, skill, existing) for idx, skill in enumerate(result.skills)],
         "servers": [
             {
                 "name": server.name,

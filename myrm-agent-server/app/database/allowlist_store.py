@@ -86,7 +86,11 @@ class DBAllowlistStore:
                         command_pattern=_from_db_value(row.command_pattern),
                         agent_id=_from_db_value(getattr(row, "agent_id", None)),
                         created_at=(
-                            (row.created_at.replace(tzinfo=timezone.utc).timestamp() if row.created_at.tzinfo is None else row.created_at.timestamp())
+                            (
+                                row.created_at.replace(tzinfo=timezone.utc).timestamp()
+                                if row.created_at.tzinfo is None
+                                else row.created_at.timestamp()
+                            )
                             if row.created_at
                             else now_ts
                         ),
@@ -107,11 +111,7 @@ class DBAllowlistStore:
             user_id: User identifier
             entry: Allowlist entry to persist
         """
-        expires_dt = (
-            datetime.fromtimestamp(entry.expires_at, tz=timezone.utc)
-            if entry.expires_at is not None
-            else None
-        )
+        expires_dt = datetime.fromtimestamp(entry.expires_at, tz=timezone.utc) if entry.expires_at is not None else None
 
         async with self._session_factory() as session:
             new_entry = UserToolAllowlist(
@@ -142,14 +142,10 @@ class DBAllowlistStore:
                         update(UserToolAllowlist)
                         .where(
                             UserToolAllowlist.permission == entry.permission,
-                            UserToolAllowlist.tool_name
-                            == _to_db_value(entry.tool_name),
-                            UserToolAllowlist.tool_args_hash
-                            == _to_db_value(entry.tool_args_hash),
-                            UserToolAllowlist.command_pattern
-                            == _to_db_value(entry.command_pattern),
-                            UserToolAllowlist.agent_id
-                            == _to_db_value(entry.agent_id),
+                            UserToolAllowlist.tool_name == _to_db_value(entry.tool_name),
+                            UserToolAllowlist.tool_args_hash == _to_db_value(entry.tool_args_hash),
+                            UserToolAllowlist.command_pattern == _to_db_value(entry.command_pattern),
+                            UserToolAllowlist.agent_id == _to_db_value(entry.agent_id),
                         )
                         .values(expires_at=expires_dt)
                     )

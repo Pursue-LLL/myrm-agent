@@ -206,7 +206,6 @@ def build_delivery_card_content(
                 else:
                     lines.append(f"{idx}. {icon} **{art.file_name}** `[{size_fmt}]`")
 
-
     if tracking_deep_link:
         lines.extend(["", f"🔗 [在桌面端/WebUI打开完整工作区]({tracking_deep_link})"])
 

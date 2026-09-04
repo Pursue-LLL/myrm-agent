@@ -66,4 +66,3 @@ def test_fal_media_provider_settings_and_doctor_lifecycle() -> None:
         res = client.evaluate(page, _VERIFY_MEDIA_SECTION_JS, timeout_sec=10.0)
         assert isinstance(res, dict)
         assert res.get("ok") is True
-

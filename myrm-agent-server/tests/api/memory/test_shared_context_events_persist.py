@@ -189,6 +189,3 @@ async def test_binding_api_and_target_query_flow(db: AsyncSession) -> None:
     )
     assert res_after_unbind.total == 5
     assert not any(item.context_id == ctx_main.id for item in res_after_unbind.items)
-
-
-

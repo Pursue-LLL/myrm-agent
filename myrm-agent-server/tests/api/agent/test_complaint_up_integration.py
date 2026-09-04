@@ -246,4 +246,3 @@ class TestComplaintUpEscalation:
         assert call_kwargs.kwargs.get("min_tier") == RoutingTier.STANDARD
         mock_misroute.assert_called_once_with(RoutingTier.SIMPLE)
         assert "__complaint_up__" not in (params.user_instructions or "")
-

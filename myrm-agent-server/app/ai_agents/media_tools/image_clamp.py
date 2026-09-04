@@ -67,25 +67,14 @@ def clamp_image_payload(
 
     try:
         with Image.open(io.BytesIO(data)) as raw_img:
-            has_alpha = raw_img.mode in ("RGBA", "LA") or (
-                raw_img.mode == "P" and "transparency" in raw_img.info
-            )
+            has_alpha = raw_img.mode in ("RGBA", "LA") or (raw_img.mode == "P" and "transparency" in raw_img.info)
             needs_rotation = _has_exif_rotation(raw_img)
             needs_dimension_clamp = max(raw_img.width, raw_img.height) > max_dimension
             needs_byte_clamp = len(data) > max_bytes
 
             # Lossless bypass: return exact bytes if image already satisfies all criteria
-            if (
-                not needs_rotation
-                and not has_alpha
-                and not needs_dimension_clamp
-                and not needs_byte_clamp
-            ):
-                resolved_mime = content_type or (
-                    f"image/{raw_img.format.lower()}"
-                    if raw_img.format
-                    else "image/jpeg"
-                )
+            if not needs_rotation and not has_alpha and not needs_dimension_clamp and not needs_byte_clamp:
+                resolved_mime = content_type or (f"image/{raw_img.format.lower()}" if raw_img.format else "image/jpeg")
                 return data, resolved_mime, len(data)
 
             # 1. Physical orientation baking

@@ -88,9 +88,7 @@ def test_rescue_database_detailed_flow(tmp_path: Path):
     conn.execute("PRAGMA page_size = 4096;")
     conn.execute("CREATE TABLE chat_history (id INTEGER PRIMARY KEY, content TEXT);")
     for i in range(1, 501):
-        conn.execute(
-            "INSERT INTO chat_history VALUES (?, ?);", (i, f"message_{i}" * 10)
-        )
+        conn.execute("INSERT INTO chat_history VALUES (?, ?);", (i, f"message_{i}" * 10))
     conn.commit()
     conn.close()
 

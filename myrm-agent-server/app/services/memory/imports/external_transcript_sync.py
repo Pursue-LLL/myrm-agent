@@ -117,9 +117,7 @@ class ExternalTranscriptSyncService:
             last_offset = 0
 
         with open(file_path, "rb") as stream:
-            chunk = IncrementalTranscriptParser.parse_stream(
-                stream, start_offset=last_offset
-            )
+            chunk = IncrementalTranscriptParser.parse_stream(stream, start_offset=last_offset)
 
         if not chunk.turns and chunk.new_byte_offset == last_offset:
             return 0, None
@@ -130,9 +128,7 @@ class ExternalTranscriptSyncService:
         title = chunk.session_title or file_path.stem.replace("_", " ").title()
 
         # Ensure Chat exists with incognito isolation
-        await self._ensure_isolated_chat(
-            db, chat_id=chat_id, title=title, source=source
-        )
+        await self._ensure_isolated_chat(db, chat_id=chat_id, title=title, source=source)
 
         # Ingest turns into conversation recall index
         for turn_idx, turn in enumerate(chunk.turns):

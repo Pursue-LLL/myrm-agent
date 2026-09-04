@@ -98,9 +98,7 @@ class ZeroCostMemoryExtension(AgentExtension):
 
         policy = getattr(self.memory_manager, "policy", None)
         if policy is not None and not getattr(policy, "allow_l3_extraction", True):
-            logger.info(
-                "🧠 [Zero-Cost Memory] Skipped tool eviction memory extraction: policy.allow_l3_extraction is False."
-            )
+            logger.info("🧠 [Zero-Cost Memory] Skipped tool eviction memory extraction: policy.allow_l3_extraction is False.")
             return None
 
         from myrm_agent_harness.api.hooks import (

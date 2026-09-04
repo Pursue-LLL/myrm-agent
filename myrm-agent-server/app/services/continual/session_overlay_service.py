@@ -37,14 +37,9 @@ async def graduate_session_overlay_to_growth(
     try:
         tool_name = str(overlay.patch_data.get("tool_name", "general_tool"))
         advisory = str(
-            overlay.patch_data.get("advisory_instruction")
-            or overlay.patch_data.get("procedural_rule")
-            or overlay.trigger_reason
+            overlay.patch_data.get("advisory_instruction") or overlay.patch_data.get("procedural_rule") or overlay.trigger_reason
         )
-        manifest = (
-            getattr(overlay, "change_manifest", None)
-            or overlay.patch_data.get("change_manifest")
-        )
+        manifest = getattr(overlay, "change_manifest", None) or overlay.patch_data.get("change_manifest")
         payload = {
             "skill_name": f"continual_{tool_name}_guard",
             "description": f"[Continual Recovery] {advisory}",

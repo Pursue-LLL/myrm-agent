@@ -642,4 +642,3 @@ class MemoryBehavioralInsightsResponse(BaseModel):
     peak_active_window: str | None = None
     offset_minutes: int = 480
     source: str = "persisted"
-

@@ -231,4 +231,3 @@ async def test_video_tool_generate_passes_negative_prompt_and_seed() -> None:
         extra_params={"negative_prompt": "blurry, distorted", "seed": 42},
         force=False,
     )
-

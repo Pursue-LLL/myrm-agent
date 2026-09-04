@@ -55,9 +55,7 @@ class DelegationCoordinator:
         self._cancellation_tokens: dict[str, CancellationToken] = {}
         self._steering_tokens: dict[str, SteeringToken] = {}
         self._steering_history: dict[str, list[SteeringMessage]] = {}
-        self._pending_approvals: dict[
-            str, tuple[ApprovalRequest, asyncio.Future[ApprovalResponse]]
-        ] = {}
+        self._pending_approvals: dict[str, tuple[ApprovalRequest, asyncio.Future[ApprovalResponse]]] = {}
         self._beacon_listeners: list[Callable[[ProgressBeacon], None]] = []
 
     def register_task(self, task: DelegationTask) -> None:
@@ -112,13 +110,14 @@ class DelegationCoordinator:
         """
         task = self._tasks.get(task_id)
         if not task or task.status != DelegationStatus.RUNNING:
-            logger.warning("DelegationCoordinator: Cannot steer task %s in state %s", task_id, task.status.value if task else "unknown")
+            logger.warning(
+                "DelegationCoordinator: Cannot steer task %s in state %s", task_id, task.status.value if task else "unknown"
+            )
             return False
 
         steering_token = self._steering_tokens.get(task_id)
         if steering_token:
             steering_token.steer(content)
-
 
         msg = SteeringMessage(
             task_id=task_id,
@@ -366,5 +365,3 @@ class DelegationCoordinator:
                 user_id=task.origin_user_id,
             )
             await bus.publish_outbound(fail_msg)
-
-

@@ -98,9 +98,7 @@ def test_get_wiki_archiver_cache_isolation_by_public_dirs(
 
 
 @pytest.mark.asyncio
-async def test_execute_wiki_knowledge_query_with_federated_vaults(
-    tmp_path: Path, mock_llm: MagicMock
-) -> None:
+async def test_execute_wiki_knowledge_query_with_federated_vaults(tmp_path: Path, mock_llm: MagicMock) -> None:
     """Verify execute_wiki_knowledge_query attaches shared_context_ids and labels."""
     reset_wiki_archiver_cache_for_tests()
 
@@ -163,9 +161,7 @@ def test_agent_resolves_wiki_public_dir_labels_from_context_names() -> None:
 
 
 @pytest.mark.asyncio
-async def test_execute_wiki_knowledge_query_empty_context_fallback(
-    tmp_path: Path, mock_llm: MagicMock
-) -> None:
+async def test_execute_wiki_knowledge_query_empty_context_fallback(tmp_path: Path, mock_llm: MagicMock) -> None:
     """Verify execute_wiki_knowledge_query gracefully handles empty/None shared_context_ids."""
     reset_wiki_archiver_cache_for_tests()
 

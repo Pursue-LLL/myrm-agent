@@ -146,9 +146,7 @@ async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
         for sname in server_names:
             evicted_tools += evict_skill_safety_metadata(sname)
     except Exception as exc:
-        logger.warning(
-            "Failed to evict tool registry metadata for '%s': %s", plugin_name, exc
-        )
+        logger.warning("Failed to evict tool registry metadata for '%s': %s", plugin_name, exc)
 
     # D3: Associated Cron jobs cascade cleanup (dual-track)
     purged_cron_jobs = 0
@@ -182,9 +180,7 @@ async def uninstall_plugin(plugin_name: str) -> dict[str, object]:
                 )
                 paused_cron_jobs += 1
     except Exception as exc:
-        logger.warning(
-            "Failed to cascade-clean cron jobs for '%s': %s", plugin_name, exc
-        )
+        logger.warning("Failed to cascade-clean cron jobs for '%s': %s", plugin_name, exc)
 
     # D4: Physical files removal
     removed_files = False

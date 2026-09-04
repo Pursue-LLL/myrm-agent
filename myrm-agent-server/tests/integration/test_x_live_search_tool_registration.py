@@ -15,9 +15,7 @@ from unittest.mock import MagicMock, patch
 
 from app.core.skills.gates.oauth_availability import X_LIVE_SEARCH_SKILL_ID
 
-SCRIPT_PATH = (
-    Path(__file__).resolve().parents[2] / "assets" / "prebuilt_skills" / "x-live-search" / "scripts" / "search.py"
-)
+SCRIPT_PATH = Path(__file__).resolve().parents[2] / "assets" / "prebuilt_skills" / "x-live-search" / "scripts" / "search.py"
 
 
 def _load_search_script():
@@ -148,4 +146,3 @@ class TestXLiveSearchSandboxScript:
         # Disallowed scheme / host fallback to default
         assert x_search_script._validate_base_url("http://malicious.site/v1") == x_search_script._DEFAULT_XAI_BASE_URL
         assert x_search_script._validate_base_url("https://attacker.com/v1") == x_search_script._DEFAULT_XAI_BASE_URL
-

@@ -78,9 +78,7 @@ class StaleFileArchiver:
                 if status == FactStatus.DEPRECATED:
                     candidates.append(
                         StaleFileCandidate(
-                            file_path=str(
-                                file_path.relative_to(self._structure.base_dir)
-                            ),
+                            file_path=str(file_path.relative_to(self._structure.base_dir)),
                             fact_status=status,
                             last_modified=mtime,
                             stale_reason="Explicitly marked as deprecated or blocked.",
@@ -90,9 +88,7 @@ class StaleFileArchiver:
                 elif status == FactStatus.IN_PROGRESS_DRAFT and mtime < cutoff:
                     candidates.append(
                         StaleFileCandidate(
-                            file_path=str(
-                                file_path.relative_to(self._structure.base_dir)
-                            ),
+                            file_path=str(file_path.relative_to(self._structure.base_dir)),
                             fact_status=status,
                             last_modified=mtime,
                             stale_reason=f"Draft unmodified for >{draft_max_age_days} days.",
@@ -117,11 +113,7 @@ class StaleFileArchiver:
 
         for rel in relative_paths:
             candidate_path = Path(rel)
-            src = (
-                candidate_path
-                if candidate_path.is_absolute()
-                else (self._structure.base_dir / rel)
-            )
+            src = candidate_path if candidate_path.is_absolute() else (self._structure.base_dir / rel)
             if not src.exists():
                 errors.append(f"Source file not found: {rel}")
                 continue

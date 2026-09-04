@@ -122,24 +122,14 @@ async def persist_imported_agents(
         try:
             workspace_templates[rel_path] = content.decode("utf-8")
         except Exception:
-            workspace_templates[rel_path] = (
-                f"base64:{base64.b64encode(content).decode('ascii')}"
-            )
+            workspace_templates[rel_path] = f"base64:{base64.b64encode(content).decode('ascii')}"
 
     # First pass: create subagents
     created_agent_ids: list[str] = []
     name_to_id: dict[str, str] = {}
 
-    subagent_list = [
-        item
-        for item in accepted_agents
-        if item[1].is_subagent or not item[1].is_entry_agent
-    ]
-    entry_list = [
-        item
-        for item in accepted_agents
-        if item[1].is_entry_agent or (item not in subagent_list)
-    ]
+    subagent_list = [item for item in accepted_agents if item[1].is_subagent or not item[1].is_entry_agent]
+    entry_list = [item for item in accepted_agents if item[1].is_entry_agent or (item not in subagent_list)]
 
     # If all were categorized as subagents but there's at least one, elevate the first to entry
     if not entry_list and subagent_list:
@@ -157,9 +147,7 @@ async def persist_imported_agents(
             "is_built_in": False,
         }
         if agent.metadata:
-            payload["metadata"] = sanitize_imported_security_overrides(
-                dict(agent.metadata)
-            )
+            payload["metadata"] = sanitize_imported_security_overrides(dict(agent.metadata))
         if workspace_templates:
             payload["engine_params"] = {"template_workspace_files": workspace_templates}
         agent_data = AgentCreate.model_validate(payload)
@@ -201,9 +189,7 @@ async def persist_imported_agents(
             "is_built_in": False,
         }
         if agent.metadata:
-            payload["metadata"] = sanitize_imported_security_overrides(
-                dict(agent.metadata)
-            )
+            payload["metadata"] = sanitize_imported_security_overrides(dict(agent.metadata))
         if workspace_templates:
             payload["engine_params"] = {"template_workspace_files": workspace_templates}
 
@@ -252,4 +238,3 @@ def materialize_template_workspace_files(
                     target_path.write_text(content, encoding="utf-8")
                 written.append(clean_rel_path)
     return written
-

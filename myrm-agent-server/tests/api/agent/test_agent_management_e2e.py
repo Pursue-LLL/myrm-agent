@@ -781,4 +781,3 @@ async def test_agent_skill_ids_explicit_zero_and_wysiwyg_e2e(async_client: Async
     assert get_cleared.json()["data"]["skill_ids"] == []
 
     await async_client.delete(f"/api/agents/{agent_id}")
-

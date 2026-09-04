@@ -148,7 +148,13 @@ class MemoryCommandCenterInsights:
             from sqlalchemy import select
 
             from app.database.models.memory import MemoryConflictModel
-            stmt = select(MemoryConflictModel).where(MemoryConflictModel.status == "pending").order_by(MemoryConflictModel.detected_at.desc()).limit(8)
+
+            stmt = (
+                select(MemoryConflictModel)
+                .where(MemoryConflictModel.status == "pending")
+                .order_by(MemoryConflictModel.detected_at.desc())
+                .limit(8)
+            )
             res = await self._db.execute(stmt)
             for conflict in res.scalars().all():
                 items.append(

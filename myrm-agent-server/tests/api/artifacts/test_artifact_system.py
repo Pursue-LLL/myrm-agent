@@ -538,4 +538,3 @@ class TestArtifactBundleIntegration:
             readme_text = zf.read("README.md").decode("utf-8")
             assert "Q3 AI Launch Campaign" in readme_text
             assert "campaign_strategy.md" in readme_text
-

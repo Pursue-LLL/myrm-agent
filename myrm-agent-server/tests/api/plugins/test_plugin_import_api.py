@@ -615,4 +615,3 @@ def test_preview_and_confirm_with_agents_and_workspace(client: TestClient, tmp_p
         confirm_body = confirm_res.json()
         assert confirm_body["imported_agents"] == 2
         assert confirm_body["created_agent_ids"] == ["agent-worker-id", "agent-coord-id"]
-

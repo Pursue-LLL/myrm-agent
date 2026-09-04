@@ -313,9 +313,7 @@ def ensure_index_html_alias(files: dict[str, PublishFile]) -> dict[str, PublishF
     if "index.html" in files:
         return files
 
-    root_html_entries = [
-        name for name in files if "/" not in name and name.lower().endswith((".html", ".htm"))
-    ]
+    root_html_entries = [name for name in files if "/" not in name and name.lower().endswith((".html", ".htm"))]
     if len(root_html_entries) == 1:
         primary = root_html_entries[0]
         files["index.html"] = PublishFile(

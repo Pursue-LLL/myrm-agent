@@ -38,7 +38,7 @@ class SensitiveDataFilter(logging.Filter):
         re.compile(r'(token|password|secret|key|auth|credential)\s*[=:]\s*["\']?([^\s"\']+)["\']?', re.IGNORECASE),
         re.compile(r'\b(bearer)\s+([^\s"\']{12,})', re.IGNORECASE),
         re.compile(r'(access_token|api_key|auth_header|access_key|secret_key)\s*[=:]\s*["\']?([^\s"\']+)["\']?', re.IGNORECASE),
-        re.compile(r'\b(sk-[A-Za-z0-9_\-]{16,})\b', re.IGNORECASE),
+        re.compile(r"\b(sk-[A-Za-z0-9_\-]{16,})\b", re.IGNORECASE),
     ]
 
     # Value patterns that look like credentials

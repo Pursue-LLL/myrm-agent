@@ -49,9 +49,7 @@ async def auto_continue_interrupted_turns() -> None:
 
             configs = await load_user_configs()
             if configs and configs.personal_settings_dict:
-                enabled = configs.personal_settings_dict.get(
-                    "autoContinueInterruptedTurns", True
-                )
+                enabled = configs.personal_settings_dict.get("autoContinueInterruptedTurns", True)
                 if not enabled:
                     logger.info("[Startup] Auto-continue disabled by user preference")
                     return
@@ -72,10 +70,7 @@ async def auto_continue_interrupted_turns() -> None:
             await db.execute(
                 delete(InterruptedTurnMarker).where(
                     (InterruptedTurnMarker.created_at < cutoff)
-                    | (
-                        InterruptedTurnMarker.attempt_count
-                        >= _AUTO_CONTINUE_MAX_ATTEMPTS
-                    )
+                    | (InterruptedTurnMarker.attempt_count >= _AUTO_CONTINUE_MAX_ATTEMPTS)
                 )
             )
             await db.commit()
@@ -95,9 +90,7 @@ async def auto_continue_interrupted_turns() -> None:
             asyncio.create_task(_dispatch_auto_continue(marker, session_factory))
 
     except Exception as e:
-        logger.error(
-            "[Startup] Auto-continue interrupted turns failed: %s", e, exc_info=True
-        )
+        logger.error("[Startup] Auto-continue interrupted turns failed: %s", e, exc_info=True)
 
 
 async def _dispatch_auto_continue(
@@ -120,9 +113,7 @@ async def _dispatch_auto_continue(
             await db.commit()
 
         if not marker.serialized_params:
-            logger.warning(
-                "Auto-continue skipped for chat %s: missing params", marker.chat_id
-            )
+            logger.warning("Auto-continue skipped for chat %s: missing params", marker.chat_id)
             return
 
         from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
@@ -140,15 +131,11 @@ async def _dispatch_auto_continue(
         params.message_id = f"auto_continue_{marker.id}"
 
         if not params.model_cfg:
-            logger.warning(
-                "Auto-continue skipped for chat %s: missing model_cfg", marker.chat_id
-            )
+            logger.warning("Auto-continue skipped for chat %s: missing model_cfg", marker.chat_id)
             return
 
         if marker.chat_id:
-            params.chat_history = await ChatService.load_web_chat_history(
-                marker.chat_id
-            )
+            params.chat_history = await ChatService.load_web_chat_history(marker.chat_id)
 
         from myrm_agent_harness.utils.runtime.steering import (
             SteeringToken,
@@ -164,14 +151,10 @@ async def _dispatch_auto_continue(
                 len(marker.pending_steering_messages),
                 marker.chat_id,
             )
-            steering_token = SteeringToken(
-                initial_messages=list(marker.pending_steering_messages)
-            )
+            steering_token = SteeringToken(initial_messages=list(marker.pending_steering_messages))
             set_steering_token(steering_token)
 
-        logger.info(
-            "[Auto-continue] Resuming interrupted turn for chat: %s", marker.chat_id
-        )
+        logger.info("[Auto-continue] Resuming interrupted turn for chat: %s", marker.chat_id)
 
         runtime_context = await build_agent_runtime_context(
             execution_mode=ExecutionMode.POOLED,
@@ -221,9 +204,7 @@ async def _dispatch_auto_continue(
         )
 
     except Exception as e:
-        logger.error(
-            "[Auto-continue] Failed for chat %s: %s", marker.chat_id, e, exc_info=True
-        )
+        logger.error("[Auto-continue] Failed for chat %s: %s", marker.chat_id, e, exc_info=True)
         try:
             from app.services.infra.system_notification import SystemNotificationService
 
@@ -238,18 +219,12 @@ async def _dispatch_auto_continue(
                 },
             )
         except Exception as notif_err:
-            logger.error(
-                "Failed to create auto-continue failure notification: %s", notif_err
-            )
+            logger.error("Failed to create auto-continue failure notification: %s", notif_err)
     finally:
         # Cleanup marker (stream_finalize may have already done this on success)
         try:
             async with session_factory() as db:
-                await db.execute(
-                    delete(InterruptedTurnMarker).where(
-                        InterruptedTurnMarker.id == marker.id
-                    )
-                )
+                await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.id == marker.id))
                 await db.commit()
         except Exception as cleanup_err:
             logger.debug("Auto-continue marker cleanup: %s", cleanup_err)

@@ -124,9 +124,7 @@ def build_dashboard_header(
         title_text = custom_title or "🧠 正在深度思考..."
     elif state == DashboardState.TOOL_RUNNING:
         if tool_meta is not None:
-            _, resolved_title, resolved_template = resolve_tool_header(
-                tool_meta.tool_name, tool_meta.args_summary
-            )
+            _, resolved_title, resolved_template = resolve_tool_header(tool_meta.tool_name, tool_meta.args_summary)
             title_text = custom_title or resolved_title
             template = resolved_template
             if not subtitle:
@@ -192,9 +190,7 @@ def build_dynamic_dashboard_card(
         for meta in tool_history[-5:]:  # show up to last 5 tools
             icon, _, _ = resolve_tool_header(meta.tool_name)
             status_symbol = "✓" if meta.status == "success" else "✗"
-            history_lines.append(
-                f"{icon} **{meta.tool_name}** `[{status_symbol} {meta.elapsed_seconds:.1f}s]`"
-            )
+            history_lines.append(f"{icon} **{meta.tool_name}** `[{status_symbol} {meta.elapsed_seconds:.1f}s]`")
         if history_lines:
             elements.append(
                 {
@@ -210,9 +206,7 @@ def build_dynamic_dashboard_card(
     # 2. Main content block
     if content:
         elements.append({"tag": "div", "text": {"tag": "lark_md", "content": content}})
-    elif (
-        state in (DashboardState.THINKING, DashboardState.TOOL_RUNNING) and not card_id
-    ):
+    elif state in (DashboardState.THINKING, DashboardState.TOOL_RUNNING) and not card_id:
         elements.append(
             {
                 "tag": "div",

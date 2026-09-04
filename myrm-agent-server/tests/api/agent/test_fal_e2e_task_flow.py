@@ -105,9 +105,7 @@ def test_fal_video_task_flow_full_lifecycle(client: TestClient) -> None:
 
     fake_result_resp = MagicMock()
     fake_result_resp.status_code = 200
-    fake_result_resp.json.return_value = {
-        "video": {"url": "https://v3.fal.media/mock-video.mp4"}
-    }
+    fake_result_resp.json.return_value = {"video": {"url": "https://v3.fal.media/mock-video.mp4"}}
 
     mock_dl_resp = MagicMock()
     mock_dl_resp.status_code = 200
