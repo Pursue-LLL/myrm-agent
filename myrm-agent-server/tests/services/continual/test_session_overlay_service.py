@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
-
 import pytest
 
+from app.services.continual.session_overlay_service import (
+    graduate_session_overlay_to_growth,
+)
 from myrm_agent_harness.agent.continual.overlay import (
     OverlayScope,
     OverlayShellType,
     SessionOverlay,
-)
-
-from app.services.continual.session_overlay_service import (
-    graduate_session_overlay_to_growth,
 )
 
 
