@@ -1892,7 +1892,9 @@
       "copyMarkdown": "複製為 Markdown",
       "exporting": "匯出中...",
       "success": "匯出成功",
+      "successRedacted": "匯出成功（已自動脫敏敏感憑據）",
       "copySuccess": "已複製到剪貼簿",
+      "copySuccessRedacted": "已複製到剪貼簿（已自動脫敏敏感憑據）",
       "error": "匯出失敗",
       "noMessages": "無訊息可匯出",
       "print": "列印"

@@ -1815,7 +1815,9 @@
       "copyMarkdown": "Als Markdown kopieren",
       "exporting": "Exportieren...",
       "success": "Erfolgreich exportiert",
+      "successRedacted": "Erfolgreich exportiert (sensible Daten geschwärzt)",
       "copySuccess": "In die Zwischenablage kopiert",
+      "copySuccessRedacted": "In die Zwischenablage kopiert (sensible Daten geschwärzt)",
       "error": "Export fehlgeschlagen",
       "noMessages": "Keine Nachrichten zum Exportieren",
       "print": "Drucken"
