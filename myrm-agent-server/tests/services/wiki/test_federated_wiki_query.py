@@ -46,6 +46,13 @@ def test_resolve_shared_wiki_vault_labels() -> None:
     assert labels.get(str(paths[1])) == "Finance & Reimbursement Standards"
 
 
+def test_resolve_shared_wiki_vault_paths_cap_limit() -> None:
+    """Verify resolve_shared_wiki_vault_paths caps at MAX_SHARED_WIKI_VAULTS (6)."""
+    cids = [f"kb-{i}" for i in range(10)]
+    paths = resolve_shared_wiki_vault_paths(cids)
+    assert len(paths) == 6
+
+
 def test_get_wiki_archiver_cache_isolation_by_public_dirs(mock_llm: MagicMock, tmp_path: Path) -> None:
     """Verify archiver cache keys isolate instances by attached public_dirs."""
     reset_wiki_archiver_cache_for_tests()
@@ -98,7 +105,7 @@ async def test_execute_wiki_knowledge_query_with_federated_vaults(
     )
 
     mock_snippet = SourceSnippet(
-        article_path="concepts/policy.md",
+        article_path="policy",
         article_name="policy.md",
         snippet="All travel expenses must be pre-approved.",
     )
@@ -107,7 +114,7 @@ async def test_execute_wiki_knowledge_query_with_federated_vaults(
         answer="Travel expenses must be pre-approved per policy.",
         confidence_score=0.95,
         source_snippets=[mock_snippet],
-        related_articles=["concepts/policy.md"],
+        related_articles=["policy"],
     )
     archiver.query_wiki = AsyncMock(return_value=mock_result)
 

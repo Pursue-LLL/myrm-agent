@@ -27,6 +27,7 @@ import {
 import { toast } from '@/hooks/shared/useToast';
 import useAgentStore from '@/store/useAgentStore';
 import { resolveUserFacingArchiveSecurityError } from '@/services/archiveSecurityErrorCore';
+import { PluginTrustedSourceDisclosure } from './PluginTrustedSourceDisclosure';
 
 interface PluginImportDialogProps {
   open: boolean;
@@ -155,6 +156,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
   const [serverDecisions, setServerDecisions] = useState<ComponentDecision[]>([]);
   const [agentDecisions, setAgentDecisions] = useState<ComponentDecision[]>([]);
   const [bindAgentId, setBindAgentId] = useState<string | null>(null);
+  const [trusted, setTrusted] = useState(false);
 
   const resetForm = useCallback(() => {
     setFile(null);
@@ -164,6 +166,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
     setServerDecisions([]);
     setAgentDecisions([]);
     setBindAgentId(null);
+    setTrusted(false);
     setIsParsing(false);
     setIsImporting(false);
   }, []);
@@ -807,6 +810,13 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                     <p className="text-xs text-muted-foreground">{t('bind.hint')}</p>
                   </div>
                 )}
+
+                {/* Trusted Source & Sandbox Security Disclosure */}
+                <PluginTrustedSourceDisclosure
+                  trusted={trusted}
+                  onTrustChange={setTrusted}
+                  disabled={isImporting}
+                />
               </div>
             ) : null}
           </div>
@@ -828,7 +838,11 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
               <Button
                 size="sm"
                 onClick={handleConfirmImport}
-                disabled={isImporting || (!installedSkillCount && !installedServerCount && !installedAgentCount)}
+                disabled={
+                  isImporting ||
+                  (!installedSkillCount && !installedServerCount && !installedAgentCount) ||
+                  !trusted
+                }
               >
                 {isImporting && <IconLoader className="w-4 h-4 mr-2 animate-spin" />}
                 {t('actions.confirm')}

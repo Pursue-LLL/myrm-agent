@@ -119,10 +119,20 @@ class MemoryToWikiArchiver:
                 if resolved_p not in merged_public_dirs:
                     merged_public_dirs.append(resolved_p)
 
+        merged_labels: dict[str, str] = {}
+        if public_dir_labels:
+            for k, v in public_dir_labels.items():
+                merged_labels[k] = v
+                try:
+                    resolved_k = str(Path(k).expanduser().resolve())
+                    merged_labels[resolved_k] = v
+                except Exception:
+                    pass
+
         self._structure = WikiStructure(
             resolved_wiki_dir,
             public_dirs=merged_public_dirs,
-            public_dir_labels=public_dir_labels or {},
+            public_dir_labels=merged_labels,
         )
         self._structure.ensure_structure()
 

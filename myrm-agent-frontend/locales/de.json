@@ -2762,6 +2762,24 @@
       "clearOverride": "Alle Fähigkeiten verwenden",
       "noSkills": "Keine Fähigkeiten für diesen Agenten konfiguriert"
     },
+    "knowledgePicker": {
+      "triggerLabel": "Wissensdatenbanken einbinden",
+      "tooltip": "Wissensdatenbanken in diesen Chat einbinden",
+      "title": "Wissensdatenbanken einbinden",
+      "manage": "Verwalten",
+      "searchPlaceholder": "Verfügbare Wissensdatenbanken durchsuchen...",
+      "loading": "Wissensdatenbanken werden geladen...",
+      "activeCount": "{count} eingebunden",
+      "emptyKnowledgeBases": "Keine verfügbaren Wissensdatenbanken",
+      "emptyGuide": "Gehen Sie zur Wissensverwaltung, um eine Wissensdatenbank zu erstellen",
+      "createFirst": "Wissensdatenbank erstellen",
+      "noSearchResults": "Keine passenden Wissensdatenbanken gefunden",
+      "maxLimitReached": "In einem einzelnen Chat können maximal {max} Wissensdatenbanken eingebunden werden",
+      "operationFailed": "Aktualisierung der Wissensdatenbank-Einbindung fehlgeschlagen",
+      "incognitoNotice": "Im Inkognito-Modus gelten eingebundene Wissensdatenbanken nur für diesen Durchgang und werden nicht gespeichert",
+      "chipDetail": "Wissensdatenbank",
+      "ariaLabel": "Wissensdatenbanken zum Einbinden auswählen"
+    },
     "wechatArticleHint": {
       "title": "WeChat-Artikellink erkannt",
       "description": "Binden Sie die WeChat-Article-Formatter-Fähigkeit an diesen Agenten, um HTML für den WeChat-Entwurf zu erzeugen.",

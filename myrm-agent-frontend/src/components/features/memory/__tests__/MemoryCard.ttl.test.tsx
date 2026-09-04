@@ -43,3 +43,45 @@ describe('MemoryCard - procedural TTL display', () => {
     expect(screen.queryByText('fields.ttlDays')).not.toBeInTheDocument();
   });
 });
+
+describe('MemoryCard - delete actions', () => {
+  it('calls onDelete with false for regular soft delete', async () => {
+    const onDeleteMock = vi.fn();
+    render(
+      <MemoryCard
+        memory={baseProcedural}
+        variant="confirmed"
+        onDelete={onDeleteMock}
+      />,
+    );
+
+    // Open actions menu
+    const moreButton = screen.getByRole('button', { name: '' });
+    moreButton.click();
+
+    const deleteBtn = screen.getByText('delete');
+    deleteBtn.click();
+
+    expect(onDeleteMock).toHaveBeenCalledWith(false);
+  });
+
+  it('calls onDelete with true for permanent physical shredding', async () => {
+    const onDeleteMock = vi.fn();
+    render(
+      <MemoryCard
+        memory={baseProcedural}
+        variant="confirmed"
+        onDelete={onDeleteMock}
+      />,
+    );
+
+    // Open actions menu
+    const moreButton = screen.getByRole('button', { name: '' });
+    moreButton.click();
+
+    const permBtn = screen.getByText('trash.permanentDelete');
+    permBtn.click();
+
+    expect(onDeleteMock).toHaveBeenCalledWith(true);
+  });
+});

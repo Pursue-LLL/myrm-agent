@@ -2654,6 +2654,25 @@
       "clearOverride": "使用全部技能",
       "noSkills": "该智能体未配置任何技能"
     },
+    "knowledgePicker": {
+      "triggerLabel": "挂载知识库",
+      "tooltip": "挂载知识库至当前对话",
+      "title": "挂载知识库",
+      "manage": "管理",
+      "searchPlaceholder": "搜索可用知识库...",
+      "loading": "加载知识库中...",
+      "activeCount": "已挂载 {count} 个",
+      "chipDetail": "知识库",
+      "emptyKnowledgeBases": "暂无可用的知识库",
+      "emptyGuide": "前往知识库管理创建你的专属知识库",
+      "createFirst": "创建知识库",
+      "noSearchResults": "未找到匹配的知识库",
+      "maxLimitReached": "单个会话最多可同时挂载 {max} 个知识库",
+      "operationFailed": "操作知识库挂载失败",
+      "incognitoNotice": "隐私模式下知识库挂载仅作用于单次会话，不会持久化存储绑定关系",
+      "chipDetail": "知识库",
+      "ariaLabel": "选择要挂载的知识库"
+    },
     "wechatArticleHint": {
       "title": "检测到微信公众号文章链接",
       "description": "请为当前智能体挂载「WeChat Article Formatter」技能，以便生成可推送至公众号草稿箱的 HTML。",
@@ -15062,6 +15081,10 @@
         "import": "导入",
         "importUrl": "导入 GitHub URL",
         "importUrlPlaceholder": "粘贴 GitHub 仓库或深层目录链接...",
+        "securityDisclosureTitle": "安全与沙箱边界披露",
+        "securityDisclosureLocal": "当前为本地或桌面运行模式，智能体以您宿主操作系统的权限执行工具。恶意扩展可能通过间接提示词注入诱导执行 Bash、读写本地文件或外传敏感凭证，请务必只从可信来源导入。",
+        "securityDisclosureCloud": "当前运行在独立微容器沙箱中，具备独立持久化卷隔离。为保障多智能体协作与工作区数据安全，请确保导入的扩展来源可信。",
+        "trustedSourceConfirm": "我已知晓该扩展具备系统工具调用权限，确认此来源安全可信",
         "analyzingUrl": "解析中...",
         "analyzeFailed": "解析 URL 失败",
         "selectSkillsToImport": "发现以下技能，请选择要导入的项：",
@@ -18311,7 +18334,12 @@
         "security": {
           "blocked": "包含 {count} 项安全风险，已自动跳过，无法安装",
           "oversized": "技能内容超过存储大小限制（64 KB），已自动跳过，无法安装",
-          "conflict": "已存在同名技能：选择「覆盖」升级现有技能，或「跳过」保留当前版本"
+          "conflict": "已存在同名技能：选择「覆盖」升级现有技能，或「跳过」保留当前版本",
+          "trustDisclosureTitle": "可信来源与系统权限安全披露",
+          "trustDisclosureLocal": "当前为本地单机/桌面端运行模式。导入的第三方插件在执行时拥有当前操作系统的用户权限，可调用 Shell 与读写工作区文件。",
+          "trustDisclosureCloud": "当前为云托管沙箱运行模式。导入的第三方插件将在为您分配的独立隔离 Volume 沙箱中执行，但仍可访问沙箱内工作区与配置凭据。",
+          "trustRiskHint": "不可信的恶意扩展可能包含提示注入指令，诱导智能体在后台越权调用工具窃取敏感配置或执行恶意脚本。请务必确认包文件来源安全可信。",
+          "trustedCheckboxLabel": "我确认该插件来自可信来源，已知悉其拥有工具调用与系统权限，并同意安装"
         },
         "errors": {
           "parseTitle": "解析失败",

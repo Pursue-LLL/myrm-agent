@@ -84,6 +84,9 @@ def resolve_agent_wiki_vault_path(agent_id: str | None = None) -> Path:
     return wiki_root() / "agents" / safe_id
 
 
+MAX_SHARED_WIKI_VAULTS = 6
+
+
 def resolve_shared_wiki_vault_path(context_id: str) -> Path:
     """Return a shared read-only wiki vault for a shared memory context."""
     safe_id = sanitize_wiki_scope_id(context_id)
@@ -91,7 +94,7 @@ def resolve_shared_wiki_vault_path(context_id: str) -> Path:
 
 
 def resolve_shared_wiki_vault_paths(context_ids: list[str] | None) -> tuple[Path, ...]:
-    """Return shared wiki vault paths deduplicated in request order."""
+    """Return shared wiki vault paths deduplicated in request order (capped at MAX_SHARED_WIKI_VAULTS)."""
     if not context_ids:
         return ()
     seen: set[str] = set()
@@ -102,6 +105,8 @@ def resolve_shared_wiki_vault_paths(context_ids: list[str] | None) -> tuple[Path
             continue
         seen.add(safe_id)
         paths.append(wiki_root() / "shared" / safe_id)
+        if len(paths) >= MAX_SHARED_WIKI_VAULTS:
+            break
     return tuple(paths)
 
 
@@ -119,6 +124,10 @@ def resolve_shared_wiki_vault_labels(
         vault_path = wiki_root() / "shared" / safe_id
         label = name_map.get(cid) or name_map.get(safe_id) or safe_id
         labels[str(vault_path)] = label
+        try:
+            labels[str(vault_path.resolve())] = label
+        except OSError:
+            pass
         labels[cid] = label
         labels[safe_id] = label
         labels[safe_id.replace("-", "_")] = label

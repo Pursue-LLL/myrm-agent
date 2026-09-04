@@ -30,6 +30,7 @@ import EnvironmentShield from '../message-input-actions/EnvironmentShield';
 import AgentIndicator from '../message-input-actions/AgentIndicator';
 import ToolsPanel from '../message-input-actions/ToolsPanel';
 import SessionSkillsToggle from '../message-input-actions/SessionSkillsToggle';
+import KnowledgePickerPopover from '../message-input-actions/KnowledgePickerPopover';
 import TurnCapabilityToggle from '../message-input-actions/TurnCapabilityToggle';
 import WorkspaceDirPicker from './WorkspaceDirPicker';
 import SpeechInputButton from '../message-input-actions/SpeechInputButton';
@@ -590,6 +591,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                       )}
                       <AgentIndicator />
                       <SessionSkillsToggle />
+                      <KnowledgePickerPopover />
                       <TurnCapabilityToggle
                         selection={turnCapabilitySelection}
                         onSelectionChange={setTurnCapabilitySelection}
@@ -755,6 +757,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
             <SandboxModeToggle />
             <SecurityPresetSelector />
             <AgentIndicator />
+            <KnowledgePickerPopover />
             <TurnCapabilityToggle
               selection={turnCapabilitySelection}
               onSelectionChange={setTurnCapabilitySelection}

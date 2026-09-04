@@ -28,7 +28,12 @@ _VERIFY_WEB_PUSH_VAPID_JS = """(async () => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="READ",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_mobile_web_push_discovery_banner_chrome_e2e() -> None:

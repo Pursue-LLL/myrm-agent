@@ -72,6 +72,13 @@ const DEFAULT_MIGRATION_SOURCE_MANIFEST: readonly MigrationSourceManifestItem[] 
     deep_link_enabled: true,
   },
   {
+    id: 'pi',
+    display_name: 'Pi Agent',
+    import_source: 'pi',
+    discover_modes: ['local_scan'],
+    deep_link_enabled: true,
+  },
+  {
     id: 'chatgpt',
     display_name: 'ChatGPT',
     import_source: 'chatgpt',

@@ -17,8 +17,12 @@ import { useTranslations } from 'next-intl';
 import useChatStore, { File as FileType } from '@/store/useChatStore';
 import type { TurnCapabilitySelection } from '@/hooks/message-input/turnCapabilityOverrideCore';
 import { formatSkillChipLabel } from '@/lib/utils/messageUtils';
+import {
+  listSharedContextBindingsForTarget,
+  deleteSharedContextBinding,
+} from '@/services/memory/sharedContexts';
 
-export type ContextChipCategory = 'skill' | 'workflow' | 'capability' | 'mention' | 'attachment';
+export type ContextChipCategory = 'skill' | 'workflow' | 'capability' | 'mention' | 'attachment' | 'knowledge';
 
 export interface ContextChipItem {
   id: string;
@@ -26,7 +30,7 @@ export interface ContextChipItem {
   label: string;
   detail?: string | null;
   tooltip?: string | null;
-  iconType: 'skill' | 'workflow' | 'capability' | 'mention' | 'file' | 'image';
+  iconType: 'skill' | 'workflow' | 'capability' | 'mention' | 'file' | 'image' | 'knowledge';
   isRemovable: boolean;
   onRemove?: () => void;
   onAction?: () => void;
@@ -94,6 +98,12 @@ export function useComposerContextChips({
   const setIsWorkflowMode = useChatStore((s) => s.setIsWorkflowMode);
   const setPendingExplicitSkillActivation = useChatStore((s) => s.setPendingExplicitSkillActivation);
 
+  const activeKnowledgeBaseIds = useChatStore((s) => s.activeKnowledgeBaseIds);
+  const activeKnowledgeBaseNames = useChatStore((s) => s.activeKnowledgeBaseNames);
+  const removeActiveKnowledgeBase = useChatStore((s) => s.removeActiveKnowledgeBase);
+  const chatId = useChatStore((s) => s.chatId);
+  const incognitoMode = useChatStore((s) => s.incognitoMode);
+
   const handleDisarmWorkflow = useCallback(() => {
     clearPendingWorkflowTemplate();
     setIsWorkflowMode(false);
@@ -106,6 +116,24 @@ export function useComposerContextChips({
   const handleClearTurnCapability = useCallback(() => {
     setTurnCapabilitySelection(null);
   }, [setTurnCapabilitySelection]);
+
+  const handleRemoveKnowledgeBase = useCallback(
+    async (kbId: string) => {
+      removeActiveKnowledgeBase(kbId);
+      if (chatId && !incognitoMode) {
+        try {
+          const res = await listSharedContextBindingsForTarget('conversation', chatId);
+          const match = res.items?.find((b) => b.context_id === kbId);
+          if (match) {
+            await deleteSharedContextBinding(kbId, match.id);
+          }
+        } catch {
+          // 静默降级
+        }
+      }
+    },
+    [chatId, incognitoMode, removeActiveKnowledgeBase],
+  );
 
   const handleRemoveFile = useCallback(
     (fileId: string) => {
@@ -191,7 +219,24 @@ export function useComposerContextChips({
       });
     }
 
-    // 5. 附加文件 (Attachments) - 仅在 AttachList 被折叠隐藏时作为紧凑胶囊呈现，避免双重卡片堆叠
+    // 5. 会话级挂载知识库 (Mounted Knowledge Bases)
+    if (activeKnowledgeBaseIds.length > 0) {
+      activeKnowledgeBaseIds.forEach((kbId) => {
+        const kbName = activeKnowledgeBaseNames[kbId] || kbId;
+        list.push({
+          id: `knowledge-${kbId}`,
+          category: 'knowledge',
+          label: kbName,
+          detail: tChat('knowledgePicker.chipDetail'),
+          tooltip: kbName,
+          iconType: 'knowledge',
+          isRemovable: true,
+          onRemove: () => void handleRemoveKnowledgeBase(kbId),
+        });
+      });
+    }
+
+    // 6. 附加文件 (Attachments) - 仅在 AttachList 被折叠隐藏时作为紧凑胶囊呈现，避免双重卡片堆叠
     if (hideAttachList && files.length > 0) {
       files.forEach((file) => {
         const isImg = file.type?.startsWith('image/') || file.fileName?.match(/\.(png|jpe?g|webp|gif|svg)$/i);
@@ -214,6 +259,8 @@ export function useComposerContextChips({
     pendingWorkflowTemplateDisplayName,
     pendingExplicitSkillActivation,
     turnCapabilitySelection,
+    activeKnowledgeBaseIds,
+    activeKnowledgeBaseNames,
     mentionReferences,
     files,
     hideAttachList,
@@ -223,6 +270,7 @@ export function useComposerContextChips({
     handleDisarmWorkflow,
     handleClearSkillActivation,
     handleClearTurnCapability,
+    handleRemoveKnowledgeBase,
     handleRemoveFile,
     removeMentionReference,
     onOpenCapabilityEditor,

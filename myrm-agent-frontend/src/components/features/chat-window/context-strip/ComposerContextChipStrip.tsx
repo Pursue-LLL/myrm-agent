@@ -22,6 +22,7 @@ import {
   AtSign,
   FileText,
   Image as ImageIcon,
+  BookOpen,
   X,
   AlertTriangle,
   ChevronDown,
@@ -47,6 +48,8 @@ const renderChipIcon = (iconType: ContextChipItem['iconType']) => {
       return <GitBranch className="size-3 shrink-0 text-amber-500 dark:text-amber-400" />;
     case 'capability':
       return <SlidersHorizontal className="size-3 shrink-0 text-indigo-500 dark:text-indigo-400" />;
+    case 'knowledge':
+      return <BookOpen className="size-3 shrink-0 text-violet-500 dark:text-violet-400" />;
     case 'mention':
       return <AtSign className="size-3 shrink-0 text-cyan-500 dark:text-cyan-400" />;
     case 'image':
@@ -87,6 +90,8 @@ const SingleChip = ({ chip, disabled, onRemoveLabel }: SingleChipProps) => {
         chip.category === 'workflow' && 'border-amber-500/30 bg-amber-500/[0.06] text-amber-900 dark:text-amber-200',
         chip.category === 'capability' &&
           'border-indigo-500/30 bg-indigo-500/[0.06] text-indigo-900 dark:text-indigo-200',
+        chip.category === 'knowledge' &&
+          'border-violet-500/30 bg-violet-500/[0.06] text-violet-900 dark:text-violet-200',
         isClickable && 'cursor-pointer hover:border-primary/60 dark:hover:border-primary/50',
       )}
       title={chip.tooltip || chip.label}

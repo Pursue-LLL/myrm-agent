@@ -189,6 +189,7 @@ export type MemoryImportSource =
   | 'windsurf'
   | 'trae'
   | 'mem0'
+  | 'pi'
   | 'chatgpt';
 
 export interface MemoryImportMappingItem {

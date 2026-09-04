@@ -64,9 +64,11 @@ def get_wiki_archiver(
     """Return a process-scoped archiver bound to an agent wiki vault path and mounted shared vaults."""
     global _archiver, _archiver_cache_key
 
+    from pathlib import Path as _FsPath
+
     manager_key = id(manager) if manager is not None else 0
     resolved_public_dirs = (
-        tuple(sorted(str(Path(p).expanduser().resolve()) for p in public_dirs))
+        tuple(sorted(str(_FsPath(p).expanduser().resolve()) for p in public_dirs))
         if public_dirs
         else ()
     )

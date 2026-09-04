@@ -184,6 +184,17 @@ export const deleteSharedContextBinding = async (contextId: string, bindingId: s
   });
 };
 
+export const deleteSharedContextBindingByTarget = async (
+  contextId: string,
+  targetType: SharedContextTargetType,
+  targetId: string,
+): Promise<void> => {
+  const encodedTargetId = encodeURIComponent(targetId);
+  await apiRequest(`/memory/shared-contexts/${contextId}/bindings/targets/${targetType}/${encodedTargetId}`, {
+    method: 'DELETE',
+  });
+};
+
 export const listSharedContextWriteProposals = async (
   contextId: string,
   params: { status?: SharedContextProposalStatus; limit?: number } = {},

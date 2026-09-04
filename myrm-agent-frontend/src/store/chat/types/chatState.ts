@@ -53,6 +53,8 @@ export interface ChatState {
   compactionRefreshNonce: number;
   workspaceDir: string | null;
   sessionSkillOverrides: string[] | null;
+  activeKnowledgeBaseIds: string[];
+  activeKnowledgeBaseNames: Record<string, string>;
   sessionAccessRoots: SessionAccessRoot[];
 
   // 聊天历史列表（分页）
@@ -116,6 +118,10 @@ export interface ChatState {
 
   // Deferred entitlement-gap resend (set on preflight gap, flushed after MESSAGE_END)
   pendingGapRetry: PendingGapRetry | null;
+
+  // 当前会话级挂载的知识库集合 (Unified Knowledge Base Picker)
+  activeKnowledgeBaseIds: string[];
+  activeKnowledgeBaseNames: Record<string, string>;
 
   // 消息状态
   loading: boolean;
@@ -206,6 +212,8 @@ export interface ChatState {
   clearPendingWorkflowTemplate: () => void;
   setIncognitoMode: (incognitoMode: boolean) => void;
   setSessionSkillOverrides: (overrides: string[] | null) => void;
+  setActiveKnowledgeBaseNames: (names: Record<string, string>) => void;
+  removeActiveKnowledgeBase: (id: string) => void;
   setSandboxMode: (sandboxMode: boolean) => void;
   setSecurityPreset: (preset: SecurityPreset) => void;
   setGoalBudgetTokens: (tokens: number | null) => void;
@@ -240,6 +248,9 @@ export interface ChatState {
   initSessionStatuses: (statuses: Record<string, string>) => void;
   openRecoveryDialog: (agentId: string) => void;
   closeRecoveryDialog: () => void;
+
+  // 会话级挂载知识库方法
+  setActiveKnowledgeBaseIds: (ids: string[], names?: Record<string, string>) => void;
 
   // 配置面板展开状态
   setConfigPanelExpanded: (expanded: boolean) => void;

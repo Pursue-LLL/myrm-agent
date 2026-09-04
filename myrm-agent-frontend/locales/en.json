@@ -2655,6 +2655,25 @@
       "clearOverride": "Use All Skills",
       "noSkills": "No skills configured for this agent"
     },
+    "knowledgePicker": {
+      "triggerLabel": "Mount Knowledge Bases",
+      "tooltip": "Mount knowledge bases to this chat",
+      "title": "Mount Knowledge Bases",
+      "manage": "Manage",
+      "searchPlaceholder": "Search available knowledge bases...",
+      "loading": "Loading knowledge bases...",
+      "activeCount": "{count} mounted",
+      "chipDetail": "Knowledge",
+      "emptyKnowledgeBases": "No available knowledge bases",
+      "emptyGuide": "Go to Knowledge Management to create your custom knowledge base",
+      "createFirst": "Create Knowledge Base",
+      "noSearchResults": "No matching knowledge bases found",
+      "maxLimitReached": "A single chat can mount at most {max} knowledge bases",
+      "operationFailed": "Failed to update knowledge base mount",
+      "incognitoNotice": "In incognito mode, mounted knowledge bases apply only to this turn and are not persisted",
+      "chipDetail": "Knowledge",
+      "ariaLabel": "Select knowledge bases to mount"
+    },
     "wechatArticleHint": {
       "title": "WeChat article link detected",
       "description": "Mount the WeChat Article Formatter skill on this agent to produce HTML you can push to the Official Account draft box.",
@@ -15062,6 +15081,10 @@
         "import": "Import",
         "importUrl": "Import GitHub URL",
         "importUrlPlaceholder": "Paste GitHub repo or deep link...",
+        "securityDisclosureTitle": "Security & Sandbox Boundary Disclosure",
+        "securityDisclosureLocal": "Currently running in local/desktop mode. The agent executes tools with your host operating system permissions. Malicious extensions could indirectly invoke Bash commands, read/write local files, or exfiltrate credentials via prompt injection. Only import from trusted sources.",
+        "securityDisclosureCloud": "Currently running in an isolated microVM container with persistent volume isolation. To protect multi-agent collaboration and workspace data, ensure all imported extensions come from trusted sources.",
+        "trustedSourceConfirm": "I understand this extension has system tool execution permissions and confirm this source is trusted",
         "analyzingUrl": "Analyzing...",
         "analyzeFailed": "Failed to analyze URL",
         "selectSkillsToImport": "Found the following skills, please select to import:",
@@ -18311,7 +18334,12 @@
         "security": {
           "blocked": "Blocked: {count} security risk(s) found — automatically skipped",
           "oversized": "Skill content exceeds the storage size limit (64 KB) — automatically skipped",
-          "conflict": "A skill with this name already exists — Replace upgrades it, or Skip to keep the current one"
+          "conflict": "A skill with this name already exists — Replace upgrades it, or Skip to keep the current one",
+          "trustDisclosureTitle": "Trusted Source & System Permissions Security Disclosure",
+          "trustDisclosureLocal": "Running in Local/Desktop mode. Imported third-party plugins execute with your host operating system permissions and can invoke Shell commands and access workspace files.",
+          "trustDisclosureCloud": "Running in Cloud Sandbox mode. Imported third-party plugins execute within your dedicated isolated volume sandbox, with access to sandboxed files and configured credentials.",
+          "trustRiskHint": "Untrusted or malicious extensions may contain prompt injection instructions that coerce the agent into calling tools to exfiltrate secrets or run arbitrary scripts. Always ensure packages come from trusted sources.",
+          "trustedCheckboxLabel": "I confirm this plugin is from a trusted source, acknowledge its system tool permissions, and agree to install"
         },
         "errors": {
           "parseTitle": "Parse Error",

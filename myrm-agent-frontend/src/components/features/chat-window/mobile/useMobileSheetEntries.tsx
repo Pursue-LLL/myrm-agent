@@ -15,7 +15,7 @@
 'use client';
 
 import { useMemo, useCallback } from 'react';
-import { Brain, GitFork, Sparkles, Target } from 'lucide-react';
+import { Brain, GitFork, Sparkles, Target, BookOpen } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
 import useProviderStore from '@/store/useProviderStore';
@@ -38,8 +38,9 @@ interface UseMobileSheetEntriesOptions {
 export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions): MobileActionSheetEntry[] {
   const t = useTranslations('common');
   const thinkT = useTranslations('thinkingIntensity');
+  const tKnowledge = useTranslations('chat.knowledgePicker');
 
-  const { agentConfig, actionMode, updateAgentConfig, isGoalMode, setIsGoalMode, chatId, messages, loading } =
+  const { agentConfig, actionMode, updateAgentConfig, isGoalMode, setIsGoalMode, chatId, messages, loading, activeKnowledgeBaseIds } =
     useChatStore(
       useShallow((s) => ({
         agentConfig: s.agentConfig,
@@ -50,6 +51,7 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
         chatId: s.chatId,
         messages: s.messages,
         loading: s.loading,
+        activeKnowledgeBaseIds: s.activeKnowledgeBaseIds,
       })),
     );
 
@@ -175,6 +177,21 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
       });
     }
 
+    const mountedCount = activeKnowledgeBaseIds.length;
+    entries.push({
+      key: 'knowledge',
+      icon: <BookOpen size={16} className="text-violet-500" />,
+      label: tKnowledge('title', { defaultMessage: '挂载知识库' }),
+      meta: mountedCount > 0 ? tKnowledge('activeCount', { count: mountedCount }) : undefined,
+      onClick: () => {
+        onClose();
+        const toggleBtn = document.querySelector('[data-testid="knowledge-picker-toggle"]') as HTMLButtonElement | null;
+        if (toggleBtn) {
+          toggleBtn.click();
+        }
+      },
+    });
+
     if (chatId && messages.length > 0 && !loading) {
       entries.push({
         key: 'fork',
@@ -201,5 +218,8 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
     messages.length,
     loading,
     handleFork,
+    activeKnowledgeBaseIds.length,
+    tKnowledge,
+    onClose,
   ]);
 }

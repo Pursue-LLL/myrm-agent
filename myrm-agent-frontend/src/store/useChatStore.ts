@@ -176,6 +176,8 @@ const useChatStore = create<ChatState>()(
         reasoning: null,
       },
       hasUserSelectedModel: false,
+      activeKnowledgeBaseIds: [],
+      activeKnowledgeBaseNames: {},
       loading: false,
       loadingOlder: false,
       hasMoreMessages: false,
@@ -232,6 +234,8 @@ const useChatStore = create<ChatState>()(
       setChatId: (id) => {
         set({
           chatId: id,
+          activeKnowledgeBaseIds: [],
+          activeKnowledgeBaseNames: {},
           lastCompactionMeta: null,
           compactionRefreshNonce: 0,
           contextBranches: [],
@@ -240,6 +244,23 @@ const useChatStore = create<ChatState>()(
           contextPinnedFilesLoadError: null,
         });
         useQuoteStore.getState().clearQuote();
+        if (id) {
+          import('@/services/memory/sharedContexts').then(({ listSharedContextBindingsForTarget }) => {
+            listSharedContextBindingsForTarget('conversation', id)
+              .then((res) => {
+                const currentChatId = get().chatId;
+                if (currentChatId === id && res.items?.length) {
+                  const boundIds = res.items.map((b) => b.context_id);
+                  set((state) => {
+                    state.activeKnowledgeBaseIds = boundIds;
+                  });
+                }
+              })
+              .catch(() => {
+                // Ignore background fetch error
+              });
+          });
+        }
       },
       setNewChatCreated: (created) => set({ newChatCreated: created }),
       setMessages: (updater: (state: ChatState) => void) => set(updater),
@@ -376,6 +397,17 @@ const useChatStore = create<ChatState>()(
       setIncognitoMode: (incognitoMode) => set({ incognitoMode }),
       setSessionSkillOverrides: (overrides) => set({ sessionSkillOverrides: overrides }),
       setSandboxMode: (sandboxMode) => set({ sandboxMode }),
+      setActiveKnowledgeBaseNames: (names) => set({ activeKnowledgeBaseNames: names }),
+      removeActiveKnowledgeBase: (id) =>
+        set((state) => {
+          const nextIds = state.activeKnowledgeBaseIds.filter((item) => item !== id);
+          const nextNames = { ...state.activeKnowledgeBaseNames };
+          delete nextNames[id];
+          return {
+            activeKnowledgeBaseIds: nextIds,
+            activeKnowledgeBaseNames: nextNames,
+          };
+        }),
       setSecurityPreset: (securityPreset) => set({ securityPreset }),
       setGoalBudgetTokens: (tokens) => set({ goalBudgetTokens: tokens }),
       setGoalBudgetUsd: (usd) => set({ goalBudgetUsd: usd }),
@@ -510,6 +542,13 @@ const useChatStore = create<ChatState>()(
       setIsMessagesLoaded: (loaded) => set({ isMessagesLoaded: loaded }),
       setNotFound: (notFound) => set({ notFound }),
       setLoadError: (loadError) => set({ loadError }),
+      setActiveKnowledgeBaseIds: (ids, names) =>
+        set((state) => {
+          state.activeKnowledgeBaseIds = ids;
+          if (names) {
+            state.activeKnowledgeBaseNames = { ...state.activeKnowledgeBaseNames, ...names };
+          }
+        }),
       setConfigPanelExpanded: (expanded) => set({ isConfigPanelExpanded: expanded }),
       toggleConfigPanel: () => set((state) => ({ isConfigPanelExpanded: !state.isConfigPanelExpanded })),
       addEnvironmentAlert: (category) =>
@@ -900,6 +939,8 @@ const useChatStore = create<ChatState>()(
             hasUsedImagesInCurrentChat: false,
             hideAttachList: false,
             hasUserSelectedModel: false,
+            activeKnowledgeBaseIds: [],
+            activeKnowledgeBaseNames: {},
             files: [],
             mentionReferences: [],
             isConfigPanelExpanded: !id,
@@ -914,6 +955,8 @@ const useChatStore = create<ChatState>()(
           set({
             files: [],
             mentionReferences: [],
+            activeKnowledgeBaseIds: [],
+            activeKnowledgeBaseNames: {},
             isConfigPanelExpanded: false,
             environmentAlerts: new Set<string>(),
           });

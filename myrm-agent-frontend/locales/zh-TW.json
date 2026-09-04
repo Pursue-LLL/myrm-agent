@@ -2591,6 +2591,24 @@
       "clearOverride": "使用全部技能",
       "noSkills": "該智慧體未配置任何技能"
     },
+    "knowledgePicker": {
+      "triggerLabel": "掛載知識庫",
+      "tooltip": "掛載知識庫至當前對話",
+      "title": "掛載知識庫",
+      "manage": "管理",
+      "searchPlaceholder": "搜尋可用知識庫...",
+      "loading": "載入知識庫中...",
+      "activeCount": "已掛載 {count} 個",
+      "emptyKnowledgeBases": "暫無可用的知識庫",
+      "emptyGuide": "前往知識庫管理建立你的專屬知識庫",
+      "createFirst": "建立知識庫",
+      "noSearchResults": "未找到相符的知識庫",
+      "maxLimitReached": "單個對話最多可同時掛載 {max} 個知識庫",
+      "operationFailed": "操作知識庫掛載失敗",
+      "incognitoNotice": "隱私模式下知識庫掛載僅作用於單次對話，不會持久化儲存綁定關係",
+      "chipDetail": "知識庫",
+      "ariaLabel": "選擇要掛載的知識庫"
+    },
     "wechatArticleHint": {
       "title": "偵測到微信公眾號文章連結",
       "description": "請為目前智能體掛載「WeChat Article Formatter」技能，以便產生可推送至公眾號草稿箱的 HTML。",
@@ -15148,7 +15166,11 @@
           "empty": "未配置自定義源",
           "emptyDesc": "添加 .well-known/skills 端點來發現私有技能",
           "alreadyExists": "源已存在"
-        }
+        },
+        "securityDisclosureTitle": "安全與沙箱邊界披露",
+        "securityDisclosureLocal": "當前為本地或桌面運行模式，智能體以您宿主操作系統的權限執行工具。惡意擴展可能通過間接提示詞注入誘導執行 Bash、讀寫本地檔案或外傳敏感憑證，請務必只從可信來源導入。",
+        "securityDisclosureCloud": "當前運行在獨立微容器沙箱中，具備獨立持久化卷隔離。為保障多智能體協作與工作區數據安全，請確保導入的擴展來源可信。",
+        "trustedSourceConfirm": "我已知曉該擴展具備系統工具調用權限，確認此來源安全可信"
       },
       "market": {
         "title": "技能市場",

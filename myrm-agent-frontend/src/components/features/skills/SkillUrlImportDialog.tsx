@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Link as LinkIcon, Loader2, AlertCircle } from 'lucide-react';
+import { Link as LinkIcon, Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from '@/components/primitives/alert';
 import { toast } from '@/hooks/shared/useToast';
 import { analyzeDiscoveryUrl, installDiscoverySkillFromUrl, SkillUrlInfo } from '@/services/skill';
 import useChatStore from '@/store/useChatStore';
+import { isLocalMode } from '@/lib/deploy-mode';
 
 interface SkillUrlImportDialogProps {
   open: boolean;
@@ -35,6 +36,7 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
   const [isInstalling, setIsInstalling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [trustedSourceConfirmed, setTrustedSourceConfirmed] = useState(false);
 
   // Reset state when dialog opens/closes
   useEffect(() => {
@@ -43,6 +45,7 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
       setAnalyzedUrls([]);
       setSelectedUrls(new Set());
       setError(null);
+      setTrustedSourceConfirmed(false);
 
       // If we have an initial URL, automatically trigger analysis
       if (initialUrl && initialUrl.trim() !== '') {
@@ -74,7 +77,9 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
           setSelectedUrls(new Set(notInstalled));
 
           if (res.urls.length === 1 && !res.urls[0].is_installed) {
-            await handleInstallList([res.urls[0].url]);
+            if (trustedSourceConfirmed) {
+              await handleInstallList([res.urls[0].url]);
+            }
           }
         } else {
           setError(t('analyzeFailed') || 'No valid skills found at this URL');
@@ -161,6 +166,31 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 dark:text-amber-300">
+              <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span>{t('securityDisclosureTitle')}</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {isLocalMode() ? t('securityDisclosureLocal') : t('securityDisclosureCloud')}
+            </p>
+            <div className="flex items-start gap-2 pt-1">
+              <Checkbox
+                id="trusted-source-checkbox"
+                checked={trustedSourceConfirmed}
+                onCheckedChange={(c) => setTrustedSourceConfirmed(!!c)}
+                disabled={isAnalyzing || isInstalling}
+                className="mt-0.5"
+              />
+              <label
+                htmlFor="trusted-source-checkbox"
+                className="text-xs font-medium text-foreground cursor-pointer leading-tight select-none"
+              >
+                {t('trustedSourceConfirm')}
+              </label>
+            </div>
+          </div>
+
           <div className="flex items-center gap-2">
             <Input
               placeholder="https://github.com/..."
@@ -169,6 +199,10 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
+                  if (!trustedSourceConfirmed) {
+                    setError(t('trustedSourceConfirmRequired') || t('trustedSourceConfirm'));
+                    return;
+                  }
                   handleAnalyze();
                 }
               }}
@@ -176,7 +210,10 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
               className="flex-1"
             />
             {analyzedUrls.length <= 1 && (
-              <Button onClick={() => void handleAnalyze()} disabled={!url.trim() || isAnalyzing || isInstalling}>
+              <Button
+                onClick={() => void handleAnalyze()}
+                disabled={!url.trim() || isAnalyzing || isInstalling || !trustedSourceConfirmed}
+              >
                 {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : t('import')}
               </Button>
             )}
@@ -242,7 +279,10 @@ const SkillUrlImportDialog = memo(({ open, onOpenChange, onInstalled, initialUrl
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isInstalling}>
               {t('cancel')}
             </Button>
-            <Button onClick={handleImportSelected} disabled={selectedUrls.size === 0 || isInstalling}>
+            <Button
+              onClick={handleImportSelected}
+              disabled={selectedUrls.size === 0 || isInstalling || !trustedSourceConfirmed}
+            >
               {isInstalling ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
