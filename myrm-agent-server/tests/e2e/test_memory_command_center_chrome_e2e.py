@@ -171,7 +171,7 @@ def test_memory_doctor_panel_run_and_latency_trend_chrome_e2e() -> None:
         assert trend.get("ready") is True, trend
 
 
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", private_reason="exclusive_backend", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_memory_behavioral_metrics_panel_render_and_sync_chrome_e2e() -> None:

@@ -96,7 +96,7 @@ async def test_collect_behavioral_messages_filters_bot_and_sorts() -> None:
 async def test_sync_profile_attributes_persists_when_thresholds_met() -> None:
     db = AsyncMock(spec=AsyncSession)
     manager = MagicMock()
-    manager.upsert_profile = AsyncMock()
+    manager.set_system_profile_attribute = AsyncMock()
 
     base_time = datetime(2026, 9, 4, 10, 0, 0, tzinfo=UTC)
 
@@ -145,4 +145,4 @@ async def test_sync_profile_attributes_persists_when_thresholds_met() -> None:
     assert "routine_active_hours" in updated_keys
     assert "routine_reply_latency" in updated_keys
     assert "routine_top_collaborators" in updated_keys
-    assert manager.upsert_profile.call_count == 3
+    assert manager.set_system_profile_attribute.call_count == 3
