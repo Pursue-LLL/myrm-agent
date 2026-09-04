@@ -15,6 +15,7 @@
  */
 
 import React, { memo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { GitCommit, ShieldCheck, ChevronDown, ChevronRight, FileCode2, TestTube2, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';

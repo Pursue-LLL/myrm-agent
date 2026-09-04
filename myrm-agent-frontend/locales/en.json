@@ -2861,6 +2861,19 @@
       "success": "Captured as Eval Case",
       "successDesc": "Successfully crystallized chat into evaluation benchmark dataset",
       "error": "Failed to capture eval case"
+    },
+    "callGraph": {
+      "title": "Code Call Graph Analysis",
+      "callers": "Callers",
+      "reachingTests": "Related Tests",
+      "physicalCallChain": "Physical Call Chain",
+      "noCallers": "No external call sites detected (root entrypoint or private symbol)",
+      "params": "Parameters",
+      "testImpact": "Test Impact & Blast Radius",
+      "noTests": "No tests directly or indirectly reaching this symbol detected",
+      "depth": "Depth",
+      "level": "level",
+      "runAffectedTests": "Run {count} Affected Test Suites"
     }
   },
   "mode": {
