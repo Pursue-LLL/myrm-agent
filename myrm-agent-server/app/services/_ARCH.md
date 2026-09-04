@@ -78,6 +78,7 @@
 | `workflow_templates/` | ✅ 辅助 | WorkflowTemplateStore server adapter（与 DW 引擎共享 workflow_events.db） | [_ARCH.md](workflow_templates/_ARCH.md) |
 | `hosting/` | ✅ 核心 | Artifact 多目标发布业务层（Vercel/CF Pages/Netlify/HTTP Webhook、SSRF 防护） | [_ARCH.md](hosting/_ARCH.md) |
 | `compounding_playbook/` | ✅ 辅助 | Settings「复利闭环」checklist 聚合服务（memory/skills/cron/verify 就绪状态） | [_ARCH.md](compounding_playbook/_ARCH.md) |
+| `code_graph/` | ✅ 核心 | 代码调用图谱分析与 AST 符号导航服务（8大确定性工具 + 增量 reingest） | [_ARCH.md](code_graph/_ARCH.md) |
 ---
 
 ## 依赖关系

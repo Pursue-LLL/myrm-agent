@@ -4444,6 +4444,21 @@
         "success": "成功",
         "failed": "失敗",
         "no_output": "無助手回復"
+      },
+      "evidence": {
+        "badgeLabel": "溯源證據",
+        "badgeTooltip": "點擊檢視當時對話上下文切片",
+        "drawerTitle": "記憶證據鏈追溯",
+        "statusLive": "實時會話切片",
+        "statusArchived": "歸檔引文快照",
+        "lockedLabel": "使用者已鎖定",
+        "contextSection": "上下文現場切片",
+        "noTurns": "未找到上下文對話回合",
+        "correctPrompt": "就地修正事實認知",
+        "correctPlaceholder": "輸入糾偏後的事實或規則...",
+        "saveAndLock": "儲存並鎖定保護",
+        "markFalsePositive": "標記誤判並廢棄",
+        "correctAndLock": "糾正此事實"
       }
     },
     "createDialog": {
