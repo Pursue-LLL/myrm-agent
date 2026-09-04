@@ -106,7 +106,7 @@ export function useWikiTreeActions({
       await fetchTree();
       setDialogOpen(false);
     } catch (error) {
-      toast.error(getWikiOperationErrorMessage(error, dialogMode === 'create' ? t('createFailed') : t('renameFailed')));
+      toast.error(getWikiOperationErrorMessage(error, t('operationFailed')));
     }
   };
 

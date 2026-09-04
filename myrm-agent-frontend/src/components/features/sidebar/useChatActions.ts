@@ -51,7 +51,9 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     setCaptureEvalLoading(true);
     try {
       const { evalService } = await import('@/services/eval');
-      await evalService.captureCaseFromChat(captureEvalChatId, captureEvalDatasetId);
+      await evalService.captureEvalCaseFromChat(captureEvalChatId, {
+        dataset_id: captureEvalDatasetId,
+      });
       toast({
         title: t('chat.captureEvalCase.success'),
         description: t('chat.captureEvalCase.successDesc'),

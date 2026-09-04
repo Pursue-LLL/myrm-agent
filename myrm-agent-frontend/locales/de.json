@@ -4661,6 +4661,21 @@
         "success": "Erfolgreich",
         "failed": "Fehlgeschlagen",
         "no_output": "Keine Antwort des Assistenten"
+      },
+      "evidence": {
+        "badgeLabel": "Herkunftsnachweis",
+        "badgeTooltip": "Klicken, um den ursprünglichen Gesprächsausschnitt anzuzeigen",
+        "drawerTitle": "Beweisketten-Rückverfolgung",
+        "statusLive": "Live-Gesprächsausschnitt",
+        "statusArchived": "Archivierter Zitatschnappschuss",
+        "lockedLabel": "Benutzergesperrt",
+        "contextSection": "Kontexthistorie",
+        "noTurns": "Keine umgebenden Runden gefunden",
+        "correctPrompt": "Tatsache vor Ort korrigieren",
+        "correctPlaceholder": "Korrigierte Tatsache oder Regel eingeben...",
+        "saveAndLock": "Speichern & Sperren",
+        "markFalsePositive": "Als Fehlalarm markieren",
+        "correctAndLock": "Tatsache korrigieren"
       }
     },
     "importReview": {
