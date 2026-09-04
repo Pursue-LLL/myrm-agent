@@ -2475,7 +2475,11 @@
       "instructionWithElement": "Agent はこのモバイル要素をどうしますか？",
       "send": "指示を送信",
       "doctorAdbMissing": "ADB ツールチェーンが検出されませんでした。Android platform-tools をインストールしてください。",
-      "doctorDeviceOffline": "利用可能なモバイルデバイスまたはエミュレータが接続されていません。USB デバッグを有効にして接続してください。"
+      "doctorDeviceOffline": "利用可能なモバイルデバイスまたはエミュレータが接続されていません。USB デバッグを有効にして接続してください。",
+      "navBack": "戻る",
+      "navHome": "ホーム",
+      "navRecents": "最近のアプリ",
+      "navPower": "電源"
     },
     "clarification": {
       "formTitle": "確認フォーム",
@@ -8416,7 +8420,17 @@
       "scopePatternDesc": "先頭が同じ後続コマンドを自動許可",
       "scopePatternPreview": "類似コマンドとして記憶: {pattern}",
       "scopePatternUnavailable": "連鎖コマンドでは類似コマンド一致は利用できません。",
-      "scopePermissionDesc": "自動許可すべての {permissionType} タイプのツール"
+      "scopePermissionDesc": "自動許可すべての {permissionType} タイプのツール",
+      "durationLabel": "権限の有効期間",
+      "durationSession": "現在のセッションのみ（推奨）",
+      "duration15m": "15分間一時的に許可（バッチ処理向け）",
+      "duration1h": "1時間許可（集中的なデバッグ向け）",
+      "durationPermanent": "恒久的に許可（高リスク）",
+      "durationSessionDesc": "このチャットセッションの終了またはリフレッシュ時に自動失効します。",
+      "duration15mDesc": "15分間承認をスキップし、時間経過後に安全ゲートが自動復元されます。",
+      "duration1hDesc": "1時間承認をスキップし、時間経過後に安全ゲートが自動復元されます。",
+      "durationPermanentDesc": "グローバルホワイトリストに恒久登録され、以降は承認を要求しません。",
+      "permanentRiskWarning": "警告: 恒久許可は権限を無制限に開放するため、間接的プロンプト注入時の権限昇格リスクがあります。"
     },
     "spanRiskReasons": {
       "safe": "安全 — 読み取り専用コマンド、自動的に許可済み",

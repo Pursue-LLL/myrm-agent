@@ -147,4 +147,39 @@ class TestAllowlistPatternIntegration:
 
         del_resp = client.delete(f"/api/v1/security/allowlist/{entry_id}")
         assert del_resp.status_code == 200
+
+    def test_list_and_manage_time_bound_allowlist_entry(self, client: TestClient) -> None:
+        import uuid
+        from datetime import datetime, timezone, timedelta
+        from app.database.models import UserToolAllowlist
+        from app.platform_utils import get_session_factory
+
+        entry_id = uuid.uuid4().hex
+        factory = get_session_factory()
+        future_dt = datetime.now(timezone.utc) + timedelta(hours=2)
+
+        async def _seed():
+            async with factory() as session:
+                session.add(
+                    UserToolAllowlist(
+                        id=entry_id,
+                        permission="email_send",
+                        tool_name="send_mail",
+                        tool_args_hash="",
+                        command_pattern="",
+                        agent_id="",
+                        expires_at=future_dt,
+                    )
+                )
+                await session.commit()
+
+        asyncio.run(_seed())
+
+        response = client.get("/api/v1/security/allowlist")
+        assert response.status_code == 200
+        rows = response.json()["data"]
+        assert len(rows) == 1
+        assert rows[0]["id"] == entry_id
+        assert rows[0]["expires_at"] is not None
+        assert rows[0]["permission"] == "email_send"
         assert del_resp.json()["data"]["deleted"] is True

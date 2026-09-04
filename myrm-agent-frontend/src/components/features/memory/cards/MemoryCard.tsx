@@ -78,7 +78,7 @@ const MemoryCard = memo<MemoryCardProps>(
     const isPending = variant === 'pending';
     const memoryType = memory.memory_type as MemoryType;
     const confirmed = isMemory(memory) ? memory : null;
-    const canEdit = confirmed && (memoryType === 'semantic' || memoryType === 'episodic');
+    const canEdit = confirmed && (memoryType === 'semantic' || memoryType === 'episodic' || memoryType === 'procedural');
     const isDisabled = confirmed?.status === 'disabled';
 
     const displayLabel = confirmed?.projected_label ?? t(`types.${memoryType}`);

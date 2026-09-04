@@ -7,8 +7,10 @@ import uuid
 from collections.abc import Callable, Sequence
 from contextlib import AbstractAsyncContextManager
 
+from datetime import datetime, timezone
+
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,10 +45,24 @@ class DBAllowlistStore:
     async def load(self, user_id: str) -> Sequence[AllowlistEntry]:
         """Load allowlist entries from database.
 
+        Prunes expired time-bound records lazily on load.
+
         Args:
             user_id: User identifier (ignored in single-user sandbox mode)
         """
+        now_dt = datetime.now(timezone.utc)
+        now_ts = now_dt.timestamp()
+
         async with self._session_factory() as session:
+            # Clean up expired grants from DB
+            await session.execute(
+                delete(UserToolAllowlist).where(
+                    UserToolAllowlist.expires_at.is_not(None),
+                    UserToolAllowlist.expires_at < now_dt,
+                )
+            )
+            await session.commit()
+
             stmt = select(UserToolAllowlist)
             result = await session.execute(stmt)
             rows = result.scalars().all()
@@ -58,9 +74,11 @@ class DBAllowlistStore:
                     tool_args_hash=_from_db_value(row.tool_args_hash),
                     command_pattern=_from_db_value(row.command_pattern),
                     agent_id=_from_db_value(getattr(row, "agent_id", None)),
-                    created_at=row.created_at.timestamp(),
+                    created_at=row.created_at.timestamp() if row.created_at else now_ts,
+                    expires_at=row.expires_at.timestamp() if row.expires_at else None,
                 )
                 for row in rows
+                if row.expires_at is None or row.expires_at.timestamp() > now_ts
             ]
             logger.info("[DB_ALLOWLIST] Loaded %d allowlist entries for user %s", len(entries), user_id)
             return entries
@@ -72,6 +90,12 @@ class DBAllowlistStore:
             user_id: User identifier
             entry: Allowlist entry to persist
         """
+        expires_dt = (
+            datetime.fromtimestamp(entry.expires_at, tz=timezone.utc)
+            if entry.expires_at is not None
+            else None
+        )
+
         async with self._session_factory() as session:
             new_entry = UserToolAllowlist(
                 id=uuid.uuid4().hex,
@@ -80,6 +104,7 @@ class DBAllowlistStore:
                 tool_args_hash=_to_db_value(entry.tool_args_hash),
                 command_pattern=_to_db_value(entry.command_pattern),
                 agent_id=_to_db_value(entry.agent_id),
+                expires_at=expires_dt,
             )
             session.add(new_entry)
 
@@ -95,6 +120,20 @@ class DBAllowlistStore:
                     entry.command_pattern,
                     entry.agent_id,
                 )
+                if expires_dt is not None:
+                    async with self._session_factory() as update_session:
+                        await update_session.execute(
+                            update(UserToolAllowlist)
+                            .where(
+                                UserToolAllowlist.permission == entry.permission,
+                                UserToolAllowlist.tool_name == _to_db_value(entry.tool_name),
+                                UserToolAllowlist.tool_args_hash == _to_db_value(entry.tool_args_hash),
+                                UserToolAllowlist.command_pattern == _to_db_value(entry.command_pattern),
+                                UserToolAllowlist.agent_id == _to_db_value(entry.agent_id),
+                            )
+                            .values(expires_at=expires_dt)
+                        )
+                        await update_session.commit()
                 return
             logger.info(
                 "[DB_ALLOWLIST] Saved (%s, tool=%s, args_hash=%s, pattern=%s, agent=%s)",

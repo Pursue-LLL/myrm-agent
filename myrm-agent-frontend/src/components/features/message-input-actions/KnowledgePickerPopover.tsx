@@ -290,9 +290,9 @@ export default function KnowledgePickerPopover() {
                     )}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-foreground truncate">{ctx.name}</div>
+                      <div className="font-medium text-foreground truncate" title={ctx.name}>{ctx.name}</div>
                       {ctx.description && (
-                        <div className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{ctx.description}</div>
+                        <div className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5" title={ctx.description}>{ctx.description}</div>
                       )}
                     </div>
                     <Switch

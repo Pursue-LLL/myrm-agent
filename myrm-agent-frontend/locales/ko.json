@@ -2446,7 +2446,11 @@
       "instructionWithElement": "이 모바일 요소로 에이전트가 무엇을 해야 할까요?",
       "send": "지시 전송",
       "doctorAdbMissing": "ADB 도구 모음이 감지되지 않았습니다. Android platform-tools를 설치하세요.",
-      "doctorDeviceOffline": "사용 가능한 모바일 기기나 에뮬레이터가 연결되지 않았습니다. USB 디버깅을 켜고 연결하세요。"
+      "doctorDeviceOffline": "사용 가능한 모바일 기기나 에뮬레이터가 연결되지 않았습니다. USB 디버깅을 켜고 연결하세요。",
+      "navBack": "뒤로",
+      "navHome": "홈",
+      "navRecents": "최근 앱",
+      "navPower": "전원 / 화면 켜기"
     },
     "deliveryContracts": {
       "title": "5대 전달 계약",
@@ -8416,7 +8420,17 @@
       "scopePatternDesc": "앞부분이 같은 후속 명령 자동 허용",
       "scopePatternPreview": "유사 명령으로 기억: {pattern}",
       "scopePatternUnavailable": "연쇄 명령에는 유사 명령 일치를 사용할 수 없습니다.",
-      "scopePermissionDesc": "{permissionType} 유형의 모든 도구 자동 허용"
+      "scopePermissionDesc": "{permissionType} 유형의 모든 도구 자동 허용",
+      "durationLabel": "권한 유효 기간",
+      "durationSession": "현재 세션만 (권장)",
+      "duration15m": "15분간 임시 허용 (일괄 실행용)",
+      "duration1h": "1시간 허용 (집중 디버깅용)",
+      "durationPermanent": "영구 허용 (높은 위험)",
+      "durationSessionDesc": "현재 채팅 세션 종료 또는 새로고침 시 임시 권한이 자동 회수됩니다.",
+      "duration15mDesc": "15분간 승인을 건너뛰고, 시간 초과 시 안전 게이트가 자동 복원됩니다.",
+      "duration1hDesc": "1시간 동안 승인을 건너뛰고, 시간 초과 시 안전 게이트가 자동 복원됩니다.",
+      "durationPermanentDesc": "글로벌 허용 목록에 영구 추가되어 이후 승인을 요청하지 않습니다.",
+      "permanentRiskWarning": "경고: 영구 허용은 권한을 무기한 개방하므로 간접 프롬프트 주입 시 권한 상승 위험이 있습니다."
     },
     "permissionTypes": {
       "codeInterpreter": "코드 실행",

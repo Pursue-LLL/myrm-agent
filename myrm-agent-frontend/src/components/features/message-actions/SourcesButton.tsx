@@ -215,6 +215,11 @@ export function SourceItem({ source }: { source: Source }) {
                 [{source.index}]
               </span>
               <span className="text-sm font-medium truncate flex-1">{title}</span>
+              {source.kb_name && (
+                <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20 shrink-0">
+                  {source.kb_name}
+                </span>
+              )}
             </div>
             {description && <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{description}</p>}
             {(source.snapshot_status || source.claim_confidence != null || source.superseded_from_uri) && (

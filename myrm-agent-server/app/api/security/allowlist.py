@@ -45,6 +45,7 @@ async def list_allowlist_entries(
             "command_pattern": nullable_db_field(entry.command_pattern),
             "agent_id": nullable_db_field(getattr(entry, "agent_id", "")),
             "created_at": entry.created_at.isoformat(),
+            "expires_at": entry.expires_at.isoformat() if entry.expires_at else None,
             "granularity": resolve_allowlist_granularity(
                 tool_name=entry.tool_name,
                 tool_args_hash=entry.tool_args_hash,

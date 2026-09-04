@@ -59,7 +59,7 @@ describe('MemoryCard - delete actions', () => {
     const moreButton = screen.getByRole('button', { name: '' });
     moreButton.click();
 
-    const deleteBtn = screen.getByText('delete');
+    const deleteBtn = await screen.findByText('delete');
     deleteBtn.click();
 
     expect(onDeleteMock).toHaveBeenCalledWith(false);
@@ -79,7 +79,7 @@ describe('MemoryCard - delete actions', () => {
     const moreButton = screen.getByRole('button', { name: '' });
     moreButton.click();
 
-    const permBtn = screen.getByText('trash.permanentDelete');
+    const permBtn = await screen.findByText('trash.permanentDelete');
     permBtn.click();
 
     expect(onDeleteMock).toHaveBeenCalledWith(true);

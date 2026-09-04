@@ -40,8 +40,10 @@ import {
 import VisualApprovalHighlight from './approval/VisualApprovalHighlight';
 import ShellCommandDisplay from './approval/ShellCommandDisplay';
 import {
+  type AllowAlwaysDuration,
   type AllowAlwaysScope,
   defaultAllowAlwaysScope,
+  durationToTtlSeconds,
   scopeToAllowAlwaysValue,
 } from '@/lib/approval/allowAlwaysScope';
 import { classifyApprovalSurface, humanizeApprovalTitle } from '@/lib/humanize';
@@ -78,10 +80,12 @@ export default function SingleApprovalCard({
   const [allowAlwaysScope, setAllowAlwaysScope] = useState<AllowAlwaysScope>(() =>
     defaultAllowAlwaysScope(request.toolName),
   );
+  const [allowAlwaysDuration, setAllowAlwaysDuration] = useState<AllowAlwaysDuration>('session');
   const [allowAlwaysInEdit, setAllowAlwaysInEdit] = useState(false);
   const [allowAlwaysScopeInEdit, setAllowAlwaysScopeInEdit] = useState<AllowAlwaysScope>(() =>
     defaultAllowAlwaysScope(request.toolName),
   );
+  const [allowAlwaysDurationInEdit, setAllowAlwaysDurationInEdit] = useState<AllowAlwaysDuration>('session');
   const [editValidationErrors, setEditValidationErrors] = useState<string[]>([]);
   const [guidance, setGuidance] = useState('');
   const [guidanceOpen, setGuidanceOpen] = useState(false);
@@ -256,10 +260,12 @@ export default function SingleApprovalCard({
 
   const handleConfirmAlwaysAllow = useCallback(async () => {
     setShowAlwaysAllowConfirm(false);
+    const ttlSeconds = durationToTtlSeconds(allowAlwaysDuration);
     await onResolve(request.requestId, 'approve', {
-      allow_always: scopeToAllowAlwaysValue(allowAlwaysScope),
+      allow_always: scopeToAllowAlwaysValue(allowAlwaysScope, allowAlwaysDuration),
+      ttl_seconds: ttlSeconds,
     });
-  }, [allowAlwaysScope, request.requestId, onResolve]);
+  }, [allowAlwaysDuration, allowAlwaysScope, request.requestId, onResolve]);
 
   const handleConfirmEdit = useCallback(async () => {
     const parsed: Record<string, unknown> = {};
@@ -285,7 +291,10 @@ export default function SingleApprovalCard({
 
     setEditValidationErrors([]);
 
-    const allowAlwaysValue = !allowAlwaysInEdit ? false : scopeToAllowAlwaysValue(allowAlwaysScopeInEdit);
+    const ttlSeconds = allowAlwaysInEdit ? durationToTtlSeconds(allowAlwaysDurationInEdit) : undefined;
+    const allowAlwaysValue = !allowAlwaysInEdit
+      ? false
+      : scopeToAllowAlwaysValue(allowAlwaysScopeInEdit, allowAlwaysDurationInEdit);
 
     const hasChanges = inputEntries.some(([key, original]) => {
       const editedVal = editedArgs[key];
@@ -299,21 +308,26 @@ export default function SingleApprovalCard({
       await onResolve(request.requestId, 'edit', {
         edited_args: editedArgsPayload,
         allow_always: allowAlwaysValue,
+        ttl_seconds: ttlSeconds,
         guidance: guidanceValue,
       });
     } else {
       await onResolve(request.requestId, 'approve', {
         allow_always: allowAlwaysValue || undefined,
+        ttl_seconds: ttlSeconds,
         guidance: guidanceValue,
       });
     }
     setAllowAlwaysInEdit(false);
     setAllowAlwaysScopeInEdit(defaultAllowAlwaysScope(request.toolName));
+    setAllowAlwaysDurationInEdit('session');
   }, [
     editedArgs,
     inputEntries,
+    allowAlwaysDurationInEdit,
     allowAlwaysInEdit,
     allowAlwaysScopeInEdit,
+    guidance,
     request.requestId,
     request.toolInput,
     shellCommand,
@@ -338,6 +352,8 @@ export default function SingleApprovalCard({
         setAllowAlwaysInEdit={setAllowAlwaysInEdit}
         allowAlwaysScopeInEdit={allowAlwaysScopeInEdit}
         setAllowAlwaysScopeInEdit={setAllowAlwaysScopeInEdit}
+        allowAlwaysDurationInEdit={allowAlwaysDurationInEdit}
+        setAllowAlwaysDurationInEdit={setAllowAlwaysDurationInEdit}
         permissionTypeLabel={permissionTypeLabel}
         toolName={request.toolName}
         shellCommand={editedShellCommand}
@@ -597,6 +613,8 @@ export default function SingleApprovalCard({
         onOpenChange={setShowAlwaysAllowConfirm}
         allowAlwaysScope={allowAlwaysScope}
         setAllowAlwaysScope={setAllowAlwaysScope}
+        allowAlwaysDuration={allowAlwaysDuration}
+        setAllowAlwaysDuration={setAllowAlwaysDuration}
         permissionTypeLabel={permissionTypeLabel}
         toolName={request.toolName}
         shellCommand={shellCommand}

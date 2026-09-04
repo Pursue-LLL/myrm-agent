@@ -254,23 +254,29 @@ const useChatStore = create<ChatState>()(
                 const currentChatId = get().chatId;
                 if (currentChatId !== id) return;
 
-                if (bindingsResult.status === 'fulfilled' && bindingsResult.value.items?.length) {
-                  const boundIds = bindingsResult.value.items.map((b) => b.context_id);
-                  const namesMap: Record<string, string> = {};
+                  if (bindingsResult.status === 'fulfilled' && bindingsResult.value.items?.length) {
+                    const boundIds = bindingsResult.value.items.map((b) => b.context_id);
+                    const namesMap: Record<string, string> = {};
 
-                  if (contextsResult.status === 'fulfilled' && contextsResult.value.items?.length) {
-                    contextsResult.value.items.forEach((c) => {
-                      if (boundIds.includes(c.id)) {
-                        namesMap[c.id] = c.name;
+                    bindingsResult.value.items.forEach((b) => {
+                      if (b.context_name) {
+                        namesMap[b.context_id] = b.context_name;
                       }
                     });
-                  }
 
-                  set((state) => {
-                    state.activeKnowledgeBaseIds = boundIds;
-                    state.activeKnowledgeBaseNames = namesMap;
-                  });
-                }
+                    if (contextsResult.status === 'fulfilled' && contextsResult.value.items?.length) {
+                      contextsResult.value.items.forEach((c) => {
+                        if (boundIds.includes(c.id) && !namesMap[c.id]) {
+                          namesMap[c.id] = c.name;
+                        }
+                      });
+                    }
+
+                    set((state) => {
+                      state.activeKnowledgeBaseIds = boundIds;
+                      state.activeKnowledgeBaseNames = namesMap;
+                    });
+                  }
               })
               .catch(() => {
                 // Ignore background fetch error

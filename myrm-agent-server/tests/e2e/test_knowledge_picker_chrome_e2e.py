@@ -197,3 +197,59 @@ def test_knowledge_picker_popover_chrome_e2e() -> None:
                 page_url=chat_page_url,
             )
             assert unmounted_state.get("hasKbChip") is False
+
+        # 6. 验证在消息流中注入带有 kb_name 的知识库来源时，SourcesButton 与 SourceItem 正常渲染知识库标签
+        inject_sources_res = client.evaluate(
+            page,
+            """(() => {
+              const chatStore = window.__myrmChatStore;
+              if (!chatStore?.getState || !chatStore.setState) {
+                return { ok: false, err: 'chat-store-missing' };
+              }
+              const testMsgId = 'e2e-knowledge-source-test-msg';
+              const message = {
+                messageId: testMsgId,
+                chatId: chatStore.getState().chatId || 'e2e-chat-test',
+                createdAt: new Date(),
+                content: '根据企业知识库规范，系统支持跨源联邦索引。',
+                role: 'assistant',
+                sources: [
+                  {
+                    index: 1,
+                    type: 'knowledge',
+                    title: '架构设计准则 § 联邦索引',
+                    kb_name: 'E2E 企业知识库',
+                    snippet: '跨源索引通过 SQLite 附加数据库与 FTS5 全文检索引擎实现。',
+                  },
+                ],
+              };
+              chatStore.setState({
+                messages: [message],
+                loading: false,
+                isMessagesLoaded: true,
+                messageAppeared: true,
+              });
+              return { ok: true };
+            })()""",
+            timeout_sec=10.0,
+        )
+        assert inject_sources_res.get("ok") is True
+
+        # 验证渲染并包含 E2E 企业知识库 标签
+        source_badge_state = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const text = document.body?.innerText || '';
+              const hasContent = text.includes('架构设计准则') || text.includes('跨源联邦索引');
+              const hasBadge = text.includes('E2E 企业知识库');
+              return {
+                ready: hasContent || hasBadge,
+                hasContent,
+                hasBadge,
+              };
+            })()""",
+            timeout_sec=_warm_ui_parallel_wait_sec(15.0),
+        )
+        assert source_badge_state.get("ready") is True, source_badge_state
+

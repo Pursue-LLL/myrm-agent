@@ -216,3 +216,50 @@ def test_batch_resolve_safe_only_all_high_risk_blocks_with_409(client):
         assert data["detail"]["error"] == "NO_SAFE_ITEMS_TO_APPROVE"
         assert data["detail"]["safe_count"] == 0
         assert data["detail"]["high_risk_count"] == 1
+
+
+def test_list_and_revoke_active_grants(client: TestClient):
+    """Test /approvals/grants listing and revocation."""
+    import time
+    from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry, get_allowlist
+
+    allowlist = get_allowlist()
+    # Add a time-bound grant and an expired grant
+    now = time.time()
+    active_entry = AllowlistEntry(
+        permission="shell_exec",
+        tool_name="bash",
+        expires_at=now + 300.0,
+    )
+    expired_entry = AllowlistEntry(
+        permission="file_write",
+        tool_name="write_file",
+        expires_at=now - 10.0,
+    )
+    import asyncio
+    asyncio.run(allowlist.add("test_user_ttl", active_entry))
+    asyncio.run(allowlist.add("test_user_ttl", expired_entry))
+
+    # Query active grants
+    response = client.get("/approvals/grants?user_id=test_user_ttl")
+    assert response.status_code == 200
+    grants = response.json()["grants"]
+    # Expired entry should be omitted
+    assert len(grants) == 1
+    assert grants[0]["permission"] == "shell_exec"
+    assert grants[0]["tool_name"] == "bash"
+    assert grants[0]["expires_at"] is not None
+
+    # Revoke grant
+    revoke_resp = client.post(
+        "/approvals/grants/revoke?user_id=test_user_ttl",
+        json={"permission": "shell_exec", "tool_name": "bash"},
+    )
+    assert revoke_resp.status_code == 200
+    assert revoke_resp.json()["status"] == "ok"
+
+    # Verify empty after revocation
+    after_resp = client.get("/approvals/grants?user_id=test_user_ttl")
+    assert after_resp.status_code == 200
+    assert len(after_resp.json()["grants"]) == 0
+

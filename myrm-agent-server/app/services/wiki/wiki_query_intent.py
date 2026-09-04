@@ -110,8 +110,12 @@ def should_use_wiki_knowledge_lane(session: AgentStreamSession) -> bool:
         return False
 
     agent_id = params.agent_id or request.agent_id
-    if not is_vault_ready(agent_id):
+    shared_context_ids: list[str] | None = (
+        params.memory_shared_context_ids
+        or getattr(request, "session_knowledge_base_ids", None)
+    )
+    if not is_vault_ready(agent_id, shared_context_ids=shared_context_ids):
         return False
-    if not vault_has_wiki_content(agent_id):
+    if not vault_has_wiki_content(agent_id, shared_context_ids=shared_context_ids):
         return False
     return True

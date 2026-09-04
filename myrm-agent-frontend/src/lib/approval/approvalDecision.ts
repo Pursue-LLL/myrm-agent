@@ -9,6 +9,7 @@ export interface ApprovalDecision {
   guidance?: string;
   extensions: {
     allowAlways: AllowAlwaysValue;
+    ttlSeconds?: number;
     allowDomain?: boolean;
     grantDirectory?: boolean;
     grantDirectoryMeta?: { path: string; writable: boolean };
@@ -38,6 +39,7 @@ export interface ToolApprovalResolveExtra {
   feedback?: string;
   guidance?: string;
   allow_always?: AllowAlwaysValue;
+  ttl_seconds?: number;
   allow_domain?: boolean;
   grant_directory?: boolean;
   grant_directory_path?: string;
@@ -83,6 +85,7 @@ export function buildApprovalDecision(decision: DecisionType, extra?: ToolApprov
     ...(extra?.guidance && { guidance: extra.guidance }),
     extensions: {
       allowAlways: extra?.allow_always ?? false,
+      ...(extra?.ttl_seconds !== undefined && { ttlSeconds: extra.ttl_seconds }),
       ...(extra?.allow_domain && { allowDomain: true }),
       ...(extra?.grant_directory && {
         grantDirectory: true,

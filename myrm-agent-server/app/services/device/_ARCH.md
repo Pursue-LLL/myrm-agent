@@ -21,3 +21,5 @@ Mobile Device Bridge domain. Provides Android ADB device auto-discovery, non-blo
 
 - **Physical Status Bar Redaction**: Overlays top 4.5% of mobile screen image buffer with solid black pixels before base64 serialization, physically guaranteeing notification badges and SMS OTPs do not leak into downstream multimodal prompts or browser client.
 - **Subprocess Safety**: All child processes executed under `asyncio.wait_for(timeout=3.5)` with process group tree teardown on timeout.
+- **Keycode Input Sanitization**: Rejects keycodes not matching `^[A-Za-z0-9_]{1,32}$` to prevent shell argument injection vulnerabilities on Android devices.
+- **Snapshot Throttle Cache**: Uses a 300ms in-memory cache to prevent SurfaceFlinger GPU lock contention and ADB daemon exhaustion during rapid concurrent frame captures.

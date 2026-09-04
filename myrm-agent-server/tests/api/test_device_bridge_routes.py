@@ -98,6 +98,53 @@ async def test_device_bridge_snapshot_and_relay(dummy_png_bytes: bytes) -> None:
         swipe_ok = await service.relay_touch(action="swipe", x=100, y=200, end_x=100, end_y=500, duration_ms=250)
         assert swipe_ok is True
 
+        key_ok = await service.relay_touch(action="keyevent", keycode="back")
+        assert key_ok is True
+
+
+@pytest.mark.asyncio
+async def test_device_bridge_security_and_cache(dummy_png_bytes: bytes) -> None:
+    service = DeviceBridgeService(adb_path_override="/usr/bin/adb")
+    fake_doctor = DeviceDoctorReport(
+        adb_installed=True,
+        adb_path="/usr/bin/adb",
+        devices=[
+            DeviceInfo("dev-1", "device", "sdk", "Phone_1", "emu"),
+            DeviceInfo("dev-2", "device", "sdk", "Phone_2", "emu"),
+        ],
+        connected=True,
+        active_device_serial="dev-1",
+        diagnostic_message="Connected",
+        remediation_hint=None,
+    )
+
+    with (
+        patch.object(service, "probe_doctor", AsyncMock(return_value=fake_doctor)),
+        patch.object(service, "_run_adb_cmd", AsyncMock(return_value=(0, dummy_png_bytes, b""))) as mock_adb,
+    ):
+        # 1. Invalid keycode rejection (shell injection defense)
+        bad_key = await service.relay_touch(action="keyevent", keycode="4; reboot")
+        assert bad_key is False
+
+        # 2. Keycode alias mapping
+        good_key = await service.relay_touch(action="keyevent", keycode="home")
+        assert good_key is True
+
+        # 3. Target device routing
+        await service.relay_touch(action="tap", x=10, y=20, device_id="dev-2")
+        mock_adb.assert_called_with("-s", "dev-2", "shell", "input", "tap", "10", "20")
+
+        # 4. Snapshot throttle cache (within 300ms)
+        mock_adb.reset_mock()
+        mock_adb.return_value = (0, dummy_png_bytes, b"")
+        snap1 = await service.get_device_snapshot(device_id="dev-1")
+        assert snap1.device_id == "dev-1"
+        assert mock_adb.call_count == 1
+
+        snap2 = await service.get_device_snapshot(device_id="dev-1")
+        assert snap2.device_id == "dev-1"
+        assert mock_adb.call_count == 1  # Reused cache!
+
 
 @pytest.mark.asyncio
 async def test_webui_device_routes_endpoints(dummy_png_bytes: bytes) -> None:

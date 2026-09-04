@@ -10,6 +10,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     DateTime,
+    Float,
     Integer,
     String,
     Text,
@@ -37,8 +38,8 @@ class UserToolAllowlist(Base):
     tool_args_hash: Mapped[str] = mapped_column(String(32), nullable=False, default="")
     command_pattern: Mapped[str] = mapped_column(String(512), nullable=False, default="")
     agent_id: Mapped[str] = mapped_column(String(255), nullable=False, default="")
-
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
 
     __table_args__ = (
         UniqueConstraint(

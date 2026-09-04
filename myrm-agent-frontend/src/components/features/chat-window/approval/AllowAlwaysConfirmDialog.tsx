@@ -16,7 +16,7 @@ import {
 } from '@/components/primitives/alert-dialog';
 import { Label } from '@/components/primitives/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
-import type { AllowAlwaysScope } from '@/lib/approval/allowAlwaysScope';
+import type { AllowAlwaysDuration, AllowAlwaysScope } from '@/lib/approval/allowAlwaysScope';
 import { deriveCommandPattern } from '@/lib/approval/shellCommandDisplay';
 
 interface AllowAlwaysConfirmDialogProps {
@@ -24,6 +24,8 @@ interface AllowAlwaysConfirmDialogProps {
   onOpenChange: (open: boolean) => void;
   allowAlwaysScope: AllowAlwaysScope;
   setAllowAlwaysScope: (scope: AllowAlwaysScope) => void;
+  allowAlwaysDuration?: AllowAlwaysDuration;
+  setAllowAlwaysDuration?: (duration: AllowAlwaysDuration) => void;
   permissionTypeLabel: string;
   toolName: string;
   shellCommand?: string;
@@ -36,6 +38,8 @@ export default function AllowAlwaysConfirmDialog({
   onOpenChange,
   allowAlwaysScope,
   setAllowAlwaysScope,
+  allowAlwaysDuration = 'session',
+  setAllowAlwaysDuration,
   permissionTypeLabel,
   toolName,
   shellCommand = '',
@@ -108,6 +112,39 @@ export default function AllowAlwaysConfirmDialog({
                   </span>
                 )}
               </div>
+
+              {setAllowAlwaysDuration && (
+                <div className="space-y-2 pt-2 border-t border-border/50">
+                  <Label htmlFor="allowlist-duration" className="text-sm font-medium">
+                    {t('allowAlwaysConfirm.durationLabel')}
+                  </Label>
+                  <Select
+                    value={allowAlwaysDuration}
+                    onValueChange={(v) => setAllowAlwaysDuration(v as AllowAlwaysDuration)}
+                  >
+                    <SelectTrigger id="allowlist-duration">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="session">{t('allowAlwaysConfirm.durationSession')}</SelectItem>
+                      <SelectItem value="15m">{t('allowAlwaysConfirm.duration15m')}</SelectItem>
+                      <SelectItem value="1h">{t('allowAlwaysConfirm.duration1h')}</SelectItem>
+                      <SelectItem value="permanent">{t('allowAlwaysConfirm.durationPermanent')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground block">
+                    {allowAlwaysDuration === 'session' && t('allowAlwaysConfirm.durationSessionDesc')}
+                    {allowAlwaysDuration === '15m' && t('allowAlwaysConfirm.duration15mDesc')}
+                    {allowAlwaysDuration === '1h' && t('allowAlwaysConfirm.duration1hDesc')}
+                    {allowAlwaysDuration === 'permanent' && t('allowAlwaysConfirm.durationPermanentDesc')}
+                  </span>
+                  {allowAlwaysDuration === 'permanent' && (
+                    <span className="text-xs text-amber-600 dark:text-amber-400 block font-medium">
+                      {t('allowAlwaysConfirm.permanentRiskWarning')}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>

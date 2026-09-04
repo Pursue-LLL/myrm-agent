@@ -256,7 +256,8 @@ async def create_shared_context_binding(
         _raise_bad_request(exc)
     if binding is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shared context not found")
-    return binding_to_item(binding)
+    context = await SharedContextService(db).get_context(context_id)
+    return binding_to_item(binding, context_name=context.name if context else None)
 
 
 @router.delete("/{context_id}/bindings/targets/{target_type}/{target_id}", status_code=status.HTTP_204_NO_CONTENT)

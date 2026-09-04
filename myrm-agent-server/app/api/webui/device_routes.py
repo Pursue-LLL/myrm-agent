@@ -37,6 +37,7 @@ class TouchRelayBody(BaseModel):
     endY: int | None = None
     durationMs: int | None = None
     keycode: str | None = None
+    deviceId: str | None = None
 
 
 @router.post("/relay")
@@ -51,6 +52,7 @@ async def relay_device_touch(body: TouchRelayBody) -> JSONResponse:
         end_y=body.endY,
         duration_ms=body.durationMs,
         keycode=body.keycode,
+        device_id=body.deviceId,
     )
     return JSONResponse(content={"ok": success, "action": body.action})
 
@@ -59,12 +61,14 @@ async def relay_device_touch(body: TouchRelayBody) -> JSONResponse:
 async def get_device_snapshot(
     chat_id: str | None = Query(None, description="Active chat session id"),
     redact_notifications: bool = Query(True, description="Enable physical status bar redaction"),
+    device_id: str | None = Query(None, description="Optional target device serial"),
 ) -> JSONResponse:
     """Get mobile device snapshot for the Device Inspector panel."""
     service = DeviceBridgeService.get_instance()
     payload = await service.get_device_snapshot(
         chat_id=chat_id,
         notification_redaction=redact_notifications,
+        device_id=device_id,
     )
 
     doctor_dict: dict[str, Any] = {

@@ -2483,7 +2483,11 @@
       "instructionWithElement": "Agent 應該對這個行動端元素做什麼？",
       "send": "傳送指令",
       "doctorAdbMissing": "未檢測到 ADB 工具鏈，請安裝 Android platform-tools",
-      "doctorDeviceOffline": "未連接可用行動裝置或模擬器，請開啟 USB 除錯並連線"
+      "doctorDeviceOffline": "未連接可用行動裝置或模擬器，請開啟 USB 除錯並連線",
+      "navBack": "返回鍵",
+      "navHome": "主畫面",
+      "navRecents": "多工",
+      "navPower": "電源/喚醒"
     },
     "clarification": {
       "formTitle": "澄清表單",
@@ -8434,7 +8438,17 @@
       "scopePatternDesc": "自動允許開頭相同的後續命令",
       "scopePatternPreview": "將記住類似命令：{pattern}",
       "scopePatternUnavailable": "鏈式命令無法使用相似命令匹配。",
-      "scopePermissionDesc": "自動允許所有 {permissionType} 型別的工具"
+      "scopePermissionDesc": "自動允許所有 {permissionType} 型別的工具",
+      "durationLabel": "授權有效時限",
+      "durationSession": "僅當前會話有效（推薦）",
+      "duration15m": "15 分鐘內臨時有效（短期批次處理）",
+      "duration1h": "1 小時內有效（密集聯調）",
+      "durationPermanent": "永久允許（高風險）",
+      "durationSessionDesc": "當前聊天會話結束或重新整理後，臨時授權將自動註銷收回。",
+      "duration15mDesc": "15 分鐘內自動跳過審批，超時後自動恢復安全攔截。",
+      "duration1hDesc": "1 小時內自動跳過審批，超時後自動恢復安全攔截。",
+      "durationPermanentDesc": "永久加入全域性免審批白名單，系統將不再攔截該操作。",
+      "permanentRiskWarning": "警告：永久免審批將長期開放此操作權限，若智能體遭遇惡意間接提示注入可能存在越權風險。"
     },
     "spanRiskReasons": {
       "safe": "安全 — 只讀命令，已自動放行",

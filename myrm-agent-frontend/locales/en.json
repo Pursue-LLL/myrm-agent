@@ -2547,7 +2547,11 @@
       "instructionWithElement": "What should the agent do with this mobile element?",
       "send": "Send instruction",
       "doctorAdbMissing": "ADB toolchain not detected. Please install Android platform-tools.",
-      "doctorDeviceOffline": "No mobile device or emulator connected. Enable USB debugging and connect."
+      "doctorDeviceOffline": "No mobile device or emulator connected. Enable USB debugging and connect.",
+      "navBack": "Back",
+      "navHome": "Home",
+      "navRecents": "Recents",
+      "navPower": "Power / Wake"
     },
     "clarification": {
       "formTitle": "Clarification form",
@@ -8436,7 +8440,17 @@
       "scopePatternDesc": "Auto-allow future commands that start the same way",
       "scopePatternPreview": "Will remember similar commands like: {pattern}",
       "scopePatternUnavailable": "Pattern matching is not available for chained commands.",
-      "scopePermissionDesc": "Auto-allow all {permissionType} type tools"
+      "scopePermissionDesc": "Auto-allow all {permissionType} type tools",
+      "durationLabel": "Grant Duration",
+      "durationSession": "Current Session Only (Recommended)",
+      "duration15m": "15 Minutes (Temporary Batch Run)",
+      "duration1h": "1 Hour (Active Debugging)",
+      "durationPermanent": "Permanent (High Risk)",
+      "durationSessionDesc": "Temporary grant auto-revokes when this chat session ends or refreshes.",
+      "duration15mDesc": "Auto-skips approvals for 15 minutes, then restores safety gates.",
+      "duration1hDesc": "Auto-skips approvals for 1 hour, then restores safety gates.",
+      "durationPermanentDesc": "Permanently bypasses approval. Future calls will not be gated.",
+      "permanentRiskWarning": "Warning: Permanent bypass leaves this operation open indefinitely, which may risk privilege escalation under indirect prompt injection."
     },
     "spanRiskReasons": {
       "safe": "Safe — read-only command, auto-allowed",
@@ -12899,6 +12913,7 @@
         "toolName": "Tool Name",
         "argsHash": "Args Hash",
         "commandPattern": "Command Pattern",
+        "expiresAt": "Expires",
         "deleteSuccess": "Record deleted",
         "deleteError": "Delete failed",
         "clearSuccess": "Cleared {count} records",

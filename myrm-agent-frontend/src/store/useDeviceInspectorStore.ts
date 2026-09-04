@@ -71,6 +71,7 @@ export interface TouchRelayCommand {
   endY?: number;
   durationMs?: number;
   keycode?: string;
+  deviceId?: string;
 }
 
 interface DeviceInspectorState {
@@ -97,7 +98,7 @@ interface DeviceInspectorState {
   releaseTurnEngagement: (chatId: string) => void;
   setInstructionText: (text: string) => void;
   sendTouchRelay: (command: TouchRelayCommand) => Promise<boolean>;
-  fetchSnapshot: (isTurnView?: boolean) => Promise<boolean>;
+  fetchSnapshot: (isTurnView?: boolean, targetDeviceId?: string) => Promise<boolean>;
   reset: () => void;
 }
 
@@ -170,7 +171,7 @@ const useDeviceInspectorStore = create<DeviceInspectorState>((set, get) => ({
     }
   },
 
-  fetchSnapshot: async (isTurnView = false) => {
+  fetchSnapshot: async (isTurnView = false, targetDeviceId?: string) => {
     set({ isSnapshotLoading: true });
     try {
       const { default: useChatStore } = await import('@/store/useChatStore');
@@ -180,6 +181,9 @@ const useDeviceInspectorStore = create<DeviceInspectorState>((set, get) => ({
         params.set('chat_id', activeChatId);
       }
       params.set('redact_notifications', String(get().notificationRedaction));
+      if (targetDeviceId) {
+        params.set('device_id', targetDeviceId);
+      }
 
       const queryStr = params.toString() ? `?${params.toString()}` : '';
       const data = await apiRequest<DeviceSnapshotResponse>(`/webui/device/snapshot${queryStr}`, {
@@ -224,5 +228,10 @@ const useDeviceInspectorStore = create<DeviceInspectorState>((set, get) => ({
       engagedChatId: null,
     }),
 }));
+
+if (typeof window !== 'undefined') {
+  (window as unknown as { __MYRM_DEVICE_INSPECTOR_STORE__?: typeof useDeviceInspectorStore }).__MYRM_DEVICE_INSPECTOR_STORE__ =
+    useDeviceInspectorStore;
+}
 
 export default useDeviceInspectorStore;

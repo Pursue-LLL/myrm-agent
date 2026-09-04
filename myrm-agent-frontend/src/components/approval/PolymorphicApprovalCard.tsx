@@ -27,8 +27,10 @@ import ShellCommandDisplay from '@/components/features/chat-window/approval/Shel
 import EditModeView from '@/components/features/chat-window/approval/EditModeView';
 import AllowAlwaysConfirmDialog from '@/components/features/chat-window/approval/AllowAlwaysConfirmDialog';
 import {
+  type AllowAlwaysDuration,
   type AllowAlwaysScope,
   defaultAllowAlwaysScope,
+  durationToTtlSeconds,
   scopeToAllowAlwaysValue,
 } from '@/lib/approval/allowAlwaysScope';
 import type { ToolApprovalResolveExtra } from '@/lib/approval/approvalDecision';
@@ -244,10 +246,12 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
   const [allowAlwaysScope, setAllowAlwaysScope] = useState<AllowAlwaysScope>(() =>
     defaultAllowAlwaysScope(primaryToolName),
   );
+  const [allowAlwaysDuration, setAllowAlwaysDuration] = useState<AllowAlwaysDuration>('session');
   const [allowAlwaysInEdit, setAllowAlwaysInEdit] = useState(false);
   const [allowAlwaysScopeInEdit, setAllowAlwaysScopeInEdit] = useState<AllowAlwaysScope>(() =>
     defaultAllowAlwaysScope(primaryToolName),
   );
+  const [allowAlwaysDurationInEdit, setAllowAlwaysDurationInEdit] = useState<AllowAlwaysDuration>('session');
   const [editValidationErrors, setEditValidationErrors] = useState<string[]>([]);
   const [shellEditedArgs, setShellEditedArgs] = useState<Record<string, string>>({});
   const [editedArgs, setEditedArgs] = useState<string>(() => {
@@ -348,11 +352,13 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
 
   const handleConfirmAlwaysAllow = useCallback(async () => {
     setShowAlwaysAllowConfirm(false);
+    const ttlSeconds = durationToTtlSeconds(allowAlwaysDuration);
     await onResolve('approve', comment, undefined, {
-      allow_always: scopeToAllowAlwaysValue(allowAlwaysScope),
+      allow_always: scopeToAllowAlwaysValue(allowAlwaysScope, allowAlwaysDuration),
+      ttl_seconds: ttlSeconds,
       feedback: comment || undefined,
     });
-  }, [allowAlwaysScope, comment, onResolve]);
+  }, [allowAlwaysDuration, allowAlwaysScope, comment, onResolve]);
 
   const handleConfirmShellEdit = useCallback(async () => {
     const parsed: Record<string, unknown> = {};
@@ -378,7 +384,10 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
 
     setEditValidationErrors([]);
 
-    const allowAlwaysValue = !allowAlwaysInEdit ? false : scopeToAllowAlwaysValue(allowAlwaysScopeInEdit);
+    const ttlSeconds = allowAlwaysInEdit ? durationToTtlSeconds(allowAlwaysDurationInEdit) : undefined;
+    const allowAlwaysValue = !allowAlwaysInEdit
+      ? false
+      : scopeToAllowAlwaysValue(allowAlwaysScopeInEdit, allowAlwaysDurationInEdit);
 
     const hasChanges = shellInputEntries.some(([key, original]) => {
       const editedVal = shellEditedArgs[key];
@@ -394,11 +403,13 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
       await onResolve('edit', comment, undefined, {
         edited_args: mergeShellEditedArgs(originalArgs, parsed),
         allow_always: allowAlwaysValue,
+        ttl_seconds: ttlSeconds,
         feedback: comment || undefined,
       });
     } else {
       await onResolve('approve', comment, undefined, {
         allow_always: allowAlwaysValue || undefined,
+        ttl_seconds: ttlSeconds,
         feedback: comment || undefined,
       });
     }
@@ -406,7 +417,9 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     setMode('default');
     setAllowAlwaysInEdit(false);
     setAllowAlwaysScopeInEdit(defaultAllowAlwaysScope(primaryToolName));
+    setAllowAlwaysDurationInEdit('session');
   }, [
+    allowAlwaysDurationInEdit,
     allowAlwaysInEdit,
     allowAlwaysScopeInEdit,
     comment,
@@ -994,6 +1007,8 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
           setAllowAlwaysInEdit={setAllowAlwaysInEdit}
           allowAlwaysScopeInEdit={allowAlwaysScopeInEdit}
           setAllowAlwaysScopeInEdit={setAllowAlwaysScopeInEdit}
+          allowAlwaysDurationInEdit={allowAlwaysDurationInEdit}
+          setAllowAlwaysDurationInEdit={setAllowAlwaysDurationInEdit}
           permissionTypeLabel={permissionTypeLabel}
           toolName={singleShellToolCall.name}
           hideAllowAlways={hasAnyHideAllowAlways}
@@ -1133,6 +1148,8 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
           onOpenChange={setShowAlwaysAllowConfirm}
           allowAlwaysScope={allowAlwaysScope}
           setAllowAlwaysScope={setAllowAlwaysScope}
+          allowAlwaysDuration={allowAlwaysDuration}
+          setAllowAlwaysDuration={setAllowAlwaysDuration}
           permissionTypeLabel={permissionTypeLabel}
           toolName={primaryToolName}
           shellCommand={shellCommand}

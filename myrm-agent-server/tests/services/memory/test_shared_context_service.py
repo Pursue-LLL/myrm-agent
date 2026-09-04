@@ -418,3 +418,60 @@ async def test_history_message_can_be_promoted_to_audited_write_proposal(
     assert proposal.metadata["promoted_from_history"] is True
     assert proposal.metadata["source_message_id"] == "msg-1"
 
+
+@pytest.mark.asyncio
+async def test_conversation_binding_with_context_name_and_active_filtering(
+    db_session: AsyncSession,
+) -> None:
+    service = SharedContextService(db_session)
+    ctx_a = await service.create_context(name="Architecture Guidelines")
+    ctx_b = await service.create_context(name="Legacy Specs")
+
+    b_a = await service.bind_context(context_id=ctx_a.id, target_type="conversation", target_id="chat-kb-1")
+    b_b = await service.bind_context(context_id=ctx_b.id, target_type="conversation", target_id="chat-kb-1")
+    assert b_a is not None
+    assert b_b is not None
+
+    bindings = await service.list_bindings_for_target(target_type="conversation", target_id="chat-kb-1")
+    assert len(bindings) == 2
+    names = {b.context.name for b in bindings if b.context}
+    assert "Architecture Guidelines" in names
+    assert "Legacy Specs" in names
+
+    # 归档 ctx_b，验证幽灵胶囊活性过滤
+    await service.archive_context(ctx_b.id)
+    bindings_after_archive = await service.list_bindings_for_target(target_type="conversation", target_id="chat-kb-1")
+    assert len(bindings_after_archive) == 1
+    assert bindings_after_archive[0].context_id == ctx_a.id
+    assert bindings_after_archive[0].context.name == "Architecture Guidelines"
+
+
+@pytest.mark.asyncio
+async def test_unbind_context_by_target(
+    db_session: AsyncSession,
+) -> None:
+    service = SharedContextService(db_session)
+    ctx = await service.create_context(name="API Manual")
+    await service.bind_context(context_id=ctx.id, target_type="conversation", target_id="chat-kb-2")
+
+    bindings = await service.list_bindings_for_target(target_type="conversation", target_id="chat-kb-2")
+    assert len(bindings) == 1
+
+    deleted = await service.unbind_context_by_target(
+        context_id=ctx.id,
+        target_type="conversation",
+        target_id="chat-kb-2",
+    )
+    assert deleted is True
+
+    bindings_empty = await service.list_bindings_for_target(target_type="conversation", target_id="chat-kb-2")
+    assert len(bindings_empty) == 0
+
+    # 再次解绑返回 False
+    deleted_again = await service.unbind_context_by_target(
+        context_id=ctx.id,
+        target_type="conversation",
+        target_id="chat-kb-2",
+    )
+    assert deleted_again is False
+

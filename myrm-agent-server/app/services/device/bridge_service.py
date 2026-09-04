@@ -20,7 +20,9 @@ import base64
 import io
 import logging
 import os
+import re
 import shutil
+import time
 from dataclasses import dataclass
 from typing import Literal
 
@@ -29,6 +31,21 @@ from PIL import Image, ImageDraw
 logger = logging.getLogger(__name__)
 
 _DEFAULT_ADB_TIMEOUT = 3.5
+_SNAPSHOT_CACHE_TTL_SEC = 0.30
+_KEYCODE_SAFE_PATTERN = re.compile(r"^[A-Za-z0-9_]{1,32}$")
+
+_KEYCODE_MAP: dict[str, str] = {
+    "back": "KEYCODE_BACK",
+    "home": "KEYCODE_HOME",
+    "recents": "KEYCODE_APP_SWITCH",
+    "power": "KEYCODE_POWER",
+    "wake": "KEYCODE_WAKEUP",
+    "enter": "KEYCODE_ENTER",
+    "tab": "KEYCODE_TAB",
+    "volume_up": "KEYCODE_VOLUME_UP",
+    "volume_down": "KEYCODE_VOLUME_DOWN",
+}
+
 _DUMMY_1PX_PNG = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
 )
@@ -75,6 +92,9 @@ class DeviceBridgeService:
 
     def __init__(self, adb_path_override: str | None = None) -> None:
         self._adb_path_override = adb_path_override
+        self._last_snapshot_time: float = 0.0
+        self._last_snapshot_key: str = ""
+        self._cached_snapshot: DeviceSnapshotPayload | None = None
 
     @classmethod
     def get_instance(cls) -> DeviceBridgeService:
@@ -236,8 +256,9 @@ class DeviceBridgeService:
         *,
         chat_id: str | None = None,
         notification_redaction: bool = True,
+        device_id: str | None = None,
     ) -> DeviceSnapshotPayload:
-        """Collect current device snapshot with physical status bar redaction."""
+        """Collect current device snapshot with physical status bar redaction and throttle cache."""
         doctor = await self.probe_doctor()
         if not doctor.connected or not doctor.active_device_serial:
             return DeviceSnapshotPayload(
@@ -253,7 +274,16 @@ class DeviceBridgeService:
                 doctor=doctor,
             )
 
-        serial = doctor.active_device_serial
+        serial = device_id if device_id and any(d.serial == device_id for d in doctor.devices) else doctor.active_device_serial
+        cache_key = f"{serial}_{notification_redaction}"
+        now = time.monotonic()
+        if (
+            self._cached_snapshot is not None
+            and self._last_snapshot_key == cache_key
+            and (now - self._last_snapshot_time) < _SNAPSHOT_CACHE_TTL_SEC
+        ):
+            return self._cached_snapshot
+
         code, stdout, stderr = await self._run_adb_cmd("-s", serial, "exec-out", "screencap", "-p")
         if code != 0 or not stdout:
             logger.error("Failed to capture screen via ADB: %s", stderr.decode("utf-8", errors="replace"))
@@ -282,9 +312,10 @@ class DeviceBridgeService:
                 pass
 
         b64 = base64.b64encode(raw_bytes).decode("ascii")
-        dev_name = doctor.devices[0].model if doctor.devices else "Android Device"
+        matching = next((d for d in doctor.devices if d.serial == serial), None)
+        dev_name = matching.model if matching else (doctor.devices[0].model if doctor.devices else "Android Device")
 
-        return DeviceSnapshotPayload(
+        payload = DeviceSnapshotPayload(
             screenshot_base64=b64,
             mime_type="image/png",
             refs={},
@@ -296,6 +327,10 @@ class DeviceBridgeService:
             viewport_height=height,
             doctor=doctor,
         )
+        self._cached_snapshot = payload
+        self._last_snapshot_key = cache_key
+        self._last_snapshot_time = now
+        return payload
 
     async def relay_touch(
         self,
@@ -307,6 +342,7 @@ class DeviceBridgeService:
         end_y: int | None = None,
         duration_ms: int | None = None,
         keycode: str | None = None,
+        device_id: str | None = None,
     ) -> bool:
         """Relay pointer and touch events (tap, swipe, hold, keyevent) to Android device."""
         doctor = await self.probe_doctor()
@@ -314,7 +350,7 @@ class DeviceBridgeService:
             logger.warning("Touch relay dropped: No active connected device.")
             return False
 
-        serial = doctor.active_device_serial
+        serial = device_id if device_id and any(d.serial == device_id for d in doctor.devices) else doctor.active_device_serial
         cmd_args: list[str] = ["-s", serial, "shell", "input"]
 
         if action == "tap" and x is not None and y is not None:
@@ -326,7 +362,12 @@ class DeviceBridgeService:
             ms = str(max(500, duration_ms or 800))
             cmd_args.extend(["swipe", str(x), str(y), str(x), str(y), ms])
         elif action == "keyevent" and keycode:
-            cmd_args.extend(["keyevent", keycode])
+            norm_key = keycode.strip().lower()
+            resolved_key = _KEYCODE_MAP.get(norm_key, keycode.strip())
+            if not _KEYCODE_SAFE_PATTERN.match(resolved_key):
+                logger.warning("Rejected invalid keycode for security defense: %s", keycode)
+                return False
+            cmd_args.extend(["keyevent", resolved_key])
         else:
             logger.warning("Unrecognized or incomplete touch relay action: %s", action)
             return False

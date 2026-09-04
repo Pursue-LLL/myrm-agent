@@ -26,6 +26,7 @@ interface AllowlistEntry {
   tool_args_hash: string | null;
   command_pattern: string | null;
   created_at: string;
+  expires_at?: string | number | null;
   granularity: 'permission' | 'tool' | 'exact' | 'pattern';
 }
 
@@ -207,6 +208,13 @@ const AllowlistSection = memo(() => {
                       <span className="font-mono">{entry.command_pattern}</span>
                     </div>
                   )}
+
+                  {entry.expires_at ? (
+                    <div className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+                      <span>{t('expiresAt')}:</span>{' '}
+                      <span>{new Date(typeof entry.expires_at === 'number' ? entry.expires_at * 1000 : entry.expires_at).toLocaleString()}</span>
+                    </div>
+                  ) : null}
 
                   <div className="text-xs text-muted-foreground">{new Date(entry.created_at).toLocaleString()}</div>
                 </div>

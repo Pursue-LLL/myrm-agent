@@ -2,7 +2,7 @@
 
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Smartphone, RefreshCw, AlertCircle } from 'lucide-react';
+import { Smartphone, RefreshCw, AlertCircle, ArrowLeft, Home, Layers, Power } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useDeviceInspectorStore, { selectScopedDeviceViewData } from '@/store/useDeviceInspectorStore';
 import useChatStore from '@/store/useChatStore';
@@ -280,6 +280,58 @@ export const DeviceLiveView: React.FC<DeviceLiveViewProps> = ({ onSendInstructio
                 imageNaturalHeight={imageSize.height}
               />
             )}
+
+            {/* Android Navigation Bar (Back / Home / Recents / Power) */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full bg-background/80 dark:bg-muted/80 backdrop-blur-md border border-border/50 shadow-md z-30 transition-opacity hover:opacity-100 opacity-80">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void sendTouchRelay({ action: 'keyevent', keycode: 'back', deviceId: scopedViewData.deviceId });
+                }}
+                className="p-1.5 rounded-full hover:bg-accent text-foreground transition-colors"
+                title={t('navBack')}
+                aria-label={t('navBack')}
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void sendTouchRelay({ action: 'keyevent', keycode: 'home', deviceId: scopedViewData.deviceId });
+                }}
+                className="p-1.5 rounded-full hover:bg-accent text-foreground transition-colors"
+                title={t('navHome')}
+                aria-label={t('navHome')}
+              >
+                <Home className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void sendTouchRelay({ action: 'keyevent', keycode: 'recents', deviceId: scopedViewData.deviceId });
+                }}
+                className="p-1.5 rounded-full hover:bg-accent text-foreground transition-colors"
+                title={t('navRecents')}
+                aria-label={t('navRecents')}
+              >
+                <Layers className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void sendTouchRelay({ action: 'keyevent', keycode: 'power', deviceId: scopedViewData.deviceId });
+                }}
+                className="p-1.5 rounded-full hover:bg-accent text-foreground transition-colors"
+                title={t('navPower')}
+                aria-label={t('navPower')}
+              >
+                <Power className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center text-center p-6 text-muted-foreground gap-3">

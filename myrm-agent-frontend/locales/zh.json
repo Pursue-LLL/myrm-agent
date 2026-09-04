@@ -2546,7 +2546,11 @@
       "instructionWithElement": "Agent 应该对这个移动端元素做什么？",
       "send": "发送指令",
       "doctorAdbMissing": "未检测到 ADB 工具链，请安装 Android platform-tools",
-      "doctorDeviceOffline": "未连接可用移动设备或模拟器，请开启 USB 调试并连线"
+      "doctorDeviceOffline": "未连接可用移动设备或模拟器，请开启 USB 调试并连线",
+      "navBack": "返回键",
+      "navHome": "主屏幕",
+      "navRecents": "多任务",
+      "navPower": "电源/唤醒"
     },
     "clarification": {
       "formTitle": "澄清表单",
@@ -12909,6 +12913,10 @@
         "toolName": "工具名称",
         "argsHash": "参数指纹",
         "commandPattern": "命令模式",
+        "expiresAt": "到期时间",
+        "permanent": "永久有效",
+        "expired": "已过期（自动拦截）",
+        "timeBound": "限时授权",
         "deleteSuccess": "已删除记录",
         "deleteError": "删除失败",
         "clearSuccess": "已清除 {count} 条记录",

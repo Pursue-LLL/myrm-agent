@@ -2446,7 +2446,11 @@
       "instructionWithElement": "Was soll der Agent mit diesem mobilen Element tun?",
       "send": "Anweisung senden",
       "doctorAdbMissing": "ADB-Toolchain nicht erkannt. Bitte Android platform-tools installieren.",
-      "doctorDeviceOffline": "Kein Mobilgerät oder Emulator verbunden. USB-Debugging aktivieren und anschließen."
+      "doctorDeviceOffline": "Kein Mobilgerät oder Emulator verbunden. USB-Debugging aktivieren und anschließen.",
+      "navBack": "Zurück",
+      "navHome": "Startbildschirm",
+      "navRecents": "Aktuelle Apps",
+      "navPower": "Ein/Aus"
     },
     "subagent": {
       "viewResults": "Ergebnisse anzeigen"
@@ -8416,7 +8420,17 @@
       "scopePatternDesc": "Folgebefehle mit gleichem Anfang automatisch erlauben",
       "scopePatternPreview": "Merkt ähnliche Befehle wie: {pattern}",
       "scopePatternUnavailable": "Kettenbefehle unterstützen keine Musterübereinstimmung.",
-      "scopePermissionDesc": "Alle Tools vom Typ {permissionType} automatisch zulassen"
+      "scopePermissionDesc": "Alle Tools vom Typ {permissionType} automatisch zulassen",
+      "durationLabel": "Gültigkeitsdauer",
+      "durationSession": "Nur aktuelle Sitzung (empfohlen)",
+      "duration15m": "15 Minuten temporär (Batch-Ausführung)",
+      "duration1h": "1 Stunde (Aktives Debugging)",
+      "durationPermanent": "Dauerhaft erlauben (Hohes Risiko)",
+      "durationSessionDesc": "Die temporäre Freigabe erlischt automatisch beim Beenden oder Neuladen der Sitzung.",
+      "duration15mDesc": "Überspringt Genehmigungen für 15 Minuten, stellt danach den Schutz wieder her.",
+      "duration1hDesc": "Überspringt Genehmigungen für 1 Stunde, stellt danach den Schutz wieder her.",
+      "durationPermanentDesc": "Wird dauerhaft zur Whitelist hinzugefügt. Künftige Aufrufe erfordern keine Freigabe mehr.",
+      "permanentRiskWarning": "Warnung: Dauerhafte Freigabe lässt die Operation unbegrenzt offen. Bei indirekter Prompt Injection besteht Eskalationsgefahr."
     },
     "permissionTypes": {
       "codeInterpreter": "Codeausführung",

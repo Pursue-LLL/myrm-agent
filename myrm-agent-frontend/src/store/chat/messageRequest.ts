@@ -148,6 +148,8 @@ export interface ChatActionsState {
   contextPinnedFiles: string[];
   contextBranchesLoadError: string | null;
   contextPinnedFilesLoadError: string | null;
+  activeKnowledgeBaseIds: string[];
+  activeKnowledgeBaseNames: Record<string, string>;
   regenerateSiblingGroupId?: string;
   regenerateInstruction?: string;
   clearMentionReferences: () => void;

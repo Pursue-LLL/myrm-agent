@@ -10,7 +10,7 @@ import { Label } from '@/components/primitives/label';
 import { Input } from '@/components/primitives/input';
 import { Checkbox } from '@/components/primitives/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
-import type { AllowAlwaysScope } from '@/lib/approval/allowAlwaysScope';
+import type { AllowAlwaysDuration, AllowAlwaysScope } from '@/lib/approval/allowAlwaysScope';
 import { deriveCommandPattern } from '@/lib/approval/shellCommandDisplay';
 
 interface EditModeViewProps {
@@ -23,6 +23,8 @@ interface EditModeViewProps {
   setAllowAlwaysInEdit: (checked: boolean) => void;
   allowAlwaysScopeInEdit: AllowAlwaysScope;
   setAllowAlwaysScopeInEdit: (scope: AllowAlwaysScope) => void;
+  allowAlwaysDurationInEdit?: AllowAlwaysDuration;
+  setAllowAlwaysDurationInEdit?: (duration: AllowAlwaysDuration) => void;
   permissionTypeLabel: string;
   toolName: string;
   shellCommand?: string;
@@ -43,6 +45,8 @@ export default function EditModeView({
   setAllowAlwaysInEdit,
   allowAlwaysScopeInEdit,
   setAllowAlwaysScopeInEdit,
+  allowAlwaysDurationInEdit = 'session',
+  setAllowAlwaysDurationInEdit,
   permissionTypeLabel,
   toolName,
   shellCommand = '',
@@ -147,6 +151,31 @@ export default function EditModeView({
                     <span className="text-destructive">{t('allowAlwaysConfirm.scopePatternUnavailable')}</span>
                   )}
                 </p>
+              )}
+
+              {setAllowAlwaysDurationInEdit && (
+                <div className="pt-2 border-t border-border/40 space-y-1">
+                  <Select
+                    value={allowAlwaysDurationInEdit}
+                    onValueChange={(v) => setAllowAlwaysDurationInEdit(v as AllowAlwaysDuration)}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="session">{t('allowAlwaysConfirm.durationSession')}</SelectItem>
+                      <SelectItem value="15m">{t('allowAlwaysConfirm.duration15m')}</SelectItem>
+                      <SelectItem value="1h">{t('allowAlwaysConfirm.duration1h')}</SelectItem>
+                      <SelectItem value="permanent">{t('allowAlwaysConfirm.durationPermanent')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">
+                    {allowAlwaysDurationInEdit === 'session' && t('allowAlwaysConfirm.durationSessionDesc')}
+                    {allowAlwaysDurationInEdit === '15m' && t('allowAlwaysConfirm.duration15mDesc')}
+                    {allowAlwaysDurationInEdit === '1h' && t('allowAlwaysConfirm.duration1hDesc')}
+                    {allowAlwaysDurationInEdit === 'permanent' && t('allowAlwaysConfirm.durationPermanentDesc')}
+                  </p>
+                </div>
               )}
             </div>
           )}

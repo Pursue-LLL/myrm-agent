@@ -48,6 +48,7 @@ export interface UpdateSharedContextRequest {
 export interface SharedContextBinding {
   id: string;
   context_id: string;
+  context_name?: string;
   target_type: SharedContextTargetType;
   target_id: string;
   created_at: string;

@@ -186,6 +186,7 @@ class PermissionApprovalRequest(BaseModel):
 
     approved: bool
     always_allow: bool = Field(default=False, description="是否永久允许（添加到白名单）")
+    ttl_seconds: int | float | None = Field(default=None, description="临时授权有效期（秒），到期自动撤销")
     reason: str | None = None
 
 
@@ -222,6 +223,7 @@ class AllowlistEntryResponse(BaseModel):
     tool_name: str | None = None
     tool_args_hash: str | None = None
     created_at: float
+    expires_at: float | None = None
 
 
 class AllowlistResponse(BaseModel):
@@ -406,18 +408,21 @@ async def approve_request(
 
     pending = _pending_requests.pop(request_id)
 
-    # If user clicks "Always Allow", add to persistent allowlist
+    # If user clicks "Always Allow", add to allowlist (permanent or time-bound)
     if approval.approved and approval.always_allow:
         try:
+            import time
             permission_type = _action_to_permission(pending.action)
+            expires_at = (time.time() + float(approval.ttl_seconds)) if approval.ttl_seconds and approval.ttl_seconds > 0 else None
             entry = AllowlistEntry(
                 permission=permission_type,
                 tool_name=None,  # Permission-level match (all tools of this type)
                 tool_args_hash=None,
+                expires_at=expires_at,
             )
             allowlist = get_allowlist()
             await allowlist.add(LOCAL_USER_ID, entry)
-            logger.info(f"Added to allowlist: permission={permission_type}, user={LOCAL_USER_ID}")
+            logger.info(f"Added to allowlist: permission={permission_type}, user={LOCAL_USER_ID}, expires_at={expires_at}")
         except Exception as e:
             logger.error(f"Failed to add to allowlist: {e}", exc_info=True)
 
@@ -476,13 +481,18 @@ async def get_allowlist_entries() -> AllowlistResponse:
 
         entries = []
         if LOCAL_USER_ID in allowlist._entries:
+            import time
+            now = time.time()
             for entry in allowlist._entries[LOCAL_USER_ID].values():
+                if entry.expires_at is not None and entry.expires_at <= now:
+                    continue
                 entries.append(
                     AllowlistEntryResponse(
                         permission=entry.permission,
                         tool_name=entry.tool_name,
                         tool_args_hash=entry.tool_args_hash,
                         created_at=entry.created_at,
+                        expires_at=entry.expires_at,
                     )
                 )
 

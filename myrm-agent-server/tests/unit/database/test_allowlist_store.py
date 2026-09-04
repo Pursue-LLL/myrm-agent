@@ -79,3 +79,74 @@ class TestDBAllowlistStore:
         remaining = await store.load(user_id)
         assert len(remaining) == 1
         assert remaining[0].agent_id == "agent_b"
+
+    @pytest.mark.asyncio
+    async def test_save_and_load_with_expires_at(self):
+        import time
+
+        factory = get_session_factory()
+        store = DBAllowlistStore(factory)
+        user_id = "sandbox"
+        future_ts = time.time() + 3600.0
+
+        entry = AllowlistEntry(
+            permission="shell_exec",
+            tool_name="bash",
+            expires_at=future_ts,
+        )
+
+        await store.save(user_id, entry)
+
+        entries = await store.load(user_id)
+        assert len(entries) == 1
+        assert entries[0].expires_at is not None
+        assert abs(entries[0].expires_at - future_ts) < 2.0
+
+    @pytest.mark.asyncio
+    async def test_expired_entry_auto_cleanup(self):
+        import time
+
+        factory = get_session_factory()
+        store = DBAllowlistStore(factory)
+        user_id = "sandbox"
+        past_ts = time.time() - 3600.0
+
+        entry = AllowlistEntry(
+            permission="shell_exec",
+            tool_name="bash",
+            expires_at=past_ts,
+        )
+
+        await store.save(user_id, entry)
+
+        entries = await store.load(user_id)
+        assert len(entries) == 0
+
+    @pytest.mark.asyncio
+    async def test_update_expires_at_on_duplicate_save(self):
+        import time
+
+        factory = get_session_factory()
+        store = DBAllowlistStore(factory)
+        user_id = "sandbox"
+        t1 = time.time() + 1000.0
+        t2 = time.time() + 3600.0
+
+        entry1 = AllowlistEntry(
+            permission="shell_exec",
+            tool_name="bash",
+            expires_at=t1,
+        )
+        await store.save(user_id, entry1)
+
+        entry2 = AllowlistEntry(
+            permission="shell_exec",
+            tool_name="bash",
+            expires_at=t2,
+        )
+        await store.save(user_id, entry2)
+
+        entries = await store.load(user_id)
+        assert len(entries) == 1
+        assert entries[0].expires_at is not None
+        assert abs(entries[0].expires_at - t2) < 2.0

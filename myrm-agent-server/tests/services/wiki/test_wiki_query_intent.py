@@ -95,12 +95,39 @@ def test_should_use_wiki_knowledge_lane_accepts_with_vault_content(
 ) -> None:
     monkeypatch.setattr(
         "app.services.wiki.wiki_query_intent.is_vault_ready",
-        lambda _agent_id=None: True,
+        lambda _agent_id=None, shared_context_ids=None: True,
     )
     monkeypatch.setattr(
         "app.services.wiki.wiki_query_intent.vault_has_wiki_content",
-        lambda _agent_id=None: True,
+        lambda _agent_id=None, shared_context_ids=None: True,
     )
 
     session = _session()
     assert should_use_wiki_knowledge_lane(session) is True
+
+
+def test_should_use_wiki_knowledge_lane_accepts_when_primary_empty_but_shared_vault_has_content(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_vault_content(agent_id=None, shared_context_ids=None):
+        if shared_context_ids and "kb-shared-handbook" in shared_context_ids:
+            return True
+        return False
+
+    monkeypatch.setattr(
+        "app.services.wiki.wiki_query_intent.is_vault_ready",
+        lambda _agent_id=None, shared_context_ids=None: True,
+    )
+    monkeypatch.setattr(
+        "app.services.wiki.wiki_query_intent.vault_has_wiki_content",
+        fake_vault_content,
+    )
+
+    # 主库为空，未挂载知识库 -> 拒绝
+    session_no_shared = _session(agent_id="new_agent")
+    assert should_use_wiki_knowledge_lane(session_no_shared) is False
+
+    # 主库为空，但挂载了共享知识库 -> 准入
+    session_with_shared = _session(agent_id="new_agent")
+    session_with_shared.params.memory_shared_context_ids = ["kb-shared-handbook"]
+    assert should_use_wiki_knowledge_lane(session_with_shared) is True

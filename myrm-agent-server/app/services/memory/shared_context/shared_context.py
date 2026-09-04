@@ -23,6 +23,7 @@ from typing import Literal, cast
 from nanoid import generate as nanoid
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database.connection import get_session
 from app.database.models import (
@@ -257,9 +258,12 @@ class SharedContextService:
         normalized_target_id = _normalize_required(target_id, field_name="target_id", max_length=255)
         stmt = (
             select(SharedContextBindingModel)
+            .join(SharedContextBindingModel.context)
+            .options(selectinload(SharedContextBindingModel.context))
             .where(
                 SharedContextBindingModel.target_type == _validate_target_type(target_type),
                 SharedContextBindingModel.target_id == normalized_target_id,
+                SharedContextModel.status == "active",
             )
             .order_by(SharedContextBindingModel.created_at.desc())
         )
