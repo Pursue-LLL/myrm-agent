@@ -8,7 +8,8 @@
 
 | 子目录            | 职责                                                                             |
 | ----------------- | -------------------------------------------------------------------------------- |
-| `cards/`          | 单条记忆卡片与展示件（MemoryCard/ConflictCard/TypeIcon/Stats/详情 Sheet/摘要卡） |
+| `cards/`          | 单条记忆卡片与展示件（MemoryCard/ConflictCard/TypeIcon/Stats/详情 Sheet/摘要卡/EvidenceBadge） |
+| `drawers/`        | 抽屉浮层组件（EvidenceDrawer 证据溯源与上下文切片回放抽屉）                      |
 | `command-center/` | 记忆命令中心（主布局/高级面板/Chrome/Doctor 诊断/主内容区面板编排）              |
 | `dialogs/`        | 记忆相关对话框（创建/编辑/清空/归档恢复/导入审阅/共享规则/Connect Wizard）       |
 | `guides/`         | 引导与说明卡（首次引导/分层说明）                                                |
@@ -25,15 +26,22 @@
 
 | 文件                           | 地位 | 职责                                                                                    | I/O/P |
 | ------------------------------ | ---- | --------------------------------------------------------------------------------------- | ----- |
-| `MemoryCard.tsx`               | 核心 | 单条记忆卡片（类型/icon/摘要/操作菜单；procedural 规则 TTL 显示，用户锁定隐藏过期天数） | ✅    |
+| `MemoryCard.tsx`               | 核心 | 单条记忆卡片（类型/icon/摘要/操作菜单；procedural 规则 TTL 显示，用户锁定隐藏过期天数；集成 EvidenceBadge） | ✅    |
 | `MemoryScopeHierarchyCard.tsx` | 组件 | 记忆作用域层级图谱卡片（Task/Conversation/Agent/Global 四级统一生命周期与隔离可视化）   | ✅    |
 | `MemoryScopePicker.tsx`        | 组件 | 记忆作用域级别选择器（创建/编辑记忆时直观选择作用域范围与描述提示）                     | ✅    |
 | `ConflictCard.tsx`             | 组件 | 冲突记忆卡                                                                              | ✅    |
 | `MemoryDetailSheet.tsx`        | 组件 | 记忆详情 Sheet（全文/metadata/来源）                                                    | ✅    |
 | `MemoryTypeIcon.tsx`           | 辅助 | 记忆类型 → 图标映射                                                                     | ✅    |
 | `MemoryStats.tsx`              | 组件 | 记忆数量/类型统计摘要                                                                   | ✅    |
+| `EvidenceBadge.tsx`            | 组件 | 证据链胶囊徽章（原话引文摘要、侧边抽屉呼出与纠偏加锁联动）                             | ✅    |
 | `PreferenceStabilityCard.tsx`  | 组件 | 偏好稳定性卡                                                                            | ✅    |
 | `TasteSummaryCard.tsx`         | 组件 | 口味摘要卡                                                                              | ✅    |
+
+### drawers/
+
+| 文件                 | 地位 | 职责                                                                                          | I/O/P |
+| -------------------- | ---- | --------------------------------------------------------------------------------------------- | ----- |
+| `EvidenceDrawer.tsx` | 组件 | 证据溯源抽屉浮层（异步拉取上下文切片、原话模糊高亮、敏感凭据屏蔽、一键误判标记与纠偏加锁）   | ✅    |
 
 ### command-center/
 

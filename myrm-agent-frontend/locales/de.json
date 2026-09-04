@@ -2861,6 +2861,19 @@
       "success": "Als Eval-Fall erfasst",
       "successDesc": "Chat-Verlauf erfolgreich als Benchmark-Datensatz extrahiert",
       "error": "Fehler beim Erfassen des Eval-Falls"
+    },
+    "callGraph": {
+      "title": "Aufrufgrafik-Analyse",
+      "callers": "Aufrufer",
+      "reachingTests": "Zugehörige Tests",
+      "physicalCallChain": "Physische Aufrufkette",
+      "noCallers": "Keine externen Aufrufstellen gefunden",
+      "params": "Parameter",
+      "testImpact": "Testauswirkungen & Explosionsradius",
+      "noTests": "Keine Tests gefunden, die diese Logik abdecken",
+      "depth": "Tiefe",
+      "level": "Ebene",
+      "runAffectedTests": "{count} betroffene Test-Suites ausführen"
     }
   },
   "mode": {

@@ -2861,19 +2861,6 @@
       "success": "評価ケースとして正常に抽出しました",
       "successDesc": "会話履歴を評価ベンチマークデータセットに書き込みました",
       "error": "評価ケースの抽出に失敗しました"
-    },
-    "callGraph": {
-      "title": "コード呼び出しグラフ分析",
-      "callers": "呼び出し元",
-      "reachingTests": "関連テスト",
-      "physicalCallChain": "物理呼び出しチェーン",
-      "noCallers": "外部呼び出し箇所が検出されませんでした",
-      "params": "引数",
-      "testImpact": "テスト影響範囲と波及半径",
-      "noTests": "このロジックをカバーするテストケースが検出されませんでした",
-      "depth": "深度",
-      "level": "階層",
-      "runAffectedTests": "影響を受ける {count} 件のテストを実行"
     }
   },
   "mode": {
