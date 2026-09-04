@@ -29,6 +29,7 @@ from app.api.memory.operations.command_center_actions import (
 )
 from app.api.memory.utils import get_crud_memory_manager
 from app.schemas.memory.command_center import (
+    MemoryBehavioralInsightsResponse,
     MemoryCommandActionRequest,
     MemoryCommandActionResponse,
     MemoryCommandCenterResponse,
@@ -40,10 +41,55 @@ from app.schemas.memory.command_center import (
     MemoryCommandTimelineEvent,
     MemoryRecallBoundaryData,
 )
+from app.services.memory.behavioral.measurement_service import BehavioralMeasurementService
 from app.services.memory.command_center.command_center import MemoryCommandCenterService
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
 router = APIRouter(prefix="/command-center")
+
+
+@router.get("/behavioral-insights", response_model=MemoryBehavioralInsightsResponse)
+async def get_behavioral_insights(
+    lookback_days: int = 30,
+    db: AsyncSession = Depends(get_db_session),
+    memory_manager: MemoryManager = Depends(get_crud_memory_manager),
+) -> MemoryBehavioralInsightsResponse:
+    """Return deterministic zero-model-cost behavioral routine metrics."""
+    service = BehavioralMeasurementService(db, memory_manager)
+    measurement = await service.measure(lookback_days=lookback_days)
+    return MemoryBehavioralInsightsResponse(
+        hour_histogram=measurement.hour_histogram,
+        workday_hour_histogram=measurement.workday_hour_histogram,
+        weekend_hour_histogram=measurement.weekend_hour_histogram,
+        weekday_histogram=measurement.weekday_histogram,
+        reply_latency_p50_ms=measurement.reply_latency_p50_ms,
+        reply_latency_p90_ms=measurement.reply_latency_p90_ms,
+        self_message_count=measurement.self_message_count,
+        latency_sample_count=measurement.latency_sample_count,
+        channel_distribution=measurement.channel_distribution,
+        peak_active_window=measurement.peak_active_window,
+        workday_peak_window=measurement.workday_peak_window,
+        weekend_peak_window=measurement.weekend_peak_window,
+        top_collaborators=measurement.top_collaborators,
+        offset_minutes=480,
+        source="computed_deterministic",
+    )
+
+
+@router.post("/behavioral-sync")
+async def trigger_behavioral_sync(
+    lookback_days: int = 30,
+    db: AsyncSession = Depends(get_db_session),
+    memory_manager: MemoryManager = Depends(get_crud_memory_manager),
+) -> dict[str, object]:
+    """Execute deterministic behavioral measurement and sync qualified profiles."""
+    service = BehavioralMeasurementService(db, memory_manager)
+    updated_keys = await service.sync_profile_attributes(lookback_days=lookback_days)
+    return {
+        "status": "success",
+        "updated_profile_keys": updated_keys,
+        "count": len(updated_keys),
+    }
 
 
 @router.get("", response_model=MemoryCommandCenterResponse)

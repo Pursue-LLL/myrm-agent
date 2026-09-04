@@ -26,6 +26,27 @@ export interface DirectoryGrantOptimistic {
   source: 'path_ask_grant';
 }
 
+export interface SpendReviewConfig {
+  isSpend?: boolean;
+  spendAmount?: number;
+  spendCurrency?: string;
+  actionDigest?: string;
+}
+
+export function extractSpendReviewConfig(
+  reviewConfigs?: Array<{
+    isSpend?: boolean;
+    spendAmount?: number;
+    spendCurrency?: string;
+    actionDigest?: string;
+  }>,
+): SpendReviewConfig | undefined {
+  if (!Array.isArray(reviewConfigs)) {
+    return undefined;
+  }
+  return reviewConfigs.find((cfg) => cfg?.isSpend === true);
+}
+
 export interface ResumeDecisionsPayload {
   decisions: ApprovalDecision[];
 }
@@ -90,16 +111,19 @@ export function buildApprovalDecision(decision: DecisionType, extra?: ToolApprov
       ? allowAlwaysVal.ttl_seconds
       : undefined;
   const effectiveTtl = extra?.ttl_seconds ?? ttlFromAllowAlways;
+  const resolvedDigest = extra?.action_digest || extra?.actionDigest;
 
   return {
     type: decision,
     args: extra?.edited_args,
     feedback: extra?.feedback,
     ...(extra?.guidance && { guidance: extra.guidance }),
+    ...(resolvedDigest && { action_digest: resolvedDigest, actionDigest: resolvedDigest }),
     extensions: {
       allowAlways: allowAlwaysVal,
       ...(effectiveTtl !== undefined && { ttlSeconds: effectiveTtl }),
       ...(extra?.allow_domain && { allowDomain: true }),
+      ...(resolvedDigest && { actionDigest: resolvedDigest, action_digest: resolvedDigest }),
       ...(extra?.grant_directory && {
         grantDirectory: true,
         ...(extra.grant_directory_path && {

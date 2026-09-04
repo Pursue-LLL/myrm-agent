@@ -4402,7 +4402,27 @@
       "embeddingNotReadyDesc": "请先在「设置 > 模型服务」中配置嵌入模型，再使用演示功能。",
       "demoSeedSuccess": "演示数据已生成！",
       "demoSeedSuccessDesc": "现在可以探索记忆图谱和语义搜索。",
-      "demoRollbackSuccess": "演示数据已清理！"
+      "demoRollbackSuccess": "演示数据已清理！",
+      "behavioral": {
+        "title": "行为特征与作息感知",
+        "description": "基于真实交互时间戳与响应节奏，纯本地确定性算法统计（零模型成本）。",
+        "workdayTitle": "工作日活跃作息 (周一至周五)",
+        "weekendTitle": "周末活跃作息 (周六至周日)",
+        "workdayPeak": "工作日高峰：{window}",
+        "weekendPeak": "周末高峰：{window}",
+        "responseLatency": "交互响应节奏",
+        "latencyP50": "中位响应时延 P50：{time}",
+        "latencyP90": "慢速响应时延 P90：{time}",
+        "collaborators": "常用协作对象",
+        "noCollaborators": "暂无高频协作者统计",
+        "samplingProgress": "行为特征采样进度",
+        "samplesCollected": "已收集 {count} / {target} 条有效消息样本",
+        "learningHint": "正在通过日常交互建立您的客观工作习惯，满 20 条后将自动沉淀为确定性画像。",
+        "syncButton": "立即同步画像",
+        "syncSuccess": "行为画像已成功同步！",
+        "syncFailed": "同步行为画像失败",
+        "zeroTokenBadge": "0 模型成本 · 确定性计算"
+      }
     },
     "createDialog": {
       "title": "添加记忆",
@@ -8498,7 +8518,13 @@
     "action": "操作",
     "jsExpression": "JavaScript 表达式",
     "clarificationRequired": "需要错误澄清",
-    "fixParameters": "修复参数（JSON）"
+    "fixParameters": "修复参数（JSON）",
+    "spendProtection": {
+      "title": "金融交易支出保护",
+      "description": "智能体正在请求外部资金支出，参数完整性已由密码学封签保护。",
+      "amount": "支出金额",
+      "tamperProtected": "SHA-256 防篡改保护"
+    }
   },
   "notifications": {
     "title": "系统通知",

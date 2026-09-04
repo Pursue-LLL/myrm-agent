@@ -612,6 +612,36 @@ export interface MemoryRecallBoundaryData {
   total_approved: number;
 }
 
+export interface MemoryBehavioralInsights {
+  hour_histogram: number[];
+  workday_hour_histogram: number[];
+  weekend_hour_histogram: number[];
+  weekday_histogram: number[];
+  reply_latency_p50_ms?: number | null;
+  reply_latency_p90_ms?: number | null;
+  self_message_count: number;
+  latency_sample_count: number;
+  channel_distribution: Record<string, number>;
+  peak_active_window?: string | null;
+  workday_peak_window?: string | null;
+  weekend_peak_window?: string | null;
+  top_collaborators: [string, number][];
+  offset_minutes: number;
+  source: string;
+}
+
+export const getBehavioralInsights = async (lookbackDays: number = 30): Promise<MemoryBehavioralInsights> => {
+  return apiRequest<MemoryBehavioralInsights>(`/memory/command-center/behavioral-insights?lookback_days=${lookbackDays}`);
+};
+
+export const triggerBehavioralSync = async (lookbackDays: number = 30): Promise<{ status: string; updated_profile_keys: string[]; count: number }> => {
+  return apiRequest<{ status: string; updated_profile_keys: string[]; count: number }>(`/memory/command-center/behavioral-sync?lookback_days=${lookbackDays}`, {
+    method: 'POST',
+  });
+};
+
+
+
 export const getMemoryRecallBoundary = async (agentId?: string, taskId?: string): Promise<MemoryRecallBoundaryData> => {
   const params = new URLSearchParams();
   if (agentId) params.set('agent_id', agentId);

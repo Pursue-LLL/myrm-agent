@@ -8498,7 +8498,13 @@
     "mcpElicitationTitle": "MCP 服務確認",
     "mcpElicitationServer": "服務",
     "clarificationRequired": "需要錯誤釐清",
-    "fixParameters": "修正參數（JSON）"
+    "fixParameters": "修正參數（JSON）",
+    "spendProtection": {
+      "title": "金融交易支出保護",
+      "description": "智慧體正在請求外部資金支出，參數完整性已由密碼學封籤保護。",
+      "amount": "支出金額",
+      "tamperProtected": "SHA-256 防篡改保護"
+    }
   },
   "notifications": {
     "title": "系統通知",

@@ -633,6 +633,8 @@ class MemoryBehavioralInsightsResponse(BaseModel):
     """Deterministic behavioral routine insights response."""
 
     hour_histogram: list[int] = Field(default_factory=lambda: [0] * 24)
+    workday_hour_histogram: list[int] = Field(default_factory=lambda: [0] * 24)
+    weekend_hour_histogram: list[int] = Field(default_factory=lambda: [0] * 24)
     weekday_histogram: list[int] = Field(default_factory=lambda: [0] * 7)
     reply_latency_p50_ms: float | None = None
     reply_latency_p90_ms: float | None = None
@@ -640,5 +642,8 @@ class MemoryBehavioralInsightsResponse(BaseModel):
     latency_sample_count: int = 0
     channel_distribution: dict[str, int] = Field(default_factory=dict)
     peak_active_window: str | None = None
+    workday_peak_window: str | None = None
+    weekend_peak_window: str | None = None
+    top_collaborators: list[tuple[str, int]] = Field(default_factory=list)
     offset_minutes: int = 480
     source: str = "persisted"

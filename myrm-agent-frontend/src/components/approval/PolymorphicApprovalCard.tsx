@@ -39,6 +39,7 @@ import ApprovalScopeNoteLine from '@/components/approval/ApprovalScopeNoteLine';
 import CompactFileWriteApprovalRow from '@/components/approval/CompactFileWriteApprovalRow';
 import SaveSkillApprovalPreview from '@/components/approval/SaveSkillApprovalPreview';
 import { isSaveSkillApproval } from '@/lib/approval/saveSkillApproval';
+import { ShieldCheck } from 'lucide-react';
 import {
   extractShellCommand,
   getShellEditInputEntries,
@@ -276,7 +277,23 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     if (!configs || !Array.isArray(configs)) {
       return false;
     }
-    return configs.some((c) => c?.hideAllowAlways === true);
+    return configs.some((c) => c?.hideAllowAlways === true || c?.isSpend === true);
+  }, [approval.payload?.reviewConfigs]);
+
+  const spendConfig = useMemo(() => {
+    const configs = approval.payload?.reviewConfigs;
+    if (!configs || !Array.isArray(configs)) {
+      return null;
+    }
+    const found = configs.find((c) => c?.isSpend === true);
+    if (!found) {
+      return null;
+    }
+    return {
+      amount: found.spendAmount,
+      currency: found.spendCurrency || 'USD',
+      actionDigest: found.actionDigest,
+    };
   }, [approval.payload?.reviewConfigs]);
   const smartDeniedReason = useMemo(() => {
     const reasons = approval.payload?.reviewerReasons;
@@ -1050,6 +1067,33 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
 
       {renderContent()}
 
+      {spendConfig && (
+        <div className="flex flex-col gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 dark:border-amber-500/30 dark:bg-amber-950/20" data-testid="spend-protection-banner">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+              <h4 className="font-semibold text-sm text-amber-800 dark:text-amber-200">
+                {t('spendProtection.title')}
+              </h4>
+            </div>
+            {spendConfig.actionDigest && (
+              <span className="inline-flex items-center rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-mono text-amber-800 dark:text-amber-300">
+                {t('spendProtection.tamperProtected')}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">{t('spendProtection.description')}</p>
+          {spendConfig.amount !== undefined && (
+            <div className="flex items-baseline gap-2 mt-1 rounded bg-background/60 px-3 py-2 border border-border/50">
+              <span className="text-xs text-muted-foreground">{t('spendProtection.amount')}:</span>
+              <span className="text-base font-bold font-mono text-foreground">
+                {spendConfig.amount.toFixed(2)} {spendConfig.currency}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {hasAnySmartDenied && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3">
           <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
@@ -1132,7 +1176,11 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                     return;
                   }
                 }
-                onResolve('approve', comment, edited_payload, { feedback: comment || undefined });
+                onResolve('approve', comment, edited_payload, {
+                  feedback: comment || undefined,
+                  action_digest: spendConfig?.actionDigest,
+                  actionDigest: spendConfig?.actionDigest,
+                });
               }}
               disabled={isSubmitting}
             >

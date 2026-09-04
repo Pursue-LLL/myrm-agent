@@ -8498,6 +8498,12 @@
       "badge": "Obsidian-Eingang",
       "noteContent": "Notizinhalt",
       "destination": "Tresor"
+    },
+    "spendProtection": {
+      "title": "Schutz vor Finanztransaktionen",
+      "description": "Der Agent fordert eine externe Finanzbuchung an. Die Parameterintegrität ist kryptografisch versiegelt.",
+      "amount": "Abbuchungsbetrag",
+      "tamperProtected": "SHA-256 manipulationsgeschützt"
     }
   },
   "notifications": {

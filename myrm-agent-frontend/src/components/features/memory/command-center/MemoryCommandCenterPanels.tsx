@@ -34,6 +34,7 @@ import { type DoctorExecutableAction } from './MemoryCommandCenterDoctorPanel';
 import { MemoryLayerGuide } from '../guides/MemoryLayerGuide';
 import { resolveReplaySessionId } from '../replay/memoryLiveStream';
 import { ConflictResolutionCard } from '../cards/ConflictResolutionCard';
+import { BehavioralMetricsPanel } from '../insights/BehavioralMetricsPanel';
 
 const MemoryHealthDashboard = lazy(() => import('../insights/MemoryHealthDashboard'));
 
@@ -162,6 +163,9 @@ export const UnderstandSection = ({
   actionId?: string | null;
 }) => (
   <div className="space-y-4">
+    {/* Deterministic Behavioral Routine Metrics Panel (Zero Model Cost) */}
+    <BehavioralMetricsPanel />
+
     <div className="grid gap-4 xl:grid-cols-2">
       <Panel title={t('commandCenter.influenceTitle')}>
         {snapshot.influence.length ? (

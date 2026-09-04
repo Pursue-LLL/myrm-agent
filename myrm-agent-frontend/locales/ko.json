@@ -8498,6 +8498,12 @@
       "badge": "Obsidian 수집함",
       "noteContent": "메모 내용",
       "destination": "보관함"
+    },
+    "spendProtection": {
+      "title": "금융 거래 지출 보호",
+      "description": "에이전트가 외부 자금 지출을 요청하고 있습니다. 매개변수 무결성은 암호화 방식으로 보호됩니다.",
+      "amount": "지출 금액",
+      "tamperProtected": "SHA-256 위변조 방지 보호"
     }
   },
   "notifications": {

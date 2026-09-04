@@ -129,4 +129,15 @@ describe('buildApprovalDecision', () => {
     ).toEqual({ path: '/tmp/proj', writable: true, source: 'path_ask_grant' });
     expect(extractDirectoryGrantOptimistic([buildApprovalDecision('approve')])).toBeUndefined();
   });
+
+  it('binds action_digest in root and extensions for spend protection', () => {
+    const testDigest = 'f8a4e321bc7d901234567890abcdef1234567890abcdef1234567890abcdef12';
+    const decision = buildApprovalDecision('approve', {
+      action_digest: testDigest,
+    });
+    expect(decision.action_digest).toBe(testDigest);
+    expect(decision.actionDigest).toBe(testDigest);
+    expect(decision.extensions.actionDigest).toBe(testDigest);
+    expect(decision.extensions.action_digest).toBe(testDigest);
+  });
 });
