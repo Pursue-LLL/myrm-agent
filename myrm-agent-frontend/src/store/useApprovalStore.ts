@@ -59,6 +59,8 @@ export interface ApprovalPayloadData {
     spendAmount?: number;
     spendCurrency?: string;
     actionDigest?: string;
+    autoModeSuspended?: string;
+    sociallyIrreversible?: boolean;
   }>;
   /** Per-tool reviewer reasons from interrupt payload */
   reviewerReasons?: string[];

@@ -81,11 +81,12 @@
 
 ### insights/
 
-| 文件                        | 地位 | 职责                            | I/O/P |
-| --------------------------- | ---- | ------------------------------- | ----- |
-| `MemoryContextPanel.tsx`    | 组件 | Shared Context 编辑与预览       | ✅    |
-| `MemoryHealthDashboard.tsx` | 组件 | 记忆健康度指标仪表盘            | ✅    |
-| `MemoryKnowledgeGraph.tsx`  | 组件 | 记忆知识图谱 force-graph 可视化 | ✅    |
+| 文件                        | 地位 | 职责                                                                                    | I/O/P |
+| --------------------------- | ---- | --------------------------------------------------------------------------------------- | ----- |
+| `BehavioralMetricsPanel.tsx` | 组件 | 零大模型开销本地确定性行为特征看板（双轨作息直方图、响应时延胶囊、高频协作者排名）     | ✅    |
+| `MemoryContextPanel.tsx`    | 组件 | Shared Context 编辑与预览                                                               | ✅    |
+| `MemoryHealthDashboard.tsx` | 组件 | 记忆健康度指标仪表盘                                                                    | ✅    |
+| `MemoryKnowledgeGraph.tsx`  | 组件 | 记忆知识图谱 force-graph 可视化                                                         | ✅    |
 
 ### pending/
 

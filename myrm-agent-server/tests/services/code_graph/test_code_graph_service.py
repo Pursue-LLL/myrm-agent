@@ -1,3 +1,7 @@
+"""Unit tests for CodeGraphService and multi-language AST extractors."""
+
+from __future__ import annotations
+
 import tempfile
 from pathlib import Path
 

@@ -18,6 +18,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/wb_bench_e2e_helpers.py` | 辅助 | WBBench Chrome E2E 共享探针 SSOT：`SOURCES_READY_JS`、`all_cards_memory_ab_ready_js`（每卡片 Memory A/B 按钮就绪）、`click_subset_memory_ab_js`、`restore_eval_lab_route`、`reset_wb_bench_source` 等 |
 | `support/minimal_app.py` | 核心 | `build_minimal_app(preset=...)` 按需挂载 API 路由；禁止测试 import `app.main` |
 | `api/system/test_shutdown.py` | 单元 | 系统三段式优雅停机、会话排空与 WAL TRUNCATE 强制刷盘集成测试 |
+| `api/memory/test_evidence_playback_api.py` | 单元 | 记忆证据链溯源、上下文切片回放与凭据脱敏 API 集成测试 |
 | `support/feature_flags.py` | 辅助 | `seed_voice_interaction_flags()`，供 `tests/api/voice`、`tests/api/stt` conftest autouse |
 | `support/verify_api_base.py` | 辅助 | Live 集成测 verify-api 私池 base SSOT（`resolve_verify_api_base()`；epoch 匹配 + `--ensure-backend` seed） |
 | `support/theme_marketplace_e2e.py` | 辅助 | Theme marketplace E2E：CP 探活、JWT、official seed、listing 查询 |
@@ -294,6 +295,7 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - **A2UI 跨轮 DB patch 单测**：`tests/services/chat/test_ui_artifact_patch.py`（双 turn seed → `patch_ui_artifact_data_by_surface_id` → GET messages 断言 merged binding；collector 跨轮队列；finalize 接线）
 - `tests/integration/test_render_ui_sse_wiring.py`：render_ui 确定性集成（20 场景：run_bind、fail-closed、data_update、collector 链、幂等）
 - `tests/integration/test_ui_artifact_cross_turn_db_integration.py`：跨轮 `data_update` collector 队列 → 真实 SQLite patch → GET messages 断言 merged binding（无 mock 持久化路径）
+- `tests/services/code_graph/test_code_graph_service.py`：AST 抽取器与 CodeGraphService 符号/调用图谱/拓扑查询单元测试
 - 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；避免 `-n auto`（多 worker RSS 叠加，`-n auto` 在 8 核上可达数 GB）
 - 定位高内存文件：`uv run python scripts/dev/profile_test_memory.py tests/api/agent --top 20`
 - WebUI E2E：MCP **chrome-devtools** + Myrm E2E Chrome `:9333`（`./myrm ready --chrome`）；marker **`chrome_e2e`**（`lane=READ|LIVE_AGENT`）；禁止 `@playwright/test`。正式入口 **`./myrm test -m chrome_e2e`**；`tests/e2e/test_*_chrome_e2e.py`（含 Goal、execution_cache、edge_tts、parallel_tabs READ lane、`test_channel_routing_general_only_chrome_e2e` General-only 签收、`test_push_approval_deeplink_chrome_e2e` 等）；READ 只读测例不占 LIVE_AGENT cap（`scripts/dev/e2e_session/lane.py`）
