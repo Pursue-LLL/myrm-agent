@@ -485,7 +485,7 @@ async def test_export_chat_includes_tool_call_details(
 async def test_export_tool_call_details_sanitizes_sensitive_args(
     async_client: httpx.AsyncClient,
 ) -> None:
-    """Tool call argsSummary redacts fields containing 'key', 'secret', 'token'."""
+    """Tool call argsSummary redacts sensitive tokens via SSOT redaction engine."""
     from datetime import datetime, timezone
 
     chat_id = f"test-export-sanitize-{uuid.uuid4().hex[:8]}"
@@ -519,7 +519,7 @@ async def test_export_tool_call_details_sanitizes_sensitive_args(
     details = res.json()["data"]["toolCallDetails"]
     assert len(details) == 1
     assert "sk-1234secret" not in details[0]["argsSummary"]
-    assert "***" in details[0]["argsSummary"]
+    assert details[0]["argsSummary"].startswith("api_key=")
     assert "https://example.com" in details[0]["argsSummary"]
     assert details[0]["success"] is True
 
