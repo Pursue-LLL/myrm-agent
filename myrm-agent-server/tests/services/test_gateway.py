@@ -854,6 +854,87 @@ class TestGetActiveBrowserSession:
 
         assert gw.get_active_browser_session(session_id="s1") is None
 
+    def test_get_active_browser_session_with_space_id(self) -> None:
+        """Resolves task space session from _browser_spaces when space_id is given."""
+        gw = AgentGateway(_cfg())
+
+        class FakeBrowserSession:
+            pass
+
+        class FakeSpaceSession:
+            pass
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._browser_session = FakeBrowserSession()
+                self._browser_spaces = {"space-1": FakeSpaceSession()}
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        # Matching space_id returns space session
+        assert gw.get_active_browser_session(session_id="s1", space_id="space-1") is agent._browser_spaces["space-1"]
+        # Non-matching space_id falls back to default _browser_session
+        assert gw.get_active_browser_session(session_id="s1", space_id="space-other") is agent._browser_session
+
+    def test_list_browser_spaces(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        class FakeSpace:
+            def __init__(self, name: str) -> None:
+                self.task_space_name = name
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._browser_spaces = {
+                    "sp-1": FakeSpace("Stripe Research"),
+                    "sp-2": FakeSpace("Adyen Research"),
+                }
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        spaces = gw.list_browser_spaces(session_id="s1")
+        assert len(spaces) == 2
+        assert spaces[0]["space_id"] == "sp-1"
+        assert spaces[0]["name"] == "Stripe Research"
+        assert spaces[1]["space_id"] == "sp-2"
+
+    @pytest.mark.asyncio
+    async def test_stop_browser_space(self) -> None:
+        gw = AgentGateway(_cfg())
+
+        class FakeSpace:
+            def __init__(self) -> None:
+                self.closed = False
+
+            async def close(self) -> None:
+                self.closed = True
+
+        space1 = FakeSpace()
+        space2 = FakeSpace()
+
+        class FakeAgent:
+            def __init__(self) -> None:
+                self._browser_spaces = {"sp-1": space1, "sp-2": space2}
+                self._browser_session = space1
+
+        agent = FakeAgent()
+        info = ActiveSessionInfo(chat_id="s1", agent_type="test")
+        info.agent = weakref.ref(agent)
+        gw._session_info["s1"] = info
+
+        stopped = await gw.stop_browser_space(session_id="s1", space_id="sp-1")
+        assert stopped is True
+        assert space1.closed is True
+        assert "sp-1" not in agent._browser_spaces
+        # Main session falls back to remaining space
+        assert agent._browser_session is space2
+
 
 class TestGetActiveDesktopSession:
     """Tests for AgentGateway.get_active_desktop_session."""

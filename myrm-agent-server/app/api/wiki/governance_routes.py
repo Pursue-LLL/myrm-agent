@@ -64,12 +64,21 @@ async def get_governance_overview(
     from app.services.wiki.governance import WikiGovernanceFreshnessService
 
     pending_count = archiver._pending_mgr.count_synthesis_pending() if hasattr(archiver, "_pending_mgr") else 0
+    from myrm_agent_harness.toolkits.wiki.diagnostics.structural_lint import (
+        collect_provenance_gap_issues,
+    )
+
+    try:
+        gaps_count = len(collect_provenance_gap_issues(archiver._structure))
+    except Exception:
+        gaps_count = 0
+
     service = WikiGovernanceFreshnessService(
         structure=archiver._structure,
         indexer=archiver._indexer,
         freshness_threshold_days=threshold_days,
     )
-    res = service.get_governance_overview(pending_count=pending_count)
+    res = service.get_governance_overview(pending_count=pending_count, gaps_count=gaps_count)
     return res.to_dict()
 
 

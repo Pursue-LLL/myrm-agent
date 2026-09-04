@@ -18461,5 +18461,18 @@
       "skills": "Fähigkeiten",
       "sandbox": "Sicherheits-Sandbox"
     }
+  },
+  "taskSpaces": {
+    "title": "Parallele Browser-Arbeitsbereiche",
+    "badgeRunning": "Aktiv",
+    "badgeIdle": "Bereit",
+    "badgeTakeover": "Manuelle Übernahme",
+    "takeoverBtn": "Übernehmen",
+    "releaseTakeoverBtn": "An Agent übergeben",
+    "closeSpaceBtn": "Bereich schließen",
+    "activePages": "{count} aktive Tabs",
+    "emptyState": "Keine aktiven parallelen Browser-Bereiche",
+    "snapshotPreview": "Live-Bereichs-Snapshot",
+    "takeoverHint": "Sie haben die manuelle Kontrolle. Nach Abschluss an den Agenten übergeben."
   }
 }

@@ -217,11 +217,16 @@ class AgentGateway:
             return self._config.max_per_user
         return max(0, sem._value)
 
-    def get_active_browser_session(self, session_id: str | None = None) -> object | None:
-        """Get BrowserSession for a specific chat/session id.
+    def get_active_browser_session(
+        self,
+        session_id: str | None = None,
+        space_id: str | None = None,
+    ) -> object | None:
+        """Get BrowserSession for a specific chat/session id and optional task space id.
 
         Args:
             session_id: Chat/session id (required). Returns None when omitted.
+            space_id: Optional task space id. If provided, resolves matching space first.
         """
         if not session_id:
             return None
@@ -230,7 +235,84 @@ class AgentGateway:
         if not info or info.agent is None:
             return None
         agent = info.agent()
-        return getattr(agent, "_browser_session", None) if agent else None
+        if not agent:
+            return None
+
+        if space_id:
+            spaces = getattr(agent, "_browser_spaces", None)
+            if isinstance(spaces, dict) and space_id in spaces:
+                return spaces[space_id]
+
+        return getattr(agent, "_browser_session", None)
+
+    def list_browser_spaces(self, session_id: str | None = None) -> list[dict[str, object]]:
+        """List active browser task spaces for a specific chat session."""
+        if not session_id:
+            return []
+        info = self._session_info.get(session_id)
+        if not info or info.agent is None:
+            return []
+        agent = info.agent()
+        if not agent:
+            return []
+
+        result: list[dict[str, object]] = []
+        browser_spaces = getattr(agent, "_browser_spaces", None)
+        if isinstance(browser_spaces, dict) and browser_spaces:
+            for s_id, s_obj in browser_spaces.items():
+                result.append(
+                    {
+                        "space_id": s_id,
+                        "name": getattr(s_obj, "task_space_name", None) or s_id,
+                        "is_active": True,
+                    }
+                )
+        elif getattr(agent, "_browser_session", None) is not None:
+            s_obj = agent._browser_session
+            s_id = str(getattr(s_obj, "task_space_id", "default") or "default")
+            s_name = getattr(s_obj, "task_space_name", None) or "Main Space"
+            result.append(
+                {
+                    "space_id": s_id,
+                    "name": s_name,
+                    "is_active": True,
+                }
+            )
+        return result
+
+    async def stop_browser_space(self, session_id: str, space_id: str) -> bool:
+        """Stop and release a specific browser task space."""
+        if not session_id or not space_id:
+            return False
+        info = self._session_info.get(session_id)
+        if not info or info.agent is None:
+            return False
+        agent = info.agent()
+        if not agent:
+            return False
+
+        browser_spaces = getattr(agent, "_browser_spaces", None)
+        if isinstance(browser_spaces, dict) and space_id in browser_spaces:
+            s_obj = browser_spaces.pop(space_id)
+            if getattr(agent, "_browser_session", None) is s_obj:
+                agent._browser_session = next(iter(browser_spaces.values()), None)
+            if hasattr(s_obj, "close"):
+                try:
+                    await s_obj.close()
+                except Exception as e:
+                    logger.warning("Failed to close stopped space %s: %s", space_id, e)
+            return True
+
+        if space_id in ("default", "") and getattr(agent, "_browser_session", None) is not None:
+            try:
+                await agent._browser_session.close()
+            except Exception as e:
+                logger.warning("Failed to close default browser session: %s", e)
+            finally:
+                agent._browser_session = None
+            return True
+
+        return False
 
     def get_first_active_browser_session(self) -> object | None:
         """Return the first active browser session across chats (legacy internal callers only)."""

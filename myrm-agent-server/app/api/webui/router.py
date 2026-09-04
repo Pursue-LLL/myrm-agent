@@ -316,12 +316,16 @@ async def welcome_page(
 
 
 @router.get("/browser/snapshot")
-async def get_browser_snapshot(chat_id: str | None = None) -> JSONResponse:
+async def get_browser_snapshot(
+    chat_id: str | None = None,
+    space_id: str | None = None,
+) -> JSONResponse:
     """Get the latest browser snapshot (screenshot + ARIA refs with BBox data).
 
     Returns screenshot, page metadata, and interactive element bounding boxes
     for the Browser Inspector panel in the frontend.
     Requires ``chat_id`` to scope the lookup to the active chat session.
+    Optional ``space_id`` scopes to a specific parallel browser task space.
     """
     from app.services.agent.browser_snapshot import (
         BrowserSnapshotUnavailableError,
@@ -329,7 +333,7 @@ async def get_browser_snapshot(chat_id: str | None = None) -> JSONResponse:
     )
 
     try:
-        payload = await collect_browser_snapshot_payload(chat_id=chat_id)
+        payload = await collect_browser_snapshot_payload(chat_id=chat_id, space_id=space_id)
     except BrowserSnapshotUnavailableError as exc:
         return JSONResponse(
             status_code=exc.status_code,
@@ -343,6 +347,38 @@ async def get_browser_snapshot(chat_id: str | None = None) -> JSONResponse:
         )
 
     return JSONResponse(content=payload)
+
+
+@router.get("/browser/spaces")
+async def get_browser_spaces(chat_id: str | None = None) -> JSONResponse:
+    """Get active browser task spaces for a chat session."""
+    resolved = (chat_id or "").strip()
+    if not resolved:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "missing_chat_id", "message": "chat_id is required"},
+        )
+    from app.services.agent.gateway import get_agent_gateway
+
+    gateway = get_agent_gateway()
+    spaces = gateway.list_browser_spaces(session_id=resolved)
+    return JSONResponse(content={"spaces": spaces})
+
+
+@router.post("/browser/spaces/{space_id}/stop")
+async def stop_browser_space(space_id: str, chat_id: str | None = None) -> JSONResponse:
+    """Stop and release a specific browser task space."""
+    resolved = (chat_id or "").strip()
+    if not resolved:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "missing_chat_id", "message": "chat_id is required"},
+        )
+    from app.services.agent.gateway import get_agent_gateway
+
+    gateway = get_agent_gateway()
+    stopped = await gateway.stop_browser_space(session_id=resolved, space_id=space_id)
+    return JSONResponse(content={"success": stopped, "space_id": space_id})
 
 
 @router.get("/desktop/permissions")

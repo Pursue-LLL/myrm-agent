@@ -18461,5 +18461,18 @@
       "skills": "스킬",
       "sandbox": "샌드박스"
     }
+  },
+  "taskSpaces": {
+    "title": "병렬 브라우저 작업 공간",
+    "badgeRunning": "실행 중",
+    "badgeIdle": "대기 중",
+    "badgeTakeover": "수동 개입 중",
+    "takeoverBtn": "개입하기",
+    "releaseTakeoverBtn": "에이전트 반환",
+    "closeSpaceBtn": "공간 닫기",
+    "activePages": "활성 탭 {count}개",
+    "emptyState": "활성 병렬 브라우저 공간이 없습니다",
+    "snapshotPreview": "실시간 공간 스냅샷",
+    "takeoverHint": "현재 수동 개입 상태입니다. 완료 후 에이전트에 반환하세요."
   }
 }

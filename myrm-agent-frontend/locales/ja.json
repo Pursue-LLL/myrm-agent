@@ -18461,5 +18461,18 @@
       "skills": "スキル",
       "sandbox": "サンドボックス"
     }
+  },
+  "taskSpaces": {
+    "title": "並列ブラウザタスク空間",
+    "badgeRunning": "実行中",
+    "badgeIdle": "待機中",
+    "badgeTakeover": "手動介入中",
+    "takeoverBtn": "引き継ぐ",
+    "releaseTakeoverBtn": "AIに返却",
+    "closeSpaceBtn": "空間を閉じる",
+    "activePages": "{count} 個のアクティブタブ",
+    "emptyState": "アクティブな並列ブラウザ空間はありません",
+    "snapshotPreview": "リアルタイム空間スナップショット",
+    "takeoverHint": "現在手動介入モードです。完了したらAIに返却してください。"
   }
 }
