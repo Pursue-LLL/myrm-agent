@@ -80,4 +80,29 @@ describe('useChatStore - Knowledge Base Mount State & Actions', () => {
     expect(updated.activeKnowledgeBaseIds).toEqual([]);
     expect(updated.chatId).toBe('chat-new');
   });
+
+  it('handles empty knowledge base lists gracefully', () => {
+    const store = useChatStore.getState();
+    store.setActiveKnowledgeBaseIds([]);
+    store.setActiveKnowledgeBaseNames({});
+
+    expect(useChatStore.getState().activeKnowledgeBaseIds).toEqual([]);
+    expect(useChatStore.getState().activeKnowledgeBaseNames).toEqual({});
+
+    // Attempting to remove from empty list does not throw or mutate
+    store.removeActiveKnowledgeBase('non-existent-id');
+    expect(useChatStore.getState().activeKnowledgeBaseIds).toEqual([]);
+    expect(useChatStore.getState().activeKnowledgeBaseNames).toEqual({});
+  });
+
+  it('prevents exceeding max mounted knowledge bases limit', () => {
+    const store = useChatStore.getState();
+    const sixIds = ['kb-1', 'kb-2', 'kb-3', 'kb-4', 'kb-5', 'kb-6'];
+    store.setActiveKnowledgeBaseIds(sixIds);
+
+    expect(useChatStore.getState().activeKnowledgeBaseIds).toHaveLength(6);
+    expect(useChatStore.getState().activeKnowledgeBaseIds).toEqual(sixIds);
+  });
 });
+
+

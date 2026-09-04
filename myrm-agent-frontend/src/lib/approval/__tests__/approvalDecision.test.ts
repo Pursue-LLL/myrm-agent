@@ -43,6 +43,39 @@ describe('buildApprovalDecision', () => {
     });
   });
 
+  it('forwards ttl_seconds in extensions as ttlSeconds', () => {
+    expect(
+      buildApprovalDecision('approve', {
+        allow_always: { tool: true, pattern: true },
+        ttl_seconds: 3600,
+      }),
+    ).toEqual({
+      type: 'approve',
+      args: undefined,
+      feedback: undefined,
+      extensions: {
+        allowAlways: { tool: true, pattern: true },
+        ttlSeconds: 3600,
+      },
+    });
+  });
+
+  it('automatically extracts ttlSeconds from allow_always object when ttl_seconds not explicitly passed', () => {
+    expect(
+      buildApprovalDecision('approve', {
+        allow_always: { tool: true, duration: '15m', ttl_seconds: 900 },
+      }),
+    ).toEqual({
+      type: 'approve',
+      args: undefined,
+      feedback: undefined,
+      extensions: {
+        allowAlways: { tool: true, duration: '15m', ttl_seconds: 900 },
+        ttlSeconds: 900,
+      },
+    });
+  });
+
   it('builds edit decisions with edited args', () => {
     expect(
       buildApprovalDecision('edit', {

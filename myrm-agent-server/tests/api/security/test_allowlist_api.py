@@ -182,4 +182,7 @@ class TestAllowlistPatternIntegration:
         assert rows[0]["id"] == entry_id
         assert rows[0]["expires_at"] is not None
         assert rows[0]["permission"] == "email_send"
-        assert del_resp.json()["data"]["deleted"] is True
+
+        del_resp2 = client.delete(f"/api/v1/security/allowlist/{entry_id}")
+        assert del_resp2.status_code == 200
+        assert del_resp2.json()["data"]["deleted"] is True

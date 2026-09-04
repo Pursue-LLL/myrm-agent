@@ -78,14 +78,21 @@ export function extractDirectoryGrantOptimistic(decisions: ApprovalDecision[]): 
 }
 
 export function buildApprovalDecision(decision: DecisionType, extra?: ToolApprovalResolveExtra): ApprovalDecision {
+  const allowAlwaysVal = extra?.allow_always ?? false;
+  const ttlFromAllowAlways =
+    typeof allowAlwaysVal === 'object' && allowAlwaysVal !== null && 'ttl_seconds' in allowAlwaysVal
+      ? allowAlwaysVal.ttl_seconds
+      : undefined;
+  const effectiveTtl = extra?.ttl_seconds ?? ttlFromAllowAlways;
+
   return {
     type: decision,
     args: extra?.edited_args,
     feedback: extra?.feedback,
     ...(extra?.guidance && { guidance: extra.guidance }),
     extensions: {
-      allowAlways: extra?.allow_always ?? false,
-      ...(extra?.ttl_seconds !== undefined && { ttlSeconds: extra.ttl_seconds }),
+      allowAlways: allowAlwaysVal,
+      ...(effectiveTtl !== undefined && { ttlSeconds: effectiveTtl }),
       ...(extra?.allow_domain && { allowDomain: true }),
       ...(extra?.grant_directory && {
         grantDirectory: true,

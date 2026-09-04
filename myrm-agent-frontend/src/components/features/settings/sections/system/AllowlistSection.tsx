@@ -186,6 +186,15 @@ const AllowlistSection = memo(() => {
                     <Badge className={`text-xs ${getGranularityColor(entry.granularity)}`}>
                       {getGranularityLabel(entry.granularity)}
                     </Badge>
+                    {entry.expires_at ? (
+                      <Badge variant="outline" className="text-xs text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/20">
+                        {t('timeBound')}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs text-muted-foreground border-border/60">
+                        {t('permanent')}
+                      </Badge>
+                    )}
                   </div>
 
                   {entry.tool_name && (

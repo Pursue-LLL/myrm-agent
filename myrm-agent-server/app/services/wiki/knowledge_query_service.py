@@ -21,7 +21,6 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from myrm_agent_harness.toolkits.wiki.core.types import QueryResult
 from myrm_agent_harness.toolkits.wiki.retrieval.source_citations import build_wiki_query_sources
 
-from app.services.agent.llm_access import get_optional_llm_for_user
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
 from app.services.wiki.vault import get_wiki_archiver
 
@@ -54,6 +53,8 @@ async def resolve_wiki_knowledge_llm(
             streaming=False,
             api_keys=getattr(chosen_cfg, "api_keys", None),
         )
+    from app.services.agent.llm_access import get_optional_llm_for_user
+
     return await get_optional_llm_for_user()
 
 
