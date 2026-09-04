@@ -12,7 +12,6 @@ Tests the full end-to-end task flow:
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 import uuid

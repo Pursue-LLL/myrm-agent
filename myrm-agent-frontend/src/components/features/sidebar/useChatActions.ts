@@ -163,20 +163,27 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
           toast({ title: t('chat.exportChat.noMessages'), variant: 'default' });
           return;
         }
+        const successTitle = data.redacted
+          ? (t('chat.exportChat.successRedacted') || t('chat.exportChat.success'))
+          : t('chat.exportChat.success');
+        const copySuccessTitle = data.redacted
+          ? (t('chat.exportChat.copySuccessRedacted') || t('chat.exportChat.copySuccess'))
+          : t('chat.exportChat.copySuccess');
+
         switch (mode) {
           case 'markdown':
             downloadAsMarkdown(data);
-            toast({ title: t('chat.exportChat.success'), variant: 'default' });
+            toast({ title: successTitle, variant: 'default' });
             break;
           case 'json':
             downloadAsJson(data);
-            toast({ title: t('chat.exportChat.success'), variant: 'default' });
+            toast({ title: successTitle, variant: 'default' });
             break;
           case 'html': {
             const isDark = document.documentElement.classList.contains('dark');
             const htmlLang = navigator.language.startsWith('zh') ? 'zh' : 'en';
             await downloadAsHtml(data, isDark ? 'dark' : 'light', htmlLang as 'en' | 'zh');
-            toast({ title: t('chat.exportChat.success'), variant: 'default' });
+            toast({ title: successTitle, variant: 'default' });
             break;
           }
           case 'print': {
@@ -187,7 +194,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
           }
           case 'copy':
             await copyAsMarkdown(data);
-            toast({ title: t('chat.exportChat.copySuccess'), variant: 'default' });
+            toast({ title: copySuccessTitle, variant: 'default' });
             break;
         }
       } catch (error) {

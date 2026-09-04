@@ -1815,7 +1815,9 @@
       "copyMarkdown": "Markdown으로 복사",
       "exporting": "내보내는 중...",
       "success": "성공적으로 내보냈습니다",
+      "successRedacted": "성공적으로 내보냈습니다 (민감한 자격 증명 마스킹됨)",
       "copySuccess": "클립보드에 복사됨",
+      "copySuccessRedacted": "클립보드에 복사됨 (민감한 자격 증명 마스킹됨)",
       "error": "내보내기 실패",
       "noMessages": "내보낼 메시지가 없습니다",
       "print": "인쇄"
