@@ -10,6 +10,7 @@ from fastapi import APIRouter
 
 from app.api.integrations import (
     catalog,
+    credential_pool,
     google_workspace_oauth,
     hardware,
     im_contacts,
@@ -33,6 +34,7 @@ router = APIRouter()
 # Include sub-routers with appropriate prefixes
 router.include_router(hardware.router, prefix="/hardware", tags=["integrations-hardware"])
 router.include_router(llms.router, prefix="/llm", tags=["integrations-llm"])
+router.include_router(credential_pool.router, prefix="/llm/credential-pool", tags=["integrations-credential-pool"])
 router.include_router(search.router, prefix="/search", tags=["integrations-search"])
 router.include_router(web_fetch.router, prefix="/web-fetch", tags=["integrations-web-fetch"])
 router.include_router(mcp.router, prefix="/mcp", tags=["integrations-mcp"])
