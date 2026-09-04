@@ -33,6 +33,7 @@ import type { DefaultModelConfig, ProviderConfig, CustomModelInfo } from '@/stor
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import useDesktopInspectorStore, { selectScopedDesktopViewData } from '@/store/useDesktopInspectorStore';
 import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
+import useDeviceInspectorStore, { selectScopedDeviceViewData } from '@/store/useDeviceInspectorStore';
 import type { BrowserRefInfo } from '@/store/chat/types';
 import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { notifyBackgroundTasksChangedForShellJobFinish } from '@/services/backgroundTasksRefresh';
@@ -1945,6 +1946,22 @@ export default function E2EChatBridge() {
           activeChatId,
           appName: store.viewData?.appName ?? '',
           refCount: Object.keys(refs).length,
+          updatedAt: store.viewData?.updatedAt ?? null,
+        };
+      },
+      getDeviceInspectorSnapshot: () => {
+        const store = useDeviceInspectorStore.getState();
+        const activeChatId = useChatStore.getState().chatId?.trim() ?? '';
+        const scopedView = selectScopedDeviceViewData(store.viewData, activeChatId);
+        return {
+          isOpen: store.isOpen,
+          isDeviceActive: store.isDeviceActive,
+          hasScreenshot: Boolean(store.viewData?.screenshotBase64),
+          scopedHasScreenshot: Boolean(scopedView?.screenshotBase64),
+          sourceChatId: store.viewData?.sourceChatId ?? '',
+          activeChatId,
+          mode: store.mode,
+          notificationRedaction: store.notificationRedaction,
           updatedAt: store.viewData?.updatedAt ?? null,
         };
       },

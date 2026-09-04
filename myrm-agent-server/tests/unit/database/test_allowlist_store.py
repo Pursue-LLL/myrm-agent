@@ -12,7 +12,10 @@ from tests.support.allowlist_test_seed import clear_allowlist_entries
 
 @pytest.fixture(autouse=True)
 def _setup_db():
+    from app import platform_utils
+    from app.database.connection import init_database
     import asyncio
+    asyncio.run(init_database())
     asyncio.run(clear_allowlist_entries())
     yield
     asyncio.run(clear_allowlist_entries())
@@ -21,7 +24,8 @@ def _setup_db():
 class TestDBAllowlistStore:
     @pytest.mark.asyncio
     async def test_save_and_load_with_agent_scope(self):
-        factory = get_session_factory()
+        from app import platform_utils
+        factory = platform_utils.get_session_factory()
         store = DBAllowlistStore(factory)
         user_id = "sandbox"
 
@@ -44,7 +48,8 @@ class TestDBAllowlistStore:
 
     @pytest.mark.asyncio
     async def test_remove_with_agent_scope(self):
-        factory = get_session_factory()
+        from app import platform_utils
+        factory = platform_utils.get_session_factory()
         store = DBAllowlistStore(factory)
         user_id = "sandbox"
 
@@ -80,8 +85,9 @@ class TestDBAllowlistStore:
     @pytest.mark.asyncio
     async def test_save_and_load_with_expires_at(self):
         import time
+        from app import platform_utils
 
-        factory = get_session_factory()
+        factory = platform_utils.get_session_factory()
         store = DBAllowlistStore(factory)
         user_id = "sandbox"
         future_ts = time.time() + 3600.0
@@ -102,8 +108,9 @@ class TestDBAllowlistStore:
     @pytest.mark.asyncio
     async def test_expired_entry_auto_cleanup(self):
         import time
+        from app import platform_utils
 
-        factory = get_session_factory()
+        factory = platform_utils.get_session_factory()
         store = DBAllowlistStore(factory)
         user_id = "sandbox"
         past_ts = time.time() - 3600.0
@@ -122,8 +129,9 @@ class TestDBAllowlistStore:
     @pytest.mark.asyncio
     async def test_update_expires_at_on_duplicate_save(self):
         import time
+        from app import platform_utils
 
-        factory = get_session_factory()
+        factory = platform_utils.get_session_factory()
         store = DBAllowlistStore(factory)
         user_id = "sandbox"
         t1 = time.time() + 1000.0

@@ -221,12 +221,12 @@ def app() -> FastAPI:
 
 
 @pytest.fixture(scope="function")
-def client(app: FastAPI) -> TestClient:
+def client(app: FastAPI, setup_test_database) -> TestClient:
     with TestClient(app) as test_client:
         yield test_client
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=False)
 async def setup_test_database(tmp_path: Path):
     """Initialize a file-backed SQLite database with schema for agent CRUD tests.
 

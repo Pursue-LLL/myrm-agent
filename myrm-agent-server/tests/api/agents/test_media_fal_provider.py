@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from tests.support.minimal_app import build_minimal_app
 
-app = build_minimal_app(preset="agents_api")
+app = build_minimal_app("agents_media")
 
 
 @pytest.fixture

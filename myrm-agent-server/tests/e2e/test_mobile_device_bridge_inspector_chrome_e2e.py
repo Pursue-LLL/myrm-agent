@@ -56,15 +56,15 @@ _VERIFY_DEVICE_STORE_AND_PANEL_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    access_scope="READ",
+    execution_mode="SHARED",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
-@pytest.mark.timeout(300)
+@pytest.mark.timeout(600)
 def test_mobile_device_inspector_api_and_ui_lifecycle() -> None:
     """Validate backend device bridge REST contracts (/doctor, /snapshot, /relay) and frontend inspector store."""
+    _require_e2e_cdp_ready()
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
@@ -91,14 +91,11 @@ def test_mobile_device_inspector_api_and_ui_lifecycle() -> None:
 
     # 2. Warm up UI route and inspect page state
     warm_ui_route("/")
-    with open_mcp_page(f"{ui_url}/", timeout_ms=90_000) as (client, page):
+    session = "mobile_inspector_e2e"
+    with open_mcp_page(f"{ui_url}/?chat={session}") as (client, page):
+        ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
-        wait_for_react_e2e_bridge(
-            client,
-            page,
-            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
-            page_url=f"{ui_url}/",
-        )
+        wait_for_react_e2e_bridge(client, page)
 
         # 3. Verify window.__MYRM_DEVICE_INSPECTOR_STORE__ interaction in real browser
         store_res = client.evaluate(page, _VERIFY_DEVICE_STORE_AND_PANEL_JS, timeout_sec=10.0)

@@ -31,23 +31,7 @@ app = build_minimal_app(preset="security")
 
 @pytest.fixture
 def client() -> TestClient:
-    from app import platform_utils
-    from app.database.connection import get_db
-
-    factory = platform_utils.get_session_factory()
-
-    async def _override_get_db():
-        async with factory() as session:
-            try:
-                yield session
-            finally:
-                await session.close()
-
-    app.dependency_overrides[get_db] = _override_get_db
-    try:
-        yield TestClient(app)
-    finally:
-        app.dependency_overrides.pop(get_db, None)
+    return TestClient(app)
 
 
 @pytest.fixture(autouse=True)

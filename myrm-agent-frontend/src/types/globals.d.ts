@@ -263,6 +263,17 @@ interface Window {
       refCount: number;
       updatedAt: number | null;
     };
+    getDeviceInspectorSnapshot?: () => {
+      isOpen: boolean;
+      isDeviceActive: boolean;
+      hasScreenshot: boolean;
+      scopedHasScreenshot: boolean;
+      sourceChatId: string;
+      activeChatId: string;
+      mode: string;
+      notificationRedaction: boolean;
+      updatedAt: number | null;
+    };
     simulateDesktopViewUpdate?: (
       chatId: string,
     ) => Promise<{ ok: true; chatId: string } | { ok: false; reason: string }>;
