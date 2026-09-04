@@ -2850,6 +2850,14 @@
     "routingLongDocTooltip": "장문 문서 또는 대규모 컨텍스트를 감지하여 장문 문서 전문 모델로 라우팅했습니다",
     "captureEvalCase": {
       "action": "평가 케이스로 추출",
+      "title": "평가 케이스로 추출",
+      "description": "이 대화 세션을 안전하게 정리하여 개인 평가 실험실의 회귀 테스트 케이스로 보관합니다.",
+      "selectDataset": "대상 데이터셋",
+      "newDataset": "새로 만들기",
+      "newDatasetPlaceholder": "데이터셋 이름 입력 (예: regressions)",
+      "chooseExisting": "기존 데이터셋 선택",
+      "emptyDatasetError": "데이터셋 이름은 비워둘 수 없습니다",
+      "confirm": "추출 확인",
       "success": "평가 케이스로 성공적으로 추출되었습니다",
       "successDesc": "대화 기록을 평가 벤치마크 데이터셋에 추출했습니다",
       "error": "평가 케이스 추출 실패"
@@ -13675,7 +13683,12 @@
       "poolReady": "준비 완료",
       "resetCooldowns": "쿨다운 초기화",
       "resetCooldownsSuccess": "{count}개 키의 쿨다운을 초기화했습니다",
-      "noActivePools": "활성 풀 지표가 아직 없습니다"
+      "noActivePools": "활성 풀 지표가 아직 없습니다",
+      "externalSecretBadge": "외부 시크릿 소스",
+      "externalSecretDesc": "1Password / Bitwarden에서 메모리로 동적 확인되며 디스크 일반 텍스트 저장 없음",
+      "externalSecretValid": "시크릿 확인 완료: {preview}",
+      "externalSecretInvalid": "시크릿 확인 실패: {error}",
+      "validateExternalKey": "외부 시크릿 테스트"
     },
     "defaultModel": {
       "localModelWarning": "로컬 경량 모델은 복잡한 에이전트 도구 체인을 처리할 때 환각이나 무한 루프에 빠지기 쉽습니다. 긴 작업에는 30B+ 규모 모델이나 클라우드 고급 모델(예: Claude 3.5 Sonnet)을 권장합니다.",

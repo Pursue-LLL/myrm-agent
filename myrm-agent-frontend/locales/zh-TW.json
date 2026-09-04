@@ -2850,6 +2850,14 @@
     },
     "captureEvalCase": {
       "action": "淬鍊為評測用例",
+      "title": "淬鍊為評測用例",
+      "description": "將本輪對話的真實互動軌跡安全清洗並固化為您私人評測實驗室的回歸測試用例。",
+      "selectDataset": "目標資料集",
+      "newDataset": "新建",
+      "newDatasetPlaceholder": "輸入新資料集名稱（如 regressions）",
+      "chooseExisting": "選擇已有資料集",
+      "emptyDatasetError": "資料集名稱不能為空",
+      "confirm": "確認淬鍊",
       "success": "已成功淬鍊為評測用例",
       "successDesc": "已將該對話軌跡完整擷取並寫入評測基準資料集",
       "error": "淬鍊評測用例失敗"
@@ -13675,7 +13683,12 @@
       "poolReady": "就緒",
       "resetCooldowns": "重置冷卻",
       "resetCooldownsSuccess": "已重置 {count} 個金鑰的冷卻計時",
-      "noActivePools": "暫無作用中呼叫池資料"
+      "noActivePools": "暫無作用中呼叫池資料",
+      "externalSecretBadge": "外部密鑰源",
+      "externalSecretDesc": "動態從 1Password / Bitwarden 記憶體解析，磁碟零明文儲存",
+      "externalSecretValid": "外部密鑰解析有效: {preview}",
+      "externalSecretInvalid": "外部密鑰解析失敗: {error}",
+      "validateExternalKey": "測試外部源"
     },
     "defaultModel": {
       "localModelWarning": "本地輕量模型在處理複雜 Agent 工具鏈時極易產生幻覺或陷入死迴圈。執行長任務建議使用 30B 以上規模模型或雲端高階模型（如 Claude 3.5 Sonnet）。",

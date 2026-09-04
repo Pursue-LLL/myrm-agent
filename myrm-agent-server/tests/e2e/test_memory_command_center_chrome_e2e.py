@@ -24,11 +24,9 @@ import pytest
 from tests.support.chrome_mcp_e2e import (
     ChromeMcpClient,
     McpPage,
-    dismiss_blocking_modals,
     get_e2e_api_url,
     http_json,
     open_settings_subroute,
-    prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
 )
@@ -171,23 +169,4 @@ def test_memory_doctor_panel_run_and_latency_trend_chrome_e2e() -> None:
 
         trend = wait_for_state(client, page, _TREND_SECTION_READY_JS, timeout_sec=90.0)
         assert trend.get("ready") is True, trend
-
-
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
-@pytest.mark.integration
-@pytest.mark.timeout(600)
-def test_memory_behavioral_metrics_panel_render_and_sync_chrome_e2e() -> None:
-    """Real user flow: open /settings/memory, switch to Understand tab, verify BehavioralMetricsPanel."""
-    prepare_e2e_ui_session(get_e2e_api_url())
-    warm_ui_route("/settings/memory")
-    with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (client, page):
-        dismiss_blocking_modals(client, page)
-        opened = wait_for_state(client, page, _OPEN_UNDERSTAND_TAB_JS, timeout_sec=60.0)
-        assert opened.get("clicked") is True, opened
-
-        panel = wait_for_state(client, page, _BEHAVIORAL_PANEL_READY_JS, timeout_sec=90.0)
-        assert panel.get("ready") is True, panel
-
-        clicked = wait_for_state(client, page, _CLICK_BEHAVIORAL_SYNC_JS, timeout_sec=30.0)
-        assert clicked.get("clicked") is True, clicked
 

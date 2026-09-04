@@ -1,5 +1,11 @@
 'use client';
 
+/**
+ * [INPUT] @/services/eval, @/components/primitives/dialog, @/hooks/shared/useToast
+ * [OUTPUT] CaptureEvalCaseDialog: 会话一键沉淀为评测用例对话框
+ * [POS] 供 ChatHistoryList 挂载，由 ChatHistoryRow 右键菜单触发，支持拉取已有数据集或输入新数据集，将当前会话提取并固化为私有回归用例。
+ */
+
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { FlaskConical, Database, Plus, Loader2 } from 'lucide-react';

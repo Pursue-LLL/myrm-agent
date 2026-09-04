@@ -2850,6 +2850,14 @@
     "routingLongDocTooltip": "長文ドキュメントまたは大規模コンテキストを検出し、長文専門モデルにルーティング",
     "captureEvalCase": {
       "action": "評価ケースとして抽出",
+      "title": "評価ケースとして抽出",
+      "description": "この対話セッションを安全にサニタイズし、プライベート評価ラボの回帰テストケースとして保存します。",
+      "selectDataset": "対象データセット",
+      "newDataset": "新規作成",
+      "newDatasetPlaceholder": "データセット名を入力 (例: regressions)",
+      "chooseExisting": "既存のデータセットを選択",
+      "emptyDatasetError": "データセット名は空にできません",
+      "confirm": "抽出を確定",
       "success": "評価ケースとして正常に抽出しました",
       "successDesc": "会話履歴を評価ベンチマークデータセットに書き込みました",
       "error": "評価ケースの抽出に失敗しました"
@@ -13469,6 +13477,11 @@
       "strategyFillFirstDesc": "最初のキーを優先使用 — 無料枠を使い切ってから有料キーに切替",
       "strategyLeastUsedDesc": "使用回数が最少のキーを選択 — 使用量に基づく均等分散",
       "strategyRandomDesc": "ランダムにキーを選択 — シンプルで予測不能",
+      "externalSecretBadge": "外部シークレットソース",
+      "externalSecretDesc": "1Password / Bitwarden からメモリ上で動的に解決、ディスク平文ゼロ",
+      "externalSecretValid": "シークレット解決済み: {preview}",
+      "externalSecretInvalid": "シークレット解決失敗: {error}",
+      "validateExternalKey": "外部シークレットをテスト",
       "keyVerified": "接続を確認しました",
       "keyInvalid": "検証失敗",
       "retryVerify": "再検証",
@@ -13675,12 +13688,7 @@
       "poolReady": "準備完了",
       "resetCooldowns": "クールダウンをリセット",
       "resetCooldownsSuccess": "{count} 個のキーのクールダウンをリセットしました",
-      "noActivePools": "アクティブなプールメトリクスはまだありません",
-      "externalSecretBadge": "外部シークレットソース",
-      "externalSecretDesc": "1Password / Bitwarden からメモリ上で動的に解決され、ディスク平文ゼロ",
-      "externalSecretValid": "シークレット解決完了: {preview}",
-      "externalSecretInvalid": "シークレットの解決に失敗しました: {error}",
-      "validateExternalKey": "外部シークレットをテスト"
+      "noActivePools": "アクティブなプールメトリクスはまだありません"
     },
     "defaultModel": {
       "localModelWarning": "ローカルの軽量モデルは、複雑な Agent ツールチェーンを処理する際に幻覚や無限ループを起こしやすいです。長時間タスクには 30B 以上のモデルか、クラウドの高度なモデル（Claude 3.5 Sonnet など）の使用を推奨します。",

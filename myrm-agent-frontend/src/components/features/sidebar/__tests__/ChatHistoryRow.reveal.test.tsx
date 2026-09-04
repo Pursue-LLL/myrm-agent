@@ -51,6 +51,7 @@ const mockT = ((key: string) => {
   const dict: Record<string, string> = {
     'chat.revealArtifacts.action': 'Reveal Artifacts in Folder',
     'chat.revealArtifacts.revealing': 'Opening Folder...',
+    'chat.captureEvalCase.action': 'Capture as Eval Case',
     'common.rename': 'Rename',
     'common.delete': 'Delete',
     'common.export': 'Export',
@@ -96,6 +97,38 @@ describe('ChatHistoryRow Artifact Reveal', () => {
 
     fireEvent.click(revealItem);
     expect(onRevealArtifacts).toHaveBeenCalledWith('chat-test-123');
+  });
+
+  it('renders capture as eval case menu item and triggers callback', () => {
+    const onCaptureEvalCase = vi.fn();
+
+    render(
+      <ChatHistoryRow
+        chat={dummyChat}
+        isMobile={false}
+        isActive={false}
+        renameId={null}
+        renameValue=""
+        exportingId={null}
+        formatTime={() => '12:00'}
+        onRename={vi.fn()}
+        onRenameSubmit={vi.fn()}
+        onRenameCancel={vi.fn()}
+        onRenameValueChange={vi.fn()}
+        onDelete={vi.fn()}
+        onExport={vi.fn()}
+        onPin={vi.fn()}
+        onUnpin={vi.fn()}
+        onCaptureEvalCase={onCaptureEvalCase}
+        t={mockT}
+      />,
+    );
+
+    const captureItem = screen.getByText('Capture as Eval Case');
+    expect(captureItem).toBeInTheDocument();
+
+    fireEvent.click(captureItem);
+    expect(onCaptureEvalCase).toHaveBeenCalledWith('chat-test-123');
   });
 
   it('displays revealing state when in progress', () => {

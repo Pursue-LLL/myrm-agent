@@ -1,6 +1,6 @@
 """Real Chrome MCP E2E for Browser TaskSpaceDock floating pill in WebUI."""
 
-# TaskSpace Dock and Takeover Chrome E2E Tests
+# TaskSpace Dock and Takeover Chrome E2E Tests - Automated Verification
 from __future__ import annotations
 
 import pytest

@@ -37,10 +37,12 @@ interface BehavioralMetricsPanelProps {
 
 export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
   className,
-}: BehavioralMetricsPanelProps) {
-  const t = useTranslations('settings.memory.commandCenter.behavioral');
-  const tb = (key: string, values?: Record<string, string | number>) =>
-    t(`commandCenter.behavioral.${key}` as Parameters<typeof t>[0], values);
+  t: parentT,
+}: BehavioralMetricsPanelProps & { t?: (key: string, values?: Record<string, string | number>) => string }) {
+  const fallbackT = useTranslations('settings.memory.commandCenter.behavioral');
+  const tb = parentT
+    ? (key: string, values?: Record<string, string | number>) => parentT(`commandCenter.behavioral.${key}`, values)
+    : (key: string, values?: Record<string, string | number>) => fallbackT(`commandCenter.behavioral.${key}` as Parameters<typeof fallbackT>[0], values);
   const [data, setData] = useState<MemoryBehavioralInsights | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [syncing, setSyncing] = useState<boolean>(false);
@@ -56,7 +58,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [tb]);
 
   useEffect(() => {
     void loadInsights();

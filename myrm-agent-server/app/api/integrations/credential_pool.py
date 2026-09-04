@@ -38,7 +38,7 @@ class ValidateExternalSecretRequest(BaseModel):
 @router.post("/validate-secret-reference")
 async def validate_external_secret_reference(body: ValidateExternalSecretRequest) -> dict[str, object]:
     """Test resolution of an external secret URI (1Password / Bitwarden) in memory."""
-    from myrm_agent_harness.backends.secrets import (
+    from myrm_agent_harness.api import (
         ExternalSecretResolutionError,
         is_external_secret_reference,
         resolve_external_secret,

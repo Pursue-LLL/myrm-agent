@@ -132,6 +132,7 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
     onOpenInNewWindow,
     onRevealArtifacts,
     isRevealingArtifacts = false,
+    onCaptureEvalCase,
     sessionDragEnabled = false,
     onSessionDragStart,
     t,
