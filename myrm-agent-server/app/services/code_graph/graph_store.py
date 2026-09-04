@@ -1,8 +1,17 @@
+"""Code graph SQLite store for persistent AST symbols and deterministic call edges.
+
+[INPUT]
+- models.py::(CallEdge, ImportEdge, InheritanceEdge, SymbolKind, SymbolNode)
+- sqlite3
+
+[OUTPUT]
+- CodeGraphStore: SQLite WAL 持久化代码图谱存储与 8 大确定性图遍历操作
+
+[POS]
+Server 业务服务层。提供本地轻量级代码 AST 符号图谱与调用关系持久化存储库。
 """
-@input: 依赖 models.py 与 ast_extractor.py
-@output: 提供基于 SQLite WAL 模式的代码图谱存储与持久化读写
-@pos: 代码图谱底层持久化存储库
-"""
+
+from __future__ import annotations
 
 import json
 import sqlite3

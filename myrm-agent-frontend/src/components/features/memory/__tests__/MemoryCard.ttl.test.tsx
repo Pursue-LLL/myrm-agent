@@ -17,6 +17,10 @@ vi.mock('../cards/MemoryTypeIcon', () => ({
   default: () => null,
 }));
 
+vi.mock('../cards/EvidenceBadge', () => ({
+  EvidenceBadge: () => <div data-testid="evidence-badge" />,
+}));
+
 import MemoryCard from '../cards/MemoryCard';
 import type { Memory } from '@/store/memory';
 
@@ -41,6 +45,20 @@ describe('MemoryCard - procedural TTL display', () => {
   it('hides the TTL line for a user-locked rule (permanent retention)', () => {
     render(<MemoryCard memory={{ ...baseProcedural, is_user_locked: true }} variant="confirmed" />);
     expect(screen.queryByText('fields.ttlDays')).not.toBeInTheDocument();
+  });
+
+  it('renders EvidenceBadge when source_chat_id is present', () => {
+    render(
+      <MemoryCard
+        memory={{
+          ...baseProcedural,
+          source_chat_id: 'chat-123',
+          source_message_id: 'msg-456',
+        }}
+        variant="confirmed"
+      />,
+    );
+    expect(screen.getByTestId('evidence-badge')).toBeInTheDocument();
   });
 });
 

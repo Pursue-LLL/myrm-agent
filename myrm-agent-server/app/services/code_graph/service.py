@@ -87,7 +87,7 @@ class CodeGraphService:
             elapsed_ms=elapsed,
         )
 
-    def reingest_file(self, root_dir: str | Path, rel_file_path: str) -> dict[str, Any]:
+    def reingest_file(self, root_dir: str | Path, rel_file_path: str) -> dict[str, object]:
         """增量重析单文件：毫秒级移除旧数据并重新提取关系。"""
         start_time = time.perf_counter()
         full_path = Path(root_dir) / rel_file_path
@@ -136,37 +136,37 @@ class CodeGraphService:
 
     # ==================== 8 大确定性图遍历操作 ====================
 
-    def resolve(self, target: str) -> list[dict[str, Any]]:
+    def resolve(self, target: str) -> list[dict[str, object]]:
         """1. 解析符号或 path:line 为完全限定名。"""
         return self.store.resolve_names(target)
 
-    def definition(self, qualified_name: str) -> dict[str, Any] | None:
+    def definition(self, qualified_name: str) -> dict[str, object] | None:
         """2. 获取符号的准确定义位置、文档注释与源码。"""
         node = self.store.get_symbol(qualified_name)
         return node.to_dict() if node else None
 
-    def callers(self, callee_name: str) -> list[dict[str, Any]]:
+    def callers(self, callee_name: str) -> list[dict[str, object]]:
         """3. 获取调用指定函数的所有 CallSite 位置与参数信息（纯确定性检索）。"""
         return self.store.get_callers(callee_name)
 
-    def callees(self, caller_qname: str) -> list[dict[str, Any]]:
+    def callees(self, caller_qname: str) -> list[dict[str, object]]:
         """4. 获取指定函数内部调用的所有子函数。"""
         return self.store.get_callees(caller_qname)
 
-    def implementors(self, super_type_name: str) -> list[dict[str, Any]]:
+    def implementors(self, super_type_name: str) -> list[dict[str, object]]:
         """5. 获取继承或实现指定类/接口的所有派生类型。"""
         return self.store.get_implementors(super_type_name)
 
-    def overrides(self, method_name: str) -> list[dict[str, Any]]:
+    def overrides(self, method_name: str) -> list[dict[str, object]]:
         """6. 获取方法的重写关系。"""
         bare_name = method_name.split(".")[-1]
         callers = self.store.get_implementors(method_name)
         return [{"method": bare_name, "inheritance": item} for item in callers]
 
-    def importers(self, module_name: str) -> list[dict[str, Any]]:
+    def importers(self, module_name: str) -> list[dict[str, object]]:
         """7. 获取导入了指定模块的所有文件及行号列号。"""
         return self.store.get_importers(module_name)
 
-    def tests_reaching(self, target_qname: str) -> list[dict[str, Any]]:
+    def tests_reaching(self, target_qname: str) -> list[dict[str, object]]:
         """8. 基于反向调用图确定受改动直接或间接影响的目标测试集。"""
         return self.store.get_tests_reaching(target_qname)
