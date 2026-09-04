@@ -236,3 +236,27 @@ def test_wiki_apply_create_note_conflict(client: TestClient) -> None:
 
     second = client.post("/api/v1/wiki/apply", json=payload)
     assert second.status_code == 409, second.text
+
+
+def test_wiki_heal_claims_governance_endpoint(client: TestClient) -> None:
+    create = client.post(
+        "/api/v1/wiki/apply",
+        json={
+            "op": "create_note",
+            "concept_name": "integration/heal-note",
+            "body": "Note body for claim healing",
+        },
+    )
+    assert create.status_code == 200, create.text
+
+    heal_resp = client.post(
+        "/api/v1/wiki/governance/claims/heal",
+        json={
+            "concept_names": ["integration/heal-note"],
+        },
+    )
+    assert heal_resp.status_code == 200, heal_resp.text
+    data = heal_resp.json()
+    assert data["success"] is True
+    assert "total_healed_evidence" in data
+

@@ -640,6 +640,50 @@ export const triggerBehavioralSync = async (lookbackDays: number = 30): Promise<
   });
 };
 
+export interface MemoryEvidencePlaybackTurn {
+  message_id: string;
+  role: string;
+  sender_name?: string | null;
+  content: string;
+  sent_at: string;
+  is_target: boolean;
+  is_self?: boolean | null;
+}
+
+export interface MemoryEvidencePlaybackResponse {
+  status: 'live_context' | 'archived_snapshot' | 'not_found';
+  source_type: 'chat' | 'channel' | 'unknown';
+  source_id?: string | null;
+  target_message_id?: string | null;
+  channel?: string | null;
+  quote_snippet?: string | null;
+  author_name?: string | null;
+  author_id?: string | null;
+  occurred_at?: string | null;
+  turns: MemoryEvidencePlaybackTurn[];
+  is_user_locked: boolean;
+}
+
+export const getEvidencePlayback = async (params: {
+  source_id?: string | null;
+  message_id?: string | null;
+  channel_id?: string | null;
+  quote_snippet?: string | null;
+  author_id?: string | null;
+  author_name?: string | null;
+}): Promise<MemoryEvidencePlaybackResponse> => {
+  const query = new URLSearchParams();
+  if (params.source_id) query.set('source_id', params.source_id);
+  if (params.message_id) query.set('message_id', params.message_id);
+  if (params.channel_id) query.set('channel_id', params.channel_id);
+  if (params.quote_snippet) query.set('quote_snippet', params.quote_snippet);
+  if (params.author_id) query.set('author_id', params.author_id);
+  if (params.author_name) query.set('author_name', params.author_name);
+  const qStr = query.toString() ? `?${query.toString()}` : '';
+  return apiRequest<MemoryEvidencePlaybackResponse>(`/memory/command-center/evidence/playback${qStr}`);
+};
+
+
 
 
 export const getMemoryRecallBoundary = async (agentId?: string, taskId?: string): Promise<MemoryRecallBoundaryData> => {

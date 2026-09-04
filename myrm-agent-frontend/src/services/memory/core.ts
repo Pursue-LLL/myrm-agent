@@ -79,6 +79,10 @@ export interface Memory {
   source_error?: string;
   source_chat_id?: string;
   source_message_id?: string;
+  source_channel_id?: string;
+  quote_snippet?: string;
+  author_id?: string;
+  author_name?: string;
 }
 
 export interface MemoryPaginationInfo {
