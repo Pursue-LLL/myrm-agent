@@ -53,9 +53,17 @@ def test_resolve_shared_wiki_vault_paths_cap_limit() -> None:
     assert len(paths) == 6
 
 
-def test_get_wiki_archiver_cache_isolation_by_public_dirs(mock_llm: MagicMock, tmp_path: Path) -> None:
+def test_get_wiki_archiver_cache_isolation_by_public_dirs(
+    mock_llm: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Verify archiver cache keys isolate instances by attached public_dirs."""
     reset_wiki_archiver_cache_for_tests()
+    vault_base = tmp_path / "mock_agent_vault"
+    vault_base.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(
+        "app.services.wiki.vault.service.resolve_wiki_vault_path",
+        lambda _aid=None: vault_base,
+    )
 
     dir_a = tmp_path / "shared_a"
     dir_b = tmp_path / "shared_b"
@@ -138,14 +146,17 @@ async def test_execute_wiki_knowledge_query_with_federated_vaults(
     reset_wiki_archiver_cache_for_tests()
 
 
-def test_general_agent_resolves_wiki_public_dir_labels_from_context_names() -> None:
-    """Verify friendly label resolution incorporates context_name_map."""
-    cids = ["kb-policy", "kb-security"]
-    name_map = {
+def test_agent_resolves_wiki_public_dir_labels_from_context_names() -> None:
+    """Verify label resolution contract using memory_shared_context_names without DB lookups."""
+    memory_shared_context_ids = ["kb-policy", "kb-security"]
+    memory_shared_context_names = {
         "kb-policy": "Company Policy 2026",
         "kb-security": "Security Guidelines",
     }
-    labels = resolve_shared_wiki_vault_labels(cids, context_name_map=name_map)
+
+    labels = resolve_shared_wiki_vault_labels(
+        memory_shared_context_ids,
+        context_name_map=memory_shared_context_names,
+    )
     assert labels.get("kb-policy") == "Company Policy 2026"
     assert labels.get("kb-security") == "Security Guidelines"
-

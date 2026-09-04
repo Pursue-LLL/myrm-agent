@@ -294,4 +294,26 @@ describe('PolymorphicApprovalCard', () => {
     expect(screen.getByText('How to connect to bastion?')).toBeInTheDocument();
     expect(screen.getByText('90%')).toBeInTheDocument();
   });
+
+  it('renders time-bound allow always button and dialog triggers correctly', () => {
+    renderCard({
+      approval_id: 'approval-time-bound-test',
+      user_id: 'user-1',
+      action_type: 'subagent_approval',
+      status: 'PENDING',
+      severity: 'warning',
+      payload: {
+        tool_calls: [
+          {
+            name: 'bash_code_execute_tool',
+            args: {
+              command: 'cargo build --release',
+            },
+          },
+        ],
+      },
+    });
+
+    expect(screen.getByText('toolApproval.allowAlways')).toBeInTheDocument();
+  });
 });

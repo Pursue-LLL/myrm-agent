@@ -80,7 +80,11 @@ class DBAllowlistStore:
                 for row in rows
                 if row.expires_at is None or row.expires_at.timestamp() > now_ts
             ]
-            logger.info("[DB_ALLOWLIST] Loaded %d allowlist entries for user %s", len(entries), user_id)
+            logger.info(
+                "[DB_ALLOWLIST] Loaded %d allowlist entries for user %s",
+                len(entries),
+                user_id,
+            )
             return entries
 
     async def save(self, user_id: str, entry: AllowlistEntry) -> None:
@@ -126,10 +130,14 @@ class DBAllowlistStore:
                             update(UserToolAllowlist)
                             .where(
                                 UserToolAllowlist.permission == entry.permission,
-                                UserToolAllowlist.tool_name == _to_db_value(entry.tool_name),
-                                UserToolAllowlist.tool_args_hash == _to_db_value(entry.tool_args_hash),
-                                UserToolAllowlist.command_pattern == _to_db_value(entry.command_pattern),
-                                UserToolAllowlist.agent_id == _to_db_value(entry.agent_id),
+                                UserToolAllowlist.tool_name
+                                == _to_db_value(entry.tool_name),
+                                UserToolAllowlist.tool_args_hash
+                                == _to_db_value(entry.tool_args_hash),
+                                UserToolAllowlist.command_pattern
+                                == _to_db_value(entry.command_pattern),
+                                UserToolAllowlist.agent_id
+                                == _to_db_value(entry.agent_id),
                             )
                             .values(expires_at=expires_dt)
                         )
