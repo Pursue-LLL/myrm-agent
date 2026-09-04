@@ -60,7 +60,12 @@ _BEHAVIORAL_METRICS_CONTRACT_JS = """(async () => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="READ",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_behavioral_metrics_panel_contract_in_chrome_e2e() -> None:
