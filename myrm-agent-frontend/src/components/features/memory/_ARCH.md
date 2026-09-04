@@ -87,6 +87,7 @@
 | `MemoryContextPanel.tsx`    | 组件 | Shared Context 编辑与预览                                                               | ✅    |
 | `MemoryHealthDashboard.tsx` | 组件 | 记忆健康度指标仪表盘                                                                    | ✅    |
 | `MemoryKnowledgeGraph.tsx`  | 组件 | 记忆知识图谱 force-graph 可视化                                                         | ✅    |
+| `RankedHubSidebar.tsx`      | 组件 | 知识图谱核心主张与冲突焦点侧栏（双重视图、连通度度数与焦点筛选）                         | ✅    |
 
 ### pending/
 

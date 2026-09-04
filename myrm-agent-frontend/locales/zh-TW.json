@@ -8562,6 +8562,15 @@
       "title": "安全審查建議拒絕此操作",
       "overrideOnce": "覆寫一次"
     },
+    "autoModeSuspended": {
+      "title": "自動模式已自動暫停",
+      "consecutiveReason": "因連續觸發 3 次安全阻斷，自動模式已暫停並切回人工顯式審批。",
+      "totalReason": "因累計觸發 20 次安全阻断，自動模式已暫停並切回人工顯式審批。"
+    },
+    "sociallyIrreversible": {
+      "title": "社會性不可逆操作",
+      "description": "此操作涉及外部系統（遠端主幹推送、外部通知廣播或版本發佈），無法在本地復原，必須由您顯式核准。"
+    },
     "batchCostTitle": "批次任務費用確認",
     "batchCostDescription": "智慧體即將派發多個子任務。請確認預估費用後再繼續。",
     "batchCostEstimated": "預估費用",
