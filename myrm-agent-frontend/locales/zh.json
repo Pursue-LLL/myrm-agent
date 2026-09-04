@@ -18453,7 +18453,7 @@
   },
   "continualOverlay": {
     "activeTitle": "活跃会话覆盖层",
-    "remainingTurns": "{count, plural, =1 {1 turn left} other {# turns left}}",
+    "remainingTurns": "{count, plural, =1 {剩余 1 轮} other {剩余 # 轮}}",
     "rollbackTooltip": "回滚此会话覆盖层",
     "rollback": "回滚",
     "collapse": "折叠",
