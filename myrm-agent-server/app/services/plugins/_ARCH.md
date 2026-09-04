@@ -11,8 +11,9 @@ Agent Plugins 1.0.0 导入编排（业务层）。消费框架层解析器 `myrm
 | `__init__.py` | 包入口 | 统一导出插件服务模块公开 API | ✅ |
 | `import_service.py` | 门面 | 插件导入编排门面：ZIP 解析包装（archive security → 结构化错误）、预览构建（含同名冲突标记）、confirm 落盘编排（同名技能原位升级 + MCP 落盘 + bundled 文件持久化）、`list_installed_plugins`（按 plugin_name 溯源分组列出已导入插件，含每个 server 的 `enabled` 状态 `server_meta`，供插件管理 UI 展示启用状态）、`uninstall_plugin`（卸载：删 MCP 条目 + 解绑 Agent + 删文件）、`_load_existing_skill_ids` 冲突 SSOT，并 re-export 会话/模型/持久化符号 | ✅ |
 | `_models.py` | 模型 | `PluginImportSession` / `PluginConfirmItem` 业务层 DTO | ✅ |
+| `_preview.py` | 预览 | 插件导入预览构建与离线安全校验：`build_preview_result`、`scan_skill_security`、`skill_content_too_large`、模板物料容量扫描与 diagnostics 诊断透传 | ✅ |
 | `_staging.py` | 存储 | `PluginStaging` 导入会话持久化（pickle + 24h TTL 清理） | ✅ |
-| `_agent_persist.py` | 持久化 | Agent 团队与配置文件持久化：`persist_imported_agents`（两阶段创建子智能体与入口智能体、自动绑定 subagent_ids 与 workspace 物料模板）、`sanitize_imported_security_overrides`（fail-closed 安全越权清洗） | ✅ |
+| `_agent_persist.py` | 持久化 | Agent 团队与物料持久化：`persist_imported_agents`（两阶段创建子智能体与入口智能体、自动绑定 subagent_ids 与 workspace 模板物料）、`sanitize_imported_security_overrides`（fail-closed 安全越权清洗）、模板物料容量安全护栏（`MAX_TEMPLATE_FILE_BYTES = 1MB`、`MAX_TOTAL_TEMPLATE_BYTES = 5MB`） | ✅ |
 | `_mcp_persist.py` | 持久化 | MCP 落盘合并（`{"mcpConfigs": [...]}` + name 去重 + disabled 默认）、`invalidate_user_configs_cache` 失效、Agent 绑定 skill_ids+mcp_ids、secret 引用解析与 `required_secret_keys` 收集；`_server_to_config_dict` 将 `plugin_name`/`plugin_root`/`data_root` 嵌入 `extra_params`；卸载相关 `_remove_plugin_mcp_servers`（按 plugin_name 移除 MCP 条目）与 `_unbind_plugin_from_agents`（从 Agent `mcp_ids` 解绑） | ✅ |
 | `_plugin_files.py` | 存储 | bundled 插件文件持久化：`server_needs_bundled_files`（server 是否需要随插件发布文件）、`persist_plugin_files`（写入 `{data_dir}/plugins/{name}/` 与 `{name}_data/`）、`remove_plugin_files`（删除两目录）、`plugin_dir_exists`/`is_safe_plugin_name`（列表/卸载时校验与探测） | ✅ |
 
@@ -32,3 +33,4 @@ Agent Plugins 1.0.0 导入编排（业务层）。消费框架层解析器 `myrm
 - **Agent 绑定**：绑定 Agent 时通过单次 `AgentUpdate` 原子追加 skill_ids 与 mcp_ids（去重），缺失 agent 与重复 id 静默容忍。
 - **MCP 去重**：confirm 落盘前与现有 `mcpServers` 按 name 去重，重名 server 被跳过且不计入 `imported_servers`、不绑定 Agent（计数/绑定仅反映实际落盘项）。合并基于已持久化的配置（`{"mcpConfigs": [...]}`，兼容 legacy 裸 list），保证导入仅追加、永不丢弃用户已有服务器。
 - **会话清理**：`PluginStaging` 通过 `cleanup_expired_sessions`（线程内执行同步清理）在后台删除超过 24h 的无主会话，防止磁盘堆积。
+- **模板物料容量护栏与沙箱隔离下发**：插件 `workspace/` 与 `template_files/` 资产作为开箱即用物料注入 Agent 的 `engine_params.template_workspace_files`。单文件上限 `MAX_TEMPLATE_FILE_BYTES`（1MB）、累计总容量上限 `MAX_TOTAL_TEMPLATE_BYTES`（5MB），超限文件安全截断并在预览时透传为 Warning 诊断，根除 SQLite 单行膨胀与反序列化 OOM。新会话启动时由 `workspace_resolve.py` 在当前会话专属沙箱安全 JIT 释放，并通过 `Path.is_relative_to` 绝对防御路径穿越。

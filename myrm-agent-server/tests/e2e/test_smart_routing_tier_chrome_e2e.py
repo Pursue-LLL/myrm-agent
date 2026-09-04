@@ -226,6 +226,13 @@ _LATEST_ASSISTANT_JS = """(() => {
 })()"""
 
 _TIER_BADGE_JS = """(() => {
+  const badge = document.querySelector('[data-testid="routing-tier-badge"]');
+  if (badge) {
+    const text = (badge.textContent || '').trim();
+    if (/^(Light|Standard|Reasoning|轻量|常规|推理)$/.test(text)) {
+      return { found: true, labels: [text] };
+    }
+  }
   const labels = Array.from(document.querySelectorAll('span,div'))
     .map((el) => (el.textContent || '').trim())
     .filter((t) => /^(Light|Standard|Reasoning|轻量|常规|推理)$/.test(t));
@@ -754,6 +761,12 @@ async def test_smart_routing_tier_surfaced_in_webui(
                 )
                 hover_state = (
                     hover if isinstance(hover, dict) else json.loads(str(hover))
+                )
+                print(
+                    "[E2E_HOVER_STATE] "
+                    + json.dumps(hover_state, indent=2, default=str),
+                    file=sys.stderr,
+                    flush=True,
                 )
                 assert hover_state.get("ok") is True, hover_state
                 deadline = time.monotonic() + 10.0
