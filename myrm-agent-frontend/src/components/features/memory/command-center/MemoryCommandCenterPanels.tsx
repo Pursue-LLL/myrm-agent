@@ -35,6 +35,7 @@ import { MemoryLayerGuide } from '../guides/MemoryLayerGuide';
 import { resolveReplaySessionId } from '../replay/memoryLiveStream';
 import { ConflictResolutionCard } from '../cards/ConflictResolutionCard';
 import { BehavioralMetricsPanel } from '../insights/BehavioralMetricsPanel';
+import { EvidenceBadge } from '../cards/EvidenceBadge';
 
 const MemoryHealthDashboard = lazy(() => import('../insights/MemoryHealthDashboard'));
 
@@ -357,12 +358,22 @@ const InfluenceRow = ({ item, t }: { item: MemoryCommandInfluenceItem; t: Memory
       <span className="text-[11px] text-muted-foreground">{formatTime(item.occurred_at)}</span>
     </div>
     <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.answer_preview}</div>
-    <div className="mt-2 flex flex-wrap gap-1.5">
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
       {item.influence_refs.slice(0, 4).map((ref) => (
-        <span key={ref.memory_id} className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px]">
-          {translateMemoryType(ref.memory_type, t)}
-          {typeof ref.score === 'number' ? ` · ${ref.score.toFixed(2)}` : ''}
-        </span>
+        <div key={ref.memory_id} className="flex items-center gap-1">
+          <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px]">
+            {translateMemoryType(ref.memory_type, t)}
+            {typeof ref.score === 'number' ? ` · ${ref.score.toFixed(2)}` : ''}
+          </span>
+          {(ref.source_chat_id || ref.source_message_id) && (
+            <EvidenceBadge
+              sourceId={ref.source_chat_id}
+              messageId={ref.source_message_id}
+              quoteSnippet={ref.content_preview}
+              t={t}
+            />
+          )}
+        </div>
       ))}
     </div>
   </div>

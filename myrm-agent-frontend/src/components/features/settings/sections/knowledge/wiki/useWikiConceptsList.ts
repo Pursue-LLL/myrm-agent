@@ -18,6 +18,7 @@ import {
   resolveCreateParentFolder,
 } from './wikiTreeUtils';
 import { splitTagsInput } from './wikiSectionUtils';
+import { useWikiConceptClaimActions } from './useWikiConceptClaimActions';
 
 function findConceptNodeId(nodes: TreeNode[], conceptPath: string): string | null {
   const normalized = conceptPath.replace(/\\/g, '/').replace(/^\//, '').replace(/\.md$/i, '');
@@ -404,55 +405,12 @@ export function useWikiConceptsList(options?: {
     }
   };
 
-  const handleUpdateClaimStatus = async (claimId: string, status: 'supported' | 'contested') => {
-    if (!selectedConcept) {
-      return;
-    }
-    const currentClaims = selectedConcept.claims || [];
-    const patchClaims = currentClaims.map((c) => ({
-      id: c.id,
-      text: c.text,
-      status: c.id === claimId ? status : c.status,
-      confidence: c.confidence,
-      evidence: c.evidence,
-    }));
-    try {
-      await wikiService.applyWiki(
-        {
-          op: 'update_metadata',
-          concept_name: selectedConcept.name,
-          claims: patchClaims,
-        },
-        agentScopeId,
-        'settings',
-      );
-      const refreshed = await wikiService.getConcept(selectedConcept.name, agentScopeId);
-      setSelectedConcept(refreshed);
-      toast.success(t('claimsStatusUpdated'));
-      onVaultMutated?.();
-    } catch (error) {
-      toast.error(getWikiOperationErrorMessage(error, t('updateFailed')));
-    }
-  };
-
-  const handleHealClaims = async () => {
-    if (!selectedConcept) {
-      return;
-    }
-    try {
-      const result = await wikiService.healConceptClaims([selectedConcept.name], agentScopeId);
-      if (result.total_healed_evidence > 0) {
-        toast.success(t('claimsHealSuccess', { count: result.total_healed_evidence }));
-      } else {
-        toast.info(t('claimsHealNone'));
-      }
-      const refreshed = await wikiService.getConcept(selectedConcept.name, agentScopeId);
-      setSelectedConcept(refreshed);
-      onVaultMutated?.();
-    } catch (error) {
-      toast.error(getWikiOperationErrorMessage(error, t('operationFailed')));
-    }
-  };
+  const { handleUpdateClaimStatus, handleHealClaims } = useWikiConceptClaimActions({
+    selectedConcept,
+    setSelectedConcept,
+    agentScopeId,
+    onVaultMutated,
+  });
 
   const confirmDelete = async () => {
     if (!deleteTarget) {

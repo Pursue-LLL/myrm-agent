@@ -135,7 +135,7 @@ def test_eval_api_e2e() -> None:
                 assert cap_res.status_code == 200
                 assert cap_res.json()["status"] == "success"
 
-                pack_res = client.get(f"{p}/cases?dataset_id=live-e2e-pack")
+                pack_res = client.get(f"{p}/datasets/live-e2e-pack")
                 assert pack_res.status_code == 200
                 assert "Summarize quarterly report." in pack_res.json()["content"]
                 assert "Quarterly profit up 20%." in pack_res.json()["content"]

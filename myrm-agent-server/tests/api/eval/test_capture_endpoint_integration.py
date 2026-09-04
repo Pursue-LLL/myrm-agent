@@ -28,20 +28,20 @@ def client() -> Generator[TestClient, None, None]:
 
 
 def test_capture_from_chat_success_and_query_param(client: TestClient):
-    with patch("app.api.eval.router.capture_case_from_chat", new_callable=AsyncMock) as mock_capture:
-        mock_capture.return_value = True
+        with patch("app.api.eval.router.capture_case_from_chat", new_callable=AsyncMock) as mock_capture:
+            mock_capture.return_value = True
 
-        # Default dataset_id
-        res = client.post("/api/v1/eval/cases/from-chat/chat-abc")
-        assert res.status_code == 200
-        assert res.json() == {"status": "success"}
-        mock_capture.assert_called_with("chat-abc", None)
+            # Default dataset_id
+            res = client.post("/api/v1/eval/cases/from-chat/chat-abc")
+            assert res.status_code == 200
+            assert res.json() == {"status": "success"}
+            mock_capture.assert_called_with("chat-abc", None)
 
-        # Custom dataset_id
-        res2 = client.post("/api/v1/eval/cases/from-chat/chat-abc?dataset_id=custom-regressions")
-        assert res2.status_code == 200
-        assert res2.json() == {"status": "success"}
-        mock_capture.assert_called_with("chat-abc", "custom-regressions")
+            # Custom dataset_id
+            res2 = client.post("/api/v1/eval/cases/from-chat/chat-abc?dataset_id=custom-regressions")
+            assert res2.status_code == 200
+            assert res2.json() == {"status": "success"}
+            mock_capture.assert_called_with("chat-abc", "custom-regressions")
 
 
 def test_capture_from_chat_failure_returns_500(client: TestClient):
