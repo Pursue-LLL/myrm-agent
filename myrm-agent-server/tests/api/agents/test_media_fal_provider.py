@@ -130,3 +130,34 @@ def test_flux3_prompting_guide_skill_valid() -> None:
     assert data.name == "flux3-prompting-guide"
     assert data.version == "1.0.0"
     assert "video_tool" in data.allowed_tools
+
+
+def test_fal_provider_id_normalization() -> None:
+    from app.services.agent.params.providers import normalize_storage_provider_id
+
+    assert normalize_storage_provider_id("fal") == "fal"
+    assert normalize_storage_provider_id("fal_ai") == "fal"
+    assert normalize_storage_provider_id("fal-ai") == "fal"
+
+
+def test_find_fal_provider_api_key() -> None:
+    from app.services.agent.params import _find_provider_api_key
+
+    providers_dict = {
+        "providers": [
+            {
+                "id": "fal",
+                "isEnabled": True,
+                "apiKeys": [
+                    {
+                        "key": "fal-secret-key-123",
+                        "isActive": True,
+                    }
+                ],
+            }
+        ]
+    }
+    assert _find_provider_api_key(providers_dict, "fal") == "fal-secret-key-123"
+    assert _find_provider_api_key(providers_dict, "fal_ai") == "fal-secret-key-123"
+    assert _find_provider_api_key(providers_dict, "fal-ai") == "fal-secret-key-123"
+

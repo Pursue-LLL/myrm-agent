@@ -41,15 +41,6 @@ def _seed_composer_fixture(api_url: str) -> dict[str, object]:
         f"{api_url}/api/v1/chats/test/seed-skill-chip-composer-fixture",
     )
     assert isinstance(seeded, dict)
-    return seeded
-
-
-def _seed_composer_fixture(api_url: str) -> dict[str, object]:
-    seeded = http_json(
-        "POST",
-        f"{api_url}/api/v1/chats/test/seed-skill-chip-composer-fixture",
-    )
-    assert isinstance(seeded, dict)
     chat_id = str(seeded.get("chat_id") or "")
     agent_id = str(seeded.get("agent_id") or "")
     assert chat_id.startswith("e2eslashchip")
@@ -162,8 +153,19 @@ def test_knowledge_picker_popover_chrome_e2e() -> None:
     agent_chat_path = str(seeded.get("ui_path") or f"/{chat_id}?agentId={agent_id}")
     warm_ui_route(agent_chat_path)
 
-    chat_page_url = f"{ui_url.rstrip('/')}{agent_chat_path}"
-    with open_mcp_page(chat_page_url) as (client, page):
+    chat_page_url = f"{ui_url}{agent_chat_path}"
+    with open_mcp_page(f"{ui_url}{agent_chat_path}") as (client, page):
+        wait_for_state(
+            client,
+            page,
+            """(() => ({
+  ready:
+    !!document.querySelector('[data-chat-input]') &&
+    !!window.__MYRM_E2E_CHAT__ &&
+    (window.__MYRM_E2E_CHAT__.turnSnapshot?.()?.agentSelectedSkillCount ?? 0) > 0,
+}))()""",
+            timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+        )
         dismiss_blocking_modals(client, page, recover_url=chat_page_url)
 
         # 1. 验证知识库挂载触发按钮正常渲染

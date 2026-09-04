@@ -14945,6 +14945,12 @@
       "evidenceSnapshotVerified": "スナップショットは現在のページと照合済みです。",
       "evidenceStructuredClaim": "構造化された主張",
       "evidenceSupersededFrom": "次の内容に置き換えられました: {uri}",
+      "governanceTitle": "ナレッジライフサイクルガバナンス",
+      "undoAction": "アーカイブの取り消し",
+      "pendingQueue": "審査待ちの下書き",
+      "expiringQueue": "期限間近",
+      "gapsQueue": "ナレッジの空白",
+      "archivedQueue": "アーカイブ済み概念",
       "obsidianBinding": {
         "bindSuccess": "Obsidian 保管庫が正常にバインドされました",
         "bindFailed": "Obsidian 保管庫のバインドに失敗しました",

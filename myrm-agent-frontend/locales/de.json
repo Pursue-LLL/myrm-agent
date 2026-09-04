@@ -14945,6 +14945,12 @@
       "evidenceSnapshotVerified": "Snapshot wurde mit der aktuellen Seite abgeglichen.",
       "evidenceStructuredClaim": "Strukturierter Anspruch",
       "evidenceSupersededFrom": "Ersetzt durch: {uri}",
+      "governanceTitle": "Wissenslebenszyklus-Governance",
+      "undoAction": "Archivierung widerrufen",
+      "pendingQueue": "Ausstehende Entwürfe",
+      "expiringQueue": "Läuft bald ab",
+      "gapsQueue": "Wissenslücken",
+      "archivedQueue": "Archivierte Konzepte",
       "obsidianBinding": {
         "bindSuccess": "Obsidian-Tresor erfolgreich verknüpft",
         "bindFailed": "Verknüpfung mit Obsidian-Tresor fehlgeschlagen",

@@ -32,7 +32,17 @@ async def list_allowlist_entries(
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """List all allowlist entries for the current user."""
-    stmt = select(UserToolAllowlist).order_by(UserToolAllowlist.created_at.desc())
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    stmt = (
+        select(UserToolAllowlist)
+        .where(
+            (UserToolAllowlist.expires_at.is_(None))
+            | (UserToolAllowlist.expires_at > now)
+        )
+        .order_by(UserToolAllowlist.created_at.desc())
+    )
     result = await db.execute(stmt)
     entries = result.scalars().all()
 

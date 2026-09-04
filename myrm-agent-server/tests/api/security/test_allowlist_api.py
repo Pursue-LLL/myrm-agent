@@ -205,3 +205,36 @@ class TestAllowlistPatternIntegration:
         del_resp2 = client.delete(f"/api/v1/security/allowlist/{entry_id}")
         assert del_resp2.status_code == 200
         assert del_resp2.json()["data"]["deleted"] is True
+
+    def test_expired_time_bound_allowlist_entry_not_returned(self, client: TestClient) -> None:
+        asyncio.run(clear_allowlist_entries())
+        from datetime import datetime, timedelta, timezone
+
+        from app import platform_utils
+
+        entry_id = uuid.uuid4().hex
+        factory = platform_utils.get_session_factory()
+        past_dt = datetime.now(timezone.utc) - timedelta(minutes=10)
+
+        async def _seed():
+            async with factory() as session:
+                session.add(
+                    UserToolAllowlist(
+                        id=entry_id,
+                        permission="shell_exec",
+                        tool_name="bash",
+                        tool_args_hash="",
+                        command_pattern="ls *",
+                        agent_id="",
+                        expires_at=past_dt,
+                    )
+                )
+                await session.commit()
+
+        asyncio.run(_seed())
+
+        response = client.get("/api/v1/security/allowlist")
+        assert response.status_code == 200
+        rows = response.json()["data"]
+        # Expired entry is automatically filtered out by query and pruned
+        assert not any(r["id"] == entry_id for r in rows)

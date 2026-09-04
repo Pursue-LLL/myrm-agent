@@ -14945,6 +14945,12 @@
       "evidenceSnapshotVerified": "스냅샷이 현재 페이지와 일치하는지 확인되었습니다.",
       "evidenceStructuredClaim": "구조화된 주장",
       "evidenceSupersededFrom": "다음으로 대체됨: {uri}",
+      "governanceTitle": "지식 수명 주기 거버넌스",
+      "undoAction": "보관 취소",
+      "pendingQueue": "검토 대기 초안",
+      "expiringQueue": "만료 예정",
+      "gapsQueue": "지식 격차",
+      "archivedQueue": "보관된 개념",
       "obsidianBinding": {
         "bindSuccess": "Obsidian 보관함이 연결되었습니다",
         "bindFailed": "Obsidian 보관함 연결 실패",
