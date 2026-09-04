@@ -28,7 +28,8 @@
 | `constants.ts` | 辅助 | 侧栏布局与 DnD 常量 | ✅ |
 | `dateGroupUtils.ts` | 辅助 | 会话按 Today/Yesterday/Earlier 分组纯函数 | ✅ |
 | `useBatchMode.ts` | Hook | 批量选择模式开关与选中 ID 集合 | ✅ |
-| `useChatActions.ts` | Hook | 会话 Pin/Rename/Delete/Export/Print/CaptureEvalCase 等 imperative 动作；分享：打开对话框先查询分享状态（活跃链接/密码保护/已撤回），创建与撤销 | ✅ |
+| `useChatActions.ts` | Hook | 会话 Pin/Rename/Delete/Export/Print/CaptureEvalCase 等 imperative 动作；组合 `useChatShareActions` | ✅ |
+| `useChatShareActions.ts` | Hook | 会话分享对话框状态管理、创建/撤回/状态查询操作 | ✅ |
 | `useSidebarState.ts` | Hook | 侧栏展开/折叠、搜索词、滚动位置持久化 | ✅ |
 
 ## 依赖

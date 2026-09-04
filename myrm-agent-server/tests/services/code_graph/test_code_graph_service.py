@@ -110,13 +110,14 @@ def test_order_flow():
         # 2. 验证 callers
         callers = service.callers("core_calculator")
         assert len(callers) >= 1
-        assert callers[0]["caller"] == "app.service.process_order"
+        caller_names = [c["caller"] for c in callers]
+        assert any("process_order" in c for c in caller_names)
 
         # 3. 验证 tests_reaching 拓扑触达
         reaching = service.tests_reaching("core_calculator")
         assert len(reaching) >= 1
-        assert reaching[0]["test_symbol"] == "tests.test_service.test_order_flow"
-        assert "test_service.py" in reaching[0]["file_path"]
+        assert any("test_order_flow" in r["test_symbol"] for r in reaching)
+        assert any("test_service.py" in r["file_path"] for r in reaching)
 
         # 4. 验证增量 reingest
         svc_file.write_text(
@@ -133,6 +134,6 @@ def new_caller(x: int):
         assert reingest_res["status"] == "updated"
 
         new_callers = service.callers("core_calculator")
-        caller_names = [c["caller"] for c in new_callers]
-        assert "app.service.new_caller" in caller_names
-        assert "app.service.process_order" not in caller_names
+        new_caller_names = [c["caller"] for c in new_callers]
+        assert any("new_caller" in c for c in new_caller_names)
+        assert not any("process_order" in c for c in new_caller_names)

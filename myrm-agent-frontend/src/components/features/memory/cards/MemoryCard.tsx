@@ -27,6 +27,7 @@ import { Tag } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { PendingMemory, Memory, MemoryType } from '@/store/memory';
 import MemoryTypeIcon from './MemoryTypeIcon';
+import { EvidenceBadge } from './EvidenceBadge';
 
 interface MemoryCardProps {
   memory: PendingMemory | Memory;
@@ -390,7 +391,17 @@ const MemoryCard = memo<MemoryCardProps>(
           })()}
 
           {memory.source_chat_id && (
-            <div className="mt-3 pt-3 border-t border-border/50">
+            <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between gap-2 flex-wrap">
+              <EvidenceBadge
+                sourceId={memory.source_chat_id}
+                messageId={memory.source_message_id}
+                channelId={'source_channel_id' in memory ? memory.source_channel_id : undefined}
+                quoteSnippet={'quote_snippet' in memory ? memory.quote_snippet : undefined}
+                authorName={'author_name' in memory ? memory.author_name : undefined}
+                authorId={'author_id' in memory ? memory.author_id : undefined}
+                isUserLocked={confirmed?.is_user_locked}
+                t={t}
+              />
               <button
                 onClick={() => {
                   const url = memory.source_message_id
@@ -398,7 +409,7 @@ const MemoryCard = memo<MemoryCardProps>(
                     : `/${memory.source_chat_id}`;
                   router.push(url);
                 }}
-                className="flex items-center gap-1.5 text-xs text-primary/70 hover:text-primary transition-colors"
+                className="flex items-center gap-1.5 text-xs text-primary/70 hover:text-primary transition-colors ml-auto"
               >
                 <MessageSquare size={12} />
                 <span>{t('viewSourceChat')}</span>

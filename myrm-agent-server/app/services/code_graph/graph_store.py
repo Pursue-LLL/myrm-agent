@@ -9,7 +9,6 @@ import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
 
 from app.services.code_graph.models import (
     CallEdge,
@@ -233,7 +232,7 @@ class CodeGraphStore:
                 source=row["source"] or "",
             )
 
-    def resolve_names(self, target: str) -> list[dict[str, Any]]:
+    def resolve_names(self, target: str) -> list[dict[str, object]]:
         with self._get_conn() as conn:
             cursor = conn.cursor()
             # 1. path:line 模式
@@ -274,7 +273,7 @@ class CodeGraphStore:
             )
             return [dict(r) for r in cursor.fetchall()]
 
-    def get_callers(self, callee_name: str) -> list[dict[str, Any]]:
+    def get_callers(self, callee_name: str) -> list[dict[str, object]]:
         bare_name = callee_name.split(".")[-1]
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -295,7 +294,7 @@ class CodeGraphStore:
                 results.append(item)
             return results
 
-    def get_callees(self, caller_qname: str) -> list[dict[str, Any]]:
+    def get_callees(self, caller_qname: str) -> list[dict[str, object]]:
         with self._get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -315,7 +314,7 @@ class CodeGraphStore:
                 results.append(item)
             return results
 
-    def get_implementors(self, super_type_name: str) -> list[dict[str, Any]]:
+    def get_implementors(self, super_type_name: str) -> list[dict[str, object]]:
         bare_name = super_type_name.split(".")[-1]
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -330,7 +329,7 @@ class CodeGraphStore:
             )
             return [dict(r) for r in cursor.fetchall()]
 
-    def get_importers(self, module_name: str) -> list[dict[str, Any]]:
+    def get_importers(self, module_name: str) -> list[dict[str, object]]:
         with self._get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -344,11 +343,11 @@ class CodeGraphStore:
             )
             return [dict(r) for r in cursor.fetchall()]
 
-    def get_tests_reaching(self, target_qname: str) -> list[dict[str, Any]]:
+    def get_tests_reaching(self, target_qname: str) -> list[dict[str, object]]:
         """基于反向调用图追溯所有直接或间接可触达该符号的测试函数或文件。"""
         callers = self.get_callers(target_qname)
         visited_callers: set[str] = set()
-        reaching_tests: list[dict[str, Any]] = []
+        reaching_tests: list[dict[str, object]] = []
 
         queue = [(c["caller"], c["file_path"], c["line"], 1) for c in callers]
 

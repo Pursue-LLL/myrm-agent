@@ -6,7 +6,6 @@
 
 import time
 from pathlib import Path
-from typing import Any
 
 from app.services.code_graph.ast_extractor import JsTsRegexExtractor, PythonAstExtractor
 from app.services.code_graph.graph_store import CodeGraphStore
@@ -147,7 +146,7 @@ class CodeGraphService:
         return node.to_dict() if node else None
 
     def callers(self, callee_name: str) -> list[dict[str, Any]]:
-        """3. 获取调用指定函数的所有 CallSite 位置与参数信息。"""
+        """3. 获取调用指定函数的所有 CallSite 位置与参数信息（纯确定性检索）。"""
         return self.store.get_callers(callee_name)
 
     def callees(self, caller_qname: str) -> list[dict[str, Any]]:
