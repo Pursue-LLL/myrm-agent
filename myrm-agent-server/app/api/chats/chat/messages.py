@@ -153,6 +153,7 @@ async def delete_chat_messages(
 @router.get("/{chat_id}/export", response_model=StandardSuccessResponse)
 async def export_chat(
     chat_id: str,
+    redact_secrets: bool = Query(True, description="Whether to redact sensitive secrets and API keys"),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Export chat metadata, messages, usage summary, tool activity, and agent info for client-side formatting."""
@@ -195,29 +196,49 @@ async def export_chat(
         agent_info = await _build_agent_info(chat.agent_id, db)
         tool_call_details = await _build_tool_call_details(chat_id, db)
 
-        return success_response(
-            data={
-                "chat": {
-                    "id": chat.id,
-                    "title": chat.title,
-                    "source": chat.source,
-                    "createdAt": chat.created_at.isoformat(),
-                },
-                "messages": items,
-                "usageSummary": {
-                    "totalCalls": chat.total_calls,
-                    "totalTokens": chat.total_tokens,
-                    "totalUsd": chat.total_usd,
-                },
-                "toolSummary": tool_summary,
-                "agentInfo": agent_info,
-                "toolCallDetails": tool_call_details,
-            }
-        )
+        payload_data: dict[str, object] = {
+            "chat": {"id": chat.id, "title": chat.title, "source": chat.source, "createdAt": chat.created_at.isoformat()},
+            "messages": items,
+            "usageSummary": {"totalCalls": chat.total_calls, "totalTokens": chat.total_tokens, "totalUsd": chat.total_usd},
+            "toolSummary": tool_summary,
+            "agentInfo": agent_info,
+            "toolCallDetails": tool_call_details,
+            "redacted": redact_secrets,
+        }
+
+        if redact_secrets:
+            payload_data = _redact_export_payload(payload_data)
+
+        return success_response(data=payload_data)
     except HTTPException:
         raise
     except Exception as e:
         raise internal_error(operation="Export chat", exception=e) from e
+
+
+def _redact_export_payload(payload: dict[str, object]) -> dict[str, object]:
+    """Sanitize secrets across all exported chat structures."""
+    chat_meta = payload.get("chat")
+    if isinstance(chat_meta, dict) and isinstance(chat_meta.get("title"), str):
+        chat_meta["title"] = redact_sensitive_text(chat_meta["title"])
+
+    for msg in payload.get("messages") or []:
+        if isinstance(msg, dict):
+            if isinstance(msg.get("content"), str):
+                msg["content"] = redact_sensitive_text(msg["content"])
+            meta = msg.get("metadata")
+            if isinstance(meta, dict) and isinstance(meta.get("reasoning_content"), str):
+                meta["reasoning_content"] = redact_sensitive_text(meta["reasoning_content"])
+
+    for tool_call in payload.get("toolCallDetails") or []:
+        if isinstance(tool_call, dict) and isinstance(tool_call.get("argsSummary"), str):
+            tool_call["argsSummary"] = redact_sensitive_text(tool_call["argsSummary"])
+
+    agent_info = payload.get("agentInfo")
+    if isinstance(agent_info, dict) and isinstance(agent_info.get("description"), str):
+        agent_info["description"] = redact_sensitive_text(agent_info["description"])
+
+    return payload
 
 
 async def _load_tool_calls(chat_id: str) -> list[ToolCallRecord]:
@@ -351,15 +372,13 @@ async def _build_tool_call_details(chat_id: str, db: AsyncSession) -> list[dict[
         turn_index = by_message_id.get(str(call.message_id)) if call.message_id else None
         if turn_index is None:
             turn_index = _assistant_turn_index_at(call.start_time, message_windows)
-        details.append(
-            {
-                "turnIndex": turn_index,
-                "name": call.tool_name,
-                "argsSummary": _sanitize_args_summary(call.input_data),
-                "durationMs": int(call.duration_ms) if call.duration_ms is not None else None,
-                "success": call.success,
-            }
-        )
+        details.append({
+            "turnIndex": turn_index,
+            "name": call.tool_name,
+            "argsSummary": _sanitize_args_summary(call.input_data),
+            "durationMs": int(call.duration_ms) if call.duration_ms is not None else None,
+            "success": call.success,
+        })
     return details
 
 

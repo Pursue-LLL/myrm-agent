@@ -2861,6 +2861,19 @@
       "success": "已成功沉淀为评测用例",
       "successDesc": "已将该对话轨迹安全清洗并写入评测基准数据集",
       "error": "沉淀评测用例失败"
+    },
+    "callGraph": {
+      "title": "代码调用图谱分析",
+      "callers": "调用方",
+      "reachingTests": "关联测试",
+      "physicalCallChain": "真实物理调用链",
+      "noCallers": "未发现外部调用点（可能为根入口或私有函数）",
+      "params": "入参",
+      "testImpact": "测试影响面与爆炸半径",
+      "noTests": "未检测到直接或间接覆盖该逻辑的测试用例",
+      "depth": "深度",
+      "level": "级",
+      "runAffectedTests": "运行受影响的 {count} 个测试套件"
     }
   },
   "mode": {

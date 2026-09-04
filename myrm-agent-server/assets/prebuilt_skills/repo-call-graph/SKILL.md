@@ -45,6 +45,10 @@ contract:
 
 Deterministic AST-level code navigation for Python and TypeScript/JavaScript.
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
 ## When to Use
 
 1. **Refactoring Functions or Methods**: Find all genuine callers and their call sites before changing signatures.
