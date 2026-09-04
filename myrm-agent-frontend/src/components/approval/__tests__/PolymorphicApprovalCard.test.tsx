@@ -294,4 +294,62 @@ describe('PolymorphicApprovalCard', () => {
     expect(screen.getByText('How to connect to bastion?')).toBeInTheDocument();
     expect(screen.getByText('90%')).toBeInTheDocument();
   });
+
+  it('renders spend protection banner and forwards action_digest on approval', async () => {
+    const onResolveMock = vi.fn().mockResolvedValue(undefined);
+    const testDigest = 'abcd1234ef567890aabbccddeeff00112233445566778899aabbccddeeff0011';
+
+    render(
+      <PolymorphicApprovalCard
+        approval={{
+          approval_id: 'approval-spend-1',
+          user_id: 'user-1',
+          action_type: 'subagent_approval',
+          status: 'PENDING',
+          severity: 'warning',
+          payload: {
+            tool_calls: [
+              {
+                name: 'mcp__stripe__charge_customer',
+                args: { amount: 25.0, currency: 'USD' },
+              },
+            ],
+            reviewConfigs: [
+              {
+                allowedDecisions: ['approve', 'reject'],
+                isSpend: true,
+                spendAmount: 25.0,
+                spendCurrency: 'USD',
+                actionDigest: testDigest,
+                hideAllowAlways: true,
+              },
+            ],
+          },
+        }}
+        onResolve={onResolveMock}
+        isSubmitting={false}
+      />,
+    );
+
+    expect(screen.getByTestId('spend-protection-banner')).toBeInTheDocument();
+    expect(screen.getByText('toolApproval.spendProtection.title')).toBeInTheDocument();
+    expect(screen.getByText('toolApproval.spendProtection.tamperProtected')).toBeInTheDocument();
+    expect(screen.getByText(/25.00 USD/)).toBeInTheDocument();
+    // Allow Always button should be hidden due to hideAllowAlways
+    expect(screen.queryByText('toolApproval.allowAlways')).not.toBeInTheDocument();
+
+    // Click Approve button
+    const approveBtn = screen.getByRole('button', { name: 'toolApproval.approve' });
+    approveBtn.click();
+
+    expect(onResolveMock).toHaveBeenCalledWith(
+      'approve',
+      '',
+      undefined,
+      expect.objectContaining({
+        action_digest: testDigest,
+        actionDigest: testDigest,
+      }),
+    );
+  });
 });

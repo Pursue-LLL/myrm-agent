@@ -28,7 +28,7 @@ from myrm_agent_harness.api import (
     generate_behavioral_profile_candidates,
     is_alert_or_bot_sender,
 )
-from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
+from myrm_agent_harness.toolkits.memory import MemoryManager
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 

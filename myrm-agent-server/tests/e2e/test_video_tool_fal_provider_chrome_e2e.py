@@ -10,7 +10,6 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_settings_subroute,
     prepare_e2e_ui_session,
-    wait_for_settings_layout,
     warm_ui_route,
 )
 

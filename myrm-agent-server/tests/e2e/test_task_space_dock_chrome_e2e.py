@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import urllib.request
+
 import pytest
 
 from tests.support.chrome_mcp_e2e import (

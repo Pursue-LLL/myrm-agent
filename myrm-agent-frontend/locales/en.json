@@ -4401,7 +4401,27 @@
       "embeddingNotReadyDesc": "Please configure an embedding model in Settings > Model Service before using the demo.",
       "demoSeedSuccess": "Demo data seeded successfully!",
       "demoSeedSuccessDesc": "You can now explore the memory graph and semantic search.",
-      "demoRollbackSuccess": "Demo data removed successfully!"
+      "demoRollbackSuccess": "Demo data removed successfully!",
+      "behavioral": {
+        "title": "Behavioral Routines & Signals",
+        "description": "Computed purely deterministically from interaction timestamps with zero model cost.",
+        "workdayTitle": "Workday Routine (Mon-Fri)",
+        "weekendTitle": "Weekend Routine (Sat-Sun)",
+        "workdayPeak": "Workday Peak: {window}",
+        "weekendPeak": "Weekend Peak: {window}",
+        "responseLatency": "Interaction Response Latency",
+        "latencyP50": "Median Latency P50: {time}",
+        "latencyP90": "Tail Latency P90: {time}",
+        "collaborators": "Frequent Collaborators",
+        "noCollaborators": "No frequent collaborators recorded yet",
+        "samplingProgress": "Sampling Progress",
+        "samplesCollected": "{count} / {target} valid message samples collected",
+        "learningHint": "Learning your objective habits through natural interactions. Will solidify once 20 samples are reached.",
+        "syncButton": "Sync Profile Now",
+        "syncSuccess": "Behavioral profile synchronized successfully!",
+        "syncFailed": "Failed to sync behavioral profile",
+        "zeroTokenBadge": "0 Model Cost · Deterministic"
+      }
     },
     "createDialog": {
       "title": "Add Memory",
