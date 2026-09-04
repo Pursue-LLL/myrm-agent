@@ -10,23 +10,20 @@ Runs against an in-memory/ephemeral SQLite database with REAL ChannelMessageMode
 
 from __future__ import annotations
 
-import tempfile
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.api.dependencies import get_db_session
 from app.api.memory.operations import command_center as command_center_operation
 from app.api.memory.utils import get_crud_memory_manager
 from app.database.models.base import Base
 from app.database.models.channel_message import ChannelMessageModel
-from app.database.models.chat import Message
 from app.services.memory.behavioral.measurement_service import BehavioralMeasurementService
 
 
@@ -38,12 +35,17 @@ async def real_db_env():
 
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-    tmp_dir = tempfile.mkdtemp(prefix="myrm_mem_test_")
-    manager = MemoryManager(
-        path=tmp_dir,
-        types=[MemoryType.PROFILE, MemoryType.SEMANTIC],
-        approval_required=False,
-    )
+    stored_profiles: dict[str, str] = {}
+    manager = MagicMock()
+
+    async def _mock_set_profile(key: str, value: str):
+        stored_profiles[key] = value
+
+    async def _mock_get_profile(key: str) -> str | None:
+        return stored_profiles.get(key)
+
+    manager.set_system_profile_attribute = AsyncMock(side_effect=_mock_set_profile)
+    manager.get_profile_attribute = AsyncMock(side_effect=_mock_get_profile)
 
     yield session_maker, manager, engine
 
