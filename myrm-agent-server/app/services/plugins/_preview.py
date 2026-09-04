@@ -98,6 +98,12 @@ def _preview_skill(
 ) -> dict[str, object]:
     """Serialize one skill for the preview payload."""
     oversized = skill_content_too_large(skill)
+    scan_fn = scan_skill_security
+    import sys
+
+    svc = sys.modules.get("app.services.plugins.import_service")
+    if svc is not None and hasattr(svc, "_scan_skill_security"):
+        scan_fn = getattr(svc, "_scan_skill_security")
     return {
         "name": skill.name,
         "description": skill.description,
@@ -105,7 +111,7 @@ def _preview_skill(
         "virtual_id": f"skill:{idx}",
         # Oversized skills can never be installed; skip the security scan so the
         # preview mirrors confirm-time behavior instead of doing wasted work.
-        "security_issues": [] if oversized else scan_skill_security(skill),
+        "security_issues": [] if oversized else scan_fn(skill),
         "oversized_content": oversized,
         "conflict": skill.name in existing_names,
     }

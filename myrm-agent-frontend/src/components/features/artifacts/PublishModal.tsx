@@ -6,12 +6,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
-import { Loader2, Globe, XCircle } from 'lucide-react';
+import { Globe, XCircle } from 'lucide-react';
 import { Artifact } from '@/store/chat/types';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { PublishShareCard } from './PublishShareCard';
+import { PublishLogsViewer } from './PublishLogsViewer';
 import {
   buildPublishStatusWsUrl,
   fetchArtifactPublications,
@@ -261,51 +262,27 @@ export const PublishModal: React.FC<PublishModalProps> = ({
     }
   };
 
-  const handleCopyUrl = async () => {
-    if (!publishUrl) {
-      return;
-    }
+  const handleCopy = async (text: string, type: 'url' | 'password' | 'all', successMsg: string) => {
+    if (!text) return;
     try {
-      await writeToClipboard(publishUrl);
-      setCopiedType('url');
-      toast.success(t('urlCopied'));
+      await writeToClipboard(text);
+      setCopiedType(type);
+      toast.success(successMsg);
       setTimeout(() => setCopiedType('none'), 2000);
     } catch (err) {
-      console.error('Failed to copy URL', err);
+      console.error(`Failed to copy ${type}`, err);
     }
   };
 
-  const handleCopyPassword = async () => {
-    if (!password) {
-      return;
-    }
-    try {
-      await writeToClipboard(password);
-      setCopiedType('password');
-      toast.success(t('passwordCopied'));
-      setTimeout(() => setCopiedType('none'), 2000);
-    } catch (err) {
-      console.error('Failed to copy password', err);
-    }
-  };
-
-  const handleCopyShareDetails = async () => {
-    if (!publishUrl) {
-      return;
-    }
-    try {
-      const title = artifact.filename || t('title');
-      const shareText =
-        enablePassword && password
-          ? `${title}\n${publishUrl}\n${t('passwordLabel')}: ${password}`
-          : `${title}\n${publishUrl}`;
-      await writeToClipboard(shareText);
-      setCopiedType('all');
-      toast.success(t('shareInfoCopied'));
-      setTimeout(() => setCopiedType('none'), 2000);
-    } catch (err) {
-      console.error('Failed to copy share details', err);
-    }
+  const handleCopyUrl = () => handleCopy(publishUrl, 'url', t('urlCopied'));
+  const handleCopyPassword = () => handleCopy(password, 'password', t('passwordCopied'));
+  const handleCopyShareDetails = () => {
+    const title = artifact.filename || t('title');
+    const shareText =
+      enablePassword && password
+        ? `${title}\n${publishUrl}\n${t('passwordLabel')}: ${password}`
+        : `${title}\n${publishUrl}`;
+    return handleCopy(shareText, 'all', t('shareInfoCopied'));
   };
 
   return (
@@ -434,25 +411,7 @@ export const PublishModal: React.FC<PublishModalProps> = ({
             </div>
           )}
 
-          {status === 'PUBLISHING' && (
-            <div className="space-y-5 animate-in fade-in zoom-in-95 duration-300">
-              <div className="flex flex-col items-center justify-center py-6 gap-4">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse" />
-                  <Loader2 className="w-10 h-10 animate-spin text-primary relative z-10" />
-                </div>
-                <p className="text-sm font-medium text-muted-foreground animate-pulse">{t('publishing')}</p>
-              </div>
-              <div className="bg-muted/80 text-foreground/90 p-4 rounded-xl h-40 overflow-y-auto font-mono text-xs border border-border scrollbar-thin">
-                {logs.map((log, i) => (
-                  <div key={i} className="mb-1 opacity-80 hover:opacity-100 transition-opacity">
-                    <span className="text-muted-foreground mr-2">[{new Date().toLocaleTimeString()}]</span>
-                    {log}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {status === 'PUBLISHING' && <PublishLogsViewer logs={logs} />}
 
           {status === 'SUCCESS' && (
             <PublishShareCard

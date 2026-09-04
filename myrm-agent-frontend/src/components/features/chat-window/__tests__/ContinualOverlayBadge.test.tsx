@@ -50,12 +50,7 @@ describe('ContinualOverlayBadge', () => {
 
     const onRollbackMock = vi.fn().mockResolvedValue(undefined);
 
-    render(
-      <ContinualOverlayBadge
-        overlays={overlays}
-        onRollback={onRollbackMock}
-      />
-    );
+    render(<ContinualOverlayBadge overlays={overlays} onRollback={onRollbackMock} />);
 
     // Title and remaining turns should be visible
     expect(screen.getByText('activeTitle')).toBeInTheDocument();

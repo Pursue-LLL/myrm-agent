@@ -187,12 +187,35 @@ def _render_decryptor_html(encrypted_data: dict[str, str], title: str = "Protect
       </div>
       <button type="submit" id="unlock-btn">Unlock & View</button>
       <div class="error" id="error-msg">Incorrect password or corrupted data.</div>
+      <div class="error" id="env-error-msg" style="color: #fbbf24; text-align: left; line-height: 1.4; border: 1px solid rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.1); padding: 0.75rem; border-radius: 0.5rem; display: none;"></div>
     </form>
   </div>
   <iframe id="app-container" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
 
   <script>
     const encryptedData = {data_json};
+
+    function checkSecureContext() {{
+      const hasSubtle = typeof window !== "undefined" && window.crypto && window.crypto.subtle;
+      if (!hasSubtle) {{
+        const envErr = document.getElementById("env-error-msg");
+        const btn = document.getElementById("unlock-btn");
+        const passInput = document.getElementById("pass-input");
+        if (envErr) {{
+          envErr.style.display = "block";
+          envErr.textContent = "Security Notice: Web Cryptography requires a Secure Context (HTTPS or localhost). If you are viewing over plain HTTP, please access via HTTPS or save this file and open it locally in your browser.";
+        }}
+        if (btn) btn.disabled = true;
+        if (passInput) passInput.disabled = true;
+        return false;
+      }}
+      return true;
+    }}
+
+    document.addEventListener("DOMContentLoaded", checkSecureContext);
+    if (document.readyState === "interactive" || document.readyState === "complete") {{
+      checkSecureContext();
+    }}
 
     function b64ToBuf(b64) {{
       const bin = atob(b64);
@@ -230,6 +253,8 @@ def _render_decryptor_html(encrypted_data: dict[str, str], title: str = "Protect
       const error = document.getElementById("error-msg");
       const password = input.value;
       if (!password) return;
+
+      if (!checkSecureContext()) return;
 
       btn.disabled = true;
       btn.textContent = "Decrypting...";

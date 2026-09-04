@@ -17,11 +17,7 @@ export type SignificanceVerdict =
   | 'insufficient_discordance';
 
 export type PlateauMechanism =
-  | 'insufficient_power'
-  | 'capability_saturation'
-  | 'cross_model_divergence'
-  | 'hard_subset_bottleneck'
-  | 'none';
+  'insufficient_power' | 'capability_saturation' | 'cross_model_divergence' | 'hard_subset_bottleneck' | 'none';
 
 export interface McNemarData {
   statistic: number;

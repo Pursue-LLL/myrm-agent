@@ -8,8 +8,8 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `archive_restore.py` | 核心 | Typed archive restore 校验与 prompt 物化（`prevalidate_archive_restore_actions`、XML 注入） | ✅ |
-| `workspace_resolve.py` | 辅助 | Chat 级 harness workspace JIT 解析与 DB 回写 | ✅ |
-| `converter.py` | 核心 | HTTP 请求到 GeneralAgentParams 主编排：…；personality_style 与 **response_locale_policy** 经 `profile_output_suffixes.apply_profile_output_suffixes` 追加至 user_instructions 末尾。 | — |
+| `workspace_resolve.py` | 辅助 | Chat 级 harness workspace JIT 解析、DB 回写与 Agent 模板物料（`template_workspace_files`）安全解压 | ✅ |
+| `converter.py` | 核心 | HTTP 请求到 GeneralAgentParams 主编排：模型分流与归因解析（返回 6 元组含 `routing_reason` 并支持 `__complaint_up__` 升档）；personality_style 与 **response_locale_policy** 经 `profile_output_suffixes.apply_profile_output_suffixes` 追加至 user_instructions 末尾。 | — |
 | `profile_output_suffixes.py` | 核心 | `apply_profile_output_suffixes()` — personality + harness `build_response_locale_suffix` 注入 instructions 尾（Web/Channel/Cron/Kanban/Eval/Voice×3/Subagent/Goal stream SSOT）。 | ✅ |
 | `models.py` | 核心 | Pydantic 请求模型（AgentRequest, ModelSelection, …），含 `use_workflow`、`workflow_template_id`、`workflow_template_args`（pinned DW rerun）、前端记忆开关、`search_depth`、`reasoning_display_mode`、`active_moa_preset_id`、GUI @ 结构化引用、archive restore、`kanban_default_board_id`、`tool_gateway_config`、`client_surface`、`turn_capability_telemetry`、`security_preset`。 | — |
 | `resolvers.py` | 核心 | 模型配置解析（ModelSelection → ModelConfig）；base URL 来自 selection 或 providers 行配置 | — |

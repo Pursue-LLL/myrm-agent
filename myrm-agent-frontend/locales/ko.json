@@ -1,15 +1,4 @@
 {
-  "continualOverlay": {
-    "activeTitle": "세션 현장 자가복구 활성화",
-    "remainingTurns": "{count}턴 남음",
-    "rollback": "롤백",
-    "rollbackTooltip": "현재 세션 핫픽스 패치 롤백",
-    "expand": "상세 펼치기",
-    "collapse": "상세 접기",
-    "howItWorks": "무재시작 현장 자가복구 원리",
-    "howItWorksDesc": "장기 실행 작업이 도구 장애나 루프 정체에 직면했을 때, 처음부터 재실행하는 높은 비용을 방지하기 위해 세션에 임시 백오프 및 회피 지침을 주입합니다.",
-    "allActiveOverlays": "활성 자가복구 오버레이 ({count})"
-  },
   "recovery": {
     "title": "에이전트 시작 및 구성 복구 센터",
     "description": "시작 중 에이전트 구성 요소 또는 구성에 이상이 감지되었습니다. 마지막으로 확인된 정상 구성으로 롤백하거나 진단 번들을 내보낼 수 있습니다.",
@@ -8026,7 +8015,32 @@
       "clearedSuccess": "기록을 성공적으로 삭제했습니다",
       "clearing": "삭제 중...",
       "refresh": "지표 새로고침"
-    }
+    },
+    "wechatRiskBannerTitle": "개인 WeChat 연동 보안 및 계정 위험 고지",
+    "wechatRiskBannerCompactTitle": "개인 계정 위험 안내 접힘 · 보조 테스트 계정 사용 권장",
+    "wechatRiskBannerExpand": "보안 유의사항 보기",
+    "wechatRiskBannerDesc": "개인 WeChat은 타사 중계 프로토콜을 기반으로 하므로 Tencent의 보안 정책에 따라 기능 제한, 임시 동결 또는 계정 정지 위험이 있습니다. 보조 테스트 계정 사용을 강력히 권장하며, 개인 기본 계정 사용은 지양하십시오.",
+    "wechatRiskBannerWeComHint": "비즈니스 및 엔터프라이즈 프로덕션 환경에서는 기업용 위챗(WeCom) 공식 채널 사용을 권장합니다",
+    "wechatRiskBannerWeComAction": "WeCom 설정으로 이동",
+    "wechatRiskBannerDismiss": "확인 후 닫기",
+    "wechatTroubleshootButton": "무응답 및 연결 문제 해결",
+    "wechatTroubleshootTitle": "WeChat 연결 이상 및 무응답 자체 진단",
+    "wechatTroubleshootStep1Title": "모바일 WeChat 앱 로그인 상태 확인",
+    "wechatTroubleshootStep1Desc": "모바일 WeChat 상단에 'iPad/PC 로그인 중' 표시가 유지되는지 확인하세요. Tencent 보안 검증 알림이 발생하거나 강제 로그아웃된 경우 모바일에서 확인 후 다시 연결하세요.",
+    "wechatTroubleshootStep2Title": "전송 빈도 제어 및 임시 제한",
+    "wechatTroubleshootStep2Desc": "개인 계정은 초당 2건 이하로 메시지 전송이 제한됩니다. 짧은 시간 내 대량 전송 시 임시 쿨다운(약 1~5분)이 적용되어 메시지가 전달되지 않을 수 있습니다.",
+    "wechatTroubleshootStep3Title": "세션 자격 증명 자동 복구",
+    "wechatTroubleshootStep3Desc": "iLink 프로토콜의 롱 폴링 자격 증명이 만료된 경우, 서비스 재시작 없이 아래의 [로그인 QR 코드 다시 가져오기]를 클릭하여 세션을 재설정할 수 있습니다.",
+    "wechatTroubleshootStep4Title": "로컬 및 클라우드 네트워크 환경 차이",
+    "wechatTroubleshootStep4Desc": "가정/사무실 브로드밴드를 사용하는 로컬/데스크톱 환경은 위험도가 낮습니다. 클라우드 호스팅 데이터센터 IP는 감지되기 쉬우므로 샌드박스의 아웃바운드 네트워크 상태를 확인하세요.",
+    "wechatTroubleshootActionRefresh": "상태 새로고침",
+    "wechatTroubleshootActionReLogin": "QR 코드 다시 스캔하여 로그인",
+    "wechatTroubleshootCopyReport": "진단 보고서 복사",
+    "wechatTroubleshootCopied": "복사됨",
+    "wechatTroubleshootRefreshSuccess": "WeChat 연결 상태를 새로고침했습니다",
+    "wechatTroubleshootRefreshError": "상태 새로고침 실패",
+    "wechatTroubleshootReportCopied": "진단 정보가 클립보드에 복사되었습니다",
+    "wechatTroubleshootReportCopyError": "진단 정보 복사 실패"
   },
   "voice": {
     "sectionTitle": "음성 설정",
@@ -18343,5 +18357,16 @@
       "deleteSuccessDesc": "선택한 과거 스냅샷이 제거되었습니다.",
       "deleteFailedTitle": "스냅샷 삭제 실패"
     }
+  },
+  "continualOverlay": {
+    "activeTitle": "세션 오버레이 적용 중",
+    "remainingTurns": "남은 턴 {count}회",
+    "rollbackTooltip": "이 세션 오버레이 롤백",
+    "rollback": "롤백",
+    "collapse": "접기",
+    "expand": "펼치기",
+    "howItWorks": "제로 리셋 자가 치유 메커니즘",
+    "howItWorksDesc": "도구 또는 형식 오류가 감지되면 임시 세션 패치를 주입하며, 남은 턴이 경과한 후 자동으로 종료됩니다.",
+    "allActiveOverlays": "활성화된 모든 오버레이 ({count}개)"
   }
 }

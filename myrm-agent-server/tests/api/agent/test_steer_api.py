@@ -196,3 +196,12 @@ class TestSteerEndpoint:
             headers={"Content-Type": "application/json"},
         )
         assert resp.status_code == 422
+
+    def test_steer_buffered_reconciles_redirect_on_register(self, client: TestClient) -> None:
+        """Verify redirect buffered via SteeringRegistry retains redirect_requested upon register."""
+        assert SteeringRegistry.redirect("chat-buffered-e2e", "redirect immediately", buffer_if_missing=True)
+        token = SteeringToken()
+        SteeringRegistry.register("chat-buffered-e2e", token)
+        assert token.redirect_requested
+        assert token.activate() == ["redirect immediately"]
+

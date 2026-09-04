@@ -140,7 +140,9 @@ describe('MatrixResultView Paired Significance Integration', () => {
     expect(screen.getByText('+2')).toBeInTheDocument(); // cand_only
     expect(screen.getByText('-1')).toBeInTheDocument(); // base_only
     expect(screen.getByText('Regression Noise Divergence')).toBeInTheDocument();
-    expect(screen.getByText('evalLab.significance.suggestedActionMap.reject_and_investigate_regressions')).toBeInTheDocument();
+    expect(
+      screen.getByText('evalLab.significance.suggestedActionMap.reject_and_investigate_regressions'),
+    ).toBeInTheDocument();
   });
 
   it('filters cases when user clicks on View Regressions button', () => {

@@ -86,7 +86,9 @@ describe('MatrixResultView Generalization Gate banner', () => {
 
     render(<MatrixResultView report={report} />);
     expect(screen.getByTestId('gate-verdict-badge').textContent).toBe('evalLab.matrix.gate.partialOverfit');
-    expect(screen.getByText('Overfitting detected. Patch likely addresses single-model pathology.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Overfitting detected. Patch likely addresses single-model pathology.'),
+    ).toBeInTheDocument();
     expect(screen.getByText('1/2 (≥2)')).toBeInTheDocument();
   });
 });

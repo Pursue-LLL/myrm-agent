@@ -191,9 +191,50 @@ class _ChatCrudMixin(_ChatServiceBase):
             await _ChatCrudMixin._update_chat_messages(uow, chat_data.chat_id, chat_data.messages)
             sess = uow.session
             assert sess is not None
+            if chat_data.initial_shared_context_ids:
+                await _ChatCrudMixin._bind_initial_shared_contexts(
+                    sess, chat_data.chat_id, chat_data.initial_shared_context_ids
+                )
             await sess.flush()
             await ConversationRecallIndexService.rebuild_chat(sess, chat_data.chat_id)
             return chat
+
+    @staticmethod
+    async def _bind_initial_shared_contexts(
+        sess: AsyncSession, chat_id: str, context_ids: list[str]
+    ) -> None:
+        """Bind initial shared memory contexts to the conversation within the same transaction."""
+        from sqlalchemy import select
+        from app.database.models import SharedContextBindingModel, SharedContextModel
+        from nanoid import generate as nanoid
+
+        if not context_ids:
+            return
+
+        valid_stmt = select(SharedContextModel.id).where(
+            SharedContextModel.id.in_(context_ids),
+            SharedContextModel.status == "active",
+        )
+        valid_res = await sess.execute(valid_stmt)
+        valid_ids: set[str] = set(valid_res.scalars().all())
+
+        for cid in context_ids:
+            if cid in valid_ids:
+                existing_stmt = select(SharedContextBindingModel.id).where(
+                    SharedContextBindingModel.context_id == cid,
+                    SharedContextBindingModel.target_type == "conversation",
+                    SharedContextBindingModel.target_id == chat_id,
+                )
+                existing = (await sess.execute(existing_stmt)).scalar_one_or_none()
+                if existing is None:
+                    sess.add(
+                        SharedContextBindingModel(
+                            id=nanoid(size=16),
+                            context_id=cid,
+                            target_type="conversation",
+                            target_id=chat_id,
+                        )
+                    )
 
     @staticmethod
     async def _update_chat_messages(uow: UnitOfWork, chat_id: str, messages: list[MessageCreate]) -> None:

@@ -13,9 +13,7 @@ import {
   Scale,
   Filter,
 } from 'lucide-react';
-import PairedSignificancePanel, {
-  type PairedSignificanceData,
-} from './PairedSignificancePanel';
+import PairedSignificancePanel, { type PairedSignificanceData } from './PairedSignificancePanel';
 
 export interface GeneralizationGateData {
   verdict: 'passed' | 'partial_overfit' | 'generalization_collapse' | 'insufficient_profiles';
@@ -257,9 +255,7 @@ export default function MatrixResultView({ report, profileNames }: Props) {
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-semibold tracking-tight">
-                    {t('gate.title')}
-                  </span>
+                  <span className="text-sm font-semibold tracking-tight">{t('gate.title')}</span>
                   <span
                     data-testid="gate-verdict-badge"
                     className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -281,27 +277,21 @@ export default function MatrixResultView({ report, profileNames }: Props) {
                           : t('gate.insufficient')}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {report.generalization_gate.recommendation}
-                </p>
+                <p className="text-xs text-muted-foreground">{report.generalization_gate.recommendation}</p>
               </div>
             </div>
 
             <div className="flex items-center gap-4 text-xs font-mono shrink-0 pl-11 sm:pl-0">
               <div className="flex flex-col items-start sm:items-end">
-                <span className="text-muted-foreground text-[11px] font-sans">
-                  {t('gate.modelsPassed')}
-                </span>
+                <span className="text-muted-foreground text-[11px] font-sans">{t('gate.modelsPassed')}</span>
                 <span className="font-semibold text-foreground">
-                  {report.generalization_gate.passed_profile_count}/
-                  {report.generalization_gate.evaluated_profile_count} (≥
+                  {report.generalization_gate.passed_profile_count}/{report.generalization_gate.evaluated_profile_count}{' '}
+                  (≥
                   {report.generalization_gate.min_required_profiles})
                 </span>
               </div>
               <div className="flex flex-col items-start sm:items-end">
-                <span className="text-muted-foreground text-[11px] font-sans">
-                  {t('gate.spread')}
-                </span>
+                <span className="text-muted-foreground text-[11px] font-sans">{t('gate.spread')}</span>
                 <span className="font-semibold text-foreground">
                   {(report.generalization_gate.pass_rate_spread * 100).toFixed(1)}%
                 </span>

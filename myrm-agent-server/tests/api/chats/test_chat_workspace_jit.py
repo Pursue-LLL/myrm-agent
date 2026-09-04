@@ -83,3 +83,62 @@ async def test_get_chat_preserves_existing_workspace_dir(
     res = await async_client.get(f"/api/v1/chats/{chat_id}")
     assert res.status_code == 200, res.text
     assert res.json()["data"]["chat"]["workspace_dir"] == existing
+
+
+@pytest.mark.asyncio
+async def test_materialize_agent_template_files_security_and_writing(tmp_path: Path) -> None:
+    """Verifies that _materialize_agent_template_files writes text/base64 files and blocks path traversal."""
+    import base64
+    from pathlib import Path
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, patch
+    from app.services.agent.params.workspace_resolve import _materialize_agent_template_files
+
+    chat_id = "test-chat-materialize-1"
+    target_workspace = tmp_path / "sandbox_ws"
+    target_workspace.mkdir(parents=True, exist_ok=True)
+
+    # Pre-existing file should not be overwritten
+    (target_workspace / "existing.txt").write_text("initial content", encoding="utf-8")
+
+    mock_chat = SimpleNamespace(agent_id="test-agent-with-templates")
+    b64_data = base64.b64encode(b"binary asset data").decode("utf-8")
+    mock_profile = SimpleNamespace(
+        engine_params={
+            "template_workspace_files": {
+                "templates/report.md": "# Research Report Template",
+                "assets/logo.png": f"base64:{b64_data}",
+                "existing.txt": "overwritten content should not happen",
+                "../escape.txt": "malicious content",
+            }
+        }
+    )
+
+    mock_resolver = SimpleNamespace(
+        resolve=AsyncMock(return_value=mock_profile)
+    )
+
+    with (
+        patch("app.services.chat.chat_service.ChatService.get_chat_metadata", AsyncMock(return_value=mock_chat)),
+        patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+    ):
+        await _materialize_agent_template_files(chat_id, str(target_workspace))
+
+    # 1. Normal text file written
+    report_file = target_workspace / "templates" / "report.md"
+    assert report_file.exists()
+    assert report_file.read_text(encoding="utf-8") == "# Research Report Template"
+
+    # 2. Base64 decoded binary file written
+    logo_file = target_workspace / "assets" / "logo.png"
+    assert logo_file.exists()
+    assert logo_file.read_bytes() == b"binary asset data"
+
+    # 3. Existing file preserved
+    existing_file = target_workspace / "existing.txt"
+    assert existing_file.read_text(encoding="utf-8") == "initial content"
+
+    # 4. Path traversal blocked
+    escape_file = tmp_path / "escape.txt"
+    assert not escape_file.exists()
+

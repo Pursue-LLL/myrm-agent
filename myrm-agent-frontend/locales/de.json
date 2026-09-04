@@ -1,15 +1,4 @@
 {
-  "continualOverlay": {
-    "activeTitle": "Sitzungs-Selbstheilung aktiv",
-    "remainingTurns": "{count, plural, =1 {1 Runde übrig} other {# Runden übrig}}",
-    "rollback": "Patch zurücksetzen",
-    "rollbackTooltip": "Diesen laufenden Sitzungs-Hotfix zurücksetzen",
-    "expand": "Details einblenden",
-    "collapse": "Details ausblenden",
-    "howItWorks": "Zero-Reset-Wiederherstellungsprinzip",
-    "howItWorksDesc": "Wenn langlebige Aufgaben auf vorübergehende Tool-Blockaden oder Schleifenwarnungen stoßen, werden temporäre Backoffs und Verfahrenshinweise in den Sitzungskontext eingefügt, um teure vollständige Neustarts zu vermeiden.",
-    "allActiveOverlays": "Aktive Sitzungs-Overlays ({count})"
-  },
   "recovery": {
     "title": "Agent-Start- und Konfigurations-Wiederherstellungszentrum",
     "description": "Beim Start wurden Anomalien in Komponenten oder Konfigurationen festgestellt. Sie können zur letzten funktionierenden Konfiguration zurückkehren oder ein Diagnosepaket exportieren.",
@@ -8026,7 +8015,32 @@
       "clearedSuccess": "Einträge erfolgreich gelöscht",
       "clearing": "Löschen...",
       "refresh": "Metriken aktualisieren"
-    }
+    },
+    "wechatRiskBannerTitle": "Sicherheits- und Risikohinweis für persönliches WeChat",
+    "wechatRiskBannerCompactTitle": "Risikohinweis für persönliches Konto eingeklappt · Testkonto empfohlen",
+    "wechatRiskBannerExpand": "Sicherheitshinweise anzeigen",
+    "wechatRiskBannerDesc": "Persönliches WeChat basiert auf Bridge-Protokollen von Drittanbietern und unterliegt den Sicherheitsrichtlinien von Tencent. Es besteht das Risiko von Funktionseinschränkungen, vorübergehenden Sperren oder Kontodeaktivierungen. Die Verwendung eines separaten Testkontos wird dringend empfohlen. Verwenden Sie nicht Ihr primäres persönliches Konto.",
+    "wechatRiskBannerWeComHint": "Für geschäftliche und produktive Unternehmensszenarien wird die Nutzung des offiziellen WeCom-Kanals empfohlen",
+    "wechatRiskBannerWeComAction": "WeCom konfigurieren",
+    "wechatRiskBannerDismiss": "Verstanden und schließen",
+    "wechatTroubleshootButton": "Fehlerbehebung bei Nichtreagieren",
+    "wechatTroubleshootTitle": "Selbstdiagnose bei WeChat-Verbindungsfehlern und fehlender Antwort",
+    "wechatTroubleshootStep1Title": "Login-Status in der mobilen WeChat-App prüfen",
+    "wechatTroubleshootStep1Desc": "Prüfen Sie, ob in Ihrer mobilen WeChat-App oben 'Auf iPad/Desktop angemeldet' angezeigt wird. Wenn eine Sicherheitsprüfung erforderlich ist oder Sie abgemeldet wurden, bestätigen Sie dies auf dem Smartphone und verbinden Sie sich neu.",
+    "wechatTroubleshootStep2Title": "Sende-Ratenbegrenzung und temporäre Drosselung",
+    "wechatTroubleshootStep2Desc": "Persönliche WeChat-Konten sind auf maximal 2 Nachrichten pro Sekunde beschränkt. Häufiges Senden in kurzer Zeit löst eine temporäre Abkühlphase (ca. 1-5 Minuten) aus, in der keine Nachrichten zugestellt werden können.",
+    "wechatTroubleshootStep3Title": "Selbstheilung von Sitzungs-Anmeldedaten",
+    "wechatTroubleshootStep3Desc": "Wenn die iLink-Long-Polling-Anmeldedaten ablaufen, klicken Sie unten auf 'QR-Code erneut scannen', um die Sitzung sofort ohne Neustart des Dienstes zurückzusetzen.",
+    "wechatTroubleshootStep4Title": "Unterschiede zwischen lokalen und Cloud-Netzwerkumgebungen",
+    "wechatTroubleshootStep4Desc": "Lokale/Desktop-Umgebungen über private/geschäftliche Breitbandanschlüsse unterliegen geringeren Risikobeschränkungen; Cloud-Hosting-Rechenzentrums-IPs werden leichter markiert. Stellen Sie sicher, dass der ausgehende Netzwerkverkehr der Sandbox ungehindert ist.",
+    "wechatTroubleshootActionRefresh": "Status aktualisieren",
+    "wechatTroubleshootActionReLogin": "Erneut per QR-Code anmelden",
+    "wechatTroubleshootCopyReport": "Diagnosebericht kopieren",
+    "wechatTroubleshootCopied": "Kopiert",
+    "wechatTroubleshootRefreshSuccess": "WeChat-Verbindungsstatus aktualisiert",
+    "wechatTroubleshootRefreshError": "Statusaktualisierung fehlgeschlagen",
+    "wechatTroubleshootReportCopied": "Diagnosebericht in die Zwischenablage kopiert",
+    "wechatTroubleshootReportCopyError": "Kopieren des Diagnoseberichts fehlgeschlagen"
   },
   "voice": {
     "sectionTitle": "Spracheinstellungen",
@@ -9995,11 +10009,11 @@
       "gate": {
         "title": "Modellübergreifendes Generalisierungs-Gate",
         "passed": "Generalisierung bestanden",
-        "partialOverfit": "Teilweises Überanpassungsrisiko",
-        "collapse": "Generalisierungskollaps",
-        "insufficient": "Unzureichende Modelle",
+        "partialOverfit": "Teilweises Overfitting-Risiko",
+        "collapse": "Generalisierungs-Kollaps",
+        "insufficient": "Unzureichende Modellanzahl",
         "modelsPassed": "Modelle bestanden",
-        "spread": "Streuung",
+        "spread": "Spannweite (Spread)",
         "recommendation": "Empfehlung"
       },
       "profileProgress": "Profile",
@@ -10045,17 +10059,7 @@
       "historyLayeredBadge": "Mehrschichtig",
       "historyAbortedBadge": "Abgebrochen",
       "historyCurrent": "Ansehen",
-      "historyView": "Ansehen",
-      "gate": {
-        "title": "Modellübergreifendes Generalisierungs-Gate",
-        "passed": "Generalisierung bestanden",
-        "partialOverfit": "Teilweises Overfitting-Risiko",
-        "collapse": "Generalisierungs-Kollaps",
-        "insufficient": "Unzureichende Modellanzahl",
-        "modelsPassed": "Modelle bestanden",
-        "spread": "Spannweite (Spread)",
-        "recommendation": "Empfehlung"
-      }
+      "historyView": "Ansehen"
     },
     "wbBench": {
       "title": "Benchmark-Datensätze",
@@ -18353,5 +18357,16 @@
       "deleteSuccessDesc": "Ausgewählter historischer Snapshot wurde entfernt.",
       "deleteFailedTitle": "Löschen des Snapshots fehlgeschlagen"
     }
+  },
+  "continualOverlay": {
+    "activeTitle": "Aktives Sitzungs-Overlay",
+    "remainingTurns": "{count} Züge verbleibend",
+    "rollbackTooltip": "Dieses Sitzungs-Overlay zurücksetzen",
+    "rollback": "Zurücksetzen",
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "howItWorks": "Zero-Reset Selbstreparatur",
+    "howItWorksDesc": "Temporärer Sitzungs-Patch nach Tool- oder Formatierungsfehlern, der nach den verbleibenden Zügen automatisch abläuft.",
+    "allActiveOverlays": "Alle aktiven Overlays ({count})"
   }
 }

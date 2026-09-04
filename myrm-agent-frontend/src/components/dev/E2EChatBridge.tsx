@@ -419,7 +419,9 @@ async function submitAndObserveTurn(
   ephemeralSubagents?: Record<string, unknown>,
 ): Promise<E2eSubmitResult> {
   const trimmed = message.trim();
-  if (!trimmed) {
+  const hasAttachments = (useChatStore.getState().files?.length ?? 0) > 0;
+  const hasSkillActivation = Boolean(useChatStore.getState().pendingExplicitSkillActivation);
+  if (!trimmed && !hasAttachments && !hasSkillActivation) {
     return { ok: false, err: 'empty-message', mode: 'sendTurnEmpty' };
   }
   const startGen = readE2eSendGeneration();

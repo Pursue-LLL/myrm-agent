@@ -1,15 +1,4 @@
 {
-  "continualOverlay": {
-    "activeTitle": "セッション現場自己修復が有効",
-    "remainingTurns": "残り {count} ターン",
-    "rollback": "ロールバック",
-    "rollbackTooltip": "このセッションパッチをロールバックします",
-    "expand": "詳細を展開",
-    "collapse": "詳細を折りたたむ",
-    "howItWorks": "ゼロリセット自己修復の仕組み",
-    "howItWorksDesc": "長時間実行タスクがツール障害やループ警告に遭遇した際、セッション内に一時的なバックオフとガイダンスを注入し、高コストな最初からの再実行を防ぎます。",
-    "allActiveOverlays": "有効な自己修復オーバーレイ ({count})"
-  },
   "recovery": {
     "title": "エージェント起動・設定復旧センター",
     "description": "起動時にエージェントのコンポーネントまたは設定に異常が検出されました。最後に正常だった構成にロールバックするか、診断バンドルをエクスポートできます。",
@@ -8026,7 +8015,32 @@
       "clearedSuccess": "履歴レコードを正常に消去しました",
       "clearing": "消去中...",
       "refresh": "メトリクス更新"
-    }
+    },
+    "wechatRiskBannerTitle": "個人用 WeChat 接続のセキュリティとリスクに関する注意事項",
+    "wechatRiskBannerCompactTitle": "個人アカウントのリスク開示を折りたたみ済み・テスト用アカウントを推奨",
+    "wechatRiskBannerExpand": "セキュリティ注意事項を表示",
+    "wechatRiskBannerDesc": "個人用 WeChat はサードパーティの中継プロトコルに依存しており、Tencent のセキュリティポリシーにより、機能制限、一時的な凍結、アカウント停止のリスクがあります。テスト用の予備アカウントの使用を強く推奨します。メインの個人アカウントは使用しないでください。",
+    "wechatRiskBannerWeComHint": "ビジネスやエンタープライズの運用環境には、企業用 WeChat（WeCom）公式チャネルの利用を推奨します",
+    "wechatRiskBannerWeComAction": "WeCom を設定する",
+    "wechatRiskBannerDismiss": "理解して閉じる",
+    "wechatTroubleshootButton": "無応答・切断のトラブルシューティング",
+    "wechatTroubleshootTitle": "WeChat 接続異常・無応答の自己診断",
+    "wechatTroubleshootStep1Title": "スマホの WeChat アプリのログイン状態を確認",
+    "wechatTroubleshootStep1Desc": "スマホの WeChat チャット上部に「iPad/PC でログイン中」と表示されているか確認してください。Tencent セキュリティセンターの確認通知やログアウトが発生した場合は、スマホ側で承認して再接続してください。",
+    "wechatTroubleshootStep2Title": "送信レート制限と一時的なクールダウン",
+    "wechatTroubleshootStep2Desc": "WeChat 個人アカウントは秒間2通までの送信制限があります。短時間の高頻度送信は一時的なリスク制限（約1〜5分）を引き起こし、その間メッセージは配信されません。",
+    "wechatTroubleshootStep3Title": "セッション認証情報の自己修復",
+    "wechatTroubleshootStep3Desc": "iLink プロトコルのロングポーリング認証情報が期限切れになった場合は、下の「QRコードを再スキャンしてログイン」をクリックしてセッションをリセットできます。サービスの再起動は不要です。",
+    "wechatTroubleshootStep4Title": "ローカルとクラウドのネットワーク環境の違い",
+    "wechatTroubleshootStep4Desc": "家庭・オフィスの固定回線を使用するローカル/デスクトップ環境はリスクが低く抑えられます。クラウドホストのデータセンターIPは検知されやすいため、サンドボックスのアウトバウンド通信が正常であることを確認してください。",
+    "wechatTroubleshootActionRefresh": "状態を更新",
+    "wechatTroubleshootActionReLogin": "QRコードで再ログイン",
+    "wechatTroubleshootCopyReport": "診断レポートをコピー",
+    "wechatTroubleshootCopied": "コピー完了",
+    "wechatTroubleshootRefreshSuccess": "WeChat 接続状態を更新しました",
+    "wechatTroubleshootRefreshError": "状態の更新に失敗しました",
+    "wechatTroubleshootReportCopied": "診断情報をクリップボードにコピーしました",
+    "wechatTroubleshootReportCopyError": "診断情報のコピーに失敗しました"
   },
   "voice": {
     "sectionTitle": "音声設定",
@@ -18343,5 +18357,16 @@
       "deleteSuccessDesc": "選択した履歴スナップショットを削除しました。",
       "deleteFailedTitle": "スナップショットの削除に失敗しました"
     }
+  },
+  "continualOverlay": {
+    "activeTitle": "セッションオーバーレイ適用中",
+    "remainingTurns": "残り {count} ターン",
+    "rollbackTooltip": "このセッションオーバーレイをロールバック",
+    "rollback": "ロールバック",
+    "collapse": "折りたたむ",
+    "expand": "展開",
+    "howItWorks": "ゼロリセット自己修復機能",
+    "howItWorksDesc": "ツールや形式のエラーが発生した際、一時的なパッチを注入し、指定ターン経過後に自動的に解除されます。",
+    "allActiveOverlays": "適用中のオーバーレイ一覧（全 {count} 件）"
   }
 }

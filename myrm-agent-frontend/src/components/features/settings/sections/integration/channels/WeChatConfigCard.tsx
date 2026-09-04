@@ -19,6 +19,8 @@ import { toast } from 'sonner';
 import { getWeChatStatus, triggerWeChatLogin, logoutWeChatChannel } from '@/services/channels';
 import type { WeChatStatus } from '@/services/channels';
 import { useChannelInstances } from '@/hooks/channels/useChannelInstances';
+import { WeChatRiskDisclosureBanner } from './WeChatRiskDisclosureBanner';
+import { WeChatTroubleshootGuide } from './WeChatTroubleshootGuide';
 
 export function WeChatConfigCard() {
   const t = useTranslations('channels');
@@ -40,7 +42,7 @@ export function WeChatConfigCard() {
     if (showLoading) {
       setLoading(true);
     }
-    getWeChatStatus()
+    return getWeChatStatus()
       .then(setPrimaryStatus)
       .catch(() => {
         // 轮询/刷新失败时保留上次状态：置 null 会卸载整个卡片区，正在进行的
@@ -50,7 +52,7 @@ export function WeChatConfigCard() {
   }, []);
 
   useEffect(() => {
-    fetchPrimaryStatus(true);
+    void fetchPrimaryStatus(true);
   }, [fetchPrimaryStatus]);
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export function WeChatConfigCard() {
     if (!needsPolling) {
       return;
     }
-    const timer = setInterval(() => fetchPrimaryStatus(), 3_000);
+    const timer = setInterval(() => void fetchPrimaryStatus(), 3_000);
     return () => clearInterval(timer);
   }, [primaryStatus, fetchPrimaryStatus]);
 
@@ -106,7 +108,9 @@ export function WeChatConfigCard() {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      <WeChatRiskDisclosureBanner />
+
       <WeChatAccountCard
         label={primaryLabel || t('wechatDefaultLabel')}
         channelName="wechat"
@@ -114,6 +118,7 @@ export function WeChatConfigCard() {
         onStatusChange={setPrimaryStatus}
         onDelete={handlePrimaryLogout}
         onLabelChange={handlePrimaryRename}
+        onRefresh={() => fetchPrimaryStatus()}
         t={t}
       />
 
@@ -196,6 +201,7 @@ function WeChatAccountCard({
   onStatusChange,
   onDelete,
   onLabelChange,
+  onRefresh,
   t,
 }: {
   label: string;
@@ -204,6 +210,7 @@ function WeChatAccountCard({
   onStatusChange?: (s: WeChatStatus) => void;
   onDelete?: () => void;
   onLabelChange?: (newLabel: string) => void;
+  onRefresh?: () => Promise<unknown> | void;
   t: ReturnType<typeof useTranslations<'channels'>>;
 }) {
   const [localStatus, setLocalStatus] = useState<WeChatStatus | null>(null);
@@ -217,14 +224,18 @@ function WeChatAccountCard({
   const cardStatus = isPrimary ? (externalStatus ?? null) : localStatus;
   const isConnected = cardStatus?.connected ?? false;
 
+  const fetchLocalStatus = useCallback(() => {
+    return getWeChatStatus(channelName)
+      .then(setLocalStatus)
+      .catch(() => setLocalStatus(null));
+  }, [channelName]);
+
   useEffect(() => {
     if (isPrimary) {
       return;
     }
-    getWeChatStatus(channelName)
-      .then(setLocalStatus)
-      .catch(() => setLocalStatus(null));
-  }, [channelName, isPrimary]);
+    void fetchLocalStatus();
+  }, [fetchLocalStatus, isPrimary]);
 
   useEffect(() => {
     if (isPrimary) {
@@ -235,7 +246,7 @@ function WeChatAccountCard({
       return;
     }
     const timer = setInterval(() => {
-      getWeChatStatus(channelName)
+      void getWeChatStatus(channelName)
         .then(setLocalStatus)
         .catch(() => {});
     }, 3_000);
@@ -318,6 +329,13 @@ function WeChatAccountCard({
   const statusText = cardStatus?.connected
     ? t('wechatConnected')
     : t(STATUS_I18N[cardStatus?.status ?? ''] ?? 'wechatDisconnected');
+
+  const handleRefresh = useCallback(() => {
+    if (isPrimary && onRefresh) {
+      return onRefresh();
+    }
+    return fetchLocalStatus();
+  }, [isPrimary, onRefresh, fetchLocalStatus]);
 
   return (
     <div className="rounded-lg border bg-card px-4 py-2.5 text-xs space-y-2">
@@ -457,6 +475,14 @@ function WeChatAccountCard({
           <span className="font-medium">Bot ID:</span> {cardStatus.bot_id}
         </p>
       )}
+
+      <WeChatTroubleshootGuide
+        channelName={channelName}
+        status={cardStatus}
+        onTriggerLogin={handleLogin}
+        onRefreshStatus={handleRefresh}
+        isTriggering={loginTriggering}
+      />
     </div>
   );
 }

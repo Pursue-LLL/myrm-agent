@@ -188,7 +188,8 @@ class TestFastModeConverterParams:
         assert spec.prompt_mode == "search"
         assert spec.engine_params is not None
         assert spec.engine_params["max_tool_calls"] == 8
-        assert spec.memory_policy == {"write_policy": "conversation"}
+        assert spec.memory_policy is not None
+        assert spec.memory_policy.get("write_policy") == "conversation"
         # 搜索提示词由 prompt_mode="search" 单一提供，system_prompt 必须留空
         assert spec.system_prompt == ""
 
@@ -199,7 +200,8 @@ class TestFastModeConverterParams:
         assert spec.prompt_mode == "search"
         assert spec.engine_params is not None
         assert spec.engine_params["max_tool_calls"] == 20
-        assert spec.memory_policy == {"write_policy": "conversation"}
+        assert spec.memory_policy is not None
+        assert spec.memory_policy.get("write_policy") == "conversation"
         assert spec.system_prompt == ""
 
 

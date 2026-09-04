@@ -2,13 +2,15 @@
 - app.config.settings::get_settings (POS: application settings SSOT)
 - myrm_agent_harness.toolkits.code_execution::create_workspace_service (POS: sandbox workspace lifecycle)
 - app.services.chat.chat_service::ChatService (POS: chat metadata persistence)
+- app.services.agent.profile.profile_resolver::get_agent_profile_resolver (POS: agent profile SSOT resolver)
 
 [OUTPUT]
 - resolve_default_chat_workspace_dir(): JIT workspace path for a chat session
+- _materialize_agent_template_files(): safely materialize agent's template workspace files into the sandbox
 
 [POS]
-Resolves or creates the harness workspace directory for a chat when project/workspace
-metadata is missing from the database.
+Resolves or creates the harness workspace directory for a chat session and safely materializes
+any bundled template workspace files declared on the bound agent profile.
 """
 
 from __future__ import annotations

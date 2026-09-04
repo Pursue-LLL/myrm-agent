@@ -139,4 +139,6 @@ def test_crypto_packager_xss_prevention_in_title():
     # Raw script tags in title must be escaped
     assert "<script>alert('xss')</script>" not in entry_content
     assert "&lt;script&gt;alert(&#x27;xss&#x27;)&lt;/script&gt;" in entry_content or "&lt;script&gt;" in entry_content
+    assert "checkSecureContext" in entry_content
+    assert "Security Notice: Web Cryptography requires a Secure Context" in entry_content
 

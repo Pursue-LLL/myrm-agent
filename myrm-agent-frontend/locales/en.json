@@ -1,15 +1,4 @@
 {
-  "continualOverlay": {
-    "activeTitle": "Session Self-Healing Active",
-    "remainingTurns": "{count, plural, =1 {1 turn left} other {# turns left}}",
-    "rollback": "Rollback",
-    "rollbackTooltip": "Rollback this in-flight session patch",
-    "expand": "Expand details",
-    "collapse": "Collapse details",
-    "howItWorks": "Zero-Reset Recovery Principle",
-    "howItWorksDesc": "When long-running tasks encounter transient tool stalls or loop warnings, temporary backoff and procedural guidance are injected into the session context to prevent expensive full task restarts.",
-    "allActiveOverlays": "Active Session Overlays ({count})"
-  },
   "recovery": {
     "title": "Agent Startup & Configuration Recovery Center",
     "description": "Detected anomalies in components or configurations during startup. You can roll back to the last-known-good configuration or export a diagnostic bundle.",
@@ -7262,6 +7251,31 @@
     "wechatInstanceRemoveError": "RemoveWeChatAccountFailed",
     "wechatInstanceLabelPlaceholder": "Label (e.g.: Work, Personal)",
     "wechatLabelSaveError": "Failed to save label",
+    "wechatRiskBannerTitle": "Personal WeChat Security & Account Risk Disclosure",
+    "wechatRiskBannerCompactTitle": "Personal Account Risk Disclosure collapsed · Test account recommended",
+    "wechatRiskBannerExpand": "View Security Notice",
+    "wechatRiskBannerDesc": "Personal WeChat relies on third-party bridge protocols subject to Tencent risk control policies, carrying risks of feature limitation, temporary freeze, or account ban. Using dedicated secondary test accounts is strongly advised. Do not use your primary personal account.",
+    "wechatRiskBannerWeComHint": "For enterprise production workflows, using the official WeCom channel is recommended.",
+    "wechatRiskBannerWeComAction": "Configure WeCom",
+    "wechatRiskBannerDismiss": "Dismiss Notice",
+    "wechatTroubleshootButton": "Troubleshoot Silent Unresponsiveness",
+    "wechatTroubleshootTitle": "WeChat Connection & Unresponsiveness Self-Diagnostic",
+    "wechatTroubleshootStep1Title": "Verify Mobile WeChat App Session",
+    "wechatTroubleshootStep1Desc": "Check whether your mobile WeChat app header still shows 'iPad / Desktop logged in'. If prompted with security verification or logged out, confirm on your phone and reconnect.",
+    "wechatTroubleshootStep2Title": "Rate Limiting & Temporary Cooldown",
+    "wechatTroubleshootStep2Desc": "Personal accounts enforce a strict rate limit (≤2 msg/s). High-frequency burst messaging triggers a temporary platform cooldown (1-5 min) during which messages cannot be delivered.",
+    "wechatTroubleshootStep3Title": "Session Credential Self-Healing",
+    "wechatTroubleshootStep3Desc": "When iLink long-polling credentials expire, click 'Re-scan QR Login' below to re-authenticate immediately without restarting the service.",
+    "wechatTroubleshootStep4Title": "Local vs Cloud Hosted Network Profiles",
+    "wechatTroubleshootStep4Desc": "Local/Desktop apps over residential/office broadband face lower scrutiny; cloud sandboxes on datacenter IPs are more easily flagged. Ensure outbound network egress is unobstructed.",
+    "wechatTroubleshootActionRefresh": "Refresh Status",
+    "wechatTroubleshootActionReLogin": "Re-scan QR Login",
+    "wechatTroubleshootCopyReport": "Copy Diagnostics",
+    "wechatTroubleshootCopied": "Copied",
+    "wechatTroubleshootRefreshSuccess": "WeChat channel status refreshed",
+    "wechatTroubleshootRefreshError": "Failed to refresh status",
+    "wechatTroubleshootReportCopied": "Diagnostic report copied to clipboard",
+    "wechatTroubleshootReportCopyError": "Failed to copy diagnostic report",
     "wechatOfficialTitle": "WeChat Official Account",
     "wechatOfficialDesc": "Configure verified service account credentials for article draft publishing.",
     "wechatOfficialIpWhitelistHint": "Add this server's public IP to the Official Account IP whitelist in WeChat (mp.weixin.qq.com → Settings → Development → Basic configuration).",
@@ -18343,5 +18357,16 @@
       "deleteSuccessDesc": "Selected historical snapshot removed.",
       "deleteFailedTitle": "Delete Failed"
     }
+  },
+  "continualOverlay": {
+    "activeTitle": "Active Session Overlay",
+    "remainingTurns": "{count} turns remaining",
+    "rollbackTooltip": "Roll back this session overlay",
+    "rollback": "Rollback",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "howItWorks": "Zero-Reset Self-Healing",
+    "howItWorksDesc": "Temporary session patch injected after tool or format faults, automatically retiring after remaining turns.",
+    "allActiveOverlays": "All Active Overlays ({count})"
   }
 }

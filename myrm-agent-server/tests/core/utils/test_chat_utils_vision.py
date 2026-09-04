@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from PIL import Image
 
-from app.core.utils.chat_utils import _process_image_item, _process_video_item
+from app.core.utils.chat_utils import _process_human_content, _process_image_item, _process_video_item
 
 _TINY_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg=="
 
@@ -300,3 +300,19 @@ async def test_process_video_emits_analyzing_and_uses_engine() -> None:
         native_video_required=False,
     )
     mock_bus.publish.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_process_human_content_supplies_default_prompt_for_empty_text_with_media() -> None:
+    query = [
+        {"type": "text", "text": "   "},
+        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{_TINY_PNG_B64}"}},
+    ]
+    result = await _process_human_content(
+        query,
+        model_cfg=_vision_model(),
+    )
+    assert isinstance(result, list)
+    text_item = next(item for item in result if isinstance(item, dict) and item.get("type") == "text")
+    assert text_item["text"] == "请分析附带的媒体内容。"
+

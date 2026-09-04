@@ -201,7 +201,9 @@ export default function PairedSignificancePanel({
       </div>
 
       {/* Main Verdict Card */}
-      <div className={`p-4 rounded-xl border ${verdictStyle.border} flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all`}>
+      <div
+        className={`p-4 rounded-xl border ${verdictStyle.border} flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all`}
+      >
         <div className="flex items-start gap-3.5">
           <div className="p-2.5 rounded-xl bg-background/80 shadow-xs mt-0.5 shrink-0 border border-border/50">
             {verdictStyle.icon}
@@ -212,8 +214,8 @@ export default function PairedSignificancePanel({
                 {verdictStyle.label}
               </span>
               <span className="text-xs font-mono font-medium text-foreground">
-                {getProfileLabel(base_id)} ({(base_pass_rate * 100).toFixed(1)}%) ➔{' '}
-                {getProfileLabel(candidate_id)} ({(candidate_pass_rate * 100).toFixed(1)}%)
+                {getProfileLabel(base_id)} ({(base_pass_rate * 100).toFixed(1)}%) ➔ {getProfileLabel(candidate_id)} (
+                {(candidate_pass_rate * 100).toFixed(1)}%)
               </span>
               <span
                 className={`text-xs font-mono font-bold ${
@@ -227,9 +229,7 @@ export default function PairedSignificancePanel({
                 {formatPercent(delta_pass_rate)}
               </span>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {verdictStyle.desc}
-            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{verdictStyle.desc}</p>
           </div>
         </div>
 
@@ -239,9 +239,7 @@ export default function PairedSignificancePanel({
             <span className="text-[11px] font-sans text-muted-foreground">{t('mcnemarPVal')}</span>
             <span
               className={`font-semibold ${
-                mcnemar.is_significant
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-muted-foreground'
+                mcnemar.is_significant ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
               }`}
             >
               p = {mcnemar.p_value.toFixed(4)}
@@ -251,9 +249,7 @@ export default function PairedSignificancePanel({
             <span className="text-[11px] font-sans text-muted-foreground">{t('bootstrapCI')}</span>
             <span
               className={`font-semibold ${
-                bootstrap_ci.crosses_zero
-                  ? 'text-amber-600 dark:text-amber-400'
-                  : 'text-foreground'
+                bootstrap_ci.crosses_zero ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'
               }`}
             >
               [{formatPercent(bootstrap_ci.ci_lower)}, {formatPercent(bootstrap_ci.ci_upper)}]
@@ -301,9 +297,7 @@ export default function PairedSignificancePanel({
             </div>
             <div className="p-2 rounded-lg bg-muted/40 border border-border/40">
               <span className="text-[11px] text-muted-foreground block">{t('bothFail')}</span>
-              <span className="text-sm font-semibold text-muted-foreground">
-                {mcnemar.contingency_table.both_fail}
-              </span>
+              <span className="text-sm font-semibold text-muted-foreground">{mcnemar.contingency_table.both_fail}</span>
             </div>
           </div>
 
@@ -398,7 +392,7 @@ export default function PairedSignificancePanel({
                 onClick={() =>
                   onFilterCases(
                     activeFilterType === 'regression' ? null : regression_case_indices,
-                    activeFilterType === 'regression' ? null : 'regression'
+                    activeFilterType === 'regression' ? null : 'regression',
                   )
                 }
                 className={`px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -418,7 +412,7 @@ export default function PairedSignificancePanel({
                 onClick={() =>
                   onFilterCases(
                     activeFilterType === 'improved' ? null : improved_case_indices,
-                    activeFilterType === 'improved' ? null : 'improved'
+                    activeFilterType === 'improved' ? null : 'improved',
                   )
                 }
                 className={`px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5 cursor-pointer ${

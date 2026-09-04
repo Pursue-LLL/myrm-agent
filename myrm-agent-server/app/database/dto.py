@@ -195,6 +195,7 @@ class ChatCreate(ChatBase):
     chat_id: str = Field(..., description="聊天会话ID")
     messages: list[MessageCreate] = Field(default=[], description="消息列表")
     last_message: str | None = Field(None, description="最后一条消息摘要")
+    initial_shared_context_ids: list[str] | None = Field(None, description="会话初始绑定的共享上下文 IDs")
 
 
 class _TitleModelConfig(BaseModel):

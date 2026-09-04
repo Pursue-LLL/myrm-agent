@@ -371,7 +371,17 @@ async def _process_human_content(
     if isinstance(content, list):
         import asyncio
 
+        has_media = any(
+            isinstance(item, dict) and item.get("type") in ("image_url", "image", "video_url", "video")
+            for item in content
+        )
+        has_text_content = any(
+            isinstance(item, dict) and item.get("type") == "text" and str(item.get("text") or "").strip()
+            for item in content
+        )
+
         tasks = []
+        replaced_empty_text = False
         for item in content:
             if isinstance(item, dict):
                 if item.get("type") == "image_url":
@@ -396,6 +406,10 @@ async def _process_human_content(
                         )
                     )
                 elif item.get("type") == "text":
+                    text_val = str(item.get("text") or "").strip()
+                    if not text_val and has_media and not has_text_content and not replaced_empty_text:
+                        item = {"type": "text", "text": "请分析附带的媒体内容。"}
+                        replaced_empty_text = True
 
                     async def _return_item(i=item):
                         return i
@@ -415,6 +429,8 @@ async def _process_human_content(
                 tasks.append(_return_item())
 
         processed_items = await asyncio.gather(*tasks) if tasks else []
+        if has_media and not has_text_content and not replaced_empty_text:
+            processed_items.insert(0, {"type": "text", "text": "请分析附带的媒体内容。"})
 
         # 检查是否执行过图像/视频分析，若执行过，需要发送状态清除指令并统一更新 DB
         if (meta.get("_analyzed_image") or meta.get("_analyzed_video")) and meta.get("chat_id"):
@@ -478,6 +494,8 @@ async def _process_image_item(
 
         raw_iu = item.get("image_url")
         iu_dict = raw_iu if isinstance(raw_iu, dict) else {}
+        if isinstance(raw_iu, dict) and raw_iu.get("detail") == "auto":
+            del raw_iu["detail"]
         url_raw = iu_dict.get("url", "")
         image_url = str(url_raw) if url_raw is not None else ""
 
@@ -685,7 +703,7 @@ async def _process_video_item(
             mime = str(vu_dict.get("mime_type", "video/mp4"))
             return {
                 "type": "image_url",
-                "image_url": {"url": video_url, "detail": "auto"},
+                "image_url": {"url": video_url},
                 "_mime_type": mime,
             }
 

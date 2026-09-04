@@ -34,7 +34,7 @@ export const ContinualOverlayWatcher = memo<ContinualOverlayWatcherProps>(({ cha
             triggerReason: it.triggerReason,
             remainingTurns: it.remainingTurns,
             advisoryText: it.advisoryText,
-          }))
+          })),
         );
       }
     } catch {
@@ -57,7 +57,7 @@ export const ContinualOverlayWatcher = memo<ContinualOverlayWatcherProps>(({ cha
         // Handled silently or by caller
       }
     },
-    [chatId, fetchOverlays]
+    [chatId, fetchOverlays],
   );
 
   if (overlays.length === 0) {

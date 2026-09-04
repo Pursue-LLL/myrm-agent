@@ -1,15 +1,4 @@
 {
-  "continualOverlay": {
-    "activeTitle": "会话现场自愈生效中",
-    "remainingTurns": "剩余 {count} 回合",
-    "rollback": "撤销补丁",
-    "rollbackTooltip": "撤销当前会话级现场热修补丁",
-    "expand": "展开详情",
-    "collapse": "收起详情",
-    "howItWorks": "零重启原地自愈原理",
-    "howItWorksDesc": "当长程任务在特定工具遇阻或陷入循环停滞时，系统自动在当前会话内注入临时的退避重试与避坑指南，避免从头重跑造成高额费用。",
-    "allActiveOverlays": "全部生效中的自愈补丁 ({count})"
-  },
   "recovery": {
     "title": "Agent 启动与配置自愈中心",
     "description": "检测到当前 Agent 绑定的组件或配置在启动期存在异常。您可以一键恢复至最后已知良好配置，或导出诊断包进行排查。",
@@ -7262,6 +7251,31 @@
     "wechatInstanceRemoveError": "移除微信账号失败",
     "wechatInstanceLabelPlaceholder": "标签（如：工作、个人）",
     "wechatLabelSaveError": "保存标签失败",
+    "wechatRiskBannerTitle": "个人微信接入安全与风控告知",
+    "wechatRiskBannerCompactTitle": "个人号风险提示已收起 · 建议使用小号",
+    "wechatRiskBannerExpand": "查看安全须知",
+    "wechatRiskBannerDesc": "个人微信基于第三方中转协议，受腾讯安全策略限制，存在功能限制、临时冻结甚至封号风险。强烈建议使用备用测试小号，严禁使用个人主力生活账号。",
+    "wechatRiskBannerWeComHint": "严肃商业与企业级生产场景，推荐使用企业微信（WeCom）官方通道",
+    "wechatRiskBannerWeComAction": "前往配置企微",
+    "wechatRiskBannerDismiss": "我已知晓并收起",
+    "wechatTroubleshootButton": "装死/无响应排查",
+    "wechatTroubleshootTitle": "微信连接异常与无响应自检排查",
+    "wechatTroubleshootStep1Title": "检查手机微信 App 登录态",
+    "wechatTroubleshootStep1Desc": "检查手机微信聊天顶部是否仍显示「iPad/电脑已登录」。若收到腾讯安全中心的「设备安全校验」或被强制踢下线，请在手机端确认后重新连接。",
+    "wechatTroubleshootStep2Title": "发送频控与临时限制",
+    "wechatTroubleshootStep2Desc": "微信个人号限制每秒发信不超过 2 条。短时间内大量高频发信会触发腾讯临时风控冷却（约 1-5 分钟），冷却期内消息将无法送达。",
+    "wechatTroubleshootStep3Title": "长连接凭据自愈",
+    "wechatTroubleshootStep3Desc": "iLink 协议长轮询凭证失效时，可直接点击下方【重新获取登录码】重置会话，无需重启服务。",
+    "wechatTroubleshootStep4Title": "本地与云端网络环境差异",
+    "wechatTroubleshootStep4Desc": "本地/桌面端直连家庭/办公宽带风控较低；云托管部署机房 IP 易被标记，建议确保沙箱公网出站通畅。",
+    "wechatTroubleshootActionRefresh": "刷新状态",
+    "wechatTroubleshootActionReLogin": "重新扫码登录",
+    "wechatTroubleshootCopyReport": "复制诊断报告",
+    "wechatTroubleshootCopied": "已复制",
+    "wechatTroubleshootRefreshSuccess": "已刷新微信连接状态",
+    "wechatTroubleshootRefreshError": "刷新状态失败",
+    "wechatTroubleshootReportCopied": "排障诊断信息已复制到剪贴板",
+    "wechatTroubleshootReportCopyError": "复制排障诊断信息失败",
     "wechatOfficialTitle": "微信公众号",
     "wechatOfficialDesc": "配置认证服务号凭证，用于将文章推送到公众号草稿箱。",
     "wechatOfficialIpWhitelistHint": "请将下方公网 IP 加入公众号 IP 白名单（mp.weixin.qq.com → 设置与开发 → 基本配置）。",
@@ -18343,5 +18357,16 @@
       "deleteSuccessDesc": "已移除选定的历史快照。",
       "deleteFailedTitle": "删除快照失败"
     }
+  },
+  "continualOverlay": {
+    "activeTitle": "动态干预生效中",
+    "remainingTurns": "剩余 {count} 轮",
+    "rollbackTooltip": "回滚此会话层干预",
+    "rollback": "回滚",
+    "collapse": "折叠",
+    "expand": "展开",
+    "howItWorks": "零重启自愈机制",
+    "howItWorksDesc": "当会话遇到工具或格式错误时，系统注入临时会话层补丁，并在剩余轮次后自动褪去。",
+    "allActiveOverlays": "全部生效中的干预（共 {count} 个）"
   }
 }

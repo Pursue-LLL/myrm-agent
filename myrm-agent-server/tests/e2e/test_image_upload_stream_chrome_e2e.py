@@ -280,10 +280,18 @@ async def _await_assistant_reply(
         await asyncio.sleep(2.0)
 
 
-async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> str:
+async def _run_image_flow(
+    chat: McpChatSession,
+    *,
+    api_url: str,
+    prompt: str = _PROMPT,
+) -> str:
     ui_base = get_e2e_ui_url().rstrip("/")
     _LOGGER.info(
-        "STAGE: run_image_flow start (ui_base=%s, api_url=%s)", ui_base, api_url
+        "STAGE: run_image_flow start (ui_base=%s, api_url=%s, prompt_len=%d)",
+        ui_base,
+        api_url,
+        len(prompt),
     )
     await chat.bootstrap(ui_base, navigate=False, timeout_sec=120.0)
     _LOGGER.info("STAGE: bootstrapped, click_new_chat")
@@ -330,29 +338,16 @@ async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> str:
             break
         await asyncio.sleep(1.0)
     assert thumbnail_probe.get("ready") is True, f"attachment thumbnail never appeared (upload failed): {thumbnail_probe}"
-    _LOGGER.info("STAGE: thumbnail ready, filling prompt and sending message")
-    await chat.fill_input(_PROMPT)
-
-    # When attachments are staged in the composer DOM, native button click
-    # routes the turn through standard WebUI submit handlers with uploaded files intact.
-    submit_res = await chat.submit_native_click()
-    _LOGGER.info("STAGE: submit_native_click result=%s", submit_res)
-    started = await chat._submit_started()
-    chat_id = (
-        str(started.get("bridgeChatId") or "").strip()
-        or chat_id_from_path(str(started.get("path") or ""))
-        or await chat.bridge_chat_id()
+    _LOGGER.info("STAGE: thumbnail ready, sending message with attachment via send_message")
+    send_result = await chat.send_message(prompt, prompt, skip_model_sync=True)
+    _LOGGER.info("STAGE: send_message result=%s", send_result)
+    chat_id = str(
+        send_result.get("started", {}).get("chatId")
+        or send_result.get("submit", {}).get("chatId")
+        or (await chat.bridge_chat_id())
         or ""
-    )
-    if not chat_id:
-        send_result = await chat.send_message(_PROMPT, _PROMPT)
-        _LOGGER.info("STAGE: fallback send_message result=%s", send_result)
-        chat_id = str(
-            send_result.get("started", {}).get("chatId")
-            or send_result.get("submit", {}).get("chatId")
-            or ""
-        ).strip()
-    assert chat_id, f"image turn did not start: started={started}"
+    ).strip()
+    assert chat_id, f"image turn did not start: send_result={send_result}"
     _LOGGER.info("STAGE: awaiting assistant reply (chat_id=%s)", chat_id)
 
     reply = await _await_assistant_reply(
@@ -420,3 +415,52 @@ async def test_image_upload_stream_assistant_replies(
     finally:
         if isinstance(backup, dict) and backup:
             put_config_value("providers", backup, api_url=api_url)
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+@pytest.mark.asyncio
+async def test_image_upload_stream_empty_prompt_fallback(
+    e2e_resource_ledger: E2EResourceLedger,
+) -> None:
+    """E2E edge scenario: user uploads image without text prompt.
+
+    Ensures the system gracefully applies default prompt fallback,
+    successfully calls LLM, and completes the assistant reply.
+    """
+    api_url = get_e2e_api_url()
+    if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=120.0):
+        pytest.fail("Provider config not ready — run via ./myrm test -m chrome_e2e after ./myrm ready --chrome")
+
+    backup = fetch_config_value("providers", api_url=api_url)
+    try:
+        with config_write_mutex("providers", wait_sec=900.0):
+            _seed_vision_provider(api_url)
+            if not wait_e2e_provider_ready(api_url=api_url, timeout_sec=60.0):
+                pytest.fail("Provider readiness failed after vision seed")
+
+            page_session = await open_mcp_page_async(
+                get_e2e_ui_url().rstrip("/"),
+                request_timeout_sec=180.0,
+                timeout_ms=120_000,
+            )
+            try:
+                chat_id = await _run_image_flow(
+                    McpChatSession(page_session.client, page_session.page),
+                    api_url=api_url,
+                    prompt="",
+                )
+                e2e_resource_ledger.register("chat", chat_id)
+            finally:
+                await page_session.aclose()
+    finally:
+        if isinstance(backup, dict) and backup:
+            put_config_value("providers", backup, api_url=api_url)
+

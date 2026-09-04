@@ -1,9 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
-import PairedSignificancePanel, {
-  type PairedSignificanceData,
-} from '../PairedSignificancePanel';
+import PairedSignificancePanel, { type PairedSignificanceData } from '../PairedSignificancePanel';
 
 const stableT = (key: string) => key;
 
@@ -100,11 +98,7 @@ describe('PairedSignificancePanel', () => {
 
   it('renders nothing if less than 2 profiles or empty paired significance', () => {
     const { container } = render(
-      <PairedSignificancePanel
-        pairedSignificance={{}}
-        profileIds={['prof_base']}
-        getProfileLabel={getProfileLabel}
-      />
+      <PairedSignificancePanel pairedSignificance={{}} profileIds={['prof_base']} getProfileLabel={getProfileLabel} />,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -115,7 +109,7 @@ describe('PairedSignificancePanel', () => {
         pairedSignificance={{ 'prof_base:prof_cand': mockImprovementData }}
         profileIds={['prof_base', 'prof_cand']}
         getProfileLabel={getProfileLabel}
-      />
+      />,
     );
 
     expect(screen.getByTestId('paired-significance-panel')).toBeInTheDocument();
@@ -138,7 +132,7 @@ describe('PairedSignificancePanel', () => {
         profileIds={['prof_base', 'prof_cand']}
         getProfileLabel={getProfileLabel}
         onFilterCases={onFilterCases}
-      />
+      />,
     );
 
     const regBtn = screen.getByText(/filterRegressionCases/);
@@ -156,7 +150,7 @@ describe('PairedSignificancePanel', () => {
         profileIds={['prof_base', 'prof_cand']}
         getProfileLabel={getProfileLabel}
         onFilterCases={onFilterCases}
-      />
+      />,
     );
 
     const impBtn = screen.getByText(/filterImprovedCases/);
@@ -174,7 +168,7 @@ describe('PairedSignificancePanel', () => {
         }}
         profileIds={['prof_base', 'prof_cand', 'prof_cand2']}
         getProfileLabel={getProfileLabel}
-      />
+      />,
     );
 
     expect(screen.getByText('verdict.significantImprovement')).toBeInTheDocument();

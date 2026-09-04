@@ -29,13 +29,18 @@ function namespaceFilename(namespace) {
 }
 
 function resetDirectory(dirPath) {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
-      rmSync(dirPath, { recursive: true, force: true });
+      rmSync(dirPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
       break;
     } catch (error) {
-      if (error?.code !== 'ENOTEMPTY' || attempt === 2) {
+      if ((error?.code !== 'ENOTEMPTY' && error?.code !== 'EBUSY') || attempt === 4) {
         throw error;
+      }
+      try {
+        execSync('sleep 0.1');
+      } catch {
+        // ignore
       }
     }
   }
