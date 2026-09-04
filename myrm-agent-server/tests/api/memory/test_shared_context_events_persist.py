@@ -96,3 +96,31 @@ async def test_delete_shared_context_binding_persists_write_event(db: AsyncSessi
     assert len(rows) == 1
     assert rows[0].target_id == binding.id
     assert rows[0].memory_id == context.id
+
+
+async def test_conversation_target_shared_context_lifecycle_and_events(db: AsyncSession) -> None:
+    service = SharedContextService(db)
+    context = await service.create_context(name="Team Knowledge")
+    binding = await service.bind_context(
+        context_id=context.id,
+        target_type="conversation",
+        target_id="chat-conv-456",
+    )
+    assert binding is not None
+    assert binding.target_type == "conversation"
+    assert binding.target_id == "chat-conv-456"
+
+    # Verify resolution
+    resolved = await service.resolve_active_context_ids([("conversation", "chat-conv-456")])
+    assert resolved == [context.id]
+
+    # Verify name resolution
+    names = await service.get_context_names([context.id])
+    assert names[context.id] == "Team Knowledge"
+
+    # Unbind and verify event
+    await delete_shared_context_binding(context.id, binding.id, db)
+    rows = await _fetch_events(db, kind="write", target_kind="shared_context_binding")
+    assert len(rows) == 1
+    assert rows[0].target_id == binding.id
+

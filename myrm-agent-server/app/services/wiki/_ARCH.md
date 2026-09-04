@@ -28,6 +28,7 @@ Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁�
 | `consolidation_bridge.py` | 钩子 | consolidation 完成后 insight → `publish_raw` + enqueue（上游 enable_wiki 门控） | ✅ |
 | `structural_stats_cache.py` | 辅助 | `/wiki/stats` structural lint 120s TTL 缓存；`_after_wiki_vault_mutation` SSOT 在 compile/maintain/repair-types/repair-publication/move/import/apply/delete concept/delete folder/pending approve/delete raw 等变更后失效 | ✅ |
 | `knowledge_query_service.py` | SSOT | `execute_wiki_knowledge_query` — Settings POST /query 与 Chat Wiki Knowledge Lane 共用零 LLM 检索 + citations，支持通过 shared_context_ids 挂载多库跨源检索与友好标签解析 | ✅ |
+| `vault/service.py` | SSOT | `get_wiki_archiver` 进程级缓存单例（严格按 llm, agent_id, manager, public_dirs, public_dir_labels 联合维度多重隔离，彻底根除跨库与会话挂载污染） | ✅ |
 | `chat_compound_service.py` | SSOT | `stage_chat_compound_from_message` — POST /compound DB hydrate Q&A + trust → harness pending；reject inactive/incognito assistant messages | ✅ |
 | `health_report_service.py` | SSOT | GET /wiki/health-report structural scan + merge vault full snapshot drift + `count_open_actions`；maintain 写入/读取 `reports/last-health.json` | ✅ |
 | `dedup_runner.py` | SSOT | `schedule_wiki_dedup_scan` (202 background) / `run_wiki_dedup_scan_job` (cron blocking) / `apply_wiki_dedup_disposition` / `wiki_dedup_checklist_ready` — POST /dedup/* 与 Cron `__wiki_dedup__` 共用；compile 进行中 skip scan | ✅ |

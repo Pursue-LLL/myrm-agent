@@ -429,7 +429,7 @@ async def test_shared_context_bindings_support_conversation_target_and_resolve(
 
     # Bind both to a conversation target
     b1 = await service.bind_context(context_id=kb1.id, target_type="conversation", target_id="conv-101")
-    b2 = await service.bind_context(context_id=kb2.id, target_type="conversation", target_id="conv-101")
+    await service.bind_context(context_id=kb2.id, target_type="conversation", target_id="conv-101")
 
     # List bindings for this conversation
     bindings = await service.list_bindings_for_target(target_type="conversation", target_id="conv-101")
@@ -450,8 +450,3 @@ async def test_shared_context_bindings_support_conversation_target_and_resolve(
     names = await service.get_context_names([kb1.id, kb2.id])
     assert names[kb1.id] == "Engineering Standards"
     assert names[kb2.id] == "Security Policy"
-
-    assert proposal.metadata["source_chat_id"] == "chat-1"
-    assert proposal.metadata["source_content_truncated"] is False
-    assert proposal.source_type == "chat_history"
-    assert proposal.source_id == "msg-1"

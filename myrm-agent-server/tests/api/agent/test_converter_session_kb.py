@@ -30,6 +30,10 @@ async def test_converter_merges_explicit_session_knowledge_base_ids() -> None:
             "app.services.memory.shared_context.shared_context.resolve_shared_context_ids",
             AsyncMock(return_value=["kb-default-profile"]),
         ),
+        patch(
+            "app.services.memory.shared_context.shared_context.SharedContextService.get_context_names",
+            AsyncMock(return_value={}),
+        ),
         patch("app.services.chat.chat_service.ChatService.get_chat_metadata", AsyncMock(return_value=None)),
     ):
         params, *_ = await convert_to_general_agent_params(req, [])

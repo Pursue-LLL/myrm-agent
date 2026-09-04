@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest

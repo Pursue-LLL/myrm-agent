@@ -315,20 +315,6 @@ class GeneralAgent(ToolSetupMixin):
         from app.services.wiki.vault import resolve_shared_wiki_vault_labels
 
         context_name_map = dict(getattr(self, "memory_shared_context_names", None) or {})
-        if not context_name_map and self.memory_shared_context_ids:
-            try:
-                from app.database import get_session_sync
-                from app.services.memory.shared_context.shared_context import (
-                    SharedContextService,
-                )
-
-                with get_session_sync() as session:
-                    context_name_map = SharedContextService(session).get_context_names_sync(
-                        self.memory_shared_context_ids
-                    )
-            except Exception:
-                pass
-
         return resolve_shared_wiki_vault_labels(
             self.memory_shared_context_ids,
             context_name_map=context_name_map or None,

@@ -1,5 +1,17 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/components/features/chat-window/context-strip/ComposerContextChipStrip (POS: 上下文胶囊流容器)
+ * - @/hooks/message-input/useComposerContextChips::ContextChipItem (POS: 上下文胶囊项数据契约)
+ *
+ * [OUTPUT]
+ * - 单元测试用例：验证 knowledge 类别胶囊渲染、移除按钮点击与回调触发
+ *
+ * [POS]
+ * 输入区上下文胶囊流知识库专项测试。
+ */
+
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ComposerContextChipStrip } from '../ComposerContextChipStrip';

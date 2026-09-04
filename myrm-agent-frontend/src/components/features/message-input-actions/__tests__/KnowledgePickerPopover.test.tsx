@@ -1,71 +1,26 @@
-/** @vitest-environment jsdom */
 'use client';
 
-import React from 'react';
+/**
+ * [INPUT]
+ * - @/components/features/message-input-actions/KnowledgePickerPopover (POS: 知识库挂载 Popover)
+ * - @/services/memory/sharedContexts::* (POS: 共享上下文 API)
+ * - @/store/useChatStore (POS: 会话与知识库状态 Store)
+ *
+ * [OUTPUT]
+ * - 单元测试用例：触发按钮渲染、无障碍属性、异步加载列表、Switch 点击绑定与 Store 更新
+ *
+ * [POS]
+ * 输入区知识库挂载 Popover 专项单元测试。
+ */
+
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import KnowledgePickerPopover from '../KnowledgePickerPopover';
+import useChatStore from '@/store/useChatStore';
 import * as sharedContextsApi from '@/services/memory/sharedContexts';
-
-vi.mock('next/link', () => ({
-  default: ({ children, href, onClick, className }: any) => (
-    <a href={href} onClick={onClick} className={className}>
-      {children}
-    </a>
-  ),
-}));
-
-vi.mock('@/lib/utils/toast', () => ({
-  toast: {
-    error: vi.fn(),
-    success: vi.fn(),
-  },
-}));
 
 vi.mock('@/hooks/ui/useMediaQuery', () => ({
   useIsMobile: () => false,
-}));
-
-vi.mock('@/components/primitives/tooltip', () => ({
-  Tooltip: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
-
-vi.mock('@/components/primitives/popover', () => ({
-  Popover: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="mock-popover">{children}</div>
-  ),
-  PopoverTrigger: ({ children }: { children: React.ReactElement }) => (
-    <div data-testid="mock-popover-trigger">{children}</div>
-  ),
-  PopoverContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="mock-popover-content">{children}</div>
-  ),
-}));
-
-vi.mock('@/components/primitives/switch', () => ({
-  Switch: ({
-    checked,
-    disabled,
-    onCheckedChange,
-    'aria-label': ariaLabel,
-  }: {
-    checked?: boolean;
-    disabled?: boolean;
-    onCheckedChange?: (checked: boolean) => void;
-    'aria-label'?: string;
-  }) => (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={ariaLabel}
-      disabled={disabled}
-      onClick={() => onCheckedChange?.(!checked)}
-    />
-  ),
 }));
 
 vi.mock('next-intl', () => ({
@@ -73,40 +28,22 @@ vi.mock('next-intl', () => ({
   useTranslations: () => {
     return (key: string, values?: Record<string, unknown>) => {
       const map: Record<string, string> = {
-        tooltip: '挂载知识库',
         title: '挂载知识库',
+        tooltip: '挂载知识库',
+        manage: '管理知识库',
         searchPlaceholder: '搜索可用知识库...',
         activeCount: `已挂载 ${values?.count ?? 0} 个`,
         emptyKnowledgeBases: '暂无可用的知识库',
         noSearchResults: '未找到匹配的知识库',
-        manage: '管理',
         maxLimitReached: '单个会话最多可同时挂载 6 个知识库',
-        operationFailed: '知识库挂载操作失败',
+        bindSuccess: '已成功挂载知识库',
+        unbindSuccess: '已取消挂载知识库',
+        actionError: '知识库挂载操作失败',
         ariaLabel: '选择要挂载的知识库',
       };
       return map[key] ?? key;
     };
   },
-}));
-
-const mockSetActiveKnowledgeBaseIds = vi.fn();
-const mockSetActiveKnowledgeBaseNames = vi.fn();
-const mockRemoveActiveKnowledgeBase = vi.fn();
-
-let mockChatStoreState = {
-  chatId: 'test-chat-123',
-  activeKnowledgeBaseIds: [] as string[],
-  activeKnowledgeBaseNames: {} as Record<string, string>,
-  setActiveKnowledgeBaseIds: mockSetActiveKnowledgeBaseIds,
-  setActiveKnowledgeBaseNames: mockSetActiveKnowledgeBaseNames,
-  removeActiveKnowledgeBase: mockRemoveActiveKnowledgeBase,
-  incognitoMode: false,
-};
-
-vi.mock('@/store/useChatStore', () => ({
-  default: vi.fn((selector: (state: typeof mockChatStoreState) => unknown) =>
-    selector(mockChatStoreState),
-  ),
 }));
 
 vi.mock('@/services/memory/sharedContexts', () => ({
@@ -119,15 +56,12 @@ vi.mock('@/services/memory/sharedContexts', () => ({
 describe('KnowledgePickerPopover Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockChatStoreState = {
+    useChatStore.setState({
       chatId: 'test-chat-123',
       activeKnowledgeBaseIds: [],
       activeKnowledgeBaseNames: {},
-      setActiveKnowledgeBaseIds: mockSetActiveKnowledgeBaseIds,
-      setActiveKnowledgeBaseNames: mockSetActiveKnowledgeBaseNames,
-      removeActiveKnowledgeBase: mockRemoveActiveKnowledgeBase,
       incognitoMode: false,
-    };
+    });
   });
 
   it('renders trigger button with correct accessibility and tooltip', () => {
@@ -139,14 +73,14 @@ describe('KnowledgePickerPopover Component', () => {
     expect(trigger).toBeDefined();
   });
 
-  it('loads available contexts and mounts selected context on click', async () => {
+  it('loads available contexts and mounts selected context on switch change', async () => {
     const mockContext = {
       id: 'kb-test-1',
       name: '研发规范与架构守则',
       description: '团队内部架构指南',
       status: 'active' as const,
-      created_at: '2026-09-04T00:00:00Z',
-      updated_at: '2026-09-04T00:00:00Z',
+      created_at: 1700000000,
+      updated_at: 1700000000,
     };
 
     (sharedContextsApi.listSharedContexts as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -162,24 +96,26 @@ describe('KnowledgePickerPopover Component', () => {
       context_id: 'kb-test-1',
       target_type: 'conversation',
       target_id: 'test-chat-123',
-      created_at: '2026-09-04T00:00:00Z',
+      created_at: 1700000000,
     });
 
     render(<KnowledgePickerPopover />);
+    const trigger = screen.getByRole('button', { name: /选择要挂载的知识库/i });
+    fireEvent.click(trigger);
 
     await waitFor(() => {
       expect(screen.getByText('研发规范与架构守则')).toBeDefined();
     });
 
-    const itemSwitch = screen.getByRole('switch', { name: /研发规范与架构守则/i });
-    fireEvent.click(itemSwitch);
+    const toggleSwitch = screen.getByRole('switch', { name: /研发规范与架构守则/i });
+    fireEvent.click(toggleSwitch);
 
     await waitFor(() => {
       expect(sharedContextsApi.createSharedContextBinding).toHaveBeenCalledWith('kb-test-1', {
         target_type: 'conversation',
         target_id: 'test-chat-123',
       });
-      expect(mockSetActiveKnowledgeBaseIds).toHaveBeenCalledWith(['kb-test-1']);
+      expect(useChatStore.getState().activeKnowledgeBaseIds).toContain('kb-test-1');
     });
   });
 });

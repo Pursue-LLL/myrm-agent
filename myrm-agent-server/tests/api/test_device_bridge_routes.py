@@ -6,6 +6,7 @@ import io
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from PIL import Image
 
@@ -15,7 +16,6 @@ from app.services.device.bridge_service import (
     DeviceDoctorReport,
     DeviceInfo,
 )
-from fastapi import FastAPI
 
 
 @pytest.fixture

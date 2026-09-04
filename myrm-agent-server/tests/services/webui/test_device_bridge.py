@@ -14,7 +14,6 @@ from app.services.webui.device_bridge import (
     DeviceBridgeService,
     DeviceDoctorResult,
     DeviceInfo,
-    DeviceSnapshotPayload,
     TouchRelayCommand,
 )
 
@@ -204,8 +203,9 @@ async def test_relay_touch_commands(bridge_service: DeviceBridgeService) -> None
 @pytest.mark.asyncio
 async def test_router_endpoints() -> None:
     """Test HTTP API routes for device doctor, snapshot, and touch relay using minimal test app."""
-    from tests.support.minimal_app import build_minimal_app
     from httpx import ASGITransport, AsyncClient
+
+    from tests.support.minimal_app import build_minimal_app
 
     app = build_minimal_app(webui=True)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:

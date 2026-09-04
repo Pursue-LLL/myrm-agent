@@ -1521,6 +1521,7 @@ class TestAgentPluginImportWithAgents:
     async def test_materialize_agent_template_files_security_and_writing(self, tmp_path: Path) -> None:
         """Verifies that _materialize_agent_template_files writes text/base64 files and blocks path traversal."""
         import base64
+
         from app.services.agent.params.workspace_resolve import _materialize_agent_template_files
 
         chat_id = "test-chat-materialize-1"
