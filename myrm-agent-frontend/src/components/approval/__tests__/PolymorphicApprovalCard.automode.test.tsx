@@ -105,7 +105,7 @@ describe('PolymorphicApprovalCard Auto Mode Production Hardening', () => {
       severity: 'high',
       payload: {
         tool_calls: [
-          { name: 'bash_code_execute_tool', args: { command: 'git push origin main' } },
+          { name: 'channel_notify', args: { message: 'broadcast' } },
         ],
         reviewConfigs: [
           {
