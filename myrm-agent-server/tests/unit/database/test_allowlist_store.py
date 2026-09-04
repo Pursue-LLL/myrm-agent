@@ -7,11 +7,9 @@ import time
 
 import pytest
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry
-from sqlalchemy import select
 
 from app.database.allowlist_store import DBAllowlistStore
 from app.database.connection import init_database
-from app.database.models import UserToolAllowlist
 from app.platform_utils import get_session_factory
 from tests.support.allowlist_test_seed import clear_allowlist_entries
 
