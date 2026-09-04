@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry
 
