@@ -120,6 +120,12 @@ class TaskSpaceService:
         state["status"] = "takeover" if enabled else "idle"
         space.touch()
 
+        # Hard stop / resume physical browser session
+        if enabled:
+            await space.pause_for_takeover()
+        else:
+            await space.resume_from_takeover()
+
         logger.info("TaskSpace '%s' human takeover set to: %s", space_id, enabled)
         return await self._build_space_info(space)
 
