@@ -743,3 +743,50 @@ export const checkVisionFallbackHealth = async (): Promise<VisionHealthResult> =
     method: 'POST',
   });
 };
+
+export interface CredentialPoolKeyStat {
+  suffix: string;
+  calls: number;
+  rate_limits: number;
+  consecutive_rate_limits: number;
+  errors: number;
+  in_cooldown: boolean;
+  cooldown_remaining_s: number;
+}
+
+export interface CredentialPoolStatItem {
+  cache_key: string;
+  model: string;
+  stats: {
+    strategy: string;
+    total_keys: number;
+    available_keys: number;
+    total_calls: number;
+    total_rate_limits: number;
+    max_consecutive_rate_limits: number;
+    total_errors: number;
+    keys: CredentialPoolKeyStat[];
+  };
+}
+
+export const fetchCredentialPoolStats = async (): Promise<CredentialPoolStatItem[]> => {
+  try {
+    const res = await apiRequest<{ data: CredentialPoolStatItem[] }>('/integrations/llm/credential-pool/stats');
+    return res.data || [];
+  } catch {
+    return [];
+  }
+};
+
+export const resetCredentialPoolCooldowns = async (keySuffix?: string): Promise<{ reset_count: number }> => {
+  try {
+    const res = await apiRequest<{ data: { reset_count: number } }>('/integrations/llm/credential-pool/reset-cooldowns', {
+      method: 'POST',
+      body: JSON.stringify(keySuffix ? { key_suffix: keySuffix } : {}),
+    });
+    return res.data || { reset_count: 0 };
+  } catch {
+    return { reset_count: 0 };
+  }
+};
+
