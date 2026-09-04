@@ -107,6 +107,7 @@ async def test_wiki_knowledge_lane_forwards_shared_context_ids_and_names(
         model_cfg=ModelConfig(model="test/model", api_key="k"),
         enable_wiki=True,
         memory_shared_context_ids=["kb-vault-1", "kb-vault-2"],
+        memory_shared_context_names={"kb-vault-1": "Shared KB"},
     )
 
     events = [

@@ -181,3 +181,75 @@ async def test_resolve_proactive_snippets_timeout_degrades_gracefully(tmp_path: 
         timeout_seconds=0.0000001,
     )
     assert len(result.snippets) == 0
+
+
+@pytest.mark.asyncio
+async def test_resolve_proactive_snippets_with_fts5_index(tmp_path: Path) -> None:
+    """Verify Tier 1 FTS5 index-first retrieval on compiled vault."""
+    import sqlite3
+
+    vault_dir = tmp_path / "compiled_vault"
+    vault_dir.mkdir()
+    db_path = vault_dir / ".wiki_index.db"
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE VIRTUAL TABLE wiki_fts USING fts5(
+                concept_name,
+                truth_content,
+                tokenize="unicode61 remove_diacritics 1"
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO wiki_fts(concept_name, truth_content)
+            VALUES (?, ?)
+            """,
+            (
+                "ExpensePolicy",
+                "## 差旅报销制度\n\n全员差旅住宿标准为每晚不超过 650 元人民币。\n\n交通补贴每日上限 50 元。",
+            ),
+        )
+
+    result = await resolve_proactive_snippets_from_vaults(
+        query="住宿报销标准每晚限额多少",
+        vault_paths=(vault_dir,),
+        vault_labels={str(vault_dir): "财务规章"},
+        timeout_seconds=0.200,
+    )
+
+    assert len(result.snippets) >= 1
+    assert result.snippets[0].kb_name == "财务规章"
+    assert result.snippets[0].article_title == "ExpensePolicy"
+    assert "650" in result.snippets[0].snippet
+
+
+@pytest.mark.asyncio
+async def test_resolve_proactive_snippets_with_real_wiki_concepts_dir(tmp_path: Path) -> None:
+    """Verify Tier 2 fallback correctly traverses real wiki/concepts subdirectory."""
+    vault_dir = tmp_path / "uncompiled_vault"
+    concepts_dir = vault_dir / "wiki" / "concepts"
+    concepts_dir.mkdir(parents=True)
+
+    doc_path = concepts_dir / "code_review_guideline.md"
+    doc_path.write_text(
+        "# 代码规范\n\n"
+        "所有对外服务接口必须统一返回 APIResponse 模型。\n\n"
+        "禁止在代码中硬编码秘钥。",
+        encoding="utf-8",
+    )
+
+    result = await resolve_proactive_snippets_from_vaults(
+        query="对外接口返回模型规范是什么",
+        vault_paths=(vault_dir,),
+        vault_labels={str(vault_dir): "研发规范"},
+        timeout_seconds=0.200,
+    )
+
+    assert len(result.snippets) >= 1
+    assert result.snippets[0].kb_name == "研发规范"
+    assert result.snippets[0].article_title == "code_review_guideline"
+    assert "APIResponse" in result.snippets[0].snippet
+

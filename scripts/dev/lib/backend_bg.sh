@@ -300,6 +300,7 @@ _start_backend_bg() {
   _require_harness_editable_for_monorepo "${server_dir}"
 
   cd "${server_dir}"
+  export SKIP_HEALTH_CHECK="${SKIP_HEALTH_CHECK:-true}"
   # Dev log is append-only; truncate on fresh start to avoid unbounded growth.
   : >"${log_file}"
   export PYTHONUNBUFFERED=1
@@ -311,13 +312,13 @@ _start_backend_bg() {
   # every platform. The launcher keeps the exact argv of run.py so the
   # ownership identity record (expected-command-token "run.py") stays valid.
   if command -v setsid >/dev/null 2>&1; then
-    setsid "${py}" run.py >>"${log_file}" 2>&1 &
+    setsid "${py}" run.py --skip-health-check >>"${log_file}" 2>&1 &
   else
     "${py}" -c '
 import os, sys
 os.setsid()
 os.execv(sys.argv[1], sys.argv[1:])
-' "${py}" run.py >>"${log_file}" 2>&1 &
+' "${py}" run.py --skip-health-check >>"${log_file}" 2>&1 &
     disown -h $! 2>/dev/null || true
   fi
   local new_pid

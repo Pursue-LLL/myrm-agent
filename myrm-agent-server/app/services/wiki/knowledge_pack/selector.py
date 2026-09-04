@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import re
+import sqlite3
 import time
 from pathlib import Path
 
@@ -178,17 +179,85 @@ async def resolve_proactive_snippets_from_vaults(
         if not vault_path.exists() or not vault_path.is_dir():
             return found
 
-        # Quick match on concept markdown files
         terms = tokenize_text(trimmed_query)
         if not terms:
             return found
 
-        # Prefer multi-char tokens for meaningful matching
         match_terms = {t for t in terms if len(t) >= 2} or terms
 
+        # ── Tier 1: SQLite FTS5 index-first retrieval (O(1) ms latency) ──
+        db_path = vault_path / ".wiki_index.db"
+        if db_path.is_file():
+            try:
+                safe_fts_terms = [
+                    t for t in match_terms
+                    if t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t)
+                ]
+                if safe_fts_terms:
+                    fts_query = " OR ".join(f'"{t}"' for t in safe_fts_terms[:8])
+                    # Open read-only connection to guarantee zero write contention and sandboxed safety
+                    with sqlite3.connect(f"file:{db_path.resolve()}?mode=ro", uri=True) as conn:
+                        conn.row_factory = sqlite3.Row
+                        cursor = conn.execute(
+                            """
+                            SELECT concept_name, truth_content
+                            FROM wiki_fts
+                            WHERE wiki_fts MATCH ?
+                            ORDER BY rank
+                            LIMIT 5
+                            """,
+                            (fts_query,),
+                        )
+                        for row in cursor.fetchall():
+                            c_name = str(row["concept_name"] or "")
+                            c_content = str(row["truth_content"] or "")
+                            paras = [p.strip() for p in c_content.split("\n\n") if p.strip()]
+                            best_para = ""
+                            best_matches = 0
+                            for p in paras:
+                                lines = [
+                                    line.strip()
+                                    for line in p.split("\n")
+                                    if line.strip() and not line.strip().startswith("#")
+                                ]
+                                if not lines:
+                                    continue
+                                text = " ".join(lines)
+                                text_lower = text.lower()
+                                matches = sum(1 for t in match_terms if t in text_lower)
+                                if matches > best_matches:
+                                    best_matches = matches
+                                    best_para = text
+                            if not best_para and paras:
+                                first_lines = [
+                                    line.strip()
+                                    for line in paras[0].split("\n")
+                                    if line.strip() and not line.strip().startswith("#")
+                                ]
+                                best_para = " ".join(first_lines) if first_lines else paras[0]
+
+                            if best_para:
+                                found.append(
+                                    RelevantSnippet(
+                                        kb_name=label,
+                                        article_title=c_name,
+                                        snippet=best_para,
+                                        confidence=0.95,
+                                        source_path=str(db_path),
+                                    )
+                                )
+                                if len(found) >= 5:
+                                    break
+                if found:
+                    return found
+            except Exception as exc:
+                logger.debug("FTS5 index scan failed for %s, falling back to markdown: %s", db_path, exc)
+
+        # ── Tier 2: Concept markdown files fallback (for newly created or uncompiled vaults) ──
         try:
-            # Shallow traversal of top markdown files to keep retrieval well under 50ms
-            md_files = list(vault_path.glob("*.md"))[:20]
+            concepts_dir = vault_path / "wiki" / "concepts"
+            search_dir = concepts_dir if concepts_dir.is_dir() else vault_path
+            md_files = (list(search_dir.glob("*.md")) or list(vault_path.glob("*.md")))[:15]
             for md_file in md_files:
                 title = md_file.stem.lower()
                 title_matches = sum(1 for t in match_terms if t in title)
@@ -199,7 +268,6 @@ async def resolve_proactive_snippets_from_vaults(
 
                 raw_paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
                 for p in raw_paragraphs:
-                    # Strip markdown heading lines from the paragraph to avoid discarding text with single newline
                     content_lines = [
                         line.strip()
                         for line in p.split("\n")
@@ -224,7 +292,7 @@ async def resolve_proactive_snippets_from_vaults(
                         if len(found) >= 5:
                             break
         except Exception as exc:
-            logger.debug("Vault scan skipped for %s: %s", vault_path, exc)
+            logger.debug("Vault markdown scan skipped for %s: %s", vault_path, exc)
         return found
 
     try:

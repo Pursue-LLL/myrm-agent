@@ -83,7 +83,15 @@ _ATTACH_INJECT_JS = """async (b64, filename) => {
 
 _ATTACH_LIST_READY_JS = """(() => {
   const imgs = Array.from(document.querySelectorAll('img'));
-  const staged = imgs.find((img) => (img.alt || '').includes('e2e-upload-staged'));
+  const staged = imgs.find((img) => {
+    const alt = img.getAttribute('alt') || '';
+    if (!alt.includes('e2e-upload-staged')) return false;
+    const inSentMessage = img.closest('[data-message-id]') || img.closest('.user-message-container');
+    if (inSentMessage) return false;
+    const container = img.closest('.relative.group') || img.parentElement;
+    const isUploading = container ? Boolean(container.querySelector('.animate-spin')) : false;
+    return !isUploading;
+  });
   return {
     ready: Boolean(staged),
     alt: staged?.getAttribute('alt') ?? null,
@@ -337,6 +345,7 @@ async def _run_image_flow(
             break
         await asyncio.sleep(1.0)
     assert thumbnail_probe.get("ready") is True, f"attachment thumbnail never appeared (upload failed): {thumbnail_probe}"
+    await asyncio.sleep(0.5)
     _LOGGER.info("STAGE: thumbnail ready, sending message with attachment via send_message")
     send_result = await chat.send_message(prompt, prompt, skip_model_sync=True)
     _LOGGER.info("STAGE: send_message result=%s", send_result)

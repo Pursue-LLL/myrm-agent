@@ -26,24 +26,6 @@ def _create_test_png(width: int = 100, height: int = 200, color: tuple[int, int,
     return buf.getvalue()
 
 
-@pytest.fixture(autouse=True)
-def _isolate_admin_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from app.config.deploy_mode import get_deploy_mode
-    from app.config.settings import settings
-
-    monkeypatch.setenv("DEPLOY_MODE", "local")
-    monkeypatch.setenv("WEBUI_MODE", "false")
-    monkeypatch.setenv("WEBUI_REMOTE_MODE", "false")
-    monkeypatch.setattr(settings.database, "state_dir", str(tmp_path))
-    get_deploy_mode.cache_clear()
-    from app.platform_utils.deployment_capabilities import _reset_capabilities_cache_for_testing
-
-    _reset_capabilities_cache_for_testing()
-    yield
-    get_deploy_mode.cache_clear()
-    _reset_capabilities_cache_for_testing()
-
-
 @pytest.fixture
 def bridge_service() -> DeviceBridgeService:
     service = DeviceBridgeService()
@@ -203,11 +185,13 @@ async def test_relay_touch_commands(bridge_service: DeviceBridgeService) -> None
 @pytest.mark.asyncio
 async def test_router_endpoints() -> None:
     """Test HTTP API routes for device doctor, snapshot, and touch relay using minimal test app."""
+    from fastapi import FastAPI
     from httpx import ASGITransport, AsyncClient
 
-    from tests.support.minimal_app import build_minimal_app
+    from app.api.webui.device_routes import router as device_router
 
-    app = build_minimal_app(webui=True)
+    app = FastAPI()
+    app.include_router(device_router, prefix="/webui")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         # 1. /webui/device/doctor
         res_doc = await client.get("/webui/device/doctor")

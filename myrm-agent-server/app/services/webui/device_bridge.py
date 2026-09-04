@@ -27,7 +27,7 @@ import time
 from typing import Literal
 
 from PIL import Image, ImageDraw
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class DeviceDoctorResult(BaseModel):
     """Diagnostic health check for the local/remote ADB subsystem."""
 
     adb_available: bool
-    adb_installed: bool = True
+    adb_installed: bool = False
     adb_path: str | None = None
     server_running: bool = False
     devices: list[DeviceInfo] = Field(default_factory=list)
@@ -59,10 +59,15 @@ class DeviceDoctorResult(BaseModel):
     is_cloud_environment: bool = False
     diagnostic_message: str = ""
 
-    def __init__(self, **data: object) -> None:
-        if "adb_installed" not in data and "adb_available" in data:
-            data["adb_installed"] = bool(data["adb_available"])
-        super().__init__(**data)
+    @model_validator(mode="before")
+    @classmethod
+    def sync_adb_fields(cls, data: object) -> object:
+        if isinstance(data, dict):
+            if "adb_installed" not in data and "adb_available" in data:
+                data["adb_installed"] = bool(data["adb_available"])
+            elif "adb_available" not in data and "adb_installed" in data:
+                data["adb_available"] = bool(data["adb_installed"])
+        return data
 
 
 class DeviceSnapshotPayload(BaseModel):
