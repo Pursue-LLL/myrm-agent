@@ -4455,6 +4455,7 @@
         "noTurns": "No surrounding turns found",
         "correctPrompt": "In-place Fact Correction",
         "correctPlaceholder": "Enter corrected fact...",
+        "cancel": "Cancel",
         "saveAndLock": "Save & Lock Fact",
         "markFalsePositive": "Mark False Positive",
         "correctAndLock": "Correct Fact"

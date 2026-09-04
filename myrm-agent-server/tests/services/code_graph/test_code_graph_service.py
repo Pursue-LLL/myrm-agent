@@ -43,6 +43,7 @@ def standalone_helper():
     assert "services.user.standalone_helper" in callers
 
 
+
 def test_jsts_regex_extractor():
     sample_ts = """
 export class AuthService extends BaseAuth {

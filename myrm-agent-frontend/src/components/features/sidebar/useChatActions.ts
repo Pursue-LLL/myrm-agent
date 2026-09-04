@@ -4,15 +4,13 @@ import {
   updateChatTitle,
   deleteChat,
   exportChat,
-  createChatShare,
-  revokeChatShare,
-  getChatShareStatus,
 } from '@/services/chat';
 import { revealChatArtifacts } from '@/services/file';
 import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown, printChat } from '@/lib/utils/chatExport';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/shared/useToast';
 import type { useTranslations } from 'next-intl';
+import { useChatShareActions } from './useChatShareActions';
 
 export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeof useTranslations>) {
   const [renameId, setRenameId] = useState<string | null>(null);
@@ -27,18 +25,25 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
   const [handoffChatId, setHandoffChatId] = useState<string | null>(null);
   const [handoffChatTitle, setHandoffChatTitle] = useState('');
   const [handoffChatSource, setHandoffChatSource] = useState<string | undefined>(undefined);
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [shareChatId, setShareChatId] = useState<string | null>(null);
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
-  const [shareExpiresAt, setShareExpiresAt] = useState<number | null>(null);
-  const [shareRevoked, setShareRevoked] = useState(false);
-  const [sharePasswordProtected, setSharePasswordProtected] = useState(false);
-  const [shareLoading, setShareLoading] = useState(false);
   const [revealingArtifactsChatId, setRevealingArtifactsChatId] = useState<string | null>(null);
   const [captureEvalDialogOpen, setCaptureEvalDialogOpen] = useState(false);
   const [captureEvalChatId, setCaptureEvalChatId] = useState<string | null>(null);
   const [captureEvalDatasetId, setCaptureEvalDatasetId] = useState('default');
   const [captureEvalLoading, setCaptureEvalLoading] = useState(false);
+
+  const {
+    shareDialogOpen,
+    setShareDialogOpen,
+    shareChatId,
+    shareUrl,
+    shareExpiresAt,
+    shareRevoked,
+    sharePasswordProtected,
+    shareLoading,
+    handleShare,
+    handleShareCreate,
+    handleShareRevoke,
+  } = useChatShareActions(t);
 
   const handleOpenCaptureEval = useCallback((chatId: string) => {
     setCaptureEvalChatId(chatId);
@@ -241,79 +246,6 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     setHandoffChatSource(source);
     setHandoffDialogOpen(true);
   }, []);
-
-  const handleShare = useCallback(async (chatId: string) => {
-    setShareChatId(chatId);
-    setShareUrl(null);
-    setShareExpiresAt(null);
-    setShareRevoked(false);
-    setSharePasswordProtected(false);
-    setShareDialogOpen(true);
-    setShareLoading(true);
-    try {
-      const status = await getChatShareStatus(chatId);
-      if (!status.shared) {
-        return;
-      }
-      setShareRevoked(status.revoked);
-      setSharePasswordProtected(status.password_protected);
-      if (status.share_url) {
-        setShareUrl(status.share_url);
-      }
-      if (status.expires_at) {
-        setShareExpiresAt(status.expires_at);
-      }
-    } catch {
-      // Query failure falls back to the create form; the dialog stays usable.
-    } finally {
-      setShareLoading(false);
-    }
-  }, []);
-
-  const handleShareCreate = useCallback(
-    async (ttlDays: number = 7, password?: string) => {
-      if (!shareChatId) {
-        return;
-      }
-      setShareLoading(true);
-      try {
-        const result = await createChatShare(shareChatId, ttlDays, password);
-        setShareUrl(result.share_url);
-        setShareExpiresAt(result.expires_at);
-        setShareRevoked(false);
-        setSharePasswordProtected(result.password_protected);
-      } catch (error) {
-        toast({
-          title: t('chat.share.error'),
-          description: error instanceof Error ? error.message : 'Unknown error',
-          variant: 'destructive',
-        });
-      } finally {
-        setShareLoading(false);
-      }
-    },
-    [shareChatId, t],
-  );
-
-  const handleShareRevoke = useCallback(async () => {
-    if (!shareChatId) {
-      return;
-    }
-    try {
-      await revokeChatShare(shareChatId);
-      setShareUrl(null);
-      setShareExpiresAt(null);
-      setSharePasswordProtected(false);
-      setShareRevoked(true);
-      toast({ title: t('chat.share.revoked'), variant: 'default' });
-    } catch (error) {
-      toast({
-        title: t('chat.share.error'),
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
-    }
-  }, [shareChatId, t]);
 
   const handleRevealArtifacts = useCallback(
     async (chatId: string) => {

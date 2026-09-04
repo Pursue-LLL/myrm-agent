@@ -51,3 +51,29 @@ def test_capture_from_chat_failure_returns_500(client: TestClient):
         res = client.post("/api/v1/eval/cases/from-chat/chat-failed")
         assert res.status_code == 500
         assert "Failed to capture" in res.json()["detail"]
+
+
+def test_capture_from_chat_real_pipeline(client: TestClient):
+    from app.services.chat.chat_service import ChatService
+
+    class MockMsg:
+        def __init__(self, role, content, extra_data=None):
+            self.role = role
+            self.content = content
+            self.extra_data = extra_data
+
+    fake_msgs = [
+        MockMsg("user", "Summarize quarterly report in pipeline."),
+        MockMsg("assistant", "Quarterly profit up 20%."),
+    ]
+    with patch.object(ChatService, "get_all_messages", new_callable=AsyncMock) as mock_msgs:
+        mock_msgs.return_value = fake_msgs
+        cap_res = client.post("/api/v1/eval/cases/from-chat/chat-pipeline-test?dataset_id=pipeline-pack")
+        assert cap_res.status_code == 200
+        assert cap_res.json() == {"status": "success"}
+
+        pack_res = client.get("/api/v1/eval/datasets/pipeline-pack")
+        assert pack_res.status_code == 200
+        assert "Summarize quarterly report in pipeline." in pack_res.json()["content"]
+        assert "chat-pipeline-test" in pack_res.json()["content"]
+

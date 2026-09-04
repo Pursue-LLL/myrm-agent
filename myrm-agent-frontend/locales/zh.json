@@ -4456,6 +4456,7 @@
         "noTurns": "未找到上下文对话回合",
         "correctPrompt": "就地修正事实认知",
         "correctPlaceholder": "输入纠偏后的事实或规则...",
+        "cancel": "取消",
         "saveAndLock": "保存并锁定保护",
         "markFalsePositive": "标记误判并废弃",
         "correctAndLock": "纠正此事实"

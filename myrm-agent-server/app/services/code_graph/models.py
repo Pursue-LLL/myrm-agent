@@ -6,7 +6,6 @@
 
 from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Any
 
 
 class SymbolKind(str, Enum):
@@ -27,7 +26,7 @@ class CallSite:
     arg_count: int = 0
     kwarg_names: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         return asdict(self)
 
 
@@ -42,8 +41,8 @@ class SymbolNode:
     docstring: str = ""
     source: str = ""
 
-    def to_dict(self) -> dict[str, Any]:
-        res = asdict(self)
+    def to_dict(self) -> dict[str, object]:
+        res: dict[str, object] = asdict(self)
         res["kind"] = self.kind.value
         return res
 
@@ -54,7 +53,7 @@ class CallEdge:
     callee: str
     call_site: CallSite
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         return {
             "caller": self.caller,
             "callee": self.callee,
@@ -69,7 +68,7 @@ class InheritanceEdge:
     file_path: str
     line: int
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         return asdict(self)
 
 
@@ -82,7 +81,7 @@ class ImportEdge:
     col: int
     alias: str = ""
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         return asdict(self)
 
 
@@ -93,5 +92,5 @@ class IndexStats:
     total_calls: int
     elapsed_ms: float
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         return asdict(self)
