@@ -93,43 +93,6 @@ _TREND_SECTION_READY_JS = """(() => {
   };
 })()"""
 
-_OPEN_UNDERSTAND_TAB_JS = """(() => {
-  const btn = Array.from(document.querySelectorAll('button')).find(
-    (el) => {
-      const label = (el.textContent || '').trim();
-      return /^(理解|Understand)$/.test(label);
-    },
-  );
-  if (!btn) return { ready: false, clicked: false };
-  btn.click();
-  return { ready: true, clicked: true };
-})()"""
-
-_BEHAVIORAL_PANEL_READY_JS = """(() => {
-  const text = document.body?.textContent || '';
-  const hasTitle = /Behavioral Measurement|行为特征测量/.test(text);
-  const hasBadge = /Zero Model Cost|零模型成本/.test(text);
-  const syncBtn = Array.from(document.querySelectorAll('button')).find(
-    (el) => /Sync to Profile|沉淀到画像/.test(el.textContent || ''),
-  );
-  return {
-    ready: hasTitle && hasBadge && !!syncBtn,
-    hasTitle,
-    hasBadge,
-    hasSyncBtn: !!syncBtn,
-    text: text.slice(0, 1000),
-  };
-})()"""
-
-_CLICK_BEHAVIORAL_SYNC_JS = """(() => {
-  const btn = Array.from(document.querySelectorAll('button')).find(
-    (el) => /Sync to Profile|沉淀到画像/.test(el.textContent || ''),
-  );
-  if (!btn || btn.disabled) return { ready: false, clicked: false };
-  btn.click();
-  return { ready: true, clicked: true };
-})()"""
-
 
 @contextmanager
 def _memory_doctor_panel() -> Iterator[tuple[ChromeMcpClient, McpPage]]:

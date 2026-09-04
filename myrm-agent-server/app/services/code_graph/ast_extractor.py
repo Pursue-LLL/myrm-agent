@@ -266,3 +266,25 @@ class JsTsRegexExtractor:
                         line_end=i,
                     )
                 )
+
+        # 3. 提取调用点（calls）
+        call_pattern = re.compile(r"(?:^|[^\w$])([A-Za-z0-9_$]+)\s*\(")
+        for i, line in enumerate(self.lines, start=1):
+            for match in call_pattern.finditer(line):
+                callee_name = match.group(1)
+                if callee_name in ("function", "if", "for", "while", "switch", "catch", "return", "import", "export"):
+                    continue
+                site = CallSite(
+                    file_path=self.file_path,
+                    line=i,
+                    col=match.start(1),
+                    end_line=i,
+                    end_col=match.end(1),
+                )
+                self.calls.append(
+                    CallEdge(
+                        caller=self.module_name,
+                        callee=callee_name,
+                        call_site=site,
+                    )
+                )

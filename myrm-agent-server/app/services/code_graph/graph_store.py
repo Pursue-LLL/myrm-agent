@@ -367,7 +367,12 @@ class CodeGraphStore:
             visited_callers.add(caller_sym)
 
             # 判断是否为测试
-            is_test = "test" in f_path.lower() or "test_" in caller_sym.lower()
+            is_test = (
+                "test" in f_path.lower()
+                or "spec" in f_path.lower()
+                or "test_" in caller_sym.lower()
+                or "_test" in caller_sym.lower()
+            )
             if is_test:
                 reaching_tests.append(
                     {

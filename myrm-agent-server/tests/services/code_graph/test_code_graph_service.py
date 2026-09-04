@@ -64,6 +64,7 @@ export function validateInput(val: string) {
     assert "auth.validateInput" in symbols
     assert len(extractor.inheritances) == 1
     assert extractor.inheritances[0].super_type == "BaseAuth"
+    assert len(extractor.calls) >= 1
 
 
 def test_code_graph_service_e2e():
