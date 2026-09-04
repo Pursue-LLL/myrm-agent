@@ -381,7 +381,8 @@ export default function TokenUsageDisplay({
         <TooltipTrigger asChild>
           <button
             type="button"
-            onClick={() => setTooltipOpen((v) => !v)}
+            data-testid="token-usage-display"
+            onClick={() => setTooltipOpen(true)}
             className="inline-flex items-center gap-1 px-2 py-1 text-black/70 dark:text-white/70 rounded-xl hover:bg-light-secondary dark:hover:bg-dark-secondary active:scale-95 transition duration-200 hover:text-black dark:hover:text-white"
             aria-label={
               contextBudget

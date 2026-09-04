@@ -67,21 +67,32 @@ async def _materialize_agent_template_files(chat_id: str, workspace_dir: str) ->
             return
 
         profile = await get_agent_profile_resolver().resolve(chat.agent_id)
-        if not profile or not profile.engine_params:
+        if not profile:
             return
 
-        template_files = profile.engine_params.get("template_workspace_files")
+        engine_params: dict[str, object] | None = None
+        if hasattr(profile, "engine_params") and isinstance(profile.engine_params, dict):
+            engine_params = profile.engine_params
+        elif isinstance(profile.metadata, dict) and isinstance(profile.metadata.get("engine_params"), dict):
+            engine_params = profile.metadata["engine_params"]
+
+        if not engine_params:
+            return
+
+        template_files = engine_params.get("template_workspace_files")
         if not isinstance(template_files, dict) or not template_files:
             return
 
         ws_path = Path(workspace_dir).resolve()
-        for rel_path, content in template_files.items():
-            if not isinstance(rel_path, str) or not rel_path:
+        for raw_rel_path, content in template_files.items():
+            if not isinstance(raw_rel_path, str) or not raw_rel_path.strip():
                 continue
-            # Path traversal defense
-            target_path = (ws_path / rel_path).resolve()
-            if not str(target_path).startswith(str(ws_path)):
-                logger.warning("Blocked path traversal in template workspace file: %s", rel_path)
+            # Normalize slashes and strip leading separators to prevent Windows/posix path mismatch
+            clean_rel_path = raw_rel_path.replace("\\", "/").lstrip("/")
+            # Path traversal defense (guarantee target_path is strictly within ws_path)
+            target_path = (ws_path / clean_rel_path).resolve()
+            if not target_path.is_relative_to(ws_path):
+                logger.warning("Blocked path traversal in template workspace file: %s", raw_rel_path)
                 continue
 
             target_path.parent.mkdir(parents=True, exist_ok=True)

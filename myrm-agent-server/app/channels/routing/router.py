@@ -665,12 +665,12 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             chat_id = msg.chat_id or msg.sender_id
             session_key = routing_session_key(msg.channel, chat_id)
             active = self._active_tasks.get(session_key)
+            clean_content = msg.content.strip() if msg.content and isinstance(msg.content, str) else ""
             if (
                 active
                 and active.steering_token
-                and msg.content
-                and isinstance(msg.content, str)
-                and not msg.content.startswith("/")
+                and clean_content
+                and not clean_content.startswith("/")
             ):
                 mode = active.busy_input_mode or (
                     str(msg.metadata.get("busy_input_mode", "")).strip()
@@ -678,11 +678,11 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     else None
                 )
                 if mode == "steer":
-                    active.steering_token.steer(msg.content.strip())
+                    active.steering_token.steer(clean_content)
                     preview = (
-                        msg.content.strip()[:80] + "..."
-                        if len(msg.content.strip()) > 80
-                        else msg.content.strip()
+                        clean_content[:80] + "..."
+                        if len(clean_content) > 80
+                        else clean_content
                     )
                     reply = OutboundMessage(
                         channel=msg.channel,
@@ -699,11 +699,11 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     asyncio.create_task(self._bus.publish_outbound(reply))
                     continue
                 elif mode == "redirect":
-                    active.steering_token.redirect(msg.content.strip())
+                    active.steering_token.redirect(clean_content)
                     preview = (
-                        msg.content.strip()[:80] + "..."
-                        if len(msg.content.strip()) > 80
-                        else msg.content.strip()
+                        clean_content[:80] + "..."
+                        if len(clean_content) > 80
+                        else clean_content
                     )
                     reply = OutboundMessage(
                         channel=msg.channel,

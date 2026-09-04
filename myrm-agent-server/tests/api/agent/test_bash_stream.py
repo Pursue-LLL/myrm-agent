@@ -25,7 +25,9 @@ def _stream_with_auto_approve(
                 if data_str == "[DONE]":
                     break
                 try:
-                    collected.append(json.loads(data_str))
+                    parsed = json.loads(data_str)
+                    if isinstance(parsed, dict):
+                        collected.append(parsed)
                 except json.JSONDecodeError:
                     continue
 

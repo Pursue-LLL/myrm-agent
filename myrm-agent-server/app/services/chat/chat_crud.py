@@ -204,9 +204,10 @@ class _ChatCrudMixin(_ChatServiceBase):
         sess: AsyncSession, chat_id: str, context_ids: list[str]
     ) -> None:
         """Bind initial shared memory contexts to the conversation within the same transaction."""
-        from sqlalchemy import select
-        from app.database.models import SharedContextBindingModel, SharedContextModel
         from nanoid import generate as nanoid
+        from sqlalchemy import select
+
+        from app.database.models import SharedContextBindingModel, SharedContextModel
 
         if not context_ids:
             return

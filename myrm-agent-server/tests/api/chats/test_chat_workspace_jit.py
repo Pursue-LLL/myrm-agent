@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import uuid
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -12,6 +14,7 @@ from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="chats")
 from app.services.chat.chat_service import ChatService
+from app.services.agent.params.workspace_resolve import _materialize_agent_template_files
 
 
 @pytest.fixture
@@ -89,9 +92,9 @@ async def test_get_chat_preserves_existing_workspace_dir(
 async def test_materialize_agent_template_files_security_and_writing(tmp_path: Path) -> None:
     """Verifies that _materialize_agent_template_files writes text/base64 files and blocks path traversal."""
     import base64
-    from pathlib import Path
     from types import SimpleNamespace
     from unittest.mock import AsyncMock, patch
+
     from app.services.agent.params.workspace_resolve import _materialize_agent_template_files
 
     chat_id = "test-chat-materialize-1"
@@ -141,4 +144,37 @@ async def test_materialize_agent_template_files_security_and_writing(tmp_path: P
     # 4. Path traversal blocked
     escape_file = tmp_path / "escape.txt"
     assert not escape_file.exists()
+
+
+@pytest.mark.asyncio
+async def test_materialize_agent_template_files_from_metadata(tmp_path: Path) -> None:
+    """Verifies that engine_params stored inside profile.metadata is correctly unpacked."""
+    target_workspace = tmp_path / "workspace_meta"
+    target_workspace.mkdir(parents=True, exist_ok=True)
+    chat_id = "test-chat-meta"
+
+    mock_chat = SimpleNamespace(agent_id="test-agent-meta")
+    mock_profile = SimpleNamespace(
+        metadata={
+            "engine_params": {
+                "template_workspace_files": {
+                    "docs/readme.txt": "Metadata Readme Content",
+                }
+            }
+        }
+    )
+
+    mock_resolver = SimpleNamespace(
+        resolve=AsyncMock(return_value=mock_profile)
+    )
+
+    with (
+        patch("app.services.chat.chat_service.ChatService.get_chat_metadata", AsyncMock(return_value=mock_chat)),
+        patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=mock_resolver),
+    ):
+        await _materialize_agent_template_files(chat_id, str(target_workspace))
+
+    readme_file = target_workspace / "docs" / "readme.txt"
+    assert readme_file.exists()
+    assert readme_file.read_text(encoding="utf-8") == "Metadata Readme Content"
 

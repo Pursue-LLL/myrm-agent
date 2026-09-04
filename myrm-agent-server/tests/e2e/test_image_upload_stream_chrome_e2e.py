@@ -42,7 +42,6 @@ from cdp_chat.support import (  # noqa: E402
     put_config_value,
     wait_e2e_provider_ready,
 )
-from cdp_chat.ui import chat_id_from_path  # noqa: E402
 from dev_gate.contract import EvaluateIntent  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import open_mcp_page_async  # noqa: E402

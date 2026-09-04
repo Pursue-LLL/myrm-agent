@@ -51,6 +51,13 @@ export const HoldToApproveButton: React.FC<HoldToApproveButtonProps> = ({
       if (pct >= 100) {
         if (!triggeredRef.current) {
           triggeredRef.current = true;
+          if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+            try {
+              navigator.vibrate(50);
+            } catch {
+              // Ignore unsupported vibration environments
+            }
+          }
           onTrigger();
         }
         cancelPress();

@@ -103,7 +103,7 @@ def _preview_skill(
 
     svc = sys.modules.get("app.services.plugins.import_service")
     if svc is not None and hasattr(svc, "_scan_skill_security"):
-        scan_fn = getattr(svc, "_scan_skill_security")
+        scan_fn = svc._scan_skill_security
     return {
         "name": skill.name,
         "description": skill.description,
@@ -128,6 +128,49 @@ def build_preview_result(
     """
     meta = result.meta
     existing = existing_names or set()
+
+    from ._agent_persist import MAX_TEMPLATE_FILE_BYTES, MAX_TOTAL_TEMPLATE_BYTES
+
+    diagnostics_list: list[dict[str, object]] = [
+        {
+            "component": d.component,
+            "code": d.code,
+            "message": d.message,
+            "level": d.level.value,
+        }
+        for d in result.diagnostics
+    ]
+
+    total_ws_bytes = 0
+    for rel_path, content in result.workspace_files.items():
+        file_len = len(content)
+        if file_len > MAX_TEMPLATE_FILE_BYTES:
+            diagnostics_list.append(
+                {
+                    "component": f"workspace:{rel_path}",
+                    "code": "OVERSIZED_TEMPLATE_FILE",
+                    "message": (
+                        f"Workspace template file '{rel_path}' ({file_len} bytes) "
+                        f"exceeds 1MB limit ({MAX_TEMPLATE_FILE_BYTES} bytes) and will be skipped"
+                    ),
+                    "level": "warning",
+                }
+            )
+        elif total_ws_bytes + file_len > MAX_TOTAL_TEMPLATE_BYTES:
+            diagnostics_list.append(
+                {
+                    "component": f"workspace:{rel_path}",
+                    "code": "OVERSIZED_WORKSPACE_TOTAL",
+                    "message": (
+                        f"Workspace template file '{rel_path}' exceeds cumulative 5MB limit "
+                        f"({MAX_TOTAL_TEMPLATE_BYTES} bytes) and will be skipped"
+                    ),
+                    "level": "warning",
+                }
+            )
+        else:
+            total_ws_bytes += file_len
+
     return {
         "plugin": {
             "name": meta.name if meta else "",
@@ -172,14 +215,6 @@ def build_preview_result(
             for idx, agent in enumerate(result.agents)
         ],
         "workspace_file_count": len(result.workspace_files),
-        "diagnostics": [
-            {
-                "component": d.component,
-                "code": d.code,
-                "message": d.message,
-                "level": d.level.value,
-            }
-            for d in result.diagnostics
-        ],
+        "diagnostics": diagnostics_list,
         "is_valid": meta is not None,
     }

@@ -250,6 +250,7 @@ _USAGE_PROBE_JS = """(() => {
 })()"""
 
 _HOVER_TOKEN_BTN_JS = """(() => {
+  const tokenDisplays = Array.from(document.querySelectorAll('[data-testid="token-usage-display"]'));
   const candidates = Array.from(document.querySelectorAll('button')).filter((b) => {
     const label = b.getAttribute('aria-label') || '';
     if (/token|context|usage|tokens|上下文|用量/i.test(label)) return true;
@@ -260,6 +261,7 @@ _HOVER_TOKEN_BTN_JS = """(() => {
   // or "{n} tokens" — match any of those forms. Fall back to the single inline
   // tabular-nums button if the label probe misses.
   const btn =
+    tokenDisplays[tokenDisplays.length - 1] ||
     candidates[candidates.length - 1] ||
     candidates[0] ||
     Array.from(document.querySelectorAll('button')).find((b) =>
@@ -267,8 +269,6 @@ _HOVER_TOKEN_BTN_JS = """(() => {
     );
   if (!btn) return { ok: false, err: 'no token button' };
   const opts = { bubbles: true, cancelable: true, pointerType: 'mouse' };
-  // Radix Tooltip opens on `pointermove` (not pointerover/mouseover), so emit
-  // that too — synthetic pointerType 'mouse' satisfies its touch check.
   btn.dispatchEvent(new PointerEvent('pointermove', opts));
   btn.dispatchEvent(new PointerEvent('pointerover', opts));
   btn.dispatchEvent(new MouseEvent('mouseover', opts));

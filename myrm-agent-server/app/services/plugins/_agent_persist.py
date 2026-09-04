@@ -33,7 +33,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["persist_imported_agents", "sanitize_imported_security_overrides"]
+__all__ = [
+    "MAX_TEMPLATE_FILE_BYTES",
+    "MAX_TOTAL_TEMPLATE_BYTES",
+    "persist_imported_agents",
+    "sanitize_imported_security_overrides",
+]
+
+# Maximum size allowed for a single template workspace file (1MB)
+MAX_TEMPLATE_FILE_BYTES: int = 1 * 1024 * 1024
+# Maximum cumulative size allowed for all template workspace files in an agent (5MB)
+MAX_TOTAL_TEMPLATE_BYTES: int = 5 * 1024 * 1024
 
 # Restricted security permission keys that untrusted imported profiles cannot override
 _DISALLOWED_SECURITY_OVERRIDE_KEYS: frozenset[str] = frozenset(
@@ -85,9 +95,28 @@ async def persist_imported_agents(
     if not accepted_agents:
         return [], skipped
 
-    # Pre-encode workspace files to text dict for metadata storage
+    # Pre-encode workspace files to text dict for metadata storage with capacity guards
     workspace_templates: dict[str, str] = {}
+    total_bytes = 0
     for rel_path, content in session.plugin_result.workspace_files.items():
+        file_len = len(content)
+        if file_len > MAX_TEMPLATE_FILE_BYTES:
+            logger.warning(
+                "Skipping oversized template file %r (%d bytes, max limit %d bytes)",
+                rel_path,
+                file_len,
+                MAX_TEMPLATE_FILE_BYTES,
+            )
+            continue
+        if total_bytes + file_len > MAX_TOTAL_TEMPLATE_BYTES:
+            logger.warning(
+                "Skipping template file %r: total workspace template files size exceeds limit (%d bytes, max %d bytes)",
+                rel_path,
+                total_bytes + file_len,
+                MAX_TOTAL_TEMPLATE_BYTES,
+            )
+            break
+        total_bytes += file_len
         try:
             workspace_templates[rel_path] = content.decode("utf-8")
         except Exception:
@@ -132,17 +161,30 @@ async def persist_imported_agents(
         agent_data = AgentCreate.model_validate(payload)
         new_sub = await AgentService.create_agent(agent_data)
         name_to_id[agent.name] = new_sub.id
+        name_to_id[agent.name.lower()] = new_sub.id
+        if agent.metadata.get("slug"):
+            slug_key = str(agent.metadata["slug"])
+            name_to_id[slug_key] = new_sub.id
+            name_to_id[slug_key.lower()] = new_sub.id
         created_agent_ids.append(new_sub.id)
 
     # Second pass: create entry agents with linked subagent_ids
     for _, agent in entry_list:
-        linked_sub_ids: list[str] = [
-            name_to_id[sa_name]
-            for sa_name in agent.subagent_names
-            if sa_name in name_to_id
-        ]
-        if not linked_sub_ids:
-            linked_sub_ids = [sub_id for sub_id in name_to_id.values()]
+        linked_sub_ids: list[str] = []
+        if agent.subagent_names:
+            for sa_name in agent.subagent_names:
+                normalized = sa_name.strip()
+                sub_id = name_to_id.get(normalized) or name_to_id.get(normalized.lower())
+                if sub_id and sub_id not in linked_sub_ids:
+                    linked_sub_ids.append(sub_id)
+        elif subagent_list and agent.is_entry_agent:
+            # Fallback for implicit multi-agent team packages: if entry agent declared no explicit subagents,
+            # bind all created subagents from the package.
+            seen_ids: set[str] = set()
+            for sub_id in name_to_id.values():
+                if sub_id not in seen_ids:
+                    seen_ids.add(sub_id)
+                    linked_sub_ids.append(sub_id)
 
         payload = {
             "name": agent.name,

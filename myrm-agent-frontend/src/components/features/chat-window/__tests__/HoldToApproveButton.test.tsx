@@ -86,4 +86,26 @@ describe('HoldToApproveButton', () => {
 
     expect(onTrigger).not.toHaveBeenCalled();
   });
+
+  it('invokes navigator.vibrate when triggered if supported', () => {
+    const vibrateMock = vi.fn();
+    Object.defineProperty(navigator, 'vibrate', {
+      value: vibrateMock,
+      writable: true,
+      configurable: true,
+    });
+
+    const onTrigger = vi.fn();
+    render(<HoldToApproveButton label="Approve All" onTrigger={onTrigger} durationMs={400} />);
+
+    const button = screen.getByRole('button');
+    fireEvent.pointerDown(button);
+
+    act(() => {
+      vi.advanceTimersByTime(450);
+    });
+
+    expect(onTrigger).toHaveBeenCalledTimes(1);
+    expect(vibrateMock).toHaveBeenCalledWith(50);
+  });
 });
