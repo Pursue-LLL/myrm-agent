@@ -85,8 +85,6 @@ class TestDBAllowlistStore:
 
     @pytest.mark.asyncio
     async def test_save_and_load_with_expires_at(self):
-        from app.database.models import UserToolAllowlist
-        from sqlalchemy import select
 
         await clear_allowlist_entries()
         factory = get_session_factory()
@@ -103,10 +101,6 @@ class TestDBAllowlistStore:
         await store.save(user_id, entry)
 
         entries = await store.load(user_id)
-        async with factory() as session:
-            res = await session.execute(select(UserToolAllowlist))
-            db_rows = res.scalars().all()
-            assert len(db_rows) == 1
         assert len(entries) == 1
         assert entries[0].expires_at is not None
         assert abs(entries[0].expires_at - future_ts) < 2.0

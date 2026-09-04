@@ -65,8 +65,6 @@ class DBAllowlistStore:
             stmt = select(UserToolAllowlist)
             result = await session.execute(stmt)
             rows = result.scalars().all()
-            for r in rows:
-                print("DEBUG_DB_ROW_IN_LOAD:", r.id, r.permission, r.expires_at, type(r.expires_at), "now_dt:", now_dt)
 
             entries = []
             for row in rows:
