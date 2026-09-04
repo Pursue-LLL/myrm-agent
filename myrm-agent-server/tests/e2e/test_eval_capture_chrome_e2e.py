@@ -14,9 +14,7 @@
 """
 
 import asyncio
-import json
 import sys
-import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -46,7 +44,7 @@ def chrome_page(
 
 
 @pytest.mark.asyncio
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="live_eval_capture")
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="LIVE", private_reason="exclusive_backend")
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 async def test_capture_eval_case_chrome_e2e(

@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from app.services.browser_spaces.task_space_service import TaskSpaceService
 
 
@@ -18,6 +19,7 @@ async def test_set_takeover_triggers_space_pause_and_resume() -> None:
     mock_space.created_at = 1000.0
     mock_space.last_accessed_at = 1000.0
     mock_space.context = None
+    mock_space.metadata = {}
     mock_space.pause_for_takeover = AsyncMock()
     mock_space.resume_from_takeover = AsyncMock()
 
