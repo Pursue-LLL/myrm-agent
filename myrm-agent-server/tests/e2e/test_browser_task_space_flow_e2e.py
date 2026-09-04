@@ -63,7 +63,7 @@ async def test_browser_task_space_complete_task_flow_e2e() -> None:
 
     # Step 6: Idle TTL auto-pruning simulation
     await asyncio.sleep(1.1)
-    pruned_count = await service.prune_idle_spaces(max_idle_seconds=1.0)
+    pruned_count = await service.prune_idle(max_idle_seconds=1.0)
     assert pruned_count >= 1
 
     # Cleanup any remaining

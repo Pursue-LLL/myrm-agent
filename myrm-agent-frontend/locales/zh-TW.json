@@ -9896,6 +9896,9 @@
     "noSessionSelected": "請在上方選擇一個會話以開始雙軌軌跡對比"
   },
   "evalLab": {
+    "golden5Pack": {
+      "initCheckbox": "使用 Golden 5-Pack 範本初始化"
+    },
     "antiContamination": {
       "protectedBadge": "Anti-Contamination Protected (已受防汙染保護)",
       "unprotectedBadge": "未檢測到 Canary 防汙染標識",

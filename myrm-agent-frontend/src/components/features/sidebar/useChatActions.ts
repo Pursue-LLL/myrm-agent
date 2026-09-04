@@ -35,6 +35,39 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
   const [sharePasswordProtected, setSharePasswordProtected] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
   const [revealingArtifactsChatId, setRevealingArtifactsChatId] = useState<string | null>(null);
+  const [captureEvalDialogOpen, setCaptureEvalDialogOpen] = useState(false);
+  const [captureEvalChatId, setCaptureEvalChatId] = useState<string | null>(null);
+  const [captureEvalDatasetId, setCaptureEvalDatasetId] = useState('default');
+  const [captureEvalLoading, setCaptureEvalLoading] = useState(false);
+
+  const handleOpenCaptureEval = useCallback((chatId: string) => {
+    setCaptureEvalChatId(chatId);
+    setCaptureEvalDatasetId('default');
+    setCaptureEvalDialogOpen(true);
+  }, []);
+
+  const handleConfirmCaptureEval = useCallback(async () => {
+    if (!captureEvalChatId) return;
+    setCaptureEvalLoading(true);
+    try {
+      const { evalService } = await import('@/services/eval');
+      await evalService.captureCaseFromChat(captureEvalChatId, captureEvalDatasetId);
+      toast({
+        title: t('chat.captureEvalCase.success'),
+        description: t('chat.captureEvalCase.successDesc'),
+      });
+      setCaptureEvalDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to capture eval case:', error);
+      toast({
+        title: t('chat.captureEvalCase.error'),
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setCaptureEvalLoading(false);
+    }
+  }, [captureEvalChatId, captureEvalDatasetId, t]);
 
   const { pinChat, unpinChat } = useChatStore();
 
@@ -339,6 +372,13 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     handleShareRevoke,
     handleRevealArtifacts,
     revealingArtifactsChatId,
+    captureEvalDialogOpen,
+    setCaptureEvalDialogOpen,
+    captureEvalDatasetId,
+    setCaptureEvalDatasetId,
+    captureEvalLoading,
+    handleOpenCaptureEval,
+    handleConfirmCaptureEval,
     shareDialogOpen,
     setShareDialogOpen,
     shareChatId,

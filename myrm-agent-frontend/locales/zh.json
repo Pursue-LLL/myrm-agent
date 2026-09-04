@@ -9868,6 +9868,9 @@
     "noSessionSelected": "请在上方选择一个会话以开始双轨轨迹对比"
   },
   "evalLab": {
+    "golden5Pack": {
+      "initCheckbox": "使用 Golden 5-Pack 模板初始化"
+    },
     "antiContamination": {
       "protectedBadge": "Anti-Contamination Protected (已受防污染保护)",
       "unprotectedBadge": "未检测到 Canary 防污染标识",

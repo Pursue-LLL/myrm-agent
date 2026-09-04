@@ -27,6 +27,7 @@ import {
   GripVertical,
   Share2,
   FolderOpen,
+  FlaskConical,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -94,6 +95,7 @@ export interface ChatHistoryRowProps {
   onOpenInNewWindow?: (chatId: string) => void;
   onRevealArtifacts?: (chatId: string) => void;
   isRevealingArtifacts?: boolean;
+  onCaptureEvalCase?: (chatId: string) => void;
   sessionDragEnabled?: boolean;
   onSessionDragStart?: (chat: ChatItem, event: DragEvent<HTMLElement>) => void;
   t: ReturnType<typeof useTranslations>;
@@ -430,6 +432,15 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                   >
                     <FolderOpen size={isMobile ? 16 : 14} className="mr-2" />
                     {isRevealingArtifacts ? t('chat.revealArtifacts.revealing') : t('chat.revealArtifacts.action')}
+                  </DropdownMenuItem>
+                )}
+                {onCaptureEvalCase && (
+                  <DropdownMenuItem
+                    onClick={() => onCaptureEvalCase(chat.id)}
+                    className={cn(isMobile && 'py-3 text-xs min-h-[44px]')}
+                  >
+                    <FlaskConical size={isMobile ? 16 : 14} className="mr-2 text-primary" />
+                    {t('chat.captureEvalCase.action') || 'Capture as Eval Case'}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem

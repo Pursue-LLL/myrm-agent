@@ -24,6 +24,7 @@ from .._loader_utils import (
     load_skill_directories,
     load_usage_sidecar,
     path_by_kind,
+    read_json,
     read_text,
     read_yaml,
 )
@@ -83,6 +84,18 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
         result["hermes_cron_jobs"] = raw_cron_jobs
         plan = build_hermes_cron_migration_plan(raw_cron_jobs)
         result["hermes_cron_plan"] = plan.to_metadata_dict()
+
+    auth_path = path_by_kind(file_paths, "auth.json") or find_file(root, "auth.json")
+    if auth_path:
+        auth_data = read_json(auth_path)
+        if isinstance(auth_data, dict):
+            result["hermes_auth"] = auth_data
+            pool_data = auth_data.get("credential_pool") or auth_data.get("credential_pools")
+            if isinstance(pool_data, dict):
+                result["credential_pool"] = pool_data
+            strategies = auth_data.get("credential_pool_strategies") or auth_data.get("pool_strategies")
+            if isinstance(strategies, dict):
+                result["credential_pool_strategies"] = strategies
 
     return result
 

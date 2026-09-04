@@ -125,6 +125,8 @@ def build_coverage_items(loaded_payload: dict[str, object]) -> list[dict[str, st
             rows.append({"key": "cron", "status": "ready", "label": "cron_lane"})
         else:
             rows.append({"key": "cron", "status": "missing", "label": "cron_lane"})
+        if loaded_payload.get("credential_pool") or loaded_payload.get("hermes_auth"):
+            rows.append({"key": "credential_pool", "status": "ready", "label": "credential_pool_migration"})
 
     if loaded_payload.get("_load_error"):
         rows.append({"key": "load_error", "status": "missing", "label": "no_importable_data"})

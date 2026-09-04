@@ -9,6 +9,7 @@ import pytest
 
 from app.services.memory.imports.import_adapters import build_memory_import_dry_run
 from app.services.migration.source.source_payload_loader import (
+    build_coverage_items,
     is_source_discovery_payload,
     load_source_payload,
 )
@@ -66,6 +67,41 @@ class TestCompetitorPayloadLoader:
         assert "memory_md" in loaded
         assert isinstance(loaded.get("skills"), list)
         assert len(loaded["skills"]) == 1
+
+    def test_load_hermes_auth_json_credential_pool(self, hermes_fixture: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            "app.services.migration.source.source_payload_loader.is_local_mode",
+            lambda: True,
+        )
+        auth_file = hermes_fixture / "auth.json"
+        auth_file.write_text(
+            json.dumps({
+                "credential_pool": {
+                    "openai": ["sk-key-1", "sk-key-2"],
+                    "anthropic": ["sk-ant-1"],
+                },
+                "credential_pool_strategies": {
+                    "openai": "least_used",
+                    "anthropic": "round_robin",
+                },
+            }),
+            encoding="utf-8",
+        )
+        loaded = load_source_payload(
+            {"competitor": "hermes", "root": str(hermes_fixture), "files": []},
+        )
+        assert "hermes_auth" in loaded
+        assert "credential_pool" in loaded
+        assert loaded["credential_pool"] == {
+            "openai": ["sk-key-1", "sk-key-2"],
+            "anthropic": ["sk-ant-1"],
+        }
+        assert loaded["credential_pool_strategies"] == {
+            "openai": "least_used",
+            "anthropic": "round_robin",
+        }
+        coverage = build_coverage_items(loaded)
+        assert any(row["key"] == "credential_pool" and row["status"] == "ready" for row in coverage)
 
     def test_load_openclaw(self, openclaw_fixture: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(

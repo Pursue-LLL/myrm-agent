@@ -166,6 +166,10 @@ class TaskSpaceService:
             self._space_states.pop(k, None)
         return pruned_count
 
+    async def prune_idle_spaces(self, max_idle_seconds: float | None = None) -> int:
+        """Alias for prune_idle to provide unified interface with underlying manager."""
+        return await self.prune_idle(max_idle_seconds)
+
     async def _build_space_info(self, space: BrowserTaskSpace) -> TaskSpaceInfo:
         state = self._space_states.get(space.space_id, {})
         now = time.time()

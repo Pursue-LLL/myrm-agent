@@ -428,6 +428,18 @@ export default function EvalLabDashboard() {
             }}
             autoFocus
           />
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="useGoldenTemplateCheckbox"
+              checked={useGoldenTemplate}
+              onChange={(e) => setUseGoldenTemplate(e.target.checked)}
+              className="rounded border-border text-primary focus:ring-primary h-4 w-4"
+            />
+            <label htmlFor="useGoldenTemplateCheckbox" className="text-xs text-foreground cursor-pointer select-none">
+              {t('golden5Pack.initCheckbox') || 'Initialize with Golden 5-Pack template'}
+            </label>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
               {t('cancel')}

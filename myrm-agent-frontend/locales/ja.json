@@ -9896,6 +9896,9 @@
     "noSessionSelected": "上でセッションを選択して並行軌跡比較を開始してください"
   },
   "evalLab": {
+    "golden5Pack": {
+      "initCheckbox": "Golden 5-Pack テンプレートで初期化"
+    },
     "antiContamination": {
       "protectedBadge": "汚染防止保護済み (Anti-Contamination Protected)",
       "unprotectedBadge": "Canary署名未検出",

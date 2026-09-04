@@ -93,6 +93,43 @@ _TREND_SECTION_READY_JS = """(() => {
   };
 })()"""
 
+_OPEN_UNDERSTAND_TAB_JS = """(() => {
+  const btn = Array.from(document.querySelectorAll('button')).find(
+    (el) => {
+      const label = (el.textContent || '').trim();
+      return /^(理解|Understand)$/.test(label);
+    },
+  );
+  if (!btn) return { ready: false, clicked: false };
+  btn.click();
+  return { ready: true, clicked: true };
+})()"""
+
+_BEHAVIORAL_PANEL_READY_JS = """(() => {
+  const text = document.body?.textContent || '';
+  const hasTitle = /Behavioral Measurement|行为特征测量/.test(text);
+  const hasBadge = /Zero Model Cost|零模型成本/.test(text);
+  const syncBtn = Array.from(document.querySelectorAll('button')).find(
+    (el) => /Sync to Profile|沉淀到画像/.test(el.textContent || ''),
+  );
+  return {
+    ready: hasTitle && hasBadge && !!syncBtn,
+    hasTitle,
+    hasBadge,
+    hasSyncBtn: !!syncBtn,
+    text: text.slice(0, 1000),
+  };
+})()"""
+
+_CLICK_BEHAVIORAL_SYNC_JS = """(() => {
+  const btn = Array.from(document.querySelectorAll('button')).find(
+    (el) => /Sync to Profile|沉淀到画像/.test(el.textContent || ''),
+  );
+  if (!btn || btn.disabled) return { ready: false, clicked: false };
+  btn.click();
+  return { ready: true, clicked: true };
+})()"""
+
 
 @contextmanager
 def _memory_doctor_panel() -> Iterator[tuple[ChromeMcpClient, McpPage]]:
@@ -132,3 +169,21 @@ def test_memory_doctor_panel_run_and_latency_trend_chrome_e2e() -> None:
 
         trend = wait_for_state(client, page, _TREND_SECTION_READY_JS, timeout_sec=90.0)
         assert trend.get("ready") is True, trend
+
+
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", private_reason="exclusive_backend", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_memory_behavioral_metrics_panel_render_and_sync_chrome_e2e() -> None:
+    """Real user flow: open /settings/memory, switch to Understand tab, verify BehavioralMetricsPanel."""
+    warm_ui_route("/settings/memory")
+    with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (client, page):
+        opened = wait_for_state(client, page, _OPEN_UNDERSTAND_TAB_JS, timeout_sec=60.0)
+        assert opened.get("clicked") is True, opened
+
+        panel = wait_for_state(client, page, _BEHAVIORAL_PANEL_READY_JS, timeout_sec=90.0)
+        assert panel.get("ready") is True, panel
+
+        clicked = wait_for_state(client, page, _CLICK_BEHAVIORAL_SYNC_JS, timeout_sec=30.0)
+        assert clicked.get("clicked") is True, clicked
+

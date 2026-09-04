@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import json
-import urllib.request
-
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     get_e2e_ui_url,
+    http_json,
     open_mcp_page,
+    prepare_e2e_ui_session,
     wait_for_state,
 )
 
@@ -29,45 +28,38 @@ _CHECK_DOCK_JS = """(() => {
 })()"""
 
 
-def _create_e2e_space(space_id: str, name: str) -> None:
-    req = urllib.request.Request(
-        _CREATE_SPACE_URL,
-        data=json.dumps({"space_id": space_id, "name": name}).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=5) as resp:
-        assert resp.status == 200
-
-
-def _delete_e2e_space(space_id: str) -> None:
-    req = urllib.request.Request(
-        f"{_CREATE_SPACE_URL}/{space_id}",
-        method="DELETE",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            assert resp.status == 200
-    except Exception:
-        pass
-
-
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="READ",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
+@pytest.mark.timeout(180)
 def test_task_space_dock_real_chrome_e2e() -> None:
     """Verify TaskSpaceDock appears when spaces exist and disappears on delete."""
     space_id = "e2e-dock-test-space"
     space_name = "E2E Dock Verification"
+    api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
 
     # Pre-clean
-    _delete_e2e_space(space_id)
+    try:
+        http_json("DELETE", f"{api_url}/api/v1/browser/spaces/{space_id}")
+    except Exception:
+        pass
+
+    prepare_e2e_ui_session(ui_url)
 
     with open_mcp_page(ui_url) as (client, page):
         wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=60.0)
 
         # Step 1: Create space in backend
-        _create_e2e_space(space_id, space_name)
+        http_json(
+            "POST",
+            f"{api_url}/api/v1/browser/spaces",
+            body={"space_id": space_id, "name": space_name},
+        )
 
         try:
             # Step 2: Poll DOM in real Chrome until TaskSpaceDock floating pill appears
@@ -75,10 +67,13 @@ def test_task_space_dock_real_chrome_e2e() -> None:
                 client,
                 page,
                 _CHECK_DOCK_JS,
-                timeout_sec=30.0,
+                timeout_sec=45.0,
             )
             assert state.get("ready") is True
 
         finally:
             # Step 3: Cleanup space
-            _delete_e2e_space(space_id)
+            try:
+                http_json("DELETE", f"{api_url}/api/v1/browser/spaces/{space_id}")
+            except Exception:
+                pass

@@ -9868,6 +9868,9 @@
     "noSessionSelected": "Select a session above to start side-by-side trajectory comparison"
   },
   "evalLab": {
+    "golden5Pack": {
+      "initCheckbox": "Initialize with Golden 5-Pack template"
+    },
     "antiContamination": {
       "protectedBadge": "Anti-Contamination Protected",
       "unprotectedBadge": "Canary Signature Missing",

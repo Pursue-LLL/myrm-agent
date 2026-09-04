@@ -9868,6 +9868,9 @@
     "noSessionSelected": "위에서 세션을 선택하여 나란히 궤적 비교를 시작하세요"
   },
   "evalLab": {
+    "golden5Pack": {
+      "initCheckbox": "Golden 5-Pack 템플릿으로 초기화"
+    },
     "antiContamination": {
       "protectedBadge": "오염 방지 보호됨 (Anti-Contamination Protected)",
       "unprotectedBadge": "Canary 서명이 감지되지 않음",
