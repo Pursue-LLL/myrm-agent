@@ -282,6 +282,7 @@ class GeneralAgent(ToolSetupMixin):
         self.agent: SkillAgent | None = None
         self._lite_llm: BaseChatModel | object | None = None
         self._browser_session: BrowserSession | None = None
+        self._browser_spaces: dict[str, BrowserSession] = {}
         self._desktop_session: object | None = None
         self._executor = None
         self._current_chat_id: str | None = None
@@ -543,6 +544,14 @@ class GeneralAgent(ToolSetupMixin):
             finally:
                 self._runtime_pool = None
 
+        if hasattr(self, "_browser_spaces") and self._browser_spaces:
+            for s_id, s_session in list(self._browser_spaces.items()):
+                try:
+                    await s_session.close()
+                except Exception as e:
+                    logger.warning(f"⚠️ BrowserSpace {s_id} close failed: {e}")
+            self._browser_spaces.clear()
+
         if self._browser_session is not None:
             try:
                 await self._browser_session.close()
@@ -605,3 +614,26 @@ class GeneralAgent(ToolSetupMixin):
             logger.info("Session recording captured: %s", video_path)
         except Exception as e:
             logger.debug("Session recording capture skipped: %s", e)
+
+    def register_browser_space(
+        self,
+        space_id: str,
+        session: BrowserSession,
+        name: str | None = None,
+    ) -> None:
+        """Register a browser session under a task space identifier."""
+        norm_space_id = space_id.strip() if space_id else "default"
+        session.task_space_id = norm_space_id
+        if name:
+            session.task_space_name = name
+        self._browser_spaces[norm_space_id] = session
+        if self._browser_session is None or norm_space_id == "default":
+            self._browser_session = session
+
+    def unregister_browser_space(self, space_id: str) -> BrowserSession | None:
+        """Unregister and return a browser session from task space."""
+        norm_space_id = space_id.strip() if space_id else "default"
+        session = self._browser_spaces.pop(norm_space_id, None)
+        if self._browser_session is session:
+            self._browser_session = next(iter(self._browser_spaces.values()), None)
+        return session

@@ -19,11 +19,11 @@ from datetime import UTC, datetime
 from typing import Literal
 from uuid import uuid4
 
-from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
 from myrm_agent_harness.api import (
     ConfidenceEvolutionEngine,
     ConflictItem,
 )
+from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

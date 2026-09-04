@@ -18461,5 +18461,18 @@
       "skills": "业务技能",
       "sandbox": "沙箱执行"
     }
+  },
+  "taskSpaces": {
+    "title": "并行浏览器任务空间",
+    "badgeRunning": "运行中",
+    "badgeIdle": "空闲待命",
+    "badgeTakeover": "人工接管中",
+    "takeoverBtn": "接管",
+    "releaseTakeoverBtn": "交还智能体",
+    "closeSpaceBtn": "关闭空间",
+    "activePages": "{count} 个活动标签页",
+    "emptyState": "当前暂无活跃的并行浏览器空间",
+    "snapshotPreview": "实时空间快照",
+    "takeoverHint": "当前处于人工接管状态，完成后请点击交还智能体继续自动化。"
   }
 }

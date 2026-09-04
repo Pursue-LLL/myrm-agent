@@ -1,21 +1,27 @@
-# [INPUT] app.services.browser_spaces::get_task_space_service (POS: 任务空间服务单例获取)
-# [INPUT] app.services.browser_spaces::TaskSpaceInfo (POS: 任务空间信息模型)
-# [OUTPUT] router: APIRouter (POS: 浏览器任务空间路由入口)
-# [POS] 浏览器任务空间 REST API 控制器。暴露多空间列表、创建、销毁、接管与过期清理端点。
+"""Browser Task Spaces REST API endpoints for WebUI and Subagent orchestration.
 
-"""Browser Task Spaces REST API endpoints for WebUI and Subagent orchestration."""
+[INPUT]
+- app.services.browser_spaces::get_task_space_service (POS: 任务空间服务单例获取)
+- app.services.browser_spaces::TaskSpaceInfo (POS: 任务空间信息模型)
+
+[OUTPUT]
+- router: APIRouter (POS: 浏览器任务空间路由入口)
+
+[POS]
+浏览器任务空间 REST API 控制器。暴露多空间列表、创建、销毁、接管与过期清理端点。
+"""
 
 from __future__ import annotations
 
 import logging
-from typing import Literal
+
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from app.services.browser_spaces import (
     TaskSpaceInfo,
     get_task_space_service,
 )
-from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 

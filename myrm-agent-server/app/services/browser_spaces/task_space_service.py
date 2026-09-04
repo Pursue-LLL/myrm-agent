@@ -1,11 +1,17 @@
-# [INPUT] myrm_agent_harness.toolkits.browser.spaces::BrowserTaskSpace (POS: 任务空间实体)
-# [INPUT] myrm_agent_harness.toolkits.browser.spaces::HarnessTaskSpaceManager (POS: Harness空间管理引擎)
-# [OUTPUT] TaskSpaceInfo: 任务空间元数据模型
-# [OUTPUT] BrowserTaskSpaceService: 任务空间服务业务实现
-# [OUTPUT] get_task_space_service: 服务单例获取工厂
-# [POS] 浏览器任务空间服务业务实现。提供多空间生命周期、状态追踪、人工接管与定时清理服务。
+"""Server service layer for Browser TaskSpaces lifecycle, takeover, and observability.
 
-"""Server service layer for Browser TaskSpaces lifecycle, takeover, and observability."""
+[INPUT]
+- myrm_agent_harness.toolkits.browser.spaces::BrowserTaskSpace (POS: 任务空间实体)
+- myrm_agent_harness.toolkits.browser.spaces::HarnessTaskSpaceManager (POS: Harness空间管理引擎)
+
+[OUTPUT]
+- TaskSpaceInfo: 任务空间元数据模型
+- BrowserTaskSpaceService: 任务空间服务业务实现
+- get_task_space_service: 服务单例获取工厂
+
+[POS]
+浏览器任务空间服务业务实现。提供多空间生命周期、状态追踪、人工接管与定时清理服务。
+"""
 
 from __future__ import annotations
 
@@ -20,7 +26,7 @@ from myrm_agent_harness.toolkits.browser.spaces import (
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
-    from patchright.async_api import BrowserContext
+    pass
 
 logger = logging.getLogger(__name__)
 

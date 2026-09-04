@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import pytest
-from app.services.browser_spaces.task_space_service import (
-    _reset_task_space_service_for_test,
-    get_task_space_service,
-)
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.browser_spaces import router as browser_spaces_router
+from app.services.browser_spaces.task_space_service import (
+    _reset_task_space_service_for_test,
+    get_task_space_service,
+)
 
 
 @pytest.fixture

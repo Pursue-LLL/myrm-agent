@@ -146,6 +146,7 @@ class MemoryCommandCenterInsights:
         # 1. Active pending conflicts from memory_conflicts table
         try:
             from sqlalchemy import select
+
             from app.database.models.memory import MemoryConflictModel
             stmt = select(MemoryConflictModel).where(MemoryConflictModel.status == "pending").order_by(MemoryConflictModel.detected_at.desc()).limit(8)
             res = await self._db.execute(stmt)
