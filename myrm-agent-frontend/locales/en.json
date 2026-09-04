@@ -4443,6 +4443,21 @@
         "syncSuccess": "Successfully synchronized {count} behavioral facts to user profile",
         "syncNoEligible": "No metrics meet the sample floor threshold yet",
         "syncError": "Failed to synchronize behavioral profile"
+      },
+      "evidence": {
+        "badgeLabel": "Evidence",
+        "badgeTooltip": "Click to inspect conversation evidence slice",
+        "drawerTitle": "Evidence Provenance",
+        "statusLive": "Live Conversation Slice",
+        "statusArchived": "Archived Quote Snapshot",
+        "lockedLabel": "User Locked",
+        "contextSection": "Context History",
+        "noTurns": "No surrounding turns found",
+        "correctPrompt": "In-place Fact Correction",
+        "correctPlaceholder": "Enter corrected fact...",
+        "saveAndLock": "Save & Lock Fact",
+        "markFalsePositive": "Mark False Positive",
+        "correctAndLock": "Correct Fact"
       }
     },
     "createDialog": {

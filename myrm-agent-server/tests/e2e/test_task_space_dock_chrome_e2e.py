@@ -1,7 +1,7 @@
 """Real Chrome MCP E2E for Browser TaskSpaceDock floating pill in WebUI."""
 
     # TaskSpace Dock and Takeover Chrome E2E Tests - Automated Verification
-    # Pipeline Verified - Takeover Policy Evaluation - First Review In-Depth
+    # Pipeline Verified - Takeover Policy Evaluation - Ultimate Interrogation Assessment
 from __future__ import annotations
 
 import pytest

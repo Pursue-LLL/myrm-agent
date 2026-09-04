@@ -73,7 +73,7 @@ export function CaptureEvalCaseDialog({
     if (!chatId) return;
 
     const targetDatasetId = isCreatingNew
-      ? newDatasetName.trim()
+      ? newDatasetName.trim().replace(/[^a-zA-Z0-9_-]/g, '_').replace(/^_+|_+$/g, '')
       : selectedDatasetId.trim();
 
     if (!targetDatasetId) {
@@ -170,6 +170,12 @@ export function CaptureEvalCaseDialog({
                       type="text"
                       value={newDatasetName}
                       onChange={(e) => setNewDatasetName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleConfirm();
+                        }
+                      }}
                       placeholder={t('chat.captureEvalCase.newDatasetPlaceholder') || 'Enter dataset name (e.g., regressions)'}
                       className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       autoFocus

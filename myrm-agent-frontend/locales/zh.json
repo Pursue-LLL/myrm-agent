@@ -4444,6 +4444,21 @@
         "syncSuccess": "已成功将 {count} 项客观特征沉淀至用户画像",
         "syncNoEligible": "暂无满足置信度样本门槛的特征",
         "syncError": "画像特征沉淀失败"
+      },
+      "evidence": {
+        "badgeLabel": "溯源证据",
+        "badgeTooltip": "点击查看当时对话上下文切片",
+        "drawerTitle": "记忆证据链追溯",
+        "statusLive": "实时会话切片",
+        "statusArchived": "归档引文快照",
+        "lockedLabel": "用户已锁定",
+        "contextSection": "上下文现场切片",
+        "noTurns": "未找到上下文对话回合",
+        "correctPrompt": "就地修正事实认知",
+        "correctPlaceholder": "输入纠偏后的事实或规则...",
+        "saveAndLock": "保存并锁定保护",
+        "markFalsePositive": "标记误判并废弃",
+        "correctAndLock": "纠正此事实"
       }
     },
     "createDialog": {
