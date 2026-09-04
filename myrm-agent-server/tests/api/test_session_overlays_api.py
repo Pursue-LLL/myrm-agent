@@ -8,8 +8,8 @@
 - POST /{session_id}/overlays/{overlay_id}/rollback updates status
 """
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
 from myrm_agent_harness.agent.session_overlay.manager import (
     get_session_overlay_manager,
