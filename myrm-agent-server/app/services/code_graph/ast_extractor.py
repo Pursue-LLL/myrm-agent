@@ -253,19 +253,39 @@ class JsTsRegexExtractor:
                     )
                 continue
 
+        # 3. 提取调用点 (Calls)
+        call_pattern = re.compile(
+            r"(?:([A-Za-z0-9_$]+)\.)?([A-Za-z0-9_$]+)\s*\(",
+        )
+
+        current_fn = self.module_name
+        for i, line in enumerate(self.lines, start=1):
             fn_match = fn_pattern.search(line) or const_fn_pattern.search(line)
             if fn_match:
-                fn_name = fn_match.group(1)
-                self.symbols.append(
-                    SymbolNode(
-                        qualified_name=f"{self.module_name}.{fn_name}",
-                        name=fn_name,
-                        kind=SymbolKind.FUNCTION,
-                        file_path=self.file_path,
-                        line_start=i,
-                        line_end=i,
+                current_fn = f"{self.module_name}.{fn_match.group(1)}"
+
+            # 扫描函数调用
+            stripped = line.strip()
+            if not stripped.startswith("//") and not stripped.startswith("/*") and not stripped.startswith("*"):
+                for m in call_pattern.finditer(line):
+                    prefix = m.group(1)
+                    callee = m.group(2)
+                    if callee in ("function", "if", "for", "while", "switch", "catch", "return", "import"):
+                        continue
+                    full_callee = f"{prefix}.{callee}" if prefix else callee
+                    self.calls.append(
+                        CallEdge(
+                            caller=current_fn,
+                            callee=full_callee,
+                            call_site=CallSite(
+                                file_path=self.file_path,
+                                line=i,
+                                col=m.start(),
+                                end_line=i,
+                                end_col=m.end(),
+                            ),
+                        )
                     )
-                )
 
         # 3. 提取调用点（calls）
         call_pattern = re.compile(r"(?:^|[^\w$])([A-Za-z0-9_$]+)\s*\(")

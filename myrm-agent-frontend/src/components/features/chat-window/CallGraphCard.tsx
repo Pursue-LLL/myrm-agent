@@ -52,10 +52,11 @@ export const CallGraphCard: React.FC<CallGraphCardProps> = memo(({
   className,
   onRunTests,
 }) => {
+  const t = useTranslations('chat.callGraph');
   const [showCallers, setShowCallers] = useState(true);
   const [showTests, setShowTests] = useState(true);
 
-  const testFilePaths = Array.from(new Set(reachingTests.map((t) => t.file_path)));
+  const testFilePaths = Array.from(new Set(reachingTests.map((tItem) => tItem.file_path)));
 
   return (
     <div
@@ -71,16 +72,16 @@ export const CallGraphCard: React.FC<CallGraphCardProps> = memo(({
             <GitCommit className="h-4 w-4" />
           </div>
           <div>
-            <div className="text-xs font-medium text-muted-foreground">代码调用图谱分析</div>
+            <div className="text-xs font-medium text-muted-foreground">{t('title')}</div>
             <div className="font-mono text-sm font-semibold text-foreground">{target}</div>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">
-            {callers.length} 调用方
+            {callers.length} {t('callers')}
           </span>
           <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-            {reachingTests.length} 关联测试
+            {reachingTests.length} {t('reachingTests')}
           </span>
         </div>
       </div>
@@ -94,7 +95,7 @@ export const CallGraphCard: React.FC<CallGraphCardProps> = memo(({
         >
           <span className="flex items-center gap-1.5">
             <FileCode2 className="h-3.5 w-3.5" />
-            真实物理调用链 ({callers.length})
+            {t('physicalCallChain')} ({callers.length})
           </span>
           {showCallers ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
@@ -102,7 +103,7 @@ export const CallGraphCard: React.FC<CallGraphCardProps> = memo(({
         {showCallers && (
           <div className="mt-2 space-y-1.5 pl-2">
             {callers.length === 0 ? (
-              <div className="text-xs text-muted-foreground italic">未发现外部调用点（可能为根入口或私有函数）</div>
+              <div className="text-xs text-muted-foreground italic">{t('noCallers')}</div>
             ) : (
               callers.map((c, idx) => (
                 <div
@@ -117,7 +118,7 @@ export const CallGraphCard: React.FC<CallGraphCardProps> = memo(({
                   </div>
                   {c.kwarg_names && c.kwarg_names.length > 0 && (
                     <div className="mt-1 text-[11px] text-muted-foreground">
-                      入参: {c.kwarg_names.join(', ')}
+                      {t('params')}: {c.kwarg_names.join(', ')}
                     </div>
                   )}
                 </div>
@@ -136,7 +137,7 @@ export const CallGraphCard: React.FC<CallGraphCardProps> = memo(({
         >
           <span className="flex items-center gap-1.5">
             <TestTube2 className="h-3.5 w-3.5 text-primary" />
-            测试影响面与爆炸半径 ({reachingTests.length})
+            {t('testImpact')} ({reachingTests.length})
           </span>
           {showTests ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
@@ -144,22 +145,22 @@ export const CallGraphCard: React.FC<CallGraphCardProps> = memo(({
         {showTests && (
           <div className="mt-2 space-y-1.5 pl-2">
             {reachingTests.length === 0 ? (
-              <div className="text-xs text-muted-foreground italic">未检测到直接或间接覆盖该逻辑的测试用例</div>
+              <div className="text-xs text-muted-foreground italic">{t('noTests')}</div>
             ) : (
-              reachingTests.map((t, idx) => (
+              reachingTests.map((tItem, idx) => (
                 <div
-                  key={`${t.file_path}-${t.test_symbol}-${idx}`}
+                  key={`${tItem.file_path}-${tItem.test_symbol}-${idx}`}
                   className="flex items-center justify-between rounded-md bg-primary/5 p-2 text-xs"
                 >
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
                     <div>
-                      <div className="font-mono font-medium text-foreground">{t.test_symbol}</div>
-                      <div className="text-[11px] text-muted-foreground">{t.file_path}:{t.line}</div>
+                      <div className="font-mono font-medium text-foreground">{tItem.test_symbol}</div>
+                      <div className="text-[11px] text-muted-foreground">{tItem.file_path}:{tItem.line}</div>
                     </div>
                   </div>
                   <span className="rounded bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground border border-border/40">
-                    深度 {t.distance} 级
+                    {t('depth')} {tItem.distance} {t('level')}
                   </span>
                 </div>
               ))
@@ -178,7 +179,7 @@ export const CallGraphCard: React.FC<CallGraphCardProps> = memo(({
             className="h-8 gap-1.5 text-xs"
           >
             <ArrowUpRight className="h-3.5 w-3.5" />
-            运行受影响的 {testFilePaths.length} 个测试套件
+            {t('runAffectedTests', { count: testFilePaths.length })}
           </Button>
         </div>
       )}

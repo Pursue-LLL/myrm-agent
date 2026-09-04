@@ -52,8 +52,7 @@ class CodeGraphStore:
             cursor = conn.cursor()
 
             # 1. 符号表
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS symbols (
                     qualified_name TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
@@ -64,14 +63,12 @@ class CodeGraphStore:
                     docstring TEXT,
                     source TEXT
                 );
-                """
-            )
+            """)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_sym_name ON symbols(name);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_sym_file ON symbols(file_path);")
 
             # 2. 调用关系表
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS calls (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     caller TEXT NOT NULL,
@@ -84,15 +81,13 @@ class CodeGraphStore:
                     arg_count INTEGER NOT NULL,
                     kwarg_names TEXT
                 );
-                """
-            )
+            """)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_call_caller ON calls(caller);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_call_callee ON calls(callee);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_call_file ON calls(file_path);")
 
             # 3. 继承与实现关系表
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS inheritances (
                     sub_type TEXT NOT NULL,
                     super_type TEXT NOT NULL,
@@ -100,13 +95,11 @@ class CodeGraphStore:
                     line INTEGER NOT NULL,
                     PRIMARY KEY(sub_type, super_type)
                 );
-                """
-            )
+            """)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_inh_super ON inheritances(super_type);")
 
             # 4. 模块导入表
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS imports (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     importer_module TEXT NOT NULL,
@@ -116,8 +109,7 @@ class CodeGraphStore:
                     col INTEGER NOT NULL,
                     alias TEXT
                 );
-                """
-            )
+            """)
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_imp_symbol ON imports(imported_symbol);")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_imp_file ON imports(file_path);")
 

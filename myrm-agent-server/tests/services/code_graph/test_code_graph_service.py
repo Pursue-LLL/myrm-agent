@@ -53,6 +53,9 @@ export class AuthService extends BaseAuth {
 }
 
 export function validateInput(val: string) {
+  if (val.length > 0) {
+    checkToken(val);
+  }
   return val.length > 0;
 }
 """
@@ -65,6 +68,8 @@ export function validateInput(val: string) {
     assert len(extractor.inheritances) == 1
     assert extractor.inheritances[0].super_type == "BaseAuth"
     assert len(extractor.calls) >= 1
+    callee_names = [c.callee for c in extractor.calls]
+    assert "checkToken" in callee_names
 
 
 def test_code_graph_service_e2e():
