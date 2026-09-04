@@ -962,4 +962,78 @@ export const wikiService = {
       method: 'POST',
     });
   },
+
+  getGovernanceOverview: async (
+    agentId?: string | null,
+    thresholdDays: number = 90,
+  ): Promise<{
+    pending_count: number;
+    expiring_count: number;
+    gaps_count: number;
+    archived_count: number;
+    total_active: number;
+    expiring_concepts: Array<{
+      concept_name: string;
+      relative_path: string;
+      age_days: number;
+      modified_at_iso: string;
+      is_permanent: boolean;
+      hit_count: number;
+      reason: string;
+    }>;
+    archived_concepts: Array<{
+      concept_name: string;
+      relative_path: string;
+      age_days: number;
+      modified_at_iso: string;
+      is_permanent: boolean;
+      hit_count: number;
+      reason: string;
+    }>;
+  }> => {
+    return apiRequest(
+      buildWikiApiPath(`/wiki/governance/overview?threshold_days=${thresholdDays}`, agentId),
+    );
+  },
+
+  extendGovernanceConcepts: async (
+    conceptNames: string[],
+    agentId?: string | null,
+  ): Promise<{ success: boolean; affected_count: number; message: string }> => {
+    return apiRequest(buildWikiApiPath('/wiki/governance/extend', agentId), {
+      method: 'POST',
+      body: JSON.stringify({ concept_names: conceptNames }),
+    });
+  },
+
+  archiveGovernanceConcepts: async (
+    conceptNames: string[],
+    reason: string = '',
+    agentId?: string | null,
+  ): Promise<{ success: boolean; affected_count: number; message: string; undo_token: string }> => {
+    return apiRequest(buildWikiApiPath('/wiki/governance/archive', agentId), {
+      method: 'POST',
+      body: JSON.stringify({ concept_names: conceptNames, reason }),
+    });
+  },
+
+  undoGovernanceArchive: async (
+    undoToken: string,
+    agentId?: string | null,
+  ): Promise<{ success: boolean; affected_count: number; message: string }> => {
+    return apiRequest(buildWikiApiPath('/wiki/governance/undo', agentId), {
+      method: 'POST',
+      body: JSON.stringify({ undo_token: undoToken }),
+    });
+  },
+
+  reviveGovernanceConcepts: async (
+    conceptNames: string[],
+    agentId?: string | null,
+  ): Promise<{ success: boolean; affected_count: number; message: string }> => {
+    return apiRequest(buildWikiApiPath('/wiki/governance/revive', agentId), {
+      method: 'POST',
+      body: JSON.stringify({ concept_names: conceptNames }),
+    });
+  },
 };

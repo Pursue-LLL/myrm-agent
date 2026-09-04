@@ -14,20 +14,19 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from sqlalchemy.pool import StaticPool
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import StaticPool
 
 from app.channels.routing.channel_data_plane import (
     ChannelDataPlaneService,
     is_learning_eligible,
 )
 from app.channels.types import InboundMessage
-from app.database.models.base import Base
 from app.database.models.channel_message import ChannelMessageModel
 from app.database.repositories.channel_message_repo import ChannelMessageRepository
 

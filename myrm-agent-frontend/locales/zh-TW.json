@@ -14964,7 +14964,13 @@
       "evidenceSnapshotStale": "快照可能已過期。",
       "evidenceSnapshotVerified": "快照已對照目前頁面驗證。",
       "evidenceStructuredClaim": "結構化宣告",
-      "evidenceSupersededFrom": "已被以下內容取代：{uri}"
+      "evidenceSupersededFrom": "已被以下內容取代：{uri}",
+      "governanceTitle": "知識生命週期治理工作台",
+      "undoAction": "撤銷歸檔",
+      "pendingQueue": "待審核草稿",
+      "expiringQueue": "即將過期",
+      "gapsQueue": "知識盲區",
+      "archivedQueue": "已歸檔概念"
     },
     "skills": {
       "title": "技能管理",

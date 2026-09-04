@@ -93,9 +93,20 @@ export default function KnowledgePickerPopover() {
             }
           });
 
-          setBindingsMap(map);
-          setActiveKnowledgeBaseIds(activeIds);
-          setActiveKnowledgeBaseNames(activeNames);
+          // 解决冷启动时序竞态：如果远端已有绑定，以远端权威同步；
+          // 若远端暂为空但本地 store 中有新会话预选的库，保留本地状态并防止覆盖冲刷
+          if (activeIds.length > 0) {
+            setBindingsMap(map);
+            setActiveKnowledgeBaseIds(activeIds);
+            setActiveKnowledgeBaseNames(activeNames);
+          } else {
+            const currentStoreIds = useChatStore.getState().activeKnowledgeBaseIds;
+            if (currentStoreIds.length === 0) {
+              setBindingsMap({});
+              setActiveKnowledgeBaseIds([]);
+              setActiveKnowledgeBaseNames({});
+            }
+          }
         }
       } catch (err) {
         console.error('[KnowledgePicker] Failed to load data:', err);

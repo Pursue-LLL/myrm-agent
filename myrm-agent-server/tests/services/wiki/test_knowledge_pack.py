@@ -214,7 +214,7 @@ async def test_resolve_proactive_snippets_with_fts5_index(tmp_path: Path) -> Non
         )
 
     result = await resolve_proactive_snippets_from_vaults(
-        query="住宿报销标准每晚限额多少",
+        query="差旅住宿标准每晚限额多少",
         vault_paths=(vault_dir,),
         vault_labels={str(vault_dir): "财务规章"},
         timeout_seconds=0.200,

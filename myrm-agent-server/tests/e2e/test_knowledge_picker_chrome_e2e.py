@@ -34,6 +34,28 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     warm_ui_route,
 )
 
+
+def _seed_composer_fixture(api_url: str) -> dict[str, object]:
+    seeded = http_json(
+        "POST",
+        f"{api_url}/api/v1/chats/test/seed-skill-chip-composer-fixture",
+    )
+    assert isinstance(seeded, dict)
+    return seeded
+
+
+def _seed_composer_fixture(api_url: str) -> dict[str, object]:
+    seeded = http_json(
+        "POST",
+        f"{api_url}/api/v1/chats/test/seed-skill-chip-composer-fixture",
+    )
+    assert isinstance(seeded, dict)
+    chat_id = str(seeded.get("chat_id") or "")
+    agent_id = str(seeded.get("agent_id") or "")
+    assert chat_id.startswith("e2eslashchip")
+    assert agent_id
+    return seeded
+
 _KNOWLEDGE_PICKER_TRIGGER_JS = """(() => {
   const btn = document.querySelector('[data-testid="knowledge-picker-toggle"]');
   return {
@@ -105,9 +127,15 @@ _CLICK_REMOVE_KNOWLEDGE_CHIP_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="READ",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.e2e_search_policy("empty")
-@pytest.mark.timeout(180)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
 def test_knowledge_picker_popover_chrome_e2e() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
@@ -128,14 +156,14 @@ def test_knowledge_picker_popover_chrome_e2e() -> None:
         pass  # If it already exists or creation succeeds
 
     prepare_e2e_ui_session(api_url)
-    warm_ui_route("/")
+    seeded = _seed_composer_fixture(api_url)
+    chat_id = str(seeded.get("chat_id") or "")
+    agent_id = str(seeded.get("agent_id") or "")
+    agent_chat_path = str(seeded.get("ui_path") or f"/{chat_id}?agentId={agent_id}")
+    warm_ui_route(agent_chat_path)
 
-    chat_page_url = f"{ui_url.rstrip('/')}/"
-    with open_mcp_page(
-        chat_page_url,
-        timeout_ms=120_000,
-        request_timeout_sec=180.0,
-    ) as (client, page):
+    chat_page_url = f"{ui_url.rstrip('/')}{agent_chat_path}"
+    with open_mcp_page(chat_page_url) as (client, page):
         dismiss_blocking_modals(client, page, recover_url=chat_page_url)
 
         # 1. 验证知识库挂载触发按钮正常渲染

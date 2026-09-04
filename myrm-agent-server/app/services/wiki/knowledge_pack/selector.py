@@ -189,12 +189,19 @@ async def resolve_proactive_snippets_from_vaults(
         db_path = vault_path / ".wiki_index.db"
         if db_path.is_file():
             try:
-                safe_fts_terms = [
-                    t for t in match_terms
-                    if t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t)
-                ]
-                if safe_fts_terms:
-                    fts_query = " OR ".join(f'"{t}"' for t in safe_fts_terms[:8])
+                fts_query = ""
+                try:
+                    from myrm_agent_harness.toolkits.wiki.retrieval.tokenizer import tokenize_for_fts
+                    fts_query = tokenize_for_fts(trimmed_query)
+                except ImportError:
+                    safe_fts_terms = [
+                        t for t in match_terms
+                        if t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t)
+                    ]
+                    if safe_fts_terms:
+                        fts_query = " OR ".join(f'"{t}"' for t in safe_fts_terms[:8])
+
+                if fts_query.strip():
                     # Open read-only connection to guarantee zero write contention and sandboxed safety
                     with sqlite3.connect(f"file:{db_path.resolve()}?mode=ro", uri=True) as conn:
                         conn.row_factory = sqlite3.Row

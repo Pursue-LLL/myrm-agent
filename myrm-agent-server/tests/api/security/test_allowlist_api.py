@@ -17,7 +17,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.database.models import UserToolAllowlist
-from app.platform_utils import get_session_factory
 from tests.support.allowlist_test_seed import (
     PATTERN_ENTRY_COMMAND_PATTERN,
     PATTERN_ENTRY_PERMISSION,
@@ -32,9 +31,10 @@ app = build_minimal_app(preset="security")
 
 @pytest.fixture
 def client() -> TestClient:
+    from app import platform_utils
     from app.database.connection import get_db
 
-    factory = get_session_factory()
+    factory = platform_utils.get_session_factory()
 
     async def _override_get_db():
         async with factory() as session:
@@ -106,24 +106,8 @@ class TestAllowlistProtocolAlignment:
 
 class TestAllowlistPatternIntegration:
     def test_list_returns_pattern_granularity(self, client: TestClient) -> None:
-        entry_id = uuid.uuid4().hex
-        factory = get_session_factory()
-
-        async def _seed():
-            async with factory() as session:
-                session.add(
-                    UserToolAllowlist(
-                        id=entry_id,
-                        permission=PATTERN_ENTRY_PERMISSION,
-                        tool_name=PATTERN_ENTRY_TOOL,
-                        tool_args_hash="",
-                        command_pattern=PATTERN_ENTRY_COMMAND_PATTERN,
-                        agent_id="",
-                    )
-                )
-                await session.commit()
-
-        asyncio.run(_seed())
+        asyncio.run(clear_allowlist_entries())
+        entry_id = asyncio.run(seed_pattern_allowlist_entry())
 
         response = client.get("/api/v1/security/allowlist")
         assert response.status_code == 200
@@ -138,24 +122,8 @@ class TestAllowlistPatternIntegration:
         assert row["granularity"] == "pattern"
 
     def test_delete_pattern_entry_removes_from_list(self, client: TestClient) -> None:
-        entry_id = uuid.uuid4().hex
-        factory = get_session_factory()
-
-        async def _seed():
-            async with factory() as session:
-                session.add(
-                    UserToolAllowlist(
-                        id=entry_id,
-                        permission=PATTERN_ENTRY_PERMISSION,
-                        tool_name=PATTERN_ENTRY_TOOL,
-                        tool_args_hash="",
-                        command_pattern=PATTERN_ENTRY_COMMAND_PATTERN,
-                        agent_id="",
-                    )
-                )
-                await session.commit()
-
-        asyncio.run(_seed())
+        asyncio.run(clear_allowlist_entries())
+        entry_id = asyncio.run(seed_pattern_allowlist_entry())
 
         delete_response = client.delete(f"/api/v1/security/allowlist/{entry_id}")
         assert delete_response.status_code == 200
@@ -166,13 +134,12 @@ class TestAllowlistPatternIntegration:
         assert list_response.json()["data"] == []
 
     def test_list_and_delete_agent_scoped_entry(self, client: TestClient) -> None:
-        import uuid
+        asyncio.run(clear_allowlist_entries())
 
-        from app.database.models import UserToolAllowlist
-        from app.platform_utils import get_session_factory
+        from app import platform_utils
 
         entry_id = uuid.uuid4().hex
-        factory = get_session_factory()
+        factory = platform_utils.get_session_factory()
 
         async def _seed():
             async with factory() as session:
@@ -201,14 +168,13 @@ class TestAllowlistPatternIntegration:
         assert del_resp.status_code == 200
 
     def test_list_and_manage_time_bound_allowlist_entry(self, client: TestClient) -> None:
-        import uuid
+        asyncio.run(clear_allowlist_entries())
         from datetime import datetime, timedelta, timezone
 
-        from app.database.models import UserToolAllowlist
-        from app.platform_utils import get_session_factory
+        from app import platform_utils
 
         entry_id = uuid.uuid4().hex
-        factory = get_session_factory()
+        factory = platform_utils.get_session_factory()
         future_dt = datetime.now(timezone.utc) + timedelta(hours=2)
 
         async def _seed():

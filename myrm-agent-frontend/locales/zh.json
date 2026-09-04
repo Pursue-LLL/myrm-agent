@@ -14964,7 +14964,13 @@
       "evidenceSnapshotStale": "快照可能已过期。",
       "evidenceSnapshotVerified": "快照已对照当前页面验证。",
       "evidenceStructuredClaim": "结构化声明",
-      "evidenceSupersededFrom": "已被以下内容取代：{uri}"
+      "evidenceSupersededFrom": "已被以下内容取代：{uri}",
+      "governanceTitle": "知识生命周期治理工作台",
+      "undoAction": "撤销归档",
+      "pendingQueue": "待审核草稿",
+      "expiringQueue": "即将过期",
+      "gapsQueue": "知识盲区",
+      "archivedQueue": "已归档概念"
     },
     "skills": {
       "title": "技能管理",

@@ -14964,7 +14964,13 @@
       "evidenceSnapshotStale": "Snapshot may be out of date.",
       "evidenceSnapshotVerified": "Snapshot verified against the current page.",
       "evidenceStructuredClaim": "Structured Claim",
-      "evidenceSupersededFrom": "Superseded by: {uri}"
+      "evidenceSupersededFrom": "Superseded by: {uri}",
+      "governanceTitle": "Knowledge Lifecycle Governance",
+      "undoAction": "Undo Archive",
+      "pendingQueue": "Pending Review",
+      "expiringQueue": "Expiring Soon",
+      "gapsQueue": "Knowledge Gaps",
+      "archivedQueue": "Archived"
     },
     "skills": {
       "title": "Skills Management",

@@ -7,6 +7,16 @@
  * - 清理测试状态
  */
 
+import { JSDOM } from 'jsdom';
+
+if (typeof document === 'undefined') {
+  const dom = new JSDOM('<!doctype html><html><body></body></html>');
+  // @ts-expect-error polyfill for non-browser testing
+  globalThis.window = dom.window;
+  globalThis.document = dom.window.document;
+  globalThis.navigator = dom.window.navigator;
+}
+
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 import '@testing-library/jest-dom';
@@ -77,7 +87,11 @@ if (typeof Element !== 'undefined' && typeof Element.prototype.hasPointerCapture
 // 每个测试后自动清理
 afterEach(() => {
   cleanup();
-  vi.clearAllTimers();
+  try {
+    vi.clearAllTimers();
+  } catch {
+    // ignore in environments where fake timers were not activated
+  }
 });
 
 // Mock next/font/google (compiler and fonts module import at load time)

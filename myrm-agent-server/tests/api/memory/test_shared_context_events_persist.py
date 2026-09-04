@@ -98,3 +98,97 @@ async def test_delete_shared_context_binding_persists_write_event(db: AsyncSessi
     assert rows[0].memory_id == context.id
 
 
+async def test_binding_api_and_target_query_flow(db: AsyncSession) -> None:
+    """全面测试共享知识库与会话绑定的完整API层交互契约：
+
+    1. 创建共享上下文并在绑定时校验返回的 context_name。
+    2. 通过 list_shared_context_bindings_for_target 查询会话绑定，验证 context_name 连表正常。
+    3. 验证单会话上限 6 个知识库的安全门禁（第 7 个抛 400 异常）。
+    4. 验证 delete_shared_context_binding_by_target 按目标类型与目标ID精准解绑。
+    """
+    from fastapi import HTTPException
+
+    from app.api.memory.operations.shared_context.shared_contexts import (
+        create_shared_context_binding,
+        delete_shared_context_binding_by_target,
+        list_shared_context_bindings_for_target,
+    )
+    from app.api.memory.shared_context_schemas import CreateSharedContextBindingRequest
+
+    service = SharedContextService(db)
+    ctx_main = await service.create_context(name="核心工程标准", description="标准规范")
+
+    # 1. 创建会话绑定，验证返回的 context_name
+    create_req = CreateSharedContextBindingRequest(
+        target_type="conversation",
+        target_id="conv-flow-1",
+    )
+    binding_item = await create_shared_context_binding(
+        context_id=ctx_main.id,
+        body=create_req,
+        db=db,
+    )
+    assert binding_item.context_id == ctx_main.id
+    assert binding_item.context_name == "核心工程标准"
+    assert binding_item.target_type == "conversation"
+    assert binding_item.target_id == "conv-flow-1"
+
+    # 2. 查询该会话的绑定列表，验证连表解析出来的 context_name
+    target_res = await list_shared_context_bindings_for_target(
+        target_type="conversation",
+        target_id="conv-flow-1",
+        db=db,
+    )
+    assert target_res.total == 1
+    assert target_res.items[0].context_id == ctx_main.id
+    assert target_res.items[0].context_name == "核心工程标准"
+
+    # 3. 构造 5 个额外的知识库并绑定，使当前会话达到 6 个上限
+    extra_contexts = []
+    for i in range(5):
+        c = await service.create_context(name=f"扩展知识库_{i}")
+        extra_contexts.append(c)
+        await create_shared_context_binding(
+            context_id=c.id,
+            body=CreateSharedContextBindingRequest(target_type="conversation", target_id="conv-flow-1"),
+            db=db,
+        )
+
+    # 验证此时恰好 6 个绑定
+    res_six = await list_shared_context_bindings_for_target(
+        target_type="conversation",
+        target_id="conv-flow-1",
+        db=db,
+    )
+    assert res_six.total == 6
+
+    # 尝试绑定第 7 个，验证 6 库安全门禁生效
+    c_seven = await service.create_context(name="超出上限知识库")
+    with pytest.raises(HTTPException) as exc_info:
+        await create_shared_context_binding(
+            context_id=c_seven.id,
+            body=CreateSharedContextBindingRequest(target_type="conversation", target_id="conv-flow-1"),
+            db=db,
+        )
+    assert exc_info.value.status_code == 400
+    assert "Maximum 6 knowledge bases" in exc_info.value.detail
+
+    # 4. 按目标批量解绑 delete_shared_context_binding_by_target
+    await delete_shared_context_binding_by_target(
+        context_id=ctx_main.id,
+        target_type="conversation",
+        target_id="conv-flow-1",
+        db=db,
+    )
+
+    # 验证解绑后只剩 5 个，且不包含 ctx_main
+    res_after_unbind = await list_shared_context_bindings_for_target(
+        target_type="conversation",
+        target_id="conv-flow-1",
+        db=db,
+    )
+    assert res_after_unbind.total == 5
+    assert not any(item.context_id == ctx_main.id for item in res_after_unbind.items)
+
+
+

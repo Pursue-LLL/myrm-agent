@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    _warm_ui_parallel_wait_sec,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -87,9 +88,14 @@ def test_mobile_device_inspector_api_and_ui_lifecycle() -> None:
     assert relay_res.get("action") == "tap"
 
     # 2. Warm up UI route and inspect page state
-    warm_ui_route("/", timeout_sec=45.0)
-    with open_mcp_page(f"{ui_url}/", request_timeout_sec=120.0) as (client, page):
-        wait_for_react_e2e_bridge(client, page, timeout_sec=60.0, page_url=f"{ui_url}/")
+    warm_ui_route("/")
+    with open_mcp_page(f"{ui_url}/", timeout_ms=90_000) as (client, page):
+        wait_for_react_e2e_bridge(
+            client,
+            page,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+            page_url=f"{ui_url}/",
+        )
 
         # 3. Verify window.__MYRM_DEVICE_INSPECTOR_STORE__ interaction in real browser
         store_res = client.evaluate(page, _VERIFY_DEVICE_STORE_AND_PANEL_JS, timeout_sec=10.0)

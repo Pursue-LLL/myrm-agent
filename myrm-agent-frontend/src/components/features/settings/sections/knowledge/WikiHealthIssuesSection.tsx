@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import type { WikiHealthIssue, WikiHealthReport } from '@/services/wikiService';
+import { WikiGovernanceWorkbench } from './wiki/WikiGovernanceWorkbench';
 
 interface WikiHealthIssuesSectionProps {
   report: WikiHealthReport | null;
@@ -191,6 +192,11 @@ export function WikiHealthIssuesSection({
           ) : null}
         </div>
       ) : null}
+
+      <WikiGovernanceWorkbench
+        onOpenPendingEdits={onOpenPendingEdits}
+        onRefreshParent={onRefresh}
+      />
 
       {expanded && hasIssues ? (
         <ul className="max-h-72 space-y-2 overflow-y-auto">
