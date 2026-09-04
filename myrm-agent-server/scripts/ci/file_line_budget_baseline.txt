@@ -145,6 +145,7 @@ app/services/chat/conversation_fork_manager.py
 app/services/chat/conversation_search_service.py
 app/services/extension/bridge.py
 app/services/extension/cdp_relay/bridge.py
+app/services/hosting/crypto_packager.py
 app/services/kanban/task_runner/runner.py
 app/services/memory/archive/restore/archive_restore.py
 app/services/memory/archive/restore/archive_restore_executor.py
@@ -161,7 +162,7 @@ app/services/memory/shared_context/shared_context.py
 app/services/migration/hermes/hermes_moa_migrator.py
 app/services/onboarding/second_brain_preset.py
 app/services/ops/snapshot_service.py
-app/services/plugins/import_service.py
 app/services/project/assessment_import_service.py
 app/services/repair/actions.py
 app/services/skills/growth/queries.py
+app/services/webui/device_bridge.py
