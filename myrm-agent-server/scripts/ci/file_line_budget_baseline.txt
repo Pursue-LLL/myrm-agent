@@ -7,6 +7,7 @@ app/ai_agents/general_agent/factory.py
 app/ai_agents/general_agent/stream_pipeline.py
 app/ai_agents/general_agent/tool_setup.py
 app/api/agents/templates.py
+app/api/approvals/router.py
 app/api/batch_optimization/router.py
 app/api/channels/router.py
 app/api/channels/test_connections.py
