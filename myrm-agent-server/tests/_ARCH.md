@@ -32,7 +32,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/evicted_drawer_selectors.py` | 辅助 | UECD Drawer Chrome E2E 共享选择器/探针 SSOT（`data-testid` 定位 + `/files/evicted` 分页参数断言 + `drawer_mount_wait_js` 等待 lazy drawer mount） |
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装） |
 | `e2e/conftest.py` | 辅助 | E2E ephemeral server fixture（API 级 e2e，不启动前端） |
-| `e2e/test_repo_call_graph_e2e.py` | 模块 | 代码调用图谱与改动影响面分析端到端任务流测试（多语言代码库索引、正反向拓扑遍历、受影响测试套件触达、增量重索引一致性） |
+| `integration/test_repo_call_graph_integration.py` | 模块 | 代码调用图谱与改动影响面分析集成任务流测试（多语言代码库索引、正反向拓扑遍历、受影响测试套件触达、增量重索引一致性） |
 | `e2e/test_migration_readiness_gap_chrome_e2e.py` | 模块 | migration post-import readiness gap（LIVE×3 SHPOIB：`mcp_warning` · `provider_critical` · `diagnostic_critical` 各独立 `::test_*` · R139 禁 batch） |
 | `e2e/test_mem0_import_review_chrome_e2e.py` | 模块 | mem0 export 真实 UI 导入 Chrome E2E（SHARED+NAMESPACE_WRITE×1：/settings/memory file picker 上传 mem0 `memories` JSON → 前端 POST dry-run → server auto-detect=mem0 → review dialog 渲染翻译后 `sources.mem0`（C1 无 raw key 泄漏）+ `memories` 映射桶；**停在 confirm 前不写真实记忆**，写路径由 unit/API 覆盖） |
 | `e2e/test_mcp_reload_confirm_chrome_e2e.py` | 模块 | MCP Settings reload 确认 Chrome E2E（READ×1 SHPOIB 单会话：toggle cancel/confirm · delete · import JSON · add/save → `GET /config/mcpServers` 断言） |

@@ -86,8 +86,9 @@
 | `BehavioralMetricsPanel.tsx` | 组件 | 零大模型开销本地确定性行为特征看板（双轨作息直方图、响应时延胶囊、高频协作者排名）     | ✅    |
 | `MemoryContextPanel.tsx`    | 组件 | Shared Context 编辑与预览                                                               | ✅    |
 | `MemoryHealthDashboard.tsx` | 组件 | 记忆健康度指标仪表盘                                                                    | ✅    |
-| `MemoryKnowledgeGraph.tsx`  | 组件 | 记忆知识图谱 force-graph 可视化                                                         | ✅    |
-| `RankedHubSidebar.tsx`      | 组件 | 知识图谱核心主张与冲突焦点侧栏（双重视图、连通度度数与焦点筛选）                         | ✅    |
+| `MemoryKnowledgeGraph.tsx`        | 组件 | 记忆知识图谱 force-graph 可视化                                                         | ✅    |
+| `RankedHubSidebar.tsx`            | 组件 | 知识图谱核心主张与冲突焦点侧栏（双重视图、连通度度数与焦点筛选）                         | ✅    |
+| `GraphDiagnosticEmptyState.tsx`   | 组件 | 知识图谱三态排障空态组件（存储离线、零主张与孤立散点态）                                 | ✅    |
 
 ### pending/
 
