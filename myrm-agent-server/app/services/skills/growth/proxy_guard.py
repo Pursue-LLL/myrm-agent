@@ -16,7 +16,6 @@ import logging
 from typing import Any
 
 from myrm_agent_harness.eval.metric_contract import (
-    MetricContract,
     evaluate_metric_proxy_alignment,
 )
 

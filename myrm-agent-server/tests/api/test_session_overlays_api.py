@@ -8,11 +8,8 @@
 - POST /{session_id}/overlays/{overlay_id}/rollback updates status
 """
 
-import pytest
-from unittest.mock import AsyncMock, patch
-
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 from myrm_agent_harness.agent.session_overlay.manager import (
     get_session_overlay_manager,
