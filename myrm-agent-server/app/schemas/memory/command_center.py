@@ -513,7 +513,7 @@ class MemoryCommandActionRequest(BaseModel):
 
     target_kind: Literal["pending_memory", "shared_context_proposal", "memory"]
     target_id: str = ""
-    action: Literal["approve", "reject", "edit", "correct", "forget", "pin", "unpin", "restore_defaults"]
+    action: Literal["approve", "reject", "edit", "correct", "correct_and_lock", "forget", "pin", "unpin", "restore_defaults"]
     memory_type: str | None = None
     content: str | None = None
 

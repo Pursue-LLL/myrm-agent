@@ -86,6 +86,8 @@ export function WikiConceptsList({
     submitDialog,
     handleEdit,
     handleSave,
+    handleUpdateClaimStatus,
+    handleHealClaims,
     confirmDelete,
   } = useWikiConceptsList({ treeSyncNonce, agentScopeId, highlightConceptPath, onVaultMutated });
 
@@ -173,6 +175,8 @@ export function WikiConceptsList({
         onEditTimelineAppendChange={setEditTimelineAppend}
         onEditTagsChange={setEditTags}
         onEditAliasesChange={setEditAliases}
+        onUpdateClaimStatus={handleUpdateClaimStatus}
+        onHealClaims={handleHealClaims}
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

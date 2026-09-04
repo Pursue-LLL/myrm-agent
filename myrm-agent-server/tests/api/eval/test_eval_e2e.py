@@ -10,7 +10,7 @@ import os
 import time
 from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -116,6 +116,29 @@ def test_eval_api_e2e() -> None:
             assert response.status_code == 200
             assert response.json()["status"] == "success"
             assert response.json()["content"] == cases_content
+
+            # Test capture from chat into evaluation dataset
+            from app.services.chat.chat_service import ChatService
+            class MockMsg:
+                def __init__(self, role, content, extra_data=None):
+                    self.role = role
+                    self.content = content
+                    self.extra_data = extra_data
+
+            fake_msgs = [
+                MockMsg("user", "Summarize quarterly report."),
+                MockMsg("assistant", "Quarterly profit up 20%."),
+            ]
+            with patch.object(ChatService, "get_all_messages", new_callable=AsyncMock) as mock_msgs:
+                mock_msgs.return_value = fake_msgs
+                cap_res = client.post(f"{p}/cases/from-chat/chat-e2e-live?dataset_id=live-e2e-pack")
+                assert cap_res.status_code == 200
+                assert cap_res.json()["status"] == "success"
+
+                pack_res = client.get(f"{p}/cases?dataset_id=live-e2e-pack")
+                assert pack_res.status_code == 200
+                assert "Summarize quarterly report." in pack_res.json()["content"]
+                assert "Quarterly profit up 20%." in pack_res.json()["content"]
 
             workspace_root = Path(".myrm/eval_workspaces")
             before_workspaces = set(workspace_root.iterdir()) if workspace_root.exists() else set()
