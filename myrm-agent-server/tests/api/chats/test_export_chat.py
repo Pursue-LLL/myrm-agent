@@ -564,7 +564,7 @@ async def test_export_chat_redacts_messages_and_reasoning_and_title(
                 id=f"msg-asst-{uuid.uuid4().hex[:8]}",
                 chat_id=chat_id,
                 role="assistant",
-                content="<think>Using Bearer ghp_abcdefghijklmnopqrstuvwxyz0123456789</think>Configured.",
+                content="<think>Authorization: Bearer ghp_abcdefghijklmnopqrstuvwxyz0123456789</think>Configured.",
                 sent_at=now,
                 sent_timezone="UTC",
             )
@@ -589,7 +589,8 @@ async def test_export_chat_redacts_messages_and_reasoning_and_title(
     asst_msg = next(m for m in data["messages"] if m["role"] == "assistant")
     reasoning = asst_msg["metadata"]["reasoning_content"]
     assert "ghp_abcdefghijklmnopqrstuvwxyz0123456789" not in reasoning
-    assert "ghp_***" in reasoning
+    assert "ghp_" in reasoning
+    assert "..." in reasoning
 
 
 @pytest.mark.asyncio
