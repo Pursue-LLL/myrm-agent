@@ -12,6 +12,8 @@ router: `/memory/command-center` memory command center snapshot endpoint.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends
 from myrm_agent_harness.toolkits.memory import (
     MemoryManager,

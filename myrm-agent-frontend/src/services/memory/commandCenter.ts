@@ -395,10 +395,25 @@ export interface MemoryCommandGraphStats {
   relationship_type_counts: Record<string, number>;
 }
 
+export interface MemoryCommandGraphHubItem {
+  id: string;
+  label: string;
+  snippet: string;
+  primary_namespace?: string | null;
+  degree: number;
+  in_degree: number;
+  out_degree: number;
+  supported_count: number;
+  contradicted_count: number;
+  has_conflict: boolean;
+}
+
 export interface MemoryCommandGraphResponse {
   nodes: MemoryCommandGraphNode[];
   edges: MemoryCommandGraphEdge[];
   stats: MemoryCommandGraphStats;
+  ranked_hubs?: MemoryCommandGraphHubItem[];
+  graph_state?: 'ready' | 'storage_disabled' | 'empty_knowledge' | 'sparse_islands';
   has_graph: boolean;
 }
 

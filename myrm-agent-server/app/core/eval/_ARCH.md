@@ -35,6 +35,11 @@
 | `wb_bench/` | WorkBuddy Bench 外部基准适配器子包（业务层）：`__init__.py` 为包门面（re-export `list_wb_bench_sources`/`ensure_wb_bench_source`/`build_wb_bench_cases`/`WB_BENCH_SUBSETS`/`DownloadAbortedError` 等，保持 `from app.core.eval.wb_bench import ...` 调用面稳定）；`download.py` 数据源层（四赛道 Code/Web/Office/Security 目录清单含本地状态与评分模式、HuggingFace 归档下载（SHA256 校验 + 原子解压 + 指数退避重试 + 下载进度回调 + 可取消下载 `should_abort`/`DownloadAbortedError` + 离线降级复用））；`workspace.py` 任务构建与工作区预置层（迭代源目录任务，将 `instruction.md` 映射为 `MultiTurnEvalCase`，解包 `workspace.tar.gz` 预置任务工作区（剥离单一顶层目录 + `.ready` 幂等标记）；非 Web 赛道逐任务经 `verifier` 注入 `test_suite` Rule 断言；Web 赛道仅将评分模式写入 case 元数据；预置循环响应 `should_abort` 中止）；`verifier.py` 判分断言构建层（解析官方判分协议：Code/Security 的 `tests/verifier.toml` 三家族 `script_verifier` 跑 `verifier.py`、`pytest_injected` 注入测试并执行完整 `[run] command`、`repo_understanding` 跑 `scorer.py`；Office 无 `family` 键的 `schema_version=workbuddy.office.verifier.v1` 重写 Harbor 路径并显式注入 `PYTHONPATH={workspace}`（剥离 Harbor 内联 `${PYTHONPATH:-}` 前缀，规避沙箱 `${}` 命令拦截）；Security 直写判分 `tests/scoring.py`/`test_outputs.py` 写 `reward.json`）。判分资产留在源缓存，经 `SandboxAssertion.readonly_paths` 只读挂载，`{workspace}` 占位符指向 agent 实时工作区，`gold.patch` 永不进入 agent 工作区杜绝污染；断言统一 `timeout=600`，JUnit/奖励结果写入 `result_file`，实现无需 LLM 的确定性判分。 |
 | `capture.py` | 从主聊天界面“一键淬炼”为评测用例 (GUI Flywheel)。基于真实对话记录，抽取 `messages` 和完整的结构化 Tool Arguments 并生成标准 `EvalCase` 测试集，包含多模态 Base64 防御清洗以避免 JSONL 体积膨胀，可绑定指定的 `dataset_id`，打通日常开发测试与评估的闭环飞轮。 |
 
+## 测试覆盖
+
+- Chrome E2E：`tests/e2e/test_eval_capture_chrome_e2e.py` 覆盖真实浏览器中从对话向评测集一键沉淀、写入 JSONL 数据集的完整链路（`./myrm test -m chrome_e2e -k test_eval_capture_chat_to_dataset_chrome_e2e` PASSED）。
+- 单测/集成测试：`tests/api/eval/test_capture_endpoint_integration.py` 与 `test_capture_sanitization.py` 覆盖端点与 Base64 清洗逻辑。
+
 ## 依赖关系
 
 - **内部依赖**：

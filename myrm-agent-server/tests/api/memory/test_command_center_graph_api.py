@@ -6,6 +6,8 @@ Verifies:
 3. Edges are correctly associated with in/out degree counts on hubs.
 """
 
+from __future__ import annotations
+
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest

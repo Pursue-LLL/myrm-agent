@@ -4043,6 +4043,8 @@
       "refreshing": "Erfrischend",
       "loadFailed": "Das Laden der Speicher-Befehlszentrale ist fehlgeschlagen",
       "lastUpdated": "Aktualisiert {time}",
+      "allProjects": "Alle Projekte",
+      "clearFilter": "Klar",
       "unknown": "Unbekannt",
       "totalMemories": "Totale Erinnerungen",
       "pendingReview": "Ausstehende Überprüfung",
@@ -4660,8 +4662,6 @@
         "syncNoEligible": "Noch keine Metriken erfüllen den Schwellenwert für die Stichprobengröße",
         "syncError": "Synchronisierung des Verhaltensprofils fehlgeschlagen"
       },
-      "allProjects": "Alle Projekte",
-      "clearFilter": "Klar",
       "migrationAdapterStatusTitle": "Adapterbereitschaft",
       "migrationAdapterStatus": {
         "ready": "Bereit",
@@ -8543,6 +8543,15 @@
     "smartDenied": {
       "title": "Sicherheitsprüfer empfiehlt Ablehnung",
       "overrideOnce": "Einmal überschreiben"
+    },
+    "autoModeSuspended": {
+      "title": "Automatischer Modus ausgesetzt",
+      "consecutiveReason": "Nach 3 aufeinanderfolgenden Sicherheitsablehnungen ausgesetzt. Rueckkehr zur expliziten manuellen Ueberpruefung.",
+      "totalReason": "Nach Erreichen von insgesamt 20 Sicherheitsablehnungen ausgesetzt. Rueckkehr zur expliziten manuellen Ueberpruefung."
+    },
+    "sociallyIrreversible": {
+      "title": "Sozial irreversible Aktion",
+      "description": "Dieser Vorgang wirkt sich auf externe Systeme aus (Remote-Push, Benachrichtigung oder Veroeffentlichung) und kann lokal nicht rueckgaengig gemacht werden. Eine explizite Genehmigung ist erforderlich."
     },
     "batchCostTitle": "Batch-Aufgabenkosten Genehmigung",
     "batchCostDescription": "Der Agent moechte mehrere Sub-Agenten starten. Pruefen Sie die geschaetzten Kosten, bevor Sie fortfahren.",
