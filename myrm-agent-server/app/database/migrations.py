@@ -978,6 +978,7 @@ INDEX_STATEMENTS = [
     "ALTER TABLE shared_contexts ADD COLUMN last_accessed_at TIMESTAMP",
     "ALTER TABLE interrupted_turn_markers ADD COLUMN message_id VARCHAR(255) NOT NULL DEFAULT ''",
     "ALTER TABLE interrupted_turn_markers ADD COLUMN pending_steering_messages JSON",
+    "ALTER TABLE user_tool_allowlist ADD COLUMN expires_at TIMESTAMP",
 ]
 
 
