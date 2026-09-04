@@ -238,7 +238,7 @@ class ChannelDataPlaneService:
             )
         ]
 
-        return DistillationCandidate(
+        candidate = DistillationCandidate(
             content=model.content,
             origin=origin,
             is_self=identity,
@@ -246,3 +246,12 @@ class ChannelDataPlaneService:
             sender_name=model.sender_name,
             evidence=evidence,
         )
+
+        from myrm_agent_harness.api import check_distillable
+        from app.services.agent.memory_brief_telemetry.metrics import record_distillation_rejection
+
+        check = check_distillable(candidate)
+        if not check.allowed and check.rejection_code:
+            record_distillation_rejection(check.rejection_code.value)
+
+        return candidate

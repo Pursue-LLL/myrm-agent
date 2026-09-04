@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
-    _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
     http_json,
