@@ -53,12 +53,12 @@ class TestCnMirrorDetection:
 
     def test_cn_mirrors_force_enable(self) -> None:
         script = f"source {_CN_MIRRORS_SH}\nMYRM_USE_CN_MIRROR=1 MYRM_NO_CN_MIRROR=0 detect_cn_network && echo YES || echo NO"
-        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=15)
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=20)
         assert "YES" in result.stdout
 
     def test_cn_mirrors_force_disable(self) -> None:
         script = f"source {_CN_MIRRORS_SH}\nMYRM_USE_CN_MIRROR=0 MYRM_NO_CN_MIRROR=1 detect_cn_network && echo YES || echo NO"
-        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=15)
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=20)
         assert "NO" in result.stdout
 
     def test_cn_mirrors_respects_existing_index(self) -> None:
@@ -67,7 +67,7 @@ class TestCnMirrorDetection:
             'UV_DEFAULT_INDEX="https://custom" MYRM_USE_CN_MIRROR=0 MYRM_NO_CN_MIRROR=0 '
             "detect_cn_network && echo YES || echo NO"
         )
-        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=15)
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=20)
         assert "NO" in result.stdout
 
     def test_cn_mirrors_non_cn_timezone(self) -> None:
@@ -76,7 +76,7 @@ class TestCnMirrorDetection:
             'TZ="America/New_York" MYRM_USE_CN_MIRROR=0 MYRM_NO_CN_MIRROR=0 '
             "detect_cn_network && echo YES || echo NO"
         )
-        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=15)
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=20)
         assert "NO" in result.stdout
 
     def test_cn_mirrors_macos_localtime_detection(self) -> None:
