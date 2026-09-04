@@ -60,7 +60,7 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "When translating, preserve intent and cultural nuance over literal wording. "
             "Always propose a structure outline before drafting long-form content."
         ),
-        default_skill_ids=("creative-ideation", "content-humanizer"),
+        default_skill_ids=(),
         enabled_builtin_tools=_TOOL_MINIMAL,
         suggestion_prompts=(
             "Write an engaging blog post introduction about sustainable living",
@@ -86,7 +86,7 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Cite sources when available; flag information gaps explicitly. "
             "Deliverables: executive summary → findings → analysis → recommendations."
         ),
-        default_skill_ids=("deep-research", "competitive-analysis-pipeline"),
+        default_skill_ids=(),
         enabled_builtin_tools=_TOOL_RESEARCH,
         suggestion_prompts=(
             "Research the pros and cons of electric vehicles vs hybrids in 2026",
@@ -112,12 +112,7 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Keep explanations concise: show code, explain the 'why', skip the obvious. "
             "When suggesting changes, show the diff clearly."
         ),
-        default_skill_ids=(
-            "systematic-debugging",
-            "test-driven-development",
-            "code-review",
-            "doc-tutorial-case-rerun-screenshot-refresh",
-        ),
+        default_skill_ids=(),
         enabled_builtin_tools=_TOOL_CODING,
         suggestion_prompts=(
             "Rerun tutorial test cases and refresh outdated screenshots in docs",
@@ -143,7 +138,7 @@ _CORE_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
         system_prompt=KNOWLEDGE_WORK_SYSTEM_PROMPT,
         enabled_builtin_tools=_TOOL_COWORK,
         memory_extraction_preset="work_assistant",
-        default_skill_ids=("evidence-discipline",),
+        default_skill_ids=(),
         suggestion_prompts=(
             "Summarize this article into a structured markdown brief",
             "Extract action items from my meeting notes and add them to the task board",

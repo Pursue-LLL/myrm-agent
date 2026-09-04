@@ -1,6 +1,34 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { CheckCircle2, XCircle, AlertCircle, Minus, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import {
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  Minus,
+  ArrowUpRight,
+  ArrowDownRight,
+  ShieldCheck,
+  ShieldAlert,
+  AlertOctagon,
+  Scale,
+  Filter,
+} from 'lucide-react';
+import PairedSignificancePanel, {
+  type PairedSignificanceData,
+} from './PairedSignificancePanel';
+
+export interface GeneralizationGateData {
+  verdict: 'passed' | 'partial_overfit' | 'generalization_collapse' | 'insufficient_profiles';
+  min_required_profiles: number;
+  evaluated_profile_count: number;
+  passed_profile_count: number;
+  regression_case_count: number;
+  stable_case_count: number;
+  mean_pass_rate: number;
+  pass_rate_spread: number;
+  per_profile_status?: Record<string, { pass_rate: number; passed_gate: boolean }>;
+  recommendation: string;
+}
 
 interface MatrixProfileResult {
   pass_count: number;
@@ -62,6 +90,8 @@ export interface MatrixReportData {
   max_tool_calls?: number;
   max_iterations?: number;
   decontam_active?: boolean;
+  generalization_gate?: GeneralizationGateData;
+  paired_significance?: Record<string, PairedSignificanceData>;
 }
 
 interface Props {
@@ -72,6 +102,10 @@ interface Props {
 export default function MatrixResultView({ report, profileNames }: Props) {
   const t = useTranslations('evalLab.matrix');
   const tLayers = useTranslations('evalLab.layers');
+  const tSig = useTranslations('evalLab.significance');
+
+  const [filterCaseIndices, setFilterCaseIndices] = useState<number[] | null>(null);
+  const [filterType, setFilterType] = useState<'regression' | 'improved' | null>(null);
 
   const layers = report.layers ?? [];
   const isLayered = layers.length > 0;
@@ -96,6 +130,14 @@ export default function MatrixResultView({ report, profileNames }: Props) {
   const failedAllCount = report.total_cases - report.stable_count - report.regression_count;
   const showMemoryCalls = report.profile_ids.some((pid) => report.per_profile[pid]?.memory_tool_calls != null);
   const showToolCalls = report.profile_ids.some((pid) => report.per_profile[pid]?.total_tool_calls != null);
+
+  const filteredRows = useMemo(() => {
+    if (!filterCaseIndices || filterCaseIndices.length === 0) {
+      return report.matrix;
+    }
+    const idxSet = new Set(filterCaseIndices);
+    return report.matrix.filter((row) => idxSet.has(row.case_index));
+  }, [report.matrix, filterCaseIndices]);
 
   return (
     <div className="space-y-6 max-w-full mx-auto overflow-x-auto">
@@ -175,6 +217,112 @@ export default function MatrixResultView({ report, profileNames }: Props) {
             )}
           </div>
         </div>
+      )}
+
+      {report.generalization_gate && (
+        <div
+          data-testid="generalization-gate-banner"
+          className={`p-4 rounded-xl border shadow-sm transition-all ${
+            report.generalization_gate.verdict === 'passed'
+              ? 'border-emerald-500/30 bg-emerald-500/5'
+              : report.generalization_gate.verdict === 'partial_overfit'
+                ? 'border-amber-500/30 bg-amber-500/5'
+                : report.generalization_gate.verdict === 'generalization_collapse'
+                  ? 'border-rose-500/30 bg-rose-500/5'
+                  : 'border-border bg-muted/20'
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div
+                className={`p-2 rounded-lg mt-0.5 shrink-0 ${
+                  report.generalization_gate.verdict === 'passed'
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : report.generalization_gate.verdict === 'partial_overfit'
+                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                      : report.generalization_gate.verdict === 'generalization_collapse'
+                        ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                        : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {report.generalization_gate.verdict === 'passed' ? (
+                  <ShieldCheck className="w-5 h-5" />
+                ) : report.generalization_gate.verdict === 'partial_overfit' ? (
+                  <ShieldAlert className="w-5 h-5" />
+                ) : report.generalization_gate.verdict === 'generalization_collapse' ? (
+                  <AlertOctagon className="w-5 h-5" />
+                ) : (
+                  <Scale className="w-5 h-5" />
+                )}
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold tracking-tight">
+                    {t('gate.title')}
+                  </span>
+                  <span
+                    data-testid="gate-verdict-badge"
+                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      report.generalization_gate.verdict === 'passed'
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                        : report.generalization_gate.verdict === 'partial_overfit'
+                          ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                          : report.generalization_gate.verdict === 'generalization_collapse'
+                            ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                            : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {report.generalization_gate.verdict === 'passed'
+                      ? t('gate.passed')
+                      : report.generalization_gate.verdict === 'partial_overfit'
+                        ? t('gate.partialOverfit')
+                        : report.generalization_gate.verdict === 'generalization_collapse'
+                          ? t('gate.collapse')
+                          : t('gate.insufficient')}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {report.generalization_gate.recommendation}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 text-xs font-mono shrink-0 pl-11 sm:pl-0">
+              <div className="flex flex-col items-start sm:items-end">
+                <span className="text-muted-foreground text-[11px] font-sans">
+                  {t('gate.modelsPassed')}
+                </span>
+                <span className="font-semibold text-foreground">
+                  {report.generalization_gate.passed_profile_count}/
+                  {report.generalization_gate.evaluated_profile_count} (≥
+                  {report.generalization_gate.min_required_profiles})
+                </span>
+              </div>
+              <div className="flex flex-col items-start sm:items-end">
+                <span className="text-muted-foreground text-[11px] font-sans">
+                  {t('gate.spread')}
+                </span>
+                <span className="font-semibold text-foreground">
+                  {(report.generalization_gate.pass_rate_spread * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Paired statistical significance & plateau honest education */}
+      {report.paired_significance && Object.keys(report.paired_significance).length > 0 && (
+        <PairedSignificancePanel
+          pairedSignificance={report.paired_significance}
+          profileIds={report.profile_ids}
+          getProfileLabel={getProfileLabel}
+          onFilterCases={(indices, type) => {
+            setFilterCaseIndices(indices);
+            setFilterType(type);
+          }}
+          activeFilterType={filterType}
+        />
       )}
 
       {/* Summary cards */}
@@ -328,8 +476,27 @@ export default function MatrixResultView({ report, profileNames }: Props) {
 
       {/* Matrix grid */}
       <div className="border rounded-lg overflow-hidden">
-        <div className="px-4 py-3 bg-muted/50 border-b flex items-center justify-between">
-          <h3 className="text-sm font-medium">{t('matrixDetail')}</h3>
+        <div className="px-4 py-3 bg-muted/50 border-b flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-medium">{t('matrixDetail')}</h3>
+            {filterType && (
+              <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary border border-primary/20">
+                <Filter className="w-3 h-3" />
+                {filterType === 'regression' ? tSig('filteringRegressions') : tSig('filteringImprovements')}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterCaseIndices(null);
+                    setFilterType(null);
+                  }}
+                  className="ml-1 text-primary hover:text-foreground cursor-pointer font-bold"
+                  title={tSig('clearFilter')}
+                >
+                  ×
+                </button>
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <span className="w-3 h-3 rounded bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700" />
@@ -358,7 +525,7 @@ export default function MatrixResultView({ report, profileNames }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {report.matrix.map((row) => {
+              {filteredRows.map((row) => {
                 const cells = report.profile_ids.map((pid) => row.profiles[pid]);
                 const allPass = cells.every((c) => c?.passed === true);
                 const someFail = cells.some((c) => c?.passed === false || c?.error);

@@ -11,6 +11,7 @@ from .fork import router as fork_router
 from .handoff import router as handoff_router
 from .memory_extract import router as memory_extract_router
 from .messages import router as messages_router
+from .overlays import router as overlays_router
 from .replay import router as replay_router
 from .rewind import router as rewind_router
 from .sandbox import router as sandbox_router
@@ -27,6 +28,7 @@ router.include_router(trash_router)
 router.include_router(catchup_router)
 router.include_router(messages_router)
 router.include_router(memory_extract_router)
+router.include_router(overlays_router)
 router.include_router(core_router)
 router.include_router(title_router)
 router.include_router(turn_router)

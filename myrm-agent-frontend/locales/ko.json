@@ -1,4 +1,15 @@
 {
+  "continualOverlay": {
+    "activeTitle": "세션 현장 자가복구 활성화",
+    "remainingTurns": "{count}턴 남음",
+    "rollback": "롤백",
+    "rollbackTooltip": "현재 세션 핫픽스 패치 롤백",
+    "expand": "상세 펼치기",
+    "collapse": "상세 접기",
+    "howItWorks": "무재시작 현장 자가복구 원리",
+    "howItWorksDesc": "장기 실행 작업이 도구 장애나 루프 정체에 직면했을 때, 처음부터 재실행하는 높은 비용을 방지하기 위해 세션에 임시 백오프 및 회피 지침을 주입합니다.",
+    "allActiveOverlays": "활성 자가복구 오버레이 ({count})"
+  },
   "recovery": {
     "title": "에이전트 시작 및 구성 복구 센터",
     "description": "시작 중 에이전트 구성 요소 또는 구성에 이상이 감지되었습니다. 마지막으로 확인된 정상 구성으로 롤백하거나 진단 번들을 내보낼 수 있습니다.",
@@ -9783,6 +9794,61 @@
       "copied": "복사됨",
       "reviewAndApply": "검토 및 적용"
     },
+    "significance": {
+      "panelTitle": "쌍체 통계적 유의성 검정 및 정체기 진단",
+      "panelSubtitle": "McNemar 쌍체 검정, 1,000회 부트스트랩 95% 신뢰구간 및 4대 정체기 메커니즘 기반 샘플링 노이즈 방지",
+      "mcnemarPVal": "McNemar 쌍체 검정",
+      "bootstrapCI": "부트스트랩 95% 신뢰구간",
+      "contingencyTableTitle": "쌍체 분할표 (Contingency Table)",
+      "testExactBinomial": "Exact Binomial (소표본 이항 검정)",
+      "testEdwardsChi2": "Edwards 연속성 보정 Chi²",
+      "testNoDiscordant": "불일치 쌍 없음",
+      "bothPass": "양 버전 모두 통과",
+      "candOnlyImproved": "후보 버전만 개선",
+      "baseOnlyRegressed": "후보 버전만 퇴보",
+      "bothFail": "양 버전 모두 실패",
+      "continuousDeltaTitle": "연속 지표 상대 변화",
+      "tokenChange": "토큰 소모 변화",
+      "costChange": "평가 비용 변화",
+      "latencyChange": "소요 시간 변화",
+      "plateauDiagnosisTitle": "정체기 메커니즘 진단 및 가이드",
+      "honestRecommendation": "객관적 권장사항",
+      "suggestedAction": "권장 조치",
+      "caseDrilldownTitle": "케이스 드릴다운 연계",
+      "filterRegressionCases": "퇴보 케이스 보기",
+      "filterImprovedCases": "개선 케이스 보기",
+      "clearFilter": "필터 초기화",
+      "filteringRegressions": "퇴보 케이스만 표시 중",
+      "filteringImprovements": "개선 케이스만 표시 중",
+      "verdict": {
+        "significantImprovement": "유의미한 개선 (Significant Improvement)",
+        "significantImprovementDesc": "95% 신뢰수준에서 쌍체 검정을 통과하고 신뢰구간이 0을 포함하지 않으므로 안전하게 병합할 수 있습니다.",
+        "significantRegression": "유의미한 퇴보 (Significant Regression)",
+        "significantRegressionDesc": "통계적으로 유의미한 성능 저하가 감지되었습니다. 병합을 차단하고 퇴보 케이스를 조사해야 합니다.",
+        "efficiencyBreakthrough": "효율성 획기적 개선 (Efficiency Breakthrough)",
+        "efficiencyBreakthroughDesc": "통과율을 유지하면서 토큰 또는 비용을 확정적으로 15% 이상 절감했습니다.",
+        "insufficientDiscordance": "불일치 샘플 부족 (Insufficient Discordance)",
+        "insufficientDiscordanceDesc": "두 버전의 결과가 모든 케이스에서 완전히 동일합니다. 현재 평가셋으로는 성능 차이를 구분할 수 없습니다.",
+        "noSignificantDifference": "통계적 유의차 없음 (No Significant Difference)",
+        "noSignificantDifferenceDesc": "통과율 차이가 통계적으로 유의미하지 않습니다 (p ≥ 0.05 또는 95% CI가 0 포함). 관측된 차이는 샘플링 노이즈일 가능성이 높습니다."
+      },
+      "plateau": {
+        "mechanism": {
+          "insufficient_power": "통계적 검정력 부족",
+          "capability_saturation": "역량 포화 상태",
+          "cross_model_divergence": "퇴보 노이즈 발산",
+          "hard_subset_bottleneck": "고난도 서브셋 병목",
+          "none": "유의미한 신호 유효"
+        }
+      },
+      "suggestedActionMap": {
+        "expand_tools_or_context": "도구 확장 또는 외부 컨텍스트 주입",
+        "introduce_hard_benchmark": "고난도 벤치마크 도입",
+        "increase_trials_or_dataset": "테스트 케이스 또는 평가 횟수 확대",
+        "reject_and_investigate_regressions": "후보 채택 거부 및 퇴보 사례 조사",
+        "proceed_with_gate": "승인 후 배포 게이트 진행"
+      }
+    },
     "pageTitle": "평가 실험실",
     "pageDescription": "테스트 케이스를 관리하고 샌드박스 환경에서 격리 평가를 실행하여 에이전트 성능을 자동 검증",
     "tabs": {
@@ -9926,6 +9992,16 @@
     "matrixEvalStarted": "매트릭스 평가가 시작되었습니다",
     "matrix": {
       "running": "매트릭스 평가 진행 중",
+      "gate": {
+        "title": "교차 모델 일반화 하드 게이트",
+        "passed": "일반화 게이트 통과",
+        "partialOverfit": "부분 모델 과적합 위험",
+        "collapse": "전체 모델 일반화 붕괴",
+        "insufficient": "평가 모델 수 부족",
+        "modelsPassed": "통과 모델 수",
+        "spread": "격차 (Spread)",
+        "recommendation": "채택 권장 사항"
+      },
       "profileProgress": "프로필",
       "caseProgress": "케이스",
       "noReport": "매트릭스 보고서가 아직 없습니다. 2개 이상의 프로필을 선택하고 실행하세요.",
@@ -15492,8 +15568,15 @@
         },
         "source": {
           "backgroundReview": "백그라운드 검토",
+          "continualRecovery": "지속적 자가 복구",
           "manualEvolution": "수동 진화",
           "memoryExtraction": "메모리 추출"
+        },
+        "proxyAlignment": {
+          "driftBadge": "지표 왜곡 위험",
+          "driftTooltip": "굿하트의 법칙 왜곡 감지: 프록시 지표는 개선되었으나 핵심 정확도가 저하되었습니다",
+          "alignedBadge": "지표 정렬 확인됨",
+          "alignedTooltip": "핵심 의도와 프록시 효율 지표가 편법 없이 잘 정렬되었습니다"
         },
         "confidence": "신뢰도 {value}%",
         "testPassed": "검증 통과",

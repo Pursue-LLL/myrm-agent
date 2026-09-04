@@ -1,4 +1,15 @@
 {
+  "continualOverlay": {
+    "activeTitle": "Session Self-Healing Active",
+    "remainingTurns": "{count, plural, =1 {1 turn left} other {# turns left}}",
+    "rollback": "Rollback",
+    "rollbackTooltip": "Rollback this in-flight session patch",
+    "expand": "Expand details",
+    "collapse": "Collapse details",
+    "howItWorks": "Zero-Reset Recovery Principle",
+    "howItWorksDesc": "When long-running tasks encounter transient tool stalls or loop warnings, temporary backoff and procedural guidance are injected into the session context to prevent expensive full task restarts.",
+    "allActiveOverlays": "Active Session Overlays ({count})"
+  },
   "recovery": {
     "title": "Agent Startup & Configuration Recovery Center",
     "description": "Detected anomalies in components or configurations during startup. You can roll back to the last-known-good configuration or export a diagnostic bundle.",
@@ -9783,6 +9794,61 @@
       "copied": "Copied",
       "reviewAndApply": "Review & Apply"
     },
+    "significance": {
+      "panelTitle": "Paired Statistical Significance & Plateau Diagnosis",
+      "panelSubtitle": "Rigorous McNemar testing, 1000-sample Bootstrap 95% CI & Meta 4-mechanism plateau diagnostics to eliminate sampling variance noise adoption",
+      "mcnemarPVal": "McNemar Paired Test",
+      "bootstrapCI": "Bootstrap 95% Confidence Interval",
+      "contingencyTableTitle": "Contingency Table (Discordance)",
+      "testExactBinomial": "Exact Binomial (Small Sample)",
+      "testEdwardsChi2": "Edwards Continuity Chi²",
+      "testNoDiscordant": "No Discordant Pairs",
+      "bothPass": "Both Passed",
+      "candOnlyImproved": "Candidate Only (Improved)",
+      "baseOnlyRegressed": "Baseline Only (Regressed)",
+      "bothFail": "Both Failed",
+      "continuousDeltaTitle": "Continuous Metric Relative Deltas",
+      "tokenChange": "Token Usage Change",
+      "costChange": "Eval Cost Change",
+      "latencyChange": "Latency Change",
+      "plateauDiagnosisTitle": "Plateau Diagnosis & Action Guidance",
+      "honestRecommendation": "Honest Recommendation",
+      "suggestedAction": "Suggested Action",
+      "caseDrilldownTitle": "Case Drilldown",
+      "filterRegressionCases": "View Regressions",
+      "filterImprovedCases": "View Improvements",
+      "clearFilter": "Clear Case Filter",
+      "filteringRegressions": "Filtering Regressions",
+      "filteringImprovements": "Filtering Improvements",
+      "verdict": {
+        "significantImprovement": "Significant Improvement",
+        "significantImprovementDesc": "Statistically significant improvement confirmed at 95% confidence with non-zero-crossing CI. Safe to adopt.",
+        "significantRegression": "Significant Regression",
+        "significantRegressionDesc": "Statistically significant regression detected. Adoption must be blocked and regressed cases investigated.",
+        "efficiencyBreakthrough": "Efficiency Breakthrough",
+        "efficiencyBreakthroughDesc": "Maintained pass rate while achieving a statistically significant >=15% reduction in token/cost usage.",
+        "insufficientDiscordance": "Insufficient Discordance",
+        "insufficientDiscordanceDesc": "Both versions produced identical outcomes across all cases. The dataset cannot distinguish capabilities between them.",
+        "noSignificantDifference": "No Significant Difference",
+        "noSignificantDifferenceDesc": "Pass rate difference is not statistically significant (p >= 0.05 or 95% CI crosses zero). Observed delta is likely sampling noise."
+      },
+      "plateau": {
+        "mechanism": {
+          "insufficient_power": "Insufficient Statistical Power",
+          "capability_saturation": "Capability Saturation",
+          "cross_model_divergence": "Regression Noise Divergence",
+          "hard_subset_bottleneck": "Hard Subset Bottleneck",
+          "none": "Valid Statistical Signal"
+        }
+      },
+      "suggestedActionMap": {
+        "expand_tools_or_context": "Expand tools or inject external context",
+        "introduce_hard_benchmark": "Introduce harder benchmark suite",
+        "increase_trials_or_dataset": "Expand test cases or increase trial count",
+        "reject_and_investigate_regressions": "Reject variant and investigate regressions",
+        "proceed_with_gate": "Approve and proceed with deployment gate"
+      }
+    },
     "pageTitle": "Eval Lab",
     "pageDescription": "Manage test cases and run sandboxed evaluations to automatically verify agent performance",
     "tabs": {
@@ -9926,6 +9992,16 @@
     "matrixEvalStarted": "Matrix evaluation started",
     "matrix": {
       "running": "Matrix eval in progress",
+      "gate": {
+        "title": "Cross-Model Generalization Gate",
+        "passed": "Generalization Passed",
+        "partialOverfit": "Partial Overfit Risk",
+        "collapse": "Generalization Collapse",
+        "insufficient": "Insufficient Models",
+        "modelsPassed": "Models Passed",
+        "spread": "Spread",
+        "recommendation": "Recommendation"
+      },
       "profileProgress": "Profiles",
       "caseProgress": "Cases",
       "noReport": "No matrix report yet. Select 2+ profiles and run.",
@@ -14256,24 +14332,24 @@
         "gitHistoryHintWithCommit": "Latest snapshot: {commit}"
       },
       "obsidianBinding": {
-        "title": "Obsidian External Vault Live Binding & Delta Sync",
-        "description": "Bind a local or persistent volume Obsidian directory, supporting sub-millisecond mtime watermark diffing, Canvas text extraction, and safe Inbox write-back.",
-        "loading": "Loading binding status...",
-        "statusBound": "Live Vault Bound",
-        "watermarkLabel": "Last Sync Watermark",
-        "syncDelta": "Sync Delta Changes",
-        "syncing": "Diffing changes...",
-        "boundHint": "Change listening and recall pre-warming enabled. When notes or canvas boards change, changes can be synced manually or automatically during recall.",
-        "unboundHint": "Supports absolute path binding. Once bound, Agent gains obsidian_vault_search and obsidian_vault_read tool capabilities.",
-        "pathPlaceholder": "Enter Obsidian Vault absolute path (e.g. /Users/name/Documents/ObsidianVault)",
-        "bindButton": "Bind Vault",
-        "binding": "Binding...",
         "bindSuccess": "Obsidian vault successfully bound",
-        "bindFailed": "Failed to bind vault. Please verify directory path.",
-        "unbindSuccess": "Obsidian vault unpinned",
-        "unbindFailed": "Failed to unpin vault",
-        "syncSuccess": "Delta sync completed",
-        "syncFailed": "Delta sync failed"
+        "bindFailed": "Failed to bind Obsidian vault",
+        "unbindSuccess": "Obsidian vault unbound",
+        "unbindFailed": "Failed to unbind Obsidian vault",
+        "syncSuccess": "Synced successfully",
+        "syncFailed": "Sync failed",
+        "title": "Obsidian Vault Binding",
+        "description": "Bind a local Obsidian vault to the knowledge base with incremental sync and inbox writes.",
+        "loading": "Loading...",
+        "statusBound": "Bound",
+        "watermarkLabel": "Last Sync Watermark",
+        "syncing": "Syncing...",
+        "syncDelta": "Sync Delta",
+        "boundHint": "Knowledge base monitors local directory changes and indexes incrementally.",
+        "pathPlaceholder": "Enter absolute path to Obsidian vault (e.g., /Users/name/Documents/Vault)",
+        "binding": "Binding...",
+        "bindButton": "Bind Vault",
+        "unboundHint": "Once bound, agents can search notes and archive key deliverables to the inbox."
       },
       "querying": "Querying...",
       "compiling": "Compiling...",
@@ -14833,27 +14909,7 @@
       "evidenceSnapshotStale": "Snapshot may be out of date.",
       "evidenceSnapshotVerified": "Snapshot verified against the current page.",
       "evidenceStructuredClaim": "Structured Claim",
-      "evidenceSupersededFrom": "Superseded by: {uri}",
-      "obsidianBinding": {
-        "bindSuccess": "Obsidian vault successfully bound",
-        "bindFailed": "Failed to bind Obsidian vault",
-        "unbindSuccess": "Obsidian vault unbound",
-        "unbindFailed": "Failed to unbind Obsidian vault",
-        "syncSuccess": "Synced successfully",
-        "syncFailed": "Sync failed",
-        "title": "Obsidian Vault Binding",
-        "description": "Bind a local Obsidian vault to the knowledge base with incremental sync and inbox writes.",
-        "loading": "Loading...",
-        "statusBound": "Bound",
-        "watermarkLabel": "Last Sync Watermark",
-        "syncing": "Syncing...",
-        "syncDelta": "Sync Delta",
-        "boundHint": "Knowledge base monitors local directory changes and indexes incrementally.",
-        "pathPlaceholder": "Enter absolute path to Obsidian vault (e.g., /Users/name/Documents/Vault)",
-        "binding": "Binding...",
-        "bindButton": "Bind Vault",
-        "unboundHint": "Once bound, agents can search notes and archive key deliverables to the inbox."
-      }
+      "evidenceSupersededFrom": "Superseded by: {uri}"
     },
     "skills": {
       "title": "Skills Management",
@@ -15341,8 +15397,15 @@
         },
         "source": {
           "backgroundReview": "Background Review",
+          "continualRecovery": "Continual Recovery",
           "manualEvolution": "Manual Evolution",
           "memoryExtraction": "Memory Extraction"
+        },
+        "proxyAlignment": {
+          "driftBadge": "Goodhart Drift Risk",
+          "driftTooltip": "Goodhart's Law drift detected: proxies improved but core intent regressed",
+          "alignedBadge": "Metrics Aligned",
+          "alignedTooltip": "Core intent and proxy metrics are well-aligned without corner-cutting"
         },
         "confidence": "Confidence {value}%",
         "testPassed": "Validation passed",

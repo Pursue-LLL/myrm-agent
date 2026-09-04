@@ -39,6 +39,33 @@ export const getSessionTrajectory = async (chatId: string): Promise<SessionTraje
   return apiRequest(`/chats/${chatId}/trajectory`);
 };
 
+export interface SessionOverlayItem {
+  overlayId: string;
+  shellType: 'prompt_patch' | 'skill_variant' | 'subagent_config' | 'procedural_memory';
+  triggerReason: string;
+  remainingTurns: number;
+  advisoryText?: string;
+}
+
+/**
+ * 获取当前会话生效的 Continual Session Overlays
+ */
+export const getSessionOverlays = async (chatId: string): Promise<SessionOverlayItem[]> => {
+  return apiRequest(`/chats/${chatId}/overlays`);
+};
+
+/**
+ * 手动物理回滚指定的 Session Overlay
+ */
+export const rollbackSessionOverlay = async (
+  chatId: string,
+  overlayId: string,
+): Promise<{ rolled_back: boolean; overlay_id: string }> => {
+  return apiRequest(`/chats/${chatId}/overlays/${overlayId}/rollback`, {
+    method: 'POST',
+  });
+};
+
 export interface ReplayDeterminismResponse {
   session_id: string;
   determinism_score: number;

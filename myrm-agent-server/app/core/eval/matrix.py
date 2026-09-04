@@ -293,6 +293,16 @@ def get_matrix_report_history(
                     "judge_model": data.get("judge_model"),
                     "agent_model": data.get("agent_model"),
                     "stable_rate": data.get("stable_rate"),
+                    "generalization_gate_verdict": (
+                        data.get("generalization_gate", {}).get("verdict")
+                        if isinstance(data.get("generalization_gate"), dict)
+                        else None
+                    ),
+                    "paired_significance_count": (
+                        len(data.get("paired_significance"))
+                        if isinstance(data.get("paired_significance"), dict)
+                        else 0
+                    ),
                     "limit": data.get("limit"),
                     "aborted": data.get("aborted", False),
                 }

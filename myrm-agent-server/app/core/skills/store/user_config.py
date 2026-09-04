@@ -50,11 +50,10 @@ class UserSkillConfigManager:
             return UserSkillConfig(user_id="sandbox")
 
     async def ensure_prebuilt_enabled_after_sync(self, prebuilt_skill_ids: list[str]) -> UserSkillConfig:
-        """Enable prebuilt skills after seed sync.
+        """Synchronize prebuilt skill configuration after seed sync.
 
-        - New install (no config file): enable all seeded prebuilt skills.
-        - Existing install: append newly seeded skills unless user disabled them.
-        - Always prune enabled/disabled IDs that no longer exist in seeds.
+        - New install (no config file): persists default empty enablement (zero default).
+        - Existing install: retains user-selected enablement; prunes obsolete IDs.
         """
         if not prebuilt_skill_ids:
             return await self.get_config()
@@ -74,18 +73,8 @@ class UserSkillConfigManager:
             changed = True
 
         if not config_exists:
-            config.enabled_prebuilt_ids = sorted(prebuilt_skill_ids)
+            config.enabled_prebuilt_ids = []
             changed = True
-        else:
-            enabled = set(config.enabled_prebuilt_ids)
-            disabled = set(config.disabled_prebuilt_ids)
-            for skill_id in prebuilt_skill_ids:
-                if skill_id in disabled or skill_id in enabled:
-                    continue
-                enabled.add(skill_id)
-                changed = True
-            if changed:
-                config.enabled_prebuilt_ids = sorted(enabled)
 
         if changed:
             config.updated_at = datetime.now(UTC)

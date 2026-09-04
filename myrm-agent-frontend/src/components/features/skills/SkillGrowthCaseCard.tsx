@@ -106,11 +106,13 @@ export default function SkillGrowthCaseCard({
   const statusStyle = STATUS_STYLES[item.status];
   const statusLabel = t(`status.${item.status}` as Parameters<typeof t>[0]);
   const sourceLabel =
-    item.source === 'evolution'
-      ? t('source.manualEvolution')
-      : item.growthType === 'semantic_memory'
-        ? t('source.memoryExtraction')
-        : t('source.backgroundReview');
+    item.source === 'continual'
+      ? t('source.continualRecovery')
+      : item.source === 'evolution'
+        ? t('source.manualEvolution')
+        : item.growthType === 'semantic_memory'
+          ? t('source.memoryExtraction')
+          : t('source.backgroundReview');
   const createdAt = useMemo(() => new Date(item.createdAt).toLocaleString(), [item.createdAt]);
   const showReviewActions = item.status === 'PENDING_REVIEW' || item.status === 'APPLY_FAILED';
   const approveLabel = item.status === 'APPLY_FAILED' ? t('actions.retryApply') : t('actions.approve');
@@ -219,7 +221,14 @@ export default function SkillGrowthCaseCard({
             <Badge variant={statusStyle.tone} className={cn('text-[11px]', statusStyle.badge)}>
               {statusLabel}
             </Badge>
-            <Badge variant="secondary" className="text-[11px]">
+            <Badge
+              variant={item.source === 'continual' ? 'outline' : 'secondary'}
+              className={cn(
+                'text-[11px]',
+                item.source === 'continual' &&
+                  'border-violet-500/30 bg-violet-500/10 text-violet-700 dark:border-violet-500/40 dark:text-violet-300 font-medium',
+              )}
+            >
               {sourceLabel}
             </Badge>
             {item.growthType !== 'semantic_memory' && (
@@ -234,6 +243,26 @@ export default function SkillGrowthCaseCard({
                 title={t('impactedDependents.tooltip', { count: item.impactedDependents.length })}
               >
                 {t('impactedDependents.label', { count: item.impactedDependents.length })}
+              </Badge>
+            )}
+            {item.proxyAlignment && item.proxyAlignment.verdict === 'goodhart_drift' && (
+              <Badge
+                variant="outline"
+                className="text-[11px] border-amber-500/50 bg-amber-500/10 text-amber-700 dark:border-amber-500/60 dark:text-amber-300 inline-flex items-center gap-1 font-medium"
+                title={item.proxyAlignment.warning_message || t('proxyAlignment.driftTooltip')}
+              >
+                <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                <span>{t('proxyAlignment.driftBadge')}</span>
+              </Badge>
+            )}
+            {item.proxyAlignment && item.proxyAlignment.verdict === 'aligned' && (
+              <Badge
+                variant="outline"
+                className="text-[11px] border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/50 dark:text-emerald-300 inline-flex items-center gap-1 font-medium"
+                title={t('proxyAlignment.alignedTooltip')}
+              >
+                <ShieldCheck className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                <span>{t('proxyAlignment.alignedBadge')}</span>
               </Badge>
             )}
             {item.verificationProof?.is_verified && (

@@ -1,4 +1,15 @@
 {
+  "continualOverlay": {
+    "activeTitle": "會話現場自癒生效中",
+    "remainingTurns": "剩餘 {count} 回合",
+    "rollback": "撤銷補丁",
+    "rollbackTooltip": "撤銷當前會話級現場熱修補丁",
+    "expand": "展開詳情",
+    "collapse": "收起詳情",
+    "howItWorks": "零重啟原地自癒原理",
+    "howItWorksDesc": "當長程任務在特定工具遇阻或陷入循環停滯時，系統自動在當前會話內注入臨時的退避重試與避坑指南，避免從頭重跑造成高額費用。",
+    "allActiveOverlays": "全部生效中的自癒補丁 ({count})"
+  },
   "recovery": {
     "title": "Agent 啟動與配置自愈中心",
     "description": "檢測到當前 Agent 綁定的組件或配置在啟動期存在異常。您可以一鍵恢復至最後已知良好配置，或匯出診斷包進行排查。",
@@ -9783,6 +9794,61 @@
       "copied": "已複製",
       "reviewAndApply": "預覽並套用補丁"
     },
+    "significance": {
+      "panelTitle": "配對統計顯著性檢驗與平台期診斷",
+      "panelSubtitle": "基於 McNemar 配對檢驗、1000 次 Bootstrap 95% 信賴區間與平台期四機制，杜絕抽樣方差噪音採納",
+      "mcnemarPVal": "McNemar 配對檢驗",
+      "bootstrapCI": "Bootstrap 95% 信賴區間",
+      "contingencyTableTitle": "配對列聯表 (Contingency Table)",
+      "testExactBinomial": "Exact Binomial (小樣本精確二項式)",
+      "testEdwardsChi2": "Edwards Continuity Chi² (連續性修正卡方)",
+      "testNoDiscordant": "無不一致樣本對",
+      "bothPass": "雙版本共同通過",
+      "candOnlyImproved": "新版本單獨改進",
+      "baseOnlyRegressed": "新版本單獨退步",
+      "bothFail": "雙版本共同失敗",
+      "continuousDeltaTitle": "連續指標相對變化",
+      "tokenChange": "Token 消耗變化",
+      "costChange": "評估成本變化",
+      "latencyChange": "執行耗時變化",
+      "plateauDiagnosisTitle": "平台期機制診斷與行動指引",
+      "honestRecommendation": "誠實教育建議",
+      "suggestedAction": "建議行動",
+      "caseDrilldownTitle": "用例下鑽聯動",
+      "filterRegressionCases": "查看倒退用例",
+      "filterImprovedCases": "查看改善用例",
+      "clearFilter": "清除用例篩選",
+      "filteringRegressions": "僅顯示倒退用例",
+      "filteringImprovements": "僅顯示改善用例",
+      "verdict": {
+        "significantImprovement": "顯著改善 (Significant Improvement)",
+        "significantImprovementDesc": "在 95% 信賴度下通過配對檢驗且信賴區間不跨零，新版本具備確定性統計優勢，推薦安全合併。",
+        "significantRegression": "顯著倒退 (Significant Regression)",
+        "significantRegressionDesc": "新版本相比基準版本發生了具備統計顯著性的退步，必須阻止合併上線並排查退步用例。",
+        "efficiencyBreakthrough": "能效重大突破 (Efficiency Breakthrough)",
+        "efficiencyBreakthroughDesc": "在任務通過率不降低的前提下，確定性降低超過 15% 的 Token/資源消耗，達成高價值能效演進。",
+        "insufficientDiscordance": "不一致樣本不足 (Insufficient Discordance)",
+        "insufficientDiscordanceDesc": "兩版本在所有用例上的輸出完全同構（無任何分歧案例），當前評測集無法分辨兩者的能力差異。",
+        "noSignificantDifference": "無統計學顯著差異 (No Significant Difference)",
+        "noSignificantDifferenceDesc": "通過率差異未達到統計學顯著水準 (p ≥ 0.05 或 95% CI 跨越 0 點)，當前漲跌大概率屬於隨機抽樣擾動。"
+      },
+      "plateau": {
+        "mechanism": {
+          "insufficient_power": "統計功效不足",
+          "capability_saturation": "能力天花板飽和",
+          "cross_model_divergence": "退步噪音分歧",
+          "hard_subset_bottleneck": "困難子集瓶頸",
+          "none": "置信信號有效"
+        }
+      },
+      "suggestedActionMap": {
+        "expand_tools_or_context": "擴展工具或注入上下文",
+        "introduce_hard_benchmark": "引入高難度基準評測集",
+        "increase_trials_or_dataset": "擴充測試用例或增加評估輪次",
+        "reject_and_investigate_regressions": "拒絕採納並排查退步案例",
+        "proceed_with_gate": "准予通過並推進上線門禁"
+      }
+    },
     "pageTitle": "評測實驗室",
     "pageDescription": "管理測試用例並執行沙盒環境隔離評估，全自動化驗證 Agent 表現",
     "tabs": {
@@ -9926,6 +9992,16 @@
     "matrixEvalStarted": "矩陣評測已啟動",
     "matrix": {
       "running": "矩陣評測進行中",
+      "gate": {
+        "title": "跨模型泛化硬門檻",
+        "passed": "跨模型泛化通過",
+        "partialOverfit": "偏模過擬合風險",
+        "collapse": "全線泛化退化",
+        "insufficient": "評估模型數量不足",
+        "modelsPassed": "通過模型數",
+        "spread": "極差 (Spread)",
+        "recommendation": "採納建議"
+      },
       "profileProgress": "配置進度",
       "caseProgress": "用例進度",
       "noReport": "暫無矩陣報告。選擇 2 個以上配置後運行。",
@@ -10093,6 +10169,61 @@
       "description": "基於評測失敗軌跡的確定性特徵歸因，消融實證表明：擴展工具/中間件防護對任務成功率的提升收益遠大於單純調試提示詞（Tools/Middleware ≫ Prompt）。建議優先按下方建議順序優化 Harness 配置。",
       "affectsCases": "關聯 {count} 個未通過用例",
       "quickConfig": "直達配置"
+    },
+    "significance": {
+      "panelTitle": "配對統計顯著性檢驗與平臺期診斷",
+      "panelSubtitle": "基於 McNemar 配對檢驗、1000 次 Bootstrap 95% 信賴區間與平臺期四機制，杜絕抽樣變異數噪音採納",
+      "mcnemarPVal": "McNemar 配對檢驗",
+      "bootstrapCI": "Bootstrap 95% 信賴區間",
+      "contingencyTableTitle": "配對列聯表 (Contingency Table)",
+      "testExactBinomial": "Exact Binomial (小樣本精確二項式)",
+      "testEdwardsChi2": "Edwards Continuity Chi² (連續性修正卡方)",
+      "testNoDiscordant": "無不一致樣本對",
+      "bothPass": "雙版本共同通過",
+      "candOnlyImproved": "新版本單獨改進",
+      "baseOnlyRegressed": "新版本單獨退步",
+      "bothFail": "雙版本共同失敗",
+      "continuousDeltaTitle": "連續指標相對變化",
+      "tokenChange": "Token 消耗變化",
+      "costChange": "評估成本變化",
+      "latencyChange": "執行耗時變化",
+      "plateauDiagnosisTitle": "平臺期機制診斷與行動指引",
+      "honestRecommendation": "誠實教育建議",
+      "suggestedAction": "建議行動",
+      "caseDrilldownTitle": "用例下鑽聯動",
+      "filterRegressionCases": "查看倒退用例",
+      "filterImprovedCases": "查看改善用例",
+      "clearFilter": "清除用例篩選",
+      "filteringRegressions": "僅顯示倒退用例",
+      "filteringImprovements": "僅顯示改善用例",
+      "verdict": {
+        "significantImprovement": "顯著改善 (Significant Improvement)",
+        "significantImprovementDesc": "在 95% 信賴度下通過配對檢驗且信賴區間不跨零，新版本具備確定性統計優勢，推薦安全合併。",
+        "significantRegression": "顯著倒退 (Significant Regression)",
+        "significantRegressionDesc": "新版本相比基準版本發生了具備統計顯著性的退步，必須阻止合併上線並排查退步用例。",
+        "efficiencyBreakthrough": "能效重大突破 (Efficiency Breakthrough)",
+        "efficiencyBreakthroughDesc": "在任務通過率不降低的前提下，確定性降低超過 15% 的 Token/資源消耗，達成高價值能效演進。",
+        "insufficientDiscordance": "不一致樣本不足 (Insufficient Discordance)",
+        "insufficientDiscordanceDesc": "兩版本在所有用例上的輸出完全同構（無任何分歧案例），當前評測集無法分辨兩者的能力差異。",
+        "noSignificantDifference": "無統計學顯著差異 (No Significant Difference)",
+        "noSignificantDifferenceDesc": "通過率差異未達到統計學顯著水平 (p ≥ 0.05 或 95% CI 跨越 0 點)，當前漲跌大概率歸屬於隨機抽樣擾動。"
+      },
+      "plateau": {
+        "mechanism": {
+          "insufficient_power": "統計功效不足",
+          "capability_saturation": "能力天花板飽和",
+          "cross_model_divergence": "退步噪音分歧",
+          "hard_subset_bottleneck": "困難子集瓶頸",
+          "none": "置信信號有效"
+        }
+      },
+      "suggestedActionMap": {
+        "expand_tools_or_context": "擴展工具或注入上下文",
+        "introduce_hard_benchmark": "引入高難度基準評測集",
+        "increase_trials_or_dataset": "擴充測試用例或增加評估輪次",
+        "reject_and_investigate_regressions": "拒絕採納並排查退步案例",
+        "proceed_with_gate": "准予通過並推進上線門禁"
+      }
     }
   },
   "vault": {
@@ -15321,8 +15452,15 @@
         },
         "source": {
           "backgroundReview": "後臺覆盤",
+          "continualRecovery": "持續自癒",
           "manualEvolution": "手動最佳化",
           "memoryExtraction": "記憶提取"
+        },
+        "proxyAlignment": {
+          "driftBadge": "度量欺騙風險",
+          "driftTooltip": "檢測到古德哈特代理指標偏離：Token或耗時看似最佳化，但核心業務準確率衰減",
+          "alignedBadge": "度量對齊已驗證",
+          "alignedTooltip": "核心業務意圖與代理指標協同最佳化，無投機性偷工減料"
         },
         "confidence": "置信度 {value}%",
         "testPassed": "驗證透過",

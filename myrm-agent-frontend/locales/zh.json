@@ -1,4 +1,15 @@
 {
+  "continualOverlay": {
+    "activeTitle": "会话现场自愈生效中",
+    "remainingTurns": "剩余 {count} 回合",
+    "rollback": "撤销补丁",
+    "rollbackTooltip": "撤销当前会话级现场热修补丁",
+    "expand": "展开详情",
+    "collapse": "收起详情",
+    "howItWorks": "零重启原地自愈原理",
+    "howItWorksDesc": "当长程任务在特定工具遇阻或陷入循环停滞时，系统自动在当前会话内注入临时的退避重试与避坑指南，避免从头重跑造成高额费用。",
+    "allActiveOverlays": "全部生效中的自愈补丁 ({count})"
+  },
   "recovery": {
     "title": "Agent 启动与配置自愈中心",
     "description": "检测到当前 Agent 绑定的组件或配置在启动期存在异常。您可以一键恢复至最后已知良好配置，或导出诊断包进行排查。",
@@ -9783,6 +9794,61 @@
       "copied": "已复制",
       "reviewAndApply": "预览并应用补丁"
     },
+    "significance": {
+      "panelTitle": "配对统计显著性检验与平台期诊断",
+      "panelSubtitle": "基于 McNemar 配对检验、1000 次 Bootstrap 95% 置信区间与平台期四机制，杜绝抽样方差噪音采纳",
+      "mcnemarPVal": "McNemar 配对检验",
+      "bootstrapCI": "Bootstrap 95% 置信区间",
+      "contingencyTableTitle": "配对列联表 (Contingency Table)",
+      "testExactBinomial": "Exact Binomial (小样本精确二项式)",
+      "testEdwardsChi2": "Edwards Continuity Chi² (连续性修正卡方)",
+      "testNoDiscordant": "无不一致样本对",
+      "bothPass": "双版本共同通过",
+      "candOnlyImproved": "新版本单独改进",
+      "baseOnlyRegressed": "新版本单独退步",
+      "bothFail": "双版本共同失败",
+      "continuousDeltaTitle": "连续指标相对变化",
+      "tokenChange": "Token 消耗变化",
+      "costChange": "评估成本变化",
+      "latencyChange": "执行耗时变化",
+      "plateauDiagnosisTitle": "平台期机制诊断与行动指引",
+      "honestRecommendation": "诚实教育建议",
+      "suggestedAction": "建议行动",
+      "caseDrilldownTitle": "用例下钻联动",
+      "filterRegressionCases": "查看倒退用例",
+      "filterImprovedCases": "查看改善用例",
+      "clearFilter": "清除用例筛选",
+      "filteringRegressions": "仅显示倒退用例",
+      "filteringImprovements": "仅显示改善用例",
+      "verdict": {
+        "significantImprovement": "显著改善 (Significant Improvement)",
+        "significantImprovementDesc": "在 95% 置信度下通过配对检验且置信区间不跨零，新版本具备确定性统计优势，推荐安全合并。",
+        "significantRegression": "显著倒退 (Significant Regression)",
+        "significantRegressionDesc": "新版本相比基准版本发生了具备统计显著性的退步，必须阻止合并上线并排查退步用例。",
+        "efficiencyBreakthrough": "能效重大突破 (Efficiency Breakthrough)",
+        "efficiencyBreakthroughDesc": "在任务通过率不降低的前提下，确定性降低超过 15% 的 Token/资源消耗，达成高价值能效演进。",
+        "insufficientDiscordance": "不一致样本不足 (Insufficient Discordance)",
+        "insufficientDiscordanceDesc": "两版本在所有用例上的输出完全同构（无任何分歧案例），当前评测集无法分辨两者的能力差异。",
+        "noSignificantDifference": "无统计学显著差异 (No Significant Difference)",
+        "noSignificantDifferenceDesc": "通过率差异未达到统计学显著水平 (p ≥ 0.05 或 95% CI 跨越 0 点)，当前涨跌大概率属于随机抽样扰动。"
+      },
+      "plateau": {
+        "mechanism": {
+          "insufficient_power": "统计功效不足",
+          "capability_saturation": "能力天花板饱和",
+          "cross_model_divergence": "退步噪音分歧",
+          "hard_subset_bottleneck": "困难子集瓶颈",
+          "none": "置信信号有效"
+        }
+      },
+      "suggestedActionMap": {
+        "expand_tools_or_context": "扩展工具或注入上下文",
+        "introduce_hard_benchmark": "引入高难度基准评测集",
+        "increase_trials_or_dataset": "扩充测试用例或增加评估轮次",
+        "reject_and_investigate_regressions": "拒绝采纳并排查退步案例",
+        "proceed_with_gate": "准予通过并推进上线门禁"
+      }
+    },
     "pageTitle": "评测实验室",
     "pageDescription": "管理测试用例并执行沙盒环境隔离评估，全自动化验证 Agent 表现",
     "tabs": {
@@ -9926,6 +9992,16 @@
     "matrixEvalStarted": "矩阵评测已启动",
     "matrix": {
       "running": "矩阵评测进行中",
+      "gate": {
+        "title": "跨模型泛化硬门禁",
+        "passed": "跨模型泛化通过",
+        "partialOverfit": "偏模过拟合风险",
+        "collapse": "全线泛化退化",
+        "insufficient": "评估模型数量不足",
+        "modelsPassed": "通过模型数",
+        "spread": "极差 (Spread)",
+        "recommendation": "采纳建议"
+      },
       "profileProgress": "配置进度",
       "caseProgress": "用例进度",
       "noReport": "暂无矩阵报告。选择 2 个以上配置后运行。",
@@ -14256,24 +14332,24 @@
         "gitHistoryHintWithCommit": "最近快照：{commit}"
       },
       "obsidianBinding": {
-        "title": "Obsidian 外部仓库实时绑定与增量同步",
-        "description": "绑定本机或持久卷中的 Obsidian 目录，支持毫秒级 mtime 水位比对、Canvas 白板内容提取与安全 Inbox 回写。",
-        "loading": "正在加载绑定状态...",
-        "statusBound": "已成功绑定实时仓库",
-        "watermarkLabel": "最后增量同步水位",
-        "syncDelta": "同步增量变更",
-        "syncing": "增量比对中...",
-        "boundHint": "已开启变更监听与召回预热。当笔记或白板发生修改时，可手动或在对话召回时自动比对 mtime 增量入库。",
-        "unboundHint": "支持绝对路径绑定。绑定后 Agent 拥有 obsidian_vault_search 与 obsidian_vault_read 工具权限。",
-        "pathPlaceholder": "请输入 Obsidian Vault 绝对路径 (例如: /Users/name/Documents/ObsidianVault)",
-        "bindButton": "立即绑定",
-        "binding": "正在绑定...",
-        "bindSuccess": "成功绑定 Obsidian 仓库",
-        "bindFailed": "绑定失败，请检查目录路径是否存在",
-        "unbindSuccess": "已解绑 Obsidian 仓库",
-        "unbindFailed": "解绑失败",
-        "syncSuccess": "增量同步完成",
-        "syncFailed": "增量同步失败"
+        "bindSuccess": "已绑定 Obsidian 知识库",
+        "bindFailed": "绑定 Obsidian 知识库失败",
+        "unbindSuccess": "已解绑 Obsidian 知识库",
+        "unbindFailed": "解绑 Obsidian 知识库失败",
+        "syncSuccess": "同步成功",
+        "syncFailed": "同步失败",
+        "title": "Obsidian 本地知识库绑定",
+        "description": "将本地 Obsidian 笔记目录绑定至知识库，支持自动增量同步与收集箱写入。",
+        "loading": "加载中...",
+        "statusBound": "已绑定",
+        "watermarkLabel": "上次同步时间戳",
+        "syncing": "同步中...",
+        "syncDelta": "增量同步",
+        "boundHint": "知识库将定期监测本地目录变动并增量索引。",
+        "pathPlaceholder": "输入本地 Obsidian 知识库绝对路径（例如：/Users/name/Documents/Vault）",
+        "binding": "绑定中...",
+        "bindButton": "绑定知识库",
+        "unboundHint": "绑定后，Agent 可直接搜索该知识库中的笔记，并将关键成果归档至知识库收集箱。"
       },
       "querying": "查询中...",
       "compiling": "编译中...",
@@ -14833,27 +14909,7 @@
       "evidenceSnapshotStale": "快照可能已过期。",
       "evidenceSnapshotVerified": "快照已对照当前页面验证。",
       "evidenceStructuredClaim": "结构化声明",
-      "evidenceSupersededFrom": "已被以下内容取代：{uri}",
-      "obsidianBinding": {
-        "bindSuccess": "已绑定 Obsidian 知识库",
-        "bindFailed": "绑定 Obsidian 知识库失败",
-        "unbindSuccess": "已解绑 Obsidian 知识库",
-        "unbindFailed": "解绑 Obsidian 知识库失败",
-        "syncSuccess": "同步成功",
-        "syncFailed": "同步失败",
-        "title": "Obsidian 本地知识库绑定",
-        "description": "将本地 Obsidian 笔记目录绑定至知识库，支持自动增量同步与收集箱写入。",
-        "loading": "加载中...",
-        "statusBound": "已绑定",
-        "watermarkLabel": "上次同步时间戳",
-        "syncing": "同步中...",
-        "syncDelta": "增量同步",
-        "boundHint": "知识库将定期监测本地目录变动并增量索引。",
-        "pathPlaceholder": "输入本地 Obsidian 知识库绝对路径（例如：/Users/name/Documents/Vault）",
-        "binding": "绑定中...",
-        "bindButton": "绑定知识库",
-        "unboundHint": "绑定后，Agent 可直接搜索该知识库中的笔记，并将关键成果归档至知识库收集箱。"
-      }
+      "evidenceSupersededFrom": "已被以下内容取代：{uri}"
     },
     "skills": {
       "title": "技能管理",
@@ -15341,8 +15397,15 @@
         },
         "source": {
           "backgroundReview": "后台复盘",
+          "continualRecovery": "现场自愈",
           "manualEvolution": "手动优化",
           "memoryExtraction": "记忆提取"
+        },
+        "proxyAlignment": {
+          "driftBadge": "度量欺骗风险",
+          "driftTooltip": "检测到古德哈特代理指标偏离：Token或耗时看似优化，但核心业务准确率衰减",
+          "alignedBadge": "度量对齐已验证",
+          "alignedTooltip": "核心业务意图与代理指标协同优化，无投机性偷工减料"
         },
         "confidence": "置信度 {value}%",
         "testPassed": "验证通过",

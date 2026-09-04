@@ -330,7 +330,8 @@ async def _run_image_flow(chat: McpChatSession, *, api_url: str) -> str:
             break
         await asyncio.sleep(1.0)
     assert thumbnail_probe.get("ready") is True, f"attachment thumbnail never appeared (upload failed): {thumbnail_probe}"
-    _LOGGER.info("STAGE: thumbnail ready, sending message")
+    _LOGGER.info("STAGE: thumbnail ready, filling prompt and sending message")
+    await chat.fill_input(_PROMPT)
 
     # When attachments are staged in the composer DOM, native button click
     # routes the turn through standard WebUI submit handlers with uploaded files intact.

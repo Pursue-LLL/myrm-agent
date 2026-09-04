@@ -66,16 +66,17 @@ async def test_prebuilt_pipeline_lists_all_seeds(
 async def test_builtin_developer_default_skills_resolvable(
     skills_service: SkillsService,
 ) -> None:
-    """BuiltIn developer default_skill_ids resolve via get_skills_by_ids."""
+    """BuiltIn developer defaults to zero skills; prebuilt skills resolve via get_skills_by_ids."""
     dev_spec = next(s for s in _BUILTIN_AGENTS if s.id == "builtin-developer")
-    assert dev_spec.default_skill_ids
+    assert dev_spec.default_skill_ids == ()
 
     await prebuilt_sync.sync_prebuilt_seeds(skills_service.storage)
 
-    resolved = await skills_service.get_skills_by_ids(list(dev_spec.default_skill_ids))
+    sample_skills = ["systematic-debugging", "test-driven-development"]
+    resolved = await skills_service.get_skills_by_ids(sample_skills)
     resolved_ids = {s.id for s in resolved}
 
-    assert resolved_ids == set(dev_spec.default_skill_ids)
+    assert resolved_ids == set(sample_skills)
     for skill in resolved:
         assert skill.description
         assert skill.storage_path
@@ -527,7 +528,7 @@ async def test_evidence_discipline_synced_and_economy_bound(
     discovery → get_skills_by_ids for the builtin-economy default binding.
     """
     economy_spec = next(s for s in _BUILTIN_AGENTS if s.id == "builtin-economy")
-    assert "evidence-discipline" in economy_spec.default_skill_ids
+    assert economy_spec.default_skill_ids == ()
 
     sync_result = await prebuilt_sync.sync_prebuilt_seeds(skills_service.storage)
     assert "evidence-discipline" in sync_result.skill_ids

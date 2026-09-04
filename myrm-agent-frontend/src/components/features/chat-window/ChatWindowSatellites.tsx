@@ -102,6 +102,11 @@ const PetOverlay = dynamic(() => import('../companion/sprite/PetOverlay'), { ssr
 
 const PetPalette = dynamic(() => import('../companion/PetPalette'), { ssr: false });
 
+const ContinualOverlayWatcher = dynamic(
+  () => import('./ContinualOverlayWatcher').then((m) => ({ default: m.ContinualOverlayWatcher })),
+  { ssr: false },
+);
+
 interface ChatWindowSatellitesProps {
   chatId?: string;
   onInspectorInstruction: (instruction: string, refId: string | null) => void;
@@ -156,6 +161,7 @@ export default function ChatWindowSatellites({
           <PetPalette />
         </>
       ) : null}
+      {chatId ? <ContinualOverlayWatcher chatId={chatId} /> : null}
     </>
   );
 }

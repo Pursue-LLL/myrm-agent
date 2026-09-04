@@ -171,10 +171,10 @@ async def test_initialize_updates_outdated_spec_fields(test_db: sessionmaker):
 
 
 @pytest.mark.asyncio
-async def test_initialize_backfills_empty_skill_ids(test_db: sessionmaker):
-    """Existing agents with empty skill_ids receive default prebuilt bindings."""
+async def test_initialize_preserves_zero_default_skill_ids(test_db: sessionmaker):
+    """Built-in agents default to empty skill_ids (zero default)."""
     dev_spec = next(s for s in _BUILTIN_AGENTS if s.id == "builtin-developer")
-    assert dev_spec.default_skill_ids
+    assert dev_spec.default_skill_ids == ()
 
     async with test_db() as session:
         session.add(
@@ -201,10 +201,8 @@ async def test_initialize_backfills_empty_skill_ids(test_db: sessionmaker):
         result = await session.execute(select(Agent).where(Agent.id == dev_spec.id))
         agent = result.scalar_one()
 
-    assert agent.skill_ids == list(dev_spec.default_skill_ids)
-    assert agent.skill_configs is not None
-    for skill_id in dev_spec.default_skill_ids:
-        assert agent.skill_configs[skill_id]["is_core"] is False
+    assert agent.skill_ids == []
+    assert agent.skill_configs is None
 
 
 @pytest.mark.asyncio

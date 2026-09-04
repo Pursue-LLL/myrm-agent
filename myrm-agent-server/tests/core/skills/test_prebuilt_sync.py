@@ -101,8 +101,7 @@ async def test_ensure_prebuilt_enabled_new_user(storage: LocalStorageBackend) ->
 
     config = await manager.ensure_prebuilt_enabled_after_sync(list(result.skill_ids))
 
-    assert len(config.enabled_prebuilt_ids) == len(result.skill_ids)
-    assert "systematic-debugging" in config.enabled_prebuilt_ids
+    assert config.enabled_prebuilt_ids == []
 
 
 @pytest.mark.asyncio
@@ -118,7 +117,7 @@ async def test_ensure_prebuilt_prunes_removed_skill_ids(storage: LocalStorageBac
 
     config = await manager.ensure_prebuilt_enabled_after_sync(["self-qa", "code-review"])
 
-    assert config.enabled_prebuilt_ids == ["code-review", "self-qa"]
+    assert config.enabled_prebuilt_ids == ["self-qa"]
     assert config.disabled_prebuilt_ids == []
 
 
@@ -136,8 +135,8 @@ async def test_ensure_prebuilt_respects_disabled_list(storage: LocalStorageBacke
     await manager.ensure_prebuilt_enabled_after_sync(["self-qa", "code-review", "github-workflow"])
     config = await manager.get_config()
 
-    assert "github-workflow" in config.enabled_prebuilt_ids
-    assert "code-review" not in config.enabled_prebuilt_ids
+    assert config.enabled_prebuilt_ids == ["self-qa"]
+    assert "github-workflow" not in config.enabled_prebuilt_ids
     assert "code-review" in config.disabled_prebuilt_ids
 
 

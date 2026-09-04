@@ -16,7 +16,7 @@ import { approveSkillDraft, rejectSkillDraft } from './core';
 export type SkillGrowthStatus =
   'PENDING_REVIEW' | 'AUTO_APPLIED' | 'FAILED_SCAN' | 'BLOCKED_LOCKED' | 'APPROVED' | 'REJECTED' | 'APPLY_FAILED';
 
-export type SkillGrowthSource = 'draft' | 'evolution';
+export type SkillGrowthSource = 'draft' | 'evolution' | 'continual';
 
 export interface RuntimeFailureEvidence {
   source: string;
@@ -71,6 +71,16 @@ export interface AttributionResultDto {
   details: string;
 }
 
+export interface ProxyAlignmentDto {
+  contract_id: string;
+  verdict: 'aligned' | 'accepted_tradeoff' | 'goodhart_drift' | 'unconverged';
+  sample_size: number;
+  intent_delta: number;
+  proxy_improvement: number;
+  flagged_proxies: string[];
+  warning_message: string;
+}
+
 interface SkillGrowthCaseSummaryApiItem {
   id: string;
   source: SkillGrowthSource;
@@ -101,6 +111,7 @@ interface SkillGrowthCaseSummaryApiItem {
   target_pathology?: string | null;
   prediction_manifest?: PredictionManifestDto | null;
   attribution_result?: AttributionResultDto | null;
+  proxy_alignment?: ProxyAlignmentDto | null;
 }
 
 interface SkillGrowthCaseDetailApiItem extends SkillGrowthCaseSummaryApiItem {
@@ -195,6 +206,7 @@ export interface SkillGrowthCaseSummary {
   targetPathology?: string | null;
   predictionManifest?: PredictionManifestDto | null;
   attributionResult?: AttributionResultDto | null;
+  proxyAlignment?: ProxyAlignmentDto | null;
 }
 
 export interface SkillGrowthCaseDetail extends SkillGrowthCaseSummary {
@@ -293,6 +305,7 @@ function mapSummary(item: SkillGrowthCaseSummaryApiItem): SkillGrowthCaseSummary
     targetPathology: item.target_pathology ?? null,
     predictionManifest: item.prediction_manifest ?? null,
     attributionResult: item.attribution_result ?? null,
+    proxyAlignment: item.proxy_alignment ?? null,
   };
 }
 

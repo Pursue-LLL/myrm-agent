@@ -1,4 +1,15 @@
 {
+  "continualOverlay": {
+    "activeTitle": "Sitzungs-Selbstheilung aktiv",
+    "remainingTurns": "{count, plural, =1 {1 Runde übrig} other {# Runden übrig}}",
+    "rollback": "Patch zurücksetzen",
+    "rollbackTooltip": "Diesen laufenden Sitzungs-Hotfix zurücksetzen",
+    "expand": "Details einblenden",
+    "collapse": "Details ausblenden",
+    "howItWorks": "Zero-Reset-Wiederherstellungsprinzip",
+    "howItWorksDesc": "Wenn langlebige Aufgaben auf vorübergehende Tool-Blockaden oder Schleifenwarnungen stoßen, werden temporäre Backoffs und Verfahrenshinweise in den Sitzungskontext eingefügt, um teure vollständige Neustarts zu vermeiden.",
+    "allActiveOverlays": "Aktive Sitzungs-Overlays ({count})"
+  },
   "recovery": {
     "title": "Agent-Start- und Konfigurations-Wiederherstellungszentrum",
     "description": "Beim Start wurden Anomalien in Komponenten oder Konfigurationen festgestellt. Sie können zur letzten funktionierenden Konfiguration zurückkehren oder ein Diagnosepaket exportieren.",
@@ -9783,6 +9794,61 @@
       "copied": "Kopiert",
       "reviewAndApply": "Prüfen & Anwenden"
     },
+    "significance": {
+      "panelTitle": "Gepaarte statistische Signifikanzprüfung & Plateau-Diagnose",
+      "panelSubtitle": "Basiert auf McNemar-Test, 1.000 Bootstrap 95%-Konfidenzintervall und 4 Plateau-Mechanismen zur Vermeidung von Stichprobenrauschen",
+      "mcnemarPVal": "Gepaarter McNemar-Test",
+      "bootstrapCI": "Bootstrap 95%-Konfidenzintervall",
+      "contingencyTableTitle": "Gepaarte Kontingenztafel",
+      "testExactBinomial": "Exakter Binomialtest (kleine Stichprobe)",
+      "testEdwardsChi2": "Edwards-Stetigkeitskorrigiertes Chi²",
+      "testNoDiscordant": "Keine diskordanten Paare",
+      "bothPass": "Beide Versionen bestanden",
+      "candOnlyImproved": "Nur Kandidat verbessert",
+      "baseOnlyRegressed": "Nur Basisversion regrediert",
+      "bothFail": "Beide Versionen fehlgeschlagen",
+      "continuousDeltaTitle": "Relative Änderungen kontinuierlicher Metriken",
+      "tokenChange": "Token-Verbrauchsänderung",
+      "costChange": "Evaluierungskostenänderung",
+      "latencyChange": "Latenzänderung",
+      "plateauDiagnosisTitle": "Plateau-Mechanismusdiagnose & Handlungsanweisungen",
+      "honestRecommendation": "Objektive Empfehlung",
+      "suggestedAction": "Empfohlene Maßnahme",
+      "caseDrilldownTitle": "Fall-Detailanalyse",
+      "filterRegressionCases": "Regressionsfälle anzeigen",
+      "filterImprovedCases": "Verbesserte Fälle anzeigen",
+      "clearFilter": "Filter zurücksetzen",
+      "filteringRegressions": "Nur Regressionsfälle angezeigt",
+      "filteringImprovements": "Nur verbesserte Fälle angezeigt",
+      "verdict": {
+        "significantImprovement": "Signifikante Verbesserung (Significant Improvement)",
+        "significantImprovementDesc": "Besteht den gepaarten Test bei 95% Konfidenz und das Intervall schneidet nicht die Null. Eine Zusammenführung wird empfohlen.",
+        "significantRegression": "Signifikante Regression (Significant Regression)",
+        "significantRegressionDesc": "Statistisch signifikante Verschlechterung festgestellt. Zusammenführung muss blockiert und Fälle untersucht werden.",
+        "efficiencyBreakthrough": "Effizienz-Durchbruch (Efficiency Breakthrough)",
+        "efficiencyBreakthroughDesc": "Bei gleichbleibender Bestehensquote wurden Token oder Kosten deterministisch um über 15% gesenkt.",
+        "insufficientDiscordance": "Unzureichende Diskordanz (Insufficient Discordance)",
+        "insufficientDiscordanceDesc": "Beide Versionen liefern identische Ergebnisse für alle Testfälle. Der Datensatz kann keine Unterschiede aufdecken.",
+        "noSignificantDifference": "Kein statistisch signifikanter Unterschied (No Significant Difference)",
+        "noSignificantDifferenceDesc": "Bestehensquoten-Differenz ist statistisch nicht signifikant (p ≥ 0,05 oder 95% CI schneidet die Null). Rauschen wahrscheinlich."
+      },
+      "plateau": {
+        "mechanism": {
+          "insufficient_power": "Unzureichende statistische Teststärke",
+          "capability_saturation": "Fähigkeitssättigung",
+          "cross_model_divergence": "Regressionsrauschen-Divergenz",
+          "hard_subset_bottleneck": "Schwieriger Teilmengen-Engpass",
+          "none": "Valides statistisches Signal"
+        }
+      },
+      "suggestedActionMap": {
+        "expand_tools_or_context": "Werkzeuge erweitern oder Kontext injizieren",
+        "introduce_hard_benchmark": "Schwierigeren Benchmark einführen",
+        "increase_trials_or_dataset": "Testfälle erweitern oder Durchläufe erhöhen",
+        "reject_and_investigate_regressions": "Kandidat ablehnen und Regressionen untersuchen",
+        "proceed_with_gate": "Freigeben und mit Produktionsgate fortfahren"
+      }
+    },
     "pageTitle": "Eval-Labor",
     "pageDescription": "Testfälle verwalten und isolierte Sandbox-Evaluierungen durchführen, um die Agent-Leistung automatisch zu verifizieren",
     "tabs": {
@@ -9926,6 +9992,16 @@
     "matrixEvalStarted": "Matrixauswertung gestartet",
     "matrix": {
       "running": "Matrixauswertung läuft",
+      "gate": {
+        "title": "Modellübergreifendes Generalisierungs-Gate",
+        "passed": "Generalisierung bestanden",
+        "partialOverfit": "Teilweises Überanpassungsrisiko",
+        "collapse": "Generalisierungskollaps",
+        "insufficient": "Unzureichende Modelle",
+        "modelsPassed": "Modelle bestanden",
+        "spread": "Streuung",
+        "recommendation": "Empfehlung"
+      },
       "profileProgress": "Profile",
       "caseProgress": "Fälle",
       "noReport": "Noch kein Matrixbericht. Wählen Sie 2+ Profile aus und führen Sie es aus.",
@@ -9969,7 +10045,17 @@
       "historyLayeredBadge": "Mehrschichtig",
       "historyAbortedBadge": "Abgebrochen",
       "historyCurrent": "Ansehen",
-      "historyView": "Ansehen"
+      "historyView": "Ansehen",
+      "gate": {
+        "title": "Modellübergreifendes Generalisierungs-Gate",
+        "passed": "Generalisierung bestanden",
+        "partialOverfit": "Teilweises Overfitting-Risiko",
+        "collapse": "Generalisierungs-Kollaps",
+        "insufficient": "Unzureichende Modellanzahl",
+        "modelsPassed": "Modelle bestanden",
+        "spread": "Spannweite (Spread)",
+        "recommendation": "Empfehlung"
+      }
     },
     "wbBench": {
       "title": "Benchmark-Datensätze",
@@ -15492,8 +15578,15 @@
         },
         "source": {
           "backgroundReview": "Hintergrundprüfung",
+          "continualRecovery": "Kontinuierliche Selbstheilung",
           "manualEvolution": "Manuelle Evolution",
           "memoryExtraction": "Speicherextraktion"
+        },
+        "proxyAlignment": {
+          "driftBadge": "Goodhart-Abweichungsrisiko",
+          "driftTooltip": "Goodhartsches Gesetz erkannt: Proxy-Metriken scheinen besser, aber Kernqualität sank",
+          "alignedBadge": "Metriken ausgerichtet",
+          "alignedTooltip": "Kernabsicht und Proxy-Effizienz sind ohne Abkürzungen harmonisiert"
         },
         "confidence": "Konfidenz {value}%",
         "testPassed": "Validierung bestanden",

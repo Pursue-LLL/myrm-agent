@@ -59,7 +59,7 @@ _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "You have access to 54 brand design system templates via the popular-web-designs skill — "
             "use them to generate pixel-accurate pages styled after known brands."
         ),
-        default_skill_ids=("popular-web-designs", "ui-design"),
+        default_skill_ids=(),
         enabled_builtin_tools=_TOOL_DESIGN,
         suggestion_prompts=(
             "Generate a minimalist logo concept for a tea brand",
@@ -88,7 +88,7 @@ _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Video providers limit clips to 6-12s; for longer content, plan multi-shot and concatenate with FFmpeg."
         ),
         enabled_builtin_tools=_TOOL_VIDEO_STUDIO,
-        default_skill_ids=("video-production-pipeline",),
+        default_skill_ids=(),
         suggestion_prompts=(
             "Create a 30-second sci-fi concept video about space exploration",
             "Make a product showcase video for my new app",
@@ -111,7 +111,7 @@ _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Always consider E-E-A-T signals and user intent (informational/transactional/navigational). "
             "Provide specific metrics targets and timeframes for expected results."
         ),
-        default_skill_ids=("web-project-seo-optimization",),
+        default_skill_ids=(),
         enabled_builtin_tools=_TOOL_RESEARCH,
         suggestion_prompts=(
             "Audit my web project and generate an SEO optimization roadmap",
@@ -315,7 +315,7 @@ _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "You are a terminal programming expert capable of operating local directories to write and modify code. "
             "Use your command execution tools to list files, read code, and run tests. Ensure you stay within your designated working directory."
         ),
-        default_skill_ids=("systematic-debugging", "test-driven-development"),
+        default_skill_ids=(),
         enabled_builtin_tools=_TOOL_CODING,
         suggestion_prompts=(
             "Set up a new Python project with virtual environment and dependencies",
@@ -382,7 +382,7 @@ _VERTICAL_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Always cite original posts via inline citations from tool output. "
             "For monitoring requests, suggest setting up a scheduled task for recurring checks."
         ),
-        default_skill_ids=("x-live-search",),
+        default_skill_ids=(),
         enabled_builtin_tools=_TOOL_RESEARCH,
         suggestion_prompts=(
             "What are AI leaders saying on X this week?",

@@ -23,6 +23,7 @@ from ..evolution_reviews import RuntimeFailureEvidence
 class SkillGrowthCaseSource(StrEnum):
     DRAFT = "draft"
     EVOLUTION = "evolution"
+    CONTINUAL = "continual"
 
 
 class SkillGrowthCaseStatus(StrEnum):
@@ -71,6 +72,7 @@ class SkillGrowthCaseSummaryRead:
     target_pathology: str | None = None
     prediction_manifest: dict[str, object] | None = None
     attribution_result: dict[str, object] | None = None
+    proxy_alignment: dict[str, object] | None = None
 
 
 @dataclass(slots=True)
@@ -104,6 +106,7 @@ class SkillGrowthCaseDetailRead:
     target_pathology: str | None = None
     prediction_manifest: dict[str, object] | None = None
     attribution_result: dict[str, object] | None = None
+    proxy_alignment: dict[str, object] | None = None
 
 
 SkillGrowthCaseRead = SkillGrowthCaseDetailRead

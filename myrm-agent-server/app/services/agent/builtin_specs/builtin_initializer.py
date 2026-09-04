@@ -76,22 +76,11 @@ async def initialize_builtin_agents() -> None:
         created_count = 0
         updated_count = 0
 
-        all_prebuilt_skill_ids: list[str] = []
-        try:
-            from app.core.skills.store.service import skills_service
-
-            user_skill_cfg = await skills_service.user_config.get_config()
-            all_prebuilt_skill_ids = list(user_skill_cfg.enabled_prebuilt_ids)
-        except Exception as exc:
-            logger.debug("Could not resolve enabled prebuilt skills for default general agent: %s", exc)
-
         for spec in _BUILTIN_AGENTS:
             expected_avatar = f"icon:{spec.icon_id}"
             resolved_prompt = spec.system_prompt
 
             default_skills = list(spec.default_skill_ids)
-            if spec.id == "builtin-general" and not default_skills and all_prebuilt_skill_ids:
-                default_skills = list(all_prebuilt_skill_ids)
             default_skill_configs = _peripheral_skill_configs(default_skills)
 
             if spec.id not in existing_map:

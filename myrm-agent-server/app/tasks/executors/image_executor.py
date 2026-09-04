@@ -1,4 +1,16 @@
-"""Image task executor implementation."""
+"""Image task executor implementation.
+
+[INPUT]
+- myrm_agent_harness.toolkits.llms.image::ImageGenerator (POS: engine)
+- myrm_agent_harness.toolkits.tasks::Task (POS: async task entity)
+- app.tasks.image_config_resolver::ImageGenerationConfigResolver (POS: config resolver)
+
+[OUTPUT]
+- ImageTaskExecutor: AsyncTaskExecutor implementation for image_generate tasks
+
+[POS]
+Server task worker executor for async image generation with persisted media consumption.
+"""
 
 from __future__ import annotations
 
@@ -46,19 +58,20 @@ class ImageTaskExecutor:
             allow_private_networks=allow_private,
         )
 
-        return {
-            "images": [
+        final_url = result.persisted_url or result.url
+        images: list[dict[str, object]] = []
+        if final_url:
+            images.append(
                 {
-                    "url": img.url,
-                    "width": img.width,
-                    "height": img.height,
-                    "mime_type": img.mime_type,
+                    "url": final_url,
+                    "mime_type": result.mime_type,
                 }
-                for img in result.images
-            ],
-            "prompt": result.prompt,
+            )
+
+        return {
+            "images": images,
+            "prompt": result.revised_prompt or str(payload.get("prompt", "")),
             "model": result.model,
-            "provider": result.provider,
             "latency_ms": result.latency_ms,
         }
 

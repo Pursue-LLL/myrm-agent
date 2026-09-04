@@ -33,6 +33,7 @@ from .case_types import (
     SkillGrowthCaseSummaryRead,
     SkillGrowthFormMetadataRead,
 )
+from .proxy_guard import evaluate_case_proxy_alignment
 
 _GROWTH_STATUS_VALUES: tuple[str, ...] = tuple(status.value for status in SkillGrowthCaseStatus)
 
@@ -108,12 +109,15 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         or draft_name
     )
     proposed_content = _text(payload.get("patch_content")) or _text(payload.get("content"))
-    verification_proof = payload.get("verification_proof") if isinstance(payload.get("verification_proof"), dict) else None
+    raw_proof = payload.get("verification_proof")
+    verification_proof: dict[str, object] | None = dict(raw_proof) if isinstance(raw_proof, dict) else None
     target_layer = _text(payload.get("target_layer")) or "prompt"
     target_pathology = _text(payload.get("target_pathology")) or "unhandled_exception"
+    is_continual = record.action_type == "continual_overlay" or payload.get("source") == "continual"
+    source = SkillGrowthCaseSource.CONTINUAL if is_continual else SkillGrowthCaseSource.DRAFT
     return SkillGrowthCaseDetailRead(
         id=f"draft:{record.id}",
-        source=SkillGrowthCaseSource.DRAFT,
+        source=source,
         status=_approval_growth_status(record),
         skill_name=draft_name,
         skill_id=None,
@@ -139,12 +143,14 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         verification_proof=verification_proof,
         target_layer=target_layer,
         target_pathology=target_pathology,
+        proxy_alignment=evaluate_case_proxy_alignment(payload),
     )
 
 
 def _evolution_case_detail(record: EvolutionReviewRecord) -> SkillGrowthCaseDetailRead:
     verification_proof = getattr(record, "verification_proof", None)
-    payload_dict = record.payload if hasattr(record, "payload") and isinstance(record.payload, dict) else {}
+    raw_payload = getattr(record, "payload", None)
+    payload_dict = raw_payload if isinstance(raw_payload, dict) else {}
     if not isinstance(verification_proof, dict):
         verification_proof = payload_dict.get("verification_proof")
     target_layer = _text(payload_dict.get("target_layer")) or "tool_code"
@@ -179,6 +185,11 @@ def _evolution_case_detail(record: EvolutionReviewRecord) -> SkillGrowthCaseDeta
         target_pathology=target_pathology,
         prediction_manifest=(record.change_manifest if isinstance(record.change_manifest, dict) else None),
         attribution_result=(record.attribution_result if isinstance(record.attribution_result, dict) else None),
+        proxy_alignment=evaluate_case_proxy_alignment(
+            {"prediction_manifest": record.change_manifest}
+            if isinstance(record.change_manifest, dict)
+            else payload_dict
+        ),
     )
 
 
@@ -212,6 +223,7 @@ def detail_to_summary(detail: SkillGrowthCaseDetailRead) -> SkillGrowthCaseSumma
         target_pathology=detail.target_pathology,
         prediction_manifest=detail.prediction_manifest,
         attribution_result=detail.attribution_result,
+        proxy_alignment=detail.proxy_alignment,
     )
 
 

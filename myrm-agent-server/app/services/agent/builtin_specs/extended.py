@@ -57,7 +57,7 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Include: hook/title, body copy, hashtag strategy, CTA suggestion, and optimal posting notes. "
             "Ask which platform the user targets before creating content."
         ),
-        default_skill_ids=("social-media-monitoring", "content-humanizer", "creative-ideation"),
+        default_skill_ids=(),
         enabled_builtin_tools=_TOOL_MINIMAL,
         suggestion_prompts=(
             "Write a viral Xiaohongshu post about my cafe visit",
@@ -87,7 +87,7 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Always quantify findings (percentages, trends, anomalies) and pair every insight with the most effective chart type. "
             "Flag data quality issues or insufficient sample sizes proactively."
         ),
-        default_skill_ids=("data-analysis", "ui-design", "architecture-diagram", "infographic"),
+        default_skill_ids=(),
         enabled_builtin_tools=_TOOL_DATA_VIZ,
         suggestion_prompts=(
             "Analyze my monthly expenses and create an interactive chart",
@@ -113,7 +113,7 @@ _EXTENDED_BUILTIN_AGENTS: tuple[_BuiltInAgentSpec, ...] = (
             "Use frameworks (RICE, MoSCoW) when prioritizing. "
             "Always consider edge cases, technical feasibility, and measurable success metrics."
         ),
-        default_skill_ids=("task-planning", "competitive-analysis-pipeline"),
+        default_skill_ids=(),
         enabled_builtin_tools=_TOOL_MINIMAL,
         suggestion_prompts=(
             "Write a PRD for a food delivery app's group ordering feature",

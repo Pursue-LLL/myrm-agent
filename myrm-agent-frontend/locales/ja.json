@@ -1,4 +1,15 @@
 {
+  "continualOverlay": {
+    "activeTitle": "セッション現場自己修復が有効",
+    "remainingTurns": "残り {count} ターン",
+    "rollback": "ロールバック",
+    "rollbackTooltip": "このセッションパッチをロールバックします",
+    "expand": "詳細を展開",
+    "collapse": "詳細を折りたたむ",
+    "howItWorks": "ゼロリセット自己修復の仕組み",
+    "howItWorksDesc": "長時間実行タスクがツール障害やループ警告に遭遇した際、セッション内に一時的なバックオフとガイダンスを注入し、高コストな最初からの再実行を防ぎます。",
+    "allActiveOverlays": "有効な自己修復オーバーレイ ({count})"
+  },
   "recovery": {
     "title": "エージェント起動・設定復旧センター",
     "description": "起動時にエージェントのコンポーネントまたは設定に異常が検出されました。最後に正常だった構成にロールバックするか、診断バンドルをエクスポートできます。",
@@ -9783,6 +9794,61 @@
       "copied": "コピー完了",
       "reviewAndApply": "確認して適用"
     },
+    "significance": {
+      "panelTitle": "ペア統計的有意性検定とプラトー診断",
+      "panelSubtitle": "McNemar ペア検定、1000 回の Bootstrap 95% 信頼区間、プラトー 4 メカニズムによりサンプリングノイズの誤採用を防止",
+      "mcnemarPVal": "McNemar ペア検定",
+      "bootstrapCI": "Bootstrap 95% 信頼区間",
+      "contingencyTableTitle": "ペア分割表 (Contingency Table)",
+      "testExactBinomial": "Exact Binomial (小標本二項検定)",
+      "testEdwardsChi2": "Edwards 連続性補正 Chi²",
+      "testNoDiscordant": "不一致ペアなし",
+      "bothPass": "両バージョン合格",
+      "candOnlyImproved": "新バージョンのみ改善",
+      "baseOnlyRegressed": "新バージョンのみ退行",
+      "bothFail": "両バージョン失敗",
+      "continuousDeltaTitle": "連続指標の相対変化",
+      "tokenChange": "トークン消費の変化",
+      "costChange": "評価コストの変化",
+      "latencyChange": "レイテンシの変化",
+      "plateauDiagnosisTitle": "プラトーメカニズム診断とアクション",
+      "honestRecommendation": "客観的な推奨",
+      "suggestedAction": "推奨アクション",
+      "caseDrilldownTitle": "ケースのドリルダウン連携",
+      "filterRegressionCases": "退行ケースを表示",
+      "filterImprovedCases": "改善ケースを表示",
+      "clearFilter": "フィルターを解除",
+      "filteringRegressions": "退行ケースのみ表示中",
+      "filteringImprovements": "改善ケースのみ表示中",
+      "verdict": {
+        "significantImprovement": "有意な改善 (Significant Improvement)",
+        "significantImprovementDesc": "95% 信頼度でペア検定に合格し、信頼区間がゼロを跨ぎません。安全にマージ可能です。",
+        "significantRegression": "有意な退行 (Significant Regression)",
+        "significantRegressionDesc": "統計的に有意な性能低下が検出されました。マージを阻止し、退行ケースを調査してください。",
+        "efficiencyBreakthrough": "効率性のブレークスルー (Efficiency Breakthrough)",
+        "efficiencyBreakthroughDesc": "合格率を維持したまま、トークンまたはコストを確定的に 15% 以上削減しました。",
+        "insufficientDiscordance": "不一致サンプル不足 (Insufficient Discordance)",
+        "insufficientDiscordanceDesc": "両バージョンはすべてのケースで完全に同等です。評価セットでは性能差を判別できません。",
+        "noSignificantDifference": "有意差なし (No Significant Difference)",
+        "noSignificantDifferenceDesc": "合格率の差は統計的に有意ではありません (p ≥ 0.05 または 95% CI が 0 を跨ぐ)。観測された差はサンプリングノイズの可能性があります。"
+      },
+      "plateau": {
+        "mechanism": {
+          "insufficient_power": "統計的検出力不足",
+          "capability_saturation": "能力飽和",
+          "cross_model_divergence": "退行ノイズ乖離",
+          "hard_subset_bottleneck": "難問サブセットの壁",
+          "none": "有意シグナル有効"
+        }
+      },
+      "suggestedActionMap": {
+        "expand_tools_or_context": "ツールを拡張するか外部コンテキストを注入",
+        "introduce_hard_benchmark": "より難易度の高いベンチマークを導入",
+        "increase_trials_or_dataset": "テストケースまたは試行回数を増加",
+        "reject_and_investigate_regressions": "採用を拒否し退行ケースを調査",
+        "proceed_with_gate": "承認してリリースゲートを進行"
+      }
+    },
     "pageTitle": "評価ラボ",
     "pageDescription": "テストケースを管理し、サンドボックス環境で隔離評価を実行して、エージェントのパフォーマンスを自動検証",
     "tabs": {
@@ -9926,6 +9992,16 @@
     "matrixEvalStarted": "マトリックス評価を開始しました",
     "matrix": {
       "running": "マトリックス評価を実行中",
+      "gate": {
+        "title": "クロスモデル汎化ハードゲート",
+        "passed": "汎化ゲート合格",
+        "partialOverfit": "特定モデル過学習リスク",
+        "collapse": "全モデル汎化崩壊",
+        "insufficient": "評価モデル数不足",
+        "modelsPassed": "合格モデル数",
+        "spread": "格差 (Spread)",
+        "recommendation": "推奨事項"
+      },
       "profileProgress": "プロファイル",
       "caseProgress": "ケース",
       "noReport": "マトリックスレポートはまだありません。プロファイルを2つ以上選択して実行してください。",
@@ -15321,8 +15397,15 @@
         },
         "source": {
           "backgroundReview": "バックグラウンドレビュー",
+          "continualRecovery": "継続的自己修復",
           "manualEvolution": "手動最適化",
           "memoryExtraction": "記憶抽出"
+        },
+        "proxyAlignment": {
+          "driftBadge": "指標乖離リスク",
+          "driftTooltip": "グッドハートの法則による乖離を検知：プロキシ指標は向上しましたが、コア精度が低下しています",
+          "alignedBadge": "指標整合性確認済",
+          "alignedTooltip": "コア意図と効率指標が正常に整合しており、手抜きはありません"
         },
         "confidence": "信頼度 {value}%",
         "testPassed": "検証合格",
