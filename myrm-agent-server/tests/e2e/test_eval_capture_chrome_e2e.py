@@ -29,7 +29,6 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
-    wait_for_state,
     warm_ui_route,
 )
 
@@ -42,14 +41,14 @@ def _seed_test_chat_with_message(api_url: str) -> str:
         "title": "E2E Eval Capture Session",
         "agent_id": "default",
     }
-    http_json("POST", f"{api_url}/api/v1/chats", body=create_payload)
+    http_json("POST", f"{api_url.rstrip('/')}/api/v1/chats/", body=create_payload)
 
     # Append a user message
     msg_payload = {
         "role": "user",
         "content": "Hello Myrm, this is an automated evaluation prompt.",
     }
-    http_json("POST", f"{api_url}/api/v1/chats/{chat_id}/messages", body=msg_payload)
+    http_json("POST", f"{api_url.rstrip('/')}/api/v1/chats/{chat_id}/messages", body=msg_payload)
 
     return chat_id
 
