@@ -29,7 +29,10 @@ from app.services.memory.behavioral.measurement_service import BehavioralMeasure
 
 @pytest_asyncio.fixture
 async def real_db_env():
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///file:testdb_behavioral?mode=memory&cache=shared&uri=true",
+        echo=False,
+    )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

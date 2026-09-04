@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.trace_builder import build_trace
 from myrm_agent_harness.agent.event_log.trace_types import ToolCallRecord
+from myrm_agent_harness.core.security.redact.engine import redact_sensitive_text
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
