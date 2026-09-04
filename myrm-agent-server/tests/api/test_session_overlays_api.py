@@ -12,16 +12,14 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-
-from myrm_agent_harness.agent.session_overlay.manager import (
-    get_session_overlay_manager,
-)
+from myrm_agent_harness.agent.session_overlay.manager import get_session_overlay_manager
 from myrm_agent_harness.agent.session_overlay.schema import (
     OverlayScope,
     OverlayStatus,
     OverlayTargetType,
     SessionOverlay,
 )
+
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(preset="chats")
