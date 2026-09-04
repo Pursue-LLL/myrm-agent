@@ -206,18 +206,26 @@ class ChannelDataPlaneService:
             DistillationOrigin,
             EvidenceReference,
             SelfIdentityState,
+            is_alert_or_bot_sender,
         )
 
+        is_bot = not model.learning_eligible or is_alert_or_bot_sender(model.sender_name)
         is_agent = model.sender_id == "agent" or (model.is_self and model.sender_name == "Assistant")
-        origin = DistillationOrigin.AGENT if is_agent else DistillationOrigin.USER
+        
         if is_agent:
+            origin = DistillationOrigin.AGENT
             identity = SelfIdentityState.OTHER
-        elif model.is_self:
-            identity = SelfIdentityState.SELF
-        elif model.is_group:
+        elif is_bot:
+            origin = DistillationOrigin.BOT
             identity = SelfIdentityState.OTHER
         else:
-            identity = SelfIdentityState.UNCONFIRMED
+            origin = DistillationOrigin.USER
+            if model.is_self is True:
+                identity = SelfIdentityState.SELF
+            elif model.is_self is False:
+                identity = SelfIdentityState.OTHER
+            else:
+                identity = SelfIdentityState.UNCONFIRMED
 
         evidence = [
             EvidenceReference(
@@ -234,7 +242,7 @@ class ChannelDataPlaneService:
             content=model.content,
             origin=origin,
             is_self=identity,
-            is_bot_or_alert=not model.learning_eligible,
+            is_bot_or_alert=is_bot,
             sender_name=model.sender_name,
             evidence=evidence,
         )

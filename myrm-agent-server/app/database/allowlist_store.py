@@ -68,19 +68,33 @@ class DBAllowlistStore:
             for r in rows:
                 print("DEBUG_DB_ROW_IN_LOAD:", r.id, r.permission, r.expires_at, type(r.expires_at), "now_dt:", now_dt)
 
-            entries = [
-                AllowlistEntry(
-                    permission=row.permission,
-                    tool_name=_from_db_value(row.tool_name),
-                    tool_args_hash=_from_db_value(row.tool_args_hash),
-                    command_pattern=_from_db_value(row.command_pattern),
-                    agent_id=_from_db_value(getattr(row, "agent_id", None)),
-                    created_at=row.created_at.timestamp() if row.created_at else now_ts,
-                    expires_at=row.expires_at.timestamp() if row.expires_at else None,
+            entries = []
+            for row in rows:
+                if row.expires_at is None:
+                    row_expires_ts = None
+                elif row.expires_at.tzinfo is None:
+                    row_expires_ts = row.expires_at.replace(tzinfo=timezone.utc).timestamp()
+                else:
+                    row_expires_ts = row.expires_at.timestamp()
+
+                if row_expires_ts is not None and row_expires_ts <= now_ts:
+                    continue
+
+                entries.append(
+                    AllowlistEntry(
+                        permission=row.permission,
+                        tool_name=_from_db_value(row.tool_name),
+                        tool_args_hash=_from_db_value(row.tool_args_hash),
+                        command_pattern=_from_db_value(row.command_pattern),
+                        agent_id=_from_db_value(getattr(row, "agent_id", None)),
+                        created_at=(
+                            (row.created_at.replace(tzinfo=timezone.utc).timestamp() if row.created_at.tzinfo is None else row.created_at.timestamp())
+                            if row.created_at
+                            else now_ts
+                        ),
+                        expires_at=row_expires_ts,
+                    )
                 )
-                for row in rows
-                if row.expires_at is None or row.expires_at.timestamp() > now_ts
-            ]
             logger.info(
                 "[DB_ALLOWLIST] Loaded %d allowlist entries for user %s",
                 len(entries),

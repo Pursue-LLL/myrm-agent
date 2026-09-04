@@ -85,6 +85,9 @@ class TestDBAllowlistStore:
 
     @pytest.mark.asyncio
     async def test_save_and_load_with_expires_at(self):
+        from app.database.models import UserToolAllowlist
+        from sqlalchemy import select
+
         await clear_allowlist_entries()
         factory = get_session_factory()
         store = DBAllowlistStore(factory)
