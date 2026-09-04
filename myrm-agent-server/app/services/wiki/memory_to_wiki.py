@@ -164,8 +164,12 @@ class MemoryToWikiArchiver:
 
         self._asset_indexer = None
 
-        # Start the background drainer for this user's queue
-        self._compiler.start_background_worker()
+        # Start the background drainer for this user's queue if primary vault write is enabled
+        if hasattr(self._compiler, "start_background_worker") and callable(self._compiler.start_background_worker):
+            try:
+                self._compiler.start_background_worker()
+            except Exception as e:
+                logger.warning(f"Could not start background compiler worker: {e}")
 
         logger.info(f"Initialized wiki archiver at {resolved_wiki_dir}")
 

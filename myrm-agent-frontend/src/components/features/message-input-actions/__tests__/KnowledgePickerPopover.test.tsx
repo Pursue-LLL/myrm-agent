@@ -94,7 +94,7 @@ describe('KnowledgePickerPopover Component', () => {
       expect(screen.getByText('研发规范与架构守则')).toBeDefined();
     });
 
-    const itemCheckbox = screen.getByRole('button', { name: /研发规范与架构守则/i });
+    const itemCheckbox = screen.getByRole('switch', { name: /研发规范与架构守则/i });
     fireEvent.click(itemCheckbox);
 
     await waitFor(() => {

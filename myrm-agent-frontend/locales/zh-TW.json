@@ -15080,6 +15080,10 @@
         "import": "匯入",
         "importUrl": "匯入 GitHub URL",
         "importUrlPlaceholder": "貼上 GitHub 倉庫或深層目錄連結...",
+        "securityDisclosureTitle": "安全與沙箱邊界披露",
+        "securityDisclosureLocal": "當前為本地或桌面運行模式，智能體以您宿主操作系統的權限執行工具。惡意擴展可能通過間接提示詞注入誘導執行 Bash、讀寫本地檔案或外傳敏感憑證，請務必只從可信來源導入。",
+        "securityDisclosureCloud": "當前運行在獨立微容器沙箱中，具備獨立持久化卷隔離。為保障多智能體協作與工作區數據安全，請確保導入的擴展來源可信。",
+        "trustedSourceConfirm": "我已知曉該擴展具備系統工具調用權限，確認此來源安全可信",
         "analyzingUrl": "解析中...",
         "analyzeFailed": "解析 URL 失敗",
         "selectSkillsToImport": "發現以下技能，請選擇要匯入的項：",
@@ -15166,11 +15170,7 @@
           "empty": "未配置自定義源",
           "emptyDesc": "添加 .well-known/skills 端點來發現私有技能",
           "alreadyExists": "源已存在"
-        },
-        "securityDisclosureTitle": "安全與沙箱邊界披露",
-        "securityDisclosureLocal": "當前為本地或桌面運行模式，智能體以您宿主操作系統的權限執行工具。惡意擴展可能通過間接提示詞注入誘導執行 Bash、讀寫本地檔案或外傳敏感憑證，請務必只從可信來源導入。",
-        "securityDisclosureCloud": "當前運行在獨立微容器沙箱中，具備獨立持久化卷隔離。為保障多智能體協作與工作區數據安全，請確保導入的擴展來源可信。",
-        "trustedSourceConfirm": "我已知曉該擴展具備系統工具調用權限，確認此來源安全可信"
+        }
       },
       "market": {
         "title": "技能市場",
@@ -18345,7 +18345,12 @@
         "security": {
           "blocked": "包含 {count} 項安全風險，已自動略過，無法安裝",
           "oversized": "技能內容超過儲存大小限制（64 KB），已自動略過，無法安裝",
-          "conflict": "已存在同名技能：選擇「覆蓋」升級現有技能，或「略過」保留目前版本"
+          "conflict": "已存在同名技能：選擇「覆蓋」升級現有技能，或「略過」保留目前版本",
+          "trustDisclosureTitle": "受信任來源與系統權限安全披露",
+          "trustDisclosureLocal": "運行在本地/桌面模式。導入的外掛將以操作系統權限執行，並可調用 Shell 及訪問工作區檔案。",
+          "trustDisclosureCloud": "運行在雲端沙箱模式。導入的外掛在專屬隔離卷沙箱內執行，可訪問沙箱檔案與憑證。",
+          "trustRiskHint": "不受信任的擴展可能包含提示詞注入指令。請務必確保安裝包來自受信任來源。",
+          "trustedCheckboxLabel": "我確認此外掛來自受信任來源，知曉其系統工具權限，並同意安裝"
         }
       },
       "manager": {

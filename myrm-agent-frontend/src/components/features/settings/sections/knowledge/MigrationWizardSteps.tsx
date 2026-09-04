@@ -492,6 +492,12 @@ export function PreviewStep({
   const { result } = dryRun;
   const { summary, mappings, warnings } = result;
   const [exportingBackup, setExportingBackup] = useState(false);
+  const [trustedSourceConfirmed, setTrustedSourceConfirmed] = useState(false);
+
+  const isPiOrHasSkills =
+    source.competitor === 'pi' ||
+    (source.skill_count ?? 0) > 0 ||
+    ((dryRun.pending_skills?.length ?? 0) > 0);
 
   const statusColors: Record<string, string> = {
     ready: 'text-emerald-600 dark:text-emerald-400',
@@ -742,6 +748,31 @@ export function PreviewStep({
             <span className="text-muted-foreground">{t('preview.importSecretsLabel')}</span>
           </label>
         )}
+
+        {isPiOrHasSkills && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3.5 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 dark:text-amber-300">
+              <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span>{t('preview.trustedSourceTitle')}</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {t('preview.trustedSourceDesc')}
+            </p>
+            <label className="flex items-start gap-2 text-xs cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                data-testid="migration-trusted-source-checkbox"
+                className="mt-0.5 rounded border-border"
+                checked={trustedSourceConfirmed}
+                onChange={(event) => setTrustedSourceConfirmed(event.target.checked)}
+                disabled={importing}
+              />
+              <span className="text-foreground font-medium">
+                {t('preview.trustedSourceConfirmLabel')}
+              </span>
+            </label>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-3 pt-2">
@@ -750,7 +781,12 @@ export function PreviewStep({
         </Button>
         <Button
           onClick={onConfirm}
-          disabled={importing || summary.status === 'critical' || summary.status === 'missing'}
+          disabled={
+            importing ||
+            summary.status === 'critical' ||
+            summary.status === 'missing' ||
+            (isPiOrHasSkills && !trustedSourceConfirmed)
+          }
         >
           {importing && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
           {importing ? t('preview.importing') : t('preview.confirmImport')}

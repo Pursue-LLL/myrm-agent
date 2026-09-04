@@ -16,6 +16,8 @@ describe('useComposerContextChips', () => {
         pendingWorkflowTemplateId: null,
         pendingWorkflowTemplateDisplayName: null,
         pendingExplicitSkillActivation: null,
+        activeKnowledgeBaseIds: [],
+        activeKnowledgeBaseNames: {},
       });
     });
   });
@@ -174,5 +176,41 @@ describe('useComposerContextChips', () => {
     expect(result.current.summary.totalSkills).toBe(3);
     expect(result.current.summary.totalMcp).toBe(3);
     expect(result.current.summary.isOverloaded).toBe(true);
+  });
+
+  it('renders mounted knowledge base chips and handles unmount removal', () => {
+    act(() => {
+      useChatStore.setState({
+        activeKnowledgeBaseIds: ['kb-1', 'kb-2'],
+        activeKnowledgeBaseNames: {
+          'kb-1': 'Architecture Guide',
+          'kb-2': 'API Standards',
+        },
+      });
+    });
+
+    const { result } = renderHook(() =>
+      useComposerContextChips({
+        turnCapabilitySelection: null,
+        setTurnCapabilitySelection: vi.fn(),
+        files: [],
+        setFiles: vi.fn(),
+        clearCurrentSessionMessageId: vi.fn(),
+        mentionReferences: [],
+        removeMentionReference: vi.fn(),
+      }),
+    );
+
+    const kbChips = result.current.chips.filter((c) => c.category === 'knowledge');
+    expect(kbChips).toHaveLength(2);
+    expect(kbChips[0].label).toBe('Architecture Guide');
+    expect(kbChips[0].iconType).toBe('knowledge');
+    expect(kbChips[1].label).toBe('API Standards');
+
+    act(() => {
+      kbChips[0].onRemove?.();
+    });
+
+    expect(useChatStore.getState().activeKnowledgeBaseIds).toEqual(['kb-2']);
   });
 });

@@ -15097,6 +15097,10 @@
         "import": "Importieren",
         "importUrl": "GitHub-URL importieren",
         "importUrlPlaceholder": "GitHub-Repo oder Deep-Link einfügen...",
+        "securityDisclosureTitle": "Sicherheits- und Sandbox-Grenzenhinweis",
+        "securityDisclosureLocal": "Derzeit im lokalen/Desktop-Modus ausgeführt. Der Agent führt Werkzeuge mit Ihren Host-Berechtigungen aus.",
+        "securityDisclosureCloud": "Derzeit im isolierten MicroVM-Container ausgeführt. Stellen Sie sicher, dass alle Erweiterungen vertrauenswürdig sind.",
+        "trustedSourceConfirm": "Ich bestätige, dass diese Erweiterung Systemwerkzeug-Ausführungsrechte besitzt und vertrauenswürdig ist",
         "analyzingUrl": "Analysieren...",
         "analyzeFailed": "Analyse der URL fehlgeschlagen",
         "selectSkillsToImport": "Folgende Fähigkeiten gefunden, bitte zum Importieren auswählen:",
@@ -18341,7 +18345,12 @@
         "security": {
           "blocked": "Blockiert: {count} Sicherheitsrisiko(n) gefunden — automatisch übersprungen",
           "oversized": "Skill-Inhalt überschreitet das Speicherlimit (64 KB) — automatisch übersprungen",
-          "conflict": "Ein Skill mit diesem Namen ist bereits vorhanden — „Ersetzen“ aktualisiert ihn, „Überspringen“ behält den aktuellen"
+          "conflict": "Ein Skill mit diesem Namen ist bereits vorhanden — „Ersetzen“ aktualisiert ihn, „Überspringen“ behält den aktuellen",
+          "trustDisclosureTitle": "Sicherheitshinweis zu vertrauenswürdigen Quellen und Systemberechtigungen",
+          "trustDisclosureLocal": "Wird im lokalen/Desktop-Modus ausgeführt. Importierte Plugins werden mit den Rechten Ihres Betriebssystems ausgeführt.",
+          "trustDisclosureCloud": "Wird im Cloud-Sandbox-Modus ausgeführt. Importierte Plugins werden in Ihrer dedizierten isolierten Volume-Sandbox ausgeführt.",
+          "trustRiskHint": "Nicht vertrauenswürdige Erweiterungen können Prompt-Injections enthalten. Stellen Sie sicher, dass Pakete aus vertrauenswürdigen Quellen stammen.",
+          "trustedCheckboxLabel": "Ich bestätige, dass dieses Plugin aus einer vertrauenswürdigen Quelle stammt, akzeptiere die Systemwerkzeugberechtigungen und stimme der Installation zu"
         }
       },
       "manager": {

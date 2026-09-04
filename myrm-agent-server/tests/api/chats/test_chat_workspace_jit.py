@@ -11,7 +11,6 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
-from app.services.agent.params.workspace_resolve import _materialize_agent_template_files
 from app.services.chat.chat_service import ChatService
 from tests.support.minimal_app import build_minimal_app
 

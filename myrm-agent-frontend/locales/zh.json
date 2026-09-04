@@ -15085,6 +15085,7 @@
         "securityDisclosureLocal": "当前为本地或桌面运行模式，智能体以您宿主操作系统的权限执行工具。恶意扩展可能通过间接提示词注入诱导执行 Bash、读写本地文件或外传敏感凭证，请务必只从可信来源导入。",
         "securityDisclosureCloud": "当前运行在独立微容器沙箱中，具备独立持久化卷隔离。为保障多智能体协作与工作区数据安全，请确保导入的扩展来源可信。",
         "trustedSourceConfirm": "我已知晓该扩展具备系统工具调用权限，确认此来源安全可信",
+        "trustedSourceConfirmRequired": "请先勾选确认此来源安全可信",
         "analyzingUrl": "解析中...",
         "analyzeFailed": "解析 URL 失败",
         "selectSkillsToImport": "发现以下技能，请选择要导入的项：",
