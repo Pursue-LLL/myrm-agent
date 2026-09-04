@@ -39,13 +39,37 @@ from app.schemas.memory.command_center import (
     MemoryCommandGraphStats,
     MemoryCommandPlaneSummary,
     MemoryCommandTimelineEvent,
+    MemoryEvidencePlaybackResponse,
     MemoryRecallBoundaryData,
 )
 from app.services.memory.behavioral.measurement_service import BehavioralMeasurementService
 from app.services.memory.command_center.command_center import MemoryCommandCenterService
+from app.services.memory.evidence.playback_service import EvidencePlaybackService
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
 router = APIRouter(prefix="/command-center")
+
+
+@router.get("/evidence/playback", response_model=MemoryEvidencePlaybackResponse)
+async def get_evidence_playback(
+    source_id: str | None = None,
+    message_id: str | None = None,
+    channel_id: str | None = None,
+    quote_snippet: str | None = None,
+    author_id: str | None = None,
+    author_name: str | None = None,
+    db: AsyncSession = Depends(get_db_session),
+) -> MemoryEvidencePlaybackResponse:
+    """Return sanitized conversation slice or graceful snapshot for evidence verification."""
+    service = EvidencePlaybackService(db)
+    return await service.get_playback(
+        source_id=source_id,
+        message_id=message_id,
+        channel_id=channel_id,
+        quote_snippet=quote_snippet,
+        author_id=author_id,
+        author_name=author_name,
+    )
 
 
 @router.get("/behavioral-insights", response_model=MemoryBehavioralInsightsResponse)

@@ -41,6 +41,8 @@ interface WikiConceptDetailPanelProps {
   onEditTimelineAppendChange: (value: string) => void;
   onEditTagsChange: (value: string) => void;
   onEditAliasesChange: (value: string) => void;
+  onUpdateClaimStatus?: (claimId: string, status: 'supported' | 'contested') => void;
+  onHealClaims?: () => void;
 }
 
 const EDIT_TABS: WikiEditTab[] = ['truth', 'timeline', 'metadata', 'advanced'];
@@ -69,6 +71,8 @@ export function WikiConceptDetailPanel({
   onEditTimelineAppendChange,
   onEditTagsChange,
   onEditAliasesChange,
+  onUpdateClaimStatus,
+  onHealClaims,
 }: WikiConceptDetailPanelProps) {
   const t = useTranslations('settings.wiki.concepts');
   const locale = useLocale();
