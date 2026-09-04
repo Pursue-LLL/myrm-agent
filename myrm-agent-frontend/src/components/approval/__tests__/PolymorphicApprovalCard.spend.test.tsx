@@ -162,4 +162,40 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
       })
     );
   });
+
+  it('renders auto mode suspended and socially irreversible banners correctly', () => {
+    const mockOnResolve = vi.fn().mockResolvedValue(undefined);
+    const approval: ApprovalPayload = {
+      approval_id: 'app_automode_hardened',
+      user_id: 'usr_1',
+      action_type: 'subagent_approval',
+      status: 'pending',
+      severity: 'high',
+      payload: {
+        tool_calls: [
+          { name: 'channel_notify', args: { message: 'hello' } },
+        ],
+        reviewConfigs: [
+          {
+            autoModeSuspended: 'consecutive',
+            sociallyIrreversible: true,
+            hideAllowAlways: true,
+          },
+        ],
+      },
+    };
+
+    render(
+      <PolymorphicApprovalCard
+        approval={approval}
+        onResolve={mockOnResolve}
+        isSubmitting={false}
+      />
+    );
+
+    expect(screen.getByText('autoModeSuspended.title')).toBeDefined();
+    expect(screen.getByText('autoModeSuspended.consecutiveReason')).toBeDefined();
+    expect(screen.getByText('sociallyIrreversible.title')).toBeDefined();
+    expect(screen.getByText('sociallyIrreversible.description')).toBeDefined();
+  });
 });

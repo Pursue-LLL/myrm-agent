@@ -499,12 +499,29 @@ class MemoryCommandGraphStats(BaseModel):
     relationship_type_counts: dict[str, int] = Field(default_factory=dict)
 
 
+class MemoryCommandGraphHubItem(BaseModel):
+    """Ranked high-centrality claim or hotspot for dual-view navigation."""
+
+    id: str
+    label: str
+    snippet: str = ""
+    primary_namespace: str | None = None
+    degree: int = 0
+    in_degree: int = 0
+    out_degree: int = 0
+    supported_count: int = 0
+    contradicted_count: int = 0
+    has_conflict: bool = False
+
+
 class MemoryCommandGraphResponse(BaseModel):
     """Knowledge Graph visualization data for the command center."""
 
     nodes: list[MemoryCommandGraphNode] = Field(default_factory=list)
     edges: list[MemoryCommandGraphEdge] = Field(default_factory=list)
     stats: MemoryCommandGraphStats = Field(default_factory=MemoryCommandGraphStats)
+    ranked_hubs: list[MemoryCommandGraphHubItem] = Field(default_factory=list)
+    graph_state: Literal["ready", "storage_disabled", "empty_knowledge", "sparse_islands"] = "ready"
     has_graph: bool = False
 
 
