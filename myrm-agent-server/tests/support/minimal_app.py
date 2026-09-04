@@ -53,6 +53,7 @@ _ROUTER_MOUNTS: dict[str, _RouterMount] = {
     "workspace": _RouterMount("app.api.workspace.router", prefix="/workspace", tags=("workspace",)),
     "notifications": _RouterMount("app.api.notifications.router"),
     "agents_general": _RouterMount("app.api.agents.general_agent", prefix="/agents", tags=("agents",)),
+    "agents_media": _RouterMount("app.api.agents.media", prefix="/agents", tags=("agents",)),
     "agents_templates": _RouterMount("app.api.agents.templates", prefix="/agents", tags=("agents",)),
     "agents_subagents": _RouterMount("app.api.agents.subagents", prefix="/chats", tags=("subagents",)),
     "agent_recovery": _RouterMount(
@@ -221,6 +222,7 @@ PRESETS: dict[str, tuple[str, ...]] = {
     "openai_compat_only": ("api_keys",),
     "agents_api": (
         "agents_general",
+        "agents_media",
         "agents_subagents",
         "agents_templates",
         "user_agents",

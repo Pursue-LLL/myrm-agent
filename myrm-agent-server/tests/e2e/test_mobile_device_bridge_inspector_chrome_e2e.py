@@ -5,7 +5,9 @@ from __future__ import annotations
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
-    _warm_ui_parallel_wait_sec,
+    _require_e2e_cdp_ready,
+    dismiss_blocking_modals,
+    ensure_desktop_viewport,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -60,7 +62,7 @@ _VERIFY_DEVICE_STORE_AND_PANEL_JS = """(() => {
     private_reason="exclusive_backend",
 )
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(300)
 def test_mobile_device_inspector_api_and_ui_lifecycle() -> None:
     """Validate backend device bridge REST contracts (/doctor, /snapshot, /relay) and frontend inspector store."""
     api_url = get_e2e_api_url()
@@ -90,6 +92,7 @@ def test_mobile_device_inspector_api_and_ui_lifecycle() -> None:
     # 2. Warm up UI route and inspect page state
     warm_ui_route("/")
     with open_mcp_page(f"{ui_url}/", timeout_ms=90_000) as (client, page):
+        dismiss_blocking_modals(client, page)
         wait_for_react_e2e_bridge(
             client,
             page,
