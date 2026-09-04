@@ -6,7 +6,6 @@ import logging
 import uuid
 from collections.abc import Callable, Sequence
 from contextlib import AbstractAsyncContextManager
-
 from datetime import datetime, timezone
 
 from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry

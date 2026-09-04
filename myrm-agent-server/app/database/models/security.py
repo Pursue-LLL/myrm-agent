@@ -10,7 +10,6 @@ from sqlalchemy import (
     JSON,
     Boolean,
     DateTime,
-    Float,
     Integer,
     String,
     Text,

@@ -52,28 +52,28 @@ vi.mock('@/components/primitives/switch', () => ({
   ),
 }));
 
+const stableKnowledgePickerT = (key: string, values?: Record<string, unknown>) => {
+  const map: Record<string, string> = {
+    tooltip: '挂载知识库',
+    popoverTitle: '挂载知识库至当前对话',
+    searchPlaceholder: '搜索可用知识库...',
+    activeCount: `已挂载 ${values?.count ?? 0} 个`,
+    noKnowledgeBases: '暂无可用的知识库',
+    noSearchResults: '未找到匹配的知识库',
+    manageKnowledge: '管理知识库',
+    manage: '管理',
+    maxLimitReached: '单个会话最多可同时挂载 6 个知识库',
+    bindSuccess: '已成功挂载知识库',
+    unbindSuccess: '已取消挂载知识库',
+    actionError: '知识库挂载操作失败',
+    ariaLabel: '选择要挂载的知识库',
+  };
+  return map[key] ?? key;
+};
+
 vi.mock('next-intl', () => ({
   useLocale: () => 'zh-CN',
-  useTranslations: () => {
-    return (key: string, values?: Record<string, unknown>) => {
-      const map: Record<string, string> = {
-        tooltip: '挂载知识库',
-        popoverTitle: '挂载知识库至当前对话',
-        searchPlaceholder: '搜索可用知识库...',
-        activeCount: `已挂载 ${values?.count ?? 0} 个`,
-        noKnowledgeBases: '暂无可用的知识库',
-        noSearchResults: '未找到匹配的知识库',
-        manageKnowledge: '管理知识库',
-        manage: '管理',
-        maxLimitReached: '单个会话最多可同时挂载 6 个知识库',
-        bindSuccess: '已成功挂载知识库',
-        unbindSuccess: '已取消挂载知识库',
-        actionError: '知识库挂载操作失败',
-        ariaLabel: '选择要挂载的知识库',
-      };
-      return map[key] ?? key;
-    };
-  },
+  useTranslations: () => stableKnowledgePickerT,
 }));
 
 vi.mock('@/services/memory/sharedContexts', () => ({

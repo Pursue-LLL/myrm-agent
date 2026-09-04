@@ -9,11 +9,11 @@ L4 Documentation:
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
 from app.services.webui.device_bridge import (
     DeviceBridgeService,
     DeviceDoctorResult,

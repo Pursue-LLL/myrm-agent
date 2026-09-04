@@ -221,6 +221,7 @@ def test_batch_resolve_safe_only_all_high_risk_blocks_with_409(client):
 def test_list_and_revoke_active_grants(client: TestClient):
     """Test /approvals/grants listing and revocation."""
     import time
+
     from myrm_agent_harness.agent.security.approval_flow import AllowlistEntry, get_allowlist
 
     allowlist = get_allowlist()
