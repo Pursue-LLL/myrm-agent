@@ -8484,6 +8484,12 @@
       "title": "Security reviewer recommends denial",
       "overrideOnce": "Override Once"
     },
+    "spendProtection": {
+      "title": "Financial Transaction Protection",
+      "description": "The agent is requesting an external financial charge. Parameter integrity is cryptographically sealed.",
+      "amount": "Charge Amount",
+      "tamperProtected": "SHA-256 Tamper Protected"
+    },
     "batchCostTitle": "Batch Task Cost Approval",
     "batchCostDescription": "The agent wants to spawn multiple subagents. Review the estimated cost before proceeding.",
     "batchCostEstimated": "Estimated Cost",

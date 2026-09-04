@@ -51,8 +51,15 @@ export interface ApprovalPayloadData {
   recipient_id?: string;
   topic_id?: string;
   subagent_task_id?: string;
-  /** Per-tool review configs from interrupt payload (includes smartDenied flag) */
-  reviewConfigs?: Array<{ smartDenied?: boolean; hideAllowAlways?: boolean }>;
+  /** Per-tool review configs from interrupt payload (includes smartDenied, spend, and digest flags) */
+  reviewConfigs?: Array<{
+    smartDenied?: boolean;
+    hideAllowAlways?: boolean;
+    isSpend?: boolean;
+    spendAmount?: number;
+    spendCurrency?: string;
+    actionDigest?: string;
+  }>;
   /** Per-tool reviewer reasons from interrupt payload */
   reviewerReasons?: string[];
   /** MCP elicitation approval: server name and requested input schema */
