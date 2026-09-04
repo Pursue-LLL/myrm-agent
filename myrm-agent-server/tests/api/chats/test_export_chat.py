@@ -530,6 +530,7 @@ async def test_export_chat_redacts_messages_and_reasoning_and_title(
 ) -> None:
     """Full-structure secret redaction masks sensitive credentials across chat elements."""
     from datetime import datetime, timezone
+
     from app.database.models.chat import Chat, Message
     from app.platform_utils import get_session_factory
 
@@ -597,6 +598,7 @@ async def test_export_chat_redact_secrets_false_preserves_plaintext(
 ) -> None:
     """Disabling redact_secrets preserves raw plaintext for diagnostic purposes."""
     from datetime import datetime, timezone
+
     from app.database.models.chat import Chat, Message
     from app.platform_utils import get_session_factory
 
