@@ -19,6 +19,7 @@ import {
 } from './wikiTreeUtils';
 import { splitTagsInput } from './wikiSectionUtils';
 import { useWikiConceptClaimActions } from './useWikiConceptClaimActions';
+import { useWikiTreeActions } from './useWikiTreeActions';
 
 function findConceptNodeId(nodes: TreeNode[], conceptPath: string): string | null {
   const normalized = conceptPath.replace(/\\/g, '/').replace(/^\//, '').replace(/\.md$/i, '');
@@ -221,76 +222,24 @@ export function useWikiConceptsList(options?: {
     }
   }, [options?.highlightConceptPath, isLoading, treeData, requestSelectConcept, t]);
 
-  const handleMove = async ({ dragIds, parentId }: { dragIds: string[]; parentId: string | null; index: number }) => {
-    const sourceId = dragIds[0];
-    if (!sourceId) {
-      return;
-    }
-
-    const sourceName = sourceId.split('/').pop() || sourceId;
-    const targetPath = parentId ? `${parentId}/${sourceName}` : sourceName;
-
-    if (sourceId === targetPath) {
-      return;
-    }
-
-    try {
-      await wikiService.moveNode(sourceId, targetPath, agentScopeId);
-      toast.success(t('moveSuccess'));
-      await fetchTree();
-    } catch (error) {
-      toast.error(getWikiOperationErrorMessage(error, t('moveFailed')));
-    }
-  };
-
-  const handleCreateFolder = (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    const focused = treeRef.current?.focusedNode;
-    setCreateParentFolder(resolveCreateParentFolder(focused?.id, focused?.data?.is_dir));
-    setDialogMode('create');
-    setDialogInput('');
-    setDialogOpen(true);
-  };
-
-  const handleRename = (id: string, currentName: string, e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    setDialogTargetId(id);
-    setDialogMode('rename');
-    setDialogInput(currentName);
-    setDialogOpen(true);
-  };
+  const { handleMove, handleCreateFolder, handleRename, submitDialog } = useWikiTreeActions({
+    treeRef,
+    agentScopeId,
+    fetchTree,
+    createParentFolder,
+    setCreateParentFolder,
+    setDialogMode,
+    setDialogInput,
+    setDialogOpen,
+    dialogTargetId,
+    setDialogTargetId,
+    dialogMode,
+    dialogInput,
+  });
 
   const handleDeleteRequest = (target: Omit<DeleteTarget, 'itemCount'>) => {
     const itemCount = target.isDir ? countDescendantItems(treeData, target.name) : undefined;
     setDeleteTarget({ ...target, itemCount });
-  };
-
-  const submitDialog = async () => {
-    if (!dialogInput.trim()) {
-      return;
-    }
-
-    try {
-      if (dialogMode === 'create') {
-        const targetPath = createParentFolder ? `${createParentFolder}/${dialogInput}` : dialogInput;
-        await wikiService.createFolder(targetPath, agentScopeId);
-        toast.success(t('createSuccess'));
-      } else if (dialogMode === 'rename' && dialogTargetId) {
-        const parentDir = dialogTargetId.split('/').slice(0, -1).join('/');
-        const newPath = parentDir ? `${parentDir}/${dialogInput}` : dialogInput;
-
-        if (dialogTargetId !== newPath) {
-          await wikiService.moveNode(dialogTargetId, newPath, agentScopeId);
-          toast.success(t('renameSuccess'));
-        }
-      }
-      await fetchTree();
-      setDialogOpen(false);
-    } catch (error) {
-      toast.error(getWikiOperationErrorMessage(error, t('operationFailed')));
-    }
   };
 
   const handleEdit = () => {

@@ -126,6 +126,8 @@ async def run_memory_action(body: MemoryCommandActionRequest, manager: MemoryMan
             await manager.delete_rule(body.target_id)
         else:
             await manager.update_memory(body.target_id, status=MemoryStatus.ARCHIVED)
+            if hasattr(manager, "_cascade_clean_derived_graph_nodes"):
+                await manager._cascade_clean_derived_graph_nodes(body.target_id)
         return
     if body.action == "restore_defaults":
         return

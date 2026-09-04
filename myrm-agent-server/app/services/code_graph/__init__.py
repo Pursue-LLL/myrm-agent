@@ -7,7 +7,6 @@
 from app.services.code_graph.graph_store import CodeGraphStore
 from app.services.code_graph.models import (
     CallEdge,
-    CallSite,
     ImportEdge,
     IndexStats,
     InheritanceEdge,
@@ -18,7 +17,6 @@ from app.services.code_graph.service import CodeGraphService
 
 __all__ = [
     "CallEdge",
-    "CallSite",
     "CodeGraphService",
     "CodeGraphStore",
     "ImportEdge",

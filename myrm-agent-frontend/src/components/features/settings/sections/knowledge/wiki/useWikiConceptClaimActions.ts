@@ -23,7 +23,7 @@ export function useWikiConceptClaimActions({
   agentScopeId,
   onVaultMutated,
 }: UseWikiConceptClaimActionsProps) {
-  const t = useTranslations('settings.knowledge.wiki');
+  const t = useTranslations('settings.wiki.concepts');
 
   const handleUpdateClaimStatus = async (claimId: string, status: 'supported' | 'contested') => {
     if (!selectedConcept) {

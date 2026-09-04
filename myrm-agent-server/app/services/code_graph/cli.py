@@ -7,7 +7,6 @@
 import argparse
 import json
 import os
-import sys
 from pathlib import Path
 
 from app.services.code_graph.service import CodeGraphService

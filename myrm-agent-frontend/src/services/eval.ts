@@ -117,7 +117,7 @@ export const evalService = {
   },
 
   /**
-   * Embed standardized canary header into raw dataset content safely
+   * Embed standardized canary header into raw dataset content safely and cleanly
    */
   async embedCanaryHeader(content: string): Promise<EmbedCanaryResponse> {
     return apiRequest('/eval/anti-contamination/embed-canary', {
