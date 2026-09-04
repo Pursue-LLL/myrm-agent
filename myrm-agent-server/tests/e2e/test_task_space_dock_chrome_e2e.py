@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import urllib.request
-
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
@@ -40,7 +39,7 @@ def _delete_e2e_space(space_id: str) -> None:
         pass
 
 
-@pytest.mark.chrome_e2e
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 def test_task_space_dock_real_chrome_e2e() -> None:
     """Verify TaskSpaceDock appears when spaces exist and disappears on delete."""
     space_id = "e2e-dock-test-space"
@@ -49,7 +48,7 @@ def test_task_space_dock_real_chrome_e2e() -> None:
     # Pre-clean
     _delete_e2e_space(space_id)
 
-    with open_mcp_page(get_e2e_ui_url()) as page:
+    with open_mcp_page(get_e2e_ui_url()) as (client, page):
         # Step 1: Create space in backend
         _create_e2e_space(space_id, space_name)
 
@@ -61,15 +60,15 @@ def test_task_space_dock_real_chrome_e2e() -> None:
                 return { ready: hasPill };
             })()"""
 
-            state = wait_for_state(
+            wait_for_state(
+                client,
                 page,
                 check_dock_js,
                 predicate=lambda s: bool(s.get("ready")),
-                timeout=15.0,
-                interval=0.5,
+                timeout_sec=15.0,
+                interval_sec=0.5,
                 failure_message="TaskSpaceDock floating pill did not appear in real Chrome WebUI",
             )
-            assert state.get("ready") is True
 
         finally:
             # Step 3: Cleanup space

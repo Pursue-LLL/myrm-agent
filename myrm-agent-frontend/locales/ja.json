@@ -18453,7 +18453,7 @@
   },
   "continualOverlay": {
     "activeTitle": "アクティブなオーバーレイ",
-    "remainingTurns": "{count, plural, =1 {1 turn left} other {# turns left}}",
+    "remainingTurns": "{count, plural, =1 {残り 1 ターン} other {残り # ターン}}",
     "rollbackTooltip": "このセッションオーバーレイをロールバック",
     "rollback": "ロールバック",
     "collapse": "折りたたむ",

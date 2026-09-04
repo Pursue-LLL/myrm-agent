@@ -61,7 +61,7 @@ def test_fal_media_provider_settings_and_doctor_lifecycle() -> None:
     warm_ui_route("/settings")
     with open_settings_subroute("/settings", timeout_ms=90_000) as (client, page):
         dismiss_blocking_modals(client, page)
-        wait_for_settings_layout(client, page)
+        wait_for_settings_layout(client, page, page_url=page.get("url") or "/settings")
 
         res = client.evaluate(page, _VERIFY_MEDIA_SECTION_JS, timeout_sec=10.0)
         assert isinstance(res, dict)
