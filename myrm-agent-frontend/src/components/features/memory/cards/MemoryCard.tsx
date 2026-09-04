@@ -19,6 +19,7 @@ import {
   Clock,
   Lock,
   ShieldCheck,
+  ShieldAlert,
   Sparkles,
   AlertCircle,
 } from 'lucide-react';
@@ -35,7 +36,7 @@ interface MemoryCardProps {
   onApprove?: (editedContent?: string) => void;
   onReject?: () => void;
   onEdit?: () => void;
-  onDelete?: () => void;
+  onDelete?: (permanent?: boolean) => void;
   onToggleDisable?: () => void;
   onChatFromMemory?: () => void;
   onClick?: () => void;
@@ -234,16 +235,30 @@ const MemoryCard = memo<MemoryCardProps>(
                         </button>
                       )}
                       {onDelete && (
-                        <button
-                          onClick={() => {
-                            setShowActions(false);
-                            onDelete();
-                          }}
-                          className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2 text-destructive"
-                        >
-                          <Trash2 size={14} />
-                          {t('delete')}
-                        </button>
+                        <>
+                          <button
+                            onClick={() => {
+                              setShowActions(false);
+                              onDelete(false);
+                            }}
+                            className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                          >
+                            <Trash2 size={14} />
+                            {t('delete')}
+                          </button>
+                          {canEdit && (
+                            <button
+                              onClick={() => {
+                                setShowActions(false);
+                                onDelete(true);
+                              }}
+                              className="w-full px-3 py-1.5 text-sm text-left hover:bg-destructive/10 flex items-center gap-2 text-destructive font-medium"
+                            >
+                              <ShieldAlert size={14} />
+                              {t('trash.permanentDelete')}
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   )}

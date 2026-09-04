@@ -269,8 +269,13 @@ export const updateMemory = async (
   });
 };
 
-export const deleteMemory = async (memoryId: string, memoryType: MemoryType): Promise<void> => {
-  await apiRequest(`/memory/${memoryId}?memory_type=${memoryType}`, {
+export const deleteMemory = async (
+  memoryId: string,
+  memoryType: MemoryType,
+  permanent: boolean = false,
+): Promise<void> => {
+  const permQuery = permanent ? '&permanent=true' : '';
+  await apiRequest(`/memory/${memoryId}?memory_type=${memoryType}${permQuery}`, {
     method: 'DELETE',
   });
 };

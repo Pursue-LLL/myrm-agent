@@ -72,6 +72,8 @@ class MemoryToWikiArchiver:
         config: WikiConfig | None = None,
         search_fn: SemanticSearchFn | None = None,
         manager: "MemoryManager" | None = None,
+        public_dirs: list[Path] | None = None,
+        public_dir_labels: dict[str, str] | None = None,
     ):
         """
         Initialize archiver for the single-tenant sandbox.
@@ -81,6 +83,9 @@ class MemoryToWikiArchiver:
             wiki_dir: Directory for the wiki (defaults to default agent vault)
             config: Optional WikiConfig (uses defaults if not provided)
             search_fn: Optional semantic search function injected from retriever
+            manager: Optional memory manager
+            public_dirs: Optional list of additional mounted public read-only wiki paths
+            public_dir_labels: Optional mapping of public dir path or name to display label
         """
         self._llm = llm
         from app.config.deploy_mode import is_local_mode
@@ -97,7 +102,7 @@ class MemoryToWikiArchiver:
         else:
             resolved_wiki_dir = resolve_wiki_vault_path()
 
-        public_dirs: list[Path] = []
+        merged_public_dirs: list[Path] = []
         from app.platform_utils.deployment_capabilities import (
             get_deployment_capabilities,
         )
@@ -106,9 +111,19 @@ class MemoryToWikiArchiver:
             import os
 
             public_vols_env = os.getenv("MYRM_PUBLIC_WIKI_VOLUMES", "")
-            public_dirs = [Path(v.strip()) for v in public_vols_env.split(";") if v.strip()]
+            merged_public_dirs = [Path(v.strip()) for v in public_vols_env.split(";") if v.strip()]
 
-        self._structure = WikiStructure(resolved_wiki_dir, public_dirs=public_dirs)
+        if public_dirs:
+            for p in public_dirs:
+                resolved_p = Path(p).expanduser().resolve()
+                if resolved_p not in merged_public_dirs:
+                    merged_public_dirs.append(resolved_p)
+
+        self._structure = WikiStructure(
+            resolved_wiki_dir,
+            public_dirs=merged_public_dirs,
+            public_dir_labels=public_dir_labels or {},
+        )
         self._structure.ensure_structure()
 
         from myrm_agent_harness.toolkits.wiki import WikiPendingEditsManager

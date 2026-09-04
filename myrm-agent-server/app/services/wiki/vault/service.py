@@ -16,6 +16,7 @@ Application-level wiki vault bootstrap and shared service accessor.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.wiki import WikiStructure
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _archiver: MemoryToWikiArchiver | None = None
-_archiver_cache_key: tuple[int, str, int] | None = None
+_archiver_cache_key: tuple[int, str, int, tuple[str, ...], tuple[tuple[str, str], ...]] | None = None
 
 
 async def init_wiki_vault_at_startup() -> None:
@@ -57,17 +58,37 @@ def get_wiki_archiver(
     llm: BaseChatModel,
     manager: MemoryManager | None = None,
     agent_id: str | None = None,
+    public_dirs: list[Path] | None = None,
+    public_dir_labels: dict[str, str] | None = None,
 ) -> MemoryToWikiArchiver:
-    """Return a process-scoped archiver bound to an agent wiki vault path."""
+    """Return a process-scoped archiver bound to an agent wiki vault path and mounted shared vaults."""
     global _archiver, _archiver_cache_key
 
     manager_key = id(manager) if manager is not None else 0
-    cache_key = (id(llm), sanitize_wiki_scope_id(agent_id), manager_key)
+    resolved_public_dirs = (
+        tuple(sorted(str(Path(p).expanduser().resolve()) for p in public_dirs))
+        if public_dirs
+        else ()
+    )
+    resolved_labels = (
+        tuple(sorted(public_dir_labels.items()))
+        if public_dir_labels
+        else ()
+    )
+    cache_key = (
+        id(llm),
+        sanitize_wiki_scope_id(agent_id),
+        manager_key,
+        resolved_public_dirs,
+        resolved_labels,
+    )
     if _archiver is None or _archiver_cache_key != cache_key:
         _archiver = MemoryToWikiArchiver(
             llm,
             wiki_dir=resolve_wiki_vault_path(agent_id),
             manager=manager,
+            public_dirs=public_dirs,
+            public_dir_labels=public_dir_labels,
         )
         _archiver_cache_key = cache_key
     return _archiver

@@ -105,6 +105,27 @@ def resolve_shared_wiki_vault_paths(context_ids: list[str] | None) -> tuple[Path
     return tuple(paths)
 
 
+def resolve_shared_wiki_vault_labels(
+    context_ids: list[str] | None,
+    context_name_map: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Map public directory paths and directory names to human-readable labels."""
+    if not context_ids:
+        return {}
+    labels: dict[str, str] = {}
+    name_map = context_name_map or {}
+    for cid in context_ids:
+        safe_id = sanitize_wiki_scope_id(cid)
+        vault_path = wiki_root() / "shared" / safe_id
+        label = name_map.get(cid) or name_map.get(safe_id) or safe_id
+        labels[str(vault_path)] = label
+        labels[cid] = label
+        labels[safe_id] = label
+        labels[safe_id.replace("-", "_")] = label
+        labels[safe_id.replace("_", "-")] = label
+    return labels
+
+
 def resolve_wiki_vault_layout(
     agent_id: str | None = None,
     shared_context_ids: list[str] | None = None,

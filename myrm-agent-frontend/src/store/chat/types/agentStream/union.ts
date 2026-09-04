@@ -20,6 +20,7 @@ import type {
   CorrectionLearnedStreamEvent,
   CapabilityGapStreamEvent,
   SkillGapStreamEvent,
+  PhaseTransitionStreamEvent,
   DirectoryRequestRequiredStreamEvent,
   ErrorStreamEvent,
   MessageStreamEvent,
@@ -114,6 +115,7 @@ export type AgentStreamEvent =
   | CorrectionLearnedStreamEvent
   | CapabilityGapStreamEvent
   | SkillGapStreamEvent
+  | PhaseTransitionStreamEvent
   | SteeringStreamEvent
   | ToolStartStreamEvent
   | ToolEndStreamEvent

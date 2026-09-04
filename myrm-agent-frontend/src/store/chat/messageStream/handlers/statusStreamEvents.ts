@@ -82,5 +82,24 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
     return done(ctx);
   }
 
+  if (data.type === H.AgentEventType.PHASE_TRANSITION) {
+    const raw = (data.data && typeof data.data === 'object' ? data.data : data) as Record<string, unknown>;
+    const phasePayload = {
+      phase: typeof raw.phase === 'string' ? raw.phase : 'planning',
+      phase_index: typeof raw.phase_index === 'number' ? raw.phase_index : 1,
+      active_lane: typeof raw.active_lane === 'string' ? raw.active_lane : 'agent',
+      node_id: typeof raw.node_id === 'number' ? raw.node_id : 1,
+      node_label: typeof raw.node_label === 'string' ? raw.node_label : '',
+      duration_ms: typeof raw.duration_ms === 'number' ? raw.duration_ms : 0,
+    };
+    actions.setMessages((state) => {
+      const idx = H.findAssistantMessageIndex(state.messages, data.messageId);
+      if (idx !== -1) {
+        state.messages[idx].phaseExecution = phasePayload;
+      }
+    });
+    return done(ctx);
+  }
+
   return null;
 }

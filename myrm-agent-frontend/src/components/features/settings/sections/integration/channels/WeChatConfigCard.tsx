@@ -16,7 +16,11 @@ import { useChannelInstances } from '@/hooks/channels/useChannelInstances';
 import { WeChatRiskDisclosureBanner } from './WeChatRiskDisclosureBanner';
 import { WeChatAccountCard } from './WeChatAccountCard';
 
-export function WeChatConfigCard() {
+export interface WeChatConfigCardProps {
+  onNavigateToWeCom?: () => void;
+}
+
+export function WeChatConfigCard({ onNavigateToWeCom }: WeChatConfigCardProps = {}) {
   const t = useTranslations('channels');
   const [primaryStatus, setPrimaryStatus] = useState<WeChatStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,6 +92,27 @@ export function WeChatConfigCard() {
     }
   }, [t]);
 
+  const handleNavigateToWeCom = useCallback(() => {
+    if (onNavigateToWeCom) {
+      onNavigateToWeCom();
+      return;
+    }
+    if (typeof document !== 'undefined') {
+      const wecomBtn = document.querySelector<HTMLButtonElement>('[data-testid="channel-list-item-wecom"]');
+      if (wecomBtn) {
+        wecomBtn.click();
+        return;
+      }
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('myrm-selected-channel', 'wecom');
+      } catch {
+        // quota exceeded
+      }
+    }
+  }, [onNavigateToWeCom]);
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
@@ -103,7 +128,7 @@ export function WeChatConfigCard() {
 
   return (
     <div className="space-y-3">
-      <WeChatRiskDisclosureBanner />
+      <WeChatRiskDisclosureBanner onNavigateToWeCom={handleNavigateToWeCom} />
 
       <WeChatAccountCard
         label={primaryLabel || t('wechatDefaultLabel')}

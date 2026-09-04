@@ -20,7 +20,9 @@
 | `ConnectionBadge.tsx` / `ChannelIngressBadge.tsx` / `PairingManager.tsx`      | 连接状态、Ingress 提示与配对管理                                                                                           |
 | `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks                                                                                                             |
 | `@/hooks/billing/useIngressRequirement.ts`                                    | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge`                                         |
-| `*ConfigCard.tsx` / `WhatsAppCard.tsx`                                        | 各平台配置 UI（含 `WeChatOfficialConfigCard` 认证服务号凭证 + 动态出口 IP 复制/刷新 + IP 白名单指引）                      |
+| `*ConfigCard.tsx` / `WhatsAppCard.tsx`                                        | 各平台配置 UI（含 `WeChatConfigCard` 微信多实例+风控披露+企微跳转闭环、`WeChatOfficialConfigCard` 认证服务号凭证 + 动态出口 IP 复制/刷新 + IP 白名单指引） |
+| `WeChatRiskDisclosureBanner.tsx`                                              | 个人微信接入风控告示横幅（可折叠持久化记忆、企微官方通道跳转分流引导）                                                    |
+| `WeChatTroubleshootGuide.tsx`                                                 | 个人微信装死/无响应 Art146 结构化排查面板（4 步自查诊断、状态刷新、重扫登录、诊断报告一键脱敏复制）                      |
 | `FeishuQrRegisterDialog.tsx`                                                  | 飞书 QR 扫码注册弹窗（新增多应用实例 / 刷新默认实例；含失败快速响应 + `resolvedRef` 终态守卫）                             |
 | `FeishuCredentialsEditDialog.tsx`                                             | 多应用实例「编辑凭据」弹窗（App ID / Secret / Lark；Secret 留空保留旧值，merge 落库后重建实例生效）                        |
 | `FeishuMultiAppSection.tsx`                                                   | 飞书多应用管理区（实例列表/添加/删除/重命名/编辑凭据，上限 UX；删除实例不可逆，需二次确认）                                |
@@ -31,7 +33,9 @@
 
 - `__tests__/topicWorkspaceLabel.test.ts` — workspace 展示 label 解析
 - `__tests__/FeishuMultiAppSection.test.tsx` — 多应用区渲染/编辑/删除确认/重命名/上限 UX（删除确认：确认后真实调 `deleteChannelInstance`、取消保留实例）
-- `__tests__/WeChatConfigCard.test.tsx` — 微信卡片删除/登出确认（主账号登出二次确认后调 `logoutWeChatChannel`、取消保留；附加实例删除确认后调 `deleteChannelInstance`）
+- `__tests__/WeChatConfigCard.test.tsx` — 微信卡片删除/登出确认与企业微信导流联动（主账号登出二次确认后调 `logoutWeChatChannel`、取消保留；附加实例删除确认后调 `deleteChannelInstance`；`onNavigateToWeCom` 企微跳转回调与 DOM 点击降级断言）
+- `__tests__/WeChatRiskDisclosureBanner.test.tsx` — 个人微信风控告示展开/收起/本地持久化记忆与企微跳转
+- `__tests__/WeChatTroubleshootGuide.test.tsx` — Art146 假死排障指南展开、4步清单、状态刷新、重扫登录与诊断报告复制
 - 后端 `tests/e2e/test_channel_delete_confirmation_chrome_e2e.py` — 删除确认 Chrome MCP E2E（PRIVATE：主账号登出取消/确认 + wechat extra 实例删除取消/确认 + 删除失败容错保持对话框打开，均走真实 API；依赖本模块 `ConfirmDialog` 的 `data-testid="confirm-dialog-confirm/cancel"` 探针）
 - `__tests__/FeishuCredentialsEditDialog.test.tsx` — 编辑凭据弹窗（脱敏回显、留空保留、校验）
 - `__tests__/FeishuQrRegisterDialog.test.tsx` — QR 注册弹窗（扫描/超时/手动回退）

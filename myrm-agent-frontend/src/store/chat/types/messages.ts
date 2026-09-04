@@ -18,6 +18,7 @@ import type { CitedMemoryReference, FileMutationFailure, Source, WorkspaceMergeF
 import type { ProgressItem } from './progress';
 import type { TokenEconomicsSnapshot, TokenUsage } from './tokens';
 import type { ToolImageOutput } from './agentStream/part3';
+import type { PhaseTransitionPayload } from './agentStream/part1';
 
 export interface McpAppView {
   resourceUri: string;
@@ -94,6 +95,8 @@ export type Message = {
     elapsed_seconds: number;
   };
   executionLane?: string;
+  phaseExecution?: PhaseTransitionPayload;
+  phaseHistory?: PhaseTransitionPayload[];
   wikiConfidenceScore?: number;
   wikiSourceCount?: number;
   consensusRefs?: Array<{

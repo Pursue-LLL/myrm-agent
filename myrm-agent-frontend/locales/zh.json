@@ -11901,6 +11901,46 @@
       "empty": "暂无该阶段的详细证据"
     }
   },
+  "executionPhaseStepper": {
+    "phases": {
+      "planning": {
+        "title": "请求理解与规划",
+        "subtitle": "意图解析 · 槽位核验 · 边界对齐"
+      },
+      "executing": {
+        "title": "执行协作与反思",
+        "subtitle": "多泳道协作 · 工具执行 · 观测反思"
+      },
+      "verifying": {
+        "title": "多维验收与交付",
+        "subtitle": "目标核验 · 交付物落盘 · 结果交付"
+      },
+      "completed": {
+        "title": "闭环交付完成",
+        "subtitle": "生产级 30 节点全闭环通过"
+      }
+    },
+    "lanes": {
+      "user": "用户决策 / 审批",
+      "agent": "智能体核心调度",
+      "skills": "技能与提示词",
+      "llm": "大模型深度推理",
+      "mcp": "MCP 外部协议集成",
+      "sandbox": "工具沙箱 / 执行环境"
+    },
+    "badge": "30 节点全闭环通过",
+    "waitingApproval": "等待用户审批中",
+    "telemetryDeck": "全流程六泳道执行透视",
+    "activeLane": "当前活跃泳道",
+    "currentNode": "节点 {nodeId}",
+    "expandTelemetry": "展开执行遥测",
+    "collapseTelemetry": "收起执行遥测",
+    "totalDuration": "总耗时 {ms}ms",
+    "completedBadge": "30 节点全闭环通过",
+    "hideDetails": "收起详情",
+    "viewDetails": "查看详情",
+    "nodePrefix": "节点"
+  },
   "settings": {
     "lockedUse": {
       "title": "计算机使用 / 锁定使用",
@@ -18228,11 +18268,21 @@
           "tooLarge": "文件大小不能超过 20MB"
         },
         "sections": {
+          "agents": "智能体团队 ({count})",
           "skills": "技能 ({count})",
           "servers": "MCP 服务器 ({count})",
+          "workspaceFiles": "工作区模板资产 ({count})",
           "files": "文件",
           "envCount": "{count} 个环境变量",
           "placeholder": "包含包内路径引用，导入后请在 MCP 设置中确认"
+        },
+        "agents": {
+          "entry": "主智能体",
+          "subagent": "协同代理",
+          "skillsCount": "{count} 个技能",
+          "toolsCount": "{count} 个工具",
+          "subagentsCount": "{count} 个子代理",
+          "templateFiles": "{count} 个模板文件"
         },
         "serverType": {
           "local": "本地服务",
@@ -18253,7 +18303,7 @@
           "placeholder": "选择智能体（可选）",
           "hint": "将导入的技能与 MCP 服务器挂载到所选智能体，绑定后仅该智能体可用；留空则仅存入全局库。"
         },
-        "summary": "已选 {skills} 个技能、{servers} 个 MCP 服务器",
+        "summary": "已选 {agents} 个智能体、{skills} 个技能、{servers} 个 MCP 服务器",
         "empty": {
           "title": "该插件没有可导入的组件",
           "hint": "请检查上方诊断信息，或更换有效的插件包。"
@@ -18271,7 +18321,7 @@
         },
         "success": {
           "title": "导入成功",
-          "description": "已导入 {skills} 个技能、{servers} 个 MCP 服务器",
+          "description": "已导入 {agents} 个智能体、{skills} 个技能、{servers} 个 MCP 服务器",
           "requiredKeys": "导入后请在「智能体密钥」中配置：{keys}",
           "disabledHint": "导入的 MCP 服务器默认停用，请在 MCP 设置中启用后再使用"
         }

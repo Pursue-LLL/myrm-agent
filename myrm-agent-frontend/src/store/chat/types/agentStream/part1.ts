@@ -95,6 +95,7 @@ export const AgentEventType = {
   COUNCIL_PHASE: 'council_phase',
   CAPABILITY_GAP: 'capability_gap',
   SKILL_GAP: 'skill_gap',
+  PHASE_TRANSITION: 'phase_transition',
 } as const;
 
 export interface BaseAgentEvent {
@@ -424,3 +425,18 @@ export interface SkillGapStreamEvent extends BaseAgentEvent {
     skill_id?: string;
   };
 }
+
+export interface PhaseTransitionPayload {
+  phase: 'planning' | 'executing' | 'verifying' | 'completed' | string;
+  phase_index: number;
+  active_lane: 'user' | 'agent' | 'skills' | 'llm' | 'mcp' | 'sandbox' | string;
+  node_id: number;
+  node_label: string;
+  duration_ms?: number;
+}
+
+export interface PhaseTransitionStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.PHASE_TRANSITION;
+  data: PhaseTransitionPayload;
+}
+

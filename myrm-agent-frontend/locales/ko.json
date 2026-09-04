@@ -11901,6 +11901,46 @@
       "empty": "이 단계의 세부 증거가 없습니다"
     }
   },
+  "executionPhaseStepper": {
+    "phases": {
+      "planning": {
+        "title": "요청 이해 및 계획",
+        "subtitle": "의도 분석 · 슬롯 검증 · 경계 정렬"
+      },
+      "executing": {
+        "title": "실행 협업 및 반성",
+        "subtitle": "다중 레인 협업 · 도구 실행 · 관측 반성"
+      },
+      "verifying": {
+        "title": "다차원 검증 및 전달",
+        "subtitle": "목표 검증 · 결과물 저장 · 결과 전달"
+      },
+      "completed": {
+        "title": "전달 완료",
+        "subtitle": "프로덕션 30개 노드 전체 검증 통과"
+      }
+    },
+    "lanes": {
+      "user": "사용자 승인",
+      "agent": "코어 스케줄링",
+      "skills": "스킬 및 프롬프트",
+      "llm": "LLM 심층 추론",
+      "mcp": "MCP 연동",
+      "sandbox": "샌드박스 실행"
+    },
+    "badge": "30개 노드 검증 통과",
+    "waitingApproval": "사용자 승인 대기 중",
+    "telemetryDeck": "라이프사이클 실행 텔레메트리",
+    "activeLane": "활성 레인",
+    "currentNode": "노드 {nodeId}",
+    "expandTelemetry": "텔레메트리 펼치기",
+    "collapseTelemetry": "텔레메트리 접기",
+    "totalDuration": "총 {ms}ms",
+    "completedBadge": "30개 노드 검증 통과",
+    "hideDetails": "세부정보 숨기기",
+    "viewDetails": "세부정보 보기",
+    "nodePrefix": "노드"
+  },
   "settings": {
     "lockedUse": {
       "title": "컴퓨터 사용 / 잠금 사용",
@@ -18228,11 +18268,21 @@
           "tooLarge": "파일 크기는 20MB를 초과할 수 없습니다"
         },
         "sections": {
+          "agents": "에이전트 팀 ({count})",
           "skills": "스킬 ({count})",
           "servers": "MCP 서버 ({count})",
+          "workspaceFiles": "작업 공간 자산 ({count})",
           "files": "파일",
           "envCount": "환경 변수 {count}개",
           "placeholder": "패키지 내 경로 참조 포함 — 가져온 후 MCP 설정에서 확인하세요"
+        },
+        "agents": {
+          "entry": "메인 에이전트",
+          "subagent": "서브 에이전트",
+          "skillsCount": "스킬 {count}개",
+          "toolsCount": "도구 {count}개",
+          "subagentsCount": "서브 에이전트 {count}개",
+          "templateFiles": "템플릿 파일 {count}개"
         },
         "serverType": {
           "local": "로컬 프로세스",
@@ -18253,7 +18303,7 @@
           "placeholder": "에이전트 선택(선택 사항)",
           "hint": "가져온 스킬과 MCP 서버를 선택한 에이전트에 마운트합니다(해당 에이전트에서만 사용 가능). 비워 두면 전역 라이브러리에만 저장됩니다."
         },
-        "summary": "스킬 {skills}개, MCP 서버 {servers}개 선택됨",
+        "summary": "에이전트 {agents}개, 스킬 {skills}개, MCP 서버 {servers}개 선택됨",
         "empty": {
           "title": "이 플러그인에는 가져올 수 있는 구성 요소가 없습니다",
           "hint": "위의 진단 정보를 확인하거나 유효한 플러그인 패키지를 선택하세요."
@@ -18271,7 +18321,7 @@
         },
         "success": {
           "title": "가져오기 성공",
-          "description": "스킬 {skills}개, MCP 서버 {servers}개를 가져왔습니다",
+          "description": "에이전트 {agents}개, 스킬 {skills}개, MCP 서버 {servers}개를 가져왔습니다",
           "requiredKeys": "가져온 후 Agent Secrets에서 다음 키를 구성하세요: {keys}",
           "disabledHint": "가져온 MCP 서버는 기본적으로 비활성화되어 있습니다. MCP 설정에서 활성화하세요"
         }

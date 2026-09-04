@@ -184,4 +184,34 @@ describe('WeChatConfigCard', () => {
     expect(screen.getByText('channelDeleteInstanceTitle')).toBeInTheDocument();
     expect(screen.getByLabelText('delete-wechat_inst1')).toBeInTheDocument();
   });
+
+  it('renders WeCom action button and triggers navigation when onNavigateToWeCom is passed', async () => {
+    const onNavigate = vi.fn();
+    render(<WeChatConfigCard onNavigateToWeCom={onNavigate} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /wechatRiskBannerWeComAction/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /wechatRiskBannerWeComAction/i }));
+    expect(onNavigate).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicks channel-list-item-wecom element when WeCom action button is clicked without prop', async () => {
+    const mockWeComBtn = document.createElement('button');
+    mockWeComBtn.setAttribute('data-testid', 'channel-list-item-wecom');
+    const clickSpy = vi.fn();
+    mockWeComBtn.addEventListener('click', clickSpy);
+    document.body.appendChild(mockWeComBtn);
+
+    render(<WeChatConfigCard />);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /wechatRiskBannerWeComAction/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /wechatRiskBannerWeComAction/i }));
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+
+    document.body.removeChild(mockWeComBtn);
+  });
 });

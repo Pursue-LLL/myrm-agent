@@ -251,6 +251,7 @@ _USAGE_PROBE_JS = """(() => {
       hasTokenEconomics: !!msg.tokenEconomics,
       usageKeys: Object.keys(msg.usage || {}),
       routingTier: msg.routingTier || null,
+      routingReason: msg.routingReason || null,
     };
   }
   return { ok: false, err: 'no assistant message' };
@@ -783,6 +784,7 @@ async def test_smart_routing_tier_surfaced_in_webui(
                         break
                     await asyncio.sleep(0.5)
                 assert badge_state.get("found") is True, badge_state
+                assert probe_state.get("routingReason") is not None, probe_state
 
                 resolved_chat_id = chat_id
                 if not resolved_chat_id:

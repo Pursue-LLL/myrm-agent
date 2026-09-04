@@ -11901,6 +11901,46 @@
       "empty": "暫無該階段的詳細證據"
     }
   },
+  "executionPhaseStepper": {
+    "phases": {
+      "planning": {
+        "title": "請求理解與規劃",
+        "subtitle": "意圖解析 · 槽位核驗 · 邊界對齊"
+      },
+      "executing": {
+        "title": "執行協作與反思",
+        "subtitle": "多泳道協作 · 工具執行 · 觀測反思"
+      },
+      "verifying": {
+        "title": "多維驗收與交付",
+        "subtitle": "目標核驗 · 交付物落盤 · 結果交付"
+      },
+      "completed": {
+        "title": "閉環交付完成",
+        "subtitle": "生產級 30 節點全閉環通過"
+      }
+    },
+    "lanes": {
+      "user": "用戶決策 / 審批",
+      "agent": "智慧體核心調度",
+      "skills": "技能與提示詞",
+      "llm": "大模型深度推理",
+      "mcp": "MCP 外部協議集成",
+      "sandbox": "工具沙箱 / 執行環境"
+    },
+    "badge": "30 節點全閉環通過",
+    "waitingApproval": "等待用戶審批中",
+    "telemetryDeck": "全流程六泳道執行透視",
+    "activeLane": "當前活躍泳道",
+    "currentNode": "節點 {nodeId}",
+    "expandTelemetry": "展開執行遙測",
+    "collapseTelemetry": "收起執行遙測",
+    "totalDuration": "總耗時 {ms}ms",
+    "completedBadge": "30 節點全閉環通過",
+    "hideDetails": "收起詳情",
+    "viewDetails": "查看詳情",
+    "nodePrefix": "節點"
+  },
   "settings": {
     "lockedUse": {
       "title": "電腦使用 / 鎖定使用",
@@ -18228,11 +18268,21 @@
           "tooLarge": "檔案大小不能超過 20MB"
         },
         "sections": {
+          "agents": "智慧體團隊 ({count})",
           "skills": "技能 ({count})",
           "servers": "MCP 伺服器 ({count})",
+          "workspaceFiles": "工作區範本資產 ({count})",
           "files": "檔案",
           "envCount": "{count} 個環境變數",
           "placeholder": "包含套件內路徑參照，匯入後請在 MCP 設定中確認"
+        },
+        "agents": {
+          "entry": "主智慧體",
+          "subagent": "協同代理",
+          "skillsCount": "{count} 個技能",
+          "toolsCount": "{count} 個工具",
+          "subagentsCount": "{count} 個子代理",
+          "templateFiles": "{count} 個範本檔案"
         },
         "serverType": {
           "local": "本機服務",
@@ -18253,7 +18303,7 @@
           "placeholder": "選擇智慧代理（可選）",
           "hint": "將匯入的技能與 MCP 伺服器掛載至所選智慧代理（僅該代理可用）；留空則僅存入全域庫。"
         },
-        "summary": "已選 {skills} 個技能、{servers} 個 MCP 伺服器",
+        "summary": "已選 {agents} 個智慧體、{skills} 個技能、{servers} 個 MCP 伺服器",
         "empty": {
           "title": "此外掛沒有可匯入的元件",
           "hint": "請檢查上方診斷資訊，或選擇有效的外掛套件。"
@@ -18266,7 +18316,7 @@
         },
         "success": {
           "title": "匯入成功",
-          "description": "已匯入 {skills} 個技能、{servers} 個 MCP 伺服器",
+          "description": "已匯入 {agents} 個智慧體、{skills} 個技能、{servers} 個 MCP 伺服器",
           "requiredKeys": "匯入後請在「智慧代理密鑰」中設定：{keys}",
           "disabledHint": "匯入的 MCP 伺服器預設停用，請在 MCP 設定中啟用後再使用"
         },

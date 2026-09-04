@@ -357,19 +357,21 @@ function ChannelConfigPanel({
   waStatus,
   waLoading,
   onRefreshWa,
+  onSelectChannel,
   t,
 }: {
   channel: string;
   waStatus: WhatsAppCardProps['waStatus'];
   waLoading: boolean;
   onRefreshWa: () => void;
+  onSelectChannel?: (channel: string) => void;
   t: (key: string, values?: Record<string, string | number>) => string;
 }) {
   switch (channel) {
     case 'whatsapp':
       return <WhatsAppCard waStatus={waStatus} loading={waLoading} onRefresh={onRefreshWa} t={t} />;
     case 'wechat':
-      return <WeChatConfigCard />;
+      return <WeChatConfigCard onNavigateToWeCom={() => onSelectChannel?.('wecom')} />;
     case 'wechat_official':
       return <WeChatOfficialConfigCard />;
     case 'feishu':
@@ -513,6 +515,7 @@ export default function ChannelsSection() {
               waStatus={state.waStatus}
               waLoading={state.waLoading}
               onRefreshWa={() => state.fetchWhatsAppStatus(true)}
+              onSelectChannel={setSelectedChannel}
               t={t}
             />
           )}

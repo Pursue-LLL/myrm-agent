@@ -21,6 +21,8 @@ import {
   IconShieldCheck,
   IconBot,
   IconTerminal,
+  IconUsers,
+  IconFolder,
 } from '@/components/features/icons/PremiumIcons';
 import { toast } from '@/hooks/shared/useToast';
 import useAgentStore from '@/store/useAgentStore';
@@ -63,6 +65,20 @@ interface PluginServerPreview {
   virtual_id: string;
 }
 
+interface PluginAgentPreview {
+  name: string;
+  description: string;
+  system_prompt: string;
+  max_iterations: number | null;
+  skill_names: string[];
+  tool_names: string[];
+  mcp_names: string[];
+  subagent_names: string[];
+  is_subagent: boolean;
+  is_entry_agent: boolean;
+  virtual_id: string;
+}
+
 interface PluginDiagnostic {
   component: string;
   code: string;
@@ -75,6 +91,8 @@ interface PluginPreviewPayload {
   plugin: PluginMeta;
   skills: PluginSkillPreview[];
   servers: PluginServerPreview[];
+  agents?: PluginAgentPreview[];
+  workspace_file_count?: number;
   diagnostics: PluginDiagnostic[];
   is_valid: boolean;
 }
@@ -84,6 +102,9 @@ interface PluginConfirmResult {
   skipped_skills: number;
   imported_servers: number;
   skipped_servers: number;
+  imported_agents?: number;
+  skipped_agents?: number;
+  created_agent_ids?: string[];
   required_secret_keys: string[];
 }
 
@@ -132,6 +153,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
   const [preview, setPreview] = useState<PluginPreviewPayload | null>(null);
   const [skillDecisions, setSkillDecisions] = useState<ComponentDecision[]>([]);
   const [serverDecisions, setServerDecisions] = useState<ComponentDecision[]>([]);
+  const [agentDecisions, setAgentDecisions] = useState<ComponentDecision[]>([]);
   const [bindAgentId, setBindAgentId] = useState<string | null>(null);
 
   const resetForm = useCallback(() => {
@@ -140,6 +162,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
     setPreview(null);
     setSkillDecisions([]);
     setServerDecisions([]);
+    setAgentDecisions([]);
     setBindAgentId(null);
     setIsParsing(false);
     setIsImporting(false);
@@ -189,6 +212,13 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
         );
         setServerDecisions(
           data.servers.map((item) => ({
+            virtual_id: item.virtual_id,
+            name: item.name,
+            resolution: 'install',
+          })),
+        );
+        setAgentDecisions(
+          (data.agents ?? []).map((item) => ({
             virtual_id: item.virtual_id,
             name: item.name,
             resolution: 'install',
@@ -246,6 +276,10 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
     setServerDecisions((prev) => prev.map((item) => ({ ...item, resolution })));
   }, []);
 
+  const toggleAllAgents = useCallback((resolution: 'install' | 'skip') => {
+    setAgentDecisions((prev) => prev.map((item) => ({ ...item, resolution })));
+  }, []);
+
   const handleConfirmImport = useCallback(async () => {
     if (!preview) {
       return;
@@ -266,6 +300,12 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
           name: item.name,
           resolution: item.resolution,
         })),
+        agents: agentDecisions.map((item) => ({
+          component: 'agent',
+          virtual_id: item.virtual_id,
+          name: item.name,
+          resolution: item.resolution,
+        })),
         bind_agent_id: bindAgentId,
       };
 
@@ -282,10 +322,12 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
 
       const result = (await res.json()) as PluginConfirmResult;
       const secretKeys = result.required_secret_keys ?? [];
+      const importedAgents = result.imported_agents ?? 0;
       toast({
         title: t('success.title'),
         description: [
           t('success.description', {
+            agents: importedAgents,
             skills: result.imported_skills,
             servers: result.imported_servers,
           }),
@@ -311,6 +353,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
     preview,
     skillDecisions,
     serverDecisions,
+    agentDecisions,
     bindAgentId,
     resolveUserFacingApiError,
     t,
@@ -326,6 +369,10 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
   const installedServerCount = useMemo(
     () => serverDecisions.filter((item) => item.resolution === 'install').length,
     [serverDecisions],
+  );
+  const installedAgentCount = useMemo(
+    () => agentDecisions.filter((item) => item.resolution === 'install').length,
+    [agentDecisions],
   );
 
   return (
@@ -450,10 +497,115 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                 )}
 
                 {/* Empty state: no importable components */}
-                {preview.skills.length === 0 && preview.servers.length === 0 && (
+                {preview.skills.length === 0 && preview.servers.length === 0 && (!preview.agents || preview.agents.length === 0) && (
                   <div className="rounded-xl border border-dashed p-6 text-center">
                     <p className="text-sm font-medium">{t('empty.title')}</p>
                     <p className="text-sm text-muted-foreground mt-1">{t('empty.hint')}</p>
+                  </div>
+                )}
+
+                {/* Agents / Squad */}
+                {preview.agents && preview.agents.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-base flex items-center gap-2">
+                        <IconUsers className="w-4 h-4 text-primary" />
+                        {t('sections.agents', { count: preview.agents.length })}
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => toggleAllAgents('install')}
+                        >
+                          {t('actions.selectAll')}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => toggleAllAgents('skip')}
+                        >
+                          {t('actions.skipAll')}
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="rounded-xl border bg-background divide-y">
+                      {preview.agents.map((item) => {
+                        const decision = agentDecisions.find((d) => d.virtual_id === item.virtual_id);
+                        const isInstalled = decision?.resolution === 'install';
+                        return (
+                          <div key={item.virtual_id} className="flex items-center justify-between gap-3 px-4 py-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="text-sm font-medium">{item.name}</p>
+                                {item.is_entry_agent && (
+                                  <Badge variant="default" className="text-[10px] py-0 px-1.5 font-normal">
+                                    {t('agents.entry')}
+                                  </Badge>
+                                )}
+                                {item.is_subagent && !item.is_entry_agent && (
+                                  <Badge variant="secondary" className="text-[10px] py-0 px-1.5 font-normal">
+                                    {t('agents.subagent')}
+                                  </Badge>
+                                )}
+                              </div>
+                              {item.description && (
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">{item.description}</p>
+                              )}
+                              <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
+                                {item.skill_names.length > 0 && (
+                                  <span>{t('agents.skillsCount', { count: item.skill_names.length })}</span>
+                                )}
+                                {item.tool_names.length > 0 && (
+                                  <span>· {t('agents.toolsCount', { count: item.tool_names.length })}</span>
+                                )}
+                                {item.subagent_names.length > 0 && (
+                                  <span>· {t('agents.subagentsCount', { count: item.subagent_names.length })}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button
+                                variant={isInstalled ? 'default' : 'ghost'}
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                disabled={isImporting}
+                                onClick={() =>
+                                  setResolution(agentDecisions, setAgentDecisions)(
+                                    item.virtual_id,
+                                    isInstalled ? 'skip' : 'install',
+                                  )
+                                }
+                              >
+                                {isInstalled ? (
+                                  <IconCheck className="w-3 h-3 mr-1" />
+                                ) : (
+                                  <IconX className="w-3 h-3 mr-1" />
+                                )}
+                                {isInstalled ? t('actions.install') : t('actions.skip')}
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Workspace Template Assets Notice */}
+                {(preview.workspace_file_count ?? 0) > 0 && (
+                  <div className="rounded-xl border bg-muted/20 px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm">
+                      <IconFolder className="w-4 h-4 text-primary" />
+                      <span className="font-medium">
+                        {t('sections.workspaceFiles', { count: preview.workspace_file_count })}
+                      </span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {t('agents.templateFiles', { count: preview.workspace_file_count })}
+                    </Badge>
                   </div>
                 )}
 
@@ -664,6 +816,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
           <div className="p-4 border-t flex items-center justify-between gap-3">
             <div className="text-xs text-muted-foreground">
               {t('summary', {
+                agents: installedAgentCount,
                 skills: installedSkillCount,
                 servers: installedServerCount,
               })}
@@ -675,7 +828,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
               <Button
                 size="sm"
                 onClick={handleConfirmImport}
-                disabled={isImporting || (!installedSkillCount && !installedServerCount)}
+                disabled={isImporting || (!installedSkillCount && !installedServerCount && !installedAgentCount)}
               >
                 {isImporting && <IconLoader className="w-4 h-4 mr-2 animate-spin" />}
                 {t('actions.confirm')}

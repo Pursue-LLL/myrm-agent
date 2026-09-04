@@ -825,6 +825,7 @@ async def build_general_agent(
         ),
         wiki_base_dir=(agent_wrapper._resolve_wiki_base_dir() if agent_wrapper.enable_wiki else None),
         wiki_public_dirs=(agent_wrapper._resolve_wiki_public_dirs() if agent_wrapper.enable_wiki else None),
+        wiki_public_dir_labels=(agent_wrapper._resolve_wiki_public_dir_labels() if agent_wrapper.enable_wiki else None),
         wiki_search_fn=(agent_wrapper._build_wiki_search_fn() if agent_wrapper.enable_wiki else None),
         wiki_scope_id=agent_wrapper.agent_id,
         similarity_checker=sim_checker,

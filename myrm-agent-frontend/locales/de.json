@@ -11901,6 +11901,46 @@
       "empty": "Keine Detailnachweise für diese Stufe"
     }
   },
+  "executionPhaseStepper": {
+    "phases": {
+      "planning": {
+        "title": "Planung & Verständnis",
+        "subtitle": "Absichtsanalyse · Slot-Verifizierung · Grenzenausrichtung"
+      },
+      "executing": {
+        "title": "Ausführung & Reflexion",
+        "subtitle": "Multi-Lane-Kollaboration · Werkzeugausführung · Reflexion"
+      },
+      "verifying": {
+        "title": "Verifizierung & Übergabe",
+        "subtitle": "Zielverifizierung · Artefaktspeicherung · Ergebnisübergabe"
+      },
+      "completed": {
+        "title": "Erfolgreich geliefert",
+        "subtitle": "Alle 30 Produktionslebenszyklusknoten verifiziert"
+      }
+    },
+    "lanes": {
+      "user": "Benutzergenehmigung",
+      "agent": "Agenten-Kern-Dispatch",
+      "skills": "Fähigkeiten & Prompts",
+      "llm": "LLM-Tiefeninferenz",
+      "mcp": "MCP-Integration",
+      "sandbox": "Sandbox-Ausführung"
+    },
+    "badge": "30 Knoten verifiziert",
+    "waitingApproval": "Warten auf Benutzergenehmigung",
+    "telemetryDeck": "Lebenszyklus-Ausführungstelemetrie",
+    "activeLane": "Aktive Lane",
+    "currentNode": "Knoten {nodeId}",
+    "expandTelemetry": "Telemetrie erweitern",
+    "collapseTelemetry": "Telemetrie reduzieren",
+    "totalDuration": "Gesamt {ms}ms",
+    "completedBadge": "30 Knoten verifiziert",
+    "hideDetails": "Details ausblenden",
+    "viewDetails": "Details anzeigen",
+    "nodePrefix": "Knoten"
+  },
   "settings": {
     "lockedUse": {
       "title": "Computernutzung / gesperrte Nutzung",
@@ -18228,11 +18268,21 @@
           "tooLarge": "Dateigröße darf 20 MB nicht überschreiten"
         },
         "sections": {
+          "agents": "Agent-Teams ({count})",
           "skills": "Fähigkeiten ({count})",
           "servers": "MCP-Server ({count})",
+          "workspaceFiles": "Arbeitsbereich-Dateien ({count})",
           "files": "Dateien",
           "placeholder": "Enthält Pfadverweise im Paket — nach dem Import in den MCP-Einstellungen prüfen",
           "envCount": "{count} Umgebungsvariablen"
+        },
+        "agents": {
+          "entry": "Hauptagent",
+          "subagent": "Unteragent",
+          "skillsCount": "{count} Fähigkeiten",
+          "toolsCount": "{count} Werkzeuge",
+          "subagentsCount": "{count} Subagenten",
+          "templateFiles": "{count} Vorlagendateien"
         },
         "actions": {
           "selectAll": "Alle installieren",
@@ -18249,7 +18299,7 @@
           "placeholder": "Agent auswählen (optional)",
           "hint": "Importierte Fähigkeiten und MCP-Server an den ausgewählten Agent binden (nur für diesen Agent verfügbar); leer lassen, um sie nur in der globalen Bibliothek zu speichern."
         },
-        "summary": "{skills} Fähigkeiten, {servers} MCP-Server ausgewählt",
+        "summary": "{agents} Agenten, {skills} Fähigkeiten, {servers} MCP-Server ausgewählt",
         "errors": {
           "parseTitle": "Parse-Fehler",
           "previewFailed": "Plugin konnte nicht analysiert werden. Dateiformat prüfen",
@@ -18258,7 +18308,7 @@
         },
         "success": {
           "title": "Import erfolgreich",
-          "description": "{skills} Fähigkeiten und {servers} MCP-Server importiert",
+          "description": "{agents} Agenten, {skills} Fähigkeiten und {servers} MCP-Server importiert",
           "requiredKeys": "Konfigurieren Sie diese Schlüssel nach dem Import unter „Agent-Secrets“: {keys}",
           "disabledHint": "Importierte MCP-Server sind standardmäßig deaktiviert — aktivieren Sie sie in den MCP-Einstellungen"
         },

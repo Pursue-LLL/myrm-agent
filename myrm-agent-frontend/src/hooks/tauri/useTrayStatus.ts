@@ -62,6 +62,10 @@ export function useTrayStatus() {
   const t = useTranslations('backgroundTasks');
   const liveness = useLivenessState();
   const isGenerating = useChatStore((state) => state.loading);
+  const isApprovalPending = useChatStore((state) => {
+    const lastMsg = state.messages[state.messages.length - 1];
+    return !!lastMsg?.toolApproval?.pending;
+  });
   const prevGenerating = useRef(false);
   const prevLivenessState = useRef<LivenessState>('idle');
   const [bgRunningCount, setBgRunningCount] = useState(0);
@@ -218,11 +222,19 @@ export function useTrayStatus() {
           tooltip += `\n${t('trayTooltipUsage', { usage: formatUsageLine(todayUsage) })}`;
         }
 
-        const trayStatus = liveness.state === 'offline' ? 'degraded' : liveness.state;
+        if (isApprovalPending) {
+          tooltip = `[Awaiting Approval] ${tooltip}`;
+        }
+
+        const trayStatus = liveness.state === 'offline' ? 'degraded' : isApprovalPending ? 'busy' : liveness.state;
         await invoke('set_tray_status', { status: trayStatus, tooltip });
 
         const win = getCurrentWindow();
-        const showProgress = liveness.state === 'busy' || liveness.state === 'draining' || bgRunningCount > 0;
+        if (isApprovalPending && document.visibilityState === 'hidden') {
+          await win.requestUserAttention(2);
+        }
+
+        const showProgress = liveness.state === 'busy' || liveness.state === 'draining' || bgRunningCount > 0 || isApprovalPending;
 
         if (showProgress) {
           await win.setProgressBar({ status: ProgressBarStatus.Indeterminate });
@@ -243,5 +255,5 @@ export function useTrayStatus() {
     };
 
     void sync();
-  }, [liveness.state, isGenerating, bgRunningCount, todayUsage, t]);
+  }, [liveness.state, isGenerating, isApprovalPending, bgRunningCount, todayUsage, t]);
 }

@@ -89,7 +89,7 @@ export interface MemoryState {
   setMemorySortBy: (sortBy: MemorySortBy) => void;
   setMemorySortOrder: (order: MemorySortOrder) => void;
   updateMemory: (memoryType: MemoryType, memoryId: string, updates: UpdateMemoryRequest) => Promise<void>;
-  deleteMemory: (id: string, memoryType: MemoryType) => Promise<void>;
+  deleteMemory: (id: string, memoryType: MemoryType, permanent?: boolean) => Promise<void>;
   deleteAllMemories: () => Promise<void>;
 
   // 统计

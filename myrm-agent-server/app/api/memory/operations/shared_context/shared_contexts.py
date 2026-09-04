@@ -236,6 +236,16 @@ async def create_shared_context_binding(
     db: AsyncSession = Depends(get_db_session),
 ) -> SharedContextBindingItem:
     """Bind a shared context to an agent, channel, cron job, conversation, or task."""
+    if body.target_type == "conversation":
+        current_bindings = await SharedContextService(db).list_bindings_for_target(
+            target_type="conversation",
+            target_id=body.target_id,
+        )
+        if not any(b.context_id == context_id for b in current_bindings) and len(current_bindings) >= 6:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Maximum 6 knowledge bases can be attached to a single conversation",
+            )
     try:
         binding = await SharedContextService(db).bind_context(
             context_id=context_id,
@@ -247,6 +257,35 @@ async def create_shared_context_binding(
     if binding is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shared context not found")
     return binding_to_item(binding)
+
+
+@router.delete("/{context_id}/bindings/targets/{target_type}/{target_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_shared_context_binding_by_target(
+    context_id: str,
+    target_type: SharedContextTargetType,
+    target_id: str,
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    """Remove all bindings of a shared context for a specific runtime target."""
+    deleted = await SharedContextService(db).unbind_context_by_target(
+        context_id=context_id,
+        target_type=target_type,
+        target_id=target_id,
+    )
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shared context binding not found")
+    await MemoryOperationLedgerService(db).record_event(
+        kind=MemoryOperationKind.WRITE,
+        status=MemoryOperationStatus.SUCCESS,
+        summary="Shared context target binding deleted.",
+        memory_id=context_id,
+        memory_type="shared_context",
+        source="shared_context_api",
+        target_kind="shared_context_binding",
+        target_id=f"{target_type}:{target_id}",
+        metadata={"context_id": context_id, "target_type": target_type, "target_id": target_id},
+        commit=True,
+    )
 
 
 @router.delete("/{context_id}/bindings/{binding_id}", status_code=status.HTTP_204_NO_CONTENT)

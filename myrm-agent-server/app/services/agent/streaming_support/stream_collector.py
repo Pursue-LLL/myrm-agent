@@ -395,6 +395,7 @@ class StreamContentCollector:
         self._stop_reason: dict[str, object] | None = None
         self._model_name: str | None = None
         self._routing_tier: str | None = None
+        self._routing_reason: str | None = None
         self._privacy_level: str | None = None
         self._privacy_route: str | None = None
         self._cache_break: dict[str, object] | None = None
@@ -734,6 +735,9 @@ class StreamContentCollector:
             tier = data.get("tier")
             if isinstance(tier, str):
                 self._routing_tier = tier
+            reason = data.get("reason")
+            if isinstance(reason, str):
+                self._routing_reason = reason
         elif event_type == "privacy_level" and isinstance(data, dict):
             level = data.get("current_turn_level")
             if isinstance(level, str):
@@ -989,6 +993,8 @@ class StreamContentCollector:
             result["tokenEconomics"] = self._token_economics
         if self._routing_tier:
             result["routingTier"] = self._routing_tier
+        if self._routing_reason:
+            result["routingReason"] = self._routing_reason
         if self._privacy_level:
             result["privacyLevel"] = self._privacy_level
         if self._privacy_route:

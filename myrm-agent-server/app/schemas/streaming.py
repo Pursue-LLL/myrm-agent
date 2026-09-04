@@ -64,3 +64,14 @@ class SSEEnvelope(BaseModel):
         # exclude_none ensures we don't spam the network with null values
         json_str = self.model_dump_json(by_alias=True, exclude_none=True)
         return f"data: {json_str}\n\n"
+
+
+class PhaseTransitionData(BaseModel):
+    """Payload data model for phase_transition event chunks."""
+
+    phase: str
+    phase_index: int
+    active_lane: str
+    node_id: int
+    node_label: str
+    duration_ms: int = 0

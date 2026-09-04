@@ -66,6 +66,8 @@ async def execute_wiki_knowledge_query(
     model_cfg: object | None = None,
     llm: BaseChatModel | None = None,
     archiver: MemoryToWikiArchiver | None = None,
+    shared_context_ids: list[str] | None = None,
+    context_name_map: dict[str, str] | None = None,
 ) -> WikiKnowledgeQueryResult:
     """Run wiki retrieval and build citation sources (Settings + Chat lane SSOT)."""
     trimmed = question.strip()
@@ -78,7 +80,23 @@ async def execute_wiki_knowledge_query(
             lite_model_cfg=lite_model_cfg,
             model_cfg=model_cfg,
         )
-        active_archiver = get_wiki_archiver(resolved_llm, manager=None, agent_id=agent_id)
+        from app.services.wiki.vault import (
+            resolve_shared_wiki_vault_labels,
+            resolve_shared_wiki_vault_paths,
+        )
+
+        public_dirs = list(resolve_shared_wiki_vault_paths(shared_context_ids))
+        public_dir_labels = resolve_shared_wiki_vault_labels(
+            shared_context_ids,
+            context_name_map=context_name_map,
+        )
+        active_archiver = get_wiki_archiver(
+            resolved_llm,
+            manager=None,
+            agent_id=agent_id,
+            public_dirs=public_dirs,
+            public_dir_labels=public_dir_labels,
+        )
 
     result = await active_archiver.query_wiki(trimmed, query_mode=query_mode)
     sources = build_wiki_query_sources(result, structure=active_archiver._structure)

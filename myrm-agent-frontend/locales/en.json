@@ -11901,6 +11901,46 @@
       "empty": "No evidence details for this stage"
     }
   },
+  "executionPhaseStepper": {
+    "phases": {
+      "planning": {
+        "title": "Planning & Understanding",
+        "subtitle": "Intent parsing · Slot verification · Boundary alignment"
+      },
+      "executing": {
+        "title": "Execution & Reflection",
+        "subtitle": "Multi-lane collaboration · Tool invocation · Reflection"
+      },
+      "verifying": {
+        "title": "Verification & Delivery",
+        "subtitle": "Goal verification · Deliverable persistence · Result delivery"
+      },
+      "completed": {
+        "title": "Delivered Successfully",
+        "subtitle": "All 30 production lifecycle nodes verified"
+      }
+    },
+    "lanes": {
+      "user": "User Approval",
+      "agent": "Agent Core Dispatch",
+      "skills": "Skills & Prompts",
+      "llm": "LLM Deep Inference",
+      "mcp": "MCP Integration",
+      "sandbox": "Sandbox Execution"
+    },
+    "badge": "30 Nodes Verified",
+    "waitingApproval": "Awaiting User Approval",
+    "telemetryDeck": "Lifecycle Execution Telemetry",
+    "activeLane": "Active Lane",
+    "currentNode": "Node {nodeId}",
+    "expandTelemetry": "Expand Telemetry",
+    "collapseTelemetry": "Collapse Telemetry",
+    "totalDuration": "Total {ms}ms",
+    "completedBadge": "30 Nodes Verified",
+    "hideDetails": "Hide Details",
+    "viewDetails": "View Details",
+    "nodePrefix": "Node"
+  },
   "settings": {
     "lockedUse": {
       "title": "Computer Use / Locked Use",
@@ -18228,11 +18268,21 @@
           "tooLarge": "File size cannot exceed 20MB"
         },
         "sections": {
+          "agents": "Agents ({count})",
           "skills": "Skills ({count})",
           "servers": "MCP Servers ({count})",
+          "workspaceFiles": "Workspace Assets ({count})",
           "files": "files",
           "envCount": "{count} env vars",
           "placeholder": "Contains in-package path references — confirm them in MCP settings after import"
+        },
+        "agents": {
+          "entry": "Entry Agent",
+          "subagent": "Subagent",
+          "skillsCount": "{count} skill(s)",
+          "toolsCount": "{count} tool(s)",
+          "subagentsCount": "{count} subagent(s)",
+          "templateFiles": "{count} template file(s)"
         },
         "serverType": {
           "local": "Local process",
@@ -18253,7 +18303,7 @@
           "placeholder": "Select agent (optional)",
           "hint": "Mount the imported skills and MCP servers to the selected agent (available only to that agent); leave empty to keep them in the global library only."
         },
-        "summary": "{skills} skills, {servers} MCP servers selected",
+        "summary": "{agents} agents, {skills} skills, {servers} MCP servers selected",
         "empty": {
           "title": "No importable components in this plugin",
           "hint": "Review the diagnostics above, or choose a valid plugin package."
@@ -18271,7 +18321,7 @@
         },
         "success": {
           "title": "Import Success",
-          "description": "Imported {skills} skills and {servers} MCP servers",
+          "description": "Imported {agents} agents, {skills} skills and {servers} MCP servers",
           "requiredKeys": "Configure these keys in Agent Secrets after import: {keys}",
           "disabledHint": "Imported MCP servers are disabled by default — enable them in MCP Settings"
         }

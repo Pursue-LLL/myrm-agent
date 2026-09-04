@@ -226,6 +226,16 @@ class SharedContextService:
             ctx.last_accessed_at = now
         await self._session.commit()
 
+    async def get_context_names(self, context_ids: Sequence[str]) -> dict[str, str]:
+        """Fetch a mapping of context ID to context display name."""
+        if not context_ids:
+            return {}
+        stmt = select(SharedContextModel.id, SharedContextModel.name).where(
+            SharedContextModel.id.in_(context_ids)
+        )
+        result = await self._session.execute(stmt)
+        return {str(row[0]): str(row[1]) for row in result.all()}
+
     async def archive_context(self, context_id: str) -> SharedContextModel | None:
         return await self.update_context(context_id, status="archived")
 
@@ -303,6 +313,31 @@ class SharedContextService:
         if binding is None:
             return False
         await self._session.delete(binding)
+        await self._session.commit()
+        return True
+
+    async def unbind_context_by_target(
+        self,
+        *,
+        context_id: str,
+        target_type: SharedContextTargetType,
+        target_id: str,
+    ) -> bool:
+        normalized_target_type = _validate_target_type(target_type)
+        normalized_target_id = target_id.strip()
+        bindings = (
+            await self._session.execute(
+                select(SharedContextBindingModel).where(
+                    SharedContextBindingModel.context_id == context_id,
+                    SharedContextBindingModel.target_type == normalized_target_type,
+                    SharedContextBindingModel.target_id == normalized_target_id,
+                )
+            )
+        ).scalars().all()
+        if not bindings:
+            return False
+        for b in bindings:
+            await self._session.delete(b)
         await self._session.commit()
         return True
 

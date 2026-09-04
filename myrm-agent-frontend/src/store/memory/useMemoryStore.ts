@@ -299,9 +299,9 @@ const useMemoryStore = create<MemoryState>()(
       }
     },
 
-    deleteMemory: async (id: string, memoryType: MemoryType) => {
+    deleteMemory: async (id: string, memoryType: MemoryType, permanent: boolean = false) => {
       try {
-        await apiDeleteMemory(id, memoryType);
+        await apiDeleteMemory(id, memoryType, permanent);
         set((state) => {
           state.memories = state.memories.filter((m) => m.id !== id);
           if (state.memoryPagination) {

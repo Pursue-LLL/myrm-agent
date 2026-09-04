@@ -87,6 +87,26 @@ async def test_taste_summary_and_status_api(client: TestClient, auth_headers: di
     assert r.json()["status"] == "disabled"
     override_memory_manager.update_memory.assert_called_once_with(mem_id, status=MemoryStatus.DISABLED)
 
+    # 3. 验证软删除 API (默认 permanent=False)
+    del_resp = client.delete(f"/api/v1/memory/{mem_id}?memory_type=semantic", headers=auth_headers)
+    assert del_resp.status_code == 200
+    del_data = del_resp.json()
+    data_payload = del_data.get("data", del_data)
+    assert data_payload["deleted"] is True
+    assert data_payload.get("soft_delete") is True
+    override_memory_manager.update_memory.assert_called_with(mem_id, status=MemoryStatus.ARCHIVED)
+
+    # 4. 验证一键物理粉碎永久删除 API (permanent=True)
+    override_memory_manager.config.semantic_collection = "memories_semantic"
+    override_memory_manager.delete_memory.return_value = 1
+    purge_resp = client.delete(f"/api/v1/memory/{mem_id}?memory_type=semantic&permanent=true", headers=auth_headers)
+    assert purge_resp.status_code == 200
+    purge_data = purge_resp.json()
+    purge_payload = purge_data.get("data", purge_data)
+    assert purge_payload["deleted"] is True
+    assert purge_payload.get("permanent") is True
+    override_memory_manager.delete_memory.assert_called_once_with("memories_semantic", [mem_id])
+
 
 @pytest.mark.asyncio
 async def test_taste_summary_with_facets(auth_headers: dict[str, str]):

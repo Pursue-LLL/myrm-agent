@@ -36,6 +36,7 @@ import { removeWaitingForTurnStep } from '@/store/chat/messageUtils';
 import { regenerateLastTurn, undoLastTurn, cancelAgentRequest, truncateAfterMessage } from '@/services/chat';
 import ProgressSteps from './progress-steps/ProgressSteps';
 import { EvidenceStageHUD } from '@/components/features/chat-window/EvidenceStageHUD';
+import { ExecutionPhaseStepper } from '@/components/features/chat-window/ExecutionPhaseStepper';
 import ConsensusThinkingPanel from './ConsensusThinkingPanel';
 import UserMessage from './UserMessage';
 import MarkdownContent from './MarkdownContent';
@@ -562,13 +563,22 @@ const MessageBox = ({
               : Array.isArray(message.metadata?.progressSteps)
                 ? (message.metadata.progressSteps as typeof message.progressSteps)
                 : [];
-          if (!resolvedProgressSteps || resolvedProgressSteps.length === 0) {
-            return null;
-          }
           return (
             <div className="space-y-1.5">
-              <EvidenceStageHUD steps={resolvedProgressSteps} loading={loading} />
-              <ProgressSteps messageId={message.messageId} steps={resolvedProgressSteps} loading={loading} />
+              {(message.phaseExecution || (loading && isLast)) && (
+                <ExecutionPhaseStepper
+                  phaseExecution={message.phaseExecution}
+                  phaseHistory={message.phaseHistory}
+                  loading={loading && isLast}
+                  isApprovalPending={!!message.toolApproval?.pending}
+                />
+              )}
+              {resolvedProgressSteps.length > 0 && (
+                <>
+                  <EvidenceStageHUD steps={resolvedProgressSteps} loading={loading} />
+                  <ProgressSteps messageId={message.messageId} steps={resolvedProgressSteps} loading={loading} />
+                </>
+              )}
             </div>
           );
         })()}

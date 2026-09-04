@@ -200,11 +200,16 @@ const MemorySection = memo(() => {
   }, [activeMemoryTab, fetchPendingMemories, fetchMemories, fetchArchivedMemories]);
 
   const handleDelete = useCallback(
-    async (id: string, memoryType: MemoryType) => {
-      const isSoftDeletable = memoryType === 'semantic' || memoryType === 'episodic';
+    async (id: string, memoryType: MemoryType, permanent: boolean = false) => {
+      const isSoftDeletable = !permanent && (memoryType === 'semantic' || memoryType === 'episodic');
       try {
-        await deleteMemory(id, memoryType);
-        if (isSoftDeletable) {
+        await deleteMemory(id, memoryType, permanent);
+        if (permanent) {
+          toast({
+            title: t('deleteSuccess'),
+            description: t('trash.purgeSuccess'),
+          });
+        } else if (isSoftDeletable) {
           toast({
             title: t('deleteSuccess'),
             description: t('trash.undoHint'),
@@ -829,7 +834,7 @@ const MemorySection = memo(() => {
                         variant="confirmed"
                         onClick={() => setDetailMemory(memory)}
                         onEdit={() => setEditingMemory(memory)}
-                        onDelete={() => handleDelete(memory.id, memory.memory_type as MemoryType)}
+                        onDelete={(permanent) => handleDelete(memory.id, memory.memory_type as MemoryType, permanent)}
                         onToggleDisable={() => handleToggleDisable(memory)}
                         onChatFromMemory={() => handleChatFromMemory(memory)}
                       />

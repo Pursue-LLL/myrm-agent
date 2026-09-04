@@ -132,6 +132,7 @@ class GeneralAgent(ToolSetupMixin):
         memory_conversation_id: str | None = None,
         memory_task_id: str | None = None,
         memory_shared_context_ids: list[str] | None = None,
+        memory_shared_context_names: dict[str, str] | None = None,
         memory_base_path: str | None = None,
         declared_capabilities: tuple[str, ...] = (),
         declared_allowed_roots: tuple[str, ...] = (),
@@ -243,6 +244,7 @@ class GeneralAgent(ToolSetupMixin):
         self.memory_conversation_id = memory_conversation_id
         self.memory_task_id = memory_task_id
         self.memory_shared_context_ids = list(memory_shared_context_ids or [])
+        self.memory_shared_context_names = dict(memory_shared_context_names or {})
         self.memory_base_path = memory_base_path
         self.declared_capabilities = declared_capabilities
         self.declared_allowed_roots = declared_allowed_roots
@@ -307,6 +309,30 @@ class GeneralAgent(ToolSetupMixin):
         from app.services.wiki.vault import resolve_shared_wiki_vault_paths
 
         return [str(path) for path in resolve_shared_wiki_vault_paths(self.memory_shared_context_ids)]
+
+    def _resolve_wiki_public_dir_labels(self) -> dict[str, str]:
+        """Resolve friendly display labels for shared wiki vaults."""
+        from app.services.wiki.vault import resolve_shared_wiki_vault_labels
+
+        context_name_map = dict(getattr(self, "memory_shared_context_names", None) or {})
+        if not context_name_map and self.memory_shared_context_ids:
+            try:
+                from app.database import get_session_sync
+                from app.services.memory.shared_context.shared_context import (
+                    SharedContextService,
+                )
+
+                with get_session_sync() as session:
+                    context_name_map = SharedContextService(session).get_context_names_sync(
+                        self.memory_shared_context_ids
+                    )
+            except Exception:
+                pass
+
+        return resolve_shared_wiki_vault_labels(
+            self.memory_shared_context_ids,
+            context_name_map=context_name_map or None,
+        )
 
     def _build_wiki_search_fn(
         self,

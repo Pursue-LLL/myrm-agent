@@ -334,18 +334,39 @@ async def delete_all_memories(
 async def delete_memory_by_id(
     memory_id: str,
     memory_type: str = Query(..., description="Memory type"),
+    permanent: bool = Query(False, description="Whether to permanently delete the memory"),
     manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> object:
     """Delete a specific memory by ID.
 
-    For Semantic/Episodic memories, performs a soft delete (archive with 7-day TTL).
-    For Profile/Procedural memories, performs a hard delete (no vector status concept).
+    For Semantic/Episodic memories:
+    - permanent=False: performs a soft delete (archive with 7-day TTL).
+    - permanent=True: performs a hard delete (cascading vector index, embedding cache, and claim graph).
+    For Profile/Procedural memories: performs a hard delete.
     """
     from myrm_agent_harness.toolkits.memory.types import MemoryStatus
 
     mem_type = parse_memory_type(memory_type)
 
     if mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
+        if permanent:
+            coll = (
+                manager.config.semantic_collection
+                if mem_type == MemoryType.SEMANTIC
+                else manager.config.episodic_collection
+            )
+            deleted = await manager.delete_memory(coll, [memory_id])
+            if deleted == 0:
+                raise HTTPException(status_code=404, detail="Memory not found or could not be permanently deleted")
+            await _record_memory_event(
+                kind=MemoryOperationKind.FORGET,
+                summary="Memory permanently deleted (purged).",
+                memory_id=memory_id,
+                memory_type=mem_type.value,
+                metadata={"permanent": True},
+            )
+            return create_success_response(data={"deleted": True, "memory_id": memory_id, "permanent": True})
+
         try:
             await manager.update_memory(memory_id, status=MemoryStatus.ARCHIVED)
         except Exception as e:

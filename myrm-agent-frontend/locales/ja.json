@@ -11901,6 +11901,46 @@
       "empty": "この段階の詳細証拠はありません"
     }
   },
+  "executionPhaseStepper": {
+    "phases": {
+      "planning": {
+        "title": "リクエスト理解と計画",
+        "subtitle": "意図解析 · スロット検証 · 境界調整"
+      },
+      "executing": {
+        "title": "実行連携と内省",
+        "subtitle": "複数レーン連携 · ツール実行 · 観測内省"
+      },
+      "verifying": {
+        "title": "多次元検証と納品",
+        "subtitle": "目標検証 · 成果物保存 · 結果納品"
+      },
+      "completed": {
+        "title": "完了と納品",
+        "subtitle": "本番30ノードすべて検証合格"
+      }
+    },
+    "lanes": {
+      "user": "ユーザー承認",
+      "agent": "コアスケジューリング",
+      "skills": "スキルとプロンプト",
+      "llm": "LLM深層推論",
+      "mcp": "MCP統合",
+      "sandbox": "サンドボックス実行"
+    },
+    "badge": "30ノード検証合格",
+    "waitingApproval": "ユーザー承認待ち",
+    "telemetryDeck": "ライフサイクル実行テレメトリ",
+    "activeLane": "アクティブレーン",
+    "currentNode": "ノード {nodeId}",
+    "expandTelemetry": "テレメトリを展開",
+    "collapseTelemetry": "テレメトリを折りたたむ",
+    "totalDuration": "合計 {ms}ms",
+    "completedBadge": "30ノード検証合格",
+    "hideDetails": "詳細を非表示",
+    "viewDetails": "詳細を表示",
+    "nodePrefix": "ノード"
+  },
   "settings": {
     "lockedUse": {
       "title": "コンピューター使用 / ロック使用",
@@ -18228,11 +18268,21 @@
           "tooLarge": "ファイルサイズは 20MB を超えられません"
         },
         "sections": {
+          "agents": "エージェントチーム ({count})",
           "skills": "スキル ({count})",
           "servers": "MCP サーバー ({count})",
+          "workspaceFiles": "ワークスペース資産 ({count})",
           "files": "ファイル",
           "envCount": "環境変数 {count} 個",
           "placeholder": "パッケージ内パス参照を含みます。インポート後、MCP設定で確認してください"
+        },
+        "agents": {
+          "entry": "メインエージェント",
+          "subagent": "サブエージェント",
+          "skillsCount": "{count} 個のスキル",
+          "toolsCount": "{count} 個のツール",
+          "subagentsCount": "{count} 個のサブエージェント",
+          "templateFiles": "{count} 個のテンプレートファイル"
         },
         "serverType": {
           "local": "ローカルプロセス",
@@ -18253,7 +18303,7 @@
           "placeholder": "エージェントを選択（任意）",
           "hint": "インポートしたスキルと MCP サーバーを選択したエージェントにマウントします（そのエージェントのみで利用可能）。空のままにするとグローバルライブラリのみに保存されます。"
         },
-        "summary": "スキル {skills} 個、MCP サーバー {servers} 個を選択中",
+        "summary": "エージェント {agents} 個、スキル {skills} 個、MCP サーバー {servers} 個を選択中",
         "empty": {
           "title": "このプラグインにインポート可能なコンポーネントはありません",
           "hint": "上の診断情報を確認するか、有効なプラグインパッケージを選択してください。"
@@ -18271,7 +18321,7 @@
         },
         "success": {
           "title": "インポート成功",
-          "description": "スキル {skills} 個、MCP サーバー {servers} 個をインポートしました",
+          "description": "エージェント {agents} 個、スキル {skills} 個、MCP サーバー {servers} 個をインポートしました",
           "requiredKeys": "インポート後、Agent Secrets でこれらのキーを設定してください：{keys}",
           "disabledHint": "インポートした MCP サーバーは初期状態で無効です。MCP 設定で有効にしてください"
         }

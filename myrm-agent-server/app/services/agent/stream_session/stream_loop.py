@@ -318,8 +318,20 @@ async def iter_agent_stream_chunks(
     estimated_tokens = 0
     last_reported_tokens = 0
     accumulated_cost_usd = 0.0
+
+    from app.services.agent.stream_session.phase_stepper import PhaseTransitionTracker
+
+    phase_tracker = PhaseTransitionTracker(message_id=session.params.message_id)
+    initial_phase_event = phase_tracker.emit_initial_if_needed()
+    if initial_phase_event:
+        yield SSEEnvelope.from_any(initial_phase_event).to_sse_chunk()
+
     try:
         async for chunk in stream:
+            transition_event = phase_tracker.on_chunk(chunk)
+            if transition_event:
+                yield SSEEnvelope.from_any(transition_event).to_sse_chunk()
+
             if isinstance(chunk, dict):
                 if chunk.get("type") == "reasoning" and _is_reasoning_hidden(session):
                     continue

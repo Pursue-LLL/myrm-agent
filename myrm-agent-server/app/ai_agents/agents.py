@@ -161,6 +161,7 @@ class GeneralAgentParams(BaseAgentParams):
     memory_conversation_id: str | None = None
     memory_task_id: str | None = None
     memory_shared_context_ids: list[str] = []
+    memory_shared_context_names: dict[str, str] = {}
     memory_base_path: str | None = None
     declared_capabilities: tuple[str, ...] = ()
     declared_allowed_roots: tuple[str, ...] = ()

@@ -51,11 +51,28 @@ async def create_wiki_knowledge_lane_stream(
     }
 
     try:
+        context_name_map: dict[str, str] = {}
+        if params.memory_shared_context_ids:
+            try:
+                from app.database import get_session
+                from app.services.memory.shared_context.shared_context import (
+                    SharedContextService,
+                )
+
+                async with get_session() as session:
+                    context_name_map = await SharedContextService(session).get_context_names(
+                        params.memory_shared_context_ids
+                    )
+            except Exception as name_map_err:
+                logger.warning("Could not resolve context names for wiki lane: %s", name_map_err)
+
         query_result = await execute_wiki_knowledge_query(
             agent_id=params.agent_id,
             question=question,
             lite_model_cfg=params.lite_model_cfg,
             model_cfg=params.model_cfg,
+            shared_context_ids=params.memory_shared_context_ids or None,
+            context_name_map=context_name_map,
         )
     except Exception as exc:
         logger.error("Wiki knowledge lane query failed: %s", exc, exc_info=True)

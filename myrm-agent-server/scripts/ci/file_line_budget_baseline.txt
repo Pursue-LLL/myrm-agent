@@ -27,6 +27,7 @@ app/api/integrations/llms.py
 app/api/integrations/mcp.py
 app/api/integrations/provider_oauth.py
 app/api/kanban/schemas.py
+app/api/memory/operations/shared_context/shared_contexts.py
 app/api/skills/discovery.py
 app/api/skills/drafts.py
 app/api/skills/migrations.py
