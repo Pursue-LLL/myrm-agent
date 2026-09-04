@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Export helpers for chat messages endpoint.
 
 [INPUT]
@@ -15,6 +13,8 @@ Export helper functions and sanitizers for chat messages export.
 [POS]
 app.api.chats.chat.export_helpers: Supporting logic for chat export, tool summaries, and redaction.
 """
+
+from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path

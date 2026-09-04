@@ -2861,6 +2861,19 @@
       "success": "已成功淬鍊為評測用例",
       "successDesc": "已將該對話軌跡完整擷取並寫入評測基準資料集",
       "error": "淬鍊評測用例失敗"
+    },
+    "callGraph": {
+      "title": "程式碼呼叫圖分析",
+      "callers": "呼叫方",
+      "reachingTests": "關聯測試",
+      "physicalCallChain": "物理呼叫鏈路",
+      "noCallers": "未檢測到外部呼叫點（可能為根入口或私有符號）",
+      "params": "參數列表",
+      "testImpact": "測試影響面與爆炸半徑",
+      "noTests": "未檢測到直接或間接到達該符號的測試",
+      "depth": "深度",
+      "level": "層",
+      "runAffectedTests": "執行 {count} 個受影響測試套件"
     }
   },
   "mode": {
