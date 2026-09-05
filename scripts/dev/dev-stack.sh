@@ -244,10 +244,11 @@ _wait_frontend_http_200() {
         _ensure_backend || true
       fi
     fi
+    _sync_frontend_pid_from_lock
     if [[ -f "${FRONTEND_PID}" ]]; then
       local supervisor_pid
       supervisor_pid="$(tr -d '[:space:]' <"${FRONTEND_PID}")"
-      if [[ -n "${supervisor_pid}" ]] && ! dev_pid_alive "${supervisor_pid}"; then
+      if [[ -n "${supervisor_pid}" ]] && ! dev_pid_alive "${supervisor_pid}" && ! _lock_supervisor_alive; then
         echo "STACK_WARN: frontend supervisor exited before HTTP readiness — check ${FRONTEND_LOG}" >&2
         return 1
       fi

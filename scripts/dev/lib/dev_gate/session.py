@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 
+from dev_gate.contract import LIVE_SHPOIB_MAX_CONCURRENT
+
 
 class ExecutionMode(StrEnum):
     SHARED = "SHARED"
@@ -91,8 +93,11 @@ class SessionPolicy:
             and not self.namespace.strip()
         ):
             raise ValueError("NAMESPACE_WRITE requires a namespace")
-        if self.private_credits < 1:
-            raise ValueError("private_credits must be positive")
+        if not 1 <= self.private_credits <= LIVE_SHPOIB_MAX_CONCURRENT:
+            raise ValueError(
+                "private_credits must be between 1 and "
+                f"{LIVE_SHPOIB_MAX_CONCURRENT}"
+            )
 
 
 @dataclass(frozen=True, slots=True)

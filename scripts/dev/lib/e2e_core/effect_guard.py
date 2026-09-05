@@ -48,7 +48,10 @@ def is_global_mutation_path(path: str) -> bool:
     normalized = path if path.startswith("/") else f"/{path}"
     if _TEST_FIXTURE_SEGMENT in normalized:
         return False
-    return any(normalized.startswith(prefix) for prefix in _GLOBAL_MUTATION_PREFIXES)
+    return any(
+        normalized == prefix.rstrip("/") or normalized.startswith(prefix)
+        for prefix in _GLOBAL_MUTATION_PREFIXES
+    )
 
 
 def assert_http_effect_allowed(*, method: str, url: str) -> None:
@@ -80,6 +83,15 @@ def assert_http_effect_allowed(*, method: str, url: str) -> None:
             raise RuntimeError(
                 f"E2E_EFFECT_GUARD: NAMESPACE_WRITE forbids global {verb} {path}"
             )
+        return
+    if scope == "GLOBAL_WRITE":
+        mode = os.environ.get("MYRM_E2E_EXECUTION_MODE", "").strip().upper()
+        if mode != "PRIVATE":
+            raise RuntimeError(
+                "E2E_EFFECT_GUARD: GLOBAL_WRITE requires PRIVATE execution"
+            )
+        return
+    raise RuntimeError(f"E2E_EFFECT_GUARD: unknown access_scope={scope!r}")
 
 
 def guarded_httpx_request(
