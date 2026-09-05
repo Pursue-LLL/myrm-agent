@@ -32,6 +32,7 @@ omit `Origin`. This guard enforces that:
 
 from __future__ import annotations
 
+import ipaddress
 import logging
 import os
 import re
@@ -51,6 +52,9 @@ _WILDCARD_BIND_HOSTS: frozenset[str] = frozenset({"", "0.0.0.0", "::", "[::]", "
 # Regex matching IPv4 loopback network 127.0.0.0/8
 _IPV4_LOOPBACK_RE = re.compile(r"^127(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$")
 
+# Permitted URI schemes for Origin headers (including desktop app & editor webview schemes)
+_ALLOWED_ORIGIN_SCHEMES: frozenset[str] = frozenset({"http", "https", "tauri", "vscode-webview"})
+
 
 def is_loopback_hostname(hostname: str) -> bool:
     """Determine whether a hostname strictly resolves to the loopback interface.
@@ -69,7 +73,15 @@ def is_loopback_hostname(hostname: str) -> bool:
 
     # Handle IPv4-mapped IPv6 (::ffff:127.0.0.1) and standard 127.0.0.0/8 range
     v4 = h[7:] if h.startswith("::ffff:") else h
-    return bool(_IPV4_LOOPBACK_RE.match(v4))
+    if bool(_IPV4_LOOPBACK_RE.match(v4)):
+        return True
+
+    # Fallback to standard library IP loopback detection for heterogenous IPv6 formats
+    try:
+        ip = ipaddress.ip_address(h)
+        return ip.is_loopback
+    except ValueError:
+        return False
 
 
 def normalize_origin(origin: str) -> str | None:
@@ -79,7 +91,7 @@ def normalize_origin(origin: str) -> str | None:
         return None
     try:
         parts = urlsplit(raw)
-        if parts.scheme not in ("http", "https") or not parts.netloc:
+        if parts.scheme not in _ALLOWED_ORIGIN_SCHEMES or not parts.netloc:
             return None
         return f"{parts.scheme}://{parts.netloc.lower()}"
     except Exception:
@@ -93,7 +105,7 @@ def origin_hostname(origin: str) -> str | None:
         return None
     try:
         parts = urlsplit(raw)
-        if parts.scheme not in ("http", "https") or not parts.hostname:
+        if parts.scheme not in _ALLOWED_ORIGIN_SCHEMES or not parts.hostname:
             return None
         return parts.hostname.lower()
     except Exception:
