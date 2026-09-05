@@ -88,8 +88,8 @@ describe('TraceGanttWaterfall Component', () => {
     expect(screen.getByText('Tool')).toBeInTheDocument();
   });
 
-  it('returns null when spans are empty', () => {
-    const { container } = render(
+  it('handles empty spans gracefully without crashing', () => {
+    render(
       <TraceGanttWaterfall
         performance={{
           llm_duration_ms: 0,
@@ -104,6 +104,7 @@ describe('TraceGanttWaterfall Component', () => {
       />
     );
 
-    expect(container.firstChild).toBeNull();
+    expect(screen.getByTestId('trace-gantt-waterfall')).toBeInTheDocument();
+    expect(screen.getByText(/Execution Waterfall \(0 spans\)/)).toBeInTheDocument();
   });
 });
