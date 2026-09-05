@@ -64,6 +64,11 @@ class TunnelManager:
             self._error = ""
             self._public_url = ""
             try:
+                from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+                    EnvInheritPolicy,
+                    build_isolated_child_env,
+                )
+
                 self._process = await asyncio.create_subprocess_exec(
                     "cloudflared",
                     "tunnel",
@@ -71,6 +76,7 @@ class TunnelManager:
                     f"http://127.0.0.1:{local_port}",
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
+                    env=build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE),
                 )
             except OSError as exc:
                 self._state = TunnelState.ERROR

@@ -534,6 +534,11 @@ async def test_external_agent(
     if not found:
         return ChannelTestResponse(ok=False, message=f"Command '{command}' not found in PATH")
 
+    from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+        EnvInheritPolicy,
+        build_isolated_child_env,
+    )
+
     version: str | None = None
     try:
         proc = await asyncio.wait_for(
@@ -542,6 +547,7 @@ async def test_external_agent(
                 "--version",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE),
             ),
             timeout=10,
         )

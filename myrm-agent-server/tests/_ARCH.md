@@ -24,6 +24,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/utils/test_error_redaction.py` | 单元 | 全局异常处理与标准 HTTP 异常响应消息自动凭据与路径脱敏测试 |
 | `e2e/test_control_ui_error_redaction_flow_e2e.py` | E2E | Task Flow E2E：Control UI 错误脱敏跨渠道测试连通性与 FastAPI 入口/出口全局防护全链路测试 |
 | `e2e/test_error_redaction_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Control UI Toast 弹窗与设置界面敏感凭据打码防护测试 |
+| `e2e/test_mermaid_preview_sanitize_chrome_e2e.py` | E2E | Chrome E2E：真实 Chrome 浏览器 Mermaid 图表严格净化与 XSS 物理阻断端到端测试 |
 | `unit/test_conversation_recall_cjk_query.py` | 单元 | 会话召回 CJK 中日韩分词与二元词降级规划测试 |
 | `api/mcp/test_mcp_endpoint_e2e.py` | 集成 | /mcp HTTP 端点端到端流水线集成测试（DNS 重绑定/Origin 守卫拦截、原生工具免检与 Token 校验鉴权） |
 | `api/memory/test_repo_evidence_api.py` | 契约 | 代码库 Git 事实证据提取 API 端点（分支、脏状态、提交摘要）契约测试 |

@@ -8616,22 +8616,13 @@
     "mcpElicitationTitle": "MCP 服務確認",
     "mcpElicitationServer": "服務",
     "scriptOperand": {
-      "protectedBadge": "指令碼內容防篡改鎖定",
-      "protectedTooltip": "指令碼檔案內容已錨定 SHA-256 雜湊。執行前若檔案被篡改或替換將自動終止執行，防禦 TOCTOU 攻擊。",
+      "protectedBadge": "指令碼內容防竄改鎖定",
+      "protectedTooltip": "指令碼檔案內容已錨定 SHA-256 雜湊。執行前若檔案被竄改或取代將自動中止執行，防禦 TOCTOU 攻擊。",
       "hashLabel": "內容雜湊",
       "pathLabel": "指令碼路徑"
     },
     "clarificationRequired": "需要錯誤釐清",
-    "fixParameters": "修正參數（JSON）",
-    "autoModeSuspended": {
-      "title": "自動模式已自動暫停",
-      "consecutiveReason": "因連續觸發 3 次安全阻斷，自動模式已暫停並切回人工顯式審批。",
-      "totalReason": "因累計觸發 20 次安全阻斷，自動模式已暫停並切回人工顯式審批。"
-    },
-    "sociallyIrreversible": {
-      "title": "社會性不可逆操作",
-      "description": "此操作涉及外部系統（遠端主幹推送、外部通知廣播或版本發布），無法在本地復原，必須由您顯式批准。"
-    }
+    "fixParameters": "修正參數（JSON）"
   },
   "notifications": {
     "title": "系統通知",

@@ -322,8 +322,9 @@ class SkillCreationService:
     @staticmethod
     def _check_path_containment(resolved_target: Path, skill_dir: Path) -> str | None:
         """Defense-in-depth: verify resolved path stays within skill directory."""
-        resolved_dir = skill_dir.resolve()
-        if not str(resolved_target).startswith(str(resolved_dir) + "/") and resolved_target != resolved_dir:
+        from myrm_agent_harness.api import is_within_boundary
+
+        if not is_within_boundary(resolved_target, skill_dir):
             return "Path escapes skill directory (blocked by containment check)."
         return None
 

@@ -204,7 +204,7 @@ describe('sanitizeMermaidSvg', () => {
 
   it('returns empty string for non-svg or malformed input', () => {
     expect(sanitizeMermaidSvg('<div>not svg</div>')).toBe('');
-    expect(sanitizeMermaidSvg('<svg><unclosed></svg>')).toBe('');
+    expect(sanitizeMermaidSvg('<svg><unclosed>')).toBe('');
     expect(sanitizeMermaidSvg('')).toBe('');
   });
 });

@@ -134,4 +134,30 @@ describe('SearchDialog cite to composer', () => {
     });
     expect(mockOnOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it('renders relaxed match badge when item has is_relaxed=true', async () => {
+    const relaxedItem: SearchResult = {
+      ...otherChatItem,
+      id: '44',
+      is_relaxed: true,
+    };
+    mockSearchChatHistory.mockResolvedValue({ items: [relaxedItem], total: 1 });
+
+    render(
+      <SearchDialog open onOpenChange={mockOnOpenChange}>
+        <div />
+      </SearchDialog>,
+    );
+
+    const input = await screen.findByPlaceholderText('search.placeholder');
+    fireEvent.change(input, { target: { value: '北京' } });
+
+    await waitFor(() => {
+      expect(mockSearchChatHistory).toHaveBeenCalled();
+    });
+
+    const badge = await screen.findByTestId('relaxed-badge');
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveTextContent('search.fuzzyMatchBadge');
+  });
 });

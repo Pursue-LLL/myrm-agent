@@ -324,6 +324,12 @@ class GoalRegistry:
 async def get_current_git_branch(workspace_dir: str | None = None) -> str | None:
     """Run async subprocess to get the current Git branch name of the workspace."""
     import asyncio
+    from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+        EnvInheritPolicy,
+        build_isolated_child_env,
+    )
+
+    safe_git_env = build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE)
 
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -334,6 +340,7 @@ async def get_current_git_branch(workspace_dir: str | None = None) -> str | None
             cwd=workspace_dir,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=safe_git_env,
         )
         stdout, stderr = await proc.communicate()
         if proc.returncode == 0:
@@ -350,6 +357,7 @@ async def get_current_git_branch(workspace_dir: str | None = None) -> str | None
             cwd=workspace_dir,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=safe_git_env,
         )
         stdout, stderr = await proc.communicate()
         if proc.returncode == 0:

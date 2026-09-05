@@ -67,6 +67,11 @@ async def import_archive(body: ImportArchiveRequest) -> ImportArchiveResponse:
                 item.unlink()
 
     try:
+        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+            EnvInheritPolicy,
+            build_isolated_child_env,
+        )
+
         proc = await asyncio.create_subprocess_exec(
             "tar",
             "-xzf",
@@ -75,6 +80,7 @@ async def import_archive(body: ImportArchiveRequest) -> ImportArchiveResponse:
             str(PERSISTENT_DIR),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE),
         )
         _, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
 

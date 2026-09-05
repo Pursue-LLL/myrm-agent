@@ -8800,16 +8800,6 @@
       "noteContent": "Notizinhalt",
       "destination": "Tresor"
     },
-    "autoModeSuspended": {
-      "title": "Auto-Modus ausgesetzt",
-      "consecutiveReason": "Nach 3 aufeinanderfolgenden Sicherheitsverweigerungen ausgesetzt. Rückfall auf manuelle Überprüfung.",
-      "totalReason": "Nach 20 gesamten Sicherheitsverweigerungen ausgesetzt. Rückfall auf manuelle Überprüfung."
-    },
-    "sociallyIrreversible": {
-      "title": "Sozial irreversible Aktion",
-      "description": "Dieser Vorgang wirkt sich auf externe Systeme aus (Remote-Push, Benachrichtigung oder Veröffentlichung) und kann lokal nicht rückgängig gemacht werden. Ausdrückliche Genehmigung erforderlich."
-    }
-  },
   "notifications": {
     "pairingPending": "Neue Kopplungsanfrage von {sender} am {channel}",
     "goToApproval": "Gehen Sie zur Genehmigung",

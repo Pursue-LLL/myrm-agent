@@ -145,11 +145,17 @@ class DeviceBridgeService:
         if not adb_bin:
             return -1, b"adb binary not found in PATH"
 
+        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+            EnvInheritPolicy,
+            build_isolated_child_env,
+        )
+
         cmd = [adb_bin, *args]
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            env=build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE),
         )
 
         try:

@@ -57,12 +57,19 @@ class SandboxedPythonCondition(PreFlightCondition):
                 f.flush()
                 script_path = Path(f.name)
 
-            # Execute in an isolated subprocess
+            # Execute in an isolated subprocess with CORE safe env (no host secrets)
+            from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+                EnvInheritPolicy,
+                build_isolated_child_env,
+            )
+
+            isolated_env = build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE)
             proc = await asyncio.create_subprocess_exec(
                 sys.executable,
                 str(script_path),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=isolated_env,
             )
 
             stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=self.timeout_seconds)

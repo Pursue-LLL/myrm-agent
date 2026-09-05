@@ -533,5 +533,23 @@ export function buildBuiltinActions(): SlashAction[] {
         return { success: true, newInputValue: directive };
       },
     },
+    {
+      id: 'builtin:design-image',
+      name: 'design-image',
+      description: 'commands.builtin.design_image',
+      argsHint: '<prompt | visual brief>',
+      aliases: ['image-design', 'prompt-image', 'style-image'],
+      type: 'action',
+      execute: async (inputValue: string) => {
+        const { default: useChatStore } = await import('@/store/useChatStore');
+        const { setInputMessage } = useChatStore.getState();
+        const rawArgs = inputValue.replace(/^\/(?:design-image|image-design|prompt-image|style-image)\s*/i, '').trim();
+        const directive = rawArgs
+          ? `/design-image ${rawArgs}`
+          : '/design-image 请基于结构化 Prompt-as-Code 原子视觉规范，为我设计一张商业级视觉配图（包含主体、风格、光影、材质与构图）。';
+        setInputMessage(directive);
+        return { success: true, newInputValue: directive };
+      },
+    },
   ];
 }
