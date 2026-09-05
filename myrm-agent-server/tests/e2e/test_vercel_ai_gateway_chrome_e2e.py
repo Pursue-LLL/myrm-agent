@@ -39,10 +39,9 @@ _VERIFY_VERCEL_GATEWAY_SETTINGS_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="READ",
     workload="STANDARD",
-    private_reason="process_isolation",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -52,9 +51,9 @@ def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:
     api_url = get_e2e_api_url()
 
     # 1. Warm up Settings UI route and open in real Chrome MCP to verify rendering
-    target_url = f"{api_url.replace(':8080', ':3000')}/settings?tab=models"
-    warm_ui_route("/settings")
-    with open_settings_subroute("/settings?tab=models", timeout_ms=90_000) as (
+    target_url = f"{api_url.replace(':8080', ':3000')}/settings/models"
+    warm_ui_route("/settings/models")
+    with open_settings_subroute("/settings/models", timeout_ms=90_000) as (
         client,
         page,
     ):
@@ -82,6 +81,7 @@ def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:
     headers = getattr(gw_model, "model_kwargs", {}).get("extra_headers", {})
     assert headers.get("HTTP-Referer") == "https://myrm.ai"
     assert headers.get("X-Title") == "Myrm Agent"
+    assert headers.get("User-Agent") == "Myrm/1.0 (Vercel-AI-Gateway-Client)"
 
     # 4. Real user task flow: execute prompt with active test LLM to ensure working inference
     real_api_key = os.getenv("BASIC_API_KEY")
