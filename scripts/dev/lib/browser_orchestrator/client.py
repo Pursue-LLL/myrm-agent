@@ -297,6 +297,7 @@ class CleanupSealResult(TypedDict):
     pendingTargets: list[str]
     closedTargets: list[str]
     failedTargets: list[str]
+    physicalReleased: bool
 
 
 class OrchestratorStatus(TypedDict):
@@ -365,6 +366,7 @@ class BrowserOrchestratorClient:
             pendingTargets=result.get("pendingTargets", []),
             closedTargets=result.get("closedTargets", []),
             failedTargets=result.get("failedTargets", []),
+            physicalReleased=bool(result.get("physicalReleased", False)),
         )
 
     def create_page(self, session_id: str, url: str = "") -> PageResult:
@@ -535,6 +537,7 @@ class BrowserOrchestratorClient:
             pendingTargets=result.get("pendingTargets", []),
             closedTargets=result.get("closedTargets", []),
             failedTargets=result.get("failedTargets", []),
+            physicalReleased=bool(result.get("physicalReleased", False)),
         )
 
     def status(self) -> OrchestratorStatus:

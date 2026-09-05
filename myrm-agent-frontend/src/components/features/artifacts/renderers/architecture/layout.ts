@@ -63,18 +63,27 @@ export function traceFullConnectedCausalityGraph(
   const upstreamMap = new Map<string, string[]>();
 
   for (const edge of edges || []) {
-    if (!edge.source || !edge.target) continue;
-    if (!downstreamMap.has(edge.source)) downstreamMap.set(edge.source, []);
-    downstreamMap.get(edge.source)!.push(edge.target);
+    if (!edge.source || !edge.target) {
+      continue;
+    }
+    if (!downstreamMap.has(edge.source)) {
+      downstreamMap.set(edge.source, []);
+    }
+    downstreamMap.get(edge.source)?.push(edge.target);
 
-    if (!upstreamMap.has(edge.target)) upstreamMap.set(edge.target, []);
-    upstreamMap.get(edge.target)!.push(edge.source);
+    if (!upstreamMap.has(edge.target)) {
+      upstreamMap.set(edge.target, []);
+    }
+    upstreamMap.get(edge.target)?.push(edge.source);
   }
 
   // Traverse Downstream (Sinks / Affected components)
   const downstreamQueue = [startNodeId];
   while (downstreamQueue.length > 0) {
-    const current = downstreamQueue.shift()!;
+    const current = downstreamQueue.shift();
+    if (!current) {
+      break;
+    }
     const neighbors = downstreamMap.get(current) || [];
     for (const n of neighbors) {
       if (!result.has(n)) {
@@ -87,7 +96,10 @@ export function traceFullConnectedCausalityGraph(
   // Traverse Upstream (Sources / Triggers)
   const upstreamQueue = [startNodeId];
   while (upstreamQueue.length > 0) {
-    const current = upstreamQueue.shift()!;
+    const current = upstreamQueue.shift();
+    if (!current) {
+      break;
+    }
     const neighbors = upstreamMap.get(current) || [];
     for (const n of neighbors) {
       if (!result.has(n)) {
@@ -144,9 +156,15 @@ export function computeDagreLayout(ir: ArchitectureIR): LayoutedElements {
 
   const flowEdges: Edge[] = cleanIR.edges.map((edge) => {
     let strokeColor = undefined;
-    if (edge.diffState === 'added') strokeColor = '#10b981'; // emerald-500
-    if (edge.diffState === 'deleted') strokeColor = '#f43f5e'; // rose-500
-    if (edge.diffState === 'rerouted') strokeColor = '#3b82f6'; // blue-500
+    if (edge.diffState === 'added') {
+      strokeColor = '#10b981'; // emerald-500
+    }
+    if (edge.diffState === 'deleted') {
+      strokeColor = '#f43f5e'; // rose-500
+    }
+    if (edge.diffState === 'rerouted') {
+      strokeColor = '#3b82f6'; // blue-500
+    }
 
     return {
       id: edge.id,

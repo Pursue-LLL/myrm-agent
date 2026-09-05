@@ -95,7 +95,9 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
 
     // Compute Diff Summary Stats
     const diffSummary = useMemo(() => {
-      if (!isDiffMode || !activeIR) return null;
+      if (!isDiffMode || !activeIR) {
+        return null;
+      }
       let addedNodes = 0;
       let deletedNodes = 0;
       let modifiedNodes = 0;
@@ -103,13 +105,23 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
       let deletedEdges = 0;
 
       for (const n of activeIR.nodes) {
-        if (n.diffState === 'added') addedNodes++;
-        if (n.diffState === 'deleted') deletedNodes++;
-        if (n.diffState === 'modified') modifiedNodes++;
+        if (n.diffState === 'added') {
+          addedNodes++;
+        }
+        if (n.diffState === 'deleted') {
+          deletedNodes++;
+        }
+        if (n.diffState === 'modified') {
+          modifiedNodes++;
+        }
       }
       for (const e of activeIR.edges) {
-        if (e.diffState === 'added') addedEdges++;
-        if (e.diffState === 'deleted') deletedEdges++;
+        if (e.diffState === 'added') {
+          addedEdges++;
+        }
+        if (e.diffState === 'deleted') {
+          deletedEdges++;
+        }
       }
 
       return { addedNodes, deletedNodes, modifiedNodes, addedEdges, deletedEdges };
@@ -427,13 +439,38 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
           {/* Quick Info Overlay at bottom */}
           {selectedNodeId && (
             <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2 rounded-md border bg-background/90 px-3 py-1.5 shadow-md backdrop-blur-xs text-xs">
-              <Eye size={13} className="text-primary" />
-              <span>
-                Tracing paths for: <strong>{selectedNodeId}</strong>
-              </span>
+              {targetNodeId ? (
+                <>
+                  <Route size={13} className="text-cyan-500" />
+                  <span>
+                    Shortest Path: <strong>{selectedNodeId}</strong> → <strong>{targetNodeId}</strong>
+                    {shortestPathResult?.found && (
+                      <span className="ml-1 text-muted-foreground font-mono text-[10px]">
+                        ({shortestPathResult.nodeIds.length - 1} hops)
+                      </span>
+                    )}
+                    {!shortestPathResult?.found && (
+                      <span className="ml-1 text-rose-500 font-medium text-[10px]">(no directed path)</span>
+                    )}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Eye size={13} className="text-primary" />
+                  <span>
+                    Tracing dependency tree for: <strong>{selectedNodeId}</strong>
+                    <span className="ml-1 text-muted-foreground text-[10px] hidden sm:inline">
+                      (Shift+Click another node to trace route)
+                    </span>
+                  </span>
+                </>
+              )}
               <button
                 type="button"
-                onClick={() => setSelectedNodeId(null)}
+                onClick={() => {
+                  setSelectedNodeId(null);
+                  setTargetNodeId(null);
+                }}
                 className="ml-2 text-muted-foreground hover:text-foreground text-[10px] underline"
               >
                 Clear

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeArchitectureIR, computeDagreLayout, traceFullConnectedCausalityGraph } from '../layout';
+import { sanitizeArchitectureIR, computeDagreLayout, traceFullConnectedCausalityGraph, findShortestPath } from '../layout';
 import { computeArchitectureDiff } from '../diff';
 import type { ArchitectureIR } from '../types';
 import { isArchitectureType } from '../../artifactUtils';
@@ -93,10 +93,43 @@ describe('Architecture Evolution Diff', () => {
 
     expect(addedEdge?.diffState).toBe('added');
     expect(deletedEdge?.diffState).toBe('deleted');
+
+    // Diff metrics check
+    expect(diff.diffSummary).toBeDefined();
+    expect(diff.diffSummary?.addedNodes).toBe(1);
+    expect(diff.diffSummary?.deletedNodes).toBe(0);
+    expect(diff.diffSummary?.modifiedNodes).toBe(1);
+    expect(diff.diffSummary?.addedEdges).toBe(1);
+    expect(diff.diffSummary?.deletedEdges).toBe(1);
   });
 });
 
-describe('Full Multi-hop Path Tracer Algorithm', () => {
+describe('Full Multi-hop Path Tracer & Shortest Path Algorithm', () => {
+  it('finds directed shortest path between two points correctly', () => {
+    // web -> gateway -> order -> payment -> db
+    // web -> static_cdn (no path to db)
+    const edges = [
+      { id: 'e1', source: 'web', target: 'gateway' },
+      { id: 'e2', source: 'gateway', target: 'order' },
+      { id: 'e3', source: 'order', target: 'payment' },
+      { id: 'e4', source: 'payment', target: 'db' },
+      { id: 'e5', source: 'web', target: 'static_cdn' },
+    ];
+
+    const result = findShortestPath('web', 'db', edges);
+    expect(result.found).toBe(true);
+    expect(result.nodeIds).toEqual(['web', 'gateway', 'order', 'payment', 'db']);
+    expect(result.edgeIds).toEqual(['e1', 'e2', 'e3', 'e4']);
+
+    const noPathResult = findShortestPath('static_cdn', 'db', edges);
+    expect(noPathResult.found).toBe(false);
+    expect(noPathResult.nodeIds).toEqual([]);
+
+    const sameNodeResult = findShortestPath('web', 'web', edges);
+    expect(sameNodeResult.found).toBe(true);
+    expect(sameNodeResult.nodeIds).toEqual(['web']);
+  });
+
   it('traverses full upstream and downstream causality graph and handles cycles gracefully', () => {
     // Topology: client -> gateway -> order -> db
     //                          \-> order -> cache

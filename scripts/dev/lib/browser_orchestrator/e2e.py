@@ -582,6 +582,8 @@ def _open_page_error_needs_session_recreate(message: str) -> bool:
 
 def _is_retryable_open_page_error(message: str) -> bool:
     lowered = message.lower()
+    if "browser_operation_result_unknown" in lowered:
+        return False
     return (
         "openpagetransaction wall timeout" in lowered
         or "browser orchestrator response timeout" in lowered

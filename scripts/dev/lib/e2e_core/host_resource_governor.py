@@ -300,7 +300,15 @@ def tick_governor(*, now: float | None = None) -> int:
         current = _state.effective_slots
         high, high_reason = _pressure_high(snapshot)
         if high:
-            if snapshot.load_avg_1m / snapshot.cpu_count >= CRITICAL_LOAD_RATIO:
+            if (
+                0 < snapshot.memory_available_bytes < CRITICAL_MEMORY_BYTES
+            ):
+                # Memory exhaustion is independently fatal for Chromium: one
+                # isolated context is the only safe operating point even when
+                # CPU load is low.
+                target = MIN_BROWSER_SLOTS
+                reason = f"memory_critical bytes={snapshot.memory_available_bytes}"
+            elif snapshot.load_avg_1m / snapshot.cpu_count >= CRITICAL_LOAD_RATIO:
                 target = _critical_browser_slot_floor(snapshot)
                 reason = high_reason
             elif current > MAX_BROWSER_SLOTS - 1:
