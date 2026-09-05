@@ -32,6 +32,18 @@ export interface LastCompactionMeta {
   snapshotPath?: string;
 }
 
+export interface StagedArtifactView {
+  artifact_id: string;
+  filename: string;
+  relative_path: string;
+  full_path: string;
+  language: string;
+  size_bytes: number;
+  line_count: number;
+  created_at: string;
+  original_hint?: string | null;
+}
+
 export interface CouncilOpinionView {
   expert_id: string;
   agent_type: string;
@@ -183,6 +195,7 @@ export type Message = {
       details?: string;
     };
   };
+  stagedArtifacts?: StagedArtifactView[]; // 自动暂存的未落盘交付物草案列表
   metadata?: Record<string, unknown>; // 消息元数据（如错误信息、配置提示等）
   citedMemoryIds?: string[]; // 本条消息引用的记忆 ID（用于反馈评分）
   citedMemoryRefs?: CitedMemoryReference[]; // 本条消息引用的记忆详情（用于可解释 citation UI）
