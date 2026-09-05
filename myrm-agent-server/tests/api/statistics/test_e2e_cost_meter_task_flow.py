@@ -29,8 +29,7 @@ from myrm_agent_harness.toolkits.web_search.providers.chain import (
     ProviderQuotaTracker,
 )
 
-from app.api.dependencies import get_session
-from app.database.connection import get_db_session
+from app.database.connection import get_db, get_session
 from app.main import app
 from app.services.observability.runtime_meter_service import runtime_meter_service
 
@@ -38,7 +37,7 @@ from app.services.observability.runtime_meter_service import runtime_meter_servi
 @pytest.mark.asyncio
 async def test_e2e_search_quota_and_browser_compute_task_flow() -> None:
     """全链路 Task Flow E2E 验证：搜索配额熔断自愈 + 浏览器算力度量 + 看门狗防护"""
-    async with get_db_session() as session:
+    async with get_session() as session:
         # Step 1: 前置重置环境
         await runtime_meter_service.reset_search_quota(session, provider="tavily")
         await runtime_meter_service.update_search_quota_limit(session, "tavily", 1000)
@@ -81,7 +80,10 @@ async def test_e2e_search_quota_and_browser_compute_task_flow() -> None:
             transport=ASGITransport(app=app), base_url="http://test"
         ) as ac:
             # 依赖覆盖当前同一个 session
-            app.dependency_overrides[get_session] = lambda: session
+            async def _override_get_db():
+                yield session
+
+            app.dependency_overrides[get_db] = _override_get_db
 
             reset_resp = await ac.post(
                 "/api/statistics/search-quotas/reset", json={"provider": "tavily"}
@@ -124,16 +126,19 @@ async def test_e2e_search_quota_and_browser_compute_task_flow() -> None:
         )
 
         # Step 7: 通过 REST API 查询浏览器算力消耗汇总
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
-            browser_resp = await ac.get("/api/statistics/browser-runtime")
-            assert browser_resp.status_code == 200
-            summary = browser_resp.json()
-            assert summary["session_count"] >= 1
-            assert summary["active_compute_minutes"] >= 3.0
-            assert summary["total_megabytes_transferred"] >= 20.0
-            assert summary["estimated_compute_cost_usd"] > 0
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as ac:
+                browser_resp = await ac.get("/api/statistics/browser-runtime")
+                assert browser_resp.status_code == 200
+                summary = browser_resp.json()
+                assert summary["session_count"] >= 1
+                assert summary["active_compute_minutes"] >= 3.0
+                assert summary["total_megabytes_transferred"] >= 20.0
+                assert summary["estimated_compute_cost_usd"] > 0
+        finally:
+            app.dependency_overrides.clear()
 
         # Step 8: 验证 3 分钟死循环主动看门狗
         obs = BrowserObservability()

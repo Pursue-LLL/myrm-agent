@@ -35,6 +35,7 @@ from app.core.infra.health.agent_diagnostics import (
     AgentColdStartDiagnostic,
     AgentPromptCacheAlignmentDiagnostic,
     AgentStepBudgetDiagnostic,
+    AnthropicSubscriptionPolicyDiagnostic,
     OllamaModelContextDiagnostic,
 )
 from app.core.infra.health.skill_diagnostics import (
@@ -45,6 +46,7 @@ __all__ = [
     "AgentColdStartDiagnostic",
     "AgentPromptCacheAlignmentDiagnostic",
     "AgentStepBudgetDiagnostic",
+    "AnthropicSubscriptionPolicyDiagnostic",
     "DLQDiagnostic",
     "ExecutionCacheDiagnostic",
     "OllamaModelContextDiagnostic",
@@ -216,6 +218,7 @@ class ServerDiagnosticsManager:
             AgentStepBudgetDiagnostic(),
             AgentPromptCacheAlignmentDiagnostic(),
             SkillHoardingHealthDiagnostic(),
+            AnthropicSubscriptionPolicyDiagnostic(),
         ]
 
     async def run_all(self) -> Sequence[HealthReport]:

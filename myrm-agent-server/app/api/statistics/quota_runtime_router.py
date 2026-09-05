@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.utils.errors import internal_error
 from app.core.utils.response_utils import success_response
-from app.database.connection import get_session
+from app.database.connection import get_db
 from app.services.observability.runtime_meter_service import runtime_meter_service
 
 router = APIRouter(prefix="", tags=["runtime-meter"])
@@ -57,7 +57,7 @@ class BrowserRuntimeRecordRequest(BaseModel):
 
 
 @router.get("/search-quotas")
-async def get_search_quotas(session: AsyncSession = Depends(get_session)) -> JSONResponse:
+async def get_search_quotas(session: AsyncSession = Depends(get_db)) -> JSONResponse:
     """Retrieve all search provider quota statuses with progressive warning levels."""
     try:
         data = await runtime_meter_service.get_search_quotas(session)
@@ -70,7 +70,7 @@ async def get_search_quotas(session: AsyncSession = Depends(get_session)) -> JSO
 @router.post("/search-quotas/record")
 async def record_search_quota(
     req: SearchQuotaRecordRequest,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Record search usage or trigger self-healing 429 recalibration."""
     try:
@@ -94,7 +94,7 @@ async def record_search_quota(
 
 
 @router.get("/browser-runtime")
-async def get_browser_runtime_summary(session: AsyncSession = Depends(get_session)) -> JSONResponse:
+async def get_browser_runtime_summary(session: AsyncSession = Depends(get_db)) -> JSONResponse:
     """Retrieve monthly browser automation compute and network transfer summary."""
     try:
         summary = await runtime_meter_service.get_browser_runtime_summary(session)
@@ -107,7 +107,7 @@ async def get_browser_runtime_summary(session: AsyncSession = Depends(get_sessio
 @router.post("/browser-runtime/record")
 async def record_browser_runtime(
     req: BrowserRuntimeRecordRequest,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Ingest session-level browser telemetry record."""
     try:
@@ -128,7 +128,7 @@ async def record_browser_runtime(
 
 @router.get("/runtime-cost-gauge")
 async def get_runtime_cost_gauge(
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Get integrated operational cost, search quota, and browser compute gauge."""
     try:
@@ -143,7 +143,7 @@ async def get_runtime_cost_gauge(
 @router.post("/search-quotas/reset")
 async def reset_search_quota(
     req: SearchQuotaResetRequest,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Reset used count and depletion status for one or all providers."""
     try:
@@ -157,7 +157,7 @@ async def reset_search_quota(
 @router.put("/search-quotas/limit")
 async def update_search_quota_limit(
     req: SearchQuotaLimitUpdateRequest,
-    session: AsyncSession = Depends(get_session),
+    session: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Update custom quota limit for a specific search provider."""
     try:

@@ -86,6 +86,91 @@ def _empty_trace_payload(session_id: str, memory_events: list[dict[str, object]]
         "memory_events": memory_events,
         "total_events": 0,
         "total_tokens": 0,
+        "performance_summary": {
+            "llm_duration_ms": 0.0,
+            "tool_duration_ms": 0.0,
+            "total_prompt_tokens": 0,
+            "total_completion_tokens": 0,
+            "total_cache_read_tokens": 0,
+            "prompt_cache_hit_ratio": 0.0,
+            "gantt_spans": [],
+        },
+    }
+
+
+def _enrich_performance_and_gantt(trace_data: dict[str, object]) -> None:
+    """Enrich trace with LLM vs Tool timing, Prompt Cache hit ratio, and Gantt spans."""
+    llm_calls = trace_data.get("llm_calls") or []
+    tool_calls = trace_data.get("tool_calls") or []
+
+    total_llm_ms = 0.0
+    total_prompt_tokens = 0
+    total_cache_read_tokens = 0
+    total_completion_tokens = 0
+
+    gantt_spans: list[dict[str, object]] = []
+
+    if isinstance(llm_calls, list):
+        for lc in llm_calls:
+            if not isinstance(lc, dict):
+                continue
+            dur = float(lc.get("duration_ms") or 0.0)
+            total_llm_ms += dur
+            prompt_t = int(lc.get("prompt_tokens") or 0)
+            comp_t = int(lc.get("completion_tokens") or 0)
+            cache_t = int(lc.get("cache_read_tokens") or 0)
+            total_prompt_tokens += prompt_t
+            total_completion_tokens += comp_t
+            total_cache_read_tokens += cache_t
+
+            start_t = float(lc.get("start_time") or 0.0)
+            end_t = float(lc.get("end_time") or (start_t + dur / 1000.0))
+            gantt_spans.append({
+                "type": "llm",
+                "label": lc.get("model_name") or "LLM Inference",
+                "start_time": start_t,
+                "end_time": end_t,
+                "duration_ms": dur,
+                "ttft_ms": lc.get("ttft_ms"),
+                "cache_read_tokens": cache_t,
+                "status": "success",
+            })
+
+    total_tool_ms = 0.0
+    if isinstance(tool_calls, list):
+        for tc in tool_calls:
+            if not isinstance(tc, dict):
+                continue
+            dur = float(tc.get("duration_ms") or 0.0)
+            total_tool_ms += dur
+            start_t = float(tc.get("start_time") or 0.0)
+            end_t = float(tc.get("end_time") or (start_t + dur / 1000.0))
+            gantt_spans.append({
+                "type": "tool",
+                "label": tc.get("tool_name") or "Tool Call",
+                "start_time": start_t,
+                "end_time": end_t,
+                "duration_ms": dur,
+                "status": "success" if tc.get("success", True) else "error",
+                "error": tc.get("error"),
+            })
+
+    gantt_spans.sort(key=lambda x: float(x.get("start_time") or 0.0))
+
+    hit_ratio = (
+        round(total_cache_read_tokens / total_prompt_tokens, 4)
+        if total_prompt_tokens > 0
+        else 0.0
+    )
+
+    trace_data["performance_summary"] = {
+        "llm_duration_ms": round(total_llm_ms, 2),
+        "tool_duration_ms": round(total_tool_ms, 2),
+        "total_prompt_tokens": total_prompt_tokens,
+        "total_completion_tokens": total_completion_tokens,
+        "total_cache_read_tokens": total_cache_read_tokens,
+        "prompt_cache_hit_ratio": hit_ratio,
+        "gantt_spans": gantt_spans,
     }
 
 
