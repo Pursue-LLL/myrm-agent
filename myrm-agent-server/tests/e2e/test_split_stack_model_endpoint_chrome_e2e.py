@@ -51,7 +51,7 @@ def test_split_stack_settings_ui_and_discover_api_chrome_e2e() -> None:
     res_public = http_json(
         "POST",
         f"{api_url}/api/v1/integrations/llm/discover-models",
-        json={"api_url": "https://api.openai.com/v1"},
+        body={"api_url": "https://api.openai.com/v1"},
     )
     assert isinstance(res_public, dict)
     assert res_public.get("success") is True  # standard ApiResponse envelope
@@ -63,7 +63,7 @@ def test_split_stack_settings_ui_and_discover_api_chrome_e2e() -> None:
     res_link_local = http_json(
         "POST",
         f"{api_url}/api/v1/integrations/llm/discover-models",
-        json={"api_url": "http://169.254.169.254/latest/meta-data"},
+        body={"api_url": "http://169.254.169.254/latest/meta-data"},
     )
     assert isinstance(res_link_local, dict)
     data_link_local = res_link_local.get("data", {})
@@ -78,7 +78,7 @@ def test_split_stack_settings_ui_and_discover_api_chrome_e2e() -> None:
     res_lan = http_json(
         "POST",
         f"{api_url}/api/v1/integrations/llm/discover-models",
-        json={"api_url": "http://192.168.1.253:11434/v1"},
+        body={"api_url": "http://192.168.1.253:11434/v1"},
     )
     assert isinstance(res_lan, dict)
     data_lan = res_lan.get("data", {})

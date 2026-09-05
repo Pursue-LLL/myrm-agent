@@ -10,6 +10,8 @@ from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.api.skills._deploy_capability import require_local_skills_capability
 from app.api.skills.schemas import (
+    LocalSkillPathAdoptRequest,
+    LocalSkillPathAdoptResponse,
     LocalSkillPathPreviewRequest,
     LocalSkillPathPreviewResponse,
     LocalSkillPathsRequest,
@@ -107,12 +109,14 @@ async def preview_local_skill_path(
             name=str(it["name"]),
             description=str(it["description"]),
             version=str(it["version"]),
+            author=str(it["author"]) if it.get("author") else None,
             category=str(it["category"]) if it.get("category") else None,
             tags=[str(t) for t in it.get("tags", [])] if isinstance(it.get("tags"), list) else [],
             required_tools=[str(b) for b in it.get("required_tools", [])]
             if isinstance(it.get("required_tools"), list)
             else [],
             relative_path=str(it["relative_path"]),
+            skill_id=str(it.get("skill_id", "")),
             is_conflicted=bool(it["is_conflicted"]),
             conflict_reason=str(it["conflict_reason"]) if it.get("conflict_reason") else None,
             is_safe=bool(it["is_safe"]),
@@ -128,6 +132,59 @@ async def preview_local_skill_path(
         total_discovered=len(preview_items),
         skills=preview_items,
         warning_message=warning_msg,
+    )
+
+
+@router.post("/local/paths/adopt", response_model=LocalSkillPathAdoptResponse)
+async def adopt_local_skill_path(
+    request: LocalSkillPathAdoptRequest,
+) -> LocalSkillPathAdoptResponse:
+    """Adopt a local skill path: adds path to config and enables selected skills."""
+    require_local_skills_capability()
+
+    raw_path = request.path.strip()
+    if not (raw_path.startswith("/") or raw_path.startswith("~")):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid path format: {raw_path}. Must be absolute path or start with ~",
+        )
+
+    config = await skills_service.user_config.get_config()
+    current_paths = list(config.local_skill_paths)
+    if raw_path not in current_paths:
+        current_paths.append(raw_path)
+        config = await skills_service.user_config.update_local_skill_paths(current_paths)
+        added_to_paths = True
+    else:
+        added_to_paths = False
+
+    adopted_skill_ids: list[str] = []
+    for sid in request.selected_skill_ids:
+        sid_clean = sid.strip()
+        if sid_clean and sid_clean.startswith("local::"):
+            await skills_service.user_config.enable_local_skill(sid_clean)
+            adopted_skill_ids.append(sid_clean)
+
+    agent_adopted = False
+    if request.agent_id:
+        try:
+            from app.core.skills.discovery.adopt import complete_discovery_adoption
+
+            for sid in adopted_skill_ids:
+                res = await complete_discovery_adoption(request.agent_id, sid)
+                if res.allowlist_appended:
+                    agent_adopted = True
+        except Exception as e:
+            logger.warning("Agent adoption failed for agent %s: %s", request.agent_id, e)
+
+    return LocalSkillPathAdoptResponse(
+        status="ok",
+        path=raw_path,
+        added_to_paths=added_to_paths,
+        adopted_skills_count=len(adopted_skill_ids),
+        adopted_skill_ids=adopted_skill_ids,
+        agent_adopted=agent_adopted,
+        agent_id=request.agent_id,
     )
 
 
