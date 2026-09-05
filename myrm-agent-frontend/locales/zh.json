@@ -66,10 +66,10 @@
     "statusBudgetLimited": "预算耗尽",
     "statusComplete": "已完成",
     "statusCancelled": "已取消",
-    "statusDriftPaused": "偏离暂停",
-    "statusSandboxPaused": "沙箱边界暂停",
-    "reasonDriftDetected": "检测到目标偏离 — 需人工复核",
-    "reasonSandboxBoundary": "达到沙箱边界 — 需人工复核",
+    "statusDriftPaused": "偏离目标",
+    "statusSandboxPaused": "沙箱边界",
+    "reasonDriftDetected": "检测到偏离目标 — 已暂停等待审查",
+    "reasonSandboxBoundary": "触达沙箱边界 — 已暂停等待审查",
     "tokenUsage": "Token 消耗",
     "turnsUsed": "执行轮次",
     "timeElapsed": "已用时",
@@ -152,10 +152,6 @@
     "reasonBudgetExhausted": "预算已耗尽",
     "reasonWaitTimeout": "等待超时 — 已暂停",
     "reasonConvergence": "连续无新进展后完成",
-    "reasonDriftDetected": "检测到偏离目标 — 已暂停等待审查",
-    "reasonSandboxBoundary": "触达沙箱边界 — 已暂停等待审查",
-    "statusDriftPaused": "偏离目标",
-    "statusSandboxPaused": "沙箱边界",
     "draftSection": "目标设定助手",
     "draftObjectivePlaceholder": "描述你希望 Agent 完成的目标…",
     "suggestCriteria": "智能生成验收标准",
@@ -18621,55 +18617,5 @@
       "deleteSuccessDesc": "已移除选定的历史快照。",
       "deleteFailedTitle": "删除快照失败"
     }
-  },
-  "continualOverlay": {
-    "activeTitle": "活跃会话覆盖层",
-    "remainingTurns": "{count, plural, =1 {剩余 1 轮} other {剩余 # 轮}}",
-    "rollbackTooltip": "回滚此会话覆盖层",
-    "rollback": "回滚",
-    "collapse": "折叠",
-    "expand": "展开",
-    "howItWorks": "运行机制",
-    "howItWorksDesc": "会话覆盖层提供零重置故障恢复，在指定轮次预算内自动生效并在到期后平滑撤出。",
-    "allActiveOverlays": "全部活跃覆盖层 ({count})"
-  },
-  "executionPhaseStepper": {
-    "badge": "执行完毕",
-    "waitingApproval": "等待审批",
-    "collapseTelemetry": "折叠遥测",
-    "expandTelemetry": "展开遥测",
-    "currentNode": "节点 #{nodeId}",
-    "phases": {
-      "planning": {
-        "title": "意图规划"
-      },
-      "executing": {
-        "title": "工具执行"
-      },
-      "verifying": {
-        "title": "交付验证"
-      }
-    },
-    "lanes": {
-      "agent": "Agent 核心",
-      "user": "用户交互",
-      "llm": "LLM 推理",
-      "mcp": "MCP 工具",
-      "skills": "业务技能",
-      "sandbox": "沙箱执行"
-    }
-  },
-  "taskSpaces": {
-    "title": "并行浏览器任务空间",
-    "badgeRunning": "运行中",
-    "badgeIdle": "空闲待命",
-    "badgeTakeover": "人工接管中",
-    "takeoverBtn": "接管",
-    "releaseTakeoverBtn": "交还智能体",
-    "closeSpaceBtn": "关闭空间",
-    "activePages": "{count} 个活动标签页",
-    "emptyState": "当前暂无活跃的并行浏览器空间",
-    "snapshotPreview": "实时空间快照",
-    "takeoverHint": "当前处于人工接管状态，完成后请点击交还智能体继续自动化。"
   }
 }

@@ -18617,55 +18617,5 @@
       "deleteSuccessDesc": "選択した履歴スナップショットを削除しました。",
       "deleteFailedTitle": "スナップショットの削除に失敗しました"
     }
-  },
-  "continualOverlay": {
-    "activeTitle": "アクティブなオーバーレイ",
-    "remainingTurns": "{count, plural, =1 {残り 1 ターン} other {残り # ターン}}",
-    "rollbackTooltip": "このセッションオーバーレイをロールバック",
-    "rollback": "ロールバック",
-    "collapse": "折りたたむ",
-    "expand": "展開",
-    "howItWorks": "仕組み",
-    "howItWorksDesc": "オーバーレイはゼロリセットの障害回復を提供し、指定されたターン予算内で自動的に有効になり、期限切れ後はスムーズに終了します。",
-    "allActiveOverlays": "すべてのアクティブオーバーレイ ({count})"
-  },
-  "executionPhaseStepper": {
-    "badge": "完了",
-    "waitingApproval": "承認待ち",
-    "collapseTelemetry": "テレメトリを折りたたむ",
-    "expandTelemetry": "テレメトリを展開",
-    "currentNode": "ノード #{nodeId}",
-    "phases": {
-      "planning": {
-        "title": "計画"
-      },
-      "executing": {
-        "title": "実行"
-      },
-      "verifying": {
-        "title": "検証"
-      }
-    },
-    "lanes": {
-      "agent": "エージェントコア",
-      "user": "ユーザー",
-      "llm": "LLM",
-      "mcp": "MCP",
-      "skills": "スキル",
-      "sandbox": "サンドボックス"
-    }
-  },
-  "taskSpaces": {
-    "title": "並列ブラウザタスク空間",
-    "badgeRunning": "実行中",
-    "badgeIdle": "待機中",
-    "badgeTakeover": "手動介入中",
-    "takeoverBtn": "引き継ぐ",
-    "releaseTakeoverBtn": "AIに返却",
-    "closeSpaceBtn": "空間を閉じる",
-    "activePages": "{count} 個のアクティブタブ",
-    "emptyState": "アクティブな並列ブラウザ空間はありません",
-    "snapshotPreview": "リアルタイム空間スナップショット",
-    "takeoverHint": "現在手動介入モードです。完了したらAIに返却してください。"
   }
 }

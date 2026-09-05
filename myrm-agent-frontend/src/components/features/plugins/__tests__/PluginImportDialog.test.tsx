@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const stableT: (key: string) => string = (key) => {
+const stableT = (key: string, values?: Record<string, unknown>): string => {
   const map: Record<string, string> = {
     title: 'Import Plugin',
     subtitle: 'Install an agent plugin package',
@@ -46,8 +46,27 @@ const stableT: (key: string) => string = (key) => {
     'security.trustDisclosureCloud': 'Running in Cloud Sandbox mode. Dedicated isolated volume.',
     'security.trustRiskHint': 'Untrusted extensions may contain prompt injection.',
     'security.trustedCheckboxLabel': 'I confirm this plugin is from a trusted source',
+    'capabilities.title': 'Sandbox Capabilities',
+    'capabilities.read_only': 'Read-Only',
+    'capabilities.fs_read': 'File Read',
+    'capabilities.fs_write': 'File Write',
+    'capabilities.network': 'Network Outbound',
+    'capabilities.shell_exec': 'Shell Exec',
+    'capabilities.destructive': 'Destructive / System',
+    'capabilities.risk.low': 'Low Risk',
+    'capabilities.risk.medium': 'Medium Risk',
+    'capabilities.risk.high': 'High Risk',
+    'capabilities.risk.critical': 'Critical Risk',
+    'capabilities.escalationTitle': 'Privilege Escalation Risk Detected',
+    'capabilities.escalationWarning': 'This version requests elevated system permissions compared to previous installation: added [{added}]. Please verify the plugin source before confirming.',
   };
-  return map[key] ?? key;
+  let text = map[key] ?? key;
+  if (values) {
+    for (const [k, v] of Object.entries(values)) {
+      text = text.replaceAll(`{${k}}`, String(v));
+    }
+  }
+  return text;
 };
 
 vi.mock('next-intl', () => ({
@@ -175,16 +194,18 @@ const PLUGIN_PREVIEW = {
 let fetchMock: ReturnType<typeof vi.fn>;
 
 describe('PluginImportDialog', () => {
+  const originalFetch = global.fetch;
+
   beforeEach(() => {
     mockToast.mockClear();
     mockFetchAgents.mockClear();
     mockAgents = [{ id: 'agent-1', name: 'Research Assistant' }];
     fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
+    global.fetch = fetchMock;
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    global.fetch = originalFetch;
   });
 
   async function renderDialog() {
@@ -670,5 +691,60 @@ describe('PluginImportDialog', () => {
     const installButtons = screen.getAllByRole('button', { name: /Install|Skip/ });
     const serverButton = installButtons.find((btn) => btn.closest('.divide-y')?.textContent?.includes('unrunnable-server'));
     expect(serverButton).toBeDisabled();
+  });
+
+  it('renders capability tier badges and privilege escalation warning', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        session_id: 'test-session-capabilities',
+        plugin: {
+          name: 'advanced-mcp-plugin',
+          version: '1.2.0',
+          capabilities: ['shell_exec', 'network'],
+          effective_tier: 'shell_exec',
+          risk_level: 'high',
+          capability_diff: {
+            added: ['shell_exec'],
+            removed: [],
+            has_escalation: true,
+          },
+        },
+        skills: [],
+        servers: [
+          {
+            virtual_id: 'mcp:0',
+            name: 'shell-runner-srv',
+            type: 'stdio',
+            command: './run.sh',
+            env_key_count: 0,
+            has_placeholders: false,
+            is_runnable: true,
+            capabilities: ['shell_exec', 'fs_read'],
+          },
+        ],
+        diagnostics: [],
+      }),
+    });
+    await renderDialog();
+    selectFile(new File(['zip'], 'advanced.zip', { type: 'application/zip' }));
+
+    await screen.findByText('advanced-mcp-plugin');
+
+    // Risk badge
+    expect(screen.getByText('High Risk')).toBeInTheDocument();
+
+    // Capabilities title & badges in plugin card
+    expect(screen.getByText('Sandbox Capabilities:')).toBeInTheDocument();
+    expect(screen.getAllByText('Shell Exec').length).toBeGreaterThan(0);
+    expect(screen.getByText('Network Outbound')).toBeInTheDocument();
+
+    // Escalation warning alert
+    expect(screen.getByText('Privilege Escalation Risk Detected')).toBeInTheDocument();
+    expect(screen.getByText(/added \[Shell Exec\]/)).toBeInTheDocument();
+
+    // Server-level capability badges
+    expect(screen.getByText('shell-runner-srv')).toBeInTheDocument();
+    expect(screen.getByText('File Read')).toBeInTheDocument();
   });
 });

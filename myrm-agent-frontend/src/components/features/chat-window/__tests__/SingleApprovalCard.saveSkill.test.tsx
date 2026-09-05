@@ -96,4 +96,17 @@ describe('SingleApprovalCard save_skill', () => {
     render(<SingleApprovalCard request={regularShellRequest} onResolve={async () => {}} isLoading={false} />);
     expect(screen.getByText('Always Allow')).toBeInTheDocument();
   });
+
+  it('hides allow always trigger when hideAllowAlways is true (script operand TOCTOU protection)', () => {
+    const scriptProtectedShellRequest: ToolApprovalRequest = {
+      ...saveSkillRequest,
+      requestId: 'req-shell-script',
+      toolName: 'bash_code_execute_tool',
+      toolInput: { command: 'bash run_task.sh' },
+      hideAllowAlways: true,
+    };
+
+    render(<SingleApprovalCard request={scriptProtectedShellRequest} onResolve={async () => {}} isLoading={false} />);
+    expect(screen.queryByText('Always Allow')).not.toBeInTheDocument();
+  });
 });

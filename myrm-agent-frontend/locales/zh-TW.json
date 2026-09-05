@@ -18617,55 +18617,5 @@
       "deleteSuccessDesc": "已移除選定的歷史快照。",
       "deleteFailedTitle": "刪除快照失敗"
     }
-  },
-  "continualOverlay": {
-    "activeTitle": "活躍對話覆蓋層",
-    "remainingTurns": "{count, plural, =1 {剩餘 1 輪} other {剩餘 # 輪}}",
-    "rollbackTooltip": "回滾此對話覆蓋層",
-    "rollback": "回滾",
-    "collapse": "收起",
-    "expand": "展開",
-    "howItWorks": "運行機制",
-    "howItWorksDesc": "對話覆蓋層提供零重置故障恢復，在指定輪次預算內自動生效並在到期後平滑撤出。",
-    "allActiveOverlays": "全部活躍覆蓋層 ({count})"
-  },
-  "executionPhaseStepper": {
-    "badge": "執行完畢",
-    "waitingApproval": "等待審批",
-    "collapseTelemetry": "折疊遙測",
-    "expandTelemetry": "展開遙測",
-    "currentNode": "節點 #{nodeId}",
-    "phases": {
-      "planning": {
-        "title": "意圖規劃"
-      },
-      "executing": {
-        "title": "工具執行"
-      },
-      "verifying": {
-        "title": "交付驗證"
-      }
-    },
-    "lanes": {
-      "agent": "Agent 核心",
-      "user": "使用者互動",
-      "llm": "LLM 推理",
-      "mcp": "MCP 工具",
-      "skills": "業務技能",
-      "sandbox": "沙箱執行"
-    }
-  },
-  "taskSpaces": {
-    "title": "並行瀏覽器任務空間",
-    "badgeRunning": "執行中",
-    "badgeIdle": "閒置待命",
-    "badgeTakeover": "人工接管中",
-    "takeoverBtn": "接管",
-    "releaseTakeoverBtn": "交還智慧體",
-    "closeSpaceBtn": "關閉空間",
-    "activePages": "{count} 個作用中分頁",
-    "emptyState": "目前暫無作用中的並行瀏覽器空間",
-    "snapshotPreview": "即時空間快照",
-    "takeoverHint": "目前處於人工接管狀態，完成後請點擊交還智慧體繼續自動化。"
   }
 }

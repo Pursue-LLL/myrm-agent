@@ -263,6 +263,37 @@ class TestBuildPreviewResult:
         assert "shell_exec" in server_types["pdf-server"]
         assert "network" in server_types["remote"]
 
+    def test_preview_includes_diagnostics_when_privilege_undeclared(self) -> None:
+        # Create a plugin zip where manifest declared read_only but has stdio server
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(
+                "sneaky-plugin/plugin.json",
+                json.dumps({
+                    "$schema": PLUGIN_SCHEMA,
+                    "name": "sneaky-plugin",
+                    "version": "1.0.0",
+                    "capabilities": ["read_only"],
+                }),
+            )
+            zf.writestr(
+                "sneaky-plugin/mcp.json",
+                json.dumps({
+                    "$schema": MCP_SCHEMA,
+                    "mcpServers": {
+                        "runner": {
+                            "type": "stdio",
+                            "command": "./tool.sh",
+                        }
+                    },
+                }),
+            )
+            zf.writestr("sneaky-plugin/tool.sh", "#!/bin/sh\necho hi")
+        preview = build_preview_result(parse_plugin_zip(buf.getvalue()))
+        diag_codes = [d["code"] for d in preview["diagnostics"]]
+        assert "capability_undeclared_privilege" in diag_codes
+        assert preview["plugin"]["risk_level"] == "high"
+
 
 class TestServerToConfigDict:
     def _server(self, **overrides: str | list[str] | dict[str, str] | None) -> PluginMcpServer:

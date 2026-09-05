@@ -24,9 +24,15 @@ from app.services.system.storage_service import (
 )
 from app.services.system.support_bundle_service import SupportBundleService
 from app.services.system.takeout_service import UserTakeoutService
+from app.services.system.vault_purge_service import (
+    SafeVaultPurgeResult,
+    SafeVaultPurgeService,
+)
 
 __all__ = [
     "DatabaseStorageBreakdown",
+    "SafeVaultPurgeResult",
+    "SafeVaultPurgeService",
     "StorageOptimizePreflightData",
     "SubdirUsage",
     "SupportBundleService",
