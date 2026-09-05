@@ -34,7 +34,7 @@ _CHAT_PAGE_READY_STATE = """(() => {
 
 @pytest.mark.chrome_e2e(
     execution_mode="SHARED",
-    access_scope="READ",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
 )
 @pytest.mark.e2e_search_policy("empty")
