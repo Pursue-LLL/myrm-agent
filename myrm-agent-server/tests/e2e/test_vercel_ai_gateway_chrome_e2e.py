@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import os
-import pytest
 
+import pytest
 from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+
 from tests.support.chrome_mcp_e2e import (
     _require_e2e_cdp_ready,
     dismiss_blocking_modals,
@@ -61,12 +62,8 @@ def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:
         dismiss_blocking_modals(client, page)
         wait_for_settings_layout(client, page, page_url=target_url)
 
-        eval_res = client.evaluate(
-            page, _VERIFY_VERCEL_GATEWAY_SETTINGS_JS, timeout_sec=20.0
-        )
-        assert isinstance(
-            eval_res, dict
-        ), f"Expected dict evaluation result, got: {eval_res}"
+        eval_res = client.evaluate(page, _VERIFY_VERCEL_GATEWAY_SETTINGS_JS, timeout_sec=20.0)
+        assert isinstance(eval_res, dict), f"Expected dict evaluation result, got: {eval_res}"
         assert eval_res.get("ok") is True, f"Script failed: {eval_res}"
         assert eval_res.get("ready") is True, f"Settings layout not ready: {eval_res}"
         assert eval_res.get("hasModelSection") is True, f"Model section not found: {eval_res}"
