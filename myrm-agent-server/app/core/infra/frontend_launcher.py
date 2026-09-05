@@ -299,14 +299,23 @@ class FrontendLauncher:
             )
             self._frontend_port = actual_port
 
-        env = {
-            **os.environ,
+        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+            EnvInheritPolicy,
+            build_isolated_child_env,
+        )
+
+        extra_frontend_env = {
             "PORT": str(self._frontend_port),
             "HOSTNAME": self._bind_host,
             "NODE_ENV": "production",
             "API_HOST": self._api_host,
             "API_PORT": str(self._api_port),
         }
+        env = build_isolated_child_env(
+            base_env=None,
+            extra_env=extra_frontend_env,
+            inherit_policy=EnvInheritPolicy.CORE,
+        )
         for var in _TOXIC_NODE_ENV_VARS:
             env.pop(var, None)
 

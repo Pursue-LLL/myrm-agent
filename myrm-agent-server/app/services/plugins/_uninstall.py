@@ -67,18 +67,26 @@ async def list_installed_plugins() -> list[dict[str, object]]:
             }
         )
 
-    return [
-        {
-            "name": plugin_name,
-            "servers": sorted(str(item["name"]) for item in server_infos),
-            "server_meta": sorted(
-                server_infos,
-                key=lambda item: str(item["name"]),
-            ),
-            "has_bundled_files": _plugin_dir_exists(plugin_name),
-        }
-        for plugin_name, server_infos in sorted(by_plugin.items())
-    ]
+    result_list: list[dict[str, object]] = []
+    for plugin_name, server_infos in sorted(by_plugin.items()):
+        all_caps: set[str] = set()
+        for item in server_infos:
+            caps = item.get("capabilities")
+            if isinstance(caps, list):
+                all_caps.update(str(c) for c in caps)
+        result_list.append(
+            {
+                "name": plugin_name,
+                "servers": sorted(str(item["name"]) for item in server_infos),
+                "server_meta": sorted(
+                    server_infos,
+                    key=lambda item: str(item["name"]),
+                ),
+                "has_bundled_files": _plugin_dir_exists(plugin_name),
+                "capabilities": sorted(all_caps),
+            }
+        )
+    return result_list
 
 
 def _plugin_dir_exists(plugin_name: str) -> bool:
