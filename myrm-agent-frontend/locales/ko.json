@@ -2577,7 +2577,14 @@
       "customErrorProbeFailed": "엔드포인트 프로브 실패",
       "customErrorDetectFirst": "먼저 모델을 감지하세요",
       "customErrorReachabilityFailed": "엔드포인트에 연결되었지만 모델 상태 확인에 실패했습니다",
-      "customDetectSuccess": "{count}개 모델 감지됨"
+      "customDetectSuccess": "{count}개 모델 감지됨",
+      "checklistTitle": "도구 호출 권장 벤치마크",
+      "checklistSubtitle": "복잡한 작업 지원 검증됨",
+      "recommendedBadge": "권장",
+      "verifiedBadge": "도구 호출 지원 검증됨: {model}",
+      "verifiedDescription": "이 모델은 Myrm 호환성 테스트를 통과하여 함수 호출, 파일 작업, 웹 검색을 안정적으로 수행할 수 있습니다.",
+      "unverifiedWarningTitle": "미검증 모델 안내: {model}",
+      "unverifiedWarningDescription": "이 모델은 공식 도구 호출 호환성 검증을 거치지 않았습니다. 복잡한 도구 실행 시 형식 오류가 발생할 수 있습니다."
     },
     "migrationDiscovery": {
       "detecting": "AI 어시스턴트 데이터 스캔 중...",
