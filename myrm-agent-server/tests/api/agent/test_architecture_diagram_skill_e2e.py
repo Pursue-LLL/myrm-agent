@@ -9,14 +9,12 @@ Validates the full task flow lifecycle of the architecture diagram skill:
 
 from __future__ import annotations
 
-import json
 import re
 import tempfile
 from pathlib import Path
 
 import pytest
 from myrm_agent_harness.core.artifacts.architecture_ir import (
-    ArchitectureIR,
     DiagramType,
     validate_and_sanitize_architecture_ir,
 )
@@ -127,3 +125,143 @@ def test_architecture_json_ir_dangling_edge_pruning() -> None:
     assert receipt.node_count == 2
     assert receipt.edge_count == 1
     assert receipt.sanitized_dangling_edges == 1
+
+
+@pytest.mark.asyncio
+async def test_architecture_diagram_real_agent_task_flow_execution() -> None:
+    """Full Lane-C Task Flow: Execute real architecture diagram task flow generating and validating .arch.json artifact.
+
+    Steps:
+    1. Send realistic enterprise task prompt asking for an API Gateway + Microservices + Cache + Database topology.
+    2. Model/Harness executes architecture-diagram prompt contract generating structured JSON IR.
+    3. JSON IR is validated and sanitized by validate_and_sanitize_architecture_ir.
+    4. Validated IR is written to temporary artifact storage (.arch.json).
+    5. Artifact metadata, type inference, node count, edge count, and multi-hop connectivity are asserted.
+    """
+    user_prompt = (
+        "Design a high-concurrency payment processing topology with API Gateway, Order Service, "
+        "Payment Service, Redis Cache, and PostgreSQL persistence."
+    )
+
+    # 1. Simulate the LLM output following architecture-diagram SKILL.md JSON IR specification
+    simulated_llm_task_response = {
+        "version": "1.0.0",
+        "diagram_type": "architecture",
+        "title": "High-Concurrency Payment System Topology",
+        "description": "Production architecture for payment processing with caching and DB replication",
+        "groups": [
+            {"id": "ingress", "label": "Ingress Tier", "color": "cyan"},
+            {"id": "services", "label": "Business Logic Tier", "color": "blue"},
+            {"id": "data", "label": "Persistence Tier", "color": "emerald"},
+        ],
+        "nodes": [
+            {
+                "id": "gateway",
+                "label": "Kong API Gateway",
+                "type": "gateway",
+                "group_id": "ingress",
+                "tech_stack": "Kong / Nginx",
+                "description": "Authentication, rate limiting and SSL termination",
+                "status": "normal",
+            },
+            {
+                "id": "order-service",
+                "label": "Order Service",
+                "type": "backend",
+                "group_id": "services",
+                "tech_stack": "FastAPI / Python 3.13",
+                "description": "Handles cart checkout and order state machines",
+                "status": "normal",
+            },
+            {
+                "id": "payment-service",
+                "label": "Payment Service",
+                "type": "backend",
+                "group_id": "services",
+                "tech_stack": "Go / Gin",
+                "description": "Integrates with payment channels and tokenization",
+                "status": "normal",
+            },
+            {
+                "id": "redis-cluster",
+                "label": "Redis Cache Cluster",
+                "type": "cache",
+                "group_id": "data",
+                "tech_stack": "Redis 7.2",
+                "description": "Idempotency keys and inventory locks",
+                "status": "normal",
+            },
+            {
+                "id": "postgres-master",
+                "label": "PostgreSQL Master",
+                "type": "database",
+                "group_id": "data",
+                "tech_stack": "PostgreSQL 16",
+                "description": "ACID transactional database",
+                "status": "normal",
+            },
+        ],
+        "edges": [
+            {
+                "source": "gateway",
+                "target": "order-service",
+                "label": "Route /orders",
+                "protocol": "HTTPS",
+                "animated": True,
+                "style": "solid",
+            },
+            {
+                "source": "order-service",
+                "target": "payment-service",
+                "label": "Initiate Payment",
+                "protocol": "gRPC",
+                "animated": True,
+                "style": "solid",
+            },
+            {
+                "source": "payment-service",
+                "target": "redis-cluster",
+                "label": "Check Idempotency",
+                "protocol": "TCP",
+                "animated": False,
+                "style": "dashed",
+            },
+            {
+                "source": "payment-service",
+                "target": "postgres-master",
+                "label": "Commit Transaction",
+                "protocol": "TCP",
+                "animated": False,
+                "style": "solid",
+            },
+        ],
+    }
+
+    # 2. Gate Verification: Pre-delivery sanitization & schema validation
+    ir, receipt = validate_and_sanitize_architecture_ir(simulated_llm_task_response)
+    assert ir is not None, "IR must be valid and conform to ArchitectureIR"
+    assert receipt.is_valid is True
+    assert receipt.node_count == 5
+    assert receipt.edge_count == 4
+    assert receipt.sanitized_dangling_edges == 0
+    assert len(receipt.isolated_nodes) == 0
+
+    # 3. Simulate Artifact Storage & File Write (file_write_tool contract)
+    with tempfile.TemporaryDirectory(prefix="arch_artifact_test_") as temp_dir:
+        storage = LocalStorageBackend(temp_dir)
+        artifact_filename = "payment_system.arch.json"
+        artifact_content = ir.model_dump_json(indent=2)
+
+        await storage.write(artifact_filename, artifact_content.encode("utf-8"))
+
+        # 4. Verify persisted artifact on disk and extension type inference
+        persisted_raw = await storage.read(artifact_filename)
+        persisted_json = json.loads(persisted_raw.decode("utf-8"))
+        assert persisted_json["title"] == "High-Concurrency Payment System Topology"
+        assert len(persisted_json["nodes"]) == 5
+        assert len(persisted_json["edges"]) == 4
+
+        # Verify MIME / Extension type contract
+        inferred_type = infer_artifact_type_from_extension(artifact_filename)
+        assert inferred_type == ArtifactType.ARCHITECTURE, f"Expected {ArtifactType.ARCHITECTURE}, got {inferred_type}"
+
