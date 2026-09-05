@@ -760,6 +760,38 @@ describe('OnboardingWizard', () => {
       });
     });
 
+    it('navigates through routing with deepseek-reasoner and local hybrid models', async () => {
+      mockRoutingEnabled.value = false;
+      mockEnabledModels.value = [
+        { providerId: 'deepseek', model: 'deepseek-chat' },
+        { providerId: 'deepseek', model: 'deepseek-reasoner' },
+      ];
+
+      render(<OnboardingWizard onComplete={vi.fn()} />);
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      await completeToolsConnectStep();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('sync-folder-done'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('smart-routing-step')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('routing-enable'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('smart-guard-step')).toBeInTheDocument();
+      });
+    });
+
     it('navigates from smart_guard enable to telegram step', async () => {
       render(<OnboardingWizard onComplete={vi.fn()} />);
 

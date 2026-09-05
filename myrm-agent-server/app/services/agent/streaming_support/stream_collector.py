@@ -415,6 +415,7 @@ class StreamContentCollector:
         self._workspace_merge_failed_count: int | None = None
         self._workspace_merge_truncated: int | None = None
         self._council_phases: list[dict[str, object]] = []
+        self._staged_artifacts: list[dict[str, object]] = []
         self._pending_evicted: list[dict[str, object]] = []
         self._sibling_group_id: str | None = sibling_group_id
         self._chat_id: str | None = chat_id
@@ -663,6 +664,9 @@ class StreamContentCollector:
 
         elif event_type == "message_end":
             self._flush_pending_evicted_ref()
+            staged = event.get("staged_artifacts")
+            if isinstance(staged, list):
+                self._staged_artifacts.extend(string_keyed_dicts(staged))
             usage = string_keyed_dict(event.get("usage"))
             if usage is not None:
                 self._usage = usage

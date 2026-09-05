@@ -15770,6 +15770,9 @@
           "scanComplete": "Scan abgeschlossen",
           "foundSkills": "{count} Fähigkeiten gefunden"
         },
+        "discoveredSkillsBadge": "{count} Skills",
+        "pathNotFoundBadge": "Pfad nicht gefunden",
+        "emptySkillsBadge": "0 Skills",
         "error": {
           "invalidPath": "Ungültiges Pfadformat",
           "pathFormat": "Der Pfad muss absolut sein oder mit ~ beginnen",

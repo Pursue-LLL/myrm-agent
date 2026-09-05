@@ -448,6 +448,11 @@ function parseMessages(raw: Message[]): Message[] {
       parsed.deliverableTier = rawDeliverableTier as Message['deliverableTier'];
     }
 
+    const rawStagedArtifacts = metadata.stagedArtifacts ?? metadata.staged_artifacts;
+    if (Array.isArray(rawStagedArtifacts) && !parsed.stagedArtifacts) {
+      parsed.stagedArtifacts = rawStagedArtifacts as Message['stagedArtifacts'];
+    }
+
     return parsed;
   });
 }
