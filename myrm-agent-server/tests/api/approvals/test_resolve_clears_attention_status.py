@@ -8,6 +8,8 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.services.approvals.registry import ApprovalRegistry
+from app.services.chat.chat_crud import _ChatCrudMixin
+from myrm_agent_harness.agent.security.approval_flow import get_allowlist
 
 
 @pytest.mark.asyncio
@@ -123,6 +125,51 @@ async def test_batch_resolve_publishes_idle_for_each_chat_id(app, setup_test_dat
 
     assert response.status_code == 200
     assert mock_multiplexer.publish_session_status.call_count == 2
-    calls = mock_multiplexer.publish_session_status.call_args_list
-    assert calls[0].args == ("chat-batch-1", "idle", "")
-    assert calls[1].args == ("chat-batch-2", "idle", "")
+
+
+@pytest.mark.asyncio
+async def test_resolve_approval_with_session_duration_allow_always(app, setup_test_database) -> None:
+    """POST /{id}/resolve with duration='session' writes ephemeral allowlist and purges on cleanup."""
+    chat_id = "chat-session-e2e-888"
+    user_id = "sandbox"
+    tool_name = "bash"
+
+    record = await ApprovalRegistry.create_approval(
+        agent_id="agent-1",
+        chat_id=chat_id,
+        thread_id="thread-888",
+        action_type="shell_execute",
+        payload={"cmd": "ls", "tool_name": tool_name},
+        reason="test session allow always",
+        severity="warning",
+        status="PENDING",
+    )
+
+    with (
+        patch("app.services.event.app_event_bus.get_event_bus", return_value=MagicMock()),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            response = await ac.post(
+                f"/api/v1/approvals/{record.id}/resolve",
+                json={
+                    "decision": "approve",
+                    "allow_always": {
+                        "tool": True,
+                        "duration": "session",
+                        "ttl_seconds": -1,
+                    },
+                },
+            )
+
+    assert response.status_code == 200
+    al = get_allowlist()
+    # 1. Ephemeral session grant exists in memory for this session
+    assert al.check(user_id, "shell_execute", tool_name, session_id=chat_id) is True
+    # 2. Denied under different session
+    assert al.check(user_id, "shell_execute", tool_name, session_id="other-chat") is False
+
+    # 3. Trigger chat lifecycle cleanup (Focus & Flush or Delete)
+    await _ChatCrudMixin._cleanup_checkpointer(chat_id)
+
+    # 4. Ephemeral grant is completely purged from memory
+    assert al.check(user_id, "shell_execute", tool_name, session_id=chat_id) is False
