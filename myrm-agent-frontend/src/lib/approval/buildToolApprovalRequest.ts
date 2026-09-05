@@ -97,17 +97,24 @@ export function buildToolApprovalRequest({
 
   const commandSpans = parseCommandSpans(action.command_spans, shellCommand.length);
   const pathGrant = resolvePathGrantMeta(action);
+  const diff =
+    typeof action.args.patch === 'string' && action.args.patch.trim()
+      ? action.args.patch.trim()
+      : typeof action.args.diff === 'string' && action.args.diff.trim()
+        ? action.args.diff.trim()
+        : undefined;
 
   return {
     requestId,
     toolName: action.action,
     toolInput: action.args,
+    diff,
     reason: action.description,
-    timeoutSeconds: extensions.timeout.seconds,
-    expiresAt: extensions.timeout.expiresAt,
-    timeoutBehavior: extensions.timeout.behavior || 'deny',
+    timeoutSeconds: extensions?.timeout?.seconds ?? 60,
+    expiresAt: extensions?.timeout?.expiresAt ?? 0,
+    timeoutBehavior: extensions?.timeout?.behavior || 'deny',
     messageId,
-    displayMode: extensions.displayMode,
+    displayMode: extensions?.displayMode,
     batchId,
     batchIndex,
     batchSize,

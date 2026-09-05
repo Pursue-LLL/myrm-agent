@@ -148,4 +148,46 @@ describe('buildToolApprovalRequest', () => {
     expect(request.scriptOperandHash).toBe('abc123sha256digest');
     expect(request.scriptOperandProtected).toBe(true);
   });
+
+  it('maps diff from patch or diff arguments in action payload', () => {
+    const patchRequest = buildToolApprovalRequest({
+      action: {
+        action: 'apply_patch',
+        args: {
+          path: 'src/main.py',
+          patch: '--- a/src/main.py\n+++ b/src/main.py\n@@ -1 +1 @@\n-old\n+new',
+        },
+        description: 'apply patch',
+      },
+      requestId: 'req-patch',
+      messageId: 'msg-patch',
+      chatId: 'chat-patch',
+      actionMode: 'agent',
+      extensions: {
+        timeout: { seconds: 60, expiresAt: 1_700_000_000 },
+        displayMode: 'approval',
+      },
+    });
+    expect(patchRequest.diff).toBe('--- a/src/main.py\n+++ b/src/main.py\n@@ -1 +1 @@\n-old\n+new');
+
+    const diffRequest = buildToolApprovalRequest({
+      action: {
+        action: 'edit_file',
+        args: {
+          path: 'src/config.json',
+          diff: '@@ -1 +1 @@\n-1\n+2',
+        },
+        description: 'edit file',
+      },
+      requestId: 'req-diff',
+      messageId: 'msg-diff',
+      chatId: 'chat-diff',
+      actionMode: 'agent',
+      extensions: {
+        timeout: { seconds: 60, expiresAt: 1_700_000_000 },
+        displayMode: 'approval',
+      },
+    });
+    expect(diffRequest.diff).toBe('@@ -1 +1 @@\n-1\n+2');
+  });
 });

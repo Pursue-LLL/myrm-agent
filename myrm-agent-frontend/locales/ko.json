@@ -8643,6 +8643,7 @@
     "highRiskDomAction": "고위험 브라우저 작업이 감지되었습니다",
     "targetElement": "대상 요소",
     "action": "작업",
+    "keyActivation": "키보드 활성화 키",
     "jsExpression": "JavaScript 표현식",
     "mcpElicitationTitle": "MCP 서버 확인",
     "mcpElicitationServer": "서버",

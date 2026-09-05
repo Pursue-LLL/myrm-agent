@@ -21,7 +21,15 @@ from app.remote_access.trust_zone import TrustZone, is_public_host
 
 
 def _host_only(host_header: str) -> str:
-    return host_header.split(":")[0].strip().lower()
+    clean = host_header.strip().lower()
+    if clean.startswith("["):
+        end_idx = clean.find("]")
+        if end_idx != -1:
+            return clean[1:end_idx]
+    if clean.count(":") > 1:
+        # Raw IPv6 address without port e.g. ::1
+        return clean
+    return clean.split(":")[0]
 
 
 def _hostname_from_url(url: str) -> str:
@@ -64,6 +72,29 @@ class HostAllowlistMiddleware(BaseHTTPMiddleware):
 
         trust_zone = getattr(request.state, "trust_zone", None)
         if trust_zone != TrustZone.REMOTE_EXPOSED.value and not is_webui_remote_mode():
+            local_allowed = frozenset({"localhost", "127.0.0.1", "::1"})
+            host_header = request.headers.get("host", "")
+            # 1. Enforce Host header: reject foreign domain names pointing to local loopback (DNS rebinding)
+            if host_header and not is_allowed_host(host_header, local_allowed):
+                return JSONResponse(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    content={"detail": "Host not allowed (DNS rebinding defense)"},
+                )
+            # 2. Enforce Origin header: reject external browser origins trying to cross-origin hijack local APIs
+            origin = request.headers.get("origin", "")
+            if origin:
+                parsed_origin = urlparse(origin)
+                origin_scheme = (parsed_origin.scheme or "").lower()
+                origin_host = (parsed_origin.hostname or "").lower()
+                is_safe_origin = (
+                    origin_scheme in ("tauri", "vscode-webview", "app")
+                    or is_allowed_host(origin_host, local_allowed)
+                )
+                if not is_safe_origin:
+                    return JSONResponse(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        content={"detail": "Origin not allowed (DNS rebinding defense)"},
+                    )
             return await call_next(request)
 
         host_header = request.headers.get("host", "")

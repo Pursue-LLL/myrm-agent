@@ -70,3 +70,37 @@ class TestModelNameNormalization:
         """Test that provider prefix matching is case-insensitive."""
         result = _normalize_model_name("OpenAI-Compatible/model-name")
         assert result == "openai/model-name"
+
+    def test_collapse_duplicated_anthropic_prefix(self) -> None:
+        """Test collapsing duplicated anthropic/anthropic/ to anthropic/."""
+        result = _normalize_model_name("anthropic/anthropic/claude-3-7-sonnet-20250219")
+        assert result == "anthropic/claude-3-7-sonnet-20250219"
+
+    def test_collapse_duplicated_openai_prefix(self) -> None:
+        """Test collapsing duplicated openai/openai/ to openai/."""
+        result = _normalize_model_name("openai/openai/gpt-4o")
+        assert result == "openai/gpt-4o"
+
+    def test_collapse_hybrid_alias_prefix(self) -> None:
+        """Test collapsing hybrid alias prefixes e.g. openai-compatible/openai/."""
+        result = _normalize_model_name("openai-compatible/openai/deepseek-chat")
+        assert result == "openai/deepseek-chat"
+
+    def test_deeply_nested_duplicated_prefixes(self) -> None:
+        """Test collapsing multiple consecutive repeated prefixes."""
+        result = _normalize_model_name("anthropic/anthropic/anthropic/claude-3-5-sonnet")
+        assert result == "anthropic/claude-3-5-sonnet"
+
+    def test_model_with_hyphenated_family_preserves_segment(self) -> None:
+        """Ensure legitimate model names containing family substrings are not corruptly collapsed."""
+        result = _normalize_model_name("qwen/qwen-2.5-72b-instruct")
+        assert result == "qwen/qwen-2.5-72b-instruct"
+
+    def test_consecutive_slashes_cleaned(self) -> None:
+        """Ensure accidental consecutive slashes are safely normalized."""
+        result = _normalize_model_name("anthropic//claude-3-5-sonnet")
+        assert result == "anthropic/claude-3-5-sonnet"
+        result2 = _normalize_model_name("openai///openai//gpt-4o")
+        assert result2 == "openai/gpt-4o"
+
+

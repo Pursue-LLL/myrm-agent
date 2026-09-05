@@ -51,6 +51,7 @@ import { isSaveSkillApproval } from '@/lib/approval/saveSkillApproval';
 import ApprovalScopeNoteLine from '@/components/approval/ApprovalScopeNoteLine';
 import SaveSkillApprovalPreview from '@/components/approval/SaveSkillApprovalPreview';
 import PtcHintBadges from '@/components/approval/PtcHintBadges';
+import { DiffViewer } from '@/lib/diff/DiffViewer';
 
 type DecisionType = 'approve' | 'edit' | 'reject';
 type DialogMode = 'default' | 'editing' | 'rejecting';
@@ -473,6 +474,24 @@ export default function SingleApprovalCard({
               showAllLinesLabel={t('saveSkill.showAllLines')}
               footerText={t('saveSkill.footer')}
             />
+          ) : request.diff ? (
+            <div className="rounded-lg border overflow-hidden max-h-80 overflow-y-auto">
+              <DiffViewer
+                diff={request.diff}
+                filePath={
+                  typeof request.toolInput.path === 'string'
+                    ? request.toolInput.path
+                    : typeof request.toolInput.filePath === 'string'
+                      ? request.toolInput.filePath
+                      : typeof request.toolInput.file_path === 'string'
+                        ? request.toolInput.file_path
+                        : undefined
+                }
+                defaultViewMode="unified"
+                embedded
+                className="text-xs"
+              />
+            </div>
           ) : hideCompactPayload ? null : (
             inputEntries.length > 0 && (
               <pre className="max-h-32 overflow-auto rounded-md bg-muted p-2 text-xs font-mono">

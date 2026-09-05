@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import re
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urlparse
 
@@ -401,14 +402,50 @@ def _to_litellm_model(provider: str, model: str, provider_type: str | None = Non
     return str(to_litellm_model(provider, model, provider_type))
 
 
+def _collapse_repeated_prefixes(model: str) -> str:
+    """Collapse consecutively duplicated or alias-equivalent provider prefixes.
+
+    e.g. 'anthropic/anthropic/claude-3-5-sonnet' -> 'anthropic/claude-3-5-sonnet'
+         'openai_compatible/openai/deepseek-chat' -> 'openai_compatible/deepseek-chat'
+    """
+    parts = model.split("/")
+    if len(parts) <= 1:
+        return model
+
+    alias_map = {
+        "openai_compatible": "openai",
+        "openai_like": "openai",
+        "siliconflow": "openai",
+        "anthropic_compatible": "anthropic",
+        "anthropic_like": "anthropic",
+        "gemini_compatible": "gemini",
+        "gemini_like": "gemini",
+    }
+
+    collapsed: list[str] = [parts[0]]
+    for part in parts[1:]:
+        prev_canonical = collapsed[-1].lower().replace("-", "_")
+        curr_canonical = part.lower().replace("-", "_")
+        prev_family = alias_map.get(prev_canonical, prev_canonical)
+        curr_family = alias_map.get(curr_canonical, curr_canonical)
+
+        # Collapse if adjacent segments resolve to the same family and we are at prefix position
+        if prev_family == curr_family and len(collapsed) == 1:
+            continue
+        collapsed.append(part)
+
+    return "/".join(collapsed)
+
+
 def _normalize_model_name(model: str) -> str:
-    """Normalize model name to LiteLLM-compatible format.
+    """Normalize model name to LiteLLM-compatible format and collapse repeated prefixes.
 
     Converts legacy/alternative provider prefixes to standard LiteLLM format:
     - openai-compatible/ -> openai/
     - openai_compatible/ -> openai/
     - gemini-compatible/ -> gemini/
     - anthropic-compatible/ -> anthropic/
+    Also idempotently eliminates nested/duplicated prefixes (e.g. anthropic/anthropic/xxx -> anthropic/xxx).
 
     Args:
         model: Raw model name from config (e.g., "openai-compatible/deepseek-v4-flash")
@@ -416,26 +453,41 @@ def _normalize_model_name(model: str) -> str:
     Returns:
         Normalized model name (e.g., "openai/deepseek-v4-flash")
     """
-    if "/" not in model:
-        return model
+    import re
 
-    prefix, model_name = model.split("/", 1)
+    cleaned = re.sub(r"/+", "/", model.strip())
+    if "/" not in cleaned:
+        return cleaned
+
+    cleaned = _collapse_repeated_prefixes(cleaned)
+    if "/" not in cleaned:
+        return cleaned
+
+    prefix, model_name = cleaned.split("/", 1)
     prefix_lower = prefix.lower().replace("-", "_")
 
     if prefix_lower in ("openai_compatible", "openai_like", "siliconflow"):
-        return f"openai/{model_name}"
+        prefix = "openai"
     elif prefix_lower in ("gemini_compatible", "gemini_like"):
-        return f"gemini/{model_name}"
+        prefix = "gemini"
     elif prefix_lower in ("anthropic_compatible", "anthropic_like"):
-        return f"anthropic/{model_name}"
+        prefix = "anthropic"
     elif prefix_lower == "minimax":
-        return f"minimax/{model_name}"
+        prefix = "minimax"
     elif prefix_lower == "xiaomi":
-        return f"xiaomi_mimo/{model_name}"
+        prefix = "xiaomi_mimo"
     elif prefix_lower == "xiaomi_mimo":
-        return model
+        prefix = "xiaomi_mimo"
 
-    return model
+    # Multi-level prefix idempotent folding to catch e.g. anthropic/anthropic/xxx
+    while "/" in model_name:
+        sub_prefix, sub_model = model_name.split("/", 1)
+        if sub_prefix.lower().replace("-", "_") in (prefix.lower().replace("-", "_"), prefix_lower):
+            model_name = sub_model
+        else:
+            break
+
+    return f"{prefix}/{model_name}" if prefix != model_name else model_name
 
 
 def _build_provider_type_map(

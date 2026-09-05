@@ -8643,6 +8643,7 @@
     "highRiskDomAction": "Hochrisiko-Browseraktion erkannt",
     "targetElement": "Zielelement",
     "action": "Aktion",
+    "keyActivation": "Tastenaktivierung",
     "jsExpression": "JavaScript-Ausdruck",
     "mcpElicitationTitle": "MCP Serverbestätigung",
     "mcpElicitationServer": "Serverinstanz",

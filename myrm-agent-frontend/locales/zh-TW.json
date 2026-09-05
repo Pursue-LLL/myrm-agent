@@ -8661,6 +8661,7 @@
     "highRiskDomAction": "檢測到高風險瀏覽器操作",
     "targetElement": "目標元素",
     "action": "操作",
+    "keyActivation": "鍵盤啟用按鍵",
     "jsExpression": "JavaScript 表示式",
     "mcpElicitationTitle": "MCP 服務確認",
     "mcpElicitationServer": "服務",

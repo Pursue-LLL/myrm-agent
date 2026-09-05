@@ -8663,6 +8663,7 @@
     "highRiskDomAction": "检测到高风险浏览器操作",
     "targetElement": "目标元素",
     "action": "操作",
+    "keyActivation": "键盘激活按键",
     "jsExpression": "JavaScript 表达式",
     "scriptOperand": {
       "protectedBadge": "脚本防篡改锁定",

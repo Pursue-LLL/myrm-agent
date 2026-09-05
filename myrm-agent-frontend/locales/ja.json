@@ -8643,6 +8643,7 @@
     "highRiskDomAction": "高リスクブラウザ操作が検出されました",
     "targetElement": "ゴール元素",
     "action": "アクション",
+    "keyActivation": "キーボードアクティベーション",
     "jsExpression": "JavaScript 式",
     "mcpElicitationTitle": "MCPサーバーの確認",
     "mcpElicitationServer": "サーバー",

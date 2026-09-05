@@ -15,6 +15,22 @@ import {
   Layers,
   Pencil,
 } from 'lucide-react';
+
+const KeyboardIcon = ({ className = 'h-3.5 w-3.5' }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    aria-hidden="true"
+  >
+    <rect width="20" height="16" x="2" y="4" rx="2" />
+    <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M7 16h10" />
+  </svg>
+);
 import { toast } from 'sonner';
 import { ApprovalPayload } from '@/store/useApprovalStore';
 import { Button } from '@/components/primitives/button';
@@ -834,7 +850,9 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         );
       }
       case 'high_risk_dom_action': {
-        const element = approval.payload?.element as { role?: string; name?: string; ref?: string } | undefined;
+        const element = approval.payload?.element as
+          | { role?: string; name?: string; ref?: string; key?: string }
+          | undefined;
         const pageUrl = (approval.payload?.page_url as string) || '';
         const toolInput = approval.payload?.tool_input as
           | {
@@ -845,6 +863,8 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
             }
           | undefined;
         const reason = approval.reason || (approval.payload?.reason as string) || '';
+        const isKeyActivation = toolInput?.action === 'press' || Boolean(element?.key);
+        const activationKey = toolInput?.text || element?.key;
 
         return (
           <div className="space-y-4">
@@ -860,15 +880,24 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
               {element && (
                 <div className="rounded-lg border bg-muted/50 p-3">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2">
-                    <MousePointerClick className="h-3.5 w-3.5" />
+                    {isKeyActivation ? (
+                      <KeyboardIcon className="h-3.5 w-3.5 text-destructive" />
+                    ) : (
+                      <MousePointerClick className="h-3.5 w-3.5" />
+                    )}
                     {t('targetElement')}
                   </div>
-                  <div className="flex flex-wrap gap-2 text-sm">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-mono font-medium text-primary">
                       {element.role}
                     </span>
                     <span className="font-medium text-foreground">&quot;{element.name}&quot;</span>
                     <span className="text-muted-foreground text-xs">ref: {element.ref}</span>
+                    {activationKey && (
+                      <kbd className="inline-flex items-center rounded border border-border bg-background px-2 py-0.5 text-xs font-mono font-semibold text-foreground shadow-xs">
+                        {activationKey}
+                      </kbd>
+                    )}
                   </div>
                 </div>
               )}
@@ -882,7 +911,16 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                 </div>
               ) : toolInput?.action ? (
                 <div className="rounded-lg border bg-muted/50 p-3">
-                  <div className="text-xs font-medium text-muted-foreground mb-2">{t('action')}</div>
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2">
+                    {isKeyActivation ? (
+                      <>
+                        <KeyboardIcon className="h-3.5 w-3.5 text-destructive" />
+                        <span>{t('keyActivation')}</span>
+                      </>
+                    ) : (
+                      t('action')
+                    )}
+                  </div>
                   <div className="font-mono text-sm break-all">
                     {toolInput.action}({toolInput.ref ?? ''}
                     {toolInput.text ? `, "${toolInput.text}"` : ''})

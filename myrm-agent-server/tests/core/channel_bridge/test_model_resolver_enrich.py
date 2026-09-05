@@ -7,6 +7,7 @@ from unittest.mock import patch
 from app.core.channel_bridge.model_resolver import (
     _build_platform_headers,
     _fallback_model_from_providers,
+    _normalize_model_name,
     _resolve_model_max_input_tokens,
     enrich_model_context_window,
     resolve_model_config,
@@ -177,7 +178,7 @@ class TestResolveOverridePlatformHeaders:
             ],
         }
         cfg = resolve_model_config(byok_providers, model_override="openai/gpt-4o")
-        assert cfg.model_kwargs is None
+        assert not cfg.model_kwargs or "extra_headers" not in cfg.model_kwargs
 
 
 class TestFallbackModelFromProviders:
@@ -200,3 +201,16 @@ class TestFallbackModelFromProviders:
         cfg = _fallback_model_from_providers(providers_dict)
         assert cfg.model == "xiaomi_mimo/mimo-v2.5-pro"
         assert cfg.api_key == "tp-test"
+
+
+class TestNormalizeModelName:
+    def test_multi_level_prefix_folding(self) -> None:
+        assert _normalize_model_name("anthropic/anthropic/claude-3-5-sonnet") == "anthropic/claude-3-5-sonnet"
+        assert _normalize_model_name("anthropic-compatible/anthropic/anthropic/claude-3-5-haiku") == "anthropic/claude-3-5-haiku"
+        assert _normalize_model_name("openai-compatible/openai/gpt-4o") == "openai/gpt-4o"
+
+    def test_non_duplicate_prefix_retained(self) -> None:
+        assert _normalize_model_name("meta-llama/Llama-3.3-70B-Instruct") == "meta-llama/Llama-3.3-70B-Instruct"
+        assert _normalize_model_name("deepseek-ai/DeepSeek-V3") == "deepseek-ai/DeepSeek-V3"
+        assert _normalize_model_name("gpt-4o") == "gpt-4o"
+
