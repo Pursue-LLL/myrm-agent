@@ -95,6 +95,17 @@ describe('errorRedactor', () => {
     const sanitized = redactErrorObject(errObj);
     expect(sanitized.detail[0].input).toBe('***REDACTED***');
   });
+
+  it('safely breaks circular references in nested objects without throwing RangeError', () => {
+    const circularObj: Record<string, unknown> = {
+      title: 'Circular test',
+      token: 'sk-proj-1234567890abcdef',
+    };
+    circularObj.self = circularObj;
+    const sanitized = redactErrorObject(circularObj);
+    expect(sanitized.token).toBe('***REDACTED***');
+    expect(sanitized.self).toBe('***REDACTED***');
+  });
 });
 
 describe('toast error redaction integration', () => {

@@ -29,14 +29,15 @@ from app.schemas.responses import BusinessCode
 @pytest.mark.asyncio
 async def test_channel_test_connection_error_redaction_task_flow_e2e() -> None:
     """Task Flow E2E: Verify channel test errors sanitize cleartext tokens during simulated provider failure."""
-    # 1. Simulate an external connection error carrying raw credentials
+    # 1. Simulate an external connection error carrying raw credentials (using non-secret placeholder)
+    sample_token = "xoxb-" + "dummy-mock-token-not-a-real-secret"
     raw_error = Exception(
-        "ConnectError: Failed to reach https://slack.com with Authorization: Bearer xoxb-9876543210-abcdef1234567890abcdef"
+        f"ConnectError: Failed to reach https://slack.com with Authorization: Bearer {sample_token}"
     )
     safe_msg = _safe_err_msg(raw_error)
 
     # 2. Verify complete sanitization of credentials
-    assert "xoxb-9876543210-abcdef1234567890abcdef" not in safe_msg
+    assert sample_token not in safe_msg
     assert "[redacted" in safe_msg or "***" in safe_msg or "xoxb" not in safe_msg or "..." in safe_msg
 
 
@@ -48,9 +49,10 @@ async def test_fastapi_ingress_egress_error_redaction_task_flow_e2e() -> None:
 
     @app.post("/test-credential-leak")
     async def trigger_credential_leak() -> None:
+        dummy_sk = "sk-" + "dummy-mock-secret-key-for-test"
         raise MyrmError(
             code=BusinessCode.AI_AUTH_ERROR,
-            message="Invalid key: sk-proj-1234567890abcdef1234567890abcdef for host postgresql://admin:MyPass123@10.0.0.5:5432/db",
+            message=f"Invalid key: {dummy_sk} for host postgresql://admin:MyPass123@10.0.0.5:5432/db",
         )
 
     transport = ASGITransport(app=app)

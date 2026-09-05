@@ -60,6 +60,10 @@ export interface ToolApprovalRequest {
   pathGrantEligible?: boolean;
   pathGrantPath?: string;
   pathGrantWritable?: boolean;
+  /** Script operand TOCTOU integrity protection */
+  scriptOperandPath?: string;
+  scriptOperandHash?: string;
+  scriptOperandProtected?: boolean;
 }
 export interface ToolCallInfo {
   callId: string;

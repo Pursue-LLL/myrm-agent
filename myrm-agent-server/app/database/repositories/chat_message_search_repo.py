@@ -29,6 +29,7 @@ class MessageFtsSearchRow(TypedDict):
     sent_at: datetime | str | None
     chat_title: str | None
     highlight_snippet: str | None
+    is_relaxed: bool
 
 
 class ChatMessageSearchRepository:
@@ -36,9 +37,11 @@ class ChatMessageSearchRepository:
 
     @staticmethod
     async def get_matching_chat_ids(db: AsyncSession, safe_query: str, *, limit: int = 200) -> list[str]:
-        """Return distinct chat IDs whose messages match *safe_query* via FTS5."""
+        """Return distinct chat IDs whose messages match *safe_query* via FTS5 with short-query fallback."""
         if not safe_query:
             return []
+
+        # 1. First attempt via FTS5 virtual table
         sql = text(
             """
             SELECT DISTINCT m.chat_id
@@ -52,8 +55,31 @@ class ChatMessageSearchRepository:
             LIMIT :limit
             """
         )
-        result = await db.execute(sql, {"query": safe_query, "limit": limit})
-        return [row[0] for row in result.fetchall()]
+        try:
+            result = await db.execute(sql, {"query": safe_query, "limit": limit})
+            chat_ids = [row[0] for row in result.fetchall()]
+            if chat_ids:
+                return chat_ids
+        except Exception:
+            pass
+
+        # 2. Short-word / CJK fallback when trigram FTS yields 0 hits (e.g. query < 3 characters)
+        fallback_sql = text(
+            """
+            SELECT DISTINCT m.chat_id
+            FROM messages m
+            JOIN chats c ON c.id = m.chat_id
+            WHERE m.content LIKE :pattern
+              AND m.is_active = 1
+              AND c.is_incognito = 0
+              AND c.deleted_at IS NULL
+            LIMIT :limit
+            """
+        )
+        fallback_result = await db.execute(
+            fallback_sql, {"pattern": f"%{safe_query}%", "limit": limit}
+        )
+        return [row[0] for row in fallback_result.fetchall()]
 
     @staticmethod
     async def search_messages_fts(

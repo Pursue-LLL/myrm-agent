@@ -1011,7 +1011,7 @@ class TestRegistryUnregisterAndFilter:
 
     def test_commands_by_kind_empty(self) -> None:
         registry = CommandRegistry()
-        assert len(registry.commands_by_kind(CommandKind.AGENT)) == 0
+        assert len(registry.commands_by_kind(CommandKind.AGENT_ROUTE)) == 0
 
     def test_help_lines_includes_skill_commands(self) -> None:
         registry = CommandRegistry()

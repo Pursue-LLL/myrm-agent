@@ -20,6 +20,8 @@ interface ApprovalActionPayload {
   plain_explanation?: unknown;
   execution_intent?: unknown;
   reviewerReason?: string;
+  scriptOperandPath?: string;
+  scriptOperandHash?: string;
 }
 
 interface ApprovalExtensionsPayload {
@@ -34,7 +36,12 @@ interface ApprovalExtensionsPayload {
 
 interface BuildToolApprovalRequestParams {
   action: ApprovalActionPayload;
-  reviewConfig?: { domainApproval?: boolean; smartDenied?: boolean; hideAllowAlways?: boolean };
+  reviewConfig?: {
+    domainApproval?: boolean;
+    smartDenied?: boolean;
+    hideAllowAlways?: boolean;
+    scriptOperandProtected?: boolean;
+  };
   requestId: string;
   messageId: string;
   chatId: string;
@@ -126,5 +133,14 @@ export function buildToolApprovalRequest({
     pathGrantEligible: pathGrant.eligible || undefined,
     pathGrantPath: pathGrant.path,
     pathGrantWritable: pathGrant.eligible ? pathGrant.writable : undefined,
+    scriptOperandPath:
+      typeof action.scriptOperandPath === 'string' && action.scriptOperandPath
+        ? action.scriptOperandPath
+        : undefined,
+    scriptOperandHash:
+      typeof action.scriptOperandHash === 'string' && action.scriptOperandHash
+        ? action.scriptOperandHash
+        : undefined,
+    scriptOperandProtected: reviewConfig?.scriptOperandProtected === true ? true : undefined,
   };
 }
