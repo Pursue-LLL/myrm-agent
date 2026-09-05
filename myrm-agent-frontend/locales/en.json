@@ -13983,7 +13983,8 @@
       "audioInput": "Audio Input",
       "videoInput": "Video Input",
       "contextWindow": "Context Window",
-      "refCost": "Ref. Cost"
+      "refCost": "Ref. Cost",
+      "localOwnedMarginalCostHint": "Marginal API Cost: $0/M (Locally owned inference · electricity & hardware amortization only)"
     },
     "account": {
       "title": "Account",

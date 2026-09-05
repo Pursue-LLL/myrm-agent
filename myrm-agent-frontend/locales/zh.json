@@ -13983,7 +13983,8 @@
       "audioInput": "音频输入",
       "videoInput": "视频输入",
       "contextWindow": "上下文窗口",
-      "refCost": "参考成本"
+      "refCost": "参考成本",
+      "localOwnedMarginalCostHint": "边际 API 费用: $0/M (本地自有推理 · 仅电力与硬件折旧)"
     },
     "account": {
       "title": "账户",

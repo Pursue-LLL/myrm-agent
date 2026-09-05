@@ -13983,7 +13983,8 @@
       "audioInput": "오디오 입력",
       "videoInput": "비디오 입력",
       "contextWindow": "컨텍스트 윈도우",
-      "refCost": "참고 비용"
+      "refCost": "참고 비용",
+      "localOwnedMarginalCostHint": "한계 API 비용: $0/M (로컬 자체 추론 · 전력 및 하드웨어 감가상각만)"
     },
     "account": {
       "title": "계정",

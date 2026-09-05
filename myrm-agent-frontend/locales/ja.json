@@ -13983,7 +13983,8 @@
       "audioInput": "オーディオ入力",
       "videoInput": "動画入力",
       "contextWindow": "コンテキストウィンドウ",
-      "refCost": "参考コスト"
+      "refCost": "参考コスト",
+      "localOwnedMarginalCostHint": "限界 API コスト: $0/M (ローカル専用推論 · 電力とハードウェア減価償却のみ)"
     },
     "account": {
       "title": "アカウント",
