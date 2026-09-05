@@ -21,7 +21,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.api.channels.test_connections import _safe_err_msg, router as channels_router
+from app.api.channels.test_connections import _safe_err_msg
 from app.core.utils.errors import MyrmError, register_exception_handlers
 from app.schemas.responses import BusinessCode
 

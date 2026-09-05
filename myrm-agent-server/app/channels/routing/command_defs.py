@@ -248,6 +248,16 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         args_pattern="[transcript|topic]",
     ),
     CommandDef(
+        name="review-week",
+        description="Synthesize weekly voice memos, meeting notes, and kanban blockers into an executive digest",
+        kind=CommandKind.SKILL,
+        aliases=("week-review", "weekly-digest", "extract-blockers"),
+        category="Productivity",
+        skill_ids=("voice-corpus-review",),
+        parse_args=True,
+        args_pattern="[timeframe|focus-area]",
+    ),
+    CommandDef(
         name="status",
         description="Show current session status (tokens, model, agent state)",
         action=CommandAction.STATUS,

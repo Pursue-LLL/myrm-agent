@@ -1002,15 +1002,16 @@ class TestRegistryUnregisterAndFilter:
 
     def test_commands_by_kind_skill(self) -> None:
         registry = CommandRegistry()
+        base_count = len(registry.commands_by_kind(CommandKind.SKILL))
         cmd = CommandDef(name="daily", description="test", kind=CommandKind.SKILL, skill_ids=("s1",))
         registry.register(cmd)
         skill_cmds = registry.commands_by_kind(CommandKind.SKILL)
-        assert len(skill_cmds) == 1
-        assert skill_cmds[0].name == "daily"
+        assert len(skill_cmds) == base_count + 1
+        assert any(c.name == "daily" for c in skill_cmds)
 
     def test_commands_by_kind_empty(self) -> None:
         registry = CommandRegistry()
-        assert len(registry.commands_by_kind(CommandKind.SKILL)) == 0
+        assert len(registry.commands_by_kind(CommandKind.AGENT)) == 0
 
     def test_help_lines_includes_skill_commands(self) -> None:
         registry = CommandRegistry()

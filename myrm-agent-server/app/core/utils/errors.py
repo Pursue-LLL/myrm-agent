@@ -151,8 +151,15 @@ def register_exception_handlers(app: FastAPI) -> None:
             safe_detail = redact_sensitive_text(exc.detail)
         elif isinstance(exc.detail, dict):
             safe_detail = {k: redact_sensitive_text(str(v)) if isinstance(v, str) else v for k, v in exc.detail.items()}
+        elif isinstance(exc.detail, list):
+            safe_detail = [
+                {k: redact_sensitive_text(str(v)) if isinstance(v, str) else v for k, v in item.items()}
+                if isinstance(item, dict)
+                else (redact_sensitive_text(str(item)) if isinstance(item, str) else item)
+                for item in exc.detail
+            ]
         else:
-            safe_detail = exc.detail
+            safe_detail = redact_sensitive_text(str(exc.detail))
 
         # If detail is already formatted with code and message, keep structure
         if isinstance(safe_detail, dict) and "code" in safe_detail and "message" in safe_detail:

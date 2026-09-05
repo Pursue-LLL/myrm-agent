@@ -513,5 +513,23 @@ export function buildBuiltinActions(): SlashAction[] {
         return { success: true, newInputValue: directive };
       },
     },
+    {
+      id: 'builtin:review-week',
+      name: 'review-week',
+      description: 'commands.builtin.review_week',
+      argsHint: '[timeframe | focus-area]',
+      aliases: ['week-review', 'weekly-digest', 'extract-blockers'],
+      type: 'action',
+      execute: async (inputValue: string) => {
+        const { default: useChatStore } = await import('@/store/useChatStore');
+        const { setInputMessage } = useChatStore.getState();
+        const rawArgs = inputValue.replace(/^\/(?:review-week|week-review|weekly-digest|extract-blockers)\s*/i, '').trim();
+        const directive = rawArgs
+          ? `/review-week ${rawArgs}`
+          : '/review-week 请检索本周的会议录音、听记素材与看板状态，提炼全局工作结论与关键阻碍并生成周度复盘工件。';
+        setInputMessage(directive);
+        return { success: true, newInputValue: directive };
+      },
+    },
   ];
 }

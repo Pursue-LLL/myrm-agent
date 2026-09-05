@@ -164,7 +164,8 @@ class ConversationSearchService:
             agent_id=agent_id,
             memory_manager=memory_manager,
         )
-        hits = [hit for hit in _merge_hits(fts_hits, semantic_hits, request.limit) if hit.score >= request.min_score]
+        merged_hits, recall_debug = _merge_hits(fts_hits, semantic_hits, request.limit)
+        hits = [hit for hit in merged_hits if hit.score >= request.min_score]
         rejected_reason = None if hits else "No sufficiently relevant previous conversations found."
         coverage = await ConversationSearchService._compute_coverage()
         return ConversationSearchResponse(
@@ -175,6 +176,7 @@ class ConversationSearchService:
             coverage=coverage,
             relaxed=relaxed_used,
             query_tokens=effective_tokens,
+            recall_debug=recall_debug,
         )
 
     @staticmethod
@@ -532,26 +534,75 @@ def _merge_hits(
     fts_hits: list[ConversationSearchHit],
     semantic_hits: list[ConversationSearchHit],
     limit: int,
-) -> list[ConversationSearchHit]:
-    merged: dict[str, ConversationSearchHit] = {}
+    *,
+    fts_latency_ms: float | None = None,
+    semantic_latency_ms: float | None = None,
+) -> tuple[list[ConversationSearchHit], dict[str, object]]:
+    """Merge FTS and semantic hits using deterministic RRF with adaptive normalization."""
+    raw_by_id: dict[str, ConversationSearchHit] = {}
     for hit in [*fts_hits, *semantic_hits]:
-        existing = merged.get(hit.conversation_id)
-        if existing is None:
-            merged[hit.conversation_id] = hit
-            continue
-        score = _clamp(max(existing.score, hit.score) + 0.05)
-        source = "hybrid" if existing.source != hit.source else existing.source
-        merged[hit.conversation_id] = existing.model_copy(
-            update={
-                "score": score,
-                "source": source,
-                "summary": existing.summary or hit.summary,
-                "snippet": existing.snippet or hit.snippet,
-                "message_id": existing.message_id or hit.message_id,
-                "source_ref": _copy_source_ref_score(existing.source_ref or hit.source_ref, score),
-            }
+        cid = hit.conversation_id
+        if cid not in raw_by_id:
+            raw_by_id[cid] = hit
+        else:
+            existing = raw_by_id[cid]
+            raw_by_id[cid] = existing.model_copy(
+                update={
+                    "summary": existing.summary or hit.summary,
+                    "snippet": existing.snippet or hit.snippet,
+                    "message_id": existing.message_id or hit.message_id,
+                }
+            )
+
+    ranked_lists = [
+        RankedList(
+            source="conversation_fts",
+            items=fts_hits,
+            weight=1.0,
+            latency_ms=fts_latency_ms,
+        ),
+        RankedList(
+            source="conversation_semantic",
+            items=semantic_hits,
+            weight=1.0,
+            latency_ms=semantic_latency_ms,
+        ),
+    ]
+
+    fused_results, recall_debug = fuse_rrf_deterministic(
+        ranked_lists,
+        key_func=lambda h: h.conversation_id,
+        top_k=limit,
+    )
+
+    merged: list[ConversationSearchHit] = []
+    for f_hit in fused_results:
+        base = raw_by_id[f_hit.item.conversation_id]
+        is_hybrid = len(f_hit.hit_by) > 1
+        source = "hybrid" if is_hybrid else (f_hit.hit_by[0].source if f_hit.hit_by else base.source)
+        merged.append(
+            base.model_copy(
+                update={
+                    "score": f_hit.score,
+                    "source": source,
+                    "source_ref": _copy_source_ref_score(base.source_ref, f_hit.score),
+                }
+            )
         )
-    return sorted(merged.values(), key=lambda item: item.score, reverse=True)[:limit]
+
+    debug_dict: dict[str, object] = {
+        "fused_count": recall_debug.fused_count,
+        "per_source": [
+            {
+                "source": s.source,
+                "count": s.count,
+                "latency_ms": s.latency_ms,
+            }
+            for s in recall_debug.per_source
+        ],
+    }
+
+    return merged, debug_dict
 
 
 def _same_agent_boost(row_agent_id: str | None, current_agent_id: str | None) -> float:
