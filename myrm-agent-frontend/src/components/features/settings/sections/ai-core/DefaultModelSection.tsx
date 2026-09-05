@@ -1090,7 +1090,6 @@ const DefaultModelSection = memo(() => {
         }
         description={t('smartRouting.description')}
       >
-        <ModelOrchestrationPlaybookCard />
         <div className="space-y-6">
           <label className="flex items-center gap-3 cursor-pointer">
             <button

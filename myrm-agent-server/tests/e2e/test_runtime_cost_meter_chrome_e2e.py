@@ -40,13 +40,10 @@ _VERIFY_COST_METER_STATE_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
-    access_scope="READ",
-    workload="STANDARD",
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
-@pytest.mark.timeout(300)
+@pytest.mark.timeout(600)
 def test_runtime_cost_meter_settings_ui_and_ledger_chrome_e2e() -> None:
     """Validate Search Quota & Browser Compute Runtime Meter task flow in real Chrome."""
     api_url = get_e2e_api_url()

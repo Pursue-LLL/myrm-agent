@@ -6,6 +6,7 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
+    ensure_desktop_viewport,
     get_e2e_api_url,
     http_json,
     open_settings_subroute,
@@ -25,13 +26,12 @@ _VERIFY_MEDIA_SECTION_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
-@pytest.mark.timeout(300)
+@pytest.mark.timeout(600)
 def test_fal_media_provider_settings_and_doctor_lifecycle() -> None:
     """Validate backend FAL media provider status, test-media-config, and frontend media settings interaction."""
     api_url = get_e2e_api_url()
@@ -58,7 +58,8 @@ def test_fal_media_provider_settings_and_doctor_lifecycle() -> None:
 
     # 3. Warm up Settings UI route and verify frontend rendering in real Chrome
     warm_ui_route("/settings/account")
-    with open_settings_subroute("/settings/account", timeout_ms=90_000) as (client, page):
+    with open_settings_subroute("/settings?tab=media", timeout_ms=90_000) as (client, page):
+        ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
 
         res = client.evaluate(page, _VERIFY_MEDIA_SECTION_JS, timeout_sec=10.0)

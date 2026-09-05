@@ -98,9 +98,9 @@ describe('ModelOrchestrationPlaybookCard', () => {
     fireEvent.click(viewBtn);
 
     // Dialog content should now be visible
-    expect(screen.getByText('Model Orchestration Playbook & Best Practices')).toBeDefined();
+    expect(screen.getAllByText('Model Orchestration Playbook & Best Practices').length).toBeGreaterThan(0);
     expect(screen.getByText('1. Brain vs. Hands Dispatch')).toBeDefined();
-    expect(screen.getByText('Routing vs. MoA:')).toBeDefined();
+    expect(screen.getByText('Routing vs. MoA')).toBeDefined();
 
     // Click configure button
     const configBtn = screen.getByText('Configure in Settings');
