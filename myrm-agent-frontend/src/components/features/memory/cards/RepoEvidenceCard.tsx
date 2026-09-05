@@ -66,7 +66,7 @@ export const RepoEvidenceCard = memo<RepoEvidenceCardProps>(({ workspacePath, cl
           </span>
           <div>
             <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-              {data?.repo_name || t('repoEvidence.title')}
+              {data?.repo_name || t('title')}
             </h4>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -75,7 +75,7 @@ export const RepoEvidenceCard = memo<RepoEvidenceCardProps>(({ workspacePath, cl
               </span>
               {data?.is_dirty && (
                 <span className="inline-flex items-center px-1.5 py-0.2 text-[10px] font-medium rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/50 dark:border-amber-800/40">
-                  {t('repoEvidence.uncommittedChanges')}
+                  {t('uncommittedChanges')}
                 </span>
               )}
             </div>
@@ -86,7 +86,7 @@ export const RepoEvidenceCard = memo<RepoEvidenceCardProps>(({ workspacePath, cl
           type="button"
           onClick={() => void fetchDigest()}
           disabled={loading}
-          aria-label={t('repoEvidence.refresh')}
+          aria-label={t('refresh')}
           className="p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
         >
           <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} />
@@ -101,7 +101,7 @@ export const RepoEvidenceCard = memo<RepoEvidenceCardProps>(({ workspacePath, cl
       ) : (
         <div className="mt-3 space-y-2">
           <div className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
-            {t('repoEvidence.recentCommits', { count: data?.recent_commits.length ?? 0 })}
+            {t('recentCommits', { count: data?.recent_commits.length ?? 0 })}
           </div>
 
           {data?.recent_commits && data.recent_commits.length > 0 ? (
@@ -125,7 +125,7 @@ export const RepoEvidenceCard = memo<RepoEvidenceCardProps>(({ workspacePath, cl
                     {c.files_changed.length > 0 && (
                       <span className="inline-flex items-center gap-0.5">
                         <FileCode className="w-2.5 h-2.5" />
-                        {c.files_changed.length} {t('repoEvidence.files')}
+                        {c.files_changed.length} {t('files')}
                       </span>
                     )}
                   </div>
@@ -134,7 +134,7 @@ export const RepoEvidenceCard = memo<RepoEvidenceCardProps>(({ workspacePath, cl
             </div>
           ) : (
             <div className="py-3 text-center text-xs text-zinc-400 dark:text-zinc-500">
-              {t('repoEvidence.noCommits')}
+              {t('noCommits')}
             </div>
           )}
         </div>

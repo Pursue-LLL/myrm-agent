@@ -52,7 +52,7 @@ describe('RepoEvidenceCard Component', () => {
     await waitFor(() => {
       expect(screen.getByText('open-perplexity')).toBeDefined();
       expect(screen.getByText('main')).toBeDefined();
-      expect(screen.getByText('repoEvidence.uncommittedChanges')).toBeDefined();
+      expect(screen.getByText('uncommittedChanges')).toBeDefined();
       expect(screen.getByText('feat: support repo history evidence')).toBeDefined();
       expect(screen.getByText('12345678')).toBeDefined();
       expect(screen.getByText('Bob Developer')).toBeDefined();
