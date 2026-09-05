@@ -37,54 +37,6 @@
     "loadFailed": "加载数据失败",
     "loadFailedDesc": "请检查网络连接或稍后重试"
   },
-  "taskSpaces": {
-    "title": "浏览器任务空间",
-    "badgeTakeover": "人工接管",
-    "badgeRunning": "运行中",
-    "closeSpaceBtn": "关闭任务空间",
-    "activePages": "{count} 个活跃页面",
-    "releaseTakeoverBtn": "交回控制",
-    "takeoverBtn": "人工接管",
-    "snapshotPreview": "任务空间实时快照预览",
-    "emptyState": "暂无活跃页面快照"
-  },
-  "continualOverlay": {
-    "activeTitle": "持续行为提示生效中",
-    "remainingTurns": "{count, plural, =1 {剩余 1 轮} other {剩余 # 轮}}",
-    "rollbackTooltip": "回滚持续行为提示词变更",
-    "rollback": "回滚",
-    "collapse": "折叠提示详情",
-    "expand": "展开提示详情",
-    "howItWorks": "持续行为提示机制",
-    "howItWorksDesc": "在多轮交互中临时应用特定的行为约束或工具执行防线，无需永久修改系统预设。",
-    "allActiveOverlays": "活跃行为层 ({count})"
-  },
-  "executionPhaseStepper": {
-    "badge": "已完成",
-    "waitingApproval": "等待人工审批",
-    "collapseTelemetry": "收起执行遥测",
-    "expandTelemetry": "展开执行遥测",
-    "currentNode": "节点 #{nodeId}",
-    "lanes": {
-      "user": "人工审批",
-      "llm": "大模型思考",
-      "mcp": "MCP 执行",
-      "skills": "技能调用",
-      "sandbox": "沙箱执行",
-      "agent": "Agent 编排"
-    },
-    "phases": {
-      "planning": {
-        "title": "意图规划"
-      },
-      "executing": {
-        "title": "工具执行"
-      },
-      "verifying": {
-        "title": "交付验证"
-      }
-    }
-  },
   "expertSummon": {
     "summonSuccess": "已切换至专家 {name}",
     "summonFailed": "召唤专家模板失败",
@@ -18716,5 +18668,42 @@
       "deleteSuccessDesc": "已移除选定的历史快照。",
       "deleteFailedTitle": "删除快照失败"
     }
+  },
+  "executionPhaseStepper": {
+    "badge": "安全受护",
+    "waitingApproval": "等待审批",
+    "collapseTelemetry": "收起遥测",
+    "expandTelemetry": "展开遥测",
+    "currentNode": "节点 #{nodeId}",
+    "lanes": {
+      "planner": "规划通道",
+      "tool": "工具通道",
+      "coder": "编码通道",
+      "reviewer": "审查通道",
+      "executor": "执行通道",
+      "user": "用户交互通道"
+    }
+  },
+  "continualOverlay": {
+    "activeTitle": "自愈防护活跃",
+    "remainingTurns": "剩余 {count} 轮",
+    "rollbackTooltip": "回滚至触发前状态",
+    "rollback": "回滚",
+    "collapse": "收起",
+    "expand": "展开",
+    "howItWorks": "自愈防护运作机制",
+    "howItWorksDesc": "当检测到环境或执行异常时，系统会自动注入自愈层并在后续轮次持续监控，直到状态完全恢复稳定。",
+    "allActiveOverlays": "全部生效中的防护层 ({count})"
+  },
+  "taskSpaces": {
+    "title": "任务浏览器沙箱",
+    "badgeTakeover": "人工接管中",
+    "badgeRunning": "运行中",
+    "closeSpaceBtn": "关闭该任务沙箱",
+    "activePages": "{count} 个活跃页面",
+    "releaseTakeoverBtn": "交回智能体",
+    "takeoverBtn": "人工接管",
+    "snapshotPreview": "实时快照预览",
+    "emptyState": "暂无快照数据"
   }
 }

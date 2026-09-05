@@ -37,54 +37,6 @@
     "loadFailed": "データの読み込みに失敗しました",
     "loadFailedDesc": "ネットワーク接続を確認するか、しばらくしてから再試行してください"
   },
-  "taskSpaces": {
-    "title": "ブラウザタスクスペース",
-    "badgeTakeover": "手動テイクオーバー中",
-    "badgeRunning": "Agent 実行中",
-    "closeSpaceBtn": "スペースを閉じる",
-    "activePages": "{count} 個のアクティブページ",
-    "releaseTakeoverBtn": "制御を戻す",
-    "takeoverBtn": "手動操作に切り替え",
-    "snapshotPreview": "スナップショットをプレビュー",
-    "emptyState": "スナップショットプレビューはありません"
-  },
-  "continualOverlay": {
-    "activeTitle": "有効なオーバーレイポリシー",
-    "remainingTurns": "{count, plural, =1 {残り 1 ターン} other {残り # ターン}}",
-    "rollbackTooltip": "現在のポリシー変更をロールバック",
-    "rollback": "ロールバック",
-    "collapse": "折りたたむ",
-    "expand": "展開",
-    "howItWorks": "仕組み",
-    "howItWorksDesc": "実行ポリシーに非破壊的な一時調整を適用し、指定したターン後に自動で失効して復元します。",
-    "allActiveOverlays": "すべてのアクティブなオーバーレイ ({count})"
-  },
-  "executionPhaseStepper": {
-    "badge": "完了",
-    "waitingApproval": "承認待ち",
-    "collapseTelemetry": "実行履歴を折りたたむ",
-    "expandTelemetry": "実行履歴を展開",
-    "currentNode": "ノード #{nodeId}",
-    "lanes": {
-      "user": "ユーザー承認",
-      "llm": "LLM 推論",
-      "mcp": "MCP 実行",
-      "skills": "スキル呼び出し",
-      "sandbox": "サンドボックス実行",
-      "agent": "Agent オーケストレーション"
-    },
-    "phases": {
-      "planning": {
-        "title": "計画フェーズ"
-      },
-      "executing": {
-        "title": "実行フェーズ"
-      },
-      "verifying": {
-        "title": "検証フェーズ"
-      }
-    }
-  },
   "expertSummon": {
     "summonSuccess": "専門家 {name} に切り替えました",
     "summonFailed": "専門家テンプレートの呼び出しに失敗しました",
@@ -16005,7 +15957,23 @@
           "pathFormat": "パスは絶対パスまたは ~ で始まる必要があります",
           "addFailed": "パスの追加に失敗",
           "removeFailed": "パスの削除に失敗しました",
-          "scanFailed": "スキャン失敗"
+          "scanFailed": "スキャン失敗",
+          "previewFailed": "ローカルパスの検査に失敗しました"
+        },
+        "previewDialog": {
+          "title": "ローカルスキルのプレビューと採用",
+          "description": "このパスを追加する前に、検出されたスキル、安全性、および名前の競合を確認してください。",
+          "resolvedPath": "解決された絶対パス",
+          "discoveredCount": "{count} 個のスキルを検出",
+          "noSkillsFound": "有効なスキルが見つかりません",
+          "noSkillsFoundDesc": "このパスの下に標準の SKILL.md を含むディレクトリは見つかりませんでした。",
+          "conflicted": "競合",
+          "safe": "安全",
+          "warning": "リスク検出",
+          "cancel": "キャンセル",
+          "adopt": "採用してパスを追加",
+          "adopting": "採用中...",
+          "tools": "必要なツール"
         }
       },
       "instances": {
@@ -18700,5 +18668,42 @@
       "deleteSuccessDesc": "選択した履歴スナップショットを削除しました。",
       "deleteFailedTitle": "スナップショットの削除に失敗しました"
     }
+  },
+  "executionPhaseStepper": {
+    "badge": "保護済み",
+    "waitingApproval": "承認待ち",
+    "collapseTelemetry": "テレメトリを閉じる",
+    "expandTelemetry": "テレメトリを展開",
+    "currentNode": "ノード #{nodeId}",
+    "lanes": {
+      "planner": "プランナーレーン",
+      "tool": "ツールレーン",
+      "coder": "コーダーレーン",
+      "reviewer": "レビューレーン",
+      "executor": "エグゼキュータレーン",
+      "user": "ユーザーレーン"
+    }
+  },
+  "continualOverlay": {
+    "activeTitle": "自己修復アクティブ",
+    "remainingTurns": "残り {count} ターン",
+    "rollbackTooltip": "トリガー前の状態にロールバック",
+    "rollback": "ロールバック",
+    "collapse": "折りたたむ",
+    "expand": "展開",
+    "howItWorks": "自己修復の仕組み",
+    "howItWorksDesc": "異常が検出されると、システムは自動的に自己修復レイヤーを注入し、安定するまで後続のターンを監視します。",
+    "allActiveOverlays": "すべてのアクティブなオーバーレイ ({count})"
+  },
+  "taskSpaces": {
+    "title": "タスクブラウザスペース",
+    "badgeTakeover": "手動引き継ぎ中",
+    "badgeRunning": "実行中",
+    "closeSpaceBtn": "タスクスペースを閉じる",
+    "activePages": "{count} 個のアクティブページ",
+    "releaseTakeoverBtn": "エージェントに戻す",
+    "takeoverBtn": "手動操作",
+    "snapshotPreview": "ライブスナップショット",
+    "emptyState": "スナップショットがありません"
   }
 }

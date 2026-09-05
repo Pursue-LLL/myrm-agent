@@ -37,54 +37,6 @@
     "loadFailed": "Laden fehlgeschlagen",
     "loadFailedDesc": "Bitte überprüfen Sie Ihre Netzwerkverbindung oder versuchen Sie es später erneut"
   },
-  "taskSpaces": {
-    "title": "Browser-Aufgabenbereiche",
-    "badgeTakeover": "Manuelle Übernahme",
-    "badgeRunning": "Agent aktiv",
-    "closeSpaceBtn": "Bereich schließen",
-    "activePages": "{count} aktive Seiten",
-    "releaseTakeoverBtn": "Steuerung zurückgeben",
-    "takeoverBtn": "Manuell übernehmen",
-    "snapshotPreview": "Vorschau-Snapshot",
-    "emptyState": "Keine Snapshot-Vorschau verfügbar"
-  },
-  "continualOverlay": {
-    "activeTitle": "Aktive Overlay-Richtlinie",
-    "remainingTurns": "{count} Runden verbleibend",
-    "rollbackTooltip": "Aktuelle Richtlinienänderung zurücksetzen",
-    "rollback": "Zurücksetzen",
-    "collapse": "Einklappen",
-    "expand": "Ausklappen",
-    "howItWorks": "Funktionsweise",
-    "howItWorksDesc": "Wendet zerstörungsfreie temporäre Richtlinienanpassungen an, die nach einer begrenzten Rundenzahl automatisch ablaufen und zurückgesetzt werden.",
-    "allActiveOverlays": "Alle aktiven Overlays ({count})"
-  },
-  "executionPhaseStepper": {
-    "badge": "Abgeschlossen",
-    "waitingApproval": "Wartet auf Genehmigung",
-    "collapseTelemetry": "Telemetrie einklappen",
-    "expandTelemetry": "Telemetrie ausklappen",
-    "currentNode": "Knoten #{nodeId}",
-    "lanes": {
-      "user": "Benutzerfreigabe",
-      "llm": "LLM-Inferenz",
-      "mcp": "MCP-Ausführung",
-      "skills": "Skill-Aufruf",
-      "sandbox": "Sandbox-Ausführung",
-      "agent": "Agenten-Orchestrierung"
-    },
-    "phases": {
-      "planning": {
-        "title": "Planung"
-      },
-      "executing": {
-        "title": "Werkzeugausführung"
-      },
-      "verifying": {
-        "title": "Überprüfung"
-      }
-    }
-  },
   "expertSummon": {
     "summonSuccess": "Zu Experte {name} gewechselt",
     "summonFailed": "Experten-Vorlage konnte nicht aufgerufen werden",
@@ -15823,7 +15775,23 @@
           "pathFormat": "Der Pfad muss absolut sein oder mit ~ beginnen",
           "addFailed": "Pfad konnte nicht hinzugefügt werden",
           "removeFailed": "Pfad konnte nicht entfernt werden",
-          "scanFailed": "Der Scan ist fehlgeschlagen"
+          "scanFailed": "Der Scan ist fehlgeschlagen",
+          "previewFailed": "Lokaler Pfad konnte nicht überprüft werden"
+        },
+        "previewDialog": {
+          "title": "Lokale Skills vorschauen & übernehmen",
+          "description": "Überprüfen Sie gefundene Skills, Sicherheit und Namenskonflikte, bevor Sie diesen Pfad hinzufügen.",
+          "resolvedPath": "Aufgelöster absoluter Pfad",
+          "discoveredCount": "{count} Skills entdeckt",
+          "noSkillsFound": "Keine gültigen Skills gefunden",
+          "noSkillsFoundDesc": "Unter diesem Pfad wurden keine Verzeichnisse mit standardmäßigem SKILL.md gefunden.",
+          "conflicted": "Konflikt",
+          "safe": "Sicher",
+          "warning": "Risiko erkannt",
+          "cancel": "Abbrechen",
+          "adopt": "Übernehmen & Pfad hinzufügen",
+          "adopting": "Wird übernommen...",
+          "tools": "Erforderliche Tools"
         }
       },
       "search": {
@@ -18700,5 +18668,42 @@
       "deleteSuccessDesc": "Ausgewählter historischer Snapshot wurde entfernt.",
       "deleteFailedTitle": "Löschen des Snapshots fehlgeschlagen"
     }
+  },
+  "executionPhaseStepper": {
+    "badge": "Geschützt",
+    "waitingApproval": "Wartet auf Genehmigung",
+    "collapseTelemetry": "Telemetrie einklappen",
+    "expandTelemetry": "Telemetrie ausklappen",
+    "currentNode": "Knoten #{nodeId}",
+    "lanes": {
+      "planner": "Planer-Spur",
+      "tool": "Werkzeug-Spur",
+      "coder": "Entwickler-Spur",
+      "reviewer": "Prüfer-Spur",
+      "executor": "Ausführer-Spur",
+      "user": "Benutzer-Spur"
+    }
+  },
+  "continualOverlay": {
+    "activeTitle": "Selbstheilung aktiv",
+    "remainingTurns": "{count} Runden verbleibend",
+    "rollbackTooltip": "Auf Zustand vor Auslösung zurücksetzen",
+    "rollback": "Zurücksetzen",
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "howItWorks": "Funktionsweise der Selbstheilung",
+    "howItWorksDesc": "Wenn Ausführungsanomalien erkannt werden, injiziert das System ein Selbstheilungs-Overlay und überwacht nachfolgende Runden.",
+    "allActiveOverlays": "Alle aktiven Overlays ({count})"
+  },
+  "taskSpaces": {
+    "title": "Aufgaben-Browserbereiche",
+    "badgeTakeover": "Benutzerübernahme",
+    "badgeRunning": "Wird ausgeführt",
+    "closeSpaceBtn": "Bereich schließen",
+    "activePages": "{count} aktive Seiten",
+    "releaseTakeoverBtn": "An Agent übergeben",
+    "takeoverBtn": "Übernehmen",
+    "snapshotPreview": "Live-Vorschau",
+    "emptyState": "Keine Vorschau verfügbar"
   }
 }

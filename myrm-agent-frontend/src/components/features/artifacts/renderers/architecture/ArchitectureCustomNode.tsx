@@ -1,3 +1,17 @@
+/**
+ * [INPUT]
+ * - @xyflow/react::Handle, Position, NodeProps
+ * - @/lib/utils/classnameUtils::cn
+ * - architecture/types::ArchitectureNodeIR, NodeCategory
+ * - lucide-react::Globe, Shield, Server, Database, Zap, Layers, Cloud, etc.
+ *
+ * [OUTPUT]
+ * - ArchitectureCustomNode: React.FC<NodeProps>
+ * - ArchitectureNodeData
+ *
+ * [POS]
+ * Architecture Node Presentation Layer — 渲染技术组件卡片、分类色彩、健康指示与演化 Diff 态。
+ */
 'use client';
 
 import React, { memo } from 'react';

@@ -486,3 +486,24 @@ def test_is_trusted_split_stack_host_exact_cidr_boundaries() -> None:
     assert _is_trusted_split_stack_host("100.64.0.0") is True
     assert _is_trusted_split_stack_host("100.127.255.255") is True
     assert _is_trusted_split_stack_host("100.128.0.0") is False
+
+
+def test_discover_models_connection_failure_handled_gracefully(client: TestClient) -> None:
+    """When a trusted split-stack endpoint is down or unreachable, returns success=False with clear error."""
+    with (
+        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch(
+            "app.api.integrations.llms.secure_request",
+            side_effect=httpx.ConnectError("Connection refused"),
+        ),
+        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+    ):
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={"api_url": "http://192.168.1.99:11434/v1"},
+        )
+        assert response.status_code == 200
+        payload = response.json()["data"]
+        assert payload["success"] is False
+        assert "Connection refused" in (payload.get("error") or "")
+

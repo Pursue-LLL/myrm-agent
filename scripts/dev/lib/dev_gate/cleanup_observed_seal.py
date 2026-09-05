@@ -106,12 +106,14 @@ def lease_released(lease_id: str) -> bool:
         payload = json.loads(_wave_state_path().read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return False
-    leases = payload.get("leases") if isinstance(payload, dict) else None
+    if not isinstance(payload, dict):
+        return False
+    leases = payload.get("leases")
     if not isinstance(leases, list):
-        return True
+        return False
     for item in leases:
         if not isinstance(item, dict):
-            continue
+            return False
         if str(item.get("leaseId", "")).strip() != token:
             continue
         return str(item.get("status", "")).strip().lower() != "active"

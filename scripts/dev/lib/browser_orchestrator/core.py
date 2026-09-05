@@ -145,11 +145,11 @@ def assert_browser_orchestrator_daemon_ready(*, wait_sec: float = 0.0) -> None:
             "BROWSER_ORCHESTRATOR_REQUIRED: browser_orchestrator.client unavailable"
         ) from exc
     client = BrowserOrchestratorClient()
-    deadline = time.time() + max(0.0, wait_sec)
+    deadline = time.monotonic() + max(0.0, wait_sec)
     while True:
         if client.is_ready():
             return
-        if time.time() >= deadline:
+        if time.monotonic() >= deadline:
             break
         time.sleep(0.25)
     raise RuntimeError(
@@ -191,8 +191,10 @@ def _snapshot_from_daemon_status(
     daemon_state = str(status.get("state", "UNKNOWN"))
     if recovery_map.get("recovering") is True:
         health = BrowserPlaneHealth.RECOVERING
-    elif daemon_state in {"FAILED"}:
+    elif daemon_state == "FAILED":
         health = BrowserPlaneHealth.FAILED
+    elif daemon_state in {"DEGRADED", "STARTING"}:
+        health = BrowserPlaneHealth.DEGRADED
     elif in_flight >= effective_cap:
         health = BrowserPlaneHealth.DEGRADED
     else:
@@ -338,8 +340,8 @@ def browser_orchestrator_snapshot() -> dict[str, object]:
 
 
 def _wait_daemon_operation_credit(*, budget_sec: float) -> None:
-    deadline = time.time() + max(0.1, budget_sec)
-    while time.time() < deadline:
+    deadline = time.monotonic() + max(0.1, budget_sec)
+    while time.monotonic() < deadline:
         snap = _try_daemon_snapshot()
         if snap is None:
             raise RuntimeError(

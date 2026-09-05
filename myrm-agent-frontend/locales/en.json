@@ -37,54 +37,6 @@
     "loadFailed": "Failed to Load",
     "loadFailedDesc": "Please check your network connection or try again later"
   },
-  "taskSpaces": {
-    "title": "Browser Task Spaces",
-    "badgeTakeover": "Manual Takeover",
-    "badgeRunning": "Active Agent",
-    "closeSpaceBtn": "Close Space",
-    "activePages": "{count} active pages",
-    "releaseTakeoverBtn": "Release Takeover",
-    "takeoverBtn": "Takeover",
-    "snapshotPreview": "Preview Snapshot",
-    "emptyState": "No snapshot available"
-  },
-  "continualOverlay": {
-    "activeTitle": "Active Overlay Policy",
-    "remainingTurns": "{count} turns left",
-    "rollbackTooltip": "Roll back current overlay policy",
-    "rollback": "Rollback",
-    "collapse": "Collapse",
-    "expand": "Expand",
-    "howItWorks": "How Overlay Works",
-    "howItWorksDesc": "Applies non-destructive runtime policy adjustments that automatically expire after a bounded turn horizon.",
-    "allActiveOverlays": "All Active Overlays ({count})"
-  },
-  "executionPhaseStepper": {
-    "badge": "Completed",
-    "waitingApproval": "Waiting for Approval",
-    "collapseTelemetry": "Collapse Telemetry",
-    "expandTelemetry": "Expand Telemetry",
-    "currentNode": "Node #{nodeId}",
-    "lanes": {
-      "user": "User Approval",
-      "llm": "LLM Reasoning",
-      "mcp": "MCP Execution",
-      "skills": "Skill Invocation",
-      "sandbox": "Sandbox Execution",
-      "agent": "Agent Orchestration"
-    },
-    "phases": {
-      "planning": {
-        "title": "Planning"
-      },
-      "executing": {
-        "title": "Executing"
-      },
-      "verifying": {
-        "title": "Verifying"
-      }
-    }
-  },
   "expertSummon": {
     "summonSuccess": "Switched to expert {name}",
     "summonFailed": "Failed to summon expert template",
@@ -18716,5 +18668,42 @@
       "deleteSuccessDesc": "Selected historical snapshot removed.",
       "deleteFailedTitle": "Delete Failed"
     }
+  },
+  "executionPhaseStepper": {
+    "badge": "Protected",
+    "waitingApproval": "Awaiting Approval",
+    "collapseTelemetry": "Collapse Telemetry",
+    "expandTelemetry": "Expand Telemetry",
+    "currentNode": "Node #{nodeId}",
+    "lanes": {
+      "planner": "Planner Lane",
+      "tool": "Tool Lane",
+      "coder": "Coder Lane",
+      "reviewer": "Reviewer Lane",
+      "executor": "Executor Lane",
+      "user": "User Lane"
+    }
+  },
+  "continualOverlay": {
+    "activeTitle": "Self-Healing Active",
+    "remainingTurns": "{count} turns remaining",
+    "rollbackTooltip": "Rollback to pre-trigger state",
+    "rollback": "Rollback",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "howItWorks": "How Self-Healing Works",
+    "howItWorksDesc": "When execution or environmental anomalies are detected, the system injects a self-healing overlay and continuously monitors subsequent turns until stability is restored.",
+    "allActiveOverlays": "All Active Overlays ({count})"
+  },
+  "taskSpaces": {
+    "title": "Task Browser Spaces",
+    "badgeTakeover": "User Takeover",
+    "badgeRunning": "Running",
+    "closeSpaceBtn": "Close Task Space",
+    "activePages": "{count} active pages",
+    "releaseTakeoverBtn": "Release to Agent",
+    "takeoverBtn": "Take Over",
+    "snapshotPreview": "Live Snapshot Preview",
+    "emptyState": "No snapshot available"
   }
 }

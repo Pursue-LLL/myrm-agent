@@ -37,54 +37,6 @@
     "loadFailed": "데이터 로드 실패",
     "loadFailedDesc": "네트워크 연결을 확인하거나 잠시 후 다시 시도해 주세요"
   },
-  "taskSpaces": {
-    "title": "브라우저 작업 공간",
-    "badgeTakeover": "수동 개입",
-    "badgeRunning": "실행 중",
-    "closeSpaceBtn": "작업 공간 닫기",
-    "activePages": "활성 페이지 {count}개",
-    "releaseTakeoverBtn": "제어권 반환",
-    "takeoverBtn": "수동 개입",
-    "snapshotPreview": "작업 공간 실시간 미리보기",
-    "emptyState": "활성 페이지 미리보기 없음"
-  },
-  "continualOverlay": {
-    "activeTitle": "지속적 행동 가이드 활성",
-    "remainingTurns": "남은 턴 {count}개",
-    "rollbackTooltip": "지속적 행동 가이드 프롬프트 변경 롤백",
-    "rollback": "롤백",
-    "collapse": "가이드 상세 접기",
-    "expand": "가이드 상세 펼치기",
-    "howItWorks": "지속적 행동 가이드 작동 원리",
-    "howItWorksDesc": "영구적인 시스템 프롬프트를 수정하지 않고 여러 턴에 걸쳐 임시 행동 제약이나 도구 가드레일을 적용합니다.",
-    "allActiveOverlays": "활성 가이드 계층 ({count})"
-  },
-  "executionPhaseStepper": {
-    "badge": "완료됨",
-    "waitingApproval": "승인 대기 중",
-    "collapseTelemetry": "실행 원격측정 접기",
-    "expandTelemetry": "실행 원격측정 펼치기",
-    "currentNode": "노드 #{nodeId}",
-    "lanes": {
-      "user": "사용자 승인",
-      "llm": "LLM 추론",
-      "mcp": "MCP 실행",
-      "skills": "스킬 호출",
-      "sandbox": "샌드박스 실행",
-      "agent": "에이전트 오케스트레이션"
-    },
-    "phases": {
-      "planning": {
-        "title": "의도 계획"
-      },
-      "executing": {
-        "title": "도구 실행"
-      },
-      "verifying": {
-        "title": "검증"
-      }
-    }
-  },
   "expertSummon": {
     "summonSuccess": "전문가 {name}(으)로 전환되었습니다",
     "summonFailed": "전문가 템플릿 호출 실패",
@@ -15823,7 +15775,23 @@
           "pathFormat": "경로는 절대 경로이거나 ~로 시작해야 합니다",
           "addFailed": "경로 추가 실패",
           "removeFailed": "경로 제거 실패",
-          "scanFailed": "스캔 실패"
+          "scanFailed": "스캔 실패",
+          "previewFailed": "로컬 경로 검사 실패"
+        },
+        "previewDialog": {
+          "title": "로컬 스킬 미리보기 및 채택",
+          "description": "이 경로를 추가하기 전에 발견된 스킬, 보안성 및 이름 충돌을 확인하세요.",
+          "resolvedPath": "확인된 절대 경로",
+          "discoveredCount": "스킬 {count}개 발견",
+          "noSkillsFound": "유효한 스킬을 찾을 수 없음",
+          "noSkillsFoundDesc": "이 경로 아래에서 표준 SKILL.md가 포함된 디렉터리를 찾을 수 없습니다.",
+          "conflicted": "충돌",
+          "safe": "안전",
+          "warning": "위험 감지",
+          "cancel": "취소",
+          "adopt": "채택 및 경로 추가",
+          "adopting": "채택 중...",
+          "tools": "필요한 도구"
         }
       },
       "search": {
@@ -18700,5 +18668,42 @@
       "deleteSuccessDesc": "선택한 과거 스냅샷이 제거되었습니다.",
       "deleteFailedTitle": "스냅샷 삭제 실패"
     }
+  },
+  "executionPhaseStepper": {
+    "badge": "보호됨",
+    "waitingApproval": "승인 대기 중",
+    "collapseTelemetry": "원격 측정 접기",
+    "expandTelemetry": "원격 측정 펼치기",
+    "currentNode": "노드 #{nodeId}",
+    "lanes": {
+      "planner": "플래너 레인",
+      "tool": "도구 레인",
+      "coder": "코더 레인",
+      "reviewer": "리뷰어 레인",
+      "executor": "실행 레인",
+      "user": "사용자 레인"
+    }
+  },
+  "continualOverlay": {
+    "activeTitle": "자가 치유 활성",
+    "remainingTurns": "{count}턴 남음",
+    "rollbackTooltip": "트리거 전 상태로 롤백",
+    "rollback": "롤백",
+    "collapse": "접기",
+    "expand": "펼치기",
+    "howItWorks": "자가 치유 작동 원리",
+    "howItWorksDesc": "실행 이상이 감지되면 시스템이 자가 치유 오버레이를 주입하고 안정될 때까지 모니터링합니다.",
+    "allActiveOverlays": "모든 활성 오버레이 ({count})"
+  },
+  "taskSpaces": {
+    "title": "작업 브라우저 공간",
+    "badgeTakeover": "수동 개입 중",
+    "badgeRunning": "실행 중",
+    "closeSpaceBtn": "작업 공간 닫기",
+    "activePages": "활성 페이지 {count}개",
+    "releaseTakeoverBtn": "에이전트에 반환",
+    "takeoverBtn": "수동 조작",
+    "snapshotPreview": "실시간 스냅샷 미리보기",
+    "emptyState": "사용 가능한 스냅샷 없음"
   }
 }

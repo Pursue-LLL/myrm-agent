@@ -1,3 +1,19 @@
+/**
+ * [INPUT]
+ * - @dagrejs/dagre::dagre
+ * - @xyflow/react::Node, Edge
+ * - architecture/types::ArchitectureIR, ArchitectureNodeIR, ArchitectureEdgeIR
+ *
+ * [OUTPUT]
+ * - LayoutedElements, PathTraceResult
+ * - sanitizeArchitectureIR: 拓扑数据防御性校验与自愈函数
+ * - traceFullConnectedCausalityGraph: 单节点上下游全量因果依赖遍历
+ * - computeDagreLayout: 基于 Dagre 的有向无环图层次化自动排版引擎
+ * - findShortestPath: 两点间 BFS 最短有向依赖路径探查算法
+ *
+ * [POS]
+ * Architecture Layout & Graph Algorithm Engine — 拓扑排版坐标计算、因果链路遍历与最短路径探查。
+ */
 import dagre from '@dagrejs/dagre';
 import type { Node, Edge } from '@xyflow/react';
 import type { ArchitectureIR, ArchitectureNodeIR } from './types';

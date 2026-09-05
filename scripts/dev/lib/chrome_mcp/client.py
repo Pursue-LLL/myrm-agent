@@ -251,8 +251,8 @@ class ChromeMcpClient:
             )
         return self._request_lock.locked()
 
-    def _require_daemon_alive(self, client: BrowserOrchestratorClient) -> None:
-        if not client.is_alive():
+    def _require_daemon_ready(self, client: BrowserOrchestratorClient) -> None:
+        if not client.is_ready():
             raise RuntimeError(
                 "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
                 "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
@@ -261,12 +261,12 @@ class ChromeMcpClient:
     def _ensure_daemon_session(self) -> BrowserOrchestratorClient:
         """Lazily create daemon client and session; idempotent."""
         if self._daemon_client is not None:
-            self._require_daemon_alive(self._daemon_client)
+            self._require_daemon_ready(self._daemon_client)
             return self._daemon_client
         from browser_orchestrator.client import BrowserOrchestratorClient
 
         client = BrowserOrchestratorClient(timeout_sec=self._request_timeout_sec)
-        self._require_daemon_alive(client)
+        self._require_daemon_ready(client)
         session_id = self._browser_context_id
         client.create_session(session_id)
         self._daemon_client = client
@@ -733,7 +733,7 @@ class ChromeMcpClient:
             from browser_orchestrator.client import BrowserOrchestratorClient
 
             client = BrowserOrchestratorClient(timeout_sec=self._request_timeout_sec)
-            self._require_daemon_alive(client)
+            self._require_daemon_ready(client)
             return
         from chrome_e2e.gates.entry_guard import assert_chrome_mcp_mux_entry_allowed
 

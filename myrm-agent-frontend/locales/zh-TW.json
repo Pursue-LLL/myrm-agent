@@ -37,54 +37,6 @@
     "loadFailed": "載入資料失敗",
     "loadFailedDesc": "請檢查網路連線或稍後重試"
   },
-  "taskSpaces": {
-    "title": "瀏覽器任務空間",
-    "badgeTakeover": "人工接管中",
-    "badgeRunning": "Agent 執行中",
-    "closeSpaceBtn": "關閉空間",
-    "activePages": "活躍標籤頁 {count} 個",
-    "releaseTakeoverBtn": "交還控制權",
-    "takeoverBtn": "人工接管",
-    "snapshotPreview": "預覽快照",
-    "emptyState": "暫無可用快照"
-  },
-  "continualOverlay": {
-    "activeTitle": "生效中的覆蓋策略",
-    "remainingTurns": "{count, plural, =1 {剩餘 1 輪} other {剩餘 # 輪}}",
-    "rollbackTooltip": "回滾當前策略變更",
-    "rollback": "回滾",
-    "collapse": "收起",
-    "expand": "展開",
-    "howItWorks": "工作原理",
-    "howItWorksDesc": "對執行策略施加非破壞性的臨時調節，在有限輪次結束後自動過期還原。",
-    "allActiveOverlays": "全部生效策略 ({count})"
-  },
-  "executionPhaseStepper": {
-    "badge": "執行完畢",
-    "waitingApproval": "等待審批",
-    "collapseTelemetry": "收起執行遙測",
-    "expandTelemetry": "展開執行遙測",
-    "currentNode": "節點 #{nodeId}",
-    "lanes": {
-      "user": "人工審批",
-      "llm": "大模型思考",
-      "mcp": "MCP 執行",
-      "skills": "技能調用",
-      "sandbox": "沙箱執行",
-      "agent": "Agent 編排"
-    },
-    "phases": {
-      "planning": {
-        "title": "意圖規劃"
-      },
-      "executing": {
-        "title": "工具執行"
-      },
-      "verifying": {
-        "title": "交付驗證"
-      }
-    }
-  },
   "expertSummon": {
     "summonSuccess": "已切換至專家 {name}",
     "summonFailed": "召喚專家範本失敗",
@@ -16005,7 +15957,23 @@
           "pathFormat": "路徑必須是絕對路徑或以 ~ 開頭",
           "addFailed": "新增路徑失敗",
           "removeFailed": "移除路徑失敗",
-          "scanFailed": "掃描失敗"
+          "scanFailed": "掃描失敗",
+          "previewFailed": "探測本地路徑失敗"
+        },
+        "previewDialog": {
+          "title": "本地技能路徑預檢與採納",
+          "description": "在正式新增該路徑前，請確認已發現的技能條目、安全性與同名衝突。",
+          "resolvedPath": "物理絕對路徑",
+          "discoveredCount": "已發現 {count} 個技能",
+          "noSkillsFound": "未發現有效技能",
+          "noSkillsFoundDesc": "該路徑下未找到包含標準 SKILL.md 的有效技能目錄。",
+          "conflicted": "同名衝突",
+          "safe": "安全無風險",
+          "warning": "潛在安全風險",
+          "cancel": "取消",
+          "adopt": "確認採納並儲存路徑",
+          "adopting": "採納儲存中...",
+          "tools": "依賴工具"
         }
       },
       "instances": {
@@ -18700,5 +18668,42 @@
       "deleteSuccessDesc": "已移除選定的歷史快照。",
       "deleteFailedTitle": "刪除快照失敗"
     }
+  },
+  "executionPhaseStepper": {
+    "badge": "安全受護",
+    "waitingApproval": "等待審批",
+    "collapseTelemetry": "收起遙測",
+    "expandTelemetry": "展開遙測",
+    "currentNode": "節點 #{nodeId}",
+    "lanes": {
+      "planner": "規劃通道",
+      "tool": "工具通道",
+      "coder": "編碼通道",
+      "reviewer": "審查通道",
+      "executor": "執行通道",
+      "user": "使用者互動通道"
+    }
+  },
+  "continualOverlay": {
+    "activeTitle": "自愈防護活躍",
+    "remainingTurns": "剩餘 {count} 輪",
+    "rollbackTooltip": "回滾至觸發前狀態",
+    "rollback": "回滾",
+    "collapse": "收起",
+    "expand": "展開",
+    "howItWorks": "自愈防護運作機制",
+    "howItWorksDesc": "當檢測到環境或執行異常時，系統會自動注入自愈層並在後續輪次持續監控，直到狀態完全恢復穩定。",
+    "allActiveOverlays": "全部生效中的防護層 ({count})"
+  },
+  "taskSpaces": {
+    "title": "任務瀏覽器沙盒",
+    "badgeTakeover": "人工接管中",
+    "badgeRunning": "運行中",
+    "closeSpaceBtn": "關閉該任務沙盒",
+    "activePages": "{count} 個活躍頁面",
+    "releaseTakeoverBtn": "交回智能體",
+    "takeoverBtn": "人工接管",
+    "snapshotPreview": "實時快照預覽",
+    "emptyState": "暫無快照資料"
   }
 }

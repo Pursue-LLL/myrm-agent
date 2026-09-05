@@ -73,7 +73,10 @@ def test_discover_models_opencode_go_requires_key(client: TestClient) -> None:
 
 
 class _MockModelEndpointHandler(BaseHTTPRequestHandler):
+    last_auth_header: str | None = None
+
     def do_GET(self) -> None:
+        _MockModelEndpointHandler.last_auth_header = self.headers.get("Authorization")
         if self.path in ("/v1/models", "/models"):
             body = b'{"data": [{"id": "deepseek-v4-flash-local"}, {"id": "qwen2.5:32b"}]}'
             self.send_response(200)
@@ -92,6 +95,7 @@ class _MockModelEndpointHandler(BaseHTTPRequestHandler):
 @pytest.mark.integration
 def test_discover_models_local_live_http_server(client: TestClient) -> None:
     """Real socket connection to a local HTTP server — validates real unmocked network fetch and no-auth policy."""
+    _MockModelEndpointHandler.last_auth_header = "unset"
     server = HTTPServer(("127.0.0.1", 0), _MockModelEndpointHandler)
     port = server.server_port
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -108,6 +112,8 @@ def test_discover_models_local_live_http_server(client: TestClient) -> None:
         assert payload["no_auth_local"] is True
         assert "deepseek-v4-flash-local" in payload["models"]
         assert "qwen2.5:32b" in payload["models"]
+        # Verify wire-level proof that no Authorization header is sent
+        assert _MockModelEndpointHandler.last_auth_header is None
     finally:
         server.shutdown()
         server.server_close()
