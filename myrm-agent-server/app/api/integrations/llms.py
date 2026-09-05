@@ -436,6 +436,8 @@ def _try_get_model_info_exact(model: str) -> dict[str, object] | None:
     model_clean = model.lower()
 
     try:
+        if model_clean in getattr(litellm, "model_cost", {}):
+            return dict(litellm.model_cost[model_clean])
         info = litellm.get_model_info(model_clean)
         if info:
             return dict(info)
@@ -451,6 +453,8 @@ def _try_get_model_info_exact(model: str) -> dict[str, object] | None:
 
         for cand in candidates:
             try:
+                if cand in getattr(litellm, "model_cost", {}):
+                    return dict(litellm.model_cost[cand])
                 info = litellm.get_model_info(cand)
                 if info:
                     return dict(info)

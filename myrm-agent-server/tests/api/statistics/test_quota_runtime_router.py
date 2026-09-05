@@ -283,13 +283,14 @@ class TestQuotaRuntimeRouterEndpoints:
         assert data_reset["code"] == 0
         assert data_reset["data"]["provider"] == "brave"
 
-        # Test update limit
+        # Test update limit with fresh mock session
+        mock_session_update = AsyncMock()
         mock_res_empty = MagicMock()
         mock_res_empty.scalar_one_or_none.return_value = None
-        mock_session.execute.return_value = mock_res_empty
+        mock_session_update.execute.return_value = mock_res_empty
 
         limit_req = SearchQuotaLimitUpdateRequest(provider="brave", quota_limit=5000)
-        resp_limit = await update_search_quota_limit(req=limit_req, session=mock_session)
+        resp_limit = await update_search_quota_limit(req=limit_req, session=mock_session_update)
         assert resp_limit.status_code == 200
         data_limit = json.loads(resp_limit.body)
         assert data_limit["code"] == 0
