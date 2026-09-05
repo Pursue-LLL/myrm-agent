@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   IconBrain,
@@ -29,6 +29,7 @@ import useChatStore from '@/store/useChatStore';
 import SessionReplayPlayer from '@/components/features/memory/replay/SessionReplayPlayer';
 import TraceErrorItem from './TraceErrorItem';
 import TraceLLMCallItem from './TraceLLMCallItem';
+import TraceGanttWaterfall from './TraceGanttWaterfall';
 
 interface ExecutionTraceTimelineProps {
   sessionId: string;
@@ -78,6 +79,7 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [replayMode, setReplayMode] = useState(false);
+  const [viewMode, setViewMode] = useState<'gantt' | 'list'>('gantt');
 
   const activeSessionAnalyticsMessageId = useChatStore((state) => state.activeSessionAnalyticsMessageId);
   const messages = useChatStore((state) => state.messages);
@@ -90,6 +92,17 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
   const highlightedModels = activeMessage?.tokenEconomics?.model_breakdown
     ? Object.keys(activeMessage.tokenEconomics.model_breakdown)
     : [];
+
+  const { totalPrompt, totalCacheRead, cacheHitRatio } = useMemo(() => {
+    let prompt = trace?.prompt_tokens ?? 0;
+    let cache = trace?.cache_read_tokens ?? 0;
+    if (!prompt && trace?.llm_calls) {
+      prompt = trace.llm_calls.reduce((s, c) => s + (c.prompt_tokens || 0), 0);
+      cache = trace.llm_calls.reduce((s, c) => s + (c.cache_read_tokens || 0), 0);
+    }
+    const ratio = prompt > 0 ? Math.round((cache / prompt) * 1000) / 10 : 0;
+    return { totalPrompt: prompt, totalCacheRead: cache, cacheHitRatio: ratio };
+  }, [trace]);
 
   useEffect(() => {
     let cancelled = false;
@@ -195,6 +208,13 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
           </div>
           <p className="text-sm text-foreground line-clamp-3">{trace.task_input}</p>
         </div>
+      )}
+
+      {trace.performance_summary && (
+        <TraceGanttWaterfall
+          performance={trace.performance_summary}
+          totalDurationMs={trace.duration_ms}
+        />
       )}
 
       {trace.tool_calls && trace.tool_calls.length > 0 && (
