@@ -34,7 +34,8 @@ _VERIFY_SPLIT_STACK_SETTINGS_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
+    execution_mode="PRIVATE",
+    private_reason="process_isolation",
     access_scope="READ",
     workload="STANDARD",
 )
@@ -76,6 +77,14 @@ def test_split_stack_settings_ui_and_discover_api_chrome_e2e() -> None:
                 openBtn.click();
               }
               const dialog = document.querySelector('[data-testid="model-orchestration-playbook-dialog"]');
+              const tabPrinciples = document.querySelector('[data-testid="playbook-tab-principles"]');
+              if (tabPrinciples) {
+                tabPrinciples.click();
+              }
+              const closeBtn = document.querySelector('[data-testid="playbook-close-button"]');
+              if (closeBtn) {
+                closeBtn.click();
+              }
               return {
                 ok: true,
                 cardFound: !!card,

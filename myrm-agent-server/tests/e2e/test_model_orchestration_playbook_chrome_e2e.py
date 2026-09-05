@@ -20,18 +20,41 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_settings_subroute,
     prepare_e2e_ui_session,
+    wait_for_settings_layout,
     wait_for_state,
     warm_ui_route,
 )
 
 _VERIFY_PLAYBOOK_UI_JS = """(() => {
   try {
-    const card = document.querySelector('[data-testid="model-orchestration-playbook-card"]');
+    let card = document.querySelector('[data-testid="model-orchestration-playbook-card"]');
+    
+    // Check if card exists or if tabs need switching
+    if (!card) {
+      const triggers = document.querySelectorAll('[role="tab"]');
+      for (const t of triggers) {
+        if (t.getAttribute('value') === 'default' || (t.textContent || '').includes('默认') || (t.textContent || '').includes('Default')) {
+          t.click();
+          break;
+        }
+      }
+      card = document.querySelector('[data-testid="model-orchestration-playbook-card"]');
+    }
+
     const openBtn = document.querySelector('[data-testid="view-full-playbook-button"]');
     const expandBtn = document.querySelector('[data-testid="toggle-expand-playbook-button"]');
-    
+    const testIds = Array.from(document.querySelectorAll('[data-testid]')).map(el => el.getAttribute('data-testid'));
+    const bodyText = document.body ? document.body.innerText : '';
+
     if (!card) {
-      return { ok: false, err: 'model-orchestration-playbook-card not found in DOM' };
+      return {
+        ok: false,
+        err: 'model-orchestration-playbook-card not found in DOM',
+        pathname: window.location.pathname,
+        search: window.location.search,
+        foundTestIds: testIds.slice(0, 20),
+        bodySnippet: bodyText.slice(0, 300),
+      };
     }
 
     // Click to open dialog
@@ -87,7 +110,8 @@ _VERIFY_DIALOG_AND_DISMISS_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
+    execution_mode="PRIVATE",
+    private_reason="process_isolation",
     access_scope="READ",
     workload="STANDARD",
 )
@@ -100,14 +124,16 @@ def test_model_orchestration_playbook_settings_chrome_e2e() -> None:
 
     # 1. Warm up Settings UI route and navigate to models tab in real Chrome MCP
     prepare_e2e_ui_session(api_url)
-    warm_ui_route("/settings")
+    target_url = warm_ui_route("/settings/models")
 
-    with open_settings_subroute("/settings/models?sub=default", timeout_ms=90_000) as (
+    with open_settings_subroute("/settings/models", timeout_ms=90_000) as (
         client,
         page,
     ):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
+        wait_for_settings_layout(client, page, page_url=target_url)
+
         state = wait_for_state(
             client,
             page,
