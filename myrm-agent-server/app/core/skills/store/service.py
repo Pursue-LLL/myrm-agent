@@ -252,6 +252,29 @@ class SkillsService:
     # Update
     # ========================================================================
 
+    async def update_skill_file(self, skill_id: str, filename: str, content: str) -> bool:
+        """更新技能文件内容并持久化，支持本地与预置技能存储。"""
+        skill = await self.get_skill(skill_id)
+        if not skill:
+            return False
+
+        if ".." in filename or filename.startswith(("/", "\\")):
+            raise ValueError("Path traversal detected")
+
+        if skill.type == SkillType.LOCAL:
+            from pathlib import Path
+
+            base_dir = Path(skill.storage_path).resolve()
+            target_path = (base_dir / filename).resolve()
+            if not target_path.is_relative_to(base_dir):
+                raise ValueError("Path traversal detected")
+            target_path.write_text(content, encoding="utf-8")
+            return True
+
+        storage_key = f"{skill.storage_path}/{filename}"
+        await self.storage.write_text(storage_key, content)
+        return True
+
     async def update_skill(
         self,
         skill_id: str,
