@@ -356,52 +356,10 @@ class GoalRegistry:
 
 
 async def get_current_git_branch(workspace_dir: str | None = None) -> str | None:
-    """Run async subprocess to get the current Git branch name of the workspace."""
-    import asyncio
+    """Get the current Git branch name of the workspace via zero-subprocess filesystem reader."""
+    from myrm_agent_harness.api import resolve_git_branch
 
-    from myrm_agent_harness.api import (
-        EnvInheritPolicy,
-        build_isolated_child_env,
-    )
-
-    safe_git_env = build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE)
-
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            "git",
-            "symbolic-ref",
-            "--short",
-            "HEAD",
-            cwd=workspace_dir,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=safe_git_env,
-        )
-        stdout, stderr = await proc.communicate()
-        if proc.returncode == 0:
-            return stdout.decode("utf-8", errors="ignore").strip()
-    except Exception:
-        pass
-
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            "git",
-            "rev-parse",
-            "--abbrev-ref",
-            "HEAD",
-            cwd=workspace_dir,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=safe_git_env,
-        )
-        stdout, stderr = await proc.communicate()
-        if proc.returncode == 0:
-            branch = stdout.decode("utf-8", errors="ignore").strip()
-            if branch and branch != "HEAD":
-                return branch
-    except Exception:
-        pass
-    return None
+    return resolve_git_branch(workspace_dir)
 
 
 async def check_and_handle_branch_stash(
