@@ -12,8 +12,7 @@ from starlette.testclient import TestClient
 
 from app.services.migration.source.source_model_migrator import (
     _PROVIDER_LITELLM_PREFIX,
-    extract_hermes_auxiliary_config,
-    migrate_hermes_auxiliary_models,
+    _resolve_litellm_model,
 )
 from tests.support.minimal_app import build_minimal_app
 
@@ -125,22 +124,15 @@ def test_hermes_auxiliary_migration_maps_ai_gateway_aliases() -> None:
     assert _PROVIDER_LITELLM_PREFIX["vercel"] == "openai"
     assert _PROVIDER_LITELLM_PREFIX["vercel_ai_gateway"] == "openai"
 
-    hermes_cfg = {
-        "auxiliary": {
-            "compression": {
-                "provider": "ai-gateway",
-                "model": "meta-llama/llama-3.3-70b-instruct",
-            },
-            "vision": {
-                "provider": "vercel",
-                "model": "google/gemini-2.0-flash",
-            },
-        }
-    }
-    extracted = extract_hermes_auxiliary_config(hermes_cfg)
-    assert extracted["compression"]["provider"] == "ai-gateway"
-    assert extracted["vision"]["provider"] == "vercel"
-
-    result = migrate_hermes_auxiliary_models(extracted)
-    assert result.migrated_slots["long_doc_model"] == "openai/meta-llama/llama-3.3-70b-instruct"
-    assert result.migrated_slots["vision_fallback_model"] == "openai/google/gemini-2.0-flash"
+    assert (
+        _resolve_litellm_model("ai-gateway", "meta-llama/llama-3.3-70b-instruct")
+        == "vercel_ai_gateway/meta-llama/llama-3.3-70b-instruct"
+    )
+    assert (
+        _resolve_litellm_model("vercel", "google/gemini-2.0-flash")
+        == "vercel_ai_gateway/google/gemini-2.0-flash"
+    )
+    assert (
+        _resolve_litellm_model("aigateway", "anthropic/claude-3-5-sonnet")
+        == "vercel_ai_gateway/anthropic/claude-3-5-sonnet"
+    )

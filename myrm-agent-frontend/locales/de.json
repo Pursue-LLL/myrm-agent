@@ -13797,8 +13797,7 @@
       "poolCalls": "{count} Aufrufe",
       "poolRateLimits": "{count} Ratenbegrenzungen",
       "vercelGatewaySpendHint": "Kosten, Ratenbegrenzungen und Latenz im Vercel AI Gateway Dashboard nachverfolgen",
-      "openVercelDashboard": "Dashboard öffnen",
-      "viewDashboard": "Dashboard anzeigen"
+      "openVercelDashboard": "Dashboard öffnen"
     },
     "defaultModel": {
       "localModelWarning": "Lokale Leichtgewichtsmodelle neigen stark zu Halluzinationen oder Endlosschleifen bei komplexen Agent-Workflows. Für lange Aufgaben werden Modelle ab 30B oder Cloud-basierte fortschrittliche Modelle (wie Claude 3.5 Sonnet) empfohlen.",
@@ -17709,7 +17708,34 @@
       "wikiNegativeOutcomeRate": "Negative Ergebnisrate",
       "wikiVerificationDwell": "Ø Verifikationsdauer",
       "wikiTelemetryDrops": "Verlorene Telemetrie",
-      "wikiEvidenceWindow": "Fenster: {days} Tage; Aufbewahrung: {retentionDays} Tage"
+      "wikiEvidenceWindow": "Fenster: {days} Tage; Aufbewahrung: {retentionDays} Tage",
+      "runtimeMeter": {
+        "title": "Laufzeitkosten und Ressourcenmessung",
+        "description": "Echtzeitüberwachung des monatlichen Kontingents für kostenlose Suchquellen und des Browser-Automatisierungsverbrauchs zur Gewährleistung stabiler Langzeitaufgaben",
+        "badge": "Transparent",
+        "resetAll": "Zurücksetzen",
+        "resetTooltip": "Manuell kalibrieren und Zählung für aktuellen Zyklus neu starten",
+        "searchPool": "Suchquellen-Kontingentpool",
+        "monthlyStats": "Monatsstatistik",
+        "unlimited": "Unbegrenzt",
+        "depleted": "Kontingent erschöpft (automatisch umgeleitet)",
+        "warning": "Restguthaben-Warnung ({percent}%)",
+        "healthy": "Ausreichend",
+        "callsUnit": "Aufrufe",
+        "browserTitle": "Browser-Automatisierungsrechenleistung und Datenverkehr",
+        "monthlySummary": "Monatsübersicht",
+        "activeComputeTime": "Kumulierte Laufzeit",
+        "sessionsCount": "Ausführungssitzungen: {count}",
+        "networkTransfer": "Webdatenverkehr",
+        "requestsCount": "Netzwerkanfragen: {count}",
+        "estimatedCost": "Geschätzte Sandbox-Kosten",
+        "watchdogTip": "Ausgestattet mit einem 3-minütigen Watchdog gegen Endlosschleifen, der unerwartetes Hängenbleiben sicher abbricht, um CPU und Sandbox zu schützen.",
+        "editLimitTitle": "Benutzerdefiniertes Limit",
+        "editLimitDesc": "Monatliches Warnlimit für {provider} anpassen",
+        "limitLabel": "Monatliches Limit (Aufrufe)",
+        "cancel": "Abbrechen",
+        "save": "Speichern"
+      }
     },
     "workingState": {
       "title": "Arbeitsgedächtnis",

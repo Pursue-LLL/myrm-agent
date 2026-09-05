@@ -38,6 +38,15 @@ class SearchQuotaRecordRequest(BaseModel):
     quota_exceeded: bool = False
 
 
+class SearchQuotaResetRequest(BaseModel):
+    provider: str | None = Field(default=None, max_length=32)
+
+
+class SearchQuotaLimitUpdateRequest(BaseModel):
+    provider: str = Field(..., min_length=1, max_length=32)
+    quota_limit: int = Field(..., ge=1, le=10_000_000)
+
+
 class BrowserRuntimeRecordRequest(BaseModel):
     session_id: str | None = Field(default=None, max_length=128)
     duration_seconds: float = Field(default=0.0, ge=0.0)
@@ -115,3 +124,55 @@ async def record_browser_runtime(
     except Exception as exc:
         logger.error("Failed to record browser runtime: %s", exc, exc_info=True)
         return internal_error("Failed to record browser runtime")
+
+
+@router.get("/runtime-cost-gauge")
+async def get_runtime_cost_gauge(
+    session: AsyncSession = Depends(get_session),
+) -> JSONResponse:
+    """Get integrated operational cost, search quota, and browser compute gauge."""
+    try:
+        gauge = await runtime_meter_service.get_runtime_burn_rate_gauge(session)
+        return success_response(gauge)
+    except Exception as exc:
+        logger.error("Failed to get runtime cost gauge: %s", exc, exc_info=True)
+        return internal_error("Failed to get runtime cost gauge")
+
+
+
+@router.post("/search-quotas/reset")
+async def reset_search_quota(
+    req: SearchQuotaResetRequest,
+    session: AsyncSession = Depends(get_session),
+) -> JSONResponse:
+    """Reset used count and depletion status for one or all providers."""
+    try:
+        reset_count = await runtime_meter_service.reset_search_quota(session, provider=req.provider)
+        return success_response({"reset_records_count": reset_count, "provider": req.provider})
+    except Exception as exc:
+        logger.error("Failed to reset search quota: %s", exc, exc_info=True)
+        return internal_error("Failed to reset search quota")
+
+
+@router.put("/search-quotas/limit")
+async def update_search_quota_limit(
+    req: SearchQuotaLimitUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+) -> JSONResponse:
+    """Update custom quota limit for a specific search provider."""
+    try:
+        record = await runtime_meter_service.update_search_quota_limit(
+            session,
+            provider=req.provider,
+            quota_limit=req.quota_limit,
+        )
+        return success_response(
+            {
+                "provider": record.provider,
+                "quota_limit": record.quota_limit,
+                "used_count": record.used_count,
+            }
+        )
+    except Exception as exc:
+        logger.error("Failed to update search quota limit: %s", exc, exc_info=True)
+        return internal_error("Failed to update search quota limit")

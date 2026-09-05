@@ -13797,8 +13797,7 @@
         "keepAliveTipDesc": "백그라운드 봇의 경우 상주를 유지하고, 대규모 훈련이나 렌더링 시에는 언로드하여 VRAM을 해제하세요."
       },
       "vercelGatewaySpendHint": "Vercel AI Gateway 대시보드에서 비용, 속도 제한 및 지연 시간을 모니터링",
-      "openVercelDashboard": "대시보드 열기",
-      "viewDashboard": "대시보드 보기"
+      "openVercelDashboard": "대시보드 열기"
     },
     "defaultModel": {
       "localModelWarning": "로컬 경량 모델은 복잡한 에이전트 도구 체인을 처리할 때 환각이나 무한 루프에 빠지기 쉽습니다. 긴 작업에는 30B+ 규모 모델이나 클라우드 고급 모델(예: Claude 3.5 Sonnet)을 권장합니다.",
@@ -17709,7 +17708,34 @@
       "wikiNegativeOutcomeRate": "부정 결과 비율",
       "wikiVerificationDwell": "평균 검증 체류 시간",
       "wikiTelemetryDrops": "텔레메트리 유실",
-      "wikiEvidenceWindow": "집계 기간: {days}일; 보관 기간: {retentionDays}일"
+      "wikiEvidenceWindow": "집계 기간: {days}일; 보관 기간: {retentionDays}일",
+      "runtimeMeter": {
+        "title": "실행 비용 및 리소스 측정",
+        "description": "무료 검색 소스의 월간 잔여량과 브라우저 자동화 컴퓨팅 소비를 실시간 모니터링하여 장기 작업 안정성 자동 보장",
+        "badge": "투명성",
+        "resetAll": "초기화",
+        "resetTooltip": "수동으로 보정하고 현재 주기 카운트를 다시 시작",
+        "searchPool": "검색 소스 무료 할당량 풀",
+        "monthlyStats": "월별 통계",
+        "unlimited": "무제한",
+        "depleted": "할당량 소진됨 (자동 전환됨)",
+        "warning": "잔여량 경고 ({percent}%)",
+        "healthy": "충분함",
+        "callsUnit": "회",
+        "browserTitle": "브라우저 자동화 컴퓨팅 및 트래픽",
+        "monthlySummary": "이번 달 요약",
+        "activeComputeTime": "누적 실행 시간",
+        "sessionsCount": "실행 세션: {count}회",
+        "networkTransfer": "웹 트래픽",
+        "requestsCount": "네트워크 요청: {count}회",
+        "estimatedCost": "예상 샌드박스 비용",
+        "watchdogTip": "3분 무한루프 방지 워치독이 탑재되어 예상치 못한 멈춤 현상을 안전하게 중단하여 CPU와 샌드박스를 보호합니다.",
+        "editLimitTitle": "사용자 지정 할당량 한도",
+        "editLimitDesc": "{provider}의 월간 알림 한도 조정",
+        "limitLabel": "월간 할당량 한도 (회)",
+        "cancel": "취소",
+        "save": "저장"
+      }
     },
     "workingState": {
       "title": "작업 메모리",

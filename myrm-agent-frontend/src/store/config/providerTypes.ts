@@ -338,10 +338,10 @@ export const getLiteLLMModelName = (
 ): string => {
   const normalizedModelName = modelName.toLowerCase();
   if (providerId === 'vercel_ai_gateway') {
-    if (normalizedModelName.startsWith('openai/')) {
+    if (normalizedModelName.startsWith('vercel_ai_gateway/')) {
       return modelName;
     }
-    return `openai/${modelName}`;
+    return `vercel_ai_gateway/${modelName}`;
   }
 
   for (const routePrefix of KNOWN_LITELLM_ROUTE_PREFIXES) {

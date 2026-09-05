@@ -13797,8 +13797,7 @@
       "connectionSuccess": "接続しました",
       "connectionFailed": "接続失敗",
       "vercelGatewaySpendHint": "Vercel AI Gateway ダッシュボードでコスト、レート制限、レイテンシを確認",
-      "openVercelDashboard": "ダッシュボードを開く",
-      "viewDashboard": "ダッシュボードを表示"
+      "openVercelDashboard": "ダッシュボードを開く"
     },
     "defaultModel": {
       "localModelWarning": "ローカルの軽量モデルは、複雑な Agent ツールチェーンを処理する際に幻覚や無限ループを起こしやすいです。長時間タスクには 30B 以上のモデルか、クラウドの高度なモデル（Claude 3.5 Sonnet など）の使用を推奨します。",
@@ -17709,7 +17708,34 @@
       "sourceWeb": "Web対話",
       "sourceSubagents": "サブエージェント",
       "sourceCron": "Cron定期ジョブ",
-      "sourceChannel": "外部メッセージングチャンネル"
+      "sourceChannel": "外部メッセージングチャンネル",
+      "runtimeMeter": {
+        "title": "実行コストとリソース使用量",
+        "description": "無料検索ソースの月間残量とブラウザ自動化の計算消費をリアルタイム監視し、長時間タスクの安定性を自動保護",
+        "badge": "透明性",
+        "resetAll": "リセット",
+        "resetTooltip": "手動でキャリブレーションを行い、現在の期間のカウントを再開",
+        "searchPool": "検索ソース無料クォータプール",
+        "monthlyStats": "月次統計",
+        "unlimited": "無制限",
+        "depleted": "クォータ枯渇 (自動切替済)",
+        "warning": "残量警告 ({percent}%)",
+        "healthy": "十分",
+        "callsUnit": "回",
+        "browserTitle": "ブラウザ自動化コンピュートとトラフィック",
+        "monthlySummary": "今月の概要",
+        "activeComputeTime": "累積実行時間",
+        "sessionsCount": "実行セッション: {count} 回",
+        "networkTransfer": "Webトラフィック",
+        "requestsCount": "ネットワークリクエスト: {count} 回",
+        "estimatedCost": "推定サンドボックスコスト",
+        "watchdogTip": "3分間のデッドロック防止ウォッチドッグを備え、予期しないスタックを安全に中断してCPUとサンドボックスを保護します。",
+        "editLimitTitle": "カスタムクォータ上限",
+        "editLimitDesc": "{provider} の月間アラート上限を調整",
+        "limitLabel": "月間クォータ上限 (回)",
+        "cancel": "キャンセル",
+        "save": "保存"
+      }
     },
     "workingState": {
       "title": "工作メモリ",
