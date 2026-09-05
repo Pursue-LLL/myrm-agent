@@ -43,6 +43,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.infra.limiter import limiter
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_db
+from app.services.agent.session_credential_assembler import XAI_ISSUER
 from app.services.integrations.oauth_store import (
     decrypt_oauth_credentials,
     delete_oauth_credential,
@@ -66,6 +67,7 @@ _ALL_PROVIDER_ISSUERS = {
     "anthropic": ANTHROPIC_ISSUER,
     "openai": OPENAI_ISSUER,
     "copilot": COPILOT_ISSUER,
+    "xai": XAI_ISSUER,
 }
 
 # ──────────────────────── Anthropic Constants ──────────────────────────
