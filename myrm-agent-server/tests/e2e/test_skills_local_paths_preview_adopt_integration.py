@@ -17,8 +17,9 @@ from fastapi.testclient import TestClient
 from app.core.security.auth.identity import LOCAL_USER_ID, ResolvedIdentity
 from app.core.skills.models import SkillType
 from app.core.skills.store.service import skills_service
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
+app = build_minimal_app(preset="skills")
 client = TestClient(app, base_url="http://localhost:8080")
 
 
