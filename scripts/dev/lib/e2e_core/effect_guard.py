@@ -58,6 +58,13 @@ def _normalized_path(url: str) -> str:
     return path
 
 
+def is_test_fixture_path(path: str) -> bool:
+    normalized = path if path.startswith("/") else f"/{path}"
+    return normalized in _TEST_FIXTURE_EXACT_PATHS or any(
+        normalized.startswith(prefix) for prefix in _TEST_FIXTURE_PREFIXES
+    )
+
+
 def is_global_mutation_path(path: str) -> bool:
     normalized = path if path.startswith("/") else f"/{path}"
     if is_test_fixture_path(normalized):
@@ -65,13 +72,6 @@ def is_global_mutation_path(path: str) -> bool:
     return any(
         normalized == prefix.rstrip("/") or normalized.startswith(prefix)
         for prefix in _GLOBAL_MUTATION_PREFIXES
-    )
-
-
-def is_test_fixture_path(path: str) -> bool:
-    normalized = path if path.startswith("/") else f"/{path}"
-    return normalized in _TEST_FIXTURE_EXACT_PATHS or any(
-        normalized.startswith(prefix) for prefix in _TEST_FIXTURE_PREFIXES
     )
 
 

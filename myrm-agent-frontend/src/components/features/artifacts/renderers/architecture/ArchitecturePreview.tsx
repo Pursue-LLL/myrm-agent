@@ -245,19 +245,25 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
         return;
       }
       try {
-        const svgEl = containerRef.current.querySelector('.react-flow__edges svg') as SVGSVGElement | null;
         const viewportEl = containerRef.current.querySelector('.react-flow__viewport') as HTMLElement | null;
         if (!viewportEl) {
           toast({ variant: 'destructive', title: 'Export Failed', description: 'Viewport element not found' });
           return;
         }
 
-        // Construct clean standalone SVG representation
+        // Inline relevant styles into the clone to guarantee standalone SVG rendering
         const clone = viewportEl.cloneNode(true) as HTMLElement;
+        const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+          .map((s) => s.outerHTML)
+          .join('\n');
+
         const svgData = `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
           <foreignObject width="100%" height="100%">
             <div xmlns="http://www.w3.org/1999/xhtml">
-              ${clone.innerHTML}
+              ${styles}
+              <div class="${document.documentElement.className}">
+                ${clone.innerHTML}
+              </div>
             </div>
           </foreignObject>
         </svg>`;

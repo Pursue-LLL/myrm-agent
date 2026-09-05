@@ -29,6 +29,8 @@ SHARED_API_BASE="${MYRM_SHARED_API_BASE:-http://127.0.0.1:8080}"
 API_BASE="${E2E_API_BASE:-${SHARED_API_BASE}}"
 MYRM_CHROME_E2E_ATTACH="${MYRM_CHROME_E2E_ATTACH:-0}"
 export MYRM_CHROME_E2E_ATTACH
+MYRM_BROWSER_ORCHESTRATOR="${MYRM_BROWSER_ORCHESTRATOR:-1}"
+export MYRM_BROWSER_ORCHESTRATOR
 MYRM_MUX_ALLOW_TIMEOUT_RESTART="${MYRM_MUX_ALLOW_TIMEOUT_RESTART:-1}"
 export MYRM_MUX_ALLOW_TIMEOUT_RESTART
 # R286: python -m e2e_core.bootstrap_deadline must share one holder key across subprocesses.
@@ -1753,7 +1755,8 @@ _ensure_mux_daemon
 
 VANILLA_MCP_COUNT=0
 if pgrep -f 'npm exec chrome-devtools-mcp' >/dev/null 2>&1; then
-  VANILLA_MCP_COUNT="$(pgrep -f 'npm exec chrome-devtools-mcp' | wc -l | tr -d ' ')"
+  # Exclude compliant isolated Agent MCP instances connecting to ChromeAgent :9410
+  VANILLA_MCP_COUNT="$(pgrep -lf 'npm exec chrome-devtools-mcp' | grep -v '9410' | wc -l | tr -d ' ')"
 fi
 if [[ "${MUX_USING}" -eq 1 ]]; then
   if [[ "${VANILLA_MCP_COUNT}" -gt 0 ]]; then

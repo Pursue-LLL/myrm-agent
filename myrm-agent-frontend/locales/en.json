@@ -16124,7 +16124,23 @@
           "pathFormat": "Path must be absolute or start with ~",
           "addFailed": "Failed to add path",
           "removeFailed": "Failed to remove path",
-          "scanFailed": "Scan failed"
+          "scanFailed": "Scan failed",
+          "previewFailed": "Failed to inspect local path"
+        },
+        "previewDialog": {
+          "title": "Preview & Adopt Local Skills",
+          "description": "Inspect discovered skills, safety, and naming conflicts before adding this path.",
+          "resolvedPath": "Resolved Path",
+          "discoveredCount": "Discovered {count} skills",
+          "noSkillsFound": "No Valid Skills Found",
+          "noSkillsFoundDesc": "No directories containing standard SKILL.md were found under this path.",
+          "conflicted": "Conflict",
+          "safe": "Clean",
+          "warning": "Risk Detected",
+          "cancel": "Cancel",
+          "adopt": "Adopt & Add Path",
+          "adopting": "Adopting...",
+          "tools": "Required Tools"
         }
       },
       "instances": {

@@ -218,6 +218,14 @@ export function assertDevLockAvailable(port: number): void {
     process.exit(1);
   }
 
+  if (listeners.length === 0) {
+    const ageMs = Date.now() - new Date(existing.startedAt).getTime();
+    if (ageMs >= 0 && ageMs < 60_000) {
+      console.log(`⏳ Dev server PID ${existing.pid} is still starting (age ${Math.round(ageMs / 1000)}s) — yielding`);
+      process.exit(0);
+    }
+  }
+
   const reason =
     listeners.length === 0
       ? `PID ${existing.pid} alive but :${existing.port} not listening`

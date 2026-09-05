@@ -176,6 +176,29 @@ export interface LocalSkillPathsResponse {
   default_paths: string[];
 }
 
+export interface LocalSkillPreviewItem {
+  name: string;
+  description: string;
+  version: string;
+  category?: string | null;
+  tags: string[];
+  required_tools: string[];
+  relative_path: string;
+  is_conflicted: boolean;
+  conflict_reason?: string | null;
+  is_safe: boolean;
+  threat_summary?: string | null;
+}
+
+export interface LocalSkillPathPreviewResponse {
+  resolved_path: string;
+  exists: boolean;
+  is_directory: boolean;
+  total_discovered: number;
+  skills: LocalSkillPreviewItem[];
+  warning_message?: string | null;
+}
+
 export interface UpdateUserSkillConfigRequest {
   enabled_prebuilt_ids?: string[];
   evolution_strategy?: string;

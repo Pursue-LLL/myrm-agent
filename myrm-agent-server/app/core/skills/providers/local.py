@@ -251,6 +251,22 @@ class LocalSkillsProvider:
 
         return skills
 
+    def preview_path(
+        self,
+        raw_path: str,
+        existing_skills: list[Skill] | None = None,
+        max_scan_entries: int = 100,
+    ) -> tuple[Path, bool, bool, list[dict[str, object]], str | None]:
+        """Dry-run probe a path for local skills without modifying provider state."""
+        from .local_preview import preview_skill_path
+
+        return preview_skill_path(
+            raw_path=raw_path,
+            existing_skills=existing_skills,
+            max_scan_entries=max_scan_entries,
+            compute_id_fn=compute_local_skill_id,
+        )
+
     def get_skill_by_id(self, skill_id: str) -> Skill | None:
         """Look up a skill by ID (requires re-scanning all paths)."""
         if not skill_id.startswith("local::"):

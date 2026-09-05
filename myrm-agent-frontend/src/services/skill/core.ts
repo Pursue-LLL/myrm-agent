@@ -27,6 +27,7 @@ import type {
   SkillSortBy,
   SkillSortOrder,
   LocalSkillPathsResponse,
+  LocalSkillPathPreviewResponse,
 } from '@/store/skill/types';
 
 const SKILLS_API_PREFIX = '/skills';
@@ -213,6 +214,17 @@ export async function updateLocalSkillPaths(paths: string[]): Promise<LocalSkill
   return apiRequest<LocalSkillPathsResponse>(`${SKILLS_API_PREFIX}/local/paths`, {
     method: 'PUT',
     body: JSON.stringify({ paths }),
+  });
+}
+
+/**
+ * 预览本地技能路径（Dry-run 探测目录下的技能与冲突）
+ * @param path 目标路径
+ */
+export async function previewLocalSkillPath(path: string): Promise<LocalSkillPathPreviewResponse> {
+  return apiRequest<LocalSkillPathPreviewResponse>(`${SKILLS_API_PREFIX}/local/paths/preview`, {
+    method: 'POST',
+    body: JSON.stringify({ path }),
   });
 }
 

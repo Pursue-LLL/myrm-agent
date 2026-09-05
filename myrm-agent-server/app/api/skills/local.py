@@ -10,8 +10,11 @@ from myrm_agent_harness.toolkits.storage.types import SkillType
 
 from app.api.skills._deploy_capability import require_local_skills_capability
 from app.api.skills.schemas import (
+    LocalSkillPathPreviewRequest,
+    LocalSkillPathPreviewResponse,
     LocalSkillPathsRequest,
     LocalSkillPathsResponse,
+    LocalSkillPreviewItem,
     SkillListResponse,
     ToggleLocalSkillRequest,
     ToggleLocalSkillResponse,
@@ -72,6 +75,59 @@ async def update_local_skill_paths(
     return LocalSkillPathsResponse(
         paths=config.local_skill_paths,
         default_paths=DEFAULT_LOCAL_SKILL_PATHS,
+    )
+
+
+@router.post("/local/paths/preview", response_model=LocalSkillPathPreviewResponse)
+async def preview_local_skill_path(
+    request: LocalSkillPathPreviewRequest,
+) -> LocalSkillPathPreviewResponse:
+    """Dry-run preview skills in a given local path before adding it."""
+    require_local_skills_capability()
+
+    raw_path = request.path.strip()
+    if not (raw_path.startswith("/") or raw_path.startswith("~")):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid path format: {raw_path}. Must be absolute path or start with ~",
+        )
+
+    # Fetch existing skills across types to detect naming conflicts
+    existing_skills = await skills_service.list_skills()
+
+    resolved_path, exists, is_directory, items, warning_msg = (
+        skills_service.local_provider.preview_path(
+            raw_path=raw_path,
+            existing_skills=existing_skills,
+        )
+    )
+
+    preview_items = [
+        LocalSkillPreviewItem(
+            name=str(it["name"]),
+            description=str(it["description"]),
+            version=str(it["version"]),
+            category=str(it["category"]) if it.get("category") else None,
+            tags=[str(t) for t in it.get("tags", [])] if isinstance(it.get("tags"), list) else [],
+            required_tools=[str(b) for b in it.get("required_tools", [])]
+            if isinstance(it.get("required_tools"), list)
+            else [],
+            relative_path=str(it["relative_path"]),
+            is_conflicted=bool(it["is_conflicted"]),
+            conflict_reason=str(it["conflict_reason"]) if it.get("conflict_reason") else None,
+            is_safe=bool(it["is_safe"]),
+            threat_summary=str(it["threat_summary"]) if it.get("threat_summary") else None,
+        )
+        for it in items
+    ]
+
+    return LocalSkillPathPreviewResponse(
+        resolved_path=str(resolved_path),
+        exists=exists,
+        is_directory=is_directory,
+        total_discovered=len(preview_items),
+        skills=preview_items,
+        warning_message=warning_msg,
     )
 
 

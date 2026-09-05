@@ -105,11 +105,6 @@ def _mux_scheduler_probe() -> tuple[bool, int, int]:
     return True, 0, 0
 
 
-def _mux_probe() -> tuple[bool, int, int]:
-    """Backward-compatible alias for scheduler probe."""
-    return _mux_scheduler_probe()
-
-
 def _effective_operation_credit_cap() -> int:
     """Current effective max operation credits (Host Resource Governor when available)."""
     try:

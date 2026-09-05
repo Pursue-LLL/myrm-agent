@@ -16124,7 +16124,23 @@
           "pathFormat": "路径必须是绝对路径或以 ~ 开头",
           "addFailed": "添加路径失败",
           "removeFailed": "移除路径失败",
-          "scanFailed": "扫描失败"
+          "scanFailed": "扫描失败",
+          "previewFailed": "探测本地路径失败"
+        },
+        "previewDialog": {
+          "title": "本地技能路径预检与采纳",
+          "description": "在正式添加该路径前，请确认已发现的技能条目、安全性与同名冲突。",
+          "resolvedPath": "物理绝对路径",
+          "discoveredCount": "已发现 {count} 个技能",
+          "noSkillsFound": "未发现有效技能",
+          "noSkillsFoundDesc": "该路径下未找到包含标准 SKILL.md 的有效技能目录。",
+          "conflicted": "同名冲突",
+          "safe": "安全无风险",
+          "warning": "潜在安全风险",
+          "cancel": "取消",
+          "adopt": "确认采纳并保存路径",
+          "adopting": "采纳保存中...",
+          "tools": "依赖工具"
         }
       },
       "instances": {

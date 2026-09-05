@@ -87,12 +87,9 @@ def poll_physical_targets_absent(
     poll_sec: float = 0.5,
 ) -> bool | None:
     """Poll until lease-bound CDP targets disappear or timeout."""
-    bound = lease_bound_target_ids(lease_id)
-    if not bound:
-        return True
-    deadline = time.time() + max(0.0, timeout_sec)
+    deadline = time.monotonic() + max(0.0, timeout_sec)
     last: bool | None = None
-    while time.time() <= deadline:
+    while time.monotonic() <= deadline:
         last = physical_targets_absent(lease_id=lease_id)
         if last is True:
             return True

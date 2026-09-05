@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, Trash2, FolderOpen, RefreshCw, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, FolderOpen, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -11,6 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/primitives/alert';
 import { useSkillStore } from '@/store/skill';
 import { toast } from '@/hooks/shared/useToast';
+import { previewLocalSkillPath } from '@/services/skill';
+import type { LocalSkillPathPreviewResponse } from '@/store/skill/types';
+import { LocalSkillPathScanPreviewBeforeAdoptDialog } from './LocalSkillPathScanPreviewBeforeAdoptDialog';
 
 interface LocalPathsConfigProps {
   className?: string;
@@ -34,6 +37,11 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
 
+  // 探测预览与两段式采纳状态
+  const [previewData, setPreviewData] = useState<LocalSkillPathPreviewResponse | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isAdopting, setIsAdopting] = useState(false);
+
   // 使用 isMounted 状态来避免 hydration 不匹配
   const [isMounted, setIsMounted] = useState(false);
 
@@ -46,14 +54,15 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
     fetchLocalSkillPaths();
   }, [fetchLocalSkillPaths]);
 
-  // 添加路径
+  // 探查路径并唤起预览弹窗
   const handleAddPath = useCallback(async () => {
-    if (!newPath.trim()) {
+    const trimmed = newPath.trim();
+    if (!trimmed) {
       return;
     }
 
     // 验证路径格式
-    if (!newPath.startsWith('/') && !newPath.startsWith('~')) {
+    if (!trimmed.startsWith('/') && !trimmed.startsWith('~')) {
       toast({
         title: t('error.invalidPath'),
         description: t('error.pathFormat'),
@@ -62,13 +71,56 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
       return;
     }
 
+    if (localSkillPaths.includes(trimmed)) {
+      toast({
+        title: t('error.addFailed'),
+        description: t('customPaths'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsAdding(true);
     try {
-      await addLocalSkillPath(newPath.trim());
+      const preview = await previewLocalSkillPath(trimmed);
+      if (!preview.exists || !preview.is_directory) {
+        toast({
+          title: t('error.previewFailed'),
+          description: preview.warning_message || t('error.invalidPath'),
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setPreviewData(preview);
+      setIsPreviewOpen(true);
+    } catch (error) {
+      toast({
+        title: t('error.previewFailed'),
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAdding(false);
+    }
+  }, [newPath, localSkillPaths, t]);
+
+  // 确认采纳路径并持久化
+  const handleConfirmAdopt = useCallback(async () => {
+    if (!previewData) {
+      return;
+    }
+
+    setIsAdopting(true);
+    try {
+      const targetPath = newPath.trim();
+      await addLocalSkillPath(targetPath);
       setNewPath('');
+      setIsPreviewOpen(false);
+      setPreviewData(null);
       toast({
         title: t('success.pathAdded'),
-        description: newPath.trim(),
+        description: t('success.foundSkills', { count: previewData.total_discovered }),
       });
     } catch (error) {
       toast({
@@ -77,9 +129,9 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
         variant: 'destructive',
       });
     } finally {
-      setIsAdding(false);
+      setIsAdopting(false);
     }
-  }, [newPath, addLocalSkillPath, t]);
+  }, [previewData, newPath, addLocalSkillPath, t]);
 
   // 移除路径
   const handleRemovePath = useCallback(
@@ -197,7 +249,11 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
               className="flex-1"
             />
             <Button onClick={handleAddPath} disabled={!newPath.trim() || isAdding}>
-              <Plus className="h-4 w-4 mr-2" />
+              {isAdding ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
               {t('add')}
             </Button>
           </div>
@@ -212,6 +268,15 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
             </div>
           </div>
         )}
+
+        {/* 预检与采纳确认弹窗 */}
+        <LocalSkillPathScanPreviewBeforeAdoptDialog
+          open={isPreviewOpen}
+          onOpenChange={setIsPreviewOpen}
+          previewData={previewData}
+          onConfirmAdopt={handleConfirmAdopt}
+          isAdopting={isAdopting}
+        />
       </CardContent>
     </Card>
   );
