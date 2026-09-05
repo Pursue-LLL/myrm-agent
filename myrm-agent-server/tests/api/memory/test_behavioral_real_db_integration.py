@@ -227,9 +227,6 @@ async def test_timezone_explicit_offset_resolution(real_db_env) -> None:
         await db.commit()
 
     async with session_maker() as db:
-        from zoneinfo import ZoneInfo
-
-        from myrm_agent_harness.api import BehavioralStatsOptions
         service = BehavioralMeasurementService(db, manager)
         msgs = await service.collect_behavioral_messages(lookback_days=7)
         assert len(msgs) == 1, f"Expected 1 msg, got {len(msgs)}"
