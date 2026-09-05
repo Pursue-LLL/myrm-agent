@@ -1,7 +1,8 @@
 """Unit and integration tests for MCP HTTP Origin & DNS-rebinding guard.
 
 Validates pure predicates (is_loopback_hostname, resolve_origin_guard, check_request_origin)
-and ASGI middleware behavior under various attack models and legitimate client scenarios.
+and ASGI middleware behavior under various attack models, legitimate client scenarios,
+and Tauri/Webview desktop environments.
 """
 
 from unittest.mock import AsyncMock
@@ -42,6 +43,7 @@ class TestLoopbackHostnamePredicate:
             "::1",
             "[::1]",
             "0:0:0:0:0:0:0:1",
+            "0000:0000:0000:0000:0000:0000:0000:0001",
             "::ffff:127.0.0.1",
             "::ffff:127.100.200.1",
         ],
@@ -53,12 +55,14 @@ class TestLoopbackHostnamePredicate:
         "hostname",
         [
             "0.0.0.0",  # Deliberately untrusted (Chromium loopback route hazard)
+            "::",
             "192.168.1.1",
             "10.0.0.1",
             "172.16.0.1",
             "attacker.com",
             "evil-localhost.com",
             "localhost.attacker.com",
+            "attacker.localhost.evil.com",
             "::ffff:192.168.1.1",
             "",
             "   ",
@@ -79,6 +83,13 @@ class TestOriginAndHostParsers:
         assert normalize_origin("file:///etc/passwd") is None
         assert normalize_origin("javascript:void(0)") is None
         assert normalize_origin("") is None
+
+    def test_tauri_and_webview_schemes(self):
+        # Crucial for myrm-agent-desktop Tauri and editor webview support
+        assert normalize_origin("tauri://localhost") == "tauri://localhost"
+        assert origin_hostname("tauri://localhost") == "localhost"
+        assert normalize_origin("vscode-webview://webview-panel") == "vscode-webview://webview-panel"
+        assert origin_hostname("vscode-webview://webview-panel") == "webview-panel"
 
     def test_origin_hostname(self):
         assert origin_hostname("http://localhost:3000") == "localhost"
@@ -119,8 +130,8 @@ class TestResolveOriginGuard:
         assert guard.disabled is True
         assert guard.enforce_host is False
 
-    def test_env_resolution(self, monkeypatch: pytest.MonkeyPatch):
-        monkeypatch.setenv("MYRM_MCP_ALLOWED_ORIGINS", "https://app.myrm.ai, http://test.local:3000")
+    def test_explicit_env_configuration(self, monkeypatch):
+        monkeypatch.setenv("MYRM_MCP_ALLOWED_ORIGINS", "https://app.myrm.ai,http://test.local:3000")
         monkeypatch.setenv("MYRM_MCP_ALLOWED_HOSTS", "internal-mcp.company.org")
         guard = resolve_origin_guard(host="127.0.0.1")
         assert "https://app.myrm.ai" in guard.allowed_origins
@@ -144,6 +155,7 @@ class TestCheckRequestOrigin:
             "http://127.0.0.1:3000",
             "http://[::1]:3000",
             "http://dev.localhost:3000",
+            "tauri://localhost",
         ]:
             verdict = check_request_origin(
                 {"origin": origin, "host": "127.0.0.1:8080"},
@@ -214,6 +226,15 @@ class TestMCPOriginGuardMiddleware:
             headers={"origin": "http://localhost:3000", "host": "127.0.0.1:8080"},
         )
         assert resp.status_code == 200
+
+    def test_request_with_tauri_desktop_origin_passes(self):
+        tc = self._create_app()
+        resp = tc.get(
+            "/mcp",
+            headers={"origin": "tauri://localhost", "host": "127.0.0.1:8080"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ok"
 
     def test_request_with_malicious_origin_rejected_403(self):
         tc = self._create_app()
