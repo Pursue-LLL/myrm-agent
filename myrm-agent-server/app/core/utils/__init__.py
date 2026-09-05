@@ -83,7 +83,9 @@ __all__ = [
     "service_unavailable_error",
     "timeout_error",
     "external_service_error",
+    "fold_user_home_paths",
     "format_error_message",
     "log_and_format_error",
     "handle_llm_exception",
+    "redact_error_payload",
 ]
