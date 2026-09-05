@@ -7,10 +7,20 @@ from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
-from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
-from myrm_agent_harness.toolkits.llms.routing.complexity_router import ComplexityRouter, RoutingTier
 
-from app.services.agent.moa_preset_resolver import MOA_PRESET_DEFAULT_ID, MOA_PRESET_REVIEW_ID, resolve_moa_preset_overrides
+from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
+from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
+    RoutingTier,
+    _rule_based_classify,
+    DEFAULT_STANDARD_KEYWORDS,
+    DEFAULT_REASONING_KEYWORDS,
+    DEFAULT_SIMPLE_INDICATORS,
+)
+from app.services.agent.moa_preset_resolver import (
+    resolve_moa_preset_overrides,
+    MOA_PRESET_DEFAULT_ID,
+    MOA_PRESET_REVIEW_ID,
+)
 
 # Load test secrets from .env.test
 test_env_path = Path(__file__).resolve().parents[2] / ".env.test"
@@ -21,18 +31,34 @@ if test_env_path.exists():
 @pytest.mark.integration
 def test_complexity_router_tier_classification() -> None:
     """Verify 3-Tier Dynamic Routing classification across Simple, Standard, and Reasoning tiers."""
-    router = ComplexityRouter()
-
     # Simple tier: greeting / lookup
-    tier_simple = router.route("你好，请问今天天气怎么样？")
+    tier_simple = _rule_based_classify(
+        "你好，请问今天天气怎么样？",
+        has_image=False,
+        standard_keywords=DEFAULT_STANDARD_KEYWORDS,
+        reasoning_keywords=DEFAULT_REASONING_KEYWORDS,
+        simple_indicators=DEFAULT_SIMPLE_INDICATORS,
+    )
     assert tier_simple == RoutingTier.SIMPLE
 
     # Standard tier: multi-step coding / refactoring
-    tier_std = router.route("请帮我重构这个 Python 函数并为它编写单元测试，需要包含边界条件。")
+    tier_std = _rule_based_classify(
+        "请帮我重构这个 Python 函数并为它编写单元测试，需要包含边界条件。",
+        has_image=False,
+        standard_keywords=DEFAULT_STANDARD_KEYWORDS,
+        reasoning_keywords=DEFAULT_REASONING_KEYWORDS,
+        simple_indicators=DEFAULT_SIMPLE_INDICATORS,
+    )
     assert tier_std == RoutingTier.STANDARD
 
     # Reasoning tier: formal math proof / complex architectural system design
-    tier_reasoning = router.route("请证明对于任意素数 p > 3，p^2 - 1 必然能被 24 整除，并给出严谨的形式化推导步骤。")
+    tier_reasoning = _rule_based_classify(
+        "请证明对于任意素数 p > 3，p^2 - 1 必然能被 24 整除，并给出严谨的形式化推导步骤。",
+        has_image=False,
+        standard_keywords=DEFAULT_STANDARD_KEYWORDS,
+        reasoning_keywords=DEFAULT_REASONING_KEYWORDS,
+        simple_indicators=DEFAULT_SIMPLE_INDICATORS,
+    )
     assert tier_reasoning == RoutingTier.REASONING
 
 

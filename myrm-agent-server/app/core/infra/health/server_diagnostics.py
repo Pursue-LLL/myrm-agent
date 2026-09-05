@@ -41,6 +41,7 @@ from app.core.infra.health.anthropic_policy_diagnostic import AnthropicSubscript
 from app.core.infra.health.skill_diagnostics import (
     SkillHoardingHealthDiagnostic,
 )
+from app.core.infra.health.trace_security_diagnostic import TraceExportSecurityDiagnostic
 
 __all__ = [
     "AgentColdStartDiagnostic",
@@ -52,6 +53,7 @@ __all__ = [
     "OllamaModelContextDiagnostic",
     "ServerDiagnosticsManager",
     "SkillHoardingHealthDiagnostic",
+    "TraceExportSecurityDiagnostic",
     "run_server_diagnostics",
 ]
 
@@ -219,6 +221,7 @@ class ServerDiagnosticsManager:
             AgentPromptCacheAlignmentDiagnostic(),
             SkillHoardingHealthDiagnostic(),
             AnthropicSubscriptionPolicyDiagnostic(),
+            TraceExportSecurityDiagnostic(),
         ]
 
     async def run_all(self) -> Sequence[HealthReport]:

@@ -262,7 +262,7 @@ async def get_session_execution_trace(
         memory_events = await _build_session_memory_events(db, session_id)
 
         if not event_log_file.exists():
-            return success_response(data=_empty_trace_payload(session_id, memory_events))
+            return success_response(data=sanitize_trace_payload(_empty_trace_payload(session_id, memory_events)))
 
         backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id=session_id)
         trace = await build_trace(backend, session_id)
