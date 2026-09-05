@@ -464,6 +464,10 @@ export interface ExecutionTrace {
   performance_summary?: TracePerformanceSummary;
   total_events: number;
   total_tokens: number;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  cache_read_tokens?: number;
+  cache_hit_ratio?: number;
   /** Index into `errors` of the earliest unrecovered failure (first-irrecoverable). */
   first_irrecoverable_index?: number | null;
   /** Wall-clock timestamp (seconds) of the first irrecoverable error. */
@@ -474,8 +478,25 @@ export interface TraceSearchResult {
   session_id: string;
   title: string;
   task_input: string;
+  total_tokens?: number;
+  cache_hit_ratio?: number;
   created_at: string | null;
   updated_at: string | null;
+}
+
+export interface PromptCacheRadarData {
+  days: number;
+  sessions_tracked: number;
+  total_prompt_tokens: number;
+  fresh_input_tokens: number;
+  total_cache_read_tokens: number;
+  total_completion_tokens: number;
+  prompt_cache_hit_ratio: number;
+  estimated_savings_usd: number;
+}
+
+export async function getPromptCacheRadar(days = 7): Promise<PromptCacheRadarData> {
+  return apiRequest<PromptCacheRadarData>(`/statistics/traces/prompt-cache-radar?days=${days}`);
 }
 
 export async function searchSessionTraces(query = '', limit = 20): Promise<TraceSearchResult[]> {

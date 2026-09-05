@@ -18112,7 +18112,15 @@
         "securityLabels": "安全标签",
         "securityFlag": "安全",
         "memoryEvents": "上下文注入与记忆",
-        "influenceCount": "影响轮次: {count}"
+        "influenceCount": "影响轮次: {count}",
+        "ganttWaterfall": "耗时甘特瀑布流",
+        "llmTime": "模型思考与生成",
+        "toolTime": "工具执行与网络",
+        "cacheHitRate": "前缀缓存命中率",
+        "cacheTokens": "命中缓存: {tokens} Tokens",
+        "privacyMode": "隐私保护",
+        "privacyHint": "已隐藏长文本 Prompt 与入参",
+        "searchPlaceholder": "按任务内容或标题搜索 Trace..."
       },
       "replay": {
         "title": "录像回放",

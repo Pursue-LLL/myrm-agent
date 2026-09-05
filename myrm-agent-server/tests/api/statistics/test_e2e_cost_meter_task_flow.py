@@ -29,9 +29,13 @@ from myrm_agent_harness.toolkits.web_search.providers.chain import (
     ProviderQuotaTracker,
 )
 
+from fastapi import FastAPI
+from app.api.statistics.quota_runtime_router import router as quota_router
 from app.database.connection import get_db, get_session
-from app.main import app
 from app.services.observability.runtime_meter_service import runtime_meter_service
+
+test_app = FastAPI()
+test_app.include_router(quota_router, prefix="/api/statistics")
 
 
 @pytest.mark.asyncio
@@ -77,13 +81,13 @@ async def test_e2e_search_quota_and_browser_compute_task_flow() -> None:
 
         # Step 4: 模拟前端一键校准重置
         async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
+            transport=ASGITransport(app=test_app), base_url="http://test"
         ) as ac:
             # 依赖覆盖当前同一个 session
             async def _override_get_db():
                 yield session
 
-            app.dependency_overrides[get_db] = _override_get_db
+            test_app.dependency_overrides[get_db] = _override_get_db
 
             reset_resp = await ac.post(
                 "/api/statistics/search-quotas/reset", json={"provider": "tavily"}

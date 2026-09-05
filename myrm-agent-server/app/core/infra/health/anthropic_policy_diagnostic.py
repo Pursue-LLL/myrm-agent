@@ -8,7 +8,11 @@ Server infrastructure health diagnostics component.
 from __future__ import annotations
 
 import logging
-from app.core.infra.health.contracts import DiagnosticProtocol, HealthReport
+
+from myrm_agent_harness.observability.diagnostics.protocols import (
+    DiagnosticProtocol,
+    HealthReport,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -18,6 +18,7 @@ Diagnostic aggregation for `/health/doctor` lives here:
 | health_alert_policy.py | Core | `publish_health_alerts()` with 300s dedup; fail-only critical components. | ✅ |
 | health_presenter.py | Core | Sandbox-aware `present_health_report()` for WebUI payloads. | ✅ |
 | agent_diagnostics.py | Core | Agent ecosystem diagnostic probes (AgentColdStart Warm-Path, OllamaModelContextDiagnostic 64K context audit, AgentStepBudgetDiagnostic step budget audit, AgentPromptCacheAlignmentDiagnostic prefix cache jitter audit). | ✅ |
+- `anthropic_policy_diagnostic.py`: Anthropic 第三方订阅政策合规与避坑预警探针。
 | skill_diagnostics.py | Core | Skill ecosystem diagnostic probe (SkillHoardingHealthDiagnostic skill hoarding & wrong-but-frequent low-quality audit). | ✅ |
 | server_diagnostics.py | Core | Server business diagnostic probes (DLQ & Durable Outbound Redelivery, ExecutionCache & Process RSS) and probe runner manager. Tests: `tests/core/infra/health/test_server_diagnostics_execution_cache.py`. | ✅ |
 | qdrant.py | Core | Qdrant path verifier (Lock management is natively handled by Qdrant Rust engine with Server entrypoint Phantom-Kill). | ✅ |

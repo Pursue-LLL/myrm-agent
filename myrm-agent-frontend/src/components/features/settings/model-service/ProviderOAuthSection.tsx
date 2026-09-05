@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { useLocale } from 'next-intl';
-import { Loader2, LogIn, LogOut, ExternalLink, Copy, Check, AlertTriangle } from 'lucide-react';
+import { Loader2, LogIn, LogOut, ExternalLink, Copy, Check, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   type ProviderOAuthProvider,
@@ -210,6 +210,33 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(({ providerId, hasA
           </span>
         )}
       </div>
+
+      {providerId === 'anthropic' && (
+        <div className="flex items-start gap-3 p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/15 text-amber-900 dark:text-amber-200">
+          <ShieldAlert className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-1 text-xs leading-relaxed">
+            <p className="font-semibold text-amber-950 dark:text-amber-100">
+              {locale === 'zh'
+                ? 'Anthropic 订阅策略说明（避坑指引）：'
+                : 'Anthropic Subscription Policy Notice:'}
+            </p>
+            <p className="text-amber-900/90 dark:text-amber-200/90">
+              {locale === 'zh'
+                ? 'Anthropic 官方条款限制 Claude Pro/Max 网页订阅在第三方 Agent 框架中的无 Key 调用。在长上下文或并发场景下，可能遭遇 403 政策拦截或 429 Extra Usage Credits 额度限制。'
+                : 'Anthropic policy restricts Claude Pro/Max web subscriptions in third-party agent harnesses. Long-context queries or heavy burst sessions may encounter 403 policy blocks or 429 Extra Usage Credit gates.'}
+            </p>
+            <p className="font-medium text-amber-950/90 dark:text-amber-100/90">
+              {hasApiKey
+                ? locale === 'zh'
+                  ? '已检测到官方 API Key，系统将优先走高稳定 API 直连；订阅仅作备用。'
+                  : 'Dedicated API Key detected: Myrm prioritizes direct API routing; subscription is kept as fallback.'
+                : locale === 'zh'
+                  ? '建议：在下方填入 Anthropic 官方 API Key，或在 Agent Profile 中配置 OpenAI / DeepSeek 作为备用容灾模型（Failover Model）。'
+                  : 'Recommendation: Configure an Anthropic API Key below, or set an OpenAI / DeepSeek fallback model in your Agent Profile.'}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="p-4 bg-background/50 rounded-xl border border-border/50">
         {isPkceWaiting ? (

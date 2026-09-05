@@ -35,9 +35,9 @@ from app.core.infra.health.agent_diagnostics import (
     AgentColdStartDiagnostic,
     AgentPromptCacheAlignmentDiagnostic,
     AgentStepBudgetDiagnostic,
-    AnthropicSubscriptionPolicyDiagnostic,
     OllamaModelContextDiagnostic,
 )
+from app.core.infra.health.anthropic_policy_diagnostic import AnthropicSubscriptionPolicyDiagnostic
 from app.core.infra.health.skill_diagnostics import (
     SkillHoardingHealthDiagnostic,
 )
