@@ -4629,6 +4629,7 @@
         "weekend": "주말",
         "allDays": "전체",
         "frequentCollaborators": "빈번한 협업자 (Top-5)",
+        "localeAnchor": "로캘 앵커: {locale}",
         "loadError": "행동 통찰을 불러오지 못했습니다",
         "syncSuccess": "{count}개의 객관적 특성을 사용자 프로필에 성공적으로 반영했습니다",
         "syncNoEligible": "신뢰도 표본 기준을 충족하는 특성이 아직 없습니다",

@@ -4410,6 +4410,7 @@
         "weekend": "週末",
         "allDays": "全期間",
         "frequentCollaborators": "頻出コラボレーター (Top-5)",
+        "localeAnchor": "ロケールアンカー: {locale}",
         "loadError": "行動特性の取得に失敗しました",
         "syncSuccess": "{count} 件の客観的特徴をユーザープロファイルに保存しました",
         "syncNoEligible": "サンプルのしきい値を満たす特徴はありません",

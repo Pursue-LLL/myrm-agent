@@ -4454,6 +4454,7 @@
         "weekend": "週末",
         "allDays": "全週期",
         "frequentCollaborators": "高頻協作夥伴 (Top-5)",
+        "localeAnchor": "語言錨點：{locale}",
         "loadError": "獲取行為特徵失敗",
         "syncSuccess": "已成功將 {count} 項客觀特徵沉澱至使用者畫像",
         "syncNoEligible": "暫無滿足置信度樣本門檻的特徵",
