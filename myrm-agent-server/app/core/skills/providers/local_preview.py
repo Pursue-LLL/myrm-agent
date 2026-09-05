@@ -49,13 +49,14 @@ def _extract_skill_preview(
 
     tags: list[str] = []
     if hasattr(frontmatter, "tags") and isinstance(frontmatter.tags, list):
-        tags = [str(t) for t in frontmatter.tags]
+        tags = [str(t).strip().strip("'\"") for t in frontmatter.tags if str(t).strip()]
     elif isinstance(frontmatter.metadata, dict) and "tags" in frontmatter.metadata:
         raw_tags = frontmatter.metadata["tags"]
         if isinstance(raw_tags, list):
-            tags = [str(t) for t in raw_tags]
+            tags = [str(t).strip().strip("'\"") for t in raw_tags if str(t).strip()]
         elif isinstance(raw_tags, str):
-            tags = [t.strip() for t in raw_tags.split(",") if t.strip()]
+            cleaned = raw_tags.strip().lstrip("[").rstrip("]")
+            tags = [t.strip().strip("'\"") for t in cleaned.split(",") if t.strip().strip("'\"")]
 
     author: str | None = None
     if isinstance(frontmatter.metadata, dict) and "author" in frontmatter.metadata:
