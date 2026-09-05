@@ -31,6 +31,11 @@ import {
   LOCAL_NO_AUTH_API_KEY_MARKER,
 } from '@/store/config/providerTypes';
 import { checkModelReachability, discoverModelsFromEndpoint } from '@/services/llm-config';
+import {
+  ToolCallingModelChecklist,
+  UnverifiedModelCallout,
+  type VerifiedToolModel,
+} from './tool-calling';
 
 interface LocalCapabilitiesSetupProps {
   probeResult: ProbeLocalResponse | null;
@@ -387,6 +392,32 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
                 </Button>
               </>
             )}
+          </div>
+
+          {customSelectedModel && (
+            <UnverifiedModelCallout modelName={customSelectedModel} className="mt-2" />
+          )}
+
+          <div className="pt-2 border-t border-border/40">
+            <ToolCallingModelChecklist
+              selectedModel={customSelectedModel}
+              onSelectModel={(model: VerifiedToolModel) => {
+                if (customDetectedModels.length > 0) {
+                  const match = customDetectedModels.find((m) =>
+                    m.toLowerCase().includes(model.id.toLowerCase())
+                  );
+                  if (match) {
+                    setCustomSelectedModel(match);
+                  } else {
+                    setCustomDetectedModels((prev) => Array.from(new Set([model.id, ...prev])));
+                    setCustomSelectedModel(model.id);
+                  }
+                } else {
+                  setCustomDetectedModels([model.id]);
+                  setCustomSelectedModel(model.id);
+                }
+              }}
+            />
           </div>
         </div>
       )}
