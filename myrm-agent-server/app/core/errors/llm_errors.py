@@ -24,6 +24,7 @@ _ACTION_MAPPINGS: dict[FailoverReason, list[str]] = {
     FailoverReason.MODEL_NOT_FOUND: ["verify_model_name"],
     FailoverReason.FORMAT_ERROR: ["contact_support"],
     FailoverReason.RESPONSE_FORMAT_ERROR: ["switch_model", "contact_support"],
+    FailoverReason.PROVIDER_POLICY_BLOCKED: ["switch_model", "switch_api_key"],
     FailoverReason.CONTEXT_OVERFLOW: ["start_new_chat", "clear_history"],
     FailoverReason.UNKNOWN: ["retry", "contact_support"],
 }

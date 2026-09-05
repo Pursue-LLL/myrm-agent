@@ -60,3 +60,18 @@ def test_billing_recovery_top_up_points_to_pricing_in_local() -> None:
 
     top_up = next(action for action in actions if action["id"] == "top_up")
     assert top_up["url"] == "/pricing"
+
+
+def test_provider_policy_blocked_recovery_actions_en_and_zh() -> None:
+    actions_en = generate_recovery_actions(FailoverReason.PROVIDER_POLICY_BLOCKED, "en")
+    action_ids_en = [a["id"] for a in actions_en]
+    assert action_ids_en == ["switch_model", "switch_api_key"]
+    assert actions_en[0]["label"] == "Switch Model"
+    assert actions_en[0]["url"] == "/settings/models"
+    assert actions_en[1]["label"] == "Check API Key"
+    assert actions_en[1]["url"] == "/settings/credentials"
+
+    actions_zh = generate_recovery_actions(FailoverReason.PROVIDER_POLICY_BLOCKED, "zh")
+    assert actions_zh[0]["label"] == "切换模型"
+    assert actions_zh[1]["label"] == "检查 API Key"
+
