@@ -70,12 +70,18 @@ class HostAllowlistMiddleware(BaseHTTPMiddleware):
         if request.method == "OPTIONS" or is_public_path(request.url.path):
             return await call_next(request)
 
+        host_header = request.headers.get("host", "")
+        if not host_header:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"detail": "Missing Host header"},
+            )
+
         trust_zone = getattr(request.state, "trust_zone", None)
         if trust_zone != TrustZone.REMOTE_EXPOSED.value and not is_webui_remote_mode():
             local_allowed = frozenset({"localhost", "127.0.0.1", "::1"})
-            host_header = request.headers.get("host", "")
             # 1. Enforce Host header: reject foreign domain names pointing to local loopback (DNS rebinding)
-            if host_header and not is_allowed_host(host_header, local_allowed):
+            if not is_allowed_host(host_header, local_allowed):
                 return JSONResponse(
                     status_code=status.HTTP_403_FORBIDDEN,
                     content={"detail": "Host not allowed (DNS rebinding defense)"},

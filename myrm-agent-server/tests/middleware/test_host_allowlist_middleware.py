@@ -78,13 +78,13 @@ def test_host_allowlist_skips_options_preflight() -> None:
 def test_host_allowlist_skips_public_path() -> None:
     app = Starlette(
         routes=[
-            Route("/health", _dummy_endpoint, methods=["GET"]),
+            Route("/api/v1/health", _dummy_endpoint, methods=["GET"]),
         ]
     )
     app.add_middleware(HostAllowlistMiddleware)
     client = TestClient(app)
-    # Public path /health must bypass Host checking for monitoring probes
-    resp = client.get("/health", headers={"Host": "healthcheck.monitoring.internal"})
+    # Public path /api/v1/health must bypass Host checking for monitoring probes
+    resp = client.get("/api/v1/health", headers={"Host": "healthcheck.monitoring.internal"})
     assert resp.status_code == 200
 
 

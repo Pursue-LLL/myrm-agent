@@ -147,3 +147,21 @@ class TestDBAllowlistStore:
         assert len(entries) == 1
         assert entries[0].expires_at is not None
         assert abs(entries[0].expires_at - t2) < 2.0
+
+    @pytest.mark.asyncio
+    async def test_session_scoped_entry_skipped_from_db_persistence(self):
+        """Ensure that entries with session_id set are never written to database."""
+        factory = get_session_factory()
+        store = DBAllowlistStore(factory)
+        user_id = "sandbox"
+
+        session_entry = AllowlistEntry(
+            permission="shell_exec",
+            tool_name="bash",
+            session_id="session_do_not_persist_123",
+        )
+        await store.save(user_id, session_entry)
+
+        entries = await store.load(user_id)
+        assert len(entries) == 0
+
