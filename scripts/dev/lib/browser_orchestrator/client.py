@@ -21,6 +21,7 @@ import os
 import select
 import socket
 import subprocess
+import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -320,6 +321,7 @@ class BrowserOrchestratorClient:
         self._socket_path = socket_path or _SOCKET_PATH
         self._timeout_sec = timeout_sec
         self._next_id = 1
+        self._id_lock = threading.Lock()
 
     @contextmanager
     def bounded_request_timeout(self, timeout_sec: float) -> Iterator[None]:
@@ -597,8 +599,9 @@ class BrowserOrchestratorClient:
         *,
         allow_daemon_recovery: bool = True,
     ) -> dict[str, object]:
-        req_id = self._next_id
-        self._next_id += 1
+        with self._id_lock:
+            req_id = self._next_id
+            self._next_id += 1
         payload = json.dumps(
             {"jsonrpc": "2.0", "id": req_id, "method": method, "params": params}
         )

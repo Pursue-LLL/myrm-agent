@@ -625,8 +625,7 @@ def _open_page_result_unknown(message: str) -> bool:
             "connection closed before response",
             "operation timeout: new_page",
             "operation timeout: navigate",
-            "operation queue timeout: new_page",
-            "operation queue timeout: navigate",
+            "operation timeout: open_app_route",
         )
     )
 
