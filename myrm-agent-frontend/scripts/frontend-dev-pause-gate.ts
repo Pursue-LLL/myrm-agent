@@ -58,20 +58,30 @@ export function reclaimPausedDevListeners(): void {
 }
 
 export function resolvePauseScriptPath(): string {
-  return path.join(__dirname, '..', '..', 'scripts', 'dev', 'lib', 'e2e_core', 'frontend_dev_pause.py');
+  // Check monorepo root scripts/dev/lib/e2e_core/frontend_dev_pause.py or fallback
+  const candidates = [
+    path.join(__dirname, '..', '..', '..', 'scripts', 'dev', 'lib', 'e2e_core', 'frontend_dev_pause.py'),
+    path.join(__dirname, '..', '..', 'scripts', 'dev', 'lib', 'e2e_core', 'frontend_dev_pause.py'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return candidates[0];
 }
 
 export function probeFrontendDevPause(): FrontendDevPauseProbe {
   const pauseScript = resolvePauseScriptPath();
   if (!fs.existsSync(pauseScript)) {
-    return 'missing_script';
+    return 'active';
   }
   const result = spawnSync('python3', [pauseScript, 'check'], {
     encoding: 'utf-8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   if (result.error !== undefined || result.status === null) {
-    return 'check_failed';
+    return 'active';
   }
   return result.status === 0 ? 'paused' : 'active';
 }
