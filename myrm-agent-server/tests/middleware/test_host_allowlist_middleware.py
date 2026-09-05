@@ -47,6 +47,7 @@ def test_host_allowlist_permits_safe_local_origins() -> None:
     safe_origins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://[::1]:3000",
         "tauri://localhost",
         "vscode-webview://desktop",
     ]

@@ -13,7 +13,7 @@ from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 
-from app.config.deploy_mode import is_webui_remote_mode
+from app.config.deploy_mode import is_sandbox, is_webui_remote_mode
 from app.core.infra.ingress import get_public_ingress_base_url
 from app.core.security.auth.public_paths import is_public_path
 from app.middleware.ingress import should_skip_ingress_rewrite
@@ -78,7 +78,7 @@ class HostAllowlistMiddleware(BaseHTTPMiddleware):
             )
 
         trust_zone = getattr(request.state, "trust_zone", None)
-        if trust_zone != TrustZone.REMOTE_EXPOSED.value and not is_webui_remote_mode():
+        if trust_zone != TrustZone.REMOTE_EXPOSED.value and not is_webui_remote_mode() and not is_sandbox():
             local_allowed = frozenset({"localhost", "127.0.0.1", "::1"})
             # 1. Enforce Host header: reject foreign domain names pointing to local loopback (DNS rebinding)
             if not is_allowed_host(host_header, local_allowed):
@@ -103,7 +103,6 @@ class HostAllowlistMiddleware(BaseHTTPMiddleware):
                     )
             return await call_next(request)
 
-        host_header = request.headers.get("host", "")
         if should_skip_ingress_rewrite(host_header):
             return await call_next(request)
 
