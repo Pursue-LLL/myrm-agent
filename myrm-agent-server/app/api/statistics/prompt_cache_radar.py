@@ -14,14 +14,13 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
-from myrm_agent_harness.agent.event_log.types import EventFilter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,28 +65,37 @@ async def get_prompt_cache_radar(
                 continue
 
             try:
-                backend = FileEventLogBackend(log_dir=log_dir, session_id=chat_id)
-                events = await backend.get_events(
-                    chat_id, EventFilter(event_types=frozenset({"token_usage", "llm_end"}))
-                )
-                if events:
+                has_session_tokens = False
+                with open(log_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            ev = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        ev_type = ev.get("type") or ev.get("event_type")
+                        if ev_type in ("token_usage", "llm_end"):
+                            data = ev.get("data") or {}
+                            usage = data.get("usage") or data
+                            if isinstance(usage, dict):
+                                p = int(usage.get("prompt_tokens") or 0)
+                                c = int(usage.get("completion_tokens") or 0)
+
+                                cd = 0
+                                if details := usage.get("prompt_tokens_details"):
+                                    if isinstance(details, dict):
+                                        cd = int(details.get("cached_tokens") or 0)
+                                elif "cache_read_input_tokens" in usage:
+                                    cd = int(usage.get("cache_read_input_tokens") or 0)
+
+                                total_prompt_tokens += p
+                                total_completion_tokens += c
+                                total_cache_read_tokens += cd
+                                has_session_tokens = True
+                if has_session_tokens:
                     sessions_tracked += 1
-                for ev in events:
-                    usage = ev.data.get("usage") or ev.data
-                    if isinstance(usage, dict):
-                        p = int(usage.get("prompt_tokens") or 0)
-                        c = int(usage.get("completion_tokens") or 0)
-
-                        cd = 0
-                        if details := usage.get("prompt_tokens_details"):
-                            if isinstance(details, dict):
-                                cd = int(details.get("cached_tokens") or 0)
-                        elif "cache_read_input_tokens" in usage:
-                            cd = int(usage.get("cache_read_input_tokens") or 0)
-
-                        total_prompt_tokens += p
-                        total_completion_tokens += c
-                        total_cache_read_tokens += cd
             except Exception:
                 pass
 

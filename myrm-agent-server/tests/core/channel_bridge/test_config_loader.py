@@ -244,3 +244,59 @@ class TestExtractWebTtsConfig:
 
     def test_none_for_empty_dict(self) -> None:
         assert extract_web_tts_config(None) is None
+
+
+class TestInjectProviderOAuthTokens:
+    """测试 _inject_provider_oauth_tokens 对各大厂商（含 xAI / Copilot / OpenAI / Anthropic）的注入闭环"""
+
+    def test_inject_xai_oauth_token_and_base_url(self) -> None:
+        from app.core.channel_bridge.config_loader import _inject_provider_oauth_tokens
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {"id": "xai", "name": "xAI", "isEnabled": True, "apiKeys": []},
+                {"id": "openai", "name": "OpenAI", "isEnabled": True, "apiKeys": []},
+            ]
+        }
+        oauth_creds: dict[str, object] = {
+            "xai": {
+                "token": "xai-oauth-test-token-12345",
+                "base_url": "https://api.x.ai/v1",
+            },
+            "provider_openai": {
+                "token": "openai-oauth-test-token-67890",
+            },
+        }
+
+        _inject_provider_oauth_tokens(providers_dict, oauth_creds)
+
+        providers = providers_dict["providers"]
+        assert isinstance(providers, list)
+        xai_p = next(p for p in providers if p["id"] == "xai")
+        assert xai_p["_oauthToken"] == "xai-oauth-test-token-12345"
+        assert xai_p["_oauthBaseUrl"] == "https://api.x.ai/v1"
+
+        openai_p = next(p for p in providers if p["id"] == "openai")
+        assert openai_p["_oauthToken"] == "openai-oauth-test-token-67890"
+
+    def test_inject_provider_xai_alias(self) -> None:
+        from app.core.channel_bridge.config_loader import _inject_provider_oauth_tokens
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {"id": "xai", "name": "xAI", "isEnabled": True, "apiKeys": []},
+            ]
+        }
+        oauth_creds: dict[str, object] = {
+            "provider_xai": {
+                "token": "xai-oauth-alias-token-99999",
+            },
+        }
+
+        _inject_provider_oauth_tokens(providers_dict, oauth_creds)
+
+        providers = providers_dict["providers"]
+        assert isinstance(providers, list)
+        xai_p = next(p for p in providers if p["id"] == "xai")
+        assert xai_p["_oauthToken"] == "xai-oauth-alias-token-99999"
+

@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
@@ -303,25 +304,33 @@ async def search_session_traces(
             cache_read_tokens = 0
             prompt_tokens = 0
             try:
-                backend = FileEventLogBackend(log_dir=log_dir, session_id=chat_id)
-                events = await backend.get_events(chat_id, EventFilter(limit=20))
-                for ev in events:
-                    if ev.event_type == "task_start" and not task_input:
-                        task_input = str(ev.data.get("input") or "")
-                    elif ev.event_type in ("token_usage", "llm_end"):
-                        u = ev.data.get("usage") or ev.data
-                        if isinstance(u, dict):
-                            p = int(u.get("prompt_tokens") or 0)
-                            c = int(u.get("completion_tokens") or 0)
-                            total_tokens += p + c
-                            prompt_tokens += p
-                            cd = 0
-                            if det := u.get("prompt_tokens_details"):
-                                if isinstance(det, dict):
-                                    cd = int(det.get("cached_tokens") or 0)
-                            elif "cache_read_input_tokens" in u:
-                                cd = int(u.get("cache_read_input_tokens") or 0)
-                            cache_read_tokens += cd
+                with open(log_file, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            ev = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        ev_type = ev.get("type") or ev.get("event_type")
+                        data = ev.get("data") or {}
+                        if not task_input and ev_type == "task_start":
+                            task_input = str(data.get("input") or "")
+                        elif ev_type in ("token_usage", "llm_end"):
+                            u = data.get("usage") or data
+                            if isinstance(u, dict):
+                                p = int(u.get("prompt_tokens") or 0)
+                                c = int(u.get("completion_tokens") or 0)
+                                total_tokens += p + c
+                                prompt_tokens += p
+                                cd = 0
+                                if det := u.get("prompt_tokens_details"):
+                                    if isinstance(det, dict):
+                                        cd = int(det.get("cached_tokens") or 0)
+                                elif "cache_read_input_tokens" in u:
+                                    cd = int(u.get("cache_read_input_tokens") or 0)
+                                cache_read_tokens += cd
             except Exception:
                 pass
 

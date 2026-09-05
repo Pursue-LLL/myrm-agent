@@ -46,6 +46,8 @@ _PROVIDER_OAUTH_MAP: dict[str, str] = {
     "provider_anthropic": "anthropic",
     "provider_openai": "openai",
     "provider_copilot": "copilot",
+    "xai": "xai",
+    "provider_xai": "xai",
 }
 
 

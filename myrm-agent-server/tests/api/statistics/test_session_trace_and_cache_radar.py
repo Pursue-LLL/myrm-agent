@@ -5,12 +5,12 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from app.api.statistics.prompt_cache_radar import get_prompt_cache_radar
 from app.api.statistics.session_trace import search_session_traces
+from app.config.settings import settings
 from app.database.models import Chat
 
 
@@ -38,7 +38,7 @@ class TestPromptCacheRadarEndpoint:
         assert payload["estimated_savings_usd"] == 0.0
 
     @pytest.mark.asyncio
-    async def test_cache_radar_with_mocked_events(self, tmp_path: Path) -> None:
+    async def test_cache_radar_with_mocked_events(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mock_db = AsyncMock()
         chat_1 = Chat(
             id="session-1",
@@ -57,7 +57,7 @@ class TestPromptCacheRadarEndpoint:
             f.write(
                 json.dumps({
                     "seq": 1,
-                    "ts": 1725555555.0,
+                    "ts": datetime.now(timezone.utc).timestamp(),
                     "type": "token_usage",
                     "sid": "session-1",
                     "data": {
@@ -71,26 +71,29 @@ class TestPromptCacheRadarEndpoint:
                 + "\n"
             )
 
-        with patch("app.api.statistics.prompt_cache_radar.settings.database.event_log_dir", str(log_dir)):
-            response = await get_prompt_cache_radar(days=7, db=mock_db)
-            data = json.loads(response.body)
+        monkeypatch.setattr(settings.database, "event_log_dir", str(log_dir))
 
-            assert data["code"] == 0
-            payload = data["data"]
-            assert payload["sessions_tracked"] == 1
-            assert payload["total_prompt_tokens"] == 10000
-            assert payload["total_cache_read_tokens"] == 7500
-            assert payload["fresh_input_tokens"] == 2500
-            assert payload["total_completion_tokens"] == 800
-            assert payload["prompt_cache_hit_ratio"] == 0.75
-            assert payload["estimated_savings_usd"] == 0.0031
+        response = await get_prompt_cache_radar(days=7, db=mock_db)
+        data = json.loads(response.body)
+
+        assert data["code"] == 0
+        payload = data["data"]
+        assert payload["sessions_tracked"] == 1
+        assert payload["total_prompt_tokens"] == 10000
+        assert payload["total_cache_read_tokens"] == 7500
+        assert payload["fresh_input_tokens"] == 2500
+        assert payload["total_completion_tokens"] == 800
+        assert payload["prompt_cache_hit_ratio"] == 0.75
+        assert payload["estimated_savings_usd"] == 0.0031
 
 
 class TestSearchSessionTracesEndpoint:
     """Test natural language search of session execution traces."""
 
     @pytest.mark.asyncio
-    async def test_search_traces_matching_prompt_or_title(self, tmp_path: Path) -> None:
+    async def test_search_traces_matching_prompt_or_title(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         mock_db = AsyncMock()
         chat_match_title = Chat(
             id="sess-title-match",
@@ -127,7 +130,7 @@ class TestSearchSessionTracesEndpoint:
             f.write(
                 json.dumps({
                     "seq": 1,
-                    "ts": 1725555555.0,
+                    "ts": datetime.now(timezone.utc).timestamp(),
                     "type": "task_start",
                     "sid": "sess-title-match",
                     "data": {"input": "Optimize DB queries"},
@@ -140,7 +143,7 @@ class TestSearchSessionTracesEndpoint:
             f.write(
                 json.dumps({
                     "seq": 1,
-                    "ts": 1725555555.0,
+                    "ts": datetime.now(timezone.utc).timestamp(),
                     "type": "task_start",
                     "sid": "sess-prompt-match",
                     "data": {"input": "Inspect Payments webhook callbacks"},
@@ -153,7 +156,7 @@ class TestSearchSessionTracesEndpoint:
             f.write(
                 json.dumps({
                     "seq": 1,
-                    "ts": 1725555555.0,
+                    "ts": datetime.now(timezone.utc).timestamp(),
                     "type": "task_start",
                     "sid": "sess-no-match",
                     "data": {"input": "Run redis container"},
@@ -161,15 +164,16 @@ class TestSearchSessionTracesEndpoint:
                 + "\n"
             )
 
-        with patch("app.api.statistics.session_trace.settings.database.event_log_dir", str(log_dir)):
-            # Search by keyword "payments"
-            response = await search_session_traces(query="payments", limit=10, db=mock_db)
-            data = json.loads(response.body)
+        monkeypatch.setattr(settings.database, "event_log_dir", str(log_dir))
 
-            assert data["code"] == 0
-            results = data["data"]
-            assert len(results) == 2
-            ids = [r["session_id"] for r in results]
-            assert "sess-title-match" in ids
-            assert "sess-prompt-match" in ids
-            assert "sess-no-match" not in ids
+        # Search by keyword "payments"
+        response = await search_session_traces(query="payments", limit=10, db=mock_db)
+        data = json.loads(response.body)
+
+        assert data["code"] == 0
+        results = data["data"]
+        assert len(results) == 2
+        ids = [r["session_id"] for r in results]
+        assert "sess-title-match" in ids
+        assert "sess-prompt-match" in ids
+        assert "sess-no-match" not in ids
