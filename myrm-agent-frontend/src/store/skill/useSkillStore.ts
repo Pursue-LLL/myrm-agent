@@ -11,6 +11,8 @@ import {
   getLocalSkillPaths,
   updateLocalSkillPaths,
   scanLocalSkills,
+  previewLocalSkillPath as apiPreviewLocalSkillPath,
+  adoptLocalSkillPath as apiAdoptLocalSkillPath,
   toggleLocalSkill as apiToggleLocalSkill,
   enableSkill as apiEnableSkill,
   disableSkill as apiDisableSkill,

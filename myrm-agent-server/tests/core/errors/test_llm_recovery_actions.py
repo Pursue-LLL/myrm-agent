@@ -65,13 +65,24 @@ def test_billing_recovery_top_up_points_to_pricing_in_local() -> None:
 def test_provider_policy_blocked_recovery_actions_en_and_zh() -> None:
     actions_en = generate_recovery_actions(FailoverReason.PROVIDER_POLICY_BLOCKED, "en")
     action_ids_en = [a["id"] for a in actions_en]
-    assert action_ids_en == ["switch_model", "switch_api_key"]
-    assert actions_en[0]["label"] == "Switch Model"
+    assert action_ids_en == ["switch_to_api_key", "switch_model"]
+    assert actions_en[0]["label"] == "Switch to API Key"
     assert actions_en[0]["url"] == "/settings/models"
-    assert actions_en[1]["label"] == "Check API Key"
-    assert actions_en[1]["url"] == "/settings/credentials"
+    assert actions_en[1]["label"] == "Switch Model"
+    assert actions_en[1]["url"] == "/settings/models"
 
     actions_zh = generate_recovery_actions(FailoverReason.PROVIDER_POLICY_BLOCKED, "zh")
-    assert actions_zh[0]["label"] == "切换模型"
-    assert actions_zh[1]["label"] == "检查 API Key"
+    assert actions_zh[0]["label"] == "改用 API Key"
+    assert actions_zh[1]["label"] == "切换模型"
+
+
+def test_long_context_tier_recovery_actions() -> None:
+    actions_en = generate_recovery_actions(FailoverReason.LONG_CONTEXT_TIER, "en")
+    action_ids_en = [a["id"] for a in actions_en]
+    assert action_ids_en == ["switch_to_api_key", "start_new_chat", "switch_model"]
+    assert actions_en[0]["label"] == "Switch to API Key"
+    assert actions_en[1]["label"] == "New Chat"
+    assert actions_en[1]["url"] == "/"
+    assert actions_en[2]["label"] == "Switch Model"
+
 

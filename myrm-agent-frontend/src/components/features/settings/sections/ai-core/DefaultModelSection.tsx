@@ -19,6 +19,7 @@ import {
   IconCode,
   IconFileText,
 } from '@/components/features/icons/PremiumIcons';
+import { Sparkles as IconSparkles } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import useProviderStore from '@/store/useProviderStore';
 import { SingleModelSelection, getProviderCategory } from '@/store/config/providerTypes';
@@ -69,6 +70,8 @@ const DefaultModelSection = memo(() => {
     setCodeModelFallback,
     setLongDocModel,
     setLongDocModelFallback,
+    setBackgroundEvolutionModel,
+    setBackgroundEvolutionModelFallback,
     getEnabledModels,
     getModelInfo,
   } = useProviderStore(

@@ -180,6 +180,7 @@ Called from other HTTP trees or lifecycle hooks:
 | `code_graph/` | Code repository AST symbols & call-graph indexing (CLI / internal) |
 | `artifacts/` · `deploy/` | `api/files/`, artifact pages |
 | `mascot/` | SSE from `services/agent/` stream (companion XP) |
+| `observability/` | Runtime quota metrics and meter service (`api/statistics/quota_runtime_router.py`) |
 | `repair/` | `api/health/` repair-action endpoints |
 | `locked_use/` | Computer Use / Tauri IPC orchestration |
 | `event/` | `api/events/`, agent stream persistence |
