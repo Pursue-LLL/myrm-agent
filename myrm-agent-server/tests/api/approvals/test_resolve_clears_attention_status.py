@@ -6,10 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from myrm_agent_harness.agent.security.approval_flow import get_allowlist
 
 from app.services.approvals.registry import ApprovalRegistry
-from app.services.chat.chat_crud import _ChatCrudMixin
 
 
 @pytest.mark.asyncio
@@ -130,6 +128,11 @@ async def test_batch_resolve_publishes_idle_for_each_chat_id(app, setup_test_dat
 @pytest.mark.asyncio
 async def test_resolve_approval_with_session_duration_allow_always(app, setup_test_database) -> None:
     """POST /{id}/resolve with duration='session' writes ephemeral allowlist and purges on cleanup."""
+    from myrm_agent_harness.agent.middlewares.approval import add_to_allowlist_if_needed
+    from myrm_agent_harness.agent.security.approval_flow import get_allowlist
+
+    from app.services.chat.chat_crud import _ChatCrudMixin
+
     chat_id = "chat-session-e2e-888"
     user_id = "sandbox"
     tool_name = "bash"
@@ -145,8 +148,12 @@ async def test_resolve_approval_with_session_duration_allow_always(app, setup_te
         status="PENDING",
     )
 
+    published_events = []
+    mock_bus = MagicMock()
+    mock_bus.publish.side_effect = published_events.append
+
     with (
-        patch("app.services.event.app_event_bus.get_event_bus", return_value=MagicMock()),
+        patch("app.services.event.app_event_bus.get_event_bus", return_value=mock_bus),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
@@ -161,15 +168,31 @@ async def test_resolve_approval_with_session_duration_allow_always(app, setup_te
                 },
             )
 
+    # 1. API parses DTO with duration='session' and publishes event
     assert response.status_code == 200
+    assert len(published_events) == 1
+    event_data = published_events[0].data
+    assert event_data["decision"] == "approve"
+    assert event_data["allow_always"].duration == "session"
+    assert event_data["allow_always"].ttl_seconds == -1
+
+    # 2. Simulate execution resume applying allow_always into harness allowlist
+    await add_to_allowlist_if_needed(
+        event_data["allow_always"].model_dump(),
+        user_id,
+        "shell_execute",
+        tool_name,
+        session_id=chat_id,
+    )
+
     al = get_allowlist()
-    # 1. Ephemeral session grant exists in memory for this session
+    # 3. Ephemeral session grant exists in memory for this session
     assert al.check(user_id, "shell_execute", tool_name, session_id=chat_id) is True
-    # 2. Denied under different session
+    # 4. Denied under different session
     assert al.check(user_id, "shell_execute", tool_name, session_id="other-chat") is False
 
-    # 3. Trigger chat lifecycle cleanup (Focus & Flush or Delete)
+    # 5. Trigger chat lifecycle cleanup (Focus & Flush or Delete)
     await _ChatCrudMixin._cleanup_checkpointer(chat_id)
 
-    # 4. Ephemeral grant is completely purged from memory
+    # 6. Ephemeral grant is completely purged from memory
     assert al.check(user_id, "shell_execute", tool_name, session_id=chat_id) is False
