@@ -4495,6 +4495,14 @@
         "saveAndLock": "Save & Lock Fact",
         "markFalsePositive": "Mark False Positive",
         "correctAndLock": "Correct Fact"
+      },
+      "repoEvidence": {
+        "title": "Repository History Evidence",
+        "uncommittedChanges": "Uncommitted Changes",
+        "refresh": "Refresh Repo Evidence",
+        "recentCommits": "Recent Commits ({count})",
+        "files": "files",
+        "noCommits": "No recent commit history detected"
       }
     },
     "createDialog": {
