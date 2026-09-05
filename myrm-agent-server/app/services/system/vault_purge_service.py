@@ -23,7 +23,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from myrm_agent_harness.api import safe_purge_fts5_virtual_table
+from myrm_agent_harness.utils.db.fts5 import safe_purge_fts5_virtual_table
 from sqlalchemy import text
 
 from app.database.connection import get_database_engine
@@ -91,22 +91,20 @@ class SafeVaultPurgeService:
             result = SafeVaultPurgeResult(success=False)
 
             try:
-                # Phase 1: Count preserved assets (whitelist proof)
+                # Phase 1: Query existing tables & count preserved assets (whitelist proof)
+                existing_tables: set[str] = set()
                 async with engine.connect() as conn:
-                    result.preserved_agents = (
-                        await conn.scalar(text("SELECT COUNT(*) FROM agents")) or 0
-                    )
-                    result.preserved_api_keys = (
-                        await conn.scalar(text("SELECT COUNT(*) FROM api_keys")) or 0
-                    )
-                    result.preserved_user_configs = (
-                        await conn.scalar(text("SELECT COUNT(*) FROM user_configs"))
-                        or 0
-                    )
-                    result.preserved_channel_pairings = (
-                        await conn.scalar(text("SELECT COUNT(*) FROM channel_pairings"))
-                        or 0
-                    )
+                    table_rows = (await conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))).fetchall()
+                    existing_tables = {r[0] for r in table_rows}
+
+                    if "agents" in existing_tables:
+                        result.preserved_agents = await conn.scalar(text("SELECT COUNT(*) FROM agents")) or 0
+                    if "api_keys" in existing_tables:
+                        result.preserved_api_keys = await conn.scalar(text("SELECT COUNT(*) FROM api_keys")) or 0
+                    if "user_configs" in existing_tables:
+                        result.preserved_user_configs = await conn.scalar(text("SELECT COUNT(*) FROM user_configs")) or 0
+                    if "channel_pairings" in existing_tables:
+                        result.preserved_channel_pairings = await conn.scalar(text("SELECT COUNT(*) FROM channel_pairings")) or 0
 
                 # Phase 2: Reverse-clean FTS5 virtual tables
                 # Must execute using raw connection to bypass ORM cascading trigger hazards
@@ -114,82 +112,69 @@ class SafeVaultPurgeService:
                     raw_conn = await conn.get_raw_connection()
                     db_api_conn = raw_conn.driver_connection
                     for fts_tbl in cls.FTS_VIRTUAL_TABLES:
-                        # Verify table existence in sqlite_master
-                        has_table = await conn.scalar(
-                            text(
-                                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name"
-                            ),
-                            {"name": fts_tbl},
-                        )
-                        if has_table:
-                            safe_purge_fts5_virtual_table(
-                                db_api_conn, fts_tbl, is_external_content=True
-                            )
+                        if fts_tbl in existing_tables:
+                            safe_purge_fts5_virtual_table(db_api_conn, fts_tbl, is_external_content=True)
                             result.fts_tables_purged.append(fts_tbl)
 
                 # Collect sandbox directories before deleting chats
                 sandbox_dirs: list[tuple[str, str]] = []
-                async with engine.connect() as conn:
-                    rows = (
-                        await conn.execute(
-                            text(
-                                "SELECT id, sandbox_base_dir FROM chats WHERE sandbox_base_dir IS NOT NULL"
-                            )
-                        )
-                    ).fetchall()
-                    sandbox_dirs = [(r[0], r[1]) for r in rows if r[1]]
+                if "chats" in existing_tables:
+                    async with engine.connect() as conn:
+                        rows = (
+                            await conn.execute(text("SELECT id, sandbox_base_dir FROM chats WHERE sandbox_base_dir IS NOT NULL"))
+                        ).fetchall()
+                        sandbox_dirs = [(r[0], r[1]) for r in rows if r[1]]
 
                 # Phase 3: Transactional deletion of conversation corpora & cursor reset
                 async with engine.begin() as conn:
-                    # Count before delete
-                    result.purged_messages = (
-                        await conn.scalar(text("SELECT COUNT(*) FROM messages")) or 0
-                    )
-                    result.purged_chats = (
-                        await conn.scalar(text("SELECT COUNT(*) FROM chats")) or 0
-                    )
-                    result.purged_channel_messages = (
-                        await conn.scalar(text("SELECT COUNT(*) FROM channel_messages"))
-                        or 0
-                    )
+                    if "messages" in existing_tables:
+                        result.purged_messages = await conn.scalar(text("SELECT COUNT(*) FROM messages")) or 0
+                    if "chats" in existing_tables:
+                        result.purged_chats = await conn.scalar(text("SELECT COUNT(*) FROM chats")) or 0
+                    if "channel_messages" in existing_tables:
+                        result.purged_channel_messages = await conn.scalar(text("SELECT COUNT(*) FROM channel_messages")) or 0
+
+                    async def _safe_delete(table_name: str) -> None:
+                        if table_name in existing_tables:
+                            await conn.execute(text(f"DELETE FROM {table_name}"))
 
                     # 3.1 Delete leaf conversation recall segments and documents
-                    await conn.execute(text("DELETE FROM conversation_recall_segments"))
-                    await conn.execute(
-                        text("DELETE FROM conversation_recall_documents")
-                    )
+                    await _safe_delete("conversation_recall_segments")
+                    await _safe_delete("conversation_recall_documents")
 
                     # 3.2 Delete conversation forks, markers, widgets, and offline tasks
-                    await conn.execute(text("DELETE FROM interrupted_turn_markers"))
-                    await conn.execute(text("DELETE FROM offline_durable_tasks"))
-                    await conn.execute(text("DELETE FROM conversation_forks"))
-                    await conn.execute(text("DELETE FROM widget_kv_entries"))
+                    await _safe_delete("interrupted_turn_markers")
+                    await _safe_delete("offline_durable_tasks")
+                    await _safe_delete("conversation_forks")
+                    await _safe_delete("widget_kv_entries")
 
                     # 3.3 Delete core messages and chats
-                    await conn.execute(text("DELETE FROM messages"))
-                    await conn.execute(text("DELETE FROM chats"))
-                    await conn.execute(text("DELETE FROM channel_messages"))
+                    await _safe_delete("messages")
+                    await _safe_delete("chats")
+                    await _safe_delete("channel_messages")
 
                     # 3.4 Purge episodic memory items if requested (preserves profile and rules)
                     if purge_memories:
-                        await conn.execute(text("DELETE FROM pending_memories"))
-                        await conn.execute(text("DELETE FROM memory_extract_retries"))
-                        await conn.execute(text("DELETE FROM memory_conflicts"))
-                        await conn.execute(text("DELETE FROM memory_operation_events"))
+                        await _safe_delete("pending_memories")
+                        await _safe_delete("memory_extract_retries")
+                        await _safe_delete("memory_conflicts")
+                        await _safe_delete("memory_operation_events")
                         result.purged_memory_events = 1
 
                     # 3.5 Reset sqlite_sequence for wiped tables to guarantee cursor sync
-                    reset_tables = [
-                        "conversation_recall_segments",
-                        "conversation_recall_documents",
-                        "channel_messages",
-                    ]
-                    for tbl in reset_tables:
-                        await conn.execute(
-                            text("DELETE FROM sqlite_sequence WHERE name = :tbl"),
-                            {"tbl": tbl},
-                        )
-                        result.cursors_reset.append(tbl)
+                    if "sqlite_sequence" in existing_tables:
+                        reset_tables = [
+                            "conversation_recall_segments",
+                            "conversation_recall_documents",
+                            "channel_messages",
+                        ]
+                        for tbl in reset_tables:
+                            if tbl in existing_tables:
+                                await conn.execute(
+                                    text("DELETE FROM sqlite_sequence WHERE name = :tbl"),
+                                    {"tbl": tbl},
+                                )
+                                result.cursors_reset.append(tbl)
 
                 # Phase 4: Clean LangGraph checkpointer threads & sandbox worktrees
                 try:
@@ -212,9 +197,7 @@ class SafeVaultPurgeService:
                             await cleanup_sandbox_worktree(s_dir, cid, force=True)
                             result.cleared_sandboxes += 1
                         except Exception as exc:
-                            logger.warning(
-                                "Sandbox cleanup notice (chat=%s): %s", cid, exc
-                            )
+                            logger.warning("Sandbox cleanup notice (chat=%s): %s", cid, exc)
 
                 # Phase 5: Reclaim physical disk pages if requested
                 if reclaim_disk:
@@ -226,9 +209,7 @@ class SafeVaultPurgeService:
                             logger.warning("Disk vacuum non-fatal notice: %s", exc)
 
                 result.success = True
-                result.duration_ms = (
-                    datetime.now(UTC) - start_time
-                ).total_seconds() * 1000.0
+                result.duration_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000.0
                 logger.info(
                     "Safe vault purge completed successfully in %.1fms: %d chats, %d messages wiped, %d configs preserved",
                     result.duration_ms,
@@ -239,12 +220,8 @@ class SafeVaultPurgeService:
                 return result
 
             except Exception as e:
-                logger.error(
-                    "Safe vault purge failed with critical error: %s", e, exc_info=True
-                )
+                logger.error("Safe vault purge failed with critical error: %s", e, exc_info=True)
                 result.success = False
                 result.error = str(e)
-                result.duration_ms = (
-                    datetime.now(UTC) - start_time
-                ).total_seconds() * 1000.0
+                result.duration_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000.0
                 return result

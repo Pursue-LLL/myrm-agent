@@ -561,6 +561,9 @@ class ChatRepository:
 
     @staticmethod
     async def permanently_delete_chat(db: AsyncSession, chat_id: str) -> bool:
+        # 显式先删除关联的 messages，确保 SQLite messages_fts_delete 触发器正常执行，
+        # 杜绝外键级联绕过子表触发器导致 FTS5 倒排索引残留孤儿行
+        await db.execute(delete(Message).where(Message.chat_id == chat_id))
         result = cast(
             CursorResult[tuple[object, ...]],
             await db.execute(delete(Chat).where(Chat.id == chat_id, Chat.deleted_at.isnot(None))),
@@ -569,6 +572,11 @@ class ChatRepository:
 
     @staticmethod
     async def empty_trash(db: AsyncSession) -> int:
+        # 获取所有回收站会话 ID，先显式删除其所有 messages 触发 FTS5 倒排索引同步清理
+        trashed_ids_result = await db.execute(select(Chat.id).where(Chat.deleted_at.isnot(None)))
+        trashed_ids = [row[0] for row in trashed_ids_result.all()]
+        if trashed_ids:
+            await db.execute(delete(Message).where(Message.chat_id.in_(trashed_ids)))
         result = cast(
             CursorResult[tuple[object, ...]],
             await db.execute(delete(Chat).where(Chat.deleted_at.isnot(None))),

@@ -37,6 +37,54 @@
     "loadFailed": "載入資料失敗",
     "loadFailedDesc": "請檢查網路連線或稍後重試"
   },
+  "taskSpaces": {
+    "title": "瀏覽器任務空間",
+    "badgeTakeover": "人工接管中",
+    "badgeRunning": "Agent 執行中",
+    "closeSpaceBtn": "關閉空間",
+    "activePages": "活躍標籤頁 {count} 個",
+    "releaseTakeoverBtn": "交還控制權",
+    "takeoverBtn": "人工接管",
+    "snapshotPreview": "預覽快照",
+    "emptyState": "暫無可用快照"
+  },
+  "continualOverlay": {
+    "activeTitle": "生效中的覆蓋策略",
+    "remainingTurns": "{count, plural, =1 {剩餘 1 輪} other {剩餘 # 輪}}",
+    "rollbackTooltip": "回滾當前策略變更",
+    "rollback": "回滾",
+    "collapse": "收起",
+    "expand": "展開",
+    "howItWorks": "工作原理",
+    "howItWorksDesc": "對執行策略施加非破壞性的臨時調節，在有限輪次結束後自動過期還原。",
+    "allActiveOverlays": "全部生效策略 ({count})"
+  },
+  "executionPhaseStepper": {
+    "badge": "執行完畢",
+    "waitingApproval": "等待審批",
+    "collapseTelemetry": "收起執行遙測",
+    "expandTelemetry": "展開執行遙測",
+    "currentNode": "節點 #{nodeId}",
+    "lanes": {
+      "user": "人工審批",
+      "llm": "大模型思考",
+      "mcp": "MCP 執行",
+      "skills": "技能調用",
+      "sandbox": "沙箱執行",
+      "agent": "Agent 編排"
+    },
+    "phases": {
+      "planning": {
+        "title": "意圖規劃"
+      },
+      "executing": {
+        "title": "工具執行"
+      },
+      "verifying": {
+        "title": "交付驗證"
+      }
+    }
+  },
   "expertSummon": {
     "summonSuccess": "已切換至專家 {name}",
     "summonFailed": "召喚專家範本失敗",
@@ -18516,7 +18564,7 @@
           "trustDisclosureCloud": "運行在雲端沙箱模式。導入的外掛在專屬隔離卷沙箱內執行，可訪問沙箱檔案與憑證。",
           "trustRiskHint": "不受信任的擴展可能包含提示詞注入指令。請務必確保安裝包來自受信任來源。",
           "trustedCheckboxLabel": "我確認此外掛來自受信任來源，知曉其系統工具權限，並同意安裝",
-          "missingArtifact": "缺失構建產物：{file}，已自動略過，防止執行时崩潰"
+          "missingArtifact": "缺失構建產物：{file}，已自動略過，防止執行時崩潰"
         },
         "capabilities": {
           "title": "沙箱能力層級",
@@ -18533,7 +18581,8 @@
             "critical": "嚴重風險"
           },
           "escalationTitle": "偵測到權限躍遷與敏感提權風險",
-          "escalationWarning": "此版本較先前版本申請了更高敏感度的系統權限：新增【{added}】。請仔細甄別外掛來源後再確認匯入。"
+          "escalationWarning": "此版本較先前版本申請了更高敏感度的系統權限：新增【{added}】。請仔細甄別外掛來源後再確認匯入。",
+          "undeclaredWarning": "檢測到未聲明的敏感特權：該服務索取的系統權限超出了 plugin.json 中的聲明範圍。"
         }
       },
       "manager": {

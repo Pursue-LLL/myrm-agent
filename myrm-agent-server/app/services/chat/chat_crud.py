@@ -448,6 +448,28 @@ class _ChatCrudMixin(_ChatServiceBase):
             except Exception as e:
                 logger.error("Workspace cleanup failed during empty_trash (chat=%s): %s", cid, e)
             await close_external_agent_pool_for_chat(cid)
+
+        # Re-sync and optimize FTS indexes after batch purging leaf chats
+        try:
+            from sqlalchemy import text
+
+            from app.database.connection import get_database_engine
+
+            engine = get_database_engine()
+            async with engine.connect() as conn:
+                raw_conn = await conn.get_raw_connection()
+                db_api_conn = raw_conn.driver_connection
+                # Optimize FTS segments to free index pages
+                for fts_tbl in ("conversation_recall_segments_fts", "conversation_recall_fts", "messages_fts"):
+                    has_table = await conn.scalar(
+                        text("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:name"),
+                        {"name": fts_tbl},
+                    )
+                    if has_table:
+                        db_api_conn.execute(f"INSERT INTO {fts_tbl}({fts_tbl}) VALUES('optimize')")
+        except Exception as e:
+            logger.warning("FTS index optimize after empty_trash non-fatal: %s", e)
+
         return count
 
     @staticmethod

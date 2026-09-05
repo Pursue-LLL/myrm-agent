@@ -133,5 +133,3 @@ def test_build_preview_result_capability_diff_and_tiers() -> None:
     assert diff is not None
     assert diff["has_escalation"] is True
     assert "shell_exec" in diff["added"]
-
-

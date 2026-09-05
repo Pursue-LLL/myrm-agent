@@ -87,5 +87,3 @@ async def test_raw_http_exception_list_detail_is_automatically_redacted() -> Non
         data = response.json()
         assert "nestedlisttoken1234567890" not in data["message"]
         assert "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xyz" not in data["message"]
-
-

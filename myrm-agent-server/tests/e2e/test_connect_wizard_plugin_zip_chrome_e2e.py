@@ -185,4 +185,3 @@ def test_connect_wizard_desktop_tools_toggle_chrome_e2e() -> None:
             clicked = wait_for_state(client, page, _CLICK_DESKTOP_TOGGLE_JS, timeout_sec=15.0)
             assert clicked.get("clicked") is True, clicked
             print(f"[connect-wizard-desktop-e2e] clicked toggle result={clicked}")
-

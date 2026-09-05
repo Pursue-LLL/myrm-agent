@@ -435,4 +435,3 @@ async def test_agent_filesystem_bundle_e2e(async_client: AsyncClient, tmp_path):
         await async_client.delete(f"/api/agents/{new_imported_id}")
     finally:
         await async_client.delete(f"/api/agents/{agent_id}")
-

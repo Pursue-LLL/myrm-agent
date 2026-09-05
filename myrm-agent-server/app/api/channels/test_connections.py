@@ -111,7 +111,11 @@ async def slack_test_connection(
             ok = bool(data.get("ok"))
             return ChannelTestResponse(
                 ok=ok,
-                message="Connection successful" if ok else f"Auth failed: {data.get('error', 'unknown')}",
+                message=(
+                    "Connection successful"
+                    if ok
+                    else f"Auth failed: {data.get('error', 'unknown')}"
+                ),
             )
         except Exception as e:
             return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
@@ -152,7 +156,11 @@ async def wecom_test_connection(
             )
             data = resp.json()
             ok = resp.status_code == 200 and data.get("errcode", -1) == 0
-            msg = "Connection successful" if ok else f"Error: {data.get('errmsg', 'Unknown')}"
+            msg = (
+                "Connection successful"
+                if ok
+                else f"Error: {data.get('errmsg', 'Unknown')}"
+            )
             return ChannelTestResponse(ok=ok, message=msg)
         except Exception as e:
             return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
@@ -183,7 +191,9 @@ async def teams_test_connection(
             ok = bool(data.get("access_token"))
             return ChannelTestResponse(
                 ok=ok,
-                message="Connection successful" if ok else "OAuth token verification failed",
+                message=(
+                    "Connection successful" if ok else "OAuth token verification failed"
+                ),
             )
     except Exception as e:
         return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
@@ -361,7 +371,9 @@ async def sms_test_connection(
                     ok=False,
                     message=f"Phone number {body.phone_number} not found in account",
                 )
-            return ChannelTestResponse(ok=True, message="Connection successful (phone check skipped)")
+            return ChannelTestResponse(
+                ok=True, message="Connection successful (phone check skipped)"
+            )
     except Exception as e:
         return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
 
@@ -532,7 +544,9 @@ async def test_external_agent(
 
     found = shutil.which(command)
     if not found:
-        return ChannelTestResponse(ok=False, message=f"Command '{command}' not found in PATH")
+        return ChannelTestResponse(
+            ok=False, message=f"Command '{command}' not found in PATH"
+        )
 
     from myrm_agent_harness.api import (
         EnvInheritPolicy,

@@ -337,6 +337,56 @@ async def execute_health_repair_action(
     return await execute_repair_action(action_id, request)
 
 
+@router.post("/database/safe-purge")
+async def safe_purge_vault(
+    purge_memories: bool = Query(True, description="Purge episodic memories while preserving profile attributes and rules"),
+    purge_sandboxes: bool = Query(True, description="Clean orphaned sandbox directories"),
+    reclaim_disk: bool = Query(True, description="Reclaim disk pages via PRAGMA optimize and incremental_vacuum"),
+) -> dict[str, object]:
+    """Safe Vault Purge: Cascade-proof cleanup of chat corpora & FTS5 shadow structures.
+
+    Unlike destructive reset_database(), this endpoint strictly preserves white-listed
+    user assets:
+    - Custom Agents & System Prompts
+    - Model Providers & API Keys
+    - User Configuration & Feature Flags
+    - Channel Pairings & Authorizations
+
+    It wipes:
+    - All chats, forks, offline durable tasks, interrupted markers, and messages
+    - Leaf conversation recall segments & documents
+    - FTS5 shadow inverted indexes (messages_fts, conversation_recall_fts, segments_fts)
+    - Consumer cursor auto-increment sequences (sqlite_sequence)
+    - LangGraph checkpoints & sandbox worktrees
+    """
+    from app.services.system.vault_purge_service import SafeVaultPurgeService
+
+    result = await SafeVaultPurgeService.purge_vault(
+        purge_memories=purge_memories,
+        purge_sandboxes=purge_sandboxes,
+        reclaim_disk=reclaim_disk,
+    )
+    if not result.success:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Safe vault purge failed: {result.error}",
+        )
+    return {
+        "status": "success",
+        "purged_chats": result.purged_chats,
+        "purged_messages": result.purged_messages,
+        "purged_channel_messages": result.purged_channel_messages,
+        "fts_tables_purged": result.fts_tables_purged,
+        "cursors_reset": result.cursors_reset,
+        "cleared_sandboxes": result.cleared_sandboxes,
+        "preserved_agents": result.preserved_agents,
+        "preserved_api_keys": result.preserved_api_keys,
+        "preserved_user_configs": result.preserved_user_configs,
+        "preserved_channel_pairings": result.preserved_channel_pairings,
+        "duration_ms": result.duration_ms,
+    }
+
+
 @router.post("/database/reset")
 async def reset_database() -> dict[str, str]:
     """重置数据库端点

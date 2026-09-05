@@ -149,12 +149,8 @@ def resolve_origin_guard(
     allowed_hosts: Sequence[str] | None = None,
 ) -> OriginGuard:
     """Construct an OriginGuard for an HTTP server bound to the specified host."""
-    raw_origins = list(allowed_origins) if allowed_origins is not None else _split_env_list(
-        os.getenv("MYRM_MCP_ALLOWED_ORIGINS")
-    )
-    raw_hosts = list(allowed_hosts) if allowed_hosts is not None else _split_env_list(
-        os.getenv("MYRM_MCP_ALLOWED_HOSTS")
-    )
+    raw_origins = list(allowed_origins) if allowed_origins is not None else _split_env_list(os.getenv("MYRM_MCP_ALLOWED_ORIGINS"))
+    raw_hosts = list(allowed_hosts) if allowed_hosts is not None else _split_env_list(os.getenv("MYRM_MCP_ALLOWED_HOSTS"))
 
     if "*" in raw_origins:
         return OriginGuard(
@@ -212,9 +208,8 @@ def check_request_origin(
         hostname = origin_hostname(origin_val)
         normalized = normalize_origin(origin_val)
 
-        is_allowed = (
-            (hostname is not None and is_loopback_hostname(hostname))
-            or (normalized is not None and normalized in guard.allowed_origins)
+        is_allowed = (hostname is not None and is_loopback_hostname(hostname)) or (
+            normalized is not None and normalized in guard.allowed_origins
         )
         if not is_allowed:
             return GuardVerdict(ok=False, reason=f"Origin not allowed: {origin_val}")

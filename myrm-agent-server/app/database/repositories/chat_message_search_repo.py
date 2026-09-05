@@ -76,9 +76,7 @@ class ChatMessageSearchRepository:
             LIMIT :limit
             """
         )
-        fallback_result = await db.execute(
-            fallback_sql, {"pattern": f"%{safe_query}%", "limit": limit}
-        )
+        fallback_result = await db.execute(fallback_sql, {"pattern": f"%{safe_query}%", "limit": limit})
         return [row[0] for row in fallback_result.fetchall()]
 
     @staticmethod

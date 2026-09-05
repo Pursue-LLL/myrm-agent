@@ -259,4 +259,3 @@ def test_wiki_heal_claims_governance_endpoint(client: TestClient) -> None:
     data = heal_resp.json()
     assert data["success"] is True
     assert "total_healed_evidence" in data
-

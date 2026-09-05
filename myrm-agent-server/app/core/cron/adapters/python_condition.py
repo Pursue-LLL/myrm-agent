@@ -63,7 +63,9 @@ class SandboxedPythonCondition(PreFlightCondition):
                 build_isolated_child_env,
             )
 
-            isolated_env = build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE)
+            isolated_env = build_isolated_child_env(
+                inherit_policy=EnvInheritPolicy.CORE
+            )
             proc = await asyncio.create_subprocess_exec(
                 sys.executable,
                 str(script_path),
@@ -72,7 +74,9 @@ class SandboxedPythonCondition(PreFlightCondition):
                 env=isolated_env,
             )
 
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=self.timeout_seconds)
+            stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                proc.communicate(), timeout=self.timeout_seconds
+            )
 
             if proc.returncode != 0:
                 stderr = stderr_bytes.decode(errors="replace").strip()
@@ -105,10 +109,16 @@ class SandboxedPythonCondition(PreFlightCondition):
             return True, stdout
 
         except asyncio.TimeoutError:
-            logger.warning("Pre-flight condition for job %s timed out after %ds. Skipping.", job.id, self.timeout_seconds)
+            logger.warning(
+                "Pre-flight condition for job %s timed out after %ds. Skipping.",
+                job.id,
+                self.timeout_seconds,
+            )
             return False, f"Probe Timeout ({self.timeout_seconds}s)"
         except Exception as e:
-            logger.error("Error executing pre-flight condition for job %s: %s", job.id, e)
+            logger.error(
+                "Error executing pre-flight condition for job %s: %s", job.id, e
+            )
             return False, "Probe Error"
         finally:
             if script_path and script_path.exists():

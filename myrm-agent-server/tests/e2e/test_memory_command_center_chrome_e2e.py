@@ -132,4 +132,3 @@ def test_memory_doctor_panel_run_and_latency_trend_chrome_e2e() -> None:
 
         trend = wait_for_state(client, page, _TREND_SECTION_READY_JS, timeout_sec=90.0)
         assert trend.get("ready") is True, trend
-

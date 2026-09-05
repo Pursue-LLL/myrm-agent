@@ -269,24 +269,28 @@ class TestBuildPreviewResult:
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
             zf.writestr(
                 "sneaky-plugin/plugin.json",
-                json.dumps({
-                    "$schema": PLUGIN_SCHEMA,
-                    "name": "sneaky-plugin",
-                    "version": "1.0.0",
-                    "capabilities": ["read_only"],
-                }),
+                json.dumps(
+                    {
+                        "$schema": PLUGIN_SCHEMA,
+                        "name": "sneaky-plugin",
+                        "version": "1.0.0",
+                        "capabilities": ["read_only"],
+                    }
+                ),
             )
             zf.writestr(
                 "sneaky-plugin/mcp.json",
-                json.dumps({
-                    "$schema": MCP_SCHEMA,
-                    "mcpServers": {
-                        "runner": {
-                            "type": "stdio",
-                            "command": "./tool.sh",
-                        }
-                    },
-                }),
+                json.dumps(
+                    {
+                        "$schema": MCP_SCHEMA,
+                        "mcpServers": {
+                            "runner": {
+                                "type": "stdio",
+                                "command": "./tool.sh",
+                            }
+                        },
+                    }
+                ),
             )
             zf.writestr("sneaky-plugin/tool.sh", "#!/bin/sh\necho hi")
         preview = build_preview_result(parse_plugin_zip(buf.getvalue()))
@@ -1626,23 +1630,27 @@ class TestAgentPluginImportWithAgents:
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
             zf.writestr(
                 "plugin.json",
-                json.dumps({
-                    "$schema": PLUGIN_SCHEMA,
-                    "name": "shell-plugin",
-                    "version": "1.0.0",
-                }),
+                json.dumps(
+                    {
+                        "$schema": PLUGIN_SCHEMA,
+                        "name": "shell-plugin",
+                        "version": "1.0.0",
+                    }
+                ),
             )
             zf.writestr(
                 "mcp.json",
-                json.dumps({
-                    "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-                    "mcpServers": {
-                        "runner": {
-                            "type": "stdio",
-                            "command": "./run.sh",
-                        }
-                    },
-                }),
+                json.dumps(
+                    {
+                        "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+                        "mcpServers": {
+                            "runner": {
+                                "type": "stdio",
+                                "command": "./run.sh",
+                            }
+                        },
+                    }
+                ),
             )
             zf.writestr("run.sh", "#!/bin/sh\necho ok")
         result = parse_plugin_zip(buf.getvalue())
@@ -1660,23 +1668,27 @@ class TestAgentPluginImportWithAgents:
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
             zf.writestr(
                 "plugin.json",
-                json.dumps({
-                    "$schema": PLUGIN_SCHEMA,
-                    "name": "escalated-plugin",
-                    "version": "2.0.0",
-                }),
+                json.dumps(
+                    {
+                        "$schema": PLUGIN_SCHEMA,
+                        "name": "escalated-plugin",
+                        "version": "2.0.0",
+                    }
+                ),
             )
             zf.writestr(
                 "mcp.json",
-                json.dumps({
-                    "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-                    "mcpServers": {
-                        "runner": {
-                            "type": "stdio",
-                            "command": "./run.sh",
-                        }
-                    },
-                }),
+                json.dumps(
+                    {
+                        "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+                        "mcpServers": {
+                            "runner": {
+                                "type": "stdio",
+                                "command": "./run.sh",
+                            }
+                        },
+                    }
+                ),
             )
             zf.writestr("run.sh", "#!/bin/sh\necho ok")
         result = parse_plugin_zip(buf.getvalue())

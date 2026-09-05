@@ -746,4 +746,3 @@ async def test_export_chat_deep_redacts_nested_metadata_structures(
     # Verify nested list of tokens
     assert "ghp_nestedgithubtoken0123456789012345678" not in str(meta)
     assert meta["custom_tokens"][0] != "ghp_nestedgithubtoken0123456789012345678"
-

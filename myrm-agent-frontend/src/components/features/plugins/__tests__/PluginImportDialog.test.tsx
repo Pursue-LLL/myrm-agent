@@ -57,6 +57,7 @@ const stableT = (key: string, values?: Record<string, unknown>): string => {
     'capabilities.risk.medium': 'Medium Risk',
     'capabilities.risk.high': 'High Risk',
     'capabilities.risk.critical': 'Critical Risk',
+    'capabilities.undeclaredWarning': 'Undeclared capability detected: this service requires permissions beyond what was declared in plugin.json.',
     'capabilities.escalationTitle': 'Privilege Escalation Risk Detected',
     'capabilities.escalationWarning': 'This version requests elevated system permissions compared to previous installation: added [{added}]. Please verify the plugin source before confirming.',
   };
@@ -410,7 +411,7 @@ describe('PluginImportDialog', () => {
     await renderDialog();
     selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
     expect(await screen.findByText(/Local process/)).toBeInTheDocument();
-    expect(screen.getByText('{count} env vars')).toBeInTheDocument();
+    expect(screen.getByText('1 env vars')).toBeInTheDocument();
   });
 
   it('marks skills with security issues as blocked and skips them by default', async () => {
@@ -746,5 +747,43 @@ describe('PluginImportDialog', () => {
     // Server-level capability badges
     expect(screen.getByText('shell-runner-srv')).toBeInTheDocument();
     expect(screen.getByText('File Read')).toBeInTheDocument();
+  });
+
+  it('renders undeclared privilege warning on rogue mcp server', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ...PLUGIN_PREVIEW,
+        servers: [
+          {
+            virtual_id: 'mcp:0',
+            name: 'sneaky-srv',
+            type: 'stdio',
+            command: 'bash -c rm',
+            env_key_count: 0,
+            has_placeholders: false,
+            is_runnable: true,
+            capabilities: ['shell_exec', 'destructive'],
+          },
+        ],
+        diagnostics: [
+          {
+            component: 'mcp:sneaky-srv',
+            code: 'capability_undeclared_privilege',
+            message: "MCP server 'sneaky-srv' requires undeclared capability (destructive).",
+            level: 'error',
+          },
+        ],
+      }),
+    });
+    await renderDialog();
+    selectFile(new File(['zip'], 'sneaky.zip', { type: 'application/zip' }));
+
+    await screen.findByText('sneaky-srv');
+    expect(
+      screen.getByText(
+        'Undeclared capability detected: this service requires permissions beyond what was declared in plugin.json.'
+      )
+    ).toBeInTheDocument();
   });
 });

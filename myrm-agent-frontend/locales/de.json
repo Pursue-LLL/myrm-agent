@@ -37,6 +37,54 @@
     "loadFailed": "Laden fehlgeschlagen",
     "loadFailedDesc": "Bitte überprüfen Sie Ihre Netzwerkverbindung oder versuchen Sie es später erneut"
   },
+  "taskSpaces": {
+    "title": "Browser-Aufgabenbereiche",
+    "badgeTakeover": "Manuelle Übernahme",
+    "badgeRunning": "Agent aktiv",
+    "closeSpaceBtn": "Bereich schließen",
+    "activePages": "{count} aktive Seiten",
+    "releaseTakeoverBtn": "Steuerung zurückgeben",
+    "takeoverBtn": "Manuell übernehmen",
+    "snapshotPreview": "Vorschau-Snapshot",
+    "emptyState": "Keine Snapshot-Vorschau verfügbar"
+  },
+  "continualOverlay": {
+    "activeTitle": "Aktive Overlay-Richtlinie",
+    "remainingTurns": "{count, plural, =1 {1 Runde verbleibend} other {# Runden verbleibend}}",
+    "rollbackTooltip": "Aktuelle Richtlinienänderung zurücksetzen",
+    "rollback": "Zurücksetzen",
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "howItWorks": "Funktionsweise",
+    "howItWorksDesc": "Wendet zerstörungsfreie temporäre Richtlinienanpassungen an, die nach einer begrenzten Rundenzahl automatisch ablaufen und zurückgesetzt werden.",
+    "allActiveOverlays": "Alle aktiven Overlays ({count})"
+  },
+  "executionPhaseStepper": {
+    "badge": "Abgeschlossen",
+    "waitingApproval": "Wartet auf Genehmigung",
+    "collapseTelemetry": "Telemetrie einklappen",
+    "expandTelemetry": "Telemetrie ausklappen",
+    "currentNode": "Knoten #{nodeId}",
+    "lanes": {
+      "user": "Benutzerfreigabe",
+      "llm": "LLM-Inferenz",
+      "mcp": "MCP-Ausführung",
+      "skills": "Skill-Aufruf",
+      "sandbox": "Sandbox-Ausführung",
+      "agent": "Agenten-Orchestrierung"
+    },
+    "phases": {
+      "planning": {
+        "title": "Planung"
+      },
+      "executing": {
+        "title": "Werkzeugausführung"
+      },
+      "verifying": {
+        "title": "Überprüfung"
+      }
+    }
+  },
   "expertSummon": {
     "summonSuccess": "Zu Experte {name} gewechselt",
     "summonFailed": "Experten-Vorlage konnte nicht aufgerufen werden",
@@ -18519,6 +18567,7 @@
           "trustedCheckboxLabel": "Ich bestätige, dass dieses Plugin aus einer vertrauenswürdigen Quelle stammt, akzeptiere die Systemwerkzeugberechtigungen und stimme der Installation zu"
         },
         "capabilities": {
+          "undeclaredWarning": "Nicht deklarierte Berechtigung erkannt: Dieser Dienst erfordert Berechtigungen, die über die in plugin.json deklarierten hinausgehen.",
           "title": "Sandbox-Fähigkeitsstufen",
           "read_only": "Nur-Lesen",
           "fs_read": "Dateien lesen",

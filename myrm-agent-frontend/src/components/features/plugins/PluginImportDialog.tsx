@@ -838,6 +838,9 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                         const isInstalled = decision?.resolution === 'install';
                         const isMissingArtifact = Boolean(item.missing_artifact) || item.is_runnable === false;
                         const missingFile = item.missing_artifact || item.missing_artifacts?.[0] || '';
+                        const undeclaredDiag = preview.diagnostics.find(
+                          (d) => d.code === 'capability_undeclared_privilege' && d.component === `mcp:${item.name}`
+                        );
                         return (
                           <div key={item.virtual_id} className="flex items-center justify-between gap-3 px-4 py-3">
                             <div className="min-w-0">
@@ -864,6 +867,12 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                               {isMissingArtifact && (
                                 <p className="text-xs text-destructive mt-0.5">
                                   {t('security.missingArtifact', { file: missingFile })}
+                                </p>
+                              )}
+                              {undeclaredDiag && (
+                                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1 font-medium">
+                                  <IconAlertTriangle className="w-3.5 h-3.5 inline shrink-0" />
+                                  {t('capabilities.undeclaredWarning')}
                                 </p>
                               )}
                             </div>

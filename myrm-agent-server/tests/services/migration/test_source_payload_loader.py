@@ -75,16 +75,18 @@ class TestCompetitorPayloadLoader:
         )
         auth_file = hermes_fixture / "auth.json"
         auth_file.write_text(
-            json.dumps({
-                "credential_pool": {
-                    "openai": ["sk-key-1", "sk-key-2"],
-                    "anthropic": ["sk-ant-1"],
-                },
-                "credential_pool_strategies": {
-                    "openai": "least_used",
-                    "anthropic": "round_robin",
-                },
-            }),
+            json.dumps(
+                {
+                    "credential_pool": {
+                        "openai": ["sk-key-1", "sk-key-2"],
+                        "anthropic": ["sk-ant-1"],
+                    },
+                    "credential_pool_strategies": {
+                        "openai": "least_used",
+                        "anthropic": "round_robin",
+                    },
+                }
+            ),
             encoding="utf-8",
         )
         loaded = load_source_payload(

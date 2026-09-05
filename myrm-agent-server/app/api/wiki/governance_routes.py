@@ -180,4 +180,3 @@ async def heal_concept_claims_endpoint(
         "total_healed_evidence": total_healed,
         "details": results,
     }
-

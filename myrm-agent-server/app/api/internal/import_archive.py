@@ -50,12 +50,16 @@ async def import_archive(body: ImportArchiveRequest) -> ImportArchiveResponse:
     """
     archive = Path(body.archive_path)
     if not archive.exists():
-        raise HTTPException(status_code=404, detail=f"Archive not found: {body.archive_path}")
+        raise HTTPException(
+            status_code=404, detail=f"Archive not found: {body.archive_path}"
+        )
     if not archive.suffix == ".gz" and not archive.name.endswith(".tar.gz"):
         raise HTTPException(status_code=400, detail="Archive must be .tar.gz format")
 
     if body.merge_mode not in ("overlay", "replace"):
-        raise HTTPException(status_code=400, detail="merge_mode must be 'overlay' or 'replace'")
+        raise HTTPException(
+            status_code=400, detail="merge_mode must be 'overlay' or 'replace'"
+        )
 
     if body.merge_mode == "replace":
         for item in PERSISTENT_DIR.iterdir():
@@ -86,7 +90,9 @@ async def import_archive(body: ImportArchiveRequest) -> ImportArchiveResponse:
 
         if proc.returncode != 0:
             err_msg = stderr.decode().strip() if stderr else "Unknown extraction error"
-            logger.error("Archive extraction failed (rc=%d): %s", proc.returncode, err_msg)
+            logger.error(
+                "Archive extraction failed (rc=%d): %s", proc.returncode, err_msg
+            )
             raise HTTPException(status_code=500, detail="Archive extraction failed")
 
         file_count = sum(1 for _ in PERSISTENT_DIR.rglob("*") if _.is_file())
@@ -99,7 +105,9 @@ async def import_archive(body: ImportArchiveRequest) -> ImportArchiveResponse:
         )
 
     except asyncio.TimeoutError as e:
-        raise HTTPException(status_code=504, detail="Archive extraction timed out") from e
+        raise HTTPException(
+            status_code=504, detail="Archive extraction timed out"
+        ) from e
     except HTTPException:
         raise
     except Exception as e:

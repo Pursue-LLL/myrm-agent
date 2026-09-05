@@ -37,6 +37,54 @@
     "loadFailed": "데이터 로드 실패",
     "loadFailedDesc": "네트워크 연결을 확인하거나 잠시 후 다시 시도해 주세요"
   },
+  "taskSpaces": {
+    "title": "브라우저 작업 공간",
+    "badgeTakeover": "수동 개입",
+    "badgeRunning": "실행 중",
+    "closeSpaceBtn": "작업 공간 닫기",
+    "activePages": "활성 페이지 {count}개",
+    "releaseTakeoverBtn": "제어권 반환",
+    "takeoverBtn": "수동 개입",
+    "snapshotPreview": "작업 공간 실시간 미리보기",
+    "emptyState": "활성 페이지 미리보기 없음"
+  },
+  "continualOverlay": {
+    "activeTitle": "지속적 행동 가이드 활성",
+    "remainingTurns": "남은 턴 {count}개",
+    "rollbackTooltip": "지속적 행동 가이드 프롬프트 변경 롤백",
+    "rollback": "롤백",
+    "collapse": "가이드 상세 접기",
+    "expand": "가이드 상세 펼치기",
+    "howItWorks": "지속적 행동 가이드 작동 원리",
+    "howItWorksDesc": "영구적인 시스템 프롬프트를 수정하지 않고 여러 턴에 걸쳐 임시 행동 제약이나 도구 가드레일을 적용합니다.",
+    "allActiveOverlays": "활성 가이드 계층 ({count})"
+  },
+  "executionPhaseStepper": {
+    "badge": "완료됨",
+    "waitingApproval": "승인 대기 중",
+    "collapseTelemetry": "실행 원격측정 접기",
+    "expandTelemetry": "실행 원격측정 펼치기",
+    "currentNode": "노드 #{nodeId}",
+    "lanes": {
+      "user": "사용자 승인",
+      "llm": "LLM 추론",
+      "mcp": "MCP 실행",
+      "skills": "스킬 호출",
+      "sandbox": "샌드박스 실행",
+      "agent": "에이전트 오케스트레이션"
+    },
+    "phases": {
+      "planning": {
+        "title": "의도 계획"
+      },
+      "executing": {
+        "title": "도구 실행"
+      },
+      "verifying": {
+        "title": "검증"
+      }
+    }
+  },
   "expertSummon": {
     "summonSuccess": "전문가 {name}(으)로 전환되었습니다",
     "summonFailed": "전문가 템플릿 호출 실패",
@@ -18507,6 +18555,7 @@
           "trustedCheckboxLabel": "이 플러그인이 신뢰할 수 있는 출처임을 확인하고 시스템 도구 권한을 승인하며 설치에 동의합니다"
         },
         "capabilities": {
+          "undeclaredWarning": "선언되지 않은 권한 감지됨: 이 서비스는 plugin.json에 선언된 범위를 초과하는 권한을 요구합니다.",
           "title": "샌드박스 권한 계층",
           "read_only": "읽기 전용",
           "fs_read": "파일 읽기",

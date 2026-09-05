@@ -107,6 +107,7 @@ async def get_behavioral_insights(
     resolved_tz_name = client_timezone
     if effective_offset is None and client_timezone:
         from myrm_agent_harness.api import resolve_utc_offset_minutes
+
         effective_offset = resolve_utc_offset_minutes(client_timezone)
 
     final_offset = effective_offset if effective_offset is not None else 0

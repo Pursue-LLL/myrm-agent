@@ -9,6 +9,8 @@
 [OUTPUT]
 - MyrmError: 统一业务异常基类
 - StandardHTTPException: 包含脱敏错误响应的结构化HTTP异常
+- fold_user_home_paths: 本地用户主目录路径安全折叠
+- redact_error_payload: 多态递归安全脱敏与路径折叠解析引擎
 - register_exception_handlers: FastAPI全局异常拦截与自动脱敏注册器
 - validation_error, not_found_error, auth_error, permission_error, conflict_error, internal_error: HTTP异常快捷工厂
 
@@ -19,6 +21,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import traceback
 from typing import NoReturn
 
@@ -101,6 +104,58 @@ class MyrmError(Exception):
         return _BUSINESS_CODE_TO_HTTP.get(self.code, 500)
 
 
+_HOME_DIR_UNIX_RE = re.compile(
+    r"(?<!https:)(?<!http:)(^|[\s\"'(\[:])(?:/Users/|/home/)[^/\s\"')\]:]+(/?)"
+)
+_HOME_DIR_ROOT_RE = re.compile(
+    r"(?<!https:)(?<!http:)(^|[\s\"'(\[:])/root(/|(?=[\s\"')\]:]|$))"
+)
+_HOME_DIR_WIN_RE = re.compile(
+    r"(^|[\s\"'(\[:])[A-Za-z]:\\Users\\[^\\/\s\"')\]:]+(\\?)"
+)
+
+
+def fold_user_home_paths(text: str) -> str:
+    """Fold local user home paths (macOS/Linux/Windows) to '~' for privacy and concise UX."""
+    if not text:
+        return text
+    text = _HOME_DIR_UNIX_RE.sub(r"\1~\2", text)
+    text = _HOME_DIR_ROOT_RE.sub(r"\1~\2", text)
+    text = _HOME_DIR_WIN_RE.sub(r"\1~\2", text)
+    return text
+
+
+def redact_error_payload(payload: object, max_depth: int = 10) -> object:
+    """Recursively redact sensitive credentials and fold home directory paths in error payloads.
+
+    Supports polymorphic payloads: str, dict, list, tuple, set, and primitive values.
+    Limits recursion depth to prevent stack overflow on deeply nested payloads.
+    """
+    if max_depth <= 0:
+        return "[TRUNCATED_NESTING]"
+
+    if isinstance(payload, str):
+        return fold_user_home_paths(redact_sensitive_text(payload))
+    if isinstance(payload, dict):
+        result: dict[str, object] = {}
+        for k, v in payload.items():
+            str_k = str(k)
+            lower_k = str_k.lower()
+            if any(term in lower_k for term in ("token", "secret", "password", "api_key", "apikey")) and isinstance(v, str):
+                result[str_k] = "***REDACTED***"
+            else:
+                result[str_k] = redact_error_payload(v, max_depth - 1)
+        return result
+    if isinstance(payload, (list, tuple)):
+        items = [redact_error_payload(item, max_depth - 1) for item in payload]
+        return tuple(items) if isinstance(payload, tuple) else items
+    if isinstance(payload, set):
+        return [redact_error_payload(item, max_depth - 1) for item in payload]
+    if isinstance(payload, (int, float, bool)) or payload is None:
+        return payload
+    return fold_user_home_paths(redact_sensitive_text(str(payload)))
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Register global handlers that convert MyrmError into JSON responses.
 
@@ -122,9 +177,10 @@ def register_exception_handlers(app: FastAPI) -> None:
         else:
             logger.warning("[%s] MyrmError %s: %s", path, exc.code.name, exc.message)
 
+        safe_message = str(redact_error_payload(exc.message))
         body = create_error_response(
             code=exc.code,
-            message=redact_sensitive_text(exc.message),
+            message=safe_message,
             details=exc.details,
         ).model_dump(mode="json")
 
@@ -146,28 +202,16 @@ def register_exception_handlers(app: FastAPI) -> None:
         else:
             logger.warning("[%s] HTTPException %s: %s", path, exc.status_code, exc.detail)
 
-        safe_detail: object
-        if isinstance(exc.detail, str):
-            safe_detail = redact_sensitive_text(exc.detail)
-        elif isinstance(exc.detail, dict):
-            safe_detail = {k: redact_sensitive_text(str(v)) if isinstance(v, str) else v for k, v in exc.detail.items()}
-        elif isinstance(exc.detail, list):
-            safe_detail = [
-                {k: redact_sensitive_text(str(v)) if isinstance(v, str) else v for k, v in item.items()}
-                if isinstance(item, dict)
-                else (redact_sensitive_text(str(item)) if isinstance(item, str) else item)
-                for item in exc.detail
-            ]
-        else:
-            safe_detail = redact_sensitive_text(str(exc.detail))
+        safe_detail = redact_error_payload(exc.detail)
 
         # If detail is already formatted with code and message, keep structure
         if isinstance(safe_detail, dict) and "code" in safe_detail and "message" in safe_detail:
             body = safe_detail
         else:
+            message_str = safe_detail if isinstance(safe_detail, str) else str(safe_detail)
             body = create_error_response(
                 code=BusinessCode.INTERNAL_ERROR if exc.status_code >= 500 else BusinessCode.VALIDATION_ERROR,
-                message=str(safe_detail),
+                message=message_str,
             ).model_dump(mode="json")
 
         return JSONResponse(
@@ -245,7 +289,7 @@ class StandardHTTPException(HTTPException):
         details: list[ErrorDetail] | None = None,
         trace_id: str | None = None,
     ):
-        safe_message = redact_sensitive_text(message)
+        safe_message = str(redact_error_payload(message))
         error_response = create_error_response(code=business_code, message=safe_message, details=details, trace_id=trace_id)
         super().__init__(status_code=status_code, detail=error_response.model_dump(mode="json"))
 

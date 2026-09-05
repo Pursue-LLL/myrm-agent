@@ -203,12 +203,9 @@ class TestMCPTokenAuth:
                 assert ok_web_resp.status_code == 200
                 assert ok_web_resp.json()["profile_id"] == "cursor"
 
-
     @patch("app.api.mcp.endpoint._memory_manager_for_agent", new_callable=AsyncMock)
     @patch("app.services.connect.get_connect_service")
-    def test_onion_pipeline_allows_loopback_with_valid_token(
-        self, mock_get_service, mock_manager_for_agent
-    ):
+    def test_onion_pipeline_allows_loopback_with_valid_token(self, mock_get_service, mock_manager_for_agent):
         """Valid loopback origin with valid token passes both layers to reach echo handler."""
         from app.api.mcp.origin_guard import _MCPOriginGuardMiddleware, resolve_origin_guard
         from app.services.connect.service import VerifiedConnectToken
@@ -236,4 +233,3 @@ class TestMCPTokenAuth:
         )
         assert response.status_code == 200
         assert response.json()["profile_id"] == "cursor"
-

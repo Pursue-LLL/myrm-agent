@@ -88,7 +88,9 @@ class TunnelManager:
             while asyncio.get_running_loop().time() < deadline:
                 if self._process.returncode is not None:
                     break
-                line_bytes = await asyncio.wait_for(self._process.stderr.readline(), timeout=5.0)
+                line_bytes = await asyncio.wait_for(
+                    self._process.stderr.readline(), timeout=5.0
+                )
                 if not line_bytes:
                     continue
                 line = line_bytes.decode("utf-8", errors="ignore")

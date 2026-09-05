@@ -137,4 +137,3 @@ class TestCredentialPoolApi:
         assert data["success"] is True
         assert data["data"]["valid"] is False
         assert "Not a recognized" in data["data"]["error"]
-

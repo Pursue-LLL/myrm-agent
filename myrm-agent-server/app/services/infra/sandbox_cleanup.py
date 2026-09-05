@@ -31,13 +31,43 @@ class WorkspaceCleanupService:
         results: dict[str, bool] = {
             "storage_workspace": False,
             "container_session": False,
+            "artifact_vault": False,
         }
 
         results["storage_workspace"] = await WorkspaceCleanupService._cleanup_storage_workspace(chat_id)
 
         results["container_session"] = await WorkspaceCleanupService._cleanup_container_session(chat_id)
 
+        results["artifact_vault"] = await WorkspaceCleanupService._cleanup_artifact_vault(chat_id)
+
         return results
+
+    @staticmethod
+    async def _cleanup_artifact_vault(chat_id: str) -> bool:
+        """Clean up oversized temporary objects produced in ArtifactVault for this chat."""
+        try:
+            from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
+
+            # 默认扫描 harness 存储目录下的沙箱根路径
+            harness_dir = Path(settings.database.harness_dir)
+            session_id = f"chat_{chat_id}"
+            session_workspace = harness_dir / "workspaces" / session_id
+
+            purged_total = 0
+            if session_workspace.exists():
+                vault = ArtifactVault(str(session_workspace))
+                purged_total += vault.purge_all()
+
+            # 同时针对全局默认根路径执行特定任务标记清理
+            default_vault = ArtifactVault(str(harness_dir))
+            purged_total += default_vault.purge_by_task_id(chat_id)
+
+            if purged_total > 0:
+                logger.info("Cleaned %d vault artifacts (chat=%s)", purged_total, chat_id)
+            return True
+        except Exception as e:
+            logger.warning("Failed to cleanup artifact vault for chat %s: %s", chat_id, e)
+            return False
 
     @staticmethod
     async def _cleanup_storage_workspace(chat_id: str) -> bool:

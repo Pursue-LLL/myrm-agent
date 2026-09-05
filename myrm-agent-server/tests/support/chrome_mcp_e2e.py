@@ -2216,8 +2216,11 @@ def _run_coroutine_any_loop(coro_factory: Callable[[], Coroutine[Any, Any, objec
     ``asyncio.run`` is safe and never deadlocks the caller's loop.
     """
     try:
-        asyncio.get_running_loop()
+        loop = asyncio.get_running_loop()
     except RuntimeError:
+        loop = None
+
+    if loop is None:
         return asyncio.run(coro_factory())
 
     outcome: list[object] = []
@@ -2237,6 +2240,25 @@ def _run_coroutine_any_loop(coro_factory: Callable[[], Coroutine[Any, Any, objec
     return outcome[0]
 
 
+def _run_in_isolated_thread_loop(func: Callable[[], Any]) -> Any:
+    """Execute target func in a clean dedicated thread without inheriting parent thread async state."""
+    outcome: list[Any] = []
+    errors: list[BaseException] = []
+
+    def _target() -> None:
+        try:
+            outcome.append(func())
+        except BaseException as exc:
+            errors.append(exc)
+
+    thread = threading.Thread(target=_target, daemon=True)
+    thread.start()
+    thread.join()
+    if errors:
+        raise errors[0]
+    return outcome[0] if outcome else None
+
+
 def _ensure_orchestrator_shared_ui_session(
     client: ChromeMcpClient,
     page: McpPage,
@@ -2253,12 +2275,16 @@ def _ensure_orchestrator_shared_ui_session(
     last_exc: BaseException | None = None
     for attempt in range(2):
         try:
-            _run_coroutine_any_loop(
-                lambda: maybe_apply_shared_ui_session_contract(
-                    chat,
-                    timeout_sec=_orchestrator_shared_ui_contract_timeout_sec(),
+            # Run in worker thread with clean event loop to prevent RuntimeError / CancelledError
+            def _runner() -> None:
+                asyncio.run(
+                    maybe_apply_shared_ui_session_contract(
+                        chat,
+                        timeout_sec=_orchestrator_shared_ui_contract_timeout_sec(),
+                    )
                 )
-            )
+
+            _run_in_isolated_thread_loop(_runner)
             return
         except RuntimeError as exc:
             last_exc = exc

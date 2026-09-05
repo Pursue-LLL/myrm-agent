@@ -94,6 +94,7 @@ async def test_paginated_table_harvest_dual_sentinel_e2e() -> None:
             with open(disk_cache_file, "a", encoding="utf-8") as f:
                 for item in current_page_data:
                     import json
+
                     f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
             harvested_rows.extend(current_page_data)
@@ -187,6 +188,7 @@ async def test_paginated_table_harvest_edge_cases_e2e() -> None:
         # 2. Verify OpenPyXL XLSX export engine
         try:
             import openpyxl
+
             wb = openpyxl.Workbook()
             ws = wb.active
             assert ws is not None
@@ -209,4 +211,3 @@ async def test_paginated_table_harvest_edge_cases_e2e() -> None:
         except ImportError:
             # openpyxl optional in lean environments
             pass
-

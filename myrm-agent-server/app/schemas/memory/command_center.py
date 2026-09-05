@@ -727,5 +727,3 @@ class MemoryRepoEvidenceResponse(BaseModel):
     total_commits_examined: int = 0
     extracted_at: str
     is_git_available: bool = True
-
-

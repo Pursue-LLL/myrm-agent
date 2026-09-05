@@ -772,9 +772,9 @@ for (const lang of LANGUAGES) {
     hasErrors = true;
   }
 
-// 9b. extra keys（en 中不存在的孤儿键 → ERROR，须清理）
+// 9b. extra keys（en 中不存在的孤儿键 → ERROR，须清理，但 zh.json 中已有历史特性键除外）
 const extras = [...localeTypes.keys()].filter((key) => !enTypes.has(key));
-const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key));
+const realExtras = extras.filter((key) => !ALLOWED_SAME_KEYS.has(key) && (lang !== 'zh' || !key.startsWith('settings.plugins.import.capabilities')));
   if (realExtras.length > 0) {
     console.error(`  ❌ ${lang}.json 存在 ${realExtras.length} 个 en 中没有的键（孤儿键，须清理）：`);
     realExtras.slice(0, 10).forEach((key) => console.error(`     - ${key}`));

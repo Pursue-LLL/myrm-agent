@@ -30,11 +30,13 @@ def mcp_test_app() -> FastAPI:
 
     async def _mock_mcp_handler(scope, receive, send):
         state = scope.get("state", {})
-        resp = JSONResponse({
-            "status": "mcp_ok",
-            "agent_id": state.get("mcp_agent_id"),
-            "profile_id": state.get("mcp_profile_id"),
-        })
+        resp = JSONResponse(
+            {
+                "status": "mcp_ok",
+                "agent_id": state.get("mcp_agent_id"),
+                "profile_id": state.get("mcp_profile_id"),
+            }
+        )
         await resp(scope, receive, send)
 
     # Wire inner handler -> token auth -> origin guard -> mount at /mcp
@@ -62,7 +64,7 @@ class TestMCPEndpointFullPipelineE2E:
         assert response.status_code == 403
         data = response.json()
         assert "Forbidden" in data["error"]
-        assert ("Origin not allowed" in data["error"] or "Host not allowed" in data["error"])
+        assert "Origin not allowed" in data["error"] or "Host not allowed" in data["error"]
 
     def test_e2e_cross_site_browser_page_blocked_even_with_leaked_token(
         self,

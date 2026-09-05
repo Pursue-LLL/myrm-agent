@@ -259,8 +259,6 @@ class BehavioralMeasurementService:
                 )
                 updated_keys.append(cand.profile_key)
             except Exception as e:
-                logger.warning(
-                    "Failed to persist behavioral profile %s: %s", cand.profile_key, e
-                )
+                logger.warning("Failed to persist behavioral profile %s: %s", cand.profile_key, e)
 
         return updated_keys

@@ -36,11 +36,7 @@ class RepoHistoryDigestService:
     """Service providing repository history digest extraction and memory integration."""
 
     def __init__(self, default_workspace: str | Path | None = None) -> None:
-        self._default_workspace = (
-            Path(default_workspace).resolve()
-            if default_workspace
-            else None
-        )
+        self._default_workspace = Path(default_workspace).resolve() if default_workspace else None
 
     def get_effective_workspace_path(self, target_path: str | None = None) -> Path:
         """Resolve target workspace path using explicit input, default workspace, or harness root."""
@@ -65,9 +61,7 @@ class RepoHistoryDigestService:
     ) -> MemoryRepoEvidenceResponse:
         """Extract recent repository commit digest without LLM cost."""
         path = self.get_effective_workspace_path(workspace_path)
-        digest: RepoHistoryEvidenceDigest = extract_repo_history_digest(
-            path, max_commits=max_commits
-        )
+        digest: RepoHistoryEvidenceDigest = extract_repo_history_digest(path, max_commits=max_commits)
 
         commits = [
             MemoryRepoCommitDigestItem(

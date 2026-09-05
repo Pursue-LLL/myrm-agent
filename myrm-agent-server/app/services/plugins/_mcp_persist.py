@@ -137,6 +137,8 @@ def _server_to_config_dict(
         caps_list = [cap.value if hasattr(cap, "value") else str(cap) for cap in server.capabilities]
         cfg["capabilities"] = caps_list
         extra_params["capabilities"] = caps_list
+    if server.env_key_names:
+        cfg["required_secrets"] = list(server.env_key_names)
     if extra_params:
         cfg["extra_params"] = extra_params
     return cfg

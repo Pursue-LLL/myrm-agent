@@ -210,6 +210,7 @@ async def test_timezone_explicit_offset_resolution(real_db_env) -> None:
     # 2. Database pipeline test: Message with New York timezone
     async with session_maker() as db:
         from sqlalchemy import delete
+
         await db.execute(delete(ChannelMessageModel))
         await db.execute(delete(Message))
         chat = Chat(id="chat_ny", action_mode="fast", source="web")
@@ -229,6 +230,7 @@ async def test_timezone_explicit_offset_resolution(real_db_env) -> None:
 
     async with session_maker() as db:
         from myrm_agent_harness.api import BehavioralStatsOptions
+
         service = BehavioralMeasurementService(db, manager)
         msgs = await service.collect_behavioral_messages(lookback_days=7)
         assert len(msgs) == 1, f"Expected 1 msg, got {len(msgs)}"
@@ -239,4 +241,3 @@ async def test_timezone_explicit_offset_resolution(real_db_env) -> None:
         # Expected NY local hour
         expected_ny_hour = test_dt.astimezone(ZoneInfo("America/New_York")).hour
         assert measurement.hour_histogram[expected_ny_hour] >= 1
-

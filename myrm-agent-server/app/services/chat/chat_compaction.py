@@ -141,6 +141,7 @@ class _ChatCompactionMixin(_ChatServiceBase):
                 # PreCompact Hook: archive salient tool verbatim outputs into recall index before compaction
                 try:
                     from app.services.chat.salient_tool_archive_service import SalientToolArchiveService
+
                     await SalientToolArchiveService().archive_salient_tools(
                         uow.session,
                         chat_id=chat_id,

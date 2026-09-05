@@ -167,7 +167,9 @@ class DeviceBridgeService:
                 await proc.wait()
             except ProcessLookupError:
                 pass
-            logger.warning("ADB command timed out after %ss: %s", timeout, " ".join(cmd))
+            logger.warning(
+                "ADB command timed out after %ss: %s", timeout, " ".join(cmd)
+            )
             return -2, b"ADB command timed out"
         except Exception as exc:
             logger.error("Failed to execute ADB command %s: %s", " ".join(cmd), exc)
@@ -297,14 +299,22 @@ class DeviceBridgeService:
     ) -> DeviceSnapshotPayload:
         """Capture screen from the targeted ADB device with redaction and caching."""
         now = time.time()
-        if not bypass_cache and self._cached_snapshot is not None and (now - self._cache_timestamp) < self._cache_ttl:
+        if (
+            not bypass_cache
+            and self._cached_snapshot is not None
+            and (now - self._cache_timestamp) < self._cache_ttl
+        ):
             return self._cached_snapshot
 
         doctor_res = await self.doctor()
         target_serial = device_id or doctor_res.default_device
 
         if not doctor_res.adb_available or not target_serial:
-            device_name = "Cloud Sandbox (No Tunnel)" if doctor_res.is_cloud_environment else "No Device Connected"
+            device_name = (
+                "Cloud Sandbox (No Tunnel)"
+                if doctor_res.is_cloud_environment
+                else "No Device Connected"
+            )
             fallback_payload = DeviceSnapshotPayload(
                 screenshot_base64=FALLBACK_PNG_B64,
                 mime_type="image/png",
@@ -329,7 +339,9 @@ class DeviceBridgeService:
         )
 
         if code != 0 or len(raw_png) < 100:
-            logger.warning("screencap failed for %s, return code: %s", target_serial, code)
+            logger.warning(
+                "screencap failed for %s, return code: %s", target_serial, code
+            )
             return DeviceSnapshotPayload(
                 screenshot_base64=FALLBACK_PNG_B64,
                 mime_type="image/png",
@@ -351,8 +363,14 @@ class DeviceBridgeService:
         width, height = await self.get_device_dimensions(target_serial)
         b64_img = base64.b64encode(raw_png).decode("utf-8")
 
-        matched_device = next((d for d in doctor_res.devices if d.serial == target_serial), None)
-        device_name = f"{matched_device.model} ({target_serial})" if matched_device else f"Device ({target_serial})"
+        matched_device = next(
+            (d for d in doctor_res.devices if d.serial == target_serial), None
+        )
+        device_name = (
+            f"{matched_device.model} ({target_serial})"
+            if matched_device
+            else f"Device ({target_serial})"
+        )
 
         payload = DeviceSnapshotPayload(
             screenshot_base64=b64_img,
@@ -389,16 +407,30 @@ class DeviceBridgeService:
             width, height = await self.get_device_dimensions(target_serial)
 
             if command.action == "tap":
-                x = max(0, min(width, command.x if command.x is not None else width // 2))
-                y = max(0, min(height, command.y if command.y is not None else height // 2))
-                code, out = await self._run_adb_cmd(["-s", target_serial, "shell", "input", "tap", str(x), str(y)])
+                x = max(
+                    0, min(width, command.x if command.x is not None else width // 2)
+                )
+                y = max(
+                    0, min(height, command.y if command.y is not None else height // 2)
+                )
+                code, out = await self._run_adb_cmd(
+                    ["-s", target_serial, "shell", "input", "tap", str(x), str(y)]
+                )
                 return code == 0, out.decode("utf-8", errors="replace")
 
             if command.action == "swipe":
-                x1 = max(0, min(width, command.x if command.x is not None else width // 2))
-                y1 = max(0, min(height, command.y if command.y is not None else height // 2))
-                x2 = max(0, min(width, command.end_x if command.end_x is not None else x1))
-                y2 = max(0, min(height, command.end_y if command.end_y is not None else y1))
+                x1 = max(
+                    0, min(width, command.x if command.x is not None else width // 2)
+                )
+                y1 = max(
+                    0, min(height, command.y if command.y is not None else height // 2)
+                )
+                x2 = max(
+                    0, min(width, command.end_x if command.end_x is not None else x1)
+                )
+                y2 = max(
+                    0, min(height, command.end_y if command.end_y is not None else y1)
+                )
                 duration = max(50, min(5000, command.duration_ms or 300))
                 code, out = await self._run_adb_cmd(
                     [
@@ -417,8 +449,12 @@ class DeviceBridgeService:
                 return code == 0, out.decode("utf-8", errors="replace")
 
             if command.action == "hold":
-                x = max(0, min(width, command.x if command.x is not None else width // 2))
-                y = max(0, min(height, command.y if command.y is not None else height // 2))
+                x = max(
+                    0, min(width, command.x if command.x is not None else width // 2)
+                )
+                y = max(
+                    0, min(height, command.y if command.y is not None else height // 2)
+                )
                 duration = max(500, min(5000, command.duration_ms or 1000))
                 code, out = await self._run_adb_cmd(
                     [
@@ -464,7 +500,9 @@ class DeviceBridgeService:
                 if not re.match(r"^[A-Za-z0-9_]+$", keycode):
                     return False, f"Invalid keycode format: {keycode}"
 
-                code, out = await self._run_adb_cmd(["-s", target_serial, "shell", "input", "keyevent", keycode])
+                code, out = await self._run_adb_cmd(
+                    ["-s", target_serial, "shell", "input", "keyevent", keycode]
+                )
                 return code == 0, out.decode("utf-8", errors="replace")
 
             return False, f"Unsupported touch relay action: {command.action}"

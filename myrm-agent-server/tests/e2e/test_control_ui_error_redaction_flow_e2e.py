@@ -31,9 +31,7 @@ async def test_channel_test_connection_error_redaction_task_flow_e2e() -> None:
     """Task Flow E2E: Verify channel test errors sanitize cleartext tokens during simulated provider failure."""
     # 1. Simulate an external connection error carrying raw credentials (using non-secret placeholder)
     sample_token = "token-" + "mock-auth-token-not-a-real-secret"
-    raw_error = Exception(
-        f"ConnectError: Failed to reach https://slack.com with Authorization: Bearer {sample_token}"
-    )
+    raw_error = Exception(f"ConnectError: Failed to reach https://slack.com with Authorization: Bearer {sample_token}")
     safe_msg = _safe_err_msg(raw_error)
 
     # 2. Verify complete sanitization of credentials

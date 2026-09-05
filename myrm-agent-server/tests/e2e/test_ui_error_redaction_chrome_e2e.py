@@ -82,10 +82,9 @@ _TRIGGER_REAL_TOAST_AND_VERIFY_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    access_scope="NAMESPACE_WRITE",
+    execution_mode="SHARED",
+    access_scope="READ",
     workload="STANDARD",
-    private_reason="workspace_backend_code",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(300)

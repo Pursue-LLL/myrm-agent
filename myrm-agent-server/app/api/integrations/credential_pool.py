@@ -46,24 +46,30 @@ async def validate_external_secret_reference(body: ValidateExternalSecretRequest
 
     ref = body.reference.strip()
     if not is_external_secret_reference(ref):
-        return success_response({
-            "valid": False,
-            "error": "Not a recognized external secret URI scheme (expected op:// or bw://)",
-        })
+        return success_response(
+            {
+                "valid": False,
+                "error": "Not a recognized external secret URI scheme (expected op:// or bw://)",
+            }
+        )
 
     try:
         resolved = resolve_external_secret(ref)
         masked = f"{resolved[:3]}...{resolved[-3:]}" if len(resolved) > 6 else "***"
-        return success_response({
-            "valid": True,
-            "masked_preview": masked,
-            "error": None,
-        })
+        return success_response(
+            {
+                "valid": True,
+                "masked_preview": masked,
+                "error": None,
+            }
+        )
     except ExternalSecretResolutionError as e:
-        return success_response({
-            "valid": False,
-            "error": str(e),
-        })
+        return success_response(
+            {
+                "valid": False,
+                "error": str(e),
+            }
+        )
 
 
 @router.get("/stats")

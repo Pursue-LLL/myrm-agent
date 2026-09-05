@@ -127,7 +127,8 @@ def compute_capability_diff(
     added = sorted(new_capabilities - old_capabilities)
     removed = sorted(old_capabilities - new_capabilities)
     has_escalation = any(cap in ("shell_exec", "destructive") for cap in added) or (
-        ("network" in added or "fs_write" in added) and not ("shell_exec" in old_capabilities or "destructive" in old_capabilities)
+        ("network" in added or "fs_write" in added)
+        and not ("shell_exec" in old_capabilities or "destructive" in old_capabilities)
     )
     return {
         "added": added,
@@ -216,6 +217,19 @@ def build_preview_result(
             set(aggregated_caps),
         )
 
+    # Check for undeclared privilege escalation between declared and inferred
+    declared_set = {c.value for c in getattr(meta, "declared_capabilities", ())}
+    if declared_set and not set(aggregated_caps).issubset(declared_set):
+        undeclared = sorted(set(aggregated_caps) - declared_set)
+        diagnostics_list.append(
+            {
+                "component": f"plugin:{meta.name if meta else 'manifest'}",
+                "code": "capability_undeclared_privilege",
+                "message": f"Plugin requests undeclared sandbox capabilities: {', '.join(undeclared)}",
+                "level": "warning",
+            }
+        )
+
     return {
         "plugin": {
             "name": meta.name if meta else "",
@@ -226,9 +240,7 @@ def build_preview_result(
             "repository": meta.repository if meta else None,
             "license": meta.license if meta else None,
             "keywords": list(meta.keywords) if meta else [],
-            "declared_capabilities": [
-                c.value for c in (getattr(meta, "declared_capabilities", ()))
-            ],
+            "declared_capabilities": [c.value for c in (getattr(meta, "declared_capabilities", ()))],
             "capabilities": aggregated_caps,
             "effective_tier": effective_tier,
             "risk_level": risk_level,

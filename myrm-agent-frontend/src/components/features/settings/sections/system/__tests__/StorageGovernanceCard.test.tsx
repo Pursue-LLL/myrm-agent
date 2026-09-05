@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { StorageGovernanceCard } from '../StorageGovernanceCard';
 import { systemService } from '@/services/system';
 
@@ -69,7 +69,7 @@ describe('StorageGovernanceCard', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(systemService.getStorageGovernanceReport).mockResolvedValue(mockReport);
+    (systemService.getStorageGovernanceReport as unknown as Mock).mockResolvedValue(mockReport);
   });
 
   it('renders storage volume metrics and category breakdown', async () => {
@@ -84,7 +84,7 @@ describe('StorageGovernanceCard', () => {
   });
 
   it('triggers storage compaction and refetches report', async () => {
-    vi.mocked(systemService.executeStorageCompaction).mockResolvedValue({
+    (systemService.executeStorageCompaction as unknown as Mock).mockResolvedValue({
       success: true,
       initial_bytes: 52428800,
       final_bytes: 41943040,
@@ -111,11 +111,11 @@ describe('StorageGovernanceCard', () => {
   });
 
   it('creates and restores state snapshot', async () => {
-    vi.mocked(systemService.createStateSnapshot).mockResolvedValue({
+    (systemService.createStateSnapshot as unknown as Mock).mockResolvedValue({
       success: true,
       message: 'Snapshot created',
     });
-    vi.mocked(systemService.restoreStateSnapshot).mockResolvedValue({
+    (systemService.restoreStateSnapshot as unknown as Mock).mockResolvedValue({
       success: true,
       message: 'Restored',
     });

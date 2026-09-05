@@ -37,6 +37,54 @@
     "loadFailed": "Failed to Load",
     "loadFailedDesc": "Please check your network connection or try again later"
   },
+  "taskSpaces": {
+    "title": "Browser Task Spaces",
+    "badgeTakeover": "Manual Takeover",
+    "badgeRunning": "Active Agent",
+    "closeSpaceBtn": "Close Space",
+    "activePages": "{count} active pages",
+    "releaseTakeoverBtn": "Release Takeover",
+    "takeoverBtn": "Takeover",
+    "snapshotPreview": "Preview Snapshot",
+    "emptyState": "No snapshot available"
+  },
+  "continualOverlay": {
+    "activeTitle": "Active Overlay Policy",
+    "remainingTurns": "{count} turns left",
+    "rollbackTooltip": "Roll back current overlay policy",
+    "rollback": "Rollback",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "howItWorks": "How Overlay Works",
+    "howItWorksDesc": "Applies non-destructive runtime policy adjustments that automatically expire after a bounded turn horizon.",
+    "allActiveOverlays": "All Active Overlays ({count})"
+  },
+  "executionPhaseStepper": {
+    "badge": "Completed",
+    "waitingApproval": "Waiting for Approval",
+    "collapseTelemetry": "Collapse Telemetry",
+    "expandTelemetry": "Expand Telemetry",
+    "currentNode": "Node #{nodeId}",
+    "lanes": {
+      "user": "User Approval",
+      "llm": "LLM Reasoning",
+      "mcp": "MCP Execution",
+      "skills": "Skill Invocation",
+      "sandbox": "Sandbox Execution",
+      "agent": "Agent Orchestration"
+    },
+    "phases": {
+      "planning": {
+        "title": "Planning"
+      },
+      "executing": {
+        "title": "Executing"
+      },
+      "verifying": {
+        "title": "Verifying"
+      }
+    }
+  },
   "expertSummon": {
     "summonSuccess": "Switched to expert {name}",
     "summonFailed": "Failed to summon expert template",
@@ -18521,7 +18569,8 @@
             "critical": "Critical Risk"
           },
           "escalationTitle": "Privilege Escalation Risk Detected",
-          "escalationWarning": "This version requests elevated system permissions compared to previous installation: added [{added}]. Please verify the plugin source before confirming."
+          "escalationWarning": "This version requests elevated system permissions compared to previous installation: added [{added}]. Please verify the plugin source before confirming.",
+          "undeclaredWarning": "Undeclared capability detected: this service requires permissions beyond what was declared in plugin.json."
         },
         "errors": {
           "parseTitle": "Parse Error",

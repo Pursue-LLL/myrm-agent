@@ -63,9 +63,7 @@ def test_get_evidence_playback_endpoint_live(evidence_client: TestClient) -> Non
         "app.api.memory.operations.command_center.EvidencePlaybackService.get_playback",
         new=AsyncMock(return_value=mock_response),
     ):
-        resp = evidence_client.get(
-            "/api/memory/command-center/evidence/playback?source_id=chat-123&message_id=msg-target"
-        )
+        resp = evidence_client.get("/api/memory/command-center/evidence/playback?source_id=chat-123&message_id=msg-target")
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "live_context"
@@ -104,9 +102,7 @@ def test_get_evidence_playback_endpoint_archived_fallback(evidence_client: TestC
         "app.api.memory.operations.command_center.EvidencePlaybackService.get_playback",
         new=AsyncMock(return_value=mock_response),
     ):
-        resp = evidence_client.get(
-            "/api/memory/command-center/evidence/playback?channel_id=slack&quote_snippet=Temporary"
-        )
+        resp = evidence_client.get("/api/memory/command-center/evidence/playback?channel_id=slack&quote_snippet=Temporary")
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "archived_snapshot"

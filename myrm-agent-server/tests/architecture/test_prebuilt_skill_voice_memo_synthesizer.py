@@ -17,13 +17,7 @@ from pathlib import Path
 
 import pytest
 
-_SKILL_MD = (
-    Path(__file__).resolve().parents[2]
-    / "assets"
-    / "prebuilt_skills"
-    / "voice-memo-synthesizer"
-    / "SKILL.md"
-)
+_SKILL_MD = Path(__file__).resolve().parents[2] / "assets" / "prebuilt_skills" / "voice-memo-synthesizer" / "SKILL.md"
 
 _CONTRACT_MARKERS = (
     # Core operating dimensions
@@ -78,9 +72,7 @@ def test_frontmatter_declares_semver_version(skill_text: str) -> None:
 @pytest.mark.architecture
 @pytest.mark.parametrize("marker", _CONTRACT_MARKERS)
 def test_contract_marker_present(skill_text: str, marker: str) -> None:
-    assert marker in skill_text, (
-        f"Required contract marker missing from voice-memo-synthesizer SKILL.md: {marker!r}"
-    )
+    assert marker in skill_text, f"Required contract marker missing from voice-memo-synthesizer SKILL.md: {marker!r}"
 
 
 @pytest.mark.architecture
@@ -100,4 +92,3 @@ def test_channel_router_memo_command_registered() -> None:
     assert "voice-memo-synthesizer" in memo_cmd.skill_ids
     assert "meeting" in memo_cmd.aliases
     assert "minutes" in memo_cmd.aliases
-

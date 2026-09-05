@@ -128,11 +128,7 @@ def _top_level_dirs(root: Path) -> set[str]:
     if not root.is_dir():
         return set()
     return {
-        path.name
-        for path in root.iterdir()
-        if path.is_dir()
-        and not path.name.startswith("_")
-        and path.name != "__pycache__"
+        path.name for path in root.iterdir() if path.is_dir() and not path.name.startswith("_") and path.name != "__pycache__"
     }
 
 
@@ -144,14 +140,12 @@ def test_api_services_same_name_domains_match_disk() -> None:
     missing_api = sorted(SAME_NAME_DOMAINS - api_domains)
     missing_services = sorted(SAME_NAME_DOMAINS - service_domains)
     assert not missing_api, f"api/ missing same-name domains: {missing_api}"
-    assert (
-        not missing_services
-    ), f"services/ missing same-name domains: {missing_services}"
+    assert not missing_services, f"services/ missing same-name domains: {missing_services}"
 
     extra_api = sorted((api_domains & service_domains) - SAME_NAME_DOMAINS)
-    assert (
-        not extra_api
-    ), f"Undocumented api/services same-name domains (update SAME_NAME_DOMAINS and CONTRIBUTING.md): {extra_api}"
+    assert not extra_api, (
+        f"Undocumented api/services same-name domains (update SAME_NAME_DOMAINS and CONTRIBUTING.md): {extra_api}"
+    )
 
 
 @pytest.mark.architecture
@@ -168,11 +162,7 @@ def test_api_top_level_domain_partition() -> None:
 @pytest.mark.architecture
 def test_services_top_level_domain_partition() -> None:
     service_domains = _top_level_dirs(_SERVICES_ROOT)
-    expected = (
-        SAME_NAME_DOMAINS
-        | SERVICES_ONLY_DOMAINS
-        | frozenset(API_SERVICES_ALIASES.values())
-    )
+    expected = SAME_NAME_DOMAINS | SERVICES_ONLY_DOMAINS | frozenset(API_SERVICES_ALIASES.values())
     assert service_domains == expected, (
         "services/ top-level domains changed. Update SERVICES_ONLY_DOMAINS, API_SERVICES_ALIASES, "
         "and CONTRIBUTING.md § API ↔ Services domain vocabulary. "
@@ -187,19 +177,13 @@ def test_api_services_alias_pairs_exist_on_disk() -> None:
 
     for api_name, service_name in API_SERVICES_ALIASES.items():
         assert api_name in api_domains, f"Missing api/{api_name}/ for alias"
-        assert (
-            service_name in service_domains
-        ), f"Missing services/{service_name}/ for alias {api_name!r}"
+        assert service_name in service_domains, f"Missing services/{service_name}/ for alias {api_name!r}"
 
 
 @pytest.mark.architecture
 def test_api_services_alias_keys_do_not_collide_with_same_name() -> None:
     overlap = frozenset(API_SERVICES_ALIASES) & SAME_NAME_DOMAINS
-    assert (
-        not overlap
-    ), f"Alias keys must not also be same-name domains: {sorted(overlap)!r}"
+    assert not overlap, f"Alias keys must not also be same-name domains: {sorted(overlap)!r}"
 
     value_overlap = frozenset(API_SERVICES_ALIASES.values()) & API_ONLY_DOMAINS
-    assert (
-        not value_overlap
-    ), f"Alias values must not be listed as api-only: {sorted(value_overlap)!r}"
+    assert not value_overlap, f"Alias values must not be listed as api-only: {sorted(value_overlap)!r}"

@@ -165,9 +165,7 @@ class TabBorrowLedger:
     def _prune_expired(self) -> None:
         """Purge expired records exceeding TTL."""
         now = time.monotonic()
-        expired_keys = [
-            tid for tid, rec in self._records.items() if (now - rec.borrowed_at) > self._ttl
-        ]
+        expired_keys = [tid for tid, rec in self._records.items() if (now - rec.borrowed_at) > self._ttl]
         for tid in expired_keys:
             del self._records[tid]
 

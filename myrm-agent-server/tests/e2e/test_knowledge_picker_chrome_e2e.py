@@ -334,5 +334,3 @@ def test_knowledge_picker_popover_chrome_e2e() -> None:
         response_text = str(assistant_reply.get("sample") or "")
         print(f"\nREAL_LLM_KNOWLEDGE_ASSISTANT_RESPONSE: {response_text}")
         assert len(response_text) > 0, "Model returned empty response"
-
-
