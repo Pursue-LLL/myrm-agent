@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { useLocale } from 'next-intl';
-import { Loader2, LogIn, LogOut, ExternalLink, Copy, Check } from 'lucide-react';
+import { Loader2, LogIn, LogOut, ExternalLink, Copy, Check, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   type ProviderOAuthProvider,
@@ -310,6 +310,39 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(({ providerId, hasA
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
               {locale === 'zh' ? `使用 ${config.nameZh} 登录` : `Log in with ${config.name}`}
             </button>
+          </div>
+        )}
+        {oauthProvider === 'anthropic' && (
+          <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-1.5 leading-relaxed">
+            <div className="flex items-center gap-1.5 font-medium">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <span>
+                {locale === 'zh'
+                  ? 'Anthropic 订阅政策与额度说明'
+                  : locale === 'zh-TW'
+                    ? 'Anthropic 訂閱政策與額度說明'
+                    : locale === 'ja'
+                      ? 'Anthropic サブスクリプションポリシーと利用枠について'
+                      : locale === 'ko'
+                        ? 'Anthropic 구독 정책 및 사용량 안내'
+                        : locale === 'de'
+                          ? 'Anthropic Abonnementrichtlinien & Kontingenthinweis'
+                          : 'Anthropic Subscription Policy & Quota Notice'}
+              </span>
+            </div>
+            <p className="text-[11px] opacity-90">
+              {locale === 'zh'
+                ? 'Anthropic 官方对第三方客户端订阅授权政策存在不确定性限制；Claude Max 专属赠送额度仅在官方网页端生效。生产级长程任务建议优先配置官方 API Key，或在 Agent Profile 中指定备用模型以确保不中断。'
+                : locale === 'zh-TW'
+                  ? 'Anthropic 官方對第三方客戶端訂閱授權政策存在不確定性限制；Claude Max 專屬贈送額度僅在官方網頁端生效。生產級長程任務建議優先配置官方 API Key，或在 Agent Profile 中指定備用模型以確保不中斷。'
+                  : locale === 'ja'
+                    ? 'Anthropic 社はサードパーティ製品からのサブスクリプション接続に制限を適用する場合があります。また Claude Max 特典クレジットは公式 Web でのみ利用可能です。重要な本番タスクでは公式 API Key またはフォールバックモデルの設定を推奨します。'
+                    : locale === 'ko'
+                      ? 'Anthropic 정책에 따라 타사 클라이언트 구독 연동이 제한될 수 있으며, Claude Max 추가 크레딧은 공식 웹에서만 적용됩니다. 안정적인 업무 환경을 위해 공식 API Key 또는 대체(Fallback) 모델 설정을 권장합니다.'
+                      : locale === 'de'
+                        ? 'Anthropic kann Drittanbieter-Abonnements einschränken; zusätzliche Claude Max Guthaben gelten nur im offiziellen Webinterface. Für produktive Workloads wird ein offizieller API Key oder ein Fallback-Modell empfohlen.'
+                        : 'Anthropic policy may restrict third-party client subscriptions, and Claude Max extra credits only apply in the official web interface. For production workloads, configuring an official API Key or a fallback model in Agent Profile is recommended.'}
+            </p>
           </div>
         )}
       </div>
