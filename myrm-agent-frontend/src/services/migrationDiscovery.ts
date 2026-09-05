@@ -85,6 +85,13 @@ const DEFAULT_MIGRATION_SOURCE_MANIFEST: readonly MigrationSourceManifestItem[] 
     discover_modes: ['zip_upload'],
     deep_link_enabled: true,
   },
+  {
+    id: 'gemini',
+    display_name: 'Google Gemini',
+    import_source: 'gemini',
+    discover_modes: ['zip_upload'],
+    deep_link_enabled: true,
+  },
 ];
 const DEFAULT_MIGRATION_SOURCE_MANIFEST_BY_ID = buildManifestById(DEFAULT_MIGRATION_SOURCE_MANIFEST);
 
