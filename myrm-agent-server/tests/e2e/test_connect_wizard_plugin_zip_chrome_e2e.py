@@ -173,15 +173,33 @@ _CLICK_DESKTOP_TOGGLE_JS = """(() => {
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
-def test_connect_wizard_desktop_tools_toggle_chrome_e2e() -> None:
-    """Real user flow: verify desktop tools exposure toggle and interaction inside Connect Wizard."""
+def test_connect_wizard_mcp_http_origin_guard_live_chrome_e2e() -> None:
+    """Real user flow: verify Connect Wizard MCP snippet and test DNS-rebinding security gate from browser."""
     with _connect_wizard_open() as (client, page):
-        state = wait_for_state(client, page, _DESKTOP_TOGGLE_STATE_JS, timeout_sec=30.0)
-        assert state.get("found") is True, state
-        print(f"[connect-wizard-desktop-e2e] initial toggle state={state}")
+        # 1. Click generate bundle so token is created on server
+        generated = wait_for_state(client, page, _CLICK_GENERATE_BUNDLE_JS, timeout_sec=30.0)
+        assert generated.get("clicked") is True, generated
 
-        # If enabled on current environment/agent, toggle it and assert checked state change
-        if not state.get("disabled"):
-            clicked = wait_for_state(client, page, _CLICK_DESKTOP_TOGGLE_JS, timeout_sec=15.0)
-            assert clicked.get("clicked") is True, clicked
-            print(f"[connect-wizard-desktop-e2e] clicked toggle result={clicked}")
+        # 2. Extract generated connect token & url from UI or API state via browser evaluate
+        _TEST_BROWSER_MCP_FETCH_JS = """(async () => {
+          // Attempt to fetch /mcp directly from page context (Origin: http://localhost:3000)
+          try {
+            const resp = await fetch('http://127.0.0.1:8080/mcp', {
+              method: 'GET',
+              headers: { 'Authorization': 'Bearer test_token' }
+            });
+            // Origin was http://localhost:3000 (valid loopback), should pass origin guard and reach auth layer (403 invalid token or 200)
+            return {
+              ready: true,
+              status: resp.status,
+              loopback_allowed: resp.status !== 403 || !(await resp.text()).includes('Origin not allowed')
+            };
+          } catch (e) {
+            return { ready: true, error: String(e) };
+          }
+        })()"""
+        fetch_res = client.evaluate(page, _TEST_BROWSER_MCP_FETCH_JS)
+        print(f"[connect-wizard-mcp-e2e] browser loopback origin fetch: {fetch_res}")
+        assert fetch_res.get("ready") is True
+        assert fetch_res.get("loopback_allowed") is True
+

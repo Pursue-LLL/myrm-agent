@@ -60,6 +60,30 @@ def test_get_behavioral_insights_endpoint(behavioral_client: TestClient) -> None
         assert data["source"] == "computed_deterministic"
 
 
+def test_get_behavioral_insights_with_client_timezone(behavioral_client: TestClient) -> None:
+    mock_routine = RoutineMeasurement(
+        hour_histogram=[0] * 24,
+        workday_hour_histogram=[0] * 24,
+        weekend_hour_histogram=[0] * 24,
+        weekday_histogram=[0] * 7,
+        self_message_count=10,
+        latency_sample_count=5,
+    )
+
+    with patch(
+        "app.api.memory.operations.command_center.BehavioralMeasurementService.measure",
+        new=AsyncMock(return_value=mock_routine),
+    ):
+        resp = behavioral_client.get(
+            "/api/memory/command-center/behavioral-insights?client_timezone=Asia/Shanghai&locale_anchor=zh"
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["detected_timezone"] == "Asia/Shanghai"
+        assert data["locale_anchor"] == "zh"
+        assert data["offset_minutes"] == 480
+
+
 def test_trigger_behavioral_sync_endpoint(behavioral_client: TestClient) -> None:
     with patch(
         "app.api.memory.operations.command_center.BehavioralMeasurementService.sync_profile_attributes",

@@ -4475,6 +4475,7 @@
         "weekend": "周末",
         "allDays": "全周期",
         "frequentCollaborators": "高频协作伙伴 (Top-5)",
+        "localeAnchor": "语言锚点：{locale}",
         "loadError": "获取行为特征失败",
         "syncSuccess": "已成功将 {count} 项客观特征沉淀至用户画像",
         "syncNoEligible": "暂无满足置信度样本门槛的特征",

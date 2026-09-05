@@ -114,6 +114,23 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
             {tb('subtitle')}
           </p>
+          {data && (
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60">
+                <IconClock className="w-3 h-3 text-indigo-400" />
+                <span>
+                  {data.detected_timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC')}
+                  {data.offset_minutes !== undefined && data.offset_minutes !== null
+                    ? ` (UTC${data.offset_minutes >= 0 ? '+' : ''}${(data.offset_minutes / 60).toFixed(1)}h)`
+                    : ''}
+                </span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span>{tb('localeAnchor', { locale: data.locale_anchor || 'Auto' })}</span>
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-auto">

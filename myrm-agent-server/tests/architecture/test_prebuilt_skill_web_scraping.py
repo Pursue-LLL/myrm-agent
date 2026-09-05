@@ -1,9 +1,13 @@
 """Architecture guard: web-scraping skill must preserve its core operating contract.
 
-Ensures that the Dual-Sentinel Loop Guard, Incremental Disk Cache Protocol,
-Three-Dimensional Loading Modes (Next, Load More, Infinite Scroll),
-and Dual-Engine Output & Artifact Delivery rules remain explicitly documented
-and are never accidentally dropped in future updates.
+[INPUT]
+- assets/prebuilt_skills/web-scraping/SKILL.md
+
+[OUTPUT]
+- Architecture tests ensuring web-scraping skill retains enterprise pagination, dual-sentinels, and artifact contracts
+
+[POS]
+Architecture test verifying the operational integrity and contract stability of the web-scraping prebuilt skill.
 """
 
 from __future__ import annotations

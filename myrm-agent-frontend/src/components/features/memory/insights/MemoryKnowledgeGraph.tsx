@@ -18,10 +18,13 @@ import { Maximize2, Minimize2, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   getMemoryGraph,
+  type MemoryCommandGraphHubItem,
   type MemoryCommandGraphNode,
   type MemoryCommandGraphResponse,
   type MemoryCommandGraphStats,
 } from '@/services/memory/commandCenter';
+import { GraphEmptyState, type GraphDiagnosisState } from './GraphEmptyState';
+import { RankedHubSidebar } from './RankedHubSidebar';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
 
@@ -120,6 +123,8 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<ForceGraphData | null>(null);
   const [stats, setStats] = useState<MemoryCommandGraphStats | null>(null);
+  const [rankedHubs, setRankedHubs] = useState<MemoryCommandGraphHubItem[]>([]);
+  const [graphState, setGraphState] = useState<GraphDiagnosisState>('ready');
   const [hasGraph, setHasGraph] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +142,8 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
       const resp = await getMemoryGraph(200, 0);
       setHasGraph(resp.has_graph);
       setStats(resp.stats);
+      setRankedHubs(resp.ranked_hubs ?? []);
+      setGraphState((resp.graph_state as GraphDiagnosisState) ?? (resp.has_graph ? 'ready' : 'storage_disabled'));
       if (resp.has_graph && resp.nodes.length > 0) {
         const fgData = toForceGraph(resp);
         setData(fgData);
@@ -156,7 +163,7 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [initialFocusNodeId]);
 
   useEffect(() => {
     void load();
@@ -183,9 +190,13 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) {
+        const fullW = entry.contentRect.width;
+        // In dual-view (when ranked hubs exist and screen is wide enough), allocate canvas width
+        const showSidebar = rankedHubs.length > 0 && fullW >= 768;
+        const canvasW = showSidebar ? Math.max(300, fullW - 280) : fullW;
         setDimensions({
-          width: entry.contentRect.width,
-          height: fullscreen ? window.innerHeight : Math.max(entry.contentRect.height, 400),
+          width: canvasW,
+          height: fullscreen ? window.innerHeight : Math.max(entry.contentRect.height, 460),
         });
       }
     });
@@ -332,20 +343,9 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
     );
   }
 
-  if (!hasGraph) {
-    return (
-      <div className={cn('rounded-lg border border-dashed border-border/70 p-8 text-center', className)}>
-        <p className="text-sm text-muted-foreground">{t('commandCenter.graph.unavailable')}</p>
-      </div>
-    );
-  }
-
-  if (!data || data.nodes.length === 0) {
-    return (
-      <div className={cn('rounded-lg border border-dashed border-border/70 p-8 text-center', className)}>
-        <p className="text-sm text-muted-foreground">{t('commandCenter.graph.empty')}</p>
-      </div>
-    );
+  if (!hasGraph || !data || data.nodes.length === 0 || graphState !== 'ready') {
+    const effectiveState = !hasGraph ? 'storage_disabled' : graphState !== 'ready' ? graphState : 'empty_knowledge';
+    return <GraphEmptyState state={effectiveState} onRetry={load} className={className} />;
   }
 
   const wrapperCls = fullscreen
@@ -387,37 +387,57 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
       )}
 
       {filteredData && (
-        <ForceGraph2D
-          graphData={filteredData}
-          width={dimensions.width}
-          height={dimensions.height}
-          nodeCanvasObject={nodeCanvasObject}
-          nodePointerAreaPaint={(node: unknown, color: string, ctx: CanvasRenderingContext2D) => {
-            const graphNode = node as ForceNode;
-            const r = getNodeRadius(graphNode.labels) + 2;
-            ctx.fillStyle = color;
-            ctx.beginPath();
-            ctx.arc(graphNode.x ?? 0, graphNode.y ?? 0, r, 0, 2 * Math.PI);
-            ctx.fill();
-          }}
-          linkColor={linkColor}
-          linkWidth={(link: unknown) => {
-            const graphLink = link as ForceLink;
-            return selectedNode &&
-              (nodeId(graphLink.source) === selectedNode.id || nodeId(graphLink.target) === selectedNode.id)
-              ? 2
-              : 0.8;
-          }}
-          linkDirectionalArrowLength={3}
-          linkDirectionalArrowRelPos={1}
-          backgroundColor="rgba(0,0,0,0)"
-          onNodeClick={(node: unknown) => {
-            const graphNode = node as ForceNode;
-            setSelectedNode((prev) => (prev?.id === graphNode.id ? null : graphNode));
-          }}
-          onNodeHover={(node: unknown) => setHoveredNode((node as ForceNode | null)?.id ?? null)}
-          onBackgroundClick={() => setSelectedNode(null)}
-        />
+        <div className="flex h-full w-full">
+          <div className="relative flex-1 overflow-hidden">
+            <ForceGraph2D
+              graphData={filteredData}
+              width={dimensions.width}
+              height={dimensions.height}
+              nodeCanvasObject={nodeCanvasObject}
+              nodePointerAreaPaint={(node: unknown, color: string, ctx: CanvasRenderingContext2D) => {
+                const graphNode = node as ForceNode;
+                const r = getNodeRadius(graphNode.labels) + 2;
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(graphNode.x ?? 0, graphNode.y ?? 0, r, 0, 2 * Math.PI);
+                ctx.fill();
+              }}
+              linkColor={linkColor}
+              linkWidth={(link: unknown) => {
+                const graphLink = link as ForceLink;
+                return selectedNode &&
+                  (nodeId(graphLink.source) === selectedNode.id || nodeId(graphLink.target) === selectedNode.id)
+                  ? 2
+                  : 0.8;
+              }}
+              linkDirectionalArrowLength={3}
+              linkDirectionalArrowRelPos={1}
+              backgroundColor="rgba(0,0,0,0)"
+              onNodeClick={(node: unknown) => {
+                const graphNode = node as ForceNode;
+                setSelectedNode((prev) => (prev?.id === graphNode.id ? null : graphNode));
+              }}
+              onNodeHover={(node: unknown) => setHoveredNode((node as ForceNode | null)?.id ?? null)}
+              onBackgroundClick={() => setSelectedNode(null)}
+            />
+          </div>
+
+          {rankedHubs.length > 0 && (
+            <RankedHubSidebar
+              hubs={rankedHubs}
+              selectedHubId={selectedNode?.id}
+              hoveredHubId={hoveredNode}
+              onSelectHub={(hub) => {
+                const match = data?.nodes.find((n) => n.id === hub.id);
+                if (match) {
+                  setSelectedNode((prev) => (prev?.id === match.id ? null : match));
+                }
+              }}
+              onHoverHub={(hubId) => setHoveredNode(hubId)}
+              className="hidden md:flex w-72 shrink-0 h-full border-l border-border/50"
+            />
+          )}
+        </div>
       )}
 
       <Legend hiddenRelTypes={hiddenRelTypes} onToggle={toggleRelType} t={t} />

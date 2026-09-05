@@ -662,7 +662,18 @@ class MemoryBehavioralInsightsResponse(BaseModel):
     workday_peak_window: str | None = None
     weekend_peak_window: str | None = None
     top_collaborators: list[tuple[str, int]] = Field(default_factory=list)
-    offset_minutes: int = 480
+    offset_minutes: int | None = Field(
+        default=None,
+        description="Explicit or client-detected timezone offset in minutes. None indicates system auto-detection.",
+    )
+    detected_timezone: str | None = Field(
+        default=None,
+        description="Detected IANA timezone identifier (e.g. 'Asia/Shanghai', 'America/New_York').",
+    )
+    locale_anchor: str | None = Field(
+        default=None,
+        description="Active locale anchor used to preserve cross-turn semantic consistency.",
+    )
     source: str = "persisted"
 
 

@@ -641,12 +641,34 @@ export interface MemoryBehavioralInsights {
   workday_peak_window?: string | null;
   weekend_peak_window?: string | null;
   top_collaborators: [string, number][];
-  offset_minutes: number;
+  offset_minutes?: number | null;
+  detected_timezone?: string | null;
+  locale_anchor?: string | null;
   source: string;
 }
 
-export const getBehavioralInsights = async (lookbackDays: number = 30): Promise<MemoryBehavioralInsights> => {
-  return apiRequest<MemoryBehavioralInsights>(`/memory/command-center/behavioral-insights?lookback_days=${lookbackDays}`);
+export const getBehavioralInsights = async (
+  lookbackDays: number = 30,
+  offsetMinutes?: number,
+  clientTimezone?: string,
+  localeAnchor?: string,
+): Promise<MemoryBehavioralInsights> => {
+  const params = new URLSearchParams({ lookback_days: String(lookbackDays) });
+  if (offsetMinutes !== undefined) {
+    params.set('offset_minutes', String(offsetMinutes));
+  } else if (typeof new Date().getTimezoneOffset === 'function') {
+    params.set('offset_minutes', String(-new Date().getTimezoneOffset()));
+  }
+
+  const tz = clientTimezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined);
+  if (tz) {
+    params.set('client_timezone', tz);
+  }
+  if (localeAnchor) {
+    params.set('locale_anchor', localeAnchor);
+  }
+
+  return apiRequest<MemoryBehavioralInsights>(`/memory/command-center/behavioral-insights?${params.toString()}`);
 };
 
 export const triggerBehavioralSync = async (lookbackDays: number = 30): Promise<{ status: string; updated_profile_keys: string[]; count: number }> => {

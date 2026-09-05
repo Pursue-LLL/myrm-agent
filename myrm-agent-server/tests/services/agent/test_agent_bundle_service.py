@@ -1,4 +1,15 @@
-"""Unit tests for Agent filesystem bundle service (Agent-as-Code Dual-Track)."""
+"""Unit tests for Agent filesystem bundle service (Agent-as-Code Dual-Track).
+
+[INPUT]
+- app.services.agent.agent_bundle_service::AgentBundleCodec, AgentBundleService
+- app.services.agent.agent_service::AgentService
+
+[OUTPUT]
+- Unit tests validating encode/decode, filesystem workspace export/import, and traversal security
+
+[POS]
+Unit tests for the Agent filesystem bundle service layer.
+"""
 
 from __future__ import annotations
 

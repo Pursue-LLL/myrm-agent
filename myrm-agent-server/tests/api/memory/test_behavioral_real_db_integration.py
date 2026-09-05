@@ -181,3 +181,53 @@ async def test_full_pipeline_real_db_and_api(real_db_env) -> None:
             "routine_reply_latency",
             "routine_top_collaborators",
         }
+
+
+@pytest.mark.asyncio
+async def test_timezone_explicit_offset_resolution(real_db_env) -> None:
+    session_maker, manager, engine = real_db_env
+
+    # 1. Direct helper validation
+    from app.services.memory.behavioral.measurement_service import (
+        resolve_timezone_offset_minutes,
+    )
+
+    test_dt = datetime(2026, 9, 4, 14, 0, 0, tzinfo=UTC)
+    # New York in September is EDT (UTC-4 -> -240 minutes)
+    ny_offset = resolve_timezone_offset_minutes("America/New_York", test_dt)
+    assert ny_offset == -240
+
+    # London in September is BST (UTC+1 -> +60 minutes)
+    london_offset = resolve_timezone_offset_minutes("Europe/London", test_dt)
+    assert london_offset == 60
+
+    # ISO offset strings
+    assert resolve_timezone_offset_minutes("+08:00") == 480
+    assert resolve_timezone_offset_minutes("-05:00") == -300
+    assert resolve_timezone_offset_minutes("UTC") == 0
+
+    # 2. Database pipeline test: Message with New York timezone at UTC 14:00 (Friday)
+    # Local time in NY: 14:00 - 4h = 10:00 (morning peak)
+    async with session_maker() as db:
+        ny_msg = Message(
+            id="msg_ny_user",
+            chat_id="chat_ny",
+            role="user",
+            content="Good morning from New York!",
+            sent_at=test_dt,
+            created_at=test_dt,
+            is_active=True,
+            sent_timezone="America/New_York",
+        )
+        db.add(ny_msg)
+        await db.commit()
+
+    async with session_maker() as db:
+        service = BehavioralMeasurementService(db, manager)
+        measurement = await service.measure(lookback_days=7)
+
+        # Workday histogram should reflect hour 10 (EDT local hour), NOT hour 14 (UTC) or hour 22 (UTC+8 default)
+        assert measurement.workday_hour_histogram[10] >= 1
+        assert measurement.workday_hour_histogram[14] == 0
+        assert measurement.workday_hour_histogram[22] == 0
+

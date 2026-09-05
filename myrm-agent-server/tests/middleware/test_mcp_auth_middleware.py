@@ -122,6 +122,7 @@ class TestMCPTokenAuth:
 
     def test_onion_pipeline_origin_guard_rejects_before_token_auth(self):
         """Malicious origin must be rejected with 403 by the outer origin guard before token check."""
+        from app.api.mcp.endpoint import _MCPTokenAuthMiddleware
         from app.api.mcp.origin_guard import _MCPOriginGuardMiddleware, resolve_origin_guard
 
         inner_app = Starlette(routes=[Route("/mcp", _echo_handler, methods=["GET"])])
@@ -136,6 +137,72 @@ class TestMCPTokenAuth:
         )
         assert response.status_code == 403
         assert "Origin not allowed" in response.json()["error"]
+
+    def test_onion_pipeline_full_integration_with_valid_bearer_token(self):
+        """End-to-end integration: valid token with legitimate origin passes all layers."""
+        from app.api.mcp.endpoint import _MCPTokenAuthMiddleware
+        from app.api.mcp.origin_guard import _MCPOriginGuardMiddleware, resolve_origin_guard
+        from app.services.connect.service import VerifiedConnectToken
+
+        mock_service = MagicMock()
+        mock_service.resolve_token.return_value = VerifiedConnectToken(
+            profile_id="cursor",
+            agent_id="default",
+        )
+
+        inner_app = Starlette(routes=[Route("/mcp", _echo_handler, methods=["GET"])])
+        authed_app = _MCPTokenAuthMiddleware(inner_app)
+        pipeline = _MCPOriginGuardMiddleware(authed_app, guard=resolve_origin_guard(host="127.0.0.1"))
+
+        with patch("app.services.connect.get_connect_service", return_value=mock_service):
+            with patch("app.api.mcp.endpoint._memory_manager_for_agent", new_callable=AsyncMock):
+                tc = TestClient(pipeline, raise_server_exceptions=False)
+                # 1. Blocked when malicious webpage uses token
+                bad_resp = tc.get(
+                    "/mcp",
+                    headers={
+                        "Authorization": "Bearer valid_token",
+                        "Origin": "http://attacker-rebinding.com",
+                        "Host": "127.0.0.1:8080",
+                    },
+                )
+                assert bad_resp.status_code == 403
+                assert "Origin not allowed" in bad_resp.json()["error"]
+
+                # 2. Blocked when DNS rebinding changes host
+                bad_host_resp = tc.get(
+                    "/mcp",
+                    headers={
+                        "Authorization": "Bearer valid_token",
+                        "Host": "attacker-rebinding.com:8080",
+                    },
+                )
+                assert bad_host_resp.status_code == 403
+                assert "Host not allowed" in bad_host_resp.json()["error"]
+
+                # 3. Success when legitimate IDE/CLI client accesses without Origin
+                ok_resp = tc.get(
+                    "/mcp",
+                    headers={
+                        "Authorization": "Bearer valid_token",
+                        "Host": "127.0.0.1:8080",
+                    },
+                )
+                assert ok_resp.status_code == 200
+                assert ok_resp.json()["profile_id"] == "cursor"
+
+                # 4. Success when legitimate local browser WebUI accesses with Origin
+                ok_web_resp = tc.get(
+                    "/mcp",
+                    headers={
+                        "Authorization": "Bearer valid_token",
+                        "Origin": "http://localhost:3000",
+                        "Host": "127.0.0.1:8080",
+                    },
+                )
+                assert ok_web_resp.status_code == 200
+                assert ok_web_resp.json()["profile_id"] == "cursor"
+
 
     @patch("app.api.mcp.endpoint._memory_manager_for_agent", new_callable=AsyncMock)
     @patch("app.services.connect.get_connect_service")

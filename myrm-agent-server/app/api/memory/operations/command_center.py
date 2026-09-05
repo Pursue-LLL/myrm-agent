@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import APIRouter, Depends
+from myrm_agent_harness.api import BehavioralStatsOptions
 from myrm_agent_harness.toolkits.memory import (
     MemoryManager,
     MemoryOperationStatus,
@@ -77,12 +78,27 @@ async def get_evidence_playback(
 @router.get("/behavioral-insights", response_model=MemoryBehavioralInsightsResponse)
 async def get_behavioral_insights(
     lookback_days: int = 30,
+    offset_minutes: int | None = None,
+    client_timezone: str | None = None,
+    locale_anchor: str | None = None,
     db: AsyncSession = Depends(get_db_session),
     memory_manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> MemoryBehavioralInsightsResponse:
-    """Return deterministic zero-model-cost behavioral routine metrics."""
+    """Return deterministic zero-model-cost behavioral routine metrics with dynamic timezone & locale stability."""
     service = BehavioralMeasurementService(db, memory_manager)
-    measurement = await service.measure(lookback_days=lookback_days)
+
+    # 1. Resolve effective timezone offset
+    effective_offset = offset_minutes
+    resolved_tz_name = client_timezone
+    if effective_offset is None and client_timezone:
+        from myrm_agent_harness.api import resolve_utc_offset_minutes
+        effective_offset = resolve_utc_offset_minutes(client_timezone)
+
+    final_offset = effective_offset if effective_offset is not None else 0
+
+    opts = BehavioralStatsOptions(offset_minutes=final_offset)
+    measurement = await service.measure(options=opts, lookback_days=lookback_days)
+
     return MemoryBehavioralInsightsResponse(
         hour_histogram=measurement.hour_histogram,
         workday_hour_histogram=measurement.workday_hour_histogram,
@@ -97,7 +113,9 @@ async def get_behavioral_insights(
         workday_peak_window=measurement.workday_peak_window,
         weekend_peak_window=measurement.weekend_peak_window,
         top_collaborators=measurement.top_collaborators,
-        offset_minutes=480,
+        offset_minutes=effective_offset,
+        detected_timezone=resolved_tz_name,
+        locale_anchor=locale_anchor,
         source="computed_deterministic",
     )
 
