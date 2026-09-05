@@ -366,7 +366,7 @@ def resolve_chrome_e2e_readiness_stable(
         if verdict.next_action not in {
             "OBSERVABILITY_UNKNOWN",
             "PLANE_DEGRADED",
-        }:
+        } or "DRIFT_PENDING" in (verdict.reason or ""):
             return verdict
         sys.stderr.write(
             f"E2E_OBSERVABILITY_RETRY: attempt={attempt + 1}/{attempts} "

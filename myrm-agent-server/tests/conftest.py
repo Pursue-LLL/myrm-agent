@@ -341,6 +341,9 @@ def init_test_database():
     if os.environ.get("MYRM_E2E_LANE", "").strip() in _LIVE_CHROME_E2E_LANES:
         return
 
+    if os.environ.get("MYRM_SKIP_INIT_DB", "").strip() == "1":
+        return
+
     from app.database.connection import init_database
 
     _INIT_DB_LOCK.parent.mkdir(parents=True, exist_ok=True)
