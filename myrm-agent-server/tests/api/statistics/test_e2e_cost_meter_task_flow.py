@@ -27,7 +27,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.api.statistics.quota_runtime_router import router as quota_router
-from app.database.connection import get_session
+from app.database.connection import get_db, get_session
 from app.database.models.runtime_quota_metric import Base
 from app.services.observability.runtime_meter_service import runtime_meter_service
 from myrm_agent_harness.toolkits.browser.observability import (
