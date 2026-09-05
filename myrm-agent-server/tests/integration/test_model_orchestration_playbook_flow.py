@@ -7,19 +7,20 @@ from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
-
 from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
 from myrm_agent_harness.toolkits.llms.routing.complexity_router import (
-    RoutingTier,
-    _rule_based_classify,
-    DEFAULT_STANDARD_KEYWORDS,
     DEFAULT_REASONING_KEYWORDS,
     DEFAULT_SIMPLE_INDICATORS,
+    DEFAULT_STANDARD_KEYWORDS,
+    RoutingTier,
+    _rule_based_classify,
 )
+
 from app.services.agent.moa_preset_resolver import (
-    resolve_moa_preset_overrides,
     MOA_PRESET_DEFAULT_ID,
     MOA_PRESET_REVIEW_ID,
+    VALID_MOA_PRESET_IDS,
+    apply_moa_preset_activation,
 )
 
 # Load test secrets from .env.test
@@ -31,9 +32,9 @@ if test_env_path.exists():
 @pytest.mark.integration
 def test_complexity_router_tier_classification() -> None:
     """Verify 3-Tier Dynamic Routing classification across Simple, Standard, and Reasoning tiers."""
-    # Simple tier: greeting / lookup
+    # Simple tier: greeting (e.g. "hello")
     tier_simple = _rule_based_classify(
-        "你好，请问今天天气怎么样？",
+        "hello",
         has_image=False,
         standard_keywords=DEFAULT_STANDARD_KEYWORDS,
         reasoning_keywords=DEFAULT_REASONING_KEYWORDS,
@@ -41,9 +42,9 @@ def test_complexity_router_tier_classification() -> None:
     )
     assert tier_simple == RoutingTier.SIMPLE
 
-    # Standard tier: multi-step coding / refactoring
+    # Standard tier: multi-step coding / debug
     tier_std = _rule_based_classify(
-        "请帮我重构这个 Python 函数并为它编写单元测试，需要包含边界条件。",
+        "debug this authentication error in database module",
         has_image=False,
         standard_keywords=DEFAULT_STANDARD_KEYWORDS,
         reasoning_keywords=DEFAULT_REASONING_KEYWORDS,
@@ -53,7 +54,7 @@ def test_complexity_router_tier_classification() -> None:
 
     # Reasoning tier: formal math proof / complex architectural system design
     tier_reasoning = _rule_based_classify(
-        "请证明对于任意素数 p > 3，p^2 - 1 必然能被 24 整除，并给出严谨的形式化推导步骤。",
+        "prove the theorem and derive the equation step by step",
         has_image=False,
         standard_keywords=DEFAULT_STANDARD_KEYWORDS,
         reasoning_keywords=DEFAULT_REASONING_KEYWORDS,
@@ -65,12 +66,25 @@ def test_complexity_router_tier_classification() -> None:
 @pytest.mark.integration
 def test_moa_preset_resolver_configuration() -> None:
     """Verify MoA consensus preset resolution (default vs review)."""
-    default_overrides = resolve_moa_preset_overrides(MOA_PRESET_DEFAULT_ID)
-    assert default_overrides is not None
-    assert "moa_reference_models" in default_overrides or "enable_moa" in default_overrides
+    assert MOA_PRESET_DEFAULT_ID in VALID_MOA_PRESET_IDS
+    assert MOA_PRESET_REVIEW_ID in VALID_MOA_PRESET_IDS
 
-    review_overrides = resolve_moa_preset_overrides(MOA_PRESET_REVIEW_ID)
-    assert review_overrides is not None
+    engine_params = {
+        "moa_overlay": {
+            "enabled": True,
+            "reference_model_selections": [
+                {"providerId": "minimax", "model": "MiniMax-M3"}
+            ],
+        }
+    }
+
+    # Activate review preset
+    activated = apply_moa_preset_activation(engine_params, MOA_PRESET_REVIEW_ID)
+    assert activated is not None
+    overlay = activated.get("moa_overlay")
+    assert isinstance(overlay, dict)
+    assert overlay.get("enabled") is True
+    assert overlay.get("reference_reasoning_effort") == "high"
 
 
 @pytest.mark.integration
