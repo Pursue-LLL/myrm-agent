@@ -16,9 +16,11 @@ Server 业务服务层。桥接底层消息明细流水表与 Harness 确定性�
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Final
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from myrm_agent_harness.api import (
     BehavioralMessage,
@@ -39,6 +41,78 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_LOOKBACK_DAYS: Final[int] = 30
 MAX_WINDOW_MESSAGES: Final[int] = 5000
+
+
+def resolve_timezone_offset_minutes(tz_str: str | None, ref_dt: datetime | None = None) -> int | None:
+    """Resolve an IANA timezone string or ISO offset to minutes offset from UTC.
+
+    Returns:
+        Offset in minutes (e.g. +480 for UTC+8, -240 for UTC-4, 0 for UTC), or None if unresolved.
+    """
+    if not tz_str:
+        return None
+    cleaned = tz_str.strip()
+    if not cleaned:
+        return None
+
+    if cleaned.upper() in ("Z", "UTC", "GMT"):
+        return 0
+
+    upper = cleaned.upper()
+    if upper.startswith("UTC") or upper.startswith("GMT"):
+        cleaned = cleaned[3:].strip()
+        if not cleaned:
+            return 0
+
+    if cleaned and cleaned[0] in ("+", "-"):
+        sign = 1 if cleaned[0] == "+" else -1
+        rem = cleaned[1:]
+        try:
+            if ":" in rem:
+                parts = rem.split(":", 1)
+                hours = int(parts[0])
+                mins = int(parts[1])
+                return sign * (hours * 60 + mins)
+            elif len(rem) in (3, 4):
+                hours = int(rem[:-2])
+                mins = int(rem[-2:])
+                return sign * (hours * 60 + mins)
+            else:
+                hours = int(rem)
+                return sign * (hours * 60)
+        except (ValueError, TypeError):
+            pass
+
+    try:
+        zi = ZoneInfo(cleaned)
+        ref = ref_dt or datetime.now(UTC)
+        offset = ref.astimezone(zi).utcoffset()
+        if offset is not None:
+            return int(offset.total_seconds() // 60)
+    except (ZoneInfoNotFoundError, ValueError, TypeError, Exception):
+        pass
+
+    return None
+
+
+def extract_channel_message_offset_minutes(row: ChannelMessageModel) -> int | None:
+    """Extract timezone offset minutes from channel message metadata if available."""
+    if not row.metadata_json:
+        return None
+    try:
+        meta = json.loads(row.metadata_json)
+        if not isinstance(meta, dict):
+            return None
+        if "offset_minutes" in meta and isinstance(meta["offset_minutes"], (int, float)):
+            return int(meta["offset_minutes"])
+        if "tz_offset" in meta and isinstance(meta["tz_offset"], (int, float)):
+            return int(meta["tz_offset"] // 60)
+        tz_name = meta.get("timezone") or meta.get("tz")
+        if isinstance(tz_name, str):
+            return resolve_timezone_offset_minutes(tz_name, row.created_at)
+    except Exception:
+        pass
+    return None
 
 
 class BehavioralMeasurementService:
@@ -79,6 +153,7 @@ class BehavioralMeasurementService:
 
             created_ms = int(row.created_at.timestamp() * 1000)
             is_self = bool(row.is_self)
+            offset_mins = extract_channel_message_offset_minutes(row)
             results.append(
                 BehavioralMessage(
                     id=f"channel:{row.id}",
@@ -88,6 +163,7 @@ class BehavioralMeasurementService:
                     sender_name=sender_name,
                     is_self=is_self,
                     created_at_ms=created_ms,
+                    offset_minutes=offset_mins,
                     content=row.content or "",
                 )
             )
@@ -106,6 +182,7 @@ class BehavioralMeasurementService:
         for msg in chat_res.scalars().all():
             is_self = msg.role == "user"
             created_ms = int(msg.created_at.timestamp() * 1000)
+            offset_mins = resolve_timezone_offset_minutes(msg.sent_timezone, msg.created_at)
             results.append(
                 BehavioralMessage(
                     id=f"chat:{msg.id}",
@@ -115,6 +192,7 @@ class BehavioralMeasurementService:
                     sender_name="User" if is_self else "Assistant",
                     is_self=is_self,
                     created_at_ms=created_ms,
+                    offset_minutes=offset_mins,
                     content=msg.content or "",
                 )
             )

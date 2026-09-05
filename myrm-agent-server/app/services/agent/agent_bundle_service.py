@@ -30,6 +30,7 @@ from typing import Any
 
 import yaml
 from fastapi import HTTPException
+from myrm_agent_harness.backends.profiles.types import AgentProfile
 
 from app.database.dto import AgentCreate, AgentUpdate
 from app.services.agent.agent_service import AgentService
@@ -55,6 +56,32 @@ class AgentBundleData:
 
 class AgentBundleCodec:
     """Encodes and decodes Agent definitions to/from standardized filesystem bundles."""
+
+    @staticmethod
+    def profile_to_dict(agent: AgentProfile) -> dict[str, Any]:
+        """Convert AgentProfile domain entity to a bundle codec dictionary."""
+        metadata = dict(agent.metadata) if isinstance(agent.metadata, dict) else {}
+        name = getattr(agent, "display_name", None) or getattr(agent, "name", None) or agent.id
+        model = getattr(agent, "model", None)
+        model_selection = {"model": model} if model else None
+
+        return {
+            "id": agent.id,
+            "name": name,
+            "description": agent.description or "",
+            "system_prompt": agent.system_prompt or "",
+            "agent_type": metadata.get("agent_type", "individual"),
+            "prompt_mode": metadata.get("prompt_mode", "full"),
+            "personality_style": metadata.get("personality_style", "professional"),
+            "model_selection": metadata.get("model_selection", model_selection),
+            "skill_ids": list(agent.skills or []),
+            "subagent_ids": list(metadata.get("subagent_ids", [])),
+            "enabled_builtin_tools": list(agent.tools_allowed or metadata.get("enabled_builtin_tools", [])),
+            "max_iterations": agent.max_iterations,
+            "workspace_policy": metadata.get("workspace_policy", "INHERIT_REQUESTER"),
+            "mcp_ids": list(metadata.get("mcp_ids", [])),
+            "mcp_tool_selections": dict(metadata.get("mcp_tool_selections", {})),
+        }
 
     @staticmethod
     def encode_bundle(
@@ -166,9 +193,7 @@ class AgentBundleService:
         if not agent:
             raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
 
-        from app.api.agents._agent_response import _to_agent_response
-        agent_resp = _to_agent_response(agent, show_system_prompt=True)
-        agent_dict = agent_resp.model_dump()
+        agent_dict = AgentBundleCodec.profile_to_dict(agent)
         bundle_files = AgentBundleCodec.encode_bundle(agent_dict)
 
         return AgentBundleData(
