@@ -117,3 +117,56 @@ async def test_memory_search_sessions_corpus_rejected_when_opt_in_off() -> None:
     result = await search_tool.ainvoke({"query": "deployment", "corpus": "sessions"})
 
     assert "disabled" in result.lower() or "not enabled" in result.lower()
+
+
+@pytest.mark.asyncio
+async def test_memory_search_sessions_corpus_expand_window_and_preserves_large_content() -> None:
+    captured_requests: list[ConversationSearchRequest] = []
+    long_expanded_text = "Step " + ("y" * 2200) + " end of expanded block"
+
+    class LargeExpandProvider:
+        async def search(self, request: ConversationSearchRequest) -> ConversationSearchResponse:
+            captured_requests.append(request)
+            return ConversationSearchResponse(
+                mode="search",
+                query="",
+                hits=[
+                    ConversationSearchHit(
+                        conversation_id="chat-large-expand",
+                        title="Architecture Review",
+                        snippet=long_expanded_text,
+                        summary=None,
+                        score=1.0,
+                        source="conversation_index",
+                        message_id="msg-target",
+                    )
+                ],
+            )
+
+    manager = FakeMemoryManager()
+    tools = create_memory_tools(
+        manager,
+        search_policy=MemorySearchPolicy(allow_sessions=True),
+        search_backends=MemorySearchBackends(conversation_provider=LargeExpandProvider()),
+    )
+    search_tool = next(tool for tool in tools if tool.name == "memory_search_tool")
+
+    result = await search_tool.ainvoke({
+        "query": "",
+        "corpus": "sessions",
+        "expand_conversation_id": "chat-large-expand",
+        "expand_message_id": "msg-target",
+        "expand_window": 6,
+    })
+
+    assert len(captured_requests) == 1
+    req = captured_requests[0]
+    assert req.expand_conversation_id == "chat-large-expand"
+    assert req.expand_message_id == "msg-target"
+    assert req.expand_window == 6
+
+    text = result["content"] if isinstance(result, dict) else str(result)
+    assert "end of expanded block" in text
+    assert len(text) > 2000
+    assert "tip: pass expand_conversation_id=" not in text
+

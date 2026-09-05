@@ -30,7 +30,7 @@ import {
   type ModelCapabilities,
   type ModelSwitchPreflightResult,
 } from '@/services/llm-config';
-import { getLiteLLMModelName } from '@/store/config/providerTypes';
+import { getLiteLLMModelName, isLocalOrTrustedSplitStackApiUrl } from '@/store/config/providerTypes';
 import { formatTokens, formatPrice } from '@/lib/utils/modelFormatUtils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import { useOrgModelPolicyStore } from '@/store/useOrgModelPolicyStore';
@@ -114,7 +114,9 @@ export default function ModelPickerPopover({
   const [activeSlot, setActiveSlot] = useState<SlotMode>('primary');
   const inputRef = useRef<HTMLInputElement>(null);
   const [capabilities, setCapabilities] = useState<Record<string, ModelCapabilities>>({});
-  const [costPerMillion, setCostPerMillion] = useState<Record<string, { input: number; output: number }>>({});
+  const [costPerMillion, setCostPerMillion] = useState<
+    Record<string, { input: number; output: number; isLocalOwned?: boolean }>
+  >({});
   // 压缩预检结果：key = providerId/model
   const [preflightMap, setPreflightMap] = useState<Record<string, ModelSwitchPreflightResult>>({});
   // 防骚扰：对同一目标模型已确认选择过的次数（>=2 后不再提示）
@@ -166,7 +168,7 @@ export default function ModelPickerPopover({
     setTimeout(() => inputRef.current?.focus(), 0);
 
     const mapped: Record<string, ModelCapabilities> = {};
-    const costs: Record<string, { input: number; output: number }> = {};
+    const costs: Record<string, { input: number; output: number; isLocalOwned?: boolean }> = {};
     const toFetch: string[] = [];
     const nameMap: Record<string, string> = {};
 
@@ -199,6 +201,23 @@ export default function ModelPickerPopover({
       }
     }
 
+    const applyLocalOwnedFallbacks = (
+      targetCosts: Record<string, { input: number; output: number; isLocalOwned?: boolean }>,
+    ) => {
+      for (const em of enabledModels) {
+        if (!targetCosts[em.model]) {
+          const prov = providers.find((p) => p.id === em.providerId);
+          const isLocal =
+            prov?.id === 'ollama' ||
+            prov?.id === 'lm_studio' ||
+            isLocalOrTrustedSplitStackApiUrl(prov?.apiUrl);
+          if (isLocal) {
+            targetCosts[em.model] = { input: 0, output: 0, isLocalOwned: true };
+          }
+        }
+      }
+    };
+
     if (toFetch.length > 0) {
       fetchModelCapabilitiesBatch(toFetch).then((caps) => {
         for (const ln of toFetch) {
@@ -214,10 +233,12 @@ export default function ModelPickerPopover({
             }
           }
         }
+        applyLocalOwnedFallbacks(costs);
         setCapabilities({ ...mapped });
         setCostPerMillion({ ...costs });
       });
     } else {
+      applyLocalOwnedFallbacks(costs);
       setCapabilities(mapped);
       setCostPerMillion(costs);
     }
@@ -602,12 +623,22 @@ export default function ModelPickerPopover({
                           {cost && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                <span
+                                  className={cn(
+                                    'text-[10px] px-1.5 py-0.5 rounded font-medium',
+                                    cost.isLocalOwned
+                                      ? 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-500/20'
+                                      : 'bg-muted text-muted-foreground',
+                                  )}
+                                >
                                   {formatPrice(cost.input)}
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent side="top" className="text-xs">
-                                {tCap('refCost')}: ↓{formatPrice(cost.input)} ↑{formatPrice(cost.output)}
+                                {cost.isLocalOwned
+                                  ? tCap('localOwnedMarginalCostHint') ||
+                                    `${tCap('refCost')}: ↓$0/M ↑$0/M (本地自有推理 · 仅电力与硬件折旧)`
+                                  : `${tCap('refCost')}: ↓${formatPrice(cost.input)} ↑${formatPrice(cost.output)}`}
                               </TooltipContent>
                             </Tooltip>
                           )}

@@ -37,6 +37,7 @@ const PROGRESS_STEP_KEYS = new Set([
   'thinking_signature_recovery',
   'tool_history_recovery',
   'image_shrink_recovery',
+  'image_payload_recovery',
   'long_context_tier_recovery',
   'allowed_tools_rejected_recovery',
   'ux_warning_truncated',
@@ -76,6 +77,8 @@ function isEarlyRecoveryProgressStep(stepKey: string): boolean {
     stepKey === 'tool_call_retry' ||
     stepKey === 'vision_fallback_recovery' ||
     stepKey === 'media_rejected_recovery' ||
+    stepKey === 'image_shrink_recovery' ||
+    stepKey === 'image_payload_recovery' ||
     stepKey === 'waiting_for_turn'
   );
 }

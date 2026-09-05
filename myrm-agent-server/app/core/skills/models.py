@@ -147,6 +147,14 @@ class Skill:
     ) -> Skill:
         """Adapt a framework-layer SkillMetadata into a business-layer Skill."""
         now = datetime.utcnow()
+        raw_tags = meta.metadata.get("tags")
+        tags: list[str] = []
+        if isinstance(raw_tags, list):
+            tags = [str(t).strip().strip("'\"") for t in raw_tags if str(t).strip()]
+        elif isinstance(raw_tags, str):
+            cleaned = raw_tags.strip().lstrip("[").rstrip("]")
+            tags = [t.strip().strip("'\"") for t in cleaned.split(",") if t.strip().strip("'\"")]
+
         return cls(
             id=skill_id,
             type=skill_type,
@@ -155,7 +163,7 @@ class Skill:
             storage_path=meta.storage_path or "",
             version=meta.version or "1.0.0",
             category=category,
-            tags=[],
+            tags=tags,
             is_active=True,
             token_cost=meta.token_cost,
             requires=meta.requires or SkillRequires(),

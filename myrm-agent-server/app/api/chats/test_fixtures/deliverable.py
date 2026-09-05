@@ -108,6 +108,19 @@ async def seed_deliverable_link_fixture() -> dict[str, str]:
                     "original_hint": "worker.py",
                 }
             ],
+            "staged_artifacts": [
+                {
+                    "artifact_id": "staged-1",
+                    "filename": "draft_worker.py",
+                    "relative_path": ".myrm/staged_artifacts/draft_worker.py",
+                    "full_path": "/tmp/workspace/.myrm/staged_artifacts/draft_worker.py",
+                    "language": "python",
+                    "size_bytes": 1024,
+                    "line_count": 28,
+                    "created_at": "2026-09-05T12:00:00Z",
+                    "original_hint": "worker.py",
+                }
+            ],
         },
     )
 

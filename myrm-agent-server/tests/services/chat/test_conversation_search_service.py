@@ -533,3 +533,30 @@ class TestConversationSearchService:
         )
         assert recent_response.coverage is not None
         assert recent_response.coverage.total_conversations >= 1
+
+    @pytest.mark.asyncio
+    async def test_search_expanded_window_end_to_end(self, fts_db: AsyncSession) -> None:
+        chat_id = await seed_chat_and_messages(fts_db)
+        await ConversationRecallRepository.rebuild_chat(fts_db, chat_id)
+        await fts_db.commit()
+
+        # Execute real database expand recall
+        expand_response = await ConversationSearchService.search(
+            ConversationSearchRequest(
+                query="",
+                expand_conversation_id=chat_id,
+                expand_message_id="msg-1",
+                expand_window=3,
+            ),
+            agent_id=None,
+            memory_manager=None,
+        )
+
+        assert expand_response.mode == "search"
+        assert len(expand_response.hits) == 1
+        hit = expand_response.hits[0]
+        assert hit.conversation_id == chat_id
+        assert hit.message_id == "msg-1"
+        assert hit.snippet is not None
+        assert "user:" in hit.snippet or "assistant:" in hit.snippet
+

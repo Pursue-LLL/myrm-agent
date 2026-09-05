@@ -254,6 +254,7 @@ export const SYSTEM_STEP_CATEGORY_MAP: Record<string, ToolCategory> = {
   thinking_signature_recovery: 'safety',
   tool_history_recovery: 'safety',
   image_shrink_recovery: 'safety',
+  image_payload_recovery: 'safety',
   long_context_tier_recovery: 'safety',
   media_rejected_recovery: 'safety',
   vision_fallback_recovery: 'safety',

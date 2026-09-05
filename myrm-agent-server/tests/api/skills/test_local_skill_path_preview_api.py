@@ -232,3 +232,43 @@ version: 2.1.0
             assert invalid_status["exists"] is False
             assert invalid_status["skills_count"] == 0
 
+
+def test_preview_skill_path_traversal_defense() -> None:
+    """Verify that preview_skill_path strictly blocks path traversal attempts."""
+    from app.core.skills.providers.local_preview import preview_skill_path
+
+    _, exists, is_dir, items, warning = preview_skill_path("/home/user/../../etc")
+    assert exists is False
+    assert is_dir is False
+    assert len(items) == 0
+    assert warning == "Path traversal not allowed"
+
+
+def test_api_traversal_defense_endpoints(client: TestClient) -> None:
+    """Verify that all local skill path endpoints reject path traversal with HTTP 400."""
+    with patch("app.api.skills.local.require_local_skills_capability"):
+        # 1. Preview endpoint traversal
+        resp = client.post(
+            "/api/v1/skills/local/paths/preview",
+            json={"path": "/var/log/../../etc"},
+        )
+        assert resp.status_code == 400
+        assert "Path traversal not allowed" in resp.json()["detail"]
+
+        # 2. Update paths endpoint traversal
+        resp = client.put(
+            "/api/v1/skills/local/paths",
+            json={"paths": ["/home/user/../../etc"]},
+        )
+        assert resp.status_code == 400
+        assert "Path traversal not allowed" in resp.json()["detail"]
+
+        # 3. Adopt endpoint traversal
+        resp = client.post(
+            "/api/v1/skills/local/paths/adopt",
+            json={"path": "/home/user/../../etc", "selected_skill_ids": []},
+        )
+        assert resp.status_code == 400
+        assert "Path traversal not allowed" in resp.json()["detail"]
+
+

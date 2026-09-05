@@ -735,7 +735,11 @@ def _parallel_open_page_timeout_sec(daemon: BrowserOrchestratorClient) -> float:
     cap = orchestrator_socket_timeout_cap_sec()
     wall = orchestrator_open_tx_wall_sec() + 30.0
     daemon_budget = float(daemon._timeout_sec)
-    return min(cap, wall, daemon_budget)
+    # The caller may use either fast-create (new_page + navigate) or the
+    # atomic open transaction. Never lower an already selected daemon budget:
+    # doing so lets the client abandon a legal queued operation before the
+    # daemon can return its explicit queue/operation result.
+    return min(cap, max(wall, daemon_budget))
 
 
 def _ensure_orchestrator_session(
@@ -1029,9 +1033,7 @@ def _orchestrator_navigate_owned_page(
     target_url: str,
 ) -> None:
     nav_timeout_sec = _parallel_open_page_timeout_sec(daemon)
-    if _effective_parallel_load() >= 2:
-        nav_timeout_sec = min(nav_timeout_sec, 45.0)
-    else:
+    if _effective_parallel_load() < 2:
         nav_timeout_sec = max(nav_timeout_sec, 90.0)
     with daemon.bounded_request_timeout(nav_timeout_sec):
         daemon.navigate_page(session_id, page.target_id, target_url)
@@ -1094,8 +1096,9 @@ def open_orchestrator_mcp_page(
     parallel_load = _effective_parallel_load()
     if parallel_load >= 2:
         cap = orchestrator_socket_timeout_cap_sec()
-        # Fail-fast under parallel: never grow socket budget with burst queue headroom.
-        effective_timeout = min(request_timeout_sec, cap, 60.0)
+        # Preserve the caller's explicit bound while removing arbitrary
+        # fail-fast caps that can preempt the daemon's documented queue budget.
+        effective_timeout = min(request_timeout_sec, cap)
     daemon = BrowserOrchestratorClient(
         timeout_sec=(
             effective_timeout if parallel_load >= 2 else max(effective_timeout, 90.0)

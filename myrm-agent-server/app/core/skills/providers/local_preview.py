@@ -6,6 +6,9 @@
 
 [OUTPUT]
 - preview_skill_path: Probed skill list and validation report
+
+[POS]
+- core/skills/providers/local_preview.py: Local skill discovery and dry-run diagnosis
 """
 
 from __future__ import annotations
@@ -134,6 +137,10 @@ def preview_skill_path(
     compute_id_fn: callable = None,
 ) -> tuple[Path, bool, bool, list[dict[str, object]], str | None]:
     """Dry-run probe a path for local skills without modifying provider state."""
+    raw_path_str = str(raw_path)
+    if ".." in raw_path_str:
+        return Path(raw_path_str), False, False, [], "Path traversal not allowed"
+
     expanded_path = Path(os.path.expanduser(raw_path)).resolve()
     if not expanded_path.exists():
         return expanded_path, False, False, [], "Path does not exist"

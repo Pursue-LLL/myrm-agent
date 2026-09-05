@@ -270,6 +270,7 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
           <DialogFooter className="flex items-center justify-between gap-2 pt-2 border-t">
             {onAddPathOnly ? (
               <Button
+                data-testid="preview-adopt-add-path-only-btn"
                 variant="ghost"
                 size="sm"
                 onClick={onAddPathOnly}
@@ -281,6 +282,7 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
             ) : <div />}
             <div className="flex items-center gap-2">
               <Button
+                data-testid="preview-adopt-cancel-btn"
                 variant="outline"
                 size="sm"
                 onClick={() => onOpenChange(false)}
@@ -289,6 +291,7 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
                 {t('previewDialog.cancel')}
               </Button>
               <Button
+                data-testid="preview-adopt-confirm-btn"
                 variant="default"
                 size="sm"
                 onClick={() => onConfirmAdopt(selectedIds)}

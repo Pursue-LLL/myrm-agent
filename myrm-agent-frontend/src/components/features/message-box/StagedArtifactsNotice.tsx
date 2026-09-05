@@ -14,7 +14,6 @@
 
 import React, { useState } from 'react';
 import { FileCode2, ChevronDown, ChevronRight, FolderCheck } from 'lucide-react';
-import { useTranslations } from 'next-intl';
 import type { StagedArtifactView } from '@/store/chat/types';
 
 interface StagedArtifactsNoticeProps {
@@ -23,11 +22,12 @@ interface StagedArtifactsNoticeProps {
 
 export function StagedArtifactsNotice({ stagedArtifacts }: StagedArtifactsNoticeProps) {
   const [expanded, setExpanded] = useState(false);
-  const t = useTranslations('chat');
 
   if (!stagedArtifacts || stagedArtifacts.length === 0) {
     return null;
   }
+
+  const count = stagedArtifacts.length;
 
   return (
     <div
@@ -42,10 +42,7 @@ export function StagedArtifactsNotice({ stagedArtifacts }: StagedArtifactsNotice
         <div className="flex items-center gap-2">
           <FolderCheck className="w-4 h-4 text-primary shrink-0" />
           <span>
-            {t('stagedArtifactsNoticeTitle', {
-              count: stagedArtifacts.length,
-              default: `已自动暂存 ${stagedArtifacts.length} 个未落盘工件草案至工作区`,
-            })}
+            已自动暂存 {count} 个未落盘工件草案至工作区
           </span>
         </div>
         <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -75,9 +72,7 @@ export function StagedArtifactsNotice({ stagedArtifacts }: StagedArtifactsNotice
             </div>
           ))}
           <div className="text-[10px] text-muted-foreground/80 pt-1">
-            {t('stagedArtifactsNoticeHint', {
-              default: '这些文件已保全在沙箱环境，您可随时在左侧文件树中查看或重命名采纳。',
-            })}
+            这些文件已保全在沙箱环境，您可随时在左侧文件树中查看或重命名采纳。
           </div>
         </div>
       )}

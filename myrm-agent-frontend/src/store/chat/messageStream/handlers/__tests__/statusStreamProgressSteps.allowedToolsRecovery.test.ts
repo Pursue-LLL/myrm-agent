@@ -11,6 +11,7 @@ describe('statusStreamProgressSteps allowed_tools recovery', () => {
     expect(isStatusProgressStep('thinking_signature_recovery')).toBe(true);
     expect(isStatusProgressStep('tool_history_recovery')).toBe(true);
     expect(isStatusProgressStep('image_shrink_recovery')).toBe(true);
+    expect(isStatusProgressStep('image_payload_recovery')).toBe(true);
     expect(isStatusProgressStep('long_context_tier_recovery')).toBe(true);
     expect(isStatusProgressStep('media_rejected_recovery')).toBe(true);
   });

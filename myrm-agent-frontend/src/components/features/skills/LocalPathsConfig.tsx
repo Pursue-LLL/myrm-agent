@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Plus, Trash2, FolderOpen, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, Trash2, FolderOpen, RefreshCw, AlertCircle, Loader2, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -38,6 +38,7 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
   const [newPath, setNewPath] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [copiedPath, setCopiedPath] = useState<string | null>(null);
 
   // 探测预览与两段式采纳状态
   const [previewData, setPreviewData] = useState<LocalSkillPathPreviewResponse | null>(null);
@@ -68,6 +69,16 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
       toast({
         title: t('error.invalidPath'),
         description: t('error.pathFormat'),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // 防范路径穿越 (CWE-22)
+    if (trimmed.includes('..')) {
+      toast({
+        title: t('error.invalidPath'),
+        description: t('error.pathTraversal'),
         variant: 'destructive',
       });
       return;
@@ -165,6 +176,23 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
       setIsAdopting(false);
     }
   }, [previewData, newPath, adoptLocalSkillPath, t]);
+
+  // 复制路径到剪贴板
+  const handleCopyPath = useCallback(
+    async (path: string) => {
+      try {
+        await navigator.clipboard.writeText(path);
+        setCopiedPath(path);
+        toast({
+          title: t('success.pathCopied'),
+        });
+        setTimeout(() => setCopiedPath(null), 2000);
+      } catch {
+        // Fallback or ignore
+      }
+    },
+    [t],
+  );
 
   // 移除路径
   const handleRemovePath = useCallback(
@@ -270,14 +298,25 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
                         </div>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                      onClick={() => handleRemovePath(path)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                        title={t('copyPath')}
+                        onClick={() => handleCopyPath(path)}
+                      >
+                        {copiedPath === path ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                        onClick={() => handleRemovePath(path)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })}

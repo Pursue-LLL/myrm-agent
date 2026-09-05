@@ -25,7 +25,7 @@
 | `experience_ledger.py` | 模块 | 经验账本接口层。对外暴露原始 ledger 事件查询，以及 skill-growth projection 事件/摘要查询。 | ✅ |
 | `growth.py` | 模块 | Unified skill growth API：`GET /cases` summary、`GET /cases/{id}` detail、`GET /stats` 全量 status COUNT 统计；summary/detail 均携带 `impacted_dependents`（依赖本技能的库内技能 ID，经 core/skills/dependency_guard 查询） | ✅ |
 | `instances.py` | 模块 | Skill instances API - CRUD operations for multi-instance skill support. | ✅ |
-| `local.py` | 模块 | Local skills management endpoints: 路径配置 CRUD、单路径 dry-run 预览 (`/preview`)、原子采纳 (`/adopt`)、全量扫描与健康状态实时透出 (`path_statuses`) | ✅ |
+| `local.py` | 模块 | Local skills management endpoints: 路径配置 CRUD、单路径 dry-run 预览 (`/preview`)、原子采纳 (`/adopt`)、全量扫描与健康状态实时透出 (`path_statuses`)、严格防范路径穿越 (CWE-22) | ✅ |
 | `migrations.py` | 模块 | Controlled migration review API；approve skill_import 直接写 `~/.myrm/skills`，受沙箱能力门控（延迟导入避免独立加载循环依赖） | ✅ |
 | `packaging.py` | 模块 | Skill packaging and upload endpoints | ✅ |
 | `permissions.py` | 模块 | Skill Permission Management API | ✅ |

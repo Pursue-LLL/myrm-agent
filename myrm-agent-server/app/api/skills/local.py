@@ -1,6 +1,13 @@
 """Local skills management endpoints
 
-Endpoints for managing local filesystem skills (local mode only).
+[INPUT]
+- LocalSkillPathsRequest, LocalSkillPathPreviewRequest, LocalSkillPathAdoptRequest
+
+[OUTPUT]
+- LocalSkillPathsResponse, LocalSkillPathPreviewResponse, LocalSkillPathAdoptResponse
+
+[POS]
+- api/skills/local.py: HTTP endpoints for local skill paths inspection and adoption
 """
 
 import logging
@@ -81,12 +88,17 @@ async def update_local_skill_paths(
     require_local_skills_capability()
     from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
 
-    # Validate path format (must be absolute path or start with ~)
+    # Validate path format (must be absolute path or start with ~, no traversal)
     for path in request.paths:
         if not (path.startswith("/") or path.startswith("~")):
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid path format: {path}. Must be absolute path or start with ~",
+            )
+        if ".." in path:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Path traversal not allowed: {path}",
             )
 
     # Update configuration
@@ -114,6 +126,11 @@ async def preview_local_skill_path(
         raise HTTPException(
             status_code=400,
             detail=f"Invalid path format: {raw_path}. Must be absolute path or start with ~",
+        )
+    if ".." in raw_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Path traversal not allowed",
         )
 
     # Fetch existing skills across types to detect naming conflicts
@@ -169,6 +186,11 @@ async def adopt_local_skill_path(
         raise HTTPException(
             status_code=400,
             detail=f"Invalid path format: {raw_path}. Must be absolute path or start with ~",
+        )
+    if ".." in raw_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Path traversal not allowed",
         )
 
     config = await skills_service.user_config.get_config()

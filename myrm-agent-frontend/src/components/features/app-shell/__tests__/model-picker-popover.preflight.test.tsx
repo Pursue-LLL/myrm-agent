@@ -12,9 +12,25 @@ const providers = vi.fn(
       isEnabled: boolean;
       enabledModels: string[];
       providerType: string;
+      customApiUrl?: string;
     }>,
 );
-const customModelInfo = vi.fn(() => ({}) as Record<string, never>);
+const customModelInfo = vi.fn(
+  () =>
+    ({}) as Record<
+      string,
+      {
+        supports_vision?: boolean;
+        supports_function_calling?: boolean;
+        supports_reasoning?: boolean;
+        supports_audio_input?: boolean;
+        supports_video_input?: boolean;
+        max_input_tokens?: number;
+        input_cost_per_million?: number;
+        output_cost_per_million?: number;
+      }
+    >,
+);
 
 vi.mock('@/store/useProviderStore', () => ({
   default: () => ({
@@ -347,3 +363,123 @@ describe('ModelPickerPopover preflight warning', () => {
     expect(mocks.fetchModelSwitchPreflight).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('ModelPickerPopover local-owned marginal cost badge', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders $0/M badge for built-in ollama local model when pricing is null', async () => {
+    providers.mockReturnValue([
+      { id: 'ollama', name: 'Ollama', isEnabled: true, enabledModels: ['llama3'], providerType: 'ollama' },
+    ]);
+    getEnabledModels.mockReturnValue([{ providerId: 'ollama', providerName: 'Ollama', model: 'llama3' }]);
+    customModelInfo.mockReturnValue({});
+
+    mocks.fetchModelCapabilitiesBatch.mockResolvedValue({
+      'ollama/llama3': {
+        ...caps,
+        input_cost_per_token: null,
+        output_cost_per_token: null,
+      },
+    });
+
+    render(
+      <ModelPickerPopover
+        currentSelection={{ providerId: 'ollama', model: 'llama3' }}
+        onSelect={vi.fn()}
+        trigger={<button type="button">open</button>}
+      />,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('$0/M')).toBeInTheDocument();
+  });
+
+  it('renders $0/M badge for trusted split-stack LAN provider without explicit pricing', async () => {
+    providers.mockReturnValue([
+      {
+        id: 'split-stack-vllm',
+        name: 'LAN vLLM',
+        isEnabled: true,
+        enabledModels: ['qwen2.5'],
+        providerType: 'openai-compatible',
+        customApiUrl: 'http://192.168.1.188:8000/v1',
+      },
+    ]);
+    getEnabledModels.mockReturnValue([
+      { providerId: 'split-stack-vllm', providerName: 'LAN vLLM', model: 'qwen2.5' },
+    ]);
+    customModelInfo.mockReturnValue({});
+
+    mocks.fetchModelCapabilitiesBatch.mockResolvedValue({
+      'split-stack-vllm/qwen2.5': {
+        ...caps,
+        input_cost_per_token: null,
+        output_cost_per_token: null,
+      },
+    });
+
+    render(
+      <ModelPickerPopover
+        currentSelection={{ providerId: 'split-stack-vllm', model: 'qwen2.5' }}
+        onSelect={vi.fn()}
+        trigger={<button type="button">open</button>}
+      />,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('$0/M')).toBeInTheDocument();
+  });
+
+  it('respects explicit custom model pricing and does not force $0/M', async () => {
+    providers.mockReturnValue([
+      {
+        id: 'ollama',
+        name: 'Ollama Proxy',
+        isEnabled: true,
+        enabledModels: ['custom-paid'],
+        providerType: 'ollama',
+      },
+    ]);
+    getEnabledModels.mockReturnValue([
+      { providerId: 'ollama', providerName: 'Ollama Proxy', model: 'custom-paid' },
+    ]);
+    customModelInfo.mockReturnValue({
+      'ollama/custom-paid': {
+        supports_vision: false,
+        supports_function_calling: true,
+        supports_reasoning: false,
+        supports_audio_input: false,
+        supports_video_input: false,
+        max_input_tokens: 32000,
+        input_cost_per_million: 2.5,
+        output_cost_per_million: 10,
+      },
+    });
+
+    render(
+      <ModelPickerPopover
+        currentSelection={{ providerId: 'ollama', model: 'custom-paid' }}
+        onSelect={vi.fn()}
+        trigger={<button type="button">open</button>}
+      />,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('$2.50/M')).toBeInTheDocument();
+  });
+});
+

@@ -178,4 +178,20 @@ def test_deliverable_workspace_link_opens_portal() -> None:
         )
         assert isinstance(notice_state, dict)
         assert notice_state.get("found") is True, notice_state
+        assert "draft_worker.py" in str(notice_state.get("text", ""))
+
+        # Verify Staged Artifacts Notice Banner is rendered and interactive
+        notice_state = client.evaluate(
+            page,
+            """(() => {
+                const notice = document.querySelector('[data-testid="staged-artifacts-notice"]');
+                return {
+                    found: !!notice,
+                    text: notice ? (notice.textContent || '').trim() : '',
+                };
+            })()""",
+            timeout_sec=10.0,
+        )
+        assert isinstance(notice_state, dict)
+        assert notice_state.get("found") is True, notice_state
         assert ".myrm/staged_artifacts/" in str(notice_state.get("text", ""))

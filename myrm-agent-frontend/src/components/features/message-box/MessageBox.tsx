@@ -18,7 +18,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { AlertTriangle, Ban, Disc3, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Ban, Disc3, FileCode2, ShieldAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
@@ -847,6 +847,11 @@ const MessageBox = ({
               />
             )}
 
+            {/* 自动暂存的未落盘交付物草案通知条 */}
+            {!(isLast && loading) && message.stagedArtifacts && message.stagedArtifacts.length > 0 && (
+              <StagedArtifactsNotice stagedArtifacts={message.stagedArtifacts} />
+            )}
+
             {!(isLast && loading) && chatId && message.role === 'assistant' && (
               <WorkflowTemplateSaveCard message={message} chatId={chatId} />
             )}
@@ -884,6 +889,11 @@ const MessageBox = ({
                   <span className="text-amber-700 dark:text-amber-300">{t('message.workflowMergeWarning')}</span>
                 </div>
               )}
+
+            {/* 自动暂存的未落盘交付物草案通知条 */}
+            {!(isLast && loading) && message.stagedArtifacts && message.stagedArtifacts.length > 0 && (
+              <StagedArtifactsNotice stagedArtifacts={message.stagedArtifacts} />
+            )}
 
             {/* 建议 */}
             {isLast && <Suggestions message={message} loading={loading} />}
