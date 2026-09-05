@@ -3282,7 +3282,9 @@
     "to": "Bis",
     "clearTimeFilter": "Löschen",
     "citeToComposer": "In Eingabe zitieren",
-    "citeSameChat": "Dieses Ergebnis stammt aus dem aktuellen Chat — nichts zu zitieren"
+    "citeSameChat": "Dieses Ergebnis stammt aus dem aktuellen Chat — nichts zu zitieren",
+    "fuzzyMatchBadge": "Fuzzy-Treffer",
+    "fuzzyMatchBadgeTooltip": "Keine exakten Treffer gefunden; automatisch mit unscharfer Suche erweitert"
   },
   "images": {
     "search": "Bilder suchen",

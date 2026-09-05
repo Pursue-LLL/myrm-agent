@@ -124,7 +124,9 @@ function splitLocale(lang, canonicalNamespaces, canonicalSettingsSections) {
   mkdirSync(settingsDir, { recursive: true });
   const settings = messages.settings ?? {};
   for (const section of canonicalSettingsSections) {
-    writeJson(resolve(settingsDir, `${section}.json`), settings[section] ?? {});
+    const targetFile = resolve(settingsDir, `${section}.json`);
+    mkdirSync(dirname(targetFile), { recursive: true });
+    writeJson(targetFile, settings[section] ?? {});
   }
 }
 
