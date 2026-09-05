@@ -9,6 +9,7 @@ Mobile Device Bridge domain. Provides Android ADB device auto-discovery, non-blo
 | File | Role | Description | I/O/P |
 |---|---|---|---|
 | `bridge_service.py` | Core | `DeviceBridgeService` singleton: ADB discovery, screenshot capture, PIL redaction, touch relay | ✅ |
+| `models.py` | Models | `DeviceInfo`, `DeviceDoctorReport`, `DeviceSnapshotPayload` and input relay constants | ✅ |
 | `__init__.py` | Facade | Public exports of service and DTOs | ✅ |
 
 ## Dependencies

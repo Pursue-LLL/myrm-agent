@@ -20,67 +20,27 @@ import base64
 import io
 import logging
 import os
-import re
 import shutil
 import time
-from dataclasses import dataclass
-from typing import Literal
 
 from PIL import Image, ImageDraw
+
+from app.services.device.models import (
+    DUMMY_1PX_PNG,
+    KEYCODE_MAP,
+    KEYCODE_SAFE_PATTERN,
+    DeviceDoctorReport,
+    DeviceInfo,
+    DeviceSnapshotPayload,
+)
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_ADB_TIMEOUT = 3.5
 _SNAPSHOT_CACHE_TTL_SEC = 0.30
-_KEYCODE_SAFE_PATTERN = re.compile(r"^[A-Za-z0-9_]{1,32}$")
-
-_KEYCODE_MAP: dict[str, str] = {
-    "back": "KEYCODE_BACK",
-    "home": "KEYCODE_HOME",
-    "recents": "KEYCODE_APP_SWITCH",
-    "power": "KEYCODE_POWER",
-    "wake": "KEYCODE_WAKEUP",
-    "enter": "KEYCODE_ENTER",
-    "tab": "KEYCODE_TAB",
-    "volume_up": "KEYCODE_VOLUME_UP",
-    "volume_down": "KEYCODE_VOLUME_DOWN",
-}
-
-_DUMMY_1PX_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
-
-
-@dataclass(frozen=True, slots=True)
-class DeviceInfo:
-    serial: str
-    state: str
-    product: str
-    model: str
-    device: str
-
-
-@dataclass(frozen=True, slots=True)
-class DeviceDoctorReport:
-    adb_installed: bool
-    adb_path: str | None
-    devices: list[DeviceInfo]
-    connected: bool
-    active_device_serial: str | None
-    diagnostic_message: str
-    remediation_hint: str | None
-
-
-@dataclass(frozen=True, slots=True)
-class DeviceSnapshotPayload:
-    screenshot_base64: str
-    mime_type: str
-    refs: dict[str, object]
-    device_id: str
-    device_name: str
-    platform: Literal["android", "ios", "harmony", "generic"]
-    connected: bool
-    viewport_width: int
-    viewport_height: int
-    doctor: DeviceDoctorReport
+_KEYCODE_SAFE_PATTERN = KEYCODE_SAFE_PATTERN
+_KEYCODE_MAP = KEYCODE_MAP
+_DUMMY_1PX_PNG = DUMMY_1PX_PNG
 
 
 class DeviceBridgeService:
