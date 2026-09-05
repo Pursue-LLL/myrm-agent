@@ -93,17 +93,34 @@ class SafeVaultPurgeService:
                 # Phase 1: Query existing tables & count preserved assets (whitelist proof)
                 existing_tables: set[str] = set()
                 async with engine.connect() as conn:
-                    table_rows = (await conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'"))).fetchall()
+                    table_rows = (
+                        await conn.execute(
+                            text("SELECT name FROM sqlite_master WHERE type='table'")
+                        )
+                    ).fetchall()
                     existing_tables = {r[0] for r in table_rows}
 
                     if "agents" in existing_tables:
-                        result.preserved_agents = await conn.scalar(text("SELECT COUNT(*) FROM agents")) or 0
+                        result.preserved_agents = (
+                            await conn.scalar(text("SELECT COUNT(*) FROM agents")) or 0
+                        )
                     if "api_keys" in existing_tables:
-                        result.preserved_api_keys = await conn.scalar(text("SELECT COUNT(*) FROM api_keys")) or 0
+                        result.preserved_api_keys = (
+                            await conn.scalar(text("SELECT COUNT(*) FROM api_keys"))
+                            or 0
+                        )
                     if "user_configs" in existing_tables:
-                        result.preserved_user_configs = await conn.scalar(text("SELECT COUNT(*) FROM user_configs")) or 0
+                        result.preserved_user_configs = (
+                            await conn.scalar(text("SELECT COUNT(*) FROM user_configs"))
+                            or 0
+                        )
                     if "channel_pairings" in existing_tables:
-                        result.preserved_channel_pairings = await conn.scalar(text("SELECT COUNT(*) FROM channel_pairings")) or 0
+                        result.preserved_channel_pairings = (
+                            await conn.scalar(
+                                text("SELECT COUNT(*) FROM channel_pairings")
+                            )
+                            or 0
+                        )
 
                 # Phase 2: Reverse-clean FTS5 virtual tables
                 # Execute asynchronously via AsyncConnection to eliminate driver-level coroutine mismatch
@@ -111,18 +128,38 @@ class SafeVaultPurgeService:
                     for fts_tbl in cls.FTS_VIRTUAL_TABLES:
                         if fts_tbl in existing_tables:
                             try:
-                                await conn.execute(text(f"INSERT INTO {fts_tbl}({fts_tbl}) VALUES('delete-all')"))
+                                await conn.execute(
+                                    text(
+                                        f"INSERT INTO {fts_tbl}({fts_tbl}) VALUES('delete-all')"
+                                    )
+                                )
                             except Exception:
                                 try:
                                     await conn.execute(text(f"DELETE FROM {fts_tbl}"))
                                 except Exception as exc:
-                                    logger.warning("FTS5 direct delete failed for %s: %s", fts_tbl, exc)
+                                    logger.warning(
+                                        "FTS5 direct delete failed for %s: %s",
+                                        fts_tbl,
+                                        exc,
+                                    )
                             try:
-                                await conn.execute(text(f"INSERT INTO {fts_tbl}({fts_tbl}) VALUES('rebuild')"))
+                                await conn.execute(
+                                    text(
+                                        f"INSERT INTO {fts_tbl}({fts_tbl}) VALUES('rebuild')"
+                                    )
+                                )
                             except Exception as exc:
-                                logger.warning("FTS5 rebuild after purge failed for %s: %s", fts_tbl, exc)
+                                logger.warning(
+                                    "FTS5 rebuild after purge failed for %s: %s",
+                                    fts_tbl,
+                                    exc,
+                                )
                             try:
-                                await conn.execute(text(f"INSERT INTO {fts_tbl}({fts_tbl}) VALUES('optimize')"))
+                                await conn.execute(
+                                    text(
+                                        f"INSERT INTO {fts_tbl}({fts_tbl}) VALUES('optimize')"
+                                    )
+                                )
                             except Exception:
                                 pass
                             result.fts_tables_purged.append(fts_tbl)
@@ -132,18 +169,32 @@ class SafeVaultPurgeService:
                 if "chats" in existing_tables:
                     async with engine.connect() as conn:
                         rows = (
-                            await conn.execute(text("SELECT id, sandbox_base_dir FROM chats WHERE sandbox_base_dir IS NOT NULL"))
+                            await conn.execute(
+                                text(
+                                    "SELECT id, sandbox_base_dir FROM chats WHERE sandbox_base_dir IS NOT NULL"
+                                )
+                            )
                         ).fetchall()
                         sandbox_dirs = [(r[0], r[1]) for r in rows if r[1]]
 
                 # Phase 3: Transactional deletion of conversation corpora & cursor reset
                 async with engine.begin() as conn:
                     if "messages" in existing_tables:
-                        result.purged_messages = await conn.scalar(text("SELECT COUNT(*) FROM messages")) or 0
+                        result.purged_messages = (
+                            await conn.scalar(text("SELECT COUNT(*) FROM messages"))
+                            or 0
+                        )
                     if "chats" in existing_tables:
-                        result.purged_chats = await conn.scalar(text("SELECT COUNT(*) FROM chats")) or 0
+                        result.purged_chats = (
+                            await conn.scalar(text("SELECT COUNT(*) FROM chats")) or 0
+                        )
                     if "channel_messages" in existing_tables:
-                        result.purged_channel_messages = await conn.scalar(text("SELECT COUNT(*) FROM channel_messages")) or 0
+                        result.purged_channel_messages = (
+                            await conn.scalar(
+                                text("SELECT COUNT(*) FROM channel_messages")
+                            )
+                            or 0
+                        )
 
                     async def _safe_delete(table_name: str) -> None:
                         if table_name in existing_tables:
@@ -182,7 +233,9 @@ class SafeVaultPurgeService:
                         for tbl in reset_tables:
                             if tbl in existing_tables:
                                 await conn.execute(
-                                    text("DELETE FROM sqlite_sequence WHERE name = :tbl"),
+                                    text(
+                                        "DELETE FROM sqlite_sequence WHERE name = :tbl"
+                                    ),
                                     {"tbl": tbl},
                                 )
                                 result.cursors_reset.append(tbl)
@@ -208,7 +261,9 @@ class SafeVaultPurgeService:
                             await cleanup_sandbox_worktree(s_dir, cid, force=True)
                             result.cleared_sandboxes += 1
                         except Exception as exc:
-                            logger.warning("Sandbox cleanup notice (chat=%s): %s", cid, exc)
+                            logger.warning(
+                                "Sandbox cleanup notice (chat=%s): %s", cid, exc
+                            )
 
                 # Phase 5: Reclaim physical disk pages if requested
                 if reclaim_disk:
@@ -220,7 +275,9 @@ class SafeVaultPurgeService:
                             logger.warning("Disk vacuum non-fatal notice: %s", exc)
 
                 result.success = True
-                result.duration_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000.0
+                result.duration_ms = (
+                    datetime.now(UTC) - start_time
+                ).total_seconds() * 1000.0
                 logger.info(
                     "Safe vault purge completed successfully in %.1fms: %d chats, %d messages wiped, %d configs preserved",
                     result.duration_ms,
@@ -231,8 +288,12 @@ class SafeVaultPurgeService:
                 return result
 
             except Exception as e:
-                logger.error("Safe vault purge failed with critical error: %s", e, exc_info=True)
+                logger.error(
+                    "Safe vault purge failed with critical error: %s", e, exc_info=True
+                )
                 result.success = False
                 result.error = str(e)
-                result.duration_ms = (datetime.now(UTC) - start_time).total_seconds() * 1000.0
+                result.duration_ms = (
+                    datetime.now(UTC) - start_time
+                ).total_seconds() * 1000.0
                 return result

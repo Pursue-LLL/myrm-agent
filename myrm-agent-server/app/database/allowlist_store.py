@@ -107,10 +107,23 @@ class DBAllowlistStore:
     async def save(self, user_id: str, entry: AllowlistEntry) -> None:
         """Save allowlist entry to database.
 
+        Physical Security Invariant:
+        Entries with a non-None session_id are strictly ephemeral session-scoped grants.
+        They must NEVER be persisted to the database.
+
         Args:
             user_id: User identifier
             entry: Allowlist entry to persist
         """
+        if getattr(entry, "session_id", None) is not None:
+            logger.info(
+                "[DB_ALLOWLIST] Skipping DB persist for session-scoped grant (%s, tool=%s, session=%s)",
+                entry.permission,
+                entry.tool_name,
+                entry.session_id,
+            )
+            return
+
         expires_dt = datetime.fromtimestamp(entry.expires_at, tz=timezone.utc) if entry.expires_at is not None else None
 
         async with self._session_factory() as session:

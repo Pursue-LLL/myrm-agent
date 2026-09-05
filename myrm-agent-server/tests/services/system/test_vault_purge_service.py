@@ -118,7 +118,9 @@ async def test_purge_vault_orchestration_success() -> None:
     assert "messages_fts" in result.fts_tables_purged
     assert len(result.cursors_reset) == 3
     assert result.cleared_sandboxes == 1
-    mock_cleanup_sandbox.assert_awaited_once_with("/tmp/sandbox-1", "chat-1", force=True)
+    mock_cleanup_sandbox.assert_awaited_once_with(
+        "/tmp/sandbox-1", "chat-1", force=True
+    )
 
 
 @pytest.mark.asyncio

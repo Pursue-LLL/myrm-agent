@@ -26,7 +26,10 @@ from app.database.models.channel import ChannelPairingModel
 from app.database.models.channel_message import ChannelMessageModel
 from app.database.models.chat import Chat, Message
 from app.database.models.config import UserConfig
-from app.services.system.vault_purge_service import SafeVaultPurgeResult, SafeVaultPurgeService
+from app.services.system.vault_purge_service import (
+    SafeVaultPurgeResult,
+    SafeVaultPurgeService,
+)
 
 
 @pytest.fixture
@@ -63,14 +66,46 @@ async def test_safe_vault_purge_service_execution(tmp_path: Path):
                 "role VARCHAR(20) NOT NULL, segment_text TEXT DEFAULT '')"
             )
         )
-        await conn.execute(text("CREATE TABLE IF NOT EXISTS interrupted_turn_markers (id VARCHAR(255) PRIMARY KEY)"))
-        await conn.execute(text("CREATE TABLE IF NOT EXISTS offline_durable_tasks (id VARCHAR(255) PRIMARY KEY)"))
-        await conn.execute(text("CREATE TABLE IF NOT EXISTS conversation_forks (child_chat_id VARCHAR(255) PRIMARY KEY)"))
-        await conn.execute(text("CREATE TABLE IF NOT EXISTS widget_kv_entries (id VARCHAR(255) PRIMARY KEY)"))
-        await conn.execute(text("CREATE TABLE IF NOT EXISTS pending_memories (id VARCHAR(255) PRIMARY KEY)"))
-        await conn.execute(text("CREATE TABLE IF NOT EXISTS memory_extract_retries (id VARCHAR(255) PRIMARY KEY)"))
-        await conn.execute(text("CREATE TABLE IF NOT EXISTS memory_conflicts (id VARCHAR(255) PRIMARY KEY)"))
-        await conn.execute(text("CREATE TABLE IF NOT EXISTS memory_operation_events (id VARCHAR(255) PRIMARY KEY)"))
+        await conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS interrupted_turn_markers (id VARCHAR(255) PRIMARY KEY)"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS offline_durable_tasks (id VARCHAR(255) PRIMARY KEY)"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS conversation_forks (child_chat_id VARCHAR(255) PRIMARY KEY)"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS widget_kv_entries (id VARCHAR(255) PRIMARY KEY)"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS pending_memories (id VARCHAR(255) PRIMARY KEY)"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS memory_extract_retries (id VARCHAR(255) PRIMARY KEY)"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS memory_conflicts (id VARCHAR(255) PRIMARY KEY)"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS memory_operation_events (id VARCHAR(255) PRIMARY KEY)"
+            )
+        )
 
         # Seed whitelist items
         await conn.execute(
@@ -161,16 +196,24 @@ async def test_safe_vault_purge_service_execution(tmp_path: Path):
 
     # Verify whitelist records remain untouched in DB
     async with engine.connect() as conn:
-        agent_cnt = await conn.scalar(text("SELECT COUNT(*) FROM agents WHERE id='agent-1'"))
+        agent_cnt = await conn.scalar(
+            text("SELECT COUNT(*) FROM agents WHERE id='agent-1'")
+        )
         assert agent_cnt == 1
 
-        key_cnt = await conn.scalar(text("SELECT COUNT(*) FROM api_keys WHERE name='k-1'"))
+        key_cnt = await conn.scalar(
+            text("SELECT COUNT(*) FROM api_keys WHERE name='k-1'")
+        )
         assert key_cnt == 1
 
         # Verify chat corpora are completely gone
-        chat_cnt = await conn.scalar(text("SELECT COUNT(*) FROM chats WHERE id='chat-100'"))
+        chat_cnt = await conn.scalar(
+            text("SELECT COUNT(*) FROM chats WHERE id='chat-100'")
+        )
         assert chat_cnt == 0
-        msg_cnt = await conn.scalar(text("SELECT COUNT(*) FROM messages WHERE id='msg-1'"))
+        msg_cnt = await conn.scalar(
+            text("SELECT COUNT(*) FROM messages WHERE id='msg-1'")
+        )
         assert msg_cnt == 0
 
 
