@@ -218,12 +218,12 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(({ providerId, hasA
             <p className="font-semibold text-amber-950 dark:text-amber-100">
               {locale === 'zh'
                 ? 'Anthropic 订阅策略说明（避坑指引）：'
-                : 'Anthropic Subscription Policy Notice:'}
+                : 'Anthropic Subscription Policy & Quota Notice'}
             </p>
             <p className="text-amber-900/90 dark:text-amber-200/90">
               {locale === 'zh'
                 ? 'Anthropic 官方条款限制 Claude Pro/Max 网页订阅在第三方 Agent 框架中的无 Key 调用。在长上下文或并发场景下，可能遭遇 403 政策拦截或 429 Extra Usage Credits 额度限制。'
-                : 'Anthropic policy restricts Claude Pro/Max web subscriptions in third-party agent harnesses. Long-context queries or heavy burst sessions may encounter 403 policy blocks or 429 Extra Usage Credit gates.'}
+                : 'Anthropic policy may restrict third-party client subscriptions. Long-context queries or heavy burst sessions may encounter 403 policy blocks or 429 Extra Usage Credit gates.'}
             </p>
             <p className="font-medium text-amber-950/90 dark:text-amber-100/90">
               {hasApiKey

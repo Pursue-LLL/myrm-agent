@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   IconBrain,
@@ -29,6 +29,7 @@ import useChatStore from '@/store/useChatStore';
 import SessionReplayPlayer from '@/components/features/memory/replay/SessionReplayPlayer';
 import TraceErrorItem from './TraceErrorItem';
 import TraceLLMCallItem from './TraceLLMCallItem';
+import TraceGanttWaterfall from './TraceGanttWaterfall';
 
 interface ExecutionTraceTimelineProps {
   sessionId: string;
@@ -195,6 +196,13 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
           </div>
           <p className="text-sm text-foreground line-clamp-3">{trace.task_input}</p>
         </div>
+      )}
+
+      {trace.performance_summary && (
+        <TraceGanttWaterfall
+          performance={trace.performance_summary}
+          totalDurationMs={trace.duration_ms}
+        />
       )}
 
       {trace.tool_calls && trace.tool_calls.length > 0 && (

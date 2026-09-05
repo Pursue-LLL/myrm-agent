@@ -18112,7 +18112,15 @@
         "securityLabels": "Security Labels",
         "securityFlag": "Security",
         "memoryEvents": "Context injection & memory",
-        "influenceCount": "Influenced turns: {count}"
+        "influenceCount": "Influenced turns: {count}",
+        "ganttWaterfall": "Gantt Waterfall",
+        "llmTime": "LLM Inference",
+        "toolTime": "Tool Execution",
+        "cacheHitRate": "Prompt Cache Hit Rate",
+        "cacheTokens": "Cached: {tokens} Tokens",
+        "privacyMode": "Privacy Mode",
+        "privacyHint": "Sensitive prompts and tool inputs hidden",
+        "searchPlaceholder": "Search traces by prompt or title..."
       },
       "replay": {
         "title": "Session Replay",

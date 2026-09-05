@@ -132,7 +132,7 @@ async def test_e2e_search_quota_and_browser_compute_task_flow() -> None:
         # Step 7: 通过 REST API 查询浏览器算力消耗汇总
         try:
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=test_app), base_url="http://test"
             ) as ac:
                 browser_resp = await ac.get("/api/statistics/browser-runtime")
                 assert browser_resp.status_code == 200
@@ -142,7 +142,7 @@ async def test_e2e_search_quota_and_browser_compute_task_flow() -> None:
                 assert summary["total_megabytes_transferred"] >= 20.0
                 assert summary["estimated_compute_cost_usd"] > 0
         finally:
-            app.dependency_overrides.clear()
+            test_app.dependency_overrides.clear()
 
         # Step 8: 验证 3 分钟死循环主动看门狗
         obs = BrowserObservability()
