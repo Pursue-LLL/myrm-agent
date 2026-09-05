@@ -3282,7 +3282,9 @@
     "to": "종료",
     "clearTimeFilter": "초기화",
     "citeToComposer": "입력창에 인용",
-    "citeSameChat": "이 결과는 현재 대화에서 나온 것입니다 — 인용할 필요 없음"
+    "citeSameChat": "이 결과는 현재 대화에서 나온 것입니다 — 인용할 필요 없음",
+    "fuzzyMatchBadge": "유사 검색",
+    "fuzzyMatchBadgeTooltip": "정확한 검색 결과가 없어 확장 완화 검색을 자동으로 적용했습니다"
   },
   "images": {
     "search": "이미지 검색",

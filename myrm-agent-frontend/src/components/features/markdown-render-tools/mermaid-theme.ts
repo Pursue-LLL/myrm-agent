@@ -92,10 +92,11 @@ export function sanitizeMermaidSvg(rawSvg: string): string {
       return '';
     }
 
-    // 危险标签黑名单
+    // 危险标签黑名单（SVG XML 模式下大小写敏感，兼容 foreignobject 与 foreignObject）
     const dangerousTags = [
       'script',
       'foreignobject',
+      'foreignObject',
       'iframe',
       'object',
       'embed',

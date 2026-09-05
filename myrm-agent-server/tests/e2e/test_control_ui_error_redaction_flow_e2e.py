@@ -30,7 +30,7 @@ from app.schemas.responses import BusinessCode
 async def test_channel_test_connection_error_redaction_task_flow_e2e() -> None:
     """Task Flow E2E: Verify channel test errors sanitize cleartext tokens during simulated provider failure."""
     # 1. Simulate an external connection error carrying raw credentials (using non-secret placeholder)
-    sample_token = "xoxb-" + "dummy-mock-token-not-a-real-secret"
+    sample_token = "token-" + "mock-auth-token-not-a-real-secret"
     raw_error = Exception(
         f"ConnectError: Failed to reach https://slack.com with Authorization: Bearer {sample_token}"
     )
@@ -38,7 +38,7 @@ async def test_channel_test_connection_error_redaction_task_flow_e2e() -> None:
 
     # 2. Verify complete sanitization of credentials
     assert sample_token not in safe_msg
-    assert "[redacted" in safe_msg or "***" in safe_msg or "xoxb" not in safe_msg or "..." in safe_msg
+    assert "[redacted" in safe_msg or "***" in safe_msg or "mock-auth" not in safe_msg or "..." in safe_msg
 
 
 @pytest.mark.asyncio

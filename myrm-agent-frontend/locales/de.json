@@ -8772,6 +8772,12 @@
     "jsExpression": "JavaScript-Ausdruck",
     "mcpElicitationTitle": "MCP Serverbestätigung",
     "mcpElicitationServer": "Serverinstanz",
+    "scriptOperand": {
+      "protectedBadge": "Skriptinhalt manipulationssicher gesperrt",
+      "protectedTooltip": "Der Inhalt der Skriptdatei ist mit einem SHA-256-Hash verankert. Wenn die Datei vor der Ausführung manipuliert oder ersetzt wird, wird sie automatisch abgebrochen, um TOCTOU-Angriffe abzuwehren.",
+      "hashLabel": "Inhalts-Hash",
+      "pathLabel": "Skriptpfad"
+    },
     "clarificationRequired": "Fehlerklärung erforderlich",
     "fixParameters": "Parameter korrigieren (JSON)",
     "knowledgePatch": {

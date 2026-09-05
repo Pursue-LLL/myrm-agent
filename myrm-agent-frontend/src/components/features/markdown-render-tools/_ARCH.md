@@ -18,7 +18,7 @@ Markdown 渲染扩展与工具块展示。
 | `MermaidLegendPanel.tsx`         | 辅助 | Mermaid 图例/节点说明侧栏                                                                                      | ✅    |
 | `ThinkBox.tsx`                   | 核心 | 模型思考链折叠展示容器                                                                                         | ✅    |
 | `ThinkTagProcessor.tsx`          | 辅助 | `` 标签预处理与分段                                                                                            | ✅    |
-| `mermaid-theme.ts`               | 辅助 | Mermaid 明暗主题 token 映射                                                                                    | ✅    |
+| `mermaid-theme.ts`               | 辅助 | Mermaid 明暗主题 token 映射、严格安全配置（securityLevel: strict, htmlLabels: false）与 SVG DOM 深度净化（sanitizeMermaidSvg） | ✅    |
 | `ResponsiveTable.tsx`            | 核心 | Markdown 表格响应式渲染：overflow-x-auto 防溢出、移动端多列卡片视图、Toggle 切换、colspan/rowspan 容错         | ✅    |
 | `rehypeHeadingIds.ts`            | 辅助 | rehype 插件：为 heading 注入 anchor id                                                                         | ✅    |
 | `__tests__/LinkPopover.test.tsx` | 测试 | 链接 hover 预览卡片、相对时间格式化与 anchor/span 状态单测                                                     | ✅    |

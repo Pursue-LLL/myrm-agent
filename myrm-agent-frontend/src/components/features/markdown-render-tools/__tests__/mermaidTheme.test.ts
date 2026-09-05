@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildMermaidConfig, MERMAID_FONT_FAMILY, type MermaidChartProps, type LegendItem } from '../mermaid-theme';
+import {
+  buildMermaidConfig,
+  MERMAID_FONT_FAMILY,
+  sanitizeMermaidSvg,
+  type MermaidChartProps,
+  type LegendItem,
+} from '../mermaid-theme';
 
 describe('buildMermaidConfig', () => {
   beforeEach(() => {
@@ -10,7 +16,8 @@ describe('buildMermaidConfig', () => {
     const config = buildMermaidConfig(false);
     expect(config.startOnLoad).toBe(false);
     expect(config.theme).toBe('base');
-    expect(config.securityLevel).toBe('loose');
+    expect(config.securityLevel).toBe('strict');
+    expect(config.htmlLabels).toBe(false);
     expect(config.fontFamily).toBe(MERMAID_FONT_FAMILY);
     expect(config.fontSize).toBe(14);
   });
@@ -168,21 +175,37 @@ describe('MERMAID_FONT_FAMILY', () => {
   });
 });
 
-describe('type exports', () => {
-  it('MermaidChartProps accepts chart and optional id', () => {
-    const props: MermaidChartProps = { chart: 'graph TD; A-->B' };
-    expect(props.chart).toBe('graph TD; A-->B');
-    expect(props.id).toBeUndefined();
-
-    const propsWithId: MermaidChartProps = { chart: 'graph LR; X-->Y', id: 'test-id' };
-    expect(propsWithId.id).toBe('test-id');
+describe('sanitizeMermaidSvg', () => {
+  it('strips dangerous script elements from rendered svg', () => {
+    const malicious = '<svg><g><script>alert(1)</script><text>Safe</text></g></svg>';
+    const sanitized = sanitizeMermaidSvg(malicious);
+    expect(sanitized).not.toContain('<script');
+    expect(sanitized).not.toContain('alert(1)');
+    expect(sanitized).toContain('<text>Safe</text>');
   });
 
-  it('LegendItem requires className and label, color is optional', () => {
-    const item: LegendItem = { className: 'cls-a', label: 'Node A' };
-    expect(item.color).toBeUndefined();
+  it('strips foreignObject and inline event handlers with mixed case', () => {
+    const malicious = '<svg><foreignObject><div>bad</div></foreignObject><circle cx="10" cy="10" r="5" oNlOaD="alert(2)"/></svg>';
+    const sanitized = sanitizeMermaidSvg(malicious);
+    expect(sanitized).not.toContain('foreignObject');
+    expect(sanitized).not.toContain('oNlOaD');
+    expect(sanitized).not.toContain('onload');
+    expect(sanitized).not.toContain('alert(2)');
+    expect(sanitized).toContain('<circle');
+  });
 
-    const itemWithColor: LegendItem = { className: 'cls-b', label: 'Node B', color: '#ff0' };
-    expect(itemWithColor.color).toBe('#ff0');
+  it('strips href and xlink:href attributes to prevent unintended navigation or javascript URLs', () => {
+    const malicious = '<svg><a href="javascript:alert(3)" xlink:href="https://evil.com"><text>Click</text></a></svg>';
+    const sanitized = sanitizeMermaidSvg(malicious);
+    expect(sanitized).not.toContain('javascript:');
+    expect(sanitized).not.toContain('href=');
+    expect(sanitized).not.toContain('xlink:href=');
+  });
+
+  it('returns empty string for non-svg or malformed input', () => {
+    expect(sanitizeMermaidSvg('<div>not svg</div>')).toBe('');
+    expect(sanitizeMermaidSvg('<svg><unclosed></svg>')).toBe('');
+    expect(sanitizeMermaidSvg('')).toBe('');
   });
 });
+

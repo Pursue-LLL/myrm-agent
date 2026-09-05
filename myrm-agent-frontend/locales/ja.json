@@ -3282,7 +3282,9 @@
     "to": "截止",
     "clearTimeFilter": "クリア",
     "citeToComposer": "入力欄に引用",
-    "citeSameChat": "この結果は現在のチャットのものです — 引用する必要はありません"
+    "citeSameChat": "この結果は現在のチャットのものです — 引用する必要はありません",
+    "fuzzyMatchBadge": "緩和一致",
+    "fuzzyMatchBadgeTooltip": "完全一致の結果がないため、緩和検索で自動展開しました"
   },
   "images": {
     "search": "画像を検索",

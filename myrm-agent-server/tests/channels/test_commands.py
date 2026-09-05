@@ -1516,3 +1516,46 @@ class TestHandleUndo:
         await handle_undo(msg, bus, resolver, undo_handler=handler)
 
         handler.assert_not_awaited()
+
+
+class TestProductivitySkillCommands:
+    """Verifies that /memo and /review-week commands resolve correctly in the CommandRegistry."""
+
+    def test_memo_command_resolution(self) -> None:
+        registry = CommandRegistry()
+        resolved = registry.resolve("/memo 整理今天上午的架构评审录音")
+        assert resolved is not None
+        assert resolved.command_def.name == "memo"
+        assert resolved.command_def.kind == CommandKind.SKILL
+        assert "voice-memo-synthesizer" in resolved.command_def.skill_ids
+        assert resolved.raw_args == "整理今天上午的架构评审录音"
+
+        # Aliases
+        resolved_meeting = registry.resolve("/meeting 项目排期讨论")
+        assert resolved_meeting is not None
+        assert resolved_meeting.command_def.name == "memo"
+
+        resolved_minutes = registry.resolve("/minutes")
+        assert resolved_minutes is not None
+        assert resolved_minutes.command_def.name == "memo"
+
+    def test_review_week_command_resolution(self) -> None:
+        registry = CommandRegistry()
+        resolved = registry.resolve("/review-week 7d")
+        assert resolved is not None
+        assert resolved.command_def.name == "review-week"
+        assert resolved.command_def.kind == CommandKind.SKILL
+        assert "voice-corpus-review" in resolved.command_def.skill_ids
+        assert resolved.raw_args == "7d"
+
+        # Aliases
+        resolved_week = registry.resolve("/week-review")
+        assert resolved_week is not None
+        assert resolved_week.command_def.name == "review-week"
+
+        resolved_blockers = registry.resolve("/extract-blockers 看板阻碍分析")
+        assert resolved_blockers is not None
+        assert resolved_blockers.command_def.name == "review-week"
+        assert resolved_blockers.raw_args == "看板阻碍分析"
+
+

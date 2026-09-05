@@ -17,7 +17,7 @@ import {
 } from 'hugeicons-react';
 import { useTranslations } from 'next-intl';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
-import { buildMermaidConfig } from './mermaid-theme';
+import { buildMermaidConfig, sanitizeMermaidSvg } from './mermaid-theme';
 import type { MermaidChartProps, LegendItem } from './mermaid-theme';
 import MermaidLegendPanel from './MermaidLegendPanel';
 
@@ -271,8 +271,14 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
         }
 
         const { svg } = await mermaidLib.render(chartId, trimmedChart);
+        const sanitizedSvg = sanitizeMermaidSvg(svg);
 
-        setLastValidSvg(svg);
+        if (!sanitizedSvg) {
+          setErrorWithDelay();
+          return;
+        }
+
+        setLastValidSvg(sanitizedSvg);
         setIsStreaming(false);
       } catch {
         setErrorWithDelay();

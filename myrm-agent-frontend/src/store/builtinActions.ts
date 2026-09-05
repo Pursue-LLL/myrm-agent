@@ -463,11 +463,13 @@ export function buildBuiltinActions(): SlashAction[] {
       type: 'action',
       execute: async (inputValue: string) => {
         const args = inputValue.replace(/^\/(?:ask|side)\s*/i, '').trim();
-        window.dispatchEvent(
-          new CustomEvent('copilot-open-advisor', {
-            detail: { question: args },
-          }),
-        );
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('copilot-open-advisor', {
+              detail: { question: args },
+            }),
+          );
+        }
         return { success: true, newInputValue: '' };
       },
     },

@@ -8611,6 +8611,12 @@
     "targetElement": "目標元素",
     "action": "操作",
     "jsExpression": "JavaScript 表示式",
+    "scriptOperand": {
+      "protectedBadge": "指令碼內容防篡改鎖定",
+      "protectedTooltip": "指令碼檔案內容已錨定 SHA-256 雜湊。執行前若檔案被篡改或替換將自動終止執行，防禦 TOCTOU 攻擊。",
+      "hashLabel": "內容雜湊",
+      "pathLabel": "指令碼路徑"
+    },
     "mcpElicitationTitle": "MCP 服務確認",
     "mcpElicitationServer": "服務",
     "clarificationRequired": "需要錯誤釐清",

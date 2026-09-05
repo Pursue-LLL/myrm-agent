@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 const addPaneMock = vi.fn();
 const stopMessageMock = vi.fn();
 const showI18nToastMock = vi.fn();
+const setInputMessageMock = vi.fn();
 
 vi.mock('@/store/useWorkspaceStore', () => ({
   default: { getState: () => ({ addPane: addPaneMock, panes: [] }) },
@@ -13,6 +14,7 @@ vi.mock('@/store/useChatStore', () => ({
     getState: () => ({
       chatId: 'test-chat-123',
       stopMessage: stopMessageMock,
+      setInputMessage: setInputMessageMock,
       messages: [],
       loading: false,
       loadMessages: vi.fn(),
@@ -82,6 +84,23 @@ describe('builtin action execute functions', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    if (typeof globalThis.localStorage === 'undefined') {
+      const storage: Record<string, string> = {};
+      globalThis.localStorage = {
+        getItem: (key: string) => storage[key] ?? null,
+        setItem: (key: string, value: string) => {
+          storage[key] = value;
+        },
+        removeItem: (key: string) => {
+          delete storage[key];
+        },
+        clear: () => {
+          for (const k in storage) delete storage[k];
+        },
+        length: 0,
+        key: () => null,
+      };
+    }
     actions = buildBuiltinActions();
   });
 
