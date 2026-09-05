@@ -125,12 +125,16 @@ elif [[ "$(uname -s)" == "Linux" ]]; then
 fi
 CHROME_LAUNCH_ARGS+=("${START_URL}")
 if [[ "$(uname -s)" == "Darwin" ]]; then
+  OPEN_ARCH_FLAGS=()
+  if [[ "$(uname -m)" == "arm64" ]] || [[ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" == "1" ]]; then
+    OPEN_ARCH_FLAGS+=(--arch arm64)
+  fi
   if myrm_chrome_e2e_launch_background; then
     echo "MYRM_CHROME_E2E_START: macOS background launch (about:blank; set MYRM_CHROME_E2E_FOREGROUND=1 to foreground)" >&2
-    open -gj -na "${MYRM_CHROME_APP}" --args "${CHROME_LAUNCH_ARGS[@]}"
+    open "${OPEN_ARCH_FLAGS[@]}" -gj -na "${MYRM_CHROME_APP}" --args "${CHROME_LAUNCH_ARGS[@]}"
   else
     echo "MYRM_CHROME_E2E_START: macOS foreground launch (${START_URL})" >&2
-    open -na "${MYRM_CHROME_APP}" --args "${CHROME_LAUNCH_ARGS[@]}"
+    open "${OPEN_ARCH_FLAGS[@]}" -na "${MYRM_CHROME_APP}" --args "${CHROME_LAUNCH_ARGS[@]}"
   fi
 else
   nohup "${MYRM_CHROME_BIN}" "${CHROME_LAUNCH_ARGS[@]}" >/dev/null 2>&1 &

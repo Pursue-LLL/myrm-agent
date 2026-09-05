@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import ipaddress
 import logging
-import re
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urlparse
 
@@ -453,8 +452,6 @@ def _normalize_model_name(model: str) -> str:
     Returns:
         Normalized model name (e.g., "openai/deepseek-v4-flash")
     """
-    import re
-
     cleaned = re.sub(r"/+", "/", model.strip())
     if "/" not in cleaned:
         return cleaned
