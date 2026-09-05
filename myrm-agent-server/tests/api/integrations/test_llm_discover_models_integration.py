@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Iterator
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from unittest.mock import patch
 
 import pytest
@@ -68,3 +70,44 @@ def test_discover_models_opencode_go_requires_key(client: TestClient) -> None:
     payload = response.json()["data"]
     assert payload["success"] is False
     assert "API key is required" in (payload.get("error") or "")
+
+
+class _MockModelEndpointHandler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        if self.path in ("/v1/models", "/models"):
+            body = b'{"data": [{"id": "deepseek-v4-flash-local"}, {"id": "qwen2.5:32b"}]}'
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def log_message(self, format: str, *args: object) -> None:
+        pass
+
+
+@pytest.mark.integration
+def test_discover_models_local_live_http_server(client: TestClient) -> None:
+    """Real socket connection to a local HTTP server — validates real unmocked network fetch and no-auth policy."""
+    server = HTTPServer(("127.0.0.1", 0), _MockModelEndpointHandler)
+    port = server.server_port
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={"api_url": f"http://127.0.0.1:{port}/v1"},
+        )
+        assert response.status_code == 200
+        payload = response.json()["data"]
+        assert payload["success"] is True
+        assert payload["no_auth_local"] is True
+        assert "deepseek-v4-flash-local" in payload["models"]
+        assert "qwen2.5:32b" in payload["models"]
+    finally:
+        server.shutdown()
+        server.server_close()

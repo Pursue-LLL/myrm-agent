@@ -416,3 +416,73 @@ def test_discover_models_rejects_link_local_metadata_in_local_mode(client: TestC
         data = response.json()["data"]
         assert data["success"] is False
         assert "API key is required" in (data.get("error") or "")
+
+
+def test_discover_models_bare_lan_ip_with_port(client: TestClient) -> None:
+    """Bare URL like 192.168.1.50:11434 is normalized to http://192.168.1.50:11434 and discovered without key."""
+    with (
+        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch(
+            "app.api.integrations.llms.secure_request",
+            return_value=_json_response(
+                {"data": [{"id": "llama3.3:70b"}]},
+                url="http://192.168.1.50:11434/v1/models",
+            ),
+        ) as secure_request_mock,
+        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+    ):
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={"api_url": "192.168.1.50:11434/v1"},
+        )
+        assert secure_request_mock.called
+        assert secure_request_mock.call_args.kwargs["allowed_internal_hosts"] == ["192.168.1.50"]
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["success"] is True
+    assert payload["no_auth_local"] is True
+    assert payload["models"] == ["llama3.3:70b"]
+
+
+def test_discover_models_lan_with_explicit_key_preserves_auth_header(client: TestClient) -> None:
+    """When user provides an explicit key for a LAN/Tailscale host, it is preserved and the host is whitelisted."""
+    with (
+        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch(
+            "app.api.integrations.llms.secure_request",
+            return_value=_json_response(
+                {"data": [{"id": "qwen2.5-coder:32b"}]},
+                url="http://100.80.20.10:8000/v1/models",
+            ),
+        ) as secure_request_mock,
+        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+    ):
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={"api_url": "http://100.80.20.10:8000/v1", "api_key": "sk-lan-auth"},
+        )
+        assert secure_request_mock.called
+        called_kwargs = secure_request_mock.call_args.kwargs
+        assert called_kwargs["allowed_internal_hosts"] == ["100.80.20.10"]
+        assert called_kwargs["headers"]["Authorization"] == "Bearer sk-lan-auth"
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["success"] is True
+    assert payload["no_auth_local"] is False
+    assert payload["models"] == ["qwen2.5-coder:32b"]
+
+
+def test_is_trusted_split_stack_host_exact_cidr_boundaries() -> None:
+    # 172.16.0.0/12 boundaries
+    assert _is_trusted_split_stack_host("172.15.255.255") is False
+    assert _is_trusted_split_stack_host("172.16.0.0") is True
+    assert _is_trusted_split_stack_host("172.31.255.255") is True
+    assert _is_trusted_split_stack_host("172.32.0.0") is False
+
+    # Tailscale 100.64.0.0/10 boundaries
+    assert _is_trusted_split_stack_host("100.63.255.255") is False
+    assert _is_trusted_split_stack_host("100.64.0.0") is True
+    assert _is_trusted_split_stack_host("100.127.255.255") is True
+    assert _is_trusted_split_stack_host("100.128.0.0") is False

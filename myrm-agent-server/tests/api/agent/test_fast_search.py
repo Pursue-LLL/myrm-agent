@@ -221,23 +221,23 @@ def perform_fast_search(
 
     search_request: dict[str, object] = {
         "query": query,
-        "message_id": f"test-msg-{uuid.uuid4().hex[:12]}",
-        "chat_id": f"test-chat-{uuid.uuid4().hex[:12]}",
-        "action_mode": "fast",
-        "search_depth": search_depth,
-        "model_selection": model_selection,
+        "messageId": f"test-msg-{uuid.uuid4().hex[:12]}",
+        "chatId": f"test-chat-{uuid.uuid4().hex[:12]}",
+        "actionMode": "fast",
+        "searchDepth": search_depth,
+        "modelSelection": model_selection,
         "timezone": "UTC",
     }
 
     if chat_history:
-        search_request["chat_history"] = chat_history
+        search_request["chatHistory"] = chat_history
 
     if user_instructions:
-        search_request["user_instructions"] = user_instructions
+        search_request["userInstructions"] = user_instructions
 
     if use_lite_model:
         lite_model_selection = get_lite_model_selection()
-        search_request["lite_model_selection"] = lite_model_selection
+        search_request["liteModelSelection"] = lite_model_selection
 
     collected_data: list[dict] = []
     message_chunks: list[str] = []

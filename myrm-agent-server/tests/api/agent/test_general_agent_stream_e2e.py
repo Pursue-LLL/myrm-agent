@@ -6,6 +6,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.api.agent.utils import get_model_selection
+from tests.support.test_secrets import apply_test_secrets_to_environ, resolve_test_env
+
+apply_test_secrets_to_environ()
 
 
 def perform_agent_stream(
@@ -60,7 +63,7 @@ def perform_agent_stream(
 
 @pytest.mark.e2e
 @pytest.mark.skipif(
-    not os.environ.get("BASIC_API_KEY"),
+    not resolve_test_env("BASIC_API_KEY"),
     reason="E2E test requires BASIC_API_KEY environment variable",
 )
 class TestGeneralAgentStream:

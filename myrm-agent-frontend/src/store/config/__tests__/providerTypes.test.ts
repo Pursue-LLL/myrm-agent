@@ -102,11 +102,31 @@ describe('isTrustedSplitStackHostname and URL helpers', () => {
 
     expect(isLocalOrTrustedSplitStackApiUrl('http://127.0.0.1:11434/v1')).toBe(true);
     expect(isLocalOrTrustedSplitStackApiUrl('http://192.168.1.50:11434/v1')).toBe(true);
+    expect(isLocalOrTrustedSplitStackApiUrl('192.168.1.50:11434/v1')).toBe(true);
+    expect(isLocalOrTrustedSplitStackApiUrl('100.80.20.10:8000')).toBe(true);
     expect(isLocalOrTrustedSplitStackApiUrl('http://100.80.20.10:8000/v1')).toBe(true);
     expect(isLocalOrTrustedSplitStackApiUrl('http://dgx-spark.local:8000/v1')).toBe(true);
     expect(isLocalOrTrustedSplitStackApiUrl('https://api.openai.com/v1')).toBe(false);
     expect(isLocalOrTrustedSplitStackApiUrl('')).toBe(false);
     expect(isLocalOrTrustedSplitStackApiUrl(null)).toBe(false);
+  });
+
+  it('rigorously tests exact CIDR boundaries for RFC1918 and Tailscale CGNAT', () => {
+    // 172.16.0.0/12 boundaries
+    expect(isTrustedSplitStackHostname('172.15.255.255')).toBe(false);
+    expect(isTrustedSplitStackHostname('172.16.0.0')).toBe(true);
+    expect(isTrustedSplitStackHostname('172.31.255.255')).toBe(true);
+    expect(isTrustedSplitStackHostname('172.32.0.0')).toBe(false);
+
+    // Tailscale 100.64.0.0/10 boundaries
+    expect(isTrustedSplitStackHostname('100.63.255.255')).toBe(false);
+    expect(isTrustedSplitStackHostname('100.64.0.0')).toBe(true);
+    expect(isTrustedSplitStackHostname('100.127.255.255')).toBe(true);
+    expect(isTrustedSplitStackHostname('100.128.0.0')).toBe(false);
+
+    // Link-local boundaries
+    expect(isTrustedSplitStackHostname('169.254.0.1')).toBe(false);
+    expect(isTrustedSplitStackHostname('169.254.255.254')).toBe(false);
   });
 
   it('allows no-auth for trusted split-stack endpoints and resolves synthetic marker', () => {

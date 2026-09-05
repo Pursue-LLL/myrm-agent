@@ -352,6 +352,7 @@ class OrchestratorChromeClient:
                 "broken pipe",
                 "connection closed before response",
                 "connection lost",
+                "cdp connection changed during operation",
                 "operation timeout: navigate",
                 "operation timeout: evaluate",
             )
