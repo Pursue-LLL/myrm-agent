@@ -63,6 +63,8 @@ def _launch_gate_subprocess_env() -> dict[str, str]:
     paths = [str(lib), str(scripts_dev), str(monorepo / "scripts" / "dev")]
     existing = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = os.pathsep.join([*paths, existing] if existing else paths)
+    if "MYRM_E2E_EXECUTION_MODE" in os.environ:
+        env["MYRM_E2E_EXECUTION_MODE"] = os.environ["MYRM_E2E_EXECUTION_MODE"]
     return env
 
 

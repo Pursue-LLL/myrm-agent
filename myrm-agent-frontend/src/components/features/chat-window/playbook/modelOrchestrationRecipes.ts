@@ -13,6 +13,7 @@
  */
 
 import { type SingleModelSelection } from '@/store/config/providerTypes';
+import type { AgentModelSelection } from '@/services/agent';
 
 export type RecipeTierId = 'frugal' | 'balanced' | 'consensus';
 

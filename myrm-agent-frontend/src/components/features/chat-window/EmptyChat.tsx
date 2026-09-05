@@ -20,7 +20,6 @@ import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
 import { isSmartRoutingActive } from '@/lib/model-binding';
 import { Sparkles } from 'lucide-react';
-import ModelOrchestrationPlaybookDialog from './ModelOrchestrationPlaybookDialog';
 
 const EmptyChat = React.memo(() => {
   const t = useTranslations('chat');

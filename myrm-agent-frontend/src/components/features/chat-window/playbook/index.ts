@@ -19,6 +19,7 @@ export {
   MODEL_ORCHESTRATION_RECIPES,
   resolveRecipeReadiness,
   applyOrchestrationRecipe,
+  applyRecipeToAgentModelSelection,
   type ModelOrchestrationRecipe,
   type RecipeTierId,
   type RecipeReadiness,

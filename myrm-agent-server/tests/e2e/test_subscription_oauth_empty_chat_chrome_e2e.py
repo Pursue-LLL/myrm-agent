@@ -16,7 +16,7 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
@@ -24,7 +24,7 @@ from tests.support.chrome_mcp_e2e import (
 
 _CHAT_PAGE_READY_STATE = """(() => {
   const bodyText = document.body?.innerText || '';
-  const hasAppShell = !!document.querySelector('main') || !!document.querySelector('[data-testid="app-shell"]') || bodyText.length > 20;
+  const hasAppShell = !!document.querySelector('main') || !!document.querySelector('[data-testid="settings-layout"]') || bodyText.length > 20;
   return {
     ready: hasAppShell,
     bodyLength: bodyText.length,
@@ -78,13 +78,12 @@ def test_subscription_oauth_seed_status_and_disconnect_lifecycle() -> None:
 
     # 4. 验证 WebUI 页面在 Chrome CDP 中的渲染
     prepare_e2e_ui_session(api_url)
-    warm_ui_route("/")
-    chat_url = f"{ui_url}/"
+    warm_ui_route("/settings")
 
-    with open_mcp_page(chat_url, timeout_ms=90_000) as (client, page):
-        dismiss_blocking_modals(client, page, recover_url=chat_url)
+    with open_settings_subroute("/settings", timeout_ms=90_000) as (client, page):
+        dismiss_blocking_modals(client, page)
         state = wait_for_state(client, page, _CHAT_PAGE_READY_STATE, timeout_sec=45.0)
-        assert state.get("ready") is True, f"Chat page not ready: {state}"
+        assert state.get("ready") is True, f"Settings page not ready: {state}"
 
     # 5. 断开连接并清理凭据
     cleanup_res = http_json(
