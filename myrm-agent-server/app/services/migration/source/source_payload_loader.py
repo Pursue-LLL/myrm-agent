@@ -68,6 +68,7 @@ def load_source_payload(payload: dict[str, object]) -> dict[str, object]:
         "chatgpt": load_chatgpt,
         "gbrain": load_gbrain,
         "pi": load_pi,
+        "plur": lambda root, file_paths: {"_source": "plur"},
     }
     loader = loaders.get(competitor)
     if loader is None:
