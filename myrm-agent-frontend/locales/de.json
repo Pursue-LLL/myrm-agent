@@ -8799,7 +8799,8 @@
       "badge": "Obsidian-Eingang",
       "noteContent": "Notizinhalt",
       "destination": "Tresor"
-    },
+    }
+  },
   "notifications": {
     "pairingPending": "Neue Kopplungsanfrage von {sender} am {channel}",
     "goToApproval": "Gehen Sie zur Genehmigung",

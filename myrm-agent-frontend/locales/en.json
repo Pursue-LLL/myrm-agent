@@ -269,6 +269,7 @@
       "petNoActive": "No pet installed — opening pet palette",
       "memo": "Voice memos and meeting minutes breakdown — auto-generate artifacts, dispatch board tasks, and retain durable memories",
       "review_week": "Weekly voice corpus digest — aggregate multi-meeting recordings to extract key conclusions and blocker reports",
+      "design_image": "Structured image synthesis — generate commercial-grade assets with Prompt-as-Code atomic schemas and style presets",
       "ask": "Open session advisor for read-only side Q&A (/side)",
       "btwDisambiguation": "In Myrm, /btw starts a background task. For side Q&A while a run is active, use /ask or /side instead."
     }

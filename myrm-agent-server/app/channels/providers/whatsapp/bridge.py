@@ -175,7 +175,12 @@ class BridgeProcessMixin:
 
         self._auth_dir.mkdir(parents=True, exist_ok=True)  # type: ignore[attr-defined]
 
-        env = os.environ.copy()
+        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+            EnvInheritPolicy,
+            build_isolated_child_env,
+        )
+
+        env = build_isolated_child_env(inherit_policy=EnvInheritPolicy.CORE)
         for key in ["http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"]:
             env.pop(key, None)
 

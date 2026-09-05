@@ -139,6 +139,8 @@ def _server_to_config_dict(
         # Scoped Secret Injection: the runtime pulls only these keys from the
         # agent vault (mcp_runtime_prepare), never the full environment.
         cfg["required_secrets"] = list(server.env_key_names)
+    if getattr(server, "capabilities", None):
+        cfg["capabilities"] = [cap.value if hasattr(cap, "value") else str(cap) for cap in server.capabilities]
     return cfg
 
 

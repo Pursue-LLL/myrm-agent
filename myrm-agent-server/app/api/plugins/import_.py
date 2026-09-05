@@ -50,6 +50,9 @@ class PluginMetaResponse(BaseModel):
     repository: str | None = None
     license: str | None = None
     keywords: list[str] = Field(default_factory=list)
+    capabilities: list[str] = Field(default_factory=list)
+    effective_tier: str = "read_only"
+    risk_level: str = "low"
 
 
 class PluginSkillPreview(BaseModel):
@@ -73,6 +76,7 @@ class PluginServerPreview(BaseModel):
     missing_artifact: str | None = None
     is_runnable: bool = True
     missing_artifacts: list[str] = Field(default_factory=list)
+    capabilities: list[str] = Field(default_factory=list)
 
 
 class PluginAgentPreview(BaseModel):
