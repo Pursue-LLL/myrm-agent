@@ -18686,6 +18686,7 @@
           "blocked": "Blockiert: {count} Sicherheitsrisiko(n) gefunden — automatisch übersprungen",
           "oversized": "Skill-Inhalt überschreitet das Speicherlimit (64 KB) — automatisch übersprungen",
           "conflict": "Ein Skill mit diesem Namen ist bereits vorhanden — „Ersetzen“ aktualisiert ihn, „Überspringen“ behält den aktuellen",
+          "missingArtifact": "Fehlendes Build-Artefakt: {file} — zur Vermeidung von Laufzeitabstürzen automatisch übersprungen",
           "trustDisclosureTitle": "Sicherheitshinweis zu vertrauenswürdigen Quellen und Systemberechtigungen",
           "trustDisclosureLocal": "Wird im lokalen/Desktop-Modus ausgeführt. Importierte Plugins werden mit den Rechten Ihres Betriebssystems ausgeführt.",
           "trustDisclosureCloud": "Wird im Cloud-Sandbox-Modus ausgeführt. Importierte Plugins werden in Ihrer dedizierten isolierten Volume-Sandbox ausgeführt.",

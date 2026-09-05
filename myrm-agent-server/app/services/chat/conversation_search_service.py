@@ -150,7 +150,7 @@ class ConversationSearchService:
 
         safe_query = sanitize_fts5_query(query)
         fts_queries = build_conversation_recall_fts_queries(query, safe_query)
-        fts_hits = await ConversationSearchService._search_fts(
+        fts_hits, relaxed_used, effective_tokens = await ConversationSearchService._search_fts(
             request,
             fts_queries=fts_queries,
             agent_id=agent_id,
@@ -169,6 +169,8 @@ class ConversationSearchService:
             query=query,
             rejected_reason=rejected_reason,
             coverage=coverage,
+            relaxed=relaxed_used,
+            query_tokens=effective_tokens,
         )
 
     @staticmethod
@@ -268,21 +270,23 @@ class ConversationSearchService:
         *,
         fts_queries: list[ConversationRecallFtsQuery],
         agent_id: str | None,
-    ) -> list[ConversationSearchHit]:
+    ) -> tuple[list[ConversationSearchHit], bool, list[str]]:
         if not fts_queries:
-            return []
+            return [], False, []
         candidate_limit = min(
             MAX_FTS_CANDIDATES,
             max(request.limit * FTS_CANDIDATE_MULTIPLIER, request.limit),
         )
+        relaxed_used = False
+        effective_tokens: list[str] = []
         async with UnitOfWork() as uow:
             session = uow.session
             if session is None:
-                return []
+                return [], False, []
             context = await _conversation_context(session, request, agent_id)
             lineage_chat_ids = await _lineage_chat_ids(session, request)
             if request.lineage != "all" and not lineage_chat_ids:
-                return []
+                return [], False, []
             hits: list[ConversationSearchHit] = []
             seen_chat_ids: set[str] = set()
             for planned in fts_queries:
@@ -300,6 +304,10 @@ class ConversationSearchService:
                     since=request.since,
                     until=request.until,
                 )
+                if rows:
+                    effective_tokens = list(planned.tokens)
+                    if planned.is_relaxed:
+                        relaxed_used = True
                 new_rows = [row for row in rows if row.chat_id not in seen_chat_ids]
                 for index, row in enumerate(new_rows):
                     hits.append(
@@ -313,8 +321,8 @@ class ConversationSearchService:
                     )
                     seen_chat_ids.add(row.chat_id)
                     if len(hits) >= candidate_limit:
-                        return hits
-        return hits
+                        return hits, relaxed_used, effective_tokens
+        return hits, relaxed_used, effective_tokens
 
     @staticmethod
     async def _search_semantic(

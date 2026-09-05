@@ -39,6 +39,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `conversation_search_service.py` | ✅ 核心 | Agent 历史会话召回服务；FTS5+semantic、索引覆盖度元数据注入、`_source_interaction_boost`（cron demote / interactive boost）、`expand_message_id` 窗口、可见性策略与 source refs | ✅ |
 | `conversation_recall_query.py` | ✅ 辅助 | Conversation Recall 查询规划；精确 FTS 优先，并在结果不足时提供无 LLM 的本地 OR/term 宽召回兜底。 | ✅ |
 | `conversation_recall_index_service.py` | ✅ 核心 | Conversation Recall 索引生命周期服务；统一回填（**startup `bootstrap_missing`**）、重建、增量追加、排除/恢复、删除、健康检查、管理列表、**GUI `@chat:` `search_citable_chats` SSOT**。 | ✅ |
+| `salient_tool_archive_service.py` | ✅ 核心 | 显著工具原话与报错归档服务；在长会话压缩前自动提炼 exit_code!=0 与测试失败原话并存入 Conversation Recall 索引。 | ✅ |
 | `session_continuity_service.py` | ✅ 核心 | truncate/undo/retry/rewind 后 DB→LangGraph checkpoint fail-closed 对齐；rewind 成功后 pause active Goal | ✅ |
 | `conversation_fork_manager.py` | ✅ 核心 | 对话分支与独立验收管理（批量消息构造与插入 + commit 后 DB→checkpoint sync + Fork 关系追踪与多代 root/depth DAG 溯源 + 完整 Chat 元数据继承 + `compacted_before_id` ID 映射 + sandbox 隔离语义：父有活跃沙箱时子回退至原仓库根 + fork 失败时清理孤儿 checkpoint + `acceptance_verifier` 挑剔验收 Prompt 注入与独立审计分支） | ✅ |
 | `context_branch_fork.py` | ✅ 核心 | 从 volume snapshot bookmark 读取 jsonl 并 fork 新 chat（无 compaction 状态，对齐 GUI checkpoint branch） | ✅ |

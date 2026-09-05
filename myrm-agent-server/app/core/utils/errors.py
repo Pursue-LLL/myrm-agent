@@ -12,6 +12,7 @@ from typing import NoReturn
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+from myrm_agent_harness.agent.security.redact import redact_sensitive_text
 from myrm_agent_harness.toolkits.llms.errors import FailoverReason
 
 from app.schemas.responses import (
@@ -110,7 +111,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 
         body = create_error_response(
             code=exc.code,
-            message=exc.message,
+            message=redact_sensitive_text(exc.message),
             details=exc.details,
         ).model_dump(mode="json")
 
@@ -192,7 +193,8 @@ class StandardHTTPException(HTTPException):
         details: list[ErrorDetail] | None = None,
         trace_id: str | None = None,
     ):
-        error_response = create_error_response(code=business_code, message=message, details=details, trace_id=trace_id)
+        safe_message = redact_sensitive_text(message)
+        error_response = create_error_response(code=business_code, message=safe_message, details=details, trace_id=trace_id)
         super().__init__(status_code=status_code, detail=error_response.model_dump(mode="json"))
 
 

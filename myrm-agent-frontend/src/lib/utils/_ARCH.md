@@ -17,3 +17,4 @@
 - `pathValidation.ts`：全平台路径规范、工作区校验与展示截断 — 支持 POSIX、Windows 盘符、Windows UNC 共享路径识别与反斜杠/正斜杠归一化，提供 `validateWorkspacePath` 进行 ~ 波浪号路径解析与非法控制字符防护，以及 `formatPathForDisplay` 智能居中省略截断。
 - `skillUtils.ts`：Skill 多语言描述容灾守卫 — `resolveSkillDescription` 统一去除空串与空白，并在缺失时回退默认国际化文案，杜绝卡片与详情页空白。
 - `typeUtils.ts`：安全字典与类型守卫 — `isRecord`、`asRecord` 与 `safeGet`，彻底防止服务端 dict-like 异常或嵌套层级缺失导致的 WebUI 运行时白屏与崩溃。
+- `errorRedactor.ts`：Control UI 全面错误展示脱敏引擎 — `redactErrorMessage` 与 `redactErrorObject` 纯函数，覆盖 API Key、Bearer Token、JWT、数据库 URI 密码、macOS/Linux/Windows 主目录路径与私有内网 IP 地址，保障 UI 表面（Toast、API 响应解析、内联错误文本）零凭据泄漏。

@@ -4,6 +4,7 @@
  */
 
 import { toast as sonnerToast, ExternalToast } from 'sonner';
+import { redactErrorMessage } from './errorRedactor';
 
 /** Toast 选项（兼容 shadcn/ui toast） */
 interface ToastOptions extends ExternalToast {
@@ -19,8 +20,8 @@ interface ToastFunction {
   (options: ToastOptions): string | number;
   // 各种类型方法
   success: typeof sonnerToast.success;
-  error: typeof sonnerToast.error;
-  warning: typeof sonnerToast.warning;
+  error: (message: string | React.ReactNode, options?: ExternalToast) => string | number;
+  warning: (message: string | React.ReactNode, options?: ExternalToast) => string | number;
   info: typeof sonnerToast.info;
   promise: typeof sonnerToast.promise;
   loading: typeof sonnerToast.loading;
@@ -30,7 +31,7 @@ interface ToastFunction {
 
 /**
  * 统一的 toast 函数
- * 自动检测调用格式并转换为 Sonner API
+ * 自动检测调用格式并转换为 Sonner API，自动对错误消息与路径凭证进行脱敏保护
  */
 const toast: ToastFunction = ((
   messageOrOptions: string | React.ReactNode | ToastOptions,
@@ -43,14 +44,19 @@ const toast: ToastFunction = ((
     'title' in messageOrOptions &&
     typeof messageOrOptions.title === 'string'
   ) {
-    const { title, variant, ...restOptions } = messageOrOptions as ToastOptions;
+    const { title, variant, description, ...restOptions } = messageOrOptions as ToastOptions;
+
+    const safeTitle = variant === 'destructive' ? redactErrorMessage(title) : title;
+    const safeDesc = typeof description === 'string' && variant === 'destructive'
+      ? redactErrorMessage(description)
+      : description;
 
     // 根据 variant 决定使用哪种 toast 类型
     if (variant === 'destructive') {
-      return sonnerToast.error(title, restOptions);
+      return sonnerToast.error(safeTitle, { ...restOptions, description: safeDesc });
     }
 
-    return sonnerToast(title, restOptions);
+    return sonnerToast(title, { ...restOptions, description: safeDesc });
   }
 
   // 否则认为是 Sonner 原生格式：toast(message, options)
@@ -59,8 +65,20 @@ const toast: ToastFunction = ((
 
 // 绑定所有 Sonner 的方法到 toast 对象上
 toast.success = sonnerToast.success.bind(sonnerToast);
-toast.error = sonnerToast.error.bind(sonnerToast);
-toast.warning = sonnerToast.warning.bind(sonnerToast);
+toast.error = (message: string | React.ReactNode, options?: ExternalToast) => {
+  const safeMessage = typeof message === 'string' ? redactErrorMessage(message) : message;
+  const safeOptions = options && typeof options.description === 'string'
+    ? { ...options, description: redactErrorMessage(options.description) }
+    : options;
+  return sonnerToast.error(safeMessage as string | React.ReactNode, safeOptions);
+};
+toast.warning = (message: string | React.ReactNode, options?: ExternalToast) => {
+  const safeMessage = typeof message === 'string' ? redactErrorMessage(message) : message;
+  const safeOptions = options && typeof options.description === 'string'
+    ? { ...options, description: redactErrorMessage(options.description) }
+    : options;
+  return sonnerToast.warning(safeMessage as string | React.ReactNode, safeOptions);
+};
 toast.info = sonnerToast.info.bind(sonnerToast);
 toast.promise = sonnerToast.promise.bind(sonnerToast);
 toast.loading = sonnerToast.loading.bind(sonnerToast);

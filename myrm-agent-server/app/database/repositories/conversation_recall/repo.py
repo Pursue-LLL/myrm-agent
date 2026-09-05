@@ -149,6 +149,80 @@ class ConversationRecallRepository:
         )
 
     @staticmethod
+    async def append_salient_tool_segment(
+        db: AsyncSession,
+        *,
+        chat_id: str,
+        message_id: str,
+        tool_name: str,
+        command: str,
+        exit_code: int | None,
+        snippet: str,
+        sent_at: datetime,
+    ) -> None:
+        """Persist salient verbatim tool execution evidence into recall index before compaction."""
+        cmd_part = f" cmd={command}" if command else ""
+        exit_part = f" exit={exit_code}" if exit_code is not None else ""
+        header = f"Tool[{tool_name}]{cmd_part}{exit_part}"
+        segment_text = f"{header}\n{snippet}"
+        line = f"tool: {segment_text}"
+
+        await db.execute(
+            text("""
+                INSERT INTO conversation_recall_documents (
+                    chat_id,
+                    agent_id,
+                    source,
+                    title,
+                    summary,
+                    snippet,
+                    searchable_text,
+                    last_message_id,
+                    last_message_at,
+                    created_at,
+                    updated_at
+                )
+                SELECT
+                    c.id,
+                    c.agent_id,
+                    c.source,
+                    c.title,
+                    c.compacted_summary,
+                    :snippet,
+                    :line,
+                    :message_id,
+                    :sent_at,
+                    c.created_at,
+                    CURRENT_TIMESTAMP
+                FROM chats c
+                WHERE c.id = :chat_id
+                ON CONFLICT(chat_id) DO UPDATE SET
+                    searchable_text = CASE
+                        WHEN conversation_recall_documents.searchable_text = '' THEN excluded.searchable_text
+                        ELSE conversation_recall_documents.searchable_text || char(10) || excluded.searchable_text
+                    END,
+                    updated_at = CURRENT_TIMESTAMP
+            """),
+            {
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "snippet": snippet[:200],
+                "line": line,
+                "sent_at": sent_at,
+            },
+        )
+        await db.execute(
+            text(UPSERT_SEGMENT_SQL),
+            {
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "role": "tool",
+                "content": segment_text,
+                "sent_at": sent_at,
+            },
+        )
+
+    @staticmethod
     async def set_excluded(db: AsyncSession, chat_id: str, excluded: bool) -> bool:
         await ConversationRecallRepository.rebuild_chat(db, chat_id)
         await db.execute(

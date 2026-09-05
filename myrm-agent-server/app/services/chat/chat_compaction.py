@@ -138,6 +138,17 @@ class _ChatCompactionMixin(_ChatServiceBase):
             _, summary = await generate_structured_summary(langchain_msgs, llm, chat_id, config=context_config)
 
             async with UnitOfWork() as uow:
+                # PreCompact Hook: archive salient tool verbatim outputs into recall index before compaction
+                try:
+                    from app.services.chat.salient_tool_archive_service import SalientToolArchiveService
+                    await SalientToolArchiveService().archive_salient_tools(
+                        uow.session,
+                        chat_id=chat_id,
+                        messages=langchain_msgs,
+                    )
+                except Exception as archive_err:
+                    logger.warning("[Drain] Pre-compaction salient tool archival failed (non-blocking): %s", archive_err)
+
                 current_chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
                 if not current_chat:
                     return

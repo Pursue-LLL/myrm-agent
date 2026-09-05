@@ -592,4 +592,35 @@ describe('PluginImportDialog', () => {
     expect(checkbox).not.toBeChecked();
     expect(importButton).toBeDisabled();
   });
+
+  it('renders missing artifact warning and disables installation for broken servers', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        ...PLUGIN_PREVIEW,
+        servers: [
+          {
+            name: 'broken-server',
+            type: 'stdio',
+            command: 'node',
+            url: null,
+            env_key_count: 0,
+            has_placeholders: false,
+            virtual_id: 'mcp:0',
+            missing_artifact: 'dist/index.js',
+          },
+        ],
+      }),
+    });
+    await renderDialog();
+    selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
+
+    await screen.findByText('broken-server');
+    expect(screen.getByText(/Missing build artifact: dist\/index\.js/)).toBeInTheDocument();
+
+    // The button for the broken server should be disabled
+    const installButtons = screen.getAllByRole('button', { name: /Install|Skip/ });
+    const serverButton = installButtons.find((btn) => btn.closest('.divide-y')?.textContent?.includes('broken-server'));
+    expect(serverButton).toBeDisabled();
+  });
 });

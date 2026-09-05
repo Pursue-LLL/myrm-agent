@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from myrm_agent_harness.api import build_cjk_query_token_tiers, tokenize_cjk_bigram
 from myrm_agent_harness.utils.db.fts5 import sanitize_fts5_query
 
 MAX_FALLBACK_TERMS = 8
@@ -72,19 +73,48 @@ class ConversationRecallFtsQuery:
 
     query: str
     score_weight: float
+    is_relaxed: bool = False
+    tokens: tuple[str, ...] = ()
 
 
 def build_conversation_recall_fts_queries(raw_query: str, safe_query: str) -> list[ConversationRecallFtsQuery]:
-    """Build an exact-first FTS query plan with a local broad-recall fallback."""
+    """Build an exact-first FTS query plan with deterministic CJK two-tier fallback."""
 
-    exact = safe_query.strip()
     queries: list[ConversationRecallFtsQuery] = []
-    if exact:
-        queries.append(ConversationRecallFtsQuery(query=exact, score_weight=1.0))
+    tiers = build_cjk_query_token_tiers(raw_query)
+
+    if not tiers:
+        exact = safe_query.strip()
+        if exact:
+            queries.append(ConversationRecallFtsQuery(query=exact, score_weight=1.0, is_relaxed=False, tokens=(exact,)))
+        return queries
+
+    for tier_index, tokens in enumerate(tiers):
+        is_relaxed = tier_index > 0
+        safe_tokens = [safe for t in tokens if (safe := sanitize_fts5_query(t))]
+        if not safe_tokens:
+            continue
+        weight = 0.9 if is_relaxed else 1.0
+        quoted_query = " ".join(f'"{t}"' if " " in t else t for t in safe_tokens)
+        queries.append(
+            ConversationRecallFtsQuery(
+                query=quoted_query,
+                score_weight=weight,
+                is_relaxed=is_relaxed,
+                tokens=tuple(safe_tokens),
+            )
+        )
 
     fallback = _fallback_or_query(raw_query)
-    if fallback and fallback != exact:
-        queries.append(ConversationRecallFtsQuery(query=fallback, score_weight=0.9))
+    if fallback and not any(q.query == fallback for q in queries):
+        queries.append(
+            ConversationRecallFtsQuery(
+                query=fallback,
+                score_weight=0.8,
+                is_relaxed=True,
+                tokens=tuple(fallback.split(" OR ")),
+            )
+        )
     return queries
 
 

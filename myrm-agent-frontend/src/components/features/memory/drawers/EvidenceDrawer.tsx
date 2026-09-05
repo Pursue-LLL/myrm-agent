@@ -27,6 +27,9 @@ import {
   Sparkles,
   ExternalLink,
   CheckCircle2,
+  Terminal,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
@@ -107,6 +110,15 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
   const [isCorrecting, setIsCorrecting] = useState(false);
   const [correctionText, setCorrectionText] = useState(quoteSnippet || '');
   const [actionLoading, setActionLoading] = useState(false);
+  const [copiedTurnId, setCopiedTurnId] = useState<string | null>(null);
+
+  const handleCopySnippet = (id: string, text: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      void navigator.clipboard.writeText(text);
+      setCopiedTurnId(id);
+      setTimeout(() => setCopiedTurnId(null), 2000);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -258,6 +270,66 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
                 ) : (
                   data.turns.map((turn) => {
                     const isAssistant = turn.role === 'assistant';
+                    const isTool =
+                      turn.role === 'tool' ||
+                      turn.role === 'tool_salient' ||
+                      turn.content.startsWith('Tool[');
+                    const isCopied = copiedTurnId === turn.message_id;
+
+                    if (isTool) {
+                      const hasFailure =
+                        turn.content.toLowerCase().includes('failed') ||
+                        turn.content.toLowerCase().includes('error') ||
+                        turn.content.includes('exit=1') ||
+                        turn.content.includes('exit=2');
+                      return (
+                        <div
+                          key={turn.message_id}
+                          className={cn(
+                            'rounded-xl border p-3.5 text-xs transition-all font-mono',
+                            hasFailure
+                              ? 'border-rose-500/40 bg-rose-500/5 ring-1 ring-rose-500/20'
+                              : 'border-border/60 bg-muted/20',
+                          )}
+                        >
+                          <div className="flex items-center justify-between pb-1.5 border-b border-border/30 text-[11px] text-muted-foreground font-sans">
+                            <span className="flex items-center gap-1.5 font-medium text-foreground">
+                              <Terminal className="h-3.5 w-3.5 text-amber-500" />
+                              <span>{turn.sender_name || 'Tool Execution'}</span>
+                              {hasFailure && (
+                                <span className="rounded-full bg-rose-500/15 px-1.5 py-0.2 text-[10px] text-rose-600 dark:text-rose-400 font-semibold">
+                                  Error / Non-Zero Exit
+                                </span>
+                              )}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span>
+                                {new Date(turn.sent_at).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopySnippet(turn.message_id, turn.content)}
+                                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                                title="Copy tool output"
+                              >
+                                {isCopied ? (
+                                  <Check className="h-3 w-3 text-emerald-500" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                          <div className="pt-2 text-[11px] text-foreground/90 leading-relaxed break-words whitespace-pre-wrap overflow-x-auto max-h-60">
+                            {turn.content}
+                          </div>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div
                         key={turn.message_id}

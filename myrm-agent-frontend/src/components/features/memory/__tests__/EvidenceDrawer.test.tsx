@@ -63,7 +63,7 @@ describe('EvidenceBadge and EvidenceDrawer Component', () => {
 
     expect(screen.getByText('commandCenter.evidence.drawerTitle')).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByText('Please standardize on pnpm across monorepo.')).toBeInTheDocument();
+      expect(screen.getByText(/standardize on pnpm/i)).toBeInTheDocument();
     });
   });
 
@@ -94,5 +94,37 @@ describe('EvidenceBadge and EvidenceDrawer Component', () => {
     await userEvent.click(saveBtn);
 
     expect(mockCorrectAndLock).toHaveBeenCalledWith('Standardize on pnpm');
+  });
+
+  it('renders tool execution verbatim error segment with terminal badge', async () => {
+    const mockToolPlayback: commandCenterService.MemoryEvidencePlaybackResponse = {
+      ...mockPlayback,
+      turns: [
+        {
+          message_id: 'tool-msg-1',
+          role: 'tool',
+          sender_name: 'bash',
+          content: 'Tool[bash] exit=1:\npytest tests/failed.py\nFAILED (failures=1)',
+          sent_at: '2026-09-04T12:05:00Z',
+          is_target: false,
+        },
+      ],
+    };
+    vi.spyOn(commandCenterService, 'getEvidencePlayback').mockResolvedValue(mockToolPlayback);
+
+    render(
+      <EvidenceDrawer
+        isOpen={true}
+        onClose={vi.fn()}
+        sourceId="chat-alpha"
+        t={stableT}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('bash')).toBeInTheDocument();
+      expect(screen.getByText('Error / Non-Zero Exit')).toBeInTheDocument();
+      expect(screen.getByText(/pytest tests\/failed\.py/)).toBeInTheDocument();
+    });
   });
 });

@@ -65,6 +65,29 @@ class ConversationRecallIndexService:
         )
 
     @staticmethod
+    async def append_salient_tool_evidence(
+        db: AsyncSession,
+        *,
+        chat_id: str,
+        message_id: str,
+        tool_name: str,
+        command: str,
+        exit_code: int | None,
+        snippet: str,
+        sent_at: datetime,
+    ) -> None:
+        await ConversationRecallRepository.append_salient_tool_segment(
+            db,
+            chat_id=chat_id,
+            message_id=message_id,
+            tool_name=tool_name,
+            command=command,
+            exit_code=exit_code,
+            snippet=snippet,
+            sent_at=sent_at,
+        )
+
+    @staticmethod
     async def delete_chat(db: AsyncSession, chat_id: str) -> None:
         await ConversationRecallRepository.delete_chat(db, chat_id)
 

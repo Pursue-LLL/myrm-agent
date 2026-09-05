@@ -24,6 +24,7 @@ import { BACKEND_UNREACHABLE_CODE, resolveBackendUnreachableMessage } from '@/li
 import { clearAuthToken } from '@/lib/guest';
 import { withMobilePairHeaders } from '@/lib/mobileRemote';
 import { toast } from '@/lib/utils/toast';
+import { redactErrorMessage } from '@/lib/utils/errorRedactor';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
 import useConfigStore from '@/store/useConfigStore';
 
@@ -604,12 +605,15 @@ function displayApiErrorToast(error: unknown, duration: number | undefined, dedu
       return;
     }
 
-    const message = error.message;
+    const message = redactErrorMessage(error.message);
     let description = message;
 
     if (error.details.length > 0) {
       const details = error.details
-        .map((detail) => (detail.field ? `${detail.field}: ${detail.issue}` : detail.issue))
+        .map((detail) => {
+          const fieldStr = detail.field ? `${detail.field}: ` : '';
+          return `${fieldStr}${redactErrorMessage(detail.issue)}`;
+        })
         .join('; ');
       description = `${message}\n详情: ${details}`;
     }
@@ -665,7 +669,7 @@ function displayApiErrorToast(error: unknown, duration: number | undefined, dedu
   if (error instanceof Error) {
     toast({
       title: '错误',
-      description: error.message,
+      description: redactErrorMessage(error.message),
       duration: duration || 5000,
       variant: 'destructive',
     });

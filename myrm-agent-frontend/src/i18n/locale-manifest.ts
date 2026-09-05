@@ -24,7 +24,6 @@ export const SETTINGS_SECTIONS = manifest.settingsSections as readonly SettingsS
 export const SSR_SHELL_SETTINGS_SECTIONS = [
   'title',
   'menu',
-  'skills',
   'defaultModel',
   'modelCapabilities',
   'workingState',

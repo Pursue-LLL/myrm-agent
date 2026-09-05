@@ -44,9 +44,14 @@ from app.api.channels.schemas import (
     WeComTestRequest,
     ZaloTestRequest,
 )
+from app.channels.core.logging_filter import redact_sensitive
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _safe_err_msg(e: Exception) -> str:
+    return redact_sensitive(str(e))
 
 
 @router.post("/feishu/test", response_model=FeishuTestResponse)
@@ -64,7 +69,7 @@ async def feishu_test_connection(
             message="Connection successful" if ok else "Token verification failed",
         )
     except Exception as e:
-        return FeishuTestResponse(ok=False, message=str(e))
+        return FeishuTestResponse(ok=False, message=_safe_err_msg(e))
     finally:
         await client.close()
 
@@ -84,7 +89,7 @@ async def dingtalk_test_connection(
             message="Connection successful" if ok else "Token verification failed",
         )
     except Exception as e:
-        return DingTalkTestResponse(ok=False, message=str(e))
+        return DingTalkTestResponse(ok=False, message=_safe_err_msg(e))
     finally:
         await client.close()
 
@@ -109,7 +114,7 @@ async def slack_test_connection(
                 message="Connection successful" if ok else f"Auth failed: {data.get('error', 'unknown')}",
             )
         except Exception as e:
-            return ChannelTestResponse(ok=False, message=str(e))
+            return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
 
 
 @router.post("/discord/test", response_model=ChannelTestResponse)
@@ -150,7 +155,7 @@ async def wecom_test_connection(
             msg = "Connection successful" if ok else f"Error: {data.get('errmsg', 'Unknown')}"
             return ChannelTestResponse(ok=ok, message=msg)
         except Exception as e:
-            return ChannelTestResponse(ok=False, message=str(e))
+            return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
 
 
 @router.post("/teams/test", response_model=ChannelTestResponse)
@@ -181,7 +186,7 @@ async def teams_test_connection(
                 message="Connection successful" if ok else "OAuth token verification failed",
             )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=str(e))
+        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
 
 
 @router.post("/matrix/test", response_model=ChannelTestResponse)
@@ -218,7 +223,7 @@ async def telegram_test_connection(
         username = me.get("username", "unknown")
         return ChannelTestResponse(ok=True, message=f"Connected as @{username}")
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=str(e))
+        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
     finally:
         await client.close()
 
@@ -238,7 +243,7 @@ async def googlechat_test_connection(
             message="Connection successful" if ok else "Token verification failed",
         )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=str(e))
+        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
     finally:
         await client.close()
 
@@ -280,7 +285,7 @@ async def qq_test_connection(
                 message="Connection successful" if ok else f"HTTP {resp.status_code}",
             )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=str(e))
+        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
 
 
 @router.post("/email/test", response_model=ChannelTestResponse)
@@ -299,7 +304,7 @@ async def email_test_connection(
             conn.logout()
             return True, "IMAP connection successful"
         except Exception as e:
-            return False, str(e)
+            return False, _safe_err_msg(e)
 
     ok, msg = await asyncio.to_thread(_check)
     return ChannelTestResponse(ok=ok, message=msg)
@@ -324,7 +329,7 @@ async def voice_test_connection(
                 message="Connection successful" if ok else f"HTTP {resp.status_code}",
             )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=str(e))
+        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
 
 
 @router.post("/sms/test", response_model=ChannelTestResponse)
@@ -358,7 +363,7 @@ async def sms_test_connection(
                 )
             return ChannelTestResponse(ok=True, message="Connection successful (phone check skipped)")
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=str(e))
+        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
 
 
 @router.post("/signal/test", response_model=ChannelTestResponse)
@@ -377,7 +382,7 @@ async def signal_test_connection(
                 message="Connection successful" if ok else f"HTTP {resp.status_code}",
             )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=str(e))
+        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
 
 
 @router.post("/line/test", response_model=ChannelTestResponse)
@@ -401,7 +406,7 @@ async def line_test_connection(
                 msg = f"HTTP {resp.status_code}"
             return ChannelTestResponse(ok=ok, message=msg)
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=str(e))
+        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
 
 
 @router.post("/imessage/test", response_model=ChannelTestResponse)
@@ -440,7 +445,7 @@ async def imessage_test_connection(
                 message=message,
             )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=str(e))
+        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
 
 
 @router.post("/irc/test", response_model=ChannelTestResponse)
@@ -460,7 +465,7 @@ async def irc_test_connection(
             message=f"TCP connection to {body.server}:{body.port} successful",
         )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=str(e))
+        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
 
 
 @router.post("/zalo/test", response_model=ChannelTestResponse)
@@ -482,7 +487,7 @@ async def zalo_test_connection(
                 message="Connection successful" if ok else f"HTTP {resp.status_code}",
             )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=str(e))
+        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
 
 
 @router.post("/mattermost/test", response_model=ChannelTestResponse)
@@ -511,7 +516,7 @@ async def mattermost_test_connection(
                 message=f"HTTP {resp.status_code}",
             )
     except Exception as e:
-        return ChannelTestResponse(ok=False, message=str(e))
+        return ChannelTestResponse(ok=False, message=_safe_err_msg(e))
 
 
 @router.post("/external-agents/test", response_model=ChannelTestResponse)
