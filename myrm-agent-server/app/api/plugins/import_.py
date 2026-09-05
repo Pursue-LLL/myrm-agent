@@ -70,6 +70,7 @@ class PluginServerPreview(BaseModel):
     env_key_count: int = 0
     has_placeholders: bool = False
     virtual_id: str
+    missing_artifact: str | None = None
 
 
 class PluginAgentPreview(BaseModel):

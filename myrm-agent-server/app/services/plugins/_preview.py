@@ -190,6 +190,7 @@ def build_preview_result(
                 "env_key_count": len(server.env_key_names),
                 "has_placeholders": _server_has_placeholders(server),
                 "virtual_id": f"mcp:{idx}",
+                "missing_artifact": getattr(server, "missing_artifact", None),
             }
             for idx, server in enumerate(result.servers)
         ],

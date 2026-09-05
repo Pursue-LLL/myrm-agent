@@ -64,6 +64,7 @@ interface PluginServerPreview {
   env_key_count: number;
   has_placeholders: boolean;
   virtual_id: string;
+  missing_artifact?: string | null;
 }
 
 interface PluginAgentPreview {
@@ -217,7 +218,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
           data.servers.map((item) => ({
             virtual_id: item.virtual_id,
             name: item.name,
-            resolution: 'install',
+            resolution: item.missing_artifact ? 'skip' : 'install',
           })),
         );
         setAgentDecisions(
@@ -275,9 +276,20 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
     [preview],
   );
 
-  const toggleAllServers = useCallback((resolution: 'install' | 'skip') => {
-    setServerDecisions((prev) => prev.map((item) => ({ ...item, resolution })));
-  }, []);
+  const toggleAllServers = useCallback(
+    (resolution: 'install' | 'skip') => {
+      setServerDecisions((prev) =>
+        prev.map((item) => {
+          const server = preview?.servers.find((s) => s.virtual_id === item.virtual_id);
+          if (server?.missing_artifact && resolution === 'install') {
+            return { ...item, resolution: 'skip' };
+          }
+          return { ...item, resolution };
+        }),
+      );
+    },
+    [preview],
+  );
 
   const toggleAllAgents = useCallback((resolution: 'install' | 'skip') => {
     setAgentDecisions((prev) => prev.map((item) => ({ ...item, resolution })));
@@ -744,6 +756,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                       {preview.servers.map((item) => {
                         const decision = serverDecisions.find((d) => d.virtual_id === item.virtual_id);
                         const isInstalled = decision?.resolution === 'install';
+                        const isMissingArtifact = Boolean(item.missing_artifact);
                         return (
                           <div key={item.virtual_id} className="flex items-center justify-between gap-3 px-4 py-3">
                             <div className="min-w-0">
@@ -754,6 +767,11 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                                 {item.url ? ` · ${item.url}` : ''}
                                 {item.has_placeholders ? ` · ${t('sections.placeholder')}` : ''}
                               </p>
+                              {isMissingArtifact && (
+                                <p className="text-xs text-destructive mt-0.5">
+                                  {t('security.missingArtifact', { file: item.missing_artifact ?? '' })}
+                                </p>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               {item.env_key_count > 0 && (
@@ -765,7 +783,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                                 variant={isInstalled ? 'default' : 'ghost'}
                                 size="sm"
                                 className="h-7 px-2 text-xs"
-                                disabled={isImporting}
+                                disabled={isImporting || isMissingArtifact}
                                 onClick={() =>
                                   setResolution(serverDecisions, setServerDecisions)(
                                     item.virtual_id,

@@ -68,6 +68,14 @@ def _collect_server_configs(
         if server is None:
             skipped += 1
             continue
+        if getattr(server, "missing_artifact", None):
+            logger.warning(
+                "Skipping MCP server '%s' due to missing build artifact: %s",
+                server.name,
+                server.missing_artifact,
+            )
+            skipped += 1
+            continue
         configs.append(
             _server_to_config_dict(
                 server,

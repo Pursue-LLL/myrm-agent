@@ -18513,7 +18513,8 @@
           "trustDisclosureLocal": "運行在本地/桌面模式。導入的外掛將以操作系統權限執行，並可調用 Shell 及訪問工作區檔案。",
           "trustDisclosureCloud": "運行在雲端沙箱模式。導入的外掛在專屬隔離卷沙箱內執行，可訪問沙箱檔案與憑證。",
           "trustRiskHint": "不受信任的擴展可能包含提示詞注入指令。請務必確保安裝包來自受信任來源。",
-          "trustedCheckboxLabel": "我確認此外掛來自受信任來源，知曉其系統工具權限，並同意安裝"
+          "trustedCheckboxLabel": "我確認此外掛來自受信任來源，知曉其系統工具權限，並同意安裝",
+          "missingArtifact": "缺失構建產物：{file}，已自動略過，防止執行時崩潰"
         }
       },
       "manager": {

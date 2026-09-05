@@ -18492,6 +18492,7 @@
           "blocked": "Blocked: {count} security risk(s) found — automatically skipped",
           "oversized": "Skill content exceeds the storage size limit (64 KB) — automatically skipped",
           "conflict": "A skill with this name already exists — Replace upgrades it, or Skip to keep the current one",
+          "missingArtifact": "Missing build artifact: {file} — automatically skipped to prevent runtime crash",
           "trustDisclosureTitle": "Trusted Source & System Permissions Security Disclosure",
           "trustDisclosureLocal": "Running in Local/Desktop mode. Imported third-party plugins execute with your host operating system permissions and can invoke Shell commands and access workspace files.",
           "trustDisclosureCloud": "Running in Cloud Sandbox mode. Imported third-party plugins execute within your dedicated isolated volume sandbox, with access to sandboxed files and configured credentials.",
