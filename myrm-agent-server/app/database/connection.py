@@ -28,11 +28,11 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             ...
     """
     factory = get_session_factory()
-    async with factory() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+    session = factory()
+    try:
+        yield session
+    finally:
+        await session.close()
 
 
 @asynccontextmanager
@@ -44,11 +44,11 @@ async def get_session() -> AsyncIterator[AsyncSession]:
             result = await session.execute(...)
     """
     factory = get_session_factory()
-    async with factory() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+    session = factory()
+    try:
+        yield session
+    finally:
+        await session.close()
 
 
 async def init_database() -> None:
