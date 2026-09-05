@@ -25,7 +25,11 @@ _ACTION_MAPPINGS: dict[FailoverReason, list[str]] = {
     FailoverReason.FORMAT_ERROR: ["contact_support"],
     FailoverReason.RESPONSE_FORMAT_ERROR: ["switch_model", "contact_support"],
     FailoverReason.PROVIDER_POLICY_BLOCKED: ["switch_to_api_key", "switch_model"],
-    FailoverReason.LONG_CONTEXT_TIER: ["switch_to_api_key", "start_new_chat", "switch_model"],
+    FailoverReason.LONG_CONTEXT_TIER: [
+        "switch_to_api_key",
+        "start_new_chat",
+        "switch_model",
+    ],
     FailoverReason.CONTEXT_OVERFLOW: ["start_new_chat", "clear_history"],
     FailoverReason.UNKNOWN: ["retry", "contact_support"],
 }
@@ -90,7 +94,9 @@ def _resolve_action_url(action_id: str, default_url: str) -> str:
     return default_url
 
 
-def generate_recovery_actions(error_code: FailoverReason, locale: str = "en") -> list[dict[str, str]]:
+def generate_recovery_actions(
+    error_code: FailoverReason, locale: str = "en"
+) -> list[dict[str, str]]:
     """Generate recovery actions with localized labels and business URLs.
 
     Args:

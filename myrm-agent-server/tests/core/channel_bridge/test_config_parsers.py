@@ -634,3 +634,31 @@ class TestBackgroundEvolutionModelExtraction:
         cfg = extract_background_evolution_model_config(providers_dict)
         assert cfg is not None
         assert cfg.model == "openai/gpt-4o"
+
+    def test_extract_model_config_with_xai_oauth_fallback(self) -> None:
+        """测试在无 API Key 仅有 xAI OAuth Token 时，extract_model_config 成功提取 token 作为 api_key"""
+        from app.core.channel_bridge.config_parsers import extract_model_config
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {
+                    "id": "xai",
+                    "isEnabled": True,
+                    "apiUrl": "https://api.x.ai/v1",
+                    "apiKeys": [],
+                    "_oauthToken": "xai-oauth-live-access-token",
+                    "_oauthBaseUrl": "https://api.x.ai/v1",
+                    "enabledModels": ["grok-2"],
+                },
+            ],
+            "defaultModelConfig": {
+                "baseModel": {"primary": {"providerId": "xai", "model": "grok-2"}},
+            },
+        }
+
+        cfg = extract_model_config(providers_dict)
+        assert cfg is not None
+        assert cfg.model == "xai/grok-2"
+        assert cfg.api_key == "xai-oauth-live-access-token"
+        assert cfg.base_url == "https://api.x.ai/v1"
+

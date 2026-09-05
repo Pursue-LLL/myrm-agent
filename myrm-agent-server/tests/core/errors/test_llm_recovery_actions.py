@@ -84,5 +84,3 @@ def test_long_context_tier_recovery_actions() -> None:
     assert actions_en[1]["label"] == "New Chat"
     assert actions_en[1]["url"] == "/"
     assert actions_en[2]["label"] == "Switch Model"
-
-
