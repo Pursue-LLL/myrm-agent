@@ -18902,6 +18902,18 @@
       "configureVision": "視覚モデルを設定",
       "viewSubscriptions": "サブスクリプションを表示",
       "close": "閉じる"
-    }
+    },
+    "cardTitle": "モデルオーケストレーションプレイブック",
+    "cardBadge": "プレイブック",
+    "cardSubtitle": "Brain & Handsの役割分担、3層適応型ルーティング、MoA合意形成を活用して効率を最大化。",
+    "viewFullPlaybook": "プレイブックを表示",
+    "collapse": "折りたたむ",
+    "expand": "展開",
+    "miniBrainHandsTitle": "Brain & Hands 分担",
+    "miniBrainHandsDesc": "高推論プランナー ＋ 高速ツール実行ワーカー。",
+    "miniDynamicRoutingTitle": "3層適応型ルーティング",
+    "miniDynamicRoutingDesc": "シンプル・標準・推論層を自動シームレス切り替え。",
+    "miniMoaTitle": "MoA 合意形成オーバーレイ",
+    "miniMoaDesc": "複数モデルのクロス検証で単一モデルの限界を突破。"
   }
 }

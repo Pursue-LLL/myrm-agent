@@ -18902,6 +18902,18 @@
       "configureVision": "配置視覺模型",
       "viewSubscriptions": "查看訂閱方案",
       "close": "關閉"
-    }
+    },
+    "cardTitle": "模型編排手冊",
+    "cardBadge": "心法指南",
+    "cardSubtitle": "掌握大腦與肢體分工、三層自適應路由與 MoA 共識，最大化執行效率。",
+    "viewFullPlaybook": "查看完整手冊",
+    "collapse": "收起",
+    "expand": "展開",
+    "miniBrainHandsTitle": "大腦與肢體分工",
+    "miniBrainHandsDesc": "高智商規劃器 + 快速工具執行器。",
+    "miniDynamicRoutingTitle": "三層自適應路由",
+    "miniDynamicRoutingDesc": "自動在輕量、標準、深度推理層之間無縫切換。",
+    "miniMoaTitle": "MoA 共識增強",
+    "miniMoaDesc": "多模型交叉辯論與聚合，打破單模型能力天花板。"
   }
 }

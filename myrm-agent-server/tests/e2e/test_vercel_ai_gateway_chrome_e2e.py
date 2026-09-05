@@ -14,6 +14,7 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     http_json,
     open_settings_subroute,
+    prepare_e2e_ui_session,
     wait_for_settings_layout,
     warm_ui_route,
 )
@@ -79,6 +80,7 @@ def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:
     """Validate Vercel AI Gateway provider preset, attribution headers and settings integration in real Chrome."""
     _require_e2e_cdp_ready()
     api_url = get_e2e_api_url()
+    prepare_e2e_ui_session(api_url)
 
     # 1. Warm up Settings UI route and open in real Chrome MCP to verify rendering
     target_url = f"{api_url.replace(':8080', ':3000')}/settings/models"

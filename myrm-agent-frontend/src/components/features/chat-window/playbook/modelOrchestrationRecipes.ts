@@ -219,3 +219,49 @@ export function applyOrchestrationRecipe(
 
   return true;
 }
+
+/**
+ * 将编排预设应用到 Agent Profile 的模型选择契约上
+ */
+export function applyRecipeToAgentModelSelection(
+  recipe: ModelOrchestrationRecipe,
+  readiness: RecipeReadiness,
+  current: AgentModelSelection | null,
+): AgentModelSelection | null {
+  if (!readiness.isReady || !readiness.primaryMatch) {
+    return null;
+  }
+
+  const base: AgentModelSelection = current
+    ? { ...current }
+    : {
+        providerId: readiness.primaryMatch.providerId,
+        model: readiness.primaryMatch.model,
+      };
+
+  // 更新主模型
+  base.providerId = readiness.primaryMatch.providerId;
+  base.model = readiness.primaryMatch.model;
+
+  base.routingEnabled = recipe.routingEnabled;
+
+  if (recipe.routingEnabled) {
+    if (readiness.lightMatch) {
+      base.lightProviderId = readiness.lightMatch.providerId;
+      base.lightModel = readiness.lightMatch.model;
+    }
+    if (readiness.reasoningMatch) {
+      base.reasoningProviderId = readiness.reasoningMatch.providerId;
+      base.reasoningModel = readiness.reasoningMatch.model;
+    }
+  } else {
+    // 纯轻量省流模式下，清空多余重推理槽位
+    base.lightProviderId = undefined;
+    base.lightModel = undefined;
+    base.reasoningProviderId = undefined;
+    base.reasoningModel = undefined;
+  }
+
+  return base;
+}
+

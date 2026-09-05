@@ -18902,6 +18902,18 @@
       "configureVision": "Configure Vision Model",
       "viewSubscriptions": "View Subscriptions",
       "close": "Close"
-    }
+    },
+    "cardTitle": "Model Orchestration Playbook",
+    "cardBadge": "Playbook",
+    "cardSubtitle": "Master Brain & Hands dispatch, 3-tier routing, and MoA consensus to maximize efficiency.",
+    "viewFullPlaybook": "View Playbook",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "miniBrainHandsTitle": "Brain & Hands Dispatch",
+    "miniBrainHandsDesc": "High reasoning planner + fast tool executor.",
+    "miniDynamicRoutingTitle": "3-Tier Adaptive Routing",
+    "miniDynamicRoutingDesc": "Auto-switch Simple / Standard / Reasoning tiers.",
+    "miniMoaTitle": "MoA Consensus Overlay",
+    "miniMoaDesc": "Multi-model debate to break single-model ceilings."
   }
 }

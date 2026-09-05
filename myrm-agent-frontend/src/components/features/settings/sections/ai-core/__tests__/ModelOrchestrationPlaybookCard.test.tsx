@@ -46,10 +46,37 @@ const translations: Record<string, string> = {
   footerNote: 'Configure models in Settings.',
   closeBtn: 'Close',
   configureBtn: 'Configure in Settings',
+  'chat.modelPlaybook.subtitle': 'Architectural Guide & Recipes',
+  'chat.modelPlaybook.title': 'Model Orchestration Playbook',
+  'chat.modelPlaybook.description': 'Master the division between Planning (Brain) and Tool Execution (Hands) for optimal quality and token economics.',
+  'chat.modelPlaybook.tabRecipes': 'Preset Recipes',
+  'chat.modelPlaybook.tabPrinciples': 'Core Principles',
+  'chat.modelPlaybook.tabEconomics': 'Economics & TCO',
+  'chat.modelPlaybook.recipesIntro': 'Recommended model combinations tested for reliability and cost efficiency:',
+  'chat.modelPlaybook.statusReady': 'Ready',
+  'chat.modelPlaybook.statusMissing': 'Missing Keys',
+  'chat.modelPlaybook.brainLabel': 'Brain (Planning):',
+  'chat.modelPlaybook.handsLabel': 'Hands (Execution):',
+  'chat.modelPlaybook.frugalTitle': 'Fast & Frugal',
+  'chat.modelPlaybook.balancedTitle': 'Flagship Brain & Hands',
+  'chat.modelPlaybook.consensusTitle': 'Consensus MoA Committee',
+  'chat.modelPlaybook.applyRecipeButton': 'Apply Recipe',
+  'chat.modelPlaybook.configureProviderButton': 'Configure Provider',
+  'chat.modelPlaybook.brainVsHandsTitle': 'Brain vs Hands Specialization',
+  'chat.modelPlaybook.routingVsMoaTitle': 'Routing vs Mixture-of-Agents (MoA)',
+  'chat.modelPlaybook.economicsTitle': 'Token Economics & Efficiency',
+  'chat.modelPlaybook.openModelCenter': 'Model Center',
+  'chat.modelPlaybook.closeButton': 'Close',
 };
 const stableT = (key: string) => translations[key] ?? key;
 vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
+  useTranslations: (ns?: string) => (key: string) => {
+    if (ns) {
+      const fullKey = ns + "." + key;
+      if (translations[fullKey]) return translations[fullKey];
+    }
+    return translations[key] ?? key;
+  },
 }));
 
 // Mock next/navigation
@@ -97,13 +124,14 @@ describe('ModelOrchestrationPlaybookCard', () => {
     fireEvent.click(viewBtn);
 
     // Dialog content should now be visible
-    expect(screen.getAllByText('Model Orchestration Playbook & Best Practices').length).toBeGreaterThan(0);
-    expect(screen.getByText('1. Brain vs. Hands Dispatch')).toBeDefined();
-    expect(screen.getByText('Routing vs. MoA')).toBeDefined();
+    expect(screen.getAllByText('Model Orchestration Playbook').length).toBeGreaterThan(0);
+    expect(screen.getByText('Preset Recipes')).toBeDefined();
+    expect(screen.getByText('Core Principles')).toBeDefined();
+    expect(screen.getByText('Economics & TCO')).toBeDefined();
 
-    // Click configure button
-    const configBtn = screen.getByText('Configure in Settings');
-    fireEvent.click(configBtn);
-    expect(pushMock).toHaveBeenCalledWith('/settings/models#smart-routing');
+    // Click configure / model center button
+    const modelCenterBtn = screen.getByText('Model Center');
+    fireEvent.click(modelCenterBtn);
+    expect(pushMock).toHaveBeenCalledWith('/settings/models?focus=routing');
   });
 });

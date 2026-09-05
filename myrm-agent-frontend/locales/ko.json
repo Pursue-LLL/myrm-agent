@@ -18902,6 +18902,18 @@
       "configureVision": "시각 모델 설정",
       "viewSubscriptions": "구독 요금제 확인",
       "close": "닫기"
-    }
+    },
+    "cardTitle": "모델 오케스트레이션 플레이북",
+    "cardBadge": "플레이북",
+    "cardSubtitle": "Brain & Hands 분업, 3계층 적응형 라우팅 및 MoA 합의를 마스터하여 효율성을 극대화합니다.",
+    "viewFullPlaybook": "플레이북 보기",
+    "collapse": "접기",
+    "expand": "펼치기",
+    "miniBrainHandsTitle": "Brain & Hands 분업",
+    "miniBrainHandsDesc": "고성능 추론 플래너 + 신속한 도구 실행기.",
+    "miniDynamicRoutingTitle": "3계층 적응형 라우팅",
+    "miniDynamicRoutingDesc": "심플 / 표준 / 추론 계층 간 자동 전환.",
+    "miniMoaTitle": "MoA 합의 오버레이",
+    "miniMoaDesc": "다중 모델 교차 검증으로 단일 모델 한계 극복."
   }
 }

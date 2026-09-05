@@ -12,7 +12,7 @@ import {
   IconZap,
   IconCpu,
 } from '@/components/features/icons/PremiumIcons';
-import { ModelOrchestrationPlaybookDialog } from '@/components/features/chat-window/ModelOrchestrationPlaybookDialog';
+import { ModelOrchestrationPlaybookDialog } from '@/components/features/chat-window/playbook';
 
 export const ModelOrchestrationPlaybookCard = memo(function ModelOrchestrationPlaybookCard() {
   const t = useTranslations('modelPlaybook');

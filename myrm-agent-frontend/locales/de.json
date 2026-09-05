@@ -18902,6 +18902,18 @@
       "configureVision": "Vision-Modell konfigurieren",
       "viewSubscriptions": "Abonnements anzeigen",
       "close": "Schließen"
-    }
+    },
+    "cardTitle": "Modell-Orchestrierungs-Playbook",
+    "cardBadge": "Playbook",
+    "cardSubtitle": "Meistern Sie Brain & Hands-Dispatch, 3-Stufen-Routing und MoA-Konsens für maximale Effizienz.",
+    "viewFullPlaybook": "Playbook ansehen",
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "miniBrainHandsTitle": "Aufteilung von Brain & Hands",
+    "miniBrainHandsDesc": "Leistungsstarker Planer + schneller Werkzeug-Executor.",
+    "miniDynamicRoutingTitle": "3-Stufiges Adaptives Routing",
+    "miniDynamicRoutingDesc": "Automatische Umschaltung zwischen Simple-, Standard- und Reasoning-Stufen.",
+    "miniMoaTitle": "MoA-Konsens-Overlay",
+    "miniMoaDesc": "Multi-Modell-Debatte zur Überwindung von Modellgrenzen."
   }
 }
