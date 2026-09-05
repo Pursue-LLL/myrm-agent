@@ -15791,8 +15791,15 @@
           "cancel": "Abbrechen",
           "adopt": "Übernehmen & Pfad hinzufügen",
           "adopting": "Wird übernommen...",
-          "tools": "Erforderliche Tools"
-        }
+          "tools": "Erforderliche Tools",
+          "addPathOnly": "Nur Pfad hinzufügen",
+          "selectAll": "Alle auswählen",
+          "deselectAll": "Auswahl aufheben",
+          "selectedCount": "{count} Skill(s) ausgewählt"
+        },
+        "discoveredSkillsBadge": "{count} Skills",
+        "pathNotFoundBadge": "Pfad nicht gefunden",
+        "emptySkillsBadge": "0 Skills"
       },
       "search": {
         "empty": "Keine passenden Skills gefunden",

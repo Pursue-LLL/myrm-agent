@@ -292,7 +292,7 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
                 variant="default"
                 size="sm"
                 onClick={() => onConfirmAdopt(selectedIds)}
-                disabled={isAdopting}
+                disabled={isAdopting || total_discovered === 0 || selectedIds.length === 0}
               >
                 {isAdopting ? (
                   <>

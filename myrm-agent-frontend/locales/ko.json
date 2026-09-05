@@ -15770,6 +15770,9 @@
           "scanComplete": "스캔 완료",
           "foundSkills": "스킬 {count}개 발견"
         },
+        "discoveredSkillsBadge": "스킬 {count}개",
+        "pathNotFoundBadge": "경로를 찾을 수 없음",
+        "emptySkillsBadge": "스킬 0개",
         "error": {
           "invalidPath": "잘못된 경로 형식",
           "pathFormat": "경로는 절대 경로이거나 ~로 시작해야 합니다",
@@ -15791,8 +15794,15 @@
           "cancel": "취소",
           "adopt": "채택 및 경로 추가",
           "adopting": "채택 중...",
-          "tools": "필요한 도구"
-        }
+          "tools": "필요한 도구",
+          "addPathOnly": "경로만 추가",
+          "selectAll": "모두 선택",
+          "deselectAll": "선택 해제",
+          "selectedCount": "{count}개 스킬 선택됨"
+        },
+        "discoveredSkillsBadge": "{count}개 스킬",
+        "pathNotFoundBadge": "경로를 찾을 수 없음",
+        "emptySkillsBadge": "0개 스킬"
       },
       "search": {
         "empty": "일치하는 스킬을 찾을 수 없습니다",

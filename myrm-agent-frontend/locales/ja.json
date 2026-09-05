@@ -15952,6 +15952,9 @@
           "scanComplete": "スキャン完了",
           "foundSkills": "{count} 個のスキルが見つかりました"
         },
+        "discoveredSkillsBadge": "{count} 件のスキル",
+        "pathNotFoundBadge": "パスが見つかりません",
+        "emptySkillsBadge": "0 件のスキル",
         "error": {
           "invalidPath": "パスフォーマットが無効です",
           "pathFormat": "パスは絶対パスまたは ~ で始まる必要があります",
@@ -15973,6 +15976,10 @@
           "cancel": "キャンセル",
           "adopt": "採用してパスを追加",
           "adopting": "採用中...",
+          "addPathOnly": "パスのみ追加",
+          "selectAll": "すべて選択",
+          "deselectAll": "選択をすべて解除",
+          "selectedCount": "{count} 件のスキルを選択中",
           "tools": "必要なツール"
         }
       },
