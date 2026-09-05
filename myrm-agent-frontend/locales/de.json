@@ -4884,6 +4884,14 @@
         "saveAndLock": "Speichern & Sperren",
         "markFalsePositive": "Als Fehlalarm markieren",
         "correctAndLock": "Tatsache korrigieren"
+      },
+      "repoEvidence": {
+        "title": "Code-Repository-Verlaufsbeweis",
+        "uncommittedChanges": "Nicht festgeschriebene Änderungen vorhanden",
+        "refresh": "Repository-Beweis aktualisieren",
+        "recentCommits": "Aktuelle Commit-Beweise ({count})",
+        "files": "Dateien",
+        "noCommits": "Kein aktueller Commit-Verlauf erkannt"
       }
     },
     "importReview": {

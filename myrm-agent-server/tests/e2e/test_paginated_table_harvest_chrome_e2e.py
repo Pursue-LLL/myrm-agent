@@ -18,7 +18,6 @@ Validates end-to-end user experience directly inside real Chrome browser with li
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 
@@ -29,10 +28,7 @@ if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
-    dismiss_blocking_modals,
-    get_e2e_api_url,
     get_e2e_ui_url,
-    http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
     wait_for_state,
