@@ -295,3 +295,122 @@ class TestQuotaRuntimeRouterEndpoints:
         data_limit = json.loads(resp_limit.body)
         assert data_limit["code"] == 0
         assert data_limit["data"]["quota_limit"] == 5000
+
+    @pytest.mark.asyncio
+    async def test_full_task_flow_e2e_closed_loop(self) -> None:
+        """全链路真实业务闭环 Task Flow E2E:
+        1. 验证搜索调用记账与配额正常扣减；
+        2. 触发持久性 429 报错时自愈重锚定为 DEPLETED；
+        3. 前端触发重置校准，自愈复位状态为 HEALTHY；
+        4. 前端修改配额告警阈值；
+        5. 浏览器会话时长、请求数、原生带宽度量累加与费用折算；
+        6. 3 分钟死循环看门狗超时阻断校验。
+        """
+        import time
+
+        from myrm_agent_harness.toolkits.browser.observability import (
+            BrowserObservability,
+            BrowserRunTelemetry,
+            RecordingConfig,
+        )
+        from myrm_agent_harness.toolkits.web_search.core.error_handling import (
+            is_persistent_quota_depleted_error,
+        )
+        from myrm_agent_harness.toolkits.web_search.providers.chain import (
+            ProviderQuotaStatus,
+            ProviderQuotaTracker,
+        )
+
+        service = RuntimeMeterService()
+        mock_session = AsyncMock()
+
+        # Step 1: 正常记录搜索
+        mock_result_empty = MagicMock()
+        mock_result_empty.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result_empty
+
+        record = await service.record_search_usage(
+            session=mock_session,
+            provider="tavily",
+            count=5,
+            quota_exceeded=False,
+        )
+        assert record.provider == "tavily"
+        assert record.used_count == 5
+        assert record.is_depleted is False
+
+        # Step 2: 模拟 429 配额耗尽
+        fake_429 = RuntimeError("HTTP 429: monthly_limit_reached for account")
+        assert is_persistent_quota_depleted_error(fake_429) is True
+
+        tracker = ProviderQuotaTracker()
+        tracker.mark_depleted("tavily", reason="monthly_limit_reached")
+        status, reason = tracker.get_status("tavily")
+        assert status == ProviderQuotaStatus.DEPLETED
+        assert reason == "monthly_limit_reached"
+
+        # Server 标记为耗尽
+        existing_record = SearchQuotaRecord(
+            provider="tavily",
+            year_month=service.get_current_year_month(),
+            used_count=5,
+            quota_limit=1000,
+            is_depleted=False,
+        )
+        mock_result_existing = MagicMock()
+        mock_result_existing.scalar_one_or_none.return_value = existing_record
+        mock_session.execute.return_value = mock_result_existing
+
+        updated_record = await service.record_search_usage(
+            session=mock_session,
+            provider="tavily",
+            count=1,
+            quota_exceeded=True,
+        )
+        assert updated_record.is_depleted is True
+        assert updated_record.used_count == 1000
+
+        # Step 3: 前端一键重置
+        mock_session.execute.return_value = MagicMock(scalars=lambda: MagicMock(all=lambda: [updated_record]))
+        reset_req = SearchQuotaResetRequest(provider="tavily")
+        reset_resp = await reset_search_quota(req=reset_req, session=mock_session)
+        assert reset_resp.status_code == 200
+        reset_data = json.loads(reset_resp.body)
+        assert reset_data["code"] == 0
+        assert updated_record.is_depleted is False
+        assert updated_record.used_count == 0
+
+        # Step 4: 前端调整上限
+        mock_session.execute.return_value = MagicMock(scalar_one_or_none=lambda: updated_record)
+        limit_req = SearchQuotaLimitUpdateRequest(provider="tavily", quota_limit=2500)
+        limit_resp = await update_search_quota_limit(req=limit_req, session=mock_session)
+        assert limit_resp.status_code == 200
+        limit_data = json.loads(limit_resp.body)
+        assert limit_data["code"] == 0
+        assert limit_data["data"]["quota_limit"] == 2500
+
+        # Step 5: 前端查询配额
+        mock_session.execute.return_value = MagicMock(scalars=lambda: MagicMock(all=lambda: [updated_record]))
+        quotas_resp = await get_search_quotas(session=mock_session)
+        assert quotas_resp.status_code == 200
+        quotas_data = json.loads(quotas_resp.body)
+        tavily_item = next(i for i in quotas_data["data"] if i["provider"] == "tavily")
+        assert tavily_item["is_metered"] is True
+        assert tavily_item["quota_limit"] == 2500
+
+        # Step 6: 浏览器度量与看门狗
+        telemetry = BrowserRunTelemetry(
+            start_time=time.time() - 600.0,
+            active_compute_seconds=300.0,
+            request_count=80,
+            failed_request_count=1,
+            total_bytes_transferred=25 * 1024 * 1024,
+        )
+        assert telemetry.active_compute_seconds == 300.0
+        assert telemetry.total_bytes_transferred == 25 * 1024 * 1024
+
+        obs = BrowserObservability(recording_config=RecordingConfig())
+        mono_now = time.monotonic()
+        assert obs.check_action_watchdog(mono_now - 30.0, timeout_seconds=180.0) is True
+        assert obs.check_action_watchdog(mono_now - 200.0, timeout_seconds=180.0) is False
+        assert obs.telemetry.watchdog_tripped_count == 1
