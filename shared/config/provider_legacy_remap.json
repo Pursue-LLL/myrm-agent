@@ -9,8 +9,6 @@
   "xiaomi": "xiaomi_mimo",
   "qwen": "dashscope",
   "fal_ai": "fal",
-  "ai-gateway": "vercel_ai_gateway",
   "ai_gateway": "vercel_ai_gateway",
-  "vercel": "vercel_ai_gateway",
-  "vercel-ai-gateway": "vercel_ai_gateway"
+  "vercel": "vercel_ai_gateway"
 }
