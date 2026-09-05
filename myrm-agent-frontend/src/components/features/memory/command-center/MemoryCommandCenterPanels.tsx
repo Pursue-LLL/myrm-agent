@@ -168,6 +168,9 @@ export const UnderstandSection = ({
     {/* Deterministic Behavioral Routine Metrics Panel (Zero Model Cost) */}
     <BehavioralMetricsPanel t={t} />
 
+    {/* Repository History Evidence Digest Card */}
+    <RepoEvidenceCard />
+
     <div className="grid gap-4 xl:grid-cols-2">
       <Panel title={t('commandCenter.influenceTitle')}>
         {snapshot.influence.length ? (

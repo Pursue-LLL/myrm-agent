@@ -4666,6 +4666,14 @@
         "saveAndLock": "저장 및 잠금 보호",
         "markFalsePositive": "오판으로 표시 및 삭제",
         "correctAndLock": "사실 수정"
+      },
+      "repoEvidence": {
+        "title": "코드 저장소 기록 증거",
+        "uncommittedChanges": "커밋되지 않은 변경 사항 있음",
+        "refresh": "저장소 증거 새로고침",
+        "recentCommits": "최근 커밋 증거 ({count})",
+        "files": "개 파일",
+        "noCommits": "최근 커밋 기록이 감지되지 않음"
       }
     },
     "importReview": {
