@@ -4502,7 +4502,8 @@
         "refresh": "Refresh Repo Evidence",
         "recentCommits": "Recent Commits ({count})",
         "files": "files",
-        "noCommits": "No recent commit history detected"
+        "noCommits": "No recent commit history detected",
+        "gitUnavailable": "No Git repository detected in workspace"
       }
     },
     "createDialog": {

@@ -4499,7 +4499,8 @@
         "refresh": "重新整理倉庫證據",
         "recentCommits": "最近提交證據 ({count})",
         "files": "個檔案",
-        "noCommits": "未偵測到近期的 Commit 歷史"
+        "noCommits": "未偵測到近期的 Commit 歷史",
+        "gitUnavailable": "目前工作區未偵測到 Git 倉庫"
       }
     },
     "createDialog": {

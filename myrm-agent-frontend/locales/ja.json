@@ -4455,7 +4455,8 @@
         "refresh": "リポジトリ証拠を更新",
         "recentCommits": "最近のコミット証拠 ({count})",
         "files": "ファイル",
-        "noCommits": "最近のコミット履歴が検出されませんでした"
+        "noCommits": "最近のコミット履歴が検出されませんでした",
+        "gitUnavailable": "現在のワークスペースに Git リポジトリが検出されませんでした"
       }
     },
     "createDialog": {

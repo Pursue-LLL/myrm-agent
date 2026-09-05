@@ -4674,7 +4674,8 @@
         "refresh": "저장소 증거 새로고침",
         "recentCommits": "최근 커밋 증거 ({count})",
         "files": "개 파일",
-        "noCommits": "최근 커밋 기록이 감지되지 않음"
+        "noCommits": "최근 커밋 기록이 감지되지 않음",
+        "gitUnavailable": "현재 작업 영역에서 Git 저장소가 감지되지 않았습니다"
       }
     },
     "importReview": {
