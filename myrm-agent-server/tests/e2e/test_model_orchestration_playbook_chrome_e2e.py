@@ -20,7 +20,6 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_settings_subroute,
     prepare_e2e_ui_session,
-    wait_for_settings_layout,
     wait_for_state,
     warm_ui_route,
 )
@@ -109,7 +108,6 @@ def test_model_orchestration_playbook_settings_chrome_e2e() -> None:
     ):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
-        wait_for_settings_layout(client, page, timeout_sec=45.0)
         state = wait_for_state(
             client,
             page,
