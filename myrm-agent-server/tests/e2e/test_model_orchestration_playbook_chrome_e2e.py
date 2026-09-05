@@ -103,7 +103,7 @@ def test_model_orchestration_playbook_settings_chrome_e2e() -> None:
     prepare_e2e_ui_session(api_url)
     warm_ui_route("/settings")
 
-    with open_settings_subroute("/settings?tab=models", timeout_ms=90_000) as (
+    with open_settings_subroute("/settings/models?sub=default", timeout_ms=90_000) as (
         client,
         page,
     ):
