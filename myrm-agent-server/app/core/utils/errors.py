@@ -1,7 +1,19 @@
-"""核心错误处理模块
+"""
+[INPUT]
+- fastapi::{FastAPI, HTTPException, Request, status} (POS: Web框架与HTTP异常抽象)
+- fastapi.responses::JSONResponse (POS: JSON响应封装)
+- myrm_agent_harness.api::redact_sensitive_text (POS: 敏感凭证与文本脱敏)
+- myrm_agent_harness.toolkits.llms.errors::FailoverReason (POS: 模型故障原因分类)
+- app.schemas.responses::{BusinessCode, ErrorDetail, create_error_response} (POS: 业务响应状态码与错误体构造)
 
-提供 MyrmError 统一业务异常、全局 exception handler、HTTP 异常快捷函数。
-所有业务代码应抛出 MyrmError 而非裸 HTTPException，全局 handler 负责转换。
+[OUTPUT]
+- MyrmError: 统一业务异常基类
+- StandardHTTPException: 包含脱敏错误响应的结构化HTTP异常
+- register_exception_handlers: FastAPI全局异常拦截与自动脱敏注册器
+- validation_error, not_found_error, auth_error, permission_error, conflict_error, internal_error: HTTP异常快捷工厂
+
+[POS]
+服务端核心错误处理与异常出口门禁。负责统一业务异常映射、HTTP状态码转换、堆栈诊断以及对客户端输出信息的高危凭据自动脱敏防护。
 """
 
 from __future__ import annotations

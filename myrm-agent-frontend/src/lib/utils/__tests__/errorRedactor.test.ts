@@ -1,3 +1,16 @@
+/**
+ * [INPUT]
+ * - src/lib/utils/errorRedactor::redactErrorMessage, redactErrorPayload, redactErrorObject (POS: 敏感字段脱敏纯函数)
+ * - src/lib/utils/toast::toast (POS: 前端通知分发器)
+ *
+ * [OUTPUT]
+ * - describe('errorRedactor')
+ * - describe('toast error redaction integration')
+ *
+ * [POS]
+ * 前端错误信息敏感数据脱敏与 Toast 安全防泄漏单元测试。
+ */
+
 import { describe, it, expect, vi } from 'vitest';
 import { redactErrorMessage, redactErrorPayload, redactErrorObject } from '../errorRedactor';
 import { toast } from '../toast';

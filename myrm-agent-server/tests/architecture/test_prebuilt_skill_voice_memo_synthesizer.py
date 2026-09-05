@@ -88,3 +88,16 @@ def test_skill_size_within_budget(skill_text: str) -> None:
     assert len(skill_text) <= _MAX_SKILL_CHARS, (
         f"voice-memo-synthesizer SKILL.md is {len(skill_text)} chars, exceeding budget {_MAX_SKILL_CHARS}"
     )
+
+
+@pytest.mark.architecture
+def test_channel_router_memo_command_registered() -> None:
+    from app.channels.routing.command_defs import SYSTEM_COMMANDS, CommandKind
+
+    memo_cmd = next((c for c in SYSTEM_COMMANDS if c.name == "memo"), None)
+    assert memo_cmd is not None, "Missing /memo command in SYSTEM_COMMANDS"
+    assert memo_cmd.kind == CommandKind.SKILL
+    assert "voice-memo-synthesizer" in memo_cmd.skill_ids
+    assert "meeting" in memo_cmd.aliases
+    assert "minutes" in memo_cmd.aliases
+

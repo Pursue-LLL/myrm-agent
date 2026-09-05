@@ -238,6 +238,16 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         args_pattern="<URL|path|description>",
     ),
     CommandDef(
+        name="memo",
+        description="Deconstruct voice memo or meeting transcript into minutes, tasks, and memory",
+        kind=CommandKind.SKILL,
+        aliases=("meeting", "minutes"),
+        category="Productivity",
+        skill_ids=("voice-memo-synthesizer",),
+        parse_args=True,
+        args_pattern="[transcript|topic]",
+    ),
+    CommandDef(
         name="status",
         description="Show current session status (tokens, model, agent state)",
         action=CommandAction.STATUS,
