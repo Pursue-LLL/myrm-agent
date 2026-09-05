@@ -172,17 +172,18 @@ class BehavioralMeasurementService:
         chat_msg_stmt = (
             select(Message)
             .where(
-                Message.created_at >= cutoff,
+                Message.sent_at >= cutoff,
                 Message.is_active.is_(True),
             )
-            .order_by(desc(Message.created_at))
+            .order_by(desc(Message.sent_at))
             .limit(max_messages)
         )
         chat_res = await self._db.execute(chat_msg_stmt)
         for msg in chat_res.scalars().all():
             is_self = msg.role == "user"
-            created_ms = int(msg.created_at.timestamp() * 1000)
-            offset_mins = resolve_timezone_offset_minutes(msg.sent_timezone, msg.created_at)
+            msg_dt = msg.sent_at or msg.created_at
+            created_ms = int(msg_dt.timestamp() * 1000)
+            offset_mins = resolve_timezone_offset_minutes(msg.sent_timezone, msg_dt)
             results.append(
                 BehavioralMessage(
                     id=f"chat:{msg.id}",

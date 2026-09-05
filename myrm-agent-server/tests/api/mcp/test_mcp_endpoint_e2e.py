@@ -16,7 +16,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.api.mcp.endpoint import _MCPTokenAuthMiddleware
@@ -29,13 +28,14 @@ def mcp_test_app() -> FastAPI:
     """Build a minimal FastAPI application with /mcp endpoint wired like setup_mcp_endpoint."""
     app = FastAPI()
 
-    async def _mock_mcp_handler(request: Request) -> JSONResponse:
-        state = request.scope.get("state", {})
-        return JSONResponse({
+    async def _mock_mcp_handler(scope, receive, send):
+        state = scope.get("state", {})
+        resp = JSONResponse({
             "status": "mcp_ok",
             "agent_id": state.get("mcp_agent_id"),
             "profile_id": state.get("mcp_profile_id"),
         })
+        await resp(scope, receive, send)
 
     # Wire inner handler -> token auth -> origin guard -> mount at /mcp
     authed_app = _MCPTokenAuthMiddleware(_mock_mcp_handler)
@@ -95,16 +95,22 @@ class TestMCPEndpointFullPipelineE2E:
         assert response.status_code == 401
         assert "Missing or invalid Authorization header" in response.json()["error"]
 
+    @patch("app.api.mcp.endpoint._is_desktop_control_enabled_for_agent", new_callable=AsyncMock)
+    @patch("app.api.mcp.endpoint._wiki_boundary_enabled_for_agent", new_callable=AsyncMock)
     @patch("app.api.mcp.endpoint._memory_manager_for_agent", new_callable=AsyncMock)
     @patch("app.services.connect.get_connect_service")
     def test_e2e_legitimate_webui_and_connect_token_passes(
         self,
         mock_get_service: MagicMock,
         mock_manager: MagicMock,
+        mock_wiki_enabled: MagicMock,
+        mock_desktop_enabled: MagicMock,
         mcp_test_app: FastAPI,
     ) -> None:
         """Legitimate WebUI connection with valid token traverses entire stack to MCP handler."""
         mock_manager.return_value = MagicMock()
+        mock_wiki_enabled.return_value = False
+        mock_desktop_enabled.return_value = False
         mock_service = MagicMock()
         mock_service.resolve_token.return_value = VerifiedConnectToken(
             profile_id="cursor",

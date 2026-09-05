@@ -24,7 +24,7 @@ from app.api.memory.operations import command_center as command_center_operation
 from app.api.memory.utils import get_crud_memory_manager
 from app.database.models.base import Base
 from app.database.models.channel_message import ChannelMessageModel
-from app.database.models.chat import Message
+from app.database.models.chat import Chat, Message
 from app.services.memory.behavioral.measurement_service import BehavioralMeasurementService
 
 
@@ -38,7 +38,7 @@ async def real_db_env():
         await conn.run_sync(
             lambda sync_conn: Base.metadata.create_all(
                 sync_conn,
-                tables=[ChannelMessageModel.__table__, Message.__table__],
+                tables=[ChannelMessageModel.__table__, Chat.__table__, Message.__table__],
             )
         )
 
@@ -209,6 +209,11 @@ async def test_timezone_explicit_offset_resolution(real_db_env) -> None:
     # 2. Database pipeline test: Message with New York timezone at UTC 14:00 (Friday)
     # Local time in NY: 14:00 - 4h = 10:00 (morning peak)
     async with session_maker() as db:
+        from sqlalchemy import delete
+        await db.execute(delete(ChannelMessageModel))
+        await db.execute(delete(Message))
+        chat = Chat(id="chat_ny", action_mode="fast", source="web")
+        db.add(chat)
         ny_msg = Message(
             id="msg_ny_user",
             chat_id="chat_ny",
