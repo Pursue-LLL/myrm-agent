@@ -33,9 +33,10 @@ _CHAT_PAGE_READY_STATE = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
+    execution_mode="PRIVATE",
     access_scope="READ",
     workload="STANDARD",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration

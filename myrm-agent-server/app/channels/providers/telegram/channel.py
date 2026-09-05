@@ -329,7 +329,7 @@ class TelegramChannel(
             try:
                 await self._client.delete_my_commands()
             except Exception as exc:
-                logger.warning("TelegramChannel: failed to delete commands on stop: %s", self._redact(str(exc)))
+                logger.debug("TelegramChannel: failed to delete commands on stop: %s", self._redact(str(exc)))
 
         await self._client.close()
         logger.info("TelegramChannel: stopped")

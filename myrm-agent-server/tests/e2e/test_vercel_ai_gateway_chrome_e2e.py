@@ -70,13 +70,12 @@ _VERIFY_VERCEL_CONFIG_DETAILS_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    access_scope="NAMESPACE_WRITE",
+    execution_mode="SHARED",
+    access_scope="READ",
     workload="STANDARD",
-    private_reason="process_isolation",
 )
 @pytest.mark.integration
-@pytest.mark.timeout(600)
+@pytest.mark.timeout(300)
 def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:
     """Validate Vercel AI Gateway provider preset, attribution headers and settings integration in real Chrome."""
     _require_e2e_cdp_ready()
