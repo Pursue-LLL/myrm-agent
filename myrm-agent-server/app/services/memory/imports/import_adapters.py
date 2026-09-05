@@ -195,6 +195,8 @@ def _detect_source(payload: dict[str, object]) -> MemoryImportSource:
         return "mem0"
     if is_chatgpt_payload(payload):
         return "chatgpt"
+    if is_gemini_payload(payload):
+        return "gemini"
     if is_plur_payload(payload):
         return "plur"
     data = payload.get("data")
