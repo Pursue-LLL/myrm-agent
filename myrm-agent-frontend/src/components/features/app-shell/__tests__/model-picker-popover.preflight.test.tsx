@@ -80,7 +80,7 @@ vi.mock('@/components/primitives/popover', () => {
       const { useEffect } = require('react') as typeof import('react');
       useEffect(() => {
         onOpenChange?.(true);
-      }, []);
+      }, [onOpenChange]);
       return <div>{children}</div>;
     },
     PopoverTrigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

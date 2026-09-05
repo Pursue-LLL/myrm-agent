@@ -152,7 +152,7 @@ export default function ModelPickerPopover({
   const { restricted, loadPolicy, isModelAllowed } = useOrgModelPolicyStore();
   useOrgModelPolicySync();
 
-  const enabledModels = useMemo(() => getEnabledModels(), [getEnabledModels, providers]);
+  const enabledModels = useMemo(() => getEnabledModels(), [getEnabledModels]);
 
   useEffect(() => {
     if (open) {
@@ -191,7 +191,7 @@ export default function ModelPickerPopover({
           max_input_tokens: local.max_input_tokens || null,
           max_output_tokens: null,
         };
-        if (local.input_cost_per_million != null && local.output_cost_per_million != null) {
+        if (typeof local.input_cost_per_million === 'number' && typeof local.output_cost_per_million === 'number') {
           costs[em.model] = { input: local.input_cost_per_million, output: local.output_cost_per_million };
         }
       } else {
@@ -226,7 +226,7 @@ export default function ModelPickerPopover({
             const modelName = nameMap[ln];
             mapped[modelName] = caps[ln];
             const c = caps[ln];
-            if (c.input_cost_per_token != null && c.output_cost_per_token != null) {
+            if (typeof c.input_cost_per_token === 'number' && typeof c.output_cost_per_token === 'number') {
               costs[modelName] = {
                 input: c.input_cost_per_token * 1_000_000,
                 output: c.output_cost_per_token * 1_000_000,
@@ -600,7 +600,7 @@ export default function ModelPickerPopover({
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent side="top" className="text-xs">
-                                {tCap('contextWindow')}: {caps!.max_input_tokens!.toLocaleString()} tokens
+                                {tCap('contextWindow')}: {caps?.max_input_tokens?.toLocaleString()} tokens
                               </TooltipContent>
                             </Tooltip>
                           )}

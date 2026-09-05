@@ -143,9 +143,13 @@ async def test_full_lifecycle_local_skill_preview_and_adopt(
         agent_workspace = tmp_path / "agent_run_workspace"
         target_skills_dir = agent_workspace / ".myrm" / "skills" / "custom-math-calculator"
         target_skills_dir.mkdir(parents=True)
+        from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
+
+        custom_dest_storage = LocalStorageBackend(base_path=str(agent_workspace))
         download_success = await skills_service.download_skill_to_workspace(
             skill_id=skill_id,
-            target_path=str(target_skills_dir),
+            target_path=".myrm/skills/custom-math-calculator",
+            target_storage=custom_dest_storage,
             force=True,
         )
         assert download_success is True

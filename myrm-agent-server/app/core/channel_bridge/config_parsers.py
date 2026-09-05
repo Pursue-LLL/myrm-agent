@@ -763,6 +763,40 @@ def extract_fallback_model_configs(
     return base_fallback, lite_fallback
 
 
+def extract_background_evolution_model_configs(
+    providers_dict: dict[str, object] | None,
+) -> list["ModelConfig"]:
+    """Extract ordered background evolution model chain with 3-tier adaptive fallback.
+
+    Tier 1: defaultModelConfig.backgroundEvolutionModel (explicit user configuration)
+    Tier 2: defaultModelConfig.liteModel (cost-effective lightweight model)
+    Tier 3: defaultModelConfig.baseModel (fallback to primary conversation model)
+    """
+    if not providers_dict:
+        return []
+
+    default_model_cfg = providers_dict.get("defaultModelConfig")
+    if not isinstance(default_model_cfg, dict):
+        return []
+
+    for slot_key in ("backgroundEvolutionModel", "liteModel", "baseModel"):
+        slot = default_model_cfg.get(slot_key)
+        if isinstance(slot, dict):
+            cfgs = extract_slot_fallback_chain(slot, providers_dict)
+            if cfgs:
+                return cfgs
+
+    return []
+
+
+def extract_background_evolution_model_config(
+    providers_dict: dict[str, object] | None,
+) -> "ModelConfig | None":
+    """Extract primary background evolution and maintenance model config."""
+    configs = extract_background_evolution_model_configs(providers_dict)
+    return configs[0] if configs else None
+
+
 def extract_session_policy(
     personal_settings_dict: dict[str, object] | None,
 ) -> SessionPolicy:

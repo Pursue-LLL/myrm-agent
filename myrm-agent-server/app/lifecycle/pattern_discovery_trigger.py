@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.toolkits.memory.strategies.pattern_discovery (POS: Cross-cycle pattern discovery)
 - app.lifecycle.memory_guardian_ops::create_guardian_memory_manager (POS: guardian 上下文 MemoryManager 工厂)
-- app.services.agent.platform_config::load_platform_llm (POS: WebUI 默认对话模型，wire-aware）
+- app.services.agent.platform_config::load_platform_evolution_llm (POS: WebUI 后台自进化专属模型，wire-aware，带 3 级自适应降级）
 - app.services.memory.ledger.operation_ledger::MemoryOperationLedgerService (POS: 记忆操作账本)
 
 [OUTPUT]
@@ -14,8 +14,7 @@
 [POS]
 行为模式发现触发器。管理 Pattern Discovery 的定时执行和手动触发，
 将结果写入 operation_ledger 以供 Command Center 时间线和 Evolution Digest 展示。
-用 WebUI 默认对话模型构造分析 LLM（guardian 上下文 MemoryManager 本身无 LLM，
-pattern discovery 的 LLM 依赖独立于维护预算策略）。
+用 WebUI 后台自进化专属模型构造分析 LLM（未显式配置时自动回退至 Lite 模型，杜绝昂贵主模型滥用）。
 """
 
 from __future__ import annotations
@@ -33,18 +32,18 @@ logger = logging.getLogger(__name__)
 
 
 async def _build_platform_llm() -> "BaseChatModel | None":
-    """Construct a wire-aware chat model from the WebUI default model.
+    """Construct a wire-aware chat model for background pattern discovery.
 
-    Returns ``None`` when the default model is not configured or unreachable
+    Returns ``None`` when the model is not configured or unreachable
     so callers can skip gracefully instead of raising.
     """
 
-    from app.services.agent.platform_config import load_platform_llm
+    from app.services.agent.platform_config import load_platform_evolution_llm
 
     try:
-        return await load_platform_llm(streaming=False, temperature=0.0)
+        return await load_platform_evolution_llm(streaming=False, temperature=0.0)
     except Exception as exc:
-        logger.warning("Pattern discovery: failed to build platform LLM (non-fatal): %s", exc)
+        logger.warning("Pattern discovery: failed to build evolution LLM (non-fatal): %s", exc)
         return None
 
 

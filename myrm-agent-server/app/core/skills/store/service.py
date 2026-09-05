@@ -15,12 +15,8 @@ import mimetypes
 from datetime import datetime
 
 from myrm_agent_harness.agent.skills.market.sanitizer import (
-    SKILL_MD_FILE as SKILL_MD_FILE,
-)
-from myrm_agent_harness.agent.skills.market.sanitizer import (
-    SKILL_NAME_PATTERN as SKILL_NAME_PATTERN,
-)
-from myrm_agent_harness.agent.skills.market.sanitizer import (
+    SKILL_MD_FILE,
+    SKILL_NAME_PATTERN,
     sanitize_skill_files,
 )
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
@@ -105,9 +101,7 @@ class SkillsService:
         if len(name) > 64:
             raise ValueError("Skill name cannot exceed 64 characters")
         if not SKILL_NAME_PATTERN.match(name):
-            raise ValueError(
-                "Skill name must start with a letter and contain only letters, numbers, underscores, or hyphens"
-            )
+            raise ValueError("Skill name must start with a letter and contain only alphanumeric, _, -")
 
     async def _create_prebuilt_skill(
         self,
@@ -164,6 +158,18 @@ class SkillsService:
         skill = None
         if skill_id.startswith("local::"):
             if not is_sandbox_mode():
+                # Sync configured paths from user_config before lookup
+                try:
+                    config = await self.user_config.get_config()
+                    from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
+
+                    all_paths = DEFAULT_LOCAL_SKILL_PATHS.copy()
+                    for p in config.local_skill_paths:
+                        if p not in all_paths:
+                            all_paths.append(p)
+                    self.local_skills.set_paths(all_paths)
+                except Exception as e:
+                    logger.debug("Failed to sync local skill paths in get_skill: %s", e)
                 skill = self.local_skills.get_skill_by_id(skill_id)
         else:
             prebuilt_path = get_skill_metadata_path(SkillType.PREBUILT, skill_id)
@@ -177,19 +183,12 @@ class SkillsService:
         if skill:
             # Merge runtime is_active status from SQLite
             try:
-                from app.core.skills.store.evolution_store import (
-                    get_evolution_skill_store,
-                )
-
+                from app.core.skills.store.evolution_store import get_evolution_skill_store
                 db_record = get_evolution_skill_store().get_skill(skill.id)
                 if db_record is not None:
                     skill.is_active = db_record.is_active
             except Exception as e:
-                logger.error(
-                    "Failed to merge is_active status from SQLite for %s: %s",
-                    skill.id,
-                    e,
-                )
+                logger.error("Failed to merge is_active status from SQLite for %s: %s", skill.id, e)
 
         return skill
 
@@ -228,10 +227,8 @@ class SkillsService:
         # Merge runtime is_active status from SQLite
         try:
             from app.core.skills.store.evolution_store import get_evolution_skill_store
-
             store = get_evolution_skill_store()
             for skill in skills:
-                # Use skill.id for lookup as it matches storage_skill_id
                 db_record = store.get_skill(skill.id)
                 if db_record is not None:
                     skill.is_active = db_record.is_active

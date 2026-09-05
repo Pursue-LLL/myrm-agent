@@ -146,22 +146,22 @@ async def init_evolution_monitor_service() -> None:
         from app.config.settings import settings as _settings
         from app.core.retriever.vector.defaults import create_default_vector_store
         from app.services.agent.platform_config import (
-            load_platform_model_config,
+            load_platform_evolution_model_config,
             require_platform_embedding_config,
         )
 
         db_path = Path(_settings.database.state_dir).expanduser() / "skills.db"
 
         try:
-            platform_model = await load_platform_model_config()
+            evolution_model = await load_platform_evolution_model_config()
         except Exception as exc:
             logger.warning(
-                "SkillEvolutionMonitorService disabled: WebUI default model not configured (%s)",
+                "SkillEvolutionMonitorService disabled: WebUI evolution model not configured (%s)",
                 exc,
             )
             return
 
-        llm = await llm_manager.get_llm_from_config(platform_model)
+        llm = await llm_manager.get_llm_from_config(evolution_model)
 
         try:
             embedding_cfg = await require_platform_embedding_config()

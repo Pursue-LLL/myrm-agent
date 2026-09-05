@@ -5,8 +5,10 @@
 
 [OUTPUT]
 - load_platform_model_config: WebUI 默认 LLM ModelConfig
+- load_platform_evolution_model_config: WebUI 后台自进化与维护 LLM ModelConfig（3级降级）
 - load_llm_from_model_config: wire-aware ChatLiteLLM for any enriched ModelConfig
 - load_platform_llm: WebUI default model via load_llm_from_model_config
+- load_platform_evolution_llm: WebUI 后台自进化专属 LLM
 - webui_model_preflight_warning: local/tauri 启动前 WebUI 模型缺失 warning（不阻塞）
 - resolve_xai_search_config: 从 providers 解析 xAI 凭据
 - require_platform_embedding_config: WebUI 检索设置中 embedding 配置结构检查（缺失即抛 ConfigIncompleteError）
@@ -84,6 +86,28 @@ async def load_platform_llm(
 ) -> "BaseChatModel":
     """WebUI default model as a wire-aware ChatLiteLLM via LLMManager."""
     cfg = await load_platform_model_config()
+    return await load_llm_from_model_config(cfg, streaming=streaming, temperature=temperature)
+
+
+async def load_platform_evolution_model_config() -> ModelConfig:
+    """Background evolution model config from WebUI (with 3-tier adaptive fallback)."""
+    from app.core.channel_bridge.config_loader import load_user_configs
+    from app.core.channel_bridge.config_parsers import extract_background_evolution_model_config
+
+    configs = await load_user_configs()
+    evo_cfg = extract_background_evolution_model_config(configs.providers_dict)
+    if evo_cfg is not None:
+        return evo_cfg
+    return configs.model_cfg
+
+
+async def load_platform_evolution_llm(
+    *,
+    streaming: bool = False,
+    temperature: float | None = 0.0,
+) -> "BaseChatModel":
+    """WebUI background evolution model as a wire-aware ChatLiteLLM via LLMManager."""
+    cfg = await load_platform_evolution_model_config()
     return await load_llm_from_model_config(cfg, streaming=streaming, temperature=temperature)
 
 

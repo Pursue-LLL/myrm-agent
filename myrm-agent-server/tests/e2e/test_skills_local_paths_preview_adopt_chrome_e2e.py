@@ -50,9 +50,10 @@ _SETTINGS_SKILLS_SHELL_STATE = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
-    access_scope="READ",
-    workload="STANDARD",
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -265,4 +266,38 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
         )
         assert dialog_state.get("ready") is True, json.dumps(
             dialog_state, indent=2, ensure_ascii=False
+        )
+
+        # 11. Click "采纳并添加路径" button to execute adopt action in UI
+        confirm_adopt_js = """(() => {
+          const adoptBtn = document.querySelector('[data-testid="preview-adopt-confirm-btn"]') ||
+            Array.from(document.querySelectorAll('button')).find(b =>
+              /Adopt & Add Path|采纳并添加路径|追加して採用/i.test(b.textContent || '')
+            );
+          if (adoptBtn) {
+            adoptBtn.click();
+            return { ok: true };
+          }
+          return { ok: false, error: 'Adopt button not found' };
+        })()"""
+        confirm_res = client.evaluate(page, confirm_adopt_js, timeout_sec=15.0)
+        assert isinstance(confirm_res, dict) and confirm_res.get("ok") is True
+
+        # 12. Verify Dialog closes and path list updates with the new adopted skill path
+        path_list_updated_js = f"""(() => {{
+          const text = document.body?.innerText || '';
+          const hasPath = text.includes({json.dumps(str(test_skill_dir))}) || text.includes('custom-math-skill');
+          return {{
+            ready: hasPath,
+            hasPath,
+          }};
+        }})()"""
+        updated_state = wait_for_state(
+            client,
+            page,
+            path_list_updated_js,
+            timeout_sec=_warm_ui_parallel_wait_sec(30.0),
+        )
+        assert updated_state.get("ready") is True, json.dumps(
+            updated_state, indent=2, ensure_ascii=False
         )
