@@ -41,6 +41,12 @@ router = APIRouter(prefix="/import", tags=["plugins-import"])
 MAX_PLUGIN_ZIP_BYTES = 20 * 1024 * 1024  # 20 MB upload cap
 
 
+class CapabilityDiffResponse(BaseModel):
+    added: list[str] = Field(default_factory=list)
+    removed: list[str] = Field(default_factory=list)
+    has_escalation: bool = False
+
+
 class PluginMetaResponse(BaseModel):
     name: str
     version: str | None = None
@@ -53,6 +59,7 @@ class PluginMetaResponse(BaseModel):
     capabilities: list[str] = Field(default_factory=list)
     effective_tier: str = "read_only"
     risk_level: str = "low"
+    capability_diff: CapabilityDiffResponse | None = None
 
 
 class PluginSkillPreview(BaseModel):
