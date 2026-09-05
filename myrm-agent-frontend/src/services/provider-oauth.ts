@@ -1,6 +1,6 @@
 import { apiRequest } from '@/lib/api';
 
-export type ProviderOAuthProvider = 'anthropic' | 'openai' | 'copilot';
+export type ProviderOAuthProvider = 'anthropic' | 'openai' | 'copilot' | 'xai';
 
 export interface ProviderOAuthStartResponse {
   authorize_url?: string;
@@ -51,6 +51,12 @@ const PROVIDER_OAUTH_CONFIGS: Record<
     name: 'GitHub Copilot',
     nameZh: 'GitHub Copilot 订阅',
   },
+  xai: {
+    flow: 'device_code',
+    providerId: 'xai',
+    name: 'SuperGrok',
+    nameZh: 'SuperGrok 订阅',
+  },
 };
 
 export function getProviderOAuthConfig(provider: ProviderOAuthProvider) {
@@ -66,6 +72,9 @@ export function getProviderOAuthProviderByProviderId(providerId: string): Provid
   }
   if (providerId === 'copilot' || providerId === 'github_copilot') {
     return 'copilot';
+  }
+  if (providerId === 'xai') {
+    return 'xai';
   }
   return null;
 }

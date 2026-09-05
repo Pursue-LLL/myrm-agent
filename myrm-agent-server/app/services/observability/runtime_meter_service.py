@@ -72,11 +72,25 @@ class RuntimeMeterService:
         baseline = DEFAULT_SEARCH_QUOTA_BASELINES.get(canonical_provider, 1000)
 
         if record is None:
+            # 优先从该 Provider 最近历史月份继承用户自定义的配额上限，防止月初自动降级回退默认基线
+            inherited_stmt = (
+                select(SearchQuotaRecord.quota_limit)
+                .where(
+                    SearchQuotaRecord.provider == canonical_provider,
+                    SearchQuotaRecord.year_month != year_month,
+                )
+                .order_by(SearchQuotaRecord.year_month.desc())
+                .limit(1)
+            )
+            inherited_res = await session.execute(inherited_stmt)
+            inherited_limit = inherited_res.scalar_one_or_none()
+            effective_limit = inherited_limit if inherited_limit is not None else baseline
+
             record = SearchQuotaRecord(
                 provider=canonical_provider,
                 year_month=year_month,
                 used_count=count,
-                quota_limit=baseline,
+                quota_limit=effective_limit,
                 is_depleted=quota_exceeded,
                 last_depleted_at=datetime.now(timezone.utc) if quota_exceeded else None,
             )
@@ -124,12 +138,25 @@ class RuntimeMeterService:
         result = await session.execute(stmt)
         records_by_provider = {rec.provider: rec for rec in result.scalars().all()}
 
+        # 查询最近历史月份的上限字典，供当月尚未调用的 provider 优雅继承展示
+        history_stmt = (
+            select(SearchQuotaRecord.provider, SearchQuotaRecord.quota_limit)
+            .where(SearchQuotaRecord.year_month != year_month)
+            .order_by(SearchQuotaRecord.year_month.desc())
+        )
+        history_result = await session.execute(history_stmt)
+        history_limits: dict[str, int] = {}
+        for prov_name, q_limit in history_result.all():
+            if prov_name not in history_limits:
+                history_limits[prov_name] = q_limit
+
         output: list[dict[str, object]] = []
 
         all_providers = sorted(set(DEFAULT_SEARCH_QUOTA_BASELINES.keys()) | set(records_by_provider.keys()))
         for prov in all_providers:
             rec = records_by_provider.get(prov)
-            limit = rec.quota_limit if rec is not None else DEFAULT_SEARCH_QUOTA_BASELINES.get(prov, 1000)
+            fallback_limit = history_limits.get(prov, DEFAULT_SEARCH_QUOTA_BASELINES.get(prov, 1000))
+            limit = rec.quota_limit if rec is not None else fallback_limit
             used = rec.used_count if rec is not None else 0
             is_depleted = rec.is_depleted if rec is not None else False
 

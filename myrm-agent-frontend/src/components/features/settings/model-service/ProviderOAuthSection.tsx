@@ -237,6 +237,24 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(({ providerId, hasA
           </div>
         </div>
       )}
+
+      {providerId === 'xai' && (
+        <div className="flex items-start gap-3 p-3.5 rounded-xl border border-sky-500/30 bg-sky-500/10 dark:bg-sky-500/15 text-sky-900 dark:text-sky-200">
+          <ShieldAlert className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+          <div className="space-y-1 text-xs leading-relaxed">
+            <p className="font-semibold text-sky-950 dark:text-sky-100">
+              {locale === 'zh'
+                ? 'SuperGrok 订阅说明：'
+                : 'SuperGrok Subscription Notice'}
+            </p>
+            <p className="text-sky-900/90 dark:text-sky-200/90">
+              {locale === 'zh'
+                ? '通过 SuperGrok 授权后，您可直接在 Myrm 中免 Key 使用 Grok 系列大语言模型（Grok-2 / Grok-beta）驱动 Agent 任务，并共享 X (Twitter) 实时搜索与多模态能力。'
+                : 'After SuperGrok authorization, you can directly use Grok models (Grok-2 / Grok-beta) without an API key, with unified X Search and multimodal tool capabilities.'}
+            </p>
+          </div>
+        </div>
+      )}
       <div className="p-4 bg-background/50 rounded-xl border border-border/50">
         {isPkceWaiting ? (
           <div className="space-y-3">

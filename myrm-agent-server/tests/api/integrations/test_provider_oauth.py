@@ -333,3 +333,50 @@ class TestProviderOAuthStatusAndDisconnect:
             response = client.delete(f"{API_PREFIX}/disconnect/openai")
             assert response.status_code == 404
             assert response.json()["code"] == 40401
+
+    def test_status_connected_xai(self, client: TestClient):
+        row = type("Row", (), {"config_value": "enc", "is_encrypted": True})()
+        with (
+            patch("app.api.integrations.provider_oauth.is_oauth_issuer_connected", new=AsyncMock(return_value=True)),
+            patch("app.api.integrations.provider_oauth.load_oauth_credentials_row", new=AsyncMock(return_value=row)),
+            patch(
+                "app.api.integrations.provider_oauth.decrypt_oauth_credentials",
+                return_value={
+                    "xai": {
+                        "token": "xai-tok-123",
+                        "expires_at": time.time() + 3600,
+                        "scope": "api:access",
+                        "base_url": "https://api.x.ai/v1",
+                    }
+                },
+            ),
+        ):
+            response = client.get(f"{API_PREFIX}/status/xai")
+            assert response.status_code == 200
+            data = response.json()["data"]
+            assert data["connected"] is True
+            assert data["provider"] == "xai"
+            assert data["issuer"] == "xai"
+            assert "grok-2" in data["available_models"]
+            assert data["base_url"] == "https://api.x.ai/v1"
+
+    def test_xai_start_and_poll_routes(self, client: TestClient):
+        from app.core.utils.response_utils import success_response
+
+        with (
+            patch(
+                "app.api.integrations.xai_oauth.start_xai_oauth",
+                new=AsyncMock(return_value=success_response(data={"user_code": "XAI-123", "verification_uri": "https://auth.x.ai/device"})),
+            ),
+            patch(
+                "app.api.integrations.xai_oauth.poll_xai_oauth",
+                new=AsyncMock(return_value=success_response(data={"status": "pending"})),
+            ),
+        ):
+            start_resp = client.post(f"{API_PREFIX}/xai/start")
+            assert start_resp.status_code == 200
+            assert start_resp.json()["data"]["user_code"] == "XAI-123"
+
+            poll_resp = client.post(f"{API_PREFIX}/xai/poll?user_code=XAI-123")
+            assert poll_resp.status_code == 200
+            assert poll_resp.json()["data"]["status"] == "pending"

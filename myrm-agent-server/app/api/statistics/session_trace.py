@@ -7,7 +7,7 @@
 - app.services.memory.command_center.command_center_projection_utils::event_phase (POS: 事件阶段投影)
 
 [OUTPUT]
-- router: Session execution trace APIRouter (get_session_execution_trace)
+- router: Session execution trace APIRouter (get_session_execution_trace, search_session_traces)
 
 [POS]
 会话执行轨迹 API。从事件日志重建任务级执行流（输入 -> 工具调用 -> 错误 -> 输出），

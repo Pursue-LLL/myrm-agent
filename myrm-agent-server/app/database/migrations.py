@@ -981,31 +981,6 @@ INDEX_STATEMENTS = [
     "ALTER TABLE interrupted_turn_markers ADD COLUMN message_id VARCHAR(255) NOT NULL DEFAULT ''",
     "ALTER TABLE interrupted_turn_markers ADD COLUMN pending_steering_messages JSON",
     "ALTER TABLE user_tool_allowlist ADD COLUMN expires_at TIMESTAMP",
-    """CREATE TABLE IF NOT EXISTS search_quota_records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        provider VARCHAR(32) NOT NULL,
-        year_month VARCHAR(7) NOT NULL,
-        used_count INTEGER NOT NULL DEFAULT 0,
-        quota_limit INTEGER NOT NULL DEFAULT 1000,
-        is_depleted BOOLEAN NOT NULL DEFAULT 0,
-        last_depleted_at TIMESTAMP,
-        last_used_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )""",
-    "CREATE UNIQUE INDEX IF NOT EXISTS ix_search_quota_provider_month ON search_quota_records(provider, year_month)",
-    "CREATE INDEX IF NOT EXISTS ix_search_quota_year_month ON search_quota_records(year_month)",
-    """CREATE TABLE IF NOT EXISTS browser_runtime_records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        year_month VARCHAR(7) NOT NULL,
-        session_id VARCHAR(128),
-        duration_seconds FLOAT NOT NULL DEFAULT 0.0,
-        active_compute_seconds FLOAT NOT NULL DEFAULT 0.0,
-        bytes_transferred INTEGER NOT NULL DEFAULT 0,
-        request_count INTEGER NOT NULL DEFAULT 0,
-        failed_request_count INTEGER NOT NULL DEFAULT 0,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )""",
-    "CREATE INDEX IF NOT EXISTS ix_browser_runtime_year_month ON browser_runtime_records(year_month)",
-    "CREATE INDEX IF NOT EXISTS ix_browser_runtime_created_at ON browser_runtime_records(created_at)",
 ]
 
 

@@ -685,6 +685,28 @@ async def _fetch_copilot_models(copilot_token: str, base_url: str) -> list[str]:
     return models
 
 
+# ──────────────────────── xAI SuperGrok Delegated Routes ────────────────
+
+@router.post("/xai/start")
+@limiter.limit("5/minute")
+async def start_xai_oauth_provider(request: Request) -> JSONResponse:
+    """Initiate xAI SuperGrok device-code authorization flow via provider-oauth."""
+    from app.api.integrations.xai_oauth import start_xai_oauth
+    return await start_xai_oauth(request)
+
+
+@router.post("/xai/poll")
+@limiter.limit("30/minute")
+async def poll_xai_oauth_provider(
+    request: Request,
+    user_code: str = "",
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Poll for xAI SuperGrok device-code authorization completion via provider-oauth."""
+    from app.api.integrations.xai_oauth import poll_xai_oauth
+    return await poll_xai_oauth(request, user_code=user_code, db=db)
+
+
 # ═══════════════════════════════════════════════════════════════════════
 #  Shared Endpoints: Status & Disconnect
 # ═══════════════════════════════════════════════════════════════════════
@@ -718,6 +740,9 @@ async def get_provider_oauth_status(
                 if provider == "copilot":
                     result["base_url"] = cred_val.get("base_url")
                     result["available_models"] = cred_val.get("available_models", [])
+                elif provider == "xai":
+                    result["base_url"] = cred_val.get("base_url", "https://api.x.ai/v1")
+                    result["available_models"] = ["grok-2", "grok-2-mini", "grok-beta"]
 
     return success_response(data=result)
 

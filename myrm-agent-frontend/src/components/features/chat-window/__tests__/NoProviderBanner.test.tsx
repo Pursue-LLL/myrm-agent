@@ -19,6 +19,13 @@ vi.mock('next-intl', () => ({
 
 vi.mock('lucide-react', () => ({
   AlertCircle: (props: Record<string, unknown>) => <svg data-testid="alert-icon" {...props} />,
+  Zap: (props: Record<string, unknown>) => <svg data-testid="zap-icon" {...props} />,
+  ExternalLink: (props: Record<string, unknown>) => <svg data-testid="external-link-icon" {...props} />,
+  Copy: (props: Record<string, unknown>) => <svg data-testid="copy-icon" {...props} />,
+  Check: (props: Record<string, unknown>) => <svg data-testid="check-icon" {...props} />,
+  Loader2: (props: Record<string, unknown>) => <svg data-testid="loader2-icon" {...props} />,
+  X: (props: Record<string, unknown>) => <svg data-testid="x-icon" {...props} />,
+  ShieldCheck: (props: Record<string, unknown>) => <svg data-testid="shield-check-icon" {...props} />,
 }));
 
 vi.mock('@/components/primitives/button', () => ({
@@ -145,15 +152,20 @@ describe('NoProviderBanner', () => {
     expect(mockPush).toHaveBeenCalledWith('/settings/models');
   });
 
-  it('renders banner with correct amber styling classes', () => {
+  it('renders quick subscription connect button and opens modal', () => {
     mockUseProviderStore.mockImplementation((selector: (s: Record<string, unknown>) => unknown) => {
       const state = { isInitialized: true, providers: [] };
       return selector(state);
     });
 
-    const { container } = render(<NoProviderBanner />);
-    const wrapper = container.firstElementChild as HTMLElement;
-    expect(wrapper.className).toContain('border-amber-200');
-    expect(wrapper.className).toContain('bg-amber-50');
+    render(<NoProviderBanner />);
+    const quickBtn = screen.getByText('subscriptionQuickConnect');
+    expect(quickBtn).toBeInTheDocument();
+    fireEvent.click(quickBtn);
+
+    expect(screen.getByText('subscriptionModalTitle')).toBeInTheDocument();
+    expect(screen.getByText('subscriptionCopilot')).toBeInTheDocument();
+    expect(screen.getByText('subscriptionOpenai')).toBeInTheDocument();
+    expect(screen.getByText('subscriptionXai')).toBeInTheDocument();
   });
 });

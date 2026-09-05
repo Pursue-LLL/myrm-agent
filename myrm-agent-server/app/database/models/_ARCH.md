@@ -44,6 +44,7 @@
 | `expert_summon_metric.py` | 域模块 | ExpertSummonMetricEvent（专家召唤漏斗观测事件：曝光/搜索/召唤尝试与结果/路由应用/首条发送/丢样，含 `surface`、`trigger`、`from_search`、`used_use_case` 口径字段） | ✅ |
 | `turn_capability_metric.py` | 域模块 | TurnCapabilityMetricEvent（单轮 Skill/MCP 能力覆写观测事件：提交/生效/回退/排队/完成/失败/busy 重排队/丢样，含 selected/effective 规模口径与失败原因聚合） | ✅ |
 | `wiki_evidence_metric.py` | 域模块 | WikiEvidenceMetricEvent（证据链观测事件：surface/open/close/query/dropped/quality_outcome_negative，含 `context_key` 口径隔离与 retention 查询索引） | ✅ |
+| `runtime_quota_metric.py` | 域模块 | SearchQuotaRecord（按月搜索引擎免费配额用水台账，含 is_metered/quota_limit/used_count/is_depleted）, BrowserRuntimeRecord（浏览器沙箱自动化会话执行时长与网络下载传输流量度量表） | ✅ |
 | `faq.py` | 域模块 | FaqCorpus（per-agent FAQ 语料库配置）, FaqEntry（Q&A 条目）, FaqHitLog（命中/未命中追踪记录） | ✅ |
 
 ## 模块依赖

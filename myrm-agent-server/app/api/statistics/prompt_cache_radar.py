@@ -9,7 +9,7 @@
 - get_prompt_cache_radar: API 端点，聚合近期会话的 Prompt Cache 命中率与节省额
 
 [POS]
-提取自 session_trace.py，负责全局跨会话 Prompt Cache 命中率分析与雷达指标聚合。
+负责全局跨会话 Prompt Cache 命中率分析与雷达指标聚合，量化长会话与系统前缀缓存节省效率。
 """
 
 from __future__ import annotations
