@@ -23,16 +23,11 @@ if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
-    _require_e2e_cdp_ready,
     dismiss_blocking_modals,
-    ensure_desktop_viewport,
     get_e2e_api_url,
-    get_e2e_ui_url,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
-    wait_for_react_e2e_bridge,
     wait_for_state,
-    warm_ui_route,
 )
 
 _TRIGGER_ARCHITECTURE_ARTIFACT_DOM_JS = """(() => {
@@ -140,16 +135,11 @@ _CLEANUP_ARCHITECTURE_DOM_JS = """(() => {
 @pytest.mark.timeout(300)
 def test_architecture_diagram_artifact_chrome_e2e() -> None:
     """Real Chrome E2E: Verify interactive architecture map rendering, DAG nodes, and diff states."""
-    _require_e2e_cdp_ready()
-    warm_ui_route("/")
-    api_base = get_e2e_api_url()
-    prepare_e2e_ui_session(api_base)
+    api_url = get_e2e_api_url()
+    prepare_e2e_ui_session(api_url)
 
-    session = "arch_e2e_verification"
-    with open_mcp_page(f"{get_e2e_ui_url()}/?chat={session}") as (client, page):
-        ensure_desktop_viewport(client, page)
+    with open_settings_subroute("/settings/system", timeout_ms=120_000) as (client, page):
         dismiss_blocking_modals(client, page)
-        wait_for_react_e2e_bridge(client, page)
 
         # 1. Mount and render architecture diagram artifact inside live Chrome DOM
         trigger_res = client.evaluate(page, _TRIGGER_ARCHITECTURE_ARTIFACT_DOM_JS, timeout_sec=10.0)

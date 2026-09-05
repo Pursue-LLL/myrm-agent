@@ -19,10 +19,24 @@ _GLOBAL_MUTATION_PREFIXES: tuple[str, ...] = (
     "/api/v1/workspace/",
 )
 
-# include_in_schema=False test-only fixture endpoints (e.g. /api/v1/chats/test/seed-*,
-# /api/v1/security/allowlist/test/clear-pattern-fixture). They are namespace-isolated
-# per-run seeds and safe to run as SHARED+NAMESPACE_WRITE — never treated as global write.
-_TEST_FIXTURE_SEGMENT = "/test/"
+# include_in_schema=False test-only fixture endpoint namespaces. Keep this
+# allowlist explicit: a generic "/test/" substring would let an unrelated
+# production mutation bypass the effect guard.
+_TEST_FIXTURE_PREFIXES: tuple[str, ...] = (
+    "/api/v1/approvals/test/",
+    "/api/v1/background-tasks/test/",
+    "/api/v1/chats/test/",
+    "/api/v1/memory/test/",
+    "/api/v1/projects/test/",
+    "/api/v1/security/allowlist/test/",
+    "/api/v1/skills/drafts/test/",
+    "/api/v1/skills/evolution/test/",
+    "/api/v1/skills/test/",
+    "/api/v1/tasks/test/",
+)
+_TEST_FIXTURE_EXACT_PATHS: frozenset[str] = frozenset(
+    {"/api/v1/webui/desktop/approval/test-seed"}
+)
 
 # Formal chrome_e2e bootstrap helpers (prepare_e2e_ui_session) — idempotent UI gate, not tenant config.
 _NAMESPACE_WRITE_BOOTSTRAP_PATHS: frozenset[str] = frozenset(
@@ -46,11 +60,18 @@ def _normalized_path(url: str) -> str:
 
 def is_global_mutation_path(path: str) -> bool:
     normalized = path if path.startswith("/") else f"/{path}"
-    if _TEST_FIXTURE_SEGMENT in normalized:
+    if is_test_fixture_path(normalized):
         return False
     return any(
         normalized == prefix.rstrip("/") or normalized.startswith(prefix)
         for prefix in _GLOBAL_MUTATION_PREFIXES
+    )
+
+
+def is_test_fixture_path(path: str) -> bool:
+    normalized = path if path.startswith("/") else f"/{path}"
+    return normalized in _TEST_FIXTURE_EXACT_PATHS or any(
+        normalized.startswith(prefix) for prefix in _TEST_FIXTURE_PREFIXES
     )
 
 
@@ -67,7 +88,7 @@ def assert_http_effect_allowed(*, method: str, url: str) -> None:
     if verb in {"GET", "HEAD", "OPTIONS"}:
         return
     path = _normalized_path(url)
-    if "/test/" in path:
+    if is_test_fixture_path(path):
         return
     if scope == "READ":
         raise RuntimeError(f"E2E_EFFECT_GUARD: access_scope=READ forbids {verb} {path}")

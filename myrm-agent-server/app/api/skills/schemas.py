@@ -140,6 +140,39 @@ class LocalSkillPathsResponse(BaseModel):
     default_paths: list[str]
 
 
+class LocalSkillPathPreviewRequest(BaseModel):
+    """Payload for dry-run previewing a local skill path."""
+
+    path: str
+
+
+class LocalSkillPreviewItem(BaseModel):
+    """Preview metadata for a single skill discovered in the target path."""
+
+    name: str
+    description: str
+    version: str = "1.0.0"
+    category: str | None = None
+    tags: list[str] = []
+    required_tools: list[str] = []
+    relative_path: str
+    is_conflicted: bool = False
+    conflict_reason: str | None = None
+    is_safe: bool = True
+    threat_summary: str | None = None
+
+
+class LocalSkillPathPreviewResponse(BaseModel):
+    """Dry-run preview result for a local skill path."""
+
+    resolved_path: str
+    exists: bool
+    is_directory: bool
+    total_discovered: int
+    skills: list[LocalSkillPreviewItem]
+    warning_message: str | None = None
+
+
 class ToggleLocalSkillRequest(BaseModel):
     skill_id: str
 

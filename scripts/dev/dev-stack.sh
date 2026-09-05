@@ -581,7 +581,7 @@ _start_frontend_supervisor() {
     return 0
   fi
 
-  if _frontend_port_listening && _lock_supervisor_alive; then
+  if _lock_supervisor_alive; then
     echo "STACK_WAIT: frontend compiling — up to ${ENSURE_FRONTEND_WAIT_SEC}s..."
     if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
       _sync_frontend_pid_from_lock
