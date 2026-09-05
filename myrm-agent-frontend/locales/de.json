@@ -263,6 +263,7 @@
       "petInstalled": "Pet installiert: {name}",
       "petInstallFailed": "Pet-Installation fehlgeschlagen",
       "petNoActive": "Kein Pet installiert — Pet-Palette wird geöffnet",
+      "memo": "Sprachmemos und Protokollanalyse — Artefakte automatisch generieren, Board-Aufgaben zuweisen und Langzeitgedächtnis sichern",
       "ask": "Session-Berater für schreibgeschützte Nebenfragen öffnen (/side)",
       "btwDisambiguation": "In Myrm startet /btw eine Hintergrundaufgabe. Für Nebenfragen während eines Laufs verwenden Sie /ask oder /side."
     }
