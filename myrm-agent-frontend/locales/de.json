@@ -15769,7 +15769,8 @@
           "pathAdded": "Pfad erfolgreich hinzugefügt",
           "pathRemoved": "Pfad entfernt",
           "scanComplete": "Scan abgeschlossen",
-          "foundSkills": "{count} Fähigkeiten gefunden"
+          "foundSkills": "{count} Fähigkeiten gefunden",
+          "pathCopied": "Pfad in die Zwischenablage kopiert"
         },
         "error": {
           "invalidPath": "Ungültiges Pfadformat",
@@ -15777,7 +15778,8 @@
           "addFailed": "Pfad konnte nicht hinzugefügt werden",
           "removeFailed": "Pfad konnte nicht entfernt werden",
           "scanFailed": "Der Scan ist fehlgeschlagen",
-          "previewFailed": "Lokaler Pfad konnte nicht überprüft werden"
+          "previewFailed": "Lokaler Pfad konnte nicht überprüft werden",
+          "pathTraversal": "Pfadüberquerung mit \"..\" ist nicht erlaubt"
         },
         "previewDialog": {
           "title": "Lokale Skills vorschauen & übernehmen",
@@ -15792,8 +15794,16 @@
           "cancel": "Abbrechen",
           "adopt": "Übernehmen & Pfad hinzufügen",
           "adopting": "Wird übernommen...",
-          "tools": "Erforderliche Tools"
-        }
+          "tools": "Erforderliche Tools",
+          "addPathOnly": "Nur Pfad hinzufügen",
+          "selectAll": "Alle auswählen",
+          "deselectAll": "Alle abwählen",
+          "selectedCount": "{count} Skill(s) ausgewählt"
+        },
+        "discoveredSkillsBadge": "{count} Skills",
+        "pathNotFoundBadge": "Pfad nicht gefunden",
+        "emptySkillsBadge": "0 Skills",
+        "copyPath": "Pfad kopieren"
       },
       "search": {
         "empty": "Keine passenden Skills gefunden",

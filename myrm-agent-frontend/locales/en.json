@@ -16070,7 +16070,8 @@
           "pathAdded": "Path added successfully",
           "pathRemoved": "Path removed",
           "scanComplete": "Scan complete",
-          "foundSkills": "Found {count} skills"
+          "foundSkills": "Found {count} skills",
+          "pathCopied": "Path copied to clipboard"
         },
         "discoveredSkillsBadge": "{count} skills",
         "pathNotFoundBadge": "Path Not Found",
@@ -16081,7 +16082,8 @@
           "addFailed": "Failed to add path",
           "removeFailed": "Failed to remove path",
           "scanFailed": "Scan failed",
-          "previewFailed": "Failed to inspect local path"
+          "previewFailed": "Failed to inspect local path",
+          "pathTraversal": "Path traversal with \"..\" is not allowed"
         },
         "previewDialog": {
           "title": "Preview & Adopt Local Skills",
@@ -16101,7 +16103,8 @@
           "deselectAll": "Deselect All",
           "selectedCount": "Selected {count} skill(s)",
           "tools": "Required Tools"
-        }
+        },
+        "copyPath": "Copy path"
       },
       "instances": {
         "title": "Instance Manager",

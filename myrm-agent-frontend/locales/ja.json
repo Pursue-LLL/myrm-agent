@@ -15951,7 +15951,8 @@
           "pathAdded": "パスを追加しました",
           "pathRemoved": "パスを削除しました",
           "scanComplete": "スキャン完了",
-          "foundSkills": "{count} 個のスキルが見つかりました"
+          "foundSkills": "{count} 個のスキルが見つかりました",
+          "pathCopied": "パスをクリップボードにコピーしました"
         },
         "error": {
           "invalidPath": "パスフォーマットが無効です",
@@ -15959,7 +15960,8 @@
           "addFailed": "パスの追加に失敗",
           "removeFailed": "パスの削除に失敗しました",
           "scanFailed": "スキャン失敗",
-          "previewFailed": "ローカルパスの検査に失敗しました"
+          "previewFailed": "ローカルパスの検査に失敗しました",
+          "pathTraversal": "\"..\" を含むパストラバーサルは許可されていません"
         },
         "previewDialog": {
           "title": "ローカルスキルのプレビューと採用",
@@ -15974,8 +15976,16 @@
           "cancel": "キャンセル",
           "adopt": "採用してパスを追加",
           "adopting": "採用中...",
-          "tools": "必要なツール"
-        }
+          "tools": "必要なツール",
+          "addPathOnly": "パスのみ追加",
+          "selectAll": "すべて選択",
+          "deselectAll": "すべて解除",
+          "selectedCount": "{count} 個のスキルを選択中"
+        },
+        "discoveredSkillsBadge": "{count} 個のスキル",
+        "pathNotFoundBadge": "パスが見つかりません",
+        "emptySkillsBadge": "0 個のスキル",
+        "copyPath": "パスをコピー"
       },
       "instances": {
         "title": "インスタンス管理",

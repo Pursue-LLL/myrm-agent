@@ -16070,7 +16070,8 @@
           "pathAdded": "路径添加成功",
           "pathRemoved": "路径已移除",
           "scanComplete": "扫描完成",
-          "foundSkills": "发现 {count} 个技能"
+          "foundSkills": "发现 {count} 个技能",
+          "pathCopied": "路径已复制到剪贴板"
         },
         "discoveredSkillsBadge": "{count} 个技能",
         "pathNotFoundBadge": "路径不存在",
@@ -16081,7 +16082,8 @@
           "addFailed": "添加路径失败",
           "removeFailed": "移除路径失败",
           "scanFailed": "扫描失败",
-          "previewFailed": "探测本地路径失败"
+          "previewFailed": "探测本地路径失败",
+          "pathTraversal": "不允许包含 \"..\" 路径穿越序列"
         },
         "previewDialog": {
           "title": "本地技能路径预检与采纳",
@@ -16101,7 +16103,8 @@
           "deselectAll": "全不选",
           "selectedCount": "已选择 {count} 个技能",
           "tools": "依赖工具"
-        }
+        },
+        "copyPath": "复制路径"
       },
       "instances": {
         "title": "实例管理",

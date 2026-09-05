@@ -15951,7 +15951,8 @@
           "pathAdded": "路徑新增成功",
           "pathRemoved": "路徑已移除",
           "scanComplete": "掃描完成",
-          "foundSkills": "發現 {count} 個技能"
+          "foundSkills": "發現 {count} 個技能",
+          "pathCopied": "路徑已複製到剪貼簿"
         },
         "error": {
           "invalidPath": "路徑格式無效",
@@ -15959,7 +15960,8 @@
           "addFailed": "新增路徑失敗",
           "removeFailed": "移除路徑失敗",
           "scanFailed": "掃描失敗",
-          "previewFailed": "探測本地路徑失敗"
+          "previewFailed": "探測本地路徑失敗",
+          "pathTraversal": "不允許包含 \"..\" 路徑穿越序列"
         },
         "previewDialog": {
           "title": "本地技能路徑預檢與採納",
@@ -15982,7 +15984,8 @@
         },
         "discoveredSkillsBadge": "{count} 個技能",
         "pathNotFoundBadge": "路徑不存在",
-        "emptySkillsBadge": "0 個技能"
+        "emptySkillsBadge": "0 個技能",
+        "copyPath": "複製路徑"
       },
       "instances": {
         "title": "例項管理",

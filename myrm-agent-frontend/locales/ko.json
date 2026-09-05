@@ -15769,7 +15769,8 @@
           "pathAdded": "경로가 추가되었습니다",
           "pathRemoved": "경로가 제거되었습니다",
           "scanComplete": "스캔 완료",
-          "foundSkills": "스킬 {count}개 발견"
+          "foundSkills": "스킬 {count}개 발견",
+          "pathCopied": "경로가 클립보드에 복사되었습니다"
         },
         "error": {
           "invalidPath": "잘못된 경로 형식",
@@ -15777,7 +15778,8 @@
           "addFailed": "경로 추가 실패",
           "removeFailed": "경로 제거 실패",
           "scanFailed": "스캔 실패",
-          "previewFailed": "로컬 경로 검사 실패"
+          "previewFailed": "로컬 경로 검사 실패",
+          "pathTraversal": "\"..\"을 포함한 경로 탐색은 허용되지 않습니다"
         },
         "previewDialog": {
           "title": "로컬 스킬 미리보기 및 채택",
@@ -15792,8 +15794,16 @@
           "cancel": "취소",
           "adopt": "채택 및 경로 추가",
           "adopting": "채택 중...",
-          "tools": "필요한 도구"
-        }
+          "tools": "필요한 도구",
+          "addPathOnly": "경로만 추가",
+          "selectAll": "모두 선택",
+          "deselectAll": "모두 선택 해제",
+          "selectedCount": "{count}개 스킬 선택됨"
+        },
+        "discoveredSkillsBadge": "{count}개 스킬",
+        "pathNotFoundBadge": "경로를 찾을 수 없음",
+        "emptySkillsBadge": "0개 스킬",
+        "copyPath": "경로 복사"
       },
       "search": {
         "empty": "일치하는 스킬을 찾을 수 없습니다",
