@@ -146,4 +146,26 @@ describe('ProgressSteps fault-side badge', () => {
     expect(title?.className).toContain('text-amber-600');
     expect(title?.className).not.toContain('text-destructive');
   });
+
+  it('renders domain-intent-pill for structured vertical queries in QueryItemsRenderer', async () => {
+    const searchStep: ProgressItem = {
+      step_key: 'web_search_tool',
+      tool_name: 'web_search_tool',
+      status: 'completed',
+      items: [
+        { query: 'Analyze "CVE-2024-38077" patch details' },
+        { query: 'NVDA stock price earnings' },
+        { query: '10.1038/s41586-024-07487-w paper' },
+        { query: 'regular query without identifiers' },
+      ],
+    };
+    render(<ProgressSteps messageId="m-3" steps={[searchStep]} loading={false} />);
+    await userEvent.click(screen.getByTestId('progress-steps-toggle'));
+    const pills = screen.getAllByTestId('domain-intent-pill');
+    expect(pills.length).toBe(3);
+    expect(screen.getByText('Security CVE')).toBeInTheDocument();
+    expect(screen.getByText('Finance Market')).toBeInTheDocument();
+    expect(screen.getByText('Academic DOI')).toBeInTheDocument();
+  });
 });
+

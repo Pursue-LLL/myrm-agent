@@ -2802,6 +2802,14 @@
       "dismiss": "稍後再說",
       "apiKeysHint": "檢測到 API Key 名稱，請在設定中手動填寫"
     },
+    "memoryHygieneChip": {
+      "title": "5 分鐘記憶體檢",
+      "tagline": "月度記憶健康管家",
+      "subtitle": "主動審查陳舊記憶與容量水位，一鍵自癒與規範化",
+      "action": "立即體檢",
+      "dismiss": "稍後再看",
+      "hermesBadge": "Hermes 遷民健康標準"
+    },
     "reasoningModelDisabledWithImage": "啟用視覺增強後，圖片需由視覺模型處理",
     "workflowTemplateArmed": {
       "label": "已固定模板",
@@ -4820,6 +4828,18 @@
           "invalid_schedule": "計劃無效或不支援",
           "prompt_injection": "提示詞未通過安全掃描",
           "unsupported_job_type": "不支援的任務類型"
+        },
+        "hermesMapping": {
+          "title": "Hermes 四層架構無縫映射對照",
+          "badge": "100% 資產無縫就緒",
+          "userMdTarget": "行為強規則與人設指令 (Procedural Rules)",
+          "userMdDesc": "全量置頂注入，享最高行為權威，受保護指令寫審批防線護航",
+          "memoryMdTarget": "長期事實與情景知識庫 (Semantic / Episodic)",
+          "memoryMdDesc": "物理隔離唯讀上下文，wrap_untrusted 防注入邊界阻斷越權",
+          "sessionSearchTarget": "原生 SQLite FTS5 對話檢索",
+          "sessionSearchDesc": "本地毫秒級全文精準回溯，0 外部中介軟體依賴",
+          "externalMcpTarget": "漸進式披露與安全沙箱工具體系",
+          "externalMcpDesc": "Direct FC + Skill PTC + 嚴格權限審計，超越外掛矩陣"
         }
       },
       "result": {

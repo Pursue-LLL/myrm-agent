@@ -2809,6 +2809,14 @@
       "dismiss": "後で",
       "apiKeysHint": "API キー名を検出しました — 設定で手動入力してください"
     },
+    "memoryHygieneChip": {
+      "title": "5分間メモリ健康診断",
+      "tagline": "月次メモリヘルスガーディアン",
+      "subtitle": "古い記憶と容量水位を能動的に点検し、ワンクリックで健全化",
+      "action": "今すぐ診断",
+      "dismiss": "後で確認",
+      "hermesBadge": "Hermes 移行ヘルス基準"
+    },
     "snapshot": {
       "createdTitle": "システムスナップショットを作成しました",
       "createdMessage": {
@@ -4705,6 +4713,18 @@
         "unmappedItems": "未マッピング",
         "status": "ステータス",
         "instructionPreviewTitle": "命令とペルソナのプレビュー",
+        "hermesMapping": {
+          "title": "Hermes 4層アーキテクチャのシームレスマッピング",
+          "badge": "100% 資産即時対応",
+          "userMdTarget": "行動ルールとペルソナ指示 (Procedural Rules)",
+          "userMdDesc": "最優先でインジェクション、改ざん防止の保護指示承認ゲート付き",
+          "memoryMdTarget": "長期事実・エピソード知識ベース (Semantic / Episodic)",
+          "memoryMdDesc": "物理的に隔離された読み取り専用コンテキスト、wrap_untrusted 防御境界",
+          "sessionSearchTarget": "ネイティブ SQLite FTS5 対話検索",
+          "sessionSearchDesc": "ローカルでミリ秒精度の全文検索、外部デーモン不要",
+          "externalMcpTarget": "プログレッシブ開示と安全なサンドボックスツール",
+          "externalMcpDesc": "Direct FC + Skill PTC + 厳格なヒューマンインザループ監査ゲート"
+        },
         "lanesTitle": "4 つの移行レーン",
         "laneLabels": {
           "instruction_lane": "命令とペルソナ",
@@ -4776,6 +4796,18 @@
           "invalid_schedule": "無効または未対応のスケジュール",
           "prompt_injection": "プロンプトがセキュリティスキャンでブロックされました",
           "unsupported_job_type": "未対応のタスクタイプ"
+        },
+        "hermesMapping": {
+          "title": "Hermes 4層アーキテクチャのシームレス対応",
+          "badge": "100% 資産シームレス移行完了",
+          "userMdTarget": "行動ルール・ペルソナ指示 (Procedural Rules)",
+          "userMdDesc": "最上位優先度で注入、最高行動権威を保持、保護ファイル承認ゲートで防護",
+          "memoryMdTarget": "長期事実・エピソード知識ベース (Semantic / Episodic)",
+          "memoryMdDesc": "隔離された読み取り専用コンテキスト、wrap_untrusted 防護壁で不正昇格を遮断",
+          "sessionSearchTarget": "ネイティブ SQLite FTS5 会話検索",
+          "sessionSearchDesc": "ローカルミリ秒精度の全文検索、外部ミドルウェア依存ゼロ",
+          "externalMcpTarget": "段階的開示と安全なサンドボックスツール体系",
+          "externalMcpDesc": "Direct FC + Skill PTC + 厳格な人間承認ゲート、プラグイン群を凌駕"
         }
       },
       "result": {

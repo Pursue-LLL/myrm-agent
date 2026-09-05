@@ -2596,6 +2596,14 @@
       "dismiss": "나중에",
       "apiKeysHint": "API 키 이름이 감지되었습니다 — 설정에서 값을 직접 입력하세요"
     },
+    "memoryHygieneChip": {
+      "title": "5분 기억 건강 검진",
+      "tagline": "월간 기억 건강 가디언",
+      "subtitle": "오래된 기억과 용량 수위를 선제 점검하고 원클릭으로 자가 치유 및 정규화",
+      "action": "지금 검진",
+      "dismiss": "나중에 확인",
+      "hermesBadge": "Hermes 이전 헬스 기준"
+    },
     "skillActivation": {
       "remove": "선택한 스킬 제거"
     },
@@ -4862,6 +4870,18 @@
         "unmappedItems": "매핑되지 않음",
         "status": "상태",
         "instructionPreviewTitle": "지침 및 페르소나 미리보기",
+        "hermesMapping": {
+          "title": "Hermes 4계층 아키텍처 원활한 매핑 대조",
+          "badge": "100% 자산 즉시 준비 완료",
+          "userMdTarget": "행동 핵심 규칙 및 페르소나 지침 (Procedural Rules)",
+          "userMdDesc": "최우선 순위 주입, 위변조 방지 보호 지침 승인 게이트 적용",
+          "memoryMdTarget": "장기 사실 및 에피소드 지식 기반 (Semantic / Episodic)",
+          "memoryMdDesc": "물리적 격리 읽기 전용 컨텍스트, wrap_untrusted 주입 방어 경계",
+          "sessionSearchTarget": "네이티브 SQLite FTS5 대화 검색",
+          "sessionSearchDesc": "로컬 밀리초 정밀 전문 검색, 외부 데몬 오버헤드 0",
+          "externalMcpTarget": "점진적 공개 및 안전한 샌드박스 툴링",
+          "externalMcpDesc": "Direct FC + Skill PTC + 엄격한 승인 감사 게이트"
+        },
         "lanesTitle": "4가지 마이그레이션 레인",
         "laneLabels": {
           "instruction_lane": "지침 및 페르소나",
@@ -4933,6 +4953,18 @@
           "invalid_schedule": "잘못되었거나 지원되지 않는 일정",
           "prompt_injection": "안전 스캔에 의해 프롬프트 차단됨",
           "unsupported_job_type": "지원되지 않는 작업 유형"
+        },
+        "hermesMapping": {
+          "title": "Hermes 4계층 아키텍처 원활한 매핑",
+          "badge": "100% 자산 마이그레이션 준비 완료",
+          "userMdTarget": "행동 규칙 및 페르소나 지침 (Procedural Rules)",
+          "userMdDesc": "최상위 권위로 주입, 보호 지침 파일 승인 게이트로 완벽 방어",
+          "memoryMdTarget": "장기 사실 및 에피소드 지식베이스 (Semantic / Episodic)",
+          "memoryMdDesc": "격리된 읽기 전용 컨텍스트, wrap_untrusted 방화벽으로 프롬프트 주입 차단",
+          "sessionSearchTarget": "네이티브 SQLite FTS5 대화 검색",
+          "sessionSearchDesc": "로컬 밀리초 단위 전문 검색, 외부 미들웨어 종속성 제로",
+          "externalMcpTarget": "점진적 공개 및 샌드박스 도구 체계",
+          "externalMcpDesc": "Direct FC + Skill PTC + 엄격한 권한 승인 게이트"
         }
       },
       "result": {
@@ -15628,7 +15660,12 @@
         "revealInManager": "표시",
         "cleanupInvalid": "정리",
         "revealFailed": "경로를 표시하지 못했습니다",
-        "export": "내보내기"
+        "export": "내보내기",
+        "previewTab": "미리보기",
+        "sourceTab": "소스",
+        "saveSource": "SKILL.md 저장",
+        "sourceSaved": "SKILL.md가 성공적으로 저장되었습니다",
+        "sourceSaveFailed": "SKILL.md 저장 실패"
       },
       "upload": {
         "title": "사용자 정의 스킬 업로드",

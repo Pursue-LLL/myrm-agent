@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from myrm_agent_harness.toolkits.memory._memory_agent_tool_descriptions import (
+from myrm_agent_harness.toolkits.memory.agent_surface._memory_agent_tool_descriptions import (
     resolve_memory_save_tool_description,
 )
 

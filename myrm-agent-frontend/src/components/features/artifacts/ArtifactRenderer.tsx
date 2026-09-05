@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import { Artifact, ArtifactVersion } from '@/store/chat/types';
 import { ArtifactDisplayMode } from '@/store/useArtifactPortalStore';
-import { isSvgType, isMermaidType } from './artifactUtils';
+import { isSvgType, isMermaidType, isArchitectureType } from './artifactUtils';
 import ArtifactErrorBoundary from './ArtifactErrorBoundary';
 import { getStorageUrl } from '@/lib/api';
 import SkeletonLoader from './renderers/SkeletonLoader';
@@ -87,6 +87,11 @@ const DiffPreviewDynamic = dynamic(() => import('./renderers/DiffPreview'), {
   loading: () => rendererLoading,
 });
 
+const ArchitecturePreviewDynamic = dynamic(() => import('./renderers/architecture/ArchitecturePreview'), {
+  ssr: false,
+  loading: () => rendererLoading,
+});
+
 const SpreadsheetEditorDynamic = dynamic(() => import('./renderers/SpreadsheetEditor'), {
   ssr: false,
   loading: () => rendererLoading,
@@ -147,6 +152,7 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({
   const cannotPreview = ['binary'].includes(type);
 
   // 检查特殊类型
+  const isArchitecture = type === 'architecture' || isArchitectureType(content_type, filename);
   const isSvg = type === 'svg' || isSvgType(content_type, filename);
   const isMermaid = type === 'mermaid' || isMermaidType(content_type, filename);
   const isPdf = type === 'pdf' || content_type === 'application/pdf' || filename.toLowerCase().endsWith('.pdf');
@@ -212,6 +218,20 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({
   // React/JSX/TSX 组件预览
   if (isReactFile && content && displayMode === ArtifactDisplayMode.Preview) {
     return <ReactPreviewDynamic code={content} filename={filename} isDarkMode={isDarkMode} />;
+  }
+
+  // Architecture 交互式架构图
+  if (isArchitecture && content) {
+    if (displayMode === ArtifactDisplayMode.Code) {
+      return <CodePreview content={content} language="json" artifactId={artifact.id} />;
+    }
+    return (
+      <ArchitecturePreviewDynamic
+        content={content}
+        versions={versions}
+        viewingVersionIndex={viewingVersionIndex}
+      />
+    );
   }
 
   // SVG 内联渲染

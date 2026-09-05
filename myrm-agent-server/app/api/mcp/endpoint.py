@@ -1,7 +1,7 @@
 """MCP server endpoint for external agent memory access.
 
 [INPUT]
-- myrm_agent_harness.toolkits.memory.mcp_server::MemoryMCPServer (POS: MCP server adapter that lets external AI agents access the memory system via standard MCP protocol)
+- myrm_agent_harness.toolkits.memory.agent_surface.mcp_server::MemoryMCPServer (POS: MCP server adapter that lets external AI agents access the memory system via standard MCP protocol)
 - app.services.connect::get_connect_service (POS: Token verification)
 - app.core.memory.adapters.setup::create_memory_manager, resolve_context_binding (POS: MemoryManager factory)
 
@@ -216,7 +216,7 @@ class _MCPTokenAuthMiddleware:
             await response(scope, receive, send)
             return
 
-        from myrm_agent_harness.toolkits.memory.mcp_server import (
+        from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server import (
             reset_request_memory_manager,
             reset_request_wiki_boundary_enabled,
             set_request_memory_manager,
@@ -281,7 +281,7 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
     global _session_manager_task
 
     try:
-        from myrm_agent_harness.toolkits.memory.mcp_server import MemoryMCPServer
+        from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server import MemoryMCPServer
 
         from app.core.memory.adapters.setup import (
             create_memory_manager,

@@ -5,11 +5,12 @@ import { ToolCallingModelChecklist } from '../ToolCallingModelChecklist';
 import { UnverifiedModelCallout } from '../UnverifiedModelCallout';
 
 // Mock next-intl
+const stableT = (key: string, params?: Record<string, unknown>) => {
+  if (params?.model) return `${key}:${params.model}`;
+  return key;
+};
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params?.model) return `${key}:${params.model}`;
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('ToolCallingModelChecklist Component', () => {

@@ -9,7 +9,7 @@ from myrm_agent_harness.toolkits.memory.conversation_search import (
     ConversationSearchRequest,
     ConversationSearchResponse,
 )
-from myrm_agent_harness.toolkits.memory.memory_search_policy import (
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import (
     MemorySearchBackends,
     MemorySearchPolicy,
 )

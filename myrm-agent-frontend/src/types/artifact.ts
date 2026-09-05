@@ -51,7 +51,8 @@ export type PreviewableArtifactType =
   | 'mermaid'
   | 'spreadsheet'
   | 'presentation'
-  | 'word_document';
+  | 'word_document'
+  | 'architecture';
 
 /** 不可预览的 Artifact 类型 */
 export type NonPreviewableArtifactType = 'binary';
@@ -70,15 +71,16 @@ export function isPreviewable(type: ArtifactType): type is PreviewableArtifactTy
     'spreadsheet',
     'presentation',
     'word_document',
+    'architecture',
   ].includes(type);
 }
 
 /** 需要加载内容的 Artifact 类型 */
-export type ContentLoadableType = 'code' | 'document' | 'svg' | 'mermaid';
+export type ContentLoadableType = 'code' | 'document' | 'svg' | 'mermaid' | 'architecture';
 
 /** 检查 Artifact 是否需要加载内容 */
 export function needsContentLoad(type: ArtifactType): type is ContentLoadableType {
-  return ['code', 'document', 'svg', 'mermaid'].includes(type);
+  return ['code', 'document', 'svg', 'mermaid', 'architecture'].includes(type);
 }
 
 // ==================== MIME 类型映射 ====================
@@ -280,7 +282,7 @@ export function formatFileSize(bytes: number): string {
 
 /** 检查是否为文本类型（可以显示内容） */
 export function isTextType(artifact: Artifact): boolean {
-  const textTypes: ArtifactType[] = ['code', 'document', 'svg', 'mermaid'];
+  const textTypes: ArtifactType[] = ['code', 'document', 'svg', 'mermaid', 'architecture'];
   return textTypes.includes(artifact.type);
 }
 

@@ -2897,6 +2897,14 @@
       "dismiss": "Maybe Later",
       "apiKeysHint": "API key names detected — enter values manually in Settings"
     },
+    "memoryHygieneChip": {
+      "title": "5-Minute Memory Hygiene",
+      "tagline": "Monthly Memory Health Guardian",
+      "subtitle": "Inspect staleness, trim context bloat, and restore disciplined defaults with 1 click",
+      "action": "Run Checkup",
+      "dismiss": "Later",
+      "hermesBadge": "Hermes Migration Standard"
+    },
     "retry": "Retry",
     "archiveRestore": {
       "invalidTitle": "Archive Restore Failed",
@@ -4748,6 +4756,18 @@
         "unmappedItems": "Unmapped",
         "status": "Status",
         "instructionPreviewTitle": "Instructions & persona preview",
+        "hermesMapping": {
+          "title": "Hermes Architecture Drop-in Mapping",
+          "badge": "100% Asset Readiness",
+          "userMdTarget": "Procedural Directives & Behavioral Rules",
+          "userMdDesc": "Top-priority injection, tamper-proof protected instruction approval gate",
+          "memoryMdTarget": "Fact & Episodic Knowledge Base",
+          "memoryMdDesc": "Isolated read-only context, wrap_untrusted injection firewall barrier",
+          "sessionSearchTarget": "Native SQLite FTS5 Dialogue Backtrace",
+          "sessionSearchDesc": "Millisecond-level precise full-text search, 0 external daemon overhead",
+          "externalMcpTarget": "Progressive Disclosure & Sandbox Tooling",
+          "externalMcpDesc": "Direct FC + Skill PTC + strict human-in-the-loop audit gates"
+        },
         "lanesTitle": "Four migration lanes",
         "laneLabels": {
           "instruction_lane": "Instructions & persona",

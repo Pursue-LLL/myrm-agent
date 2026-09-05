@@ -13,5 +13,6 @@
 | `SpreadsheetEditor/`                   | XLSX Live 编辑器（Univer Sheet + SheetJS 双向转换）      |
 | `DocxPreview/`                         | Word 文档（docx-preview 库）                             |
 | `PptxPreview/`                         | 演示文稿（@aiden0z/pptx-renderer 库）                    |
+| `ArchitecturePreview.tsx`              | 交互式架构图/拓扑图（@xyflow/react + @dagrejs/dagre 引擎，含演化 Diff） |
 | `DiffPreview.tsx`                      | 版本间差异对比（Monaco DiffEditor，inline/side-by-side） |
 | `NoPreview.tsx` / `SkeletonLoader.tsx` | 占位与加载                                               |

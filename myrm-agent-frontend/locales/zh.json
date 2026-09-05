@@ -2896,6 +2896,14 @@
       "dismiss": "稍后再说",
       "apiKeysHint": "检测到 API Key 名称，请在设置中手动填写"
     },
+    "memoryHygieneChip": {
+      "title": "5 分钟记忆体检",
+      "tagline": "月度记忆健康管家",
+      "subtitle": "主动审查陈旧记忆与容量水位，一键自愈与规范化",
+      "action": "立即体检",
+      "dismiss": "稍后再看",
+      "hermesBadge": "Hermes 迁民健康标准"
+    },
     "reasoningModelDisabledWithImage": "启用视觉增强后，图片需由视觉模型处理",
     "retry": "重试",
     "archiveRestore": {
@@ -4749,6 +4757,18 @@
         "unmappedItems": "未映射",
         "status": "状态",
         "instructionPreviewTitle": "指令与人设预览",
+        "hermesMapping": {
+          "title": "Hermes 四层架构无缝映射对照",
+          "badge": "100% 资产无缝就绪",
+          "userMdTarget": "行为强规则与人设指令 (Procedural Rules)",
+          "userMdDesc": "全量置顶注入，享最高行为权威，受保护指令写审批防线护航",
+          "memoryMdTarget": "长期事实与情景知识库 (Semantic / Episodic)",
+          "memoryMdDesc": "物理隔离只读上下文，wrap_untrusted 防注入边界阻断越权",
+          "sessionSearchTarget": "原生 SQLite FTS5 对话检索",
+          "sessionSearchDesc": "本地毫秒级全文精准回溯，0 外部中间件依赖",
+          "externalMcpTarget": "渐进式披露与安全沙箱工具体系",
+          "externalMcpDesc": "Direct FC + Skill PTC + 严格权限审计，超越插件矩阵"
+        },
         "lanesTitle": "四条迁移车道",
         "laneLabels": {
           "instruction_lane": "指令与人设",

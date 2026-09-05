@@ -414,7 +414,7 @@ def test_rebind_subagent_memory_search_tool_skips_sessions_when_opt_in_off(monke
 @pytest.mark.asyncio
 async def test_rebound_memory_search_tool_blocks_sessions_when_opt_in_off() -> None:
     from myrm_agent_harness.toolkits import create_memory_tools
-    from myrm_agent_harness.toolkits.memory.memory_search_policy import MemorySearchPolicy
+    from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import MemorySearchPolicy
 
     class FakeMemoryManager:
         approval_required = False

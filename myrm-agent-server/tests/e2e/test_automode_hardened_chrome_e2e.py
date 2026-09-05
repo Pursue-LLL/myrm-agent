@@ -102,10 +102,9 @@ def _cleanup_approval(api_url: str, approval_id: str) -> None:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
@@ -138,10 +137,9 @@ def test_socially_irreversible_action_renders_banner_and_hides_allow_always() ->
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration

@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Search,
   ShieldAlert,
+  ShieldCheck,
   Download,
   Upload,
 } from 'lucide-react';
@@ -417,6 +418,60 @@ function MigrationLaneMatrix({ lanes, t }: { lanes: MigrationLanePreviewItem[]; 
   );
 }
 
+function HermesArchitectureMappingCard({ t }: { t: TranslationFn }) {
+  const mappingRows = [
+    {
+      source: 'USER.md',
+      target: t('preview.hermesMapping.userMdTarget'),
+      desc: t('preview.hermesMapping.userMdDesc'),
+    },
+    {
+      source: 'MEMORY.md',
+      target: t('preview.hermesMapping.memoryMdTarget'),
+      desc: t('preview.hermesMapping.memoryMdDesc'),
+    },
+    {
+      source: 'session search',
+      target: t('preview.hermesMapping.sessionSearchTarget'),
+      desc: t('preview.hermesMapping.sessionSearchDesc'),
+    },
+    {
+      source: 'external MCP (8 plugins)',
+      target: t('preview.hermesMapping.externalMcpTarget'),
+      desc: t('preview.hermesMapping.externalMcpDesc'),
+    },
+  ];
+
+  return (
+    <div
+      data-testid="hermes-architecture-mapping-card"
+      className="space-y-3 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <h3 className="text-sm font-medium text-foreground">{t('preview.hermesMapping.title')}</h3>
+        </div>
+        <Badge variant="outline" className="text-[10px] border-indigo-500/30 text-indigo-700 dark:text-indigo-300">
+          {t('preview.hermesMapping.badge')}
+        </Badge>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 text-xs">
+        {mappingRows.map((row) => (
+          <div key={row.source} className="rounded-lg border border-border/40 bg-background/60 p-2.5 space-y-1">
+            <div className="flex items-center gap-1.5 font-mono text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">
+              <span>{row.source}</span>
+              <span className="text-muted-foreground font-sans">→</span>
+              <span className="font-sans font-medium text-foreground truncate">{row.target}</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">{row.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TokenEconomicsCard({
   data,
   sourceName,
@@ -533,6 +588,8 @@ export function PreviewStep({
       <CoverageMatrix items={dryRun.coverage_items ?? []} t={t} />
 
       <MigrationLaneMatrix lanes={dryRun.migration_lanes ?? []} t={t} />
+
+      {source.competitor === 'hermes' && <HermesArchitectureMappingCard t={t} />}
 
       {(dryRun.cron_skipped?.length ?? 0) > 0 && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-left text-xs space-y-2">

@@ -50,7 +50,7 @@
   },
   "continualOverlay": {
     "activeTitle": "Aktive Overlay-Richtlinie",
-    "remainingTurns": "{count, plural, =1 {1 Runde verbleibend} other {# Runden verbleibend}}",
+    "remainingTurns": "{count} turns left",
     "rollbackTooltip": "Aktuelle Richtlinienänderung zurücksetzen",
     "rollback": "Zurücksetzen",
     "collapse": "Einklappen",
@@ -2934,6 +2934,14 @@
       "depth": "Tiefe",
       "level": "Ebene",
       "runAffectedTests": "{count} betroffene Test-Suites ausführen"
+    },
+    "memoryHygieneChip": {
+      "title": "5-Minute Memory Hygiene",
+      "tagline": "Monthly Memory Health Guardian",
+      "subtitle": "Inspect staleness, trim context bloat, and restore disciplined defaults with 1 click",
+      "action": "Run Checkup",
+      "dismiss": "Later",
+      "hermesBadge": "Hermes Migration Standard"
     }
   },
   "mode": {
@@ -4975,6 +4983,18 @@
           "invalid_schedule": "Ungültiger oder nicht unterstützter Zeitplan",
           "prompt_injection": "Eingabeaufforderung durch Sicherheitsscan blockiert",
           "unsupported_job_type": "Nicht unterstützter Aufgabentyp"
+        },
+        "hermesMapping": {
+          "title": "Hermes 4-Schichten-Architektur-Mapping",
+          "badge": "100% Nahtlose Asset-Bereitschaft",
+          "userMdTarget": "Verhaltensregeln & Persona-Anweisungen (Procedural Rules)",
+          "userMdDesc": "Höchste Priorität, geschützt durch Freigabe-Gate für geschützte Dateien",
+          "memoryMdTarget": "Fakten & episodische Wissensbasis (Semantic / Episodic)",
+          "memoryMdDesc": "Isolierter schreibgeschützter Kontext, wrap_untrusted-Schutzbarriere",
+          "sessionSearchTarget": "Natives SQLite FTS5-Gesprächsdurchsuchung",
+          "sessionSearchDesc": "Lokale Volltextsuche im Millisekundenbereich, 0 externe Middleware-Abhängigkeit",
+          "externalMcpTarget": "Progressive Offenlegung & Sandbox-Werkzeugsystem",
+          "externalMcpDesc": "Direct FC + Skill PTC + strenge Prüfgates"
         }
       },
       "result": {
@@ -15628,7 +15648,12 @@
         "revealInManager": "Anzeigen",
         "cleanupInvalid": "Bereinigen",
         "revealFailed": "Anzeigen des Pfads fehlgeschlagen",
-        "export": "Exportieren"
+        "export": "Exportieren",
+        "previewTab": "Vorschau",
+        "sourceTab": "Quellcode",
+        "saveSource": "SKILL.md speichern",
+        "sourceSaved": "SKILL.md erfolgreich gespeichert",
+        "sourceSaveFailed": "Speichern von SKILL.md fehlgeschlagen"
       },
       "upload": {
         "title": "Benutzerdefinierte Fähigkeit hochladen",

@@ -9,6 +9,7 @@ import SamplePrompts from './SamplePrompts';
 import ConversationRecallHint from './ConversationRecallHint';
 import MigrationDiscoveryBanner from './MigrationDiscoveryBanner';
 import GrowingLoopDiscoveryChip from './GrowingLoopDiscoveryChip';
+import MemoryHygieneDiscoverChip from './MemoryHygieneDiscoverChip';
 import FeaturedExpertChips from './FeaturedExpertChips';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
@@ -71,6 +72,8 @@ const EmptyChat = React.memo(() => {
         <MigrationDiscoveryBanner />
 
         <GrowingLoopDiscoveryChip />
+
+        <MemoryHygieneDiscoverChip />
 
         <ConversationRecallHint />
 

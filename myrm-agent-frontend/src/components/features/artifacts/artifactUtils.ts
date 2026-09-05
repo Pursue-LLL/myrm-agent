@@ -37,6 +37,7 @@ const ARTIFACT_ICON_MAP: Record<ArtifactType, React.ElementType> = {
   word_document: Doc02Icon,
   binary: File02Icon,
   interactive_ui: File01Icon,
+  architecture: GitBranchIcon,
 };
 
 /** 文件扩展名到图标的精确映射 */
@@ -222,6 +223,15 @@ export function isSvgType(contentType: string, filename: string): boolean {
 /** 判断是否为 Mermaid 图表类型 */
 export function isMermaidType(contentType: string, filename: string): boolean {
   return contentType.includes('text/mermaid') || filename.endsWith('.mermaid') || filename.endsWith('.mmd');
+}
+
+/** 判断是否为 Architecture 交互架构图类型 */
+export function isArchitectureType(contentType: string, filename: string): boolean {
+  return (
+    contentType.includes('application/x-architecture') ||
+    filename.endsWith('.arch.json') ||
+    filename.endsWith('.architecture.json')
+  );
 }
 
 /**
