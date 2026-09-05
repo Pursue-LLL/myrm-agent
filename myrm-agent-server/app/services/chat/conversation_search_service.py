@@ -315,17 +315,23 @@ class ConversationSearchService:
                     if planned.is_relaxed:
                         relaxed_used = True
                 new_rows = [row for row in rows if row.chat_id not in seen_chat_ids]
-                for index, row in enumerate(new_rows):
-                    hits.append(
+                scored_candidates = [
+                    (
+                        row,
                         _fts_hit(
                             row,
                             index,
                             len(rows),
                             agent_id,
                             score_weight=planned.score_weight,
-                        )
+                        ),
                     )
-                    seen_chat_ids.add(row.chat_id)
+                    for index, row in enumerate(new_rows)
+                ]
+                scored_candidates.sort(key=lambda pair: pair[1].score, reverse=True)
+                for _, hit in scored_candidates:
+                    hits.append(hit)
+                    seen_chat_ids.add(hit.conversation_id)
                     if len(hits) >= candidate_limit:
                         return hits, relaxed_used, effective_tokens
         return hits, relaxed_used, effective_tokens

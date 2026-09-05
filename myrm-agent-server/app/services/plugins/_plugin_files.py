@@ -152,18 +152,16 @@ def persist_plugin_files(
 def _contained_path(root_dir: Path, rel_path: str) -> Path | None:
     """Resolve ``rel_path`` under ``root_dir``, rejecting any escape.
 
-    Returns None for absolute paths, drive prefixes, and ``..`` traversal.
+    Consolidated to canonical safe_join_path for uniform path containment.
+    Returns None for absolute paths, drive prefixes, and traversal.
     """
-    normalized = rel_path.replace("\\", "/")
-    if normalized.startswith("/"):
+    from myrm_agent_harness.api import safe_join_path
+
+    try:
+        joined = safe_join_path(root_dir, rel_path)
+        return joined.resolve()
+    except (ValueError, OSError):
         return None
-    if normalized.startswith("./"):
-        normalized = normalized[2:]
-    if not normalized or normalized.startswith("../") or "/../" in normalized or normalized == "..":
-        return None
-    candidate = (root_dir / normalized).resolve()
-    root_resolved = root_dir.resolve()
-    return candidate if candidate.is_relative_to(root_resolved) else None
 
 
 def remove_plugin_files(plugin_name: str, data_dir: Path) -> bool:

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { FolderOpen, Info } from 'lucide-react';
+import { FolderOpen, Info, ShieldCheck } from 'lucide-react';
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import type { CommandSpan, PlainExplanation, SpanRiskLevel, SpanRiskReason } from '@/lib/approval/shellCommandDisplay';
@@ -16,6 +16,8 @@ interface ShellCommandDisplayProps {
   commandSpanReasons?: SpanRiskReason[];
   plainExplanation?: PlainExplanation;
   workspaceRoot?: string;
+  scriptOperandPath?: string;
+  scriptOperandHash?: string;
   className?: string;
 }
 
@@ -89,6 +91,8 @@ export default function ShellCommandDisplay({
   commandSpanReasons,
   plainExplanation,
   workspaceRoot,
+  scriptOperandPath,
+  scriptOperandHash,
   className = '',
 }: ShellCommandDisplayProps) {
   const t = useTranslations('toolApproval');
@@ -101,9 +105,33 @@ export default function ShellCommandDisplay({
   return (
     <TooltipProvider delayDuration={200}>
       <div className={`rounded-lg border border-border overflow-hidden bg-muted/40 dark:bg-zinc-950 ${className}`}>
-        <div className="bg-muted/70 dark:bg-zinc-900 px-3 py-1.5 border-b border-border font-mono text-xs text-muted-foreground flex items-center gap-2 min-w-0">
-          <span className="text-emerald-600 dark:text-emerald-400 shrink-0">$</span>
-          <span className="truncate">{toolName}</span>
+        <div className="bg-muted/70 dark:bg-zinc-900 px-3 py-1.5 border-b border-border font-mono text-xs text-muted-foreground flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-emerald-600 dark:text-emerald-400 shrink-0">$</span>
+            <span className="truncate">{toolName}</span>
+          </div>
+          {scriptOperandHash && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shrink-0 cursor-help">
+                  <ShieldCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
+                  <span>{t('scriptOperand.protectedBadge')}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs space-y-1">
+                <p className="font-semibold text-xs">{t('scriptOperand.protectedBadge')}</p>
+                <p className="text-[11px] text-muted-foreground">{t('scriptOperand.protectedTooltip')}</p>
+                {scriptOperandPath && (
+                  <p className="text-[10px] font-mono break-all text-muted-foreground">
+                    {t('scriptOperand.pathLabel')}: {scriptOperandPath}
+                  </p>
+                )}
+                <p className="text-[10px] font-mono break-all text-emerald-600 dark:text-emerald-400">
+                  {t('scriptOperand.hashLabel')}: {scriptOperandHash.slice(0, 16)}...
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
         <div className="px-3 py-2 font-mono text-xs sm:text-sm whitespace-pre-wrap break-all text-foreground">
           {hasSpans

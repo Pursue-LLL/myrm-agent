@@ -291,3 +291,24 @@ class TestGetChatsPaginatedWithFTS:
         )
         chats, total = await ChatRepository.get_chats_paginated(fts_session, offset=0, limit=10, keyword="HPA")
         assert any(c.id == "chat-pg-zh" for c in chats)
+
+    async def test_short_cjk_keyword_two_tier_fallback(self, fts_session: AsyncSession) -> None:
+        """Verify 2-character Chinese keyword recall via short-query fallback when trigram yields 0 hits."""
+        await _seed_chat_with_messages(
+            fts_session,
+            "chat-pg-cjk-short",
+            "沙箱管理",
+            [("msg-cjk-s1", "user", "沙箱环境部署已完成")],
+        )
+        # In trigram FTS, '沙箱' is < 3 chars so messages_fts yields 0.
+        # Fallback automatically recalls it.
+        chat_ids = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "沙箱")
+        assert "chat-pg-cjk-short" in chat_ids
+
+        # Also verify search_messages_fts returns with is_relaxed=True
+        msgs, total = await ChatMessageSearchRepository.search_messages_fts(
+            fts_session, "沙箱", limit=10, offset=0, since=None, until=None
+        )
+        assert total > 0
+        assert any(m["chat_id"] == "chat-pg-cjk-short" for m in msgs)
+        assert any(m.get("is_relaxed") is True for m in msgs)

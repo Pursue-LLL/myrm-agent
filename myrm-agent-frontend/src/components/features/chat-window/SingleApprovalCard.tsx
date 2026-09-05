@@ -462,6 +462,8 @@ export default function SingleApprovalCard({
               commandSpanReasons={request.commandSpanReasons}
               plainExplanation={request.plainExplanation}
               workspaceRoot={request.workspaceRoot}
+              scriptOperandPath={request.scriptOperandPath}
+              scriptOperandHash={request.scriptOperandHash}
             />
           ) : isSaveSkill ? (
             <SaveSkillApprovalPreview

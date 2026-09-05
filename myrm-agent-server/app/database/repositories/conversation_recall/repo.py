@@ -418,8 +418,55 @@ class ConversationRecallRepository:
                 logger.info("Auto-rebuilt conversation_recall_fts successfully")
             except Exception:
                 pass
-        return _dedupe_recall_rows(
+
+        results = _dedupe_recall_rows(
             [recall_row(row) for row in [*segment_rows, *document_rows]],
+            limit=limit,
+        )
+        if results:
+            return results
+
+        # Two-tier fallback for short keywords (< 3 chars) or CJK where trigram yields 0 hits
+        fallback_rows = []
+        try:
+            fallback_params = {**params, "kw_pattern": f"%{safe_query}%"}
+            fallback_rows = (
+                (
+                    await db.execute(
+                        text(f"""
+                        SELECT
+                            d.chat_id AS chat_id,
+                            d.title AS title,
+                            d.agent_id AS agent_id,
+                            d.source AS source,
+                            s.message_id AS message_id,
+                            SUBSTR(s.segment_text, 1, 100) AS snippet,
+                            d.summary AS summary,
+                            s.sent_at AS last_message_at,
+                            d.created_at AS created_at,
+                            d.updated_at AS updated_at,
+                            -1.0 AS rank,
+                            f.parent_chat_id AS fork_parent_id
+                        FROM conversation_recall_segments s
+                        JOIN conversation_recall_documents d ON d.chat_id = s.chat_id
+                        LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
+                        WHERE (s.segment_text LIKE :kw_pattern OR d.searchable_text LIKE :kw_pattern)
+                          AND d.is_excluded = 0
+                          {filters}
+                        ORDER BY s.sent_at DESC, d.last_message_at DESC
+                        LIMIT :limit
+                    """),
+                        fallback_params,
+                    )
+                )
+                .mappings()
+                .all()
+            )
+        except Exception as fb_exc:
+            logger.warning("conversation_recall fallback LIKE search failed: %s", fb_exc)
+
+        return _dedupe_recall_rows(
+            [recall_row(row) for row in fallback_rows],
             limit=limit,
         )
 

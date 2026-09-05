@@ -8617,6 +8617,12 @@
     "targetElement": "目标元素",
     "action": "操作",
     "jsExpression": "JavaScript 表达式",
+    "scriptOperand": {
+      "protectedBadge": "脚本内容防篡改锁定",
+      "protectedTooltip": "脚本文件内容已锚定 SHA-256 哈希。执行前若文件被篡改或替换将自动终止执行，防御 TOCTOU 攻击。",
+      "hashLabel": "内容哈希",
+      "pathLabel": "脚本路径"
+    },
     "clarificationRequired": "需要错误澄清",
     "fixParameters": "修复参数（JSON）"
   },

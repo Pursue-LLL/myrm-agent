@@ -263,6 +263,7 @@
       "petInstallFailed": "安裝寵物失敗",
       "petNoActive": "尚未安裝寵物 — 正在打開寵物面板",
       "memo": "隨身語音聽記與會議紀要解構 — 自動生成工件、派發看板待辦並沉澱長效記憶",
+      "review_week": "聽記素材全景提煉 — 聚合本週多場會議與語音素材，提煉關鍵結論與未決阻礙報告",
       "ask": "打開會話顧問進行唯讀旁路問答（/side）",
       "btwDisambiguation": "在 Myrm 中，/btw 用於啟動後台任務。主對話運行中時如需旁路問答，請使用 /ask 或 /side。",
       "loopCreateFailed": "建立循環任務失敗"

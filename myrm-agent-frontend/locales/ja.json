@@ -8595,6 +8595,12 @@
     "jsExpression": "JavaScript 式",
     "mcpElicitationTitle": "MCPサーバーの確認",
     "mcpElicitationServer": "サーバー",
+    "scriptOperand": {
+      "protectedBadge": "スクリプト内容の改ざん防止ロック",
+      "protectedTooltip": "スクリプトファイルの内容は SHA-256 ハッシュで固定されています。実行前にファイルが改ざんまたは置換された場合、TOCTOU 攻撃を防ぐため自動的に中止されます。",
+      "hashLabel": "内容ハッシュ",
+      "pathLabel": "スクリプトパス"
+    },
     "clarificationRequired": "エラーの明確化が必要です",
     "fixParameters": "パラメータを修正（JSON）",
     "knowledgePatch": {
