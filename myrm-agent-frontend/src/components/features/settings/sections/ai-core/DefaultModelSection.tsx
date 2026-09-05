@@ -39,7 +39,6 @@ import {
   shouldOfferVisionFallbackRecommendation,
 } from '@/store/config/visionCapability';
 import { toast } from 'sonner';
-import ModelOrchestrationPlaybookCard from './ModelOrchestrationPlaybookCard';
 
 const DefaultModelSection = memo(() => {
   const t = useTranslations('settings.defaultModel');
@@ -546,9 +545,6 @@ const DefaultModelSection = memo(() => {
 
   return (
     <div className="space-y-8">
-      {/* 顶部模型编排最佳实践心智指引卡片 */}
-      <ModelOrchestrationPlaybookCard />
-
       {/* 主模型配置 */}
       <SettingsSection
         title={

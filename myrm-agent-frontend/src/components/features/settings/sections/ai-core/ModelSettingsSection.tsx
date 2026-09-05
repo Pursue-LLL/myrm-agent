@@ -8,6 +8,7 @@ import { IconCpu, IconSliders } from '@/components/features/icons/PremiumIcons';
 import { useSettingsSubTabUrl } from '@/hooks/settings/useSettingsSubTabUrl';
 import ModelServiceSection from './ModelServiceSection';
 import DefaultModelSection from './DefaultModelSection';
+import ModelOrchestrationPlaybookCard from './ModelOrchestrationPlaybookCard';
 
 const ModelSettingsSection = memo(() => {
   const t = useTranslations('settings');
@@ -40,6 +41,8 @@ const ModelSettingsSection = memo(() => {
             : '设定默认与降级模型、路由策略及第三方模型设置 / Define default, routing, and fallback models'}
         </p>
       </div>
+
+      <ModelOrchestrationPlaybookCard />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2 h-auto min-h-10 bg-secondary/50 backdrop-blur-sm p-1 rounded-xl border border-border/40 mb-6">
