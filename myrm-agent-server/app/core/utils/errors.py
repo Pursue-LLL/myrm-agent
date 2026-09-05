@@ -12,7 +12,7 @@ from typing import NoReturn
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.agent.security.redact import redact_sensitive_text
+from myrm_agent_harness.api import redact_sensitive_text
 from myrm_agent_harness.toolkits.llms.errors import FailoverReason
 
 from app.schemas.responses import (

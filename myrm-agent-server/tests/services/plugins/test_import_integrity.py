@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from myrm_agent_harness.agent.plugins.models import PluginMcpServer
 from app.services.plugins._mcp_persist import _collect_server_configs
 from app.services.plugins._models import PluginConfirmItem, PluginImportSession
+from myrm_agent_harness.agent.plugins.models import PluginMcpServer
 
 
 def test_collect_server_configs_skips_server_with_missing_build_artifacts() -> None:

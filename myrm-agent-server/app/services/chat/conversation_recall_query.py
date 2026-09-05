@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from myrm_agent_harness.api import build_cjk_query_token_tiers, tokenize_cjk_bigram
+from myrm_agent_harness.api import build_cjk_query_token_tiers
 from myrm_agent_harness.utils.db.fts5 import sanitize_fts5_query
 
 MAX_FALLBACK_TERMS = 8
