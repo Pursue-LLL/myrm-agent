@@ -128,9 +128,6 @@ async def test_batch_resolve_publishes_idle_for_each_chat_id(app, setup_test_dat
 @pytest.mark.asyncio
 async def test_resolve_approval_with_session_duration_allow_always(app, setup_test_database) -> None:
     """POST /{id}/resolve with duration='session' writes ephemeral allowlist and purges on cleanup."""
-    from myrm_agent_harness.agent.middlewares.approval.helpers import add_to_allowlist_if_needed
-    from myrm_agent_harness.agent.security.approval_flow import get_allowlist
-
     from app.services.chat.chat_crud import _ChatCrudMixin
 
     chat_id = "chat-session-e2e-888"
@@ -177,6 +174,10 @@ async def test_resolve_approval_with_session_duration_allow_always(app, setup_te
     assert event_data["allow_always"].ttl_seconds == -1
 
     # 2. Simulate execution resume applying allow_always into harness allowlist
+    from myrm_agent_harness.agent.middlewares.approval.helpers import add_to_allowlist_if_needed
+    from myrm_agent_harness.agent.security.approval_flow import get_allowlist
+
+    al = get_allowlist()
     await add_to_allowlist_if_needed(
         event_data["allow_always"].model_dump(),
         user_id,
@@ -184,8 +185,6 @@ async def test_resolve_approval_with_session_duration_allow_always(app, setup_te
         tool_name,
         session_id=chat_id,
     )
-
-    al = get_allowlist()
     # 3. Ephemeral session grant exists in memory for this session
     assert al.check(user_id, "shell_execute", tool_name, session_id=chat_id) is True
     # 4. Denied under different session

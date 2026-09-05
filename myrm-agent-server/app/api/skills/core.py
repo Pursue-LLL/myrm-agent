@@ -61,9 +61,12 @@ async def list_skills(
     )
 
 
-@router.get("/{skill_id}/files/{filename}")
+@router.get("/{skill_id}/files/{filename:path}")
 async def get_skill_file(skill_id: str, filename: str) -> PlainTextResponse:
     """Get skill file content by skill ID and filename."""
+    if ".." in filename or filename.startswith(("/", "\\")):
+        raise HTTPException(status_code=400, detail="Path traversal detected in filename")
+
     raw_content = await skills_service.get_skill_file(skill_id, filename)
     if raw_content is None:
         raise HTTPException(status_code=404, detail=f"File not found: {filename}")
@@ -77,7 +80,7 @@ async def get_skill_file(skill_id: str, filename: str) -> PlainTextResponse:
     return PlainTextResponse(text_body)
 
 
-@router.put("/{skill_id}/files/{filename}", response_model=SkillFileUpdateResponse)
+@router.put("/{skill_id}/files/{filename:path}", response_model=SkillFileUpdateResponse)
 async def update_skill_file(
     skill_id: str,
     filename: str,
@@ -91,12 +94,18 @@ async def update_skill_file(
     if ".." in filename or filename.startswith(("/", "\\")):
         raise HTTPException(status_code=400, detail="Path traversal detected in filename")
 
+    from pathlib import Path
+
     from myrm_agent_harness.backends.skills.scanning.scanner import (
         SkillTrustRecommendation,
         scan_skill_content,
     )
 
-    scan_res = scan_skill_content(payload.content, filename=filename, skill_name=skill.name)
+    scan_res = scan_skill_content(
+        skill.name,
+        payload.content,
+        file_extension=Path(filename).suffix,
+    )
     if scan_res.trust_recommendation == SkillTrustRecommendation.REJECT:
         rejection_reasons = [f"{f.threat_type}: {f.description}" for f in scan_res.findings if f.severity >= 3]
         raise HTTPException(

@@ -2790,7 +2790,14 @@
       "customErrorProbeFailed": "エンドポイントのプローブに失敗しました",
       "customErrorDetectFirst": "先にモデル検出を実行してください",
       "customErrorReachabilityFailed": "エンドポイントには接続できましたが、モデルのヘルスチェックに失敗しました",
-      "customDetectSuccess": "{count} 個のモデルを検出しました"
+      "customDetectSuccess": "{count} 個のモデルを検出しました",
+      "checklistTitle": "ツール呼び出し推奨ベンチマーク",
+      "checklistSubtitle": "複雑なタスクに対応済み",
+      "recommendedBadge": "推奨",
+      "verifiedBadge": "ツール呼び出し対応確認済み: {model}",
+      "verifiedDescription": "このモデルは Myrm の互換性テストを通過しており、関数呼び出しやファイル操作、Web 検索を安定して実行できます。",
+      "unverifiedWarningTitle": "未検証モデルに関する注意: {model}",
+      "unverifiedWarningDescription": "このモデルは公式のツール呼び出し互帮性検証が行われていません。複雑なスキルの実行時にフォーマット異常が発生する可能性があります。"
     },
     "migrationDiscovery": {
       "detecting": "ローカル AI アシスタントのデータをスキャン中...",

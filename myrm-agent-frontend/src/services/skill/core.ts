@@ -102,6 +102,32 @@ export async function getSkillFile(skillId: string, filename: string): Promise<s
   return response.text();
 }
 
+export interface UpdateSkillFileResponse {
+  status: string;
+  skill_id: string;
+  filename: string;
+  is_clean: boolean;
+  trust_recommendation: string;
+  findings_count: number;
+}
+
+/**
+ * 保存技能文件内容并自动触发安全审计
+ * @param skillId 技能 ID
+ * @param filename 文件名
+ * @param content 文件正文
+ */
+export async function saveSkillFile(
+  skillId: string,
+  filename: string,
+  content: string,
+): Promise<UpdateSkillFileResponse> {
+  return apiRequest<UpdateSkillFileResponse>(`${SKILLS_API_PREFIX}/${skillId}/files/${filename}`, {
+    method: 'PUT',
+    body: JSON.stringify({ content }),
+  });
+}
+
 /**
  * 获取用户技能配置
  */

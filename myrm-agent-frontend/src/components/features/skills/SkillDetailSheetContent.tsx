@@ -24,6 +24,9 @@ import {
   FolderX,
   Copy,
   Trash2,
+  Code,
+  Eye,
+  Save,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { resolveSkillDescription } from '@/lib/utils/skillUtils';
@@ -47,6 +50,9 @@ import {
 import { SkillQualityGuardian } from './SkillQualityGuardian';
 import { SkillVersionsPanel } from './SkillVersionsPanel';
 import { SkillPermissionUsageDashboard } from './SkillPermissionUsageDashboard';
+import { LazyMonacoEditor } from '@/components/features/app-shell/lazy-monaco-editor';
+import { saveSkillFile } from '@/services/skill/core';
+import { useState, useEffect } from 'react';
 import {
   EvalCasesSection,
   RequirementRow,
