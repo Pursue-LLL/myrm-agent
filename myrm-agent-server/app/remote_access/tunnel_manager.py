@@ -64,7 +64,7 @@ class TunnelManager:
             self._error = ""
             self._public_url = ""
             try:
-                from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+                from myrm_agent_harness.api import (
                     EnvInheritPolicy,
                     build_isolated_child_env,
                 )

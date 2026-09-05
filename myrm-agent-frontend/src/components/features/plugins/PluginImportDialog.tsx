@@ -35,6 +35,12 @@ interface PluginImportDialogProps {
   onImportComplete: () => void;
 }
 
+interface CapabilityDiff {
+  added: string[];
+  removed: string[];
+  has_escalation: boolean;
+}
+
 interface PluginMeta {
   name: string;
   version: string | null;
@@ -44,6 +50,10 @@ interface PluginMeta {
   repository: string | null;
   license: string | null;
   keywords: string[];
+  capabilities?: string[];
+  effective_tier?: string;
+  risk_level?: string;
+  capability_diff?: CapabilityDiff | null;
 }
 
 interface PluginSkillPreview {
@@ -67,6 +77,7 @@ interface PluginServerPreview {
   missing_artifact?: string | null;
   is_runnable?: boolean;
   missing_artifacts?: string[];
+  capabilities?: string[];
 }
 
 interface PluginAgentPreview {
@@ -135,6 +146,23 @@ function resolveErrorMessage(error: unknown, fallback: string): string {
     return error.message;
   }
   return fallback;
+}
+
+function getCapabilityTierBadgeStyle(tier: string): string {
+  switch (tier) {
+    case 'destructive':
+      return 'border-destructive/40 text-destructive bg-destructive/10';
+    case 'shell_exec':
+      return 'border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10';
+    case 'network':
+    case 'fs_write':
+      return 'border-blue-500/40 text-blue-600 dark:text-blue-400 bg-blue-500/10';
+    case 'fs_read':
+      return 'border-muted-foreground/30 text-muted-foreground bg-muted/20';
+    case 'read_only':
+    default:
+      return 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10';
+  }
 }
 
 const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: PluginImportDialogProps) => {
@@ -476,9 +504,42 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                             {preview.plugin.license}
                           </Badge>
                         )}
+                        {preview.plugin.risk_level && (
+                          <Badge
+                            variant={preview.plugin.risk_level === 'critical' ? 'destructive' : 'outline'}
+                            className={cn(
+                              'text-xs font-normal',
+                              preview.plugin.risk_level === 'high' &&
+                                'border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10',
+                              preview.plugin.risk_level === 'medium' &&
+                                'border-blue-500/50 text-blue-600 dark:text-blue-400 bg-blue-500/10',
+                              preview.plugin.risk_level === 'low' &&
+                                'border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+                            )}
+                          >
+                            <IconShieldCheck className="w-3 h-3 mr-1 inline-block" />
+                            {t(`capabilities.risk.${preview.plugin.risk_level}` as Parameters<typeof t>[0])}
+                          </Badge>
+                        )}
                       </div>
                       {preview.plugin.description && (
                         <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{preview.plugin.description}</p>
+                      )}
+                      {preview.plugin.capabilities && preview.plugin.capabilities.length > 0 && (
+                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                          <span className="text-[11px] text-muted-foreground font-medium mr-0.5">
+                            {t('capabilities.title')}:
+                          </span>
+                          {preview.plugin.capabilities.map((cap) => (
+                            <Badge
+                              key={cap}
+                              variant="outline"
+                              className={cn('text-[10px] px-1.5 py-0 font-normal', getCapabilityTierBadgeStyle(cap))}
+                            >
+                              {t(`capabilities.${cap}` as Parameters<typeof t>[0])}
+                            </Badge>
+                          ))}
+                        </div>
                       )}
                       <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                         {preview.plugin.author?.name && (
@@ -499,6 +560,23 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                     {t('actions.reselect')}
                   </Button>
                 </div>
+
+                {/* Capability Escalation Warning */}
+                {preview.plugin.capability_diff?.has_escalation && (
+                  <Alert variant="destructive" className="py-2.5">
+                    <IconAlertTriangle className="h-4 w-4" />
+                    <AlertTitle className="text-xs font-semibold">
+                      {t('capabilities.escalationTitle')}
+                    </AlertTitle>
+                    <AlertDescription className="text-xs mt-0.5">
+                      {t('capabilities.escalationWarning', {
+                        added: preview.plugin.capability_diff.added
+                          .map((c) => t(`capabilities.${c}` as Parameters<typeof t>[0]))
+                          .join(', '),
+                      })}
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 {/* Diagnostics */}
                 {preview.diagnostics.length > 0 && (
@@ -770,6 +848,19 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                                 {item.url ? ` · ${item.url}` : ''}
                                 {item.has_placeholders ? ` · ${t('sections.placeholder')}` : ''}
                               </p>
+                              {item.capabilities && item.capabilities.length > 0 && (
+                                <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                  {item.capabilities.map((cap) => (
+                                    <Badge
+                                      key={cap}
+                                      variant="outline"
+                                      className={cn('text-[10px] px-1 py-0 font-normal', getCapabilityTierBadgeStyle(cap))}
+                                    >
+                                      {t(`capabilities.${cap}` as Parameters<typeof t>[0])}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
                               {isMissingArtifact && (
                                 <p className="text-xs text-destructive mt-0.5">
                                   {t('security.missingArtifact', { file: missingFile })}

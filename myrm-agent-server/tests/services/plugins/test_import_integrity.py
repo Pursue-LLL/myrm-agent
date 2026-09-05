@@ -98,3 +98,40 @@ def test_build_preview_result_includes_runnability_and_missing_artifacts() -> No
     assert server_preview["missing_artifact"] == "dist/index.js"
     assert server_preview["missing_artifacts"] == ["./dist/index.js"]
 
+
+def test_build_preview_result_capability_diff_and_tiers() -> None:
+    from myrm_agent_harness.agent.plugins.models import (
+        AgentPluginManifestMeta,
+        PluginCapabilityTier,
+        PluginParseResult,
+    )
+
+    from app.services.plugins._preview import build_preview_result, compute_capability_diff
+
+    # Test pure compute_capability_diff
+    diff_res = compute_capability_diff({"read_only"}, {"read_only", "shell_exec"})
+    assert diff_res["added"] == ["shell_exec"]
+    assert diff_res["has_escalation"] is True
+
+    diff_safe = compute_capability_diff({"read_only", "fs_read"}, {"read_only"})
+    assert diff_safe["removed"] == ["fs_read"]
+    assert diff_safe["has_escalation"] is False
+
+    # Test build_preview_result with installed capabilities
+    manifest_meta = AgentPluginManifestMeta(
+        name="test-escalation",
+        declared_capabilities=(PluginCapabilityTier.SHELL_EXEC,),
+    )
+    result = PluginParseResult(meta=manifest_meta)
+    preview = build_preview_result(
+        result,
+        installed_capabilities={"read_only"},
+    )
+    assert preview["plugin"]["effective_tier"] == "shell_exec"
+    assert preview["plugin"]["risk_level"] == "high"
+    diff = preview["plugin"]["capability_diff"]
+    assert diff is not None
+    assert diff["has_escalation"] is True
+    assert "shell_exec" in diff["added"]
+
+

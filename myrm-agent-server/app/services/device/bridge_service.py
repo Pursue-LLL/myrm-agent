@@ -131,7 +131,7 @@ class DeviceBridgeService:
         if not adb:
             return -1, b"", b"ADB executable not found"
 
-        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+        from myrm_agent_harness.api import (
             EnvInheritPolicy,
             build_isolated_child_env,
         )

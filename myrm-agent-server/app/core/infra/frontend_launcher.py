@@ -299,7 +299,7 @@ class FrontendLauncher:
             )
             self._frontend_port = actual_port
 
-        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+        from myrm_agent_harness.api import (
             EnvInheritPolicy,
             build_isolated_child_env,
         )

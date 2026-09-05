@@ -534,7 +534,7 @@ async def test_external_agent(
     if not found:
         return ChannelTestResponse(ok=False, message=f"Command '{command}' not found in PATH")
 
-    from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+    from myrm_agent_harness.api import (
         EnvInheritPolicy,
         build_isolated_child_env,
     )

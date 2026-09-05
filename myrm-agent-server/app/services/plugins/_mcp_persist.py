@@ -133,14 +133,12 @@ def _server_to_config_dict(
     if plugin_root and data_root:
         extra_params["plugin_root"] = plugin_root
         extra_params["data_root"] = data_root
+    if getattr(server, "capabilities", None):
+        caps_list = [cap.value if hasattr(cap, "value") else str(cap) for cap in server.capabilities]
+        cfg["capabilities"] = caps_list
+        extra_params["capabilities"] = caps_list
     if extra_params:
         cfg["extra_params"] = extra_params
-    if server.env_key_names:
-        # Scoped Secret Injection: the runtime pulls only these keys from the
-        # agent vault (mcp_runtime_prepare), never the full environment.
-        cfg["required_secrets"] = list(server.env_key_names)
-    if getattr(server, "capabilities", None):
-        cfg["capabilities"] = [cap.value if hasattr(cap, "value") else str(cap) for cap in server.capabilities]
     return cfg
 
 

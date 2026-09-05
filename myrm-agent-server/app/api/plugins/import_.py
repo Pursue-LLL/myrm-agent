@@ -162,6 +162,7 @@ async def preview_plugin_import(
         PluginStaging,
         _load_existing_skill_ids,
         build_preview_result,
+        list_installed_plugins,
         parse_plugin_zip,
     )
 
@@ -206,7 +207,20 @@ async def preview_plugin_import(
     )
     background_tasks.add_task(staging.cleanup_expired_sessions)
 
-    preview = build_preview_result(result, set(_load_existing_skill_ids()))
+    # Detect installed capabilities for capability diff (permission escalation detection)
+    installed_plugins = await list_installed_plugins()
+    plugin_name = result.meta.name if result.meta else ""
+    installed_caps: set[str] | None = None
+    for p in installed_plugins:
+        if p.get("name") == plugin_name:
+            installed_caps = set(p.get("capabilities", []))
+            break
+
+    preview = build_preview_result(
+        result,
+        set(_load_existing_skill_ids()),
+        installed_capabilities=installed_caps,
+    )
     return PluginImportPreviewResponse(
         session_id=session_id,
         plugin=PluginMetaResponse(**preview["plugin"]),

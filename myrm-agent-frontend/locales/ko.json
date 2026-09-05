@@ -8599,10 +8599,10 @@
     "mcpElicitationTitle": "MCP 서버 확인",
     "mcpElicitationServer": "서버",
     "scriptOperand": {
-      "protectedBadge": "스크립트 내용 변조 방지 잠금",
-      "protectedTooltip": "스크립트 파일 내용이 SHA-256 해시로 고정되었습니다. 실행 전 파일이 변조되거나 교체되면 TOCTOU 공격을 방어하기 위해 실행이 자동 중단됩니다.",
-      "hashLabel": "내용 해시",
-      "pathLabel": "스크립트 경로"
+      "protectedBadge": "스크립트 위변조 방지 잠금",
+      "protectedTooltip": "해당 스크립트 내용이 안전하게 잠겼습니다. 실행 전에 파일이 수정되거나 대체되면 자동으로 실행이 차단되어 시스템을 보호합니다.",
+      "hashLabel": "보안 지문",
+      "pathLabel": "스크립트 파일"
     },
     "clarificationRequired": "오류 명확화 필요",
     "fixParameters": "매개변수 수정(JSON)",
@@ -18514,6 +18514,23 @@
           "trustDisclosureCloud": "클라우드 샌드박스 모드에서 실행 중입니다. 가져온 플러그인은 전용 격리 볼륨 샌드박스 내에서 작동합니다.",
           "trustRiskHint": "신뢰할 수 없는 확장 프로그램에는 프롬프트 주입이 포함될 수 있습니다. 항상 패키지가 신뢰할 수 있는 출처에서 온 것인지 확인하세요.",
           "trustedCheckboxLabel": "이 플러그인이 신뢰할 수 있는 출처임을 확인하고 시스템 도구 권한을 승인하며 설치에 동의합니다"
+        },
+        "capabilities": {
+          "title": "샌드박스 권한 계층",
+          "read_only": "읽기 전용",
+          "fs_read": "파일 읽기",
+          "fs_write": "파일 쓰기",
+          "network": "네트워크 아웃바운드",
+          "shell_exec": "셸 실행",
+          "destructive": "시스템 위험 작업",
+          "risk": {
+            "low": "낮은 위험",
+            "medium": "중간 위험",
+            "high": "높은 위험",
+            "critical": "심각한 위험"
+          },
+          "escalationTitle": "권한 상승 위험 감지됨",
+          "escalationWarning": "이 버전은 이전 설치에 비해 더 높은 권한을 요청합니다: 추가된 권한 [{added}]. 플러그인의 신뢰성을 확인하세요."
         },
         "errors": {
           "parseTitle": "분석 오류",

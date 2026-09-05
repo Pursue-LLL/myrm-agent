@@ -226,6 +226,9 @@ def build_preview_result(
             "repository": meta.repository if meta else None,
             "license": meta.license if meta else None,
             "keywords": list(meta.keywords) if meta else [],
+            "declared_capabilities": [
+                c.value for c in (getattr(meta, "declared_capabilities", ()))
+            ],
             "capabilities": aggregated_caps,
             "effective_tier": effective_tier,
             "risk_level": risk_level,

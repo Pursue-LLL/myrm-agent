@@ -1195,10 +1195,11 @@ class TestListAndUninstallPlugins:
                 "name": "demo-plugin",
                 "servers": ["pdf-server", "remote"],
                 "server_meta": [
-                    {"name": "pdf-server", "enabled": False},
-                    {"name": "remote", "enabled": True},
+                    {"name": "pdf-server", "enabled": False, "capabilities": []},
+                    {"name": "remote", "enabled": True, "capabilities": []},
                 ],
                 "has_bundled_files": True,
+                "capabilities": [],
             }
         ]
 
@@ -1586,6 +1587,77 @@ class TestAgentPluginImportWithAgents:
         # 4. Path traversal blocked
         escape_file = tmp_path / "escape.txt"
         assert not escape_file.exists()
+
+    def test_preview_capabilities_and_risk_level(self) -> None:
+        from app.services.plugins._preview import build_preview_result
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(
+                "plugin.json",
+                json.dumps({
+                    "$schema": PLUGIN_SCHEMA,
+                    "name": "shell-plugin",
+                    "version": "1.0.0",
+                }),
+            )
+            zf.writestr(
+                "mcp.json",
+                json.dumps({
+                    "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+                    "mcpServers": {
+                        "runner": {
+                            "type": "stdio",
+                            "command": "./run.sh",
+                        }
+                    },
+                }),
+            )
+            zf.writestr("run.sh", "#!/bin/sh\necho ok")
+        result = parse_plugin_zip(buf.getvalue())
+        preview = build_preview_result(result)
+
+        plugin_meta = preview["plugin"]
+        assert "shell_exec" in plugin_meta["capabilities"]
+        assert plugin_meta["effective_tier"] == "shell_exec"
+        assert plugin_meta["risk_level"] == "high"
+
+    def test_preview_capability_diff_and_escalation(self) -> None:
+        from app.services.plugins._preview import build_preview_result
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(
+                "plugin.json",
+                json.dumps({
+                    "$schema": PLUGIN_SCHEMA,
+                    "name": "escalated-plugin",
+                    "version": "2.0.0",
+                }),
+            )
+            zf.writestr(
+                "mcp.json",
+                json.dumps({
+                    "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+                    "mcpServers": {
+                        "runner": {
+                            "type": "stdio",
+                            "command": "./run.sh",
+                        }
+                    },
+                }),
+            )
+            zf.writestr("run.sh", "#!/bin/sh\necho ok")
+        result = parse_plugin_zip(buf.getvalue())
+
+        # Old version only had read_only
+        installed_caps = {"read_only"}
+        preview = build_preview_result(result, installed_capabilities=installed_caps)
+
+        diff = preview["plugin"]["capability_diff"]
+        assert diff is not None
+        assert "shell_exec" in diff["added"]
+        assert diff["has_escalation"] is True
 
 
 def _plugin_zip_with_agents_bytes() -> bytes:

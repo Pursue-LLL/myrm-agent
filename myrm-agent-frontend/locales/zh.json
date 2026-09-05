@@ -8621,10 +8621,10 @@
     "action": "操作",
     "jsExpression": "JavaScript 表达式",
     "scriptOperand": {
-      "protectedBadge": "脚本内容防篡改锁定",
-      "protectedTooltip": "脚本文件内容已锚定 SHA-256 哈希。执行前若文件被篡改或替换将自动终止执行，防御 TOCTOU 攻击。",
-      "hashLabel": "内容哈希",
-      "pathLabel": "脚本路径"
+      "protectedBadge": "脚本防篡改锁定",
+      "protectedTooltip": "该脚本内容已被安全锁定。如果在执行前文件被修改或替换，系统将自动阻止执行，确保安全。",
+      "hashLabel": "安全指纹",
+      "pathLabel": "脚本文件"
     },
     "clarificationRequired": "需要错误澄清",
     "fixParameters": "修复参数（JSON）"
@@ -18509,6 +18509,23 @@
           "trustDisclosureCloud": "当前为云托管沙箱运行模式。导入的第三方插件将在为您分配的独立隔离 Volume 沙箱中执行，但仍可访问沙箱内工作区与配置凭据。",
           "trustRiskHint": "不可信的恶意扩展可能包含提示注入指令，诱导智能体在后台越权调用工具窃取敏感配置或执行恶意脚本。请务必确认包文件来源安全可信。",
           "trustedCheckboxLabel": "我确认该插件来自可信来源，已知悉其拥有工具调用与系统权限，并同意安装"
+        },
+        "capabilities": {
+          "title": "沙箱能力层级",
+          "read_only": "只读安全",
+          "fs_read": "读取文件",
+          "fs_write": "写入文件",
+          "network": "网络外联",
+          "shell_exec": "执行命令",
+          "destructive": "系统高危",
+          "risk": {
+            "low": "低风险",
+            "medium": "中风险",
+            "high": "高风险",
+            "critical": "严重风险"
+          },
+          "escalationTitle": "检测到权限跃迁与敏感提权风险",
+          "escalationWarning": "此版本较先前版本申请了更高敏感度的系统权限：新增【{added}】。请仔细甄别插件来源后再确认导入。"
         },
         "errors": {
           "parseTitle": "解析失败",

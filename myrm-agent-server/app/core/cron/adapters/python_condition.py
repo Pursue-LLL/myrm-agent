@@ -58,7 +58,7 @@ class SandboxedPythonCondition(PreFlightCondition):
                 script_path = Path(f.name)
 
             # Execute in an isolated subprocess with CORE safe env (no host secrets)
-            from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+            from myrm_agent_harness.api import (
                 EnvInheritPolicy,
                 build_isolated_child_env,
             )

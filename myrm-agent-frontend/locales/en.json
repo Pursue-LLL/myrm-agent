@@ -8621,9 +8621,9 @@
     "action": "Action",
     "jsExpression": "JavaScript Expression",
     "scriptOperand": {
-      "protectedBadge": "Script Content Protected",
-      "protectedTooltip": "File content SHA-256 is anchored. If the file is modified before execution, it will be automatically aborted to prevent TOCTOU attacks.",
-      "hashLabel": "Content SHA-256",
+      "protectedBadge": "Script Content Locked",
+      "protectedTooltip": "This script is securely locked. If modified or replaced before execution, execution will be automatically aborted to protect your system.",
+      "hashLabel": "Security Fingerprint",
       "pathLabel": "Script File"
     },
     "clarificationRequired": "Error Clarification Required",
@@ -18509,6 +18509,23 @@
           "trustDisclosureCloud": "Running in Cloud Sandbox mode. Imported third-party plugins execute within your dedicated isolated volume sandbox, with access to sandboxed files and configured credentials.",
           "trustRiskHint": "Untrusted or malicious extensions may contain prompt injection instructions that coerce the agent into calling tools to exfiltrate secrets or run arbitrary scripts. Always ensure packages come from trusted sources.",
           "trustedCheckboxLabel": "I confirm this plugin is from a trusted source, acknowledge its system tool permissions, and agree to install"
+        },
+        "capabilities": {
+          "title": "Sandbox Capabilities",
+          "read_only": "Read-Only",
+          "fs_read": "File Read",
+          "fs_write": "File Write",
+          "network": "Network Outbound",
+          "shell_exec": "Shell Exec",
+          "destructive": "Destructive / System",
+          "risk": {
+            "low": "Low Risk",
+            "medium": "Medium Risk",
+            "high": "High Risk",
+            "critical": "Critical Risk"
+          },
+          "escalationTitle": "Privilege Escalation Risk Detected",
+          "escalationWarning": "This version requests elevated system permissions compared to previous installation: added [{added}]. Please verify the plugin source before confirming."
         },
         "errors": {
           "parseTitle": "Parse Error",

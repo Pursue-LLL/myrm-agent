@@ -264,6 +264,7 @@
       "petNoActive": "尚未安裝寵物 — 正在打開寵物面板",
       "memo": "隨身語音聽記與會議紀要解構 — 自動生成工件、派發看板待辦並沉澱長效記憶",
       "review_week": "聽記素材全景提煉 — 聚合本週多場會議與語音素材，提煉關鍵結論與未決阻礙報告",
+      "design_image": "結構化視覺生圖 — 運用 Prompt-as-Code 原子規範與商業風格庫生成高一致性配圖",
       "ask": "打開會話顧問進行唯讀旁路問答（/side）",
       "btwDisambiguation": "在 Myrm 中，/btw 用於啟動後台任務。主對話運行中時如需旁路問答，請使用 /ask 或 /side。",
       "loopCreateFailed": "建立循環任務失敗"
@@ -278,7 +279,7 @@
     "headlineCancelled": "運行已取消",
     "askButton": "提問",
     "advisorTitle": "會話顧問",
-    "advisorHint": "只讀旁路問答 — 不會寫入主對話記錄。",
+    "advisorHint": "唯讀旁路問答 — 不會寫入主對話記錄。",
     "advisorEmpty": "可詢問運行狀態、進度或待審批項。",
     "advisorPlaceholder": "Agent 現在在做什麼？",
     "advisorSend": "提問",
@@ -8616,10 +8617,10 @@
     "mcpElicitationTitle": "MCP 服務確認",
     "mcpElicitationServer": "服務",
     "scriptOperand": {
-      "protectedBadge": "指令碼內容防竄改鎖定",
-      "protectedTooltip": "指令碼檔案內容已錨定 SHA-256 雜湊。執行前若檔案被竄改或取代將自動中止執行，防禦 TOCTOU 攻擊。",
-      "hashLabel": "內容雜湊",
-      "pathLabel": "指令碼路徑"
+      "protectedBadge": "指令碼防竄改鎖定",
+      "protectedTooltip": "該指令碼內容已被安全鎖定。如果在執行前檔案被修改或取代，系統將自動阻止執行，確保安全。",
+      "hashLabel": "安全指紋",
+      "pathLabel": "指令碼檔案"
     },
     "clarificationRequired": "需要錯誤釐清",
     "fixParameters": "修正參數（JSON）"
@@ -18515,7 +18516,24 @@
           "trustDisclosureCloud": "運行在雲端沙箱模式。導入的外掛在專屬隔離卷沙箱內執行，可訪問沙箱檔案與憑證。",
           "trustRiskHint": "不受信任的擴展可能包含提示詞注入指令。請務必確保安裝包來自受信任來源。",
           "trustedCheckboxLabel": "我確認此外掛來自受信任來源，知曉其系統工具權限，並同意安裝",
-          "missingArtifact": "缺失構建產物：{file}，已自動略過，防止執行時崩潰"
+          "missingArtifact": "缺失構建產物：{file}，已自動略過，防止執行时崩潰"
+        },
+        "capabilities": {
+          "title": "沙箱能力層級",
+          "read_only": "唯讀安全",
+          "fs_read": "讀取檔案",
+          "fs_write": "寫入檔案",
+          "network": "網路外聯",
+          "shell_exec": "執行命令",
+          "destructive": "系統高危",
+          "risk": {
+            "low": "低風險",
+            "medium": "中風險",
+            "high": "高風險",
+            "critical": "嚴重風險"
+          },
+          "escalationTitle": "偵測到權限躍遷與敏感提權風險",
+          "escalationWarning": "此版本較先前版本申請了更高敏感度的系統權限：新增【{added}】。請仔細甄別外掛來源後再確認匯入。"
         }
       },
       "manager": {

@@ -81,7 +81,12 @@ _TRIGGER_REAL_TOAST_AND_VERIFY_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="workspace_backend_code",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_ui_error_redaction_real_chrome_e2e() -> None:

@@ -8599,10 +8599,10 @@
     "mcpElicitationTitle": "MCPサーバーの確認",
     "mcpElicitationServer": "サーバー",
     "scriptOperand": {
-      "protectedBadge": "スクリプト内容の改ざん防止ロック",
-      "protectedTooltip": "スクリプトファイルの内容は SHA-256 ハッシュで固定されています。実行前にファイルが改ざんまたは置換された場合、TOCTOU 攻撃を防ぐため自動的に中止されます。",
-      "hashLabel": "内容ハッシュ",
-      "pathLabel": "スクリプトパス"
+      "protectedBadge": "スクリプト防改ざんロック",
+      "protectedTooltip": "このスクリプトの内容は安全にロックされています。実行前にファイルが変更または置換された場合、実行は自動的に阻止され、安全が確保されます。",
+      "hashLabel": "セキュリティ指紋",
+      "pathLabel": "スクリプトファイル"
     },
     "clarificationRequired": "エラーの明確化が必要です",
     "fixParameters": "パラメータを修正（JSON）",
@@ -18505,6 +18505,23 @@
           "trustDisclosureCloud": "クラウドサンドボックスモードで実行中。インポートされたプラグインは専用の隔離ボリュームサンドボックス内で動作します。",
           "trustRiskHint": "信頼できない拡張機能には、プロンプトインジェクションが含まれている可能性があります。常に信頼できるソースからのパッケージであることを確認してください。",
           "trustedCheckboxLabel": "このプラグインが信頼できるソースからのものであることを確認し、システム権限を承認してインストールに同意します"
+        },
+        "capabilities": {
+          "title": "サンドボックス権限階層",
+          "read_only": "読み取り専用",
+          "fs_read": "ファイル読込",
+          "fs_write": "ファイル書込",
+          "network": "外部ネットワーク",
+          "shell_exec": "シェル実行",
+          "destructive": "システム危険操作",
+          "risk": {
+            "low": "低リスク",
+            "medium": "中リスク",
+            "high": "高リスク",
+            "critical": "重大リスク"
+          },
+          "escalationTitle": "権限昇格リスクを検出",
+          "escalationWarning": "このバージョンは以前のインストールと比較して高い権限を要求しています：追加された権限 [{added}]。プラグインの信頼性を確認してください。"
         },
         "errors": {
           "parseTitle": "解析エラー",

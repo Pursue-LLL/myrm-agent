@@ -265,6 +265,7 @@
       "petNoActive": "Kein Pet installiert — Pet-Palette wird geöffnet",
       "memo": "Sprachmemos und Protokollanalyse — Artefakte automatisch generieren, Board-Aufgaben zuweisen und Langzeitgedächtnis sichern",
       "review_week": "Wöchentliche Sprachkorpus-Zusammenfassung — Mehrere Besprechungsaufzeichnungen aggregieren, um Schlüsselfolgerungen und Blocker-Berichte zu extrahieren",
+      "design_image": "Strukturierte Bildsynthese — Erstellen Sie kommerzielle Assets mit Prompt-as-Code-Atomschemata und Stil-Voreinstellungen",
       "ask": "Session-Berater für schreibgeschützte Nebenfragen öffnen (/side)",
       "btwDisambiguation": "In Myrm startet /btw eine Hintergrundaufgabe. Für Nebenfragen während eines Laufs verwenden Sie /ask oder /side."
     }
@@ -8775,10 +8776,10 @@
     "mcpElicitationTitle": "MCP Serverbestätigung",
     "mcpElicitationServer": "Serverinstanz",
     "scriptOperand": {
-      "protectedBadge": "Skriptinhalt manipulationssicher gesperrt",
-      "protectedTooltip": "Der Inhalt der Skriptdatei ist mit einem SHA-256-Hash verankert. Wenn die Datei vor der Ausführung manipuliert oder ersetzt wird, wird sie automatisch abgebrochen, um TOCTOU-Angriffe abzuwehren.",
-      "hashLabel": "Inhalts-Hash",
-      "pathLabel": "Skriptpfad"
+      "protectedBadge": "Skript gesperrt",
+      "protectedTooltip": "Dieser Skriptinhalt ist sicher gesperrt. Wenn die Datei vor der Ausführung geändert oder ersetzt wird, wird die Ausführung automatisch abgebrochen.",
+      "hashLabel": "Sicherheits-Fingerabdruck",
+      "pathLabel": "Skriptdatei"
     },
     "clarificationRequired": "Fehlerklärung erforderlich",
     "fixParameters": "Parameter korrigieren (JSON)",
@@ -18693,6 +18694,23 @@
           "trustDisclosureCloud": "Wird im Cloud-Sandbox-Modus ausgeführt. Importierte Plugins werden in Ihrer dedizierten isolierten Volume-Sandbox ausgeführt.",
           "trustRiskHint": "Nicht vertrauenswürdige Erweiterungen können Prompt-Injections enthalten. Stellen Sie sicher, dass Pakete aus vertrauenswürdigen Quellen stammen.",
           "trustedCheckboxLabel": "Ich bestätige, dass dieses Plugin aus einer vertrauenswürdigen Quelle stammt, akzeptiere die Systemwerkzeugberechtigungen und stimme der Installation zu"
+        },
+        "capabilities": {
+          "title": "Sandbox-Fähigkeitsstufen",
+          "read_only": "Nur-Lesen",
+          "fs_read": "Dateien lesen",
+          "fs_write": "Dateien schreiben",
+          "network": "Netzwerk ausgehend",
+          "shell_exec": "Shell-Ausführung",
+          "destructive": "Systemkritisch",
+          "risk": {
+            "low": "Geringes Risiko",
+            "medium": "Mittleres Risiko",
+            "high": "Hohes Risiko",
+            "critical": "Kritisches Risiko"
+          },
+          "escalationTitle": "Privilegienerhöhung erkannt",
+          "escalationWarning": "Diese Version fordert im Vergleich zur vorherigen Installation erweiterte Rechte an: neu hinzugefügt [{added}]. Bitte prüfen Sie die Quelle vor der Bestätigung."
         }
       },
       "manager": {

@@ -175,7 +175,7 @@ class BridgeProcessMixin:
 
         self._auth_dir.mkdir(parents=True, exist_ok=True)  # type: ignore[attr-defined]
 
-        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+        from myrm_agent_harness.api import (
             EnvInheritPolicy,
             build_isolated_child_env,
         )

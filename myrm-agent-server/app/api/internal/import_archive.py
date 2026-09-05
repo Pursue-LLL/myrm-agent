@@ -67,7 +67,7 @@ async def import_archive(body: ImportArchiveRequest) -> ImportArchiveResponse:
                 item.unlink()
 
     try:
-        from myrm_agent_harness.toolkits.code_execution.security.env_isolation import (
+        from myrm_agent_harness.api import (
             EnvInheritPolicy,
             build_isolated_child_env,
         )
