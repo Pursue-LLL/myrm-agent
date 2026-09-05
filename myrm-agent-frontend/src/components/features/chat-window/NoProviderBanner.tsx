@@ -92,19 +92,24 @@ const NoProviderBanner = memo(() => {
           };
           setActiveFlow(flow);
 
-          pollTimerRef.current = setInterval(async () => {
-            try {
-              const pollRes = await pollXaiOAuth(res.user_code);
-              if (pollRes.status === 'success') {
-                onAuthSuccess('xai');
-              } else if (pollRes.status === 'expired' || pollRes.status === 'denied') {
-                cleanupPolling();
-                setActiveFlow((prev) => (prev ? { ...prev, isPolling: false, error: pollRes.error || pollRes.status } : null));
+          pollTimerRef.current = setInterval(
+            async () => {
+              try {
+                const pollRes = await pollXaiOAuth(res.user_code);
+                if (pollRes.status === 'success') {
+                  onAuthSuccess('xai');
+                } else if (pollRes.status === 'expired' || pollRes.status === 'denied') {
+                  cleanupPolling();
+                  setActiveFlow((prev) =>
+                    prev ? { ...prev, isPolling: false, error: pollRes.error || pollRes.status } : null,
+                  );
+                }
+              } catch {
+                // 轮询静默重试
               }
-            } catch {
-              // 轮询静默重试
-            }
-          }, (res.interval || 5) * 1000);
+            },
+            (res.interval || 5) * 1000,
+          );
         } else {
           const res = await startProviderOAuth(providerType);
           if (res.user_code && res.verification_uri) {
@@ -118,19 +123,24 @@ const NoProviderBanner = memo(() => {
             };
             setActiveFlow(flow);
 
-            pollTimerRef.current = setInterval(async () => {
-              try {
-                const pollRes = await pollProviderOAuth(providerType, res.user_code!);
-                if (pollRes.status === 'success') {
-                  onAuthSuccess(providerType);
-                } else if (pollRes.status === 'expired' || pollRes.status === 'denied') {
-                  cleanupPolling();
-                  setActiveFlow((prev) => (prev ? { ...prev, isPolling: false, error: pollRes.error || pollRes.status } : null));
+            pollTimerRef.current = setInterval(
+              async () => {
+                try {
+                  const pollRes = await pollProviderOAuth(providerType, res.user_code!);
+                  if (pollRes.status === 'success') {
+                    onAuthSuccess(providerType);
+                  } else if (pollRes.status === 'expired' || pollRes.status === 'denied') {
+                    cleanupPolling();
+                    setActiveFlow((prev) =>
+                      prev ? { ...prev, isPolling: false, error: pollRes.error || pollRes.status } : null,
+                    );
+                  }
+                } catch {
+                  // 轮询静默重试
                 }
-              } catch {
-                // 轮询静默重试
-              }
-            }, (res.interval || 5) * 1000);
+              },
+              (res.interval || 5) * 1000,
+            );
           } else if (res.authorize_url) {
             window.open(res.authorize_url, '_blank');
           }
@@ -172,7 +182,12 @@ const NoProviderBanner = memo(() => {
             <Zap className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <span>{t('subscriptionQuickConnect')}</span>
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => router.push('/settings/models')} className="h-8 text-xs font-medium">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => router.push('/settings/models')}
+            className="h-8 text-xs font-medium"
+          >
             {t('noProviderAction')}
           </Button>
         </div>
@@ -195,9 +210,13 @@ const NoProviderBanner = memo(() => {
 
             <div className="flex items-center gap-2 mb-1.5">
               <ShieldCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{t('subscriptionModalTitle')}</h3>
+              <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                {t('subscriptionModalTitle')}
+              </h3>
             </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-5 leading-relaxed">{t('subscriptionModalDesc')}</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-5 leading-relaxed">
+              {t('subscriptionModalDesc')}
+            </p>
 
             {!activeFlow ? (
               <div className="grid grid-cols-1 gap-2.5">
@@ -248,6 +267,22 @@ const NoProviderBanner = memo(() => {
                     {t('subscriptionConnectBtn')}
                   </span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleStartOAuth('anthropic')}
+                  className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-emerald-500/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all text-left group"
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                      {t('subscriptionClaude')}
+                    </span>
+                    <span className="text-xs text-zinc-400">Claude 3.5 Sonnet, Claude 3.5 Haiku</span>
+                  </div>
+                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900">
+                    {t('subscriptionConnectBtn')}
+                  </span>
+                </button>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/30">
@@ -258,7 +293,9 @@ const NoProviderBanner = memo(() => {
                   </div>
                 ) : (
                   <>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">{t('subscriptionDeviceCodeHint')}</span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">
+                      {t('subscriptionDeviceCodeHint')}
+                    </span>
                     <div className="flex items-center gap-2 mb-4 bg-white dark:bg-zinc-900 px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 font-mono text-lg font-bold tracking-widest text-zinc-800 dark:text-zinc-200">
                       <span>{activeFlow.userCode}</span>
                       <button
@@ -275,7 +312,9 @@ const NoProviderBanner = memo(() => {
                       <Button
                         type="button"
                         size="sm"
-                        onClick={() => window.open(activeFlow.verificationUriComplete || activeFlow.verificationUri, '_blank')}
+                        onClick={() =>
+                          window.open(activeFlow.verificationUriComplete || activeFlow.verificationUri, '_blank')
+                        }
                         className="flex-1 gap-1.5 h-9 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-white text-xs font-medium"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />

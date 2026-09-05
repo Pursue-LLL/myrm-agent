@@ -61,12 +61,8 @@ export function computeArchitectureDiff(before: ArchitectureIR, after: Architect
   }
 
   // 3. Process Edges
-  const beforeEdges = new Map<string, ArchitectureEdgeIR>(
-    before.edges.map((e) => [`${e.source}->${e.target}`, e]),
-  );
-  const afterEdges = new Map<string, ArchitectureEdgeIR>(
-    after.edges.map((e) => [`${e.source}->${e.target}`, e]),
-  );
+  const beforeEdges = new Map<string, ArchitectureEdgeIR>(before.edges.map((e) => [`${e.source}->${e.target}`, e]));
+  const afterEdges = new Map<string, ArchitectureEdgeIR>(after.edges.map((e) => [`${e.source}->${e.target}`, e]));
 
   const mergedEdges: ArchitectureEdgeIR[] = [];
   let addedEdges = 0;

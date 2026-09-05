@@ -27,12 +27,8 @@ export const UnverifiedModelCallout = memo<UnverifiedModelCalloutProps>(({ model
       >
         <Info className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
         <div className="space-y-0.5">
-          <span className="font-medium">
-            {t('verifiedBadge', { model: modelName })}
-          </span>
-          <p className="text-muted-foreground dark:text-emerald-400/80 text-[11px]">
-            {t('verifiedDescription')}
-          </p>
+          <span className="font-medium">{t('verifiedBadge', { model: modelName })}</span>
+          <p className="text-muted-foreground dark:text-emerald-400/80 text-[11px]">{t('verifiedDescription')}</p>
         </div>
       </div>
     );
@@ -45,12 +41,8 @@ export const UnverifiedModelCallout = memo<UnverifiedModelCalloutProps>(({ model
     >
       <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
       <div className="space-y-0.5">
-        <span className="font-medium">
-          {t('unverifiedWarningTitle', { model: modelName })}
-        </span>
-        <p className="text-muted-foreground dark:text-amber-300/80 text-[11px]">
-          {t('unverifiedWarningDescription')}
-        </p>
+        <span className="font-medium">{t('unverifiedWarningTitle', { model: modelName })}</span>
+        <p className="text-muted-foreground dark:text-amber-300/80 text-[11px]">{t('unverifiedWarningDescription')}</p>
       </div>
     </div>
   );

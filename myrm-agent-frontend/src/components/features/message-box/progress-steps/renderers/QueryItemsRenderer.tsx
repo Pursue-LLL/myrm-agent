@@ -81,4 +81,3 @@ const QueryItemsRenderer: React.FC<QueryItemsRendererProps> = ({ items, messageI
 };
 
 export default QueryItemsRenderer;
-

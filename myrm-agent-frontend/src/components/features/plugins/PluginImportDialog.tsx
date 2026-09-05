@@ -565,9 +565,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                 {preview.plugin.capability_diff?.has_escalation && (
                   <Alert variant="destructive" className="py-2.5">
                     <IconAlertTriangle className="h-4 w-4" />
-                    <AlertTitle className="text-xs font-semibold">
-                      {t('capabilities.escalationTitle')}
-                    </AlertTitle>
+                    <AlertTitle className="text-xs font-semibold">{t('capabilities.escalationTitle')}</AlertTitle>
                     <AlertDescription className="text-xs mt-0.5">
                       {t('capabilities.escalationWarning', {
                         added: preview.plugin.capability_diff.added
@@ -592,12 +590,14 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                 )}
 
                 {/* Empty state: no importable components */}
-                {preview.skills.length === 0 && preview.servers.length === 0 && (!preview.agents || preview.agents.length === 0) && (
-                  <div className="rounded-xl border border-dashed p-6 text-center">
-                    <p className="text-sm font-medium">{t('empty.title')}</p>
-                    <p className="text-sm text-muted-foreground mt-1">{t('empty.hint')}</p>
-                  </div>
-                )}
+                {preview.skills.length === 0 &&
+                  preview.servers.length === 0 &&
+                  (!preview.agents || preview.agents.length === 0) && (
+                    <div className="rounded-xl border border-dashed p-6 text-center">
+                      <p className="text-sm font-medium">{t('empty.title')}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{t('empty.hint')}</p>
+                    </div>
+                  )}
 
                 {/* Agents / Squad */}
                 {preview.agents && preview.agents.length > 0 && (
@@ -839,7 +839,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                         const isMissingArtifact = Boolean(item.missing_artifact) || item.is_runnable === false;
                         const missingFile = item.missing_artifact || item.missing_artifacts?.[0] || '';
                         const undeclaredDiag = preview.diagnostics.find(
-                          (d) => d.code === 'capability_undeclared_privilege' && d.component === `mcp:${item.name}`
+                          (d) => d.code === 'capability_undeclared_privilege' && d.component === `mcp:${item.name}`,
                         );
                         return (
                           <div key={item.virtual_id} className="flex items-center justify-between gap-3 px-4 py-3">
@@ -857,7 +857,10 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                                     <Badge
                                       key={cap}
                                       variant="outline"
-                                      className={cn('text-[10px] px-1 py-0 font-normal', getCapabilityTierBadgeStyle(cap))}
+                                      className={cn(
+                                        'text-[10px] px-1 py-0 font-normal',
+                                        getCapabilityTierBadgeStyle(cap),
+                                      )}
                                     >
                                       {t(`capabilities.${cap}` as Parameters<typeof t>[0])}
                                     </Badge>
@@ -933,11 +936,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                 )}
 
                 {/* Trusted Source & Sandbox Security Disclosure */}
-                <PluginTrustedSourceDisclosure
-                  trusted={trusted}
-                  onTrustChange={setTrusted}
-                  disabled={isImporting}
-                />
+                <PluginTrustedSourceDisclosure trusted={trusted} onTrustChange={setTrusted} disabled={isImporting} />
               </div>
             ) : null}
           </div>
@@ -960,9 +959,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                 size="sm"
                 onClick={handleConfirmImport}
                 disabled={
-                  isImporting ||
-                  (!installedSkillCount && !installedServerCount && !installedAgentCount) ||
-                  !trusted
+                  isImporting || (!installedSkillCount && !installedServerCount && !installedAgentCount) || !trusted
                 }
               >
                 {isImporting && <IconLoader className="w-4 h-4 mr-2 animate-spin" />}

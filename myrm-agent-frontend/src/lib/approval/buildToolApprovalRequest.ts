@@ -141,13 +141,9 @@ export function buildToolApprovalRequest({
     pathGrantPath: pathGrant.path,
     pathGrantWritable: pathGrant.eligible ? pathGrant.writable : undefined,
     scriptOperandPath:
-      typeof action.scriptOperandPath === 'string' && action.scriptOperandPath
-        ? action.scriptOperandPath
-        : undefined,
+      typeof action.scriptOperandPath === 'string' && action.scriptOperandPath ? action.scriptOperandPath : undefined,
     scriptOperandHash:
-      typeof action.scriptOperandHash === 'string' && action.scriptOperandHash
-        ? action.scriptOperandHash
-        : undefined,
+      typeof action.scriptOperandHash === 'string' && action.scriptOperandHash ? action.scriptOperandHash : undefined,
     scriptOperandProtected: reviewConfig?.scriptOperandProtected === true ? true : undefined,
   };
 }

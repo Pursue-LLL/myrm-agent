@@ -211,10 +211,7 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
       )}
 
       {trace.performance_summary && (
-        <TraceGanttWaterfall
-          performance={trace.performance_summary}
-          totalDurationMs={trace.duration_ms}
-        />
+        <TraceGanttWaterfall performance={trace.performance_summary} totalDurationMs={trace.duration_ms} />
       )}
 
       {trace.tool_calls && trace.tool_calls.length > 0 && (

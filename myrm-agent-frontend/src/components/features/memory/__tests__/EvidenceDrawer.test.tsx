@@ -9,10 +9,7 @@ import * as commandCenterService from '@/services/memory/commandCenter';
 
 const stableT = (key: string, values?: Record<string, string | number>) => {
   if (values) {
-    return Object.entries(values).reduce(
-      (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
-      key
-    );
+    return Object.entries(values).reduce((acc, [k, v]) => acc.replace(`{${k}}`, String(v)), key);
   }
   return key;
 };
@@ -48,12 +45,7 @@ describe('EvidenceBadge and EvidenceDrawer Component', () => {
     vi.spyOn(commandCenterService, 'getEvidencePlayback').mockResolvedValue(mockPlayback);
 
     render(
-      <EvidenceBadge
-        sourceId="chat-alpha"
-        messageId="msg-target"
-        quoteSnippet="Standardize on pnpm"
-        t={stableT}
-      />
+      <EvidenceBadge sourceId="chat-alpha" messageId="msg-target" quoteSnippet="Standardize on pnpm" t={stableT} />,
     );
 
     const badge = screen.getByRole('button');
@@ -80,7 +72,7 @@ describe('EvidenceBadge and EvidenceDrawer Component', () => {
         quoteSnippet="Standardize on pnpm"
         onCorrectAndLock={mockCorrectAndLock}
         t={stableT}
-      />
+      />,
     );
 
     await waitFor(() => {
@@ -112,14 +104,7 @@ describe('EvidenceBadge and EvidenceDrawer Component', () => {
     };
     vi.spyOn(commandCenterService, 'getEvidencePlayback').mockResolvedValue(mockToolPlayback);
 
-    render(
-      <EvidenceDrawer
-        isOpen={true}
-        onClose={vi.fn()}
-        sourceId="chat-alpha"
-        t={stableT}
-      />
-    );
+    render(<EvidenceDrawer isOpen={true} onClose={vi.fn()} sourceId="chat-alpha" t={stableT} />);
 
     await waitFor(() => {
       expect(screen.getByText('bash')).toBeInTheDocument();

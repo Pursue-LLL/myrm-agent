@@ -598,12 +598,7 @@ const MemoryCommandCenter = memo<{ className?: string }>(({ className }) => {
         <ObserveSection snapshot={snapshot} liveStream={liveStream} t={t} onEventClick={openReplayForEvent} />
       )}
       {activeSection === 'understand' && (
-        <UnderstandSection
-          snapshot={snapshot}
-          t={t}
-          onResolveConflict={resolveConflict}
-          actionId={actionId}
-        />
+        <UnderstandSection snapshot={snapshot} t={t} onResolveConflict={resolveConflict} actionId={actionId} />
       )}
       {activeSection === 'act' && (
         <ActSection

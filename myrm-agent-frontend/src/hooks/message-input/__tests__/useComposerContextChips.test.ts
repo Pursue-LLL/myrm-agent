@@ -246,4 +246,3 @@ describe('useComposerContextChips', () => {
     expect(result.current.summary.totalItems).toBe(6);
   });
 });
-

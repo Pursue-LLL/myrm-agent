@@ -1001,9 +1001,7 @@ export const wikiService = {
       reason: string;
     }>;
   }> => {
-    return apiRequest(
-      buildWikiApiPath(`/wiki/governance/overview?threshold_days=${thresholdDays}`, agentId),
-    );
+    return apiRequest(buildWikiApiPath(`/wiki/governance/overview?threshold_days=${thresholdDays}`, agentId));
   },
 
   extendGovernanceConcepts: async (

@@ -30,8 +30,8 @@ export const SUPPORTED_INTEGRATIONS: OauthIntegration[] = [
   {
     id: 'xai',
     name: 'xAI / SuperGrok',
-    desc: 'Use your SuperGrok subscription for X (Twitter) search, image, and video generation',
-    descZh: '使用 SuperGrok 订阅进行 X (Twitter) 搜索、图片和视频生成',
+    desc: 'Use your SuperGrok subscription for Grok chat models, X (Twitter) search, and multimodal generation',
+    descZh: '使用 SuperGrok 订阅驱动 Grok 对话模型、X (Twitter) 实时搜索与多模态生成',
     category: 'productivity',
     oauthFlow: 'xai_device_code' as const,
   },

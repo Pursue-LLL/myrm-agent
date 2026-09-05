@@ -276,14 +276,20 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
               {localSkillPaths.map((path) => {
                 const status = localPathStatuses.find((s) => s.path === path);
                 return (
-                  <div key={path} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/50 group border border-border/40 hover:border-border transition-colors">
+                  <div
+                    key={path}
+                    className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/50 group border border-border/40 hover:border-border transition-colors"
+                  >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       <FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       <code className="text-sm truncate font-mono">{path}</code>
                       {status && (
                         <div className="flex items-center gap-1.5 shrink-0">
                           {status.skills_count > 0 ? (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+                            >
                               {t('discoveredSkillsBadge', { count: status.skills_count })}
                             </Badge>
                           ) : !status.exists ? (
@@ -306,7 +312,11 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
                         title={t('copyPath')}
                         onClick={() => handleCopyPath(path)}
                       >
-                        {copiedPath === path ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                        {copiedPath === path ? (
+                          <Check className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
                       </Button>
                       <Button
                         variant="ghost"
@@ -341,12 +351,12 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
               }}
               className="flex-1"
             />
-            <Button data-testid="local-skill-path-add-btn" onClick={handleAddPath} disabled={!newPath.trim() || isAdding}>
-              {isAdding ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4 mr-2" />
-              )}
+            <Button
+              data-testid="local-skill-path-add-btn"
+              onClick={handleAddPath}
+              disabled={!newPath.trim() || isAdding}
+            >
+              {isAdding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
               {t('add')}
             </Button>
           </div>

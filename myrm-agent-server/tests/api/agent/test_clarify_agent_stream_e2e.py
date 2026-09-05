@@ -183,13 +183,12 @@ def test_agent_stream_structured_clarify_skip_empty_resume(
     }
 
     query = (
-        "CRITICAL: Your very first action MUST be a single ask_question_tool call — no text reply before it. "
-        "You MUST call ask_question_tool exactly once before any other action. "
-        'Use title "Pick stack". Ask one question with id "stack" and prompt '
-        '"Which stack?" with two options: id "a" label "A", id "b" label "B". '
-        "Set requires_confirmation to false. "
+        "Before doing anything else, use ask_question_tool exactly once to ask which stack I should use. "
+        'Use title "Pick stack", one question id "stack" prompt "Which stack should I use?", '
+        'two options id "a" label "Option A" and id "b" label "Option B", '
+        "requires_confirmation false. "
         "Do not use bash, write_file, render_ui_tool, or any other tools. "
-        "If the user skips or gives no answer, reply with exactly: DONE-SKIPPED"
+        "If the user skips or gives no answer, reply with a single line starting with DONE-SKIPPED."
     )
 
     chat_id = ""

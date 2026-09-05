@@ -40,20 +40,29 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
   const thinkT = useTranslations('thinkingIntensity');
   const tKnowledge = useTranslations('chat.knowledgePicker');
 
-  const { agentConfig, actionMode, updateAgentConfig, isGoalMode, setIsGoalMode, chatId, messages, loading, activeKnowledgeBaseIds } =
-    useChatStore(
-      useShallow((s) => ({
-        agentConfig: s.agentConfig,
-        actionMode: s.actionMode,
-        updateAgentConfig: s.updateAgentConfig,
-        isGoalMode: s.isGoalMode,
-        setIsGoalMode: s.setIsGoalMode,
-        chatId: s.chatId,
-        messages: s.messages,
-        loading: s.loading,
-        activeKnowledgeBaseIds: s.activeKnowledgeBaseIds,
-      })),
-    );
+  const {
+    agentConfig,
+    actionMode,
+    updateAgentConfig,
+    isGoalMode,
+    setIsGoalMode,
+    chatId,
+    messages,
+    loading,
+    activeKnowledgeBaseIds,
+  } = useChatStore(
+    useShallow((s) => ({
+      agentConfig: s.agentConfig,
+      actionMode: s.actionMode,
+      updateAgentConfig: s.updateAgentConfig,
+      isGoalMode: s.isGoalMode,
+      setIsGoalMode: s.setIsGoalMode,
+      chatId: s.chatId,
+      messages: s.messages,
+      loading: s.loading,
+      activeKnowledgeBaseIds: s.activeKnowledgeBaseIds,
+    })),
+  );
 
   const { providers, defaultModelConfig, getEnabledModels } = useProviderStore(
     useShallow((s) => ({

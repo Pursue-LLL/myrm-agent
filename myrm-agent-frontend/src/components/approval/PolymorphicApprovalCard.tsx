@@ -854,8 +854,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
       }
       case 'high_risk_dom_action': {
         const element = approval.payload?.element as
-          | { role?: string; name?: string; ref?: string; key?: string }
-          | undefined;
+          { role?: string; name?: string; ref?: string; key?: string } | undefined;
         const pageUrl = (approval.payload?.page_url as string) || '';
         const toolInput = approval.payload?.tool_input as
           | {
@@ -1126,13 +1125,14 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
       {renderContent()}
 
       {spendConfig && (
-        <div className="flex flex-col gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 dark:border-amber-500/30 dark:bg-amber-950/20" data-testid="spend-protection-banner">
+        <div
+          className="flex flex-col gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 dark:border-amber-500/30 dark:bg-amber-950/20"
+          data-testid="spend-protection-banner"
+        >
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-              <h4 className="font-semibold text-sm text-amber-800 dark:text-amber-200">
-                {t('spendProtection.title')}
-              </h4>
+              <h4 className="font-semibold text-sm text-amber-800 dark:text-amber-200">{t('spendProtection.title')}</h4>
             </div>
             {spendConfig.actionDigest && (
               <span className="inline-flex items-center rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-mono text-amber-800 dark:text-amber-300">
@@ -1156,9 +1156,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         <div className="flex items-center gap-2 rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3">
           <AlertTriangle className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
           <div>
-            <h4 className="font-semibold text-sm text-red-700 dark:text-red-300">
-              {t('autoModeSuspended.title')}
-            </h4>
+            <h4 className="font-semibold text-sm text-red-700 dark:text-red-300">{t('autoModeSuspended.title')}</h4>
             <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-0.5">
               {autoModeSuspendedBreach === 'consecutive'
                 ? t('autoModeSuspended.consecutiveReason')

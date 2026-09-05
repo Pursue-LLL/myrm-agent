@@ -62,27 +62,18 @@ export async function closeTaskSpace(spaceId: string): Promise<boolean> {
   }
 }
 
-export async function toggleTaskSpaceTakeover(
-  spaceId: string,
-  enabled: boolean,
-): Promise<TaskSpaceInfo> {
-  return await apiRequest<TaskSpaceInfo>(
-    `/api/v1/browser/spaces/${encodeURIComponent(spaceId)}/takeover`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ enabled }),
-    },
-  );
+export async function toggleTaskSpaceTakeover(spaceId: string, enabled: boolean): Promise<TaskSpaceInfo> {
+  return await apiRequest<TaskSpaceInfo>(`/api/v1/browser/spaces/${encodeURIComponent(spaceId)}/takeover`, {
+    method: 'POST',
+    body: JSON.stringify({ enabled }),
+  });
 }
 
 export async function fetchTaskSpaceSnapshot(spaceId: string): Promise<TaskSpaceSnapshot | null> {
   try {
-    return await apiRequest<TaskSpaceSnapshot>(
-      `/api/v1/browser/spaces/${encodeURIComponent(spaceId)}/snapshot`,
-      {
-        method: 'GET',
-      },
-    );
+    return await apiRequest<TaskSpaceSnapshot>(`/api/v1/browser/spaces/${encodeURIComponent(spaceId)}/snapshot`, {
+      method: 'GET',
+    });
   } catch {
     return null;
   }

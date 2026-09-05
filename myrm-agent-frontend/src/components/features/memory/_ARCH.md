@@ -6,43 +6,43 @@
 
 组件按功能域收进子目录，根目录仅保留本架构文档与 `__tests__/`：
 
-| 子目录            | 职责                                                                             |
-| ----------------- | -------------------------------------------------------------------------------- |
+| 子目录            | 职责                                                                                           |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
 | `cards/`          | 单条记忆卡片与展示件（MemoryCard/ConflictCard/TypeIcon/Stats/详情 Sheet/摘要卡/EvidenceBadge） |
-| `drawers/`        | 抽屉浮层组件（EvidenceDrawer 证据溯源与上下文切片回放抽屉）                      |
-| `command-center/` | 记忆命令中心（主布局/高级面板/Chrome/Doctor 诊断/主内容区面板编排）              |
-| `dialogs/`        | 记忆相关对话框（创建/编辑/清空/归档恢复/导入审阅/共享规则/Connect Wizard）       |
-| `guides/`         | 引导与说明卡（首次引导/分层说明）                                                |
-| `hooks/`          | 记忆域自定义 hooks（归档恢复动作/Demo 种子）                                     |
-| `insights/`       | 洞察展示（健康仪表盘/知识图谱/Shared Context 编辑预览）                          |
-| `pending/`        | 待审批记忆（计数徽章/审批弹窗/批量列表）                                         |
-| `replay/`         | 会话回放（回放器/消息气泡/召回面板/实时流/时间线工具）                           |
-| `settings/`       | 设置区（功能开关/Tab 切换/回收站）                                               |
-| `shared-context/` | 共享上下文（面板/目标绑定/健康横幅/面板 hook）                                   |
+| `drawers/`        | 抽屉浮层组件（EvidenceDrawer 证据溯源与上下文切片回放抽屉）                                    |
+| `command-center/` | 记忆命令中心（主布局/高级面板/Chrome/Doctor 诊断/主内容区面板编排）                            |
+| `dialogs/`        | 记忆相关对话框（创建/编辑/清空/归档恢复/导入审阅/共享规则/Connect Wizard）                     |
+| `guides/`         | 引导与说明卡（首次引导/分层说明）                                                              |
+| `hooks/`          | 记忆域自定义 hooks（归档恢复动作/Demo 种子）                                                   |
+| `insights/`       | 洞察展示（健康仪表盘/知识图谱/Shared Context 编辑预览）                                        |
+| `pending/`        | 待审批记忆（计数徽章/审批弹窗/批量列表）                                                       |
+| `replay/`         | 会话回放（回放器/消息气泡/召回面板/实时流/时间线工具）                                         |
+| `settings/`       | 设置区（功能开关/Tab 切换/回收站）                                                             |
+| `shared-context/` | 共享上下文（面板/目标绑定/健康横幅/面板 hook）                                                 |
 
 ## 文件清单
 
 ### cards/
 
-| 文件                           | 地位 | 职责                                                                                    | I/O/P |
-| ------------------------------ | ---- | --------------------------------------------------------------------------------------- | ----- |
+| 文件                           | 地位 | 职责                                                                                                        | I/O/P |
+| ------------------------------ | ---- | ----------------------------------------------------------------------------------------------------------- | ----- |
 | `MemoryCard.tsx`               | 核心 | 单条记忆卡片（类型/icon/摘要/操作菜单；procedural 规则 TTL 显示，用户锁定隐藏过期天数；集成 EvidenceBadge） | ✅    |
-| `MemoryScopeHierarchyCard.tsx` | 组件 | 记忆作用域层级图谱卡片（Task/Conversation/Agent/Global 四级统一生命周期与隔离可视化）   | ✅    |
-| `MemoryScopePicker.tsx`        | 组件 | 记忆作用域级别选择器（创建/编辑记忆时直观选择作用域范围与描述提示）                     | ✅    |
-| `ConflictCard.tsx`             | 组件 | 冲突记忆卡                                                                              | ✅    |
-| `MemoryDetailSheet.tsx`        | 组件 | 记忆详情 Sheet（全文/metadata/来源）                                                    | ✅    |
-| `MemoryTypeIcon.tsx`           | 辅助 | 记忆类型 → 图标映射                                                                     | ✅    |
-| `MemoryStats.tsx`              | 组件 | 记忆数量/类型统计摘要                                                                   | ✅    |
-| `EvidenceBadge.tsx`            | 组件 | 证据链胶囊徽章（原话引文摘要、侧边抽屉呼出与纠偏加锁联动）                             | ✅    |
-| `RepoEvidenceCard.tsx`         | 组件 | 仓库历史证据卡片（Git 分支状态、未提交更改提示、最新 Commit 历史摘要与文件数量）       | ✅    |
-| `PreferenceStabilityCard.tsx`  | 组件 | 偏好稳定性卡                                                                            | ✅    |
-| `TasteSummaryCard.tsx`         | 组件 | 口味摘要卡                                                                              | ✅    |
+| `MemoryScopeHierarchyCard.tsx` | 组件 | 记忆作用域层级图谱卡片（Task/Conversation/Agent/Global 四级统一生命周期与隔离可视化）                       | ✅    |
+| `MemoryScopePicker.tsx`        | 组件 | 记忆作用域级别选择器（创建/编辑记忆时直观选择作用域范围与描述提示）                                         | ✅    |
+| `ConflictCard.tsx`             | 组件 | 冲突记忆卡                                                                                                  | ✅    |
+| `MemoryDetailSheet.tsx`        | 组件 | 记忆详情 Sheet（全文/metadata/来源）                                                                        | ✅    |
+| `MemoryTypeIcon.tsx`           | 辅助 | 记忆类型 → 图标映射                                                                                         | ✅    |
+| `MemoryStats.tsx`              | 组件 | 记忆数量/类型统计摘要                                                                                       | ✅    |
+| `EvidenceBadge.tsx`            | 组件 | 证据链胶囊徽章（原话引文摘要、侧边抽屉呼出与纠偏加锁联动）                                                  | ✅    |
+| `RepoEvidenceCard.tsx`         | 组件 | 仓库历史证据卡片（Git 分支状态、未提交更改提示、最新 Commit 历史摘要与文件数量）                            | ✅    |
+| `PreferenceStabilityCard.tsx`  | 组件 | 偏好稳定性卡                                                                                                | ✅    |
+| `TasteSummaryCard.tsx`         | 组件 | 口味摘要卡                                                                                                  | ✅    |
 
 ### drawers/
 
-| 文件                 | 地位 | 职责                                                                                          | I/O/P |
-| -------------------- | ---- | --------------------------------------------------------------------------------------------- | ----- |
-| `EvidenceDrawer.tsx` | 组件 | 证据溯源抽屉浮层（异步拉取上下文切片、原话模糊高亮、工具执行原话/报错切片展示与一键复制、敏感凭据屏蔽、一键误判标记与纠偏加锁）   | ✅    |
+| 文件                 | 地位 | 职责                                                                                                                            | I/O/P |
+| -------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `EvidenceDrawer.tsx` | 组件 | 证据溯源抽屉浮层（异步拉取上下文切片、原话模糊高亮、工具执行原话/报错切片展示与一键复制、敏感凭据屏蔽、一键误判标记与纠偏加锁） | ✅    |
 
 ### command-center/
 
@@ -82,14 +82,14 @@
 
 ### insights/
 
-| 文件                        | 地位 | 职责                                                                                    | I/O/P |
-| --------------------------- | ---- | --------------------------------------------------------------------------------------- | ----- |
-| `BehavioralMetricsPanel.tsx` | 组件 | 零大模型开销本地确定性行为特征看板（双轨作息直方图、响应时延胶囊、高频协作者排名）     | ✅    |
-| `MemoryContextPanel.tsx`    | 组件 | Shared Context 编辑与预览                                                               | ✅    |
-| `MemoryHealthDashboard.tsx` | 组件 | 记忆健康度指标仪表盘                                                                    | ✅    |
-| `MemoryKnowledgeGraph.tsx`        | 组件 | 记忆知识图谱 force-graph 与核心主张排名列表双重视图看板（集成 RankedHubSidebar、GraphEmptyState） | ✅    |
-| `RankedHubSidebar.tsx`            | 组件 | 知识图谱核心主张与冲突焦点侧栏（双重视图、连通度度数与焦点筛选）                         | ✅    |
-| `GraphEmptyState.tsx`             | 组件 | 知识图谱三态精细化诊断引导与恢复空态组件（存储离线、零主张与孤岛散点态）                 | ✅    |
+| 文件                         | 地位 | 职责                                                                                              | I/O/P |
+| ---------------------------- | ---- | ------------------------------------------------------------------------------------------------- | ----- |
+| `BehavioralMetricsPanel.tsx` | 组件 | 零大模型开销本地确定性行为特征看板（双轨作息直方图、响应时延胶囊、高频协作者排名）                | ✅    |
+| `MemoryContextPanel.tsx`     | 组件 | Shared Context 编辑与预览                                                                         | ✅    |
+| `MemoryHealthDashboard.tsx`  | 组件 | 记忆健康度指标仪表盘                                                                              | ✅    |
+| `MemoryKnowledgeGraph.tsx`   | 组件 | 记忆知识图谱 force-graph 与核心主张排名列表双重视图看板（集成 RankedHubSidebar、GraphEmptyState） | ✅    |
+| `RankedHubSidebar.tsx`       | 组件 | 知识图谱核心主张与冲突焦点侧栏（双重视图、连通度度数与焦点筛选）                                  | ✅    |
+| `GraphEmptyState.tsx`        | 组件 | 知识图谱三态精细化诊断引导与恢复空态组件（存储离线、零主张与孤岛散点态）                          | ✅    |
 
 ### pending/
 

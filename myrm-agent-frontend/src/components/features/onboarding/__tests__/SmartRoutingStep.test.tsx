@@ -8,7 +8,12 @@ const mockSetRoutingEnabled = vi.fn();
 const mockSetRoutingLightModel = vi.fn();
 const mockSetRoutingReasoningModel = vi.fn();
 let mockEnabledModels: Array<{ providerId: string; model: string }> = [];
-let mockProviders: Array<{ id: string; providerType: string; apiUrl?: string; apiKeys: Array<{ key: string; isActive: boolean }> }> = [];
+let mockProviders: Array<{
+  id: string;
+  providerType: string;
+  apiUrl?: string;
+  apiKeys: Array<{ key: string; isActive: boolean }>;
+}> = [];
 let mockDefaultModelConfig: { baseModel: { primary: { providerId: string; model: string } | null } } = {
   baseModel: { primary: null },
 };

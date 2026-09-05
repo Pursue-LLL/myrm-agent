@@ -17,9 +17,28 @@ import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Badge } from '@/components/primitives/badge';
 import { toast } from '@/hooks/shared/useToast';
-import { Search, Download, GitCompare, RefreshCw, ZoomIn, Eye, Plus, Minus, Move, Copy, Check, Route } from 'lucide-react';
+import {
+  Search,
+  Download,
+  GitCompare,
+  RefreshCw,
+  ZoomIn,
+  Eye,
+  Plus,
+  Minus,
+  Move,
+  Copy,
+  Check,
+  Route,
+} from 'lucide-react';
 import type { ArchitectureIR } from './types';
-import { computeDagreLayout, sanitizeArchitectureIR, traceFullConnectedCausalityGraph, findShortestPath, type PathTraceResult } from './layout';
+import {
+  computeDagreLayout,
+  sanitizeArchitectureIR,
+  traceFullConnectedCausalityGraph,
+  findShortestPath,
+  type PathTraceResult,
+} from './layout';
 import { computeArchitectureDiff } from './diff';
 import { ArchitectureCustomNode } from './ArchitectureCustomNode';
 import type { ArtifactVersion } from '@/store/chat/types';
@@ -201,25 +220,28 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
       });
     }, [edges, highlightedEdgeIds]);
 
-    const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-      // Support both desktop Shift+Click and multi-selection mode for mobile/touch
-      if (event.shiftKey || (selectedNodeId && selectedNodeId !== node.id && !targetNodeId)) {
-        if (!selectedNodeId) {
-          setSelectedNodeId(node.id);
-        } else if (selectedNodeId === node.id) {
-          setSelectedNodeId(null);
-          setTargetNodeId(null);
+    const handleNodeClick = useCallback(
+      (event: React.MouseEvent, node: Node) => {
+        // Support both desktop Shift+Click and multi-selection mode for mobile/touch
+        if (event.shiftKey || (selectedNodeId && selectedNodeId !== node.id && !targetNodeId)) {
+          if (!selectedNodeId) {
+            setSelectedNodeId(node.id);
+          } else if (selectedNodeId === node.id) {
+            setSelectedNodeId(null);
+            setTargetNodeId(null);
+          } else {
+            setTargetNodeId((prev) => (prev === node.id ? null : node.id));
+          }
         } else {
-          setTargetNodeId((prev) => (prev === node.id ? null : node.id));
+          // Normal Click / First Selection: Single-node dependency graph tracing
+          if (targetNodeId) {
+            setTargetNodeId(null);
+          }
+          setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
         }
-      } else {
-        // Normal Click / First Selection: Single-node dependency graph tracing
-        if (targetNodeId) {
-          setTargetNodeId(null);
-        }
-        setSelectedNodeId((prev) => (prev === node.id ? null : node.id));
-      }
-    }, [selectedNodeId, targetNodeId]);
+      },
+      [selectedNodeId, targetNodeId],
+    );
 
     const handlePaneClick = useCallback(() => {
       setSelectedNodeId(null);
@@ -287,7 +309,7 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
       }
       try {
         const isDark = document.documentElement.classList.contains('dark');
-        
+
         // Target the ReactFlow viewportpane which contains all nodes and edges
         const viewportEl = containerRef.current.querySelector('.react-flow__viewport') as HTMLElement | null;
         const targetEl = viewportEl || containerRef.current;
@@ -319,7 +341,13 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
 
     if (!activeIR) {
       // Dual-track fallback: check if content looks like Mermaid DSL
-      if (content && (content.includes('graph ') || content.includes('flowchart ') || content.includes('sequenceDiagram') || content.includes('classDiagram'))) {
+      if (
+        content &&
+        (content.includes('graph ') ||
+          content.includes('flowchart ') ||
+          content.includes('sequenceDiagram') ||
+          content.includes('classDiagram'))
+      ) {
         return (
           <div className="h-full w-full overflow-auto p-4">
             <MermaidPreview content={content} />
@@ -347,9 +375,7 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
               </Badge>
             )}
             {isDiffMode && (
-              <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-[10px]">
-                Evolution Diff Active
-              </Badge>
+              <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-[10px]">Evolution Diff Active</Badge>
             )}
             {diffSummary && (
               <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-background border shadow-2xs">

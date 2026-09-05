@@ -19,9 +19,7 @@ vi.mock('@/components/primitives/tooltip', () => ({
 }));
 
 vi.mock('@/components/primitives/popover', () => ({
-  Popover: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="mock-popover">{children}</div>
-  ),
+  Popover: ({ children }: { children: React.ReactNode }) => <div data-testid="mock-popover">{children}</div>,
   PopoverTrigger: ({ children }: { children: React.ReactElement }) => children,
   PopoverContent: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="mock-popover-content">{children}</div>
@@ -66,12 +64,10 @@ let mockChatStoreState = {
 };
 
 vi.mock('@/store/useChatStore', () => {
-  const store = vi.fn((selector: (state: typeof mockChatStoreState) => unknown) =>
-    selector(mockChatStoreState)
-  );
+  const store = vi.fn((selector: (state: typeof mockChatStoreState) => unknown) => selector(mockChatStoreState));
   (store as unknown as { getState: () => typeof mockChatStoreState }).getState = () => mockChatStoreState;
   (store as unknown as { setState: (partial: Partial<typeof mockChatStoreState>) => void }).setState = (
-    partial: Partial<typeof mockChatStoreState>
+    partial: Partial<typeof mockChatStoreState>,
   ) => {
     Object.assign(mockChatStoreState, partial);
   };

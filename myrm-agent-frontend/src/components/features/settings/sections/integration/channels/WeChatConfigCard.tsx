@@ -2,12 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  IconLoader,
-  IconPlus,
-  IconCheck,
-  IconX,
-} from '@/components/features/icons/PremiumIcons';
+import { IconLoader, IconPlus, IconCheck, IconX } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { toast } from 'sonner';
 import { getWeChatStatus, logoutWeChatChannel } from '@/services/channels';

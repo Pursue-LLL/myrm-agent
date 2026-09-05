@@ -125,5 +125,3 @@ describe('useChatStore - Knowledge Base Mount State & Actions', () => {
     expect(useChatStore.getState().activeKnowledgeBaseIds).toEqual(sixIds);
   });
 });
-
-

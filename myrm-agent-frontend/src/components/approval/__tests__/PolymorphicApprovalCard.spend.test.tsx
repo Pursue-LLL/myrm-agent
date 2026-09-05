@@ -36,9 +36,7 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
       status: 'pending',
       severity: 'high',
       payload: {
-        tool_calls: [
-          { name: 'mcp__stripe__charge_customer', args: { amount: 35.5, currency: 'USD' } },
-        ],
+        tool_calls: [{ name: 'mcp__stripe__charge_customer', args: { amount: 35.5, currency: 'USD' } }],
         reviewConfigs: [
           {
             isSpend: true,
@@ -51,13 +49,7 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
       },
     };
 
-    render(
-      <PolymorphicApprovalCard
-        approval={approval}
-        onResolve={mockOnResolve}
-        isSubmitting={false}
-      />
-    );
+    render(<PolymorphicApprovalCard approval={approval} onResolve={mockOnResolve} isSubmitting={false} />);
 
     // Verify title, amount, and badge
     expect(screen.getByText('Financial Transaction Protection')).toBeDefined();
@@ -77,9 +69,7 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
       status: 'pending',
       severity: 'high',
       payload: {
-        tool_calls: [
-          { name: 'cloud_purchase_tool', args: { amount: 80.0, currency: 'USD' } },
-        ],
+        tool_calls: [{ name: 'cloud_purchase_tool', args: { amount: 80.0, currency: 'USD' } }],
         reviewConfigs: [
           {
             isSpend: true,
@@ -92,13 +82,7 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
       },
     };
 
-    render(
-      <PolymorphicApprovalCard
-        approval={approval}
-        onResolve={mockOnResolve}
-        isSubmitting={false}
-      />
-    );
+    render(<PolymorphicApprovalCard approval={approval} onResolve={mockOnResolve} isSubmitting={false} />);
 
     const approveBtn = screen.getByText('Approve');
     fireEvent.click(approveBtn);
@@ -111,7 +95,7 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
       expect.objectContaining({
         action_digest: 'sha256_exact_digest_456',
         actionDigest: 'sha256_exact_digest_456',
-      })
+      }),
     );
   });
 
@@ -124,9 +108,7 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
       status: 'pending',
       severity: 'high',
       payload: {
-        tool_calls: [
-          { name: 'cloud_purchase_tool', args: { amount: 150.0, currency: 'USD' } },
-        ],
+        tool_calls: [{ name: 'cloud_purchase_tool', args: { amount: 150.0, currency: 'USD' } }],
         reviewConfigs: [
           {
             isSpend: true,
@@ -140,13 +122,7 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
       },
     };
 
-    render(
-      <PolymorphicApprovalCard
-        approval={approval}
-        onResolve={mockOnResolve}
-        isSubmitting={false}
-      />
-    );
+    render(<PolymorphicApprovalCard approval={approval} onResolve={mockOnResolve} isSubmitting={false} />);
 
     const overrideBtn = screen.getByText('smartDenied.overrideOnce');
     fireEvent.click(overrideBtn);
@@ -159,7 +135,7 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
       expect.objectContaining({
         action_digest: 'sha256_smart_denied_digest_789',
         actionDigest: 'sha256_smart_denied_digest_789',
-      })
+      }),
     );
   });
 
@@ -172,9 +148,7 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
       status: 'pending',
       severity: 'high',
       payload: {
-        tool_calls: [
-          { name: 'channel_notify', args: { message: 'hello' } },
-        ],
+        tool_calls: [{ name: 'channel_notify', args: { message: 'hello' } }],
         reviewConfigs: [
           {
             autoModeSuspended: 'consecutive',
@@ -185,13 +159,7 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
       },
     };
 
-    render(
-      <PolymorphicApprovalCard
-        approval={approval}
-        onResolve={mockOnResolve}
-        isSubmitting={false}
-      />
-    );
+    render(<PolymorphicApprovalCard approval={approval} onResolve={mockOnResolve} isSubmitting={false} />);
 
     expect(screen.getByText('autoModeSuspended.title')).toBeDefined();
     expect(screen.getByText('autoModeSuspended.consecutiveReason')).toBeDefined();

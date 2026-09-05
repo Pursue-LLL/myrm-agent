@@ -17,9 +17,7 @@ import { useTranslations } from 'next-intl';
 import useChatStore, { File as FileType } from '@/store/useChatStore';
 import type { TurnCapabilitySelection } from '@/hooks/message-input/turnCapabilityOverrideCore';
 import { formatSkillChipLabel } from '@/lib/utils/messageUtils';
-import {
-  deleteSharedContextBindingByTarget,
-} from '@/services/memory/sharedContexts';
+import { deleteSharedContextBindingByTarget } from '@/services/memory/sharedContexts';
 
 export type ContextChipCategory = 'skill' | 'workflow' | 'capability' | 'mention' | 'attachment' | 'knowledge';
 

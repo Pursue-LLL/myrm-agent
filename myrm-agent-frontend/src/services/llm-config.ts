@@ -62,12 +62,7 @@ const PROVIDER_MODELS: Record<string, string[]> = {
     'claude-3-haiku-20240307',
   ],
   gemini: ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
-  deepseek: [
-    'deepseek-chat',
-    'deepseek-reasoner',
-    'deepseek-v4-pro',
-    'deepseek-v4-flash',
-  ],
+  deepseek: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4-pro', 'deepseek-v4-flash'],
   openrouter: [
     'openai/gpt-4o',
     'anthropic/claude-3.5-sonnet',
@@ -780,10 +775,13 @@ export const fetchCredentialPoolStats = async (): Promise<CredentialPoolStatItem
 
 export const resetCredentialPoolCooldowns = async (keySuffix?: string): Promise<{ reset_count: number }> => {
   try {
-    const res = await apiRequest<{ data: { reset_count: number } }>('/integrations/llm/credential-pool/reset-cooldowns', {
-      method: 'POST',
-      body: JSON.stringify(keySuffix ? { key_suffix: keySuffix } : {}),
-    });
+    const res = await apiRequest<{ data: { reset_count: number } }>(
+      '/integrations/llm/credential-pool/reset-cooldowns',
+      {
+        method: 'POST',
+        body: JSON.stringify(keySuffix ? { key_suffix: keySuffix } : {}),
+      },
+    );
     return res.data || { reset_count: 0 };
   } catch {
     return { reset_count: 0 };
@@ -810,5 +808,3 @@ export const validateExternalSecretReference = async (reference: string): Promis
     return { valid: false, error: e instanceof Error ? e.message : 'Request failed' };
   }
 };
-
-

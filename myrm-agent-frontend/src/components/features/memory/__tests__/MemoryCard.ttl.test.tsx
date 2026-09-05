@@ -65,13 +65,7 @@ describe('MemoryCard - procedural TTL display', () => {
 describe('MemoryCard - delete actions', () => {
   it('calls onDelete with false for regular soft delete', async () => {
     const onDeleteMock = vi.fn();
-    render(
-      <MemoryCard
-        memory={baseProcedural}
-        variant="confirmed"
-        onDelete={onDeleteMock}
-      />,
-    );
+    render(<MemoryCard memory={baseProcedural} variant="confirmed" onDelete={onDeleteMock} />);
 
     // Open actions menu
     const moreButton = screen.getByRole('button', { name: '' });
@@ -85,13 +79,7 @@ describe('MemoryCard - delete actions', () => {
 
   it('calls onDelete with true for permanent physical shredding', async () => {
     const onDeleteMock = vi.fn();
-    render(
-      <MemoryCard
-        memory={baseProcedural}
-        variant="confirmed"
-        onDelete={onDeleteMock}
-      />,
-    );
+    render(<MemoryCard memory={baseProcedural} variant="confirmed" onDelete={onDeleteMock} />);
 
     // Open actions menu
     const moreButton = screen.getByRole('button', { name: '' });

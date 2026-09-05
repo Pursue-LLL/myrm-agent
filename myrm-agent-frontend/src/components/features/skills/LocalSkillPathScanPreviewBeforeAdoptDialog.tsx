@@ -54,17 +54,13 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
     // 初始化默认勾选所有非冲突有效技能
     useEffect(() => {
       if (open && previewData?.skills) {
-        const defaultSelected = previewData.skills
-          .filter((s) => !s.is_conflicted && s.skill_id)
-          .map((s) => s.skill_id);
+        const defaultSelected = previewData.skills.filter((s) => !s.is_conflicted && s.skill_id).map((s) => s.skill_id);
         setSelectedIds(defaultSelected);
       }
     }, [open, previewData]);
 
     const handleToggleSkill = useCallback((skillId: string) => {
-      setSelectedIds((prev) =>
-        prev.includes(skillId) ? prev.filter((id) => id !== skillId) : [...prev, skillId],
-      );
+      setSelectedIds((prev) => (prev.includes(skillId) ? prev.filter((id) => id !== skillId) : [...prev, skillId]));
     }, []);
 
     const handleSelectAll = useCallback(() => {
@@ -280,7 +276,9 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
               >
                 {t('previewDialog.addPathOnly')}
               </Button>
-            ) : <div />}
+            ) : (
+              <div />
+            )}
             <div className="flex items-center gap-2">
               <Button
                 data-testid="preview-adopt-cancel-btn"
@@ -315,5 +313,4 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
   },
 );
 
-LocalSkillPathScanPreviewBeforeAdoptDialog.displayName =
-  'LocalSkillPathScanPreviewBeforeAdoptDialog';
+LocalSkillPathScanPreviewBeforeAdoptDialog.displayName = 'LocalSkillPathScanPreviewBeforeAdoptDialog';

@@ -998,4 +998,3 @@ export async function updateSearchQuotaLimit(provider: string, quota_limit: numb
     body: JSON.stringify({ provider, quota_limit }),
   });
 }
-

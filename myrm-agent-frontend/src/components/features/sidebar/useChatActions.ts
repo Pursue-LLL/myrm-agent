@@ -1,10 +1,5 @@
 import { useCallback, useState } from 'react';
-import {
-  ChatItem,
-  updateChatTitle,
-  deleteChat,
-  exportChat,
-} from '@/services/chat';
+import { ChatItem, updateChatTitle, deleteChat, exportChat } from '@/services/chat';
 import { revealChatArtifacts } from '@/services/file';
 import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown, printChat } from '@/lib/utils/chatExport';
 import useChatStore from '@/store/useChatStore';
@@ -164,10 +159,10 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
           return;
         }
         const successTitle = data.redacted
-          ? (t('chat.exportChat.successRedacted') || t('chat.exportChat.success'))
+          ? t('chat.exportChat.successRedacted') || t('chat.exportChat.success')
           : t('chat.exportChat.success');
         const copySuccessTitle = data.redacted
-          ? (t('chat.exportChat.copySuccessRedacted') || t('chat.exportChat.copySuccess'))
+          ? t('chat.exportChat.copySuccessRedacted') || t('chat.exportChat.copySuccess')
           : t('chat.exportChat.copySuccess');
 
         switch (mode) {

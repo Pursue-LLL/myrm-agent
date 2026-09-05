@@ -411,9 +411,7 @@ describe('ModelPickerPopover local-owned marginal cost badge', () => {
         apiUrl: 'http://192.168.1.188:8000/v1',
       },
     ]);
-    getEnabledModels.mockReturnValue([
-      { providerId: 'split-stack-vllm', providerName: 'LAN vLLM', model: 'qwen2.5' },
-    ]);
+    getEnabledModels.mockReturnValue([{ providerId: 'split-stack-vllm', providerName: 'LAN vLLM', model: 'qwen2.5' }]);
     customModelInfo.mockReturnValue({});
 
     mocks.fetchModelCapabilitiesBatch.mockResolvedValue({
@@ -447,9 +445,7 @@ describe('ModelPickerPopover local-owned marginal cost badge', () => {
         providerType: 'ollama',
       },
     ]);
-    getEnabledModels.mockReturnValue([
-      { providerId: 'ollama', providerName: 'Ollama Proxy', model: 'custom-paid' },
-    ]);
+    getEnabledModels.mockReturnValue([{ providerId: 'ollama', providerName: 'Ollama Proxy', model: 'custom-paid' }]);
     customModelInfo.mockReturnValue({
       'ollama/custom-paid': {
         supports_vision: false,
@@ -542,4 +538,3 @@ describe('ModelPickerPopover local-owned marginal cost badge', () => {
     expect(screen.queryByText('gpt-4o')).not.toBeInTheDocument();
   });
 });
-

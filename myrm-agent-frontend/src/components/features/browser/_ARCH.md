@@ -5,10 +5,10 @@
 
 ## Files
 
-| File | Role | Description | I/O/P |
-|------|------|-------------|-------|
-| `TaskSpaceDock.tsx` | Core | 浮动胶囊 Dock 组件。支持展开收起、多空间状态指示、一键接管、快照预览及优雅关闭 | ✅ |
-| `__tests__/TaskSpaceDock.test.tsx` | Test | 单元测试，覆盖空状态静默隐藏、展开收起、接管切换与关闭操作 | ✅ |
+| File                               | Role | Description                                                                    | I/O/P |
+| ---------------------------------- | ---- | ------------------------------------------------------------------------------ | ----- |
+| `TaskSpaceDock.tsx`                | Core | 浮动胶囊 Dock 组件。支持展开收起、多空间状态指示、一键接管、快照预览及优雅关闭 | ✅    |
+| `__tests__/TaskSpaceDock.test.tsx` | Test | 单元测试，覆盖空状态静默隐藏、展开收起、接管切换与关闭操作                     | ✅    |
 
 ## Dependencies
 

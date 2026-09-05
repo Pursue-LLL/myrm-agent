@@ -525,7 +525,9 @@ export function buildBuiltinActions(): SlashAction[] {
       execute: async (inputValue: string) => {
         const { default: useChatStore } = await import('@/store/useChatStore');
         const { setInputMessage } = useChatStore.getState();
-        const rawArgs = inputValue.replace(/^\/(?:review-week|week-review|weekly-digest|extract-blockers)\s*/i, '').trim();
+        const rawArgs = inputValue
+          .replace(/^\/(?:review-week|week-review|weekly-digest|extract-blockers)\s*/i, '')
+          .trim();
         const directive = rawArgs
           ? `/review-week ${rawArgs}`
           : '/review-week 请检索本周的会议录音、听记素材与看板状态，提炼全局工作结论与关键阻碍并生成周度复盘工件。';

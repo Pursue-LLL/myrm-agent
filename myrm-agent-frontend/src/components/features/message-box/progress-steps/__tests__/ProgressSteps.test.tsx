@@ -168,4 +168,3 @@ describe('ProgressSteps fault-side badge', () => {
     expect(screen.getByText('Academic DOI')).toBeInTheDocument();
   });
 });
-

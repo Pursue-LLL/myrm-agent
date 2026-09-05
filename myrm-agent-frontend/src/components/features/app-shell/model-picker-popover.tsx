@@ -314,17 +314,13 @@ export default function ModelPickerPopover({
     const result: { provider: (typeof providers)[0]; models: string[] }[] = [];
     const map: Record<string, (typeof result)[0]> = {};
 
-    const isCostZeroQuery =
-      q === '$0' || q === '0' || q === 'free' || q === 'local' || q === '本地' || q === '免费';
+    const isCostZeroQuery = q === '$0' || q === '0' || q === 'free' || q === 'local' || q === '本地' || q === '免费';
 
     for (const em of enabledModels) {
       const cost = costPerMillion[em.model];
       const matchCostZero = isCostZeroQuery && cost?.isLocalOwned;
       const matchText =
-        !q ||
-        em.model.toLowerCase().includes(q) ||
-        em.providerName.toLowerCase().includes(q) ||
-        matchCostZero;
+        !q || em.model.toLowerCase().includes(q) || em.providerName.toLowerCase().includes(q) || matchCostZero;
 
       if (!matchText) {
         continue;

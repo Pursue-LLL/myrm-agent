@@ -40,10 +40,7 @@ vi.mock('next-intl', () => ({
   },
 }));
 
-function TestWrapper(props: {
-  initialDuration?: AllowAlwaysDuration;
-  onConfirmMock?: () => void;
-}) {
+function TestWrapper(props: { initialDuration?: AllowAlwaysDuration; onConfirmMock?: () => void }) {
   const [open, setOpen] = useState(true);
   const [scope, setScope] = useState<AllowAlwaysScope>('exact');
   const [duration, setDuration] = useState<AllowAlwaysDuration>(props.initialDuration ?? 'session');
@@ -84,9 +81,7 @@ describe('AllowAlwaysConfirmDialog Duration & Scope Gates', () => {
 
     expect(screen.getByText('Permanent (High Risk)')).toBeInTheDocument();
     expect(screen.getByText('Permanently bypasses approval.')).toBeInTheDocument();
-    expect(
-      screen.getByText('Warning: Permanent bypass leaves operation open indefinitely.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Warning: Permanent bypass leaves operation open indefinitely.')).toBeInTheDocument();
   });
 
   it('triggers onConfirm when confirmation action button is clicked', () => {

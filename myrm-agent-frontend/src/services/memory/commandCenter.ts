@@ -660,7 +660,8 @@ export const getBehavioralInsights = async (
     params.set('offset_minutes', String(-new Date().getTimezoneOffset()));
   }
 
-  const tz = clientTimezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined);
+  const tz =
+    clientTimezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined);
   if (tz) {
     params.set('client_timezone', tz);
   }
@@ -671,10 +672,15 @@ export const getBehavioralInsights = async (
   return apiRequest<MemoryBehavioralInsights>(`/memory/command-center/behavioral-insights?${params.toString()}`);
 };
 
-export const triggerBehavioralSync = async (lookbackDays: number = 30): Promise<{ status: string; updated_profile_keys: string[]; count: number }> => {
-  return apiRequest<{ status: string; updated_profile_keys: string[]; count: number }>(`/memory/command-center/behavioral-sync?lookback_days=${lookbackDays}`, {
-    method: 'POST',
-  });
+export const triggerBehavioralSync = async (
+  lookbackDays: number = 30,
+): Promise<{ status: string; updated_profile_keys: string[]; count: number }> => {
+  return apiRequest<{ status: string; updated_profile_keys: string[]; count: number }>(
+    `/memory/command-center/behavioral-sync?lookback_days=${lookbackDays}`,
+    {
+      method: 'POST',
+    },
+  );
 };
 
 export interface MemoryEvidencePlaybackTurn {
@@ -750,9 +756,6 @@ export const getEvidencePlayback = async (params: {
   const qStr = query.toString() ? `?${query.toString()}` : '';
   return apiRequest<MemoryEvidencePlaybackResponse>(`/memory/command-center/evidence/playback${qStr}`);
 };
-
-
-
 
 export const getMemoryRecallBoundary = async (agentId?: string, taskId?: string): Promise<MemoryRecallBoundaryData> => {
   const params = new URLSearchParams();

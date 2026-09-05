@@ -13,15 +13,7 @@
 export type ArchitectureDiagramType = 'architecture' | 'workflow' | 'sequence' | 'dataflow' | 'lifecycle';
 
 export type NodeCategory =
-  | 'frontend'
-  | 'gateway'
-  | 'backend'
-  | 'database'
-  | 'cache'
-  | 'queue'
-  | 'external'
-  | 'security'
-  | 'custom';
+  'frontend' | 'gateway' | 'backend' | 'database' | 'cache' | 'queue' | 'external' | 'security' | 'custom';
 
 export type NodeStatus = 'healthy' | 'warning' | 'degraded' | 'offline';
 

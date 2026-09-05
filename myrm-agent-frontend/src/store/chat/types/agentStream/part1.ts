@@ -443,4 +443,3 @@ export interface PhaseTransitionStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.PHASE_TRANSITION;
   data: PhaseTransitionPayload;
 }
-

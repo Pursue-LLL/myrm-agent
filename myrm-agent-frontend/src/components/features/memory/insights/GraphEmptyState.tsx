@@ -39,9 +39,7 @@ export const GraphEmptyState = memo<GraphEmptyStateProps>(({ state, onRetry, cla
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10 text-destructive mb-3">
           <Database className="h-5 w-5" />
         </div>
-        <h4 className="text-sm font-semibold text-foreground">
-          {t('commandCenter.graph.stateStorageDisabledTitle')}
-        </h4>
+        <h4 className="text-sm font-semibold text-foreground">{t('commandCenter.graph.stateStorageDisabledTitle')}</h4>
         <p className="mt-1.5 max-w-sm text-xs text-muted-foreground">
           {t('commandCenter.graph.stateStorageDisabledDesc')}
         </p>
@@ -70,9 +68,7 @@ export const GraphEmptyState = memo<GraphEmptyStateProps>(({ state, onRetry, cla
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary mb-3">
           <Sparkles className="h-5 w-5" />
         </div>
-        <h4 className="text-sm font-semibold text-foreground">
-          {t('commandCenter.graph.stateEmptyKnowledgeTitle')}
-        </h4>
+        <h4 className="text-sm font-semibold text-foreground">{t('commandCenter.graph.stateEmptyKnowledgeTitle')}</h4>
         <p className="mt-1.5 max-w-sm text-xs text-muted-foreground">
           {t('commandCenter.graph.stateEmptyKnowledgeDesc')}
         </p>
@@ -101,9 +97,7 @@ export const GraphEmptyState = memo<GraphEmptyStateProps>(({ state, onRetry, cla
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 mb-3">
           <GitFork className="h-5 w-5" />
         </div>
-        <h4 className="text-sm font-semibold text-foreground">
-          {t('commandCenter.graph.stateSparseIslandsTitle')}
-        </h4>
+        <h4 className="text-sm font-semibold text-foreground">{t('commandCenter.graph.stateSparseIslandsTitle')}</h4>
         <p className="mt-1.5 max-w-sm text-xs text-muted-foreground">
           {t('commandCenter.graph.stateSparseIslandsDesc')}
         </p>

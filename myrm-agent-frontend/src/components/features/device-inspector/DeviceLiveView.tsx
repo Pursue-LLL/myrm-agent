@@ -224,9 +224,7 @@ export const DeviceLiveView: React.FC<DeviceLiveViewProps> = ({ onSendInstructio
             </span>
           </div>
           {scopedViewData.doctor?.remediation_hint && (
-            <span className="text-[11px] opacity-80 pl-5">
-              {scopedViewData.doctor.remediation_hint}
-            </span>
+            <span className="text-[11px] opacity-80 pl-5">{scopedViewData.doctor.remediation_hint}</span>
           )}
         </div>
       )}

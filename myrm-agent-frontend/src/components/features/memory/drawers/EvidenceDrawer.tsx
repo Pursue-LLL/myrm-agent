@@ -201,9 +201,7 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
               <FileText className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-foreground">
-                {t('commandCenter.evidence.drawerTitle')}
-              </h3>
+              <h3 className="text-sm font-semibold text-foreground">{t('commandCenter.evidence.drawerTitle')}</h3>
               <p className="text-xs text-muted-foreground">
                 {data?.status === 'live_context'
                   ? t('commandCenter.evidence.statusLive')
@@ -271,9 +269,7 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
                   data.turns.map((turn) => {
                     const isAssistant = turn.role === 'assistant';
                     const isTool =
-                      turn.role === 'tool' ||
-                      turn.role === 'tool_salient' ||
-                      turn.content.startsWith('Tool[');
+                      turn.role === 'tool' || turn.role === 'tool_salient' || turn.content.startsWith('Tool[');
                     const isCopied = copiedTurnId === turn.message_id;
 
                     if (isTool) {
@@ -349,7 +345,9 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
                             )}
                             {turn.sender_name || (isAssistant ? 'Assistant' : 'User')}
                           </span>
-                          <span>{new Date(turn.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span>
+                            {new Date(turn.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
                         </div>
                         <div className="pt-2 text-foreground/90 leading-relaxed break-words whitespace-pre-wrap">
                           {turn.is_target

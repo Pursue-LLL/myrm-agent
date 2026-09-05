@@ -25,12 +25,7 @@ describe('WeChatTroubleshootGuide', () => {
   });
 
   it('renders toggle button initially without expanding panel', () => {
-    render(
-      <WeChatTroubleshootGuide
-        channelName="wechat"
-        status={null}
-      />,
-    );
+    render(<WeChatTroubleshootGuide channelName="wechat" status={null} />);
     expect(screen.getByTestId('wechat-troubleshoot-toggle')).toBeInTheDocument();
     expect(screen.queryByTestId('wechat-troubleshoot-panel')).not.toBeInTheDocument();
   });

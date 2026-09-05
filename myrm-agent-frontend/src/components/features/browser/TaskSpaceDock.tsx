@@ -2,17 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Layers,
-  ChevronDown,
-  ChevronUp,
-  UserCheck,
-  Bot,
-  X,
-  ExternalLink,
-  RefreshCw,
-  Eye,
-} from 'lucide-react';
+import { Layers, ChevronDown, ChevronUp, UserCheck, Bot, X, ExternalLink, RefreshCw, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   fetchTaskSpaces,
@@ -28,10 +18,7 @@ export interface TaskSpaceDockProps {
   autoRefreshIntervalMs?: number;
 }
 
-export const TaskSpaceDock: React.FC<TaskSpaceDockProps> = ({
-  className,
-  autoRefreshIntervalMs = 5000,
-}) => {
+export const TaskSpaceDock: React.FC<TaskSpaceDockProps> = ({ className, autoRefreshIntervalMs = 5000 }) => {
   const t = useTranslations('taskSpaces');
   const [spaces, setSpaces] = useState<TaskSpaceInfo[]>([]);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
@@ -55,9 +42,7 @@ export const TaskSpaceDock: React.FC<TaskSpaceDockProps> = ({
     // Adaptive polling: relax interval when empty to conserve network & battery,
     // resume high-frequency poll when spaces are active or dock is expanded.
     const effectiveInterval =
-      spaces.length === 0 && !isExpanded
-        ? Math.max(autoRefreshIntervalMs * 2, 10000)
-        : autoRefreshIntervalMs;
+      spaces.length === 0 && !isExpanded ? Math.max(autoRefreshIntervalMs * 2, 10000) : autoRefreshIntervalMs;
 
     const timer = setInterval(() => {
       void loadSpaces();
@@ -69,9 +54,7 @@ export const TaskSpaceDock: React.FC<TaskSpaceDockProps> = ({
     setTakeoverLoadingId(space.space_id);
     try {
       const updated = await toggleTaskSpaceTakeover(space.space_id, !space.takeover_active);
-      setSpaces((prev) =>
-        prev.map((s) => (s.space_id === updated.space_id ? updated : s)),
-      );
+      setSpaces((prev) => prev.map((s) => (s.space_id === updated.space_id ? updated : s)));
     } finally {
       setTakeoverLoadingId(null);
     }
@@ -181,9 +164,7 @@ export const TaskSpaceDock: React.FC<TaskSpaceDockProps> = ({
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="font-semibold truncate text-foreground">
-                        {space.name || space.space_id}
-                      </span>
+                      <span className="font-semibold truncate text-foreground">{space.name || space.space_id}</span>
                       {isTakeover ? (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/20 text-amber-500 flex items-center gap-1">
                           <UserCheck className="w-2.5 h-2.5" />

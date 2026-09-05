@@ -108,16 +108,12 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-primary" />
-            <h3 className="text-base font-semibold text-foreground tracking-tight">
-              {t('title')}
-            </h3>
+            <h3 className="text-base font-semibold text-foreground tracking-tight">{t('title')}</h3>
             <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary border border-primary/20">
               {t('badge')}
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {t('description')}
-          </p>
+          <p className="text-xs text-muted-foreground">{t('description')}</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -198,7 +194,8 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
                         </span>
                       ) : (
                         <span>
-                          <strong className="text-foreground">{item.used_count.toLocaleString()}</strong> {t('callsUnit')}
+                          <strong className="text-foreground">{item.used_count.toLocaleString()}</strong>{' '}
+                          {t('callsUnit')}
                         </span>
                       )}
 
@@ -285,9 +282,7 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
 
             <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/10 text-[11px] text-muted-foreground leading-relaxed flex items-start gap-2">
               <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-              <span>
-                {t('watchdogTip')}
-              </span>
+              <span>{t('watchdogTip')}</span>
             </div>
           </div>
         </div>
@@ -299,9 +294,7 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
           <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-lg space-y-4">
             <div className="space-y-1">
               <h4 className="text-sm font-semibold text-foreground">{t('editLimitTitle')}</h4>
-              <p className="text-xs text-muted-foreground">
-                {t('editLimitDesc', { provider: editingProvider })}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('editLimitDesc', { provider: editingProvider })}</p>
             </div>
 
             <div className="space-y-2">

@@ -193,10 +193,7 @@ export function WikiHealthIssuesSection({
         </div>
       ) : null}
 
-      <WikiGovernanceWorkbench
-        onOpenPendingEdits={onOpenPendingEdits}
-        onRefreshParent={onRefresh}
-      />
+      <WikiGovernanceWorkbench onOpenPendingEdits={onOpenPendingEdits} onRefreshParent={onRefresh} />
 
       {expanded && hasIssues ? (
         <ul className="max-h-72 space-y-2 overflow-y-auto">

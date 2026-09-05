@@ -140,9 +140,7 @@ export function WikiGovernanceWorkbench({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">
-            {t('governanceTitle') || '知识生命周期治理工作台'}
-          </h3>
+          <h3 className="text-sm font-semibold text-foreground">{t('governanceTitle') || '知识生命周期治理工作台'}</h3>
         </div>
         <div className="flex items-center gap-2">
           {undoToken ? (

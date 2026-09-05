@@ -15,10 +15,7 @@ import { memo, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { GitBranch, GitCommit, RefreshCw, FolderGit2, AlertCircle, FileCode } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
-import {
-  getRepoEvidenceDigest,
-  type MemoryRepoEvidenceResponse,
-} from '@/services/memory/commandCenter';
+import { getRepoEvidenceDigest, type MemoryRepoEvidenceResponse } from '@/services/memory/commandCenter';
 
 interface RepoEvidenceCardProps {
   workspacePath?: string;
@@ -65,9 +62,7 @@ export const RepoEvidenceCard = memo<RepoEvidenceCardProps>(({ workspacePath, cl
             <FolderGit2 className="w-4 h-4" />
           </span>
           <div>
-            <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-              {data?.repo_name || t('title')}
-            </h4>
+            <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{data?.repo_name || t('title')}</h4>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
                 <GitBranch className="w-3 h-3 text-indigo-400" />
@@ -112,9 +107,7 @@ export const RepoEvidenceCard = memo<RepoEvidenceCardProps>(({ workspacePath, cl
                   className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-100 dark:border-zinc-800/60 text-xs flex flex-col gap-1"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate flex-1">
-                      {c.subject}
-                    </span>
+                    <span className="font-medium text-zinc-800 dark:text-zinc-200 truncate flex-1">{c.subject}</span>
                     <span className="inline-flex items-center gap-1 font-mono text-[10px] text-zinc-400 dark:text-zinc-500 shrink-0">
                       <GitCommit className="w-3 h-3 text-indigo-400" />
                       {c.short_hash}

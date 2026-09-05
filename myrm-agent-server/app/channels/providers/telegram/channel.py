@@ -326,7 +326,10 @@ class TelegramChannel(
             await self._cleanup_webhook()
 
         if self._commands:
-            await self._client.delete_my_commands()
+            try:
+                await self._client.delete_my_commands()
+            except Exception as exc:
+                logger.warning("TelegramChannel: failed to delete commands on stop: %s", self._redact(str(exc)))
 
         await self._client.close()
         logger.info("TelegramChannel: stopped")

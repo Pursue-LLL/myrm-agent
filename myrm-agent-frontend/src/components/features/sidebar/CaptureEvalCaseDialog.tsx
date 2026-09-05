@@ -28,12 +28,7 @@ interface CaptureEvalCaseDialogProps {
   onSuccess?: () => void;
 }
 
-export function CaptureEvalCaseDialog({
-  open,
-  onOpenChange,
-  chatId,
-  onSuccess,
-}: CaptureEvalCaseDialogProps) {
+export function CaptureEvalCaseDialog({ open, onOpenChange, chatId, onSuccess }: CaptureEvalCaseDialogProps) {
   const t = useTranslations();
   const { toast } = useToast();
   const [datasets, setDatasets] = useState<EvalDatasetItem[]>([]);
@@ -73,7 +68,10 @@ export function CaptureEvalCaseDialog({
     if (!chatId) return;
 
     const targetDatasetId = isCreatingNew
-      ? newDatasetName.trim().replace(/[^a-zA-Z0-9_-]/g, '_').replace(/^_+|_+$/g, '')
+      ? newDatasetName
+          .trim()
+          .replace(/[^a-zA-Z0-9_-]/g, '_')
+          .replace(/^_+|_+$/g, '')
       : selectedDatasetId.trim();
 
     if (!targetDatasetId) {
@@ -90,7 +88,8 @@ export function CaptureEvalCaseDialog({
       await evalService.captureCaseFromChat(chatId, targetDatasetId);
       toast({
         title: t('chat.captureEvalCase.success') || 'Captured as Eval Case',
-        description: t('chat.captureEvalCase.successDesc') || 'Chat session has been appended to the evaluation dataset.',
+        description:
+          t('chat.captureEvalCase.successDesc') || 'Chat session has been appended to the evaluation dataset.',
       });
       onOpenChange(false);
       onSuccess?.();
@@ -176,7 +175,9 @@ export function CaptureEvalCaseDialog({
                           handleConfirm();
                         }
                       }}
-                      placeholder={t('chat.captureEvalCase.newDatasetPlaceholder') || 'Enter dataset name (e.g., regressions)'}
+                      placeholder={
+                        t('chat.captureEvalCase.newDatasetPlaceholder') || 'Enter dataset name (e.g., regressions)'
+                      }
                       className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       autoFocus
                     />
@@ -197,13 +198,7 @@ export function CaptureEvalCaseDialog({
         </div>
 
         <DialogFooter className="flex gap-2 sm:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-            disabled={submitting}
-          >
+          <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={submitting}>
             {t('common.cancel') || 'Cancel'}
           </Button>
           <Button

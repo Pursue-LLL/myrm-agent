@@ -230,8 +230,9 @@ const useDeviceInspectorStore = create<DeviceInspectorState>((set, get) => ({
 }));
 
 if (typeof window !== 'undefined') {
-  (window as unknown as { __MYRM_DEVICE_INSPECTOR_STORE__?: typeof useDeviceInspectorStore }).__MYRM_DEVICE_INSPECTOR_STORE__ =
-    useDeviceInspectorStore;
+  (
+    window as unknown as { __MYRM_DEVICE_INSPECTOR_STORE__?: typeof useDeviceInspectorStore }
+  ).__MYRM_DEVICE_INSPECTOR_STORE__ = useDeviceInspectorStore;
 }
 
 export default useDeviceInspectorStore;

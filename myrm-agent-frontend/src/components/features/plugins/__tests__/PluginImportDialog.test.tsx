@@ -57,9 +57,11 @@ const stableT = (key: string, values?: Record<string, unknown>): string => {
     'capabilities.risk.medium': 'Medium Risk',
     'capabilities.risk.high': 'High Risk',
     'capabilities.risk.critical': 'Critical Risk',
-    'capabilities.undeclaredWarning': 'Undeclared capability detected: this service requires permissions beyond what was declared in plugin.json.',
+    'capabilities.undeclaredWarning':
+      'Undeclared capability detected: this service requires permissions beyond what was declared in plugin.json.',
     'capabilities.escalationTitle': 'Privilege Escalation Risk Detected',
-    'capabilities.escalationWarning': 'This version requests elevated system permissions compared to previous installation: added [{added}]. Please verify the plugin source before confirming.',
+    'capabilities.escalationWarning':
+      'This version requests elevated system permissions compared to previous installation: added [{added}]. Please verify the plugin source before confirming.',
   };
   let text = map[key] ?? key;
   if (values) {
@@ -690,7 +692,9 @@ describe('PluginImportDialog', () => {
     expect(screen.getAllByText(/out\/bundle\.js/).length).toBeGreaterThan(0);
 
     const installButtons = screen.getAllByRole('button', { name: /Install|Skip/ });
-    const serverButton = installButtons.find((btn) => btn.closest('.divide-y')?.textContent?.includes('unrunnable-server'));
+    const serverButton = installButtons.find((btn) =>
+      btn.closest('.divide-y')?.textContent?.includes('unrunnable-server'),
+    );
     expect(serverButton).toBeDisabled();
   });
 
@@ -782,8 +786,8 @@ describe('PluginImportDialog', () => {
     await screen.findByText('sneaky-srv');
     expect(
       screen.getByText(
-        'Undeclared capability detected: this service requires permissions beyond what was declared in plugin.json.'
-      )
+        'Undeclared capability detected: this service requires permissions beyond what was declared in plugin.json.',
+      ),
     ).toBeInTheDocument();
   });
 });

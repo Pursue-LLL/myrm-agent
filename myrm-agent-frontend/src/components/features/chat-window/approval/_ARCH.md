@@ -16,4 +16,4 @@
 | `EditModeView.tsx` / `HandoverModeView.tsx` / `RejectModeView.tsx` | 审批模式 UI（Edit 含 pattern 预览与时效阶梯配置）                                           |
 | `AllowAlwaysConfirmDialog.tsx`                                     | 「始终允许」确认（支持 pattern 预览与 Session/15m/1h/Permanent 时效阶梯门禁）               |
 | `__tests__/AllowAlwaysConfirmDialog.test.tsx`                      | 单元测试：覆盖时效阶梯与高危永久授权防呆警示                                                |
-| `__tests__/EditModeView.test.tsx`                                  | 单元测试：覆盖 EditModeView 时效阶梯选择与确认回调行为                                     |
+| `__tests__/EditModeView.test.tsx`                                  | 单元测试：覆盖 EditModeView 时效阶梯选择与确认回调行为                                      |

@@ -550,9 +550,7 @@ export function PreviewStep({
   const [trustedSourceConfirmed, setTrustedSourceConfirmed] = useState(false);
 
   const isPiOrHasSkills =
-    source.competitor === 'pi' ||
-    (source.skill_count ?? 0) > 0 ||
-    ((dryRun.pending_skills?.length ?? 0) > 0);
+    source.competitor === 'pi' || (source.skill_count ?? 0) > 0 || (dryRun.pending_skills?.length ?? 0) > 0;
 
   const statusColors: Record<string, string> = {
     ready: 'text-emerald-600 dark:text-emerald-400',
@@ -812,9 +810,7 @@ export function PreviewStep({
               <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <span>{t('preview.trustedSourceTitle')}</span>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {t('preview.trustedSourceDesc')}
-            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{t('preview.trustedSourceDesc')}</p>
             <label className="flex items-start gap-2 text-xs cursor-pointer pt-1">
               <input
                 type="checkbox"
@@ -824,9 +820,7 @@ export function PreviewStep({
                 onChange={(event) => setTrustedSourceConfirmed(event.target.checked)}
                 disabled={importing}
               />
-              <span className="text-foreground font-medium">
-                {t('preview.trustedSourceConfirmLabel')}
-              </span>
+              <span className="text-foreground font-medium">{t('preview.trustedSourceConfirmLabel')}</span>
             </label>
           </div>
         )}

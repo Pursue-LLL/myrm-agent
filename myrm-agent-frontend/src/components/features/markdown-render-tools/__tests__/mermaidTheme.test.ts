@@ -191,7 +191,8 @@ describe('sanitizeMermaidSvg', () => {
   });
 
   it('strips foreignObject and inline event handlers with mixed case', () => {
-    const malicious = '<svg><foreignObject><div>bad</div></foreignObject><circle cx="10" cy="10" r="5" oNlOaD="alert(2)"/></svg>';
+    const malicious =
+      '<svg><foreignObject><div>bad</div></foreignObject><circle cx="10" cy="10" r="5" oNlOaD="alert(2)"/></svg>';
     const sanitized = sanitizeMermaidSvg(malicious);
     expect(sanitized).not.toContain('foreignObject');
     expect(sanitized).not.toContain('oNlOaD');
@@ -214,4 +215,3 @@ describe('sanitizeMermaidSvg', () => {
     expect(sanitizeMermaidSvg('')).toBe('');
   });
 });
-

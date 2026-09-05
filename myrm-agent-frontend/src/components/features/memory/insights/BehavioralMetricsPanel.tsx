@@ -42,7 +42,8 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
   const fallbackT = useTranslations('settings.memory.commandCenter.behavioral');
   const tb = parentT
     ? (key: string, values?: Record<string, string | number>) => parentT(`commandCenter.behavioral.${key}`, values)
-    : (key: string, values?: Record<string, string | number>) => fallbackT(`commandCenter.behavioral.${key}` as Parameters<typeof fallbackT>[0], values);
+    : (key: string, values?: Record<string, string | number>) =>
+        fallbackT(`commandCenter.behavioral.${key}` as Parameters<typeof fallbackT>[0], values);
   const [data, setData] = useState<MemoryBehavioralInsights | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [syncing, setSyncing] = useState<boolean>(false);
@@ -94,7 +95,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
     <div
       className={cn(
         'rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md p-5 shadow-xs transition-all',
-        className
+        className,
       )}
     >
       {/* Header */}
@@ -104,22 +105,19 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
             <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <IconActivity className="w-4 h-4" />
             </span>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              {tb('title')}
-            </h3>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{tb('title')}</h3>
             <span className="px-2 py-0.5 text-[11px] font-medium tracking-wide rounded-full bg-emerald-100/70 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-800/40">
               {tb('zeroCostBadge')}
             </span>
           </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            {tb('subtitle')}
-          </p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{tb('subtitle')}</p>
           {data && (
             <div className="flex flex-wrap items-center gap-2 mt-2">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60">
                 <IconClock className="w-3 h-3 text-indigo-400" />
                 <span>
-                  {data.detected_timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC')}
+                  {data.detected_timezone ||
+                    (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC')}
                   {data.offset_minutes !== undefined && data.offset_minutes !== null
                     ? ` (UTC${data.offset_minutes >= 0 ? '+' : ''}${(data.offset_minutes / 60).toFixed(1)}h)`
                     : ''}
@@ -229,7 +227,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
                     'px-2 py-0.5 rounded-md transition-all font-medium',
                     activeTab === 'workday'
                       ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-xs'
-                      : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                      : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200',
                   )}
                 >
                   {tb('workday')}
@@ -241,7 +239,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
                     'px-2 py-0.5 rounded-md transition-all font-medium',
                     activeTab === 'weekend'
                       ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-xs'
-                      : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                      : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200',
                   )}
                 >
                   {tb('weekend')}
@@ -253,7 +251,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
                     'px-2 py-0.5 rounded-md transition-all font-medium',
                     activeTab === 'combined'
                       ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-xs'
-                      : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                      : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200',
                   )}
                 >
                   {tb('allDays')}
@@ -270,13 +268,10 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
                   (activeTab === 'workday'
                     ? data?.workday_peak_window
                     : activeTab === 'weekend'
-                    ? data?.weekend_peak_window
-                    : data?.peak_active_window);
+                      ? data?.weekend_peak_window
+                      : data?.peak_active_window);
                 return (
-                  <div
-                    key={hour}
-                    className="flex-1 flex flex-col items-center h-full justify-end group relative"
-                  >
+                  <div key={hour} className="flex-1 flex flex-col items-center h-full justify-end group relative">
                     <div
                       style={{ height: `${heightPct}%` }}
                       className={cn(
@@ -285,7 +280,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
                           ? isHighlight
                             ? 'bg-indigo-500/80 hover:bg-indigo-600 dark:bg-indigo-400 dark:hover:bg-indigo-300'
                             : 'bg-zinc-400/60 dark:bg-zinc-600/60 hover:bg-zinc-500'
-                          : 'bg-zinc-100 dark:bg-zinc-800/40'
+                          : 'bg-zinc-100 dark:bg-zinc-800/40',
                       )}
                     />
                     {/* Tooltip */}
@@ -319,9 +314,7 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
                   >
                     <IconUsers className="w-3 h-3 text-zinc-400" />
                     <span className="font-medium">{name}</span>
-                    <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
-                      ×{count}
-                    </span>
+                    <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">×{count}</span>
                   </div>
                 ))}
               </div>

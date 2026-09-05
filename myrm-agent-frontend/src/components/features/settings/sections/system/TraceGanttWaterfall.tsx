@@ -55,9 +55,7 @@ const TraceGanttWaterfall = memo<TraceGanttWaterfallProps>(({ performance, total
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/30 pb-3">
         <div className="flex items-center gap-2">
           <IconActivity className="h-4 w-4 text-primary" />
-          <h4 className="text-sm font-semibold text-foreground tracking-tight">
-            {t('ganttWaterfall')}
-          </h4>
+          <h4 className="text-sm font-semibold text-foreground tracking-tight">{t('ganttWaterfall')}</h4>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -112,9 +110,7 @@ const TraceGanttWaterfall = memo<TraceGanttWaterfallProps>(({ performance, total
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground font-medium">{t('cacheHitRate')}</div>
             <div className="flex items-baseline gap-2">
-              <span className="text-xl font-bold font-mono text-foreground">
-                {hitRatioPercent}%
-              </span>
+              <span className="text-xl font-bold font-mono text-foreground">{hitRatioPercent}%</span>
               <span className="text-[11px] text-muted-foreground font-mono">
                 {t('cacheTokens', { tokens: (performance?.total_cache_read_tokens || 0).toLocaleString() })}
               </span>
@@ -169,9 +165,7 @@ const TraceGanttWaterfall = memo<TraceGanttWaterfallProps>(({ performance, total
                   )}
                   style={{ left: `${leftPercent}%`, width: `${widthPercent}%` }}
                 >
-                  <span className="text-[10px] font-medium truncate font-mono">
-                    {Math.round(span.duration_ms)}ms
-                  </span>
+                  <span className="text-[10px] font-medium truncate font-mono">{Math.round(span.duration_ms)}ms</span>
                 </div>
 
                 {/* Left Label */}
@@ -208,20 +202,14 @@ const TraceGanttWaterfall = memo<TraceGanttWaterfallProps>(({ performance, total
               <IconClock className="h-3.5 w-3.5 text-primary" />
               {privacyMode ? 'Protected Span' : selectedSpan.label}
             </span>
-            <span className="font-mono text-muted-foreground">
-              {Math.round(selectedSpan.duration_ms)} ms
-            </span>
+            <span className="font-mono text-muted-foreground">{Math.round(selectedSpan.duration_ms)} ms</span>
           </div>
           {selectedSpan.ttft_ms && selectedSpan.ttft_ms > 0 && (
             <div className="text-muted-foreground font-mono text-[11px]">
               TTFT: {Math.round(selectedSpan.ttft_ms)}ms
             </div>
           )}
-          {selectedSpan.error && (
-            <div className="text-rose-500 text-[11px] break-words">
-              {selectedSpan.error}
-            </div>
-          )}
+          {selectedSpan.error && <div className="text-rose-500 text-[11px] break-words">{selectedSpan.error}</div>}
         </div>
       )}
     </div>

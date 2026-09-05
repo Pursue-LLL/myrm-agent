@@ -79,17 +79,13 @@ export const MemoryHygieneDiscoverChip = memo(function MemoryHygieneDiscoverChip
         </div>
         <div className="flex flex-col min-w-0 text-left">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-200 truncate">
-              {t('title')}
-            </span>
+            <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-200 truncate">{t('title')}</span>
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 shrink-0">
               <ShieldCheck className="w-2.5 h-2.5" />
               {t('hermesBadge')}
             </span>
           </div>
-          <span className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
-            {t('subtitle')}
-          </span>
+          <span className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">{t('subtitle')}</span>
         </div>
       </div>
 

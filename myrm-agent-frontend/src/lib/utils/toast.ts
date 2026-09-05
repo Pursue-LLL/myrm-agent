@@ -47,9 +47,8 @@ const toast: ToastFunction = ((
     const { title, variant, description, ...restOptions } = messageOrOptions as ToastOptions;
 
     const safeTitle = variant === 'destructive' ? redactErrorMessage(title) : title;
-    const safeDesc = typeof description === 'string' && variant === 'destructive'
-      ? redactErrorMessage(description)
-      : description;
+    const safeDesc =
+      typeof description === 'string' && variant === 'destructive' ? redactErrorMessage(description) : description;
 
     // 根据 variant 决定使用哪种 toast 类型
     if (variant === 'destructive') {
@@ -67,16 +66,18 @@ const toast: ToastFunction = ((
 toast.success = sonnerToast.success.bind(sonnerToast);
 toast.error = (message: string | React.ReactNode, options?: ExternalToast) => {
   const safeMessage = typeof message === 'string' ? redactErrorMessage(message) : message;
-  const safeOptions = options && typeof options.description === 'string'
-    ? { ...options, description: redactErrorMessage(options.description) }
-    : options;
+  const safeOptions =
+    options && typeof options.description === 'string'
+      ? { ...options, description: redactErrorMessage(options.description) }
+      : options;
   return sonnerToast.error(safeMessage as string | React.ReactNode, safeOptions);
 };
 toast.warning = (message: string | React.ReactNode, options?: ExternalToast) => {
   const safeMessage = typeof message === 'string' ? redactErrorMessage(message) : message;
-  const safeOptions = options && typeof options.description === 'string'
-    ? { ...options, description: redactErrorMessage(options.description) }
-    : options;
+  const safeOptions =
+    options && typeof options.description === 'string'
+      ? { ...options, description: redactErrorMessage(options.description) }
+      : options;
   return sonnerToast.warning(safeMessage as string | React.ReactNode, safeOptions);
 };
 toast.info = sonnerToast.info.bind(sonnerToast);

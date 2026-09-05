@@ -187,7 +187,10 @@ const AllowlistSection = memo(() => {
                       {getGranularityLabel(entry.granularity)}
                     </Badge>
                     {entry.expires_at ? (
-                      <Badge variant="outline" className="text-xs text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/20">
+                      <Badge
+                        variant="outline"
+                        className="text-xs text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/20"
+                      >
                         {t('timeBound')}
                       </Badge>
                     ) : (
@@ -221,7 +224,11 @@ const AllowlistSection = memo(() => {
                   {entry.expires_at ? (
                     <div className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
                       <span>{t('expiresAt')}:</span>{' '}
-                      <span>{new Date(typeof entry.expires_at === 'number' ? entry.expires_at * 1000 : entry.expires_at).toLocaleString()}</span>
+                      <span>
+                        {new Date(
+                          typeof entry.expires_at === 'number' ? entry.expires_at * 1000 : entry.expires_at,
+                        ).toLocaleString()}
+                      </span>
                     </div>
                   ) : null}
 

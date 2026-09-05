@@ -34,10 +34,12 @@ const PATTERNS = {
   awsKeys: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g,
 
   // 5. 键值对型凭证 (如 token=abc, password: 123)
-  keyValueSecrets: /\b(token|password|secret|api_key|apikey|auth_token|client_secret)\s*([:=])\s*["']?([^\s"',;]{6,})["']?/gi,
+  keyValueSecrets:
+    /\b(token|password|secret|api_key|apikey|auth_token|client_secret)\s*([:=])\s*["']?([^\s"',;]{6,})["']?/gi,
 
   // 6. 数据库与消息队列 URI 密码 (postgres://user:password@host)
-  dbUriCredentials: /\b((?:postgres(?:ql)?|mysql|mariadb|redis(?:s)?|mongodb(?:\+srv)?|amqp(?:s)?):\/\/[^:\s\/]+:)([^@\s]+)(@)/gi,
+  dbUriCredentials:
+    /\b((?:postgres(?:ql)?|mysql|mariadb|redis(?:s)?|mongodb(?:\+srv)?|amqp(?:s)?):\/\/[^:\s\/]+:)([^@\s]+)(@)/gi,
 
   // 7. 本地用户主目录路径 (macOS / Linux / Windows)
   macHomePaths: /(^|[\s"'(])\/Users\/[^\/\s"')]+/g,
@@ -45,7 +47,8 @@ const PATTERNS = {
   windowsHomePaths: /(^|[\s"'(])[A-Za-z]:\\Users\\[^\\/\s"')]+/g,
 
   // 8. 错误信息中内网私有 IP 地址端点 (RFC1918)
-  privateEndpoints: /\b(https?:\/\/)(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?\b/gi,
+  privateEndpoints:
+    /\b(https?:\/\/)(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?\b/gi,
 };
 
 /**
@@ -84,25 +87,27 @@ export function redactErrorMessage(input: unknown): string {
     return '';
   }
 
-  return text
-    // 1. API Keys 打码 (保留前后几位辅助排查)
-    .replace(PATTERNS.apiKeys, (match) => maskToken(match))
-    // 2. Bearer Token 打码
-    .replace(PATTERNS.bearerTokens, `Bearer ${REDACTION_MASK}`)
-    // 3. JWT 打码
-    .replace(PATTERNS.jwtTokens, REDACTION_MASK)
-    // 4. AWS Key 打码
-    .replace(PATTERNS.awsKeys, (match) => maskToken(match))
-    // 5. 键值对凭据打码
-    .replace(PATTERNS.keyValueSecrets, (_match, key, sep) => `${key}${sep}${REDACTION_MASK}`)
-    // 6. 数据库 URI 密码打码
-    .replace(PATTERNS.dbUriCredentials, (_match, prefix, _pwd, suffix) => `${prefix}${REDACTION_MASK}${suffix}`)
-    // 7. 本地主目录路径打码为 ~
-    .replace(PATTERNS.macHomePaths, '$1~')
-    .replace(PATTERNS.linuxHomePaths, '$1~')
-    .replace(PATTERNS.windowsHomePaths, '$1~')
-    // 8. 私有内网 IP 端点打码
-    .replace(PATTERNS.privateEndpoints, '$1[private-ip]$2');
+  return (
+    text
+      // 1. API Keys 打码 (保留前后几位辅助排查)
+      .replace(PATTERNS.apiKeys, (match) => maskToken(match))
+      // 2. Bearer Token 打码
+      .replace(PATTERNS.bearerTokens, `Bearer ${REDACTION_MASK}`)
+      // 3. JWT 打码
+      .replace(PATTERNS.jwtTokens, REDACTION_MASK)
+      // 4. AWS Key 打码
+      .replace(PATTERNS.awsKeys, (match) => maskToken(match))
+      // 5. 键值对凭据打码
+      .replace(PATTERNS.keyValueSecrets, (_match, key, sep) => `${key}${sep}${REDACTION_MASK}`)
+      // 6. 数据库 URI 密码打码
+      .replace(PATTERNS.dbUriCredentials, (_match, prefix, _pwd, suffix) => `${prefix}${REDACTION_MASK}${suffix}`)
+      // 7. 本地主目录路径打码为 ~
+      .replace(PATTERNS.macHomePaths, '$1~')
+      .replace(PATTERNS.linuxHomePaths, '$1~')
+      .replace(PATTERNS.windowsHomePaths, '$1~')
+      // 8. 私有内网 IP 端点打码
+      .replace(PATTERNS.privateEndpoints, '$1[private-ip]$2')
+  );
 }
 
 /**

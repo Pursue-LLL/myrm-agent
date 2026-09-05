@@ -16,7 +16,7 @@
 | `useReferenceMention.ts`             | `@` 引用 autocomplete（workspace/wiki/**@chat: prior_chat**；`@chat:` 走 **`searchCitableChats` → `/chats/recall/search`** recall SSOT，**不依赖** composer `chatId`，EmptyChat 可用）                                              |
 | `useSlashCommand.ts`                 | `/` Slash 命令面板；skill 选中写入 pendingExplicitSkillActivation + chip；执行时仅移除 `/命令` 保留前后文本（命令名 token 与技能命名规则一致——允许连字符，面板检测/命令移除/Esc 共用 `SLASH_COMMAND_SUFFIX_RE` 单一正则，语义一致） |
 | `useSmoothStream.ts`                 | 流式 markdown 平滑渲染（message-box 消费）                                                                                                                                                                                          |
-| `useComposerContextChips.ts`         | 输入区上下文挂载项统一聚合 Hook：提取工作流模板、显式技能、单轮能力范围、会话级挂载知识库、@ 引用，配合 AttachList 进行动静分层并计算负载过载信息                                                                                                     |
+| `useComposerContextChips.ts`         | 输入区上下文挂载项统一聚合 Hook：提取工作流模板、显式技能、单轮能力范围、会话级挂载知识库、@ 引用，配合 AttachList 进行动静分层并计算负载过载信息                                                                                   |
 
 ## 依赖
 

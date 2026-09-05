@@ -19,12 +19,7 @@ vi.mock('next-intl', () => ({
 
 describe('ShellCommandDisplay', () => {
   it('renders command text and tool name correctly', () => {
-    render(
-      <ShellCommandDisplay
-        command="bash deploy.sh --stage prod"
-        toolName="bash"
-      />
-    );
+    render(<ShellCommandDisplay command="bash deploy.sh --stage prod" toolName="bash" />);
 
     expect(screen.getByText('$')).toBeDefined();
     expect(screen.getByText('bash')).toBeDefined();
@@ -42,7 +37,7 @@ describe('ShellCommandDisplay', () => {
         toolName="bash"
         scriptOperandHash={mockHash}
         scriptOperandPath={mockPath}
-      />
+      />,
     );
 
     expect(screen.getByText('Script Content Protected')).toBeDefined();

@@ -2,13 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { useTranslations } from 'next-intl';
-import {
-  IconWifi,
-  IconWifiOff,
-  IconLoader,
-  IconTrash,
-  IconPencil,
-} from '@/components/features/icons/PremiumIcons';
+import { IconWifi, IconWifiOff, IconLoader, IconTrash, IconPencil } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { cn } from '@/lib/utils/classnameUtils';

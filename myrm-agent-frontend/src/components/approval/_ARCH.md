@@ -9,7 +9,7 @@
 | 文件                              | 地位 | 职责                                                                      |
 | --------------------------------- | ---- | ------------------------------------------------------------------------- |
 | `ApprovalDrawer.tsx`              | 核心 | 全局审批抽屉（subagent 批量 decisions）                                   |
-| `BatchHighRiskConfirmDialog.tsx`  | UI   | 批量审批高危破坏操作二次确认弹窗                                           |
+| `BatchHighRiskConfirmDialog.tsx`  | UI   | 批量审批高危破坏操作二次确认弹窗                                          |
 | `PolymorphicApprovalCard.tsx`     | 核心 | 单条审批卡片（shell/MCP/视觉/`deploy_approval`/`knowledge_patch` 等形态） |
 | `CompactFileWriteApprovalRow.tsx` | UI   | Subagent 本地文件写 compact 行 + 折叠 Monaco 预览                         |
 | `SaveSkillApprovalPreview.tsx`    | UI   | save_skill / skill_manage save 审批 bundle 预览（#8）                     |

@@ -66,7 +66,7 @@ export function buildMermaidConfig(isDark: boolean) {
 
 /**
  * 严格净化 Mermaid 渲染出的 SVG 字符串，彻底防御 XSS 与外来脚本执行。
- * 
+ *
  * 1. 拦截并移除 <script>、<foreignObject>、<iframe>、<object>、<embed>、<link> 等危险标签；
  * 2. 移除所有内联事件处理器属性（如 onload, onclick, onerror，无论大小写如 oNload）；
  * 3. 移除或中立化 href、xlink:href 属性，防止 javascript: 或未授权跨站跳转；
@@ -134,7 +134,11 @@ export function sanitizeMermaidSvg(rawSvg: string): string {
 
         // 剥离或拦截 href / xlink:href / src 属性中的 javascript: 伪协议与危险链接
         if (attrName === 'href' || attrName.endsWith(':href') || attrName === 'src') {
-          if (attrValue.startsWith('javascript:') || attrValue.startsWith('data:text/html') || attrValue.startsWith('vbscript:')) {
+          if (
+            attrValue.startsWith('javascript:') ||
+            attrValue.startsWith('data:text/html') ||
+            attrValue.startsWith('vbscript:')
+          ) {
             el.removeAttribute(attr.name);
           } else {
             // 在 strict 安全等级下剥离图节点点击外部链接跳转

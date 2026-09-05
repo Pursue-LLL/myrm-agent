@@ -8,10 +8,7 @@ import * as commandCenterService from '@/services/memory/commandCenter';
 
 const stableT = (key: string, values?: Record<string, unknown>) => {
   if (values) {
-    return Object.entries(values).reduce(
-      (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
-      key
-    );
+    return Object.entries(values).reduce((acc, [k, v]) => acc.replace(`{${k}}`, String(v)), key);
   }
   return key;
 };
@@ -69,7 +66,7 @@ describe('BehavioralMetricsPanel Component', () => {
         expect(screen.getAllByText('Alice').length).toBeGreaterThanOrEqual(1);
         expect(screen.getByText('Bob')).toBeInTheDocument();
       },
-      { timeout: 5000 }
+      { timeout: 5000 },
     );
   });
 

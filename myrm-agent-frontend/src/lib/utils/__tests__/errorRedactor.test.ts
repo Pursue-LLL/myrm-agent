@@ -31,7 +31,8 @@ describe('errorRedactor', () => {
   });
 
   it('redacts JWT tokens', () => {
-    const raw = 'Session expired: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozGz3asdf1234567890';
+    const raw =
+      'Session expired: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozGz3asdf1234567890';
     const redacted = redactErrorMessage(raw);
     expect(redacted).not.toContain('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9');
     expect(redacted).toContain('***REDACTED***');

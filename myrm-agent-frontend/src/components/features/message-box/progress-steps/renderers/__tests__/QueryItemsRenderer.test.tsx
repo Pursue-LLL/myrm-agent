@@ -10,7 +10,7 @@ describe('QueryItemsRenderer Component', () => {
         items={[{ query: '"CVE-2024-38077" remote code execution' }]}
         messageId="msg-1"
         stepIndex={0}
-      />
+      />,
     );
     expect(screen.getByText('Security CVE')).toBeDefined();
     expect(screen.getByText('"CVE-2024-38077" remote code execution')).toBeDefined();
@@ -22,40 +22,28 @@ describe('QueryItemsRenderer Component', () => {
         items={[{ query: '"10.1038/s41586-024-07566-y" deepseek' }]}
         messageId="msg-2"
         stepIndex={1}
-      />
+      />,
     );
     expect(screen.getByText('Academic DOI')).toBeDefined();
   });
 
   it('renders finance market badge for stock ticker queries', () => {
     render(
-      <QueryItemsRenderer
-        items={[{ query: 'NVDA stock earnings report 2026' }]}
-        messageId="msg-3"
-        stepIndex={2}
-      />
+      <QueryItemsRenderer items={[{ query: 'NVDA stock earnings report 2026' }]} messageId="msg-3" stepIndex={2} />,
     );
     expect(screen.getByText('Finance Market')).toBeDefined();
   });
 
   it('renders code package badge for technical queries', () => {
     render(
-      <QueryItemsRenderer
-        items={[{ query: 'fastapi npm package alternative' }]}
-        messageId="msg-4"
-        stepIndex={3}
-      />
+      <QueryItemsRenderer items={[{ query: 'fastapi npm package alternative' }]} messageId="msg-4" stepIndex={3} />,
     );
     expect(screen.getByText('Code Package')).toBeDefined();
   });
 
   it('renders plain query without domain badge for general queries', () => {
     render(
-      <QueryItemsRenderer
-        items={[{ query: 'weather forecast beijing tomorrow' }]}
-        messageId="msg-5"
-        stepIndex={4}
-      />
+      <QueryItemsRenderer items={[{ query: 'weather forecast beijing tomorrow' }]} messageId="msg-5" stepIndex={4} />,
     );
     expect(screen.queryByTestId('domain-intent-pill')).toBeNull();
     expect(screen.getByText('weather forecast beijing tomorrow')).toBeDefined();

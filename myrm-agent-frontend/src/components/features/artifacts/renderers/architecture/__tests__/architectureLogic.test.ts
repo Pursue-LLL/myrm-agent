@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeArchitectureIR, computeDagreLayout, traceFullConnectedCausalityGraph, findShortestPath } from '../layout';
+import {
+  sanitizeArchitectureIR,
+  computeDagreLayout,
+  traceFullConnectedCausalityGraph,
+  findShortestPath,
+} from '../layout';
 import { computeArchitectureDiff } from '../diff';
 import type { ArchitectureIR } from '../types';
 import { isArchitectureType } from '../../artifactUtils';

@@ -234,7 +234,8 @@ export function useTrayStatus() {
           await win.requestUserAttention(2);
         }
 
-        const showProgress = liveness.state === 'busy' || liveness.state === 'draining' || bgRunningCount > 0 || isApprovalPending;
+        const showProgress =
+          liveness.state === 'busy' || liveness.state === 'draining' || bgRunningCount > 0 || isApprovalPending;
 
         if (showProgress) {
           await win.setProgressBar({ status: ProgressBarStatus.Indeterminate });

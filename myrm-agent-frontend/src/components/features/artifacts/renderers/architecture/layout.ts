@@ -68,10 +68,7 @@ export function sanitizeArchitectureIR(raw: ArchitectureIR): ArchitectureIR {
  * Traverses full directed causality dependency graph (both upstream sources and downstream sinks)
  * using Breadth-First Search (BFS) with cycle-detection via visited Set.
  */
-export function traceFullConnectedCausalityGraph(
-  startNodeId: string,
-  edges: ArchitectureIR['edges'],
-): Set<string> {
+export function traceFullConnectedCausalityGraph(startNodeId: string, edges: ArchitectureIR['edges']): Set<string> {
   const result = new Set<string>([startNodeId]);
 
   // Build adjacency lists
@@ -187,7 +184,7 @@ export function computeDagreLayout(ir: ArchitectureIR): LayoutedElements {
       source: edge.source,
       target: edge.target,
       label: edge.label,
-      animated: edge.animated ?? (edge.diffState === 'added'),
+      animated: edge.animated ?? edge.diffState === 'added',
       type: 'smoothstep',
       data: {
         diffState: edge.diffState,

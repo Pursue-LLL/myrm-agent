@@ -7,10 +7,7 @@ import * as commandCenterService from '@/services/memory/commandCenter';
 
 const stableT = (key: string, values?: Record<string, unknown>) => {
   if (values) {
-    return Object.entries(values).reduce(
-      (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
-      key
-    );
+    return Object.entries(values).reduce((acc, [k, v]) => acc.replace(`{${k}}`, String(v)), key);
   }
   return key;
 };
@@ -60,9 +57,7 @@ describe('RepoEvidenceCard Component', () => {
   });
 
   it('renders error state on API rejection', async () => {
-    vi.spyOn(commandCenterService, 'getRepoEvidenceDigest').mockRejectedValueOnce(
-      new Error('Git command failed')
-    );
+    vi.spyOn(commandCenterService, 'getRepoEvidenceDigest').mockRejectedValueOnce(new Error('Git command failed'));
 
     render(<RepoEvidenceCard workspacePath="/invalid/path" />);
 

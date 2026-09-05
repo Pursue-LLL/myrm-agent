@@ -23,11 +23,7 @@ export interface ConflictResolutionCardProps {
   resolving?: boolean;
 }
 
-export const ConflictResolutionCard = ({
-  item,
-  onResolve,
-  resolving = false,
-}: ConflictResolutionCardProps) => {
+export const ConflictResolutionCard = ({ item, onResolve, resolving = false }: ConflictResolutionCardProps) => {
   const [currentAction, setCurrentAction] = useState<string | null>(null);
 
   const isPending = item.status === 'pending';
@@ -60,7 +56,7 @@ export const ConflictResolutionCard = ({
         'group relative overflow-hidden rounded-xl p-4 transition-all duration-300',
         'border border-border/60 bg-gradient-to-br from-card/90 via-card/50 to-muted/20 backdrop-blur-md',
         'hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5',
-        isPending && 'border-amber-500/30 dark:border-amber-400/20'
+        isPending && 'border-amber-500/30 dark:border-amber-400/20',
       )}
     >
       {/* Top Banner: Status & Facet */}
@@ -69,9 +65,7 @@ export const ConflictResolutionCard = ({
           <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400">
             <GitCompare className="h-3.5 w-3.5" />
           </div>
-          <span className="text-xs font-semibold tracking-wide text-foreground">
-            {item.title || '偏好变动确认'}
-          </span>
+          <span className="text-xs font-semibold tracking-wide text-foreground">{item.title || '偏好变动确认'}</span>
           {isPending && (
             <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
               待确认
@@ -96,9 +90,7 @@ export const ConflictResolutionCard = ({
               <ShieldCheck className="h-3.5 w-3.5 text-blue-500" />
               <span>当前已有记录</span>
             </div>
-            <p className="mt-1.5 text-xs leading-relaxed text-foreground/90">
-              {existingText}
-            </p>
+            <p className="mt-1.5 text-xs leading-relaxed text-foreground/90">{existingText}</p>
           </div>
         </div>
 
@@ -110,9 +102,7 @@ export const ConflictResolutionCard = ({
                 <Sparkles className="h-3.5 w-3.5" />
                 <span>最新提及内容</span>
               </div>
-              <p className="mt-1.5 text-xs leading-relaxed text-foreground/90">
-                {candidateText}
-              </p>
+              <p className="mt-1.5 text-xs leading-relaxed text-foreground/90">{candidateText}</p>
             </div>
           </div>
         ) : (
@@ -132,7 +122,7 @@ export const ConflictResolutionCard = ({
             className={cn(
               'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
               'border border-border/60 bg-background/80 text-muted-foreground hover:bg-muted hover:text-foreground',
-              'focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50'
+              'focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50',
             )}
           >
             <ShieldCheck className="h-3.5 w-3.5" />
@@ -146,7 +136,7 @@ export const ConflictResolutionCard = ({
             className={cn(
               'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
               'border border-border/60 bg-background/80 text-muted-foreground hover:bg-muted hover:text-foreground',
-              'focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50'
+              'focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50',
             )}
           >
             <Split className="h-3.5 w-3.5" />
@@ -160,7 +150,7 @@ export const ConflictResolutionCard = ({
             className={cn(
               'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-all',
               'bg-gradient-to-r from-primary to-primary/85 hover:opacity-95',
-              'focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50'
+              'focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50',
             )}
           >
             <CheckCircle2 className="h-3.5 w-3.5" />

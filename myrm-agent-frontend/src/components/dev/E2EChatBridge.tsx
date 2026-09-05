@@ -2150,13 +2150,16 @@ export default function E2EChatBridge() {
       refresh: () => undefined,
     };
 
-    (window as Window & { __MYRM_DEVICE_INSPECTOR_STORE__?: typeof useDeviceInspectorStore }).__MYRM_DEVICE_INSPECTOR_STORE__ = useDeviceInspectorStore;
+    (
+      window as Window & { __MYRM_DEVICE_INSPECTOR_STORE__?: typeof useDeviceInspectorStore }
+    ).__MYRM_DEVICE_INSPECTOR_STORE__ = useDeviceInspectorStore;
 
     return () => {
       delete window.__MYRM_E2E_CHAT__;
       delete window.__MYRM_E2E_SUBAGENT__;
       delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
-      delete (window as Window & { __MYRM_DEVICE_INSPECTOR_STORE__?: typeof useDeviceInspectorStore }).__MYRM_DEVICE_INSPECTOR_STORE__;
+      delete (window as Window & { __MYRM_DEVICE_INSPECTOR_STORE__?: typeof useDeviceInspectorStore })
+        .__MYRM_DEVICE_INSPECTOR_STORE__;
     };
   }, []);
 

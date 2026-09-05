@@ -233,4 +233,3 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
     expect(onAddPathOnly).toHaveBeenCalledTimes(1);
   });
 });
-

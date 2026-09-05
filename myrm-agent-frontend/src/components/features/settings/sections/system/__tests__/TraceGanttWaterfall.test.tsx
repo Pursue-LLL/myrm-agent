@@ -101,7 +101,7 @@ describe('TraceGanttWaterfall Component', () => {
           gantt_spans: [],
         }}
         totalDurationMs={0}
-      />
+      />,
     );
 
     expect(container.firstChild).toBeNull();

@@ -31,9 +31,11 @@ const stableT = (key: string) => {
     importUrl: 'Import GitHub URL',
     importUrlPlaceholder: 'Paste GitHub repo or deep link...',
     securityDisclosureTitle: 'Security & Sandbox Boundary Disclosure',
-    securityDisclosureLocal: 'Currently running in local/desktop mode. The agent executes tools with your host operating system permissions.',
+    securityDisclosureLocal:
+      'Currently running in local/desktop mode. The agent executes tools with your host operating system permissions.',
     securityDisclosureCloud: 'Currently running in an isolated microVM container with persistent volume isolation.',
-    trustedSourceConfirm: 'I understand this extension has system tool execution permissions and confirm this source is trusted',
+    trustedSourceConfirm:
+      'I understand this extension has system tool execution permissions and confirm this source is trusted',
     analyzingUrl: 'Analyzing...',
     analyzeFailed: 'Failed to analyze URL',
     selectSkillsToImport: 'Discovered skills:',
@@ -98,7 +100,9 @@ describe('SkillUrlImportDialog Security & Trusted Source Gates', () => {
     // Verify skill item and local security disclosure text
     expect(screen.getByText('FinancialSkill')).toBeInTheDocument();
     expect(
-      screen.getByText(/Currently running in local\/desktop mode\. The agent executes tools with your host operating system permissions\./i),
+      screen.getByText(
+        /Currently running in local\/desktop mode\. The agent executes tools with your host operating system permissions\./i,
+      ),
     ).toBeInTheDocument();
 
     // Verify import button is disabled because trusted source is not checked
@@ -273,4 +277,3 @@ describe('SkillUrlImportDialog Security & Trusted Source Gates', () => {
     expect(importBtn).toBeDisabled();
   });
 });
-

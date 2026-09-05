@@ -243,9 +243,7 @@ const ProviderOAuthSection = memo<ProviderOAuthSectionProps>(({ providerId, hasA
           <ShieldAlert className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
           <div className="space-y-1 text-xs leading-relaxed">
             <p className="font-semibold text-sky-950 dark:text-sky-100">
-              {locale === 'zh'
-                ? 'SuperGrok 订阅说明：'
-                : 'SuperGrok Subscription Notice'}
+              {locale === 'zh' ? 'SuperGrok 订阅说明：' : 'SuperGrok Subscription Notice'}
             </p>
             <p className="text-sky-900/90 dark:text-sky-200/90">
               {locale === 'zh'

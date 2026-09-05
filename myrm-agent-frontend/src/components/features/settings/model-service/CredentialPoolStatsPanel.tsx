@@ -104,7 +104,10 @@ export const CredentialPoolStatsPanel = memo<CredentialPoolStatsPanelProps>(({ p
             <div className="py-2 text-center text-muted-foreground">{t('noActivePools')}</div>
           ) : (
             activePools.map((pool, idx) => (
-              <div key={pool.cache_key || idx} className="space-y-1.5 bg-background/60 p-2.5 rounded-md border border-border/30">
+              <div
+                key={pool.cache_key || idx}
+                className="space-y-1.5 bg-background/60 p-2.5 rounded-md border border-border/30"
+              >
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="font-mono font-medium text-foreground">{pool.model || pool.cache_key}</span>
                   <span className="text-muted-foreground uppercase">{pool.stats.strategy}</span>

@@ -397,7 +397,10 @@ export interface ProviderConfig {
 export const LOCAL_NO_AUTH_API_KEY_MARKER = '__myrm_local_no_auth__';
 
 function isLoopbackHostname(hostname: string): boolean {
-  const normalized = hostname.toLowerCase().trim().replace(/^\[|\]$/g, '');
+  const normalized = hostname
+    .toLowerCase()
+    .trim()
+    .replace(/^\[|\]$/g, '');
   if (normalized === 'localhost') {
     return true;
   }
@@ -414,7 +417,10 @@ function isLoopbackHostname(hostname: string): boolean {
 }
 
 export function isTrustedSplitStackHostname(hostname: string): boolean {
-  const normalized = hostname.toLowerCase().trim().replace(/^\[|\]$/g, '');
+  const normalized = hostname
+    .toLowerCase()
+    .trim()
+    .replace(/^\[|\]$/g, '');
   if (normalized === 'localhost' || normalized.endsWith('.local')) {
     return true;
   }

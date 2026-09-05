@@ -141,11 +141,14 @@ class TestRuntimeMeterService:
         service = RuntimeMeterService()
         mock_session = AsyncMock()
 
-        # Mock search quotas
+        # Mock search quotas: 1st execute for current month, 2nd execute for history months
         mock_scalars = MagicMock()
         mock_scalars.all.return_value = []
         mock_res_search = MagicMock()
         mock_res_search.scalars.return_value = mock_scalars
+
+        mock_res_history = MagicMock()
+        mock_res_history.all.return_value = []
 
         # Mock browser summary
         row = MagicMock()
@@ -158,12 +161,42 @@ class TestRuntimeMeterService:
         mock_res_browser = MagicMock()
         mock_res_browser.one.return_value = row
 
-        mock_session.execute.side_effect = [mock_res_search, mock_res_browser]
+        mock_session.execute.side_effect = [
+            mock_res_search,
+            mock_res_history,
+            mock_res_browser,
+        ]
 
         gauge = await service.get_runtime_burn_rate_gauge(mock_session)
         assert gauge["overall_search_health"] == "healthy"
         assert gauge["is_burn_rate_alert"] is False
         assert "burn_rate_message" in gauge
+
+    @pytest.mark.asyncio
+    async def test_cross_month_quota_limit_inheritance(self) -> None:
+        """Verify custom quota limit is inherited when transitioning to a new month."""
+        service = RuntimeMeterService()
+        mock_session = AsyncMock()
+
+        # Step 1: Simulate no record for current month, but previous month has custom limit 8888
+        mock_res_current = MagicMock()
+        mock_res_current.scalar_one_or_none.return_value = None
+
+        mock_res_history = MagicMock()
+        mock_res_history.scalar_one_or_none.return_value = 8888
+
+        mock_session.execute.side_effect = [mock_res_current, mock_res_history]
+
+        record = await service.record_search_usage(
+            session=mock_session,
+            provider="tavily",
+            count=1,
+        )
+
+        assert record.provider == "tavily"
+        assert record.quota_limit == 8888  # Inherited rather than default 1000
+        assert record.used_count == 1
+        assert record.is_depleted is False
 
 
 class TestQuotaRuntimeRouterEndpoints:
@@ -176,7 +209,10 @@ class TestQuotaRuntimeRouterEndpoints:
         mock_scalars.all.return_value = []
         mock_result = MagicMock()
         mock_result.scalars.return_value = mock_scalars
-        mock_session.execute.return_value = mock_result
+
+        mock_res_history = MagicMock()
+        mock_res_history.all.return_value = []
+        mock_session.execute.side_effect = [mock_result, mock_res_history]
 
         response = await get_search_quotas(session=mock_session)
         assert response.status_code == 200
@@ -187,9 +223,11 @@ class TestQuotaRuntimeRouterEndpoints:
     @pytest.mark.asyncio
     async def test_record_search_quota_endpoint(self) -> None:
         mock_session = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_session.execute.return_value = mock_result
+        mock_res_curr = MagicMock()
+        mock_res_curr.scalar_one_or_none.return_value = None
+        mock_res_hist = MagicMock()
+        mock_res_hist.scalar_one_or_none.return_value = None
+        mock_session.execute.side_effect = [mock_res_curr, mock_res_hist]
 
         req = SearchQuotaRecordRequest(provider="tavily", count=2, quota_exceeded=False)
         response = await record_search_quota(req=req, session=mock_session)
@@ -246,6 +284,9 @@ class TestQuotaRuntimeRouterEndpoints:
         mock_res_search = MagicMock()
         mock_res_search.scalars.return_value = mock_scalars
 
+        mock_res_history = MagicMock()
+        mock_res_history.all.return_value = []
+
         row = MagicMock()
         row.session_count = 0
         row.total_duration_sec = 0.0
@@ -256,7 +297,11 @@ class TestQuotaRuntimeRouterEndpoints:
         mock_res_browser = MagicMock()
         mock_res_browser.one.return_value = row
 
-        mock_session.execute.side_effect = [mock_res_search, mock_res_browser]
+        mock_session.execute.side_effect = [
+            mock_res_search,
+            mock_res_history,
+            mock_res_browser,
+        ]
 
         response = await get_runtime_cost_gauge(session=mock_session)
         assert response.status_code == 200
@@ -390,7 +435,9 @@ class TestQuotaRuntimeRouterEndpoints:
         assert limit_data["data"]["quota_limit"] == 2500
 
         # Step 5: 前端查询配额
-        mock_session.execute.return_value = MagicMock(scalars=lambda: MagicMock(all=lambda: [updated_record]))
+        mock_result_curr = MagicMock(scalars=lambda: MagicMock(all=lambda: [updated_record]))
+        mock_result_hist = MagicMock(all=lambda: [])
+        mock_session.execute.side_effect = [mock_result_curr, mock_result_hist]
         quotas_resp = await get_search_quotas(session=mock_session)
         assert quotas_resp.status_code == 200
         quotas_data = json.loads(quotas_resp.body)
@@ -398,7 +445,7 @@ class TestQuotaRuntimeRouterEndpoints:
         assert tavily_item["is_metered"] is True
         assert tavily_item["quota_limit"] == 2500
 
-        # Step 6: 浏览器度量与看门狗
+        # Step 6: 浏览器度量与活性心跳感知双判看门狗
         telemetry = BrowserRunTelemetry(
             start_time=time.time() - 600.0,
             active_compute_seconds=300.0,
@@ -411,6 +458,24 @@ class TestQuotaRuntimeRouterEndpoints:
 
         obs = BrowserObservability(recording_config=RecordingConfig())
         mono_now = time.monotonic()
+        # Case A: 运行时间短于总超时（30s < 180s），安全通过
         assert obs.check_action_watchdog(mono_now - 30.0, timeout_seconds=180.0) is True
-        assert obs.check_action_watchdog(mono_now - 200.0, timeout_seconds=180.0) is False
+
+        # Case B: 运行总时长超限（200s > 180s），但持续有心跳/网络传输活跃（idle 5s < 60s），消除古德哈特误杀，安全通过
+        obs.telemetry.last_activity_time = mono_now - 5.0
+        assert (
+            obs.check_action_watchdog(
+                mono_now - 200.0, timeout_seconds=180.0, activity_idle_threshold=60.0
+            )
+            is True
+        )
+
+        # Case C: 运行总时长超限（200s > 180s），且无心跳停滞（idle 90s > 60s），死循环确认，精准熔断
+        obs.telemetry.last_activity_time = mono_now - 90.0
+        assert (
+            obs.check_action_watchdog(
+                mono_now - 200.0, timeout_seconds=180.0, activity_idle_threshold=60.0
+            )
+            is False
+        )
         assert obs.telemetry.watchdog_tripped_count == 1

@@ -26,9 +26,7 @@ describe('ToolCallingModelChecklist Component', () => {
 
     const gptBtn = screen.getByTestId('btn-select-model-gpt-4o');
     fireEvent.click(gptBtn);
-    expect(onSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'gpt-4o', name: 'GPT-4o' })
-    );
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'gpt-4o', name: 'GPT-4o' }));
   });
 });
 

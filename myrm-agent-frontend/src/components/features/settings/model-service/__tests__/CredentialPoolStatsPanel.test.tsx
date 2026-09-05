@@ -37,9 +37,7 @@ describe('CredentialPoolStatsPanel', () => {
   });
 
   it('renders nothing when hasMultipleKeys is false', () => {
-    const { container } = render(
-      <CredentialPoolStatsPanel hasMultipleKeys={false} />
-    );
+    const { container } = render(<CredentialPoolStatsPanel hasMultipleKeys={false} />);
     expect(container.firstChild).toBeNull();
   });
 
@@ -140,7 +138,7 @@ describe('CredentialPoolStatsPanel', () => {
       expect(mockToast).toHaveBeenCalledWith(
         expect.objectContaining({
           title: expect.stringContaining('resetCooldownsSuccess:count=2'),
-        })
+        }),
       );
     });
   });

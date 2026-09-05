@@ -163,10 +163,7 @@ export const ArchitectureCustomNode: React.FC<NodeProps> = memo(({ data }) => {
       {node.technologies && node.technologies.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {node.technologies.slice(0, 3).map((tech) => (
-            <span
-              key={tech}
-              className="text-[9px] px-1 py-0.5 rounded bg-background/60 border text-muted-foreground"
-            >
+            <span key={tech} className="text-[9px] px-1 py-0.5 rounded bg-background/60 border text-muted-foreground">
               {tech}
             </span>
           ))}

@@ -24,7 +24,8 @@ vi.mock('@/store/useDeviceInspectorStore', () => {
       isOpen: true,
       mode: 'view',
       viewData: {
-        screenshotBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+        screenshotBase64:
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
         mimeType: 'image/png',
         refs: {},
         deviceId: 'emulator-5554',

@@ -4,12 +4,7 @@ import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { isSandbox } from '@/lib/deploy-mode';
-import {
-  IconAlertTriangle,
-  IconShieldCheck,
-  IconTerminal,
-  IconFolder,
-} from '@/components/features/icons/PremiumIcons';
+import { IconAlertTriangle, IconShieldCheck, IconTerminal, IconFolder } from '@/components/features/icons/PremiumIcons';
 import { Badge } from '@/components/primitives/badge';
 
 export interface PluginTrustedSourceDisclosureProps {

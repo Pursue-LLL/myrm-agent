@@ -34,8 +34,8 @@ export const TaskBudgetPill: React.FC<TaskBudgetPillProps> = ({
         isBreached
           ? 'border-destructive/40 bg-destructive/10 text-destructive'
           : isSoftWarning
-          ? 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400'
-          : 'border-border bg-muted/50 text-muted-foreground'
+            ? 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+            : 'border-border bg-muted/50 text-muted-foreground'
       } ${className}`}
     >
       {isBreached ? (

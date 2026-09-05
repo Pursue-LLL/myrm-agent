@@ -41,9 +41,7 @@ export function StagedArtifactsNotice({ stagedArtifacts }: StagedArtifactsNotice
       >
         <div className="flex items-center gap-2">
           <FolderCheck className="w-4 h-4 text-primary shrink-0" />
-          <span>
-            已自动暂存 {count} 个未落盘工件草案至工作区
-          </span>
+          <span>已自动暂存 {count} 个未落盘工件草案至工作区</span>
         </div>
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <span className="text-[11px] font-mono">.myrm/staged_artifacts/</span>

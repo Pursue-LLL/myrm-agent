@@ -46,13 +46,7 @@ describe('CaptureEvalCaseDialog', () => {
 
   it('renders dataset selector when opened and loads datasets', async () => {
     const onOpenChange = vi.fn();
-    render(
-      <CaptureEvalCaseDialog
-        open={true}
-        onOpenChange={onOpenChange}
-        chatId="chat-123"
-      />,
-    );
+    render(<CaptureEvalCaseDialog open={true} onOpenChange={onOpenChange} chatId="chat-123" />);
 
     expect(screen.getByText('chat.captureEvalCase.title')).toBeInTheDocument();
     expect(screen.getByText('chat.captureEvalCase.description')).toBeInTheDocument();
@@ -68,14 +62,7 @@ describe('CaptureEvalCaseDialog', () => {
     const onOpenChange = vi.fn();
     const onSuccess = vi.fn();
 
-    render(
-      <CaptureEvalCaseDialog
-        open={true}
-        onOpenChange={onOpenChange}
-        chatId="chat-123"
-        onSuccess={onSuccess}
-      />,
-    );
+    render(<CaptureEvalCaseDialog open={true} onOpenChange={onOpenChange} chatId="chat-123" onSuccess={onSuccess} />);
 
     await waitFor(() => {
       expect(screen.getByText('default (5)')).toBeInTheDocument();
@@ -99,13 +86,7 @@ describe('CaptureEvalCaseDialog', () => {
   it('allows switching to new dataset creation and submitting', async () => {
     const onOpenChange = vi.fn();
 
-    render(
-      <CaptureEvalCaseDialog
-        open={true}
-        onOpenChange={onOpenChange}
-        chatId="chat-123"
-      />,
-    );
+    render(<CaptureEvalCaseDialog open={true} onOpenChange={onOpenChange} chatId="chat-123" />);
 
     await waitFor(() => {
       expect(screen.getByText('default (5)')).toBeInTheDocument();
@@ -131,13 +112,7 @@ describe('CaptureEvalCaseDialog', () => {
   it('validates empty dataset name when creating new dataset', async () => {
     const onOpenChange = vi.fn();
 
-    render(
-      <CaptureEvalCaseDialog
-        open={true}
-        onOpenChange={onOpenChange}
-        chatId="chat-123"
-      />,
-    );
+    render(<CaptureEvalCaseDialog open={true} onOpenChange={onOpenChange} chatId="chat-123" />);
 
     await waitFor(() => {
       expect(screen.getByText('default (5)')).toBeInTheDocument();
