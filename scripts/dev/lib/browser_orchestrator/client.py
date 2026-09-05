@@ -46,12 +46,28 @@ _daemon_unreachable_markers = (
     "connection refused",
     "connection closed before response",
     "connection lost",
+    "connection reset",
+)
+_REPLAY_SAFE_METHODS = frozenset(
+    {
+        "session/create",
+        "session/destroy",
+        "page/close",
+        "cleanup/seal",
+        "scheduler/setEffectiveCredits",
+    }
 )
 
 
 def _daemon_unreachable_message(message: str) -> bool:
     lowered = message.lower()
     return any(marker in lowered for marker in _daemon_unreachable_markers)
+
+
+def _request_failed_before_send(message: str) -> bool:
+    """Return true only for connect failures where the RPC was never written."""
+    lowered = message.lower()
+    return "daemon not running" in lowered or "connection refused" in lowered
 
 
 def _monorepo_root() -> Path:
@@ -586,8 +602,16 @@ class BrowserOrchestratorClient:
         try:
             return self._request_raw(payload, req_id)
         except RuntimeError as exc:
-            if not allow_daemon_recovery or not _daemon_unreachable_message(str(exc)):
+            message = str(exc)
+            if not allow_daemon_recovery or not _daemon_unreachable_message(message):
                 raise
+            if method not in _REPLAY_SAFE_METHODS and not _request_failed_before_send(
+                message
+            ):
+                raise RuntimeError(
+                    "BROWSER_OPERATION_RESULT_UNKNOWN: request may have reached "
+                    f"daemon; method={method}; cause={message}"
+                ) from exc
             self._recover_daemon_generation()
             return self._request_raw(payload, req_id)
 

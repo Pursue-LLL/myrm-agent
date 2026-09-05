@@ -1,4 +1,4 @@
-import type { ArchitectureIR, ArchitectureNodeIR, ArchitectureEdgeIR } from './types';
+import type { ArchitectureIR, ArchitectureNodeIR, ArchitectureEdgeIR, DiffSummary } from './types';
 
 /**
  * Computes semantic diff between two Architecture IR snapshots (before vs after).
@@ -9,18 +9,25 @@ export function computeArchitectureDiff(before: ArchitectureIR, after: Architect
   const afterNodes = new Map<string, ArchitectureNodeIR>(after.nodes.map((n) => [n.id, n]));
 
   const mergedNodes: ArchitectureNodeIR[] = [];
+  let addedNodes = 0;
+  let modifiedNodes = 0;
+  let deletedNodes = 0;
 
   // 1. Process After nodes (added or modified or unchanged)
   for (const [id, afterNode] of afterNodes.entries()) {
     const beforeNode = beforeNodes.get(id);
     if (!beforeNode) {
       mergedNodes.push({ ...afterNode, diffState: 'added' });
+      addedNodes += 1;
     } else {
       const isModified =
         beforeNode.label !== afterNode.label ||
         beforeNode.category !== afterNode.category ||
         beforeNode.group !== afterNode.group ||
         beforeNode.description !== afterNode.description;
+      if (isModified) {
+        modifiedNodes += 1;
+      }
       mergedNodes.push({
         ...afterNode,
         diffState: isModified ? 'modified' : 'unchanged',
@@ -35,6 +42,7 @@ export function computeArchitectureDiff(before: ArchitectureIR, after: Architect
         ...beforeNode,
         diffState: 'deleted',
       });
+      deletedNodes += 1;
     }
   }
 
@@ -47,10 +55,13 @@ export function computeArchitectureDiff(before: ArchitectureIR, after: Architect
   );
 
   const mergedEdges: ArchitectureEdgeIR[] = [];
+  let addedEdges = 0;
+  let deletedEdges = 0;
 
   for (const [key, afterEdge] of afterEdges.entries()) {
     if (!beforeEdges.has(key)) {
       mergedEdges.push({ ...afterEdge, diffState: 'added', animated: true });
+      addedEdges += 1;
     } else {
       mergedEdges.push({ ...afterEdge, diffState: 'unchanged' });
     }
@@ -64,13 +75,23 @@ export function computeArchitectureDiff(before: ArchitectureIR, after: Architect
         diffState: 'deleted',
         style: 'dashed',
       });
+      deletedEdges += 1;
     }
   }
+
+  const diffSummary: DiffSummary = {
+    addedNodes,
+    deletedNodes,
+    modifiedNodes,
+    addedEdges,
+    deletedEdges,
+  };
 
   return {
     ...after,
     title: after.title ? `${after.title} (Evolution Diff)` : 'Architecture Evolution Diff',
     nodes: mergedNodes,
     edges: mergedEdges,
+    diffSummary,
   };
 }

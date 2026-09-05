@@ -49,6 +49,58 @@ export function sanitizeArchitectureIR(raw: ArchitectureIR): ArchitectureIR {
 }
 
 /**
+ * Traverses full directed causality dependency graph (both upstream sources and downstream sinks)
+ * using Breadth-First Search (BFS) with cycle-detection via visited Set.
+ */
+export function traceFullConnectedCausalityGraph(
+  startNodeId: string,
+  edges: ArchitectureIR['edges'],
+): Set<string> {
+  const result = new Set<string>([startNodeId]);
+
+  // Build adjacency lists
+  const downstreamMap = new Map<string, string[]>();
+  const upstreamMap = new Map<string, string[]>();
+
+  for (const edge of edges || []) {
+    if (!edge.source || !edge.target) continue;
+    if (!downstreamMap.has(edge.source)) downstreamMap.set(edge.source, []);
+    downstreamMap.get(edge.source)!.push(edge.target);
+
+    if (!upstreamMap.has(edge.target)) upstreamMap.set(edge.target, []);
+    upstreamMap.get(edge.target)!.push(edge.source);
+  }
+
+  // Traverse Downstream (Sinks / Affected components)
+  const downstreamQueue = [startNodeId];
+  while (downstreamQueue.length > 0) {
+    const current = downstreamQueue.shift()!;
+    const neighbors = downstreamMap.get(current) || [];
+    for (const n of neighbors) {
+      if (!result.has(n)) {
+        result.add(n);
+        downstreamQueue.push(n);
+      }
+    }
+  }
+
+  // Traverse Upstream (Sources / Triggers)
+  const upstreamQueue = [startNodeId];
+  while (upstreamQueue.length > 0) {
+    const current = upstreamQueue.shift()!;
+    const neighbors = upstreamMap.get(current) || [];
+    for (const n of neighbors) {
+      if (!result.has(n)) {
+        result.add(n);
+        upstreamQueue.push(n);
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
  * Computes deterministic hierarchical DAG layout via Dagre
  */
 export function computeDagreLayout(ir: ArchitectureIR): LayoutedElements {
@@ -116,4 +168,84 @@ export function computeDagreLayout(ir: ArchitectureIR): LayoutedElements {
   });
 
   return { nodes: flowNodes, edges: flowEdges };
+}
+
+export interface PathTraceResult {
+  nodeIds: string[];
+  edgeIds: string[];
+  found: boolean;
+}
+
+/**
+ * Finds the shortest directed path between startNodeId and endNodeId using BFS.
+ */
+export function findShortestPath(
+  startNodeId: string,
+  endNodeId: string,
+  edges: ArchitectureIR['edges'],
+): PathTraceResult {
+  if (startNodeId === endNodeId) {
+    return { nodeIds: [startNodeId], edgeIds: [], found: true };
+  }
+
+  // Build adjacency list: node -> array of { target, edgeId }
+  const adj = new Map<string, Array<{ target: string; edgeId: string }>>();
+  for (const edge of edges || []) {
+    if (!edge.source || !edge.target) {
+      continue;
+    }
+    if (!adj.has(edge.source)) {
+      adj.set(edge.source, []);
+    }
+    adj.get(edge.source)?.push({ target: edge.target, edgeId: edge.id });
+  }
+
+  const queue: string[] = [startNodeId];
+  const visited = new Set<string>([startNodeId]);
+  const parentNode = new Map<string, string>();
+  const parentEdge = new Map<string, string>();
+
+  let found = false;
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) {
+      break;
+    }
+
+    if (current === endNodeId) {
+      found = true;
+      break;
+    }
+
+    const neighbors = adj.get(current) || [];
+    for (const { target, edgeId } of neighbors) {
+      if (!visited.has(target)) {
+        visited.add(target);
+        parentNode.set(target, current);
+        parentEdge.set(target, edgeId);
+        queue.push(target);
+      }
+    }
+  }
+
+  if (!found) {
+    return { nodeIds: [], edgeIds: [], found: false };
+  }
+
+  // Reconstruct path
+  const pathNodes: string[] = [];
+  const pathEdges: string[] = [];
+  let curr: string | undefined = endNodeId;
+
+  while (curr !== undefined) {
+    pathNodes.unshift(curr);
+    const edgeId = parentEdge.get(curr);
+    if (edgeId) {
+      pathEdges.unshift(edgeId);
+    }
+    curr = parentNode.get(curr);
+  }
+
+  return { nodeIds: pathNodes, edgeIds: pathEdges, found: true };
 }

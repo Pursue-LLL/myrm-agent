@@ -13,7 +13,7 @@ import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, NoReturn
 
 from browser_orchestrator.client import BrowserOrchestratorClient
 from cdp_chat.support import (
@@ -758,6 +758,8 @@ def _open_page_fast_create_with_retry(
         except (TimeoutError, OSError, RuntimeError) as exc:
             last_exc = exc
             message = str(exc)
+            if _open_page_result_unknown(message):
+                _raise_unknown_open_page_result(daemon, session_id, message)
             if not _is_retryable_open_page_error(message):
                 raise
             if _recover_orchestrator_daemon(daemon, message):
@@ -806,6 +808,8 @@ def _open_page_transaction_with_retry(
         except (TimeoutError, OSError, RuntimeError) as exc:
             last_exc = exc
             message = str(exc)
+            if _open_page_result_unknown(message):
+                _raise_unknown_open_page_result(daemon, session_id, message)
             if not _is_retryable_open_page_error(message):
                 raise
             if _recover_orchestrator_daemon(daemon, message):

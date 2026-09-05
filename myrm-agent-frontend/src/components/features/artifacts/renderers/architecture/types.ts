@@ -54,6 +54,14 @@ export interface ArchitectureEdgeIR {
   diffState?: DiffState;
 }
 
+export interface DiffSummary {
+  addedNodes: number;
+  deletedNodes: number;
+  modifiedNodes: number;
+  addedEdges: number;
+  deletedEdges: number;
+}
+
 export interface ArchitectureIR {
   version?: string;
   type?: ArchitectureDiagramType;
@@ -64,4 +72,5 @@ export interface ArchitectureIR {
   groups?: ArchitectureGroupIR[];
   nodes: ArchitectureNodeIR[];
   edges: ArchitectureEdgeIR[];
+  diffSummary?: DiffSummary;
 }

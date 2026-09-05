@@ -216,7 +216,7 @@ class _MCPTokenAuthMiddleware:
             await response(scope, receive, send)
             return
 
-        from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server import (
+        from myrm_agent_harness.toolkits.memory.mcp_server import (
             reset_request_memory_manager,
             reset_request_wiki_boundary_enabled,
             set_request_memory_manager,
@@ -281,7 +281,7 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
     global _session_manager_task
 
     try:
-        from myrm_agent_harness.toolkits.memory.agent_surface.mcp_server import MemoryMCPServer
+        from myrm_agent_harness.toolkits.memory.mcp_server import MemoryMCPServer
 
         from app.core.memory.adapters.setup import (
             create_memory_manager,

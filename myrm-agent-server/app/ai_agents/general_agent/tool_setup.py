@@ -728,7 +728,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 base_path=self.memory_base_path,
             )
 
-            from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import (
+            from myrm_agent_harness.toolkits.memory.memory_search_policy import (
                 MemorySearchBackends,
                 MemorySearchPolicy,
             )

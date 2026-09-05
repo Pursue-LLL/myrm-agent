@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeArchitectureIR, computeDagreLayout } from '../layout';
+import { sanitizeArchitectureIR, computeDagreLayout, traceFullConnectedCausalityGraph } from '../layout';
 import { computeArchitectureDiff } from '../diff';
 import type { ArchitectureIR } from '../types';
 import { isArchitectureType } from '../../artifactUtils';
@@ -93,6 +93,44 @@ describe('Architecture Evolution Diff', () => {
 
     expect(addedEdge?.diffState).toBe('added');
     expect(deletedEdge?.diffState).toBe('deleted');
+  });
+});
+
+describe('Full Multi-hop Path Tracer Algorithm', () => {
+  it('traverses full upstream and downstream causality graph and handles cycles gracefully', () => {
+    // Topology: client -> gateway -> order -> db
+    //                          \-> order -> cache
+    // Also cycle: order -> audit -> order
+    const edges = [
+      { id: 'e1', source: 'client', target: 'gateway' },
+      { id: 'e2', source: 'gateway', target: 'order' },
+      { id: 'e3', source: 'order', target: 'db' },
+      { id: 'e4', source: 'order', target: 'cache' },
+      { id: 'e5', source: 'order', target: 'audit' },
+      { id: 'e6', source: 'audit', target: 'order' }, // cycle
+      { id: 'e7', source: 'isolated_1', target: 'isolated_2' }, // isolated branch
+    ];
+
+    // Selecting 'order' should trace upstream to gateway & client, and downstream to db, cache, audit
+    const connectedToOrder = traceFullConnectedCausalityGraph('order', edges);
+    expect(connectedToOrder.has('order')).toBe(true);
+    expect(connectedToOrder.has('gateway')).toBe(true);
+    expect(connectedToOrder.has('client')).toBe(true);
+    expect(connectedToOrder.has('db')).toBe(true);
+    expect(connectedToOrder.has('cache')).toBe(true);
+    expect(connectedToOrder.has('audit')).toBe(true);
+    expect(connectedToOrder.has('isolated_1')).toBe(false);
+    expect(connectedToOrder.has('isolated_2')).toBe(false);
+
+    // Selecting 'client' should reach gateway, order, db, cache, audit
+    const connectedToClient = traceFullConnectedCausalityGraph('client', edges);
+    expect(connectedToClient.has('client')).toBe(true);
+    expect(connectedToClient.has('gateway')).toBe(true);
+    expect(connectedToClient.has('order')).toBe(true);
+    expect(connectedToClient.has('db')).toBe(true);
+    expect(connectedToClient.has('cache')).toBe(true);
+    expect(connectedToClient.has('audit')).toBe(true);
+    expect(connectedToClient.has('isolated_1')).toBe(false);
   });
 });
 
