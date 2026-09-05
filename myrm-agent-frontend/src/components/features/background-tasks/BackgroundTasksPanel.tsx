@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Terminal } from 'lucide-react';
+import { IconSearch, IconX } from '@/components/features/icons/PremiumIcons';
+import { Input } from '@/components/primitives/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives/tooltip';
 import { toast } from '@/lib/utils/toast';
@@ -54,6 +55,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   const [shellInputTaskId, setShellInputTaskId] = useState<string | null>(null);
   const [shellInput, setShellInput] = useState('');
   const [vaultLogDrawer, setVaultLogDrawer] = useState<VaultLogDrawerState | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const idleCountRef = useRef(0);
 
   const fetchTasks = useCallback(async () => {
@@ -123,8 +125,86 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
 
   useEffect(() => subscribeBackgroundTasksChanged(fetchTasks), [fetchTasks]);
 
-  const agentTasks = useMemo(() => tasks.filter((task) => (task.kind ?? 'agent') !== 'shell'), [tasks]);
-  const shellTasks = useMemo(() => tasks.filter((task) => task.kind === 'shell'), [tasks]);
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const filteredActiveGoals = useMemo(() => {
+    if (!normalizedQuery) return activeGoals;
+    return activeGoals.filter((goal) => {
+      return (
+        goal.objective.toLowerCase().includes(normalizedQuery) ||
+        goal.status.toLowerCase().includes(normalizedQuery) ||
+        goal.session_id.toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [activeGoals, normalizedQuery]);
+
+  const filteredMediaTasks = useMemo(() => {
+    if (!normalizedQuery) return mediaTasks;
+    return mediaTasks.filter((task) => {
+      const prompt = (task.payload?.prompt ?? '').toLowerCase();
+      const taskType = (task.task_type ?? '').toLowerCase();
+      const status = (task.status ?? '').toLowerCase();
+      const taskId = (task.task_id ?? '').toLowerCase();
+      return (
+        prompt.includes(normalizedQuery) ||
+        taskType.includes(normalizedQuery) ||
+        status.includes(normalizedQuery) ||
+        taskId.includes(normalizedQuery)
+      );
+    });
+  }, [mediaTasks, normalizedQuery]);
+
+  const filteredRecentTerminalMediaTasks = useMemo(() => {
+    if (!normalizedQuery) return recentTerminalMediaTasks;
+    return recentTerminalMediaTasks.filter((task) => {
+      const prompt = (task.payload?.prompt ?? '').toLowerCase();
+      const taskType = (task.task_type ?? '').toLowerCase();
+      const status = (task.status ?? '').toLowerCase();
+      const taskId = (task.task_id ?? '').toLowerCase();
+      return (
+        prompt.includes(normalizedQuery) ||
+        taskType.includes(normalizedQuery) ||
+        status.includes(normalizedQuery) ||
+        taskId.includes(normalizedQuery)
+      );
+    });
+  }, [recentTerminalMediaTasks, normalizedQuery]);
+
+  const agentTasks = useMemo(() => {
+    const list = tasks.filter((task) => (task.kind ?? 'agent') !== 'shell');
+    if (!normalizedQuery) return list;
+    return list.filter((task) => {
+      const prompt = (task.prompt ?? '').toLowerCase();
+      const status = (task.status ?? '').toLowerCase();
+      const taskId = (task.task_id ?? '').toLowerCase();
+      const resultPreview = (task.result_preview ?? '').toLowerCase();
+      return (
+        prompt.includes(normalizedQuery) ||
+        status.includes(normalizedQuery) ||
+        taskId.includes(normalizedQuery) ||
+        resultPreview.includes(normalizedQuery)
+      );
+    });
+  }, [tasks, normalizedQuery]);
+
+  const shellTasks = useMemo(() => {
+    const list = tasks.filter((task) => task.kind === 'shell');
+    if (!normalizedQuery) return list;
+    return list.filter((task) => {
+      const prompt = (task.prompt ?? '').toLowerCase();
+      const status = (task.status ?? '').toLowerCase();
+      const taskId = (task.task_id ?? '').toLowerCase();
+      const resultPreview = (task.result_preview ?? '').toLowerCase();
+      const command = (task.command ?? '').toLowerCase();
+      return (
+        prompt.includes(normalizedQuery) ||
+        status.includes(normalizedQuery) ||
+        taskId.includes(normalizedQuery) ||
+        resultPreview.includes(normalizedQuery) ||
+        command.includes(normalizedQuery)
+      );
+    });
+  }, [tasks, normalizedQuery]);
 
   const handleGoalAction = async (sessionId: string, action: string) => {
     try {
@@ -266,24 +346,47 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
             ) : (
               <p className="mt-1 text-xs text-muted-foreground/80">{t('durableRegistryNotice')}</p>
             )}
+            {hasPanelContent && (
+              <div className="relative mt-2.5">
+                <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t('searchPlaceholder')}
+                  className="h-8 pl-8 pr-7 text-xs bg-muted/40 border-border/60 placeholder:text-muted-foreground/60"
+                  data-testid="background-tasks-search-input"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    aria-label={t('clearSearch')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                  >
+                    <IconX className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="max-h-[360px] overflow-y-auto sm:max-h-[400px]">
             <ActiveGoalsSection
-              goals={activeGoals}
+              goals={filteredActiveGoals}
               onNavigateChat={handleNavigateChat}
               onGoalAction={handleGoalAction}
             />
 
             {hasPanelContent ? (
               <>
-                {mediaTasks.length > 0 && (
+                {filteredMediaTasks.length > 0 && (
                   <div className="border-b border-border/30">
                     <div className="px-4 py-2 text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
-                      {t('media.section')} ({mediaTasks.length})
+                      {t('media.section')} ({filteredMediaTasks.length})
                     </div>
                     <div className="divide-y divide-border/20">
-                      {mediaTasks.map((task) => (
+                      {filteredMediaTasks.map((task) => (
                         <MediaTaskRow
                           key={task.task_id}
                           task={task}
@@ -296,7 +399,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                   </div>
                 )}
 
-                {recentTerminalMediaTasks.length > 0 && (
+                {filteredRecentTerminalMediaTasks.length > 0 && (
                   <div className="border-b border-border/30">
                     <button
                       type="button"
@@ -306,7 +409,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                       data-testid="media-recent-toggle"
                     >
                       <span>
-                        {t('media.recentSection')} ({recentTerminalMediaTasks.length})
+                        {t('media.recentSection')} ({filteredRecentTerminalMediaTasks.length})
                       </span>
                       <span className="normal-case tracking-normal text-muted-foreground">
                         {recentMediaExpanded ? t('media.hideRecent') : t('media.showRecent')}
@@ -314,7 +417,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                     </button>
                     {recentMediaExpanded && (
                       <div className="divide-y divide-border/20">
-                        {recentTerminalMediaTasks.map((task) => (
+                        {filteredRecentTerminalMediaTasks.map((task) => (
                           <MediaTaskRow
                             key={task.task_id}
                             task={task}
@@ -391,6 +494,17 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                     </div>
                   </div>
                 )}
+
+                {searchQuery.trim().length > 0 &&
+                  filteredActiveGoals.length === 0 &&
+                  filteredMediaTasks.length === 0 &&
+                  filteredRecentTerminalMediaTasks.length === 0 &&
+                  shellTasks.length === 0 &&
+                  agentTasks.length === 0 && (
+                    <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
+                      {t('noSearchResults')}
+                    </div>
+                  )}
               </>
             ) : (
               <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">{t('empty')}</div>

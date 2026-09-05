@@ -981,6 +981,34 @@ INDEX_STATEMENTS = [
     "ALTER TABLE interrupted_turn_markers ADD COLUMN message_id VARCHAR(255) NOT NULL DEFAULT ''",
     "ALTER TABLE interrupted_turn_markers ADD COLUMN pending_steering_messages JSON",
     "ALTER TABLE user_tool_allowlist ADD COLUMN expires_at TIMESTAMP",
+    """CREATE TABLE IF NOT EXISTS search_quota_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider VARCHAR(64) NOT NULL,
+        year_month VARCHAR(7) NOT NULL,
+        quota_limit INTEGER NOT NULL DEFAULT 1000,
+        used_count INTEGER NOT NULL DEFAULT 0,
+        is_depleted BOOLEAN NOT NULL DEFAULT 0,
+        is_metered BOOLEAN NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""",
+    "CREATE UNIQUE INDEX IF NOT EXISTS uq_search_quota_provider_month ON search_quota_records(provider, year_month)",
+    """CREATE TABLE IF NOT EXISTS browser_runtime_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id VARCHAR(128) NOT NULL,
+        start_time FLOAT NOT NULL,
+        end_time FLOAT,
+        duration_seconds FLOAT NOT NULL DEFAULT 0.0,
+        status VARCHAR(32) NOT NULL DEFAULT 'running',
+        network_requests_count INTEGER NOT NULL DEFAULT 0,
+        network_bytes_downloaded INTEGER NOT NULL DEFAULT 0,
+        network_bytes_uploaded INTEGER NOT NULL DEFAULT 0,
+        recording_saved BOOLEAN NOT NULL DEFAULT 0,
+        recording_path TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_browser_runtime_session ON browser_runtime_records(session_id)",
+    "CREATE INDEX IF NOT EXISTS idx_browser_runtime_status ON browser_runtime_records(status)",
 ]
 
 
