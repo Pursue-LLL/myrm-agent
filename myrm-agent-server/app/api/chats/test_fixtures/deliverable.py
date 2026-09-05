@@ -22,15 +22,21 @@ from fastapi import APIRouter, HTTPException
 from app.config.deploy_mode import is_local_mode
 from app.database.dto import ChatCreate
 from app.services.agent.agent_service import AgentService
-from app.services.agent.params.workspace_resolve import resolve_default_chat_workspace_dir
+from app.services.agent.params.workspace_resolve import (
+    resolve_default_chat_workspace_dir,
+)
 from app.services.chat.chat_service import ChatService
 
 router = APIRouter()
 
 _DELIVERABLE_REL_PATH = "deliverable_e2e.md"
 _DELIVERABLE_WORKSPACE_REF = f"workspace/{_DELIVERABLE_REL_PATH}"
-_DELIVERABLE_FILE_CONTENT = "# Deliverable E2E\n\nFixture content for Chrome MCP smoke.\n"
-_DELIVERABLE_ASSISTANT_MARKDOWN = f"Deliverable link E2E fixture — open `{_DELIVERABLE_WORKSPACE_REF}` in the portal."
+_DELIVERABLE_FILE_CONTENT = (
+    "# Deliverable E2E\n\nFixture content for Chrome MCP smoke.\n"
+)
+_DELIVERABLE_ASSISTANT_MARKDOWN = (
+    f"Deliverable link E2E fixture — open `{_DELIVERABLE_WORKSPACE_REF}` in the portal."
+)
 
 
 @router.post("/test/seed-deliverable-link-fixture", include_in_schema=False)
@@ -49,7 +55,9 @@ async def seed_deliverable_link_fixture() -> dict[str, str]:
     agent = agents[0]
     chat_id = f"e2edeliv{uuid4().hex[:8]}"
 
-    workspace_dir = await resolve_default_chat_workspace_dir(chat_id, persist_workspace=True)
+    workspace_dir = await resolve_default_chat_workspace_dir(
+        chat_id, persist_workspace=True
+    )
     if not workspace_dir:
         raise HTTPException(
             status_code=500,
@@ -108,19 +116,6 @@ async def seed_deliverable_link_fixture() -> dict[str, str]:
                     "original_hint": "worker.py",
                 }
             ],
-            "staged_artifacts": [
-                {
-                    "artifact_id": "staged-1",
-                    "filename": "draft_worker.py",
-                    "relative_path": ".myrm/staged_artifacts/draft_worker.py",
-                    "full_path": "/tmp/workspace/.myrm/staged_artifacts/draft_worker.py",
-                    "language": "python",
-                    "size_bytes": 1024,
-                    "line_count": 28,
-                    "created_at": "2026-09-05T12:00:00Z",
-                    "original_hint": "worker.py",
-                }
-            ],
         },
     )
 
@@ -149,7 +144,9 @@ async def seed_deliverable_bundle_goal_fixture() -> dict[str, object]:
     agent = agents[0]
     chat_id = f"e2ebundle{uuid4().hex[:8]}"
 
-    workspace_dir = await resolve_default_chat_workspace_dir(chat_id, persist_workspace=True)
+    workspace_dir = await resolve_default_chat_workspace_dir(
+        chat_id, persist_workspace=True
+    )
     if not workspace_dir:
         raise HTTPException(
             status_code=500,

@@ -16,7 +16,9 @@ from myrm_agent_harness.toolkits.memory.conversation_search import (
 
 
 class FakeConversationSearchProvider:
-    async def search(self, request: ConversationSearchRequest) -> ConversationSearchResponse:
+    async def search(
+        self, request: ConversationSearchRequest
+    ) -> ConversationSearchResponse:
         return ConversationSearchResponse(
             mode="search",
             query=request.query,
@@ -51,7 +53,9 @@ async def test_memory_search_sessions_corpus_executes_when_opt_in_on() -> None:
     tools = create_memory_tools(
         manager,
         search_policy=MemorySearchPolicy(allow_sessions=True),
-        search_backends=MemorySearchBackends(conversation_provider=FakeConversationSearchProvider()),
+        search_backends=MemorySearchBackends(
+            conversation_provider=FakeConversationSearchProvider()
+        ),
     )
     search_tool = next(tool for tool in tools if tool.name == "memory_search_tool")
 
@@ -63,11 +67,17 @@ async def test_memory_search_sessions_corpus_executes_when_opt_in_on() -> None:
 
 
 @pytest.mark.asyncio
-async def test_memory_search_sessions_corpus_with_coverage_notice_when_partial() -> None:
-    from myrm_agent_harness.toolkits.memory.conversation_search.types import ConversationIndexCoverage
+async def test_memory_search_sessions_corpus_with_coverage_notice_when_partial() -> (
+    None
+):
+    from myrm_agent_harness.toolkits.memory.conversation_search.types import (
+        ConversationIndexCoverage,
+    )
 
     class PartialCoverageProvider:
-        async def search(self, request: ConversationSearchRequest) -> ConversationSearchResponse:
+        async def search(
+            self, request: ConversationSearchRequest
+        ) -> ConversationSearchResponse:
             return ConversationSearchResponse(
                 mode="search",
                 query=request.query,
@@ -94,7 +104,9 @@ async def test_memory_search_sessions_corpus_with_coverage_notice_when_partial()
     tools = create_memory_tools(
         manager,
         search_policy=MemorySearchPolicy(allow_sessions=True),
-        search_backends=MemorySearchBackends(conversation_provider=PartialCoverageProvider()),
+        search_backends=MemorySearchBackends(
+            conversation_provider=PartialCoverageProvider()
+        ),
     )
     search_tool = next(tool for tool in tools if tool.name == "memory_search_tool")
 
@@ -120,12 +132,16 @@ async def test_memory_search_sessions_corpus_rejected_when_opt_in_off() -> None:
 
 
 @pytest.mark.asyncio
-async def test_memory_search_sessions_corpus_expand_window_and_preserves_large_content() -> None:
+async def test_memory_search_sessions_corpus_expand_window_and_preserves_large_content() -> (
+    None
+):
     captured_requests: list[ConversationSearchRequest] = []
     long_expanded_text = "Step " + ("y" * 2200) + " end of expanded block"
 
     class LargeExpandProvider:
-        async def search(self, request: ConversationSearchRequest) -> ConversationSearchResponse:
+        async def search(
+            self, request: ConversationSearchRequest
+        ) -> ConversationSearchResponse:
             captured_requests.append(request)
             return ConversationSearchResponse(
                 mode="search",
@@ -147,17 +163,21 @@ async def test_memory_search_sessions_corpus_expand_window_and_preserves_large_c
     tools = create_memory_tools(
         manager,
         search_policy=MemorySearchPolicy(allow_sessions=True),
-        search_backends=MemorySearchBackends(conversation_provider=LargeExpandProvider()),
+        search_backends=MemorySearchBackends(
+            conversation_provider=LargeExpandProvider()
+        ),
     )
     search_tool = next(tool for tool in tools if tool.name == "memory_search_tool")
 
-    result = await search_tool.ainvoke({
-        "query": "",
-        "corpus": "sessions",
-        "expand_conversation_id": "chat-large-expand",
-        "expand_message_id": "msg-target",
-        "expand_window": 6,
-    })
+    result = await search_tool.ainvoke(
+        {
+            "query": "",
+            "corpus": "sessions",
+            "expand_conversation_id": "chat-large-expand",
+            "expand_message_id": "msg-target",
+            "expand_window": 6,
+        }
+    )
 
     assert len(captured_requests) == 1
     req = captured_requests[0]
@@ -169,4 +189,3 @@ async def test_memory_search_sessions_corpus_expand_window_and_preserves_large_c
     assert "end of expanded block" in text
     assert len(text) > 2000
     assert "tip: pass expand_conversation_id=" not in text
-

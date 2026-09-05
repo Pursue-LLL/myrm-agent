@@ -93,7 +93,9 @@ class SkillsService:
         """创建预构建技能"""
         files = sanitize_skill_files(files)
         self._validate_skill_input(name, files)
-        return await self._create_prebuilt_skill(name, description, files, category, tags)
+        return await self._create_prebuilt_skill(
+            name, description, files, category, tags
+        )
 
     def _validate_skill_input(self, name: str, files: dict[str, bytes]) -> None:
         if SKILL_MD_FILE not in files:
@@ -103,7 +105,9 @@ class SkillsService:
         if len(name) > 64:
             raise ValueError("Skill name cannot exceed 64 characters")
         if not SKILL_NAME_PATTERN.match(name):
-            raise ValueError("Skill name must start with a letter and contain only letters, numbers, underscores, or hyphens")
+            raise ValueError(
+                "Skill name must start with a letter and contain only letters, numbers, underscores, or hyphens"
+            )
 
     async def _create_prebuilt_skill(
         self,
@@ -144,7 +148,9 @@ class SkillsService:
             await self.storage.write(file_path, content, content_type)
 
         metadata_path = get_skill_metadata_path(SkillType.PREBUILT, skill_id)
-        await self.storage.write_text(metadata_path, json.dumps(skill.to_dict(), indent=2))
+        await self.storage.write_text(
+            metadata_path, json.dumps(skill.to_dict(), indent=2)
+        )
 
         logger.warning(f"✅ 创建预构建技能: {skill_id} ({name})")
         return skill
@@ -171,13 +177,19 @@ class SkillsService:
         if skill:
             # Merge runtime is_active status from SQLite
             try:
-                from app.core.skills.store.evolution_store import get_evolution_skill_store
+                from app.core.skills.store.evolution_store import (
+                    get_evolution_skill_store,
+                )
 
                 db_record = get_evolution_skill_store().get_skill(skill.id)
                 if db_record is not None:
                     skill.is_active = db_record.is_active
             except Exception as e:
-                logger.error("Failed to merge is_active status from SQLite for %s: %s", skill.id, e)
+                logger.error(
+                    "Failed to merge is_active status from SQLite for %s: %s",
+                    skill.id,
+                    e,
+                )
 
         return skill
 
@@ -250,13 +262,17 @@ class SkillsService:
         if not skill:
             logger.warning(f"⚠️ Skill not found: {skill_id}")
             return False
-        return await reader.download_skill_to_workspace(skill, target_path, self.storage, target_storage, force)
+        return await reader.download_skill_to_workspace(
+            skill, target_path, self.storage, target_storage, force
+        )
 
     # ========================================================================
     # Update
     # ========================================================================
 
-    async def update_skill_file(self, skill_id: str, filename: str, content: str) -> bool:
+    async def update_skill_file(
+        self, skill_id: str, filename: str, content: str
+    ) -> bool:
         """更新技能文件内容并持久化，支持本地与预置技能存储。"""
         skill = await self.get_skill(skill_id)
         if not skill:
@@ -312,7 +328,9 @@ class SkillsService:
         )
 
         metadata_path = f"{updated_skill.storage_path}/{SKILL_METADATA_FILE}"
-        await self.storage.write_text(metadata_path, json.dumps(updated_skill.to_dict(), indent=2))
+        await self.storage.write_text(
+            metadata_path, json.dumps(updated_skill.to_dict(), indent=2)
+        )
 
         logger.warning(f"✅ 更新技能: {skill_id} (v{updated_skill.version})")
         return updated_skill
@@ -353,9 +371,13 @@ class SkillsService:
         """获取工作区可用的技能列表（启用的预构建 + 启用的本地技能）"""
         config = await self.user_config.get_config()
         all_prebuilt = await self.list_skills(skill_type=SkillType.PREBUILT)
-        enabled_prebuilt = [s for s in all_prebuilt if s.id in config.enabled_prebuilt_ids]
+        enabled_prebuilt = [
+            s for s in all_prebuilt if s.id in config.enabled_prebuilt_ids
+        ]
         all_local_skills = await reader.list_local_skills(self.user_config)
-        enabled_local_skills = [s for s in all_local_skills if s.id in config.enabled_local_skill_ids]
+        enabled_local_skills = [
+            s for s in all_local_skills if s.id in config.enabled_local_skill_ids
+        ]
         return enabled_prebuilt + enabled_local_skills
 
     async def get_skills_by_ids(self, skill_ids: list[str]) -> list[Skill]:

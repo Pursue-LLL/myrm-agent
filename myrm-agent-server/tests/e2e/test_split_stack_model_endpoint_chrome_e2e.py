@@ -35,9 +35,10 @@ _VERIFY_SPLIT_STACK_SETTINGS_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
+    execution_mode="PRIVATE",
     access_scope="READ",
     workload="STANDARD",
+    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -49,13 +50,20 @@ def test_split_stack_settings_ui_and_discover_api_chrome_e2e() -> None:
     # 1. Warm up Settings UI route and open in real Chrome MCP to verify rendering
     target_url = f"{api_url.replace(':8080', ':3000')}/settings?tab=models"
     warm_ui_route("/settings")
-    with open_settings_subroute("/settings?tab=models", timeout_ms=90_000) as (client, page):
+    with open_settings_subroute("/settings?tab=models", timeout_ms=90_000) as (
+        client,
+        page,
+    ):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
         wait_for_settings_layout(client, page, page_url=target_url)
 
-        eval_res = client.evaluate(page, _VERIFY_SPLIT_STACK_SETTINGS_JS, timeout_sec=20.0)
-        assert isinstance(eval_res, dict), f"Expected dict evaluation result, got: {eval_res}"
+        eval_res = client.evaluate(
+            page, _VERIFY_SPLIT_STACK_SETTINGS_JS, timeout_sec=20.0
+        )
+        assert isinstance(
+            eval_res, dict
+        ), f"Expected dict evaluation result, got: {eval_res}"
         assert eval_res.get("ok") is True, f"Script failed: {eval_res}"
         assert eval_res.get("ready") is True, f"Settings layout not ready: {eval_res}"
 

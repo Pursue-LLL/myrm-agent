@@ -60,10 +60,7 @@ def parent_skills_dir(tmp_path: Path) -> Path:
     s2 = root / "skill-beta"
     s2.mkdir()
     (s2 / "SKILL.md").write_text(
-        "---\n"
-        "name: skill-beta\n"
-        "description: Beta runner\n"
-        "---\n",
+        "---\n" "name: skill-beta\n" "description: Beta runner\n" "---\n",
         encoding="utf-8",
     )
 

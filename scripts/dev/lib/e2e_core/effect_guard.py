@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import posixpath
 from urllib.parse import unquote, urlparse
 
 # Global write prefixes audited across app/api (2026-08-09): config, features, admin,
@@ -55,7 +56,7 @@ def _normalized_path(url: str) -> str:
     path = unquote(parsed.path or url)
     if "/api/v1/" in path:
         path = path[path.index("/api/v1/") :]
-    return path
+    return posixpath.normpath(path)
 
 
 def is_test_fixture_path(path: str) -> bool:

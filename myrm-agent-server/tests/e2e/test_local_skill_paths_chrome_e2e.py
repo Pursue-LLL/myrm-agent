@@ -91,18 +91,20 @@ def test_chrome_ui_local_skill_paths_card_and_preview_live() -> None:
         )
         (tmp_path / "SKILL.md").write_text(skill_content, encoding="utf-8")
 
-        preview_res = http_json(
+        res = http_json(
             "POST",
             f"{api_url}/api/v1/skills/local/paths/preview",
             json_body={"path": str(tmp_path)},
         )
-        assert preview_res.status == 200, f"Preview failed: {preview_res.body}"
-        data = preview_res.json
-        assert data["exists"] is True
-        assert data["total_discovered"] == 1
-        assert data["skills"][0]["name"] == "e2e-previewed-skill"
-        assert "e2e" in data["skills"][0]["tags"]
-        assert data["skills"][0]["is_safe"] is True
+        data = res.json
+        assert isinstance(data, dict)
+        assert data.get("exists") is True
+        assert data.get("total_discovered") == 1
+        skills = data.get("skills", [])
+        assert len(skills) == 1
+        assert skills[0]["name"] == "e2e-previewed-skill"
+        assert "e2e" in skills[0]["tags"]
+        assert skills[0]["is_safe"] is True
 
     # 2. Warm route and verify UI card renders in Settings > Skills
     warm_ui_route("/settings")

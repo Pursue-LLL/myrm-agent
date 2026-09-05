@@ -77,18 +77,26 @@ def _extract_skill_preview(
         tags = [str(t).strip().strip("'\"") for t in candidate_tags if str(t).strip()]
     elif isinstance(candidate_tags, str):
         cleaned = candidate_tags.strip().lstrip("[").rstrip("]")
-        tags = [t.strip().strip("'\"") for t in cleaned.split(",") if t.strip().strip("'\"")]
+        tags = [
+            t.strip().strip("'\"") for t in cleaned.split(",") if t.strip().strip("'\"")
+        ]
 
     author: str | None = None
     if raw_yaml.get("author"):
         author = str(raw_yaml["author"])
-    elif isinstance(raw_yaml.get("metadata"), dict) and raw_yaml["metadata"].get("author"):
+    elif isinstance(raw_yaml.get("metadata"), dict) and raw_yaml["metadata"].get(
+        "author"
+    ):
         author = str(raw_yaml["metadata"]["author"])
     elif isinstance(frontmatter.metadata, dict) and "author" in frontmatter.metadata:
         author = str(frontmatter.metadata["author"])
 
     required_tools: list[str] = []
-    if frontmatter.requires and hasattr(frontmatter.requires, "bins") and isinstance(frontmatter.requires.bins, list):
+    if (
+        frontmatter.requires
+        and hasattr(frontmatter.requires, "bins")
+        and isinstance(frontmatter.requires.bins, list)
+    ):
         required_tools = [str(b) for b in frontmatter.requires.bins]
 
     skill_id = compute_id_fn(skill_dir)
@@ -109,7 +117,9 @@ def _extract_skill_preview(
         scan_res = scan_skill_content(skill_name, content)
         if not scan_res.is_clean:
             is_safe = False
-            threat_summary = f"{len(scan_res.findings)} potential security findings detected"
+            threat_summary = (
+                f"{len(scan_res.findings)} potential security findings detected"
+            )
     except Exception as scan_err:
         logger.debug("Security scan skipped for %s: %s", skill_name, scan_err)
 
@@ -157,7 +167,9 @@ def preview_skill_path(
 
     # Case 1: The path itself is directly a skill directory
     if (expanded_path / SKILL_MD_FILE).is_file():
-        single_preview = _extract_skill_preview(expanded_path, ".", existing_names, compute_id_fn)
+        single_preview = _extract_skill_preview(
+            expanded_path, ".", existing_names, compute_id_fn
+        )
         if single_preview:
             items.append(single_preview)
         return expanded_path, True, True, items, warning_msg
@@ -174,13 +186,17 @@ def preview_skill_path(
             if not item.is_dir():
                 continue
 
-            sub_preview = _extract_skill_preview(item, item.name, existing_names, compute_id_fn)
+            sub_preview = _extract_skill_preview(
+                item, item.name, existing_names, compute_id_fn
+            )
             if sub_preview:
                 items.append(sub_preview)
     except PermissionError:
         return expanded_path, True, True, [], "Permission denied accessing directory"
     except Exception as e:
-        logger.warning("Failed to scan directory %s during preview: %s", expanded_path, e)
+        logger.warning(
+            "Failed to scan directory %s during preview: %s", expanded_path, e
+        )
         return expanded_path, True, True, [], f"Scan error: {e}"
 
     return expanded_path, True, True, items, warning_msg

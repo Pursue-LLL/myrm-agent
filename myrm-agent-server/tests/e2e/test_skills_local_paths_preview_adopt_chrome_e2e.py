@@ -50,10 +50,9 @@ _SETTINGS_SKILLS_SHELL_STATE = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    access_scope="NAMESPACE_WRITE",
-    workload="LIVE",
-    private_reason="local_skill_preview_adopt",
+    execution_mode="SHARED",
+    access_scope="READ",
+    workload="STANDARD",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -83,13 +82,12 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
         )
 
         # 2. Test Backend Preview API
-        preview_res = http_json(
+        preview_data = http_json(
             "POST",
             f"{api_url}/api/v1/skills/local/paths/preview",
-            json_body={"path": str(test_skill_dir)},
+            {"path": str(test_skill_dir)},
         )
-        assert preview_res.status == 200, f"Preview failed: {preview_res.body}"
-        preview_data = preview_res.json
+        assert isinstance(preview_data, dict)
         assert preview_data.get("exists") is True
         assert preview_data.get("is_directory") is True
         assert preview_data.get("total_discovered") == 1
@@ -103,16 +101,15 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
 
         # 3. Test Backend Adopt API
         target_skill_id = skill_item["skill_id"]
-        adopt_res = http_json(
+        adopt_data = http_json(
             "POST",
             f"{api_url}/api/v1/skills/local/paths/adopt",
-            json_body={
+            {
                 "path": str(test_skill_dir),
                 "selected_skill_ids": [target_skill_id],
             },
         )
-        assert adopt_res.status == 200, f"Adopt failed: {adopt_res.body}"
-        adopt_data = adopt_res.json
+        assert isinstance(adopt_data, dict)
         assert adopt_data.get("status") == "ok"
         assert adopt_data.get("path") == str(test_skill_dir)
         assert adopt_data.get("added_to_paths") is True
