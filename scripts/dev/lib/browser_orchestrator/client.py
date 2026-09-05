@@ -48,6 +48,7 @@ _daemon_unreachable_markers = (
     "connection closed before response",
     "connection lost",
     "connection reset",
+    "browser orchestrator response timeout",
 )
 _REPLAY_SAFE_METHODS = frozenset(
     {
@@ -607,7 +608,7 @@ class BrowserOrchestratorClient:
         )
         try:
             return self._request_raw(payload, req_id)
-        except RuntimeError as exc:
+        except (RuntimeError, TimeoutError) as exc:
             message = str(exc)
             if not allow_daemon_recovery or not _daemon_unreachable_message(message):
                 raise

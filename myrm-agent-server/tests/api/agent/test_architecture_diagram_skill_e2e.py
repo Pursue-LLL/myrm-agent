@@ -9,6 +9,7 @@ Validates the full task flow lifecycle of the architecture diagram skill:
 
 from __future__ import annotations
 
+import json
 import re
 import tempfile
 from pathlib import Path
@@ -142,6 +143,8 @@ async def test_architecture_diagram_real_agent_task_flow_execution() -> None:
         "Design a high-concurrency payment processing topology with API Gateway, Order Service, "
         "Payment Service, Redis Cache, and PostgreSQL persistence."
     )
+    assert "payment" in user_prompt.lower()
+    assert "API Gateway" in user_prompt
 
     # 1. Simulate the LLM output following architecture-diagram SKILL.md JSON IR specification
     simulated_llm_task_response = {

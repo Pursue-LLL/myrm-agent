@@ -331,6 +331,45 @@ class OrchestratorChromeClient:
             or self._is_missing_session_context(message)
         )
 
+    def _operation_result_unknown(self, message: str) -> bool:
+        """Return true when an evaluate/navigate request may have executed.
+
+        A response timeout occurs after the daemon has accepted the RPC.  The
+        browser may therefore have run JavaScript or started navigation even
+        though the client saw no result.  Retrying such a request can duplicate
+        user-visible mutations, so the session must be quarantined instead.
+        """
+        lowered = message.lower()
+        if "browser_operation_result_unknown" in lowered:
+            return True
+        if "daemon not running" in lowered or "connection refused" in lowered:
+            return False
+        return any(
+            marker in lowered
+            for marker in (
+                "browser orchestrator response timeout",
+                "cdp request timeout",
+                "connection reset",
+                "broken pipe",
+                "connection closed before response",
+                "connection lost",
+                "operation timeout: navigate",
+                "operation timeout: evaluate",
+            )
+        )
+
+    def _raise_unknown_operation_result(self, message: str) -> NoReturn:
+        """Quarantine the session before exposing an ambiguous operation result."""
+        try:
+            self._daemon.destroy_session(self._session_id)
+        except (TimeoutError, OSError, RuntimeError):
+            # The daemon's lease reaper remains the last-resort cleanup owner.
+            pass
+        raise RuntimeError(
+            "BROWSER_OPERATION_RESULT_UNKNOWN: evaluate/navigate request may "
+            f"have reached Chrome; session was quarantined; cause={message}"
+        )
+
     def _recover_daemon_if_needed(self, message: str) -> bool:
         return _recover_orchestrator_daemon(self._daemon, message, wall_sec=45.0)
 
@@ -368,6 +407,8 @@ class OrchestratorChromeClient:
             except (TimeoutError, OSError, RuntimeError) as exc:
                 last_exc = exc
                 message = str(exc)
+                if self._operation_result_unknown(message):
+                    self._raise_unknown_operation_result(message)
                 if self._recover_daemon_if_needed(message):
                     continue
                 if self._is_orphan_target_error(message) and attempt < max_attempts:
@@ -419,6 +460,8 @@ class OrchestratorChromeClient:
             except (TimeoutError, OSError, RuntimeError) as exc:
                 last_exc = exc
                 message = str(exc)
+                if self._operation_result_unknown(message):
+                    self._raise_unknown_operation_result(message)
                 if self._recover_daemon_if_needed(message):
                     continue
                 if self._is_missing_session_context(message):
