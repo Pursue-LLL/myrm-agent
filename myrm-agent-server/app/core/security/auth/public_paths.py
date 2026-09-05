@@ -19,6 +19,7 @@ PUBLIC_EXACT_PATHS: frozenset[str] = frozenset(
     {
         "/",
         "/favicon.ico",
+        "/health",
     }
 )
 
