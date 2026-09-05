@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import Final, Literal, TypedDict
 
 MigrationSourceDiscoverMode = Literal["local_scan", "zip_upload"]
-MigrationImportSource = Literal["hermes", "openclaw", "claude", "codex", "chatgpt", "gbrain", "pi", "plur"]
+MigrationImportSource = Literal["hermes", "openclaw", "claude", "codex", "chatgpt", "gemini", "gbrain", "pi", "plur"]
 MIGRATION_SOURCE_MANIFEST_AUTHORITATIVE: Final[bool] = True
 
 
@@ -73,6 +73,12 @@ _MIGRATION_SOURCE_MANIFEST: tuple[MigrationSourceManifestEntry, ...] = (
         id="chatgpt",
         display_name="ChatGPT",
         import_source="chatgpt",
+        discover_modes=("zip_upload",),
+    ),
+    MigrationSourceManifestEntry(
+        id="gemini",
+        display_name="Google Gemini",
+        import_source="gemini",
         discover_modes=("zip_upload",),
     ),
     MigrationSourceManifestEntry(

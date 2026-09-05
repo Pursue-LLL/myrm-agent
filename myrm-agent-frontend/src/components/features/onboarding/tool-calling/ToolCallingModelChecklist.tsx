@@ -19,25 +19,25 @@ export const ToolCallingModelChecklist = memo<ToolCallingModelChecklistProps>(({
   const t = useTranslations('chat.localCapabilities');
 
   return (
-    <div className={`space-y-3 ${className}`} data-testid=\"tool-calling-checklist\">
-      <div className=\"flex items-center justify-between\">
-        <div className=\"flex items-center gap-1.5 text-xs font-semibold text-foreground\">
-          <Sparkles className=\"h-3.5 w-3.5 text-primary\" />
+    <div className={`space-y-3 ${className}`} data-testid="tool-calling-checklist">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
           <span>{t('checklistTitle')}</span>
         </div>
-        <span className=\"text-[11px] text-muted-foreground\">
+        <span className="text-[11px] text-muted-foreground">
           {t('checklistSubtitle')}
         </span>
       </div>
 
-      <div className=\"grid grid-cols-1 sm:grid-cols-2 gap-2\">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {VERIFIED_TOOL_MODELS.map((item) => {
           const isSelected = selectedModel?.toLowerCase().includes(item.id.toLowerCase());
 
           return (
             <button
               key={item.id}
-              type=\"button\"
+              type="button"
               onClick={() => onSelectModel(item)}
               data-testid={`btn-select-model-${item.id}`}
               className={`flex items-start justify-between rounded-lg border p-2.5 text-left transition-all ${
@@ -46,18 +46,18 @@ export const ToolCallingModelChecklist = memo<ToolCallingModelChecklistProps>(({
                   : 'border-border bg-card/60 hover:bg-accent/40'
               }`}
             >
-              <div className=\"space-y-0.5 min-w-0 pr-2\">
-                <div className=\"flex items-center gap-1.5\">
-                  <span className=\"text-xs font-medium text-foreground truncate\">
+              <div className="space-y-0.5 min-w-0 pr-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-medium text-foreground truncate">
                     {item.name}
                   </span>
                   {item.recommended && (
-                    <span className=\"rounded bg-primary/10 px-1 py-0.2 text-[10px] font-medium text-primary shrink-0\">
+                    <span className="rounded bg-primary/10 px-1 py-0.2 text-[10px] font-medium text-primary shrink-0">
                       {t('recommendedBadge')}
                     </span>
                   )}
                 </div>
-                <div className=\"text-[11px] text-muted-foreground truncate\">
+                <div className="text-[11px] text-muted-foreground truncate">
                   {item.provider}
                 </div>
               </div>
@@ -69,7 +69,7 @@ export const ToolCallingModelChecklist = memo<ToolCallingModelChecklistProps>(({
                     : 'border-muted-foreground/30 bg-transparent'
                 }`}
               >
-                {isSelected && <Check className=\"h-2.5 w-2.5 stroke-[3]\" />}
+                {isSelected && <Check className="h-2.5 w-2.5 stroke-[3]" />}
               </div>
             </button>
           );
