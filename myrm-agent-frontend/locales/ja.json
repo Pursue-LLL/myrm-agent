@@ -4450,11 +4450,11 @@
         "correctAndLock": "事実を修正"
       },
       "repoEvidence": {
-        "title": "コードリポジトリ履歴証拠",
+        "title": "リポジトリ履歴証拠",
         "uncommittedChanges": "コミットされていない変更があります",
         "refresh": "リポジトリ証拠を更新",
         "recentCommits": "最近のコミット証拠 ({count})",
-        "files": "個のファイル",
+        "files": "ファイル",
         "noCommits": "最近のコミット履歴が検出されませんでした"
       }
     },

@@ -26,7 +26,7 @@ interface RepoEvidenceCardProps {
 }
 
 export const RepoEvidenceCard = memo<RepoEvidenceCardProps>(({ workspacePath, className }) => {
-  const t = useTranslations('memory');
+  const t = useTranslations('memory.commandCenter.repoEvidence');
   const [data, setData] = useState<MemoryRepoEvidenceResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
