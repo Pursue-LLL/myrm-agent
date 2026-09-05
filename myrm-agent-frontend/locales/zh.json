@@ -16071,6 +16071,9 @@
           "scanComplete": "扫描完成",
           "foundSkills": "发现 {count} 个技能"
         },
+        "discoveredSkillsBadge": "{count} 个技能",
+        "pathNotFoundBadge": "路径不存在",
+        "emptySkillsBadge": "0 个技能",
         "error": {
           "invalidPath": "路径格式无效",
           "pathFormat": "路径必须是绝对路径或以 ~ 开头",

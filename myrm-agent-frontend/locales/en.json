@@ -16071,6 +16071,9 @@
           "scanComplete": "Scan complete",
           "foundSkills": "Found {count} skills"
         },
+        "discoveredSkillsBadge": "{count} skills",
+        "pathNotFoundBadge": "Path Not Found",
+        "emptySkillsBadge": "0 skills",
         "error": {
           "invalidPath": "Invalid path format",
           "pathFormat": "Path must be absolute or start with ~",
@@ -16092,6 +16095,10 @@
           "cancel": "Cancel",
           "adopt": "Adopt & Add Path",
           "adopting": "Adopting...",
+          "addPathOnly": "Add Path Only",
+          "selectAll": "Select All",
+          "deselectAll": "Deselect All",
+          "selectedCount": "Selected {count} skill(s)",
           "tools": "Required Tools"
         }
       },

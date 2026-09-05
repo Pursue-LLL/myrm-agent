@@ -107,8 +107,39 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
     }
   }, [newPath, localSkillPaths, t]);
 
-  // 确认采纳路径并持久化（调用原子采纳接口，同时启用非冲突技能）
-  const handleConfirmAdopt = useCallback(async () => {
+  // 确认采纳路径并持久化（调用原子采纳接口，启用用户勾选的技能）
+  const handleConfirmAdopt = useCallback(
+    async (selectedSkillIds: string[]) => {
+      if (!previewData) {
+        return;
+      }
+
+      setIsAdopting(true);
+      try {
+        const targetPath = newPath.trim();
+        await adoptLocalSkillPath(targetPath, selectedSkillIds);
+        setNewPath('');
+        setIsPreviewOpen(false);
+        setPreviewData(null);
+        toast({
+          title: t('success.pathAdded'),
+          description: t('success.foundSkills', { count: previewData.total_discovered }),
+        });
+      } catch (error) {
+        toast({
+          title: t('error.addFailed'),
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsAdopting(false);
+      }
+    },
+    [previewData, newPath, adoptLocalSkillPath, t],
+  );
+
+  // 仅添加路径（不采纳启用任何技能）
+  const handleAddPathOnly = useCallback(async () => {
     if (!previewData) {
       return;
     }
@@ -116,17 +147,13 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
     setIsAdopting(true);
     try {
       const targetPath = newPath.trim();
-      const validSkillIds = (previewData.skills || [])
-        .filter((s) => !s.is_conflicted && s.skill_id)
-        .map((s) => s.skill_id);
-
-      await adoptLocalSkillPath(targetPath, validSkillIds);
+      await adoptLocalSkillPath(targetPath, []);
       setNewPath('');
       setIsPreviewOpen(false);
       setPreviewData(null);
       toast({
         title: t('success.pathAdded'),
-        description: t('success.foundSkills', { count: previewData.total_discovered }),
+        description: targetPath,
       });
     } catch (error) {
       toast({
@@ -301,6 +328,7 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
           onOpenChange={setIsPreviewOpen}
           previewData={previewData}
           onConfirmAdopt={handleConfirmAdopt}
+          onAddPathOnly={handleAddPathOnly}
           isAdopting={isAdopting}
         />
       </CardContent>

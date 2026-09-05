@@ -17,6 +17,10 @@ const mockTranslations: Record<string, string> = {
   'previewDialog.cancel': '取消',
   'previewDialog.adopt': '确认采纳并保存路径',
   'previewDialog.adopting': '采纳保存中...',
+  'previewDialog.addPathOnly': '仅添加路径',
+  'previewDialog.selectAll': '全选',
+  'previewDialog.deselectAll': '全不选',
+  'previewDialog.selectedCount': '已选择技能',
   'previewDialog.tools': '依赖工具',
 };
 
@@ -94,6 +98,7 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
           tags: ['web', 'ai'],
           required_tools: ['curl', 'jq'],
           relative_path: 'super-search',
+          skill_id: 'local::supersearch12345',
           is_conflicted: true,
           conflict_reason: "Conflicts with existing prebuilt skill 'super-search'",
           is_safe: false,
@@ -107,6 +112,7 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
           tags: ['markdown'],
           required_tools: [],
           relative_path: 'markdown-formatter',
+          skill_id: 'local::markdown67890',
           is_conflicted: false,
           conflict_reason: null,
           is_safe: true,
@@ -149,6 +155,8 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
     expect(adoptBtn).not.toBeDisabled();
     fireEvent.click(adoptBtn);
     expect(onConfirmAdopt).toHaveBeenCalledTimes(1);
+    // Non-conflicted valid skill is selected by default
+    expect(onConfirmAdopt).toHaveBeenCalledWith(['local::markdown67890']);
 
     // Verify Cancel Action
     const cancelBtn = screen.getByRole('button', { name: '取消' });

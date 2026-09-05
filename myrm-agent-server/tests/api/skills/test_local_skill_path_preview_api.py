@@ -171,3 +171,64 @@ def test_api_preview_local_skill_path_invalid_format(client: TestClient) -> None
         )
         assert resp.status_code == 400
         assert "Invalid path format" in resp.json()["detail"]
+
+
+def test_provider_scan_path_single_skill_dir() -> None:
+    """Verify that scan_path correctly identifies a single skill root directory."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        (tmp_path / "SKILL.md").write_text(
+            """---
+name: root-skill
+description: Single skill directly in root directory
+version: 1.0.0
+---
+Instruction
+""",
+            encoding="utf-8",
+        )
+
+        provider = LocalSkillsProvider()
+        skills = provider.scan_path(tmp_path)
+        assert len(skills) == 1
+        assert skills[0].name == "root-skill"
+        assert skills[0].type == SkillType.LOCAL
+
+
+def test_api_local_paths_status_inspection(client: TestClient) -> None:
+    """Verify that get_local_skill_paths includes runtime path_statuses."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        (tmp_path / "SKILL.md").write_text(
+            """---
+name: status-inspected-skill
+description: Inspect status test
+version: 2.1.0
+---
+""",
+            encoding="utf-8",
+        )
+
+        fake_config = AsyncMock()
+        fake_config.local_skill_paths = [str(tmp_path), "/non/existent/path/999"]
+
+        with (
+            patch("app.api.skills.local.require_local_skills_capability"),
+            patch("app.api.skills.local.skills_service.user_config.get_config", return_value=fake_config),
+        ):
+            resp = client.get("/api/v1/skills/local/paths")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "path_statuses" in data
+            statuses = data["path_statuses"]
+            assert len(statuses) == 2
+
+            valid_status = next(s for s in statuses if s["path"] == str(tmp_path))
+            assert valid_status["exists"] is True
+            assert valid_status["skills_count"] == 1
+            assert "status-inspected-skill" in valid_status["skill_names"]
+
+            invalid_status = next(s for s in statuses if s["path"] == "/non/existent/path/999")
+            assert invalid_status["exists"] is False
+            assert invalid_status["skills_count"] == 0
+
