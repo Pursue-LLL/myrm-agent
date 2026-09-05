@@ -31,14 +31,6 @@ from app.config.settings import settings
 from app.database.models.agent import Agent
 from app.database.models.chat import Message
 
-_SENSITIVE_KEY_PATTERN_PARTS: Final[tuple[str, ...]] = (
-    "key",
-    "secret",
-    "token",
-    "password",
-    "credential",
-    "auth",
-)
 _ARG_SUMMARY_MAX_LEN: Final[int] = 200
 
 
@@ -132,8 +124,12 @@ async def build_agent_info(agent_id: str | None, db: AsyncSession) -> dict[str, 
     }
 
 
-def sanitize_args_summary(payload: dict) -> str:
-    """Extract a truncated, sanitized summary of tool call arguments."""
+def build_args_summary(payload: dict) -> str:
+    """Extract a truncated summary of tool call arguments.
+
+    Accepts the raw tool input (event-log ``input_data``) directly, or a payload
+    that wraps arguments under ``arguments``/``args``/``input``.
+    """
     args: object = payload
     if isinstance(payload, dict):
         for key in ("arguments", "args", "input"):
@@ -148,14 +144,10 @@ def sanitize_args_summary(payload: dict) -> str:
         parts: list[str] = []
         items = args.items() if isinstance(args, dict) else []
         for k, v in items:
-            k_lower = k.lower()
-            if any(pat in k_lower for pat in _SENSITIVE_KEY_PATTERN_PARTS):
-                parts.append(f"{k}=***")
-            else:
-                val_str = str(v) if not isinstance(v, str) else v
-                if len(val_str) > 80:
-                    val_str = val_str[:77] + "..."
-                parts.append(f"{k}={val_str}")
+            val_str = str(v) if not isinstance(v, str) else v
+            if len(val_str) > 80:
+                val_str = val_str[:77] + "..."
+            parts.append(f"{k}={val_str}")
         text = ", ".join(parts)
 
     if len(text) > _ARG_SUMMARY_MAX_LEN:
@@ -196,7 +188,7 @@ async def build_tool_call_details(chat_id: str, db: AsyncSession) -> list[dict[s
             {
                 "turnIndex": turn_index,
                 "name": call.tool_name,
-                "argsSummary": sanitize_args_summary(call.input_data),
+                "argsSummary": build_args_summary(call.input_data),
                 "durationMs": int(call.duration_ms) if call.duration_ms is not None else None,
                 "success": call.success,
             }

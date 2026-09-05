@@ -119,3 +119,54 @@ class TestMCPTokenAuth:
 
         await middleware(scope, receive, send)
         inner.assert_called_once_with(scope, receive, send)
+
+    def test_onion_pipeline_origin_guard_rejects_before_token_auth(self):
+        """Malicious origin must be rejected with 403 by the outer origin guard before token check."""
+        from app.api.mcp.origin_guard import _MCPOriginGuardMiddleware, resolve_origin_guard
+
+        inner_app = Starlette(routes=[Route("/mcp", _echo_handler, methods=["GET"])])
+        authed_app = _MCPTokenAuthMiddleware(inner_app)
+        pipeline = _MCPOriginGuardMiddleware(authed_app, guard=resolve_origin_guard(host="127.0.0.1"))
+
+        tc = TestClient(pipeline, raise_server_exceptions=False)
+        # Even without Authorization header (which would yield 401), outer guard drops it with 403
+        response = tc.get(
+            "/mcp",
+            headers={"Origin": "http://evil-attacker.com", "Host": "127.0.0.1:8080"},
+        )
+        assert response.status_code == 403
+        assert "Origin not allowed" in response.json()["error"]
+
+    @patch("app.api.mcp.endpoint._memory_manager_for_agent", new_callable=AsyncMock)
+    @patch("app.services.connect.get_connect_service")
+    def test_onion_pipeline_allows_loopback_with_valid_token(
+        self, mock_get_service, mock_manager_for_agent
+    ):
+        """Valid loopback origin with valid token passes both layers to reach echo handler."""
+        from app.api.mcp.origin_guard import _MCPOriginGuardMiddleware, resolve_origin_guard
+        from app.services.connect.service import VerifiedConnectToken
+
+        mock_manager_for_agent.return_value = MagicMock()
+        mock_service = MagicMock()
+        mock_service.resolve_token.return_value = VerifiedConnectToken(
+            profile_id="cursor",
+            agent_id="default",
+        )
+        mock_get_service.return_value = mock_service
+
+        inner_app = Starlette(routes=[Route("/mcp", _echo_handler, methods=["GET"])])
+        authed_app = _MCPTokenAuthMiddleware(inner_app)
+        pipeline = _MCPOriginGuardMiddleware(authed_app, guard=resolve_origin_guard(host="127.0.0.1"))
+
+        tc = TestClient(pipeline, raise_server_exceptions=False)
+        response = tc.get(
+            "/mcp",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Host": "localhost:8080",
+                "Authorization": "Bearer valid_token",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["profile_id"] == "cursor"
+

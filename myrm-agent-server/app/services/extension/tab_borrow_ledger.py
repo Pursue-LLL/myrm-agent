@@ -17,10 +17,10 @@ or disconnection, preserving the user's workspace order.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
 import logging
 import time
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 

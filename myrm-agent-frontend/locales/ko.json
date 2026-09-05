@@ -4038,7 +4038,15 @@
         "noRankedHubs": "일치하는 허브 노드가 없습니다",
         "degreeConnections": "개 연결",
         "supportedEvidence": "개 근거 지원",
-        "conflictFlag": "충돌 있음"
+        "conflictFlag": "충돌 있음",
+        "refreshState": "상태 새로고침",
+        "recheckAssociations": "연관성 다시 확인",
+        "stateStorageDisabledTitle": "그래프 저장소 엔진 준비 안 됨",
+        "stateStorageDisabledDesc": "기본 지식 그래프 저장소 백엔드가 초기화되지 않았거나 비활성화되어 있습니다. Harness 메모리 구성을 확인하세요.",
+        "stateEmptyKnowledgeTitle": "지식 베이스 콜드 스타트 (주장 0개)",
+        "stateEmptyKnowledgeDesc": "핵심 사실이나 주장이 아직 추출되지 않았습니다. 대화 메모리가 누적되면 그래프가 자동으로 구축됩니다.",
+        "stateSparseIslandsTitle": "관계 엣지 없는 고립된 주장들",
+        "stateSparseIslandsDesc": "여러 주장과 증거가 기록되었지만 메모리 간 관계 엣지는 아직 형성되지 않았습니다. 주장들이 서로를 지지, 모순, 제한할 때 연결선이 자동으로 표시됩니다."
       },
       "typesTitle": "메모리 유형",
       "spacesTitle": "메모리 공간",

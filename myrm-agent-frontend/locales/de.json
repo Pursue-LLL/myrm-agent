@@ -4082,7 +4082,15 @@
         "noRankedHubs": "Keine passenden Hub-Knoten",
         "degreeConnections": "Verbindungen",
         "supportedEvidence": "Belege",
-        "conflictFlag": "Konfliktbehaftet"
+        "conflictFlag": "Konfliktbehaftet",
+        "refreshState": "Status aktualisieren",
+        "recheckAssociations": "Verknüpfungen erneut prüfen",
+        "stateStorageDisabledTitle": "Graph-Speicher-Engine nicht bereit",
+        "stateStorageDisabledDesc": "Das zugrunde liegende Knowledge-Graph-Speicher-Backend ist nicht initialisiert oder deaktiviert. Bitte überprüfen Sie Ihre Harness-Speicherkonfiguration.",
+        "stateEmptyKnowledgeTitle": "Wissensbasis Kaltstart (0 Thesen)",
+        "stateEmptyKnowledgeDesc": "Es wurden noch keine zentralen Fakten oder Thesen extrahiert. Das Diagramm baut sich automatisch auf, während Sie interagieren und Dialogerinnerungen sammeln.",
+        "stateSparseIslandsTitle": "Thesen ohne Verbindungskanten extrahiert",
+        "stateSparseIslandsDesc": "Mehrere Thesen und Belege wurden erfasst, es haben sich jedoch noch keine beziehungsübergreifenden Kanten gebildet. Kanten erscheinen automatisch, wenn Thesen sich stützen, widersprechen oder einschränken."
       },
       "typesTitle": "Speichertypen",
       "spacesTitle": "Erinnerungsräume",

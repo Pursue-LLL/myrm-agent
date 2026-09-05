@@ -12,7 +12,7 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `agent.py` | 核心 | Agent 核心 CRUD、快照/回滚、Avatar 上传、文件服务。 | ✅ |
 | `_agent_response.py` | 内部 | AgentProfile → AgentResponse 序列化工具函数（被 agent/portability/templates 共享）。 | ✅ |
 | `agent_extras.py` | 核心 | Agent 辅助端点：Secrets CRUD、使用统计、动作空间 ASCS 评估。 | ✅ |
-| `agent_portability.py` | 核心 | Agent 可移植性：导出/导入/克隆/Marketplace 级跨沙箱分发。 | ✅ |
+| `agent_portability.py` | 核心 | Agent 可移植性：导出/导入/克隆/Marketplace 跨沙箱分发/工作区 Agent 文件束 (Dual-Track SSOT) 读写与双向同步。 | ✅ |
 | `agent_history.py` | 模块 | Get the version history of an agent's profile. | ✅ |
 | `ai_build.py` | 模块 | AI-driven agent config generator: accepts a natural-language intent, streams a complete AgentCreate-compatible JSON (name, prompt, skills, MCPs, tools) | ✅ |
 | `generate_prompt.py` | 模块 | Thin API for the agent editor: resolves the user's default model and streams a draft system prompt | ✅ |

@@ -1,44 +1,62 @@
 ---
 name: web-scraping
 description: >-
-  Structured web scraping workflow using browser automation. Handles dynamic pages,
-  pagination, anti-bot detection, and structured data extraction.
-version: 1.0.0
+  Enterprise-grade structured web scraping and paginated table harvesting workflow.
+  Handles dynamic pages, anti-bot delays, multi-page table scraping with dual-sentinel loop guards,
+  incremental disk caching, and standard CSV/Excel artifact generation.
+version: 1.1.0
 category: data-collection
 tags:
   - scraping
   - browser
   - data-extraction
   - automation
+  - pagination
+  - tables
+  - excel
+  - csv
 allowed-tools: browser_navigate_tool browser_interact_tool browser_snapshot_tool browser_extract_tool web_fetch_tool bash_code_execute_tool file_write_tool
 contract:
   steps:
-    - "Phase 1: Recon — analyze target page structure and data layout"
+    - "Phase 1: Recon — analyze target page structure, tables, and pagination layout"
     - "Phase 2: Strategy — choose extraction method (static fetch vs browser automation)"
-    - "Phase 3: Extract — navigate, interact, and extract structured data"
-    - "Phase 4: Validate — verify data completeness and quality"
-    - "Phase 5: Output — save in the requested format (JSON, CSV, etc.)"
+    - "Phase 3: Extract — navigate, interact, and harvest data with dual-sentinel pagination guard"
+    - "Phase 4: Validate — verify data completeness, row counts, and sample accuracy"
+    - "Phase 5: Output — stream into incremental disk cache and produce clean CSV/Excel Artifact"
   potential_traps:
     - description: "Getting blocked by anti-bot detection or rate limiting"
-      mitigation: "Add delays between requests; respect robots.txt; use browser automation for JS-heavy sites"
+      mitigation: "Add 1-3s delays between page requests; respect robots.txt; use browser automation for JS-heavy sites"
       severity: high
     - description: "Extracting stale or incomplete data due to lazy loading"
       mitigation: "Scroll to trigger lazy loading; wait for dynamic content; verify element presence before extraction"
       severity: medium
+    - description: "Infinite pagination loop on terminal pages with disabled or pseudo-active next buttons"
+      mitigation: "Enforce Dual-Sentinel Guard: track first-row data fingerprint and bounded max page limit; break upon duplicate fingerprint"
+      severity: critical
+    - description: "Massive scraped table text blowing up LLM conversation context window"
+      mitigation: "Stream each extracted page directly into sandbox temporary disk cache; return only lightweight metadata counters to conversation"
+      severity: high
+    - description: "Excel opening exported CSV with garbled non-English characters"
+      mitigation: "Always write CSV using UTF-8 with BOM (utf-8-sig) to guarantee seamless spreadsheet opening across all platforms"
+      severity: medium
   verification_steps:
     - step_id: data_complete
-      description: "All expected data points are extracted"
+      description: "All expected data points and paginated rows are extracted"
       validation_method: "Compare extracted count against expected count; spot-check random samples"
+      is_required: true
+    - step_id: loop_guarded
+      description: "Pagination terminated deterministically without runaway looping"
+      validation_method: "Verify row fingerprint change or reach of page cap"
       is_required: true
     - step_id: data_valid
       description: "Extracted data matches source page"
       validation_method: "Manually verify 3-5 random entries against the original page"
       is_required: true
-  success_criteria: "Complete, accurate, and structured data extracted and saved"
+  success_criteria: "Complete, accurate structured data harvested and cleanly exported as a valid CSV/Excel artifact"
   estimated_duration_seconds: 1200
 ---
 
-# Web Scraping
+# Web Scraping & Paginated Table Harvesting
 
 ## Bash execution contract
 
@@ -46,100 +64,155 @@ When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 character
 
 ## Overview
 
-Web scraping requires careful planning to extract data reliably. Jumping straight to code without understanding the page structure leads to fragile scrapers that break immediately.
+Web scraping requires disciplined planning to extract data reliably. Jumping straight to scraping code without understanding page dynamics leads to fragile workflows, runaway loops, and corrupted outputs.
+
+---
 
 ## Phase 1: Recon
 
-Before writing any extraction code:
+Before extracting data:
 
-1. **Visit the target page** using `browser_navigate_tool`
-2. **Take a snapshot** using `browser_snapshot` to understand the DOM structure
-3. **Identify the data** — Where is the data? Tables? Lists? Cards? API responses?
-4. **Check for pagination** — How many pages? URL pattern? "Load more" button?
-5. **Check for dynamic content** — Is data loaded via JavaScript? Are there lazy-loaded sections?
+1. **Visit the target page** using `browser_navigate_tool`.
+2. **Inspect the layout** using `browser_snapshot_tool` to locate data containers (tables, cards, feeds).
+3. **Identify pagination mechanism**:
+   - Discrete **Next Page** button / page number links;
+   - Asynchronous **Load More** button;
+   - Continuous **Infinite Scroll / Virtual List** triggered by scrolling.
+4. **Check for public API**: If network inspection reveals a direct REST API returning JSON, prefer direct fetch over heavy DOM parsing.
 
-### Key Questions
-
-- Is the data available in a public API? (Check Network tab — often easier than scraping HTML)
-- Does the page require authentication?
-- Is there a `robots.txt`? Respect it.
-- How frequently does the page structure change?
+---
 
 ## Phase 2: Strategy
 
-Choose the right approach:
+Select the optimal extraction approach based on page characteristics:
 
-| Scenario | Method |
-|----------|--------|
-| Static HTML, simple structure | `web_fetch_tool` + parse HTML |
-| JavaScript-rendered content | Browser automation (`browser_navigate_tool` + `browser_interact_tool`) |
-| Paginated results | Loop with URL pattern or "next" button |
-| Data behind login | Browser automation with cookie handling |
-| API available | Direct API calls (preferred — most reliable) |
-
-### Decision Tree
+| Scenario | Primary Tool / Track | Pagination / Loading Pattern |
+|:---|:---|:---|
+| **Static HTML / Open Feed** | `web_fetch_tool` + Python parsing | URL parameter loops (`?page=1,2,3`) |
+| **Client-Rendered Table (SPA)** | `browser_extract_tool` + `browser_interact_tool` | Next button with Sentinel Fingerprint |
+| **Dynamic Lazy Feed** | `browser_interact_tool` (scroll) | Viewport wheel scroll + height checks |
+| **Authenticated Portal / ERP** | Browser automation with existing session | Table scrape with incremental disk spill |
 
 ```
-Is there a public API?
-├── Yes → Use API directly (most reliable)
-└── No → Is content static HTML?
-    ├── Yes → Use web_fetch_tool + parsing
-    └── No → Use browser automation
+Is there a clean public/internal JSON API?
+├── Yes → Use direct HTTP request (most reliable & token-efficient)
+└── No → Is the content static HTML?
+    ├── Yes → Use web_fetch_tool + Python parser
+    └── No → Use browser automation with Dual-Sentinel pagination guard
 ```
 
-## Phase 3: Extract
+---
 
-### Using `web_fetch_tool` (Static Pages)
+## Phase 3: Extraction & Paginated Table Harvesting (Enterprise SOP)
 
-```python
-# Fetch and parse with Python
-from html.parser import HTMLParser
-# or use regex for simple patterns
+When scraping multi-page tables (e.g., financial exchange rates, invoice lists, order records, directory databases):
+
+### 1. Three-Dimensional Loading Modes
+
+Select the exact interaction pattern matching the web page:
+
+- **Mode A: Discrete Next Button**
+  1. Call `browser_extract_tool(selector="table")` or extract target row items.
+  2. Locate the "Next Page" button ref via snapshot.
+  3. Click the button via `browser_interact_tool(action="click", ref=...)`.
+  4. Wait for page stability or row container change before next extraction.
+
+- **Mode B: Load More Button**
+  1. Extract currently visible items.
+  2. Click the "Load More" trigger ref.
+  3. Verify that total rows increased or new cards appeared before continuing.
+
+- **Mode C: Infinite Scroll / Virtual List**
+  1. Extract currently visible viewport rows.
+  2. Issue smooth scroll: `browser_interact_tool(action="scroll", direction="down", amount=800)`.
+  3. Wait 1-2 seconds for new rows to hydrate.
+
+---
+
+### 2. Dual-Sentinel Loop Guard (Mandatory Anti-Dead-Loop Protocol)
+
+Modern web frameworks often keep the "Next" button in the DOM even on the final page (only adding CSS opacity or `disabled` attributes). **Never rely solely on button presence to stop pagination.**
+
+Always enforce the **Dual-Sentinel Guard**:
+
+```
+                              ┌───────────────────────────────┐
+                              │    Extract Current Page       │
+                              └──────────────┬────────────────┘
+                                             │
+                              ┌──────────────▼────────────────┐
+                              │ Compute Sentinel Fingerprint  │
+                              │ (First & Last Data Row Hash)  │
+                              └──────────────┬────────────────┘
+                                             │
+                        ┌────────────────────┴────────────────────┐
+                        ▼                                         ▼
+            [Fingerprint Identical?]                    [Max Pages Reached?]
+              (Repeated 2 consecutive)                 (Default limit: <= 10)
+                        │                                         │
+                        ├─────────────────┬───────────────────────┤
+                        │                 │                       │
+                       YES                NO                     YES
+                        │                 │                       │
+                        ▼                 ▼                       ▼
+                  【STOP / BREAK】   【CLICK NEXT】          【STOP / BREAK】
+                  Normal Final Page    Continue Loop          Hard Safety Cap
 ```
 
-### Using Browser Automation (Dynamic Pages)
+1. **Sentinel A (Row Fingerprint)**:
+   - Extract a composite fingerprint from the first effective data row: `tbody > tr:first-child` (e.g., currency name + date, or order ID).
+   - *Rule*: Ignore table header `<th>` rows to avoid static column false positives.
+   - If the new page's row fingerprint is identical to the previous page, terminate the loop immediately.
 
-1. **Navigate:** `browser_navigate_tool` to the target URL
-2. **Wait:** Allow dynamic content to load
-3. **Snapshot:** `browser_snapshot` to get current DOM state
-4. **Interact:** Click pagination, expand sections, scroll for lazy loading
-5. **Extract:** Parse the snapshot data for structured information
+2. **Sentinel B (Bounded Max Page Cap)**:
+   - Always enforce an upper bound (default $\le 10$ pages unless explicitly requested by the user).
+   - Never run unconstrained `while True` loops.
 
-### Pagination Handling
+---
 
-```
-For each page:
-  1. Extract data from current page
-  2. Check for "next" button or page link
-  3. Navigate to next page
-  4. Repeat until no more pages
-```
+### 3. Incremental Disk Cache Protocol (Context & Token Protection)
 
-### Rate Limiting
+Never accumulate thousands of raw table records in conversation memory.
 
-- Add 1-3 second delays between page requests
-- Stop and report if receiving HTTP 429 or CAPTCHA challenges
-- Never scrape faster than a human would browse
+1. **Stream Each Page to Disk**:
+   - After extracting each page, immediately write or append rows to a sandbox scratch file (e.g., `.agent/scratch/table_data.csv`) using a lightweight Python script or `file_write_tool`.
+2. **Concise Conversation Feedback**:
+   - Return only compact metadata to the LLM turn:
+     `[Page 3 Extracted: 25 rows appended to cache. Cumulative total: 75 rows. Sentinel verified.]`
+   - This keeps the conversation context lean and guarantees **100% Prompt Cache hit rates**.
+3. **Crash Recovery**:
+   - If page 9 fails or encounters a network timeout, pages 1-8 are already safely persisted on disk.
 
-## Phase 4: Validate
+---
 
-After extraction, verify:
+### 4. Dual-Engine Output & Artifact Delivery
 
-1. **Completeness** — Expected number of records vs actual
-2. **Accuracy** — Spot-check 3-5 random entries against the source
-3. **Format** — Data types correct? Dates parsed? Numbers numeric?
-4. **Duplicates** — Any repeated entries from pagination overlap?
+When pagination completes or reaches its termination condition, compile the cached data into a polished delivery artifact:
 
-## Phase 5: Output
+- **Engine 1: Standard Library Zero-Dependency Baseline (Primary)**
+  Always guarantee export via Python's built-in `csv` module with UTF-8 BOM encoding (`encoding='utf-8-sig'`). This ensures Microsoft Excel, Apple Numbers, and Google Sheets open the file immediately with zero encoding glitches.
+  ```python
+  import csv
 
-Save data in the requested format:
+  with open("harvested_records.csv", "w", encoding="utf-8-sig", newline="") as f:
+      writer = csv.DictWriter(f, fieldnames=headers)
+      writer.writeheader()
+      writer.writerows(all_rows)
+  ```
 
-- **JSON** — Best for nested/hierarchical data
-- **CSV** — Best for tabular data, spreadsheet import
-- **Markdown table** — Best for quick viewing
+- **Engine 2: Enhanced XLSX Formatter (Optional)**
+  If `openpyxl` is available in the sandbox, optionally format as `.xlsx` with bold header styling, frozen top panes, and auto-adjusted column widths.
 
-Include metadata:
-- Source URL
-- Extraction timestamp
-- Total record count
-- Any known data gaps or issues
+- **System Artifact Registration**:
+  Place the final file in the project workspace or designated output directory to trigger the WebUI Artifact card, enabling the user to preview or download the spreadsheet with one click.
+
+---
+
+## Phase 4: Validation & Quality Control
+
+Before presenting results to the user:
+
+1. **Row Count Audit**: Verify that the cumulative row count matches the sum of page batches.
+2. **Column Consistency**: Ensure no shifted columns or missing headers across pages.
+3. **Encoding Check**: Confirm non-ASCII text (Chinese, Japanese, accented characters) is cleanly preserved.
+4. **Summary Presentation**: Report source URL, total pages harvested, total record count, and file download path.

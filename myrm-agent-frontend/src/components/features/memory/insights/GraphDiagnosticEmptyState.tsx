@@ -32,23 +32,23 @@ export const GraphDiagnosticEmptyState = memo<GraphDiagnosticEmptyStateProps>(({
   const configs = {
     storage_disabled: {
       icon: Database,
-      title: t('commandCenter.graph.diagnosticState.storageDisabledTitle'),
-      desc: t('commandCenter.graph.diagnosticState.storageDisabledDesc'),
-      actionLabel: t('commandCenter.graph.diagnosticState.storageDisabledAction'),
+      title: t('commandCenter.graph.stateStorageDisabledTitle'),
+      desc: t('commandCenter.graph.stateStorageDisabledDesc'),
+      actionLabel: t('commandCenter.graph.refreshState'),
       color: 'text-amber-500',
     },
     empty_knowledge: {
       icon: Sparkles,
-      title: t('commandCenter.graph.diagnosticState.emptyKnowledgeTitle'),
-      desc: t('commandCenter.graph.diagnosticState.emptyKnowledgeDesc'),
-      actionLabel: t('commandCenter.graph.diagnosticState.emptyKnowledgeAction'),
+      title: t('commandCenter.graph.stateEmptyKnowledgeTitle'),
+      desc: t('commandCenter.graph.stateEmptyKnowledgeDesc'),
+      actionLabel: t('commandCenter.graph.refreshState'),
       color: 'text-primary',
     },
     sparse_islands: {
       icon: Network,
-      title: t('commandCenter.graph.diagnosticState.sparseIslandsTitle'),
-      desc: t('commandCenter.graph.diagnosticState.sparseIslandsDesc'),
-      actionLabel: t('commandCenter.graph.diagnosticState.sparseIslandsAction'),
+      title: t('commandCenter.graph.stateSparseIslandsTitle'),
+      desc: t('commandCenter.graph.stateSparseIslandsDesc'),
+      actionLabel: t('commandCenter.graph.recheckAssociations'),
       color: 'text-blue-500',
     },
     unknown: {

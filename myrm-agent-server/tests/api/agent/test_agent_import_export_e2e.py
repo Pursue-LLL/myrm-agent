@@ -366,3 +366,73 @@ async def test_export_nonexistent_agent(async_client: AsyncClient):
     """导出不存在的 agent 应返回 404"""
     res = await async_client.get("/api/agents/nonexistent-id-xyz/export")
     assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_agent_filesystem_bundle_e2e(async_client: AsyncClient, tmp_path):
+    """E2E 测试：Agent 目录束 (Dual-Track SSOT) 导出、落盘、修改后双向同步及新沙箱导入"""
+    create_data = {
+        "name": "Bundle Test Agent",
+        "description": "Agent for testing filesystem bundles",
+        "system_prompt": "You are a filesystem bundle expert.",
+        "mcp_ids": ["mcp-bundle-1"],
+        "mcp_tool_selections": {"mcp-bundle-1": ["tool_a", "tool_b"]},
+        "is_built_in": False,
+    }
+
+    response = await async_client.post("/api/agents", json=create_data)
+    assert response.status_code == 200
+    agent_id = response.json()["data"]["id"]
+
+    try:
+        # 1. GET /{agent_id}/bundle 获取内存结构束
+        bundle_res = await async_client.get(f"/api/agents/{agent_id}/bundle")
+        assert bundle_res.status_code == 200
+        bundle_data = bundle_res.json()["data"]
+        assert bundle_data["name"] == "Bundle Test Agent"
+        assert bundle_data["prompt"] == "You are a filesystem bundle expert."
+        assert "manifest_yaml" in bundle_data
+        assert "mcp-bundle-1" in bundle_data["mcp_json"]
+
+        # 2. POST /{agent_id}/bundle/sync-to-workspace 写入工作区文件
+        sync_to_res = await async_client.post(
+            f"/api/agents/{agent_id}/bundle/sync-to-workspace",
+            json={"workspace_dir": str(tmp_path)},
+        )
+        assert sync_to_res.status_code == 200
+        target_dir = tmp_path / ".myrm" / "agents" / agent_id
+        assert target_dir.is_dir()
+        assert (target_dir / "AGENTS.md").is_file()
+        assert (target_dir / "agent.manifest.yaml").is_file()
+        assert (target_dir / "mcp.json").is_file()
+
+        # 3. 模拟开发者在文件系统中编辑 AGENTS.md
+        (target_dir / "AGENTS.md").write_text("Updated prompt from filesystem.", encoding="utf-8")
+
+        # 4. POST /{agent_id}/bundle/sync-from-workspace 将变更同步回 DB
+        sync_from_res = await async_client.post(
+            f"/api/agents/{agent_id}/bundle/sync-from-workspace",
+            json={"workspace_dir": str(tmp_path)},
+        )
+        assert sync_from_res.status_code == 200
+        assert sync_from_res.json()["data"]["agent_id"] == agent_id
+
+        # 验证 DB 中 prompt 已更新
+        verify_export = await async_client.get(f"/api/agents/{agent_id}/export")
+        assert verify_export.status_code == 200
+        assert verify_export.json()["data"]["system_prompt"] == "Updated prompt from filesystem."
+
+        # 5. POST /api/agents/bundle/import-from-workspace 从工作区直接创建新 Agent
+        import_res = await async_client.post(
+            "/api/agents/bundle/import-from-workspace",
+            json={"workspace_dir": str(tmp_path), "agent_id": agent_id},
+        )
+        assert import_res.status_code == 200
+        new_imported_id = import_res.json()["data"]["id"]
+        assert new_imported_id != agent_id
+
+        # 清理导入的 Agent
+        await async_client.delete(f"/api/agents/{new_imported_id}")
+    finally:
+        await async_client.delete(f"/api/agents/{agent_id}")
+

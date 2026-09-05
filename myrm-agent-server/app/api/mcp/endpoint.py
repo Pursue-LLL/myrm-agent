@@ -351,9 +351,14 @@ async def setup_mcp_endpoint(app: FastAPI) -> None:
             _session_manager_task = asyncio.create_task(_run_session_manager())
             await asyncio.wait_for(_session_manager_ready.wait(), timeout=5.0)
 
+        from app.api.mcp.origin_guard import _MCPOriginGuardMiddleware, resolve_origin_guard
+        from app.config.settings import settings
+
         authed_app = _MCPTokenAuthMiddleware(mcp_asgi_app)
-        app.mount("/mcp", authed_app)
-        logger.info("MCP memory endpoint mounted at /mcp")
+        origin_guard = resolve_origin_guard(host=getattr(settings, "host", "127.0.0.1"))
+        guarded_app = _MCPOriginGuardMiddleware(authed_app, guard=origin_guard)
+        app.mount("/mcp", guarded_app)
+        logger.info("MCP memory endpoint mounted at /mcp (DNS-rebinding protected)")
 
     except Exception as e:
         logger.warning("MCP endpoint not mounted (memory system unavailable): %s", e)

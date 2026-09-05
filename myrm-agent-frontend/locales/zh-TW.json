@@ -3863,7 +3863,15 @@
         "noRankedHubs": "暫無匹配的樞紐節點",
         "degreeConnections": "條關聯",
         "supportedEvidence": "條證據支援",
-        "conflictFlag": "存在衝突"
+        "conflictFlag": "存在衝突",
+        "refreshState": "重新整理狀態",
+        "recheckAssociations": "重新檢測關聯",
+        "stateStorageDisabledTitle": "圖譜儲存引擎未就緒",
+        "stateStorageDisabledDesc": "當前底層知識圖譜儲存後端未初始化或未啟用，請檢查 Harness 記憶配置。",
+        "stateEmptyKnowledgeTitle": "知識庫冷啟動零主張",
+        "stateEmptyKnowledgeDesc": "尚未沉澱任何核心事實或觀點。隨著與智能體互動與對話記憶提取，圖譜將自動構建。",
+        "stateSparseIslandsTitle": "已沉澱觀點但暫無關聯邊",
+        "stateSparseIslandsDesc": "當前已提取若干觀點與證據，但尚未形成跨記憶關係邊。當觀點間產生支援、衝突或約束時將自動連線呈現。"
       },
       "typesTitle": "記憶型別",
       "spacesTitle": "記憶空間",

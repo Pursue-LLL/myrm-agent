@@ -431,7 +431,26 @@ class ExtensionBridgeService:
         await self._refresh_tabs()
         return [tab for tab in self._tabs if self._tab_is_accessible(tab)]
 
+    async def _send_move_tab(self, tab_id: int, window_id: int, index: int) -> bool:
+        """Send tab move request to the extension to restore original position."""
+        if not self._connected or not self._ws:
+            return False
+        payload = {"tabId": tab_id, "windowId": window_id, "index": index}
+        try:
+            await self._send_request("move_tab", payload, timeout=2.0)
+            return True
+        except Exception as exc:
+            logger.debug("Failed sending move_tab to extension: %s", exc)
+            return False
+
     async def disconnect(self) -> None:
+        from app.services.extension.tab_borrow_ledger import get_tab_borrow_ledger
+
+        try:
+            await get_tab_borrow_ledger().restore_all(self._send_move_tab)
+        except Exception as exc:
+            logger.debug("Suppressed error restoring borrowed tabs during disconnect: %s", exc)
+
         if self._heartbeat_task and not self._heartbeat_task.done():
             self._heartbeat_task.cancel()
         if self._receive_task and not self._receive_task.done():
