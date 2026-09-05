@@ -80,7 +80,7 @@ def test_update_skill_file_path_traversal_blocked(client: TestClient) -> None:
         mock_get_skill.return_value = mock_skill
 
         response = client.put(
-            "/api/v1/skills/test-skill/files/sub/../../etc/passwd",
+            "/api/v1/skills/test-skill/files/%2E%2E%2F%2E%2E%2Fetc%2Fpasswd",
             json={"content": "malicious content"},
         )
         assert response.status_code == 400

@@ -2558,7 +2558,14 @@
       "customErrorProbeFailed": "Sondieren des Endpunkts fehlgeschlagen",
       "customErrorDetectFirst": "Bitte zuerst Modelle erkennen",
       "customErrorReachabilityFailed": "Endpunkt verbunden, aber Modell-Gesundheitsprüfung fehlgeschlagen",
-      "customDetectSuccess": "Erkannte {count}-Modelle"
+      "customDetectSuccess": "Erkannte {count}-Modelle",
+      "checklistTitle": "Empfohlene Tool-Calling-Benchmarks",
+      "checklistSubtitle": "Für komplexe Aufgaben verifiziert",
+      "recommendedBadge": "Empfohlen",
+      "verifiedBadge": "Tool-Calling verifiziert: {model}",
+      "verifiedDescription": "Dieses Modell wurde auf Myrm-Kompatibilität getestet und führt Funktionsaufrufe, Dateioperationen und Websuchen zuverlässig aus.",
+      "unverifiedWarningTitle": "Hinweis zu unbestätigtem Modell: {model}",
+      "unverifiedWarningDescription": "Dieses Modell ist nicht offiziell für Tool-Calling verifiziert. Bei der Ausführung komplexer Werkzeuge können Formatierungsfehler auftreten."
     },
     "migrationDiscovery": {
       "detecting": "Suche nach KI-Assistentendaten...",

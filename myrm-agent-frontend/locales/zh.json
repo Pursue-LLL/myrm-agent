@@ -15648,7 +15648,12 @@
         "revealInManager": "显示",
         "cleanupInvalid": "清理",
         "revealFailed": "显示路径失败",
-        "export": "导出"
+        "export": "导出",
+        "previewTab": "预览",
+        "sourceTab": "源码",
+        "saveSource": "保存 SKILL.md",
+        "sourceSaved": "SKILL.md 保存成功",
+        "sourceSaveFailed": "保存 SKILL.md 失败"
       },
       "growth": {
         "title": "技能成长",

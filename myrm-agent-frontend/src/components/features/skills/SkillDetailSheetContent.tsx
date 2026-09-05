@@ -129,6 +129,47 @@ export function SkillDetailSheetContent({
 }: SkillDetailSheetContentProps) {
   const trustColor = trustColors[skill.trust] || trustColors.installed;
 
+  const [activeTab, setActiveTab] = useState<'preview' | 'editor'>('preview');
+  const [editorContent, setEditorContent] = useState<string>(skillContent);
+  const [isSavingSource, setIsSavingSource] = useState(false);
+  const [isEditorDirty, setIsEditorDirty] = useState(false);
+
+  useEffect(() => {
+    setEditorContent(skillContent);
+    setIsEditorDirty(false);
+  }, [skillContent]);
+
+  const handleEditorChange = (value: string | undefined) => {
+    const val = value ?? '';
+    setEditorContent(val);
+    setIsEditorDirty(val !== skillContent);
+  };
+
+  const handleSaveSource = async () => {
+    if (!isEditorDirty || isSavingSource) return;
+    setIsSavingSource(true);
+    try {
+      const res = await saveSkillFile(skill.id, 'SKILL.md', editorContent);
+      if (res.status === 'ok') {
+        toast({
+          title: t('detail.sourceSaved') || 'SKILL.md updated successfully',
+          description: res.is_clean ? undefined : `Security review: ${res.trust_recommendation}`,
+        });
+        setIsEditorDirty(false);
+        reloadSkillContent();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast({
+        variant: 'destructive',
+        title: t('detail.sourceSaveFailed') || 'Failed to save SKILL.md',
+        description: msg,
+      });
+    } finally {
+      setIsSavingSource(false);
+    }
+  };
+
   return (
     <div className="py-4 space-y-5">
       <p className="text-muted-foreground">{resolveSkillDescription(skill, t('detail.noDescription'))}</p>
@@ -559,45 +600,112 @@ export function SkillDetailSheetContent({
 
       <div className="border-t" />
 
-      {/* SKILL.md content */}
-      <div className="border rounded-lg bg-muted/30">
-        <div className="px-4 py-2 border-b bg-muted rounded-t-lg">
-          <span className="text-sm font-medium">SKILL.md</span>
-        </div>
-        <div className="p-4">
-          {isLoadingContent ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="animate-spin text-muted-foreground" size={24} />
-            </div>
-          ) : skillContent ? (
-            <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-li:text-muted-foreground prose-strong:text-foreground prose-code:text-accent-foreground prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-muted/50 prose-table:text-sm prose-th:text-foreground prose-td:text-muted-foreground">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  code({ className, children, ...props }) {
-                    const match = /language-(\w+)/.exec(className || '');
-                    const language = match && match[1] ? match[1] : '';
-                    const value = getChildrenAsText(children);
+      {/* SKILL.md content & source editor */}
+      <div className="border rounded-lg bg-muted/30 overflow-hidden">
+        <div className="px-4 py-2 border-b bg-muted flex items-center justify-between">
+          <div className="flex items-center gap-1 bg-background/50 p-0.5 rounded-md border text-xs">
+            <button
+              type="button"
+              onClick={() => setActiveTab('preview')}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors',
+                activeTab === 'preview'
+                  ? 'bg-background font-medium text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Eye size={13} />
+              {t('detail.previewTab') || 'Preview'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('editor')}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors',
+                activeTab === 'editor'
+                  ? 'bg-background font-medium text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Code size={13} />
+              {t('detail.sourceTab') || 'Source'}
+            </button>
+          </div>
 
-                    if (language) {
-                      return <CodeBlock language={language} value={value} />;
-                    }
-
-                    return (
-                      <code className={className} {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
-                }}
+          <div className="flex items-center gap-2">
+            {activeTab === 'editor' && (
+              <Button
+                variant={isEditorDirty ? 'default' : 'outline'}
+                size="sm"
+                className="h-7 text-xs"
+                disabled={!isEditorDirty || isSavingSource}
+                onClick={handleSaveSource}
               >
-                {stripYamlFrontmatter(skillContent)}
-              </ReactMarkdown>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">{t('detail.loadFailed')}</p>
-          )}
+                {isSavingSource ? (
+                  <Loader2 className="animate-spin mr-1" size={12} />
+                ) : (
+                  <Save className="mr-1" size={12} />
+                )}
+                {t('detail.saveSource') || 'Save SKILL.md'}
+              </Button>
+            )}
+          </div>
         </div>
+
+        {activeTab === 'preview' ? (
+          <div className="p-4">
+            {isLoadingContent ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="animate-spin text-muted-foreground" size={24} />
+              </div>
+            ) : skillContent ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-foreground prose-p:text-muted-foreground prose-li:text-muted-foreground prose-strong:text-foreground prose-code:text-accent-foreground prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-muted/50 prose-table:text-sm prose-th:text-foreground prose-td:text-muted-foreground">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    code({ className, children, ...props }) {
+                      const match = /language-(\w+)/.exec(className || '');
+                      const language = match && match[1] ? match[1] : '';
+                      const value = getChildrenAsText(children);
+
+                      if (language) {
+                        return <CodeBlock language={language} value={value} />;
+                      }
+
+                      return (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
+                  }}
+                >
+                  {stripYamlFrontmatter(skillContent)}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">{t('detail.loadFailed')}</p>
+            )}
+          </div>
+        ) : (
+          <div className="h-[480px] w-full border-t">
+            <LazyMonacoEditor
+              height="100%"
+              language="markdown"
+              value={editorContent}
+              onChange={handleEditorChange}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 13,
+                wordWrap: 'on',
+                scrollBeyondLastLine: false,
+                lineNumbers: 'on',
+                renderWhitespace: 'selection',
+                tabSize: 2,
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -2783,7 +2783,14 @@
       "customErrorProbeFailed": "端點探測失敗",
       "customErrorDetectFirst": "請先執行模型探測",
       "customErrorReachabilityFailed": "端點連通但模型健康檢查失敗",
-      "customDetectSuccess": "已檢測到 {count} 個模型"
+      "customDetectSuccess": "已檢測到 {count} 個模型",
+      "checklistTitle": "工具調用推薦標竿",
+      "checklistSubtitle": "已驗證支援複雜任務",
+      "recommendedBadge": "推薦",
+      "verifiedBadge": "已驗證支援工具調用：{model}",
+      "verifiedDescription": "該模型經 Myrm 相容性測試，可穩定執行函式調用、檔案讀寫與聯網搜尋。",
+      "unverifiedWarningTitle": "未驗證模型提示：{model}",
+      "unverifiedWarningDescription": "該模型尚未經官方工具調用相容性驗證，執行複雜技能時可能出現格式異常。建議優先選用推薦標竿模型。"
     },
     "migrationDiscovery": {
       "detecting": "正在掃描本地 AI 助手資料...",
@@ -15641,7 +15648,12 @@
         "revealInManager": "顯示",
         "cleanupInvalid": "清理",
         "revealFailed": "顯示路徑失敗",
-        "export": "匯出"
+        "export": "匯出",
+        "previewTab": "預覽",
+        "sourceTab": "原始碼",
+        "saveSource": "儲存 SKILL.md",
+        "sourceSaved": "SKILL.md 儲存成功",
+        "sourceSaveFailed": "儲存 SKILL.md 失敗"
       },
       "growth": {
         "title": "技能成長",

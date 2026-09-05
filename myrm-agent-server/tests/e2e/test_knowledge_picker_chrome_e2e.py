@@ -336,3 +336,4 @@ def test_knowledge_picker_popover_chrome_e2e() -> None:
         assert len(response_text) > 0, "Model returned empty response"
 
 
+

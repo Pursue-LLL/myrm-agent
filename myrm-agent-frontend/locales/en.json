@@ -15648,7 +15648,12 @@
         "knownPitfalls": "Known Pitfalls",
         "pitfallTrigger": "Trigger",
         "tokenCost": "Context cost: ~{count} tokens per conversation",
-        "export": "Export"
+        "export": "Export",
+        "previewTab": "Preview",
+        "sourceTab": "Source",
+        "saveSource": "Save SKILL.md",
+        "sourceSaved": "SKILL.md updated successfully",
+        "sourceSaveFailed": "Failed to save SKILL.md"
       },
       "growth": {
         "title": "Skill Growth",
