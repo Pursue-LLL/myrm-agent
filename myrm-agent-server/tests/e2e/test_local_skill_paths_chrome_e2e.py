@@ -94,9 +94,9 @@ def test_chrome_ui_local_skill_paths_card_and_preview_live() -> None:
         res = http_json(
             "POST",
             f"{api_url}/api/v1/skills/local/paths/preview",
-            json_body={"path": str(tmp_path)},
+            {"path": str(tmp_path)},
         )
-        data = res.json
+        data = res if isinstance(res, dict) else {}
         assert isinstance(data, dict)
         assert data.get("exists") is True
         assert data.get("total_discovered") == 1

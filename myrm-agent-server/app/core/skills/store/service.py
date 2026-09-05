@@ -353,8 +353,7 @@ class SkillsService:
     async def _delete_prebuilt_skill(self, skill: Skill) -> bool:
         logger.warning(f"🗑️ 删除预构建技能: {skill.id}")
         try:
-            files = await self.storage.list(skill.storage_path)
-            for file_path in files:
+            for file_path in await self.storage.list(skill.storage_path):
                 try:
                     await self.storage.delete(file_path)
                 except Exception as e:
@@ -384,12 +383,9 @@ class SkillsService:
         """根据技能 ID 列表获取技能"""
         if not skill_ids:
             return []
-
         all_prebuilt = await self.list_skills(skill_type=SkillType.PREBUILT)
         local_skills: list[Skill] = await reader.list_local_skills(self.user_config)
-        all_skills = all_prebuilt + local_skills
-
-        skill_map = {s.id: s for s in all_skills}
+        skill_map = {s.id: s for s in (all_prebuilt + local_skills)}
         return [skill_map[sid] for sid in skill_ids if sid in skill_map]
 
 

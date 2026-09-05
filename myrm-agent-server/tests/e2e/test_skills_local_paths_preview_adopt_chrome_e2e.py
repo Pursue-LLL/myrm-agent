@@ -42,7 +42,7 @@ _SETTINGS_SKILLS_SHELL_STATE = """(() => {
     ready:
       location.pathname.startsWith('/settings') &&
       bodyText.length > 20 &&
-      (bodyText.includes('Skills') || bodyText.includes('技能')),
+      !!document.querySelector('[data-testid="settings-layout"]'),
     pathname: location.pathname,
     bodyLength: bodyText.length,
   };

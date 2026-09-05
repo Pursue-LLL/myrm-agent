@@ -11,7 +11,6 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     http_json,
     open_settings_subroute,
-    prepare_e2e_ui_session,
     wait_for_settings_layout,
     warm_ui_route,
 )
@@ -35,10 +34,9 @@ _VERIFY_SPLIT_STACK_SETTINGS_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="READ",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
