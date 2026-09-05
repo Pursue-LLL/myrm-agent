@@ -123,7 +123,7 @@ async def record_browser_runtime(
         return success_response({"id": record.id, "year_month": record.year_month})
     except Exception as exc:
         logger.error("Failed to record browser runtime: %s", exc, exc_info=True)
-        raise internal_error("Failed to record browser runtime", exception=exc) from exc from exc
+        raise internal_error("Failed to record browser runtime", exception=exc) from exc
 
 
 @router.get("/runtime-cost-gauge")
@@ -175,4 +175,4 @@ async def update_search_quota_limit(
         )
     except Exception as exc:
         logger.error("Failed to update search quota limit: %s", exc, exc_info=True)
-        raise internal_error("Failed to update search quota limit", exception=exc) from exc from exc
+        raise internal_error("Failed to update search quota limit", exception=exc) from exc
