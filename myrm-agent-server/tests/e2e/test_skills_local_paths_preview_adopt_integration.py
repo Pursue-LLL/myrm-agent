@@ -19,7 +19,7 @@ from app.core.skills.models import SkillType
 from app.core.skills.store.service import skills_service
 from tests.support.minimal_app import build_minimal_app
 
-app = build_minimal_app(preset="skills")
+app = build_minimal_app(preset="skills_api")
 client = TestClient(app, base_url="http://localhost:8080")
 
 

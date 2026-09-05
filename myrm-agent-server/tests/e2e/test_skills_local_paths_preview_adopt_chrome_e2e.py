@@ -122,7 +122,10 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
         timeout_sec=_warm_ui_parallel_wait_sec(180.0),
     )
 
-    with open_settings_subroute("/settings/skills", timeout_ms=120_000) as (client, page):
+    with open_settings_subroute("/settings/skills", timeout_ms=120_000) as (
+        client,
+        page,
+    ):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         dismiss_blocking_modals(client, page)
 
@@ -132,7 +135,9 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             _SETTINGS_SKILLS_SHELL_STATE,
             timeout_sec=_warm_ui_parallel_wait_sec(120.0),
         )
-        assert shell.get("ready") is True, json.dumps(shell, indent=2, ensure_ascii=False)
+        assert shell.get("ready") is True, json.dumps(
+            shell, indent=2, ensure_ascii=False
+        )
 
         # 5. Verify UI state
         ui_check_js = """(() => {
@@ -153,7 +158,17 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             ui_check_js,
             timeout_sec=_warm_ui_parallel_wait_sec(90.0),
         )
-        assert state.get("ready") is True, json.dumps(state, indent=2, ensure_ascii=False)
+        assert state.get("ready") is True, json.dumps(
+            state, indent=2, ensure_ascii=False
+        )
+
+        # Switch to Installed tab to reveal local paths trigger if needed
+        client.evaluate(page, """(() => {
+          const tab = Array.from(document.querySelectorAll('button, [role="tab"]')).find(el =>
+            /Installed|已安装/i.test(el.textContent || '')
+          );
+          if (tab) tab.click();
+        })()""", timeout_sec=10.0)
 
         # 6. Verify Local Paths collapsible button or trigger rendered in UI
         local_paths_btn_js = """(() => {
@@ -173,7 +188,9 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             local_paths_btn_js,
             timeout_sec=_warm_ui_parallel_wait_sec(45.0),
         )
-        assert paths_state.get("ready") is True, json.dumps(paths_state, indent=2, ensure_ascii=False)
+        assert paths_state.get("ready") is True, json.dumps(
+            paths_state, indent=2, ensure_ascii=False
+        )
 
         # 7. Open local paths section if collapsed
         expand_js = """(() => {
@@ -202,7 +219,9 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             input_ready_js,
             timeout_sec=_warm_ui_parallel_wait_sec(30.0),
         )
-        assert input_state.get("ready") is True, json.dumps(input_state, indent=2, ensure_ascii=False)
+        assert input_state.get("ready") is True, json.dumps(
+            input_state, indent=2, ensure_ascii=False
+        )
 
         # 9. Realistic User Flow: Input test_skill_dir path and click Add button to trigger Preview Dialog
         ui_input_and_click_js = f"""(() => {{
@@ -219,7 +238,9 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
           return {{ ok: true }};
         }})()"""
         click_res = client.evaluate(page, ui_input_and_click_js, timeout_sec=15.0)
-        assert isinstance(click_res, dict) and click_res.get("ok") is True, f"Failed to input path: {click_res}"
+        assert (
+            isinstance(click_res, dict) and click_res.get("ok") is True
+        ), f"Failed to input path: {click_res}"
 
         # 10. Verify LocalSkillPathScanPreviewBeforeAdoptDialog opens with detected skill name
         dialog_ready_js = """(() => {
@@ -242,4 +263,6 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             dialog_ready_js,
             timeout_sec=_warm_ui_parallel_wait_sec(30.0),
         )
-        assert dialog_state.get("ready") is True, json.dumps(dialog_state, indent=2, ensure_ascii=False)
+        assert dialog_state.get("ready") is True, json.dumps(
+            dialog_state, indent=2, ensure_ascii=False
+        )

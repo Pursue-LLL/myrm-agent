@@ -163,4 +163,75 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
     fireEvent.click(cancelBtn);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it('supports select all, deselect all, and add path only actions', () => {
+    const onAddPathOnly = vi.fn();
+    const previewWithSkills: LocalSkillPathPreviewResponse = {
+      resolved_path: '/Users/developer/test-skills',
+      exists: true,
+      is_directory: true,
+      total_discovered: 2,
+      skills: [
+        {
+          name: 'skill-one',
+          description: 'First skill',
+          version: '1.0.0',
+          category: 'tool',
+          tags: [],
+          required_tools: [],
+          relative_path: 'skill-one',
+          skill_id: 'local::one111',
+          is_conflicted: false,
+          conflict_reason: null,
+          is_safe: true,
+          threat_summary: null,
+        },
+        {
+          name: 'skill-two',
+          description: 'Second skill',
+          version: '1.0.0',
+          category: 'tool',
+          tags: [],
+          required_tools: [],
+          relative_path: 'skill-two',
+          skill_id: 'local::two222',
+          is_conflicted: false,
+          conflict_reason: null,
+          is_safe: true,
+          threat_summary: null,
+        },
+      ],
+      warning_message: null,
+    };
+
+    render(
+      <LocalSkillPathScanPreviewBeforeAdoptDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        previewData={previewWithSkills}
+        isAdopting={false}
+        onConfirmAdopt={onConfirmAdopt}
+        onAddPathOnly={onAddPathOnly}
+      />,
+    );
+
+    // Initial state: both selected
+    const deselectBtn = screen.getByTestId('preview-deselect-all-btn');
+    fireEvent.click(deselectBtn);
+
+    // After deselect all, adopt button should be disabled
+    const adoptBtn = screen.getByTestId('preview-adopt-btn');
+    expect(adoptBtn).toBeDisabled();
+
+    // Select all
+    const selectAllBtn = screen.getByTestId('preview-select-all-btn');
+    fireEvent.click(selectAllBtn);
+    expect(adoptBtn).not.toBeDisabled();
+
+    // Add path only button
+    const addPathOnlyBtn = screen.getByTestId('preview-add-path-only-btn');
+    fireEvent.click(addPathOnlyBtn);
+    expect(onAddPathOnly).toHaveBeenCalledTimes(1);
+  });
 });
+

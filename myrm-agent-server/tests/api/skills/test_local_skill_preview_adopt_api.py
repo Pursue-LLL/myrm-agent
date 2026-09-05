@@ -198,6 +198,16 @@ def test_adopt_local_skill_path(sample_skill_dir: Path) -> None:
         mock_enable_skill.assert_awaited_once_with(target_skill_id)
 
 
+def test_adopt_invalid_path_format() -> None:
+    """Test adopting with relative path format should return 400."""
+    resp = client.post(
+        "/api/skills/local/paths/adopt",
+        json={"path": "relative/path/not/allowed", "selected_skill_ids": []},
+    )
+    assert resp.status_code == 400
+    assert "Must be absolute path or start with ~" in resp.json()["detail"]
+
+
 def test_adopt_with_agent_integration(sample_skill_dir: Path) -> None:
     """Test adopting a path with agent allowlist integration."""
     mock_config = UserSkillConfig(
@@ -243,3 +253,45 @@ def test_adopt_with_agent_integration(sample_skill_dir: Path) -> None:
         assert data["agent_adopted"] is True
         assert data["agent_id"] == "test-agent-123"
         mock_agent_adopt.assert_awaited_once_with("test-agent-123", target_skill_id)
+
+
+def test_adopt_empty_selection_adds_path_only(sample_skill_dir: Path) -> None:
+    """Test adopting a path with empty selection (Add Path Only flow)."""
+    mock_config = UserSkillConfig(
+        user_id="test_user",
+        local_skill_paths=[],
+        enabled_local_skill_ids=[],
+    )
+
+    with (
+        patch(
+            "app.core.skills.store.service.skills_service.user_config.get_config",
+            AsyncMock(return_value=mock_config),
+        ),
+        patch(
+            "app.core.skills.store.service.skills_service.user_config.update_local_skill_paths",
+            AsyncMock(return_value=mock_config),
+        ) as mock_update_paths,
+        patch(
+            "app.core.skills.store.service.skills_service.user_config.enable_local_skill",
+            AsyncMock(),
+        ) as mock_enable_skill,
+    ):
+        resp = client.post(
+            "/api/skills/local/paths/adopt",
+            json={
+                "path": str(sample_skill_dir),
+                "selected_skill_ids": [],
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert data["added_to_paths"] is True
+        assert data["adopted_skills_count"] == 0
+        assert data["adopted_skill_ids"] == []
+        mock_update_paths.assert_awaited_once_with([str(sample_skill_dir)])
+        mock_enable_skill.assert_not_called()
+
+
+
