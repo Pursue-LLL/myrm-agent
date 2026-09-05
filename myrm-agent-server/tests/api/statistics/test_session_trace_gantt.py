@@ -1,7 +1,6 @@
 """Unit tests for session trace performance enrichment and Gantt waterfall generation."""
 
-import pytest
-from app.api.statistics.session_trace import _enrich_performance_and_gantt, _empty_trace_payload
+from app.api.statistics.session_trace import _empty_trace_payload, _enrich_performance_and_gantt
 
 
 def test_empty_trace_payload_contains_performance_summary():
