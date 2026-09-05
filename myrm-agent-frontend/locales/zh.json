@@ -16092,6 +16092,10 @@
           "cancel": "取消",
           "adopt": "确认采纳并保存路径",
           "adopting": "采纳保存中...",
+          "addPathOnly": "仅添加路径",
+          "selectAll": "全选",
+          "deselectAll": "全不选",
+          "selectedCount": "已选择 {count} 个技能",
           "tools": "依赖工具"
         }
       },
