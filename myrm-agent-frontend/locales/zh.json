@@ -2877,7 +2877,14 @@
       "customErrorProbeFailed": "端点探测失败",
       "customErrorDetectFirst": "请先执行模型探测",
       "customErrorReachabilityFailed": "端点连通但模型健康检查失败",
-      "customDetectSuccess": "已检测到 {count} 个模型"
+      "customDetectSuccess": "已检测到 {count} 个模型",
+      "checklistTitle": "工具调用推荐标杆",
+      "checklistSubtitle": "已验证支持复杂任务",
+      "recommendedBadge": "推荐",
+      "verifiedBadge": "已验证支持工具调用：{model}",
+      "verifiedDescription": "该模型经 Myrm 兼容性测试，可稳定执行函数调用、文件读写与联网搜索。",
+      "unverifiedWarningTitle": "未验证模型提示：{model}",
+      "unverifiedWarningDescription": "该模型尚未经官方工具调用兼容性验证，执行复杂技能时可能出现格式异常。建议优先选用推荐标杆模型。"
     },
     "migrationDiscovery": {
       "detecting": "正在扫描本地 AI 助手数据...",
