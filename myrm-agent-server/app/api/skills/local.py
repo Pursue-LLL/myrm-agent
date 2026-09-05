@@ -98,7 +98,7 @@ async def preview_local_skill_path(
     existing_skills = await skills_service.list_skills()
 
     resolved_path, exists, is_directory, items, warning_msg = (
-        skills_service.local_provider.preview_path(
+        skills_service.local_skills.preview_path(
             raw_path=raw_path,
             existing_skills=existing_skills,
         )

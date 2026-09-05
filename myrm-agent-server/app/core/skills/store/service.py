@@ -73,6 +73,10 @@ class SkillsService:
             self._local_skills = LocalSkillsProvider()
         return self._local_skills
 
+    @property
+    def local_provider(self) -> LocalSkillsProvider:
+        return self.local_skills
+
     # ========================================================================
     # Create
     # ========================================================================
