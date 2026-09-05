@@ -15,7 +15,7 @@ tags:
   - react
   - 设计图还原
   - 前端还原
-allowed-tools: browser_use bash execute_code web_search file_read_tool file_write_tool
+allowed-tools: browser_navigate_tool bash_code_execute_tool web_search_tool file_read_tool file_write_tool file_edit_tool
 contract:
   steps:
     - "Phase 1: Visual Decomposition — analyze canvas layout, grid system, and responsive breakpoints"
@@ -47,6 +47,13 @@ contract:
 ---
 
 # UI Design Restoration SOP
+
+## Bash execution contract
+
+- Use `bash_code_execute_tool` only when shell execution is necessary for color sampling or layout validation.
+- Every bash invocation must include a concrete, user-relevant reason.
+- Prefer non-destructive commands and keep all operations confined to workspace files for this task.
+- Do not run unrelated background processes or broad system-level commands.
 
 This skill guides the Agent in faithfully reconstructing high-fidelity UI components and complete application screens from visual design assets or screenshots.
 
