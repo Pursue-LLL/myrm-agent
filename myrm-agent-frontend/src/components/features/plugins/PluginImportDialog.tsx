@@ -65,6 +65,8 @@ interface PluginServerPreview {
   has_placeholders: boolean;
   virtual_id: string;
   missing_artifact?: string | null;
+  is_runnable?: boolean;
+  missing_artifacts?: string[];
 }
 
 interface PluginAgentPreview {
@@ -218,7 +220,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
           data.servers.map((item) => ({
             virtual_id: item.virtual_id,
             name: item.name,
-            resolution: item.missing_artifact ? 'skip' : 'install',
+            resolution: item.missing_artifact || item.is_runnable === false ? 'skip' : 'install',
           })),
         );
         setAgentDecisions(
@@ -281,7 +283,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
       setServerDecisions((prev) =>
         prev.map((item) => {
           const server = preview?.servers.find((s) => s.virtual_id === item.virtual_id);
-          if (server?.missing_artifact && resolution === 'install') {
+          if ((server?.missing_artifact || server?.is_runnable === false) && resolution === 'install') {
             return { ...item, resolution: 'skip' };
           }
           return { ...item, resolution };
@@ -485,7 +487,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                             {preview.plugin.author.name}
                           </span>
                         )}
-                        {preview.plugin.keywords.slice(0, 5).map((kw) => (
+                        {(preview.plugin.keywords ?? []).slice(0, 5).map((kw) => (
                           <Badge key={kw} variant="outline" className="text-[10px] px-1.5 py-0">
                             {kw}
                           </Badge>
@@ -756,7 +758,8 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                       {preview.servers.map((item) => {
                         const decision = serverDecisions.find((d) => d.virtual_id === item.virtual_id);
                         const isInstalled = decision?.resolution === 'install';
-                        const isMissingArtifact = Boolean(item.missing_artifact);
+                        const isMissingArtifact = Boolean(item.missing_artifact) || item.is_runnable === false;
+                        const missingFile = item.missing_artifact || item.missing_artifacts?.[0] || '';
                         return (
                           <div key={item.virtual_id} className="flex items-center justify-between gap-3 px-4 py-3">
                             <div className="min-w-0">
@@ -769,7 +772,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                               </p>
                               {isMissingArtifact && (
                                 <p className="text-xs text-destructive mt-0.5">
-                                  {t('security.missingArtifact', { file: item.missing_artifact ?? '' })}
+                                  {t('security.missingArtifact', { file: missingFile })}
                                 </p>
                               )}
                             </div>

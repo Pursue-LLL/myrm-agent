@@ -610,17 +610,65 @@ describe('PluginImportDialog', () => {
             missing_artifact: 'dist/index.js',
           },
         ],
+        diagnostics: [
+          {
+            component: 'mcp:broken-server',
+            code: 'mcp_missing_artifact',
+            message: "MCP server 'broken-server' references entrypoint 'dist/index.js', which does not exist.",
+            level: 'error',
+          },
+        ],
       }),
     });
     await renderDialog();
     selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
 
     await screen.findByText('broken-server');
-    expect(screen.getByText(/dist\/index\.js/)).toBeInTheDocument();
+    expect(screen.getAllByText(/dist\/index\.js/).length).toBeGreaterThan(0);
 
     // The button for the broken server should be disabled
     const installButtons = screen.getAllByRole('button', { name: /Install|Skip/ });
     const serverButton = installButtons.find((btn) => btn.closest('.divide-y')?.textContent?.includes('broken-server'));
+    expect(serverButton).toBeDisabled();
+  });
+
+  it('marks server with is_runnable=false and missing_artifacts as disabled and displays error message', async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        session_id: 'test-session-unrunnable',
+        plugin: { name: 'unrunnable-plugin' },
+        skills: [],
+        servers: [
+          {
+            virtual_id: 'mcp:0',
+            name: 'unrunnable-server',
+            type: 'stdio',
+            command: 'node',
+            env_key_count: 0,
+            has_placeholders: false,
+            is_runnable: false,
+            missing_artifacts: ['out/bundle.js'],
+          },
+        ],
+        diagnostics: [
+          {
+            component: 'mcp:unrunnable-server',
+            code: 'mcp_missing_artifact',
+            message: "MCP server 'unrunnable-server' references entrypoint 'out/bundle.js', which does not exist.",
+            level: 'error',
+          },
+        ],
+      }),
+    });
+    await renderDialog();
+    selectFile(new File(['zip'], 'unrunnable.zip', { type: 'application/zip' }));
+
+    await screen.findByText('unrunnable-server');
+    expect(screen.getAllByText(/out\/bundle\.js/).length).toBeGreaterThan(0);
+
+    const installButtons = screen.getAllByRole('button', { name: /Install|Skip/ });
+    const serverButton = installButtons.find((btn) => btn.closest('.divide-y')?.textContent?.includes('unrunnable-server'));
     expect(serverButton).toBeDisabled();
   });
 });

@@ -495,5 +495,23 @@ export function buildBuiltinActions(): SlashAction[] {
         return executePetSlashCommand(inputValue);
       },
     },
+    {
+      id: 'builtin:memo',
+      name: 'memo',
+      description: 'commands.builtin.memo',
+      argsHint: '[transcript | topic]',
+      aliases: ['meeting', 'minutes'],
+      type: 'action',
+      execute: async (inputValue: string) => {
+        const { default: useChatStore } = await import('@/store/useChatStore');
+        const { setInputMessage } = useChatStore.getState();
+        const rawArgs = inputValue.replace(/^\/(?:memo|meeting|minutes)\s*/i, '').trim();
+        const directive = rawArgs
+          ? `/memo ${rawArgs}`
+          : '/memo 请根据本次语音/会议录音，整理结构化会议纪要工件、派发看板待办并沉淀核心决策至记忆。';
+        setInputMessage(directive);
+        return { success: true, newInputValue: directive };
+      },
+    },
   ];
 }

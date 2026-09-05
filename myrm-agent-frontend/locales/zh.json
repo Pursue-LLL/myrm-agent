@@ -267,6 +267,7 @@
       "petInstalled": "已安装宠物：{name}",
       "petInstallFailed": "安装宠物失败",
       "petNoActive": "尚未安装宠物 — 正在打开宠物面板",
+      "memo": "随身语音听记与会议纪要解构 — 自动生成工件、派发看板待办并沉淀长效记忆",
       "ask": "打开会话顾问进行只读旁路问答（/side）",
       "btwDisambiguation": "在 Myrm 中，/btw 用于启动后台任务。主对话运行中时如需旁路问答，请使用 /ask 或 /side。"
     }
