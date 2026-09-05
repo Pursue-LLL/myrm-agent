@@ -43,7 +43,7 @@ _TOOL_PRUNE_CONTRACT_JS = """(async () => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
+    execution_mode="PRIVATE",
     access_scope="READ",
     workload="STANDARD",
 )

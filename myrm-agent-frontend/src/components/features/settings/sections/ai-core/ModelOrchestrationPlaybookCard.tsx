@@ -15,7 +15,7 @@ import {
 import { ModelOrchestrationPlaybookDialog } from '@/components/features/chat-window/playbook';
 
 export const ModelOrchestrationPlaybookCard = memo(function ModelOrchestrationPlaybookCard() {
-  const t = useTranslations('chat.modelPlaybook');
+  const t = useTranslations('modelPlaybook');
   const [isExpanded, setIsExpanded] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -30,14 +30,14 @@ export const ModelOrchestrationPlaybookCard = memo(function ModelOrchestrationPl
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-foreground">
-                  {t('title')}
+                  {t('cardTitle')}
                 </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-300">
-                  {t('chipBadge')}
+                  {t('cardBadge')}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {t('description')}
+                {t('cardSubtitle')}
               </p>
             </div>
           </div>
@@ -49,14 +49,14 @@ export const ModelOrchestrationPlaybookCard = memo(function ModelOrchestrationPl
               onClick={() => setDialogOpen(true)}
               className="h-8 text-xs font-medium border-emerald-500/30 bg-background/60 hover:bg-emerald-500/10"
             >
-              {t('chipAction')}
+              {t('viewFullPlaybook')}
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsExpanded((prev) => !prev)}
               className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-              aria-label={isExpanded ? t('closeButton') : t('chipAction')}
+              aria-label={isExpanded ? t('collapse') : t('expand')}
             >
               {isExpanded ? (
                 <IconChevronUp className="w-4 h-4" />
@@ -72,30 +72,30 @@ export const ModelOrchestrationPlaybookCard = memo(function ModelOrchestrationPl
             <div className="p-3 rounded-lg bg-background/50 border border-border/40 space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
                 <IconBrain className="w-3.5 h-3.5 text-purple-500" />
-                <span>{t('brainVsHandsTitle')}</span>
+                <span>{t('miniBrainHandsTitle')}</span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {t('brainVsHandsDesc')}
+                {t('miniBrainHandsDesc')}
               </p>
             </div>
 
             <div className="p-3 rounded-lg bg-background/50 border border-border/40 space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
                 <IconRoute className="w-3.5 h-3.5 text-emerald-500" />
-                <span>{t('routingFeatureTitle')}</span>
+                <span>{t('miniDynamicRoutingTitle')}</span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {t('routingFeatureDesc')}
+                {t('miniDynamicRoutingDesc')}
               </p>
             </div>
 
             <div className="p-3 rounded-lg bg-background/50 border border-border/40 space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
                 <IconZap className="w-3.5 h-3.5 text-blue-500" />
-                <span>{t('moaFeatureTitle')}</span>
+                <span>{t('miniMoaTitle')}</span>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {t('moaFeatureDesc')}
+                {t('miniMoaDesc')}
               </p>
             </div>
           </div>

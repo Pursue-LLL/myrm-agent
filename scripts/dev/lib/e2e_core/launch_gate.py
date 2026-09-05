@@ -83,7 +83,10 @@ def chrome_e2e_launch_denial_reason() -> str | None:
         )
 
         verdict = resolve_chrome_e2e_readiness()
-        if shared_profile_can_use_deployed_epoch(next_action=verdict.next_action):
+        if shared_profile_can_use_deployed_epoch(
+            next_action=verdict.next_action,
+            execution_mode=os.environ.get("MYRM_E2E_EXECUTION_MODE", ""),
+        ):
             return None
         return launch_denial_line(verdict)
     from e2e_core.readiness import _parse_emit_fields  # noqa: PLC0415
@@ -111,7 +114,8 @@ def chrome_e2e_launch_denial_reason() -> str | None:
     if fields.get("E2E_LAUNCH_ALLOWED", "no").lower() == "yes":
         return None
     if shared_profile_can_use_deployed_epoch(
-        next_action=fields.get("NEXT_ACTION", "")
+        next_action=fields.get("NEXT_ACTION", ""),
+        execution_mode=os.environ.get("MYRM_E2E_EXECUTION_MODE", ""),
     ):
         return None
     token = fields.get("MYRM_READINESS_TOKEN", "UNKNOWN")

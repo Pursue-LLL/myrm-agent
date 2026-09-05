@@ -75,7 +75,7 @@ describe('ModelOrchestrationPlaybookChip & Dialog', () => {
     });
 
     render(<ModelOrchestrationPlaybookChip />);
-    const dismissBtn = screen.getByRole('button');
+    const dismissBtn = screen.getByRole('button', { name: 'dismiss' });
     fireEvent.click(dismissBtn);
 
     expect(sessionStorage.getItem('myrm_model_playbook_chip_dismissed')).toBe('true');

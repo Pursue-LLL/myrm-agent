@@ -62,7 +62,7 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
   open,
   onOpenChange,
 }: ModelOrchestrationPlaybookDialogProps) {
-  const t = useTranslations('chat.modelPlaybook');
+  const t = useTranslations('modelPlaybook');
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'recipes' | 'principles' | 'economics'>('recipes');
 
@@ -90,7 +90,11 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
     })),
   );
 
-  const enabledModels = useMemo(() => getEnabledModels(), [getEnabledModels, providers]);
+  const enabledModels = useMemo(() => {
+    // Explicitly reference providers to re-calculate enabled models upon provider mutations
+    void providers;
+    return getEnabledModels();
+  }, [getEnabledModels, providers]);
 
   const recipeReadinessMap = useMemo(() => {
     const map = new Map<RecipeTierId, ReturnType<typeof resolveRecipeReadiness>>();

@@ -69,7 +69,15 @@ export const ModelOrchestrationPlaybookChip = memo(function ModelOrchestrationPl
     <>
       <div
         data-testid="model-orchestration-playbook-chip"
+        role="button"
+        tabIndex={0}
         onClick={handleOpen}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleOpen();
+          }
+        }}
         className={cn(
           'group relative w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl cursor-pointer select-none',
           'bg-gradient-to-r from-purple-500/5 via-indigo-500/5 to-sky-500/5 dark:from-purple-950/20 dark:via-indigo-950/20 dark:to-sky-950/20',
