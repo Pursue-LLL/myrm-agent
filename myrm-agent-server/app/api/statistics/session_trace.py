@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.trace_builder import build_trace
 from myrm_agent_harness.agent.event_log.types import EventFilter
-from sqlalchemy import and_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.statistics.session_analytics import _validate_session_id
@@ -266,6 +266,7 @@ async def get_session_execution_trace(
         trace = await build_trace(backend, session_id)
         trace_data = trace.to_dict()
         await _attach_security_labels(backend, session_id, trace_data)
+        _enrich_performance_and_gantt(trace_data)
         trace_data["memory_events"] = memory_events
         return success_response(data=trace_data)
 
@@ -273,3 +274,159 @@ async def get_session_execution_trace(
         if "not found" in str(e).lower():
             raise
         raise internal_error(operation="Get session execution trace", exception=e) from e
+
+
+@router.get("/traces/search")
+async def search_session_traces(
+    query: str = "",
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Search traces by user task prompt or session title."""
+    try:
+        stmt = select(Chat).order_by(Chat.updated_at.desc()).limit(limit * 2)
+        result = await db.execute(stmt)
+        chats = result.scalars().all()
+
+        matched: list[dict[str, object]] = []
+        log_dir = Path(settings.database.event_log_dir)
+        query_lower = query.strip().lower()
+
+        for chat in chats:
+            chat_id = str(chat.id)
+            log_file = log_dir / f"{chat_id}.jsonl"
+            if not log_file.exists():
+                continue
+
+            task_input = ""
+            total_tokens = 0
+            cache_read_tokens = 0
+            prompt_tokens = 0
+            try:
+                backend = FileEventLogBackend(log_dir=log_dir, session_id=chat_id)
+                events = await backend.get_events(chat_id, EventFilter(limit=20))
+                for ev in events:
+                    if ev.event_type == "task_start" and not task_input:
+                        task_input = str(ev.data.get("input") or "")
+                    elif ev.event_type in ("token_usage", "llm_end"):
+                        u = ev.data.get("usage") or ev.data
+                        if isinstance(u, dict):
+                            p = int(u.get("prompt_tokens") or 0)
+                            c = int(u.get("completion_tokens") or 0)
+                            total_tokens += p + c
+                            prompt_tokens += p
+                            cd = 0
+                            if det := u.get("prompt_tokens_details"):
+                                if isinstance(det, dict):
+                                    cd = int(det.get("cached_tokens") or 0)
+                            elif "cache_read_input_tokens" in u:
+                                cd = int(u.get("cache_read_input_tokens") or 0)
+                            cache_read_tokens += cd
+            except Exception:
+                pass
+
+            title = str(chat.title or "")
+            if query_lower:
+                if query_lower not in title.lower() and query_lower not in task_input.lower():
+                    continue
+
+            hit_ratio = round(cache_read_tokens / prompt_tokens, 4) if prompt_tokens > 0 else 0.0
+
+            matched.append({
+                "session_id": chat_id,
+                "title": title,
+                "task_input": task_input[:200],
+                "total_tokens": total_tokens,
+                "cache_hit_ratio": hit_ratio,
+                "created_at": chat.created_at.isoformat() if chat.created_at else None,
+                "updated_at": chat.updated_at.isoformat() if chat.updated_at else None,
+            })
+            if len(matched) >= limit:
+                break
+
+        return success_response(data=matched)
+    except Exception as e:
+        raise internal_error(operation="Search session traces", exception=e) from e
+
+
+@router.get("/traces/prompt-cache-radar")
+async def get_prompt_cache_radar(
+    days: int = 7,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Aggregate Prompt Cache hit ratio and token savings across recent sessions."""
+    try:
+        from datetime import datetime, timedelta, timezone
+
+        cutoff = datetime.now(timezone.utc) - timedelta(days=max(1, min(days, 90)))
+        stmt = (
+            select(Chat)
+            .where(Chat.updated_at >= cutoff)
+            .order_by(Chat.updated_at.desc())
+            .limit(100)
+        )
+        result = await db.execute(stmt)
+        chats = result.scalars().all()
+
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        total_cache_read_tokens = 0
+        sessions_tracked = 0
+
+        log_dir = Path(settings.database.event_log_dir)
+
+        for chat in chats:
+            chat_id = str(chat.id)
+            log_file = log_dir / f"{chat_id}.jsonl"
+            if not log_file.exists():
+                continue
+
+            try:
+                backend = FileEventLogBackend(log_dir=log_dir, session_id=chat_id)
+                events = await backend.get_events(
+                    chat_id, EventFilter(event_types=frozenset({"token_usage", "llm_end"}))
+                )
+                if events:
+                    sessions_tracked += 1
+                for ev in events:
+                    usage = ev.data.get("usage") or ev.data
+                    if isinstance(usage, dict):
+                        p = int(usage.get("prompt_tokens") or 0)
+                        c = int(usage.get("completion_tokens") or 0)
+
+                        cd = 0
+                        if details := usage.get("prompt_tokens_details"):
+                            if isinstance(details, dict):
+                                cd = int(details.get("cached_tokens") or 0)
+                        elif "cache_read_input_tokens" in usage:
+                            cd = int(usage.get("cache_read_input_tokens") or 0)
+
+                        total_prompt_tokens += p
+                        total_completion_tokens += c
+                        total_cache_read_tokens += cd
+            except Exception:
+                pass
+
+        fresh_input_tokens = max(0, total_prompt_tokens - total_cache_read_tokens)
+        hit_ratio = (
+            round(total_cache_read_tokens / total_prompt_tokens, 4)
+            if total_prompt_tokens > 0
+            else 0.0
+        )
+        estimated_savings_usd = round((total_cache_read_tokens / 1_000_000) * 0.42, 4)
+
+        return success_response(
+            data={
+                "days": days,
+                "sessions_tracked": sessions_tracked,
+                "total_prompt_tokens": total_prompt_tokens,
+                "fresh_input_tokens": fresh_input_tokens,
+                "total_cache_read_tokens": total_cache_read_tokens,
+                "total_completion_tokens": total_completion_tokens,
+                "prompt_cache_hit_ratio": hit_ratio,
+                "estimated_savings_usd": estimated_savings_usd,
+            }
+        )
+    except Exception as e:
+        raise internal_error(operation="Get prompt cache radar", exception=e) from e
+

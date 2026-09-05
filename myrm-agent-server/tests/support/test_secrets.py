@@ -78,7 +78,9 @@ def load_test_secrets() -> TestSecrets:
     for path in (_SERVER_ROOT / ".env.test", _SERVER_ROOT / ".env.test.example"):
         if path.exists():
             values = dotenv_values(path)
-            normalized = {key: value for key, value in values.items() if value is not None}
+            normalized = {
+                key: value for key, value in values.items() if value is not None
+            }
             return TestSecrets(raw=normalized)
     return TestSecrets(raw={})
 

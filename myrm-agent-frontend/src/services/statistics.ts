@@ -376,6 +376,29 @@ export interface TraceLLMCall {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  cache_read_tokens?: number;
+}
+
+export interface GanttSpan {
+  type: 'llm' | 'tool';
+  label: string;
+  start_time: number;
+  end_time: number;
+  duration_ms: number;
+  ttft_ms?: number | null;
+  cache_read_tokens?: number;
+  status: 'success' | 'error';
+  error?: string | null;
+}
+
+export interface TracePerformanceSummary {
+  llm_duration_ms: number;
+  tool_duration_ms: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_cache_read_tokens: number;
+  prompt_cache_hit_ratio: number;
+  gantt_spans: GanttSpan[];
 }
 
 export interface TraceMemoryEvent {
@@ -438,12 +461,26 @@ export interface ExecutionTrace {
   errors: TraceError[];
   human_feedback: TraceHumanFeedback[];
   memory_events?: TraceMemoryEvent[];
+  performance_summary?: TracePerformanceSummary;
   total_events: number;
   total_tokens: number;
   /** Index into `errors` of the earliest unrecovered failure (first-irrecoverable). */
   first_irrecoverable_index?: number | null;
   /** Wall-clock timestamp (seconds) of the first irrecoverable error. */
   first_irrecoverable_timestamp?: number | null;
+}
+
+export interface TraceSearchResult {
+  session_id: string;
+  title: string;
+  task_input: string;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export async function searchSessionTraces(query = '', limit = 20): Promise<TraceSearchResult[]> {
+  const q = encodeURIComponent(query);
+  return apiRequest<TraceSearchResult[]>(`/statistics/traces/search?query=${q}&limit=${limit}`);
 }
 
 export async function getSessionExecutionTrace(
