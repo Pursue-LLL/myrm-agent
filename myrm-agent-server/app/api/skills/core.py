@@ -7,7 +7,13 @@ from fastapi.responses import PlainTextResponse
 from myrm_agent_harness.toolkits.storage.types import SkillType
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.skills.schemas import SkillListResponse, SkillResponse, skill_to_response
+from app.api.skills.schemas import (
+    SkillFileUpdateRequest,
+    SkillFileUpdateResponse,
+    SkillListResponse,
+    SkillResponse,
+    skill_to_response,
+)
 from app.core.skills.gates.oauth_availability import apply_integration_oauth_availability
 from app.core.skills.store.service import skills_service
 from app.database.connection import get_db
