@@ -2912,7 +2912,9 @@
       "depth": "깊이",
       "level": "단계",
       "runAffectedTests": "영향받는 {count}개 테스트 실행"
-    }
+    },
+    "subscriptionPkceNotice": "새 탭에서 {providerName} 인증 페이지가 열렸습니다. 로그인 및 승인을 완료한 후 여기로 돌아오세요.",
+    "subscriptionPkceReopen": "인증 페이지 다시 열기"
   },
   "mode": {
     "fast": "빠른 검색",

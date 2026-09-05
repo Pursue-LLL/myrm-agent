@@ -186,5 +186,18 @@ describe('NoProviderBanner', () => {
 
     expect(screen.queryByText('subscriptionModalTitle')).not.toBeInTheDocument();
   });
+
+  it('renders nothing when an oauthConnected provider is enabled', () => {
+    mockUseProviderStore.mockImplementation((selector: (s: Record<string, unknown>) => unknown) => {
+      const state = {
+        isInitialized: true,
+        providers: [{ id: 'copilot', isEnabled: true, apiKeys: [], oauthConnected: true }],
+      };
+      return selector(state);
+    });
+
+    const { container } = render(<NoProviderBanner />);
+    expect(container.innerHTML).toBe('');
+  });
 });
 
