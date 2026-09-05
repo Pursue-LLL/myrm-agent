@@ -13558,6 +13558,7 @@
       "removeProvider": "删除提供商",
       "builtInProvider": "内置提供商",
       "customProvider": "自定义提供商",
+      "viewDashboard": "查看控制台",
       "apiKeys": "API 密钥",
       "apiKeyPlaceholder": "输入 API 密钥",
       "remarkPlaceholder": "备注（可选）",
@@ -13794,7 +13795,9 @@
       "acpTimeoutUnit": "秒",
       "testConnection": "测试连接",
       "connectionSuccess": "连接成功",
-      "connectionFailed": "连接失败"
+      "connectionFailed": "连接失败",
+      "vercelGatewaySpendHint": "在 Vercel AI Gateway 控制台追踪开销、限流与延迟",
+      "openVercelDashboard": "查看控制台"
     },
     "defaultModel": {
       "localModelWarning": "本地轻量模型在处理复杂 Agent 工具链时极易产生幻觉或陷入死循环。执行长任务建议使用 30B 以上规模模型或云端高阶模型（如 Claude 3.5 Sonnet）。",
@@ -13809,6 +13812,10 @@
       "videoFallbackModel": "视频降级模型",
       "videoFallbackModelDescription": "当主模型不支持原生视频时使用。建议配置支持视频的模型（如 Gemini）。",
       "videoFallbackModelFallbackDescription": "主视频降级模型不可用时的备用模型。",
+      "backgroundEvolutionModel": "后台演进与维护模型",
+      "backgroundEvolutionModelDescription": "专门用于离线后台任务的模型，包括技能免疫自愈、记忆守护模式发现和行为演进",
+      "backgroundEvolutionModelAdaptiveHint": "三级自适应兜底：若未配置，引擎将平滑回落至轻量级模型（若配置）或主会话模型，在控制后台 Token 消耗的同时保障任务持久性。",
+      "backgroundEvolutionModelFallbackDescription": "当主演进模型遇到速率限制、超时或服务商过载时自动启用的备用模型",
       "selectVideoFallbackModel": "选择视频备用模型",
       "selectVisionFallbackModel": "选择视觉备用模型",
       "visionHealthTest": "测试视觉链路",
@@ -16071,9 +16078,10 @@
           "pathRemoved": "路径已移除",
           "scanComplete": "扫描完成",
           "foundSkills": "发现 {count} 个技能",
-          "pathCopied": "路径已复制到剪贴板"
+          "pathCopied": "已复制路径至剪贴板"
         },
         "discoveredSkillsBadge": "{count} 个技能",
+        "copyPath": "复制路径",
         "pathNotFoundBadge": "路径不存在",
         "emptySkillsBadge": "0 个技能",
         "error": {
@@ -16083,7 +16091,7 @@
           "removeFailed": "移除路径失败",
           "scanFailed": "扫描失败",
           "previewFailed": "探测本地路径失败",
-          "pathTraversal": "不允许包含 \"..\" 路径穿越序列"
+          "pathTraversal": "路径中不允许包含 \"..\" 跨目录遍历"
         },
         "previewDialog": {
           "title": "本地技能路径预检与采纳",
@@ -16103,8 +16111,7 @@
           "deselectAll": "全不选",
           "selectedCount": "已选择 {count} 个技能",
           "tools": "依赖工具"
-        },
-        "copyPath": "复制路径"
+        }
       },
       "instances": {
         "title": "实例管理",
@@ -18686,13 +18693,24 @@
     "collapseTelemetry": "收起遥测",
     "expandTelemetry": "展开遥测",
     "currentNode": "节点 #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "规划阶段"
+      },
+      "executing": {
+        "title": "执行协作"
+      },
+      "verifying": {
+        "title": "核验交付"
+      }
+    },
     "lanes": {
-      "planner": "规划通道",
-      "tool": "工具通道",
-      "coder": "编码通道",
-      "reviewer": "审查通道",
-      "executor": "执行通道",
-      "user": "用户交互通道"
+      "user": "用户交互通道",
+      "agent": "智能体核心",
+      "llm": "LLM 推理",
+      "skills": "技能引擎",
+      "mcp": "MCP 连接器",
+      "sandbox": "沙箱运行时"
     }
   },
   "continualOverlay": {
@@ -18715,6 +18733,8 @@
     "releaseTakeoverBtn": "交回智能体",
     "takeoverBtn": "人工接管",
     "snapshotPreview": "实时快照预览",
-    "emptyState": "暂无快照数据"
+    "emptyState": "暂无快照数据",
+    "badgeIdle": "空闲待命",
+    "takeoverHint": "当前处于人工接管状态，完成后请点击交还智能体继续自动化。"
   }
 }

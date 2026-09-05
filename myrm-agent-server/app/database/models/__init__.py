@@ -78,6 +78,7 @@ from .skill_optimization import (
     SkillQualityHistory,
     SkillVersionModel,
 )
+from .runtime_quota_metric import BrowserRuntimeRecord, SearchQuotaRecord
 from .turn_capability_metric import TurnCapabilityMetricEvent
 from .vault_credential import VaultCredential
 from .web_push_subscription import WebPushSubscription
@@ -198,4 +199,7 @@ __all__ = [
     "ExpertSummonMetricEvent",
     # Wiki Evidence Observability
     "WikiEvidenceMetricEvent",
+    # Runtime Quota & Browser Compute Meter
+    "SearchQuotaRecord",
+    "BrowserRuntimeRecord",
 ]

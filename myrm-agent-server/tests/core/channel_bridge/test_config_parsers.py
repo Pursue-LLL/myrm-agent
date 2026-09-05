@@ -540,3 +540,97 @@ async def test_verify_search_config_live_skips_e2e_probe_key() -> None:
         api_base="",
     )
     assert await verify_search_config_live(cfg) is True
+
+
+class TestBackgroundEvolutionModelExtraction:
+    """Tests for extract_background_evolution_model_configs 3-tier adaptive fallback."""
+
+    def test_extracts_explicit_background_evolution_model(self) -> None:
+        from app.core.channel_bridge.config_parsers import (
+            extract_background_evolution_model_config,
+            extract_background_evolution_model_configs,
+        )
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {
+                    "id": "openai",
+                    "isEnabled": True,
+                    "apiUrl": "https://api.openai.com/v1",
+                    "apiKey": "sk-1",
+                    "enabledModels": ["gpt-4o", "gpt-4o-mini"],
+                },
+                {
+                    "id": "deepseek",
+                    "isEnabled": True,
+                    "apiUrl": "https://api.deepseek.com/v1",
+                    "apiKey": "sk-2",
+                    "enabledModels": ["deepseek-chat"],
+                },
+            ],
+            "defaultModelConfig": {
+                "baseModel": {"primary": {"providerId": "openai", "model": "gpt-4o"}},
+                "liteModel": {"primary": {"providerId": "openai", "model": "gpt-4o-mini"}},
+                "backgroundEvolutionModel": {"primary": {"providerId": "deepseek", "model": "deepseek-chat"}},
+            },
+        }
+
+        configs = extract_background_evolution_model_configs(providers_dict)
+        assert len(configs) >= 1
+        assert configs[0].model == "deepseek/deepseek-chat"
+
+        primary = extract_background_evolution_model_config(providers_dict)
+        assert primary is not None
+        assert primary.model == "deepseek/deepseek-chat"
+
+    def test_falls_back_to_lite_model_when_evolution_model_unset(self) -> None:
+        from app.core.channel_bridge.config_parsers import (
+            extract_background_evolution_model_config,
+        )
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {
+                    "id": "openai",
+                    "isEnabled": True,
+                    "apiUrl": "https://api.openai.com/v1",
+                    "apiKey": "sk-1",
+                    "enabledModels": ["gpt-4o", "gpt-4o-mini"],
+                },
+            ],
+            "defaultModelConfig": {
+                "baseModel": {"primary": {"providerId": "openai", "model": "gpt-4o"}},
+                "liteModel": {"primary": {"providerId": "openai", "model": "gpt-4o-mini"}},
+                "backgroundEvolutionModel": None,
+            },
+        }
+
+        cfg = extract_background_evolution_model_config(providers_dict)
+        assert cfg is not None
+        assert cfg.model == "openai/gpt-4o-mini"
+
+    def test_falls_back_to_base_model_when_both_evolution_and_lite_unset(self) -> None:
+        from app.core.channel_bridge.config_parsers import (
+            extract_background_evolution_model_config,
+        )
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {
+                    "id": "openai",
+                    "isEnabled": True,
+                    "apiUrl": "https://api.openai.com/v1",
+                    "apiKey": "sk-1",
+                    "enabledModels": ["gpt-4o"],
+                },
+            ],
+            "defaultModelConfig": {
+                "baseModel": {"primary": {"providerId": "openai", "model": "gpt-4o"}},
+                "liteModel": None,
+                "backgroundEvolutionModel": None,
+            },
+        }
+
+        cfg = extract_background_evolution_model_config(providers_dict)
+        assert cfg is not None
+        assert cfg.model == "openai/gpt-4o"

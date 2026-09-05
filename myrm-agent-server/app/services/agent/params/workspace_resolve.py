@@ -72,8 +72,10 @@ async def _materialize_agent_template_files(chat_id: str, workspace_dir: str) ->
         engine_params: dict[str, object] | None = None
         if hasattr(profile, "engine_params") and isinstance(profile.engine_params, dict):
             engine_params = profile.engine_params
-        elif isinstance(profile.metadata, dict) and isinstance(profile.metadata.get("engine_params"), dict):
-            engine_params = profile.metadata["engine_params"]
+        elif hasattr(profile, "metadata") and isinstance(profile.metadata, dict):
+            raw_engine = profile.metadata.get("engine_params")
+            if isinstance(raw_engine, dict):
+                engine_params = raw_engine
 
         if not engine_params:
             return

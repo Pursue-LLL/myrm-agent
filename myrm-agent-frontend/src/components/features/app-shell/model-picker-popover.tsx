@@ -314,8 +314,19 @@ export default function ModelPickerPopover({
     const result: { provider: (typeof providers)[0]; models: string[] }[] = [];
     const map: Record<string, (typeof result)[0]> = {};
 
+    const isCostZeroQuery =
+      q === '$0' || q === '0' || q === 'free' || q === 'local' || q === '本地' || q === '免费';
+
     for (const em of enabledModels) {
-      if (q && !em.model.toLowerCase().includes(q) && !em.providerName.toLowerCase().includes(q)) {
+      const cost = costPerMillion[em.model];
+      const matchCostZero = isCostZeroQuery && cost?.isLocalOwned;
+      const matchText =
+        !q ||
+        em.model.toLowerCase().includes(q) ||
+        em.providerName.toLowerCase().includes(q) ||
+        matchCostZero;
+
+      if (!matchText) {
         continue;
       }
       if (!map[em.providerId]) {
@@ -329,7 +340,7 @@ export default function ModelPickerPopover({
       map[em.providerId].models.push(em.model);
     }
     return result;
-  }, [enabledModels, providers, search]);
+  }, [enabledModels, providers, search, costPerMillion]);
 
   const activeSelection =
     activeSlot === 'primary'
@@ -378,10 +389,11 @@ export default function ModelPickerPopover({
         {hasFallbackSupport && (
           <div className="px-2 pt-2 pb-1 border-b border-border">
             <div className="flex gap-1 p-0.5 rounded-lg bg-muted/60">
-              <div
+              <button
+                type="button"
                 onClick={() => setActiveSlot('primary')}
                 className={cn(
-                  'flex-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer select-none',
+                  'flex-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer select-none border-none outline-none',
                   activeSlot === 'primary'
                     ? 'bg-background text-foreground'
                     : 'text-muted-foreground hover:text-foreground',
@@ -396,11 +408,12 @@ export default function ModelPickerPopover({
                     </span>
                   )}
                 </span>
-              </div>
-              <div
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveSlot('fallback')}
                 className={cn(
-                  'flex-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer select-none',
+                  'flex-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer select-none border-none outline-none',
                   activeSlot === 'fallback'
                     ? 'bg-background text-foreground'
                     : 'text-muted-foreground hover:text-foreground',
@@ -413,11 +426,12 @@ export default function ModelPickerPopover({
                     <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground truncate max-w-[80px]">
                       {fallbackSelection.model}
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onClearFallback?.();
                         }}
-                        className="p-0 hover:text-destructive transition-colors"
+                        className="p-0 hover:text-destructive transition-colors border-none bg-transparent"
                       >
                         <X size={8} />
                       </button>
@@ -426,12 +440,13 @@ export default function ModelPickerPopover({
                     <span className="text-[10px] text-muted-foreground/50">{t('notSet')}</span>
                   )}
                 </span>
-              </div>
+              </button>
               {hasSafetyFallbackSupport && (
-                <div
+                <button
+                  type="button"
                   onClick={() => setActiveSlot('safety')}
                   className={cn(
-                    'flex-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer select-none',
+                    'flex-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer select-none border-none outline-none',
                     activeSlot === 'safety'
                       ? 'bg-background text-foreground'
                       : 'text-muted-foreground hover:text-foreground',
@@ -444,11 +459,12 @@ export default function ModelPickerPopover({
                       <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground truncate max-w-[80px]">
                         {safetyFallbackSelection.model}
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             onClearSafetyFallback?.();
                           }}
-                          className="p-0 hover:text-destructive transition-colors"
+                          className="p-0 hover:text-destructive transition-colors border-none bg-transparent"
                         >
                           <X size={8} />
                         </button>
@@ -457,7 +473,7 @@ export default function ModelPickerPopover({
                       <span className="text-[10px] text-muted-foreground/50">{t('notSet')}</span>
                     )}
                   </span>
-                </div>
+                </button>
               )}
             </div>
           </div>

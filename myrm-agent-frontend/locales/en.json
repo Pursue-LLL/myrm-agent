@@ -13558,6 +13558,7 @@
       "removeProvider": "Remove Provider",
       "builtInProvider": "Built-in Provider",
       "customProvider": "Custom Provider",
+      "viewDashboard": "View Dashboard",
       "apiKeys": "API Keys",
       "apiKeyPlaceholder": "Enter API key",
       "remarkPlaceholder": "Remark (optional)",
@@ -13794,7 +13795,9 @@
       "acpTimeoutUnit": "seconds",
       "testConnection": "Test Connection",
       "connectionSuccess": "Connection Successful",
-      "connectionFailed": "Connection Failed"
+      "connectionFailed": "Connection Failed",
+      "vercelGatewaySpendHint": "Track spend, rate limits, and latency on Vercel AI Gateway",
+      "openVercelDashboard": "Open Dashboard"
     },
     "defaultModel": {
       "localModelWarning": "Local lightweight models are highly prone to hallucinate or fall into infinite loops when processing complex Agent toolchains. For long tasks, it's recommended to use 30B+ scale models or cloud-based advanced models (like Claude 3.5 Sonnet).",
@@ -13809,6 +13812,10 @@
       "videoFallbackModel": "Video Fallback Model",
       "videoFallbackModelDescription": "Used when the primary model does not support native video. Prefer video-capable models such as Gemini.",
       "videoFallbackModelFallbackDescription": "Backup video model when the primary video fallback is unavailable.",
+      "backgroundEvolutionModel": "Background Evolution & Maintenance Model",
+      "backgroundEvolutionModelDescription": "Dedicated model for offline background tasks including skill immune self-healing, memory guardian pattern discovery, and behavioral evolution",
+      "backgroundEvolutionModelAdaptiveHint": "3-Tier Adaptive Fallback: If not configured, the engine smoothly falls back to the Lightweight Model (if configured) or the Primary Conversation Model, guaranteeing task durability with controlled background token consumption.",
+      "backgroundEvolutionModelFallbackDescription": "Fallback model automatically engaged when the primary evolution model hits rate limits, timeouts, or provider overload",
       "selectVideoFallbackModel": "Select Video Backup Model",
       "selectVisionFallbackModel": "Select Vision Backup Model",
       "visionHealthTest": "Test vision chain",
@@ -13984,7 +13991,7 @@
       "videoInput": "Video Input",
       "contextWindow": "Context Window",
       "refCost": "Ref. Cost",
-      "localOwnedMarginalCostHint": "Marginal API Cost: $0/M (Locally owned inference · electricity & hardware amortization only)"
+      "localOwnedMarginalCostHint": "Marginal API Cost: $0/M (Local dedicated inference · electricity and hardware depreciation only)"
     },
     "account": {
       "title": "Account",
@@ -16073,17 +16080,18 @@
           "foundSkills": "Found {count} skills",
           "pathCopied": "Path copied to clipboard"
         },
+        "copyPath": "Copy path",
         "discoveredSkillsBadge": "{count} skills",
         "pathNotFoundBadge": "Path Not Found",
         "emptySkillsBadge": "0 skills",
         "error": {
           "invalidPath": "Invalid path format",
           "pathFormat": "Path must be absolute or start with ~",
+          "pathTraversal": "Path traversal with \"..\" is not allowed",
           "addFailed": "Failed to add path",
           "removeFailed": "Failed to remove path",
           "scanFailed": "Scan failed",
-          "previewFailed": "Failed to inspect local path",
-          "pathTraversal": "Path traversal with \"..\" is not allowed"
+          "previewFailed": "Failed to inspect local path"
         },
         "previewDialog": {
           "title": "Preview & Adopt Local Skills",
@@ -16103,8 +16111,7 @@
           "deselectAll": "Deselect All",
           "selectedCount": "Selected {count} skill(s)",
           "tools": "Required Tools"
-        },
-        "copyPath": "Copy path"
+        }
       },
       "instances": {
         "title": "Instance Manager",
@@ -18681,40 +18688,53 @@
     }
   },
   "executionPhaseStepper": {
-    "badge": "Protected",
-    "waitingApproval": "Awaiting Approval",
+    "badge": "Completed",
+    "waitingApproval": "Waiting Approval",
     "collapseTelemetry": "Collapse Telemetry",
     "expandTelemetry": "Expand Telemetry",
     "currentNode": "Node #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "Planning"
+      },
+      "executing": {
+        "title": "Executing"
+      },
+      "verifying": {
+        "title": "Verifying"
+      }
+    },
     "lanes": {
-      "planner": "Planner Lane",
-      "tool": "Tool Lane",
-      "coder": "Coder Lane",
-      "reviewer": "Reviewer Lane",
-      "executor": "Executor Lane",
-      "user": "User Lane"
+      "agent": "Agent",
+      "user": "User",
+      "llm": "LLM",
+      "mcp": "MCP",
+      "skills": "Skills",
+      "sandbox": "Sandbox"
     }
   },
   "continualOverlay": {
-    "activeTitle": "Self-Healing Active",
-    "remainingTurns": "{count} turns remaining",
-    "rollbackTooltip": "Rollback to pre-trigger state",
+    "activeTitle": "Active Overlay",
+    "remainingTurns": "{count, plural, =1 {1 turn left} other {# turns left}}",
+    "rollbackTooltip": "Rollback this session overlay",
     "rollback": "Rollback",
     "collapse": "Collapse",
     "expand": "Expand",
-    "howItWorks": "How Self-Healing Works",
-    "howItWorksDesc": "When execution or environmental anomalies are detected, the system injects a self-healing overlay and continuously monitors subsequent turns until stability is restored.",
+    "howItWorks": "How It Works",
+    "howItWorksDesc": "Overlays provide zero-reset fault recovery, active for a set turn budget and smoothly retiring afterwards.",
     "allActiveOverlays": "All Active Overlays ({count})"
   },
   "taskSpaces": {
-    "title": "Task Browser Spaces",
-    "badgeTakeover": "User Takeover",
+    "title": "Parallel Browser Spaces",
     "badgeRunning": "Running",
-    "closeSpaceBtn": "Close Task Space",
-    "activePages": "{count} active pages",
+    "badgeIdle": "Idle",
+    "badgeTakeover": "Human Takeover",
+    "takeoverBtn": "Takeover",
     "releaseTakeoverBtn": "Release to Agent",
-    "takeoverBtn": "Take Over",
-    "snapshotPreview": "Live Snapshot Preview",
-    "emptyState": "No snapshot available"
+    "closeSpaceBtn": "Close Space",
+    "activePages": "{count} active tabs",
+    "emptyState": "No active parallel browser spaces",
+    "snapshotPreview": "Live Space Snapshot",
+    "takeoverHint": "You have full control of this workspace. Click release when done."
   }
 }

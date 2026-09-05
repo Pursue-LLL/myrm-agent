@@ -14,7 +14,16 @@ if (typeof document === 'undefined') {
   // @ts-expect-error polyfill for non-browser testing
   globalThis.window = dom.window;
   globalThis.document = dom.window.document;
-  globalThis.navigator = dom.window.navigator;
+  try {
+    // @ts-expect-error polyfill for non-browser testing
+    globalThis.navigator = dom.window.navigator;
+  } catch {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: dom.window.navigator,
+      configurable: true,
+      writable: true,
+    });
+  }
 }
 
 import { cleanup } from '@testing-library/react';

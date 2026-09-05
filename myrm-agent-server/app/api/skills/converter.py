@@ -1,11 +1,13 @@
 """Conversion helpers between Skill models and API schemas.
 
 [INPUT]
-- Skill: Core business skill model
+- app.core.skills.models::Skill (POS: 统一业务层技能数据模型)
 
 [OUTPUT]
-- SkillResponse: API schema for single skill details
-- SecurityScanSummaryResponse: Security audit summary schema
+- skill_to_response: 将核心 Skill 实体精确适配转换为 API SkillResponse 强类型响应模型
+
+[POS]
+技能模型转换适配器。解耦业务模型与 HTTP 传输模式，负责安全审计摘要、演进指标与使用统计的规整映射。
 """
 
 from __future__ import annotations
@@ -116,10 +118,6 @@ def skill_to_response(skill: Skill) -> SkillResponse:
         user_trusted=skill.user_trusted,
         evolution_locked=evolution_locked,
         scope_agent_id=skill.scope_agent_id,
-        scope_chat_id=skill.scope_chat_id,
-        subagent_allowed=skill.subagent_allowed,
-        blocked=skill.blocked,
-        pending_approval=skill.pending_approval,
         required_permissions=skill.required_permissions,
         config_schema=skill.config_schema,
         has_upstream_update=skill.has_upstream_update,

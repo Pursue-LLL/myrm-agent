@@ -57,7 +57,7 @@ class TestBuildPlatformLLM:
     async def test_returns_chat_model_when_configured(self, monkeypatch: pytest.MonkeyPatch) -> None:
         mock_llm = MagicMock()
         monkeypatch.setattr(
-            "app.services.agent.platform_config.load_platform_llm",
+            "app.services.agent.platform_config.load_platform_evolution_llm",
             AsyncMock(return_value=mock_llm),
         )
 
@@ -68,7 +68,7 @@ class TestBuildPlatformLLM:
     @pytest.mark.asyncio
     async def test_returns_none_when_model_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
-            "app.services.agent.platform_config.load_platform_llm",
+            "app.services.agent.platform_config.load_platform_evolution_llm",
             AsyncMock(side_effect=RuntimeError("no model configured")),
         )
 
@@ -79,7 +79,7 @@ class TestBuildPlatformLLM:
     @pytest.mark.asyncio
     async def test_returns_none_when_api_key_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
-            "app.services.agent.platform_config.load_platform_llm",
+            "app.services.agent.platform_config.load_platform_evolution_llm",
             AsyncMock(side_effect=RuntimeError("missing api key")),
         )
 
@@ -89,11 +89,11 @@ class TestBuildPlatformLLM:
 
     @pytest.mark.asyncio
     async def test_returns_none_when_config_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        async def _raise() -> MagicMock:
+        async def _raise(**kwargs: object) -> MagicMock:
             raise RuntimeError("config incomplete")
 
         monkeypatch.setattr(
-            "app.services.agent.platform_config.load_platform_llm",
+            "app.services.agent.platform_config.load_platform_evolution_llm",
             _raise,
         )
 

@@ -43,6 +43,7 @@ _TEST_FIXTURE_EXACT_PATHS: frozenset[str] = frozenset(
 _NAMESPACE_WRITE_BOOTSTRAP_PATHS: frozenset[str] = frozenset(
     {
         "/api/v1/config/onboarding/complete",
+        "/api/v1/agents/test-media-config",
     }
 )
 

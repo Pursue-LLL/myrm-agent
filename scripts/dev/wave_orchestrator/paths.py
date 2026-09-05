@@ -41,7 +41,7 @@ def _wave_is_open(state_dir: Path) -> bool:
 
 def _real_user_home() -> Path:
     home = os.environ.get("HOME", "").strip()
-    if home and "/.cursor2" not in home:
+    if home and "/.cursor2" not in home and "/.cursor-3" not in home:
         return Path(home).expanduser().resolve()
     try:
         import pwd
@@ -86,7 +86,7 @@ def _is_cursor2_shadow(path: Path) -> bool:
     keep participating in the open-wave scan (R287). Everything else that was
     explicitly set (isolated runtime state dirs, real-home shared dir) is SSOT.
     """
-    return any(part.lower() == "cursor2" for part in path.parts)
+    return any(part.lower() in ("cursor2", ".cursor2", ".cursor-3", "cursor-3") for part in path.parts)
 
 
 def resolve_wave_paths() -> WavePaths:

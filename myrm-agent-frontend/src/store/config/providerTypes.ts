@@ -74,7 +74,7 @@ export function resolveCustomProviderTypeInfo(providerType?: string): CustomProv
 /** Known LiteLLM route segments (longest first; generated list plus custom compat prefixes). */
 const KNOWN_LITELLM_ROUTE_PREFIXES: readonly string[] = (() => {
   const litellmPrefixesFromCustom = Object.values(CUSTOM_PROVIDER_TYPE_INFO).map((t) => t.litellmPrefix);
-  return [...new Set([..._GENERATED_LITELLM_ROUTE_PREFIXES, ...litellmPrefixesFromCustom])].sort(
+  return [...new Set([..._GENERATED_LITELLM_ROUTE_PREFIXES, ...litellmPrefixesFromCustom, 'vercel_ai_gateway'])].sort(
     (a, b) => b.length - a.length,
   );
 })();
@@ -108,6 +108,7 @@ export const BUILT_IN_PROVIDERS = [
   'nvidia',
   'ai302',
   'opencode_go',
+  'vercel_ai_gateway',
 ] as const;
 
 export type BuiltInProviderId = (typeof BUILT_IN_PROVIDERS)[number];
@@ -126,6 +127,7 @@ export interface ProviderInfo {
   isBuiltIn: boolean;
   defaultApiUrl?: string;
   alternativeApiUrls?: AlternativeApiUrl[]; // 可选的备选地址列表
+  dashboardUrl?: string; // 官方控制台/仪表盘直达深链
 }
 
 // 内置提供商配置
@@ -319,6 +321,13 @@ export const BUILT_IN_PROVIDER_INFO: Record<BuiltInProviderId, ProviderInfo> = {
     isBuiltIn: true,
     defaultApiUrl: 'https://opencode.ai/zen/go/v1',
   },
+  vercel_ai_gateway: {
+    id: 'vercel_ai_gateway',
+    name: 'Vercel AI Gateway',
+    isBuiltIn: true,
+    defaultApiUrl: 'https://ai-gateway.vercel.sh/v1',
+    dashboardUrl: 'https://vercel.com/dashboard/ai-gateway',
+  },
 };
 
 // 获取 LiteLLM 模型全名
@@ -328,6 +337,13 @@ export const getLiteLLMModelName = (
   providerType?: CustomProviderType,
 ): string => {
   const normalizedModelName = modelName.toLowerCase();
+  if (providerId === 'vercel_ai_gateway') {
+    if (normalizedModelName.startsWith('openai/')) {
+      return modelName;
+    }
+    return `openai/${modelName}`;
+  }
+
   for (const routePrefix of KNOWN_LITELLM_ROUTE_PREFIXES) {
     if (normalizedModelName.startsWith(`${routePrefix}/`)) {
       return modelName;
@@ -564,6 +580,7 @@ export interface DefaultModelConfig {
   videoFallbackModel?: ModelSlot | null;
   codeModel?: ModelSlot | null;
   longDocModel?: ModelSlot | null;
+  backgroundEvolutionModel?: ModelSlot | null;
 }
 
 // 初始化默认提供商配置
@@ -602,6 +619,7 @@ export const getInitialDefaultModelConfig = (): DefaultModelConfig => ({
   videoFallbackModel: null,
   codeModel: null,
   longDocModel: null,
+  backgroundEvolutionModel: null,
 });
 
 /**

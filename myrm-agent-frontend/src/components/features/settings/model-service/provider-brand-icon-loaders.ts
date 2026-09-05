@@ -39,6 +39,7 @@ export const BUILT_IN_PROVIDER_SVG_SLUGS: Record<BuiltInProviderId, string> = {
   nvidia: 'nvidia-color',
   ai302: 'ai302-color',
   opencode_go: 'opencode',
+  vercel_ai_gateway: 'vercel',
 };
 
 /**
@@ -73,6 +74,7 @@ export const BUILT_IN_PROVIDER_ICON_LOADERS: Record<BuiltInProviderId, ProviderB
   nvidia: () => import('@lobehub/icons-static-svg/icons/nvidia-color.svg'),
   ai302: () => import('@lobehub/icons-static-svg/icons/ai302-color.svg'),
   opencode_go: () => import('@lobehub/icons-static-svg/icons/opencode.svg'),
+  vercel_ai_gateway: () => import('@lobehub/icons-static-svg/icons/vercel.svg'),
 };
 
 const iconUrlCache = new Map<BuiltInProviderId, string>();

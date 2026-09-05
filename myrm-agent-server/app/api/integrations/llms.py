@@ -224,6 +224,10 @@ async def discover_models(request: ModelDiscoveryRequest) -> JSONResponse:
     }
     if not use_no_auth_local:
         headers["Authorization"] = f"Bearer {api_key}"
+    if parsed.hostname and "ai-gateway.vercel.sh" in parsed.hostname.lower():
+        headers["HTTP-Referer"] = "https://myrm.ai"
+        headers["X-Title"] = "Myrm Agent"
+        headers["User-Agent"] = "Myrm/1.0 (Vercel-AI-Gateway-Client)"
 
     candidates = _build_models_candidates(normalized_api_url)
     last_error: str | None = None
@@ -419,7 +423,7 @@ async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
 
 
 def _try_get_model_info_exact(model: str) -> dict[str, object] | None:
-    """尝试精确获取模型信息（只尝试原始名称，不做前缀转换）
+    """尝试获取模型信息（优先精确匹配，未命中则剥离网关复合前缀回退查询）
 
     Args:
         model: 模型名称
@@ -429,13 +433,31 @@ def _try_get_model_info_exact(model: str) -> dict[str, object] | None:
     """
     import litellm
 
-    model = model.lower()
+    model_clean = model.lower()
 
     try:
-        info = litellm.get_model_info(model)
-        return dict(info) if info else None
+        info = litellm.get_model_info(model_clean)
+        if info:
+            return dict(info)
     except Exception:
-        return None
+        pass
+
+    if "/" in model_clean:
+        candidates: list[str] = []
+        parts = model_clean.split("/")
+        if len(parts) > 2:
+            candidates.append("/".join(parts[1:]))
+        candidates.append(parts[-1])
+
+        for cand in candidates:
+            try:
+                info = litellm.get_model_info(cand)
+                if info:
+                    return dict(info)
+            except Exception:
+                continue
+
+    return None
 
 
 class ModelCapabilities(BaseModel):

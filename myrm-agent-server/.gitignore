@@ -77,6 +77,8 @@ tests/ui/screenshots/
 # SQLite runtime artifacts
 *.db-shm
 *.db-wal
+*.sqlite
+.*.sqlite
 
 .kiro/
 

@@ -77,7 +77,11 @@
     ".next-isolated-chrome-test_architecture_diagram_artifact_chrom-07cb6f1e-68208-40f9e135/types/**/*.ts",
     ".next-isolated-chrome-test_architecture_diagram_artifact_chrom-07cb6f1e-68208-40f9e135/dev/types/**/*.ts",
     ".next-isolated-chrome-test_architecture_diagram_artifact_chrom-07cb6f1e-69448-7608a72e/types/**/*.ts",
-    ".next-isolated-chrome-test_architecture_diagram_artifact_chrom-07cb6f1e-69448-7608a72e/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_architecture_diagram_artifact_chrom-07cb6f1e-69448-7608a72e/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_chrome_ui_local_skill_paths_preview-3fb3b6c0-12652-1b186fa1/types/**/*.ts",
+    ".next-isolated-chrome-test_chrome_ui_local_skill_paths_preview-3fb3b6c0-12652-1b186fa1/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_chrome_ui_local_skill_paths_preview-3fb3b6c0-64707-acf51414/types/**/*.ts",
+    ".next-isolated-chrome-test_chrome_ui_local_skill_paths_preview-3fb3b6c0-64707-acf51414/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

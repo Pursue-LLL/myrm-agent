@@ -13531,6 +13531,7 @@
       "removeProvider": "Anbieter entfernen",
       "builtInProvider": "Integrierter Anbieter",
       "customProvider": "Benutzerdefinierter Anbieter",
+      "viewDashboard": "Dashboard anzeigen",
       "apiKeys": "API-Schlüssel",
       "apiKeyPlaceholder": "API-Schlüssel eingeben",
       "remarkPlaceholder": "Bemerkung (optional)",
@@ -13794,7 +13795,10 @@
       "poolStatsTitle": "Schlüsselpool-Laufzeitstatus",
       "poolStatsTooltip": "Laufzeit-Aufrufmetriken, 429-Ratenbegrenzungsfehler und Abkühlstatus anzeigen",
       "poolCalls": "{count} Aufrufe",
-      "poolRateLimits": "{count} Ratenbegrenzungen"
+      "poolRateLimits": "{count} Ratenbegrenzungen",
+      "vercelGatewaySpendHint": "Kosten, Ratenbegrenzungen und Latenz im Vercel AI Gateway Dashboard nachverfolgen",
+      "openVercelDashboard": "Dashboard öffnen",
+      "viewDashboard": "Dashboard anzeigen"
     },
     "defaultModel": {
       "localModelWarning": "Lokale Leichtgewichtsmodelle neigen stark zu Halluzinationen oder Endlosschleifen bei komplexen Agent-Workflows. Für lange Aufgaben werden Modelle ab 30B oder Cloud-basierte fortschrittliche Modelle (wie Claude 3.5 Sonnet) empfohlen.",
@@ -13974,7 +13978,11 @@
       },
       "preflightCompress": "Wird ggf. komprimiert",
       "preflightCompressDetail": "Beim Wechsel wird der Kontext bei der nächsten Nachricht ggf. komprimiert (Schwellenwert: {threshold} Tokens)",
-      "modelRestricted": "Durch Organisationsrichtlinie eingeschränkt"
+      "modelRestricted": "Durch Organisationsrichtlinie eingeschränkt",
+      "backgroundEvolutionModel": "Hintergrund-Evolutions- & Wartungsmodell",
+      "backgroundEvolutionModelDescription": "Dediziertes Modell für Offline-Hintergrundaufgaben wie Skill-Immun-Selbstheilung, Memory-Guardian-Mustererkennung und Verhaltensentwicklung",
+      "backgroundEvolutionModelAdaptiveHint": "3-stufiges adaptives Fallback: Falls nicht konfiguriert, weicht die Engine nahtlos auf das Lightweight-Modell (sofern vorhanden) oder das Hauptkonversationsmodell aus, um die Aufgabenbeständigkeit bei kontrolliertem Hintergrund-Token-Verbrauch zu gewährleisten.",
+      "backgroundEvolutionModelFallbackDescription": "Fallback-Modell, das automatisch aktiviert wird, wenn das primäre Evolutionsmodell Ratenbegrenzungen, Timeouts oder Provider-Überlastungen erreicht"
     },
     "modelCapabilities": {
       "vision": "Bildverständnis",
@@ -13984,7 +13992,7 @@
       "videoInput": "Videoeingabe",
       "contextWindow": "Kontextfenster",
       "refCost": "Ref.-Kosten",
-      "localOwnedMarginalCostHint": "Marginale API-Kosten: $0/M (Lokal eigene Inferenz · nur Strom & Hardware-Abschreibung)"
+      "localOwnedMarginalCostHint": "Marginale API-Kosten: $0/M (Lokal dedizierte Inferenz · nur Strom & Hardware-Abschreibung)"
     },
     "account": {
       "title": "Konto",
@@ -18680,41 +18688,54 @@
       "deleteFailedTitle": "Löschen des Snapshots fehlgeschlagen"
     }
   },
+  "continualOverlay": {
+    "activeTitle": "Aktives Overlay",
+    "remainingTurns": "{count, plural, =1 {1 Runde verbleibend} other {# Runden verbleibend}}",
+    "rollbackTooltip": "Dieses Sitzungs-Overlay zurücksetzen",
+    "rollback": "Zurücksetzen",
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "howItWorks": "Funktionsweise",
+    "howItWorksDesc": "Overlays bieten eine unterbrechungsfreie Fehlerbehebung, sind für ein festgelegtes Rundenbudget aktiv und werden danach nahtlos deaktiviert.",
+    "allActiveOverlays": "Alle aktiven Overlays ({count})"
+  },
   "executionPhaseStepper": {
-    "badge": "Geschützt",
+    "badge": "Abgeschlossen",
     "waitingApproval": "Wartet auf Genehmigung",
     "collapseTelemetry": "Telemetrie einklappen",
     "expandTelemetry": "Telemetrie ausklappen",
     "currentNode": "Knoten #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "Planung"
+      },
+      "executing": {
+        "title": "Ausführung"
+      },
+      "verifying": {
+        "title": "Verifizierung"
+      }
+    },
     "lanes": {
-      "planner": "Planer-Spur",
-      "tool": "Werkzeug-Spur",
-      "coder": "Entwickler-Spur",
-      "reviewer": "Prüfer-Spur",
-      "executor": "Ausführer-Spur",
-      "user": "Benutzer-Spur"
+      "agent": "Agenten-Kern",
+      "user": "Benutzer",
+      "llm": "LLM",
+      "mcp": "MCP",
+      "skills": "Fähigkeiten",
+      "sandbox": "Sicherheits-Sandbox"
     }
   },
-  "continualOverlay": {
-    "activeTitle": "Selbstheilung aktiv",
-    "remainingTurns": "{count} Runden verbleibend",
-    "rollbackTooltip": "Auf Zustand vor Auslösung zurücksetzen",
-    "rollback": "Zurücksetzen",
-    "collapse": "Einklappen",
-    "expand": "Ausklappen",
-    "howItWorks": "Funktionsweise der Selbstheilung",
-    "howItWorksDesc": "Wenn Ausführungsanomalien erkannt werden, injiziert das System ein Selbstheilungs-Overlay und überwacht nachfolgende Runden.",
-    "allActiveOverlays": "Alle aktiven Overlays ({count})"
-  },
   "taskSpaces": {
-    "title": "Aufgaben-Browserbereiche",
-    "badgeTakeover": "Benutzerübernahme",
-    "badgeRunning": "Wird ausgeführt",
-    "closeSpaceBtn": "Bereich schließen",
-    "activePages": "{count} aktive Seiten",
-    "releaseTakeoverBtn": "An Agent übergeben",
+    "title": "Parallele Browser-Arbeitsbereiche",
+    "badgeRunning": "Aktiv",
+    "badgeIdle": "Bereit",
+    "badgeTakeover": "Manuelle Übernahme",
     "takeoverBtn": "Übernehmen",
-    "snapshotPreview": "Live-Vorschau",
-    "emptyState": "Keine Vorschau verfügbar"
+    "releaseTakeoverBtn": "An Agent übergeben",
+    "closeSpaceBtn": "Bereich schließen",
+    "activePages": "{count} aktive Tabs",
+    "emptyState": "Keine aktiven parallelen Browser-Bereiche",
+    "snapshotPreview": "Live-Bereichs-Snapshot",
+    "takeoverHint": "Sie haben die manuelle Kontrolle. Nach Abschluss an den Agenten übergeben."
   }
 }

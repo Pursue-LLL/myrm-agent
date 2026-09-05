@@ -27,6 +27,7 @@ _PROVIDER_DISPLAY_NAMES: dict[str, str] = {
     "xai": "xAI",
     "mistral": "Mistral",
     "deepseek": "DeepSeek",
+    "vercel_ai_gateway": "Vercel AI Gateway",
 }
 
 _ENV_TO_PROVIDER_ID: dict[str, str] = {
@@ -39,6 +40,9 @@ _ENV_TO_PROVIDER_ID: dict[str, str] = {
     "XAI_API_KEY": "xai",
     "MISTRAL_API_KEY": "mistral",
     "DEEPSEEK_API_KEY": "deepseek",
+    "AI_GATEWAY_API_KEY": "vercel_ai_gateway",
+    "VERCEL_AI_GATEWAY_KEY": "vercel_ai_gateway",
+    "VERCEL_API_KEY": "vercel_ai_gateway",
 }
 
 
@@ -63,10 +67,10 @@ def _read_env_secrets(env_path: Path) -> dict[str, str]:
 
 def _minimal_provider_stub(provider_id: str, secret_value: str) -> dict[str, object]:
     display = _PROVIDER_DISPLAY_NAMES.get(provider_id, provider_id)
-    return {
+    stub: dict[str, object] = {
         "id": provider_id,
         "name": display,
-        "routingProfile": provider_id,
+        "routingProfile": "openai" if provider_id == "vercel_ai_gateway" else provider_id,
         "isEnabled": True,
         "apiKeys": [
             {
@@ -77,6 +81,9 @@ def _minimal_provider_stub(provider_id: str, secret_value: str) -> dict[str, obj
             }
         ],
     }
+    if provider_id == "vercel_ai_gateway":
+        stub["apiUrl"] = "https://ai-gateway.vercel.sh/v1"
+    return stub
 
 
 def _seed_provider_stubs(

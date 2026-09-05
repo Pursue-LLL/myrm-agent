@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 
 describe('AboutSection & Dual-Layer Version Diagnostics', () => {
   it('should format diagnostic report with both Shell and Engine versions', () => {

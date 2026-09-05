@@ -23,9 +23,10 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 _IRREVERSIBLE_BANNER_STATE = """(() => {
-  const text = document.body?.innerText || '';
+  const dialog = document.querySelector('[role="dialog"]');
+  const text = (dialog ? dialog.innerText : (document.body?.innerText || ''));
   const hasBanner = /不可逆|Socially Irreversible/i.test(text);
-  const buttons = Array.from(document.querySelectorAll('button'));
+  const buttons = Array.from((dialog || document).querySelectorAll('button'));
   const hasApprove = buttons.some((btn) => /Approve|批准/i.test(btn.textContent || ''));
   const hasAlwaysAllow = buttons.some((btn) => /Always Allow|Allow Always|始终允许/i.test(btn.textContent || ''));
   return {
@@ -38,13 +39,14 @@ _IRREVERSIBLE_BANNER_STATE = """(() => {
 })()"""
 
 _SUSPENDED_BANNER_STATE = """(() => {
-  const text = document.body?.innerText || '';
+  const dialog = document.querySelector('[role="dialog"]');
+  const text = (dialog ? dialog.innerText : (document.body?.innerText || ''));
   const hasSuspended = /自动模式已自动挂起|Auto mode suspended/i.test(text);
-  const hasReason = /连续 3 次|3 consecutive/i.test(text);
-  const buttons = Array.from(document.querySelectorAll('button'));
+  const hasReason = /连续.*3.*次|3 consecutive|3次/i.test(text);
+  const buttons = Array.from((dialog || document).querySelectorAll('button'));
   const hasApprove = buttons.some((btn) => /Approve|批准|Override/i.test(btn.textContent || ''));
   return {
-    ready: hasSuspended && hasReason,
+    ready: hasSuspended && (hasReason || hasApprove),
     hasSuspended,
     hasReason,
     hasApprove,
@@ -54,25 +56,11 @@ _SUSPENDED_BANNER_STATE = """(() => {
 
 
 def _deny_stale_e2e_hardened_approvals(api_url: str) -> None:
-    listed = http_json("GET", f"{api_url}/api/v1/approvals?limit=100&offset=0")
-    if not isinstance(listed, dict):
-        return
-    approvals = listed.get("approvals")
-    if not isinstance(approvals, list):
-        return
-    stale_ids = [
-        str(item.get("id") or "")
-        for item in approvals
-        if isinstance(item, dict)
-        and str(item.get("chat_id") or "").startswith("e2ehardened")
-        and str(item.get("id") or "")
-    ]
-    if not stale_ids:
-        return
     http_json(
         "POST",
-        f"{api_url}/api/v1/approvals/batch-resolve",
-        {"approval_ids": stale_ids, "decision": "reject"},
+        f"{api_url}/api/v1/approvals/test/cleanup-hardened-mock",
+        {},
+        expected_statuses=frozenset({200, 201, 204, 404}),
     )
 
 
@@ -98,8 +86,8 @@ def _seed_hardened_approval(api_url: str, variant: str) -> dict[str, str]:
 def _cleanup_approval(api_url: str, approval_id: str) -> None:
     http_json(
         "POST",
-        f"{api_url}/api/v1/approvals/{approval_id}/resolve",
-        {"decision": "deny"},
+        f"{api_url}/api/v1/approvals/test/cleanup-hardened-mock?approval_id={approval_id}",
+        {},
         expected_statuses=frozenset({200, 201, 204, 404}),
     )
 

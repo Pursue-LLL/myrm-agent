@@ -101,7 +101,9 @@ class SkillsService:
         if len(name) > 64:
             raise ValueError("Skill name cannot exceed 64 characters")
         if not SKILL_NAME_PATTERN.match(name):
-            raise ValueError("Skill name must start with a letter and contain only alphanumeric, _, -")
+            raise ValueError(
+                "Skill name must start with a letter and contain only alphanumeric, _, -"
+            )
 
     async def _create_prebuilt_skill(
         self,
@@ -183,12 +185,19 @@ class SkillsService:
         if skill:
             # Merge runtime is_active status from SQLite
             try:
-                from app.core.skills.store.evolution_store import get_evolution_skill_store
+                from app.core.skills.store.evolution_store import (
+                    get_evolution_skill_store,
+                )
+
                 db_record = get_evolution_skill_store().get_skill(skill.id)
                 if db_record is not None:
                     skill.is_active = db_record.is_active
             except Exception as e:
-                logger.error("Failed to merge is_active status from SQLite for %s: %s", skill.id, e)
+                logger.error(
+                    "Failed to merge is_active status from SQLite for %s: %s",
+                    skill.id,
+                    e,
+                )
 
         return skill
 
@@ -227,6 +236,7 @@ class SkillsService:
         # Merge runtime is_active status from SQLite
         try:
             from app.core.skills.store.evolution_store import get_evolution_skill_store
+
             store = get_evolution_skill_store()
             for skill in skills:
                 db_record = store.get_skill(skill.id)

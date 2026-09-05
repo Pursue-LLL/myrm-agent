@@ -26,7 +26,7 @@ _VERIFY_MEDIA_SECTION_JS = """(() => {
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="READ",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
     private_reason="exclusive_backend",
 )

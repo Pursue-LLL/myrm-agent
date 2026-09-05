@@ -93,6 +93,8 @@ interface ProviderState {
   setCodeModelFallback: (selection: SingleModelSelection | null) => void;
   setLongDocModel: (selection: SingleModelSelection | null) => void;
   setLongDocModelFallback: (selection: SingleModelSelection | null) => void;
+  setBackgroundEvolutionModel: (selection: SingleModelSelection | null) => void;
+  setBackgroundEvolutionModelFallback: (selection: SingleModelSelection | null) => void;
 
   // 自定义模型信息操作
   getModelInfo: (providerId: string, model: string) => CustomModelInfo | undefined;
@@ -749,6 +751,42 @@ const useProviderStore = create<ProviderState>((set, get) => ({
     const config: DefaultModelConfig = {
       ...current,
       longDocModel:
+        selection || existing?.primary
+          ? {
+              primary: existing?.primary ?? null,
+              fallback: selection,
+            }
+          : null,
+    };
+    const { providers, customModelInfo } = get();
+    syncToManager(providers, config, customModelInfo);
+    set({ defaultModelConfig: config });
+  },
+
+  setBackgroundEvolutionModel: (selection) => {
+    const current = get().defaultModelConfig;
+    const config: DefaultModelConfig = {
+      ...current,
+      backgroundEvolutionModel: selection
+        ? {
+            primary: selection,
+            fallback: current.backgroundEvolutionModel?.fallback ?? null,
+          }
+        : current.backgroundEvolutionModel?.fallback
+          ? { primary: null, fallback: current.backgroundEvolutionModel.fallback }
+          : null,
+    };
+    const { providers, customModelInfo } = get();
+    syncToManager(providers, config, customModelInfo);
+    set({ defaultModelConfig: config });
+  },
+
+  setBackgroundEvolutionModelFallback: (selection) => {
+    const current = get().defaultModelConfig;
+    const existing = current.backgroundEvolutionModel;
+    const config: DefaultModelConfig = {
+      ...current,
+      backgroundEvolutionModel:
         selection || existing?.primary
           ? {
               primary: existing?.primary ?? null,

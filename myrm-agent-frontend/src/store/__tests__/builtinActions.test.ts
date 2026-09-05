@@ -4,8 +4,8 @@ import { buildBuiltinActions } from '@/store/builtinActions';
 describe('buildBuiltinActions', () => {
   const actions = buildBuiltinActions();
 
-  it('returns 15 builtin actions', () => {
-    expect(actions).toHaveLength(15);
+  it('returns 16 builtin actions', () => {
+    expect(actions).toHaveLength(16);
   });
 
   it('all actions have required fields', () => {
@@ -98,6 +98,7 @@ describe('buildBuiltinActions', () => {
         'pet',
         'memo',
         'review-week',
+        'design-image',
       ]),
     );
   });

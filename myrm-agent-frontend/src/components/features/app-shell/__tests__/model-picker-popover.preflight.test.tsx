@@ -478,5 +478,68 @@ describe('ModelPickerPopover local-owned marginal cost badge', () => {
 
     expect(screen.getByText('$2.5/M')).toBeInTheDocument();
   });
+
+  it('filters local owned models when searching for $0 or 本地', async () => {
+    providers.mockReturnValue([
+      {
+        id: 'ollama',
+        name: 'My Computer',
+        isEnabled: true,
+        enabledModels: ['llama3'],
+        providerType: 'ollama',
+      },
+      {
+        id: 'openai',
+        name: 'OpenAI Cloud',
+        isEnabled: true,
+        enabledModels: ['gpt-4o'],
+        providerType: 'openai',
+      },
+    ]);
+    getEnabledModels.mockReturnValue([
+      { providerId: 'ollama', providerName: 'My Computer', model: 'llama3' },
+      { providerId: 'openai', providerName: 'OpenAI Cloud', model: 'gpt-4o' },
+    ]);
+    customModelInfo.mockReturnValue({});
+
+    mocks.fetchModelCapabilitiesBatch.mockResolvedValue({
+      'ollama/llama3': {
+        ...caps,
+        input_cost_per_token: null,
+        output_cost_per_token: null,
+      },
+      'gpt-4o': {
+        ...caps,
+        input_cost_per_token: 0.000005,
+        output_cost_per_token: 0.000015,
+      },
+    });
+
+    render(
+      <ModelPickerPopover
+        currentSelection={{ providerId: 'ollama', model: 'llama3' }}
+        onSelect={vi.fn()}
+        trigger={<button type="button">open</button>}
+      />,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText('llama3')).toBeInTheDocument();
+    expect(screen.getByText('gpt-4o')).toBeInTheDocument();
+
+    const searchInput = screen.getByPlaceholderText('searchModels');
+    fireEvent.change(searchInput, { target: { value: '$0' } });
+
+    expect(screen.getByText('llama3')).toBeInTheDocument();
+    expect(screen.queryByText('gpt-4o')).not.toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: '本地' } });
+    expect(screen.getByText('llama3')).toBeInTheDocument();
+    expect(screen.queryByText('gpt-4o')).not.toBeInTheDocument();
+  });
 });
 

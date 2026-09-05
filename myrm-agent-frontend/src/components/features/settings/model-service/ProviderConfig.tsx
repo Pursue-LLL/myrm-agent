@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2, CheckCircle2, XCircle, Activity } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Activity, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   ProviderConfig as ProviderConfigType,
@@ -310,6 +310,18 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
               {providerTypeInfo.name}
             </span>
           )}
+          {BUILT_IN_PROVIDER_INFO[provider.id as keyof typeof BUILT_IN_PROVIDER_INFO]?.dashboardUrl && (
+            <a
+              href={BUILT_IN_PROVIDER_INFO[provider.id as keyof typeof BUILT_IN_PROVIDER_INFO].dashboardUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full border border-border/60 bg-muted/40 text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all"
+              title={t('viewDashboard')}
+            >
+              <span>{t('viewDashboard')}</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
         </div>
         <div className="flex items-center gap-4">
           <button
@@ -426,6 +438,24 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
 
       {provider.id === 'opencode_go' && providerHasEnabledContributorModel(provider.id, provider.enabledModels) && (
         <OpenCodeContributorNotice variant="provider" />
+      )}
+
+      {provider.id === 'vercel_ai_gateway' && (
+        <div className="flex items-center justify-between p-3.5 bg-background/50 rounded-xl border border-border/50 text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Activity className="w-4 h-4 text-emerald-500" />
+            <span>{t('vercelGatewaySpendHint')}</span>
+          </div>
+          <a
+            href="https://vercel.com/dashboard/ai-gateway"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-accent-warm hover:underline"
+          >
+            <span>{t('openVercelDashboard')}</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
       )}
 
       {/* 模型管理 */}

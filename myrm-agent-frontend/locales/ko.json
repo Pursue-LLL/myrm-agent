@@ -13531,6 +13531,7 @@
       "removeProvider": "제공자 제거",
       "builtInProvider": "내장 제공자",
       "customProvider": "사용자 정의 제공자",
+      "viewDashboard": "대시보드 보기",
       "apiKeys": "API 키",
       "apiKeyPlaceholder": "API 키 입력",
       "remarkPlaceholder": "비고 (선택)",
@@ -13794,7 +13795,10 @@
         "agenticTooltip": "도구 호출 및 장기 기억을 위한 64K 컨텍스트 Modelfile 자동 파생",
         "keepAliveTipTitle": "24/7 상주 및 GPU 메모리 해제 가이드",
         "keepAliveTipDesc": "백그라운드 봇의 경우 상주를 유지하고, 대규모 훈련이나 렌더링 시에는 언로드하여 VRAM을 해제하세요."
-      }
+      },
+      "vercelGatewaySpendHint": "Vercel AI Gateway 대시보드에서 비용, 속도 제한 및 지연 시간을 모니터링",
+      "openVercelDashboard": "대시보드 열기",
+      "viewDashboard": "대시보드 보기"
     },
     "defaultModel": {
       "localModelWarning": "로컬 경량 모델은 복잡한 에이전트 도구 체인을 처리할 때 환각이나 무한 루프에 빠지기 쉽습니다. 긴 작업에는 30B+ 규모 모델이나 클라우드 고급 모델(예: Claude 3.5 Sonnet)을 권장합니다.",
@@ -13974,7 +13978,11 @@
       },
       "preflightCompress": "압축될 수 있음",
       "preflightCompressDetail": "지금 전환하면 다음 메시지에서 컨텍스트가 압축될 수 있습니다(임계값: {threshold} tokens)",
-      "modelRestricted": "조직 정책에 의해 제한됨"
+      "modelRestricted": "조직 정책에 의해 제한됨",
+      "backgroundEvolutionModel": "백그라운드 진화 및 유지보수 모델",
+      "backgroundEvolutionModelDescription": "스킬 면역 자가 치유, 메모리 가디언 패턴 발견 및 행동 진화와 같은 오프라인 백그라운드 작업을 위한 전용 모델",
+      "backgroundEvolutionModelAdaptiveHint": "3단계 적응형 폴백: 구성되지 않은 경우 엔진은 경량 모델(구성된 경우) 또는 기본 대화 모델로 원활하게 폴백하여 백그라운드 토큰 소비를 제어하면서 작업 내구성을 보장합니다.",
+      "backgroundEvolutionModelFallbackDescription": "기본 진화 모델이 요청 한도 초과, 타임아웃 또는 공급자 과부하에 도달했을 때 자동으로 작동하는 예비 모델"
     },
     "modelCapabilities": {
       "vision": "비전",
@@ -13984,7 +13992,7 @@
       "videoInput": "비디오 입력",
       "contextWindow": "컨텍스트 윈도우",
       "refCost": "참고 비용",
-      "localOwnedMarginalCostHint": "한계 API 비용: $0/M (로컬 자체 추론 · 전력 및 하드웨어 감가상각만)"
+      "localOwnedMarginalCostHint": "한계 API 비용: $0/M (로컬 전용 추론 · 전력 및 하드웨어 감가상각만)"
     },
     "account": {
       "title": "계정",
@@ -18680,41 +18688,54 @@
       "deleteFailedTitle": "스냅샷 삭제 실패"
     }
   },
+  "continualOverlay": {
+    "activeTitle": "활성 오버레이",
+    "remainingTurns": "{count, plural, =1 {1턴 남음} other {#턴 남음}}",
+    "rollbackTooltip": "이 세션 오버레이 롤백",
+    "rollback": "롤백",
+    "collapse": "접기",
+    "expand": "펼치기",
+    "howItWorks": "작동 원리",
+    "howItWorksDesc": "오버레이는 제로 리셋 장애 복구를 제공하며 지정된 턴 예산 내에서 자동으로 적용되고 만료 후 정상적으로 종료됩니다.",
+    "allActiveOverlays": "모든 활성 오버레이 ({count})"
+  },
   "executionPhaseStepper": {
-    "badge": "보호됨",
+    "badge": "완료됨",
     "waitingApproval": "승인 대기 중",
     "collapseTelemetry": "원격 측정 접기",
     "expandTelemetry": "원격 측정 펼치기",
     "currentNode": "노드 #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "계획 수립"
+      },
+      "executing": {
+        "title": "도구 실행"
+      },
+      "verifying": {
+        "title": "결과 검증"
+      }
+    },
     "lanes": {
-      "planner": "플래너 레인",
-      "tool": "도구 레인",
-      "coder": "코더 레인",
-      "reviewer": "리뷰어 레인",
-      "executor": "실행 레인",
-      "user": "사용자 레인"
+      "agent": "에이전트 코어",
+      "user": "사용자",
+      "llm": "LLM",
+      "mcp": "MCP",
+      "skills": "스킬",
+      "sandbox": "샌드박스"
     }
   },
-  "continualOverlay": {
-    "activeTitle": "자가 치유 활성",
-    "remainingTurns": "{count}턴 남음",
-    "rollbackTooltip": "트리거 전 상태로 롤백",
-    "rollback": "롤백",
-    "collapse": "접기",
-    "expand": "펼치기",
-    "howItWorks": "자가 치유 작동 원리",
-    "howItWorksDesc": "실행 이상이 감지되면 시스템이 자가 치유 오버레이를 주입하고 안정될 때까지 모니터링합니다.",
-    "allActiveOverlays": "모든 활성 오버레이 ({count})"
-  },
   "taskSpaces": {
-    "title": "작업 브라우저 공간",
-    "badgeTakeover": "수동 개입 중",
+    "title": "병렬 브라우저 작업 공간",
     "badgeRunning": "실행 중",
-    "closeSpaceBtn": "작업 공간 닫기",
-    "activePages": "활성 페이지 {count}개",
-    "releaseTakeoverBtn": "에이전트에 반환",
-    "takeoverBtn": "수동 조작",
-    "snapshotPreview": "실시간 스냅샷 미리보기",
-    "emptyState": "사용 가능한 스냅샷 없음"
+    "badgeIdle": "대기 중",
+    "badgeTakeover": "수동 개입 중",
+    "takeoverBtn": "개입하기",
+    "releaseTakeoverBtn": "에이전트 반환",
+    "closeSpaceBtn": "공간 닫기",
+    "activePages": "활성 탭 {count}개",
+    "emptyState": "활성 병렬 브라우저 공간이 없습니다",
+    "snapshotPreview": "실시간 공간 스냅샷",
+    "takeoverHint": "현재 수동 개입 상태입니다. 완료 후 에이전트에 반환하세요."
   }
 }

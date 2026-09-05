@@ -98,6 +98,8 @@ const DefaultModelSection = memo(() => {
       setCodeModelFallback: state.setCodeModelFallback,
       setLongDocModel: state.setLongDocModel,
       setLongDocModelFallback: state.setLongDocModelFallback,
+      setBackgroundEvolutionModel: state.setBackgroundEvolutionModel,
+      setBackgroundEvolutionModelFallback: state.setBackgroundEvolutionModelFallback,
       getEnabledModels: state.getEnabledModels,
       getModelInfo: state.getModelInfo,
     })),
@@ -289,6 +291,12 @@ const DefaultModelSection = memo(() => {
     if (!isSelectionValid(defaultModelConfig.longDocModel?.fallback ?? null)) {
       setLongDocModelFallback(null);
     }
+    if (!isSelectionValid(defaultModelConfig.backgroundEvolutionModel?.primary ?? null)) {
+      setBackgroundEvolutionModel(null);
+    }
+    if (!isSelectionValid(defaultModelConfig.backgroundEvolutionModel?.fallback ?? null)) {
+      setBackgroundEvolutionModelFallback(null);
+    }
 
     hasCleanedModelsRef.current = true;
   }, [
@@ -311,6 +319,8 @@ const DefaultModelSection = memo(() => {
     setCodeModelFallback,
     setLongDocModel,
     setLongDocModelFallback,
+    setBackgroundEvolutionModel,
+    setBackgroundEvolutionModelFallback,
   ]);
 
   const handleBaseModelChange = useCallback(
@@ -460,6 +470,20 @@ const DefaultModelSection = memo(() => {
       setLongDocModelFallback(selection);
     },
     [setLongDocModelFallback],
+  );
+
+  const handleBackgroundEvolutionModelChange = useCallback(
+    (selection: SingleModelSelection | null) => {
+      setBackgroundEvolutionModel(selection);
+    },
+    [setBackgroundEvolutionModel],
+  );
+
+  const handleBackgroundEvolutionModelFallbackChange = useCallback(
+    (selection: SingleModelSelection | null) => {
+      setBackgroundEvolutionModelFallback(selection);
+    },
+    [setBackgroundEvolutionModelFallback],
   );
 
   // Model info dialog state
@@ -930,6 +954,89 @@ const DefaultModelSection = memo(() => {
                     openModelConfig(
                       defaultModelConfig.liteModel.fallback!.providerId,
                       defaultModelConfig.liteModel.fallback!.model,
+                    )
+                  }
+                  className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
+                  title={t('configureModel')}
+                >
+                  <IconSliders className="w-4 h-4 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* 后台自进化与维护模型配置 */}
+      <SettingsSection
+        title={
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-indigo-500/10">
+              <IconSparkles className="w-5 h-5 text-indigo-500" />
+            </div>
+            <span>{t('backgroundEvolutionModel')}</span>
+          </div>
+        }
+        description={t('backgroundEvolutionModelDescription')}
+      >
+        <div className="space-y-6">
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <EnabledModelSelect
+                label={t('selectModel')}
+                value={defaultModelConfig.backgroundEvolutionModel?.primary ?? null}
+                onChange={handleBackgroundEvolutionModelChange}
+                enabledModels={enabledModels}
+                providers={providers}
+                isModelRestricted={isModelRestricted}
+              />
+            </div>
+            {defaultModelConfig.backgroundEvolutionModel?.primary && (
+              <button
+                type="button"
+                onClick={() =>
+                  openModelConfig(
+                    defaultModelConfig.backgroundEvolutionModel!.primary!.providerId,
+                    defaultModelConfig.backgroundEvolutionModel!.primary!.model,
+                  )
+                }
+                className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"
+                title={t('configureModel')}
+              >
+                <IconSliders className="w-4 h-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+
+          <div className="p-4 rounded-lg bg-indigo-500/5 border border-indigo-500/20 text-xs text-muted-foreground leading-relaxed">
+            {t('backgroundEvolutionModelAdaptiveHint')}
+          </div>
+
+          {/* Fallback Model */}
+          <div className="p-5 bg-background/50 rounded-xl border border-border/50">
+            <div className="flex items-center gap-2 mb-3">
+              <IconShield className="w-4 h-4 text-sky-500" />
+              <span className="text-sm font-medium text-foreground">{t('fallbackModel')}</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">{t('fallbackModelDescription')}</p>
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <EnabledModelSelect
+                  label={t('selectFallbackModel')}
+                  value={defaultModelConfig.backgroundEvolutionModel?.fallback ?? null}
+                  onChange={handleBackgroundEvolutionModelFallbackChange}
+                  enabledModels={enabledModels}
+                  providers={providers}
+                  isModelRestricted={isModelRestricted}
+                />
+              </div>
+              {defaultModelConfig.backgroundEvolutionModel?.fallback && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    openModelConfig(
+                      defaultModelConfig.backgroundEvolutionModel!.fallback!.providerId,
+                      defaultModelConfig.backgroundEvolutionModel!.fallback!.model,
                     )
                   }
                   className="flex items-center justify-center w-10 h-10 rounded-lg border border-border bg-secondary/50 hover:bg-accent transition-colors flex-shrink-0"

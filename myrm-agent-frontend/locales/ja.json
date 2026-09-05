@@ -13558,6 +13558,7 @@
       "removeProvider": "プロバイダーを削除",
       "builtInProvider": "組み込みプロバイダー",
       "customProvider": "カスタムプロバイダー",
+      "viewDashboard": "ダッシュボードを表示",
       "apiKeys": "APIキー",
       "apiKeyPlaceholder": "APIキーを入力",
       "remarkPlaceholder": "備考（任意）",
@@ -13794,7 +13795,10 @@
       "acpTimeoutUnit": "秒",
       "testConnection": "テスト接続",
       "connectionSuccess": "接続しました",
-      "connectionFailed": "接続失敗"
+      "connectionFailed": "接続失敗",
+      "vercelGatewaySpendHint": "Vercel AI Gateway ダッシュボードでコスト、レート制限、レイテンシを確認",
+      "openVercelDashboard": "ダッシュボードを開く",
+      "viewDashboard": "ダッシュボードを表示"
     },
     "defaultModel": {
       "localModelWarning": "ローカルの軽量モデルは、複雑な Agent ツールチェーンを処理する際に幻覚や無限ループを起こしやすいです。長時間タスクには 30B 以上のモデルか、クラウドの高度なモデル（Claude 3.5 Sonnet など）の使用を推奨します。",
@@ -13974,7 +13978,11 @@
       },
       "preflightCompress": "圧縮される可能性があります",
       "preflightCompressDetail": "今切り替えると、次のメッセージでコンテキストが圧縮される可能性があります（しきい値: {threshold} トークン）",
-      "modelRestricted": "組織ポリシーにより制限されています"
+      "modelRestricted": "組織ポリシーにより制限されています",
+      "backgroundEvolutionModel": "バックグラウンド進化・保守モデル",
+      "backgroundEvolutionModelDescription": "スキルの免疫自己修復、メモリ守護のパターン検出、行動進化などのオフラインバックグラウンドタスク専用モデル",
+      "backgroundEvolutionModelAdaptiveHint": "3段階アダプティブフォールバック：未設定の場合、軽量モデル（設定されている場合）またはメイン会話モデルにスムーズにフォールバックし、バックグラウンドのトークン消費を抑えつつタスクの持続性を確保します。",
+      "backgroundEvolutionModelFallbackDescription": "メイン進化モデルがレート制限、タイムアウト、プロバイダー過負荷に達した際に自動的に適用されるバックアップモデル"
     },
     "modelCapabilities": {
       "vision": "視覚",
@@ -18680,41 +18688,54 @@
       "deleteFailedTitle": "スナップショットの削除に失敗しました"
     }
   },
-  "executionPhaseStepper": {
-    "badge": "保護済み",
-    "waitingApproval": "承認待ち",
-    "collapseTelemetry": "テレメトリを閉じる",
-    "expandTelemetry": "テレメトリを展開",
-    "currentNode": "ノード #{nodeId}",
-    "lanes": {
-      "planner": "プランナーレーン",
-      "tool": "ツールレーン",
-      "coder": "コーダーレーン",
-      "reviewer": "レビューレーン",
-      "executor": "エグゼキュータレーン",
-      "user": "ユーザーレーン"
-    }
-  },
   "continualOverlay": {
-    "activeTitle": "自己修復アクティブ",
-    "remainingTurns": "残り {count} ターン",
-    "rollbackTooltip": "トリガー前の状態にロールバック",
+    "activeTitle": "アクティブなオーバーレイ",
+    "remainingTurns": "{count, plural, =1 {残り 1 ターン} other {残り # ターン}}",
+    "rollbackTooltip": "このセッションオーバーレイをロールバック",
     "rollback": "ロールバック",
     "collapse": "折りたたむ",
     "expand": "展開",
-    "howItWorks": "自己修復の仕組み",
-    "howItWorksDesc": "異常が検出されると、システムは自動的に自己修復レイヤーを注入し、安定するまで後続のターンを監視します。",
-    "allActiveOverlays": "すべてのアクティブなオーバーレイ ({count})"
+    "howItWorks": "仕組み",
+    "howItWorksDesc": "オーバーレイはゼロリセットの障害回復を提供し、指定されたターン予算内で自動的に有効になり、期限切れ後はスムーズに終了します。",
+    "allActiveOverlays": "すべてのアクティブオーバーレイ ({count})"
+  },
+  "executionPhaseStepper": {
+    "badge": "完了",
+    "waitingApproval": "承認待ち",
+    "collapseTelemetry": "テレメトリを折りたたむ",
+    "expandTelemetry": "テレメトリを展開",
+    "currentNode": "ノード #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "計画"
+      },
+      "executing": {
+        "title": "実行"
+      },
+      "verifying": {
+        "title": "検証"
+      }
+    },
+    "lanes": {
+      "agent": "エージェントコア",
+      "user": "ユーザー",
+      "llm": "LLM",
+      "mcp": "MCP",
+      "skills": "スキル",
+      "sandbox": "サンドボックス"
+    }
   },
   "taskSpaces": {
-    "title": "タスクブラウザスペース",
-    "badgeTakeover": "手動引き継ぎ中",
+    "title": "並列ブラウザタスク空間",
     "badgeRunning": "実行中",
-    "closeSpaceBtn": "タスクスペースを閉じる",
-    "activePages": "{count} 個のアクティブページ",
-    "releaseTakeoverBtn": "エージェントに戻す",
-    "takeoverBtn": "手動操作",
-    "snapshotPreview": "ライブスナップショット",
-    "emptyState": "スナップショットがありません"
+    "badgeIdle": "待機中",
+    "badgeTakeover": "手動介入中",
+    "takeoverBtn": "引き継ぐ",
+    "releaseTakeoverBtn": "AIに返却",
+    "closeSpaceBtn": "空間を閉じる",
+    "activePages": "{count} 個のアクティブタブ",
+    "emptyState": "アクティブな並列ブラウザ空間はありません",
+    "snapshotPreview": "リアルタイム空間スナップショット",
+    "takeoverHint": "現在手動介入モードです。完了したらAIに返却してください。"
   }
 }

@@ -59,7 +59,7 @@ import SkillBatchImportDialog from '@/components/features/skills/SkillBatchImpor
 import PluginImportDialog from '@/components/features/plugins/PluginImportDialog';
 import PluginManagerDialog from '@/components/features/plugins/PluginManagerDialog';
 import { getSkillStatus } from '@/components/features/skills/SkillCard';
-import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
+import { isLocalMode, isLoopbackDevHost, isSandbox } from '@/lib/deploy-mode';
 import SettingsSection from '../SettingsSection';
 
 type TabValue = 'discover' | 'installed' | 'permissions';
@@ -540,7 +540,7 @@ const SkillsSection = memo(() => {
   }, [user?.id, blockedSkill, t]);
 
   const isLoggedIn = isMounted && !!user;
-  const isLocal = isMounted && isLocalMode();
+  const isLocal = isMounted && (isLocalMode() || isLoopbackDevHost());
   const isSandboxMode = isMounted && isSandbox();
   const isLoading = isLoadingMarket || isLoadingLocal || isLoadingConfig;
   const enabledCount = enabledPrebuiltIds.length + enabledLocalSkillIds.length;

@@ -37,6 +37,13 @@ describe('providerTypes defaults', () => {
   it('prefers an already-qualified LiteLLM model id over a mismatched providerId', () => {
     expect(getLiteLLMModelName('openai', 'xiaomi_mimo/mimo-v2-flash')).toBe('xiaomi_mimo/mimo-v2-flash');
   });
+
+  it('correctly configures and routes Vercel AI Gateway without vendor prefix hijacking', () => {
+    expect(BUILT_IN_PROVIDER_INFO.vercel_ai_gateway.defaultApiUrl).toBe('https://ai-gateway.vercel.sh/v1');
+    expect(getLiteLLMModelName('vercel_ai_gateway', 'anthropic/claude-3-5-sonnet')).toBe('openai/anthropic/claude-3-5-sonnet');
+    expect(getLiteLLMModelName('vercel_ai_gateway', 'openai/gpt-4o')).toBe('openai/gpt-4o');
+    expect(getLiteLLMModelName('vercel_ai_gateway', 'meta-llama/llama-3.3-70b')).toBe('openai/meta-llama/llama-3.3-70b');
+  });
 });
 
 describe('resolveCustomProviderTypeInfo', () => {

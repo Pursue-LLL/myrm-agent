@@ -732,7 +732,10 @@ async def disconnect_provider_oauth(
 
     deleted = await delete_oauth_credential(db, issuer)
     if not deleted:
-        raise HTTPException(status_code=404, detail=f"Provider '{provider}' is not connected via OAuth")
+        raise HTTPException(
+            status_code=404,
+            detail={"code": 40401, "message": f"Provider '{provider}' is not connected via OAuth"},
+        )
 
     logger.info("Provider OAuth disconnected: %s", provider)
     return success_response(data={"provider": provider, "connected": False})

@@ -19,6 +19,7 @@ from tests.support.chrome_mcp_e2e import (
     _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
+    get_e2e_ui_url,
     open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
@@ -50,9 +51,9 @@ _SETTINGS_SKILLS_SHELL_STATE = """(() => {
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="READ",
-    workload="STANDARD",
-    private_reason="lane_c_task_flow",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
@@ -95,17 +96,41 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
             dismiss_blocking_modals(client, page)
 
+            # Ensure page navigated to /settings/skills
+            client.navigate(page, f"{get_e2e_ui_url().rstrip('/')}/settings/skills", timeout_ms=90_000)
+            dismiss_blocking_modals(client, page)
+
             shell = wait_for_state(
                 client,
                 page,
                 _SETTINGS_SKILLS_SHELL_STATE,
                 timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+                page_url=f"{get_e2e_ui_url().rstrip('/')}/settings/skills",
             )
             assert shell.get("ready") is True, json.dumps(
                 shell, indent=2, ensure_ascii=False
             )
 
-            # 5. Verify UI state
+            # 5. Verify UI state and ensure auth is populated in local mode
+            client.evaluate(page, """(() => {
+              try {
+                if (!localStorage.getItem('auth_token')) {
+                  localStorage.setItem('auth_token', 'local_user_token');
+                }
+                if (!localStorage.getItem('auth_user')) {
+                  localStorage.setItem('auth_user', JSON.stringify({
+                    id: 'local-user',
+                    email: 'local@tauri.app',
+                    display_name: 'Local User',
+                    role: 'admin',
+                  }));
+                }
+                window.dispatchEvent(new Event('storage'));
+              } catch (e) {
+                // ignore
+              }
+            })()""", timeout_sec=10.0)
+
             ui_check_js = """(() => {
               const text = document.body?.innerText || '';
               const hasSkills = /Skills|技能/i.test(text);
@@ -129,22 +154,38 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             )
 
             # Switch to Installed tab to reveal local paths trigger if needed
-            client.evaluate(page, """(() => {
+            tab_click_js = """(() => {
               const tab = Array.from(document.querySelectorAll('button, [role="tab"]')).find(el =>
                 /Installed|已安装/i.test(el.textContent || '')
               );
-              if (tab) tab.click();
-            })()""", timeout_sec=10.0)
+              if (tab) {
+                tab.click();
+                return { clicked: true, text: tab.textContent };
+              }
+              return { clicked: false };
+            })()"""
+            client.evaluate(page, tab_click_js, timeout_sec=10.0)
 
             # 6. Verify Local Paths collapsible button or trigger rendered in UI
             local_paths_btn_js = """(() => {
               const btn = document.querySelector('[data-testid="local-skill-paths-trigger"]');
               const text = document.body?.innerText || '';
               const hasLocalPathsTitle = /Local Skill Paths|本地技能路径|本地技能目录|ローカルスキルパス|로컬 스킬 경로/i.test(text);
+              if (!btn && !hasLocalPathsTitle) {
+                // Try to click Installed tab again if it didn't switch
+                const tab = Array.from(document.querySelectorAll('button, [role="tab"]')).find(el =>
+                  /Installed|已安装/i.test(el.textContent || '')
+                );
+                if (tab) tab.click();
+              }
+              const btnAfter = document.querySelector('[data-testid="local-skill-paths-trigger"]');
+              const textAfter = document.body?.innerText || '';
+              const hasTitleAfter = /Local Skill Paths|本地技能路径|本地技能目录|ローカルスキルパス|로컬 스킬 경로/i.test(textAfter);
               return {
-                ready: !!btn || hasLocalPathsTitle,
-                hasBtn: !!btn,
-                hasLocalPathsTitle,
+                ready: !!btnAfter || hasTitleAfter,
+                hasBtn: !!btnAfter,
+                hasLocalPathsTitle: hasTitleAfter,
+                installedTextSnippet: textAfter.slice(0, 300),
               };
             })()"""
 

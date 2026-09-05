@@ -326,3 +326,25 @@ class TestMigrateHermesAuxiliaryModels:
         )
         assert result.migrated_slots == {}
         assert result.total_tasks_detected == 0
+
+    @pytest.mark.asyncio()
+    async def test_hermes_ai_gateway_migrates_to_openai_prefix(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        _mock_local(monkeypatch)
+        captured = _mock_config(monkeypatch)
+
+        result = await migrate_hermes_auxiliary_models(
+            {
+                "auxiliary": {
+                    "compression": {
+                        "provider": "ai-gateway",
+                        "model": "anthropic/claude-3-5-sonnet",
+                    },
+                },
+            }
+        )
+        assert "liteModel" in result.migrated_slots
+        written = captured["value"]["defaultModelConfig"]["liteModel"]
+        assert written == {"model": "openai/anthropic/claude-3-5-sonnet"}

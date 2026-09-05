@@ -58,3 +58,22 @@ def test_enrich_applies_provider_id_gate() -> None:
     assert isinstance(extra_body, dict)
     assert extra_body.get("include") == ["reasoning.encrypted_content"]
     assert extra_body.get("reasoning") == {"effort": "low"}
+
+
+def test_enrich_applies_vercel_ai_gateway_defaults() -> None:
+    cfg = enrich_model_config(
+        ModelConfig(
+            model="openai/anthropic/claude-3-5-sonnet",
+            api_key="vca_secret",
+            base_url="https://ai-gateway.vercel.sh/v1",
+        ),
+        provider_id="vercel_ai_gateway",
+    )
+    assert cfg.wire_protocol == "chat_completions"
+    assert cfg.model_kwargs.get("custom_llm_provider") == "openai"
+    headers = cfg.model_kwargs.get("extra_headers")
+    assert isinstance(headers, dict)
+    assert headers.get("HTTP-Referer") == "https://myrm.ai"
+    assert headers.get("X-Title") == "Myrm Agent"
+    assert "Vercel-AI-Gateway-Client" in headers.get("User-Agent", "")
+

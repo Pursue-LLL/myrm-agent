@@ -36,7 +36,10 @@ async def create_guardian_memory_manager() -> MemoryManager:
         create_memory_manager,
         resolve_context_binding,
     )
-    from app.services.agent.platform_config import require_platform_embedding_config
+    from app.services.agent.platform_config import (
+        load_platform_evolution_llm,
+        require_platform_embedding_config,
+    )
 
     binding = resolve_context_binding(
         namespaces=None,
@@ -46,10 +49,18 @@ async def create_guardian_memory_manager() -> MemoryManager:
         task_id=None,
     )
     embedding_cfg = await require_platform_embedding_config()
+
+    consolidation_llm = None
+    try:
+        consolidation_llm = await load_platform_evolution_llm()
+    except Exception as exc:
+        logger.debug("Memory guardian: evolution LLM not available for consolidation: %s", exc)
+
     return await create_memory_manager(
         binding,
         embedding_cfg,
         approval_required=False,
+        consolidation_llm=consolidation_llm,
     )
 
 
@@ -219,12 +230,12 @@ async def harvest_session_blind_spots(
         return 0
 
     try:
-        from app.services.agent.platform_config import load_platform_llm
+        from app.services.agent.platform_config import load_platform_evolution_llm
 
-        llm = await load_platform_llm(streaming=False, temperature=0.0)
+        llm = await load_platform_evolution_llm(streaming=False, temperature=0.0)
     except Exception as exc:
         logger.info(
-            "Memory guardian: platform LLM not configured for blind spot harvesting: %s",
+            "Memory guardian: evolution LLM not configured for blind spot harvesting: %s",
             exc,
         )
         return 0

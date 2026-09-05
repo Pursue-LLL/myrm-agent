@@ -96,6 +96,11 @@ export function migrateDefaultModelConfig(config: DefaultModelConfig): DefaultMo
     routingConfig: migrateRouting(config.routingConfig),
     visionFallbackModel: migrateVisionFallbackModel(config.visionFallbackModel),
     videoFallbackModel: migrateVisionFallbackModel(config.videoFallbackModel),
+    codeModel: config.codeModel ? migrateModelSlot(config.codeModel) : null,
+    longDocModel: config.longDocModel ? migrateModelSlot(config.longDocModel) : null,
+    backgroundEvolutionModel: config.backgroundEvolutionModel
+      ? migrateModelSlot(config.backgroundEvolutionModel)
+      : null,
   };
 }
 

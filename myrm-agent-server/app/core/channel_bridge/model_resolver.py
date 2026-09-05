@@ -70,6 +70,30 @@ def _build_platform_headers(api_key: str) -> dict[str, object] | None:
     return {"extra_headers": {"X-Sandbox-Id": sandbox_id, "X-Telemetry-Token": token}}
 
 
+def _build_transport_headers(
+    api_key: str,
+    provider_id: str = "",
+    api_url: str | None = None,
+) -> dict[str, object] | None:
+    """Build transport header overrides including platform relay and gateway attribution."""
+    headers: dict[str, str] = {}
+    platform_override = _build_platform_headers(api_key)
+    if platform_override and isinstance(platform_override.get("extra_headers"), dict):
+        for k, v in platform_override["extra_headers"].items():
+            if isinstance(v, str):
+                headers[k] = v
+
+    is_vercel_gateway = (
+        provider_id == "vercel_ai_gateway"
+        or (api_url is not None and "ai-gateway.vercel.sh" in api_url.lower())
+    )
+    if is_vercel_gateway:
+        headers.setdefault("HTTP-Referer", "https://myrm.ai")
+        headers.setdefault("X-Title", "Myrm Agent")
+
+    return {"extra_headers": headers} if headers else None
+
+
 def resolve_model_config(
     providers_dict: dict[str, object] | None,
     model_override: str | None = None,
@@ -232,7 +256,7 @@ def _fallback_model_from_providers(
                     api_url = str(oauth_base) if oauth_base else str(provider.get("apiUrl") or provider.get("baseURL") or "")
                     api_url = api_url if api_url else None
                     pool_strategy = str(provider.get("credentialPoolStrategy", "")) or None
-                    model_kwargs = _build_platform_headers(all_keys[0])
+                    model_kwargs = _build_transport_headers(all_keys[0], pid, api_url)
                     logger.debug("model_resolver: using default model %s", full_model)
                     return enrich_model_config(
                         ModelConfig(
@@ -291,8 +315,13 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
             continue
 
         enabled_models: list[str] = p.get("enabledModels", [])  # type: ignore[assignment]
-        if enabled_models and raw_model not in enabled_models:
-            continue
+        if enabled_models:
+            matched = (
+                raw_model in enabled_models
+                or (pid == "vercel_ai_gateway" and raw_model.removeprefix("vercel_ai_gateway/") in {m.removeprefix("vercel_ai_gateway/") for m in enabled_models})
+            )
+            if not matched:
+                continue
 
         all_keys = _extract_all_active_keys(p)
         if not all_keys:
@@ -303,7 +332,7 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
         api_url = api_url if api_url else None
         pool_strategy = str(p.get("credentialPoolStrategy", "")) or None
         resolved_model = _to_litellm_model(pid, raw_model, ptype or None)
-        model_kwargs = _build_platform_headers(all_keys[0])
+        model_kwargs = _build_transport_headers(all_keys[0], pid, api_url)
         return enrich_model_config(
             ModelConfig(
                 model=resolved_model,
@@ -398,6 +427,11 @@ def _is_loopback_api_url(api_url: str) -> bool:
 
 def _to_litellm_model(provider: str, model: str, provider_type: str | None = None) -> str:
     """Convert provider + model to LiteLLM format (wrapper for framework-level converter)."""
+    if provider == "vercel_ai_gateway":
+        clean_model = model.removeprefix("vercel_ai_gateway/")
+        if clean_model.startswith("openai/"):
+            return clean_model
+        return f"openai/{clean_model}"
     return str(to_litellm_model(provider, model, provider_type))
 
 

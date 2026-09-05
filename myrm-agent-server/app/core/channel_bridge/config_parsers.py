@@ -305,7 +305,7 @@ def _build_enriched_model_config(
     model: str,
     provider: dict[str, object],
     providers_dict: dict[str, object] | None,
-    selection_supports_vision: bool = False,
+    selection_supports_vision: bool | None = None,
     infer_video: bool = False,
 ) -> "ModelConfig | None":
     """Build ModelConfig with wire enrich + capabilities + context window."""
@@ -763,6 +763,42 @@ def extract_fallback_model_configs(
     return base_fallback, lite_fallback
 
 
+def _resolve_slot_primary_config(
+    slot: object,
+    providers_dict: dict[str, object] | None,
+) -> "ModelConfig | None":
+    """Resolve the primary selection in a ModelSlot to ModelConfig."""
+    if not isinstance(slot, dict) or not providers_dict:
+        return None
+
+    selection = slot.get("primary") or slot.get("selection")
+    if not isinstance(selection, dict):
+        return None
+
+    provider_id = str(selection.get("providerId", ""))
+    model = str(selection.get("model", ""))
+    if not provider_id or not model:
+        return None
+
+    providers = providers_dict.get("providers")
+    if not isinstance(providers, list):
+        return None
+
+    provider = next(
+        (p for p in providers if isinstance(p, dict) and p.get("id") == provider_id and p.get("isEnabled")),
+        None,
+    )
+    if not provider:
+        return None
+
+    return _build_enriched_model_config(
+        provider_id=provider_id,
+        model=model,
+        provider=provider,
+        providers_dict=providers_dict,
+    )
+
+
 def extract_background_evolution_model_configs(
     providers_dict: dict[str, object] | None,
 ) -> list["ModelConfig"]:
@@ -782,9 +818,18 @@ def extract_background_evolution_model_configs(
     for slot_key in ("backgroundEvolutionModel", "liteModel", "baseModel"):
         slot = default_model_cfg.get(slot_key)
         if isinstance(slot, dict):
-            cfgs = extract_slot_fallback_chain(slot, providers_dict)
-            if cfgs:
-                return cfgs
+            configs: list[ModelConfig] = []
+            seen: set[tuple[str, str | None]] = set()
+
+            primary = _resolve_slot_primary_config(slot, providers_dict)
+            _append_unique_model_config(configs, seen, primary)
+
+            fallbacks = extract_slot_fallback_chain(slot, providers_dict)
+            for fb in fallbacks:
+                _append_unique_model_config(configs, seen, fb)
+
+            if configs:
+                return configs
 
     return []
 

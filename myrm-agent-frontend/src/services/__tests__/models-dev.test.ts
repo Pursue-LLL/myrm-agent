@@ -62,6 +62,7 @@ describe('getProviderIdFromUrl', () => {
     expect(getProviderIdFromUrl('https://api.openai.com/v1')).toBe('openai');
     expect(getProviderIdFromUrl('https://api.deepseek.com')).toBe('deepseek');
     expect(getProviderIdFromUrl('https://dashscope.aliyuncs.com/compatible-mode/v1')).toBe('alibaba-cn');
+    expect(getProviderIdFromUrl('https://ai-gateway.vercel.sh/v1')).toBe('vercel');
   });
 
   it('should match coding.dashscope precisely', () => {

@@ -512,3 +512,30 @@ async def seed_test_hardened_mock_approval(
         "push_url": push_url,
         "ui_url": push_url,
     }
+
+
+@router.post("/test/cleanup-hardened-mock", include_in_schema=False)
+async def cleanup_test_hardened_mock_approval(
+    approval_id: str | None = None,
+) -> dict[str, object]:
+    """Local dev/test only: clean up e2ehardened mock approvals under READ access scope."""
+    from app.config.deploy_mode import is_local_mode
+
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    cleaned_ids: list[str] = []
+    if approval_id:
+        record = await ApprovalRegistry.get_approval(approval_id)
+        if record and (str(record.chat_id or "").startswith("e2ehardened") or record.agent_id == "e2e-hardened-automode"):
+            await ApprovalRegistry.resolve_approval(approval_id, "reject")
+            cleaned_ids.append(approval_id)
+    else:
+        approvals = await ApprovalRegistry.list_approvals(limit=100)
+        for item in approvals:
+            if str(item.chat_id or "").startswith("e2ehardened") or item.agent_id == "e2e-hardened-automode":
+                await ApprovalRegistry.resolve_approval(item.id, "reject")
+                cleaned_ids.append(item.id)
+
+    return {"ok": True, "cleaned_count": len(cleaned_ids), "cleaned_ids": cleaned_ids}
+

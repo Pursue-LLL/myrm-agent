@@ -122,7 +122,9 @@ async def test_full_lifecycle_local_skill_preview_and_adopt(
         preview_data_2 = resp_preview_2.json()
         assert preview_data_2["total_discovered"] == 1
         assert preview_data_2["skills"][0]["is_conflicted"] is True
-        assert "Conflicts with existing local skill" in str(preview_data_2["skills"][0]["conflict_reason"])
+        assert "Conflicts with existing local skill" in str(
+            preview_data_2["skills"][0]["conflict_reason"]
+        )
 
         # 6. Verify path statuses inspection endpoint reports exact status
         resp_paths = client.get("/api/v1/skills/local/paths")
@@ -130,7 +132,11 @@ async def test_full_lifecycle_local_skill_preview_and_adopt(
         paths_data = resp_paths.json()
         assert "path_statuses" in paths_data
         matched_status = next(
-            (s for s in paths_data["path_statuses"] if s["path"] == str(clean_skill_workspace)),
+            (
+                s
+                for s in paths_data["path_statuses"]
+                if s["path"] == str(clean_skill_workspace)
+            ),
             None,
         )
         assert matched_status is not None
@@ -141,7 +147,9 @@ async def test_full_lifecycle_local_skill_preview_and_adopt(
 
         # 7. Real execution test: download/sync skill to workspace and execute task
         agent_workspace = tmp_path / "agent_run_workspace"
-        target_skills_dir = agent_workspace / ".myrm" / "skills" / "custom-math-calculator"
+        target_skills_dir = (
+            agent_workspace / ".myrm" / "skills" / "custom-math-calculator"
+        )
         target_skills_dir.mkdir(parents=True)
         from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 

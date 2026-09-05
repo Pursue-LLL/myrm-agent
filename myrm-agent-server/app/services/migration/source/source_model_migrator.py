@@ -49,6 +49,10 @@ _PROVIDER_LITELLM_PREFIX: dict[str, str] = {
     "mistral": "mistral",
     "deepseek": "deepseek",
     "nous": "openrouter",
+    "vercel_ai_gateway": "openai",
+    "ai-gateway": "openai",
+    "aigateway": "openai",
+    "vercel": "openai",
 }
 
 

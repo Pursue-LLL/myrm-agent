@@ -15,6 +15,9 @@ import httpx
 import pytest
 
 from tests.api.agent.utils import check_e2e_errors
+from tests.support.test_secrets import apply_test_secrets_to_environ
+
+apply_test_secrets_to_environ()
 
 BASE_URL = os.getenv("TEST_BASE_URL", "http://127.0.0.1:8080")
 _E2E_TIMEOUT = httpx.Timeout(180.0)

@@ -13558,6 +13558,7 @@
       "removeProvider": "刪除提供商",
       "builtInProvider": "內建提供商",
       "customProvider": "自定義提供商",
+      "viewDashboard": "查看控制台",
       "apiKeys": "API 金鑰",
       "apiKeyPlaceholder": "輸入 API 金鑰",
       "remarkPlaceholder": "備註（可選）",
@@ -13794,7 +13795,9 @@
       "acpTimeoutUnit": "秒",
       "testConnection": "測試連線",
       "connectionSuccess": "連線成功",
-      "connectionFailed": "連線失敗"
+      "connectionFailed": "連線失敗",
+      "vercelGatewaySpendHint": "在 Vercel AI Gateway 控制台追蹤開銷、限流與延遲",
+      "openVercelDashboard": "查看控制台"
     },
     "defaultModel": {
       "localModelWarning": "本地輕量模型在處理複雜 Agent 工具鏈時極易產生幻覺或陷入死迴圈。執行長任務建議使用 30B 以上規模模型或雲端高階模型（如 Claude 3.5 Sonnet）。",
@@ -13974,7 +13977,11 @@
       },
       "preflightCompress": "可能壓縮",
       "preflightCompressDetail": "現在切換後，下一則訊息可能觸發上下文壓縮（閾值：{threshold} tokens）",
-      "modelRestricted": "受組織政策限制"
+      "modelRestricted": "受組織政策限制",
+      "backgroundEvolutionModel": "背景演進與維護模型",
+      "backgroundEvolutionModelDescription": "專門用於離線背景任務的模型，包括技能免疫自癒、記憶守護模式發現和行為演進",
+      "backgroundEvolutionModelAdaptiveHint": "三級自適應兜底：若未配置，引擎將平滑回落至輕量級模型（若配置）或主對話模型，在控制背景 Token 消耗的同時保障任務持久性。",
+      "backgroundEvolutionModelFallbackDescription": "當主演進模型遇到速率限制、超時或服務商過載時自動啟用的備用模型"
     },
     "modelCapabilities": {
       "vision": "視覺",
@@ -13984,7 +13991,7 @@
       "videoInput": "影片輸入",
       "contextWindow": "上下文視窗",
       "refCost": "參考成本",
-      "localOwnedMarginalCostHint": "邊際 API 費用: $0/M (本地自有推理 · 僅電力與硬體折舊)"
+      "localOwnedMarginalCostHint": "邊際 API 費用: $0/M (本地專用推理 · 僅電力與硬體折舊)"
     },
     "account": {
       "title": "賬戶",
@@ -18680,41 +18687,54 @@
       "deleteFailedTitle": "刪除快照失敗"
     }
   },
-  "executionPhaseStepper": {
-    "badge": "安全受護",
-    "waitingApproval": "等待審批",
-    "collapseTelemetry": "收起遙測",
-    "expandTelemetry": "展開遙測",
-    "currentNode": "節點 #{nodeId}",
-    "lanes": {
-      "planner": "規劃通道",
-      "tool": "工具通道",
-      "coder": "編碼通道",
-      "reviewer": "審查通道",
-      "executor": "執行通道",
-      "user": "使用者互動通道"
-    }
-  },
   "continualOverlay": {
-    "activeTitle": "自愈防護活躍",
-    "remainingTurns": "剩餘 {count} 輪",
-    "rollbackTooltip": "回滾至觸發前狀態",
+    "activeTitle": "活躍對話覆蓋層",
+    "remainingTurns": "{count, plural, =1 {剩餘 1 輪} other {剩餘 # 輪}}",
+    "rollbackTooltip": "回滾此對話覆蓋層",
     "rollback": "回滾",
     "collapse": "收起",
     "expand": "展開",
-    "howItWorks": "自愈防護運作機制",
-    "howItWorksDesc": "當檢測到環境或執行異常時，系統會自動注入自愈層並在後續輪次持續監控，直到狀態完全恢復穩定。",
-    "allActiveOverlays": "全部生效中的防護層 ({count})"
+    "howItWorks": "運行機制",
+    "howItWorksDesc": "對話覆蓋層提供零重置故障恢復，在指定輪次預算內自動生效並在到期後平滑撤出。",
+    "allActiveOverlays": "全部活躍覆蓋層 ({count})"
+  },
+  "executionPhaseStepper": {
+    "badge": "執行完畢",
+    "waitingApproval": "等待審批",
+    "collapseTelemetry": "折疊遙測",
+    "expandTelemetry": "展開遙測",
+    "currentNode": "節點 #{nodeId}",
+    "phases": {
+      "planning": {
+        "title": "意圖規劃"
+      },
+      "executing": {
+        "title": "工具執行"
+      },
+      "verifying": {
+        "title": "交付驗證"
+      }
+    },
+    "lanes": {
+      "agent": "Agent 核心",
+      "user": "使用者互動",
+      "llm": "LLM 推理",
+      "mcp": "MCP 工具",
+      "skills": "業務技能",
+      "sandbox": "沙箱執行"
+    }
   },
   "taskSpaces": {
-    "title": "任務瀏覽器沙盒",
+    "title": "並行瀏覽器任務空間",
+    "badgeRunning": "執行中",
+    "badgeIdle": "閒置待命",
     "badgeTakeover": "人工接管中",
-    "badgeRunning": "運行中",
-    "closeSpaceBtn": "關閉該任務沙盒",
-    "activePages": "{count} 個活躍頁面",
-    "releaseTakeoverBtn": "交回智能體",
-    "takeoverBtn": "人工接管",
-    "snapshotPreview": "實時快照預覽",
-    "emptyState": "暫無快照資料"
+    "takeoverBtn": "接管",
+    "releaseTakeoverBtn": "交還智慧體",
+    "closeSpaceBtn": "關閉空間",
+    "activePages": "{count} 個作用中分頁",
+    "emptyState": "目前暫無作用中的並行瀏覽器空間",
+    "snapshotPreview": "即時空間快照",
+    "takeoverHint": "目前處於人工接管狀態，完成後請點擊交還智慧體繼續自動化。"
   }
 }

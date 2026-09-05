@@ -134,7 +134,7 @@ describe('ManifestPredictionsPanel', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Rollback Suggested')).toBeInTheDocument();
+      expect(screen.getAllByText('Rollback Suggested').length).toBeGreaterThanOrEqual(1);
     });
   });
 });

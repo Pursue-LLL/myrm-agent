@@ -86,6 +86,7 @@ const MODELS_DEV_TO_APP_PROVIDER_MAP: Record<string, string> = {
   nvidia: 'nvidia',
   '302ai': 'ai302',
   'opencode-go': 'opencode_go',
+  vercel: 'vercel_ai_gateway',
 };
 
 /**
@@ -127,6 +128,7 @@ const URL_DOMAIN_TO_PROVIDER_MAP: Record<string, string> = {
   'integrate.api.nvidia.com': 'nvidia',
   'api.302.ai': '302ai',
   'opencode.ai': 'opencode-go',
+  'ai-gateway.vercel.sh': 'vercel',
 };
 
 /**
