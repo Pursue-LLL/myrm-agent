@@ -332,3 +332,21 @@ def skill_to_response(skill: Skill) -> SkillResponse:
         created_at=skill.created_at.isoformat(),
         updated_at=skill.updated_at.isoformat(),
     )
+
+
+class SkillFileUpdateRequest(BaseModel):
+    """Payload for updating a skill source file."""
+
+    content: str
+
+
+class SkillFileUpdateResponse(BaseModel):
+    """Response returned upon successfully saving and scanning a skill file."""
+
+    status: str = "ok"
+    skill_id: str
+    filename: str
+    is_clean: bool = True
+    trust_recommendation: str = "trusted"
+    findings_count: int = 0
+

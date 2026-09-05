@@ -657,6 +657,46 @@ class TestWindsurfDryRun:
         assert result.summary.source == "windsurf"
         assert result.summary.status == "ready"
         assert result.summary.mapped_items == 1
+
+
+class TestGeminiIntegrationViaDispatcher:
+    """Validates dispatch to Gemini adapter via build_memory_import_dry_run."""
+
+    def test_gemini_dispatch_via_explicit_source(self) -> None:
+        payload = {
+            "conversations": [
+                {
+                    "title": "Gemini Architecture",
+                    "messages": [
+                        {"role": "user", "parts": [{"text": "Hello"}]},
+                        {"role": "model", "parts": [{"text": "Hi there"}]},
+                    ],
+                }
+            ]
+        }
+        result = build_memory_import_dry_run(payload, source="gemini")
+        assert result.summary.source == "gemini"
+        assert result.summary.status == "ready"
+        assert result.summary.mapped_items == 1
+        episodic = result.normalized_data.get("episodic")
+        assert isinstance(episodic, list) and len(episodic) == 1
+        assert "Gemini Architecture" in episodic[0]["content"]
+
+    def test_gemini_auto_detection(self) -> None:
+        payload = {
+            "conversations": [
+                {
+                    "title": "Quantum Auto",
+                    "messages": [
+                        {"role": "model", "parts": [{"text": "Quantum details"}]},
+                    ],
+                }
+            ]
+        }
+        result = build_memory_import_dry_run(payload, source="auto")
+        assert result.summary.source == "gemini"
+        assert result.summary.status == "ready"
+        assert result.summary.mapped_items == 1
         semantic = result.normalized_data.get("semantic")
         assert isinstance(semantic, list) and len(semantic) == 1
         assert semantic[0]["content"] == "Always write docstrings"
