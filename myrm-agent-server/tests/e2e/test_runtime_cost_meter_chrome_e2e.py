@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
