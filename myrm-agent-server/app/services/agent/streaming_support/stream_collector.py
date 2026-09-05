@@ -1021,6 +1021,8 @@ class StreamContentCollector:
             result["planConfirmation"] = self._plan_confirmation
         if self._ui_artifacts:
             result["uiArtifacts"] = self._ui_artifacts
+        if self._staged_artifacts:
+            result["stagedArtifacts"] = self._staged_artifacts
         if self._kanban_tasks_created:
             result["kanban_tasks_created"] = list(self._kanban_tasks_created)
         if self._cron_job_result is not None:

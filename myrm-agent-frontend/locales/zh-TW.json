@@ -15952,6 +15952,9 @@
           "scanComplete": "掃描完成",
           "foundSkills": "發現 {count} 個技能"
         },
+        "discoveredSkillsBadge": "{count} 個技能",
+        "pathNotFoundBadge": "路徑不存在",
+        "emptySkillsBadge": "0 個技能",
         "error": {
           "invalidPath": "路徑格式無效",
           "pathFormat": "路徑必須是絕對路徑或以 ~ 開頭",
