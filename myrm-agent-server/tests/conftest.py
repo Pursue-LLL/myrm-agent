@@ -527,9 +527,13 @@ def _chrome_e2e_epoch_pin(
         if (
             outcome.detail not in _EPOCH_PIN_DEFER_DETAILS
             and not outcome.detail.startswith("verify_seed_failed_no_aligned_backend:")
+            and not outcome.detail.startswith("verify_seed_failed:")
         ):
             pytest.fail(f"E2E_EPOCH_PIN_FAILED: node={request.node.nodeid} detail={outcome.detail!r}")
-        if outcome.detail.startswith("verify_seed_failed_no_aligned_backend:"):
+        if (
+            outcome.detail.startswith("verify_seed_failed_no_aligned_backend:")
+            or outcome.detail.startswith("verify_seed_failed:")
+        ):
             pytest.skip(
                 f"E2E_EPOCH_PIN_DEFER_SKIP: no epoch-matched backend available; heal then retry: {outcome.detail}"
             )

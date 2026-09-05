@@ -66,6 +66,7 @@ import MemoryInsightPanel from './MemoryInsightPanel';
 import { resolveMessageCreatedAtMs } from './memoryLifecyclePhases';
 import { FileMutationWarning } from './FileMutationWarning';
 import { WorkspaceMergeWarning } from './WorkspaceMergeWarning';
+import { StagedArtifactsNotice } from './StagedArtifactsNotice';
 import WorkflowTemplateSaveCard from './WorkflowTemplateSaveCard';
 import ToolImageGallery from './ToolImageGallery';
 import SessionRecordingCard from './SessionRecordingCard';

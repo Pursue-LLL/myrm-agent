@@ -36,7 +36,7 @@ _VERIFY_SPLIT_STACK_SETTINGS_JS = """(() => {
 
 @pytest.mark.chrome_e2e(
     execution_mode="SHARED",
-    access_scope="NAMESPACE_WRITE",
+    access_scope="READ",
     workload="STANDARD",
 )
 @pytest.mark.integration
