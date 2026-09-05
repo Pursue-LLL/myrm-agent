@@ -609,6 +609,43 @@ def _is_retryable_open_page_error(message: str) -> bool:
     )
 
 
+def _open_page_result_unknown(message: str) -> bool:
+    """True when the request may have reached Chrome but its result was lost."""
+    lowered = message.lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "openpagetransaction wall timeout",
+            "browser orchestrator response timeout",
+            "cdp request timeout",
+            "connection reset",
+            "broken pipe",
+            "connection closed before response",
+            "operation timeout: new_page",
+            "operation timeout: navigate",
+            "operation queue timeout: new_page",
+            "operation queue timeout: navigate",
+        )
+    )
+
+
+def _raise_unknown_open_page_result(
+    daemon: BrowserOrchestratorClient,
+    session_id: str,
+    message: str,
+) -> NoReturn:
+    """Reap the affected session before exposing an ambiguous open-page result."""
+    try:
+        daemon.destroy_session(session_id)
+    except (TimeoutError, OSError, RuntimeError):
+        # The daemon's lease reaper remains the owner of last-resort cleanup.
+        pass
+    raise RuntimeError(
+        "BROWSER_OPERATION_RESULT_UNKNOWN: page-open request may have reached "
+        f"Chrome; session was quarantined; cause={message}"
+    )
+
+
 def _is_blank_page_url(url: str) -> bool:
     """True for manual-navigation hosts (about:blank/empty) with no app content."""
     stripped = (url or "").strip()

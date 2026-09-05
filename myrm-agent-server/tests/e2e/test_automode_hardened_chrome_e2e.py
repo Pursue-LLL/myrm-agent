@@ -12,11 +12,14 @@ from __future__ import annotations
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
     open_mcp_page,
+    prepare_e2e_ui_session,
     wait_for_state,
+    warm_ui_route,
 )
 
 _IRREVERSIBLE_BANNER_STATE = """(() => {
@@ -113,13 +116,16 @@ def test_socially_irreversible_action_renders_banner_and_hides_allow_always() ->
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     _deny_stale_e2e_hardened_approvals(api_url)
+    prepare_e2e_ui_session(api_url)
     seed = _seed_hardened_approval(api_url, variant="socially_irreversible")
     push_path = seed["push_url"]
     approval_id = seed["approval_id"]
+    warm_ui_route(push_path)
     deeplink_url = f"{ui_url}{push_path}"
 
     try:
         with open_mcp_page(deeplink_url, timeout_ms=90_000) as (client, page):
+            dismiss_blocking_modals(client, page, recover_url=deeplink_url)
             wait_for_state(
                 client,
                 page,
@@ -148,13 +154,16 @@ def test_auto_mode_suspended_renders_red_banner_with_consecutive_reason() -> Non
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     _deny_stale_e2e_hardened_approvals(api_url)
+    prepare_e2e_ui_session(api_url)
     seed = _seed_hardened_approval(api_url, variant="auto_mode_suspended")
     push_path = seed["push_url"]
     approval_id = seed["approval_id"]
+    warm_ui_route(push_path)
     deeplink_url = f"{ui_url}{push_path}"
 
     try:
         with open_mcp_page(deeplink_url, timeout_ms=90_000) as (client, page):
+            dismiss_blocking_modals(client, page, recover_url=deeplink_url)
             wait_for_state(
                 client,
                 page,

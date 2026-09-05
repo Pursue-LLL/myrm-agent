@@ -90,21 +90,30 @@ export function computeDagreLayout(ir: ArchitectureIR): LayoutedElements {
     };
   });
 
-  const flowEdges: Edge[] = cleanIR.edges.map((edge) => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    label: edge.label,
-    animated: edge.animated ?? false,
-    type: 'smoothstep',
-    data: {
-      diffState: edge.diffState,
-      protocol: edge.protocol,
-    },
-    style: {
-      strokeWidth: 1.5,
-    },
-  }));
+  const flowEdges: Edge[] = cleanIR.edges.map((edge) => {
+    let strokeColor = undefined;
+    if (edge.diffState === 'added') strokeColor = '#10b981'; // emerald-500
+    if (edge.diffState === 'deleted') strokeColor = '#f43f5e'; // rose-500
+    if (edge.diffState === 'rerouted') strokeColor = '#3b82f6'; // blue-500
+
+    return {
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      label: edge.label,
+      animated: edge.animated ?? (edge.diffState === 'added'),
+      type: 'smoothstep',
+      data: {
+        diffState: edge.diffState,
+        protocol: edge.protocol,
+      },
+      style: {
+        strokeWidth: edge.diffState && edge.diffState !== 'unchanged' ? 2.5 : 1.5,
+        stroke: strokeColor,
+        strokeDasharray: edge.diffState === 'deleted' ? '5,5' : undefined,
+      },
+    };
+  });
 
   return { nodes: flowNodes, edges: flowEdges };
 }

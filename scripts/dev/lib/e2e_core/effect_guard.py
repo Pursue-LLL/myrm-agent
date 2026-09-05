@@ -52,19 +52,31 @@ def is_global_mutation_path(path: str) -> bool:
 
 
 def assert_http_effect_allowed(*, method: str, url: str) -> None:
-    """Fail closed when READ/NAMESPACE_WRITE scope exceeds manifest."""
+    """Enforce the declared effect scope before any mutating HTTP request.
+
+    Fixture endpoints are explicitly test-only and carry their own run
+    namespace. Every other mutation must either be an explicitly approved
+    bootstrap action or run in PRIVATE; a substring in a URL is never treated
+    as proof of resource ownership.
+    """
     scope = current_access_scope()
     verb = method.strip().upper()
     if verb in {"GET", "HEAD", "OPTIONS"}:
         return
     path = _normalized_path(url)
-    if scope == "READ" and is_global_mutation_path(path):
+    if "/test/" in path:
+        return
+    if scope == "READ":
         raise RuntimeError(f"E2E_EFFECT_GUARD: access_scope=READ forbids {verb} {path}")
-    if scope == "NAMESPACE_WRITE" and is_global_mutation_path(path):
+    if scope == "NAMESPACE_WRITE":
+        namespace = os.environ.get("MYRM_E2E_NAMESPACE", "").strip()
+        if not namespace:
+            raise RuntimeError(
+                "E2E_EFFECT_GUARD: NAMESPACE_WRITE requires MYRM_E2E_NAMESPACE"
+            )
         if path in _NAMESPACE_WRITE_BOOTSTRAP_PATHS:
             return
-        namespace = os.environ.get("MYRM_E2E_NAMESPACE", "").strip()
-        if namespace and namespace not in path:
+        if is_global_mutation_path(path):
             raise RuntimeError(
                 f"E2E_EFFECT_GUARD: NAMESPACE_WRITE forbids global {verb} {path}"
             )

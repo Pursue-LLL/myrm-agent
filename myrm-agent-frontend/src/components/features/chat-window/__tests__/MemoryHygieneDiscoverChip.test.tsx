@@ -23,6 +23,27 @@ vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
 
+let mockStore: Record<string, string> = {};
+const mockSessionStorage = {
+  getItem: vi.fn((key: string) => mockStore[key] ?? null),
+  setItem: vi.fn((key: string, value: string) => {
+    mockStore[key] = String(value);
+  }),
+  removeItem: vi.fn((key: string) => {
+    delete mockStore[key];
+  }),
+  clear: vi.fn(() => {
+    mockStore = {};
+  }),
+};
+
+if (typeof globalThis.sessionStorage === 'undefined') {
+  Object.defineProperty(globalThis, 'sessionStorage', {
+    value: mockSessionStorage,
+    writable: true,
+  });
+}
+
 describe('MemoryHygieneDiscoverChip', () => {
   beforeEach(() => {
     vi.clearAllMocks();

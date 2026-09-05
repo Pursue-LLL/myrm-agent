@@ -149,8 +149,9 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
         return;
       }
       try {
+        const isDark = document.documentElement.classList.contains('dark');
         const canvas = await html2canvas(containerRef.current, {
-          backgroundColor: '#020617',
+          backgroundColor: isDark ? '#020617' : '#ffffff',
           scale: 2,
         });
         const url = canvas.toDataURL('image/png');

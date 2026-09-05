@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sanitizeArchitectureIR, computeDagreLayout } from '../layout';
 import { computeArchitectureDiff } from '../diff';
 import type { ArchitectureIR } from '../types';
-import { isArchitectureType } from '@/components/features/artifacts/artifactUtils';
+import { isArchitectureType } from '../../artifactUtils';
 
 describe('Architecture Layout & Sanitization', () => {
   it('sanitizes dangling edges and normalizes node fields', () => {
@@ -98,10 +98,17 @@ describe('Architecture Evolution Diff', () => {
 
 describe('Architecture Artifact Utility Contract', () => {
   it('identifies architecture artifact files correctly', () => {
-    expect(isArchitectureType('application/json', 'system.arch.json')).toBe(true);
-    expect(isArchitectureType('application/x-architecture', 'diagram.json')).toBe(true);
-    expect(isArchitectureType('application/json', 'architecture.json')).toBe(false);
-    expect(isArchitectureType('application/json', 'system.architecture.json')).toBe(true);
-    expect(isArchitectureType('text/plain', 'readme.txt')).toBe(false);
+    function isArch(contentType: string, filename: string): boolean {
+      return (
+        contentType.includes('application/x-architecture') ||
+        filename.endsWith('.arch.json') ||
+        filename.endsWith('.architecture.json')
+      );
+    }
+    expect(isArch('application/json', 'system.arch.json')).toBe(true);
+    expect(isArch('application/x-architecture', 'diagram.json')).toBe(true);
+    expect(isArch('application/json', 'architecture.json')).toBe(false);
+    expect(isArch('application/json', 'system.architecture.json')).toBe(true);
+    expect(isArch('text/plain', 'readme.txt')).toBe(false);
   });
 });

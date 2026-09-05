@@ -4995,18 +4995,6 @@
           "invalid_schedule": "Ungültiger oder nicht unterstützter Zeitplan",
           "prompt_injection": "Eingabeaufforderung durch Sicherheitsscan blockiert",
           "unsupported_job_type": "Nicht unterstützter Aufgabentyp"
-        },
-        "hermesMapping": {
-          "title": "Hermes 4-Schichten-Architektur-Mapping",
-          "badge": "100% Nahtlose Asset-Bereitschaft",
-          "userMdTarget": "Verhaltensregeln & Persona-Anweisungen (Procedural Rules)",
-          "userMdDesc": "Höchste Priorität, geschützt durch Freigabe-Gate für geschützte Dateien",
-          "memoryMdTarget": "Fakten & episodische Wissensbasis (Semantic / Episodic)",
-          "memoryMdDesc": "Isolierter schreibgeschützter Kontext, wrap_untrusted-Schutzbarriere",
-          "sessionSearchTarget": "Natives SQLite FTS5-Gesprächsdurchsuchung",
-          "sessionSearchDesc": "Lokale Volltextsuche im Millisekundenbereich, 0 externe Middleware-Abhängigkeit",
-          "externalMcpTarget": "Progressive Offenlegung & Sandbox-Werkzeugsystem",
-          "externalMcpDesc": "Direct FC + Skill PTC + strenge Prüfgates"
         }
       },
       "result": {
