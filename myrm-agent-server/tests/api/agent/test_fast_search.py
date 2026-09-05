@@ -6,7 +6,6 @@ E2E 测试走 /agents/agent-stream 端点。
 """
 
 import json
-import os
 import uuid
 from typing import Optional
 
@@ -17,8 +16,10 @@ from tests.api.agent.utils import (
     check_e2e_errors,
     get_lite_model_selection,
     get_model_selection,
-    resolve_test_env,
 )
+from tests.support.test_secrets import apply_test_secrets_to_environ, resolve_test_env
+
+apply_test_secrets_to_environ()
 
 
 class TestFastSearchPrompt:

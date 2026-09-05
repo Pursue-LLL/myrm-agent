@@ -8,7 +8,6 @@ surface) and general agent when the tool surface stays bounded.
 from __future__ import annotations
 
 import json
-import os
 import time
 
 import pytest
@@ -19,8 +18,10 @@ from tests.api.agent.utils import (
     check_e2e_errors,
     get_model_selection,
     get_search_service_config,
-    resolve_test_env,
 )
+from tests.support.test_secrets import apply_test_secrets_to_environ, resolve_test_env
+
+apply_test_secrets_to_environ()
 
 _CITATION_PROMPT_FAST = "请搜索「Python 3.14 新特性」，用一句话总结，正文中必须用【1】标注引用，末尾单独一行写 CITE_OK。"
 
