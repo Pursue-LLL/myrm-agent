@@ -118,8 +118,15 @@ def test_socially_irreversible_action_renders_banner_and_hides_allow_always() ->
     approval_id = seed["approval_id"]
 
     try:
+        deeplink_url = f"{ui_url}{push_path}"
         warm_ui_route(push_path)
-        with open_mcp_page(f"{ui_url}{push_path}", timeout_ms=90_000) as (client, page):
+        with open_mcp_page(deeplink_url, timeout_ms=90_000) as (client, page):
+            wait_for_state(
+                client,
+                page,
+                "(() => ({ ready: !!document.querySelector('[role=\"dialog\"]') }))()",
+                timeout_sec=45.0,
+            )
             state = wait_for_state(client, page, _IRREVERSIBLE_BANNER_STATE, timeout_sec=45.0)
             assert state.get("ready") is True, f"Banner not ready: {state}"
             assert state.get("hasBanner") is True
@@ -146,8 +153,15 @@ def test_auto_mode_suspended_renders_red_banner_with_consecutive_reason() -> Non
     approval_id = seed["approval_id"]
 
     try:
+        deeplink_url = f"{ui_url}{push_path}"
         warm_ui_route(push_path)
-        with open_mcp_page(f"{ui_url}{push_path}", timeout_ms=90_000) as (client, page):
+        with open_mcp_page(deeplink_url, timeout_ms=90_000) as (client, page):
+            wait_for_state(
+                client,
+                page,
+                "(() => ({ ready: !!document.querySelector('[role=\"dialog\"]') }))()",
+                timeout_sec=45.0,
+            )
             state = wait_for_state(client, page, _SUSPENDED_BANNER_STATE, timeout_sec=45.0)
             assert state.get("ready") is True, f"Suspended banner not ready: {state}"
             assert state.get("hasSuspended") is True
