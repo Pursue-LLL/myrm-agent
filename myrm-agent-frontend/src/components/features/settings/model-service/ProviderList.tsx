@@ -65,6 +65,7 @@ const SortableProviderItem = memo<{
       onClick={() => {
         onSelect();
       }}
+      data-testid={`provider-item-${provider.id}`}
       role="button"
       aria-label={provider.name}
     >

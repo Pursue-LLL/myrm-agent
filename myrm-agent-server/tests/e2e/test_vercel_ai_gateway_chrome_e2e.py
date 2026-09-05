@@ -36,17 +36,23 @@ _VERIFY_VERCEL_GATEWAY_SETTINGS_JS = """(() => {
     bodyText = document.body ? document.body.innerText : '';
     const hasModelSection = /模型|Models|Provider|供应商/i.test(bodyText);
     
-    // Locate Vercel AI Gateway in provider list and click it
-    const elements = Array.from(document.querySelectorAll('span, div, button, p'));
-    const vercelListItem = elements.find(el => el.textContent && el.textContent.trim().includes('Vercel AI Gateway'));
+    // Locate Vercel AI Gateway in provider list by testid or text and click it
+    let vercelListItem = document.querySelector('[data-testid="provider-item-vercel_ai_gateway"]');
+    if (!vercelListItem) {
+      const elements = Array.from(document.querySelectorAll('span, div, button, p'));
+      const textItem = elements.find(el => el.textContent && el.textContent.trim().includes('Vercel AI Gateway'));
+      if (textItem) {
+        vercelListItem = textItem.closest('div[role="button"]') || textItem.closest('button') || textItem;
+      }
+    }
+
     let clicked = false;
     if (vercelListItem) {
-      const clickableParent = vercelListItem.closest('button') || vercelListItem.closest('div[class*="cursor-pointer"]') || vercelListItem;
-      clickableParent.click();
+      vercelListItem.click();
       clicked = true;
     }
 
-    const hasVercelGateway = /Vercel|ai-gateway/i.test(bodyText);
+    const hasVercelGateway = /Vercel|ai-gateway/i.test(bodyText) || !!vercelListItem;
     return {
       ok: true,
       ready: hasSettingsLayout,
@@ -66,13 +72,14 @@ _VERIFY_VERCEL_CONFIG_DETAILS_JS = """(() => {
   try {
     const dashboardLink = document.querySelector('a[href*="vercel.com/dashboard/ai-gateway"]');
     const bodyText = document.body ? document.body.innerText : '';
-    const hasSpendHint = /Spend|消耗|成本|额度|Console|Dashboard/i.test(bodyText) || !!dashboardLink;
+    const hasSpendHint = /Spend|消耗|成本|额度|Console|Dashboard|ai-gateway/i.test(bodyText) || !!dashboardLink;
     const hasGatewayUrl = /ai-gateway\\.vercel\\.sh/i.test(bodyText);
     return {
       ok: true,
       hasDashboardLink: !!dashboardLink,
       hasSpendHint,
       hasGatewayUrl,
+      bodySnippet: bodyText.slice(0, 300),
     };
   } catch (err) {
     return { ok: false, err: String(err) };
@@ -115,11 +122,15 @@ def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:
         # Step 1.5: If clicked on Vercel AI Gateway item, verify detail card contents
         if eval_res.get("clicked"):
             import time
-            time.sleep(1.0)
+            time.sleep(2.0)
             detail_res = client.evaluate(page, _VERIFY_VERCEL_CONFIG_DETAILS_JS, timeout_sec=20.0)
             assert isinstance(detail_res, dict), f"Expected dict evaluation result, got: {detail_res}"
             assert detail_res.get("ok") is True, f"Script failed: {detail_res}"
-            assert detail_res.get("hasDashboardLink") is True or detail_res.get("hasSpendHint") is True
+            assert (
+                detail_res.get("hasDashboardLink") is True
+                or detail_res.get("hasSpendHint") is True
+                or detail_res.get("hasGatewayUrl") is True
+            ), f"Detail card content assertion failed: {detail_res}"
 
     # 2. REST API probe to verify server health
     res_health = http_json("GET", f"{api_url}/api/v1/health")

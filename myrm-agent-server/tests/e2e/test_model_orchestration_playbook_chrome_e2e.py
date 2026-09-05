@@ -173,22 +173,14 @@ def test_model_orchestration_playbook_settings_chrome_e2e() -> None:
 
         # 2. Check playbook card presence and trigger modal open
         eval_card = client.evaluate(page, _VERIFY_PLAYBOOK_UI_JS, timeout_sec=20.0)
-        assert isinstance(
-            eval_card, dict
-        ), f"Expected dict evaluation result, got: {eval_card}"
+        assert isinstance(eval_card, dict), f"Expected dict evaluation result, got: {eval_card}"
         assert eval_card.get("ok") is True, f"Playbook card verification failed: {eval_card}"
         assert eval_card.get("cardFound") is True, "Playbook card not found"
 
         # 3. Check dialog rendering, tab switching, and dismissal
-        eval_dialog = client.evaluate(
-            page, _VERIFY_DIALOG_AND_DISMISS_JS, timeout_sec=20.0
-        )
-        assert isinstance(
-            eval_dialog, dict
-        ), f"Expected dict evaluation result, got: {eval_dialog}"
-        assert (
-            eval_dialog.get("ok") is True
-        ), f"Playbook dialog verification failed: {eval_dialog}"
+        eval_dialog = client.evaluate(page, _VERIFY_DIALOG_AND_DISMISS_JS, timeout_sec=20.0)
+        assert isinstance(eval_dialog, dict), f"Expected dict evaluation result, got: {eval_dialog}"
+        assert eval_dialog.get("ok") is True, f"Playbook dialog verification failed: {eval_dialog}"
         assert eval_dialog.get("dialogFound") is True, "Playbook dialog not found"
         assert eval_dialog.get("hasRecipesTab") is True, "Recipes tab missing"
         assert eval_dialog.get("hasPrinciplesTab") is True, "Principles tab missing"
