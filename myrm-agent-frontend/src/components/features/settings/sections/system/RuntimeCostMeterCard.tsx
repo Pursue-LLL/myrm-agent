@@ -258,7 +258,7 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
               <div className="p-3 rounded-lg bg-muted/40 space-y-1">
                 <span className="text-[11px] text-muted-foreground">{t('activeComputeTime')}</span>
                 <div className="text-lg font-bold text-foreground">
-                  {browserSummary ? `${browserSummary.active_compute_minutes}m` : '0m'}
+                  {browserSummary ? `${browserSummary.active_compute_minutes} 分钟` : '0 分钟'}
                 </div>
                 <span className="text-[10px] text-muted-foreground block">
                   {t('sessionsCount', { count: browserSummary?.session_count ?? 0 })}

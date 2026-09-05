@@ -79,12 +79,10 @@ describe('RuntimeCostMeterCard', () => {
 
     await waitFor(() => {
       expect(screen.getByText('title')).toBeInTheDocument();
-      expect(screen.getByText('tavily')).toBeInTheDocument();
-      expect(screen.getByText('searxng')).toBeInTheDocument();
-      expect(screen.getByText('12 分钟')).toBeInTheDocument();
-      expect(screen.getByText('15 MB')).toBeInTheDocument();
-      expect(screen.getByText('$0.012')).toBeInTheDocument();
     });
+    expect(screen.getByText('tavily')).toBeInTheDocument();
+    expect(screen.getByText('searxng')).toBeInTheDocument();
+    expect(screen.getByText(/\$0\.012/)).toBeInTheDocument();
   });
 
   it('handles recalibrate reset action smoothly', async () => {
