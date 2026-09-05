@@ -9,7 +9,8 @@ sys.path.insert(0, str(server_root))
 harness_src = server_root.parent.parent / "myrm-agent-harness" / "src"
 sys.path.insert(0, str(harness_src))
 
-from app.api.statistics.session_trace import _enrich_performance_and_gantt, _empty_trace_payload
+from app.api.statistics.session_trace import _empty_trace_payload, _enrich_performance_and_gantt
+
 
 def run_tests():
     print("[1/3] Testing empty trace payload default performance summary...")

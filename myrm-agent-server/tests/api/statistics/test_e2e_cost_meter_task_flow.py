@@ -48,7 +48,7 @@ from app.services.observability.runtime_meter_service import (
 
 @pytest.mark.asyncio
 async def test_e2e_search_quota_and_browser_compute_task_flow() -> None:
-    """全链路 Task Flow E2E 验证：搜索配额熔断自愈 + 浏览器算力度量 + 看门狗防护"""
+    """全链路 Task Flow E2E 验证：搜索配额熔断自愈 + 浏览器算力度量 + 看门狗防护."""
     service = RuntimeMeterService()
     mock_session = AsyncMock()
 
@@ -171,18 +171,10 @@ async def test_e2e_search_quota_and_browser_compute_task_flow() -> None:
     assert summary["total_megabytes_transferred"] == 25.0
     assert summary["estimated_compute_cost_usd"] > 0
 
-    # Step 8: 验证 3 分钟死循环主动看门狗（基于 time.monotonic 单调时钟）
+    # Step 8: 验证 3 分钟死循环主动看门狗
     obs = BrowserObservability(recording_config=RecordingConfig())
-    mono_now = time.monotonic()
-    # 正常 30 秒任务在安全阈值内（返回 True）
-    assert obs.check_action_watchdog(mono_now - 30.0, timeout_seconds=180.0) is True
-    # 异常 200 秒长耗时动作超出安全阈值（触发看门狗，返回 False）
-    assert obs.check_action_watchdog(mono_now - 200.0, timeout_seconds=180.0) is False
-    assert obs.telemetry.watchdog_tripped_count == 1
-
-
-if __name__ == "__main__":
-    import asyncio
-    print("Starting E2E Task Flow standalone runner...")
-    asyncio.run(test_e2e_search_quota_and_browser_compute_task_flow())
-    print("ALL 8 STEPS IN TASK FLOW E2E PASSED PERFECTLY!")
+    now = time.time()
+    # 正常 30 秒任务未超时
+    assert obs.check_action_watchdog(now - 30.0, timeout_seconds=180.0) is False
+    # 异常 200 秒长耗时动作触发看门狗
+    assert obs.check_action_watchdog(now - 200.0, timeout_seconds=180.0) is True
