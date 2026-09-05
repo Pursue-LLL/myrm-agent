@@ -42,7 +42,7 @@ _VERIFY_VERCEL_GATEWAY_SETTINGS_JS = """(() => {
     execution_mode="PRIVATE",
     access_scope="READ",
     workload="STANDARD",
-    private_reason="read_only_isolated",
+    private_reason="process_isolation",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)

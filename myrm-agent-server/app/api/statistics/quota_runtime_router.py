@@ -64,7 +64,7 @@ async def get_search_quotas(session: AsyncSession = Depends(get_db)) -> JSONResp
         return success_response(data)
     except Exception as exc:
         logger.error("Failed to query search quotas: %s", exc, exc_info=True)
-        return internal_error("Failed to retrieve search quotas")
+        raise internal_error("Failed to retrieve search quotas", exception=exc)
 
 
 @router.post("/search-quotas/record")
@@ -90,7 +90,7 @@ async def record_search_quota(
         )
     except Exception as exc:
         logger.error("Failed to record search quota: %s", exc, exc_info=True)
-        return internal_error("Failed to record search quota")
+        raise internal_error("Failed to record search quota", exception=exc)
 
 
 @router.get("/browser-runtime")
@@ -101,7 +101,7 @@ async def get_browser_runtime_summary(session: AsyncSession = Depends(get_db)) -
         return success_response(summary)
     except Exception as exc:
         logger.error("Failed to retrieve browser runtime summary: %s", exc, exc_info=True)
-        return internal_error("Failed to retrieve browser runtime summary")
+        raise internal_error("Failed to retrieve browser runtime summary", exception=exc)
 
 
 @router.post("/browser-runtime/record")
@@ -123,7 +123,7 @@ async def record_browser_runtime(
         return success_response({"id": record.id, "year_month": record.year_month})
     except Exception as exc:
         logger.error("Failed to record browser runtime: %s", exc, exc_info=True)
-        return internal_error("Failed to record browser runtime")
+        raise internal_error("Failed to record browser runtime", exception=exc)
 
 
 @router.get("/runtime-cost-gauge")
@@ -136,7 +136,7 @@ async def get_runtime_cost_gauge(
         return success_response(gauge)
     except Exception as exc:
         logger.error("Failed to get runtime cost gauge: %s", exc, exc_info=True)
-        return internal_error("Failed to get runtime cost gauge")
+        raise internal_error("Failed to get runtime cost gauge", exception=exc)
 
 
 
@@ -151,7 +151,7 @@ async def reset_search_quota(
         return success_response({"reset_records_count": reset_count, "provider": req.provider})
     except Exception as exc:
         logger.error("Failed to reset search quota: %s", exc, exc_info=True)
-        return internal_error("Failed to reset search quota")
+        raise internal_error("Failed to reset search quota", exception=exc)
 
 
 @router.put("/search-quotas/limit")
@@ -175,4 +175,4 @@ async def update_search_quota_limit(
         )
     except Exception as exc:
         logger.error("Failed to update search quota limit: %s", exc, exc_info=True)
-        return internal_error("Failed to update search quota limit")
+        raise internal_error("Failed to update search quota limit", exception=exc)
