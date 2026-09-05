@@ -17,7 +17,7 @@
 | 方法 | 路径 | 职责 |
 |------|------|------|
 | GET | `` | 分页列出 pending（`limit` 1–100，`offset`）；排除无 `thread_id` 的后台 growth draft |
-| POST | `/{approval_id}/resolve` | 单条决策：`decision`（`approve`/`deny`/`reject`→`deny`）、`edited_payload`、`comment`、`allow_always`（bool 或 `{tool,args}`）；有 `thread_id` 时发布 `APPROVAL_RESOLVED` |
+| POST | `/{approval_id}/resolve` | 单条决策：`decision`（`approve`/`deny`/`reject`→`deny`）、`edited_payload`、`comment`、`allow_always`（bool 或 `{tool,args,pattern,duration,ttl_seconds}`）；有 `thread_id` 时发布 `APPROVAL_RESOLVED` |
 | POST | `/batch-resolve` | 批量 `approval_ids` + `decision`；逐条 resolve 并对有 `thread_id` 项发事件 |
 | POST | `/test/seed-mock` | local/test only：创建 chat + inline pending approval，返回 `push_url`（Chrome push deeplink E2E） |
 

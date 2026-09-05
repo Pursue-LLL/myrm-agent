@@ -48,11 +48,12 @@ def _seed_allowlist_pattern_row(client, page) -> None:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
+    execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
+    private_reason="exclusive_backend",
 )
-@pytest.mark.integration
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.timeout(240)
 def test_settings_security_shows_pattern_allowlist_entry() -> None:
     api_base = get_e2e_api_url()

@@ -153,6 +153,8 @@ def build_memory_import_dry_run(
         return dry_run_mem0(resolved_payload)
     if detected == "chatgpt":
         return dry_run_chatgpt(resolved_payload)
+    if detected == "gemini":
+        return dry_run_gemini(resolved_payload)
     if detected == "plur":
         return dry_run_plur(resolved_payload)
     if detected == "windsurf":
