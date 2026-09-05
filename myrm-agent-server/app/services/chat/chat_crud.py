@@ -497,9 +497,11 @@ class _ChatCrudMixin(_ChatServiceBase):
             )
 
         try:
+            from myrm_agent_harness.agent.middlewares.approval import (
+                reset_denial_counter,
+            )
             from myrm_agent_harness.agent.security.approval_flow import (
                 get_allowlist,
-                reset_denial_counter,
             )
 
             await get_allowlist().clear_session("sandbox", chat_id)
