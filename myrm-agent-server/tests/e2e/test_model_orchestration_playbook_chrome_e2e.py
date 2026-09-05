@@ -87,7 +87,8 @@ _VERIFY_DIALOG_AND_DISMISS_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
+    execution_mode="PRIVATE",
+    private_reason="exclusive_backend",
     access_scope="READ",
     workload="STANDARD",
 )
