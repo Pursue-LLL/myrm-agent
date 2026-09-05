@@ -167,6 +167,7 @@ describe('NoProviderBanner', () => {
     expect(screen.getByText('subscriptionCopilot')).toBeInTheDocument();
     expect(screen.getByText('subscriptionOpenai')).toBeInTheDocument();
     expect(screen.getByText('subscriptionXai')).toBeInTheDocument();
+    expect(screen.getByText('subscriptionClaude')).toBeInTheDocument();
   });
 
   it('closes modal when clicking cancel button', () => {

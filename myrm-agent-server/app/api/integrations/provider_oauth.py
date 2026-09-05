@@ -766,3 +766,63 @@ async def disconnect_provider_oauth(
 
     logger.info("Provider OAuth disconnected: %s", provider)
     return success_response(data={"provider": provider, "connected": False})
+
+
+# ═══════════════════════════════════════════════════════════════════════
+#  Test-Only Fixture Endpoints for Chrome E2E
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@router.post("/test/seed-oauth", include_in_schema=False)
+async def seed_test_provider_oauth(
+    provider: str = "copilot",
+    token: str = "e2e-test-oauth-token",
+    base_url: str | None = None,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Local dev/test only: seed an OAuth credential into oauthStore for E2E verification."""
+    from app.config.deploy_mode import is_local_mode
+
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    issuer = _ALL_PROVIDER_ISSUERS.get(provider)
+    if not issuer:
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
+
+    cred_data: dict[str, object] = {
+        "token": token,
+        "connected_at": int(time.time()),
+        "expires_at": int(time.time()) + 86400,
+    }
+    if base_url:
+        cred_data["base_url"] = base_url
+    elif provider == "copilot":
+        cred_data["base_url"] = "https://api.individual.githubcopilot.com"
+        cred_data["available_models"] = ["claude-3.5-sonnet", "gpt-4o"]
+    elif provider == "xai":
+        cred_data["base_url"] = "https://api.x.ai/v1"
+        cred_data["available_models"] = ["grok-2", "grok-2-mini"]
+
+    await upsert_oauth_credential(db, issuer, cred_data)
+    return success_response(data={"provider": provider, "issuer": issuer, "seeded": True})
+
+
+@router.post("/test/cleanup-oauth", include_in_schema=False)
+async def cleanup_test_provider_oauth(
+    provider: str = "copilot",
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Local dev/test only: cleanup seeded OAuth credential from oauthStore."""
+    from app.config.deploy_mode import is_local_mode
+
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    issuer = _ALL_PROVIDER_ISSUERS.get(provider)
+    if not issuer:
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
+
+    await delete_oauth_credential(db, issuer)
+    return success_response(data={"provider": provider, "issuer": issuer, "cleaned": True})
+

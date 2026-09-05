@@ -10,6 +10,7 @@ import ConversationRecallHint from './ConversationRecallHint';
 import MigrationDiscoveryBanner from './MigrationDiscoveryBanner';
 import GrowingLoopDiscoveryChip from './GrowingLoopDiscoveryChip';
 import MemoryHygieneDiscoverChip from './MemoryHygieneDiscoverChip';
+import { ModelOrchestrationPlaybookChip } from './playbook';
 import FeaturedExpertChips from './FeaturedExpertChips';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
@@ -80,6 +81,8 @@ const EmptyChat = React.memo(() => {
         <GrowingLoopDiscoveryChip />
 
         <MemoryHygieneDiscoverChip />
+
+        <ModelOrchestrationPlaybookChip />
 
         <ConversationRecallHint />
 

@@ -9,6 +9,7 @@ import {
   isLoopbackApiUrl,
   isTrustedSplitStackHostname,
   LOCAL_NO_AUTH_API_KEY_MARKER,
+  OAUTH_AUTH_API_KEY_MARKER,
   resolveCustomProviderTypeInfo,
   resolveProviderApiKeyForRequests,
 } from '../providerTypes';
@@ -152,5 +153,15 @@ describe('isTrustedSplitStackHostname and URL helpers', () => {
     };
     expect(hasUsableProviderAuth(lanProvider)).toBe(true);
     expect(resolveProviderApiKeyForRequests(lanProvider)).toBe(LOCAL_NO_AUTH_API_KEY_MARKER);
+  });
+
+  it('recognizes oauthConnected providers as usable auth and resolves synthetic oauth marker', () => {
+    const oauthProvider = {
+      id: 'copilot',
+      apiKeys: [],
+      oauthConnected: true,
+    };
+    expect(hasUsableProviderAuth(oauthProvider)).toBe(true);
+    expect(resolveProviderApiKeyForRequests(oauthProvider)).toBe(OAUTH_AUTH_API_KEY_MARKER);
   });
 });

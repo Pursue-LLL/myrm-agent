@@ -222,6 +222,8 @@
     "chat.subscriptionClaude",
     "chat.subscriptionCopilot",
     "chat.subscriptionOpenai",
-    "chat.subscriptionXai"
+    "chat.subscriptionXai",
+    "modelPlaybook.brainExample",
+    "modelPlaybook.handsExample"
   ]
 }

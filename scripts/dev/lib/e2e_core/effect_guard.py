@@ -27,6 +27,7 @@ _TEST_FIXTURE_PREFIXES: tuple[str, ...] = (
     "/api/v1/approvals/test/",
     "/api/v1/background-tasks/test/",
     "/api/v1/chats/test/",
+    "/api/v1/integrations/provider-oauth/test/",
     "/api/v1/memory/test/",
     "/api/v1/projects/test/",
     "/api/v1/security/allowlist/test/",

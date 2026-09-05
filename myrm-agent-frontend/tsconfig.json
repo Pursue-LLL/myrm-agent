@@ -83,7 +83,9 @@
     ".next-isolated-chrome-test_chrome_ui_local_skill_paths_preview-3fb3b6c0-64707-acf51414/types/**/*.ts",
     ".next-isolated-chrome-test_chrome_ui_local_skill_paths_preview-3fb3b6c0-64707-acf51414/dev/types/**/*.ts",
     ".next-isolated-chrome-test_chrome_ui_local_skill_paths_preview-3fb3b6c0-88231-6fdf50bb/types/**/*.ts",
-    ".next-isolated-chrome-test_chrome_ui_local_skill_paths_preview-3fb3b6c0-88231-6fdf50bb/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_chrome_ui_local_skill_paths_preview-3fb3b6c0-88231-6fdf50bb/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_tool_prune_contract_chrome_e2e-784cdeeb-78751-d3818fae/types/**/*.ts",
+    ".next-isolated-chrome-test_tool_prune_contract_chrome_e2e-784cdeeb-78751-d3818fae/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

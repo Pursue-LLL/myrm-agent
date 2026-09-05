@@ -329,6 +329,8 @@ export const IconSparkle = ({ className }: IconProps) => (
   </svg>
 );
 
+export const IconSparkles = IconSparkle;
+
 export const IconConfetti = ({ className }: IconProps) => (
   <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     <path d="M2 11.5L3.5 8L7 9.5L2 11.5Z" fill="currentColor" />

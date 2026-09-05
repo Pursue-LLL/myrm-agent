@@ -14,7 +14,7 @@ import {
   IconCpu,
   IconZap,
   IconBrain,
-  IconSparkles,
+  IconSparkle,
   IconRoute,
   IconCheck,
 } from '@/components/features/icons/PremiumIcons';
@@ -42,7 +42,7 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-6 sm:p-7">
         <DialogHeader className="space-y-1.5 pb-3 border-b border-border/50">
           <div className="flex items-center gap-2 text-primary font-medium text-xs tracking-wide uppercase">
-            <IconSparkles className="w-4 h-4" />
+            <IconSparkle className="w-4 h-4" />
             <span>{t('headerBadge')}</span>
           </div>
           <DialogTitle className="text-xl font-semibold tracking-tight text-foreground">

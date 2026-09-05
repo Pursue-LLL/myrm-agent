@@ -2912,7 +2912,9 @@
       "depth": "Depth",
       "level": "level",
       "runAffectedTests": "Run {count} Affected Test Suites"
-    }
+    },
+    "subscriptionPkceNotice": "{providerName} authorization page opened in a new tab. Please complete login and approval, then return here.",
+    "subscriptionPkceReopen": "Reopen Authorization Page"
   },
   "mode": {
     "fast": "Fast Search",

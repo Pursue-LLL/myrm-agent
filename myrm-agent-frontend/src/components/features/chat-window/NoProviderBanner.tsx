@@ -306,7 +306,7 @@ const NoProviderBanner = memo(() => {
                 ) : activeFlow.isPkce ? (
                   <>
                     <span className="text-xs text-zinc-600 dark:text-zinc-300 mb-4 text-center leading-relaxed">
-                      {activeFlow.providerName} 授权页面已在新标签页打开。请在完成登录与授权后返回本页面。
+                      {t('subscriptionPkceNotice', { providerName: activeFlow.providerName })}
                     </span>
 
                     <div className="flex items-center gap-2 w-full mb-4">
@@ -317,7 +317,7 @@ const NoProviderBanner = memo(() => {
                         className="flex-1 gap-1.5 h-9 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-white text-xs font-medium"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
-                        <span>重新打开授权页面</span>
+                        <span>{t('subscriptionPkceReopen')}</span>
                       </Button>
                     </div>
 
