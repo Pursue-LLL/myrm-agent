@@ -149,7 +149,6 @@ class BehavioralMeasurementService:
         channel_stmt = (
             select(ChannelMessageModel)
             .where(
-                ChannelMessageModel.created_at >= cutoff,
                 ChannelMessageModel.learning_eligible.is_(True),
             )
             .order_by(desc(ChannelMessageModel.created_at))
@@ -157,6 +156,13 @@ class BehavioralMeasurementService:
         )
         channel_res = await self._db.execute(channel_stmt)
         for row in channel_res.scalars().all():
+            if row.created_at is not None:
+                dt_utc = row.created_at if row.created_at.tzinfo else row.created_at.replace(tzinfo=UTC)
+                if dt_utc < cutoff:
+                    continue
+            else:
+                continue
+
             sender_id = row.sender_id or ""
             sender_name = row.sender_name or sender_id
             if is_alert_or_bot_sender(sender_name) or is_alert_or_bot_sender(sender_id):
