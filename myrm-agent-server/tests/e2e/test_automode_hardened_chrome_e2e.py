@@ -116,10 +116,9 @@ def test_socially_irreversible_action_renders_banner_and_hides_allow_always() ->
     seed = _seed_hardened_approval(api_url, variant="socially_irreversible")
     push_path = seed["push_url"]
     approval_id = seed["approval_id"]
+    deeplink_url = f"{ui_url}{push_path}"
 
     try:
-        deeplink_url = f"{ui_url}{push_path}"
-        warm_ui_route(push_path)
         with open_mcp_page(deeplink_url, timeout_ms=90_000) as (client, page):
             wait_for_state(
                 client,
@@ -151,10 +150,9 @@ def test_auto_mode_suspended_renders_red_banner_with_consecutive_reason() -> Non
     seed = _seed_hardened_approval(api_url, variant="auto_mode_suspended")
     push_path = seed["push_url"]
     approval_id = seed["approval_id"]
+    deeplink_url = f"{ui_url}{push_path}"
 
     try:
-        deeplink_url = f"{ui_url}{push_path}"
-        warm_ui_route(push_path)
         with open_mcp_page(deeplink_url, timeout_ms=90_000) as (client, page):
             wait_for_state(
                 client,

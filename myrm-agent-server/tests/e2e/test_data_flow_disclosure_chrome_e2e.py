@@ -97,6 +97,12 @@ EXPORT_FEEDBACK_JS = """(() => {
 
 def provider_egress_visible_js(provider_id: str) -> str:
     return f"""(() => {{
+  const anchor = Array.from(document.querySelectorAll('h2,h3,h4')).find((el) =>
+    /Data Flow|数据流向/.test(el.textContent || ''),
+  );
+  if (anchor && typeof anchor.scrollIntoView === 'function') {{
+    anchor.scrollIntoView({{ block: 'center' }});
+  }}
   const text = document.body?.innerText || '';
   const hasProvider = /{provider_id}|MiniMax/i.test(text);
   const hasLlm = /LLM Inference Providers|LLM 推理提供商|大模型推理供应商/.test(text);
