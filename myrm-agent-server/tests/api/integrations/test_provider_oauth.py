@@ -380,3 +380,21 @@ class TestProviderOAuthStatusAndDisconnect:
             poll_resp = client.post(f"{API_PREFIX}/xai/poll?user_code=XAI-123")
             assert poll_resp.status_code == 200
             assert poll_resp.json()["data"]["status"] == "pending"
+
+    def test_seed_and_cleanup_test_oauth(self, client: TestClient):
+        with (
+            patch("app.config.deploy_mode.is_local_mode", return_value=True),
+            patch("app.api.integrations.provider_oauth.upsert_oauth_credential", new=AsyncMock()) as mock_upsert,
+            patch("app.api.integrations.provider_oauth.delete_oauth_credential", new=AsyncMock(return_value=True)) as mock_delete,
+        ):
+            # 1. Seed copilot
+            resp = client.post(f"{API_PREFIX}/test/seed-oauth?provider=copilot&token=test-tok")
+            assert resp.status_code == 200
+            assert resp.json()["data"]["seeded"] is True
+            assert mock_upsert.called
+
+            # 2. Cleanup copilot
+            clean_resp = client.post(f"{API_PREFIX}/test/cleanup-oauth?provider=copilot")
+            assert clean_resp.status_code == 200
+            assert clean_resp.json()["data"]["cleaned"] is True
+            assert mock_delete.called
