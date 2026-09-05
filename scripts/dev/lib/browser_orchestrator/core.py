@@ -13,8 +13,8 @@ prune_self_owned_blanks(): cleanup helper delegating to tab hygiene
 
 [POS]
 唯一浏览器数据面的 Python 客户端接口。
-当前为过渡实现：通过 mux probe + mux.upstream_admission 提供 snapshot；
-完整 Browser Orchestrator daemon 启用后，切换为直接读取 daemon socket 状态。
+启用 MYRM_BROWSER_ORCHESTRATOR=1 时直接读取 Browser Orchestrator daemon；
+未启用时使用本地 mux 适配器。两条路径都是显式运行模式，业务层不直接依赖任一实现。
 """
 
 from __future__ import annotations

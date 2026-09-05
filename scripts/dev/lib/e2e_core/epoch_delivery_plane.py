@@ -1,4 +1,4 @@
-"""Epoch Delivery Plane — pin epoch-matched API for SHARED LIVE tests without private ADMIT.
+"""Epoch Delivery Plane — pin an epoch-matched API for shared namespace writes.
 
 [INPUT]
 - api_verify.resolve_e2e_api_context (POS: epoch / verify candidate SSOT)
@@ -9,7 +9,8 @@
 - apply_epoch_pin_for_shared_live → env dict for pytest monkeypatch
 
 [POS]
-Dev Gate epoch routing layer. Decouples «run new workspace code» from «consume private ADMIT credit».
+Dev Gate epoch routing layer. Applies to LIVE and STANDARD namespace-write tests and
+decouples «run new workspace code» from «consume private ADMIT credit».
 """
 
 from __future__ import annotations

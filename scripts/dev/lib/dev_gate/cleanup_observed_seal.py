@@ -68,7 +68,12 @@ def physical_targets_absent(*, lease_id: str) -> bool | None:
     """True when lease-bound CDP targets are absent; None when CDP snapshot unreadable."""
     bound = lease_bound_target_ids(lease_id)
     if not bound:
-        return True
+        # A non-empty lease with no recorded target still needs a positive CDP
+        # observability sample. Returning True without probing would allow a
+        # stale/malformed wave state file to manufacture a cleanup seal.
+        if not lease_id.strip():
+            return True
+        return True if collect_cdp_target_ids() is not None else None
     live = collect_cdp_target_ids()
     if live is None:
         return None

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 # Global write prefixes audited across app/api (2026-08-09): config, features, admin,
 # security (allowlist/estop/vault), org, voice, web_push, workspace. A mutation under
@@ -38,7 +38,7 @@ def current_access_scope() -> str:
 
 def _normalized_path(url: str) -> str:
     parsed = urlparse(url)
-    path = parsed.path or url
+    path = unquote(parsed.path or url)
     if "/api/v1/" in path:
         path = path[path.index("/api/v1/") :]
     return path
