@@ -146,7 +146,10 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden bg-background/95 backdrop-blur-xl border-border/60 shadow-2xl">
+      <DialogContent
+        data-testid="model-orchestration-playbook-dialog"
+        className="max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden bg-background/95 backdrop-blur-xl border-border/60 shadow-2xl"
+      >
         <DialogHeader className="p-6 pb-4 border-b border-border/40">
           <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 mb-1">
             <Sparkles className="w-5 h-5" />
@@ -162,6 +165,7 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
           <div className="flex items-center gap-2 mt-4 p-1 rounded-xl bg-muted/40 border border-border/30 w-full sm:w-auto">
             <button
               type="button"
+              data-testid="playbook-tab-recipes"
               onClick={() => setActiveTab('recipes')}
               className={cn(
                 'flex-1 sm:flex-none px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all',
@@ -174,6 +178,7 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
             </button>
             <button
               type="button"
+              data-testid="playbook-tab-principles"
               onClick={() => setActiveTab('principles')}
               className={cn(
                 'flex-1 sm:flex-none px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all',
@@ -186,6 +191,7 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
             </button>
             <button
               type="button"
+              data-testid="playbook-tab-economics"
               onClick={() => setActiveTab('economics')}
               className={cn(
                 'flex-1 sm:flex-none px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all',
@@ -442,7 +448,13 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
             <span>{t('openModelCenter')}</span>
             <ArrowRight className="w-3 h-3" />
           </button>
-          <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)} className="text-xs">
+          <Button
+            size="sm"
+            variant="ghost"
+            data-testid="playbook-close-button"
+            onClick={() => onOpenChange(false)}
+            className="text-xs"
+          >
             {t('closeButton')}
           </Button>
         </div>

@@ -21,7 +21,10 @@ export const ModelOrchestrationPlaybookCard = memo(function ModelOrchestrationPl
 
   return (
     <>
-      <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 sm:p-5 transition-all mb-6">
+      <div
+        data-testid="model-orchestration-playbook-card"
+        className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 sm:p-5 transition-all mb-6"
+      >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start sm:items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5 sm:mt-0">
@@ -46,6 +49,7 @@ export const ModelOrchestrationPlaybookCard = memo(function ModelOrchestrationPl
             <Button
               variant="outline"
               size="sm"
+              data-testid="view-full-playbook-button"
               onClick={() => setDialogOpen(true)}
               className="h-8 text-xs font-medium border-emerald-500/30 bg-background/60 hover:bg-emerald-500/10"
             >
@@ -54,6 +58,7 @@ export const ModelOrchestrationPlaybookCard = memo(function ModelOrchestrationPl
             <Button
               variant="ghost"
               size="sm"
+              data-testid="toggle-expand-playbook-button"
               onClick={() => setIsExpanded((prev) => !prev)}
               className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
               aria-label={isExpanded ? t('collapse') : t('expand')}
