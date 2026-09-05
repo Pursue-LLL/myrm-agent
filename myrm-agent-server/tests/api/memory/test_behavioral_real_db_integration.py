@@ -229,7 +229,10 @@ async def test_timezone_explicit_offset_resolution(real_db_env) -> None:
 
     async with session_maker() as db:
         service = BehavioralMeasurementService(db, manager)
-        measurement = await service.measure(lookback_days=7)
+        msgs = await service.collect_behavioral_messages(lookback_days=7)
+        assert len(msgs) == 1, f"Expected 1 msg, got {len(msgs)}"
+        opts = BehavioralStatsOptions(min_self_messages=1)
+        measurement = await service.measure(options=opts, lookback_days=7)
 
         # Expected NY local hour
         expected_ny_hour = test_dt.astimezone(ZoneInfo("America/New_York")).hour

@@ -704,3 +704,28 @@ class MemoryEvidencePlaybackResponse(BaseModel):
     turns: list[MemoryEvidencePlaybackTurn] = Field(default_factory=list)
     is_user_locked: bool = False
 
+
+class MemoryRepoCommitDigestItem(BaseModel):
+    """Single commit summary item for repo evidence."""
+
+    commit_hash: str
+    short_hash: str
+    author: str
+    committed_at: str
+    subject: str
+    files_changed: list[str] = Field(default_factory=list)
+
+
+class MemoryRepoEvidenceResponse(BaseModel):
+    """Repository history evidence digest response."""
+
+    repo_name: str
+    repo_path: str
+    current_branch: str
+    is_dirty: bool
+    recent_commits: list[MemoryRepoCommitDigestItem] = Field(default_factory=list)
+    total_commits_examined: int = 0
+    extracted_at: str
+    is_git_available: bool = True
+
+

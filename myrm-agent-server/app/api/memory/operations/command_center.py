@@ -44,10 +44,12 @@ from app.schemas.memory.command_center import (
     MemoryCommandTimelineEvent,
     MemoryEvidencePlaybackResponse,
     MemoryRecallBoundaryData,
+    MemoryRepoEvidenceResponse,
 )
 from app.services.memory.behavioral.measurement_service import BehavioralMeasurementService
 from app.services.memory.command_center.command_center import MemoryCommandCenterService
 from app.services.memory.evidence.playback_service import EvidencePlaybackService
+from app.services.memory.evidence.repo_digest_service import RepoHistoryDigestService
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
 router = APIRouter(prefix="/command-center")
@@ -72,6 +74,19 @@ async def get_evidence_playback(
         quote_snippet=quote_snippet,
         author_id=author_id,
         author_name=author_name,
+    )
+
+
+@router.get("/repo-evidence/digest", response_model=MemoryRepoEvidenceResponse)
+async def get_repo_evidence_digest(
+    workspace_path: str | None = None,
+    max_commits: int = 5,
+) -> MemoryRepoEvidenceResponse:
+    """Return structured git repository recent commit and change evidence digest without LLM cost."""
+    service = RepoHistoryDigestService()
+    return service.get_repo_evidence_digest(
+        workspace_path=workspace_path,
+        max_commits=max_commits,
     )
 
 

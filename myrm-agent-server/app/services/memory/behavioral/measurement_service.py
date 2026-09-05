@@ -95,6 +95,17 @@ def resolve_timezone_offset_minutes(tz_str: str | None, ref_dt: datetime | None 
     return None
 
 
+def _to_utc_timestamp_ms(dt: datetime) -> int:
+    """Safely convert database datetime to UTC timestamp in milliseconds.
+
+    Protects against naive datetimes from SQLite/DB drivers being misinterpreted
+    as local system timezone by Python's dt.timestamp().
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return int(dt.timestamp() * 1000)
+
+
 def extract_channel_message_offset_minutes(row: ChannelMessageModel) -> int | None:
     """Extract timezone offset minutes from channel message metadata if available."""
     if not row.metadata_json:
@@ -151,7 +162,7 @@ class BehavioralMeasurementService:
             if is_alert_or_bot_sender(sender_name) or is_alert_or_bot_sender(sender_id):
                 continue
 
-            created_ms = int(row.created_at.timestamp() * 1000)
+            created_ms = _to_utc_timestamp_ms(row.created_at)
             is_self = bool(row.is_self)
             offset_mins = extract_channel_message_offset_minutes(row)
             results.append(
@@ -172,18 +183,24 @@ class BehavioralMeasurementService:
         chat_msg_stmt = (
             select(Message)
             .where(
-                Message.sent_at >= cutoff,
                 Message.is_active.is_(True),
             )
-            .order_by(desc(Message.sent_at))
             .limit(max_messages)
         )
         chat_res = await self._db.execute(chat_msg_stmt)
         for msg in chat_res.scalars().all():
-            is_self = msg.role == "user"
             msg_dt = msg.sent_at or msg.created_at
-            created_ms = int(msg_dt.timestamp() * 1000)
-            offset_mins = resolve_timezone_offset_minutes(msg.sent_timezone, msg_dt)
+            if msg_dt is not None:
+                # Ensure tz-aware UTC for comparison
+                dt_utc = msg_dt if msg_dt.tzinfo else msg_dt.replace(tzinfo=UTC)
+                if dt_utc < cutoff:
+                    continue
+            else:
+                continue
+
+            is_self = msg.role == "user"
+            created_ms = int(dt_utc.timestamp() * 1000)
+            offset_mins = resolve_timezone_offset_minutes(msg.sent_timezone, dt_utc)
             results.append(
                 BehavioralMessage(
                     id=f"chat:{msg.id}",
