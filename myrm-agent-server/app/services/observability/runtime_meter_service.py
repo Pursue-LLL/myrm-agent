@@ -91,8 +91,29 @@ class RuntimeMeterService:
             elif record.used_count >= record.quota_limit:
                 record.is_depleted = True
 
-        await session.commit()
-        await session.refresh(record)
+        try:
+            await session.commit()
+            await session.refresh(record)
+        except Exception:
+            await session.rollback()
+            # Retry on concurrent insertion race condition
+            stmt = select(SearchQuotaRecord).where(
+                SearchQuotaRecord.provider == canonical_provider,
+                SearchQuotaRecord.year_month == year_month,
+            )
+            result = await session.execute(stmt)
+            record = result.scalar_one_or_none()
+            if record is not None:
+                record.used_count += count
+                if quota_exceeded:
+                    record.is_depleted = True
+                    record.last_depleted_at = datetime.now(timezone.utc)
+                    if record.used_count < record.quota_limit:
+                        record.used_count = record.quota_limit
+                elif record.used_count >= record.quota_limit:
+                    record.is_depleted = True
+                await session.commit()
+                await session.refresh(record)
         return record
 
     async def get_search_quotas(self, session: AsyncSession) -> list[dict[str, object]]:

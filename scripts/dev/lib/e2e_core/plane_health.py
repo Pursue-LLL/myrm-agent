@@ -351,8 +351,12 @@ def _start_mux_daemon_if_needed() -> bool:
     mux_socket = mux_dir / "cdmcp-mux.sock"
     chrome_data = _default_chrome_data_dir()
     request_timeout = os.getenv("CDMCP_MUX_REQUEST_TIMEOUT_MS", "180000").strip() or "180000"
+    node_dir = str(Path(node).parent)
+    current_path = os.environ.get("PATH", "")
+    fixed_path = f"{node_dir}:{current_path}" if node_dir not in current_path.split(":") else current_path
     env = {
         **os.environ,
+        "PATH": fixed_path,
         "CHROME_DATA_DIR": str(chrome_data),
         "MYRM_CHROME_E2E_DATA_DIR": str(chrome_data),
         "MYRM_CHROME_E2E_PORT": str(_resolve_e2e_port()),
