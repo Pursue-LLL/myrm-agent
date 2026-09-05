@@ -417,7 +417,7 @@ describe('ModelPickerPopover local-owned marginal cost badge', () => {
     customModelInfo.mockReturnValue({});
 
     mocks.fetchModelCapabilitiesBatch.mockResolvedValue({
-      'split-stack-vllm/qwen2.5': {
+      'openai/qwen2.5': {
         ...caps,
         input_cost_per_token: null,
         output_cost_per_token: null,
@@ -479,7 +479,7 @@ describe('ModelPickerPopover local-owned marginal cost badge', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByText('$2.50/M')).toBeInTheDocument();
+    expect(screen.getByText('$2.5/M')).toBeInTheDocument();
   });
 });
 

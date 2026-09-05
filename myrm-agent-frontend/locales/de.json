@@ -15797,7 +15797,7 @@
           "tools": "Erforderliche Tools",
           "addPathOnly": "Nur Pfad hinzufügen",
           "selectAll": "Alle auswählen",
-          "deselectAll": "Alle abwählen",
+          "deselectAll": "Auswahl aufheben",
           "selectedCount": "{count} Skill(s) ausgewählt"
         },
         "discoveredSkillsBadge": "{count} Skills",

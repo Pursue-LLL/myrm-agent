@@ -15979,8 +15979,8 @@
           "tools": "必要なツール",
           "addPathOnly": "パスのみ追加",
           "selectAll": "すべて選択",
-          "deselectAll": "すべて解除",
-          "selectedCount": "{count} 個のスキルを選択中"
+          "deselectAll": "選択を全解除",
+          "selectedCount": "{count} 個のスキルを選択済み"
         },
         "discoveredSkillsBadge": "{count} 個のスキル",
         "pathNotFoundBadge": "パスが見つかりません",

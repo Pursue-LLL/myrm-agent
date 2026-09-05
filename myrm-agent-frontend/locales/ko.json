@@ -15796,8 +15796,8 @@
           "adopting": "채택 중...",
           "tools": "필요한 도구",
           "addPathOnly": "경로만 추가",
-          "selectAll": "모두 선택",
-          "deselectAll": "모두 선택 해제",
+          "selectAll": "전체 선택",
+          "deselectAll": "전체 선택 해제",
           "selectedCount": "{count}개 스킬 선택됨"
         },
         "discoveredSkillsBadge": "{count}개 스킬",

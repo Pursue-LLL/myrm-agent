@@ -15977,9 +15977,9 @@
           "adopt": "確認採納並儲存路徑",
           "adopting": "採納儲存中...",
           "tools": "依賴工具",
-          "addPathOnly": "僅新增路徑",
+          "addPathOnly": "僅添加路徑",
           "selectAll": "全選",
-          "deselectAll": "全部取消",
+          "deselectAll": "全不選",
           "selectedCount": "已選擇 {count} 個技能"
         },
         "discoveredSkillsBadge": "{count} 個技能",
