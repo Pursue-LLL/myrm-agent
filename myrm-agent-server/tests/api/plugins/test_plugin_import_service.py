@@ -57,6 +57,10 @@ def _plugin_zip_bytes() -> bytes:
             "---\nname: summarize\ndescription: Do summaries\n---\nWork.",
         )
         zf.writestr(
+            "demo-plugin/bin/pdf",
+            "#!/bin/sh\necho pdf\n",
+        )
+        zf.writestr(
             "demo-plugin/mcp.json",
             json.dumps(
                 {

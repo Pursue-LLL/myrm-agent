@@ -191,6 +191,8 @@ def build_preview_result(
                 "has_placeholders": _server_has_placeholders(server),
                 "virtual_id": f"mcp:{idx}",
                 "missing_artifact": getattr(server, "missing_artifact", None),
+                "is_runnable": getattr(server, "is_runnable", True),
+                "missing_artifacts": list(getattr(server, "missing_artifacts", ())),
             }
             for idx, server in enumerate(result.servers)
         ],

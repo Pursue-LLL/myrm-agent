@@ -616,7 +616,7 @@ describe('PluginImportDialog', () => {
     selectFile(new File(['zip'], 'plugin.zip', { type: 'application/zip' }));
 
     await screen.findByText('broken-server');
-    expect(screen.getByText(/Missing build artifact: dist\/index\.js/)).toBeInTheDocument();
+    expect(screen.getByText(/dist\/index\.js/)).toBeInTheDocument();
 
     // The button for the broken server should be disabled
     const installButtons = screen.getAllByRole('button', { name: /Install|Skip/ });

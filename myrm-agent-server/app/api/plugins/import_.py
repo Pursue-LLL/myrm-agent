@@ -71,6 +71,8 @@ class PluginServerPreview(BaseModel):
     has_placeholders: bool = False
     virtual_id: str
     missing_artifact: str | None = None
+    is_runnable: bool = True
+    missing_artifacts: list[str] = Field(default_factory=list)
 
 
 class PluginAgentPreview(BaseModel):
