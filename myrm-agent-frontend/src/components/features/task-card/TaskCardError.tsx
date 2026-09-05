@@ -17,6 +17,7 @@ import { AlertCircle, RotateCcw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/primitives/button';
+import { redactErrorMessage } from '@/lib/utils/errorRedactor';
 import type { TaskError } from '@/store/tasks/types';
 
 interface TaskCardErrorProps {
@@ -43,7 +44,7 @@ export const TaskCardError: React.FC<TaskCardErrorProps> = ({
         <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
         <div className="flex-1 space-y-1">
           <p className="text-sm font-medium text-foreground">{t('failedTitle')}</p>
-          <p className="text-sm text-foreground/70">{error.message}</p>
+          <p className="text-sm text-foreground/70">{redactErrorMessage(error.message)}</p>
         </div>
       </div>
 

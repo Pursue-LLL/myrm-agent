@@ -3,6 +3,7 @@
 import React, { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
+import { redactErrorMessage } from '@/lib/utils/errorRedactor';
 
 interface Props {
   children: ReactNode;
@@ -52,7 +53,7 @@ class ArtifactErrorBoundary extends Component<Props, State> {
                 {this.props.fallbackMessage || '无法渲染该内容，请尝试刷新或下载查看'}
               </p>
               {this.state.error && (
-                <p className="text-xs text-destructive/80 mt-2 font-mono break-all">{this.state.error.message}</p>
+                <p className="text-xs text-destructive/80 mt-2 font-mono break-all">{redactErrorMessage(this.state.error.message)}</p>
               )}
             </div>
             <Button variant="outline" onClick={this.handleReset} className="gap-2">

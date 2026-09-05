@@ -17223,6 +17223,20 @@
       "description": "Zugriff auf WebUI-Dienste und Konfiguration auf Systemebene",
       "desktopModeOnly": "Nur Desktop-Modus",
       "desktopModeDescription": "Systemeinstellungen sind nur im Tauri Desktop-Client verfügbar",
+      "sandboxReset": {
+        "title": "Containerumgebung zurücksetzen",
+        "description": "Erstellen Sie den Sandbox-Container neu, um den Status auf Systemebene (globale Pakete, Systemkonfiguration) zurückzusetzen. Ihre Workspace-Dateien und Ihr Chat-Verlauf bleiben erhalten.",
+        "button": "Umgebung zurücksetzen",
+        "confirmTitle": "Containerumgebung zurücksetzen?",
+        "confirmDescription": "Dadurch wird der aktuelle Container gelöscht und ein neuer erstellt. Ihre Workspace-Dateien (auf dem persistenten Volume), Chat-Verlauf, Speicher und Einstellungen bleiben erhalten. Globale Pakete und Änderungen auf Systemebene werden zurückgesetzt. Die Umgebung wird neu gestartet — dies dauert etwa 10–30 Sekunden.",
+        "confirm": "Zurücksetzen",
+        "cancel": "Abbrechen",
+        "preserved": "Erhalten: Arbeitsbereichsdateien, Chatverlauf, Speicher, Einstellungen",
+        "reset": "Zurücksetzen: globale Pakete (pip/apt), Systemkonfiguration, Containerstatus",
+        "resetting": "Zurücksetzen...",
+        "success": "Containersanierung eingeleitet. Die Umgebung wird in Kürze neu gestartet.",
+        "failed": "Die Containerumgebung konnte nicht zurückgesetzt werden"
+      },
       "status": {
         "currentMode": "Aktueller Modus"
       },
@@ -17384,20 +17398,6 @@
           "e2eeAlgorithm": "Algorithmus",
           "e2eeFingerprint": "Fingerabdruck"
         }
-      },
-      "sandboxReset": {
-        "title": "Containerumgebung zurücksetzen",
-        "description": "Erstellen Sie den Sandbox-Container neu, um den Status auf Systemebene (globale Pakete, Systemkonfiguration) zurückzusetzen. Ihre Workspace-Dateien und Ihr Chat-Verlauf bleiben erhalten.",
-        "button": "Umgebung zurücksetzen",
-        "confirmTitle": "Containerumgebung zurücksetzen?",
-        "confirmDescription": "This will destroy the current container and create a fresh one. Your workspace files (on the persistent volume), chat history, memory, and settings are preserved. Global packages and system-level changes will be reset. The environment will restart — this takes about 10-30 seconds.",
-        "confirm": "Zurücksetzen",
-        "cancel": "Stornieren",
-        "preserved": "Erhalten: Arbeitsbereichsdateien, Chatverlauf, Speicher, Einstellungen",
-        "reset": "Zurücksetzen: globale Pakete (pip/apt), Systemkonfiguration, Containerstatus",
-        "resetting": "Zurücksetzen...",
-        "success": "Containersanierung eingeleitet. Die Umgebung wird in Kürze neu gestartet.",
-        "failed": "Die Containerumgebung konnte nicht zurückgesetzt werden"
       },
       "serverConnection": {
         "title": "Serververbindung",

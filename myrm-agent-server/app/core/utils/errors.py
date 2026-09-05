@@ -137,6 +137,38 @@ def register_exception_handlers(app: FastAPI) -> None:
             content=body,
         )
 
+    @app.exception_handler(HTTPException)
+    async def _handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
+        """Handle raw HTTPException ensuring detail string is completely redacted."""
+        path = request.url.path
+        if exc.status_code >= 500:
+            logger.error("[%s] HTTPException %s: %s", path, exc.status_code, exc.detail)
+        else:
+            logger.warning("[%s] HTTPException %s: %s", path, exc.status_code, exc.detail)
+
+        safe_detail: object
+        if isinstance(exc.detail, str):
+            safe_detail = redact_sensitive_text(exc.detail)
+        elif isinstance(exc.detail, dict):
+            safe_detail = {k: redact_sensitive_text(str(v)) if isinstance(v, str) else v for k, v in exc.detail.items()}
+        else:
+            safe_detail = exc.detail
+
+        # If detail is already formatted with code and message, keep structure
+        if isinstance(safe_detail, dict) and "code" in safe_detail and "message" in safe_detail:
+            body = safe_detail
+        else:
+            body = create_error_response(
+                code=BusinessCode.INTERNAL_ERROR if exc.status_code >= 500 else BusinessCode.VALIDATION_ERROR,
+                message=str(safe_detail),
+            ).model_dump(mode="json")
+
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=body,
+            headers=getattr(exc, "headers", None),
+        )
+
     @app.exception_handler(AttributeError)
     async def _handle_attribute_error(request: Request, exc: AttributeError) -> JSONResponse:
         """Handle AttributeError (e.g., 'str' object has no attribute 'id')."""

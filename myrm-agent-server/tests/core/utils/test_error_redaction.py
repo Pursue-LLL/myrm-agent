@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from httpx import ASGITransport, AsyncClient
 
 from app.core.utils.errors import MyrmError, register_exception_handlers, validation_error
@@ -42,3 +42,25 @@ async def test_standard_http_exception_message_is_redacted() -> None:
     assert isinstance(detail, dict)
     assert "abcdefghijklmnopqrstuvwxyz123" not in detail["message"]
     assert "sk-ant" in detail["message"] or "***" in detail["message"]
+
+
+@pytest.mark.asyncio
+async def test_raw_http_exception_detail_is_automatically_redacted() -> None:
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.get("/trigger-raw-http")
+    async def trigger_raw_http() -> None:
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to connect to host with secret token sk-proj-supersecret998877665544",
+        )
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/trigger-raw-http")
+        assert response.status_code == 400
+        data = response.json()
+        assert "supersecret998877665544" not in data["message"]
+        assert "sk-p" in data["message"] or "***" in data["message"]
+
