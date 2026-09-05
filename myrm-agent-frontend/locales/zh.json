@@ -3286,7 +3286,9 @@
     "to": "截止",
     "clearTimeFilter": "清除",
     "citeToComposer": "引用到输入框",
-    "citeSameChat": "该结果来自当前会话，无需引用"
+    "citeSameChat": "该结果来自当前会话，无需引用",
+    "fuzzyMatchBadge": "降级匹配",
+    "fuzzyMatchBadgeTooltip": "精确分词无结果，已自动切换泛化扩展匹配"
   },
   "images": {
     "search": "搜索图片",

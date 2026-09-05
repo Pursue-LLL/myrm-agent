@@ -12,10 +12,10 @@ from datetime import datetime, timezone
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.database.migrations import ensure_raw_sql_schema
 from app.database.models import Base, Chat, Message
 from app.database.repositories.chat_message_search_repo import ChatMessageSearchRepository
 from app.database.repositories.chat_repo import ChatRepository
@@ -26,40 +26,7 @@ async def fts_session():
     engine = create_async_engine("sqlite+aiosqlite:///file:testdb_sidebar_fts?mode=memory&cache=shared&uri=true")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        await conn.execute(
-            text("""
-            CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
-                content,
-                content=messages,
-                content_rowid=rowid,
-                tokenize='trigram'
-            )
-        """)
-        )
-        await conn.execute(
-            text("""
-            CREATE TRIGGER IF NOT EXISTS messages_fts_insert AFTER INSERT ON messages BEGIN
-                INSERT INTO messages_fts(rowid, content) VALUES (new.rowid, new.content);
-            END
-        """)
-        )
-        await conn.execute(
-            text("""
-            CREATE TRIGGER IF NOT EXISTS messages_fts_delete AFTER DELETE ON messages BEGIN
-                INSERT INTO messages_fts(messages_fts, rowid, content)
-                VALUES('delete', old.rowid, old.content);
-            END
-        """)
-        )
-        await conn.execute(
-            text("""
-            CREATE TRIGGER IF NOT EXISTS messages_fts_update AFTER UPDATE ON messages BEGIN
-                INSERT INTO messages_fts(messages_fts, rowid, content)
-                VALUES('delete', old.rowid, old.content);
-                INSERT INTO messages_fts(rowid, content) VALUES (new.rowid, new.content);
-            END
-        """)
-        )
+    await ensure_raw_sql_schema(engine)
 
     TestSession = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with TestSession() as session:

@@ -8595,6 +8595,12 @@
     "jsExpression": "JavaScript 표현식",
     "mcpElicitationTitle": "MCP 서버 확인",
     "mcpElicitationServer": "서버",
+    "scriptOperand": {
+      "protectedBadge": "스크립트 내용 변조 방지 잠금",
+      "protectedTooltip": "스크립트 파일 내용이 SHA-256 해시로 고정되었습니다. 실행 전 파일이 변조되거나 교체되면 TOCTOU 공격을 방어하기 위해 실행이 자동 중단됩니다.",
+      "hashLabel": "내용 해시",
+      "pathLabel": "스크립트 경로"
+    },
     "clarificationRequired": "오류 명확화 필요",
     "fixParameters": "매개변수 수정(JSON)",
     "knowledgePatch": {

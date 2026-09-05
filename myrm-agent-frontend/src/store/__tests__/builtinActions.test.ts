@@ -55,6 +55,14 @@ describe('buildBuiltinActions', () => {
     const pet = actions.find((a) => a.name === 'pet')!;
     expect(pet.argsHint).toBe('[toggle | list | <slug>]');
     expect(pet.aliases).toEqual(['pets']);
+
+    const memo = actions.find((a) => a.name === 'memo')!;
+    expect(memo.argsHint).toBe('[transcript | topic]');
+    expect(memo.aliases).toEqual(['meeting', 'minutes']);
+
+    const reviewWeek = actions.find((a) => a.name === 'review-week')!;
+    expect(reviewWeek.argsHint).toBe('[timeframe | focus-area]');
+    expect(reviewWeek.aliases).toEqual(['week-review', 'weekly-digest', 'extract-blockers']);
   });
 
   it('focus action has no argsHint (no arguments)', () => {
@@ -88,6 +96,8 @@ describe('buildBuiltinActions', () => {
         'goal',
         'loop',
         'pet',
+        'memo',
+        'review-week',
       ]),
     );
   });

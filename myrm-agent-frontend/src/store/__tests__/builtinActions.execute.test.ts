@@ -325,6 +325,42 @@ describe('builtin action execute functions', () => {
     });
   });
 
+  describe('/memo', () => {
+    it('sets formatted memo directive in chat store', async () => {
+      const memoAction = actions.find((a) => a.name === 'memo')!;
+      const result = await memoAction.execute('/memo 讨论认证重构');
+      expect(result).toEqual({ success: true, newInputValue: '/memo 讨论认证重构' });
+      expect(setInputMessageMock).toHaveBeenCalledWith('/memo 讨论认证重构');
+    });
+
+    it('sets default memo directive when no args passed', async () => {
+      const memoAction = actions.find((a) => a.name === 'memo')!;
+      const result = await memoAction.execute('/memo');
+      expect(result.success).toBe(true);
+      expect(setInputMessageMock).toHaveBeenCalledWith(
+        '/memo 请根据本次语音/会议录音，整理结构化会议纪要工件、派发看板待办并沉淀核心决策至记忆。',
+      );
+    });
+  });
+
+  describe('/review-week', () => {
+    it('sets formatted review-week directive in chat store', async () => {
+      const reviewAction = actions.find((a) => a.name === 'review-week')!;
+      const result = await reviewAction.execute('/review-week 7d backend');
+      expect(result).toEqual({ success: true, newInputValue: '/review-week 7d backend' });
+      expect(setInputMessageMock).toHaveBeenCalledWith('/review-week 7d backend');
+    });
+
+    it('sets default review-week directive when no args passed', async () => {
+      const reviewAction = actions.find((a) => a.name === 'review-week')!;
+      const result = await reviewAction.execute('/review-week');
+      expect(result.success).toBe(true);
+      expect(setInputMessageMock).toHaveBeenCalledWith(
+        '/review-week 请检索本周的会议录音、听记素材与看板状态，提炼全局工作结论与关键阻碍并生成周度复盘工件。',
+      );
+    });
+  });
+
   describe('all actions return ActionResult shape', () => {
     it('all execute functions return objects with success field', async () => {
       for (const action of actions) {

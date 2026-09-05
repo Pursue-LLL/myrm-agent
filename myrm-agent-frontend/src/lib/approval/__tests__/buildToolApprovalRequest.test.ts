@@ -121,4 +121,31 @@ describe('buildToolApprovalRequest', () => {
 
     expect(request.executionIntent).toBe('Install dependencies before running tests');
   });
+
+  it('maps scriptOperand metadata and protected reviewConfig', () => {
+    const request = buildToolApprovalRequest({
+      action: {
+        action: 'bash',
+        args: { command: 'bash deploy.sh' },
+        description: 'run script',
+        scriptOperandPath: '/repo/deploy.sh',
+        scriptOperandHash: 'abc123sha256digest',
+      },
+      reviewConfig: {
+        scriptOperandProtected: true,
+      },
+      requestId: 'req-6',
+      messageId: 'msg-6',
+      chatId: 'chat-6',
+      actionMode: 'agent',
+      extensions: {
+        timeout: { seconds: 60, expiresAt: 1_700_000_000 },
+        displayMode: 'approval',
+      },
+    });
+
+    expect(request.scriptOperandPath).toBe('/repo/deploy.sh');
+    expect(request.scriptOperandHash).toBe('abc123sha256digest');
+    expect(request.scriptOperandProtected).toBe(true);
+  });
 });
