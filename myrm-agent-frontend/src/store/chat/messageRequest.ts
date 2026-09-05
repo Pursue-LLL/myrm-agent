@@ -305,11 +305,8 @@ export const getModelSelection = (actionMode: ActionMode, agentConfig: AgentConf
     return null;
   }
 
-  if (!provider.apiKeys || !Array.isArray(provider.apiKeys)) {
-    return null;
-  }
-  const hasActiveKey = provider.apiKeys.some((k) => k.isActive && k.key);
-  if (!hasActiveKey) {
+  const hasActiveKey = provider.apiKeys?.some((k) => k.isActive && k.key) || Boolean(provider.oauthConnected);
+  if (!hasActiveKey && !supportsProviderNoAuth(provider)) {
     return null;
   }
 

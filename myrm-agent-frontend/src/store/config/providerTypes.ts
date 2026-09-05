@@ -392,9 +392,11 @@ export interface ProviderConfig {
   availableModels: string[];
   providerType?: CustomProviderType;
   credentialPoolStrategy?: CredentialPoolStrategy;
+  oauthConnected?: boolean;
 }
 
 export const LOCAL_NO_AUTH_API_KEY_MARKER = '__myrm_local_no_auth__';
+export const OAUTH_AUTH_API_KEY_MARKER = '__myrm_oauth_token__';
 
 function isLoopbackHostname(hostname: string): boolean {
   const normalized = hostname
@@ -515,13 +517,13 @@ export const supportsProviderNoAuth = (provider: Pick<ProviderConfig, 'id' | 'pr
 };
 
 export const hasUsableProviderAuth = (
-  provider: Pick<ProviderConfig, 'id' | 'providerType' | 'apiUrl' | 'apiKeys'>,
+  provider: Pick<ProviderConfig, 'id' | 'providerType' | 'apiUrl' | 'apiKeys'> & { oauthConnected?: boolean },
 ): boolean => {
-  return hasActiveApiKey(provider) || supportsProviderNoAuth(provider);
+  return hasActiveApiKey(provider) || supportsProviderNoAuth(provider) || Boolean(provider.oauthConnected);
 };
 
 export const resolveProviderApiKeyForRequests = (
-  provider: Pick<ProviderConfig, 'id' | 'providerType' | 'apiUrl' | 'apiKeys'>,
+  provider: Pick<ProviderConfig, 'id' | 'providerType' | 'apiUrl' | 'apiKeys'> & { oauthConnected?: boolean },
 ): string | undefined => {
   const active = provider.apiKeys.find((k) => k.isActive && k.key)?.key;
   if (active) {
@@ -529,6 +531,9 @@ export const resolveProviderApiKeyForRequests = (
   }
   if (supportsProviderNoAuth(provider)) {
     return LOCAL_NO_AUTH_API_KEY_MARKER;
+  }
+  if (provider.oauthConnected) {
+    return OAUTH_AUTH_API_KEY_MARKER;
   }
   return undefined;
 };

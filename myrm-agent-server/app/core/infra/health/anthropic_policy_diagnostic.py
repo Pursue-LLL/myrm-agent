@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from myrm_agent_harness.observability.diagnostics.protocols import (
+from app.core.infra.health.contracts import (
     DiagnosticProtocol,
     HealthReport,
 )

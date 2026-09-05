@@ -39,6 +39,7 @@ import {
   shouldOfferVisionFallbackRecommendation,
 } from '@/store/config/visionCapability';
 import { toast } from 'sonner';
+import ModelOrchestrationPlaybookCard from './ModelOrchestrationPlaybookCard';
 
 const DefaultModelSection = memo(() => {
   const t = useTranslations('settings.defaultModel');
@@ -1065,6 +1066,7 @@ const DefaultModelSection = memo(() => {
         }
         description={t('smartRouting.description')}
       >
+        <ModelOrchestrationPlaybookCard />
         <div className="space-y-6">
           <label className="flex items-center gap-3 cursor-pointer">
             <button

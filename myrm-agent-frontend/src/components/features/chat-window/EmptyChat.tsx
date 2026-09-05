@@ -19,9 +19,11 @@ import useProviderStore from '@/store/useProviderStore';
 import { useShallow } from 'zustand/react/shallow';
 import { isSmartRoutingActive } from '@/lib/model-binding';
 import { Sparkles } from 'lucide-react';
+import ModelOrchestrationPlaybookDialog from './ModelOrchestrationPlaybookDialog';
 
 const EmptyChat = React.memo(() => {
   const t = useTranslations('chat');
+  const [playbookOpen, setPlaybookOpen] = React.useState(false);
   const isCompanionEnabled = useFeatureGateStore((s) => s.isEnabled('companion_mode'));
   useChatTurnPrewarm({ autoOnMount: true });
 
@@ -49,13 +51,17 @@ const EmptyChat = React.memo(() => {
         <div className="flex flex-col items-center gap-2 w-full">
           <WorkUnitBalanceBar />
           {isSmartRouting && (
-            <div
+            <button
+              type="button"
+              onClick={() => setPlaybookOpen(true)}
               data-testid="smart-routing-narrative-badge"
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-medium border border-emerald-500/20 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-medium border border-emerald-500/20 hover:bg-emerald-500/20 transition-all cursor-pointer shadow-2xs group"
+              title={t('smartRoutingBadgeClickHint')}
             >
-              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <Sparkles className="w-3.5 h-3.5 shrink-0 group-hover:scale-110 transition-transform" />
               <span>{t('smartRoutingBadge')}</span>
-            </div>
+              <span className="text-[10px] opacity-75 underline ml-1">{t('smartRoutingBadgeAction')}</span>
+            </button>
           )}
         </div>
         <div className="flex items-end gap-2 w-full">
@@ -86,6 +92,8 @@ const EmptyChat = React.memo(() => {
           <AgentConfigPanel className="mt-4" />
         </div>
       </section>
+
+      <ModelOrchestrationPlaybookDialog open={playbookOpen} onOpenChange={setPlaybookOpen} />
     </div>
   );
 });

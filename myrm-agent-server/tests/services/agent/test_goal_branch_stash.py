@@ -95,3 +95,17 @@ async def test_check_and_handle_branch_stash_integration(mock_storage) -> None:
 
         # Clean up
         GoalRegistry.unregister(session_id)
+
+
+@pytest.mark.asyncio
+async def test_get_current_git_branch_zero_subprocess(tmp_path) -> None:
+    """Test get_current_git_branch accurately delegates to pure-file resolver."""
+    from app.services.agent.goals.goal_registry import get_current_git_branch
+
+    repo = tmp_path / "zero_subproc_repo"
+    git_dir = repo / ".git"
+    git_dir.mkdir(parents=True)
+    (git_dir / "HEAD").write_text("ref: refs/heads/feature/fast-branch\n", encoding="utf-8")
+
+    branch = await get_current_git_branch(str(repo))
+    assert branch == "feature/fast-branch"

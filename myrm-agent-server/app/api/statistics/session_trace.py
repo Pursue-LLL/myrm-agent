@@ -285,13 +285,16 @@ async def search_session_traces(
 ) -> JSONResponse:
     """Search traces by user task prompt or session title."""
     try:
+        query_lower = query.strip().lower()
+        if not query_lower:
+            return success_response(data=[])
+
         stmt = select(Chat).order_by(Chat.updated_at.desc()).limit(limit * 2)
         result = await db.execute(stmt)
         chats = result.scalars().all()
 
         matched: list[dict[str, object]] = []
         log_dir = Path(settings.database.event_log_dir)
-        query_lower = query.strip().lower()
 
         for chat in chats:
             chat_id = str(chat.id)

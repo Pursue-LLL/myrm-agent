@@ -662,3 +662,30 @@ class TestBackgroundEvolutionModelExtraction:
         assert cfg.api_key == "xai-oauth-live-access-token"
         assert cfg.base_url == "https://api.x.ai/v1"
 
+    def test_extract_model_config_api_key_takes_precedence_over_oauth_token(self) -> None:
+        """测试当同时存在 API Key 和 OAuth Token 时，API Key 优先被采用"""
+        from app.core.channel_bridge.model_resolver import resolve_model_config
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {
+                    "id": "xai",
+                    "isEnabled": True,
+                    "apiUrl": "https://api.x.ai/v1",
+                    "apiKeys": [{"key": "xai-real-api-key", "isActive": True}],
+                    "_oauthToken": "xai-oauth-token-fallback",
+                    "_oauthBaseUrl": "https://api.x.ai/v1",
+                    "enabledModels": ["grok-2"],
+                },
+            ],
+            "defaultModelConfig": {
+                "baseModel": {"primary": {"providerId": "xai", "model": "grok-2"}},
+            },
+        }
+
+        cfg = resolve_model_config(providers_dict)
+        assert cfg is not None
+        assert cfg.model == "xai/grok-2"
+        assert cfg.api_key == "xai-real-api-key"
+
+

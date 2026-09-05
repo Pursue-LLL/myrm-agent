@@ -178,3 +178,12 @@ class TestSearchSessionTracesEndpoint:
         assert "sess-title-match" in ids
         assert "sess-prompt-match" in ids
         assert "sess-no-match" not in ids
+
+    @pytest.mark.asyncio
+    async def test_search_traces_empty_query(self) -> None:
+        mock_db = AsyncMock()
+        response = await search_session_traces(query="   ", limit=10, db=mock_db)
+        data = json.loads(response.body)
+        assert data["code"] == 0
+        assert data["data"] == []
+

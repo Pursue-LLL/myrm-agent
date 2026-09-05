@@ -300,3 +300,27 @@ class TestInjectProviderOAuthTokens:
         xai_p = next(p for p in providers if p["id"] == "xai")
         assert xai_p["_oauthToken"] == "xai-oauth-alias-token-99999"
 
+    def test_inject_copilot_oauth_token_and_base_url(self) -> None:
+        from app.core.channel_bridge.config_loader import _inject_provider_oauth_tokens
+
+        providers_dict: dict[str, object] = {
+            "providers": [
+                {"id": "copilot", "name": "GitHub Copilot", "isEnabled": True, "apiKeys": []},
+            ]
+        }
+        oauth_creds: dict[str, object] = {
+            "provider_copilot": {
+                "token": "gh-copilot-oauth-token-abcde",
+                "base_url": "https://api.individual.githubcopilot.com",
+            },
+        }
+
+        _inject_provider_oauth_tokens(providers_dict, oauth_creds)
+
+        providers = providers_dict["providers"]
+        assert isinstance(providers, list)
+        copilot_p = next(p for p in providers if p["id"] == "copilot")
+        assert copilot_p["_oauthToken"] == "gh-copilot-oauth-token-abcde"
+        assert copilot_p["_oauthBaseUrl"] == "https://api.individual.githubcopilot.com"
+
+

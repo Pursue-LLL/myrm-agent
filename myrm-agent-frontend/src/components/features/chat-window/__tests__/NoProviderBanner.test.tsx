@@ -168,4 +168,22 @@ describe('NoProviderBanner', () => {
     expect(screen.getByText('subscriptionOpenai')).toBeInTheDocument();
     expect(screen.getByText('subscriptionXai')).toBeInTheDocument();
   });
+
+  it('closes modal when clicking cancel button', () => {
+    mockUseProviderStore.mockImplementation((selector: (s: Record<string, unknown>) => unknown) => {
+      const state = { isInitialized: true, providers: [] };
+      return selector(state);
+    });
+
+    render(<NoProviderBanner />);
+    const quickBtn = screen.getByText('subscriptionQuickConnect');
+    fireEvent.click(quickBtn);
+
+    expect(screen.getByText('subscriptionModalTitle')).toBeInTheDocument();
+    const cancelBtn = screen.getByLabelText('Close');
+    fireEvent.click(cancelBtn);
+
+    expect(screen.queryByText('subscriptionModalTitle')).not.toBeInTheDocument();
+  });
 });
+

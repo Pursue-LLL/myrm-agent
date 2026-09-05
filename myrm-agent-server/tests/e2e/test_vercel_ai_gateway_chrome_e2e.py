@@ -97,6 +97,15 @@ def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:
         assert eval_res.get("ready") is True, f"Settings layout not ready: {eval_res}"
         assert eval_res.get("hasModelSection") is True, f"Model section not found: {eval_res}"
 
+        # Step 1.5: If clicked on Vercel AI Gateway item, verify detail card contents
+        if eval_res.get("clicked"):
+            import time
+            time.sleep(1.0)
+            detail_res = client.evaluate(page, _VERIFY_VERCEL_CONFIG_DETAILS_JS, timeout_sec=20.0)
+            assert isinstance(detail_res, dict), f"Expected dict evaluation result, got: {detail_res}"
+            assert detail_res.get("ok") is True, f"Script failed: {detail_res}"
+            assert detail_res.get("hasDashboardLink") is True or detail_res.get("hasSpendHint") is True
+
     # 2. REST API probe to verify server health
     res_health = http_json("GET", f"{api_url}/api/v1/health")
     assert isinstance(res_health, dict)
