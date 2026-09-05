@@ -2878,7 +2878,14 @@
       "customErrorProbeFailed": "Failed to probe endpoint",
       "customErrorDetectFirst": "Please detect models first",
       "customErrorReachabilityFailed": "Endpoint connected but model health check failed",
-      "customDetectSuccess": "Detected {count} model(s)"
+      "customDetectSuccess": "Detected {count} model(s)",
+      "checklistTitle": "Recommended Tool-Calling Models",
+      "checklistSubtitle": "Verified for complex tasks",
+      "recommendedBadge": "Recommended",
+      "verifiedBadge": "Verified Tool-Calling Support: {model}",
+      "verifiedDescription": "This model is fully tested for function calling, file operations, and web search.",
+      "unverifiedWarningTitle": "Unverified Model Notice: {model}",
+      "unverifiedWarningDescription": "This model is not officially verified for tool-calling compatibility. Executing complex tools may produce parsing issues."
     },
     "migrationDiscovery": {
       "detecting": "Scanning for AI assistant data...",

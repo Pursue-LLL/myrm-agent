@@ -42,6 +42,7 @@ from app.services.memory.imports.import_claude_code import (
 from app.services.memory.imports.import_codex import dry_run_codex
 from app.services.memory.imports.import_cursor import dry_run_cursor
 from app.services.memory.imports.import_gbrain import dry_run_gbrain
+from app.services.memory.imports.import_gemini import dry_run_gemini, is_gemini_payload
 from app.services.memory.imports.import_hermes import dry_run_hermes
 from app.services.memory.imports.import_mem0 import dry_run_mem0, is_mem0_payload
 from app.services.memory.imports.import_myrm_archive import (
@@ -74,6 +75,7 @@ RequestedImportSource = Literal[
     "claude",
     "mem0",
     "chatgpt",
+    "gemini",
     "pi",
     "plur",
     "windsurf",
@@ -93,6 +95,7 @@ _SOURCE_TAG_TO_IMPORT: dict[str, MemoryImportSource] = {
     "claude": "claude",
     "mem0": "mem0",
     "chatgpt": "chatgpt",
+    "gemini": "gemini",
     "plur": "plur",
     "windsurf": "windsurf",
     "trae": "trae",
