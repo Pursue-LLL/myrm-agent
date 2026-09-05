@@ -36,6 +36,7 @@ import { resolveReplaySessionId } from '../replay/memoryLiveStream';
 import { ConflictResolutionCard } from '../cards/ConflictResolutionCard';
 import { BehavioralMetricsPanel } from '../insights/BehavioralMetricsPanel';
 import { EvidenceBadge } from '../cards/EvidenceBadge';
+import { RepoEvidenceCard } from '../cards/RepoEvidenceCard';
 
 const MemoryHealthDashboard = lazy(() => import('../insights/MemoryHealthDashboard'));
 

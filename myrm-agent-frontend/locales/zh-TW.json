@@ -4491,6 +4491,14 @@
         "saveAndLock": "儲存並鎖定保護",
         "markFalsePositive": "標記誤判並廢棄",
         "correctAndLock": "糾正此事實"
+      },
+      "repoEvidence": {
+        "title": "程式碼倉庫歷史證據",
+        "uncommittedChanges": "存在未提交變更",
+        "refresh": "重新整理倉庫證據",
+        "recentCommits": "最近提交證據 ({count})",
+        "files": "個檔案",
+        "noCommits": "未偵測到近期的 Commit 歷史"
       }
     },
     "createDialog": {

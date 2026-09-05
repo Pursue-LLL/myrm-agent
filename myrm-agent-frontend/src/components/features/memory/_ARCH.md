@@ -34,6 +34,7 @@
 | `MemoryTypeIcon.tsx`           | 辅助 | 记忆类型 → 图标映射                                                                     | ✅    |
 | `MemoryStats.tsx`              | 组件 | 记忆数量/类型统计摘要                                                                   | ✅    |
 | `EvidenceBadge.tsx`            | 组件 | 证据链胶囊徽章（原话引文摘要、侧边抽屉呼出与纠偏加锁联动）                             | ✅    |
+| `RepoEvidenceCard.tsx`         | 组件 | 仓库历史证据卡片（Git 分支状态、未提交更改提示、最新 Commit 历史摘要与文件数量）       | ✅    |
 | `PreferenceStabilityCard.tsx`  | 组件 | 偏好稳定性卡                                                                            | ✅    |
 | `TasteSummaryCard.tsx`         | 组件 | 口味摘要卡                                                                              | ✅    |
 
