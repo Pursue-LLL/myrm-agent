@@ -701,6 +701,37 @@ export interface MemoryEvidencePlaybackResponse {
   is_user_locked: boolean;
 }
 
+export interface MemoryRepoCommitDigestItem {
+  commit_hash: string;
+  short_hash: string;
+  author: string;
+  committed_at: string;
+  subject: string;
+  files_changed: string[];
+}
+
+export interface MemoryRepoEvidenceResponse {
+  repo_name: string;
+  repo_path: string;
+  current_branch: string;
+  is_dirty: boolean;
+  recent_commits: MemoryRepoCommitDigestItem[];
+  total_commits_examined: number;
+  extracted_at: string;
+  is_git_available: boolean;
+}
+
+export const getRepoEvidenceDigest = async (
+  workspacePath?: string,
+  maxCommits: number = 5,
+): Promise<MemoryRepoEvidenceResponse> => {
+  const params = new URLSearchParams({ max_commits: String(maxCommits) });
+  if (workspacePath) {
+    params.set('workspace_path', workspacePath);
+  }
+  return apiRequest<MemoryRepoEvidenceResponse>(`/memory/command-center/repo-evidence/digest?${params.toString()}`);
+};
+
 export const getEvidencePlayback = async (params: {
   source_id?: string | null;
   message_id?: string | null;

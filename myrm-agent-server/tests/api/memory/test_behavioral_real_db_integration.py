@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
-from zoneinfo import ZoneInfo
 
 import pytest
 import pytest_asyncio
@@ -228,9 +227,13 @@ async def test_timezone_explicit_offset_resolution(real_db_env) -> None:
         await db.commit()
 
     async with session_maker() as db:
+        from zoneinfo import ZoneInfo
+
+        from myrm_agent_harness.api import BehavioralStatsOptions
         service = BehavioralMeasurementService(db, manager)
         msgs = await service.collect_behavioral_messages(lookback_days=7)
         assert len(msgs) == 1, f"Expected 1 msg, got {len(msgs)}"
+        assert msgs[0].offset_minutes == ny_offset
         opts = BehavioralStatsOptions(min_self_messages=1)
         measurement = await service.measure(options=opts, lookback_days=7)
 

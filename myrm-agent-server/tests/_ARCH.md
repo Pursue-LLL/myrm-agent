@@ -22,6 +22,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/memory/test_command_center_graph_api.py` | 单元 | 记忆指挥中心知识图谱双视图（Hub 聚合排序、孤岛三态与连通度度数）API 单元与契约测试 |
 | `services/agent/test_agent_bundle_service.py` | 单元 | Agent 文件系统 Bundle 管理服务（Dual-Track SSOT）单元测试（编码解码、工作区导出、路径穿越防护与导入闭环） |
 | `api/mcp/test_mcp_endpoint_e2e.py` | 集成 | /mcp HTTP 端点端到端流水线集成测试（DNS 重绑定/Origin 守卫拦截、原生工具免检与 Token 校验鉴权） |
+| `api/memory/test_repo_evidence_api.py` | 契约 | 代码库 Git 事实证据提取 API 端点（分支、脏状态、提交摘要）契约测试 |
 | `e2e/test_paginated_table_harvest_flow_e2e.py` | E2E | Universal Task Flow E2E：多页表格翻页抓取、双哨兵防死循环（首行指纹哈希与硬上限）及 UTF-8-SIG CSV/Excel 工件生成与解析全链路测试 |
 | `support/feature_flags.py` | 辅助 | `seed_voice_interaction_flags()`，供 `tests/api/voice`、`tests/api/stt` conftest autouse |
 | `support/verify_api_base.py` | 辅助 | Live 集成测 verify-api 私池 base SSOT（`resolve_verify_api_base()`；epoch 匹配 + `--ensure-backend` seed） |

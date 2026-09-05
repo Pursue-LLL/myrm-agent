@@ -4496,6 +4496,14 @@
         "saveAndLock": "保存并锁定保护",
         "markFalsePositive": "标记误判并废弃",
         "correctAndLock": "纠正此事实"
+      },
+      "repoEvidence": {
+        "title": "代码仓库历史证据",
+        "uncommittedChanges": "存在未提交更改",
+        "refresh": "刷新仓库证据",
+        "recentCommits": "最近提交证据 ({count})",
+        "files": "个文件",
+        "noCommits": "未检测到近期的 Commit 历史"
       }
     },
     "createDialog": {
