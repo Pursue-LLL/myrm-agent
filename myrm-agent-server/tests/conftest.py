@@ -432,8 +432,7 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
     Prevents lease acquisition under epoch mismatch, breaking the deadlock cycle
     where held leases block system restart which would resolve the epoch drift.
 
-    P0-DGR-6: SHARED+NAMESPACE_WRITE+LIVE uses EpochPin instead of skip.
-    P0-F: SHARED+NAMESPACE_WRITE+STANDARD defers when shared :8080 is healthy.
+    P0-DGR-6: SHARED+NAMESPACE_WRITE uses EpochPin instead of skip.
     """
     if os.environ.get("MYRM_E2E_EPOCH_DRIFT_GUARD_DISABLE", "").strip() == "1":
         return
@@ -456,7 +455,7 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
     profile = _chrome_e2e_profile(request.node)
     if profile is None:
         return
-    execution_mode, access_scope, workload = profile
+    execution_mode, access_scope, _workload = profile
     if execution_mode == "PRIVATE":
         return
 
@@ -472,29 +471,6 @@ def _epoch_drift_entry_skip_if_shared(request: pytest.FixtureRequest) -> None:
 
     if ctx.epoch_match or not ctx.blocked:
         return
-
-    # P0-F / R287-R289: STANDARD SHARED tests defer verify pin when shared :8080 is healthy.
-    if workload.strip().upper() == "STANDARD":
-        # Attach preflight already passed chrome MCP; body must not skip on drift guard.
-        if (
-            os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1"
-            and os.environ.get("MYRM_CHROME_E2E_ATTACH", "").strip() == "1"
-        ):
-            return
-        shared_base = str(getattr(ctx, "shared_api_base", "") or "http://127.0.0.1:8080").strip()
-        shared_healthy = any(
-            getattr(item, "source", "") == "shared" and getattr(item, "health_ok", False)
-            for item in getattr(ctx, "candidates", ())
-        )
-        try:
-            from e2e_core.epoch_delivery_plane import _health_runtime_id
-        except ImportError:
-            _health_runtime_id = None  # type: ignore[misc, assignment]
-        if _health_runtime_id is not None and shared_base:
-            # Candidate probes can false-negative under parallel attach; live probe is SSOT.
-            shared_healthy = shared_healthy or bool(_health_runtime_id(shared_base))
-        if shared_healthy:
-            return
 
     pytest.skip(
         f"epoch drift entry gate: shared backend epoch mismatch "
@@ -545,24 +521,18 @@ def _chrome_e2e_epoch_pin(
     _EPOCH_PIN_DEFER_DETAILS = frozenset(
         {
             "shared_epoch_aligned",
-            "shared_healthy_defer_verify_pin",
-            "verify_seed_failed_defer_shared",
         }
     )
     if not outcome.applied:
         if (
             outcome.detail not in _EPOCH_PIN_DEFER_DETAILS
-            and not outcome.detail.startswith("verify_seed_failed_defer_shared:")
-            and not outcome.detail.startswith("verify_seed_failed_no_shared:")
+            and not outcome.detail.startswith("verify_seed_failed_no_aligned_backend:")
         ):
             pytest.fail(f"E2E_EPOCH_PIN_FAILED: node={request.node.nodeid} detail={outcome.detail!r}")
-        if outcome.detail.startswith("verify_seed_failed_no_shared:"):
+        if outcome.detail.startswith("verify_seed_failed_no_aligned_backend:"):
             pytest.skip(
-                f"E2E_EPOCH_PIN_DEFER_SKIP: shared backend unhealthy and verify seed failed; heal then retry: {outcome.detail}"
+                f"E2E_EPOCH_PIN_DEFER_SKIP: no epoch-matched backend available; heal then retry: {outcome.detail}"
             )
-        if outcome.api_base:
-            monkeypatch.setenv("E2E_API_BASE", outcome.api_base.rstrip("/"))
-        monkeypatch.delenv("MYRM_E2E_EPOCH_PIN", raising=False)
         yield
         return
     for key, value in outcome.environment.items():

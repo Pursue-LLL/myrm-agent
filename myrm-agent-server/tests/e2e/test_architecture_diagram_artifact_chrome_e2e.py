@@ -136,9 +136,10 @@ _CLEANUP_ARCHITECTURE_DOM_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
-    access_scope="READ",
-    workload="STANDARD",
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(300)

@@ -132,8 +132,7 @@ def apply_epoch_pin_for_shared_live(
     workload: str = "",
 ) -> EpochPinOutcome:
     """Resolve or seed an epoch-matched backend; never consumes private ADMIT credit."""
-    import os
-
+    _ = workload  # eligibility is decided by the caller before this resolver
     from e2e_core.api_verify import resolve_e2e_api_context  # noqa: PLC0415
 
     ctx = resolve_e2e_api_context(retry_after_apply=False)
@@ -150,38 +149,10 @@ def apply_epoch_pin_for_shared_live(
 
     shared = str(getattr(ctx, "shared_api_base", "") or "http://127.0.0.1:8080").strip()
     verify_base = str(getattr(ctx, "verify_api_base", "") or "").strip()
-    shared_rid = _health_runtime_id(shared)
-    load = (
-        workload.strip().upper()
-        or os.environ.get("MYRM_E2E_WORKLOAD", "").strip().upper()
-    )
-    verify_rid = _health_runtime_id(verify_base) if verify_base else ""
-    # STANDARD UI tests tolerate shared epoch drift — never pin flaky verify-api (P0-F).
-    if load == "STANDARD":
-        return EpochPinOutcome(
-            applied=False,
-            api_base=shared,
-            runtime_id=shared_rid,
-            environment={},
-            detail="shared_healthy_defer_verify_pin",
-            seeded=False,
-        )
-    if shared_rid and (
-        not verify_base
-        or verify_base.rstrip("/") == shared.rstrip("/")
-        or not verify_rid
-    ):
-        return EpochPinOutcome(
-            applied=False,
-            api_base=shared,
-            runtime_id=shared_rid,
-            environment={},
-            detail="shared_healthy_defer_verify_pin",
-            seeded=False,
-        )
-
-    verify_base = str(getattr(ctx, "verify_api_base", "") or "").strip()
-    if verify_base and not bool(getattr(ctx, "blocked", True)):
+    # A stale shared backend is never a valid namespace-write target, even when
+    # its health endpoint is reachable. Reuse only a distinct, healthy verify
+    # candidate; otherwise seed an epoch-matched backend before the test starts.
+    if verify_base and verify_base.rstrip("/") != shared.rstrip("/"):
         port = urlsplit(verify_base).port
         reused = _outcome_from_api_base(
             api_base=verify_base,
@@ -195,21 +166,12 @@ def apply_epoch_pin_for_shared_live(
 
     seed = ensure_verify_backend_seed(monorepo=monorepo.resolve())
     if not seed.ok:
-        if shared_rid:
-            return EpochPinOutcome(
-                applied=False,
-                api_base=shared,
-                runtime_id=shared_rid,
-                environment={},
-                detail=f"verify_seed_failed_defer_shared:{seed.detail}",
-                seeded=False,
-            )
         return EpochPinOutcome(
             applied=False,
-            api_base=shared,
-            runtime_id=shared_rid,
+            api_base="",
+            runtime_id="",
             environment={},
-            detail=f"verify_seed_failed_no_shared:{seed.detail}",
+            detail=f"verify_seed_failed_no_aligned_backend:{seed.detail}",
             seeded=False,
         )
     outcome = _outcome_from_api_base(
