@@ -23,6 +23,7 @@ from app.database.connection import get_database_engine
 from app.database.models.agent import Agent
 from app.database.models.api_key import APIKey
 from app.database.models.channel import ChannelPairingModel
+from app.database.models.channel_message import ChannelMessageModel
 from app.database.models.chat import Chat, Message
 from app.database.models.config import UserConfig
 from app.services.system.vault_purge_service import SafeVaultPurgeResult, SafeVaultPurgeService
@@ -48,13 +49,19 @@ async def test_safe_vault_purge_service_execution(tmp_path: Path):
     # Pre-populate test rows across whitelisted and purgable tables
     async with engine.begin() as conn:
         await conn.execute(
-            text("CREATE TABLE IF NOT EXISTS channel_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, content TEXT)")
+            text(
+                "CREATE TABLE IF NOT EXISTS conversation_recall_documents ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, chat_id VARCHAR(255) NOT NULL, "
+                "source VARCHAR(50) DEFAULT 'web', snippet TEXT DEFAULT '', searchable_text TEXT DEFAULT '')"
+            )
         )
         await conn.execute(
-            text("CREATE TABLE IF NOT EXISTS conversation_recall_documents (id INTEGER PRIMARY KEY AUTOINCREMENT, chat_id TEXT)")
-        )
-        await conn.execute(
-            text("CREATE TABLE IF NOT EXISTS conversation_recall_segments (id INTEGER PRIMARY KEY AUTOINCREMENT, chat_id TEXT)")
+            text(
+                "CREATE TABLE IF NOT EXISTS conversation_recall_segments ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, chat_id VARCHAR(255) NOT NULL, "
+                "message_id VARCHAR(255) NOT NULL, segment_ordinal INTEGER DEFAULT 0, "
+                "role VARCHAR(20) NOT NULL, segment_text TEXT DEFAULT '')"
+            )
         )
         await conn.execute(text("CREATE TABLE IF NOT EXISTS interrupted_turn_markers (id VARCHAR(255) PRIMARY KEY)"))
         await conn.execute(text("CREATE TABLE IF NOT EXISTS offline_durable_tasks (id VARCHAR(255) PRIMARY KEY)"))
@@ -115,9 +122,27 @@ async def test_safe_vault_purge_service_execution(tmp_path: Path):
                 sent_timezone="UTC",
             )
         )
-        await conn.execute(text("INSERT OR REPLACE INTO channel_messages (content) VALUES ('channel text 1')"))
-        await conn.execute(text("INSERT OR REPLACE INTO conversation_recall_documents (chat_id) VALUES ('chat-100')"))
-        await conn.execute(text("INSERT OR REPLACE INTO conversation_recall_segments (chat_id) VALUES ('chat-100')"))
+        await conn.execute(
+            insert(ChannelMessageModel).values(
+                id="cmsg-1",
+                channel="wechat",
+                chat_id="chat-100",
+                sender_id="user-safe-purge",
+                content="channel text 1",
+            )
+        )
+        await conn.execute(
+            text(
+                "INSERT OR REPLACE INTO conversation_recall_documents (chat_id, source, snippet, searchable_text) "
+                "VALUES ('chat-100', 'web', 'snippet', 'searchable text')"
+            )
+        )
+        await conn.execute(
+            text(
+                "INSERT OR REPLACE INTO conversation_recall_segments (chat_id, message_id, segment_ordinal, role, segment_text) "
+                "VALUES ('chat-100', 'msg-1', 0, 'user', 'segment text')"
+            )
+        )
 
     # Execute purge
     result = await SafeVaultPurgeService.purge_vault(

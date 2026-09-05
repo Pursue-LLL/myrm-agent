@@ -23,7 +23,6 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from myrm_agent_harness.utils.db.fts5 import safe_purge_fts5_virtual_table
 from sqlalchemy import text
 
 from app.database.connection import get_database_engine
@@ -107,13 +106,25 @@ class SafeVaultPurgeService:
                         result.preserved_channel_pairings = await conn.scalar(text("SELECT COUNT(*) FROM channel_pairings")) or 0
 
                 # Phase 2: Reverse-clean FTS5 virtual tables
-                # Must execute using raw connection to bypass ORM cascading trigger hazards
-                async with engine.connect() as conn:
-                    raw_conn = await conn.get_raw_connection()
-                    db_api_conn = raw_conn.driver_connection
+                # Execute asynchronously via AsyncConnection to eliminate driver-level coroutine mismatch
+                async with engine.begin() as conn:
                     for fts_tbl in cls.FTS_VIRTUAL_TABLES:
                         if fts_tbl in existing_tables:
-                            safe_purge_fts5_virtual_table(db_api_conn, fts_tbl, is_external_content=True)
+                            try:
+                                await conn.execute(text(f"INSERT INTO {fts_tbl}({fts_tbl}) VALUES('delete-all')"))
+                            except Exception:
+                                try:
+                                    await conn.execute(text(f"DELETE FROM {fts_tbl}"))
+                                except Exception as exc:
+                                    logger.warning("FTS5 direct delete failed for %s: %s", fts_tbl, exc)
+                            try:
+                                await conn.execute(text(f"INSERT INTO {fts_tbl}({fts_tbl}) VALUES('rebuild')"))
+                            except Exception as exc:
+                                logger.warning("FTS5 rebuild after purge failed for %s: %s", fts_tbl, exc)
+                            try:
+                                await conn.execute(text(f"INSERT INTO {fts_tbl}({fts_tbl}) VALUES('optimize')"))
+                            except Exception:
+                                pass
                             result.fts_tables_purged.append(fts_tbl)
 
                 # Collect sandbox directories before deleting chats

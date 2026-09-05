@@ -94,7 +94,6 @@ async def test_purge_vault_orchestration_success() -> None:
             "app.services.system.vault_purge_service.get_database_engine",
             return_value=mock_engine,
         ),
-        patch("app.services.system.vault_purge_service.safe_purge_fts5_virtual_table") as mock_fts_purge,
         patch(
             "app.services.chat.sandbox_worktree.cleanup_sandbox_worktree",
             new_callable=AsyncMock,
@@ -119,7 +118,6 @@ async def test_purge_vault_orchestration_success() -> None:
     assert "messages_fts" in result.fts_tables_purged
     assert len(result.cursors_reset) == 3
     assert result.cleared_sandboxes == 1
-    assert mock_fts_purge.call_count == 3
     mock_cleanup_sandbox.assert_awaited_once_with("/tmp/sandbox-1", "chat-1", force=True)
 
 
