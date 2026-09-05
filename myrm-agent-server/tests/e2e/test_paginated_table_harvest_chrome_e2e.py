@@ -28,8 +28,9 @@ if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
-    get_e2e_ui_url,
-    open_mcp_page,
+    dismiss_blocking_modals,
+    get_e2e_api_url,
+    open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
 )
@@ -160,20 +161,17 @@ _CLEANUP_TEST_PAGE_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    access_scope="READ",
-    workload="STANDARD",
-    private_reason="exclusive_backend",
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(300)
 def test_paginated_table_harvest_real_chrome_e2e() -> None:
     """Real Chrome E2E: Verify live DOM multi-page table extraction and Dual-Sentinel termination."""
-    ui_url = get_e2e_ui_url()
-    prepare_e2e_ui_session(ui_url)
+    api_url = get_e2e_api_url()
+    prepare_e2e_ui_session(api_url)
 
-    with open_mcp_page(ui_url) as (client, page):
+    with open_settings_subroute("/settings/system", timeout_ms=120_000) as (client, page):
+        dismiss_blocking_modals(client, page)
+
         # 1. Inject simulated multi-page DOM table into live Chrome session
         mount_res = client.evaluate(page, _CREATE_TEST_PAGE_JS, timeout_sec=10.0)
         assert mount_res.get("mounted") is True

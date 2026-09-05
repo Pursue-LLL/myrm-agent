@@ -73,13 +73,14 @@ class MyrmError(Exception):
         *,
         details: list[ErrorDetail] | None = None,
         status_code_override: int | None = None,
+        status_code: int | None = None,
     ) -> None:
         resolved = message or code.name
         super().__init__(resolved)
         self.code = code
         self.message = resolved
         self.details = details
-        self._status_code_override = status_code_override
+        self._status_code_override = status_code if status_code is not None else status_code_override
 
     @property
     def status_code(self) -> int:
