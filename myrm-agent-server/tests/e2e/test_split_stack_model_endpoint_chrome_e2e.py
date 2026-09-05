@@ -52,7 +52,7 @@ def test_split_stack_settings_ui_and_discover_api_chrome_e2e() -> None:
     with open_settings_subroute("/settings?tab=models", timeout_ms=90_000) as (client, page):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
-        wait_for_settings_layout(client, page)
+        wait_for_settings_layout(client, page, page_url=f"{api_url.replace(':8080', ':3000')}/settings?tab=models")
 
         eval_res = client.evaluate(page, _VERIFY_SPLIT_STACK_SETTINGS_JS, timeout_sec=20.0)
         assert isinstance(eval_res, dict), f"Expected dict evaluation result, got: {eval_res}"

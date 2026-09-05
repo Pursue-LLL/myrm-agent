@@ -15981,10 +15981,7 @@
           "selectAll": "全選",
           "deselectAll": "取消全選",
           "selectedCount": "已選 {count} 個技能"
-        },
-        "discoveredSkillsBadge": "{count} 個技能",
-        "pathNotFoundBadge": "路徑不存在",
-        "emptySkillsBadge": "0 個技能"
+        }
       },
       "instances": {
         "title": "例項管理",
