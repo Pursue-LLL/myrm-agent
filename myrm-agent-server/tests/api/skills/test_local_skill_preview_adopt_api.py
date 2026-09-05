@@ -140,6 +140,7 @@ def test_preview_conflict_detection(sample_skill_dir: Path) -> None:
         type=SkillType.PREBUILT,
         name="hello-skill",
         description="Built-in greeting",
+        storage_path="/path/to/hello-skill",
     )
 
     with patch(

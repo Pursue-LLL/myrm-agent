@@ -47,19 +47,38 @@ def _extract_skill_preview(
     version = str(frontmatter.version or "1.0.0")
     category = str(frontmatter.category) if frontmatter.category else None
 
+    # Try parsing raw YAML frontmatter to preserve structured types (e.g. lists for tags)
+    raw_yaml: dict[str, object] = {}
+    fm_match = re.match(r"^---\s*\n(.*?)\n---\s*\n", content, re.DOTALL)
+    if fm_match:
+        try:
+            loaded = yaml.safe_load(fm_match.group(1))
+            if isinstance(loaded, dict):
+                raw_yaml = loaded
+        except Exception:
+            pass
+
     tags: list[str] = []
-    if hasattr(frontmatter, "tags") and isinstance(frontmatter.tags, list):
-        tags = [str(t).strip().strip("'\"") for t in frontmatter.tags if str(t).strip()]
-    elif isinstance(frontmatter.metadata, dict) and "tags" in frontmatter.metadata:
-        raw_tags = frontmatter.metadata["tags"]
-        if isinstance(raw_tags, list):
-            tags = [str(t).strip().strip("'\"") for t in raw_tags if str(t).strip()]
-        elif isinstance(raw_tags, str):
-            cleaned = raw_tags.strip().lstrip("[").rstrip("]")
-            tags = [t.strip().strip("'\"") for t in cleaned.split(",") if t.strip().strip("'\"")]
+    candidate_tags: object = raw_yaml.get("tags")
+    if candidate_tags is None and isinstance(raw_yaml.get("metadata"), dict):
+        candidate_tags = raw_yaml["metadata"].get("tags")
+    if candidate_tags is None and hasattr(frontmatter, "tags"):
+        candidate_tags = getattr(frontmatter, "tags")
+    if candidate_tags is None and isinstance(frontmatter.metadata, dict):
+        candidate_tags = frontmatter.metadata.get("tags")
+
+    if isinstance(candidate_tags, list):
+        tags = [str(t).strip().strip("'\"") for t in candidate_tags if str(t).strip()]
+    elif isinstance(candidate_tags, str):
+        cleaned = candidate_tags.strip().lstrip("[").rstrip("]")
+        tags = [t.strip().strip("'\"") for t in cleaned.split(",") if t.strip().strip("'\"")]
 
     author: str | None = None
-    if isinstance(frontmatter.metadata, dict) and "author" in frontmatter.metadata:
+    if raw_yaml.get("author"):
+        author = str(raw_yaml["author"])
+    elif isinstance(raw_yaml.get("metadata"), dict) and raw_yaml["metadata"].get("author"):
+        author = str(raw_yaml["metadata"]["author"])
+    elif isinstance(frontmatter.metadata, dict) and "author" in frontmatter.metadata:
         author = str(frontmatter.metadata["author"])
 
     required_tools: list[str] = []

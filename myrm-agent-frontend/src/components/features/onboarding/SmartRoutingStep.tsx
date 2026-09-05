@@ -5,12 +5,11 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import useProviderStore from '@/store/useProviderStore';
 import { IconRoute, IconZap, IconBrain, IconCpu } from '@/components/features/icons/PremiumIcons';
-import type { SingleModelSelection } from '@/store/config/providerTypes';
+import { isReasoningModelByName } from '@/lib/reasoning-model-detection';
+import { supportsProviderNoAuth, type SingleModelSelection } from '@/store/config/providerTypes';
 
-const REASONING_MODEL_KEYWORDS = ['o1', 'o3', 'o4-mini', 'deepseek-r1', 'qwq', 'reasoning', 'opus'] as const;
-
-const LITE_MODEL_KEYWORDS = ['mini', 'flash', 'haiku', 'nano', 'lite', 'small'] as const;
-
+const REASONING_FALLBACK_KEYWORDS = ['reasoning', 'reasoner', 'opus'] as const;
+const LITE_MODEL_KEYWORDS = ['mini', 'flash', 'haiku', 'nano', 'lite', 'small', 'ds4f', 'coder'] as const;
 const LITE_SIZE_RE = /\b[1-8]b\b/i;
 
 interface SmartRoutingStepProps {
@@ -20,13 +19,10 @@ interface SmartRoutingStepProps {
 
 function classifyModel(modelName: string): 'lite' | 'reasoning' | 'standard' {
   const lower = modelName.toLowerCase();
-  if (REASONING_MODEL_KEYWORDS.some((p) => lower.includes(p))) {
+  if (isReasoningModelByName(modelName) || REASONING_FALLBACK_KEYWORDS.some((p) => lower.includes(p))) {
     return 'reasoning';
   }
-  if (LITE_MODEL_KEYWORDS.some((p) => lower.includes(p))) {
-    return 'lite';
-  }
-  if (LITE_SIZE_RE.test(lower)) {
+  if (LITE_MODEL_KEYWORDS.some((p) => lower.includes(p)) || LITE_SIZE_RE.test(lower)) {
     return 'lite';
   }
   return 'standard';
@@ -35,6 +31,7 @@ function classifyModel(modelName: string): 'lite' | 'reasoning' | 'standard' {
 export default function SmartRoutingStep({ onComplete, onSkip }: SmartRoutingStepProps) {
   const t = useTranslations('boot.onboarding.routing');
 
+  const providers = useProviderStore((s) => s.providers);
   const getEnabledModels = useProviderStore((s) => s.getEnabledModels);
   const defaultModelConfig = useProviderStore((s) => s.defaultModelConfig);
 
@@ -48,25 +45,48 @@ export default function SmartRoutingStep({ onComplete, onSkip }: SmartRoutingSte
       return null;
     }
 
-    const classified = enabledModels.map((m) => ({
-      ...m,
-      tier: classifyModel(m.model),
-    }));
+    const providerMap = new Map(providers.map((p) => [p.id, p]));
+    const classified = enabledModels.map((m) => {
+      const provider = providerMap.get(m.providerId);
+      const isLocal = provider ? supportsProviderNoAuth(provider) : false;
+      return {
+        ...m,
+        tier: classifyModel(m.model),
+        isLocal,
+      };
+    });
 
     const baseModel = defaultModelConfig.baseModel.primary;
-    const liteCandidate = classified.find(
+    let liteCandidate = classified.find(
       (m) => m.tier === 'lite' && !(m.providerId === baseModel?.providerId && m.model === baseModel?.model),
     );
-    const reasoningCandidate = classified.find(
+    let reasoningCandidate = classified.find(
       (m) => m.tier === 'reasoning' && !(m.providerId === baseModel?.providerId && m.model === baseModel?.model),
     );
+
+    // 来源拓扑启发式兜底：当名称无法分类且存在本地与云端模型时，实现开闭源协同
+    if (!liteCandidate || !reasoningCandidate) {
+      const localCandidate = classified.find(
+        (m) => m.isLocal && !(m.providerId === baseModel?.providerId && m.model === baseModel?.model),
+      );
+      const cloudCandidate = classified.find(
+        (m) => !m.isLocal && !(m.providerId === baseModel?.providerId && m.model === baseModel?.model),
+      );
+
+      if (!liteCandidate && localCandidate) {
+        liteCandidate = localCandidate;
+      }
+      if (!reasoningCandidate && cloudCandidate) {
+        reasoningCandidate = cloudCandidate;
+      }
+    }
 
     if (!liteCandidate && !reasoningCandidate) {
       return null;
     }
 
     return { lite: liteCandidate, reasoning: reasoningCandidate };
-  }, [enabledModels, defaultModelConfig.baseModel.primary]);
+  }, [enabledModels, providers, defaultModelConfig.baseModel.primary]);
 
   const handleEnable = useCallback(() => {
     setRoutingEnabled(true);
