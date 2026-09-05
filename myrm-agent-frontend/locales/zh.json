@@ -2879,6 +2879,8 @@
       "invalidDescription": "无法恢复归档上下文：{error}"
     },
     "smartRoutingBadge": "内置智能路由已就绪 · 自动按需分流并节省算力",
+    "smartRoutingBadgeClickHint": "点击查看模型编排剧本与架构分工",
+    "smartRoutingBadgeAction": "查看编排剧本",
     "routingSimpleTooltip": "已自动分流至轻量高速模型，毫秒响应并为您节约 ~65% 算力",
     "routingStandardTooltip": "使用主力常规模型处理日常任务",
     "routingReasoningTooltip": "检测到复杂逻辑或多步推理，已自动调集强力深度推理算力",
