@@ -62,7 +62,7 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
   open,
   onOpenChange,
 }: ModelOrchestrationPlaybookDialogProps) {
-  const t = useTranslations('modelPlaybook');
+  const t = useTranslations('chat.modelPlaybook');
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'recipes' | 'principles' | 'economics'>('recipes');
 

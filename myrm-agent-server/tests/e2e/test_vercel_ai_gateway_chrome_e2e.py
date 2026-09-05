@@ -73,7 +73,7 @@ _VERIFY_VERCEL_CONFIG_DETAILS_JS = """(() => {
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="workspace_backend_code_drift",
+    private_reason="process_isolation",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)

@@ -14,7 +14,6 @@ import pytest
 from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
     get_e2e_api_url,
-    get_e2e_ui_url,
     http_json,
     open_settings_subroute,
     prepare_e2e_ui_session,
@@ -43,7 +42,6 @@ _CHAT_PAGE_READY_STATE = """(() => {
 @pytest.mark.timeout(300)
 def test_subscription_oauth_seed_status_and_disconnect_lifecycle() -> None:
     api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
 
     # 1. 确保初始状态断开
     http_json(

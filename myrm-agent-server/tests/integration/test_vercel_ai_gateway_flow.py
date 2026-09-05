@@ -4,16 +4,13 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from dotenv import load_dotenv
+
 import pytest
-
+from dotenv import load_dotenv
 from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
-from myrm_agent_server.app.models.domain.llm_provider import (
-    ProviderType,
-    AIProviderConfig,
-)
-from myrm_agent_server.app.models.domain.model_family import ModelFamily
 
+from app.core.channel_bridge.config_readiness import ProviderConfigChecker
+from app.core.channel_bridge.model_resolver import resolve_model_config
 
 # Load test secrets if available
 test_env_path = Path(__file__).resolve().parents[2] / ".env.test"
@@ -37,17 +34,38 @@ def test_vercel_ai_gateway_attribution_headers_injection() -> None:
 
 @pytest.mark.integration
 def test_vercel_ai_gateway_provider_configuration_validation() -> None:
-    """Verify provider type and domain validation for Vercel AI Gateway."""
-    cfg = AIProviderConfig(
-        id="provider-vercel-ai-gateway",
-        name="Vercel AI Gateway",
-        provider_type=ProviderType.OPENAI_COMPATIBLE,
-        api_base="https://ai-gateway.vercel.sh/v1",
-        api_key="vca_mock_key",
-        enabled=True,
-    )
-    assert cfg.provider_type == ProviderType.OPENAI_COMPATIBLE
-    assert cfg.api_base == "https://ai-gateway.vercel.sh/v1"
+    """Verify provider configuration readiness and resolution for Vercel AI Gateway."""
+    providers_payload = {
+        "providers": [
+            {
+                "id": "vercel_ai_gateway",
+                "name": "Vercel AI Gateway",
+                "apiUrl": "https://ai-gateway.vercel.sh/v1",
+                "apiKeys": [{"key": "vca_mock_key", "isActive": True}],
+                "isEnabled": True,
+                "models": [{"id": "anthropic/claude-3-5-sonnet", "isEnabled": True}],
+            }
+        ],
+        "defaultModelConfig": {
+            "baseModel": {
+                "primary": {
+                    "providerId": "vercel_ai_gateway",
+                    "model": "anthropic/claude-3-5-sonnet",
+                }
+            }
+        },
+    }
+    result = ProviderConfigChecker().check(providers_payload)
+    assert result.is_ready is True
+
+    resolved = resolve_model_config(providers_payload)
+    assert resolved.base_url == "https://ai-gateway.vercel.sh/v1"
+    assert resolved.api_key == "vca_mock_key"
+    assert resolved.model == "openai/anthropic/claude-3-5-sonnet"
+    assert resolved.model_kwargs is not None
+    extra_headers = resolved.model_kwargs.get("extra_headers", {})
+    assert extra_headers.get("HTTP-Referer") == "https://myrm.ai"
+    assert extra_headers.get("X-Title") == "Myrm Agent"
 
 
 @pytest.mark.integration

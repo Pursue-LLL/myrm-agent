@@ -63,7 +63,9 @@ describe('modelOrchestrationRecipes', () => {
     it('resolves frugal recipe readiness with lightweight model', () => {
       const recipe = MODEL_ORCHESTRATION_RECIPES.find((r) => r.id === 'frugal');
       expect(recipe).toBeDefined();
-      if (!recipe) return;
+      if (!recipe) {
+        return;
+      }
       const readiness = resolveRecipeReadiness(recipe, mockModels);
       expect(readiness.isReady).toBe(true);
       expect(readiness.primaryMatch?.model).toMatch(/deepseek|mini/i);
@@ -72,7 +74,9 @@ describe('modelOrchestrationRecipes', () => {
     it('resolves balanced recipe readiness with both brain and hands matched', () => {
       const recipe = MODEL_ORCHESTRATION_RECIPES.find((r) => r.id === 'balanced');
       expect(recipe).toBeDefined();
-      if (!recipe) return;
+      if (!recipe) {
+        return;
+      }
       const readiness = resolveRecipeReadiness(recipe, mockModels);
       expect(readiness.isReady).toBe(true);
       expect(readiness.reasoningMatch?.model).toContain('claude-3-5-sonnet');
@@ -82,7 +86,9 @@ describe('modelOrchestrationRecipes', () => {
     it('resolves consensus recipe readiness with moa capability', () => {
       const recipe = MODEL_ORCHESTRATION_RECIPES.find((r) => r.id === 'consensus');
       expect(recipe).toBeDefined();
-      if (!recipe) return;
+      if (!recipe) {
+        return;
+      }
       const readiness = resolveRecipeReadiness(recipe, mockModels);
       expect(readiness.isReady).toBe(true);
       expect(readiness.reasoningMatch).not.toBeNull();
@@ -94,7 +100,9 @@ describe('modelOrchestrationRecipes', () => {
     it('applies balanced recipe with atomic store actions', () => {
       const recipe = MODEL_ORCHESTRATION_RECIPES.find((r) => r.id === 'balanced');
       expect(recipe).toBeDefined();
-      if (!recipe) return;
+      if (!recipe) {
+        return;
+      }
       const readiness = resolveRecipeReadiness(recipe, mockModels);
 
       const setBaseModel = vi.fn();
@@ -125,7 +133,9 @@ describe('modelOrchestrationRecipes', () => {
     it('returns false and performs no mutations if recipe is not ready', () => {
       const recipe = MODEL_ORCHESTRATION_RECIPES.find((r) => r.id === 'balanced');
       expect(recipe).toBeDefined();
-      if (!recipe) return;
+      if (!recipe) {
+        return;
+      }
       const unreadyReadiness = {
         isReady: false,
         primaryMatch: null,

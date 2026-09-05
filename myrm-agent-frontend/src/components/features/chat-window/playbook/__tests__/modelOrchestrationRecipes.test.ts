@@ -15,7 +15,11 @@ describe('ModelOrchestrationRecipes Engine', () => {
   ];
 
   it('correctly resolves readiness for frugal recipe', () => {
-    const frugalRecipe = MODEL_ORCHESTRATION_RECIPES.find((r) => r.id === 'frugal')!;
+    const frugalRecipe = MODEL_ORCHESTRATION_RECIPES.find((r) => r.id === 'frugal');
+    expect(frugalRecipe).toBeDefined();
+    if (!frugalRecipe) {
+      return;
+    }
     const readiness = resolveRecipeReadiness(frugalRecipe, mockModels);
 
     expect(readiness.isReady).toBe(true);
@@ -24,7 +28,11 @@ describe('ModelOrchestrationRecipes Engine', () => {
   });
 
   it('correctly resolves readiness for balanced brain & hands recipe', () => {
-    const balancedRecipe = MODEL_ORCHESTRATION_RECIPES.find((r) => r.id === 'balanced')!;
+    const balancedRecipe = MODEL_ORCHESTRATION_RECIPES.find((r) => r.id === 'balanced');
+    expect(balancedRecipe).toBeDefined();
+    if (!balancedRecipe) {
+      return;
+    }
     const readiness = resolveRecipeReadiness(balancedRecipe, mockModels);
 
     expect(readiness.isReady).toBe(true);
@@ -34,7 +42,11 @@ describe('ModelOrchestrationRecipes Engine', () => {
   });
 
   it('handles missing models gracefully', () => {
-    const balancedRecipe = MODEL_ORCHESTRATION_RECIPES.find((r) => r.id === 'balanced')!;
+    const balancedRecipe = MODEL_ORCHESTRATION_RECIPES.find((r) => r.id === 'balanced');
+    expect(balancedRecipe).toBeDefined();
+    if (!balancedRecipe) {
+      return;
+    }
     const readiness = resolveRecipeReadiness(balancedRecipe, []);
 
     expect(readiness.isReady).toBe(false);
@@ -43,7 +55,11 @@ describe('ModelOrchestrationRecipes Engine', () => {
   });
 
   it('correctly dispatches state updates when applying a recipe', () => {
-    const balancedRecipe = MODEL_ORCHESTRATION_RECIPES.find((r) => r.id === 'balanced')!;
+    const balancedRecipe = MODEL_ORCHESTRATION_RECIPES.find((r) => r.id === 'balanced');
+    expect(balancedRecipe).toBeDefined();
+    if (!balancedRecipe) {
+      return;
+    }
     const readiness = resolveRecipeReadiness(balancedRecipe, mockModels);
 
     const setBaseModel = vi.fn();

@@ -9,6 +9,7 @@ Settings「AI Core」分组：模型、搜索、Agent 与评估相关 Section。
 | 文件                        | 职责                                                                                                                                                                                                      |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ModelSettingsSection.tsx`  | 模型 Tab 容器                                                                                                                                                                                             |
+| `ModelOrchestrationPlaybookCard.tsx` | 模型编排全景手册引导卡片，展示 Brain & Hands、三阶动态路由与 MoA 混合共识最佳实践 |
 | `DefaultModelSection.tsx`   | 默认模型选择；含 visionFallbackModel 双槽、视觉链路 health 探活、text-only 主模型下一键推荐（含 auto health）；主/lite 模型未配置 fallback 时 amber 预警（`noFallbackWarning` / `liteNoFallbackWarning`） |
 | `ModelServiceSection.tsx`   | 模型服务与路由                                                                                                                                                                                            |
 | `SearchSection.tsx`         | 搜索服务 Settings：manifest 驱动 provider 列表、Priority 1–5、启用冲突提示、单卡 verify                                                                                                                   |

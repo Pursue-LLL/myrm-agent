@@ -13,7 +13,9 @@ vi.mock('next/navigation', () => ({
 }));
 
 const stableT = (key: string, values?: Record<string, unknown>) => {
-  if (values && values.title) return `${key}:${String(values.title)}`;
+  if (values && values.title) {
+    return `${key}:${String(values.title)}`;
+  }
   return key;
 };
 
@@ -36,10 +38,31 @@ vi.mock('@/store/useProviderStore', () => ({
 import { ModelOrchestrationPlaybookChip } from '../ModelOrchestrationPlaybookChip';
 import { ModelOrchestrationPlaybookDialog } from '../ModelOrchestrationPlaybookDialog';
 
+const sessionStorageMockStore = new Map<string, string>();
+const mockSessionStorage = {
+  getItem: (key: string) => sessionStorageMockStore.get(key) ?? null,
+  setItem: (key: string, value: string) => {
+    sessionStorageMockStore.set(key, String(value));
+  },
+  removeItem: (key: string) => {
+    sessionStorageMockStore.delete(key);
+  },
+  clear: () => {
+    sessionStorageMockStore.clear();
+  },
+} as Storage;
+
+if (typeof globalThis.sessionStorage === 'undefined') {
+  Object.defineProperty(globalThis, 'sessionStorage', {
+    configurable: true,
+    value: mockSessionStorage,
+  });
+}
+
 describe('ModelOrchestrationPlaybookChip & Dialog', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    sessionStorage.clear();
+    globalThis.sessionStorage.clear();
   });
 
   it('renders the chip when not dismissed', () => {
