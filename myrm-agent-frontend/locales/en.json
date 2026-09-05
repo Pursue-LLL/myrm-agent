@@ -8617,6 +8617,12 @@
     "targetElement": "Target Element",
     "action": "Action",
     "jsExpression": "JavaScript Expression",
+    "scriptOperand": {
+      "protectedBadge": "Script Content Protected",
+      "protectedTooltip": "File content SHA-256 is anchored. If the file is modified before execution, it will be automatically aborted to prevent TOCTOU attacks.",
+      "hashLabel": "Content SHA-256",
+      "pathLabel": "Script File"
+    },
     "clarificationRequired": "Error Clarification Required",
     "fixParameters": "Fix Parameters (JSON)"
   },

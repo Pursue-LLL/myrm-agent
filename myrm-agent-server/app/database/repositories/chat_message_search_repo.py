@@ -140,14 +140,80 @@ class ChatMessageSearchRepository:
 
         count_result = await db.execute(count_sql, params)
         total = int(count_result.scalar() or 0)
-        if total == 0:
+        if total > 0:
+            result = await db.execute(sql, {**params, "limit": limit, "offset": offset})
+            rows = result.fetchall()
+            messages: list[MessageFtsSearchRow] = []
+            for row in rows:
+                messages.append(
+                    {
+                        "id": row.id,
+                        "chat_id": row.chat_id,
+                        "role": row.role,
+                        "content": row.content,
+                        "sent_at": row.sent_at,
+                        "chat_title": row.chat_title,
+                        "highlight_snippet": row.highlight_snippet,
+                        "is_relaxed": False,
+                    }
+                )
+            return messages, total
+
+        # Two-tier fallback for short CJK or English keywords (< 3 chars)
+        fb_time_clause = ""
+        fb_params: dict[str, object] = {"pattern": f"%{safe_query}%"}
+        if since is not None:
+            fb_time_clause += " AND m.sent_at >= :since"
+            fb_params["since"] = since
+        if until is not None:
+            fb_time_clause += " AND m.sent_at <= :until"
+            fb_params["until"] = until
+
+        fb_count_sql = text(
+            f"""
+            SELECT COUNT(*)
+            FROM messages m
+            JOIN chats c ON c.id = m.chat_id
+            LEFT JOIN conversation_recall_documents d ON d.chat_id = m.chat_id
+            WHERE m.content LIKE :pattern
+              AND m.is_active = 1
+              AND c.is_incognito = 0
+              AND COALESCE(d.is_excluded, 0) = 0
+              {fb_time_clause}
+            """
+        )
+        fb_count_result = await db.execute(fb_count_sql, fb_params)
+        fb_total = int(fb_count_result.scalar() or 0)
+        if fb_total == 0:
             return [], 0
 
-        result = await db.execute(sql, {**params, "limit": limit, "offset": offset})
-        rows = result.fetchall()
-        messages: list[MessageFtsSearchRow] = []
-        for row in rows:
-            messages.append(
+        fb_sql = text(
+            f"""
+            SELECT
+                m.id,
+                m.chat_id,
+                m.role,
+                m.content,
+                m.sent_at,
+                c.title as chat_title
+            FROM messages m
+            JOIN chats c ON c.id = m.chat_id
+            LEFT JOIN conversation_recall_documents d ON d.chat_id = m.chat_id
+            WHERE m.content LIKE :pattern
+              AND m.is_active = 1
+              AND c.is_incognito = 0
+              AND COALESCE(d.is_excluded, 0) = 0
+              {fb_time_clause}
+            ORDER BY m.sent_at DESC
+            LIMIT :limit OFFSET :offset
+            """
+        )
+        fb_result = await db.execute(fb_sql, {**fb_params, "limit": limit, "offset": offset})
+        fb_rows = fb_result.fetchall()
+        fb_messages: list[MessageFtsSearchRow] = []
+        for row in fb_rows:
+            snippet = row.content[:80] + ("..." if len(row.content) > 80 else "")
+            fb_messages.append(
                 {
                     "id": row.id,
                     "chat_id": row.chat_id,
@@ -155,7 +221,8 @@ class ChatMessageSearchRepository:
                     "content": row.content,
                     "sent_at": row.sent_at,
                     "chat_title": row.chat_title,
-                    "highlight_snippet": row.highlight_snippet,
+                    "highlight_snippet": snippet,
+                    "is_relaxed": True,
                 }
             )
-        return messages, total
+        return fb_messages, fb_total
