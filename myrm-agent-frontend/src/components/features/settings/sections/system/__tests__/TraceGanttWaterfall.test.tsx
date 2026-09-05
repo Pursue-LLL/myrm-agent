@@ -1,9 +1,19 @@
 /** @vitest-environment jsdom */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TraceGanttWaterfall from '../TraceGanttWaterfall';
 import type { TracePerformanceSummary } from '@/services/statistics';
+
+const stableT = (key: string, params?: Record<string, unknown>) => {
+  if (params?.tokens) return `Cached: ${params.tokens} Tokens`;
+  return key;
+};
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+  useLocale: () => 'en',
+}));
 
 describe('TraceGanttWaterfall Component', () => {
   const mockPerformance: TracePerformanceSummary = {
@@ -17,8 +27,8 @@ describe('TraceGanttWaterfall Component', () => {
       {
         type: 'llm',
         label: 'deepseek-chat',
-        start_time: 1000.0,
-        end_time: 1001.2,
+        start_time: 1.0,
+        end_time: 2.2,
         duration_ms: 1200,
         ttft_ms: 280,
         status: 'success',
@@ -26,87 +36,74 @@ describe('TraceGanttWaterfall Component', () => {
       {
         type: 'tool',
         label: 'web_search',
-        start_time: 1001.2,
-        end_time: 1002.0,
+        start_time: 2.2,
+        end_time: 3.0,
         duration_ms: 800,
         status: 'success',
       },
     ],
   };
 
-  it('renders LLM and Tool timing breakdown correctly', () => {
+  it('renders gantt waterfall header and timing ratios', () => {
     render(<TraceGanttWaterfall performance={mockPerformance} totalDurationMs={2000} />);
 
-    expect(screen.getByTestId('trace-gantt-waterfall')).toBeInTheDocument();
-    expect(screen.getByText(/LLM 60%/)).toBeInTheDocument();
-    expect(screen.getByText(/Tool 40%/)).toBeInTheDocument();
+    expect(screen.getByText('ganttWaterfall')).toBeInTheDocument();
+    expect(screen.getByText('privacyMode')).toBeInTheDocument();
+    expect(screen.getByText(/llmTime \(60%\)/)).toBeInTheDocument();
+    expect(screen.getByText(/toolTime \(40%\)/)).toBeInTheDocument();
   });
 
-  it('renders prompt cache hit badge with percentage and token counts', () => {
+  it('renders prompt cache hit percentage and cached tokens', () => {
     render(<TraceGanttWaterfall performance={mockPerformance} totalDurationMs={2000} />);
 
-    const badge = screen.getByTestId('prompt-cache-badge');
-    expect(badge).toBeInTheDocument();
-    expect(screen.getByText(/Prompt Cache: 85%/)).toBeInTheDocument();
-    expect(screen.getByText(/\(8,500 \/ 10,000\)/)).toBeInTheDocument();
+    expect(screen.getByText('cacheHitRate')).toBeInTheDocument();
+    expect(screen.getByText('85%')).toBeInTheDocument();
+    expect(screen.getByText('Cached: 8,500 Tokens')).toBeInTheDocument();
   });
 
-  it('renders waterfall spans for LLM and tool calls', () => {
+  it('renders spans and allows selecting a span to inspect details', async () => {
     render(<TraceGanttWaterfall performance={mockPerformance} totalDurationMs={2000} />);
 
     expect(screen.getByText('deepseek-chat')).toBeInTheDocument();
     expect(screen.getByText('web_search')).toBeInTheDocument();
-    expect(screen.getByText(/Execution Waterfall \(2 spans\)/)).toBeInTheDocument();
+
+    const spanItem = screen.getByText('deepseek-chat');
+    await userEvent.click(spanItem);
+
+    // Selected span details should appear
+    expect(screen.getByText(/TTFT: 280ms/)).toBeInTheDocument();
   });
 
-  it('supports expanding and collapsing when spans exceed threshold', async () => {
-    const manySpansPerformance: TracePerformanceSummary = {
-      ...mockPerformance,
-      gantt_spans: Array.from({ length: 8 }, (_, i) => ({
-        type: i % 2 === 0 ? 'llm' : 'tool',
-        label: `step-${i + 1}`,
-        start_time: 1000 + i * 0.5,
-        end_time: 1000 + (i + 1) * 0.5,
-        duration_ms: 500,
-        status: 'success',
-      })),
-    };
+  it('toggles privacy mode and masks labels', async () => {
+    render(<TraceGanttWaterfall performance={mockPerformance} totalDurationMs={2000} />);
 
-    render(<TraceGanttWaterfall performance={manySpansPerformance} totalDurationMs={4000} />);
+    expect(screen.getByText('deepseek-chat')).toBeInTheDocument();
 
-    expect(screen.getByText(/Execution Waterfall \(8 spans\)/)).toBeInTheDocument();
-    // Default displays up to 6 spans
-    expect(screen.getByText('step-1')).toBeInTheDocument();
-    expect(screen.getByText('step-6')).toBeInTheDocument();
-    expect(screen.queryByText('step-7')).not.toBeInTheDocument();
+    const privacyBtn = screen.getByRole('button', { name: /privacyMode/ });
+    await userEvent.click(privacyBtn);
 
-    const expandBtn = screen.getByRole('button', { name: /Show all 8/ });
-    await userEvent.click(expandBtn);
-
-    // After expand, all spans visible
-    expect(screen.getByText('step-7')).toBeInTheDocument();
-    expect(screen.getByText('step-8')).toBeInTheDocument();
-
-    const collapseBtn = screen.getByRole('button', { name: /Collapse/ });
-    await userEvent.click(collapseBtn);
-
-    expect(screen.queryByText('step-7')).not.toBeInTheDocument();
+    // Labels should be masked to LLM and Tool
+    expect(screen.queryByText('deepseek-chat')).not.toBeInTheDocument();
+    expect(screen.getByText('LLM')).toBeInTheDocument();
+    expect(screen.getByText('Tool')).toBeInTheDocument();
   });
 
-  it('handles empty spans gracefully without crashing', () => {
-    const emptyPerformance: TracePerformanceSummary = {
-      llm_duration_ms: 0,
-      tool_duration_ms: 0,
-      total_prompt_tokens: 0,
-      total_completion_tokens: 0,
-      total_cache_read_tokens: 0,
-      prompt_cache_hit_ratio: 0,
-      gantt_spans: [],
-    };
+  it('returns null when spans are empty', () => {
+    const { container } = render(
+      <TraceGanttWaterfall
+        performance={{
+          llm_duration_ms: 0,
+          tool_duration_ms: 0,
+          total_prompt_tokens: 0,
+          total_completion_tokens: 0,
+          total_cache_read_tokens: 0,
+          prompt_cache_hit_ratio: 0,
+          gantt_spans: [],
+        }}
+        totalDurationMs={0}
+      />
+    );
 
-    render(<TraceGanttWaterfall performance={emptyPerformance} totalDurationMs={0} />);
-
-    expect(screen.getByTestId('trace-gantt-waterfall')).toBeInTheDocument();
-    expect(screen.queryByTestId('prompt-cache-badge')).not.toBeInTheDocument();
+    expect(container.firstChild).toBeNull();
   });
 });

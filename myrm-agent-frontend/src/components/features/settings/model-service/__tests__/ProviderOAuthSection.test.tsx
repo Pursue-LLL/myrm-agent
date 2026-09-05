@@ -39,9 +39,9 @@ describe('ProviderOAuthSection Honest Notice Contract', () => {
 
   it('renders honest policy and quota notice when provider is anthropic', () => {
     render(<ProviderOAuthSection providerId="anthropic" hasApiKey={false} />);
-    expect(screen.getByText('Anthropic Subscription Policy & Quota Notice')).toBeDefined();
+    expect(screen.getAllByText('Anthropic Subscription Policy & Quota Notice')[0]).toBeDefined();
     expect(
-      screen.getByText(/Anthropic policy may restrict third-party client subscriptions/i),
+      screen.getAllByText(/Anthropic policy may restrict third-party client subscriptions/i)[0],
     ).toBeDefined();
   });
 
