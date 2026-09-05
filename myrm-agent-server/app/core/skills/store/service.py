@@ -73,10 +73,7 @@ class SkillsService:
     def local_provider(self) -> LocalSkillsProvider:
         return self.local_skills
 
-    # ========================================================================
     # Create
-    # ========================================================================
-
     async def create_skill(
         self,
         name: str,
@@ -151,10 +148,7 @@ class SkillsService:
         logger.warning(f"✅ 创建预构建技能: {skill_id} ({name})")
         return skill
 
-    # ========================================================================
     # Read
-    # ========================================================================
-
     async def get_skill(self, skill_id: str) -> Skill | None:
         """获取技能（按优先级查找：local → prebuilt）"""
         skill = None
@@ -273,10 +267,7 @@ class SkillsService:
             skill, target_path, self.storage, target_storage, force
         )
 
-    # ========================================================================
     # Update
-    # ========================================================================
-
     async def update_skill_file(
         self, skill_id: str, filename: str, content: str
     ) -> bool:
@@ -342,10 +333,7 @@ class SkillsService:
         logger.warning(f"✅ 更新技能: {skill_id} (v{updated_skill.version})")
         return updated_skill
 
-    # ========================================================================
     # Delete
-    # ========================================================================
-
     async def delete_skill(self, skill_id: str) -> bool:
         """删除技能"""
         skill = await self.get_skill(skill_id)
@@ -369,10 +357,7 @@ class SkillsService:
             logger.warning(f"Failed to list files for deletion: {e}")
         return True
 
-    # ========================================================================
     # 复合查询
-    # ========================================================================
-
     async def get_user_available_skills(self) -> list[Skill]:
         """获取工作区可用的技能列表（启用的预构建 + 启用的本地技能）"""
         config = await self.user_config.get_config()
