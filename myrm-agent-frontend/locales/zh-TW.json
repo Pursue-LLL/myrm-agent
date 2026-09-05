@@ -18864,49 +18864,44 @@
     "takeoverHint": "目前處於人工接管狀態，完成後請點擊交還智慧體繼續自動化。"
   },
   "modelPlaybook": {
-    "headerBadge": "模型編排手冊",
-    "dialogTitle": "模型協同編排實操手冊與最佳實踐",
-    "dialogSubtitle": "掌握大腦與雙手分工、三檔自適應路由及多模型共識，最大化性價比與準確率。",
-    "chipTitle": "模型協同編排指南",
-    "chipSubtitle": "大腦與雙手分工、三檔智慧路由與 MoA 共識體系",
-    "chipAction": "探索編排",
-    "brainHandsTitle": "1. 大腦與雙手分工架構",
-    "brainHandsBadge": "速度與成本平衡",
-    "brainHandsDesc": "將高推理能力的大模型指派為負責頂層規劃與架構的大腦（Brain），而將高頻、工具調用的快速執行任務路由給極致性價比的執行模型（Hands）。",
-    "brainLabel": "大腦（規劃者）",
-    "brainExample": "Claude 3.7 Sonnet, DeepSeek-R1, GPT-4o",
-    "handsLabel": "雙手（執行者）",
-    "handsExample": "DeepSeek-V3, GPT-4o-mini, Qwen 2.5",
-    "dynamicRoutingTitle": "2. 三檔自適應動態路由",
-    "dynamicRoutingBadge": "自適應分流",
-    "dynamicRoutingDesc": "系統根據使用者提問的複雜度與執行動量自動分類至三檔模型，顯著降低調用延遲與 Token 帳單。",
-    "tierSimpleTitle": "極簡檔（Simple）",
-    "tierSimpleDesc": "日常閒聊、狀態檢索與單行基礎修改，路由給極速模型秒級響應。",
-    "tierStandardTitle": "標準檔（Standard）",
-    "tierStandardDesc": "日常功能實現、程式碼重構與跨檔案符號搜尋，使用均衡主力模型。",
-    "tierReasoningTitle": "深度推理檔（Reasoning）",
-    "tierReasoningDesc": "複雜數理推演、架構系統設計與深層邏輯因果分析。",
-    "moaTitle": "3. 混合智慧體（MoA）共識機制",
-    "moaBadge": "精度與防幻覺",
-    "moaDesc": "在關鍵決策與架構審閱節點並行觸發多個參考模型獨立思考，交叉校驗消除單一模型幻覺。",
-    "orthogonalTipTitle": "智慧路由 vs. MoA 共識",
-    "orthogonalTipDesc": "動態路由用於挑選最合適、最經濟的單一模型；MoA 則是多模型協同突破單模智力上限。兩者正交互補，各司其職。",
-    "specialistsTitle": "4. 專有領域專家槽位",
-    "specialistsDesc": "將視覺識別、程式碼生成與超長上下文等特定任務委派給專有回退槽位，避免主力模型承載過載。",
-    "footerNote": "可在「設定 > 模型服務」中配置主備模型與智慧路由規則。",
-    "closeBtn": "關閉",
-    "configureBtn": "前往設定中心配置",
-    "cardTitle": "模型協同編排指南",
-    "cardBadge": "實踐指南",
-    "cardSubtitle": "掌握大腦與雙手分工、三檔自適應路由與 MoA 共識，釋放全鏈路最高效能。",
-    "viewFullPlaybook": "查看完整指南",
-    "collapse": "收起",
-    "expand": "展開",
-    "miniBrainHandsTitle": "大腦與雙手分工",
-    "miniBrainHandsDesc": "高推理規劃大腦 + 極速工具雙手。",
-    "miniDynamicRoutingTitle": "三檔自適應路由",
-    "miniDynamicRoutingDesc": "極簡 / 標準 / 深度推理自適應切換。",
-    "miniMoaTitle": "MoA 共識協同",
-    "miniMoaDesc": "多模型交叉核驗，打破單模效能上限。"
+    "title": "模型編排戰略手冊",
+    "subtitle": "多模型協同分工、動態路由與成本優化的架構指南。",
+    "brainHands": {
+      "title": "大腦與手腦專業化分工",
+      "tag": "角色解耦",
+      "description": "將高推理複雜任務規劃與輕量高頻的工具調用模型精細搭配。",
+      "brainTip": "大腦：Claude 3.5 Sonnet、DeepSeek-R1 負責全局架構與複雜決策。",
+      "handsTip": "手腦：MiniMax、GPT-4o-mini 負責高速工具調用與結構化輸出。"
+    },
+    "routingMoa": {
+      "title": "模型路由 vs 多智能體混合 (MoA)",
+      "tag": "正交維度",
+      "description": "動態路由根據任務類型選擇最佳模型；MoA 通過多模型協同輸出放大決策質量。",
+      "routingTip": "路由：根據任務特徵（編程、數學、創意）動態選定最優模型。",
+      "moaTip": "MoA：多模型並行產出與聚合共識，適用於關鍵重大決策。",
+      "routingActive": "生效中",
+      "routingInactive": "未啟用"
+    },
+    "cheapEyes": {
+      "title": "多模態視覺輔助 (廉價之眼)",
+      "tag": "成本優化",
+      "description": "使用輕量高性價比視覺模型解析多模態輸入，避免消耗昂貴核心推理模型。",
+      "tip": "將圖像檢查與螢幕視覺交給專用模型，保持對話核心鏈路輕盈高效。"
+    },
+    "honestQuota": {
+      "title": "真實配額與 Token 經濟學",
+      "tag": "成本治理",
+      "description": "即時監控各服務商的真實 Token 消耗與快取命中率，杜絕隱性浪費。",
+      "tip": "分析長鏈路調用瓶頸，優化 Prompt 前置以最大化快取利用率。"
+    },
+    "actions": {
+      "routingEnabledSuccess": "智能模型路由已成功啟用！",
+      "configureSlots": "配置模型槽位",
+      "enabled": "已啟用",
+      "enableSmartRouting": "啟用智能路由",
+      "configureVision": "配置視覺模型",
+      "viewSubscriptions": "查看訂閱方案",
+      "close": "關閉"
+    }
   }
 }

@@ -18864,49 +18864,44 @@
     "takeoverHint": "You have full control of this workspace. Click release when done."
   },
   "modelPlaybook": {
-    "headerBadge": "Orchestration Playbook",
-    "dialogTitle": "Model Orchestration Playbook & Best Practices",
-    "dialogSubtitle": "Learn how to optimize planning, execution, costs, and consensus with multi-model paradigms.",
-    "chipTitle": "Model Orchestration Playbook",
-    "chipSubtitle": "Brain & Hands dispatch, 3-tier routing, and MoA consensus",
-    "chipAction": "Explore",
-    "brainHandsTitle": "1. Brain vs. Hands Dispatch",
-    "brainHandsBadge": "Cost & Speed",
-    "brainHandsDesc": "Assign a high-reasoning model for planning and architecture (Brain), while routing rapid, tool-calling queries to a cost-efficient model (Hands).",
-    "brainLabel": "Brain (Planner)",
-    "brainExample": "Claude 3.7 Sonnet, DeepSeek-R1, GPT-4o",
-    "handsLabel": "Hands (Executor)",
-    "handsExample": "DeepSeek-V3, GPT-4o-mini, Qwen 2.5",
-    "dynamicRoutingTitle": "2. 3-Tier Adaptive Routing",
-    "dynamicRoutingBadge": "Adaptive",
-    "dynamicRoutingDesc": "Automatically categorizes tasks into three tiers based on query complexity and momentum, minimizing latency and spend.",
-    "tierSimpleTitle": "Simple Tier",
-    "tierSimpleDesc": "Chit-chat, lookups, and basic edits routed to fast models.",
-    "tierStandardTitle": "Standard Tier",
-    "tierStandardDesc": "Feature implementation, refactoring, and multi-file code search.",
-    "tierReasoningTitle": "Reasoning Tier",
-    "tierReasoningDesc": "Complex math, architectural design, and deep logic analysis.",
-    "moaTitle": "3. Mixture-of-Agents (MoA) Consensus",
-    "moaBadge": "Accuracy",
-    "moaDesc": "Runs multiple reference models in parallel during critical reasoning steps, aggregating their perspectives to eliminate hallucinations.",
-    "orthogonalTipTitle": "Routing vs. MoA",
-    "orthogonalTipDesc": "Routing selects the optimal single model to save costs. MoA combines multiple models to surpass single-model ceilings. They complement each other.",
-    "specialistsTitle": "4. Dedicated Specialist Slots",
-    "specialistsDesc": "Delegate vision, code generation, and long-context processing to dedicated fallback models without overloading your primary model.",
-    "footerNote": "Configure default models and smart routing rules in Settings.",
-    "closeBtn": "Close",
-    "configureBtn": "Configure in Settings",
-    "cardTitle": "Model Orchestration Playbook",
-    "cardBadge": "Playbook",
-    "cardSubtitle": "Master Brain & Hands dispatch, 3-tier routing, and MoA consensus to maximize efficiency.",
-    "viewFullPlaybook": "View Playbook",
-    "collapse": "Collapse",
-    "expand": "Expand",
-    "miniBrainHandsTitle": "Brain & Hands Dispatch",
-    "miniBrainHandsDesc": "High reasoning planner + fast tool executor.",
-    "miniDynamicRoutingTitle": "3-Tier Adaptive Routing",
-    "miniDynamicRoutingDesc": "Auto-switch Simple / Standard / Reasoning tiers.",
-    "miniMoaTitle": "MoA Consensus Overlay",
-    "miniMoaDesc": "Multi-model debate to break single-model ceilings."
+    "title": "Model Orchestration Playbook",
+    "subtitle": "Architectural guide for multi-model delegation, dynamic routing, and cost efficiency.",
+    "brainHands": {
+      "title": "Brain vs Hands Specialization",
+      "tag": "Decoupled Roles",
+      "description": "Pair a heavyweight reasoning model for planning with a fast, economical model for tool calls.",
+      "brainTip": "Brain: Claude 3.5 Sonnet, DeepSeek-R1 for architecture and edge-case reasoning.",
+      "handsTip": "Hands: MiniMax, GPT-4o-mini for rapid tool execution and schema compliance."
+    },
+    "routingMoa": {
+      "title": "Routing vs Mixture-of-Agents (MoA)",
+      "tag": "Orthogonal Scaling",
+      "description": "Dynamic routing picks the best model per task; MoA aggregates multiple model predictions.",
+      "routingTip": "Routing: Switch models based on specialty (coding, math, creative).",
+      "moaTip": "MoA: Parallel sampling and consensus aggregation for high-stake evaluations.",
+      "routingActive": "Active",
+      "routingInactive": "Inactive"
+    },
+    "cheapEyes": {
+      "title": "Multimodal Auxiliary Vision (Cheap Eyes)",
+      "tag": "Cost Optimization",
+      "description": "Use specialized vision models for image inspection without incurring reasoning overhead.",
+      "tip": "Offload visual parsing to dedicated models while keeping core conversation lightweight."
+    },
+    "honestQuota": {
+      "title": "Transparent Quota & Token Economics",
+      "tag": "TCO Control",
+      "description": "Monitor token consumption and cache hit rates in real-time across providers.",
+      "tip": "Identify cost bottlenecks and optimize prompt prefixes to maximize cache savings."
+    },
+    "actions": {
+      "routingEnabledSuccess": "Smart routing enabled successfully!",
+      "configureSlots": "Configure Model Slots",
+      "enabled": "Enabled",
+      "enableSmartRouting": "Enable Smart Routing",
+      "configureVision": "Configure Vision Model",
+      "viewSubscriptions": "View Subscriptions",
+      "close": "Close"
+    }
   }
 }
