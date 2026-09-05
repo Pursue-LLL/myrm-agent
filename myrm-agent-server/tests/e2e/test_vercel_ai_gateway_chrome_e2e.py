@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import pytest
 
+from myrm_agent_harness.toolkits.llms.core.llm import create_litellm_model
 from tests.support.chrome_mcp_e2e import (
     _require_e2e_cdp_ready,
     dismiss_blocking_modals,
@@ -69,7 +71,32 @@ def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:
         assert eval_res.get("ready") is True, f"Settings layout not ready: {eval_res}"
         assert eval_res.get("hasModelSection") is True, f"Model section not found: {eval_res}"
 
-    # 2. REST API probe to verify server health and model discovery endpoints
+    # 2. REST API probe to verify server health
     res_health = http_json("GET", f"{api_url}/api/v1/health")
     assert isinstance(res_health, dict)
     assert res_health.get("status") == "healthy"
+
+    # 3. Verify Vercel AI Gateway attribution headers
+    gw_model = create_litellm_model(
+        "openai/gpt-4o",
+        api_key="vca_test_mock_key",
+        base_url="https://ai-gateway.vercel.sh/v1",
+    )
+    headers = getattr(gw_model, "model_kwargs", {}).get("extra_headers", {})
+    assert headers.get("HTTP-Referer") == "https://myrm.ai"
+    assert headers.get("X-Title") == "Myrm Agent"
+
+    # 4. Real user task flow: execute prompt with active test LLM to ensure working inference
+    real_api_key = os.getenv("BASIC_API_KEY")
+    real_base_url = os.getenv("BASIC_BASE_URL")
+    real_model_name = os.getenv("BASIC_MODEL")
+    if real_api_key and real_base_url and real_model_name:
+        real_llm = create_litellm_model(
+            real_model_name,
+            api_key=real_api_key,
+            base_url=real_base_url,
+        )
+        task_prompt = "请用中文回答：1+1等于几？"
+        response = real_llm.invoke(task_prompt)
+        assert response is not None
+        assert "2" in response.content or "二" in response.content
