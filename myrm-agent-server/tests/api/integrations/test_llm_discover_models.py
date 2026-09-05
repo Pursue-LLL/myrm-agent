@@ -14,6 +14,7 @@ from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from app.api.integrations.llms import (
     _LOCAL_NO_AUTH_KEY_MARKER,
     _apply_local_no_auth_marker_transport_overrides,
+    _is_trusted_split_stack_host,
 )
 from tests.support.minimal_app import build_minimal_app
 
@@ -309,3 +310,109 @@ def test_discover_models_generic_error(client: TestClient) -> None:
     payload = response.json()["data"]
     assert payload["success"] is False
     assert "connection refused" in (payload.get("error") or "")
+
+
+def test_is_trusted_split_stack_host_classifies_rfc1918_tailscale_and_mdns() -> None:
+    assert _is_trusted_split_stack_host("localhost") is True
+    assert _is_trusted_split_stack_host("127.0.0.1") is True
+    assert _is_trusted_split_stack_host("10.0.0.1") is True
+    assert _is_trusted_split_stack_host("172.16.0.1") is True
+    assert _is_trusted_split_stack_host("192.168.1.100") is True
+    assert _is_trusted_split_stack_host("100.80.20.10") is True
+    assert _is_trusted_split_stack_host("mac-mini.local") is True
+    assert _is_trusted_split_stack_host("::1") is True
+
+
+def test_is_trusted_split_stack_host_rejects_link_local_and_public() -> None:
+    assert _is_trusted_split_stack_host("169.254.169.254") is False
+    assert _is_trusted_split_stack_host("8.8.8.8") is False
+    assert _is_trusted_split_stack_host("api.openai.com") is False
+    assert _is_trusted_split_stack_host(None) is False
+    assert _is_trusted_split_stack_host("") is False
+
+
+def test_discover_models_allows_lan_rfc1918_no_auth_in_local_mode(client: TestClient) -> None:
+    with (
+        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch(
+            "app.api.integrations.llms.secure_request",
+            return_value=_json_response(
+                {"data": [{"id": "deepseek-r1:32b"}]},
+                url="http://192.168.1.50:11434/v1/models",
+            ),
+        ) as secure_request_mock,
+        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+    ):
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={"api_url": "http://192.168.1.50:11434/v1"},
+        )
+        assert secure_request_mock.called
+        called_kwargs = secure_request_mock.call_args.kwargs
+        assert called_kwargs["allowed_internal_hosts"] == ["192.168.1.50"]
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["success"] is True
+    assert payload["no_auth_local"] is True
+    assert payload["models"] == ["deepseek-r1:32b"]
+
+
+def test_discover_models_allows_tailscale_cgnat_no_auth_in_local_mode(client: TestClient) -> None:
+    with (
+        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch(
+            "app.api.integrations.llms.secure_request",
+            return_value=_json_response(
+                {"data": [{"id": "qwen2.5:72b"}]},
+                url="http://100.80.20.10:8000/v1/models",
+            ),
+        ) as secure_request_mock,
+        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+    ):
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={"api_url": "http://100.80.20.10:8000/v1"},
+        )
+        assert secure_request_mock.called
+        called_kwargs = secure_request_mock.call_args.kwargs
+        assert called_kwargs["allowed_internal_hosts"] == ["100.80.20.10"]
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["success"] is True
+    assert payload["no_auth_local"] is True
+    assert payload["models"] == ["qwen2.5:72b"]
+
+
+def test_discover_models_blocks_lan_in_sandbox_mode(client: TestClient) -> None:
+    """In cloud SaaS / Sandbox mode, private LAN endpoints require key and are blocked by SSRF."""
+    with (
+        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.is_local_mode", return_value=False),
+    ):
+        # Without key in sandbox -> blocked immediately
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={"api_url": "http://192.168.1.50:11434/v1"},
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["success"] is False
+        assert "API key is required" in (data.get("error") or "")
+
+
+def test_discover_models_rejects_link_local_metadata_in_local_mode(client: TestClient) -> None:
+    """169.254.169.254 (link-local cloud metadata) is never trusted as split-stack, requiring key and not whitelisted."""
+    with (
+        patch("app.api.integrations.llms.create_httpx_client", _mock_httpx_client),
+        patch("app.api.integrations.llms.is_local_mode", return_value=True),
+    ):
+        response = client.post(
+            "/api/v1/integrations/llm/discover-models",
+            json={"api_url": "http://169.254.169.254/latest/meta-data"},
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["success"] is False
+        assert "API key is required" in (data.get("error") or "")

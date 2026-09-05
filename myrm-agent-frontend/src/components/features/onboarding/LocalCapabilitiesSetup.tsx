@@ -20,6 +20,7 @@ import {
   IconCpu,
   IconGlobe,
   IconLoader,
+  IconServer,
   IconZap,
 } from '@/components/features/icons/PremiumIcons';
 import SearxngInstallConsentDialog from '@/components/features/settings/SearxngInstallConsentDialog';
@@ -28,6 +29,7 @@ import {
   getLiteLLMModelName,
   hasUsableProviderAuth,
   isLoopbackApiUrl,
+  isLocalOrTrustedSplitStackApiUrl,
   LOCAL_NO_AUTH_API_KEY_MARKER,
 } from '@/store/config/providerTypes';
 import { checkModelReachability, discoverModelsFromEndpoint } from '@/services/llm-config';
@@ -359,7 +361,15 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
               />
             </label>
           </div>
-          {isLoopbackApiUrl(customApiUrl) && <p className="text-xs text-muted-foreground">{t('customNoAuthHint')}</p>}
+          {isLocalOrTrustedSplitStackApiUrl(customApiUrl) && (
+            <p className="text-xs text-muted-foreground">{t('customNoAuthHint')}</p>
+          )}
+          {!isLoopbackApiUrl(customApiUrl) && isLocalOrTrustedSplitStackApiUrl(customApiUrl) && (
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <IconServer className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>{t('customSplitStackHint')}</span>
+            </div>
+          )}
           {customNoAuthLocal && (
             <p className="text-xs text-emerald-600 dark:text-emerald-400">{t('customNoAuthDetected')}</p>
           )}

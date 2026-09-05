@@ -5,6 +5,10 @@ import {
   getLiteLLMModelName,
   hasActiveApiKey,
   hasUsableProviderAuth,
+  isLocalOrTrustedSplitStackApiUrl,
+  isLoopbackApiUrl,
+  isTrustedSplitStackHostname,
+  LOCAL_NO_AUTH_API_KEY_MARKER,
   resolveCustomProviderTypeInfo,
   resolveProviderApiKeyForRequests,
 } from '../providerTypes';
@@ -69,5 +73,50 @@ describe('SaaS platform provider seed auth contract', () => {
 
   it('forwards the platform-managed marker to the request key resolver', () => {
     expect(resolveProviderApiKeyForRequests(seededPlatformProvider)).toBe('platform-managed');
+  });
+});
+
+describe('isTrustedSplitStackHostname and URL helpers', () => {
+  it('correctly classifies loopback, RFC1918, Tailscale, and mDNS as trusted split-stack hostnames', () => {
+    expect(isTrustedSplitStackHostname('localhost')).toBe(true);
+    expect(isTrustedSplitStackHostname('127.0.0.1')).toBe(true);
+    expect(isTrustedSplitStackHostname('10.0.0.1')).toBe(true);
+    expect(isTrustedSplitStackHostname('172.16.0.1')).toBe(true);
+    expect(isTrustedSplitStackHostname('172.31.255.254')).toBe(true);
+    expect(isTrustedSplitStackHostname('192.168.1.100')).toBe(true);
+    expect(isTrustedSplitStackHostname('100.80.20.10')).toBe(true);
+    expect(isTrustedSplitStackHostname('mac-mini.local')).toBe(true);
+  });
+
+  it('rejects cloud link-local metadata, public IPs, and external domains', () => {
+    expect(isTrustedSplitStackHostname('169.254.169.254')).toBe(false);
+    expect(isTrustedSplitStackHostname('8.8.8.8')).toBe(false);
+    expect(isTrustedSplitStackHostname('api.openai.com')).toBe(false);
+    expect(isTrustedSplitStackHostname('172.15.0.1')).toBe(false);
+    expect(isTrustedSplitStackHostname('172.32.0.1')).toBe(false);
+  });
+
+  it('correctly evaluates full API URLs for local or split-stack hosting', () => {
+    expect(isLoopbackApiUrl('http://127.0.0.1:11434/v1')).toBe(true);
+    expect(isLoopbackApiUrl('http://192.168.1.50:11434/v1')).toBe(false);
+
+    expect(isLocalOrTrustedSplitStackApiUrl('http://127.0.0.1:11434/v1')).toBe(true);
+    expect(isLocalOrTrustedSplitStackApiUrl('http://192.168.1.50:11434/v1')).toBe(true);
+    expect(isLocalOrTrustedSplitStackApiUrl('http://100.80.20.10:8000/v1')).toBe(true);
+    expect(isLocalOrTrustedSplitStackApiUrl('http://dgx-spark.local:8000/v1')).toBe(true);
+    expect(isLocalOrTrustedSplitStackApiUrl('https://api.openai.com/v1')).toBe(false);
+    expect(isLocalOrTrustedSplitStackApiUrl('')).toBe(false);
+    expect(isLocalOrTrustedSplitStackApiUrl(null)).toBe(false);
+  });
+
+  it('allows no-auth for trusted split-stack endpoints and resolves synthetic marker', () => {
+    const lanProvider = {
+      id: 'custom_lan',
+      providerType: 'openai-like' as const,
+      apiUrl: 'http://192.168.1.50:11434/v1',
+      apiKeys: [],
+    };
+    expect(hasUsableProviderAuth(lanProvider)).toBe(true);
+    expect(resolveProviderApiKeyForRequests(lanProvider)).toBe(LOCAL_NO_AUTH_API_KEY_MARKER);
   });
 });

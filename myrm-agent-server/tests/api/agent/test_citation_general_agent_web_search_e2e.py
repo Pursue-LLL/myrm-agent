@@ -19,6 +19,7 @@ from tests.api.agent.utils import (
     check_e2e_errors,
     get_model_selection,
     get_search_service_config,
+    resolve_test_env,
 )
 
 _CITATION_PROMPT_FAST = "请搜索「Python 3.14 新特性」，用一句话总结，正文中必须用【1】标注引用，末尾单独一行写 CITE_OK。"
@@ -108,7 +109,7 @@ def _collect_general_agent_citation_stream(client: TestClient, query: str) -> di
 
 @pytest.mark.e2e
 @pytest.mark.skipif(
-    not os.environ.get("BASIC_API_KEY"),
+    not resolve_test_env("BASIC_API_KEY"),
     reason="E2E test requires BASIC_API_KEY environment variable",
 )
 class TestWebSearchCitationPipeline:

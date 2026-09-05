@@ -17,6 +17,7 @@ from tests.api.agent.utils import (
     check_e2e_errors,
     get_lite_model_selection,
     get_model_selection,
+    resolve_test_env,
 )
 
 
@@ -279,7 +280,7 @@ def perform_fast_search(
 
 @pytest.mark.e2e
 @pytest.mark.skipif(
-    not os.environ.get("BASIC_API_KEY"),
+    not resolve_test_env("BASIC_API_KEY"),
     reason="E2E test requires BASIC_API_KEY environment variable",
 )
 class TestFastSearchAgent:

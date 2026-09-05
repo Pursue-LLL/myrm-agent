@@ -273,6 +273,7 @@ _spawn_detached() {
     setsid nohup "$@" >>"${log_file}" 2>&1 &
   else
     nohup "$@" >>"${log_file}" 2>&1 &
+    disown $! 2>/dev/null || true
   fi
 }
 

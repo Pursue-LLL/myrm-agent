@@ -99,6 +99,10 @@ def _extract_model_ids(payload: object) -> list[str]:
     return []
 
 
+_TAILSCALE_CGNAT_NETWORK = ipaddress.ip_network("100.64.0.0/10")
+_LINK_LOCAL_IPV4_NETWORK = ipaddress.ip_network("169.254.0.0/16")
+
+
 def _is_loopback_host(hostname: str | None) -> bool:
     if not hostname:
         return False
@@ -110,6 +114,43 @@ def _is_loopback_host(hostname: str | None) -> bool:
     except ValueError:
         return False
     return parsed_ip.is_loopback or parsed_ip.is_unspecified
+
+
+def _is_trusted_split_stack_host(hostname: str | None) -> bool:
+    """Check if a hostname represents a loopback, RFC1918 private LAN, Tailscale CGNAT, or .local mDNS host.
+
+    Excludes 169.254.0.0/16 (link-local cloud metadata) to prevent SSRF credential theft.
+    """
+    if not hostname:
+        return False
+    lowered = hostname.lower().strip("[]")
+    if lowered == "localhost" or lowered.endswith(".local"):
+        return True
+
+    try:
+        parsed_ip = ipaddress.ip_address(lowered)
+    except ValueError:
+        return False
+
+    v4 = parsed_ip.ipv4_mapped if isinstance(parsed_ip, ipaddress.IPv6Address) else parsed_ip
+    ip_to_check = v4 or parsed_ip
+
+    # Explicitly block link-local cloud metadata endpoints (e.g. 169.254.169.254)
+    if ip_to_check.is_link_local or (
+        isinstance(ip_to_check, ipaddress.IPv4Address) and ip_to_check in _LINK_LOCAL_IPV4_NETWORK
+    ):
+        return False
+
+    if ip_to_check.is_loopback or ip_to_check.is_unspecified:
+        return True
+
+    if ip_to_check.is_private:
+        return True
+
+    if isinstance(ip_to_check, ipaddress.IPv4Address) and ip_to_check in _TAILSCALE_CGNAT_NETWORK:
+        return True
+
+    return False
 
 
 def _apply_local_no_auth_marker_transport_overrides(
@@ -162,11 +203,11 @@ async def discover_models(request: ModelDiscoveryRequest) -> JSONResponse:
         return success_response(data=result.model_dump())
 
     parsed = urlparse(normalized_api_url)
-    is_loopback = _is_loopback_host(parsed.hostname)
+    is_split_stack = _is_trusted_split_stack_host(parsed.hostname)
     api_key = (request.api_key or "").strip()
     use_no_auth_local = False
     if not api_key:
-        if is_loopback and is_local_mode():
+        if is_split_stack and is_local_mode():
             use_no_auth_local = True
             api_key = _LOCAL_NO_AUTH_KEY_MARKER
         else:
@@ -186,8 +227,8 @@ async def discover_models(request: ModelDiscoveryRequest) -> JSONResponse:
 
     candidates = _build_models_candidates(normalized_api_url)
     last_error: str | None = None
-    allow_loopback_host = bool(parsed.hostname and is_loopback and is_local_mode())
-    allowed_hosts = [parsed.hostname] if allow_loopback_host else None
+    allow_internal_host = bool(parsed.hostname and is_split_stack and is_local_mode())
+    allowed_hosts = [parsed.hostname] if allow_internal_host else None
 
     async with create_httpx_client(timeout=_MODELS_DISCOVERY_TIMEOUT_S, follow_redirects=False) as client:
         for models_url in candidates:

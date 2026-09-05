@@ -1332,14 +1332,9 @@ def open_app_route_page(
     wait_wall = float(os.environ.get("MYRM_BROWSER_ORCHESTRATOR_WAIT_SEC", "90"))
     _wait_orchestrator_daemon_ready(daemon, wall_sec=max(20.0, wait_wall))
     if not daemon.supports_open_app_route():
-        # Old daemon build: delegate to the legacy reclaim/create path so callers
-        # keep a single API (NAV-3); capability drops once daemon is rebuilt.
-        with open_orchestrator_mcp_page(
-            url,
-            request_timeout_sec=effective_timeout,
-        ) as (legacy_client, legacy_page):
-            yield legacy_client, legacy_page  # type: ignore[misc]
-        return
+        raise RuntimeError(
+            "BROWSER_ORCHESTRATOR_CAPABILITY_MISSING: page/openAppRoute is required"
+        )
     session_id = _resolve_session_id()
     _ensure_orchestrator_session(daemon, session_id)
     page = OrchestratorMcpPage(page_id=1, target_id="", url=None)
