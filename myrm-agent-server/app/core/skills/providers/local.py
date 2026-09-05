@@ -116,8 +116,9 @@ def _load_skill_from_dir(
         logger.warning(f"Invalid skill '{skill_dir.name}': {e}")
         return None
 
+    skill_name = str(frontmatter.name or skill_dir.name)
     meta = build_skill_metadata(
-        skill_name=skill_dir.name,
+        skill_name=skill_name,
         frontmatter=frontmatter,
         storage_path=str(skill_dir.resolve()),
         content=content,
