@@ -18112,7 +18112,15 @@
         "securityLabels": "セキュリティラベル",
         "securityFlag": "セキュリティ",
         "memoryEvents": "コンテキスト注入と記憶",
-        "influenceCount": "影響を受けたターン: {count}"
+        "influenceCount": "影響を受けたターン: {count}",
+        "ganttWaterfall": "所要時間ガントチャート",
+        "llmTime": "モデル思考・生成",
+        "toolTime": "ツール実行・ネットワーク",
+        "cacheHitRate": "プレフィックスキャッシュヒット率",
+        "cacheTokens": "キャッシュヒット: {tokens} Tokens",
+        "privacyMode": "プライバシー保護",
+        "privacyHint": "プロンプトおよびツールの機密入力を非表示にしました",
+        "searchPlaceholder": "プロンプトまたはタイトルでトレースを検索..."
       },
       "replay": {
         "title": "セッションリプレイ",

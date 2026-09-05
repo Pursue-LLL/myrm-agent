@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.trace_builder import build_trace
 from myrm_agent_harness.agent.event_log.types import EventFilter
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.statistics.session_analytics import _validate_session_id
@@ -347,86 +347,4 @@ async def search_session_traces(
         return success_response(data=matched)
     except Exception as e:
         raise internal_error(operation="Search session traces", exception=e) from e
-
-
-@router.get("/traces/prompt-cache-radar")
-async def get_prompt_cache_radar(
-    days: int = 7,
-    db: AsyncSession = Depends(get_db),
-) -> JSONResponse:
-    """Aggregate Prompt Cache hit ratio and token savings across recent sessions."""
-    try:
-        from datetime import datetime, timedelta, timezone
-
-        cutoff = datetime.now(timezone.utc) - timedelta(days=max(1, min(days, 90)))
-        stmt = (
-            select(Chat)
-            .where(Chat.updated_at >= cutoff)
-            .order_by(Chat.updated_at.desc())
-            .limit(100)
-        )
-        result = await db.execute(stmt)
-        chats = result.scalars().all()
-
-        total_prompt_tokens = 0
-        total_completion_tokens = 0
-        total_cache_read_tokens = 0
-        sessions_tracked = 0
-
-        log_dir = Path(settings.database.event_log_dir)
-
-        for chat in chats:
-            chat_id = str(chat.id)
-            log_file = log_dir / f"{chat_id}.jsonl"
-            if not log_file.exists():
-                continue
-
-            try:
-                backend = FileEventLogBackend(log_dir=log_dir, session_id=chat_id)
-                events = await backend.get_events(
-                    chat_id, EventFilter(event_types=frozenset({"token_usage", "llm_end"}))
-                )
-                if events:
-                    sessions_tracked += 1
-                for ev in events:
-                    usage = ev.data.get("usage") or ev.data
-                    if isinstance(usage, dict):
-                        p = int(usage.get("prompt_tokens") or 0)
-                        c = int(usage.get("completion_tokens") or 0)
-
-                        cd = 0
-                        if details := usage.get("prompt_tokens_details"):
-                            if isinstance(details, dict):
-                                cd = int(details.get("cached_tokens") or 0)
-                        elif "cache_read_input_tokens" in usage:
-                            cd = int(usage.get("cache_read_input_tokens") or 0)
-
-                        total_prompt_tokens += p
-                        total_completion_tokens += c
-                        total_cache_read_tokens += cd
-            except Exception:
-                pass
-
-        fresh_input_tokens = max(0, total_prompt_tokens - total_cache_read_tokens)
-        hit_ratio = (
-            round(total_cache_read_tokens / total_prompt_tokens, 4)
-            if total_prompt_tokens > 0
-            else 0.0
-        )
-        estimated_savings_usd = round((total_cache_read_tokens / 1_000_000) * 0.42, 4)
-
-        return success_response(
-            data={
-                "days": days,
-                "sessions_tracked": sessions_tracked,
-                "total_prompt_tokens": total_prompt_tokens,
-                "fresh_input_tokens": fresh_input_tokens,
-                "total_cache_read_tokens": total_cache_read_tokens,
-                "total_completion_tokens": total_completion_tokens,
-                "prompt_cache_hit_ratio": hit_ratio,
-                "estimated_savings_usd": estimated_savings_usd,
-            }
-        )
-    except Exception as e:
-        raise internal_error(operation="Get prompt cache radar", exception=e) from e
 

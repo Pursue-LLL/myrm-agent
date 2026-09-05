@@ -18112,7 +18112,15 @@
         "securityLabels": "보안 라벨",
         "securityFlag": "보안",
         "memoryEvents": "컨텍스트 주입 및 메모리",
-        "influenceCount": "영향을 받은 턴: {count}"
+        "influenceCount": "영향을 받은 턴: {count}",
+        "ganttWaterfall": "간트 타임라인 폭포수",
+        "llmTime": "모델 추론 및 생성",
+        "toolTime": "도구 실행 및 네트워크",
+        "cacheHitRate": "프롬프트 캐시 적중률",
+        "cacheTokens": "캐시 적중: {tokens} 토큰",
+        "privacyMode": "개인정보 보호",
+        "privacyHint": "민감한 프롬프트 및 도구 입력이 숨겨졌습니다",
+        "searchPlaceholder": "프롬프트 또는 제목으로 추적 검색..."
       },
       "replay": {
         "title": "세션 리플레이",

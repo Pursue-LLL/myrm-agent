@@ -18112,7 +18112,15 @@
         "securityLabels": "Sicherheitskennzeichnungen",
         "securityFlag": "Sicherheit",
         "memoryEvents": "Kontextinjektion & Speicher",
-        "influenceCount": "Beeinflusste Runden: {count}"
+        "influenceCount": "Beeinflusste Runden: {count}",
+        "ganttWaterfall": "Gantt-Wasserfall-Diagramm",
+        "llmTime": "Modell-Inferenz & Generierung",
+        "toolTime": "Tool-Ausführung & Netzwerk",
+        "cacheHitRate": "Prompt-Cache-Trefferquote",
+        "cacheTokens": "Gecached: {tokens} Tokens",
+        "privacyMode": "Datenschutzmodus",
+        "privacyHint": "Sensible Prompts und Tool-Eingaben ausgeblendet",
+        "searchPlaceholder": "Traces nach Prompt oder Titel durchsuchen..."
       },
       "replay": {
         "title": "Sitzungs-Wiedergabe",

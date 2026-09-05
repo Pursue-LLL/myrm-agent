@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.statistics.learning_loop import router as learning_loop_router
 from app.api.statistics.learning_timeline import router as learning_timeline_router
+from app.api.statistics.prompt_cache_radar import router as prompt_cache_radar_router
 from app.api.statistics.quota_runtime_router import router as quota_runtime_router
 from app.api.statistics.rate_limits import router as rate_limits_router
 from app.api.statistics.session_analytics import router as session_router
@@ -35,6 +36,7 @@ from app.database.models.cron import CronRunModel
 router = APIRouter()
 router.include_router(session_router)
 router.include_router(session_trace_router)
+router.include_router(prompt_cache_radar_router)
 router.include_router(model_sessions_router)
 router.include_router(rate_limits_router)
 router.include_router(learning_timeline_router)
