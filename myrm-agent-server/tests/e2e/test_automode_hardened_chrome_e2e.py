@@ -17,7 +17,6 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_mcp_page,
     wait_for_state,
-    warm_ui_route,
 )
 
 _IRREVERSIBLE_BANNER_STATE = """(() => {

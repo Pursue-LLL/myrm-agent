@@ -271,7 +271,7 @@ async def batch_resolve_approvals(
     req: BatchResolveApprovalRequest,
 ) -> ApprovalListResponse:
     """Batch resolve multiple approvals and resume the agents with dual-insurance high-risk protection."""
-    from myrm_agent_harness.api.security import (
+    from myrm_agent_harness.agent.security.batch_risk import (
         BatchApprovalItem,
         classify_batch_approval_risk,
     )
