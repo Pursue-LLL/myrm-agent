@@ -144,6 +144,7 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
                   variant="ghost"
                   size="sm"
                   className="h-6 px-2 text-xs"
+                  data-testid="preview-toggle-selection-btn"
                   onClick={isAllSelected ? handleDeselectAll : handleSelectAll}
                 >
                   {isAllSelected ? (

@@ -216,20 +216,19 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
     );
 
     // Initial state: both selected
-    const deselectBtn = screen.getByTestId('preview-deselect-all-btn');
-    fireEvent.click(deselectBtn);
+    const toggleBtn = screen.getByTestId('preview-toggle-selection-btn');
+    fireEvent.click(toggleBtn);
 
     // After deselect all, adopt button should be disabled
-    const adoptBtn = screen.getByTestId('preview-adopt-btn');
+    const adoptBtn = screen.getByTestId('preview-adopt-confirm-btn');
     expect(adoptBtn).toBeDisabled();
 
     // Select all
-    const selectAllBtn = screen.getByTestId('preview-select-all-btn');
-    fireEvent.click(selectAllBtn);
+    fireEvent.click(toggleBtn);
     expect(adoptBtn).not.toBeDisabled();
 
     // Add path only button
-    const addPathOnlyBtn = screen.getByTestId('preview-add-path-only-btn');
+    const addPathOnlyBtn = screen.getByTestId('preview-adopt-add-path-only-btn');
     fireEvent.click(addPathOnlyBtn);
     expect(onAddPathOnly).toHaveBeenCalledTimes(1);
   });

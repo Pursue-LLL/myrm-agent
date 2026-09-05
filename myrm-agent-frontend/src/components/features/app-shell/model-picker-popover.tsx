@@ -4,6 +4,7 @@
  * [INPUT]
  * @/store/useProviderStore (POS: Provider 与启用模型状态)
  * @/store/useOrgModelPolicyStore (POS: 组织模型策略门禁)
+ * @/store/config/providerTypes::isLocalOrTrustedSplitStackApiUrl (POS: 本地与受信任Split-Stack私网端点拓扑判定)
  * @/services/llm-config::fetchModelCapabilitiesBatch (POS: 模型能力批量探测)
  *
  * [OUTPUT]

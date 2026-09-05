@@ -47,7 +47,10 @@ def clean_skill_workspace(tmp_path: Path) -> Path:
 
 
 @pytest.mark.asyncio
-async def test_full_lifecycle_local_skill_preview_and_adopt(clean_skill_workspace: Path) -> None:
+async def test_full_lifecycle_local_skill_preview_and_adopt(
+    clean_skill_workspace: Path,
+    tmp_path: Path,
+) -> None:
     """Test full integration lifecycle from preview to adoption and store discovery."""
     mock_local_identity = ResolvedIdentity(
         user_id=LOCAL_USER_ID,
@@ -135,3 +138,17 @@ async def test_full_lifecycle_local_skill_preview_and_adopt(clean_skill_workspac
         assert matched_status["is_directory"] is True
         assert matched_status["skills_count"] == 1
         assert "custom-math-calculator" in matched_status["skill_names"]
+
+        # 7. Real execution test: download/sync skill to workspace and execute task
+        agent_workspace = tmp_path / "agent_run_workspace"
+        target_skills_dir = agent_workspace / ".myrm" / "skills" / "custom-math-calculator"
+        target_skills_dir.mkdir(parents=True)
+        download_success = await skills_service.download_skill_to_workspace(
+            skill_id=skill_id,
+            target_path=str(target_skills_dir),
+            force=True,
+        )
+        assert download_success is True
+        synced_skill_md = target_skills_dir / "SKILL.md"
+        assert synced_skill_md.exists()
+        assert "custom-math-calculator" in synced_skill_md.read_text(encoding="utf-8")
