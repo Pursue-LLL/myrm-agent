@@ -70,4 +70,20 @@ describe('RepoEvidenceCard Component', () => {
       expect(screen.getByText('Git command failed')).toBeDefined();
     });
   });
+
+  it('renders git unavailable state when is_git_available is false', async () => {
+    const mockUnavailable: commandCenterService.MemoryRepoEvidenceResponse = {
+      ...mockRepoDigest,
+      is_git_available: false,
+      recent_commits: [],
+      total_commits_examined: 0,
+    };
+    vi.spyOn(commandCenterService, 'getRepoEvidenceDigest').mockResolvedValueOnce(mockUnavailable);
+
+    render(<RepoEvidenceCard workspacePath="/non-git-dir" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('gitUnavailable')).toBeDefined();
+    });
+  });
 });

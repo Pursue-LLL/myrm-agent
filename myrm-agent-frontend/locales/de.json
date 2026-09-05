@@ -4893,7 +4893,8 @@
         "refresh": "Repository-Beweis aktualisieren",
         "recentCommits": "Aktuelle Commit-Beweise ({count})",
         "files": "Dateien",
-        "noCommits": "Kein aktueller Commit-Verlauf erkannt"
+        "noCommits": "Kein aktueller Commit-Verlauf erkannt",
+        "gitUnavailable": "Im aktuellen Arbeitsbereich wurde kein Git-Repository erkannt"
       }
     },
     "importReview": {

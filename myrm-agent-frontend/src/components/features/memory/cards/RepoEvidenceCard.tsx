@@ -134,7 +134,7 @@ export const RepoEvidenceCard = memo<RepoEvidenceCardProps>(({ workspacePath, cl
             </div>
           ) : (
             <div className="py-3 text-center text-xs text-zinc-400 dark:text-zinc-500">
-              {t('noCommits')}
+              {!data?.is_git_available ? t('gitUnavailable') : t('noCommits')}
             </div>
           )}
         </div>
