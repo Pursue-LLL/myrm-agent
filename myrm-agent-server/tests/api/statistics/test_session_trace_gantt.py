@@ -1,5 +1,7 @@
 """Unit tests for session trace performance enrichment and Gantt waterfall generation."""
 
+from __future__ import annotations
+
 from app.api.statistics.session_trace import _empty_trace_payload, _enrich_performance_and_gantt
 
 

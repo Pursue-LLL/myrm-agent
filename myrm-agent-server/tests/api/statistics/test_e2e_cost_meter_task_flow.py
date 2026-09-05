@@ -22,6 +22,7 @@ import pytest
 from myrm_agent_harness.toolkits.browser.observability import (
     BrowserObservability,
     BrowserRunTelemetry,
+    RecordingConfig,
 )
 from myrm_agent_harness.toolkits.web_search.core.error_handling import (
     is_persistent_quota_depleted_error,
@@ -73,7 +74,8 @@ async def test_e2e_search_quota_and_browser_compute_task_flow() -> None:
     # Harness 链条标记熔断
     tracker = ProviderQuotaTracker()
     tracker.mark_depleted("tavily", reason="monthly_limit_reached")
-    assert tracker.get_status("tavily") == ProviderQuotaStatus.DEPLETED
+    status, _ = tracker.get_status("tavily")
+    assert status == ProviderQuotaStatus.DEPLETED
 
     # Server 业务层自愈校准为已耗尽
     existing_record = SearchQuotaRecord(
