@@ -25,6 +25,7 @@ from fastapi.responses import JSONResponse
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.trace_builder import build_trace
 from myrm_agent_harness.agent.event_log.types import EventFilter
+from myrm_agent_harness.infra.tracing import sanitize_trace_payload
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -269,7 +270,7 @@ async def get_session_execution_trace(
         await _attach_security_labels(backend, session_id, trace_data)
         _enrich_performance_and_gantt(trace_data)
         trace_data["memory_events"] = memory_events
-        return success_response(data=trace_data)
+        return success_response(data=sanitize_trace_payload(trace_data))
 
     except Exception as e:
         if "not found" in str(e).lower():
@@ -356,7 +357,7 @@ async def search_session_traces(
             if len(matched) >= limit:
                 break
 
-        return success_response(data=matched)
+        return success_response(data=[sanitize_trace_payload(item) for item in matched])
     except Exception as e:
         raise internal_error(operation="Search session traces", exception=e) from e
 
