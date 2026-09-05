@@ -350,7 +350,7 @@ class DatabaseSettings(BaseSettings):
 
     sqlite_pool_size: int = 5  # SQLITE_POOL_SIZE
     sqlite_pool_max_overflow: int = 10  # SQLITE_POOL_MAX_OVERFLOW (burst headroom for parallel E2E)
-    sqlite_busy_timeout_ms: int = 3000  # SQLITE_BUSY_TIMEOUT_MS
+    sqlite_busy_timeout_ms: int = 30000  # SQLITE_BUSY_TIMEOUT_MS (boosted to 30s to eliminate locked storms under concurrent writes)
     database_echo: bool = False  # DATABASE_ECHO
     database_url: str = ""  # DATABASE_URL (optional AGE graph store; default SQLite graph)
     qdrant_url: str = ""  # QDRANT_URL (remote vector store)

@@ -60,6 +60,7 @@ async def test_e2e_search_quota_and_browser_compute_task_flow() -> None:
             yield s
 
     test_app.dependency_overrides[get_session] = _override_get_session
+    test_app.dependency_overrides[get_db] = _override_get_session
 
     try:
         # Step 1: 真实模拟执行 5 次搜索任务调用

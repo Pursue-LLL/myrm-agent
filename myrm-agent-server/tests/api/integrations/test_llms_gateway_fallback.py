@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import litellm
-import pytest
-
 from app.api.integrations.llms import _try_get_model_info_exact
 
 
