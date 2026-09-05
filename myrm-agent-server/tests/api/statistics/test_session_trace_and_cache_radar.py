@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from app.api.statistics.prompt_cache_radar import get_prompt_cache_radar
 from app.api.statistics.session_trace import search_session_traces
 from app.config.settings import settings
