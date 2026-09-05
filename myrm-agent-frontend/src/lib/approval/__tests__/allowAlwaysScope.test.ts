@@ -31,7 +31,7 @@ describe('scopeToAllowAlwaysValue', () => {
 
   it('maps permission scope with session duration to object with ttl metadata', () => {
     expect(scopeToAllowAlwaysValue('permission', 'session')).toEqual({
-      tool: true,
+      tool: false,
       duration: 'session',
       ttl_seconds: -1,
     });

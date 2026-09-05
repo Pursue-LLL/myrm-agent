@@ -19,23 +19,26 @@ from tests.support.chrome_mcp_e2e import (
 
 
 def _seed_allowlist_pattern_row(client, page) -> None:
-    """Seed via page same-origin fetch so UI and DB share the pinned shared :8080 stack."""
+    """Seed via page fetch using the runtime api base so UI and DB share the pinned stack."""
     result = client.evaluate(
         page,
-        """(() => fetch('/api/v1/security/allowlist/test/seed-pattern-fixture', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-})
-  .then(async (res) => {
-    const body = await res.json().catch(() => ({}));
-    return {
-      ok: res.ok,
-      status: res.status,
-      command_pattern: body?.command_pattern ?? body?.data?.command_pattern ?? null,
-      entry_id: body?.entry_id ?? body?.data?.entry_id ?? null,
-    };
+        """(() => {
+  const base = window.__MYRM_E2E_RUNTIME__?.apiBase || window.__MYRM_E2E_API_BASE__ || '';
+  return fetch(`${base}/api/v1/security/allowlist/test/seed-pattern-fixture`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
   })
-  .catch((err) => ({ ok: false, err: String(err) })))()""",
+    .then(async (res) => {
+      const body = await res.json().catch(() => ({}));
+      return {
+        ok: res.ok,
+        status: res.status,
+        command_pattern: body?.command_pattern ?? body?.data?.command_pattern ?? null,
+        entry_id: body?.entry_id ?? body?.data?.entry_id ?? null,
+      };
+    })
+    .catch((err) => ({ ok: false, err: String(err) }));
+})()""",
         timeout_sec=30.0,
     )
     assert isinstance(result, dict), result
@@ -45,12 +48,11 @@ def _seed_allowlist_pattern_row(client, page) -> None:
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
-    private_reason="exclusive_backend",
 )
-@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_settings_security_shows_pattern_allowlist_entry() -> None:
     api_base = get_e2e_api_url()
@@ -69,10 +71,13 @@ def test_settings_security_shows_pattern_allowlist_entry() -> None:
         # Also verify time-bound seed entry displays time-bound badge
         client.evaluate(
             page,
-            """(() => fetch('/api/v1/security/allowlist/test/seed-pattern-fixture?ttl_seconds=3600', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-}).then(r => r.json()).catch(() => ({})))()""",
+            """(() => {
+  const base = window.__MYRM_E2E_RUNTIME__?.apiBase || window.__MYRM_E2E_API_BASE__ || '';
+  return fetch(`${base}/api/v1/security/allowlist/test/seed-pattern-fixture?ttl_seconds=3600`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  }).then(r => r.json()).catch(() => ({}));
+})()""",
             timeout_sec=15.0,
         )
         client.evaluate(page, REFRESH_ALLOWLIST_JS, timeout_sec=15.0)

@@ -60,7 +60,7 @@ export function scopeToAllowAlwaysValue(
   };
 
   if (scope === 'permission') {
-    return duration === 'permanent' ? true : { tool: true, ...durationMeta };
+    return duration === 'permanent' ? true : { tool: false, ...durationMeta };
   }
   if (scope === 'exact') {
     return { tool: true, args: true, ...durationMeta };

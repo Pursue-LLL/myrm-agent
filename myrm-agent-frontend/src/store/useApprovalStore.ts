@@ -193,6 +193,16 @@ export function normalizeApprovalPayload(raw: Record<string, unknown>): Approval
   const liveAssistUrl = asString(nestedPayload.live_assist_url) || undefined;
   const isManaged = nestedPayload.is_managed === true;
   const payloadMessageId = asString(nestedPayload.messageId) || undefined;
+  const reviewConfigs = Array.isArray(nestedPayload.reviewConfigs)
+    ? (nestedPayload.reviewConfigs as ApprovalPayloadData['reviewConfigs'])
+    : Array.isArray(raw.reviewConfigs)
+      ? (raw.reviewConfigs as ApprovalPayloadData['reviewConfigs'])
+      : undefined;
+  const reviewerReasons = Array.isArray(nestedPayload.reviewerReasons)
+    ? (nestedPayload.reviewerReasons as string[])
+    : Array.isArray(raw.reviewerReasons)
+      ? (raw.reviewerReasons as string[])
+      : undefined;
 
   return {
     approval_id: asString(raw.approval_id) || asString(raw.id),
@@ -220,6 +230,8 @@ export function normalizeApprovalPayload(raw: Record<string, unknown>): Approval
       reason: payloadReason || undefined,
       messageId: payloadMessageId,
       action_type: asString(nestedPayload.action_type ?? raw.action_type) || undefined,
+      reviewConfigs,
+      reviewerReasons,
     },
     chat_id: asString(raw.chat_id) || undefined,
     expires_at: asString(raw.expires_at) || undefined,

@@ -15,7 +15,7 @@ tags:
   - tailwind
   - motion
   - creative
-allowed-tools: bash_code_execute_tool file_write_tool file_read_tool grep_tool browser_navigate_tool
+allowed-tools: bash_code_execute_tool file_write_tool file_read_tool grep_tool file_edit_tool browser_navigate_tool
 contract:
   steps:
     - "Phase 1: Design Intent — understand purpose, audience, declare surface archetype, and commit to a bold aesthetic direction"
@@ -23,6 +23,9 @@ contract:
     - "Phase 3: Implement — build production-grade code with meticulous aesthetic execution"
     - "Phase 4: Refine — audit visual cohesion, motion polish, responsive elegance, and 10-Tell Slop Diagnostic (≥8/10)"
   potential_traps:
+    - description: "Destroying existing business logic via full file rewrite during redesign"
+      mitigation: "When restyling existing components, MUST use file_edit_tool for incremental edits; preserve all existing TypeScript props, state, hooks, and event callbacks"
+      severity: critical
     - description: "Falling into generic AI aesthetics — Inter font, purple gradients, predictable card layouts"
       mitigation: "Every design must have a clear conceptual direction; verify font choices are distinctive and contextually appropriate"
       severity: critical
@@ -36,6 +39,10 @@ contract:
       mitigation: "Vary themes (light/dark), font pairings, layout approaches, and color schemes for each new project"
       severity: medium
   verification_steps:
+    - step_id: existing_logic_preserved
+      description: "Existing business logic, TypeScript interfaces, and React state/hooks remain completely intact during restyling"
+      validation_method: "Ensure no props, state hooks, internationalization (useTranslations), or event handlers were removed or broken"
+      is_required: true
     - step_id: aesthetic_direction_set
       description: "A clear surface archetype and intentional aesthetic direction are chosen before coding"
       validation_method: "Design intent statement exists with surface archetype, tone, differentiation, and font/color choices"

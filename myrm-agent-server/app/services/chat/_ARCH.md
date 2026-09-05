@@ -23,7 +23,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 |------|------|------|-------|
 | `chat_service.py` | ✅ 核心 | ChatService 门面类，通过 Mixin 组合各域方法 | ✅ |
 | `_base.py` | ✅ 基础 | `_ChatRepositoryPort` 协议 + `_ChatServiceBase` 基类（`_cr()` 访问器） | ✅ |
-| `chat_crud.py` | ✅ 核心 | `_ChatCrudMixin`: Chat CRUD、软删除回收站 (trash/restore/permanent-delete/empty/auto-purge/batch-delete；permanent-delete/empty 将只读预读剥离独立短事务，写事务升级 `BEGIN IMMEDIATE` 防并发 snapshot 冲突)、session flush、channel chat 管理、Pinned Threads (pin/unpin/reorder, max 9)、LangGraph checkpointer 清理、`ensure_chat_source`（web→cron 打标并同步 recall 索引 source） | ✅ |
+| `chat_crud.py` | ✅ 核心 | `_ChatCrudMixin`: Chat CRUD、软删除回收站 (trash/restore/permanent-delete/empty/auto-purge/batch-delete；permanent-delete/empty 将只读预读剥离独立短事务，写事务升级 `BEGIN IMMEDIATE` 防并发 snapshot 冲突)、session flush、channel chat 管理、Pinned Threads (pin/unpin/reorder, max 9)、LangGraph checkpointer 与会话级时效白名单/拒绝熔断计数联动清理（`_cleanup_checkpointer`，杜绝幽灵特权残留与内存泄漏）、`ensure_chat_source`（web→cron 打标并同步 recall 索引 source） | ✅ |
 | `chat_message.py` | ✅ 核心 | `_ChatMessageMixin`: 消息追加、分页查询、assistant 消息持久化（持久化后联动用量同步与记忆影响账本投影） | ✅ |
 | `chat_usage_sync.py` | ✅ 核心 | `sync_chat_usage` + `ChatUsageCache` 实例：assistant 消息落库及轮次突变（retry/undo/truncate/rewind/regenerate/switch_sibling）后聚合该 chat 全部 active 消息 extra_data 的 `tokenEconomics` 快照，覆盖式写 `Chat.total_calls/total_tokens/total_usd`；进程内 TTL 缓存按「最后聚合消息 id」校验防重复全量聚合且不漏最新消息；源为 DB 消息级数据，不依赖 event-log 文件 | ✅ |
 | `chat_memory_events.py` | ✅ 辅助 | 将 assistant 消息的 `citedMemoryRefs` / `memoryRetrievalTraces` 投影为记忆操作账本事件（`record_memory_influence_event`），消息持久化的有界 best-effort 副作用 | ✅ |

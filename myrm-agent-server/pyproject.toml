@@ -202,11 +202,6 @@ asyncio_mode = "auto"
 # greenlet 与 thread 上下文，否则 await 之后的代码行不被记录。
 concurrency = ["greenlet", "thread"]
 
-# 日志配置：启用日志输出以便调试
-# log_cli = true            # 启用 pytest 的实时日志输出
-# log_cli_level = "WARNING" # 只显示 WARNING 及以上级别
-log_capture = false # 禁用日志捕获，避免测试失败时重复显示
-
 [tool.mypy]
 python_version = "3.13"
 strict = true

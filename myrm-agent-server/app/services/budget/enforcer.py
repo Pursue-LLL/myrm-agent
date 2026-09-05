@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import date, datetime
+from datetime import datetime, timezone
 
 from myrm_agent_harness.utils.token_economics.budget_guard import (
     BudgetChecker,
@@ -215,7 +215,8 @@ async def _query_today_cost() -> float:
     """Sum costUsd from today's assistant messages to recover spend after process restart."""
     try:
         session_factory = get_session_factory()
-        today_start = datetime.combine(date.today(), datetime.min.time())
+        now_utc = datetime.now(timezone.utc)
+        today_start = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0)
         cost_expr = func.json_extract(Message.extra_data, "$.costUsd")
         async with session_factory() as session:
             result = await session.execute(
@@ -273,32 +274,36 @@ _current_session_chat_id: str | None = None
 
 
 def reset_session_budget(chat_id: str | None = None) -> None:
-    """Reset session budget counter only when chat_id changes (new conversation).
+    """Reset session budget counter for a conversation.
 
-    If chat_id is None, always resets (backward compat for headless/cron).
+    Only resets if the chat_id actually changed (avoids resetting on every turn
+    within the same conversation).
+    If chat_id is None, clears all session counters.
     """
     global _current_session_chat_id
-
     if chat_id is not None and chat_id == _current_session_chat_id:
         return
 
     _current_session_chat_id = chat_id
     if _guard_instance is not None:
-        _guard_instance.guard.reset_session()
+        if isinstance(_guard_instance.guard, MultidimensionalBudgetGuard):
+            _guard_instance.guard.reset_session(session_id=chat_id)
+        else:
+            _guard_instance.guard.reset_session()
 
 
-async def should_block_execution() -> bool:
+async def should_block_execution(chat_id: str | None = None) -> bool:
     """Check if agent execution should be blocked due to budget exceeded + block policy.
 
-    Returns True when budget is enabled, action_on_exceeded is 'block',
-    and current spend has exceeded the limit.
+    Returns True only when budget is enabled, action_on_exceeded is 'block',
+    and current spend has EXCEEDED the limit (FINALIZATION is reserved for graceful wrap-up).
     """
     if get_deployment_capabilities().uses_platform_budget:
         guard = await get_budget_guard()
         if guard is None:
             return True
         status = guard.check_budget(0.0)
-        return status in (BudgetStatus.EXCEEDED, BudgetStatus.FINALIZATION)
+        return status == BudgetStatus.EXCEEDED
 
     policy = await load_budget_policy()
     if not policy.enabled or policy.action_on_exceeded != "block":
@@ -308,8 +313,28 @@ async def should_block_execution() -> bool:
     if guard is None:
         return False
 
-    status = guard.check_budget(0.0)
-    return status in (BudgetStatus.EXCEEDED, BudgetStatus.FINALIZATION)
+    if isinstance(guard, MultidimensionalBudgetGuard):
+        status = guard.check_budget(0.0, session_id=chat_id)
+    else:
+        status = guard.check_budget(0.0)
+    return status == BudgetStatus.EXCEEDED
+
+
+async def is_finalization_active(chat_id: str | None = None) -> bool:
+    """Check if budget is in FINALIZATION state (graceful wrap-up zone)."""
+    policy = await load_budget_policy()
+    if not policy.enabled:
+        return False
+
+    guard = await get_budget_guard()
+    if guard is None:
+        return False
+
+    if isinstance(guard, MultidimensionalBudgetGuard):
+        status = guard.check_budget(0.0, session_id=chat_id)
+    else:
+        status = guard.check_budget(0.0)
+    return status == BudgetStatus.FINALIZATION
 
 
 def is_eco_mode_active() -> bool:

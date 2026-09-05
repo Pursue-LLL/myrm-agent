@@ -20,7 +20,7 @@ tags:
   - 品牌风格
   - 落地页
 license: MIT
-allowed-tools: bash_code_execute_tool file_write_tool file_read_tool browser_navigate_tool
+allowed-tools: bash_code_execute_tool file_write_tool file_read_tool file_edit_tool browser_navigate_tool
 ---
 
 # Popular Web Designs
@@ -43,6 +43,15 @@ styles, spacing system, shadows, responsive behavior, and practical CSS values.
 3. Use the design tokens and component specs when generating HTML
 4. Produce a self-contained HTML artifact with inline CSS using the exact values
 5. Verify visual accuracy (when browser available): serve the file locally and use `browser_navigate_tool` with a `verify_goal` describing the expected brand appearance — the tool runs a 3-layer visual verification automatically
+
+## Existing Codebase Incremental Patching
+
+When redesigning or restyling existing components in an established project codebase:
+1. Generate the HTML mockup first to verify tokens and layout against the chosen brand template.
+2. Inspect the project's styling architecture (Tailwind CSS vs CSS Modules vs plain CSS).
+3. **NEVER overwrite the entire component file.** MUST use `file_edit_tool` to apply atomic edits.
+4. Preserve all existing business logic: TypeScript types/interfaces, React hooks, data fetching, internationalization (`useTranslations`), and event callbacks.
+5. When providing `old_str` for `file_edit_tool`, always include surrounding parent tags or unique attributes to ensure 100% uniqueness and avoid multi-match errors.
 
 ## Bash execution contract
 

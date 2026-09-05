@@ -474,11 +474,13 @@ class _ChatCrudMixin(_ChatServiceBase):
 
     @staticmethod
     async def _cleanup_checkpointer(chat_id: str) -> None:
-        """Clear LangGraph checkpointer state for a chat session.
+        """Clear LangGraph checkpointer state and ephemeral session security grants.
 
         Uses the standard ``adelete_thread`` API provided by all LangGraph
         checkpointer backends (MemorySaver, AsyncSqliteSaver).
-        Idempotent: deleting a non-existent thread is a no-op.
+        Also purges session-scoped allowlist entries and resets the cross-turn denial
+        circuit breaker counter, guaranteeing zero privilege permanence across flushes.
+        Idempotent: deleting a non-existent thread or session state is a no-op.
         """
         try:
             from app.platform_utils import get_checkpointer
@@ -490,6 +492,24 @@ class _ChatCrudMixin(_ChatServiceBase):
         except Exception as e:
             logger.warning(
                 "Failed to clear LangGraph checkpointer (chat=%s): %s",
+                chat_id,
+                e,
+            )
+
+        try:
+            from myrm_agent_harness.agent.middlewares.approval import (
+                reset_denial_counter,
+            )
+            from myrm_agent_harness.agent.security.approval_flow import (
+                get_allowlist,
+            )
+
+            await get_allowlist().clear_session("sandbox", chat_id)
+            reset_denial_counter(chat_id)
+            logger.info("Cleared session allowlist grants and denial counter (chat=%s)", chat_id)
+        except Exception as e:
+            logger.warning(
+                "Failed to clear session allowlist/denial state (chat=%s): %s",
                 chat_id,
                 e,
             )

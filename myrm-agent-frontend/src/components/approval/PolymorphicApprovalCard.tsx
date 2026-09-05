@@ -306,12 +306,15 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     return configs.some((c) => c?.sociallyIrreversible === true);
   }, [approval.payload?.reviewConfigs]);
   const hasAnyHideAllowAlways = useMemo(() => {
+    if (isSociallyIrreversible) {
+      return true;
+    }
     const configs = approval.payload?.reviewConfigs;
     if (!configs || !Array.isArray(configs)) {
       return false;
     }
     return configs.some((c) => c?.hideAllowAlways === true || c?.isSpend === true);
-  }, [approval.payload?.reviewConfigs]);
+  }, [isSociallyIrreversible, approval.payload?.reviewConfigs]);
 
   const spendConfig = useMemo(() => {
     const configs = approval.payload?.reviewConfigs;

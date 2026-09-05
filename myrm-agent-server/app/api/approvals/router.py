@@ -52,6 +52,7 @@ class AllowAlwaysValue(BaseModel):
     tool: bool | None = None
     args: bool | None = None
     pattern: bool | None = None
+    duration: str | None = None
     ttl_seconds: int | float | None = None
 
 
@@ -441,6 +442,66 @@ async def seed_test_mock_push_approval() -> dict[str, str]:
         action_type="delete_file",
         payload={"path": "/tmp/e2e-push-deeplink"},
         reason="Chrome E2E push approval deeplink",
+        chat_id=chat_id,
+        thread_id=f"e2e-thread-{uuid4().hex[:8]}",
+    )
+    push_url = f"/{chat_id}?approval={record.id}"
+    return {
+        "chat_id": chat_id,
+        "approval_id": record.id,
+        "push_url": push_url,
+        "ui_url": push_url,
+    }
+
+
+@router.post("/test/seed-hardened-mock", include_in_schema=False)
+async def seed_test_hardened_mock_approval(
+    variant: str = "socially_irreversible",
+) -> dict[str, str]:
+    """Local dev/test only: seed an approval with autoModeSuspended or sociallyIrreversible reviewConfigs."""
+    from uuid import uuid4
+
+    from app.config.deploy_mode import is_local_mode
+    from app.database.dto import ChatCreate
+    from app.services.chat.chat_service import ChatService
+
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+
+    chat_id = f"e2ehardened{uuid4().hex[:8]}"
+    await ChatService.create_or_update_chat(
+        ChatCreate(chat_id=chat_id, title=f"Hardened AutoMode E2E {variant}", messages=[]),
+    )
+
+    if variant == "auto_mode_suspended":
+        payload = {
+            "tool_calls": [{"name": "shell_exec", "args": {"command": "cat /tmp/secret"}}],
+            "reviewConfigs": [
+                {
+                    "autoModeSuspended": "consecutive",
+                    "hideAllowAlways": True,
+                    "smartDenied": True,
+                }
+            ],
+        }
+        reason = "Auto mode suspended after 3 consecutive denials"
+    else:
+        payload = {
+            "tool_calls": [{"name": "shell_exec", "args": {"command": "git push origin main"}}],
+            "reviewConfigs": [
+                {
+                    "sociallyIrreversible": True,
+                    "hideAllowAlways": True,
+                }
+            ],
+        }
+        reason = "Socially irreversible action requires explicit approval"
+
+    record = await ApprovalRegistry.create_approval(
+        agent_id="e2e-hardened-automode",
+        action_type="subagent_approval",
+        payload=payload,
+        reason=reason,
         chat_id=chat_id,
         thread_id=f"e2e-thread-{uuid4().hex[:8]}",
     )
