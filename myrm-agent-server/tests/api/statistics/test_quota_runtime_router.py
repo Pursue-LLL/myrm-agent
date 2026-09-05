@@ -9,12 +9,16 @@ import pytest
 
 from app.api.statistics.quota_runtime_router import (
     BrowserRuntimeRecordRequest,
+    SearchQuotaLimitUpdateRequest,
     SearchQuotaRecordRequest,
+    SearchQuotaResetRequest,
     get_browser_runtime_summary,
     get_runtime_cost_gauge,
     get_search_quotas,
     record_browser_runtime,
     record_search_quota,
+    reset_search_quota,
+    update_search_quota_limit,
 )
 from app.database.models.runtime_quota_metric import SearchQuotaRecord
 from app.services.observability.runtime_meter_service import (
