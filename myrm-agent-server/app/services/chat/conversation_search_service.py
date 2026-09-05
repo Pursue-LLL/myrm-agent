@@ -20,6 +20,10 @@ import math
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from myrm_agent_harness.api import (
+    RankedList,
+    fuse_rrf_deterministic,
+)
 from myrm_agent_harness.toolkits.memory.conversation_search.types import (
     ConversationIndexCoverage,
     ConversationSearchHit,
