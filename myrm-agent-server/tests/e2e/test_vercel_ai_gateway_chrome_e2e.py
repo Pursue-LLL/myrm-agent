@@ -21,16 +21,27 @@ from tests.support.chrome_mcp_e2e import (
 
 _VERIFY_VERCEL_GATEWAY_SETTINGS_JS = """(() => {
   try {
-    const bodyText = document.body ? document.body.innerText : '';
+    let bodyText = document.body ? document.body.innerText : '';
     const hasSettingsLayout = !!document.querySelector('[data-testid="settings-layout"]') || document.querySelectorAll('button, nav').length > 5;
+    
+    // Switch to provider/default sub-tab if needed
+    const triggers = document.querySelectorAll('[role="tab"]');
+    for (const t of triggers) {
+      if (t.getAttribute('value') === 'default' || (t.textContent || '').includes('默认') || (t.textContent || '').includes('Default') || (t.textContent || '').includes('Provider') || (t.textContent || '').includes('供应商')) {
+        t.click();
+        break;
+      }
+    }
+
+    bodyText = document.body ? document.body.innerText : '';
     const hasModelSection = /模型|Models|Provider|供应商/i.test(bodyText);
     
     // Locate Vercel AI Gateway in provider list and click it
-    const elements = Array.from(document.querySelectorAll('span, div, button'));
-    const vercelListItem = elements.find(el => el.textContent && el.textContent.trim() === 'Vercel AI Gateway');
+    const elements = Array.from(document.querySelectorAll('span, div, button, p'));
+    const vercelListItem = elements.find(el => el.textContent && el.textContent.trim().includes('Vercel AI Gateway'));
     let clicked = false;
     if (vercelListItem) {
-      const clickableParent = vercelListItem.closest('div[class*="cursor-pointer"]') || vercelListItem;
+      const clickableParent = vercelListItem.closest('button') || vercelListItem.closest('div[class*="cursor-pointer"]') || vercelListItem;
       clickableParent.click();
       clicked = true;
     }
@@ -83,9 +94,10 @@ def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:
     api_url = get_e2e_api_url()
     prepare_e2e_ui_session(api_url)
 
-    # 1. Warm up Settings UI route and open in real Chrome MCP to verify rendering
-    target_url = f"{api_url.replace(':8080', ':3000')}/settings/models"
-    warm_ui_route("/settings/models")
+    # 1. Warm up Settings UI route and navigate to models tab in real Chrome MCP
+    prepare_e2e_ui_session(api_url)
+    target_url = warm_ui_route("/settings/models")
+
     with open_settings_subroute("/settings/models", timeout_ms=90_000) as (
         client,
         page,
