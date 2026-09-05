@@ -408,7 +408,7 @@ describe('ModelPickerPopover local-owned marginal cost badge', () => {
         isEnabled: true,
         enabledModels: ['qwen2.5'],
         providerType: 'openai-compatible',
-        customApiUrl: 'http://192.168.1.188:8000/v1',
+        apiUrl: 'http://192.168.1.188:8000/v1',
       },
     ]);
     getEnabledModels.mockReturnValue([
