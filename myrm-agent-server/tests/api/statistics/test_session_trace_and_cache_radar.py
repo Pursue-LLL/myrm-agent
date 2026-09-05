@@ -56,7 +56,10 @@ class TestPromptCacheRadarEndpoint:
         with open(log_file, "w", encoding="utf-8") as f:
             f.write(
                 json.dumps({
-                    "event_type": "token_usage",
+                    "seq": 1,
+                    "ts": 1725555555.0,
+                    "type": "token_usage",
+                    "sid": "session-1",
                     "data": {
                         "usage": {
                             "prompt_tokens": 10000,
@@ -123,7 +126,10 @@ class TestSearchSessionTracesEndpoint:
         with open(log_dir / "sess-title-match.jsonl", "w", encoding="utf-8") as f:
             f.write(
                 json.dumps({
-                    "event_type": "task_start",
+                    "seq": 1,
+                    "ts": 1725555555.0,
+                    "type": "task_start",
+                    "sid": "sess-title-match",
                     "data": {"input": "Optimize DB queries"},
                 })
                 + "\n"
@@ -133,7 +139,10 @@ class TestSearchSessionTracesEndpoint:
         with open(log_dir / "sess-prompt-match.jsonl", "w", encoding="utf-8") as f:
             f.write(
                 json.dumps({
-                    "event_type": "task_start",
+                    "seq": 1,
+                    "ts": 1725555555.0,
+                    "type": "task_start",
+                    "sid": "sess-prompt-match",
                     "data": {"input": "Inspect Payments webhook callbacks"},
                 })
                 + "\n"
@@ -143,7 +152,10 @@ class TestSearchSessionTracesEndpoint:
         with open(log_dir / "sess-no-match.jsonl", "w", encoding="utf-8") as f:
             f.write(
                 json.dumps({
-                    "event_type": "task_start",
+                    "seq": 1,
+                    "ts": 1725555555.0,
+                    "type": "task_start",
+                    "sid": "sess-no-match",
                     "data": {"input": "Run redis container"},
                 })
                 + "\n"

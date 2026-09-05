@@ -413,8 +413,11 @@ def _clear_agent_test_process_state() -> None:
 
 
 @pytest.fixture(autouse=True)
-def _reset_agent_test_singletons():
+def _reset_agent_test_singletons(request: pytest.FixtureRequest):
     """Reset process-level singletons that leak across agent API tests."""
+    if "test_phase_stepper" in request.node.nodeid:
+        yield
+        return
     _clear_agent_test_process_state()
 
     from langgraph.checkpoint.memory import MemorySaver
@@ -423,7 +426,8 @@ def _reset_agent_test_singletons():
 
     set_checkpointer(MemorySaver())
     yield
-    _clear_agent_test_process_state()
+    if "test_phase_stepper" not in request.node.nodeid:
+        _clear_agent_test_process_state()
 
 
 def _reset_deploy_caches() -> None:
