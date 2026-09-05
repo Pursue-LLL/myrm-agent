@@ -222,12 +222,23 @@ export type SkillSourceFilter = 'all' | 'prebuilt' | 'local' | 'workspace';
 /** Status filter for installed tab */
 export type SkillStatusFilter = 'all' | 'ready' | 'needs-setup' | 'disabled' | 'stale' | 'archived';
 
+export interface LocalSkillPathStatus {
+  path: string;
+  resolved_path: string;
+  exists: boolean;
+  is_directory: boolean;
+  skills_count: number;
+  skill_names: string[];
+  warning_message: string | null;
+}
+
 export interface SkillState {
   isSandboxMode: boolean;
   marketSkills: Skill[];
   localSkills: Skill[];
   enabledPrebuiltIds: string[];
   localSkillPaths: string[];
+  localPathStatuses: LocalSkillPathStatus[];
   enabledLocalSkillIds: string[];
   defaultLocalPaths: string[];
   evolutionStrategy: string;
@@ -239,6 +250,41 @@ export interface SkillState {
   filters: SkillFilters;
   error: string | null;
   lastFetchedConfigUserId: string | null;
+}
+
+export interface LocalSkillPreviewItem {
+  name: string;
+  description: string;
+  version: string;
+  author: string | null;
+  category: string | null;
+  tags: string[];
+  required_tools: string[];
+  relative_path: string;
+  skill_id: string;
+  is_conflicted: boolean;
+  conflict_reason: string | null;
+  is_safe: boolean;
+  threat_summary: string | null;
+}
+
+export interface LocalSkillPathPreviewResponse {
+  resolved_path: string;
+  exists: boolean;
+  is_directory: boolean;
+  total_discovered: number;
+  skills: LocalSkillPreviewItem[];
+  warning_message: string | null;
+}
+
+export interface LocalSkillPathAdoptResponse {
+  status: string;
+  path: string;
+  added_to_paths: boolean;
+  adopted_skills_count: number;
+  adopted_skill_ids: string[];
+  agent_adopted: boolean;
+  agent_id: string | null;
 }
 
 export interface SkillActions {
@@ -254,6 +300,12 @@ export interface SkillActions {
   updateLocalSkillPaths: (paths: string[]) => Promise<void>;
   addLocalSkillPath: (path: string) => Promise<void>;
   removeLocalSkillPath: (path: string) => Promise<void>;
+  previewLocalSkillPath: (path: string) => Promise<LocalSkillPathPreviewResponse>;
+  adoptLocalSkillPath: (
+    path: string,
+    selectedSkillIds: string[],
+    agentId?: string,
+  ) => Promise<LocalSkillPathAdoptResponse>;
   updateEvolutionStrategy: (strategy: string) => Promise<void>;
   scanLocalSkills: () => Promise<void>;
   toggleLocalSkill: (skillId: string) => Promise<void>;

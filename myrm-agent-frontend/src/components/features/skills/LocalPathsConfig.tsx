@@ -25,10 +25,12 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
   const {
     localSkillPaths,
     defaultLocalPaths,
+    localPathStatuses,
     localSkills,
     isLoadingLocal,
     fetchLocalSkillPaths,
     addLocalSkillPath,
+    adoptLocalSkillPath,
     removeLocalSkillPath,
     scanLocalSkills,
   } = useSkillStore();
@@ -105,7 +107,7 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
     }
   }, [newPath, localSkillPaths, t]);
 
-  // 确认采纳路径并持久化
+  // 确认采纳路径并持久化（调用原子采纳接口，同时启用非冲突技能）
   const handleConfirmAdopt = useCallback(async () => {
     if (!previewData) {
       return;
@@ -114,7 +116,11 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
     setIsAdopting(true);
     try {
       const targetPath = newPath.trim();
-      await addLocalSkillPath(targetPath);
+      const validSkillIds = (previewData.skills || [])
+        .filter((s) => !s.is_conflicted && s.skill_id)
+        .map((s) => s.skill_id);
+
+      await adoptLocalSkillPath(targetPath, validSkillIds);
       setNewPath('');
       setIsPreviewOpen(false);
       setPreviewData(null);
@@ -131,7 +137,7 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
     } finally {
       setIsAdopting(false);
     }
-  }, [previewData, newPath, addLocalSkillPath, t]);
+  }, [previewData, newPath, adoptLocalSkillPath, t]);
 
   // 移除路径
   const handleRemovePath = useCallback(
@@ -212,22 +218,42 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
             <p className="text-sm text-muted-foreground py-2">{t('noCustomPaths')}</p>
           ) : (
             <div className="space-y-2">
-              {localSkillPaths.map((path) => (
-                <div key={path} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/50 group">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <code className="text-sm truncate">{path}</code>
+              {localSkillPaths.map((path) => {
+                const status = localPathStatuses.find((s) => s.path === path);
+                return (
+                  <div key={path} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-muted/50 group border border-border/40 hover:border-border transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <FolderOpen className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <code className="text-sm truncate font-mono">{path}</code>
+                      {status && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {status.skills_count > 0 ? (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
+                              {t('discoveredSkillsBadge', { count: status.skills_count })}
+                            </Badge>
+                          ) : !status.exists ? (
+                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                              {t('pathNotFoundBadge')}
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                              {t('emptySkillsBadge')}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                      onClick={() => handleRemovePath(path)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                    onClick={() => handleRemovePath(path)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

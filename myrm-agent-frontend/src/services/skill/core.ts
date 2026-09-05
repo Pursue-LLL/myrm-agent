@@ -28,6 +28,7 @@ import type {
   SkillSortOrder,
   LocalSkillPathsResponse,
   LocalSkillPathPreviewResponse,
+  LocalSkillPathAdoptResponse,
 } from '@/store/skill/types';
 
 const SKILLS_API_PREFIX = '/skills';
@@ -225,6 +226,27 @@ export async function previewLocalSkillPath(path: string): Promise<LocalSkillPat
   return apiRequest<LocalSkillPathPreviewResponse>(`${SKILLS_API_PREFIX}/local/paths/preview`, {
     method: 'POST',
     body: JSON.stringify({ path }),
+  });
+}
+
+/**
+ * 采纳本地技能路径（添加路径并批量启用/采纳所选技能）
+ * @param path 目标路径
+ * @param selectedSkillIds 选中的技能 ID 列表
+ * @param agentId 可选挂载目标 Agent ID
+ */
+export async function adoptLocalSkillPath(
+  path: string,
+  selectedSkillIds: string[],
+  agentId?: string,
+): Promise<LocalSkillPathAdoptResponse> {
+  return apiRequest<LocalSkillPathAdoptResponse>(`${SKILLS_API_PREFIX}/local/paths/adopt`, {
+    method: 'POST',
+    body: JSON.stringify({
+      path,
+      selected_skill_ids: selectedSkillIds,
+      agent_id: agentId || null,
+    }),
   });
 }
 

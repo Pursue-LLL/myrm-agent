@@ -12,8 +12,11 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from pathlib import Path
+from typing import Callable
 
+import yaml
 from myrm_agent_harness.api.skills import parse_skill_frontmatter
 
 from ..models import Skill
@@ -28,7 +31,7 @@ def _extract_skill_preview(
     skill_dir: Path,
     rel_path: str,
     existing_names: dict[str, Skill],
-    compute_id_fn: callable,
+    compute_id_fn: Callable[[str, str], str],
 ) -> dict[str, object] | None:
     skill_md = skill_dir / SKILL_MD_FILE
     if not skill_md.is_file():
@@ -63,7 +66,7 @@ def _extract_skill_preview(
     if candidate_tags is None and isinstance(raw_yaml.get("metadata"), dict):
         candidate_tags = raw_yaml["metadata"].get("tags")
     if candidate_tags is None and hasattr(frontmatter, "tags"):
-        candidate_tags = getattr(frontmatter, "tags")
+        candidate_tags = frontmatter.tags
     if candidate_tags is None and isinstance(frontmatter.metadata, dict):
         candidate_tags = frontmatter.metadata.get("tags")
 

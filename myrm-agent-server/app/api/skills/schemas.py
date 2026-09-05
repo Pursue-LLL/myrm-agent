@@ -135,9 +135,22 @@ class LocalSkillPathsRequest(BaseModel):
     paths: list[str]
 
 
+class LocalSkillPathStatus(BaseModel):
+    """Runtime health status and discovery count for a configured local skill path."""
+
+    path: str
+    resolved_path: str
+    exists: bool
+    is_directory: bool
+    skills_count: int = 0
+    skill_names: list[str] = []
+    warning_message: str | None = None
+
+
 class LocalSkillPathsResponse(BaseModel):
     paths: list[str]
     default_paths: list[str]
+    path_statuses: list[LocalSkillPathStatus] = []
 
 
 class LocalSkillPathPreviewRequest(BaseModel):

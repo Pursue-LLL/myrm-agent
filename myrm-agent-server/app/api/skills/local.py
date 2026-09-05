@@ -16,6 +16,7 @@ from app.api.skills.schemas import (
     LocalSkillPathPreviewResponse,
     LocalSkillPathsRequest,
     LocalSkillPathsResponse,
+    LocalSkillPathStatus,
     LocalSkillPreviewItem,
     SkillListResponse,
     ToggleLocalSkillRequest,
@@ -29,6 +30,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _probe_path_status(raw_path: str) -> LocalSkillPathStatus:
+    """Helper to inspect the health and skill count of a configured path without side effects."""
+    resolved_path, exists, is_directory, items, warning_msg = (
+        skills_service.local_skills.preview_path(raw_path=raw_path)
+    )
+    skill_names = [str(it.get("name", "")) for it in items if it.get("name")]
+    return LocalSkillPathStatus(
+        path=raw_path,
+        resolved_path=str(resolved_path),
+        exists=exists,
+        is_directory=is_directory,
+        skills_count=len(skill_names),
+        skill_names=skill_names,
+        warning_message=warning_msg,
+    )
+
+
 @router.get("/local/paths", response_model=LocalSkillPathsResponse)
 async def get_local_skill_paths() -> LocalSkillPathsResponse:
     """Get user's configured local skill paths
@@ -39,10 +57,12 @@ async def get_local_skill_paths() -> LocalSkillPathsResponse:
     from app.core.skills.models import DEFAULT_LOCAL_SKILL_PATHS
 
     config = await skills_service.user_config.get_config()
+    statuses = [_probe_path_status(p) for p in config.local_skill_paths]
 
     return LocalSkillPathsResponse(
         paths=config.local_skill_paths,
         default_paths=DEFAULT_LOCAL_SKILL_PATHS,
+        path_statuses=statuses,
     )
 
 
@@ -73,10 +93,12 @@ async def update_local_skill_paths(
     config = await skills_service.user_config.update_local_skill_paths(
         paths=request.paths,
     )
+    statuses = [_probe_path_status(p) for p in config.local_skill_paths]
 
     return LocalSkillPathsResponse(
         paths=config.local_skill_paths,
         default_paths=DEFAULT_LOCAL_SKILL_PATHS,
+        path_statuses=statuses,
     )
 
 

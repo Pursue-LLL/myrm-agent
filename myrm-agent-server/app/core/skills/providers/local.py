@@ -225,10 +225,21 @@ class LocalSkillsProvider:
         return skills
 
     def scan_path(self, path: Path) -> list[Skill]:
-        """Scan a single directory for skills (one level deep)."""
+        """Scan a single directory for skills (one level deep or single skill root)."""
         skills: list[Skill] = []
 
         try:
+            # Case 1: The path itself is directly a single skill directory
+            if (path / SKILL_MD_FILE).is_file():
+                try:
+                    single_skill = _load_skill_from_dir(path, SkillType.LOCAL, "local")
+                    if single_skill:
+                        skills.append(single_skill)
+                except Exception as e:
+                    logger.warning(f"Failed to load single skill from {path}: {e}")
+                return skills
+
+            # Case 2: Parent directory containing skill subdirectories (one level deep)
             for item in path.iterdir():
                 if not item.is_dir():
                     continue

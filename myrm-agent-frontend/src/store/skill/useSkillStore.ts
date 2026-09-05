@@ -30,6 +30,7 @@ const initialState: SkillState = {
   localSkills: [],
   enabledPrebuiltIds: [],
   localSkillPaths: [],
+  localPathStatuses: [],
   enabledLocalSkillIds: [],
   defaultLocalPaths: [],
   evolutionStrategy: 'balanced',
@@ -270,7 +271,12 @@ const useSkillStore = create<SkillStore>((set, get) => ({
     set({ localSkillPaths: paths });
 
     try {
-      await updateLocalSkillPaths(paths);
+      const response = await updateLocalSkillPaths(paths);
+      set({
+        localSkillPaths: response.paths ?? paths,
+        defaultLocalPaths: response.default_paths ?? ['~/.claude/skills'],
+        localPathStatuses: response.path_statuses ?? [],
+      });
       await get().fetchLocalSkills();
     } catch (error) {
       set({
@@ -292,6 +298,21 @@ const useSkillStore = create<SkillStore>((set, get) => ({
   removeLocalSkillPath: async (path: string) => {
     const { localSkillPaths } = get();
     await get().updateLocalSkillPaths(localSkillPaths.filter((p) => p !== path));
+  },
+
+  previewLocalSkillPath: async (path: string) => {
+    return apiPreviewLocalSkillPath(path);
+  },
+
+  adoptLocalSkillPath: async (
+    path: string,
+    selectedSkillIds: string[],
+    agentId?: string,
+  ) => {
+    const res = await apiAdoptLocalSkillPath(path, selectedSkillIds, agentId);
+    await get().fetchLocalSkillPaths();
+    await get().fetchLocalSkills();
+    return res;
   },
 
   updateEvolutionStrategy: async (strategy: string) => {
