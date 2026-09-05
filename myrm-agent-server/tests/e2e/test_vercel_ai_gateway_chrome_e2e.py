@@ -69,9 +69,10 @@ _VERIFY_VERCEL_CONFIG_DETAILS_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
+    execution_mode="PRIVATE",
     access_scope="READ",
     workload="STANDARD",
+    private_reason="process_isolation",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)

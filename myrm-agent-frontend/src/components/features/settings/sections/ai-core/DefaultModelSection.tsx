@@ -497,6 +497,26 @@ const DefaultModelSection = memo(() => {
     model: string;
   } | null>(null);
 
+  // Focus routing deeplink check
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('focus') === 'routing') {
+        const timer = setTimeout(() => {
+          const el = document.getElementById('smart-routing-section');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('ring-2', 'ring-emerald-500/50', 'transition-all', 'duration-500');
+            setTimeout(() => {
+              el.classList.remove('ring-2', 'ring-emerald-500/50');
+            }, 2500);
+          }
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, []);
+
   const openModelConfig = useCallback((providerId: string, model: string) => {
     setModelInfoTarget({ providerId, model });
     setModelInfoOpen(true);
@@ -526,6 +546,9 @@ const DefaultModelSection = memo(() => {
 
   return (
     <div className="space-y-8">
+      {/* 顶部模型编排最佳实践心智指引卡片 */}
+      <ModelOrchestrationPlaybookCard />
+
       {/* 主模型配置 */}
       <SettingsSection
         title={
@@ -1056,6 +1079,7 @@ const DefaultModelSection = memo(() => {
 
       {/* 智能路由配置 */}
       <SettingsSection
+        id="smart-routing-section"
         title={
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-emerald-500/10">

@@ -1907,6 +1907,8 @@
     "subscriptionWaiting": "인증 대기 중...",
     "subscriptionConnected": "인증 완료! 제공자가 활성화되어 기본 모델로 설정되었습니다.",
     "subscriptionNotice": "구독 연동은 공식 OAuth 프로토콜을 사용합니다. 할당량 제한 시 설정에서 언제든지 API 키로 전환할 수 있습니다.",
+    "subscriptionPkceNotice": "{providerName} 인증 페이지가 새 탭에서 열렸습니다. 로그인 및 승인을 완료한 후 이 페이지로 돌아오세요.",
+    "subscriptionPkceReopen": "인증 페이지 다시 열기",
     "related": "관련",
     "clear": "채팅 지우기",
     "clearHistory": "모든 대화 삭제",

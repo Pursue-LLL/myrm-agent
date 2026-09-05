@@ -57,8 +57,8 @@ def test_fal_media_provider_settings_and_doctor_lifecycle() -> None:
     assert "success" in test_res
 
     # 3. Warm up Settings UI route and verify frontend rendering in real Chrome
-    warm_ui_route("/settings")
-    with open_settings_subroute("/settings", timeout_ms=90_000) as (client, page):
+    warm_ui_route("/settings/account")
+    with open_settings_subroute("/settings/account", timeout_ms=90_000) as (client, page):
         dismiss_blocking_modals(client, page)
 
         res = client.evaluate(page, _VERIFY_MEDIA_SECTION_JS, timeout_sec=10.0)

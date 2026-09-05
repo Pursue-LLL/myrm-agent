@@ -224,6 +224,8 @@
     "chat.subscriptionOpenai",
     "chat.subscriptionXai",
     "modelPlaybook.brainExample",
-    "modelPlaybook.handsExample"
+    "modelPlaybook.handsExample",
+    "modelPlaybook.cardBadge",
+    "modelPlaybook.orthogonalTipTitle"
   ]
 }
