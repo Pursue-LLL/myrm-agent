@@ -6,8 +6,6 @@ parts text concatenation, timestamp resolution, and empty/unsupported handling.
 
 from __future__ import annotations
 
-import pytest
-
 from app.services.memory.imports.import_gemini import (
     dry_run_gemini,
     is_gemini_payload,

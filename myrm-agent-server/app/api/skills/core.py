@@ -114,6 +114,7 @@ async def update_skill_file(
 
     if filename == "SKILL.md" and skill.type == SkillType.PREBUILT:
         import re
+
         import yaml
 
         match = re.match(r"^---\s*\n(.*?)\n---\s*\n", payload.content, re.DOTALL)
