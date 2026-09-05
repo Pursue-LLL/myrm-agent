@@ -39,10 +39,9 @@ _VERIFY_VERCEL_GATEWAY_SETTINGS_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
+    execution_mode="SHARED",
     access_scope="READ",
     workload="STANDARD",
-    private_reason="vercel_ai_gateway_workspace_epoch",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
