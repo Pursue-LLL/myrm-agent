@@ -250,6 +250,19 @@ class TestBuildPreviewResult:
         preview = build_preview_result(parse_plugin_zip(_plugin_zip_bytes()))
         assert preview["skills"][0]["conflict"] is False
 
+    def test_preview_includes_capabilities_and_effective_tier(self) -> None:
+        preview = build_preview_result(parse_plugin_zip(_plugin_zip_bytes()))
+        assert "capabilities" in preview["plugin"]
+        assert "effective_tier" in preview["plugin"]
+        assert "risk_level" in preview["plugin"]
+        # demo-plugin has a stdio server in bin/pdf -> inferred shell_exec
+        assert preview["plugin"]["effective_tier"] == "shell_exec"
+        assert preview["plugin"]["risk_level"] == "high"
+        assert len(preview["servers"]) == 2
+        server_types = {s["name"]: s["capabilities"] for s in preview["servers"]}
+        assert "shell_exec" in server_types["pdf-server"]
+        assert "network" in server_types["remote"]
+
 
 class TestServerToConfigDict:
     def _server(self, **overrides: str | list[str] | dict[str, str] | None) -> PluginMcpServer:

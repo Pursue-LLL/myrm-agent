@@ -1,5 +1,11 @@
 'use client';
 
+/**
+ * [INPUT] Mermaid DSL chart string, id, theme context
+ * [OUTPUT] Interactive Mermaid chart component with SVG zoom/pan/export and XSS-sanitized rendering
+ * [POS] Markdown Mermaid diagram rendering node
+ */
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from 'next-themes';

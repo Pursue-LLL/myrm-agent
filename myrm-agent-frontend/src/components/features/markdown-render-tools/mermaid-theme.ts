@@ -1,3 +1,9 @@
+/**
+ * [INPUT] CSS custom properties (--primary, --foreground, etc.) from document.documentElement
+ * [OUTPUT] buildMermaidConfig(), sanitizeMermaidSvg(), buildMermaidThemeVariables()
+ * [POS] Mermaid theme customization and SVG DOM XSS sanitizer SSOT
+ */
+
 export const MERMAID_FONT_FAMILY =
   'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif';
 

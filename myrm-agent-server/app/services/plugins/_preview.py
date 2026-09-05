@@ -38,6 +38,7 @@ MAX_SKILL_CONTENT_CHARS = SkillStore.MAX_SKILL_CONTENT_CHARS
 
 __all__ = [
     "build_preview_result",
+    "compute_capability_diff",
     "load_existing_skill_ids",
     "scan_skill_security",
     "skill_content_too_large",
@@ -115,9 +116,30 @@ def _preview_skill(idx: int, skill: PluginSkill, existing_names: set[str]) -> di
     }
 
 
+def compute_capability_diff(
+    old_capabilities: set[str],
+    new_capabilities: set[str],
+) -> dict[str, object]:
+    """Compute difference between installed capabilities and new package capabilities.
+
+    Identifies escalated privileges (e.g. adding shell_exec or destructive) to alert users.
+    """
+    added = sorted(new_capabilities - old_capabilities)
+    removed = sorted(old_capabilities - new_capabilities)
+    has_escalation = any(cap in ("shell_exec", "destructive") for cap in added) or (
+        ("network" in added or "fs_write" in added) and not ("shell_exec" in old_capabilities or "destructive" in old_capabilities)
+    )
+    return {
+        "added": added,
+        "removed": removed,
+        "has_escalation": has_escalation,
+    }
+
+
 def build_preview_result(
     result: PluginParseResult,
     existing_names: set[str] | None = None,
+    installed_capabilities: set[str] | None = None,
 ) -> dict[str, object]:
     """Serialize a parse result into the preview response payload.
 
@@ -187,6 +209,13 @@ def build_preview_result(
         risk_level = "low"
         effective_tier = "read_only"
 
+    capability_diff = None
+    if installed_capabilities is not None:
+        capability_diff = compute_capability_diff(
+            installed_capabilities,
+            set(aggregated_caps),
+        )
+
     return {
         "plugin": {
             "name": meta.name if meta else "",
@@ -200,6 +229,7 @@ def build_preview_result(
             "capabilities": aggregated_caps,
             "effective_tier": effective_tier,
             "risk_level": risk_level,
+            "capability_diff": capability_diff,
         },
         "skills": [_preview_skill(idx, skill, existing) for idx, skill in enumerate(result.skills)],
         "servers": [

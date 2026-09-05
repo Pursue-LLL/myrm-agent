@@ -1,3 +1,9 @@
+/**
+ * [INPUT] buildMermaidConfig(), sanitizeMermaidSvg()
+ * [OUTPUT] Vitest suites for theme tokens, strict security, and DOM SVG sanitization
+ * [POS] Unit tests for mermaid-theme SSOT
+ */
+
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   buildMermaidConfig,
