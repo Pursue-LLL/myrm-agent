@@ -109,7 +109,7 @@ export function redactErrorMessage(input: unknown): string {
  * 递归清洗错误数据对象（支持 FastAPI 422 验证错误等结构）
  * 杜绝 detail[].input 中回显用户的私钥或明文密码。
  */
-export function redactErrorObject<T>(obj: T): T {
+export function redactErrorObject<T>(obj: T, seen: WeakSet<object> = new WeakSet()): T {
   if (obj === null || obj === undefined || typeof obj !== 'object') {
     if (typeof obj === 'string') {
       return redactErrorMessage(obj) as unknown as T;
@@ -117,8 +117,14 @@ export function redactErrorObject<T>(obj: T): T {
     return obj;
   }
 
+  // 防循环引用
+  if (seen.has(obj as object)) {
+    return REDACTION_MASK as unknown as T;
+  }
+  seen.add(obj as object);
+
   if (Array.isArray(obj)) {
-    return obj.map((item) => redactErrorObject(item)) as unknown as T;
+    return obj.map((item) => redactErrorObject(item, seen)) as unknown as T;
   }
 
   const record = obj as Record<string, unknown>;
@@ -138,12 +144,12 @@ export function redactErrorObject<T>(obj: T): T {
       if (typeof value === 'string') {
         result[key] = REDACTION_MASK;
       } else {
-        result[key] = redactErrorObject(value);
+        result[key] = redactErrorObject(value, seen);
       }
     } else if (typeof value === 'string') {
       result[key] = redactErrorMessage(value);
     } else if (typeof value === 'object' && value !== null) {
-      result[key] = redactErrorObject(value);
+      result[key] = redactErrorObject(value, seen);
     } else {
       result[key] = value;
     }

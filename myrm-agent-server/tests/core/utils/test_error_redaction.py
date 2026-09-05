@@ -64,3 +64,28 @@ async def test_raw_http_exception_detail_is_automatically_redacted() -> None:
         assert "supersecret998877665544" not in data["message"]
         assert "sk-p" in data["message"] or "***" in data["message"]
 
+
+@pytest.mark.asyncio
+async def test_raw_http_exception_list_detail_is_automatically_redacted() -> None:
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.get("/trigger-list-http")
+    async def trigger_list_http() -> None:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {"loc": ["body", "token"], "msg": "Invalid token sk-proj-nestedlisttoken1234567890"},
+                "Plain string error with Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xyz",
+            ],
+        )
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/trigger-list-http")
+        assert response.status_code == 422
+        data = response.json()
+        assert "nestedlisttoken1234567890" not in data["message"]
+        assert "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xyz" not in data["message"]
+
+

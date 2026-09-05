@@ -523,6 +523,8 @@ class TestConversationSearchService:
         assert response.coverage.indexed_conversations >= 1
         assert response.coverage.coverage_ratio >= 0.0
         assert response.coverage.indexing_degraded is False
+        assert response.recall_debug is not None
+        assert "per_source" in response.recall_debug
 
         recent_response = await ConversationSearchService.search(
             ConversationSearchRequest(query="", limit=3),
