@@ -169,6 +169,24 @@ def build_preview_result(
         else:
             total_ws_bytes += file_len
 
+    # Calculate effective capabilities and risk level
+    aggregated_caps = [c.value for c in result.aggregated_capabilities]
+    if "destructive" in aggregated_caps:
+        risk_level = "critical"
+        effective_tier = "destructive"
+    elif "shell_exec" in aggregated_caps:
+        risk_level = "high"
+        effective_tier = "shell_exec"
+    elif "network" in aggregated_caps or "fs_write" in aggregated_caps:
+        risk_level = "medium"
+        effective_tier = "network" if "network" in aggregated_caps else "fs_write"
+    elif "fs_read" in aggregated_caps:
+        risk_level = "low"
+        effective_tier = "fs_read"
+    else:
+        risk_level = "low"
+        effective_tier = "read_only"
+
     return {
         "plugin": {
             "name": meta.name if meta else "",
@@ -179,6 +197,9 @@ def build_preview_result(
             "repository": meta.repository if meta else None,
             "license": meta.license if meta else None,
             "keywords": list(meta.keywords) if meta else [],
+            "capabilities": aggregated_caps,
+            "effective_tier": effective_tier,
+            "risk_level": risk_level,
         },
         "skills": [_preview_skill(idx, skill, existing) for idx, skill in enumerate(result.skills)],
         "servers": [
@@ -193,6 +214,7 @@ def build_preview_result(
                 "missing_artifact": getattr(server, "missing_artifact", None),
                 "is_runnable": getattr(server, "is_runnable", True),
                 "missing_artifacts": list(getattr(server, "missing_artifacts", ())),
+                "capabilities": [c.value for c in getattr(server, "capabilities", ())],
             }
             for idx, server in enumerate(result.servers)
         ],

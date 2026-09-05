@@ -63,6 +63,7 @@ async def list_installed_plugins() -> list[dict[str, object]]:
             {
                 "name": name,
                 "enabled": False if cfg.get("enabled") is not True else True,
+                "capabilities": cfg.get("capabilities", []),
             }
         )
 
