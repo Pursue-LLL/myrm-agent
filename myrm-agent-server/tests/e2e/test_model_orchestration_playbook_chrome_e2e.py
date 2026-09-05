@@ -10,7 +10,16 @@ Verifies end-to-end:
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pytest
+
+_DEV_LIB = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
+if str(_DEV_LIB) not in sys.path:
+    sys.path.insert(0, str(_DEV_LIB))
+
+from cdp_chat.support import ensure_e2e_onboarding_complete
 
 from tests.support.chrome_mcp_e2e import (
     _require_e2e_cdp_ready,
@@ -124,6 +133,10 @@ def test_model_orchestration_playbook_settings_chrome_e2e() -> None:
 
     # 1. Warm up Settings UI route and navigate to models tab in real Chrome MCP
     prepare_e2e_ui_session(api_url)
+    try:
+        ensure_e2e_onboarding_complete(api_url=api_url)
+    except Exception:
+        pass
     target_url = warm_ui_route("/settings/models")
 
     with open_settings_subroute("/settings/models", timeout_ms=90_000) as (
@@ -138,11 +151,20 @@ def test_model_orchestration_playbook_settings_chrome_e2e() -> None:
             client,
             page,
             """(() => {
-              const bodyText = document.body?.innerText || '';
               const card = document.querySelector('[data-testid="model-orchestration-playbook-card"]');
+              if (card) {
+                return { ready: true, cardFound: true };
+              }
+              const modelsTab = Array.from(document.querySelectorAll('aside button, [role="navigation"] button, nav button')).find(
+                b => /模型服务|模型|Models/i.test(b.textContent || '')
+              );
+              if (modelsTab) {
+                modelsTab.click();
+              }
+              const cardAfter = document.querySelector('[data-testid="model-orchestration-playbook-card"]');
               return {
-                ready: !!card || /模型|Models/i.test(bodyText),
-                cardFound: !!card,
+                ready: !!cardAfter,
+                cardFound: !!cardAfter,
               };
             })()""",
             timeout_sec=45.0,
