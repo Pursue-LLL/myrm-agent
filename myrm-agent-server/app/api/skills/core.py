@@ -77,6 +77,70 @@ async def get_skill_file(skill_id: str, filename: str) -> PlainTextResponse:
     return PlainTextResponse(text_body)
 
 
+@router.put("/{skill_id}/files/{filename}", response_model=SkillFileUpdateResponse)
+async def update_skill_file(
+    skill_id: str,
+    filename: str,
+    payload: SkillFileUpdateRequest,
+) -> SkillFileUpdateResponse:
+    """Update skill file content, run security scanning, and persist immediately."""
+    skill = await skills_service.get_skill(skill_id)
+    if not skill:
+        raise HTTPException(status_code=404, detail=f"Skill not found: {skill_id}")
+
+    if ".." in filename or filename.startswith(("/", "\\")):
+        raise HTTPException(status_code=400, detail="Path traversal detected in filename")
+
+    from myrm_agent_harness.backends.skills.scanning.scanner import (
+        SkillTrustRecommendation,
+        scan_skill_content,
+    )
+
+    scan_res = scan_skill_content(payload.content, filename=filename, skill_name=skill.name)
+    if scan_res.trust_recommendation == SkillTrustRecommendation.REJECT:
+        rejection_reasons = [f"{f.threat_type}: {f.description}" for f in scan_res.findings if f.severity >= 3]
+        raise HTTPException(
+            status_code=400,
+            detail=f"Security scan rejected skill file modification: {'; '.join(rejection_reasons)}",
+        )
+
+    try:
+        updated = await skills_service.update_skill_file(skill_id, filename, payload.content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    if not updated:
+        raise HTTPException(status_code=500, detail=f"Failed to write file {filename} for skill {skill_id}")
+
+    if filename == "SKILL.md" and skill.type == SkillType.PREBUILT:
+        import re
+        import yaml
+
+        match = re.match(r"^---\s*\n(.*?)\n---\s*\n", payload.content, re.DOTALL)
+        if match:
+            try:
+                fm = yaml.safe_load(match.group(1)) or {}
+                if isinstance(fm, dict):
+                    await skills_service.update_skill(
+                        skill_id=skill.id,
+                        description=fm.get("description"),
+                        version=str(fm.get("version")) if fm.get("version") else None,
+                        tags=fm.get("tags") if isinstance(fm.get("tags"), list) else None,
+                        category=fm.get("category"),
+                    )
+            except Exception as e:
+                logger.warning("Failed to sync metadata from updated SKILL.md: %s", e)
+
+    return SkillFileUpdateResponse(
+        status="ok",
+        skill_id=skill_id,
+        filename=filename,
+        is_clean=scan_res.is_clean,
+        trust_recommendation=scan_res.trust_recommendation.value,
+        findings_count=len(scan_res.findings),
+    )
+
+
 @router.get("/{skill_id}", response_model=SkillResponse)
 async def get_skill(skill_id: str, db: AsyncSession = Depends(get_db)) -> SkillResponse:
     """Get skill details by ID."""
