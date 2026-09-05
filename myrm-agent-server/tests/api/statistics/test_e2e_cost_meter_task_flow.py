@@ -132,20 +132,21 @@ async def test_e2e_search_quota_and_browser_compute_task_flow() -> None:
 
     # Step 6: 模拟浏览器运行全过程
     telemetry = BrowserRunTelemetry(
-        total_duration_seconds=600.0,
+        start_time=time.time() - 600.0,
         active_compute_seconds=300.0,
-        total_requests=80,
-        failed_requests=1,
+        request_count=80,
+        failed_request_count=1,
         total_bytes_transferred=25 * 1024 * 1024,  # 25 MB
     )
-    b_record = await service.record_browser_session_telemetry(
+    telemetry.mark_closed()
+    b_record = await service.record_browser_runtime(
         session=mock_session,
         session_id="task-flow-session-888",
         duration_seconds=telemetry.total_duration_seconds,
         active_compute_seconds=telemetry.active_compute_seconds,
         bytes_transferred=telemetry.total_bytes_transferred,
-        request_count=telemetry.total_requests,
-        failed_request_count=telemetry.failed_requests,
+        request_count=telemetry.request_count,
+        failed_request_count=telemetry.failed_request_count,
     )
     assert b_record.session_id == "task-flow-session-888"
     assert b_record.bytes_transferred == 25 * 1024 * 1024
@@ -171,7 +172,7 @@ async def test_e2e_search_quota_and_browser_compute_task_flow() -> None:
     assert summary["estimated_compute_cost_usd"] > 0
 
     # Step 8: 验证 3 分钟死循环主动看门狗
-    obs = BrowserObservability()
+    obs = BrowserObservability(recording_config=RecordingConfig())
     now = time.time()
     # 正常 30 秒任务未超时
     assert obs.check_action_watchdog(now - 30.0, timeout_seconds=180.0) is False
