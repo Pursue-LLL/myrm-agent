@@ -210,7 +210,7 @@ export default function ModelPickerPopover({
           const isLocal =
             prov?.id === 'ollama' ||
             prov?.id === 'lm_studio' ||
-            isLocalOrTrustedSplitStackApiUrl(prov?.apiUrl);
+            isLocalOrTrustedSplitStackApiUrl(prov?.apiUrl || (prov as { customApiUrl?: string })?.customApiUrl);
           if (isLocal) {
             targetCosts[em.model] = { input: 0, output: 0, isLocalOwned: true };
           }

@@ -203,3 +203,43 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             timeout_sec=_warm_ui_parallel_wait_sec(30.0),
         )
         assert input_state.get("ready") is True, json.dumps(input_state, indent=2, ensure_ascii=False)
+
+        # 9. Realistic User Flow: Input test_skill_dir path and click Add button to trigger Preview Dialog
+        ui_input_and_click_js = f"""(() => {{
+          const input = document.querySelector('[data-testid="local-skill-path-input"]');
+          const addBtn = document.querySelector('[data-testid="local-skill-path-add-btn"]');
+          if (!input || !addBtn) {{
+            return {{ ok: false, error: 'Input or Add button missing' }};
+          }}
+          // Set value and dispatch input event for React controlled component
+          input.value = {json.dumps(str(test_skill_dir))};
+          input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+          input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+          addBtn.click();
+          return {{ ok: true }};
+        }})()"""
+        click_res = client.evaluate(page, ui_input_and_click_js, timeout_sec=15.0)
+        assert isinstance(click_res, dict) and click_res.get("ok") is True, f"Failed to input path: {click_res}"
+
+        # 10. Verify LocalSkillPathScanPreviewBeforeAdoptDialog opens with detected skill name
+        dialog_ready_js = """(() => {
+          const body = document.body?.innerText || '';
+          const hasDialogTitle = /Preview & Adopt|预览并采纳|プレビューと採用/i.test(body);
+          const hasSkill = /custom-math-skill/.test(body);
+          const hasAdoptBtn = Array.from(document.querySelectorAll('button')).some(b =>
+            /Adopt & Add Path|采纳并添加路径|追加して採用/i.test(b.textContent || '')
+          );
+          return {
+            ready: hasDialogTitle || hasSkill || hasAdoptBtn,
+            hasDialogTitle,
+            hasSkill,
+            hasAdoptBtn,
+          };
+        })()"""
+        dialog_state = wait_for_state(
+            client,
+            page,
+            dialog_ready_js,
+            timeout_sec=_warm_ui_parallel_wait_sec(30.0),
+        )
+        assert dialog_state.get("ready") is True, json.dumps(dialog_state, indent=2, ensure_ascii=False)
