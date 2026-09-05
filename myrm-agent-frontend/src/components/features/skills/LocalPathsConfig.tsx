@@ -290,6 +290,7 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
           <label className="text-sm font-medium text-foreground">{t('addPath')}</label>
           <div className="flex gap-2">
             <Input
+              data-testid="local-skill-path-input"
               placeholder={t('pathPlaceholder')}
               value={newPath}
               onChange={(e) => setNewPath(e.target.value)}
@@ -301,7 +302,7 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
               }}
               className="flex-1"
             />
-            <Button onClick={handleAddPath} disabled={!newPath.trim() || isAdding}>
+            <Button data-testid="local-skill-path-add-btn" onClick={handleAddPath} disabled={!newPath.trim() || isAdding}>
               {isAdding ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (

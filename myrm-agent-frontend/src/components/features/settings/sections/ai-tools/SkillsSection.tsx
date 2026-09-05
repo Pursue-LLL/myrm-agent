@@ -717,11 +717,11 @@ const SkillsSection = memo(() => {
               <CuratorSettingsPanel className="my-4 rounded-lg border bg-card p-4" onSweepComplete={handleRefresh} />
             )}
 
-            {/* Local paths config (Tauri mode only) */}
+            {/* Local paths config (Local/Tauri mode only) */}
             {isLocal && isLoggedIn && user && (
               <Collapsible open={localPathsOpen} onOpenChange={setLocalPathsOpen}>
                 <CollapsibleTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2 mb-2">
+                  <Button variant="outline" size="sm" className="gap-2 mb-2" data-testid="local-skill-paths-trigger">
                     <IconChevronDown className={cn('h-4 w-4 transition-transform', localPathsOpen && 'rotate-180')} />
                     {t('installed.localPathsTitle')}
                   </Button>
