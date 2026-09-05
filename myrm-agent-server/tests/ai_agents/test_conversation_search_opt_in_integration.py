@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import pytest
 from myrm_agent_harness.toolkits import create_memory_tools
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import (
+    MemorySearchBackends,
+    MemorySearchPolicy,
+)
 from myrm_agent_harness.toolkits.memory.conversation_search import (
     ConversationSearchHit,
     ConversationSearchRequest,
     ConversationSearchResponse,
-)
-from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import (
-    MemorySearchBackends,
-    MemorySearchPolicy,
 )
 
 

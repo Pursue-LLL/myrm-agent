@@ -24,11 +24,14 @@ export interface ArchitectureNodeIR {
   id: string;
   label: string;
   group?: string;
+  group_id?: string;
+  type?: string;
   category?: NodeCategory;
   icon?: string;
   description?: string;
   status?: NodeStatus;
   technologies?: string[];
+  tech_stack?: string;
   metrics?: Record<string, string>;
   // Diff metadata attached during evolution analysis
   diffState?: DiffState;
@@ -54,6 +57,7 @@ export interface ArchitectureEdgeIR {
 export interface ArchitectureIR {
   version?: string;
   type?: ArchitectureDiagramType;
+  diagram_type?: ArchitectureDiagramType;
   title?: string;
   description?: string;
   direction?: 'TB' | 'LR';

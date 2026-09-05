@@ -10,17 +10,17 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
+const translations: Record<string, string> = {
+  title: '5 分钟记忆体检',
+  subtitle: '主动审查陈旧记忆与容量水位，一键自愈与规范化',
+  action: '立即体检',
+  dismiss: '稍后再看',
+  hermesBadge: 'Hermes 迁民健康标准',
+};
+const stableT = (key: string) => translations[key] ?? key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const translations: Record<string, string> = {
-      title: '5 分钟记忆体检',
-      subtitle: '主动审查陈旧记忆与容量水位，一键自愈与规范化',
-      action: '立即体检',
-      dismiss: '稍后再看',
-      hermesBadge: 'Hermes 迁民健康标准',
-    };
-    return translations[key] ?? key;
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('MemoryHygieneDiscoverChip', () => {

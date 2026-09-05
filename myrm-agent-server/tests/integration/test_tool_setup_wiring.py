@@ -287,14 +287,14 @@ def test_memory_search_tool_description_excludes_web_corpus() -> None:
     """memory_search_tool description must not advertise a web corpus."""
     from unittest.mock import AsyncMock
 
-    from myrm_agent_harness.toolkits.memory.config import MemoryConfig
-    from myrm_agent_harness.toolkits.memory.manager import MemoryManager
     from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import (
         create_memory_tools,
     )
     from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import (
         MemorySearchPolicy,
     )
+    from myrm_agent_harness.toolkits.memory.config import MemoryConfig
+    from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
     config = MemoryConfig(
         embedding_model="test-model",

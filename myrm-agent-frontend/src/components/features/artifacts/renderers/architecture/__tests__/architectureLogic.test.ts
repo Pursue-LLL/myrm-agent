@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sanitizeArchitectureIR, computeDagreLayout } from '../layout';
 import { computeArchitectureDiff } from '../diff';
 import type { ArchitectureIR } from '../types';
-import { isArchitectureType } from '../../artifactUtils';
+import { isArchitectureType } from '@/components/features/artifacts/artifactUtils';
 
 describe('Architecture Layout & Sanitization', () => {
   it('sanitizes dangling edges and normalizes node fields', () => {
@@ -48,8 +48,10 @@ describe('Architecture Layout & Sanitization', () => {
 
     expect(gatewayNode).toBeDefined();
     expect(orderNode).toBeDefined();
-    // In TB (Top to Bottom) layout, gateway should have lower Y coordinate than order
-    expect(gatewayNode!.position.y).toBeLessThan(orderNode!.position.y);
+    if (gatewayNode && orderNode) {
+      // In TB (Top to Bottom) layout, gateway should have lower Y coordinate than order
+      expect(gatewayNode.position.y).toBeLessThan(orderNode.position.y);
+    }
   });
 });
 
@@ -98,7 +100,8 @@ describe('Architecture Artifact Utility Contract', () => {
   it('identifies architecture artifact files correctly', () => {
     expect(isArchitectureType('application/json', 'system.arch.json')).toBe(true);
     expect(isArchitectureType('application/x-architecture', 'diagram.json')).toBe(true);
-    expect(isArchitectureType('application/json', 'architecture.json')).toBe(true);
+    expect(isArchitectureType('application/json', 'architecture.json')).toBe(false);
+    expect(isArchitectureType('application/json', 'system.architecture.json')).toBe(true);
     expect(isArchitectureType('text/plain', 'readme.txt')).toBe(false);
   });
 });

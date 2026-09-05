@@ -34,13 +34,14 @@ interface ArchitecturePreviewProps {
   content: string;
   versions?: ArtifactVersion[];
   viewingVersionIndex?: number;
+  initialDiffMode?: boolean;
 }
 
 export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
-  ({ content, versions, viewingVersionIndex = -1 }) => {
+  ({ content, versions, viewingVersionIndex = -1, initialDiffMode = false }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-    const [isDiffMode, setIsDiffMode] = useState(false);
+    const [isDiffMode, setIsDiffMode] = useState(initialDiffMode);
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Parse current IR

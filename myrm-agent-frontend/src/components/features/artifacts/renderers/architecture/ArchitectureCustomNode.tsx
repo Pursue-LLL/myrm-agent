@@ -84,7 +84,8 @@ export interface ArchitectureNodeData extends ArchitectureNodeIR {
 
 export const ArchitectureCustomNode: React.FC<NodeProps> = memo(({ data }) => {
   const node = data as unknown as ArchitectureNodeData;
-  const category = node.category || 'backend';
+  const rawCat = (node.category || node.type || 'backend').toLowerCase();
+  const category = (rawCat in CATEGORY_STYLES ? rawCat : 'custom') as NodeCategory | 'custom';
   const style = CATEGORY_STYLES[category] || CATEGORY_STYLES.custom;
   const IconComponent = style.icon;
 
@@ -115,7 +116,9 @@ export const ArchitectureCustomNode: React.FC<NodeProps> = memo(({ data }) => {
           </div>
           <div className="min-w-0">
             <h4 className="text-xs font-semibold leading-tight truncate text-foreground">{node.label}</h4>
-            {node.group && <p className="text-[10px] text-muted-foreground truncate">{node.group}</p>}
+            {(node.group || node.group_id) && (
+              <p className="text-[10px] text-muted-foreground truncate">{node.group || node.group_id}</p>
+            )}
           </div>
         </div>
 

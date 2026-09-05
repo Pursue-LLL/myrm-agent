@@ -230,6 +230,7 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({
         content={content}
         versions={versions}
         viewingVersionIndex={viewingVersionIndex}
+        initialDiffMode={displayMode === ArtifactDisplayMode.Diff}
       />
     );
   }

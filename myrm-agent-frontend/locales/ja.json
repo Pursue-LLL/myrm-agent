@@ -4796,18 +4796,6 @@
           "invalid_schedule": "無効または未対応のスケジュール",
           "prompt_injection": "プロンプトがセキュリティスキャンでブロックされました",
           "unsupported_job_type": "未対応のタスクタイプ"
-        },
-        "hermesMapping": {
-          "title": "Hermes 4層アーキテクチャのシームレス対応",
-          "badge": "100% 資産シームレス移行完了",
-          "userMdTarget": "行動ルール・ペルソナ指示 (Procedural Rules)",
-          "userMdDesc": "最上位優先度で注入、最高行動権威を保持、保護ファイル承認ゲートで防護",
-          "memoryMdTarget": "長期事実・エピソード知識ベース (Semantic / Episodic)",
-          "memoryMdDesc": "隔離された読み取り専用コンテキスト、wrap_untrusted 防護壁で不正昇格を遮断",
-          "sessionSearchTarget": "ネイティブ SQLite FTS5 会話検索",
-          "sessionSearchDesc": "ローカルミリ秒精度の全文検索、外部ミドルウェア依存ゼロ",
-          "externalMcpTarget": "段階的開示と安全なサンドボックスツール体系",
-          "externalMcpDesc": "Direct FC + Skill PTC + 厳格な人間承認ゲート、プラグイン群を凌駕"
         }
       },
       "result": {

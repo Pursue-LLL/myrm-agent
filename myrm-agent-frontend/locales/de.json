@@ -50,7 +50,7 @@
   },
   "continualOverlay": {
     "activeTitle": "Aktive Overlay-Richtlinie",
-    "remainingTurns": "{count} turns left",
+    "remainingTurns": "{count} Runden verbleibend",
     "rollbackTooltip": "Aktuelle Richtlinienänderung zurücksetzen",
     "rollback": "Zurücksetzen",
     "collapse": "Einklappen",
@@ -2936,12 +2936,12 @@
       "runAffectedTests": "{count} betroffene Test-Suites ausführen"
     },
     "memoryHygieneChip": {
-      "title": "5-Minute Memory Hygiene",
-      "tagline": "Monthly Memory Health Guardian",
-      "subtitle": "Inspect staleness, trim context bloat, and restore disciplined defaults with 1 click",
-      "action": "Run Checkup",
-      "dismiss": "Later",
-      "hermesBadge": "Hermes Migration Standard"
+      "title": "5-Minuten-Gedächtnisprüfung",
+      "tagline": "Monatlicher Gedächtnis-Gesundheitswächter",
+      "subtitle": "Veraltete Erinnerungen und Kapazitätsgrenzen prüfen, mit einem Klick selbst heilen",
+      "action": "Jetzt prüfen",
+      "dismiss": "Später",
+      "hermesBadge": "Hermes-Migrationsstandard"
     }
   },
   "mode": {
@@ -4912,6 +4912,18 @@
         "unmappedItems": "Nicht zugeordnet",
         "status": "Zustand",
         "instructionPreviewTitle": "Anleitung und Persona-Vorschau",
+        "hermesMapping": {
+          "title": "Hermes 4-Schichten-Architektur-Zuordnung",
+          "badge": "100% Asset-Bereitschaft",
+          "userMdTarget": "Prozedurale Richtlinien & Verhaltensregeln",
+          "userMdDesc": "Höchste Priorität bei der Injektion, manipulationssicheres Schutz-Gate",
+          "memoryMdTarget": "Fakten & episodische Wissensdatenbank",
+          "memoryMdDesc": "Isolierter schreibgeschützter Kontext, wrap_untrusted-Injektionsbarriere",
+          "sessionSearchTarget": "Native SQLite FTS5-Dialogsuche",
+          "sessionSearchDesc": "Präzise Volltextsuche im Millisekundenbereich, 0 externe Daemons",
+          "externalMcpTarget": "Progressive Offenlegung & Sandbox-Werkzeuge",
+          "externalMcpDesc": "Direct FC + Skill PTC + strenge Prüf-Gates"
+        },
         "lanesTitle": "Vier Migrationsspuren",
         "laneLabels": {
           "instruction_lane": "Anweisungen und Persona",
