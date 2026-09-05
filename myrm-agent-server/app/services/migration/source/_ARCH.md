@@ -18,7 +18,7 @@
 | `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/claude/chatgpt/gbrain）+ re-export openclaw/pi | ✅ |
 | `source_payload_split.py` | 核心 | payload 拆分为 instruction 与 memory 两路（build_instruction_plan / extract_memory_payload） | ✅ |
 | `source_migration_types.py` | 核心 | 四车道迁移 DTO（MigrationLanePreview / SourceInstructionPlan / MigrationWizardOptions 等） | ✅ |
-| `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key | ✅ |
+| `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key（含 Vercel AI Gateway 等标准化网关凭据） | ✅ |
 | `source_model_migrator.py` | 辅助 | 竞品模型配置 → Myrm 模型设置（Hermes auxiliary slots + Smart Routing economy 推断） | ✅ |
 
 ## 模块依赖
