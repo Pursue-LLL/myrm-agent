@@ -6,10 +6,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from myrm_agent_harness.agent.security.approval_flow import get_allowlist
 
 from app.services.approvals.registry import ApprovalRegistry
 from app.services.chat.chat_crud import _ChatCrudMixin
-from myrm_agent_harness.agent.security.approval_flow import get_allowlist
 
 
 @pytest.mark.asyncio
