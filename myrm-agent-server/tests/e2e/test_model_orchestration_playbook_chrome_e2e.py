@@ -19,7 +19,9 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     http_json,
     open_settings_subroute,
+    prepare_e2e_ui_session,
     wait_for_settings_layout,
+    wait_for_state,
     warm_ui_route,
 )
 
@@ -86,8 +88,7 @@ _VERIFY_DIALOG_AND_DISMISS_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    private_reason="exclusive_backend",
+    execution_mode="SHARED",
     access_scope="READ",
     workload="STANDARD",
 )
@@ -99,7 +100,7 @@ def test_model_orchestration_playbook_settings_chrome_e2e() -> None:
     api_url = get_e2e_api_url()
 
     # 1. Warm up Settings UI route and navigate to models tab in real Chrome MCP
-    target_url = f"{api_url.replace(':8080', ':3000')}/settings?tab=models"
+    prepare_e2e_ui_session(api_url)
     warm_ui_route("/settings")
 
     with open_settings_subroute("/settings?tab=models", timeout_ms=90_000) as (
@@ -108,7 +109,21 @@ def test_model_orchestration_playbook_settings_chrome_e2e() -> None:
     ):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
-        wait_for_settings_layout(client, page, page_url=target_url)
+        wait_for_settings_layout(client, page, timeout_sec=45.0)
+        state = wait_for_state(
+            client,
+            page,
+            """(() => {
+              const bodyText = document.body?.innerText || '';
+              const card = document.querySelector('[data-testid="model-orchestration-playbook-card"]');
+              return {
+                ready: !!card || /模型|Models/i.test(bodyText),
+                cardFound: !!card,
+              };
+            })()""",
+            timeout_sec=45.0,
+        )
+        assert state.get("ready") is True, f"Settings models tab not ready: {state}"
 
         # 2. Check playbook card presence and trigger modal open
         eval_card = client.evaluate(page, _VERIFY_PLAYBOOK_UI_JS, timeout_sec=20.0)
