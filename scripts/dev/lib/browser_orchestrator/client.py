@@ -299,6 +299,8 @@ class CleanupSealResult(TypedDict):
     pendingTargets: list[str]
     closedTargets: list[str]
     failedTargets: list[str]
+    contextId: str
+    contextReleased: bool
     physicalReleased: bool
 
 
@@ -369,6 +371,8 @@ class BrowserOrchestratorClient:
             pendingTargets=result.get("pendingTargets", []),
             closedTargets=result.get("closedTargets", []),
             failedTargets=result.get("failedTargets", []),
+            contextId=str(result.get("contextId", "")),
+            contextReleased=bool(result.get("contextReleased", False)),
             physicalReleased=bool(result.get("physicalReleased", False)),
         )
 
@@ -540,6 +544,8 @@ class BrowserOrchestratorClient:
             pendingTargets=result.get("pendingTargets", []),
             closedTargets=result.get("closedTargets", []),
             failedTargets=result.get("failedTargets", []),
+            contextId=str(result.get("contextId", "")),
+            contextReleased=bool(result.get("contextReleased", False)),
             physicalReleased=bool(result.get("physicalReleased", False)),
         )
 

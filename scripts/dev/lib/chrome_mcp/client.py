@@ -38,7 +38,7 @@ from builtins import BaseExceptionGroup, ExceptionGroup
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TextIO
+from typing import TYPE_CHECKING, TextIO
 from urllib.parse import urlsplit
 
 from browser_orchestrator import browser_operation_credit_slot
@@ -147,6 +147,12 @@ from mux.load import (
     adaptive_tool_timeout_sec,
     snapshot_mux_load,
 )
+
+if TYPE_CHECKING:
+    from browser_orchestrator.client import BrowserOrchestratorClient
+    from mux.transport_recovery_core import TransportRecoveryMode
+
+_REPLAY_SAFE_MCP_TOOLS = frozenset({"close_page", "take_snapshot", "get_pages"})
 
 _CLEANUP_TIMEOUT_SEC = 15.0
 _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC
@@ -274,6 +280,14 @@ class ChromeMcpClient:
         session_id = self._daemon_session_id
         if client is None or session_id is None:
             return
+        pages = list(
+            {
+                page.page_id: page
+                for page in (
+                    list(self._pages.values()) + list(self._disconnected_pages.values())
+                )
+            }.values()
+        )
         try:
             result = client.destroy_session(session_id)
             _LOGGER.info(
@@ -284,12 +298,27 @@ class ChromeMcpClient:
         except (OSError, RuntimeError, TimeoutError) as exc:
             _LOGGER.warning("daemon session destroy failed: %s", exc)
         finally:
+            for page in pages:
+                self._page_lease_heartbeat.untrack(page.lease_id)
+                try:
+                    self._release_page_lease(page, unbind=True)
+                except (RuntimeError, TimeoutError) as exc:
+                    if not _is_benign_cleanup_error(str(exc)):
+                        _LOGGER.warning(
+                            "daemon page lease release failed after session destroy: %s",
+                            exc,
+                        )
+            self._pages.clear()
+            self._disconnected_pages.clear()
+            self._unpublished_target_ids.clear()
             self._daemon_client = None
             self._daemon_session_id = None
 
     @staticmethod
     def _daemon_open_page_retryable(message: str) -> bool:
         lowered = message.lower()
+        if "browser_operation_result_unknown" in lowered:
+            return False
         return (
             "cdp evaluate failed" in lowered
             or "cdp request timeout" in lowered
@@ -397,6 +426,13 @@ class ChromeMcpClient:
                 except (TimeoutError, OSError, RuntimeError) as exc:
                     last_exc = exc
                     message = str(exc).lower()
+                    if "browser_operation_result_unknown" in message:
+                        # The daemon may have created or navigated a target even
+                        # though the RPC result was lost. Quarantine the entire
+                        # session before releasing the page lease; retrying here
+                        # would create a duplicate real browser operation.
+                        self._destroy_daemon_session()
+                        raise
                     retryable = self._daemon_open_page_retryable(message)
                     if not retryable or attempt >= 3:
                         raise
@@ -463,7 +499,13 @@ class ChromeMcpClient:
                 _LOGGER.warning("daemon lease release failed (no client)")
             return
         try:
-            client.close_page(session_id, page.target_id)
+            result = client.close_page(session_id, page.target_id)
+            if not result.get("closed", False):
+                message = f"daemon close_page did not close target={page.target_id}"
+                if not ignore_errors:
+                    raise RuntimeError(message)
+                _LOGGER.warning(message)
+                return
         except (OSError, RuntimeError, TimeoutError) as exc:
             if not ignore_errors:
                 raise RuntimeError(f"daemon close_page failed: {exc}") from exc
@@ -2261,7 +2303,7 @@ class ChromeMcpClient:
                     )
                 finally:
                     self._release_request_lock(held_lock)
-            except _TransportDeadError as exc:
+            except (TimeoutError, _TransportDeadError) as exc:
                 last_transport_error = exc
                 _LOGGER.warning(
                     "Chrome MCP transport dead during %s (attempt %s/%s): %s",
@@ -2270,6 +2312,11 @@ class ChromeMcpClient:
                     max_attempts,
                     exc,
                 )
+                if not self._mcp_request_replay_safe(method, params) and not self._mcp_request_failed_before_send(exc):
+                    raise RuntimeError(
+                        "BROWSER_OPERATION_RESULT_UNKNOWN: Chrome MCP request "
+                        f"may have reached the browser; method={method}; cause={exc}"
+                    ) from exc
             if transport_attempt + 1 >= max_attempts:
                 break
             if start_generation != self._request_generation:
@@ -2286,6 +2333,27 @@ class ChromeMcpClient:
                 f"stderr tail={list(self._stderr_lines)[-5:]}"
             ) from last_transport_error
         raise RuntimeError(f"Chrome MCP {method} failed without transport")
+
+    @staticmethod
+    def _mcp_request_replay_safe(
+        method: str,
+        params: dict[str, object],
+    ) -> bool:
+        if method == "tools/list":
+            return True
+        if method != "tools/call":
+            return False
+        tool_name = params.get("name")
+        return isinstance(tool_name, str) and tool_name in _REPLAY_SAFE_MCP_TOOLS
+
+    @staticmethod
+    def _mcp_request_failed_before_send(error: BaseException) -> bool:
+        message = str(error).lower()
+        return (
+            "transport unavailable" in message
+            or "stdin is unavailable" in message
+            or "process is not running" in message
+        )
 
     def _notify(self, method: str, params: dict[str, object]) -> None:
         held_lock = self._acquire_request_lock()

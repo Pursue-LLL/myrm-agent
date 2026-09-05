@@ -21,7 +21,6 @@ from cdp_chat.support import (
     e2e_private_api_ready_timeout_sec,
     e2e_page_binding_source,
     e2e_runtime_bootstrap_apply_js,
-    get_e2e_api_url,
     get_open_page_api_url,
     wait_e2e_provider_ready,
 )

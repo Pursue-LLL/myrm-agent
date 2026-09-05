@@ -9,6 +9,7 @@ Validates the full task flow lifecycle of the architecture diagram skill:
 
 from __future__ import annotations
 
+import json
 import re
 import tempfile
 from pathlib import Path
@@ -258,8 +259,7 @@ async def test_architecture_diagram_real_agent_task_flow_execution() -> None:
 
         # 4. Verify persisted artifact on disk and extension type inference
         persisted_raw = await storage.read(artifact_filename)
-        import json as _json
-        persisted_json = _json.loads(persisted_raw.decode("utf-8"))
+        persisted_json = json.loads(persisted_raw.decode("utf-8"))
         assert persisted_json["title"] == "High-Concurrency Payment System Topology"
         assert len(persisted_json["nodes"]) == 5
         assert len(persisted_json["edges"]) == 4

@@ -158,7 +158,7 @@ def assert_browser_orchestrator_daemon_ready(*, wait_sec: float = 0.0) -> None:
             break
         time.sleep(0.25)
     raise RuntimeError(
-        f"BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
+        "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
         "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
     )
 

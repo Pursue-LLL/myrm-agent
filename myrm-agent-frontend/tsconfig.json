@@ -69,7 +69,11 @@
     ".next-isolated-chrome-test_settings_security_shows_pattern_all-10e1a573-88906-ece203ec/types/**/*.ts",
     ".next-isolated-chrome-test_settings_security_shows_pattern_all-10e1a573-88906-ece203ec/dev/types/**/*.ts",
     ".next-isolated-chrome-test_slash_skill_palette_sets_composer_c-3c9c5c11-75798-26d39963/types/**/*.ts",
-    ".next-isolated-chrome-test_slash_skill_palette_sets_composer_c-3c9c5c11-75798-26d39963/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_slash_skill_palette_sets_composer_c-3c9c5c11-75798-26d39963/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_auto_mode_suspended_renders_red_ban-b27ad6e1-70985-805978c1/types/**/*.ts",
+    ".next-isolated-chrome-test_auto_mode_suspended_renders_red_ban-b27ad6e1-70985-805978c1/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_architecture_diagram_artifact_chrom-07cb6f1e-47660-9d8904ee/types/**/*.ts",
+    ".next-isolated-chrome-test_architecture_diagram_artifact_chrom-07cb6f1e-47660-9d8904ee/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
