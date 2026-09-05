@@ -23,10 +23,6 @@ import time
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-
-from app.api.statistics.quota_runtime_router import router as quota_router
-from app.database.connection import get_session
-from app.services.observability.runtime_meter_service import runtime_meter_service
 from myrm_agent_harness.toolkits.browser.observability import (
     BrowserObservability,
     BrowserRunTelemetry,
@@ -35,6 +31,10 @@ from myrm_agent_harness.toolkits.browser.observability import (
 from myrm_agent_harness.toolkits.web_search.core.error_handling import (
     is_quota_or_rate_limit_error,
 )
+
+from app.api.statistics.quota_runtime_router import router as quota_router
+from app.database.connection import get_session
+from app.services.observability.runtime_meter_service import runtime_meter_service
 
 test_app = FastAPI()
 test_app.include_router(quota_router, prefix="/api/statistics")

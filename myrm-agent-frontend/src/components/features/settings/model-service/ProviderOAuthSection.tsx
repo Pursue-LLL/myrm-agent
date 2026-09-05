@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { useLocale } from 'next-intl';
-import { Loader2, LogIn, LogOut, ExternalLink, Copy, Check, ShieldAlert } from 'lucide-react';
+import { Loader2, LogIn, LogOut, ExternalLink, Copy, Check, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   type ProviderOAuthProvider,
