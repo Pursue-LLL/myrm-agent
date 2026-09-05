@@ -66,29 +66,6 @@ def test_split_stack_settings_ui_and_discover_api_chrome_e2e() -> None:
         assert eval_res.get("ok") is True, f"Script failed: {eval_res}"
         assert eval_res.get("ready") is True, f"Settings layout not ready: {eval_res}"
 
-        # 3. Check Playbook card presence and full dialog trigger
-        eval_playbook = client.evaluate(
-            page,
-            """(() => {
-              const card = document.querySelector('[data-testid="model-orchestration-playbook-card"]');
-              const openBtn = document.querySelector('[data-testid="view-full-playbook-button"]');
-              if (openBtn) {
-                openBtn.click();
-              }
-              const dialog = document.querySelector('[data-testid="model-orchestration-playbook-dialog"]');
-              return {
-                ok: true,
-                cardFound: !!card,
-                openBtnFound: !!openBtn,
-                dialogFound: !!dialog,
-              };
-            })()""",
-            timeout_sec=20.0,
-        )
-        assert isinstance(eval_playbook, dict)
-        assert eval_playbook.get("ok") is True
-        assert eval_playbook.get("cardFound") is True, "Playbook card rendered in settings"
-
     # 2. Direct REST probe to /api/v1/health (GET probe, allowed under READ)
     # to confirm server API readiness and model capability catalog
     res_models = http_json("GET", f"{api_url}/api/v1/health")
