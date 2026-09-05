@@ -1,3 +1,13 @@
+/**
+ * [INPUT]
+ * - architecture/types::ArchitectureIR, ArchitectureNodeIR, ArchitectureEdgeIR, DiffSummary
+ *
+ * [OUTPUT]
+ * - computeArchitectureDiff: 架构拓扑语义对比与演进差异量化计算函数
+ *
+ * [POS]
+ * Architecture Evolution Diff Engine — 增量计算两份架构快照的结构语义差异与指标汇总。
+ */
 import type { ArchitectureIR, ArchitectureNodeIR, ArchitectureEdgeIR, DiffSummary } from './types';
 
 /**
@@ -20,11 +30,15 @@ export function computeArchitectureDiff(before: ArchitectureIR, after: Architect
       mergedNodes.push({ ...afterNode, diffState: 'added' });
       addedNodes += 1;
     } else {
+      const techBefore = (beforeNode.technologies || []).join(',');
+      const techAfter = (afterNode.technologies || []).join(',');
       const isModified =
         beforeNode.label !== afterNode.label ||
         beforeNode.category !== afterNode.category ||
         beforeNode.group !== afterNode.group ||
-        beforeNode.description !== afterNode.description;
+        beforeNode.description !== afterNode.description ||
+        beforeNode.status !== afterNode.status ||
+        techBefore !== techAfter;
       if (isModified) {
         modifiedNodes += 1;
       }

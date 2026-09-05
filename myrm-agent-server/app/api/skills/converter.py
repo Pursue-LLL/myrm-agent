@@ -1,12 +1,20 @@
-"""Conversion helpers between Skill models and API schemas."""
+"""Conversion helpers between Skill models and API schemas.
+
+[INPUT]
+- Skill: Core business skill model
+
+[OUTPUT]
+- SkillResponse: API schema for single skill details
+- SecurityScanSummaryResponse: Security audit summary schema
+"""
 
 from __future__ import annotations
 
 import logging
 
 from app.core.skills.models import Skill
+
 from .schemas import (
-    ScanFindingResponse,
     SecurityFindingResponse,
     SecurityScanSummaryResponse,
     SkillRequiresResponse,

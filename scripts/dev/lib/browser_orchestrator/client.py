@@ -115,30 +115,16 @@ def spawn_ensure_orchestrator() -> None:
 
 
 def _wait_daemon_ready(daemon: "BrowserOrchestratorClient") -> None:
-    """Wait until the daemon socket accepts connections (new generation)."""
+    """Wait until the daemon reports READY (new generation)."""
     deadline = time.monotonic() + _DAEMON_READY_WALL_SEC
     while time.monotonic() < deadline:
-        if _socket_accepts(daemon._socket_path):
+        if daemon.is_ready():
             return
         time.sleep(0.5)
     raise RuntimeError(
         "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running after respawn — "
         "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
     )
-
-
-def _socket_accepts(socket_path: str) -> bool:
-    """Probe whether the Unix socket accepts a connection without JSON-RPC."""
-    try:
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        try:
-            sock.settimeout(1.0)
-            sock.connect(socket_path)
-            return True
-        finally:
-            sock.close()
-    except (OSError, FileNotFoundError, ConnectionRefusedError, TimeoutError):
-        return False
 
 
 def _parallel_load_from_env() -> int:
@@ -588,6 +574,13 @@ class BrowserOrchestratorClient:
             snapshot = self.status()
             state = str(snapshot.get("state", "")).strip()
             return state not in ("", "UNKNOWN", "FAILED")
+        except (OSError, TimeoutError, RuntimeError):
+            return False
+
+    def is_ready(self) -> bool:
+        """Check if the daemon is reachable and accepts browser operations."""
+        try:
+            return str(self.status().get("state", "")).strip() == "READY"
         except (OSError, TimeoutError, RuntimeError):
             return False
 

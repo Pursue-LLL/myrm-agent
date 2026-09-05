@@ -202,8 +202,8 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
     }, [edges, highlightedEdgeIds]);
 
     const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-      if (event.shiftKey) {
-        // Shift+Click: Two-Point Path Tracing
+      // Support both desktop Shift+Click and multi-selection mode for mobile/touch
+      if (event.shiftKey || (selectedNodeId && selectedNodeId !== node.id && !targetNodeId)) {
         if (!selectedNodeId) {
           setSelectedNodeId(node.id);
         } else if (selectedNodeId === node.id) {
@@ -213,7 +213,7 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
           setTargetNodeId((prev) => (prev === node.id ? null : node.id));
         }
       } else {
-        // Normal Click: Single-node dependency graph tracing
+        // Normal Click / First Selection: Single-node dependency graph tracing
         if (targetNodeId) {
           setTargetNodeId(null);
         }
@@ -466,7 +466,7 @@ export const ArchitecturePreview: React.FC<ArchitecturePreviewProps> = memo(
                   <span>
                     Tracing dependency tree for: <strong>{selectedNodeId}</strong>
                     <span className="ml-1 text-muted-foreground text-[10px] hidden sm:inline">
-                      (Shift+Click another node to trace route)
+                      (Click another node to trace route)
                     </span>
                   </span>
                 </>

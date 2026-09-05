@@ -877,7 +877,7 @@ def _wait_orchestrator_daemon_ready(
     deadline = time.monotonic() + wall_sec
     ensure_spawned = False
     while time.monotonic() < deadline:
-        if daemon.is_alive():
+        if daemon.is_ready():
             return
         elapsed = wall_sec - (deadline - time.monotonic())
         if not ensure_spawned and elapsed >= 8.0:

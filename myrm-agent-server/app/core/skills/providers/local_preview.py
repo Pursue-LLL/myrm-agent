@@ -1,4 +1,12 @@
-"""Helper utilities for probing and dry-run previewing local skill paths."""
+"""Helper utilities for probing and dry-run previewing local skill paths.
+
+[INPUT]
+- raw_path: Local filesystem path string
+- existing_skills: Currently active skills list
+
+[OUTPUT]
+- preview_skill_path: Probed skill list and validation report
+"""
 
 from __future__ import annotations
 
@@ -40,8 +48,8 @@ def _extract_skill_preview(
     category = str(frontmatter.category) if frontmatter.category else None
 
     tags: list[str] = []
-    if hasattr(frontmatter, "tags") and isinstance(getattr(frontmatter, "tags"), list):
-        tags = [str(t) for t in getattr(frontmatter, "tags")]
+    if hasattr(frontmatter, "tags") and isinstance(frontmatter.tags, list):
+        tags = [str(t) for t in frontmatter.tags]
     elif isinstance(frontmatter.metadata, dict) and "tags" in frontmatter.metadata:
         raw_tags = frontmatter.metadata["tags"]
         if isinstance(raw_tags, list):

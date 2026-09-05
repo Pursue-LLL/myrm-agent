@@ -1,6 +1,13 @@
 /**
- * Architecture IR Data Types & Protocols
- * Standard JSON IR for interactive architecture maps, workflows, and evolution diffs.
+ * [INPUT]
+ * - None (Foundation Layer Contracts)
+ *
+ * [OUTPUT]
+ * - ArchitectureDiagramType, NodeCategory, NodeStatus, DiffState
+ * - ArchitectureNodeIR, ArchitectureGroupIR, ArchitectureEdgeIR, DiffSummary, ArchitectureIR
+ *
+ * [POS]
+ * Architecture IR Contract Layer — 标准 JSON IR 拓扑协议、节点/连线契约与演化差异量化模型。
  */
 
 export type ArchitectureDiagramType = 'architecture' | 'workflow' | 'sequence' | 'dataflow' | 'lifecycle';

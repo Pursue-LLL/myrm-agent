@@ -147,7 +147,7 @@ def assert_browser_orchestrator_daemon_ready(*, wait_sec: float = 0.0) -> None:
     client = BrowserOrchestratorClient()
     deadline = time.time() + max(0.0, wait_sec)
     while True:
-        if client.is_alive():
+        if client.is_ready():
             return
         if time.time() >= deadline:
             break
