@@ -182,4 +182,24 @@ describe('Architecture Artifact Utility Contract', () => {
     expect(isArch('application/json', 'system.architecture.json')).toBe(true);
     expect(isArch('text/plain', 'readme.txt')).toBe(false);
   });
+
+  it('handles empty or malformed input gracefully without crashing', () => {
+    const emptyIR: ArchitectureIR = {
+      title: 'Empty',
+      nodes: [],
+      edges: [],
+    };
+    const sanitized = sanitizeArchitectureIR(emptyIR);
+    expect(sanitized.nodes).toEqual([]);
+    expect(sanitized.edges).toEqual([]);
+
+    const layout = computeDagreLayout(emptyIR);
+    expect(layout.nodes).toEqual([]);
+    expect(layout.edges).toEqual([]);
+
+    const diff = computeArchitectureDiff(emptyIR, emptyIR);
+    expect(diff.nodes).toEqual([]);
+    expect(diff.edges).toEqual([]);
+    expect(diff.diffSummary?.addedNodes).toBe(0);
+  });
 });

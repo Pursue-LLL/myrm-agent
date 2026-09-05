@@ -26,10 +26,25 @@ class StackEpochPayload(TypedDict):
     source_fingerprint: str
 
 
+def _real_home() -> Path:
+    override = os.environ.get("MYRM_REAL_HOME", "").strip()
+    if override:
+        return Path(override).resolve()
+    try:
+        import pwd
+
+        return Path(pwd.getpwuid(os.getuid()).pw_dir)
+    except (ImportError, KeyError, OSError):
+        return Path.home()
+
+
 def _stack_epoch_file() -> Path:
     override = os.getenv("MYRM_STACK_EPOCH_FILE", "").strip()
     if override:
         return Path(override)
+    real_path = _real_home() / ".local/state/myrm-dev/stack-epoch.json"
+    if real_path.is_file():
+        return real_path
     return Path.home() / ".local/state/myrm-dev/stack-epoch.json"
 
 
