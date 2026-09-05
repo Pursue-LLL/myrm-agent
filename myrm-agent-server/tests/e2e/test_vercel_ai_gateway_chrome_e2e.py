@@ -23,14 +23,44 @@ _VERIFY_VERCEL_GATEWAY_SETTINGS_JS = """(() => {
     const bodyText = document.body ? document.body.innerText : '';
     const hasSettingsLayout = !!document.querySelector('[data-testid="settings-layout"]') || document.querySelectorAll('button, nav').length > 5;
     const hasModelSection = /模型|Models|Provider|供应商/i.test(bodyText);
+    
+    // Locate Vercel AI Gateway in provider list and click it
+    const elements = Array.from(document.querySelectorAll('span, div, button'));
+    const vercelListItem = elements.find(el => el.textContent && el.textContent.trim() === 'Vercel AI Gateway');
+    let clicked = false;
+    if (vercelListItem) {
+      const clickableParent = vercelListItem.closest('div[class*="cursor-pointer"]') || vercelListItem;
+      clickableParent.click();
+      clicked = true;
+    }
+
     const hasVercelGateway = /Vercel|ai-gateway/i.test(bodyText);
     return {
       ok: true,
       ready: hasSettingsLayout,
       hasModelSection,
       hasVercelGateway,
+      hasVercelListItem: !!vercelListItem,
+      clicked,
       pathname: location.pathname,
       bodySnippet: bodyText.slice(0, 300),
+    };
+  } catch (err) {
+    return { ok: false, err: String(err) };
+  }
+})()"""
+
+_VERIFY_VERCEL_CONFIG_DETAILS_JS = """(() => {
+  try {
+    const dashboardLink = document.querySelector('a[href*="vercel.com/dashboard/ai-gateway"]');
+    const bodyText = document.body ? document.body.innerText : '';
+    const hasSpendHint = /Spend|消耗|成本|额度|Console|Dashboard/i.test(bodyText) || !!dashboardLink;
+    const hasGatewayUrl = /ai-gateway\\.vercel\\.sh/i.test(bodyText);
+    return {
+      ok: true,
+      hasDashboardLink: !!dashboardLink,
+      hasSpendHint,
+      hasGatewayUrl,
     };
   } catch (err) {
     return { ok: false, err: String(err) };

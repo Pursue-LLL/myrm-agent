@@ -17,6 +17,11 @@ const manifestPath = resolve(namespacesRoot, 'manifest.json');
 
 function writeJson(filePath, value) {
   mkdirSync(dirname(filePath), { recursive: true });
+  try {
+    if (existsSync(filePath)) {
+      unlinkSync(filePath);
+    }
+  } catch {}
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf-8');
 }
 
