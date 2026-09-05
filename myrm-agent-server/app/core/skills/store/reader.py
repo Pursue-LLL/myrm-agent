@@ -168,29 +168,46 @@ async def download_skill_to_workspace(
     if not skill:
         return False
 
+    from pathlib import Path
+
+    is_direct_fs = target_storage is None and Path(target_path).is_absolute()
     dest_storage = target_storage or storage
     metadata_dest = f"{target_path}/{SKILL_METADATA_FILE}"
 
     if not force:
         try:
-            dest_metadata_content = await dest_storage.read_text(metadata_dest)
-            dest_metadata = json.loads(dest_metadata_content)
-            dest_version = dest_metadata.get("version", "0.0.0")
-
-            if dest_version == skill.version:
-                logger.debug(f"⏭️ Skill already up-to-date: {skill.id} (v{skill.version})")
-                return True
+            if is_direct_fs:
+                meta_path = Path(target_path) / SKILL_METADATA_FILE
+                dest_metadata_content = (
+                    meta_path.read_text(encoding="utf-8") if meta_path.exists() else None
+                )
             else:
-                logger.warning(f"🔄 Skill version changed: {skill.id} ({dest_version} -> {skill.version}), updating...")
+                dest_metadata_content = await dest_storage.read_text(metadata_dest)
+
+            if dest_metadata_content:
+                dest_metadata = json.loads(dest_metadata_content)
+                dest_version = dest_metadata.get("version", "0.0.0")
+
+                if dest_version == skill.version:
+                    logger.debug(f"⏭️ Skill already up-to-date: {skill.id} (v{skill.version})")
+                    return True
+                else:
+                    logger.warning(
+                        f"🔄 Skill version changed: {skill.id} ({dest_version} -> {skill.version}), updating..."
+                    )
         except (FileNotFoundError, json.JSONDecodeError):
             pass
 
     downloaded_count = 0
 
     if skill.type == SkillType.LOCAL:
-        downloaded_count = await _download_local_skill(skill, target_path, dest_storage)
+        downloaded_count = await _download_local_skill(
+            skill, target_path, dest_storage, is_direct_fs=is_direct_fs
+        )
     else:
-        downloaded_count = await _download_storage_skill(skill, target_path, storage, dest_storage)
+        downloaded_count = await _download_storage_skill(
+            skill, target_path, storage, dest_storage, is_direct_fs=is_direct_fs
+        )
 
     if downloaded_count > 0:
         logger.warning(f"📦 Skill downloaded: {skill.id} v{skill.version} -> {target_path} ({downloaded_count} files)")
@@ -223,6 +240,7 @@ async def _download_local_skill(
     skill: Skill,
     target_path: str,
     dest_storage: StorageProvider,
+    is_direct_fs: bool = False,
 ) -> int:
     """下载本地技能文件"""
     from pathlib import Path
@@ -234,10 +252,15 @@ async def _download_local_skill(
             if item.is_file() and not item.name.startswith("."):
                 try:
                     relative_path = str(item.relative_to(skill_dir))
-                    dest_path = f"{target_path}/{relative_path}"
                     content = item.read_bytes()
-                    content_type, _ = mimetypes.guess_type(relative_path)
-                    await dest_storage.write(dest_path, content, content_type)
+                    if is_direct_fs:
+                        dest_file = Path(target_path) / relative_path
+                        dest_file.parent.mkdir(parents=True, exist_ok=True)
+                        dest_file.write_bytes(content)
+                    else:
+                        dest_path = f"{target_path}/{relative_path}"
+                        content_type, _ = mimetypes.guess_type(relative_path)
+                        await dest_storage.write(dest_path, content, content_type)
                     downloaded_count += 1
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to copy local file {item}: {e}")
@@ -251,8 +274,11 @@ async def _download_storage_skill(
     target_path: str,
     storage: StorageProvider,
     dest_storage: StorageProvider,
+    is_direct_fs: bool = False,
 ) -> int:
     """下载存储技能文件"""
+    from pathlib import Path
+
     downloaded_count = 0
     files = await storage.list(skill.storage_path)
     for file_path in files:
@@ -261,13 +287,18 @@ async def _download_storage_skill(
             if not relative_path:
                 continue
 
-            dest_path = f"{target_path}/{relative_path}"
             content = await storage.read(file_path)
             if content is None:
                 continue
 
-            content_type, _ = mimetypes.guess_type(relative_path)
-            await dest_storage.write(dest_path, content, content_type)
+            if is_direct_fs:
+                dest_file = Path(target_path) / relative_path
+                dest_file.parent.mkdir(parents=True, exist_ok=True)
+                dest_file.write_bytes(content)
+            else:
+                dest_path = f"{target_path}/{relative_path}"
+                content_type, _ = mimetypes.guess_type(relative_path)
+                await dest_storage.write(dest_path, content, content_type)
             downloaded_count += 1
         except Exception as e:
             logger.warning(f"⚠️ Failed to download file {file_path}: {e}")

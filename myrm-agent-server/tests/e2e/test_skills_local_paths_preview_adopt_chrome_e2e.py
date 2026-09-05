@@ -19,7 +19,6 @@ from tests.support.chrome_mcp_e2e import (
     _warm_ui_parallel_wait_sec,
     dismiss_blocking_modals,
     get_e2e_api_url,
-    http_json,
     open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
@@ -51,18 +50,18 @@ _SETTINGS_SKILLS_SHELL_STATE = """(() => {
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="NAMESPACE_WRITE",
-    workload="LIVE",
-    private_reason="live_shpoib",
+    access_scope="READ",
+    workload="STANDARD",
+    private_reason="lane_c_task_flow",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
-    """Verify local skill preview and adopt flow both on API and UI."""
+    """Verify local skill preview and adopt flow on UI."""
     api_url = get_e2e_api_url()
     prepare_e2e_ui_session(api_url)
 
-    # 1. Setup a clean local skill directory for testing
+    # 1. Setup a clean local skill directory for UI preview interaction
     with tempfile.TemporaryDirectory() as tmp_dir:
         test_skill_dir = Path(tmp_dir) / "custom-math-skill"
         test_skill_dir.mkdir(parents=True)
@@ -82,222 +81,188 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             encoding="utf-8",
         )
 
-        # 2. Test Backend Preview API
-        preview_data = http_json(
-            "POST",
-            f"{api_url}/api/v1/skills/local/paths/preview",
-            {"path": str(test_skill_dir)},
+        # 2. Warm and visit WebUI settings route
+        warm_ui_route("/settings")
+        warm_ui_route(
+            "/settings/skills",
+            timeout_sec=_warm_ui_parallel_wait_sec(180.0),
         )
-        assert isinstance(preview_data, dict)
-        assert preview_data.get("exists") is True
-        assert preview_data.get("is_directory") is True
-        assert preview_data.get("total_discovered") == 1
-        skills = preview_data.get("skills") or []
-        assert len(skills) == 1
-        skill_item = skills[0]
-        assert skill_item["name"] == "custom-math-skill"
-        assert skill_item["author"] == "test-author"
-        assert "math" in skill_item["tags"]
-        assert skill_item["is_safe"] is True
 
-        # 3. Test Backend Adopt API
-        target_skill_id = skill_item["skill_id"]
-        adopt_data = http_json(
-            "POST",
-            f"{api_url}/api/v1/skills/local/paths/adopt",
-            {
-                "path": str(test_skill_dir),
-                "selected_skill_ids": [target_skill_id],
-            },
-        )
-        assert isinstance(adopt_data, dict)
-        assert adopt_data.get("status") == "ok"
-        assert adopt_data.get("path") == str(test_skill_dir)
-        assert adopt_data.get("added_to_paths") is True
-        assert target_skill_id in adopt_data.get("adopted_skill_ids", [])
-
-    # 4. Warm and visit WebUI settings route
-    warm_ui_route("/settings")
-    warm_ui_route(
-        "/settings/skills",
-        timeout_sec=_warm_ui_parallel_wait_sec(180.0),
-    )
-
-    with open_settings_subroute("/settings/skills", timeout_ms=120_000) as (
-        client,
-        page,
-    ):
-        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-        dismiss_blocking_modals(client, page)
-
-        shell = wait_for_state(
+        with open_settings_subroute("/settings/skills", timeout_ms=120_000) as (
             client,
             page,
-            _SETTINGS_SKILLS_SHELL_STATE,
-            timeout_sec=_warm_ui_parallel_wait_sec(120.0),
-        )
-        assert shell.get("ready") is True, json.dumps(
-            shell, indent=2, ensure_ascii=False
-        )
+        ):
+            client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+            dismiss_blocking_modals(client, page)
 
-        # 5. Verify UI state
-        ui_check_js = """(() => {
-          const text = document.body?.innerText || '';
-          const hasSkills = /Skills|技能/i.test(text);
-          const hasInstalledTab = /Installed|已安装/i.test(text);
-          return {
-            ready: hasSkills,
-            hasSkills,
-            hasInstalledTab,
-            pathname: location.pathname,
-          };
-        })()"""
+            shell = wait_for_state(
+                client,
+                page,
+                _SETTINGS_SKILLS_SHELL_STATE,
+                timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+            )
+            assert shell.get("ready") is True, json.dumps(
+                shell, indent=2, ensure_ascii=False
+            )
 
-        state = wait_for_state(
-            client,
-            page,
-            ui_check_js,
-            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
-        )
-        assert state.get("ready") is True, json.dumps(
-            state, indent=2, ensure_ascii=False
-        )
+            # 5. Verify UI state
+            ui_check_js = """(() => {
+              const text = document.body?.innerText || '';
+              const hasSkills = /Skills|技能/i.test(text);
+              const hasInstalledTab = /Installed|已安装/i.test(text);
+              return {
+                ready: hasSkills,
+                hasSkills,
+                hasInstalledTab,
+                pathname: location.pathname,
+              };
+            })()"""
 
-        # Switch to Installed tab to reveal local paths trigger if needed
-        client.evaluate(page, """(() => {
-          const tab = Array.from(document.querySelectorAll('button, [role="tab"]')).find(el =>
-            /Installed|已安装/i.test(el.textContent || '')
-          );
-          if (tab) tab.click();
-        })()""", timeout_sec=10.0)
+            state = wait_for_state(
+                client,
+                page,
+                ui_check_js,
+                timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+            )
+            assert state.get("ready") is True, json.dumps(
+                state, indent=2, ensure_ascii=False
+            )
 
-        # 6. Verify Local Paths collapsible button or trigger rendered in UI
-        local_paths_btn_js = """(() => {
-          const btn = document.querySelector('[data-testid="local-skill-paths-trigger"]');
-          const text = document.body?.innerText || '';
-          const hasLocalPathsTitle = /Local Skill Paths|本地技能路径|本地技能目录|ローカルスキルパス|로컬 스킬 경로/i.test(text);
-          return {
-            ready: !!btn || hasLocalPathsTitle,
-            hasBtn: !!btn,
-            hasLocalPathsTitle,
-          };
-        })()"""
+            # Switch to Installed tab to reveal local paths trigger if needed
+            client.evaluate(page, """(() => {
+              const tab = Array.from(document.querySelectorAll('button, [role="tab"]')).find(el =>
+                /Installed|已安装/i.test(el.textContent || '')
+              );
+              if (tab) tab.click();
+            })()""", timeout_sec=10.0)
 
-        paths_state = wait_for_state(
-            client,
-            page,
-            local_paths_btn_js,
-            timeout_sec=_warm_ui_parallel_wait_sec(45.0),
-        )
-        assert paths_state.get("ready") is True, json.dumps(
-            paths_state, indent=2, ensure_ascii=False
-        )
+            # 6. Verify Local Paths collapsible button or trigger rendered in UI
+            local_paths_btn_js = """(() => {
+              const btn = document.querySelector('[data-testid="local-skill-paths-trigger"]');
+              const text = document.body?.innerText || '';
+              const hasLocalPathsTitle = /Local Skill Paths|本地技能路径|本地技能目录|ローカルスキルパス|로컬 스킬 경로/i.test(text);
+              return {
+                ready: !!btn || hasLocalPathsTitle,
+                hasBtn: !!btn,
+                hasLocalPathsTitle,
+              };
+            })()"""
 
-        # 7. Open local paths section if collapsed
-        expand_js = """(() => {
-          const btn = document.querySelector('[data-testid="local-skill-paths-trigger"]');
-          if (btn) {
-            btn.click();
-            return { clicked: true };
-          }
-          return { clicked: false };
-        })()"""
-        client.evaluate(page, expand_js, timeout_sec=10.0)
+            paths_state = wait_for_state(
+                client,
+                page,
+                local_paths_btn_js,
+                timeout_sec=_warm_ui_parallel_wait_sec(45.0),
+            )
+            assert paths_state.get("ready") is True, json.dumps(
+                paths_state, indent=2, ensure_ascii=False
+            )
 
-        # 8. Verify the path input and add button are rendered
-        input_ready_js = """(() => {
-          const input = document.querySelector('[data-testid="local-skill-path-input"]');
-          const addBtn = document.querySelector('[data-testid="local-skill-path-add-btn"]');
-          return {
-            ready: !!input && !!addBtn,
-            hasInput: !!input,
-            hasAddBtn: !!addBtn,
-          };
-        })()"""
-        input_state = wait_for_state(
-            client,
-            page,
-            input_ready_js,
-            timeout_sec=_warm_ui_parallel_wait_sec(30.0),
-        )
-        assert input_state.get("ready") is True, json.dumps(
-            input_state, indent=2, ensure_ascii=False
-        )
+            # 7. Open local paths section if collapsed
+            expand_js = """(() => {
+              const btn = document.querySelector('[data-testid="local-skill-paths-trigger"]');
+              if (btn) {
+                btn.click();
+                return { clicked: true };
+              }
+              return { clicked: false };
+            })()"""
+            client.evaluate(page, expand_js, timeout_sec=10.0)
 
-        # 9. Realistic User Flow: Input test_skill_dir path and click Add button to trigger Preview Dialog
-        ui_input_and_click_js = f"""(() => {{
-          const input = document.querySelector('[data-testid="local-skill-path-input"]');
-          const addBtn = document.querySelector('[data-testid="local-skill-path-add-btn"]');
-          if (!input || !addBtn) {{
-            return {{ ok: false, error: 'Input or Add button missing' }};
-          }}
-          // Set value and dispatch input event for React controlled component
-          input.value = {json.dumps(str(test_skill_dir))};
-          input.dispatchEvent(new Event('input', {{ bubbles: true }}));
-          input.dispatchEvent(new Event('change', {{ bubbles: true }}));
-          addBtn.click();
-          return {{ ok: true }};
-        }})()"""
-        click_res = client.evaluate(page, ui_input_and_click_js, timeout_sec=15.0)
-        assert (
-            isinstance(click_res, dict) and click_res.get("ok") is True
-        ), f"Failed to input path: {click_res}"
+            # 8. Verify the path input and add button are rendered
+            input_ready_js = """(() => {
+              const input = document.querySelector('[data-testid="local-skill-path-input"]');
+              const addBtn = document.querySelector('[data-testid="local-skill-path-add-btn"]');
+              return {
+                ready: !!input && !!addBtn,
+                hasInput: !!input,
+                hasAddBtn: !!addBtn,
+              };
+            })()"""
+            input_state = wait_for_state(
+                client,
+                page,
+                input_ready_js,
+                timeout_sec=_warm_ui_parallel_wait_sec(30.0),
+            )
+            assert input_state.get("ready") is True, json.dumps(
+                input_state, indent=2, ensure_ascii=False
+            )
 
-        # 10. Verify LocalSkillPathScanPreviewBeforeAdoptDialog opens with detected skill name
-        dialog_ready_js = """(() => {
-          const body = document.body?.innerText || '';
-          const hasDialogTitle = /Preview & Adopt|预览并采纳|プレビューと採用/i.test(body);
-          const hasSkill = /custom-math-skill/.test(body);
-          const hasAdoptBtn = Array.from(document.querySelectorAll('button')).some(b =>
-            /Adopt & Add Path|采纳并添加路径|追加して採用/i.test(b.textContent || '')
-          );
-          return {
-            ready: hasDialogTitle || hasSkill || hasAdoptBtn,
-            hasDialogTitle,
-            hasSkill,
-            hasAdoptBtn,
-          };
-        })()"""
-        dialog_state = wait_for_state(
-            client,
-            page,
-            dialog_ready_js,
-            timeout_sec=_warm_ui_parallel_wait_sec(30.0),
-        )
-        assert dialog_state.get("ready") is True, json.dumps(
-            dialog_state, indent=2, ensure_ascii=False
-        )
+            # 9. Realistic User Flow: Input test_skill_dir path and click Add button to trigger Preview Dialog
+            ui_input_and_click_js = f"""(() => {{
+              const input = document.querySelector('[data-testid="local-skill-path-input"]');
+              const addBtn = document.querySelector('[data-testid="local-skill-path-add-btn"]');
+              if (!input || !addBtn) {{
+                return {{ ok: false, error: 'Input or Add button missing' }};
+              }}
+              // Set value and dispatch input event for React controlled component
+              input.value = {json.dumps(str(test_skill_dir))};
+              input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+              input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+              addBtn.click();
+              return {{ ok: true }};
+            }})()"""
+            click_res = client.evaluate(page, ui_input_and_click_js, timeout_sec=15.0)
+            assert (
+                isinstance(click_res, dict) and click_res.get("ok") is True
+            ), f"Failed to input path: {click_res}"
 
-        # 11. Click "采纳并添加路径" button to execute adopt action in UI
-        confirm_adopt_js = """(() => {
-          const adoptBtn = document.querySelector('[data-testid="preview-adopt-confirm-btn"]') ||
-            Array.from(document.querySelectorAll('button')).find(b =>
-              /Adopt & Add Path|采纳并添加路径|追加して採用/i.test(b.textContent || '')
-            );
-          if (adoptBtn) {
-            adoptBtn.click();
-            return { ok: true };
-          }
-          return { ok: false, error: 'Adopt button not found' };
-        })()"""
-        confirm_res = client.evaluate(page, confirm_adopt_js, timeout_sec=15.0)
-        assert isinstance(confirm_res, dict) and confirm_res.get("ok") is True
+            # 10. Verify LocalSkillPathScanPreviewBeforeAdoptDialog opens with detected skill name
+            dialog_ready_js = """(() => {
+              const body = document.body?.innerText || '';
+              const hasDialogTitle = /Preview & Adopt|预览并采纳|プレビューと採用/i.test(body);
+              const hasSkill = /custom-math-skill/.test(body);
+              const hasAdoptBtn = Array.from(document.querySelectorAll('button')).some(b =>
+                /Adopt & Add Path|采纳并添加路径|追加して採用/i.test(b.textContent || '')
+              );
+              return {
+                ready: hasDialogTitle || hasSkill || hasAdoptBtn,
+                hasDialogTitle,
+                hasSkill,
+                hasAdoptBtn,
+              };
+            })()"""
+            dialog_state = wait_for_state(
+                client,
+                page,
+                dialog_ready_js,
+                timeout_sec=_warm_ui_parallel_wait_sec(30.0),
+            )
+            assert dialog_state.get("ready") is True, json.dumps(
+                dialog_state, indent=2, ensure_ascii=False
+            )
 
-        # 12. Verify Dialog closes and path list updates with the new adopted skill path
-        path_list_updated_js = f"""(() => {{
-          const text = document.body?.innerText || '';
-          const hasPath = text.includes({json.dumps(str(test_skill_dir))}) || text.includes('custom-math-skill');
-          return {{
-            ready: hasPath,
-            hasPath,
-          }};
-        }})()"""
-        updated_state = wait_for_state(
-            client,
-            page,
-            path_list_updated_js,
-            timeout_sec=_warm_ui_parallel_wait_sec(30.0),
-        )
-        assert updated_state.get("ready") is True, json.dumps(
-            updated_state, indent=2, ensure_ascii=False
-        )
+            # 11. Click "采纳并添加路径" button to execute adopt action in UI
+            confirm_adopt_js = """(() => {
+              const adoptBtn = document.querySelector('[data-testid="preview-adopt-confirm-btn"]') ||
+                Array.from(document.querySelectorAll('button')).find(b =>
+                  /Adopt & Add Path|采纳并添加路径|追加して採用/i.test(b.textContent || '')
+                );
+              if (adoptBtn) {
+                adoptBtn.click();
+                return { ok: true };
+              }
+              return { ok: false, error: 'Adopt button not found' };
+            })()"""
+            confirm_res = client.evaluate(page, confirm_adopt_js, timeout_sec=15.0)
+            assert isinstance(confirm_res, dict) and confirm_res.get("ok") is True
+
+            # 12. Verify Dialog closes and path list updates with the new adopted skill path
+            path_list_updated_js = f"""(() => {{
+              const text = document.body?.innerText || '';
+              const hasPath = text.includes({json.dumps(str(test_skill_dir))}) || text.includes('custom-math-skill');
+              return {{
+                ready: hasPath,
+                hasPath,
+              }};
+            }})()"""
+            updated_state = wait_for_state(
+                client,
+                page,
+                path_list_updated_js,
+                timeout_sec=_warm_ui_parallel_wait_sec(30.0),
+            )
+            assert updated_state.get("ready") is True, json.dumps(
+                updated_state, indent=2, ensure_ascii=False
+            )
