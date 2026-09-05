@@ -11,6 +11,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.api.agent.utils import check_e2e_errors, get_lite_model_selection
+from tests.support.test_secrets import apply_test_secrets_to_environ
+
+apply_test_secrets_to_environ(overwrite=True)
 
 
 def _clarification_required_events(

@@ -11,11 +11,12 @@ from app.api.statistics.quota_runtime_router import (
     BrowserRuntimeRecordRequest,
     SearchQuotaRecordRequest,
     get_browser_runtime_summary,
+    get_runtime_cost_gauge,
     get_search_quotas,
     record_browser_runtime,
     record_search_quota,
 )
-from app.database.models.runtime_quota_metric import BrowserRuntimeRecord, SearchQuotaRecord
+from app.database.models.runtime_quota_metric import SearchQuotaRecord
 from app.services.observability.runtime_meter_service import (
     RuntimeMeterService,
 )
@@ -131,6 +132,35 @@ class TestRuntimeMeterService:
         assert summary["total_failed_requests"] == 2
         assert summary["estimated_compute_cost_usd"] == round(5.0 * 0.001, 4)
 
+    @pytest.mark.asyncio
+    async def test_runtime_burn_rate_gauge_calculation(self) -> None:
+        service = RuntimeMeterService()
+        mock_session = AsyncMock()
+
+        # Mock search quotas
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_res_search = MagicMock()
+        mock_res_search.scalars.return_value = mock_scalars
+
+        # Mock browser summary
+        row = MagicMock()
+        row.session_count = 2
+        row.total_duration_sec = 120.0
+        row.total_compute_sec = 60.0
+        row.total_bytes = 2048
+        row.total_requests = 10
+        row.total_failed_requests = 0
+        mock_res_browser = MagicMock()
+        mock_res_browser.one.return_value = row
+
+        mock_session.execute.side_effect = [mock_res_search, mock_res_browser]
+
+        gauge = await service.get_runtime_burn_rate_gauge(mock_session)
+        assert gauge["overall_search_health"] == "healthy"
+        assert gauge["is_burn_rate_alert"] is False
+        assert "burn_rate_message" in gauge
+
 
 class TestQuotaRuntimeRouterEndpoints:
     """Test API endpoint handlers."""
@@ -145,8 +175,9 @@ class TestQuotaRuntimeRouterEndpoints:
         mock_session.execute.return_value = mock_result
 
         response = await get_search_quotas(session=mock_session)
+        assert response.status_code == 200
         data = json.loads(response.body)
-        assert data["code"] == 200
+        assert data["code"] == 0
         assert isinstance(data["data"], list)
 
     @pytest.mark.asyncio
@@ -158,8 +189,9 @@ class TestQuotaRuntimeRouterEndpoints:
 
         req = SearchQuotaRecordRequest(provider="tavily", count=2, quota_exceeded=False)
         response = await record_search_quota(req=req, session=mock_session)
+        assert response.status_code == 200
         data = json.loads(response.body)
-        assert data["code"] == 200
+        assert data["code"] == 0
         assert data["data"]["provider"] == "tavily"
         assert data["data"]["used_count"] == 2
 
@@ -179,8 +211,9 @@ class TestQuotaRuntimeRouterEndpoints:
         mock_session.execute.return_value = mock_result
 
         response = await get_browser_runtime_summary(session=mock_session)
+        assert response.status_code == 200
         data = json.loads(response.body)
-        assert data["code"] == 200
+        assert data["code"] == 0
         assert data["data"]["session_count"] == 1
         assert data["data"]["total_megabytes_transferred"] == 1.0
 
@@ -196,6 +229,64 @@ class TestQuotaRuntimeRouterEndpoints:
             failed_request_count=0,
         )
         response = await record_browser_runtime(req=req, session=mock_session)
+        assert response.status_code == 200
         data = json.loads(response.body)
-        assert data["code"] == 200
+        assert data["code"] == 0
         assert "year_month" in data["data"]
+
+    @pytest.mark.asyncio
+    async def test_get_runtime_cost_gauge_endpoint(self) -> None:
+        mock_session = AsyncMock()
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_res_search = MagicMock()
+        mock_res_search.scalars.return_value = mock_scalars
+
+        row = MagicMock()
+        row.session_count = 0
+        row.total_duration_sec = 0.0
+        row.total_compute_sec = 0.0
+        row.total_bytes = 0
+        row.total_requests = 0
+        row.total_failed_requests = 0
+        mock_res_browser = MagicMock()
+        mock_res_browser.one.return_value = row
+
+        mock_session.execute.side_effect = [mock_res_search, mock_res_browser]
+
+        response = await get_runtime_cost_gauge(session=mock_session)
+        assert response.status_code == 200
+        data = json.loads(response.body)
+        assert data["code"] == 0
+        assert "overall_search_health" in data["data"]
+        assert "burn_rate_message" in data["data"]
+
+    @pytest.mark.asyncio
+    async def test_reset_and_update_limit_endpoints(self) -> None:
+        mock_session = AsyncMock()
+
+        # Test reset
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = []
+        mock_res = MagicMock()
+        mock_res.scalars.return_value = mock_scalars
+        mock_session.execute.return_value = mock_res
+
+        reset_req = SearchQuotaResetRequest(provider="brave")
+        resp_reset = await reset_search_quota(req=reset_req, session=mock_session)
+        assert resp_reset.status_code == 200
+        data_reset = json.loads(resp_reset.body)
+        assert data_reset["code"] == 0
+        assert data_reset["data"]["provider"] == "brave"
+
+        # Test update limit
+        mock_res_empty = MagicMock()
+        mock_res_empty.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_res_empty
+
+        limit_req = SearchQuotaLimitUpdateRequest(provider="brave", quota_limit=5000)
+        resp_limit = await update_search_quota_limit(req=limit_req, session=mock_session)
+        assert resp_limit.status_code == 200
+        data_limit = json.loads(resp_limit.body)
+        assert data_limit["code"] == 0
+        assert data_limit["data"]["quota_limit"] == 5000

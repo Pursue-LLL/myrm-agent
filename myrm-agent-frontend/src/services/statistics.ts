@@ -875,3 +875,69 @@ export interface LearningLoopFiveRingStatusResponse {
 export async function getLearningLoopStatus(days = 30): Promise<LearningLoopFiveRingStatusResponse> {
   return apiRequest<LearningLoopFiveRingStatusResponse>(`/statistics/learning-loop/status?days=${days}`);
 }
+
+// ── Search Quota & Browser Runtime Meter ─────────────────────────────
+
+export interface SearchQuotaItem {
+  provider: string;
+  year_month: string;
+  used_count: number;
+  quota_limit: number;
+  remaining_count: number;
+  percentage: number;
+  is_metered: boolean;
+  is_depleted: boolean;
+  status: 'healthy' | 'warning' | 'critical' | 'depleted';
+  last_depleted_at: string | null;
+}
+
+export interface BrowserRuntimeSummary {
+  year_month: string;
+  session_count: number;
+  total_duration_minutes: number;
+  active_compute_minutes: number;
+  total_bytes_transferred: number;
+  total_megabytes_transferred: number;
+  total_requests: number;
+  total_failed_requests: number;
+  estimated_compute_cost_usd: number;
+}
+
+export interface RuntimeCostGaugeData {
+  year_month: string;
+  overall_search_health: 'healthy' | 'warning' | 'critical';
+  depleted_providers: string[];
+  critical_providers: string[];
+  warning_providers: string[];
+  search_quotas: SearchQuotaItem[];
+  browser_summary: BrowserRuntimeSummary;
+  is_burn_rate_alert: boolean;
+  burn_rate_message: string;
+}
+
+export async function getSearchQuotas(): Promise<SearchQuotaItem[]> {
+  return apiRequest<SearchQuotaItem[]>('/statistics/search-quotas');
+}
+
+export async function getBrowserRuntimeSummary(): Promise<BrowserRuntimeSummary> {
+  return apiRequest<BrowserRuntimeSummary>('/statistics/browser-runtime');
+}
+
+export async function getRuntimeCostGauge(): Promise<RuntimeCostGaugeData> {
+  return apiRequest<RuntimeCostGaugeData>('/statistics/runtime-cost-gauge');
+}
+
+export async function resetSearchQuota(provider?: string): Promise<{ reset_records_count: number }> {
+  return apiRequest<{ reset_records_count: number }>('/statistics/search-quotas/reset', {
+    method: 'POST',
+    body: JSON.stringify({ provider: provider ?? null }),
+  });
+}
+
+export async function updateSearchQuotaLimit(provider: string, quota_limit: number): Promise<void> {
+  await apiRequest('/statistics/search-quotas/limit', {
+    method: 'PUT',
+    body: JSON.stringify({ provider, quota_limit }),
+  });
+}
+

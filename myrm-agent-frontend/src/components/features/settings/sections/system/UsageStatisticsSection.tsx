@@ -19,6 +19,7 @@ import SettingsSection from '../SettingsSection';
 import BudgetPolicySection from './BudgetPolicySection';
 import ChannelBudgetSection from './ChannelBudgetSection';
 import MemoryGuardianCard from '../knowledge/MemoryGuardianCard';
+import RuntimeCostMeterCard from './RuntimeCostMeterCard';
 import AgentUsageCard from './AgentUsageCard';
 import RoutingAnalyticsPanel, { formatTokenCount, formatCost } from './RoutingAnalyticsPanel';
 import SessionAnalyticsDialog from './SessionAnalyticsDialog';
@@ -139,6 +140,7 @@ function UsageStatisticsSection() {
       <BudgetPolicySection />
       <ChannelBudgetSection />
       <MemoryGuardianCard />
+      <RuntimeCostMeterCard />
       <SettingsSection
         title={t('title')}
         description={t('description')}

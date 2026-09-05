@@ -97,6 +97,10 @@ def extract_hermes_auxiliary_config(hermes_config: dict[str, Any]) -> dict[str, 
 
 def _resolve_litellm_model(provider: str, model: str) -> str:
     """Convert Hermes provider/model pair to a LiteLLM-compatible model string."""
+    clean_provider = provider.strip().lower()
+    if clean_provider in ("ai-gateway", "vercel_ai_gateway", "aigateway", "vercel"):
+        raw_model = model.removeprefix("vercel_ai_gateway/")
+        return f"vercel_ai_gateway/{raw_model}"
     if "/" in model:
         return model
     prefix = _PROVIDER_LITELLM_PREFIX.get(provider, provider)

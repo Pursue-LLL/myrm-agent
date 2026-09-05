@@ -17,14 +17,13 @@ REST API extension router exposing operational telemetry: search provider quotas
 from __future__ import annotations
 
 import logging
-from typing import Literal
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.utils.errors import internal_error, validation_error
+from app.core.utils.errors import internal_error
 from app.core.utils.response_utils import success_response
 from app.database.connection import get_session
 from app.services.observability.runtime_meter_service import runtime_meter_service

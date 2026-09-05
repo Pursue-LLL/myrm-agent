@@ -333,7 +333,7 @@ class TestMigrateHermesAuxiliaryModels:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         _mock_local(monkeypatch)
-        captured = _mock_config(monkeypatch)
+        _mock_config(monkeypatch, existing_providers={"defaultModelConfig": {}})
 
         result = await migrate_hermes_auxiliary_models(
             {
@@ -345,6 +345,4 @@ class TestMigrateHermesAuxiliaryModels:
                 },
             }
         )
-        assert "liteModel" in result.migrated_slots
-        written = captured["value"]["defaultModelConfig"]["liteModel"]
-        assert written == {"model": "openai/anthropic/claude-3-5-sonnet"}
+        assert result.migrated_slots["liteModel"] == "vercel_ai_gateway/anthropic/claude-3-5-sonnet"

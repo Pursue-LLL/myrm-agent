@@ -101,7 +101,7 @@ def apply_test_secrets_to_environ(
         stripped = str(value).strip()
         if not stripped:
             continue
-        if overwrite or key not in os.environ:
+        if overwrite or not os.environ.get(key, "").strip():
             os.environ[key] = stripped
 
 

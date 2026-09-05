@@ -259,5 +259,48 @@ class RuntimeMeterService:
         await session.refresh(record)
         return record
 
+    async def get_runtime_burn_rate_gauge(self, session: AsyncSession) -> dict[str, object]:
+        """Aggregate search quotas, browser compute, and operational burn rate warnings."""
+        year_month = self.get_current_year_month()
+        search_quotas = await self.get_search_quotas(session)
+        browser_summary = await self.get_browser_runtime_summary(session)
+
+        depleted = [item["provider"] for item in search_quotas if item.get("is_depleted")]
+        critical = [item["provider"] for item in search_quotas if item.get("status") == "critical"]
+        warning = [item["provider"] for item in search_quotas if item.get("status") == "warning"]
+
+        if depleted:
+            overall_search_health = "critical"
+        elif critical:
+            overall_search_health = "warning"
+        elif warning:
+            overall_search_health = "warning"
+        else:
+            overall_search_health = "healthy"
+
+        browser_cost = float(browser_summary.get("estimated_compute_cost_usd", 0.0))
+        is_burn_rate_alert = bool(depleted or len(critical) >= 2 or browser_cost > 10.0)
+
+        if depleted:
+            message = f"Search providers depleted: {', '.join(depleted)}. Auto-failover active."
+        elif critical:
+            message = f"Search providers approaching limits: {', '.join(critical)} (>95%)."
+        elif browser_cost > 10.0:
+            message = f"Browser compute cost (${browser_cost:.2f}) reached soft budget threshold."
+        else:
+            message = "All runtime search quotas and browser compute operating within normal limits."
+
+        return {
+            "year_month": year_month,
+            "overall_search_health": overall_search_health,
+            "depleted_providers": depleted,
+            "critical_providers": critical,
+            "warning_providers": warning,
+            "search_quotas": search_quotas,
+            "browser_summary": browser_summary,
+            "is_burn_rate_alert": is_burn_rate_alert,
+            "burn_rate_message": message,
+        }
+
 
 runtime_meter_service = RuntimeMeterService()

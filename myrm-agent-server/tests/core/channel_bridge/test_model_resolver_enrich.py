@@ -214,3 +214,53 @@ class TestNormalizeModelName:
         assert _normalize_model_name("deepseek-ai/DeepSeek-V3") == "deepseek-ai/DeepSeek-V3"
         assert _normalize_model_name("gpt-4o") == "gpt-4o"
 
+
+class TestVercelAIGatewayResolution:
+    _VERCEL_PROVIDERS: dict[str, object] = {
+        "providers": [
+            {
+                "id": "vercel_ai_gateway",
+                "isEnabled": True,
+                "apiUrl": "https://ai-gateway.vercel.sh/v1",
+                "apiKeys": [{"key": "vcel-test-key", "isActive": True}],
+                "enabledModels": [
+                    "anthropic/claude-3-5-sonnet",
+                    "openai/gpt-4o",
+                ],
+            }
+        ],
+    }
+
+    def test_override_with_namespaced_model_resolves_openai_wire(self) -> None:
+        cfg = resolve_model_config(
+            self._VERCEL_PROVIDERS,
+            model_override="vercel_ai_gateway/anthropic/claude-3-5-sonnet",
+        )
+        assert cfg.model == "openai/anthropic/claude-3-5-sonnet"
+        assert cfg.base_url == "https://ai-gateway.vercel.sh/v1"
+        assert cfg.api_key == "vcel-test-key"
+        assert cfg.model_kwargs is not None
+        headers = cfg.model_kwargs.get("extra_headers")
+        assert isinstance(headers, dict)
+        assert headers.get("HTTP-Referer") == "https://myrm.ai"
+        assert headers.get("X-Title") == "Myrm Agent"
+
+    def test_fallback_model_from_providers_for_vercel_gateway(self) -> None:
+        providers_dict: dict[str, object] = {
+            "providers": self._VERCEL_PROVIDERS["providers"],
+            "defaultModelConfig": {
+                "baseModel": {
+                    "primary": {"providerId": "vercel_ai_gateway", "modelId": "anthropic/claude-3-5-sonnet"},
+                }
+            },
+        }
+        cfg = _fallback_model_from_providers(providers_dict)
+        assert cfg.model == "openai/anthropic/claude-3-5-sonnet"
+        assert cfg.base_url == "https://ai-gateway.vercel.sh/v1"
+        assert cfg.model_kwargs is not None
+        headers = cfg.model_kwargs.get("extra_headers")
+        assert isinstance(headers, dict)
+        assert headers.get("HTTP-Referer") == "https://myrm.ai"
+        assert headers.get("X-Title") == "Myrm Agent"
+
+
