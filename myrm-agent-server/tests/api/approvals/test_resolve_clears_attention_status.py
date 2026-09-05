@@ -128,7 +128,7 @@ async def test_batch_resolve_publishes_idle_for_each_chat_id(app, setup_test_dat
 @pytest.mark.asyncio
 async def test_resolve_approval_with_session_duration_allow_always(app, setup_test_database) -> None:
     """POST /{id}/resolve with duration='session' writes ephemeral allowlist and purges on cleanup."""
-    from myrm_agent_harness.agent.middlewares.approval import add_to_allowlist_if_needed
+    from myrm_agent_harness.agent.middlewares.approval.helpers import add_to_allowlist_if_needed
     from myrm_agent_harness.agent.security.approval_flow import get_allowlist
 
     from app.services.chat.chat_crud import _ChatCrudMixin
