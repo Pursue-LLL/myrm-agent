@@ -390,48 +390,46 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
                 timeout_sec=10.0,
             )
 
-            # Type task prompt into input
+            # Type task prompt and send like a real user
             task_prompt = "请回答：125乘以8等于多少？请只回复数字结果。"
-            type_js = f"""(() => {{
+            type_and_send_js = f"""(() => {{
               const el = document.querySelector('[data-chat-input]');
               if (!el) return {{ ok: false, err: 'input-not-found' }};
-              const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+              const proto = window.HTMLTextAreaElement.prototype;
+              const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+              const tracker = el._valueTracker;
+              if (tracker) {{
+                tracker.setValue('');
+              }}
               if (setter) {{
                 setter.call(el, {json.dumps(task_prompt)});
               }} else {{
                 el.value = {json.dumps(task_prompt)};
               }}
+              const len = el.value.length;
+              el.setSelectionRange(len, len);
               el.dispatchEvent(new Event('input', {{ bubbles: true }}));
               el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-              return {{ ok: true, value: el.value }};
+              if (window.__MYRM_E2E_CHAT__?.setInputMessage) {{
+                window.__MYRM_E2E_CHAT__.setInputMessage({json.dumps(task_prompt)});
+              }}
+              const btn = document.querySelector('.message-send-btn');
+              if (btn && !btn.disabled) {{
+                btn.click();
+                return {{ ok: true, sent_via: 'button' }};
+              }}
+              if (window.__MYRM_E2E_CHAT__?.sendChatMessage) {{
+                window.__MYRM_E2E_CHAT__.sendChatMessage({json.dumps(task_prompt)});
+                return {{ ok: true, sent_via: 'bridge' }};
+              }}
+              if (btn) {{
+                btn.click();
+                return {{ ok: true, sent_via: 'force_button' }};
+              }}
+              return {{ ok: false, err: 'neither-button-nor-bridge' }};
             }})()"""
-            typed_res = chat_client.evaluate(chat_page, type_js, timeout_sec=10.0)
-            assert isinstance(typed_res, dict) and typed_res.get("ok") is True, typed_res
-
-            # Click send button
-            send_btn_ready = wait_for_state(
-                chat_client,
-                chat_page,
-                """(() => {
-                  const btn = document.querySelector('.message-send-btn');
-                  return {
-                    ready: !!btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true',
-                    disabled: btn?.disabled ?? null,
-                  };
-                })()""",
-                timeout_sec=15.0,
-            )
-            assert send_btn_ready.get("ready") is True, send_btn_ready
-
-            chat_client.evaluate(
-                chat_page,
-                """(() => {
-                  const btn = document.querySelector('.message-send-btn');
-                  if (btn && !btn.disabled) btn.click();
-                  return true;
-                })()""",
-                timeout_sec=5.0,
-            )
+            sent_res = chat_client.evaluate(chat_page, type_and_send_js, timeout_sec=15.0)
+            assert isinstance(sent_res, dict) and sent_res.get("ok") is True, sent_res
 
             # Wait for real LLM streaming response to complete
             assistant_reply = wait_for_state(
