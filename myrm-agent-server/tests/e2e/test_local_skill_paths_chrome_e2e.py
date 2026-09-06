@@ -48,6 +48,16 @@ _SETTINGS_SHELL_STATE = """(() => {
 })()"""
 
 _LOCAL_SKILL_PATHS_CARD_JS = """(() => {
+  let tab = Array.from(document.querySelectorAll('button, [role="tab"]')).find(el =>
+    /Installed|已安装|インストール済み|설치됨/i.test(el.textContent || '') || el.getAttribute('value') === 'installed'
+  );
+  if (tab && tab.getAttribute('aria-selected') !== 'true' && tab.getAttribute('data-state') !== 'active') {
+    tab.click();
+  }
+  let trigger = document.querySelector('[data-testid="local-skill-paths-trigger"]');
+  if (trigger && !document.querySelector('[data-testid="local-skill-path-input"]')) {
+    trigger.click();
+  }
   const text = document.body?.innerText || '';
   const hasLocalPaths = /Local Skill Paths|本地技能目录|本地技能路径|ローカルスキル/i.test(text);
   const hasAddButton = Array.from(document.querySelectorAll('button')).some(b =>
