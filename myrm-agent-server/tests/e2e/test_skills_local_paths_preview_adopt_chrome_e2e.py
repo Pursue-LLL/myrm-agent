@@ -257,8 +257,14 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
 
             # 8. Verify the path input and add button are rendered
             input_ready_js = """(() => {
-              const input = document.querySelector('[data-testid="local-skill-path-input"]');
-              const addBtn = document.querySelector('[data-testid="local-skill-path-add-btn"]');
+              let input = document.querySelector('[data-testid="local-skill-path-input"]');
+              let addBtn = document.querySelector('[data-testid="local-skill-path-add-btn"]');
+              if (!input || !addBtn) {
+                const btn = document.querySelector('[data-testid="local-skill-paths-trigger"]');
+                if (btn) btn.click();
+              }
+              input = document.querySelector('[data-testid="local-skill-path-input"]');
+              addBtn = document.querySelector('[data-testid="local-skill-path-add-btn"]');
               return {
                 ready: !!input && !!addBtn,
                 hasInput: !!input,
