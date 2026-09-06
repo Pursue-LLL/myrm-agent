@@ -1046,6 +1046,62 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         ),
         _schedule_builder="time_weekdays",
     ),
+    CronBlueprint(
+        id="seo_weekly_audit",
+        icon="Search",
+        title={"en": "SEO & Site Health Weekly Audit", "zh": "SEO 与网站健康周度巡检"},
+        description={
+            "en": "Scheduled audit of technical SEO, robots, sitemap, meta tags, and AI search readiness with prioritized roadmap",
+            "zh": "定时巡检网站 technical SEO、robots、sitemap、标签与 AI 搜索就绪度，生成优先级路线图",
+        },
+        prompt_template={
+            "en": (
+                "Run a comprehensive technical SEO and site health audit for {target_url} (depth: {depth}).\n"
+                "1. Fetch and verify robots.txt, sitemap.xml, and /llms.txt if present.\n"
+                "2. Inspect core rendered pages for title, meta description, canonical, H1, JSON-LD, OpenGraph, and hreflang.\n"
+                "3. Check for dead internal links and broken images.\n"
+                "4. Generate a prioritized P0-P3 SEO-OPTIMIZATION-ROADMAP.md artifact in artifacts/ with concrete evidence.\n"
+                "5. Provide a crisp executive summary of critical issues and actionable next steps."
+            ),
+            "zh": (
+                "对目标站点 {target_url} 执行全面的技术 SEO 与站点健康巡检（检测深度: {depth}）。\n"
+                "1. 抓取并验证 robots.txt、sitemap.xml 以及 /llms.txt（若存在）。\n"
+                "2. 深度检查核心页面的 title、meta description、canonical、H1、JSON-LD 结构化数据、OpenGraph 及 hreflang。\n"
+                "3. 采样检测站内死链与缺失 alt 的图片。\n"
+                "4. 在 artifacts/ 目录生成带真实证据的 P0-P3 结构化 SEO-OPTIMIZATION-ROADMAP.md 工件。\n"
+                "5. 输出精炼的高管摘要，列出致命缺陷与本周可执行的优化动作。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(
+                name="target_url",
+                type="text",
+                label="target_url",
+                default="https://example.com",
+            ),
+            BlueprintSlot(
+                name="depth",
+                type="enum",
+                label="depth",
+                default="standard",
+                options=("quick", "standard", "deep"),
+            ),
+            BlueprintSlot(name="time", type="time", label="time", default="09:00"),
+            BlueprintSlot(
+                name="day",
+                type="enum",
+                label="day",
+                default="1",
+                options=("1", "2", "3", "4", "5", "6", "0"),
+            ),
+        ),
+        category="marketing-growth",
+        tags=("seo", "audit", "marketing", "website", "weekly"),
+        sort_order=17,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
+        _schedule_builder="time_weekday",
+    ),
 )
 
 BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = tuple(_with_supplemental_locales(bp) for bp in _RAW_BUILTIN_BLUEPRINTS)
