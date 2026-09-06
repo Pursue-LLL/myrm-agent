@@ -57,7 +57,9 @@
     ".next-isolated-chrome-test_chrome_ui_local_skill_paths_preview-3fb3b6c0-6919-0b20a7d5/types/**/*.ts",
     ".next-isolated-chrome-test_chrome_ui_local_skill_paths_preview-3fb3b6c0-6919-0b20a7d5/dev/types/**/*.ts",
     ".next-isolated-chrome-test_subagent_dashboard_chat_textarea_re-6d43047d-59883-ccc99ec0/types/**/*.ts",
-    ".next-isolated-chrome-test_subagent_dashboard_chat_textarea_re-6d43047d-59883-ccc99ec0/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_subagent_dashboard_chat_textarea_re-6d43047d-59883-ccc99ec0/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_slash_skill_palette_sets_composer_c-3c9c5c11-22962-e46b14b7/types/**/*.ts",
+    ".next-isolated-chrome-test_slash_skill_palette_sets_composer_c-3c9c5c11-22962-e46b14b7/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

@@ -1018,10 +1018,12 @@ def wait_for_settings_layout(
     client: ChromeMcpClient,
     page: McpPage,
     *,
-    page_url: str,
+    page_url: str | None = None,
     timeout_sec: float = 45.0,
 ) -> dict[str, object]:
     """Wait for SettingsLayout hydration — never use chat bridge on /settings/*."""
+    if not page_url:
+        page_url = f"{get_e2e_ui_url().rstrip('/')}/settings"
     bounded = _bounded_settings_ui_wait_sec(timeout_sec)
     layout_ready: dict[str, object] = {}
     max_attempts = 2 if _parallel_chrome_e2e_active() else 3

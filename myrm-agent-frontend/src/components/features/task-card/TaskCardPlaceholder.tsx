@@ -12,10 +12,11 @@ import { Progress } from '@/components/primitives/progress';
 interface TaskCardPlaceholderProps {
   prompt?: string;
   progress?: number;
+  statusMessage?: string;
   className?: string;
 }
 
-export const TaskCardPlaceholder: React.FC<TaskCardPlaceholderProps> = ({ prompt, progress = 0, className }) => {
+export const TaskCardPlaceholder: React.FC<TaskCardPlaceholderProps> = ({ prompt, progress = 0, statusMessage, className }) => {
   const t = useTranslations('taskCard');
 
   return (
@@ -29,7 +30,8 @@ export const TaskCardPlaceholder: React.FC<TaskCardPlaceholderProps> = ({ prompt
       {prompt && <p className="text-sm text-foreground/70 line-clamp-2">{prompt}</p>}
 
       <p className="text-xs text-muted-foreground">
-        {progress > 0 ? t('generatingProgress', { percent: Math.round(progress * 100) }) : t('queued')}
+        {statusMessage ||
+          (progress > 0 ? t('generatingProgress', { percent: Math.round(progress * 100) }) : t('queued'))}
       </p>
       <p className="text-xs text-muted-foreground/80">{t('backgroundHint')}</p>
     </div>

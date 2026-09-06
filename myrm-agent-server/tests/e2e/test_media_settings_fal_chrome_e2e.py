@@ -16,13 +16,12 @@ from tests.support.chrome_mcp_e2e import (
 
 _VERIFY_MEDIA_SETTINGS_FAL_JS = """(() => {
   // Check if media provider status API or settings can be queried
-  const falCard = document.querySelector('[data-testid="provider-card-fal"]') ||
-                  document.querySelector('div:has(> *:contains("FAL.ai"))') ||
-                  document.body.innerText.includes('FAL.ai') ||
-                  document.body.innerText.includes('flux-3-video');
+  const cards = Array.from(document.querySelectorAll('[data-testid="provider-card-fal"], [data-testid^="media-provider-card-"], .rounded-xl, .rounded-lg'));
+  const falCard = cards.find(el => el.textContent && el.textContent.includes('FAL.ai'));
+  const hasFalText = Boolean(falCard || document.body.innerText.includes('FAL.ai') || document.body.innerText.includes('flux-3-video'));
   return {
     ok: true,
-    hasFalText: document.body.innerText.includes('FAL.ai') || document.body.innerText.includes('flux'),
+    hasFalText,
   };
 })()"""
 

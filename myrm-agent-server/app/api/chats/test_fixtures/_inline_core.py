@@ -133,6 +133,7 @@ async def seed_skill_chip_transcript_fixture() -> dict[str, str]:
             chat_id=chat_id,
             title="Skill chip Chrome E2E",
             agent_id=agent_id,
+            action_mode="agent",
             messages=[],
         ),
     )
@@ -185,6 +186,7 @@ async def seed_skill_chip_composer_fixture() -> dict[str, str]:
             chat_id=chat_id,
             title="Slash skill chip composer Chrome E2E",
             agent_id=agent_id,
+            action_mode="agent",
             messages=[],
         ),
     )

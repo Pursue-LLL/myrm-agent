@@ -65,6 +65,7 @@ export const VideoTaskCard: React.FC<VideoTaskCardProps> = ({ task_id, className
       <TaskCardPlaceholder
         prompt={getStringPayloadValue(task.payload, 'prompt')}
         progress={task.progress}
+        statusMessage={task.progress_message}
         className={className}
       />
     );

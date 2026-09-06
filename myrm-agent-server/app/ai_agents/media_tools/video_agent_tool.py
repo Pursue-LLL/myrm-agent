@@ -1,6 +1,7 @@
 """[INPUT]
 - myrm_agent_harness.toolkits.llms.video.video_engine::VideoGenerationTools (POS: sync video engine)
 - myrm_agent_harness.toolkits.llms.video.async_video_engine::AsyncVideoGenerationTools (POS: async enqueue adapter)
+- myrm_agent_harness.toolkits.llms.video.models::ModerationBlockedError (POS: terminal moderation safety exception)
 - app.ai_agents.media_tools.image_clamp::clamp_image_payload (POS: reference media downsampling and orientation normalization)
 
 [OUTPUT]
@@ -18,9 +19,14 @@ import logging
 from typing import Literal
 
 from langchain_core.tools import BaseTool, tool
-from myrm_agent_harness.toolkits.llms.video import VideoGenerationConfig, VideoGenerationTools
+from myrm_agent_harness.toolkits.llms.video import (
+    ModerationBlockedError,
+    VideoGenerationConfig,
+    VideoGenerationTools,
+)
 from myrm_agent_harness.toolkits.llms.video.async_video_engine import AsyncVideoGenerationTools
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, create_model
+from pydantic.fields import FieldInfo
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +130,104 @@ def _clamp_reference_sources(sources: list[str] | None) -> list[str] | None:
     return sanitized
 
 
+def _build_dynamic_video_input_schema(capabilities: object | None) -> type[BaseModel]:
+    """Dynamically construct a trimmed VideoToolInput schema based on active provider capabilities.
+
+    If a provider does NOT support audio, aspect_ratio, or reference_videos, those fields
+    are omitted from the schema. This implements the Dynamic Schema Diet pattern from
+    Hermes-Agent, preventing LLM parameter hallucinations (400 Bad Request).
+    """
+    from myrm_agent_harness.toolkits.llms.video.models import ProviderCapabilities
+
+    # If full capabilities or capabilities object is missing or a mock without concrete attributes, default to full schema
+    if not isinstance(capabilities, ProviderCapabilities):
+        return VideoToolInput
+
+    supports_audio = bool(capabilities.supports_audio)
+    supports_aspect_ratio = bool(capabilities.supports_aspect_ratio)
+    max_input_videos = int(capabilities.max_input_videos or 0)
+    max_duration_seconds = capabilities.max_duration_seconds
+
+    fields: dict[str, tuple[object, FieldInfo]] = {
+        "action": (
+            Literal["generate", "status", "list"],
+            FieldInfo(
+                default="generate",
+                description="Action to perform: 'generate' (submit async video creation task), 'status' (query progress of task_id), 'list' (discover supported video models and providers).",
+            ),
+        ),
+        "prompt": (
+            str | None,
+            FieldInfo(
+                default=None,
+                description="Detailed text prompt describing the video scene, motion, subject, and lighting (required for generate).",
+            ),
+        ),
+        "provider": (
+            str | None,
+            FieldInfo(default=None, description="Optional provider override (e.g. 'fal', 'kling', 'luma', 'runway', 'minimax')."),
+        ),
+        "model": (str | None, FieldInfo(default=None, description="Optional model override.")),
+        "duration_seconds": (
+            int | None,
+            FieldInfo(
+                default=None,
+                description=(
+                    f"Target clip duration in seconds (max {max_duration_seconds}s for current provider)."
+                    if max_duration_seconds
+                    else "Target clip duration in seconds (e.g. 5 or 10)."
+                ),
+            ),
+        ),
+    }
+
+    if supports_aspect_ratio:
+        fields["aspect_ratio"] = (
+            str | None,
+            FieldInfo(default=None, description="Aspect ratio (e.g. '16:9', '9:16', '1:1')."),
+        )
+    fields["resolution"] = (
+        str | None,
+        FieldInfo(default=None, description="Video resolution: '720p', '1080p', or '4k'."),
+    )
+    if supports_audio:
+        fields["enable_audio"] = (
+            bool | None,
+            FieldInfo(default=None, description="Whether to synthesize an audio/sound effects track when supported."),
+        )
+    fields["reference_images"] = (
+        list[str] | None,
+        FieldInfo(default=None, description="Optional image URLs or local paths for image-to-video (I2V) generation."),
+    )
+    if max_input_videos > 0:
+        fields["reference_videos"] = (
+            list[str] | None,
+            FieldInfo(default=None, description="Optional video URLs or local paths for video-to-video (V2V) transformation."),
+        )
+    fields["negative_prompt"] = (
+        str | None,
+        FieldInfo(default=None, description="Negative prompt specifying elements to avoid (e.g. 'distorted faces, blurry, watermark, extra limbs')."),
+    )
+    fields["seed"] = (
+        int | None,
+        FieldInfo(default=None, description="Random seed for reproducible video generation across multiple storyboard scenes."),
+    )
+    fields["force"] = (
+        bool,
+        FieldInfo(default=False, description="Force enqueue a new generation even if an existing session task is active."),
+    )
+    fields["task_id"] = (
+        str | None,
+        FieldInfo(default=None, description="Task ID returned from a previous action='generate' call (required when action='status')."),
+    )
+
+    return create_model(
+        "DynamicVideoToolInput",
+        __config__=ConfigDict(extra="allow"),
+        **fields,
+    )  # type: ignore[call-overload]
+
+
 def create_video_generation_tool(
     engine: VideoGenerationTools,
     *,
@@ -160,6 +264,22 @@ def create_video_generation_tool(
             extra_params["seed"] = seed
 
         safe_reference_images = _clamp_reference_sources(reference_images)
+
+        # Sanitize parameters against target provider's capabilities if available
+        target_provider_id = provider or getattr(getattr(engine, "_config", None), "provider", None)
+        if target_provider_id and hasattr(engine, "_registry"):
+            try:
+                target_prov = engine._registry.get(target_provider_id)
+                target_caps = getattr(target_prov, "capabilities", None)
+                if target_caps:
+                    if not target_caps.supports_audio and enable_audio:
+                        logger.warning("Provider '%s' does not support audio; disabling enable_audio", target_provider_id)
+                        enable_audio = False
+                    if not target_caps.supports_aspect_ratio and aspect_ratio:
+                        logger.warning("Provider '%s' does not support custom aspect_ratio; dropping aspect_ratio", target_provider_id)
+                        aspect_ratio = None
+            except Exception as cap_err:
+                logger.debug("Failed capability probe for '%s': %s", target_provider_id, cap_err)
 
         if async_config is None:
             kwargs: dict[str, object] = {
@@ -260,7 +380,18 @@ def create_video_generation_tool(
                 force=False,
             )
 
-    @tool("video_tool", args_schema=VideoToolInput)
+    # Dynamic Schema Diet: trim unsupported parameters according to current provider capabilities
+    active_capabilities = None
+    try:
+        active_provider = engine._registry.get(engine._config.provider)
+        if active_provider:
+            active_capabilities = active_provider.capabilities
+    except Exception:
+        pass
+
+    dynamic_args_schema = _build_dynamic_video_input_schema(active_capabilities)
+
+    @tool("video_tool", args_schema=dynamic_args_schema)
     async def video_tool(
         action: Literal["generate", "status", "list"] = "generate",
         prompt: str | None = None,
@@ -302,20 +433,34 @@ def create_video_generation_tool(
             return await _status(task_id)
         if not prompt or not prompt.strip():
             return '{"error": "prompt is required when action=generate"}'
-        return await _enqueue_generate(
-            prompt,
-            provider=provider,
-            model=model,
-            duration_seconds=duration_seconds,
-            aspect_ratio=aspect_ratio,
-            resolution=resolution,
-            enable_audio=enable_audio,
-            reference_images=reference_images,
-            reference_videos=reference_videos,
-            negative_prompt=negative_prompt,
-            seed=seed,
-            force=force,
-        )
+        try:
+            return await _enqueue_generate(
+                prompt,
+                provider=provider,
+                model=model,
+                duration_seconds=duration_seconds,
+                aspect_ratio=aspect_ratio,
+                resolution=resolution,
+                enable_audio=enable_audio,
+                reference_images=reference_images,
+                reference_videos=reference_videos,
+                negative_prompt=negative_prompt,
+                seed=seed,
+                force=force,
+            )
+        except ModerationBlockedError as m_exc:
+            reason = getattr(m_exc, "violation_reason", None) or "Content moderation or safety policy violation"
+            logger.warning("Video generation blocked by content moderation: %s (%s)", m_exc, reason)
+            return json.dumps(
+                {
+                    "error": str(m_exc),
+                    "code": "MODERATION_BLOCKED",
+                    "reason": reason,
+                    "retryable": False,
+                    "tip": "The prompt was rejected by the provider safety filter. Do NOT retry with the same prompt; adjust the wording to comply with content policies.",
+                },
+                ensure_ascii=False,
+            )
 
     if async_config is not None:
         video_tool.description = (

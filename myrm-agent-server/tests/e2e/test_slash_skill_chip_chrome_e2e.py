@@ -153,7 +153,7 @@ def _seed_transcript_fixture(api_url: str) -> dict[str, object]:
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="READ",
+    access_scope="GLOBAL_WRITE",
     workload="STANDARD",
     private_reason="exclusive_backend",
 )

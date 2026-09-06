@@ -123,9 +123,40 @@ Video generation providers limit each clip to **6–12 seconds**. Any video long
 
 Before planning shots, call `video_tool(action="list")` and read `max_duration_seconds` and `supported_durations` from the active provider's capabilities. Use these values (not hardcoded numbers) to plan shot duration.
 
-### Step 2 — Plan shots
+### Step 2 — Plan shots & Cinematic Storyboard Specification
 
-Divide the target duration into shots that fit the provider's supported durations. Prefer the shortest supported duration (typically 6s) for tighter creative control. Each shot should have a clear purpose: establishing, action, detail, transition, or closing.
+Divide the target duration into shots that fit the provider's supported durations. Prefer the shortest supported duration (typically 5s or 6s) for tighter creative control. Each shot should have a clear purpose: establishing, action, detail, transition, or closing.
+
+To maximize video rendering fidelity across modern neural video engines (FAL Kling, FLUX.3 Video, Sora, MiniMax), structure each scene prompt using the **Cinematic Storyboard JSON specification** before invoking `video_tool`:
+
+```json
+{
+  "scene_id": "shot_01",
+  "composition": {
+    "shot_type": "Extreme Close-up / Medium Shot / Wide Establishing",
+    "camera_motion": "Slow 120fps Dolly-in / Static handheld / Dynamic Pan Right",
+    "angle": "Low angle / Eye level / Dutch angle",
+    "focal_depth": "Shallow depth of field, sharp subject focus with soft anamorphic bokeh"
+  },
+  "visual_elements": {
+    "subject": "Detailed character or product action, texture, material physics",
+    "environment": "Atmospheric lighting, volumetric fog, rim light, golden hour",
+    "motion_dynamics": "High speed fluid splashes, dynamic fabric flutter, particle drift"
+  },
+  "negative_constraints": "blurry, distorted facial features, text artifacts, watermarks, jittery motion",
+  "technical_overrides": {
+    "duration_seconds": 5,
+    "aspect_ratio": "16:9",
+    "resolution": "1080p"
+  }
+}
+```
+
+When passing to `video_tool(action="generate")`, compile the JSON elements into a dense, cinematic prompt string:
+`[Shot Type + Angle] + [Subject Action & Texture] + [Lighting & Environment] + [Camera Motion]`.
+Example compiled prompt:
+> *"Cinematic macro close-up, eye-level framing. Cold brew coffee slowly dripping through crystal glass filter, tiny amber droplets splashing into ice cubes with fluid physics. Dramatic warm rim lighting, dark studio backdrop with volumetric haze. 120fps high-speed slow motion, subtle dolly forward, photorealistic 8k commercial quality."*
+
 
 ### Step 3 — Generate a base image for visual consistency
 
