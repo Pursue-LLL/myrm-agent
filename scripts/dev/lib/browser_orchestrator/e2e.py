@@ -1334,7 +1334,6 @@ def open_app_route_page(
         probe_js = hydration_probe_js(manifest.hydration_gate)
         assert_gate_allowed(manifest.hydration_gate, url)
 
-    parallel_load = _effective_parallel_load()
     ssot_cap = orchestrator_socket_timeout_cap_sec()
     resolved_request = (
         request_timeout_sec if request_timeout_sec is not None else ssot_cap
