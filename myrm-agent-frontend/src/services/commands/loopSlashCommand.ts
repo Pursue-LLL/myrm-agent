@@ -80,6 +80,52 @@ export function parseNaturalInterval(text: string, defaultMs: number = DEFAULT_L
 }
 
 /**
+ * 清洗 Prompt 首尾成对的引号
+ */
+function cleanPrompt(p: string): string {
+  const trimmed = p.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2)
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
+/**
+ * 判断字符串是否为纯自然语言时间表达（无后续 prompt）
+ */
+function isPureIntervalExpression(str: string): boolean {
+  const cleaned = str.trim().toLowerCase();
+  if (['每天', '每日', 'daily', 'day'].includes(cleaned)) {
+    return true;
+  }
+  const normalized = cleaned.replace(/^(?:every|each|每隔|每)\s*/i, '').trim();
+  if (
+    [
+      '半小时',
+      '半个小时',
+      '半个钟头',
+      '1个半小时',
+      '一个半小时',
+      '1.5h',
+      '1.5小时',
+      '每天',
+      '每日',
+      '天',
+      'day',
+      'daily',
+    ].includes(normalized)
+  ) {
+    return true;
+  }
+  const pattern =
+    /^(\d+)\s*(s|sec|secs|second|seconds|秒|秒钟|m|min|mins|minute|minutes|分|分钟|h|hr|hrs|hour|hours|个?小时|个?钟头|d|day|days|天)?$/i;
+  return pattern.test(normalized);
+}
+
+/**
  * 解析 /loop 命令的输入字符串为 (intervalMs, prompt)
  */
 export function parseLoopCommandInput(rawInput: string): {
@@ -88,10 +134,15 @@ export function parseLoopCommandInput(rawInput: string): {
 } {
   const args = rawInput
     .trim()
-    .replace(/^\/loop\s*/i, '')
+    .replace(/^(?:\/)?(?:loop|repeat|cron)\s*/i, '')
     .trim();
   if (!args) {
     return { intervalMs: DEFAULT_LOOP_INTERVAL_MS, prompt: '' };
+  }
+
+  // 0. 纯时间表达无 prompt: e.g. "/loop 5m", "/loop every 1h", "/loop 每天", "/loop 10"
+  if (isPureIntervalExpression(args)) {
+    return { intervalMs: parseNaturalInterval(args), prompt: '' };
   }
 
   // 1. 特殊前缀短语: e.g. "半小时 检查构建" 或 "每隔半小时 检查构建"
@@ -100,7 +151,7 @@ export function parseLoopCommandInput(rawInput: string): {
   );
   if (specialPrefixMatch) {
     const intervalStr = specialPrefixMatch[1];
-    const prompt = specialPrefixMatch[2].trim();
+    const prompt = cleanPrompt(specialPrefixMatch[2]);
     return { intervalMs: parseNaturalInterval(intervalStr), prompt };
   }
 
@@ -112,7 +163,7 @@ export function parseLoopCommandInput(rawInput: string): {
   );
   if (prefixMatch) {
     const intervalStr = prefixMatch[1];
-    const prompt = prefixMatch[2].trim();
+    const prompt = cleanPrompt(prefixMatch[2]);
     return { intervalMs: parseNaturalInterval(intervalStr), prompt };
   }
 
@@ -123,7 +174,7 @@ export function parseLoopCommandInput(rawInput: string): {
     if (val >= 1 && val <= 1440) {
       return {
         intervalMs: Math.max(val * 60_000, MIN_LOOP_INTERVAL_MS),
-        prompt: prefixDigitMatch[2].trim(),
+        prompt: cleanPrompt(prefixDigitMatch[2]),
       };
     }
   }
@@ -137,7 +188,7 @@ export function parseLoopCommandInput(rawInput: string): {
   );
   if (suffixMatch && suffixMatch.index !== undefined) {
     const intervalStr = suffixMatch[1];
-    const prompt = args.slice(0, suffixMatch.index).trim();
+    const prompt = cleanPrompt(args.slice(0, suffixMatch.index));
     return { intervalMs: parseNaturalInterval(intervalStr), prompt };
   }
 
@@ -145,12 +196,12 @@ export function parseLoopCommandInput(rawInput: string): {
   const suffixPlainMatch = args.match(new RegExp(`\\s+(\\d+\\s*${unitRegex})\\s*$`, 'i'));
   if (suffixPlainMatch && suffixPlainMatch.index !== undefined) {
     const intervalStr = suffixPlainMatch[1];
-    const prompt = args.slice(0, suffixPlainMatch.index).trim();
+    const prompt = cleanPrompt(args.slice(0, suffixPlainMatch.index));
     return { intervalMs: parseNaturalInterval(intervalStr), prompt };
   }
 
   // 6. 默认回退: 整个文本作为 prompt
-  return { intervalMs: DEFAULT_LOOP_INTERVAL_MS, prompt: args };
+  return { intervalMs: DEFAULT_LOOP_INTERVAL_MS, prompt: cleanPrompt(args) };
 }
 
 /**

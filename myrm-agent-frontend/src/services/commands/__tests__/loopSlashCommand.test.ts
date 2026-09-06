@@ -109,6 +109,56 @@ describe('parseLoopCommandInput', () => {
     expect(res.prompt).toBe('');
   });
 
+  it('handles pure interval input without prompt by returning empty prompt', () => {
+    const res1 = parseLoopCommandInput('/loop 5m');
+    expect(res1.intervalMs).toBe(300_000);
+    expect(res1.prompt).toBe('');
+
+    const res2 = parseLoopCommandInput('/loop every 2h');
+    expect(res2.intervalMs).toBe(7_200_000);
+    expect(res2.prompt).toBe('');
+
+    const res3 = parseLoopCommandInput('/loop 半小时');
+    expect(res3.intervalMs).toBe(1_800_000);
+    expect(res3.prompt).toBe('');
+
+    const res4 = parseLoopCommandInput('/loop 每天');
+    expect(res4.intervalMs).toBe(86_400_000);
+    expect(res4.prompt).toBe('');
+
+    const res5 = parseLoopCommandInput('/loop 15');
+    expect(res5.intervalMs).toBe(900_000);
+    expect(res5.prompt).toBe('');
+  });
+
+  it('supports aliases /repeat and /cron', () => {
+    const resRepeat = parseLoopCommandInput('/repeat 10m check deploy');
+    expect(resRepeat.intervalMs).toBe(600_000);
+    expect(resRepeat.prompt).toBe('check deploy');
+
+    const resCron = parseLoopCommandInput('/cron 30m monitor logs');
+    expect(resCron.intervalMs).toBe(1_800_000);
+    expect(resCron.prompt).toBe('monitor logs');
+
+    const resRepeatEmpty = parseLoopCommandInput('/repeat 5m');
+    expect(resRepeatEmpty.intervalMs).toBe(300_000);
+    expect(resRepeatEmpty.prompt).toBe('');
+  });
+
+  it('cleans enclosing quotes from prompt', () => {
+    const resDouble = parseLoopCommandInput('/loop 5m "检查 PR 状态"');
+    expect(resDouble.intervalMs).toBe(300_000);
+    expect(resDouble.prompt).toBe('检查 PR 状态');
+
+    const resSingle = parseLoopCommandInput("/loop 1h 'monitor service'");
+    expect(resSingle.intervalMs).toBe(3_600_000);
+    expect(resSingle.prompt).toBe('monitor service');
+
+    const resSuffix = parseLoopCommandInput('/loop "检查部署" every 10m');
+    expect(resSuffix.intervalMs).toBe(600_000);
+    expect(resSuffix.prompt).toBe('检查部署');
+  });
+
   it('handles multiline prompt with special characters', () => {
     const multiline = `/loop 15m 检查流水线状态:\n1. build-linux\n2. test-darwin\n3. deploy-prod`;
     const res = parseLoopCommandInput(multiline);
@@ -156,6 +206,13 @@ describe('executeLoopSlashCommand', () => {
   it('returns info when prompt is missing', async () => {
     const res = await executeLoopSlashCommand('/loop');
     expect(res.success).toBe(false);
+    expect(mockCreateCronJob).not.toHaveBeenCalled();
+  });
+
+  it('returns info and blocks job creation when only interval is provided without prompt', async () => {
+    const res = await executeLoopSlashCommand('/loop 5m');
+    expect(res.success).toBe(false);
+    expect(res.error).toBe('Missing loop prompt');
     expect(mockCreateCronJob).not.toHaveBeenCalled();
   });
 
