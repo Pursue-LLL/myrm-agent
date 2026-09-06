@@ -25,6 +25,7 @@ from chrome_mcp.client import ChromeMcpClient  # noqa: E402
 from dev_gate.contract import EvaluateIntent  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
+    guarded_httpx_request,
     get_e2e_ui_url,
     prepare_e2e_ui_session,
     warm_ui_route,
@@ -152,28 +153,35 @@ def _seed_migration_readiness(*, variant: str = "mcp_warning") -> dict[str, str]
     url = f"{api_base.rstrip('/')}/api/v1/memory/test/seed-migration-readiness-fixture?variant={variant}"
     last_error: BaseException | None = None
     last_response: httpx.Response | None = None
-    for attempt in range(12):
-        try:
-            response = httpx.post(
-                url,
-                timeout=httpx.Timeout(25.0, connect=10.0),
-            )
-            last_response = response
-            if response.status_code == 503:
-                last_error = httpx.HTTPStatusError(
-                    f"503 seed on {url}",
-                    request=response.request,
-                    response=response,
+    with httpx.Client() as client:
+        for attempt in range(12):
+            try:
+                response = guarded_httpx_request(
+                    client,
+                    "POST",
+                    url,
+                    timeout=httpx.Timeout(25.0, connect=10.0),
                 )
-                time.sleep(_httpx_retry_delay_seconds(response, attempt))
-                continue
-            response.raise_for_status()
-            payload = response.json()
-            assert isinstance(payload, dict)
-            return {str(key): str(value) for key, value in payload.items()}
-        except (httpx.HTTPError, TimeoutError, AssertionError) as exc:
-            last_error = exc
-            time.sleep(_httpx_retry_delay_seconds(last_response, attempt))
+                if not isinstance(response, httpx.Response):
+                    raise AssertionError(
+                        f"migration fixture response has invalid type: {type(response).__name__}"
+                    )
+                last_response = response
+                if response.status_code == 503:
+                    last_error = httpx.HTTPStatusError(
+                        f"503 seed on {url}",
+                        request=response.request,
+                        response=response,
+                    )
+                    time.sleep(_httpx_retry_delay_seconds(response, attempt))
+                    continue
+                response.raise_for_status()
+                payload = response.json()
+                assert isinstance(payload, dict)
+                return {str(key): str(value) for key, value in payload.items()}
+            except (httpx.HTTPError, TimeoutError, AssertionError) as exc:
+                last_error = exc
+                time.sleep(_httpx_retry_delay_seconds(last_response, attempt))
     raise AssertionError(
         f"seed-migration-readiness-fixture failed after retries on {url}; last_error={last_error!r}"
     ) from last_error
