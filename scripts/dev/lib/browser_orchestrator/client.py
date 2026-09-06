@@ -454,9 +454,16 @@ class BrowserOrchestratorClient:
         # Hydration wait lives inside the daemon RPC — give the socket budget
         # headroom above the hydration deadline (scheduler grace + poll granularity).
         deadline_sec = float(hydrate_timeout_sec or 60.0)
-        self._timeout_sec = min(
-            max(prior_timeout, deadline_sec + _ORCHESTRATOR_SCHEDULER_GRACE_SEC + 10.0),
-            self.socket_timeout_cap_sec(),
+        requested_timeout = max(
+            prior_timeout,
+            deadline_sec + _ORCHESTRATOR_SCHEDULER_GRACE_SEC + 10.0,
+        )
+        # A failed status probe can only provide a conservative fallback cap.
+        # Never lower a caller's already selected budget while the daemon may
+        # still be completing a valid route transaction.
+        self._timeout_sec = max(
+            prior_timeout,
+            min(requested_timeout, self.socket_timeout_cap_sec()),
         )
         try:
             result = self._request("page/openAppRoute", params)
@@ -532,9 +539,15 @@ class BrowserOrchestratorClient:
                 cdp_sec = bounded
             else:
                 cdp_sec = _parallel_scaled_evaluate_timeout_sec(bounded)
-            self._timeout_sec = min(
-                max(prior_timeout, cdp_sec + _ORCHESTRATOR_SCHEDULER_GRACE_SEC),
-                self.socket_timeout_cap_sec(),
+            requested_timeout = max(
+                prior_timeout,
+                cdp_sec + _ORCHESTRATOR_SCHEDULER_GRACE_SEC,
+            )
+            # Preserve a caller's existing timeout when status is unavailable
+            # and the local fallback cap is lower than that timeout.
+            self._timeout_sec = max(
+                prior_timeout,
+                min(requested_timeout, self.socket_timeout_cap_sec()),
             )
         try:
             payload: dict[str, object] = {
