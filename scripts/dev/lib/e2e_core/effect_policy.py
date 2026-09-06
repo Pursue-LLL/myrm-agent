@@ -45,3 +45,11 @@ NAMESPACE_WRITE_BOOTSTRAP_PATHS: Final[frozenset[str]] = frozenset(
         "/api/v1/agents/test-media-config",
     }
 )
+
+# These endpoints use POST for transport semantics but do not persist shared
+# application state. They remain valid in SHARED+READ tests; all stateful POST,
+# PUT, PATCH and DELETE routes still require an explicit write scope.
+NON_PERSISTENT_OPERATION_PREFIXES: Final[tuple[str, ...]] = (
+    "/api/v1/tts/synthesize",
+    "/api/v1/tts/synthesize-stream",
+)

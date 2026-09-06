@@ -141,7 +141,12 @@ def _delete_project(api_url: str, project_id: str, *, timeout_sec: float = 120.0
     raise AssertionError(f"Batch project {project_id} tasks did not settle before delete")
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(360)
 def test_batch_directory_detail_page_renders_project() -> None:
@@ -234,7 +239,12 @@ def test_batch_directory_terminal_state_renders_duration() -> None:
         _delete_project(api_url, project_id)
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(360)
 def test_batch_directory_list_page_shows_created_project() -> None:

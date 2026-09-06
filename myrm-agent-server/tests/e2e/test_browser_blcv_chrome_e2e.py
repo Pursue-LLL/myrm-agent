@@ -54,7 +54,7 @@ def _seed_blcv_chat(api_url: str) -> str:
     return chat_id
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_browser_inspector_blcv_bridge_exposed_in_real_ui() -> None:
@@ -81,7 +81,7 @@ def test_browser_inspector_blcv_bridge_exposed_in_real_ui() -> None:
         assert snapshot.get("sourceChatId") == ""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_browser_blcv_multi_chat_sse_isolation_in_real_ui() -> None:
@@ -129,7 +129,7 @@ def test_browser_blcv_multi_chat_sse_isolation_in_real_ui() -> None:
         assert result.get("ready") is True, result
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_desktop_blcv_multi_chat_sse_isolation_in_real_ui() -> None:
@@ -177,7 +177,7 @@ def test_desktop_blcv_multi_chat_sse_isolation_in_real_ui() -> None:
         assert result.get("ready") is True, result
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(120)
 def test_browser_blcv_tool_start_panel_scoped_to_foreground_chat() -> None:
@@ -229,7 +229,7 @@ def test_browser_blcv_tool_start_panel_scoped_to_foreground_chat() -> None:
         assert result.get("ready") is True, result
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_blcv_edge_cases_switch_chat_and_desktop_approval_in_real_ui() -> None:

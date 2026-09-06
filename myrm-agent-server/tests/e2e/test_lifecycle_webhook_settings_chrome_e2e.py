@@ -102,7 +102,12 @@ def test_lifecycle_webhook_settings_chrome_e2e() -> None:
         assert browser_body.get("ok") is True, browser_body
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_lifecycle_webhook_settings_crud_flow_chrome_e2e() -> None:

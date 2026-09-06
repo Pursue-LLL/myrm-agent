@@ -143,7 +143,12 @@ _GALLERY_CONFIRM_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_theme_marketplace_gallery_free_install_smoke() -> None:
@@ -239,7 +244,12 @@ _PURCHASE_RETURN_STATE = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_theme_purchased_return_auto_install_smoke() -> None:
