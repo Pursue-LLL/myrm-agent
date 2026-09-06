@@ -42,27 +42,35 @@ _SCHEDULER_BADGE_JS = """(() => {
 })()"""
 
 _OPEN_CREATE_DIALOG_JS = """(() => {
-  const btn = Array.from(document.querySelectorAll('button')).find((el) =>
-    /^(Create|创建|建立)$/.test((el.textContent || '').trim()),
-  );
+  const btn = document.querySelector('[data-testid="cron-create-job-button"]')
+    || Array.from(document.querySelectorAll('button')).find((el) =>
+      /(Create|创建|建立|作成|Erstellen)/i.test((el.textContent || '').trim()),
+    );
   if (!btn) {
-    return { ready: false, reason: 'no-create-button' };
+    const all = Array.from(document.querySelectorAll('button')).map((el) => (el.textContent || '').trim());
+    return { ready: false, reason: 'no-create-button', buttons: all.slice(0, 20) };
   }
   btn.click();
   return { ready: true, clicked: true };
 })()"""
 
 _CREATE_DIALOG_READY_JS = """(() => {
+  const customBtn = document.querySelector('[data-testid="cron-create-mode-custom"]');
+  const templateBtn = document.querySelector('[data-testid="cron-create-mode-template"]');
+  if (customBtn && templateBtn) {
+    return { ready: true };
+  }
   const text = document.body?.innerText || '';
-  const hasCustom = /Custom|自定义|自訂/.test(text);
-  const hasTemplate = /From Template|从模板|テンプレート/.test(text);
+  const hasCustom = /(Custom|自定义|自訂)/i.test(text);
+  const hasTemplate = /(From Template|从模板|テンプレート|模板)/i.test(text);
   return { ready: hasCustom && hasTemplate, text: text.slice(0, 400) };
 })()"""
 
 _SWITCH_CUSTOM_TAB_JS = """(() => {
-  const tab = Array.from(document.querySelectorAll('button')).find((el) =>
-    /^(Custom|自定义|自訂)$/.test((el.textContent || '').trim()),
-  );
+  const tab = document.querySelector('[data-testid="cron-create-mode-custom"]')
+    || Array.from(document.querySelectorAll('button')).find((el) =>
+      /(Custom|自定义|自訂)/i.test((el.textContent || '').trim()),
+    );
   if (!tab) {
     return { ready: false, reason: 'no-custom-tab' };
   }

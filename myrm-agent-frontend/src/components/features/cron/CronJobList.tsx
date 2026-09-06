@@ -177,7 +177,13 @@ export default function CronJobList({ onSelectJob }: CronJobListProps) {
         <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleRefresh} disabled={refreshing}>
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
         </Button>
-        <Button variant="default" size="sm" className="h-8 gap-1 text-xs shrink-0" onClick={() => setCreateOpen(true)}>
+        <Button
+          data-testid="cron-create-job-button"
+          variant="default"
+          size="sm"
+          className="h-8 gap-1 text-xs shrink-0"
+          onClick={() => setCreateOpen(true)}
+        >
           <Plus className="h-3.5 w-3.5" />
           {t('createBtn')}
         </Button>

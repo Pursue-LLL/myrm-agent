@@ -445,6 +445,7 @@ export default function CronJobCreateDialog({
             <div className="flex gap-1 border-b pb-0">
               <button
                 type="button"
+                data-testid="cron-create-mode-template"
                 onClick={() => setCreateMode('template')}
                 className={cn(
                   'px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors flex items-center gap-1',
@@ -458,6 +459,7 @@ export default function CronJobCreateDialog({
               </button>
               <button
                 type="button"
+                data-testid="cron-create-mode-custom"
                 onClick={() => setCreateMode('custom')}
                 className={cn(
                   'px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors',
