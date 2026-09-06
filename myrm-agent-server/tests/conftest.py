@@ -64,7 +64,6 @@ _PRIVATE_REASONS = frozenset(
     {
         "live_shpoib",
         "fault_injection",
-        "process_isolation",
         "exclusive_backend",
         "global_write_non_namespace",
     }
@@ -275,6 +274,13 @@ def _chrome_e2e_profile(
                 "CHROME_E2E_PROFILE_INVALID: "
                 f"node={item.nodeid} PRIVATE requires private_reason "
                 f"(one of {', '.join(sorted(_PRIVATE_REASONS))})"
+            )
+        if private_reason == "process_isolation":
+            raise pytest.UsageError(
+                "CHROME_E2E_PROFILE_UNSUPPORTED: "
+                f"node={item.nodeid} process_isolation is not a PRIVATE mode; "
+                "the product uses one Browser Orchestrator Chrome with isolated "
+                "contexts. Use fault_injection for daemon/process failure probes."
             )
         if private_reason not in _PRIVATE_REASONS:
             raise pytest.UsageError(f"CHROME_E2E_PROFILE_INVALID: node={item.nodeid} private_reason={private_reason!r}")
