@@ -729,17 +729,26 @@ def _parallel_open_page_max_attempts() -> int:
 def _parallel_open_page_timeout_sec(daemon: BrowserOrchestratorClient) -> float:
     from browser_orchestrator.client import (
         orchestrator_open_tx_wall_sec,
-        orchestrator_socket_timeout_cap_sec,
     )
 
-    cap = orchestrator_socket_timeout_cap_sec()
+    cap_raw = daemon.socket_timeout_cap_sec()
+    cap = (
+        float(cap_raw)
+        if isinstance(cap_raw, (int, float))
+        else orchestrator_open_tx_wall_sec() + 30.0
+    )
     wall = orchestrator_open_tx_wall_sec() + 30.0
-    daemon_budget = float(daemon._timeout_sec)
+    daemon_budget_raw = daemon._timeout_sec
+    daemon_budget = (
+        float(daemon_budget_raw)
+        if isinstance(daemon_budget_raw, (int, float))
+        else wall
+    )
     # The caller may use either fast-create (new_page + navigate) or the
     # atomic open transaction. Never lower an already selected daemon budget:
     # doing so lets the client abandon a legal queued operation before the
     # daemon can return its explicit queue/operation result.
-    return min(cap, max(wall, daemon_budget))
+    return max(cap, wall, daemon_budget)
 
 
 def _ensure_orchestrator_session(
@@ -1106,6 +1115,10 @@ def open_orchestrator_mcp_page(
     )
     wait_wall = float(os.environ.get("MYRM_BROWSER_ORCHESTRATOR_WAIT_SEC", "90"))
     _wait_orchestrator_daemon_ready(daemon, wall_sec=max(20.0, wait_wall))
+    if parallel_load >= 2:
+        advertised = daemon.adopt_operation_budget_timeout()
+        if isinstance(advertised, (int, float)):
+            effective_timeout = max(effective_timeout, float(advertised))
     session_id = _resolve_session_id()
     _ensure_orchestrator_session(daemon, session_id)
     page = OrchestratorMcpPage(page_id=1, target_id="", url=None)
@@ -1335,6 +1348,10 @@ def open_app_route_page(
     daemon = BrowserOrchestratorClient(timeout_sec=effective_timeout)
     wait_wall = float(os.environ.get("MYRM_BROWSER_ORCHESTRATOR_WAIT_SEC", "90"))
     _wait_orchestrator_daemon_ready(daemon, wall_sec=max(20.0, wait_wall))
+    if parallel_load >= 2:
+        advertised = daemon.adopt_operation_budget_timeout()
+        if isinstance(advertised, (int, float)):
+            effective_timeout = max(effective_timeout, float(advertised))
     if not daemon.supports_open_app_route():
         raise RuntimeError(
             "BROWSER_ORCHESTRATOR_CAPABILITY_MISSING: page/openAppRoute is required"

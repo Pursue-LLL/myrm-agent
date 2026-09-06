@@ -230,6 +230,23 @@ def orchestrator_socket_timeout_cap_sec() -> float:
     return cap
 
 
+def _socket_cap_from_operation_budgets(raw: object) -> float:
+    """Translate daemon operation/queue budgets into one whole-RPC socket cap."""
+    if not isinstance(raw, dict):
+        return 0.0
+    grace_raw = raw.get("schedulerGraceMs", _ORCHESTRATOR_SCHEDULER_GRACE_SEC * 1000)
+    grace_ms = float(grace_raw) if isinstance(grace_raw, (int, float)) and grace_raw > 0 else 30_000.0
+    candidates: list[float] = []
+    for key in ("operationTimeoutMs", "queueWaitMs"):
+        values = raw.get(key)
+        if not isinstance(values, dict):
+            continue
+        for value in values.values():
+            if isinstance(value, (int, float)) and value > 0:
+                candidates.append(float(value) + grace_ms)
+    return max(candidates, default=0.0) / 1000.0
+
+
 def _default_socket_path() -> str:
     """Stable socket path independent of TMPDIR.
 
@@ -297,6 +314,7 @@ class OrchestratorStatus(TypedDict):
     scheduler: dict[str, int]
     recovery: dict[str, object]
     capabilities: list[str]
+    operationBudgets: dict[str, object]
 
 
 class BrowserOrchestratorClient:
@@ -311,6 +329,7 @@ class BrowserOrchestratorClient:
         self._timeout_sec = timeout_sec
         self._next_id = 1
         self._id_lock = threading.Lock()
+        self._operation_budget_cache: tuple[float, float] | None = None
 
     @contextmanager
     def bounded_request_timeout(self, timeout_sec: float) -> Iterator[None]:
@@ -326,12 +345,33 @@ class BrowserOrchestratorClient:
     def elevated_request_timeout(self, timeout_sec: float) -> Iterator[None]:
         """Raise socket read budget up to orchestrator cap (parallel open_page queue)."""
         prior = self._timeout_sec
-        cap = orchestrator_socket_timeout_cap_sec()
+        cap = self.socket_timeout_cap_sec()
         self._timeout_sec = min(cap, max(prior, max(5.0, timeout_sec)))
         try:
             yield
         finally:
             self._timeout_sec = prior
+
+    def adopt_operation_budget_timeout(self) -> float:
+        """Raise this client's socket budget to the running daemon contract."""
+        cap = self.socket_timeout_cap_sec()
+        self._timeout_sec = max(self._timeout_sec, cap)
+        return cap
+
+    def socket_timeout_cap_sec(self) -> float:
+        """Return a socket cap that covers every advertised daemon budget."""
+        fallback = orchestrator_socket_timeout_cap_sec()
+        cached = self._operation_budget_cache
+        now = time.monotonic()
+        if cached is not None and now - cached[0] < _SOCKET_TIMEOUT_CAP_CACHE_TTL_SEC:
+            return max(fallback, cached[1])
+        try:
+            snapshot = self.status()
+        except (OSError, RuntimeError, TimeoutError, TypeError):
+            return fallback
+        cap = _socket_cap_from_operation_budgets(snapshot.get("operationBudgets"))
+        self._operation_budget_cache = (now, cap)
+        return max(fallback, cap)
 
     def create_session(self, session_id: str) -> SessionResult:
         """Create a new isolated BrowserContext for the given session."""
@@ -420,7 +460,7 @@ class BrowserOrchestratorClient:
         deadline_sec = float(hydrate_timeout_sec or 60.0)
         self._timeout_sec = min(
             max(prior_timeout, deadline_sec + _ORCHESTRATOR_SCHEDULER_GRACE_SEC + 10.0),
-            orchestrator_socket_timeout_cap_sec(),
+            self.socket_timeout_cap_sec(),
         )
         try:
             result = self._request("page/openAppRoute", params)
@@ -498,7 +538,7 @@ class BrowserOrchestratorClient:
                 cdp_sec = _parallel_scaled_evaluate_timeout_sec(bounded)
             self._timeout_sec = min(
                 max(prior_timeout, cdp_sec + _ORCHESTRATOR_SCHEDULER_GRACE_SEC),
-                orchestrator_socket_timeout_cap_sec(),
+                self.socket_timeout_cap_sec(),
             )
         try:
             payload: dict[str, object] = {
@@ -538,6 +578,14 @@ class BrowserOrchestratorClient:
     def status(self) -> OrchestratorStatus:
         """Get daemon status snapshot (never triggers daemon respawn)."""
         result = self._request("status", {}, allow_daemon_recovery=False)
+        raw_budgets = result.get("operationBudgets")
+        operation_budgets = (
+            dict(raw_budgets) if isinstance(raw_budgets, dict) else {}
+        )
+        self._operation_budget_cache = (
+            time.monotonic(),
+            _socket_cap_from_operation_budgets(operation_budgets),
+        )
         return OrchestratorStatus(
             state=result.get("state", "UNKNOWN"),
             generation=result.get("generation", 0),
@@ -545,6 +593,7 @@ class BrowserOrchestratorClient:
             scheduler=result.get("scheduler", {}),
             recovery=result.get("recovery", {}),
             capabilities=[str(cap) for cap in result.get("capabilities", [])],
+            operationBudgets=operation_budgets,
         )
 
     def set_effective_credits(self, credits: int) -> int:
