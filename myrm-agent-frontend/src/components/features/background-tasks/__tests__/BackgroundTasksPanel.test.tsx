@@ -5,6 +5,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import React from 'react';
 
+vi.mock('date-fns', () => ({
+  formatDistanceToNow: () => '5 minutes ago',
+}));
+
 const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), prefetch: vi.fn() }),
@@ -91,17 +95,22 @@ vi.mock('@/services/backgroundTasksRefresh', () => ({
   subscribeBackgroundTasksChanged: vi.fn(() => () => {}),
 }));
 
-vi.mock('@/services/mediaTasks', () => ({
-  cancelMediaTask: vi.fn(),
-}));
+vi.mock('@/services/mediaTasks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/services/mediaTasks')>();
+  return {
+    ...actual,
+    cancelMediaTask: vi.fn(),
+  };
+});
 
 const mockMediaTasks = [
   {
     task_id: 'media-1',
     task_type: 'image_generate',
     status: 'running',
-    created_at: 1000,
-    updated_at: 1000,
+    progress: 50,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     payload: { prompt: 'A futuristic city skyline', chat_id: 'chat-m1' },
   },
 ];
@@ -158,6 +167,7 @@ describe('BackgroundTasksPanel with Search and Filter', () => {
           status: 'running',
           result_preview: 'Compiling typescript files...',
           job_id: 'job-shell-1',
+          created_at: Math.floor(Date.now() / 1000) - 60,
         },
         {
           task_id: 'agent-task-202',
@@ -165,6 +175,7 @@ describe('BackgroundTasksPanel with Search and Filter', () => {
           prompt: 'Analyze competitor product pricing',
           status: 'running',
           result_preview: 'Extracting pricing table data',
+          created_at: Math.floor(Date.now() / 1000) - 120,
         },
       ],
       registry_ephemeral: false,
@@ -207,17 +218,21 @@ describe('BackgroundTasksPanel with Search and Filter', () => {
     // Type query matching only the shell task
     fireEvent.change(searchInput, { target: { value: 'frontend build' } });
 
-    expect(screen.getByText('Execute project frontend build')).toBeDefined();
-    expect(screen.queryByText('Analyze competitor product pricing')).toBeNull();
-    expect(screen.queryByText('Refactor database models')).toBeNull();
+    await waitFor(() => {
+      expect(screen.getByText('Execute project frontend build')).toBeDefined();
+      expect(screen.queryByText('Analyze competitor product pricing')).toBeNull();
+      expect(screen.queryByText('Refactor database models')).toBeNull();
+    });
 
     // Clear search using the clear button
     const clearButton = screen.getByRole('button', { name: 'Clear search' });
     fireEvent.click(clearButton);
 
-    expect(screen.getByText('Execute project frontend build')).toBeDefined();
-    expect(screen.getByText('Analyze competitor product pricing')).toBeDefined();
-    expect(screen.getByText('Refactor database models')).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText('Execute project frontend build')).toBeDefined();
+      expect(screen.getByText('Analyze competitor product pricing')).toBeDefined();
+      expect(screen.getByText('Refactor database models')).toBeDefined();
+    });
   });
 
   it('shows no-results state when search query matches nothing', async () => {
@@ -235,7 +250,9 @@ describe('BackgroundTasksPanel with Search and Filter', () => {
     const searchInput = screen.getByTestId('background-tasks-search-input');
     fireEvent.change(searchInput, { target: { value: 'nonexistent-query-xyz' } });
 
-    expect(screen.getByText('No matching tasks or goals found')).toBeDefined();
-    expect(screen.queryByText('Execute project frontend build')).toBeNull();
+    await waitFor(() => {
+      expect(screen.getByText('No matching tasks or goals found')).toBeDefined();
+      expect(screen.queryByText('Execute project frontend build')).toBeNull();
+    });
   });
 });

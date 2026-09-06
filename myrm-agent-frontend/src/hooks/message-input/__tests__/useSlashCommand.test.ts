@@ -115,6 +115,30 @@ describe('useSlashCommand', () => {
     expect(chatStoreRef.setInputMessage).toHaveBeenCalledWith('');
   });
 
+  it('accepts the active slash command with Tab key', async () => {
+    const command: SlashCommand = {
+      id: 'cmd:clear',
+      name: 'clear',
+      type: 'command',
+      template: '/clear',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    };
+    commandStoreRef.searchItems.mockReturnValue([command]);
+
+    const input = '/cle';
+    const { result } = renderHook(() => useSlashCommand(input, input.length));
+
+    await act(async () => {
+      result.current.handleKeyDown({
+        key: 'Tab',
+        preventDefault: vi.fn(),
+      } as unknown as React.KeyboardEvent);
+    });
+
+    expect(chatStoreRef.setInputMessage).toHaveBeenCalledWith('/clear');
+  });
+
   it('replaces a command template while preserving surrounding text', async () => {
     const command: SlashCommand = {
       id: 'cmd:write',

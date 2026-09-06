@@ -3436,6 +3436,9 @@
   "mermaidChart": {
     "syntaxError": "Mermaid 문법 오류",
     "syntaxErrorDesc": "Mermaid 차트를 렌더링하지 못했습니다. 문법을 확인하세요.",
+    "renderTimeout": "차트 렌더링 시간 초과",
+    "renderTimeoutDesc": "안전 감시 제한 시간을 초과했습니다. 동시 렌더링 경합 또는 대규모 차트로 인한 문제일 수 있어 안전하게 격리 처리되었습니다.",
+    "retryRender": "다시 렌더링",
     "viewOriginalCode": "원본 코드 보기",
     "waitingContent": "차트 콘텐츠 대기 중...",
     "receiving": "수신 중",
@@ -9416,7 +9419,18 @@
       "sessionRecordingOnFailure": "실패 시",
       "sessionRecordingOnFailureDesc": "작업 실패 시에만 녹화를 유지합니다.",
       "sessionRecordingAlways": "항상",
-      "sessionRecordingAlwaysDesc": "모든 브라우저 세션을 녹화합니다."
+      "sessionRecordingAlwaysDesc": "모든 브라우저 세션을 녹화합니다.",
+      "inheritMaster": "메인 에이전트 설정 상속",
+      "inheritMasterDesc": "일반 어시스턴트의 시스템 프롬프트, 브라우저 정책 및 세션 구성을 자동으로 적용합니다.",
+      "cognitiveTiering": {
+        "title": "인지 두뇌 계층 안내",
+        "fast": "고속 인식 계층 (Fast / Flash Tier)",
+        "fastDesc": "가볍고 민첩함(Qwen-2.5-7B/Flash 등). 데이터 정리 및 알림 분류에 최적.",
+        "standard": "표준 균형 계층 (Balanced / Standard Tier)",
+        "standardDesc": "강력한 워크호스(Qwen-2.5-32B/Pro 등). 다단계 도구 실행과 가성비 양립.",
+        "reasoning": "심층 추론 계층 (Deep Reasoning / Max Tier)",
+        "reasoningDesc": "최고 수준 지능(DeepSeek-R1/Max 등). 복잡한 아키텍처 및 연구 검증에 적합."
+      }
     },
     "save": "저장",
     "saveError": "에이전트 저장에 실패했습니다.",

@@ -44,7 +44,8 @@ _TOOL_PRUNE_CONTRACT_JS = """(async () => {
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="READ",
+    private_reason="process_isolation",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
 )
 @pytest.mark.integration

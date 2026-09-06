@@ -26,6 +26,7 @@ import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { buildMermaidConfig, sanitizeMermaidSvg } from './mermaid-theme';
 import type { MermaidChartProps, LegendItem } from './mermaid-theme';
 import MermaidLegendPanel from './MermaidLegendPanel';
+import { globalMermaidRenderQueue, MermaidRenderTimeoutError } from './mermaidRenderQueue';
 
 const getTouchDistance = (touches: React.TouchList) => {
   const dx = touches[0].clientX - touches[1].clientX;
@@ -51,6 +52,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [isTimeoutError, setIsTimeoutError] = useState(false);
   const [scale, setScale] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -259,6 +261,7 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
 
       setIsRendering(true);
       setShowError(false);
+      setIsTimeoutError(false);
       clearErrorTimeout();
 
       const chartId = id || `mermaid-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
@@ -276,7 +279,8 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
           return;
         }
 
-        const { svg } = await mermaidLib.render(chartId, trimmedChart);
+        // 经由全局串行渲染队列调度，附带 10s 看门狗监控与一次自愈重试
+        const { svg } = await globalMermaidRenderQueue.render(mermaidLib, chartId, trimmedChart, 10_000);
         const sanitizedSvg = sanitizeMermaidSvg(svg);
 
         if (!sanitizedSvg) {
@@ -286,9 +290,13 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
 
         setLastValidSvg(sanitizedSvg);
         setIsStreaming(false);
-      } catch {
+      } catch (err) {
+        if (err instanceof MermaidRenderTimeoutError) {
+          setIsTimeoutError(true);
+        }
         setErrorWithDelay();
         document.getElementById(`d${chartId}`)?.remove();
+        document.getElementById(chartId)?.remove();
       } finally {
         setIsRendering(false);
       }
@@ -540,11 +548,24 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   // 错误状态渲染
   if (showError && chart?.trim()) {
     return (
-      <div className="border border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-700 rounded-xl p-4 my-4">
-        <div className="flex items-center space-x-2">
-          <div className="text-red-600 dark:text-red-400 font-medium">{t('syntaxError')}</div>
+      <div className="border border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-700 rounded-xl p-4 my-4" data-testid="mermaid-error-card">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="text-red-600 dark:text-red-400 font-medium">
+              {isTimeoutError ? t('renderTimeout') : t('syntaxError')}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => debouncedRender(chart)}
+            className="text-xs px-2.5 py-1 rounded-md bg-red-100 hover:bg-red-200 dark:bg-red-950 dark:hover:bg-red-900 text-red-700 dark:text-red-300 font-medium transition-colors"
+          >
+            {t('retryRender')}
+          </button>
         </div>
-        <div className="text-red-600 dark:text-red-400 text-sm mt-1">{t('syntaxErrorDesc')}</div>
+        <div className="text-red-600 dark:text-red-400 text-sm mt-1">
+          {isTimeoutError ? t('renderTimeoutDesc') : t('syntaxErrorDesc')}
+        </div>
         <details className="mt-2">
           <summary className="text-red-600 dark:text-red-400 text-sm cursor-pointer hover:underline">
             {t('viewOriginalCode')}

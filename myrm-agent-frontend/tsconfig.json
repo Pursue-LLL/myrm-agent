@@ -51,7 +51,9 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-isolated-chrome-test_subscription_oauth_seed_status_and_-e1351e8c-45126-01b8a9f2/types/**/*.ts",
-    ".next-isolated-chrome-test_subscription_oauth_seed_status_and_-e1351e8c-45126-01b8a9f2/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_subscription_oauth_seed_status_and_-e1351e8c-45126-01b8a9f2/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_smart_routing_tier_surfaced_in_webu-f9742513-65083-d23eccb4/types/**/*.ts",
+    ".next-isolated-chrome-test_smart_routing_tier_surfaced_in_webu-f9742513-65083-d23eccb4/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

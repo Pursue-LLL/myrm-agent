@@ -52,7 +52,9 @@ def test_subscription_oauth_seed_status_and_disconnect_lifecycle() -> None:
         expected_statuses=frozenset({200, 201, 204, 404}),
     )
 
-    status_before = http_json("GET", f"{api_url}/api/v1/integrations/provider-oauth/status/copilot")
+    status_before = http_json(
+        "GET", f"{api_url}/api/v1/integrations/provider-oauth/status/copilot"
+    )
     assert isinstance(status_before, dict)
     assert status_before.get("data", {}).get("connected") is False
 
@@ -67,7 +69,9 @@ def test_subscription_oauth_seed_status_and_disconnect_lifecycle() -> None:
     assert seed_res.get("data", {}).get("seeded") is True
 
     # 3. 验证 OAuth 状态与可用模型
-    status_after = http_json("GET", f"{api_url}/api/v1/integrations/provider-oauth/status/copilot")
+    status_after = http_json(
+        "GET", f"{api_url}/api/v1/integrations/provider-oauth/status/copilot"
+    )
     assert isinstance(status_after, dict)
     data = status_after.get("data", {})
     assert data.get("connected") is True
@@ -95,6 +99,8 @@ def test_subscription_oauth_seed_status_and_disconnect_lifecycle() -> None:
     assert cleanup_res.get("data", {}).get("cleaned") is True
 
     # 6. 确认状态已恢复断开
-    status_final = http_json("GET", f"{api_url}/api/v1/integrations/provider-oauth/status/copilot")
+    status_final = http_json(
+        "GET", f"{api_url}/api/v1/integrations/provider-oauth/status/copilot"
+    )
     assert isinstance(status_final, dict)
     assert status_final.get("data", {}).get("connected") is False

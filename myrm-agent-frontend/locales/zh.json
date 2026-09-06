@@ -3436,6 +3436,9 @@
   "mermaidChart": {
     "syntaxError": "Mermaid 语法错误",
     "syntaxErrorDesc": "无法渲染 Mermaid 图表，请检查语法。",
+    "renderTimeout": "图表渲染超时",
+    "renderTimeoutDesc": "渲染耗时超过安全上限，可能由于多图并发死锁或图形过于庞大导致，已安全隔离降级。",
+    "retryRender": "重试渲染",
     "viewOriginalCode": "查看原始代码",
     "waitingContent": "等待图表内容...",
     "receiving": "正在接收",
@@ -9416,7 +9419,18 @@
       "sessionRecordingOnFailure": "失败时录制",
       "sessionRecordingOnFailureDesc": "仅在任务失败时保持录制。",
       "sessionRecordingAlways": "始终",
-      "sessionRecordingAlwaysDesc": "录制每次浏览器会话。"
+      "sessionRecordingAlwaysDesc": "录制每次浏览器会话。",
+      "inheritMaster": "继承主智能体配置",
+      "inheritMasterDesc": "自动预填通用助手的系统提示词、浏览器策略与会话规范，免去重复配置。",
+      "cognitiveTiering": {
+        "title": "认知大脑分级推荐",
+        "fast": "极速响应层 (Fast / Flash Tier)",
+        "fastDesc": "轻量敏捷（Qwen-2.5-7B/Flash），适合数据清洗、日常问答与通知过滤。",
+        "standard": "通用标准层 (Balanced / Standard Tier)",
+        "standardDesc": "均衡主力（Qwen-2.5-32B/Pro），兼顾复杂多步编排与高性价比交付。",
+        "reasoning": "深度思考层 (Deep Reasoning / Max Tier)",
+        "reasoningDesc": "逻辑巅峰（DeepSeek-R1/Max/Pro），专门解决疑难代码架构与复杂研报论证。"
+      }
     },
     "save": "保存",
     "saveError": "保存智能体失败。",

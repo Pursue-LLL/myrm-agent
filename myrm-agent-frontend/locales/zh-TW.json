@@ -3436,6 +3436,9 @@
   "mermaidChart": {
     "syntaxError": "Mermaid 語法錯誤",
     "syntaxErrorDesc": "無法渲染 Mermaid 圖表，請檢查語法。",
+    "renderTimeout": "圖表渲染逾時",
+    "renderTimeoutDesc": "渲染耗時超過安全上限，可能由於多圖並發死鎖或圖形過於龐大所致，已安全隔離降級。",
+    "retryRender": "重試渲染",
     "viewOriginalCode": "檢視原始程式碼",
     "waitingContent": "等待圖表內容...",
     "receiving": "正在接收",
@@ -9416,7 +9419,18 @@
       "sessionRecordingOnFailure": "失敗時錄製",
       "sessionRecordingOnFailureDesc": "僅在任務失敗時保持錄製。",
       "sessionRecordingAlways": "始終",
-      "sessionRecordingAlwaysDesc": "錄製每次瀏覽器工作階段。"
+      "sessionRecordingAlwaysDesc": "錄製每次瀏覽器工作階段。",
+      "inheritMaster": "繼承主智慧體設定",
+      "inheritMasterDesc": "自動預填通用助手的系統提示詞、瀏覽器策略與工作階段規範，免去重複設定。",
+      "cognitiveTiering": {
+        "title": "認知大腦分級推薦",
+        "fast": "極速響應層 (Fast / Flash Tier)",
+        "fastDesc": "輕量敏捷（Qwen-2.5-7B/Flash），適合資料清洗、日常問答與通知過濾。",
+        "standard": "通用標準層 (Balanced / Standard Tier)",
+        "standardDesc": "均衡主力（Qwen-2.5-32B/Pro），兼顧複雜多步編排與高性價比交付。",
+        "reasoning": "深度思考層 (Deep Reasoning / Max Tier)",
+        "reasoningDesc": "邏輯巔峰（DeepSeek-R1/Max/Pro），專門解決疑難程式碼架構與複雜研報論證。"
+      }
     },
     "save": "儲存",
     "saveError": "儲存智慧體失敗。",

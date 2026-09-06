@@ -85,6 +85,14 @@ function ensureMonolithLocales() {
 }
 
 function loadCanonicalSchema() {
+  const zhMessages = tryParseJson(resolve(rootDir, 'locales/zh.json'));
+  if (zhMessages !== null) {
+    return {
+      namespaces: Object.keys(zhMessages).filter((key) => key !== 'settings'),
+      settingsSections: Object.keys(zhMessages.settings ?? {}),
+      manifestNamespaces: Object.keys(zhMessages),
+    };
+  }
   const manifest = tryParseJson(manifestPath);
   if (manifest?.namespaces && manifest?.settingsSections) {
     return {
@@ -93,15 +101,7 @@ function loadCanonicalSchema() {
       manifestNamespaces: manifest.namespaces,
     };
   }
-  const zhMessages = tryParseJson(resolve(rootDir, 'locales/zh.json'));
-  if (zhMessages === null) {
-    throw new Error('locales/zh.json is invalid and manifest.json is unavailable');
-  }
-  return {
-    namespaces: Object.keys(zhMessages).filter((key) => key !== 'settings'),
-    settingsSections: Object.keys(zhMessages.settings ?? {}),
-    manifestNamespaces: Object.keys(zhMessages),
-  };
+  throw new Error('locales/zh.json is invalid and manifest.json is unavailable');
 }
 
 function splitLocale(lang, canonicalNamespaces, canonicalSettingsSections) {

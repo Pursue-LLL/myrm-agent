@@ -229,13 +229,11 @@ _TIER_BADGE_JS = """(() => {
   const badge = document.querySelector('[data-testid="routing-tier-badge"]');
   if (badge) {
     const text = (badge.textContent || '').trim();
-    if (/^(Light|Standard|Reasoning|轻量|常规|推理)$/.test(text)) {
-      return { found: true, labels: [text] };
-    }
+    return { found: true, labels: [text] };
   }
   const labels = Array.from(document.querySelectorAll('span,div'))
     .map((el) => (el.textContent || '').trim())
-    .filter((t) => /^(Light|Standard|Reasoning|轻量|常规|推理)$/.test(t));
+    .filter((t) => /^(Light|Standard|Reasoning|Code|Long Document|轻量|常规|推理|代码|长文档)$/.test(t));
   return { found: labels.length > 0, labels: labels.slice(0, 5) };
 })()"""
 
@@ -283,7 +281,13 @@ _HOVER_TOKEN_BTN_JS = """(() => {
   btn.dispatchEvent(new MouseEvent('mouseenter', opts));
   btn.focus();
   btn.click();
-  return { ok: true, aria: btn.getAttribute('aria-label') };
+  return {
+    ok: true,
+    aria: btn.getAttribute('aria-label'),
+    testId: btn.getAttribute('data-testid'),
+    docBadgeCount: document.querySelectorAll('[data-testid="routing-tier-badge"]').length,
+    docTooltipCount: document.querySelectorAll('[data-testid="tooltip-content"]').length,
+  };
 })()"""
 
 

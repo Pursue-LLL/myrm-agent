@@ -3436,6 +3436,9 @@
   "mermaidChart": {
     "syntaxError": "Mermaid Syntax Error",
     "syntaxErrorDesc": "Failed to render the Mermaid chart. Please check the syntax.",
+    "renderTimeout": "Chart Rendering Timed Out",
+    "renderTimeoutDesc": "Rendering exceeded safety timeout watchdog, likely due to concurrent DOM contention or oversized graph. Safely isolated with fallback.",
+    "retryRender": "Retry Render",
     "viewOriginalCode": "View original code",
     "waitingContent": "Waiting for chart content...",
     "receiving": "Receiving",
@@ -9416,7 +9419,18 @@
       "sessionRecordingOnFailure": "On Failure",
       "sessionRecordingOnFailureDesc": "Keep recording only when task fails.",
       "sessionRecordingAlways": "Always",
-      "sessionRecordingAlwaysDesc": "Record every browser session."
+      "sessionRecordingAlwaysDesc": "Record every browser session.",
+      "inheritMaster": "Inherit Master Agent Configuration",
+      "inheritMasterDesc": "Pre-fills system instructions, browser policies, and session configurations from the General Assistant.",
+      "cognitiveTiering": {
+        "title": "Cognitive Brain Tiering Guidance",
+        "fast": "Fast Perception Layer (Fast / Flash Tier)",
+        "fastDesc": "Lightweight & responsive (e.g. Qwen-2.5-7B / Flash). Ideal for triage, cleanup, and Q&A.",
+        "standard": "Standard Balanced Layer (Balanced / Standard Tier)",
+        "standardDesc": "Robust workhorse (e.g. Qwen-2.5-32B / Pro). Ideal for multi-step tool execution.",
+        "reasoning": "Deep Reasoning Layer (Deep Reasoning / Max Tier)",
+        "reasoningDesc": "Top-tier intelligence (e.g. DeepSeek-R1 / Max). Ideal for architectural code review & deep research."
+      }
     },
     "save": "Save",
     "saveError": "Failed to save agent.",

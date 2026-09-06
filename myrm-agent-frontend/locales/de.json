@@ -3436,6 +3436,9 @@
   "mermaidChart": {
     "syntaxError": "Mermaid-Syntaxfehler",
     "syntaxErrorDesc": "Das Mermaid-Diagramm konnte nicht gerendert werden. Bitte Syntax prüfen.",
+    "renderTimeout": "Diagramm-Rendering-Zeitüberschreitung",
+    "renderTimeoutDesc": "Das Rendern hat das Sicherheits-Timeout überschritten. Möglicherweise liegt ein Konflikt oder ein übergroßer Graph vor. Sicher isoliert mit Fallback.",
+    "retryRender": "Erneut rendern",
     "viewOriginalCode": "Originalcode anzeigen",
     "waitingContent": "Warten auf Diagramminhalt...",
     "receiving": "Empfangen",
@@ -9416,7 +9419,18 @@
       "sessionRecordingOnFailure": "Bei Fehler",
       "sessionRecordingOnFailureDesc": "Nur bei Aufgabenfehler weiter aufzeichnen.",
       "sessionRecordingAlways": "Immer",
-      "sessionRecordingAlwaysDesc": "Zeichnet jede Browser-Sitzung auf."
+      "sessionRecordingAlwaysDesc": "Zeichnet jede Browser-Sitzung auf.",
+      "inheritMaster": "Haupt-Agent-Konfiguration erben",
+      "inheritMasterDesc": "Übernimmt System-Prompts, Browser-Richtlinien und Sitzungskonfigurationen automatisch vom Standard-Assistenten.",
+      "cognitiveTiering": {
+        "title": "Kognitive Gehirn-Ebenen-Empfehlung",
+        "fast": "Schnelle Wahrnehmungsebene (Fast / Flash Tier)",
+        "fastDesc": "Leichtgewichtig & agil (z. B. Qwen-2.5-7B / Flash). Ideal für Datenbereinigung und Benachrichtigungen.",
+        "standard": "Standard-Balance-Ebene (Balanced / Standard Tier)",
+        "standardDesc": "Robuster Allrounder (z. B. Qwen-2.5-32B / Pro). Ausgewogene Werkzeugausführung und Kosteneffizienz.",
+        "reasoning": "Tiefen-Schlussfolgerungsebene (Deep Reasoning / Max Tier)",
+        "reasoningDesc": "Spitzenintelligenz (z. B. DeepSeek-R1 / Max). Ideal für Architektur-Code-Reviews und komplexe Recherchen."
+      }
     },
     "save": "Speichern",
     "saveError": "Agent konnte nicht gespeichert werden.",

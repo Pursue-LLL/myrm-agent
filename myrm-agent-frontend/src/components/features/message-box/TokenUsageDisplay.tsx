@@ -377,25 +377,47 @@ export default function TokenUsageDisplay({
 
   return (
     <TooltipProvider delayDuration={100}>
-      <Tooltip open={tooltipOpen} onOpenChange={setTooltipOpen}>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            data-testid="token-usage-display"
-            onClick={() => setTooltipOpen(true)}
-            className="inline-flex items-center gap-1 px-2 py-1 text-black/70 dark:text-white/70 rounded-xl hover:bg-light-secondary dark:hover:bg-dark-secondary active:scale-95 transition duration-200 hover:text-black dark:hover:text-white"
-            aria-label={
-              contextBudget
-                ? `${contextBudget.usage_percent.toFixed(1)}% ${t('contextUsed')}`
-                : `${formatTokens(usage.total_tokens)} tokens`
-            }
-          >
-            {contextBudget ? <ContextRing budget={contextBudget} /> : <CoinsIcon className="w-4 h-4" />}
-            <span className="text-xs font-medium tabular-nums">
-              {contextBudget ? `${Math.round(contextBudget.usage_percent)}%` : formatTokens(usage.total_tokens)}
+        <Tooltip open={tooltipOpen} onOpenChange={setTooltipOpen}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              data-testid="token-usage-display"
+              onClick={(e) => {
+                e.preventDefault();
+                setTooltipOpen(true);
+              }}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                setTooltipOpen(true);
+              }}
+              className="inline-flex items-center gap-1 px-2 py-1 text-black/70 dark:text-white/70 rounded-xl hover:bg-light-secondary dark:hover:bg-dark-secondary active:scale-95 transition duration-200 hover:text-black dark:hover:text-white"
+              aria-label={
+                contextBudget
+                  ? `${contextBudget.usage_percent.toFixed(1)}% ${t('contextUsed')}`
+                  : `${formatTokens(usage.total_tokens)} tokens`
+              }
+            >
+              {contextBudget ? <ContextRing budget={contextBudget} /> : <CoinsIcon className="w-4 h-4" />}
+              <span className="text-xs font-medium tabular-nums">
+                {contextBudget ? `${Math.round(contextBudget.usage_percent)}%` : formatTokens(usage.total_tokens)}
+              </span>
+            </button>
+          </TooltipTrigger>
+          {routingTier && (
+            <span data-testid="routing-tier-badge" className="sr-only">
+              {t(
+                routingTier === 'simple'
+                  ? 'routingSimple'
+                  : routingTier === 'reasoning'
+                    ? 'routingReasoning'
+                    : routingTier === 'code'
+                      ? 'routingCode'
+                      : routingTier === 'long_doc'
+                        ? 'routingLongDoc'
+                        : 'routingStandard',
+              )}
             </span>
-          </button>
-        </TooltipTrigger>
+          )}
         <TooltipContent side="top" className="p-0 overflow-hidden !bg-white dark:!bg-gray-900 border shadow-lg">
           <div className="min-w-[220px]">
             {/* 标题栏 */}

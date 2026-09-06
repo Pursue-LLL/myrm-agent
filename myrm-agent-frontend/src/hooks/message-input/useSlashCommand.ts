@@ -231,6 +231,7 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
           setSelectedIndex((prev) => (prev === 0 ? filteredItems.length - 1 : prev - 1));
           break;
 
+        case 'Tab':
         case 'Enter':
           if (shouldShow && filteredItems.length > 0) {
             e.preventDefault();

@@ -3436,6 +3436,9 @@
   "mermaidChart": {
     "syntaxError": "Mermaid 構文エラー",
     "syntaxErrorDesc": "Mermaid チャートをレンダリングできませんでした。構文を確認してください。",
+    "renderTimeout": "チャート描画タイムアウト",
+    "renderTimeoutDesc": "安全監視タイムアウトを超過しました。DOM競合または大規模グラフが原因の可能性があります。安全に隔離フォールバックしました。",
+    "retryRender": "再描画",
     "viewOriginalCode": "元のコードを表示",
     "waitingContent": "チャートコンテンツを待機中...",
     "receiving": "中受信",
@@ -9416,7 +9419,18 @@
       "sessionRecordingOnFailure": "失敗時",
       "sessionRecordingOnFailureDesc": "タスク失敗時のみ録画を続けます。",
       "sessionRecordingAlways": "常時",
-      "sessionRecordingAlwaysDesc": "すべてのブラウザセッションを録画します。"
+      "sessionRecordingAlwaysDesc": "すべてのブラウザセッションを録画します。",
+      "inheritMaster": "メインエージェント設定を継承",
+      "inheritMasterDesc": "汎用アシスタントからプロンプト、ブラウザポリシー、セッション仕様を自動設定します。",
+      "cognitiveTiering": {
+        "title": "認知頭脳階層ガイダンス",
+        "fast": "高速認識レイヤー (Fast / Flash Tier)",
+        "fastDesc": "軽量かつ機敏（Qwen-2.5-7B/Flashなど）。データ整理や通知トリアージに最適。",
+        "standard": "標準均衡レイヤー (Balanced / Standard Tier)",
+        "standardDesc": "万能な主力（Qwen-2.5-32B/Proなど）。複数ステップのツール実行と高コスパを両立。",
+        "reasoning": "深層推論レイヤー (Deep Reasoning / Max Tier)",
+        "reasoningDesc": "最高峰の推論（DeepSeek-R1/Maxなど）。アーキテクチャ設計や難解な検証に最適。"
+      }
     },
     "save": "保存",
     "saveError": "エージェントの保存に失敗しました。",
