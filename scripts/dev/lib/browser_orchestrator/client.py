@@ -187,8 +187,6 @@ def orchestrator_open_tx_wall_sec() -> float:
         SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC,
     )
 
-    if os.environ.get("E2E_SIGNOFF", "").strip().lower() in _SIGNOFF_TRUTHY:
-        return float(SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC)
     raw_ms = os.environ.get("BROWSER_ORCHESTRATOR_OPEN_TX_WALL_MS", "").strip()
     if raw_ms:
         try:
@@ -197,14 +195,8 @@ def orchestrator_open_tx_wall_sec() -> float:
             parsed_ms = 0
         if parsed_ms > 0:
             return float(parsed_ms) / 1000.0
-    raw_sec = os.environ.get("BROWSER_ORCHESTRATOR_OPEN_TX_WALL_SEC", "").strip()
-    if raw_sec:
-        try:
-            parsed_sec = float(raw_sec)
-        except ValueError:
-            parsed_sec = 0.0
-        if parsed_sec > 0:
-            return parsed_sec
+    if os.environ.get("E2E_SIGNOFF", "").strip().lower() in _SIGNOFF_TRUTHY:
+        return float(SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC)
     return float(DEV_OPEN_PAGE_TRANSACTION_WALL_SEC)
 
 
@@ -268,6 +260,7 @@ def _default_socket_path() -> str:
 _SOCKET_PATH = os.environ.get("BROWSER_ORCHESTRATOR_SOCKET", _default_socket_path())
 _REQUEST_TIMEOUT_SEC = 30.0
 _CONNECT_TIMEOUT_SEC = 5.0
+_MAX_SOCKET_MESSAGE_BYTES = 1_048_576
 
 
 class SessionResult(TypedDict):
@@ -734,6 +727,8 @@ class BrowserOrchestratorClient:
                     "Browser Orchestrator connection closed before response"
                 )
             buf += chunk
+            if len(buf) > _MAX_SOCKET_MESSAGE_BYTES:
+                raise RuntimeError("Browser Orchestrator response too large")
             nl = buf.find(b"\n")
             if nl >= 0:
                 line = buf[:nl].decode()
