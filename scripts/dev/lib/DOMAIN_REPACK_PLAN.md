@@ -4,6 +4,8 @@
 > **Test SSOT**: monorepo `open-perplexity/scripts/dev/tests/` only（`myrm-agent/scripts/dev/tests/` 已合并删除 · `conftest.py` 注入 `DEV_LIB`）.
 > Goal: zero behavior change; improve navigability; prevent import/drift regressions.
 
+当前浏览器数据面边界：`browser_orchestrator/` 是 formal Chrome E2E 的唯一 CDP 调度入口；`mux/` 与 `chrome_mcp/` 仅作为适配、诊断和兼容域，不能重新成为并发数据面。并发预算、lease、ownership 和 observed cleanup 的 SSOT 见 `browser_orchestrator/` 与 `chrome_e2e/_ARCH.md`。
+
 ## Principles
 
 1. **Shim-first**: every moved module keeps a thin re-export file at its old flat path until Phase 4.
@@ -20,8 +22,8 @@ dev/lib/
 ├── DOMAIN_REPACK_PLAN.md         # this file
 ├── dev_gate/                   # coordinator, store, session, private credit
 ├── cdp_chat/                   # chat UI automation + turn contracts
-├── mux/                        # mux transport, supervisor, probes
-├── chrome_mcp/                 # MCP JSON-RPC client + protocol
+├── mux/                        # 诊断/兼容 transport, supervisor, probes
+├── chrome_mcp/                 # formal MCP 适配层 + protocol
 ├── browser_orchestrator/       # orchestrator daemon client + page lifecycle
 ├── e2e_core/                   # e2e_* + stack/runtime/auth/hygiene SSOT
 ├── chrome_e2e/                 # (existing) gates + mux diagnostic

@@ -12,7 +12,7 @@
 |------|------|------|
 | `setup.sh` / `setup.ps1` | 双平台 | clone 后首次依赖安装：monorepo 自动 editable harness；OSS-only 走 PyPI `uv sync`；`patchright install chromium` + `bun install` + `ensure-next-native-swc.sh` |
 | `dev.sh` / `dev.ps1` | 双平台 | 仅后端 :8080 |
-| `start.sh` | Unix | 委托 `dev-stack ensure`（:8080 + :3000 idempotent；frontend 冷编译最长 120s）；`chrome-devtools-mcp` 进程 >1 时 stderr WARN |
+| `start.sh` | Unix | 委托 `dev-stack ensure`（:8080 + :3000 idempotent；frontend 冷编译最长 120s）；不启动 Browser Orchestrator 或诊断 mux |
 | `start.ps1` | Windows | 后端 :8080 + 前端 `bun run dev` :3000（无 LISTEN 编译等待 / MCP WARN；见 `start.sh` Unix 行为） |
 | `run_server.sh` / `run_server.ps1` | 双平台 | 低层后端启动（`myrm start` 内部使用） |
 | `instinct-inbox-seed.py` | 双平台 | Instinct Inbox mock 数据 seed（HTTP 或 `--direct`） |
@@ -20,6 +20,7 @@
 | `stack-supervisor.sh` | Unix | Dev 栈守护进程启动器 + RPC 客户端入口；wave pin 期间 shared API 宕机时 watchdog **backend-only ensure**（30s 冷却，与 full ensure 300s 独立）；见 [stack_supervisor/_ARCH.md](stack_supervisor/_ARCH.md) |
 | `ensure-next-native-swc.sh` | Unix | 缺平台 `@next/swc-*` 时 `bun install --no-save`（防 WASM 慢编译）；setup 与 dev-stack 双路径 |
 | `ensure-myrm-chrome-e2e.sh` | Unix | 拉起/验证 Myrm 专用 E2E Chrome（`:9333`，零 Allow）；macOS 默认 `open -gj` + `about:blank` 后台冷启；AOS 最小化；`MYRM_CHROME_E2E_FOREGROUND=1` 恢复前台 |
+| `ensure-browser-orchestrator.sh` | Unix | 启动/复用单一 Browser Orchestrator daemon；单实例、CDP 健康检查和 build 收敛；正式 E2E 的唯一浏览器数据面 |
 | `prune-myrm-chrome-e2e-blank-tabs.sh` | Unix | 调用 `infra_browser_registry.py --prune`；仅 exact targetId + 死亡 owner |
 | `myrm-chrome-e2e-lib.sh` | Unix | E2E Chrome 薄 re-export → `chrome-e2e/{runtime,focus,lifecycle}.sh` |
 | `chrome-e2e/` | Unix | **AOS SSOT**：`surface.py`（Agent Window）、`focus.sh`（macOS FALLBACK）、`cli.sh`、`hil.py` |
@@ -36,7 +37,7 @@
 | `wave-e2e-lease.sh` | Unix | `./myrm test -m chrome_e2e` LIVE_AGENT/READ 租约；最后一个 lease 释放时原子关闭 Wave |
 | `wave.sh` | Unix | Wave orchestrator CLI 入口（open/close/status、lease acquire/release、STACK_WRITE gate）；委托 `python -m wave_orchestrator.cli`；被 monorepo `scripts/dev/ready.sh` 与 `scripts/dev/isolated_runtime/reaper.py`（reaper.py:102 直调）、本仓 `lib/e2e_core/stack_mutation_policy.py` / `lib/chrome_e2e/gates/lease_gate.py` 调用 |
 | `wave_orchestrator/` | Unix | Immutable test wave + READ lease + reset 门禁；见 [wave_orchestrator/_ARCH.md](wave_orchestrator/_ARCH.md) |
-| `chrome-e2e-preflight.sh` | Unix | 首 Agent 完整 reconcile/client_hot；attach 聚合快照；private backend 路径 `_wait_shared_ui_reachable`（默认 180s）；`MYRM_PRIVATE_BACKEND=1` 时 attach 阶段**仅**等待 `api=` 错误（shared UI 只等一次）；**mux timeout SSOT** `CDMCP_MUX_REQUEST_TIMEOUT_MS` 默认 **180000**；attach `_heal_mux_request_timeout_drift`：active Wave leases>0 时 **禁止 mux restart**、探活 timeout=`min(8+leases×3,45)s` + 3 轮退避、daemon 存活则 WARN 继续；否则 stamp 漂移时重启 daemon；`mux_responsive_probe.py --probe-timeout-sec`；输出 `CHROME_E2E_HEALTH_JSON` |
+| `chrome-e2e-preflight.sh` | Unix | 首 Agent 完整 reconcile/client_hot；检查服务、专用 Chrome :9333、CDP 和 Browser Orchestrator；formal E2E 使用 `ensure-browser-orchestrator.sh` 单实例 daemon，输出 `CHROME_E2E_HEALTH_JSON`；诊断 mux 只在 `MYRM_CHROME_MCP_DIAGNOSTIC=1` 下显式使用 |
 | `chrome-e2e-model-seed.mjs` | Bun | 新对话 UI E2E 前置：无 defaultModel 时从 `.env.test` 写入 providers |
 | `chrome-e2e-seed-providers.mjs` | Bun | seed 逻辑模块（local 模式免 WebUI 登录；已有 default 时幂等 reconcile `BASIC_MODEL` + `LITE_MODEL` provider catalog、`liteModel.primary` 与 **`apiUrl`/`apiKey`/`name`**，避免复用私池数据库后缺少 openai-like provider 或仍指向旧 gateway） |
 | `wave-resource-lease.sh` | Unix | `./myrm` E2E 脚本 RESOURCE_WRITE/GLOBAL_WRITE 租约 + release 自动 ledger 清理 |
@@ -48,27 +49,27 @@
 | `lib/dev_state_paths.sh` | Unix | pid/log 路径 SSOT + 子目录回退读取；见 [lib/_ARCH.md](lib/_ARCH.md) |
 | `lib/` | Unix | 开发子脚本库目录，见 [lib/_ARCH.md](lib/_ARCH.md) |
 
-## WebUI E2E（MCP chrome-devtools + Myrm E2E Chrome :9333）
+## WebUI E2E（Browser Orchestrator + Myrm E2E Chrome :9333）
 
-产品 WebUI 端到端 UI 验收使用 **MCP chrome-devtools** + **Myrm 专用 E2E Profile**（`./myrm ready --chrome` 自动拉起，**零 Allow**），禁止 `@playwright/test`、pytest 无头浏览器，禁止 autoConnect 主 Chrome / `MyrmChromeMcp`。
+产品 WebUI 端到端 UI 验收使用 **Browser Orchestrator daemon** + **Myrm 专用 E2E Profile**（`./myrm ready --chrome` 自动拉起，**零 Allow**），禁止 `@playwright/test`、pytest 无头浏览器，禁止 autoConnect 主 Chrome / `MyrmChromeMcp`。Cursor MCP 的 :9410 ChromeAgent 只服务日常 Agent 浏览器，不承载 formal E2E。
 
 | 脚本 | 职责 |
 |------|------|
 | `ensure-myrm-chrome-e2e.sh` | 专用 Chrome `--remote-debugging-port=9333`；macOS `open -gj` 后台冷启；`MYRM_CHROME_E2E_FOREGROUND=1` 恢复前台；首次人工登录一次后持久化 |
 | `subagent-dashboard-e2e-prepare.mjs` | 登录 API、seed provider/YOLO、创建 chat、agent-stream delegate → JSON |
-| `chrome-e2e-preflight.sh` | 服务健康 + E2E Chrome + mux daemon + CDP WS → `CHROME_E2E_READY` |
+| `chrome-e2e-preflight.sh` | 服务健康 + E2E Chrome + Browser Orchestrator daemon + CDP WS → `CHROME_E2E_READY` |
 
 **Chrome E2E 稳定性清单**
 
 1. **`./myrm ready --chrome`** 为 SSOT；禁止手连主 Chrome autoConnect（会弹 Allow）
-2. **mux 模式**：多 Agent / 多 Cursor 客户端可并行 UI E2E（`cdmcp-mux-autoconnect`）；vanilla 多进程仍会死锁 → `scripts/dev/enable-chrome-devtools-mcp.sh`
+2. **Browser Orchestrator 模式**：多 Agent / 多 Cursor 客户端通过单一 daemon 并行 UI E2E；旧 mux 只用于显式诊断，不得作为 formal 默认路径
 3. **禁止 `list_pages` / `select_page` 探活**（无 timeout，曾挂起 30min+）；探活只读 `CHROME_E2E_HEALTH_JSON.clientHot`
 4. MCP：**单步** `new_page(url=$E2E_UI_BASE/…, timeout=15000, background=true)` 开自有 tab → 同次取 **pageId + exact targetId**；`background=true` 避免抢 macOS 前台；`navigate_page` 默认 **15s**；测完 **`close_page`**
 5. **tab 卫生（BTL）**：Wave lease 绑定 exact targetId；bind 替换前先 HTTP close 旧 target；`close_page` MCP 失败走 HTTP 兜底；warmup 登记 `infra-browser-targets.json`；`wave reap`（`test.sh` bootstrap + supervisor）+ 非 attach preflight prune；AOS 用 `chrome-e2e-agent-window.json`；禁止 URL/blank 数量推断
 6. **集成测试进程纪律**：并行 Agent **`./myrm ready --attach --chrome`**；栈 **`dev-stack ensure`**；**禁止** Agent shell `bun run dev &`；不需 frontend 时 **`cd myrm-agent-frontend && bun run cleanup`**（8h pause）；E2E 需 UI 时先 **`dev-stack.sh frontend-only clear-pause`**
 7. **runtimeId + Wave + Stack Pin**：`CHROME_E2E_HEALTH_JSON.runtimeId` — `wave open` 冻结并钉死栈 → `lease acquire READ` → 断言前 `./myrm runtime-drift --expect <id>`；open wave 或持 lease 时 `ensure/reset/restart` 机械拒绝；并行 Agent 仅 `--attach --chrome`
 8. **client_hot + infra browser registry**：`ready --chrome` 用短生命周期 exact target 预热 client chunk，hydrate 后立即关闭并注销到 `infra-browser-targets.json`；`./myrm doctor --chrome` 输出 Tab Hygiene；mux 按 client 隔离 page ownership；改码后 UI 测 **`./myrm restart --chrome`** 开新 wave
-9. **CDP 单写者**：项目内 pytest/bun raw `/json/new` 永久拒绝（`CDP_WRITE_DENIED`）；仅 supervisor client warmup 使用 `MYRM_CDP_WARMUP=1`，正式 UI E2E 只能经 mux MCP；外部 Playwright/raw CDP 属明确禁止项
+9. **CDP 单写者**：项目内 pytest/bun raw `/json/new` 永久拒绝（`CDP_WRITE_DENIED`）；仅 supervisor client warmup 使用 `MYRM_CDP_WARMUP=1`，正式 UI E2E 只能经 Browser Orchestrator；外部 Playwright/raw CDP 属明确禁止项
 10. **API 端口 SSOT（禁止硬编码 :8080）**：attach / private backend 时 API 端口可能非 8080。集成断言与 curl **必须**先用 `./myrm ready --attach --chrome` 输出中的 `CHROME_E2E_HEALTH_JSON.api`（或 MCP `list_network_requests` 里 UI 实际请求的 host:port）。禁止裸 `curl :8080` 推断后端版本或 bind 行为；跟 UI 网络请求走即与联调栈一致
 
 **MCP 配置（Cursor）**：本仓无 mux 安装脚本；维护者 monorepo 见上层 `scripts/dev/CHROME_MCP_E2E.md` 与 `mcp-chrome-devtools.server.json`。OSS 贡献者仅需 `chrome-e2e-preflight.sh` + `ensure-myrm-chrome-e2e.sh`。
