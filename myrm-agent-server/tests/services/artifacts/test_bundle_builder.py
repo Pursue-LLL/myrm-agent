@@ -78,3 +78,46 @@ def test_build_zip_deliverable_bundle(tmp_path):
 
         manifest_data = json.loads(zf.read("manifest.json").decode("utf-8"))
         assert len(manifest_data["items"]) == 1
+
+
+def test_build_zip_deliverable_bundle_dual_source_sandbox_fallback(tmp_path):
+    vault_root = tmp_path / "vault_root"
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir(parents=True, exist_ok=True)
+    vault = ArtifactVault(str(vault_root))
+
+    # Artifact without vault object, but physically generated in workspace sandbox
+    sandbox_file = workspace_root / "07_code_and_scripts" / "run_script.py"
+    sandbox_file.parent.mkdir(parents=True, exist_ok=True)
+    sandbox_file.write_text("print('hello sandbox')", encoding="utf-8")
+
+    manifest = DeliverableManifest(
+        title="双源容错交付包",
+        description="测试沙箱实体回退",
+        fact_check_sheet_uri="vault://fcs_12345",
+        evidence_sources=["vault://raw_source_1.pdf"],
+        items=[
+            DeliverableItem(
+                id="art-sandbox",
+                filename="run_script.py",
+                relative_path="07_code_and_scripts/run_script.py",
+                category=DeliverableCategory.CODE,
+                description="沙箱中执行生成的脚本",
+            )
+        ],
+    )
+
+    buf = build_zip_deliverable_bundle([], vault, manifest=manifest, workspace_root=workspace_root)
+    assert isinstance(buf, io.BytesIO)
+
+    with zipfile.ZipFile(buf, "r") as zf:
+        namelist = zf.namelist()
+        assert "manifest.json" in namelist
+        assert "README.md" in namelist
+        assert "07_code_and_scripts/run_script.py" in namelist
+        assert zf.read("07_code_and_scripts/run_script.py").decode("utf-8") == "print('hello sandbox')"
+
+        manifest_data = json.loads(zf.read("manifest.json").decode("utf-8"))
+        assert manifest_data["fact_check_sheet_uri"] == "vault://fcs_12345"
+        assert manifest_data["evidence_sources"] == ["vault://raw_source_1.pdf"]
+

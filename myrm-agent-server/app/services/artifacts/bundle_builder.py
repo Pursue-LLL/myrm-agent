@@ -24,6 +24,7 @@ import logging
 import os
 import re
 import zipfile
+from pathlib import Path
 from typing import Sequence
 
 from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
@@ -106,6 +107,7 @@ def build_zip_deliverable_bundle(
     artifacts: Sequence[Artifact],
     vault: ArtifactVault,
     manifest: DeliverableManifest | None = None,
+    workspace_root: str | Path | None = None,
 ) -> io.BytesIO:
     """Package artifacts into a structured ZIP stream based on manifest or inferred categorization."""
     buf = io.BytesIO()
@@ -139,36 +141,62 @@ def build_zip_deliverable_bundle(
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         used_entry_paths: set[str] = set()
 
-        # 1. Write artifact files into categorized subfolders
+        # 1. Write artifact files into categorized subfolders (supports dual-source: Vault URI or sandbox disk)
         artifact_map = {a.id: a for a in artifacts}
+        ws_path = Path(workspace_root).resolve() if workspace_root else None
+
         for item in manifest.items:
             artifact = artifact_map.get(item.id)
-            if not artifact or not artifact.versions:
-                continue
-            latest = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
-            try:
+            latest = None
+            if artifact and artifact.versions:
+                latest = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
+
+            obj_path: Path | None = None
+            # 1.1 Check vault uri first
+            if latest and latest.vault_uri:
                 obj_id = latest.vault_uri.removeprefix("vault://")
-                obj_path = vault.get_object_path(obj_id)
-                if obj_path.exists():
-                    rel_dir, _, filename = item.relative_path.rpartition("/")
-                    safe_folder = (
-                        sanitize_path_segment(rel_dir)
-                        if rel_dir
-                        else CATEGORY_DIRECTORY_MAPPING.get(item.category, "08_misc_deliverables")
-                    )
-                    safe_filename = sanitize_path_segment(filename or item.filename)
-                    entry_path = f"{safe_folder}/{safe_filename}" if safe_folder else safe_filename
+                cand_path = vault.get_object_path(obj_id)
+                if cand_path.exists():
+                    obj_path = cand_path
+            elif item.vault_uri:
+                obj_id = item.vault_uri.removeprefix("vault://")
+                cand_path = vault.get_object_path(obj_id)
+                if cand_path.exists():
+                    obj_path = cand_path
 
-                    # Handle duplicate path collision safely
-                    if entry_path in used_entry_paths:
-                        stem, ext = os.path.splitext(safe_filename)
-                        entry_path = f"{safe_folder}/{stem}_{item.id[:6]}{ext}"
+            # 1.2 Fallback to workspace sandbox physical file if not found in vault
+            if (not obj_path or not obj_path.exists()) and ws_path:
+                for candidate_rel in (item.relative_path, item.filename, f"artifacts/{item.filename}"):
+                    if candidate_rel:
+                        cand_disk = (ws_path / candidate_rel).resolve()
+                        if cand_disk.is_relative_to(ws_path) and cand_disk.is_file():
+                            obj_path = cand_disk
+                            break
 
-                    used_entry_paths.add(entry_path)
-                    zf.write(obj_path, entry_path)
-                    item.relative_path = entry_path
-                    if latest.sha256_hash:
-                        item.sha256_hash = latest.sha256_hash
+            if not obj_path or not obj_path.exists():
+                logger.warning("Artifact source file not found for %s (%s)", item.id, item.filename)
+                continue
+
+            try:
+                rel_dir, _, filename = item.relative_path.rpartition("/")
+                safe_folder = (
+                    sanitize_path_segment(rel_dir)
+                    if rel_dir
+                    else CATEGORY_DIRECTORY_MAPPING.get(item.category, "08_misc_deliverables")
+                )
+                safe_filename = sanitize_path_segment(filename or item.filename)
+                entry_path = f"{safe_folder}/{safe_filename}" if safe_folder else safe_filename
+
+                # Handle duplicate path collision safely
+                if entry_path in used_entry_paths:
+                    stem, ext = os.path.splitext(safe_filename)
+                    entry_path = f"{safe_folder}/{stem}_{item.id[:6]}{ext}"
+
+                used_entry_paths.add(entry_path)
+                zf.write(obj_path, entry_path)
+                item.relative_path = entry_path
+                if latest and latest.sha256_hash:
+                    item.sha256_hash = latest.sha256_hash
             except Exception as exc:
                 logger.warning("Failed to write artifact %s to bundle: %s", item.id, exc)
 
