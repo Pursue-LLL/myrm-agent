@@ -277,12 +277,7 @@ def _wait_stub_tabs_visible(api_url: str, *, timeout_sec: float = 20.0) -> dict[
     raise TimeoutError("Extension stub tabs not visible in /extension/status")
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    access_scope="GLOBAL_WRITE",
-    workload="STANDARD",
-    private_reason="global_write_non_namespace",
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_extension_bridge_settings_relay_contract_in_real_ui() -> None:
