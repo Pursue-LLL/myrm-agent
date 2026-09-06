@@ -121,7 +121,9 @@ _CLEAR_BANNER_DISMISS_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+)
 @pytest.mark.timeout(300)
 def test_cron_observability_ui_single_session() -> None:
     """Badge + CreateDialog preview + banner rules — one Chrome session."""
@@ -138,7 +140,9 @@ def test_cron_observability_ui_single_session() -> None:
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=10.0)
         dismiss_blocking_modals(client, page)
 
-        settings_banner = wait_for_state(client, page, _BANNER_ABSENT_JS, timeout_sec=30.0)
+        settings_banner = wait_for_state(
+            client, page, _BANNER_ABSENT_JS, timeout_sec=30.0
+        )
         assert settings_banner.get("ready") is True, settings_banner
 
         badge = wait_for_state(client, page, _SCHEDULER_BADGE_JS, timeout_sec=90.0)
@@ -147,7 +151,9 @@ def test_cron_observability_ui_single_session() -> None:
         opened = wait_for_state(client, page, _OPEN_CREATE_DIALOG_JS, timeout_sec=60.0)
         assert opened.get("clicked") is True, opened
 
-        dialog_ready = wait_for_state(client, page, _CREATE_DIALOG_READY_JS, timeout_sec=60.0)
+        dialog_ready = wait_for_state(
+            client, page, _CREATE_DIALOG_READY_JS, timeout_sec=60.0
+        )
         assert dialog_ready.get("ready") is True, dialog_ready
 
         switched = wait_for_state(client, page, _SWITCH_CUSTOM_TAB_JS, timeout_sec=30.0)
