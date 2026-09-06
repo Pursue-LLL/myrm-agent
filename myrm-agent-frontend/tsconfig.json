@@ -53,7 +53,11 @@
     ".next-isolated-chrome-test_subscription_oauth_seed_status_and_-e1351e8c-45126-01b8a9f2/types/**/*.ts",
     ".next-isolated-chrome-test_subscription_oauth_seed_status_and_-e1351e8c-45126-01b8a9f2/dev/types/**/*.ts",
     ".next-isolated-chrome-test_smart_routing_tier_surfaced_in_webu-f9742513-65083-d23eccb4/types/**/*.ts",
-    ".next-isolated-chrome-test_smart_routing_tier_surfaced_in_webu-f9742513-65083-d23eccb4/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_smart_routing_tier_surfaced_in_webu-f9742513-65083-d23eccb4/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_chrome_ui_local_skill_paths_preview-3fb3b6c0-6919-0b20a7d5/types/**/*.ts",
+    ".next-isolated-chrome-test_chrome_ui_local_skill_paths_preview-3fb3b6c0-6919-0b20a7d5/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_subagent_dashboard_chat_textarea_re-6d43047d-59883-ccc99ec0/types/**/*.ts",
+    ".next-isolated-chrome-test_subagent_dashboard_chat_textarea_re-6d43047d-59883-ccc99ec0/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

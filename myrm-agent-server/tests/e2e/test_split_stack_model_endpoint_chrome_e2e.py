@@ -11,7 +11,9 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     http_json,
     open_settings_subroute,
+    prepare_e2e_ui_session,
     wait_for_settings_layout,
+    wait_for_state,
     warm_ui_route,
 )
 
@@ -46,9 +48,9 @@ def test_split_stack_settings_ui_and_discover_api_chrome_e2e() -> None:
     api_url = get_e2e_api_url()
 
     # 1. Warm up Settings UI route and open in real Chrome MCP to verify rendering
-    target_url = f"{api_url.replace(':8080', ':3000')}/settings?tab=models"
-    warm_ui_route("/settings")
-    with open_settings_subroute("/settings?tab=models", timeout_ms=90_000) as (
+    prepare_e2e_ui_session(api_url)
+    target_url = warm_ui_route("/settings/models")
+    with open_settings_subroute("/settings/models", timeout_ms=90_000) as (
         client,
         page,
     ):
@@ -67,10 +69,40 @@ def test_split_stack_settings_ui_and_discover_api_chrome_e2e() -> None:
         assert eval_res.get("ready") is True, f"Settings layout not ready: {eval_res}"
 
         # 3. Check Playbook card presence and full dialog trigger
-        eval_playbook = client.evaluate(
+        wait_for_state(
+            client,
             page,
             """(() => {
               const card = document.querySelector('[data-testid="model-orchestration-playbook-card"]');
+              if (card) {
+                return { ready: true };
+              }
+              const triggers = document.querySelectorAll('[role="tab"]');
+              for (const t of triggers) {
+                if (t.getAttribute('value') === 'default' || (t.textContent || '').includes('默认') || (t.textContent || '').includes('Default')) {
+                  t.click();
+                  break;
+                }
+              }
+              const cardAfter = document.querySelector('[data-testid="model-orchestration-playbook-card"]');
+              return { ready: !!cardAfter };
+            })()""",
+            timeout_sec=30.0,
+        )
+        eval_playbook = client.evaluate(
+            page,
+            """(() => {
+              let card = document.querySelector('[data-testid="model-orchestration-playbook-card"]');
+              if (!card) {
+                const triggers = document.querySelectorAll('[role="tab"]');
+                for (const t of triggers) {
+                  if (t.getAttribute('value') === 'default' || (t.textContent || '').includes('默认') || (t.textContent || '').includes('Default')) {
+                    t.click();
+                    break;
+                  }
+                }
+                card = document.querySelector('[data-testid="model-orchestration-playbook-card"]');
+              }
               const openBtn = document.querySelector('[data-testid="view-full-playbook-button"]');
               if (openBtn) {
                 openBtn.click();

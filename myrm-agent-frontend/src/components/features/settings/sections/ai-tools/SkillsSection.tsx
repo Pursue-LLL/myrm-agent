@@ -718,7 +718,7 @@ const SkillsSection = memo(() => {
             )}
 
             {/* Local paths config (Local/Tauri mode only) */}
-            {isLocal && isLoggedIn && user && (
+            {isLocal && (
               <Collapsible open={localPathsOpen} onOpenChange={setLocalPathsOpen}>
                 <CollapsibleTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-2 mb-2" data-testid="local-skill-paths-trigger">

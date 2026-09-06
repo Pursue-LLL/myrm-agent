@@ -122,11 +122,16 @@ def _type_chat_input_text(
   const proto = window.HTMLTextAreaElement.prototype;
   const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
   if (!setter) return {{ ok: false, err: 'setter-not-found' }};
+  const tracker = el._valueTracker;
+  if (tracker) {{
+    tracker.setValue('');
+  }}
   setter.call(el, {json.dumps(text)});
   const len = el.value.length;
   el.setSelectionRange(len, len);
   el.dispatchEvent(new Event('input', {{ bubbles: true }}));
   el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+  window.__MYRM_E2E_CHAT__?.setInputMessage?.({json.dumps(text)});
   return {{ ok: true, value: el.value }};
 }})()""",
         timeout_sec=10.0,

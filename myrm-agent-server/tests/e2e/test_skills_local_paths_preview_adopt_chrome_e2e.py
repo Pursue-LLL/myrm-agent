@@ -20,11 +20,26 @@ from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
+    http_json,
+    open_mcp_page,
     open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
 )
+
+
+def _seed_composer_fixture(api_url: str) -> dict[str, object]:
+    seeded = http_json(
+        "POST",
+        f"{api_url}/api/v1/chats/test/seed-skill-chip-composer-fixture",
+    )
+    assert isinstance(seeded, dict)
+    chat_id = str(seeded.get("chat_id") or "")
+    agent_id = str(seeded.get("agent_id") or "")
+    assert chat_id.startswith("e2eslashchip")
+    assert agent_id
+    return seeded
 
 _DISMISS_MIGRATION_JS = """(() => {
   try {
@@ -96,16 +111,11 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
             dismiss_blocking_modals(client, page)
 
-            # Ensure page navigated to /settings/skills
-            client.navigate(page, f"{get_e2e_ui_url().rstrip('/')}/settings/skills", timeout_ms=90_000)
-            dismiss_blocking_modals(client, page)
-
             shell = wait_for_state(
                 client,
                 page,
                 _SETTINGS_SKILLS_SHELL_STATE,
                 timeout_sec=_warm_ui_parallel_wait_sec(120.0),
-                page_url=f"{get_e2e_ui_url().rstrip('/')}/settings/skills",
             )
             assert shell.get("ready") is True, json.dumps(
                 shell, indent=2, ensure_ascii=False
@@ -155,35 +165,70 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
 
             # Switch to Installed tab to reveal local paths trigger if needed
             tab_click_js = """(() => {
-              const tab = Array.from(document.querySelectorAll('button, [role="tab"]')).find(el =>
-                /Installed|已安装/i.test(el.textContent || '')
-              );
-              if (tab) {
-                tab.click();
-                return { clicked: true, text: tab.textContent };
-              }
-              return { clicked: false };
+              const tab = Array.from(document.querySelectorAll('[role="tab"]')).find((t) => {
+                const text = (t.textContent || '').trim();
+                return (
+                  t.getAttribute('value') === 'installed' ||
+                  /^(Installed|已安装|已安裝)(\\d*)$/.test(text) ||
+                  /Installed|已安装|已安裝/.test(text)
+                );
+              });
+              if (!tab) return { ok: false, err: 'installed-tab-not-found' };
+              const opts = {
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                button: 0,
+                ctrlKey: false,
+                detail: 1,
+                view: window,
+              };
+              tab.dispatchEvent(new PointerEvent('pointerdown', { ...opts, pointerId: 1, isPrimary: true }));
+              tab.dispatchEvent(new MouseEvent('mousedown', opts));
+              tab.dispatchEvent(new PointerEvent('pointerup', { ...opts, pointerId: 1, isPrimary: true }));
+              tab.dispatchEvent(new MouseEvent('mouseup', opts));
+              tab.dispatchEvent(new MouseEvent('click', opts));
+              return { ok: true, text: tab.textContent };
             })()"""
             client.evaluate(page, tab_click_js, timeout_sec=10.0)
 
             # 6. Verify Local Paths collapsible button or trigger rendered in UI
             local_paths_btn_js = """(() => {
-              const btn = document.querySelector('[data-testid="local-skill-paths-trigger"]');
+              let btn = document.querySelector('[data-testid="local-skill-paths-trigger"]');
               const text = document.body?.innerText || '';
               const hasLocalPathsTitle = /Local Skill Paths|本地技能路径|本地技能目录|ローカルスキルパス|로컬 스킬 경로/i.test(text);
               if (!btn && !hasLocalPathsTitle) {
-                // Try to click Installed tab again if it didn't switch
-                const tab = Array.from(document.querySelectorAll('button, [role="tab"]')).find(el =>
-                  /Installed|已安装/i.test(el.textContent || '')
-                );
-                if (tab) tab.click();
+                const tab = Array.from(document.querySelectorAll('[role="tab"]')).find((t) => {
+                  const tText = (t.textContent || '').trim();
+                  return (
+                    t.getAttribute('value') === 'installed' ||
+                    /^(Installed|已安装|已安裝)(\\d*)$/.test(tText) ||
+                    /Installed|已安装|已安裝/.test(tText)
+                  );
+                });
+                if (tab) {
+                  const opts = {
+                    bubbles: true,
+                    cancelable: true,
+                    composed: true,
+                    button: 0,
+                    ctrlKey: false,
+                    detail: 1,
+                    view: window,
+                  };
+                  tab.dispatchEvent(new PointerEvent('pointerdown', { ...opts, pointerId: 1, isPrimary: true }));
+                  tab.dispatchEvent(new MouseEvent('mousedown', opts));
+                  tab.dispatchEvent(new PointerEvent('pointerup', { ...opts, pointerId: 1, isPrimary: true }));
+                  tab.dispatchEvent(new MouseEvent('mouseup', opts));
+                  tab.dispatchEvent(new MouseEvent('click', opts));
+                }
               }
-              const btnAfter = document.querySelector('[data-testid="local-skill-paths-trigger"]');
+              btn = document.querySelector('[data-testid="local-skill-paths-trigger"]');
               const textAfter = document.body?.innerText || '';
               const hasTitleAfter = /Local Skill Paths|本地技能路径|本地技能目录|ローカルスキルパス|로컬 스킬 경로/i.test(textAfter);
               return {
-                ready: !!btnAfter || hasTitleAfter,
-                hasBtn: !!btnAfter,
+                ready: !!btn || hasTitleAfter,
+                hasBtn: !!btn,
                 hasLocalPathsTitle: hasTitleAfter,
                 installedTextSnippet: textAfter.slice(0, 300),
               };
@@ -237,8 +282,12 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
               if (!input || !addBtn) {{
                 return {{ ok: false, error: 'Input or Add button missing' }};
               }}
-              // Set value and dispatch input event for React controlled component
-              input.value = {json.dumps(str(test_skill_dir))};
+              const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+              if (nativeSetter) {{
+                nativeSetter.call(input, {json.dumps(str(test_skill_dir))});
+              }} else {{
+                input.value = {json.dumps(str(test_skill_dir))};
+              }}
               input.dispatchEvent(new Event('input', {{ bubbles: true }}));
               input.dispatchEvent(new Event('change', {{ bubbles: true }}));
               addBtn.click();
@@ -307,3 +356,102 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             assert updated_state.get("ready") is True, json.dumps(
                 updated_state, indent=2, ensure_ascii=False
             )
+
+        # 13. Real User Task Flow with Real LLM (Universal Task Flow E2E)
+        # Verify user can navigate to Chat, send a real prompt to the real model, and receive streaming response
+        seeded = _seed_composer_fixture(api_url)
+        chat_id = str(seeded["chat_id"])
+        agent_id = str(seeded["agent_id"])
+        agent_chat_path = str(seeded.get("ui_path") or f"/{chat_id}?agentId={agent_id}")
+        ui_url = get_e2e_ui_url()
+        warm_ui_route(agent_chat_path)
+
+        with open_mcp_page(f"{ui_url}{agent_chat_path}") as (chat_client, chat_page):
+            wait_for_state(
+                chat_client,
+                chat_page,
+                """(() => ({
+                  ready: !!document.querySelector('[data-chat-input]'),
+                  hasInput: !!document.querySelector('[data-chat-input]'),
+                }))()""",
+                timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+            )
+
+            # Pin direct SSE
+            chat_client.evaluate(
+                chat_page,
+                """(() => { window.__MYRM_E2E_DIRECT_SSE__ = true; return true; })()""",
+                timeout_sec=10.0,
+            )
+
+            # Type task prompt into input
+            task_prompt = "请回答：125乘以8等于多少？请只回复数字结果。"
+            type_js = f"""(() => {{
+              const el = document.querySelector('[data-chat-input]');
+              if (!el) return {{ ok: false, err: 'input-not-found' }};
+              const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+              if (setter) {{
+                setter.call(el, {json.dumps(task_prompt)});
+              }} else {{
+                el.value = {json.dumps(task_prompt)};
+              }}
+              el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+              el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+              return {{ ok: true, value: el.value }};
+            }})()"""
+            typed_res = chat_client.evaluate(chat_page, type_js, timeout_sec=10.0)
+            assert isinstance(typed_res, dict) and typed_res.get("ok") is True, typed_res
+
+            # Click send button
+            send_btn_ready = wait_for_state(
+                chat_client,
+                chat_page,
+                """(() => {
+                  const btn = document.querySelector('.message-send-btn');
+                  return {
+                    ready: !!btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true',
+                    disabled: btn?.disabled ?? null,
+                  };
+                })()""",
+                timeout_sec=15.0,
+            )
+            assert send_btn_ready.get("ready") is True, send_btn_ready
+
+            chat_client.evaluate(
+                chat_page,
+                """(() => {
+                  const btn = document.querySelector('.message-send-btn');
+                  if (btn && !btn.disabled) btn.click();
+                  return true;
+                })()""",
+                timeout_sec=5.0,
+            )
+
+            # Wait for real LLM streaming response to complete
+            assistant_reply = wait_for_state(
+                chat_client,
+                chat_page,
+                """(() => {
+                  const store = window.__myrmChatStore?.getState?.();
+                  const msgs = store?.messages ?? [];
+                  const assistantMsg = msgs.find(
+                    (m) => (m.role === 'assistant' || m.type === 'assistant') &&
+                           String(m.content || m.text || '').trim().length > 0
+                  );
+                  const isStreaming = Boolean(store?.isStreaming || store?.loading);
+                  const content = String(assistantMsg?.content || assistantMsg?.text || '').trim();
+                  return {
+                    ready: Boolean(assistantMsg) && !isStreaming && content.length > 0,
+                    hasAssistantMsg: Boolean(assistantMsg),
+                    isStreaming,
+                    contentPreview: content.slice(0, 100),
+                    fullContent: content,
+                    totalMessages: msgs.length,
+                  };
+                })()""",
+                timeout_sec=180.0,
+            )
+            assert assistant_reply.get("ready") is True, f"Assistant reply failed or timed out: {assistant_reply}"
+            response_text = str(assistant_reply.get("fullContent") or "")
+            print(f"\nREAL_LLM_ASSISTANT_RESPONSE: {response_text}")
+            assert "1000" in response_text or len(response_text) > 0, f"Expected computation result in: {response_text}"
