@@ -1101,24 +1101,24 @@ def open_orchestrator_mcp_page(
 ) -> Iterator[tuple[OrchestratorChromeClient, OrchestratorMcpPage]]:
     from browser_orchestrator.client import orchestrator_socket_timeout_cap_sec
 
-    effective_timeout = request_timeout_sec
+    # A client read timeout below the daemon's advertised queue/operation
+    # budget turns a legal queued request into an ambiguous transport failure.
+    # Select the local contract floor before the first lifecycle RPC, then
+    # adopt any daemon-specific override once its status is available.
+    contract_floor = orchestrator_socket_timeout_cap_sec()
+    effective_timeout = max(request_timeout_sec, contract_floor)
     parallel_load = _effective_parallel_load()
     if parallel_load >= 2:
         cap = orchestrator_socket_timeout_cap_sec()
-        # Preserve the caller's explicit bound while removing arbitrary
-        # fail-fast caps that can preempt the daemon's documented queue budget.
-        effective_timeout = min(request_timeout_sec, cap)
+        effective_timeout = max(effective_timeout, cap)
     daemon = BrowserOrchestratorClient(
-        timeout_sec=(
-            effective_timeout if parallel_load >= 2 else max(effective_timeout, 90.0)
-        )
+        timeout_sec=effective_timeout,
     )
     wait_wall = float(os.environ.get("MYRM_BROWSER_ORCHESTRATOR_WAIT_SEC", "90"))
     _wait_orchestrator_daemon_ready(daemon, wall_sec=max(20.0, wait_wall))
-    if parallel_load >= 2:
-        advertised = daemon.adopt_operation_budget_timeout()
-        if isinstance(advertised, (int, float)):
-            effective_timeout = max(effective_timeout, float(advertised))
+    advertised = daemon.adopt_operation_budget_timeout()
+    if isinstance(advertised, (int, float)):
+        effective_timeout = max(effective_timeout, float(advertised))
     session_id = _resolve_session_id()
     _ensure_orchestrator_session(daemon, session_id)
     page = OrchestratorMcpPage(page_id=1, target_id="", url=None)
@@ -1339,19 +1339,16 @@ def open_app_route_page(
     resolved_request = (
         request_timeout_sec if request_timeout_sec is not None else ssot_cap
     )
-    # R299-SSOT: under parallel load the client must not abandon before the daemon
-    # queue budget (open_app_route queue wait ≤ DEV_OPEN_PAGE_TRANSACTION_WALL_SEC).
-    if parallel_load >= 2:
-        effective_timeout = max(resolved_request, ssot_cap)
-    else:
-        effective_timeout = resolved_request
+    # R299-SSOT: the client must never abandon before the daemon queue budget
+    # (open_app_route queue wait ≤ DEV_OPEN_PAGE_TRANSACTION_WALL_SEC), even
+    # when a caller supplies a shorter convenience timeout.
+    effective_timeout = max(resolved_request, ssot_cap)
     daemon = BrowserOrchestratorClient(timeout_sec=effective_timeout)
     wait_wall = float(os.environ.get("MYRM_BROWSER_ORCHESTRATOR_WAIT_SEC", "90"))
     _wait_orchestrator_daemon_ready(daemon, wall_sec=max(20.0, wait_wall))
-    if parallel_load >= 2:
-        advertised = daemon.adopt_operation_budget_timeout()
-        if isinstance(advertised, (int, float)):
-            effective_timeout = max(effective_timeout, float(advertised))
+    advertised = daemon.adopt_operation_budget_timeout()
+    if isinstance(advertised, (int, float)):
+        effective_timeout = max(effective_timeout, float(advertised))
     if not daemon.supports_open_app_route():
         raise RuntimeError(
             "BROWSER_ORCHESTRATOR_CAPABILITY_MISSING: page/openAppRoute is required"
