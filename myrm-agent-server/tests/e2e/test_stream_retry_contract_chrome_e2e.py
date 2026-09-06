@@ -9,6 +9,7 @@ import urllib.request
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    guarded_urlopen,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -62,7 +63,7 @@ def _post_agent_stream_snippet(
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
+        with guarded_urlopen(request, timeout_sec=30.0) as response:
             return response.read(8192).decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:
         body = exc.read(8192).decode("utf-8", errors="replace")

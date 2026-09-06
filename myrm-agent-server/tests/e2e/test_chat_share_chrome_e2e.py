@@ -59,6 +59,7 @@ from dev_gate.contract import EvaluateIntent  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
+    guarded_urlopen,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -346,7 +347,7 @@ def _post_gate_password(share_url: str, api_url: str, password: str) -> tuple[in
         urllib.request.HTTPCookieProcessor(CookieJar())
     )
     try:
-        with opener.open(request, timeout=20) as response:
+        with guarded_urlopen(request, timeout_sec=20.0, opener=opener) as response:
             return response.status, response.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read().decode("utf-8", errors="replace")

@@ -267,6 +267,12 @@ class ChromeMcpClient:
 
         client = BrowserOrchestratorClient(timeout_sec=self._request_timeout_sec)
         self._require_daemon_ready(client)
+        adopt_budget = getattr(client, "adopt_operation_budget_timeout", None)
+        if callable(adopt_budget):
+            # ``is_ready`` already populated the daemon budget cache. Adopt it
+            # before the first queueable lifecycle RPC so direct clients cannot
+            # time out at the queue boundary.
+            adopt_budget()
         session_id = self._browser_context_id
         client.create_session(session_id)
         self._daemon_client = client

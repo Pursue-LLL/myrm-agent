@@ -66,6 +66,7 @@ __all__ = [
     "get_e2e_ui_url",
     "get_first_enabled_model",
     "guarded_httpx_request",
+    "guarded_urlopen",
     "http_json",
     "navigate_mcp_page",
     "open_mcp_page",
@@ -207,6 +208,31 @@ def guarded_httpx_request(client: object, method: str, url: str, **kwargs: objec
     from e2e_core.effect_guard import guarded_httpx_request as _guard
 
     return _guard(client, method, url, **kwargs)
+
+
+def guarded_urlopen(
+    request: urllib.request.Request,
+    *,
+    timeout_sec: float,
+    max_attempts: int = 3,
+    opener: urllib.request.OpenerDirector | None = None,
+) -> object:
+    """Effect-guarded loopback request for direct Chrome E2E HTTP helpers.
+
+    ``http_json`` covers JSON calls, while binary and form responses need the
+    raw response object. Keeping the guard at this boundary prevents those
+    callers from silently bypassing the same access-scope contract.
+    """
+    from e2e_core.effect_guard import assert_http_effect_allowed
+
+    assert_http_effect_allowed(method=request.get_method(), url=request.full_url)
+    if opener is not None:
+        return opener.open(request, timeout=timeout_sec)
+    return _e2e_api_urlopen(
+        request,
+        timeout_sec=timeout_sec,
+        max_attempts=max_attempts,
+    )
 
 
 def get_first_enabled_model(api_url: str | None = None) -> str:

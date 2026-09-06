@@ -19,6 +19,7 @@ if _LIB not in sys.path:
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     get_e2e_api_url,
+    guarded_urlopen,
     http_json,
     prepare_e2e_ui_session,
 )
@@ -50,7 +51,7 @@ def _multipart_clip_post(
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
+        with guarded_urlopen(request, timeout_sec=30.0) as response:
             raw = response.read()
             status = response.status
     except urllib.error.HTTPError as exc:
