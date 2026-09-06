@@ -32,6 +32,7 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 | 配置 | [config/](config/_ARCH.md) · [features/](features/_ARCH.md) | Omni-Config、功能开关 |
 | 定时/任务 | [cron/](cron/_ARCH.md) · [tasks/](tasks/_ARCH.md) · [background_tasks/](background_tasks/_ARCH.md) | Cron、异步任务、后台 worker |
 | 语音/媒体 | [voice/](voice/_ARCH.md) · [stt/](stt/_ARCH.md) · [tts/](tts/_ARCH.md) · [media/](media/_ARCH.md) | 实时语音、STT/TTS、媒体生成 |
+| A2A 跨智能体 | [a2a/](a2a/_ARCH.md) | Google A2A v1.0 AgentCard 发现与 JSON-RPC 2.0 任务路由 |
 | 运维 | [health/](health/_ARCH.md) · [system/](system/_ARCH.md) · [statistics/](statistics/_ARCH.md) · [runs/](runs/_ARCH.md) | 健康检查、关机、统计、聚合运行历史 |
 | 浏览器录制 | [browser_recording/](browser_recording/_ARCH.md) | Browser Skill 录制向导 — WebSocket 控制 + Skill 生成 |
 | 浏览器会话 | [browser_sessions/](browser_sessions/_ARCH.md) | 已保存浏览器登录会话管理 — 列表/删除/清理过期 |

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 from app.ai_agents.general_agent.tools import (
     _tool_layer_bootstrap,  # noqa: F401 — side-effect import: registers server-layer tools into harness _TOOL_LAYERS
@@ -54,6 +54,7 @@ from app.server.exceptions import general_exception_handler, not_found_handler
 from app.server.lifespan import optimized_lifespan
 from app.server.middlewares import register_middlewares
 from app.server.openapi_security import OPENAPI_API_DESCRIPTION, install_custom_openapi
+from app.services.a2a.card_generator import AgentCardGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,15 @@ app.include_router(internal_skills_killswitch_router)
 app.include_router(openai_compat_router)
 app.include_router(mem0_compat_router)
 app.include_router(webui_router)
+
+# Standard A2A discovery root endpoint: /.well-known/agent-card.json
+_root_card_generator = AgentCardGenerator()
+
+@app.get("/.well-known/agent-card.json", tags=["a2a"])
+async def root_well_known_agent_card(request: Request) -> dict[str, object]:
+    base_url = str(request.base_url).rstrip("/")
+    card = await _root_card_generator.generate_card(base_url=base_url)
+    return card.model_dump(by_alias=True)
 
 register_database_operational_handlers(app)
 register_exception_handlers(app)

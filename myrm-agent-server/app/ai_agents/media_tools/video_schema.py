@@ -1,6 +1,16 @@
-# INPUT: ProviderCapabilities, Pydantic field specifications
-# OUTPUT: VideoToolInput, DynamicVideoToolInput, _build_dynamic_video_input_schema
-# POS: Schema definitions and dynamic schema diet builder for video generation tool
+"""[INPUT]
+- ProviderCapabilities (POS: capabilities metadata from video generator)
+- Pydantic BaseModel and FieldInfo specifications
+
+[OUTPUT]
+- VideoToolInput: Static baseline Pydantic model for video generation
+- DynamicVideoToolInput: Dynamically pruned Pydantic model with extra="allow"
+- _build_dynamic_video_input_schema: Factory constructing the dynamic schema
+
+[POS]
+Schema definitions and dynamic schema diet builder for video generation tool.
+Keeps System Prompt Prefix Cache stable while allowing runtime parameter passthrough.
+"""
 
 from __future__ import annotations
 

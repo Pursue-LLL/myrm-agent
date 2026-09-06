@@ -56,6 +56,7 @@
 | `artifacts/` | ✅ 核心 | 产物业务编排与 API 侧用例 | [_ARCH.md](artifacts/_ARCH.md) |
 | `audit/` | ✅ 辅助 | 审计日志业务服务 | [_ARCH.md](audit/_ARCH.md) |
 | `integrations/` | ✅ 核心 | 集成连接编排与用户配置 | [_ARCH.md](integrations/_ARCH.md) |
+| `a2a/` | ✅ 核心 | A2A 跨智能体服务（AgentCard 生成、任务仓储、HMAC Webhook 投递、调度服务） | [_ARCH.md](a2a/_ARCH.md) |
 | `webui/` | ✅ 辅助 | WebUI 专用服务（Remote 模式认证、二维码） | [_ARCH.md](webui/_ARCH.md) |
 | `device/` | ✅ 核心 | 移动设备桥接服务（ADB 发现、按需抓帧、物理状态栏脱敏、触控中继） | [_ARCH.md](device/_ARCH.md) |
 | `system/` | ✅ 辅助 | 系统运维与技术支持排障包聚合服务（Support Debug Bundle） | [_ARCH.md](system/_ARCH.md) |

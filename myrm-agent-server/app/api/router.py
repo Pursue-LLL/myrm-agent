@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.a2a.router import router as a2a_router
 from app.api.agents import agent as user_agent
 from app.api.agents import (
     agent_extras,
@@ -285,6 +286,7 @@ api_router.include_router(compounding_playbook_router, tags=["compounding-playbo
 api_router.include_router(workflow_templates_router, tags=["workflow-templates"])
 api_router.include_router(media_router, prefix="/media", tags=["media"])
 api_router.include_router(client_logs_router, tags=["logs"])
+api_router.include_router(a2a_router, prefix="/a2a", tags=["a2a"])
 
 # 本地模式：dev-gate + 事件通知/权限审批（SSE + 权限 API）
 if is_local_mode():

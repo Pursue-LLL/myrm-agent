@@ -7,6 +7,8 @@ PUBLIC_PATH_PREFIXES: tuple[str, ...] = (
     "/api/v1/public/artifact-share",
     "/api/v1/health",
     "/api/v1/webui/welcome",
+    "/api/v1/a2a",
+    "/.well-known/agent-card.json",
     "/webui/auth/",
     "/docs",
     "/redoc",
@@ -18,6 +20,7 @@ PUBLIC_PATH_PREFIXES: tuple[str, ...] = (
 PUBLIC_EXACT_PATHS: frozenset[str] = frozenset(
     {
         "/",
+        "/.well-known/agent-card.json",
         "/favicon.ico",
         "/health",
     }

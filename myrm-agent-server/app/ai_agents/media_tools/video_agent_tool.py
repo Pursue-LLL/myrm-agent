@@ -25,12 +25,8 @@ from myrm_agent_harness.toolkits.llms.video import (
     VideoGenerationTools,
 )
 from myrm_agent_harness.toolkits.llms.video.async_video_engine import AsyncVideoGenerationTools
-from pydantic import BaseModel
 
-from app.ai_agents.media_tools.video_schema import (
-    VideoToolInput,
-    _build_dynamic_video_input_schema,
-)
+from app.ai_agents.media_tools.video_schema import _build_dynamic_video_input_schema
 
 logger = logging.getLogger(__name__)
 

@@ -26,6 +26,7 @@ API_SERVICES_ALIASES: dict[str, str] = {
 
 SAME_NAME_DOMAINS: frozenset[str] = frozenset(
     {
+        "a2a",
         "approvals",
         "audit",
         "batch_directory",
