@@ -25,8 +25,8 @@ from chrome_mcp.client import ChromeMcpClient  # noqa: E402
 from dev_gate.contract import EvaluateIntent  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
-    guarded_httpx_request,
     get_e2e_ui_url,
+    guarded_httpx_request,
     prepare_e2e_ui_session,
     warm_ui_route,
 )

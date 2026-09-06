@@ -59,9 +59,9 @@ from dev_gate.contract import EvaluateIntent  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
-    guarded_urlopen,
     get_e2e_api_url,
     get_e2e_ui_url,
+    guarded_urlopen,
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
