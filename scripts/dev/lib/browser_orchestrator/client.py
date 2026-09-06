@@ -339,7 +339,10 @@ class BrowserOrchestratorClient:
         """Raise socket read budget up to orchestrator cap (parallel open_page queue)."""
         prior = self._timeout_sec
         cap = self.socket_timeout_cap_sec()
-        self._timeout_sec = min(cap, max(prior, max(5.0, timeout_sec)))
+        requested = max(5.0, timeout_sec)
+        # A caller-provided budget may intentionally exceed the daemon's
+        # advertised minimum. Elevation must never shorten that budget.
+        self._timeout_sec = max(prior, min(cap, requested))
         try:
             yield
         finally:
