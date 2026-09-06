@@ -18,6 +18,7 @@ _GLOBAL_MUTATION_PREFIXES: tuple[str, ...] = (
     "/api/v1/voice/",
     "/api/v1/web_push/",
     "/api/v1/workspace/",
+    "/api/v1/statistics/",
 )
 
 # include_in_schema=False test-only fixture endpoint namespaces. Keep this

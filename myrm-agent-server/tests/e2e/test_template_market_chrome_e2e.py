@@ -49,7 +49,12 @@ def test_template_market_i18n_negotiation():
     assert tpl["description"]
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
+)
 def test_expert_summon_funnel_summary_api():
     """Statistics API serves expert summon funnel events and aggregated summary."""
     api_url = get_e2e_api_url()
