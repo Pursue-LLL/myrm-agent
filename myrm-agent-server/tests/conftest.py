@@ -50,6 +50,10 @@ from dev_gate.contract import (  # noqa: E402
     chrome_e2e_pytest_timeout_floor,
     chrome_e2e_session_lane_from_profile,
 )
+from e2e_core.profile_contract import (  # noqa: E402
+    PRIVATE_REASONS,
+    UNSUPPORTED_PRIVATE_REASONS,
+)
 
 _logger = logging.getLogger(__name__)
 _T = TypeVar("_T")
@@ -60,14 +64,7 @@ _LIFECYCLE_TEST_ROOT = _TESTS_ROOT / "lifecycle"
 _CHROME_PROFILE_FIELDS = frozenset({"execution_mode", "access_scope", "workload"})
 _CHROME_PROFILE_OPTIONAL_FIELDS = frozenset({"private_reason"})
 _CHROME_PROFILE_ALLOWED_FIELDS = _CHROME_PROFILE_FIELDS | _CHROME_PROFILE_OPTIONAL_FIELDS
-_PRIVATE_REASONS = frozenset(
-    {
-        "live_shpoib",
-        "fault_injection",
-        "exclusive_backend",
-        "global_write_non_namespace",
-    }
-)
+_PRIVATE_REASONS = PRIVATE_REASONS
 
 
 def _is_formal_chrome_e2e(item_or_request: pytest.Item | pytest.FixtureRequest) -> bool:
@@ -275,10 +272,10 @@ def _chrome_e2e_profile(
                 f"node={item.nodeid} PRIVATE requires private_reason "
                 f"(one of {', '.join(sorted(_PRIVATE_REASONS))})"
             )
-        if private_reason == "process_isolation":
+        if private_reason in UNSUPPORTED_PRIVATE_REASONS:
             raise pytest.UsageError(
                 "CHROME_E2E_PROFILE_UNSUPPORTED: "
-                f"node={item.nodeid} process_isolation is not a PRIVATE mode; "
+                f"node={item.nodeid} {private_reason} is not a PRIVATE mode; "
                 "the product uses one Browser Orchestrator Chrome with isolated "
                 "contexts. Use fault_injection for daemon/process failure probes."
             )

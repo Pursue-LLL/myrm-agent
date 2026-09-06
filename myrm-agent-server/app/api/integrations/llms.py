@@ -705,7 +705,7 @@ async def speed_test(request: SpeedTestRequest) -> JSONResponse:
                 ).model_dump()
             )
 
-    results.sort(key=lambda r: r.get("ttft_ms") or 999999)
+    results.sort(key=lambda r: 999999 if r.get("ttft_ms") is None else int(r["ttft_ms"]))
     return success_response(data=results)
 
 
