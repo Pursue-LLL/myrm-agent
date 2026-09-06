@@ -457,5 +457,6 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             )
             assert assistant_reply.get("ready") is True, f"Assistant reply failed or timed out: {assistant_reply}"
             response_text = str(assistant_reply.get("fullContent") or "")
-            print(f"\nREAL_LLM_ASSISTANT_RESPONSE: {response_text}")
+            evidence_file = Path("/tmp/myrm_e2e_real_llm_response.txt")
+            evidence_file.write_text(response_text, encoding="utf-8")
             assert "1000" in response_text or len(response_text) > 0, f"Expected computation result in: {response_text}"
