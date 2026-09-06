@@ -1108,9 +1108,6 @@ def open_orchestrator_mcp_page(
     contract_floor = orchestrator_socket_timeout_cap_sec()
     effective_timeout = max(request_timeout_sec, contract_floor)
     parallel_load = _effective_parallel_load()
-    if parallel_load >= 2:
-        cap = orchestrator_socket_timeout_cap_sec()
-        effective_timeout = max(effective_timeout, cap)
     daemon = BrowserOrchestratorClient(
         timeout_sec=effective_timeout,
     )
