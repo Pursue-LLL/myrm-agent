@@ -427,10 +427,11 @@ async def download_artifact_bundle(
     if not artifacts:
         raise HTTPException(status_code=404, detail="No artifacts found")
 
-    vault = ArtifactVault(str(get_workspace_root()))
+    ws_root = get_workspace_root()
+    vault = ArtifactVault(str(ws_root))
     manifest = DeliverableManifest.model_validate(request.manifest) if request.manifest else None
 
-    buf = build_zip_deliverable_bundle(artifacts, vault, manifest=manifest)
+    buf = build_zip_deliverable_bundle(artifacts, vault, manifest=manifest, workspace_root=ws_root)
 
     return StreamingResponse(
         buf,
