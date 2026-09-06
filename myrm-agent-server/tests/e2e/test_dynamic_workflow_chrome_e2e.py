@@ -19,10 +19,12 @@ from cdp_chat.support import (  # noqa: E402
 )
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
+    _ensure_e2e_private_api_live,
     dismiss_blocking_modals,
     get_e2e_api_url,
     get_e2e_ui_url,
     open_mcp_page,
+    wait_for_react_e2e_bridge,
     wait_for_state,
     wait_for_workflow_plan_card,
 )
@@ -35,12 +37,18 @@ _BRIDGE_READY_JS = """(() => ({
     typeof window.__MYRM_E2E_CHAT__?.ensureChatSession === 'function',
 }))()"""
 
-_PREPARE_DW_TURN_JS = """(() => {
+_PREPARE_DW_TURN_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge) {
     return { ok: false, err: 'no-bridge' };
   }
-  bridge.ensureChatSession?.({ preserveActionMode: true });
+  await bridge.ensureChatSession?.({ preserveActionMode: true });
+  if (typeof bridge.ensureProviders === 'function') {
+    await bridge.ensureProviders();
+  }
+  if (typeof bridge.pinBasicModelForE2e === 'function') {
+    await bridge.pinBasicModelForE2e({ preserveActionMode: true });
+  }
   bridge.setWorkflowMode?.(true);
   return {
     ok: bridge.isWorkflowMode?.() === true,
@@ -112,6 +120,8 @@ def test_dynamic_workflow_plan_confirm_and_run_chrome_e2e(
         dismiss_blocking_modals(client, page)
         client.evaluate(page, DISMISS_MODALS_JS, timeout_sec=10.0)
         wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=90.0)
+        wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=ui_url)
+        _ensure_e2e_private_api_live(client, page, timeout_sec=120.0)
 
         client.evaluate(
             page,

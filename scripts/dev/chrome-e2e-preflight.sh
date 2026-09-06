@@ -471,6 +471,7 @@ print(', '.join(attach_wait_errors('${UI_BASE}', '${attach_api}')))
       unset MYRM_E2E_EPOCH_PIN
       export E2E_API_BASE="${SHARED_API_BASE}"
       attach_api="${SHARED_API_BASE}"
+      API_BASE="${SHARED_API_BASE}"
       continue
     fi
     if [[ "${MYRM_PRIVATE_BACKEND:-}" != "1" ]] \
@@ -590,6 +591,7 @@ _attach_epoch_pin_fast_path() {
       echo "CHROME_E2E_ATTACH: epoch pin early fallback to shared api=${SHARED_API_BASE} (isolated ${pin_api} not ready)" >&2
       unset MYRM_E2E_EPOCH_PIN
       export E2E_API_BASE="${SHARED_API_BASE}"
+      API_BASE="${SHARED_API_BASE}"
       return 1
     fi
     if health="$("${PREFLIGHT_PY}" "${runtime_py}" \
@@ -618,6 +620,7 @@ _attach_epoch_pin_fast_path() {
     echo "CHROME_E2E_ATTACH: epoch pin fallback to shared api=${SHARED_API_BASE} (isolated ${pin_api} not ready)" >&2
     unset MYRM_E2E_EPOCH_PIN
     export E2E_API_BASE="${SHARED_API_BASE}"
+    API_BASE="${SHARED_API_BASE}"
     return 1
   fi
   fail "epoch pin attach did not become ready within ${wait_sec}s — wave idle: ./myrm restart --chrome; parallel: wait for drift apply (verify-api does not heal shared :8080)"
@@ -1029,6 +1032,7 @@ print(', '.join(attach_wait_errors('${UI_BASE}', '${_attach_api}')))
       unset MYRM_E2E_EPOCH_PIN
       export E2E_API_BASE="${SHARED_API_BASE}"
       _attach_api="${SHARED_API_BASE}"
+      API_BASE="${SHARED_API_BASE}"
       attach_errors=""
     elif curl -sf --max-time 8 "${_attach_api%/}/api/v1/health" >/dev/null 2>&1 \
       && curl -sf --max-time 8 "${UI_BASE}/" >/dev/null 2>&1; then
