@@ -649,7 +649,7 @@ class BrowserOrchestratorClient:
         )
         try:
             return self._request_raw(payload, req_id)
-        except (RuntimeError, TimeoutError) as exc:
+        except (OSError, RuntimeError) as exc:
             message = str(exc)
             if not allow_daemon_recovery or not _daemon_unreachable_message(message):
                 raise
