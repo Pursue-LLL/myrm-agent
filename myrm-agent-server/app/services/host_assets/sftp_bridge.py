@@ -1,127 +1,205 @@
-"""SFTP Explorer and File Transfer Bridge for Host Assets.
+"""Secure SFTP remote file transfer bridge service.
 
 [INPUT]
-- .models::SFTPFileEntry, SFTPTransferRequest, SFTPTransferResponse, HostAsset
+- asyncio, typing.Callable, typing.Optional
+- .models::HostAssetConfig, SFTPReadRequest, SFTPTransferResult, SFTPWriteRequest
 - .vault::HostAssetVault
 
 [OUTPUT]
-- SFTPBridge: Explores remote directories and transfers files with progress tracking
+- SFTPBridge
 
 [POS]
-Domain service in app/services/host_assets/sftp_bridge.py.
+Domain service in app/services/host_assets/ facilitating remote file operations.
 """
 
 from __future__ import annotations
 
-import time
-from typing import Callable
+import asyncio
+from typing import Awaitable, Callable, Optional
 
 from app.services.host_assets.models import (
-    SFTPFileEntry,
-    SFTPTransferRequest,
-    SFTPTransferResponse,
+    HostAssetConfig,
+    SFTPReadRequest,
+    SFTPTransferResult,
+    SFTPWriteRequest,
 )
 from app.services.host_assets.vault import HostAssetVault
 
 
 class SFTPBridge:
-    """Provides remote directory listing and bidirectional file transfer via SFTP."""
+    """Safe SFTP file transfer bridge for remote host assets."""
 
-    def __init__(
-        self,
-        vault: HostAssetVault,
-        explorer_func: Callable[[dict[str, str], str], list[SFTPFileEntry]] | None = None,
-        transfer_func: Callable[[dict[str, str], str, str, str], tuple[bool, int, str | None]] | None = None,
-    ) -> None:
+    def __init__(self, vault: HostAssetVault) -> None:
         self._vault = vault
-        self._explorer_func = explorer_func or self._mock_list_dir
-        self._transfer_func = transfer_func or self._mock_transfer
 
-    def list_remote_directory(self, host_id_or_alias: str, remote_path: str = ".") -> list[SFTPFileEntry]:
-        """List files and folders in the target remote path."""
-        asset = self._vault.get_asset(host_id_or_alias)
-        if not asset:
-            raise ValueError(f"Host asset '{host_id_or_alias}' not found in vault.")
+    async def read_remote_file(
+        self,
+        request: SFTPReadRequest,
+        mock_reader: Optional[
+            Callable[
+                [HostAssetConfig, str, int],
+                Awaitable[tuple[bool, Optional[str], int, Optional[str]]],
+            ]
+        ] = None,
+    ) -> SFTPTransferResult:
+        """Read content from a remote file via SFTP/SSH.
 
-        secrets = self._vault.get_decrypted_secrets(asset.id)
-        connection_params = {
-            "hostname": asset.hostname,
-            "port": str(asset.port),
-            "username": asset.username,
-            "auth_type": asset.auth_type.value,
-            "password": secrets.get("password", ""),
-            "private_key": secrets.get("private_key", ""),
-        }
-
-        return self._explorer_func(connection_params, remote_path)
-
-    def transfer_file(self, request: SFTPTransferRequest) -> SFTPTransferResponse:
-        """Upload or download a file between local and remote server."""
-        start_time = time.time()
-        asset = self._vault.get_asset(request.host_id_or_alias)
-        if not asset:
-            return SFTPTransferResponse(
-                success=False,
-                bytes_transferred=0,
+        Args:
+            request: SFTP read request payload.
+            mock_reader: Optional mock hook returning (success, content, bytes_transferred, error).
+        """
+        host = self._vault.get_host(request.host_id)
+        if not host:
+            return SFTPTransferResult(
+                host_id=request.host_id,
                 remote_path=request.remote_path,
-                local_path=request.local_path,
-                elapsed_time_ms=0,
-                error_message=f"Host asset '{request.host_id_or_alias}' not found in vault.",
+                success=False,
+                error=f"Host asset '{request.host_id}' not found in vault",
             )
 
-        secrets = self._vault.get_decrypted_secrets(asset.id)
-        connection_params = {
-            "hostname": asset.hostname,
-            "port": str(asset.port),
-            "username": asset.username,
-            "auth_type": asset.auth_type.value,
-            "password": secrets.get("password", ""),
-            "private_key": secrets.get("private_key", ""),
-        }
+        if mock_reader is not None:
+            try:
+                success, content, bytes_read, error = await mock_reader(
+                    host, request.remote_path, request.max_bytes
+                )
+                return SFTPTransferResult(
+                    host_id=request.host_id,
+                    remote_path=request.remote_path,
+                    success=success,
+                    content=content,
+                    bytes_transferred=bytes_read,
+                    error=error,
+                )
+            except Exception as exc:  # noqa: BLE001
+                return SFTPTransferResult(
+                    host_id=request.host_id,
+                    remote_path=request.remote_path,
+                    success=False,
+                    error=f"SFTP read error: {exc}",
+                )
 
-        success, transferred, err = self._transfer_func(
-            connection_params,
-            request.direction,
-            request.local_path,
-            request.remote_path,
-        )
-        elapsed_ms = int((time.time() - start_time) * 1000)
+        # Default fallback via ssh cat
+        cmd_args = ["ssh", "-p", str(host.port), "-o", "BatchMode=yes"]
+        if host.private_key_path:
+            cmd_args.extend(["-i", host.private_key_path])
 
-        return SFTPTransferResponse(
-            success=success,
-            bytes_transferred=transferred,
-            remote_path=request.remote_path,
-            local_path=request.local_path,
-            elapsed_time_ms=elapsed_ms,
-            error_message=err,
-        )
+        target = f"{host.username}@{host.hostname}"
+        cmd_args.extend([target, f"cat {request.remote_path}"])
 
-    @staticmethod
-    def _mock_list_dir(params: dict[str, str], path: str) -> list[SFTPFileEntry]:
-        return [
-            SFTPFileEntry(
-                filename="logs",
-                path=f"{path}/logs",
-                is_dir=True,
-                size_bytes=4096,
-                modified_time=time.time(),
-                permissions="drwxr-xr-x",
-            ),
-            SFTPFileEntry(
-                filename="config.yaml",
-                path=f"{path}/config.yaml",
-                is_dir=False,
-                size_bytes=1024,
-                modified_time=time.time(),
-                permissions="-rw-r--r--",
-            ),
-        ]
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd_args,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                process.communicate(), timeout=30.0
+            )
+            if process.returncode != 0:
+                err_msg = stderr_bytes.decode("utf-8", errors="replace").strip()
+                return SFTPTransferResult(
+                    host_id=request.host_id,
+                    remote_path=request.remote_path,
+                    success=False,
+                    error=err_msg or "Failed to read remote file",
+                )
 
-    @staticmethod
-    def _mock_transfer(
-        params: dict[str, str],
-        direction: str,
-        local_path: str,
-        remote_path: str,
-    ) -> tuple[bool, int, str | None]:
-        return True, 1024 * 1024, None
+            trimmed = stdout_bytes[: request.max_bytes]
+            text = trimmed.decode("utf-8", errors="replace")
+            return SFTPTransferResult(
+                host_id=request.host_id,
+                remote_path=request.remote_path,
+                success=True,
+                content=text,
+                bytes_transferred=len(trimmed),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return SFTPTransferResult(
+                host_id=request.host_id,
+                remote_path=request.remote_path,
+                success=False,
+                error=f"SFTP transport error: {exc}",
+            )
+
+    async def write_remote_file(
+        self,
+        request: SFTPWriteRequest,
+        mock_writer: Optional[
+            Callable[
+                [HostAssetConfig, str, str, str],
+                Awaitable[tuple[bool, int, Optional[str]]],
+            ]
+        ] = None,
+    ) -> SFTPTransferResult:
+        """Write content to a remote file via SFTP/SSH."""
+        host = self._vault.get_host(request.host_id)
+        if not host:
+            return SFTPTransferResult(
+                host_id=request.host_id,
+                remote_path=request.remote_path,
+                success=False,
+                error=f"Host asset '{request.host_id}' not found in vault",
+            )
+
+        if mock_writer is not None:
+            try:
+                success, bytes_written, error = await mock_writer(
+                    host, request.remote_path, request.content, request.mode
+                )
+                return SFTPTransferResult(
+                    host_id=request.host_id,
+                    remote_path=request.remote_path,
+                    success=success,
+                    bytes_transferred=bytes_written,
+                    error=error,
+                )
+            except Exception as exc:  # noqa: BLE001
+                return SFTPTransferResult(
+                    host_id=request.host_id,
+                    remote_path=request.remote_path,
+                    success=False,
+                    error=f"SFTP write error: {exc}",
+                )
+
+        # Default fallback via ssh tee
+        redirect_op = ">>" if request.mode == "append" else ">"
+        cmd_args = ["ssh", "-p", str(host.port), "-o", "BatchMode=yes"]
+        if host.private_key_path:
+            cmd_args.extend(["-i", host.private_key_path])
+
+        target = f"{host.username}@{host.hostname}"
+        cmd_args.extend([target, f"cat {redirect_op} {request.remote_path}"])
+
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd_args,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            input_bytes = request.content.encode("utf-8")
+            _, stderr_bytes = await asyncio.wait_for(
+                process.communicate(input=input_bytes), timeout=30.0
+            )
+            if process.returncode != 0:
+                err_msg = stderr_bytes.decode("utf-8", errors="replace").strip()
+                return SFTPTransferResult(
+                    host_id=request.host_id,
+                    remote_path=request.remote_path,
+                    success=False,
+                    error=err_msg or "Failed to write remote file",
+                )
+
+            return SFTPTransferResult(
+                host_id=request.host_id,
+                remote_path=request.remote_path,
+                success=True,
+                bytes_transferred=len(input_bytes),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return SFTPTransferResult(
+                host_id=request.host_id,
+                remote_path=request.remote_path,
+                success=False,
+                error=f"SFTP write transport error: {exc}",
+            )

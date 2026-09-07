@@ -30,7 +30,10 @@ logger = get_logger(__name__)
 # Known technical entities and keywords for deterministic high-precision matching
 DEFAULT_KNOWN_ENTITIES: dict[str, tuple[EntityCategory, tuple[str, ...]]] = {
     "DeepSeek": (EntityCategory.PRODUCT, ("deepseek-v3", "deepseek-r1", "deepseek")),
-    "Claude": (EntityCategory.PRODUCT, ("claude-3.5-sonnet", "claude-3.7-sonnet", "claude")),
+    "Claude": (
+        EntityCategory.PRODUCT,
+        ("claude-3.5-sonnet", "claude-3.7-sonnet", "claude"),
+    ),
     "OpenAI": (EntityCategory.ORGANIZATION, ("openai", "gpt-4o", "chatgpt")),
     "Myrm": (EntityCategory.PRODUCT, ("myrm", "myrm-agent", "myrm-harness")),
     "Hermes": (EntityCategory.PRODUCT, ("hermes", "hermes-agent")),
@@ -40,8 +43,14 @@ DEFAULT_KNOWN_ENTITIES: dict[str, tuple[EntityCategory, tuple[str, ...]]] = {
     "千问办公": (EntityCategory.PRODUCT, ("tongyi", "千问")),
     "Postgres": (EntityCategory.TECH_CONCEPT, ("postgresql", "postgres", "pg")),
     "Qdrant": (EntityCategory.TECH_CONCEPT, ("qdrant", "向量库")),
-    "Docker/沙箱": (EntityCategory.TECH_CONCEPT, ("docker", "container", "sandbox", "沙箱")),
-    "线上故障/告警": (EntityCategory.INCIDENT_RISK, ("bug", "error", "panic", "crash", "500", "故障", "告警", "中断")),
+    "Docker/沙箱": (
+        EntityCategory.TECH_CONCEPT,
+        ("docker", "container", "sandbox", "沙箱"),
+    ),
+    "线上故障/告警": (
+        EntityCategory.INCIDENT_RISK,
+        ("bug", "error", "panic", "crash", "500", "故障", "告警", "中断"),
+    ),
 }
 
 # Heuristic noise patterns (emojis, very short greetings, pure system commands)
@@ -54,7 +63,10 @@ NOISE_PATTERNS = [
 class ChatEntityTimelineExtractor:
     """Extracts entities, deduplicates facts, and compiles timeline digests."""
 
-    def __init__(self, known_entities: dict[str, tuple[EntityCategory, tuple[str, ...]]] | None = None) -> None:
+    def __init__(
+        self,
+        known_entities: dict[str, tuple[EntityCategory, tuple[str, ...]]] | None = None,
+    ) -> None:
         self._known_entities = known_entities or DEFAULT_KNOWN_ENTITIES
 
     def is_noise_message(self, text: str) -> bool:
@@ -132,24 +144,13 @@ class ChatEntityTimelineExtractor:
             if not detected_entities:
                 # If no specific known entity matches, group under generic topic category
                 generic_name = "综合动态与讨论"
-                fact_id = f"f_{hashlib.md5(f'{msg_ts}:{raw_text}'.encode()).hexdigest()[:8]}"
-                valid_items.append((
-                    generic_name,
-                    EntityCategory.TECH_CONCEPT,
-                    TimelineFactItem(
-                        fact_id=fact_id,
-                        content=raw_text,
-                        timestamp=msg_ts,
-                        sender_mask=sender,
-                        raw_message_id=msg_id,
-                    ),
-                ))
-            else:
-                for ent_name, ent_cat in detected_entities:
-                    fact_id = f"f_{hashlib.md5(f'{msg_ts}:{ent_name}:{raw_text}'.encode()).hexdigest()[:8]}"
-                    valid_items.append((
-                        ent_name,
-                        ent_cat,
+                fact_id = (
+                    f"f_{hashlib.md5(f'{msg_ts}:{raw_text}'.encode()).hexdigest()[:8]}"
+                )
+                valid_items.append(
+                    (
+                        generic_name,
+                        EntityCategory.TECH_CONCEPT,
                         TimelineFactItem(
                             fact_id=fact_id,
                             content=raw_text,
@@ -157,7 +158,24 @@ class ChatEntityTimelineExtractor:
                             sender_mask=sender,
                             raw_message_id=msg_id,
                         ),
-                    ))
+                    )
+                )
+            else:
+                for ent_name, ent_cat in detected_entities:
+                    fact_id = f"f_{hashlib.md5(f'{msg_ts}:{ent_name}:{raw_text}'.encode()).hexdigest()[:8]}"
+                    valid_items.append(
+                        (
+                            ent_name,
+                            ent_cat,
+                            TimelineFactItem(
+                                fact_id=fact_id,
+                                content=raw_text,
+                                timestamp=msg_ts,
+                                sender_mask=sender,
+                                raw_message_id=msg_id,
+                            ),
+                        )
+                    )
 
         # Group facts by entity
         cluster_dict: dict[str, tuple[EntityCategory, list[TimelineFactItem]]] = {}
@@ -170,12 +188,14 @@ class ChatEntityTimelineExtractor:
         for ent_name, (ent_cat, facts) in cluster_dict.items():
             # Generate summary based on facts count and time span
             summary = f"共涉及 {len(facts)} 条关键记录，涵盖讨论、更新与反馈动态。"
-            clusters.append(EntityCluster(
-                entity_name=ent_name,
-                category=ent_cat,
-                summary=summary,
-                facts=tuple(facts),
-            ))
+            clusters.append(
+                EntityCluster(
+                    entity_name=ent_name,
+                    category=ent_cat,
+                    summary=summary,
+                    facts=tuple(facts),
+                )
+            )
 
         is_empty = len(clusters) == 0
 

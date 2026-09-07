@@ -14,11 +14,10 @@ Domain service in app/services/ssh_bridge/.
 from __future__ import annotations
 
 import uuid
-from typing import Mapping, Sequence
+from typing import Sequence
 
 from app.services.ssh_bridge.models import (
     SSHAuthMethod,
-    SSHConfigParsedHost,
     SSHHostAsset,
 )
 from app.services.ssh_bridge.parser import OpenSSHConfigParser

@@ -16,7 +16,9 @@ from __future__ import annotations
 import re
 from typing import Sequence
 
-from app.channels.digest.chat_entity_timeline_extractor import ChatEntityTimelineExtractor
+from app.channels.digest.chat_entity_timeline_extractor import (
+    ChatEntityTimelineExtractor,
+)
 from app.channels.digest.entity_timeline_models import (
     ChatEntityDigestReport,
     NLDigestCronBlueprint,
@@ -47,7 +49,9 @@ class NLDigestCronPipeline:
         target_chat_name = "当前群聊"
         target_chat_id = default_chat_id
 
-        chat_match = re.search(r"(?:群聊|群组|频道|在|从)\s*([a-zA-Z0-9_\u4e00-\u9fa5]+)", text)
+        chat_match = re.search(
+            r"(?:群聊|群组|频道|在|从)\s*([a-zA-Z0-9_\u4e00-\u9fa5]+)", text
+        )
         if chat_match:
             cand_name = chat_match.group(1).strip()
             if cand_name in chat_map:
@@ -59,7 +63,9 @@ class NLDigestCronPipeline:
 
         # 2. Window hours extraction (e.g. 24小时, 48h, 7天)
         window_hours = 24
-        window_match = re.search(r"(\d+)\s*(?:小时|个?小时|h|hr|hours)", text, re.IGNORECASE)
+        window_match = re.search(
+            r"(\d+)\s*(?:小时|个?小时|h|hr|hours)", text, re.IGNORECASE
+        )
         if window_match:
             window_hours = int(window_match.group(1))
         else:
@@ -70,8 +76,12 @@ class NLDigestCronPipeline:
         # 3. Time schedule extraction (e.g. 早上9点 -> 0 9 * * *, 下午5点半 -> 30 17 * * *)
         cron_expr = "0 9 * * *"  # Default: daily 09:00
 
-        time_match = re.search(r"(?:早上|上午|早晨)?\s*(\d{1,2})(?:点|时)(?:(\d{1,2})分)?", text)
-        afternoon_match = re.search(r"(?:下午|晚上|傍晚)\s*(\d{1,2})(?:点|时)(?:(\d{1,2})分)?", text)
+        time_match = re.search(
+            r"(?:早上|上午|早晨)?\s*(\d{1,2})(?:点|时)(?:(\d{1,2})分)?", text
+        )
+        afternoon_match = re.search(
+            r"(?:下午|晚上|傍晚)\s*(\d{1,2})(?:点|时)(?:(\d{1,2})分)?", text
+        )
 
         if afternoon_match:
             hour = int(afternoon_match.group(1))
@@ -86,7 +96,10 @@ class NLDigestCronPipeline:
 
         # 4. Topic extraction
         topic_filter = ""
-        topic_match = re.search(r"(?:关于|对于|相关|的)\s*([a-zA-Z0-9_\u4e00-\u9fa5]+)\s*(?:消息|动态|资讯|新闻|讨论)", text)
+        topic_match = re.search(
+            r"(?:关于|对于|相关|的)\s*([a-zA-Z0-9_\u4e00-\u9fa5]+)\s*(?:消息|动态|资讯|新闻|讨论)",
+            text,
+        )
         if topic_match:
             cand_topic = topic_match.group(1).strip()
             if cand_topic not in ("最近", "重要", "全部", "所有"):
@@ -94,7 +107,9 @@ class NLDigestCronPipeline:
 
         # 5. Entity clustering and timeline flags
         require_clustering = "实体" in text or "聚类" in text or "归类" in text or True
-        require_timeline = "时间轴" in text or "时间线" in text or "按时间" in text or True
+        require_timeline = (
+            "时间轴" in text or "时间线" in text or "按时间" in text or True
+        )
 
         return NLDigestCronBlueprint(
             target_chat_name=target_chat_name,

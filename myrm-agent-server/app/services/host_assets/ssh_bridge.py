@@ -1,137 +1,170 @@
-"""Remote SSH Ops Bridge and Command Security Gate for Host Assets.
+"""Secure SSH remote command execution bridge service.
 
 [INPUT]
-- .models::SSHCommandRequest, SSHCommandResponse, HostAsset
+- asyncio, time, typing.Callable, typing.Optional
+- .models::HostAssetConfig, SSHCommandRequest, SSHCommandResult
 - .vault::HostAssetVault
-- harness security validators
 
 [OUTPUT]
-- RemoteSSHOpsBridge: Executes remote commands with strict safety gates and timeout enforcement
+- SSHOpsBridge, SSHRemoteExecutionError
 
 [POS]
-Domain service in app/services/host_assets/ssh_bridge.py.
+Domain service in app/services/host_assets/ executing commands on managed remote hosts.
 """
 
 from __future__ import annotations
 
+import asyncio
 import re
 import time
-from typing import Callable
+from typing import Awaitable, Callable, Optional
 
-from app.services.host_assets.models import SSHCommandRequest, SSHCommandResponse
+from app.services.host_assets.models import (
+    HostAssetConfig,
+    SSHCommandRequest,
+    SSHCommandResult,
+)
 from app.services.host_assets.vault import HostAssetVault
 
-# Strict forbidden command patterns for remote ops
-DANGEROUS_REMOTE_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"\brm\s+-(?:r|f|rf|fr)\s+/(?:\s|$|\*)", re.IGNORECASE),
-    re.compile(r"\bmkfs\b", re.IGNORECASE),
-    re.compile(r"\bdd\s+if=.*of=/dev/", re.IGNORECASE),
-    re.compile(r":\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;", re.IGNORECASE),  # Fork bomb
-    re.compile(r"\b(?:shutdown|reboot|poweroff|init\s+0)\b", re.IGNORECASE),
-    re.compile(r">\s*/dev/sd[a-z]", re.IGNORECASE),
+# High-risk command pattern for defense-in-depth safety
+_HIGH_RISK_PATTERN = re.compile(
+    r"(?:\brm\s+-rf\s+[/~]|\bmkfs\b|\bdd\s+if=|\b:(){ :\|:& };:)",
+    re.IGNORECASE,
 )
 
 
-class RemoteSSHOpsBridge:
-    """Manages secure remote SSH command dispatching for Agent and API."""
+class SSHRemoteExecutionError(Exception):
+    """Raised when remote SSH execution encounters unrecoverable failure."""
 
-    def __init__(
-        self,
-        vault: HostAssetVault,
-        executor_func: Callable[[dict[str, str], str, int, str | None], tuple[int, str, str]] | None = None,
-    ) -> None:
+
+class SSHOpsBridge:
+    """Safe SSH execution bridge for remote host assets."""
+
+    def __init__(self, vault: HostAssetVault) -> None:
         self._vault = vault
-        self._executor_func = executor_func or self._mock_or_async_exec
 
-    @staticmethod
-    def validate_remote_command(command: str) -> tuple[bool, str | None]:
-        """Verify command against dangerous destruction patterns."""
-        normalized = command.strip()
-        if not normalized:
-            return False, "Command cannot be empty."
+    async def execute_command(
+        self,
+        request: SSHCommandRequest,
+        mock_runner: Optional[
+            Callable[
+                [HostAssetConfig, str, float],
+                Awaitable[tuple[int, str, str]],
+            ]
+        ] = None,
+    ) -> SSHCommandResult:
+        """Execute a remote command on the specified host asset.
 
-        for pattern in DANGEROUS_REMOTE_PATTERNS:
-            if pattern.search(normalized):
-                return False, f"Command contains potentially destructive pattern: {pattern.pattern}"
-
-        return True, None
-
-    def execute_command(self, request: SSHCommandRequest) -> SSHCommandResponse:
-        """Execute command on target host asset with timeout and safety gate."""
-        start_time = time.time()
-        asset = self._vault.get_asset(request.host_id_or_alias)
-        if not asset:
-            return SSHCommandResponse(
-                success=False,
-                exit_code=-1,
+        Args:
+            request: The command execution request with host_id and command.
+            mock_runner: Optional test hook for mocking remote execution.
+        """
+        start_time = time.perf_counter()
+        host = self._vault.get_host(request.host_id)
+        if not host:
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            return SSHCommandResult(
+                host_id=request.host_id,
+                command=request.command,
+                exit_code=1,
                 stdout="",
-                stderr="",
-                execution_time_ms=0,
-                host_alias=request.host_id_or_alias,
-                error_message=f"Host asset '{request.host_id_or_alias}' not found in vault.",
+                stderr=f"Host asset '{request.host_id}' not found in vault",
+                duration_ms=duration_ms,
+                success=False,
             )
 
-        # 1. Safety validation gate
-        is_safe, error_msg = self.validate_remote_command(request.command)
-        if not is_safe:
-            return SSHCommandResponse(
-                success=False,
+        # Safety gate: block catastrophic destructive commands
+        if _HIGH_RISK_PATTERN.search(request.command):
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            return SSHCommandResult(
+                host_id=request.host_id,
+                command=request.command,
                 exit_code=126,
                 stdout="",
-                stderr=error_msg or "Blocked by Remote Command Security Gate.",
-                execution_time_ms=int((time.time() - start_time) * 1000),
-                host_alias=asset.alias,
-                error_message=error_msg,
-            )
-
-        # 2. Retrieve credentials
-        secrets = self._vault.get_decrypted_secrets(asset.id)
-        connection_params = {
-            "hostname": asset.hostname,
-            "port": str(asset.port),
-            "username": asset.username,
-            "auth_type": asset.auth_type.value,
-            "password": secrets.get("password", ""),
-            "private_key": secrets.get("private_key", ""),
-        }
-
-        # 3. Execute via bridge executor
-        try:
-            exit_code, stdout, stderr = self._executor_func(
-                connection_params,
-                request.command,
-                request.timeout_seconds,
-                request.working_dir,
-            )
-            elapsed_ms = int((time.time() - start_time) * 1000)
-            return SSHCommandResponse(
-                success=(exit_code == 0),
-                exit_code=exit_code,
-                stdout=stdout,
-                stderr=stderr,
-                execution_time_ms=elapsed_ms,
-                host_alias=asset.alias,
-                error_message=stderr if exit_code != 0 else None,
-            )
-        except Exception as exc:
-            elapsed_ms = int((time.time() - start_time) * 1000)
-            return SSHCommandResponse(
+                stderr="Execution blocked by safety policy: High-risk destructive command pattern detected",
+                duration_ms=duration_ms,
                 success=False,
-                exit_code=-1,
-                stdout="",
-                stderr=str(exc),
-                execution_time_ms=elapsed_ms,
-                host_alias=asset.alias,
-                error_message=f"SSH Execution failed: {exc}",
             )
 
-    @staticmethod
-    def _mock_or_async_exec(
-        params: dict[str, str],
-        command: str,
-        timeout: int,
-        working_dir: str | None,
-    ) -> tuple[int, str, str]:
-        """Default secure executor wrapper (supports Paramiko / AsyncSSH / Subprocess bridge)."""
-        # Echo command execution structure
-        return 0, f"Executed '{command}' on {params['username']}@{params['hostname']}:{params['port']}", ""
+        if mock_runner is not None:
+            try:
+                exit_code, stdout, stderr = await asyncio.wait_for(
+                    mock_runner(host, request.command, request.timeout_seconds),
+                    timeout=request.timeout_seconds,
+                )
+            except asyncio.TimeoutError:
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                return SSHCommandResult(
+                    host_id=request.host_id,
+                    command=request.command,
+                    exit_code=124,
+                    stdout="",
+                    stderr=f"Command execution timed out after {request.timeout_seconds}s",
+                    duration_ms=duration_ms,
+                    success=False,
+                )
+            except Exception as exc:  # noqa: BLE001
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                return SSHCommandResult(
+                    host_id=request.host_id,
+                    command=request.command,
+                    exit_code=1,
+                    stdout="",
+                    stderr=f"Remote execution error: {exc}",
+                    duration_ms=duration_ms,
+                    success=False,
+                )
+        else:
+            # Default production path using system ssh client invocation
+            cmd_args = ["ssh", "-p", str(host.port), "-o", "BatchMode=yes"]
+            if host.private_key_path:
+                cmd_args.extend(["-i", host.private_key_path])
+
+            target = f"{host.username}@{host.hostname}"
+            cmd_args.extend([target, request.command])
+
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    *cmd_args,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                    process.communicate(), timeout=request.timeout_seconds
+                )
+                exit_code = process.returncode or 0
+                stdout = stdout_bytes.decode("utf-8", errors="replace")
+                stderr = stderr_bytes.decode("utf-8", errors="replace")
+            except asyncio.TimeoutError:
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                return SSHCommandResult(
+                    host_id=request.host_id,
+                    command=request.command,
+                    exit_code=124,
+                    stdout="",
+                    stderr=f"Command execution timed out after {request.timeout_seconds}s",
+                    duration_ms=duration_ms,
+                    success=False,
+                )
+            except Exception as exc:  # noqa: BLE001
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                return SSHCommandResult(
+                    host_id=request.host_id,
+                    command=request.command,
+                    exit_code=1,
+                    stdout="",
+                    stderr=f"SSH transport invocation error: {exc}",
+                    duration_ms=duration_ms,
+                    success=False,
+                )
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        return SSHCommandResult(
+            host_id=request.host_id,
+            command=request.command,
+            exit_code=exit_code,
+            stdout=stdout,
+            stderr=stderr,
+            duration_ms=duration_ms,
+            success=(exit_code == 0),
+        )

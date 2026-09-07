@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Callable, Dict, Optional
+from typing import Callable, Optional
 
 from .models import HostConnectionStatus, SSHExecResult, SSHHostAsset
 

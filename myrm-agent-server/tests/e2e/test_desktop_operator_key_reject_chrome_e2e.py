@@ -51,13 +51,13 @@ _CLICK_APPROVE_JS = """(() => {
 def _soft_type_ok(blob: str) -> bool:
     """True when the model typed instead of key='*' and the type action finished.
 
-    Do not treat pending HITL cards (JSON ``\"action\": \"type\"`` alone) as success —
-    that is an approval stall, not a completed soft-path.
+    Only accept explicit completion markers — never bare JSON ``action: type``
+    (HITL stall) or the word ``completed`` alone (stale page noise).
     """
-    if "Vision action 'type' completed" in blob or 'Vision action "type" completed' in blob:
-        return True
-    lowered = blob.lower()
-    return "action=type" in lowered and "completed" in lowered
+    return (
+        "Vision action 'type' completed" in blob
+        or 'Vision action "type" completed' in blob
+    )
 
 
 def _messages_blob(api_url: str, chat_id: str) -> str:
@@ -68,6 +68,20 @@ def _messages_blob(api_url: str, chat_id: str) -> str:
 def _trace_blob(api_url: str, chat_id: str) -> str:
     resp = http_json("GET", f"{api_url}/api/v1/statistics/session/{chat_id}/trace")
     return json.dumps(resp, ensure_ascii=False, default=str)
+
+
+def _chat_scoped_gate(msg_blob: str, trace_blob: str) -> tuple[bool, bool, bool]:
+    """Score hard/soft/invoked from this chat's API payloads only (ignore page DOM)."""
+    scoped = f"{msg_blob}\n{trace_blob}"
+    hard = _REJECT in scoped or "REMEDY_HINT: Printable operators" in scoped
+    soft = _soft_type_ok(scoped)
+    lowered = scoped.lower()
+    invoked = (
+        "desktop_vision" in lowered
+        or '"name": "desktop_vision_tool"' in scoped
+        or '"name":"desktop_vision_tool"' in scoped
+    )
+    return hard, soft, invoked
 
 
 def _approve_pending_tool_approvals(api_url: str) -> int:
@@ -204,8 +218,10 @@ async def test_chrome_ui_operator_as_key_rejected(
             progress(f"heartbeat soft-fail after turn: {exc}")
 
         # Hard = Safety reject on key=*; soft = model obeyed DESKTOP_CONTROL_RULES and typed.
+        # Score from chat messages/trace only — page DOM retains prior-session CU cards.
         hard_ok = False
         soft_ok = False
+        invoked = False
         blob = ""
         poll_deadline = min(deadline, time.monotonic() + 180.0)
         while time.monotonic() < poll_deadline:
@@ -229,13 +245,11 @@ async def test_chrome_ui_operator_as_key_rejected(
                     progress(f"API approved pending={approved_n}")
             msg_blob = _messages_blob(get_e2e_api_url(), chat_id)
             trace_blob = _trace_blob(get_e2e_api_url(), chat_id)
-            blob = f"{page_blob}\n{msg_blob}\n{trace_blob}"
-            hard_ok = _REJECT in blob or "REMEDY_HINT: Printable operators" in blob
-            soft_ok = _soft_type_ok(blob)
-            if hard_ok or soft_ok:
+            blob = f"{msg_blob}\n{trace_blob}"
+            hard_ok, soft_ok, invoked = _chat_scoped_gate(msg_blob, trace_blob)
+            if (hard_ok or soft_ok) and invoked:
                 progress(
-                    f"assert gate hard={hard_ok} soft={soft_ok} "
-                    f"reject_in_page={_REJECT in page_blob}"
+                    f"assert gate hard={hard_ok} soft={soft_ok} invoked={invoked}"
                 )
                 break
             await asyncio.sleep(2.0)
@@ -244,7 +258,13 @@ async def test_chrome_ui_operator_as_key_rejected(
             except RuntimeError as exc:
                 progress(f"heartbeat soft-fail during poll: {exc}")
 
-        progress(f"final gate hard={hard_ok} soft={soft_ok} chat_id={chat_id}")
+        progress(
+            f"final gate hard={hard_ok} soft={soft_ok} invoked={invoked} chat_id={chat_id}"
+        )
+        assert invoked, (
+            f"Chrome UI turn never invoked desktop_vision_tool. "
+            f"model={model_label!r} chat_id={chat_id} sample={blob[:1500]!r}"
+        )
         assert hard_ok or soft_ok, (
             f"Chrome UI turn missed operator Safety reject and type-fallback. "
             f"model={model_label!r} chat_id={chat_id} sample={blob[:1500]!r}"

@@ -15,7 +15,6 @@ Domain service in app/services/ssh_bridge/sftp_manager.py.
 from __future__ import annotations
 
 import logging
-import re
 from typing import Callable, List, Optional
 
 from .models import SFTPItemInfo, SSHHostAsset

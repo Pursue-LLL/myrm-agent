@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .models import HostAuthMethod, SSHHostAsset
+from .models import SSHHostAsset
 
 logger = logging.getLogger("myrm.services.ssh_bridge.vault")
 
