@@ -1,9 +1,18 @@
-"""
-@input: 依赖 app.core.infra.ingress 与 entitlement 模块、app.services.system.storage_service、DatabaseSettings、myrm_agent_harness.infra.tracing
-@output: 对外提供公网 ingress 获取、Ingress 需求判定、存储信息、数据库智能优化（预检与执行）、沙箱容器重建端点、OpenTelemetry 遥测态势探针
-@pos: HTTP 入口层的 System API
+"""System API routes for ingress, LAN, storage diagnostics, and OpenTelemetry posture.
 
-🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
+[INPUT]
+- app.api.system.schemas::IngressRequirementResponse, StorageInfoResponse, TelemetryPostureResponse (POS: System API Schemas)
+- app.services.system.storage_service (POS: Storage Diagnostics Service)
+- myrm_agent_harness.infra.tracing::get_telemetry_posture (POS: OpenTelemetry Posture Probe)
+
+[OUTPUT]
+- get_system_telemetry_posture: GET /telemetry-posture SRE OpenTelemetry Posture Probe
+- get_storage_info: GET /storage
+- optimize_storage: POST /storage/optimize
+- get_ingress_requirement: GET /ingress/requirement
+
+[POS]
+HTTP route handlers for the System API layer.
 """
 
 import asyncio
@@ -541,6 +550,8 @@ def get_system_telemetry_posture() -> TelemetryPostureResponse:
             protocol="unknown",
             headers_configured=False,
             local_trace_only=False,
+            exporter_type="none",
+            degraded_reason=None,
             three_tier_semantics=True,
             prompt_cache_metering=True,
         )

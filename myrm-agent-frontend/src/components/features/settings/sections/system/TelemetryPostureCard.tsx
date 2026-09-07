@@ -22,7 +22,6 @@ import {
   IconCheck,
   IconCopy,
   IconRefresh,
-  IconServer,
   IconWorkflow,
 } from '@/components/features/icons/PremiumIcons';
 import { systemService, type TelemetryPosture } from '@/services/system';
@@ -37,6 +36,11 @@ const STATUS_MAP = {
     badge: 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20',
     dot: 'bg-blue-500',
     labelKey: 'console',
+  },
+  degraded_console: {
+    badge: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    dot: 'bg-amber-500',
+    labelKey: 'degradedConsole',
   },
   noop: {
     badge: 'bg-muted text-muted-foreground border-border/40',
@@ -147,6 +151,18 @@ export const TelemetryPostureCard = memo(() => {
           </Button>
         </div>
       </div>
+
+      {posture?.status === 'degraded_console' && (
+        <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">
+          <div className="font-semibold flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-amber-500" />
+            {t('degradedWarning')}
+          </div>
+          <div className="mt-1 text-muted-foreground">
+            {t('degradedHelp', { reason: posture.degraded_reason || 'Unknown error' })}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-3.5 text-xs">
         <div className="p-2.5 rounded-lg bg-muted/40 border border-border/30">

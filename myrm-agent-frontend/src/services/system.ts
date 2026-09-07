@@ -166,13 +166,15 @@ export interface DatabaseStorageBreakdown {
 }
 
 export interface TelemetryPosture {
-  status: 'active' | 'console' | 'noop' | 'missing_sdk' | 'local_only' | 'error';
+  status: 'active' | 'console' | 'degraded_console' | 'noop' | 'missing_sdk' | 'local_only' | 'error';
   initialized: boolean;
   has_sdk: boolean;
   endpoint: string | null;
   protocol: string;
   headers_configured: boolean;
   local_trace_only: boolean;
+  exporter_type?: string;
+  degraded_reason?: string | null;
   three_tier_semantics: boolean;
   prompt_cache_metering: boolean;
   error?: string;

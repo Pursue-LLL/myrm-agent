@@ -13008,9 +13008,12 @@
         "none": "None",
         "notConfigured": "Not configured (Local NoOp)",
         "threeTierReady": "3-Tier GenAI Spans Ready",
+        "degradedWarning": "OTLP export degraded to console output to prevent task blocking.",
+        "degradedHelp": "Reason: {reason}. Check your OTLP collector network reachability or credentials.",
         "status": {
           "active": "Active",
           "console": "Console (Dev)",
+          "degradedConsole": "Degraded (Console)",
           "noop": "Standby (NoOp)",
           "missingSdk": "SDK Missing",
           "localOnly": "Local Only",

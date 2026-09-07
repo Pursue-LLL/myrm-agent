@@ -25,11 +25,32 @@ describe('CuPermissionInline', () => {
     vi.clearAllMocks();
   });
 
-  it('shows granted state when all permissions are ready', async () => {
+  it('shows unverified capture state on first load without probe', async () => {
     mockApiRequest.mockResolvedValueOnce({
       accessibility: true,
       screen_recording: true,
+      screen_recording_capturable: null,
       all_granted: true,
+      capture_ready: false,
+      platform: 'darwin',
+      settings_deeplinks: {},
+    });
+
+    render(<CuPermissionInline tPanel={tPanel} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('cuPermission.grantsOkCaptureUnverified')).toBeInTheDocument();
+    });
+    expect(mockApiRequest).toHaveBeenCalledWith('/webui/desktop/permissions', { silent: true });
+  });
+
+  it('shows verified state when capture probe passed', async () => {
+    mockApiRequest.mockResolvedValueOnce({
+      accessibility: true,
+      screen_recording: true,
+      screen_recording_capturable: true,
+      all_granted: true,
+      capture_ready: true,
       platform: 'darwin',
       settings_deeplinks: {},
     });
@@ -41,11 +62,53 @@ describe('CuPermissionInline', () => {
     });
   });
 
+  it('recheck probes capture and can reach verified', async () => {
+    mockApiRequest
+      .mockResolvedValueOnce({
+        accessibility: true,
+        screen_recording: true,
+        screen_recording_capturable: null,
+        all_granted: true,
+        capture_ready: false,
+        platform: 'darwin',
+        settings_deeplinks: {},
+      })
+      .mockResolvedValueOnce({
+        accessibility: true,
+        screen_recording: true,
+        screen_recording_capturable: true,
+        all_granted: true,
+        capture_ready: true,
+        platform: 'darwin',
+        settings_deeplinks: {},
+      });
+
+    render(<CuPermissionInline tPanel={tPanel} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('cuPermission.grantsOkCaptureUnverified')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /cuPermission.recheckBtn/ }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('cuPermission.allGranted')).toBeInTheDocument();
+    });
+    expect(mockApiRequest).toHaveBeenLastCalledWith(
+      '/webui/desktop/permissions?probe_capture=true',
+      { silent: true },
+    );
+  });
+
   it('shows missing permissions and opens settings deeplink', async () => {
     mockApiRequest.mockResolvedValueOnce({
       accessibility: false,
       screen_recording: true,
+      screen_recording_capturable: null,
       all_granted: false,
+      capture_ready: false,
       platform: 'darwin',
       settings_deeplinks: {
         accessibility: ACCESSIBILITY_DEEPLINK,
@@ -74,6 +137,25 @@ describe('CuPermissionInline', () => {
     });
 
     windowOpen.mockRestore();
+  });
+
+  it('shows capture not ready when probe fails', async () => {
+    mockApiRequest.mockResolvedValueOnce({
+      accessibility: true,
+      screen_recording: true,
+      screen_recording_capturable: false,
+      all_granted: true,
+      capture_ready: false,
+      platform: 'darwin',
+      settings_deeplinks: {},
+    });
+
+    render(<CuPermissionInline tPanel={tPanel} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('cuPermission.missing')).toBeInTheDocument();
+    });
+    expect(screen.getByText('cuPermission.captureNotReady')).toBeInTheDocument();
   });
 
   it('renders error state when the permissions API fails', async () => {

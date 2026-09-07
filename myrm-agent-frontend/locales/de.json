@@ -12968,9 +12968,12 @@
         "none": "Keine",
         "notConfigured": "Nicht konfiguriert (Lokales NoOp)",
         "threeTierReady": "3-Stufen-GenAI-Spans bereit",
+        "degradedWarning": "OTLP-Export auf Konsolenausgabe herabgestuft, um ein Blockieren von Aufgaben zu verhindern.",
+        "degradedHelp": "Grund: {reason}. Bitte überprüfen Sie die Erreichbarkeit des OTLP-Collectors oder die Authentifizierungs-Header.",
         "status": {
           "active": "Aktiv",
           "console": "Konsole (Dev)",
+          "degradedConsole": "Herabgestuft (Konsole)",
           "noop": "Bereitschaft (NoOp)",
           "missingSdk": "SDK fehlt",
           "localOnly": "Nur lokal",

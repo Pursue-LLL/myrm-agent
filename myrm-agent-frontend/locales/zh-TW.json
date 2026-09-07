@@ -12968,9 +12968,12 @@
         "none": "無",
         "notConfigured": "未配置 (本地待機 NoOp)",
         "threeTierReady": "三層 GenAI 語義就緒",
+        "degradedWarning": "OTLP 遙測匯出已安全降級至標準主控台輸出，確保業務不被中斷。",
+        "degradedHelp": "降級原因：{reason}。請檢查 OTLP Collector 連線能力或驗證標頭設定。",
         "status": {
           "active": "已連線啟用",
           "console": "主控台輸出 (開發)",
+          "degradedConsole": "已降級 (主控台)",
           "noop": "純記憶體待機 (NoOp)",
           "missingSdk": "未安裝 SDK",
           "localOnly": "僅限本地隔離",

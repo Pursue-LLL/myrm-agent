@@ -19,6 +19,9 @@ const translations: Record<string, string> = {
   threeTierReady: '3-Tier GenAI Spans Ready',
   'status.active': 'Active',
   'status.noop': 'Standby (NoOp)',
+  'status.degradedConsole': 'Degraded (Console)',
+  degradedWarning: 'OTLP export degraded to console output to prevent task blocking.',
+  degradedHelp: 'Reason: connection refused. Check your OTLP collector network reachability or credentials.',
 };
 
 const stableT = (key: string) => translations[key] || key;
@@ -82,4 +85,30 @@ describe('TelemetryPostureCard', () => {
       expect(screen.getByText('None')).toBeInTheDocument();
     });
   });
+
+  it('renders degraded console warning banner when status is degraded_console', async () => {
+    (systemService.getTelemetryPosture as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: 'degraded_console',
+      initialized: true,
+      has_sdk: true,
+      endpoint: 'http://broken.internal:4318',
+      protocol: 'http/protobuf',
+      headers_configured: false,
+      local_trace_only: false,
+      exporter_type: 'console',
+      degraded_reason: 'connection refused',
+      three_tier_semantics: true,
+      prompt_cache_metering: true,
+    });
+
+    render(<TelemetryPostureCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Degraded (Console)')).toBeInTheDocument();
+      expect(
+        screen.getByText('OTLP export degraded to console output to prevent task blocking.'),
+      ).toBeInTheDocument();
+    });
+  });
 });
+

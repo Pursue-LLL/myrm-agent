@@ -12968,9 +12968,12 @@
         "none": "なし",
         "notConfigured": "未設定 (ローカル待機 NoOp)",
         "threeTierReady": "3 層 GenAI スパン対応",
+        "degradedWarning": "タスクのブロックを防ぐため、OTLPエクスポートはコンソール出力にフォールバックしました。",
+        "degradedHelp": "理由: {reason}。OTLPコレクターの疎通性または認証ヘッダーを確認してください。",
         "status": {
           "active": "アクティブ",
           "console": "コンソール (開発)",
+          "degradedConsole": "縮退動作 (コンソール)",
           "noop": "スタンバイ (NoOp)",
           "missingSdk": "SDK 未インストール",
           "localOnly": "ローカル限定",
