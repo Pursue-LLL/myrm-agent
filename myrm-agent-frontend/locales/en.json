@@ -10887,7 +10887,9 @@
     "latencyLabel": "Latency",
     "backgroundHint": "You can leave this chat — we'll notify you when it's done.",
     "queued": "Queued...",
-    "generatingProgress": "Generating... {percent}%"
+    "generatingProgress": "Generating... {percent}%",
+    "cancelTask": "Cancel task",
+    "cancelling": "Cancelling..."
   },
   "boot": {
     "title": "MyrmAgent",
@@ -12292,6 +12294,9 @@
     "desktopPermissions": {
       "title": "Desktop Automation Readiness",
       "allReady": "All capabilities ready",
+      "grantsOkCaptureUnverified": "Permissions granted — capture not verified yet",
+      "captureUnverifiedHint": "Tap refresh to verify screen capture works before desktop tasks.",
+      "recheckWithCapture": "Recheck with capture probe",
       "actionRequired": "Setup required for desktop automation",
       "checking": "Checking environment...",
       "platform": "Platform: {name}",
@@ -12299,10 +12304,13 @@
       "accessibilityDesc": "Keyboard & mouse automation tools available",
       "screenRecording": "Screen Capture",
       "screenRecordingDesc": "Screenshot and screen recording tools available",
+      "captureFunctional": "Capture usable",
+      "captureFunctionalDesc": "Functional probe: non-empty, non-black/white frame",
       "fixHints": "How to fix",
       "checkFailed": "Unable to check desktop permissions",
       "copiedToClipboard": "Command copied to clipboard",
       "statusOk": "OK",
+      "statusUnverified": "Not verified",
       "statusMissing": "Missing",
       "openSettings": "Open settings",
       "copyCommand": "Copy command",

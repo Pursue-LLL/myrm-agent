@@ -33,31 +33,10 @@ logger = logging.getLogger(__name__)
 
 def _serialize_task(task: object) -> dict[str, object]:
     """Serialize a queue task for status output."""
-    from myrm_agent_harness.toolkits.tasks import Task
+    from app.tasks.serializer import serialize_media_task
 
-    if not isinstance(task, Task):
-        return {}
+    return serialize_media_task(task)
 
-    return {
-        "task_id": task.task_id,
-        "task_type": task.task_type,
-        "status": task.status.value,
-        "result": task.result,
-        "error": {
-            "error_type": task.error.error_type,
-            "message": task.error.message,
-            "recoverable": task.error.recoverable.value,
-        }
-        if task.error
-        else None,
-        "priority": task.priority,
-        "progress": task.progress,
-        "progress_message": task.progress_message,
-        "created_at": task.created_at.isoformat(),
-        "updated_at": task.updated_at.isoformat(),
-        "started_at": task.started_at.isoformat() if task.started_at else None,
-        "completed_at": task.completed_at.isoformat() if task.completed_at else None,
-    }
 
 
 def _clamp_reference_sources(sources: list[str] | None) -> list[str] | None:

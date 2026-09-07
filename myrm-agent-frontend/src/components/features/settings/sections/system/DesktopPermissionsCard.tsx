@@ -7,7 +7,7 @@
  * - @/lib/deploy-mode::isLocalMode (POS: 前端部署模式判定)
  *
  * [OUTPUT]
- * - DesktopPermissionsCard: 桌面自动化就绪检测卡片；OS 权限状态 + 始终信任应用列表（含加载失败重试）
+ * - DesktopPermissionsCard: 桌面自动化就绪检测卡片；OS 授权 + 功能捕获探针三态 + 始终信任应用列表
  *
  * [POS]
  * 系统设置中的环境诊断卡片。仅本地/Tauri 模式渲染；`GET /webui/desktop/permissions` + `GET/DELETE /webui/desktop/trust/apps`。
@@ -375,6 +375,59 @@ const PermissionRow = memo<{
 ));
 
 PermissionRow.displayName = 'PermissionRow';
+
+const CaptureProbeRow = memo<{
+  label: string;
+  description: string;
+  capturable: boolean | null;
+  isLoading: boolean;
+  statusOkLabel: string;
+  statusUnverifiedLabel: string;
+  statusMissingLabel: string;
+}>(({ label, description, capturable, isLoading, statusOkLabel, statusUnverifiedLabel, statusMissingLabel }) => {
+  const tone = isLoading ? 'loading' : capturable === true ? 'ok' : capturable === false ? 'missing' : 'unverified';
+  const badge =
+    tone === 'loading'
+      ? '...'
+      : tone === 'ok'
+        ? statusOkLabel
+        : tone === 'missing'
+          ? statusMissingLabel
+          : statusUnverifiedLabel;
+
+  return (
+    <div className="px-5 py-4 flex items-center justify-between">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div
+          className={cn(
+            'w-2 h-2 rounded-full',
+            tone === 'loading' && 'bg-muted-foreground animate-pulse',
+            tone === 'ok' && 'bg-emerald-500',
+            tone === 'missing' && 'bg-rose-500',
+            tone === 'unverified' && 'bg-sky-500',
+          )}
+        />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">{label}</p>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      <span
+        className={cn(
+          'text-xs font-medium px-2.5 py-1 rounded-full',
+          tone === 'loading' && 'bg-muted text-muted-foreground',
+          tone === 'ok' && 'bg-emerald-500/10 text-emerald-500',
+          tone === 'missing' && 'bg-rose-500/10 text-rose-500',
+          tone === 'unverified' && 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
+        )}
+      >
+        {badge}
+      </span>
+    </div>
+  );
+});
+
+CaptureProbeRow.displayName = 'CaptureProbeRow';
 
 const DeeplinkItem = memo<{
   label: string;

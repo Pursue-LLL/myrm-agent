@@ -16,6 +16,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { useTaskSubscription } from '@/hooks/tasks/useTasksSubscription';
+import { cancelMediaTask } from '@/services/mediaTasks';
 import { ImageResultCard } from '@/components/features/image-gen/ImageResultCard';
 import TaskCardPlaceholder from './TaskCardPlaceholder';
 import TaskCardError from './TaskCardError';
@@ -87,8 +88,10 @@ export const ImageTaskCard: React.FC<ImageTaskCardProps> = ({ task_id, className
   if (task.status === 'pending' || task.status === 'queued' || task.status === 'running') {
     return (
       <TaskCardPlaceholder
+        taskId={task.task_id}
         prompt={getStringPayloadValue(task.payload, 'prompt')}
         progress={task.progress}
+        onCancel={cancelMediaTask}
         className={className}
       />
     );

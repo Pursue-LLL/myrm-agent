@@ -27,12 +27,15 @@ logger = logging.getLogger(__name__)
 ArtifactPushFn = Callable[[str, str, ArtifactType, str], None]
 
 
+MAX_TTS_TEXT_LENGTH = 1500
+
+
 class TTSInput(BaseModel):
     """Input schema for TTS tool."""
 
     text: str = Field(
         ...,
-        description="The plain text content to synthesize into spoken audio.",
+        description="The plain text content to synthesize into spoken audio. For optimal latency and natural prosody, keep text concise (under 1500 characters).",
     )
 
 
@@ -76,8 +79,24 @@ class TTSTool(BaseTool):
         run_manager: CallbackManagerForToolRun | None = None,
     ) -> str:
         """Asynchronously generate speech."""
+        cleaned_text = text.strip()
+        if not cleaned_text:
+            return json.dumps({"status": "error", "error": "Text content cannot be empty."}, ensure_ascii=False)
+
+        if len(cleaned_text) > MAX_TTS_TEXT_LENGTH:
+            return json.dumps(
+                {
+                    "status": "error",
+                    "error": (
+                        f"Text length ({len(cleaned_text)} characters) exceeds the safe single-turn limit "
+                        f"of {MAX_TTS_TEXT_LENGTH} characters. Please summarize or chunk the text into smaller segments."
+                    ),
+                },
+                ensure_ascii=False,
+            )
+
         try:
-            result = await self._engine.generate(text)
+            result = await self._engine.generate(cleaned_text)
 
             out: dict[str, object] = {
                 "status": "success",

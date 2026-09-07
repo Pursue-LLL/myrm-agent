@@ -7,7 +7,7 @@
  *
  * [OUTPUT]
  * - CuPermissionInline: Agent 配置面板内 computer_use 权限探测条
- *   （verified / grants-ok-unverified / missing / error）
+ *   （verified / grants-ok-unverified / capture_failed / missing / error）
  *
  * [POS]
  * BuiltinToolsPanel 子组件。本地模式启用 computer_use 时展示 OS 权限状态与设置入口。
@@ -29,7 +29,7 @@ interface CuPermissionsResponse {
   settings_deeplinks: Record<string, string>;
 }
 
-type InlineTone = 'verified' | 'unverified' | 'missing';
+type InlineTone = 'verified' | 'unverified' | 'capture_failed' | 'missing';
 
 export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string }) => {
   const [status, setStatus] = useState<CuPermissionsResponse | null>(null);
@@ -81,11 +81,14 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
   const grantsOk = status?.all_granted === true;
   const capturable = status?.screen_recording_capturable;
   const verifiedReady = status?.capture_ready === true;
+  // Grants OK + live capture fail ≠ "missing permissions" — keep amber warn, honest title.
   const tone: InlineTone = verifiedReady
     ? 'verified'
     : grantsOk && capturable == null
       ? 'unverified'
-      : 'missing';
+      : grantsOk && capturable === false
+        ? 'capture_failed'
+        : 'missing';
 
   // Neutral shell while probing — never reuse "missing" amber for checking copy.
   const toneClass = loading
@@ -139,6 +142,49 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
           </div>
           <p className="text-[10px] opacity-75">{tPanel('cuPermission.captureUnverifiedHint')}</p>
           <div className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              className={cn(
+                'inline-flex items-center gap-1 px-2 py-1 rounded-md font-medium transition-colors',
+                actionBtnClass,
+              )}
+              onClick={() => check(true)}
+              disabled={loading}
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              {tPanel('cuPermission.recheckBtn')}
+            </button>
+          </div>
+        </>
+      ) : tone === 'capture_failed' ? (
+        <>
+          <div className="flex items-center gap-2 font-medium">
+            <AlertTriangle size={14} />
+            <span>{tPanel('cuPermission.captureFailed')}</span>
+          </div>
+          <ul className="ml-5 list-disc space-y-0.5">
+            <li>{tPanel('cuPermission.captureNotReady')}</li>
+          </ul>
+          <p className="text-[10px] opacity-75">{tPanel('cuPermission.captureFailedHint')}</p>
+          <div className="flex items-center gap-2 pt-1">
+            {pickSettingsDeepLink(status?.settings_deeplinks) && (
+              <button
+                type="button"
+                className={cn(
+                  'inline-flex items-center gap-1 px-2 py-1 rounded-md font-medium transition-colors',
+                  actionBtnClass,
+                )}
+                onClick={() => {
+                  const link = pickSettingsDeepLink(status?.settings_deeplinks);
+                  if (link) {
+                    openPermissionDeepLinkWithGuideFallback(link, status?.platform);
+                  }
+                }}
+              >
+                <ExternalLink size={12} />
+                {tPanel('cuPermission.openSettings')}
+              </button>
+            )}
             <button
               type="button"
               className={cn(

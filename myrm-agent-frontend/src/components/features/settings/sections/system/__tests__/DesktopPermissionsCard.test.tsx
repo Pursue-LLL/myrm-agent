@@ -41,21 +41,29 @@ import DesktopPermissionsCard from '../DesktopPermissionsCard';
 
 const ACCESSIBILITY_DEEPLINK = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
 
-const READY_PERMISSIONS = {
+const GRANT_ONLY_PERMISSIONS = {
   accessibility: true,
   screen_recording: true,
+  screen_recording_capturable: null,
   all_granted: true,
+  capture_ready: false,
   platform: 'darwin',
   settings_deeplinks: {},
 };
 
+const CAPTURE_READY_PERMISSIONS = {
+  ...GRANT_ONLY_PERMISSIONS,
+  screen_recording_capturable: true,
+  capture_ready: true,
+};
+
 function mockDesktopApis(options?: { permissions?: unknown; trust?: unknown; trustReject?: boolean }) {
   mockApiRequest.mockImplementation((url: string, init?: { method?: string }) => {
-    if (url === '/webui/desktop/permissions') {
+    if (typeof url === 'string' && url.startsWith('/webui/desktop/permissions')) {
       if (options?.permissions instanceof Error) {
         return Promise.reject(options.permissions);
       }
-      return Promise.resolve(options?.permissions ?? READY_PERMISSIONS);
+      return Promise.resolve(options?.permissions ?? GRANT_ONLY_PERMISSIONS);
     }
     if (url === '/webui/desktop/trust/apps') {
       if (init?.method === 'DELETE') {
@@ -80,15 +88,52 @@ describe('DesktopPermissionsCard', () => {
     cleanup();
   });
 
-  it('shows all-ready state when permissions are granted', async () => {
+  it('shows unverified state on first load without capture probe', async () => {
     mockDesktopApis();
 
     render(<DesktopPermissionsCard />);
 
     await waitFor(() => {
+      expect(screen.getByText('grantsOkCaptureUnverified')).toBeInTheDocument();
+    });
+    expect(screen.getByText('captureUnverifiedHint')).toBeInTheDocument();
+    expect(screen.getByText('statusUnverified')).toBeInTheDocument();
+    expect(mockApiRequest).toHaveBeenCalledWith('/webui/desktop/permissions', { silent: true });
+  });
+
+  it('recheck with capture probe can reach all-ready', async () => {
+    mockApiRequest.mockImplementation((url: string, init?: { method?: string }) => {
+      if (url === '/webui/desktop/permissions') {
+        return Promise.resolve(GRANT_ONLY_PERMISSIONS);
+      }
+      if (url === '/webui/desktop/permissions?probe_capture=true') {
+        return Promise.resolve(CAPTURE_READY_PERMISSIONS);
+      }
+      if (url === '/webui/desktop/trust/apps') {
+        if (init?.method === 'DELETE') {
+          return Promise.resolve({ ok: true });
+        }
+        return Promise.resolve({ apps: [] });
+      }
+      return Promise.reject(new Error(`unexpected api: ${url}`));
+    });
+
+    render(<DesktopPermissionsCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('grantsOkCaptureUnverified')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTitle('recheckWithCapture'));
+    });
+
+    await waitFor(() => {
       expect(screen.getByText('allReady')).toBeInTheDocument();
     });
-    expect(screen.getByText('platform:darwin')).toBeInTheDocument();
+    expect(mockApiRequest).toHaveBeenCalledWith('/webui/desktop/permissions?probe_capture=true', {
+      silent: true,
+    });
   });
 
   it('shows missing permissions and opens system deeplink', async () => {
@@ -96,7 +141,9 @@ describe('DesktopPermissionsCard', () => {
       permissions: {
         accessibility: false,
         screen_recording: true,
+        screen_recording_capturable: null,
         all_granted: false,
+        capture_ready: false,
         platform: 'darwin',
         settings_deeplinks: {
           accessibility: ACCESSIBILITY_DEEPLINK,

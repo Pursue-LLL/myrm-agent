@@ -100,6 +100,7 @@ DESKTOP_CONTROL_RULES_EN = """
 - Prefer semantic @dref interactions from the AX tree. Do not guess coordinates when refs exist.
 - Use query and role in desktop_snapshot_tool to prioritize specific targets in large accessibility trees (e.g. desktop_snapshot_tool(query="<search term>")).
 - Use wait_seconds=<seconds> in desktop_interact_tool (or desktop_snapshot_tool) to wait for asynchronous UI changes (e.g. exports, animations, modal transitions) to settle.
+- For tree nodes and accordions, use action="expand" or action="collapse"; for checkboxes and switches, use action="toggle" (or action="check"/"uncheck"); for buttons/menus without focus shift, use action="invoke".
 - Use desktop_vision_tool only when the AX tree is empty, canvas-only, or desktop_interact_tool failed.
 - Use set_value for atomic field replacement; use type for keystroke simulation.
 - After desktop_interact_tool, read the follow-up snapshot before the next action.
@@ -115,6 +116,7 @@ DESKTOP_CONTROL_RULES_ZH = """
 - 优先使用来自可访问性树（AX tree）的语义 @dref 交互。存在引用时不猜测坐标。
 - 在大型可访问性树中，使用 desktop_snapshot_tool 的 query 与 role 参数优先检索目标元素（如 desktop_snapshot_tool(query="<搜索关键词>")）。
 - 在耗时异步操作（如导出、动画、弹窗过渡）中使用 desktop_interact_tool（或 desktop_snapshot_tool）的 wait_seconds=<秒数> 参数等待 UI 稳定。
+- 对树状节点与折叠项使用 action="expand" 或 action="collapse"；对复选框与开关使用 action="toggle"（或 action="check"/"uncheck"）；对按钮与菜单项使用 action="invoke"。
 - 仅在 AX tree 为空、纯画布或 desktop_interact_tool 失败时使用 desktop_vision_tool。
 - 使用 set_value 进行原子字段替换；使用 type 进行击键模拟。
 - 调用 desktop_interact_tool 后，在执行下一步操作前先读取后续快照。
