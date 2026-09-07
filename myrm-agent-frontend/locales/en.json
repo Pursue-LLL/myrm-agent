@@ -12298,6 +12298,8 @@
       "allReady": "All capabilities ready",
       "grantsOkCaptureUnverified": "Permissions granted — capture not verified yet",
       "captureUnverifiedHint": "Tap refresh to verify screen capture works before desktop tasks.",
+      "captureFailed": "Screen capture unavailable",
+      "captureFailedHint": "Permissions look granted, but a live capture failed. Re-enable Screen Recording for this app, unlock the display, then Recheck.",
       "recheckWithCapture": "Recheck including screen capture",
       "actionRequired": "Setup required for desktop automation",
       "checking": "Checking environment...",

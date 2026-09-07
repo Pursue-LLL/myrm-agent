@@ -87,5 +87,7 @@ async def test_telemetry_posture_real_harness_integration() -> None:
         assert "three_tier_semantics" in data
         assert data["three_tier_semantics"] is True
         assert data["prompt_cache_metering"] is True
+        assert "git_branch" in data
+        assert "git_commit" in data
 
 

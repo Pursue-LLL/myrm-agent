@@ -12298,6 +12298,8 @@
       "allReady": "すべての機能が利用可能です",
       "grantsOkCaptureUnverified": "権限は付与済み — キャプチャは未検証",
       "captureUnverifiedHint": "更新ボタンで画面キャプチャを確認してからデスクトップ作業を始めてください。",
+      "captureFailed": "画面キャプチャを利用できません",
+      "captureFailedHint": "権限は付与されているようですが、リアルタイムキャプチャに失敗しました。このアプリの画面収録を再度有効にし、画面ロックを解除してから「再確認」をクリックしてください。",
       "recheckWithCapture": "画面キャプチャ検証付きで再検査",
       "actionRequired": "デスクトップ自動化の設定が必要です",
       "checking": "環境を確認中...",

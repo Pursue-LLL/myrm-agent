@@ -28,7 +28,7 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 - SSE: `desktop_control_approval_request` — when stream chat matches foreground: `setDesktopActive(true)` + `openPanel`; approval banner always shown via `DesktopControlApprovalOverlay`
 - REST refresh: `GET /webui/desktop/snapshot` on `desktop_*` TOOL_END (tags `sourceChatId` with foreground chat)
 - `DesktopLiveView.tsx` / `DesktopInspectorToggle.tsx`: Scoped view via `selectScopedDesktopViewData`; close panel on **chat switch only** (`useClosePanelOnChatSwitch`)
-- REST: `GET /webui/desktop/permissions` — proactive TCC permission probe (Accessibility + Screen Recording)
+- REST: `GET /webui/desktop/permissions` — grant probe for the permission banner (Accessibility + Screen Recording). L2 capture readiness (`probe_capture` / `capture_ready`) is owned by Settings `DesktopPermissionsCard`, Agent `CuPermissionInline`, and Doctor — not this banner.
 
 ## E2E (Chrome MCP)
 
@@ -46,10 +46,12 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 
 ## Permission Guidance
 
-When `viewData.needsPermission` is true, `DesktopLiveView` renders an enhanced `PermissionBanner` that:
+When `viewData.needsPermission` is true, `DesktopLiveView` renders `PermissionBanner` that:
 
-1. Calls `/webui/desktop/permissions` to distinguish Accessibility vs Screen Recording failure
+1. Calls `/webui/desktop/permissions` (grant-only) to distinguish Accessibility vs Screen Recording failure
 2. Shows per-capability status messages (i18n: `desktopInspector.permissionDenied*`)
-3. Offers an "Open System Settings" button via `@/lib/desktop/permissionDeepLink::openPermissionDeepLinkWithGuideFallback` (platform-aware guide fallback)
-4. API probe failure shows amber `permissionCheckFailed` + recheck (not misleading red permission-denied copy)
-5. Provides a "Check again" button to re-probe without page reload
+3. Offers "Open System Settings" via `@/lib/desktop/permissionDeepLink::openPermissionDeepLinkWithGuideFallback`
+4. API failure shows amber `permissionCheckFailed` + recheck (not red permission-denied copy)
+5. "Check again" re-fetches grants without page reload
+
+Banner scope is **missing OS grants only**. Functional capture verification lives in Settings / Inline / Doctor.

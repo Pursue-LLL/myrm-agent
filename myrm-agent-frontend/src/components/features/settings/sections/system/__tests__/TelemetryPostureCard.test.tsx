@@ -110,5 +110,29 @@ describe('TelemetryPostureCard', () => {
       ).toBeInTheDocument();
     });
   });
+
+  it('renders VCS git branch and commit badge when available', async () => {
+    (systemService.getTelemetryPosture as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: 'active',
+      initialized: true,
+      has_sdk: true,
+      endpoint: 'http://apm.internal:4318',
+      protocol: 'http/protobuf',
+      headers_configured: true,
+      local_trace_only: false,
+      git_branch: 'feature/item-12',
+      git_commit: '7a8b9c0',
+      three_tier_semantics: true,
+      prompt_cache_metering: true,
+    });
+
+    render(<TelemetryPostureCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('feature/item-12')).toBeInTheDocument();
+      expect(screen.getByText('(7a8b9c0)')).toBeInTheDocument();
+    });
+  });
 });
+
 

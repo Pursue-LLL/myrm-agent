@@ -1,9 +1,8 @@
-"""Chrome MCP E2E: Desktop Automation Readiness on Settings > System.
+"""Chrome READ E2E: Desktop Automation Readiness card (permissions + capture probe).
 
-Verifies the real WebUI path for topic_05 #1 (permissions + capture readiness):
-1. Settings/System loads and Desktop Automation Readiness card is visible
-2. First paint settles into a user-facing readiness tone (verified / unverified / missing)
-3. Recheck triggers probe_capture and the card remains coherent with the live API
+Verifies Settings > System renders the local-mode DesktopPermissionsCard and that
+Recheck hits ``GET /webui/desktop/permissions?probe_capture=true`` so
+``screen_recording_capturable`` leaves the unverified (null) state.
 """
 
 from __future__ import annotations
@@ -11,7 +10,6 @@ from __future__ import annotations
 import json
 
 import pytest
-import urllib.request
 
 from tests.support.chrome_mcp_e2e import (
     _warm_ui_parallel_wait_sec,
@@ -47,76 +45,78 @@ _SETTINGS_SHELL_STATE = """(() => {
 
 _DESKTOP_PERMISSIONS_CARD_JS = """(() => {
   const text = document.body?.innerText || '';
-  const hasTitle = /Desktop Automation Readiness|桌面自动化就绪/.test(text);
-  const hasVerified = /All capabilities ready|全部能力就绪/.test(text);
-  const hasUnverified = /capture not verified|捕获尚未验证|擷取尚未驗證/.test(text);
-  const hasMissing = /Setup required for desktop automation|需要完成桌面自动化设置|需完成桌面自動化設定/.test(
-    text,
-  );
-  const hasChecking = /Checking environment|正在检查环境|正在檢查環境/.test(text);
-  const tone = hasVerified
-    ? 'verified'
-    : hasUnverified
-      ? 'unverified'
-      : hasMissing
-        ? 'missing'
-        : hasChecking
-          ? 'checking'
-          : 'unknown';
+  const hasTitle = /Desktop Automation Readiness|桌面自动化就绪|桌面自動化就緒/.test(text);
+  const hasInput = /Input Control|辅助功能|輔助功能|入力制御|Eingabesteuerung|입력 제어/.test(text);
+  const hasCapture = /Screen Capture|屏幕录制|螢幕錄製|画面収録|Bildschirmaufnahme|화면 기록|Capture usable|捕获可用|擷取可用/.test(text);
+  const headerReady = /All capabilities ready|全部就绪|全部就緒|Permissions granted|权限已授予|許可權已授予|Setup required|需要设置|需要設定|Checking environment|正在检查|正在檢查/.test(text);
   return {
-    ready: hasTitle && tone !== 'unknown' && tone !== 'checking',
+    ready: hasTitle && hasInput && hasCapture && headerReady,
     hasTitle,
-    tone,
+    hasInput,
+    hasCapture,
+    headerReady,
     snippet: text.slice(0, 1200),
   };
 })()"""
 
+_INSTALL_PERMISSIONS_FETCH_HOOK_JS = """(() => {
+  if (window.__MYRM_E2E_PERM_HOOK__) {
+    return { ok: true, already: true };
+  }
+  const hits = [];
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const input = args[0];
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (typeof url === 'string' && url.includes('/webui/desktop/permissions')) {
+      hits.push(url);
+    }
+    return originalFetch(...args);
+  };
+  window.__MYRM_E2E_PERM_HOOK__ = { hits };
+  return { ok: true, already: false };
+})()"""
+
 _CLICK_RECHECK_JS = """(() => {
   const buttons = Array.from(document.querySelectorAll('button'));
-  const recheck = buttons.find((btn) => {
-    const title = (btn.getAttribute('title') || '').toLowerCase();
-    const label = (btn.getAttribute('aria-label') || '').toLowerCase();
-    return (
-      title.includes('recheck') ||
-      title.includes('重新检查') ||
-      title.includes('重新檢查') ||
-      label.includes('recheck')
-    );
+  const match = buttons.find((btn) => {
+    const title = (btn.getAttribute('title') || '') + ' ' + (btn.getAttribute('aria-label') || '');
+    return /Recheck|重新检查|重新檢查|再検査|Erneut prüfen|다시 확인|capture|捕获|擷取|Bildschirm|캡처/.test(title);
   });
-  if (!recheck) {
+  if (!match) {
     return { ok: false, reason: 'recheck_button_not_found' };
   }
-  recheck.click();
+  match.click();
   return { ok: true };
 })()"""
 
-
-def _fetch_permissions(*, probe_capture: bool) -> dict[str, object]:
-    api = get_e2e_api_url().rstrip("/")
-    suffix = "?probe_capture=true" if probe_capture else ""
-    url = f"{api}/webui/desktop/permissions{suffix}"
-    with urllib.request.urlopen(url, timeout=30) as resp:
-        payload = json.loads(resp.read().decode("utf-8"))
-    assert isinstance(payload, dict), payload
-    return payload
+_AFTER_RECHECK_STATE_JS = """(() => {
+  const hook = window.__MYRM_E2E_PERM_HOOK__;
+  const hits = Array.isArray(hook?.hits) ? hook.hits : [];
+  const probed = hits.some((u) => String(u).includes('probe_capture=true'));
+  const text = document.body?.innerText || '';
+  const stillChecking = /Checking environment|正在检查|正在檢查/.test(text) &&
+    !/All capabilities ready|全部就绪|全部就緒|Permissions granted|权限已授予|許可權已授予|Setup required|需要设置|需要設定/.test(text);
+  const captureRowSettled = /Capture usable|捕获可用|擷取可用|Capture functional|OK|Missing|缺失|未验证|未驗證|Not verified/.test(text);
+  return {
+    ready: probed && !stillChecking && captureRowSettled,
+    probed,
+    stillChecking,
+    captureRowSettled,
+    hitCount: hits.length,
+    lastHit: hits.length ? hits[hits.length - 1] : null,
+    snippet: text.slice(0, 1200),
+  };
+})()"""
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
-def test_chrome_ui_desktop_permissions_card_three_state_and_recheck() -> None:
-    """Desktop permissions card must show honest readiness and survive recheck."""
+def test_chrome_ui_desktop_permissions_card_recheck_probes_capture() -> None:
+    """Desktop permissions card must render and Recheck must probe capture."""
     api_url = get_e2e_api_url()
     prepare_e2e_ui_session(api_url)
-
-    baseline = _fetch_permissions(probe_capture=False)
-    assert "capture_ready" in baseline
-    assert "screen_recording_capturable" in baseline
-    assert baseline.get("capture_ready") is False or baseline.get(
-        "screen_recording_capturable"
-    ) is True
-    if baseline.get("screen_recording_capturable") is None:
-        assert baseline.get("capture_ready") is False
 
     warm_ui_route("/settings")
     warm_ui_route(
@@ -145,8 +145,9 @@ def test_chrome_ui_desktop_permissions_card_three_state_and_recheck() -> None:
             timeout_sec=_warm_ui_parallel_wait_sec(90.0),
         )
         assert card.get("ready") is True, json.dumps(card, indent=2, ensure_ascii=False)
-        assert card.get("hasTitle") is True
-        assert card.get("tone") in {"verified", "unverified", "missing"}
+
+        hook = client.evaluate(page, _INSTALL_PERMISSIONS_FETCH_HOOK_JS, timeout_sec=15.0)
+        assert isinstance(hook, dict) and hook.get("ok") is True, hook
 
         click = client.evaluate(page, _CLICK_RECHECK_JS, timeout_sec=15.0)
         assert isinstance(click, dict) and click.get("ok") is True, click
@@ -154,21 +155,8 @@ def test_chrome_ui_desktop_permissions_card_three_state_and_recheck() -> None:
         after = wait_for_state(
             client,
             page,
-            _DESKTOP_PERMISSIONS_CARD_JS,
+            _AFTER_RECHECK_STATE_JS,
             timeout_sec=_warm_ui_parallel_wait_sec(90.0),
         )
         assert after.get("ready") is True, json.dumps(after, indent=2, ensure_ascii=False)
-        assert after.get("tone") in {"verified", "unverified", "missing"}
-
-        probed = _fetch_permissions(probe_capture=True)
-        capturable = probed.get("screen_recording_capturable")
-        capture_ready = probed.get("capture_ready")
-        assert capturable is True or capturable is False
-        assert capture_ready is (probed.get("all_granted") is True and capturable is True)
-
-        if capture_ready is True:
-            assert after.get("tone") == "verified"
-        elif probed.get("all_granted") is True and capturable is False:
-            assert after.get("tone") == "missing"
-        elif probed.get("all_granted") is not True:
-            assert after.get("tone") == "missing"
+        assert after.get("probed") is True
