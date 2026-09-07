@@ -61,7 +61,9 @@
     ".next-isolated-chrome-test_slash_skill_palette_sets_composer_c-3c9c5c11-22962-e46b14b7/types/**/*.ts",
     ".next-isolated-chrome-test_slash_skill_palette_sets_composer_c-3c9c5c11-22962-e46b14b7/dev/types/**/*.ts",
     ".next-isolated-chrome-test_fast_search_web_search_citations_li-f65262c4-57101-53465087/types/**/*.ts",
-    ".next-isolated-chrome-test_fast_search_web_search_citations_li-f65262c4-57101-53465087/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_fast_search_web_search_citations_li-f65262c4-57101-53465087/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_progress_steps_trace_timeline_chrom-b3de5d6e-69378-49c6a649/types/**/*.ts",
+    ".next-isolated-chrome-test_progress_steps_trace_timeline_chrom-b3de5d6e-69378-49c6a649/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

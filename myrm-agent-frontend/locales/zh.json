@@ -16015,6 +16015,11 @@
           "metricDeltas": "实测指标变化",
           "unpredictedRegressions": "未预期退化警告"
         },
+        "securityScan": {
+          "title": "技能安全静态扫描体检详情 ({count} 项发现)",
+          "score": "安全评分：{score}/100",
+          "line": "第 {line} 行"
+        },
         "empty": {
           "title": "当前视图暂无案例",
           "description": "当 Agent 捕获到新经验、自动落地能力，或需要你审核时，相关记录会出现在这里。"

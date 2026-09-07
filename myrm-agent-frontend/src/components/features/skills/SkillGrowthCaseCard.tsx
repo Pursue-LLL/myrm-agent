@@ -573,10 +573,10 @@ export default function SkillGrowthCaseCard({
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium uppercase tracking-wide text-indigo-700 dark:text-indigo-300 inline-flex items-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Skill Security Static Inspection Details ({item.securityScanSummary.findings.length} findings)</span>
+              <span>{t('securityScan.title', { count: item.securityScanSummary.findings.length })}</span>
             </p>
             <span className="font-mono text-xs font-semibold text-muted-foreground">
-              Score: {item.securityScanSummary.score}/100
+              {t('securityScan.score', { score: item.securityScanSummary.score })}
             </span>
           </div>
           <div className="mt-2 space-y-1.5">
@@ -594,7 +594,7 @@ export default function SkillGrowthCaseCard({
                   </div>
                   {finding.line_number && (
                     <span className="text-[10px] text-muted-foreground font-mono">
-                      Line: {finding.line_number}
+                      {t('securityScan.line', { line: finding.line_number })}
                     </span>
                   )}
                 </div>

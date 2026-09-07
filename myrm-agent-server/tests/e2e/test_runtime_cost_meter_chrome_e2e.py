@@ -103,8 +103,12 @@ def test_runtime_cost_meter_settings_ui_and_ledger_chrome_e2e() -> None:
         dismiss_blocking_modals(client, page)
         wait_for_settings_layout(client, page)
 
-        state = wait_for_state(client, page, _VERIFY_COST_METER_STATE_JS, timeout_sec=45.0)
-        assert state.get("ready") is True, f"Runtime cost meter not visible on UI: {state}"
+        state = wait_for_state(
+            client, page, _VERIFY_COST_METER_STATE_JS, timeout_sec=45.0
+        )
+        assert (
+            state.get("ready") is True
+        ), f"Runtime cost meter not visible on UI: {state}"
 
     # Step 3: Perform 429 recalibration self-healing check via REST API
     deplete_res = http_json(

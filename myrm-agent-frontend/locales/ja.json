@@ -15980,6 +15980,11 @@
           },
           "metricDeltas": "観測された指標の変化",
           "unpredictedRegressions": "予期しないリグレッション警告"
+        },
+        "securityScan": {
+          "title": "スキルセキュリティ静的検証詳細 ({count} 件の検出)",
+          "score": "セキュリティスコア：{score}/100",
+          "line": "{line} 行目"
         }
       },
       "upload": {

@@ -16015,6 +16015,11 @@
           "metricDeltas": "Observed Metric Deltas",
           "unpredictedRegressions": "Unpredicted Regressions"
         },
+        "securityScan": {
+          "title": "Skill Security Static Inspection Details ({count} findings)",
+          "score": "Score: {score}/100",
+          "line": "Line: {line}"
+        },
         "empty": {
           "title": "No cases in this view",
           "description": "Recent skill growth activity will appear here after the agent captures or reviews improvements."

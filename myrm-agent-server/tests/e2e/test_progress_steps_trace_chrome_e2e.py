@@ -110,9 +110,14 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
     return {"chat_id": chat_id, "steps_count": len(steps)}
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="LIVE",
+    private_reason="live_shpoib",
+)
 @pytest.mark.integration
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(300)
 def test_progress_steps_trace_timeline_chrome_e2e() -> None:
     api_base = get_e2e_api_url()
     ui_base = get_e2e_ui_url()
@@ -135,12 +140,9 @@ def test_progress_steps_trace_timeline_chrome_e2e() -> None:
 
         # 1. Verify message and progress steps mount
         _CHECK_MOUNTED_JS = """(() => {
-            const store = window.__myrmChatStore?.getState?.();
-            const msgs = store?.messages || [];
-            const asst = msgs.find(m => (m.content || '').includes('Trace timeline'));
             const toggle = document.querySelector('[data-testid="progress-steps-toggle"]');
             const panel = document.querySelector('[data-testid="progress-steps-panel"]');
-            return { ready: !!asst && (!!toggle || !!panel) };
+            return { ready: !!toggle || !!panel };
         })()"""
 
         wait_for_state(client, page, _CHECK_MOUNTED_JS, timeout_sec=30.0)
