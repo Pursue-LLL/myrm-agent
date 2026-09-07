@@ -15,7 +15,7 @@ Core models for SSH vault domain in app/services/ssh_vault/.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 

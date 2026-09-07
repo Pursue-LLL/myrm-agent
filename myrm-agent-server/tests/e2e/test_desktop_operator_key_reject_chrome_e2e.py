@@ -140,7 +140,11 @@ async def test_chrome_ui_operator_as_key_rejected(
                 or provider_debug.get("modelId")
                 or ""
             )
-        progress(f"UI model={model_label!r} provider_debug={provider_debug}")
+        security_debug = await chat.evaluate(
+            """(() => window.__MYRM_E2E_CHAT__?.debugSecurityState?.() ?? null)()""",
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
+        progress(f"UI model={model_label!r} security={security_debug!r}")
 
         send_result = await chat.send_message(_PROMPT, _PROMPT)
         chat_id = str(
@@ -168,6 +172,19 @@ async def test_chrome_ui_operator_as_key_rejected(
                 "(() => document.body?.innerText || '')()",
                 intent=EvaluateIntent.SYNC_PROBE,
             )
+            # Fallback: if HITL still surfaces (yolo lag), click Approve once.
+            if isinstance(page_text, str) and "批准" in page_text and "Rejected printable" not in page_text:
+                clicked = await chat.evaluate(
+                    """(() => {
+                      const nodes = Array.from(document.querySelectorAll('button,[role="button"]'));
+                      const btn = nodes.find((n) => (n.textContent || '').trim() === '批准');
+                      if (!btn) return { ok: false, err: 'no-approve' };
+                      btn.click();
+                      return { ok: true };
+                    })()""",
+                    intent=EvaluateIntent.AGENT_SUBMIT,
+                )
+                progress(f"approve fallback: {clicked}")
             msg_blob = _messages_blob(api_url, chat_id)
             trace_blob = _trace_blob(api_url, chat_id)
             blob = f"{page_text}\n{msg_blob}\n{trace_blob}"

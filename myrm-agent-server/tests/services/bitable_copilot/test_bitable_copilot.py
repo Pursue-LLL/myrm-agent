@@ -6,6 +6,7 @@ Tests schema identification, cell value synthesis, batch wrangling, and REST rou
 from __future__ import annotations
 
 import pytest
+
 from app.api.channels.bitable_copilot_router import WrangleRequest, wrangle_table_data
 from app.services.bitable_copilot.engine import DataWranglingEngine
 from app.services.bitable_copilot.models import (

@@ -243,6 +243,9 @@ const useChatStore = create<ChatState>()(
 
         set({
           chatId: id,
+          turnOutlines: [],
+          turnOutlinesLoading: false,
+          activeTimelineTurnIndex: null,
           activeKnowledgeBaseIds: pendingKbIds,
           activeKnowledgeBaseNames: pendingKbNames,
           lastCompactionMeta: null,
