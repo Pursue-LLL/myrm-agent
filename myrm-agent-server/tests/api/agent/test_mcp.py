@@ -181,19 +181,13 @@ class TestAgentMCP:
             "amap MCP skill was not genuinely invoked — agent fell back to web_search / skill-marketplace discovery (false pass)"
         )
 
-        if len(result.message_chunks) == 0:
-            bash_succeeded = any(
-                d.get("type") == "tasks_steps" and d.get("tool_name") == "bash_code_execute_tool" and d.get("status") == "success"
-                for d in result.collected_data
-            )
-            if bash_succeeded:
-                return
-
-            if result.error_events:
-                error_msg = str(result.error_events[0].get("error", ""))
-                pytest.skip(f"Agent could not generate answer: {error_msg[:120]}")
-            pytest.skip("Agent produced no answer and no error events")
-
+        bash_succeeded = any(
+            d.get("type") == "tasks_steps"
+            and d.get("tool_name") == "bash_code_execute_tool"
+            and d.get("status") == "success"
+            for d in result.collected_data
+        )
+        assert bash_succeeded, "amap PTC bash code execution did not succeed (must execute and succeed via bash)"
         assert len(result.message_chunks) > 0, "Agent should produce a final answer"
         print("\nMCP integration test passed")
 

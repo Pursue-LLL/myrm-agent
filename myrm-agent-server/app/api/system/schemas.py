@@ -143,6 +143,8 @@ class TelemetryPostureResponse(BaseModel):
     protocol: str
     headers_configured: bool
     local_trace_only: bool
+    exporter_type: str = "none"
+    degraded_reason: str | None = None
     three_tier_semantics: bool = True
     prompt_cache_metering: bool = True
     error: str | None = None
