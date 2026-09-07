@@ -66,6 +66,7 @@ async def create_evolution_review_record(
     eval_cases: list[dict[str, object]] | None = None,
     change_manifest: dict[str, object] | None = None,
     attribution_result: dict[str, object] | None = None,
+    security_scan_summary: dict[str, object] | None = None,
     growth_status: EvolutionGrowthStatus = EvolutionGrowthStatus.PENDING_REVIEW,
     approval_status: str = "PENDING",
 ) -> EvolutionReviewRecord:
@@ -91,6 +92,7 @@ async def create_evolution_review_record(
         eval_cases=eval_cases or [],
         change_manifest=change_manifest,
         attribution_result=attribution_result,
+        security_scan_summary=security_scan_summary,
     )
     record = await ApprovalRegistry.create_approval(
         agent_id=agent_id,

@@ -10,6 +10,9 @@ import {
   IconZap,
   IconAlertCircle,
   IconShieldAlert,
+  IconCopy,
+  IconCheck,
+  IconDownload,
 } from '@/components/features/icons/PremiumIcons';
 import { getSessionAnalytics, type SessionAnalytics } from '@/services/statistics';
 import { formatCost, formatTokenCount } from './RoutingAnalyticsPanel';
@@ -29,6 +32,112 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
   const [data, setData] = useState<SessionAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyMarkdown = useCallback(async () => {
+    if (!data) return;
+    const durSec = Math.round(data.duration_ms / 1000);
+    const durStr = durSec >= 60 ? `${Math.floor(durSec / 60)}m ${durSec % 60}s` : `${durSec}s`;
+
+    const llmRows =
+      data.llm_breakdown && data.llm_breakdown.length > 0
+        ? data.llm_breakdown
+            .map(
+              (item) =>
+                `| ${item.model_name} | ${item.call_count} | ${item.total_duration_ms} ms | ${item.call_count > 0 ? Math.round(item.total_duration_ms / item.call_count) : 0} ms |`,
+            )
+            .join('\n')
+        : '| N/A | 0 | 0 ms | 0 ms |';
+
+    const toolRows =
+      data.tool_breakdown && data.tool_breakdown.length > 0
+        ? data.tool_breakdown
+            .map(
+              (item) =>
+                `| ${item.tool_name} | ${item.call_count} | ${item.total_duration_ms} ms | ${item.call_count > 0 ? Math.round(item.total_duration_ms / item.call_count) : 0} ms |`,
+            )
+            .join('\n')
+        : '| N/A | 0 | 0 ms | 0 ms |';
+
+    const markdown = `# 📋 Myrm Task Audit Ledger
+
+- **Session Title**: ${data.title || 'Untitled Session'}
+- **Session ID**: \`${data.session_id}\`
+- **Action Mode**: ${data.action_mode}
+- **Timestamp**: ${data.created_at ? new Date(data.created_at).toLocaleString() : 'N/A'}
+- **Total Duration**: ${durStr}
+- **Total Messages**: ${data.message_count} (User: ${data.user_messages}, Assistant: ${data.assistant_messages})
+- **Total Tokens**: ${data.total_tokens.toLocaleString()} (Input: ${data.input_tokens.toLocaleString()}, Output: ${data.output_tokens.toLocaleString()}, Cached: ${data.cached_tokens.toLocaleString()})
+- **Prompt Cache Hit Ratio**: ${(data.cache_hit_ratio * 100).toFixed(1)}%
+- **Estimated Cost**: $${data.cost_usd.toFixed(4)} USD
+
+### 🤖 LLM Breakdown
+| Model | Calls | Total Duration | Avg Latency |
+| :--- | :--- | :--- | :--- |
+${llmRows}
+
+### 🛠️ Tool & Sandbox Breakdown
+| Tool Name | Calls | Total Duration | Avg Latency |
+| :--- | :--- | :--- | :--- |
+${toolRows}
+`;
+
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback
+    }
+  }, [data]);
+
+  const handleDownloadCsv = useCallback(() => {
+    if (!data) return;
+    const durSec = Math.round(data.duration_ms / 1000);
+    const escapeCsv = (val: string | number) => `"${String(val).replace(/"/g, '""')}"`;
+
+    const lines: string[] = [
+      '\uFEFFSection,Metric,Value',
+      `Session,Title,${escapeCsv(data.title || 'Untitled Session')}`,
+      `Session,SessionId,${escapeCsv(data.session_id)}`,
+      `Session,Mode,${escapeCsv(data.action_mode)}`,
+      `Session,CreatedAt,${escapeCsv(data.created_at || '')}`,
+      `Session,DurationSeconds,${durSec}`,
+      `Session,TotalMessages,${data.message_count}`,
+      `Session,UserMessages,${data.user_messages}`,
+      `Session,AssistantMessages,${data.assistant_messages}`,
+      `Economics,TotalTokens,${data.total_tokens}`,
+      `Economics,InputTokens,${data.input_tokens}`,
+      `Economics,OutputTokens,${data.output_tokens}`,
+      `Economics,CachedTokens,${data.cached_tokens}`,
+      `Economics,CacheHitRatio,${(data.cache_hit_ratio * 100).toFixed(2)}%`,
+      `Economics,CostUSD,${data.cost_usd.toFixed(4)}`,
+      '',
+      'Type,Name,Calls,TotalDurationMs',
+    ];
+
+    if (data.llm_breakdown) {
+      data.llm_breakdown.forEach((item) => {
+        lines.push(`LLM,${escapeCsv(item.model_name)},${item.call_count},${item.total_duration_ms}`);
+      });
+    }
+
+    if (data.tool_breakdown) {
+      data.tool_breakdown.forEach((item) => {
+        lines.push(`Tool,${escapeCsv(item.tool_name)},${item.call_count},${item.total_duration_ms}`);
+      });
+    }
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `audit-ledger-${data.session_id.slice(0, 8)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [data]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -119,21 +228,44 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
     >
       <div className="bg-background border border-border rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-background border-b border-border p-6 flex items-start justify-between">
-          <div className="flex-1">
-            <h2 className="text-xl font-bold text-foreground">{data.title || t('untitledSession')}</h2>
+        <div className="sticky top-0 bg-background border-b border-border p-6 flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-bold text-foreground truncate">{data.title || t('untitledSession')}</h2>
             <p className="text-sm text-muted-foreground mt-1">
               {tm.has(data.action_mode) ? tm(data.action_mode) : data.action_mode} •{' '}
               {data.created_at ? new Date(data.created_at).toLocaleString() : 'N/A'}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="shrink-0 p-2 hover:bg-muted rounded-full transition-colors"
-            aria-label={t('close')}
-          >
-            <IconX className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleCopyMarkdown}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all border',
+                copied
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                  : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border-border/60',
+              )}
+              title={t('copyMarkdownTooltip')}
+            >
+              {copied ? <IconCheck className="w-3.5 h-3.5 text-emerald-500" /> : <IconCopy className="w-3.5 h-3.5" />}
+              <span>{copied ? t('copied') : t('copyMarkdown')}</span>
+            </button>
+            <button
+              onClick={handleDownloadCsv}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all border bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border-border/60"
+              title={t('downloadCsvTooltip')}
+            >
+              <IconDownload className="w-3.5 h-3.5" />
+              <span>{t('downloadCsv')}</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1.5 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground"
+              aria-label={t('close')}
+            >
+              <IconX className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}

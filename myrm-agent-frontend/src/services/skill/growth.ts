@@ -81,6 +81,21 @@ export interface ProxyAlignmentDto {
   warning_message: string;
 }
 
+export interface SecurityScanFindingDetailDto {
+  threat_type: string;
+  severity: string;
+  description: string;
+  line_number?: number | null;
+}
+
+export interface SecurityScanSummaryDto {
+  score: number;
+  trust_recommendation: 'trusted' | 'installed' | 'untrusted' | 'reject' | string;
+  finding_counts?: Record<string, number>;
+  total_findings?: number;
+  findings?: SecurityScanFindingDetailDto[];
+}
+
 interface SkillGrowthCaseSummaryApiItem {
   id: string;
   source: SkillGrowthSource;
@@ -112,6 +127,7 @@ interface SkillGrowthCaseSummaryApiItem {
   prediction_manifest?: PredictionManifestDto | null;
   attribution_result?: AttributionResultDto | null;
   proxy_alignment?: ProxyAlignmentDto | null;
+  security_scan_summary?: SecurityScanSummaryDto | null;
 }
 
 interface SkillGrowthCaseDetailApiItem extends SkillGrowthCaseSummaryApiItem {
@@ -207,6 +223,7 @@ export interface SkillGrowthCaseSummary {
   predictionManifest?: PredictionManifestDto | null;
   attributionResult?: AttributionResultDto | null;
   proxyAlignment?: ProxyAlignmentDto | null;
+  securityScanSummary?: SecurityScanSummaryDto | null;
 }
 
 export interface SkillGrowthCaseDetail extends SkillGrowthCaseSummary {
@@ -306,6 +323,7 @@ function mapSummary(item: SkillGrowthCaseSummaryApiItem): SkillGrowthCaseSummary
     predictionManifest: item.prediction_manifest ?? null,
     attributionResult: item.attribution_result ?? null,
     proxyAlignment: item.proxy_alignment ?? null,
+    securityScanSummary: item.security_scan_summary ?? null,
   };
 }
 

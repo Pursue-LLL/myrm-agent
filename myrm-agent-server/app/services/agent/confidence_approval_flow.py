@@ -131,6 +131,7 @@ class ConfidenceApprovalFlow:
             runtime_failure=runtime_failure,
             eval_cases=proposal.updated_eval_cases,
             change_manifest=getattr(proposal, "change_manifest", None),
+            security_scan_summary=getattr(proposal, "security_scan_summary", None),
         )
 
         approved = False

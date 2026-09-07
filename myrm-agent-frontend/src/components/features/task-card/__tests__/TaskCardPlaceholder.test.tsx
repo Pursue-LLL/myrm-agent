@@ -3,13 +3,15 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { TaskCardPlaceholder } from '../TaskCardPlaceholder';
 
+const stableT = (key: string, params?: Record<string, unknown>) => {
+  if (params?.percent !== undefined) {
+    return `${key}:${params.percent}`;
+  }
+  return key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params?.percent !== undefined) {
-      return `${key}:${params.percent}`;
-    }
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('TaskCardPlaceholder', () => {

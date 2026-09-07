@@ -104,7 +104,7 @@ _STRATEGY_CLASSIFIERS: tuple[tuple[TroubleshootStrategyType, re.Pattern[str], st
 
 # High-risk destructive action detector
 _HIGH_RISK_ACTION_RE = re.compile(
-    r"\b(?:rm\s+-rf\s+[/~]|drop\s+database|format\s+[a-z]:|mkfs|fdisk|chmod\s+-R\s+777\s+/)\b",
+    r"(?:rm\s+-[^\s]*[rf][^\s]*\s+[/~]|drop\s+database\b|format\s+[a-z]:|mkfs\b|fdisk\b|chmod\s+-R\s+777)",
     re.IGNORECASE,
 )
 

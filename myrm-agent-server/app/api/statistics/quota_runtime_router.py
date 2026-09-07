@@ -56,6 +56,16 @@ class BrowserRuntimeRecordRequest(BaseModel):
     failed_request_count: int = Field(default=0, ge=0)
 
 
+class SandboxWorkloadRecordRequest(BaseModel):
+    session_id: str | None = Field(default=None, max_length=128)
+    workload_type: str = Field(default="code_sandbox", max_length=32)
+    duration_seconds: float = Field(default=0.0, ge=0.0)
+    active_compute_seconds: float = Field(default=0.0, ge=0.0)
+    bytes_transferred: int = Field(default=0, ge=0)
+    execution_count: int = Field(default=1, ge=1)
+    failed_count: int = Field(default=0, ge=0)
+
+
 @router.get("/search-quotas")
 async def get_search_quotas(session: AsyncSession = Depends(get_db)) -> JSONResponse:
     """Retrieve all search provider quota statuses with progressive warning levels."""
@@ -94,14 +104,20 @@ async def record_search_quota(
 
 
 @router.get("/browser-runtime")
-async def get_browser_runtime_summary(session: AsyncSession = Depends(get_db)) -> JSONResponse:
+async def get_browser_runtime_summary(
+    session: AsyncSession = Depends(get_db),
+) -> JSONResponse:
     """Retrieve monthly browser automation compute and network transfer summary."""
     try:
         summary = await runtime_meter_service.get_browser_runtime_summary(session)
         return success_response(summary)
     except Exception as exc:
-        logger.error("Failed to retrieve browser runtime summary: %s", exc, exc_info=True)
-        raise internal_error("Failed to retrieve browser runtime summary", exception=exc) from exc
+        logger.error(
+            "Failed to retrieve browser runtime summary: %s", exc, exc_info=True
+        )
+        raise internal_error(
+            "Failed to retrieve browser runtime summary", exception=exc
+        ) from exc
 
 
 @router.post("/browser-runtime/record")
@@ -126,6 +142,37 @@ async def record_browser_runtime(
         raise internal_error("Failed to record browser runtime", exception=exc) from exc
 
 
+@router.post("/sandbox-workload/record")
+async def record_sandbox_workload(
+    req: SandboxWorkloadRecordRequest,
+    session: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Ingest session-level sandbox compute telemetry record."""
+    try:
+        record = await runtime_meter_service.record_sandbox_workload(
+            session,
+            workload_type=req.workload_type,
+            duration_seconds=req.duration_seconds,
+            active_compute_seconds=req.active_compute_seconds,
+            bytes_transferred=req.bytes_transferred,
+            execution_count=req.execution_count,
+            failed_count=req.failed_count,
+            session_id=req.session_id,
+        )
+        return success_response(
+            {
+                "id": record.id,
+                "year_month": record.year_month,
+                "workload_type": record.workload_type,
+            }
+        )
+    except Exception as exc:
+        logger.error("Failed to record sandbox workload: %s", exc, exc_info=True)
+        raise internal_error(
+            "Failed to record sandbox workload", exception=exc
+        ) from exc
+
+
 @router.get("/runtime-cost-gauge")
 async def get_runtime_cost_gauge(
     session: AsyncSession = Depends(get_db),
@@ -146,8 +193,12 @@ async def reset_search_quota(
 ) -> JSONResponse:
     """Reset used count and depletion status for one or all providers."""
     try:
-        reset_count = await runtime_meter_service.reset_search_quota(session, provider=req.provider)
-        return success_response({"reset_records_count": reset_count, "provider": req.provider})
+        reset_count = await runtime_meter_service.reset_search_quota(
+            session, provider=req.provider
+        )
+        return success_response(
+            {"reset_records_count": reset_count, "provider": req.provider}
+        )
     except Exception as exc:
         logger.error("Failed to reset search quota: %s", exc, exc_info=True)
         raise internal_error("Failed to reset search quota", exception=exc) from exc
@@ -174,4 +225,6 @@ async def update_search_quota_limit(
         )
     except Exception as exc:
         logger.error("Failed to update search quota limit: %s", exc, exc_info=True)
-        raise internal_error("Failed to update search quota limit", exception=exc) from exc
+        raise internal_error(
+            "Failed to update search quota limit", exception=exc
+        ) from exc

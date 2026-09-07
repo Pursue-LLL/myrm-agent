@@ -989,11 +989,16 @@ export interface BrowserRuntimeSummary {
   session_count: number;
   total_duration_minutes: number;
   active_compute_minutes: number;
+  code_sandbox_compute_minutes?: number;
+  total_active_compute_minutes?: number;
+  code_sandbox_executions?: number;
   total_bytes_transferred: number;
   total_megabytes_transferred: number;
   total_requests: number;
   total_failed_requests: number;
   estimated_compute_cost_usd: number;
+  estimated_cloud_value_saved_usd?: number;
+  is_local_mode?: boolean;
 }
 
 export interface RuntimeCostGaugeData {

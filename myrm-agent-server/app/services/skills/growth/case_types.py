@@ -73,6 +73,7 @@ class SkillGrowthCaseSummaryRead:
     prediction_manifest: dict[str, object] | None = None
     attribution_result: dict[str, object] | None = None
     proxy_alignment: dict[str, object] | None = None
+    security_scan_summary: dict[str, object] | None = None
 
 
 @dataclass(slots=True)
@@ -107,6 +108,7 @@ class SkillGrowthCaseDetailRead:
     prediction_manifest: dict[str, object] | None = None
     attribution_result: dict[str, object] | None = None
     proxy_alignment: dict[str, object] | None = None
+    security_scan_summary: dict[str, object] | None = None
 
 
 SkillGrowthCaseRead = SkillGrowthCaseDetailRead

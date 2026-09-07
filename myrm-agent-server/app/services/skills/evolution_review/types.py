@@ -86,6 +86,7 @@ class EvolutionApprovalPayload(BaseModel):
     eval_cases: list[dict[str, object]] = Field(default_factory=list)
     change_manifest: dict[str, object] | None = None
     attribution_result: dict[str, object] | None = None
+    security_scan_summary: dict[str, object] | None = None
 
 
 @dataclass(slots=True)
@@ -115,6 +116,7 @@ class EvolutionReviewRecord:
     resolved_at: datetime | None
     change_manifest: dict[str, object] | None = None
     attribution_result: dict[str, object] | None = None
+    security_scan_summary: dict[str, object] | None = None
 
 
 class EvolutionApplyError(RuntimeError):
@@ -174,6 +176,7 @@ def approval_to_evolution_review_record(
         resolved_at=record.resolved_at,
         change_manifest=payload.change_manifest,
         attribution_result=payload.attribution_result,
+        security_scan_summary=payload.security_scan_summary,
     )
 
 

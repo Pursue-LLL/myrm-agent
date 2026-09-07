@@ -188,6 +188,7 @@ def _evolution_case_detail(record: EvolutionReviewRecord) -> SkillGrowthCaseDeta
         proxy_alignment=evaluate_case_proxy_alignment(
             {"prediction_manifest": record.change_manifest} if isinstance(record.change_manifest, dict) else payload_dict
         ),
+        security_scan_summary=(record.security_scan_summary if isinstance(record.security_scan_summary, dict) else None),
     )
 
 
@@ -222,6 +223,7 @@ def detail_to_summary(detail: SkillGrowthCaseDetailRead) -> SkillGrowthCaseSumma
         prediction_manifest=detail.prediction_manifest,
         attribution_result=detail.attribution_result,
         proxy_alignment=detail.proxy_alignment,
+        security_scan_summary=detail.security_scan_summary,
     )
 
 

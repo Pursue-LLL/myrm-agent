@@ -121,7 +121,12 @@ _CLEAR_BANNER_DISMISS_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.timeout(300)
 def test_cron_observability_ui_single_session() -> None:
     """Badge + CreateDialog preview + banner rules — one Chrome session."""

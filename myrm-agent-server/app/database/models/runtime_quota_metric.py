@@ -36,7 +36,9 @@ class SearchQuotaRecord(Base):
     used_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     quota_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=1000)
     is_depleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    last_depleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_depleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     last_used_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -56,10 +58,48 @@ class BrowserRuntimeRecord(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     year_month: Mapped[str] = mapped_column(String(7), nullable=False)  # "YYYY-MM"
-    session_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    session_id: Mapped[str | None] = mapped_column(
+        String(128), nullable=True, index=True
+    )
     duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    active_compute_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    active_compute_seconds: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0
+    )
     bytes_transferred: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     request_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    failed_request_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    failed_request_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class SandboxWorkloadRecord(Base):
+    """Session-level and monthly sandbox execution workload ledger (code, browser, ptc)."""
+
+    __tablename__ = "sandbox_workload_records"
+    __table_args__ = (
+        Index("ix_sandbox_workload_year_month", "year_month"),
+        Index("ix_sandbox_workload_type", "workload_type"),
+        Index("ix_sandbox_workload_created_at", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    year_month: Mapped[str] = mapped_column(String(7), nullable=False)  # "YYYY-MM"
+    workload_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="code_sandbox"
+    )
+    session_id: Mapped[str | None] = mapped_column(
+        String(128), nullable=True, index=True
+    )
+    duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    active_compute_seconds: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0
+    )
+    bytes_transferred: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    execution_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    failed_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

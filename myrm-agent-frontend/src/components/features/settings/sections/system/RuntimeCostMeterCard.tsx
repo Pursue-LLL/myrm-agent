@@ -240,14 +240,20 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
           </div>
         </div>
 
-        {/* Right Column: Browser Compute & Network Summary (5 Cols) */}
+        {/* Right Column: Sandbox Compute & Automation Workload (5 Cols) */}
         <div className="lg:col-span-5 space-y-3">
           <div className="flex items-center justify-between text-xs font-medium text-foreground">
             <span className="flex items-center gap-1.5">
               <Globe className="w-4 h-4 text-primary" />
-              {t('browserTitle')}
+              {t('sandboxWorkloadTitle')}
             </span>
-            <span className="text-muted-foreground text-[11px]">{t('monthlySummary')}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
+                <CheckCircle2 className="w-3 h-3" />
+                {t('localComputeFree')}
+              </span>
+              <span className="text-muted-foreground text-[11px]">{t('monthlySummary')}</span>
+            </div>
           </div>
 
           <div className="p-4 rounded-xl border border-border/40 bg-background/80 space-y-4">
@@ -255,10 +261,22 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
               <div className="p-3 rounded-lg bg-muted/40 space-y-1">
                 <span className="text-[11px] text-muted-foreground">{t('activeComputeTime')}</span>
                 <div className="text-lg font-bold text-foreground">
-                  {browserSummary ? `${browserSummary.active_compute_minutes} 分钟` : '0 分钟'}
+                  {browserSummary ? `${browserSummary.active_compute_minutes} ${t('minutesUnit')}` : `0 ${t('minutesUnit')}`}
                 </div>
                 <span className="text-[10px] text-muted-foreground block">
                   {t('sessionsCount', { count: browserSummary?.session_count ?? 0 })}
+                </span>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/40 space-y-1">
+                <span className="text-[11px] text-muted-foreground">{t('codeSandboxCompute')}</span>
+                <div className="text-lg font-bold text-foreground">
+                  {browserSummary?.code_sandbox_compute_minutes !== undefined
+                    ? `${browserSummary.code_sandbox_compute_minutes} ${t('minutesUnit')}`
+                    : `0 ${t('minutesUnit')}`}
+                </div>
+                <span className="text-[10px] text-muted-foreground block">
+                  {t('executionsCount', { count: browserSummary?.code_sandbox_executions ?? 0 })}
                 </span>
               </div>
 
@@ -271,12 +289,29 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
                   {t('requestsCount', { count: browserSummary?.total_requests ?? 0 })}
                 </span>
               </div>
+
+              <div className="p-3 rounded-lg bg-muted/40 space-y-1">
+                <span className="text-[11px] text-muted-foreground">{t('totalWorkloadCompute')}</span>
+                <div className="text-lg font-bold text-foreground text-primary">
+                  {browserSummary
+                    ? `${browserSummary.total_active_compute_minutes ?? browserSummary.active_compute_minutes} ${t('minutesUnit')}`
+                    : `0 ${t('minutesUnit')}`}
+                </div>
+                <span className="text-[10px] text-muted-foreground block">
+                  {t('allSandboxesCombined')}
+                </span>
+              </div>
             </div>
 
             <div className="pt-2 border-t border-border/30 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">{t('estimatedCost')}</span>
-              <span className="font-semibold text-primary font-mono text-sm">
-                ${browserSummary?.estimated_compute_cost_usd?.toFixed(3) ?? '0.000'}
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">{t('estimatedCloudValue')}</span>
+                <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
+                  {t('savedBadge')}
+                </span>
+              </div>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono text-sm">
+                +${(browserSummary?.estimated_cloud_value_saved_usd ?? browserSummary?.estimated_compute_cost_usd ?? 0).toFixed(3)} USD
               </span>
             </div>
 

@@ -78,8 +78,6 @@ class BurnRateSmokeAlarmDetector:
 
         # Evict stale entries outside the sliding window
         self._prune_stale(queue, now)
-        if not queue:
-            self._sessions.pop(session_id, None)
         return self._evaluate_verdict(queue)
 
     def check_verdict(self, session_id: str | None = None) -> SmokeAlarmVerdict:
@@ -97,6 +95,16 @@ class BurnRateSmokeAlarmDetector:
                     reason="No usage records in window",
                 )
             self._prune_stale(queue, now)
+            if not queue:
+                self._sessions.pop(session_id, None)
+                return SmokeAlarmVerdict(
+                    is_alert=False,
+                    tokens_per_minute=0.0,
+                    window_seconds=self._window_seconds,
+                    total_tokens_in_window=0,
+                    threshold_tpm=self._threshold_tpm,
+                    reason="No usage records in window",
+                )
             return self._evaluate_verdict(queue)
 
         # Global aggregate evaluation across all active sessions
@@ -118,6 +126,7 @@ class BurnRateSmokeAlarmDetector:
         for sid, q in list(self._sessions.items()):
             self._prune_stale(q, now)
             if not q:
+                self._sessions.pop(sid, None)
                 continue
             verdict = self._evaluate_verdict(q)
             if verdict.is_alert:
@@ -138,7 +147,9 @@ class BurnRateSmokeAlarmDetector:
         else:
             self._sessions.clear()
 
-    def _prune_stale(self, queue: deque[TokenUsagePoint] | list[TokenUsagePoint], now: float) -> None:
+    def _prune_stale(
+        self, queue: deque[TokenUsagePoint] | list[TokenUsagePoint], now: float
+    ) -> None:
         cutoff = now - self._window_seconds
         if isinstance(queue, deque):
             while queue and queue[0].timestamp < cutoff:

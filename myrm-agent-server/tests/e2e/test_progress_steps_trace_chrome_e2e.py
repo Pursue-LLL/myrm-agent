@@ -39,7 +39,7 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
     http_json(
         "POST",
         f"{api_base}/api/v1/chats/",
-        json_data={"id": chat_id, "title": "E2E ProgressSteps Trace"},
+        body={"id": chat_id, "title": "E2E ProgressSteps Trace"},
     )
 
     steps = [
@@ -95,7 +95,7 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
         "role": "user",
         "content": "Please execute the long multi-step trace verification.",
     }
-    http_json("POST", f"{api_base}/api/v1/chats/{chat_id}/messages", json_data=user_msg)
+    http_json("POST", f"{api_base}/api/v1/chats/{chat_id}/messages", body=user_msg)
 
     asst_msg = {
         "id": f"msg_a_{uuid.uuid4().hex[:8]}",
@@ -106,7 +106,7 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
             "progressSteps": steps,
         },
     }
-    http_json("POST", f"{api_base}/api/v1/chats/{chat_id}/messages", json_data=asst_msg)
+    http_json("POST", f"{api_base}/api/v1/chats/{chat_id}/messages", body=asst_msg)
 
     return {"chat_id": chat_id, "steps_count": len(steps)}
 
