@@ -399,33 +399,28 @@ export const loadOlderMessages = async (actions: ChatActionsMethods): Promise<vo
 };
 
 /**
- * 连续批量向前翻页加载直至目标轮次对应的消息被完全载入到内存 (loadThrough 投影导轨驱动器)
+ * 连续批量向前翻页加载直至目标消息 (或目标轮次用户消息ID) 被完全载入到内存 (loadThrough 投影导轨驱动器)
  */
 export const loadThroughTurn = async (
-  targetTurnIndex: number,
+  targetMessageId: string,
   actions: ChatActionsMethods,
-): Promise<void> => {
+): Promise<boolean> => {
   const state = useChatStore.getState();
-  if (!state.chatId) return;
+  if (!state.chatId || !targetMessageId) return false;
 
-  // 检查目标轮次的用户消息是否已经在当前 messages 列表中
-  const targetOutline = state.turnOutlines.find((t) => t.turn_index === targetTurnIndex);
   const isLoaded = () => {
     const current = useChatStore.getState();
-    if (targetOutline) {
-      return current.messages.some(
-        (m) => m.id === targetOutline.user_message_id || m.messageId === targetOutline.user_message_id,
-      );
-    }
-    return false;
+    return current.messages.some(
+      (m) => m.id === targetMessageId || m.messageId === targetMessageId,
+    );
   };
 
   if (isLoaded()) {
-    return;
+    return true;
   }
 
-  // 循环加载更早页直到目标消息进入列表或没有更多消息
-  let maxRounds = 15; // 保护上限，防止死循环
+  // 循环加载更早页直到目标消息进入列表或没有更多历史消息
+  let maxRounds = 25; // 保护上限，防止死循环
   while (!isLoaded() && maxRounds > 0) {
     const current = useChatStore.getState();
     if (!current.hasMoreMessages || !current.nextCursor || current.loadingOlder) {
@@ -434,6 +429,8 @@ export const loadThroughTurn = async (
     await loadOlderMessages(actions);
     maxRounds--;
   }
+
+  return isLoaded();
 };
 
 function parseMessages(raw: Message[]): Message[] {

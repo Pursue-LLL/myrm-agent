@@ -1869,8 +1869,26 @@ def shared_hot_e2e_api_base() -> str:
     return _SHARED_HOT_E2E_API_BASE
 
 
-def ensure_e2e_yolo_mode(*, api_url: str | None = None) -> None:
-    """Enable YOLO mode for live Chrome agent E2E (skips tool approval gate)."""
+def _yolo_security_payload(current: dict[str, object]) -> dict[str, object]:
+    now = int(time.time())
+    return {
+        **current,
+        "yoloModeEnabled": True,
+        "yoloModeEnabledAt": now,
+        "yoloModeTimeout": None,
+        "yolo_mode_enabled": True,
+        "yolo_mode_enabled_at": float(now),
+        "yolo_mode_timeout": None,
+        "permissions": {"*": "allow"},
+        "domainHitlEnabled": False,
+        "autoReviewEnabled": False,
+        "planConfirmEnabled": False,
+        "approvalTimeoutSeconds": 900,
+        "approval_timeout_seconds": 900,
+    }
+
+
+def _pin_yolo_on_api(api_url: str) -> None:
     last_exc: BaseException | None = None
     current: dict[str, object] = {}
     for attempt in range(5):
@@ -1887,25 +1905,33 @@ def ensure_e2e_yolo_mode(*, api_url: str | None = None) -> None:
             time.sleep(2.0 * (attempt + 1))
     if last_exc is not None:
         raise RuntimeError(f"SHPOIB config fetch failed: {last_exc}") from last_exc
-    now = int(time.time())
-    merged: dict[str, object] = {
-        **current,
-        "yoloModeEnabled": True,
-        "yoloModeEnabledAt": now,
-        "yolo_mode_enabled": True,
-        "yolo_mode_enabled_at": float(now),
-        "yolo_mode_timeout": None,
-        "permissions": {"*": "allow"},
-        "domainHitlEnabled": False,
-        "autoReviewEnabled": False,
-        "planConfirmEnabled": False,
-        "approvalTimeoutSeconds": 900,
-        "approval_timeout_seconds": 900,
-    }
-    put_config_value("securityConfig", merged, api_url=api_url)
+    put_config_value(
+        "securityConfig",
+        _yolo_security_payload(current),
+        api_url=api_url,
+    )
     persisted = fetch_config_value("securityConfig", api_url=api_url)
     if not persisted.get("yoloModeEnabled") and not persisted.get("yolo_mode_enabled"):
         raise RuntimeError(f"Failed to persist YOLO securityConfig: {persisted}")
+
+
+def ensure_e2e_yolo_mode(*, api_url: str | None = None) -> None:
+    """Enable YOLO mode for live Chrome agent E2E (skips tool approval gate).
+
+    Pins private SHPOIB API **and** shared ``:8080`` (HITL dual-target SSOT).
+    Parallel LIVE HITL tests may leave ``computer_use: ask`` on shared; Next
+    may briefly proxy via shared before ``__MYRM_E2E_API_BASE__`` inject.
+    """
+    targets: list[str] = []
+    if api_url:
+        targets.append(api_url.rstrip("/"))
+    else:
+        targets.append(get_e2e_api_url().rstrip("/"))
+    shared = shared_hot_e2e_api_base()
+    if shared not in targets:
+        targets.append(shared)
+    for target in targets:
+        _pin_yolo_on_api(target)
 
 
 def _hitl_security_payload(current: dict[str, object]) -> dict[str, object]:
@@ -2172,6 +2198,77 @@ PUT_E2E_CLEAR_SEARCH_CONFIG_JS = """(async () => {
   }
 })()"""
 
+PUT_E2E_YOLO_CONFIG_JS = """(async () => {
+  const privateApi = String(window.__MYRM_E2E_API_BASE__ || '').replace(/\\/+$/, '');
+  const sharedApi = 'http://127.0.0.1:8080';
+  const targets = [...new Set([privateApi, sharedApi].filter(Boolean))];
+  if (targets.length === 0) {
+    return { ok: false, err: 'no-api-base' };
+  }
+  try {
+    localStorage.removeItem('config-offline-queue');
+    const nowSec = Math.floor(Date.now() / 1000);
+    const value = {
+      yoloModeEnabled: true,
+      yoloModeEnabledAt: nowSec,
+      yoloModeTimeout: null,
+      yolo_mode_enabled: true,
+      yolo_mode_enabled_at: nowSec,
+      yolo_mode_timeout: null,
+      autoModeEnabled: true,
+      autoReviewEnabled: false,
+      planConfirmEnabled: false,
+      domainHitlEnabled: false,
+      permissions: { '*': 'allow', computer_use: 'allow' },
+    };
+    const results = [];
+    for (const api of targets) {
+      const putResp = await fetch(`${api}/api/v1/config/securityConfig`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: 'web', value }),
+        cache: 'no-store',
+      });
+      if (!putResp.ok) {
+        results.push({ api, ok: false, err: `put-${putResp.status}` });
+        continue;
+      }
+      const verifyResp = await fetch(`${api}/api/v1/config/securityConfig`, { cache: 'no-store' });
+      if (!verifyResp.ok) {
+        results.push({ api, ok: false, err: `fetch-${verifyResp.status}` });
+        continue;
+      }
+      const body = await verifyResp.json();
+      const persisted = body?.value ?? body?.data?.value ?? body?.data ?? {};
+      const yolo = Boolean(persisted?.yoloModeEnabled || persisted?.yolo_mode_enabled);
+      const perms = persisted?.permissions;
+      const computerUseAllow =
+        typeof perms === 'object' &&
+        perms !== null &&
+        (String(perms['computer_use'] || '').toLowerCase() === 'allow' ||
+          String(perms['*'] || '').toLowerCase() === 'allow');
+      results.push({
+        api,
+        ok: yolo && computerUseAllow,
+        yoloModeEnabled: yolo,
+        computerUseAllow,
+      });
+    }
+    try {
+      const { getConfigSyncManager } = await import('@/services/config/ConfigSyncManager');
+      getConfigSyncManager().set('securityConfig', value);
+    } catch (_) {
+      /* E2E pin still valid via server PUT when local sync import fails */
+    }
+    return {
+      ok: results.every((row) => row.ok),
+      results,
+    };
+  } catch (error) {
+    return { ok: false, err: String(error), targets };
+  }
+})()"""
+
 PUT_E2E_HITL_CONFIG_JS = """(async () => {
   const privateApi = String(window.__MYRM_E2E_API_BASE__ || '').replace(/\\/+$/, '');
   const sharedApi = 'http://127.0.0.1:8080';
@@ -2230,6 +2327,76 @@ PUT_E2E_HITL_CONFIG_JS = """(async () => {
         yoloModeEnabled: yolo,
         wildcardAllow,
         computerUseAsk,
+      });
+    }
+    try {
+      const { getConfigSyncManager } = await import('@/services/config/ConfigSyncManager');
+      getConfigSyncManager().set('securityConfig', value);
+    } catch (_) {
+      /* E2E pin still valid via server PUT when local sync import fails */
+    }
+    return {
+      ok: results.every((row) => row.ok),
+      results,
+    };
+  } catch (error) {
+    return { ok: false, err: String(error), targets };
+  }
+})()"""
+
+PUT_E2E_YOLO_CONFIG_JS = """(async () => {
+  const privateApi = String(window.__MYRM_E2E_API_BASE__ || '').replace(/\\/+$/, '');
+  const sharedApi = 'http://127.0.0.1:8080';
+  const targets = [...new Set([privateApi, sharedApi].filter(Boolean))];
+  if (targets.length === 0) {
+    return { ok: false, err: 'no-api-base' };
+  }
+  try {
+    localStorage.removeItem('config-offline-queue');
+    const now = Math.floor(Date.now() / 1000);
+    const value = {
+      yoloModeEnabled: true,
+      yoloModeEnabledAt: now,
+      yoloModeTimeout: null,
+      yolo_mode_enabled: true,
+      yolo_mode_enabled_at: now,
+      yolo_mode_timeout: null,
+      autoReviewEnabled: false,
+      planConfirmEnabled: false,
+      domainHitlEnabled: false,
+      permissions: { '*': 'allow' },
+      approvalTimeoutSeconds: 900,
+    };
+    const results = [];
+    for (const api of targets) {
+      const putResp = await fetch(`${api}/api/v1/config/securityConfig`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: 'web', value }),
+        cache: 'no-store',
+      });
+      if (!putResp.ok) {
+        results.push({ api, ok: false, err: `put-${putResp.status}` });
+        continue;
+      }
+      const verifyResp = await fetch(`${api}/api/v1/config/securityConfig`, { cache: 'no-store' });
+      if (!verifyResp.ok) {
+        results.push({ api, ok: false, err: `fetch-${verifyResp.status}` });
+        continue;
+      }
+      const body = await verifyResp.json();
+      const persisted = body?.value ?? body?.data?.value ?? body?.data ?? {};
+      const yolo = Boolean(persisted?.yoloModeEnabled || persisted?.yolo_mode_enabled);
+      const perms = persisted?.permissions;
+      const wildcardAllow =
+        typeof perms === 'object' &&
+        perms !== null &&
+        String(perms['*'] || '').toLowerCase() === 'allow';
+      results.push({
+        api,
+        ok: yolo && wildcardAllow,
+        yoloModeEnabled: yolo,
+        wildcardAllow,
       });
     }
     try {

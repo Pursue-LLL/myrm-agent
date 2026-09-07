@@ -35,8 +35,7 @@ async def get_ssh_assets_summary() -> SSHAssetSummary:
         return _ssh_service.get_summary()
     except Exception as e:
         logger.error("Failed to load SSH summary: %s", e)
-        raise HTTPException(status_code=500, detail=f"Failed to load SSH assets: {e}")
-
+        raise HTTPException(status_code=500, detail=f"Failed to load SSH assets: {e}") from e
 
 @router.get("/probe/{host_alias}", response_model=SSHProbeResult)
 async def probe_ssh_host(
@@ -48,4 +47,4 @@ async def probe_ssh_host(
         return await _ssh_service.probe_host(host_alias, timeout_seconds=timeout or 3.0)
     except Exception as e:
         logger.error("Failed to probe host %s: %s", host_alias, e)
-        raise HTTPException(status_code=500, detail=f"Failed to probe host: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to probe host: {e}") from e

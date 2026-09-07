@@ -171,6 +171,7 @@ export default function ChatWindowSatellites({
         </>
       ) : null}
       {chatId ? <ContinualOverlayWatcher chatId={chatId} /> : null}
+      <TurnTimelineRail />
     </>
   );
 }

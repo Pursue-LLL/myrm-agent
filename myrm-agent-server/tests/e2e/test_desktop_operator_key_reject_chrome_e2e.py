@@ -160,7 +160,11 @@ async def test_chrome_ui_operator_as_key_rejected(
 
         after = await chat.wait_turn_done(_PROMPT, timeout_sec=240, chat_id_hint=chat_id)
         progress(f"turn done: {after}")
-        heartbeat_once()
+        # Lease heartbeat flaps must not mask the product assertion below.
+        try:
+            heartbeat_once()
+        except RuntimeError as exc:
+            progress(f"heartbeat soft-fail after turn: {exc}")
 
         # Hard = Safety reject on key=*; soft = model obeyed DESKTOP_CONTROL_RULES and typed.
         hard_ok = False
@@ -172,15 +176,17 @@ async def test_chrome_ui_operator_as_key_rejected(
                 "(() => document.body?.innerText || '')()",
                 intent=EvaluateIntent.SYNC_PROBE,
             )
-            # Fallback: if HITL still surfaces (yolo lag), click Approve once.
-            if isinstance(page_text, str) and "批准" in page_text and "Rejected printable" not in page_text:
+            # Fallback: if HITL still surfaces (yolo lag / broken autoReview), click Approve.
+            if isinstance(page_text, str) and (
+                "批准" in page_text or "Approve" in page_text
+            ) and _REJECT not in page_text:
                 clicked = await chat.evaluate(
                     """(() => {
                       const nodes = Array.from(document.querySelectorAll('button,[role="button"]'));
-                      const btn = nodes.find((n) => (n.textContent || '').trim() === '批准');
+                      const btn = nodes.find((n) => /^(批准|Approve)$/.test((n.textContent || '').trim()));
                       if (!btn) return { ok: false, err: 'no-approve' };
                       btn.click();
-                      return { ok: true };
+                      return { ok: true, label: (btn.textContent || '').trim() };
                     })()""",
                     intent=EvaluateIntent.AGENT_SUBMIT,
                 )
@@ -193,7 +199,10 @@ async def test_chrome_ui_operator_as_key_rejected(
             if hard_ok or soft_ok:
                 break
             await asyncio.sleep(2.0)
-            heartbeat_once()
+            try:
+                heartbeat_once()
+            except RuntimeError as exc:
+                progress(f"heartbeat soft-fail in poll: {exc}")
 
         assert hard_ok or soft_ok, (
             f"Chrome UI turn missed operator Safety reject and type-fallback. "

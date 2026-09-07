@@ -896,6 +896,44 @@ const useChatStore = create<ChatState>()(
         await loadOlderMessages(actions);
       },
 
+      loadThrough: async (targetMessageId: string) => {
+        const actions = {
+          setMessages: (updater: (state: ChatState) => void) => set(updater),
+          setLoading: (loading: boolean) => set({ loading }),
+          setMessageAppeared: (appeared: boolean) => set({ messageAppeared: appeared }),
+          setHideAttachList: (hide: boolean) => set({ hideAttachList: hide }),
+          setHasUsedImagesInCurrentChat: (hasUsed: boolean) => set({ hasUsedImagesInCurrentChat: hasUsed }),
+          setSelectedModels: (models: { base: string | null; vision: string | null; reasoning: string | null }) =>
+            set({ selectedModels: models }),
+          setHasUserSelectedModel: (hasSelected: boolean) => set({ hasUserSelectedModel: hasSelected }),
+          clearCurrentSessionMessageId: () => set({ currentSessionMessageId: null }),
+          clearPendingWorkflowTemplate: () => get().clearPendingWorkflowTemplate(),
+          setIsWorkflowMode: (enabled: boolean) => set({ isWorkflowMode: enabled }),
+          _processSuggestions: get()._processSuggestions,
+          scheduleAutoSave: get().scheduleAutoSave,
+          setInputMessage: (message: string) => set({ inputMessage: message }),
+        };
+        const { loadThroughTurn } = await import('./chat/messageManagement');
+        return await loadThroughTurn(targetMessageId, actions);
+      },
+
+      refreshTurnOutlines: async () => {
+        const { chatId } = get();
+        if (!chatId) return;
+        set({ turnOutlinesLoading: true });
+        try {
+          const { getChatOutline } = await import('@/services/chat');
+          const outlines = await getChatOutline(chatId);
+          set({ turnOutlines: outlines, turnOutlinesLoading: false });
+        } catch {
+          set({ turnOutlinesLoading: false });
+        }
+      },
+
+      setActiveTimelineTurnIndex: (index: number | null) => {
+        set({ activeTimelineTurnIndex: index });
+      },
+
       // 调度自动保存（防抖）
       scheduleAutoSave: () => {
         const { _autoSaveTimer } = get();

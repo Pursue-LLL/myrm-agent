@@ -27,7 +27,6 @@ from typing import Dict, List, Optional
 
 from .host_models import (
     RemoteHostConfig,
-    SFTPTransferResult,
     SSHCommandExecutionResult,
     parse_ssh_config_text,
 )
