@@ -18394,6 +18394,8 @@
         "viewportUserTurns": "{count} Benutzer-Turns",
         "viewportToolCalls": "{count} Tool-Aufrufe",
         "copyRawViewport": "Rohen Viewport kopieren",
+        "copy": "Kopieren",
+        "copied": "Kopiert",
         "viewportTruncatedNotice": "Kontext im Telemetrieprotokoll abgeschnitten ({chars} Zeichen ausgelassen)",
         "forkBranch": "Branch abzweigen",
         "forkFromThisStep": "Branch ab diesem Schritt abzweigen",
@@ -18401,7 +18403,8 @@
         "forkingBranch": "Zweige ab...",
         "forkSuccess": "Konversations-Branch erfolgreich abgezweigt",
         "forkFailed": "Abzweigen des Konversations-Branches fehlgeschlagen",
-        "forkTitlePrefix": "[Branch @ Turn {index}]"
+        "forkTitlePrefix": "[Branch @ Turn {index}]",
+        "forkSuccessDetail": "Branch erfolgreich abgezweigt ({count} vorherige Turns & Status beibehalten)"
       },
       "securityAudit": "Sicherheitsprüfung",
       "contextDoctor": {

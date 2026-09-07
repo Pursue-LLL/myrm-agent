@@ -325,6 +325,7 @@ describe('SessionReplayPlayer store selector stability', () => {
   });
 
   it('renders fork button and triggers forkConversation from current step', async () => {
+    const forkModule = await import('@/services/fork-api');
     mockChatState = {
       chatId: 'sess-1',
       messages: [
@@ -341,5 +342,10 @@ describe('SessionReplayPlayer store selector stability', () => {
     const forkBtns = await screen.findAllByTitle('forkFromThisStep');
     expect(forkBtns.length).toBeGreaterThan(0);
     fireEvent.click(forkBtns[0]);
+    expect(forkModule.forkConversation).toHaveBeenCalledWith(
+      'sess-1',
+      0,
+      expect.stringContaining('run pwd'),
+    );
   });
 });

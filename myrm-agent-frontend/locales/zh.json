@@ -18435,6 +18435,8 @@
         "viewportUserTurns": "{count} 轮用户提问",
         "viewportToolCalls": "{count} 次工具调用",
         "copyRawViewport": "复制原始视口文本",
+        "copy": "复制",
+        "copied": "已复制",
         "viewportTruncatedNotice": "遥测日志中上下文已截断（省略了 {chars} 字符）",
         "forkBranch": "派生分支",
         "forkFromThisStep": "从此步派生分支",
@@ -18455,7 +18457,8 @@
           "message": "消息",
           "memory": "记忆",
           "error": "报错"
-        }
+        },
+        "forkSuccessDetail": "已成功派生会话分支（已保留前 {count} 轮消息与状态）"
       },
       "securityAudit": "安全审计"
     },

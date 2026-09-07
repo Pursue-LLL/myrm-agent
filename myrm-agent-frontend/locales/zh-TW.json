@@ -12303,7 +12303,7 @@
       "grantsOkCaptureUnverified": "許可權已授予 — 擷取尚未驗證",
       "captureUnverifiedHint": "請點重新整理確認螢幕擷取可用後再開始桌面任務。",
       "captureFailed": "螢幕擷取不可用",
-      "captureFailedHint": "系統權限看起來已授予，但即時擷取失敗。請為本應用重新開啟螢幕錄製、解鎖螢幕後點「重新檢查」。",
+      "captureFailedHint": "系統許可權看起來已授予，但即時擷取失敗。請為本應用重新開啟螢幕錄製、解鎖螢幕後點「重新檢查」。",
       "recheckWithCapture": "重新檢查（含螢幕擷取驗證）",
       "actionRequired": "桌面自動化需要配置",
       "checking": "正在檢測環境...",
@@ -12329,9 +12329,7 @@
       "trustedAppsRetry": "重試",
       "trustedAppsRevoke": "撤銷",
       "trustedAppsRevokeSuccess": "已撤銷信任",
-      "trustedAppsRevokeFailed": "撤銷失敗",
-      "captureFailed": "螢幕擷取不可用",
-      "captureFailedHint": "系統許可權看起來已授予，但即時擷取失敗。請為本應用重新開啟螢幕錄製、解鎖螢幕後點「重新檢查」。"
+      "trustedAppsRevokeFailed": "撤銷失敗"
     },
     "rate_limits": {
       "title": "速率限制監控",
@@ -18383,6 +18381,8 @@
         "viewportUserTurns": "{count} 輪使用者提問",
         "viewportToolCalls": "{count} 次工具調用",
         "copyRawViewport": "複製原始視口文字",
+        "copy": "複製",
+        "copied": "已複製",
         "viewportTruncatedNotice": "遙測日誌中上下文已截斷（省略了 {chars} 字元）",
         "forkBranch": "衍生分支",
         "forkFromThisStep": "從此步衍生分支",
@@ -18403,7 +18403,8 @@
           "message": "訊息",
           "memory": "記憶",
           "error": "報錯"
-        }
+        },
+        "forkSuccessDetail": "已成功衍生對話分支（已保留前 {count} 輪訊息與狀態）"
       },
       "securityAudit": "安全稽核",
       "contextDoctor": {

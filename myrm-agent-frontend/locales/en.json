@@ -18435,6 +18435,8 @@
         "viewportUserTurns": "{count} user turns",
         "viewportToolCalls": "{count} tools",
         "copyRawViewport": "Copy Raw Viewport Text",
+        "copy": "Copy",
+        "copied": "Copied",
         "viewportTruncatedNotice": "Context truncated in telemetry log ({chars} characters omitted)",
         "forkBranch": "Fork Branch",
         "forkFromThisStep": "Fork Branch From This Step",
@@ -18455,7 +18457,8 @@
           "message": "Message",
           "memory": "Memory",
           "error": "Error"
-        }
+        },
+        "forkSuccessDetail": "Successfully forked branch (retained previous {count} turns & state)"
       },
       "securityAudit": "Security Audit"
     },

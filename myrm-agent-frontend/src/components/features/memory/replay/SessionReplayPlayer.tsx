@@ -137,9 +137,11 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
     const targetIndex = computeTargetMessageIndex();
     setIsForking(true);
     try {
-      const res = await forkConversation(sessionId, targetIndex);
+      const baseTitle = trace?.task_input?.trim() ? trace.task_input.trim().slice(0, 30) : 'Chat';
+      const forkTitle = `${t('forkTitlePrefix', { index: targetIndex + 1 })} ${baseTitle}`;
+      const res = await forkConversation(sessionId, targetIndex, forkTitle);
       if (res.success && res.data?.new_chat_id) {
-        toast.success(t('forkSuccess'));
+        toast.success(t('forkSuccessDetail', { count: targetIndex + 1 }));
         useChatStore.getState().setChatId(res.data.new_chat_id);
         router.push(`/${res.data.new_chat_id}`);
       } else {
@@ -150,7 +152,7 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
     } finally {
       setIsForking(false);
     }
-  }, [isForking, computeTargetMessageIndex, sessionId, t, router]);
+  }, [isForking, computeTargetMessageIndex, sessionId, trace?.task_input, t, router]);
 
   useEffect(() => {
     let cancelled = false;

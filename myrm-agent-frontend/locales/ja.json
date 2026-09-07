@@ -18381,6 +18381,8 @@
         "viewportUserTurns": "{count} ターンのユーザー入力",
         "viewportToolCalls": "{count} 回のツール呼出",
         "copyRawViewport": "未加工のビューポートをコピー",
+        "copy": "コピー",
+        "copied": "コピー完了",
         "viewportTruncatedNotice": "テレメトリログ内のコンテキストが切り詰められました（{chars} 文字省略）",
         "forkBranch": "ブランチ派生",
         "forkFromThisStep": "このステップからブランチを派生",
@@ -18401,7 +18403,8 @@
           "message": "メッセージ",
           "memory": "メモリ",
           "error": "エラー"
-        }
+        },
+        "forkSuccessDetail": "会話ブランチを派生しました（直前 {count} ターンの履歴と状態を保持）"
       },
       "securityAudit": "セキュリティ監査",
       "contextDoctor": {
