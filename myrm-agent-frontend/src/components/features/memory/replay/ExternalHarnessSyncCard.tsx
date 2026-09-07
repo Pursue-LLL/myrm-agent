@@ -162,7 +162,10 @@ const ExternalHarnessSyncCard = memo(() => {
   }, [fetchStatus, t]);
 
   return (
-    <div className="rounded-xl border border-border/60 bg-card/60 p-4 shadow-sm backdrop-blur-sm transition-all hover:border-border">
+    <div
+      data-testid="external-harness-sync-card"
+      className="rounded-xl border border-border/60 bg-card/60 p-4 shadow-sm backdrop-blur-sm transition-all hover:border-border"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
           <div className="rounded-lg bg-primary/10 p-2 text-primary">
@@ -170,7 +173,9 @@ const ExternalHarnessSyncCard = memo(() => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-foreground">{t('title')}</h3>
+              <h3 data-testid="external-harness-card-title" className="text-sm font-semibold text-foreground">
+                {t('title')}
+              </h3>
               <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 {t('activeBadge')}
               </span>
@@ -182,6 +187,7 @@ const ExternalHarnessSyncCard = memo(() => {
         <div className="flex items-center gap-2 self-end sm:self-center">
           <button
             type="button"
+            data-testid="external-harness-pick-dir-btn"
             onClick={handlePickLocalDirectory}
             disabled={isSyncing}
             className={cn(
@@ -195,6 +201,7 @@ const ExternalHarnessSyncCard = memo(() => {
 
           <button
             type="button"
+            data-testid="external-harness-sync-now-btn"
             onClick={handleIncrementalSync}
             disabled={isSyncing}
             className={cn(

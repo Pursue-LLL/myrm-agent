@@ -1094,7 +1094,9 @@
       "kanbanActiveBoard": "当前看板",
       "cuPermission": {
         "checking": "正在检查桌面权限…",
-        "allGranted": "桌面权限正常",
+        "allGranted": "桌面权限正常 — 屏幕捕获已验证",
+        "grantsOkCaptureUnverified": "权限已授予 — 捕获尚未验证",
+        "captureUnverifiedHint": "请点击「重新检查」进行快速屏幕捕获探测，再开始桌面任务。",
         "missing": "缺少桌面权限",
         "accessibilityMissing": "未授予辅助功能权限",
         "screenRecordingMissing": "未授予屏幕录制权限",
@@ -12990,6 +12992,29 @@
           "workspace": "工作区",
           "offload": "卸载",
           "archive": "归档"
+        }
+      },
+      "telemetry": {
+        "title": "OpenTelemetry 链路遥测态势",
+        "description": "实时查看 OTLP 导出连接状态、GenAI 三层链路追踪语义与 Prompt 缓存计量分析。",
+        "refresh": "刷新",
+        "copyEnv": "复制配置",
+        "copied": "已复制",
+        "protocol": "导出协议",
+        "endpoint": "OTLP 端点",
+        "headers": "鉴权标头",
+        "features": "特性能力",
+        "configured": "已配置",
+        "none": "无",
+        "notConfigured": "未配置 (本地待机 NoOp)",
+        "threeTierReady": "三层 GenAI 语义就绪",
+        "status": {
+          "active": "已连接激活",
+          "console": "控制台输出 (开发)",
+          "noop": "纯内存待机 (NoOp)",
+          "missingSdk": "未安装 SDK",
+          "localOnly": "仅限本地隔离",
+          "error": "探活异常"
         }
       }
     },

@@ -149,6 +149,13 @@ export const systemService = {
       body: JSON.stringify(req),
     });
   },
+
+  /**
+   * OpenTelemetry APM posture and diagnostic metadata.
+   */
+  async getTelemetryPosture(): Promise<TelemetryPosture> {
+    return apiRequest<TelemetryPosture>(`/system/telemetry-posture?t=${Date.now()}`);
+  },
 };
 
 export interface DatabaseStorageBreakdown {
@@ -156,6 +163,19 @@ export interface DatabaseStorageBreakdown {
   wal_bytes: number;
   shm_bytes: number;
   total_bytes: number;
+}
+
+export interface TelemetryPosture {
+  status: 'active' | 'console' | 'noop' | 'missing_sdk' | 'local_only' | 'error';
+  initialized: boolean;
+  has_sdk: boolean;
+  endpoint: string | null;
+  protocol: string;
+  headers_configured: boolean;
+  local_trace_only: boolean;
+  three_tier_semantics: boolean;
+  prompt_cache_metering: boolean;
+  error?: string;
 }
 
 export interface StorageOptimizePreflightResponse {

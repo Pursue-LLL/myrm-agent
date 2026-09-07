@@ -41,25 +41,31 @@ def setup_monitoring(app: FastAPI) -> None:
 
 def _setup_tracing() -> None:
     """Setup OpenTelemetry tracing via harness framework."""
-    if not settings.monitoring.otel_enabled:
+    # Active if explicitly enabled via OTEL_ENABLED, or if standard OTEL_EXPORTER_OTLP_ENDPOINT is non-empty
+    otlp_endpoint = settings.monitoring.otel_exporter_otlp_endpoint.strip()
+    if not settings.monitoring.otel_enabled and not otlp_endpoint:
         return
 
     try:
         from myrm_agent_harness.infra.tracing import setup_tracing
 
-        otlp_endpoint = settings.monitoring.otel_exporter_otlp_endpoint.strip()
         sample_rate = settings.monitoring.otel_sample_rate
         console_export = not otlp_endpoint
+        headers = settings.monitoring.otel_exporter_otlp_headers.strip() or None
+        protocol = settings.monitoring.otel_exporter_otlp_protocol.strip() or None
 
         setup_tracing(
             service_name="myrm-agent-server",
             console_export=console_export,
             sample_rate=sample_rate,
             otlp_endpoint=otlp_endpoint or None,
+            otlp_headers=headers,
+            otlp_protocol=protocol,
         )
         logger.info(
-            "[Tracing] OpenTelemetry enabled (endpoint=%s, sample_rate=%.1f)",
+            "[Tracing] OpenTelemetry enabled (endpoint=%s, protocol=%s, sample_rate=%.1f)",
             otlp_endpoint or "console",
+            protocol or "auto",
             sample_rate,
         )
     except Exception as e:
@@ -91,12 +97,18 @@ async def register_db_pool_metrics() -> None:
         return
 
     try:
-        from myrm_agent_harness.observability.metrics.db_pool_collector import DatabasePoolCollector
+        from myrm_agent_harness.observability.metrics.db_pool_collector import (
+            DatabasePoolCollector,
+        )
         from prometheus_client import REGISTRY
 
         from app.platform_utils import get_database_engine
 
-        names = ["myrm_db_pool_size", "myrm_db_pool_checked_in", "myrm_db_pool_checked_out"]
+        names = [
+            "myrm_db_pool_size",
+            "myrm_db_pool_checked_in",
+            "myrm_db_pool_checked_out",
+        ]
         for collector in list(REGISTRY._collector_to_names.keys()):
             if any(name in REGISTRY._collector_to_names[collector] for name in names):
                 REGISTRY.unregister(collector)

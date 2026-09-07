@@ -119,8 +119,9 @@ class TestGeminiDryRun:
         assert "user: How to design a distributed cache?" in first["content"]
         assert "assistant: Use Redis cluster" in first["content"]
         assert first["event_type"] == "gemini_conversation"
-        assert first["metadata"]["gemini_id"] == "conv_gemini_01"
-        assert first["metadata"]["gemini_model"] == "gemini-2.5-pro"
+        assert first["metadata"]["external_source"] == "gemini"
+        assert first["metadata"]["external_id"] == "conv_gemini_01"
+        assert first["metadata"]["external_model"] == "gemini-2.5-pro"
 
         second = episodic[1]
         assert "Python Asyncio" in second["content"]

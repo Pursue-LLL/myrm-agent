@@ -6,14 +6,15 @@
  * - @/lib/desktop/permissionDeepLink (POS: 桌面权限引导深链 SSOT)
  *
  * [OUTPUT]
- * - CuPermissionInline: Agent 配置面板内 computer_use 权限探测条（granted / missing / error）
+ * - CuPermissionInline: Agent 配置面板内 computer_use 权限探测条
+ *   （verified / grants-ok-unverified / missing / error）
  *
  * [POS]
  * BuiltinToolsPanel 子组件。本地模式启用 computer_use 时展示 OS 权限状态与设置入口。
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { Loader2, CheckCircle2, AlertTriangle, RefreshCw, ExternalLink } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertTriangle, RefreshCw, ExternalLink, CircleDashed } from 'lucide-react';
 import { apiRequest } from '@/lib/api';
 import { cn } from '@/lib/utils/classnameUtils';
 import { openPermissionDeepLinkWithGuideFallback, pickSettingsDeepLink } from '@/lib/desktop/permissionDeepLink';
@@ -27,6 +28,8 @@ interface CuPermissionsResponse {
   platform: string;
   settings_deeplinks: Record<string, string>;
 }
+
+type InlineTone = 'verified' | 'unverified' | 'missing';
 
 export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string }) => {
   const [status, setStatus] = useState<CuPermissionsResponse | null>(null);
@@ -74,27 +77,63 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
     );
   }
 
-  const allOk = status?.capture_ready ?? status?.all_granted;
+  const grantsOk = status?.all_granted === true;
+  const capturable = status?.screen_recording_capturable;
+  const verifiedReady = status?.capture_ready === true;
+  const tone: InlineTone = verifiedReady
+    ? 'verified'
+    : grantsOk && capturable == null
+      ? 'unverified'
+      : 'missing';
+
+  const toneClass =
+    tone === 'verified'
+      ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+      : tone === 'unverified'
+        ? 'bg-sky-500/5 border-sky-500/20 text-sky-800 dark:text-sky-300'
+        : 'bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-400';
+
+  const actionBtnClass =
+    tone === 'verified'
+      ? 'bg-emerald-500/15 hover:bg-emerald-500/25'
+      : tone === 'unverified'
+        ? 'bg-sky-500/15 hover:bg-sky-500/25'
+        : 'bg-amber-500/15 hover:bg-amber-500/25';
 
   return (
-    <div
-      className={cn(
-        'p-3 rounded-xl border text-xs space-y-1.5',
-        allOk
-          ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-          : 'bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-400',
-      )}
-    >
+    <div className={cn('p-3 rounded-xl border text-xs space-y-1.5', toneClass)}>
       {loading ? (
         <div className="flex items-center gap-2">
           <Loader2 size={14} className="animate-spin" />
           <span>{tPanel('cuPermission.checking')}</span>
         </div>
-      ) : allOk ? (
+      ) : tone === 'verified' ? (
         <div className="flex items-center gap-2">
           <CheckCircle2 size={14} />
           <span>{tPanel('cuPermission.allGranted')}</span>
         </div>
+      ) : tone === 'unverified' ? (
+        <>
+          <div className="flex items-center gap-2 font-medium">
+            <CircleDashed size={14} />
+            <span>{tPanel('cuPermission.grantsOkCaptureUnverified')}</span>
+          </div>
+          <p className="text-[10px] opacity-75">{tPanel('cuPermission.captureUnverifiedHint')}</p>
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              className={cn(
+                'inline-flex items-center gap-1 px-2 py-1 rounded-md font-medium transition-colors',
+                actionBtnClass,
+              )}
+              onClick={() => check(true)}
+              disabled={loading}
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              {tPanel('cuPermission.recheckBtn')}
+            </button>
+          </div>
+        </>
       ) : (
         <>
           <div className="flex items-center gap-2 font-medium">
@@ -113,7 +152,10 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
             {pickSettingsDeepLink(status?.settings_deeplinks) && (
               <button
                 type="button"
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors"
+                className={cn(
+                  'inline-flex items-center gap-1 px-2 py-1 rounded-md font-medium transition-colors',
+                  actionBtnClass,
+                )}
                 onClick={() => {
                   const link = pickSettingsDeepLink(status?.settings_deeplinks);
                   if (link) {
@@ -127,7 +169,10 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
             )}
             <button
               type="button"
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors"
+              className={cn(
+                'inline-flex items-center gap-1 px-2 py-1 rounded-md font-medium transition-colors',
+                actionBtnClass,
+              )}
               onClick={() => check(true)}
               disabled={loading}
             >

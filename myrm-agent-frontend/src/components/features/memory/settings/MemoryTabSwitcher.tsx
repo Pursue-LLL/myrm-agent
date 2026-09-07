@@ -74,6 +74,9 @@ const MemoryTabSwitcher = memo<MemoryTabSwitcherProps>(
           {t('sharedContexts.tab')}
         </button>
         <button
+          data-testid="memory-tab-recall"
+          data-state={activeTab === 'recall' ? 'active' : 'inactive'}
+          aria-selected={activeTab === 'recall'}
           onClick={() => onChange('recall')}
           className={cn(
             'flex items-center justify-center gap-2 rounded-lg px-4 py-2.5',

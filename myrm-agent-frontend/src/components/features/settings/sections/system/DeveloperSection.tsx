@@ -9,6 +9,7 @@ import { IconCode, IconAlertCircle } from '@/components/features/icons/PremiumIc
 import dynamic from 'next/dynamic';
 import { EvaluationSection } from '../ai-core/EvaluationSection';
 import SystemHealthPanel from './SystemHealthPanel';
+import TelemetryPostureCard from './TelemetryPostureCard';
 
 const ExternalAgentsConfig = dynamic(() => import('../integration/ExternalAgentsConfig'));
 
@@ -43,6 +44,10 @@ function DeveloperSection() {
       </div>
 
       <SystemHealthPanel />
+
+      <div className="border-t border-border/50" />
+
+      <TelemetryPostureCard />
 
       <div className="border-t border-border/50" />
 

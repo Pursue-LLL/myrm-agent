@@ -885,7 +885,9 @@
       "wikiActiveIndicator": "Private Wissensbasis aktiv",
       "cuPermission": {
         "checking": "Checking desktop permissions…",
-        "allGranted": "Desktop-Berechtigungen OK",
+        "allGranted": "Desktop-Berechtigungen OK — Bildschirmaufnahme verifiziert",
+        "grantsOkCaptureUnverified": "Berechtigungen erteilt — Aufnahme noch nicht verifiziert",
+        "captureUnverifiedHint": "Tippen Sie auf „Erneut prüfen“, um eine kurze Aufnahme-Probe zu starten, bevor Desktop-Aufgaben beginnen.",
         "missing": "Desktop-Berechtigungen fehlen",
         "accessibilityMissing": "Bedienungshilfen nicht erteilt",
         "screenRecordingMissing": "Bildschirmaufnahme nicht erteilt",
@@ -12950,6 +12952,29 @@
           "workspace": "Arbeitsbereich",
           "offload": "Auslagern",
           "archive": "Archiv"
+        }
+      },
+      "telemetry": {
+        "title": "OpenTelemetry Telemetriestatus",
+        "description": "Echtzeit-OTLP-Exportstatus, dreistufige GenAI-Spans und Prompt-Cache-Analyse einsehen.",
+        "refresh": "Aktualisieren",
+        "copyEnv": "Konfiguration kopieren",
+        "copied": "Kopiert",
+        "protocol": "Protokoll",
+        "endpoint": "OTLP-Endpunkt",
+        "headers": "Auth-Header",
+        "features": "Funktionen",
+        "configured": "Konfiguriert",
+        "none": "Keine",
+        "notConfigured": "Nicht konfiguriert (Lokales NoOp)",
+        "threeTierReady": "3-Stufen-GenAI-Spans bereit",
+        "status": {
+          "active": "Aktiv",
+          "console": "Konsole (Dev)",
+          "noop": "Bereitschaft (NoOp)",
+          "missingSdk": "SDK fehlt",
+          "localOnly": "Nur lokal",
+          "error": "Sondenfehler"
         }
       }
     },

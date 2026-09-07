@@ -1069,7 +1069,9 @@
       "kanbanActiveBoard": "現在カンバン",
       "cuPermission": {
         "checking": "デスクトップ権限を検査中…",
-        "allGranted": "デスクトップ権限は正常です",
+        "allGranted": "デスクトップ権限は正常です — 画面キャプチャ検証済み",
+        "grantsOkCaptureUnverified": "権限は付与済み — キャプチャは未検証",
+        "captureUnverifiedHint": "「再検査」を押して画面キャプチャの簡易プローブを実行してからデスクトップ作業を開始してください。",
         "missing": "デスクトップ権限が不足しています",
         "accessibilityMissing": "アクセシビリティ権限が付与されていません",
         "screenRecordingMissing": "画面収録の権限が付与されていません",
@@ -12950,6 +12952,29 @@
           "workspace": "ワークスペース",
           "offload": "アンインストール",
           "archive": "アーカイブ"
+        }
+      },
+      "telemetry": {
+        "title": "OpenTelemetry テレメトリ態勢",
+        "description": "リアルタイムの OTLP エクスポーター接続状態、GenAI 3 層スパン、およびプロンプトキャッシュ使用量を検査します。",
+        "refresh": "更新",
+        "copyEnv": "設定をコピー",
+        "copied": "コピー済み",
+        "protocol": "プロトコル",
+        "endpoint": "OTLP エンドポイント",
+        "headers": "認証ヘッダー",
+        "features": "機能",
+        "configured": "設定済み",
+        "none": "なし",
+        "notConfigured": "未設定 (ローカル待機 NoOp)",
+        "threeTierReady": "3 層 GenAI スパン対応",
+        "status": {
+          "active": "アクティブ",
+          "console": "コンソール (開発)",
+          "noop": "スタンバイ (NoOp)",
+          "missingSdk": "SDK 未インストール",
+          "localOnly": "ローカル限定",
+          "error": "プローブエラー"
         }
       }
     },

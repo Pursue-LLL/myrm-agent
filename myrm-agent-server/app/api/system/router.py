@@ -1,6 +1,6 @@
 """
-@input: 依赖 app.core.infra.ingress 与 entitlement 模块、app.services.system.storage_service、DatabaseSettings
-@output: 对外提供公网 ingress 获取、Ingress 需求判定、存储信息、数据库智能优化（预检与执行）、沙箱容器重建端点
+@input: 依赖 app.core.infra.ingress 与 entitlement 模块、app.services.system.storage_service、DatabaseSettings、myrm_agent_harness.infra.tracing
+@output: 对外提供公网 ingress 获取、Ingress 需求判定、存储信息、数据库智能优化（预检与执行）、沙箱容器重建端点、OpenTelemetry 遥测态势探针
 @pos: HTTP 入口层的 System API
 
 🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
@@ -31,6 +31,7 @@ from app.api.system.schemas import (
     StorageOptimizePreflightResponse,
     StorageOptimizeRequest,
     StorageOptimizeResponse,
+    TelemetryPostureResponse,
 )
 from app.config.settings import get_settings
 from app.core.infra.ingress import get_public_ingress_base_url
@@ -113,7 +114,11 @@ def get_storage_info() -> StorageInfoResponse:
         usage = shutil.disk_usage(Path.home())
 
     subdir_names = ["qdrant", "harness", "event_logs", "memory"]
-    subdirs = [{"name": name, "bytes": dir_size_bytes(data_dir / name)} for name in subdir_names if (data_dir / name).exists()]
+    subdirs = [
+        {"name": name, "bytes": dir_size_bytes(data_dir / name)}
+        for name in subdir_names
+        if (data_dir / name).exists()
+    ]
 
     db_breakdown = get_sqlite_breakdown(data_dir)
     if db_breakdown.total_bytes > 0:
@@ -129,7 +134,9 @@ def get_storage_info() -> StorageInfoResponse:
     )
 
 
-@router.post("/storage/optimize-preflight", response_model=StorageOptimizePreflightResponse)
+@router.post(
+    "/storage/optimize-preflight", response_model=StorageOptimizePreflightResponse
+)
 def optimize_storage_preflight() -> StorageOptimizePreflightResponse:
     """Pre-check disk headroom, database sizes, and active background jobs before optimization."""
     settings = get_settings()
@@ -152,7 +159,10 @@ async def optimize_storage(request: StorageOptimizeRequest) -> StorageOptimizeRe
     """Execute session database optimization and disk reclamation."""
     mode = request.mode.strip().lower()
     if mode not in ("deep", "light"):
-        raise HTTPException(status_code=400, detail="Invalid optimization mode. Must be 'deep' or 'light'.")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid optimization mode. Must be 'deep' or 'light'.",
+        )
 
     from myrm_agent_harness.api.hooks import count_running_background_shell_jobs
 
@@ -187,7 +197,9 @@ async def optimize_storage(request: StorageOptimizeRequest) -> StorageOptimizeRe
         )
     except sqlite3.OperationalError as exc:
         logger.error("Storage optimization failed: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Database optimization failed: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Database optimization failed: {exc}"
+        ) from exc
 
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
     reclaimed = max(0, before_bytes - after_bytes)
@@ -293,8 +305,12 @@ async def recreate_sandbox_container() -> SandboxRecreateResponse:
 
 @router.get("/debug-bundle")
 async def export_support_debug_bundle(
-    include_traces: bool = Query(True, description="Include recent redacted session event traces"),
-    include_profiles: bool = Query(True, description="Include sanitized active agent profile metadata"),
+    include_traces: bool = Query(
+        True, description="Include recent redacted session event traces"
+    ),
+    include_profiles: bool = Query(
+        True, description="Include sanitized active agent profile metadata"
+    ),
 ) -> Response:
     """Generate and download a self-contained, fully redacted diagnostic ZIP bundle for support."""
     from datetime import datetime, timezone
@@ -319,7 +335,9 @@ async def export_support_debug_bundle(
         )
     except Exception as exc:
         logger.error("Failed to generate support debug bundle: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to generate support debug bundle") from exc
+        raise HTTPException(
+            status_code=500, detail="Failed to generate support debug bundle"
+        ) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -329,10 +347,18 @@ async def export_support_debug_bundle(
 
 @router.get("/takeout")
 async def export_personal_data_takeout(
-    include_db: bool = Query(True, description="Include SQLite database consistent backup"),
-    include_wiki: bool = Query(True, description="Include Wiki Markdown knowledge vault"),
-    include_skills: bool = Query(True, description="Include custom and downloaded skills"),
-    include_deliverables: bool = Query(True, description="Include final workspace deliverables and artifacts"),
+    include_db: bool = Query(
+        True, description="Include SQLite database consistent backup"
+    ),
+    include_wiki: bool = Query(
+        True, description="Include Wiki Markdown knowledge vault"
+    ),
+    include_skills: bool = Query(
+        True, description="Include custom and downloaded skills"
+    ),
+    include_deliverables: bool = Query(
+        True, description="Include final workspace deliverables and artifacts"
+    ),
 ) -> Response:
     """Generate and download a self-contained, portable Takeout ZIP of all user personal data assets."""
     from datetime import datetime, timezone
@@ -359,7 +385,9 @@ async def export_personal_data_takeout(
         )
     except Exception as exc:
         logger.error("Failed to generate personal data takeout archive: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to generate personal data takeout archive") from exc
+        raise HTTPException(
+            status_code=500, detail="Failed to generate personal data takeout archive"
+        ) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -468,10 +496,14 @@ def create_state_snapshot(req: CreateSnapshotRequest) -> SnapshotActionResponse:
         )
     except Exception as exc:
         logger.error("Failed to create snapshot: %s", exc)
-        raise HTTPException(status_code=500, detail=f"Failed to create snapshot: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create snapshot: {exc}"
+        ) from exc
 
 
-@router.post("/storage/snapshots/{snapshot_id}/restore", response_model=SnapshotActionResponse)
+@router.post(
+    "/storage/snapshots/{snapshot_id}/restore", response_model=SnapshotActionResponse
+)
 def restore_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
     """Restore database state to a specific historical snapshot."""
     from myrm_agent_harness.observability.storage_governance import StateSnapshotManager
@@ -481,14 +513,42 @@ def restore_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
     snapshot_mgr = StateSnapshotManager(data_dir)
     success = snapshot_mgr.restore_snapshot(snapshot_id)
     if not success:
-        raise HTTPException(status_code=400, detail=f"Failed to restore snapshot '{snapshot_id}'.")
+        raise HTTPException(
+            status_code=400, detail=f"Failed to restore snapshot '{snapshot_id}'."
+        )
     return SnapshotActionResponse(
         success=True,
         message=f"State successfully restored from snapshot '{snapshot_id}'.",
     )
 
 
-@router.delete("/storage/snapshots/{snapshot_id}", response_model=SnapshotActionResponse)
+@router.get("/telemetry-posture", response_model=TelemetryPostureResponse)
+def get_system_telemetry_posture() -> TelemetryPostureResponse:
+    """Return OpenTelemetry posture and active status for SRE diagnostics and Settings card."""
+    try:
+        from myrm_agent_harness.infra.tracing import get_telemetry_posture
+
+        data = get_telemetry_posture()
+        return TelemetryPostureResponse(**data)
+    except Exception as exc:
+        logger.warning("Failed to retrieve telemetry posture: %s", exc)
+        return TelemetryPostureResponse(
+            status="error",
+            error=str(exc),
+            initialized=False,
+            has_sdk=False,
+            endpoint=None,
+            protocol="unknown",
+            headers_configured=False,
+            local_trace_only=False,
+            three_tier_semantics=True,
+            prompt_cache_metering=True,
+        )
+
+
+@router.delete(
+    "/storage/snapshots/{snapshot_id}", response_model=SnapshotActionResponse
+)
 def delete_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
     """Permanently delete a state snapshot."""
     from myrm_agent_harness.observability.storage_governance import StateSnapshotManager
@@ -498,7 +558,9 @@ def delete_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
     snapshot_mgr = StateSnapshotManager(data_dir)
     success = snapshot_mgr.delete_snapshot(snapshot_id)
     if not success:
-        raise HTTPException(status_code=404, detail=f"Snapshot '{snapshot_id}' not found.")
+        raise HTTPException(
+            status_code=404, detail=f"Snapshot '{snapshot_id}' not found."
+        )
     return SnapshotActionResponse(
         success=True,
         message=f"Snapshot '{snapshot_id}' deleted successfully.",

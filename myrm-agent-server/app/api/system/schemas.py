@@ -17,6 +17,7 @@
 - StorageCompactionResponse
 - CreateSnapshotRequest
 - SnapshotActionResponse
+- TelemetryPostureResponse
 
 [POS]
 Pydantic schemas and serialization models for the System API endpoints.
@@ -132,3 +133,17 @@ class SnapshotActionResponse(BaseModel):
     success: bool
     message: str
     snapshot: StateSnapshotItem | None = None
+
+
+class TelemetryPostureResponse(BaseModel):
+    status: str
+    initialized: bool
+    has_sdk: bool
+    endpoint: str | None = None
+    protocol: str
+    headers_configured: bool
+    local_trace_only: bool
+    three_tier_semantics: bool = True
+    prompt_cache_metering: bool = True
+    error: str | None = None
+

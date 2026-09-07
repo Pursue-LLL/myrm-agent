@@ -863,6 +863,8 @@
       "cuPermission": {
         "checking": "데스크톱 권한 확인 중…",
         "allGranted": "데스크톱 권한 OK",
+        "grantsOkCaptureUnverified": "권한 부여됨 — 캡처 아직 확인되지 않음",
+        "captureUnverifiedHint": "데스크톱 작업을 시작하기 전에 빠른 화면 캡처 프로브를 위해 '다시 확인'을 클릭하세요.",
         "missing": "데스크톱 권한 누락",
         "accessibilityMissing": "손쉬운 사용 권한 없음",
         "screenRecordingMissing": "화면 기록 권한 없음",
@@ -12950,6 +12952,29 @@
           "workspace": "작업공간",
           "offload": "오프로드",
           "archive": "보관"
+        }
+      },
+      "telemetry": {
+        "title": "OpenTelemetry 원격 측정 상태",
+        "description": "실시간 OTLP 내보내기 연결 상태, GenAI 3계층 스팬 및 프롬프트 캐시 회계를 확인합니다.",
+        "refresh": "새로고침",
+        "copyEnv": "환경 변수 복사",
+        "copied": "복사됨",
+        "protocol": "프로토콜",
+        "endpoint": "OTLP 엔드포인트",
+        "headers": "인증 헤더",
+        "features": "기능",
+        "configured": "구성됨",
+        "none": "없음",
+        "notConfigured": "구성되지 않음 (로컬 대기 NoOp)",
+        "threeTierReady": "3계층 GenAI 스팬 준비됨",
+        "status": {
+          "active": "활성",
+          "console": "콘솔 (개발)",
+          "noop": "대기 (NoOp)",
+          "missingSdk": "SDK 누락",
+          "localOnly": "로컬 전용",
+          "error": "프로브 오류"
         }
       }
     },

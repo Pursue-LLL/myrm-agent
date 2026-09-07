@@ -1094,7 +1094,9 @@
       "kanbanActiveBoard": "Active board",
       "cuPermission": {
         "checking": "Checking desktop permissions…",
-        "allGranted": "Desktop permissions OK",
+        "allGranted": "Desktop permissions OK — screen capture verified",
+        "grantsOkCaptureUnverified": "Permissions granted — capture not verified yet",
+        "captureUnverifiedHint": "Tap Recheck to run a quick screen-capture probe before starting desktop tasks.",
         "missing": "Missing desktop permissions",
         "accessibilityMissing": "Accessibility not granted",
         "screenRecordingMissing": "Screen Recording not granted",
@@ -12990,6 +12992,29 @@
           "workspace": "Workspace",
           "offload": "Offload",
           "archive": "Archive"
+        }
+      },
+      "telemetry": {
+        "title": "OpenTelemetry Trace Posture",
+        "description": "Inspect real-time OTLP exporter connectivity, three-tier GenAI spans, and prompt cache accounting.",
+        "refresh": "Refresh",
+        "copyEnv": "Copy Env",
+        "copied": "Copied",
+        "protocol": "Protocol",
+        "endpoint": "OTLP Endpoint",
+        "headers": "Auth Headers",
+        "features": "Capabilities",
+        "configured": "Configured",
+        "none": "None",
+        "notConfigured": "Not configured (Local NoOp)",
+        "threeTierReady": "3-Tier GenAI Spans Ready",
+        "status": {
+          "active": "Active",
+          "console": "Console (Dev)",
+          "noop": "Standby (NoOp)",
+          "missingSdk": "SDK Missing",
+          "localOnly": "Local Only",
+          "error": "Probe Error"
         }
       }
     },

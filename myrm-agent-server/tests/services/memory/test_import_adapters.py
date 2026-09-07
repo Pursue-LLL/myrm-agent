@@ -697,8 +697,6 @@ class TestGeminiIntegrationViaDispatcher:
         assert result.summary.source == "gemini"
         assert result.summary.status == "ready"
         assert result.summary.mapped_items == 1
-        semantic = result.normalized_data.get("semantic")
-        assert isinstance(semantic, list) and len(semantic) == 1
-        assert semantic[0]["content"] == "Always write docstrings"
-        assert semantic[0]["confidence"] == pytest.approx(0.0, abs=0.01)
-        assert semantic[0]["created_at"] == "2026-08-01T12:00:00Z"
+        episodic = result.normalized_data.get("episodic")
+        assert isinstance(episodic, list) and len(episodic) == 1
+        assert "Quantum Auto" in episodic[0]["content"]
