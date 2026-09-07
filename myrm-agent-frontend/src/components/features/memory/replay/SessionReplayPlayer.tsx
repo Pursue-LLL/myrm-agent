@@ -118,7 +118,9 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
   const messages = useMemo(() => mergeMessages(storeMessages, remoteMessages), [storeMessages, remoteMessages]);
 
   const computeTargetMessageIndex = useCallback(() => {
-    if (!messages || messages.length === 0) return 0;
+    if (!messages || messages.length === 0) {
+      return 0;
+    }
     let matchedIdx = 0;
     for (let i = 0; i < messages.length; i++) {
       const m = messages[i];
@@ -133,7 +135,9 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
   }, [messages, currentTime]);
 
   const handleForkFromCurrent = useCallback(async () => {
-    if (isForking) return;
+    if (isForking) {
+      return;
+    }
     const targetIndex = computeTargetMessageIndex();
     setIsForking(true);
     try {

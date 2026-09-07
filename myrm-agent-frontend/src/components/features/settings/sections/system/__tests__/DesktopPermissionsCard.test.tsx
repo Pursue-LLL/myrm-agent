@@ -22,6 +22,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/lib/deploy-mode', () => ({
   isLocalMode: vi.fn(() => true),
+  showsLocalIntegrationTabs: vi.fn(() => true),
 }));
 
 vi.mock('@/lib/api', () => ({

@@ -28,7 +28,7 @@ import {
 import { cn } from '@/lib/utils/classnameUtils';
 import { apiRequest } from '@/lib/api';
 import { toast } from '@/lib/utils/toast';
-import { isLocalMode } from '@/lib/deploy-mode';
+import { showsLocalIntegrationTabs } from '@/lib/deploy-mode';
 import { isSystemSettingsDeepLink, openPermissionDeepLink } from '@/lib/desktop/permissionDeepLink';
 import {
   desktopPermissionsPath,
@@ -80,8 +80,7 @@ const DesktopPermissionsCardLocal = memo(() => {
     } finally {
       setIsTrustLoading(false);
     }
-    // `t` from next-intl is stable in production; omit from deps to avoid refetch loops.
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void fetchPermissions();
@@ -150,7 +149,7 @@ const DesktopPermissionsCardLocal = memo(() => {
     ? null
     : status.capture_ready
       ? 'verified'
-      : grantsOk && capturable == null
+      : grantsOk && (capturable === null || capturable === undefined)
         ? 'unverified'
         : grantsOk && capturable === false
           ? 'capture_failed'
@@ -324,7 +323,9 @@ const DesktopPermissionsCardLocal = memo(() => {
 DesktopPermissionsCardLocal.displayName = 'DesktopPermissionsCardLocal';
 
 const DesktopPermissionsCard = memo(() => {
-  if (!isLocalMode()) {
+  // Loopback Chrome E2E / local WebUI must see this card even if a sandbox
+  // NEXT_PUBLIC_DEPLOY_MODE leaked into the FE process env (showsLocalIntegrationTabs SSOT).
+  if (!showsLocalIntegrationTabs()) {
     return null;
   }
   return <DesktopPermissionsCardLocal />;

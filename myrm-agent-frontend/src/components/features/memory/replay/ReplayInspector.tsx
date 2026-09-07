@@ -28,7 +28,9 @@ function ReplayInspector({ activeEvent, onForkFromCurrent, isForking = false }: 
   const t = useTranslations('settings.sessionAnalytics.replay');
 
   const renderForkButton = () => {
-    if (!onForkFromCurrent) return null;
+    if (!onForkFromCurrent) {
+      return null;
+    }
     return (
       <div className="mt-3 pt-2.5 border-t border-border/30 flex items-center justify-between gap-2">
         <span className="text-[10px] text-muted-foreground">{t('forkBranchHint')}</span>

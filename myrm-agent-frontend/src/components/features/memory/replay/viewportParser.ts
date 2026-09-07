@@ -83,15 +83,21 @@ export function parseModelViewport(previewText: string | null | undefined): View
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     // Check if line starts a new message block like "[system] ..." or "[user] ..."
-    const headerMatch = line.match(/^\[([a-zA-Z0-9_\-]+)\](?:\s*(.*))?$/);
+    const headerMatch = line.match(/^\[([a-zA-Z0-9_-]+)\](?:\s*(.*))?$/);
     if (headerMatch) {
       flushBuffer();
       const rawRole = headerMatch[1].toLowerCase();
-      if (rawRole === 'system') currentRole = 'system';
-      else if (rawRole === 'user') currentRole = 'user';
-      else if (rawRole === 'assistant') currentRole = 'assistant';
-      else if (rawRole === 'tool' || rawRole === 'tool_calls') currentRole = 'tool';
-      else currentRole = 'other';
+      if (rawRole === 'system') {
+        currentRole = 'system';
+      } else if (rawRole === 'user') {
+        currentRole = 'user';
+      } else if (rawRole === 'assistant') {
+        currentRole = 'assistant';
+      } else if (rawRole === 'tool' || rawRole === 'tool_calls') {
+        currentRole = 'tool';
+      } else {
+        currentRole = 'other';
+      }
 
       const initialContent = headerMatch[2] ?? '';
       if (initialContent.trim().length > 0) {

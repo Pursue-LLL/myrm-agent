@@ -61,7 +61,9 @@ export const ModelViewportView = memo<ModelViewportViewProps>(({ promptPreview, 
   const summary = useMemo(() => parseModelViewport(promptPreview), [promptPreview]);
 
   const handleCopy = useCallback(async () => {
-    if (!promptPreview) return;
+    if (!promptPreview) {
+      return;
+    }
     try {
       if (navigator?.clipboard?.writeText) {
         await navigator.clipboard.writeText(promptPreview);

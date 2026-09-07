@@ -106,6 +106,7 @@ DESKTOP_CONTROL_RULES_EN = """
 - To act on a specific app without switching the foreground, call desktop_snapshot_tool(scope="target", app_name="<app name>") and then interact via its @dref refs.
 - On macOS, if snapshot reports permission required, ask the user to grant Accessibility access before retrying.
 - First-time control of each desktop app requires user approval in the Web UI.
+- **When Not to Use Mobile Mirroring**: If a task can be achieved via browser, Web API, or native desktop app, do not switch to iPhone Mirroring. Agent must never automatically click iPhone connection or biometric pairing prompts.
 </desktop_control_rules>
 """
 
@@ -123,6 +124,7 @@ DESKTOP_CONTROL_RULES_ZH = """
 - 若要在不切换前台的情况下操作特定应用，调用 desktop_snapshot_tool(scope="target", app_name="<app name>")，随后通过其 @dref 引用交互。
 - 在 macOS 上，若快照报告需要权限，请在重试前提示用户授予辅助功能访问权限。
 - 首次控制每个桌面应用时，需在 Web UI 中获得用户批准。
+- **手机镜像非必要不使用原则（When Not to Use）**: 凡可通过网页、Web API 或桌面原生客户端解决的任务，严禁切换至 iPhone 镜像。Agent 严禁擅自代点 iPhone 连接确认与生物配对授权弹窗。
 </desktop_control_rules>
 """
 

@@ -177,7 +177,7 @@ async def test_fork_sandbox_isolation_chrome_e2e(
 
     custom_title = "[分支 @ 第2轮] E2E Fork Verification"
     fork = await ev(
-        f"(async()=>{{const r=await fetch('{ui_url}/api/v1/chats/{chat_id}/fork',"
+        f"(async()=>{{const r=await fetch('{api_url}/api/v1/chats/{chat_id}/fork',"
         f"{{method:'POST',headers:{{'Content-Type':'application/json'}},"
         f"body:JSON.stringify({{message_index:1,new_title:'{custom_title}'}})}});return await r.json()}})()"
     )
@@ -187,7 +187,7 @@ async def test_fork_sandbox_isolation_chrome_e2e(
     new_id = str(data["new_chat_id"])
     e2e_resource_ledger.register("chat", new_id)
 
-    info = await ev(f"(async()=>{{const r=await fetch('{ui_url}/api/v1/chats/{new_id}/fork-info');return await r.json()}})()")
+    info = await ev(f"(async()=>{{const r=await fetch('{api_url}/api/v1/chats/{new_id}/fork-info');return await r.json()}})()")
     assert isinstance(info, dict) and info.get("success") is True
     info_data = info.get("data")
     assert isinstance(info_data, dict) and info_data.get("parent_chat_id") == chat_id
@@ -203,7 +203,7 @@ async def test_fork_sandbox_isolation_chrome_e2e(
     url = await ev("location.href")
     assert new_id in str(url)
 
-    pinfo = await ev(f"(async()=>{{const r=await fetch('{ui_url}/api/v1/chats/{chat_id}/fork-info');return await r.json()}})()")
+    pinfo = await ev(f"(async()=>{{const r=await fetch('{api_url}/api/v1/chats/{chat_id}/fork-info');return await r.json()}})()")
     assert isinstance(pinfo, dict) and pinfo.get("success") is True
     parent_info = pinfo.get("data")
     children = parent_info.get("children") if isinstance(parent_info, dict) else None
