@@ -18,6 +18,7 @@ from app.api.integrations import (
     llms,
     mcp,
     mcp_oauth,
+    mobile_adb,
     oauth,
     provider_oauth,
     retrieval,
