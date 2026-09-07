@@ -19,9 +19,8 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
-
 from myrm_agent_harness.toolkits.mobile_adb.session import MobileSession
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 

@@ -275,11 +275,24 @@ class UpdateSummaryRequest(BaseModel):
     summary: str = Field(..., description="新的 JSON 结构化摘要", max_length=100000)
 
 
+class TurnOutlineItem(BaseModel):
+    """会话轮次大纲轻量投影项（对标 DeepSeek Harness turnOutline 600字节纯 fold 投影）"""
+
+    turn_index: int = Field(..., description="轮次序号（从1开始）")
+    user_message_id: str = Field(..., description="本轮用户首条提问消息ID")
+    assistant_message_id: str | None = Field(None, description="本轮助手最终回复消息ID")
+    prompt_preview: str = Field(..., description="用户提问精炼预览（前50字符）")
+    reply_preview: str | None = Field(None, description="助手回复精炼预览（前120字符）")
+    created_at: datetime = Field(..., description="轮次起始时间")
+    message_count: int = Field(1, description="本轮包含的消息条数")
+
+
 class ChatDetailData(BaseModel):
     """聊天详情数据模型（不含消息，消息通过分页端点加载）"""
 
     chat: ChatDetail = Field(..., description="聊天会话信息")
     message_count: int = Field(..., description="消息总数")
+    turn_outline: list[TurnOutlineItem] = Field(default_factory=list, description="会话轻量轮次大纲索引")
 
 
 class CursorPage(BaseModel):

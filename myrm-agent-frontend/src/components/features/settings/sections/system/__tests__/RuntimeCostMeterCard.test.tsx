@@ -6,7 +6,9 @@ import RuntimeCostMeterCard from '../RuntimeCostMeterCard';
 import {
   getSearchQuotas,
   getBrowserRuntimeSummary,
+  getLLMProviderHealth,
   resetSearchQuota,
+  resetLLMProviderCircuit,
   updateSearchQuotaLimit,
 } from '@/services/statistics';
 
@@ -24,7 +26,9 @@ vi.mock('next-intl', () => ({
 vi.mock('@/services/statistics', () => ({
   getSearchQuotas: vi.fn(),
   getBrowserRuntimeSummary: vi.fn(),
+  getLLMProviderHealth: vi.fn(),
   resetSearchQuota: vi.fn(),
+  resetLLMProviderCircuit: vi.fn(),
   updateSearchQuotaLimit: vi.fn(),
 }));
 
@@ -72,6 +76,22 @@ describe('RuntimeCostMeterCard', () => {
     vi.clearAllMocks();
     (getSearchQuotas as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockQuotas);
     (getBrowserRuntimeSummary as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockBrowserSummary);
+    (getLLMProviderHealth as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      circuit_breakers: {
+        'openai:gpt-4o': {
+          state: 'closed',
+          failure_count: 0,
+          half_open_calls: 0,
+          retry_after_ms: 0,
+        },
+        'deepseek:deepseek-chat': {
+          state: 'open',
+          failure_count: 5,
+          half_open_calls: 0,
+          retry_after_ms: 25000,
+        },
+      },
+    });
   });
 
   it('renders search quotas and browser runtime telemetry cards correctly', async () => {
@@ -84,6 +104,28 @@ describe('RuntimeCostMeterCard', () => {
     expect(screen.getByText('searxng')).toBeInTheDocument();
     expect(screen.getByText(/\$0\.012/)).toBeInTheDocument();
     expect(screen.getByText('localComputeFree')).toBeInTheDocument();
+    expect(screen.getByText('openai:gpt-4o')).toBeInTheDocument();
+    expect(screen.getByText('deepseek:deepseek-chat')).toBeInTheDocument();
+  });
+
+  it('handles reset circuit breaker action smoothly', async () => {
+    (resetLLMProviderCircuit as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ reset_count: 1 });
+
+    render(<RuntimeCostMeterCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('circuitResetOne')).toBeInTheDocument();
+    });
+
+    const resetOneBtn = screen.getByText('circuitResetOne').closest('button');
+    expect(resetOneBtn).toBeDefined();
+    if (resetOneBtn) {
+      fireEvent.click(resetOneBtn);
+    }
+
+    await waitFor(() => {
+      expect(resetLLMProviderCircuit).toHaveBeenCalledWith('deepseek:deepseek-chat');
+    });
   });
 
   it('handles recalibrate reset action smoothly', async () => {

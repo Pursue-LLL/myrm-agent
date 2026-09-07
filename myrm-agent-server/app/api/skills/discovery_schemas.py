@@ -188,3 +188,12 @@ class SkillPoolSyncResponse(BaseModel):
     skill_id: str
     synced_agents: list[str]
     failed_agents: list[str] = []
+
+
+class StaticIndexStatusResponse(BaseModel):
+    is_loaded: bool
+    total_indexed_skills: int
+    source_name: str
+    source_url: str
+    last_synced_at: float
+

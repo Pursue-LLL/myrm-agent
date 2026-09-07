@@ -32,6 +32,15 @@ interface ProviderListProps {
   onAddProvider: () => void;
   onRemoveProvider: (id: string) => void;
   onReorderProviders?: (providers: ProviderConfig[]) => void;
+  circuitBreakers?: Record<
+    string,
+    {
+      state: 'closed' | 'open' | 'half_open';
+      failure_count: number;
+      retry_after_ms: number;
+    }
+  >;
+  onResetCircuit?: (providerId: string) => void;
 }
 
 // 可拖拽的提供商项
@@ -40,8 +49,14 @@ const SortableProviderItem = memo<{
   isSelected: boolean;
   onSelect: () => void;
   onRemove: () => void;
+  circuitBreaker?: {
+    state: 'closed' | 'open' | 'half_open';
+    failure_count: number;
+    retry_after_ms: number;
+  };
+  onResetCircuit?: () => void;
   t: ReturnType<typeof useTranslations<'settings.modelService'>>;
-}>(({ provider, isSelected, onSelect, onRemove, t }) => {
+}>(({ provider, isSelected, onSelect, onRemove, circuitBreaker, onResetCircuit, t }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: provider.id,
   });
@@ -50,6 +65,10 @@ const SortableProviderItem = memo<{
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  const isCircuitOpen = circuitBreaker?.state === 'open';
+  const isCircuitHalfOpen = circuitBreaker?.state === 'half_open';
+  const retrySeconds = circuitBreaker?.retry_after_ms ? Math.ceil(circuitBreaker.retry_after_ms / 1000) : 0;
 
   return (
     <div
@@ -75,7 +94,6 @@ const SortableProviderItem = memo<{
           {...attributes}
           {...listeners}
           className="p-0.5 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
-          // onClick={(e) => e.stopPropagation()} // Removed to fix E2E click
         >
           <ChevronRight className="w-3.5 h-3.5" />
         </div>
@@ -85,9 +103,42 @@ const SortableProviderItem = memo<{
         </span>
       </div>
 
-      <div className="flex items-center gap-2">
-        {/* 绿色圆点表示已启用/可用 */}
-        {provider.isEnabled && <div className="w-2 h-2 rounded-full bg-green-500 shadow-green-500/50" />}
+      <div className="flex items-center gap-1.5">
+        {/* 熔断器状态胶囊与倒计时 */}
+        {isCircuitOpen ? (
+          <div
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-destructive/10 text-destructive border border-destructive/20"
+            title={`Circuit open (cooldown active: ${retrySeconds}s remaining)`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-ping" />
+            <span>{retrySeconds}s</span>
+            {onResetCircuit && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onResetCircuit();
+                }}
+                className="hover:underline font-bold text-destructive hover:opacity-80 ml-0.5"
+                title="Reset cooldown"
+              >
+                ↺
+              </button>
+            )}
+          </div>
+        ) : isCircuitHalfOpen ? (
+          <div
+            className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20"
+            title="Circuit half-open (probing health)"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span>Probe</span>
+          </div>
+        ) : (
+          provider.isEnabled && <div className="w-2 h-2 rounded-full bg-green-500 shadow-green-500/50" />
+        )}
+
         {!provider.isBuiltIn && (
           <button
             onClick={(e) => {
@@ -108,7 +159,16 @@ const SortableProviderItem = memo<{
 SortableProviderItem.displayName = 'SortableProviderItem';
 
 const ProviderList = memo<ProviderListProps>(
-  ({ providers, selectedId, onSelect, onAddProvider, onRemoveProvider, onReorderProviders }) => {
+  ({
+    providers,
+    selectedId,
+    onSelect,
+    onAddProvider,
+    onRemoveProvider,
+    onReorderProviders,
+    circuitBreakers = {},
+    onResetCircuit,
+  }) => {
     const t = useTranslations('settings.modelService');
 
     const sensors = useSensors(
@@ -146,6 +206,8 @@ const ProviderList = memo<ProviderListProps>(
                   isSelected={selectedId === provider.id}
                   onSelect={() => onSelect(provider.id)}
                   onRemove={() => onRemoveProvider(provider.id)}
+                  circuitBreaker={circuitBreakers[provider.id]}
+                  onResetCircuit={onResetCircuit ? () => onResetCircuit(provider.id) : undefined}
                   t={t}
                 />
               ))}

@@ -193,9 +193,16 @@ async def get_chat(
 
         message_count = await ChatService.count_messages(chat_id)
 
+        from app.services.chat.turn_outline_service import (
+            TurnOutlineProjectionService,
+        )
+
+        turn_outline = await TurnOutlineProjectionService.get_chat_turn_outline(chat_id)
+
         data = ChatDetailData(
             chat=chat_detail,
             message_count=message_count,
+            turn_outline=turn_outline,
         )
 
         return success_response(data=data.model_dump())

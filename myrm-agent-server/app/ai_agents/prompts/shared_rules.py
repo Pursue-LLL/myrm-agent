@@ -101,7 +101,7 @@ DESKTOP_CONTROL_RULES_EN = """
 - For tree nodes and accordions, use action="expand" or action="collapse"; for checkboxes and switches, use action="toggle" (or action="check"/"uncheck"); for buttons/menus without focus shift, use action="invoke".
 - Use desktop_vision_tool only when the AX tree is empty, canvas-only, or desktop_interact_tool failed.
 - Use set_value for atomic field replacement; use type for keystroke simulation.
-- Never pass printable operators (e.g. "*", "/", "+", "-", "%", "=") as desktop_vision_tool key= names. Type those characters with type, or click the matching calculator/@dref button via desktop_interact_tool. Note: interact action=press activates the @dref control (AXPress/Click); it is not a keyboard key name.
+- Never pass printable operators (e.g. "*", "/", "+", "-", "%", "=") as desktop_vision_tool key= names. Type those characters with type, or click the matching calculator/@dref button via desktop_interact_tool. Note: interact action=press activates the @dref control; it is not a keyboard key name.
 - After desktop_interact_tool, read the follow-up snapshot before the next action.
 - To act on a specific app without switching the foreground, call desktop_snapshot_tool(scope="target", app_name="<app name>") and then interact via its @dref refs.
 - On macOS, if snapshot reports permission required, ask the user to grant Accessibility access before retrying.
@@ -119,7 +119,7 @@ DESKTOP_CONTROL_RULES_ZH = """
 - 对树状节点与折叠项使用 action="expand" 或 action="collapse"；对复选框与开关使用 action="toggle"（或 action="check"/"uncheck"）；对按钮与菜单项使用 action="invoke"。
 - 仅在 AX tree 为空、纯画布或 desktop_interact_tool 失败时使用 desktop_vision_tool。
 - 使用 set_value 进行原子字段替换；使用 type 进行击键模拟。
-- 禁止把可打印运算符（如 "*"、"/"、"+"、"-"、"%"、"="）当作 desktop_vision_tool 的 key= 键名。请用 type 输入这些字符，或通过 desktop_interact_tool click 计算器等界面上的对应 @dref 按钮。注意：interact 的 action=press 是激活 @dref 控件（AXPress/Click），不是键盘键名。
+- 禁止把可打印运算符（如 "*"、"/"、"+"、"-"、"%"、"="）当作 desktop_vision_tool 的 key= 键名。请用 type 输入这些字符，或通过 desktop_interact_tool click 计算器等界面上的对应 @dref 按钮。注意：interact 的 action=press 是激活 @dref 控件，不是键盘键名。
 - 调用 desktop_interact_tool 后，在执行下一步操作前先读取后续快照。
 - 若要在不切换前台的情况下操作特定应用，调用 desktop_snapshot_tool(scope="target", app_name="<app name>")，随后通过其 @dref 引用交互。
 - 在 macOS 上，若快照报告需要权限，请在重试前提示用户授予辅助功能访问权限。

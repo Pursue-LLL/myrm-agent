@@ -7,6 +7,9 @@ from app.services.chat.context_bomb_defense_service import (
     ContextBombDefenseService,
     SpilloverPayloadResult,
 )
+from app.services.chat.turn_outline_service import (
+    TurnOutlineProjectionService,
+)
 
 __all__ = [
     "ChatService",
@@ -14,4 +17,5 @@ __all__ = [
     "SpilloverPayloadResult",
     "MESSAGE_MAX_CHARS",
     "SPILLED_FILE_TTL_SECONDS",
+    "TurnOutlineProjectionService",
 ]

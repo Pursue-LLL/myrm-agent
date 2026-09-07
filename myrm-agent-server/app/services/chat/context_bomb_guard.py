@@ -363,16 +363,25 @@ class ContextBombDefenseService:
     ) -> int:
         """Purge spilled files older than TTL (default 24h) to avoid disk exhaustion."""
         effective_ttl = ttl_seconds if ttl_seconds is not None else self.ttl_seconds
+        sweeper = (
+            EphemeralTransientSweeper(ContextGuardConfig(spillover_ttl_seconds=int(effective_ttl)))
+            if effective_ttl != self.ttl_seconds
+            else self._harness_sweeper
+        )
         purged = 0
         if workspace_dir:
-            purged += self._harness_sweeper.sweep_directory(workspace_dir)
+            purged += sweeper.sweep_directory(workspace_dir)
 
         fallback_dir = Path("/tmp/myrm_spillover").resolve()
         if fallback_dir.exists():
             now = time.time()
             cutoff = now - effective_ttl
-            for entry in fallback_dir.rglob("payload_*.md"):
+            for entry in fallback_dir.rglob("*.md"):
                 try:
+                    if entry.is_symlink():
+                        entry.unlink(missing_ok=True)
+                        purged += 1
+                        continue
                     if entry.stat().st_mtime < cutoff:
                         entry.unlink(missing_ok=True)
                         purged += 1

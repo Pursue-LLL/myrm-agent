@@ -19,7 +19,6 @@ from typing import Any
 from myrm_agent_harness.toolkits.mobile_adb import (
     MobileActionResult,
     MobileADBSession,
-    MobileDeviceInfo,
     create_mobile_adb_session,
 )
 

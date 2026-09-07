@@ -339,6 +339,87 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
             </div>
           </div>
         </div>
+
+        {/* LLM Provider Circuit Breaker Health Panel */}
+        <div className="p-4 rounded-xl border border-border/50 bg-background/50 space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-border/40">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-500" />
+              <div>
+                <h4 className="text-xs font-semibold text-foreground">{t('circuitBreakersTitle')}</h4>
+                <p className="text-[10px] text-muted-foreground">{t('circuitBreakersDesc')}</p>
+              </div>
+            </div>
+            {Object.keys(circuitBreakers).length > 0 && (
+              <button
+                onClick={() => handleResetCircuit()}
+                disabled={isResettingCircuit}
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-all disabled:opacity-50"
+              >
+                <RotateCcw className={cn('w-3 h-3', isResettingCircuit && 'animate-spin')} />
+                <span>{t('circuitResetAll')}</span>
+              </button>
+            )}
+          </div>
+
+          {Object.keys(circuitBreakers).length === 0 ? (
+            <div className="p-3 rounded-lg bg-muted/30 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span className="font-medium text-[11px]">{t('circuitAllHealthy')}</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground font-mono">0 / 0 tripped</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {Object.entries(circuitBreakers).map(([providerKey, stats]) => {
+                const isOpen = stats.state === 'open';
+                const isHalfOpen = stats.state === 'half_open';
+                return (
+                  <div
+                    key={providerKey}
+                    className={cn(
+                      'p-2.5 rounded-lg border text-xs flex items-center justify-between transition-all',
+                      isOpen
+                        ? 'bg-rose-500/5 border-rose-500/20 text-rose-700 dark:text-rose-400'
+                        : isHalfOpen
+                          ? 'bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-400'
+                          : 'bg-muted/30 border-border/40 text-foreground'
+                    )}
+                  >
+                    <div className="space-y-0.5 truncate pr-2">
+                      <div className="font-medium truncate text-[11px] font-mono">{providerKey}</div>
+                      <div className="text-[10px] text-muted-foreground flex items-center gap-2">
+                        <span>
+                          {isOpen
+                            ? t('circuitStateOpen')
+                            : isHalfOpen
+                              ? t('circuitStateHalfOpen')
+                              : t('circuitStateClosed')}
+                        </span>
+                        {stats.failure_count > 0 && (
+                          <span>{t('circuitFailures', { count: stats.failure_count })}</span>
+                        )}
+                        {isOpen && stats.retry_after_ms > 0 && (
+                          <span>{t('circuitRetryCooldown', { seconds: Math.ceil(stats.retry_after_ms / 1000) })}</span>
+                        )}
+                      </div>
+                    </div>
+                    {isOpen && (
+                      <button
+                        onClick={() => handleResetCircuit(providerKey)}
+                        disabled={isResettingCircuit}
+                        className="shrink-0 px-2 py-0.5 rounded text-[10px] font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 transition-all"
+                      >
+                        {t('circuitResetOne')}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Edit Limit Dialog Modal */}

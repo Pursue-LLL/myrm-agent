@@ -27,7 +27,7 @@ class NaturalLanguageCronCompiler:
 
     _TIME_WINDOW_RE = re.compile(r"最近\s*(\d+)\s*(小时|天|h|d|day|hours?)", re.IGNORECASE)
     _GROUP_NAME_RE = re.compile(
-        r"(?:群聊|群|频道|channel)\s*([a-zA-Z0-9_\u4e00-\u9fa5\-]+?)(?=(?:最近|前|的|在|里|中|\s|$))",
+        r"(?:群聊|群|频道|channel)\s*([a-zA-Z0-9_\u4e00-\u9fa5\-]+?)(?=(?:最近\d+|的更新|的动态|\s|$))",
         re.IGNORECASE,
     )
     _DAILY_TIME_RE = re.compile(r"(?:每天|每日|每早|定时)?\s*(?:早上|上午|下午|晚上)?\s*([0-2]?\d)(?:点|:|：)(\d{0,2})", re.IGNORECASE)

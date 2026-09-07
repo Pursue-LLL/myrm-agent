@@ -132,6 +132,9 @@ class SkillHealthItem(BaseModel):
     call_count_total: int
     success_rate_7d: float
     last_used_at: str | None = None
+    actionable_recommendation: str | None = None
+    adoption_rate: float | None = None
+    reuse_breadth: float | None = None
 
 
 class GrowthDashboardResponse(BaseModel):
@@ -497,6 +500,9 @@ async def _fetch_skill_health() -> list[SkillHealthItem]:
                         call_count_total=total_calls,
                         success_rate_7d=round(sr_7d, 3),
                         last_used_at=latest_dt.isoformat() if latest_dt else None,
+                        actionable_recommendation=evaluated.actionable_recommendation,
+                        adoption_rate=round(evaluated.adoption_rate, 3),
+                        reuse_breadth=round(evaluated.reuse_breadth, 3),
                     )
                 )
 

@@ -623,6 +623,9 @@ export interface SkillHealthItem {
   call_count_total: number;
   success_rate_7d: number;
   last_used_at: string | null;
+  actionable_recommendation?: string | null;
+  adoption_rate?: number | null;
+  reuse_breadth?: number | null;
 }
 
 export interface GrowthDashboardData {
