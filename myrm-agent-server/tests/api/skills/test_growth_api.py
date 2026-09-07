@@ -76,6 +76,7 @@ async def test_skill_growth_cases_combine_drafts_and_approval_backed_evolutions(
         confidence=0.72,
         test_passed=True,
         task_context="growth api regression",
+        security_scan_summary={"score": 100, "trust_recommendation": "trusted", "total_findings": 0},
     )
 
     response = client.get("/api/v1/skill-growth/cases?limit=10")
@@ -92,6 +93,7 @@ async def test_skill_growth_cases_combine_drafts_and_approval_backed_evolutions(
     assert evolution_item["status"] == "PENDING_REVIEW"
     assert evolution_item["apply_status"] == "NOT_APPLIED"
     assert evolution_item["has_diff"] is True
+    assert evolution_item["security_scan_summary"] == {"score": 100, "trust_recommendation": "trusted", "total_findings": 0}
     assert "original_content" not in evolution_item
     assert "proposed_content" not in evolution_item
 
@@ -100,6 +102,8 @@ async def test_skill_growth_cases_combine_drafts_and_approval_backed_evolutions(
     detail = detail_response.json()["data"]
     assert detail["original_content"] == "def current():\n    pass\n"
     assert detail["proposed_content"] == "def current():\n    return 1\n"
+    assert detail["security_scan_summary"] == {"score": 100, "trust_recommendation": "trusted", "total_findings": 0}
+
 
 
 @pytest.mark.asyncio
