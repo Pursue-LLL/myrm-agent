@@ -1096,7 +1096,7 @@
         "checking": "Checking desktop permissions…",
         "allGranted": "Desktop permissions OK — screen capture verified",
         "grantsOkCaptureUnverified": "Permissions granted — capture not verified yet",
-        "captureUnverifiedHint": "Tap Recheck to run a quick screen-capture probe before starting desktop tasks.",
+        "captureUnverifiedHint": "Tap Recheck to verify screen capture works before starting desktop tasks.",
         "missing": "Missing desktop permissions",
         "accessibilityMissing": "Accessibility not granted",
         "screenRecordingMissing": "Screen Recording not granted",
@@ -1104,7 +1104,7 @@
         "openSettings": "Open Settings",
         "recheckBtn": "Recheck",
         "checkFailed": "Could not check desktop permissions. Retry after the backend is ready.",
-        "hint": "Desktop Control needs Accessibility, Screen Recording, and a working screen capture probe."
+        "hint": "Desktop Control needs Accessibility, Screen Recording, and usable screen capture."
       },
       "mediaCredential": {
         "title": "Media tools need API credentials",

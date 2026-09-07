@@ -1,3 +1,15 @@
+/**
+ * [INPUT]
+ * - @/components/primitives/dialog::* (Radix Dialog primitive)
+ * - @/store/chat/types::ProgressItem
+ *
+ * [OUTPUT]
+ * - StepDetailModal: Detailed drill-down modal for inspected progress steps.
+ *
+ * [POS]
+ * MessageBox progress-step inspection modal. Displays structured inputs, diagnostic advice, stdout, and raw JSON payload.
+ */
+
 'use client';
 
 import React, { useState } from 'react';

@@ -33,7 +33,8 @@ type InlineTone = 'verified' | 'unverified' | 'missing';
 
 export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string }) => {
   const [status, setStatus] = useState<CuPermissionsResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Start true to avoid a one-frame amber "missing" flash before the first probe.
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   const check = useCallback(async (probeCapture = false) => {
@@ -86,8 +87,10 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
       ? 'unverified'
       : 'missing';
 
-  const toneClass =
-    tone === 'verified'
+  // Neutral shell while probing — never reuse "missing" amber for checking copy.
+  const toneClass = loading
+    ? 'bg-muted/40 border-border text-muted-foreground'
+    : tone === 'verified'
       ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-700 dark:text-emerald-400'
       : tone === 'unverified'
         ? 'bg-sky-500/5 border-sky-500/20 text-sky-800 dark:text-sky-300'

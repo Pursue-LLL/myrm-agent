@@ -190,7 +190,9 @@ export type MemoryImportSource =
   | 'trae'
   | 'mem0'
   | 'pi'
-  | 'chatgpt';
+  | 'chatgpt'
+  | 'gemini'
+  | 'plur';
 
 export interface MemoryImportMappingItem {
   source_bucket: string;

@@ -23,6 +23,7 @@ import {
   Scroll,
   Shield,
   Smile,
+  Sparkles,
   Unlock,
   Waves,
   X,

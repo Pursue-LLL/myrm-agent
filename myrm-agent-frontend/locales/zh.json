@@ -1096,7 +1096,7 @@
         "checking": "正在检查桌面权限…",
         "allGranted": "桌面权限正常 — 屏幕捕获已验证",
         "grantsOkCaptureUnverified": "权限已授予 — 捕获尚未验证",
-        "captureUnverifiedHint": "请点击「重新检查」进行快速屏幕捕获探测，再开始桌面任务。",
+        "captureUnverifiedHint": "请点击「重新检查」确认屏幕捕获可用，再开始桌面任务。",
         "missing": "缺少桌面权限",
         "accessibilityMissing": "未授予辅助功能权限",
         "screenRecordingMissing": "未授予屏幕录制权限",
@@ -1104,7 +1104,7 @@
         "openSettings": "打开设置",
         "recheckBtn": "重新检查",
         "checkFailed": "无法检测桌面权限，请在后端就绪后重试。",
-        "hint": "桌面控制需要辅助功能、屏幕录制权限，以及可用的屏幕捕获探测。"
+        "hint": "桌面控制需要辅助功能、屏幕录制权限，以及可用的屏幕捕获。"
       },
       "mediaCredential": {
         "title": "媒体工具需要 API 凭证",

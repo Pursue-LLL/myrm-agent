@@ -70,3 +70,22 @@ async def test_telemetry_posture_endpoint_degraded_state(monkeypatch) -> None:
             assert data["exporter_type"] == "console"
             assert "fallback to console" in data["degraded_reason"]
 
+
+@pytest.mark.asyncio
+async def test_telemetry_posture_real_harness_integration() -> None:
+    """Test full integration chain from real FastAPI router to real harness get_telemetry_posture (No Mock)."""
+    app = build_minimal_app("system")
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get("/api/v1/system/telemetry-posture")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] in ("active", "console", "noop", "missing_sdk", "local_only", "degraded_console")
+        assert "initialized" in data
+        assert "has_sdk" in data
+        assert "protocol" in data
+        assert "three_tier_semantics" in data
+        assert data["three_tier_semantics"] is True
+        assert data["prompt_cache_metering"] is True
+
+

@@ -1088,14 +1088,14 @@
         "checking": "正在檢查桌面許可權…",
         "allGranted": "桌面許可權正常 — 螢幕擷取已驗證",
         "grantsOkCaptureUnverified": "許可權已授予 — 擷取尚未驗證",
-        "captureUnverifiedHint": "請點「重新檢查」進行快速螢幕擷取探測後再開始桌面任務。",
+        "captureUnverifiedHint": "請點「重新檢查」確認螢幕擷取可用後再開始桌面任務。",
         "missing": "缺少桌面許可權",
         "accessibilityMissing": "未授予輔助功能許可權",
         "screenRecordingMissing": "未授予螢幕錄製許可權",
         "openSettings": "開啟設定",
         "recheckBtn": "重新檢查",
         "checkFailed": "無法檢測桌面許可權，請在後端就緒後重試。",
-        "hint": "桌面控制需要 macOS 輔助功能和螢幕錄製許可權。",
+        "hint": "桌面控制需要輔助功能、螢幕錄製許可權，以及可用的螢幕擷取。",
         "captureNotReady": "螢幕擷取不可用（黑畫面或空白影格）。請重新開啟螢幕錄製並解鎖螢幕後重試。"
       },
       "mediaCredential": {
