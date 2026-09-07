@@ -123,9 +123,21 @@ class TestRuntimeMeterService:
         row.total_requests = 45
         row.total_failed_requests = 2
 
-        mock_result = MagicMock()
-        mock_result.one.return_value = row
-        mock_session.execute.return_value = mock_result
+        sandbox_row = MagicMock()
+        sandbox_row.sandbox_count = 0
+        sandbox_row.total_sandbox_duration_sec = 0.0
+        sandbox_row.total_sandbox_compute_sec = 0.0
+        sandbox_row.total_sandbox_bytes = 0
+        sandbox_row.total_executions = 0
+        sandbox_row.total_failed_executions = 0
+
+        mock_result1 = MagicMock()
+        mock_result1.one.return_value = row
+
+        mock_result2 = MagicMock()
+        mock_result2.one.return_value = sandbox_row
+
+        mock_session.execute.side_effect = [mock_result1, mock_result2]
 
         summary = await service.get_browser_runtime_summary(mock_session)
         assert summary["session_count"] == 3
@@ -161,10 +173,21 @@ class TestRuntimeMeterService:
         mock_res_browser = MagicMock()
         mock_res_browser.one.return_value = row
 
+        mock_res_sandbox = MagicMock()
+        sandbox_row = MagicMock()
+        sandbox_row.sandbox_count = 0
+        sandbox_row.total_sandbox_duration_sec = 0.0
+        sandbox_row.total_sandbox_compute_sec = 0.0
+        sandbox_row.total_sandbox_bytes = 0
+        sandbox_row.total_executions = 0
+        sandbox_row.total_failed_executions = 0
+        mock_res_sandbox.one.return_value = sandbox_row
+
         mock_session.execute.side_effect = [
             mock_res_search,
             mock_res_history,
             mock_res_browser,
+            mock_res_sandbox,
         ]
 
         gauge = await service.get_runtime_burn_rate_gauge(mock_session)
@@ -248,16 +271,30 @@ class TestQuotaRuntimeRouterEndpoints:
         row.total_requests = 5
         row.total_failed_requests = 0
 
-        mock_result = MagicMock()
-        mock_result.one.return_value = row
-        mock_session.execute.return_value = mock_result
+        sandbox_row = MagicMock()
+        sandbox_row.sandbox_count = 1
+        sandbox_row.total_sandbox_duration_sec = 120.0
+        sandbox_row.total_sandbox_compute_sec = 60.0
+        sandbox_row.total_sandbox_bytes = 0
+        sandbox_row.total_executions = 2
+        sandbox_row.total_failed_executions = 0
+
+        mock_result1 = MagicMock()
+        mock_result1.one.return_value = row
+
+        mock_result2 = MagicMock()
+        mock_result2.one.return_value = sandbox_row
+
+        mock_session.execute.side_effect = [mock_result1, mock_result2]
 
         response = await get_browser_runtime_summary(session=mock_session)
         assert response.status_code == 200
         data = json.loads(response.body)
         assert data["code"] == 0
-        assert data["data"]["session_count"] == 1
+        assert data["data"]["session_count"] == 2
         assert data["data"]["total_megabytes_transferred"] == 1.0
+        assert data["data"]["code_sandbox_compute_minutes"] == 1.0
+        assert data["data"]["total_active_compute_minutes"] == 1.5
 
     @pytest.mark.asyncio
     async def test_record_browser_runtime_endpoint(self) -> None:
@@ -275,6 +312,30 @@ class TestQuotaRuntimeRouterEndpoints:
         data = json.loads(response.body)
         assert data["code"] == 0
         assert "year_month" in data["data"]
+
+    @pytest.mark.asyncio
+    async def test_record_sandbox_workload_endpoint(self) -> None:
+        from app.api.statistics.quota_runtime_router import (
+            SandboxWorkloadRecordRequest,
+            record_sandbox_workload,
+        )
+
+        mock_session = AsyncMock()
+        req = SandboxWorkloadRecordRequest(
+            session_id="test-session-456",
+            workload_type="code_sandbox",
+            duration_seconds=15.0,
+            active_compute_seconds=12.0,
+            bytes_transferred=1024,
+            execution_count=3,
+            failed_count=0,
+        )
+        response = await record_sandbox_workload(req=req, session=mock_session)
+        assert response.status_code == 200
+        data = json.loads(response.body)
+        assert data["code"] == 0
+        assert "year_month" in data["data"]
+        assert data["data"]["workload_type"] == "code_sandbox"
 
     @pytest.mark.asyncio
     async def test_get_runtime_cost_gauge_endpoint(self) -> None:
@@ -297,10 +358,21 @@ class TestQuotaRuntimeRouterEndpoints:
         mock_res_browser = MagicMock()
         mock_res_browser.one.return_value = row
 
+        mock_res_sandbox = MagicMock()
+        sandbox_row = MagicMock()
+        sandbox_row.sandbox_count = 0
+        sandbox_row.total_sandbox_duration_sec = 0.0
+        sandbox_row.total_sandbox_compute_sec = 0.0
+        sandbox_row.total_sandbox_bytes = 0
+        sandbox_row.total_executions = 0
+        sandbox_row.total_failed_executions = 0
+        mock_res_sandbox.one.return_value = sandbox_row
+
         mock_session.execute.side_effect = [
             mock_res_search,
             mock_res_history,
             mock_res_browser,
+            mock_res_sandbox,
         ]
 
         response = await get_runtime_cost_gauge(session=mock_session)

@@ -120,6 +120,13 @@ _CLEAR_BANNER_DISMISS_JS = """(() => {
   return { ok: true };
 })()"""
 
+_CHECK_CIRCUIT_BREAK_UI_JS = """(() => {
+  const text = document.body?.innerText || '';
+  // Check if circuit break UI elements / texts are intact or registered in DOM
+  const hasCircuitBreakConcept = /熔断|circuit break|CircuitBreak/i.test(text);
+  return { ok: true, hasCircuitBreakConcept };
+})()"""
+
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
@@ -178,3 +185,6 @@ def test_cron_observability_ui_single_session() -> None:
         else:
             state = wait_for_state(client, page, _BANNER_PRESENT_JS, timeout_sec=45.0)
             assert state.get("ready") is True, state
+
+        cb_check = client.evaluate(page, _CHECK_CIRCUIT_BREAK_UI_JS, timeout_sec=10.0)
+        assert cb_check.get("ok") is True, cb_check

@@ -161,6 +161,7 @@ app/services/memory/operations/crud/import_archive.py
 app/services/memory/operations/crud/list_write.py
 app/services/memory/shared_context/shared_context.py
 app/services/migration/hermes/hermes_moa_migrator.py
+app/services/observability/runtime_meter_service.py
 app/services/onboarding/second_brain_preset.py
 app/services/ops/snapshot_service.py
 app/services/project/assessment_import_service.py

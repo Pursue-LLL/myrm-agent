@@ -299,6 +299,31 @@ export default function SkillGrowthCaseCard({
                 {t('hollowBlockedBadge')}
               </Badge>
             )}
+            {item.securityScanSummary && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  'text-[11px] inline-flex items-center gap-1 font-medium',
+                  item.securityScanSummary.trust_recommendation === 'trusted'
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/50 dark:text-emerald-300'
+                    : item.securityScanSummary.trust_recommendation === 'installed'
+                      ? 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:border-sky-500/50 dark:text-sky-300'
+                      : item.securityScanSummary.trust_recommendation === 'untrusted'
+                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:border-amber-500/50 dark:text-amber-300'
+                        : 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:border-rose-500/50 dark:text-rose-300',
+                )}
+                title={`Security Score: ${item.securityScanSummary.score}/100 [${item.securityScanSummary.trust_recommendation}]`}
+              >
+                {item.securityScanSummary.score >= 50 ? (
+                  <ShieldCheck className="h-3 w-3" />
+                ) : (
+                  <ShieldAlert className="h-3 w-3" />
+                )}
+                <span>
+                  {item.securityScanSummary.score}/100 {item.securityScanSummary.trust_recommendation.toUpperCase()}
+                </span>
+              </Badge>
+            )}
           </div>
           <p className={cn('text-muted-foreground', isSimple ? 'text-base font-medium text-foreground' : 'text-sm')}>
             {item.summary}

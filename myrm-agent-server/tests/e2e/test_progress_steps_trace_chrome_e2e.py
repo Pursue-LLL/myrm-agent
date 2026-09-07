@@ -39,7 +39,7 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
     http_json(
         "POST",
         f"{api_base}/api/v1/chats/",
-        body={"id": chat_id, "title": "E2E ProgressSteps Trace"},
+        body={"chat_id": chat_id, "title": "E2E ProgressSteps Trace"},
     )
 
     steps = [
