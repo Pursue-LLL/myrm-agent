@@ -10,12 +10,13 @@ from myrm_agent_harness.toolkits.a2a.resolver import SSRFBlockedError
 from myrm_agent_harness.toolkits.a2a.types import AgentCard
 
 from app.database.dto import AgentCreate
-from app.main import app
+from tests.support.minimal_app import build_minimal_app
 
 
 @pytest.mark.asyncio
 async def test_a2a_peer_crud_and_masking() -> None:
     """Test full CRUD lifecycle of A2A peer with token encryption and masking."""
+    app = build_minimal_app(router_keys=["a2a"])
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Create peer

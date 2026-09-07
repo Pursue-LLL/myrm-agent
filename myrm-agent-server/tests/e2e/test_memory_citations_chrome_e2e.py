@@ -132,16 +132,27 @@ _ENSURE_INJECT_AND_OPEN_SHEET_JS = """(() => {
     });
   }
 
-  const findEvidenceBtn = () => Array.from(document.querySelectorAll('button')).find((btn) => {
-    const label = (btn.textContent || '').trim();
-    const aria = btn.getAttribute('aria-label') || '';
-    return /依据\\s*\\d+|Evidence\\s*\\d+/i.test(label) ||
-      /sources and memories|依据与记忆|条依据/i.test(aria);
-  });
+  const findEvidenceBtn = () => {
+    const testIdBtn = document.querySelector('[data-testid="memory-citations-button"]');
+    if (testIdBtn) {
+      return testIdBtn;
+    }
+    return Array.from(document.querySelectorAll('button')).find((btn) => {
+      const label = (btn.textContent || '').trim();
+      const aria = btn.getAttribute('aria-label') || '';
+      return /依据\\s*\\d+|Evidence\\s*\\d+/i.test(label) ||
+        /sources and memories|依据与记忆|条依据/i.test(aria);
+    });
+  };
 
   let evidenceBtn = findEvidenceBtn();
   if (!evidenceBtn) {
-    return { ready: false, err: 'evidence-button-missing', reinjected: !hasInjected };
+    const allBtns = Array.from(document.querySelectorAll('button')).map((b) => ({
+      txt: (b.textContent || '').trim().slice(0, 40),
+      aria: b.getAttribute('aria-label'),
+      testid: b.getAttribute('data-testid'),
+    }));
+    return { ready: false, err: 'evidence-button-missing', reinjected: !hasInjected, buttons: allBtns.slice(0, 15) };
   }
 
   const dialogOpen = () => {
@@ -168,30 +179,33 @@ _ENSURE_INJECT_AND_OPEN_SHEET_JS = """(() => {
   };
 
   let sheet = dialogOpen();
-  if (!(sheet && sheet.hasTitle && sheet.hasMemoryBody && sheet.hasHistoryBody)) {
+  if (sheet) {
+    return {
+      ready:
+        sheet.hasTitle &&
+        sheet.hasMemories &&
+        sheet.hasSources &&
+        sheet.hasMemoryBody &&
+        sheet.hasHistoryBody &&
+        sheet.hasCopyMarkdown &&
+        sheet.copyBtnCount >= 2,
+      ...sheet,
+      clicked: true,
+      reinjected: !hasInjected,
+      label: evidenceBtn.textContent?.trim() || null,
+    };
+  }
+
+  const now = Date.now();
+  const lastClick = Number(evidenceBtn.dataset.lastClickTime || '0');
+  if (now - lastClick > 3000) {
+    evidenceBtn.dataset.lastClickTime = String(now);
     evidenceBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     evidenceBtn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
     evidenceBtn.click();
-    sheet = dialogOpen();
   }
 
-  if (!sheet) {
-    return { ready: false, err: 'dialog-missing', clicked: true, label: evidenceBtn.textContent?.trim() };
-  }
-  return {
-    ready:
-      sheet.hasTitle &&
-      sheet.hasMemories &&
-      sheet.hasSources &&
-      sheet.hasMemoryBody &&
-      sheet.hasHistoryBody &&
-      sheet.hasCopyMarkdown &&
-      sheet.copyBtnCount >= 2,
-    ...sheet,
-    clicked: true,
-    reinjected: !hasInjected,
-    label: evidenceBtn.textContent?.trim() || null,
-  };
+  return { ready: false, err: 'dialog-missing', clicked: true, label: evidenceBtn.textContent?.trim() };
 })()"""
 
 

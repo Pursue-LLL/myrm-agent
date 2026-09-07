@@ -50,6 +50,7 @@ def _mount(api: APIRouter, spec: _RouterMount) -> None:
 
 # Keys mirror app.api.router mounts; each import is lazy (only requested routers load).
 _ROUTER_MOUNTS: dict[str, _RouterMount] = {
+    "a2a": _RouterMount("app.api.a2a.router", prefix="/a2a", tags=("a2a",)),
     "workspace": _RouterMount("app.api.workspace.router", prefix="/workspace", tags=("workspace",)),
     "notifications": _RouterMount("app.api.notifications.router"),
     "agents_general": _RouterMount("app.api.agents.general_agent", prefix="/agents", tags=("agents",)),
