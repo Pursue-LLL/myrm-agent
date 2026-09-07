@@ -105,7 +105,11 @@ def extract_text_from_query(query: MultimodalQuery | object) -> str:
 
 
 def build_spillover_prompt_block(
-    file_path: str, total_chars: int, sha256: str, preview: str, estimated_tokens: int = 0
+    file_path: str,
+    total_chars: int,
+    sha256: str,
+    preview: str,
+    estimated_tokens: int = 0,
 ) -> str:
     """Construct structured, prompt-cache-friendly XML reference block."""
     token_hint = f", ~{estimated_tokens:,} tokens" if estimated_tokens > 0 else ""
@@ -192,8 +196,12 @@ class ContextBombDefenseService:
         try:
             target_file.resolve().relative_to(target_dir.resolve())
         except ValueError as err:
-            logger.error("Security violation: spillover path escaped target dir: %s", target_file)
-            raise PermissionError("Path traversal violation in spillover directory") from err
+            logger.error(
+                "Security violation: spillover path escaped target dir: %s", target_file
+            )
+            raise PermissionError(
+                "Path traversal violation in spillover directory"
+            ) from err
 
         # Idempotent atomic file write with unique tmp file
         if not target_file.exists():
@@ -204,11 +212,14 @@ class ContextBombDefenseService:
                     os.chmod(tmp_file, FILE_PERMISSIONS)
                 tmp_file.replace(target_file)
             except Exception as e:
-                logger.error("Failed to write transient spillover file: %s", e, exc_info=True)
+                logger.error(
+                    "Failed to write transient spillover file: %s", e, exc_info=True
+                )
                 truncated = content[:max_chars]
                 return SpilloverPayloadResult(
                     is_spilled=False,
-                    processed_content=truncated + f"\n\n[System Warning: Text truncated to {max_chars} chars due to file spillover write failure]",
+                    processed_content=truncated
+                    + f"\n\n[System Warning: Text truncated to {max_chars} chars due to file spillover write failure]",
                     original_char_count=char_count,
                     estimated_tokens=token_pressure,
                 )
@@ -219,11 +230,19 @@ class ContextBombDefenseService:
 
         rel_file_path = str(target_file.resolve())
         prompt_block = build_spillover_prompt_block(
-            file_path=rel_file_path, total_chars=char_count, sha256=sha256_hash, preview=preview, estimated_tokens=token_pressure
+            file_path=rel_file_path,
+            total_chars=char_count,
+            sha256=sha256_hash,
+            preview=preview,
+            estimated_tokens=token_pressure,
         )
         logger.info(
             "ContextBombDefenseService mitigated large payload: chars=%d (~%d tokens) sha256=%s path=%s for chat_id=%s",
-            char_count, token_pressure, short_hash, rel_file_path, chat_id or "unknown"
+            char_count,
+            token_pressure,
+            short_hash,
+            rel_file_path,
+            chat_id or "unknown",
         )
         return SpilloverPayloadResult(
             is_spilled=True,
@@ -257,7 +276,8 @@ class ContextBombDefenseService:
 
         preview = raw_text[: self.preview_chars].strip()
         metadata = SpilloverMetadata(
-            sha256=res.content_sha256 or hashlib.sha256(raw_text.encode("utf-8")).hexdigest(),
+            sha256=res.content_sha256
+            or hashlib.sha256(raw_text.encode("utf-8")).hexdigest(),
             file_path=res.spillover_path or "",
             total_chars=res.original_char_count,
             preview=preview,
@@ -300,7 +320,9 @@ class ContextBombDefenseService:
         """Purge spilled files older than TTL (default 24h) to avoid disk exhaustion."""
         effective_ttl = ttl_seconds if ttl_seconds is not None else self.ttl_seconds
         sweeper = (
-            EphemeralTransientSweeper(ContextGuardConfig(spillover_ttl_seconds=int(effective_ttl)))
+            EphemeralTransientSweeper(
+                ContextGuardConfig(spillover_ttl_seconds=int(effective_ttl))
+            )
             if effective_ttl != self.ttl_seconds
             else self._harness_sweeper
         )
@@ -315,10 +337,14 @@ class ContextBombDefenseService:
                         entry.unlink(missing_ok=True)
                         purged += 1
                 except OSError as err:
-                    logger.debug("Failed cleaning stale spillover file %s: %s", entry, err)
+                    logger.debug(
+                        "Failed cleaning stale spillover file %s: %s", entry, err
+                    )
 
         if purged > 0:
-            logger.info("ContextBombDefenseService swept %d stale spillover files", purged)
+            logger.info(
+                "ContextBombDefenseService swept %d stale spillover files", purged
+            )
         return purged
 
     @classmethod

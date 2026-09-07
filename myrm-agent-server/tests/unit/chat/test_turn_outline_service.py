@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import pytest
-
 from app.database.dto import MessageDTO
 from app.services.chat.turn_outline_service import (
     TurnOutlineProjectionService,

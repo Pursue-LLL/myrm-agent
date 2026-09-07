@@ -64,7 +64,13 @@ class DataWranglingEngine:
                 return f
 
         # Default fallback to first field
-        return fields[0] if fields else TableFieldSchema(field_id="col_auto", name="AI Analysis", field_type="text")
+        return (
+            fields[0]
+            if fields
+            else TableFieldSchema(
+                field_id="col_auto", name="AI Analysis", field_type="text"
+            )
+        )
 
     def process_table_instruction(
         self,
@@ -83,8 +89,10 @@ class DataWranglingEngine:
             BatchWranglingResult with full list of proposed cell mutations.
         """
         start_time = time.time()
-        target_field = self.identify_target_field(instruction, context.fields, context.active_field_id)
-        
+        target_field = self.identify_target_field(
+            instruction, context.fields, context.active_field_id
+        )
+
         target_rows = (
             [r for r in context.rows if r.row_id in context.selected_row_ids]
             if context.selected_row_ids
@@ -95,10 +103,12 @@ class DataWranglingEngine:
 
         for row in target_rows:
             old_val = row.cells.get(target_field.field_id)
-            
+
             # Use custom AI processor if provided
             if mock_ai_processor and callable(mock_ai_processor):
-                new_val, reasoning = mock_ai_processor(row.cells, instruction, target_field)
+                new_val, reasoning = mock_ai_processor(
+                    row.cells, instruction, target_field
+                )
             else:
                 # Built-in robust deterministic heuristic transformation
                 new_val, reasoning = self._synthesize_cell_value(
@@ -149,7 +159,7 @@ class DataWranglingEngine:
     ) -> tuple[Any, str]:
         """Synthesize reasonable transformation based on common patterns."""
         instr_lower = instruction.lower()
-        
+
         # Collect source text from other fields
         source_texts: List[str] = []
         for f in fields:
@@ -157,14 +167,34 @@ class DataWranglingEngine:
                 val = row_cells.get(f.field_id)
                 if val:
                     source_texts.append(str(val))
-        
+
         combined_source = " ".join(source_texts)
 
         # 1. Sentiment analysis / Classification
-        if "情感" in instruction or "sentiment" in instr_lower or "分类" in instruction or "classify" in instr_lower:
-            if any(pos in combined_source.lower() for pos in ["好", "棒", "赞", "great", "excellent", "good", "fast", "喜欢"]):
+        if (
+            "情感" in instruction
+            or "sentiment" in instr_lower
+            or "分类" in instruction
+            or "classify" in instr_lower
+        ):
+            if any(
+                pos in combined_source.lower()
+                for pos in [
+                    "好",
+                    "棒",
+                    "赞",
+                    "great",
+                    "excellent",
+                    "good",
+                    "fast",
+                    "喜欢",
+                ]
+            ):
                 return "正面 / Positive", "根据源文本中正面评价关键词提取"
-            elif any(neg_kw in combined_source.lower() for neg_kw in ["慢", "卡", "bug", "error", "fail", "差", "烂", "bad"]):
+            elif any(
+                neg_kw in combined_source.lower()
+                for neg_kw in ["慢", "卡", "bug", "error", "fail", "差", "烂", "bad"]
+            ):
                 return "负面 / Negative", "检测到故障或消极反馈词汇"
             else:
                 return "中性 / Neutral", "描述性文本，未检测到强烈情感倾向"
@@ -189,5 +219,9 @@ class DataWranglingEngine:
             return combined_source.lower(), "转换为小写格式"
 
         # Default fallback: summary or echo with AI prefix
-        preview = combined_source[:60] + "..." if len(combined_source) > 60 else combined_source
+        preview = (
+            combined_source[:60] + "..."
+            if len(combined_source) > 60
+            else combined_source
+        )
         return f"[AI Extracted] {preview}", f"根据指令 '{instruction}' 提炼生成"

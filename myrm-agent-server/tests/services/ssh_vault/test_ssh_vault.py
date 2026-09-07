@@ -13,13 +13,10 @@ Unit tests in tests/services/ssh_vault/.
 
 from __future__ import annotations
 
-import asyncio
-from pathlib import Path
 import pytest
 
-from app.services.ssh_vault.models import SSHHostConfig, SSHProbeResult, SSHAssetSummary
+from app.services.ssh_vault.models import SSHHostConfig
 from app.services.ssh_vault.service import SSHAssetService
-
 
 SAMPLE_SSH_CONFIG = """
 # Test SSH Config

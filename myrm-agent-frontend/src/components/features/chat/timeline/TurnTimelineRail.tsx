@@ -21,7 +21,7 @@ export const TurnTimelineRail: React.FC = () => {
   const messages = useChatStore((s) => s.messages);
   const activeTurnIndex = useChatStore((s) => s.activeTimelineTurnIndex);
   const setActiveTurnIndex = useChatStore((s) => s.setActiveTimelineTurnIndex);
-  const loadThrough = useChatStore((s) => s.loadThrough);
+  const loadThroughTurn = useChatStore((s) => s.loadThroughTurn);
 
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -36,7 +36,7 @@ export const TurnTimelineRail: React.FC = () => {
       setActiveTurnIndex(turnIndex);
       // 若尚未载入内存，触发连续向前分页 loadThrough
       if (!loadedMessageIds.has(userMessageId)) {
-        await loadThrough(userMessageId);
+        await loadThroughTurn(turnIndex);
       }
 
       // 定位 DOM 元素
@@ -46,7 +46,7 @@ export const TurnTimelineRail: React.FC = () => {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     },
-    [loadedMessageIds, loadThrough, setActiveTurnIndex],
+    [loadedMessageIds, loadThroughTurn, setActiveTurnIndex],
   );
 
   // 快捷键支持：Alt + Up / Alt + Down 快速跳跃轮次
