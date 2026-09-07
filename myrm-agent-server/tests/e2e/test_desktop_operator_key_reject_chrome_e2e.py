@@ -16,6 +16,7 @@ from cdp_chat.mcp_ui import McpChatSession
 from cdp_chat.support import (
     EvaluateIntent,
     ensure_e2e_yolo_mode,
+    ensure_e2e_yolo_mode_in_browser,
     fetch_provider_readiness_snapshot,
     get_e2e_api_url,
     get_e2e_ui_url,
@@ -34,6 +35,16 @@ _PROMPT = (
     "After the tool returns, reply DONE."
 )
 _REJECT = "Rejected printable operator"
+_CLICK_APPROVE_JS = """(() => {
+  const buttons = Array.from(document.querySelectorAll('button'));
+  const hit = buttons.find((b) => {
+    const t = String(b.textContent || '').trim();
+    return t === '批准' || t === 'Approve' || t === 'Allow once' || t === 'Allow';
+  });
+  if (!hit) return { ok: false, err: 'no-approve-button' };
+  hit.click();
+  return { ok: true, label: String(hit.textContent || '').trim() };
+})()"""
 
 
 def _soft_type_ok(blob: str) -> bool:
@@ -62,6 +73,36 @@ def _trace_blob(api_url: str, chat_id: str) -> str:
     return json.dumps(resp, ensure_ascii=False, default=str)
 
 
+def _approve_pending_tool_approvals(api_url: str) -> int:
+    """Approve PENDING tool approvals so Safety reject can run under HITL drift."""
+    try:
+        payload = http_json("GET", f"{api_url}/api/v1/approvals?limit=50&offset=0")
+    except Exception:
+        return 0
+    records = payload.get("approvals") if isinstance(payload, dict) else None
+    if not isinstance(records, list):
+        return 0
+    approved = 0
+    for raw in records:
+        if not isinstance(raw, dict):
+            continue
+        if str(raw.get("status") or "").upper() != "PENDING":
+            continue
+        approval_id = str(raw.get("id") or raw.get("approval_id") or "").strip()
+        if not approval_id:
+            continue
+        try:
+            http_json(
+                "POST",
+                f"{api_url}/api/v1/approvals/{approval_id}/resolve",
+                body={"decision": "approve"},
+            )
+            approved += 1
+        except Exception:
+            continue
+    return approved
+
+
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
     access_scope="NAMESPACE_WRITE",
@@ -82,12 +123,12 @@ async def test_chrome_ui_operator_as_key_rejected(
     if not wait_e2e_provider_ready(
         api_url=api_url, timeout_sec=120.0, poll_interval_sec=2.0
     ):
-        readiness = fetch_provider_readiness_snapshot()
+        readiness = fetch_provider_readiness_snapshot(api_url=api_url)
         pytest.fail(f"Provider not ready for chrome e2e: {readiness}")
 
     # Unattended desktop CU must skip HITL + Security Reviewer (sibling chrome E2E SSOT).
     ensure_e2e_yolo_mode(api_url=api_url)
-    progress("yolo+allow permissions pinned on private API")
+    progress("yolo+allow permissions pinned on private+shared API")
 
     deadline = time.monotonic() + 540.0
 
@@ -103,6 +144,12 @@ async def test_chrome_ui_operator_as_key_rejected(
         await chat.click_new_chat(timeout_sec=60.0)
         await chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0)
         await chat.ensure_react_e2e_bridge(timeout_sec=60.0)
+
+        # Re-pin after SHPOIB/page bind — ConfigSync / parallel HITL can drift.
+        api_url = get_e2e_api_url()
+        ensure_e2e_yolo_mode(api_url=api_url)
+        await ensure_e2e_yolo_mode_in_browser(chat)
+        progress("yolo pinned in browser ConfigSync")
 
         progress("enable computer_use")
         tools_setup = await chat.enable_computer_use()
@@ -120,11 +167,6 @@ async def test_chrome_ui_operator_as_key_rejected(
         )
         assert isinstance(tools_locked, dict) and tools_locked.get("ok") is True, tools_locked
 
-        # PRIVATE runtime api may settle after page open — reseal YOLO on live API.
-        api_url = get_e2e_api_url()
-        ensure_e2e_yolo_mode(api_url=api_url)
-        progress(f"yolo resealed api={api_url}")
-
         pin = await ensure_desktop_basic_model_pinned_for_send(chat)
         progress(f"model pin: {pin.get('debug')}")
 
@@ -140,11 +182,10 @@ async def test_chrome_ui_operator_as_key_rejected(
                 or provider_debug.get("modelId")
                 or ""
             )
-        security_debug = await chat.evaluate(
-            """(() => window.__MYRM_E2E_CHAT__?.debugSecurityState?.() ?? null)()""",
-            intent=EvaluateIntent.SYNC_PROBE,
-        )
-        progress(f"UI model={model_label!r} security={security_debug!r}")
+        progress(f"UI model={model_label!r} provider_debug={provider_debug}")
+
+        ensure_e2e_yolo_mode(api_url=get_e2e_api_url())
+        await ensure_e2e_yolo_mode_in_browser(chat)
 
         send_result = await chat.send_message(_PROMPT, _PROMPT)
         chat_id = str(
@@ -160,7 +201,6 @@ async def test_chrome_ui_operator_as_key_rejected(
 
         after = await chat.wait_turn_done(_PROMPT, timeout_sec=240, chat_id_hint=chat_id)
         progress(f"turn done: {after}")
-        # Lease heartbeat flaps must not mask the product assertion below.
         try:
             heartbeat_once()
         except RuntimeError as exc:
@@ -176,24 +216,18 @@ async def test_chrome_ui_operator_as_key_rejected(
                 "(() => document.body?.innerText || '')()",
                 intent=EvaluateIntent.SYNC_PROBE,
             )
-            # Fallback: if HITL still surfaces (yolo lag / broken autoReview), click Approve.
-            if isinstance(page_text, str) and (
-                "批准" in page_text or "Approve" in page_text
-            ) and _REJECT not in page_text:
+            page_blob = str(page_text or "")
+            if "可视化操作审批" in page_blob or "Security Reviewer" in page_blob:
                 clicked = await chat.evaluate(
-                    """(() => {
-                      const nodes = Array.from(document.querySelectorAll('button,[role="button"]'));
-                      const btn = nodes.find((n) => /^(批准|Approve)$/.test((n.textContent || '').trim()));
-                      if (!btn) return { ok: false, err: 'no-approve' };
-                      btn.click();
-                      return { ok: true, label: (btn.textContent || '').trim() };
-                    })()""",
-                    intent=EvaluateIntent.AGENT_SUBMIT,
+                    _CLICK_APPROVE_JS, intent=EvaluateIntent.AGENT_SUBMIT
                 )
-                progress(f"approve fallback: {clicked}")
-            msg_blob = _messages_blob(api_url, chat_id)
-            trace_blob = _trace_blob(api_url, chat_id)
-            blob = f"{page_text}\n{msg_blob}\n{trace_blob}"
+                progress(f"HITL approve click: {clicked}")
+                approved_n = _approve_pending_tool_approvals(get_e2e_api_url())
+                if approved_n:
+                    progress(f"API approved pending={approved_n}")
+            msg_blob = _messages_blob(get_e2e_api_url(), chat_id)
+            trace_blob = _trace_blob(get_e2e_api_url(), chat_id)
+            blob = f"{page_blob}\n{msg_blob}\n{trace_blob}"
             hard_ok = _REJECT in blob or "REMEDY_HINT: Printable operators" in blob
             soft_ok = _soft_type_ok(blob)
             if hard_ok or soft_ok:
@@ -202,7 +236,7 @@ async def test_chrome_ui_operator_as_key_rejected(
             try:
                 heartbeat_once()
             except RuntimeError as exc:
-                progress(f"heartbeat soft-fail in poll: {exc}")
+                progress(f"heartbeat soft-fail during poll: {exc}")
 
         assert hard_ok or soft_ok, (
             f"Chrome UI turn missed operator Safety reject and type-fallback. "

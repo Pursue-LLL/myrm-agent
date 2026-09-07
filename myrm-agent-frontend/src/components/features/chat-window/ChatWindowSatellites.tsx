@@ -115,6 +115,11 @@ const ContinualOverlayWatcher = dynamic(
   { ssr: false },
 );
 
+const TurnTimelineRail = dynamic(
+  () => import('../chat/timeline/TurnTimelineRail').then((m) => ({ default: m.TurnTimelineRail })),
+  { ssr: false },
+);
+
 interface ChatWindowSatellitesProps {
   chatId?: string;
   onInspectorInstruction: (instruction: string, refId: string | null) => void;

@@ -2450,6 +2450,27 @@ async def ensure_e2e_hitl_mode_in_browser(chat: object) -> None:
     raise RuntimeError(f"Browser HITL pin failed: {last_observed}")
 
 
+async def ensure_e2e_yolo_mode_in_browser(chat: object) -> None:
+    """PUT YOLO securityConfig on private+shared API and clear ConfigSync drift."""
+    max_attempts, _request_timeout_sec = _hitl_pin_retry_policy()
+    last_observed: dict[str, object] | None = None
+    for attempt in range(1, max_attempts + 1):
+        await chat.evaluate(  # type: ignore[attr-defined]
+            CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS, intent=EvaluateIntent.SYNC_PROBE
+        )
+        raw = await chat.evaluate(  # type: ignore[attr-defined]
+            PUT_E2E_YOLO_CONFIG_JS, intent=EvaluateIntent.AGENT_SUBMIT
+        )
+        observed = raw if isinstance(raw, dict) else {"value": raw}
+        if observed.get("ok") is True:
+            return
+        last_observed = observed
+        if not _browser_hitl_pin_transient_failure(observed) or attempt >= max_attempts:
+            break
+        await asyncio.sleep(_BROWSER_HITL_PIN_BACKOFF_SEC * attempt)
+    raise RuntimeError(f"Browser YOLO pin failed: {last_observed}")
+
+
 def clear_search_services_ssot(*, api_url: str | None = None) -> None:
     """Python SSOT: empty searchServices on the bound E2E API, with verify."""
     resolved = (api_url or get_e2e_api_url()).rstrip("/")

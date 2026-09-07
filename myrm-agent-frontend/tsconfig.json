@@ -51,7 +51,9 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-isolated-op-key-rej/types/**/*.ts",
-    ".next-isolated-op-key-rej/dev/types/**/*.ts"
+    ".next-isolated-op-key-rej/dev/types/**/*.ts",
+    ".next-isolated-op-key-reject/types/**/*.ts",
+    ".next-isolated-op-key-reject/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

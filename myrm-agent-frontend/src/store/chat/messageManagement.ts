@@ -295,6 +295,9 @@ export const loadMessages = async (
         }
       })
       .catch(() => {});
+
+    // 自动刷新轻量会话大纲投影 (Auto refresh lightweight turn outlines)
+    void useChatStore.getState().fetchTurnOutlines(chatId);
   } catch (error) {
     console.error('Failed to load chat messages:', error, chatId);
 
