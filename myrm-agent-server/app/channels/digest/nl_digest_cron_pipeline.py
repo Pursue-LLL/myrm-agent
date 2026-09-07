@@ -16,13 +16,12 @@ from __future__ import annotations
 import re
 from typing import Sequence
 
-from app.utils.logger import get_logger
-
 from app.channels.digest.chat_entity_timeline_extractor import ChatEntityTimelineExtractor
 from app.channels.digest.entity_timeline_models import (
     ChatEntityDigestReport,
     NLDigestCronBlueprint,
 )
+from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
