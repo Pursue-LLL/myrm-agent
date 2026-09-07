@@ -187,11 +187,13 @@ async def test_resolve_proactive_snippets_timeout_degrades_gracefully(tmp_path: 
 async def test_resolve_proactive_snippets_with_fts5_index(tmp_path: Path) -> None:
     """Verify Tier 1 FTS5 index-first retrieval on compiled vault."""
     import sqlite3
+    from myrm_agent_harness.toolkits.retriever.cjk_tokenizer import build_cjk_index_segment
 
     vault_dir = tmp_path / "compiled_vault"
     vault_dir.mkdir()
     db_path = vault_dir / ".wiki_index.db"
 
+    content = "## 差旅报销制度\n\n全员差旅住宿标准为每晚不超过 650 元人民币。\n\n交通补贴每日上限 50 元。"
     with sqlite3.connect(db_path) as conn:
         conn.execute(
             """
@@ -209,7 +211,7 @@ async def test_resolve_proactive_snippets_with_fts5_index(tmp_path: Path) -> Non
             """,
             (
                 "ExpensePolicy",
-                "## 差旅报销制度\n\n全员差旅住宿标准为每晚不超过 650 元人民币。\n\n交通补贴每日上限 50 元。",
+                build_cjk_index_segment(content),
             ),
         )
 

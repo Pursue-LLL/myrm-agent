@@ -198,6 +198,7 @@ export default function MemoryCitationsButton({
             'active:scale-95 transition-all duration-200',
           )}
           aria-label={t('buttonAria', { count: evidenceCount })}
+          data-testid="memory-citations-button"
         >
           <IconBrain className="h-4 w-4" />
           <span className="text-xs font-semibold whitespace-nowrap">{t('button', { count: evidenceCount })}</span>

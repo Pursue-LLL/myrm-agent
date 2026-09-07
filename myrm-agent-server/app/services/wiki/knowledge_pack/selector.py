@@ -218,8 +218,19 @@ async def resolve_proactive_snippets_from_vaults(
                         )
                         for row in cursor.fetchall():
                             c_name = str(row["concept_name"] or "")
-                            c_content = str(row["truth_content"] or "")
-                            paras = [p.strip() for p in c_content.split("\n\n") if p.strip()]
+                            raw_content = ""
+                            concept_file = vault_path / "wiki" / "concepts" / f"{c_name}.md"
+                            if not concept_file.is_file():
+                                concept_file = vault_path / f"{c_name}.md"
+                            if concept_file.is_file():
+                                try:
+                                    raw_content = concept_file.read_text(encoding="utf-8", errors="ignore")
+                                except Exception:
+                                    raw_content = ""
+                            if not raw_content:
+                                raw_content = str(row["truth_content"] or "")
+
+                            paras = [p.strip() for p in raw_content.split("\n\n") if p.strip()]
                             best_para = ""
                             best_matches = 0
                             for p in paras:

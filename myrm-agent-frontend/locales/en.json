@@ -18317,6 +18317,20 @@
         "privacyHint": "Sensitive prompts and tool inputs hidden",
         "searchPlaceholder": "Search traces by prompt or title..."
       },
+      "contextDoctor": {
+        "title": "Context Doctor (Token Hotspot & Cost Auditor)",
+        "healthScore": "Health Score",
+        "composition": "Token Distribution Breakdown",
+        "system": "System & Rules",
+        "chat": "Chat Turns",
+        "tools": "Tool Calls",
+        "files": "File Contents",
+        "hotspotsTitle": "Top Token Hotspots",
+        "hotspotsSubtitle": "Largest tool payloads consuming context",
+        "autoPruned": "Auto-Pruned",
+        "active": "Active",
+        "error": "Failed"
+      },
       "replay": {
         "title": "Session Replay",
         "chatView": "UI State",

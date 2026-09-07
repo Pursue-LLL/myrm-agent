@@ -16,6 +16,7 @@ import { formatCost, formatTokenCount } from './RoutingAnalyticsPanel';
 import { cn } from '@/lib/utils/classnameUtils';
 import SessionContextHealthPanel from './SessionContextHealthPanel';
 import ExecutionTraceTimeline from './ExecutionTraceTimeline';
+import ContextBreakdownCard from './ContextBreakdownCard';
 
 interface SessionAnalyticsDialogProps {
   sessionId: string;
@@ -256,6 +257,11 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Context Doctor Breakdown */}
+          {data.context_breakdown && (
+            <ContextBreakdownCard breakdown={data.context_breakdown} />
           )}
 
           <ExecutionTraceTimeline sessionId={sessionId} />

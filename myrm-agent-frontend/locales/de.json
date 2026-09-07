@@ -18317,7 +18317,21 @@
           "error": "Fehler"
         }
       },
-      "securityAudit": "Sicherheitsprüfung"
+      "securityAudit": "Sicherheitsprüfung",
+      "contextDoctor": {
+        "title": "Kontext-Gesundheitscheck (Token-Hotspots & Kostenprüfung)",
+        "healthScore": "Gesundheits-Score",
+        "composition": "Token-Zusammensetzung",
+        "system": "System & Regeln",
+        "chat": "Chat-Verlauf",
+        "tools": "Tool-Aufrufe",
+        "files": "Dateiinhalte",
+        "hotspotsTitle": "Top Token-Hotspots",
+        "hotspotsSubtitle": "Größte Tool-Nutzlasten, die Kontext verbrauchen",
+        "autoPruned": "Automatisch gekürzt",
+        "active": "Aktiv",
+        "error": "Fehlgeschlagen"
+      }
     },
     "experimentalFeatures": {
       "title": "Experimentelle Funktionen",

@@ -232,6 +232,26 @@ export interface SessionEvent {
   data: Record<string, unknown>;
 }
 
+export interface ContextHotspot {
+  tool_name: string;
+  tokens: number;
+  step_sequence: number;
+  status: 'auto_pruned' | 'active' | 'error';
+  summary?: string;
+}
+
+export interface ContextBreakdown {
+  system_tokens: number;
+  chat_tokens: number;
+  tool_tokens: number;
+  file_tokens: number;
+  total_context_tokens: number;
+  health_score: number;
+  diagnosis_status: 'healthy' | 'warning' | 'critical';
+  diagnosis_message: string;
+  hotspots: ContextHotspot[];
+}
+
 /**
  * Comprehensive analytics for a single session.
  */
@@ -264,6 +284,7 @@ export interface SessionAnalytics {
   // Task metrics
   task_metrics: Record<string, unknown>;
   context_health: ContextHealth;
+  context_breakdown?: ContextBreakdown;
   token_economics?: TokenEconomicsSnapshot;
   streamTtft?: StreamTtftStats;
   security_audit?: {

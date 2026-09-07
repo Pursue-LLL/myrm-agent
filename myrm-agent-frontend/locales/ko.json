@@ -18317,7 +18317,21 @@
           "error": "오류"
         }
       },
-      "securityAudit": "보안 감사"
+      "securityAudit": "보안 감사",
+      "contextDoctor": {
+        "title": "컨텍스트 건강 진단 (Token 핫스팟 및 비용 감사)",
+        "healthScore": "건강 점수",
+        "composition": "Token 구성 분석",
+        "system": "시스템 및 규칙",
+        "chat": "대화 기록",
+        "tools": "도구 호출",
+        "files": "파일 내용",
+        "hotspotsTitle": "Token 소비 핫스팟",
+        "hotspotsSubtitle": "컨텍스트를 가장 많이 소비하는 도구 페이로드",
+        "autoPruned": "자동 정리됨",
+        "active": "활성",
+        "error": "실행 실패"
+      }
     },
     "experimentalFeatures": {
       "title": "실험 기능",

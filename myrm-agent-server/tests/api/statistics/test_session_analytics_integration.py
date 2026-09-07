@@ -85,6 +85,13 @@ async def test_session_analytics_endpoint_structure():
         assert isinstance(analytics["duration_ms"], (int, float))
         assert isinstance(analytics["tool_breakdown"], list)
         assert isinstance(analytics["context_health"], dict)
+        if "context_breakdown" in analytics and analytics["context_breakdown"] is not None:
+            cb = analytics["context_breakdown"]
+            assert "system_tokens" in cb
+            assert "chat_tokens" in cb
+            assert "tool_tokens" in cb
+            assert "file_tokens" in cb
+            assert "hotspots" in cb
 
         # Verify tool_breakdown structure if present
         if analytics["tool_breakdown"]:

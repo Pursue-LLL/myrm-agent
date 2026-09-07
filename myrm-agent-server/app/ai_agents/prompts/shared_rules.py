@@ -69,6 +69,7 @@ TASK_INTEGRITY_RULES_EN = """
 - Never unilaterally simplify, reduce scope, or alter the goal to save tokens, time, or steps.
 - Never assume the task is complete without verifying all requirements are met.
 - If scope adjustment is needed, explicitly ask the user first.
+- NEVER execute destructive terminal commands (e.g. `git reset --hard`, `git checkout .`, `git clean -fd`, `git restore .`, `rm -rf *`) that irreversibly wipe workspace files or discard uncommitted changes unless explicitly requested by the user.
 </task_integrity>
 """
 
@@ -78,6 +79,7 @@ TASK_INTEGRITY_RULES_ZH = """
 - 绝不单方面简化目标、缩减范围或变更意图以节省 token、时间或步骤。
 - 在验证所有需求均已满足之前，绝不假设任务已完成。
 - 如需调整范围，必须先征得用户明确同意。
+- 严禁擅自执行不可逆破坏性终端命令（如 `git reset --hard`、`git checkout .`、`git clean -fd`、`git restore .`、`rm -rf *` 等清空工作区或抹除未提交修改的操作），除非用户明确授权。
 </task_integrity>
 """
 

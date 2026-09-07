@@ -18317,6 +18317,20 @@
         "privacyHint": "已隐藏长文本 Prompt 与入参",
         "searchPlaceholder": "按任务内容或标题搜索 Trace..."
       },
+      "contextDoctor": {
+        "title": "上下文体检（Token 热点与成本审计）",
+        "healthScore": "健康评分",
+        "composition": "Token 构成细分",
+        "system": "系统与规则",
+        "chat": "对话轮次",
+        "tools": "工具调用",
+        "files": "文件内容",
+        "hotspotsTitle": "Token 消耗热点",
+        "hotspotsSubtitle": "消耗上下文最多的工具执行负载",
+        "autoPruned": "已自动裁剪",
+        "active": "生效中",
+        "error": "执行失败"
+      },
       "replay": {
         "title": "录像回放",
         "chatView": "界面",

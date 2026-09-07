@@ -18317,7 +18317,21 @@
           "error": "報錯"
         }
       },
-      "securityAudit": "安全稽核"
+      "securityAudit": "安全稽核",
+      "contextDoctor": {
+        "title": "上下文健檢（Token 熱點與成本審計）",
+        "healthScore": "健康評分",
+        "composition": "Token 構成細分",
+        "system": "系統與規則",
+        "chat": "對話輪次",
+        "tools": "工具調用",
+        "files": "檔案內容",
+        "hotspotsTitle": "Token 消耗熱點",
+        "hotspotsSubtitle": "消耗上下文最多的工具執行負載",
+        "autoPruned": "已自動裁剪",
+        "active": "生效中",
+        "error": "執行失敗"
+      }
     },
     "experimentalFeatures": {
       "title": "實驗功能",

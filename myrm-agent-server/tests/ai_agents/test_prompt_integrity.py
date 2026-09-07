@@ -37,6 +37,7 @@ class TestCoreSystemPrompt:
         assert "Never assume the task is complete" in TASK_INTEGRITY_RULES
         assert "explicitly ask the user first" in TASK_INTEGRITY_RULES
         assert "ENTIRE session" in TASK_INTEGRITY_RULES
+        assert "NEVER execute destructive terminal commands" in TASK_INTEGRITY_RULES
 
     def test_task_integrity_in_core_prompt(self) -> None:
         assert TASK_INTEGRITY_RULES.strip() in CORE_SYSTEM_PROMPT
@@ -239,6 +240,17 @@ class TestDesktopControlRules:
         assert 'scope="target"' in DESKTOP_CONTROL_RULES
         assert 'app_name="<app name>"' in DESKTOP_CONTROL_RULES
         assert "desktop_snapshot_tool" in DESKTOP_CONTROL_RULES
+
+    def test_rules_disclose_query_and_wait(self) -> None:
+        from app.ai_agents.prompts.shared_rules import (
+            DESKTOP_CONTROL_RULES_EN,
+            DESKTOP_CONTROL_RULES_ZH,
+        )
+
+        assert 'query="<search term>"' in DESKTOP_CONTROL_RULES_EN
+        assert 'wait_seconds=' in DESKTOP_CONTROL_RULES_EN
+        assert 'query="<搜索关键词>"' in DESKTOP_CONTROL_RULES_ZH
+        assert 'wait_seconds=' in DESKTOP_CONTROL_RULES_ZH
 
     def test_rules_do_not_mention_window_title(self) -> None:
         """app_name must stay an app-name hint; 'window name' is unsupported on macOS."""

@@ -18317,7 +18317,21 @@
           "error": "エラー"
         }
       },
-      "securityAudit": "セキュリティ監査"
+      "securityAudit": "セキュリティ監査",
+      "contextDoctor": {
+        "title": "コンテキスト健康診断 (Token ホットスポットとコスト監査)",
+        "healthScore": "健康スコア",
+        "composition": "Token 構成内訳",
+        "system": "システムとルール",
+        "chat": "対話履歴",
+        "tools": "ツール呼び出し",
+        "files": "ファイル内容",
+        "hotspotsTitle": "Token 消費ホットスポット",
+        "hotspotsSubtitle": "コンテキストを最も多く消費しているツールペイロード",
+        "autoPruned": "自動切り詰め済",
+        "active": "有効",
+        "error": "実行失敗"
+      }
     },
     "experimentalFeatures": {
       "title": "実験機能",

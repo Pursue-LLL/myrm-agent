@@ -152,10 +152,12 @@ async def get_session_analytics(
                 }
 
             from myrm_agent_harness.agent.event_log import EventLogger
+            from myrm_agent_harness.agent.event_log.trace_builder import build_trace
 
             backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id=session_id)
             event_logger = EventLogger(backend=backend, session_id=session_id)
             summary = await event_logger.get_session_summary(events_limit=150, timeline_limit=100)
+            trace = await build_trace(backend, session_id)
 
             tool_breakdown = [
                 {
@@ -181,6 +183,7 @@ async def get_session_analytics(
                 "events_timeline": events_timeline,
                 "task_metrics": summary.task_metrics,
                 "token_economics": summary.token_economics,
+                "context_breakdown": trace.context_breakdown if trace else None,
             }
             llm_breakdown = await _build_llm_duration_breakdown(backend, session_id)
             if llm_breakdown:
@@ -209,6 +212,7 @@ async def get_session_analytics(
             "events_timeline": event_log_data["events_timeline"],
             "task_metrics": event_log_data["task_metrics"],
             "token_economics": event_log_data.get("token_economics"),
+            "context_breakdown": event_log_data.get("context_breakdown"),
             "context_health": build_context_health(
                 message_stats=message_stats,
                 task_metrics=task_metrics_for_health,
