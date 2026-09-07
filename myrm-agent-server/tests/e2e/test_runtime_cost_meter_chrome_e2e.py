@@ -171,8 +171,11 @@ def test_runtime_cost_meter_settings_ui_and_ledger_chrome_e2e() -> None:
     assert summary_res.get("code") == 0
     summary_data = summary_res.get("data", {})
     assert summary_data.get("code_sandbox_compute_minutes", 0) >= 1.5
-    assert summary_data.get("total_workload_active_minutes", 0) >= 2.0
-    assert summary_data.get("local_compute_savings_usd", 0.0) > 0.0
+    assert summary_data.get("total_active_compute_minutes", 0) >= 2.0
+    assert (
+        summary_data.get("estimated_cloud_value_saved_usd", 0.0) > 0.0
+        or summary_data.get("cloud_value_saved_usd", 0.0) > 0.0
+    )
 
     # Step 4: Perform 429 recalibration self-healing check via REST API
     deplete_res = http_json(

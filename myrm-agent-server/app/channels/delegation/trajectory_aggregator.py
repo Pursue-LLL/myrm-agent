@@ -106,7 +106,7 @@ class TrajectoryAggregator:
 
     def classify_task_category(self, task: DelegationTask) -> TrajectoryCategory:
         """Heuristically classify task category based on prompt and summary."""
-        text = f"{task.user_prompt} {task.result_summary}".lower()
+        text = f"{task.user_prompt or task.raw_prompt or task.normalized_prompt} {task.result_summary}".lower()
         if any(w in text for w in ("fix", "bug", "repair", "error", "issue", "修复", "排查", "报错")):
             return TrajectoryCategory.BUGFIX
         if any(w in text for w in ("deploy", "release", "docker", "k8s", "部署", "上线", "发布")):
@@ -162,7 +162,7 @@ class TrajectoryAggregator:
             category = self.classify_task_category(task)
             item = WorkTrajectoryItem(
                 task_id=task.task_id,
-                title=task.user_prompt[:80].strip(),
+                title=(task.user_prompt or task.raw_prompt or task.normalized_prompt or "Task")[:80].strip(),
                 category=category,
                 summary=task.result_summary or task.error_message or "Executed in background sandbox.",
                 status=task.status,

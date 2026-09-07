@@ -1035,6 +1035,30 @@ async def convert_to_general_agent_params(
 
     final_query = rewrite_learn_query_if_needed(final_query)
 
+    from app.services.chat.context_bomb_guard import get_context_bomb_defense_service
+
+    guard_service = get_context_bomb_defense_service()
+    # Guard against context bomb (>16,000 chars) and transparently spill to workspace file
+    spilled_query, was_spilled, spill_meta = guard_service.guard_and_spill_query(
+        query=final_query,
+        workspace_dir=chat_workspace_dir,
+        session_id=request.chat_id,
+    )
+    if was_spilled and spill_meta:
+        final_query = spilled_query
+        logger.info(
+            "ContextBombGuard spilled query for chat_id=%s: total_chars=%d path=%s sha256=%s",
+            request.chat_id,
+            spill_meta.total_chars,
+            spill_meta.file_path,
+            spill_meta.sha256,
+        )
+    # Background sweep of stale spillover files (>24h)
+    try:
+        guard_service.sweep_stale_spillover_files(workspace_dir=chat_workspace_dir)
+    except Exception:
+        pass
+
     security_config_dict = apply_learn_skill_manage_permission_overlay(
         security_config_dict,
         query=final_query,

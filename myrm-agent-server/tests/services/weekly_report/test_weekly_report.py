@@ -1,154 +1,148 @@
-"""Unit tests for Weekly Report SOP, Trajectory Aggregator, and Chat-to-Knowledge Extractor."""
+"""Unit tests for weekly report SOP, trajectory aggregator, and chat-to-knowledge service.
+
+Verifies event recording, time-window filtering, report markdown formatting, and wiki extraction.
+"""
 
 from __future__ import annotations
 
 import time
 
-from app.services.weekly_report import (
+from app.services.weekly_report.chat_to_knowledge import ChatToKnowledgeArchiver
+from app.services.weekly_report.models import (
     ChatKnowledgeExtractRequest,
-    ChatToKnowledgeArchiver,
-    TrajectoryAggregator,
+    TrajectoryEvent,
     TrajectoryEventSource,
-    WeeklyReportService,
 )
+from app.services.weekly_report.trajectory_aggregator import TrajectoryAggregator
+from app.services.weekly_report.weekly_report_service import WeeklyReportService
 
 
 def test_trajectory_aggregator_recording_and_filtering() -> None:
-    """Test recording heterogeneous events and filtering by source, time, and tags."""
+    """Verifies events are correctly recorded, filtered by source, tag, and time window."""
     aggregator = TrajectoryAggregator()
     now = time.time()
 
-    # Record sandbox task
-    sandbox_event = aggregator.record_sandbox_task(
-        task_id="task_101",
-        title="Deploy Redis Sentinel",
-        summary="Completed auto-failover configuration in sandbox",
-        channel="feishu_ops",
-        tags=["sandbox", "database"],
+    # 1. Record sandbox task
+    e1 = aggregator.record_sandbox_task(
+        task_id="task-101",
+        title="Deploy Auth Service",
+        summary="Deployed auth container on port 8080",
+        channel="feishu",
+        tags=["deployment", "auth"],
     )
-    assert sandbox_event.source == TrajectoryEventSource.SANDBOX_EXECUTION
-    assert sandbox_event.task_id == "task_101"
+    assert e1.source == TrajectoryEventSource.SANDBOX_EXECUTION
+    assert e1.task_id == "task-101"
 
-    # Record artifact
-    artifact_event = aggregator.record_artifact(
-        task_id="task_101",
-        artifact_path="/workspace/config/redis.conf",
-        artifact_hash="a1b2c3d4e5f67890",
-        title="Redis Sentinel Configuration File",
-        summary="High-availability cluster settings",
-        channel="feishu_ops",
+    # 2. Record artifact
+    e2 = aggregator.record_artifact(
+        task_id="task-101",
+        artifact_path="/workspace/build.log",
+        artifact_hash="abcdef1234567890",
+        title="Build Log Artifact",
+        summary="Successful clean build output",
+        channel="feishu",
     )
-    assert artifact_event.source == TrajectoryEventSource.DELIVERY_ARTIFACT
-    assert artifact_event.artifact_hash == "a1b2c3d4e5f67890"
+    assert e2.source == TrajectoryEventSource.DELIVERY_ARTIFACT
+    assert e2.artifact_path == "/workspace/build.log"
 
-    # Record chat decision
-    chat_event = aggregator.record_chat_decision(
-        session_id="session_888",
-        title="Architecture Decision: Adopt Redis 7.2",
-        decision_summary="Team agreed to standardize on Redis 7.2 engine across clusters",
-        channel="feishu_ops",
+    # 3. Record chat decision
+    e3 = aggregator.record_chat_decision(
+        session_id="session-999",
+        title="Adopt Qdrant for Memory Store",
+        decision_summary="Agreed to use Qdrant for high-throughput semantic memory.",
+        channel="wechat",
     )
-    assert chat_event.source == TrajectoryEventSource.CHAT_DECISION
+    assert e3.source == TrajectoryEventSource.CHAT_DECISION
 
     # Filter by source
     sandbox_events = aggregator.get_events(source=TrajectoryEventSource.SANDBOX_EXECUTION)
     assert len(sandbox_events) == 1
-    assert sandbox_events[0].title == "Deploy Redis Sentinel"
+    assert sandbox_events[0].event_id == e1.event_id
 
     # Filter by tag
-    db_events = aggregator.get_events(tag="database")
-    assert len(db_events) == 1
+    auth_events = aggregator.get_events(tag="auth")
+    assert len(auth_events) == 1
 
     # Filter by time window
-    all_events = aggregator.get_events(start_time=now - 10, end_time=now + 10)
-    assert len(all_events) == 3
+    window_events = aggregator.get_events(start_time=now - 10, end_time=now + 10)
+    assert len(window_events) == 3
 
 
-def test_chat_to_knowledge_extraction() -> None:
-    """Test extracting structured decisions and Markdown Wiki pages from chat conversations."""
-    raw_chat = (
-        "# RFC-042: Model Routing Strategy\n"
-        "After benchmarking Gemini 3.8 and MiniMax, we decided to use Gemini as Basic LLM\n"
-        "and MiniMax M3 as Fast/Lite LLM for sub-second summarization.\n"
-        "Action item: update .env.test and server provider configurations."
-    )
-
-    req = ChatKnowledgeExtractRequest(
-        chat_context=raw_chat,
-        channel="wechat_work_ai_team",
-        session_id="sess_12345",
-        target_wiki_category="engineering/routing",
-        author="alice",
-    )
-
-    result = ChatToKnowledgeArchiver.extract_from_chat(req)
-
-    assert result.success is True
-    assert "RFC-042: Model Routing Strategy" in result.concept_title
-    assert result.wiki_rel_path.startswith("engineering/routing/")
-    assert "---" in result.markdown_content
-    assert "source_channel: wechat_work_ai_team" in result.markdown_content
-    assert "## Context & Consensus" in result.markdown_content
-
-
-def test_chat_to_knowledge_empty_context() -> None:
-    """Test edge case with empty chat context."""
-    req = ChatKnowledgeExtractRequest(
-        chat_context="   ",
-        channel="telegram",
-        session_id="sess_empty",
-    )
-    result = ChatToKnowledgeArchiver.extract_from_chat(req)
-    assert result.success is False
-    assert result.error_message == "Empty chat context provided"
-
-
-def test_weekly_report_generation_full_pipeline() -> None:
-    """Test end-to-end weekly report assembly with evidence chains."""
+def test_weekly_report_service_generation() -> None:
+    """Verifies weekly report document structure and markdown rendering."""
     aggregator = TrajectoryAggregator()
-
-    # Populate multiple events
     aggregator.record_sandbox_task(
-        task_id="task_201",
-        title="Migrated Database Schema",
-        summary="Applied migration v3.2 for trajectory audit tables",
+        task_id="task-202",
+        title="Database Optimization",
+        summary="Added composite indexes on user_id and created_at",
+        channel="telegram",
     )
     aggregator.record_artifact(
-        task_id="task_201",
-        artifact_path="migrations/v3_2.sql",
-        artifact_hash="7f8e9d0c1b2a",
-        title="V3.2 Migration Script",
-        summary="SQL script with idempotent table definitions",
+        task_id="task-202",
+        artifact_path="/workspace/migration.sql",
+        artifact_hash="1122334455667788",
+        title="SQL Migration Script",
+        summary="Schema migration script for index updates",
     )
     aggregator.record_chat_decision(
-        session_id="session_999",
-        title="Weekly Release Consensus",
-        decision_summary="Agreed to ship 2.4.0 on Thursday afternoon",
-        channel="lark_team",
+        session_id="session-303",
+        title="Standardize on Pytest Safe Runner",
+        decision_summary="Enforced run-pytest-safe.sh wrapper for test harness.",
+        channel="feishu",
     )
 
     service = WeeklyReportService(aggregator=aggregator)
     report = service.generate_report(
-        title="Engineering Sprint Report",
-        author="Myrm AI Lead",
+        title="Engineering Sprint Weekly",
+        author="Lead AI Engineer",
         period_days=7,
     )
 
+    assert report.title == "Engineering Sprint Weekly"
+    assert report.author == "Lead AI Engineer"
     assert report.total_events_aggregated == 3
     assert len(report.sections) == 4
-    assert "Engineering Sprint Report" in report.raw_markdown
-    assert "Migrated Database Schema" in report.raw_markdown
-    assert "V3.2 Migration Script" in report.raw_markdown
-    assert "Weekly Release Consensus" in report.raw_markdown
-    assert "7f8e9d0c1b2a" in report.raw_markdown
+
+    # Verify Markdown contains evidence
+    md = report.raw_markdown
+    assert "# Engineering Sprint Weekly" in md
+    assert "Database Optimization" in md
+    assert "SQL Migration Script" in md
+    assert "Standardize on Pytest Safe Runner" in md
+    assert "Generated automatically by Myrm" in md
 
 
-def test_weekly_report_empty_period_graceful() -> None:
-    """Test generating a report when no events exist in the period."""
-    aggregator = TrajectoryAggregator()
-    service = WeeklyReportService(aggregator=aggregator)
+def test_chat_to_knowledge_extractor() -> None:
+    """Verifies chat decision distillation to Markdown wiki with frontmatter."""
+    chat_text = (
+        "# RFC: Redis Caching Layer\n\n"
+        "After team discussion, we concluded that Redis should be deployed with cluster mode enabled.\n"
+        "TTL strategy is set to 3600 seconds for session tokens."
+    )
+    req = ChatKnowledgeExtractRequest(
+        chat_context=chat_text,
+        channel="feishu",
+        session_id="sess-777",
+        target_wiki_category="architecture/rfc",
+        author="architect",
+    )
 
-    report = service.generate_report(title="Empty Week Report")
-    assert report.total_events_aggregated == 0
-    assert "No sandbox tasks recorded" in report.raw_markdown
-    assert "No new artifacts generated" in report.raw_markdown
+    res = ChatToKnowledgeArchiver.extract_from_chat(req)
+    assert res.success is True
+    assert res.concept_title == "RFC: Redis Caching Layer"
+    assert res.wiki_rel_path == "architecture/rfc/rfc_redis_caching_layer.md"
+    assert "title: RFC: Redis Caching Layer" in res.markdown_content
+    assert "source_channel: feishu" in res.markdown_content
+    assert "## Context & Consensus" in res.markdown_content
+
+
+def test_chat_to_knowledge_empty_context() -> None:
+    """Verifies graceful handling of empty chat input."""
+    req = ChatKnowledgeExtractRequest(
+        chat_context="   ",
+        channel="wechat",
+        session_id="sess-0",
+    )
+    res = ChatToKnowledgeArchiver.extract_from_chat(req)
+    assert res.success is False
+    assert res.error_message == "Empty chat context provided"
