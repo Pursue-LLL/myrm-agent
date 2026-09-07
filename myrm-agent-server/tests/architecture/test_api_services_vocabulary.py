@@ -20,6 +20,7 @@ API_SERVICES_ALIASES: dict[str, str] = {
     "chats": "chat",
     "projects": "project",
     "events": "event",
+    "mobile": "mobile_adb",
     "background_tasks": "background",
     "batch_optimization": "skill_optimization",
 }

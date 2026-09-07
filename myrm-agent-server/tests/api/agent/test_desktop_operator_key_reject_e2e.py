@@ -39,8 +39,9 @@ _REJECT = "Rejected printable operator"
 @pytest.mark.e2e
 @pytest.mark.asyncio
 @pytest.mark.timeout(120)
-async def test_desktop_vision_tool_rejects_star_key_deterministic() -> None:
-    """Same tool surface the agent binds: key='*' → Safety reject, no key_press."""
+@pytest.mark.parametrize("op", ["*", "/", "+", "-", "%", "="])
+async def test_desktop_vision_tool_rejects_operator_key_deterministic(op: str) -> None:
+    """Same tool surface the agent binds: lone operator key → Safety, no key_press."""
     from myrm_agent_harness.toolkits.computer_use.desktop_agent_tools import (
         create_desktop_tools,
     )
@@ -70,12 +71,13 @@ async def test_desktop_vision_tool_rejects_star_key_deterministic() -> None:
         ),
         patch.object(session, "check_app_approval", new=AsyncMock(return_value=None)),
     ):
-        result = await vision.ainvoke({"action": "key", "text": "*"})
+        result = await vision.ainvoke({"action": "key", "text": op})
 
     assert isinstance(result, str)
     assert "Safety" in result
     assert _REJECT in result
     assert "REMEDY_HINT" in result
+    assert repr(op) in result or op in result
     session.key_press.assert_not_called()
 
 

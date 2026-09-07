@@ -184,6 +184,8 @@ Called from other HTTP trees or lifecycle hooks:
 | `observability/` | Runtime quota metrics and meter service (`api/statistics/quota_runtime_router.py`) |
 | `repair/` | `api/health/` repair-action endpoints |
 | `locked_use/` | Computer Use / Tauri IPC orchestration |
+| `cron_digest/` | Natural language to Cron compilation and entity-clustered timeline reports |
+| `bitable_copilot/` | Multidimensional table copilot and field extraction engine |
 | `event/` | `api/events/`, agent stream persistence |
 
 **Rule of thumb:** add HTTP in `api/`; add orchestration in `services/`; add reusable primitives in `core/`; never duplicate harness execution logic in server.

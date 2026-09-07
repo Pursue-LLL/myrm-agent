@@ -254,6 +254,14 @@ def _fallback_model_from_providers(
                     api_url = api_url if api_url else None
                     pool_strategy = str(provider.get("credentialPoolStrategy", "")) or None
                     model_kwargs = _build_transport_headers(all_keys[0], pid, api_url)
+                    # Warn if default base model is a preview/beta slug
+                    model_lower = model.lower()
+                    if any(frag in model_lower for frag in ("preview", "-preview-", "beta", "experimental")):
+                        logger.warning(
+                            "Default model '%s' is a preview/experimental model. "
+                            "Consider using a stable release for default position to prevent silent behavior drift.",
+                            model,
+                        )
                     logger.debug("model_resolver: using default model %s", full_model)
                     return enrich_model_config(
                         ModelConfig(
