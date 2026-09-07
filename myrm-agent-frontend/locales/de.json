@@ -2427,6 +2427,8 @@
       "toggleTitle": "Desktop-Inspektor umschalten",
       "viewMode": "Ansichtsmodus",
       "inspectMode": "Inspektionsmodus",
+      "searchPlaceholder": "Elementname, Rolle oder @dref suchen...",
+      "clearSearch": "Suche löschen",
       "close": "Schließen",
       "refresh": "Aktualisieren",
       "enabledHint": "Der Desktop-Inspektor öffnet sich hier, wenn der Agent Desktop-Tools verwendet",

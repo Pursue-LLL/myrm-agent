@@ -2464,6 +2464,8 @@
       "toggleTitle": "切換桌面檢查器",
       "viewMode": "檢視模式",
       "inspectMode": "檢查模式",
+      "searchPlaceholder": "搜尋元素名稱、角色或 @dref...",
+      "clearSearch": "清除搜尋",
       "close": "關閉",
       "refresh": "重新整理",
       "enabledHint": "Agent 使用桌面工具後，桌面檢查器將在此開啟",

@@ -2463,6 +2463,8 @@
       "toggleTitle": "デスクトップインスペクターの切り替え",
       "viewMode": "表示モード",
       "inspectMode": "検査モード",
+      "searchPlaceholder": "要素名、ロール、@dref を検索...",
+      "clearSearch": "検索をクリア",
       "close": "閉じる",
       "refresh": "更新",
       "enabledHint": "Agent がデスクトップツールを使用すると、ここにデスクトップインスペクターが開きます",

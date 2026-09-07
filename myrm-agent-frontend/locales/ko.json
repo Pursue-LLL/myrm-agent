@@ -2429,6 +2429,8 @@
       "toggleTitle": "데스크톱 인스펙터 전환",
       "viewMode": "보기 모드",
       "inspectMode": "검사 모드",
+      "searchPlaceholder": "요소 이름, 역할 또는 @dref 검색...",
+      "clearSearch": "검색 지우기",
       "close": "닫기",
       "refresh": "새로고침",
       "enabledHint": "에이전트가 데스크톱 도구를 사용하면 여기에 데스크톱 인스펙터가 열립니다",
