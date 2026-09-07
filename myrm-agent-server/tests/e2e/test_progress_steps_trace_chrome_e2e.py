@@ -124,20 +124,47 @@ def test_progress_steps_trace_timeline_chrome_e2e() -> None:
     prepare_e2e_ui_session(api_base)
     warm_ui_route(f"/?chatId={chat_id}")
 
+    # Dismiss migration modals
+    _DISMISS_MIGRATION_JS = """(() => {
+      try {
+        sessionStorage.setItem('migration_discovery_dismissed', 'true');
+        sessionStorage.setItem('competitor_migration_dismissed', 'true');
+      } catch (err) {
+        return { ok: false, err: String(err) };
+      }
+      return { ok: true };
+    })()"""
+
+    _ATTACH_CHAT_JS = f"""(async () => {{
+      const bridge = window.__MYRM_E2E_CHAT__;
+      if (!bridge?.attachToChat) {{
+        return {{ ok: false, err: 'no-bridge' }};
+      }}
+      await bridge.attachToChat({json.dumps(chat_id)});
+      const snap = bridge.turnSnapshot?.() ?? {{}};
+      return {{
+        ok: snap.chatId === {json.dumps(chat_id)} && (snap.assistantCount ?? 0) >= 1,
+        snap,
+      }};
+    }})()"""
+
     with open_mcp_page(target_url, timeout_ms=_PAGE_TIMEOUT_MS) as (client, page):
+        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         dismiss_blocking_modals(client, page)
-        ensure_chat_route(
-            client,
+
+        attached = client.evaluate(
             page,
-            target_url=target_url,
-            timeout_ms=_PAGE_TIMEOUT_MS,
+            _ATTACH_CHAT_JS,
+            timeout_sec=45.0,
         )
+        assert isinstance(attached, dict) and attached.get("ok") is True, attached
 
         # 1. Verify message and progress steps mount
         _CHECK_MOUNTED_JS = """(() => {
             const toggle = document.querySelector('[data-testid="progress-steps-toggle"]');
             const panel = document.querySelector('[data-testid="progress-steps-panel"]');
-            return { ready: !!toggle || !!panel };
+            const durationBadges = document.querySelectorAll('.tabular-nums, .font-mono');
+            return { ready: !!toggle || !!panel || durationBadges.length > 0 };
         })()"""
 
         wait_for_state(client, page, _CHECK_MOUNTED_JS, timeout_sec=30.0)

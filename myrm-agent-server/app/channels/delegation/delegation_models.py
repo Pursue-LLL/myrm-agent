@@ -130,9 +130,11 @@ class DelegationTask:
     task_id: str
     origin_channel: str
     origin_user_id: str
-    origin_chat_id: str
-    raw_prompt: str
-    normalized_prompt: str
+    origin_chat_id: str = ""
+    raw_prompt: str = ""
+    normalized_prompt: str = ""
+    origin_session_id: str = ""
+    user_prompt: str = ""
     status: DelegationStatus = DelegationStatus.PENDING
     created_at: float = field(default_factory=time.time)
     started_at: float | None = None

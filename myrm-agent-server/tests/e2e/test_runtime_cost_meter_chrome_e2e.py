@@ -95,8 +95,8 @@ def test_runtime_cost_meter_settings_ui_and_ledger_chrome_e2e() -> None:
     assert seed_sandbox.get("code") == 0
     assert seed_sandbox.get("data", {}).get("workload_type") == "code_sandbox"
 
-    # Step 2: Open /settings/usage in real Chrome MCP
-    subroute = "/settings/usage"
+    # Step 2: Open /settings/developer?sub=usage in real Chrome MCP
+    subroute = "/settings/developer?sub=usage"
     with open_settings_subroute(subroute, timeout_ms=120_000, warm=False) as (client, page):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
@@ -125,5 +125,17 @@ def test_runtime_cost_meter_settings_ui_and_ledger_chrome_e2e() -> None:
         {"provider": "tavily"},
     )
     assert reset_res.get("code") == 0
-    assert reset_res.get("data", {}).get("is_depleted") is False
-    assert reset_res.get("data", {}).get("used_count") == 0
+    assert reset_res.get("data", {}).get("reset_records_count", 0) >= 1
+
+    quotas_res = http_json(
+        "GET",
+        f"{api_url}/api/v1/statistics/search-quotas",
+    )
+    assert quotas_res.get("code") == 0
+    tavily_stat = next(
+        (item for item in quotas_res.get("data", []) if item.get("provider") == "tavily"),
+        None,
+    )
+    assert tavily_stat is not None
+    assert tavily_stat.get("is_depleted") is False
+    assert tavily_stat.get("used_count") == 0

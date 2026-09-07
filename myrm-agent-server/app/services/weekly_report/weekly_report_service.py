@@ -1,6 +1,13 @@
 """Weekly report SOP generation and Chat-to-Knowledge ingestion service.
 
-Adheres strictly to code_quality_guidelines: 0 Any, modular, single-responsibility.
+[INPUT]
+- Verified execution trajectories, start/end timestamps, and role-adaptive mode.
+
+[OUTPUT]
+- Structured WeeklyReportPayload and WikiIngestResult for knowledge base persistence.
+
+[POS]
+Service layer in app/services/weekly_report/.
 """
 
 from __future__ import annotations

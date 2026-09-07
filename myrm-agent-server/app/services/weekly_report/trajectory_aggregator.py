@@ -1,80 +1,129 @@
-"""Trajectory aggregation engine for extracting verified execution logs.
+"""Multi-source organizational trajectory aggregator.
 
-Aggregates delegation tasks, delivery artifacts, and chat events within a time window.
+[INPUT]
+- .models::TrajectoryEvent, TrajectoryEventSource
+- app.channels.delegation.delegation_models::DelegationTask, DeliveryArtifact (POS: Sandbox tasks and artifacts)
+- typing (standard library)
+
+[OUTPUT]
+- TrajectoryAggregator: Core class for collecting, deduplicating, and indexing events across sandbox, chat, and approvals.
+
+[POS]
+Aggregates heterogeneous action records from sandboxes, IM channels, and artifacts into chronological, evidence-backed streams.
 """
 
 from __future__ import annotations
 
 import time
-from typing import Sequence
+from typing import Dict, List, Optional
 
-from app.channels.delegation.delegation_models import DelegationTask, DeliveryArtifact
-from app.services.weekly_report.models import (
-    TrajectoryItem,
-    TrajectorySourceKind,
-)
+from app.services.weekly_report.models import TrajectoryEvent, TrajectoryEventSource
 
 
 class TrajectoryAggregator:
-    """Aggregates execution trajectories across sandboxes and IM channels."""
+    """Collects and organizes events across sandbox execution, artifacts, and decisions."""
 
-    @staticmethod
-    def get_natural_week_window(reference_time_ms: int | None = None) -> tuple[int, int]:
-        """Calculates start and end timestamps (ms) for the current natural week (Monday to Sunday)."""
-        now_sec = (reference_time_ms / 1000.0) if reference_time_ms is not None else time.time()
-        time_struct = time.localtime(now_sec)
-        
-        # Calculate start of Monday 00:00:00
-        days_since_monday = time_struct.tm_wday
-        start_day_struct = time.struct_time((
-            time_struct.tm_year,
-            time_struct.tm_mon,
-            time_struct.tm_mday - days_since_monday,
-            0, 0, 0, 0, 0, time_struct.tm_isdst
-        ))
-        start_sec = time.mktime(start_day_struct)
-        end_sec = start_sec + (7 * 86400) - 0.001
-        
-        return int(start_sec * 1000), int(end_sec * 1000)
+    def __init__(self) -> None:
+        self._events: Dict[str, TrajectoryEvent] = {}
 
-    def aggregate_from_delegation(
+    def record_event(self, event: TrajectoryEvent) -> None:
+        """Register a new trajectory event."""
+        self._events[event.event_id] = event
+
+    def record_sandbox_task(
         self,
-        tasks: Sequence[DelegationTask],
-        artifacts: Sequence[DeliveryArtifact],
-        start_time_ms: int,
-        end_time_ms: int,
-    ) -> list[TrajectoryItem]:
-        """Filters and maps delegation tasks and artifacts within the specified time window."""
-        items: list[TrajectoryItem] = []
-        
-        # Map artifacts by task_id for efficient lookup
-        task_artifacts_map: dict[str, list[str]] = {}
-        for art in artifacts:
-            if start_time_ms <= art.created_at_ms <= end_time_ms:
-                task_artifacts_map.setdefault(art.task_id, []).append(art.file_path)
+        task_id: str,
+        title: str,
+        summary: str,
+        channel: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+    ) -> TrajectoryEvent:
+        """Convenience method to record a completed sandbox task."""
+        event_id = f"sandbox_{task_id}_{int(time.time() * 1000)}"
+        event = TrajectoryEvent(
+            event_id=event_id,
+            source=TrajectoryEventSource.SANDBOX_EXECUTION,
+            title=title,
+            summary=summary,
+            timestamp=time.time(),
+            task_id=task_id,
+            channel=channel,
+            tags=tags or ["sandbox", "execution"],
+        )
+        self.record_event(event)
+        return event
 
-        for task in tasks:
-            if not (start_time_ms <= task.created_at_ms <= end_time_ms):
+    def record_artifact(
+        self,
+        task_id: str,
+        artifact_path: str,
+        artifact_hash: str,
+        title: str,
+        summary: str,
+        channel: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+    ) -> TrajectoryEvent:
+        """Convenience method to record a generated deliverable artifact."""
+        event_id = f"artifact_{task_id}_{artifact_hash[:8]}"
+        event = TrajectoryEvent(
+            event_id=event_id,
+            source=TrajectoryEventSource.DELIVERY_ARTIFACT,
+            title=title,
+            summary=summary,
+            timestamp=time.time(),
+            task_id=task_id,
+            channel=channel,
+            artifact_path=artifact_path,
+            artifact_hash=artifact_hash,
+            tags=tags or ["artifact", "deliverable"],
+        )
+        self.record_event(event)
+        return event
+
+    def record_chat_decision(
+        self,
+        session_id: str,
+        title: str,
+        decision_summary: str,
+        channel: str,
+        tags: Optional[List[str]] = None,
+    ) -> TrajectoryEvent:
+        """Record an explicit consensus or key technical decision made in chat."""
+        event_id = f"chat_{session_id}_{int(time.time() * 1000)}"
+        event = TrajectoryEvent(
+            event_id=event_id,
+            source=TrajectoryEventSource.CHAT_DECISION,
+            title=title,
+            summary=decision_summary,
+            timestamp=time.time(),
+            channel=channel,
+            tags=tags or ["chat", "decision"],
+        )
+        self.record_event(event)
+        return event
+
+    def get_events(
+        self,
+        source: Optional[TrajectoryEventSource] = None,
+        tag: Optional[str] = None,
+        start_time: Optional[float] = None,
+        end_time: Optional[float] = None,
+    ) -> List[TrajectoryEvent]:
+        """Query collected events with optional filters, sorted chronologically."""
+        results: List[TrajectoryEvent] = []
+        for event in self._events.values():
+            if source and event.source != source:
                 continue
-            
-            task_art_paths = task_artifacts_map.get(task.task_id, [])
-            all_art_paths = tuple(task_art_paths) if task_art_paths else tuple(task.artifact_paths)
+            if tag and tag not in event.tags:
+                continue
+            if start_time and event.timestamp < start_time:
+                continue
+            if end_time and event.timestamp > end_time:
+                continue
+            results.append(event)
 
-            title = f"Task: {task.instruction[:40]}" if task.instruction else f"Task {task.task_id[:8]}"
-            summary = task.execution_summary or f"Status: {task.status.value}"
-            
-            item = TrajectoryItem(
-                source_id=task.task_id,
-                source_kind=TrajectorySourceKind.DELEGATION_TASK,
-                title=title,
-                summary=summary,
-                timestamp_ms=task.created_at_ms,
-                artifact_paths=all_art_paths,
-                tags=("sandbox", task.status.value),
-                metadata={"channel_id": task.channel_id, "status": task.status.value},
-            )
-            items.append(item)
-            
-        # Sort trajectory chronologically
-        items.sort(key=lambda x: x.timestamp_ms)
-        return items
+        return sorted(results, key=lambda e: e.timestamp)
+
+    def clear(self) -> None:
+        """Clear all stored events."""
+        self._events.clear()

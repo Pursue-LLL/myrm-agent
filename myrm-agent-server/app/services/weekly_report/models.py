@@ -1,86 +1,98 @@
-"""Data models and type definitions for weekly report SOP and trajectory aggregation.
+"""Data models for Weekly Report SOP and Trajectory Aggregation.
 
 [INPUT]
-- Execution events, trajectory items, role configurations, and wiki ingest parameters.
+- dataclasses (standard library)
+- typing (standard library)
+- enum (standard library)
 
 [OUTPUT]
-- Strongly-typed models for ReportRoleMode, TrajectoryItem, WeeklyReportPayload, and WikiIngestResult.
+- TrajectoryEventSource: Enum for origin of events (SANDBOX, CHAT, ARTIFACT, APPROVAL)
+- TrajectoryEvent: Strongly-typed atomic action/output record
+- WeeklyReportSection: Structured block in a generated weekly report
+- WeeklyReportDocument: Complete structured weekly report entity
+- ChatKnowledgeExtractRequest: Input schema for chat-to-knowledge extraction
+- ChatKnowledgeExtractResult: Output schema with extracted concepts and wiki mutation path
 
 [POS]
-Domain model definition in app/services/weekly_report/.
+Domain models for organizational trajectory aggregation, weekly report generation, and chat-to-knowledge extraction.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import List, Optional
 
 
-class ReportRoleMode(str, Enum):
-    """Role-adaptive projection modes for weekly report rendering."""
-    GENERAL = "general"
-    ENGINEER = "engineer"
-    PRODUCT = "product"
-    EXECUTIVE = "executive"
+class TrajectoryEventSource(str, Enum):
+    """Source domain of a trajectory action or artifact."""
 
-
-class TrajectorySourceKind(str, Enum):
-    """Source origin of trajectory items."""
-    DELEGATION_TASK = "delegation_task"
-    DELIVERY_ARTIFACT = "delivery_artifact"
+    SANDBOX_EXECUTION = "sandbox_execution"
     CHAT_DECISION = "chat_decision"
-    MANUAL_ENTRY = "manual_entry"
+    DELIVERY_ARTIFACT = "delivery_artifact"
+    REMOTE_APPROVAL = "remote_approval"
 
 
 @dataclass(frozen=True)
-class TrajectoryItem:
-    """A discrete unit of verified execution trajectory."""
-    source_id: str
-    source_kind: TrajectorySourceKind
+class TrajectoryEvent:
+    """Atomic record representing an action, artifact, or decision in the organization."""
+
+    event_id: str
+    source: TrajectoryEventSource
     title: str
     summary: str
-    timestamp_ms: int
-    artifact_paths: tuple[str, ...] = ()
-    tags: tuple[str, ...] = ()
-    metadata: dict[str, str] = field(default_factory=dict)
+    timestamp: float
+    task_id: Optional[str] = None
+    channel: Optional[str] = None
+    artifact_path: Optional[str] = None
+    artifact_hash: Optional[str] = None
+    tags: List[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
 class WeeklyReportSection:
-    """A structured section within the generated weekly report."""
-    heading: str
-    items: tuple[str, ...]
-    role_weight: float = 1.0
+    """A semantic section in a weekly report."""
 
-
-@dataclass(frozen=True)
-class WeeklyReportPayload:
-    """Full assembled weekly report model."""
-    start_time_ms: int
-    end_time_ms: int
-    role_mode: ReportRoleMode
+    section_id: str
     title: str
-    sections: tuple[WeeklyReportSection, ...]
-    attached_artifacts: tuple[str, ...]
+    items: List[str]
+    evidence_events: List[TrajectoryEvent] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class WeeklyReportDocument:
+    """Complete weekly report generated from organizational trajectories."""
+
+    report_id: str
+    title: str
+    period_start: str
+    period_end: str
+    author: str
+    sections: List[WeeklyReportSection]
+    raw_markdown: str
+    created_at: float
+    total_events_aggregated: int
+
+
+@dataclass(frozen=True)
+class ChatKnowledgeExtractRequest:
+    """Request to extract structured knowledge from chat messages."""
+
+    chat_context: str
+    channel: str
+    session_id: str
+    target_wiki_category: str = "engineering/decisions"
+    author: str = "agent"
+
+
+@dataclass(frozen=True)
+class ChatKnowledgeExtractResult:
+    """Result of structured knowledge extraction from chat."""
+
+    concept_title: str
+    summary: str
     markdown_content: str
-    summary_for_im: str
-
-
-@dataclass(frozen=True)
-class WikiIngestPayload:
-    """Payload for archiving high-value chat decisions to Wiki."""
-    channel_id: str
-    topic_title: str
-    content_raw: str
-    tags: tuple[str, ...]
-    fingerprint_sha256: str
-    created_at_ms: int
-
-
-@dataclass(frozen=True)
-class WikiIngestResult:
-    """Result of wiki archive operation."""
+    wiki_rel_path: str
+    tags: List[str]
     success: bool
-    wiki_path: str
-    is_duplicate: bool
-    message: str
+    error_message: Optional[str] = None
