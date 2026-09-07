@@ -176,6 +176,16 @@ def test_agent_stream_rejects_operator_as_vision_key(
     assert "desktop_vision" in invoked, f"vision tool not invoked; tools={invoked}"
     assert vision_results, f"no vision results captured; tools={invoked}"
     joined = "\n".join(vision_results)
-    assert _REJECT in joined, (
-        f"operator-as-key safety reject missing; results_tail={joined[-2000:]}"
+    # Two success modes for Lane-C:
+    # 1) Model obeyed QA probe with key=* → harness Safety reject (hard path).
+    # 2) Model obeyed DESKTOP_CONTROL_RULES and used type instead → soft path.
+    # Hard reject without LLM is covered by test_desktop_vision_tool_rejects_star_key_deterministic.
+    soft_ok = any(
+        "Vision action 'type' completed" in item or 'Vision action "type" completed' in item
+        for item in vision_results
+    )
+    hard_ok = _REJECT in joined
+    assert hard_ok or soft_ok, (
+        "expected operator-as-key Safety reject or type-instead-of-key; "
+        f"results_tail={joined[-2000:]}"
     )
