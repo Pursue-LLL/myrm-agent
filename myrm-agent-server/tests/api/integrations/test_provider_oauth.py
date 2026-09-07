@@ -316,7 +316,9 @@ class TestProviderOAuthStatusAndDisconnect:
         assert "Unknown provider" in response.text
 
     def test_disconnect_success(self, client: TestClient):
-        with patch("app.api.integrations.provider_oauth.delete_oauth_credential", new=AsyncMock(return_value=True)) as mock_delete:
+        with patch(
+            "app.api.integrations.provider_oauth.delete_oauth_credential", new=AsyncMock(return_value=True)
+        ) as mock_delete:
             response = client.delete(f"{API_PREFIX}/disconnect/openai")
             assert response.status_code == 200
             assert response.json()["data"]["connected"] is False
@@ -366,7 +368,9 @@ class TestProviderOAuthStatusAndDisconnect:
         with (
             patch(
                 "app.api.integrations.xai_oauth.start_xai_oauth",
-                new=AsyncMock(return_value=success_response(data={"user_code": "XAI-123", "verification_uri": "https://auth.x.ai/device"})),
+                new=AsyncMock(
+                    return_value=success_response(data={"user_code": "XAI-123", "verification_uri": "https://auth.x.ai/device"})
+                ),
             ),
             patch(
                 "app.api.integrations.xai_oauth.poll_xai_oauth",

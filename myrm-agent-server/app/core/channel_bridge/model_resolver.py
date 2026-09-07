@@ -83,10 +83,7 @@ def _build_transport_headers(
             if isinstance(v, str):
                 headers[k] = v
 
-    is_vercel_gateway = (
-        provider_id == "vercel_ai_gateway"
-        or (api_url is not None and "ai-gateway.vercel.sh" in api_url.lower())
-    )
+    is_vercel_gateway = provider_id == "vercel_ai_gateway" or (api_url is not None and "ai-gateway.vercel.sh" in api_url.lower())
     if is_vercel_gateway:
         headers.setdefault("HTTP-Referer", "https://myrm.ai")
         headers.setdefault("X-Title", "Myrm Agent")
@@ -316,9 +313,9 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
 
         enabled_models: list[str] = p.get("enabledModels", [])  # type: ignore[assignment]
         if enabled_models:
-            matched = (
-                raw_model in enabled_models
-                or (pid == "vercel_ai_gateway" and raw_model.removeprefix("vercel_ai_gateway/") in {m.removeprefix("vercel_ai_gateway/") for m in enabled_models})
+            matched = raw_model in enabled_models or (
+                pid == "vercel_ai_gateway"
+                and raw_model.removeprefix("vercel_ai_gateway/") in {m.removeprefix("vercel_ai_gateway/") for m in enabled_models}
             )
             if not matched:
                 continue

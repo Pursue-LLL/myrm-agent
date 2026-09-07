@@ -118,7 +118,7 @@ class TestRuntimeMeterService:
         row = MagicMock()
         row.session_count = 3
         row.total_duration_sec = 600.0  # 10 minutes
-        row.total_compute_sec = 300.0   # 5 minutes
+        row.total_compute_sec = 300.0  # 5 minutes
         row.total_bytes = 10 * 1024 * 1024  # 10 MB
         row.total_requests = 45
         row.total_failed_requests = 2
@@ -463,19 +463,9 @@ class TestQuotaRuntimeRouterEndpoints:
 
         # Case B: 运行总时长超限（200s > 180s），但持续有心跳/网络传输活跃（idle 5s < 60s），消除古德哈特误杀，安全通过
         obs.telemetry.last_activity_time = mono_now - 5.0
-        assert (
-            obs.check_action_watchdog(
-                mono_now - 200.0, timeout_seconds=180.0, activity_idle_threshold=60.0
-            )
-            is True
-        )
+        assert obs.check_action_watchdog(mono_now - 200.0, timeout_seconds=180.0, activity_idle_threshold=60.0) is True
 
         # Case C: 运行总时长超限（200s > 180s），且无心跳停滞（idle 90s > 60s），死循环确认，精准熔断
         obs.telemetry.last_activity_time = mono_now - 90.0
-        assert (
-            obs.check_action_watchdog(
-                mono_now - 200.0, timeout_seconds=180.0, activity_idle_threshold=60.0
-            )
-            is False
-        )
+        assert obs.check_action_watchdog(mono_now - 200.0, timeout_seconds=180.0, activity_idle_threshold=60.0) is False
         assert obs.telemetry.watchdog_tripped_count == 1

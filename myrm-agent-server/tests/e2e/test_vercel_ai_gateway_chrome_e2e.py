@@ -121,6 +121,7 @@ def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:
         # Step 1.5: If clicked on Vercel AI Gateway item, verify detail card contents
         if eval_res.get("clicked"):
             import time
+
             time.sleep(2.0)
             detail_res = client.evaluate(page, _VERIFY_VERCEL_CONFIG_DETAILS_JS, timeout_sec=20.0)
             assert isinstance(detail_res, dict), f"Expected dict evaluation result, got: {detail_res}"

@@ -12255,6 +12255,17 @@
     }
   },
   "settings": {
+    "providerBalance": {
+      "statusHealthy": "Healthy",
+      "statusWarning": "Low Balance",
+      "statusCritical": "Depleted",
+      "tooltipPrefix": "Account Balance",
+      "hudCriticalTitle": "Provider Balance Depleted",
+      "hudWarningTitle": "Provider Balance Warning",
+      "hudBalanceDepletedDesc": "{provider} balance is critically low ({balance}). Agent requests may fail.",
+      "hudSwitchToFallback": "Switch to Safe Backup",
+      "dismiss": "Dismiss"
+    },
     "lockedUse": {
       "title": "Computer Use / Locked Use",
       "layer1Title": "Display Keep-Awake",

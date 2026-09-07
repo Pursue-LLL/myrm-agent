@@ -389,4 +389,3 @@ def validate_publish_payload(files: dict[str, PublishFile]) -> None:
     if len(html_entries) == 1:
         return
     raise ValueError("Deploy payload must include index.html or an HTML entry")
-

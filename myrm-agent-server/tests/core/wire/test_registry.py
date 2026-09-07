@@ -76,4 +76,3 @@ def test_enrich_applies_vercel_ai_gateway_defaults() -> None:
     assert headers.get("HTTP-Referer") == "https://myrm.ai"
     assert headers.get("X-Title") == "Myrm Agent"
     assert "Vercel-AI-Gateway-Client" in headers.get("User-Agent", "")
-

@@ -67,15 +67,9 @@ async def get_session_execution_trace(
         memory_events = await _build_session_memory_events(db, session_id)
 
         if not event_log_file.exists():
-            return success_response(
-                data=sanitize_trace_payload(
-                    _empty_trace_payload(session_id, memory_events)
-                )
-            )
+            return success_response(data=sanitize_trace_payload(_empty_trace_payload(session_id, memory_events)))
 
-        backend = FileEventLogBackend(
-            log_dir=Path(settings.database.event_log_dir), session_id=session_id
-        )
+        backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id=session_id)
         trace = await build_trace(backend, session_id)
         trace_data = trace.to_dict()
         await _attach_security_labels(backend, session_id, trace_data)
@@ -86,9 +80,7 @@ async def get_session_execution_trace(
     except Exception as e:
         if "not found" in str(e).lower():
             raise
-        raise internal_error(
-            operation="Get session execution trace", exception=e
-        ) from e
+        raise internal_error(operation="Get session execution trace", exception=e) from e
 
 
 def _search_traces_sync(
@@ -146,15 +138,10 @@ def _search_traces_sync(
                 pass
 
         if query_lower:
-            if (
-                query_lower not in title.lower()
-                and query_lower not in task_input.lower()
-            ):
+            if query_lower not in title.lower() and query_lower not in task_input.lower():
                 continue
 
-        hit_ratio = (
-            round(cache_read_tokens / prompt_tokens, 4) if prompt_tokens > 0 else 0.0
-        )
+        hit_ratio = round(cache_read_tokens / prompt_tokens, 4) if prompt_tokens > 0 else 0.0
 
         matched.append(
             {

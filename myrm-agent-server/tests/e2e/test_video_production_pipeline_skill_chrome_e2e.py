@@ -132,7 +132,9 @@ async def test_video_production_pipeline_skill_live_chrome_e2e() -> None:
             intent=EvaluateIntent.AGENT_SUBMIT,
         )
 
-        prompt = "【视频分镜制作】我想制作一段15秒的产品宣传短视频，请按影视级分镜规范输出前两个分镜规划，必须包含景别与机位运镜描述。"
+        prompt = (
+            "【视频分镜制作】我想制作一段15秒的产品宣传短视频，请按影视级分镜规范输出前两个分镜规划，必须包含景别与机位运镜描述。"
+        )
         send_res = await chat.send_message(prompt, prompt, skip_model_sync=True)
         heartbeat_once()
         print(f"E2E_VIDEO_SKILL_SENT: {json.dumps(send_res, ensure_ascii=False)}", flush=True)
@@ -167,8 +169,7 @@ async def test_video_production_pipeline_skill_live_chrome_e2e() -> None:
         print(f"E2E_VIDEO_SKILL_ASSISTANT_REPLY: {assistant_text[:300]}", flush=True)
         assert len(assistant_text) >= 20, f"Assistant reply too short: {assistant_text}"
         has_storyboard_elements = any(
-            kw in assistant_text
-            for kw in ["分镜", "景别", "运镜", "画面", "特写", "镜头", "Shot", "Camera"]
+            kw in assistant_text for kw in ["分镜", "景别", "运镜", "画面", "特写", "镜头", "Shot", "Camera"]
         )
         assert has_storyboard_elements, f"Assistant reply missing storyboard elements: {assistant_text}"
     finally:
@@ -178,4 +179,3 @@ async def test_video_production_pipeline_skill_live_chrome_e2e() -> None:
         except Exception:
             pass
         await asyncio.to_thread(client.close)
-

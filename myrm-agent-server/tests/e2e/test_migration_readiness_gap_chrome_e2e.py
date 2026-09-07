@@ -163,9 +163,7 @@ def _seed_migration_readiness(*, variant: str = "mcp_warning") -> dict[str, str]
                     timeout=httpx.Timeout(25.0, connect=10.0),
                 )
                 if not isinstance(response, httpx.Response):
-                    raise AssertionError(
-                        f"migration fixture response has invalid type: {type(response).__name__}"
-                    )
+                    raise AssertionError(f"migration fixture response has invalid type: {type(response).__name__}")
                 last_response = response
                 if response.status_code == 503:
                     last_error = httpx.HTTPStatusError(

@@ -12255,6 +12255,17 @@
     }
   },
   "settings": {
+    "providerBalance": {
+      "statusHealthy": "額度充足",
+      "statusWarning": "餘額不足",
+      "statusCritical": "額度耗盡",
+      "tooltipPrefix": "賬戶餘額狀態",
+      "hudCriticalTitle": "模型服務商餘額已耗盡",
+      "hudWarningTitle": "模型服務商餘額預警",
+      "hudBalanceDepletedDesc": "{provider} 賬戶餘額嚴重不足 ({balance})，可能導致任務中斷。",
+      "hudSwitchToFallback": "一鍵切換備用模型",
+      "dismiss": "忽略"
+    },
     "lockedUse": {
       "title": "電腦使用 / 鎖定使用",
       "layer1Title": "保持螢幕常亮",

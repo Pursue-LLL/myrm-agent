@@ -84,9 +84,7 @@ def render_standalone_viewer_html(primary_file: str, title: str | None = None) -
     is_embeddable = ext in EMBEDDABLE_EXTENSIONS
 
     if is_embeddable:
-        content_view = (
-            f'<iframe src="./{safe_file}" title="{safe_title}" class="viewer-frame"></iframe>'
-        )
+        content_view = f'<iframe src="./{safe_file}" title="{safe_title}" class="viewer-frame"></iframe>'
     else:
         content_view = (
             '<div class="card-wrapper">'
@@ -96,8 +94,8 @@ def render_standalone_viewer_html(primary_file: str, title: str | None = None) -
             f'   <p class="doc-filename">File: <code>{safe_file}</code></p>'
             '    <div class="doc-meta">This format is optimized for download or native desktop viewing.</div>'
             f'   <a href="./{safe_file}" download class="btn-primary">Download {ext.upper().lstrip(".")} File</a>'
-            '  </div>'
-            '</div>'
+            "  </div>"
+            "</div>"
         )
 
     return f"""<!DOCTYPE html>

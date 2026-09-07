@@ -46,7 +46,7 @@ async def test_media_config(
         configs = await load_user_configs()
         providers_dict = configs.providers_dict
     except Exception as exc:
-        logger.warning('Failed to load user configs for media provider status: %s', exc)
+        logger.warning("Failed to load user configs for media provider status: %s", exc)
         providers_dict = {}
 
     if request.media_type == "image":

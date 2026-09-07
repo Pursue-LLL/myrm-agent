@@ -1097,10 +1097,11 @@ class ToolSetupMixin(ExternalAgentsMixin):
             @tool("a2a_call", args_schema=A2ACallSchema)
             async def a2a_call_tool(peer: str, prompt: str, timeout_seconds: float = 90.0) -> dict[str, object]:
                 """Delegate a subtask to a remote trusted A2A agent node.
-Use this tool when a task requires specialized expertise or capabilities hosted on an authorized peer node.
-"""
+                Use this tool when a task requires specialized expertise or capabilities hosted on an authorized peer node.
+                """
                 target_url, token = _resolve_peer_creds(peer)
                 from app.config.deploy_mode import is_local_mode
+
                 internal_hosts = ["127.0.0.1", "localhost"] if is_local_mode() else None
                 client = a2a_tools_mod.A2AClient(
                     timeout_seconds=timeout_seconds,
@@ -1148,6 +1149,7 @@ Use this tool when a task requires specialized expertise or capabilities hosted 
 
                 f_mode = FanoutMode(mode) if mode in ("all", "first", "best") else FanoutMode.ALL
                 from app.config.deploy_mode import is_local_mode
+
                 internal_hosts = ["127.0.0.1", "localhost"] if is_local_mode() else None
                 client = a2a_tools_mod.A2AClient(
                     timeout_seconds=timeout_seconds,

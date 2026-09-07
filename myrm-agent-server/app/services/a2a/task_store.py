@@ -79,9 +79,7 @@ class A2ATaskStore:
             now = time.time()
             messages = list(current.messages)
             if agent_message:
-                messages.append(
-                    TaskMessage(role=TaskRole.AGENT, content=agent_message, timestamp=now)
-                )
+                messages.append(TaskMessage(role=TaskRole.AGENT, content=agent_message, timestamp=now))
 
             new_artifacts = list(current.artifacts)
             if artifacts:

@@ -162,7 +162,9 @@ def _build_dynamic_video_input_schema(capabilities: object | None) -> type[BaseM
     )
     fields["task_id"] = (
         str | None,
-        FieldInfo(default=None, description="Task ID returned from a previous action='generate' call (required when action='status')."),
+        FieldInfo(
+            default=None, description="Task ID returned from a previous action='generate' call (required when action='status')."
+        ),
     )
 
     return create_model(

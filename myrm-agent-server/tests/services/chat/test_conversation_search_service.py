@@ -559,4 +559,3 @@ class TestConversationSearchService:
         assert hit.message_id == "msg-1"
         assert hit.snippet is not None
         assert "user:" in hit.snippet or "assistant:" in hit.snippet
-

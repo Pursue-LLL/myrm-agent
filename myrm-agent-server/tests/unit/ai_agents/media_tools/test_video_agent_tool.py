@@ -304,5 +304,3 @@ async def test_video_tool_unsupported_audio_sanitized_gracefully() -> None:
     assert "t-audio" in result
     call_kwargs = engine.execute.await_args.kwargs
     assert call_kwargs["enable_audio"] is False
-
-

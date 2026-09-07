@@ -39,9 +39,7 @@ class TestPromptCacheRadarEndpoint:
         assert payload["estimated_savings_usd"] == 0.0
 
     @pytest.mark.asyncio
-    async def test_cache_radar_with_mocked_events(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_cache_radar_with_mocked_events(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mock_db = AsyncMock()
         chat_1 = Chat(
             id="session-1",
@@ -92,9 +90,7 @@ class TestPromptCacheRadarEndpoint:
         assert payload["estimated_savings_usd"] == 0.0031
 
     @pytest.mark.asyncio
-    async def test_cache_radar_attempt_and_retries_non_blocking(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_cache_radar_attempt_and_retries_non_blocking(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mock_db = AsyncMock()
         chat_2 = Chat(
             id="session-retry-1",
@@ -145,9 +141,7 @@ class TestSearchSessionTracesEndpoint:
     """Test natural language search of session execution traces."""
 
     @pytest.mark.asyncio
-    async def test_search_traces_matching_prompt_or_title(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_search_traces_matching_prompt_or_title(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mock_db = AsyncMock()
         chat_match_title = Chat(
             id="sess-title-match",
@@ -264,4 +258,3 @@ class TestSearchSessionTracesEndpoint:
         data_large = json.loads(response_large.body)
         assert data_large["code"] == 0
         assert data_large["data"]["days"] == 999
-

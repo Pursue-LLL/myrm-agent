@@ -14,9 +14,7 @@ from app.core.infra.health.server_diagnostics import (
 @pytest.mark.asyncio
 async def test_anthropic_policy_diagnostic_inactive_for_other_models() -> None:
     diagnostic = AnthropicSubscriptionPolicyDiagnostic()
-    mock_configs = SimpleNamespace(
-        model_cfg=SimpleNamespace(model="openai/gpt-4o", api_key="sk-test-openai")
-    )
+    mock_configs = SimpleNamespace(model_cfg=SimpleNamespace(model="openai/gpt-4o", api_key="sk-test-openai"))
     with patch(
         "app.core.channel_bridge.config_loader.load_user_configs",
         AsyncMock(return_value=mock_configs),
@@ -31,9 +29,7 @@ async def test_anthropic_policy_diagnostic_inactive_for_other_models() -> None:
 async def test_anthropic_policy_diagnostic_pass_with_dedicated_api_key() -> None:
     diagnostic = AnthropicSubscriptionPolicyDiagnostic()
     mock_configs = SimpleNamespace(
-        model_cfg=SimpleNamespace(
-            model="anthropic/claude-3-5-sonnet", api_key="sk-ant-api03-validkey"
-        )
+        model_cfg=SimpleNamespace(model="anthropic/claude-3-5-sonnet", api_key="sk-ant-api03-validkey")
     )
     with patch(
         "app.core.channel_bridge.config_loader.load_user_configs",
@@ -48,11 +44,7 @@ async def test_anthropic_policy_diagnostic_pass_with_dedicated_api_key() -> None
 @pytest.mark.asyncio
 async def test_anthropic_policy_diagnostic_warn_without_api_key_subscription() -> None:
     diagnostic = AnthropicSubscriptionPolicyDiagnostic()
-    mock_configs = SimpleNamespace(
-        model_cfg=SimpleNamespace(
-            model="anthropic/claude-3-5-sonnet", api_key=""
-        )
-    )
+    mock_configs = SimpleNamespace(model_cfg=SimpleNamespace(model="anthropic/claude-3-5-sonnet", api_key=""))
     with patch(
         "app.core.channel_bridge.config_loader.load_user_configs",
         AsyncMock(return_value=mock_configs),
@@ -68,6 +60,4 @@ async def test_anthropic_policy_diagnostic_warn_without_api_key_subscription() -
 @pytest.mark.asyncio
 async def test_server_diagnostics_manager_includes_anthropic_probe() -> None:
     manager = ServerDiagnosticsManager()
-    assert any(
-        isinstance(p, AnthropicSubscriptionPolicyDiagnostic) for p in manager._probes
-    )
+    assert any(isinstance(p, AnthropicSubscriptionPolicyDiagnostic) for p in manager._probes)

@@ -650,7 +650,9 @@ class AgentUpdate(BaseModel):
         description="What to do with a new user message while the agent is busy: redirect/steer/queue. None=不修改。",
     )
     a2a_enabled: bool | None = Field(None, description="是否启用 A2A 协议与远程编排能力。None=不修改。")
-    a2a_trusted_peer_ids: list[str] | None = Field(None, description="该 Agent 授权使用的可信远程 A2A Peer ID 列表。None=不修改。")
+    a2a_trusted_peer_ids: list[str] | None = Field(
+        None, description="该 Agent 授权使用的可信远程 A2A Peer ID 列表。None=不修改。"
+    )
 
 
 class AgentResponse(AgentBase):
@@ -764,4 +766,3 @@ class A2APeerProbeResponse(BaseModel):
     latency_ms: float = Field(default=0.0, description="探测延迟毫秒数")
     agent_card: dict[str, Any] | None = Field(None, description="获取到的远端 AgentCard JSON")
     error: str | None = Field(None, description="错误详情")
-

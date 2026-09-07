@@ -12255,6 +12255,17 @@
     }
   },
   "settings": {
+    "providerBalance": {
+      "statusHealthy": "Ausreichend",
+      "statusWarning": "Guthaben knapp",
+      "statusCritical": "Erschöpft",
+      "tooltipPrefix": "Guthabenstatus",
+      "hudCriticalTitle": "Provider-Guthaben erschöpft",
+      "hudWarningTitle": "Provider-Guthaben Warnung",
+      "hudBalanceDepletedDesc": "Guthaben bei {provider} ist sehr niedrig ({balance}). Anfragen könnten fehlschlagen.",
+      "hudSwitchToFallback": "Auf Backup-Modell wechseln",
+      "dismiss": "Schließen"
+    },
     "lockedUse": {
       "title": "Computernutzung / gesperrte Nutzung",
       "layer1Title": "Wach halten anzeigen",

@@ -687,5 +687,3 @@ class TestBackgroundEvolutionModelExtraction:
         assert cfg is not None
         assert cfg.model == "xai/grok-2"
         assert cfg.api_key == "xai-real-api-key"
-
-

@@ -72,9 +72,7 @@ def test_moa_preset_resolver_configuration() -> None:
     engine_params = {
         "moa_overlay": {
             "enabled": True,
-            "reference_model_selections": [
-                {"providerId": "minimax", "model": "MiniMax-M3"}
-            ],
+            "reference_model_selections": [{"providerId": "minimax", "model": "MiniMax-M3"}],
         }
     }
 

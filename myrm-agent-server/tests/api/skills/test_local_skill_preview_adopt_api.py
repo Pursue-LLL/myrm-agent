@@ -48,11 +48,7 @@ def parent_skills_dir(tmp_path: Path) -> Path:
     s1 = root / "skill-alpha"
     s1.mkdir()
     (s1 / "SKILL.md").write_text(
-        "---\n"
-        "name: skill-alpha\n"
-        "description: Alpha worker\n"
-        "version: 2.0.0\n"
-        "---\n",
+        "---\nname: skill-alpha\ndescription: Alpha worker\nversion: 2.0.0\n---\n",
         encoding="utf-8",
     )
 
@@ -60,7 +56,7 @@ def parent_skills_dir(tmp_path: Path) -> Path:
     s2 = root / "skill-beta"
     s2.mkdir()
     (s2 / "SKILL.md").write_text(
-        "---\n" "name: skill-beta\n" "description: Beta runner\n" "---\n",
+        "---\nname: skill-beta\ndescription: Beta runner\n---\n",
         encoding="utf-8",
     )
 
@@ -292,6 +288,3 @@ def test_adopt_empty_selection_adds_path_only(sample_skill_dir: Path) -> None:
         assert data["adopted_skill_ids"] == []
         mock_update_paths.assert_awaited_once_with([str(sample_skill_dir)])
         mock_enable_skill.assert_not_called()
-
-
-

@@ -687,11 +687,13 @@ async def _fetch_copilot_models(copilot_token: str, base_url: str) -> list[str]:
 
 # ──────────────────────── xAI SuperGrok Delegated Routes ────────────────
 
+
 @router.post("/xai/start")
 @limiter.limit("5/minute")
 async def start_xai_oauth_provider(request: Request) -> JSONResponse:
     """Initiate xAI SuperGrok device-code authorization flow via provider-oauth."""
     from app.api.integrations.xai_oauth import start_xai_oauth
+
     return await start_xai_oauth(request)
 
 
@@ -704,6 +706,7 @@ async def poll_xai_oauth_provider(
 ) -> JSONResponse:
     """Poll for xAI SuperGrok device-code authorization completion via provider-oauth."""
     from app.api.integrations.xai_oauth import poll_xai_oauth
+
     return await poll_xai_oauth(request, user_code=user_code, db=db)
 
 
@@ -825,4 +828,3 @@ async def cleanup_test_provider_oauth(
 
     await delete_oauth_credential(db, issuer)
     return success_response(data={"provider": provider, "issuer": issuer, "cleaned": True})
-

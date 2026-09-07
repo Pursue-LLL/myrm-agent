@@ -313,5 +313,3 @@ class TestProviderOAuthResolution:
         cfg = _fallback_model_from_providers(providers_dict)
         assert cfg.api_key == "gho_test_copilot_token"
         assert cfg.base_url == "https://api.individual.githubcopilot.com"
-
-

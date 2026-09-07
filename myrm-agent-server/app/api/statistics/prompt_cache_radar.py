@@ -36,9 +36,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-def _scan_prompt_cache_radar_sync(
-    chat_ids: list[str], log_dir_str: str
-) -> tuple[int, int, int, int]:
+def _scan_prompt_cache_radar_sync(chat_ids: list[str], log_dir_str: str) -> tuple[int, int, int, int]:
     """Synchronous file scanner executed in thread pool to avoid blocking asyncio event loop."""
     log_dir = Path(log_dir_str)
     total_prompt_tokens = 0
@@ -104,12 +102,7 @@ async def get_prompt_cache_radar(
     """Aggregate Prompt Cache hit ratio and token savings across recent sessions."""
     try:
         cutoff = datetime.now(timezone.utc) - timedelta(days=max(1, min(days, 90)))
-        stmt = (
-            select(Chat)
-            .where(Chat.updated_at >= cutoff)
-            .order_by(Chat.updated_at.desc())
-            .limit(100)
-        )
+        stmt = select(Chat).where(Chat.updated_at >= cutoff).order_by(Chat.updated_at.desc()).limit(100)
         result = await db.execute(stmt)
         chats = result.scalars().all()
         chat_ids = [str(chat.id) for chat in chats]
@@ -126,11 +119,7 @@ async def get_prompt_cache_radar(
         )
 
         fresh_input_tokens = max(0, total_prompt_tokens - total_cache_read_tokens)
-        hit_ratio = (
-            round(total_cache_read_tokens / total_prompt_tokens, 4)
-            if total_prompt_tokens > 0
-            else 0.0
-        )
+        hit_ratio = round(total_cache_read_tokens / total_prompt_tokens, 4) if total_prompt_tokens > 0 else 0.0
         estimated_savings_usd = round((total_cache_read_tokens / 1_000_000) * 0.42, 4)
 
         return success_response(

@@ -39,9 +39,7 @@ router = APIRouter()
 
 def _probe_path_status(raw_path: str) -> LocalSkillPathStatus:
     """Helper to inspect the health and skill count of a configured path without side effects."""
-    resolved_path, exists, is_directory, items, warning_msg = (
-        skills_service.local_skills.preview_path(raw_path=raw_path)
-    )
+    resolved_path, exists, is_directory, items, warning_msg = skills_service.local_skills.preview_path(raw_path=raw_path)
     skill_names = [str(it.get("name", "")) for it in items if it.get("name")]
     return LocalSkillPathStatus(
         path=raw_path,
@@ -136,11 +134,9 @@ async def preview_local_skill_path(
     # Fetch existing skills across types to detect naming conflicts
     existing_skills = await skills_service.list_skills()
 
-    resolved_path, exists, is_directory, items, warning_msg = (
-        skills_service.local_skills.preview_path(
-            raw_path=raw_path,
-            existing_skills=existing_skills,
-        )
+    resolved_path, exists, is_directory, items, warning_msg = skills_service.local_skills.preview_path(
+        raw_path=raw_path,
+        existing_skills=existing_skills,
     )
 
     preview_items = [
@@ -150,26 +146,14 @@ async def preview_local_skill_path(
             version=str(it["version"]),
             author=str(it["author"]) if it.get("author") else None,
             category=str(it["category"]) if it.get("category") else None,
-            tags=(
-                [str(t) for t in it.get("tags", [])]
-                if isinstance(it.get("tags"), list)
-                else []
-            ),
-            required_tools=(
-                [str(b) for b in it.get("required_tools", [])]
-                if isinstance(it.get("required_tools"), list)
-                else []
-            ),
+            tags=([str(t) for t in it.get("tags", [])] if isinstance(it.get("tags"), list) else []),
+            required_tools=([str(b) for b in it.get("required_tools", [])] if isinstance(it.get("required_tools"), list) else []),
             relative_path=str(it["relative_path"]),
             skill_id=str(it.get("skill_id", "")),
             is_conflicted=bool(it["is_conflicted"]),
-            conflict_reason=(
-                str(it["conflict_reason"]) if it.get("conflict_reason") else None
-            ),
+            conflict_reason=(str(it["conflict_reason"]) if it.get("conflict_reason") else None),
             is_safe=bool(it["is_safe"]),
-            threat_summary=(
-                str(it["threat_summary"]) if it.get("threat_summary") else None
-            ),
+            threat_summary=(str(it["threat_summary"]) if it.get("threat_summary") else None),
         )
         for it in items
     ]
@@ -207,9 +191,7 @@ async def adopt_local_skill_path(
     current_paths = list(config.local_skill_paths)
     if raw_path not in current_paths:
         current_paths.append(raw_path)
-        config = await skills_service.user_config.update_local_skill_paths(
-            current_paths
-        )
+        config = await skills_service.user_config.update_local_skill_paths(current_paths)
         added_to_paths = True
     else:
         added_to_paths = False
@@ -231,9 +213,7 @@ async def adopt_local_skill_path(
                 if res.allowlist_appended:
                     agent_adopted = True
         except Exception as e:
-            logger.warning(
-                "Agent adoption failed for agent %s: %s", request.agent_id, e
-            )
+            logger.warning("Agent adoption failed for agent %s: %s", request.agent_id, e)
 
     return LocalSkillPathAdoptResponse(
         status="ok",

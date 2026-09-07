@@ -94,9 +94,7 @@ def _resolve_action_url(action_id: str, default_url: str) -> str:
     return default_url
 
 
-def generate_recovery_actions(
-    error_code: FailoverReason, locale: str = "en"
-) -> list[dict[str, str]]:
+def generate_recovery_actions(error_code: FailoverReason, locale: str = "en") -> list[dict[str, str]]:
     """Generate recovery actions with localized labels and business URLs.
 
     Args:

@@ -44,18 +44,14 @@ async def get_memory_head_probe(
     # Query max sequence across leaf conversation recall and message corpora
     head_seq = 0
     try:
-        recall_max = await db.scalar(
-            text("SELECT COALESCE(MAX(id), 0) FROM conversation_recall_segments")
-        )
+        recall_max = await db.scalar(text("SELECT COALESCE(MAX(id), 0) FROM conversation_recall_segments"))
         if recall_max and recall_max > head_seq:
             head_seq = int(recall_max)
     except Exception:
         pass
 
     try:
-        msg_max = await db.scalar(
-            text("SELECT COALESCE(MAX(rowid), 0) FROM messages")
-        )
+        msg_max = await db.scalar(text("SELECT COALESCE(MAX(rowid), 0) FROM messages"))
         if msg_max and msg_max > head_seq:
             head_seq = int(msg_max)
     except Exception:

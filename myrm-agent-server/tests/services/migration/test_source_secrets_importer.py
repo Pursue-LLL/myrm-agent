@@ -157,4 +157,3 @@ async def test_import_vercel_ai_gateway_key_seeds_vercel_provider(
     assert len(providers) == 1
     assert providers[0]["id"] == "vercel_ai_gateway"
     assert providers[0]["apiKeys"][0]["key"] == "vck_prod_secret_456"
-

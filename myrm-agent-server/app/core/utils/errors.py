@@ -104,15 +104,9 @@ class MyrmError(Exception):
         return _BUSINESS_CODE_TO_HTTP.get(self.code, 500)
 
 
-_HOME_DIR_UNIX_RE = re.compile(
-    r"(?<!https:)(?<!http:)(^|[\s\"'(\[:])(?:/Users/|/home/)[^/\s\"')\]:]+(/?)"
-)
-_HOME_DIR_ROOT_RE = re.compile(
-    r"(?<!https:)(?<!http:)(^|[\s\"'(\[:])/root(/|(?=[\s\"')\]:]|$))"
-)
-_HOME_DIR_WIN_RE = re.compile(
-    r"(^|[\s\"'(\[:])[A-Za-z]:\\Users\\[^\\/\s\"')\]:]+(\\?)"
-)
+_HOME_DIR_UNIX_RE = re.compile(r"(?<!https:)(?<!http:)(^|[\s\"'(\[:])(?:/Users/|/home/)[^/\s\"')\]:]+(/?)")
+_HOME_DIR_ROOT_RE = re.compile(r"(?<!https:)(?<!http:)(^|[\s\"'(\[:])/root(/|(?=[\s\"')\]:]|$))")
+_HOME_DIR_WIN_RE = re.compile(r"(^|[\s\"'(\[:])[A-Za-z]:\\Users\\[^\\/\s\"')\]:]+(\\?)")
 
 
 def fold_user_home_paths(text: str) -> str:

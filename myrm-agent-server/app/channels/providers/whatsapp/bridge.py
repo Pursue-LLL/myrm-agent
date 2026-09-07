@@ -108,9 +108,7 @@ class BridgeProcessMixin:
         )
         _, stderr = await proc.communicate()
         if proc.returncode != 0:
-            raise RuntimeError(
-                f"npm install failed (exit {proc.returncode}): {stderr.decode()[:500]}"
-            )
+            raise RuntimeError(f"npm install failed (exit {proc.returncode}): {stderr.decode()[:500]}")
         logger.warning("WhatsAppChannel: bridge dependencies installed")
 
     @property
@@ -270,9 +268,7 @@ class BridgeProcessMixin:
         if self._process.returncode is None:
             self._process.terminate()
             try:
-                await asyncio.wait_for(
-                    self._process.wait(), timeout=_PROCESS_STOP_TIMEOUT
-                )
+                await asyncio.wait_for(self._process.wait(), timeout=_PROCESS_STOP_TIMEOUT)
             except TimeoutError:
                 self._process.kill()
                 await self._process.wait()

@@ -51,9 +51,7 @@ async def test_provider_balance_service_probes_mocked() -> None:
     # Mock DeepSeek probe
     fake_deepseek_resp = MagicMock()
     fake_deepseek_resp.status_code = 200
-    fake_deepseek_resp.json.return_value = {
-        "balance_infos": [{"currency": "CNY", "total_balance": "88.50"}]
-    }
+    fake_deepseek_resp.json.return_value = {"balance_infos": [{"currency": "CNY", "total_balance": "88.50"}]}
 
     mock_client = AsyncMock()
     mock_client.get.return_value = fake_deepseek_resp
@@ -68,9 +66,7 @@ async def test_provider_balance_service_probes_mocked() -> None:
     # Mock SiliconFlow probe
     fake_sf_resp = MagicMock()
     fake_sf_resp.status_code = 200
-    fake_sf_resp.json.return_value = {
-        "data": {"totalBalance": "1.50"}
-    }
+    fake_sf_resp.json.return_value = {"data": {"totalBalance": "1.50"}}
     mock_client.get.return_value = fake_sf_resp
     res_sf = await service._probe_siliconflow(mock_client, api_key="sk-test")
     assert res_sf.provider_id == "siliconflow"
@@ -80,9 +76,7 @@ async def test_provider_balance_service_probes_mocked() -> None:
     # Mock OpenRouter probe
     fake_or_resp = MagicMock()
     fake_or_resp.status_code = 200
-    fake_or_resp.json.return_value = {
-        "data": {"limit": 10.0, "usage": 9.0}
-    }
+    fake_or_resp.json.return_value = {"data": {"limit": 10.0, "usage": 9.0}}
     mock_client.get.return_value = fake_or_resp
     res_or = await service._probe_openrouter(mock_client, api_key="sk-test")
     assert res_or.provider_id == "openrouter"

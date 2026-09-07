@@ -136,9 +136,7 @@ def _is_trusted_split_stack_host(hostname: str | None) -> bool:
     ip_to_check = v4 or parsed_ip
 
     # Explicitly block link-local cloud metadata endpoints (e.g. 169.254.169.254)
-    if ip_to_check.is_link_local or (
-        isinstance(ip_to_check, ipaddress.IPv4Address) and ip_to_check in _LINK_LOCAL_IPV4_NETWORK
-    ):
+    if ip_to_check.is_link_local or (isinstance(ip_to_check, ipaddress.IPv4Address) and ip_to_check in _LINK_LOCAL_IPV4_NETWORK):
         return False
 
     if ip_to_check.is_loopback or ip_to_check.is_unspecified:

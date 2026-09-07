@@ -322,5 +322,3 @@ class TestInjectProviderOAuthTokens:
         copilot_p = next(p for p in providers if p["id"] == "copilot")
         assert copilot_p["_oauthToken"] == "gh-copilot-oauth-token-abcde"
         assert copilot_p["_oauthBaseUrl"] == "https://api.individual.githubcopilot.com"
-
-

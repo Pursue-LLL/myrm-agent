@@ -113,9 +113,7 @@ def _wait_assistant_reply(
             messages = fetch_chat_messages(chat_id, api_url=api_url)
         except OSError:
             messages = []
-        last_messages = [
-            m for m in messages if isinstance(m, dict) and m.get("role") in ("user", "assistant")
-        ]
+        last_messages = [m for m in messages if isinstance(m, dict) and m.get("role") in ("user", "assistant")]
         assistant = next(
             (m for m in reversed(last_messages) if isinstance(m, dict) and m.get("role") == "assistant"),
             None,
@@ -230,7 +228,16 @@ def test_a2a_chat_live_delegation_chrome_e2e(
             # Ensure model integrated research synthesis or task result
             assert any(
                 kw in content
-                for kw in ("量子", "退相干", "相干时间", "动力学解耦", "解耦", "Quantum", "Decoupling", "Task executed successfully")
+                for kw in (
+                    "量子",
+                    "退相干",
+                    "相干时间",
+                    "动力学解耦",
+                    "解耦",
+                    "Quantum",
+                    "Decoupling",
+                    "Task executed successfully",
+                )
             ), f"Assistant output did not contain expected domain terms: {content[:300]}"
 
     finally:

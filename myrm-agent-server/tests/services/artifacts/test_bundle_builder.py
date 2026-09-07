@@ -120,4 +120,3 @@ def test_build_zip_deliverable_bundle_dual_source_sandbox_fallback(tmp_path):
         manifest_data = json.loads(zf.read("manifest.json").decode("utf-8"))
         assert manifest_data["fact_check_sheet_uri"] == "vault://fcs_12345"
         assert manifest_data["evidence_sources"] == ["vault://raw_source_1.pdf"]
-

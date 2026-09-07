@@ -587,10 +587,6 @@
         "naked": "最小限のセキュリティルールのみ。システムプロンプトでアクションを完全に制御します。"
       }
     },
-    "ablationGuidance": {
-      "title": "アーキテクトガイダンス（アブレーションレバレッジの法則：Tools/Middleware ≫ Prompt）",
-      "description": "アブレーション実験によると、ツール定義とミドルウェアインターセプト（引数修復、タイムアウト制御、サンドボックス分離）の修復ROIは、プロンプトの調整よりもはるかに高くなります。呼び出しの欠陥が発生した場合は、プロンプトに冗長なルールをハードコーディングしてオーバーフィッティングやコンテキストの浪費を引き起こすのを避け、「機能」と「セキュリティ」で対応するミドルウェアを優先的に有効にしてください。"
-    },
     "personality": {
       "title": "コミュニケーションスタイル",
       "description": "エージェントのコミュニケーション方式を選択します。回答のトーンとスタイルに影響します。",
@@ -12259,6 +12255,17 @@
     }
   },
   "settings": {
+    "providerBalance": {
+      "statusHealthy": "残高十分",
+      "statusWarning": "残高低下",
+      "statusCritical": "残高枯渇",
+      "tooltipPrefix": "プロバイダー残高",
+      "hudCriticalTitle": "プロバイダーの残高が枯渇しました",
+      "hudWarningTitle": "プロバイダー残高警告",
+      "hudBalanceDepletedDesc": "{provider} の残高が不足しています ({balance})。タスクが中断される可能性があります。",
+      "hudSwitchToFallback": "予備モデルへ切り替え",
+      "dismiss": "閉じる"
+    },
     "lockedUse": {
       "title": "コンピューター使用 / ロック使用",
       "layer1Title": "画面の常時点灯を表示",

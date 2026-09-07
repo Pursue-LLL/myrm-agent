@@ -191,7 +191,9 @@ async def resolve_proactive_snippets_from_vaults(
             try:
                 fts_query = ""
                 # Build tolerant FTS5 query using OR join of CJK bigrams & alphanumeric terms for robust matching
-                safe_fts_terms = [t for t in match_terms if len(t) >= 2 and (t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t))]
+                safe_fts_terms = [
+                    t for t in match_terms if len(t) >= 2 and (t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t))
+                ]
                 if safe_fts_terms:
                     fts_query = " OR ".join(f'"{t}"' for t in safe_fts_terms[:8])
                 if not fts_query:

@@ -16,9 +16,7 @@ from myrm_agent_harness.toolkits.memory.conversation_search import (
 
 
 class FakeConversationSearchProvider:
-    async def search(
-        self, request: ConversationSearchRequest
-    ) -> ConversationSearchResponse:
+    async def search(self, request: ConversationSearchRequest) -> ConversationSearchResponse:
         return ConversationSearchResponse(
             mode="search",
             query=request.query,
@@ -53,9 +51,7 @@ async def test_memory_search_sessions_corpus_executes_when_opt_in_on() -> None:
     tools = create_memory_tools(
         manager,
         search_policy=MemorySearchPolicy(allow_sessions=True),
-        search_backends=MemorySearchBackends(
-            conversation_provider=FakeConversationSearchProvider()
-        ),
+        search_backends=MemorySearchBackends(conversation_provider=FakeConversationSearchProvider()),
     )
     search_tool = next(tool for tool in tools if tool.name == "memory_search_tool")
 
@@ -67,17 +63,13 @@ async def test_memory_search_sessions_corpus_executes_when_opt_in_on() -> None:
 
 
 @pytest.mark.asyncio
-async def test_memory_search_sessions_corpus_with_coverage_notice_when_partial() -> (
-    None
-):
+async def test_memory_search_sessions_corpus_with_coverage_notice_when_partial() -> None:
     from myrm_agent_harness.toolkits.memory.conversation_search.types import (
         ConversationIndexCoverage,
     )
 
     class PartialCoverageProvider:
-        async def search(
-            self, request: ConversationSearchRequest
-        ) -> ConversationSearchResponse:
+        async def search(self, request: ConversationSearchRequest) -> ConversationSearchResponse:
             return ConversationSearchResponse(
                 mode="search",
                 query=request.query,
@@ -104,9 +96,7 @@ async def test_memory_search_sessions_corpus_with_coverage_notice_when_partial()
     tools = create_memory_tools(
         manager,
         search_policy=MemorySearchPolicy(allow_sessions=True),
-        search_backends=MemorySearchBackends(
-            conversation_provider=PartialCoverageProvider()
-        ),
+        search_backends=MemorySearchBackends(conversation_provider=PartialCoverageProvider()),
     )
     search_tool = next(tool for tool in tools if tool.name == "memory_search_tool")
 
@@ -132,16 +122,12 @@ async def test_memory_search_sessions_corpus_rejected_when_opt_in_off() -> None:
 
 
 @pytest.mark.asyncio
-async def test_memory_search_sessions_corpus_expand_window_and_preserves_large_content() -> (
-    None
-):
+async def test_memory_search_sessions_corpus_expand_window_and_preserves_large_content() -> None:
     captured_requests: list[ConversationSearchRequest] = []
     long_expanded_text = "Step " + ("y" * 2200) + " end of expanded block"
 
     class LargeExpandProvider:
-        async def search(
-            self, request: ConversationSearchRequest
-        ) -> ConversationSearchResponse:
+        async def search(self, request: ConversationSearchRequest) -> ConversationSearchResponse:
             captured_requests.append(request)
             return ConversationSearchResponse(
                 mode="search",
@@ -163,9 +149,7 @@ async def test_memory_search_sessions_corpus_expand_window_and_preserves_large_c
     tools = create_memory_tools(
         manager,
         search_policy=MemorySearchPolicy(allow_sessions=True),
-        search_backends=MemorySearchBackends(
-            conversation_provider=LargeExpandProvider()
-        ),
+        search_backends=MemorySearchBackends(conversation_provider=LargeExpandProvider()),
     )
     search_tool = next(tool for tool in tools if tool.name == "memory_search_tool")
 

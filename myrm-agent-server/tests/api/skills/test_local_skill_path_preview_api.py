@@ -114,9 +114,7 @@ Beta instructions
         )
 
         provider = LocalSkillsProvider()
-        resolved, exists, is_dir, items, warning = provider.preview_path(
-            str(tmp_path), existing_skills=[existing_skill]
-        )
+        resolved, exists, is_dir, items, warning = provider.preview_path(str(tmp_path), existing_skills=[existing_skill])
         assert exists
         assert is_dir
         assert len(items) == 2
@@ -270,5 +268,3 @@ def test_api_traversal_defense_endpoints(client: TestClient) -> None:
         )
         assert resp.status_code == 400
         assert "Path traversal not allowed" in resp.json()["detail"]
-
-

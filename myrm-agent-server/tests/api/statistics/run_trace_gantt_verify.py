@@ -109,5 +109,6 @@ def run_tests():
 
     print("\nALL 3 TEST SUITES PASSED CLEANLY (0 ERROR, 0 WARNING).")
 
+
 if __name__ == "__main__":
     run_tests()

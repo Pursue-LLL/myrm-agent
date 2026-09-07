@@ -102,5 +102,3 @@ class TestModelNameNormalization:
         assert result == "anthropic/claude-3-5-sonnet"
         result2 = _normalize_model_name("openai///openai//gpt-4o")
         assert result2 == "openai/gpt-4o"
-
-

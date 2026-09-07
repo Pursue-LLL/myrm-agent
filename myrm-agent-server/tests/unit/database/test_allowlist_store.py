@@ -164,4 +164,3 @@ class TestDBAllowlistStore:
 
         entries = await store.load(user_id)
         assert len(entries) == 0
-

@@ -136,7 +136,9 @@ def create_video_generation_tool(
                         logger.warning("Provider '%s' does not support audio; disabling enable_audio", target_provider_id)
                         enable_audio = False
                     if not target_caps.supports_aspect_ratio and aspect_ratio:
-                        logger.warning("Provider '%s' does not support custom aspect_ratio; dropping aspect_ratio", target_provider_id)
+                        logger.warning(
+                            "Provider '%s' does not support custom aspect_ratio; dropping aspect_ratio", target_provider_id
+                        )
                         aspect_ratio = None
             except Exception as cap_err:
                 logger.debug("Failed capability probe for '%s': %s", target_provider_id, cap_err)

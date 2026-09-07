@@ -538,4 +538,3 @@ async def cleanup_test_hardened_mock_approval(
                 cleaned_ids.append(item.id)
 
     return {"ok": True, "cleaned_count": len(cleaned_ids), "cleaned_ids": cleaned_ids}
-

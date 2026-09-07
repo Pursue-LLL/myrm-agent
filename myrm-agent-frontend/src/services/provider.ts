@@ -34,6 +34,36 @@ export interface BatchMigrateResponse {
   updated_count: number;
 }
 
+export type ProviderBalanceStatus = 'healthy' | 'warning' | 'critical' | 'unsupported';
+
+export interface ProviderBalanceGauge {
+  provider_id: string;
+  balance: number | null;
+  currency: string;
+  status: ProviderBalanceStatus;
+  is_estimated: boolean;
+  details?: string | null;
+  updated_at: string;
+}
+
+export async function fetchProviderBalanceGauges(forceRefresh = false): Promise<ProviderBalanceGauge[]> {
+  const query = forceRefresh ? '?force_refresh=true' : '';
+  const response = await fetch(`${getBackendUrl()}/api/v1/providers/balance-gauges${query}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch provider balance gauges: ${response.statusText}`);
+  }
+
+  const resJson = await response.json();
+  return (resJson.data || []) as ProviderBalanceGauge[];
+}
+
 export async function getProviderUsage(providerId: string): Promise<ProviderUsageResponse> {
   const response = await fetch(`${getBackendUrl()}/api/v1/user-agents/providers/${providerId}/usage`, {
     method: 'GET',

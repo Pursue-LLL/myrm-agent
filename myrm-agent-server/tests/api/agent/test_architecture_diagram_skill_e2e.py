@@ -267,4 +267,3 @@ async def test_architecture_diagram_real_agent_task_flow_execution() -> None:
         # Verify MIME / Extension type contract
         inferred_type = infer_artifact_type_from_extension(artifact_filename)
         assert inferred_type == ArtifactType.ARCHITECTURE, f"Expected {ArtifactType.ARCHITECTURE}, got {inferred_type}"
-

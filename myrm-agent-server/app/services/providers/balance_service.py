@@ -22,12 +22,11 @@ import time
 from typing import Any, Final
 
 import httpx
-from sqlalchemy import func, select
-
 from myrm_agent_harness.api import (
     ProviderBalanceResult,
     ProviderBalanceStatus,
 )
+from sqlalchemy import func, select
 
 logger = logging.getLogger(__name__)
 
@@ -285,43 +284,43 @@ class ProviderBalanceService:
         """Probe balance for a single provider config with fail-open guarantee."""
         canonical = provider_id.strip().lower()
 
-    # Local providers are unlimited
-    if canonical in ("ollama", "lm_studio", "local"):
-        return ProviderBalanceResult(
-            provider_id=canonical,
-            balance=None,
-            currency="UNLIMITED",
-            status=ProviderBalanceStatus.HEALTHY,
-            details="Local provider (zero token bill)",
-        )
+        # Local providers are unlimited
+        if canonical in ("ollama", "lm_studio", "local"):
+            return ProviderBalanceResult(
+                provider_id=canonical,
+                balance=None,
+                currency="UNLIMITED",
+                status=ProviderBalanceStatus.HEALTHY,
+                details="Local provider (zero token bill)",
+            )
 
-    api_key = str(provider_cfg.get("apiKey") or provider_cfg.get("api_key") or "").strip()
-    api_base = str(provider_cfg.get("apiHost") or provider_cfg.get("api_base") or "").strip() or None
+        api_key = str(provider_cfg.get("apiKey") or provider_cfg.get("api_key") or "").strip()
+        api_base = str(provider_cfg.get("apiHost") or provider_cfg.get("api_base") or "").strip() or None
 
-    if not api_key:
-        return ProviderBalanceResult(
-            provider_id=canonical,
-            balance=None,
-            currency="UNKNOWN",
-            status=ProviderBalanceStatus.UNSUPPORTED,
-            details="No API key configured",
-        )
+        if not api_key:
+            return ProviderBalanceResult(
+                provider_id=canonical,
+                balance=None,
+                currency="UNKNOWN",
+                status=ProviderBalanceStatus.UNSUPPORTED,
+                details="No API key configured",
+            )
 
-    try:
-        if canonical == "deepseek":
-            return await self._probe_deepseek(client, api_key, api_base)
-        if canonical == "siliconflow":
-            return await self._probe_siliconflow(client, api_key, api_base)
-        if canonical == "openrouter":
-            return await self._probe_openrouter(client, api_key, api_base)
-        if canonical == "moonshot":
-            return await self._probe_moonshot(client, api_key, api_base)
+        try:
+            if canonical == "deepseek":
+                return await self._probe_deepseek(client, api_key, api_base)
+            if canonical == "siliconflow":
+                return await self._probe_siliconflow(client, api_key, api_base)
+            if canonical == "openrouter":
+                return await self._probe_openrouter(client, api_key, api_base)
+            if canonical == "moonshot":
+                return await self._probe_moonshot(client, api_key, api_base)
 
-        # Fallback to local SQLite token_usage cost calculation
-        return await self._estimate_from_local_usage(canonical)
-    except Exception as exc:
-        logger.debug("Provider balance probe failed for '%s': %s", canonical, exc)
-        return await self._estimate_from_local_usage(canonical, fallback_details=f"Live probe failed: {exc}")
+            # Fallback to local SQLite token_usage cost calculation
+            return await self._estimate_from_local_usage(canonical)
+        except Exception as exc:
+            logger.debug("Provider balance probe failed for '%s': %s", canonical, exc)
+            return await self._estimate_from_local_usage(canonical, fallback_details=f"Live probe failed: {exc}")
 
     async def get_all_provider_balances(
         self,
@@ -364,10 +363,7 @@ class ProviderBalanceService:
 
             if tasks_to_probe:
                 async with httpx.AsyncClient(timeout=_PROBE_TIMEOUT_SECONDS) as client:
-                    probe_coroutines = [
-                        self.probe_single_provider(client, pid, cfg)
-                        for pid, cfg in tasks_to_probe
-                    ]
+                    probe_coroutines = [self.probe_single_provider(client, pid, cfg) for pid, cfg in tasks_to_probe]
                     probed_results = await asyncio.gather(*probe_coroutines, return_exceptions=True)
 
                     for (pid, _), res in zip(tasks_to_probe, probed_results, strict=False):

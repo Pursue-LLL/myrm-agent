@@ -92,9 +92,8 @@ class HostAllowlistMiddleware(BaseHTTPMiddleware):
                 parsed_origin = urlparse(origin)
                 origin_scheme = (parsed_origin.scheme or "").lower()
                 origin_host = (parsed_origin.hostname or "").lower()
-                is_safe_origin = (
-                    origin_scheme in ("tauri", "vscode-webview", "app")
-                    or is_allowed_host(origin_host, local_allowed)
+                is_safe_origin = origin_scheme in ("tauri", "vscode-webview", "app") or is_allowed_host(
+                    origin_host, local_allowed
                 )
                 if not is_safe_origin:
                     return JSONResponse(

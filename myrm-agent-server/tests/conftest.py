@@ -530,15 +530,12 @@ def _chrome_e2e_epoch_pin(
         }
     )
     if not outcome.applied:
-        if (
-            outcome.detail not in _EPOCH_PIN_DEFER_DETAILS
-            and not outcome.detail.startswith("verify_seed_failed_no_aligned_backend:")
+        if outcome.detail not in _EPOCH_PIN_DEFER_DETAILS and not outcome.detail.startswith(
+            "verify_seed_failed_no_aligned_backend:"
         ):
             pytest.fail(f"E2E_EPOCH_PIN_FAILED: node={request.node.nodeid} detail={outcome.detail!r}")
         if outcome.detail.startswith("verify_seed_failed_no_aligned_backend:"):
-            pytest.skip(
-                f"E2E_EPOCH_PIN_DEFER_SKIP: no epoch-matched backend available; heal then retry: {outcome.detail}"
-            )
+            pytest.skip(f"E2E_EPOCH_PIN_DEFER_SKIP: no epoch-matched backend available; heal then retry: {outcome.detail}")
         yield
         return
     for key, value in outcome.environment.items():

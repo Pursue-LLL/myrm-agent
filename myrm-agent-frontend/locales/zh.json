@@ -12255,6 +12255,17 @@
     }
   },
   "settings": {
+    "providerBalance": {
+      "statusHealthy": "额度充足",
+      "statusWarning": "余额不足",
+      "statusCritical": "额度耗尽",
+      "tooltipPrefix": "账户余额状态",
+      "hudCriticalTitle": "模型服务商余额已耗尽",
+      "hudWarningTitle": "模型服务商余额预警",
+      "hudBalanceDepletedDesc": "{provider} 账户余额严重不足 ({balance})，可能导致任务执行中断中断。",
+      "hudSwitchToFallback": "一键换轨备用模型",
+      "dismiss": "忽略"
+    },
     "lockedUse": {
       "title": "计算机使用 / 锁定使用",
       "layer1Title": "保持屏幕常亮",

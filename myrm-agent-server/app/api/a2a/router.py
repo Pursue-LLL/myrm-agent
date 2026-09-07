@@ -70,9 +70,7 @@ async def handle_root_rpc(
     authorization: str | None = Header(default=None),
 ) -> JsonRpcResponse:
     """JSON-RPC 2.0 dispatch for default agent."""
-    return await _dispatch_rpc(
-        request, body, agent_id=None, authorization=authorization
-    )
+    return await _dispatch_rpc(request, body, agent_id=None, authorization=authorization)
 
 
 @router.post("/agents/{agent_id}/rpc")
@@ -83,9 +81,7 @@ async def handle_agent_rpc(
     authorization: str | None = Header(default=None),
 ) -> JsonRpcResponse:
     """JSON-RPC 2.0 dispatch for specific agent profile."""
-    return await _dispatch_rpc(
-        request, body, agent_id=agent_id, authorization=authorization
-    )
+    return await _dispatch_rpc(request, body, agent_id=agent_id, authorization=authorization)
 
 
 async def _dispatch_rpc(
@@ -116,12 +112,8 @@ async def _dispatch_rpc(
 
             task_id_param = str(params["taskId"]) if "taskId" in params else None
             push_url_param = str(params["pushUrl"]) if "pushUrl" in params else None
-            push_secret_param = (
-                str(params["pushSecret"]) if "pushSecret" in params else None
-            )
-            target_agent = (
-                str(params.get("agentId")) if params.get("agentId") else agent_id
-            )
+            push_secret_param = str(params["pushSecret"]) if "pushSecret" in params else None
+            target_agent = str(params.get("agentId")) if params.get("agentId") else agent_id
 
             task = await service.send_task(
                 prompt_obj,
@@ -180,9 +172,7 @@ async def _dispatch_rpc(
 
         elif method in ("agent/card", "GetAgentCard"):
             base_url = str(request.base_url).rstrip("/")
-            card = await _card_generator.generate_card(
-                agent_id=agent_id, base_url=base_url
-            )
+            card = await _card_generator.generate_card(agent_id=agent_id, base_url=base_url)
             return JsonRpcResponse(
                 id=req_id,
                 result=card.model_dump(by_alias=True),
@@ -198,9 +188,7 @@ async def _dispatch_rpc(
             )
 
     except Exception as e:
-        logger.error(
-            "Error executing A2A RPC method '%s': %s", method, e, exc_info=True
-        )
+        logger.error("Error executing A2A RPC method '%s': %s", method, e, exc_info=True)
         return JsonRpcResponse(
             id=req_id,
             error=JsonRpcError(
@@ -277,4 +265,3 @@ async def probe_a2a_peer(body: A2APeerProbeRequest) -> A2APeerProbeResponse:
     """Probe connectivity to a remote A2A peer and retrieve its AgentCard."""
     registry = get_a2a_peer_registry()
     return await registry.probe(body)
-

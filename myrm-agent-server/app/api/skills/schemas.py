@@ -317,4 +317,3 @@ class SkillFileUpdateResponse(BaseModel):
     is_clean: bool = True
     trust_recommendation: str = "trusted"
     findings_count: int = 0
-

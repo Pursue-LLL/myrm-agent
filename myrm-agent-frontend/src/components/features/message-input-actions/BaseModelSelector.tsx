@@ -34,6 +34,7 @@ import {
 } from '@/lib/moaPresetUtils';
 import ModelPickerPopover from '@/components/features/app-shell/model-picker-popover';
 import ProviderIcon from '@/components/features/settings/model-service/ProviderIcon';
+import ProviderBalanceIndicator from './ProviderBalanceIndicator';
 
 type SingleModelSelection = { providerId: string; model: string };
 
@@ -319,6 +320,9 @@ const BaseModelSelector = () => {
               <span className="inline text-xs font-medium text-black/60 dark:text-white/60 group-hover:text-black dark:group-hover:text-white transition-colors duration-300 truncate max-w-[120px] sm:max-w-none">
                 {currentModelName}
               </span>
+              {currentSelection && !triggerDisplay.isSmartRouting && (
+                <ProviderBalanceIndicator providerId={currentSelection.providerId} />
+              )}
               {triggerDisplay.isSmartRouting ? (
                 <span className="shrink-0 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
                   Auto

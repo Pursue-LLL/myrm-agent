@@ -350,5 +350,3 @@ async def test_publish_excel_artifact_with_viewer_scaffold_success(hosting_clien
     assert "financial_data.xlsx" in deployed_files
     assert 'class="doc-card"' in deployed_files["index.html"].content
     assert "Download XLSX File" in deployed_files["index.html"].content
-
-

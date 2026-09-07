@@ -59,12 +59,8 @@ def test_split_stack_settings_ui_and_discover_api_chrome_e2e() -> None:
         wait_for_settings_layout(client, page, page_url=target_url)
 
         # 2. Check split-stack model section & Playbook card presence
-        eval_res = client.evaluate(
-            page, _VERIFY_SPLIT_STACK_SETTINGS_JS, timeout_sec=20.0
-        )
-        assert isinstance(
-            eval_res, dict
-        ), f"Expected dict evaluation result, got: {eval_res}"
+        eval_res = client.evaluate(page, _VERIFY_SPLIT_STACK_SETTINGS_JS, timeout_sec=20.0)
+        assert isinstance(eval_res, dict), f"Expected dict evaluation result, got: {eval_res}"
         assert eval_res.get("ok") is True, f"Script failed: {eval_res}"
         assert eval_res.get("ready") is True, f"Settings layout not ready: {eval_res}"
 

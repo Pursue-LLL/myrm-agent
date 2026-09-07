@@ -185,11 +185,13 @@ async def test_agent_a2a_tools_mounting_and_security_gate():
             from myrm_agent_harness.toolkits.a2a.tools import FanoutMode
 
             mock_orch.return_value = {"success": True, "mode": "best", "total_peers": 1}
-            res = await orch_tool.ainvoke({
-                "peers": ["Allowed Worker"],
-                "prompt": "fanout task",
-                "mode": "best",
-            })
+            res = await orch_tool.ainvoke(
+                {
+                    "peers": ["Allowed Worker"],
+                    "prompt": "fanout task",
+                    "mode": "best",
+                }
+            )
             assert res["success"] is True
             mock_orch.assert_awaited_once_with(
                 peers=["https://allowed.a2a.internal"],
@@ -199,4 +201,3 @@ async def test_agent_a2a_tools_mounting_and_security_gate():
                 timeout_seconds=90.0,
                 client=mock.ANY,
             )
-

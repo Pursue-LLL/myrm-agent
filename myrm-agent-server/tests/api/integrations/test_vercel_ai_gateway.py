@@ -128,11 +128,5 @@ def test_hermes_auxiliary_migration_maps_ai_gateway_aliases() -> None:
         _resolve_litellm_model("ai-gateway", "meta-llama/llama-3.3-70b-instruct")
         == "vercel_ai_gateway/meta-llama/llama-3.3-70b-instruct"
     )
-    assert (
-        _resolve_litellm_model("vercel", "google/gemini-2.0-flash")
-        == "vercel_ai_gateway/google/gemini-2.0-flash"
-    )
-    assert (
-        _resolve_litellm_model("aigateway", "anthropic/claude-3-5-sonnet")
-        == "vercel_ai_gateway/anthropic/claude-3-5-sonnet"
-    )
+    assert _resolve_litellm_model("vercel", "google/gemini-2.0-flash") == "vercel_ai_gateway/google/gemini-2.0-flash"
+    assert _resolve_litellm_model("aigateway", "anthropic/claude-3-5-sonnet") == "vercel_ai_gateway/anthropic/claude-3-5-sonnet"

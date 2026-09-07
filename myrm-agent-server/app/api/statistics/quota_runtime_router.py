@@ -139,7 +139,6 @@ async def get_runtime_cost_gauge(
         raise internal_error("Failed to get runtime cost gauge", exception=exc) from exc
 
 
-
 @router.post("/search-quotas/reset")
 async def reset_search_quota(
     req: SearchQuotaResetRequest,

@@ -248,9 +248,9 @@ class TestDesktopControlRules:
         )
 
         assert 'query="<search term>"' in DESKTOP_CONTROL_RULES_EN
-        assert 'wait_seconds=' in DESKTOP_CONTROL_RULES_EN
+        assert "wait_seconds=" in DESKTOP_CONTROL_RULES_EN
         assert 'query="<搜索关键词>"' in DESKTOP_CONTROL_RULES_ZH
-        assert 'wait_seconds=' in DESKTOP_CONTROL_RULES_ZH
+        assert "wait_seconds=" in DESKTOP_CONTROL_RULES_ZH
 
     def test_rules_do_not_mention_window_title(self) -> None:
         """app_name must stay an app-name hint; 'window name' is unsupported on macOS."""

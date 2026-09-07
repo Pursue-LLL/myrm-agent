@@ -174,4 +174,3 @@ def test_enrich_performance_parallel_tool_calls_sorting():
     assert spans[1]["start_time"] == 2.0
     assert spans[0]["duration_ms"] == 500.0
     assert spans[1]["duration_ms"] == 300.0
-

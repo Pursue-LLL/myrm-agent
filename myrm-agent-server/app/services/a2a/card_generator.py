@@ -108,11 +108,7 @@ class AgentCardGenerator:
 
         if profile is None:
             # Fallback for unrecognized profile id with explicit agent URL
-            endpoint_url = (
-                f"{base_url}/api/v1/a2a/agents/{agent_id}/rpc"
-                if base_url
-                else f"/api/v1/a2a/agents/{agent_id}/rpc"
-            )
+            endpoint_url = f"{base_url}/api/v1/a2a/agents/{agent_id}/rpc" if base_url else f"/api/v1/a2a/agents/{agent_id}/rpc"
             return AgentCard(
                 name=f"Agent-{agent_id}",
                 description=f"Specialist agent instance for {agent_id}.",
@@ -132,11 +128,7 @@ class AgentCardGenerator:
                 provider=self.provider,
             )
 
-        endpoint_url = (
-            f"{base_url}/api/v1/a2a/agents/{agent_id}/rpc"
-            if base_url
-            else f"/api/v1/a2a/agents/{agent_id}/rpc"
-        )
+        endpoint_url = f"{base_url}/api/v1/a2a/agents/{agent_id}/rpc" if base_url else f"/api/v1/a2a/agents/{agent_id}/rpc"
 
         skills: list[AgentSkill] = []
         for s_id in profile.skill_ids:

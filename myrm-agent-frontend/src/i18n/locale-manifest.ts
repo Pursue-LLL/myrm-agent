@@ -26,6 +26,7 @@ export const SSR_SHELL_SETTINGS_SECTIONS = [
   'menu',
   'defaultModel',
   'modelCapabilities',
+  'providerBalance',
   'workingState',
   'sessionAnalytics',
   'common',

@@ -44,9 +44,7 @@ class A2AWebhookSender:
             logger.warning("Invalid A2A webhook scheme for push_url: %s", push_url)
             return False
 
-        payload_bytes = json.dumps(
-            notification.model_dump(by_alias=True), ensure_ascii=False
-        ).encode("utf-8")
+        payload_bytes = json.dumps(notification.model_dump(by_alias=True), ensure_ascii=False).encode("utf-8")
         timestamp_str = str(notification.timestamp)
 
         headers: dict[str, str] = {

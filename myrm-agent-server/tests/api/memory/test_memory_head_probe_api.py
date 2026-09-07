@@ -38,9 +38,7 @@ def test_memory_head_probe_empty_db(probe_test_session: AsyncSession) -> None:
 @pytest.mark.asyncio
 async def test_memory_head_probe_with_segments(probe_test_session: AsyncSession) -> None:
     # Create conversation_recall_segments table and insert rows
-    await probe_test_session.execute(
-        text("CREATE TABLE conversation_recall_segments (id INTEGER PRIMARY KEY, content TEXT)")
-    )
+    await probe_test_session.execute(text("CREATE TABLE conversation_recall_segments (id INTEGER PRIMARY KEY, content TEXT)"))
     await probe_test_session.execute(
         text("INSERT INTO conversation_recall_segments (id, content) VALUES (1, 'recall item 1'), (15, 'recall item 15')")
     )
@@ -77,12 +75,8 @@ async def test_memory_head_probe_with_segments(probe_test_session: AsyncSession)
 @pytest.mark.asyncio
 async def test_memory_head_probe_with_messages_fallback(probe_test_session: AsyncSession) -> None:
     # Test messages table rowid probe fallback when segments table does not exist
-    await probe_test_session.execute(
-        text("CREATE TABLE messages (id INTEGER PRIMARY KEY, content TEXT)")
-    )
-    await probe_test_session.execute(
-        text("INSERT INTO messages (id, content) VALUES (1, 'msg 1'), (42, 'msg 42')")
-    )
+    await probe_test_session.execute(text("CREATE TABLE messages (id INTEGER PRIMARY KEY, content TEXT)"))
+    await probe_test_session.execute(text("INSERT INTO messages (id, content) VALUES (1, 'msg 1'), (42, 'msg 42')"))
     await probe_test_session.commit()
 
     app = FastAPI()

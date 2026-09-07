@@ -29,9 +29,7 @@ from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerSer
 logger = logging.getLogger(__name__)
 
 
-async def _build_session_memory_events(
-    db: AsyncSession, session_id: str
-) -> list[dict[str, object]]:
+async def _build_session_memory_events(db: AsyncSession, session_id: str) -> list[dict[str, object]]:
     """Load session-scoped memory ledger events for replay overlay."""
     ledger = MemoryOperationLedgerService(db)
     rows = await ledger.list_events_for_session(session_id, limit=48)
@@ -53,9 +51,7 @@ async def _build_session_memory_events(
     ]
 
 
-def _empty_trace_payload(
-    session_id: str, memory_events: list[dict[str, object]]
-) -> dict[str, object]:
+def _empty_trace_payload(session_id: str, memory_events: list[dict[str, object]]) -> dict[str, object]:
     return {
         "session_id": session_id,
         "metadata": {
@@ -157,11 +153,7 @@ def _enrich_performance_and_gantt(trace_data: dict[str, object]) -> None:
 
     gantt_spans.sort(key=lambda x: float(x.get("start_time") or 0.0))
 
-    hit_ratio = (
-        round(total_cache_read_tokens / total_prompt_tokens, 4)
-        if total_prompt_tokens > 0
-        else 0.0
-    )
+    hit_ratio = round(total_cache_read_tokens / total_prompt_tokens, 4) if total_prompt_tokens > 0 else 0.0
 
     trace_data["performance_summary"] = {
         "llm_duration_ms": round(total_llm_ms, 2),
@@ -174,9 +166,7 @@ def _enrich_performance_and_gantt(trace_data: dict[str, object]) -> None:
     }
 
 
-async def _attach_security_labels(
-    backend: FileEventLogBackend, session_id: str, trace_data: dict[str, object]
-) -> None:
+async def _attach_security_labels(backend: FileEventLogBackend, session_id: str, trace_data: dict[str, object]) -> None:
     """Attach step-level security decisions to matching tool calls.
 
     Reads the session's ``security_audit`` event (batch-persisted at session end)
@@ -185,9 +175,7 @@ async def _attach_security_labels(
     In-place mutation of ``trace_data["tool_calls"]``; no-op when no audit exists.
     """
     try:
-        events = await backend.get_events(
-            session_id, EventFilter(event_types=frozenset({"security_audit"}))
-        )
+        events = await backend.get_events(session_id, EventFilter(event_types=frozenset({"security_audit"})))
     except Exception:
         logger.debug("Failed to read security_audit events for lineage", exc_info=True)
         return

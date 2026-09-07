@@ -41,6 +41,7 @@ def _seed_composer_fixture(api_url: str) -> dict[str, object]:
     assert agent_id
     return seeded
 
+
 _DISMISS_MIGRATION_JS = """(() => {
   try {
     sessionStorage.setItem('migration_discovery_dismissed', 'true');
@@ -117,12 +118,12 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
                 _SETTINGS_SKILLS_SHELL_STATE,
                 timeout_sec=_warm_ui_parallel_wait_sec(120.0),
             )
-            assert shell.get("ready") is True, json.dumps(
-                shell, indent=2, ensure_ascii=False
-            )
+            assert shell.get("ready") is True, json.dumps(shell, indent=2, ensure_ascii=False)
 
             # 5. Verify UI state and ensure auth is populated in local mode
-            client.evaluate(page, """(() => {
+            client.evaluate(
+                page,
+                """(() => {
               try {
                 if (!localStorage.getItem('auth_token')) {
                   localStorage.setItem('auth_token', 'local_user_token');
@@ -139,7 +140,9 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
               } catch (e) {
                 // ignore
               }
-            })()""", timeout_sec=10.0)
+            })()""",
+                timeout_sec=10.0,
+            )
 
             ui_check_js = """(() => {
               const text = document.body?.innerText || '';
@@ -159,9 +162,7 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
                 ui_check_js,
                 timeout_sec=_warm_ui_parallel_wait_sec(90.0),
             )
-            assert state.get("ready") is True, json.dumps(
-                state, indent=2, ensure_ascii=False
-            )
+            assert state.get("ready") is True, json.dumps(state, indent=2, ensure_ascii=False)
 
             # Switch to Installed tab to reveal local paths trigger if needed
             tab_click_js = """(() => {
@@ -240,9 +241,7 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
                 local_paths_btn_js,
                 timeout_sec=_warm_ui_parallel_wait_sec(45.0),
             )
-            assert paths_state.get("ready") is True, json.dumps(
-                paths_state, indent=2, ensure_ascii=False
-            )
+            assert paths_state.get("ready") is True, json.dumps(paths_state, indent=2, ensure_ascii=False)
 
             # 7. Open local paths section if collapsed
             expand_js = """(() => {
@@ -277,9 +276,7 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
                 input_ready_js,
                 timeout_sec=_warm_ui_parallel_wait_sec(30.0),
             )
-            assert input_state.get("ready") is True, json.dumps(
-                input_state, indent=2, ensure_ascii=False
-            )
+            assert input_state.get("ready") is True, json.dumps(input_state, indent=2, ensure_ascii=False)
 
             # 9. Realistic User Flow: Input test_skill_dir path and click Add button to trigger Preview Dialog
             ui_input_and_click_js = f"""(() => {{
@@ -300,9 +297,7 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
               return {{ ok: true }};
             }})()"""
             click_res = client.evaluate(page, ui_input_and_click_js, timeout_sec=15.0)
-            assert (
-                isinstance(click_res, dict) and click_res.get("ok") is True
-            ), f"Failed to input path: {click_res}"
+            assert isinstance(click_res, dict) and click_res.get("ok") is True, f"Failed to input path: {click_res}"
 
             # 10. Verify LocalSkillPathScanPreviewBeforeAdoptDialog opens with detected skill name
             dialog_ready_js = """(() => {
@@ -325,9 +320,7 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
                 dialog_ready_js,
                 timeout_sec=_warm_ui_parallel_wait_sec(30.0),
             )
-            assert dialog_state.get("ready") is True, json.dumps(
-                dialog_state, indent=2, ensure_ascii=False
-            )
+            assert dialog_state.get("ready") is True, json.dumps(dialog_state, indent=2, ensure_ascii=False)
 
             # 11. Click "采纳并添加路径" button to execute adopt action in UI
             confirm_adopt_js = """(() => {
@@ -359,9 +352,7 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
                 path_list_updated_js,
                 timeout_sec=_warm_ui_parallel_wait_sec(30.0),
             )
-            assert updated_state.get("ready") is True, json.dumps(
-                updated_state, indent=2, ensure_ascii=False
-            )
+            assert updated_state.get("ready") is True, json.dumps(updated_state, indent=2, ensure_ascii=False)
 
         # 13. Real User Task Flow with Real LLM (Universal Task Flow E2E)
         # Verify user can navigate to Chat, send a real prompt to the real model, and receive streaming response

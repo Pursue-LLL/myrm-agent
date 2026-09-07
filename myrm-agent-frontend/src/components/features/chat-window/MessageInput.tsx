@@ -41,6 +41,7 @@ import IncognitoModeToggle from '../message-input-actions/IncognitoModeToggle';
 import SandboxModeToggle from '../message-input-actions/SandboxModeToggle';
 import SecurityPresetSelector from '../message-input-actions/SecurityPresetSelector';
 import FocusFlushButton from '../message-input-actions/FocusFlushButton';
+import ProviderLowBalanceWarningHUD from '../message-input-actions/ProviderLowBalanceWarningHUD';
 import { ForkButton } from './ForkButton';
 import { QueuedMessagesList } from './QueuedMessagesList';
 import ActiveWorkingMemoryPanel from '../message-input-actions/ActiveWorkingMemoryPanel';
@@ -505,6 +506,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
               />
             ) : (
               <>
+                <ProviderLowBalanceWarningHUD currentProviderId={agentConfig?.provider} className="mb-2" />
                 <FeaturedExpertChips />
                 <ComposerContextChipStrip
                   chips={composerContextChips}

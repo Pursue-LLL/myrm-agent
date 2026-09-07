@@ -12255,6 +12255,17 @@
     }
   },
   "settings": {
+    "providerBalance": {
+      "statusHealthy": "충분함",
+      "statusWarning": "잔액 부족",
+      "statusCritical": "잔액 고갈",
+      "tooltipPrefix": "제공자 잔액 상태",
+      "hudCriticalTitle": "제공자 잔액 고갈",
+      "hudWarningTitle": "제공자 잔액 경고",
+      "hudBalanceDepletedDesc": "{provider} 잔액이 부족합니다 ({balance}). 작업이 중단될 수 있습니다.",
+      "hudSwitchToFallback": "대체 모델로 전환",
+      "dismiss": "닫기"
+    },
     "lockedUse": {
       "title": "컴퓨터 사용 / 잠금 사용",
       "layer1Title": "화면 유지 깨우기",

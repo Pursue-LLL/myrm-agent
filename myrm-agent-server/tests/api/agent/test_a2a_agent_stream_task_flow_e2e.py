@@ -132,10 +132,9 @@ def test_a2a_delegation_task_flow_e2e(client: TestClient) -> None:
 
             # Verify that final output integrated the remote expert answer
             full_answer = "".join(message_chunks)
-            assert any(
-                kw in full_answer
-                for kw in ("量子", "退相干", "相干时间", "动力学解耦", "解耦")
-            ), f"Final answer did not incorporate peer findings: {full_answer[:300]}"
+            assert any(kw in full_answer for kw in ("量子", "退相干", "相干时间", "动力学解耦", "解耦")), (
+                f"Final answer did not incorporate peer findings: {full_answer[:300]}"
+            )
 
     finally:
         # Cleanup Agent and Peer

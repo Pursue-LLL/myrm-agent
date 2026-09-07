@@ -178,9 +178,7 @@ async def download_skill_to_workspace(
         try:
             if is_direct_fs:
                 meta_path = Path(target_path) / SKILL_METADATA_FILE
-                dest_metadata_content = (
-                    meta_path.read_text(encoding="utf-8") if meta_path.exists() else None
-                )
+                dest_metadata_content = meta_path.read_text(encoding="utf-8") if meta_path.exists() else None
             else:
                 dest_metadata_content = await dest_storage.read_text(metadata_dest)
 
@@ -192,22 +190,16 @@ async def download_skill_to_workspace(
                     logger.debug(f"⏭️ Skill already up-to-date: {skill.id} (v{skill.version})")
                     return True
                 else:
-                    logger.warning(
-                        f"🔄 Skill version changed: {skill.id} ({dest_version} -> {skill.version}), updating..."
-                    )
+                    logger.warning(f"🔄 Skill version changed: {skill.id} ({dest_version} -> {skill.version}), updating...")
         except (FileNotFoundError, json.JSONDecodeError):
             pass
 
     downloaded_count = 0
 
     if skill.type == SkillType.LOCAL:
-        downloaded_count = await _download_local_skill(
-            skill, target_path, dest_storage, is_direct_fs=is_direct_fs
-        )
+        downloaded_count = await _download_local_skill(skill, target_path, dest_storage, is_direct_fs=is_direct_fs)
     else:
-        downloaded_count = await _download_storage_skill(
-            skill, target_path, storage, dest_storage, is_direct_fs=is_direct_fs
-        )
+        downloaded_count = await _download_storage_skill(skill, target_path, storage, dest_storage, is_direct_fs=is_direct_fs)
 
     if downloaded_count > 0:
         logger.warning(f"📦 Skill downloaded: {skill.id} v{skill.version} -> {target_path} ({downloaded_count} files)")

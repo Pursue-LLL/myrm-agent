@@ -238,11 +238,7 @@ class DeviceBridgeService:
                 doctor=doctor,
             )
 
-        serial = (
-            device_id
-            if device_id and any(d.serial == device_id for d in doctor.devices)
-            else doctor.active_device_serial
-        )
+        serial = device_id if device_id and any(d.serial == device_id for d in doctor.devices) else doctor.active_device_serial
         cache_key = f"{serial}_{notification_redaction}"
         now = time.monotonic()
         if (
@@ -252,9 +248,7 @@ class DeviceBridgeService:
         ):
             return self._cached_snapshot
 
-        code, stdout, stderr = await self._run_adb_cmd(
-            "-s", serial, "exec-out", "screencap", "-p"
-        )
+        code, stdout, stderr = await self._run_adb_cmd("-s", serial, "exec-out", "screencap", "-p")
         if code != 0 or not stdout:
             logger.error(
                 "Failed to capture screen via ADB: %s",
@@ -265,9 +259,7 @@ class DeviceBridgeService:
                 mime_type="image/png",
                 refs={},
                 device_id=serial,
-                device_name=(
-                    doctor.devices[0].model if doctor.devices else "Android Device"
-                ),
+                device_name=(doctor.devices[0].model if doctor.devices else "Android Device"),
                 platform="android",
                 connected=True,
                 viewport_width=1080,
@@ -288,11 +280,7 @@ class DeviceBridgeService:
 
         b64 = base64.b64encode(raw_bytes).decode("ascii")
         matching = next((d for d in doctor.devices if d.serial == serial), None)
-        dev_name = (
-            matching.model
-            if matching
-            else (doctor.devices[0].model if doctor.devices else "Android Device")
-        )
+        dev_name = matching.model if matching else (doctor.devices[0].model if doctor.devices else "Android Device")
 
         payload = DeviceSnapshotPayload(
             screenshot_base64=b64,
@@ -329,22 +317,12 @@ class DeviceBridgeService:
             logger.warning("Touch relay dropped: No active connected device.")
             return False
 
-        serial = (
-            device_id
-            if device_id and any(d.serial == device_id for d in doctor.devices)
-            else doctor.active_device_serial
-        )
+        serial = device_id if device_id and any(d.serial == device_id for d in doctor.devices) else doctor.active_device_serial
         cmd_args: list[str] = ["-s", serial, "shell", "input"]
 
         if action == "tap" and x is not None and y is not None:
             cmd_args.extend(["tap", str(x), str(y)])
-        elif (
-            action == "swipe"
-            and x is not None
-            and y is not None
-            and end_x is not None
-            and end_y is not None
-        ):
+        elif action == "swipe" and x is not None and y is not None and end_x is not None and end_y is not None:
             ms = str(max(50, duration_ms or 300))
             cmd_args.extend(["swipe", str(x), str(y), str(end_x), str(end_y), ms])
         elif action == "hold" and x is not None and y is not None:
@@ -354,9 +332,7 @@ class DeviceBridgeService:
             norm_key = keycode.strip().lower()
             resolved_key = _KEYCODE_MAP.get(norm_key, keycode.strip())
             if not _KEYCODE_SAFE_PATTERN.match(resolved_key):
-                logger.warning(
-                    "Rejected invalid keycode for security defense: %s", keycode
-                )
+                logger.warning("Rejected invalid keycode for security defense: %s", keycode)
                 return False
             cmd_args.extend(["keyevent", resolved_key])
         else:
@@ -365,8 +341,6 @@ class DeviceBridgeService:
 
         code, _, stderr = await self._run_adb_cmd(*cmd_args)
         if code != 0:
-            logger.error(
-                "Touch relay failed: %s", stderr.decode("utf-8", errors="replace")
-            )
+            logger.error("Touch relay failed: %s", stderr.decode("utf-8", errors="replace"))
             return False
         return True

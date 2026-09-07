@@ -506,4 +506,3 @@ def test_discover_models_connection_failure_handled_gracefully(client: TestClien
         payload = response.json()["data"]
         assert payload["success"] is False
         assert "Connection refused" in (payload.get("error") or "")
-
