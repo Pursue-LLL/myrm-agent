@@ -281,7 +281,6 @@ class ContextBombDefenseService:
             os.chmod(spill_dir, DIR_PERMISSIONS)
 
         target_file = spill_dir / f"payload_{short_hash}.md"
-        # Anti-directory-traversal security verification
         try:
             target_file.resolve().relative_to(spill_dir.resolve())
         except ValueError as err:
@@ -297,7 +296,7 @@ class ContextBombDefenseService:
                     os.chmod(tmp_file, FILE_PERMISSIONS)
                 tmp_file.replace(target_file)
                 logger.info(
-                    "ContextBombDefenseService spilled large payload: chars=%d tokens=%d sha256=%s path=%s",
+                    "ContextBombDefenseService spilled payload: chars=%d tokens=%d sha256=%s path=%s",
                     char_count,
                     token_pressure,
                     short_hash,

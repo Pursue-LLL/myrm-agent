@@ -15,6 +15,7 @@ from app.api.statistics.growth_dashboard import (
     GrowthDashboardResponse,
     GrowthSnapshot,
     SkillEvolutionEvent,
+    SkillHealthItem,
     WeeklySummary,
     _ActivitySnapshot,
     _fetch_activity_data,
@@ -106,6 +107,27 @@ class TestGrowthDashboardSchemas:
         )
         assert event.source == "draft"
         assert event.status == "AUTO_APPLIED"
+
+    def test_skill_health_item_schema(self):
+        """SkillHealthItem should support actionable_recommendation, adoption_rate, and reuse_breadth."""
+        item = SkillHealthItem(
+            skill_name="search_web",
+            health_score=92.5,
+            status="STAR",
+            call_count_7d=30,
+            call_count_total=120,
+            success_rate_7d=0.967,
+            last_used_at="2026-09-08T01:00:00Z",
+            actionable_recommendation="🌟 Star asset with zero friction.",
+            adoption_rate=0.92,
+            reuse_breadth=0.65,
+        )
+        assert item.skill_name == "search_web"
+        assert item.actionable_recommendation == "🌟 Star asset with zero friction."
+        assert item.adoption_rate == 0.92
+        assert item.reuse_breadth == 0.65
+        dumped = item.model_dump()
+        assert dumped["actionable_recommendation"] == "🌟 Star asset with zero friction."
 
     def test_full_dashboard_response(self):
         resp = GrowthDashboardResponse(
@@ -748,3 +770,38 @@ async def test_fetch_cost_summary_tiny_savings_not_filtered() -> None:
 
     if result is not None:
         assert result.total_savings_usd >= 0
+
+
+@pytest.mark.asyncio
+async def test_fetch_skill_health_populates_actionable_recommendations() -> None:
+    """_fetch_skill_health should invoke SkillHealthEvaluator and populate actionable recommendations."""
+    from app.api.statistics.growth_dashboard import _fetch_skill_health
+
+    with patch("app.api.statistics.growth_dashboard.skills_service") as mock_skills, \
+         patch("app.api.statistics.growth_dashboard.Path.is_dir", return_value=True), \
+         patch("app.api.statistics.growth_dashboard.Path.iterdir") as mock_iterdir:
+
+        skill_dir = MagicMock()
+        skill_dir.name = "web_search"
+        skill_dir.is_dir.return_value = True
+        mock_iterdir.return_value = [skill_dir]
+
+        mock_ledger = MagicMock()
+        mock_ledger.skill_id = "web_search"
+        mock_ledger.total_invocations = 10
+        mock_ledger.successful_invocations = 9
+        mock_ledger.total_failures = 1
+        mock_ledger.average_duration_ms = 450.0
+        mock_ledger.created_at = datetime.now(UTC) - timedelta(days=5)
+        mock_ledger.updated_at = datetime.now(UTC)
+        mock_skills.get_execution_stats.return_value = mock_ledger
+
+        with patch("app.api.statistics.growth_dashboard._query_recent_events", return_value=[]):
+            items = await _fetch_skill_health()
+
+        assert len(items) == 1
+        assert items[0].skill_name == "web_search"
+        assert items[0].call_count_total == 10
+        assert items[0].actionable_recommendation is not None
+        assert isinstance(items[0].actionable_recommendation, str)
+

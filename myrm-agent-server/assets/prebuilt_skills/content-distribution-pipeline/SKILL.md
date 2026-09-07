@@ -48,10 +48,10 @@ pipeline_spec:
           type: "select"
           label: "Tone"
           options: ["Professional", "Casual / Conversational", "Technical", "Inspirational"]
-        role_templates:
-          - role_id: "adapter"
-            description: "Adapts source content for a specific platform's format, tone, audience, and algorithm preferences, incorporating personal voice profiles when active"
-            required_skills: ["creative-ideation", "content-humanizer", "persona-voice"]
+  role_templates:
+    - role_id: "adapter"
+      description: "Adapts source content for a specific platform's format, tone, audience, and algorithm preferences, incorporating personal voice profiles when active"
+      required_skills: ["creative-ideation", "content-humanizer", "persona-voice"]
     - role_id: "checker"
       description: "Reviews all adapted versions for consistency, brand voice, visual specs, and publishing readiness"
       required_skills: ["code-review"]

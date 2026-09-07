@@ -50,7 +50,7 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
   const t = useTranslations('settings.usageStatistics.runtimeMeter');
   const [quotas, setQuotas] = useState<SearchQuotaItem[]>([]);
   const [browserSummary, setBrowserSummary] = useState<BrowserRuntimeSummary | null>(null);
-  const [circuitBreakers, setCircuitBreakers] = useState<Record<string, CircuitBreakerStats>>({});
+  const [circuitBreakers, setCircuitBreakers] = useState<ProviderCircuitHealthItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isResetting, setIsResetting] = useState<boolean>(false);
   const [isResettingCircuit, setIsResettingCircuit] = useState<boolean>(false);
@@ -62,11 +62,11 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
       const [quotaData, browserData, healthData] = await Promise.all([
         getSearchQuotas().catch(() => []),
         getBrowserRuntimeSummary().catch(() => null),
-        getLLMProviderHealth().catch(() => ({ circuit_breakers: {} })),
+        getLLMProviderHealth().catch(() => ({ circuit_breakers: [] })),
       ]);
       setQuotas(quotaData);
       setBrowserSummary(browserData);
-      setCircuitBreakers(healthData?.circuit_breakers ?? {});
+      setCircuitBreakers(healthData?.circuit_breakers ?? []);
     } finally {
       setLoading(false);
     }
