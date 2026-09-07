@@ -1,11 +1,9 @@
 """Unit tests for BurnRateSmokeAlarmDetector."""
 
 import time
-import pytest
 
 from app.services.observability.burn_rate_smoke_alarm import (
     BurnRateSmokeAlarmDetector,
-    SmokeAlarmVerdict,
 )
 
 
@@ -14,7 +12,7 @@ def test_smoke_alarm_normal_usage() -> None:
     now = time.monotonic()
 
     # Small usage: 2000 tokens in 10 seconds -> ~12k TPM (below 100k)
-    v1 = detector.record_usage("session-1", 1000, timestamp=now)
+    detector.record_usage("session-1", 1000, timestamp=now)
     v2 = detector.record_usage("session-1", 1000, timestamp=now + 10.0)
 
     assert not v2.is_alert

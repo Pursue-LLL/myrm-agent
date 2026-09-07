@@ -6,12 +6,9 @@ high-risk command interception, and approval escalation upon budget exhaustion.
 
 from __future__ import annotations
 
-import pytest
-
 from app.channels.delegation.delegation_troubleshoot import (
-    TroubleshootDecision,
-    TroubleshootStrategyType,
     TroubleshootingBudgetManager,
+    TroubleshootStrategyType,
 )
 
 

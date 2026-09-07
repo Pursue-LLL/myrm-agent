@@ -26,7 +26,6 @@ import logging
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Sequence
 
 logger = logging.getLogger("myrm.channels.delegation.troubleshoot")
 
