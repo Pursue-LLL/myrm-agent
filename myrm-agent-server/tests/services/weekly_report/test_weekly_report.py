@@ -10,7 +10,6 @@ import time
 from app.services.weekly_report.chat_to_knowledge import ChatToKnowledgeArchiver
 from app.services.weekly_report.models import (
     ChatKnowledgeExtractRequest,
-    TrajectoryEvent,
     TrajectoryEventSource,
 )
 from app.services.weekly_report.trajectory_aggregator import TrajectoryAggregator

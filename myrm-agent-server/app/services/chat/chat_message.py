@@ -103,6 +103,26 @@ class _ChatMessageMixin(_ChatServiceBase):
         if role not in ALLOWED_MESSAGE_ROLES:
             raise ValueError(f"Invalid message role: {role!r}. Must be one of {ALLOWED_MESSAGE_ROLES}")
 
+        # Guard against incoming context bomb by transparently spilling over massive user text
+        final_content = content
+        if role == "user":
+            from app.services.chat.context_bomb_defense_service import (
+                ContextBombDefenseService,
+            )
+
+            spill_res = ContextBombDefenseService.process_incoming_content(
+                content,
+                chat_id=chat_id,
+            )
+            if spill_res.is_spilled:
+                final_content = spill_res.processed_content
+                extra_data = dict(extra_data or {})
+                extra_data["spillover"] = {
+                    "spillover_path": spill_res.spillover_path,
+                    "original_char_count": spill_res.original_char_count,
+                    "sha256": spill_res.content_sha256,
+                }
+
         try:
             from app.core.eval.adaptive import mark_chat_activity
 
@@ -115,7 +135,7 @@ class _ChatMessageMixin(_ChatServiceBase):
                 id=message_id or str(uuid4()),
                 chat_id=chat_id,
                 role=role,
-                content=content,
+                content=final_content,
                 sent_at=sent_at,
                 sent_timezone=sent_timezone,
                 extra_data=extra_data,
@@ -123,12 +143,12 @@ class _ChatMessageMixin(_ChatServiceBase):
                 created_at=datetime.utcnow(),
             )
             await _ChatServiceBase._cr(uow).add_message(msg)
-            msg_updates: dict[str, object] = {"last_message": content[:100]}
+            msg_updates: dict[str, object] = {"last_message": final_content[:100]}
             if role == "user":
                 chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id)
                 if chat and (not chat.first_message):
-                    msg_updates["first_message"] = content
-                    msg_updates["title"] = content[:50]
+                    msg_updates["first_message"] = final_content
+                    msg_updates["title"] = final_content[:50]
             await _ChatServiceBase._cr(uow).update_chat_fields(chat_id, msg_updates)
             sess = uow.session
             assert sess is not None
@@ -139,7 +159,7 @@ class _ChatMessageMixin(_ChatServiceBase):
                 chat_id=chat_id,
                 message_id=msg.id,
                 role=role,
-                content=content,
+                content=final_content,
                 sent_at=sent_at,
             )
             return msg
@@ -159,6 +179,25 @@ class _ChatMessageMixin(_ChatServiceBase):
         active_moa_preset_id: str | None = None,
         persist_moa_preset: bool = False,
     ) -> MessageDTO:
+        # Guard against incoming context bomb by transparently spilling over massive user text
+        final_content = content
+        from app.services.chat.context_bomb_defense_service import (
+            ContextBombDefenseService,
+        )
+
+        spill_res = ContextBombDefenseService.process_incoming_content(
+            content,
+            chat_id=chat_id,
+        )
+        if spill_res.is_spilled:
+            final_content = spill_res.processed_content
+            extra_data = dict(extra_data or {})
+            extra_data["spillover"] = {
+                "spillover_path": spill_res.spillover_path,
+                "original_char_count": spill_res.original_char_count,
+                "sha256": spill_res.content_sha256,
+            }
+
         try:
             from app.core.eval.adaptive import mark_chat_activity
 
@@ -199,7 +238,7 @@ class _ChatMessageMixin(_ChatServiceBase):
             if message_id:
                 existing = await _ChatServiceBase._cr(uow).get_message_by_id(chat_id, message_id)
                 if existing is not None:
-                    if existing.role == "user" and existing.content == content:
+                    if existing.role == "user" and existing.content == final_content:
                         logger.info(
                             "Idempotent user retry detected for message_id=%s chat_id=%s; reusing existing row",
                             message_id,
@@ -218,7 +257,7 @@ class _ChatMessageMixin(_ChatServiceBase):
                 id=resolved_message_id,
                 chat_id=chat_id,
                 role="user",
-                content=content,
+                content=final_content,
                 sent_at=sent_at,
                 sent_timezone=sent_timezone,
                 extra_data=extra_data,
@@ -226,9 +265,9 @@ class _ChatMessageMixin(_ChatServiceBase):
             )
             await _ChatServiceBase._cr(uow).add_message(msg)
             last_updates: dict[str, object] = {
-                "last_message": content[:100],
-                "first_message": content,
-                "title": content[:50],
+                "last_message": final_content[:100],
+                "first_message": final_content,
+                "title": final_content[:50],
             }
             if chat and chat.first_message:  # already had first message
                 last_updates.pop("first_message")
@@ -243,7 +282,7 @@ class _ChatMessageMixin(_ChatServiceBase):
                 chat_id=chat_id,
                 message_id=msg.id,
                 role="user",
-                content=content,
+                content=final_content,
                 sent_at=sent_at,
             )
             return msg

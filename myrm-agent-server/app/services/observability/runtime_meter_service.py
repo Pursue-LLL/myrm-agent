@@ -338,6 +338,7 @@ class RuntimeMeterService:
             "active_compute_minutes": browser_compute_min,
             "code_sandbox_compute_minutes": sandbox_compute_min,
             "total_active_compute_minutes": total_active_compute_min,
+            "total_workload_active_minutes": total_active_compute_min,
             "code_sandbox_executions": int(sandbox_row.total_executions),
             "total_bytes_transferred": total_bytes,
             "total_megabytes_transferred": total_mb,

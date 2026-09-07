@@ -127,11 +127,11 @@ def test_runtime_cost_meter_settings_ui_and_ledger_chrome_e2e() -> None:
     )
     assert seed_browser.get("code") == 0
 
-    seed_sandbox = http_json(
+    seed_sandbox_1 = http_json(
         "POST",
         f"{api_url}/api/v1/statistics/sandbox-workload/record",
         {
-            "session_id": "e2e-chrome-test-sess",
+            "session_id": "e2e-chrome-test-sess-1",
             "workload_type": "code_sandbox",
             "duration_seconds": 120.0,
             "active_compute_seconds": 90.0,
@@ -140,8 +140,22 @@ def test_runtime_cost_meter_settings_ui_and_ledger_chrome_e2e() -> None:
             "failed_count": 0,
         },
     )
-    assert seed_sandbox.get("code") == 0
-    assert seed_sandbox.get("data", {}).get("workload_type") == "code_sandbox"
+    assert seed_sandbox_1.get("code") == 0
+
+    seed_sandbox_2 = http_json(
+        "POST",
+        f"{api_url}/api/v1/statistics/sandbox-workload/record",
+        {
+            "session_id": "e2e-chrome-test-sess-2",
+            "workload_type": "code_sandbox",
+            "duration_seconds": 60.0,
+            "active_compute_seconds": 30.0,
+            "bytes_transferred": 1024,
+            "execution_count": 2,
+            "failed_count": 0,
+        },
+    )
+    assert seed_sandbox_2.get("code") == 0
 
     # Step 2: Open /settings/developer?sub=usage in real Chrome MCP
     subroute = "/settings/developer?sub=usage"

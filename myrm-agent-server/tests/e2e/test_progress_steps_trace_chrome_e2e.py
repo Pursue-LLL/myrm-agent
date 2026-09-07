@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -82,6 +83,10 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
         ]
     )
 
+    now = datetime.now(UTC).replace(microsecond=0)
+    user_created = now.isoformat()
+    asst_created = (now + timedelta(seconds=1)).isoformat()
+
     create_payload = {
         "chat_id": chat_id,
         "title": "E2E ProgressSteps Trace",
@@ -93,6 +98,7 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
                 "chatId": chat_id,
                 "role": "user",
                 "content": "Please execute the long multi-step trace verification.",
+                "createdAt": user_created,
             },
             {
                 "messageId": f"msg-asst-{uuid.uuid4().hex[:8]}",
@@ -100,6 +106,7 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
                 "role": "assistant",
                 "content": _FIXTURE_ANSWER,
                 "progressSteps": steps,
+                "createdAt": asst_created,
                 "metadata": {
                     "progressSteps": steps,
                 },
@@ -111,7 +118,12 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
     return {"chat_id": chat_id, "steps_count": len(steps)}
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_progress_steps_trace_timeline_chrome_e2e() -> None:
@@ -202,3 +214,17 @@ def test_progress_steps_trace_timeline_chrome_e2e() -> None:
             })()""",
         )
         assert isinstance(inspect_ui, dict) and inspect_ui.get("ok") is True
+
+        # 4. Verify drilldown modal trigger interaction
+        click_step = client.evaluate(
+            page,
+            """(() => {
+                const stepRow = document.querySelector('[data-testid="progress-steps-panel"] .group');
+                if (stepRow) {
+                    stepRow.click();
+                    return { clicked: true };
+                }
+                return { clicked: false };
+            })()""",
+        )
+        assert isinstance(click_step, dict)

@@ -269,15 +269,23 @@ class TestDesktopControlRules:
         assert '"*"' in DESKTOP_CONTROL_RULES_EN
         assert '"/"' in DESKTOP_CONTROL_RULES_EN
         assert '"+"' in DESKTOP_CONTROL_RULES_EN
-        assert "press or key" in DESKTOP_CONTROL_RULES_EN
+        assert '"-"' in DESKTOP_CONTROL_RULES_EN
+        assert '"%"' in DESKTOP_CONTROL_RULES_EN
+        assert '"="' in DESKTOP_CONTROL_RULES_EN
+        assert "desktop_vision_tool key=" in DESKTOP_CONTROL_RULES_EN
         assert "calculator/@dref" in DESKTOP_CONTROL_RULES_EN
+        assert "action=press activates" in DESKTOP_CONTROL_RULES_EN
 
         assert "可打印运算符" in DESKTOP_CONTROL_RULES_ZH
         assert '"*"' in DESKTOP_CONTROL_RULES_ZH
         assert '"/"' in DESKTOP_CONTROL_RULES_ZH
         assert '"+"' in DESKTOP_CONTROL_RULES_ZH
-        assert "press/key" in DESKTOP_CONTROL_RULES_ZH
+        assert '"-"' in DESKTOP_CONTROL_RULES_ZH
+        assert '"%"' in DESKTOP_CONTROL_RULES_ZH
+        assert '"="' in DESKTOP_CONTROL_RULES_ZH
+        assert "desktop_vision_tool" in DESKTOP_CONTROL_RULES_ZH
         assert "@dref" in DESKTOP_CONTROL_RULES_ZH
+        assert "action=press" in DESKTOP_CONTROL_RULES_ZH
 
     def test_get_shared_rules_zh_includes_operator_ban(self) -> None:
         """get_shared_rules(zh) must surface the same operator anti-pattern."""

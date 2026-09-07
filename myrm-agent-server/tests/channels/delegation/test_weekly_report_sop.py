@@ -9,6 +9,10 @@ Validates:
 import time
 from pathlib import Path
 
+from app.channels.delegation.weekly_report_sop import (
+    WeeklyReportSOPService,
+)
+
 from app.channels.delegation.delegation_models import (
     DelegationStatus,
     DelegationTask,
@@ -18,9 +22,6 @@ from app.channels.delegation.trajectory_aggregator import (
     GroupDecisionItem,
     TrajectoryAggregator,
     TrajectoryCategory,
-)
-from app.channels.delegation.weekly_report_sop import (
-    WeeklyReportSOPService,
 )
 
 
