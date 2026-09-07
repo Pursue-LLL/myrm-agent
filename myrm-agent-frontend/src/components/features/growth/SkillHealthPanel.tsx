@@ -1,3 +1,15 @@
+/**
+ * [INPUT]
+ * - next-intl::useTranslations (POS: 前端国际化 Hook)
+ * - @/services/statistics::SkillHealthItem (POS: 技能健康度与治理建议契约)
+ * - @/components/primitives/badge::Badge (POS: 语义化徽章组件)
+ *
+ * [OUTPUT]
+ * - SkillHealthPanel: 技能健康度与周复盘治理面板，支持全量/待治理/健康分段筛选与自愈动作指引
+ *
+ * [POS]
+ * 成长进化中心技能健康度组件。解决盲目过滤与死特性问题，直观呈现 Harness 纯规则健康分与治理处置建议。
+ */
 'use client';
 
 import { useState } from 'react';

@@ -104,16 +104,12 @@ def extract_text_from_query(query: MultimodalQuery | object) -> str:
 
 
 def build_spillover_prompt_block(
-    file_path: str,
-    total_chars: int,
-    sha256: str,
-    preview: str,
-    estimated_tokens: int = 0,
+    file_path: str, total_chars: int, sha256: str, preview: str, estimated_tokens: int = 0
 ) -> str:
     """Construct structured, prompt-cache-friendly XML reference block."""
     token_hint = f", ~{estimated_tokens:,} tokens" if estimated_tokens > 0 else ""
     return (
-        f"<file_spillover path=\"{file_path}\" total_chars=\"{total_chars}\" sha256=\"{sha256[:16]}\">\n"
+        f'<file_spillover path="{file_path}" total_chars="{total_chars}" sha256="{sha256[:16]}">\n'
         f"<preview>\n{preview}\n...\n</preview>\n"
         f"<instruction>\n"
         f"Notice: User provided a large document payload ({total_chars:,} characters{token_hint}) that exceeds direct context threshold.\n"

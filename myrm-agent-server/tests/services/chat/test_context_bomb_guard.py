@@ -40,7 +40,7 @@ def test_guard_and_spill_query_over_limit_spills(tmp_path: Path) -> None:
     assert is_spilled is True
     assert meta is not None
     assert meta.total_chars == 120
-    assert len(meta.sha256) == 16
+    assert len(meta.sha256) == 64
 
     # Verify XML prompt block was injected
     assert isinstance(transformed, str)

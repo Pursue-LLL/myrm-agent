@@ -8,7 +8,6 @@ import pytest
 from app.services.chat.context_bomb_defense_service import (
     ContextBombDefenseService,
     MESSAGE_MAX_CHARS,
-    SUMMARY_HEAD_CHARS,
 )
 
 

@@ -4,13 +4,7 @@ import hashlib
 import time
 from pathlib import Path
 
-import pytest
-
-from app.services.chat.context_bomb_defense_service import (
-    ContextBombDefenseService,
-    MESSAGE_MAX_CHARS,
-    SpilloverPayloadResult,
-)
+from app.services.chat.context_bomb_defense_service import ContextBombDefenseService
 
 
 def test_process_incoming_content_under_threshold(tmp_path: Path) -> None:

@@ -541,3 +541,45 @@ class TestQuotaRuntimeRouterEndpoints:
         obs.telemetry.last_activity_time = mono_now - 90.0
         assert obs.check_action_watchdog(mono_now - 200.0, timeout_seconds=180.0, activity_idle_threshold=60.0) is False
         assert obs.telemetry.watchdog_tripped_count == 1
+
+    @pytest.mark.asyncio
+    async def test_llm_provider_health_endpoints(self) -> None:
+        """Verify GET and POST /statistics/llm-provider-health endpoints."""
+        from app.api.statistics.quota_runtime_router import (
+            LLMProviderCircuitResetRequest,
+            get_llm_provider_health,
+            reset_llm_provider_circuit,
+        )
+        from myrm_agent_harness.toolkits.llms.fallback.circuit_breaker import (
+            get_circuit_breaker_registry,
+        )
+
+        registry = get_circuit_breaker_registry()
+        cb = registry.get_or_create("test-provider:model-x", failure_threshold=2)
+        cb.record_failure()
+        cb.record_failure()
+        assert cb.is_open() is True
+
+        # GET health
+        health_resp = await get_llm_provider_health()
+        assert health_resp.status_code == 200
+        health_data = json.loads(health_resp.body)
+        assert health_data["code"] == 0
+        assert "circuit_breakers" in health_data["data"]
+        assert "test-provider:model-x" in health_data["data"]["circuit_breakers"]
+        assert health_data["data"]["circuit_breakers"]["test-provider:model-x"]["state"] == "open"
+
+        # POST reset single
+        reset_req = LLMProviderCircuitResetRequest(provider_or_key="test-provider:model-x")
+        reset_resp = await reset_llm_provider_circuit(req=reset_req)
+        assert reset_resp.status_code == 200
+        reset_data = json.loads(reset_resp.body)
+        assert reset_data["code"] == 0
+        assert reset_data["data"]["reset_count"] == 1
+        assert cb.state.value == "closed"
+
+        # POST reset all
+        reset_all_req = LLMProviderCircuitResetRequest(provider_or_key=None)
+        reset_all_resp = await reset_llm_provider_circuit(req=reset_all_req)
+        assert reset_all_resp.status_code == 200
+

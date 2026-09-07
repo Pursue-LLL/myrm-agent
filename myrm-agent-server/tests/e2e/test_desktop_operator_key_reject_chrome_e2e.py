@@ -10,7 +10,6 @@ import asyncio
 import json
 import platform
 import time
-from typing import Any
 
 import pytest
 from cdp_chat.mcp_ui import McpChatSession

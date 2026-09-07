@@ -1,10 +1,16 @@
 """Growth Dashboard API — aggregated view of agent growth metrics.
 
-Combines data from multiple existing sources (memory stats, activity patterns,
-skill evolution, companion evolution) into a single endpoint for the
-Growth Dashboard frontend page.
+[INPUT]
+- myrm_agent_harness.observability.digest.health_evaluator::SkillHealthEvaluator (POS: 纯规则多维技能健康度与复利评估器)
+- myrm_agent_harness.observability.digest.types::SkillCompoundingMetrics (POS: 技能复利度量输入契约)
+- app.database.connection::get_db (POS: 异步数据库会话依赖)
 
-Zero new storage; pure aggregation of existing data.
+[OUTPUT]
+- router: FastAPI 路由，提供 GET /statistics/growth-dashboard 与 GET /statistics/skill-trends
+- SkillHealthItem: 包含 health_score, status 与 actionable_recommendation 的技能健康数据契约
+
+[POS]
+成长进化中心看板后端聚合 API。零新增存储，纯聚合内存/本地 SQLite 指标，并调用 Harness 规则引擎产出技能治理建议。
 """
 
 from __future__ import annotations

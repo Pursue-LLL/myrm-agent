@@ -47,6 +47,7 @@ from app.api.skills.discovery_schemas import (
     SkillUpdateInfoResponse,
     SkillUpdateRequest,
     SkillUrlInfo,
+    StaticIndexStatusResponse,
     UpdateCheckResponse,
 )
 from app.core.skills.discovery.adopt import complete_discovery_adoption
