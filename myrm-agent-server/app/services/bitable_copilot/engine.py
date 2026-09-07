@@ -18,7 +18,6 @@ Domain service in app/services/bitable_copilot/.
 from __future__ import annotations
 
 import logging
-import re
 import time
 import uuid
 from typing import Any, Dict, List, Optional
@@ -28,7 +27,6 @@ from .models import (
     CellMutation,
     TableContextPayload,
     TableFieldSchema,
-    TableRowData,
 )
 
 logger = logging.getLogger("myrm.services.bitable_copilot.engine")
@@ -94,7 +92,6 @@ class DataWranglingEngine:
         )
 
         mutations: List[CellMutation] = []
-        prompt_lower = instruction.lower()
 
         for row in target_rows:
             old_val = row.cells.get(target_field.field_id)
@@ -167,7 +164,7 @@ class DataWranglingEngine:
         if "情感" in instruction or "sentiment" in instr_lower or "分类" in instruction or "classify" in instr_lower:
             if any(pos in combined_source.lower() for pos in ["好", "棒", "赞", "great", "excellent", "good", "fast", "喜欢"]):
                 return "正面 / Positive", "根据源文本中正面评价关键词提取"
-            elif any(neg in combined_source.lower() for pos in ["慢", "卡", "bug", "error", "fail", "差", "烂", "bad"]):
+            elif any(neg_word in combined_source.lower() for neg_word in ["慢", "卡", "bug", "error", "fail", "差", "烂", "bad"]):
                 return "负面 / Negative", "检测到故障或消极反馈词汇"
             else:
                 return "中性 / Neutral", "描述性文本，未检测到强烈情感倾向"

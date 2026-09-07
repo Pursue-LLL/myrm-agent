@@ -812,7 +812,8 @@ async def test_growth_dashboard_endpoint_end_to_end_integration() -> None:
     """End-to-end integration: GET /growth-dashboard returns 200 with skill_health populated."""
     from fastapi import FastAPI
     from httpx import ASGITransport, AsyncClient
-    from app.api.statistics.growth_dashboard import router, SkillHealthItem
+
+    from app.api.statistics.growth_dashboard import SkillHealthItem, router
 
     test_app = FastAPI()
     test_app.include_router(router, prefix="/api/v1/statistics")

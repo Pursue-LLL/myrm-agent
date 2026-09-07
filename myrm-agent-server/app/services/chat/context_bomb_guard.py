@@ -30,13 +30,14 @@ from pathlib import Path
 from typing import Final
 from uuid import uuid4
 
-from app.services.agent.params.models import MultimodalQuery
 from myrm_agent_harness.agent.context_guard import (
     ContextGuardConfig,
     EphemeralTransientSweeper,
     SpilloverEngine,
     estimate_token_pressure,
 )
+
+from app.services.agent.params.models import MultimodalQuery
 
 logger = logging.getLogger(__name__)
 

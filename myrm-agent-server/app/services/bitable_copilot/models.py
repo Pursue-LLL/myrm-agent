@@ -15,7 +15,8 @@ Core models for Bitable Sidebar CoPilot domain.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Literal, Any
+from typing import Any, Dict, List, Literal, Optional
+
 from pydantic import BaseModel, Field
 
 

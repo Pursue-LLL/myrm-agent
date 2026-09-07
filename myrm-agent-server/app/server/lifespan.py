@@ -588,6 +588,15 @@ async def _phase_1b_parallel() -> None:
 
         await init_wiki_vault_at_startup()
 
+    async def _init_context_guard_sweeper_task() -> None:
+        from app.services.agent.context_guard_service import ContextGuardService
+
+        try:
+            cleaned = ContextGuardService.sweep_all_workspaces()
+            logger.info("[Startup] ContextGuard initial transient sweep completed: cleaned=%d files", cleaned)
+        except Exception as e:
+            logger.warning("[Startup] ContextGuard transient sweep encountered error: %s", e)
+
     _init_managed_approval_policy_task()
 
     results = await asyncio.gather(
@@ -600,6 +609,7 @@ async def _phase_1b_parallel() -> None:
         _init_workspace_trust_store_task(),
         _init_permission_logger_task(),
         _init_context_cleanup_task(),
+        _init_context_guard_sweeper_task(),
         _init_optimization_scheduler_task(),
         _init_idle_handlers_task(),
         _init_prebuilt_skills(),
@@ -621,6 +631,7 @@ async def _phase_1b_parallel() -> None:
         "Workspace trust store",
         "Permission logger",
         "Context cleanup",
+        "ContextGuard sweep",
         "Optimization scheduler",
         "Idle handlers",
         "Prebuilt skills",

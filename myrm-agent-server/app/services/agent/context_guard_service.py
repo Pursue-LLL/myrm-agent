@@ -23,12 +23,11 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.agent.context_guard.spillover_engine import SpilloverEngine
 from myrm_agent_harness.agent.context_guard.sweeper import EphemeralTransientSweeper
 from myrm_agent_harness.agent.context_guard.types import (
-    ContextGuardConfig,
     SpilloverResult,
 )
 
 if TYPE_CHECKING:
-    from app.services.agent.params import AgentRequest
+    pass
 
 logger = logging.getLogger(__name__)
 

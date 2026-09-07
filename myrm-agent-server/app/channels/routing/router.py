@@ -705,6 +705,29 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                     asyncio.create_task(self._bus.publish_outbound(reply))
                     continue
 
+            # Context Guard Ingress defense: evaluate inbound message length and transparently spill oversized texts
+            if msg.content and isinstance(msg.content, str) and not msg.content.startswith("/"):
+                try:
+                    from app.services.agent.context_guard_service import (
+                        ContextGuardService,
+                    )
+
+                    guard_res = await ContextGuardService.guard_inbound_prompt(
+                        chat_id=chat_id,
+                        raw_prompt=msg.content,
+                        role="user",
+                    )
+                    if guard_res.spilled:
+                        logger.info(
+                            "ContextGuard mitigated inbound channel message for channel=%s chat_id=%s (%d chars -> spilled file)",
+                            msg.channel,
+                            chat_id,
+                            guard_res.original_char_count,
+                        )
+                        msg = dataclasses.replace(msg, content=guard_res.sanitized_content)
+                except Exception as guard_err:
+                    logger.warning("ContextGuard channel check failed: %s", guard_err)
+
             self._gate.submit(msg)
 
     @property
@@ -1149,6 +1172,27 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             exec_for_error = msg
 
         if not is_resume and msg.content:
+            # Inbound ContextGuard protection for IM channels
+            try:
+                from app.services.agent.context_guard_service import ContextGuardService
+
+                guard_res = await ContextGuardService.guard_inbound_prompt(
+                    chat_id=msg.chat_id or msg.sender_id,
+                    raw_prompt=msg.content,
+                    role="user",
+                    custom_prefix=f"im_{msg.channel}",
+                )
+                if guard_res.spilled:
+                    logger.info(
+                        "Inbound message on channel '%s' mitigated by ContextGuard (%d chars -> spilled file)",
+                        msg.channel,
+                        guard_res.original_char_count,
+                    )
+                    msg = dataclasses.replace(msg, content=guard_res.sanitized_content)
+                    exec_for_error = msg
+            except Exception as cg_err:
+                logger.warning("Channel ContextGuard check non-fatal error: %s", cg_err)
+
             from app.services.risk.detection import get_detection_service
 
             risk_service = get_detection_service()

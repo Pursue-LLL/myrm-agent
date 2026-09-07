@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
 
 from myrm_agent_harness.utils.text_sanitizer import (
     extract_and_strip_think_blocks,

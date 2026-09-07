@@ -545,13 +545,14 @@ class TestQuotaRuntimeRouterEndpoints:
     @pytest.mark.asyncio
     async def test_llm_provider_health_endpoints(self) -> None:
         """Verify GET and POST /statistics/llm-provider-health endpoints."""
+        from myrm_agent_harness.toolkits.llms.fallback.circuit_breaker import (
+            get_circuit_breaker_registry,
+        )
+
         from app.api.statistics.quota_runtime_router import (
             LLMProviderCircuitResetRequest,
             get_llm_provider_health,
             reset_llm_provider_circuit,
-        )
-        from myrm_agent_harness.toolkits.llms.fallback.circuit_breaker import (
-            get_circuit_breaker_registry,
         )
 
         registry = get_circuit_breaker_registry()

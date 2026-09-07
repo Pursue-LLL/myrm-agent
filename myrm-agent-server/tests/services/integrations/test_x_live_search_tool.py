@@ -5,10 +5,10 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from app.services.integrations.tools.x_live_search import create_x_live_search_tool
 from myrm_agent_harness.agent.security import EphemeralUserCredential, user_credentials_ctx
 
 from app.services.agent.session_credential_assembler import XAI_ISSUER
-from app.services.integrations.tools.x_live_search import create_x_live_search_tool
 
 
 @pytest.mark.asyncio

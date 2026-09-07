@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.services.agent.context_guard_service import ContextGuardService
-from myrm_agent_harness.agent.context_guard.types import SpilloverResult
 
 
 @pytest.mark.asyncio
@@ -52,7 +51,8 @@ def test_context_guard_service_sweep_workspaces() -> None:
         expired_file.write_text("old text")
 
         # Set old mtime (2 days ago)
-        import time, os
+        import os
+        import time
         old_time = time.time() - 172_800
         os.utime(expired_file, (old_time, old_time))
 
