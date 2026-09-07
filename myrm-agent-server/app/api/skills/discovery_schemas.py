@@ -124,6 +124,16 @@ class ScanFindingResponse(BaseModel):
     line_number: int | None = None
 
 
+class PrerequisiteDiagnosticResponse(BaseModel):
+    is_supported_os: bool = True
+    all_satisfied: bool = True
+    current_os: str = ""
+    missing_binaries: list[str] = []
+    missing_packages: list[str] = []
+    remediation_commands: list[str] = []
+    summary_message: str = ""
+
+
 class SkillPreviewResponse(BaseModel):
     skill_id: str
     name: str
@@ -135,6 +145,7 @@ class SkillPreviewResponse(BaseModel):
     package_type: str = "skill"
     installed_skills: list[str] = []
     declared_mcp_servers: list[str] = []
+    prerequisites: PrerequisiteDiagnosticResponse | None = None
 
 
 class SkillInstallFromUrlRequest(BaseModel):
