@@ -1,6 +1,13 @@
 """Data models and type definitions for weekly report SOP and trajectory aggregation.
 
-Strictly follows code_quality_guidelines: 0 Any, immutable dataclasses.
+[INPUT]
+- Execution events, trajectory items, role configurations, and wiki ingest parameters.
+
+[OUTPUT]
+- Strongly-typed models for ReportRoleMode, TrajectoryItem, WeeklyReportPayload, and WikiIngestResult.
+
+[POS]
+Domain model definition in app/services/weekly_report/.
 """
 
 from __future__ import annotations
