@@ -99,6 +99,7 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
                 "chatId": chat_id,
                 "role": "assistant",
                 "content": _FIXTURE_ANSWER,
+                "progressSteps": steps,
                 "metadata": {
                     "progressSteps": steps,
                 },
@@ -135,18 +136,20 @@ def test_progress_steps_trace_timeline_chrome_e2e() -> None:
       return { ok: true };
     })()"""
 
-    _ATTACH_CHAT_JS = f"""(async () => {{
-      const bridge = window.__MYRM_E2E_CHAT__;
-      if (!bridge?.attachToChat) {{
-        return {{ ok: false, err: 'no-bridge' }};
-      }}
-      await bridge.attachToChat({json.dumps(chat_id)});
-      const snap = bridge.turnSnapshot?.() ?? {{}};
-      return {{
-        ok: snap.chatId === {json.dumps(chat_id)} && (snap.assistantCount ?? 0) >= 1,
-        snap,
-      }};
-    }})()"""
+    _ATTACH_CHAT_JS = (
+        "(async () => {\n"
+        "  const bridge = window.__MYRM_E2E_CHAT__;\n"
+        "  if (!bridge?.attachToChat) {\n"
+        "    return { ok: false, err: 'no-bridge' };\n"
+        "  }\n"
+        f"  await bridge.attachToChat({json.dumps(chat_id)});\n"
+        "  const snap = bridge.turnSnapshot?.() ?? {};\n"
+        "  return {\n"
+        f"    ok: snap.chatId === {json.dumps(chat_id)} && (snap.assistantCount ?? 0) >= 1,\n"
+        "    snap,\n"
+        "  };\n"
+        "})()"
+    )
 
     with open_mcp_page(target_url, timeout_ms=_PAGE_TIMEOUT_MS) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)

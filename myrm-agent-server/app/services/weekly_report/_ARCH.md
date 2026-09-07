@@ -11,3 +11,4 @@
 | `models.py` | 核心模型 | 定义周报数据模型、节段结构与价值链汇总强类型数据结构 | ✅ |
 | `trajectory_aggregator.py` | 核心服务 | 提供执行轨迹汇聚与多维工件事件聚合服务 | ✅ |
 | `weekly_report_service.py` | 核心服务 | 提供周报自动生成、格式化与导出服务门面 | ✅ |
+| `chat_to_knowledge.py` | 知识萃取 | 提供将群聊讨论与决策结构化提炼为 Markdown Wiki 知识库条目的服务 | ✅ |
