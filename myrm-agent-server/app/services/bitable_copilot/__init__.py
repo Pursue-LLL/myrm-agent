@@ -1,32 +1,20 @@
-"""Bitable Copilot package.
+"""Bitable copilot domain service package.
 
 [INPUT]
-- .engine::BitableCopilotEngine
-- .models::CellMutation, FormulaGenerationRequest, TableContextPayload, TableFieldSchema, TableRowData, TableWrangleTaskResult
+- .models
+- .engine
 
 [OUTPUT]
-- BitableCopilotEngine, CellMutation, FormulaGenerationRequest, TableContextPayload, TableFieldSchema, TableRowData, TableWrangleTaskResult
+- BitableCopilotEngine
 
 [POS]
-Domain package in app/services/bitable_copilot/.
+Domain service in app/services/bitable_copilot/.
 """
 
 from app.services.bitable_copilot.engine import BitableCopilotEngine
-from app.services.bitable_copilot.models import (
-    CellMutation,
-    FormulaGenerationRequest,
-    TableContextPayload,
-    TableFieldSchema,
-    TableRowData,
-    TableWrangleTaskResult,
-)
+from app.services.bitable_copilot.models import TableContextPayload
 
 __all__ = [
     "BitableCopilotEngine",
-    "CellMutation",
-    "FormulaGenerationRequest",
     "TableContextPayload",
-    "TableFieldSchema",
-    "TableRowData",
-    "TableWrangleTaskResult",
 ]

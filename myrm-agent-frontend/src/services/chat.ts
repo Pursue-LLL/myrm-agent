@@ -3,6 +3,23 @@ import type { ExportData } from '@/lib/utils/chatExport';
 import { Message, type ActionMode, type ModelSelection } from '@/store/chat/types';
 import { requestManager } from '@/lib/utils/requestManager';
 
+export interface TurnOutlineItem {
+  turn_index: number;
+  user_message_id: string;
+  assistant_message_id: string | null;
+  prompt_preview: string;
+  reply_preview: string | null;
+  created_at: string | null;
+  message_count: number;
+}
+
+/**
+ * 获取轻量会话轮次大纲投影
+ */
+export const getChatOutline = async (chatId: string): Promise<TurnOutlineItem[]> => {
+  return apiRequest(`/chats/${chatId}/outline`);
+};
+
 export interface TrajectoryStep {
   step_index: number;
   tool_name: string;
