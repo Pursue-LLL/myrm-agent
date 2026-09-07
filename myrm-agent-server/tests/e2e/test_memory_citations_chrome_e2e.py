@@ -12,7 +12,6 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     get_e2e_ui_url,
     open_mcp_page,
-    open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_react_e2e_bridge,
     wait_for_state,
