@@ -294,13 +294,17 @@ _NAVIGATE_RECALL_TAB_AND_VERIFY_EXTERNAL_SYNC_CARD_JS = """(() => {
   // Click the recall tab if not active
   recallTabBtn.click();
 
+  // Re-read buttons and text after tab switch
+  const currentText = document.body?.innerText || '';
+  const currentButtons = Array.from(document.querySelectorAll('button'));
+
   // Check if ExternalHarnessSyncCard is rendered
-  const hasCardTitle = /外部 Agent 会话召回|External Agent Transcript Recall|External Harness/i.test(text);
-  const hasSyncNowBtn = buttons.some(
-    (btn) => /立即增量同步|Sync Now|增量同步/i.test(btn.textContent || '')
+  const hasCardTitle = /外部 Agent 会话召回|External Agent Recall|External Agent Transcript Recall|External Harness/i.test(currentText);
+  const hasSyncNowBtn = currentButtons.some(
+    (btn) => /立即增量同步|立即同步|Sync Now|增量同步/i.test(btn.textContent || '')
   );
-  const hasPickDirBtn = buttons.some(
-    (btn) => /选择本地目录|Pick Directory|选择目录/i.test(btn.textContent || '')
+  const hasPickDirBtn = currentButtons.some(
+    (btn) => /选择本地目录|Pick Directory|Pick Local Folder|选择目录/i.test(btn.textContent || '')
   );
 
   return {
@@ -308,7 +312,7 @@ _NAVIGATE_RECALL_TAB_AND_VERIFY_EXTERNAL_SYNC_CARD_JS = """(() => {
     hasCardTitle,
     hasSyncNowBtn,
     hasPickDirBtn,
-    bodySnippet: text.slice(0, 500),
+    bodySnippet: currentText.slice(0, 500),
   };
 })()"""
 
