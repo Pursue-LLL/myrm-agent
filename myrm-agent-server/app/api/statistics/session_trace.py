@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from pathlib import Path
@@ -44,7 +45,9 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-async def _build_session_memory_events(db: AsyncSession, session_id: str) -> list[dict[str, object]]:
+async def _build_session_memory_events(
+    db: AsyncSession, session_id: str
+) -> list[dict[str, object]]:
     """Load session-scoped memory ledger events for replay overlay."""
     ledger = MemoryOperationLedgerService(db)
     rows = await ledger.list_events_for_session(session_id, limit=48)
@@ -66,7 +69,9 @@ async def _build_session_memory_events(db: AsyncSession, session_id: str) -> lis
     ]
 
 
-def _empty_trace_payload(session_id: str, memory_events: list[dict[str, object]]) -> dict[str, object]:
+def _empty_trace_payload(
+    session_id: str, memory_events: list[dict[str, object]]
+) -> dict[str, object]:
     return {
         "session_id": session_id,
         "metadata": {
@@ -85,6 +90,7 @@ def _empty_trace_payload(session_id: str, memory_events: list[dict[str, object]]
         "llm_calls": [],
         "errors": [],
         "human_feedback": [],
+        "anomalies": [],
         "memory_events": memory_events,
         "total_events": 0,
         "total_tokens": 0,
@@ -127,16 +133,22 @@ def _enrich_performance_and_gantt(trace_data: dict[str, object]) -> None:
 
             start_t = float(lc.get("start_time") or 0.0)
             end_t = float(lc.get("end_time") or (start_t + dur / 1000.0))
-            gantt_spans.append({
-                "type": "llm",
-                "label": lc.get("model_name") or "LLM Inference",
-                "start_time": start_t,
-                "end_time": end_t,
-                "duration_ms": dur,
-                "ttft_ms": lc.get("ttft_ms"),
-                "cache_read_tokens": cache_t,
-                "status": "success",
-            })
+            attempt_val = int(lc.get("attempt") or 1)
+            retry_count_val = int(lc.get("retry_count") or 0)
+            gantt_spans.append(
+                {
+                    "type": "llm",
+                    "label": lc.get("model_name") or "LLM Inference",
+                    "start_time": start_t,
+                    "end_time": end_t,
+                    "duration_ms": dur,
+                    "ttft_ms": lc.get("ttft_ms"),
+                    "cache_read_tokens": cache_t,
+                    "status": "success",
+                    "attempt": attempt_val,
+                    "retry_count": retry_count_val,
+                }
+            )
 
     total_tool_ms = 0.0
     if isinstance(tool_calls, list):
@@ -147,15 +159,17 @@ def _enrich_performance_and_gantt(trace_data: dict[str, object]) -> None:
             total_tool_ms += dur
             start_t = float(tc.get("start_time") or 0.0)
             end_t = float(tc.get("end_time") or (start_t + dur / 1000.0))
-            gantt_spans.append({
-                "type": "tool",
-                "label": tc.get("tool_name") or "Tool Call",
-                "start_time": start_t,
-                "end_time": end_t,
-                "duration_ms": dur,
-                "status": "success" if tc.get("success", True) else "error",
-                "error": tc.get("error"),
-            })
+            gantt_spans.append(
+                {
+                    "type": "tool",
+                    "label": tc.get("tool_name") or "Tool Call",
+                    "start_time": start_t,
+                    "end_time": end_t,
+                    "duration_ms": dur,
+                    "status": "success" if tc.get("success", True) else "error",
+                    "error": tc.get("error"),
+                }
+            )
 
     gantt_spans.sort(key=lambda x: float(x.get("start_time") or 0.0))
 
@@ -176,7 +190,9 @@ def _enrich_performance_and_gantt(trace_data: dict[str, object]) -> None:
     }
 
 
-async def _attach_security_labels(backend: FileEventLogBackend, session_id: str, trace_data: dict[str, object]) -> None:
+async def _attach_security_labels(
+    backend: FileEventLogBackend, session_id: str, trace_data: dict[str, object]
+) -> None:
     """Attach step-level security decisions to matching tool calls.
 
     Reads the session's ``security_audit`` event (batch-persisted at session end)
@@ -185,7 +201,9 @@ async def _attach_security_labels(backend: FileEventLogBackend, session_id: str,
     In-place mutation of ``trace_data["tool_calls"]``; no-op when no audit exists.
     """
     try:
-        events = await backend.get_events(session_id, EventFilter(event_types=frozenset({"security_audit"})))
+        events = await backend.get_events(
+            session_id, EventFilter(event_types=frozenset({"security_audit"}))
+        )
     except Exception:
         logger.debug("Failed to read security_audit events for lineage", exc_info=True)
         return
@@ -262,9 +280,15 @@ async def get_session_execution_trace(
         memory_events = await _build_session_memory_events(db, session_id)
 
         if not event_log_file.exists():
-            return success_response(data=sanitize_trace_payload(_empty_trace_payload(session_id, memory_events)))
+            return success_response(
+                data=sanitize_trace_payload(
+                    _empty_trace_payload(session_id, memory_events)
+                )
+            )
 
-        backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id=session_id)
+        backend = FileEventLogBackend(
+            log_dir=Path(settings.database.event_log_dir), session_id=session_id
+        )
         trace = await build_trace(backend, session_id)
         trace_data = trace.to_dict()
         await _attach_security_labels(backend, session_id, trace_data)
@@ -275,38 +299,34 @@ async def get_session_execution_trace(
     except Exception as e:
         if "not found" in str(e).lower():
             raise
-        raise internal_error(operation="Get session execution trace", exception=e) from e
+        raise internal_error(
+            operation="Get session execution trace", exception=e
+        ) from e
 
 
-@router.get("/traces/search")
-async def search_session_traces(
-    query: str = "",
-    limit: int = 20,
-    db: AsyncSession = Depends(get_db),
-) -> JSONResponse:
-    """Search traces by user task prompt or session title."""
-    try:
-        query_lower = query.strip().lower()
-        if not query_lower:
-            return success_response(data=[])
+def _search_traces_sync(
+    chats_meta: list[dict[str, object]],
+    log_dir_str: str,
+    query_lower: str,
+    limit: int,
+) -> list[dict[str, object]]:
+    """Synchronous file scanner for trace search executed in worker thread to prevent event loop blocking."""
+    log_dir = Path(log_dir_str)
+    matched: list[dict[str, object]] = []
 
-        stmt = select(Chat).order_by(Chat.updated_at.desc()).limit(limit * 2)
-        result = await db.execute(stmt)
-        chats = result.scalars().all()
+    for item in chats_meta:
+        chat_id = str(item["id"])
+        title = str(item.get("title") or "")
+        created_at_iso = item.get("created_at")
+        updated_at_iso = item.get("updated_at")
 
-        matched: list[dict[str, object]] = []
-        log_dir = Path(settings.database.event_log_dir)
+        log_file = log_dir / f"{chat_id}.jsonl"
+        task_input = ""
+        total_tokens = 0
+        cache_read_tokens = 0
+        prompt_tokens = 0
 
-        for chat in chats:
-            chat_id = str(chat.id)
-            log_file = log_dir / f"{chat_id}.jsonl"
-            if not log_file.exists():
-                continue
-
-            task_input = ""
-            total_tokens = 0
-            cache_read_tokens = 0
-            prompt_tokens = 0
+        if log_file.exists():
             try:
                 with open(log_file, "r", encoding="utf-8") as f:
                     for line in f:
@@ -338,26 +358,67 @@ async def search_session_traces(
             except Exception:
                 pass
 
-            title = str(chat.title or "")
-            if query_lower:
-                if query_lower not in title.lower() and query_lower not in task_input.lower():
-                    continue
+        if query_lower:
+            if (
+                query_lower not in title.lower()
+                and query_lower not in task_input.lower()
+            ):
+                continue
 
-            hit_ratio = round(cache_read_tokens / prompt_tokens, 4) if prompt_tokens > 0 else 0.0
+        hit_ratio = (
+            round(cache_read_tokens / prompt_tokens, 4) if prompt_tokens > 0 else 0.0
+        )
 
-            matched.append({
+        matched.append(
+            {
                 "session_id": chat_id,
                 "title": title,
                 "task_input": task_input[:200],
                 "total_tokens": total_tokens,
                 "cache_hit_ratio": hit_ratio,
-                "created_at": chat.created_at.isoformat() if chat.created_at else None,
-                "updated_at": chat.updated_at.isoformat() if chat.updated_at else None,
-            })
-            if len(matched) >= limit:
-                break
+                "created_at": created_at_iso,
+                "updated_at": updated_at_iso,
+            }
+        )
+        if len(matched) >= limit:
+            break
+
+    return matched
+
+
+@router.get("/traces/search")
+async def search_session_traces(
+    query: str = "",
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Search traces by user task prompt or session title."""
+    try:
+        query_lower = query.strip().lower()
+        if not query_lower:
+            return success_response(data=[])
+
+        stmt = select(Chat).order_by(Chat.updated_at.desc()).limit(limit * 2)
+        result = await db.execute(stmt)
+        chats = result.scalars().all()
+        chats_meta = [
+            {
+                "id": str(c.id),
+                "title": c.title,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+            }
+            for c in chats
+        ]
+
+        matched = await asyncio.to_thread(
+            _search_traces_sync,
+            chats_meta,
+            settings.database.event_log_dir,
+            query_lower,
+            limit,
+        )
 
         return success_response(data=[sanitize_trace_payload(item) for item in matched])
     except Exception as e:
         raise internal_error(operation="Search session traces", exception=e) from e
-

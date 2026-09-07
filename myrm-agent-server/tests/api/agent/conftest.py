@@ -217,6 +217,9 @@ def app() -> FastAPI:
     workflow_templates_module = import_module("app.api.workflow_templates.router")
     app.include_router(workflow_templates_module.router, prefix="/api/v1")
 
+    a2a_module = import_module("app.api.a2a.router")
+    app.include_router(a2a_module.router, prefix="/api/v1/a2a", tags=["a2a"])
+
     return app
 
 

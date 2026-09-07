@@ -13,13 +13,14 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronUp, ChevronDown, ClipboardList } from 'lucide-react';
+import { ChevronUp, ChevronDown, ClipboardList, Info, Clock, Layers } from 'lucide-react';
 import type { ProgressItem, RecoveryAction } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import { isUrl } from '@/lib/utils/urlUtils';
 import { Badge } from '@/components/primitives/badge';
+import { StepDetailModal } from './StepDetailModal';
 
 import { useScrollbarStyles } from './useScrollbarStyles';
 import {
@@ -70,6 +71,8 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
   const t = useTranslations('progressSteps');
   const tHumanize = useTranslations('humanize');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [selectedStepForModal, setSelectedStepForModal] = useState<ProgressItem | null>(null);
+  const [showAllIntermediateSteps, setShowAllIntermediateSteps] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useScrollbarStyles();
@@ -277,13 +280,25 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
               </span>
             )}
             {step.duration_ms != null && step.duration_ms > 0 && (
-              <span className="ml-2 text-xs tabular-nums text-muted-foreground/60 flex-shrink-0">
+              <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-mono tabular-nums bg-muted/60 text-muted-foreground border border-border/40 flex-shrink-0">
+                <Clock className="w-2.5 h-2.5 opacity-70" />
                 {step.duration_ms < 1000 ? `${step.duration_ms}ms` : `${(step.duration_ms / 1000).toFixed(1)}s`}
               </span>
             )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedStepForModal(step);
+              }}
+              title={t('viewDetailTooltip')}
+              className="ml-auto opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all duration-150 shrink-0"
+            >
+              <Info className="w-3.5 h-3.5" />
+            </button>
             {step.progress_percent != null && (
               <span
-                className={`ml-auto text-xs tabular-nums flex-shrink-0 ${
+                className={`ml-1 text-xs tabular-nums flex-shrink-0 ${
                   step.notify_level === 'alert'
                     ? 'text-destructive'
                     : step.notify_level === 'warn'
@@ -726,10 +741,75 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
               )}
             </div>
 
-            {treeRoots.map((root) => renderTreeNode(root, 0))}
+            {(() => {
+              const shouldFold = treeRoots.length > 8 && !showAllIntermediateSteps;
+              if (!shouldFold) {
+                return (
+                  <>
+                    {treeRoots.map((root) => renderTreeNode(root, 0))}
+                    {treeRoots.length > 8 && showAllIntermediateSteps && (
+                      <div className="relative mt-3 pl-8">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowAllIntermediateSteps(false);
+                          }}
+                          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/30 hover:bg-muted/60 border border-border/40 text-xs text-muted-foreground hover:text-foreground transition-all duration-200"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" />
+                          {t('folding.showLess')}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              }
+
+              const headRoots = treeRoots.slice(0, 2);
+              const intermediateRoots = treeRoots.slice(2, treeRoots.length - 3);
+              const tailRoots = treeRoots.slice(treeRoots.length - 3);
+
+              return (
+                <>
+                  {headRoots.map((root) => renderTreeNode(root, 0))}
+
+                  <div className="relative my-3 pl-8">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowAllIntermediateSteps(true);
+                      }}
+                      className="group/fold w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-muted/40 hover:bg-muted/70 border border-border/50 text-xs text-muted-foreground hover:text-foreground transition-all duration-200"
+                    >
+                      <span className="flex items-center gap-2 font-medium">
+                        <Layers className="w-3.5 h-3.5 text-primary/70 group-hover/fold:text-primary transition-colors" />
+                        {t('folding.showMore', { count: intermediateRoots.length })}
+                      </span>
+                      <Badge variant="outline" className="text-[10px] font-mono h-5 px-2 bg-background/50 border-border/40">
+                        {t('folding.stepSummary', { completed: intermediateRoots.length, total: treeRoots.length })}
+                      </Badge>
+                    </button>
+                  </div>
+
+                  {tailRoots.map((root) => renderTreeNode(root, 0))}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>
+
+      <StepDetailModal
+        step={selectedStepForModal}
+        open={Boolean(selectedStepForModal)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedStepForModal(null);
+          }
+        }}
+      />
     </>
   );
 });

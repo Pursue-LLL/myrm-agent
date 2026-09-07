@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import AgentConfigCards from '@/components/features/chat-window/agent-config-panel/AgentConfigCards';
 import { AgentOpenAPIServicesTab } from './AgentOpenAPIServicesTab';
 import { AgentSubagentBinding } from './AgentSubagentBinding';
+import { AgentA2ABinding } from './AgentA2ABinding';
 import { AgentSharedContextBinding } from './AgentSharedContextBinding';
 import { AgentNotifyTargets } from './AgentNotifyTargets';
 import { AgentLoadoutSummary } from '@/components/features/loadout/AgentLoadoutSummary';
@@ -76,6 +77,10 @@ export interface AgentCapabilitiesTabProps {
     dismissSubagentRebindHint: () => void;
     notifyTargets: NotifyTarget[];
     setNotifyTargets: (val: NotifyTarget[]) => void;
+    a2aEnabled: boolean;
+    setA2aEnabled: (val: boolean) => void;
+    a2aTrustedPeerIds: string[];
+    setA2aTrustedPeerIds: (val: string[]) => void;
   };
   agentId: string | null;
   isNew: boolean;
@@ -155,6 +160,14 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
         onChange={editor.setSelectedSubagentIds}
         showRebindHint={editor.subagentRebindHint}
         onDismissRebindHint={editor.dismissSubagentRebindHint}
+      />
+
+      <AgentA2ABinding
+        a2aEnabled={editor.a2aEnabled}
+        onA2AEnabledChange={editor.setA2aEnabled}
+        selectedPeerIds={editor.a2aTrustedPeerIds}
+        onSelectedPeerIdsChange={editor.setA2aTrustedPeerIds}
+        readonly={editor.isReadonly}
       />
 
       <AgentSharedContextBinding

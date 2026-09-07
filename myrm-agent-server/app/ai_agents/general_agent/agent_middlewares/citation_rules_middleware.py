@@ -10,6 +10,7 @@ from collections.abc import Awaitable, Callable, Sequence
 
 from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain_core.messages import HumanMessage, ToolMessage
+from myrm_agent_harness.utils.locale import is_chinese
 
 from app.ai_agents.prompts.general_agent_prompt import get_citation_rules_if_needed
 
@@ -33,12 +34,7 @@ def _has_external_sources_in_current_turn(messages: Sequence[object]) -> bool:
     Only scans messages after the last HumanMessage to avoid false positives
     from previous turns.
     """
-    last_human_idx = -1
-    for i in range(len(messages) - 1, -1, -1):
-        if isinstance(messages[i], HumanMessage):
-            last_human_idx = i
-            break
-
+    last_human_idx = _get_last_human_turn_index(messages)
     if last_human_idx == -1:
         logger.debug("No HumanMessage found when checking for external sources")
         return False
@@ -107,17 +103,37 @@ class CitationRulesMiddleware(AgentMiddleware):  # type: ignore[type-arg]
         if should_inject:
             locale_val = ctx.get("prompt_locale") if ctx is not None else None
             locale = locale_val if isinstance(locale_val, str) else None
+
+            # Fallback to detecting language from the current turn's HumanMessage
+            if not locale or not is_chinese(locale):
+                if 0 <= turn_idx < len(messages):
+                    h_msg = messages[turn_idx]
+                    h_content = getattr(h_msg, "content", None)
+                    if isinstance(h_content, str) and is_chinese(h_content):
+                        locale = "zh-CN"
+
             citation_content = get_citation_rules_if_needed(True, locale=locale)
 
             logger.info(
-                "Citation rules: turn_idx=%s, has_external_sources=True, will_inject=%s",
+                "Citation rules: turn_idx=%s, has_external_sources=True, will_inject=%s, locale=%s",
                 turn_idx,
                 citation_content is not None,
+                locale,
             )
 
             if citation_content:
+                reminder = (
+                    "\n\n【任务完整性提醒】\n你必须同时严格遵循并满足上方用户原始提问中要求的所有特定输出格式、末尾特定标记及约束条件。"
+                    if is_chinese(locale)
+                    else (
+                        "\n\n[TASK INTEGRITY REMINDER]\n"
+                        "You must also strictly fulfill all output format instructions, custom endings, "
+                        "and specific constraints specified in the original user request above."
+                    )
+                )
+                instruction_text = f"[SYSTEM INSTRUCTION]\n{citation_content}{reminder}"
                 new_messages = list(request.messages)
-                new_messages.append(HumanMessage(content=f"[SYSTEM INSTRUCTION]\n{citation_content}"))
+                new_messages.append(HumanMessage(content=instruction_text))
                 request = request.override(messages=new_messages)
                 if ctx is not None:
                     ctx[_CITATION_RULES_TURN_KEY] = turn_idx

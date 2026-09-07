@@ -377,6 +377,8 @@ export interface TraceLLMCall {
   completion_tokens: number;
   total_tokens: number;
   cache_read_tokens?: number;
+  attempt?: number;
+  retry_count?: number;
 }
 
 export interface GanttSpan {
@@ -389,6 +391,8 @@ export interface GanttSpan {
   cache_read_tokens?: number;
   status: 'success' | 'error';
   error?: string | null;
+  attempt?: number;
+  retry_count?: number;
 }
 
 export interface TracePerformanceSummary {
@@ -447,6 +451,15 @@ export interface TraceHumanFeedback {
   approved: boolean | null;
 }
 
+export interface TraceAnomaly {
+  anomaly_type: 'tool_loop' | 'token_surge' | 'retry_backoff' | string;
+  severity: 'warning' | 'critical' | string;
+  message: string;
+  tool_name?: string | null;
+  step_sequence?: number | null;
+  details?: Record<string, unknown>;
+}
+
 export interface ExecutionTrace {
   session_id: string;
   metadata: TraceMetadata;
@@ -460,6 +473,7 @@ export interface ExecutionTrace {
   llm_calls: TraceLLMCall[];
   errors: TraceError[];
   human_feedback: TraceHumanFeedback[];
+  anomalies?: TraceAnomaly[];
   memory_events?: TraceMemoryEvent[];
   performance_summary?: TracePerformanceSummary;
   total_events: number;

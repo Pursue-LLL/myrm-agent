@@ -30,11 +30,13 @@ import {
   getUsageStatistics,
   getGlobalActivityPatterns,
   getTopSessions,
+  getPromptCacheRadar,
   type DailyUsage,
   type SessionUsage,
   type UsageStats,
   type GlobalActivityPatterns,
   type TopSession,
+  type PromptCacheRadarData,
 } from '@/services/statistics';
 import { getWikiEvidenceSummary, type WikiEvidenceSummary } from '@/services/wiki/evidenceMetrics';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -58,6 +60,7 @@ function UsageStatisticsSection() {
   const [activity, setActivity] = useState<GlobalActivityPatterns | null>(null);
   const [topSessions, setTopSessions] = useState<TopSession[]>([]);
   const [wikiEvidence, setWikiEvidence] = useState<WikiEvidenceSummary | null>(null);
+  const [promptCacheRadar, setPromptCacheRadar] = useState<PromptCacheRadarData | null>(null);
   const [topSessionMetric, setTopSessionMetric] = useState<'duration' | 'messages' | 'tokens' | 'tool_calls'>(
     'duration',
   );
@@ -70,7 +73,7 @@ function UsageStatisticsSection() {
     setLoading(true);
     setError(null);
     try {
-      const [statsData, dailyData, sessionData, activityData, topSessionsData, wikiEvidenceData] = await Promise.all([
+      const [statsData, dailyData, sessionData, activityData, topSessionsData, wikiEvidenceData, cacheRadarData] = await Promise.all([
         getUsageStatistics(),
         getDailyUsage(30),
         getSessionUsage(10),
@@ -80,6 +83,10 @@ function UsageStatisticsSection() {
           console.warn('[UsageStatistics] Failed to load wiki evidence summary:', error);
           return null;
         }),
+        getPromptCacheRadar(timeRange).catch((error) => {
+          console.warn('[UsageStatistics] Failed to load prompt cache radar:', error);
+          return null;
+        }),
       ]);
       setStats(statsData);
       setDaily(dailyData.daily);
@@ -87,6 +94,7 @@ function UsageStatisticsSection() {
       setActivity(activityData);
       setTopSessions(topSessionsData);
       setWikiEvidence(wikiEvidenceData);
+      setPromptCacheRadar(cacheRadarData);
     } catch (e) {
       console.error('[UsageStatistics] Failed to load data:', e);
       setError(e instanceof Error ? e.message : 'Failed to load statistics');
@@ -210,6 +218,57 @@ function UsageStatisticsSection() {
             colorClass="bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400"
           />
         </div>
+
+        {/* Global Prompt Cache Radar */}
+        {promptCacheRadar && promptCacheRadar.sessions_tracked > 0 && (
+          <div className="rounded-xl border border-border/50 bg-linear-to-r from-emerald-500/5 via-teal-500/5 to-primary/5 p-4 mt-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <IconDatabase className="w-4 h-4 text-emerald-500" />
+                <span className="font-semibold text-sm text-foreground">
+                  {locale === 'zh' ? '全局 Prompt Cache 效能雷达' : 'Global Prompt Cache Radar'}
+                </span>
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-medium">
+                  {locale === 'zh'
+                    ? `${promptCacheRadar.days}天内 ${promptCacheRadar.sessions_tracked}个会话`
+                    : `${promptCacheRadar.sessions_tracked} sessions (${promptCacheRadar.days}d)`}
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {locale === 'zh' ? '累计节约美金: ' : 'Est. Total Savings: '}
+                <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400 text-sm">
+                  ${promptCacheRadar.estimated_savings_usd.toFixed(4)}
+                </span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="bg-background/80 rounded-lg p-2 border border-border/40">
+                <div className="text-muted-foreground text-[11px]">{locale === 'zh' ? '缓存命中率' : 'Cache Hit Ratio'}</div>
+                <div className="text-base font-bold text-foreground font-mono mt-0.5">
+                  {(promptCacheRadar.prompt_cache_hit_ratio * 100).toFixed(1)}%
+                </div>
+              </div>
+              <div className="bg-background/80 rounded-lg p-2 border border-border/40">
+                <div className="text-muted-foreground text-[11px]">{locale === 'zh' ? '缓存复用 Tokens' : 'Cached Tokens'}</div>
+                <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
+                  {formatTokenCount(promptCacheRadar.total_cache_read_tokens)}
+                </div>
+              </div>
+              <div className="bg-background/80 rounded-lg p-2 border border-border/40">
+                <div className="text-muted-foreground text-[11px]">{locale === 'zh' ? '冷启动 Tokens' : 'Fresh Input'}</div>
+                <div className="text-base font-bold text-foreground font-mono mt-0.5">
+                  {formatTokenCount(promptCacheRadar.fresh_input_tokens)}
+                </div>
+              </div>
+              <div className="bg-background/80 rounded-lg p-2 border border-border/40">
+                <div className="text-muted-foreground text-[11px]">{locale === 'zh' ? '总 Prompt Tokens' : 'Total Prompt'}</div>
+                <div className="text-base font-bold text-foreground font-mono mt-0.5">
+                  {formatTokenCount(promptCacheRadar.total_prompt_tokens)}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </SettingsSection>
 
       {wikiEvidence && (

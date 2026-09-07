@@ -39,7 +39,9 @@ class TestGetDesktopPermissions:
         mock_status = AsyncMock()
         mock_status.accessibility = True
         mock_status.screen_recording = True
+        mock_status.screen_recording_capturable = True
         mock_status.all_granted = True
+        mock_status.capture_ready = True
         mock_status.platform = "macos"
         mock_status.settings_deeplinks = {
             "accessibility": "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
@@ -58,6 +60,7 @@ class TestGetDesktopPermissions:
         data = response.json()
         assert data["accessibility"] is True
         assert data["screen_recording"] is True
+        assert data["screen_recording_capturable"] is True
         assert data["all_granted"] is True
         assert data["platform"] == "macos"
         assert "accessibility" in data["settings_deeplinks"]
@@ -70,7 +73,9 @@ class TestGetDesktopPermissions:
         mock_status = AsyncMock()
         mock_status.accessibility = False
         mock_status.screen_recording = True
+        mock_status.screen_recording_capturable = True
         mock_status.all_granted = False
+        mock_status.capture_ready = False
         mock_status.platform = "macos"
         mock_status.settings_deeplinks = {
             "accessibility": "url://a",
@@ -98,7 +103,9 @@ class TestGetDesktopPermissions:
         mock_status = AsyncMock()
         mock_status.accessibility = True
         mock_status.screen_recording = False
+        mock_status.screen_recording_capturable = False
         mock_status.all_granted = False
+        mock_status.capture_ready = False
         mock_status.platform = "macos"
         mock_status.settings_deeplinks = {
             "accessibility": "url://a",

@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.services.hosting.packager::collect_publish_files, validate_publish_payload
+- app.services.hosting.viewer_scaffold::can_scaffold_viewer (POS: standalone viewer capability check)
 - app.services.hosting.artifact_files::resolve_artifact_deploy_files (POS: vault file collection)
 
 [OUTPUT]
@@ -22,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.hosting.artifact_files import resolve_artifact_deploy_files
 from app.services.hosting.packager import PublishFile, validate_publish_payload
+from app.services.hosting.viewer_scaffold import can_scaffold_viewer
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,13 @@ def evaluate_deploy_preflight(files: dict[str, PublishFile]) -> DeployPreflightR
     try:
         validate_publish_payload(files)
     except ValueError as exc:
+        if can_scaffold_viewer(files):
+            return DeployPreflightResult(
+                deployable=True,
+                reason="OK",
+                message="Artifact is ready to deploy with adaptive viewer.",
+                hint=None,
+            )
         msg = str(exc)
         html_entries = [name for name in files if name.lower().endswith((".html", ".htm"))]
         code_entries = [name for name in files if name.lower().endswith((".tsx", ".ts", ".jsx", ".js", ".vue", ".svelte"))]

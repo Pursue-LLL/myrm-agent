@@ -56,6 +56,7 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 - **轨道**：默认 Saved Agent、Channel/IM/Cron/Kanban/Eval/Voice 等非 fast Web 入口。
 - **CORE file/bash**：Harness `tool_layers.py` CORE 层 Turn1 eager；前端无开关。
 - **Server 执行层**：`resolve_builtin_tool_flags()` 后调用 `tool_mount.resolve_agent_mount()`，再传入 harness `get_meta_tools`。
+- **Web Search 动态配置与弹性激活**：当 `enabled_builtin_tools` 包含 `web_search` 且初始未拿到搜索配置时，`converter.py` 主动触发 `invalidate_user_configs_cache()` 与 `reload_user_configs()` 刷新配置；一旦存在有效搜索配置，保障 `search_available=True` 注入，避免因即时网络探测延迟或 TTL 探针抖动导致 `web_search_tool` 被误剥离。
 - **Channel/IM**：仅绑定 General Agent（`SqlTopicManager.bind_topic` 拒绝 `prompt_mode=search`；`resolve_topic` / `get_all_topics` 读时清除 legacy Search 绑定）；未绑定时 `DEFAULT_ENABLED_BUILTIN_TOOLS` + baseline。
 - **persist 语义**：`enabled_builtin_tools` 不含 `file_ops` / `code_execute`；写入 DB 时 strip baseline ID。
 

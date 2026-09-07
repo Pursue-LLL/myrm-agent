@@ -4,6 +4,7 @@
 
 [INPUT]
 - app.services.hosting.registry (POS: provider lookup by target type)
+- app.services.hosting.viewer_scaffold::ensure_viewer_wrapper_for_payload (POS: viewer scaffolding)
 
 [OUTPUT]
 - publish_artifact_to_target: end-to-end publication orchestration
@@ -23,6 +24,7 @@ from app.services.hosting.publication_store import get_publication, upsert_publi
 from app.services.hosting.registry import get_hosting_provider
 from app.services.hosting.targets import get_hosting_target
 from app.services.hosting.types import PublicationResult
+from app.services.hosting.viewer_scaffold import ensure_viewer_wrapper_for_payload
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +99,9 @@ async def publish_artifact_to_target(
             status="ERROR",
             error="Credential resolution failed",
         )
+
+    if target.provider_type != "http_webhook":
+        files = ensure_viewer_wrapper_for_payload(files, title=artifact.name or "Artifact")
 
     if password.strip():
         files = package_encrypted_publish_files(files, password.strip(), title=artifact.name or "Protected Artifact")

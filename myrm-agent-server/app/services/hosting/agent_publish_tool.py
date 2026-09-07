@@ -24,7 +24,7 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 _ARTIFACT_PUBLISH_DESCRIPTION = (
-    "Publish a generated HTML artifact to the user's configured hosting target "
+    "Publish a generated artifact (HTML application, PDF document, Excel spreadsheet, Markdown report, etc.) to the user's configured hosting target "
     "(Vercel, Cloudflare Pages, Netlify, or HTTP Webhook) and return the live URL. "
     "Requires artifact_id from a previously generated artifact in this conversation. "
     "Only use when the user explicitly asks to publish, deploy, or get a live link."

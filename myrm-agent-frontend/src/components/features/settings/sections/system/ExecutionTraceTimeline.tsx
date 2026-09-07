@@ -210,6 +210,43 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
         </div>
       )}
 
+      {trace.anomalies && trace.anomalies.length > 0 && (
+        <div className="space-y-2">
+          {trace.anomalies.map((anomaly, idx) => {
+            const isCritical = anomaly.severity === 'critical';
+            return (
+              <div
+                key={`anomaly-${idx}`}
+                className={cn(
+                  'rounded-lg border p-3 flex items-start gap-2.5 text-xs transition-colors',
+                  isCritical
+                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                    : 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+                )}
+              >
+                <IconShieldAlert
+                  className={cn(
+                    'h-4 w-4 shrink-0 mt-0.5',
+                    isCritical ? 'text-rose-500' : 'text-amber-500',
+                  )}
+                />
+                <div className="space-y-0.5 flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold uppercase tracking-wider text-[10px]">
+                      {anomaly.anomaly_type.replace('_', ' ')}
+                    </span>
+                    <span className="text-[10px] font-mono opacity-80">
+                      {anomaly.severity}
+                    </span>
+                  </div>
+                  <p className="text-xs leading-relaxed">{anomaly.message}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {trace.performance_summary && (
         <TraceGanttWaterfall performance={trace.performance_summary} totalDurationMs={trace.duration_ms} />
       )}

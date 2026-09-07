@@ -176,4 +176,28 @@ describe('ExecutionTraceTimeline tool call security labels', () => {
     expect(screen.getByText('Injected Next.js App Router rules into prompt')).toBeInTheDocument();
     expect(screen.getByText('influenceCount')).toBeInTheDocument();
   });
+
+  it('renders anomaly banners with critical and warning styles when anomalies exist', async () => {
+    const trace = baseTrace({
+      anomalies: [
+        {
+          anomaly_type: 'tool_loop',
+          severity: 'critical',
+          message: 'Tool bash failed or repeated consecutively 3 times.',
+          tool_name: 'bash',
+          step_sequence: 1,
+        },
+        {
+          anomaly_type: 'retry_backoff',
+          severity: 'warning',
+          message: 'Model provider experienced retries/backoff (max attempt: 2).',
+        },
+      ],
+    });
+    await renderTrace(trace);
+    expect(screen.getByText(/tool loop/i)).toBeInTheDocument();
+    expect(screen.getByText(/retry backoff/i)).toBeInTheDocument();
+    expect(screen.getByText('Tool bash failed or repeated consecutively 3 times.')).toBeInTheDocument();
+    expect(screen.getByText('Model provider experienced retries/backoff (max attempt: 2).')).toBeInTheDocument();
+  });
 });

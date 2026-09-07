@@ -96,10 +96,14 @@ class A2AServerService(A2ATaskService):
         )
 
         # Dispatch background runner
-        run_coro = self._execute_task_in_background(final_task_id, clean_prompt, agent_id)
+        run_coro = self._execute_task_in_background(
+            final_task_id, clean_prompt, agent_id
+        )
         bg_task = asyncio.create_task(run_coro)
         self._running_tasks[final_task_id] = bg_task
-        bg_task.add_done_callback(lambda _: self._running_tasks.pop(final_task_id, None))
+        bg_task.add_done_callback(
+            lambda _: self._running_tasks.pop(final_task_id, None)
+        )
 
         return saved
 
@@ -195,7 +199,9 @@ class A2AServerService(A2ATaskService):
         """Run agent reasoning and synthesize textual output and artifacts."""
         # Clean simulation/execution pipeline: returns structured synthesis
         # In a real environment, this connects to GeneralAgent or platform LLM.
-        response_text = f"Task executed successfully by agent [{agent_id or 'default'}]: {prompt}"
+        response_text = (
+            f"Task executed successfully by agent [{agent_id or 'default'}]: {prompt}"
+        )
         artifacts: list[TaskArtifact] = [
             TaskArtifact(
                 name="output.txt",

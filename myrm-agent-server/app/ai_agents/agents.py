@@ -205,6 +205,8 @@ class GeneralAgentParams(BaseAgentParams):
     search_depth: str = "normal"
     notify_targets: tuple[dict[str, str], ...] = ()
     tool_gateway_config: dict[str, object] | None = None
+    a2a_enabled: bool = False
+    a2a_trusted_peer_ids: list[str] = []
 
 
 class AgentFactory:
@@ -381,6 +383,8 @@ class AgentFactory:
             prompt_mode=params.prompt_mode,
             search_depth=params.search_depth,
             notify_targets=params.notify_targets,
+            a2a_enabled=params.a2a_enabled,
+            a2a_trusted_peer_ids=params.a2a_trusted_peer_ids,
         )
 
 

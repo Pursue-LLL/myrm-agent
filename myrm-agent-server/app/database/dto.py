@@ -533,6 +533,8 @@ class AgentBase(BaseModel):
         default=None,
         description="What to do with a new user message while the agent is busy: redirect/steer/queue",
     )
+    a2a_enabled: bool = Field(default=False, description="是否启用 A2A (Agent-to-Agent) 协议与远程编排能力")
+    a2a_trusted_peer_ids: list[str] = Field(default_factory=list, description="该 Agent 授权使用的可信远程 A2A Peer ID 列表")
 
 
 class AgentCreate(AgentBase):
@@ -647,6 +649,8 @@ class AgentUpdate(BaseModel):
         None,
         description="What to do with a new user message while the agent is busy: redirect/steer/queue. None=不修改。",
     )
+    a2a_enabled: bool | None = Field(None, description="是否启用 A2A 协议与远程编排能力。None=不修改。")
+    a2a_trusted_peer_ids: list[str] | None = Field(None, description="该 Agent 授权使用的可信远程 A2A Peer ID 列表。None=不修改。")
 
 
 class AgentResponse(AgentBase):
@@ -694,3 +698,70 @@ class AgentListItem(BaseModel):
     updated_at: datetime | None = Field(None, description="更新时间")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# A2A (Agent-to-Agent) Peer Registry DTOs
+# ============================================================================
+
+
+class A2APeerBase(BaseModel):
+    """A2A 远程可信 Peer 基础模型"""
+
+    name: str = Field(..., description="远程 Agent 节点名称", max_length=100)
+    base_url: str = Field(..., description="远程 Agent A2A 服务根 URL", max_length=1024)
+    description: str | None = Field(None, description="节点描述")
+    auth_type: str = Field(default="bearer", description="认证类型: bearer/api_key/none")
+    is_active: bool = Field(default=True, description="是否启用")
+
+
+class A2APeerCreate(A2APeerBase):
+    """创建 A2A Peer 请求模型"""
+
+    auth_token: str | None = Field(None, description="认证 Token / API Key (明文，服务端加密保存)")
+
+
+class A2APeerUpdate(BaseModel):
+    """更新 A2A Peer 请求模型"""
+
+    name: str | None = Field(None, description="远程 Agent 节点名称", max_length=100)
+    base_url: str | None = Field(None, description="远程 Agent A2A 服务根 URL", max_length=1024)
+    description: str | None = Field(None, description="节点描述")
+    auth_type: str | None = Field(None, description="认证类型: bearer/api_key/none")
+    auth_token: str | None = Field(None, description="更新的 Token (不传则保持不变)")
+    is_active: bool | None = Field(None, description="是否启用")
+
+
+class A2APeerResponse(A2APeerBase):
+    """A2A Peer 响应模型 (密钥已脱敏掩码)"""
+
+    id: str = Field(..., description="Peer 唯一 ID")
+    has_token: bool = Field(default=False, description="是否已配置认证密钥")
+    masked_token: str | None = Field(None, description="脱敏后的 Token 预览")
+    last_probed_at: datetime | None = Field(None, description="最近探活时间")
+    last_probe_status: str | None = Field(None, description="探活状态: ok/error/unreachable")
+    last_probe_error: str | None = Field(None, description="探活错误信息")
+    cached_card_json: dict[str, Any] | None = Field(None, description="缓存的远端 AgentCard")
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class A2APeerProbeRequest(BaseModel):
+    """探活请求模型"""
+
+    url: str | None = Field(None, description="即时探活目标 URL（未保存时使用）")
+    auth_token: str | None = Field(None, description="即时探活 Token")
+    peer_id: str | None = Field(None, description="已保存 Peer ID（使用库中配置）")
+
+
+class A2APeerProbeResponse(BaseModel):
+    """探活结果响应模型"""
+
+    success: bool = Field(..., description="是否探测成功")
+    status: str = Field(..., description="探测状态: ok/error/ssrf_blocked/unreachable")
+    latency_ms: float = Field(default=0.0, description="探测延迟毫秒数")
+    agent_card: dict[str, Any] | None = Field(None, description="获取到的远端 AgentCard JSON")
+    error: str | None = Field(None, description="错误详情")
+

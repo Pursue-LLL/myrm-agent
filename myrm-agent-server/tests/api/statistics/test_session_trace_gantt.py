@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from app.api.statistics.session_trace import _empty_trace_payload, _enrich_performance_and_gantt
+from app.api.statistics.session_trace import (
+    _empty_trace_payload,
+    _enrich_performance_and_gantt,
+)
 
 
 def test_empty_trace_payload_contains_performance_summary():
@@ -75,6 +78,7 @@ def test_enrich_performance_and_gantt_happy_path():
     assert spans[0]["type"] == "llm"
     assert spans[0]["start_time"] == 10.0
     assert spans[0]["cache_read_tokens"] == 800
+    assert spans[0]["attempt"] == 1
 
     assert spans[1]["type"] == "tool"
     assert spans[1]["start_time"] == 11.5
@@ -83,6 +87,34 @@ def test_enrich_performance_and_gantt_happy_path():
     assert spans[2]["type"] == "llm"
     assert spans[2]["start_time"] == 14.0
     assert spans[2]["cache_read_tokens"] == 1000
+    assert spans[2]["attempt"] == 1
+
+
+def test_enrich_performance_retry_attempt_preserved():
+    """Verify attempt and retry_count are correctly propagated to gantt spans."""
+    trace_data = {
+        "llm_calls": [
+            {
+                "sequence": 1,
+                "model_name": "deepseek-v3",
+                "duration_ms": 3500.0,
+                "start_time": 10.0,
+                "end_time": 13.5,
+                "prompt_tokens": 500,
+                "completion_tokens": 100,
+                "cache_read_tokens": 400,
+                "attempt": 3,
+                "retry_count": 2,
+            }
+        ],
+        "tool_calls": [],
+    }
+    _enrich_performance_and_gantt(trace_data)
+    perf = trace_data["performance_summary"]
+    spans = perf["gantt_spans"]
+    assert len(spans) == 1
+    assert spans[0]["attempt"] == 3
+    assert spans[0]["retry_count"] == 2
 
 
 def test_enrich_performance_zero_tokens_division_safety():
@@ -110,3 +142,36 @@ def test_enrich_performance_zero_tokens_division_safety():
     assert len(perf["gantt_spans"]) == 1
     assert perf["gantt_spans"][0]["status"] == "error"
     assert perf["gantt_spans"][0]["error"] == "Command failed"
+
+
+def test_enrich_performance_parallel_tool_calls_sorting():
+    """Verify concurrent/overlapping tool calls preserve sequence and start time sorting."""
+    trace_data = {
+        "llm_calls": [],
+        "tool_calls": [
+            {
+                "sequence": 1,
+                "tool_name": "web_fetch_1",
+                "duration_ms": 500.0,
+                "start_time": 2.0,
+                "end_time": 2.5,
+                "success": True,
+            },
+            {
+                "sequence": 2,
+                "tool_name": "web_fetch_2",
+                "duration_ms": 300.0,
+                "start_time": 2.0,
+                "end_time": 2.3,
+                "success": True,
+            },
+        ],
+    }
+    _enrich_performance_and_gantt(trace_data)
+    spans = trace_data["performance_summary"]["gantt_spans"]
+    assert len(spans) == 2
+    assert spans[0]["start_time"] == 2.0
+    assert spans[1]["start_time"] == 2.0
+    assert spans[0]["duration_ms"] == 500.0
+    assert spans[1]["duration_ms"] == 300.0
+

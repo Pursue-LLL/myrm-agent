@@ -202,6 +202,9 @@ async def build_general_agent(
     if agent_wrapper.enable_kanban:
         await _setup_kanban_tools(agent_wrapper, tools)
 
+    if getattr(agent_wrapper, "a2a_enabled", False):
+        await agent_wrapper._setup_a2a_tools(tools)
+
     await agent_wrapper._setup_artifact_publish_tool(tools)
 
     from app.ai_agents.general_agent.external_agents import (

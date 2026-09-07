@@ -42,8 +42,12 @@ async def test_media_config(
     from app.core.channel_bridge.config_loader import load_user_configs
     from app.core.utils.response_utils import error_response, success_response
 
-    configs = await load_user_configs()
-    providers_dict = configs.providers_dict
+    try:
+        configs = await load_user_configs()
+        providers_dict = configs.providers_dict
+    except Exception as exc:
+        logger.warning('Failed to load user configs for media provider status: %s', exc)
+        providers_dict = {}
 
     if request.media_type == "image":
         key_provider = _resolve_image_api_key_provider(request.model or "dall-e-3")

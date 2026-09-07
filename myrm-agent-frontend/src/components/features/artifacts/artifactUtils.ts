@@ -297,7 +297,16 @@ export function publicationsChanged(previous: ArtifactPublication[], next: Artif
   return publicationSnapshot(previous) !== publicationSnapshot(next);
 }
 
-const DEPLOY_CANDIDATE_TYPES: ReadonlySet<ArtifactType> = new Set(['html', 'code']);
+const DEPLOY_CANDIDATE_TYPES: ReadonlySet<ArtifactType> = new Set([
+  'html',
+  'code',
+  'document',
+  'pdf',
+  'spreadsheet',
+  'presentation',
+  'word_document',
+  'svg',
+]);
 
 export function isDeployCandidateArtifactType(type: ArtifactType): boolean {
   return DEPLOY_CANDIDATE_TYPES.has(type);

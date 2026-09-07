@@ -880,6 +880,14 @@
     "noSubagents": "未绑定子智能体",
     "removeSubagent": "移除",
     "dismissRebindHint": "知道了",
+    "a2aBinding": "A2A 跨框架远程委派",
+    "a2aBindingDesc": "开启后，该智能体支持遵循 A2A (Agent-to-Agent v1.0) 协议跨机器委派调用受信任的远程 Agent 节点",
+    "a2aEnableSwitch": "启用 A2A 协议委派",
+    "a2aTrustedPeers": "授权的可信远程 A2A 节点",
+    "a2aTrustedPeersDesc": "选择该智能体执行多 Agent 协同与编排时允许调用的远程 Peer",
+    "addA2APeer": "授权节点",
+    "noA2APeers": "未授权任何远程节点（点击添加进行授权）",
+    "manageA2APeersLink": "前往「集成设置」管理所有远程节点名册",
     "allowDiscovery": {
       "title": "允许被其他智能体发现并委派",
       "description": "开启后，其他智能体在自动组队时可发现并调用此智能体。关闭后，此智能体不会被自动组队发现，但你仍可通过 @ 显式指定它。"
@@ -1094,10 +1102,11 @@
         "missing": "缺少桌面权限",
         "accessibilityMissing": "未授予辅助功能权限",
         "screenRecordingMissing": "未授予屏幕录制权限",
+        "captureNotReady": "屏幕捕获不可用（黑屏或空帧）。请重新开启屏幕录制并解锁屏幕后再试。",
         "openSettings": "打开设置",
         "recheckBtn": "重新检查",
         "checkFailed": "无法检测桌面权限，请在后端就绪后重试。",
-        "hint": "桌面控制需要 macOS 辅助功能和屏幕录制权限。"
+        "hint": "桌面控制需要辅助功能、屏幕录制权限，以及可用的屏幕捕获探测。"
       },
       "mediaCredential": {
         "title": "媒体工具需要 API 凭证",
@@ -2525,6 +2534,8 @@
       "toggleTitle": "切换桌面检查器",
       "viewMode": "查看模式",
       "inspectMode": "检查模式",
+      "searchPlaceholder": "搜索元素名称、角色或 @dref...",
+      "clearSearch": "清除搜索",
       "close": "关闭",
       "refresh": "刷新",
       "enabledHint": "Agent 使用桌面工具后，桌面检查器将在此打开",
@@ -3460,6 +3471,12 @@
       "path": "路径",
       "filePattern": "文件"
     },
+    "folding": {
+      "showMore": "展开中间 {count} 个步骤",
+      "showLess": "收起中间步骤",
+      "stepSummary": "已完成 {completed}/{total} 个步骤"
+    },
+    "viewDetailTooltip": "查看执行详情与入参数据",
     "evictedOutput": {
       "savedHint": "完整工具输出已保存至沙箱",
       "savedStderrHint": "完整错误输出已保存至沙箱",
@@ -3483,7 +3500,31 @@
       "searchPagePlaceholder": "搜索当前页..."
     },
     "task": "任务步骤",
+    "viewStepDetail": "查看执行详情",
+    "stepDetailTitle": "步骤执行详情",
+    "tabOverview": "概览",
+    "tabPayload": "入参 / 数据",
+    "tabRaw": "原始事件 (JSON)",
+    "stepKeyLabel": "步骤标识",
+    "toolNameLabel": "工具名称",
+    "durationLabel": "执行耗时",
+    "reasonLabel": "执行理由",
+    "statusLabel": "执行状态",
+    "agentInstanceLabel": "执行智能体",
+    "faultSideLabel": "责任归属",
+    "errorCategoryLabel": "错误分类",
+    "expandIntermediateSteps": "展开中间 {count} 个步骤",
+    "collapseIntermediateSteps": "收起中间步骤",
+    "copyJson": "复制 JSON",
+    "copiedJson": "已复制",
     "diagnosticHint": "诊断建议",
+    "collapsedSteps": "展开中间 {count} 个步骤",
+    "collapseSteps": "折叠中间步骤",
+    "stepDetails": "步骤执行详情",
+    "rawPayload": "原始负载数据",
+    "executionTime": "耗时",
+    "stepStatus": "执行状态",
+    "inspectDetails": "查看步骤详情",
     "planning_task": "规划任务",
     "analyzing_query": "分析查询",
     "searching_web": "搜索网络",
@@ -3703,7 +3744,22 @@
       "safety": "安全降级"
     },
     "copied": "已复制！",
-    "copy": "复制"
+    "copy": "复制",
+    "detailModal": {
+      "title": "步骤执行详情",
+      "subtitle": "查看工具参数、诊断指标与执行耗时",
+      "toolName": "工具名称",
+      "agentInstance": "执行智能体",
+      "duration": "执行耗时",
+      "status": "执行状态",
+      "reason": "执行理由与意图",
+      "payload": "入参负载与上下文",
+      "stdout": "实时终端输出",
+      "diagnostic": "诊断建议与归因",
+      "copyRaw": "复制原始 JSON",
+      "copied": "已复制",
+      "close": "关闭"
+    }
   },
   "memory": {
     "title": "记忆管理",
@@ -12517,6 +12573,46 @@
         }
       }
     },
+    "a2aPeers": {
+      "title": "A2A 协议与远程可信节点",
+      "description": "节点描述 (可选)",
+      "registryTitle": "可信远程节点名册",
+      "addPeer": "添加 A2A 节点",
+      "newPeer": "注册新的远程 A2A 节点",
+      "editPeer": "编辑 A2A 节点",
+      "peerName": "节点名称",
+      "peerNamePlaceholder": "例如：Hermes Deep Researcher / OpenClaw Code Reviewer",
+      "baseUrl": "A2A 服务根 URL",
+      "baseUrlPlaceholder": "https://agent.example.com",
+      "descriptionPlaceholder": "简述远程节点擅长的任务或能力领域",
+      "authType": "认证方式",
+      "authBearer": "Bearer Token",
+      "authApiKey": "API 密钥认证 (X-API-Key)",
+      "authNone": "无认证 (公网开放)",
+      "authToken": "认证密钥",
+      "authTokenPlaceholder": "输入用于调用远端 A2A RPC 的访问密钥",
+      "authTokenKeepPlaceholder": "留空则保留当前已保存的密钥",
+      "savePeer": "保存节点",
+      "saveChanges": "保存修改",
+      "saving": "保存中...",
+      "cancel": "取消",
+      "probe": "探活检测",
+      "probing": "探活中...",
+      "probeSuccess": "探活成功：{latency}ms，已解析 AgentCard",
+      "probeFailed": "探活失败：{error}",
+      "ssrfBlocked": "SSRF 安全拦截：目标地址属于受限内部网络",
+      "noPeers": "暂无注册的 A2A 节点",
+      "noPeersDesc": "注册远程 A2A 节点后，你可以在智能体能力中开启 A2A 远程编排，无缝委派复杂子任务至第三方 Agent 执行。",
+      "deleteConfirm": "确定要删除此 A2A 节点吗？",
+      "cardPreview": "AgentCard 元数据",
+      "cardSkills": "支持技能",
+      "cardProvider": "服务提供方",
+      "statusOk": "正常",
+      "statusError": "异常",
+      "statusUnreachable": "无法连接",
+      "statusSsrf": "安全阻断",
+      "hasToken": "已配置凭证"
+    },
     "lifecycleWebhook": {
       "title": "生命周期出站 Webhook",
       "description": "当智能体运行完成、失败、需要审批或看板任务更新时，向外部系统（企业微信/飞书/Zapier/自定义API）发送带有 HMAC-SHA256 签名的 HTTP POST 通知。",
@@ -18581,7 +18677,10 @@
             "message": "探针执行意外崩溃。"
           },
           "OK_DESKTOP_PERMISSIONS": {
-            "message": "桌面权限已就绪。"
+            "message": "桌面权限已授予且屏幕捕获可用。"
+          },
+          "WARN_DESKTOP_CAPTURE_NOT_READY": {
+            "message": "权限看似已授予，但屏幕捕获不可用。"
           },
           "WARN_DESKTOP_PERMISSIONS_MISSING": {
             "message": "缺少桌面权限：{missing}。"
@@ -18858,7 +18957,7 @@
   },
   "continualOverlay": {
     "activeTitle": "自愈防护活跃",
-    "remainingTurns": "剩余 {count} 轮",
+    "remainingTurns": "{count, plural, =1 {剩余 1 轮} other {剩余 # 轮}}",
     "rollbackTooltip": "回滚至触发前状态",
     "rollback": "回滚",
     "collapse": "收起",
@@ -18883,18 +18982,18 @@
   "modelPlaybook": {
     "title": "模型编排战略手册",
     "subtitle": "多模型协同分工、动态路由与成本优化的架构指南。",
-    "cardTitle": "模型编排实战手册",
-    "cardBadge": "最佳实践",
-    "cardSubtitle": "掌握手脑分工模型协同、三层动态路由与 MoA 混合共识最佳配方",
+    "cardTitle": "模型编排手册",
+    "cardBadge": "心法指南",
+    "cardSubtitle": "掌握大脑与肢体分工、三层自适应路由与 MoA 共识，最大化执行效率。",
     "viewFullPlaybook": "查看完整手册",
-    "collapse": "折叠",
+    "collapse": "收起",
     "expand": "展开",
-    "miniBrainHandsTitle": "手脑专业化分工",
-    "miniBrainHandsDesc": "高推理模型负责任务规划，高吞吐模型负责快速工具执行。",
+    "miniBrainHandsTitle": "大脑与肢体分工",
+    "miniBrainHandsDesc": "高智商规划器 + 快速工具执行器。",
     "miniDynamicRoutingTitle": "三层自适应路由",
-    "miniDynamicRoutingDesc": "根据意图自适应分流至轻量、标准或深度推理模型。",
-    "miniMoaTitle": "MoA 混合共识放大",
-    "miniMoaDesc": "多模型协同交叉核验，攻克单模型认知上限与单点幻觉。",
+    "miniDynamicRoutingDesc": "自动在轻量、标准、深度推理层之间无缝切换。",
+    "miniMoaTitle": "MoA 共识增强",
+    "miniMoaDesc": "多模型交叉辩论与聚合，打破单模型能力天花板。",
     "headerBadge": "模型编排战略",
     "dialogTitle": "模型编排实战手册与最佳架构配方",
     "dialogSubtitle": "深入理解手脑分工、动态路由、MoA 混合共识与端到端 Token 经济学",
@@ -18960,18 +19059,6 @@
       "configureVision": "配置视觉模型",
       "viewSubscriptions": "查看订阅方案",
       "close": "关闭"
-    },
-    "cardTitle": "模型编排手册",
-    "cardBadge": "心法指南",
-    "cardSubtitle": "掌握大脑与肢体分工、三层自适应路由与 MoA 共识，最大化执行效率。",
-    "viewFullPlaybook": "查看完整手册",
-    "collapse": "收起",
-    "expand": "展开",
-    "miniBrainHandsTitle": "大脑与肢体分工",
-    "miniBrainHandsDesc": "高智商规划器 + 快速工具执行器。",
-    "miniDynamicRoutingTitle": "三层自适应路由",
-    "miniDynamicRoutingDesc": "自动在轻量、标准、深度推理层之间无缝切换。",
-    "miniMoaTitle": "MoA 共识增强",
-    "miniMoaDesc": "多模型交叉辩论与聚合，打破单模型能力天花板。"
+    }
   }
 }

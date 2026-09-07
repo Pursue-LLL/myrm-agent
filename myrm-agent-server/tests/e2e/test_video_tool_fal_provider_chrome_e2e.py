@@ -5,12 +5,14 @@ from __future__ import annotations
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    _require_e2e_cdp_ready,
     dismiss_blocking_modals,
     ensure_desktop_viewport,
     get_e2e_api_url,
     http_json,
     open_settings_subroute,
     prepare_e2e_ui_session,
+    wait_for_settings_layout,
     warm_ui_route,
 )
 
@@ -57,10 +59,12 @@ def test_fal_media_provider_settings_and_doctor_lifecycle() -> None:
     assert "success" in test_res
 
     # 3. Warm up Settings UI route and verify frontend rendering in real Chrome
-    warm_ui_route("/settings/account")
+    _require_e2e_cdp_ready()
+    warm_ui_route("/settings")
     with open_settings_subroute("/settings?tab=media", timeout_ms=90_000) as (client, page):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
+        wait_for_settings_layout(client, page)
 
         res = client.evaluate(page, _VERIFY_MEDIA_SECTION_JS, timeout_sec=10.0)
         assert isinstance(res, dict)

@@ -876,6 +876,14 @@
     "noSubagents": "No subagents bound",
     "removeSubagent": "Remove",
     "dismissRebindHint": "Dismiss",
+    "a2aBinding": "A2A Remote Delegation",
+    "a2aBindingDesc": "Enable this agent to delegate tasks to remote trusted agent nodes using the A2A v1.0 protocol",
+    "a2aEnableSwitch": "Enable A2A Protocol Delegation",
+    "a2aTrustedPeers": "Authorized Remote A2A Peers",
+    "a2aTrustedPeersDesc": "Select which remote peers this agent is allowed to invoke during multi-agent orchestration",
+    "addA2APeer": "Authorize Peer",
+    "noA2APeers": "No remote peers authorized (click to add)",
+    "manageA2APeersLink": "Go to Integration Settings to manage remote peers registry",
     "allowDiscovery": {
       "title": "Allow discovery and delegation by other agents",
       "description": "When enabled, other agents can discover and call this agent during automatic team formation. When disabled, this agent is not discovered automatically, but you can still reference it explicitly with @."
@@ -1094,10 +1102,11 @@
         "missing": "Missing desktop permissions",
         "accessibilityMissing": "Accessibility not granted",
         "screenRecordingMissing": "Screen Recording not granted",
+        "captureNotReady": "Screen capture is not usable (black/empty frame). Re-enable Screen Recording and unlock the display.",
         "openSettings": "Open Settings",
         "recheckBtn": "Recheck",
         "checkFailed": "Could not check desktop permissions. Retry after the backend is ready.",
-        "hint": "Desktop Control requires macOS Accessibility and Screen Recording permissions."
+        "hint": "Desktop Control needs Accessibility, Screen Recording, and a working screen capture probe."
       },
       "mediaCredential": {
         "title": "Media tools need API credentials",
@@ -2526,6 +2535,8 @@
       "toggleTitle": "Toggle Desktop Inspector",
       "viewMode": "View Mode",
       "inspectMode": "Inspect Mode",
+      "searchPlaceholder": "Search element name, role, or @dref...",
+      "clearSearch": "Clear search",
       "close": "Close",
       "refresh": "Refresh",
       "enabledHint": "Desktop Inspector opens here when the agent uses desktop tools",
@@ -3460,6 +3471,12 @@
       "path": "Path",
       "filePattern": "Files"
     },
+    "folding": {
+      "showMore": "Expand {count} intermediate steps",
+      "showLess": "Collapse intermediate steps",
+      "stepSummary": "Completed {completed}/{total} steps"
+    },
+    "viewDetailTooltip": "View execution details and payloads",
     "evictedOutput": {
       "savedHint": "Full tool output saved to sandbox storage",
       "savedStderrHint": "Full error output saved to sandbox storage",
@@ -3483,7 +3500,31 @@
       "searchPagePlaceholder": "Search current page..."
     },
     "task": "Task Steps",
+    "viewStepDetail": "View Step Details",
+    "stepDetailTitle": "Step Execution Details",
+    "tabOverview": "Overview",
+    "tabPayload": "Input / Data",
+    "tabRaw": "Raw Event (JSON)",
+    "stepKeyLabel": "Step Key",
+    "toolNameLabel": "Tool Name",
+    "durationLabel": "Duration",
+    "reasonLabel": "Reason",
+    "statusLabel": "Status",
+    "agentInstanceLabel": "Agent Instance",
+    "faultSideLabel": "Fault Side",
+    "errorCategoryLabel": "Error Category",
+    "expandIntermediateSteps": "Expand {count} intermediate steps",
+    "collapseIntermediateSteps": "Collapse intermediate steps",
+    "copyJson": "Copy JSON",
+    "copiedJson": "Copied",
     "diagnosticHint": "Diagnostic Hint",
+    "collapsedSteps": "Expand {count} intermediate steps",
+    "collapseSteps": "Collapse intermediate steps",
+    "stepDetails": "Step Execution Details",
+    "rawPayload": "Raw Payload Data",
+    "executionTime": "Elapsed",
+    "stepStatus": "Status",
+    "inspectDetails": "Inspect Step Details",
     "planning_task": "Planning task",
     "analyzing_query": "Analyzing query",
     "searching_web": "Searching the web",
@@ -3703,7 +3744,22 @@
       "safety": "Safety Fallback"
     },
     "copied": "Copied!",
-    "copy": "Copy"
+    "copy": "Copy",
+    "detailModal": {
+      "title": "Step Execution Details",
+      "subtitle": "Inspect tool parameters, diagnostic metrics, and latency",
+      "toolName": "Tool Name",
+      "agentInstance": "Executing Agent",
+      "duration": "Duration",
+      "status": "Status",
+      "reason": "Intent & Reasoning",
+      "payload": "Payload & Context",
+      "stdout": "Live Terminal Output",
+      "diagnostic": "Diagnostic & Attribution",
+      "copyRaw": "Copy Raw JSON",
+      "copied": "Copied",
+      "close": "Close"
+    }
   },
   "memory": {
     "title": "Memory Management",
@@ -12517,6 +12573,46 @@
         }
       }
     },
+    "a2aPeers": {
+      "title": "A2A Protocol & Trusted Remote Peers",
+      "description": "Node Description (Optional)",
+      "registryTitle": "Trusted Remote Peers Registry",
+      "addPeer": "Add A2A Peer",
+      "newPeer": "Register New Remote A2A Peer",
+      "editPeer": "Edit A2A Peer",
+      "peerName": "Node Name",
+      "peerNamePlaceholder": "e.g., Hermes Deep Researcher / OpenClaw Code Reviewer",
+      "baseUrl": "A2A Base URL",
+      "baseUrlPlaceholder": "https://agent.example.com",
+      "descriptionPlaceholder": "Brief description of the remote agent's domain capabilities",
+      "authType": "Authentication Type",
+      "authBearer": "Bearer Token",
+      "authApiKey": "API Key (X-API-Key)",
+      "authNone": "No Auth (Public)",
+      "authToken": "Authentication Token",
+      "authTokenPlaceholder": "Enter access token for remote A2A RPC",
+      "authTokenKeepPlaceholder": "Leave blank to keep current token",
+      "savePeer": "Save Peer",
+      "saveChanges": "Save Changes",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "probe": "Probe",
+      "probing": "Probing...",
+      "probeSuccess": "Probe succeeded: {latency}ms, AgentCard resolved",
+      "probeFailed": "Probe failed: {error}",
+      "ssrfBlocked": "SSRF Blocked: Target belongs to restricted private network",
+      "noPeers": "No A2A Peers Registered",
+      "noPeersDesc": "Register remote A2A peers to enable distributed multi-agent delegation across frameworks.",
+      "deleteConfirm": "Are you sure you want to delete this A2A peer?",
+      "cardPreview": "AgentCard Metadata",
+      "cardSkills": "Supported Skills",
+      "cardProvider": "Provider",
+      "statusOk": "Healthy",
+      "statusError": "Error",
+      "statusUnreachable": "Unreachable",
+      "statusSsrf": "SSRF Blocked",
+      "hasToken": "Encrypted Credential Configured"
+    },
     "lifecycleWebhook": {
       "title": "Lifecycle Outbound Webhooks",
       "description": "Send HMAC-SHA256 signed HTTP POST notifications to external systems (Slack/Teams/Zapier/Custom API) when Agent sessions complete, fail, require approvals, or Kanban tasks update.",
@@ -18581,7 +18677,10 @@
             "message": "Probe execution crashed unexpectedly."
           },
           "OK_DESKTOP_PERMISSIONS": {
-            "message": "Desktop permissions are granted."
+            "message": "Desktop permissions are granted and capture is ready."
+          },
+          "WARN_DESKTOP_CAPTURE_NOT_READY": {
+            "message": "Desktop permissions look granted but screen capture is not usable."
           },
           "WARN_DESKTOP_PERMISSIONS_MISSING": {
             "message": "Missing desktop permissions: {missing}."

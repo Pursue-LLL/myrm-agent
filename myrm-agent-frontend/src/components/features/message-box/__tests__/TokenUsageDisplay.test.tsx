@@ -156,27 +156,27 @@ describe('TokenUsageDisplay', () => {
 
   it('displays routing tier badge for simple', () => {
     render(<TokenUsageDisplay usage={makeUsage()} modelName="test" routingTier="simple" />);
-    expect(screen.getByText('routingSimple')).toBeInTheDocument();
+    expect(screen.getAllByText('routingSimple').length).toBeGreaterThanOrEqual(1);
   });
 
   it('displays routing tier badge for reasoning', () => {
     render(<TokenUsageDisplay usage={makeUsage()} modelName="test" routingTier="reasoning" />);
-    expect(screen.getByText('routingReasoning')).toBeInTheDocument();
+    expect(screen.getAllByText('routingReasoning').length).toBeGreaterThanOrEqual(1);
   });
 
   it('displays routing tier badge for standard', () => {
     render(<TokenUsageDisplay usage={makeUsage()} modelName="test" routingTier="standard" />);
-    expect(screen.getByText('routingStandard')).toBeInTheDocument();
+    expect(screen.getAllByText('routingStandard').length).toBeGreaterThanOrEqual(1);
   });
 
   it('displays routing tier badge for code specialty', () => {
     render(<TokenUsageDisplay usage={makeUsage()} modelName="test" routingTier="code" />);
-    expect(screen.getByText('routingCode')).toBeInTheDocument();
+    expect(screen.getAllByText('routingCode').length).toBeGreaterThanOrEqual(1);
   });
 
   it('displays routing tier badge for long_doc specialty', () => {
     render(<TokenUsageDisplay usage={makeUsage()} modelName="test" routingTier="long_doc" />);
-    expect(screen.getByText('routingLongDoc')).toBeInTheDocument();
+    expect(screen.getAllByText('routingLongDoc').length).toBeGreaterThanOrEqual(1);
   });
 
   it('displays routing reason in tooltip content when routingReason is provided', () => {
@@ -349,7 +349,7 @@ describe('TokenUsageDisplay', () => {
       />,
     );
     expect(screen.getByText('gpt-4o')).toBeInTheDocument();
-    expect(screen.getByText('routingReasoning')).toBeInTheDocument();
+    expect(screen.getAllByText('routingReasoning').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('privacyS2')).toBeInTheDocument();
     expect(screen.getByText('$0.05')).toBeInTheDocument();
     expect(screen.getByText('3%')).toBeInTheDocument();

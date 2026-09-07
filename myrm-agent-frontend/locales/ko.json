@@ -869,7 +869,8 @@
         "openSettings": "설정 열기",
         "recheckBtn": "다시 확인",
         "checkFailed": "데스크톱 권한을 확인할 수 없습니다. 백엔드가 준비된 후 다시 시도하세요.",
-        "hint": "데스크톱 제어에는 macOS 손쉬운 사용 및 화면 기록 권한이 필요합니다."
+        "hint": "데스크톱 제어에는 macOS 손쉬운 사용 및 화면 기록 권한이 필요합니다.",
+        "captureNotReady": "화면 캡처를 사용할 수 없습니다(검은 화면 또는 빈 프레임). 화면 기록을 다시 활성화하고 화면 잠금을 해제한 후 다시 시도하세요。"
       },
       "mediaCredential": {
         "title": "미디어 도구에 API 자격 증명 필요",
@@ -1565,7 +1566,15 @@
     "formalKoreanReplies": {
       "title": "정중한 한국어 답변 (합니다체)",
       "description": "비즈니스 이메일, 회의록, 사무 업무에 맞는 정중한 한국어(합니다체)로 답변합니다."
-    }
+    },
+    "a2aBinding": "A2A 프레임워크 간 원격 위임",
+    "a2aBindingDesc": "활성화하면 이 에이전트가 A2A (Agent-to-Agent v1.0) 프로토콜을 준수하여 신뢰할 수 있는 원격 에이전트 노드에 하위 작업을 위임할 수 있습니다.",
+    "a2aEnableSwitch": "A2A 프로토콜 위임 활성화",
+    "a2aTrustedPeers": "승인된 신뢰할 수 있는 원격 A2A 노드",
+    "a2aTrustedPeersDesc": "다중 에이전트 오케스트레이션 중 호출을 허용할 원격 피어를 선택하세요",
+    "addA2APeer": "노드 승인",
+    "noA2APeers": "승인된 원격 노드가 없습니다 (클릭하여 추가)",
+    "manageA2APeersLink": "원격 노드 레지스트리를 관리하려면 '통합 설정'으로 이동"
   },
   "common": {
     "keyValueEditor": {
@@ -3454,6 +3463,12 @@
     "legend": "범례"
   },
   "progressSteps": {
+    "folding": {
+      "showMore": "중간 {count}개 완료 단계 펼치기",
+      "showLess": "중간 단계 접기",
+      "stepSummary": "총 {total}단계 중 {completed}단계 완료"
+    },
+    "viewDetailTooltip": "실행 세부정보 및 페이로드 보기",
     "evictedOutput": {
       "savedHint": "전체 도구 출력이 샌드박스 저장소에 저장되었습니다",
       "savedStderrHint": "전체 오류 출력이 샌드박스 저장소에 저장되었습니다",
@@ -3603,6 +3618,13 @@
     "expand": "펼치기",
     "collapse": "접기",
     "diagnosticHint": "진단 힌트",
+    "collapsedSteps": "중간 {count}개 단계 펼치기",
+    "collapseSteps": "중간 단계 접기",
+    "stepDetails": "단계 실행 상세",
+    "rawPayload": "원시 페이로드 데이터",
+    "executionTime": "소요 시간",
+    "stepStatus": "상태",
+    "inspectDetails": "상세 보기",
     "archive_checkpoint": "나중에 회상할 수 있도록 아카이브 요약 저장됨",
     "analyzing_image": "이미지 분석 중...",
     "analyzing_video": "비디오 분석 중...",
@@ -3703,7 +3725,39 @@
     "update_ui_data_tool_tool": "대화형 UI 데이터 업데이트 중",
     "update_ui_data_tool_tool_error": "UI 데이터 업데이트 실패",
     "copied": "복사되었습니다!",
-    "copy": "복사"
+    "copy": "복사",
+    "viewStepDetail": "단계 상세 보기",
+    "stepDetailTitle": "단계 실행 세부 정보",
+    "tabOverview": "개요",
+    "tabPayload": "입력 / 데이터",
+    "tabRaw": "원시 이벤트 (JSON)",
+    "stepKeyLabel": "단계 키",
+    "toolNameLabel": "도구 이름",
+    "durationLabel": "소요 시간",
+    "reasonLabel": "이유",
+    "statusLabel": "상태",
+    "agentInstanceLabel": "에이전트 인스턴스",
+    "faultSideLabel": "귀책 구분",
+    "errorCategoryLabel": "오류 범주",
+    "expandIntermediateSteps": "중간 {count}개 단계 펼치기",
+    "collapseIntermediateSteps": "중간 단계 접기",
+    "copyJson": "JSON 복사",
+    "copiedJson": "복사됨",
+    "detailModal": {
+      "title": "단계 실행 세부 정보",
+      "subtitle": "도구 매개변수, 진단 지표 및 소요 시간 검사",
+      "toolName": "도구 이름",
+      "agentInstance": "실행 에이전트",
+      "duration": "소요 시간",
+      "status": "상태",
+      "reason": "실행 이유 및 의도",
+      "payload": "입력 페이로드 및 컨텍스트",
+      "stdout": "실시간 터미널 출력",
+      "diagnostic": "진단 제안 및 원인 분석",
+      "copyRaw": "원시 JSON 복사",
+      "copied": "복사됨",
+      "close": "닫기"
+    }
   },
   "memory": {
     "title": "메모리 관리",
@@ -18593,6 +18647,9 @@
           },
           "ERR_DESKTOP_PERMISSIONS_PROBE": {
             "message": "데스크톱 권한 확인에 실패했습니다."
+          },
+          "WARN_DESKTOP_CAPTURE_NOT_READY": {
+            "message": "권한이 부여된 것으로 보이지만 화면 캡처를 사용할 수 없습니다。"
           }
         },
         "desktopOpenSettings": "시스템 설정 열기"
@@ -18828,6 +18885,46 @@
       "chipTitle": "모델 오케스트레이션 플레이북",
       "chipSubtitle": "Brain과 Hands 분업 및 스마트 라우팅 레시피 마스터",
       "chipAction": "플레이북 보기"
+    },
+    "a2aPeers": {
+      "title": "A2A 프로토콜 및 신뢰할 수 있는 원격 노드",
+      "description": "노드 설명 (선택 사항)",
+      "registryTitle": "신뢰할 수 있는 원격 노드 레지스트리",
+      "addPeer": "A2A 노드 추가",
+      "newPeer": "새 원격 A2A 노드 등록",
+      "editPeer": "A2A 노드 편집",
+      "peerName": "노드 이름",
+      "peerNamePlaceholder": "예: Hermes Deep Researcher / OpenClaw Code Reviewer",
+      "baseUrl": "A2A 서비스 기본 URL",
+      "baseUrlPlaceholder": "https://agent.example.com",
+      "descriptionPlaceholder": "원격 노드가 전문으로 하는 작업이나 도메인 기능 요약",
+      "authType": "인증 유형",
+      "authBearer": "Bearer 토큰",
+      "authApiKey": "API 키 인증 (X-API-Key)",
+      "authNone": "인증 없음 (공개)",
+      "authToken": "인증 토큰",
+      "authTokenPlaceholder": "원격 A2A RPC 호출용 액세스 토큰 입력",
+      "authTokenKeepPlaceholder": "현재 저장된 토큰을 유지하려면 비워 두세요",
+      "savePeer": "노드 저장",
+      "saveChanges": "변경사항 저장",
+      "saving": "저장 중...",
+      "cancel": "취소",
+      "probe": "연결 프로브",
+      "probing": "프로브 중...",
+      "probeSuccess": "프로브 성공: {latency}ms, AgentCard 파싱 완료",
+      "probeFailed": "프로브 실패: {error}",
+      "ssrfBlocked": "SSRF 보안 차단: 대상 주소가 제한된 내부 사설 네트워크에 속합니다",
+      "noPeers": "등록된 A2A 노드가 없습니다",
+      "noPeersDesc": "원격 A2A 노드를 등록하면 에이전트 기능에서 A2A 원격 오케스트레이션을 활성화하여 타사 에이전트에 작업을 원활하게 위임할 수 있습니다.",
+      "deleteConfirm": "이 A2A 노드를 삭제하시겠습니까?",
+      "cardPreview": "AgentCard 메타데이터",
+      "cardSkills": "지원 스킬",
+      "cardProvider": "제공자",
+      "statusOk": "정상",
+      "statusError": "오류",
+      "statusUnreachable": "연결 불가",
+      "statusSsrf": "보안 차단됨",
+      "hasToken": "자격 증명 설정됨"
     }
   },
   "continualOverlay": {

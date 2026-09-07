@@ -1009,6 +1009,24 @@ INDEX_STATEMENTS = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_browser_runtime_session ON browser_runtime_records(session_id)",
     "CREATE INDEX IF NOT EXISTS idx_browser_runtime_status ON browser_runtime_records(status)",
+    """CREATE TABLE IF NOT EXISTS a2a_peers (
+        id VARCHAR(36) PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        base_url VARCHAR(1024) NOT NULL,
+        description TEXT,
+        auth_type VARCHAR(32) NOT NULL DEFAULT 'bearer',
+        encrypted_auth_token TEXT,
+        is_active BOOLEAN NOT NULL DEFAULT 1,
+        last_probed_at TIMESTAMP,
+        last_probe_status VARCHAR(32),
+        last_probe_error TEXT,
+        cached_card_json JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_a2a_peers_base_url ON a2a_peers(base_url)",
+    "ALTER TABLE agents ADD COLUMN a2a_enabled BOOLEAN NOT NULL DEFAULT 0",
+    "ALTER TABLE agents ADD COLUMN a2a_trusted_peer_ids JSON",
 ]
 
 

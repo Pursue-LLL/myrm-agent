@@ -63,6 +63,7 @@ export default function MessageActionBar({
   const t = useTranslations('chat');
   const locale = useLocale();
   const isStreaming = isLast && loading;
+  const effectiveChatId = chatId || message.chatId;
   const setActiveSessionAnalyticsId = useChatStore((state) => state.setActiveSessionAnalyticsId);
   const setActiveSessionAnalyticsMessageId = useChatStore((state) => state.setActiveSessionAnalyticsMessageId);
   const timestamp = useMemo(
@@ -88,9 +89,9 @@ export default function MessageActionBar({
         )}
         {!isStreaming && <RegenerateMenu onRegenerate={onRegenerate} />}
         {!isStreaming && <Undo onUndo={onUndo} />}
-        {!isStreaming && chatId && message.siblingGroupId && (message.siblingCount ?? 0) > 1 && (
+        {!isStreaming && effectiveChatId && message.siblingGroupId && (message.siblingCount ?? 0) > 1 && (
           <SiblingNav
-            chatId={chatId}
+            chatId={effectiveChatId}
             siblingGroupId={message.siblingGroupId}
             siblingIndex={message.siblingIndex ?? 0}
             siblingCount={message.siblingCount ?? 0}
@@ -113,26 +114,26 @@ export default function MessageActionBar({
             citationAudit={message.citationAudit}
           />
         )}
-        {!isStreaming && chatId && (
-          <RevertFiles chatId={chatId} messageId={message.requestMessageId || message.messageId} />
+        {!isStreaming && effectiveChatId && (
+          <RevertFiles chatId={effectiveChatId} messageId={message.requestMessageId || message.messageId} />
         )}
         {!isStreaming && message.citedMemoryIds && message.citedMemoryIds.length > 0 && (
           <MemoryFeedback memoryIds={message.citedMemoryIds} />
         )}
         {!isStreaming && <ReadAloud content={message.content} />}
-        {!isStreaming && chatId && <ForkButton chatId={chatId} messageIndex={messageIndex} />}
+        {!isStreaming && effectiveChatId && <ForkButton chatId={effectiveChatId} messageIndex={messageIndex} />}
         {!isStreaming && <SaveToMemoryButton message={message} />}
         {!isStreaming && <ExtractToSkillButton message={message} />}
         {!isStreaming && <SaveToWikiButton message={message} messageIndex={messageIndex} />}
         {!isStreaming && <Copy message={message} markdownRef={markdownRef} />}
         {!isStreaming && <ExportMenu message={message} markdownRef={markdownRef} />}
-        {!isStreaming && enableEvalLab && chatId && <SaveEvalCase chatId={chatId} />}
-        {!isStreaming && chatId && (
+        {!isStreaming && enableEvalLab && effectiveChatId && <SaveEvalCase chatId={effectiveChatId} />}
+        {!isStreaming && effectiveChatId && (
           <button
             type="button"
             onClick={() => {
               setActiveSessionAnalyticsMessageId(message.messageId);
-              setActiveSessionAnalyticsId(chatId);
+              setActiveSessionAnalyticsId(effectiveChatId);
             }}
             className="p-2 text-black/70 dark:text-white/70 hover:bg-light-secondary dark:hover:bg-dark-secondary rounded-xl transition duration-200 hover:text-black dark:hover:text-white active:scale-95"
             title={t('performanceDiagnostics')}
@@ -143,7 +144,7 @@ export default function MessageActionBar({
         )}
         {message.usage && (
           <TokenUsageDisplay
-            chatId={chatId}
+            chatId={effectiveChatId}
             messageId={message.messageId}
             usage={message.usage}
             tokenEconomics={message.tokenEconomics}

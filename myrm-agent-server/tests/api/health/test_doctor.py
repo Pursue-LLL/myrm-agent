@@ -167,6 +167,7 @@ def test_desktop_control_probe_in_doctor(client: TestClient):
     assert desktop_report.get("code") in (
         "OK_DESKTOP_PERMISSIONS",
         "WARN_DESKTOP_PERMISSIONS_MISSING",
+        "WARN_DESKTOP_CAPTURE_NOT_READY",
         "OK_DESKTOP_SANDBOX_VNC",
         "WARN_DESKTOP_SANDBOX_UNAVAILABLE",
         "ERR_DESKTOP_PERMISSIONS_PROBE",

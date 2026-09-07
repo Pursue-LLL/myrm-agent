@@ -107,11 +107,16 @@ async def media_provider_status(
     http_request: Request,
 ) -> JSONResponse:
     """Return availability status for all video providers (has API key + health check)."""
-    from app.core.channel_bridge.config_loader import load_user_configs
     from app.core.utils.response_utils import success_response
 
-    configs = await load_user_configs()
-    providers_dict = configs.providers_dict
+    try:
+        from app.core.channel_bridge.config_loader import load_user_configs
+
+        configs = await load_user_configs()
+        providers_dict = configs.providers_dict
+    except Exception as exc:
+        logger.warning("Failed to load user configs for media provider status: %s", exc)
+        providers_dict = {}
 
     try:
         from myrm_agent_harness.toolkits.llms.video import VideoGenerationConfig

@@ -13,6 +13,7 @@ import SettingsSection from '../../SettingsSection';
 import { IntegrationConnectDialog } from './IntegrationConnectDialog';
 import { SERVICE_ICONS } from './service-icons';
 import { LifecycleWebhookSection } from './LifecycleWebhookSection';
+import { A2APeerRegistrySection } from './A2APeerRegistrySection';
 import type { CatalogEntry, CatalogResponse } from './catalog-types';
 
 const CATEGORY_LABELS: Record<string, { en: string; zh: string }> = {
@@ -160,6 +161,7 @@ const IntegrationCatalogSection = memo(() => {
         </div>
 
         <LifecycleWebhookSection />
+        <A2APeerRegistrySection />
       </SettingsSection>
 
       {/* Connect Dialog */}

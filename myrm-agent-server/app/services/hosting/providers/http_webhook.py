@@ -71,10 +71,21 @@ class HttpWebhookProvider:
         auth_value = credentials.get("auth_value")
         if isinstance(auth_header, str) and isinstance(auth_value, str) and auth_header.strip():
             headers[auth_header.strip()] = auth_value
+
+        root_entries = [name for name in files if "/" not in name]
+        is_single = len(files) == 1 and len(root_entries) == 1
+        primary_filename = root_entries[0] if is_single else ""
+
+        if is_single and primary_filename:
+            headers["X-Artifact-Single-File"] = "true"
+            headers["X-Artifact-Filename"] = primary_filename
+
         data = {
             "artifact_id": artifact_id,
             "artifact_name": artifact_name,
             "project_ref": existing_project_ref or "",
+            "is_single_file": "true" if is_single else "false",
+            "primary_filename": primary_filename,
         }
         async with httpx.AsyncClient(follow_redirects=False) as client:
             response = await client.post(

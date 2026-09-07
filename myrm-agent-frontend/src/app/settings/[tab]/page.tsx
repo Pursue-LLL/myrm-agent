@@ -39,6 +39,7 @@ const VALID_TABS = [
   'integrationMemory',
   'extensionBridge',
   'connect',
+  'a2aPeers',
   'hosting',
   'workspaceRules',
   'developer',

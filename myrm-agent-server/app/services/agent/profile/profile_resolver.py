@@ -106,6 +106,12 @@ class ResolvedAgentProfile:
     cron_post_run_verify: bool = field(default=False, kw_only=True)
     """When true, cron runs verify worker output via adversarial reviewer after effectful tool use."""
 
+    a2a_enabled: bool = field(default=False, kw_only=True)
+    """Whether agent-to-agent delegation is enabled for this profile."""
+
+    a2a_trusted_peer_ids: tuple[str, ...] = field(default_factory=tuple, kw_only=True)
+    """Whitelisted A2A peer IDs allowed for remote task delegation."""
+
     @property
     def is_sandbox_capable(self) -> bool:
         """Whether this profile has sandbox/coding execution capabilities."""
@@ -251,6 +257,12 @@ class AgentProfileResolver:
                     ),
                     built_in=bool(getattr(agent, "is_built_in", False) or getattr(agent, "is_public", False)),
                     cron_post_run_verify=bool(metadata.get("cron_post_run_verify", False)),
+                    a2a_enabled=bool(getattr(agent, "a2a_enabled", False) or metadata.get("a2a_enabled", False)),
+                    a2a_trusted_peer_ids=coerce_str_tuple(
+                        getattr(agent, "a2a_trusted_peer_ids", None)
+                        if getattr(agent, "a2a_trusted_peer_ids", None) is not None
+                        else metadata.get("a2a_trusted_peer_ids", ())
+                    ),
                 )
         except InvalidBuiltinToolIdsError:
             raise

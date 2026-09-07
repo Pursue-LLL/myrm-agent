@@ -219,6 +219,8 @@ def _to_agent_response(
         ),
         cron_post_run_verify=bool(metadata.get("cron_post_run_verify", False)),
         allow_discovery=bool(metadata.get("allow_discovery", True)),
+        a2a_enabled=bool(metadata.get("a2a_enabled", False)),
+        a2a_trusted_peer_ids=_meta_str_list(metadata, "a2a_trusted_peer_ids", default=[]),
         created_at=agent.created_at or datetime.now(),
         updated_at=agent.updated_at or datetime.now(),
         snapshot_count=snapshot_count,

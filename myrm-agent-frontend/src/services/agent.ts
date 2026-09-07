@@ -128,6 +128,8 @@ export interface Agent {
   allow_discovery?: boolean;
   cron_post_run_verify?: boolean;
   busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
+  a2a_enabled?: boolean;
+  a2a_trusted_peer_ids?: string[];
   snapshot_count?: number;
   snapshot_saved?: boolean;
   created_at: string;
@@ -188,6 +190,8 @@ export interface AgentCreate {
   allow_discovery?: boolean;
   cron_post_run_verify?: boolean;
   busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
+  a2a_enabled?: boolean;
+  a2a_trusted_peer_ids?: string[];
 }
 
 export interface AgentUpdate {
@@ -228,6 +232,8 @@ export interface AgentUpdate {
   allow_discovery?: boolean;
   cron_post_run_verify?: boolean;
   busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
+  a2a_enabled?: boolean;
+  a2a_trusted_peer_ids?: string[];
 }
 
 export interface AgentListResponse {

@@ -1080,7 +1080,8 @@
         "openSettings": "設定を開く",
         "recheckBtn": "再検査",
         "checkFailed": "デスクトップ権限を確認できませんでした。バックエンド準備完了後に再試行してください。",
-        "hint": "デスクトップ制御には macOS のアクセシビリティと画面収録の権限が必要です。"
+        "hint": "デスクトップ制御には macOS のアクセシビリティと画面収録の権限が必要です。",
+        "captureNotReady": "画面キャプチャが利用できません（黒画面または空フレーム）。画面収録を再度有効にして画面のロックを解除してから再試行してください。"
       },
       "mediaCredential": {
         "title": "メディアツールには API 認証情報が必要です",
@@ -1565,7 +1566,15 @@
     "busyInputModeDesc": "エージェントがタスク実行中に新しいメッセージを受信した際の動作を設定します。",
     "busyInputRedirect": "リダイレクト",
     "busyInputSteer": "誘導（ステアリング）",
-    "busyInputQueue": "キューに追加"
+    "busyInputQueue": "キューに追加",
+    "a2aBinding": "A2A クロスフレームワークリモート委任",
+    "a2aBindingDesc": "有効にすると、このエージェントは A2A (Agent-to-Agent v1.0) プロトコルに従って、信頼されたリモートエージェントノードにタスクを委任できます。",
+    "a2aEnableSwitch": "A2A プロトコル委任を有効化",
+    "a2aTrustedPeers": "承認された信頼済みリモート A2A ノード",
+    "a2aTrustedPeersDesc": "マルチエージェント協調時に呼び出しを許可するリモートピアを選択します",
+    "addA2APeer": "ノードを承認",
+    "noA2APeers": "承認されたリモートノードはありません（クリックして追加）",
+    "manageA2APeersLink": "「統合設定」に移動してリモートノード名簿を管理"
   },
   "common": {
     "keyValueEditor": {
@@ -3460,6 +3469,12 @@
       "path": "パス",
       "filePattern": "ファイル"
     },
+    "folding": {
+      "showMore": "中間の {count} 件の完了ステップを展開",
+      "showLess": "中間のステップを折りたたむ",
+      "stepSummary": "{total} ステップ中 {completed} ステップ完了"
+    },
+    "viewDetailTooltip": "実行の詳細と入出力を表示",
     "evictedOutput": {
       "savedHint": "完全なツール出力をサンドボックスストレージに保存しました",
       "savedStderrHint": "完全なエラー出力をサンドボックスストレージに保存しました",
@@ -3484,6 +3499,13 @@
     },
     "task": "タスクステップ",
     "diagnosticHint": "診断推奨",
+    "collapsedSteps": "中間の {count} ステップを展開",
+    "collapseSteps": "中間のステップを折りたたむ",
+    "stepDetails": "ステップ実行詳細",
+    "rawPayload": "生ペイロードデータ",
+    "executionTime": "所要時間",
+    "stepStatus": "ステータス",
+    "inspectDetails": "詳細を表示",
     "planning_task": "プランニングタスク",
     "analyzing_query": "クエリを分析",
     "searching_web": "ウェブを検索中",
@@ -3703,7 +3725,39 @@
     "moa_overlay_active": "アドバイザーオーバーレイのファンアウトを実行中",
     "moa_ref_done": "アドバイザー参照が完了しました",
     "copied": "コピーしました！",
-    "copy": "コピー"
+    "copy": "コピー",
+    "viewStepDetail": "ステップ詳細を表示",
+    "stepDetailTitle": "ステップ実行の詳細",
+    "tabOverview": "概要",
+    "tabPayload": "入力 / データ",
+    "tabRaw": "生イベント (JSON)",
+    "stepKeyLabel": "ステップキー",
+    "toolNameLabel": "ツール名",
+    "durationLabel": "所要時間",
+    "reasonLabel": "理由",
+    "statusLabel": "ステータス",
+    "agentInstanceLabel": "エージェントインスタンス",
+    "faultSideLabel": "責任区分",
+    "errorCategoryLabel": "エラーカテゴリ",
+    "expandIntermediateSteps": "途中の {count} 個のステップを展開",
+    "collapseIntermediateSteps": "途中のステップを折りたたむ",
+    "copyJson": "JSON をコピー",
+    "copiedJson": "コピー完了",
+    "detailModal": {
+      "title": "ステップ実行の詳細",
+      "subtitle": "ツールパラメータ、診断メトリクス、所要時間を確認",
+      "toolName": "ツール名",
+      "agentInstance": "実行エージェント",
+      "duration": "所要時間",
+      "status": "ステータス",
+      "reason": "実行理由と意図",
+      "payload": "入力ペイロードとコンテキスト",
+      "stdout": "リアルタイム端末出力",
+      "diagnostic": "診断提案と原因特定",
+      "copyRaw": "生 JSON をコピー",
+      "copied": "コピー完了",
+      "close": "閉じる"
+    }
   },
   "memory": {
     "title": "メモリ管理",
@@ -18594,6 +18648,9 @@
           },
           "ERR_DESKTOP_PERMISSIONS_PROBE": {
             "message": "デスクトップ権限の検査に失敗しました。"
+          },
+          "WARN_DESKTOP_CAPTURE_NOT_READY": {
+            "message": "権限は付与されているようですが、画面キャプチャが利用できません。"
           }
         }
       },
@@ -18828,6 +18885,46 @@
       "chipTitle": "モデルオーケストレーションプレイブック",
       "chipSubtitle": "Brain vs Handsの役割分担とスマートルーティングのベストプラクティス",
       "chipAction": "プレイブックを表示"
+    },
+    "a2aPeers": {
+      "title": "A2A プロトコルと信頼されたリモートノード",
+      "description": "ノードの説明（任意）",
+      "registryTitle": "信頼されたリモートノード名簿",
+      "addPeer": "A2A ノードを追加",
+      "newPeer": "新しいリモート A2A ノードを登録",
+      "editPeer": "A2A ノードを編集",
+      "peerName": "ノード名",
+      "peerNamePlaceholder": "例: Hermes Deep Researcher / OpenClaw Code Reviewer",
+      "baseUrl": "A2A サービスベース URL",
+      "baseUrlPlaceholder": "https://agent.example.com",
+      "descriptionPlaceholder": "リモートエージェントが得意とするタスクや機能ドメインの概要",
+      "authType": "認証方式",
+      "authBearer": "Bearer トークン",
+      "authApiKey": "API キー認証 (X-API-Key)",
+      "authNone": "認証なし（パブリック公開）",
+      "authToken": "認証トークン",
+      "authTokenPlaceholder": "リモート A2A RPC を呼び出すためのアクセストークンを入力",
+      "authTokenKeepPlaceholder": "現在保存されているトークンを保持する場合は空のままにします",
+      "savePeer": "ノードを保存",
+      "saveChanges": "変更を保存",
+      "saving": "保存中...",
+      "cancel": "キャンセル",
+      "probe": "疎通テスト",
+      "probing": "テスト中...",
+      "probeSuccess": "プローブ成功: {latency}ms、AgentCard を解決しました",
+      "probeFailed": "プローブ失敗: {error}",
+      "ssrfBlocked": "SSRF セキュリティブロック: 宛先アドレスは制限されたプライベートネットワークです",
+      "noPeers": "登録された A2A ノードはありません",
+      "noPeersDesc": "リモート A2A ノードを登録すると、エージェント機能で A2A リモートオーケストレーションを有効にして、サードパーティのエージェントにタスクを委任できます。",
+      "deleteConfirm": "この A2A ノードを削除してもよろしいですか？",
+      "cardPreview": "AgentCard メタデータ",
+      "cardSkills": "対応スキル",
+      "cardProvider": "プロバイダー",
+      "statusOk": "正常",
+      "statusError": "エラー",
+      "statusUnreachable": "接続不可",
+      "statusSsrf": "セキュリティ遮断",
+      "hasToken": "認証情報設定済み"
     }
   },
   "continualOverlay": {

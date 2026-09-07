@@ -36,7 +36,8 @@ from tests.support.test_secrets import resolve_test_env
 _TURN_WAIT_SEC = 360.0
 
 _PROMPT = (
-    "请必须使用 web_search 工具搜索「OpenCode AI」，用一句话总结搜索结果，正文中必须用【1】标注引用来源，末尾单独一行写 CITE_OK。"
+    "请必须调用 web_search_tool 工具搜索「OpenCode AI 最新发布」，用一句话总结搜索结果，"
+    "正文中必须用【1】标注引用来源，末尾单独一行写 CITE_OK。禁止不调用工具直接回答。"
 )
 
 _FAST_PROMPT = "请必须使用 web_search 工具搜索「Python 3.14 新特性」，用一句话总结搜索结果，正文中必须用【1】标注引用来源，末尾单独一行写 CITE_OK。"
@@ -249,6 +250,7 @@ async def _wait_citation_ui(chat: McpChatSession, *, timeout_sec: float) -> dict
     deadline = asyncio.get_event_loop().time() + timeout_sec
     last: dict[str, object] = {}
     while asyncio.get_event_loop().time() < deadline:
+        heartbeat_once()
         await chat.evaluate(_SCROLL_ASSISTANT_INTO_VIEW_JS, await_promise=False)
         raw = await chat.evaluate(_CITATION_LIVE_READY_JS, await_promise=False)
         last = raw if isinstance(raw, dict) else {"raw": raw}
@@ -271,13 +273,13 @@ async def test_general_agent_web_search_citations_live_chrome_e2e(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
     """Lane-C: general agent web_search → metadata.sources → Evidence + inline cite UI."""
-    if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider readiness gate failed — run ./myrm ready --chrome")
-
     api_base = get_e2e_api_url()
     prepare_e2e_ui_session(api_base)
     seed_live_e2e_providers(api_base)
     _ensure_search_services(api_base)
+
+    if not wait_e2e_provider_ready(timeout_sec=90.0):
+        pytest.fail("Provider readiness gate failed — run ./myrm ready --chrome")
 
     ui_base = get_e2e_ui_url().rstrip("/")
     warm_ui_route("/", timeout_sec=90.0)
@@ -288,6 +290,9 @@ async def test_general_agent_web_search_citations_live_chrome_e2e(
         request_timeout_sec=180.0,
     )
     try:
+        active_api_base = get_e2e_api_url()
+        seed_live_e2e_providers(active_api_base)
+        _ensure_search_services(active_api_base)
         chat = McpChatSession(session.client, session.page)
         await chat.bootstrap(ui_base, navigate=False, timeout_sec=180.0)
         prep = await chat.evaluate(_PREP_GENERAL_AGENT_JS, await_promise=True)
@@ -327,13 +332,13 @@ async def test_fast_search_web_search_citations_live_chrome_e2e(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
     """Lane-C: Fast Search mode → sources SSE → Evidence + clickable inline cite badges."""
-    if not wait_e2e_provider_ready(timeout_sec=90.0):
-        pytest.fail("Provider readiness gate failed — run ./myrm ready --chrome")
-
     api_base = get_e2e_api_url()
     prepare_e2e_ui_session(api_base)
     seed_live_e2e_providers(api_base)
     _ensure_search_services(api_base)
+
+    if not wait_e2e_provider_ready(timeout_sec=90.0):
+        pytest.fail("Provider readiness gate failed — run ./myrm ready --chrome")
 
     ui_base = get_e2e_ui_url().rstrip("/")
     warm_ui_route("/", timeout_sec=90.0)
@@ -344,6 +349,9 @@ async def test_fast_search_web_search_citations_live_chrome_e2e(
         request_timeout_sec=180.0,
     )
     try:
+        active_api_base = get_e2e_api_url()
+        seed_live_e2e_providers(active_api_base)
+        _ensure_search_services(active_api_base)
         chat = McpChatSession(session.client, session.page)
         await chat.bootstrap(ui_base, navigate=False, timeout_sec=180.0)
         prep = await chat.evaluate(_PREP_FAST_SEARCH_JS, await_promise=True)

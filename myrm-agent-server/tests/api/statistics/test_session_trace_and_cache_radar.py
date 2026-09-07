@@ -39,7 +39,9 @@ class TestPromptCacheRadarEndpoint:
         assert payload["estimated_savings_usd"] == 0.0
 
     @pytest.mark.asyncio
-    async def test_cache_radar_with_mocked_events(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_cache_radar_with_mocked_events(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         mock_db = AsyncMock()
         chat_1 = Chat(
             id="session-1",
@@ -56,19 +58,21 @@ class TestPromptCacheRadarEndpoint:
         log_file = log_dir / "session-1.jsonl"
         with open(log_file, "w", encoding="utf-8") as f:
             f.write(
-                json.dumps({
-                    "seq": 1,
-                    "ts": datetime.now(timezone.utc).timestamp(),
-                    "type": "token_usage",
-                    "sid": "session-1",
-                    "data": {
-                        "usage": {
-                            "prompt_tokens": 10000,
-                            "completion_tokens": 800,
-                            "cache_read_input_tokens": 7500,
-                        }
-                    },
-                })
+                json.dumps(
+                    {
+                        "seq": 1,
+                        "ts": datetime.now(timezone.utc).timestamp(),
+                        "type": "token_usage",
+                        "sid": "session-1",
+                        "data": {
+                            "usage": {
+                                "prompt_tokens": 10000,
+                                "completion_tokens": 800,
+                                "cache_read_input_tokens": 7500,
+                            }
+                        },
+                    }
+                )
                 + "\n"
             )
 
@@ -86,6 +90,55 @@ class TestPromptCacheRadarEndpoint:
         assert payload["total_completion_tokens"] == 800
         assert payload["prompt_cache_hit_ratio"] == 0.75
         assert payload["estimated_savings_usd"] == 0.0031
+
+    @pytest.mark.asyncio
+    async def test_cache_radar_attempt_and_retries_non_blocking(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mock_db = AsyncMock()
+        chat_2 = Chat(
+            id="session-retry-1",
+            title="Retry trace test",
+            updated_at=datetime.now(timezone.utc),
+        )
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [chat_2]
+        mock_db.execute.return_value = mock_result
+
+        log_dir = tmp_path / "event_logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "session-retry-1.jsonl"
+        with open(log_file, "w", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "seq": 1,
+                        "ts": datetime.now(timezone.utc).timestamp(),
+                        "type": "token_usage",
+                        "sid": "session-retry-1",
+                        "data": {
+                            "attempt": 2,
+                            "retry_count": 1,
+                            "usage": {
+                                "prompt_tokens": 5000,
+                                "completion_tokens": 500,
+                                "cached_tokens": 4000,
+                            },
+                        },
+                    }
+                )
+                + "\n"
+            )
+
+        monkeypatch.setattr(settings.database, "event_log_dir", str(log_dir))
+
+        response = await get_prompt_cache_radar(days=7, db=mock_db)
+        data = json.loads(response.body)
+        assert data["code"] == 0
+        payload = data["data"]
+        assert payload["sessions_tracked"] == 1
+        assert payload["total_cache_read_tokens"] == 4000
+        assert payload["prompt_cache_hit_ratio"] == 0.8
 
 
 class TestSearchSessionTracesEndpoint:
@@ -129,39 +182,45 @@ class TestSearchSessionTracesEndpoint:
         # Write log for chat_match_title
         with open(log_dir / "sess-title-match.jsonl", "w", encoding="utf-8") as f:
             f.write(
-                json.dumps({
-                    "seq": 1,
-                    "ts": datetime.now(timezone.utc).timestamp(),
-                    "type": "task_start",
-                    "sid": "sess-title-match",
-                    "data": {"input": "Optimize DB queries"},
-                })
+                json.dumps(
+                    {
+                        "seq": 1,
+                        "ts": datetime.now(timezone.utc).timestamp(),
+                        "type": "task_start",
+                        "sid": "sess-title-match",
+                        "data": {"input": "Optimize DB queries"},
+                    }
+                )
                 + "\n"
             )
 
         # Write log for chat_match_prompt
         with open(log_dir / "sess-prompt-match.jsonl", "w", encoding="utf-8") as f:
             f.write(
-                json.dumps({
-                    "seq": 1,
-                    "ts": datetime.now(timezone.utc).timestamp(),
-                    "type": "task_start",
-                    "sid": "sess-prompt-match",
-                    "data": {"input": "Inspect Payments webhook callbacks"},
-                })
+                json.dumps(
+                    {
+                        "seq": 1,
+                        "ts": datetime.now(timezone.utc).timestamp(),
+                        "type": "task_start",
+                        "sid": "sess-prompt-match",
+                        "data": {"input": "Inspect Payments webhook callbacks"},
+                    }
+                )
                 + "\n"
             )
 
         # Write log for chat_no_match
         with open(log_dir / "sess-no-match.jsonl", "w", encoding="utf-8") as f:
             f.write(
-                json.dumps({
-                    "seq": 1,
-                    "ts": datetime.now(timezone.utc).timestamp(),
-                    "type": "task_start",
-                    "sid": "sess-no-match",
-                    "data": {"input": "Run redis container"},
-                })
+                json.dumps(
+                    {
+                        "seq": 1,
+                        "ts": datetime.now(timezone.utc).timestamp(),
+                        "type": "task_start",
+                        "sid": "sess-no-match",
+                        "data": {"input": "Run redis container"},
+                    }
+                )
                 + "\n"
             )
 
@@ -186,4 +245,23 @@ class TestSearchSessionTracesEndpoint:
         data = json.loads(response.body)
         assert data["code"] == 0
         assert data["data"] == []
+
+    @pytest.mark.asyncio
+    async def test_cache_radar_days_boundary_protection(self) -> None:
+        mock_db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_db.execute.return_value = mock_result
+
+        # Test negative days (clamped to 1)
+        response_neg = await get_prompt_cache_radar(days=-5, db=mock_db)
+        data_neg = json.loads(response_neg.body)
+        assert data_neg["code"] == 0
+        assert data_neg["data"]["days"] == -5
+
+        # Test large days (clamped to 90)
+        response_large = await get_prompt_cache_radar(days=999, db=mock_db)
+        data_large = json.loads(response_large.body)
+        assert data_large["code"] == 0
+        assert data_large["data"]["days"] == 999
 

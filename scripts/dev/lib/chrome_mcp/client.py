@@ -253,10 +253,13 @@ class ChromeMcpClient:
 
     def _require_daemon_ready(self, client: BrowserOrchestratorClient) -> None:
         if not client.is_ready():
-            raise RuntimeError(
-                "BROWSER_ORCHESTRATOR_REQUIRED: daemon not running — "
-                "run MYRM_BROWSER_ORCHESTRATOR=1 ./myrm ready --chrome"
-            )
+            from browser_orchestrator.client import (
+                _wait_daemon_ready,
+                spawn_ensure_orchestrator,
+            )  # noqa: PLC0415
+
+            spawn_ensure_orchestrator()
+            _wait_daemon_ready(client)
 
     def _ensure_daemon_session(self) -> BrowserOrchestratorClient:
         """Lazily create daemon client and session; idempotent."""
@@ -1984,7 +1987,10 @@ class ChromeMcpClient:
         )
         self._request_generation += 1
         try:
-            from e2e_core.runtime_cell import current_cell_id, persist_cell_mux_generation
+            from e2e_core.runtime_cell import (
+                current_cell_id,
+                persist_cell_mux_generation,
+            )
 
             if current_cell_id():
                 persist_cell_mux_generation(self._request_generation)
@@ -1992,7 +1998,10 @@ class ChromeMcpClient:
             pass
         self._page_lease_heartbeat.stop()
         self._reclaim_in_progress = False
-        from mux.transport_recovery_core import TRSM_MODE_TOKEN, should_skip_global_teardown
+        from mux.transport_recovery_core import (
+            TRSM_MODE_TOKEN,
+            should_skip_global_teardown,
+        )
 
         trsm_mode = self._resolve_trsm_mode()
         if should_skip_global_teardown(trsm_mode) and not cdp_drift:
@@ -2318,7 +2327,9 @@ class ChromeMcpClient:
                     max_attempts,
                     exc,
                 )
-                if not self._mcp_request_replay_safe(method, params) and not self._mcp_request_failed_before_send(exc):
+                if not self._mcp_request_replay_safe(
+                    method, params
+                ) and not self._mcp_request_failed_before_send(exc):
                     raise RuntimeError(
                         "BROWSER_OPERATION_RESULT_UNKNOWN: Chrome MCP request "
                         f"may have reached the browser; method={method}; cause={exc}"

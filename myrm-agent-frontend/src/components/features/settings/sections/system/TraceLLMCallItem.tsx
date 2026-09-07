@@ -17,7 +17,7 @@ interface TraceLLMCallItemProps {
  * users can tell "network wait" from "token generation" at a glance.
  */
 const TraceLLMCallItem = memo<TraceLLMCallItemProps>(({ llmCall, isHighlighted }) => {
-  const { duration_ms, ttft_ms, model_name, prompt_tokens, completion_tokens, total_tokens } = llmCall;
+  const { duration_ms, ttft_ms, model_name, prompt_tokens, completion_tokens, total_tokens, attempt, retry_count } = llmCall;
 
   const hasLatencyData = duration_ms !== null && ttft_ms !== null && duration_ms > 0;
   let ttftRatio = 0;
@@ -56,6 +56,11 @@ const TraceLLMCallItem = memo<TraceLLMCallItemProps>(({ llmCall, isHighlighted }
         <div className="flex items-center gap-2">
           <IconClock className="w-3.5 h-3.5 text-blue-500" />
           <span className="text-sm font-medium text-foreground">{model_name || 'Unknown Model'}</span>
+          {((attempt && attempt > 1) || (retry_count && retry_count > 0)) && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+              Retry x{attempt || (retry_count! + 1)}
+            </span>
+          )}
         </div>
         <div className="text-xs text-muted-foreground flex gap-3">
           <span>{total_tokens.toLocaleString()} tokens</span>

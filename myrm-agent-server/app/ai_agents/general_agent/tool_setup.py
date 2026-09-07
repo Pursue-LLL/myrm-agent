@@ -1024,6 +1024,149 @@ class ToolSetupMixin(ExternalAgentsMixin):
         except Exception as e:
             logger.warning("Computer use tools load failed (degraded): %s", e)
 
+    async def _setup_a2a_tools(self, tools: list[object]) -> None:
+        """Set up A2A delegation tools (a2a_call & a2a_orchestrate) with credential masking."""
+        if not getattr(self, "a2a_enabled", False):
+            return
+
+        try:
+            from myrm_agent_harness.toolkits.a2a import tools as a2a_tools_mod
+            from myrm_agent_harness.toolkits.a2a.tools import FanoutMode
+            from langchain.tools import tool
+            from pydantic import BaseModel, Field
+
+            from app.services.a2a.peer_registry import get_a2a_peer_registry
+
+            registry = get_a2a_peer_registry()
+            all_peers = await registry.list_peers(only_active=True)
+
+            allowed_peer_ids = set(getattr(self, "a2a_trusted_peer_ids", []) or [])
+            if allowed_peer_ids:
+                active_peers = [p for p in all_peers if p.id in allowed_peer_ids]
+            else:
+                active_peers = all_peers
+
+            if not active_peers:
+                logger.info("A2A enabled on agent %s, but no active trusted peers matched.", getattr(self, "agent_id", "unknown"))
+                return
+
+            peer_id_map: dict[str, tuple[str, str | None]] = {}
+            peer_summary: list[str] = []
+            for p in active_peers:
+                creds = await registry.get_peer_credentials(p.id)
+                if creds:
+                    base_url, _, token = creds
+                    peer_id_map[p.id] = (base_url, token)
+                    peer_id_map[p.name.strip().lower()] = (base_url, token)
+                    peer_id_map[base_url.rstrip("/")] = (base_url, token)
+                    desc_str = f" - {p.description}" if getattr(p, "description", None) else ""
+                    peer_summary.append(f"- ID: {p.id} | Name: '{p.name}' | URL: {base_url}{desc_str}")
+
+            summary_text = "\n".join(peer_summary)
+
+            def _resolve_peer_creds(peer_ref: str) -> tuple[str, str | None]:
+                ref = peer_ref.strip()
+                if ref in peer_id_map:
+                    return peer_id_map[ref]
+                ref_lower = ref.lower()
+                if ref_lower in peer_id_map:
+                    return peer_id_map[ref_lower]
+                ref_url = ref.rstrip("/")
+                if ref_url in peer_id_map:
+                    return peer_id_map[ref_url]
+                for k, v in peer_id_map.items():
+                    if k.rstrip("/") == ref_url:
+                        return v
+                raise ValueError(
+                    f"A2A peer '{peer_ref}' is not recognized or not authorized in this agent's trusted peer roster.\n"
+                    f"Available trusted peers:\n{summary_text}"
+                )
+
+            class A2ACallSchema(BaseModel):
+                peer: str = Field(
+                    description="Target peer identifier (can be Peer ID, Name, or Base URL from trusted roster).",
+                )
+                prompt: str = Field(
+                    description="Clear, detailed task query or instruction to delegate to the remote A2A agent.",
+                )
+                timeout_seconds: float = Field(
+                    default=90.0,
+                    description="Maximum delegation timeout in seconds (default: 90.0).",
+                )
+
+            @tool("a2a_call", args_schema=A2ACallSchema)
+            async def a2a_call_tool(peer: str, prompt: str, timeout_seconds: float = 90.0) -> dict[str, object]:
+                """Delegate a subtask to a remote trusted A2A agent node.
+Use this tool when a task requires specialized expertise or capabilities hosted on an authorized peer node.
+"""
+                target_url, token = _resolve_peer_creds(peer)
+                from app.config.deploy_mode import is_local_mode
+                internal_hosts = ["127.0.0.1", "localhost"] if is_local_mode() else None
+                client = a2a_tools_mod.A2AClient(
+                    timeout_seconds=timeout_seconds,
+                    allowed_internal_hosts=internal_hosts,
+                )
+                return await a2a_tools_mod.execute_a2a_call(
+                    peer_url=target_url,
+                    prompt=prompt,
+                    bearer_token=token,
+                    timeout_seconds=timeout_seconds,
+                    client=client,
+                )
+
+            class A2AOrchestrateSchema(BaseModel):
+                peers: list[str] = Field(
+                    description="List of target peer identifiers (IDs, Names, or URLs) to dispatch in parallel.",
+                )
+                prompt: str = Field(
+                    description="The shared task query or instruction to broadcast/delegate.",
+                )
+                mode: str = Field(
+                    default="all",
+                    description="Aggregation strategy: 'all' (gather all answers), 'first' (fastest success), 'best' (rank by detail and artifacts).",
+                )
+                timeout_seconds: float = Field(
+                    default=90.0,
+                    description="Overall orchestration timeout in seconds.",
+                )
+
+            @tool("a2a_orchestrate", args_schema=A2AOrchestrateSchema)
+            async def a2a_orchestrate_tool(
+                peers: list[str],
+                prompt: str,
+                mode: str = "all",
+                timeout_seconds: float = 90.0,
+            ) -> dict[str, object]:
+                """Broadcast or multi-cast a task to multiple trusted A2A peer nodes concurrently."""
+                peer_urls: list[str] = []
+                tokens_map: dict[str, str] = {}
+                for p in peers:
+                    p_url, p_token = _resolve_peer_creds(p)
+                    peer_urls.append(p_url)
+                    if p_token:
+                        tokens_map[p_url] = p_token
+
+                f_mode = FanoutMode(mode) if mode in ("all", "first", "best") else FanoutMode.ALL
+                from app.config.deploy_mode import is_local_mode
+                internal_hosts = ["127.0.0.1", "localhost"] if is_local_mode() else None
+                client = a2a_tools_mod.A2AClient(
+                    timeout_seconds=timeout_seconds,
+                    allowed_internal_hosts=internal_hosts,
+                )
+                return await a2a_tools_mod.execute_a2a_orchestrate(
+                    peers=peer_urls,
+                    prompt=prompt,
+                    bearer_tokens=tokens_map if tokens_map else None,
+                    mode=f_mode,
+                    timeout_seconds=timeout_seconds,
+                    client=client,
+                )
+
+            tools.extend([a2a_call_tool, a2a_orchestrate_tool])
+            logger.info("Loaded 2 A2A delegation tools (a2a_call, a2a_orchestrate) with %d trusted peers", len(active_peers))
+        except Exception as e:
+            logger.warning("Failed to setup A2A tools (non-blocking): %s", e)
+
 
 def _select_image_constraints(model_name: str) -> object | None:
     """Select optimal ImageConstraints based on model family.

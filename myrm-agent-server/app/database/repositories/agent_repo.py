@@ -108,6 +108,8 @@ class AgentRepository:
                 "security_overrides": agent.security_overrides,
                 "default_security_preset": agent.default_security_preset,
                 "subagent_ids": agent.subagent_ids,
+                "a2a_enabled": bool(getattr(agent, "a2a_enabled", False)),
+                "a2a_trusted_peer_ids": list(getattr(agent, "a2a_trusted_peer_ids", []) or []),
                 "workspace_policy": agent.workspace_policy,
                 "allow_discovery": (bool(agent.allow_discovery) if agent.allow_discovery is not None else True),
                 "engine_params": agent.engine_params,
@@ -245,6 +247,8 @@ class AgentRepository:
             mcp_servers=meta.get("mcp_ids", []),
             mcp_tool_selections=meta.get("mcp_tool_selections"),
             subagent_ids=meta.get("subagent_ids", []),
+            a2a_enabled=bool(meta.get("a2a_enabled", False)),
+            a2a_trusted_peer_ids=list(meta.get("a2a_trusted_peer_ids", []) or []),
             allow_discovery=(bool(meta["allow_discovery"]) if meta.get("allow_discovery") is not None else True),
             enabled_builtin_tools=persist_enabled_builtin_tools(meta.get("enabled_builtin_tools", profile.tools_allowed)),
             browser_source=meta.get("browser_source"),
@@ -391,6 +395,10 @@ class AgentRepository:
                 agent.default_security_preset = cast(str | None, metadata["default_security_preset"])
             if "subagent_ids" in metadata:
                 agent.subagent_ids = cast(list[str], metadata["subagent_ids"])
+            if "a2a_enabled" in metadata and metadata["a2a_enabled"] is not None:
+                agent.a2a_enabled = bool(metadata["a2a_enabled"])
+            if "a2a_trusted_peer_ids" in metadata and metadata["a2a_trusted_peer_ids"] is not None:
+                agent.a2a_trusted_peer_ids = list(metadata["a2a_trusted_peer_ids"])
             if "allow_discovery" in metadata and metadata["allow_discovery"] is not None:
                 agent.allow_discovery = bool(metadata["allow_discovery"])
             if "workspace_policy" in metadata:

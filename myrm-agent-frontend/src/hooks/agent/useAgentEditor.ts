@@ -149,6 +149,10 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   // 提示模式
   const [promptMode, setPromptMode] = useState<'full' | 'lean' | 'naked'>('full');
 
+  // A2A 协议与远程编排
+  const [a2aEnabled, setA2aEnabled] = useState(false);
+  const [a2aTrustedPeerIds, setA2aTrustedPeerIds] = useState<string[]>([]);
+
   // 可发现性
   const [allowDiscovery, setAllowDiscovery] = useState<boolean>(true);
   const [cronPostRunVerify, setCronPostRunVerify] = useState<boolean>(false);
@@ -198,6 +202,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     allowDiscovery: true,
     cronPostRunVerify: false,
     busyInputMode: 'redirect' as 'redirect' | 'steer' | 'queue',
+    a2aEnabled: false,
+    a2aTrustedPeerIds: [] as string[],
   });
 
   // 检测变更
@@ -243,6 +249,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       allowDiscovery !== originalData.allowDiscovery ||
       cronPostRunVerify !== originalData.cronPostRunVerify ||
       busyInputMode !== originalData.busyInputMode ||
+      a2aEnabled !== originalData.a2aEnabled ||
+      !arraysEqual(a2aTrustedPeerIds, originalData.a2aTrustedPeerIds) ||
       maxIterations !== originalData.maxIterations ||
       !arraysEqual(suggestionPrompts, originalData.suggestionPrompts);
     setHasChanges(changed);
@@ -276,6 +284,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     allowDiscovery,
     cronPostRunVerify,
     busyInputMode,
+    a2aEnabled,
+    a2aTrustedPeerIds,
     originalData,
   ]);
 
@@ -344,6 +354,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       setAllowDiscovery(data.allow_discovery ?? true);
       setCronPostRunVerify(data.cron_post_run_verify ?? false);
       setBusyInputMode(data.busy_input_mode || 'redirect');
+      setA2aEnabled(data.a2a_enabled ?? false);
+      setA2aTrustedPeerIds(data.a2a_trusted_peer_ids || []);
       setMemoryDecayProfile(data.memory_decay_profile || 'normal');
       setMemoryExtractionPreset(data.memory_extraction_preset || 'auto');
       setEngineParams(data.engine_params ?? null);
@@ -374,6 +386,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         allowDiscovery: data.allow_discovery ?? true,
         cronPostRunVerify: data.cron_post_run_verify ?? false,
         busyInputMode: data.busy_input_mode || 'redirect',
+        a2aEnabled: data.a2a_enabled ?? false,
+        a2aTrustedPeerIds: data.a2a_trusted_peer_ids || [],
         maxIterations: data.max_iterations ?? null,
         workspacePolicy: data.workspace_policy || 'INHERIT_REQUESTER',
         memoryDecayProfile: data.memory_decay_profile || 'normal',
@@ -474,6 +488,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           allow_discovery: allowDiscovery,
           cron_post_run_verify: cronPostRunVerify,
           busy_input_mode: busyInputMode,
+          a2a_enabled: a2aEnabled,
+          a2a_trusted_peer_ids: a2aTrustedPeerIds,
           subagent_ids: selectedSubagentIds.length > 0 ? selectedSubagentIds : undefined,
           max_iterations: maxIterations,
           workspace_policy: workspacePolicy,
@@ -513,6 +529,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           allow_discovery: allowDiscovery,
           cron_post_run_verify: cronPostRunVerify,
           busy_input_mode: busyInputMode,
+          a2a_enabled: a2aEnabled,
+          a2a_trusted_peer_ids: a2aTrustedPeerIds,
           subagent_ids: selectedSubagentIds.length > 0 ? selectedSubagentIds : [],
           max_iterations: maxIterations,
           workspace_policy: workspacePolicy,
@@ -758,6 +776,11 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     // 提示模式
     promptMode,
     setPromptMode,
+    // A2A 协议与远程编排
+    a2aEnabled,
+    setA2aEnabled,
+    a2aTrustedPeerIds,
+    setA2aTrustedPeerIds,
     // 可发现性
     allowDiscovery,
     setAllowDiscovery,

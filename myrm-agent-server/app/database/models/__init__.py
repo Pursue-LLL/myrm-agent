@@ -3,6 +3,7 @@
 [OUTPUT] 所有 ORM 模型类和 Base 基类
 """
 
+from .a2a_peer import A2APeerModel
 from .agent import Agent, AgentProfileSnapshot, AgentSecret
 from .agent_history import AgentProfileHistory
 from .api_key import APIKey
@@ -134,6 +135,8 @@ __all__ = [
     "KanbanTaskModel",
     # Lifecycle Webhook
     "LifecycleWebhookModel",
+    # A2A Peers
+    "A2APeerModel",
     # Channel
     "ChannelPairingModel",
     "ChannelMessageModel",

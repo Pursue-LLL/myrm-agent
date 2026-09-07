@@ -24,10 +24,12 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     get_e2e_api_url,
     get_e2e_ui_url,
     open_mcp_page,
+    prepare_e2e_ui_session,
     wait_for_react_e2e_bridge,
     wait_for_state,
     wait_for_workflow_plan_card,
 )
+from tests.support.e2e_provider_seed import seed_live_e2e_providers
 from tests.support.e2e_runtime_guard import E2EResourceLedger
 
 _BRIDGE_READY_JS = """(() => ({
@@ -98,7 +100,12 @@ _KICKOFF_DW_JS = f"""(async () => {{
 }})()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_dynamic_workflow_plan_confirm_and_run_chrome_e2e(
@@ -106,15 +113,18 @@ def test_dynamic_workflow_plan_confirm_and_run_chrome_e2e(
 ) -> None:
     """Full UI path: workflow toggle, plan card, confirm, summarized output."""
     _ = e2e_resource_ledger
+    api_url = get_e2e_api_url()
+    prepare_e2e_ui_session(api_url)
+    seed_live_e2e_providers(api_url)
+
     if not wait_e2e_provider_ready(timeout_sec=90.0):
         pytest.fail(
             "Provider not ready — run ./myrm ready --chrome then ./myrm test -m chrome_e2e "
             "myrm-agent/myrm-agent-server/tests/e2e/test_dynamic_workflow_chrome_e2e.py",
         )
 
-    ensure_e2e_yolo_mode(api_url=get_e2e_api_url())
+    ensure_e2e_yolo_mode(api_url=api_url)
     ui_url = get_e2e_ui_url()
-    api_url = get_e2e_api_url()
 
     with open_mcp_page(ui_url, timeout_ms=120_000) as (client, page):
         dismiss_blocking_modals(client, page)

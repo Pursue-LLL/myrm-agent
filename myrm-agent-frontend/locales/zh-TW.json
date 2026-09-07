@@ -1093,7 +1093,8 @@
         "openSettings": "開啟設定",
         "recheckBtn": "重新檢查",
         "checkFailed": "無法檢測桌面許可權，請在後端就緒後重試。",
-        "hint": "桌面控制需要 macOS 輔助功能和螢幕錄製許可權。"
+        "hint": "桌面控制需要 macOS 輔助功能和螢幕錄製許可權。",
+        "captureNotReady": "螢幕擷取不可用（黑畫面或空白影格）。請重新開啟螢幕錄製並解鎖螢幕後重試。"
       },
       "mediaCredential": {
         "title": "媒體工具需要 API 憑證",
@@ -1565,7 +1566,15 @@
     "ablationGuidance": {
       "title": "架構師指引（消融槓桿律：Tools/Middleware ≫ Prompt）",
       "description": "消融實驗表明：工具定義與中間件攔截（如參數修復、超時控制、沙盒隔離）的修復 ROI 遠高於修改提示詞。遇到調用缺陷時，請優先在「能力 (Capabilities)」與「安全 (Security)」中啟用對應中間件，避免在 Prompt 中硬編碼冗長規約造成模型過擬合與上下文浪費。"
-    }
+    },
+    "a2aBinding": "A2A 跨框架遠端委派",
+    "a2aBindingDesc": "開啟後，該智慧體支援遵循 A2A (Agent-to-Agent v1.0) 協定跨機器委派呼叫受信任的遠端 Agent 節點",
+    "a2aEnableSwitch": "啟用 A2A 協定委派",
+    "a2aTrustedPeers": "授權的受信任遠端 A2A 節點",
+    "a2aTrustedPeersDesc": "選擇該智慧體執行多 Agent 協同與編排時允許呼叫的遠端 Peer",
+    "addA2APeer": "授權節點",
+    "noA2APeers": "未授權任何遠端節點（點擊新增進行授權）",
+    "manageA2APeersLink": "前往「整合設定」管理所有遠端節點名冊"
   },
   "common": {
     "keyValueEditor": {
@@ -3460,6 +3469,12 @@
       "path": "路徑",
       "filePattern": "檔案"
     },
+    "folding": {
+      "showMore": "展開中間 {count} 個已完成步驟",
+      "showLess": "收起中間步驟",
+      "stepSummary": "已完成 {completed}/{total} 步"
+    },
+    "viewDetailTooltip": "檢視執行詳情與出入參",
     "evictedOutput": {
       "savedHint": "完整工具輸出已儲存至沙箱",
       "savedStderrHint": "完整錯誤輸出已儲存至沙箱",
@@ -3484,6 +3499,13 @@
     },
     "task": "任務步驟",
     "diagnosticHint": "診斷建議",
+    "collapsedSteps": "展開中間 {count} 個步驟",
+    "collapseSteps": "折疊中間步驟",
+    "stepDetails": "步驟執行詳情",
+    "rawPayload": "原始負載數據",
+    "executionTime": "耗時",
+    "stepStatus": "執行狀態",
+    "inspectDetails": "查看步驟詳情",
     "planning_task": "規劃任務",
     "analyzing_query": "分析查詢",
     "searching_web": "搜尋網路",
@@ -3703,7 +3725,39 @@
     "moa_overlay_active": "顧問疊加 fan-out 進行中",
     "moa_ref_done": "顧問參考模型已完成",
     "copied": "已複製！",
-    "copy": "複製"
+    "copy": "複製",
+    "viewStepDetail": "查看執行詳情",
+    "stepDetailTitle": "步驟執行詳情",
+    "tabOverview": "概覽",
+    "tabPayload": "入參 / 數據",
+    "tabRaw": "原始事件 (JSON)",
+    "stepKeyLabel": "步驟識別",
+    "toolNameLabel": "工具名稱",
+    "durationLabel": "執行耗時",
+    "reasonLabel": "執行理由",
+    "statusLabel": "執行狀態",
+    "agentInstanceLabel": "執行智能體",
+    "faultSideLabel": "責任歸屬",
+    "errorCategoryLabel": "錯誤分類",
+    "expandIntermediateSteps": "展開中間 {count} 個步驟",
+    "collapseIntermediateSteps": "收起中間步驟",
+    "copyJson": "複製 JSON",
+    "copiedJson": "已複製",
+    "detailModal": {
+      "title": "步驟執行詳情",
+      "subtitle": "查看工具參數、診斷指標與執行耗時",
+      "toolName": "工具名稱",
+      "agentInstance": "執行智能體",
+      "duration": "執行耗時",
+      "status": "執行狀態",
+      "reason": "執行理由與意圖",
+      "payload": "入參負載與上下文",
+      "stdout": "即時終端輸出",
+      "diagnostic": "診斷建議與歸因",
+      "copyRaw": "複製原始 JSON",
+      "copied": "已複製",
+      "close": "關閉"
+    }
   },
   "memory": {
     "title": "記憶管理",
@@ -18594,6 +18648,9 @@
           },
           "ERR_DESKTOP_PERMISSIONS_PROBE": {
             "message": "桌面許可權檢查失敗。"
+          },
+          "WARN_DESKTOP_CAPTURE_NOT_READY": {
+            "message": "權限看似已授予，但螢幕擷取不可用。"
           }
         }
       },
@@ -18828,6 +18885,46 @@
       "chipTitle": "模型編排手冊",
       "chipSubtitle": "掌握大腦與肢體分工及智能路由最佳實踐",
       "chipAction": "查看手冊"
+    },
+    "a2aPeers": {
+      "title": "A2A 協定與遠端受信任節點",
+      "description": "節點描述 (選填)",
+      "registryTitle": "受信任遠端節點名冊",
+      "addPeer": "新增 A2A 節點",
+      "newPeer": "註冊新的遠端 A2A 節點",
+      "editPeer": "編輯 A2A 節點",
+      "peerName": "節點名稱",
+      "peerNamePlaceholder": "例如：Hermes Deep Researcher / OpenClaw Code Reviewer",
+      "baseUrl": "A2A 服務根 URL",
+      "baseUrlPlaceholder": "https://agent.example.com",
+      "descriptionPlaceholder": "簡述遠端節點擅長的任務或能力領域",
+      "authType": "認證方式",
+      "authBearer": "Bearer 權杖",
+      "authApiKey": "API 金鑰認證 (X-API-Key)",
+      "authNone": "無認證 (公網開放)",
+      "authToken": "認證金鑰",
+      "authTokenPlaceholder": "輸入用於呼叫遠端 A2A RPC 的存取金鑰",
+      "authTokenKeepPlaceholder": "留空則保留目前已儲存的金鑰",
+      "savePeer": "儲存節點",
+      "saveChanges": "儲存修改",
+      "saving": "儲存中...",
+      "cancel": "取消",
+      "probe": "探活檢測",
+      "probing": "探活中...",
+      "probeSuccess": "探活成功：{latency}ms，已解析 AgentCard",
+      "probeFailed": "探活失敗：{error}",
+      "ssrfBlocked": "SSRF 安全攔截：目標位址屬於受限內部網路",
+      "noPeers": "尚無註冊的 A2A 節點",
+      "noPeersDesc": "註冊遠端 A2A 節點後，您可以在智慧體能力中開啟 A2A 遠端編排，無縫委派複雜子任務至第三方 Agent 執行。",
+      "deleteConfirm": "確定要刪除此 A2A 節點嗎？",
+      "cardPreview": "AgentCard 中繼資料",
+      "cardSkills": "支援技能",
+      "cardProvider": "服務提供方",
+      "statusOk": "正常",
+      "statusError": "異常",
+      "statusUnreachable": "無法連線",
+      "statusSsrf": "安全阻斷",
+      "hasToken": "已設定憑證"
     }
   },
   "continualOverlay": {

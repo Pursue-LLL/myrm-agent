@@ -172,6 +172,8 @@ class GeneralAgent(ToolSetupMixin):
         search_depth: str = "normal",
         tail_budget_ratio: float = 0.20,
         notify_targets: tuple[dict[str, str], ...] = (),
+        a2a_enabled: bool = False,
+        a2a_trusted_peer_ids: list[str] | None = None,
     ) -> None:
         self.model_cfg = model_cfg
         self.fallback_model_cfg = fallback_model_cfg
@@ -297,6 +299,8 @@ class GeneralAgent(ToolSetupMixin):
         self.goal = goal
         self.openapi_services = openapi_services or []
         self.notify_targets = notify_targets
+        self.a2a_enabled = a2a_enabled
+        self.a2a_trusted_peer_ids = list(a2a_trusted_peer_ids or [])
         self.moa_overlay_skip_reason: str | None = None
 
     def _resolve_wiki_base_dir(self) -> str | None:

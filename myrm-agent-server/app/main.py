@@ -27,29 +27,41 @@ from app.ai_agents.general_agent.tools import (
 from app.api.channels.channel_ingress import router as channel_ingress_router
 from app.api.internal.agent_audit import router as internal_agent_audit_router
 from app.api.internal.agent_interrupt import router as internal_agent_interrupt_router
-from app.api.internal.background_shell_status import router as internal_background_shell_status_router
-from app.api.internal.import_agent_profile import router as internal_import_agent_profile_router
+from app.api.internal.background_shell_status import (
+    router as internal_background_shell_status_router,
+)
+from app.api.internal.import_agent_profile import (
+    router as internal_import_agent_profile_router,
+)
 from app.api.internal.import_archive import router as internal_import_archive_router
 from app.api.internal.org_policy_sync.org_managed_approval_policy_sync import (
     router as internal_org_managed_approval_policy_sync_router,
 )
-from app.api.internal.org_policy_sync.org_mcp_sync import router as internal_org_mcp_sync_router
+from app.api.internal.org_policy_sync.org_mcp_sync import (
+    router as internal_org_mcp_sync_router,
+)
 from app.api.internal.org_policy_sync.org_model_policy_sync import (
     frontend_router as org_model_policy_frontend_router,
 )
 from app.api.internal.org_policy_sync.org_model_policy_sync import (
     router as internal_org_model_policy_sync_router,
 )
-from app.api.internal.skills_killswitch import router as internal_skills_killswitch_router
+from app.api.internal.skills_killswitch import (
+    router as internal_skills_killswitch_router,
+)
 from app.api.mem0_compat.router import mem0_compat_router
 from app.api.openai_compat.router import openai_compat_router
 from app.api.router import api_router
 from app.api.webui.router import router as webui_router
 from app.config.logging import configure_logging
 from app.config.settings import settings
-from app.core.security.integration_write_patterns import register_server_integration_write_patterns
+from app.core.security.integration_write_patterns import (
+    register_server_integration_write_patterns,
+)
 from app.core.utils.errors import register_exception_handlers
-from app.database.operations.db_operational_handlers import register_database_operational_handlers
+from app.database.operations.db_operational_handlers import (
+    register_database_operational_handlers,
+)
 from app.server.exceptions import general_exception_handler, not_found_handler
 from app.server.lifespan import optimized_lifespan
 from app.server.middlewares import register_middlewares
@@ -91,11 +103,13 @@ app.include_router(webui_router)
 # Standard A2A discovery root endpoint: /.well-known/agent-card.json
 _root_card_generator = AgentCardGenerator()
 
+
 @app.get("/.well-known/agent-card.json", tags=["a2a"])
 async def root_well_known_agent_card(request: Request) -> dict[str, object]:
     base_url = str(request.base_url).rstrip("/")
     card = await _root_card_generator.generate_card(base_url=base_url)
     return card.model_dump(by_alias=True)
+
 
 register_database_operational_handlers(app)
 register_exception_handlers(app)

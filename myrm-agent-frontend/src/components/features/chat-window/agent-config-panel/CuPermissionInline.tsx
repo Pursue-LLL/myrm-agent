@@ -21,7 +21,9 @@ import { openPermissionDeepLinkWithGuideFallback, pickSettingsDeepLink } from '@
 interface CuPermissionsResponse {
   accessibility: boolean;
   screen_recording: boolean;
+  screen_recording_capturable: boolean | null;
   all_granted: boolean;
+  capture_ready: boolean;
   platform: string;
   settings_deeplinks: Record<string, string>;
 }
@@ -31,11 +33,14 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
-  const check = useCallback(async () => {
+  const check = useCallback(async (probeCapture = false) => {
     setLoading(true);
     setError(false);
     try {
-      const data = await apiRequest<CuPermissionsResponse>('/webui/desktop/permissions', { silent: true });
+      const path = probeCapture
+        ? '/webui/desktop/permissions?probe_capture=true'
+        : '/webui/desktop/permissions';
+      const data = await apiRequest<CuPermissionsResponse>(path, { silent: true });
       setStatus(data);
     } catch {
       setError(true);
@@ -59,7 +64,7 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
         <button
           type="button"
           className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors"
-          onClick={check}
+          onClick={() => check(true)}
           disabled={loading}
         >
           <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
@@ -69,7 +74,7 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
     );
   }
 
-  const allOk = status?.all_granted;
+  const allOk = status?.capture_ready ?? status?.all_granted;
 
   return (
     <div
@@ -99,6 +104,9 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
           <ul className="ml-5 list-disc space-y-0.5">
             {status && !status.accessibility && <li>{tPanel('cuPermission.accessibilityMissing')}</li>}
             {status && !status.screen_recording && <li>{tPanel('cuPermission.screenRecordingMissing')}</li>}
+            {status && status.screen_recording && status.screen_recording_capturable === false && (
+              <li>{tPanel('cuPermission.captureNotReady')}</li>
+            )}
           </ul>
           <p className="text-[10px] opacity-75">{tPanel('cuPermission.hint')}</p>
           <div className="flex items-center gap-2 pt-1">
@@ -120,7 +128,7 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
             <button
               type="button"
               className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-amber-500/15 hover:bg-amber-500/25 font-medium transition-colors"
-              onClick={check}
+              onClick={() => check(true)}
               disabled={loading}
             >
               <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />

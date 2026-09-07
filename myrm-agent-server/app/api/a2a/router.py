@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Header, Request
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from myrm_agent_harness.toolkits.a2a.security import sanitize_bearer_token
 from myrm_agent_harness.toolkits.a2a.types import (
     JsonRpcError,
@@ -30,7 +30,15 @@ from myrm_agent_harness.toolkits.a2a.types import (
     JsonRpcResponse,
 )
 
+from app.database.dto import (
+    A2APeerCreate,
+    A2APeerProbeRequest,
+    A2APeerProbeResponse,
+    A2APeerResponse,
+    A2APeerUpdate,
+)
 from app.services.a2a.card_generator import AgentCardGenerator
+from app.services.a2a.peer_registry import get_a2a_peer_registry
 from app.services.a2a.service import get_a2a_server_service
 
 logger = logging.getLogger(__name__)
@@ -62,7 +70,9 @@ async def handle_root_rpc(
     authorization: str | None = Header(default=None),
 ) -> JsonRpcResponse:
     """JSON-RPC 2.0 dispatch for default agent."""
-    return await _dispatch_rpc(request, body, agent_id=None, authorization=authorization)
+    return await _dispatch_rpc(
+        request, body, agent_id=None, authorization=authorization
+    )
 
 
 @router.post("/agents/{agent_id}/rpc")
@@ -73,7 +83,9 @@ async def handle_agent_rpc(
     authorization: str | None = Header(default=None),
 ) -> JsonRpcResponse:
     """JSON-RPC 2.0 dispatch for specific agent profile."""
-    return await _dispatch_rpc(request, body, agent_id=agent_id, authorization=authorization)
+    return await _dispatch_rpc(
+        request, body, agent_id=agent_id, authorization=authorization
+    )
 
 
 async def _dispatch_rpc(
@@ -104,8 +116,12 @@ async def _dispatch_rpc(
 
             task_id_param = str(params["taskId"]) if "taskId" in params else None
             push_url_param = str(params["pushUrl"]) if "pushUrl" in params else None
-            push_secret_param = str(params["pushSecret"]) if "pushSecret" in params else None
-            target_agent = str(params.get("agentId")) if params.get("agentId") else agent_id
+            push_secret_param = (
+                str(params["pushSecret"]) if "pushSecret" in params else None
+            )
+            target_agent = (
+                str(params.get("agentId")) if params.get("agentId") else agent_id
+            )
 
             task = await service.send_task(
                 prompt_obj,
@@ -164,7 +180,9 @@ async def _dispatch_rpc(
 
         elif method in ("agent/card", "GetAgentCard"):
             base_url = str(request.base_url).rstrip("/")
-            card = await _card_generator.generate_card(agent_id=agent_id, base_url=base_url)
+            card = await _card_generator.generate_card(
+                agent_id=agent_id, base_url=base_url
+            )
             return JsonRpcResponse(
                 id=req_id,
                 result=card.model_dump(by_alias=True),
@@ -180,7 +198,9 @@ async def _dispatch_rpc(
             )
 
     except Exception as e:
-        logger.error("Error executing A2A RPC method '%s': %s", method, e, exc_info=True)
+        logger.error(
+            "Error executing A2A RPC method '%s': %s", method, e, exc_info=True
+        )
         return JsonRpcResponse(
             id=req_id,
             error=JsonRpcError(
@@ -188,3 +208,73 @@ async def _dispatch_rpc(
                 message=f"Internal error processing request: {e}",
             ),
         )
+
+
+# ============================================================================
+# Trusted Peers Management Endpoints
+# ============================================================================
+
+
+@router.get("/peers", response_model=list[A2APeerResponse])
+async def list_a2a_peers(active_only: bool = False) -> list[A2APeerResponse]:
+    """List all registered trusted A2A peers."""
+    registry = get_a2a_peer_registry()
+    return await registry.list_peers(only_active=active_only)
+
+
+@router.post(
+    "/peers",
+    response_model=A2APeerResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_a2a_peer(body: A2APeerCreate) -> A2APeerResponse:
+    """Register a new trusted A2A peer."""
+    registry = get_a2a_peer_registry()
+    return await registry.create_peer(body)
+
+
+@router.get("/peers/{peer_id}", response_model=A2APeerResponse)
+async def get_a2a_peer(peer_id: str) -> A2APeerResponse:
+    """Get details of a single A2A peer."""
+    registry = get_a2a_peer_registry()
+    peer = await registry.get_peer(peer_id)
+    if not peer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"A2A peer '{peer_id}' not found.",
+        )
+    return peer
+
+
+@router.patch("/peers/{peer_id}", response_model=A2APeerResponse)
+async def update_a2a_peer(peer_id: str, body: A2APeerUpdate) -> A2APeerResponse:
+    """Update an existing A2A peer."""
+    registry = get_a2a_peer_registry()
+    updated = await registry.update_peer(peer_id, body)
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"A2A peer '{peer_id}' not found.",
+        )
+    return updated
+
+
+@router.delete("/peers/{peer_id}")
+async def delete_a2a_peer(peer_id: str) -> dict[str, bool]:
+    """Delete an A2A peer."""
+    registry = get_a2a_peer_registry()
+    success = await registry.delete_peer(peer_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"A2A peer '{peer_id}' not found.",
+        )
+    return {"success": True}
+
+
+@router.post("/peers/probe", response_model=A2APeerProbeResponse)
+async def probe_a2a_peer(body: A2APeerProbeRequest) -> A2APeerProbeResponse:
+    """Probe connectivity to a remote A2A peer and retrieve its AgentCard."""
+    registry = get_a2a_peer_registry()
+    return await registry.probe(body)
+

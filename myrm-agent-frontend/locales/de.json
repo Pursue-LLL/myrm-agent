@@ -892,7 +892,8 @@
         "openSettings": "Einstellungen öffnen",
         "recheckBtn": "Erneut prüfen",
         "checkFailed": "Desktop-Berechtigungen konnten nicht geprüft werden. Versuchen Sie es erneut, wenn das Backend bereit ist.",
-        "hint": "Desktop-Steuerung erfordert macOS-Berechtigungen für Bedienungshilfen und Bildschirmaufnahme."
+        "hint": "Desktop-Steuerung erfordert macOS-Berechtigungen für Bedienungshilfen und Bildschirmaufnahme.",
+        "captureNotReady": "Bildschirmaufnahme nicht verfügbar (schwarzer oder leerer Frame). Aktivieren Sie die Bildschirmaufnahme erneut und entsperren Sie den Bildschirm."
       },
       "mediaCredential": {
         "title": "Medien-Tools benötigen API-Anmeldedaten",
@@ -1565,7 +1566,15 @@
     "ablationGuidance": {
       "title": "Architekten-Leitfaden (Ablations-Hebelgesetz: Tools/Middleware ≫ Prompt)",
       "description": "Ablationsexperimente zeigen: Tool-Definitionen und Middleware-Guardrails (z. B. Parameterreparatur, Timeout-Kontrolle, Sandbox-Isolation) liefern einen weitaus höheren ROI als reine Prompt-Anpassungen. Aktivieren Sie bei Aufruffehlern vorrangig entsprechende Middleware in Funktionen und Sicherheit, anstatt lange System-Prompts zu pflegen."
-    }
+    },
+    "a2aBinding": "A2A Framework-übergreifende Remote-Delegierung",
+    "a2aBindingDesc": "Aktiviert die Delegation von Aufgaben an vertrauenswürdige Remote-Agenten nach dem A2A (Agent-to-Agent v1.0) Protokoll.",
+    "a2aEnableSwitch": "A2A-Delegation aktivieren",
+    "a2aTrustedPeers": "Autorisierte vertrauenswürdige Remote-A2A-Knoten",
+    "a2aTrustedPeersDesc": "Wählen Sie Remote-Peers aus, die während der Multi-Agenten-Orchestrierung aufgerufen werden dürfen",
+    "addA2APeer": "Knoten autorisieren",
+    "noA2APeers": "Keine Remote-Knoten autorisiert (zum Hinzufügen klicken)",
+    "manageA2APeersLink": "Gehen Sie zu Integrationseinstellungen, um das Knotenverzeichnis zu verwalten"
   },
   "common": {
     "keyValueEditor": {
@@ -3454,6 +3463,12 @@
     "legend": "Legende"
   },
   "progressSteps": {
+    "folding": {
+      "showMore": "{count} Zwischenschritte aufklappen",
+      "showLess": "Zwischenschritte einklappen",
+      "stepSummary": "{completed} von {total} Schritten abgeschlossen"
+    },
+    "viewDetailTooltip": "Ausführungsdetails und Nutzlast anzeigen",
     "evictedOutput": {
       "savedHint": "Vollständige Tool-Ausgabe in Sandbox-Speicher gespeichert",
       "savedStderrHint": "Vollständige Fehlerausgabe in Sandbox-Speicher gespeichert",
@@ -3603,6 +3618,13 @@
     "expand": "Expandieren",
     "collapse": "Zusammenbruch",
     "diagnosticHint": "Diagnosehinweis",
+    "collapsedSteps": "{count} Zwischenschritte aufklappen",
+    "collapseSteps": "Zwischenschritte einklappen",
+    "stepDetails": "Details zur Schrittausführung",
+    "rawPayload": "Rohdaten (Payload)",
+    "executionTime": "Dauer",
+    "stepStatus": "Ausführungsstatus",
+    "inspectDetails": "Details anzeigen",
     "archive_checkpoint": "Archivzusammenfassung für späteren Abruf gespeichert",
     "analyzing_image": "Bild wird analysiert...",
     "analyzing_video": "Video wird analysiert...",
@@ -3703,7 +3725,39 @@
     "update_ui_data_tool_tool": "Aktualisieren interaktiver UI-Daten",
     "update_ui_data_tool_tool_error": "Beim Aktualisieren der UI-Daten ist ein Fehler aufgetreten",
     "copied": "Kopiert!",
-    "copy": "Kopieren"
+    "copy": "Kopieren",
+    "viewStepDetail": "Schrittdetails anzeigen",
+    "stepDetailTitle": "Details zur Schrittausführung",
+    "tabOverview": "Übersicht",
+    "tabPayload": "Eingabe / Daten",
+    "tabRaw": "Roh-Event (JSON)",
+    "stepKeyLabel": "Schrittschlüssel",
+    "toolNameLabel": "Werkzeugname",
+    "durationLabel": "Dauer",
+    "reasonLabel": "Grund",
+    "statusLabel": "Zustand",
+    "agentInstanceLabel": "Agenten-Instanz",
+    "faultSideLabel": "Fehlerseite",
+    "errorCategoryLabel": "Fehlerkategorie",
+    "expandIntermediateSteps": "{count} Zwischenschritte aufklappen",
+    "collapseIntermediateSteps": "Zwischenschritte einklappen",
+    "copyJson": "JSON kopieren",
+    "copiedJson": "Kopiert",
+    "detailModal": {
+      "title": "Details zur Schrittausführung",
+      "subtitle": "Werkzeugparameter, Diagnosemetriken und Latenz prüfen",
+      "toolName": "Werkzeugname",
+      "agentInstance": "Ausführender Agent",
+      "duration": "Dauer",
+      "status": "Ausführungszustand",
+      "reason": "Ausführungsgrund und Absicht",
+      "payload": "Eingabe-Payload und Kontext",
+      "stdout": "Live-Terminalausgabe",
+      "diagnostic": "Diagnoseempfehlung und Zuordnung",
+      "copyRaw": "Roh-JSON kopieren",
+      "copied": "Kopiert",
+      "close": "Schließen"
+    }
   },
   "memory": {
     "title": "Speicherverwaltung",
@@ -18593,6 +18647,9 @@
           },
           "ERR_DESKTOP_PERMISSIONS_PROBE": {
             "message": "Die Überprüfung der Desktop-Berechtigungen ist fehlgeschlagen."
+          },
+          "WARN_DESKTOP_CAPTURE_NOT_READY": {
+            "message": "Berechtigungen scheinen erteilt zu sein, Bildschirmaufnahme ist jedoch nicht nutzbar."
           }
         },
         "desktopOpenSettings": "Öffnen Sie die Systemeinstellungen"
@@ -18828,6 +18885,46 @@
       "chipTitle": "Modell-Orchestrierungs-Playbook",
       "chipSubtitle": "Meistern Sie die Aufteilung zwischen Brain und Hands sowie intelligente Routing-Rezepte",
       "chipAction": "Playbook ansehen"
+    },
+    "a2aPeers": {
+      "title": "A2A-Protokoll & Vertrauenswürdige Remote-Knoten",
+      "description": "Knotenbeschreibung (Optional)",
+      "registryTitle": "Verzeichnis vertrauenswürdiger Remote-Knoten",
+      "addPeer": "A2A-Knoten hinzufügen",
+      "newPeer": "Neuen Remote-A2A-Knoten registrieren",
+      "editPeer": "A2A-Knoten bearbeiten",
+      "peerName": "Knotenname",
+      "peerNamePlaceholder": "z. B. Hermes Deep Researcher / OpenClaw Code Reviewer",
+      "baseUrl": "A2A-Basis-URL",
+      "baseUrlPlaceholder": "https://agent.example.com",
+      "descriptionPlaceholder": "Kurzbeschreibung der Fachgebiete oder Fähigkeiten des Remote-Agenten",
+      "authType": "Authentifizierungsart",
+      "authBearer": "Bearer-Token",
+      "authApiKey": "API-Schlüssel (X-API-Key)",
+      "authNone": "Keine Authentifizierung (Öffentlich)",
+      "authToken": "Authentifizierungstoken",
+      "authTokenPlaceholder": "Zugriffstoken für Remote-A2A-RPC eingeben",
+      "authTokenKeepPlaceholder": "Leer lassen, um das aktuelle Token beizubehalten",
+      "savePeer": "Knoten speichern",
+      "saveChanges": "Änderungen speichern",
+      "saving": "Speichern...",
+      "cancel": "Abbrechen",
+      "probe": "Verbindungstest (Probe)",
+      "probing": "Teste Verbindung...",
+      "probeSuccess": "Probe erfolgreich: {latency}ms, AgentCard aufgelöst",
+      "probeFailed": "Probe fehlgeschlagen: {error}",
+      "ssrfBlocked": "SSRF blockiert: Zieladresse gehört zu einem eingeschränkten privaten Netzwerk",
+      "noPeers": "Keine A2A-Knoten registriert",
+      "noPeersDesc": "Registrieren Sie Remote-A2A-Knoten, um Aufgaben nahtlos an Drittanbieter-Agenten über A2A-Orchestrierung zu delegieren.",
+      "deleteConfirm": "Möchten Sie diesen A2A-Knoten wirklich löschen?",
+      "cardPreview": "AgentCard-Metadaten",
+      "cardSkills": "Unterstützte Skills",
+      "cardProvider": "Anbieter",
+      "statusOk": "In Ordnung",
+      "statusError": "Fehler",
+      "statusUnreachable": "Nicht erreichbar",
+      "statusSsrf": "Sicherheitsblockade",
+      "hasToken": "Anmeldeinformationen hinterlegt"
     }
   },
   "continualOverlay": {

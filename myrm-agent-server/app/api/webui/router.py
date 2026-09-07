@@ -382,11 +382,14 @@ async def stop_browser_space(space_id: str, chat_id: str | None = None) -> JSONR
 
 
 @router.get("/desktop/permissions")
-async def get_desktop_permissions() -> JSONResponse:
+async def get_desktop_permissions(probe_capture: bool = False) -> JSONResponse:
     """Probe OS-level permissions required for desktop CU (Accessibility, Screen Recording).
 
-    Returns per-capability booleans, platform name, and deep-link URLs
-    to the OS settings page where the user can grant access.
+    When ``probe_capture`` is true, also runs a functional capture sample
+    (may briefly invoke the OS screenshot path). Default is grant-only.
+
+    Returns per-capability booleans, optional capturable result, platform name,
+    and deep-link URLs to the OS settings page where the user can grant access.
     Does NOT require an active desktop session — creates a temporary backend probe.
     """
     session = None
@@ -396,12 +399,14 @@ async def get_desktop_permissions() -> JSONResponse:
         )
 
         session = create_computer_session()
-        status = await session.check_permissions()
+        status = await session.check_permissions(probe_capture=probe_capture)
         return JSONResponse(
             content={
                 "accessibility": status.accessibility,
                 "screen_recording": status.screen_recording,
+                "screen_recording_capturable": status.screen_recording_capturable,
                 "all_granted": status.all_granted,
+                "capture_ready": status.capture_ready,
                 "platform": status.platform,
                 "settings_deeplinks": status.settings_deeplinks,
             }

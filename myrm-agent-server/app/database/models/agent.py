@@ -75,6 +75,8 @@ class Agent(Base):
     notify_targets: Mapped[list[dict[str, str]] | None] = mapped_column(JSON, nullable=True)
     tool_gateway_config: Mapped[dict[str, object] | None] = mapped_column(JSON, nullable=True)
     cron_post_run_verify: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    a2a_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    a2a_trusted_peer_ids: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

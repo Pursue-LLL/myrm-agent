@@ -1092,6 +1092,23 @@ async def convert_to_general_agent_params(
         engine_params = {"max_tool_calls": 20 if search_depth == "deep" else 8}
         agent_memory_policy = {"write_policy": "conversation"}
     else:
+        if search_cfg is None and "web_search" in enabled_builtin_tools:
+            from app.core.channel_bridge.config_cache import (
+                invalidate_user_configs_cache,
+            )
+            from app.core.channel_bridge.config_loader import (
+                load_user_configs as reload_user_configs,
+            )
+
+            invalidate_user_configs_cache()
+            refreshed_configs = await reload_user_configs()
+            if refreshed_configs is not None and refreshed_configs.search_cfg is not None:
+                configs = refreshed_configs
+                search_cfg = refreshed_configs.search_cfg
+
+        if search_cfg is not None and "web_search" in enabled_builtin_tools:
+            search_available = True
+
         tool_flags = resolve_agent_mount(
             ExecutionSurface.WEB_CHAT,
             resolve_builtin_tool_flags(enabled_builtin_tools),
@@ -1225,6 +1242,8 @@ async def convert_to_general_agent_params(
         tool_gateway_config=tool_gateway_config,
         client_surface=request.client_surface,
         force_skill_manage=_is_learn_skill_authoring_query(final_query),
+        a2a_enabled=bool(resolved.a2a_enabled) if resolved else False,
+        a2a_trusted_peer_ids=list(resolved.a2a_trusted_peer_ids) if resolved else [],
     )
     return (
         params,

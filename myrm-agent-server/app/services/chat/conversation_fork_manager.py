@@ -365,6 +365,43 @@ class ConversationForkManager:
                     exc,
                 )
 
+            # Record immutable fork_point event in EventLog
+            try:
+                import time
+                from pathlib import Path
+                from app.core.config import settings
+                from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
+                from myrm_agent_harness.agent.event_log.types import EventPayload, StructuredEvent
+
+                event_log_dir = Path(settings.database.event_log_dir)
+                if event_log_dir.exists():
+                    fork_event_data = {
+                        "parent_chat_id": parent_chat_id,
+                        "child_chat_id": new_chat_id,
+                        "fork_message_index": message_index,
+                        "fork_checkpoint_id": fork_checkpoint_id,
+                        "is_acceptance_mode": is_acceptance_mode,
+                    }
+                    backend = FileEventLogBackend(log_dir=event_log_dir, session_id=parent_chat_id)
+                    parent_events = await backend.get_events()
+                    next_seq = (parent_events[-1].sequence + 1) if parent_events else 1
+                    fork_event = StructuredEvent(
+                        sequence=next_seq,
+                        timestamp=time.time(),
+                        event_type="fork_point",
+                        session_id=parent_chat_id,
+                        data=EventPayload(**fork_event_data),
+                    )
+                    await backend.append([fork_event])
+                    logger.info(
+                        "Recorded immutable fork_point event in EventLog: parent=%s -> child=%s (index=%d)",
+                        parent_chat_id,
+                        new_chat_id,
+                        message_index,
+                    )
+            except Exception as ev_err:
+                logger.debug("Failed recording fork_point event: %s", ev_err)
+
             return ForkCreateResult(
                 success=True,
                 new_chat_id=new_chat_id,

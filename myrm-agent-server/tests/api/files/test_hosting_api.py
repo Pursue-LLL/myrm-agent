@@ -282,3 +282,73 @@ async def test_get_artifact_publications(hosting_client, mock_artifact, db_sessi
     pubs = response.json()["publications"]
     assert len(pubs) == 1
     assert pubs[0]["publication_url"] == "https://live.example.com"
+
+
+@pytest.mark.asyncio
+async def test_publish_pdf_artifact_with_viewer_scaffold_success(hosting_client, mock_artifact, db_session):
+    await _seed_default_vercel_target(db_session)
+    files = {"financial_report.pdf": PublishFile(path="financial_report.pdf", content="JVBERi0xLjQK...", encoding="base64")}
+    deployed_files = {}
+
+    async def _capture_deploy(*, files, **kwargs):
+        nonlocal deployed_files
+        deployed_files = files
+        return {
+            "deployment_id": "dep_pdf_999",
+            "url": "https://test-pdf.vercel.app",
+            "project_id": "prj_pdf",
+            "status": "READY",
+        }
+
+    with _patch_resolve_deploy_files(mock_artifact, files):
+        with patch("app.services.hosting.providers.vercel.VercelClient") as mock_vercel_class:
+            mock_vercel_instance = mock_vercel_class.return_value
+            mock_vercel_instance.deploy = AsyncMock(side_effect=_capture_deploy)
+            response = hosting_client.post(
+                f"/{mock_artifact.id}/publish",
+                json={"target_id": LEGACY_VERCEL_TARGET_ID, "token": "test_token"},
+            )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["provider_publication_ref"] == "dep_pdf_999"
+    assert data["publication_url"] == "https://test-pdf.vercel.app"
+    assert "index.html" in deployed_files
+    assert "financial_report.pdf" in deployed_files
+    assert '<iframe src="./financial_report.pdf"' in deployed_files["index.html"].content
+
+
+@pytest.mark.asyncio
+async def test_publish_excel_artifact_with_viewer_scaffold_success(hosting_client, mock_artifact, db_session):
+    await _seed_default_vercel_target(db_session)
+    files = {"financial_data.xlsx": PublishFile(path="financial_data.xlsx", content="UEsDBBQAA...", encoding="base64")}
+    deployed_files = {}
+
+    async def _capture_deploy(*, files, **kwargs):
+        nonlocal deployed_files
+        deployed_files = files
+        return {
+            "deployment_id": "dep_xlsx_888",
+            "url": "https://test-excel.vercel.app",
+            "project_id": "prj_xlsx",
+            "status": "READY",
+        }
+
+    with _patch_resolve_deploy_files(mock_artifact, files):
+        with patch("app.services.hosting.providers.vercel.VercelClient") as mock_vercel_class:
+            mock_vercel_instance = mock_vercel_class.return_value
+            mock_vercel_instance.deploy = AsyncMock(side_effect=_capture_deploy)
+            response = hosting_client.post(
+                f"/{mock_artifact.id}/publish",
+                json={"target_id": LEGACY_VERCEL_TARGET_ID, "token": "test_token"},
+            )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["provider_publication_ref"] == "dep_xlsx_888"
+    assert "index.html" in deployed_files
+    assert "financial_data.xlsx" in deployed_files
+    assert 'class="doc-card"' in deployed_files["index.html"].content
+    assert "Download XLSX File" in deployed_files["index.html"].content
+
+

@@ -269,6 +269,8 @@ class AgentService:
             "busy_input_mode": agent_data.busy_input_mode,
             "is_pareto_preset": agent_data.is_pareto_preset,
             "cost_reduction_ratio": agent_data.cost_reduction_ratio,
+            "a2a_enabled": agent_data.a2a_enabled,
+            "a2a_trusted_peer_ids": agent_data.a2a_trusted_peer_ids,
         }
 
         if agent_data.model_selection:
@@ -420,6 +422,10 @@ class AgentService:
                 new_metadata["cost_reduction_ratio"] = agent_data.cost_reduction_ratio
             if "busy_input_mode" in agent_data.model_fields_set:
                 new_metadata["busy_input_mode"] = agent_data.busy_input_mode
+            if "a2a_enabled" in agent_data.model_fields_set and agent_data.a2a_enabled is not None:
+                new_metadata["a2a_enabled"] = agent_data.a2a_enabled
+            if "a2a_trusted_peer_ids" in agent_data.model_fields_set and agent_data.a2a_trusted_peer_ids is not None:
+                new_metadata["a2a_trusted_peer_ids"] = list(agent_data.a2a_trusted_peer_ids)
             if "cron_post_run_verify" in agent_data.model_fields_set and agent_data.cron_post_run_verify is not None:
                 updates["cron_post_run_verify"] = agent_data.cron_post_run_verify
 
