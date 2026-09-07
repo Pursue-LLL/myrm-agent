@@ -37,21 +37,8 @@ from .delegation_models import (
     RiskLevel,
     SteeringMessage,
 )
-from .trajectory_aggregator import (
-    AggregatedTrajectory,
-    GroupDecisionItem,
-    TrajectoryAggregator,
-    TrajectoryCategory,
-    WorkTrajectoryItem,
-)
-from .weekly_report_sop import (
-    WeeklyReportPayload,
-    WeeklyReportSOPService,
-    WikiArchiveResult,
-)
 
 __all__ = [
-    "AggregatedTrajectory",
     "ApprovalRequest",
     "ApprovalResponse",
     "DelegationCoordinator",
@@ -60,16 +47,9 @@ __all__ = [
     "DelegationStatus",
     "DelegationTask",
     "DeliveryArtifact",
-    "GroupDecisionItem",
     "ProgressBeacon",
     "RiskLevel",
     "SteeringMessage",
-    "TrajectoryAggregator",
-    "TrajectoryCategory",
-    "WeeklyReportPayload",
-    "WeeklyReportSOPService",
-    "WikiArchiveResult",
-    "WorkTrajectoryItem",
     "build_approval_card_content",
     "build_delegation_task",
     "build_delivery_card_content",

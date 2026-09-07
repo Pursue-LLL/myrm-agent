@@ -24,8 +24,6 @@ myrm_agent_harness.utils.locale::is_chinese (POS: 语言检测工具)
 
 from __future__ import annotations
 
-from myrm_agent_harness.utils.locale import is_chinese
-
 # =============================================================================
 # 绝对服从规则（Absolute Obedience Override）
 # =============================================================================

@@ -24,6 +24,7 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
+    wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
 )
@@ -164,14 +165,16 @@ def test_progress_steps_trace_timeline_chrome_e2e() -> None:
     )
 
     with open_mcp_page(target_url, timeout_ms=_PAGE_TIMEOUT_MS) as (client, page):
-        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         dismiss_blocking_modals(client, page)
+        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+        wait_for_react_e2e_bridge(client, page, timeout_sec=60.0, page_url=target_url)
 
-        client.evaluate(
+        attach_res = client.evaluate(
             page,
             _ATTACH_CHAT_JS,
             timeout_sec=45.0,
         )
+        assert isinstance(attach_res, dict) and attach_res.get("ok") is True, f"Attach chat failed: {attach_res}"
 
         # 1. Verify message and progress steps mount
         _CHECK_MOUNTED_JS = """(() => {
