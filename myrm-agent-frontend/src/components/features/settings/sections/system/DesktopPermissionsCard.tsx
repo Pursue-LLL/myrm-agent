@@ -15,7 +15,15 @@
 
 import { memo, useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { MonitorCheck, CheckCircle2, XCircle, ExternalLink, RefreshCw, Copy } from 'lucide-react';
+import {
+  MonitorCheck,
+  CheckCircle2,
+  XCircle,
+  CircleDashed,
+  ExternalLink,
+  RefreshCw,
+  Copy,
+} from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { apiRequest } from '@/lib/api';
 import { toast } from '@/lib/utils/toast';
@@ -25,10 +33,14 @@ import { isSystemSettingsDeepLink, openPermissionDeepLink } from '@/lib/desktop/
 interface DesktopPermissionsStatus {
   accessibility: boolean;
   screen_recording: boolean;
+  screen_recording_capturable: boolean | null;
   all_granted: boolean;
+  capture_ready: boolean;
   platform: string;
   settings_deeplinks: Record<string, string>;
 }
+
+type HeaderTone = 'verified' | 'unverified' | 'missing';
 
 interface TrustedDesktopApp {
   trust_key: string;
@@ -47,11 +59,14 @@ const DesktopPermissionsCardLocal = memo(() => {
   const [error, setError] = useState<string | null>(null);
   const [trustError, setTrustError] = useState<string | null>(null);
 
-  const fetchPermissions = useCallback(async () => {
+  const fetchPermissions = useCallback(async (probeCapture = false) => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await apiRequest<DesktopPermissionsStatus>('/webui/desktop/permissions', { silent: true });
+      const path = probeCapture
+        ? '/webui/desktop/permissions?probe_capture=true'
+        : '/webui/desktop/permissions';
+      const data = await apiRequest<DesktopPermissionsStatus>(path, { silent: true });
       setStatus(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to check permissions');
@@ -124,7 +139,7 @@ const DesktopPermissionsCardLocal = memo(() => {
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">{t('checkFailed')}</p>
             <button
-              onClick={() => void fetchPermissions()}
+              onClick={() => void fetchPermissions(true)}
               className="p-2 rounded-lg hover:bg-muted/50 transition-colors"
             >
               <RefreshCw className="w-4 h-4 text-muted-foreground" />
@@ -135,6 +150,20 @@ const DesktopPermissionsCardLocal = memo(() => {
     );
   }
 
+  const grantsOk = status?.all_granted === true;
+  const capturable = status?.screen_recording_capturable;
+  const headerTone: HeaderTone | null = !status
+    ? null
+    : status.capture_ready
+      ? 'verified'
+      : grantsOk && capturable == null
+        ? 'unverified'
+        : 'missing';
+  const showFixHints =
+    Boolean(status) &&
+    Object.keys(status?.settings_deeplinks ?? {}).length > 0 &&
+    (status?.all_granted !== true || status?.screen_recording_capturable === false);
+
   return (
     <section className="space-y-6">
       <div className="flex items-center gap-3 px-2">
@@ -143,16 +172,20 @@ const DesktopPermissionsCardLocal = memo(() => {
       </div>
 
       <div className="rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden divide-y divide-border/20">
-        {/* Header with overall status */}
+        {/* Header with overall status — capture_ready only for emerald "all ready". */}
         <div className="p-5 flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            {!status ? (
+            {!status || isLoading ? (
               <div className="p-2 rounded-lg bg-muted/50">
                 <RefreshCw className="w-4 h-4 text-muted-foreground animate-spin" />
               </div>
-            ) : status.all_granted ? (
+            ) : headerTone === 'verified' ? (
               <div className="p-2 rounded-lg bg-emerald-500/10">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              </div>
+            ) : headerTone === 'unverified' ? (
+              <div className="p-2 rounded-lg bg-sky-500/10">
+                <CircleDashed className="w-4 h-4 text-sky-500" />
               </div>
             ) : (
               <div className="p-2 rounded-lg bg-amber-500/10">
@@ -161,15 +194,28 @@ const DesktopPermissionsCardLocal = memo(() => {
             )}
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground">
-                {!status ? t('checking') : status.all_granted ? t('allReady') : t('actionRequired')}
+                {!status || isLoading
+                  ? t('checking')
+                  : headerTone === 'verified'
+                    ? t('allReady')
+                    : headerTone === 'unverified'
+                      ? t('grantsOkCaptureUnverified')
+                      : t('actionRequired')}
               </p>
-              <p className="text-xs text-muted-foreground">{status ? t('platform', { name: status.platform }) : ''}</p>
+              <p className="text-xs text-muted-foreground">
+                {!status || isLoading
+                  ? ''
+                  : headerTone === 'unverified'
+                    ? t('captureUnverifiedHint')
+                    : t('platform', { name: status.platform })}
+              </p>
             </div>
           </div>
           <button
-            onClick={() => void fetchPermissions()}
+            onClick={() => void fetchPermissions(true)}
             disabled={isLoading}
             className="p-2 rounded-lg hover:bg-muted/50 transition-colors"
+            title={t('recheckWithCapture')}
           >
             <RefreshCw className={cn('w-4 h-4 text-muted-foreground', isLoading && 'animate-spin')} />
           </button>
@@ -185,7 +231,7 @@ const DesktopPermissionsCardLocal = memo(() => {
           statusMissingLabel={t('statusMissing')}
         />
 
-        {/* Screen recording check */}
+        {/* Screen recording grant */}
         <PermissionRow
           label={t('screenRecording')}
           description={t('screenRecordingDesc')}
@@ -195,8 +241,19 @@ const DesktopPermissionsCardLocal = memo(() => {
           statusMissingLabel={t('statusMissing')}
         />
 
+        {/* Functional capture probe (null = not verified yet) */}
+        <CaptureProbeRow
+          label={t('captureFunctional')}
+          description={t('captureFunctionalDesc')}
+          capturable={status?.screen_recording_capturable ?? null}
+          isLoading={isLoading}
+          statusOkLabel={t('statusOk')}
+          statusUnverifiedLabel={t('statusUnverified')}
+          statusMissingLabel={t('statusMissing')}
+        />
+
         {/* Deeplinks / repair hints */}
-        {status && !status.all_granted && Object.keys(status.settings_deeplinks).length > 0 && (
+        {showFixHints && (
           <div className="p-5 space-y-3">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('fixHints')}</p>
             {Object.entries(status.settings_deeplinks).map(([key, value]) => (

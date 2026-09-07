@@ -1760,7 +1760,7 @@ _ensure_mux_daemon
 VANILLA_MCP_COUNT=0
 if pgrep -f 'npm exec chrome-devtools-mcp' >/dev/null 2>&1; then
   # Exclude compliant isolated Agent MCP instances connecting to ChromeAgent :9410
-  VANILLA_MCP_COUNT="$(pgrep -lf 'npm exec chrome-devtools-mcp' | grep -v '9410' | wc -l | tr -d ' ')"
+  VANILLA_MCP_COUNT="$(pgrep -lf 'npm exec chrome-devtools-mcp' | { grep -v '9410' || true; } | wc -l | tr -d ' ')"
 fi
 if [[ "${MUX_USING}" -eq 1 ]]; then
   if [[ "${VANILLA_MCP_COUNT}" -gt 0 ]]; then

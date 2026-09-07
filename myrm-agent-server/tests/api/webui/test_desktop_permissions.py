@@ -62,9 +62,65 @@ class TestGetDesktopPermissions:
         assert data["screen_recording"] is True
         assert data["screen_recording_capturable"] is True
         assert data["all_granted"] is True
+        assert data["capture_ready"] is True
         assert data["platform"] == "macos"
         assert "accessibility" in data["settings_deeplinks"]
         assert "screen_recording" in data["settings_deeplinks"]
+        mock_session.check_permissions.assert_awaited_once_with(probe_capture=False)
+        mock_session.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_probe_capture_true_forwards_flag(self, client: httpx.AsyncClient) -> None:
+        mock_session = AsyncMock()
+        mock_status = AsyncMock()
+        mock_status.accessibility = True
+        mock_status.screen_recording = True
+        mock_status.screen_recording_capturable = True
+        mock_status.all_granted = True
+        mock_status.capture_ready = True
+        mock_status.platform = "macos"
+        mock_status.settings_deeplinks = {}
+        mock_session.check_permissions = AsyncMock(return_value=mock_status)
+        mock_session.close = AsyncMock()
+
+        with patch(
+            "myrm_agent_harness.toolkits.computer_use.session.create_computer_session",
+            return_value=mock_session,
+        ):
+            response = await client.get("/webui/desktop/permissions?probe_capture=true")
+
+        assert response.status_code == 200
+        assert response.json()["capture_ready"] is True
+        mock_session.check_permissions.assert_awaited_once_with(probe_capture=True)
+        mock_session.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_grants_ok_but_capturable_none_not_capture_ready(
+        self, client: httpx.AsyncClient
+    ) -> None:
+        mock_session = AsyncMock()
+        mock_status = AsyncMock()
+        mock_status.accessibility = True
+        mock_status.screen_recording = True
+        mock_status.screen_recording_capturable = None
+        mock_status.all_granted = True
+        mock_status.capture_ready = False
+        mock_status.platform = "macos"
+        mock_status.settings_deeplinks = {}
+        mock_session.check_permissions = AsyncMock(return_value=mock_status)
+        mock_session.close = AsyncMock()
+
+        with patch(
+            "myrm_agent_harness.toolkits.computer_use.session.create_computer_session",
+            return_value=mock_session,
+        ):
+            response = await client.get("/webui/desktop/permissions")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["all_granted"] is True
+        assert data["screen_recording_capturable"] is None
+        assert data["capture_ready"] is False
         mock_session.close.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -95,6 +151,7 @@ class TestGetDesktopPermissions:
         assert data["accessibility"] is False
         assert data["screen_recording"] is True
         assert data["all_granted"] is False
+        assert data["capture_ready"] is False
         mock_session.close.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -125,6 +182,7 @@ class TestGetDesktopPermissions:
         assert data["accessibility"] is True
         assert data["screen_recording"] is False
         assert data["all_granted"] is False
+        assert data["capture_ready"] is False
         mock_session.close.assert_awaited_once()
 
     @pytest.mark.asyncio

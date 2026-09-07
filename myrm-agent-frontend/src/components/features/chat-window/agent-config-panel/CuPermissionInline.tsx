@@ -33,7 +33,7 @@ type InlineTone = 'verified' | 'unverified' | 'missing';
 
 export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string }) => {
   const [status, setStatus] = useState<CuPermissionsResponse | null>(null);
-  // Start true to avoid a one-frame amber "missing" flash before the first probe.
+  // Initial true: first paint is checking (neutral shell), never missing-tone copy.
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -111,10 +111,26 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
           <span>{tPanel('cuPermission.checking')}</span>
         </div>
       ) : tone === 'verified' ? (
-        <div className="flex items-center gap-2">
-          <CheckCircle2 size={14} />
-          <span>{tPanel('cuPermission.allGranted')}</span>
-        </div>
+        <>
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={14} />
+            <span>{tPanel('cuPermission.allGranted')}</span>
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              className={cn(
+                'inline-flex items-center gap-1 px-2 py-1 rounded-md font-medium transition-colors',
+                actionBtnClass,
+              )}
+              onClick={() => check(true)}
+              disabled={loading}
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              {tPanel('cuPermission.recheckBtn')}
+            </button>
+          </div>
+        </>
       ) : tone === 'unverified' ? (
         <>
           <div className="flex items-center gap-2 font-medium">
