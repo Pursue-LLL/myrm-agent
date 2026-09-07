@@ -1038,3 +1038,25 @@ export async function updateSearchQuotaLimit(provider: string, quota_limit: numb
     body: JSON.stringify({ provider, quota_limit }),
   });
 }
+
+export interface CircuitBreakerStats {
+  state: 'closed' | 'open' | 'half_open';
+  failure_count: number;
+  half_open_calls: number;
+  retry_after_ms: number;
+}
+
+export interface LLMProviderHealthResponse {
+  circuit_breakers: Record<string, CircuitBreakerStats>;
+}
+
+export async function getLLMProviderHealth(): Promise<LLMProviderHealthResponse> {
+  return apiRequest<LLMProviderHealthResponse>('/statistics/llm-provider-health');
+}
+
+export async function resetLLMProviderCircuit(provider_or_key?: string): Promise<{ reset_count: number }> {
+  return apiRequest<{ reset_count: number }>('/statistics/llm-provider-health/reset', {
+    method: 'POST',
+    body: JSON.stringify({ provider_or_key: provider_or_key ?? null }),
+  });
+}

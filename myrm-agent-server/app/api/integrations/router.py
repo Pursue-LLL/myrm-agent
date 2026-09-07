@@ -34,6 +34,7 @@ router = APIRouter()
 
 # Include sub-routers with appropriate prefixes
 router.include_router(hardware.router, prefix="/hardware", tags=["integrations-hardware"])
+router.include_router(mobile_adb.router, prefix="/mobile-adb", tags=["integrations-mobile-adb"])
 router.include_router(llms.router, prefix="/llm", tags=["integrations-llm"])
 router.include_router(credential_pool.router, prefix="/llm/credential-pool", tags=["integrations-credential-pool"])
 router.include_router(search.router, prefix="/search", tags=["integrations-search"])

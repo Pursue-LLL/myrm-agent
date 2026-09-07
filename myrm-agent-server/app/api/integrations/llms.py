@@ -871,3 +871,46 @@ async def model_switch_preflight(request: ModelSwitchPreflightRequest) -> JSONRe
         )
 
     return success_response(data={"results": results})
+
+
+class ResetCircuitBreakerRequest(BaseModel):
+    key: str | None = Field(default=None, description="Specific provider/model key to reset, or null to reset all")
+
+
+@router.get("/circuit-breaker/status", response_model=StandardSuccessResponse)
+async def get_circuit_breaker_status() -> JSONResponse:
+    """Get real-time health and circuit breaker status across all providers and model endpoints.
+
+    Returns:
+        Aggregated circuit breaker snapshots including OPEN, HALF_OPEN, CLOSED states,
+        consecutive failures, and cooldown countdowns.
+    """
+    from myrm_agent_harness.toolkits.llms.fallback.circuit_breaker import get_circuit_breaker_registry
+
+    registry = get_circuit_breaker_registry()
+    stats = registry.get_all_stats()
+    return success_response(data={"breakers": stats})
+
+
+@router.post("/circuit-breaker/reset", response_model=StandardSuccessResponse)
+async def reset_circuit_breaker(request: ResetCircuitBreakerRequest | None = None) -> JSONResponse:
+    """Reset circuit breaker(s) to restore healthy routing.
+
+    Args:
+        request: Optional specific key to reset; if key is omitted or null, resets all.
+
+    Returns:
+        Number of reset circuit breakers or confirmation.
+    """
+    from myrm_agent_harness.toolkits.llms.fallback.circuit_breaker import get_circuit_breaker_registry
+
+    registry = get_circuit_breaker_registry()
+    key = request.key if request else None
+
+    if key:
+        success = registry.reset_one(key)
+        return success_response(data={"reset_count": 1 if success else 0, "key": key, "success": success})
+    else:
+        count = registry.reset_all()
+        return success_response(data={"reset_count": count, "success": True})
+
