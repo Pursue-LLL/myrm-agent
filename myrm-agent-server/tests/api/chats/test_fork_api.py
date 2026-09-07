@@ -287,6 +287,35 @@ async def test_fork_info_endpoint_returns_root_and_depth(
 
 
 @pytest.mark.asyncio
+async def test_fork_records_immutable_event_log_anchor(
+    async_client: httpx.AsyncClient,
+    tmp_path: Path,
+) -> None:
+    """Verify that conversation fork writes an immutable fork_point event to the EventLog."""
+    root_id = str(uuid.uuid4())
+    await _create_chat_with_messages(root_id, 4)
+
+    with patch("app.core.config.settings.database.event_log_dir", str(tmp_path)), \
+         patch("app.platform_utils.get_checkpointer", return_value=None):
+        resp = await async_client.post(
+            f"/api/v1/chats/{root_id}/fork",
+            json={"message_index": 2},
+        )
+        assert resp.status_code == 200
+        new_chat_id = resp.json()["data"]["new_chat_id"]
+
+        from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
+        backend = FileEventLogBackend(log_dir=tmp_path, session_id=root_id)
+        events = await backend.get_events()
+        assert len(events) >= 1
+        fork_ev = events[-1]
+        assert fork_ev.event_type == "fork_point"
+        assert fork_ev.data.get("parent_chat_id") == root_id
+        assert fork_ev.data.get("child_chat_id") == new_chat_id
+        assert fork_ev.data.get("fork_message_index") == 2
+
+
+@pytest.mark.asyncio
 async def test_fork_acceptance_verifier_mode(async_client: httpx.AsyncClient) -> None:
     """Verify forking with acceptance_verifier mode injects audit prompt and sets title."""
     chat_id = str(uuid.uuid4())

@@ -13,8 +13,6 @@ Used by image_agent_tool, video_agent_tool, and other task-related endpoints.
 
 from __future__ import annotations
 
-from typing import Any
-
 
 def serialize_media_task(task: object) -> dict[str, object]:
     """Serialize a queue task for status output in a unified format."""

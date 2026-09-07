@@ -141,8 +141,9 @@ describe('CuPermissionInline', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('cuPermission.captureNotReady')).toBeInTheDocument();
+      expect(screen.getByText('cuPermission.captureFailed')).toBeInTheDocument();
     });
+    expect(screen.getByText('cuPermission.captureNotReady')).toBeInTheDocument();
     expect(mockApiRequest).toHaveBeenLastCalledWith(
       '/webui/desktop/permissions?probe_capture=true',
       { silent: true },
@@ -226,7 +227,7 @@ describe('CuPermissionInline', () => {
     windowOpen.mockRestore();
   });
 
-  it('shows capture not ready when probe fails', async () => {
+  it('shows capture failed title when grants ok but probe fails', async () => {
     mockApiRequest.mockResolvedValueOnce({
       accessibility: true,
       screen_recording: true,
@@ -240,9 +241,11 @@ describe('CuPermissionInline', () => {
     render(<CuPermissionInline tPanel={tPanel} />);
 
     await waitFor(() => {
-      expect(screen.getByText('cuPermission.missing')).toBeInTheDocument();
+      expect(screen.getByText('cuPermission.captureFailed')).toBeInTheDocument();
     });
     expect(screen.getByText('cuPermission.captureNotReady')).toBeInTheDocument();
+    expect(screen.getByText('cuPermission.captureFailedHint')).toBeInTheDocument();
+    expect(screen.queryByText('cuPermission.missing')).not.toBeInTheDocument();
   });
 
   it('renders error state when the permissions API fails', async () => {

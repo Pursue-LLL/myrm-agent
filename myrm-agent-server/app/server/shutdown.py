@@ -80,12 +80,11 @@ async def safe_wait_background_tasks() -> None:
 
 
 async def safe_shutdown_observability() -> None:
-    """Gracefully shutdown OpenTelemetry tracing and metrics providers."""
+    """Gracefully shutdown OpenTelemetry tracing and metrics providers with bounded timeout."""
     try:
-        from myrm_agent_harness.infra.tracing import shutdown_metrics, shutdown_tracing
+        from myrm_agent_harness.infra.tracing import shutdown_observability
 
-        shutdown_tracing()
-        shutdown_metrics()
-        logger.info("[Shutdown] Observability providers shutdown complete")
+        results = shutdown_observability(timeout_ms=1500.0)
+        logger.info("[Shutdown] Observability providers shutdown complete: %s", results)
     except Exception as e:
         logger.warning("[Shutdown] Observability shutdown failed: %s", e)

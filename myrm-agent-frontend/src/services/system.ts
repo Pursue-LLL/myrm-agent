@@ -175,6 +175,8 @@ export interface TelemetryPosture {
   local_trace_only: boolean;
   exporter_type?: string;
   degraded_reason?: string | null;
+  git_branch?: string | null;
+  git_commit?: string | null;
   three_tier_semantics: boolean;
   prompt_cache_metering: boolean;
   error?: string;

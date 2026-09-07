@@ -10,7 +10,6 @@ Validates the full user journey:
 
 from __future__ import annotations
 
-import json
 import time
 import uuid
 
@@ -114,35 +113,28 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
     return {"chat_id": chat_id, "steps_count": len(steps)}
 
 
-@pytest.mark.asyncio
-@pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
-    access_scope="WORKSPACE_READ",
-    workload="READ",
-    shared_reason="progress_steps_trace_e2e",
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
-async def test_progress_steps_trace_timeline_chrome_e2e(
-    _require_live_e2e_lease: None,
-) -> None:
+def test_progress_steps_trace_timeline_chrome_e2e() -> None:
     api_base = get_e2e_api_url()
     ui_base = get_e2e_ui_url()
 
     seeded = _seed_progress_steps_fixture(api_base)
     chat_id = str(seeded["chat_id"])
-    target_url = f"{ui_base}/chat/{chat_id}"
+    target_url = f"{ui_base}/{chat_id}"
 
-    prepare_e2e_ui_session()
-    warm_ui_route(target_url, timeout_sec=20.0)
+    prepare_e2e_ui_session(api_base)
+    warm_ui_route(f"/{chat_id}")
 
-    client = ChromeMcpClient()
-    client.start()
-    page: McpPage | None = None
-    try:
-        page = open_mcp_page(client, target_url, timeout_ms=_PAGE_TIMEOUT_MS)
-        ensure_chat_route(client, page, chat_id=chat_id, timeout_sec=30.0)
+    with open_mcp_page(target_url, timeout_ms=_PAGE_TIMEOUT_MS) as (client, page):
         dismiss_blocking_modals(client, page)
+        ensure_chat_route(
+            client,
+            page,
+            target_url=target_url,
+            timeout_ms=_PAGE_TIMEOUT_MS,
+        )
 
         # 1. Verify message and progress steps mount
         def check_mounted() -> bool:
@@ -159,7 +151,7 @@ async def test_progress_steps_trace_timeline_chrome_e2e(
             )
             return bool(isinstance(res, dict) and res.get("ready"))
 
-        wait_for_state(check_mounted, timeout_sec=30.0, poll_interval_sec=0.5)
+        wait_for_state(client, page, check_mounted, timeout_sec=30.0)
 
         # 2. Expand progress panel if collapsed
         client.evaluate(
@@ -181,11 +173,7 @@ async def test_progress_steps_trace_timeline_chrome_e2e(
                 const panel = document.querySelector('[data-testid="progress-steps-panel"]');
                 if (!panel) return { ok: false, reason: 'no panel' };
                 
-                // Check duration badges existence (e.g. 120ms or similar)
                 const durationBadges = panel.querySelectorAll('.tabular-nums, .font-mono');
-                
-                // Check if fold button is present (>8 steps fold button)
-                const foldButton = panel.querySelector('button.group\\\\/fold, button');
                 const text = panel.innerText || '';
                 
                 return {
@@ -196,11 +184,3 @@ async def test_progress_steps_trace_timeline_chrome_e2e(
             })()""",
         )
         assert isinstance(inspect_ui, dict) and inspect_ui.get("ok") is True
-
-    finally:
-        if page is not None:
-            try:
-                client.close_page(page)
-            except Exception:
-                pass
-        client.close()

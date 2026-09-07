@@ -21,6 +21,7 @@ import {
   IconActivity,
   IconCheck,
   IconCopy,
+  IconGitBranch,
   IconRefresh,
   IconWorkflow,
 } from '@/components/features/icons/PremiumIcons';
@@ -180,10 +181,18 @@ export const TelemetryPostureCard = memo(() => {
         </div>
 
         <div className="p-2.5 rounded-lg bg-muted/40 border border-border/30">
-          <span className="text-muted-foreground block mb-1">{t('headers')}</span>
-          <span className="font-medium text-foreground">
-            {posture?.headers_configured ? t('configured') : t('none')}
-          </span>
+          <span className="text-muted-foreground block mb-1">{t('environment')}</span>
+          {posture?.git_branch ? (
+            <div className="flex items-center gap-1.5 font-mono font-medium text-foreground truncate" title={`${posture.git_branch} (${posture.git_commit || 'HEAD'})`}>
+              <IconGitBranch className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+              <span className="truncate">{posture.git_branch}</span>
+              {posture.git_commit && (
+                <span className="text-muted-foreground text-[10px]">({posture.git_commit})</span>
+              )}
+            </div>
+          ) : (
+            <span className="font-medium text-muted-foreground">{t('noVcsTag')}</span>
+          )}
         </div>
 
         <div className="p-2.5 rounded-lg bg-muted/40 border border-border/30">

@@ -145,6 +145,8 @@ class TelemetryPostureResponse(BaseModel):
     local_trace_only: bool
     exporter_type: str = "none"
     degraded_reason: str | None = None
+    git_branch: str | None = None
+    git_commit: str | None = None
     three_tier_semantics: bool = True
     prompt_cache_metering: bool = True
     error: str | None = None

@@ -40,7 +40,7 @@ interface DesktopPermissionsStatus {
   settings_deeplinks: Record<string, string>;
 }
 
-type HeaderTone = 'verified' | 'unverified' | 'missing';
+type HeaderTone = 'verified' | 'unverified' | 'capture_failed' | 'missing';
 
 interface TrustedDesktopApp {
   trust_key: string;
@@ -158,7 +158,9 @@ const DesktopPermissionsCardLocal = memo(() => {
       ? 'verified'
       : grantsOk && capturable == null
         ? 'unverified'
-        : 'missing';
+        : grantsOk && capturable === false
+          ? 'capture_failed'
+          : 'missing';
   const showFixHints =
     Boolean(status) &&
     Object.keys(status?.settings_deeplinks ?? {}).length > 0 &&
@@ -200,14 +202,18 @@ const DesktopPermissionsCardLocal = memo(() => {
                     ? t('allReady')
                     : headerTone === 'unverified'
                       ? t('grantsOkCaptureUnverified')
-                      : t('actionRequired')}
+                      : headerTone === 'capture_failed'
+                        ? t('captureFailed')
+                        : t('actionRequired')}
               </p>
               <p className="text-xs text-muted-foreground">
                 {!status || isLoading
                   ? ''
                   : headerTone === 'unverified'
                     ? t('captureUnverifiedHint')
-                    : t('platform', { name: status.platform })}
+                    : headerTone === 'capture_failed'
+                      ? t('captureFailedHint')
+                      : t('platform', { name: status.platform })}
               </p>
             </div>
           </div>

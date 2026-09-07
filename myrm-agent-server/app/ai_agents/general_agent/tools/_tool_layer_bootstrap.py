@@ -21,7 +21,7 @@ from __future__ import annotations
 from myrm_agent_harness.agent.sub_agents.delegation_policy import (
     register_leaf_blocked_tools,
 )
-from myrm_agent_harness.agent.tool_management import ToolLayer, ToolRegistry, register_tool_layers
+from myrm_agent_harness.agent.tool_management import ToolLayer, ToolRegistry
 
 _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {
     # EXTERNAL: opt-in business tools that depend on server-specific SDKs/APIs.

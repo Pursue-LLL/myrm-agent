@@ -552,6 +552,8 @@ def get_system_telemetry_posture() -> TelemetryPostureResponse:
             local_trace_only=False,
             exporter_type="none",
             degraded_reason=None,
+            git_branch=None,
+            git_commit=None,
             three_tier_semantics=True,
             prompt_cache_metering=True,
         )

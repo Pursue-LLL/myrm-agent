@@ -142,6 +142,30 @@ def test_tts_tool_push_artifact_no_url(mock_config):
 
 
 @pytest.mark.asyncio
+async def test_tts_tool_arun_empty_text_error(mock_config):
+    """Empty or whitespace text returns error without calling engine."""
+    tool = TTSTool(config=mock_config)
+    result_str = await tool._arun(text="   ")
+    result_dict = json.loads(result_str)
+    assert result_dict["status"] == "error"
+    assert "cannot be empty" in result_dict["error"]
+
+
+@pytest.mark.asyncio
+async def test_tts_tool_arun_oversize_text_error(mock_config):
+    """Text exceeding MAX_TTS_TEXT_LENGTH returns helpful defensive error."""
+    from app.ai_agents.media_tools.tts_agent_tool import MAX_TTS_TEXT_LENGTH
+
+    tool = TTSTool(config=mock_config)
+    long_text = "a" * (MAX_TTS_TEXT_LENGTH + 10)
+    result_str = await tool._arun(text=long_text)
+    result_dict = json.loads(result_str)
+    assert result_dict["status"] == "error"
+    assert "exceeds the safe single-turn limit" in result_dict["error"]
+
+
+
+@pytest.mark.asyncio
 async def test_tts_tool_push_artifact_callback_failure(mock_config, mock_engine_generate):
     """Artifact callback exceptions are swallowed."""
     mock_callback = MagicMock(side_effect=RuntimeError("push failed"))
