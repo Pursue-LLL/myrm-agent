@@ -14,12 +14,12 @@ timeouts, compression exhaustion, workflow escalation, and context overflow rese
 
 from __future__ import annotations
 
+import inspect
 import logging
 import re
 import time
 from collections.abc import AsyncGenerator, AsyncIterable
 from dataclasses import dataclass
-import inspect
 
 from myrm_agent_harness.utils.runtime.cancellation import CancelReason
 
@@ -229,12 +229,13 @@ async def iter_agent_stream_chunks(
     agent_config = getattr(session.request, "agent_config", None)
     orchestration_mode = getattr(agent_config, "orchestration_mode", None) if agent_config else None
     use_workflow_requested = bool(
-        getattr(session.request, "use_workflow", False)
-        or (agent_config is not None and orchestration_mode == "orchestrated")
+        getattr(session.request, "use_workflow", False) or (agent_config is not None and orchestration_mode == "orchestrated")
     )
     if getattr(session.request, "action_mode", None) == "deep_research":
         stream = create_deep_research_stream(session.params, session.cancel_token, session.research_model_cfg)
-    elif (use_workflow_requested or getattr(session.request, "workflow_template_id", None)) and not should_bypass_dw_for_admission(session):
+    elif (
+        use_workflow_requested or getattr(session.request, "workflow_template_id", None)
+    ) and not should_bypass_dw_for_admission(session):
         from app.services.agent.stream_session.stream_lane_factory import (
             create_dynamic_workflow_stream,
         )
