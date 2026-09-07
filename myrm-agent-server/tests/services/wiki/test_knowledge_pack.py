@@ -13,9 +13,11 @@ Unit test for KnowledgePackProactiveInjectionPerAgentTurn roadmap item.
 
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.toolkits.retriever.cjk_tokenizer import build_cjk_index_segment
 
 from app.services.wiki.knowledge_pack.schemas import (
     KnowledgePackConfig,
@@ -186,9 +188,6 @@ async def test_resolve_proactive_snippets_timeout_degrades_gracefully(tmp_path: 
 @pytest.mark.asyncio
 async def test_resolve_proactive_snippets_with_fts5_index(tmp_path: Path) -> None:
     """Verify Tier 1 FTS5 index-first retrieval on compiled vault."""
-    import sqlite3
-    from myrm_agent_harness.toolkits.retriever.cjk_tokenizer import build_cjk_index_segment
-
     vault_dir = tmp_path / "compiled_vault"
     vault_dir.mkdir()
     db_path = vault_dir / ".wiki_index.db"

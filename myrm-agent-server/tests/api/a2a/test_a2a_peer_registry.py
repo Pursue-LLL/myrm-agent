@@ -84,6 +84,7 @@ async def test_a2a_peer_probe_success() -> None:
         skills=[],
     )
 
+    app = build_minimal_app(router_keys=["a2a"])
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         with patch("myrm_agent_harness.toolkits.a2a.resolver.A2ACardResolver.resolve", new_callable=AsyncMock) as mock_resolve:
@@ -105,6 +106,7 @@ async def test_a2a_peer_probe_success() -> None:
 @pytest.mark.asyncio
 async def test_a2a_peer_probe_ssrf_blocked() -> None:
     """Test A2A probe endpoint blocks SSRF attacks."""
+    app = build_minimal_app(router_keys=["a2a"])
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         with patch("myrm_agent_harness.toolkits.a2a.resolver.A2ACardResolver.resolve", new_callable=AsyncMock) as mock_resolve:
