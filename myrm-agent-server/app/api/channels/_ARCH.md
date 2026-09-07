@@ -9,6 +9,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Channel webhook API routes. | ✅ |
+| `bitable_copilot_router.py` | 路由 | Bitable 与电子表格侧边栏数据加工交互式 CoPilot REST 路由，提供批量字段推断与单元格变更提案。 | ✅ |
 | `data_plane.py` | 模块 | 渠道数据平面管理端点：提供明细消息统计、手动滚动修剪与 GDPR 遗忘权一键清空 | ✅ |
 | `channel_ingress.py` | 模块 | Control Plane 沙箱内部入站：仅 `_handle_inbound` 入队；cron event dispatch 由 AgentRouter 统一处理 | ✅ |
 | `dlq.py` | 模块 | Get failed messages from the Dead Letter Queue. | ✅ |

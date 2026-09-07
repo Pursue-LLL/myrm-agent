@@ -199,6 +199,9 @@ api_router.include_router(lifecycle_webhook_router, tags=["lifecycle-webhooks"])
 # Channels - webhook routes are dynamically registered via init_channel_routes() in main.py
 
 if is_local_mode():
+    from app.api.channels.bitable_copilot_router import (
+        router as channels_bitable_copilot_router,
+    )
     from app.api.channels.data_plane import router as channels_data_plane_router
     from app.api.channels.dlq import router as channels_dlq_router
     from app.api.channels.feishu_register import router as feishu_register_router

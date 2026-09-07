@@ -10,6 +10,7 @@
  * useChatStore 状态与操作方法契约。
  */
 
+import type { TurnOutlineItem } from '@/services/chat';
 import type { ContextBranchRecord } from '@/services/chat';
 import type { ActionMode, AgentConfig, SearchDepth, SelectedModels } from './sessionConfig';
 import type { ArchiveRestoreAction } from './archiveRestore';
@@ -43,6 +44,9 @@ export interface ChatState {
   chatId: string | undefined;
   newChatCreated: boolean;
   messages: Message[];
+  turnOutlines: TurnOutlineItem[];
+  turnOutlinesLoading: boolean;
+  activeTimelineTurnIndex: number | null;
   compactedSummary: string | null;
   compactedBeforeId: string | null;
   contextBranches: ContextBranchRecord[];
@@ -183,6 +187,11 @@ export interface ChatState {
   setContextBranchesLoadError: (error: string | null) => void;
   setContextPinnedFilesLoadError: (error: string | null) => void;
   setCompactedBeforeId: (id: string | null) => void;
+  setTurnOutlines: (outlines: TurnOutlineItem[]) => void;
+  setTurnOutlinesLoading: (loading: boolean) => void;
+  setActiveTimelineTurnIndex: (turnIndex: number | null) => void;
+  loadThroughTurn: (targetTurnIndex: number) => Promise<void>;
+  fetchTurnOutlines: (chatId?: string) => Promise<void>;
   setWorkspaceDir: (dir: string | null) => void;
   setSessionAccessRoots: (roots: SessionAccessRoot[]) => void;
   setChatHistoryItems: (items: ChatHistoryItem[]) => void;

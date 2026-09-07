@@ -49,7 +49,9 @@
     "*.ts",
     "*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    ".next-isolated-op-key-rej/types/**/*.ts",
+    ".next-isolated-op-key-rej/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

@@ -175,6 +175,9 @@ export const loadMessages = async (
         state.compactedSummary = chatData.chat.compacted_summary;
         state.compactedBeforeId = chatData.chat.compacted_before_id;
         state.lastCompactionMeta = null;
+        state.turnOutlines = chatData.turn_outline || [];
+        state.turnOutlinesLoading = false;
+        state.activeTimelineTurnIndex = null;
         state.workspaceDir = chatData.chat.workspace_dir;
         state.sessionSkillOverrides = chatData.chat.session_loaded_skill_names;
         state.sessionAccessRoots = normalizeSessionAccessRoots(chatData.chat.session_access_roots);
@@ -392,6 +395,44 @@ export const loadOlderMessages = async (actions: ChatActionsMethods): Promise<vo
     actions.setMessages((s) => {
       s.loadingOlder = false;
     });
+  }
+};
+
+/**
+ * 连续批量向前翻页加载直至目标轮次对应的消息被完全载入到内存 (loadThrough 投影导轨驱动器)
+ */
+export const loadThroughTurn = async (
+  targetTurnIndex: number,
+  actions: ChatActionsMethods,
+): Promise<void> => {
+  const state = useChatStore.getState();
+  if (!state.chatId) return;
+
+  // 检查目标轮次的用户消息是否已经在当前 messages 列表中
+  const targetOutline = state.turnOutlines.find((t) => t.turn_index === targetTurnIndex);
+  const isLoaded = () => {
+    const current = useChatStore.getState();
+    if (targetOutline) {
+      return current.messages.some(
+        (m) => m.id === targetOutline.user_message_id || m.messageId === targetOutline.user_message_id,
+      );
+    }
+    return false;
+  };
+
+  if (isLoaded()) {
+    return;
+  }
+
+  // 循环加载更早页直到目标消息进入列表或没有更多消息
+  let maxRounds = 15; // 保护上限，防止死循环
+  while (!isLoaded() && maxRounds > 0) {
+    const current = useChatStore.getState();
+    if (!current.hasMoreMessages || !current.nextCursor || current.loadingOlder) {
+      break;
+    }
+    await loadOlderMessages(actions);
+    maxRounds--;
   }
 };
 

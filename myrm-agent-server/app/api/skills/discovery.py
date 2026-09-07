@@ -524,31 +524,48 @@ async def add_custom_source(
     request: CustomSourceRequest,
 ) -> CustomSourceProbeResponse:
     """Add a custom skill source after probing for reachability."""
-    from myrm_agent_harness.agent.skills.market.sources.wellknown import (
-        WellKnownSkillSource,
-    )
-
     from app.core.skills.marketplace.custom_source_config import (
         add_custom_source as _add_source,
     )
 
-    if request.source_type != "well-known":
+    if request.source_type == "well-known":
+        from myrm_agent_harness.agent.skills.market.sources.wellknown import (
+            WellKnownSkillSource,
+        )
+
+        source = WellKnownSkillSource(request.url)
+        reachable, skill_count = await source.probe()
+
+        if not reachable:
+            raise HTTPException(status_code=422, detail=f"Cannot reach source: {request.url}")
+
+        try:
+            _add_source(request.url, request.source_type, request.label or request.url)
+        except ValueError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
+
+        market_service._base.register_source(source)
+        return CustomSourceProbeResponse(reachable=True, skill_count=skill_count, url=request.url)
+
+    elif request.source_type in ("github-tap", "tap"):
+        from myrm_agent_harness.agent.skills.market.taps import (
+            TapDirectoryScanner,
+            TapSubscription,
+        )
+
+        tap_sub = TapSubscription(repo=request.url, label=request.label or request.url)
+        scanner = TapDirectoryScanner(tap_sub)
+        skills = await scanner.scan_skills(force_refresh=True)
+
+        try:
+            _add_source(request.url, "github-tap", request.label or request.url)
+        except ValueError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
+
+        return CustomSourceProbeResponse(reachable=True, skill_count=len(skills), url=request.url)
+
+    else:
         raise HTTPException(status_code=400, detail=f"Unsupported source type: {request.source_type}")
-
-    source = WellKnownSkillSource(request.url)
-    reachable, skill_count = await source.probe()
-
-    if not reachable:
-        raise HTTPException(status_code=422, detail=f"Cannot reach source: {request.url}")
-
-    try:
-        _add_source(request.url, request.source_type, request.label or request.url)
-    except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
-
-    market_service._base.register_source(source)
-
-    return CustomSourceProbeResponse(reachable=True, skill_count=skill_count, url=request.url)
 
 
 @router.delete("/sources")

@@ -165,6 +165,29 @@ async def truncate_after_message(
         raise internal_error(operation="Truncate after message", exception=e) from e
 
 
+@router.get("/{chat_id}/outline", response_model=StandardSuccessResponse)
+async def get_chat_outline(
+    chat_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """Get lightweight session projection turn outline for navigation rails."""
+    try:
+        chat = await ChatService.get_chat_metadata(chat_id)
+        if not chat:
+            raise not_found_error("Chat session")
+
+        from app.services.chat.turn_outline_service import (
+            TurnOutlineProjectionService,
+        )
+
+        turn_outline = await TurnOutlineProjectionService.get_chat_turn_outline(chat_id)
+        return success_response(data=[item.model_dump(mode="json") for item in turn_outline])
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise internal_error(operation="Get chat turn outline", exception=e) from e
+
+
 @router.post("/{chat_id}/undo", response_model=StandardSuccessResponse)
 async def undo_last_turn(
     chat_id: str,
