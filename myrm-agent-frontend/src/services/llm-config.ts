@@ -808,3 +808,39 @@ export const validateExternalSecretReference = async (reference: string): Promis
     return { valid: false, error: e instanceof Error ? e.message : 'Request failed' };
   }
 };
+
+export interface CircuitBreakerStat {
+  state: 'closed' | 'open' | 'half_open';
+  failure_count: number;
+  half_open_calls: number;
+  retry_after_ms: number;
+}
+
+export interface CircuitBreakersResponse {
+  breakers: Record<string, CircuitBreakerStat>;
+}
+
+export const fetchCircuitBreakersStatus = async (): Promise<Record<string, CircuitBreakerStat>> => {
+  try {
+    const res = await apiRequest<{ data: CircuitBreakersResponse }>('/integrations/llm/circuit-breaker/status');
+    return res.data?.breakers || {};
+  } catch {
+    return {};
+  }
+};
+
+export const resetCircuitBreaker = async (key?: string): Promise<{ reset_count: number; success: boolean }> => {
+  try {
+    const res = await apiRequest<{ data: { reset_count: number; success: boolean } }>(
+      '/integrations/llm/circuit-breaker/reset',
+      {
+        method: 'POST',
+        body: JSON.stringify(key ? { key } : {}),
+      },
+    );
+    return res.data || { reset_count: 0, success: false };
+  } catch {
+    return { reset_count: 0, success: false };
+  }
+};
+

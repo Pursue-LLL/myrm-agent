@@ -17996,7 +17996,17 @@
         "editLimitDesc": "调整 {provider} 的每月额度告警上限",
         "limitLabel": "月度配额上限 (次)",
         "cancel": "取消",
-        "save": "保存配置"
+        "save": "保存配置",
+        "circuitBreakersTitle": "LLM 供应商熔断与连通性",
+        "circuitBreakersDesc": "实时探测各模型服务商健康度与故障隔离状态",
+        "circuitAllHealthy": "全供应商连通正常",
+        "circuitStateClosed": "正常连通",
+        "circuitStateOpen": "已触发熔断保护",
+        "circuitStateHalfOpen": "探测恢复中",
+        "circuitFailures": "连续失败: {count} 次",
+        "circuitRetryCooldown": "冷却重试倒计时: {seconds}s",
+        "circuitResetOne": "重置探测",
+        "circuitResetAll": "重置全部熔断"
       }
     },
     "workingState": {

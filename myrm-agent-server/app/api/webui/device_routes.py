@@ -97,6 +97,47 @@ async def get_device_snapshot(
     )
 
 
+class PairWirelessBody(BaseModel):
+    host: str
+    port: int
+    pairing_code: str
+
+
+class ConnectWirelessBody(BaseModel):
+    host: str
+    port: int
+
+
+@router.post("/pair")
+async def pair_wireless_device(body: PairWirelessBody) -> JSONResponse:
+    """Pair an Android 11+ device via Wireless Debugging pairing code."""
+    from myrm_agent_harness.toolkits.mobile import AdbDeviceManager
+
+    dm = AdbDeviceManager()
+    success = await dm.pair_wireless_device(body.host, body.port, body.pairing_code)
+    return JSONResponse(
+        content={
+            "ok": success,
+            "message": "Wireless device paired successfully" if success else "Failed to pair wireless device",
+        }
+    )
+
+
+@router.post("/connect")
+async def connect_wireless_device(body: ConnectWirelessBody) -> JSONResponse:
+    """Connect to a paired Android device over TCP IP:port."""
+    from myrm_agent_harness.toolkits.mobile import AdbDeviceManager
+
+    dm = AdbDeviceManager()
+    dev = await dm.connect_device(body.host, body.port)
+    return JSONResponse(
+        content={
+            "ok": dev is not None,
+            "device": dev.to_dict() if dev else None,
+        }
+    )
+
+
 @router.get("/doctor")
 async def get_device_doctor() -> JSONResponse:
     """Probe ADB status and connected devices for diagnostic cards."""

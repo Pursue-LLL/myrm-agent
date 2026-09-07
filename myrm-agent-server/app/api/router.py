@@ -68,6 +68,7 @@ from app.api.memory.router import router as memory_router
 from app.api.message_filter import router as message_filter_router
 from app.api.migration.discovery import router as migration_discovery_router
 from app.api.migration.upload import router as migration_upload_router
+from app.api.mobile.router import router as mobile_router
 from app.api.notifications.router import router as notifications_router
 from app.api.ops.router import router as ops_router
 from app.api.plugins import import_router as plugins_import_router
@@ -289,6 +290,7 @@ api_router.include_router(companion_doctor_router, prefix="/companion", tags=["c
 api_router.include_router(compounding_playbook_router, tags=["compounding-playbook"])
 api_router.include_router(workflow_templates_router, tags=["workflow-templates"])
 api_router.include_router(media_router, prefix="/media", tags=["media"])
+api_router.include_router(mobile_router, prefix="/mobile", tags=["mobile"])
 api_router.include_router(client_logs_router, tags=["logs"])
 api_router.include_router(a2a_router, prefix="/a2a", tags=["a2a"])
 
