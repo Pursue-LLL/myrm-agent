@@ -200,6 +200,22 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
     });
   }, []);
 
+  const filteredRefs = React.useMemo(() => {
+    if (!scopedViewData?.refs) return {};
+    if (!searchQuery.trim()) return scopedViewData.refs;
+    const q = searchQuery.trim().toLowerCase();
+    const res: Record<string, BrowserRefInfo> = {};
+    for (const [refId, info] of Object.entries(scopedViewData.refs)) {
+      const name = (info.name || '').toLowerCase();
+      const role = (info.role || '').toLowerCase();
+      const value = (info.value || '').toLowerCase();
+      if (refId.toLowerCase().includes(q) || name.includes(q) || role.includes(q) || value.includes(q)) {
+        res[refId] = info;
+      }
+    }
+    return res;
+  }, [scopedViewData?.refs, searchQuery]);
+
   const handleElementClick = useCallback(
     (refId: string, info: BrowserRefInfo) => {
       selectElement(refId, info);
@@ -253,6 +269,8 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
           isLoading={isSnapshotLoading}
           title={headerTitle}
           subtitle={scopedViewData?.appName}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
         />
 
         {scopedViewData?.needsPermission && <PermissionBanner t={t} />}
@@ -274,7 +292,7 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
 
               {mode === 'inspect' && imageSize.width > 0 && (
                 <ElementOverlay
-                  refs={scopedViewData.refs}
+                  refs={filteredRefs}
                   imageWidth={imageSize.width}
                   imageHeight={imageSize.height}
                   viewportWidth={scopedViewData.viewportWidth}

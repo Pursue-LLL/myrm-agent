@@ -9,7 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.toolkits.a2a.resolver import SSRFBlockedError
 from myrm_agent_harness.toolkits.a2a.types import AgentCard
 
-from app.database.dto import AgentBase, AgentCreate
+from app.database.dto import AgentCreate
 from app.main import app
 
 

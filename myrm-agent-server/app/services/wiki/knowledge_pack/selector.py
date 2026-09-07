@@ -190,14 +190,17 @@ async def resolve_proactive_snippets_from_vaults(
         if db_path.is_file():
             try:
                 fts_query = ""
-                try:
-                    from myrm_agent_harness.api import tokenize_for_fts
+                # Build tolerant FTS5 query using OR join of CJK bigrams & alphanumeric terms for robust matching
+                safe_fts_terms = [t for t in match_terms if len(t) >= 2 and (t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t))]
+                if safe_fts_terms:
+                    fts_query = " OR ".join(f'"{t}"' for t in safe_fts_terms[:8])
+                if not fts_query:
+                    try:
+                        from myrm_agent_harness.api import tokenize_for_fts
 
-                    fts_query = tokenize_for_fts(trimmed_query)
-                except ImportError:
-                    safe_fts_terms = [t for t in match_terms if t.isalnum() or all("\u4e00" <= c <= "\u9fa5" for c in t)]
-                    if safe_fts_terms:
-                        fts_query = " OR ".join(f'"{t}"' for t in safe_fts_terms[:8])
+                        fts_query = tokenize_for_fts(trimmed_query)
+                    except ImportError:
+                        pass
 
                 if fts_query.strip():
                     # Open read-only connection to guarantee zero write contention and sandboxed safety

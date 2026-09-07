@@ -13,7 +13,6 @@ Validates the full user journey:
 from __future__ import annotations
 
 import json
-import os
 import sys
 import time
 import uuid
@@ -109,7 +108,6 @@ def _wait_assistant_reply(
     timeout_sec: float = 180.0,
 ) -> dict[str, object]:
     deadline = time.monotonic() + timeout_sec
-    last: dict[str, object] = {}
     while time.monotonic() < deadline:
         try:
             messages = fetch_chat_messages(chat_id, api_url=api_url)

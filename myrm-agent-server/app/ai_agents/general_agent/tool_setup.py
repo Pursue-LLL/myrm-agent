@@ -1030,9 +1030,9 @@ class ToolSetupMixin(ExternalAgentsMixin):
             return
 
         try:
+            from langchain.tools import tool
             from myrm_agent_harness.toolkits.a2a import tools as a2a_tools_mod
             from myrm_agent_harness.toolkits.a2a.tools import FanoutMode
-            from langchain.tools import tool
             from pydantic import BaseModel, Field
 
             from app.services.a2a.peer_registry import get_a2a_peer_registry

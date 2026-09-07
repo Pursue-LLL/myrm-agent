@@ -16,9 +16,10 @@
 from __future__ import annotations
 
 import logging
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
 from myrm_agent_harness.agent.event_log.types import EventFilter
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.memory.command_center.command_center_projection_utils import (
     event_phase,

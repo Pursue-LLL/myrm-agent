@@ -369,9 +369,11 @@ class ConversationForkManager:
             try:
                 import time
                 from pathlib import Path
-                from app.core.config import settings
+
                 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
                 from myrm_agent_harness.agent.event_log.types import EventPayload, StructuredEvent
+
+                from app.core.config import settings
 
                 event_log_dir = Path(settings.database.event_log_dir)
                 if event_log_dir.exists():

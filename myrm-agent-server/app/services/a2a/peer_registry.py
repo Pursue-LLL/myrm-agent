@@ -10,8 +10,13 @@ import logging
 import time
 import uuid
 from datetime import datetime
-from typing import Any
 
+from myrm_agent_harness.toolkits.a2a.resolver import (
+    A2ACardResolver,
+    A2AResolveError,
+    SSRFBlockedError,
+)
+from myrm_agent_harness.utils.crypto.config_crypto import ConfigCrypto
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,12 +30,6 @@ from app.database.dto import (
     A2APeerUpdate,
 )
 from app.database.models.a2a_peer import A2APeerModel
-from myrm_agent_harness.toolkits.a2a.resolver import (
-    A2ACardResolver,
-    A2AResolveError,
-    SSRFBlockedError,
-)
-from myrm_agent_harness.utils.crypto.config_crypto import ConfigCrypto
 
 logger = logging.getLogger(__name__)
 
