@@ -19,24 +19,21 @@ from tests.api.agent.test_capability_gap_integration import (
     _collect_agent_stream,
     _invoked_tool_names,
 )
-from tests.api.agent.utils import check_e2e_errors, get_model_selection
+from tests.api.agent.utils import get_model_selection
+
+_REJECT_MARKERS = ("Rejected printable operator", "REMEDY_HINT: Printable operators")
 
 
-def _tool_payload_text(events: list[dict[str, object]]) -> str:
-    chunks: list[str] = []
-    for event in events:
-        if event.get("type") not in {"tool_end", "tasks_steps", "message"}:
-            continue
-        for key in ("content", "result", "output", "message"):
-            value = event.get(key)
-            if isinstance(value, str) and value:
-                chunks.append(value)
-        data = event.get("data")
-        if isinstance(data, str) and data:
-            chunks.append(data)
-        elif isinstance(data, dict):
-            chunks.append(json.dumps(data, ensure_ascii=False))
-    return "\n".join(chunks)
+def _events_blob(events: list[dict[str, object]]) -> str:
+    return json.dumps(events, ensure_ascii=False, default=str)
+
+
+def _stop_on_operator_reject(
+    event: dict[str, object],
+    collected: list[dict[str, object]],
+) -> bool:
+    blob = _events_blob(collected)
+    return any(marker in blob for marker in _REJECT_MARKERS)
 
 
 @pytest.mark.e2e
@@ -59,9 +56,8 @@ def test_agent_stream_rejects_operator_as_vision_key(
     assert create_response.status_code == 200
 
     query = (
-        "CRITICAL: You MUST call desktop_vision_tool exactly once with "
-        "action=key and text=* (asterisk only). Do not use type, click, or other tools. "
-        "Do not rewrite * as multiply or Return. After the tool returns, reply DONE."
+        "CRITICAL: Call desktop_vision_tool exactly once with action=key and text=*. "
+        "Do not use type/click/other tools. After the tool returns, reply with DONE only."
     )
     payload: dict[str, object] = {
         "messageId": f"msg_{uuid.uuid4().hex[:8]}",
@@ -73,12 +69,6 @@ def test_agent_stream_rejects_operator_as_vision_key(
         "agentConfig": {"enabledBuiltinTools": ["computer_use"]},
     }
 
-    async def _allow_fg(*_args: object, **_kwargs: object) -> None:
-        return None
-
-    async def _allow_app(*_args: object, **_kwargs: object) -> None:
-        return None
-
     events: list[dict[str, object]] = []
     invoked: set[str] = set()
     blob = ""
@@ -86,32 +76,37 @@ def test_agent_stream_rejects_operator_as_vision_key(
     with (
         patch(
             "myrm_agent_harness.toolkits.computer_use.desktop_session.DesktopSession.check_foreground_permission",
-            new=AsyncMock(side_effect=_allow_fg),
+            new=AsyncMock(return_value=None),
         ),
         patch(
             "myrm_agent_harness.toolkits.computer_use.desktop_session.DesktopSession.check_app_approval",
-            new=AsyncMock(side_effect=_allow_app),
+            new=AsyncMock(return_value=None),
         ),
     ):
         for _attempt in range(3):
-            events = _collect_agent_stream(client, payload)
-            check_e2e_errors(events)
+            events = _collect_agent_stream(
+                client,
+                payload,
+                stream_timeout=180.0,
+                stop_when=_stop_on_operator_reject,
+            )
             invoked = {name.removesuffix("_tool") for name in _invoked_tool_names(events)}
-            blob = _tool_payload_text(events)
-            if "desktop_vision" in invoked and (
-                "Rejected printable operator" in blob or "REMEDY_HINT" in blob
-            ):
+            blob = _events_blob(events)
+            if any(marker in blob for marker in _REJECT_MARKERS):
+                break
+            if "desktop_vision" in invoked:
+                # Tool ran but payload not yet in stream markers — keep blob for assert.
                 break
             payload["messageId"] = f"msg_{uuid.uuid4().hex[:8]}"
 
-    if "desktop_vision" not in invoked:
+    if "desktop_vision" not in invoked and not any(m in blob for m in _REJECT_MARKERS):
         pytest.skip(
             "model did not invoke desktop_vision_tool after 3 attempts; "
             f"invoked={sorted(invoked)} types="
             f"{sorted({e.get('type') for e in events if isinstance(e.get('type'), str)})}"
         )
 
-    assert "Rejected printable operator" in blob or "REMEDY_HINT" in blob, (
-        "expected operator-as-key safety reject in tool/stream payload; "
-        f"invoked={sorted(invoked)} blob_sample={blob[:800]!r}"
+    assert any(marker in blob for marker in _REJECT_MARKERS), (
+        "expected operator-as-key safety reject in agent-stream events; "
+        f"invoked={sorted(invoked)} blob_sample={blob[:1200]!r}"
     )

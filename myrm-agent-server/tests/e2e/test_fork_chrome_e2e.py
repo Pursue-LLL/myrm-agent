@@ -18,6 +18,7 @@ import sys
 import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
@@ -46,12 +47,7 @@ def chrome_page(
 
 @pytest.fixture
 def sandbox_parent_chat_id() -> str:
-    """Find an existing chat with sandbox state in the live server.
-
-    Iterates recent chats via detail API to find one whose workspace_dir
-    contains 'sandbox'. Requires: at least one chat with sandbox enabled
-    that has >=2 messages (for fork at index 1).
-    """
+    """Find an existing chat with sandbox state in the live server, or enable sandbox on one."""
     api_url = get_e2e_api_url()
     try:
         resp = urllib.request.urlopen(  # noqa: S310 - fixed loopback URL
@@ -63,6 +59,7 @@ def sandbox_parent_chat_id() -> str:
         pytest.fail(f"Live E2E API not reachable at {api_url} — run via ./myrm test -m e2e")
 
     items = data.get("data", {}).get("items", [])
+    candidate_chat_id: str | None = None
     for item in items:
         chat_id = item["id"]
         try:
@@ -71,11 +68,76 @@ def sandbox_parent_chat_id() -> str:
                 timeout=3,
             )
             detail = json.loads(detail_resp.read())
-            ws_dir = detail.get("data", {}).get("chat", {}).get("workspace_dir", "")
+            chat_obj = detail.get("data", {}).get("chat", {})
+            ws_dir = chat_obj.get("workspace_dir", "")
             if ws_dir and "sandbox" in ws_dir.lower():
                 return chat_id
+            if candidate_chat_id is None and len(chat_obj.get("messages", [])) >= 2:
+                candidate_chat_id = chat_id
         except Exception:
             continue
+
+    if candidate_chat_id:
+        try:
+            enable_req = urllib.request.Request(
+                f"{api_url}/api/v1/chats/{candidate_chat_id}/sandbox/enable",
+                method="POST",
+            )
+            with urllib.request.urlopen(enable_req, timeout=10) as en_resp:  # noqa: S310
+                if en_resp.status == 200:
+                    return candidate_chat_id
+        except Exception:
+            pass
+
+    # If still not found, seed a chat with git repo workspace and enable sandbox
+    seed_chat_id = f"e2e-sandbox-{uuid4().hex[:8]}"
+    repo_root = str(Path(__file__).resolve().parents[4])
+    create_payload = {
+        "chat_id": seed_chat_id,
+        "title": "E2E Sandbox Fixture",
+        "workspace_dir": repo_root,
+        "messages": [
+            {
+                "messageId": f"msg-1-{uuid4().hex[:6]}",
+                "chatId": seed_chat_id,
+                "role": "user",
+                "content": "Initialize project in sandbox",
+            },
+            {
+                "messageId": f"msg-2-{uuid4().hex[:6]}",
+                "chatId": seed_chat_id,
+                "role": "assistant",
+                "content": "Sandbox project initialized successfully.",
+            },
+        ],
+    }
+    req = urllib.request.Request(
+        f"{api_url}/api/v1/chats/",
+        data=json.dumps(create_payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
+            if resp.status == 200:
+                patch_req = urllib.request.Request(
+                    f"{api_url}/api/v1/chats/{seed_chat_id}/workspace",
+                    data=json.dumps({"workspace_dir": repo_root}).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="PATCH",
+                )
+                with urllib.request.urlopen(patch_req, timeout=5) as patch_resp:  # noqa: S310
+                    assert patch_resp.status == 200
+
+                en_req = urllib.request.Request(
+                    f"{api_url}/api/v1/chats/{seed_chat_id}/sandbox/enable",
+                    method="POST",
+                )
+                with urllib.request.urlopen(en_req, timeout=10) as en_resp:  # noqa: S310
+                    if en_resp.status == 200:
+                        return seed_chat_id
+    except Exception as exc:
+        pytest.fail(f"Failed to prepare sandbox chat fixture: {exc}")
 
     pytest.skip("No sandbox-active chat found in live DB")
 
@@ -113,10 +175,11 @@ async def test_fork_sandbox_isolation_chrome_e2e(
 
     await asyncio.to_thread(client.navigate, page, f"{ui_url}/", timeout_ms=15_000)
 
+    custom_title = "[分支 @ 第2轮] E2E Fork Verification"
     fork = await ev(
         f"(async()=>{{const r=await fetch('{ui_url}/api/v1/chats/{chat_id}/fork',"
         f"{{method:'POST',headers:{{'Content-Type':'application/json'}},"
-        f"body:JSON.stringify({{message_index:1}})}});return await r.json()}})()"
+        f"body:JSON.stringify({{message_index:1,new_title:'{custom_title}'}})}});return await r.json()}})()"
     )
     assert isinstance(fork, dict) and fork.get("success"), f"Fork failed: {fork}"
     data = fork.get("data")
@@ -153,6 +216,7 @@ async def test_fork_sandbox_isolation_chrome_e2e(
     )
     child_data = json.loads(resp.read())
     child_chat = child_data["data"]["chat"]
+    assert child_chat.get("title") == custom_title, f"Expected title {custom_title}, got {child_chat.get('title')}"
 
     # Parent had sandbox active (workspace_dir pointed to sandbox worktree).
     # After fork, child must use repo root (sandbox_base_dir of parent), not the sandbox path.

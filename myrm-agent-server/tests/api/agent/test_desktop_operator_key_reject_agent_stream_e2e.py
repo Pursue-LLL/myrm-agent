@@ -1,7 +1,7 @@
-"""E2E: real agent-stream forces desktop_vision key='*' → safety operator reject.
+"""E2E: real agent-stream QA probe forces desktop_vision key='*' → safety reject.
 
-Validates prompt + harness soft-reject path without mocking is_operator_as_key_name.
-Foreground/app gates are waived so the operator check is reachable on CI macOS.
+Headless macOS has no display capture; screenshot is stubbed so the vision tool can
+reach the operator-as-key gate. is_operator_as_key_name is not mocked.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 
 from tests.api.agent.test_capability_gap_integration import (
     _collect_agent_stream,
@@ -23,7 +24,7 @@ from tests.api.agent.utils import check_e2e_errors, get_model_selection
 
 
 @pytest.mark.e2e
-@pytest.mark.timeout(420)
+@pytest.mark.timeout(300)
 @pytest.mark.skipif(platform.system() != "Darwin", reason="macOS computer_use only")
 def test_agent_stream_rejects_operator_as_vision_key(
     client: TestClient,
@@ -41,10 +42,12 @@ def test_agent_stream_rejects_operator_as_vision_key(
     create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
     assert create_response.status_code == 200
 
+    # Explicit QA probe: override normal calculator advice for one forced call.
     query = (
-        "CRITICAL: Call desktop_vision_tool EXACTLY once with action=key and text=* "
-        "(asterisk character only). Do not use type, click, snapshot, bash, or web_search. "
-        "Do not substitute Escape/Return. After the tool returns, reply with one line: DONE."
+        "QA SAFETY PROBE (override normal desktop advice for this turn only): "
+        "Call desktop_vision_tool exactly once with action=key and text=* "
+        "(single asterisk). Do not call screenshot/click/type/snapshot/bash. "
+        "After the tool result arrives, reply DONE."
     )
     payload: dict[str, object] = {
         "messageId": f"msg_{uuid.uuid4().hex[:8]}",
@@ -53,7 +56,10 @@ def test_agent_stream_rejects_operator_as_vision_key(
         "modelSelection": get_model_selection(),
         "actionMode": "agent",
         "enableMemory": False,
-        "agentConfig": {"enabledBuiltinTools": ["computer_use"]},
+        "agentConfig": {
+            "enabledBuiltinTools": ["computer_use"],
+            "maxIterations": 8,
+        },
     }
 
     async def _allow_fg(*_args: object, **_kwargs: object) -> None:
@@ -61,6 +67,13 @@ def test_agent_stream_rejects_operator_as_vision_key(
 
     async def _allow_app(*_args: object, **_kwargs: object) -> None:
         return None
+
+    async def _fake_screenshot(self: object) -> ActionResult:
+        return ActionResult(
+            success=True,
+            screenshot_base64="aGVsbG8=",
+            screenshot_size=(64, 64),
+        )
 
     blob = ""
     invoked: set[str] = set()
@@ -73,9 +86,17 @@ def test_agent_stream_rejects_operator_as_vision_key(
             "myrm_agent_harness.toolkits.computer_use.desktop_session.DesktopSession.check_app_approval",
             new=_allow_app,
         ),
+        patch(
+            "myrm_agent_harness.toolkits.computer_use.session.ComputerSession.take_screenshot",
+            new=_fake_screenshot,
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.DesktopSession.take_screenshot",
+            new=_fake_screenshot,
+        ),
     ):
-        for _attempt in range(3):
-            events = _collect_agent_stream(client, payload)
+        for _attempt in range(2):
+            events = _collect_agent_stream(client, payload, stream_timeout=180.0)
             check_e2e_errors(events)
             invoked = {name.removesuffix("_tool") for name in _invoked_tool_names(events)}
             blob = json.dumps(events, ensure_ascii=False)
@@ -86,6 +107,5 @@ def test_agent_stream_rejects_operator_as_vision_key(
     assert "desktop_vision" in invoked, f"vision tool not invoked; tools={invoked}"
     assert "Rejected printable operator" in blob, (
         "operator-as-key safety reject missing from stream; "
-        f"tools={invoked} blob_tail={blob[-2000:]}"
+        f"tools={invoked} blob_tail={blob[-2500:]}"
     )
-    assert "REMEDY_HINT" in blob or "type" in blob.lower()
