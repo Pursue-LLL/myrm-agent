@@ -265,27 +265,3 @@ TASK_INTEGRITY_RULES = TASK_INTEGRITY_RULES_EN
 DESKTOP_CONTROL_RULES = DESKTOP_CONTROL_RULES_EN
 RESPONSE_RULES = RESPONSE_RULES_EN
 EXTERNAL_SOURCES_CITATION_RULES = EXTERNAL_SOURCES_CITATION_RULES_EN
-
-
-def get_shared_rules(
-    *,
-    locale: str | None = None,
-) -> dict[str, str]:
-    """获取指定 locale 下的所有共享规则映射（默认英文）"""
-    if is_chinese(locale):
-        return {
-            "absolute_obedience": ABSOLUTE_OBEDIENCE_RULES_ZH,
-            "security": SECURITY_RULES_ZH,
-            "task_integrity": TASK_INTEGRITY_RULES_ZH,
-            "desktop_control": DESKTOP_CONTROL_RULES_ZH,
-            "response": RESPONSE_RULES_ZH,
-            "citation": EXTERNAL_SOURCES_CITATION_RULES_ZH,
-        }
-    return {
-        "absolute_obedience": ABSOLUTE_OBEDIENCE_RULES_EN,
-        "security": SECURITY_RULES_EN,
-        "task_integrity": TASK_INTEGRITY_RULES_EN,
-        "desktop_control": DESKTOP_CONTROL_RULES_EN,
-        "response": RESPONSE_RULES_EN,
-        "citation": EXTERNAL_SOURCES_CITATION_RULES_EN,
-    }
