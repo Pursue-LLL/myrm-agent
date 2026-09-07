@@ -1,5 +1,5 @@
 export type JobStatus = 'active' | 'paused' | 'completed';
-export type RunStatus = 'ok' | 'error' | 'skipped';
+export type RunStatus = 'ok' | 'error' | 'skipped' | 'circuit_break';
 export type SessionTarget = 'isolated' | 'main' | 'daily';
 
 export interface CronSchedule {

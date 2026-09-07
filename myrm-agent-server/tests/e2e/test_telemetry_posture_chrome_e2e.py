@@ -36,17 +36,19 @@ _VERIFY_TELEMETRY_CARD_JS = """(() => {
     const hasProtocol = /Protocol|协议|HTTP\\/PROTOBUF|GRPC|NOOP/i.test(bodyText);
     const hasEndpoint = /Endpoint|端点/i.test(bodyText);
     const hasFeatures = /3-Tier GenAI|三层 GenAI|Capabilities|特性/i.test(bodyText);
+    const hasEnvironment = /Environment|代码环境|Branch|Non-Git/i.test(bodyText);
 
     const buttons = Array.from(document.querySelectorAll('button'));
     const refreshBtn = buttons.find(b => /Refresh|刷新|更新/i.test(b.textContent || ''));
     const copyBtn = buttons.find(b => /Copy Env|复制/i.test(b.textContent || ''));
 
     return {
-      ready: hasTitle && (hasProtocol || hasEndpoint || hasFeatures),
+      ready: hasTitle && (hasProtocol || hasEndpoint || hasFeatures || hasEnvironment),
       hasTitle,
       hasProtocol,
       hasEndpoint,
       hasFeatures,
+      hasEnvironment,
       hasRefreshBtn: Boolean(refreshBtn),
       hasCopyBtn: Boolean(copyBtn),
       snippet: bodyText.slice(0, 300),
@@ -97,5 +99,18 @@ def test_telemetry_posture_card_chrome_e2e() -> None:
         })()""", timeout_sec=10.0)
         assert isinstance(refresh_res, dict)
         assert refresh_res.get("clicked") is True, f"Refresh button click failed: {refresh_res}"
+
+        # Real User Interaction: Click copy env config button and verify no crash
+        copy_res = client.evaluate(page, """(() => {
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const copyBtn = buttons.find(b => /Copy Env|复制/i.test(b.textContent || ''));
+            if (copyBtn) {
+                copyBtn.click();
+                return { clicked: true };
+            }
+            return { clicked: false };
+        })()""", timeout_sec=10.0)
+        assert isinstance(copy_res, dict)
+        assert copy_res.get("clicked") is True, f"Copy button click failed: {copy_res}"
 
 

@@ -83,7 +83,7 @@ async def _fetch_cron_runs(
         job_name = job.name if job else r.job_id
         agent_id = job.agent_id if job else None
 
-        run_status: RunStatus = cast(RunStatus, r.status) if r.status in ("ok", "error", "skipped") else "error"
+        run_status: RunStatus = cast(RunStatus, r.status) if r.status in ("ok", "error", "skipped", "circuit_break") else "error"
         metadata = r.metadata if isinstance(r.metadata, dict) else None
         has_execution_steps = bool(metadata and metadata.get("progressSteps"))
         stop_reason = extract_stop_reason_from_metadata(metadata) or stop_reason_from_error(r.error, run_status)

@@ -49,8 +49,9 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const [copied, setCopied] = useState(false);
   const isOk = run.status === 'ok';
   const isSkipped = run.status === 'skipped';
+  const isCircuitBreak = run.status === 'circuit_break';
   const hasContent = !!(run.output || run.error);
-  const securityDenied = !isOk && !isSkipped && hasSecurityDenial(run);
+  const securityDenied = !isOk && !isSkipped && !isCircuitBreak && hasSecurityDenial(run);
   const verification = run.metadata?.verification;
   const monitorContractError = run.metadata?.monitor_contract_error;
   const monitorContractErrorLabel =
@@ -130,7 +131,9 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
               ? 'border-green-500 bg-green-500/20'
               : isSkipped
                 ? 'border-amber-500 bg-amber-500/20'
-                : 'border-destructive bg-destructive/20',
+                : isCircuitBreak
+                  ? 'border-rose-500 bg-rose-500/20'
+                  : 'border-destructive bg-destructive/20',
           )}
         />
         {!isLast && <div className="flex-1 w-px bg-border mt-1" />}
@@ -145,16 +148,30 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                 ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20'
                 : isSkipped
                   ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
-                  : 'bg-destructive/10 text-destructive border-destructive/20',
+                  : isCircuitBreak
+                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                    : 'bg-destructive/10 text-destructive border-destructive/20',
             )}
           >
             <span
               className={cn(
                 'h-1.5 w-1.5 rounded-full',
-                isOk ? 'bg-green-500' : isSkipped ? 'bg-amber-500' : 'bg-destructive',
+                isOk
+                  ? 'bg-green-500'
+                  : isSkipped
+                    ? 'bg-amber-500'
+                    : isCircuitBreak
+                      ? 'bg-rose-500 animate-pulse'
+                      : 'bg-destructive',
               )}
             />
-            {isOk ? t('runOk') : isSkipped ? t('runSkipped') : t('runError')}
+            {isOk
+              ? t('runOk')
+              : isSkipped
+                ? t('runSkipped')
+                : isCircuitBreak
+                  ? t('runCircuitBreak')
+                  : t('runError')}
           </span>
 
           {showJobName && run.job_name && (
@@ -257,12 +274,28 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
         {!expanded && monitorFailureCountLabel && (
           <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">{monitorFailureCountLabel}</p>
         )}
-        {!expanded && !run.output && run.error && (
+        {!expanded && isCircuitBreak && (
+          <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1 font-medium">
+            {t('circuitBreakBanner')}
+          </p>
+        )}
+        {!expanded && !run.output && run.error && !isCircuitBreak && (
           <p className="text-xs text-destructive mt-1 line-clamp-1">{run.error}</p>
         )}
 
         {expanded && (
           <div className="mt-2 space-y-1.5">
+            {isCircuitBreak && (
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg p-2.5 text-xs text-rose-600 dark:text-rose-400 space-y-1">
+                <div className="font-semibold flex items-center gap-1.5">
+                  <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                  <span>{t('circuitBreakTitle')}</span>
+                </div>
+                <p className="text-[11px] opacity-90 leading-relaxed">
+                  {run.error || t('circuitBreakDesc')}
+                </p>
+              </div>
+            )}
             {run.usage_input_tokens != null && (
               <div className="flex gap-3 text-[10px] text-muted-foreground">
                 <span>Input: {formatTokens(run.usage_input_tokens)}</span>

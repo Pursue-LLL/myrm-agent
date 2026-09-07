@@ -302,3 +302,25 @@ class TestRunRetry:
             result = await runner.run(job)
 
         assert not result.success
+
+    @pytest.mark.asyncio
+    async def test_circuit_break_aborts_retries(self) -> None:
+        """When circuit_broken is True, run() immediately aborts further retries."""
+        runner = AgentJobRunner()
+        job = _make_heartbeat_job(max_retries=2, retry_backoff_ms=100)
+
+        run_once_mock = AsyncMock(
+            return_value=JobResult(
+                success=False,
+                error="RunawayCircuitBreakException",
+                circuit_broken=True,
+                circuit_break_reason="Runaway loop detected",
+            )
+        )
+
+        with patch.object(runner, "_run_once", run_once_mock):
+            result = await runner.run(job)
+
+        assert not result.success
+        assert result.circuit_broken is True
+        assert run_once_mock.call_count == 1

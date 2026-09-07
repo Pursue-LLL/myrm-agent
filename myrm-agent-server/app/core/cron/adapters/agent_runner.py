@@ -375,6 +375,17 @@ class AgentJobRunner:
             if last_result.success:
                 return last_result
 
+            # If circuit breaker was tripped, abort immediately — do not retry!
+            if getattr(last_result, "circuit_broken", False):
+                logger.error(
+                    "Cron agent job %s circuit broken (attempt %d/%d): %s. Aborting retries to protect resources.",
+                    job.id,
+                    attempt + 1,
+                    1 + job.max_retries,
+                    last_result.error,
+                )
+                return last_result
+
             if attempt < job.max_retries:
                 backoff = min(job.retry_backoff_ms * (2**attempt), 30_000)
                 jitter = int(datetime.now(timezone.utc).microsecond % 250)
@@ -850,6 +861,16 @@ class AgentJobRunner:
                 error=f"agent timed out after {job.timeout_seconds or 300}s",
             )
         except Exception as exc:
+            from myrm_agent_harness.agent.errors.agent_errors import RunawayCircuitBreakException
+
+            if isinstance(exc, RunawayCircuitBreakException):
+                logger.error("Cron agent job %s tripped RunawayCircuitBreakException: %s", job.id, exc)
+                return JobResult(
+                    success=False,
+                    error=str(exc),
+                    circuit_broken=True,
+                    circuit_break_reason=str(exc),
+                )
             logger.warning("Cron agent job %s failed: %s", job.id, exc)
             return JobResult(success=False, error=str(exc))
         finally:
@@ -869,6 +890,8 @@ class _StreamAccumulator:
     usage: dict[str, int] | None = None
     error: str | None = None
     stop_reason: dict[str, object] | None = None
+    circuit_broken: bool = False
+    circuit_break_reason: str | None = None
     _seen_indices: set[int] = field(default_factory=set)
 
     def add_sources(self, items: list[dict[str, object]]) -> None:
@@ -898,12 +921,14 @@ class _StreamAccumulator:
         if audit:
             metadata["securityAudit"] = [e.to_dict() for e in audit]
 
-        if self.error:
+        if self.error or self.circuit_broken:
             return JobResult(
                 success=False,
                 output=output or None,
-                error=self.error,
+                error=self.error or "Runaway circuit break triggered",
                 metadata=metadata or None,
+                circuit_broken=self.circuit_broken,
+                circuit_break_reason=self.circuit_break_reason,
             )
 
         return JobResult(
@@ -986,10 +1011,20 @@ async def _consume_stream(
             raw_u = event.get("usage")
             assert isinstance(raw_u, dict)
             acc.usage = {str(k): _coerce_usage_int(v) for k, v in raw_u.items()}
+            total_toks = acc.usage.get("total_tokens") or (
+                acc.usage.get("prompt_tokens", 0) + acc.usage.get("completion_tokens", 0)
+            )
+            if total_toks > 0:
+                from app.services.observability.burn_rate_smoke_alarm import smoke_alarm_detector
+
+                smoke_alarm_detector.record_usage(session_id=f"cron:{job.id}", tokens=total_toks)
         elif event_type == "error":
             error_msg = event.get("error", "unknown agent error")
             error_type = event.get("error_type", "")
             acc.error = f"{error_type}: {error_msg}" if error_type else str(error_msg)
+            if "RUNAWAY_CIRCUIT_BREAKER" in str(error_msg) or "RunawayCircuitBreakException" in str(error_type):
+                acc.circuit_broken = True
+                acc.circuit_break_reason = str(error_msg)
         elif event_type == "tasks_steps":
             acc.progress_steps.append(
                 {
@@ -1036,10 +1071,20 @@ async def _consume_dynamic_workflow_stream(
             raw_u = event.get("usage")
             assert isinstance(raw_u, dict)
             acc.usage = {str(k): _coerce_usage_int(v) for k, v in raw_u.items()}
+            total_toks = acc.usage.get("total_tokens") or (
+                acc.usage.get("prompt_tokens", 0) + acc.usage.get("completion_tokens", 0)
+            )
+            if total_toks > 0:
+                from app.services.observability.burn_rate_smoke_alarm import smoke_alarm_detector
+
+                smoke_alarm_detector.record_usage(session_id=f"cron:{job.id}", tokens=total_toks)
         elif event_type == "error":
             error_msg = event.get("error", "unknown agent error")
             error_type = event.get("error_type", "")
             acc.error = f"{error_type}: {error_msg}" if error_type else str(error_msg)
+            if "RUNAWAY_CIRCUIT_BREAKER" in str(error_msg) or "RunawayCircuitBreakException" in str(error_type):
+                acc.circuit_broken = True
+                acc.circuit_break_reason = str(error_msg)
         elif event_type == "status":
             data = event.get("data")
             if isinstance(data, dict):

@@ -19,7 +19,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 RunSource = Literal["cron", "kanban", "background"]
-RunStatus = Literal["running", "ok", "error", "skipped", "cancelled", "timed_out"]
+RunStatus = Literal["running", "ok", "error", "skipped", "cancelled", "timed_out", "circuit_break"]
 RunStopReasonCategory = Literal["limit", "cancelled", "error", "other"]
 
 

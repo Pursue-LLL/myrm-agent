@@ -327,16 +327,26 @@ class RuntimeMeterService:
             overall_search_health = "healthy"
 
         browser_cost = float(browser_summary.get("estimated_compute_cost_usd", 0.0))
-        is_burn_rate_alert = bool(depleted or len(critical) >= 2 or browser_cost > 10.0)
 
-        if depleted:
+        from app.services.observability.burn_rate_smoke_alarm import smoke_alarm_detector
+
+        smoke_verdict = smoke_alarm_detector.check_verdict()
+        active_token_alerts = smoke_alarm_detector.get_active_alerts()
+
+        is_burn_rate_alert = bool(
+            depleted or len(critical) >= 2 or browser_cost > 10.0 or smoke_verdict.is_alert
+        )
+
+        if smoke_verdict.is_alert:
+            message = f"Token burn rate smoke alarm triggered: {smoke_verdict.reason}"
+        elif depleted:
             message = f"Search providers depleted: {', '.join(depleted)}. Auto-failover active."
         elif critical:
             message = f"Search providers approaching limits: {', '.join(critical)} (>95%)."
         elif browser_cost > 10.0:
             message = f"Browser compute cost (${browser_cost:.2f}) reached soft budget threshold."
         else:
-            message = "All runtime search quotas and browser compute operating within normal limits."
+            message = "All runtime search quotas, browser compute, and token burn rates operating within normal limits."
 
         return {
             "year_month": year_month,
@@ -348,6 +358,12 @@ class RuntimeMeterService:
             "browser_summary": browser_summary,
             "is_burn_rate_alert": is_burn_rate_alert,
             "burn_rate_message": message,
+            "token_burn_rate": {
+                "is_alert": smoke_verdict.is_alert,
+                "tokens_per_minute": smoke_verdict.tokens_per_minute,
+                "total_tokens_in_window": smoke_verdict.total_tokens_in_window,
+                "active_alerts": active_token_alerts,
+            },
         }
 
 

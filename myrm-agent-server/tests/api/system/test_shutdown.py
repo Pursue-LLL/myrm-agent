@@ -78,3 +78,16 @@ async def test_graceful_shutdown_task_flow() -> None:
         mock_conn.exec_driver_sql.assert_awaited_with("PRAGMA wal_checkpoint(TRUNCATE)")
         mock_close.assert_awaited_once()
         mock_kill.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_safe_shutdown_observability_helper() -> None:
+    """Verifies that app.server.shutdown.safe_shutdown_observability invokes harness shutdown_observability."""
+    from app.server.shutdown import safe_shutdown_observability
+
+    with patch(
+        "myrm_agent_harness.infra.tracing.shutdown_observability",
+        return_value={"tracing": True, "metrics": True},
+    ) as mock_shutdown:
+        await safe_shutdown_observability()
+        mock_shutdown.assert_called_once_with(timeout_ms=1500.0)

@@ -48,7 +48,7 @@ _DESKTOP_PERMISSIONS_CARD_JS = """(() => {
   const hasTitle = /Desktop Automation Readiness|桌面自动化就绪|桌面自動化就緒/.test(text);
   const hasInput = /Input Control|输入控制|輸入控制|入力制御|Eingabesteuerung|입력 제어|辅助功能|輔助功能/.test(text);
   const hasCapture = /Screen Capture|屏幕录制|螢幕錄製|画面収録|Bildschirmaufnahme|화면 기록|Capture usable|捕获可用|擷取可用|屏幕捕获|螢幕擷取/.test(text);
-  const headerReady = /All capabilities ready|所有能力就绪|所有能力就緒|全部就绪|全部就緒|Permissions granted|权限已授予|許可權已授予|Setup required|桌面自动化需要配置|桌面自動化需要配置|需要设置|需要設定|Checking environment|正在检测环境|正在檢測環境|正在检查|正在檢查/.test(text);
+  const headerReady = /All capabilities ready|所有能力就绪|所有能力就緒|全部就绪|全部就緒|Permissions granted|权限已授予|許可權已授予|Screen capture unavailable|屏幕捕获不可用|螢幕擷取不可用|Setup required|桌面自动化需要配置|桌面自動化需要配置|需要设置|需要設定|Checking environment|正在检测环境|正在檢測環境|正在检查|正在檢查/.test(text);
   return {
     ready: hasTitle && hasInput && hasCapture && headerReady,
     hasTitle,
@@ -96,7 +96,7 @@ _AFTER_RECHECK_STATE_JS = """(() => {
   const probed = hits.some((u) => String(u).includes('probe_capture=true'));
   const text = document.body?.innerText || '';
   const stillChecking = /Checking environment|正在检测环境|正在檢測環境|正在检查|正在檢查/.test(text) &&
-    !/All capabilities ready|所有能力就绪|所有能力就緒|全部就绪|全部就緒|Permissions granted|权限已授予|許可權已授予|Setup required|桌面自动化需要配置|桌面自動化需要配置|需要设置|需要設定/.test(text);
+    !/All capabilities ready|所有能力就绪|所有能力就緒|全部就绪|全部就緒|Permissions granted|权限已授予|許可權已授予|Screen capture unavailable|屏幕捕获不可用|螢幕擷取不可用|Setup required|桌面自动化需要配置|桌面自動化需要配置|需要设置|需要設定/.test(text);
   const captureRowSettled = /Capture usable|捕获可用|擷取可用|Capture functional|OK|Missing|缺失|未验证|未驗證|Not verified|不可用/.test(text);
   return {
     ready: probed && !stillChecking && captureRowSettled,
@@ -110,7 +110,9 @@ _AFTER_RECHECK_STATE_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+# PRIVATE: workspace harness/server fingerprint often drifts from shared :8080 while
+# this card depends on capture_ready / probe_capture — SHARED would epoch-skip.
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_chrome_ui_desktop_permissions_card_recheck_probes_capture() -> None:
