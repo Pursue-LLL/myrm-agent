@@ -266,9 +266,6 @@ class ContextBombDefenseService:
         transformed_query = self._transform_query_with_spillover(query, prompt_block)
         return transformed_query, True, metadata
 
-        transformed_query = self._transform_query_with_spillover(query, prompt_block)
-        return transformed_query, True, metadata
-
     def _transform_query_with_spillover(
         self,
         query: MultimodalQuery,

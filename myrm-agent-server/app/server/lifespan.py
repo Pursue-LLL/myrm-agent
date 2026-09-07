@@ -172,6 +172,18 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
 
         await maintenance_daemon.start()
 
+        # ContextGuard ephemeral transient spillover housekeeping (24h TTL)
+        try:
+            from app.services.agent.context_guard_service import ContextGuardService
+
+            async def _sweep_spillover_task() -> None:
+                await asyncio.to_thread(ContextGuardService.sweep_all_workspaces)
+
+            maintenance_daemon.submit(_sweep_spillover_task)
+            logger.info("[Startup] Enqueued initial ContextGuard spillover housekeeping task")
+        except Exception as sweep_exc:
+            logger.warning("[Startup] ContextGuard initial sweep enqueue skipped: %s", sweep_exc)
+
         gw_result, cron_result, kanban_result, backup_result = await asyncio.gather(
             start_channel_gateway(),
             start_cron_scheduler(),
@@ -484,6 +496,14 @@ async def _phase_1b_parallel() -> None:
 
         workspace_svc = create_workspace_service(root_dir=Path(settings.database.harness_dir))
         sandboxes_root = workspace_svc.workspaces_root
+
+        # ContextGuard transient spillover initial sweep
+        try:
+            from app.services.agent.context_guard_service import ContextGuardService
+
+            ContextGuardService.sweep_all_workspaces(sandboxes_root)
+        except Exception as cg_err:
+            logger.debug("[Startup] ContextGuard initial sweep skipped: %s", cg_err)
 
         if sandboxes_root.exists():
             scheduler = ContextCleanupScheduler(sandboxes_root, interval_hours=24)
