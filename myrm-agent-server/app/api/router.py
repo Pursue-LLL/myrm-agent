@@ -73,6 +73,7 @@ from app.api.ops.router import router as ops_router
 from app.api.plugins import import_router as plugins_import_router
 from app.api.progression import router as progression_router
 from app.api.projects import router as project_router
+from app.api.providers import provider_balance_router
 from app.api.remote_access.router import router as remote_access_router
 from app.api.risk.router import router as risk_router
 from app.api.runs import router as runs_router
@@ -283,6 +284,9 @@ if is_local_mode():
 
 # Feature Flags
 api_router.include_router(features_router, prefix="/features", tags=["features"])
+
+# Provider Live Balance & Quotas
+api_router.include_router(provider_balance_router, tags=["provider-balance"])
 
 # User Progression
 api_router.include_router(

@@ -592,10 +592,6 @@
         "naked": "仅保留最低安全规则。通过你的系统指令完全控制行为。"
       }
     },
-    "ablationGuidance": {
-      "title": "架构师指引（消融杠杆律：Tools/Middleware ≫ Prompt）",
-      "description": "消融实验表明：工具定义与中间件拦截（如参数修复、超时控制、沙箱隔离）的修复 ROI 远高于修改提示词。遇到调用缺陷时，请优先在「能力 (Capabilities)」与「安全 (Security)」中启用对应中间件，避免在 Prompt 中硬编码冗长规约造成模型过拟合与上下文浪费。"
-    },
     "personality": {
       "title": "沟通风格",
       "description": "选择智能体的沟通方式，这会影响回复的语气和风格。",

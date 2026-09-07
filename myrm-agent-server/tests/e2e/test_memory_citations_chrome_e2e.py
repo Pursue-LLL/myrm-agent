@@ -198,7 +198,7 @@ _ENSURE_INJECT_AND_OPEN_SHEET_JS = """(() => {
 
   const now = Date.now();
   const lastClick = Number(evidenceBtn.dataset.lastClickTime || '0');
-  if (now - lastClick > 3000) {
+  if (now - lastClick > 500) {
     evidenceBtn.dataset.lastClickTime = String(now);
     evidenceBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     evidenceBtn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
@@ -285,8 +285,19 @@ _NAVIGATE_RECALL_TAB_AND_VERIFY_EXTERNAL_SYNC_CARD_JS = """(() => {
   const currentText = document.body?.innerText || '';
   const currentButtons = Array.from(document.querySelectorAll('button'));
 
-  // Check if ExternalHarnessSyncCard is ALREADY rendered
-  // Title key memory.externalHarness.title or button keys
+  // Find recall tab trigger
+  const recallTabBtn = currentButtons.find(
+    (btn) => /会话召回|Conversation Recall|召回|Recall/i.test(btn.textContent || '')
+  );
+  if (!recallTabBtn) {
+    return { ready: false, err: 'recall-tab-not-found', buttons: currentButtons.map(b => b.textContent?.trim()).slice(0, 15) };
+  }
+
+  const isTabActive =
+    recallTabBtn.getAttribute('data-state') === 'active' ||
+    recallTabBtn.getAttribute('aria-selected') === 'true';
+
+  // Check if ExternalHarnessSyncCard is rendered inside the active tab
   const hasCardTitle = /外部 Agent 会话召回|External Agent Recall|External Agent Transcript Recall|External Harness/i.test(currentText);
   const hasSyncNowBtn = currentButtons.some(
     (btn) => /立即增量同步|立即同步|Sync Now|增量同步/i.test(btn.textContent || '')
@@ -295,10 +306,11 @@ _NAVIGATE_RECALL_TAB_AND_VERIFY_EXTERNAL_SYNC_CARD_JS = """(() => {
     (btn) => /选择本地目录|Pick Directory|Pick Local Folder|选择目录/i.test(btn.textContent || '')
   );
 
-  // If card is rendered (either title or both buttons present)
-  if ((hasCardTitle || hasPickDirBtn) && hasSyncNowBtn) {
+  // Both Tab active state and card components must be present to confirm full task flow
+  if (isTabActive && (hasCardTitle || hasPickDirBtn) && hasSyncNowBtn) {
     return {
       ready: true,
+      isTabActive,
       hasCardTitle,
       hasSyncNowBtn,
       hasPickDirBtn,
@@ -306,18 +318,10 @@ _NAVIGATE_RECALL_TAB_AND_VERIFY_EXTERNAL_SYNC_CARD_JS = """(() => {
     };
   }
 
-  // Find recall tab button
-  const recallTabBtn = currentButtons.find(
-    (btn) => /会话召回|Conversation Recall|召回|Recall/i.test(btn.textContent || '')
-  );
-  if (!recallTabBtn) {
-    return { ready: false, err: 'recall-tab-not-found', buttons: currentButtons.map(b => b.textContent?.trim()).slice(0, 15) };
-  }
-
-  // Debounced click the recall tab if not active
+  // Click the recall tab to activate
   const now = Date.now();
   const lastClick = Number(recallTabBtn.dataset.lastClickTime || '0');
-  if (now - lastClick > 3000) {
+  if (now - lastClick > 800) {
     recallTabBtn.dataset.lastClickTime = String(now);
     recallTabBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     recallTabBtn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
@@ -326,6 +330,7 @@ _NAVIGATE_RECALL_TAB_AND_VERIFY_EXTERNAL_SYNC_CARD_JS = """(() => {
 
   return {
     ready: false,
+    isTabActive,
     hasCardTitle,
     hasSyncNowBtn,
     hasPickDirBtn,

@@ -29,6 +29,7 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 | 扩展桥 | [extension/](extension/_ARCH.md) | Chrome MV3 WebSocket + 域名授权 |
 | Connect | [connect/](connect/_ARCH.md) | 外部 Agent 连接向导 |
 | 集成 | [integrations/](integrations/_ARCH.md) · [credentials/](credentials/_ARCH.md) | MCP/OAuth/Hardware Cookbook |
+| 供应商状态 | [providers/](providers/_ARCH.md) | LLM Provider 额度与余额健康探针端点 |
 | 配置 | [config/](config/_ARCH.md) · [features/](features/_ARCH.md) | Omni-Config、功能开关 |
 | 定时/任务 | [cron/](cron/_ARCH.md) · [tasks/](tasks/_ARCH.md) · [background_tasks/](background_tasks/_ARCH.md) | Cron、异步任务、后台 worker |
 | 语音/媒体 | [voice/](voice/_ARCH.md) · [stt/](stt/_ARCH.md) · [tts/](tts/_ARCH.md) · [media/](media/_ARCH.md) | 实时语音、STT/TTS、媒体生成 |

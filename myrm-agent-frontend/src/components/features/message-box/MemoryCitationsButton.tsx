@@ -12,7 +12,7 @@
  * Chat message provenance action. Merges cited memory refs and SSE sources (web/mcp/conversation history) in one sheet.
  */
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { MessageSquare, Copy, Check } from 'lucide-react';
@@ -99,6 +99,18 @@ export default function MemoryCitationsButton({
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [contextsById, setContextsById] = useState<Map<string, SharedContext>>(new Map());
+  const lastToggleTimeRef = useRef<number>(0);
+
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    const now = Date.now();
+    // Protect against rapid double clicks during CSS drawer transition (350ms)
+    if (now - lastToggleTimeRef.current < 350) {
+      return;
+    }
+    lastToggleTimeRef.current = now;
+    setOpen(nextOpen);
+  }, []);
+
   const citationRefs = useMemo(() => uniqueReferences(memoryIds, references), [memoryIds, references]);
   const messageSources = useMemo(() => sources ?? [], [sources]);
   const evidenceCount = citationRefs.length + messageSources.length;
@@ -188,7 +200,7 @@ export default function MemoryCitationsButton({
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>
         <button
           className={cn(

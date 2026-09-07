@@ -1563,10 +1563,6 @@
       "pushDismiss": "忽略",
       "pushEnabled": "推播已開啟"
     },
-    "ablationGuidance": {
-      "title": "架構師指引（消融槓桿律：Tools/Middleware ≫ Prompt）",
-      "description": "消融實驗表明：工具定義與中間件攔截（如參數修復、超時控制、沙盒隔離）的修復 ROI 遠高於修改提示詞。遇到調用缺陷時，請優先在「能力 (Capabilities)」與「安全 (Security)」中啟用對應中間件，避免在 Prompt 中硬編碼冗長規約造成模型過擬合與上下文浪費。"
-    },
     "a2aBinding": "A2A 跨框架遠端委派",
     "a2aBindingDesc": "開啟後，該智慧體支援遵循 A2A (Agent-to-Agent v1.0) 協定跨機器委派呼叫受信任的遠端 Agent 節點",
     "a2aEnableSwitch": "啟用 A2A 協定委派",

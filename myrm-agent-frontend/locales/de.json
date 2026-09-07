@@ -1563,10 +1563,6 @@
       "warning": "Einige Konfigurationen erfordern Aufmerksamkeit",
       "blocked": "Agent kann nicht ausgeführt werden — Korrektur erforderlich"
     },
-    "ablationGuidance": {
-      "title": "Architekten-Leitfaden (Ablations-Hebelgesetz: Tools/Middleware ≫ Prompt)",
-      "description": "Ablationsexperimente zeigen: Tool-Definitionen und Middleware-Guardrails (z. B. Parameterreparatur, Timeout-Kontrolle, Sandbox-Isolation) liefern einen weitaus höheren ROI als reine Prompt-Anpassungen. Aktivieren Sie bei Aufruffehlern vorrangig entsprechende Middleware in Funktionen und Sicherheit, anstatt lange System-Prompts zu pflegen."
-    },
     "a2aBinding": "A2A Framework-übergreifende Remote-Delegierung",
     "a2aBindingDesc": "Aktiviert die Delegation von Aufgaben an vertrauenswürdige Remote-Agenten nach dem A2A (Agent-to-Agent v1.0) Protokoll.",
     "a2aEnableSwitch": "A2A-Delegation aktivieren",
