@@ -861,7 +861,7 @@ class AgentJobRunner:
                 error=f"agent timed out after {job.timeout_seconds or 300}s",
             )
         except Exception as exc:
-            from myrm_agent_harness.agent.errors.agent_errors import RunawayCircuitBreakException
+            from myrm_agent_harness.agent.errors import RunawayCircuitBreakException
 
             if isinstance(exc, RunawayCircuitBreakException):
                 logger.error("Cron agent job %s tripped RunawayCircuitBreakException: %s", job.id, exc)
