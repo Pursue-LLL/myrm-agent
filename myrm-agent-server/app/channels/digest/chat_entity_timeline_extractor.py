@@ -17,14 +17,13 @@ import re
 import time
 from typing import Sequence
 
-from app.utils.logger import get_logger
-
 from app.channels.digest.entity_timeline_models import (
     ChatEntityDigestReport,
     EntityCategory,
     EntityCluster,
     TimelineFactItem,
 )
+from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

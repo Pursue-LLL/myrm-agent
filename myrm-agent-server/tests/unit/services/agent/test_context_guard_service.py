@@ -53,6 +53,7 @@ def test_context_guard_service_sweep_workspaces() -> None:
         # Set old mtime (2 days ago)
         import os
         import time
+
         old_time = time.time() - 172_800
         os.utime(expired_file, (old_time, old_time))
 

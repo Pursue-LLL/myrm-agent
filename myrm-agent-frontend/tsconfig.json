@@ -71,7 +71,9 @@
     ".next-isolated-chrome-test_memory_citations_evidence_button_op-ff251843-2907-59a39488/types/**/*.ts",
     ".next-isolated-chrome-test_memory_citations_evidence_button_op-ff251843-2907-59a39488/dev/types/**/*.ts",
     ".next-isolated-chrome-test_progress_steps_trace_timeline_chrom-b3de5d6e-71494-1cc9bb11/types/**/*.ts",
-    ".next-isolated-chrome-test_progress_steps_trace_timeline_chrom-b3de5d6e-71494-1cc9bb11/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_progress_steps_trace_timeline_chrom-b3de5d6e-71494-1cc9bb11/dev/types/**/*.ts",
+    ".next-isolated-desktop-op-key/types/**/*.ts",
+    ".next-isolated-desktop-op-key/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

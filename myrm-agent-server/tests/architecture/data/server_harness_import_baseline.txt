@@ -13,6 +13,10 @@ myrm_agent_harness.agent.config
 myrm_agent_harness.agent.config.exceptions
 myrm_agent_harness.agent.config.llm
 myrm_agent_harness.agent.config.parsers
+myrm_agent_harness.agent.context_guard
+myrm_agent_harness.agent.context_guard.spillover_engine
+myrm_agent_harness.agent.context_guard.sweeper
+myrm_agent_harness.agent.context_guard.types
 myrm_agent_harness.agent.context_management.archive_checkpoint
 myrm_agent_harness.agent.context_management.archive_checkpoint.store
 myrm_agent_harness.agent.context_management.archive_checkpoint.summary_service
@@ -139,6 +143,7 @@ myrm_agent_harness.agent.skills.market.service
 myrm_agent_harness.agent.skills.market.sources.base
 myrm_agent_harness.agent.skills.market.sources.clawhub_registry
 myrm_agent_harness.agent.skills.market.sources.github
+myrm_agent_harness.agent.skills.market.sources.static_index
 myrm_agent_harness.agent.skills.market.sources.wellknown
 myrm_agent_harness.agent.skills.optimization
 myrm_agent_harness.agent.skills.optimization.config
@@ -370,6 +375,7 @@ myrm_agent_harness.toolkits.llms.errors
 myrm_agent_harness.toolkits.llms.errors.classifier
 myrm_agent_harness.toolkits.llms.errors.resilient
 myrm_agent_harness.toolkits.llms.fallback
+myrm_agent_harness.toolkits.llms.fallback.circuit_breaker
 myrm_agent_harness.toolkits.llms.fallback.health_check
 myrm_agent_harness.toolkits.llms.image
 myrm_agent_harness.toolkits.llms.image.async_image_engine
@@ -434,6 +440,9 @@ myrm_agent_harness.toolkits.memory.strategies.pattern_discovery
 myrm_agent_harness.toolkits.memory.strategies.preference_stability
 myrm_agent_harness.toolkits.memory.strategies.subsumption
 myrm_agent_harness.toolkits.memory.types
+myrm_agent_harness.toolkits.mobile
+myrm_agent_harness.toolkits.mobile_adb
+myrm_agent_harness.toolkits.mobile_adb.session
 myrm_agent_harness.toolkits.openapi_bridge
 myrm_agent_harness.toolkits.retriever.bm25
 myrm_agent_harness.toolkits.retriever.bm25_retrieval

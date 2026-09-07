@@ -21,7 +21,7 @@ async def test_context_guard_service_under_threshold() -> None:
 
 @pytest.mark.asyncio
 async def test_context_guard_service_spillover_overflow() -> None:
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory():
         # Create a large prompt exceeding 16,000 characters
         large_prompt = "Critical system logs:\n" + ("ERROR 500: Database connection timed out.\n" * 400)
         assert len(large_prompt) > 16_000
