@@ -277,8 +277,11 @@ myrm_agent_harness.runtime.survival.memory_pressure
 myrm_agent_harness.runtime.survival.resource_monitor
 myrm_agent_harness.runtime.survival.startup
 myrm_agent_harness.toolkits
+myrm_agent_harness.toolkits.a2a
 myrm_agent_harness.toolkits.a2a.protocols
+myrm_agent_harness.toolkits.a2a.resolver
 myrm_agent_harness.toolkits.a2a.security
+myrm_agent_harness.toolkits.a2a.tools
 myrm_agent_harness.toolkits.a2a.types
 myrm_agent_harness.toolkits.acp.auth
 myrm_agent_harness.toolkits.acp.core.backend_detector
