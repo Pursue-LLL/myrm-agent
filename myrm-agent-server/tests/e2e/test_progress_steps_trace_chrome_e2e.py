@@ -16,8 +16,6 @@ import uuid
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
-    ChromeMcpClient,
-    McpPage,
     dismiss_blocking_modals,
     ensure_chat_route,
     get_e2e_api_url,

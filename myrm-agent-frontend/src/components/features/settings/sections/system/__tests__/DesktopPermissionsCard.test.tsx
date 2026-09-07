@@ -136,6 +136,28 @@ describe('DesktopPermissionsCard', () => {
     });
   });
 
+  it('shows capture-failed header when grants OK but probe fails', async () => {
+    mockDesktopApis({
+      permissions: {
+        accessibility: true,
+        screen_recording: true,
+        screen_recording_capturable: false,
+        all_granted: true,
+        capture_ready: false,
+        platform: 'darwin',
+        settings_deeplinks: {},
+      },
+    });
+
+    render(<DesktopPermissionsCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('captureFailed')).toBeInTheDocument();
+    });
+    expect(screen.getByText('captureFailedHint')).toBeInTheDocument();
+    expect(screen.queryByText('actionRequired')).not.toBeInTheDocument();
+  });
+
   it('shows missing permissions and opens system deeplink', async () => {
     mockDesktopApis({
       permissions: {

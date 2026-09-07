@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -227,6 +228,98 @@ def _wait_backend_health_ok(api_base: str, *, deadline: float) -> bool:
     return False
 
 
+def _resolve_js_runtime() -> str | None:
+    for candidate_name in ("bun", "node"):
+        override = os.getenv(f"MYRM_{candidate_name.upper()}_BIN", "").strip()
+        if override and Path(override).is_file():
+            return override
+        found = shutil.which(candidate_name)
+        if found:
+            return found
+        home = Path.home()
+        candidates = [
+            home / ".bun" / "bin" / candidate_name,
+            Path(f"/opt/homebrew/bin/{candidate_name}"),
+            Path(f"/usr/local/bin/{candidate_name}"),
+        ]
+        for c in candidates:
+            if c.is_file():
+                return str(c)
+    return None
+
+
+def _load_env_test_vars(env_path: Path) -> dict[str, str]:
+    if not env_path.is_file():
+        return {}
+    res: dict[str, str] = {}
+    for raw in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line.removeprefix("export ").lstrip()
+        if "=" in line:
+            k, v = line.split("=", 1)
+            res[k.strip()] = v.strip().strip("'\"")
+    return res
+
+
+def _provider_ready(api_base: str) -> bool:
+    url = f"{api_base.rstrip('/')}/api/v1/config/readiness"
+    try:
+        req = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
+        with urllib.request.urlopen(req, timeout=3.0) as resp:  # noqa: S310
+            data = json.loads(resp.read())
+            provider = data.get("provider") if isinstance(data, dict) else None
+            return isinstance(provider, dict) and bool(provider.get("is_ready"))
+    except (OSError, TimeoutError, urllib.error.URLError, ValueError, json.JSONDecodeError):
+        return False
+
+
+def ensure_verify_backend_providers(*, api_base: str, monorepo: Path) -> bool:
+    """Ensure that the verify-api instance has seeded provider configs."""
+    clean_base = api_base.rstrip("/")
+    if _provider_ready(clean_base):
+        return True
+
+    env_test = monorepo / "myrm-agent" / "myrm-agent-server" / ".env.test"
+    if not env_test.is_file():
+        env_test = monorepo / ".env.test"
+    seed_script = monorepo / "myrm-agent" / "scripts" / "dev" / "chrome-e2e-model-seed.mjs"
+    if not seed_script.is_file():
+        return False
+
+    js_bin = _resolve_js_runtime()
+    if not js_bin:
+        return False
+
+    seed_env = os.environ.copy()
+    seed_env.update(_load_env_test_vars(env_test))
+    seed_env["E2E_API_BASE"] = clean_base
+
+    try:
+        proc = subprocess.run(
+            [js_bin, str(seed_script)],
+            cwd=str(seed_script.parent),
+            env=seed_env,
+            capture_output=True,
+            text=True,
+            timeout=25.0,
+            check=False,
+        )
+        if proc.returncode != 0:
+            return False
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+    deadline = time.monotonic() + 10.0
+    while time.monotonic() < deadline:
+        if _provider_ready(clean_base):
+            return True
+        time.sleep(0.5)
+    return False
+
+
 def _cap_reached_result(active: int) -> VerifyBackendSeedResult:
     return VerifyBackendSeedResult(
         ok=False,
@@ -405,6 +498,7 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
             raise RuntimeError("seed backend health or epoch match timeout")
 
         heartbeat_runtime(runtime_id, owner_token, phase="running")
+        ensure_verify_backend_providers(api_base=api_base, monorepo=root)
 
     except (OSError, subprocess.TimeoutExpired, RuntimeError) as exc:
         _mark_runtime_cleaning(runtime_id)

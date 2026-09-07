@@ -12,6 +12,8 @@ const translations: Record<string, string> = {
   protocol: 'Protocol',
   endpoint: 'OTLP Endpoint',
   headers: 'Auth Headers',
+  environment: 'VCS Environment',
+  noVcsTag: 'Non-Git Workspace',
   features: 'Capabilities',
   configured: 'Configured',
   none: 'None',
@@ -60,7 +62,7 @@ describe('TelemetryPostureCard', () => {
       expect(screen.getByText('OpenTelemetry Trace Posture')).toBeInTheDocument();
       expect(screen.getByText('HTTP/PROTOBUF')).toBeInTheDocument();
       expect(screen.getByText('http://apm.internal:4318')).toBeInTheDocument();
-      expect(screen.getByText('Configured')).toBeInTheDocument();
+      expect(screen.getByText('Non-Git Workspace')).toBeInTheDocument();
       expect(screen.getByText('3-Tier GenAI Spans Ready')).toBeInTheDocument();
     });
   });
@@ -82,7 +84,7 @@ describe('TelemetryPostureCard', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Not configured (Local NoOp)')).toBeInTheDocument();
-      expect(screen.getByText('None')).toBeInTheDocument();
+      expect(screen.getByText('Non-Git Workspace')).toBeInTheDocument();
     });
   });
 
