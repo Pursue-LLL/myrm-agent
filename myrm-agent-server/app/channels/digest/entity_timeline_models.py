@@ -15,7 +15,6 @@ from __future__ import annotations
 import enum
 import time
 from dataclasses import dataclass, field
-from typing import Sequence
 
 
 class EntityCategory(str, enum.Enum):
