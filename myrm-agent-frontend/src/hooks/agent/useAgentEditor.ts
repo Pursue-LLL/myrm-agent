@@ -578,6 +578,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           memoryDecayProfile,
           memoryExtractionPreset,
           workspacePolicy,
+          a2aEnabled,
+          a2aTrustedPeerIds: [...a2aTrustedPeerIds],
           engineParams,
           openapiServices: [...openapiServices],
           suggestionPrompts: [...suggestionPrompts],

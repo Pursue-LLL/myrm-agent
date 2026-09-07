@@ -28,6 +28,9 @@ def _session(*, use_workflow: bool = False, workflow_template_id: str | None = N
             workflow_template_args=None,
             chat_id="chat-dw-route",
             incognito_mode=False,
+            agent_config=None,
+            engine_params=None,
+            query="audit apis",
         ),
         routing_tier="complex",
         params=SimpleNamespace(

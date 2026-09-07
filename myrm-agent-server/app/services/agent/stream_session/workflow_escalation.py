@@ -149,16 +149,20 @@ def is_simple_query_for_admission(
 def should_bypass_dw_for_admission(session: AgentStreamSession) -> bool:
     """Check if a DW-enabled request should bypass DW to fast-path direct execution."""
     # Never bypass if user explicitly supplied a template or resume
-    if session.request.workflow_template_id or session.request.resume_value is not None:
+    if getattr(session.request, "workflow_template_id", None) or getattr(session.request, "resume_value", None) is not None:
         return False
 
-    engine_params = session.request.engine_params or {}
+    engine_params = getattr(session.request, "engine_params", None) or {}
     if engine_params.get("forceWorkflow"):
         return False
 
+    query = getattr(session.request, "query", None) or getattr(session.params, "query", "")
+    tier = getattr(session, "routing_tier", None)
+    if tier != "simple":
+        return False
     return is_simple_query_for_admission(
-        query=session.request.query,
-        routing_tier=session.routing_tier,
+        query=query,
+        routing_tier=tier,
     )
 
 

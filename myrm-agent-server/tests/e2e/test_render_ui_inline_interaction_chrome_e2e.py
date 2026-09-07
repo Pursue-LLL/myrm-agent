@@ -121,13 +121,12 @@ def _last_user_message_has_ui_action(chat_id: str, *, api_url: str) -> bool:
 async def test_render_ui_inline_button_click_sends_ui_action_message(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    if not wait_e2e_provider_ready():
+    api_base = get_e2e_api_url()
+    if not wait_e2e_provider_ready(api_url=api_base):
         pytest.fail(
             "Provider config not ready for live render_ui interaction Chrome E2E — run via "
             "./myrm test -m chrome_e2e after ./myrm ready --chrome",
         )
-
-    api_base = get_e2e_api_url()
 
     async def _wait_inline_button(
         chat: McpChatSession,

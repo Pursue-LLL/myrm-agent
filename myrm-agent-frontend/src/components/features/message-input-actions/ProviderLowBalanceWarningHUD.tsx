@@ -15,16 +15,17 @@
  * balance status. Provides a 1-click fallback model switch button to prevent mid-task breakage.
  */
 
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, ArrowRight, X } from 'lucide-react';
 import useProviderBalanceStore from '@/store/useProviderBalanceStore';
 import useProviderStore from '@/store/useProviderStore';
 import useChatStore from '@/store/useChatStore';
+import { resolveActiveModelSelection } from '@/lib/model-binding';
 import { cn } from '@/lib/utils/classnameUtils';
 
 interface ProviderLowBalanceWarningHUDProps {
-  currentProviderId: string | null | undefined;
+  currentProviderId?: string | null;
   className?: string;
 }
 
@@ -35,9 +36,20 @@ export const ProviderLowBalanceWarningHUD = memo<ProviderLowBalanceWarningHUDPro
 
     const getGauge = useProviderBalanceStore((state) => state.getGauge);
     const defaultModelConfig = useProviderStore((state) => state.defaultModelConfig);
+    const providers = useProviderStore((state) => state.providers);
+    const setBaseModel = useProviderStore((state) => state.setBaseModel);
+    const actionMode = useChatStore((state) => state.actionMode);
+    const agentConfig = useChatStore((state) => state.agentConfig);
     const updateAgentConfig = useChatStore((state) => state.updateAgentConfig);
 
-    const gauge = getGauge(currentProviderId);
+    const activeSelection = useMemo(() => {
+      if (currentProviderId) return null;
+      if (!defaultModelConfig?.baseModel?.primary) return null;
+      return resolveActiveModelSelection(actionMode, agentConfig, defaultModelConfig, providers);
+    }, [currentProviderId, actionMode, agentConfig, defaultModelConfig, providers]);
+
+    const targetProviderId = currentProviderId ?? activeSelection?.providerId;
+    const gauge = getGauge(targetProviderId);
 
     // Identify candidate safety fallback
     const safetyFallback =
@@ -47,12 +59,18 @@ export const ProviderLowBalanceWarningHUD = memo<ProviderLowBalanceWarningHUDPro
 
     const handleSwitchToSafetyFallback = useCallback(() => {
       if (!safetyFallback?.providerId || !safetyFallback?.model) return;
-      updateAgentConfig({
-        provider: safetyFallback.providerId,
-        model: safetyFallback.model,
-      });
+      if (actionMode === 'fast' && typeof setBaseModel === 'function') {
+        setBaseModel(safetyFallback);
+      } else if (typeof updateAgentConfig === 'function') {
+        updateAgentConfig({
+          modelSelection: {
+            providerId: safetyFallback.providerId,
+            model: safetyFallback.model,
+          },
+        });
+      }
       setIsDismissed(true);
-    }, [safetyFallback, updateAgentConfig]);
+    }, [safetyFallback, actionMode, updateAgentConfig, setBaseModel]);
 
     if (!gauge || isDismissed) return null;
     if (gauge.status !== 'warning' && gauge.status !== 'critical') return null;

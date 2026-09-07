@@ -345,7 +345,7 @@ def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
             assert isinstance(hint, dict)
             assert hint.get("hasHint") is True, f"Missing renderUiWebOnlyHint in UI: {hint}"
 
-        if not wait_e2e_provider_ready():
+        if not wait_e2e_provider_ready(api_url=api_url):
             pytest.fail(
                 "Provider config not ready for client_surface capture — run via ./myrm test -m chrome_e2e "
                 "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)",
@@ -373,7 +373,8 @@ def test_render_ui_surface_hint_and_client_surface_in_real_ui() -> None:
 @pytest.mark.timeout(600)
 def test_client_surface_emits_tauri_when_tauri_runtime_simulated() -> None:
     """Chrome READ: injecting window.__TAURI__ must send client_surface=tauri on agent-stream."""
-    if not wait_e2e_provider_ready():
+    api_url = get_e2e_api_url()
+    if not wait_e2e_provider_ready(api_url=api_url):
         pytest.fail(
             "Provider config not ready for tauri client_surface capture — run via ./myrm test -m chrome_e2e "
             "after ./myrm ready --chrome",

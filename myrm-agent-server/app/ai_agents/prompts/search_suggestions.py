@@ -1,6 +1,14 @@
 """搜索建议提示模板
 
-提供根据聊天历史生成相关搜索建议的提示模板
+[INPUT]
+langchain_core.messages::{BaseMessage, HumanMessage, SystemMessage} (POS: 消息基类与系统/用户消息定义)
+
+[OUTPUT]
+SuggestionsResponse: 搜索建议响应数据类型
+get_search_suggestions_prompt: 根据对话历史构建搜索建议提示消息列表
+
+[POS]
+搜索建议提示词模块。为搜索交互流程提供根据聊天历史生成后续追问与搜索建议的提示词模板。
 """
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage

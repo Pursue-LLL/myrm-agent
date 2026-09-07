@@ -66,7 +66,8 @@ _INLINE_UI_READY_JS = """(() => {
 async def test_render_ui_inline_card_renders_in_real_chat(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    if not wait_e2e_provider_ready():
+    api_url = get_e2e_api_url()
+    if not wait_e2e_provider_ready(api_url=api_url):
         pytest.fail(
             "Provider config not ready for live render_ui Chrome E2E — run via ./myrm test -m chrome_e2e "
             "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)",

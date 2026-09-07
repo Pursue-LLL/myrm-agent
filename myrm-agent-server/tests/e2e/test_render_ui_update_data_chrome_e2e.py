@@ -215,13 +215,12 @@ async def _wait_db_ui_status(
 async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    if not wait_e2e_provider_ready():
+    api_base = get_e2e_api_url()
+    if not wait_e2e_provider_ready(api_url=api_base):
         pytest.fail(
             "Provider config not ready for live update_ui_data Chrome E2E — run via "
             "./myrm test -m chrome_e2e after ./myrm ready --chrome",
         )
-
-    api_base = get_e2e_api_url()
 
     def _ui_sample_blocked(sample: str) -> bool:
         return "配置检查仍在同步" in sample or "无法连接到服务器" in sample or "Unable to connect" in sample

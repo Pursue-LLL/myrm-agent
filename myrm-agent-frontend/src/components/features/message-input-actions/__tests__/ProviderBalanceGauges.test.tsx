@@ -7,6 +7,7 @@ import ProviderLowBalanceWarningHUD from '../ProviderLowBalanceWarningHUD';
 const mockGetGauge = vi.fn();
 const mockFetchGauges = vi.fn();
 const mockUpdateAgentConfig = vi.fn();
+const mockSetBaseModel = vi.fn();
 
 vi.mock('@/store/useProviderBalanceStore', () => ({
   default: vi.fn((selector: (state: object) => unknown) =>
@@ -32,6 +33,7 @@ vi.mock('@/store/useProviderStore', () => ({
           model: 'deepseek-ai/DeepSeek-V3',
         },
       },
+      setBaseModel: mockSetBaseModel,
     }),
   ),
 }));
@@ -39,6 +41,7 @@ vi.mock('@/store/useProviderStore', () => ({
 vi.mock('@/store/useChatStore', () => ({
   default: vi.fn((selector: (state: object) => unknown) =>
     selector({
+      actionMode: 'agent',
       updateAgentConfig: mockUpdateAgentConfig,
     }),
   ),
@@ -95,8 +98,10 @@ describe('ProviderBalanceIndicator & HUD', () => {
     fireEvent.click(switchBtn);
 
     expect(mockUpdateAgentConfig).toHaveBeenCalledWith({
-      provider: 'siliconflow',
-      model: 'deepseek-ai/DeepSeek-V3',
+      modelSelection: {
+        providerId: 'siliconflow',
+        model: 'deepseek-ai/DeepSeek-V3',
+      },
     });
   });
 });

@@ -18,12 +18,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app
 from app.services.providers.balance_service import (
     ProviderBalanceResult,
     ProviderBalanceService,
     ProviderBalanceStatus,
 )
+from tests.support.minimal_app import build_minimal_app
 
 
 @pytest.mark.asyncio
@@ -101,6 +101,7 @@ async def test_get_provider_balance_gauges_endpoint() -> None:
         "app.api.providers.balance_router.provider_balance_service.get_all_provider_balances",
         new=AsyncMock(return_value=mock_result),
     ):
+        app = build_minimal_app("providers")
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://127.0.0.1") as client:
             resp = await client.get("/api/v1/providers/balance-gauges")

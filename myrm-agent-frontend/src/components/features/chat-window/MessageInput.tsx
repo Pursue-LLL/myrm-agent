@@ -506,7 +506,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
               />
             ) : (
               <>
-                <ProviderLowBalanceWarningHUD currentProviderId={agentConfig?.provider} className="mb-2" />
+                <ProviderLowBalanceWarningHUD className="mb-2" />
                 <FeaturedExpertChips />
                 <ComposerContextChipStrip
                   chips={composerContextChips}

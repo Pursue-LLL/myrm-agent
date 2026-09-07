@@ -25,6 +25,9 @@
 | `AgentProfileTimeMachine.tsx`            | 配置时光机；加载/回滚失败 toast 展示后端错误 detail                                                                                                                           |
 | `AgentBrowserConfigSection.tsx`          | 浏览器配置卡片（来源、弹窗策略、录制；引擎由 harness Stealth Ladder 自动路由）                                                                                                |
 | `AgentNotifyTargets.tsx`                 | 通知目标（`notify_targets` → server Turn1 加载 `channel_notify_tool`；running 渠道从 `listChannelStatuses` 动态下拉 + pairing/manual ID）                                     |
+| `AgentA2ABinding.tsx`                    | A2A（Agent-to-Agent）跨智能体对等互联绑定与权限开关                                                                                                                             |
+| `AgentFaqTab.tsx`                        | 智能体私有 FAQ 问答库与检索语料配置面板                                                                                                                                         |
+| `AgentCapabilitiesDeliverySection.tsx`   | 交付保障策略区段（Delivery Assurance 开关与兜底配置）                                                                                                                          |
 | `AgentPreviewCard.tsx`                   | 预览卡片                                                                                                                                                                      |
 
 ## 与全局审批的区别

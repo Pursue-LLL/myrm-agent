@@ -236,7 +236,8 @@ async def test_clarify_skip_button_resumes_agent_in_real_chat(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
     """Real WebUI: clarify ready via API pending or DOM Skip; resume via private API."""
-    if not wait_e2e_provider_ready():
+    api_url = get_e2e_api_url()
+    if not wait_e2e_provider_ready(api_url=api_url):
         pytest.fail(
             "Provider config not ready for live clarify Chrome E2E — run via ./myrm test -m chrome_e2e "
             "after ./myrm ready --chrome (API /api/v1/config/readiness provider.is_ready must be true)",

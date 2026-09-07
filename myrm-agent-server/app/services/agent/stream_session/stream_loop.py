@@ -19,6 +19,7 @@ import re
 import time
 from collections.abc import AsyncGenerator, AsyncIterable
 from dataclasses import dataclass
+import inspect
 
 from myrm_agent_harness.utils.runtime.cancellation import CancelReason
 
@@ -225,12 +226,15 @@ async def iter_agent_stream_chunks(
             ).to_sse_chunk()
 
     stream: AsyncIterable[str | dict[str, object]]
-    use_workflow_requested = session.request.use_workflow or (
-        session.request.agent_config is not None and session.request.agent_config.orchestration_mode == "orchestrated"
+    agent_config = getattr(session.request, "agent_config", None)
+    orchestration_mode = getattr(agent_config, "orchestration_mode", None) if agent_config else None
+    use_workflow_requested = bool(
+        getattr(session.request, "use_workflow", False)
+        or (agent_config is not None and orchestration_mode == "orchestrated")
     )
-    if session.request.action_mode == "deep_research":
+    if getattr(session.request, "action_mode", None) == "deep_research":
         stream = create_deep_research_stream(session.params, session.cancel_token, session.research_model_cfg)
-    elif (use_workflow_requested or session.request.workflow_template_id) and not should_bypass_dw_for_admission(session):
+    elif (use_workflow_requested or getattr(session.request, "workflow_template_id", None)) and not should_bypass_dw_for_admission(session):
         from app.services.agent.stream_session.stream_lane_factory import (
             create_dynamic_workflow_stream,
         )
@@ -238,17 +242,18 @@ async def iter_agent_stream_chunks(
         logger.info(
             "Dynamic Workflow Engine activated for message_id=%s template_id=%s orchestration_mode=%s",
             session.params.message_id,
-            session.request.workflow_template_id,
-            (session.request.agent_config.orchestration_mode if session.request.agent_config else None),
+            getattr(session.request, "workflow_template_id", None),
+            orchestration_mode,
         )
-        stream = create_dynamic_workflow_stream(
+        dw_stream = create_dynamic_workflow_stream(
             session.params,
             session.cancel_token,
-            (session.request.resume_value if isinstance(session.request.resume_value, dict) else None),
-            workflow_template_id=session.request.workflow_template_id,
-            workflow_template_args=session.request.workflow_template_args,
+            (session.request.resume_value if isinstance(getattr(session.request, "resume_value", None), dict) else None),
+            workflow_template_id=getattr(session.request, "workflow_template_id", None),
+            workflow_template_args=getattr(session.request, "workflow_template_args", None),
             unattended=_dynamic_workflow_unattended(session.params),
         )
+        stream = await dw_stream if inspect.iscoroutine(dw_stream) else dw_stream
     elif (
         session.request.resume_value is None
         and not use_workflow_requested
@@ -263,7 +268,7 @@ async def iter_agent_stream_chunks(
             "Dynamic Workflow Engine auto-escalated for message_id=%s",
             session.params.message_id,
         )
-        stream = create_dynamic_workflow_stream(
+        dw_stream = create_dynamic_workflow_stream(
             session.params,
             session.cancel_token,
             None,
@@ -271,6 +276,7 @@ async def iter_agent_stream_chunks(
             workflow_template_args=None,
             unattended=_dynamic_workflow_unattended(session.params),
         )
+        stream = await dw_stream if inspect.iscoroutine(dw_stream) else dw_stream
     elif (
         session.routing_tier == "simple"
         and session.request.blueprint_id is None
