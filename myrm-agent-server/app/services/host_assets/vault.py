@@ -20,6 +20,7 @@ import re
 import time
 import uuid
 from pathlib import Path
+
 from nacl.secret import SecretBox
 from nacl.utils import random as nacl_random
 
@@ -27,7 +28,6 @@ from app.services.host_assets.models import (
     AuthType,
     HostAsset,
     HostAssetCreate,
-    HostAssetUpdate,
 )
 
 

@@ -1,79 +1,102 @@
-"""Data models for Multi-Host SSH Operations, SFTP Explorer, and Agent Asset Bridge.
+"""Models for Multi-Host SSH Ops, SFTP Explorer and Agent Asset Bridge.
 
 [INPUT]
-- pydantic::BaseModel, Field
-- typing::Any, Dict, List, Optional, Literal
-- enum::Enum
+- Standard Python dataclasses, enums, typing
 
 [OUTPUT]
-- HostAuthMethod, SSHHostAsset, SSHExecResult, SFTPItemInfo, HostConnectionStatus
+- SSHAuthMethod, SSHHostAsset, SSHConfigParsedHost, SSHCommandResult, SFTPFileMetadata, SFTPTransferResult
 
 [POS]
-Domain models in app/services/ssh_bridge/models.py.
+Data structures in app/services/ssh_bridge/.
 """
 
 from __future__ import annotations
 
 import enum
-from typing import Any, Dict, List, Literal, Optional
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Mapping
 
-from pydantic import BaseModel, Field
 
-
-class HostAuthMethod(str, enum.Enum):
-    """Authentication method for remote SSH hosts."""
+class SSHAuthMethod(str, enum.Enum):
+    """Authentication methods supported for SSH connections."""
 
     KEY_FILE = "key_file"
     PASSWORD = "password"
     AGENT = "agent"
+    NONE = "none"
 
 
-class SSHHostAsset(BaseModel):
-    """Strongly typed host asset descriptor."""
+@dataclass(frozen=True)
+class SSHConfigParsedHost:
+    """Parsed representation of a host section from ~/.ssh/config."""
 
-    host_id: str = Field(..., description="Unique host asset identifier (e.g. host_gpu_node_1)")
-    alias: str = Field(..., description="Human-friendly alias/name for the server")
-    hostname: str = Field(..., description="Target hostname or IP address")
-    port: int = Field(default=22, ge=1, le=65535, description="SSH connection port")
-    username: str = Field(..., description="Login username")
-    auth_method: HostAuthMethod = Field(default=HostAuthMethod.KEY_FILE, description="Authentication mechanism")
-    key_path: Optional[str] = Field(default=None, description="Path to identity file (if key_file auth)")
-    encrypted_secret: Optional[str] = Field(default=None, description="Encrypted password or passphrase (AES-GCM)")
-    tags: List[str] = Field(default_factory=list, description="Categorization tags (e.g. ['prod', 'gpu'])")
-    description: Optional[str] = Field(default=None, description="Optional server description")
-    created_at: float = Field(default=0.0, description="Timestamp of asset registration")
-    is_trusted: bool = Field(default=False, description="Whether Agent is pre-authorized for safe non-destructive ops")
+    pattern: str
+    host_name: str | None = None
+    user: str | None = None
+    port: int = 22
+    identity_file: str | None = None
+    proxy_jump: str | None = None
+    forward_agent: bool = False
+    custom_options: Mapping[str, str] = field(default_factory=dict)
 
 
-class SSHExecResult(BaseModel):
-    """Result of remote command execution."""
+@dataclass(frozen=True)
+class SSHHostAsset:
+    """Registered SSH host asset available for UI and AI Agent dispatch."""
 
-    host_id: str = Field(..., description="Target host ID")
-    command: str = Field(..., description="Executed command")
-    exit_code: int = Field(..., description="Process exit code (0 for success)")
-    stdout: str = Field(default="", description="Cleaned standard output stream")
-    stderr: str = Field(default="", description="Cleaned standard error stream")
-    distilled_summary: Optional[str] = Field(default=None, description="High-entropy distilled summary of output")
-    duration_ms: int = Field(default=0, description="Execution duration in milliseconds")
-    is_truncated: bool = Field(default=False, description="Whether output exceeded buffer limit and was truncated")
-
-
-class SFTPItemInfo(BaseModel):
-    """File or directory metadata in SFTP remote filesystem."""
-
-    filename: str = Field(..., description="Name of the file or directory")
-    path: str = Field(..., description="Absolute remote path")
-    is_dir: bool = Field(default=False, description="Whether item is a directory")
-    size_bytes: int = Field(default=0, ge=0, description="File size in bytes")
-    mtime: int = Field(default=0, description="Last modification timestamp")
-    permissions: Optional[str] = Field(default=None, description="Octal or POSIX permissions string (e.g. '0755')")
+    asset_id: str
+    alias: str
+    host_name: str
+    port: int = 22
+    user: str = "root"
+    auth_method: SSHAuthMethod = SSHAuthMethod.KEY_FILE
+    identity_file_path: str | None = None
+    has_encrypted_passphrase: bool = False
+    proxy_jump: str | None = None
+    tags: tuple[str, ...] = ()
+    description: str = ""
+    is_active: bool = True
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
-class HostConnectionStatus(BaseModel):
-    """Active connection and health telemetry for a host."""
+@dataclass(frozen=True)
+class SSHCommandResult:
+    """Structured result of executing a remote command via SSH bridge."""
 
-    host_id: str = Field(..., description="Target host ID")
-    is_online: bool = Field(default=False, description="Whether host is reachable via SSH handshake")
-    latency_ms: Optional[float] = Field(default=None, description="Round-trip handshake latency in milliseconds")
-    error_message: Optional[str] = Field(default=None, description="Detailed diagnostic error if unreachable")
-    last_checked_at: float = Field(default=0.0, description="Timestamp of last health check probe")
+    asset_alias: str
+    command: str
+    exit_code: int
+    stdout: str
+    stderr: str
+    duration_ms: float
+    is_truncated: bool = False
+    is_blocked: bool = False
+    block_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class SFTPFileMetadata:
+    """Metadata of a remote file or directory retrieved via SFTP."""
+
+    filename: str
+    path: str
+    size_bytes: int
+    is_directory: bool
+    modified_time_iso: str
+    permissions: str = "0644"
+
+
+@dataclass(frozen=True)
+class SFTPTransferResult:
+    """Structured result of an SFTP upload/download transfer operation."""
+
+    asset_alias: str
+    direction: str  # "upload" or "download"
+    local_path: str
+    remote_path: str
+    bytes_transferred: int
+    success: bool
+    duration_ms: float
+    sha256_checksum: str | None = None
+    error_message: str | None = None

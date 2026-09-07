@@ -1879,11 +1879,10 @@ def _yolo_security_payload(current: dict[str, object]) -> dict[str, object]:
         "yolo_mode_enabled": True,
         "yolo_mode_enabled_at": float(now),
         "yolo_mode_timeout": None,
-        "autoModeEnabled": True,
         "permissions": {"*": "allow", "computer_use": "allow"},
         "domainHitlEnabled": False,
-        # SecurityConfig prefers autoModeEnabled over autoReviewEnabled — clear both
-        # so YOLO E2E does not hang on AI Security Reviewer LLM init failures.
+        # SecurityConfig prefers autoModeEnabled over autoReviewEnabled — must be False
+        # for YOLO E2E or AI Security Reviewer LLM init errors stall on approval cards.
         "autoModeEnabled": False,
         "autoReviewEnabled": False,
         "planConfirmEnabled": False,

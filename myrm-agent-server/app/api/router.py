@@ -96,6 +96,7 @@ from app.api.skills.growth import router as skill_growth_router
 from app.api.skills.migrations import router as migrations_router
 from app.api.skills.quality import router as skill_quality_router
 from app.api.skills.ws_evolution import router as evolution_ws_router
+from app.api.ssh_vault.router import router as ssh_vault_router
 from app.api.statistics import build_statistics_router
 from app.api.stt.router import router as stt_router
 from app.api.stt.ws_stream import router as stt_ws_router
@@ -163,6 +164,7 @@ api_router.include_router(
 )
 api_router.include_router(vault_proxy_router, prefix="/files", tags=["files"])
 api_router.include_router(skills_router, prefix="/skills", tags=["skills"])
+api_router.include_router(ssh_vault_router, prefix="", tags=["ssh-vault"])
 api_router.include_router(browser_domain_skills_router, prefix="/browser", tags=["browser-domain-skills"])
 api_router.include_router(browser_recording_router, prefix="/browser", tags=["browser-recording"])
 api_router.include_router(browser_sessions_router, prefix="/browser", tags=["browser-sessions"])

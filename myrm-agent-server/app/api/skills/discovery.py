@@ -582,7 +582,10 @@ async def remove_custom_source_endpoint(
         raise HTTPException(status_code=404, detail=f"Source not found: {url}")
 
     parsed = urlparse(url.rstrip("/"))
-    source_name = f"well-known:{parsed.scheme}://{parsed.netloc}"
+    if parsed.scheme and parsed.netloc:
+        source_name = f"well-known:{parsed.scheme}://{parsed.netloc}"
+    else:
+        source_name = f"github-tap:{url.strip('/')}"
     market_service._base.unregister_source(source_name)
 
     return {"removed": True}

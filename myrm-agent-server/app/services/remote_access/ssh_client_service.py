@@ -35,7 +35,7 @@ logger = logging.getLogger("myrm.services.remote_access.ssh_client")
 
 # Strict blacklist for dangerous commands without explicit confirmation
 _HIGH_RISK_COMMAND_PATTERNS = [
-    re.compile(r"\brm\s+-[rR]f\s+/\b"),
+    re.compile(r"rm\s+-[rR]f\s+/(\s*|\b|$)"),
     re.compile(r"\bmkfs\b"),
     re.compile(r"\bdd\s+if=.*of=/dev/"),
     re.compile(r":\(\)\{\s*:\s*\|\s*:\s*&\s*\};\s*:"),  # Fork bomb

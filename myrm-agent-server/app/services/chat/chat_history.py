@@ -161,3 +161,81 @@ class _ChatHistoryMixin(_ChatServiceBase):
         except Exception as e:
             logger.warning(f"FTS5 search failed for query '{query}': {e}")
             return ([], 0)
+
+    @staticmethod
+    async def get_chat_turn_outline(chat_id: str) -> list[dict[str, object]]:
+        """Extract lightweight multi-turn outline projection for session jump bar and rail."""
+        async with UnitOfWork() as uow:
+            messages = await _ChatServiceBase._cr(uow).get_all_messages(chat_id)
+
+        if not messages:
+            return []
+
+        turns: list[dict[str, object]] = []
+        turn_idx = 0
+        curr_user_msg_id: str | None = None
+        curr_prompt_preview: str = ""
+        curr_created_at: str | None = None
+        curr_msg_count = 0
+
+        for msg in messages:
+            if msg.role == "user":
+                if curr_user_msg_id is not None:
+                    # Flush previous turn without assistant reply
+                    turns.append(
+                        {
+                            "turn_index": turn_idx,
+                            "user_message_id": curr_user_msg_id,
+                            "assistant_message_id": None,
+                            "prompt_preview": curr_prompt_preview,
+                            "reply_preview": None,
+                            "created_at": curr_created_at,
+                            "message_count": curr_msg_count,
+                        }
+                    )
+                    turn_idx += 1
+
+                curr_user_msg_id = msg.id
+                raw_text = (msg.content or "").strip()
+                curr_prompt_preview = raw_text[:60] if len(raw_text) > 60 else raw_text
+                curr_created_at = msg.created_at.isoformat() if hasattr(msg.created_at, "isoformat") else str(msg.created_at)
+                curr_msg_count = 1
+            elif msg.role == "assistant" and curr_user_msg_id is not None:
+                curr_msg_count += 1
+                raw_reply = (msg.content or "").strip()
+                reply_preview = raw_reply[:120] if len(raw_reply) > 120 else raw_reply
+                turns.append(
+                    {
+                        "turn_index": turn_idx,
+                        "user_message_id": curr_user_msg_id,
+                        "assistant_message_id": msg.id,
+                        "prompt_preview": curr_prompt_preview,
+                        "reply_preview": reply_preview,
+                        "created_at": curr_created_at,
+                        "message_count": curr_msg_count,
+                    }
+                )
+                turn_idx += 1
+                curr_user_msg_id = None
+                curr_prompt_preview = ""
+                curr_created_at = None
+                curr_msg_count = 0
+            else:
+                curr_msg_count += 1
+
+        if curr_user_msg_id is not None:
+            # Trailing in-progress turn
+            turns.append(
+                {
+                    "turn_index": turn_idx,
+                    "user_message_id": curr_user_msg_id,
+                    "assistant_message_id": None,
+                    "prompt_preview": curr_prompt_preview,
+                    "reply_preview": None,
+                    "created_at": curr_created_at,
+                    "message_count": curr_msg_count,
+                }
+            )
+
+        return turns
+

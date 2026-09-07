@@ -215,6 +215,11 @@ async def test_chrome_ui_operator_as_key_rejected(
             )
             page_blob = str(page_text or "")
             if "可视化操作审批" in page_blob or "Security Reviewer" in page_blob:
+                try:
+                    resolved = resolve_pending_desktop_approval_for_test(scope="once")
+                    progress(f"desktop approval API resolve: {resolved}")
+                except Exception as exc:  # noqa: BLE001 — poll path stays resilient
+                    progress(f"desktop approval API resolve soft-fail: {exc}")
                 clicked = await chat.evaluate(
                     _CLICK_APPROVE_JS, intent=EvaluateIntent.AGENT_SUBMIT
                 )

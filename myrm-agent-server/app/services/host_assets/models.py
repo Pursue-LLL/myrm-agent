@@ -1,112 +1,126 @@
-"""Data models and value objects for Host Assets and Remote SSH/SFTP Management.
+"""Host asset data models and SSH/SFTP execution schemas.
 
 [INPUT]
-- Pydantic BaseModel, Field, SecretStr
-- Enum definitions
+- pydantic.BaseModel, pydantic.Field
+- typing.Literal, typing.Optional, typing.Dict, typing.List
 
 [OUTPUT]
-- AuthType, HostAsset, HostAssetCreate, HostAssetUpdate, SSHCommandRequest, SSHCommandResponse, SFTPFileEntry, SFTPTransferRequest, SFTPTransferResponse
+- HostAuthType, HostAssetConfig, SSHCommandRequest, SSHCommandResult
+- SFTPReadRequest, SFTPWriteRequest, SFTPTransferResult, HostConfigImportResult
 
 [POS]
-Data structures in app/services/host_assets/models.py.
+Domain data structures for remote host asset management and safe SSH/SFTP bridge.
 """
 
 from __future__ import annotations
 
 from enum import Enum
-from typing import Literal
+from typing import Dict, List, Literal, Optional
+
 from pydantic import BaseModel, Field
 
 
-class AuthType(str, Enum):
-    """Authentication mechanism for SSH connections."""
+class HostAuthType(str, Enum):
+    """Authentication type for remote SSH host connection."""
+
     PASSWORD = "password"
     PRIVATE_KEY = "private_key"
-    AGENT = "agent"
+    AGENT_FORWARD = "agent_forward"
 
 
-class HostAssetBase(BaseModel):
-    """Base definition of a remote host asset."""
-    alias: str = Field(..., description="Unique user-friendly alias/name for the host (e.g. gpu-node-1)")
-    hostname: str = Field(..., description="IP address or domain name")
-    port: int = Field(default=22, ge=1, le=65535, description="SSH port")
-    username: str = Field(..., description="Login username")
-    auth_type: AuthType = Field(default=AuthType.PRIVATE_KEY, description="Authentication type")
-    description: str = Field(default="", description="Optional asset description or tags")
+class HostAssetConfig(BaseModel):
+    """Configuration model for a managed remote host asset."""
 
-
-class HostAssetCreate(HostAssetBase):
-    """Payload for registering a new host asset."""
-    password: str | None = Field(default=None, description="Plaintext password (encrypted before storage)")
-    private_key: str | None = Field(default=None, description="Plaintext PEM/OpenSSH private key (encrypted before storage)")
-    passphrase: str | None = Field(default=None, description="Optional key passphrase")
-
-
-class HostAssetUpdate(BaseModel):
-    """Payload for updating an existing host asset."""
-    alias: str | None = None
-    hostname: str | None = None
-    port: int | None = Field(default=None, ge=1, le=65535)
-    username: str | None = None
-    auth_type: AuthType | None = None
-    description: str | None = None
-    password: str | None = None
-    private_key: str | None = None
-    passphrase: str | None = None
-
-
-class HostAsset(HostAssetBase):
-    """Persisted host asset entity (with sanitized secrets)."""
-    id: str = Field(..., description="Unique UUID for the host asset")
-    has_password: bool = Field(default=False, description="Whether a password is configured")
-    has_private_key: bool = Field(default=False, description="Whether a private key is configured")
-    encrypted_secret: str = Field(default="", description="Encrypted credentials payload")
-    created_at: float = Field(..., description="Unix timestamp of creation")
-    updated_at: float = Field(..., description="Unix timestamp of last update")
+    host_id: str = Field(..., description="Unique identifier for the host asset")
+    name: str = Field(..., description="Human-readable alias or display name")
+    hostname: str = Field(..., description="Target server IP or domain")
+    port: int = Field(default=22, description="SSH port number", ge=1, le=65535)
+    username: str = Field(default="root", description="SSH login username")
+    auth_type: HostAuthType = Field(
+        default=HostAuthType.PRIVATE_KEY, description="Authentication method"
+    )
+    private_key_path: Optional[str] = Field(
+        default=None, description="Local path to private key file if applicable"
+    )
+    private_key_content: Optional[str] = Field(
+        default=None, description="Encrypted or raw private key content string"
+    )
+    password: Optional[str] = Field(
+        default=None, description="SSH login password (if using password auth)"
+    )
+    passphrase: Optional[str] = Field(
+        default=None, description="Passphrase for encrypted private key"
+    )
+    description: str = Field(default="", description="Optional note or environment info")
+    tags: List[str] = Field(default_factory=list, description="Categorization tags")
 
 
 class SSHCommandRequest(BaseModel):
-    """Request to execute a command on a remote host asset."""
-    host_id_or_alias: str = Field(..., description="Target host UUID or alias")
-    command: str = Field(..., description="Shell command to execute on the remote machine")
-    timeout_seconds: int = Field(default=30, ge=1, le=300, description="Execution timeout in seconds")
-    working_dir: str | None = Field(default=None, description="Remote directory to execute in")
+    """Request payload for executing an SSH command on a managed host."""
+
+    host_id: str = Field(..., description="Target host ID")
+    command: str = Field(..., description="Bash command to execute remotely")
+    timeout_seconds: float = Field(
+        default=30.0, description="Execution timeout in seconds", gt=0
+    )
+    working_dir: Optional[str] = Field(
+        default=None, description="Initial remote working directory"
+    )
+    env: Dict[str, str] = Field(
+        default_factory=dict, description="Environment variables to inject"
+    )
 
 
-class SSHCommandResponse(BaseModel):
-    """Result of a remote SSH command execution."""
-    success: bool
-    exit_code: int
-    stdout: str
-    stderr: str
-    execution_time_ms: int
-    host_alias: str
-    error_message: str | None = None
+class SSHCommandResult(BaseModel):
+    """Result of remote SSH command execution."""
+
+    host_id: str = Field(..., description="Target host ID")
+    command: str = Field(..., description="Executed command")
+    exit_code: int = Field(..., description="Process exit returncode")
+    stdout: str = Field(default="", description="Captured standard output")
+    stderr: str = Field(default="", description="Captured standard error")
+    duration_ms: float = Field(..., description="Execution duration in milliseconds")
+    success: bool = Field(..., description="Whether command succeeded (exit_code == 0)")
 
 
-class SFTPFileEntry(BaseModel):
-    """Metadata of a file/directory on a remote host."""
-    filename: str
-    path: str
-    is_dir: bool
-    size_bytes: int
-    modified_time: float
-    permissions: str
+class SFTPReadRequest(BaseModel):
+    """Request payload for reading a remote file via SFTP."""
+
+    host_id: str = Field(..., description="Target host ID")
+    remote_path: str = Field(..., description="Absolute remote file path")
+    max_bytes: int = Field(
+        default=1024 * 1024, description="Maximum bytes to read into memory", gt=0
+    )
 
 
-class SFTPTransferRequest(BaseModel):
-    """Request for uploading or downloading a file via SFTP."""
-    host_id_or_alias: str
-    direction: Literal["upload", "download"]
-    local_path: str
-    remote_path: str
+class SFTPWriteRequest(BaseModel):
+    """Request payload for writing/uploading content to a remote file via SFTP."""
+
+    host_id: str = Field(..., description="Target host ID")
+    remote_path: str = Field(..., description="Absolute remote destination file path")
+    content: str = Field(..., description="File content to write")
+    mode: Literal["write", "append"] = Field(
+        default="write", description="Write mode (overwrite or append)"
+    )
 
 
-class SFTPTransferResponse(BaseModel):
-    """Result of an SFTP transfer operation."""
-    success: bool
-    bytes_transferred: int
-    remote_path: str
-    local_path: str
-    elapsed_time_ms: int
-    error_message: str | None = None
+class SFTPTransferResult(BaseModel):
+    """Result of an SFTP file read/write operation."""
+
+    host_id: str = Field(..., description="Target host ID")
+    remote_path: str = Field(..., description="Target remote file path")
+    success: bool = Field(..., description="Whether operation succeeded")
+    content: Optional[str] = Field(default=None, description="Read content if applicable")
+    bytes_transferred: int = Field(default=0, description="Total bytes processed")
+    error: Optional[str] = Field(default=None, description="Error message if failed")
+
+
+class HostConfigImportResult(BaseModel):
+    """Result summary of importing ~/.ssh/config entries."""
+
+    total_parsed: int = Field(..., description="Total host entries parsed")
+    total_imported: int = Field(..., description="Total new or updated hosts saved")
+    imported_host_ids: List[str] = Field(
+        default_factory=list, description="IDs of successfully imported hosts"
+    )
+    errors: List[str] = Field(default_factory=list, description="Parsing or validation errors")

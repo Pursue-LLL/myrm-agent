@@ -40,7 +40,7 @@ describe('TurnTimelineRail', () => {
         } as any,
       ],
       activeTimelineTurnIndex: 2,
-      loadThroughTurn: vi.fn().mockResolvedValue(undefined),
+      loadThrough: vi.fn().mockResolvedValue(true),
     });
   });
 
@@ -64,10 +64,10 @@ describe('TurnTimelineRail', () => {
     expect(screen.queryByTestId('turn-preview-1')).not.toBeInTheDocument();
   });
 
-  it('triggers loadThroughTurn when clicking an unloaded turn', async () => {
-    const loadThroughTurnMock = vi.fn().mockResolvedValue(undefined);
+  it('triggers loadThrough when clicking an unloaded turn', async () => {
+    const loadThroughMock = vi.fn().mockResolvedValue(true);
     useChatStore.setState({
-      loadThroughTurn: loadThroughTurnMock,
+      loadThrough: loadThroughMock,
     });
 
     render(<TurnTimelineRail />);
@@ -75,6 +75,6 @@ describe('TurnTimelineRail', () => {
 
     // Turn 1 is not in messages
     fireEvent.click(dots[0]);
-    expect(loadThroughTurnMock).toHaveBeenCalledWith(1);
+    expect(loadThroughMock).toHaveBeenCalledWith('msg-u-1');
   });
 });

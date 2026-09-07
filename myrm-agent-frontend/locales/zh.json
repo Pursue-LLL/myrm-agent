@@ -1,4 +1,18 @@
 {
+  "settings": {
+    "sshVault": {
+      "title": "SSH 远程资产库",
+      "source": "配置源",
+      "refresh": "刷新主机配置",
+      "noHosts": "未发现已配置的 SSH 主机。请在 ~/.ssh/config 中添加配置或刷新。",
+      "probe": "连通探活",
+      "probing": "探活中...",
+      "statusUntested": "未测试",
+      "copyPrompt": "复制提示词指令",
+      "useInPrompt": "对话调用",
+      "copied": "已复制"
+    }
+  },
   "recovery": {
     "title": "Agent 启动与配置自愈中心",
     "description": "检测到当前 Agent 绑定的组件或配置在启动期存在异常。您可以一键恢复至最后已知良好配置，或导出诊断包进行排查。",

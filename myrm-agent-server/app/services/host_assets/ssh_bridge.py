@@ -15,9 +15,9 @@ Domain service in app/services/host_assets/ssh_bridge.py.
 from __future__ import annotations
 
 import re
-import shlex
 import time
 from typing import Callable
+
 from app.services.host_assets.models import SSHCommandRequest, SSHCommandResponse
 from app.services.host_assets.vault import HostAssetVault
 
