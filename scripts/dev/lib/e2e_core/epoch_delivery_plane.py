@@ -154,6 +154,9 @@ def apply_epoch_pin_for_shared_live(
     # its health endpoint is reachable. Reuse only a distinct, healthy verify
     # candidate; otherwise seed an epoch-matched backend before the test starts.
     if verify_base and verify_base.rstrip("/") != shared.rstrip("/"):
+        from e2e_core.verify_backend_seed import ensure_verify_backend_providers  # noqa: PLC0415
+
+        ensure_verify_backend_providers(api_base=verify_base, monorepo=monorepo.resolve())
         port = urlsplit(verify_base).port
         reused = _outcome_from_api_base(
             api_base=verify_base,

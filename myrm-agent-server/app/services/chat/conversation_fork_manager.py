@@ -373,9 +373,9 @@ class ConversationForkManager:
                 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
                 from myrm_agent_harness.agent.event_log.types import EventPayload, StructuredEvent
 
-                from app.core.config import settings
+                from app.config.settings import get_settings
 
-                event_log_dir = Path(settings.database.event_log_dir)
+                event_log_dir = Path(get_settings().database.event_log_dir)
                 if event_log_dir.exists():
                     fork_event_data = {
                         "parent_chat_id": parent_chat_id,
