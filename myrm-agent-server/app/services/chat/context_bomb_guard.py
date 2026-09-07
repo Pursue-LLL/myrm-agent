@@ -394,8 +394,9 @@ class ContextBombDefenseService:
         ttl_seconds: float = SPILLED_FILE_TTL_SECONDS,
     ) -> int:
         """Alias for sweep_stale_spillover_files matching classmethod contract."""
-        inst = get_context_bomb_defense_service()
-        return inst.sweep_stale_spillover_files(workspace_dir=workspace_root, ttl_seconds=ttl_seconds)
+        return get_context_bomb_defense_service().sweep_stale_spillover_files(
+            workspace_dir=workspace_root, ttl_seconds=ttl_seconds
+        )
 
 
 _GLOBAL_CONTEXT_BOMB_GUARD = ContextBombDefenseService()

@@ -777,31 +777,83 @@ async def test_fetch_skill_health_populates_actionable_recommendations() -> None
     """_fetch_skill_health should invoke SkillHealthEvaluator and populate actionable recommendations."""
     from app.api.statistics.growth_dashboard import _fetch_skill_health
 
-    with patch("app.api.statistics.growth_dashboard.skills_service") as mock_skills, \
-         patch("app.api.statistics.growth_dashboard.Path.is_dir", return_value=True), \
-         patch("app.api.statistics.growth_dashboard.Path.iterdir") as mock_iterdir:
+    mock_collector = MagicMock()
+    mock_stats = MagicMock()
+    mock_stats.call_count = 10
+    mock_stats.success_count = 9
+    mock_stats.last_used_at = datetime.now(UTC)
+    mock_stats.usage_history = []
+    mock_collector.get_stats.return_value = mock_stats
 
-        skill_dir = MagicMock()
-        skill_dir.name = "web_search"
-        skill_dir.is_dir.return_value = True
-        mock_iterdir.return_value = [skill_dir]
+    with patch("app.core.skills.curator.service.get_stats_collector", return_value=mock_collector), \
+         patch("app.core.skills.models.DEFAULT_LOCAL_SKILL_PATHS", ["/fake/skills"]), \
+         patch("app.api.statistics.growth_dashboard.Path.expanduser") as mock_expand:
 
-        mock_ledger = MagicMock()
-        mock_ledger.skill_id = "web_search"
-        mock_ledger.total_invocations = 10
-        mock_ledger.successful_invocations = 9
-        mock_ledger.total_failures = 1
-        mock_ledger.average_duration_ms = 450.0
-        mock_ledger.created_at = datetime.now(UTC) - timedelta(days=5)
-        mock_ledger.updated_at = datetime.now(UTC)
-        mock_skills.get_execution_stats.return_value = mock_ledger
+        mock_root = MagicMock()
+        mock_root.exists.return_value = True
 
-        with patch("app.api.statistics.growth_dashboard._query_recent_events", return_value=[]):
-            items = await _fetch_skill_health()
+        mock_skill_dir = MagicMock()
+        mock_skill_dir.name = "web_search"
+        mock_skill_dir.is_dir.return_value = True
+        mock_root.iterdir.return_value = [mock_skill_dir]
+        mock_expand.return_value = mock_root
 
-        assert len(items) == 1
-        assert items[0].skill_name == "web_search"
-        assert items[0].call_count_total == 10
-        assert items[0].actionable_recommendation is not None
-        assert isinstance(items[0].actionable_recommendation, str)
+        items = await _fetch_skill_health()
+
+    assert len(items) == 1
+    assert items[0].skill_name == "web_search"
+    assert items[0].call_count_total == 10
+    assert items[0].actionable_recommendation is not None
+    assert isinstance(items[0].actionable_recommendation, str)
+
+
+@pytest.mark.asyncio
+async def test_growth_dashboard_endpoint_end_to_end_integration() -> None:
+    """End-to-end integration: GET /growth-dashboard returns 200 with skill_health populated."""
+    from fastapi import FastAPI
+    from httpx import ASGITransport, AsyncClient
+    from app.api.statistics.growth_dashboard import router, SkillHealthItem
+
+    test_app = FastAPI()
+    test_app.include_router(router, prefix="/api/v1/statistics")
+
+    mock_db = AsyncMock()
+
+    mock_health_item = SkillHealthItem(
+        skill_name="test_tool",
+        health_score=88.0,
+        status="STAR",
+        call_count_7d=15,
+        call_count_total=50,
+        success_rate_7d=0.95,
+        last_used_at="2026-09-08T00:00:00Z",
+        actionable_recommendation="🌟 Star asset in active rotation.",
+        adoption_rate=0.9,
+        reuse_breadth=0.8,
+    )
+
+    with patch("app.api.statistics.growth_dashboard.get_db", return_value=mock_db), \
+         patch("app.api.statistics.growth_dashboard._fetch_memory_snapshot", return_value=({}, 100, {}, 0)), \
+         patch("app.api.statistics.growth_dashboard._fetch_activity_data", return_value=_ActivitySnapshot()), \
+         patch("app.api.statistics.growth_dashboard._fetch_weekly_summary", return_value=WeeklySummary()), \
+         patch("app.api.statistics.growth_dashboard._fetch_skill_evolution_data", return_value=_SkillEvolutionSnapshot()), \
+         patch("app.api.statistics.growth_dashboard._fetch_cost_summary", return_value=None), \
+         patch("app.api.statistics.growth_dashboard._fetch_skill_trends", return_value=[]), \
+         patch("app.api.statistics.growth_dashboard._fetch_skill_health", return_value=[mock_health_item]), \
+         patch("app.api.statistics.growth_dashboard._fetch_memory_citations_7d", return_value=0):
+
+        async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as ac:
+            resp = await ac.get("/api/v1/statistics/growth-dashboard")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    dashboard = data["data"]
+    assert "skill_health" in dashboard
+    assert len(dashboard["skill_health"]) == 1
+    sh = dashboard["skill_health"][0]
+    assert sh["skill_name"] == "test_tool"
+    assert sh["actionable_recommendation"] == "🌟 Star asset in active rotation."
+    assert sh["status"] == "STAR"
+
 
