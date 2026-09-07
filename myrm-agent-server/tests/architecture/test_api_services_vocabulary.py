@@ -124,7 +124,6 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "repair",
         "trajectory",
         "web_fetch",
-        "weekly_report",
     }
 )
 
