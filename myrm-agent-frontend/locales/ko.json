@@ -18387,7 +18387,21 @@
           "message": "메시지",
           "memory": "메모리",
           "error": "오류"
-        }
+        },
+        "modelViewportTitle": "모델 뷰포트 검사",
+        "viewportMessageCount": "메시지 {count}개",
+        "viewportSystemPrompt": "시스템 프롬프트",
+        "viewportUserTurns": "사용자 질문 {count}턴",
+        "viewportToolCalls": "도구 호출 {count}회",
+        "copyRawViewport": "원시 뷰포트 텍스트 복사",
+        "viewportTruncatedNotice": "원격 측정 로그에서 컨텍스트가 잘렸습니다({chars}자 생략됨)",
+        "forkBranch": "브랜치 파생",
+        "forkFromThisStep": "이 단계에서 브랜치 파생",
+        "forkBranchHint": "이 단계까지의 세션 상태를 기준으로 디버깅 브랜치 파생",
+        "forkingBranch": "파생 중...",
+        "forkSuccess": "대화 브랜치를 성공적으로 파생했습니다",
+        "forkFailed": "대화 브랜치 파생에 실패했습니다",
+        "forkTitlePrefix": "[파생 @ {index}턴]"
       },
       "securityAudit": "보안 감사",
       "contextDoctor": {

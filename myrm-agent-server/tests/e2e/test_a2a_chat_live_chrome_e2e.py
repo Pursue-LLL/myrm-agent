@@ -108,6 +108,8 @@ def _wait_assistant_reply(
     timeout_sec: float = 180.0,
 ) -> dict[str, object]:
     deadline = time.monotonic() + timeout_sec
+    last: dict[str, object] = {}
+    last_messages: list[dict[str, object]] = []
     while time.monotonic() < deadline:
         try:
             messages = fetch_chat_messages(chat_id, api_url=api_url)
@@ -122,8 +124,13 @@ def _wait_assistant_reply(
             content = assistant.get("content") or assistant.get("message") or ""
             if isinstance(content, str) and content.strip():
                 return assistant
+        last = assistant or {}
         time.sleep(2.0)
-    raise AssertionError(f"Assistant reply timed out after {timeout_sec}s for chat {chat_id}")
+    pytest.fail(
+        f"assistant reply not received within {timeout_sec}s for chat {chat_id}; "
+        f"last={json.dumps(last, ensure_ascii=False)[:300]} "
+        f"messages={json.dumps(last_messages, ensure_ascii=False)[:800]}"
+    )
 
 
 @pytest.mark.chrome_e2e(
@@ -214,6 +221,10 @@ def test_a2a_chat_live_delegation_chrome_e2e(
             send = client.evaluate(page, _send_turn(prompt), timeout_sec=60.0)
             assert isinstance(send, dict), send
             assert send.get("ok") is True, f"Send failed: {send}"
+
+            # Capture UI state for debug if needed
+            probe_snapshot = client.evaluate(page, "window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {}", timeout_sec=10.0)
+            _ = probe_snapshot
 
             # 7. Wait for assistant reply to arrive and complete
             reply = _wait_assistant_reply(chat_id, api_url, timeout_sec=180.0)

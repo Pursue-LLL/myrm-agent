@@ -18,7 +18,10 @@
 
 import { memo, useMemo, useEffect, useRef, useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { IconLoader } from '@/components/features/icons/PremiumIcons';
+import { useRouter } from 'next/navigation';
+import { IconLoader, IconGitBranch } from '@/components/features/icons/PremiumIcons';
+import { forkConversation } from '@/services/fork-api';
+import { toast } from '@/lib/utils/toast';
 import type {
   ExecutionTrace,
   TraceError,
@@ -105,12 +108,49 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [keyboardActive, setKeyboardActive] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
+  const [isForking, setIsForking] = useState(false);
+  const router = useRouter();
   const animationRef = useRef<number | null>(null);
   const lastUpdateRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const initializedTimeRef = useRef(false);
 
   const messages = useMemo(() => mergeMessages(storeMessages, remoteMessages), [storeMessages, remoteMessages]);
+
+  const computeTargetMessageIndex = useCallback(() => {
+    if (!messages || messages.length === 0) return 0;
+    let matchedIdx = 0;
+    for (let i = 0; i < messages.length; i++) {
+      const m = messages[i];
+      const mTime = m.createdAt instanceof Date ? m.createdAt.getTime() : new Date(m.createdAt).getTime();
+      if (mTime <= currentTime + 500) {
+        matchedIdx = i;
+      } else {
+        break;
+      }
+    }
+    return matchedIdx;
+  }, [messages, currentTime]);
+
+  const handleForkFromCurrent = useCallback(async () => {
+    if (isForking) return;
+    const targetIndex = computeTargetMessageIndex();
+    setIsForking(true);
+    try {
+      const res = await forkConversation(sessionId, targetIndex);
+      if (res.success && res.data?.new_chat_id) {
+        toast.success(t('forkSuccess'));
+        useChatStore.getState().setChatId(res.data.new_chat_id);
+        router.push(`/${res.data.new_chat_id}`);
+      } else {
+        toast.error(t('forkFailed'));
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('forkFailed'));
+    } finally {
+      setIsForking(false);
+    }
+  }, [isForking, computeTargetMessageIndex, sessionId, t, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -370,11 +410,31 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
         </div>
 
         <div className="bg-background flex flex-col p-3 sm:p-4 overflow-y-auto border-t lg:border-t-0 border-border/40">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 shrink-0">
-            {t('inspector')}
-          </h4>
+          <div className="flex items-center justify-between mb-3 shrink-0">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              {t('inspector')}
+            </h4>
+            <button
+              type="button"
+              onClick={handleForkFromCurrent}
+              disabled={isForking}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors disabled:opacity-50"
+              title={t('forkFromThisStep')}
+            >
+              {isForking ? (
+                <IconLoader className="h-3 w-3 animate-spin" />
+              ) : (
+                <IconGitBranch className="h-3 w-3" />
+              )}
+              <span className="hidden sm:inline">{isForking ? t('forkingBranch') : t('forkBranch')}</span>
+            </button>
+          </div>
           <div className="flex-1 flex flex-col gap-3">
-            <ReplayInspector activeEvent={visibleState.activeEvent} />
+            <ReplayInspector
+              activeEvent={visibleState.activeEvent}
+              onForkFromCurrent={handleForkFromCurrent}
+              isForking={isForking}
+            />
           </div>
         </div>
       </div>

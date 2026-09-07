@@ -18387,7 +18387,21 @@
           "message": "Nachricht",
           "memory": "Speicher",
           "error": "Fehler"
-        }
+        },
+        "modelViewportTitle": "Modell-Viewport-Inspektor",
+        "viewportMessageCount": "{count} Nachrichten",
+        "viewportSystemPrompt": "Systemprompt",
+        "viewportUserTurns": "{count} Benutzer-Turns",
+        "viewportToolCalls": "{count} Tool-Aufrufe",
+        "copyRawViewport": "Rohen Viewport kopieren",
+        "viewportTruncatedNotice": "Kontext im Telemetrieprotokoll abgeschnitten ({chars} Zeichen ausgelassen)",
+        "forkBranch": "Branch abzweigen",
+        "forkFromThisStep": "Branch ab diesem Schritt abzweigen",
+        "forkBranchHint": "Sitzungszustand bis zu diesem Schritt für Debugging abzweigen",
+        "forkingBranch": "Zweige ab...",
+        "forkSuccess": "Konversations-Branch erfolgreich abgezweigt",
+        "forkFailed": "Abzweigen des Konversations-Branches fehlgeschlagen",
+        "forkTitlePrefix": "[Branch @ Turn {index}]"
       },
       "securityAudit": "Sicherheitsprüfung",
       "contextDoctor": {

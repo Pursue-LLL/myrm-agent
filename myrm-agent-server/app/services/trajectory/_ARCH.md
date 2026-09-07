@@ -10,3 +10,4 @@
 |------|------|------|-------|
 | `trajectory_models.py` | 核心模型 | 定义价值链类型、执行轨迹事件、工件引用与周报/Wiki草稿强类型数据结构 | ✅ |
 | `trajectory_aggregator.py` | 核心服务 | 提供轨迹事件汇聚、价值链过滤与跨任务事件图谱聚合服务 | ✅ |
+| `weekly_report_service.py` | 核心服务 | 提供周报 SOP 生成、IM 交互卡片渲染与 Chat-to-Knowledge 萃取归档服务 | ✅ |

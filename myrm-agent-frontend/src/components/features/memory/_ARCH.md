@@ -105,13 +105,15 @@
 | ----------------------------- | ---- | ------------------------------------------------------------------------- | ----- |
 | `ConversationRecallPanel.tsx` | 组件 | 历史会话召回搜索与插入面板                                                | ✅    |
 | `ExternalHarnessSyncCard.tsx` | 组件 | 外部 Agent 会话召回管理卡片（本地目录增量同步与浏览器端目录一键选择上传） | ✅    |
+| `ModelViewportView.tsx`       | 组件 | 结构化模型视口检视卡片（按角色展开提示词、遥测摘要、截断提示与一键复制）   | ✅    |
 | `ReplayControls.tsx`          | 组件 | 回放控制条（标题/跳错/速度/播放暂停/带事件标记的进度条）                  | ✅    |
-| `ReplayInspector.tsx`         | 组件 | 回放明细检查器（当前时间线事件的错误/工具结果/安全标签/LLM 统计）         | ✅    |
+| `ReplayInspector.tsx`         | 组件 | 回放明细检查器（当前时间线事件的错误/工具结果/安全标签/LLM 视口与一键 Fork） | ✅    |
 | `ReplayMessageBubble.tsx`     | 组件 | 回放消息气泡                                                              | ✅    |
 | `ReplayMindView.tsx`          | 组件 | 回放脑图面板（LLM 调用/记忆事件/人工反馈/推理轨迹/带安全徽标的工具行）    | ✅    |
-| `SessionReplayPlayer.tsx`     | 组件 | 会话回放播放器（编排 Controls/MindView/Inspector 三栏）                   | ✅    |
+| `SessionReplayPlayer.tsx`     | 组件 | 会话回放播放器（编排 Controls/MindView/Inspector 三栏，支持时间机器派生分支）| ✅    |
 | `memoryLiveStream.ts`         | 工具 | 记忆实时流事件解析与 replay session 解析                                  | ✅    |
 | `replayTimeline.ts`           | 工具 | 回放时间线构建                                                            | ✅    |
+| `viewportParser.ts`           | 工具 | 模型视口纯函数解析器（从 prompt_preview 提取结构化角色消息与遥测元数据）  | ✅    |
 
 ### settings/
 
@@ -142,7 +144,9 @@
 | `__tests__/SharedContextTargetBinding.test.tsx`     | 共享上下文目标绑定测试                                                       | ✅    |
 | `__tests__/memoryLiveStream.test.ts`                | 记忆实时流测试                                                               | ✅    |
 | `__tests__/replayTimeline.test.ts`                  | 记忆回放时间线测试                                                           | ✅    |
-| `__tests__/SessionReplayPlayer.test.tsx`            | 回放播放器安全徽标渲染与 store selector 稳定性测试                           | ✅    |
+| `__tests__/viewportParser.test.ts`                  | 模型视口纯函数解析器单测（分角色拆解/截断提示/空值守卫）                     | ✅    |
+| `__tests__/ModelViewportView.test.tsx`              | 结构化模型视口检视卡片渲染与剪贴板单测                                       | ✅    |
+| `__tests__/SessionReplayPlayer.test.tsx`            | 回放播放器安全徽标渲染、store selector 稳定性与时间机器派生分支交互测试       | ✅    |
 | `__tests__/MemoryScopeComponents.test.tsx`          | 记忆作用域层级卡片、选择器与 Doctor Mislayer Guard 诊断交互测试              | ✅    |
 
 ## 依赖

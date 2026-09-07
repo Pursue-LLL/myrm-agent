@@ -11,6 +11,18 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }));
 
+const mockPush = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
+
+vi.mock('@/services/fork-api', () => ({
+  forkConversation: vi.fn().mockResolvedValue({
+    success: true,
+    data: { new_chat_id: 'forked-chat-123' },
+  }),
+}));
+
 vi.mock('@/services/chat', () => ({
   getMessages: vi.fn().mockResolvedValue({
     messages: [],
@@ -310,5 +322,24 @@ describe('SessionReplayPlayer store selector stability', () => {
 
     expect(await screen.findByText('bash')).toBeInTheDocument();
     expect(screen.queryByText('other chat message')).not.toBeInTheDocument();
+  });
+
+  it('renders fork button and triggers forkConversation from current step', async () => {
+    mockChatState = {
+      chatId: 'sess-1',
+      messages: [
+        {
+          messageId: 'm1',
+          chatId: 'sess-1',
+          role: 'user',
+          content: 'run pwd',
+          createdAt: new Date(1000),
+        },
+      ],
+    };
+    render(<SessionReplayPlayer sessionId="sess-1" trace={baseTrace()} />);
+    const forkBtns = await screen.findAllByTitle('forkFromThisStep');
+    expect(forkBtns.length).toBeGreaterThan(0);
+    fireEvent.click(forkBtns[0]);
   });
 });

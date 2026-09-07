@@ -15,26 +15,63 @@
 import { useTranslations } from 'next-intl';
 import ReplayMessageBubble from '@/components/features/memory/replay/ReplayMessageBubble';
 import type { ReplayEvent } from '@/components/features/memory/replay/replayTimeline';
+import ModelViewportView from '@/components/features/memory/replay/ModelViewportView';
+import { IconGitBranch, IconLoader } from '@/components/features/icons/PremiumIcons';
 
 interface ReplayInspectorProps {
   activeEvent: ReplayEvent | null;
+  onForkFromCurrent?: () => void;
+  isForking?: boolean;
 }
 
-function ReplayInspector({ activeEvent }: ReplayInspectorProps) {
+function ReplayInspector({ activeEvent, onForkFromCurrent, isForking = false }: ReplayInspectorProps) {
   const t = useTranslations('settings.sessionAnalytics.replay');
+
+  const renderForkButton = () => {
+    if (!onForkFromCurrent) return null;
+    return (
+      <div className="mt-3 pt-2.5 border-t border-border/30 flex items-center justify-between gap-2">
+        <span className="text-[10px] text-muted-foreground">{t('forkBranchHint')}</span>
+        <button
+          type="button"
+          onClick={onForkFromCurrent}
+          disabled={isForking}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors shrink-0"
+        >
+          {isForking ? (
+            <>
+              <IconLoader className="h-3 w-3 animate-spin" />
+              <span>{t('forkingBranch')}</span>
+            </>
+          ) : (
+            <>
+              <IconGitBranch className="h-3.5 w-3.5" />
+              <span>{t('forkFromThisStep')}</span>
+            </>
+          )}
+        </button>
+      </div>
+    );
+  };
 
   if (activeEvent?.type === 'error') {
     return (
-      <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-full text-xs text-rose-600 dark:text-rose-400 font-mono break-all whitespace-pre-wrap">
-        {activeEvent.data.error}
+      <div className="flex flex-col gap-2">
+        <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-600 dark:text-rose-400 font-mono break-all whitespace-pre-wrap">
+          {activeEvent.data.error}
+        </div>
+        {renderForkButton()}
       </div>
     );
   }
 
   if (activeEvent?.type === 'tool_end' && !activeEvent.data.success) {
     return (
-      <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-full text-xs text-rose-600 dark:text-rose-400 font-mono break-all whitespace-pre-wrap">
-        {activeEvent.data.error ?? t('toolFailed')}
+      <div className="flex flex-col gap-2">
+        <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-600 dark:text-rose-400 font-mono break-all whitespace-pre-wrap">
+          {activeEvent.data.error ?? t('toolFailed')}
+        </div>
+        {renderForkButton()}
       </div>
     );
   }
@@ -44,9 +81,10 @@ function ReplayInspector({ activeEvent }: ReplayInspectorProps) {
     return (
       <div className="flex flex-col gap-2">
         <div className="text-xs font-medium text-foreground">{t('humanFeedbackTitle')}</div>
-        <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-full whitespace-pre-wrap break-all">
+        <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-xl whitespace-pre-wrap break-all">
           {JSON.stringify(fb, null, 2)}
         </div>
+        {renderForkButton()}
       </div>
     );
   }
@@ -59,9 +97,10 @@ function ReplayInspector({ activeEvent }: ReplayInspectorProps) {
         <div className="text-[10px] text-muted-foreground">
           {me.title === 'pre_compact' ? t('preCompactEventTitle') : me.title}
         </div>
-        <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-full whitespace-pre-wrap break-all max-h-[200px] overflow-y-auto">
+        <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-xl whitespace-pre-wrap break-all max-h-[200px] overflow-y-auto">
           {me.summary}
         </div>
+        {renderForkButton()}
       </div>
     );
   }
@@ -74,14 +113,9 @@ function ReplayInspector({ activeEvent }: ReplayInspectorProps) {
           {t('llmCallTitle', { model: lc.model_name ?? 'unknown' })}
         </div>
         {lc.prompt_preview && (
-          <>
-            <div className="text-xs font-medium text-foreground">{t('promptPreview')}</div>
-            <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-full whitespace-pre-wrap break-all max-h-[160px] overflow-y-auto">
-              {lc.prompt_preview}
-            </div>
-          </>
+          <ModelViewportView promptPreview={lc.prompt_preview} />
         )}
-        <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-full whitespace-pre-wrap break-all">
+        <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-xl whitespace-pre-wrap break-all">
           {JSON.stringify(
             {
               prompt_tokens: lc.prompt_tokens,
@@ -95,6 +129,7 @@ function ReplayInspector({ activeEvent }: ReplayInspectorProps) {
             2,
           )}
         </div>
+        {renderForkButton()}
       </div>
     );
   }
@@ -125,13 +160,14 @@ function ReplayInspector({ activeEvent }: ReplayInspectorProps) {
         {tool.end_time && (
           <>
             <div className="text-xs font-medium text-foreground mt-1">{t('result')}</div>
-            <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-full overflow-x-auto whitespace-pre-wrap break-all max-h-[180px] overflow-y-auto">
+            <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-xl overflow-x-auto whitespace-pre-wrap break-all max-h-[180px] overflow-y-auto">
               {typeof tool.output_data === 'object'
                 ? JSON.stringify(tool.output_data, null, 2)
                 : String(tool.output_data ?? tool.output_summary ?? '')}
             </div>
           </>
         )}
+        {renderForkButton()}
       </div>
     );
   }
@@ -146,6 +182,7 @@ function ReplayInspector({ activeEvent }: ReplayInspectorProps) {
         <div className="max-h-[200px] overflow-y-auto">
           <ReplayMessageBubble message={m} />
         </div>
+        {renderForkButton()}
       </div>
     );
   }

@@ -1,9 +1,10 @@
 'use client';
 
-import { memo } from 'react';
-import { IconClock } from '@/components/features/icons/PremiumIcons';
+import { memo, useState } from 'react';
+import { IconClock, IconChevronDown, IconChevronRight } from '@/components/features/icons/PremiumIcons';
 import type { TraceLLMCall } from '@/services/statistics';
 import { cn } from '@/lib/utils/classnameUtils';
+import ModelViewportView from '@/components/features/memory/replay/ModelViewportView';
 
 interface TraceLLMCallItemProps {
   llmCall: TraceLLMCall;
@@ -17,6 +18,7 @@ interface TraceLLMCallItemProps {
  * users can tell "network wait" from "token generation" at a glance.
  */
 const TraceLLMCallItem = memo<TraceLLMCallItemProps>(({ llmCall, isHighlighted }) => {
+  const [viewportExpanded, setViewportExpanded] = useState(false);
   const { duration_ms, ttft_ms, model_name, prompt_tokens, completion_tokens, total_tokens, attempt, retry_count } = llmCall;
 
   const hasLatencyData = duration_ms !== null && ttft_ms !== null && duration_ms > 0;
@@ -107,7 +109,21 @@ const TraceLLMCallItem = memo<TraceLLMCallItemProps>(({ llmCall, isHighlighted }
       </div>
 
       {llmCall.prompt_preview && (
-        <p className="mt-1.5 text-[10px] text-muted-foreground/60 line-clamp-2 italic">{llmCall.prompt_preview}</p>
+        <div className="mt-2 pt-2 border-t border-border/30">
+          <button
+            type="button"
+            onClick={() => setViewportExpanded((prev) => !prev)}
+            className="flex items-center gap-1.5 text-[11px] font-medium text-primary/80 hover:text-primary transition-colors mb-1"
+          >
+            {viewportExpanded ? <IconChevronDown className="h-3 w-3" /> : <IconChevronRight className="h-3 w-3" />}
+            <span>Model Viewport ({viewportExpanded ? 'Hide' : 'Inspect'})</span>
+          </button>
+          {viewportExpanded ? (
+            <ModelViewportView promptPreview={llmCall.prompt_preview} compact className="mt-1" />
+          ) : (
+            <p className="text-[10px] text-muted-foreground/60 line-clamp-2 italic">{llmCall.prompt_preview}</p>
+          )}
+        </div>
       )}
     </div>
   );
