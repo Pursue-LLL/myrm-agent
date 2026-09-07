@@ -12295,7 +12295,7 @@
     },
     "desktopPermissions": {
       "title": "데스크톱 자동화 준비 상태",
-      "allReady": "모든 기능 준비됨",
+      "allReady": "준비됨 — 권한과 화면 캡처 모두 확인됨",
       "grantsOkCaptureUnverified": "권한 부여됨 — 캡처 아직 확인되지 않음",
       "captureUnverifiedHint": "새로고침으로 화면 캡처를 확인한 뒤 데스크톱 작업을 시작하세요.",
       "captureFailed": "화면 캡처를 사용할 수 없음",

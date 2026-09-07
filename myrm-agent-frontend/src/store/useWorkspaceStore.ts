@@ -244,11 +244,29 @@ const useWorkspaceStore = create<WorkspaceState>()(
   })),
 );
 
-// Listen to multiplex reconnect events to sync background panes
+// Global lifecycle listeners for sleep/wake, network reconnect, and multiplex resume
 if (typeof window !== 'undefined') {
-  window.addEventListener('multiplex_reconnected', () => {
-    useWorkspaceStore.getState().syncBackgroundPanes();
+  let wakeSyncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const triggerWakeResumeSync = () => {
+    if (wakeSyncDebounceTimer) {
+      clearTimeout(wakeSyncDebounceTimer);
+    }
+    wakeSyncDebounceTimer = setTimeout(() => {
+      const store = useWorkspaceStore.getState();
+      store.syncBackgroundPanes();
+      store.refreshActiveSessions();
+    }, 300);
+  };
+
+  window.addEventListener('multiplex_reconnected', triggerWakeResumeSync);
+  window.addEventListener('online', triggerWakeResumeSync);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      triggerWakeResumeSync();
+    }
   });
+
   (window as any).__myrmWorkspaceStore = useWorkspaceStore;
 }
 

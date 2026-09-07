@@ -12295,7 +12295,7 @@
     },
     "desktopPermissions": {
       "title": "デスクトップ自動化の準備確認",
-      "allReady": "すべての機能が利用可能です",
+      "allReady": "準備完了 — 権限と画面キャプチャを検証済み",
       "grantsOkCaptureUnverified": "権限は付与済み — キャプチャは未検証",
       "captureUnverifiedHint": "更新ボタンで画面キャプチャを確認してからデスクトップ作業を始めてください。",
       "captureFailed": "画面キャプチャを利用できません",

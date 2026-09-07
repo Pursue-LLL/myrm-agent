@@ -12295,7 +12295,7 @@
     },
     "desktopPermissions": {
       "title": "桌面自動化就緒檢測",
-      "allReady": "所有能力就緒",
+      "allReady": "就緒 — 許可權與螢幕擷取均已驗證",
       "grantsOkCaptureUnverified": "許可權已授予 — 擷取尚未驗證",
       "captureUnverifiedHint": "請點重新整理確認螢幕擷取可用後再開始桌面任務。",
       "captureFailed": "螢幕擷取不可用",

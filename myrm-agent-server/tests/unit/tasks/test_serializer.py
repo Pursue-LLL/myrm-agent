@@ -15,7 +15,9 @@ def test_serialize_media_task_minimal_task():
     task = Task(
         task_id="task-123",
         task_type="image_generate",
+        user_id="user-1",
         status=TaskStatus.PENDING,
+        payload={"prompt": "cat"},
         created_at=now,
         updated_at=now,
     )
@@ -35,7 +37,9 @@ def test_serialize_media_task_with_error_and_timestamps():
     task = Task(
         task_id="task-err",
         task_type="video_generate",
+        user_id="user-1",
         status=TaskStatus.FAILED,
+        payload={"prompt": "sunset"},
         error=TaskError(
             error_type="generation_failed",
             message="GPU out of memory",

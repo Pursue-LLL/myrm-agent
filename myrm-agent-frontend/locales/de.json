@@ -12295,7 +12295,7 @@
     },
     "desktopPermissions": {
       "title": "Desktop-Automatisierung – Bereitschaft",
-      "allReady": "Alle Funktionen bereit",
+      "allReady": "Bereit — Berechtigungen und Bildschirmaufnahme verifiziert",
       "grantsOkCaptureUnverified": "Berechtigungen erteilt — Aufnahme noch nicht verifiziert",
       "captureUnverifiedHint": "Aktualisieren tippen, um die Bildschirmaufnahme vor Desktop-Aufgaben zu prüfen.",
       "captureFailed": "Bildschirmaufnahme nicht verfügbar",

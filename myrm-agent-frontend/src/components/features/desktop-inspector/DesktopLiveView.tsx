@@ -13,17 +13,13 @@ import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChat
 import DesktopInspectorToolbar from './DesktopInspectorToolbar';
 import DesktopInstructionInput from './DesktopInstructionInput';
 import { openPermissionDeepLinkWithGuideFallback, pickSettingsDeepLink } from '@/lib/desktop/permissionDeepLink';
-
-interface PermissionsResponse {
-  accessibility: boolean;
-  screen_recording: boolean;
-  all_granted: boolean;
-  platform: string;
-  settings_deeplinks: Record<string, string>;
-}
+import {
+  desktopPermissionsPath,
+  type DesktopPermissionsStatus,
+} from '@/lib/desktop/desktopPermissionsStatus';
 
 const PermissionBanner: React.FC<{ t: ReturnType<typeof useTranslations> }> = ({ t }) => {
-  const [details, setDetails] = useState<PermissionsResponse | null>(null);
+  const [details, setDetails] = useState<DesktopPermissionsStatus | null>(null);
   const [checking, setChecking] = useState(false);
   const [apiError, setApiError] = useState(false);
 
@@ -31,7 +27,7 @@ const PermissionBanner: React.FC<{ t: ReturnType<typeof useTranslations> }> = ({
     setChecking(true);
     setApiError(false);
     try {
-      const data = await apiRequest<PermissionsResponse>('/webui/desktop/permissions', {
+      const data = await apiRequest<DesktopPermissionsStatus>(desktopPermissionsPath(false), {
         silent: true,
       });
       setDetails(data);

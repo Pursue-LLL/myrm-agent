@@ -4,7 +4,8 @@
  * [INPUT]
  * - @/lib/api::apiRequest (POS: 前端统一请求入口)
  * - @/lib/utils/toast::toast (POS: 全局 toast 通知)
- * - @/lib/deploy-mode::isLocalMode (POS: 前端部署模式判定)
+ * - @/lib/desktop/permissionDeepLink (POS: 桌面权限引导深链 SSOT)
+ * - @/lib/desktop/desktopPermissionsStatus (POS: permissions API FE 契约)
  *
  * [OUTPUT]
  * - DesktopPermissionsCard: 桌面自动化就绪检测卡片；OS 授权 + 功能捕获探针三态 + 始终信任应用列表
@@ -29,16 +30,10 @@ import { apiRequest } from '@/lib/api';
 import { toast } from '@/lib/utils/toast';
 import { isLocalMode } from '@/lib/deploy-mode';
 import { isSystemSettingsDeepLink, openPermissionDeepLink } from '@/lib/desktop/permissionDeepLink';
-
-interface DesktopPermissionsStatus {
-  accessibility: boolean;
-  screen_recording: boolean;
-  screen_recording_capturable: boolean | null;
-  all_granted: boolean;
-  capture_ready: boolean;
-  platform: string;
-  settings_deeplinks: Record<string, string>;
-}
+import {
+  desktopPermissionsPath,
+  type DesktopPermissionsStatus,
+} from '@/lib/desktop/desktopPermissionsStatus';
 
 type HeaderTone = 'verified' | 'unverified' | 'capture_failed' | 'missing';
 
@@ -63,10 +58,9 @@ const DesktopPermissionsCardLocal = memo(() => {
     setIsLoading(true);
     setError(null);
     try {
-      const path = probeCapture
-        ? '/webui/desktop/permissions?probe_capture=true'
-        : '/webui/desktop/permissions';
-      const data = await apiRequest<DesktopPermissionsStatus>(path, { silent: true });
+      const data = await apiRequest<DesktopPermissionsStatus>(desktopPermissionsPath(probeCapture), {
+        silent: true,
+      });
       setStatus(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to check permissions');

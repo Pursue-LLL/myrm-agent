@@ -136,7 +136,7 @@ describe('DesktopPermissionsCard', () => {
     });
   });
 
-  it('shows capture-failed header when grants OK but probe fails', async () => {
+  it('shows captureFailed header when grants ok but probe fails', async () => {
     mockDesktopApis({
       permissions: {
         accessibility: true,
@@ -156,6 +156,7 @@ describe('DesktopPermissionsCard', () => {
     });
     expect(screen.getByText('captureFailedHint')).toBeInTheDocument();
     expect(screen.queryByText('actionRequired')).not.toBeInTheDocument();
+    expect(screen.queryByText('grantsOkCaptureUnverified')).not.toBeInTheDocument();
   });
 
   it('shows missing permissions and opens system deeplink', async () => {

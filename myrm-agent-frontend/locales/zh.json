@@ -12295,7 +12295,7 @@
     },
     "desktopPermissions": {
       "title": "桌面自动化就绪检测",
-      "allReady": "所有能力就绪",
+      "allReady": "就绪 — 权限与屏幕捕获均已验证",
       "grantsOkCaptureUnverified": "权限已授予 — 捕获尚未验证",
       "captureUnverifiedHint": "请点击刷新，确认屏幕捕获可用后再开始桌面任务。",
       "captureFailed": "屏幕捕获不可用",
