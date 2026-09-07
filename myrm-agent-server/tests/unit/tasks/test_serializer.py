@@ -1,5 +1,13 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
-from myrm_agent_harness.toolkits.tasks import ErrorRecoverability, Task, TaskError, TaskStatus
+
+from myrm_agent_harness.toolkits.tasks import (
+    ErrorRecoverability,
+    Task,
+    TaskError,
+    TaskStatus,
+)
 
 from app.tasks.serializer import serialize_media_task
 
