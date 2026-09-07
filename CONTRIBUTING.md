@@ -139,6 +139,7 @@ These domains use matching names under both layers:
 | `chats/` | `chat/` | Session CRUD, compaction, message handling |
 | `projects/` | `project/` | Project CRUD and chat assignment |
 | `events/` | `event/` | Agent runtime event persistence |
+| `mobile/` | `mobile_adb/` | Mobile device management, wireless ADB pairing and actions |
 | `background_tasks/` | `background/` | Long-running worker jobs (UI panel) |
 | `batch_optimization/` | `skill_optimization/` | Batch skill optimization flows |
 | `credentials/` | `integrations/` (+ `config/`) | OAuth / MCP credential slots |

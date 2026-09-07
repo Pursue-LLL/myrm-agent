@@ -68,8 +68,10 @@ async def test_chrome_ui_operator_as_key_rejected(
     ui_url = get_e2e_ui_url()
     deadline = time.monotonic() + 540.0
 
-    async with open_mcp_page_async(ui_url, timeout_ms=120_000) as (client, page):
-        chat = McpChatSession(client=client, page=page)
+    # open_mcp_page_async returns OpenMcpPageSession (await + aclose), not an ACM.
+    page_session = await open_mcp_page_async(ui_url, timeout_ms=120_000)
+    try:
+        chat = McpChatSession(client=page_session.client, page=page_session.page)
         await chat.bootstrap(BASE_URL, navigate=False, timeout_sec=90.0)
         await chat.click_new_chat(timeout_sec=60.0)
         await chat.ensure_chat_surface(BASE_URL, timeout_sec=90.0)
@@ -152,3 +154,5 @@ async def test_chrome_ui_operator_as_key_rejected(
             f"Chrome UI turn missed operator Safety reject and type-fallback. "
             f"model={model_label!r} chat_id={chat_id} sample={blob[:1500]!r}"
         )
+    finally:
+        await page_session.aclose()
