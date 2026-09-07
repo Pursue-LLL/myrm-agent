@@ -164,7 +164,7 @@ class DataWranglingEngine:
         if "情感" in instruction or "sentiment" in instr_lower or "分类" in instruction or "classify" in instr_lower:
             if any(pos in combined_source.lower() for pos in ["好", "棒", "赞", "great", "excellent", "good", "fast", "喜欢"]):
                 return "正面 / Positive", "根据源文本中正面评价关键词提取"
-            elif any(neg_word in combined_source.lower() for neg_word in ["慢", "卡", "bug", "error", "fail", "差", "烂", "bad"]):
+            elif any(neg_kw in combined_source.lower() for neg_kw in ["慢", "卡", "bug", "error", "fail", "差", "烂", "bad"]):
                 return "负面 / Negative", "检测到故障或消极反馈词汇"
             else:
                 return "中性 / Neutral", "描述性文本，未检测到强烈情感倾向"

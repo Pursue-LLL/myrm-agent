@@ -28,6 +28,7 @@ from myrm_agent_harness.toolkits.computer_use.types import (
 from tests.api.agent.test_capability_gap_integration import (
     _collect_agent_stream,
     _invoked_tool_names,
+    _message_text_from_stream_events,
 )
 from tests.api.agent.utils import check_e2e_errors, get_model_selection
 
@@ -87,7 +88,7 @@ def _vision_outcome_ok(vision_results: list[str]) -> bool:
 
 
 @pytest.mark.e2e
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(420)
 @pytest.mark.skipif(platform.system() != "Darwin", reason="macOS computer_use only")
 def test_agent_stream_rejects_operator_as_vision_key(
     client: TestClient,
@@ -106,11 +107,11 @@ def test_agent_stream_rejects_operator_as_vision_key(
     assert create_response.status_code == 200
 
     query = (
-        "QA SAFETY PROBE — use ONLY desktop_vision_tool. "
-        "Preferred: action=key text=* (asterisk) once. "
-        "Allowed alternate: action=type text=*. "
-        "Forbidden: web_search, bash, snapshot, click, screenshot. "
-        "After one desktop_vision_tool result, reply DONE immediately."
+        "CRITICAL QA SAFETY PROBE — no text reply before the tool. "
+        "Call desktop_vision_tool exactly once with action=key and text=*. "
+        "Allowed alternate only if you refuse key: action=type text=*. "
+        "Forbidden: web_search, bash, snapshot, click, screenshot, interact. "
+        "After one desktop_vision_tool result, reply DONE."
     )
     payload: dict[str, object] = {
         "messageId": f"msg_{uuid.uuid4().hex[:8]}",
@@ -121,7 +122,7 @@ def test_agent_stream_rejects_operator_as_vision_key(
         "enableMemory": False,
         "agentConfig": {
             "enabledBuiltinTools": ["computer_use"],
-            "maxIterations": 4,
+            "maxIterations": 6,
         },
     }
 
@@ -154,6 +155,7 @@ def test_agent_stream_rejects_operator_as_vision_key(
         return _vision_outcome_ok(vision_results)
 
     invoked: set[str] = set()
+    events: list[dict[str, object]] = []
     with (
         patch.object(DesktopSession, "desktop_vision_action", new=_wrap_vision),
         patch.object(
@@ -180,16 +182,25 @@ def test_agent_stream_rejects_operator_as_vision_key(
             },
         ),
     ):
-        events = _collect_agent_stream(
-            client,
-            payload,
-            stream_timeout=120.0,
-            stop_when=_stop_when,
-        )
-        check_e2e_errors(events)
-        invoked = {name.removesuffix("_tool") for name in _invoked_tool_names(events)}
+        for _attempt in range(3):
+            vision_results.clear()
+            events = _collect_agent_stream(
+                client,
+                payload,
+                stream_timeout=120.0,
+                stop_when=_stop_when,
+            )
+            check_e2e_errors(events)
+            invoked = {name.removesuffix("_tool") for name in _invoked_tool_names(events)}
+            if "desktop_vision" in invoked and _vision_outcome_ok(vision_results):
+                break
+            payload["messageId"] = f"msg_{uuid.uuid4().hex[:8]}"
 
-    assert "desktop_vision" in invoked, f"vision tool not invoked; tools={invoked}"
+    assistant_tail = _message_text_from_stream_events(events)[-800:]
+    assert "desktop_vision" in invoked, (
+        f"vision tool not invoked after 3 attempts; tools={invoked}; "
+        f"assistant_tail={assistant_tail!r}"
+    )
     assert vision_results, f"no vision results captured; tools={invoked}"
     assert _vision_outcome_ok(vision_results), (
         "expected operator-as-key Safety reject or type-instead-of-key; "

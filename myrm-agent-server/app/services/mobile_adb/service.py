@@ -58,44 +58,7 @@ class MobileDeviceService:
 
     async def list_devices(self) -> list[dict[str, Any]]:
         """List connected devices formatted for API response."""
-        code, out, err = await self._session.driver._run_adb("devices", "-l")
-        if code != 0:
-            logger.warning("adb devices failed: %s", err or out)
-            return []
-
-        devices: list[dict[str, Any]] = []
-        for line in out.splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("List of devices"):
-                continue
-            parts = stripped.split()
-            if len(parts) < 2:
-                continue
-            device_id, state = parts[0], parts[1]
-            host = device_id
-            port = 5555
-            if ":" in device_id:
-                host_part, port_part = device_id.rsplit(":", 1)
-                host = host_part
-                if port_part.isdigit():
-                    port = int(port_part)
-            model = ""
-            for token in parts[2:]:
-                if token.startswith("model:"):
-                    model = token.removeprefix("model:")
-                    break
-            devices.append(
-                {
-                    "device_id": device_id,
-                    "host": host,
-                    "port": port,
-                    "model": model,
-                    "state": state,
-                    "is_wireless": ":" in device_id,
-                    "screen_info": None,
-                }
-            )
-        return devices
+        return await self._session.driver.list_devices()
 
     async def pair_device(
         self,
@@ -183,7 +146,7 @@ class MobileDeviceService:
         res: MobileActionResult
 
         try:
-            if normalized in _GLOBAL_ACTIONS or normalized in {"launch_app", "stop_app"}:
+            if normalized in _GLOBAL_ACTIONS:
                 global_action = {
                     "press_back": "back",
                     "press_home": "home",
@@ -200,40 +163,10 @@ class MobileDeviceService:
                         "elapsed_ms": None,
                     }
                 target = self._session.get_target()
-                code, out, err = await self._session.driver._run_adb(
-                    "-s",
-                    target,
-                    "shell",
-                    "input",
-                    "swipe",
-                    str(x),
-                    str(y),
-                    str(end_x),
-                    str(end_y),
-                )
-                res = MobileActionResult(
-                    success=code == 0,
-                    action="swipe",
-                    message=out.strip() or "swipe completed",
-                    error=None if code == 0 else (err or out),
-                )
+                res = await self._session.driver.swipe(target, x, y, end_x, end_y)
             elif normalized in {"tap", "click"} and not ref_id and x is not None and y is not None:
                 target = self._session.get_target()
-                code, out, err = await self._session.driver._run_adb(
-                    "-s",
-                    target,
-                    "shell",
-                    "input",
-                    "tap",
-                    str(x),
-                    str(y),
-                )
-                res = MobileActionResult(
-                    success=code == 0,
-                    action="tap",
-                    message=out.strip() or f"tapped ({x},{y})",
-                    error=None if code == 0 else (err or out),
-                )
+                res = await self._session.driver.tap_at(target, x, y)
             else:
                 semantic = _SEMANTIC_ALIASES.get(normalized)
                 if semantic is None:

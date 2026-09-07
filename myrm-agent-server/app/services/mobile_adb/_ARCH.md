@@ -2,12 +2,16 @@
 
 ## 架构概述
 
-移动端 ADB 调试与跨端控制代理服务层。提供安卓/移动设备的截屏捕获、UI 元素层次解析与自动化手势指令调度代理。
+移动端 Wireless ADB 业务服务层。对接 harness `toolkits.mobile_adb.MobileSession`，向 Integrations API 提供设备列表、配对、连接、快照与交互。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 包声明 | 导出移动端 ADB 执行器与感知服务 | ✅ |
-| `executor.py` | 核心服务 | 提供 ADB 命令执行、按键注入与手势模拟接口 | ✅ |
-| `perception.py` | 感知服务 | 提供移动端屏幕 OCR、层级转译与坐标投影 | ✅ |
+| `__init__.py` | 包声明 | 导出 `MobileDeviceService` / `get_mobile_device_service` | ✅ |
+| `service.py` | 核心服务 | 适配 harness `MobileSession` → API DTO（list/pair/connect/snapshot/interact） | ✅ |
+
+## 边界
+
+- harness 负责 ADB 驱动与语义动作；本层不做第二套 ADB 封装。
+- 无设备时 snapshot/interact 返回 `success=False`，不抛未捕获异常阻断进程启动。
