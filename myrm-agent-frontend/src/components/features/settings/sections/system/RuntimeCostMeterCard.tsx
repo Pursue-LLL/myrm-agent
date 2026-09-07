@@ -38,7 +38,7 @@ import {
   updateSearchQuotaLimit,
   type SearchQuotaItem,
   type BrowserRuntimeSummary,
-  type CircuitBreakerStats,
+  type ProviderCircuitHealthItem,
 } from '@/services/statistics';
 import { cn } from '@/lib/utils/classnameUtils';
 
