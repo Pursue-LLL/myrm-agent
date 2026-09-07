@@ -1147,6 +1147,7 @@ export default function E2EChatBridge() {
         return {
           chatId: state.chatId?.trim() || null,
           userCount: users.length,
+          assistantCount: assistants.length,
           lastAssistantRoutingTier: lastAssistant?.routingTier ?? null,
           lastAssistantModelTier: lastAssistant?.modelTier ?? null,
           lastAssistantKeys: lastAssistant ? Object.keys(lastAssistant) : [],

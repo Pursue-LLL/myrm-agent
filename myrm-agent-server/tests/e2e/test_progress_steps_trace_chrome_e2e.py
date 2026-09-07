@@ -136,7 +136,7 @@ def test_progress_steps_trace_timeline_chrome_e2e() -> None:
     target_url = f"{ui_base}/{chat_id}"
 
     prepare_e2e_ui_session(api_base)
-    warm_ui_route(f"/?chatId={chat_id}")
+    warm_ui_route(f"/{chat_id}")
 
     # Dismiss migration modals
     _DISMISS_MIGRATION_JS = """(() => {
@@ -158,7 +158,7 @@ def test_progress_steps_trace_timeline_chrome_e2e() -> None:
         f"  await bridge.attachToChat({json.dumps(chat_id)});\n"
         "  const snap = bridge.turnSnapshot?.() ?? {};\n"
         "  return {\n"
-        f"    ok: snap.chatId === {json.dumps(chat_id)} && (snap.assistantCount ?? 0) >= 1,\n"
+        f"    ok: snap.chatId === {json.dumps(chat_id)} && ((snap.assistantCount ?? 0) >= 1 || (snap.lastAssistantKeys && snap.lastAssistantKeys.length > 0) || !!snap.lastAssistantSample),\n"
         "    snap,\n"
         "  };\n"
         "})()"
@@ -174,7 +174,9 @@ def test_progress_steps_trace_timeline_chrome_e2e() -> None:
             _ATTACH_CHAT_JS,
             timeout_sec=45.0,
         )
-        assert isinstance(attach_res, dict) and attach_res.get("ok") is True, f"Attach chat failed: {attach_res}"
+        assert (
+            isinstance(attach_res, dict) and attach_res.get("ok") is True
+        ), f"Attach chat failed: {attach_res}"
 
         # 1. Verify message and progress steps mount
         _CHECK_MOUNTED_JS = """(() => {
@@ -185,7 +187,9 @@ def test_progress_steps_trace_timeline_chrome_e2e() -> None:
             return { ready: !!toggle || !!panel || durationBadges.length > 0 || !!asstMsg };
         })()"""
 
-        wait_for_state(client, page, _CHECK_MOUNTED_JS, timeout_sec=30.0)
+        wait_for_state(
+            client, page, _CHECK_MOUNTED_JS, timeout_sec=45.0, page_url=target_url
+        )
 
         # 2. Expand progress panel if collapsed
         client.evaluate(

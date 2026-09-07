@@ -130,6 +130,7 @@ interface Window {
     turnSnapshot: () => {
       chatId: string | null;
       userCount: number;
+      assistantCount?: number;
       isStreaming: boolean;
       hasOk: boolean;
       hasDone: boolean;

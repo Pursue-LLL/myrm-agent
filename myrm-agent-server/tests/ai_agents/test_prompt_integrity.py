@@ -287,16 +287,17 @@ class TestDesktopControlRules:
         assert "@dref" in DESKTOP_CONTROL_RULES_ZH
         assert "action=press" in DESKTOP_CONTROL_RULES_ZH
 
-    def test_get_shared_rules_zh_includes_operator_ban(self) -> None:
-        """get_shared_rules(zh) must surface the same operator anti-pattern."""
-        from app.ai_agents.prompts.shared_rules import get_shared_rules
+    def test_zh_rules_include_operator_ban(self) -> None:
+        """ZH desktop rules keep the same operator anti-pattern as EN (parity, not runtime inject)."""
+        from app.ai_agents.prompts.shared_rules import (
+            DESKTOP_CONTROL_RULES_EN,
+            DESKTOP_CONTROL_RULES_ZH,
+        )
 
-        zh = get_shared_rules(locale="zh")
-        assert "可打印运算符" in zh["desktop_control"]
-        assert '"*"' in zh["desktop_control"]
-
-        en = get_shared_rules(locale="en")
-        assert "printable operators" in en["desktop_control"]
+        assert "可打印运算符" in DESKTOP_CONTROL_RULES_ZH
+        assert '"*"' in DESKTOP_CONTROL_RULES_ZH
+        assert "printable operators" in DESKTOP_CONTROL_RULES_EN
+        assert DESKTOP_CONTROL_RULES_EN is not DESKTOP_CONTROL_RULES_ZH
 
 
 class TestPromptBilingualSupport:

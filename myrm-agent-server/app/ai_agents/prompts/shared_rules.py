@@ -1,7 +1,7 @@
 """共享规则模块
 
 [INPUT]
-myrm_agent_harness.utils.locale::is_chinese (POS: 语言检测工具)
+（无运行时外部模块依赖；纯常量）
 
 [OUTPUT]
 跨 Agent 共享规则常量（ABSOLUTE_OBEDIENCE_RULES_*, SECURITY_RULES_*, TASK_INTEGRITY_RULES_*, DESKTOP_CONTROL_RULES_*, RESPONSE_RULES_*, EXTERNAL_SOURCES_CITATION_RULES_*）
