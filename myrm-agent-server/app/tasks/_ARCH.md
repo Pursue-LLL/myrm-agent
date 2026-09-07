@@ -28,6 +28,7 @@
 | `image_config_resolver.py` | 核心 | 从 task payload 快照还原 `ImageGenerationConfig`（含 media callback）；密钥经 `task_payload_crypto` 在 persist 前加密 | ✅ |
 | `video_config_resolver.py` | 核心 | 从 task payload 快照还原 `VideoGenerationConfig`（含 fallback / media callback）；密钥经 `task_payload_crypto` 在 persist 前加密 | ✅ |
 | `task_payload_crypto.py` | 核心 | persist 前递归 seal `api_key` / `gateway_config.auth_token`（含 `fallback_configs`）；worker resolver open 阶段优先当前 key、可用时回退 `CONFIG_ENCRYPTION_KEY_FALLBACKS`/legacy key 解密并剥离明文遗留值 | ✅ |
+| `serializer.py` | 辅助 | 媒体任务队列 Task 模型统一状态序列化器（供 LLM 媒体工具与任务状态查询使用） | ✅ |
 | `executors/` | 子模块 | 具体任务执行器 | — |
 
 ## 子模块

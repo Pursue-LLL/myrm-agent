@@ -3,6 +3,7 @@
 - myrm_agent_harness.toolkits.llms.video.async_video_engine::AsyncVideoGenerationTools (POS: async enqueue adapter)
 - myrm_agent_harness.toolkits.llms.video.models::ModerationBlockedError (POS: terminal moderation safety exception)
 - app.ai_agents.media_tools.image_clamp::clamp_image_payload (POS: reference media downsampling and orientation normalization)
+- app.tasks.serializer::serialize_media_task (POS: 媒体任务队列 Task 模型统一状态序列化器)
 
 [OUTPUT]
 - create_video_generation_tool(): LangChain BaseTool adapter for video generation

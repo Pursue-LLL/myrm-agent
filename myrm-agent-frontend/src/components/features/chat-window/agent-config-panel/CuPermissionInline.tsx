@@ -4,6 +4,7 @@
  * [INPUT]
  * - @/lib/api::apiRequest (POS: 前端统一请求入口)
  * - @/lib/desktop/permissionDeepLink (POS: 桌面权限引导深链 SSOT)
+ * - @/lib/desktop/desktopPermissionsStatus (POS: permissions API FE 契约)
  *
  * [OUTPUT]
  * - CuPermissionInline: Agent 配置面板内 computer_use 权限探测条
@@ -18,21 +19,15 @@ import { Loader2, CheckCircle2, AlertTriangle, RefreshCw, ExternalLink, CircleDa
 import { apiRequest } from '@/lib/api';
 import { cn } from '@/lib/utils/classnameUtils';
 import { openPermissionDeepLinkWithGuideFallback, pickSettingsDeepLink } from '@/lib/desktop/permissionDeepLink';
-
-interface CuPermissionsResponse {
-  accessibility: boolean;
-  screen_recording: boolean;
-  screen_recording_capturable: boolean | null;
-  all_granted: boolean;
-  capture_ready: boolean;
-  platform: string;
-  settings_deeplinks: Record<string, string>;
-}
+import {
+  desktopPermissionsPath,
+  type DesktopPermissionsStatus,
+} from '@/lib/desktop/desktopPermissionsStatus';
 
 type InlineTone = 'verified' | 'unverified' | 'capture_failed' | 'missing';
 
 export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string }) => {
-  const [status, setStatus] = useState<CuPermissionsResponse | null>(null);
+  const [status, setStatus] = useState<DesktopPermissionsStatus | null>(null);
   // Initial true: first paint is checking (neutral shell), never missing-tone copy.
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -41,10 +36,9 @@ export const CuPermissionInline = ({ tPanel }: { tPanel: (key: string) => string
     setLoading(true);
     setError(false);
     try {
-      const path = probeCapture
-        ? '/webui/desktop/permissions?probe_capture=true'
-        : '/webui/desktop/permissions';
-      const data = await apiRequest<CuPermissionsResponse>(path, { silent: true });
+      const data = await apiRequest<DesktopPermissionsStatus>(desktopPermissionsPath(probeCapture), {
+        silent: true,
+      });
       setStatus(data);
     } catch {
       setError(true);

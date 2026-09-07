@@ -46,9 +46,9 @@ _SETTINGS_SHELL_STATE = """(() => {
 _DESKTOP_PERMISSIONS_CARD_JS = """(() => {
   const text = document.body?.innerText || '';
   const hasTitle = /Desktop Automation Readiness|桌面自动化就绪|桌面自動化就緒/.test(text);
-  const hasInput = /Input Control|辅助功能|輔助功能|入力制御|Eingabesteuerung|입력 제어/.test(text);
-  const hasCapture = /Screen Capture|屏幕录制|螢幕錄製|画面収録|Bildschirmaufnahme|화면 기록|Capture usable|捕获可用|擷取可用/.test(text);
-  const headerReady = /All capabilities ready|全部就绪|全部就緒|Permissions granted|权限已授予|許可權已授予|Setup required|需要设置|需要設定|Checking environment|正在检查|正在檢查/.test(text);
+  const hasInput = /Input Control|输入控制|輸入控制|入力制御|Eingabesteuerung|입력 제어|辅助功能|輔助功能/.test(text);
+  const hasCapture = /Screen Capture|屏幕录制|螢幕錄製|画面収録|Bildschirmaufnahme|화면 기록|Capture usable|捕获可用|擷取可用|屏幕捕获|螢幕擷取/.test(text);
+  const headerReady = /All capabilities ready|所有能力就绪|所有能力就緒|全部就绪|全部就緒|Permissions granted|权限已授予|許可權已授予|Setup required|桌面自动化需要配置|桌面自動化需要配置|需要设置|需要設定|Checking environment|正在检测环境|正在檢測環境|正在检查|正在檢查/.test(text);
   return {
     ready: hasTitle && hasInput && hasCapture && headerReady,
     hasTitle,
@@ -95,9 +95,9 @@ _AFTER_RECHECK_STATE_JS = """(() => {
   const hits = Array.isArray(hook?.hits) ? hook.hits : [];
   const probed = hits.some((u) => String(u).includes('probe_capture=true'));
   const text = document.body?.innerText || '';
-  const stillChecking = /Checking environment|正在检查|正在檢查/.test(text) &&
-    !/All capabilities ready|全部就绪|全部就緒|Permissions granted|权限已授予|許可權已授予|Setup required|需要设置|需要設定/.test(text);
-  const captureRowSettled = /Capture usable|捕获可用|擷取可用|Capture functional|OK|Missing|缺失|未验证|未驗證|Not verified/.test(text);
+  const stillChecking = /Checking environment|正在检测环境|正在檢測環境|正在检查|正在檢查/.test(text) &&
+    !/All capabilities ready|所有能力就绪|所有能力就緒|全部就绪|全部就緒|Permissions granted|权限已授予|許可權已授予|Setup required|桌面自动化需要配置|桌面自動化需要配置|需要设置|需要設定/.test(text);
+  const captureRowSettled = /Capture usable|捕获可用|擷取可用|Capture functional|OK|Missing|缺失|未验证|未驗證|Not verified|不可用/.test(text);
   return {
     ready: probed && !stillChecking && captureRowSettled,
     probed,

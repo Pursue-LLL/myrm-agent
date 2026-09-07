@@ -9,9 +9,10 @@
 | 文件                                   | 地位 | 职责                                                                                                                                          | I/O/P |
 | -------------------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
 | `permissionDeepLink.ts`                | 核心 | `pickSettingsDeepLink*`；`openPermissionDeepLink`；`openPermissionDeepLinkWithGuideFallback(url, platform?)`；`getPermissionGuideFallbackUrl` | ✅    |
+| `desktopPermissionsStatus.ts`          | 核心 | `DesktopPermissionsStatus` + `desktopPermissionsPath` — FE contract for `GET /webui/desktop/permissions`                                      | ✅    |
 | `__tests__/permissionDeepLink.test.ts` | 测试 | pick meta / system URL / Tauri open / platform guide fallback（含 darwin≠win32 回归）                                                         | —     |
 
 ## 依赖
 
 - `@tauri-apps/plugin-shell` — Tauri 桌面打开 `x-apple.systempreferences:` / `ms-settings:`
-- 消费者：`DoctorDashboard`、`CuPermissionInline`、`DesktopPermissionsCard`、`DesktopLiveView`
+- 消费者：`DoctorDashboard`、`CuPermissionInline`、`DesktopPermissionsCard`、`DesktopLiveView`（权限 DTO 经 `desktopPermissionsStatus.ts`）

@@ -13,6 +13,6 @@
 
 ## 文件清单
 
-| 文件 | 地位 | 职责 |
-|------|------|------|
-| `_tool_layer_bootstrap.py` | ✅ 核心 | Server vendor `@tool` → harness `_TOOL_LAYERS` as EXTERNAL；`channel_notify_tool` 同时注册 `register_leaf_blocked_tools`（子 Agent 不可继承） |
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `_tool_layer_bootstrap.py` | 核心 | Server 业务专有 LLM 工具通过 `ToolRegistry.register_external_layer_specs` 注册到 Harness `_TOOL_LAYERS` EXTERNAL 层；`channel_notify_tool` 同时注册 `register_leaf_blocked_tools`（子 Agent 不可继承） | ✅ |

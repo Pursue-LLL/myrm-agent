@@ -4,6 +4,7 @@
 - myrm_agent_harness.toolkits.llms.image.models::ImageGenerationConfig (POS: shared engine config)
 - myrm_agent_harness.core.security.http.secure_fetch::secure_get (POS: SSRF-protected edit/mask URL fetch)
 - app.ai_agents.media_tools.image_clamp::clamp_image_payload (POS: payload downsampling and format normalization)
+- app.tasks.serializer::serialize_media_task (POS: 媒体任务队列 Task 模型统一状态序列化器)
 
 [OUTPUT]
 - create_image_generation_tool(): LangChain BaseTool adapter for image generation

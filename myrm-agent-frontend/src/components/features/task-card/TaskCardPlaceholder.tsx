@@ -35,6 +35,8 @@ export const TaskCardPlaceholder: React.FC<TaskCardPlaceholderProps> = ({
     setIsCancelling(true);
     try {
       await onCancel(taskId);
+    } catch {
+      // 网络或服务端异常时优雅恢复，避免未捕获异常中断组件渲染
     } finally {
       setIsCancelling(false);
     }

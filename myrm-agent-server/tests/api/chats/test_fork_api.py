@@ -296,7 +296,10 @@ async def test_fork_records_immutable_event_log_anchor(
     root_id = str(uuid.uuid4())
     await _create_chat_with_messages(root_id, 4)
 
-    with patch("app.core.config.settings.database.event_log_dir", str(tmp_path)), \
+    from app.config.settings import get_settings
+    settings = get_settings()
+
+    with patch.object(settings.database, "event_log_dir", str(tmp_path)), \
          patch("app.platform_utils.get_checkpointer", return_value=None):
         resp = await async_client.post(
             f"/api/v1/chats/{root_id}/fork",

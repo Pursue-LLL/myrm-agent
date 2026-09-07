@@ -15,7 +15,7 @@ Product-layer LangChain adapters for image/video/TTS generation. Engines live in
 | `media_persist.py` | Shared media library persist callback for sync + async image paths |
 | `video_agent_tool.py` | `create_video_generation_tool` → `video_tool`（generate 强制非空 prompt，支持 negative_prompt 与 seed，自动调用 `clamp_image_payload` 守护参考图片输入流；优先 async enqueue 到 TaskStore；status 支持按 task_id 查统一任务状态） |
 | `video_schema.py` | `VideoToolInput` 入参模型与 `_build_dynamic_video_input_schema` 构建器（基于活跃 Provider Capabilities 动态裁剪不支持参数，配置 `ConfigDict(extra="allow")` 支持超集契约无损透传与 Prompt Cache 稳定保护） |
-| `tts_agent_tool.py` | `create_tts_tool` → `tts_generate` |
+| `tts_agent_tool.py` | `create_tts_tool` → `tts_generate`（支持文本转语音合成与工件发布，内置空文本防护与 1500 字符上限防御） |
 
 ## Mount policy
 

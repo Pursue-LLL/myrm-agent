@@ -12295,7 +12295,7 @@
     },
     "desktopPermissions": {
       "title": "Desktop Automation Readiness",
-      "allReady": "All capabilities ready",
+      "allReady": "Ready — permissions and screen capture verified",
       "grantsOkCaptureUnverified": "Permissions granted — capture not verified yet",
       "captureUnverifiedHint": "Tap refresh to verify screen capture works before desktop tasks.",
       "captureFailed": "Screen capture unavailable",
