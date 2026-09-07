@@ -136,6 +136,29 @@ async def run_agent_stream(
 
     text_content = stream_text_content(request)
 
+    # Context Guard Ingress defense: transparently spill oversized prompts to sandbox workspace
+    try:
+        from app.services.agent.context_guard_service import ContextGuardService
+
+        guard_res = await ContextGuardService.guard_inbound_prompt(
+            chat_id=request.chat_id,
+            raw_prompt=text_content,
+            role="user",
+        )
+        if guard_res.spilled:
+            logger.info(
+                "ContextGuard mitigated large prompt for chat_id=%s message_id=%s (%d chars -> spilled file)",
+                request.chat_id,
+                request.message_id,
+                guard_res.original_char_count,
+            )
+            text_content = guard_res.sanitized_content
+            # Update in-memory request query string/content
+            if isinstance(request.query, str):
+                request.query = text_content
+    except Exception as guard_exc:
+        logger.warning("ContextGuard check encountered non-fatal error: %s", guard_exc)
+
     # Gateway hygiene check: block massive malicious payloads before they hit the agent harness
     if len(text_content) > _GATEWAY_MAX_INPUT_CHARS:
         logger.warning(f"Gateway rejected massive payload: length={len(text_content)} chars")

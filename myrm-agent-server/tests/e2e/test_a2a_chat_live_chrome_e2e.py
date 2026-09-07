@@ -115,9 +115,17 @@ def _wait_assistant_reply(
             messages = fetch_chat_messages(chat_id, api_url=api_url)
         except OSError:
             messages = []
-        last_messages = [m for m in messages if isinstance(m, dict) and m.get("role") in ("user", "assistant")]
+        last_messages = [
+            m
+            for m in messages
+            if isinstance(m, dict) and m.get("role") in ("user", "assistant")
+        ]
         assistant = next(
-            (m for m in reversed(last_messages) if isinstance(m, dict) and m.get("role") == "assistant"),
+            (
+                m
+                for m in reversed(last_messages)
+                if isinstance(m, dict) and m.get("role") == "assistant"
+            ),
             None,
         )
         if isinstance(assistant, dict):
@@ -166,7 +174,9 @@ def test_a2a_chat_live_delegation_chrome_e2e(
         "is_active": True,
     }
     peer_resp = http_json("POST", f"{api_url}/api/v1/a2a/peers", body=peer_payload)
-    assert isinstance(peer_resp, dict) and "id" in peer_resp, f"Create peer failed: {peer_resp}"
+    assert (
+        isinstance(peer_resp, dict) and "id" in peer_resp
+    ), f"Create peer failed: {peer_resp}"
     peer_id = str(peer_resp["id"])
 
     # 2. Create Agent with A2A enabled and whitelisted peer
@@ -177,7 +187,9 @@ def test_a2a_chat_live_delegation_chrome_e2e(
         "a2a_trusted_peer_ids": [peer_id],
     }
     agent_resp = http_json("POST", f"{api_url}/api/v1/user-agents", body=agent_payload)
-    assert isinstance(agent_resp, dict) and agent_resp.get("data", {}).get("id"), f"Create agent failed: {agent_resp}"
+    assert isinstance(agent_resp, dict) and agent_resp.get("data", {}).get(
+        "id"
+    ), f"Create agent failed: {agent_resp}"
     agent_id = str(agent_resp["data"]["id"])
 
     # 3. Create a Chat bound to this Agent
@@ -190,17 +202,24 @@ def test_a2a_chat_live_delegation_chrome_e2e(
         "messages": [],
     }
     chat_resp = http_json("POST", f"{api_url}/api/v1/chats/", body=chat_payload)
-    assert isinstance(chat_resp, dict) and chat_resp.get("success") is True, f"Create chat failed: {chat_resp}"
+    assert (
+        isinstance(chat_resp, dict) and chat_resp.get("success") is True
+    ), f"Create chat failed: {chat_resp}"
 
     chat_path = f"/{chat_id}"
     warm_ui_route(chat_path, timeout_sec=45.0)
 
     try:
         # 4. Open WebUI chat in Chrome browser
-        with open_mcp_page(f"{ui_url}{chat_path}", timeout_ms=120_000) as (client, page):
+        with open_mcp_page(f"{ui_url}{chat_path}", timeout_ms=120_000) as (
+            client,
+            page,
+        ):
             dismiss_blocking_modals(client, page)
             client.evaluate(page, _DISMISS_MODALS_JS, timeout_sec=10.0)
-            wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=f"{ui_url}{chat_path}")
+            wait_for_react_e2e_bridge(
+                client, page, timeout_sec=90.0, page_url=f"{ui_url}{chat_path}"
+            )
 
             # 5. Hydrate and bind agent to chat in store
             attach_chat_and_wait_agent_binding(
@@ -223,15 +242,23 @@ def test_a2a_chat_live_delegation_chrome_e2e(
             assert send.get("ok") is True, f"Send failed: {send}"
 
             # Capture UI state for debug if needed
-            probe_snapshot = client.evaluate(page, "window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {}", timeout_sec=10.0)
+            probe_snapshot = client.evaluate(
+                page,
+                "window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {}",
+                timeout_sec=10.0,
+            )
             _ = probe_snapshot
 
             # 7. Wait for assistant reply to arrive and complete
             reply = _wait_assistant_reply(chat_id, api_url, timeout_sec=180.0)
-            assert str(reply.get("role")) == "assistant", f"Expected role assistant: {reply}"
+            assert (
+                str(reply.get("role")) == "assistant"
+            ), f"Expected role assistant: {reply}"
 
             # 8. Wait for browser DOM and stream snapshot to stabilize
-            dom_state = wait_for_state(client, page, _ASSISTANT_DOM_PROBE_JS, timeout_sec=90.0)
+            dom_state = wait_for_state(
+                client, page, _ASSISTANT_DOM_PROBE_JS, timeout_sec=90.0
+            )
             assert dom_state.get("ready") is True, f"DOM stream not ready: {dom_state}"
 
             content = str(reply.get("content") or reply.get("message") or "")

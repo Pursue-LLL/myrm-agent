@@ -75,6 +75,15 @@ async def _context_cleanup_job() -> None:
     except Exception as e:
         logger.error(f"Context cleanup failed: {e}", exc_info=True)
 
+    try:
+        from app.services.agent.context_guard_service import ContextGuardService
+
+        cleaned_spillover = ContextGuardService.sweep_all_workspaces()
+        if cleaned_spillover > 0:
+            logger.info("Context cleanup: swept %d expired transient spillover files", cleaned_spillover)
+    except Exception as e:
+        logger.warning(f"ContextGuard transient spillover sweep failed: {e}")
+
 
 async def start_cron_scheduler() -> None:
     """启动 Cron Scheduler（定时任务调度器）"""

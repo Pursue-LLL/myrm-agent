@@ -218,22 +218,12 @@ class ContextBombDefenseService:
 
         rel_file_path = str(target_file.resolve())
         prompt_block = build_spillover_prompt_block(
-            file_path=rel_file_path,
-            total_chars=char_count,
-            sha256=sha256_hash,
-            preview=preview,
-            estimated_tokens=token_pressure,
+            file_path=rel_file_path, total_chars=char_count, sha256=sha256_hash, preview=preview, estimated_tokens=token_pressure
         )
-
         logger.info(
             "ContextBombDefenseService mitigated large payload: chars=%d (~%d tokens) sha256=%s path=%s for chat_id=%s",
-            char_count,
-            token_pressure,
-            short_hash,
-            rel_file_path,
-            chat_id or "unknown",
+            char_count, token_pressure, short_hash, rel_file_path, chat_id or "unknown"
         )
-
         return SpilloverPayloadResult(
             is_spilled=True,
             processed_content=prompt_block,
@@ -255,73 +245,26 @@ class ContextBombDefenseService:
         to sandbox workspace file and returns a transformed query with structured XML reference.
         """
         raw_text = extract_text_from_query(query)
-        char_count = len(raw_text)
-        token_pressure = estimate_token_pressure(raw_text)
-
-        if char_count <= self.max_chars and token_pressure <= self.max_tokens:
+        res = self.process_incoming_content(
+            raw_text,
+            chat_id=session_id,
+            workspace_root=workspace_dir,
+            max_chars=self.max_chars,
+        )
+        if not res.is_spilled:
             return query, False, None
 
-        sha256_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
-        short_hash = sha256_hash[:16]
         preview = raw_text[: self.preview_chars].strip()
-
-        # Resolve destination storage root
-        if workspace_dir:
-            base_dir = Path(workspace_dir).resolve()
-            spill_dir = base_dir / SPILLED_DIR_NAME
-            rel_file_path = f"{SPILLED_DIR_NAME}/payload_{short_hash}.md"
-        else:
-            fallback_sid = session_id or "default"
-            base_dir = Path("/tmp/myrm_spillover").resolve() / fallback_sid
-            spill_dir = base_dir
-            rel_file_path = str(spill_dir / f"payload_{short_hash}.md")
-
-        spill_dir.mkdir(parents=True, exist_ok=True)
-        with contextlib.suppress(OSError):
-            os.chmod(spill_dir, DIR_PERMISSIONS)
-
-        target_file = spill_dir / f"payload_{short_hash}.md"
-        try:
-            target_file.resolve().relative_to(spill_dir.resolve())
-        except ValueError as err:
-            logger.error("Security violation: spillover path escaped target dir: %s", target_file)
-            raise PermissionError("Path traversal violation in spillover directory") from err
-
-        # Idempotent atomic write with unique temp file
-        if not target_file.exists():
-            tmp_file = spill_dir / f".tmp_{short_hash}_{uuid4().hex[:6]}"
-            try:
-                tmp_file.write_text(raw_text, encoding="utf-8")
-                with contextlib.suppress(OSError):
-                    os.chmod(tmp_file, FILE_PERMISSIONS)
-                tmp_file.replace(target_file)
-                logger.info(
-                    "ContextBombDefenseService spilled payload: chars=%d tokens=%d sha256=%s path=%s",
-                    char_count,
-                    token_pressure,
-                    short_hash,
-                    rel_file_path,
-                )
-            finally:
-                if tmp_file.exists():
-                    with contextlib.suppress(OSError):
-                        tmp_file.unlink(missing_ok=True)
-
         metadata = SpilloverMetadata(
-            sha256=sha256_hash,
-            file_path=rel_file_path,
-            total_chars=char_count,
+            sha256=res.content_sha256 or hashlib.sha256(raw_text.encode("utf-8")).hexdigest(),
+            file_path=res.spillover_path or "",
+            total_chars=res.original_char_count,
             preview=preview,
-            estimated_tokens=token_pressure,
+            estimated_tokens=res.estimated_tokens,
         )
-
-        prompt_block = build_spillover_prompt_block(
-            file_path=rel_file_path,
-            total_chars=char_count,
-            sha256=sha256_hash,
-            preview=preview,
-            estimated_tokens=token_pressure,
-        )
+        prompt_block = res.processed_content
+        transformed_query = self._transform_query_with_spillover(query, prompt_block)
+        return transformed_query, True, metadata
 
         transformed_query = self._transform_query_with_spillover(query, prompt_block)
         return transformed_query, True, metadata
@@ -363,21 +306,14 @@ class ContextBombDefenseService:
             if effective_ttl != self.ttl_seconds
             else self._harness_sweeper
         )
-        purged = 0
-        if workspace_dir:
-            purged += sweeper.sweep_directory(workspace_dir)
+        purged = sweeper.sweep_directory(workspace_dir) if workspace_dir else 0
 
         fallback_dir = Path("/tmp/myrm_spillover").resolve()
         if fallback_dir.exists():
-            now = time.time()
-            cutoff = now - effective_ttl
+            cutoff = time.time() - effective_ttl
             for entry in fallback_dir.rglob("*.md"):
                 try:
-                    if entry.is_symlink():
-                        entry.unlink(missing_ok=True)
-                        purged += 1
-                        continue
-                    if entry.stat().st_mtime < cutoff:
+                    if entry.is_symlink() or entry.stat().st_mtime < cutoff:
                         entry.unlink(missing_ok=True)
                         purged += 1
                 except OSError as err:
