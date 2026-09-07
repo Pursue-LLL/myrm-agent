@@ -74,6 +74,7 @@ import { FeaturedExpertChips } from './agent-config-panel/FeaturedExpertChips';
 import { ExpertSummonPopover } from './agent-config-panel/ExpertSummonPopover';
 import { ComposerContextChipStrip } from './context-strip/ComposerContextChipStrip';
 import { WechatArticleComposerHint } from './WechatArticleComposerHint';
+import { ContextSpilloverBadge } from '../message-box/ContextSpilloverBadge';
 import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
 import { ChatInlineTeamRunVisibilityStrip } from './subagent/ChatInlineTeamRunVisibilityStrip';
 

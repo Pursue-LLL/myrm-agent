@@ -17963,7 +17963,17 @@
         "editLimitDesc": "{provider} の月間アラート上限を調整",
         "limitLabel": "月間クォータ上限 (回)",
         "cancel": "キャンセル",
-        "save": "保存"
+        "save": "保存",
+        "circuitBreakersTitle": "LLM プロバイダーのサーキットブレーカーと健全性",
+        "circuitBreakersDesc": "LLM ゲートウェイ全体のリアルタイムの健全性テレメトリと障害分離状態",
+        "circuitAllHealthy": "すべてのプロバイダーが正常",
+        "circuitStateClosed": "接続済み",
+        "circuitStateOpen": "遮断保護発動",
+        "circuitStateHalfOpen": "復旧プローブ中",
+        "circuitFailures": "連続失敗: {count} 回",
+        "circuitRetryCooldown": "リトライカウントダウン: {seconds}秒",
+        "circuitResetOne": "リセット",
+        "circuitResetAll": "すべてのサーキットをリセット"
       }
     },
     "workingState": {

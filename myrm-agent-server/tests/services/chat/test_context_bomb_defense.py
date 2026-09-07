@@ -46,8 +46,8 @@ def test_process_incoming_content_over_threshold(tmp_path: Path) -> None:
 
 def test_cleanup_transient_spillover_cache(tmp_path: Path) -> None:
     spill_dir = ContextBombDefenseService.get_spillover_dir(tmp_path)
-    old_file = spill_dir / "spillover_old.md"
-    fresh_file = spill_dir / "spillover_fresh.md"
+    old_file = spill_dir / "payload_old.md"
+    fresh_file = spill_dir / "payload_fresh.md"
 
     old_file.write_text("old text", encoding="utf-8")
     fresh_file.write_text("fresh text", encoding="utf-8")

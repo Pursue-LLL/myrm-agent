@@ -4,7 +4,6 @@ import os
 import time
 from pathlib import Path
 
-import pytest
 from app.services.chat.context_bomb_guard import (
     ContextBombDefenseService,
     extract_text_from_query,
