@@ -27,14 +27,18 @@ import {
   XCircle,
   Activity,
   ShieldCheck,
+  Zap,
 } from 'lucide-react';
 import {
   getSearchQuotas,
   getBrowserRuntimeSummary,
+  getLLMProviderHealth,
   resetSearchQuota,
+  resetLLMProviderCircuit,
   updateSearchQuotaLimit,
   type SearchQuotaItem,
   type BrowserRuntimeSummary,
+  type CircuitBreakerStats,
 } from '@/services/statistics';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -46,19 +50,23 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
   const t = useTranslations('settings.usageStatistics.runtimeMeter');
   const [quotas, setQuotas] = useState<SearchQuotaItem[]>([]);
   const [browserSummary, setBrowserSummary] = useState<BrowserRuntimeSummary | null>(null);
+  const [circuitBreakers, setCircuitBreakers] = useState<Record<string, CircuitBreakerStats>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [isResetting, setIsResetting] = useState<boolean>(false);
+  const [isResettingCircuit, setIsResettingCircuit] = useState<boolean>(false);
   const [editingProvider, setEditingProvider] = useState<string | null>(null);
   const [editLimitValue, setEditLimitValue] = useState<number>(1000);
 
   const loadData = useCallback(async () => {
     try {
-      const [quotaData, browserData] = await Promise.all([
+      const [quotaData, browserData, healthData] = await Promise.all([
         getSearchQuotas().catch(() => []),
         getBrowserRuntimeSummary().catch(() => null),
+        getLLMProviderHealth().catch(() => ({ circuit_breakers: {} })),
       ]);
       setQuotas(quotaData);
       setBrowserSummary(browserData);
+      setCircuitBreakers(healthData?.circuit_breakers ?? {});
     } finally {
       setLoading(false);
     }
@@ -75,6 +83,16 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
       await loadData();
     } finally {
       setIsResetting(false);
+    }
+  };
+
+  const handleResetCircuit = async (providerOrKey?: string) => {
+    setIsResettingCircuit(true);
+    try {
+      await resetLLMProviderCircuit(providerOrKey);
+      await loadData();
+    } finally {
+      setIsResettingCircuit(false);
     }
   };
 

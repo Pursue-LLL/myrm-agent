@@ -26,7 +26,10 @@ class NaturalLanguageCronCompiler:
     """Compiles free-form natural language prompts into structured cron digest configurations."""
 
     _TIME_WINDOW_RE = re.compile(r"最近\s*(\d+)\s*(小时|天|h|d|day|hours?)", re.IGNORECASE)
-    _GROUP_NAME_RE = re.compile(r"(?:群聊|群|频道|channel)\s*([a-zA-Z0-9_\u4e00-\u9fa5\-]+)", re.IGNORECASE)
+    _GROUP_NAME_RE = re.compile(
+        r"(?:群聊|群|频道|channel)\s*([a-zA-Z0-9_\u4e00-\u9fa5\-]+?)(?=(?:最近|前|的|在|里|中|\s|$))",
+        re.IGNORECASE,
+    )
     _DAILY_TIME_RE = re.compile(r"(?:每天|每日|每早|定时)?\s*(?:早上|上午|下午|晚上)?\s*([0-2]?\d)(?:点|:|：)(\d{0,2})", re.IGNORECASE)
     _HOURLY_RE = re.compile(r"(?:每小时|每个小时|整点)", re.IGNORECASE)
     _WEEKLY_RE = re.compile(r"(?:每周|每星期)([一二三四五六日天1-7])?\s*(?:早上|上午)?\s*([0-2]?\d)?(?:点)?", re.IGNORECASE)
@@ -61,7 +64,7 @@ class NaturalLanguageCronCompiler:
         # 2. Extract target group / channel
         target_group = "默认群聊"
         grp_match = cls._GROUP_NAME_RE.search(clean_prompt)
-        if grp_match:
+        if grp_match and grp_match.group(1).strip():
             target_group = grp_match.group(1).strip()
 
         # 3. Extract Schedule / Cron Expression
@@ -84,7 +87,7 @@ class NaturalLanguageCronCompiler:
 
         # 4. Extract Focus Topic & Title
         focus_topic = "AI消息与行业动态"
-        if "ai" in clean_prompt.lower():
+        if "ai" in clean_prompt.lower() or "大模型" in clean_prompt:
             focus_topic = "AI与大模型动态"
         elif "业务" in clean_prompt or "销售" in clean_prompt:
             focus_topic = "业务与销售跟进"

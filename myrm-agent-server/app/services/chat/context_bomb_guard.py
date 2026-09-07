@@ -1,12 +1,13 @@
 """Context Bomb Guard and Transparent File Spillover Engine.
 
-Detects oversized incoming user payloads (>16,000 characters), safely offloads them
+Detects oversized incoming user payloads (>16,000 characters or >8,000 token pressure), safely offloads them
 to POSIX-isolated sandbox workspace files (.myrm/spillover/payload_<sha256>.md),
-and transparently injects structured file references into the agent prompt context.
+and transparently injects structured XML file references into the agent prompt context.
 
 [INPUT]
 - app.services.agent.params.models::MultimodalQuery (POS: agent query payload type)
-- pathlib.Path, hashlib, time
+- myrm_agent_harness.agent.context_guard (POS: harness spillover engine and CJK token pressure)
+- pathlib.Path, hashlib, time, uuid
 
 [OUTPUT]
 - ContextBombDefenseService: Inbound query guard, spillover manager, and stale file sweeper.
@@ -27,12 +28,20 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
+from uuid import uuid4
 
 from app.services.agent.params.models import MultimodalQuery
+from myrm_agent_harness.agent.context_guard import (
+    ContextGuardConfig,
+    EphemeralTransientSweeper,
+    SpilloverEngine,
+    estimate_token_pressure,
+)
 
 logger = logging.getLogger(__name__)
 
 MESSAGE_MAX_CHARS: Final[int] = 16_000
+MAX_TOKEN_PRESSURE: Final[int] = 8_000
 PREVIEW_MAX_CHARS: Final[int] = 300
 SPILLED_DIR_NAME: Final[str] = ".myrm/spillover"
 SPILLED_FILE_TTL_SECONDS: Final[float] = 86_400.0  # 24 hours
@@ -48,6 +57,7 @@ class SpilloverMetadata:
     file_path: str
     total_chars: int
     preview: str
+    estimated_tokens: int = 0
     created_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict[str, object]:
@@ -56,6 +66,7 @@ class SpilloverMetadata:
             "filePath": self.file_path,
             "totalChars": self.total_chars,
             "preview": self.preview,
+            "estimatedTokens": self.estimated_tokens,
             "createdAt": self.created_at,
         }
 
@@ -69,6 +80,7 @@ class SpilloverPayloadResult:
     original_char_count: int
     spillover_path: str | None = None
     content_sha256: str | None = None
+    estimated_tokens: int = 0
 
 
 def extract_text_from_query(query: MultimodalQuery | object) -> str:
@@ -96,13 +108,15 @@ def build_spillover_prompt_block(
     total_chars: int,
     sha256: str,
     preview: str,
+    estimated_tokens: int = 0,
 ) -> str:
     """Construct structured, prompt-cache-friendly XML reference block."""
+    token_hint = f", ~{estimated_tokens:,} tokens" if estimated_tokens > 0 else ""
     return (
-        f"<file_spillover path=\"{file_path}\" total_chars=\"{total_chars}\" sha256=\"{sha256}\">\n"
+        f"<file_spillover path=\"{file_path}\" total_chars=\"{total_chars}\" sha256=\"{sha256[:16]}\">\n"
         f"<preview>\n{preview}\n...\n</preview>\n"
         f"<instruction>\n"
-        f"Notice: User provided a large document payload ({total_chars:,} characters) that exceeds direct context threshold.\n"
+        f"Notice: User provided a large document payload ({total_chars:,} characters{token_hint}) that exceeds direct context threshold.\n"
         f"It has been safely preserved at '{file_path}'.\n"
         f"When detailed analysis, code inspection, or specific section retrieval is required, use the 'read_file' tool to inspect this file.\n"
         f"</instruction>\n"
@@ -116,12 +130,25 @@ class ContextBombDefenseService:
     def __init__(
         self,
         max_chars: int = MESSAGE_MAX_CHARS,
+        max_tokens: int = MAX_TOKEN_PRESSURE,
         preview_chars: int = PREVIEW_MAX_CHARS,
         ttl_seconds: float = SPILLED_FILE_TTL_SECONDS,
     ) -> None:
         self.max_chars = max_chars
+        self.max_tokens = max_tokens
         self.preview_chars = preview_chars
         self.ttl_seconds = ttl_seconds
+        self._harness_engine = SpilloverEngine(
+            ContextGuardConfig(
+                max_message_chars=max_chars,
+                max_token_pressure=max_tokens,
+                preview_chars=preview_chars,
+                spillover_ttl_seconds=int(ttl_seconds),
+            )
+        )
+        self._harness_sweeper = EphemeralTransientSweeper(
+            ContextGuardConfig(spillover_ttl_seconds=int(ttl_seconds))
+        )
 
     @classmethod
     def get_spillover_dir(cls, workspace_root: Path | str | None = None) -> Path:
@@ -147,11 +174,14 @@ class ContextBombDefenseService:
     ) -> SpilloverPayloadResult:
         """Inspect plain text message length and transparently spill to workspace file if exceeding cap."""
         char_count = len(content)
-        if char_count <= max_chars:
+        token_pressure = estimate_token_pressure(content)
+
+        if char_count <= max_chars and token_pressure <= MAX_TOKEN_PRESSURE:
             return SpilloverPayloadResult(
                 is_spilled=False,
                 processed_content=content,
                 original_char_count=char_count,
+                estimated_tokens=token_pressure,
             )
 
         sha256_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
@@ -168,10 +198,10 @@ class ContextBombDefenseService:
             logger.error("Security violation: spillover path escaped target dir: %s", target_file)
             raise PermissionError("Path traversal violation in spillover directory") from err
 
-        # Idempotent atomic file write
+        # Idempotent atomic file write with unique tmp file
         if not target_file.exists():
+            tmp_file = target_dir / f".tmp_{short_hash}_{uuid4().hex[:6]}"
             try:
-                tmp_file = target_file.with_suffix(".tmp")
                 tmp_file.write_text(content, encoding="utf-8")
                 with contextlib.suppress(OSError):
                     os.chmod(tmp_file, FILE_PERMISSIONS)
@@ -183,7 +213,12 @@ class ContextBombDefenseService:
                     is_spilled=False,
                     processed_content=truncated + f"\n\n[System Warning: Text truncated to {max_chars} chars due to file spillover write failure]",
                     original_char_count=char_count,
+                    estimated_tokens=token_pressure,
                 )
+            finally:
+                if tmp_file.exists():
+                    with contextlib.suppress(OSError):
+                        tmp_file.unlink(missing_ok=True)
 
         rel_file_path = str(target_file.resolve())
         prompt_block = build_spillover_prompt_block(
@@ -191,11 +226,13 @@ class ContextBombDefenseService:
             total_chars=char_count,
             sha256=sha256_hash,
             preview=preview,
+            estimated_tokens=token_pressure,
         )
 
         logger.info(
-            "ContextBombDefenseService mitigated large payload: chars=%d sha256=%s path=%s for chat_id=%s",
+            "ContextBombDefenseService mitigated large payload: chars=%d (~%d tokens) sha256=%s path=%s for chat_id=%s",
             char_count,
+            token_pressure,
             short_hash,
             rel_file_path,
             chat_id or "unknown",
@@ -207,6 +244,7 @@ class ContextBombDefenseService:
             original_char_count=char_count,
             spillover_path=rel_file_path,
             content_sha256=sha256_hash,
+            estimated_tokens=token_pressure,
         )
 
     def guard_and_spill_query(
@@ -217,13 +255,14 @@ class ContextBombDefenseService:
     ) -> tuple[MultimodalQuery, bool, SpilloverMetadata | None]:
         """Inspect inbound query for context bomb conditions.
 
-        If total character length exceeds max_chars, transparently saves payload
-        to sandbox workspace file and returns a transformed query with structured reference.
+        If total character length or token pressure exceeds limit, transparently saves payload
+        to sandbox workspace file and returns a transformed query with structured XML reference.
         """
         raw_text = extract_text_from_query(query)
-        total_chars = len(raw_text)
+        char_count = len(raw_text)
+        token_pressure = estimate_token_pressure(raw_text)
 
-        if total_chars <= self.max_chars:
+        if char_count <= self.max_chars and token_pressure <= self.max_tokens:
             return query, False, None
 
         sha256_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
@@ -253,32 +292,40 @@ class ContextBombDefenseService:
             logger.error("Security violation: spillover path escaped target dir: %s", target_file)
             raise PermissionError("Path traversal violation in spillover directory") from err
 
-        # Idempotent atomic write
+        # Idempotent atomic write with unique temp file
         if not target_file.exists():
-            tmp_file = target_file.with_suffix(".tmp")
-            tmp_file.write_text(raw_text, encoding="utf-8")
-            with contextlib.suppress(OSError):
-                os.chmod(tmp_file, FILE_PERMISSIONS)
-            tmp_file.replace(target_file)
-            logger.info(
-                "ContextBombDefenseService spilled large payload: chars=%d sha256=%s path=%s",
-                total_chars,
-                short_hash,
-                rel_file_path,
-            )
+            tmp_file = spill_dir / f".tmp_{short_hash}_{uuid4().hex[:6]}"
+            try:
+                tmp_file.write_text(raw_text, encoding="utf-8")
+                with contextlib.suppress(OSError):
+                    os.chmod(tmp_file, FILE_PERMISSIONS)
+                tmp_file.replace(target_file)
+                logger.info(
+                    "ContextBombDefenseService spilled large payload: chars=%d tokens=%d sha256=%s path=%s",
+                    char_count,
+                    token_pressure,
+                    short_hash,
+                    rel_file_path,
+                )
+            finally:
+                if tmp_file.exists():
+                    with contextlib.suppress(OSError):
+                        tmp_file.unlink(missing_ok=True)
 
         metadata = SpilloverMetadata(
             sha256=sha256_hash,
             file_path=rel_file_path,
-            total_chars=total_chars,
+            total_chars=char_count,
             preview=preview,
+            estimated_tokens=token_pressure,
         )
 
         prompt_block = build_spillover_prompt_block(
             file_path=rel_file_path,
-            total_chars=total_chars,
+            total_chars=char_count,
             sha256=sha256_hash,
             preview=preview,
+            estimated_tokens=token_pressure,
         )
 
         transformed_query = self._transform_query_with_spillover(query, prompt_block)
@@ -316,34 +363,25 @@ class ContextBombDefenseService:
     ) -> int:
         """Purge spilled files older than TTL (default 24h) to avoid disk exhaustion."""
         effective_ttl = ttl_seconds if ttl_seconds is not None else self.ttl_seconds
-        now = time.time()
-        cutoff = now - effective_ttl
-        purged_count = 0
-
-        target_dirs: list[Path] = []
+        purged = 0
         if workspace_dir:
-            spill_dir = (Path(workspace_dir) / SPILLED_DIR_NAME).resolve()
-            if spill_dir.exists():
-                target_dirs.append(spill_dir)
+            purged += self._harness_sweeper.sweep_directory(workspace_dir)
+
         fallback_dir = Path("/tmp/myrm_spillover").resolve()
         if fallback_dir.exists():
-            target_dirs.append(fallback_dir)
-
-        for s_dir in target_dirs:
-            if not s_dir.exists():
-                continue
-            for entry in s_dir.rglob("payload_*.md"):
+            now = time.time()
+            cutoff = now - effective_ttl
+            for entry in fallback_dir.rglob("payload_*.md"):
                 try:
-                    mtime = entry.stat().st_mtime
-                    if mtime < cutoff:
+                    if entry.stat().st_mtime < cutoff:
                         entry.unlink(missing_ok=True)
-                        purged_count += 1
+                        purged += 1
                 except OSError as err:
                     logger.debug("Failed cleaning stale spillover file %s: %s", entry, err)
 
-        if purged_count > 0:
-            logger.info("ContextBombDefenseService swept %d stale spillover files", purged_count)
-        return purged_count
+        if purged > 0:
+            logger.info("ContextBombDefenseService swept %d stale spillover files", purged)
+        return purged
 
     @classmethod
     def cleanup_transient_spillover_cache(
@@ -360,5 +398,5 @@ _GLOBAL_CONTEXT_BOMB_GUARD = ContextBombDefenseService()
 
 
 def get_context_bomb_defense_service() -> ContextBombDefenseService:
-    """Return default singleton ContextBombDefenseService."""
+    """Return singleton instance of ContextBombDefenseService."""
     return _GLOBAL_CONTEXT_BOMB_GUARD

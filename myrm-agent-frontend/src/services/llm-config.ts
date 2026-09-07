@@ -814,6 +814,8 @@ export interface CircuitBreakerStat {
   failure_count: number;
   half_open_calls: number;
   retry_after_ms: number;
+  last_failure_time?: number;
+  last_error_reason?: string | null;
 }
 
 export interface CircuitBreakersResponse {
