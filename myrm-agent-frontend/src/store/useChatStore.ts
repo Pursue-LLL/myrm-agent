@@ -930,10 +930,6 @@ const useChatStore = create<ChatState>()(
         }
       },
 
-      setActiveTimelineTurnIndex: (index: number | null) => {
-        set({ activeTimelineTurnIndex: index });
-      },
-
       // 调度自动保存（防抖）
       scheduleAutoSave: () => {
         const { _autoSaveTimer } = get();

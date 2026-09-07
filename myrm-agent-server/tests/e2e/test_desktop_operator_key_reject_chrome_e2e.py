@@ -233,6 +233,10 @@ async def test_chrome_ui_operator_as_key_rejected(
             hard_ok = _REJECT in blob or "REMEDY_HINT: Printable operators" in blob
             soft_ok = _soft_type_ok(blob)
             if hard_ok or soft_ok:
+                progress(
+                    f"assert gate hard={hard_ok} soft={soft_ok} "
+                    f"reject_in_page={_REJECT in page_blob}"
+                )
                 break
             await asyncio.sleep(2.0)
             try:
@@ -240,6 +244,7 @@ async def test_chrome_ui_operator_as_key_rejected(
             except RuntimeError as exc:
                 progress(f"heartbeat soft-fail during poll: {exc}")
 
+        progress(f"final gate hard={hard_ok} soft={soft_ok} chat_id={chat_id}")
         assert hard_ok or soft_ok, (
             f"Chrome UI turn missed operator Safety reject and type-fallback. "
             f"model={model_label!r} chat_id={chat_id} sample={blob[:1500]!r}"

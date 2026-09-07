@@ -1,7 +1,7 @@
-"""SSH Bridge package.
+"""SSH Bridge domain package: Multi-Host SSH Operations, SFTP Explorer, and Agent Asset Bridge.
 
 [INPUT]
-- .models::HostAuthMethod, HostConnectionStatus, SFTPItemInfo, SSHExecResult, SSHHostAsset
+- .models::HostAuthMethod, SSHHostAsset, SSHExecResult, SFTPItemInfo, HostConnectionStatus
 - .vault::SSHHostVault
 - .config_importer::SSHConfigImporter
 - .pool::SSHConnectionPool
@@ -9,7 +9,8 @@
 - .agent_bridge::SSHAgentBridge
 
 [OUTPUT]
-- HostAuthMethod, HostConnectionStatus, SFTPItemInfo, SFTPManager, SSHAgentBridge, SSHConfigImporter, SSHConnectionPool, SSHExecResult, SSHHostAsset, SSHHostVault
+- HostAuthMethod, SSHHostAsset, SSHExecResult, SFTPItemInfo, HostConnectionStatus
+- SSHHostVault, SSHConfigImporter, SSHConnectionPool, SFTPManager, SSHAgentBridge
 
 [POS]
 Domain service in app/services/ssh_bridge/.
@@ -32,11 +33,11 @@ __all__ = [
     "HostAuthMethod",
     "HostConnectionStatus",
     "SFTPItemInfo",
-    "SFTPManager",
     "SSHAgentBridge",
     "SSHConfigImporter",
     "SSHConnectionPool",
     "SSHExecResult",
     "SSHHostAsset",
     "SSHHostVault",
+    "SFTPManager",
 ]

@@ -190,8 +190,6 @@ export interface ChatState {
   setTurnOutlines: (outlines: TurnOutlineItem[]) => void;
   setTurnOutlinesLoading: (loading: boolean) => void;
   setActiveTimelineTurnIndex: (turnIndex: number | null) => void;
-  loadThroughTurn: (targetTurnIndex: number) => Promise<void>;
-  fetchTurnOutlines: (chatId?: string) => Promise<void>;
   setWorkspaceDir: (dir: string | null) => void;
   setSessionAccessRoots: (roots: SessionAccessRoot[]) => void;
   setChatHistoryItems: (items: ChatHistoryItem[]) => void;
