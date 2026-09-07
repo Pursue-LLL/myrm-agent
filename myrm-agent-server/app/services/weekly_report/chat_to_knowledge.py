@@ -14,7 +14,7 @@ Distills non-structured chat stream discussions into standardized Markdown Wiki 
 from __future__ import annotations
 
 import re
-from typing import List, Tuple
+from typing import List
 
 from app.services.weekly_report.models import (
     ChatKnowledgeExtractRequest,

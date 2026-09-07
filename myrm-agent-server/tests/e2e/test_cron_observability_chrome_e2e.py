@@ -129,7 +129,7 @@ _CHECK_CIRCUIT_BREAK_UI_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED", access_scope="READ", workload="STANDARD"
+    execution_mode="PRIVATE", access_scope="NAMESPACE_WRITE", workload="STANDARD", private_reason="observability_e2e"
 )
 @pytest.mark.timeout(300)
 def test_cron_observability_ui_single_session() -> None:

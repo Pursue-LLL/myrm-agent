@@ -11,14 +11,11 @@ Covers:
 from __future__ import annotations
 
 import time
-import pytest
 
 from app.services.trajectory.trajectory_aggregator import TrajectoryAggregator
 from app.services.trajectory.trajectory_models import (
     TrajectoryArtifactRef,
-    TrajectoryEvent,
     ValueChainType,
-    WeeklyReportPayload,
 )
 from app.services.trajectory.weekly_report_service import WeeklyReportSOPService
 

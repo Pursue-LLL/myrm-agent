@@ -18,7 +18,6 @@ from __future__ import annotations
 import enum
 import time
 from dataclasses import dataclass, field
-from typing import Sequence
 
 
 class ValueChainType(str, enum.Enum):
@@ -85,7 +84,7 @@ class WeeklyReportPayload:
     def to_markdown(self) -> str:
         """Render the weekly report into standard clean Markdown."""
         lines: list[str] = [
-            f"# 📊 个人/团队工作周报",
+            "# 📊 个人/团队工作周报",
             f"> **报告周期**：`{time.strftime('%Y-%m-%d', time.localtime(self.start_time))}` ~ `{time.strftime('%Y-%m-%d', time.localtime(self.end_time))}`  |  **汇总人**：{self.author_name}",
             "",
             "## 🚀 本周核心交付与成果",

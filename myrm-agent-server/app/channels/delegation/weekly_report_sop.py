@@ -25,9 +25,8 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Sequence
 
-from .trajectory_aggregator import AggregatedTrajectory, GroupDecisionItem, WorkTrajectoryItem
+from .trajectory_aggregator import AggregatedTrajectory, GroupDecisionItem
 
 logger = logging.getLogger("myrm.channels.delegation.weekly_report_sop")
 

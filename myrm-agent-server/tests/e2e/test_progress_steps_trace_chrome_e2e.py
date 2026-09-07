@@ -10,6 +10,7 @@ Validates the full user journey:
 
 from __future__ import annotations
 
+import json
 import time
 import uuid
 
@@ -17,7 +18,6 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
-    ensure_chat_route,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,

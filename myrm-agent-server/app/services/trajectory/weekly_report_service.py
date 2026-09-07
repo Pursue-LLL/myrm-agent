@@ -26,7 +26,6 @@ from typing import Sequence
 from .trajectory_aggregator import TrajectoryAggregator
 from .trajectory_models import (
     TrajectoryArtifactRef,
-    TrajectoryEvent,
     ValueChainType,
     WeeklyReportPayload,
     WikiArticleDraft,

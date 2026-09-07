@@ -105,6 +105,7 @@ async def record_search_quota(
 
 
 @router.get("/browser-runtime")
+@router.get("/browser-runtime/summary")
 async def get_browser_runtime_summary(
     session: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
