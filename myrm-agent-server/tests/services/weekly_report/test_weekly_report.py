@@ -44,7 +44,7 @@ def test_trajectory_aggregation_from_delegation() -> None:
         instruction="Deploy production microservice",
         created_at_ms=now_ms,
         updated_at_ms=now_ms,
-        status=DelegationStatus.SUCCEEDED,
+        status=DelegationStatus.COMPLETED,
         execution_summary="Microservice deployed on port 8080",
     )
     task_out_of_range = DelegationTask(
@@ -54,7 +54,7 @@ def test_trajectory_aggregation_from_delegation() -> None:
         instruction="Old task",
         created_at_ms=now_ms - (10 * 86400 * 1000),
         updated_at_ms=now_ms - (10 * 86400 * 1000),
-        status=DelegationStatus.SUCCEEDED,
+        status=DelegationStatus.COMPLETED,
     )
     art_1 = DeliveryArtifact(
         artifact_id="art-201",
@@ -91,7 +91,7 @@ def test_weekly_report_generation_engineer_mode() -> None:
         instruction="Refactor auth gateway",
         created_at_ms=now_ms,
         updated_at_ms=now_ms,
-        status=DelegationStatus.SUCCEEDED,
+        status=DelegationStatus.COMPLETED,
         execution_summary="Refactored JWT signature verification",
         artifact_paths=("/workspace/auth.py",),
     )

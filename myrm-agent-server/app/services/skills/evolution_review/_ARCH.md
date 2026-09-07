@@ -8,7 +8,7 @@ Evolution 审核子域。以 `ApprovalRecord` 为唯一事实源，提供类型�
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `types.py` | 核心 | 审核域类型：`EvolutionReviewRecord` / `EvolutionApprovalPayload` / `RuntimeFailureEvidence` / 状态枚举 / `EVOLUTION_ACTION_TYPE` / `MAX_SKILL_CONTENT_CHARS` 常量 / `ApprovalRecord` 转换 | ✅ |
+| `types.py` | 核心 | 审核域类型：`EvolutionReviewRecord` / `EvolutionApprovalPayload`（含 `security_scan_summary`） / `RuntimeFailureEvidence` / 状态枚举 / `EVOLUTION_ACTION_TYPE` / `MAX_SKILL_CONTENT_CHARS` 常量 / `ApprovalRecord` 转换 | ✅ |
 | `persistence.py` | 核心 | ApprovalRecord 持久化读写（list/count 下推 SQL LIMIT + pending growth_status 过滤） | ✅ |
 | `queries.py` | 核心 | 创建与只读查询（list/count 委托 persistence SQL） | ✅ |
 | `actions.py` | 核心 | 审批 / 拒绝 / 修订 / 回滚 | ✅ |

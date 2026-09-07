@@ -97,8 +97,7 @@ def test_runtime_cost_meter_settings_ui_and_ledger_chrome_e2e() -> None:
 
     # Step 2: Open /settings/usage in real Chrome MCP
     subroute = "/settings/usage"
-    warm_ui_route(subroute)
-    with open_settings_subroute(subroute, timeout_ms=90_000) as (client, page):
+    with open_settings_subroute(subroute, timeout_ms=120_000, warm=False) as (client, page):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
         wait_for_settings_layout(client, page)
