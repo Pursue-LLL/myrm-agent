@@ -1,11 +1,15 @@
-# Host Assets Domain Architecture
+# services/host_assets 模块架构
 
-## Directory Index
-| File | Role | Description |
-|------|------|-------------|
-| `models.py` | Core | Data models for remote host assets, credentials, and configurations |
-| `vault.py` | Service | Encrypted vault storage for host assets and credentials |
-| `ssh_bridge.py` | Service | SSH connection and command execution bridge |
+## 架构概述
 
-## Boundary
-Domain service layer under `app/services/host_assets/`.
+远程主机资产管理、SSH 自动化运维与 SFTP 传输桥接服务层。提供多主机配置从 `~/.ssh/config` 导入与凭据 AES-GCM 加密存储，支持 Agent 与前端共用安全资产通道，下发受限远程命令与进行目录传输。
+
+## 文件清单
+
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `__init__.py` | 包声明 | 导出主机资产管理、SSH 执行与 SFTP 桥接服务 | ✅ |
+| `models.py` | 核心模型 | 定义主机资产、认证类型、SSH 请求与 SFTP 传输强类型数据结构 | ✅ |
+| `vault.py` | 核心服务 | 提供主机资产管理、AES-GCM 凭据加密与 SSH Config 导入服务 | ✅ |
+| `ssh_bridge.py` | 核心服务 | 提供远程 SSH 命令执行、危险命令安全门禁与超时控制 | ✅ |
+| `sftp_bridge.py` | 核心服务 | 提供远端 SFTP 目录列表探查与双向文件传输桥接 | ✅ |

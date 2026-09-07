@@ -24,6 +24,7 @@ from cdp_chat.support import (
 )
 
 from tests.e2e.desktop_approval.constants import BASE_URL, progress
+from tests.e2e.desktop_approval.trust_api import resolve_pending_desktop_approval_for_test
 from tests.support.chrome_mcp_e2e import OpenMcpPageSession, http_json, open_mcp_page_async
 from tests.support.e2e_desktop_model_pin import ensure_desktop_basic_model_pinned_for_send
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
@@ -48,19 +49,15 @@ _CLICK_APPROVE_JS = """(() => {
 
 
 def _soft_type_ok(blob: str) -> bool:
-    """True when the model typed instead of key='*' (rules obeyed).
+    """True when the model typed instead of key='*' and the type action finished.
 
-    UI / messages may say ``Desktop Vision`` (space) and JSON ``\"action\": \"type\"``,
-    not the underscore tool id or ``action=type`` form used in API logs.
+    Do not treat pending HITL cards (JSON ``\"action\": \"type\"`` alone) as success —
+    that is an approval stall, not a completed soft-path.
     """
-    lowered = blob.lower()
     if "Vision action 'type' completed" in blob or 'Vision action "type" completed' in blob:
         return True
-    if "action=type" in lowered:
-        return True
-    type_json = '"action": "type"' in blob or '"action":"type"' in blob
-    vision_hit = "desktop_vision" in lowered or "desktop vision" in lowered
-    return type_json and vision_hit
+    lowered = blob.lower()
+    return "action=type" in lowered and "completed" in lowered
 
 
 def _messages_blob(api_url: str, chat_id: str) -> str:
