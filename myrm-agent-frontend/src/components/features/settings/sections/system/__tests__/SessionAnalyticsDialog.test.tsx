@@ -116,6 +116,13 @@ describe('SessionAnalyticsDialog', () => {
     expect(screen.getByText('bash')).toBeInTheDocument();
   });
 
+  it('renders copy markdown and download csv buttons for audit ledger', async () => {
+    render(<SessionAnalyticsDialog sessionId="s1" onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.getByText('copyMarkdown')).toBeInTheDocument());
+    expect(screen.getByText('downloadCsv')).toBeInTheDocument();
+  });
+
   it('renders response speed summary when streamTtft is present', async () => {
     getSessionAnalyticsMock.mockResolvedValue({
       ...BASE_ANALYTICS,

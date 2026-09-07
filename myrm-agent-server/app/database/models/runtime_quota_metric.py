@@ -6,9 +6,10 @@
 [OUTPUT]
 - SearchQuotaRecord: Free search provider monthly quota tracking and self-healing anchor model
 - BrowserRuntimeRecord: Browser automation runtime duration and network bandwidth ledger model
+- SandboxWorkloadRecord: Sandbox compute duration and execution workload ledger model
 
 [POS]
-Database models for observability roadmap: tracks free-tier search provider limits and browser compute cost.
+Database models for observability roadmap: tracks free-tier search provider limits, browser compute, and sandbox execution workloads.
 """
 
 from __future__ import annotations

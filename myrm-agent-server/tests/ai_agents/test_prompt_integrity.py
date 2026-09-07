@@ -258,6 +258,27 @@ class TestDesktopControlRules:
 
         assert "window name" not in DESKTOP_CONTROL_RULES
 
+    def test_rules_forbid_operator_as_key_name(self) -> None:
+        """Printable operators must not be used as press/key names (calculator pitfall)."""
+        from app.ai_agents.prompts.shared_rules import (
+            DESKTOP_CONTROL_RULES_EN,
+            DESKTOP_CONTROL_RULES_ZH,
+        )
+
+        assert 'printable operators' in DESKTOP_CONTROL_RULES_EN
+        assert '"*"' in DESKTOP_CONTROL_RULES_EN
+        assert '"/"' in DESKTOP_CONTROL_RULES_EN
+        assert '"+"' in DESKTOP_CONTROL_RULES_EN
+        assert "press or key" in DESKTOP_CONTROL_RULES_EN
+        assert "calculator/@dref" in DESKTOP_CONTROL_RULES_EN
+
+        assert "可打印运算符" in DESKTOP_CONTROL_RULES_ZH
+        assert '"*"' in DESKTOP_CONTROL_RULES_ZH
+        assert '"/"' in DESKTOP_CONTROL_RULES_ZH
+        assert '"+"' in DESKTOP_CONTROL_RULES_ZH
+        assert "press/key" in DESKTOP_CONTROL_RULES_ZH
+        assert "@dref" in DESKTOP_CONTROL_RULES_ZH
+
 
 class TestPromptBilingualSupport:
     """Validates full bilingual (EN/ZH) system prompt support with English default."""

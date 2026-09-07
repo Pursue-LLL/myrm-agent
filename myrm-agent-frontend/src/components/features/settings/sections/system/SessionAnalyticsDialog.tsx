@@ -83,11 +83,34 @@ ${toolRows}
 `;
 
     try {
-      await navigator.clipboard.writeText(markdown);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(markdown);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        return;
+      }
+      throw new Error('Clipboard API unavailable in this context');
     } catch {
-      // Fallback
+      // Insecure context (HTTP LAN) or restricted iframe fallback
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = markdown;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '-9999px';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (successful) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }
+      } catch {
+        // Silent fallback
+      }
     }
   }, [data]);
 
@@ -246,17 +269,19 @@ ${toolRows}
                   : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border-border/60',
               )}
               title={t('copyMarkdownTooltip')}
+              aria-label={t('copyMarkdown')}
             >
-              {copied ? <IconCheck className="w-3.5 h-3.5 text-emerald-500" /> : <IconCopy className="w-3.5 h-3.5" />}
-              <span>{copied ? t('copied') : t('copyMarkdown')}</span>
+              {copied ? <IconCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <IconCopy className="w-3.5 h-3.5 shrink-0" />}
+              <span className="hidden sm:inline">{copied ? t('copied') : t('copyMarkdown')}</span>
             </button>
             <button
               onClick={handleDownloadCsv}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all border bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border-border/60"
               title={t('downloadCsvTooltip')}
+              aria-label={t('downloadCsv')}
             >
-              <IconDownload className="w-3.5 h-3.5" />
-              <span>{t('downloadCsv')}</span>
+              <IconDownload className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">{t('downloadCsv')}</span>
             </button>
             <button
               onClick={onClose}

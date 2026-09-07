@@ -35,13 +35,6 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
     """Seed a conversation with >8 progress steps to test folding, duration badges and modal."""
     chat_id = f"e2etrace_{uuid.uuid4().hex[:8]}"
 
-    # Create chat
-    http_json(
-        "POST",
-        f"{api_base}/api/v1/chats/",
-        body={"chat_id": chat_id, "title": "E2E ProgressSteps Trace"},
-    )
-
     steps = [
         {
             "step_key": "planning_task",
@@ -89,24 +82,30 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
         ]
     )
 
-    user_msg = {
-        "id": f"msg_u_{uuid.uuid4().hex[:8]}",
+    create_payload = {
         "chat_id": chat_id,
-        "role": "user",
-        "content": "Please execute the long multi-step trace verification.",
+        "title": "E2E ProgressSteps Trace",
+        "action_mode": "agent",
+        "is_incognito": False,
+        "messages": [
+            {
+                "messageId": f"msg-user-{uuid.uuid4().hex[:8]}",
+                "chatId": chat_id,
+                "role": "user",
+                "content": "Please execute the long multi-step trace verification.",
+            },
+            {
+                "messageId": f"msg-asst-{uuid.uuid4().hex[:8]}",
+                "chatId": chat_id,
+                "role": "assistant",
+                "content": _FIXTURE_ANSWER,
+                "metadata": {
+                    "progressSteps": steps,
+                },
+            },
+        ],
     }
-    http_json("POST", f"{api_base}/api/v1/chats/{chat_id}/messages", body=user_msg)
-
-    asst_msg = {
-        "id": f"msg_a_{uuid.uuid4().hex[:8]}",
-        "chat_id": chat_id,
-        "role": "assistant",
-        "content": _FIXTURE_ANSWER,
-        "metadata": {
-            "progressSteps": steps,
-        },
-    }
-    http_json("POST", f"{api_base}/api/v1/chats/{chat_id}/messages", body=asst_msg)
+    http_json("POST", f"{api_base}/api/v1/chats/", body=create_payload)
 
     return {"chat_id": chat_id, "steps_count": len(steps)}
 

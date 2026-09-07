@@ -568,6 +568,53 @@ export default function SkillGrowthCaseCard({
         </div>
       )}
 
+      {item.securityScanSummary && item.securityScanSummary.findings && item.securityScanSummary.findings.length > 0 && (
+        <div className="mt-4 rounded-xl border border-indigo-300/50 bg-indigo-50/40 p-3 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium uppercase tracking-wide text-indigo-700 dark:text-indigo-300 inline-flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Skill Security Static Inspection Details ({item.securityScanSummary.findings.length} findings)</span>
+            </p>
+            <span className="font-mono text-xs font-semibold text-muted-foreground">
+              Score: {item.securityScanSummary.score}/100
+            </span>
+          </div>
+          <div className="mt-2 space-y-1.5">
+            {item.securityScanSummary.findings.map((finding, idx) => (
+              <div
+                key={`${finding.threat_type}-${idx}`}
+                className="flex items-start justify-between rounded-lg bg-background/60 p-2 text-xs"
+              >
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px] uppercase font-mono">
+                      {finding.threat_type}
+                    </Badge>
+                    <span className="font-medium text-foreground">{finding.description}</span>
+                  </div>
+                  {finding.line_number && (
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      Line: {finding.line_number}
+                    </span>
+                  )}
+                </div>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'text-[10px] capitalize font-mono shrink-0',
+                    finding.severity === 'critical' || finding.severity === 'high'
+                      ? 'border-rose-500/50 text-rose-700 dark:text-rose-300'
+                      : 'border-amber-500/50 text-amber-700 dark:text-amber-300',
+                  )}
+                >
+                  {finding.severity}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {runtimeFailure && (
         <div className="mt-4 rounded-xl border border-sky-300/50 bg-sky-50/60 p-3 dark:border-sky-900/40 dark:bg-sky-950/20">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

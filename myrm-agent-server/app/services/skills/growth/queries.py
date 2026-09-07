@@ -144,6 +144,7 @@ def _approval_case_detail(record: ApprovalRecord) -> SkillGrowthCaseDetailRead:
         target_layer=target_layer,
         target_pathology=target_pathology,
         proxy_alignment=evaluate_case_proxy_alignment(payload),
+        security_scan_summary=(payload.get("security_scan_summary") if isinstance(payload.get("security_scan_summary"), dict) else None),
     )
 
 

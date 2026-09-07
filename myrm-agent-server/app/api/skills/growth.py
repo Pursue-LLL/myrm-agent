@@ -65,6 +65,7 @@ class SkillGrowthCaseSummaryResponse(BaseModel):
     target_pathology: str | None = None
     prediction_manifest: dict[str, object] | None = None
     attribution_result: dict[str, object] | None = None
+    security_scan_summary: dict[str, object] | None = None
 
 
 class SkillGrowthCaseDetailResponse(SkillGrowthCaseSummaryResponse):
@@ -174,6 +175,7 @@ def _summary_response(
         target_pathology=item.target_pathology,
         prediction_manifest=item.prediction_manifest,
         attribution_result=item.attribution_result,
+        security_scan_summary=item.security_scan_summary,
     )
 
 

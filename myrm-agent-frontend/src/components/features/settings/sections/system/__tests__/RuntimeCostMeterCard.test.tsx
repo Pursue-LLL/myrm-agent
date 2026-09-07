@@ -83,6 +83,7 @@ describe('RuntimeCostMeterCard', () => {
     expect(screen.getByText('tavily')).toBeInTheDocument();
     expect(screen.getByText('searxng')).toBeInTheDocument();
     expect(screen.getByText(/\$0\.012/)).toBeInTheDocument();
+    expect(screen.getByText('localComputeFree')).toBeInTheDocument();
   });
 
   it('handles recalibrate reset action smoothly', async () => {

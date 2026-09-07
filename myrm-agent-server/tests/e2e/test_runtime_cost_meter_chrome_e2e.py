@@ -19,18 +19,21 @@ _VERIFY_COST_METER_STATE_JS = """(() => {
   try {
     const bodyText = document.body ? document.body.innerText : '';
     const hasSearchQuota = /搜索配额|Search Quota|配额水库|Quota Reservoirs|已消耗/i.test(bodyText);
-    const hasBrowserCompute = /浏览器|Browser|自动化算力|Compute Runtime|计算时长/i.test(bodyText);
+    const hasBrowserCompute = /浏览器|Browser|自动化算力|Compute Runtime|计算时长|代码沙箱|全沙箱/i.test(bodyText);
     const hasProviders = /Tavily|Brave|SearXNG/i.test(bodyText);
+    const hasTokenBurnRate = /Token|燃尽|Burn Rate|预警|Smoke/i.test(bodyText);
+    const hasSandboxWorkload = /代码沙箱|Code Sandbox|全沙箱|免算力费|Local Compute/i.test(bodyText);
     
     // Find reset/recalibrate buttons if any
     const buttons = Array.from(document.querySelectorAll('button'));
     const hasResetBtn = buttons.some(b => /重置|校准|Recalibrate|Reset/i.test(b.textContent || ''));
 
     return {
-      ready: hasSearchQuota || hasBrowserCompute || hasProviders,
+      ready: hasSearchQuota || hasBrowserCompute || hasProviders || hasTokenBurnRate,
       hasSearchQuota,
       hasBrowserCompute,
       hasProviders,
+      hasTokenBurnRate,
       hasResetBtn,
       bodySnippet: bodyText.slice(0, 400),
     };
@@ -56,7 +59,7 @@ def test_runtime_cost_meter_settings_ui_and_ledger_chrome_e2e() -> None:
     # Step 1: Pre-populate search quota and browser telemetry via backend API
     seed_search = http_json(
         "POST",
-        f"{api_url}/api/v1/statistics/search-quotas",
+        f"{api_url}/api/v1/statistics/search-quotas/record",
         {"provider": "tavily", "count": 120, "quota_exceeded": False},
     )
     assert seed_search.get("code") == 0
@@ -64,7 +67,7 @@ def test_runtime_cost_meter_settings_ui_and_ledger_chrome_e2e() -> None:
 
     seed_browser = http_json(
         "POST",
-        f"{api_url}/api/v1/statistics/browser-runtime",
+        f"{api_url}/api/v1/statistics/browser-runtime/record",
         {
             "session_id": "e2e-chrome-test-sess",
             "duration_seconds": 60.0,
@@ -75,6 +78,22 @@ def test_runtime_cost_meter_settings_ui_and_ledger_chrome_e2e() -> None:
         },
     )
     assert seed_browser.get("code") == 0
+
+    seed_sandbox = http_json(
+        "POST",
+        f"{api_url}/api/v1/statistics/sandbox-workload/record",
+        {
+            "session_id": "e2e-chrome-test-sess",
+            "workload_type": "code_sandbox",
+            "duration_seconds": 120.0,
+            "active_compute_seconds": 90.0,
+            "bytes_transferred": 2048,
+            "execution_count": 5,
+            "failed_count": 0,
+        },
+    )
+    assert seed_sandbox.get("code") == 0
+    assert seed_sandbox.get("data", {}).get("workload_type") == "code_sandbox"
 
     # Step 2: Open /settings/usage in real Chrome MCP
     subroute = "/settings/usage"
@@ -90,7 +109,7 @@ def test_runtime_cost_meter_settings_ui_and_ledger_chrome_e2e() -> None:
     # Step 3: Perform 429 recalibration self-healing check via REST API
     deplete_res = http_json(
         "POST",
-        f"{api_url}/api/v1/statistics/search-quotas",
+        f"{api_url}/api/v1/statistics/search-quotas/record",
         {"provider": "tavily", "count": 1, "quota_exceeded": True},
     )
     assert deplete_res.get("code") == 0

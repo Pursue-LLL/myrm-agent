@@ -1,15 +1,15 @@
-"""Runtime meter service for search quota tracking and browser compute telemetry.
+"""Runtime meter service for search quota tracking, browser compute, and sandbox workload telemetry.
 
 [INPUT]
-- app.database.models.runtime_quota_metric::SearchQuotaRecord, BrowserRuntimeRecord
+- app.database.models.runtime_quota_metric::SearchQuotaRecord, BrowserRuntimeRecord, SandboxWorkloadRecord
 - sqlalchemy.ext.asyncio::AsyncSession
 
 [OUTPUT]
-- RuntimeMeterService: Singleton service for recording and querying search quotas and browser compute.
+- RuntimeMeterService: Singleton service for recording and querying search quotas, browser compute, and sandbox workloads.
 
 [POS]
-Service layer for full-element operational cost meter: manages monthly search quotas with 429 self-healing
-and records browser compute duration and network transfer volume.
+Service layer for full-element operational cost meter: manages monthly search quotas with 429 self-healing,
+browser compute duration, and sandbox execution workloads.
 """
 
 from __future__ import annotations

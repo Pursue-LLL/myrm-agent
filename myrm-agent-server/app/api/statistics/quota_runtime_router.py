@@ -9,9 +9,10 @@
 - POST /statistics/search-quotas/record
 - GET /statistics/browser-runtime
 - POST /statistics/browser-runtime/record
+- POST /statistics/sandbox-workload/record
 
 [POS]
-REST API extension router exposing operational telemetry: search provider quotas and browser compute costs.
+REST API extension router exposing operational telemetry: search provider quotas, browser compute, and sandbox workloads.
 """
 
 from __future__ import annotations
@@ -120,6 +121,7 @@ async def get_browser_runtime_summary(
         ) from exc
 
 
+@router.post("/browser-runtime")
 @router.post("/browser-runtime/record")
 async def record_browser_runtime(
     req: BrowserRuntimeRecordRequest,
@@ -142,6 +144,7 @@ async def record_browser_runtime(
         raise internal_error("Failed to record browser runtime", exception=exc) from exc
 
 
+@router.post("/sandbox-workload")
 @router.post("/sandbox-workload/record")
 async def record_sandbox_workload(
     req: SandboxWorkloadRecordRequest,
