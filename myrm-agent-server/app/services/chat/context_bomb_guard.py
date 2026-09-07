@@ -5,7 +5,7 @@ to POSIX-isolated sandbox workspace files (.myrm/spillover/payload_<sha256>.md),
 and transparently injects structured file references into the agent prompt context.
 
 [INPUT]
-- app.schemas.custom_types: MultimodalQuery (str | list[dict[str, object]])
+- app.services.agent.params.models::MultimodalQuery (POS: agent query payload type)
 - pathlib.Path, hashlib, time
 
 [OUTPUT]
@@ -25,7 +25,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from app.schemas.custom_types import MultimodalQuery
+from app.services.agent.params.models import MultimodalQuery
 
 logger = logging.getLogger(__name__)
 
