@@ -16,7 +16,7 @@ from tests.support.minimal_app import build_minimal_app
 @pytest.mark.asyncio
 async def test_a2a_peer_crud_and_masking() -> None:
     """Test full CRUD lifecycle of A2A peer with token encryption and masking."""
-    app = build_minimal_app(router_keys=["a2a"])
+    app = build_minimal_app("a2a")
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Create peer
@@ -84,7 +84,7 @@ async def test_a2a_peer_probe_success() -> None:
         skills=[],
     )
 
-    app = build_minimal_app(router_keys=["a2a"])
+    app = build_minimal_app("a2a")
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         with patch("myrm_agent_harness.toolkits.a2a.resolver.A2ACardResolver.resolve", new_callable=AsyncMock) as mock_resolve:
@@ -106,7 +106,7 @@ async def test_a2a_peer_probe_success() -> None:
 @pytest.mark.asyncio
 async def test_a2a_peer_probe_ssrf_blocked() -> None:
     """Test A2A probe endpoint blocks SSRF attacks."""
-    app = build_minimal_app(router_keys=["a2a"])
+    app = build_minimal_app("a2a")
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         with patch("myrm_agent_harness.toolkits.a2a.resolver.A2ACardResolver.resolve", new_callable=AsyncMock) as mock_resolve:

@@ -282,23 +282,11 @@ def test_memory_citations_evidence_button_opens_unified_sheet() -> None:
 
 
 _NAVIGATE_RECALL_TAB_AND_VERIFY_EXTERNAL_SYNC_CARD_JS = """(() => {
-  const text = document.body?.innerText || '';
-  const buttons = Array.from(document.querySelectorAll('button'));
-  const recallTabBtn = buttons.find(
-    (btn) => /会话召回|Conversation Recall|召回|Recall/i.test(btn.textContent || '')
-  );
-  if (!recallTabBtn) {
-    return { ready: false, err: 'recall-tab-not-found', buttons: buttons.map(b => b.textContent?.trim()).slice(0, 15) };
-  }
-
-  // Click the recall tab if not active
-  recallTabBtn.click();
-
-  // Re-read buttons and text after tab switch
   const currentText = document.body?.innerText || '';
   const currentButtons = Array.from(document.querySelectorAll('button'));
 
-  // Check if ExternalHarnessSyncCard is rendered
+  // Check if ExternalHarnessSyncCard is ALREADY rendered
+  // Title key memory.externalHarness.title or button keys
   const hasCardTitle = /外部 Agent 会话召回|External Agent Recall|External Agent Transcript Recall|External Harness/i.test(currentText);
   const hasSyncNowBtn = currentButtons.some(
     (btn) => /立即增量同步|立即同步|Sync Now|增量同步/i.test(btn.textContent || '')
@@ -307,8 +295,37 @@ _NAVIGATE_RECALL_TAB_AND_VERIFY_EXTERNAL_SYNC_CARD_JS = """(() => {
     (btn) => /选择本地目录|Pick Directory|Pick Local Folder|选择目录/i.test(btn.textContent || '')
   );
 
+  // If card is rendered (either title or both buttons present)
+  if ((hasCardTitle || hasPickDirBtn) && hasSyncNowBtn) {
+    return {
+      ready: true,
+      hasCardTitle,
+      hasSyncNowBtn,
+      hasPickDirBtn,
+      bodySnippet: currentText.slice(0, 500),
+    };
+  }
+
+  // Find recall tab button
+  const recallTabBtn = currentButtons.find(
+    (btn) => /会话召回|Conversation Recall|召回|Recall/i.test(btn.textContent || '')
+  );
+  if (!recallTabBtn) {
+    return { ready: false, err: 'recall-tab-not-found', buttons: currentButtons.map(b => b.textContent?.trim()).slice(0, 15) };
+  }
+
+  // Debounced click the recall tab if not active
+  const now = Date.now();
+  const lastClick = Number(recallTabBtn.dataset.lastClickTime || '0');
+  if (now - lastClick > 3000) {
+    recallTabBtn.dataset.lastClickTime = String(now);
+    recallTabBtn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    recallTabBtn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    recallTabBtn.click();
+  }
+
   return {
-    ready: hasCardTitle && hasSyncNowBtn,
+    ready: false,
     hasCardTitle,
     hasSyncNowBtn,
     hasPickDirBtn,
