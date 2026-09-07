@@ -110,9 +110,9 @@ _AFTER_RECHECK_STATE_JS = """(() => {
 })()"""
 
 
-# PRIVATE: workspace harness/server fingerprint often drifts from shared :8080 while
-# this card depends on capture_ready / probe_capture — SHARED would epoch-skip.
-@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="READ", workload="STANDARD")
+# SHARED+READ: settings card only; do not PRIVATE (profile SSOT: no exclusive write).
+# When workspace harness drifts, heal shared :8080 with zero leases — do not epoch-skip forever.
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_chrome_ui_desktop_permissions_card_recheck_probes_capture() -> None:
