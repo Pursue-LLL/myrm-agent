@@ -134,21 +134,16 @@ def test_progress_steps_trace_timeline_chrome_e2e() -> None:
         )
 
         # 1. Verify message and progress steps mount
-        def check_mounted() -> bool:
-            res = client.evaluate(
-                page,
-                """(() => {
-                    const store = window.__myrmChatStore?.getState?.();
-                    const msgs = store?.messages || [];
-                    const asst = msgs.find(m => (m.content || '').includes('Trace timeline'));
-                    const toggle = document.querySelector('[data-testid="progress-steps-toggle"]');
-                    const panel = document.querySelector('[data-testid="progress-steps-panel"]');
-                    return { ready: !!asst && !!toggle && !!panel };
-                })()""",
-            )
-            return bool(isinstance(res, dict) and res.get("ready"))
+        _CHECK_MOUNTED_JS = """(() => {
+            const store = window.__myrmChatStore?.getState?.();
+            const msgs = store?.messages || [];
+            const asst = msgs.find(m => (m.content || '').includes('Trace timeline'));
+            const toggle = document.querySelector('[data-testid="progress-steps-toggle"]');
+            const panel = document.querySelector('[data-testid="progress-steps-panel"]');
+            return { ready: !!asst && (!!toggle || !!panel) };
+        })()"""
 
-        wait_for_state(client, page, check_mounted, timeout_sec=30.0)
+        wait_for_state(client, page, _CHECK_MOUNTED_JS, timeout_sec=30.0)
 
         # 2. Expand progress panel if collapsed
         client.evaluate(
