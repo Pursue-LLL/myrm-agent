@@ -15982,6 +15982,11 @@
           },
           "metricDeltas": "實測指標變化",
           "unpredictedRegressions": "未預期退化警告"
+        },
+        "securityScan": {
+          "title": "技能安全靜態掃描體檢詳情 ({count} 項發現)",
+          "score": "安全評分：{score}/100",
+          "line": "第 {line} 行"
         }
       },
       "upload": {

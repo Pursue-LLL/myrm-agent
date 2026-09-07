@@ -16180,6 +16180,11 @@
           },
           "metricDeltas": "관측된 지표 변화",
           "unpredictedRegressions": "예상치 못한 성능 저하 경고"
+        },
+        "securityScan": {
+          "title": "스킬 보안 정적 검사 세부 정보 ({count}개 발견)",
+          "score": "보안 점수: {score}/100",
+          "line": "{line}번째 줄"
         }
       },
       "draft": {

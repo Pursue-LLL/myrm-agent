@@ -110,14 +110,9 @@ def _seed_progress_steps_fixture(api_base: str) -> dict[str, object]:
     return {"chat_id": chat_id, "steps_count": len(steps)}
 
 
-@pytest.mark.chrome_e2e(
-    execution_mode="PRIVATE",
-    access_scope="NAMESPACE_WRITE",
-    workload="LIVE",
-    private_reason="live_shpoib",
-)
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
 @pytest.mark.integration
-@pytest.mark.timeout(300)
+@pytest.mark.timeout(180)
 def test_progress_steps_trace_timeline_chrome_e2e() -> None:
     api_base = get_e2e_api_url()
     ui_base = get_e2e_ui_url()
@@ -127,7 +122,7 @@ def test_progress_steps_trace_timeline_chrome_e2e() -> None:
     target_url = f"{ui_base}/{chat_id}"
 
     prepare_e2e_ui_session(api_base)
-    warm_ui_route(f"/{chat_id}")
+    warm_ui_route(f"/?chatId={chat_id}")
 
     with open_mcp_page(target_url, timeout_ms=_PAGE_TIMEOUT_MS) as (client, page):
         dismiss_blocking_modals(client, page)

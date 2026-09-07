@@ -16180,6 +16180,11 @@
           },
           "metricDeltas": "Beobachtete Metrikänderungen",
           "unpredictedRegressions": "Unerwartete Regressionen"
+        },
+        "securityScan": {
+          "title": "Sicherheits-Inspektionsdetails ({count} Befunde)",
+          "score": "Sicherheitsbewertung: {score}/100",
+          "line": "Zeile {line}"
         }
       },
       "draft": {

@@ -63,7 +63,13 @@
     ".next-isolated-chrome-test_fast_search_web_search_citations_li-f65262c4-57101-53465087/types/**/*.ts",
     ".next-isolated-chrome-test_fast_search_web_search_citations_li-f65262c4-57101-53465087/dev/types/**/*.ts",
     ".next-isolated-chrome-test_progress_steps_trace_timeline_chrom-b3de5d6e-69378-49c6a649/types/**/*.ts",
-    ".next-isolated-chrome-test_progress_steps_trace_timeline_chrom-b3de5d6e-69378-49c6a649/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_progress_steps_trace_timeline_chrom-b3de5d6e-69378-49c6a649/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_progress_steps_trace_timeline_chrom-b3de5d6e-75776-a404a620/types/**/*.ts",
+    ".next-isolated-chrome-test_progress_steps_trace_timeline_chrom-b3de5d6e-75776-a404a620/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_a2a_chat_live_delegation_chrome_e2e-52846b09-74992-ddc8efbf/types/**/*.ts",
+    ".next-isolated-chrome-test_a2a_chat_live_delegation_chrome_e2e-52846b09-74992-ddc8efbf/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_memory_citations_evidence_button_op-ff251843-2907-59a39488/types/**/*.ts",
+    ".next-isolated-chrome-test_memory_citations_evidence_button_op-ff251843-2907-59a39488/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
