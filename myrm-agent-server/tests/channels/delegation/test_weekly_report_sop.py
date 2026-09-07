@@ -1,7 +1,13 @@
-"""Unit tests for Three Value Chains Trajectory Aggregator and Weekly Report SOP Service."""
+"""Unit and regression tests for TrajectoryAggregator and WeeklyReportSOPService.
+
+Validates:
+1. Multi-source task classification and metric aggregation.
+2. Executive-ready Markdown weekly report rendering and completion rate calculations.
+3. Chat-to-Knowledge Wiki decision archiving and directory structure creation.
+"""
 
 import time
-import pytest
+from pathlib import Path
 
 from app.channels.delegation.delegation_models import (
     DelegationStatus,
@@ -9,152 +15,166 @@ from app.channels.delegation.delegation_models import (
     DeliveryArtifact,
 )
 from app.channels.delegation.trajectory_aggregator import (
+    GroupDecisionItem,
     TrajectoryAggregator,
-    ValueChainType,
+    TrajectoryCategory,
 )
 from app.channels.delegation.weekly_report_sop import (
     WeeklyReportSOPService,
 )
 
 
-def test_trajectory_aggregator_empty() -> None:
-    """Test aggregation with no tasks or decisions."""
-    now = time.time()
-    trajectory = TrajectoryAggregator.aggregate(
-        user_id="user_test_123",
-        tasks=[],
-        channel_decisions=[],
-        time_window_start=now - 3600,
-        time_window_end=now,
-    )
+def test_trajectory_task_classification() -> None:
+    aggregator = TrajectoryAggregator()
 
-    assert trajectory.user_id == "user_test_123"
-    assert trajectory.total_tasks_executed == 0
-    assert trajectory.total_artifacts_produced == 0
-    assert len(trajectory.production_items) == 0
-    assert len(trajectory.business_items) == 0
-    assert len(trajectory.management_items) == 0
-
-
-def test_trajectory_aggregator_with_tasks_and_artifacts() -> None:
-    """Test multi-chain trajectory extraction from completed/failed tasks and artifacts."""
-    now = time.time()
-    task_success = DelegationTask(
-        task_id="tsk_succ_001",
+    t_bug = DelegationTask(
+        task_id="t1",
         origin_channel="feishu",
-        origin_user_id="user_test_123",
-        origin_chat_id="chat_001",
-        raw_prompt="重构数据模型并导出 SQL",
-        normalized_prompt="重构数据模型并导出 SQL",
+        origin_user_id="u1",
+        origin_session_id="s1",
+        user_prompt="修复生产环境支付回调 500 报错",
         status=DelegationStatus.COMPLETED,
-        created_at=now - 1000,
-        completed_at=now - 500,
-        result_summary="成功重构完成并通过全量单测",
-        artifacts=[
-            DeliveryArtifact(
-                file_name="schema_v2.sql",
-                file_path="/sandbox/output/schema_v2.sql",
-                file_size_bytes=2048,
-                sha256_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                created_at=now - 500,
-            )
-        ],
     )
+    assert aggregator.classify_task_category(t_bug) == TrajectoryCategory.BUGFIX
 
-    task_failed = DelegationTask(
-        task_id="tsk_fail_002",
-        origin_channel="discord",
-        origin_user_id="user_test_123",
-        origin_chat_id="chat_002",
-        raw_prompt="部署测试集群",
-        normalized_prompt="部署测试集群",
-        status=DelegationStatus.FAILED,
-        created_at=now - 2000,
-        completed_at=now - 1800,
-        error_message="网络连接超时，上游镜像源不可达",
+    t_deploy = DelegationTask(
+        task_id="t2",
+        origin_channel="wechat",
+        origin_user_id="u1",
+        origin_session_id="s2",
+        user_prompt="一键部署 Docker 容器到预发集群",
+        status=DelegationStatus.COMPLETED,
     )
+    assert aggregator.classify_task_category(t_deploy) == TrajectoryCategory.DEPLOYMENT
 
-    decisions = [
-        {
-            "topic": "统一接入 OAuth2.0 鉴权",
-            "detail": "架构团队一致通过使用 PKCE 模式替代隐式授权",
-            "channel": "feishu_arch_group",
-            "timestamp": str(now - 1200),
-        }
-    ]
-
-    trajectory = TrajectoryAggregator.aggregate(
-        user_id="user_test_123",
-        tasks=[task_success, task_failed],
-        channel_decisions=decisions,
-        time_window_start=now - 86400,
-        time_window_end=now,
+    t_dev = DelegationTask(
+        task_id="t3",
+        origin_channel="webui",
+        origin_user_id="u1",
+        origin_session_id="s3",
+        user_prompt="实现基于 Trajectory 的周报自动生成模块",
+        status=DelegationStatus.COMPLETED,
     )
-
-    assert trajectory.total_tasks_executed == 2
-    assert trajectory.total_artifacts_produced == 1
-    assert len(trajectory.production_items) == 2  # 1 task + 1 artifact
-    assert len(trajectory.management_items) == 1  # 1 risk (failed task)
-    assert len(trajectory.business_items) == 1  # 1 channel decision
-
-    # Verify chain types
-    assert trajectory.production_items[0].chain_type == ValueChainType.PRODUCTION
-    assert trajectory.management_items[0].chain_type == ValueChainType.MANAGEMENT
-    assert trajectory.business_items[0].chain_type == ValueChainType.BUSINESS
+    assert aggregator.classify_task_category(t_dev) == TrajectoryCategory.DEVELOPMENT
 
 
-def test_weekly_report_sop_service_generation() -> None:
-    """Test full SOP markdown report generation and Feishu card rendering."""
+def test_trajectory_aggregation_metrics() -> None:
+    aggregator = TrajectoryAggregator()
     now = time.time()
-    task_success = DelegationTask(
-        task_id="tsk_001",
+
+    art1 = DeliveryArtifact(file_name="report.pdf", file_path="/tmp/report.pdf", file_size_bytes=20480)
+    art2 = DeliveryArtifact(file_name="patch.diff", file_path="/tmp/patch.diff", file_size_bytes=4096)
+
+    t1 = DelegationTask(
+        task_id="task_1",
         origin_channel="feishu",
-        origin_user_id="user_alpha",
-        origin_chat_id="chat_alpha",
-        raw_prompt="优化搜索引擎向量召回",
-        normalized_prompt="优化搜索引擎向量召回",
+        origin_user_id="alice",
+        origin_session_id="s1",
+        user_prompt="优化数据库索引",
         status=DelegationStatus.COMPLETED,
-        created_at=now - 3600,
-        completed_at=now - 1800,
-        result_summary="召回率提升 15%，延迟下降至 12ms",
-        artifacts=[
-            DeliveryArtifact(
-                file_name="benchmark_report.pdf",
-                file_path="/output/benchmark_report.pdf",
-                file_size_bytes=1048576,
-                sha256_hash="abc12345def67890",
-                created_at=now - 1800,
-            )
-        ],
+        started_at=now - 100,
+        completed_at=now - 10,
+        result_summary="QPS 提升 40%",
+        artifacts=[art1],
     )
 
-    trajectory = TrajectoryAggregator.aggregate(
-        user_id="user_alpha",
-        tasks=[task_success],
-        channel_decisions=[
-            {
-                "topic": "确定 Q4 研发基准版本",
-                "detail": "锁定 Python 3.13 与 Next.js 15 为主线版本",
-                "channel": "dingtalk",
-                "timestamp": str(now - 2000),
-            }
-        ],
-        time_window_start=now - 86400 * 7,
-        time_window_end=now,
+    t2 = DelegationTask(
+        task_id="task_2",
+        origin_channel="feishu",
+        origin_user_id="alice",
+        origin_session_id="s2",
+        user_prompt="重构前端组件库",
+        status=DelegationStatus.RUNNING,
+        started_at=now - 50,
     )
 
-    report = WeeklyReportSOPService.generate_report(trajectory)
+    t3 = DelegationTask(
+        task_id="task_3",
+        origin_channel="feishu",
+        origin_user_id="bob",  # Other user
+        origin_session_id="s3",
+        user_prompt="配置 CI 流水线",
+        status=DelegationStatus.COMPLETED,
+        artifacts=[art2],
+    )
 
-    assert report.total_tasks_completed == 1
-    assert report.total_artifacts_produced == 1
-    assert report.total_risks_identified == 0
-    assert "一、 🚀 本周核心产出与交付（生产链）" in report.markdown_content
-    assert "优化搜索引擎向量召回" in report.markdown_content
-    assert "benchmark_report.pdf" in report.markdown_content
-    assert "确定 Q4 研发基准版本" in report.markdown_content
+    decision = GroupDecisionItem(
+        decision_id="dec_1",
+        topic="API 鉴权方案选型",
+        summary="采用 JWT + Redis 白名单机制",
+        decision_maker="alice",
+        channel_id="tech_chat_01",
+        timestamp=now - 20,
+        tags=["security", "auth"],
+    )
 
-    # Test Feishu Card rendering
-    card = WeeklyReportSOPService.render_feishu_card(report)
-    assert card["header"]["template"] == "blue"
-    assert len(card["elements"]) >= 3
-    assert "周报周期" in card["elements"][0]["text"]["content"]
+    traj = aggregator.aggregate_from_tasks(
+        [t1, t2, t3],
+        user_id="alice",
+        start_time=now - 200,
+        end_time=now,
+        decisions=[decision],
+    )
+
+    assert len(traj.completed_items) == 1
+    assert len(traj.in_progress_items) == 1
+    assert len(traj.failed_items) == 0
+    assert len(traj.artifacts) == 1
+    assert len(traj.decisions) == 1
+    assert traj.total_tasks_count == 2
+    assert traj.completion_rate == 0.5
+
+
+def test_weekly_report_sop_rendering(tmp_path: Path) -> None:
+    sop = WeeklyReportSOPService(wiki_root_dir=tmp_path)
+    now = time.time()
+
+    art = DeliveryArtifact(file_name="deploy.sh", file_path="/tmp/deploy.sh", file_size_bytes=1024)
+    t = DelegationTask(
+        task_id="t1",
+        origin_channel="feishu",
+        origin_user_id="u1",
+        origin_session_id="s1",
+        user_prompt="构建跨渠道周报服务",
+        status=DelegationStatus.COMPLETED,
+        started_at=now - 30,
+        completed_at=now,
+        result_summary="已完成全链路测试并通过验收",
+        artifacts=[art],
+    )
+
+    aggregator = TrajectoryAggregator()
+    traj = aggregator.aggregate_from_tasks([t], user_id="u1", start_time=now - 100, end_time=now)
+
+    payload = sop.render_weekly_report(traj, user_display_name="张工")
+
+    assert payload.total_tasks_completed == 1
+    assert payload.total_artifacts_produced == 1
+    assert payload.completion_rate_percent == 100
+    assert "张工" in payload.markdown_content
+    assert "构建跨渠道周报服务" in payload.markdown_content
+    assert "deploy.sh" in payload.markdown_content
+
+
+def test_chat_decision_archive_to_wiki(tmp_path: Path) -> None:
+    sop = WeeklyReportSOPService(wiki_root_dir=tmp_path)
+
+    decision = GroupDecisionItem(
+        decision_id="d100",
+        topic="支付网关容灾规范",
+        summary="主备通道 100ms 自动探测并切换",
+        decision_maker="李工",
+        channel_id="feishu_group_99",
+        timestamp=time.time(),
+        related_task_ids=["t1", "t2"],
+        tags=["payment", "ha"],
+    )
+
+    res = sop.archive_chat_decision_to_wiki(decision, subfolder="tech_specs")
+    assert res.success is True
+    assert Path(res.file_path).exists()
+
+    file_content = Path(res.file_path).read_text(encoding="utf-8")
+    assert "支付网关容灾规范" in file_content
+    assert "主备通道 100ms 自动探测并切换" in file_content
+    assert "李工" in file_content
