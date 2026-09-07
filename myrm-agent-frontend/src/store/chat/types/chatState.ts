@@ -307,6 +307,9 @@ export interface ChatState {
   // 初始化方法
   loadMessages: (chatId: string) => Promise<void>;
   loadOlderMessages: () => Promise<void>;
+  loadThrough: (targetMessageId: string) => Promise<boolean>;
+  refreshTurnOutlines: () => Promise<void>;
+  setActiveTimelineTurnIndex: (index: number | null) => void;
   initializeChat: (id?: string, options?: { forceReload?: boolean }) => void;
   scheduleAutoSave: () => void;
 

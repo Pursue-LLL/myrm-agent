@@ -232,6 +232,7 @@ if is_local_mode():
         tags=["channels"],
     )
     api_router.include_router(channels_data_plane_router, prefix="/channels/manage", tags=["channels"])
+    api_router.include_router(channels_bitable_copilot_router, tags=["channels"])
     api_router.include_router(channels_topics_router, prefix="/channels/manage", tags=["channels"])
     api_router.include_router(routes_management_router, prefix="/channels/routes", tags=["channels"])
     api_router.include_router(channels_dlq_router, prefix="/channels/dlq", tags=["channels"])

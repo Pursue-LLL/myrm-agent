@@ -15,6 +15,7 @@ import pytest
 from cdp_chat.mcp_ui import McpChatSession
 from cdp_chat.support import (
     EvaluateIntent,
+    ensure_e2e_yolo_mode,
     fetch_provider_readiness_snapshot,
     get_e2e_api_url,
     get_e2e_ui_url,
@@ -33,6 +34,22 @@ _PROMPT = (
     "After the tool returns, reply DONE."
 )
 _REJECT = "Rejected printable operator"
+
+
+def _soft_type_ok(blob: str) -> bool:
+    """True when the model typed instead of key='*' (rules obeyed).
+
+    UI / messages may say ``Desktop Vision`` (space) and JSON ``\"action\": \"type\"``,
+    not the underscore tool id or ``action=type`` form used in API logs.
+    """
+    lowered = blob.lower()
+    if "Vision action 'type' completed" in blob or 'Vision action "type" completed' in blob:
+        return True
+    if "action=type" in lowered:
+        return True
+    type_json = '"action": "type"' in blob or '"action":"type"' in blob
+    vision_hit = "desktop_vision" in lowered or "desktop vision" in lowered
+    return type_json and vision_hit
 
 
 def _messages_blob(api_url: str, chat_id: str) -> str:
@@ -60,12 +77,18 @@ def _trace_blob(api_url: str, chat_id: str) -> str:
 async def test_chrome_ui_operator_as_key_rejected(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    if not wait_e2e_provider_ready(timeout_sec=120.0, poll_interval_sec=2.0):
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+    if not wait_e2e_provider_ready(
+        api_url=api_url, timeout_sec=120.0, poll_interval_sec=2.0
+    ):
         readiness = fetch_provider_readiness_snapshot()
         pytest.fail(f"Provider not ready for chrome e2e: {readiness}")
 
-    api_url = get_e2e_api_url()
-    ui_url = get_e2e_ui_url()
+    # Unattended desktop CU must skip HITL + Security Reviewer (sibling chrome E2E SSOT).
+    ensure_e2e_yolo_mode(api_url=api_url)
+    progress("yolo+allow permissions pinned on private API")
+
     deadline = time.monotonic() + 540.0
 
     # Phase3-D SSOT: open_mcp_page_async returns OpenMcpPageSession (not async CM).
@@ -96,6 +119,11 @@ async def test_chrome_ui_operator_as_key_rejected(
             intent=EvaluateIntent.AGENT_SUBMIT,
         )
         assert isinstance(tools_locked, dict) and tools_locked.get("ok") is True, tools_locked
+
+        # PRIVATE runtime api may settle after page open — reseal YOLO on live API.
+        api_url = get_e2e_api_url()
+        ensure_e2e_yolo_mode(api_url=api_url)
+        progress(f"yolo resealed api={api_url}")
 
         pin = await ensure_desktop_basic_model_pinned_for_send(chat)
         progress(f"model pin: {pin.get('debug')}")
@@ -144,11 +172,7 @@ async def test_chrome_ui_operator_as_key_rejected(
             trace_blob = _trace_blob(api_url, chat_id)
             blob = f"{page_text}\n{msg_blob}\n{trace_blob}"
             hard_ok = _REJECT in blob or "REMEDY_HINT: Printable operators" in blob
-            soft_ok = (
-                "Vision action 'type' completed" in blob
-                or 'Vision action "type" completed' in blob
-                or ("desktop_vision" in blob.lower() and "action=type" in blob.lower())
-            )
+            soft_ok = _soft_type_ok(blob)
             if hard_ok or soft_ok:
                 break
             await asyncio.sleep(2.0)

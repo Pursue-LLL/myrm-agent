@@ -115,6 +115,9 @@ const useChatStore = create<ChatState>()(
       chatId: undefined,
       newChatCreated: false,
       messages: [],
+      turnOutlines: [],
+      turnOutlinesLoading: false,
+      activeTimelineTurnIndex: null,
       compactedSummary: null,
       compactedBeforeId: null,
       contextBranches: [],
@@ -350,6 +353,46 @@ const useChatStore = create<ChatState>()(
       setContextBranchesLoadError: (error) => set({ contextBranchesLoadError: error }),
       setContextPinnedFilesLoadError: (error) => set({ contextPinnedFilesLoadError: error }),
       setCompactedBeforeId: (id) => set({ compactedBeforeId: id }),
+      setTurnOutlines: (outlines) => set({ turnOutlines: outlines }),
+      setTurnOutlinesLoading: (loading) => set({ turnOutlinesLoading: loading }),
+      setActiveTimelineTurnIndex: (turnIndex) => set({ activeTimelineTurnIndex: turnIndex }),
+      loadThroughTurn: async (targetTurnIndex: number) => {
+        const { loadThroughTurn } = await import('./chat/messageManagement');
+        const actions = {
+          setMessages: (updater: (state: ChatState) => void) => set(updater),
+          setLoading: (loading: boolean) => set({ loading }),
+          setMessageAppeared: (appeared: boolean) => set({ messageAppeared: appeared }),
+          setHideAttachList: (hide: boolean) => set({ hideAttachList: hide }),
+          setHasUsedImagesInCurrentChat: (hasUsed: boolean) => set({ hasUsedImagesInCurrentChat: hasUsed }),
+          setSelectedModels: (models: { base: string | null; vision: string | null; reasoning: string | null }) =>
+            set({ selectedModels: models }),
+          setHasUserSelectedModel: (hasSelected: boolean) => set({ hasUserSelectedModel: hasSelected }),
+          clearCurrentSessionMessageId: () => set({ currentSessionMessageId: null }),
+          clearPendingWorkflowTemplate: () => get().clearPendingWorkflowTemplate(),
+          setIsWorkflowMode: (enabled: boolean) => set({ isWorkflowMode: enabled }),
+          _processSuggestions: get()._processSuggestions,
+          scheduleAutoSave: get().scheduleAutoSave,
+          setInputMessage: (message: string) => set({ inputMessage: message }),
+        };
+        await loadThroughTurn(targetTurnIndex, actions);
+      },
+      fetchTurnOutlines: async (chatId?: string) => {
+        const cid = chatId || get().chatId;
+        if (!cid) return;
+        set({ turnOutlinesLoading: true });
+        try {
+          const { getChatOutline } = await import('@/services/chat');
+          const outlines = await getChatOutline(cid);
+          if (get().chatId === cid) {
+            set({ turnOutlines: outlines, turnOutlinesLoading: false });
+          }
+        } catch (e) {
+          console.error('Failed to fetch turn outlines:', e);
+          if (get().chatId === cid) {
+            set({ turnOutlinesLoading: false });
+          }
+        }
+      },
       setWorkspaceDir: (dir) => set({ workspaceDir: dir }),
       setSessionAccessRoots: (roots) => set({ sessionAccessRoots: roots }),
       setChatHistoryItems: (items) => set({ chatHistoryItems: items }),
@@ -755,6 +798,9 @@ const useChatStore = create<ChatState>()(
           mentionReferences: [],
           compactedSummary: null,
           compactedBeforeId: null,
+          turnOutlines: [],
+          turnOutlinesLoading: false,
+          activeTimelineTurnIndex: null,
           contextBranches: [],
           contextPinnedFiles: [],
           contextBranchesLoadError: null,
