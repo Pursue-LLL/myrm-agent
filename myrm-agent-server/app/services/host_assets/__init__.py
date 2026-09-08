@@ -1,44 +1,50 @@
 """Host Assets and Remote SSH/SFTP Management Service package.
 
 [INPUT]
-- .models::AuthType, HostAsset, HostAssetCreate, HostAssetUpdate, SFTPFileEntry, SFTPTransferRequest, SFTPTransferResponse, SSHCommandRequest, SSHCommandResponse
-- .vault::HostAssetVault
-- .ssh_bridge::RemoteSSHOpsBridge
+- .models::HostAssetConfig, HostAuthType, HostConfigImportResult, SFTPReadRequest, SFTPTransferResult, SFTPWriteRequest, SSHCommandRequest, SSHCommandResult
+- .vault::HostAssetVault, parse_ssh_config_text
+- .ssh_bridge::SSHOpsBridge, SSHRemoteExecutionError
 - .sftp_bridge::SFTPBridge
 
 [OUTPUT]
-- AuthType, HostAsset, HostAssetCreate, HostAssetUpdate, HostAssetVault, RemoteSSHOpsBridge, SFTPBridge, SFTPFileEntry, SFTPTransferRequest, SFTPTransferResponse, SSHCommandRequest, SSHCommandResponse
+- HostAssetConfig, HostAuthType, HostConfigImportResult, HostAssetVault, SFTPBridge, SFTPReadRequest, SFTPTransferResult, SFTPWriteRequest, SSHCommandRequest, SSHCommandResult, SSHOpsBridge, SSHRemoteExecutionError, parse_ssh_config_text
 
 [POS]
 Domain service in app/services/host_assets/.
 """
 
 from app.services.host_assets.models import (
-    AuthType,
-    HostAsset,
-    HostAssetCreate,
-    HostAssetUpdate,
-    SFTPFileEntry,
-    SFTPTransferRequest,
-    SFTPTransferResponse,
+    HostAssetConfig,
+    HostAuthType,
+    HostConfigImportResult,
+    SFTPReadRequest,
+    SFTPTransferResult,
+    SFTPWriteRequest,
     SSHCommandRequest,
-    SSHCommandResponse,
+    SSHCommandResult,
 )
 from app.services.host_assets.sftp_bridge import SFTPBridge
-from app.services.host_assets.ssh_bridge import RemoteSSHOpsBridge
-from app.services.host_assets.vault import HostAssetVault
+from app.services.host_assets.ssh_bridge import (
+    SSHOpsBridge,
+    SSHRemoteExecutionError,
+)
+from app.services.host_assets.vault import (
+    HostAssetVault,
+    parse_ssh_config_text,
+)
 
 __all__ = [
-    "AuthType",
-    "HostAsset",
-    "HostAssetCreate",
-    "HostAssetUpdate",
+    "HostAssetConfig",
+    "HostAuthType",
+    "HostConfigImportResult",
     "HostAssetVault",
-    "RemoteSSHOpsBridge",
     "SFTPBridge",
-    "SFTPFileEntry",
-    "SFTPTransferRequest",
-    "SFTPTransferResponse",
+    "SFTPReadRequest",
+    "SFTPTransferResult",
+    "SFTPWriteRequest",
     "SSHCommandRequest",
-    "SSHCommandResponse",
+    "SSHCommandResult",
+    "SSHOpsBridge",
+    "SSHRemoteExecutionError",
+    "parse_ssh_config_text",
 ]

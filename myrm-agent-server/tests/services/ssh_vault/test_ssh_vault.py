@@ -80,11 +80,10 @@ async def test_probe_host_not_found() -> None:
 
 
 @pytest.mark.asyncio
-async def test_probe_host_unreachable() -> None:
+async def test_probe_host_unreachable(monkeypatch: pytest.MonkeyPatch) -> None:
     service = SSHAssetService()
     service.parse_ssh_config(text_content=SAMPLE_SSH_CONFIG)
 
-    # 192.0.2.1 is TEST-NET-1 (RFC 5737), non-routable IP that will quickly time out or fail
     service._hosts_cache["unreachable-test"] = SSHHostConfig(
         host_alias="unreachable-test",
         hostname="192.0.2.1",
@@ -92,5 +91,11 @@ async def test_probe_host_unreachable() -> None:
         user="test",
     )
 
+    def mock_create_connection(*args: object, **kwargs: object) -> None:
+        raise socket.timeout("Timed out")
+
+    monkeypatch.setattr(socket, "create_connection", mock_create_connection)
+
     result = await service.probe_host("unreachable-test", timeout_seconds=0.5)
     assert not result.is_reachable
+    assert result.error_message is not None

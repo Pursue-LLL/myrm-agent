@@ -16,6 +16,8 @@ from app.api.remote_access.schemas import (
     MobileSpawnRequest,
     NodeEventRequest,
     PairingTokenRequest,
+    SSHHostCreateRequest,
+    SSHHostImportRequest,
     TunnelStartRequest,
 )
 from app.config.settings import settings

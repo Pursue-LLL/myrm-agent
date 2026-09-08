@@ -6,8 +6,11 @@ Tests folding raw conversation messages into compact TurnOutlineItem projections
 from __future__ import annotations
 
 import datetime
+import pytest
 
 from app.database.dto import MessageDTO
+
+pytestmark = pytest.mark.unit
 from app.services.chat.turn_outline_service import (
     TurnOutlineProjectionService,
     _sanitize_preview_text,

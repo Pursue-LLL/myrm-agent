@@ -31,7 +31,7 @@ def test_build_outline_from_messages_multi_turn() -> None:
             id="msg_u1",
             chat_id="chat_1",
             role="user",
-            content="Please write a Python script for calculating fibonacci numbers.",
+            content="Please write a fibonacci script in Python.",
             created_at=now,
             sent_at=now,
             sent_timezone="UTC",

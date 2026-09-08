@@ -19,6 +19,7 @@
 | `mobile_deep_link.py` | 核心 | Channel → 前端 deep link 构建：`/mobile/status` (HITL) + `/{chatId}` (WebUI 续聊) | ✅ |
 | `tool_policy.py` | 核心 | 远程暴露时 harness `SecurityConfig.remote_exposed()` deny overlay | ✅ |
 | `pairing.py` | 核心 | HMAC 签名 token；`mobile_hub_list`（Hub 列表）、`mobile_hub`（scoped 控制）、`browser_takeover`（takeover 最小权限）；改密时 `rotate_pairing_key` | ✅ |
+| `host_depot.py` | 核心 | SSH 加密主机资产管理仓储，支持 `~/.ssh/config` 一键解析导入与安全凭证加密落盘 | ✅ |
 | `e2ee/` | 子包 | Mobile remote E2EE：crypto / keystore / session / response / sse（见 `e2ee/_ARCH.md`） | ✅ |
 | `tunnel_manager.py` | 核心 | cloudflared quick tunnel 子进程 + 5s watchdog + shutdown hook | ✅ |
 

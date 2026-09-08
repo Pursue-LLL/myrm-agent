@@ -9,7 +9,6 @@ import pytest
 
 from app.services.remote_access.host_models import (
     RemoteHostConfig,
-    SSHCommandExecutionResult,
     parse_ssh_config_text,
 )
 from app.services.remote_access.ssh_client_service import SSHRemoteClientService

@@ -65,9 +65,9 @@ describe('TurnTimelineRail', () => {
   });
 
   it('triggers loadThrough when clicking an unloaded turn', async () => {
-    const loadThroughMock = vi.fn().mockResolvedValue(true);
+    const loadThroughTurnMock = vi.fn().mockResolvedValue(undefined);
     useChatStore.setState({
-      loadThrough: loadThroughMock,
+      loadThroughTurn: loadThroughTurnMock,
     });
 
     render(<TurnTimelineRail />);
@@ -75,6 +75,6 @@ describe('TurnTimelineRail', () => {
 
     // Turn 1 is not in messages
     fireEvent.click(dots[0]);
-    expect(loadThroughMock).toHaveBeenCalledWith('msg-u-1');
+    expect(loadThroughTurnMock).toHaveBeenCalledWith(1);
   });
 });
