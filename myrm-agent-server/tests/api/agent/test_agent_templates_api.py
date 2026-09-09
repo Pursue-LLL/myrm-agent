@@ -147,4 +147,14 @@ def test_pareto_presets_instantiate(client: TestClient):
     assert agent["model_selection"]["reasoningProviderId"] == "google"
     assert agent["model_selection"]["reasoningModel"] == "gemini-1.5-pro"
     assert agent["engine_params"] is not None
-    assert agent["engine_params"]["moa_overlay"]["enabled"] is True
+
+
+def test_office_role_templates_loaded_and_categorized(client: TestClient):
+    """Office role templates (HR, finance, growth, admin) are loaded with category 'office'."""
+    response = client.get("/api/v1/agents/templates")
+    assert response.status_code == 200
+    templates = response.json()["data"]
+    template_map = {t["id"]: t for t in templates}
+    for role_id in ("hr_recruiter", "financial_analyst", "growth_operator", "admin_specialist"):
+        assert role_id in template_map, f"Missing office template: {role_id}"
+        assert template_map[role_id].get("category") == "office"

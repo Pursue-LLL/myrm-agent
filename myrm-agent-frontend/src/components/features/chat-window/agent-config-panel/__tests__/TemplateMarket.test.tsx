@@ -183,7 +183,7 @@ describe('TemplateMarket', () => {
     expect(await screen.findByText('HR Recruiter')).toBeInTheDocument();
     expect(screen.getByText('Code Craftsman')).toBeInTheDocument();
 
-    const officeTab = screen.getByRole('tab', { name: 'categoryOffice' });
+    const officeTab = screen.getByRole('button', { name: 'categoryOffice' });
     fireEvent.click(officeTab);
 
     expect(await screen.findByText('HR Recruiter')).toBeInTheDocument();

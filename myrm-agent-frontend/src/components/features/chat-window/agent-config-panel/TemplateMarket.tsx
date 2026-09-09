@@ -60,6 +60,7 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
   const [loading, setLoading] = useState(true);
   const [instantiatingId, setInstantiatingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const hasReportedSurfaceViewRef = useRef(false);
   const hasReportedSearchUseRef = useRef(false);
   const router = useRouter();
@@ -144,9 +145,27 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
     }
   };
 
+  const categories = useMemo(() => {
+    const list: { id: string; label: string }[] = [
+      { id: 'all', label: t('categoryAll') || '全部' },
+      { id: 'office', label: t('categoryOffice') || '职场办公' },
+      { id: 'engineering', label: t('categoryEngineering') || '技术研发' },
+      { id: 'team', label: t('categoryTeam') || '协同团队' },
+    ];
+    return list;
+  }, [t]);
+
   const filteredTemplates = useMemo(() => {
-    return templates.filter((template) => templateMatchesSearchQuery(template, searchQuery));
-  }, [searchQuery, templates]);
+    return templates.filter((template) => {
+      if (selectedCategory !== 'all') {
+        const cat = template.category || (template.agent_type === 'team' ? 'team' : 'general');
+        if (cat !== selectedCategory) {
+          return false;
+        }
+      }
+      return templateMatchesSearchQuery(template, searchQuery);
+    });
+  }, [searchQuery, selectedCategory, templates]);
 
   if (loading) {
     return (
@@ -184,6 +203,42 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
           placeholder={t('searchMarketplace') || 'Search agents...'}
           className="h-8 w-full rounded-lg border border-border/60 bg-background pl-7 pr-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/40"
         />
+      </div>
+
+      <div className="flex items-center gap-1.5 px-1 overflow-x-auto no-scrollbar py-0.5">
+        {categories.map((cat) => (
+          <button
+            key={cat.id}
+            type="button"
+            onClick={() => setSelectedCategory(cat.id)}
+            className={cn(
+              'px-2.5 py-1 text-xs rounded-lg transition-colors whitespace-nowrap cursor-pointer',
+              selectedCategory === cat.id
+                ? 'bg-primary text-primary-foreground font-medium shadow-xs'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground',
+            )}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-1.5 px-1 overflow-x-auto no-scrollbar py-0.5">
+        {categories.map((cat) => (
+          <button
+            key={cat.id}
+            type="button"
+            onClick={() => setSelectedCategory(cat.id)}
+            className={cn(
+              'px-2 py-1 rounded-md text-[11px] font-medium transition-colors shrink-0',
+              selectedCategory === cat.id
+                ? 'bg-primary/10 text-primary border border-primary/20'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent',
+            )}
+          >
+            {cat.label}
+          </button>
+        ))}
       </div>
 
       {filteredTemplates.length === 0 && (

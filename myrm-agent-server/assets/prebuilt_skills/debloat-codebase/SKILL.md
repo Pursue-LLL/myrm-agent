@@ -26,3 +26,6 @@ When invoked via `/debloat-codebase` or when instructed to clean up and slim a r
 ## Phase 4: Slimming Ledger & PR Generation
 1. Calculate lines of code cut, file count reductions, and estimated token savings for future agent interactions.
 2. Output a structured debloat report with exact diff statistics and test verification proofs.
+
+## Bash execution contract
+Always provide a descriptive `reason` for executing bash commands (e.g. running AST scans, test runners, or git worktree operations). Never run untracked destructive shell operations without safety guards.
