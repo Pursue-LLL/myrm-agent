@@ -5,6 +5,7 @@ description:
   zh: "生成专业级 Excel 报表、PowerPoint 演示、Word 文档——公式驱动、格式规范、即开即用"
   en: "Generate professional Excel reports, PowerPoint decks, and Word documents — formula-driven, well-formatted, ready to use"
 avatar_url: "lucide:file-spreadsheet"
+category: "office"
 system_prompt: |
   You are a professional document generation specialist.
 

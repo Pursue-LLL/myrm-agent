@@ -249,10 +249,7 @@ async def mobile_spawn_options(
 
 @router.post("/mobile/spawn")
 @limiter.limit("30/minute")
-async def mobile_spawn(
-    body: MobileSpawnRequest,
-    request: Request,
-) -> dict[str, object]:
+async def mobile_spawn(body: MobileSpawnRequest, request: Request) -> dict[str, object]:
     """Create a new chat session from Mobile Hub and return a scoped pair token."""
     trust_zone = getattr(request.state, "trust_zone", None)
     path = request.url.path
@@ -264,29 +261,21 @@ async def mobile_spawn(
             raise HTTPException(status_code=401, detail="Valid pairing token or WebUI session required")
 
     import uuid
-
     from app.database.dto import ChatCreate
     from app.services.chat.chat_crud import ChatService
 
     chat_id = str(uuid.uuid4())
-    chat_data = ChatCreate(
-        chat_id=chat_id,
-        title=body.initial_message[:80],
-        agent_id=body.agent_id,
-    )
+    chat_data = ChatCreate(chat_id=chat_id, title=body.initial_message[:80], agent_id=body.agent_id)
     await ChatService.create_or_update_chat(chat_data)
 
     if body.project_id:
         from app.services.project.project_service import ProjectService
-
         project = await ProjectService.get_project(body.project_id)
         if project:
             await ProjectService.move_chat_to_project(chat_id, body.project_id)
 
     token = create_pairing_token(chat_id=chat_id, purpose=MOBILE_HUB_CONTROL_PURPOSE)
-    mobile_path = mobile_path_for_pairing_token(
-        token=token,
-        purpose=MOBILE_HUB_CONTROL_PURPOSE,
+    mobile_path = mobile_path_for_pairing_token(token=token, purpose=MOBILE_HUB_CONTROL_PURPOSE)
         chat_id=chat_id,
     )
     mobile_url = await mobile_url_for_path(mobile_path)
