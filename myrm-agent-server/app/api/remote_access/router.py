@@ -18,6 +18,7 @@ from app.api.remote_access.schemas import (
     PairingTokenRequest,
     TunnelStartRequest,
 )
+from app.api.remote_access.ssh_routes import router as ssh_router
 from app.config.settings import settings
 from app.core.infra.limiter import limiter
 from app.core.utils.response_utils import success_response
@@ -399,8 +400,6 @@ async def receive_node_event(body: NodeEventRequest, request: Request) -> dict[s
 
     return success_response(data={"triggered": triggered})
 
-
-from app.api.remote_access.ssh_routes import router as ssh_router
 
 router.include_router(ssh_router)
 

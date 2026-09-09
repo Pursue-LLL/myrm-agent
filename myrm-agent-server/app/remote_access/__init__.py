@@ -5,6 +5,10 @@ Package exports for remote access trust zone, pairing, and tunnel helpers.
 """
 
 from app.remote_access.pairing import create_pairing_token, parse_pairing_token
+from app.remote_access.tailscale_service import (
+    TailscaleNodeInfo,
+    probe_tailscale_status,
+)
 from app.remote_access.tool_policy import merge_remote_security_overlay
 from app.remote_access.trust_zone import (
     AdmissionPath,
@@ -13,10 +17,6 @@ from app.remote_access.trust_zone import (
     is_local_trusted_admission,
     is_public_host,
     resolve_admission_path,
-)
-from app.remote_access.tailscale_service import (
-    TailscaleNodeInfo,
-    probe_tailscale_status,
 )
 from app.remote_access.tunnel_manager import TunnelState, TunnelStatus, get_tunnel_manager
 

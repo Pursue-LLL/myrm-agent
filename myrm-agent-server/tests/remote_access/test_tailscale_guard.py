@@ -6,14 +6,11 @@ import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 
 from app.core.security.auth.identity import (
     is_tailscale_ip,
     resolve_identity,
-    resolve_identity_from_http_scope,
 )
-from app.main import app
 from app.middleware.host_allowlist import build_allowed_hosts, is_allowed_host
 from app.remote_access.tailscale_service import (
     TailscaleNodeInfo,

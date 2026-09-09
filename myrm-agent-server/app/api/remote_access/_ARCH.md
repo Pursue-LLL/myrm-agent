@@ -8,11 +8,15 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 | --- | --- | --- | --- |
-| `router.py` | 路由 | `/api/v1/remote-access/*` REST 端点 | ✅ |
+| `router.py` | 路由 | `/api/v1/remote-access/*` REST 核心端点与子路由挂载 | ✅ |
+| `ssh_routes.py` | 路由 | `/api/v1/remote-access/hosts/*` SSH 主机资产管理端点 | ✅ |
+| `schemas.py` | 契约 | 远程访问与主机资产管理 Pydantic 数据模型 | ✅ |
 
 ## 端点
 
+- `GET /tailscale/status` — Tailscale 守护进程探测、IP、MagicDNS 域名与一键配置状态
 - `GET|POST /tunnel/*` — tunnel 状态与生命周期
+- `GET|POST|DELETE /hosts/*` — SSH 加密主机资产记录维护与导入（由 `ssh_routes.py` 处理）
 - `GET /e2ee/public-key` — daemon 公钥（QR URL fragment `#e2ee=`）
 - `POST /e2ee/handshake` — `e2ee_hello` → `e2ee_ready` + sessionId（30/min 限流）
 - `POST /pairing-token` — WebUI session 签发 Hub list token；list pair upgrade **活跃** scoped token；支持 `browser_takeover` purpose 并返回 `mobilePath/mobileUrl`
