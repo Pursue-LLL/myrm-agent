@@ -17564,7 +17564,7 @@
           "statusActive": "Tailnet に接続済み",
           "statusInactive": "Tailscale が実行されていないか、未接続です",
           "statusNotInstalled": "Tailscale クライアントが検出されません",
-          "ipLabel": "Tailscale IP",
+          "ipLabel": "Tailscale IP アドレス",
           "magicDnsLabel": "MagicDNS ドメイン",
           "nodeLabel": "ノード名",
           "userLabel": "認証済みユーザー",

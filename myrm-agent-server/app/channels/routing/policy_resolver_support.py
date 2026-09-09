@@ -14,8 +14,9 @@ Extracted helpers for PolicyResolver to keep the resolver module under line budg
 
 from __future__ import annotations
 
+import logging
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from app.channels.protocols.pairing import (
@@ -23,8 +24,11 @@ if TYPE_CHECKING:
         DmPolicy,
         GroupPolicy,
         GroupTriggerMode,
+        PairingStore,
     )
     from app.channels.types import InboundMessage
+
+logger = logging.getLogger(__name__)
 
 PENDING_REPLY_COOLDOWN = 300.0
 PENDING_REPLY_MAX_SIZE = 10000
@@ -151,4 +155,51 @@ async def check_guest_mention_allowed(
         return False
     meta = msg.metadata or {}
     return meta.get(METADATA_EXPLICIT_MENTION_KEY) == "1"
+
+
+async def resolve_lid_fallback_helper(
+    pairing: PairingStore,
+    policy_provider: ChannelPolicyProvider | None,
+    channel_lookup: Callable[[str], object | None],
+    msg: InboundMessage,
+    *,
+    allow_default_fallback: bool = False,
+) -> str | None:
+    """Resolve a WhatsApp LID sender via verified LID→PN mapping."""
+    ch = channel_lookup(msg.channel)
+    lid_cache: dict[str, str] = getattr(ch, "_lid_to_pn", {})
+    if lid_cache:
+        pn = lid_cache.get(msg.sender_id)
+        if pn:
+            user_id = await pairing.resolve(msg.channel, pn)
+            if user_id:
+                await pairing.bind(
+                    msg.channel,
+                    msg.sender_id,
+                    user_id,
+                    display_name=msg.sender_name,
+                )
+                logger.warning(
+                    "PolicyResolver: LID auto-bound via mapping %s → %s",
+                    msg.sender_id,
+                    pn,
+                )
+                return user_id
+
+    if not allow_default_fallback or not policy_provider:
+        return None
+    default_uid = await policy_provider.get_default_user_id()
+    if not default_uid:
+        return None
+
+    await pairing.bind(
+        msg.channel, msg.sender_id, default_uid, display_name=msg.sender_name
+    )
+    logger.warning(
+        "PolicyResolver: LID auto-bound to default user %s → %s",
+        msg.sender_id,
+        default_uid,
+    )
+    return default_uid
+
 

@@ -44,9 +44,9 @@ from app.channels.routing.policy_resolver_support import (
     query_enabled_groups,
     query_group_policy,
     query_group_trigger,
+    resolve_lid_fallback_helper,
 )
 from app.channels.types import (
-    METADATA_EXPLICIT_MENTION_KEY,
     METADATA_GUEST_TURN_KEY,
     ContextEntry,
     InboundMessage,
@@ -323,41 +323,13 @@ class PolicyResolver:
         allow_default_fallback: bool = False,
     ) -> str | None:
         """Resolve a WhatsApp LID sender via verified LID→PN mapping."""
-        ch = self._get_channel(msg.channel)
-        lid_cache: dict[str, str] = getattr(ch, "_lid_to_pn", {})
-        if lid_cache:
-            pn = lid_cache.get(msg.sender_id)
-            if pn:
-                user_id = await self._pairing.resolve(msg.channel, pn)
-                if user_id:
-                    await self._pairing.bind(
-                        msg.channel,
-                        msg.sender_id,
-                        user_id,
-                        display_name=msg.sender_name,
-                    )
-                    logger.warning(
-                        "PolicyResolver: LID auto-bound via mapping %s → %s",
-                        msg.sender_id,
-                        pn,
-                    )
-                    return user_id
-
-        if not allow_default_fallback or not self._policy:
-            return None
-        default_uid = await self._policy.get_default_user_id()
-        if not default_uid:
-            return None
-
-        await self._pairing.bind(
-            msg.channel, msg.sender_id, default_uid, display_name=msg.sender_name
+        return await resolve_lid_fallback_helper(
+            self._pairing,
+            self._policy,
+            self._get_channel,
+            msg,
+            allow_default_fallback=allow_default_fallback,
         )
-        logger.warning(
-            "PolicyResolver: LID auto-bound to default user %s → %s",
-            msg.sender_id,
-            default_uid,
-        )
-        return default_uid
 
     async def _resolve_with_pairing(self, msg: InboundMessage) -> str | None:
         """Pairing mode: auto-create PENDING for unknown senders."""

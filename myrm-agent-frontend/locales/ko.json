@@ -17564,7 +17564,7 @@
           "statusActive": "Tailnet에 연결됨",
           "statusInactive": "Tailscale이 실행 중이지 않거나 연결되지 않았습니다",
           "statusNotInstalled": "Tailscale 클라이언트가 감지되지 않았습니다",
-          "ipLabel": "Tailscale IP",
+          "ipLabel": "Tailscale IP 주소",
           "magicDnsLabel": "MagicDNS 도메인",
           "nodeLabel": "노드 이름",
           "userLabel": "인증된 사용자",
