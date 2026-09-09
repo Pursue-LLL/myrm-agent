@@ -225,24 +225,6 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
         ))}
       </div>
 
-      <div className="flex items-center gap-1.5 px-1 overflow-x-auto no-scrollbar py-0.5">
-        {categories.map((cat) => (
-          <button
-            key={cat.id}
-            type="button"
-            onClick={() => setSelectedCategory(cat.id)}
-            className={cn(
-              'px-2 py-1 rounded-md text-[11px] font-medium transition-colors shrink-0',
-              selectedCategory === cat.id
-                ? 'bg-primary/10 text-primary border border-primary/20'
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-transparent',
-            )}
-          >
-            {cat.label}
-          </button>
-        ))}
-      </div>
-
       {filteredTemplates.length === 0 && (
         <p className="px-1 text-xs text-muted-foreground/80">{t('noResults') || 'No agents found'}</p>
       )}
@@ -263,53 +245,108 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
       {individualTemplates.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {individualTemplates.map((template) => (
-            <button
-              type="button"
+            <IndividualTemplateCard
               key={template.id}
-              disabled={Boolean(instantiatingId)}
-              className={cn(
-                'relative flex flex-col gap-2 p-3 rounded-xl',
-                'border border-border/40 bg-card/40 backdrop-blur-sm',
-                'hover:border-primary/30 hover:bg-primary/5 transition-all text-left',
-                'group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-                'disabled:opacity-60 disabled:cursor-not-allowed',
-              )}
-              onClick={() => void handleInstantiate(template)}
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary shrink-0">
-                  {renderAvatar(template.avatar_url, false)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium text-foreground truncate">{template.name}</span>
-                    {template.is_pareto_preset && (
-                      <span className="shrink-0 px-1.5 py-0.2 text-[10px] font-medium rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                        {template.cost_reduction_ratio
-                          ? `-${Math.round(template.cost_reduction_ratio * 100)}%`
-                          : 'Pareto'}
-                      </span>
-                    )}
-                  </div>
-                  {template.description && (
-                    <div className="text-xs text-muted-foreground truncate">{template.description}</div>
-                  )}
-                </div>
-                <div className="shrink-0 flex items-center justify-center w-6 h-6 rounded-md bg-background border border-border/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {instantiatingId === template.id ? (
-                    <Loader2 size={12} className="animate-spin text-primary" />
-                  ) : (
-                    <Plus size={12} className="text-primary" />
-                  )}
-                </div>
-              </div>
-            </button>
+              template={template}
+              instantiatingId={instantiatingId}
+              onInstantiate={handleInstantiate}
+            />
           ))}
         </div>
       )}
     </div>
   );
 };
+
+function IndividualTemplateCard({
+  template,
+  instantiatingId,
+  onInstantiate,
+}: {
+  template: TemplateListItem;
+  instantiatingId: string | null;
+  onInstantiate: (template: TemplateListItem, starterPrompt?: string) => void;
+}) {
+  const isDisabled = Boolean(instantiatingId);
+
+  return (
+    <div
+      role="button"
+      tabIndex={isDisabled ? -1 : 0}
+      aria-disabled={isDisabled}
+      className={cn(
+        'relative flex flex-col gap-2 p-3 rounded-xl text-left',
+        'border border-border/40 bg-card/40 backdrop-blur-sm',
+        'hover:border-primary/30 hover:bg-primary/5 transition-all',
+        'group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+        isDisabled && 'opacity-60 cursor-not-allowed',
+      )}
+      onClick={() => {
+        if (isDisabled) {
+          return;
+        }
+        void onInstantiate(template);
+      }}
+      onKeyDown={(event) => {
+        if (isDisabled) {
+          return;
+        }
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          void onInstantiate(template);
+        }
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary shrink-0">
+          {renderAvatar(template.avatar_url, false)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-medium text-foreground truncate">{template.name}</span>
+            {template.is_pareto_preset && (
+              <span className="shrink-0 px-1.5 py-0.2 text-[10px] font-medium rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                {template.cost_reduction_ratio
+                  ? `-${Math.round(template.cost_reduction_ratio * 100)}%`
+                  : 'Pareto'}
+              </span>
+            )}
+          </div>
+          {template.description && (
+            <div className="text-xs text-muted-foreground truncate">{template.description}</div>
+          )}
+        </div>
+        <div className="shrink-0 flex items-center justify-center w-6 h-6 rounded-md bg-background border border-border/50 opacity-0 group-hover:opacity-100 transition-opacity">
+          {instantiatingId === template.id ? (
+            <Loader2 size={12} className="animate-spin text-primary" />
+          ) : (
+            <Plus size={12} className="text-primary" />
+          )}
+        </div>
+      </div>
+
+      {template.use_cases && template.use_cases.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pl-[40px] pt-0.5">
+          {template.use_cases.slice(0, 2).map((useCase, useCaseIndex) => (
+            <button
+              key={`${template.id}-uc-${useCaseIndex}`}
+              type="button"
+              disabled={isDisabled}
+              onClick={(event) => {
+                event.stopPropagation();
+                void onInstantiate(template, useCase);
+              }}
+              className="inline-flex items-center rounded-md border border-primary/20 bg-primary/5 px-2 py-0.5 text-[11px] text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/10 transition-colors line-clamp-1 text-left disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+              title={useCase}
+            >
+              {useCase}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TeamTemplateCard({
   template,

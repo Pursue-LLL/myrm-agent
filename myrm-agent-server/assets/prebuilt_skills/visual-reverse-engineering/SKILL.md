@@ -12,7 +12,7 @@ tags:
   - visual-engineering
   - datum-plane
   - reverse-engineering
-allowed-tools: bash_code_execute_tool file_read_tool grep_tool glob_tool
+allowed-tools: file_read_tool grep_tool glob_tool
 contract:
   steps:
     - "Phase 1: Datum Plane & Spine Anchor — identify the immutable baseline, root container, or coordinate spine"
