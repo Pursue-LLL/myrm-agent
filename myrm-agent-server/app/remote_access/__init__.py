@@ -14,10 +14,15 @@ from app.remote_access.trust_zone import (
     is_public_host,
     resolve_admission_path,
 )
+from app.remote_access.tailscale_service import (
+    TailscaleNodeInfo,
+    probe_tailscale_status,
+)
 from app.remote_access.tunnel_manager import TunnelState, TunnelStatus, get_tunnel_manager
 
 __all__ = [
     "AdmissionPath",
+    "TailscaleNodeInfo",
     "TrustZone",
     "TunnelState",
     "TunnelStatus",
@@ -28,5 +33,6 @@ __all__ = [
     "is_public_host",
     "merge_remote_security_overlay",
     "parse_pairing_token",
+    "probe_tailscale_status",
     "resolve_admission_path",
 ]

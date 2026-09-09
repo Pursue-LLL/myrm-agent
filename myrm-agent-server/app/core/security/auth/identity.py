@@ -40,6 +40,12 @@ _PRIVATE_NETS: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...] = (
     ipaddress.ip_network("::1/128"),
 )
 
+# RFC 6598 Carrier-Grade NAT (CGNAT) and RFC 4193 IPv6 ULA used by Tailscale mesh
+_TAILSCALE_NETS: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...] = (
+    ipaddress.ip_network("100.64.0.0/10"),
+    ipaddress.ip_network("fd7a:115c:a1e0::/48"),
+)
+
 
 @dataclass(frozen=True, slots=True)
 class ResolvedIdentity:
@@ -55,6 +61,7 @@ class ResolvedIdentity:
     trust_zone: str | None = None
     session_username: str | None = None
     pair_bound_chat_id: str | None = None
+    tailscale_user: str | None = None
 
 
 def _normalize_client_ip(ip_str: str) -> str:
@@ -90,6 +97,10 @@ def is_loopback_ip(client_ip: str) -> bool:
 
 def is_private_network_ip(client_ip: str) -> bool:
     return _ip_in_networks(client_ip, _PRIVATE_NETS)
+
+
+def is_tailscale_ip(client_ip: str) -> bool:
+    return _ip_in_networks(client_ip, _TAILSCALE_NETS)
 
 
 def _header_value(headers: Mapping[str, str], name: str) -> str:
@@ -202,6 +213,14 @@ def resolve_identity(
     auth_source: str | None = None
     session_username: str | None = None
     pair_bound_chat_id: str | None = None
+    tailscale_user: str | None = None
+
+    # Zero-Trust verification: only trust Tailscale identity headers if the physical hop
+    # originates from loopback (Tailscale Serve proxy) or a verified Tailscale network IP.
+    if loopback or is_tailscale_ip(client_ip):
+        ts_login = _header_value(headers, "Tailscale-User-Login")
+        if ts_login:
+            tailscale_user = ts_login
 
     from app.services.webui.session import REMOTE_IDLE_TTL_SECONDS
 
@@ -259,9 +278,9 @@ def resolve_identity(
                         bound = parsed.get("chat_id")
                         if isinstance(bound, str):
                             pair_bound_chat_id = bound
-        elif local_trusted and (loopback or (private_net and not protected)):
+        elif local_trusted and (loopback or ((private_net or is_tailscale_ip(client_ip)) and not protected)):
             user_id = LOCAL_USER_ID
-            auth_source = "loopback"
+            auth_source = "tailscale" if is_tailscale_ip(client_ip) else "loopback"
         elif caps.requires_api_key_auth:
             api_key = _extract_sandbox_api_key(headers)
             if api_key and _verify_sandbox_api_key(api_key):
@@ -279,6 +298,7 @@ def resolve_identity(
         private_net=private_net,
         session_username=session_username,
         pair_bound_chat_id=pair_bound_chat_id,
+        tailscale_user=tailscale_user,
         **identity_meta,
     )
 
@@ -322,6 +342,7 @@ __all__ = [
     "ResolvedIdentity",
     "is_loopback_ip",
     "is_private_network_ip",
+    "is_tailscale_ip",
     "resolve_identity",
     "resolve_identity_from_http_scope",
     "resolve_identity_from_ws_scope",

@@ -20,6 +20,7 @@ from app.core.security.auth.identity import (
     _normalize_client_ip,
     is_loopback_ip,
     is_private_network_ip,
+    is_tailscale_ip,
 )
 
 # Inbound platform callbacks: /api/channels/{provider}/webhook[/…]
@@ -38,6 +39,7 @@ class AdmissionPath(str, Enum):
 
     LOOPBACK_DIRECT = "loopback_direct"
     LAN_DIRECT = "lan_direct"
+    TAILSCALE_DIRECT = "tailscale_direct"
     PUBLIC_INGRESS = "public_ingress"
     REMOTE_BIND = "remote_bind"
     CHANNEL = "channel"
@@ -53,18 +55,30 @@ class TrustZone(str, Enum):
 
 
 def _host_only(host_header: str) -> str:
-    return host_header.split(":")[0].strip().lower()
+    clean = host_header.strip().lower()
+    if clean.startswith("["):
+        end_idx = clean.find("]")
+        if end_idx != -1:
+            return clean[1:end_idx]
+    if clean.count(":") > 1:
+        return clean
+    return clean.split(":")[0]
 
 
 def is_public_host(host_header: str) -> bool:
     host = _host_only(host_header)
-    if not host or host in {"localhost", "0.0.0.0"} or host.endswith(".local"):
+    if not host or host in {"localhost", "0.0.0.0"} or host.endswith(".local") or host.endswith(".ts.net"):
         return False
     try:
         address = ipaddress.ip_address(host)
     except ValueError:
         return True
-    return not (address.is_loopback or address.is_private or address.is_link_local)
+    return not (
+        address.is_loopback
+        or address.is_private
+        or address.is_link_local
+        or is_tailscale_ip(host)
+    )
 
 
 def _host_matches_ingress(host_header: str, public_ingress_base_url: str) -> bool:
@@ -177,6 +191,7 @@ def resolve_admission_path(
 
     loopback = is_loopback_ip(client_ip)
     private_net = is_private_network_ip(client_ip)
+    tailscale_peer = is_tailscale_ip(client_ip)
     public_host = is_public_host(host_header)
     ingress_match = _host_matches_ingress(host_header, public_ingress_base_url)
     tunnel_headers = has_tunnel_proxy_headers(headers)
@@ -186,6 +201,14 @@ def resolve_admission_path(
 
     if loopback and tunnel_headers and not _is_nextjs_local_dev_proxy(headers):
         return AdmissionPath.PUBLIC_INGRESS
+
+    # Tailscale Serve reverse proxy terminating at loopback with MagicDNS Host header
+    if loopback and _host_only(host_header).endswith(".ts.net"):
+        return AdmissionPath.TAILSCALE_DIRECT
+
+    # Direct mesh access from a verified Tailscale network peer IP
+    if tailscale_peer:
+        return AdmissionPath.TAILSCALE_DIRECT
 
     if loopback:
         return AdmissionPath.LOOPBACK_DIRECT
@@ -200,7 +223,11 @@ def resolve_admission_path(
 
 
 def admission_path_to_trust_zone(path: AdmissionPath) -> TrustZone:
-    if path in {AdmissionPath.LOOPBACK_DIRECT, AdmissionPath.LAN_DIRECT}:
+    if path in {
+        AdmissionPath.LOOPBACK_DIRECT,
+        AdmissionPath.LAN_DIRECT,
+        AdmissionPath.TAILSCALE_DIRECT,
+    }:
         return TrustZone.LOCAL_TRUSTED
     if path == AdmissionPath.SANDBOX_CP:
         return TrustZone.MANAGED
@@ -218,5 +245,6 @@ __all__ = [
     "admission_path_to_trust_zone",
     "has_tunnel_proxy_headers",
     "is_local_trusted_admission",
+    "is_public_host",
     "resolve_admission_path",
 ]

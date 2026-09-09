@@ -9,6 +9,17 @@ export type TunnelStatus = {
   provider: string;
 };
 
+export type TailscaleStatus = {
+  installed: boolean;
+  running: boolean;
+  ips: string[];
+  fqdn: string | null;
+  nodeName: string | null;
+  tailnet: string | null;
+  user: string | null;
+  serveUrl: string | null;
+};
+
 export type PairingTokenResponse = {
   token: string;
   mobilePath: string;
@@ -18,6 +29,10 @@ export type PairingTokenResponse = {
 export const remoteAccessService = {
   async getTunnelStatus(): Promise<TunnelStatus> {
     return apiRequest<TunnelStatus>('/remote-access/tunnel/status');
+  },
+
+  async getTailscaleStatus(): Promise<TailscaleStatus> {
+    return apiRequest<TailscaleStatus>('/remote-access/tailscale/status');
   },
 
   async startTunnel(localPort?: number): Promise<TunnelStatus> {

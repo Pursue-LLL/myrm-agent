@@ -86,8 +86,9 @@ class BlueprintFillResponse(BaseModel):
     schedule: ScheduleResultResponse
     prompt: str
     name: str
-    required_capabilities: list[str] = Field(default_factory=list)
+    required_capabilities: list[str] Field(default_factory=list)
     tools_allowed: list[str] = Field(default_factory=list)
+    skill_ids: list[str] = Field(default_factory=list)
     job_type: str = "agent"
     session_target: str = "isolated"
     deduplicate: bool = False

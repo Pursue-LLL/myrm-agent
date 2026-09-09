@@ -1778,6 +1778,7 @@
       "loaded": "Ready",
       "unloaded": "Click to load",
       "loading": "Loading turn...",
+      "inFlight": "Generating...",
       "userPrompt": "Prompt",
       "assistantReply": "Reply",
       "jumpToTurn": "Jump to turn {index}"
@@ -13152,6 +13153,11 @@
         "badgeHosted": "Hosted",
         "controlPlaneHosted": "Hosted / Sandbox Mode",
         "controlPlaneHostedDesc": "Session metadata, optional telemetry, and platform entitlements may sync with the control plane.",
+        "dataRegionLabel": "Data Region",
+        "dataRegionNrt": "Tokyo (nrt)",
+        "dataRegionIcn": "Seoul (icn)",
+        "dataRegionIad": "US East (iad)",
+        "dataRegionLocal": "Local",
         "egressLoading": "Loading external egress configuration…",
         "crossBorderRoutingHint": "Privacy routing is active — sensitive content may be processed on your configured local model instead of cloud providers.",
         "crossBorderRoutingLink": "Review privacy routing settings",
@@ -17603,6 +17609,22 @@
           "qrAlt": "LAN access QR code",
           "webDevHint": "For dev run bun run dev:lan, save remote access below, then restart the frontend.",
           "tauriEnableRemote": "If your phone cannot connect, enable remote access below, save, and restart the app."
+        },
+        "tailscale": {
+          "title": "Tailscale Zero-Trust Remote Access",
+          "badge": "Zero-Trust",
+          "description": "Securely connect over your private Tailscale mesh network with end-to-end WireGuard encryption. No open public ports, eliminating brute-force and port scanning attacks.",
+          "statusActive": "Connected to Tailnet",
+          "statusInactive": "Tailscale is not running or connected",
+          "statusNotInstalled": "Tailscale client not detected",
+          "ipLabel": "Tailscale IP",
+          "magicDnsLabel": "MagicDNS Domain",
+          "nodeLabel": "Node Name",
+          "userLabel": "Authenticated User",
+          "serveHint": "Tip: Run tailscale serve --bg http://localhost:{port} in terminal to enable HTTPS MagicDNS domain for native Secure Context (microphone voice input and PWA installation).",
+          "scanHint": "Scan QR code from any device on your Tailnet to connect directly",
+          "qrAlt": "Tailscale Access QR Code",
+          "learnMore": "Learn more about Tailscale"
         },
         "ingress": {
           "title": "Public Ingress (Remote WebUI & Webhooks)",

@@ -15,6 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 
 from app.config.deploy_mode import is_sandbox, is_webui_remote_mode
 from app.core.infra.ingress import get_public_ingress_base_url
+from app.core.security.auth.identity import is_tailscale_ip
 from app.core.security.auth.public_paths import is_public_path
 from app.middleware.ingress import should_skip_ingress_rewrite
 from app.remote_access.trust_zone import TrustZone, is_public_host
@@ -56,11 +57,18 @@ def is_allowed_host(host_header: str, allowed_hosts: frozenset[str]) -> bool:
     host = _host_only(host_header)
     if host in allowed_hosts:
         return True
+    if host.endswith(".ts.net"):
+        return True
     try:
         address = ipaddress.ip_address(host)
     except ValueError:
         return False
-    return address.is_loopback or address.is_private or address.is_link_local
+    return (
+        address.is_loopback
+        or address.is_private
+        or address.is_link_local
+        or is_tailscale_ip(host)
+    )
 
 
 class HostAllowlistMiddleware(BaseHTTPMiddleware):

@@ -20,6 +20,7 @@ import { toast } from '@/lib/utils/toast';
 import { systemService } from '@/services/system';
 import { fetchWebuiProtection } from '@/services/webui-auth';
 import { remoteAccessService, type TunnelStatus } from '@/services/remoteAccess';
+import { TailscaleAccessCard } from './TailscaleAccessCard';
 import { buildMobileHubUrl } from '@/lib/mobileRemote';
 import { computeE2EEFingerprintFromB64 } from '@/lib/e2ee/fingerprint';
 import { usePWAInstall } from '@/hooks/pwa/usePWAInstall';
@@ -362,6 +363,10 @@ export const AccessCard = memo<{
             <p className="text-xs text-muted-foreground">{t('access.fetchingIP')}</p>
           )}
         </div>
+      )}
+
+      {showLocalIngress && (
+        <TailscaleAccessCard webuiPort={webuiPort} />
       )}
 
       {showLocalIngress && !config.requirePassword && isTauriRuntime() && config.enableRemoteAccess && (

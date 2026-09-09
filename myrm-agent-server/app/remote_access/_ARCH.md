@@ -22,6 +22,7 @@
 | `host_depot.py` | 核心 | SSH 加密主机资产管理仓储，支持 `~/.ssh/config` 一键解析导入与安全凭证加密落盘 | ✅ |
 | `e2ee/` | 子包 | Mobile remote E2EE：crypto / keystore / session / response / sse（见 `e2ee/_ARCH.md`） | ✅ |
 | `tunnel_manager.py` | 核心 | cloudflared quick tunnel 子进程 + 5s watchdog + shutdown hook | ✅ |
+| `tailscale_service.py` | 核心 | Tailscale 节点异步探测、MagicDNS FQDN / IP 发现、15s TTL 缓存与超时防护 | ✅ |
 
 ---
 
@@ -29,6 +30,7 @@
 
 `app/api/remote_access/router.py` — `/api/v1/remote-access/*`
 
+- `GET /tailscale/status`：Tailscale 守护进程状态、IP、MagicDNS FQDN 与 HTTPS Serve 状态
 - `GET /mobile/sessions`：`trust_zone=remote_exposed` 时需有效 `mobile_hub_list` pair（query / header / E2EE 解密）或 WebUI session
 - `POST /pairing-token`：WebUI session 签发 Hub QR / takeover deep link；`mobile_hub_list` pair 仅可 upgrade **活跃** 会话 scoped token；`browser_takeover` token 定向 `/mobile/takeover/{chatId}` 并最小权限放行 agent-stream + refresh + chat-scoped takeover snapshot
 - `GET /mobile/takeover/{chatId}/snapshot`：移动 takeover 页面实时预览（pair token 需 chat 绑定一致；返回浏览器截图 + 页面元信息）

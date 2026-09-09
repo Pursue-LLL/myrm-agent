@@ -69,3 +69,14 @@ class SSHHostCreateRequest(BaseModel):
 class SSHHostImportRequest(BaseModel):
     config_text: str = Field(..., min_length=1)
 
+
+class TailscaleStatusResponse(BaseModel):
+    installed: bool
+    running: bool
+    ips: list[str] = Field(default_factory=list)
+    fqdn: str | None = None
+    node_name: str | None = None
+    tailnet: str | None = None
+    user: str | None = None
+    serve_url: str | None = None
+
