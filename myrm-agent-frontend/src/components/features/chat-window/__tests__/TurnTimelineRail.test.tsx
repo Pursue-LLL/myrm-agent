@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// @bun-test-dom
 'use client';
 
 import React from 'react';
