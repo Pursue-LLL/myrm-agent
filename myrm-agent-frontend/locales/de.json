@@ -867,7 +867,7 @@
       "categoryAll": "Alle",
       "categoryOffice": "Büro & Business",
       "categoryEngineering": "Entwicklung",
-      "categoryTeam": "Team-Gruppen",
+      "categoryTeam": "Teams",
       "orgMarketplace": "Org-Marktplatz",
       "searchMarketplace": "Agenten suchen...",
       "installs": "Installationen",
@@ -1748,7 +1748,7 @@
       "turnTitle": "Runde {turn}",
       "loaded": "Geladen",
       "unloaded": "Not loaded · Click to fetch and locate",
-      "loading": "Nachrichten der Runde werden geladen...",
+      "loading": "Runden-Nachrichten werden geladen...",
       "userPrefix": "Benutzer: ",
       "assistantPrefix": "Assistent: ",
       "fullTimeline": "Sitzungs-Zeitleiste",
@@ -3005,11 +3005,11 @@
       "closeButton": "Schließen"
     },
     "turnRail": {
-      "ariaLabel": "Sitzungs-Zeitleisten-Gliederungsnavigation",
-      "title": "Sitzungsgliederung",
+      "ariaLabel": "Navigation der Sitzungszeitleiste",
+      "title": "Sitzungsübersicht",
       "turn": "Runde {index}",
       "loaded": "Bereit",
-      "unloaded": "Zum Laden klicken",
+      "unloaded": "Klicken zum Laden",
       "loading": "Runde wird geladen...",
       "inFlight": "Wird generiert...",
       "userPrompt": "Frage",
@@ -12463,7 +12463,7 @@
         "integration": "Kommunikation & Integration",
         "system": "Sicherheit & System"
       },
-      "a2aPeers": "A2A Remote-Peers"
+      "a2aPeers": "A2A-Remote-Peers"
     },
     "workbench": {
       "badge": "Persönlicher Arbeitsbereich & Datensouveränität",
@@ -14052,13 +14052,13 @@
       "poolRateLimits": "{count} Ratenbegrenzungen",
       "vercelGatewaySpendHint": "Kosten, Ratenbegrenzungen und Latenz im Vercel AI Gateway Dashboard nachverfolgen",
       "openVercelDashboard": "Dashboard öffnen",
-      "circuitBreakerTitle": "Modell-Endpunktzustand & Leistungsschalter",
-      "circuitBreakerHealthy": "Alle Endpunkte fehlerfrei",
-      "circuitBreakerWarning": "Ausgelöster Leistungsschalter erkannt",
-      "resetAllCircuitBreakers": "Alle Schalter zurücksetzen",
-      "resetThisBreaker": "Wiederholen & Wiederherstellen",
-      "resetCircuitBreakerSuccess": "{count} Endpunkt-Leistungsschalter zurückgesetzt",
-      "noActiveCircuitBreakers": "Alle Modellanbieter und Endpunkte sind betriebsbereit",
+      "circuitBreakerTitle": "Modell-Endpunkt-Schutzschalter",
+      "circuitBreakerHealthy": "Alle Endpunkte intakt",
+      "circuitBreakerWarning": "Offener Schutzschalter erkannt",
+      "resetAllCircuitBreakers": "Alle Schutzschalter zurücksetzen",
+      "resetThisBreaker": "Erneut versuchen & wiederherstellen",
+      "resetCircuitBreakerSuccess": "{count} Endpunkt-Schutzschalter zurückgesetzt",
+      "noActiveCircuitBreakers": "Alle Modellanbieter und Endpunkte befinden sich in einem intakten, bereiten Zustand",
       "failureCount": "Aufeinanderfolgende Fehler: {count}"
     },
     "defaultModel": {
@@ -17560,20 +17560,20 @@
         "tailscale": {
           "title": "Tailscale Zero-Trust-Fernzugriff",
           "badge": "Zero-Trust",
-          "description": "Stellen Sie eine sichere Verbindung über Ihr privates Tailscale-Mesh-Netzwerk mit durchgehender WireGuard-Verschlüsselung her. Keine offenen öffentlichen Ports, wodurch Brute-Force- und Port-Scanning-Angriffe verhindert werden.",
+          "description": "Sichere Verbindung über Ihr privates Tailscale-Mesh-Netzwerk mit durchgehender WireGuard-Verschlüsselung ohne offene öffentliche Ports.",
           "statusActive": "Mit Tailnet verbunden",
           "statusInactive": "Tailscale läuft nicht oder ist nicht verbunden",
           "statusNotInstalled": "Tailscale-Client nicht erkannt",
-          "ipLabel": "Tailscale-IP",
-          "magicDnsLabel": "MagicDNS-Domain",
+          "ipLabel": "Tailscale-IP-Adresse",
+          "magicDnsLabel": "MagicDNS-Domäne",
           "nodeLabel": "Knotenname",
           "userLabel": "Authentifizierter Benutzer",
           "modeHttps": "Sicherer HTTPS-Kontext",
           "modeDirect": "Direktes Mesh",
           "serveHint": "Tipp: Führen Sie tailscale serve --bg http://localhost:{port} im Terminal aus, um die HTTPS-MagicDNS-Domain für native sichere Kontexte (Mikrofon-Spracheingabe und PWA-Installation) zu aktivieren.",
-          "scanHint": "Scannen Sie den QR-Code von einem beliebigen Gerät in Ihrem Tailnet, um sich direkt zu verbinden",
-          "qrAlt": "Tailscale-Zugriffs-QR-Code",
-          "learnMore": "Mehr über Tailscale erfahren"
+          "scanHint": "Scannen Sie den QR-Code von einem Gerät in Ihrem Tailnet, um sich direkt zu verbinden",
+          "qrAlt": "Tailscale-Zugangs-QR-Code",
+          "learnMore": "Mehr über das Tailscale-Zero-Trust-Netzwerk erfahren"
         }
       },
       "serverConnection": {
@@ -18029,16 +18029,16 @@
         "limitLabel": "Monatliches Limit (Aufrufe)",
         "cancel": "Abbrechen",
         "save": "Speichern",
-        "circuitBreakersTitle": "LLM-Anbieter-Leistungsschalter & Zustand",
-        "circuitBreakersDesc": "Echtzeit-Zustandstelemetrie und Fehlerisolationsstatus über LLM-Gateways",
-        "circuitAllHealthy": "Alle Anbieter fehlerfrei",
+        "circuitBreakersTitle": "LLM-Anbieter-Schutzschalter & Zustand",
+        "circuitBreakersDesc": "Echtzeit-Zustandstelemetrie und Fehlerisolationsstatus über LLM-Gateways hinweg",
+        "circuitAllHealthy": "Alle Anbieter intakt",
         "circuitStateClosed": "Verbunden",
-        "circuitStateOpen": "Schalter ausgelöst",
-        "circuitStateHalfOpen": "Wiederherstellung wird geprüft",
-        "circuitFailures": "Fehler: {count}",
-        "circuitRetryCooldown": "Wiederholen in: {seconds} s",
-        "circuitResetOne": "Zurücksetzen",
-        "circuitResetAll": "Alle Schalter zurücksetzen"
+        "circuitStateOpen": "Schutzschalter ausgelöst",
+        "circuitStateHalfOpen": "Wiederherstellungsprüfung",
+        "circuitFailures": "Fehlschläge: {count}",
+        "circuitRetryCooldown": "Wiederholungs-Cooldown: {seconds}s",
+        "circuitResetOne": "Prüfung zurücksetzen",
+        "circuitResetAll": "Alle Stromkreise zurücksetzen"
       }
     },
     "workingState": {
@@ -19114,22 +19114,22 @@
       "hasToken": "Anmeldeinformationen hinterlegt"
     },
     "mobileAdb": {
-      "title": "Drahtloses mobiles ADB-Debugging",
+      "title": "Mobiles drahtloses ADB-Debugging",
       "description": "Verbinden Sie echte Android-Geräte für Automatisierung, UI-Baum-Extraktion und geräteübergreifende Workflows",
       "activeDevices": "Verbundene Geräte",
       "noDevicesFound": "Keine verbundenen Android-Geräte gefunden",
-      "pairPrompt": "Aktivieren Sie Drahtloses Debugging in den Entwickleroptionen Ihres Telefons und geben Sie den Kopplungscode ein oder verbinden Sie sich direkt",
-      "wirelessPairing": "Drahtlose Kopplung (Android 11+)",
+      "pairPrompt": "Aktivieren Sie Drahtloses Debugging in den Entwickleroptionen Ihres Telefons und geben Sie den Kopplungscode ein",
+      "wirelessPairing": "Drahtloses Debugging-Pairing (Android 11+)",
       "pairingCodePlaceholder": "6-stelliger Kopplungscode (z. B. 123456)",
       "pairButton": "Gerät koppeln",
       "directConnect": "Direktverbindung (Gekoppeltes Gerät)",
       "connectButton": "Verbinden",
-      "refresh": "Geräte aktualisieren",
+      "refresh": "Geräteliste aktualisieren",
       "fillAllFields": "Bitte füllen Sie alle erforderlichen Host-, Port- und Kopplungsfelder aus",
       "pairSuccess": "Drahtloses Gerät erfolgreich gekoppelt!",
       "pairFailed": "Kopplung fehlgeschlagen. Überprüfen Sie Host-IP, Port und Kopplungscode",
       "connectSuccess": "Gerät erfolgreich verbunden!",
-      "connectFailed": "Verbindung fehlgeschlagen. Stellen Sie sicher, dass das drahtlose Debugging im selben WLAN aktiv ist"
+      "connectFailed": "Verbindung fehlgeschlagen. Stellen Sie sicher, dass drahtloses Debugging im selben WLAN aktiv ist"
     }
   },
   "continualOverlay": {

@@ -1752,9 +1752,9 @@
       "loaded": "已載入",
       "unloaded": "Not loaded · Click to fetch and locate",
       "loading": "正在載入輪次訊息...",
-      "userPrefix": "使用者：",
-      "assistantPrefix": "助手：",
-      "fullTimeline": "全對話時間軸",
+      "userPrefix": "使用者: ",
+      "assistantPrefix": "智慧體: ",
+      "fullTimeline": "全對話時間線",
       "turnCount": "共 {count} 輪對話"
     },
     "turnRail": {
@@ -14053,13 +14053,13 @@
       "vercelGatewaySpendHint": "在 Vercel AI Gateway 控制台追蹤開銷、限流與延遲",
       "openVercelDashboard": "查看控制台",
       "circuitBreakerTitle": "模型服務熔斷健康度",
-      "circuitBreakerHealthy": "所有端點運作正常",
-      "circuitBreakerWarning": "偵測到熔斷開路",
-      "resetAllCircuitBreakers": "重設所有熔斷器",
-      "resetThisBreaker": "重試並復原",
-      "resetCircuitBreakerSuccess": "已重設 {count} 個熔斷端點",
-      "noActiveCircuitBreakers": "所有模型提供商與端點均處於健康就緒狀態",
-      "failureCount": "連續失敗次數：{count}"
+      "circuitBreakerHealthy": "全端點正常",
+      "circuitBreakerWarning": "存在熔断端點",
+      "resetAllCircuitBreakers": "重設所有熔斷",
+      "resetThisBreaker": "立即重試復原",
+      "resetCircuitBreakerSuccess": "已重設 {count} 個端點熔斷狀態",
+      "noActiveCircuitBreakers": "所有 Provider 與模型端點均處於健康就緒狀態",
+      "failureCount": "連續失敗: {count} 次"
     },
     "defaultModel": {
       "localModelWarning": "本地輕量模型在處理複雜 Agent 工具鏈時極易產生幻覺或陷入死迴圈。執行長任務建議使用 30B 以上規模模型或雲端高階模型（如 Claude 3.5 Sonnet）。",
@@ -17560,20 +17560,20 @@
         "tailscale": {
           "title": "Tailscale 零信任遠端存取",
           "badge": "零信任",
-          "description": "透過具備端對端 WireGuard 加密的私有 Tailscale 網狀網路安全連線。無開放公網連接埠，徹底杜絕暴力破解與連接埠掃描攻擊。",
+          "description": "透過 Tailscale 私有網格直接安全互聯，流量全鏈路端到端 WireGuard 加密，不暴露公網 IP，消除暴力破解與連接埠掃描風險。",
           "statusActive": "已連線至 Tailnet",
           "statusInactive": "Tailscale 未執行或未連線",
           "statusNotInstalled": "未偵測到 Tailscale 用戶端",
           "ipLabel": "Tailscale IP 位址",
-          "magicDnsLabel": "MagicDNS 網域",
+          "magicDnsLabel": "MagicDNS 網域名稱",
           "nodeLabel": "節點名稱",
           "userLabel": "已認證使用者",
-          "modeHttps": "HTTPS 安全上下文",
-          "modeDirect": "直接網狀連線",
+          "modeHttps": "HTTPS 安全通道",
+          "modeDirect": "內部網路直連",
           "serveHint": "提示：在終端機中執行 tailscale serve --bg http://localhost:{port} 以啟用 HTTPS MagicDNS 網域，獲取原生安全上下文（麥克風語音輸入與 PWA 安裝）。",
-          "scanHint": "使用 Tailnet 上的任何裝置掃描 QR Code 即可直接連線",
+          "scanHint": "在同一 Tailnet 內的手機掃描 QR Code 即可直接連線",
           "qrAlt": "Tailscale 存取 QR Code",
-          "learnMore": "進一步了解 Tailscale"
+          "learnMore": "瞭解 Tailscale 零信任網路"
         }
       },
       "serverConnection": {
@@ -18029,16 +18029,16 @@
         "limitLabel": "月度配額上限 (次)",
         "cancel": "取消",
         "save": "儲存設定",
-        "circuitBreakersTitle": "LLM 提供商熔斷器與健康度",
-        "circuitBreakersDesc": "跨 LLM 閘道的即時健康遙測與故障隔離狀態",
-        "circuitAllHealthy": "所有提供商運作正常",
-        "circuitStateClosed": "連線正常",
-        "circuitStateOpen": "熔斷器觸發開路",
+        "circuitBreakersTitle": "LLM 供應商熔斷與連線能力",
+        "circuitBreakersDesc": "即時探測各模型服務商健康度與故障隔離狀態",
+        "circuitAllHealthy": "全供應商連線正常",
+        "circuitStateClosed": "正常連線",
+        "circuitStateOpen": "已觸發熔斷保護",
         "circuitStateHalfOpen": "探測復原中",
-        "circuitFailures": "失敗次數：{count}",
-        "circuitRetryCooldown": "冷卻重試時間：{seconds} 秒",
-        "circuitResetOne": "重設",
-        "circuitResetAll": "重設所有熔斷電路"
+        "circuitFailures": "連續失敗: {count} 次",
+        "circuitRetryCooldown": "冷卻重試倒數: {seconds}s",
+        "circuitResetOne": "重設探測",
+        "circuitResetAll": "重設全部熔斷"
       }
     },
     "workingState": {
@@ -19115,21 +19115,21 @@
     },
     "mobileAdb": {
       "title": "行動裝置無線除錯 (ADB)",
-      "description": "連接實體 Android 裝置以進行自動化、UI 樹提取及跨裝置工作流程",
-      "activeDevices": "已連接裝置",
-      "noDevicesFound": "未找到已連接的 Android 裝置",
-      "pairPrompt": "請在手機開發人員選項中開啟「無線除錯」，然後輸入配對碼或直接連線",
-      "wirelessPairing": "無線配對 (Android 11+)",
-      "pairingCodePlaceholder": "6 位數配對碼 (例如 123456)",
-      "pairButton": "配對裝置",
+      "description": "連線 Android 實體裝置執行自動化操作、UI 樹解析與跨端協同任務",
+      "activeDevices": "目前已連線裝置",
+      "noDevicesFound": "暫無已連線的 Android 裝置",
+      "pairPrompt": "請在手機開發人員選項中開啟「無線除錯」，輸入配對碼或連接埠進行連線",
+      "wirelessPairing": "無線除錯配對 (Android 11+)",
+      "pairingCodePlaceholder": "6位配對碼 (例如: 123456)",
+      "pairButton": "開始配對",
       "directConnect": "直接連線 (已配對裝置)",
-      "connectButton": "連線",
-      "refresh": "重新整理裝置",
-      "fillAllFields": "請填寫所有必要的主機、連接埠與配對欄位",
+      "connectButton": "建立連線",
+      "refresh": "重新整理裝置清單",
+      "fillAllFields": "請填寫完整的主機、連接埠和配對資訊",
       "pairSuccess": "無線裝置配對成功！",
-      "pairFailed": "配對失敗。請檢查主機 IP、連接埠與配對碼",
+      "pairFailed": "無線配對失敗，請檢查 IP、連接埠與配對碼",
       "connectSuccess": "裝置連線成功！",
-      "connectFailed": "連線失敗。請確保無線除錯在同一 Wi-Fi 下啟用"
+      "connectFailed": "連線失敗，請確認裝置是否在同一區域網路並已開啟無線除錯"
     }
   },
   "continualOverlay": {

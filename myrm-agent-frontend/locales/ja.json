@@ -1752,10 +1752,10 @@
       "ariaLabel": "対話ナビゲーション",
       "title": "メッセージナビゲーション",
       "jumpTo": "ジャンプまでメッセージ",
-      "turnTitle": "第 {turn} ターン",
-      "loaded": "読み込み済み",
+      "turnTitle": "ターン {turn}",
+      "loaded": "ロード済み",
       "unloaded": "Not loaded · Click to fetch and locate",
-      "loading": "ターンのメッセージを読み込み中...",
+      "loading": "ターンメッセージを読み込み中...",
       "userPrefix": "ユーザー: ",
       "assistantPrefix": "アシスタント: ",
       "fullTimeline": "セッションタイムライン",
@@ -3006,15 +3006,15 @@
     },
     "turnRail": {
       "ariaLabel": "セッションタイムラインアウトラインナビゲーション",
-      "title": "セッションアウトライン",
-      "turn": "第 {index} ターン",
+      "title": "会話のアウトライン",
+      "turn": "ターン {index}",
       "loaded": "準備完了",
-      "unloaded": "クリックして読み込み",
+      "unloaded": "クリックしてロード",
       "loading": "ターンを読み込み中...",
       "inFlight": "生成中...",
       "userPrompt": "質問",
-      "assistantReply": "回答",
-      "jumpToTurn": "第 {index} ターンへ移動"
+      "assistantReply": "返答",
+      "jumpToTurn": "ターン {index} にジャンプ"
     }
   },
   "mode": {
@@ -14052,14 +14052,14 @@
       "connectionFailed": "接続失敗",
       "vercelGatewaySpendHint": "Vercel AI Gateway ダッシュボードでコスト、レート制限、レイテンシを確認",
       "openVercelDashboard": "ダッシュボードを開く",
-      "circuitBreakerTitle": "モデルエンドポイントの健全性とサーキットブレーカー",
-      "circuitBreakerHealthy": "すべてのエンドポイントは正常です",
-      "circuitBreakerWarning": "サーキットブレーカーのトリップを検出",
-      "resetAllCircuitBreakers": "すべてのブレーカーをリセット",
+      "circuitBreakerTitle": "モデルエンドポイントのサーキットブレーカー",
+      "circuitBreakerHealthy": "全エンドポイント正常",
+      "circuitBreakerWarning": "遮断されたエンドポイントを検出",
+      "resetAllCircuitBreakers": "全サーキットブレーカーをリセット",
       "resetThisBreaker": "再試行して復旧",
-      "resetCircuitBreakerSuccess": "{count} 個のエンドポイントブレーカーをリセットしました",
-      "noActiveCircuitBreakers": "すべてのモデルプロバイダーとエンドポイントは準備完了状態です",
-      "failureCount": "連続失敗回数: {count}"
+      "resetCircuitBreakerSuccess": "{count} 件のエンドポイントブレーカーをリセットしました",
+      "noActiveCircuitBreakers": "すべてのモデルプロバイダーとエンドポイントは正常な状態です",
+      "failureCount": "連続失敗: {count} 回"
     },
     "defaultModel": {
       "localModelWarning": "ローカルの軽量モデルは、複雑な Agent ツールチェーンを処理する際に幻覚や無限ループを起こしやすいです。長時間タスクには 30B 以上のモデルか、クラウドの高度なモデル（Claude 3.5 Sonnet など）の使用を推奨します。",
@@ -17560,20 +17560,20 @@
         "tailscale": {
           "title": "Tailscale ゼロトラストリモートアクセス",
           "badge": "ゼロトラスト",
-          "description": "エンドツーエンドのWireGuard暗号化を備えたプライベートなTailscaleメッシュネットワークを介して安全に接続します。公開ポートがなく、総当たり攻撃やポートスキャン攻撃を排除します。",
-          "statusActive": "Tailnet に接続済み",
-          "statusInactive": "Tailscale が実行されていないか、未接続です",
-          "statusNotInstalled": "Tailscale クライアントが検出されません",
+          "description": "プライベートTailscaleメッシュネットワーク経由で安全に相互接続し、WireGuardエンドツーエンド暗号化によりパブリックIPの露出を排除します。",
+          "statusActive": "Tailnetに接続済み",
+          "statusInactive": "Tailscaleは停止中または未接続です",
+          "statusNotInstalled": "Tailscaleクライアントが検出されませんでした",
           "ipLabel": "Tailscale IP アドレス",
           "magicDnsLabel": "MagicDNS ドメイン",
           "nodeLabel": "ノード名",
-          "userLabel": "認証済みユーザー",
-          "modeHttps": "HTTPS セキュアコンテキスト",
-          "modeDirect": "ダイレクトメッシュ",
+          "userLabel": "認証ユーザー",
+          "modeHttps": "HTTPSセキュア通信",
+          "modeDirect": "メッシュ直接接続",
           "serveHint": "ヒント: ターミナルで tailscale serve --bg http://localhost:{port} を実行してHTTPS MagicDNSドメインを有効にすると、ネイティブセキュアコンテキスト（マイク音声入力やPWAインストール）が利用可能になります。",
-          "scanHint": "Tailnet上の任意のデバイスからQRコードをスキャンして直接接続します",
-          "qrAlt": "Tailscale アクセス用 QR コード",
-          "learnMore": "Tailscale について詳しく知る"
+          "scanHint": "同一Tailnet内のスマートフォンでQRコードを読み取って直接接続できます",
+          "qrAlt": "Tailscale アクセス用QRコード",
+          "learnMore": "Tailscale ゼロトラストネットワークについて詳しく知る"
         }
       },
       "serverConnection": {
@@ -18029,16 +18029,16 @@
         "limitLabel": "月間クォータ上限 (回)",
         "cancel": "キャンセル",
         "save": "保存",
-        "circuitBreakersTitle": "LLM プロバイダーのサーキットブレーカーと健全性",
-        "circuitBreakersDesc": "LLM ゲートウェイ全体のリアルタイムの健全性テレメトリと障害分離状態",
-        "circuitAllHealthy": "すべてのプロバイダーが正常",
-        "circuitStateClosed": "接続済み",
-        "circuitStateOpen": "遮断保護発動",
+        "circuitBreakersTitle": "LLMプロバイダーのサーキットブレーカーと健全性",
+        "circuitBreakersDesc": "各LLMゲートウェイの健全性テレメトリと障害分離状態をリアルタイムで監視します",
+        "circuitAllHealthy": "全プロバイダー正常接続",
+        "circuitStateClosed": "正常接続",
+        "circuitStateOpen": "サーキットブレーカー作動中",
         "circuitStateHalfOpen": "復旧プローブ中",
         "circuitFailures": "連続失敗: {count} 回",
-        "circuitRetryCooldown": "リトライカウントダウン: {seconds}秒",
-        "circuitResetOne": "リセット",
-        "circuitResetAll": "すべてのサーキットをリセット"
+        "circuitRetryCooldown": "再試行クールダウン: {seconds}秒",
+        "circuitResetOne": "プローブをリセット",
+        "circuitResetAll": "全ブレーカーをリセット"
       }
     },
     "workingState": {
@@ -19114,22 +19114,22 @@
       "hasToken": "認証情報設定済み"
     },
     "mobileAdb": {
-      "title": "モバイル無線 ADB デバッグ",
-      "description": "自動化、UIツリー抽出、クロスデバイスワークフローのために実際のAndroid端末を接続します",
+      "title": "モバイルワイヤレスADBデバッグ",
+      "description": "実機Android端末を接続し、自動化操作・UIツリー解析・クロスデバイスワークフローを実行します",
       "activeDevices": "接続中のデバイス",
       "noDevicesFound": "接続されたAndroidデバイスが見つかりません",
-      "pairPrompt": "スマートフォンの開発者向けオプションで「ワイヤレスデバッグ」を有効にし、ペアリングコードを入力するか直接接続してください",
-      "wirelessPairing": "ワイヤレスペアリング (Android 11+)",
+      "pairPrompt": "スマートフォンの開発者オプションで「ワイヤレスデバッグ」を有効にし、ペアリングコードを入力してください",
+      "wirelessPairing": "ワイヤレスデバッグペアリング (Android 11+)",
       "pairingCodePlaceholder": "6桁のペアリングコード (例: 123456)",
       "pairButton": "デバイスをペアリング",
-      "directConnect": "直接接続 (ペアリング済みデバイス)",
+      "directConnect": "直接接続 (ペアリング済み端末)",
       "connectButton": "接続",
-      "refresh": "デバイスを更新",
+      "refresh": "デバイス一覧を更新",
       "fillAllFields": "ホスト、ポート、ペアリングコードのすべての必須項目を入力してください",
       "pairSuccess": "ワイヤレスデバイスのペアリングに成功しました！",
       "pairFailed": "ペアリングに失敗しました。ホストIP、ポート、ペアリングコードを確認してください",
-      "connectSuccess": "デバイスの接続に成功しました！",
-      "connectFailed": "接続に失敗しました。同じWi-Fi上でワイヤレスデバッグが有効になっていることを確認してください"
+      "connectSuccess": "デバイスに接続しました！",
+      "connectFailed": "接続に失敗しました。同一Wi-Fiでワイヤレスデバッグが有効か確認してください"
     }
   },
   "continualOverlay": {
