@@ -3288,6 +3288,7 @@
       },
       "discover": {
         "title": "Discover Skills",
+        "trialRunInSandbox": "Trial Run in Sandbox",
         "description": "Search and install skills from GitHub and community",
         "detail": {
           "noDescription": "No description provided."
@@ -3387,7 +3388,8 @@
           "empty": "No custom sources configured",
           "emptyDesc": "Add a .well-known/skills endpoint to discover private skills",
           "alreadyExists": "Source already exists"
-        }
+        },
+        "trialRunCTA": "Try in Sandbox Now"
       },
       "market": {
         "title": "Skill Market",

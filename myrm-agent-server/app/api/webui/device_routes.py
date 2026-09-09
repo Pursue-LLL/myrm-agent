@@ -112,30 +112,60 @@ class ConnectWirelessBody(BaseModel):
 @router.post("/pair")
 async def pair_wireless_device(body: PairWirelessBody) -> JSONResponse:
     """Pair an Android 11+ device via Wireless Debugging pairing code."""
-    from myrm_agent_harness.toolkits.mobile import AdbDeviceManager
-
-    dm = AdbDeviceManager()
-    success = await dm.pair_wireless_device(body.host, body.port, body.pairing_code)
+    service = get_mobile_device_service()
+    try:
+        success, msg = await service.pair_device(body.host, body.port, body.pairing_code)
+    except Exception as exc:
+        logger.exception("Failed to pair wireless device %s:%s", body.host, body.port)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ok": False,
+                "message": f"Wireless pairing encountered error: {exc}",
+            },
+        )
     return JSONResponse(
+        status_code=200 if success else 400,
         content={
             "ok": success,
-            "message": "Wireless device paired successfully" if success else "Failed to pair wireless device",
-        }
+            "message": msg or ("Wireless device paired successfully" if success else "Failed to pair wireless device"),
+        },
     )
 
 
 @router.post("/connect")
 async def connect_wireless_device(body: ConnectWirelessBody) -> JSONResponse:
     """Connect to a paired Android device over TCP IP:port."""
-    from myrm_agent_harness.toolkits.mobile import AdbDeviceManager
-
-    dm = AdbDeviceManager()
-    dev = await dm.connect_device(body.host, body.port)
-    return JSONResponse(
-        content={
-            "ok": dev is not None,
-            "device": dev.to_dict() if dev else None,
+    service = get_mobile_device_service()
+    try:
+        success, msg = await service.connect_device(body.host, body.port)
+    except Exception as exc:
+        logger.exception("Failed to connect wireless device %s:%s", body.host, body.port)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ok": False,
+                "message": f"Device connection encountered error: {exc}",
+                "device": None,
+            },
+        )
+    device_info = (
+        {
+            "host": body.host,
+            "port": body.port,
+            "serial": f"{body.host}:{body.port}",
+            "connected": True,
         }
+        if success
+        else None
+    )
+    return JSONResponse(
+        status_code=200 if success else 400,
+        content={
+            "ok": success,
+            "message": msg or ("Device connected" if success else "Failed to connect device"),
+            "device": device_info,
+        },
     )
 
 

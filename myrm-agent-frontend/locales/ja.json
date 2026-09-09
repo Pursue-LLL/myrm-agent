@@ -1108,7 +1108,7 @@
       "jitTeamPlaceholder": "仮想チームなし",
       "jitInheritMemory": "親会話メモリを継承（Fork Context）",
       "templateMarket": "テンプレートマーケット",
-      "categoryFilter": "カテゴリーで絞り込み",
+      "categoryFilter": "カテゴリフィルター",
       "categoryAll": "すべて",
       "categoryOffice": "オフィス・業務",
       "categoryEngineering": "エンジニアリング",
@@ -1171,8 +1171,7 @@
         "equippedCountSuffix": "装備済み",
         "pureInstructionNotice": "スキル未装備 · 純粋指示モード",
         "emptyExplanation": "現在スキルは装備されていません。このエージェントは純粋な指示モードで動作します。「すべて選択」をクリックするか、以下でスキルを選択して装備してください。"
-      },
-      "categoryFilter": "カテゴリフィルター"
+      }
     },
     "validation": {
       "dependencyInvalid": "エージェント設定存で質問",
@@ -15645,7 +15644,9 @@
           "empty": "カスタムソースが設定されていません",
           "emptyDesc": ".well-known/skills エンドポイントを追加するとプライベートスキルを発見できます",
           "alreadyExists": "ソースは既に存在します"
-        }
+        },
+        "trialRunInSandbox": "サンドボックスで試行",
+        "trialRunCTA": "今すぐ試走"
       },
       "market": {
         "title": "スキルマーケット",

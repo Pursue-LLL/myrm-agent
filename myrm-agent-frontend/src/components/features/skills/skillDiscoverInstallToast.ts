@@ -78,8 +78,18 @@ export function formatSkillInstallToast(
   skillName: string,
   response: SkillInstallToastResponse,
   t: TranslateFn,
-): { title: string; description?: string; variant?: 'destructive' } {
+  onTrialRun?: () => void,
+): { title: string; description?: string; variant?: 'destructive'; action?: { label: string; onClick: () => void } } {
   const message = resolveSkillInstallToastMessage(skillName, response);
+
+  const isSuccess = message.variant !== 'destructive';
+  const action =
+    isSuccess && onTrialRun
+      ? {
+          label: t('trialRunCTA') || '即刻试跑',
+          onClick: onTrialRun,
+        }
+      : undefined;
 
   return {
     title:
@@ -88,5 +98,6 @@ export function formatSkillInstallToast(
         : t(message.titleKey, message.titleParams ?? { name: skillName }),
     description: message.descriptionText ?? (message.descriptionKey ? t(message.descriptionKey) : undefined),
     variant: message.variant,
+    ...(action ? { action } : {}),
   };
 }

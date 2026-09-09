@@ -3288,6 +3288,7 @@
       },
       "discover": {
         "title": "发现技能",
+        "trialRunInSandbox": "沙箱试跑",
         "description": "从 GitHub 和社区搜索并安装技能",
         "detail": {
           "noDescription": "暂无技能描述"
@@ -3387,7 +3388,8 @@
           "empty": "未配置自定义源",
           "emptyDesc": "添加 .well-known/skills 端点来发现私有技能",
           "alreadyExists": "源已存在"
-        }
+        },
+        "trialRunCTA": "即刻试跑"
       },
       "market": {
         "title": "技能市场",

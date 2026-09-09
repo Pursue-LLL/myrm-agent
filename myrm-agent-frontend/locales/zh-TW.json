@@ -1125,6 +1125,7 @@
       "jitTeamPlaceholder": "不使用虛擬團隊",
       "jitInheritMemory": "繼承父級對話記憶 (Fork Context)",
       "templateMarket": "模板市場",
+      "categoryFilter": "分類篩選",
       "categoryAll": "全部",
       "categoryOffice": "職場辦公",
       "categoryEngineering": "技術研發",
@@ -1187,8 +1188,7 @@
         "equippedCountSuffix": "已裝配",
         "pureInstructionNotice": "未裝配技能 · 純指令模式",
         "emptyExplanation": "當前未勾選裝配任何技能。該智能體將以純語言模型指令模式運行；可點擊上方「全選」或在下方勾選裝配所需技能。"
-      },
-      "categoryFilter": "分類篩選"
+      }
     },
     "validation": {
       "dependencyInvalid": "智慧體配置存在問題",
@@ -15644,7 +15644,9 @@
           "empty": "未配置自定義源",
           "emptyDesc": "添加 .well-known/skills 端點來發現私有技能",
           "alreadyExists": "源已存在"
-        }
+        },
+        "trialRunInSandbox": "沙箱試跑",
+        "trialRunCTA": "即刻試跑"
       },
       "market": {
         "title": "技能市場",
