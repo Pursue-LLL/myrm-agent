@@ -182,30 +182,6 @@ const Chat = ({
     },
   });
 
-  const handleJumpToMessageId = useCallback(
-    (messageId: string) => {
-      const targetIndex = messages.findIndex(
-        (m) => String(m.messageId) === messageId || String(m.id) === messageId,
-      );
-      if (targetIndex >= 0) {
-        handleJumpToMessage(targetIndex);
-        return;
-      }
-      const el = containerRef.current?.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
-      if (el) {
-        userScrolledRef.current = true;
-        setIsUserScrolledUp(true);
-        saveScrollPosition({
-          isFollowingBottom: false,
-          isUserScrolledUp: true,
-          anchorMessageId: messageId,
-        });
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    },
-    [messages, handleJumpToMessage, userScrolledRef, saveScrollPosition],
-  );
-
   const handleJumpToMessage = useCallback(
     (messageIndex: number) => {
       // 虚拟滚动模式：通过 ref 调用 virtualizer.scrollToIndex

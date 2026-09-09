@@ -53,6 +53,7 @@ class BlueprintResponse(BaseModel):
     category: str
     tags: list[str]
     sort_order: int
+    default_skill_ids: list[str] = Field(default_factory=list)
 
 
 class BlueprintFillRequest(BaseModel):

@@ -75,7 +75,7 @@ def test_ssh_config_import() -> None:
 
 def test_remote_ssh_ops_bridge_security_and_execution() -> None:
     vault = HostAssetVault()
-    asset = vault.create_asset(
+    _ = vault.create_asset(
         HostAssetCreate(
             alias="prod-server",
             hostname="1.2.3.4",
