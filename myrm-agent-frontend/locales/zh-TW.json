@@ -1745,6 +1745,17 @@
       "title": "訊息導航",
       "jumpTo": "跳轉到訊息"
     },
+    "turnRail": {
+      "ariaLabel": "會話時間線大綱導航",
+      "title": "會話大綱",
+      "turn": "第 {index} 輪",
+      "loaded": "已就緒",
+      "unloaded": "點擊加載",
+      "loading": "正在加載輪次...",
+      "userPrompt": "提問",
+      "assistantReply": "回覆",
+      "jumpToTurn": "跳轉到第 {index} 輪"
+    },
     "scrollCue": {
       "scrollToBottom": "滾動到底部",
       "newMessage": "新訊息"
@@ -2533,7 +2544,10 @@
       "submit": "提交",
       "skip": "跳過",
       "submitFailed": "提交澄清失敗，請重試",
-      "answered": "已回答澄清問題"
+      "answered": "已回答澄清問題",
+      "expandOptions": "展開更多選項 (+{count})",
+      "collapseOptions": "收起選項",
+      "recommendedBadge": "推薦"
     },
     "directoryRequest": {
       "title": "需要目錄存取權限",
@@ -9790,6 +9804,12 @@
       "noAttentionNeeded": "當前暫無需要治理的風險或沉睡技能",
       "recommendationPrefix": "治理建議:",
       "manageSkill": "去管理",
+      "showMore": "展開全部 ({count})",
+      "showLess": "收起",
+      "recStar": "高複利明星資產，團隊零摩擦高頻複用",
+      "recAtRisk": "高風險資產，檢測到失敗/重試率較高，建議檢查 Prompt 與參數",
+      "recHealthy": "健康運行資產，處於活躍輪轉中",
+      "recStale": "長期閒置資產，建議排查是否過時或補齊使用示例",
       "status": {
         "STAR": "標星",
         "HEALTHY": "健康",

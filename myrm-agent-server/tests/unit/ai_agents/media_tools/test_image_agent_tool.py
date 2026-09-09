@@ -386,3 +386,62 @@ async def test_image_tool_status_with_task_id_reads_task_store() -> None:
     assert payload["task_type"] == "image_generate"
     assert payload["result"]["images"][0]["url"] == "https://vault.example.com/img-123.png"
     mock_store.get_task.assert_awaited_once_with("img-123")
+
+
+@pytest.mark.asyncio
+async def test_image_tool_edit_gracefully_adapts_for_dalle3_pure_t2i() -> None:
+    """When active model (e.g. dall-e-3) lacks native inpainting and has max_input_images=0,
+    adapt edit to generate with reference image embedded in prompt context (no reference_image_urls).
+    """
+    from myrm_agent_harness.toolkits.llms.image.models import ImageGenerationConfig
+
+    engine = MagicMock()
+    engine.model = "dall-e-3"
+    async_config = ImageGenerationConfig(
+        model="dall-e-3",
+        api_key="test-key",
+    )
+
+    mock_async_engine = MagicMock()
+    mock_async_engine.generate_image = AsyncMock(
+        return_value=json.dumps({"task_id": "img-adapted-456", "status": "pending"})
+    )
+
+    with (
+        patch("app.lifecycle.task_worker.get_task_store", return_value=MagicMock()),
+        patch(
+            "myrm_agent_harness.toolkits.llms.image.async_image_engine.AsyncImageGenerationTools",
+            return_value=mock_async_engine,
+        ),
+        patch("app.ai_agents.media_tools.image_agent_tool._fetch_image_bytes") as mock_fetch,
+    ):
+        tool = create_image_generation_tool(
+            engine,
+            async_config=async_config,
+            task_user_id="user-auto",
+            chat_id="chat-auto",
+        )
+        result = await tool.ainvoke(
+            {
+                "action": "edit",
+                "prompt": "change background to snowy mountains",
+                "image_url": "https://cdn.example.com/original.png",
+            }
+        )
+
+    # Must NOT waste bandwidth downloading image when model doesn't support edit
+    mock_fetch.assert_not_called()
+    # Must route to generate_image with prompt containing reference image and reference_image_urls=None
+    mock_async_engine.generate_image.assert_called_once_with(
+        "change background to snowy mountains (Reference image: https://cdn.example.com/original.png)",
+        size=None,
+        quality=None,
+        style=None,
+        n=1,
+        reference_image_urls=None,
+        user_id="user-auto",
+        agent_id=None,
+        chat_id="chat-auto",
+    )
+    payload = json.loads(result)
+    assert payload["task_id"] == "img-adapted-456"

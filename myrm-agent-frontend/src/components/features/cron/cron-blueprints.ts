@@ -224,6 +224,7 @@ export async function buildBlueprintCreatePayload(
     session_target: filled.session_target,
     ...(filled.required_capabilities.length > 0 ? { required_capabilities: filled.required_capabilities } : {}),
     ...(filled.tools_allowed.length > 0 ? { tools_allowed: filled.tools_allowed } : {}),
+    ...(filled.skill_ids && filled.skill_ids.length > 0 ? { skill_ids: filled.skill_ids } : {}),
     ...(filled.deduplicate ? { deduplicate: true } : {}),
     ...(filled.skip_if_active ? { skip_if_active: true } : {}),
     ...(typeof filled.timeout_seconds === 'number' ? { timeout_seconds: filled.timeout_seconds } : {}),

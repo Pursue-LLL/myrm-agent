@@ -178,8 +178,15 @@ async def build_moa_overlay_middleware(
         privacy_filter=privacy,
     )
 
+    privacy_redactor = None
+    if privacy != "off":
+        from myrm_agent_harness.core.security.detection.leak_detector import redact_leaks
+
+        privacy_redactor = redact_leaks
+
     return create_moa_advisor_middleware(
         reference_llms,
         config=config,
         unattended=unattended,
+        privacy_redactor=privacy_redactor,
     )

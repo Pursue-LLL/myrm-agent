@@ -50,6 +50,7 @@ type TabType = 'all' | 'attention' | 'healthy';
 export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
   const t = useTranslations('growthDashboard.skillHealth');
   const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground py-2">{t('empty')}</p>;
@@ -61,7 +62,7 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
   const filteredItems =
     activeTab === 'attention' ? attentionItems : activeTab === 'healthy' ? healthyItems : items;
 
-  const displayItems = filteredItems.slice(0, 10);
+  const displayItems = isExpanded ? filteredItems : filteredItems.slice(0, 8);
 
   return (
     <div className="space-y-3">
@@ -157,10 +158,18 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                   <div className="mt-2 pt-2 border-t border-border/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
                     <div className="text-muted-foreground leading-relaxed flex items-start gap-1.5">
                       <span className="font-medium text-foreground/80 shrink-0">{t('recommendationPrefix')}</span>
-                      <span>{item.actionable_recommendation}</span>
+                      <span>
+                        {item.status === 'STAR'
+                          ? t('recStar', { default: item.actionable_recommendation })
+                          : item.status === 'AT_RISK'
+                            ? t('recAtRisk', { default: item.actionable_recommendation })
+                            : item.status === 'STALE'
+                              ? t('recStale', { default: item.actionable_recommendation })
+                              : t('recHealthy', { default: item.actionable_recommendation })}
+                      </span>
                     </div>
                     <Link
-                      href="/settings/skills"
+                      href={`/settings/skills?search=${encodeURIComponent(item.skill_name)}`}
                       className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline shrink-0 self-start sm:self-auto"
                     >
                       <span>{t('manageSkill')}</span>
@@ -171,6 +180,18 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {filteredItems.length > 8 && (
+        <div className="pt-1 text-center">
+          <button
+            type="button"
+            onClick={() => setIsExpanded((prev) => !prev)}
+            className="text-xs font-medium text-primary hover:underline transition-colors px-3 py-1 rounded-md hover:bg-muted/40"
+          >
+            {isExpanded ? t('showLess') : t('showMore', { count: filteredItems.length })}
+          </button>
         </div>
       )}
     </div>

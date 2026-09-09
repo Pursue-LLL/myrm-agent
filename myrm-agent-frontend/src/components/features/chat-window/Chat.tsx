@@ -8,7 +8,7 @@
  * - @/store/useChatStore (POS: 聊天状态管理)
  * - ./VirtualMessageList (POS: 虚拟滚动消息列表)
  * - ../message-box/MessageBox (POS: 消息展示组件)
- * - ./ConversationJumpBar (POS: 长对话快速定位导航)
+ * - ./TurnTimelineRail (POS: 会话时间线大纲导航导轨)
  * - ./approval/VisualApprovalAttentionBar (POS: 滚动区外 inline 审批可达条)
  * - ./ScrollToBottomButton (POS: 滚动到底部按钮 + 新消息提示)
  *
@@ -53,7 +53,7 @@ import { CompactedSummaryView } from './CompactedSummaryView';
 import { GoalControlPlane } from './goals/GoalControlPlane';
 import SessionAnalyticsDialog from '@/components/features/settings/sections/system/SessionAnalyticsDialog';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
-import { ConversationJumpBar, MobileJumpBarSheet } from './ConversationJumpBar';
+import { TurnTimelineRail, MobileTurnOutlineSheet } from './TurnTimelineRail';
 import { ListTree } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import VisualApprovalAttentionBar from './approval/VisualApprovalAttentionBar';
@@ -102,16 +102,24 @@ const Chat = ({
   const {
     chatId,
     compactedSummary,
+    turnOutlines,
+    loadThroughTurn,
     activeSessionAnalyticsId,
     setActiveSessionAnalyticsId,
     setActiveSessionAnalyticsMessageId,
+    turnOutlines,
+    loadThroughTurn,
   } = useChatStore(
     useShallow((state) => ({
       chatId: state.chatId,
       compactedSummary: state.compactedSummary,
+      turnOutlines: state.turnOutlines,
+      loadThroughTurn: state.loadThroughTurn,
       activeSessionAnalyticsId: state.activeSessionAnalyticsId,
       setActiveSessionAnalyticsId: state.setActiveSessionAnalyticsId,
       setActiveSessionAnalyticsMessageId: state.setActiveSessionAnalyticsMessageId,
+      turnOutlines: state.turnOutlines,
+      loadThroughTurn: state.loadThroughTurn,
     })),
   );
 
@@ -174,6 +182,30 @@ const Chat = ({
     },
   });
 
+  const handleJumpToMessageId = useCallback(
+    (messageId: string) => {
+      const targetIndex = messages.findIndex(
+        (m) => String(m.messageId) === messageId || String(m.id) === messageId,
+      );
+      if (targetIndex >= 0) {
+        handleJumpToMessage(targetIndex);
+        return;
+      }
+      const el = containerRef.current?.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
+      if (el) {
+        userScrolledRef.current = true;
+        setIsUserScrolledUp(true);
+        saveScrollPosition({
+          isFollowingBottom: false,
+          isUserScrolledUp: true,
+          anchorMessageId: messageId,
+        });
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    },
+    [messages, handleJumpToMessage, userScrolledRef, saveScrollPosition],
+  );
+
   const handleJumpToMessage = useCallback(
     (messageIndex: number) => {
       // 虚拟滚动模式：通过 ref 调用 virtualizer.scrollToIndex
@@ -194,6 +226,30 @@ const Chat = ({
           isFollowingBottom: false,
           isUserScrolledUp: true,
           anchorMessageId: String(msg.messageId),
+        });
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    },
+    [messages, userScrolledRef, saveScrollPosition],
+  );
+
+  const handleJumpToMessageId = useCallback(
+    (messageId: string) => {
+      userScrolledRef.current = true;
+      setIsUserScrolledUp(true);
+      const targetIndex = messages.findIndex(
+        (m) => String(m.messageId) === messageId || String(m.id) === messageId,
+      );
+      if (targetIndex >= 0 && scrollToMessageRef.current) {
+        scrollToMessageRef.current(targetIndex);
+        return;
+      }
+      const el = containerRef.current?.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
+      if (el) {
+        saveScrollPosition({
+          isFollowingBottom: false,
+          isUserScrolledUp: true,
+          anchorMessageId: messageId,
         });
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
@@ -531,13 +587,23 @@ const Chat = ({
               onClick={handleScrollToBottomClick}
             />
           </div>
-          <ConversationJumpBar
+          <TurnTimelineRail
             messages={messages}
+            turnOutlines={turnOutlines}
             onJump={handleJumpToMessage}
+            onJumpToMessageId={handleJumpToMessageId}
+            onLoadThroughTurn={loadThroughTurn}
             loading={loading}
             hasGoalPanel={isGoalsEnabled}
           />
-          <MobileJumpBarSheet messages={messages} onJump={handleJumpToMessage} trigger={mobileJumpTrigger} />
+          <MobileTurnOutlineSheet
+            messages={messages}
+            turnOutlines={turnOutlines}
+            onJump={handleJumpToMessage}
+            onJumpToMessageId={handleJumpToMessageId}
+            onLoadThroughTurn={loadThroughTurn}
+            trigger={mobileJumpTrigger}
+          />
           <ProviderConfigErrorDialog error={configError} onClose={clearConfigError} />
           {activeSessionAnalyticsId && (
             <SessionAnalyticsDialog
@@ -575,13 +641,23 @@ const Chat = ({
             onClick={handleScrollToBottomClick}
           />
         </div>
-        <ConversationJumpBar
+        <TurnTimelineRail
           messages={messages}
+          turnOutlines={turnOutlines}
           onJump={handleJumpToMessage}
+          onJumpToMessageId={handleJumpToMessageId}
+          onLoadThroughTurn={loadThroughTurn}
           loading={loading}
           hasGoalPanel={isGoalsEnabled}
         />
-        <MobileJumpBarSheet messages={messages} onJump={handleJumpToMessage} trigger={mobileJumpTrigger} />
+        <MobileTurnOutlineSheet
+          messages={messages}
+          turnOutlines={turnOutlines}
+          onJump={handleJumpToMessage}
+          onJumpToMessageId={handleJumpToMessageId}
+          onLoadThroughTurn={loadThroughTurn}
+          trigger={mobileJumpTrigger}
+        />
         <ProviderConfigErrorDialog error={configError} onClose={clearConfigError} />
         {activeSessionAnalyticsId && (
           <SessionAnalyticsDialog

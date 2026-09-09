@@ -140,3 +140,39 @@ async def test_build_moa_overlay_middleware_creates_middleware() -> None:
         ):
             result = await build_moa_overlay_middleware({"moa_overlay": overlay_raw})
     assert result is not None
+
+
+@pytest.mark.asyncio
+async def test_build_moa_overlay_middleware_injects_redact_leaks_when_privacy_active() -> None:
+    from app.services.agent.stream_session.moa_overlay_setup import (
+        build_moa_overlay_middleware,
+    )
+
+    mock_cfg = MagicMock(model="ref-a", api_keys=None)
+    mock_llm = MagicMock()
+    overlay_raw = {
+        "enabled": True,
+        "fanout": "user_turn",
+        "privacy_filter": "full",
+        "reference_model_selections": [],
+    }
+    with patch(
+        "app.services.agent.stream_session.moa_overlay_setup.resolve_moa_overlay_models",
+        new_callable=AsyncMock,
+        return_value=(overlay_raw, [mock_cfg]),
+    ):
+        with patch(
+            "myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config",
+            new_callable=AsyncMock,
+            return_value=mock_llm,
+        ):
+            with patch(
+                "myrm_agent_harness.agent.middlewares.moa_advisor_middleware.create_moa_advisor_middleware"
+            ) as create_mock:
+                await build_moa_overlay_middleware({"moa_overlay": overlay_raw})
+                assert create_mock.called
+                _, kwargs = create_mock.call_args
+                assert kwargs.get("privacy_redactor") is not None
+                from myrm_agent_harness.core.security.detection.leak_detector import redact_leaks
+
+                assert kwargs["privacy_redactor"] is redact_leaks

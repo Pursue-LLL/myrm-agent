@@ -83,12 +83,11 @@ async def test_rest_get_image_task_reflects_payload_snapshot_and_executor_result
     assert isinstance(task.payload.get(API_KEY_ENC_FIELD), str)
 
     mock_result = MagicMock()
-    mock_result.images = [
-        MagicMock(url="https://cdn.example/rest.png", width=512, height=512, mime_type="image/png"),
-    ]
-    mock_result.prompt = "a blue sphere"
+    mock_result.persisted_url = "https://cdn.example/rest.png"
+    mock_result.url = "https://cdn.example/rest.png"
+    mock_result.mime_type = "image/png"
+    mock_result.revised_prompt = None
     mock_result.model = "flux-pro"
-    mock_result.provider = "openai"
     mock_result.latency_ms = 42
 
     with patch("app.tasks.executors.image_executor.ImageGenerator") as generator_cls:

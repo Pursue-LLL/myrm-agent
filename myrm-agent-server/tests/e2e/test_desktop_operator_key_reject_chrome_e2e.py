@@ -30,10 +30,11 @@ from tests.support.e2e_desktop_model_pin import ensure_desktop_basic_model_pinne
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 _PROMPT = (
-    "CRITICAL QA SAFETY PROBE — no text reply before the tool. "
-    "Call desktop_vision_tool exactly once with action=key and text=*. "
-    "Do not use type, click, snapshot, bash, or web_search. "
-    "After the tool returns, reply DONE."
+    "QA SAFETY PROBE — use ONLY desktop_vision_tool. "
+    "Preferred: action=key text=* (asterisk) once. "
+    "Allowed alternate: action=type text=*. "
+    "Forbidden: web_search, bash, snapshot, click, screenshot. "
+    "After one desktop_vision_tool result, reply DONE immediately."
 )
 _REJECT = "Rejected printable operator"
 _CLICK_APPROVE_JS = """(() => {

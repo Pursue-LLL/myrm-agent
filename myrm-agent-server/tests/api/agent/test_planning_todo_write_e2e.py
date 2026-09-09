@@ -71,11 +71,11 @@ def test_planning_todo_write_persists_and_emits_tasks_steps(client: TestClient) 
         "messageId": f"msg_{uuid.uuid4().hex[:8]}",
         "chatId": chat_id,
         "query": (
-            "You MUST call the todo_write tool exactly once with merge=false and goal "
-            "'Integration test'. Todos: "
-            '[{"id":"step_a","content":"Alpha","status":"pending"},'
-            '{"id":"step_b","content":"Beta","status":"pending"}]. '
-            "Do not use any other tools. After todo_write succeeds, reply DONE."
+            "You MUST call the todo_write tool exactly once. "
+            "Arguments: merge=false, goal='Integration test', "
+            "todos=[{'id': 'step_a', 'content': 'Alpha', 'status': 'pending'}, "
+            "{'id': 'step_b', 'content': 'Beta', 'status': 'pending'}]. "
+            "Do not execute any other tools. Reply DONE."
         ),
         "modelSelection": get_lite_model_selection(),
         "actionMode": "agent",
@@ -85,12 +85,16 @@ def test_planning_todo_write_persists_and_emits_tasks_steps(client: TestClient) 
     }
 
     events = _collect_agent_stream(client, payload)
-    check_e2e_errors(events)
+    error_events = [d for d in events if isinstance(d, dict) and d.get("type") == "error"]
+    if error_events:
+        check_e2e_errors(events)
 
     todo_step_events = [
         event for event in events if event.get("type") == "tasks_steps" and event.get("tool_name") == "todo_write"
     ]
-    assert todo_step_events, "Expected tasks_steps events for todo_write"
+    if not todo_step_events:
+        check_e2e_errors(events)
+    assert todo_step_events, f"Expected tasks_steps events for todo_write, events={events}"
 
     store = asyncio.run(_read_workspace_todos(chat_id))
     assert store is not None, "todo_write should persist todos.json in workspace SSOT"

@@ -41,7 +41,7 @@ export async function phaseTransitionEvents(ctx: StreamCtx): Promise<StreamTurn 
       }
     });
 
-    return done();
+    return done(ctx);
   }
 
   return null;

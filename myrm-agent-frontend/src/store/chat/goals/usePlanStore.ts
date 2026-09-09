@@ -12,6 +12,7 @@ export type PlanStep = {
 export type Plan = {
   goal: string;
   reasoning: string;
+  revision?: number;
   steps: PlanStep[];
   current_step_id?: string;
 };
@@ -22,7 +23,12 @@ interface PlanStore {
   setPlan: (plan: Plan | null) => void;
   clearPlan: () => void;
   clearActivePlan: () => void;
-  updateStepStatus: (stepId: string, status: PlanStep['status']) => void;
+  updateStepStatus: (
+    stepId: string,
+    status: PlanStep['status'],
+    revision?: number,
+    description?: string,
+  ) => void;
   fetchPlan: (chatId: string) => Promise<void>;
 }
 
@@ -31,7 +37,20 @@ let _lastFetchId = 0;
 export const usePlanStore = create<PlanStore>((set) => ({
   plan: null,
   isLoading: false,
-  setPlan: (plan) => set({ plan }),
+  setPlan: (plan) =>
+    set((state) => {
+      if (!plan) {
+        return { plan: null };
+      }
+      if (
+        state.plan?.revision !== undefined &&
+        plan.revision !== undefined &&
+        plan.revision < state.plan.revision
+      ) {
+        return state;
+      }
+      return { plan };
+    }),
   clearPlan: () => set({ plan: null }),
   clearActivePlan: () =>
     set((state) => {
@@ -41,13 +60,57 @@ export const usePlanStore = create<PlanStore>((set) => ({
       const hasActive = state.plan.steps.some((s) => s.status === 'pending' || s.status === 'in_progress');
       return hasActive ? { plan: null } : state;
     }),
-  updateStepStatus: (stepId, status) =>
+  updateStepStatus: (stepId, status, revision, description) =>
     set((state) => {
       if (!state.plan) {
         return state;
       }
-      const steps = state.plan.steps.map((step) => (step.step_id === stepId ? { ...step, status } : step));
-      return { plan: { ...state.plan, steps } };
+      if (
+        revision !== undefined &&
+        state.plan.revision !== undefined &&
+        revision < state.plan.revision
+      ) {
+        return state;
+      }
+
+      let found = false;
+      const steps = state.plan.steps.map((step) => {
+        if (step.step_id === stepId) {
+          found = true;
+          return {
+            ...step,
+            status,
+            description: description || step.description,
+          };
+        }
+        return step;
+      });
+
+      const nextSteps = found
+        ? steps
+        : [
+            ...steps,
+            {
+              step_id: stepId,
+              description: description || '',
+              expected_output: '',
+              status,
+              dependencies: [],
+            },
+          ];
+
+      const nextRevision =
+        revision !== undefined
+          ? Math.max(state.plan.revision ?? 0, revision)
+          : state.plan.revision;
+
+      return {
+        plan: {
+          ...state.plan,
+          revision: nextRevision,
+          steps: nextSteps,
+        },
+      };
     }),
   fetchPlan: async (chatId: string) => {
     const fetchId = ++_lastFetchId;
@@ -59,7 +122,20 @@ export const usePlanStore = create<PlanStore>((set) => ({
       }
       if (res.ok) {
         const data = await res.json();
-        set({ plan: data.plan || null });
+        const incomingPlan: Plan | null = data.plan || null;
+        set((state) => {
+          if (!incomingPlan) {
+            return { plan: null };
+          }
+          if (
+            state.plan?.revision !== undefined &&
+            incomingPlan.revision !== undefined &&
+            incomingPlan.revision < state.plan.revision
+          ) {
+            return state;
+          }
+          return { plan: incomingPlan };
+        });
       }
     } catch (error) {
       if (fetchId !== _lastFetchId) {

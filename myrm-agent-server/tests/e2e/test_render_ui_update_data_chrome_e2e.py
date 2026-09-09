@@ -364,7 +364,6 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             intent=EvaluateIntent.SYNC_PROBE,
         )
         require_e2e_api_binding_probe(binding_probe, api_base)
-        await chat._attach_chat_session(chat_id)
         kickoff_deadline = time.monotonic() + signoff_parallel_force_chat_timeout_sec(45.0)
         while time.monotonic() < kickoff_deadline:
             _touch_render_ui_progress("render_ui_kickoff_gate")
@@ -373,10 +372,7 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
             await asyncio.sleep(1.0)
         else:
             raise AssertionError(f"R212 kickoff gate: chat {chat_id!r} has no user messages on {api_base}")
-        await _apply_e2e_runtime_bootstrap(chat)
-        await chat.evaluate(_ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE)
-        await _focus_chat(chat, chat_id)
-        # Stay on the post-send page (inline_card SSOT); attachToChat binds stream without hard reload.
+        # Stay on the post-send page (inline_card SSOT); no hard reload.
         await _wait_js(
             chat,
             chat_id,
@@ -419,16 +415,16 @@ async def test_render_ui_update_data_refreshes_inline_binding_in_real_chat(
         await _wait_not_streaming(timeout_sec=90.0)
         await chat.wait_input_empty(chat_id_hint=chat_id)
 
-        await chat.evaluate(_ENABLE_UPDATE_UI_JS, intent=EvaluateIntent.SYNC_PROBE)
+        await _apply_e2e_runtime_bootstrap(chat)
+        await pin_lite_model_for_e2e(chat)
+        up_ready = await chat.evaluate(_ENABLE_UPDATE_UI_JS, intent=EvaluateIntent.SYNC_PROBE)
+        assert isinstance(up_ready, dict) and up_ready.get("ok") is True, up_ready
 
         await chat.send_message(
             E2E_PROMPT_UPDATE,
             E2E_PROMPT_UPDATE,
-            chat_id_hint=chat_id,
-            base_url=BASE_URL,
         )
         _touch_render_ui_progress("render_ui_post_update_send_turn")
-        await chat.evaluate(_ENABLE_UPDATE_UI_JS, intent=EvaluateIntent.SYNC_PROBE)
 
         async def _wait_api_user_messages(min_count: int, *, timeout_sec: float) -> None:
             deadline = time.monotonic() + timeout_sec

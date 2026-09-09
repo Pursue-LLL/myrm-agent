@@ -17,6 +17,7 @@ if str(_LIB) not in sys.path:
 from cdp_chat.mcp_ui import McpChatSession  # noqa: E402
 from cdp_chat.support import (  # noqa: E402
     chat_user_message_count,
+    e2e_runtime_bootstrap_apply_js,
     fetch_chat_messages,
     get_e2e_api_url,
     wait_e2e_provider_ready,
@@ -25,6 +26,7 @@ from cdp_chat.ui import chat_id_from_path  # noqa: E402
 from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate.contract import EvaluateIntent  # noqa: E402
 
+from tests.support.e2e_lite_model_pin import pin_lite_model_for_e2e  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
@@ -159,10 +161,24 @@ async def test_render_ui_inline_button_click_sends_ui_action_message(
             await asyncio.sleep(0.75)
         raise AssertionError(f"UI action feedback not visible after button click: {last}")
 
+    async def _apply_e2e_runtime_bootstrap(chat: McpChatSession) -> None:
+        bootstrap_js = e2e_runtime_bootstrap_apply_js()
+        if not bootstrap_js:
+            await chat.ensure_e2e_api_base_binding()
+            return
+        result = await chat.evaluate(
+            bootstrap_js,
+            intent=EvaluateIntent.AGENT_SUBMIT,
+        )
+        if not isinstance(result, dict) or result.get("ok") is not True:
+            raise RuntimeError(f"E2E runtime bootstrap failed: {result}")
+
     async def _run_flow(chat: McpChatSession) -> str:
         await chat.dismiss_modals()
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL)
+        await _apply_e2e_runtime_bootstrap(chat)
+        await pin_lite_model_for_e2e(chat)
 
         enabled = await chat.evaluate(_ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE)
         assert isinstance(enabled, dict)

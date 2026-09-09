@@ -37,8 +37,6 @@ from app.ai_agents.prompts.shared_rules import (
     EXTERNAL_SOURCES_CITATION_RULES_ZH,
     RESPONSE_RULES_EN,
     RESPONSE_RULES_ZH,
-    SECURITY_RULES_EN,
-    SECURITY_RULES_ZH,
     TASK_INTEGRITY_RULES_EN,
     TASK_INTEGRITY_RULES_ZH,
 )
@@ -161,16 +159,15 @@ def _build_prompt_map(
             identity,
             ABSOLUTE_OBEDIENCE_RULES_ZH,
             RESPONSE_RULES_ZH,
-            SECURITY_RULES_ZH,
             TASK_INTEGRITY_RULES_ZH,
         ]
 
-        lean_parts = [identity, SECURITY_RULES_ZH, TASK_INTEGRITY_RULES_ZH]
+        lean_parts = [identity, TASK_INTEGRITY_RULES_ZH]
 
         return {
             "full": "\n".join(full_parts),
             "lean": "\n".join(lean_parts),
-            "naked": f"{SECURITY_RULES_ZH}\n{_NAKED_TOOL_GUIDANCE}",
+            "naked": _NAKED_TOOL_GUIDANCE,
             "search": _SEARCH_BASE_ZH,
         }
 
@@ -178,16 +175,15 @@ def _build_prompt_map(
         identity,
         ABSOLUTE_OBEDIENCE_RULES_EN,
         RESPONSE_RULES_EN,
-        SECURITY_RULES_EN,
         TASK_INTEGRITY_RULES_EN,
     ]
 
-    lean_parts = [identity, SECURITY_RULES_EN, TASK_INTEGRITY_RULES_EN]
+    lean_parts = [identity, TASK_INTEGRITY_RULES_EN]
 
     return {
         "full": "\n".join(full_parts),
         "lean": "\n".join(lean_parts),
-        "naked": f"{SECURITY_RULES_EN}\n{_NAKED_TOOL_GUIDANCE}",
+        "naked": _NAKED_TOOL_GUIDANCE,
         "search": _SEARCH_BASE_EN,
     }
 

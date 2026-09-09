@@ -66,6 +66,7 @@ class BlueprintFillResult:
     name: str
     required_capabilities: tuple[str, ...] = ()
     tools_allowed: tuple[str, ...] | None = None
+    skill_ids: tuple[str, ...] = ()
     job_type: Literal["agent", "shell", "router", "reminder"] = "agent"
     session_target: Literal["isolated", "main", "daily"] = "isolated"
     deduplicate: bool = False
@@ -125,6 +126,7 @@ class CronBlueprint:
     sort_order: int = 0
     default_required_capabilities: tuple[str, ...] = ()
     default_tools_allowed: tuple[str, ...] | None = None
+    default_skill_ids: tuple[str, ...] = ()
     job_defaults: BlueprintJobDefaults = field(default_factory=BlueprintJobDefaults)
     _schedule_builder: str = field(default="", repr=False)
 
@@ -164,6 +166,7 @@ def _with_supplemental_locales(bp: CronBlueprint) -> CronBlueprint:
         sort_order=bp.sort_order,
         default_required_capabilities=bp.default_required_capabilities,
         default_tools_allowed=bp.default_tools_allowed,
+        default_skill_ids=bp.default_skill_ids,
         job_defaults=bp.job_defaults,
         _schedule_builder=bp._schedule_builder,
     )
@@ -357,14 +360,14 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         },
         prompt_template={
             "en": (
-                "Check the current system health status. Report CPU usage, memory usage, "
-                "disk space remaining, and any services that appear to be down or unhealthy. "
-                "Only report issues that need attention — if everything is normal, keep it brief."
+                "Execute the host-server-ops health inspection workflow. Check CPU load, "
+                "memory utilization, remaining disk headroom, and critical daemon/service status. "
+                "Produce a structured health brief with status level (OK / WARN / CRIT) and triage advice."
             ),
             "zh": (
-                "检查当前系统健康状态。报告 CPU 使用率、内存使用率、"
-                "剩余磁盘空间，以及任何似乎宕机或不健康的服务。"
-                "只报告需要关注的问题——如果一切正常，请保持简短。"
+                "执行 host-server-ops 主机健康巡检工作流。检查 CPU 负载、"
+                "内存利用率、剩余磁盘空间以及关键守护进程/服务运行状态。"
+                "生成包含状态评级（OK / WARN / CRIT）及排障处置建议的结构化健康简报。"
             ),
         },
         slots=(
@@ -382,6 +385,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         sort_order=5,
         default_required_capabilities=_CAP_DEVOPS,
         default_tools_allowed=_TOOLS_DEVOPS,
+        default_skill_ids=("host-server-ops",),
         _schedule_builder="time_weekdays",
     ),
     CronBlueprint(
@@ -1174,6 +1178,7 @@ def fill_blueprint(
         name=name,
         required_capabilities=bp.default_required_capabilities,
         tools_allowed=bp.default_tools_allowed,
+        skill_ids=bp.default_skill_ids,
         job_type=defaults.job_type,
         session_target=defaults.session_target,
         deduplicate=defaults.deduplicate,

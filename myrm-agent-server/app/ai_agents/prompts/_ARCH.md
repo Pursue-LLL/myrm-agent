@@ -26,10 +26,10 @@
 
 | Mode | Token 量 | 注入内容 | 适用场景 |
 |------|----------|----------|----------|
-| `full` | ~3300 chars | 身份+精简规则+绝对服从+回复规则+安全+任务完整性 | 通用场景（默认） |
-| `lean` | ~1900 chars | 身份+安全+任务完整性 | WEAK/MEDIUM 模型自动适配；高级用户减少干扰 |
-| `naked` | ~655 chars | 安全规则+工具调用指引 | 完全用户控制 |
-| `search` | ~1200 chars | 搜索专用提示词（来自 fast_search_agent_prompt.py）| 快速搜索模式 |
+| `full` | ~2500 chars | 身份+绝对服从+回复规则+任务完整性（安全边界由 SecurityBoundaryMiddleware 在 messages[1] 统一注入） | 通用场景（默认） |
+| `lean` | ~1200 chars | 身份+任务完整性（安全边界由 SecurityBoundaryMiddleware 统一注入） | WEAK/MEDIUM 模型自动适配；高级用户减少干扰 |
+| `naked` | ~300 chars | 工具调用指引（安全边界由 SecurityBoundaryMiddleware 在 messages[1] 统一注入） | 完全用户控制与轻量测试 |
+| `search` | ~1200 chars | 搜索专用提示词（来自 fast_search_agent_prompt.py，安全边界由 SecurityBoundaryMiddleware 统一注入）| 快速搜索模式 |
 
 search 模式通过 `_SEARCH_PROMPT_BASE`（normal）+ `SEARCH_DEEP_SUFFIX`（deep）静态缓存，
 保证 Kv Cache 前缀稳定性。deep suffix 在 factory.py 中按 `search_depth` 动态追加。

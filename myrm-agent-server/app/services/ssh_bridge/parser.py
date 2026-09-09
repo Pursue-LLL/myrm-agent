@@ -83,6 +83,8 @@ class OpenSSHConfigParser:
 
         for pattern in patterns:
             # Skip global wildcard if not specific
+            if pattern in ("*", "*.*", "?*"):
+                continue
             parsed_list.append(
                 SSHConfigParsedHost(
                     pattern=pattern,

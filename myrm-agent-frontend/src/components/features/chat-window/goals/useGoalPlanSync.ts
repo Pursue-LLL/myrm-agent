@@ -35,6 +35,8 @@ export function useGoalPlanSync(chatId: string | null | undefined): void {
       const stepKey = detail.step_key;
       if (stepKey?.startsWith('todo_step_')) {
         const stepId = stepKey.replace('todo_step_', '');
+        const description = (detail as { data?: Array<{ text?: string }> }).data?.[0]?.text;
+        const revision = (detail as { revision?: number }).revision;
         let status: 'pending' | 'in_progress' | 'completed' | 'skipped' | 'blocked' = 'pending';
         if (detail.status === 'success') {
           status = 'completed';
@@ -45,12 +47,20 @@ export function useGoalPlanSync(chatId: string | null | undefined): void {
         } else if (detail.status === 'blocked') {
           status = 'blocked';
         }
-        updateStepStatus(stepId, status);
+        updateStepStatus(stepId, status, revision, description);
         return;
       }
 
       if (stepKey === 'progress_root') {
-        void fetchPlan(chatId);
+        const currentPlan = usePlanStore.getState().plan;
+        const revision = (detail as { revision?: number }).revision;
+        if (
+          !currentPlan ||
+          revision === undefined ||
+          revision > (currentPlan.revision ?? 0)
+        ) {
+          void fetchPlan(chatId);
+        }
       }
     };
 

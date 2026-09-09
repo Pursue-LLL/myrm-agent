@@ -1761,7 +1761,26 @@
     "jumpBar": {
       "ariaLabel": "对话导航",
       "title": "消息导航",
-      "jumpTo": "跳转到消息"
+      "jumpTo": "跳转到消息",
+      "turnTitle": "第 {turn} 轮",
+      "loaded": "已载入",
+      "unloaded": "未载入 · 点击自动加载并定位",
+      "loading": "正在加载轮次...",
+      "userPrefix": "用户: ",
+      "assistantPrefix": "智能体: ",
+      "fullTimeline": "全会话时间线",
+      "turnCount": "共 {count} 轮对话"
+    },
+    "turnRail": {
+      "ariaLabel": "会话时间线大纲导航",
+      "title": "会话大纲",
+      "turn": "第 {index} 轮",
+      "loaded": "已就绪",
+      "unloaded": "点击加载",
+      "loading": "正在加载轮次...",
+      "userPrompt": "提问",
+      "assistantReply": "回复",
+      "jumpToTurn": "跳转到第 {index} 轮"
     },
     "scrollCue": {
       "scrollToBottom": "滚动到底部",
@@ -2617,7 +2636,10 @@
       "submit": "提交",
       "skip": "跳过",
       "submitFailed": "提交澄清失败，请重试",
-      "answered": "已回答澄清问题"
+      "answered": "已回答澄清问题",
+      "expandOptions": "展开更多选项 (+{count})",
+      "collapseOptions": "收起选项",
+      "recommendedBadge": "推荐"
     },
     "directoryRequest": {
       "title": "需要目录访问权限",
@@ -9804,6 +9826,12 @@
       "noAttentionNeeded": "当前暂无需要治理的风险或沉睡技能",
       "recommendationPrefix": "治理建议:",
       "manageSkill": "去管理",
+      "showMore": "展开全部 ({count})",
+      "showLess": "收起",
+      "recStar": "高复利明星资产，团队零摩擦高频复用",
+      "recAtRisk": "高风险资产，检测到失败/重试率较高，建议检查 Prompt 与参数",
+      "recHealthy": "健康运行资产，处于活跃轮转中",
+      "recStale": "长期闲置资产，建议排查是否过时或补齐使用示例",
       "status": {
         "STAR": "明星",
         "HEALTHY": "健康",
@@ -12456,6 +12484,7 @@
       "integrationMemory": "集成记忆",
       "extensionBridge": "浏览器扩展",
       "connect": "外部智能体",
+      "a2aPeers": "A2A 远端节点",
       "workspaceRules": "项目规则",
       "enterprise": "企业管理",
       "developer": "开发者",

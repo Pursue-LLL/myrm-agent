@@ -1,15 +1,7 @@
 ---
 name: debloat-codebase
 description: "Autonomous multi-agent codebase slimming, dead code pruning, and behavior-preserving equivalence refactoring pipeline."
-allowed-tools:
-  - bash
-  - file_read
-  - file_write
-  - file_str_replace
-  - glob
-  - grep
-  - subagent_spawn
-  - git_pr_create
+allowed-tools: bash_code_execute_tool file_read_tool file_write_tool file_edit_tool glob_tool grep_tool
 ---
 
 # Codebase Slimming & Equivalence Refactor Protocol

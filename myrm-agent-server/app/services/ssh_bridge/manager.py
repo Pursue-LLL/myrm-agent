@@ -110,3 +110,13 @@ class SSHAssetManager:
             imported.append(asset)
 
         return tuple(imported)
+
+    def import_from_config_text(
+        self,
+        config_text: str,
+        default_user: str = "root",
+        tags: tuple[str, ...] = ("imported_config",),
+    ) -> int:
+        """Convenience method returning the count of successfully imported assets."""
+        imported = self.import_from_ssh_config(config_text, default_user=default_user, tags=tags)
+        return len(imported)

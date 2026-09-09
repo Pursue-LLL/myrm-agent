@@ -6,18 +6,20 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     get_e2e_ui_url,
-    open_settings_subroute,
+    open_mcp_page,
     wait_for_state,
 )
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_skill_health_governance_panel_in_journey_page() -> None:
     """Verify SkillHealthPanel tabs and governance recommendations in /journey."""
-    with open_settings_subroute("/journey") as (client, page):
-        journey_url = f"{get_e2e_ui_url().rstrip('/')}/journey"
+    journey_url = f"{get_e2e_ui_url().rstrip('/')}/journey"
+    with open_mcp_page(journey_url) as (client, page):
         state = wait_for_state(
             client,
             page,
@@ -30,7 +32,10 @@ def test_skill_health_governance_panel_in_journey_page() -> None:
               const filterAttention = Array.from(document.querySelectorAll('button')).some((b) =>
                 /Needs Attention|待治理/i.test(b.textContent || '')
               );
-              return { ready: hasHealthHeader && filterAll && filterAttention, hasHealthHeader, filterAll, filterAttention };
+              const filterHealthy = Array.from(document.querySelectorAll('button')).some((b) =>
+                /Healthy|健康/i.test(b.textContent || '')
+              );
+              return { ready: hasHealthHeader && filterAll && filterAttention && filterHealthy, hasHealthHeader, filterAll, filterAttention, filterHealthy };
             })()""",
             timeout_sec=60.0,
             page_url=journey_url,

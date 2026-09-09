@@ -85,6 +85,59 @@ const CheckMarkIcon = () => (
   </svg>
 );
 
+const ChevronDownIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);
+
+const COLLAPSED_OPTIONS_LIMIT = 4;
+
+const RECOMMENDED_REGEX = /(?:\s*[(（](?:Recommended|推荐|建議|おすすめ|추천|Empfohlen)[)）]|\s*\[(?:Recommended|推荐|建議|おすすめ|추천|Empfohlen)\])$/i;
+
+function parseOptionLabel(rawLabel: string): { displayLabel: string; isRecommended: boolean } {
+  const match = rawLabel.match(RECOMMENDED_REGEX);
+  if (match) {
+    const cleaned = rawLabel.replace(RECOMMENDED_REGEX, '').trim();
+    return {
+      displayLabel: cleaned || rawLabel.trim(),
+      isRecommended: true,
+    };
+  }
+  return {
+    displayLabel: rawLabel,
+    isRecommended: false,
+  };
+}
+
+function renderDescriptionWithCode(text: string): React.ReactNode {
+  if (!text.includes('`')) {
+    return text;
+  }
+  const parts = text.split(/(`[^`]+`)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+      return (
+        <code
+          key={index}
+          className="mx-0.5 rounded border border-border/60 bg-muted/70 px-1 py-0.5 font-mono text-[11px] font-medium text-foreground"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+}
+
 interface OptionPillProps {
   label: string;
   description?: string;
@@ -92,37 +145,62 @@ interface OptionPillProps {
   allowMultiple: boolean;
   disabled: boolean;
   onSelect: () => void;
+  recommendedBadgeText?: string;
 }
 
-const OptionPill = ({ label, description, selected, allowMultiple, disabled, onSelect }: OptionPillProps) => (
-  <button
-    type="button"
-    onClick={onSelect}
-    disabled={disabled}
-    className={cn(
-      'group max-w-full rounded-full border px-3 py-2 text-left text-sm transition-all duration-200 sm:px-4 sm:py-2.5',
-      selected
-        ? 'border-primary/70 bg-primary/10 text-primary ring-2 ring-primary/20'
-        : 'border-border/70 bg-background/80 text-foreground hover:border-primary/40 hover:bg-primary/5',
-    )}
-  >
-    <div className="flex items-start gap-2.5">
-      <div
-        className={cn(
-          'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center border transition-colors',
-          allowMultiple ? 'rounded' : 'rounded-full',
-          selected ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-background',
-        )}
-      >
-        {selected ? <CheckMarkIcon /> : null}
+const OptionPill = ({
+  label,
+  description,
+  selected,
+  allowMultiple,
+  disabled,
+  onSelect,
+  recommendedBadgeText,
+}: OptionPillProps) => {
+  const { displayLabel, isRecommended } = parseOptionLabel(label);
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={disabled}
+      className={cn(
+        'group max-w-full rounded-2xl border px-3 py-2 text-left text-sm transition-all duration-200 sm:px-4 sm:py-2.5',
+        selected
+          ? 'border-primary/70 bg-primary/10 text-primary ring-2 ring-primary/20'
+          : 'border-border/70 bg-background/80 text-foreground hover:border-primary/40 hover:bg-primary/5',
+      )}
+    >
+      <div className="flex items-start gap-2.5">
+        <div
+          className={cn(
+            'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center border transition-colors',
+            allowMultiple ? 'rounded' : 'rounded-full',
+            selected ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-background',
+          )}
+        >
+          {selected ? <CheckMarkIcon /> : null}
+        </div>
+        <div className="min-w-0 flex flex-col gap-0.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className={cn('font-medium leading-snug', selected && 'text-primary')}>{displayLabel}</span>
+            {isRecommended ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-primary shadow-sm shadow-primary/10">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                {recommendedBadgeText || 'Recommended'}
+              </span>
+            ) : null}
+          </div>
+          {description ? (
+            <span className="text-xs leading-relaxed text-muted-foreground">
+              {renderDescriptionWithCode(description)}
+            </span>
+          ) : null}
+        </div>
       </div>
-      <div className="min-w-0 flex flex-col gap-0.5">
-        <span className={cn('font-medium leading-snug', selected && 'text-primary')}>{label}</span>
-        {description ? <span className="text-xs leading-relaxed text-muted-foreground">{description}</span> : null}
-      </div>
-    </div>
-  </button>
-);
+    </button>
+  );
+};
 
 const clarificationTextareaClass =
   'w-full resize-none rounded-xl border border-border/70 bg-background/90 px-3 py-2.5 text-sm leading-relaxed placeholder:text-muted-foreground transition-colors focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/25 sm:px-4 sm:py-3';
@@ -175,8 +253,17 @@ const ClarificationInput = ({
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [formTexts, setFormTexts] = useState<Record<string, string>>({});
   const [formSelections, setFormSelections] = useState<Record<string, string[]>>({});
+  const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
+  const [isSimpleOptionsExpanded, setIsSimpleOptionsExpanded] = useState(false);
   const hasStructuredForm = Boolean(form?.questions && form.questions.length > 0);
   const sendMessage = useChatStore((state) => state.sendMessage);
+
+  const toggleQuestionExpand = (questionId: string) => {
+    setExpandedQuestions((prev) => ({
+      ...prev,
+      [questionId]: !prev[questionId],
+    }));
+  };
 
   const markAnswered = () => {
     useChatStore.setState((state) => {
@@ -372,26 +459,60 @@ const ClarificationInput = ({
                       </p>
                     </div>
 
-                    {question.options && question.options.length > 0 ? (
-                      <div className="flex flex-col gap-2.5">
-                        <p className="text-xs text-muted-foreground">
-                          {questionAllowMultiple ? t('multipleChoicePrompt') : t('singleChoicePrompt')}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {question.options.map((option) => (
-                            <OptionPill
-                              key={option.id}
-                              label={option.label}
-                              description={option.description}
-                              selected={selected.includes(option.id)}
-                              allowMultiple={questionAllowMultiple}
-                              disabled={submitting}
-                              onSelect={() => toggleFormOption(question.id, option.id, questionAllowMultiple)}
-                            />
-                          ))}
+                    {question.options && question.options.length > 0 ? (() => {
+                      const totalOptions = question.options.length;
+                      const hasSelectedInHidden =
+                        totalOptions > COLLAPSED_OPTIONS_LIMIT &&
+                        question.options
+                          .slice(COLLAPSED_OPTIONS_LIMIT)
+                          .some((opt) => selected.includes(opt.id));
+                      const isExpanded = Boolean(expandedQuestions[question.id]) || hasSelectedInHidden;
+                      const visibleOptions =
+                        !isExpanded && totalOptions > COLLAPSED_OPTIONS_LIMIT
+                          ? question.options.slice(0, COLLAPSED_OPTIONS_LIMIT)
+                          : question.options;
+
+                      return (
+                        <div className="flex flex-col gap-2.5">
+                          <p className="text-xs text-muted-foreground">
+                            {questionAllowMultiple ? t('multipleChoicePrompt') : t('singleChoicePrompt')}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {visibleOptions.map((option) => (
+                              <OptionPill
+                                key={option.id}
+                                label={option.label}
+                                description={option.description}
+                                selected={selected.includes(option.id)}
+                                allowMultiple={questionAllowMultiple}
+                                disabled={submitting}
+                                onSelect={() => toggleFormOption(question.id, option.id, questionAllowMultiple)}
+                                recommendedBadgeText={t('recommendedBadge')}
+                              />
+                            ))}
+                          </div>
+                          {totalOptions > COLLAPSED_OPTIONS_LIMIT ? (
+                            <button
+                              type="button"
+                              onClick={() => toggleQuestionExpand(question.id)}
+                              className="inline-flex items-center gap-1.5 self-start rounded-full border border-dashed border-border/70 bg-background/50 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-accent/40 hover:text-foreground"
+                            >
+                              <ChevronDownIcon
+                                className={cn(
+                                  'h-3.5 w-3.5 transition-transform duration-200',
+                                  isExpanded && 'rotate-180',
+                                )}
+                              />
+                              <span>
+                                {isExpanded
+                                  ? t('collapseOptions')
+                                  : t('expandOptions', { count: totalOptions - COLLAPSED_OPTIONS_LIMIT })}
+                              </span>
+                            </button>
+                          ) : null}
                         </div>
-                      </div>
-                    ) : null}
+                      );
+                    })() : null}
 
                     {hasQuestionOptions ? <p className="text-xs text-muted-foreground">{t('optionalNote')}</p> : null}
 
@@ -406,6 +527,7 @@ const ClarificationInput = ({
                           [question.id]: e.target.value,
                         }))
                       }
+                      onKeyDown={handleKeyDown}
                       disabled={submitting}
                     />
                   </div>
@@ -414,26 +536,60 @@ const ClarificationInput = ({
             </div>
           ) : (
             <div className="flex flex-col gap-3 sm:gap-4">
-              {options && options.length > 0 ? (
-                <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-background/70 p-3 sm:p-4">
-                  <p className="text-xs text-muted-foreground">
-                    {allowMultiple ? t('multipleChoicePrompt') : t('singleChoicePrompt')}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {options.map((opt) => (
-                      <OptionPill
-                        key={opt}
-                        label={opt}
-                        selected={selectedOptions.includes(opt)}
-                        allowMultiple={Boolean(allowMultiple)}
-                        disabled={submitting}
-                        onSelect={() => toggleOption(opt)}
-                      />
-                    ))}
+              {options && options.length > 0 ? (() => {
+                const totalSimpleOptions = options.length;
+                const hasSelectedInHidden =
+                  totalSimpleOptions > COLLAPSED_OPTIONS_LIMIT &&
+                  options
+                    .slice(COLLAPSED_OPTIONS_LIMIT)
+                    .some((opt) => selectedOptions.includes(opt));
+                const effectiveExpanded = isSimpleOptionsExpanded || hasSelectedInHidden;
+                const visibleSimpleOptions =
+                  !effectiveExpanded && totalSimpleOptions > COLLAPSED_OPTIONS_LIMIT
+                    ? options.slice(0, COLLAPSED_OPTIONS_LIMIT)
+                    : options;
+
+                return (
+                  <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-background/70 p-3 sm:p-4">
+                    <p className="text-xs text-muted-foreground">
+                      {allowMultiple ? t('multipleChoicePrompt') : t('singleChoicePrompt')}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {visibleSimpleOptions.map((opt) => (
+                        <OptionPill
+                          key={opt}
+                          label={opt}
+                          selected={selectedOptions.includes(opt)}
+                          allowMultiple={Boolean(allowMultiple)}
+                          disabled={submitting}
+                          onSelect={() => toggleOption(opt)}
+                          recommendedBadgeText={t('recommendedBadge')}
+                        />
+                      ))}
+                    </div>
+                    {totalSimpleOptions > COLLAPSED_OPTIONS_LIMIT ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsSimpleOptionsExpanded((prev) => !prev)}
+                        className="inline-flex items-center gap-1.5 self-start rounded-full border border-dashed border-border/70 bg-background/50 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-accent/40 hover:text-foreground"
+                      >
+                        <ChevronDownIcon
+                          className={cn(
+                            'h-3.5 w-3.5 transition-transform duration-200',
+                            effectiveExpanded && 'rotate-180',
+                          )}
+                        />
+                        <span>
+                          {effectiveExpanded
+                            ? t('collapseOptions')
+                            : t('expandOptions', { count: totalSimpleOptions - COLLAPSED_OPTIONS_LIMIT })}
+                        </span>
+                      </button>
+                    ) : null}
+                    <p className="text-xs text-muted-foreground">{t('optionalNote')}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">{t('optionalNote')}</p>
-                </div>
-              ) : null}
+                );
+              })() : null}
 
               <textarea
                 className={clarificationTextareaClass}

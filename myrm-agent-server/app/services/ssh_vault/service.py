@@ -29,7 +29,6 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from app.services.ssh_vault.models import (
-    SFTPTransferResult,
     SSHAssetSummary,
     SSHCommandResult,
     SSHHostConfig,

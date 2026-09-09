@@ -20,6 +20,7 @@ from cdp_chat.ui import chat_id_from_path, chat_user_message_count  # noqa: E402
 from chrome_mcp.client import ChromeMcpClient, McpPage  # noqa: E402
 from dev_gate.contract import EvaluateIntent  # noqa: E402
 
+from tests.support.e2e_lite_model_pin import pin_lite_model_for_e2e  # noqa: E402
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
@@ -90,6 +91,11 @@ async def test_render_ui_inline_card_renders_in_real_chat(
         await chat.dismiss_modals()
         await chat.click_new_chat()
         await chat.ensure_chat_surface(BASE_URL)
+        from cdp_chat.support import e2e_runtime_bootstrap_apply_js
+        bootstrap_js = e2e_runtime_bootstrap_apply_js()
+        if bootstrap_js:
+            await chat.evaluate(bootstrap_js, intent=EvaluateIntent.AGENT_SUBMIT)
+        await pin_lite_model_for_e2e(chat)
 
         enabled = await chat.evaluate(_ENABLE_RENDER_UI_JS, intent=EvaluateIntent.SYNC_PROBE)
         assert isinstance(enabled, dict)

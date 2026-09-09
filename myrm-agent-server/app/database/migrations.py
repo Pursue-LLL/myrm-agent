@@ -622,6 +622,7 @@ MIGRATION_STATEMENTS: list[str] = [
     """CREATE UNIQUE INDEX IF NOT EXISTS uq_user_allowlist_final
         ON user_tool_allowlist(permission, tool_name, tool_args_hash, command_pattern, agent_id)""",
     "ALTER TABLE user_tool_allowlist ADD COLUMN expires_at TIMESTAMP",
+    "ALTER TABLE cron_jobs ADD COLUMN skill_ids JSON",
 ]
 
 # 创建索引的SQL语句列表

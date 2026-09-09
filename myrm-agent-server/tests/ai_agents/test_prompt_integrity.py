@@ -6,6 +6,7 @@ and that prompt strings are stable for KV Cache optimization.
 """
 
 import pytest
+from myrm_agent_harness.core.security.detection.content_boundary import SECURITY_BOUNDARY_SYSTEM_RULES
 
 from app.ai_agents.prompts.general_agent_prompt import (
     CORE_SYSTEM_PROMPT,
@@ -16,7 +17,6 @@ from app.ai_agents.prompts.shared_rules import (
     ABSOLUTE_OBEDIENCE_RULES,
     EXTERNAL_SOURCES_CITATION_RULES,
     RESPONSE_RULES,
-    SECURITY_RULES,
     TASK_INTEGRITY_RULES,
 )
 
@@ -29,7 +29,6 @@ class TestCoreSystemPrompt:
         assert "<identity>" in prompt
         assert "<absolute_obedience_override>" in prompt
         assert "<response_rules>" in prompt
-        assert "<security_rules>" in prompt
         assert "<task_integrity>" in prompt
 
     def test_task_integrity_content(self) -> None:
@@ -55,14 +54,13 @@ class TestCoreSystemPrompt:
         identity_pos = prompt.index("<identity>")
         obedience_pos = prompt.index("<absolute_obedience_override>")
         response_pos = prompt.index("<response_rules>")
-        security_pos = prompt.index("<security_rules>")
         integrity_pos = prompt.index("<task_integrity>")
 
-        assert identity_pos < obedience_pos < response_pos < security_pos < integrity_pos
+        assert identity_pos < obedience_pos < response_pos < integrity_pos
 
     def test_shared_rules_exports(self) -> None:
         assert len(ABSOLUTE_OBEDIENCE_RULES) > 0
-        assert len(SECURITY_RULES) > 0
+        assert len(SECURITY_BOUNDARY_SYSTEM_RULES) > 0
         assert len(RESPONSE_RULES) > 0
         assert len(TASK_INTEGRITY_RULES) > 0
         assert len(EXTERNAL_SOURCES_CITATION_RULES) > 0
@@ -76,13 +74,11 @@ class TestPromptModeThreeTier:
         assert "<identity>" in prompt
         assert "<absolute_obedience_override>" in prompt
         assert "<response_rules>" in prompt
-        assert "<security_rules>" in prompt
         assert "<task_integrity>" in prompt
 
     def test_lean_mode_has_identity_security_integrity(self) -> None:
         prompt = get_core_system_prompt("lean")
         assert "<identity>" in prompt
-        assert "<security_rules>" in prompt
         assert "<task_integrity>" in prompt
 
     def test_lean_mode_excludes_formatting_rules(self) -> None:
@@ -90,9 +86,9 @@ class TestPromptModeThreeTier:
         assert "<response_rules>" not in prompt
         assert "<absolute_obedience_override>" not in prompt
 
-    def test_naked_mode_has_security_and_tool_guidance(self) -> None:
+    def test_naked_mode_has_tool_guidance(self) -> None:
+        """Naked mode focuses purely on tool guidance, security boundary is injected by middleware."""
         prompt = get_core_system_prompt("naked")
-        assert "<security_rules>" in prompt
         assert "<tool_guidance>" in prompt
 
     def test_naked_mode_excludes_identity_and_formatting(self) -> None:
@@ -131,11 +127,10 @@ class TestPromptModeThreeTier:
             second = get_core_system_prompt(mode)  # type: ignore[arg-type]
             assert first is second
 
-    @pytest.mark.parametrize("mode", ["full", "lean", "naked"])
-    def test_all_modes_have_security_rules(self, mode: str) -> None:
-        """Security rules must always be present regardless of mode."""
-        prompt = get_core_system_prompt(mode)  # type: ignore[arg-type]
-        assert "<security_rules>" in prompt
+    def test_naked_mode_delegates_security_boundary_to_middleware(self) -> None:
+        """Naked mode relies on SecurityBoundaryMiddleware SSOT, keeping prompt pure."""
+        prompt = get_core_system_prompt("naked")
+        assert "<data_boundary_rules" not in prompt
 
     def test_prompt_stability_all_param_combos(self) -> None:
         """All enable_answer_tool combos return stable objects."""
@@ -168,14 +163,12 @@ class TestSystemPromptDecoupledFromMemoryTools:
         assert "<identity>" in prompt
         assert "<absolute_obedience_override>" in prompt
         assert "<response_rules>" in prompt
-        assert "<security_rules>" in prompt
         assert "<task_integrity>" in prompt
 
     def test_answer_tool_disabled_full_mode_still_has_core_rules(self) -> None:
         """enable_answer_tool=False still has core rules."""
         prompt = get_core_system_prompt("full", enable_answer_tool=False)
         assert "<identity>" in prompt
-        assert "<security_rules>" in prompt
         assert "<task_integrity>" in prompt
         assert "request_answer_user_tool" not in prompt
 
@@ -307,13 +300,13 @@ class TestPromptBilingualSupport:
         prompt = get_core_system_prompt()
         assert "You are a powerful, pragmatic, and versatile AI assistant" in prompt
         assert "Project-level constraints" in prompt
-        assert "<security_rules>" in prompt
+        assert "<task_integrity>" in prompt
 
     def test_explicit_chinese_locale_switches_to_chinese(self) -> None:
         prompt = get_core_system_prompt(locale="zh-CN")
         assert "你是一个功能强大且求真务实的通用AI智能助手" in prompt
         assert "用户通过 <user_instructions> 提供的项目级约束具有最高优先级" in prompt
-        assert "<security_rules>" in prompt
+        assert "<task_integrity>" in prompt
 
     def test_citation_rules_bilingual(self) -> None:
         from app.ai_agents.prompts.shared_rules import (

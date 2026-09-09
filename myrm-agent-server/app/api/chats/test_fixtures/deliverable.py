@@ -187,6 +187,8 @@ async def seed_deliverable_bundle_goal_fixture() -> dict[str, object]:
     )
 
     provider = GoalRegistry.get_or_create_provider(chat_id)
+    if hasattr(provider, "_storage") and hasattr(provider._storage, "save_goal"):
+        await provider._storage.save_goal(goal)
     if hasattr(provider, "_goals"):
         provider._goals[goal.goal_id] = goal
     if hasattr(provider, "_active_goal_id"):

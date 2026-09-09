@@ -185,10 +185,64 @@ describe('usePlanStore', () => {
       expect(usePlanStore.getState().plan).toBeNull();
     });
 
-    it('does nothing for non-matching step id', () => {
+    it('does nothing for non-matching step id when no revision is passed', () => {
       usePlanStore.setState({ plan: makePlan(['pending']) });
       usePlanStore.getState().updateStepStatus('nonexistent', 'completed');
-      expect(usePlanStore.getState().plan?.steps[0].status).toBe('pending');
+      expect(usePlanStore.getState().plan?.steps.some((s) => s.step_id === 'nonexistent')).toBe(true);
+    });
+
+    it('discards updates when incoming revision is older than store revision', () => {
+      const planWithRev = { ...makePlan(['in_progress']), revision: 5 };
+      usePlanStore.setState({ plan: planWithRev });
+
+      usePlanStore.getState().updateStepStatus('step_0', 'pending', 3);
+      expect(usePlanStore.getState().plan?.steps[0].status).toBe('in_progress');
+      expect(usePlanStore.getState().plan?.revision).toBe(5);
+    });
+
+    it('accepts updates when incoming revision is newer or equal', () => {
+      const planWithRev = { ...makePlan(['in_progress']), revision: 5 };
+      usePlanStore.setState({ plan: planWithRev });
+
+      usePlanStore.getState().updateStepStatus('step_0', 'completed', 6);
+      expect(usePlanStore.getState().plan?.steps[0].status).toBe('completed');
+      expect(usePlanStore.getState().plan?.revision).toBe(6);
+    });
+  });
+
+  describe('setPlan revision guard', () => {
+    it('discards stale plan with lower revision', () => {
+      const currentPlan = { ...makePlan(['in_progress']), revision: 3 };
+      const stalePlan = { ...makePlan(['pending']), revision: 1 };
+
+      usePlanStore.setState({ plan: currentPlan });
+      usePlanStore.getState().setPlan(stalePlan);
+
+      expect(usePlanStore.getState().plan).toEqual(currentPlan);
+    });
+
+    it('accepts newer plan with higher revision', () => {
+      const currentPlan = { ...makePlan(['in_progress']), revision: 3 };
+      const newerPlan = { ...makePlan(['completed']), revision: 4 };
+
+      usePlanStore.setState({ plan: currentPlan });
+      usePlanStore.getState().setPlan(newerPlan);
+
+      expect(usePlanStore.getState().plan).toEqual(newerPlan);
+    });
+
+    it('upserts new step when updateStepStatus receives unseen step_id', () => {
+      const planWithRev = { ...makePlan(['completed']), revision: 1 };
+      usePlanStore.setState({ plan: planWithRev });
+
+      usePlanStore.getState().updateStepStatus('step_new', 'in_progress', 2, 'Dynamically discovered subtask');
+      const updatedPlan = usePlanStore.getState().plan;
+      expect(updatedPlan?.revision).toBe(2);
+      expect(updatedPlan?.steps).toHaveLength(2);
+      const newStep = updatedPlan?.steps.find((s) => s.step_id === 'step_new');
+      expect(newStep).toBeDefined();
+      expect(newStep?.status).toBe('in_progress');
+      expect(newStep?.description).toBe('Dynamically discovered subtask');
     });
   });
 });

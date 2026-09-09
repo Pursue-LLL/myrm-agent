@@ -2532,7 +2532,10 @@
       "submit": "送信",
       "skip": "スキップ",
       "submitFailed": "確認の送信に失敗しました。もう一度お試しください。",
-      "answered": "確認に回答しました"
+      "answered": "確認に回答しました",
+      "expandOptions": "さらにオプションを表示 (+{count})",
+      "collapseOptions": "折りたたむ",
+      "recommendedBadge": "おすすめ"
     },
     "directoryRequest": {
       "title": "ディレクトリへのアクセスが必要です",
@@ -9790,6 +9793,12 @@
       "noAttentionNeeded": "現在対応が必要な休眠またはリスクスキルはありません。",
       "recommendationPrefix": "対応推奨:",
       "manageSkill": "管理へ",
+      "showMore": "すべて表示 ({count})",
+      "showLess": "折りたたむ",
+      "recStar": "高複利スターアセット、チーム全体で摩擦なく高頻度再利用",
+      "recAtRisk": "高リスクアセット。高い失敗/再試行率が検出されました。プロンプトとパラメータを確認してください",
+      "recHealthy": "健全に稼働しているアセット、アクティブにローテーション中",
+      "recStale": "非アクティブなアセット。陳腐化を確認するか、使用例を追加してください",
       "status": {
         "STAR": "スター",
         "HEALTHY": "健全",

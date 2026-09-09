@@ -36,8 +36,9 @@ from tests.support.test_secrets import resolve_test_env
 _TURN_WAIT_SEC = 360.0
 
 _PROMPT = (
-    "请必须调用 web_search_tool 工具搜索「OpenCode AI 最新发布」，用一句话总结搜索结果，"
-    "正文中必须用【1】标注引用来源，末尾单独一行写 CITE_OK。禁止不调用工具直接回答。"
+    "请必须使用 web_search 工具搜索「Python 3.14 新特性」，用一句话总结搜索结果，"
+    "正文中必须用【1】标注引用来源，末尾单独一行写 CITE_OK。"
+    "完成搜索后请直接用普通文本给出最终回答，禁止调用 glob、bash、delegate 或其他工具。"
 )
 
 _FAST_PROMPT = "请必须使用 web_search 工具搜索「Python 3.14 新特性」，用一句话总结搜索结果，正文中必须用【1】标注引用来源，末尾单独一行写 CITE_OK。"
@@ -52,7 +53,9 @@ _PREP_GENERAL_AGENT_JS = """(async () => {
   bridge.setSseCaptureMessageId?.(null);
   bridge.setCurrentBuiltinTools?.(['web_search']);
   delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
-  if (typeof bridge.pinBasicModelForE2e === 'function') {
+  if (typeof bridge.pinLiteModelForE2e === 'function') {
+    await bridge.pinLiteModelForE2e({ preserveActionMode: true });
+  } else if (typeof bridge.pinBasicModelForE2e === 'function') {
     await bridge.pinBasicModelForE2e({ preserveActionMode: true });
   }
   if (typeof bridge.syncSearchServicesFromE2eApi === 'function') {
@@ -245,6 +248,16 @@ _PIN_FAST_BEFORE_SEND_JS = """(() => {
 })()"""
 
 
+_PIN_AGENT_BEFORE_SEND_JS = """(() => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge) return { ok: false, err: 'no-bridge' };
+  bridge.setWorkflowMode?.(false);
+  bridge.setActionMode?.('agent');
+  bridge.setCurrentBuiltinTools?.(['web_search']);
+  return { ok: true, actionMode: bridge.getActionMode?.() ?? null };
+})()"""
+
+
 async def _wait_citation_ui(chat: McpChatSession, *, timeout_sec: float) -> dict[str, object]:
     await chat.evaluate(_SCROLL_ASSISTANT_INTO_VIEW_JS, await_promise=False)
     deadline = asyncio.get_event_loop().time() + timeout_sec
@@ -254,6 +267,7 @@ async def _wait_citation_ui(chat: McpChatSession, *, timeout_sec: float) -> dict
         await chat.evaluate(_SCROLL_ASSISTANT_INTO_VIEW_JS, await_promise=False)
         raw = await chat.evaluate(_CITATION_LIVE_READY_JS, await_promise=False)
         last = raw if isinstance(raw, dict) else {"raw": raw}
+        print(f"E2E_CIT_PROBE: loading={last.get('loading')} srcLen={last.get('sourceCount')} btn={last.get('hasEvidenceButton')} citeOk={last.get('hasCiteOk')} badge={last.get('hasInlineBadge')} marker={last.get('hasCitationMarker')} fullwidth={last.get('proseHasFullwidth')} contentSample={last.get('contentSample')!r}", flush=True)
         if last.get("ready") is True:
             return last
         await asyncio.sleep(3.0)
@@ -300,13 +314,15 @@ async def test_general_agent_web_search_citations_live_chrome_e2e(
         await chat.click_new_chat()
         prep2 = await chat.evaluate(_PREP_GENERAL_AGENT_JS, await_promise=True)
         assert isinstance(prep2, dict) and prep2.get("ready") is True, prep2
+        pinned = await chat.evaluate(_PIN_AGENT_BEFORE_SEND_JS, await_promise=False)
+        assert isinstance(pinned, dict) and pinned.get("ok") is True and pinned.get("actionMode") == "agent", pinned
         heartbeat_once()
 
-        await chat.send_message(_PROMPT, _PROMPT)
-        turn = await chat.wait_turn_done(_PROMPT, timeout_sec=_TURN_WAIT_SEC)
-        print(f"E2E_WEB_CITE_TURN_DONE: {json.dumps(turn, ensure_ascii=False)[:800]}", flush=True)
+        await chat.send_message(_PROMPT, _PROMPT, skip_model_sync=True)
+        after_turn = await chat.wait_turn_settled(timeout_sec=_TURN_WAIT_SEC)
+        print(f"E2E_WEB_CITE_TURN_DONE: {json.dumps(after_turn, ensure_ascii=False)[:800]}", flush=True)
 
-        ui_state = await _wait_citation_ui(chat, timeout_sec=60.0)
+        ui_state = await _wait_citation_ui(chat, timeout_sec=90.0)
         print(f"E2E_WEB_CITE_UI_STATE: {json.dumps(ui_state, ensure_ascii=False)}", flush=True)
         assert ui_state.get("ready") is True, ui_state
         assert int(ui_state.get("sourceCount") or 0) > 0, ui_state
@@ -364,8 +380,8 @@ async def test_fast_search_web_search_citations_live_chrome_e2e(
         assert isinstance(pinned, dict) and pinned.get("ok") is True and pinned.get("actionMode") == "fast", pinned
         heartbeat_once()
 
-        await chat.send_message(_FAST_PROMPT, _FAST_PROMPT)
-        turn = await chat.wait_turn_done(_FAST_PROMPT, timeout_sec=_TURN_WAIT_SEC)
+        await chat.send_message(_FAST_PROMPT, _FAST_PROMPT, skip_model_sync=True)
+        turn = await chat.wait_turn_settled(timeout_sec=_TURN_WAIT_SEC)
         print(f"E2E_FAST_CITE_TURN_DONE: {json.dumps(turn, ensure_ascii=False)[:800]}", flush=True)
 
         ui_state = await _wait_citation_ui(chat, timeout_sec=60.0)

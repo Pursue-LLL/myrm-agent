@@ -18,7 +18,6 @@ from .general_agent_prompt import (
 from .shared_rules import (
     EXTERNAL_SOURCES_CITATION_RULES,
     RESPONSE_RULES,
-    SECURITY_RULES,
 )
 
 __all__ = [
@@ -33,7 +32,6 @@ __all__ = [
     "get_core_system_prompt",
     "get_citation_rules_if_needed",
     # shared_rules
-    "SECURITY_RULES",
     "RESPONSE_RULES",
     "EXTERNAL_SOURCES_CITATION_RULES",
 ]

@@ -56,6 +56,7 @@ async def test_get_goal_plan_uses_chat_workspace_session(goals_client: tuple[Tes
     payload = response.json()
     assert payload["plan"] is not None
     assert payload["plan"]["goal"] == "Prepare launch checklist"
+    assert payload["plan"]["revision"] == 0
     assert payload["plan"]["steps"][0]["step_id"] == "todo_1"
     assert payload["plan"]["steps"][0]["description"] == "Draft outline"
     assert payload["plan"]["steps"][0]["status"] == "pending"

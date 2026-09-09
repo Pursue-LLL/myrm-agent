@@ -1,6 +1,15 @@
 /**
- * Placeholder UI for pending/running tasks.
- * Shows skeleton loader with progress bar.
+ * [INPUT]
+ * - next-intl::useTranslations (POS: 本地化文案读取)
+ * - @/lib/utils::cn (POS: Tailwind 类名合并)
+ * - @/components/primitives/progress::Progress (POS: 进度条原子组件)
+ *
+ * [OUTPUT]
+ * - TaskCardPlaceholder: React.FC<TaskCardPlaceholderProps> (POS: 异步任务加载与占位呈现组件)
+ *
+ * [POS]
+ * 前端异步任务卡片加载中占位组件。
+ * 负责展示骨架屏、生成进度百分比、状态消息以及原地取消任务交互。
  */
 
 import React from 'react';

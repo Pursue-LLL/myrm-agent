@@ -2205,7 +2205,10 @@
       "freeTextWithOptionsPlaceholder": "세부 사항이나 다른 답변을 추가하세요...",
       "questionCount": "{count}개 질문",
       "optionalNote": "아래에 사용자 정의 답변을 입력할 수도 있습니다",
-      "submitFailed": "명확화 제출에 실패했습니다. 다시 시도하세요."
+      "submitFailed": "명확화 제출에 실패했습니다. 다시 시도하세요.",
+      "expandOptions": "옵션 더보기 (+{count})",
+      "collapseOptions": "옵션 접기",
+      "recommendedBadge": "추천"
     },
     "directoryRequest": {
       "title": "디렉터리 접근 권한 필요",
@@ -9981,6 +9984,12 @@
       "noAttentionNeeded": "현재 조치가 필요한 위험 또는 미사용 스킬이 없습니다.",
       "recommendationPrefix": "조치 권장:",
       "manageSkill": "관리로 이동",
+      "showMore": "전체 보기 ({count})",
+      "showLess": "접기",
+      "recStar": "고복리 스타 자산, 팀 전체에서 마찰 없이 활발히 재사용됨.",
+      "recAtRisk": "위험 자산. 높은 실패/재시도율이 감지되었습니다. 프롬프트 및 매개변수를 확인하세요.",
+      "recHealthy": "건강하게 활성 로테이션 중인 자산.",
+      "recStale": "미사용 자산. 노후화 여부를 검토하거나 사용 예시를 추가하세요.",
       "status": {
         "STAR": "별표",
         "HEALTHY": "건강",

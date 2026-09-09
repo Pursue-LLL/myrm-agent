@@ -1761,7 +1761,26 @@
     "jumpBar": {
       "ariaLabel": "Conversation navigation",
       "title": "Message Navigation",
-      "jumpTo": "Jump to message"
+      "jumpTo": "Jump to message",
+      "turnTitle": "Turn {turn}",
+      "loaded": "Loaded",
+      "unloaded": "Not loaded · Click to fetch and locate",
+      "loading": "Loading turn messages...",
+      "userPrefix": "User: ",
+      "assistantPrefix": "Assistant: ",
+      "fullTimeline": "Session Timeline",
+      "turnCount": "{count} turns in total"
+    },
+    "turnRail": {
+      "ariaLabel": "Session timeline outline navigation",
+      "title": "Session Outline",
+      "turn": "Turn {index}",
+      "loaded": "Ready",
+      "unloaded": "Click to load",
+      "loading": "Loading turn...",
+      "userPrompt": "Prompt",
+      "assistantReply": "Reply",
+      "jumpToTurn": "Jump to turn {index}"
     },
     "scrollCue": {
       "scrollToBottom": "Scroll to bottom",
@@ -2618,7 +2637,10 @@
       "submit": "Submit",
       "skip": "Skip",
       "submitFailed": "Failed to submit clarification. Please try again.",
-      "answered": "Clarification answered"
+      "answered": "Clarification answered",
+      "expandOptions": "Show {count} more options",
+      "collapseOptions": "Show fewer options",
+      "recommendedBadge": "Recommended"
     },
     "directoryRequest": {
       "title": "Directory access required",
@@ -9804,6 +9826,12 @@
       "noAttentionNeeded": "No at-risk or stale skills requiring governance.",
       "recommendationPrefix": "Recommendation:",
       "manageSkill": "Manage",
+      "showMore": "Show all ({count})",
+      "showLess": "Show less",
+      "recStar": "Star compounding asset! High adoption and zero friction across team.",
+      "recAtRisk": "At-risk asset. High failure/retry rate detected; review prompt and parameters.",
+      "recHealthy": "Healthy asset in active rotation.",
+      "recStale": "Inactive asset. Review for obsolescence or add usage examples.",
       "status": {
         "STAR": "Star",
         "HEALTHY": "Healthy",
@@ -12438,6 +12466,7 @@
       "integrationMemory": "Integration Memory",
       "extensionBridge": "Browser Extension",
       "connect": "External Agents",
+      "a2aPeers": "A2A Remote Peers",
       "workspaceRules": "Workspace Rules",
       "enterprise": "Enterprise",
       "developer": "Developer",

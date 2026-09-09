@@ -109,7 +109,20 @@ def test_deliverable_bundle_board_renders_and_filters() -> None:
         wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=chat_url)
 
         # 1. Expand the GoalStatusCard header if present to reveal GoalStatusExpanded
-        client.evaluate(page, _EXPAND_GOAL_CARD_JS, timeout_sec=10.0)
+        wait_for_state(
+            client,
+            page,
+            """(() => {
+  const header = document.querySelector('[data-testid="goal-status-header"]');
+  if (header) {
+    header.click();
+    return { ready: true };
+  }
+  return { ready: false };
+})()""",
+            timeout_sec=45.0,
+            page_url=chat_url,
+        )
 
         # 2. Wait for the TaskDeliverableBundle board to render in DOM
         board_state = wait_for_state(

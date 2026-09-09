@@ -131,7 +131,7 @@ def _parallel_pressure_active() -> bool:
     try:
         from e2e_core.peer_count_ssot import parallel_active_test_count_ssot  # noqa: PLC0415
 
-        return parallel_active_test_count_ssot() > 0
+        return parallel_active_test_count_ssot() > 1
     except ImportError:
         return False
 
@@ -411,7 +411,7 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
             owner_pid=owner_pid,
             owner_token=owner_token,
             backend_only=True,
-            reapable=True,
+            reapable=False,
         )
     except (OSError, RuntimeError, ValueError) as exc:
         return VerifyBackendSeedResult(
@@ -446,6 +446,9 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
             "MYRM_SUPERVISOR_BYPASS": "1",
             "MYRM_WAVE_GATE_BYPASS": "1",
             "MYRM_BACKEND_HEALTH_WAIT_SEC": str(
+                min(120, _seed_spawn_timeout_sec())
+            ),
+            "MYRM_BACKEND_ENSURING_HEALTH_SEC": str(
                 min(120, _seed_spawn_timeout_sec())
             ),
         }

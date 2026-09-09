@@ -1,14 +1,15 @@
 # app/services/ssh_bridge/
 
-## 架构概述
-多主机 SSH 远程运维资产管理、OpenSSH (`~/.ssh/config`) 配置导入解析、SFTP 目录文件传输与 Agent 资产安全别名直连桥接模块。
+## Overview
+Multi-Host SSH asset management, OpenSSH config parsing, command execution with safety gates, SFTP exploration, and AI Agent high-signal log distillation bridge.
 
-## 文件与子模块索引
+## File Index
 
-| 文件 | 角色 | 职责描述 | I/O/P |
-|------|------|----------|-------|
-| `__init__.py` | 包声明 | 导出模型、解析器、管理器与执行引擎。 | ✅ |
-| `models.py` | 数据模型 | 包含 `SSHHostAsset`、`SSHConfigParsedHost`、`SSHCommandResult`、`SFTPTransferResult` 等强类型。 | ✅ |
-| `parser.py` | 解析器 | `OpenSSHConfigParser`，负责解析 OpenSSH 配置文件中各 Host 区块、端口、私钥与跳板机配置。 | ✅ |
-| `manager.py` | 资产管理 | `SSHAssetManager`，负责资产增删改查、别名冲突校验、标签过滤与配置批量导入。 | ✅ |
-| `executor.py` | 桥接执行器 | `SSHBridgeExecutor` 与 `SFTPBridgeEngine`，提供安全别名执行、高危命令防护、超时控制与 SFTP 校验。 | ✅ |
+| File | Role | Description | I/O/P |
+|------|------|-------------|-------|
+| `__init__.py` | Package | Multi-Host SSH Operations, SFTP Explorer, and Agent Asset Bridge package exports. | ✅ |
+| `models.py` | Models | Core data structures for SSH assets, parsed configs, command results, and SFTP metadata. | ✅ |
+| `parser.py` | Parser | Robust OpenSSH `~/.ssh/config` parser extracting host directives. | ✅ |
+| `manager.py` | Core Service | Host asset lifecycle manager supporting CRUD, tagging, and config import. | ✅ |
+| `executor.py` | Core Service | High-risk command safety gating, execution timeout management, and SFTP transfer engine. | ✅ |
+| `agent_bridge.py` | Agent Bridge | Unified AI Agent facade integrating `TerminalLogDistiller` for high-entropy output optimization. | ✅ |

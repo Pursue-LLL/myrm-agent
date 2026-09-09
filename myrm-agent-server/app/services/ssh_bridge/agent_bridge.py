@@ -1,18 +1,16 @@
-"""Agent Execution Bridge for Remote SSH and SFTP Operations.
+"""Agent Asset Bridge: High-level AI Agent interface for Multi-Host SSH & SFTP operations.
 
-Integrates HostAssetVault, SSHConnectionPool, SFTPManager, and TerminalLogDistiller
-to provide safety-gated, distilled remote execution tools for AI agents.
+Integrates TerminalLogDistiller for high-entropy output distillation and enforces
+destructive command screening and human-in-the-loop (HITL) safety fences.
 
 [INPUT]
-- .models::SSHHostAsset, SSHExecResult, SFTPItemInfo
-- .vault::SSHHostVault
-- .pool::SSHConnectionPool
-- .sftp_manager::SFTPManager
+- .models::SSHCommandResult, SSHHostAsset, SFTPFileMetadata, SFTPTransferResult
+- .manager::SSHAssetManager
+- .executor::SSHBridgeExecutor, SFTPBridgeEngine
 - myrm_agent_harness.toolkits.code_execution.utils.log_distiller::TerminalLogDistiller
-- re, typing, logging
 
 [OUTPUT]
-- SSHAgentBridge: Dispatches guarded remote commands and SFTP queries for agents.
+- SSHAgentBridge: Unified high-level facade for Agent-driven remote infrastructure operations.
 
 [POS]
 Domain service in app/services/ssh_bridge/agent_bridge.py.
@@ -21,125 +19,79 @@ Domain service in app/services/ssh_bridge/agent_bridge.py.
 from __future__ import annotations
 
 import logging
-import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Sequence
 
 from myrm_agent_harness.toolkits.code_execution.utils.log_distiller import (
     TerminalLogDistiller,
 )
 
-from .models import SFTPItemInfo, SSHExecResult, SSHHostAsset
-from .pool import SSHConnectionPool
-from .sftp_manager import SFTPManager
-from .vault import SSHHostVault
+from app.services.ssh_bridge.executor import SFTPBridgeEngine, SSHBridgeExecutor
+from app.services.ssh_bridge.manager import SSHAssetManager
+from app.services.ssh_bridge.models import (
+    SFTPFileMetadata,
+    SSHCommandResult,
+    SSHHostAsset,
+)
 
 logger = logging.getLogger("myrm.services.ssh_bridge.agent_bridge")
 
-# High-risk command patterns requiring explicit user approval unless host is pre-trusted
-_DESTRUCTIVE_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"\brm\s+-(?:r|f|rf|fr)\s+(?:/|\*|~|/\w+)", re.IGNORECASE),
-    re.compile(r"\bmkfs\b", re.IGNORECASE),
-    re.compile(r"\bdd\s+if=", re.IGNORECASE),
-    re.compile(r">\s*/dev/sd[a-z]", re.IGNORECASE),
-    re.compile(r"\b(?:reboot|shutdown|init\s+0|poweroff)\b", re.IGNORECASE),
-    re.compile(r"\bchmod\s+-R\s+777\s+/", re.IGNORECASE),
-)
-
 
 class SSHAgentBridge:
-    """Agent-facing gateway for multi-host remote command execution and SFTP queries."""
+    """Agent execution bridge that mediates between LLM tool-calling and remote servers."""
 
     def __init__(
         self,
-        vault: SSHHostVault,
-        pool: SSHConnectionPool,
-        sftp: SFTPManager,
-        distiller: Optional[TerminalLogDistiller] = None,
+        asset_manager: SSHAssetManager,
+        executor: SSHBridgeExecutor | None = None,
+        sftp_engine: SFTPBridgeEngine | None = None,
+        log_distiller: TerminalLogDistiller | None = None,
     ) -> None:
-        self._vault = vault
-        self._pool = pool
-        self._sftp = sftp
-        self._distiller = distiller or TerminalLogDistiller()
+        self._asset_manager = asset_manager
+        self._executor = executor or SSHBridgeExecutor(asset_manager)
+        self._sftp = sftp_engine or SFTPBridgeEngine(asset_manager)
+        self._distiller = log_distiller or TerminalLogDistiller()
 
-    def check_command_safety(self, host: SSHHostAsset, command: str) -> Tuple[bool, Optional[str]]:
-        """Validate whether command is safe to execute automatically."""
-        if host.is_trusted:
-            return True, None
+    @property
+    def asset_manager(self) -> SSHAssetManager:
+        return self._asset_manager
 
-        for pattern in _DESTRUCTIVE_PATTERNS:
-            if pattern.search(command):
-                return False, f"Destructive command detected matching safety gate: {pattern.pattern}"
-
-        return True, None
-
-    async def execute_remote_tool(
+    def execute_remote(
         self,
-        host_query: str,
+        host_alias: str,
         command: str,
-        timeout_s: Optional[float] = None,
-    ) -> SSHExecResult:
-        """Execute command on resolved remote host with log distillation."""
-        host = self._vault.find_by_alias_or_hostname(host_query)
-        if not host:
-            return SSHExecResult(
-                host_id="unknown",
-                command=command,
-                exit_code=1,
-                stdout="",
-                stderr=f"Host '{host_query}' not found in SSH Host Vault.",
-            )
+        timeout_seconds: float = 30.0,
+    ) -> tuple[SSHCommandResult, str]:
+        """Execute a remote command on a registered host, with high-entropy log distillation.
 
-        is_safe, reason = self.check_command_safety(host, command)
-        if not is_safe:
-            return SSHExecResult(
-                host_id=host.host_id,
-                command=command,
-                exit_code=126,
-                stdout="",
-                stderr=f"Execution blocked by safety policy: {reason}. User approval required.",
-            )
-
-        # Run command via connection pool
-        raw_result = await self._pool.execute_command(host, command, timeout_s=timeout_s)
-
-        # Distill raw log output to prevent context window blowup
-        combined_logs = f"{raw_result.stdout}\n{raw_result.stderr}".strip()
-        distilled = self._distiller.distill(
-            raw_text=combined_logs,
-            exit_code=raw_result.exit_code,
+        Returns:
+            Tuple of (SSHCommandResult, distilled_summary_text).
+        """
+        raw_result = self._executor.execute_command(
+            host_alias=host_alias,
+            command=command,
+            timeout_seconds=timeout_seconds,
         )
 
-        raw_result.distilled_summary = distilled.distilled_text
-        return raw_result
+        if raw_result.is_blocked:
+            return raw_result, raw_result.stderr
 
-    async def list_remote_files_tool(
+        combined_output = raw_result.stdout
+        if raw_result.stderr:
+            combined_output += ("\n" if combined_output else "") + raw_result.stderr
+
+        distilled = self._distiller.distill(combined_output, exit_code=raw_result.exit_code)
+        distilled_text = distilled.distilled_text if distilled.distilled_text else raw_result.stdout
+
+        return raw_result, distilled_text
+
+    def list_remote_files(
         self,
-        host_query: str,
-        remote_path: str = ".",
-    ) -> Dict[str, Any]:
-        """List files in remote path for agent context."""
-        host = self._vault.find_by_alias_or_hostname(host_query)
-        if not host:
-            return {"error": f"Host '{host_query}' not found in SSH Host Vault.", "items": []}
+        host_alias: str,
+        remote_dir: str = "/",
+    ) -> Sequence[SFTPFileMetadata]:
+        """Browse remote directory listing via SFTP."""
+        return self._sftp.list_directory(host_alias=host_alias, remote_dir=remote_dir)
 
-        items: List[SFTPItemInfo] = await self._sftp.list_directory(host, remote_path)
-        return {
-            "host_id": host.host_id,
-            "alias": host.alias,
-            "path": remote_path,
-            "items": [item.model_dump() for item in items],
-            "total_count": len(items),
-        }
-
-    async def read_remote_file_tool(
-        self,
-        host_query: str,
-        remote_path: str,
-        max_lines: int = 100,
-    ) -> str:
-        """Read trailing lines from remote file."""
-        host = self._vault.find_by_alias_or_hostname(host_query)
-        if not host:
-            return f"Error: Host '{host_query}' not found in SSH Host Vault."
-
-        return await self._sftp.read_remote_file_tail(host, remote_path, lines=max_lines)
+    def get_host_summary(self, host_alias: str) -> SSHHostAsset | None:
+        """Fetch host asset configuration metadata for Agent context injection."""
+        return self._asset_manager.get_by_alias(host_alias)

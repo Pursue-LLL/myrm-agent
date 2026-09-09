@@ -1,22 +1,23 @@
-"""Multi-Host SSH Ops, SFTP Explorer and Agent Asset Bridge package.
+"""Multi-Host SSH Operations, SFTP Explorer, and Agent Asset Bridge package.
 
 [INPUT]
 - .models::SSHAuthMethod, SSHCommandResult, SSHConfigParsedHost, SSHHostAsset, SFTPFileMetadata, SFTPTransferResult
 - .parser::OpenSSHConfigParser
 - .manager::SSHAssetManager
 - .executor::SSHBridgeExecutor, SFTPBridgeEngine
+- .agent_bridge::SSHAgentBridge
 
 [OUTPUT]
-- OpenSSHConfigParser, SFTPBridgeEngine, SFTPFileMetadata, SFTPTransferResult, SSHAssetManager, SSHAuthMethod, SSHBridgeExecutor, SSHCommandResult, SSHConfigParsedHost, SSHHostAsset
+- OpenSSHConfigParser, SFTPBridgeEngine, SFTPFileMetadata, SFTPTransferResult, SSHAgentBridge, SSHAssetManager, SSHAuthMethod, SSHBridgeExecutor, SSHCommandResult, SSHConfigParsedHost, SSHHostAsset
 
 [POS]
-Domain package in app/services/ssh_bridge/.
+Domain service package in app/services/ssh_bridge/.
 """
 
-from app.services.ssh_bridge.executor import (
-    SFTPBridgeEngine,
-    SSHBridgeExecutor,
-)
+from __future__ import annotations
+
+from app.services.ssh_bridge.agent_bridge import SSHAgentBridge
+from app.services.ssh_bridge.executor import SFTPBridgeEngine, SSHBridgeExecutor
 from app.services.ssh_bridge.manager import SSHAssetManager
 from app.services.ssh_bridge.models import (
     SFTPFileMetadata,
@@ -33,6 +34,7 @@ __all__ = [
     "SFTPBridgeEngine",
     "SFTPFileMetadata",
     "SFTPTransferResult",
+    "SSHAgentBridge",
     "SSHAssetManager",
     "SSHAuthMethod",
     "SSHBridgeExecutor",

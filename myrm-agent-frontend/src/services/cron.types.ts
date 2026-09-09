@@ -111,6 +111,7 @@ export interface CronJob {
   session_target: SessionTarget;
   required_capabilities: string[];
   tools_allowed: string[];
+  skill_ids?: string[];
   allowed_roots: string[];
   delete_after_run: boolean;
   run_retention_days: number;
@@ -283,6 +284,7 @@ export interface CreateCronJobRequest {
   acceptance_criteria?: Array<Record<string, unknown>> | null;
   required_capabilities?: string[];
   tools_allowed?: string[];
+  skill_ids?: string[];
   workflow_template_id?: string;
   workflow_template_args?: Record<string, string>;
   override_prerequisite?: boolean;
@@ -324,6 +326,7 @@ export interface UpdateCronJobRequest {
   context_from?: string[];
   pre_condition_script?: string | null;
   acceptance_criteria?: Array<Record<string, unknown>> | null;
+  skill_ids?: string[];
 }
 
 export interface BlueprintSlotDef {
@@ -345,6 +348,7 @@ export interface BlueprintDef {
   category: string;
   tags: string[];
   sort_order: number;
+  default_skill_ids?: string[];
 }
 
 export interface BlueprintFillResponse {
@@ -353,6 +357,7 @@ export interface BlueprintFillResponse {
   name: string;
   required_capabilities: string[];
   tools_allowed: string[];
+  skill_ids?: string[];
   job_type: 'agent' | 'shell' | 'router' | 'reminder';
   session_target: SessionTarget;
   deduplicate: boolean;

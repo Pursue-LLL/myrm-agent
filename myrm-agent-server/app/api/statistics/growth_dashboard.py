@@ -248,11 +248,18 @@ async def _fetch_activity_data(time_range_days: int) -> _ActivitySnapshot:
         return _ActivitySnapshot()
 
     try:
-        backend = FileEventLogBackend(log_dir=Path(settings.database.event_log_dir), session_id="default")
+        backend = FileEventLogBackend(
+            log_dir=Path(settings.database.event_log_dir), session_id="default"
+        )
         analytics = EventLogAnalytics(backend)
-        patterns = await analytics.get_global_activity_patterns(time_range_days=time_range_days)
+        patterns = await analytics.get_global_activity_patterns(
+            time_range_days=time_range_days
+        )
 
-        heatmap = [ActivityDay(date=act.date, count=act.session_count) for act in patterns.daily_activities]
+        heatmap = [
+            ActivityDay(date=act.date, count=act.session_count)
+            for act in patterns.daily_activities
+        ]
 
         today = datetime.now(UTC).date()
         week_ago = today - timedelta(days=7)
@@ -387,18 +394,30 @@ async def _fetch_skill_trends() -> list[SkillTrendSeries]:
                 data_points = []
                 for date_key in sorted(daily.keys()):
                     bucket = daily[date_key]
-                    avg_dur = sum(bucket.durations) / len(bucket.durations) if bucket.durations else 0.0
+                    avg_dur = (
+                        sum(bucket.durations) / len(bucket.durations)
+                        if bucket.durations
+                        else 0.0
+                    )
                     data_points.append(
                         SkillTrendPoint(
                             date=date_key,
-                            success_rate=(bucket.successes / bucket.total if bucket.total > 0 else 0.0),
+                            success_rate=(
+                                bucket.successes / bucket.total
+                                if bucket.total > 0
+                                else 0.0
+                            ),
                             avg_duration_ms=round(avg_dur, 1),
                             call_count=bucket.total,
                         )
                     )
 
                 if data_points:
-                    result.append(SkillTrendSeries(skill_name=skill_dir.name, data_points=data_points))
+                    result.append(
+                        SkillTrendSeries(
+                            skill_name=skill_dir.name, data_points=data_points
+                        )
+                    )
 
         return result
     except Exception as e:
@@ -427,7 +446,9 @@ async def _fetch_memory_citations_7d(db: AsyncSession) -> int:
             if cited is None:
                 cited = extra_data.get("cited_memory_ids")
             if isinstance(cited, list):
-                total += sum(1 for item in cited if isinstance(item, str) and item.strip())
+                total += sum(
+                    1 for item in cited if isinstance(item, str) and item.strip()
+                )
         return total
     except Exception as e:
         logger.warning("Failed to fetch memory citations: %s", e)
@@ -465,7 +486,9 @@ async def _fetch_skill_health() -> list[SkillHealthItem]:
 
                 for rec in usage_history:
                     try:
-                        rec_dt = datetime.fromisoformat(rec.timestamp.replace("Z", "+00:00"))
+                        rec_dt = datetime.fromisoformat(
+                            rec.timestamp.replace("Z", "+00:00")
+                        )
                     except (TypeError, ValueError):
                         continue
 
@@ -485,13 +508,19 @@ async def _fetch_skill_health() -> list[SkillHealthItem]:
                     calls_7d = total_calls
                     succ_7d = stats.success_count
 
+                # Conservative adoption estimate: penalize retry/error overhead
+                retry_overhead = max(0, calls_7d - succ_7d)
+                conservative_adopted = max(0, succ_7d - int(retry_overhead * 0.5))
+
                 metrics = SkillCompoundingMetrics(
                     skill_id=skill_dir.name,
                     invocations=calls_7d,
                     successful_invocations=succ_7d,
-                    adopted_outputs=succ_7d,
-                    retry_count=max(0, calls_7d - succ_7d),
-                    distinct_sessions=len(sessions) if sessions else (1 if calls_7d > 0 else 0),
+                    adopted_outputs=conservative_adopted,
+                    retry_count=retry_overhead,
+                    distinct_sessions=(
+                        len(sessions) if sessions else (1 if calls_7d > 0 else 0)
+                    ),
                     last_invoked_at=latest_dt,
                 )
                 evaluated = SkillHealthEvaluator.evaluate(metrics, reference_time=now)
@@ -512,14 +541,18 @@ async def _fetch_skill_health() -> list[SkillHealthItem]:
                     )
                 )
 
-        items.sort(key=lambda item: (item.health_score, item.call_count_7d), reverse=True)
+        items.sort(
+            key=lambda item: (item.health_score, item.call_count_7d), reverse=True
+        )
         return items
     except Exception as e:
         logger.warning("Failed to fetch skill health: %s", e)
         return []
 
 
-async def _fetch_cost_summary(db: AsyncSession, time_range_days: int) -> CostSummary | None:
+async def _fetch_cost_summary(
+    db: AsyncSession, time_range_days: int
+) -> CostSummary | None:
     """Aggregate cost savings from message extra_data within the time range."""
     try:
         cutoff = datetime.now(UTC) - timedelta(days=time_range_days)
@@ -560,8 +593,14 @@ async def _fetch_cost_summary(db: AsyncSession, time_range_days: int) -> CostSum
             return None
 
         routing_savings_data = compute_estimated_savings(tier_accs)
-        routing_savings = float(routing_savings_data["savings"]) if routing_savings_data else 0.0
-        routing_savings_pct = float(routing_savings_data["savingsPercent"]) if routing_savings_data else 0.0
+        routing_savings = (
+            float(routing_savings_data["savings"]) if routing_savings_data else 0.0
+        )
+        routing_savings_pct = (
+            float(routing_savings_data["savingsPercent"])
+            if routing_savings_data
+            else 0.0
+        )
 
         total_savings = acc.cache_savings_usd + routing_savings
         if total_savings <= 0 and acc.cost_usd <= 0:
@@ -588,9 +627,15 @@ async def _fetch_weekly_summary(db: AsyncSession) -> WeeklySummary:
 
         user_chats = select(Chat.id).subquery()
 
-        conv_this_q = select(func.count()).select_from(Chat).where(Chat.created_at >= week_start)
+        conv_this_q = (
+            select(func.count()).select_from(Chat).where(Chat.created_at >= week_start)
+        )
         conv_prev_q = (
-            select(func.count()).select_from(Chat).where(and_(Chat.created_at >= prev_week_start, Chat.created_at < week_start))
+            select(func.count())
+            .select_from(Chat)
+            .where(
+                and_(Chat.created_at >= prev_week_start, Chat.created_at < week_start)
+            )
         )
 
         msg_this_q = select(func.count(Message.id)).where(
@@ -651,7 +696,9 @@ async def _fetch_weekly_summary(db: AsyncSession) -> WeeklySummary:
 
 @router.get("/growth-dashboard")
 async def get_growth_dashboard(
-    days: int = Query(84, ge=7, le=365, description="Heatmap lookback days (default 84 = 12 weeks)"),
+    days: int = Query(
+        84, ge=7, le=365, description="Heatmap lookback days (default 84 = 12 weeks)"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> JSONResponse:
     """Aggregated growth dashboard — single endpoint, zero new storage.

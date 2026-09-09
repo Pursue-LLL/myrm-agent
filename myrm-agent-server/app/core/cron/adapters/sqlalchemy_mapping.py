@@ -186,6 +186,7 @@ def job_to_domain(m: CronJobModel) -> CronJob:
         session_target=session_target,
         required_capabilities=tuple(m.required_capabilities) if m.required_capabilities else (),
         tools_allowed=tuple(m.tools_allowed) if m.tools_allowed else None,
+        skill_ids=tuple(m.skill_ids) if getattr(m, "skill_ids", None) else (),
         allowed_roots=tuple(m.allowed_roots) if m.allowed_roots else (),
         delete_after_run=m.delete_after_run,
         run_retention_days=getattr(m, "run_retention_days", 30) or 30,
@@ -229,6 +230,7 @@ def job_to_model(job: CronJob) -> CronJobModel:
         active_hours=active_hours_to_dict(job.active_hours),
         required_capabilities=list(job.required_capabilities) if job.required_capabilities else None,
         tools_allowed=list(job.tools_allowed) if job.tools_allowed else None,
+        skill_ids=list(job.skill_ids) if job.skill_ids else None,
         allowed_roots=list(job.allowed_roots) if job.allowed_roots else None,
         max_retries=job.max_retries,
         retry_backoff_ms=job.retry_backoff_ms,
@@ -277,6 +279,7 @@ def apply_job_to_model(m: CronJobModel, job: CronJob) -> None:
     m.active_hours = active_hours_to_dict(job.active_hours)
     m.required_capabilities = list(job.required_capabilities) if job.required_capabilities else None
     m.tools_allowed = list(job.tools_allowed) if job.tools_allowed else None
+    m.skill_ids = list(job.skill_ids) if job.skill_ids else None
     m.allowed_roots = list(job.allowed_roots) if job.allowed_roots else None
     m.max_retries = job.max_retries
     m.retry_backoff_ms = job.retry_backoff_ms

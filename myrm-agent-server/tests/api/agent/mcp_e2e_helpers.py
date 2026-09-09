@@ -77,10 +77,13 @@ def preflight_llm_check() -> bool:
         "stream": False,
     }
     try:
+        headers = {"Authorization": f"Bearer {api_key}"}
+        if "opencode.ai" in (base_url or "").lower() or "opencode" in (model_raw or "").lower():
+            headers["x-opencode-session"] = "e2e-preflight-session"
         resp = httpx.post(
             url,
             json=payload,
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers=headers,
             timeout=PREFLIGHT_TIMEOUT,
         )
         return resp.status_code == 200

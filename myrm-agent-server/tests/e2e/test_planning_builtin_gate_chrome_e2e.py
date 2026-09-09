@@ -25,9 +25,10 @@ _CLICK_CAPABILITIES_JS = """(() => {
 })()"""
 
 _OPEN_BUILTIN_DIALOG_JS = """(() => {
-  const builtinCard = Array.from(document.querySelectorAll('button')).find((btn) =>
-    /Built-in Tools|内置工具/i.test(btn.textContent || ''),
-  );
+  const builtinCard = document.querySelector('[data-testid="agent-config-card-builtin_tools"]') ||
+    Array.from(document.querySelectorAll('button')).find((btn) =>
+      /Built-in Tools|内置工具/i.test(btn.textContent || ''),
+    );
   if (!builtinCard) {
     return { clicked: false };
   }

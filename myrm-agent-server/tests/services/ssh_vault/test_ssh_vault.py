@@ -13,6 +13,8 @@ Unit tests in tests/services/ssh_vault/.
 
 from __future__ import annotations
 
+import socket
+
 import pytest
 
 from app.services.ssh_vault.models import SSHHostConfig
@@ -90,6 +92,7 @@ async def test_probe_host_unreachable(monkeypatch: pytest.MonkeyPatch) -> None:
         port=59999,
         user="test",
     )
+
 
     def mock_create_connection(*args: object, **kwargs: object) -> None:
         raise socket.timeout("Timed out")

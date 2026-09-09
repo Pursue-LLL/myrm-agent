@@ -2203,7 +2203,10 @@
       "freeTextWithOptionsPlaceholder": "Fügen Sie Details oder andere Antworten hinzu ...",
       "questionCount": "{count} Fragen",
       "optionalNote": "Sie können auch unten eine benutzerdefinierte Antwort eingeben",
-      "submitFailed": "Absenden der Klärung fehlgeschlagen. Bitte erneut versuchen."
+      "submitFailed": "Absenden der Klärung fehlgeschlagen. Bitte erneut versuchen.",
+      "expandOptions": "Mehr Optionen anzeigen (+{count})",
+      "collapseOptions": "Weniger anzeigen",
+      "recommendedBadge": "Empfohlen"
     },
     "directoryRequest": {
       "title": "Verzeichniszugriff erforderlich",
@@ -9981,6 +9984,12 @@
       "noAttentionNeeded": "Aktuell keine gefährdeten oder inaktiven Skills mit Handlungsbedarf.",
       "recommendationPrefix": "Handlungsempfehlung:",
       "manageSkill": "Verwalten",
+      "showMore": "Alle anzeigen ({count})",
+      "showLess": "Weniger anzeigen",
+      "recStar": "Hervorragendes Asset mit hoher Akzeptanz und reibungsloser Nutzung im Team.",
+      "recAtRisk": "Risikoreiches Asset mit hoher Fehlerrate. Prompt und Parameter überprüfen.",
+      "recHealthy": "Gesundes Asset in aktiver Nutzung.",
+      "recStale": "Inaktives Asset. Auf Relevanz prüfen oder Beispiele ergänzen.",
       "status": {
         "STAR": "Favorit",
         "HEALTHY": "Gesund",

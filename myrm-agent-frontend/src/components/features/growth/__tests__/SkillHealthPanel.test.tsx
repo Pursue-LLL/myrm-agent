@@ -21,6 +21,12 @@ const translationMap: Record<string, string> = {
   'status.HEALTHY': 'Healthy',
   'status.AT_RISK': 'At Risk',
   'status.STALE': 'Stale',
+  recStar: 'Star asset in active rotation.',
+  recAtRisk: 'High failure rate detected. Review prompt parameters.',
+  recHealthy: 'Healthy asset in active rotation.',
+  recStale: 'Skill has not been invoked. Consider deprecating.',
+  showMore: 'Show all ({count})',
+  showLess: 'Show less',
 };
 
 const stableT = (key: string, values?: Record<string, unknown>) => {
@@ -125,5 +131,40 @@ describe('SkillHealthPanel', () => {
     // Attention items hidden
     expect(screen.queryByText('flaky_plugin')).not.toBeInTheDocument();
     expect(screen.queryByText('dormant_script')).not.toBeInTheDocument();
+  });
+
+  it('supports expanding and collapsing when item count exceeds 8', () => {
+    const manyItems: SkillHealthItem[] = Array.from({ length: 12 }, (_, i) => ({
+      skill_name: `skill_${i}`,
+      health_score: 85.0,
+      status: 'HEALTHY' as const,
+      call_count_7d: 10,
+      call_count_total: 20,
+      success_rate_7d: 0.9,
+      last_used_at: '2026-09-08T00:00:00Z',
+      actionable_recommendation: 'Healthy asset in active rotation.',
+      adoption_rate: 0.8,
+      reuse_breadth: 0.8,
+    }));
+
+    render(<SkillHealthPanel items={manyItems} />);
+
+    // Initially displays only first 8
+    expect(screen.getByText('skill_0')).toBeInTheDocument();
+    expect(screen.getByText('skill_7')).toBeInTheDocument();
+    expect(screen.queryByText('skill_8')).not.toBeInTheDocument();
+
+    // Click show more
+    const showMoreBtn = screen.getByRole('button', { name: /Show all \(12\)/i });
+    fireEvent.click(showMoreBtn);
+
+    // Now all 12 are visible
+    expect(screen.getByText('skill_8')).toBeInTheDocument();
+    expect(screen.getByText('skill_11')).toBeInTheDocument();
+
+    // Click show less
+    const showLessBtn = screen.getByRole('button', { name: /Show less/i });
+    fireEvent.click(showLessBtn);
+    expect(screen.queryByText('skill_8')).not.toBeInTheDocument();
   });
 });

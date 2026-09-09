@@ -32,7 +32,12 @@ logger = logging.getLogger(__name__)
 class ImageToolInput(BaseModel):
     action: Literal["generate", "edit", "list", "status"] = Field(
         default="generate",
-        description="Action to perform: 'generate' (create new images from text prompt), 'edit' (modify an existing image via image_url and prompt), 'list' (discover available models and capabilities), 'status' (query progress and final URL of task_id).",
+        description=(
+            "Action to perform: 'generate' (create new images from text prompt, supports reference_image_urls for style transfer/visual continuity), "
+            "'edit' (modify an existing image via image_url and descriptive prompt, optional mask_url for inpainting), "
+            "'list' (discover available models and capabilities), "
+            "'status' (query progress and final URL of task_id)."
+        ),
     )
     prompt: str = Field(
         default="",
@@ -221,6 +226,35 @@ def create_image_generation_tool(
                 return json.dumps({"error": "image_url is required when action=edit"}, ensure_ascii=False)
             if not prompt.strip():
                 return json.dumps({"error": "prompt is required when action=edit"}, ensure_ascii=False)
+
+            # Defensive adaptation: when active model does not support native inpainting edit,
+            # gracefully route to reference-guided generation to avoid ValidationError crashes.
+            from myrm_agent_harness.toolkits.llms.image.types import get_profile
+
+            model_name = async_config.model if async_config else getattr(engine, "model", None)
+            profile = get_profile(model_name) if model_name else None
+            if profile and not profile.supports_edit:
+                logger.info(
+                    "Model %s does not support native edit; gracefully adapting edit request to reference-guided generate",
+                    profile.name,
+                )
+                augmented_prompt = prompt
+                ref_urls: list[str] | None = [image_url.strip()]
+                # If model does not accept image inputs (e.g. pure T2I like DALL-E 3),
+                # embed reference image URL in prompt context to avoid downstream 400 edit errors.
+                if profile.max_input_images == 0:
+                    augmented_prompt = f"{prompt} (Reference image: {image_url.strip()})"
+                    ref_urls = None
+
+                return await _enqueue_generate(
+                    augmented_prompt,
+                    size=size,
+                    quality=quality,
+                    style=style,
+                    n=n,
+                    reference_image_urls=ref_urls,
+                )
+
             try:
                 image_bytes, image_mime, image_size = await _fetch_image_bytes(
                     image_url.strip(),
@@ -269,6 +303,7 @@ def create_image_generation_tool(
         image_tool.description = (
             f"{engine.tool_description} "
             "Workflow: 1) Call action='generate' with prompt to start and receive task_id. "
+            "For visual refinement or style transfer, pass reference_image_urls with previous image URLs. "
             "2) Call action='status' with task_id to inspect progress and retrieve the final image URL upon completion. "
             "3) Call action='edit' with image_url and prompt to modify an existing image. "
             "4) Call action='list' to inspect available providers/models."
