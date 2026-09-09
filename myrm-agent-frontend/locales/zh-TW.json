@@ -14064,7 +14064,7 @@
       "openVercelDashboard": "查看控制台",
       "circuitBreakerTitle": "模型服務熔斷健康度",
       "circuitBreakerHealthy": "全端點正常",
-      "circuitBreakerWarning": "存在熔断端點",
+      "circuitBreakerWarning": "存在熔斷端點",
       "resetAllCircuitBreakers": "重設所有熔斷",
       "resetThisBreaker": "立即重試復原",
       "resetCircuitBreakerSuccess": "已重設 {count} 個端點熔斷狀態",

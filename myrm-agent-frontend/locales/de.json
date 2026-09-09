@@ -864,10 +864,11 @@
       "memoryPresetResearch": "Recherche",
       "memoryPresetNone": "Allgemein",
       "templateMarket": "Vorlagenmarkt",
+      "categoryFilter": "Kategoriefilter",
       "categoryAll": "Alle",
       "categoryOffice": "Büro & Business",
       "categoryEngineering": "Entwicklung",
-      "categoryTeam": "Teams",
+      "categoryTeam": "Team-Agenten",
       "orgMarketplace": "Org-Marktplatz",
       "searchMarketplace": "Agenten suchen...",
       "installs": "Installationen",
@@ -950,8 +951,7 @@
         "equippedCountSuffix": "Ausgerüstet",
         "pureInstructionNotice": "Keine Fähigkeiten ausgerüstet · Reiner Anweisungsmodus",
         "emptyExplanation": "Derzeit sind keine Fähigkeiten ausgerüstet. Der Agent läuft im reinen Anweisungsmodus. Klicken Sie oben auf \"Alle auswählen\" oder wählen Sie unten Fähigkeiten aus."
-      },
-      "categoryFilter": "Kategoriefilter"
+      }
     },
     "validation": {
       "dependencyInvalid": "Agentenkonfiguration hat Probleme",

@@ -187,7 +187,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
 
   const showInstallToast = useCallback(
     (
-      skillName: string,
+      skill: DiscoverySearchResult,
       response: {
         mounted?: boolean;
         mount_agent_id?: string;
@@ -197,8 +197,20 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
         allowlist_append_error?: string;
       },
     ) => {
-      const payload = formatSkillInstallToast(skillName, response, t);
-      toast(payload);
+      const payload = formatSkillInstallToast(skill.name, response, t);
+      toast({
+        ...payload,
+        action: {
+          label: t('trialRunInSandbox') || '沙箱试跑',
+          onClick: () => {
+            launchSkillTrialRun({
+              skillId: skill.id,
+              skillName: skill.name,
+              description: skill.description,
+            });
+          },
+        },
+      });
     },
     [t],
   );
@@ -207,7 +219,7 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
     async (skill: DiscoverySearchResult) => {
       const response = await install(skill.id, skill.source);
       if (response) {
-        showInstallToast(skill.name, response);
+        showInstallToast(skill, response);
         onInstalled?.();
       } else {
         toast({ title: t('installFailed'), variant: 'destructive' });

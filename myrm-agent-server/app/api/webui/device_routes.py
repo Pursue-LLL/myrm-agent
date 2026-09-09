@@ -23,6 +23,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.services.device.bridge_service import DeviceBridgeService
+from app.services.mobile_adb.service import get_mobile_device_service
 
 logger = logging.getLogger(__name__)
 
