@@ -124,6 +124,7 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "mobile_adb",
         "observability",
         "onboarding",
+        "ops",
         "org_model_policy",
         "power",
         "project",

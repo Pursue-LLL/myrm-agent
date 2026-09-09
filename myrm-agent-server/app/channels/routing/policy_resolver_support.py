@@ -94,3 +94,61 @@ class GroupFollowUpTracker:
     def mute(self, key: str) -> None:
         """Manually mute/deactivate a thread (e.g. via /mute or /shutup command)."""
         self._active_threads.pop(key, None)
+
+
+async def query_dm_policy(
+    policy_provider: ChannelPolicyProvider | None, channel: str
+) -> DmPolicy:
+    """Resolve DM policy with fallback to ALLOWLIST."""
+    from app.channels.protocols.pairing import DmPolicy
+
+    if policy_provider:
+        return await policy_provider.get_dm_policy(channel)
+    return DmPolicy.ALLOWLIST
+
+
+async def query_group_policy(
+    policy_provider: ChannelPolicyProvider | None, channel: str
+) -> GroupPolicy:
+    """Resolve group policy with fallback to DISABLED."""
+    from app.channels.protocols.pairing import GroupPolicy
+
+    if policy_provider:
+        return await policy_provider.get_group_policy(channel)
+    return GroupPolicy.DISABLED
+
+
+async def query_group_trigger(
+    policy_provider: ChannelPolicyProvider | None, channel: str
+) -> tuple[GroupTriggerMode, list[str]]:
+    """Resolve group trigger mode and prefix list with fallback."""
+    from app.channels.protocols.pairing import GroupTriggerMode
+
+    if policy_provider:
+        return await policy_provider.get_group_trigger(channel)
+    return GroupTriggerMode.MENTION_ONLY, []
+
+
+async def query_enabled_groups(
+    policy_provider: ChannelPolicyProvider | None,
+) -> set[str]:
+    """Retrieve enabled groups set with fallback to empty set."""
+    if policy_provider:
+        return await policy_provider.get_enabled_groups()
+    return set()
+
+
+async def check_guest_mention_allowed(
+    policy_provider: ChannelPolicyProvider | None, msg: InboundMessage
+) -> bool:
+    """Guest mode: one-shot explicit entity mention in a non-enabled group."""
+    from app.channels.types import METADATA_EXPLICIT_MENTION_KEY
+
+    if not policy_provider:
+        return False
+    guest_mode = await policy_provider.get_guest_mode(msg.channel)
+    if not guest_mode:
+        return False
+    meta = msg.metadata or {}
+    return meta.get(METADATA_EXPLICIT_MENTION_KEY) == "1"
+
