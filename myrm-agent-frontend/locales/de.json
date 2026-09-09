@@ -15525,6 +15525,7 @@
       },
       "discover": {
         "title": "Fähigkeiten entdecken",
+        "trialRunInSandbox": "In Sandbox testen",
         "description": "Fähigkeiten aus GitHub und der Community suchen und installieren",
         "detail": {
           "noDescription": "Keine Beschreibung angegeben"
