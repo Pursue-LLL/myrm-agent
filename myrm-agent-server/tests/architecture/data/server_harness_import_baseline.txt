@@ -437,7 +437,6 @@ myrm_agent_harness.toolkits.memory.strategies.pattern_discovery
 myrm_agent_harness.toolkits.memory.strategies.preference_stability
 myrm_agent_harness.toolkits.memory.strategies.subsumption
 myrm_agent_harness.toolkits.memory.types
-myrm_agent_harness.toolkits.mobile
 myrm_agent_harness.toolkits.mobile_adb
 myrm_agent_harness.toolkits.mobile_adb.session
 myrm_agent_harness.toolkits.openapi_bridge

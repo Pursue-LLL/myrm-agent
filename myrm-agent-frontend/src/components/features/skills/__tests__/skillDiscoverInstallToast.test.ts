@@ -76,4 +76,21 @@ describe('resolveSkillInstallToastMessage', () => {
       titleKey: 'installed',
     });
   });
+
+  it('attaches trial run action on success when callback is provided', () => {
+    const onTrialRun = vi.fn();
+    const t = (key: string) => key;
+    const toast = formatSkillInstallToast(SKILL, { mounted: true }, t, onTrialRun);
+    expect(toast.action).toBeDefined();
+    expect(toast.action?.label).toBe('trialRunCTA');
+    toast.action?.onClick();
+    expect(onTrialRun).toHaveBeenCalled();
+  });
+
+  it('does not attach trial run action on destructive toast', () => {
+    const onTrialRun = vi.fn();
+    const t = (key: string) => key;
+    const toast = formatSkillInstallToast(SKILL, { mount_error: 'Failed' }, t, onTrialRun);
+    expect(toast.action).toBeUndefined();
+  });
 });

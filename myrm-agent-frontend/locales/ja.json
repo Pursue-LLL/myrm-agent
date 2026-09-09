@@ -15545,6 +15545,7 @@
       },
       "discover": {
         "title": "スキルを発見",
+        "trialRunInSandbox": "サンドボックスで試走",
         "description": "GitHub とコミュニティからスキルを検索・インストール",
         "detail": {
           "noDescription": "スキルの説明はありません"
