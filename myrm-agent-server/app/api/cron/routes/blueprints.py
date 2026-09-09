@@ -86,7 +86,7 @@ class BlueprintFillResponse(BaseModel):
     schedule: ScheduleResultResponse
     prompt: str
     name: str
-    required_capabilities: list[str] Field(default_factory=list)
+    required_capabilities: list[str] = Field(default_factory=list)
     tools_allowed: list[str] = Field(default_factory=list)
     skill_ids: list[str] = Field(default_factory=list)
     job_type: str = "agent"
@@ -130,6 +130,7 @@ async def list_blueprints() -> list[BlueprintResponse]:
             category=bp.category,
             tags=list(bp.tags),
             sort_order=bp.sort_order,
+            default_skill_ids=list(bp.default_skill_ids),
         )
         for bp in BUILTIN_BLUEPRINTS
     ]
@@ -148,7 +149,9 @@ async def fill_blueprint_endpoint(body: BlueprintFillRequest) -> BlueprintFillRe
     except BlueprintFillError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if not result:
-        raise HTTPException(status_code=404, detail=f"Blueprint '{body.blueprint_id}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Blueprint '{body.blueprint_id}' not found"
+        )
 
     return BlueprintFillResponse(
         schedule=ScheduleResultResponse(
@@ -161,6 +164,7 @@ async def fill_blueprint_endpoint(body: BlueprintFillRequest) -> BlueprintFillRe
         name=result.name,
         required_capabilities=list(result.required_capabilities),
         tools_allowed=list(result.tools_allowed) if result.tools_allowed else [],
+        skill_ids=list(result.skill_ids) if result.skill_ids else [],
         job_type=result.job_type,
         session_target=result.session_target,
         deduplicate=result.deduplicate,

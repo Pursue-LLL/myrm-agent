@@ -48,7 +48,6 @@ def _make_session(
     session.collector.extra_data = {}
     session.collector._progress_steps = [{}] * tool_steps
     session.collector.sibling_group_id = None
-    session.collector.cross_turn_data_updates = {}
     session.collector.has_pending_hitl_replay = MagicMock(return_value=False)
     session.collector.cleanup = MagicMock()
     session.monitor = MagicMock()

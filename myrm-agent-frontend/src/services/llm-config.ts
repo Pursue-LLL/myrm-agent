@@ -69,6 +69,14 @@ const PROVIDER_MODELS: Record<string, string[]> = {
     'google/gemini-pro',
     'meta-llama/llama-3.1-405b-instruct',
   ],
+  opencode_go: [
+    'muse-spark-1.3-contributor',
+    'muse-spark-1.2-contributor',
+    'deepseek-v4-flash',
+    'minimax-m3',
+    'glm-5.2',
+    'kimi-k3',
+  ],
 };
 
 /**

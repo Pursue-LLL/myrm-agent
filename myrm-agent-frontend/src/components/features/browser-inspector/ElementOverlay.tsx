@@ -64,7 +64,10 @@ const ElementOverlay: React.FC<ElementOverlayProps> = ({
   return (
     <div className="absolute inset-0 pointer-events-none">
       {interactiveRefs.map(([refId, info]) => {
-        const bbox = info.bbox!;
+        if (!info.bbox) {
+          return null;
+        }
+        const bbox = info.bbox;
         const isSelected = refId === selectedRefId;
 
         // 使用视口相对坐标（与后端视口截图同源）；desktop 无 viewport 字段时回退绝对坐标
@@ -97,13 +100,13 @@ const ElementOverlay: React.FC<ElementOverlayProps> = ({
             }}
             onClick={(e) => handleClick(e, refId, info)}
             title={
-              info.nth != null
+              info.nth !== undefined && info.nth !== null
                 ? `[${info.nth}] [${refId}] ${info.role}: ${info.name}`
                 : `[${refId}] ${info.role}: ${info.name}`
             }
             aria-label={`Select element ${refId} (${info.role}: ${info.name})`}
           >
-            {info.nth != null && (
+            {info.nth !== undefined && info.nth !== null && (
               <span
                 className={cn(
                   'absolute top-0 left-0 px-1 py-0.5 text-[10px] font-mono font-semibold leading-none',

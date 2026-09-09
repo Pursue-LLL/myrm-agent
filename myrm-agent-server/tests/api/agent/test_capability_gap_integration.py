@@ -131,16 +131,6 @@ def _collect_agent_stream(
     return collected
 
 
-def _stop_on_render_ui_capability_gap(
-    event: dict[str, object],
-    _collected: list[dict[str, object]],
-) -> bool:
-    if event.get("type") != "capability_gap":
-        return False
-    payload_data = event.get("data")
-    return isinstance(payload_data, dict) and payload_data.get("tool_id") == "render_ui"
-
-
 def _stop_on_web_search_config_gap(
     event: dict[str, object],
     _collected: list[dict[str, object]],
@@ -232,10 +222,10 @@ async def test_discover_miss_returns_not_found_without_gap_block_or_sse(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_discover_miss_no_gap_when_render_ui_group_enabled(
+async def test_discover_miss_no_gap_when_tool_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Discover miss must stay gap-free regardless of active tool groups."""
+    """Discover miss must stay gap-free."""
     registry = ToolRegistry()
     registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1)
     discover = sync_discover_capability_tool(
@@ -254,37 +244,7 @@ async def test_discover_miss_no_gap_when_render_ui_group_enabled(
         _capture,
     )
 
-    result = await discover.ainvoke({"query": "please render ui interactive form"})
-    assert "No capabilities found" in result
-    assert "<CapabilityGap>" not in result
-    assert not any(name == "capability_gap" for name, _ in captured)
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_discover_miss_no_gap_when_render_ui_group_disabled(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Discover no longer emits render_ui entitlement gaps on miss."""
-    registry = ToolRegistry()
-    registry.register(_DummyDeferredTool(), source=ToolSource.USER, bind_mode=ToolBindMode.TURN1)
-    discover = sync_discover_capability_tool(
-        registry,
-        skills=_discover_gateway_skills(),
-    )
-    assert discover is not None
-
-    captured: list[tuple[str, object]] = []
-
-    async def _capture(name: str, data: object, config: object | None = None) -> None:
-        captured.append((name, data))
-
-    monkeypatch.setattr(
-        "myrm_agent_harness.utils.event_utils.dispatch_custom_event",
-        _capture,
-    )
-
-    result = await discover.ainvoke({"query": "please render ui interactive form"})
+    result = await discover.ainvoke({"query": "please render something unknown"})
     assert "No capabilities found" in result
     assert "<CapabilityGap>" not in result
     assert not any(name == "capability_gap" for name, _ in captured)
@@ -554,51 +514,6 @@ async def test_discover_miss_no_web_search_gap_when_web_group_disabled(
     assert "No capabilities found" in result
     assert "<CapabilityGap>" not in result
     assert not any(name == "capability_gap" for name, _ in captured)
-
-
-@pytest.mark.integration
-def test_web_render_ui_form_query_preflight_no_gap_unit_parity() -> None:
-    """Parity guard: web_chat + render_ui ON must not emit preflight gap (see unit SSOT)."""
-    from types import SimpleNamespace
-
-    from app.ai_agents.general_agent.active_tool_groups import (
-        derive_active_tool_groups_from_params,
-    )
-    from app.services.agent.stream_session.entitlement_gap_preflight import (
-        build_entitlement_gap_sse_event,
-        reset_capability_gap_emission_tracker,
-    )
-
-    reset_capability_gap_emission_tracker()
-    params = SimpleNamespace(
-        enable_web_search=True,
-        enable_browser=False,
-        file_access_mode=FileAccessMode.FULL,
-        enable_shell_tools=True,
-        enable_computer_use=False,
-        enable_memory=True,
-        incognito_mode=False,
-        enable_conversation_search=False,
-        enable_kanban=False,
-        enable_wiki=False,
-        enable_answer_tool=False,
-        enable_render_ui=True,
-        enable_structured_clarify=False,
-        enable_cron_eager=False,
-        enable_planning=False,
-        image_generation=None,
-        video_generation=None,
-        tts=None,
-    )
-    event = build_entitlement_gap_sse_event(
-        message_id="msg-web-parity",
-        user_text="帮我填表准备 staging 部署配置",
-        active_tool_groups=derive_active_tool_groups_from_params(params),
-        chat_id="chat-web-parity",
-        channel_name="web_chat",
-        client_surface="web",
-    )
-    assert event is None
 
 
 @pytest.mark.e2e

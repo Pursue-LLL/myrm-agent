@@ -69,13 +69,23 @@ def preflight_llm_check() -> bool:
         return False
 
     model = model_raw.split("/", 1)[1] if "/" in model_raw else model_raw
-    url = f"{base_url}/chat/completions"
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": "hi"}],
-        "max_tokens": 5,
-        "stream": False,
-    }
+    from app.core.wire.registry import resolve_wire_protocol
+    protocol = resolve_wire_protocol(model_raw, base_url)
+    if protocol == "responses":
+        url = f"{base_url}/responses"
+        payload = {
+            "model": model,
+            "input": "hi",
+            "stream": True,
+        }
+    else:
+        url = f"{base_url}/chat/completions"
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": "hi"}],
+            "max_tokens": 5,
+            "stream": False,
+        }
     try:
         headers = {"Authorization": f"Bearer {api_key}"}
         if "opencode.ai" in (base_url or "").lower() or "opencode" in (model_raw or "").lower():

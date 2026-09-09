@@ -63,7 +63,7 @@ effective_skill_ids  解析 Agent 显式 allowlist（所见即所得标准：空
 local_skill_id (harness)  local::{16hex} path-hash SSOT；install/uninstall/catalog 对齐
 ```
 
-**契约与运维**：Agent 技能装配遵循所见即所得（WYSIWYG）原则，Agent 配置的 `skill_ids` 为空时运行时严格装配 0 个技能（纯指令模式）。默认通用智能体在出厂与启动初始化时显式写入全部预置技能。前端提供「全选」与「清空」快捷操作，支持按需一键装配。Discover install 在显式 allowlist 下会自动 append 新安装技能。
+**契约与运维**：Agent 技能装配遵循所见即所得（WYSIWYG）原则，Agent 配置的 `skill_ids` 为空时运行时严格装配 0 个技能（纯指令模式）。内置通用智能体（如 `builtin-general`）默认不加载任何技能（`skill_ids = []`，纯指令零启动基线），用户可在配置中自主启用所需技能。前端提供「全选」与「清空」快捷操作，支持按需一键装配。Discover install 在显式 allowlist 下会自动 append 新安装技能。
 
 ### 3.3 打包与解包
 

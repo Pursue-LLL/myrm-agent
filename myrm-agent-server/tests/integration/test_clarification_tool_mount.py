@@ -25,7 +25,6 @@ def _make_mixin(**overrides: object) -> ToolSetupMixin:
         "enable_advanced_retrieval": False,
         "embedding_config": None,
         "fetch_raw_webpage": False,
-        "enable_render_ui": False,
         "image_generation_params": None,
         "video_generation_params": None,
         "tts_params": None,

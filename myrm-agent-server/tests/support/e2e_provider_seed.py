@@ -71,16 +71,19 @@ def _probe_llm_api_key_once(
         }
     ).encode("utf-8")
     url = f"{base_url.rstrip('/')}/chat/completions"
+    headers: dict[str, str] = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "User-Agent": "Myrm-E2E/1.0",
+    }
+    if "opencode.ai" in (base_url or "").lower() or "opencode" in (model or "").lower():
+        headers["x-opencode-session"] = "e2e-preflight-session"
     try:
         req = urllib.request.Request(
             url,
             data=payload,
             method="POST",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "User-Agent": "Myrm-E2E/1.0",
-            },
+            headers=headers,
         )
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
             return int(resp.status) == 200

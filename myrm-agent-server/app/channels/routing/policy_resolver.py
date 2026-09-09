@@ -161,9 +161,13 @@ class PolicyResolver:
         if policy == DmPolicy.OPEN:
             user_id = await self._pairing.resolve(msg.channel, msg.sender_id)
             if not user_id and msg.sender_id.endswith("@lid"):
-                user_id = await self._resolve_lid_fallback(msg, allow_default_fallback=True)
-            if not user_id and self._policy:
-                user_id = await self._policy.get_default_user_id()
+                user_id = await self._resolve_lid_fallback(msg, allow_default_fallback=False)
+            if not user_id:
+                # Security Gate: Prevent silent privilege escalation to default_user_id (e.g. sandbox/admin).
+                # Unpaired senders in OPEN policy receive an isolated guest identity with zero execution privileges.
+                guest_uid = f"guest_{msg.channel}_{msg.sender_id}"
+                logger.info("PolicyResolver: Unpaired sender %s/%s assigned sandboxed guest identity %s", msg.channel, msg.sender_id, guest_uid)
+                user_id = guest_uid
         elif policy == DmPolicy.PAIRING:
             user_id = await self._resolve_with_pairing(msg)
         else:
@@ -175,7 +179,15 @@ class PolicyResolver:
         if user_id:
             from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 
-            asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=True))
+            is_auth = not user_id.startswith("guest_")
+            msg_with_user = dataclasses.replace(msg, user_id=user_id)
+            asyncio.create_task(
+                ChannelDataPlaneService.record_inbound(
+                    msg_with_user,
+                    is_trigger=True,
+                    is_authenticated=is_auth,
+                )
+            )
 
         return user_id
 

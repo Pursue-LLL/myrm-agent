@@ -47,7 +47,6 @@ def _make_session(**overrides) -> MagicMock:
     session.collector.extra_data = {}
     session.collector._progress_steps = [{}]
     session.collector.sibling_group_id = None
-    session.collector.cross_turn_data_updates = {}
     session.collector.has_pending_hitl_replay = MagicMock(return_value=False)
     session.collector.cleanup = MagicMock()
     session.monitor = MagicMock()
@@ -135,12 +134,11 @@ class TestFinalizeBranchCoverage:
         mock_end_run.assert_called_once_with("chat-branch", phase=RunDigestPhase.ERROR, progress_steps=[{}])
 
     @pytest.mark.asyncio
-    async def test_slice_flush_and_artifact_patch_and_turn_completed(self) -> None:
-        """Residual slice flush, UI artifact patch and turn-capability completed record."""
+    async def test_slice_flush_and_turn_completed(self) -> None:
+        """Residual slice flush and turn-capability completed record."""
         session = _make_session()
         session.collector.has_persistable_turn = True
         session.collector.content = "Result <cite:doc-1> text"
-        session.collector.cross_turn_data_updates = {"ui": {"card": "closed"}}
         session.request.turn_capability_telemetry = TurnCapabilityTelemetryRequest(
             source="direct", effective_skill_count=2, effective_mcp_count=0
         )
@@ -190,10 +188,6 @@ class TestFinalizeBranchCoverage:
                 "myrm_agent_harness.agent.skills.evolution.infra.integration.get_global_evolution_integration",
                 return_value=evo_integration,
             ),
-            patch(
-                "app.services.chat.ui_artifact_patch.patch_ui_artifact_data_updates",
-                new_callable=AsyncMock,
-            ) as mock_patch_artifact,
             patch("app.services.agent.evolution.engine.trigger_skill_evolution"),
         ):
             mock_ctx.reset = MagicMock()
@@ -201,7 +195,6 @@ class TestFinalizeBranchCoverage:
 
         manager.record_citations.assert_awaited_once()
         assert evo_integration.queue.enqueue.await_count == 1
-        mock_patch_artifact.assert_awaited_once_with("chat-branch", {"ui": {"card": "closed"}})
         assert session.turn_capability_terminal_recorded is True
 
     @pytest.mark.asyncio

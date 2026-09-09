@@ -10,6 +10,7 @@ import {
   isTrustedSplitStackHostname,
   LOCAL_NO_AUTH_API_KEY_MARKER,
   OAUTH_AUTH_API_KEY_MARKER,
+  normalizeApiUrl,
   resolveCustomProviderTypeInfo,
   resolveProviderApiKeyForRequests,
 } from '../providerTypes';
@@ -21,6 +22,11 @@ describe('providerTypes defaults', () => {
 
   it('uses the OpenCode Go subscription API endpoint', () => {
     expect(BUILT_IN_PROVIDER_INFO.opencode_go.defaultApiUrl).toBe('https://opencode.ai/zen/go/v1');
+    expect(BUILT_IN_PROVIDER_INFO.opencode_go.dashboardUrl).toBe('https://opencode.ai');
+    expect(BUILT_IN_PROVIDER_INFO.opencode_go.alternativeApiUrls).toEqual([
+      { url: 'https://opencode.ai/zen/go/v1', label: 'Zen / Go (订阅/贡献者套餐)' },
+      { url: 'https://opencode.ai/v1', label: 'Standard API (平台标准直连)' },
+    ]);
     expect(getLiteLLMModelName('opencode_go', 'deepseek-v4-flash')).toBe('openai/deepseek-v4-flash');
   });
 
@@ -163,5 +169,13 @@ describe('isTrustedSplitStackHostname and URL helpers', () => {
     };
     expect(hasUsableProviderAuth(oauthProvider)).toBe(true);
     expect(resolveProviderApiKeyForRequests(oauthProvider)).toBe(OAUTH_AUTH_API_KEY_MARKER);
+  });
+
+  it('normalizes API URLs by stripping known endpoints including /responses', () => {
+    expect(normalizeApiUrl('https://opencode.ai/zen/go/v1/responses')).toBe('https://opencode.ai/zen/go/v1');
+    expect(normalizeApiUrl('https://opencode.ai/zen/go/v1/responses/')).toBe('https://opencode.ai/zen/go/v1');
+    expect(normalizeApiUrl('https://opencode.ai/zen/v1/responses')).toBe('https://opencode.ai/zen/v1');
+    expect(normalizeApiUrl('https://api.openai.com/v1/chat/completions')).toBe('https://api.openai.com/v1');
+    expect(normalizeApiUrl('https://opencode.ai/zen/go/v1')).toBe('https://opencode.ai/zen/go/v1');
   });
 });

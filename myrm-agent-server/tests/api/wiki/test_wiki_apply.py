@@ -57,7 +57,9 @@ def test_wiki_apply_chat_forbidden_create_note(client: TestClient) -> None:
         },
     )
     assert response.status_code == 403, response.text
-    assert response.json()["detail"]["code"] == "forbidden_for_caller"
+    err_data = response.json()
+    err_code = err_data.get("code") or err_data.get("detail", {}).get("code")
+    assert err_code == "forbidden_for_caller"
 
 
 def test_wiki_apply_patch_and_append_timeline(client: TestClient) -> None:
@@ -222,7 +224,9 @@ def test_wiki_apply_if_match_conflict(client: TestClient) -> None:
         },
     )
     assert conflict.status_code == 409, conflict.text
-    assert conflict.json()["detail"]["code"] == "conflict"
+    err_data = conflict.json()
+    err_code = err_data.get("code") or err_data.get("detail", {}).get("code")
+    assert err_code == "conflict"
 
 
 def test_wiki_apply_create_note_conflict(client: TestClient) -> None:

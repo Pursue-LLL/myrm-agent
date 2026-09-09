@@ -68,7 +68,6 @@ const BUILTIN_TOOL_ICONS: Record<BuiltinToolId, React.ReactNode> = {
   kanban: <KanbanSquare size={14} />,
   cron: <Clock size={14} />,
   answer_tool: <MessageSquareCheck size={14} />,
-  render_ui: <LayoutTemplate size={14} />,
   planning: <ListTodo size={14} />,
   structured_clarify: <ClipboardList size={14} />,
   external_cli: <Terminal size={14} />,
@@ -166,10 +165,6 @@ export const BuiltinToolsPanel = ({
           );
         })}
       </div>
-
-      {localBuiltinTools.includes('render_ui') && (
-        <p className="text-xs text-muted-foreground px-3 leading-relaxed">{tPanel('renderUiWebOnlyHint')}</p>
-      )}
 
       <MediaCredentialInline enabledBuiltinTools={localBuiltinTools} tPanel={tPanel} />
 

@@ -4,6 +4,7 @@
  * [INPUT]
  * - messages: Message[] (POS: 当前内存中已加载的聊天消息列表)
  * - turnOutlines?: TurnOutlineItem[] (POS: 全会话轻量轮次大纲投影)
+ * - activeViewportTurn?: number | null (POS: 视口当前可见阅读轮次序号，用于阅读罗盘高亮)
  * - onJump: (messageIndex: number) => void (POS: 内存消息索引跳转回调)
  * - onJumpToMessageId?: (messageId: string) => void (POS: 消息 ID 精准定位回调)
  * - onLoadThroughTurn?: (turnIndex: number) => Promise<void> (POS: 目标轮次连续分页拉取驱动器)
@@ -15,9 +16,8 @@
  * - MobileTurnOutlineSheet: 移动端全景大纲抽屉导航
  *
  * [POS]
- * 长会话全景导航核心组件。彻底终结“长会话只拉取末尾消息导致早期轮次完全盲视、
- * 无法跨轮次快速直达、以及高度估算造成视口落地剧烈抖动”的交互断层。
- * 针对已加载和未加载轮次提供双态微光刻度与悬浮大纲预览。
+ * 长会话全景导航核心组件。支持已加载/未加载双态刻度、In-Flight 流式轮次动态合成、
+ * 视口阅读进度实时罗盘联动、以及双帧调度防抖动精准锚定。
  */
 
 'use client';
@@ -45,11 +45,13 @@ export interface RailTurnItem {
   replyPreview: string | null;
   isLoaded: boolean;
   messageIndex: number;
+  isInFlight?: boolean;
 }
 
 interface TurnTimelineRailProps {
   messages: Message[];
   turnOutlines?: TurnOutlineItem[];
+  activeViewportTurn?: number | null;
   onJump: (messageIndex: number) => void;
   onJumpToMessageId?: (messageId: string) => void;
   onLoadThroughTurn?: (turnIndex: number) => Promise<void>;
@@ -59,6 +61,7 @@ interface TurnTimelineRailProps {
 
 /**
  * 将 turnOutlines 或 messages 归一化为时间线轮次列表
+ * 具备 In-Flight 活跃轮次动态合成能力
  */
 function normalizeRailItems(
   messages: Message[],
@@ -78,7 +81,7 @@ function normalizeRailItems(
 
   // 模式 1：已存在服务端全局大纲投影（全生命周期视野）
   if (turnOutlines && turnOutlines.length > 0) {
-    return turnOutlines.map((outline) => {
+    const items: RailTurnItem[] = turnOutlines.map((outline) => {
       const idx = msgIndexMap.get(outline.user_message_id) ?? -1;
       return {
         turnIndex: outline.turn_index,
@@ -88,8 +91,33 @@ function normalizeRailItems(
         replyPreview: outline.reply_preview,
         isLoaded: idx !== -1,
         messageIndex: idx,
+        isInFlight: false,
       };
     });
+
+    // In-Flight 轮次动态合成：补齐尚未持久化落库的最新用户消息
+    const outlineMsgIds = new Set(turnOutlines.map((o) => o.user_message_id));
+    let nextTurnIndex = turnOutlines.length + 1;
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      const mId = String(msg.messageId || msg.id || '');
+      if (msg.role === 'user' && mId && !outlineMsgIds.has(mId)) {
+        const cleanText = stripMarkdown(stripUserMessageDisplayText(msg.content || ''));
+        items.push({
+          turnIndex: nextTurnIndex++,
+          userMessageId: mId,
+          assistantMessageId: null,
+          promptPreview: cleanText.slice(0, FALLBACK_PREVIEW_LIMIT),
+          replyPreview: null,
+          isLoaded: true,
+          messageIndex: i,
+          isInFlight: true,
+        });
+        outlineMsgIds.add(mId);
+      }
+    }
+
+    return items;
   }
 
   // 模式 2：降级方案，从当前内存 messages 提取 user 轮次
@@ -109,6 +137,7 @@ function normalizeRailItems(
         replyPreview: null,
         isLoaded: true,
         messageIndex: i,
+        isInFlight: false,
       });
     }
   }
@@ -116,7 +145,15 @@ function normalizeRailItems(
 }
 
 /** 动态计算刻度条宽度（悬浮波纹扩散算法） */
-function calculateRailPitchWidth(idx: number, hoverIdx: number, isLoaded: boolean): number {
+function calculateRailPitchWidth(
+  idx: number,
+  hoverIdx: number,
+  isLoaded: boolean,
+  isActiveViewport: boolean,
+): number {
+  if (isActiveViewport) {
+    return 26;
+  }
   if (hoverIdx < 0) {
     return isLoaded ? 14 : 8;
   }
@@ -137,6 +174,7 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
   ({
     messages,
     turnOutlines,
+    activeViewportTurn,
     onJump,
     onJumpToMessageId,
     onLoadThroughTurn,
@@ -237,7 +275,7 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
           'fixed top-1/2 -translate-y-1/2 z-30 flex flex-col items-center py-4 px-1.5',
           'hidden md:flex select-none',
           'transition-opacity duration-300',
-          loading ? 'opacity-50' : 'opacity-100',
+          loading ? 'opacity-60' : 'opacity-100',
           hasGoalPanel ? 'right-3 xl:right-[340px]' : 'right-3',
         )}
         onMouseMove={handleMouseMove}
@@ -256,6 +294,7 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
         >
           {railItems.map((item, idx) => {
             const isLoadingThis = loadingTurnIndex === item.turnIndex;
+            const isActiveViewport = activeViewportTurn === item.turnIndex;
             return (
               <button
                 key={`${item.turnIndex}-${item.userMessageId}`}
@@ -272,13 +311,21 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
                   <div
                     className={cn(
                       'rounded-full transition-all ease-out',
-                      item.isLoaded
-                        ? 'h-[5px] bg-primary/70 group-hover:bg-primary'
-                        : 'h-[3px] bg-muted-foreground/35 group-hover:bg-muted-foreground/75',
+                      item.isInFlight
+                        ? 'h-[5px] bg-primary animate-pulse shadow-sm shadow-primary/50'
+                        : item.isLoaded
+                          ? 'h-[5px] bg-primary/70 group-hover:bg-primary'
+                          : 'h-[3px] bg-muted-foreground/35 group-hover:bg-muted-foreground/75',
+                      isActiveViewport && 'bg-primary ring-2 ring-primary/40 ring-offset-1',
                       hoveredIdx >= 0 && Math.abs(idx - hoveredIdx) <= 2 && 'bg-primary',
                     )}
                     style={{
-                      width: calculateRailPitchWidth(idx, hoveredIdx, item.isLoaded),
+                      width: calculateRailPitchWidth(
+                        idx,
+                        hoveredIdx,
+                        item.isLoaded,
+                        isActiveViewport,
+                      ),
                       transitionDuration: '150ms',
                     }}
                   />
@@ -304,12 +351,18 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
               <span
                 className={cn(
                   'px-1.5 py-0.2 rounded text-[10px]',
-                  activeHoverItem.isLoaded
-                    ? 'bg-primary/15 text-primary'
-                    : 'bg-muted text-muted-foreground',
+                  activeHoverItem.isInFlight
+                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-medium'
+                    : activeHoverItem.isLoaded
+                      ? 'bg-primary/15 text-primary'
+                      : 'bg-muted text-muted-foreground',
                 )}
               >
-                {activeHoverItem.isLoaded ? t('loaded') : t('unloaded')}
+                {activeHoverItem.isInFlight
+                  ? t('inFlight')
+                  : activeHoverItem.isLoaded
+                    ? t('loaded')
+                    : t('unloaded')}
               </span>
             </div>
             <div className="space-y-1">
@@ -412,16 +465,20 @@ export const MobileTurnOutlineSheet = memo<MobileTurnOutlineSheetProps>(
                   <span
                     className={cn(
                       'px-1.5 py-0.5 rounded text-[10px]',
-                      item.isLoaded
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-muted text-muted-foreground',
+                      item.isInFlight
+                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium'
+                        : item.isLoaded
+                          ? 'bg-primary/10 text-primary'
+                          : 'bg-muted text-muted-foreground',
                     )}
                   >
                     {loadingTurn === item.turnIndex
                       ? t('loading')
-                      : item.isLoaded
-                        ? t('loaded')
-                        : t('unloaded')}
+                      : item.isInFlight
+                        ? t('inFlight')
+                        : item.isLoaded
+                          ? t('loaded')
+                          : t('unloaded')}
                   </span>
                 </div>
                 <p className="text-xs text-foreground/90 line-clamp-2">

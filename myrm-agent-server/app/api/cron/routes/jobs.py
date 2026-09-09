@@ -114,6 +114,7 @@ async def create_job(body: CronJobCreate) -> CronJobResponse:
             active_hours=_h._active_hours_from_request(body.active_hours),
             required_capabilities=(tuple(body.required_capabilities) if body.required_capabilities else ()),
             tools_allowed=tools_allowed,
+            skill_ids=tuple(body.skill_ids) if body.skill_ids else (),
             allowed_roots=tuple(body.allowed_roots) if body.allowed_roots else (),
             triggers=_h._trigger_config_from_request(body.triggers),
             max_retries=body.max_retries,
@@ -181,6 +182,13 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
                 tools_allowed = normalize_cron_tools_allowed(body.tools_allowed)
             else:
                 clear_tools_allowed = True
+        skill_ids: tuple[str, ...] | None = None
+        clear_skill_ids = False
+        if "skill_ids" in body.model_fields_set:
+            if body.skill_ids:
+                skill_ids = tuple(body.skill_ids)
+            else:
+                clear_skill_ids = True
         delivery_patch: DeliveryConfig | None = None
         failure_delivery_patch: DeliveryConfig | None = None
         failure_alert_patch: FailureAlertConfig | Literal[False] | None = None
@@ -227,6 +235,8 @@ async def update_job(job_id: str, body: CronJobUpdate) -> CronJobResponse:
             required_capabilities=(tuple(body.required_capabilities) if body.required_capabilities is not None else None),
             tools_allowed=tools_allowed,
             clear_tools_allowed=clear_tools_allowed,
+            skill_ids=skill_ids,
+            clear_skill_ids=clear_skill_ids,
             allowed_roots=(tuple(body.allowed_roots) if body.allowed_roots is not None else None),
             triggers=(_h._trigger_config_from_request(body.triggers) if body.triggers else None),
             clear_triggers=body.triggers is None and "triggers" in body.model_fields_set,

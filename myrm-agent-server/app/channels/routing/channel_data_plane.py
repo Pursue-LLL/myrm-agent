@@ -68,16 +68,23 @@ class ChannelDataPlaneService:
         msg: InboundMessage,
         *,
         is_trigger: bool,
+        is_authenticated: bool = True,
     ) -> ChannelMessageModel | None:
-        """Sanitize, tag, and persist an inbound message to the channel DWD ledger."""
+        """Sanitize, tag, and persist an inbound message to the channel DWD ledger.
+
+        Security gate: Unauthenticated or unpaired senders are strictly disqualified from
+        learning_eligible, preventing malicious prompt injection and memory poisoning attacks.
+        """
         try:
             chat_id = msg.chat_id or msg.sender_id
             if not chat_id:
                 return None
 
+            # Guest/unpaired identities are barred from memory learning
+            is_guest = bool(msg.user_id and msg.user_id.startswith("guest_"))
             raw_content = str(msg.content or "")
             redacted_content = redact_sensitive(raw_content)
-            eligible = is_learning_eligible(redacted_content, msg.sender_name)
+            eligible = is_learning_eligible(redacted_content, msg.sender_name) if (is_authenticated and not is_guest) else False
 
             message_id = msg.message_id or f"msg_{uuid.uuid4().hex[:16]}"
             meta_str = json.dumps(msg.metadata, ensure_ascii=False) if msg.metadata else None

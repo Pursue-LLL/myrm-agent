@@ -176,7 +176,7 @@ _PREP_AGENT_TURN_JS = """(async () => {
   await bridge.ensureChatSession?.({ preserveActionMode: true });
   bridge.setSseCaptureMessageId?.(null);
   // Turn1 togglables — web_search supplies common layer badge; no network on "Reply OK."
-  const turn1Tools = ['web_search', 'memory', 'structured_clarify', 'render_ui'];
+  const turn1Tools = ['web_search', 'memory', 'structured_clarify'];
   bridge.setCurrentBuiltinTools?.(turn1Tools);
   delete window.__MYRM_E2E_BLOCK_SEARCH_SYNC__;
   if (bridge.pinLiteModelForE2e) {

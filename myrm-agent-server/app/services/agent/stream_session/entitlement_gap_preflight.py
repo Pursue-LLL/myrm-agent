@@ -15,9 +15,7 @@
 
 [POS]
 Scans the user message against CAPABILITY_GAP_REGISTRY before the harness stream loop.
-When render_ui is enabled in profile but the channel cannot mount inline UI, emits
-surface_unavailable capability_gap (Web toast + IM ProgressUpdate). Does not modify
-Turn1 tool bindings or prompt cache.
+Does not modify Turn1 tool bindings or prompt cache.
 """
 
 from __future__ import annotations
@@ -131,36 +129,7 @@ def _build_surface_unavailable_sse_event(
     client_surface: str | None,
     locale: str | None,
 ) -> dict[str, object] | None:
-    if "render_ui" not in active_tool_groups:
-        return None
-    from app.ai_agents.general_agent.tool_setup import _should_mount_render_ui_tools
-
-    ui_intent = detect_capability_gap(
-        user_text,
-        active_tool_groups - frozenset({"render_ui"}),
-    )
-    if ui_intent is None or ui_intent.tool_id != "render_ui":
-        return None
-    if _should_mount_render_ui_tools(
-        enable_render_ui=True,
-        channel_name=channel_name,
-        client_surface=client_surface,
-    ):
-        return None
-    dedup_key = build_surface_unavailable_dedup_key(ui_intent.tool_id)
-    if not _gap_emission_tracker.should_emit(chat_id, dedup_key):
-        return None
-    _gap_emission_tracker.mark_emitted(chat_id, dedup_key)
-    return {
-        "type": "capability_gap",
-        "messageId": message_id,
-        "data": {
-            "tool_id": ui_intent.tool_id,
-            "tool_group": ui_intent.tool_group,
-            "reason": _SURFACE_UNAVAILABLE_DEDUP_SUFFIX,
-            "display_message": resolve_surface_unavailable_display_message(locale),
-        },
-    }
+    return None
 
 
 def _resolve_web_search_config_message(*, reason: str, locale: str | None) -> str:

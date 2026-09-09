@@ -49,6 +49,16 @@ export const VisualDesktopToggle = () => {
     }
   }, [managedTakeoverPending, isOpen]);
 
+  useEffect(() => {
+    const handleOpenVisualDesktop = () => {
+      setIsOpen(true);
+    };
+    window.addEventListener('open_visual_desktop', handleOpenVisualDesktop);
+    return () => {
+      window.removeEventListener('open_visual_desktop', handleOpenVisualDesktop);
+    };
+  }, []);
+
   const loadVnc = useCallback(
     async (isMounted: { current: boolean }) => {
       setIsLoadingUrl(true);

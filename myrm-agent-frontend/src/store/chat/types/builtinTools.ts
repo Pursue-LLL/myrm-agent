@@ -25,7 +25,6 @@ export type BuiltinToolId =
   | 'kanban'
   | 'cron'
   | 'answer_tool'
-  | 'render_ui'
   | 'planning'
   | 'structured_clarify'
   | 'external_cli'
@@ -44,7 +43,6 @@ export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'kanban',
   'cron',
   'answer_tool',
-  'render_ui',
   'planning',
   'structured_clarify',
   'external_cli',
@@ -56,7 +54,6 @@ export const DEFAULT_ENABLED_BUILTIN_TOOLS: BuiltinToolId[] = [
   'web_search',
   'memory',
   'structured_clarify',
-  'render_ui',
 ];
 
 const BUILTIN_TOOL_ID_SET = new Set<string>(BUILTIN_TOOL_IDS);
@@ -78,7 +75,6 @@ export const BUILTIN_TOOL_LABELS: Record<BuiltinToolId, { en: string; zh: string
   kanban: { en: 'Kanban', zh: '看板' },
   cron: { en: 'Scheduled Tasks', zh: '定时任务' },
   answer_tool: { en: 'Answer Tool', zh: '结构化回答' },
-  render_ui: { en: 'Render UI', zh: 'UI 渲染' },
   planning: { en: 'Planning', zh: '任务规划' },
   structured_clarify: { en: 'Structured Clarify', zh: '结构化澄清' },
   external_cli: { en: 'External CLI', zh: '外部 CLI' },

@@ -59,7 +59,7 @@ E2E_PROMPT = (
     "for a small demo project. "
     'Use title "Pick stack", one question id "stack" prompt "Which stack?", '
     'options id "a" label "Option A" and id "b" label "Option B", requires_confirmation false. '
-    "Do not use bash, write_file, render_ui_tool, or other tools. "
+    "Do not use bash, write_file, or other tools. "
     "If I skip without answering, reply with exactly: DONE-SKIPPED"
 )
 
@@ -70,7 +70,7 @@ E2E_PROMPT_SIGNOFF = (
     'Use title "Pick stack". Ask one question with id "stack" and prompt '
     '"Which stack?" with two options: id "a" label "Option A", id "b" label "Option B". '
     "Set requires_confirmation to false. "
-    "Do not use bash, write_file, render_ui_tool, or any other tools. "
+    "Do not use bash, write_file, or any other tools. "
     "If I skip without answering, reply with exactly: DONE-SKIPPED"
 )
 

@@ -47,11 +47,9 @@ class GovernanceReviveBody(BaseModel):
 
 
 def _get_archiver(agent_id: str | None = None) -> MemoryToWikiArchiver:
-    return MemoryToWikiArchiver.get_instance(
-        llm=None,
-        agent_id=agent_id,
-        enable_structural_cache=True,
-    )
+    from app.services.wiki.vault import get_wiki_archiver
+
+    return get_wiki_archiver(None, agent_id=agent_id)  # type: ignore[arg-type]
 
 
 @router.get("/overview")

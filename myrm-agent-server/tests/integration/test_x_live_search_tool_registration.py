@@ -39,7 +39,6 @@ def _make_search_mixin(*, skill_ids: list[str] | None) -> object:
     mixin.enable_advanced_retrieval = False
     mixin.embedding_config = None
     mixin.fetch_raw_webpage = False
-    mixin.enable_render_ui = False
     mixin.image_generation_params = None
     mixin.video_generation_params = None
     mixin.tts_params = None

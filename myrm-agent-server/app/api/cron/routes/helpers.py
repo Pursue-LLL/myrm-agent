@@ -113,6 +113,7 @@ def _to_response(
         active_hours=_active_hours_to_response(job.active_hours),
         required_capabilities=(list(job.required_capabilities) if job.required_capabilities else []),
         tools_allowed=list(job.tools_allowed) if job.tools_allowed else [],
+        skill_ids=list(job.skill_ids) if job.skill_ids else [],
         allowed_roots=list(job.allowed_roots) if job.allowed_roots else [],
         triggers=_trigger_config_to_response(job.triggers),
         context_from=list(job.context_from) if job.context_from else [],

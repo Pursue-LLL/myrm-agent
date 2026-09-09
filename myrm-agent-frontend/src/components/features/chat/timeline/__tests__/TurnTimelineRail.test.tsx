@@ -4,8 +4,10 @@ import React from 'react';
 import { TurnTimelineRail } from '../TurnTimelineRail';
 import useChatStore from '@/store/useChatStore';
 
+const stableT = (key: string, opts?: { defaultMessage?: string }) => opts?.defaultMessage || key;
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, opts?: { defaultMessage?: string }) => opts?.defaultMessage || key,
+  useTranslations: () => stableT,
 }));
 
 describe('TurnTimelineRail', () => {

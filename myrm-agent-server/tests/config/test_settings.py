@@ -88,9 +88,13 @@ class TestDefaultValues:
         monkeypatch.delenv("SQLITE_BUSY_TIMEOUT_MS", raising=False)
         s = DatabaseSettings()
         assert s.sqlite_pool_size == 5
-        assert s.sqlite_busy_timeout_ms == 3000
+        assert s.sqlite_busy_timeout_ms == 30000
 
-    def test_database_path_defaults_derive_from_state_dir(self) -> None:
+    def test_database_path_defaults_derive_from_state_dir(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("MEMORY_BASE_PATH", raising=False)
+        monkeypatch.delenv("EVENT_LOG_DIR", raising=False)
         db = DatabaseSettings()
         from pathlib import Path
 
@@ -196,9 +200,11 @@ class TestDatabasePathOverrides:
             else:
                 os.environ["MEMORY_BASE_PATH"] = old
 
-    def test_custom_state_dir_propagates(self) -> None:
+    def test_custom_state_dir_propagates(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from pathlib import Path
 
+        monkeypatch.delenv("MEMORY_BASE_PATH", raising=False)
+        monkeypatch.delenv("EVENT_LOG_DIR", raising=False)
         old = os.environ.get("MYRM_DATA_DIR")
         os.environ["MYRM_DATA_DIR"] = "/tmp/test-workspace"
         try:
@@ -444,3 +450,16 @@ class TestSubConfigIsolation:
     def test_rate_limit_independent(self) -> None:
         rl = RateLimitSettings()
         assert rl.chat == "30/minute;500/hour"
+
+
+# ---------------------------------------------------------------------------
+# C10: 宿主与工具链裸环境变量防污染隔离 (e.g. AGENT=1, SECURITY=xxx)
+# ---------------------------------------------------------------------------
+
+
+class TestHostEnvironmentIsolation:
+    def test_raw_agent_flag_does_not_break_app_settings(self) -> None:
+        """Cursor IDE or CI/CD often injects AGENT=1; AppSettings must safely ignore it."""
+        s = _make_settings(AGENT="1", SECURITY="scanner_active")
+        assert s.agent.max_concurrent == 20
+        assert s.security.signature_enabled is False

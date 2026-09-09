@@ -87,7 +87,6 @@ class GeneralAgent(ToolSetupMixin):
         enable_advanced_retrieval: bool = False,
         embedding_config: "EmbeddingConfig | None" = None,
         reranker_config: "RerankerConfig | None" = None,
-        enable_render_ui: bool = False,
         enable_structured_clarify: bool = False,
         client_surface: str | None = None,
         enable_web_search: bool = True,
@@ -204,7 +203,6 @@ class GeneralAgent(ToolSetupMixin):
         self.enable_advanced_retrieval = enable_advanced_retrieval
         self.embedding_config = embedding_config
         self.reranker_config = reranker_config
-        self.enable_render_ui = enable_render_ui
         self.enable_structured_clarify = enable_structured_clarify
         self.client_surface = client_surface
         self.enable_web_search = enable_web_search

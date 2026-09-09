@@ -207,11 +207,11 @@ class TestBuildRealtimeTools:
         )
         assert len(tools) == 13
 
-    def test_render_ui_not_exposed_even_when_profile_enabled(self) -> None:
-        """Voice Realtime has no inline A2UI surface — catalog omits render_ui (see gemini_live)."""
-        tools = build_realtime_tools(("web_search", "render_ui", "kanban"), _MEMORY_ONLY)
+    def test_unknown_tool_not_exposed(self) -> None:
+        """Voice Realtime catalog omits unknown tools."""
+        tools = build_realtime_tools(("web_search", "unknown_tool", "kanban"), _MEMORY_ONLY)
         names = [t.name for t in tools]
-        assert "render_ui" not in names
+        assert "unknown_tool" not in names
         assert "web_search" in names
         assert "kanban" in names
 

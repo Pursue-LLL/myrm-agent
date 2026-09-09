@@ -69,10 +69,15 @@ def _build_mock_user_configs() -> object:
     if not os.getenv("OPENAI_API_KEY"):
         os.environ["OPENAI_API_KEY"] = basic_key
 
-    model_cfg = ModelConfig(
-        model=_convert_litellm_model(basic_model),
-        api_key=basic_key,
-        base_url=basic_url,
+    from app.core.wire.enrich import enrich_model_config
+
+    model_cfg = enrich_model_config(
+        ModelConfig(
+            model=_convert_litellm_model(basic_model),
+            api_key=basic_key,
+            base_url=basic_url,
+        ),
+        provider_id=basic_pid,
     )
     search_services_dict: dict[str, object] = {
         "searchServiceConfigs": [

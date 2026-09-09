@@ -7,10 +7,10 @@ Enables users to visually select page elements and send natural language instruc
 
 | File                          | Role    | Description                                                   | I/O/P |
 | ----------------------------- | ------- | ------------------------------------------------------------- | ----- |
-| BrowserLiveView.tsx           | Core    | Draggable side panel with screenshot view and element overlay | Yes   |
-| BrowserInspectorToggle.tsx    | Core    | Floating toggle button, visible when browser is active        | Yes   |
+| BrowserLiveView.tsx           | Core    | Draggable side panel with screenshot view, dynamic responsive scaling, and element overlay | Yes   |
+| BrowserInspectorToggle.tsx    | Core    | Floating toggle button, visible when active or snapshot retained, with hover peek thumbnail | Yes   |
 | ElementOverlay.tsx            | Core    | BBox-based interactive element selection overlay              | Yes   |
-| InspectorToolbar.tsx          | Support | Toolbar with view/inspect mode toggle, page info, refresh     | Yes   |
+| InspectorToolbar.tsx          | Support | Toolbar with view/inspect mode toggle, page info, desktop takeover, refresh | Yes   |
 | InspectorInstructionInput.tsx | Support | Natural language instruction input with element badge         | Yes   |
 | index.ts                      | Export  | Barrel exports                                                | -     |
 

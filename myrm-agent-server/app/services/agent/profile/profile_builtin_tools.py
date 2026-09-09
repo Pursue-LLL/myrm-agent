@@ -34,7 +34,6 @@ class BuiltinToolFlags(TypedDict):
     enable_kanban: bool
     enable_cron_eager: bool
     enable_answer_tool: bool
-    enable_render_ui: bool
     enable_planning: bool
     enable_structured_clarify: bool
     enable_external_cli: bool
@@ -77,7 +76,6 @@ def resolve_builtin_tool_flags(
         enable_kanban="kanban" in effective_tools,
         enable_cron_eager="cron" in effective_tools,
         enable_answer_tool="answer_tool" in effective_tools,
-        enable_render_ui="render_ui" in effective_tools,
         enable_planning="planning" in effective_tools,
         enable_structured_clarify="structured_clarify" in effective_tools,
         enable_external_cli=("external_cli" in effective_tools and deploy_supports_external_cli),

@@ -38,6 +38,7 @@ import useAuthStore from '../useAuthStore';
 import useRetrievalStore from '../useRetrievalStore';
 import useQuoteStore from '../useQuoteStore';
 import { showI18nToast } from '@/services/i18nToastService';
+import { supportsProviderNoAuth } from '@/store/config/providerTypes';
 import {
   isTransientNetworkError,
   executeStreamWithRetry,

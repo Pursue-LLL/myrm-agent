@@ -35,7 +35,7 @@ class TestIsSandboxCapableTools:
         assert is_sandbox_capable_tools(tools, declared_capabilities=("coding",)) is True
 
     def test_general_agent_tools_not_sandbox(self) -> None:
-        tools = ["web_search", "memory", "render_ui", "structured_clarify", "wiki", "kanban"]
+        tools = ["web_search", "memory", "structured_clarify", "wiki", "kanban"]
         assert is_sandbox_capable_tools(tools) is False
 
 
@@ -53,7 +53,8 @@ class TestResolvedAgentProfileProperty:
             agent_id="general-agent-1",
             skill_ids=(),
             mcp_ids=(),
-            enabled_builtin_tools=("web_search", "memory", "render_ui"),
+            enabled_builtin_tools=("web_search", "memory"),
+        replace_all: true
         )
         assert general_profile.is_sandbox_capable is False
 
@@ -97,7 +98,8 @@ class TestConverterSandboxWriteGate:
             agent_id="general-agent-1",
             skill_ids=(),
             mcp_ids=(),
-            enabled_builtin_tools=("web_search", "memory", "render_ui"),
+            enabled_builtin_tools=("web_search", "memory"),
+        replace_all: true
         )
         mock_resolver = MagicMock()
         mock_resolver.resolve = AsyncMock(return_value=general_profile)
@@ -129,7 +131,8 @@ class TestConverterSandboxWriteGate:
             agent_id="general-agent-1",
             skill_ids=(),
             mcp_ids=(),
-            enabled_builtin_tools=("web_search", "memory", "render_ui"),
+            enabled_builtin_tools=("web_search", "memory"),
+        replace_all: true
         )
         mock_resolver = MagicMock()
         mock_resolver.resolve = AsyncMock(return_value=general_profile)

@@ -25,7 +25,6 @@ def _agent(**overrides: object) -> SimpleNamespace:
         enable_kanban=False,
         enable_wiki=False,
         enable_answer_tool=False,
-        enable_render_ui=False,
         enable_structured_clarify=False,
         enable_external_cli=False,
         enable_cron_eager=False,
@@ -40,7 +39,6 @@ def _agent(**overrides: object) -> SimpleNamespace:
 def test_active_tool_group_keys_match_derive_tuple_length() -> None:
     agent = _agent(
         enable_browser=True,
-        enable_render_ui=True,
         enable_computer_use=True,
         enable_kanban=True,
         enable_wiki=True,
@@ -56,16 +54,6 @@ def test_active_tool_group_keys_match_derive_tuple_length() -> None:
     groups = derive_active_tool_groups(agent, enable_planning=True)
     assert len(groups) == len(ACTIVE_TOOL_GROUP_KEYS)
     assert set(groups) == set(ACTIVE_TOOL_GROUP_KEYS)
-
-
-def test_derive_includes_render_ui_when_enabled() -> None:
-    groups = derive_active_tool_groups(_agent(enable_render_ui=True), enable_planning=False)
-    assert "render_ui" in groups
-
-
-def test_derive_excludes_render_ui_when_disabled() -> None:
-    groups = derive_active_tool_groups(_agent(enable_render_ui=False), enable_planning=False)
-    assert "render_ui" not in groups
 
 
 def test_derive_includes_external_cli_when_enabled() -> None:

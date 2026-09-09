@@ -1372,7 +1372,7 @@ async def move_wiki_node(
         from myrm_agent_harness.toolkits.wiki.core.refactor import LinkRefactorEngine
 
         engine = LinkRefactorEngine(concepts_dir)
-        updated_count = engine.refactor_links(old_path, new_path)
+        refactor_report = engine.refactor_links(old_path, new_path)
 
         from myrm_agent_harness.toolkits.wiki.pipeline.publication import (
             ConceptPathMapping,
@@ -1396,10 +1396,11 @@ async def move_wiki_node(
             archiver._structure,
             archiver._query_engine._indexer,
             mappings,
+            modified_referrers=refactor_report.modified_concept_paths,
         )
 
         await _after_wiki_vault_mutation(archiver, "move concept")
-        return OperationResult(success=True, message=f"Moved successfully. Updated {updated_count} files.")
+        return OperationResult(success=True, message=f"Moved successfully. Updated {refactor_report.updated_count} files.")
     except Exception as e:
         logger.error("Wiki node move failed: %s", e)
         raise HTTPException(status_code=500, detail="Move operation failed") from e

@@ -222,6 +222,7 @@ async def system_info() -> dict[str, object]:
         "edge_tts_available": _check_edge_tts_installed(),
         "local_tts_available": _check_local_tts_installed(),
         "tokenizer_backend": _get_tokenizer_backend(),
+        "data_region": os.getenv("MYRM_DATA_REGION", "local"),
     }
 
 

@@ -18,6 +18,7 @@
 | `MigrationDiscoveryBanner.tsx`              | 组件      | Local 空聊天页外部助手发现横幅；单源时深链 `?sub=migration&source=`                                                                                                                                                                    | ✅                                                                |
 | `ConversationRecallHint.tsx`                | 组件      | EmptyChat 历史会话搜索 opt-in 发现性横幅（Settings 深链）                                                                                                                                                                              | ✅                                                                |
 | `ConversationJumpBar.tsx`                   | 组件      | 消息跳转条；Goal 侧栏 xl+ 时 `xl:right-[340px]` 避让                                                                                                                                                                                   | ✅                                                                |
+| `TurnTimelineRail.tsx`                      | 组件      | 会话时间线大纲导航导轨与移动端大纲抽屉：10px 固定步距微光刻度、双端渐变淡出遮罩、大纲浮层预览与跨轮次连续加载直达（`MobileTurnOutlineSheet` 同文件导出）                                                                           | ✅                                                                |
 | `DeleteChat.tsx`                            | 组件      | 删除当前会话按钮与确认流程                                                                                                                                                                                                             | ✅                                                                |
 | `EmptyChat.tsx`                             | 组件      | 空会话态：SamplePrompts + Companion + MessageInput + NoProviderBanner                                                                                                                                                                  | ✅                                                                |
 | `FiveContractDeliveryStatusPanel.tsx`       | 组件      | 五合同交付生命周期进度面板：透明透出 Task Intent、Scene Environment、Action Execution、Delivery Artifact 与 Acceptance Verification 5 阶段状态机进度条与审计详情                                                                       | ✅                                                                |
@@ -66,7 +67,7 @@
 
 ## agent-config-panel/
 
-详见 [agent-config-panel/_ARCH.md](agent-config-panel/_ARCH.md)。内置工具 ID 与 server `resolve_builtin_tool_flags()` 必须同步（含 `render_ui`）。
+详见 [agent-config-panel/_ARCH.md](agent-config-panel/_ARCH.md)。内置工具 ID 与 server `resolve_builtin_tool_flags()` 必须同步。
 
 | 文件                            | 地位 | 职责                                                                                                                                       | I/O/P |
 | ------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----- |

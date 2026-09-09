@@ -125,3 +125,40 @@ def test_chat_probe_model_preserves_combo_pattern_for_local_gateway() -> None:
     )
     assert _chat_probe_max_tokens("http://localhost:20128/v1") == 16
     assert _chat_probe_max_tokens("https://api.minimaxi.com/v1") == 1
+
+
+def test_probe_llm_api_key_once_injects_opencode_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.support.e2e_provider_seed import _probe_llm_api_key_once
+    import urllib.request
+
+    captured_headers: dict[str, str] = {}
+
+    class DummyResponse:
+        status = 200
+
+        def __enter__(self) -> DummyResponse:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            pass
+
+    def dummy_urlopen(req: urllib.request.Request, **_kwargs: object) -> DummyResponse:
+        nonlocal captured_headers
+        captured_headers = dict(req.headers)
+        return DummyResponse()
+
+    monkeypatch.setattr(urllib.request, "urlopen", dummy_urlopen)
+
+    ok = _probe_llm_api_key_once(
+        base_url="https://opencode.ai/zen/go/v1",
+        api_key="sk-test",
+        model="openai-like/deepseek-v4-flash",
+    )
+    assert ok is True
+    # Header keys in Request.headers may be case-folded or title-cased
+    headers_lower = {k.lower(): v for k, v in captured_headers.items()}
+    assert headers_lower.get("x-opencode-session") == "e2e-preflight-session"
+    assert headers_lower.get("user-agent") == "Myrm-E2E/1.0"
+

@@ -165,6 +165,20 @@ class TestFillBlueprint:
         assert data["required_capabilities"] == ["web_search_tool", "net_fetch"]
         assert data["tools_allowed"] == ["web_search"]
 
+    def test_fill_local_health_check_returns_skill_ids(self, client: TestClient) -> None:
+        resp = client.post(
+            "/cron/blueprints/fill",
+            json={
+                "blueprint_id": "local_health_check",
+                "values": {"time": "09:00", "weekdays": "everyday"},
+                "locale": "en",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["skill_ids"] == ["host-server-ops"]
+        assert "host-server-ops" in data["prompt"]
+
     def test_fill_financial_simple_returns_router_defaults(self, client: TestClient) -> None:
         resp = client.post(
             "/cron/blueprints/fill",

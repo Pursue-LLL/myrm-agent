@@ -364,6 +364,15 @@ class TestSocialMediaWatchBlueprint:
         assert result is not None
         assert "Myrm" in result.prompt
 
+    def test_fill_local_health_check_binds_host_server_ops(self) -> None:
+        bp = get_blueprint("local_health_check")
+        assert bp is not None
+        assert bp.default_skill_ids == ("host-server-ops",)
+        result = fill_blueprint("local_health_check", {"time": "09:00", "weekdays": "everyday"})
+        assert result is not None
+        assert result.skill_ids == ("host-server-ops",)
+        assert "host-server-ops" in result.prompt
+
 
 class TestToolDescription:
     """Test get_blueprints_for_tool_description output."""

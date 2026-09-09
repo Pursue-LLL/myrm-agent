@@ -9,7 +9,6 @@
 [OUTPUT]
 - ToolSetupMixin: 提供所有工具初始化方法的 Mixin 基类
 - _should_mount_ask_question_tool: interactive web_chat clarify mount predicate
-- _should_mount_render_ui_tools: inline A2UI mount predicate (WEB_CHAT + web/tauri surface)
 - _setup_artifact_publish_tool: hosting 已配置时 conditional mount artifact_publish tool
 
 [POS]
@@ -76,27 +75,6 @@ def _should_mount_ask_question_tool(
     return resolve_channel_type(channel_name) == ChannelType.WEB_CHAT
 
 
-def _should_mount_render_ui_tools(
-    *,
-    enable_render_ui: bool,
-    channel_name: str,
-    client_surface: str | None = None,
-) -> bool:
-    """Return True when inline A2UI tools are safe and renderable for this session."""
-    if not enable_render_ui:
-        return False
-    from myrm_agent_harness.agent.meta_tools.interaction.inline_ui_capability import (
-        resolve_client_surface,
-        supports_inline_interactive_ui,
-    )
-    from myrm_agent_harness.agent.security.channel_presets import resolve_channel_type
-
-    return supports_inline_interactive_ui(
-        resolve_channel_type(channel_name),
-        client_surface=resolve_client_surface(client_surface),
-    )
-
-
 def _configured_media_api_key(api_key: str | None) -> bool:
     return bool((api_key or "").strip())
 
@@ -142,7 +120,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
         enable_advanced_retrieval: bool
         embedding_config: EmbeddingConfig | None
         fetch_raw_webpage: bool
-        enable_render_ui: bool
         enable_structured_clarify: bool
         image_generation_params: ImageGenerationParams | None
         video_generation_params: VideoGenerationParams | None
@@ -291,32 +268,6 @@ class ToolSetupMixin(ExternalAgentsMixin):
             )
 
             logger.info(f"🔍 已加载 web_search_tool (advanced_retrieval={'ON' if self.enable_advanced_retrieval else 'OFF'})")
-
-        if _should_mount_render_ui_tools(
-            enable_render_ui=self.enable_render_ui,
-            channel_name=getattr(self, "channel_name", "web_chat"),
-            client_surface=getattr(self, "client_surface", None),
-        ):
-            from myrm_agent_harness.agent.meta_tools.interaction.a2ui_spec import (
-                seed_reference_to_workspace,
-            )
-            from myrm_agent_harness.agent.meta_tools.interaction.render_ui_tool import (
-                render_ui_tool,
-            )
-            from myrm_agent_harness.agent.meta_tools.interaction.update_ui_data_tool import (
-                update_ui_data_tool,
-            )
-
-            workspace_roots: tuple[str, ...] = getattr(self, "declared_allowed_roots", ())
-            if workspace_roots:
-                try:
-                    seed_reference_to_workspace(Path(workspace_roots[0]))
-                except OSError as exc:
-                    logger.warning("Failed to seed A2UI reference to workspace: %s", exc)
-
-            tools.append(render_ui_tool)
-            tools.append(update_ui_data_tool)
-            logger.info("🎨 已加载 render_ui_tool / update_ui_data_tool（交互式 UI）[Turn1]")
 
         self._setup_image_generation_tools(
             tools,
@@ -642,6 +593,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     str,
                     tuple[str, ...],
                     tuple[str, ...] | None,
+                    tuple[str, ...] | None,
                 ]
                 | None
             ):
@@ -664,6 +616,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                     result.name,
                     result.required_capabilities,
                     result.tools_allowed,
+                    result.skill_ids,
                 )
 
             cron_tools = create_cron_tools(

@@ -27,6 +27,7 @@ import {
   Zap,
   Link2,
   MessageCircle,
+  Wrench,
   History,
 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
@@ -451,6 +452,19 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
                 {t('contextFromTooltip', {
                   ids: job.context_from.map((id) => allJobs.find((j) => j.id === id)?.name ?? id).join(', '),
                 })}
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {job.skill_ids && job.skill_ids.length > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex items-center gap-0.5 text-indigo-600 dark:text-indigo-400">
+                  <Wrench className="h-3 w-3" />
+                  <span>{job.skill_ids.length === 1 ? job.skill_ids[0] : `${job.skill_ids.length} skills`}</span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {job.skill_ids.join(', ')}
               </TooltipContent>
             </Tooltip>
           )}

@@ -4,13 +4,15 @@ import { describe, expect, it, vi } from 'vitest';
 import ClarificationInput from '../ClarificationInput';
 import type { ClarificationForm } from '@/store/chat/types';
 
+const stableT = (key: string, params?: Record<string, unknown>) => {
+  if (params?.count !== undefined) {
+    return `${key}:${params.count}`;
+  }
+  return key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params?.count !== undefined) {
-      return `${key}:${params.count}`;
-    }
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 vi.mock('sonner', () => ({

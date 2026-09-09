@@ -22,7 +22,14 @@ from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic.fields import FieldInfo
+from pydantic_settings import (
+    BaseSettings,
+    DotEnvSettingsSource,
+    EnvSettingsSource,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
 # 项目根目录
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -540,6 +547,30 @@ class MemoryGuardianGuardTelemetrySettings(BaseSettings):
 # ---------------------------------------------------------------------------
 
 
+class _AppSettingsEnvSource(EnvSettingsSource):
+    """Env source that ignores nested BaseSettings fields to prevent raw env var collisions (e.g. AGENT=1)."""
+
+    def get_field_value(
+        self, field: FieldInfo, field_name: str
+    ) -> tuple[object, str, bool]:
+        annotation = field.annotation
+        if isinstance(annotation, type) and issubclass(annotation, BaseSettings):
+            return None, field_name, False
+        return super().get_field_value(field, field_name)
+
+
+class _AppSettingsDotEnvSource(DotEnvSettingsSource):
+    """DotEnv source that ignores nested BaseSettings fields to prevent raw env var collisions."""
+
+    def get_field_value(
+        self, field: FieldInfo, field_name: str
+    ) -> tuple[object, str, bool]:
+        annotation = field.annotation
+        if isinstance(annotation, type) and issubclass(annotation, BaseSettings):
+            return None, field_name, False
+        return super().get_field_value(field, field_name)
+
+
 class AppSettings(BaseSettings):
     """Root settings — loads `.env` ([P]/[O] only; see `.env.example`)."""
 
@@ -549,6 +580,26 @@ class AppSettings(BaseSettings):
         env_ignore_empty=True,
         extra="ignore",
     )
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            init_settings,
+            _AppSettingsEnvSource(settings_cls),
+            _AppSettingsDotEnvSource(
+                settings_cls,
+                env_file=cls.model_config.get("env_file"),
+                env_file_encoding=cls.model_config.get("env_file_encoding"),
+            ),
+            file_secret_settings,
+        )
 
     # --- [P] HTTP listen ---
     port: int = 8080  # PORT
@@ -612,32 +663,34 @@ class AppSettings(BaseSettings):
     )
 
     # --- Grouped sub-settings (see classes above for env var names) ---
-    cache: CacheSettings = CacheSettings()
-    message_filter: MessageFilterSettings = MessageFilterSettings()
-    bash_audit: BashAuditSettings = BashAuditSettings()
-    monitoring: MonitoringSettings = MonitoringSettings()
-    channel_dingtalk: DingTalkChannelSettings = DingTalkChannelSettings()
-    mcp: McpSettings = McpSettings()
-    rate_limit: RateLimitSettings = RateLimitSettings()
-    browser_pool: BrowserPoolSettings = BrowserPoolSettings()
-    security: SecuritySettings = SecuritySettings()
-    code_execution: CodeExecutionSettings = CodeExecutionSettings()
-    agent: AgentGatewaySettings = AgentGatewaySettings()
-    webui: WebUISettings = WebUISettings()
-    database: DatabaseSettings = DatabaseSettings()
-    storage: StorageSettings = StorageSettings()
-    services: ServiceSettings = ServiceSettings()
-    control_plane: ControlPlaneSettings = ControlPlaneSettings()
-    context_compaction_telemetry: ContextCompactionTelemetrySettings = (
-        ContextCompactionTelemetrySettings()
+    cache: CacheSettings = Field(default_factory=CacheSettings)
+    message_filter: MessageFilterSettings = Field(default_factory=MessageFilterSettings)
+    bash_audit: BashAuditSettings = Field(default_factory=BashAuditSettings)
+    monitoring: MonitoringSettings = Field(default_factory=MonitoringSettings)
+    channel_dingtalk: DingTalkChannelSettings = Field(default_factory=DingTalkChannelSettings)
+    mcp: McpSettings = Field(default_factory=McpSettings)
+    rate_limit: RateLimitSettings = Field(default_factory=RateLimitSettings)
+    browser_pool: BrowserPoolSettings = Field(default_factory=BrowserPoolSettings)
+    security: SecuritySettings = Field(default_factory=SecuritySettings)
+    code_execution: CodeExecutionSettings = Field(default_factory=CodeExecutionSettings)
+    agent: AgentGatewaySettings = Field(default_factory=AgentGatewaySettings)
+    webui: WebUISettings = Field(default_factory=WebUISettings)
+    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
+    storage: StorageSettings = Field(default_factory=StorageSettings)
+    services: ServiceSettings = Field(default_factory=ServiceSettings)
+    control_plane: ControlPlaneSettings = Field(default_factory=ControlPlaneSettings)
+    context_compaction_telemetry: ContextCompactionTelemetrySettings = Field(
+        default_factory=ContextCompactionTelemetrySettings
     )
-    memory_brief_status_telemetry: MemoryBriefStatusTelemetrySettings = (
-        MemoryBriefStatusTelemetrySettings()
+    memory_brief_status_telemetry: MemoryBriefStatusTelemetrySettings = Field(
+        default_factory=MemoryBriefStatusTelemetrySettings
     )
-    memory_guardian_guard_telemetry: MemoryGuardianGuardTelemetrySettings = (
-        MemoryGuardianGuardTelemetrySettings()
+    memory_guardian_guard_telemetry: MemoryGuardianGuardTelemetrySettings = Field(
+        default_factory=MemoryGuardianGuardTelemetrySettings
     )
-    execution_cache: ExecutionCacheSettings = ExecutionCacheSettings()
+    execution_cache: ExecutionCacheSettings = Field(
+        default_factory=ExecutionCacheSettings
+    )
 
     @field_validator("port")
     @classmethod

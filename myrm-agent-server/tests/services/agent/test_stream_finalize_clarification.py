@@ -127,7 +127,6 @@ async def test_finalize_marks_clarification_answered_after_successful_resume() -
     session.collector.has_persistable_turn = False
     session.collector.has_content = False
     session.collector.cleanup = MagicMock()
-    session.collector.cross_turn_data_updates = {}
     session.collector.has_pending_hitl_replay = MagicMock(return_value=False)
     session.monitor = MagicMock()
     session.monitor.stop = AsyncMock()
@@ -180,7 +179,6 @@ async def test_finalize_marks_clarification_answered_after_dr_resolved_status() 
     session.collector.has_content = False
     session.collector.extra_data = {"clarification": {"answered": True, "isResumeMode": False}}
     session.collector.cleanup = MagicMock()
-    session.collector.cross_turn_data_updates = {}
     session.collector.has_pending_hitl_replay = MagicMock(return_value=False)
     session.monitor = MagicMock()
     session.monitor.stop = AsyncMock()

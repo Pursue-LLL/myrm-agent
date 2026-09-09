@@ -59,7 +59,7 @@ def test_agent_stream_structured_clarify_interrupt_and_resume(
         'Use title "Framework choice", one question id "framework" prompt "Which AI framework should I use?", '
         'two options id "langchain" label "LangChain" and id "llamaindex" label "LlamaIndex", '
         "requires_confirmation false. "
-        "Do not use bash, write_file, render_ui_tool, or any other tools. "
+        "Do not use bash, write_file, or any other tools. "
         "After you receive my answer, reply with a single line starting with DONE."
     )
 
@@ -179,7 +179,7 @@ def test_agent_stream_structured_clarify_skip_empty_resume(
         'Use title "Pick stack", one question id "stack" prompt "Which stack should I use?", '
         'two options id "a" label "Option A" and id "b" label "Option B", '
         "requires_confirmation false. "
-        "Do not use bash, write_file, render_ui_tool, or any other tools. "
+        "Do not use bash, write_file, or any other tools. "
         "If the user skips or gives no answer, reply with a single line starting with DONE-SKIPPED."
     )
 

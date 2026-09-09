@@ -28,7 +28,6 @@ class _Stub(ToolSetupMixin):
     search_service_cfg = None
     model_cfg = None
     skill_ids = None
-    enable_render_ui = False
 
 
 def test_web_fetch_tool_receives_resolved_description_locale() -> None:

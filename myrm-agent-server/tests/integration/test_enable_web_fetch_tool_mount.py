@@ -29,7 +29,6 @@ def _minimal_tool_setup_mixin(**overrides: object) -> ToolSetupMixin:
         "enable_advanced_retrieval": False,
         "reranker_config": None,
         "embedding_config": None,
-        "enable_render_ui": False,
         "channel_name": "web_chat",
         "skill_ids": [],
         "model_cfg": ModelConfig(model="test/model", api_key="test-key"),

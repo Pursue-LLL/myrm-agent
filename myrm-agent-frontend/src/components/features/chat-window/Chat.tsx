@@ -107,8 +107,6 @@ const Chat = ({
     activeSessionAnalyticsId,
     setActiveSessionAnalyticsId,
     setActiveSessionAnalyticsMessageId,
-    turnOutlines,
-    loadThroughTurn,
   } = useChatStore(
     useShallow((state) => ({
       chatId: state.chatId,
@@ -118,8 +116,6 @@ const Chat = ({
       activeSessionAnalyticsId: state.activeSessionAnalyticsId,
       setActiveSessionAnalyticsId: state.setActiveSessionAnalyticsId,
       setActiveSessionAnalyticsMessageId: state.setActiveSessionAnalyticsMessageId,
-      turnOutlines: state.turnOutlines,
-      loadThroughTurn: state.loadThroughTurn,
     })),
   );
 
@@ -213,24 +209,47 @@ const Chat = ({
     (messageId: string) => {
       userScrolledRef.current = true;
       setIsUserScrolledUp(true);
-      const targetIndex = messages.findIndex(
-        (m) => String(m.messageId) === messageId || String(m.id) === messageId,
-      );
-      if (targetIndex >= 0 && scrollToMessageRef.current) {
-        scrollToMessageRef.current(targetIndex);
+
+      const performJump = () => {
+        // 解耦闭包，优先从最新的状态仓库获取消息列表
+        const currentMessages = useChatStore.getState().messages;
+        const targetIndex = currentMessages.findIndex(
+          (m) => String(m.messageId) === messageId || String(m.id) === messageId,
+        );
+
+        if (targetIndex >= 0 && scrollToMessageRef.current) {
+          scrollToMessageRef.current(targetIndex);
+          return true;
+        }
+
+        const el = containerRef.current?.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
+        if (el) {
+          saveScrollPosition({
+            isFollowingBottom: false,
+            isUserScrolledUp: true,
+            anchorMessageId: messageId,
+          });
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return true;
+        }
+        return false;
+      };
+
+      // 立即尝试第 1 次
+      if (performJump()) {
         return;
       }
-      const el = containerRef.current?.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
-      if (el) {
-        saveScrollPosition({
-          isFollowingBottom: false,
-          isUserScrolledUp: true,
-          anchorMessageId: messageId,
-        });
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+
+      // 双帧 RAF 调度（Double RequestAnimationFrame）：防御跨分页加载时的 React DOM commit 异步挂载延迟
+      requestAnimationFrame(() => {
+        if (!performJump()) {
+          requestAnimationFrame(() => {
+            performJump();
+          });
+        }
+      });
     },
-    [messages, userScrolledRef, saveScrollPosition],
+    [userScrolledRef, saveScrollPosition],
   );
 
   // VirtualMessageList 滚动状态变化回调

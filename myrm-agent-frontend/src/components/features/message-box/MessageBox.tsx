@@ -24,7 +24,7 @@ import { findActivePendingClarification } from '@/store/chat/clarificationState'
 import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
 import useChatStore, { Message } from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
-import type { McpAppView, Source, ToolCallInfo, ToolImageOutput, UIArtifact } from '@/store/chat/types';
+import type { McpAppView, Source, ToolCallInfo, ToolImageOutput } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { mergeMessageSources } from '@/store/chat/messageStream/streamHelpers';
 import {
@@ -42,10 +42,7 @@ import UserMessage from './UserMessage';
 import MarkdownContent from './MarkdownContent';
 import Suggestions from './Suggestions';
 import ArtifactsDisplay from '@/components/features/artifacts/ArtifactsDisplay';
-import { InteractiveUIDisplay } from '@/components/features/interactive-ui';
 import ArtifactErrorBoundary from '@/components/features/artifacts/ArtifactErrorBoundary';
-import { UIActionEvent } from '@/store/chat/types';
-import { formatUIActionAsMessage, type UIActionMessageLabels } from '@/components/features/interactive-ui/utils';
 import ToolCallApproval from './ToolCallApproval';
 import ClarificationInput from './ClarificationInput';
 import DirectoryApprovalInput from './DirectoryApprovalInput';
@@ -214,27 +211,10 @@ const MessageBox = ({
   }, [message.content, message.role]);
   const t = useTranslations('chat');
   const tProgress = useTranslations('progressSteps');
-  const tUiAction = useTranslations('interactiveUI.userAction');
   const hasKbEvidenceOnCurrentMessage = useMemo(
     () =>
       message.sources?.some((source) => Boolean(source.kb_name) && Boolean(source.snippet || source.summary)) ?? false,
     [message.sources],
-  );
-
-  const uiActionMessageLabels: UIActionMessageLabels = useMemo(
-    () => ({
-      header: tUiAction('header'),
-      actionLabel: tUiAction('actionLabel'),
-      dataLabel: tUiAction('dataLabel'),
-      emptyField: tUiAction('emptyField'),
-      actionTypes: {
-        submit: tUiAction('actionTypes.submit'),
-        cancel: tUiAction('actionTypes.cancel'),
-        navigate: tUiAction('actionTypes.navigate'),
-        custom: tUiAction('actionTypes.custom'),
-      },
-    }),
-    [tUiAction],
   );
 
   const sessionRecordingData: { filename: string; preview_url: string } | null =
@@ -247,7 +227,6 @@ const MessageBox = ({
   const toolImages: ToolImageOutput[] = Array.isArray(message.toolImages)
     ? (message.toolImages as ToolImageOutput[])
     : [];
-  const uiArtifacts: UIArtifact[] = Array.isArray(message.uiArtifacts) ? (message.uiArtifacts as UIArtifact[]) : [];
   const mcpApps: McpAppView[] = Array.isArray(message.mcpApps) ? (message.mcpApps as McpAppView[]) : [];
   const toolCalls: ToolCallInfo[] = Array.isArray(message.toolCalls) ? (message.toolCalls as ToolCallInfo[]) : [];
   const cronJobResult =
@@ -306,12 +285,6 @@ const MessageBox = ({
       setIsReasoningExpanded(true);
     }
   }, [isReasoningExpanded, message.reasoning, reasoningDisplayMode]);
-
-  // 处理交互式 UI 动作回传
-  const handleUIAction = (event: UIActionEvent) => {
-    const actionMessage = formatUIActionAsMessage(event, uiActionMessageLabels);
-    sendMessage(actionMessage);
-  };
 
   const handleRegenerate = async (instruction?: string) => {
     if (!chatId) {
@@ -601,13 +574,6 @@ const MessageBox = ({
         {/* 工件 */}
         {message.artifacts && message.artifacts.length > 0 && (
           <ArtifactsDisplay artifacts={message.artifacts} chatId={chatId} />
-        )}
-
-        {/* 交互式 UI 工件 (A2UI) */}
-        {uiArtifacts.length > 0 && (
-          <ArtifactErrorBoundary fallbackMessage="Interactive UI failed to render">
-            <InteractiveUIDisplay uiArtifacts={uiArtifacts} onAction={handleUIAction} />
-          </ArtifactErrorBoundary>
         )}
 
         {/* 工具截屏图片（如 computer_use） */}

@@ -98,7 +98,6 @@ def _with_meta_mount(
         enable_kanban=flags["enable_kanban"],
         enable_cron_eager=flags["enable_cron_eager"],
         enable_answer_tool=flags["enable_answer_tool"],
-        enable_render_ui=flags["enable_render_ui"],
         enable_planning=flags["enable_planning"],
         enable_structured_clarify=flags["enable_structured_clarify"],
         enable_external_cli=flags["enable_external_cli"],

@@ -17635,7 +17635,7 @@
           "statusActive": "已连接 Tailnet",
           "statusInactive": "Tailscale 未运行或未连接",
           "statusNotInstalled": "未检测到 Tailscale 客户端",
-          "ipLabel": "Tailscale IP",
+          "ipLabel": "Tailscale IP 地址",
           "magicDnsLabel": "MagicDNS 域名",
           "nodeLabel": "节点名",
           "userLabel": "认证用户",

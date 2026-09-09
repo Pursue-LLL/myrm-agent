@@ -30,7 +30,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 | `lanes/` | 核心 | Chat 专用 lane 流（见 [lanes/_ARCH.md](lanes/_ARCH.md)） | ✅ |
 | `reconnect.py` | 辅助 | Last-Event-ID SSE 重连 | ✅ |
 | `risk_gate.py` | 辅助 | 流式输入 risk 拦截 | ✅ |
-| `entitlement_gap_preflight.py` | 辅助 | Stream 早期 factual gap SSE（不改 Turn1 工具绑定）：render_ui profile ON 但渠道不可挂载 → `reason=surface_unavailable` + `display_message`；web_search profile ON 但 runtime 不可用 → `reason=not_configured|unreachable` + `settings_path=/settings/search`；substring enable-and-resend entitlement toasts removed | ✅ |
+| `entitlement_gap_preflight.py` | 辅助 | Stream 早期 factual gap SSE（不改 Turn1 工具绑定）：web_search profile ON 但 runtime 不可用 → `reason=not_configured|unreachable` + `settings_path=/settings/search`；substring enable-and-resend entitlement toasts removed | ✅ |
 
 ## 依赖关系
 

@@ -33,7 +33,6 @@ def _params(**overrides: object) -> SimpleNamespace:
         enable_kanban=False,
         enable_wiki=False,
         enable_answer_tool=False,
-        enable_render_ui=False,
         enable_structured_clarify=True,
         enable_cron_eager=False,
         enable_planning=False,
@@ -51,92 +50,21 @@ def setup_function() -> None:
 
 def test_derive_active_tool_groups_from_params_maps_media_fields() -> None:
     groups = derive_active_tool_groups_from_params(
-        _params(enable_render_ui=True, image_generation=object()),
+        _params(image_generation=object()),
     )
-    assert "render_ui" in groups
     assert "image_generation" in groups
 
 
-def test_build_entitlement_gap_sse_event_render_ui_form_query_no_substring_gap() -> None:
-    """Substring entitlement gaps removed — disabled render_ui no longer emits preflight SSE."""
+def test_build_entitlement_gap_sse_event_always_none() -> None:
+    """Preflight returns None as dead surface-gap paths have been pruned."""
     event = build_entitlement_gap_sse_event(
         message_id="msg-1",
         user_text="帮我填表准备 staging 部署配置",
         active_tool_groups=derive_active_tool_groups_from_params(_params()),
         chat_id="chat-1",
+        channel_name="telegram",
     )
     assert event is None
-
-
-def test_build_entitlement_gap_sse_event_none_when_group_enabled_on_web_chat() -> None:
-    event = build_entitlement_gap_sse_event(
-        message_id="msg-2",
-        user_text="帮我填表",
-        active_tool_groups=derive_active_tool_groups_from_params(_params(enable_render_ui=True)),
-        chat_id="chat-2",
-        channel_name="web_chat",
-        client_surface="web",
-    )
-    assert event is None
-
-
-def test_build_entitlement_gap_sse_event_surface_unavailable_on_im_channel() -> None:
-    event = build_entitlement_gap_sse_event(
-        message_id="msg-im-1",
-        user_text="帮我填表准备 staging 部署配置",
-        active_tool_groups=derive_active_tool_groups_from_params(_params(enable_render_ui=True)),
-        chat_id="chat-im-1",
-        channel_name="telegram",
-        client_surface=None,
-        locale="zh-CN",
-    )
-    assert event is not None
-    assert event["type"] == "capability_gap"
-    data = event["data"]
-    assert isinstance(data, dict)
-    assert data["tool_id"] == "render_ui"
-    assert data["reason"] == "surface_unavailable"
-    assert "Web 对话" in str(data["display_message"])
-
-
-def test_build_entitlement_gap_sse_event_surface_unavailable_dedup() -> None:
-    groups = derive_active_tool_groups_from_params(_params(enable_render_ui=True))
-    first = build_entitlement_gap_sse_event(
-        message_id="msg-im-2",
-        user_text="帮我填表",
-        active_tool_groups=groups,
-        chat_id="chat-im-dedup",
-        channel_name="telegram",
-    )
-    second = build_entitlement_gap_sse_event(
-        message_id="msg-im-3",
-        user_text="再帮我填表",
-        active_tool_groups=groups,
-        chat_id="chat-im-dedup",
-        channel_name="telegram",
-    )
-    assert first is not None
-    assert second is None
-
-
-def test_build_entitlement_gap_sse_event_dedup_within_cooldown() -> None:
-    groups = derive_active_tool_groups_from_params(_params(enable_render_ui=True))
-    first = build_entitlement_gap_sse_event(
-        message_id="msg-3",
-        user_text="帮我填表",
-        active_tool_groups=groups,
-        chat_id="chat-dedup",
-        channel_name="telegram",
-    )
-    second = build_entitlement_gap_sse_event(
-        message_id="msg-4",
-        user_text="再帮我填表",
-        active_tool_groups=groups,
-        chat_id="chat-dedup",
-        channel_name="telegram",
-    )
-    assert first is not None
-    assert second is None
 
 
 def test_capability_gap_emission_tracker_re_emits_after_cooldown(
@@ -146,48 +74,12 @@ def test_capability_gap_emission_tracker_re_emits_after_cooldown(
     now = 1000.0
     monkeypatch.setattr(time, "monotonic", lambda: now)
 
-    assert tracker.should_emit("chat-cooldown", "render_ui") is True
-    tracker.mark_emitted("chat-cooldown", "render_ui")
-    assert tracker.should_emit("chat-cooldown", "render_ui") is False
+    assert tracker.should_emit("chat-cooldown", "web_search:not_configured") is True
+    tracker.mark_emitted("chat-cooldown", "web_search:not_configured")
+    assert tracker.should_emit("chat-cooldown", "web_search:not_configured") is False
 
     now = 1031.0
-    assert tracker.should_emit("chat-cooldown", "render_ui") is True
-
-
-def test_build_entitlement_gap_sse_event_re_emits_after_cooldown(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    reset_capability_gap_emission_tracker()
-    monkeypatch.setattr(preflight, "_GAP_TOAST_COOLDOWN_SECONDS", 1.0)
-    preflight._gap_emission_tracker = CapabilityGapEmissionTracker(cooldown_seconds=1.0)
-
-    groups = derive_active_tool_groups_from_params(_params(enable_render_ui=True))
-    first = build_entitlement_gap_sse_event(
-        message_id="msg-5",
-        user_text="帮我填表",
-        active_tool_groups=groups,
-        chat_id="chat-cooldown-emit",
-        channel_name="telegram",
-    )
-    second = build_entitlement_gap_sse_event(
-        message_id="msg-6",
-        user_text="帮我填表",
-        active_tool_groups=groups,
-        chat_id="chat-cooldown-emit",
-        channel_name="telegram",
-    )
-    assert first is not None
-    assert second is None
-
-    time.sleep(1.05)
-    third = build_entitlement_gap_sse_event(
-        message_id="msg-7",
-        user_text="帮我填表",
-        active_tool_groups=groups,
-        chat_id="chat-cooldown-emit",
-        channel_name="telegram",
-    )
-    assert third is not None
+    assert tracker.should_emit("chat-cooldown", "web_search:not_configured") is True
 
 
 def test_build_web_search_config_gap_not_configured() -> None:
@@ -224,10 +116,7 @@ def test_resolve_web_search_config_gap_display_message_localized() -> None:
         resolve_web_search_config_gap_display_message,
     )
 
+    zh = resolve_web_search_config_gap_display_message(reason="not_configured", locale="zh-CN")
     en = resolve_web_search_config_gap_display_message(reason="not_configured", locale="en")
-    zh = resolve_web_search_config_gap_display_message(reason="not_configured", locale="zh")
-    unreachable = resolve_web_search_config_gap_display_message(reason="unreachable", locale="en")
-
-    assert "search API" in en
-    assert "搜索" in zh
-    assert "unreachable" in unreachable.lower() or "Check Settings" in unreachable
+    assert "未配置搜索 API" in zh
+    assert "no search API is configured" in en

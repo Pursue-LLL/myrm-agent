@@ -1,5 +1,18 @@
 'use client';
 
+/**
+ * [INPUT]
+ * @/store/useBrowserInspectorStore (POS: Browser Inspector state management; selectScopedBrowserViewData)
+ * @/store/useChatStore (POS: Active chat session identification)
+ * @/hooks/inspector/useClosePanelOnChatSwitch (POS: Panel auto-close on chat switch)
+ *
+ * [OUTPUT]
+ * BrowserLiveView: Live sandbox browser viewport panel with dynamic responsive scaling and element inspection overlay.
+ *
+ * [POS]
+ * Browser Inspector main surface. Renders real-time browser snapshots, element bounding box overlays, and instruction input.
+ */
+
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Globe } from 'lucide-react';
@@ -27,6 +40,7 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
     isOpen,
     mode,
     viewData,
+    terminalViewData,
     selectedElement,
     instructionText,
     isSnapshotLoading,
@@ -38,7 +52,7 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
     fetchSnapshot,
   } = useBrowserInspectorStore();
   const chatId = useChatStore((state) => state.chatId?.trim() ?? '');
-  const scopedViewData = selectScopedBrowserViewData(viewData, chatId);
+  const scopedViewData = selectScopedBrowserViewData(viewData ?? terminalViewData, chatId);
 
   useClosePanelOnChatSwitch(chatId, isOpen, closePanel);
 
@@ -50,6 +64,27 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
   const panelRef = useRef<HTMLDivElement>(null);
   const panelWidthRef = useRef(panelWidth);
   panelWidthRef.current = panelWidth;
+  const naturalDimensionsRef = useRef<{ width: number; height: number } | null>(null);
+
+  const recalculateImageSize = useCallback(() => {
+    const container = imageContainerRef.current;
+    const natural = naturalDimensionsRef.current;
+    if (!container || !natural || natural.width === 0 || natural.height === 0) {
+      return;
+    }
+
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    if (containerWidth === 0 || containerHeight === 0) {
+      return;
+    }
+
+    const scale = Math.min(containerWidth / natural.width, containerHeight / natural.height, 1);
+    setImageSize({
+      width: natural.width * scale,
+      height: natural.height * scale,
+    });
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem(PANEL_WIDTH_KEY);
@@ -64,6 +99,24 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  useEffect(() => {
+    recalculateImageSize();
+  }, [panelWidth, recalculateImageSize]);
+
+  useEffect(() => {
+    const container = imageContainerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      recalculateImageSize();
+    });
+    observer.observe(container);
+    return () => {
+      observer.disconnect();
+    };
+  }, [recalculateImageSize]);
 
   const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -89,22 +142,17 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
     document.addEventListener('mouseup', handleMouseUp);
   }, []);
 
-  const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
-    const container = imageContainerRef.current;
-    if (!container) {
-      return;
-    }
-
-    const containerWidth = container.clientWidth;
-    const containerHeight = container.clientHeight;
-    const scale = Math.min(containerWidth / img.naturalWidth, containerHeight / img.naturalHeight, 1);
-
-    setImageSize({
-      width: img.naturalWidth * scale,
-      height: img.naturalHeight * scale,
-    });
-  }, []);
+  const handleImageLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement>) => {
+      const img = e.currentTarget;
+      naturalDimensionsRef.current = {
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      };
+      recalculateImageSize();
+    },
+    [recalculateImageSize],
+  );
 
   const handleElementClick = useCallback(
     (refId: string, info: BrowserRefInfo) => {
@@ -147,6 +195,14 @@ const BrowserLiveView: React.FC<BrowserLiveViewProps> = ({ onSendInstruction }) 
         role="separator"
         aria-orientation="vertical"
         aria-label={t('resizePanel')}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowLeft') {
+            setPanelWidth((prev) => Math.min(prev + 20, window.innerWidth * 0.9));
+          } else if (e.key === 'ArrowRight') {
+            setPanelWidth((prev) => Math.max(prev - 20, 320));
+          }
+        }}
       />
 
       <div className="flex flex-col w-full ml-1.5">

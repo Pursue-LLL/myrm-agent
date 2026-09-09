@@ -61,7 +61,7 @@ contract:
 
 Systematic operations workflow for diagnosing host health, resource saturation, failing services, and system anomalies across Linux, macOS, and Windows environments.
 
-## Bash Execution Contract
+## Bash execution contract
 
 When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: explaining why this inspection runs) and **`command`**. Put `reason` first.
 

@@ -117,7 +117,6 @@ class GeneralAgentParams(BaseAgentParams):
     enable_advanced_retrieval: bool = False
     embedding_config: EmbeddingConfig | None = None
     reranker_config: RerankerConfig | None = None
-    enable_render_ui: bool = False
     enable_structured_clarify: bool = False
     client_surface: str | None = None
     enable_browser: bool = False
@@ -301,7 +300,6 @@ class AgentFactory:
             enable_advanced_retrieval=params.enable_advanced_retrieval,
             embedding_config=params.embedding_config,
             reranker_config=params.reranker_config,
-            enable_render_ui=params.enable_render_ui,
             enable_structured_clarify=params.enable_structured_clarify,
             client_surface=params.client_surface,
             enable_web_search=params.enable_web_search,

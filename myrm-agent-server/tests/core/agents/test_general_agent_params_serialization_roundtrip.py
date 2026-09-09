@@ -39,19 +39,6 @@ def test_general_agent_params_json_dump_validate_preserves_unattended_mode() -> 
     assert restored.unattended_mode is True
 
 
-def test_general_agent_params_json_dump_validate_preserves_enable_render_ui() -> None:
-    original = GeneralAgentParams(
-        query="task",
-        model_cfg=ModelConfig(model="gpt-4o", api_key="test-key"),
-        enable_render_ui=True,
-    )
-    payload = original.model_dump(mode="json")
-    assert payload["enable_render_ui"] is True
-
-    restored = GeneralAgentParams.model_validate(payload)
-    assert restored.enable_render_ui is True
-
-
 def test_general_agent_params_json_dump_validate_preserves_video_fallback_chain() -> None:
     video_cfgs = [
         ModelConfig(model="gemini-2.5-flash", api_key="video-key", supports_video=True),

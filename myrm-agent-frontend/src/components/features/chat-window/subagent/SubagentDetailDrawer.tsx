@@ -36,6 +36,7 @@ import { Badge } from '@/components/primitives/badge';
 import { fmtCost, fmtTokens, extractCostUsd, extractTotalTokens } from '@/lib/utils/subagentTree';
 import type { SubagentNode, StreamEntry, TeammateMessageEntry } from '@/store/chat/useSubagentStore';
 import { STATUS_ICON_MAP } from './SubagentStream';
+import { SubagentViewportTab } from './SubagentViewportTab';
 
 interface SubagentDetailDrawerProps {
   node: SubagentNode | null;
@@ -44,7 +45,7 @@ interface SubagentDetailDrawerProps {
   chatId?: string;
 }
 
-type TabType = 'overview' | 'journal' | 'tool_calls' | 'messages' | 'replay';
+type TabType = 'overview' | 'journal' | 'tool_calls' | 'messages' | 'replay' | 'viewport';
 
 export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({ node, open, onOpenChange, chatId }) => {
   const t = useTranslations('subagentDashboard');
@@ -174,6 +175,15 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({ node
               }`}
             >
               Replay
+            </button>
+            <button
+              onClick={() => setActiveTab('viewport')}
+              data-testid="subagent-drawer-tab-viewport"
+              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                activeTab === 'viewport' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              Viewport
             </button>
           </div>
         </SheetHeader>
@@ -550,6 +560,10 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({ node
                 )}
               </div>
             </div>
+          )}
+
+          {activeTab === 'viewport' && (
+            <SubagentViewportTab node={node} chatId={chatId} />
           )}
         </ScrollArea>
       </SheetContent>

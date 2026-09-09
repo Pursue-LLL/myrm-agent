@@ -1,8 +1,19 @@
 'use client';
 
-import React from 'react';
+/**
+ * [INPUT]
+ * @/lib/utils/classnameUtils::cn (POS: Tailwind class name utilities)
+ *
+ * [OUTPUT]
+ * InspectorToolbar: Toolbar with mode toggle, page info, refresh, and sandbox desktop takeover.
+ *
+ * [POS]
+ * Browser Inspector toolbar. Controls inspector view modes, navigation hints, and sandbox desktop takeover.
+ */
+
+import React, { useCallback } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { Eye, MousePointerClick, X, RefreshCw, ExternalLink } from 'lucide-react';
+import { Eye, MousePointerClick, X, RefreshCw, ExternalLink, MonitorPlay } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 type InspectorMode = 'view' | 'inspect';
@@ -27,6 +38,13 @@ const InspectorToolbar: React.FC<InspectorToolbarProps> = ({
   isLoading,
 }) => {
   const t = useTranslations('chat.browserInspector');
+
+  const handleTakeoverDesktop = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('open_visual_desktop'));
+    }
+    onClose();
+  }, [onClose]);
 
   return (
     <div className="flex items-center justify-between px-3 py-1.5 bg-muted border-b border-border min-h-[36px]">
@@ -77,11 +95,22 @@ const InspectorToolbar: React.FC<InspectorToolbarProps> = ({
 
         <div className="w-px h-4 bg-border mx-1" />
 
+        <button
+          type="button"
+          onClick={handleTakeoverDesktop}
+          className="p-1 text-muted-foreground hover:text-foreground transition-colors hover:bg-muted-foreground/10 rounded-md"
+          title="Takeover Sandbox Desktop"
+          aria-label="Takeover Sandbox Desktop"
+          data-testid="inspector-takeover-desktop-button"
+        >
+          <MonitorPlay className="w-3.5 h-3.5" />
+        </button>
+
         {onRefresh && (
           <button
             type="button"
             onClick={onRefresh}
-            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1 text-muted-foreground hover:text-foreground transition-colors hover:bg-muted-foreground/10 rounded-md"
             title={t('refresh')}
             disabled={isLoading}
           >
@@ -92,7 +121,7 @@ const InspectorToolbar: React.FC<InspectorToolbarProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+          className="p-1 text-muted-foreground hover:text-foreground transition-colors hover:bg-muted-foreground/10 rounded-md"
           title={t('close')}
         >
           <X className="w-4 h-4" />

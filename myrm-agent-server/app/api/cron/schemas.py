@@ -158,6 +158,7 @@ class CronJobCreate(BaseModel):
     active_hours: ActiveHoursCreate | None = None
     required_capabilities: list[str] | None = None
     tools_allowed: list[str] | None = None
+    skill_ids: list[str] | None = None
     allowed_roots: list[str] | None = None
     triggers: TriggerConfigCreate | None = None
 
@@ -217,6 +218,7 @@ class CronJobUpdate(BaseModel):
     active_hours: ActiveHoursCreate | None = None
     required_capabilities: list[str] | None = None
     tools_allowed: list[str] | None = None
+    skill_ids: list[str] | None = None
     allowed_roots: list[str] | None = None
     triggers: TriggerConfigCreate | None = None
 
@@ -336,6 +338,7 @@ class CronJobResponse(BaseModel):
     active_hours: ActiveHoursResponse | None = None
     required_capabilities: list[str] = []
     tools_allowed: list[str] = []
+    skill_ids: list[str] = []
     allowed_roots: list[str] = []
     triggers: TriggerConfigResponse | None = None
     context_from: list[str] = Field(default_factory=list)

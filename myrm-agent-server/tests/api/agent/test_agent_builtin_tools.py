@@ -360,7 +360,6 @@ class TestGeneralAgentParamsEnableWiki:
             "file_ops",
             "code_execute",
             "wiki",
-            "render_ui",
         ]
 
         assert ("browser" in tools) is True
@@ -368,7 +367,6 @@ class TestGeneralAgentParamsEnableWiki:
         assert ("file_ops" in tools) is True
         assert ("code_execute" in tools) is True
         assert ("wiki" in tools) is True
-        assert ("render_ui" in tools) is True
 
     def test_empty_builtin_tools_disables_all(self) -> None:
         """Empty enabled_builtin_tools disables all optional tool flags."""
@@ -379,18 +377,6 @@ class TestGeneralAgentParamsEnableWiki:
         assert ("file_ops" in tools) is False
         assert ("code_execute" in tools) is False
         assert ("wiki" in tools) is False
-        assert ("render_ui" in tools) is False
-
-
-class TestResolveBuiltinToolFlagsRenderUi:
-    """Verify render_ui in enabled_builtin_tools maps to enable_render_ui."""
-
-    def test_resolve_builtin_tool_flags_render_ui(self) -> None:
-        from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
-
-        flags = resolve_builtin_tool_flags(["web_search", "render_ui"])
-        assert flags["enable_render_ui"] is True
-        assert flags["enable_browser"] is False
 
 
 class TestResolveBuiltinToolFlagsStructuredClarify:
@@ -401,7 +387,7 @@ class TestResolveBuiltinToolFlagsStructuredClarify:
 
         flags = resolve_builtin_tool_flags(["structured_clarify"])
         assert flags["enable_structured_clarify"] is True
-        assert flags["enable_render_ui"] is False
+        assert flags["enable_browser"] is False
 
     def test_factory_passes_enable_structured_clarify_to_agent(self) -> None:
         from app.ai_agents.agents import AgentFactory, GeneralAgentParams
@@ -493,24 +479,3 @@ class TestGeneralAgentOptionalToolFlags:
         )
         agent2 = AgentFactory.create_general_agent(params_no_wiki)
         assert agent2.enable_wiki is False
-
-    def test_factory_passes_enable_render_ui_to_agent(self) -> None:
-        """AgentFactory.create_general_agent passes enable_render_ui to GeneralAgent."""
-        from app.ai_agents.agents import AgentFactory, GeneralAgentParams
-        from app.core.types import ModelConfig
-
-        params_with_render_ui = GeneralAgentParams(
-            query="test",
-            model_cfg=ModelConfig(model="test/model", api_key="test-key"),
-            enable_render_ui=True,
-        )
-        agent = AgentFactory.create_general_agent(params_with_render_ui)
-        assert agent.enable_render_ui is True
-
-        params_no_render_ui = GeneralAgentParams(
-            query="test",
-            model_cfg=ModelConfig(model="test/model", api_key="test-key"),
-            enable_render_ui=False,
-        )
-        agent2 = AgentFactory.create_general_agent(params_no_render_ui)
-        assert agent2.enable_render_ui is False

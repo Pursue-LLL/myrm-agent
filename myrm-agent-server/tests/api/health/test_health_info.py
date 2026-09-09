@@ -37,3 +37,15 @@ def test_system_info_returns_capabilities_booleans(client: TestClient) -> None:
     assert isinstance(body["edge_tts_available"], bool)
     assert "local_tts_available" in body
     assert isinstance(body["local_tts_available"], bool)
+    assert body.get("data_region") == "local"
+
+
+def test_system_info_returns_custom_data_region(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MYRM_DATA_REGION", "nrt")
+    response = client.get("/api/v1/health/info")
+    assert response.status_code == 200
+    body = response.json()
+    assert body.get("data_region") == "nrt"
+

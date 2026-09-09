@@ -709,7 +709,6 @@ class TestResolveBuiltinToolFlags:
         assert flags["enable_browser"] is False
         assert flags["enable_computer_use"] is False
         assert flags["enable_wiki"] is False
-        assert flags["enable_render_ui"] is True
         assert flags["enable_structured_clarify"] is True
 
     def test_all_tools_enabled(self):
@@ -722,7 +721,6 @@ class TestResolveBuiltinToolFlags:
             "kanban",
             "cron",
             "answer_tool",
-            "render_ui",
             "planning",
             "structured_clarify",
             "external_cli",
@@ -777,11 +775,6 @@ class TestResolveBuiltinToolFlags:
         assert flags["enable_browser"] is True
         assert flags["enable_wiki"] is False
 
-    def test_render_ui_maps_to_enable_render_ui(self):
-        flags = resolve_builtin_tool_flags(["render_ui"])
-        assert flags["enable_render_ui"] is True
-        assert flags["enable_browser"] is False
-
     def test_planning_maps_to_enable_planning(self):
         flags = resolve_builtin_tool_flags(["planning"])
         assert flags["enable_planning"] is True
@@ -795,7 +788,7 @@ class TestResolveBuiltinToolFlags:
     def test_structured_clarify_maps_to_enable_structured_clarify(self):
         flags = resolve_builtin_tool_flags(["structured_clarify"])
         assert flags["enable_structured_clarify"] is True
-        assert flags["enable_render_ui"] is False
+        assert flags["enable_browser"] is False
 
     def test_external_cli_maps_to_enable_external_cli(self):
         flags = resolve_builtin_tool_flags(["external_cli"])
@@ -826,7 +819,6 @@ class TestResolveBuiltinToolFlags:
             "enable_kanban",
             "enable_cron_eager",
             "enable_answer_tool",
-            "enable_render_ui",
             "enable_planning",
             "enable_structured_clarify",
             "enable_external_cli",

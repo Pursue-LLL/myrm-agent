@@ -231,9 +231,43 @@ describe('useBrowserInspectorStore turn engagement', () => {
     expect(state.instructionText).toBe('draft');
   });
 
-  it('reset clears engagedChatId', () => {
+  it('reset clears engagedChatId and terminalViewData', () => {
     useBrowserInspectorStore.getState().markTurnEngaged('c1');
     useBrowserInspectorStore.getState().reset();
     expect(useBrowserInspectorStore.getState().engagedChatId).toBeNull();
+    expect(useBrowserInspectorStore.getState().terminalViewData).toBeNull();
+  });
+
+  it('releaseTurnEngagement saves viewData into terminalViewData for post-turn inspection', () => {
+    const store = useBrowserInspectorStore.getState();
+    store.markTurnEngaged('c1');
+    store.setBrowserActive(true);
+    store.openPanel();
+    store.updateViewData({
+      screenshotBase64: 'base64_turn_finish_shot',
+      mimeType: 'image/png',
+      refs: {},
+      pageUrl: 'https://example.com/checkout',
+      pageTitle: 'Checkout Success',
+      viewportWidth: 1280,
+      viewportHeight: 720,
+      sourceChatId: 'c1',
+      isTurnView: true,
+      updatedAt: Date.now(),
+    });
+
+    store.releaseTurnEngagement('c1');
+
+    const state = useBrowserInspectorStore.getState();
+    expect(state.engagedChatId).toBeNull();
+    expect(state.viewData).toBeNull();
+    expect(state.terminalViewData).not.toBeNull();
+    expect(state.terminalViewData?.pageUrl).toBe('https://example.com/checkout');
+    expect(state.terminalViewData?.pageTitle).toBe('Checkout Success');
+    expect(state.terminalViewData?.screenshotBase64).toBe('base64_turn_finish_shot');
+
+    // clearTerminalView clears it
+    state.clearTerminalView();
+    expect(useBrowserInspectorStore.getState().terminalViewData).toBeNull();
   });
 });

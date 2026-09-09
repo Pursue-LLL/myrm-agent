@@ -320,6 +320,11 @@ export const BUILT_IN_PROVIDER_INFO: Record<BuiltInProviderId, ProviderInfo> = {
     name: 'OpenCode Go',
     isBuiltIn: true,
     defaultApiUrl: 'https://opencode.ai/zen/go/v1',
+    dashboardUrl: 'https://opencode.ai',
+    alternativeApiUrls: [
+      { url: 'https://opencode.ai/zen/go/v1', label: 'Zen / Go (订阅/贡献者套餐)' },
+      { url: 'https://opencode.ai/v1', label: 'Standard API (平台标准直连)' },
+    ],
   },
   vercel_ai_gateway: {
     id: 'vercel_ai_gateway',
@@ -650,7 +655,7 @@ export const normalizeApiUrl = (url: string): string => {
   const normalized = url.replace(/\/+$/, '');
 
   // 已知的端点路径，需要截取
-  const endpointPatterns = ['/chat/completions', '/completions', '/embeddings', '/models'];
+  const endpointPatterns = ['/chat/completions', '/completions', '/embeddings', '/models', '/responses'];
 
   for (const pattern of endpointPatterns) {
     if (normalized.endsWith(pattern)) {

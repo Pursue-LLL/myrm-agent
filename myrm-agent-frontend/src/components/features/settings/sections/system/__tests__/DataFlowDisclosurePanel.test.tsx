@@ -157,6 +157,41 @@ describe('DataFlowDisclosurePanel', () => {
     });
   });
 
+  it('renders data residency badge for hosted control plane in nrt region', async () => {
+    mockIsSandbox.mockReturnValue(true);
+    mockApiRequest.mockResolvedValue({ deploy_mode: 'sandbox', data_region: 'nrt' });
+
+    render(<DataFlowDisclosurePanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('dataRegionLabel')).toBeDefined();
+      expect(screen.getByText('dataRegionNrt')).toBeDefined();
+    });
+  });
+
+  it('renders data residency badge for hosted control plane in icn region', async () => {
+    mockIsSandbox.mockReturnValue(true);
+    mockApiRequest.mockResolvedValue({ deploy_mode: 'sandbox', data_region: 'icn' });
+
+    render(<DataFlowDisclosurePanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('dataRegionLabel')).toBeDefined();
+      expect(screen.getByText('dataRegionIcn')).toBeDefined();
+    });
+  });
+
+  it('does not render data residency badge when data_region is local', async () => {
+    mockIsSandbox.mockReturnValue(true);
+    mockApiRequest.mockResolvedValue({ deploy_mode: 'sandbox', data_region: 'local' });
+
+    render(<DataFlowDisclosurePanel />);
+
+    await waitFor(() => {
+      expect(screen.queryByText('dataRegionLabel')).toBeNull();
+    });
+  });
+
   it('lists connected external connectors in egress section', async () => {
     mockListConnectorStatus.mockResolvedValue([
       {

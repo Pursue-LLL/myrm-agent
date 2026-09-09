@@ -58,21 +58,27 @@ _CREDENTIAL_KEYS = frozenset(
 _TRANSPORT_HEADER_KEYS = frozenset({"extra_headers"})
 
 
-def _stable_json(value: object, *, skip_keys: frozenset[str] | None = None) -> object:
+def _stable_json(value: object, *, skip_keys: frozenset[str] | None = None, _seen: set[int] | None = None) -> object:
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
+    if _seen is None:
+        _seen = set()
+    obj_id = id(value)
+    if obj_id in _seen:
+        return "<circular>"
+    _seen.add(obj_id)
     if isinstance(value, BaseModel):
-        return _stable_json(value.model_dump(mode="json"), skip_keys=skip_keys)
+        return _stable_json(value.model_dump(mode="json"), skip_keys=skip_keys, _seen=_seen)
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
-        return _stable_json(dataclasses.asdict(value), skip_keys=skip_keys)
+        return _stable_json(dataclasses.asdict(value), skip_keys=skip_keys, _seen=_seen)
     if isinstance(value, dict):
         return {
-            str(k): _stable_json(v, skip_keys=skip_keys)
+            str(k): _stable_json(v, skip_keys=skip_keys, _seen=_seen)
             for k, v in sorted(value.items(), key=lambda item: item[0])
             if skip_keys is None or str(k) not in skip_keys
         }
     if isinstance(value, (list, tuple)):
-        return [_stable_json(v, skip_keys=skip_keys) for v in value]
+        return [_stable_json(v, skip_keys=skip_keys, _seen=_seen) for v in value]
     return str(value)
 
 
@@ -232,7 +238,6 @@ def compute_execution_fingerprint(agent_wrapper: GeneralAgent) -> str:
         "enable_answer_tool": agent_wrapper.enable_answer_tool,
         "enable_planning": agent_wrapper.enable_planning,
         "enable_external_cli": agent_wrapper.enable_external_cli,
-        "enable_render_ui": agent_wrapper.enable_render_ui,
         "enable_structured_clarify": agent_wrapper.enable_structured_clarify,
         "enable_skill_market": agent_wrapper.enable_skill_market,
         "enable_skill_manage": agent_wrapper.enable_skill_manage,

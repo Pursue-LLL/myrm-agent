@@ -726,7 +726,7 @@ class AgentJobRunner:
                 auto_restore_domains=auto_restore_domains,
                 unattended_mode=True,
                 user_instructions=user_instructions,
-                agent_skill_ids=agent_skill_ids,
+                agent_skill_ids=list(dict.fromkeys(agent_skill_ids + list(job.skill_ids))),
                 subagent_ids=agent_subagent_ids,
                 max_iterations=agent_max_iterations,
                 memory_policy=agent_memory_policy,

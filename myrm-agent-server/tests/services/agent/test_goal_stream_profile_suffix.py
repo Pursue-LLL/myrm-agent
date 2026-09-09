@@ -140,7 +140,7 @@ async def test_trigger_goal_stream_injects_profile_into_general_agent_params() -
         user_instructions="Base prompt\n\n[formal suffix with 합니다]",
         subagent_ids=None,
         agent_skill_ids=["skill-a"],
-        enabled_builtin_tools=["web_search", "render_ui", "structured_clarify"],
+        enabled_builtin_tools=["web_search", "structured_clarify"],
         agent_security_raw={"capabilities": ["file_read"]},
     )
     captured: dict[str, object] = {}
@@ -227,7 +227,6 @@ async def test_trigger_goal_stream_injects_profile_into_general_agent_params() -
     assert "합니다" in instructions
     assert captured.get("unattended_mode") is True
     assert captured.get("web_search_profile_enabled") is True
-    assert captured.get("enable_render_ui") is True
     assert captured.get("enable_structured_clarify") is True
     assert captured.get("enable_shell_tools") is True
     file_access_mode = captured.get("file_access_mode")

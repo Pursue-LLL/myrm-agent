@@ -27,7 +27,6 @@ DEFAULT_ENABLED_BUILTIN_TOOLS: tuple[str, ...] = (
     "web_search",
     "memory",
     "structured_clarify",
-    "render_ui",
 )
 """Default togglable tools when no explicit list is stored (UI-visible switches)."""
 
@@ -49,7 +48,6 @@ TOGGLABLE_BUILTIN_TOOL_IDS: tuple[str, ...] = (
     "kanban",
     "cron",
     "answer_tool",
-    "render_ui",
     "planning",
     "structured_clarify",
     "external_cli",
@@ -96,7 +94,6 @@ BUILTIN_TOOL_CATALOG: tuple[dict[str, str], ...] = (
         "desc": "Create and manage scheduled tasks from agent chat",
     },
     {"id": "answer_tool", "desc": "Structured final-answer gate for search agents"},
-    {"id": "render_ui", "desc": "Render interactive UI artifacts in chat"},
     {"id": "planning", "desc": "Multi-step task progress (main-agent todo_write)"},
     {
         "id": "structured_clarify",

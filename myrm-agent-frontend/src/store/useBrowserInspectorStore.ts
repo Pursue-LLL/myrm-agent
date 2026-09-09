@@ -66,6 +66,8 @@ interface BrowserInspectorState {
   isOpen: boolean;
   mode: InspectorMode;
   viewData: BrowserViewData | null;
+  /** Terminal snapshot retained after turn completion for post-task verification */
+  terminalViewData: BrowserViewData | null;
   selectedElement: SelectedElement | null;
   isBrowserActive: boolean;
   instructionText: string;
@@ -85,6 +87,7 @@ interface BrowserInspectorState {
   releaseTurnEngagement: (chatId: string) => void;
   setInstructionText: (text: string) => void;
   fetchSnapshot: (isTurnView?: boolean) => Promise<boolean>;
+  clearTerminalView: () => void;
   reset: () => void;
 }
 
@@ -92,6 +95,7 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
   isOpen: false,
   mode: 'view',
   viewData: null,
+  terminalViewData: null,
   selectedElement: null,
   isBrowserActive: false,
   instructionText: '',
@@ -136,17 +140,22 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
         // view, active flag and panel untouched.
         return { engagedChatId: null };
       }
-      // This turn owns the view (or engaged with no view at all): full teardown.
+      // This turn owns the view (or engaged with no view at all): full teardown of active polling,
+      // but preserve the latest viewData in terminalViewData for post-turn user verification.
+      const currentTerminal =
+        s.viewData !== null && s.viewData.sourceChatId === chatId ? s.viewData : s.terminalViewData;
       return {
         engagedChatId: null,
         isBrowserActive: false,
         isOpen: false,
         viewData: null,
+        terminalViewData: currentTerminal,
         selectedElement: null,
         instructionText: '',
       };
     }),
   setInstructionText: (text) => set({ instructionText: text }),
+  clearTerminalView: () => set({ terminalViewData: null }),
   fetchSnapshot: async (isTurnView = false) => {
     if (get().isSnapshotLoading) {
       return false;
@@ -191,6 +200,7 @@ const useBrowserInspectorStore = create<BrowserInspectorState>((set, get) => ({
       isOpen: false,
       mode: 'view',
       viewData: null,
+      terminalViewData: null,
       selectedElement: null,
       isBrowserActive: false,
       instructionText: '',

@@ -12,8 +12,6 @@
 [POS]
 Server SSOT mapping user entitlement → harness ``active_tool_groups`` passed to
 ``sync_discover_capability_tool`` and ``AgentRuntimeSpec.tool_groups``.
-``render_ui`` reflects profile entitlement only; Turn1 mount is gated separately in
-``tool_setup._should_mount_render_ui_tools`` (WEB_CHAT + web/tauri surface).
 """
 
 from __future__ import annotations
@@ -36,7 +34,6 @@ class ActiveToolGroupSource(Protocol):
     enable_kanban: bool
     enable_wiki: bool
     enable_answer_tool: bool
-    enable_render_ui: bool
     enable_structured_clarify: bool
     enable_external_cli: bool
     enable_cron_eager: bool
@@ -57,7 +54,6 @@ ACTIVE_TOOL_GROUP_KEYS: tuple[str, ...] = (
     "wiki",
     "planning",
     "answer_tool",
-    "render_ui",
     "structured_clarify",
     "cron",
     "image_generation",
@@ -88,7 +84,6 @@ def derive_active_tool_groups(
         ("wiki", agent.enable_wiki),
         ("planning", enable_planning),
         ("answer_tool", agent.enable_answer_tool),
-        ("render_ui", agent.enable_render_ui),
         ("structured_clarify", agent.enable_structured_clarify),
         ("cron", agent.enable_cron_eager),
         ("image_generation", agent.image_generation_params is not None),
@@ -113,7 +108,6 @@ def derive_active_tool_groups_from_params(params: object) -> frozenset[str]:
         enable_kanban=bool(getattr(params, "enable_kanban", False)),
         enable_wiki=bool(getattr(params, "enable_wiki", False)),
         enable_answer_tool=bool(getattr(params, "enable_answer_tool", False)),
-        enable_render_ui=bool(getattr(params, "enable_render_ui", False)),
         enable_structured_clarify=bool(getattr(params, "enable_structured_clarify", False)),
         enable_external_cli=bool(getattr(params, "enable_external_cli", False)),
         enable_cron_eager=bool(getattr(params, "enable_cron_eager", False)),

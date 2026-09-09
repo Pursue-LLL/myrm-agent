@@ -407,7 +407,6 @@ class StreamContentCollector:
         self._plan_confirmation: dict[str, object] | None = None
         self._ui_artifacts: list[dict[str, object]] = []
         self._pending_interrupt_events: list[dict[str, object]] = []
-        self._cross_turn_data_updates: list[tuple[str, dict[str, object]]] = []
         self._kanban_tasks_created: list[dict[str, object]] = []
         self._cron_job_result: dict[str, object] | None = None
         self._file_mutation_failures: list[dict[str, object]] = []
@@ -447,43 +446,6 @@ class StreamContentCollector:
         """Remove from active collectors registry."""
         if self._chat_id and ACTIVE_COLLECTORS.get(self._chat_id) is self:
             del ACTIVE_COLLECTORS[self._chat_id]
-
-    def _schedule_cross_turn_ui_patch(
-        self,
-        surface_id: str,
-        updates: dict[str, object],
-    ) -> None:
-        if self._chat_id is None:
-            return
-        import asyncio
-
-        from app.services.chat.ui_artifact_patch import (
-            patch_ui_artifact_data_by_surface_id,
-        )
-
-        chat_id = self._chat_id
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            return
-
-        async def _run_patch() -> None:
-            try:
-                patched = await patch_ui_artifact_data_by_surface_id(chat_id, surface_id, updates)
-                if not patched:
-                    logger.warning(
-                        "Immediate cross-turn ui patch skipped: surface_id=%s chat_id=%s",
-                        surface_id,
-                        chat_id,
-                    )
-            except Exception:
-                logger.exception(
-                    "Immediate cross-turn ui patch failed: surface_id=%s chat_id=%s",
-                    surface_id,
-                    chat_id,
-                )
-
-        loop.create_task(_run_patch())
 
     def unsubscribe(self, q: asyncio.Queue[dict[str, object]]) -> None:
         """Remove a subscriber queue from the active subscriber list."""
@@ -768,19 +730,12 @@ class StreamContentCollector:
                 surface_id = data.get("surface_id")
                 updates = data.get("updates")
                 if isinstance(surface_id, str) and isinstance(updates, dict):
-                    merged_locally = False
                     for artifact in self._ui_artifacts:
                         if artifact.get("surface_id") == surface_id:
                             existing_data = artifact.get("data")
                             if isinstance(existing_data, dict):
                                 artifact["data"] = deep_merge_ui_data(existing_data, updates)
-                            merged_locally = True
                             break
-                    if not merged_locally and self._chat_id:
-                        normalized_updates = string_keyed_dict(updates)
-                        if normalized_updates is not None:
-                            self._cross_turn_data_updates.append((surface_id, normalized_updates))
-                            self._schedule_cross_turn_ui_patch(surface_id, normalized_updates)
         elif event_type == "status":
             step_key = event.get("step_key")
             if isinstance(data, dict):
@@ -876,10 +831,6 @@ class StreamContentCollector:
     @property
     def sibling_group_id(self) -> str | None:
         return self._sibling_group_id
-
-    @property
-    def cross_turn_data_updates(self) -> list[tuple[str, dict[str, object]]]:
-        return list(self._cross_turn_data_updates)
 
     def _discard_draft(self) -> None:
         """Drop partial content streamed before a recovery that restarts the turn.
