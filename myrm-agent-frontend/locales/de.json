@@ -950,7 +950,8 @@
         "equippedCountSuffix": "Ausgerüstet",
         "pureInstructionNotice": "Keine Fähigkeiten ausgerüstet · Reiner Anweisungsmodus",
         "emptyExplanation": "Derzeit sind keine Fähigkeiten ausgerüstet. Der Agent läuft im reinen Anweisungsmodus. Klicken Sie oben auf \"Alle auswählen\" oder wählen Sie unten Fähigkeiten aus."
-      }
+      },
+      "categoryFilter": "Kategoriefilter"
     },
     "validation": {
       "dependencyInvalid": "Agentenkonfiguration hat Probleme",
@@ -3015,6 +3016,15 @@
       "userPrompt": "Frage",
       "assistantReply": "Antwort",
       "jumpToTurn": "Zu Runde {index} springen"
+    },
+    "timeline": {
+      "loaded": "Geladen",
+      "lazyLoad": "Klicken zum Laden der Runde",
+      "noPrompt": "Kein Prompt-Inhalt"
+    },
+    "spillover": {
+      "notice": "Großer Text erkannt ({chars} Zeichen). Wird automatisch in die Workspace-Datei ausgelagert, um den Kontext sauber zu halten.",
+      "optimized": "Geschützt"
     }
   },
   "mode": {
@@ -17574,7 +17584,8 @@
           "scanHint": "Scannen Sie den QR-Code von einem Gerät in Ihrem Tailnet, um sich direkt zu verbinden",
           "qrAlt": "Tailscale-Zugangs-QR-Code",
           "learnMore": "Mehr über das Tailscale-Zero-Trust-Netzwerk erfahren"
-        }
+        },
+        "copied": "In die Zwischenablage kopiert"
       },
       "serverConnection": {
         "title": "Serververbindung",
@@ -19130,6 +19141,18 @@
       "pairFailed": "Kopplung fehlgeschlagen. Überprüfen Sie Host-IP, Port und Kopplungscode",
       "connectSuccess": "Gerät erfolgreich verbunden!",
       "connectFailed": "Verbindung fehlgeschlagen. Stellen Sie sicher, dass drahtloses Debugging im selben WLAN aktiv ist"
+    },
+    "sshVault": {
+      "title": "SSH-Host- & SFTP-Tresor",
+      "source": "Konfigurationsquelle",
+      "refresh": "Hosts aktualisieren",
+      "noHosts": "Keine SSH-Hosts konfiguriert. Fügen Sie Einträge zu ~/.ssh/config hinzu oder konfigurieren Sie Anmeldedaten.",
+      "probing": "Konnektivität wird geprüft...",
+      "probe": "Verbindung testen",
+      "statusUntested": "Ungetestet",
+      "copyPrompt": "Agent-Prompt kopieren",
+      "copied": "Kopiert!",
+      "useInPrompt": "Diesen Host im Chat-Prompt verwenden"
     }
   },
   "continualOverlay": {

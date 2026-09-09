@@ -1187,7 +1187,8 @@
         "equippedCountSuffix": "已裝配",
         "pureInstructionNotice": "未裝配技能 · 純指令模式",
         "emptyExplanation": "當前未勾選裝配任何技能。該智能體將以純語言模型指令模式運行；可點擊上方「全選」或在下方勾選裝配所需技能。"
-      }
+      },
+      "categoryFilter": "分類篩選"
     },
     "validation": {
       "dependencyInvalid": "智慧體配置存在問題",
@@ -3015,6 +3016,15 @@
       "advancedSettingsButton": "進階模型設定",
       "openModelCenter": "模型中心",
       "closeButton": "關閉"
+    },
+    "timeline": {
+      "loaded": "已載入",
+      "lazyLoad": "點擊載入輪次",
+      "noPrompt": "無提示詞內容"
+    },
+    "spillover": {
+      "notice": "偵測到長文字（{chars} 字元），已自動轉存至工作區檔案以保持上下文整潔。",
+      "optimized": "已保護"
     }
   },
   "mode": {
@@ -17574,7 +17584,8 @@
           "scanHint": "在同一 Tailnet 內的手機掃描 QR Code 即可直接連線",
           "qrAlt": "Tailscale 存取 QR Code",
           "learnMore": "瞭解 Tailscale 零信任網路"
-        }
+        },
+        "copied": "已複製到剪貼簿"
       },
       "serverConnection": {
         "title": "伺服器連接",
@@ -19130,6 +19141,18 @@
       "pairFailed": "無線配對失敗，請檢查 IP、連接埠與配對碼",
       "connectSuccess": "裝置連線成功！",
       "connectFailed": "連線失敗，請確認裝置是否在同一區域網路並已開啟無線除錯"
+    },
+    "sshVault": {
+      "title": "SSH 主機與 SFTP 憑證管理",
+      "source": "設定來源",
+      "refresh": "重新整理主機清單",
+      "noHosts": "未發現已設定的 SSH 主機。可在 ~/.ssh/config 中新增設定或在設定中設定憑證。",
+      "probing": "正在探測連線性...",
+      "probe": "測試連線",
+      "statusUntested": "未測試",
+      "copyPrompt": "複製 Agent 調用提示詞",
+      "copied": "已複製！",
+      "useInPrompt": "在對話中使用此主機"
     }
   },
   "continualOverlay": {

@@ -1108,6 +1108,7 @@
       "jitTeamPlaceholder": "仮想チームなし",
       "jitInheritMemory": "親会話メモリを継承（Fork Context）",
       "templateMarket": "テンプレートマーケット",
+      "categoryFilter": "カテゴリーで絞り込み",
       "categoryAll": "すべて",
       "categoryOffice": "オフィス・業務",
       "categoryEngineering": "エンジニアリング",
@@ -1170,7 +1171,8 @@
         "equippedCountSuffix": "装備済み",
         "pureInstructionNotice": "スキル未装備 · 純粋指示モード",
         "emptyExplanation": "現在スキルは装備されていません。このエージェントは純粋な指示モードで動作します。「すべて選択」をクリックするか、以下でスキルを選択して装備してください。"
-      }
+      },
+      "categoryFilter": "カテゴリフィルター"
     },
     "validation": {
       "dependencyInvalid": "エージェント設定存で質問",
@@ -3015,6 +3017,15 @@
       "userPrompt": "質問",
       "assistantReply": "返答",
       "jumpToTurn": "ターン {index} にジャンプ"
+    },
+    "timeline": {
+      "loaded": "読み込み済み",
+      "lazyLoad": "クリックしてターンを読み込む",
+      "noPrompt": "プロンプト内容なし"
+    },
+    "spillover": {
+      "notice": "長文テキスト（{chars} 文字）を検出しました。コンテキストを維持するため自動的にワークスペースファイルへ退避します。",
+      "optimized": "保護済み"
     }
   },
   "mode": {
@@ -17574,7 +17585,8 @@
           "scanHint": "同一Tailnet内のスマートフォンでQRコードを読み取って直接接続できます",
           "qrAlt": "Tailscale アクセス用QRコード",
           "learnMore": "Tailscale ゼロトラストネットワークについて詳しく知る"
-        }
+        },
+        "copied": "クリップボードにコピーしました"
       },
       "serverConnection": {
         "title": "サーバー接続",
@@ -19130,6 +19142,18 @@
       "pairFailed": "ペアリングに失敗しました。ホストIP、ポート、ペアリングコードを確認してください",
       "connectSuccess": "デバイスに接続しました！",
       "connectFailed": "接続に失敗しました。同一Wi-Fiでワイヤレスデバッグが有効か確認してください"
+    },
+    "sshVault": {
+      "title": "SSHホスト & SFTP認証情報管理",
+      "source": "設定ソース",
+      "refresh": "ホストを更新",
+      "noHosts": "設定されたSSHホストがありません。~/.ssh/configに追加するか認証情報を設定してください。",
+      "probing": "接続をプローブ中...",
+      "probe": "接続テスト",
+      "statusUntested": "未テスト",
+      "copyPrompt": "Agentプロンプトをコピー",
+      "copied": "コピーしました！",
+      "useInPrompt": "チャットプロンプトでこのホストを使用"
     }
   },
   "continualOverlay": {

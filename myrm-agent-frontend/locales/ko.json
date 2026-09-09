@@ -927,7 +927,8 @@
         "equippedCountSuffix": "장착됨",
         "pureInstructionNotice": "스킬 미장착 · 순수 지시 모드",
         "emptyExplanation": "현재 장착된 스킬이 없습니다. 이 에이전트는 순수 지시 모드로 실행됩니다. 위의 \"모두 선택\"을 클릭하거나 아래에서 스킬을 선택하여 장착할 수 있습니다."
-      }
+      },
+      "categoryFilter": "카테고리 필터"
     },
     "validation": {
       "dependencyInvalid": "에이전트 구성에 문제가 있습니다",
@@ -3015,6 +3016,15 @@
       "userPrompt": "질문",
       "assistantReply": "답변",
       "jumpToTurn": "{index}번째 턴으로 이동"
+    },
+    "timeline": {
+      "loaded": "로드됨",
+      "lazyLoad": "클릭하여 턴 로드",
+      "noPrompt": "프롬프트 내용 없음"
+    },
+    "spillover": {
+      "notice": "긴 텍스트({chars}자)가 감지되었습니다. 컨텍스트 정리를 위해 워크스페이스 파일로 자동 오버플로됩니다.",
+      "optimized": "보호됨"
     }
   },
   "mode": {
@@ -17574,7 +17584,8 @@
           "scanHint": "동일한 Tailnet에 연결된 스마트폰으로 QR 코드를 스캔하여 즉시 연결할 수 있습니다",
           "qrAlt": "Tailscale 액세스 QR 코드",
           "learnMore": "Tailscale 제로 트러스트 네트워크 자세히 알아보기"
-        }
+        },
+        "copied": "클립보드에 복사되었습니다"
       },
       "serverConnection": {
         "title": "서버 연결",
@@ -19130,6 +19141,18 @@
       "pairFailed": "페어링 실패. 호스트 IP, 포트 및 페어링 코드를 확인하세요",
       "connectSuccess": "디바이스가 성공적으로 연결되었습니다!",
       "connectFailed": "연결에 실패했습니다. 동일한 Wi-Fi에서 무선 디버깅이 활성화되어 있는지 확인하세요"
+    },
+    "sshVault": {
+      "title": "SSH 호스트 및 SFTP 자격 증명 관리",
+      "source": "구성 소스",
+      "refresh": "호스트 새로고침",
+      "noHosts": "구성된 SSH 호스트가 없습니다. ~/.ssh/config에 추가하거나 자격 증명을 구성하세요.",
+      "probing": "연결 상태 확인 중...",
+      "probe": "연결 테스트",
+      "statusUntested": "테스트되지 않음",
+      "copyPrompt": "Agent 프롬프트 복사",
+      "copied": "복사되었습니다!",
+      "useInPrompt": "채팅 프롬프트에서 이 호스트 사용"
     }
   },
   "continualOverlay": {
