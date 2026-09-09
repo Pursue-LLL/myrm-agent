@@ -7,6 +7,8 @@
 [OUTPUT]
 - TailscaleNodeInfo dataclass with IP, MagicDNS FQDN, node name, and serve URL
 - probe_tailscale_status() async probe with TTL cache and timeout protection
+- probe_tailscale_serve_active() async probe for active reverse proxy
+- parse_tailscale_serve_status_json() parser for serve configuration
 
 [POS]
 Backend service powering Tailscale zero-trust remote access detection and UI cards.
