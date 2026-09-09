@@ -17621,6 +17621,8 @@
           "magicDnsLabel": "MagicDNS Domain",
           "nodeLabel": "Node Name",
           "userLabel": "Authenticated User",
+          "modeHttps": "HTTPS Secure Context",
+          "modeDirect": "Direct Mesh",
           "serveHint": "Tip: Run tailscale serve --bg http://localhost:{port} in terminal to enable HTTPS MagicDNS domain for native Secure Context (microphone voice input and PWA installation).",
           "scanHint": "Scan QR code from any device on your Tailnet to connect directly",
           "qrAlt": "Tailscale Access QR Code",

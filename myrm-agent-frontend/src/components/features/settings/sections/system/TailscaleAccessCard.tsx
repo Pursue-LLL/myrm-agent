@@ -89,11 +89,20 @@ export const TailscaleAccessCard = memo<TailscaleAccessCardProps>(({ webuiPort }
 
       {status?.running ? (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-300">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               {t('tailscale.statusActive')}
             </span>
+            {status.serveUrl ? (
+              <span className="inline-flex items-center rounded-md border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                {t('tailscale.modeHttps')}
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-md border border-cyan-500/30 bg-cyan-500/15 px-2 py-0.5 text-[10px] font-bold text-cyan-300">
+                {t('tailscale.modeDirect')}
+              </span>
+            )}
             {status.nodeName && (
               <span className="text-xs text-muted-foreground">
                 ({status.nodeName}{status.tailnet ? ` @ ${status.tailnet}` : ''})
@@ -167,9 +176,11 @@ export const TailscaleAccessCard = memo<TailscaleAccessCardProps>(({ webuiPort }
             )}
           </div>
 
-          <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-300 leading-relaxed">
-            {t('tailscale.serveHint').replace('{port}', String(webuiPort))}
-          </div>
+          {!status.serveUrl && (
+            <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-300 leading-relaxed">
+              {t('tailscale.serveHint').replace('{port}', String(webuiPort))}
+            </div>
+          )}
         </div>
       ) : status?.installed ? (
         <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3">

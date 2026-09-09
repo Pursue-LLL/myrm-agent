@@ -155,15 +155,35 @@ def test_parse_tailscale_status_json_success() -> None:
             }
         },
     }
-    info = parse_tailscale_status_json(json.dumps(mock_payload))
-    assert info.installed is True
-    assert info.running is True
-    assert info.ips == ("100.101.102.103", "fd7a:115c:a1e0::1")
-    assert info.fqdn == "my-dev-box.shark-fin.ts.net"
-    assert info.node_name == "my-dev-box"
-    assert info.tailnet == "shark-fin"
-    assert info.user == "dev@company.com"
-    assert info.serve_url == "https://my-dev-box.shark-fin.ts.net"
+    # When serve is NOT active: serve_url is None to avoid dead links
+    info_no_serve = parse_tailscale_status_json(json.dumps(mock_payload), serve_active=False)
+    assert info_no_serve.installed is True
+    assert info_no_serve.running is True
+    assert info_no_serve.ips == ("100.101.102.103", "fd7a:115c:a1e0::1")
+    assert info_no_serve.fqdn == "my-dev-box.shark-fin.ts.net"
+    assert info_no_serve.node_name == "my-dev-box"
+    assert info_no_serve.tailnet == "shark-fin"
+    assert info_no_serve.user == "dev@company.com"
+    assert info_no_serve.serve_url is None
+
+    # When serve IS active: serve_url is populated with verified HTTPS URL
+    info_with_serve = parse_tailscale_status_json(json.dumps(mock_payload), serve_active=True)
+    assert info_with_serve.serve_url == "https://my-dev-box.shark-fin.ts.net"
+
+
+def test_parse_tailscale_serve_status_json() -> None:
+    from app.remote_access.tailscale_service import parse_tailscale_serve_status_json
+
+    # Active web handlers configured
+    active_payload = {
+        "TCP": {"443": {"HTTPS": True}},
+        "Web": {"my-mac.ts.net:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8000"}}}},
+    }
+    assert parse_tailscale_serve_status_json(json.dumps(active_payload)) is True
+
+    # Inactive / empty serve status
+    assert parse_tailscale_serve_status_json("{}") is False
+    assert parse_tailscale_serve_status_json("not json") is False
 
 
 def test_parse_tailscale_status_json_invalid() -> None:

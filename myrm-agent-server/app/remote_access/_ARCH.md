@@ -22,7 +22,7 @@
 | `host_depot.py` | 核心 | SSH 加密主机资产管理仓储，支持 `~/.ssh/config` 一键解析导入与安全凭证加密落盘 | ✅ |
 | `e2ee/` | 子包 | Mobile remote E2EE：crypto / keystore / session / response / sse（见 `e2ee/_ARCH.md`） | ✅ |
 | `tunnel_manager.py` | 核心 | cloudflared quick tunnel 子进程 + 5s watchdog + shutdown hook | ✅ |
-| `tailscale_service.py` | 核心 | Tailscale 节点异步探测、MagicDNS FQDN / IP 发现、15s TTL 缓存与超时防护 | ✅ |
+| `tailscale_service.py` | 核心 | Tailscale 节点异步探测、MagicDNS FQDN / IP 发现、serve 状态探测、15s TTL 缓存与超时防护 | ✅ |
 
 ---
 

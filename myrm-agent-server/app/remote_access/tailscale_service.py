@@ -66,7 +66,55 @@ def find_tailscale_binary() -> str | None:
     return None
 
 
-def parse_tailscale_status_json(raw_json: str) -> TailscaleNodeInfo:
+def parse_tailscale_serve_status_json(raw_json: str) -> bool:
+    """Check if `tailscale serve` has active proxy or HTTPS handlers configured."""
+    try:
+        data = json.loads(raw_json)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return False
+    if not isinstance(data, dict):
+        return False
+    web_config = data.get("Web")
+    if isinstance(web_config, dict) and len(web_config) > 0:
+        return True
+    tcp_config = data.get("TCP")
+    if isinstance(tcp_config, dict) and len(tcp_config) > 0:
+        return True
+    return False
+
+
+async def probe_tailscale_serve_active(
+    binary: str,
+    *,
+    timeout_seconds: float = 1.0,
+) -> bool:
+    """Check if `tailscale serve` is actively forwarding traffic."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            binary,
+            "serve",
+            "status",
+            "--json",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout_bytes, _ = await asyncio.wait_for(
+            proc.communicate(),
+            timeout=timeout_seconds,
+        )
+        if proc.returncode == 0:
+            raw_text = stdout_bytes.decode("utf-8", errors="replace")
+            return parse_tailscale_serve_status_json(raw_text)
+        return False
+    except (asyncio.TimeoutError, TimeoutError, OSError):
+        return False
+
+
+def parse_tailscale_status_json(
+    raw_json: str,
+    *,
+    serve_active: bool = False,
+) -> TailscaleNodeInfo:
     """Parse JSON output from `tailscale status --json` into TailscaleNodeInfo."""
     try:
         data = json.loads(raw_json)
@@ -103,7 +151,7 @@ def parse_tailscale_status_json(raw_json: str) -> TailscaleNodeInfo:
         if isinstance(user_dict, dict):
             user = user_dict.get("LoginName") or user_dict.get("DisplayName")
 
-    serve_url: str | None = f"https://{fqdn}" if fqdn and is_running else None
+    serve_url: str | None = f"https://{fqdn}" if (fqdn and is_running and serve_active) else None
 
     return TailscaleNodeInfo(
         installed=True,
@@ -156,7 +204,14 @@ async def probe_tailscale_status(
             )
             if proc.returncode == 0:
                 raw_text = stdout_bytes.decode("utf-8", errors="replace")
-                info = parse_tailscale_status_json(raw_text)
+                base_info = parse_tailscale_status_json(raw_text, serve_active=False)
+                serve_active = False
+                if base_info.running and base_info.fqdn:
+                    serve_active = await probe_tailscale_serve_active(
+                        binary,
+                        timeout_seconds=min(1.0, timeout_seconds),
+                    )
+                info = parse_tailscale_status_json(raw_text, serve_active=serve_active)
             else:
                 info = TailscaleNodeInfo(installed=True, running=False)
         except (asyncio.TimeoutError, TimeoutError):
@@ -188,6 +243,8 @@ __all__ = [
     "clear_tailscale_cache_for_testing",
     "find_tailscale_binary",
     "get_cached_tailscale_status",
+    "parse_tailscale_serve_status_json",
     "parse_tailscale_status_json",
+    "probe_tailscale_serve_active",
     "probe_tailscale_status",
 ]
