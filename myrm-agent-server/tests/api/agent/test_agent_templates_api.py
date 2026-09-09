@@ -158,3 +158,19 @@ def test_office_role_templates_loaded_and_categorized(client: TestClient):
     for role_id in ("hr_recruiter", "financial_analyst", "growth_operator", "admin_specialist"):
         assert role_id in template_map, f"Missing office template: {role_id}"
         assert template_map[role_id].get("category") == "office"
+        assert len(template_map[role_id].get("use_cases", [])) >= 3
+
+
+def test_office_role_template_instantiate_hr(client: TestClient):
+    """Instantiating hr_recruiter enables office-document & document-extraction skills."""
+    with patch(
+        "app.api.agents.templates._ensure_skills_enabled",
+        new_callable=AsyncMock,
+    ):
+        response = client.post("/api/v1/agents/instantiate-template/hr_recruiter")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert "office-document" in data.get("skill_ids", [])
+    assert "document-extraction" in data.get("skill_ids", [])
+    assert data["agent_type"] == "individual"
+

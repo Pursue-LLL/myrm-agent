@@ -6,6 +6,7 @@
 [OUTPUT]
 - BoundedCooldownMap: TTL-bounded rate-limit map
 - GroupFollowUpTracker: active group thread tracker for mention-exempt follow-up
+- query_dm_policy, query_group_policy, query_group_trigger, query_enabled_groups, check_guest_mention_allowed: Policy provider query delegates
 
 [POS]
 Extracted helpers for PolicyResolver to keep the resolver module under line budget.
@@ -14,6 +15,16 @@ Extracted helpers for PolicyResolver to keep the resolver module under line budg
 from __future__ import annotations
 
 import time
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.channels.protocols.pairing import (
+        ChannelPolicyProvider,
+        DmPolicy,
+        GroupPolicy,
+        GroupTriggerMode,
+    )
+    from app.channels.types import InboundMessage
 
 PENDING_REPLY_COOLDOWN = 300.0
 PENDING_REPLY_MAX_SIZE = 10000

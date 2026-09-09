@@ -187,6 +187,9 @@ Called from other HTTP trees or lifecycle hooks:
 | `cron_digest/` | Natural language to Cron compilation and entity-clustered timeline reports |
 | `bitable_copilot/` | Multidimensional table copilot and field extraction engine |
 | `event/` | `api/events/`, agent stream persistence |
+| `host_assets/` | Remote server assets synchronization and status polling |
+| `remote_host/` | SSH bridge and remote execution management |
+| `ssh_bridge/` | Secure tunneling and key authentication bridge for remote hosts |
 
 **Rule of thumb:** add HTTP in `api/`; add orchestration in `services/`; add reusable primitives in `core/`; never duplicate harness execution logic in server.
 

@@ -35,3 +35,4 @@ suggestion_prompts:
   - "拟定一份正式的录用通知函（Offer Letter）与入职材料清单"
 prebuilt_skill_ids:
   - "office-document"
+  - "document-extraction"

@@ -189,4 +189,34 @@ describe('TemplateMarket', () => {
     expect(await screen.findByText('HR Recruiter')).toBeInTheDocument();
     expect(screen.queryByText('Code Craftsman')).not.toBeInTheDocument();
   });
+
+  it('instantiates individual template from use_case chip and prefills input message', async () => {
+    mockGetTemplates.mockResolvedValue([
+      {
+        id: 'hr_recruiter',
+        name: 'HR Recruiter',
+        description: 'Recruitment expert',
+        avatar_url: '',
+        agent_type: 'individual',
+        category: 'office',
+        use_cases: ['Draft fullstack JD', 'Design interview rubric'],
+      },
+    ]);
+    mockInstantiateTemplateWithMetrics.mockResolvedValue({ id: 'hr_recruiter_instance' });
+
+    render(<TemplateMarket />);
+
+    const chip = await screen.findByRole('button', { name: 'Draft fullstack JD' });
+    await act(async () => {
+      fireEvent.click(chip);
+    });
+
+    expect(mockInstantiateTemplateWithMetrics).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateId: 'hr_recruiter',
+        trigger: 'use_case_chip',
+      }),
+    );
+    expect(mockSetInputMessage).toHaveBeenCalledWith('Draft fullstack JD');
+  });
 });

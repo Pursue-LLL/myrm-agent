@@ -110,11 +110,23 @@ class PolicyResolver:
         from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 
         if not should_respond:
-            asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=False))
-            self._context_buffer.append(chat_id, ContextEntry(sender_id=msg.sender_id, content=msg.content, timestamp=time.monotonic(), sender_name=msg.sender_name))
+            asyncio.create_task(
+                ChannelDataPlaneService.record_inbound(msg, is_trigger=False)
+            )
+            self._context_buffer.append(
+                chat_id,
+                ContextEntry(
+                    sender_id=msg.sender_id,
+                    content=msg.content,
+                    timestamp=time.monotonic(),
+                    sender_name=msg.sender_name,
+                ),
+            )
             return None
 
-        asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=True))
+        asyncio.create_task(
+            ChannelDataPlaneService.record_inbound(msg, is_trigger=True)
+        )
 
         # Clean thread-mute message from processing to prevent agent triggering on confirmations
         if cleaned == "___MUTE_CONFIRMED___":
@@ -166,7 +178,12 @@ class PolicyResolver:
             if not user_id:
                 # Security Gate: Prevent silent privilege escalation to default_user_id (e.g. sandbox/admin).
                 guest_uid = f"guest_{msg.channel}_{msg.sender_id}"
-                logger.info("PolicyResolver: Unpaired sender %s/%s assigned guest %s", msg.channel, msg.sender_id, guest_uid)
+                logger.info(
+                    "PolicyResolver: Unpaired sender %s/%s assigned guest %s",
+                    msg.channel,
+                    msg.sender_id,
+                    guest_uid,
+                )
                 user_id = guest_uid
         elif policy == DmPolicy.PAIRING:
             user_id = await self._resolve_with_pairing(msg)
@@ -181,7 +198,11 @@ class PolicyResolver:
 
             is_auth = not user_id.startswith("guest_")
             msg_with_user = dataclasses.replace(msg, user_id=user_id)
-            asyncio.create_task(ChannelDataPlaneService.record_inbound(msg_with_user, is_trigger=True, is_authenticated=is_auth))
+            asyncio.create_task(
+                ChannelDataPlaneService.record_inbound(
+                    msg_with_user, is_trigger=True, is_authenticated=is_auth
+                )
+            )
 
         return user_id
 
@@ -319,8 +340,17 @@ class PolicyResolver:
             if pn:
                 user_id = await self._pairing.resolve(msg.channel, pn)
                 if user_id:
-                    await self._pairing.bind(msg.channel, msg.sender_id, user_id, display_name=msg.sender_name)
-                    logger.warning("PolicyResolver: LID auto-bound via mapping %s → %s", msg.sender_id, pn)
+                    await self._pairing.bind(
+                        msg.channel,
+                        msg.sender_id,
+                        user_id,
+                        display_name=msg.sender_name,
+                    )
+                    logger.warning(
+                        "PolicyResolver: LID auto-bound via mapping %s → %s",
+                        msg.sender_id,
+                        pn,
+                    )
                     return user_id
 
         if not allow_default_fallback or not self._policy:
@@ -329,8 +359,14 @@ class PolicyResolver:
         if not default_uid:
             return None
 
-        await self._pairing.bind(msg.channel, msg.sender_id, default_uid, display_name=msg.sender_name)
-        logger.warning("PolicyResolver: LID auto-bound to default user %s → %s", msg.sender_id, default_uid)
+        await self._pairing.bind(
+            msg.channel, msg.sender_id, default_uid, display_name=msg.sender_name
+        )
+        logger.warning(
+            "PolicyResolver: LID auto-bound to default user %s → %s",
+            msg.sender_id,
+            default_uid,
+        )
         return default_uid
 
     async def _resolve_with_pairing(self, msg: InboundMessage) -> str | None:
@@ -340,7 +376,9 @@ class PolicyResolver:
             return user_id
 
         if msg.sender_id.endswith("@lid"):
-            user_id = await self._resolve_lid_fallback(msg, allow_default_fallback=False)
+            user_id = await self._resolve_lid_fallback(
+                msg, allow_default_fallback=False
+            )
             if user_id:
                 return user_id
 
@@ -356,8 +394,16 @@ class PolicyResolver:
         default_uid = ""
         if self._policy:
             default_uid = await self._policy.get_default_user_id() or ""
-        await self._pairing.bind(msg.channel, msg.sender_id, default_uid, status=PairingStatus.PENDING, display_name=msg.sender_name)
-        logger.warning("PolicyResolver: auto-paired %s/%s as PENDING", msg.channel, msg.sender_id)
+        await self._pairing.bind(
+            msg.channel,
+            msg.sender_id,
+            default_uid,
+            status=PairingStatus.PENDING,
+            display_name=msg.sender_name,
+        )
+        logger.warning(
+            "PolicyResolver: auto-paired %s/%s as PENDING", msg.channel, msg.sender_id
+        )
         await self._fx.send_pairing_request_reply(msg)
         self._cooldown.should_suppress(f"{msg.channel}:{msg.sender_id}")
         return None
