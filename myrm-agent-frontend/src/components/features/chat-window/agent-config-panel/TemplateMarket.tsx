@@ -37,6 +37,13 @@ interface TemplateMarketProps {
   onInstantiated?: (agentId: string) => void;
 }
 
+const CATEGORY_TABS = [
+  { id: 'all', labelKey: 'categoryAll', fallback: 'All' },
+  { id: 'office', labelKey: 'categoryOffice', fallback: 'Office & Roles' },
+  { id: 'engineering', labelKey: 'categoryEngineering', fallback: 'Engineering' },
+  { id: 'team', labelKey: 'categoryTeam', fallback: 'Teams' },
+] as const;
+
 const renderAvatar = (avatarUrl: string | null | undefined, isTeam: boolean) => {
   if (avatarUrl?.startsWith('lucide:')) {
     const IconComponent = resolveLucideIcon(avatarUrl.slice(7));

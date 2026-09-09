@@ -106,6 +106,8 @@ async def list_templates(request: Request) -> JSONResponse:
                             category = "engineering"
                         elif template_id in (
                             "office_document_assistant",
+                            "official_document_assistant",
+                            "office_delivery_blueprint",
                             "hr_recruiter",
                             "financial_analyst",
                             "growth_operator",

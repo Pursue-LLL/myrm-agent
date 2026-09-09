@@ -157,4 +157,36 @@ describe('TemplateMarket', () => {
       }),
     );
   });
+
+  it('supports category filtering', async () => {
+    mockGetTemplates.mockResolvedValue([
+      {
+        id: 'hr_recruiter',
+        name: 'HR Recruiter',
+        description: 'Recruitment expert',
+        avatar_url: '',
+        agent_type: 'individual',
+        category: 'office',
+      },
+      {
+        id: 'coder',
+        name: 'Code Craftsman',
+        description: 'Coding expert',
+        avatar_url: '',
+        agent_type: 'individual',
+        category: 'engineering',
+      },
+    ]);
+
+    render(<TemplateMarket />);
+
+    expect(await screen.findByText('HR Recruiter')).toBeInTheDocument();
+    expect(screen.getByText('Code Craftsman')).toBeInTheDocument();
+
+    const officeTab = screen.getByRole('tab', { name: 'categoryOffice' });
+    fireEvent.click(officeTab);
+
+    expect(await screen.findByText('HR Recruiter')).toBeInTheDocument();
+    expect(screen.queryByText('Code Craftsman')).not.toBeInTheDocument();
+  });
 });
