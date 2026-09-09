@@ -23,6 +23,8 @@ import {
   ArrowRight01Icon,
 } from 'hugeicons-react';
 import { useSelectionAction } from './useSelectionAction';
+import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
+import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 
 interface SelectionInfo {
   text: string;
@@ -36,7 +38,7 @@ interface SelectionToolbarProps {
   language?: string;
 }
 
-type ActionType = 'modify' | 'explain' | 'optimize' | 'comment';
+type ActionType = 'modify' | 'explain' | 'optimize' | 'comment' | 'quote';
 
 const TOOLBAR_DEBOUNCE_MS = 200;
 
@@ -267,6 +269,25 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
       icon: <MessageAdd01Icon className="w-3.5 h-3.5" />,
       label: t('addComment'),
       onClick: () => executeAction('comment'),
+    },
+    {
+      type: 'quote',
+      icon: <MessageAdd01Icon className="w-3.5 h-3.5" />,
+      label: t('quote') || '引用到输入框',
+      onClick: () => {
+        const activeTab = useArtifactPortalStore.getState().getActiveTab();
+        const artifactName = activeTab?.title || '代码工件';
+        useScopedArtifactStore.getState().setTarget({
+          artifactId: activeTab?.artifactId || 'current',
+          artifactName,
+          kind: 'code',
+          scopeLabel: selection ? `选区 (${selection.text.split('\n').length}行)` : '选中代码',
+          selectedSnippet: selection?.text,
+        });
+        setVisible(false);
+        const chatInput = document.querySelector('[data-chat-input]') as HTMLElement | null;
+        chatInput?.focus();
+      },
     },
     {
       type: 'copy',

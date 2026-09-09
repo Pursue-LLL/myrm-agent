@@ -10,6 +10,7 @@ interface SpreadsheetPreviewProps {
   content: string;
   filename: string;
   previewUrl?: string;
+  artifactId?: string;
 }
 
 const MAX_ROWS = 10_000;
@@ -21,7 +22,7 @@ interface SheetData {
   totalRows: number;
 }
 
-const XlsxViewer: React.FC<{ url: string; filename: string }> = memo(({ url, filename }) => {
+const XlsxViewer: React.FC<{ url: string; filename: string; artifactId?: string }> = memo(({ url, filename, artifactId }) => {
   const t = useTranslations('artifacts.spreadsheet');
   const [sheets, setSheets] = useState<SheetData[]>([]);
   const [activeSheet, setActiveSheet] = useState(0);
@@ -122,14 +123,21 @@ const XlsxViewer: React.FC<{ url: string; filename: string }> = memo(({ url, fil
         </div>
       )}
       <div className="flex-1 min-h-0">
-        <DataGrid headers={current.headers} rows={current.rows} totalRows={current.totalRows} />
+        <DataGrid
+          headers={current.headers}
+          rows={current.rows}
+          totalRows={current.totalRows}
+          filename={filename}
+          sheetName={current.name}
+          artifactId={artifactId}
+        />
       </div>
     </div>
   );
 });
 XlsxViewer.displayName = 'XlsxViewer';
 
-const CsvViewer: React.FC<{ content: string }> = memo(({ content }) => {
+const CsvViewer: React.FC<{ content: string; filename?: string; artifactId?: string }> = memo(({ content, filename, artifactId }) => {
   const t = useTranslations('artifacts.spreadsheet');
   const parsed = useMemo(() => parseCsv(content, MAX_ROWS), [content]);
 
@@ -141,17 +149,25 @@ const CsvViewer: React.FC<{ content: string }> = memo(({ content }) => {
     );
   }
 
-  return <DataGrid headers={parsed.headers} rows={parsed.rows} totalRows={parsed.totalRows} />;
+  return (
+    <DataGrid
+      headers={parsed.headers}
+      rows={parsed.rows}
+      totalRows={parsed.totalRows}
+      filename={filename}
+      artifactId={artifactId}
+    />
+  );
 });
 CsvViewer.displayName = 'CsvViewer';
 
-const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = memo(({ content, filename, previewUrl }) => {
+const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = memo(({ content, filename, previewUrl, artifactId }) => {
   const t = useTranslations('artifacts.spreadsheet');
   const isXlsx = /\.(xlsx|xls)$/i.test(filename);
 
   if (isXlsx) {
     if (previewUrl) {
-      return <XlsxViewer url={getStorageUrl(previewUrl)} filename={filename} />;
+      return <XlsxViewer url={getStorageUrl(previewUrl)} filename={filename} artifactId={artifactId} />;
     }
     return (
       <div className="h-full flex flex-col items-center justify-center gap-2 p-4">
@@ -160,7 +176,7 @@ const SpreadsheetPreview: React.FC<SpreadsheetPreviewProps> = memo(({ content, f
     );
   }
 
-  return <CsvViewer content={content} />;
+  return <CsvViewer content={content} filename={filename} artifactId={artifactId} />;
 });
 
 SpreadsheetPreview.displayName = 'SpreadsheetPreview';

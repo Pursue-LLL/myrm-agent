@@ -4,6 +4,8 @@ import React, { memo, useCallback, useDeferredValue, useMemo, useRef, useState }
 import { useTranslations } from 'next-intl';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from '@/lib/utils/classnameUtils';
+import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
+import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 
 interface DataGridProps {
   headers: string[];
@@ -62,7 +64,7 @@ function compareValues(a: string, b: string, numeric: boolean): number {
   return a.localeCompare(b);
 }
 
-const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, className }) => {
+const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, className, filename, sheetName }) => {
   const t = useTranslations('artifacts.spreadsheet');
   const parentRef = useRef<HTMLDivElement>(null);
   const [sortCol, setSortCol] = useState<number | null>(null);
@@ -138,6 +140,25 @@ const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, clas
     URL.revokeObjectURL(url);
   }, [headers, sortedRows]);
 
+  const handleQuoteSelectedRow = useCallback(() => {
+    if (selectedRow === null) return;
+    const row = sortedRows[selectedRow];
+    if (!row) return;
+    const state = useArtifactPortalStore.getState();
+    const activeTab = state.activeTabIndex >= 0 && state.activeTabIndex < state.openTabs.length ? state.openTabs[state.activeTabIndex] : null;
+    const artifactName = activeTab?.artifact?.filename || '表格工件';
+    const rowSnippet = headers.map((h, i) => `${h || columnLabel(i)}: ${row[i] ?? ''}`).join(', ');
+    useScopedArtifactStore.getState().setTarget({
+      artifactId: activeTab?.artifact?.id || 'current',
+      artifactName,
+      kind: 'spreadsheet',
+      scopeLabel: `第 ${selectedRow + 1} 行`,
+      selectedSnippet: rowSnippet,
+    });
+    const chatInput = document.querySelector('[data-chat-input]') as HTMLElement | null;
+    chatInput?.focus();
+  }, [selectedRow, sortedRows, headers]);
+
   const showTruncated = totalRows != null && totalRows > rows.length;
   const showFiltered = deferredSearch.trim() && sortedRows.length !== rows.length;
 
@@ -171,6 +192,15 @@ const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, clas
         >
           {t('export')}
         </button>
+        {selectedRow !== null && (
+          <button
+            onClick={handleQuoteSelectedRow}
+            className="h-7 px-2 text-[11px] font-medium rounded border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+            title="引用选中行到输入框"
+          >
+            引用第 {selectedRow + 1} 行
+          </button>
+        )}
       </div>
 
       {/* Table */}

@@ -45,7 +45,6 @@ import ProviderLowBalanceWarningHUD from '../message-input-actions/ProviderLowBa
 import { ForkButton } from './ForkButton';
 import { QueuedMessagesList } from './QueuedMessagesList';
 import ActiveWorkingMemoryPanel from '../message-input-actions/ActiveWorkingMemoryPanel';
-import { ScopedArtifactChip } from './ScopedArtifactChip';
 import { useTranslations } from 'next-intl';
 import { useMessageInput } from '@/hooks/message-input/useMessageInput';
 import { useDragDrop } from '@/hooks/ui/useDragDrop';
@@ -74,6 +73,7 @@ import InputHistoryPopup from './InputHistoryPopup';
 import { FeaturedExpertChips } from './agent-config-panel/FeaturedExpertChips';
 import { ExpertSummonPopover } from './agent-config-panel/ExpertSummonPopover';
 import { ComposerContextChipStrip } from './context-strip/ComposerContextChipStrip';
+import { ScopedArtifactChip } from './ScopedArtifactChip';
 import { WechatArticleComposerHint } from './WechatArticleComposerHint';
 import { ContextSpilloverBadge } from '../message-box/ContextSpilloverBadge';
 import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
@@ -487,7 +487,6 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
               onClose={inputHistory.close}
             />
             <QuoteCard />
-            <ScopedArtifactChip />
             <SessionAccessRootsBar />
             {isComposerClarifyMode && pendingClarification ? (
               <ClarificationInput
@@ -511,6 +510,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
               <>
                 <ProviderLowBalanceWarningHUD className="mb-2" />
                 <FeaturedExpertChips />
+                <ScopedArtifactChip />
                 <ComposerContextChipStrip
                   chips={composerContextChips}
                   summary={composerContextSummary}

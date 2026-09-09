@@ -13,15 +13,17 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { MOBILE_BREAKPOINT } from '@/lib/constants/artifact';
-import { Edit04Icon, InformationCircleIcon, SparklesIcon, Copy01Icon, ArrowRight01Icon } from 'hugeicons-react';
+import { Edit04Icon, InformationCircleIcon, SparklesIcon, Copy01Icon, ArrowRight01Icon, MessageAdd01Icon } from 'hugeicons-react';
 import { useSelectionAction } from './useSelectionAction';
+import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
+import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 
 interface DocumentSelectionToolbarProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   artifactId?: string;
 }
 
-type ActionType = 'modify' | 'explain' | 'optimize';
+type ActionType = 'modify' | 'explain' | 'optimize' | 'quote';
 
 const TOOLBAR_DEBOUNCE_MS = 250;
 const TOOLBAR_HEIGHT_ESTIMATE = 48;
@@ -213,6 +215,40 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
       icon: <SparklesIcon className="w-3.5 h-3.5" />,
       label: t('rewrite'),
       onClick: () => executeAction('optimize'),
+    },
+    {
+      type: 'quote',
+      icon: <MessageAdd01Icon className="w-3.5 h-3.5" />,
+      label: t('quote') || '引用到输入框',
+      onClick: () => {
+        const activeTab = useArtifactPortalStore.getState().getActiveTab();
+        const artifactName = activeTab?.title || '文档工件';
+        const targetArtifactId = artifactId || activeTab?.artifactId || 'current';
+        
+        // 1. 同步设置 ScopedArtifactStore，用于针对特定工件范围聚焦
+        useScopedArtifactStore.getState().setTarget({
+          artifactId: targetArtifactId,
+          artifactName,
+          kind: 'document',
+          scopeLabel: '所选段落',
+          selectedSnippet: selectedText,
+        });
+
+        // 2. 同时向全局会话输入框挂载上下文引用芯片（Context Chip）
+        useChatStore.getState().addMentionReference({
+          type: 'artifact_range',
+          label: artifactName,
+          artifactId: targetArtifactId,
+          range: '所选段落',
+          source: 'generated',
+          size: selectedText.length,
+        });
+
+        hideToolbar();
+        // 自动聚焦输入框
+        const chatInput = document.querySelector('[data-chat-input]') as HTMLElement | null;
+        chatInput?.focus();
+      },
     },
     {
       type: 'copy',

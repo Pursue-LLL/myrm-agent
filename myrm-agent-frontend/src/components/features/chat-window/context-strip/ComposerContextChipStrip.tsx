@@ -22,6 +22,7 @@ import {
   AtSign,
   FileText,
   Image as ImageIcon,
+  FileSpreadsheet,
   BookOpen,
   X,
   AlertTriangle,
@@ -54,6 +55,8 @@ const renderChipIcon = (iconType: ContextChipItem['iconType']) => {
       return <AtSign className="size-3 shrink-0 text-cyan-500 dark:text-cyan-400" />;
     case 'image':
       return <ImageIcon className="size-3 shrink-0 text-emerald-500 dark:text-emerald-400" />;
+    case 'spreadsheet':
+      return <FileSpreadsheet className="size-3 shrink-0 text-green-600 dark:text-green-400" />;
     case 'file':
     default:
       return <FileText className="size-3 shrink-0 text-muted-foreground" />;

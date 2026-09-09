@@ -27,7 +27,7 @@ export interface ContextChipItem {
   label: string;
   detail?: string | null;
   tooltip?: string | null;
-  iconType: 'skill' | 'workflow' | 'capability' | 'mention' | 'file' | 'image' | 'knowledge';
+  iconType: 'skill' | 'workflow' | 'capability' | 'mention' | 'file' | 'image' | 'knowledge' | 'spreadsheet';
   isRemovable: boolean;
   onRemove?: () => void;
   onAction?: () => void;
@@ -199,13 +199,14 @@ export function useComposerContextChips({
     if (mentionReferences.length > 0) {
       mentionReferences.forEach((ref) => {
         const key = mentionReferenceKey(ref);
+        const isSpreadsheetRange = ref.type === 'artifact_range';
         list.push({
           id: `mention-${key}`,
           category: 'mention',
           label: ref.label,
-          detail: ref.type,
+          detail: isSpreadsheetRange ? (ref.range || 'Range') : ref.type,
           tooltip: ref.path ?? ref.fileId ?? ref.url ?? ref.label,
-          iconType: 'mention',
+          iconType: isSpreadsheetRange ? 'spreadsheet' : 'mention',
           isRemovable: true,
           onRemove: () => removeMentionReference(key),
         });

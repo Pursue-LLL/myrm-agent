@@ -20,6 +20,7 @@ import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 import useChatStore from '@/store/useChatStore';
 import { buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
+import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 import { compactChat } from '@/services/chat';
 import { toast } from '@/lib/utils/toast';
 import { useQuotaGuard } from '@/hooks/billing/useQuotaGuard';
@@ -45,11 +46,24 @@ import {
 const MAX_DRAIN_RETRIES = 4;
 
 function composeOutboundUserMessage(rawInput: string): string {
+  let outbound = rawInput;
   const pending = useChatStore.getState().pendingExplicitSkillActivation;
   if (pending) {
-    return buildExplicitSkillWireMessage(pending, rawInput);
+    outbound = buildExplicitSkillWireMessage(pending, outbound);
   }
-  return rawInput;
+
+  // 注入局部工件编辑选区语义 (Scoped Artifact)
+  const scopedTarget = useScopedArtifactStore.getState().target;
+  if (scopedTarget) {
+    const scopeHeader = `[针对工件 "${scopedTarget.artifactName}" 的局部范围 (${scopedTarget.scopeLabel}) 定向编辑]`;
+    const snippetBody = scopedTarget.selectedSnippet
+      ? `\n\`\`\`\n${scopedTarget.selectedSnippet}\n\`\`\`\n`
+      : '';
+    outbound = `${scopeHeader}${snippetBody}\n${outbound}`.trim();
+    useScopedArtifactStore.getState().clearTarget();
+  }
+
+  return outbound;
 }
 
 function clearPendingExplicitSkillActivation(): void {

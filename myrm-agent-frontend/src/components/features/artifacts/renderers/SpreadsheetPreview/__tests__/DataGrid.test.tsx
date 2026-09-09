@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 
 const stableT = (key: string) => {
   const map: Record<string, string> = {
@@ -111,5 +112,24 @@ describe('DataGrid', () => {
   it('shows totalRows truncation info when provided', () => {
     render(<DataGrid headers={['A']} rows={[['1']]} totalRows={50000} />);
     expect(screen.getByText(/50,000/)).toBeDefined();
+  });
+
+  it('allows quoting selected row to scoped artifact store', () => {
+    useScopedArtifactStore.getState().clearTarget();
+    render(<DataGrid headers={HEADERS} rows={ROWS} />);
+
+    const cell = screen.getByText('Alice');
+    fireEvent.click(cell);
+
+    const quoteBtn = screen.getByText('引用第 1 行');
+    expect(quoteBtn).toBeDefined();
+
+    fireEvent.click(quoteBtn);
+
+    const target = useScopedArtifactStore.getState().target;
+    expect(target).not.toBeNull();
+    expect(target?.scopeLabel).toBe('第 1 行');
+    expect(target?.kind).toBe('spreadsheet');
+    expect(target?.selectedSnippet).toContain('Alice');
   });
 });

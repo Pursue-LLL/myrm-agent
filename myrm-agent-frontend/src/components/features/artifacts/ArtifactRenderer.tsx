@@ -203,7 +203,12 @@ const InnerRenderer: React.FC<ArtifactRendererProps> = ({
       return <CodePreview content={content} language="csv" artifactId={artifact.id} />;
     }
     return (
-      <SpreadsheetPreviewDynamic content={content || ''} filename={filename} previewUrl={preview_url || undefined} />
+      <SpreadsheetPreviewDynamic
+        content={content || ''}
+        filename={filename}
+        previewUrl={preview_url || undefined}
+        artifactId={artifact.id}
+      />
     );
   }
 

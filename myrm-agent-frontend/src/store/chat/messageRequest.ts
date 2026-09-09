@@ -33,6 +33,7 @@ import {
 import useConfigStore from '../useConfigStore';
 import useProviderStore from '../useProviderStore';
 import useChatStore from '../useChatStore';
+import { useScopedArtifactStore } from '../useScopedArtifactStore';
 import { getThinkingEffort } from '@/components/features/message-input-actions/ThinkingIntensityButton';
 import useAuthStore from '../useAuthStore';
 import useRetrievalStore from '../useRetrievalStore';
@@ -929,9 +930,25 @@ export const createMessageRequest = async (
       const fileIds = state.files.map((f) => f.id).filter(Boolean) as string[];
       return fileIds.length > 0 ? { uploaded_file_ids: fileIds } : {};
     })(),
+    ...(() => {
+      const scopedTarget = useScopedArtifactStore.getState().target;
+      if (!scopedTarget) {
+        return {};
+      }
+      return {
+        scoped_artifact: {
+          artifact_id: scopedTarget.artifactId,
+          artifact_name: scopedTarget.artifactName,
+          scope_label: scopedTarget.scopeLabel,
+          kind: scopedTarget.kind,
+          selected_snippet: scopedTarget.selectedSnippet,
+        },
+      };
+    })(),
   };
 
   state.clearMentionReferences();
+  useScopedArtifactStore.getState().clearTarget();
 
   const quoteState = useQuoteStore.getState();
   if (quoteState.quote) {

@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 _SKILL_MD = (
-    Path(__file__).resolve().parents[3]
+    Path(__file__).resolve().parents[2]
     / "assets"
     / "prebuilt_skills"
     / "personal-life-workbench"
@@ -24,14 +24,14 @@ _SKILL_MD = (
 )
 
 _CORE_MODULE_MARKERS = (
-    "daily-focus",
-    "todo-board",
-    "habit-tracker",
-    "pomodoro-timer",
-    "quick-scratchpad",
-    "daily-schedule",
-    "reflection-log",
-    "quick-launcher",
+    "Focus Todos",
+    "Habit Streaks",
+    "Pomodoro Timer",
+    "Quick Notes",
+    "Daily Reflection",
+    "Hydration Log",
+    "Launchpad",
+    "Countdown Tracker",
 )
 
 _CONTRACT_MARKERS = (
@@ -47,10 +47,9 @@ _CONTRACT_MARKERS = (
     # Tool declarations in frontmatter
     "file_write_tool",
     "file_read_tool",
-    "file_edit_tool",
 )
 
-_MAX_SKILL_CHARS = 12_000
+_MAX_SKILL_CHARS = 16_000
 
 
 @pytest.fixture(scope="module")

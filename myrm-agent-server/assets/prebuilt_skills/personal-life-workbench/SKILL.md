@@ -13,7 +13,7 @@ tags:
   - life-dashboard
   - interactive-widget
   - local-storage
-allowed-tools: file_write_tool file_read_tool
+allowed-tools: file_write_tool file_read_tool file_edit_tool
 contract:
   steps:
     - "Phase 1: Scope & Layout — Select 3 to 8 workbench modules and arrange in a responsive card grid"
@@ -81,15 +81,15 @@ When the user asks for a daily dashboard, personal workbench, habit tracker, or 
 
 A standard workbench selects 3 to 8 of the following modules based on user needs:
 
-| Module | Core Features | State Schema |
+| Module (ID) | Core Features | State Schema |
 |---|---|---|
-| **1. Focus Todos** | Priority tagging, checkboxes, inline add/delete, progress bar | `[{ id, text, done, priority: 'high'\|'med'\|'low' }]` |
-| **2. Habit Streaks** | Daily checkboxes, consecutive streak count, visual badges | `[{ id, name, lastCheckedDate, streakCount }]` |
-| **3. Pomodoro Timer** | 25m focus / 5m break, play/pause/reset, SVG circular progress | `{ mode: 'focus'\|'break', timeLeft, isRunning }` |
-| **4. Quick Notes** | Auto-saving scratchpad, character count, clear button | `string` (persisted on input debounced) |
-| **5. Daily Reflection** | Mood selector (5 emoji/SVGs), gratitude prompt, daily log | `{ date, mood, gratitude, highlight }` |
-| **6. Hydration Log** | 8-cup water intake tracker, quick tap to add, daily reset | `{ date, cups: number }` |
-| **7. Launchpad** | Frequently visited tools/links, custom title, clean badges | `[{ title, url, icon }]` |
+| **1. Focus Todos (`daily-focus` / `todo-board`)** | Priority tagging, checkboxes, inline add/delete, progress bar | `[{ id, text, done, priority: 'high'\|'med'\|'low' }]` |
+| **2. Habit Streaks (`habit-tracker`)** | Daily checkboxes, consecutive streak count, visual badges | `[{ id, name, lastCheckedDate, streakCount }]` |
+| **3. Pomodoro Timer (`pomodoro-timer`)** | 25m focus / 5m break, play/pause/reset, SVG circular progress | `{ mode: 'focus'\|'break', timeLeft, isRunning }` |
+| **4. Quick Scratchpad (`quick-scratchpad`)** | Auto-saving scratchpad, character count, clear button | `string` (persisted on input debounced) |
+| **5. Daily Reflection (`reflection-log`)** | Mood selector (5 emoji/SVGs), gratitude prompt, daily log | `{ date, mood, gratitude, highlight }` |
+| **6. Daily Schedule (`daily-schedule`)** | Time-blocked planner, hourly milestones, daily reset | `{ date, events: [] }` |
+| **7. Quick Launcher (`quick-launcher`)** | Frequently visited tools/links, custom title, clean badges | `[{ title, url, icon }]` |
 | **8. Countdown Tracker** | Target event date, remaining days/hours badge | `[{ event, targetDate }]` |
 
 ---
