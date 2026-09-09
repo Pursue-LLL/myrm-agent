@@ -57,7 +57,9 @@
     ".next-isolated-chrome-test_chrome_ui_operator_as_key_rejected-5142692b-70733-8ac5dd6f/types/**/*.ts",
     ".next-isolated-chrome-test_chrome_ui_operator_as_key_rejected-5142692b-70733-8ac5dd6f/dev/types/**/*.ts",
     ".next-isolated-chrome-test_opencode_browser_config_in_webui-9454a4be-18905-4fbdbf39/types/**/*.ts",
-    ".next-isolated-chrome-test_opencode_browser_config_in_webui-9454a4be-18905-4fbdbf39/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_opencode_browser_config_in_webui-9454a4be-18905-4fbdbf39/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_chrome_ui_operator_as_key_rejected-5142692b-43266-3f3ddef5/types/**/*.ts",
+    ".next-isolated-chrome-test_chrome_ui_operator_as_key_rejected-5142692b-43266-3f3ddef5/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

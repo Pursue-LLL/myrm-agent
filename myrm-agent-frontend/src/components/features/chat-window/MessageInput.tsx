@@ -45,6 +45,7 @@ import ProviderLowBalanceWarningHUD from '../message-input-actions/ProviderLowBa
 import { ForkButton } from './ForkButton';
 import { QueuedMessagesList } from './QueuedMessagesList';
 import ActiveWorkingMemoryPanel from '../message-input-actions/ActiveWorkingMemoryPanel';
+import { ScopedArtifactChip } from './ScopedArtifactChip';
 import { useTranslations } from 'next-intl';
 import { useMessageInput } from '@/hooks/message-input/useMessageInput';
 import { useDragDrop } from '@/hooks/ui/useDragDrop';
@@ -486,6 +487,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
               onClose={inputHistory.close}
             />
             <QuoteCard />
+            <ScopedArtifactChip />
             <SessionAccessRootsBar />
             {isComposerClarifyMode && pendingClarification ? (
               <ClarificationInput

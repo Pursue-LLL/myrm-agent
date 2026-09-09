@@ -17,3 +17,6 @@
 | `coding.yaml` | 数据 | 编码类子 Agent（`grep_tool`/`glob_tool`/file/bash；深度代码智能靠用户 MCP） |
 | `deep-audit.yaml` | 数据 | 深度安全审计子 Agent（全量并发扫描、专注逻辑漏洞、只读模式） |
 | `search.yaml` | 数据 | 搜索类子 Agent 默认定义 |
+| `structure-planner.yaml` | 数据 | 结构化交付物大纲与逻辑架构设计子 Agent（MECE/金字塔原理/论点与依赖矩阵） |
+| `layout-designer.yaml` | 数据 | 结构化交付物视觉版式与布局设计子 Agent（幻灯片网格/主题配色/图表选型） |
+| `format-verifier.yaml` | 数据 | 结构化交付物排版规范与格式审计子 Agent（反文字墙/公式完整性/标题层级） |

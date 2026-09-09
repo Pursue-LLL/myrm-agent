@@ -267,6 +267,7 @@ export type MentionReferenceType =
   | 'workspace_folder'
   | 'uploaded_file'
   | 'generated_file'
+  | 'artifact_range'
   | 'agent'
   | 'git_diff'
   | 'git_staged'
@@ -281,6 +282,9 @@ export interface MentionReference {
   label: string;
   path?: string;
   fileId?: string;
+  artifactId?: string;
+  sheetName?: string;
+  range?: string;
   url?: string;
   source: 'workspace' | 'uploaded' | 'generated' | 'special' | 'wiki';
   size: number | null;
