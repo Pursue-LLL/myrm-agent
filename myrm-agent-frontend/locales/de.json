@@ -1740,7 +1740,15 @@
     "jumpBar": {
       "ariaLabel": "Konversationsnavigation",
       "title": "Nachrichtennavigation",
-      "jumpTo": "Zur Nachricht springen"
+      "jumpTo": "Zur Nachricht springen",
+      "turnTitle": "Turn {turn}",
+      "loaded": "Loaded",
+      "unloaded": "Not loaded · Click to fetch and locate",
+      "loading": "Loading turn messages...",
+      "userPrefix": "User: ",
+      "assistantPrefix": "Assistant: ",
+      "fullTimeline": "Session Timeline",
+      "turnCount": "{count} turns in total"
     },
     "newChat": "Neuer Chat",
     "placeholder": "Fragen Sie mich etwas...",
@@ -2991,6 +2999,18 @@
       "advancedSettingsButton": "Erweiterte Einstellungen",
       "openModelCenter": "Modell-Zentrum",
       "closeButton": "Schließen"
+    },
+    "turnRail": {
+      "ariaLabel": "Session timeline outline navigation",
+      "title": "Session Outline",
+      "turn": "Turn {index}",
+      "loaded": "Ready",
+      "unloaded": "Click to load",
+      "loading": "Loading turn...",
+      "inFlight": "Generating...",
+      "userPrompt": "Prompt",
+      "assistantReply": "Reply",
+      "jumpToTurn": "Jump to turn {index}"
     }
   },
   "mode": {
@@ -12438,7 +12458,8 @@
         "knowledge": "Wissen & Daten",
         "integration": "Kommunikation & Integration",
         "system": "Sicherheit & System"
-      }
+      },
+      "a2aPeers": "A2A Remote Peers"
     },
     "workbench": {
       "badge": "Persönlicher Arbeitsbereich & Datensouveränität",
@@ -14026,7 +14047,15 @@
       "poolCalls": "{count} Aufrufe",
       "poolRateLimits": "{count} Ratenbegrenzungen",
       "vercelGatewaySpendHint": "Kosten, Ratenbegrenzungen und Latenz im Vercel AI Gateway Dashboard nachverfolgen",
-      "openVercelDashboard": "Dashboard öffnen"
+      "openVercelDashboard": "Dashboard öffnen",
+      "circuitBreakerTitle": "Model Endpoint Health & Circuit Breakers",
+      "circuitBreakerHealthy": "All Endpoints Healthy",
+      "circuitBreakerWarning": "Open Circuit Detected",
+      "resetAllCircuitBreakers": "Reset All Breakers",
+      "resetThisBreaker": "Retry & Recover",
+      "resetCircuitBreakerSuccess": "Reset {count} circuit breaker endpoint(s)",
+      "noActiveCircuitBreakers": "All model providers and endpoints are in healthy ready state",
+      "failureCount": "Consecutive Failures: {count}"
     },
     "defaultModel": {
       "localModelWarning": "Lokale Leichtgewichtsmodelle neigen stark zu Halluzinationen oder Endlosschleifen bei komplexen Agent-Workflows. Für lange Aufgaben werden Modelle ab 30B oder Cloud-basierte fortschrittliche Modelle (wie Claude 3.5 Sonnet) empfohlen.",
@@ -17523,6 +17552,24 @@
           "e2eeHint": "Mobile Verbindungen beinhalten eine Ende-zu-Ende-Verschlüsselung, wenn der Tunnel aktiv ist. Pair-Tokens und Live-Streams bleiben für das Tunnel-Relay unlesbar.",
           "e2eeAlgorithm": "Algorithmus",
           "e2eeFingerprint": "Fingerabdruck"
+        },
+        "tailscale": {
+          "title": "Tailscale Zero-Trust Remote Access",
+          "badge": "Zero-Trust",
+          "description": "Securely connect over your private Tailscale mesh network with end-to-end WireGuard encryption. No open public ports, eliminating brute-force and port scanning attacks.",
+          "statusActive": "Connected to Tailnet",
+          "statusInactive": "Tailscale is not running or connected",
+          "statusNotInstalled": "Tailscale client not detected",
+          "ipLabel": "Tailscale IP",
+          "magicDnsLabel": "MagicDNS Domain",
+          "nodeLabel": "Node Name",
+          "userLabel": "Authenticated User",
+          "modeHttps": "HTTPS Secure Context",
+          "modeDirect": "Direct Mesh",
+          "serveHint": "Tip: Run tailscale serve --bg http://localhost:{port} in terminal to enable HTTPS MagicDNS domain for native Secure Context (microphone voice input and PWA installation).",
+          "scanHint": "Scan QR code from any device on your Tailnet to connect directly",
+          "qrAlt": "Tailscale Access QR Code",
+          "learnMore": "Learn more about Tailscale"
         }
       },
       "serverConnection": {
@@ -17977,7 +18024,17 @@
         "editLimitDesc": "Monatliches Warnlimit für {provider} anpassen",
         "limitLabel": "Monatliches Limit (Aufrufe)",
         "cancel": "Abbrechen",
-        "save": "Speichern"
+        "save": "Speichern",
+        "circuitBreakersTitle": "LLM Provider Circuit Breaker & Health",
+        "circuitBreakersDesc": "Real-time health telemetry and fault isolation state across LLM gateways",
+        "circuitAllHealthy": "All Providers Healthy",
+        "circuitStateClosed": "Connected",
+        "circuitStateOpen": "Circuit Tripped",
+        "circuitStateHalfOpen": "Probing Recovery",
+        "circuitFailures": "Failures: {count}",
+        "circuitRetryCooldown": "Retry in: {seconds}s",
+        "circuitResetOne": "Reset",
+        "circuitResetAll": "Reset All Circuits"
       }
     },
     "workingState": {
@@ -19051,6 +19108,24 @@
       "statusUnreachable": "Nicht erreichbar",
       "statusSsrf": "Sicherheitsblockade",
       "hasToken": "Anmeldeinformationen hinterlegt"
+    },
+    "mobileAdb": {
+      "title": "Mobile Wireless ADB Debugging",
+      "description": "Connect real Android devices for automation, UI tree extraction, and cross-device workflows",
+      "activeDevices": "Connected Devices",
+      "noDevicesFound": "No connected Android devices found",
+      "pairPrompt": "Enable 'Wireless debugging' in Developer options on your phone, then enter the pairing code or connect directly",
+      "wirelessPairing": "Wireless Pairing (Android 11+)",
+      "pairingCodePlaceholder": "6-digit pairing code (e.g. 123456)",
+      "pairButton": "Pair Device",
+      "directConnect": "Direct Connect (Paired Device)",
+      "connectButton": "Connect",
+      "refresh": "Refresh Devices",
+      "fillAllFields": "Please fill in all required host, port, and pairing fields",
+      "pairSuccess": "Wireless device paired successfully!",
+      "pairFailed": "Pairing failed. Check host IP, port, and pairing code",
+      "connectSuccess": "Device connected successfully!",
+      "connectFailed": "Connection failed. Ensure wireless debugging is active on the same Wi-Fi"
     }
   },
   "continualOverlay": {
