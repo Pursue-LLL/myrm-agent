@@ -15525,6 +15525,7 @@
       },
       "discover": {
         "title": "스킬 탐색",
+        "trialRunInSandbox": "샌드박스에서 시험 실행",
         "description": "GitHub 및 커뮤니티에서 스킬 검색 및 설치",
         "detail": {
           "noDescription": "제공된 설명이 없습니다."
