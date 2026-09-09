@@ -4,7 +4,7 @@
  * SSOT for translators remains locales/{lang}.json — run before dev/build/test.
  */
 
-import { spawnSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';

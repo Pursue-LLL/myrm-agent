@@ -39,6 +39,11 @@ from app.channels.routing.message_effects import MessageEffects
 from app.channels.routing.policy_resolver_support import (
     BoundedCooldownMap,
     GroupFollowUpTracker,
+    check_guest_mention_allowed,
+    query_dm_policy,
+    query_enabled_groups,
+    query_group_policy,
+    query_group_trigger,
 )
 from app.channels.types import (
     METADATA_EXPLICIT_MENTION_KEY,
@@ -270,36 +275,21 @@ class PolicyResolver:
         return False, msg.content
 
     async def _get_dm_policy(self, channel: str) -> DmPolicy:
-        if self._policy:
-            return await self._policy.get_dm_policy(channel)
-        return DmPolicy.ALLOWLIST
+        return await query_dm_policy(self._policy, channel)
 
     async def _get_group_policy(self, channel: str) -> GroupPolicy:
-        if self._policy:
-            return await self._policy.get_group_policy(channel)
-        return GroupPolicy.DISABLED
+        return await query_group_policy(self._policy, channel)
 
     async def _get_group_trigger(
         self, channel: str
     ) -> tuple[GroupTriggerMode, list[str]]:
-        if self._policy:
-            return await self._policy.get_group_trigger(channel)
-        return GroupTriggerMode.MENTION_ONLY, []
+        return await query_group_trigger(self._policy, channel)
 
     async def _get_enabled_groups(self) -> set[str]:
-        if self._policy:
-            return await self._policy.get_enabled_groups()
-        return set()
+        return await query_enabled_groups(self._policy)
 
     async def _is_guest_mention_allowed(self, msg: InboundMessage) -> bool:
-        """Guest mode: one-shot explicit entity mention in a non-enabled group."""
-        if not self._policy:
-            return False
-        guest_mode = await self._policy.get_guest_mode(msg.channel)
-        if not guest_mode:
-            return False
-        meta = msg.metadata or {}
-        return meta.get(METADATA_EXPLICIT_MENTION_KEY) == "1"
+        return await check_guest_mention_allowed(self._policy, msg)
 
     async def _resolve_allowlist(self, msg: InboundMessage) -> str | None:
         """Allowlist mode: only ACTIVE pairings are processed, others silently ignored."""
