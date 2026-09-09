@@ -32,6 +32,7 @@ import SkillUrlImportDialog from './SkillUrlImportDialog';
 import SkillSourcesPanel from './SkillSourcesPanel';
 import SkillRegistryMirrorPanel from './SkillRegistryMirrorPanel';
 import { formatSkillInstallToast } from './skillDiscoverInstallToast';
+import { launchSkillTrialRun } from '@/services/skillTrialRunner';
 import useChatStore from '@/store/useChatStore';
 import {
   AlertDialog,
