@@ -15545,6 +15545,7 @@
       },
       "discover": {
         "title": "發現技能",
+        "trialRunInSandbox": "沙箱試跑",
         "description": "從 GitHub 和社群搜尋並安裝技能",
         "detail": {
           "noDescription": "暫無技能描述"
