@@ -11,7 +11,6 @@ from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from app.ai_agents.general_agent.active_tool_groups import (
     derive_active_tool_groups_from_params,
 )
-from app.services.agent.stream_session import entitlement_gap_preflight as preflight
 from app.services.agent.stream_session.entitlement_gap_preflight import (
     CapabilityGapEmissionTracker,
     build_entitlement_gap_sse_event,

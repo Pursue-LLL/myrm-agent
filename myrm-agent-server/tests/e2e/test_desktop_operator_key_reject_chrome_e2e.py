@@ -52,13 +52,19 @@ _CLICK_APPROVE_JS = """(() => {
 def _soft_type_ok(blob: str) -> bool:
     """True when the model typed instead of key='*' and the type action finished.
 
-    Only accept explicit completion markers — never bare JSON ``action: type``
-    (HITL stall) or the word ``completed`` alone (stale page noise).
+    Accepts explicit completion markers in tool messages/trace, as well as
+    completed progressSteps recording the vision tool type-action invocation.
     """
-    return (
+    if (
         "Vision action 'type' completed" in blob
         or 'Vision action "type" completed' in blob
-    )
+    ):
+        return True
+    # Progress step item from StreamContentCollector: 'action: type | text: *'
+    if "action: type | text: *" in blob or ("action: type" in blob and "*" in blob):
+        if "desktop_vision" in blob:
+            return True
+    return False
 
 
 def _messages_blob(api_url: str, chat_id: str) -> str:

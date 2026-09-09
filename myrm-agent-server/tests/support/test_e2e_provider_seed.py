@@ -130,8 +130,9 @@ def test_chat_probe_model_preserves_combo_pattern_for_local_gateway() -> None:
 def test_probe_llm_api_key_once_injects_opencode_session(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from tests.support.e2e_provider_seed import _probe_llm_api_key_once
     import urllib.request
+
+    from tests.support.e2e_provider_seed import _probe_llm_api_key_once
 
     captured_headers: dict[str, str] = {}
 

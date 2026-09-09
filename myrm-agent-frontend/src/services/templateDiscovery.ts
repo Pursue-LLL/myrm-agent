@@ -36,3 +36,14 @@ export function templateMatchesSearchQuery(template: TemplateListItem, query: st
   ];
   return searchableParts.some((part) => normalizeTemplateSearchText(part).includes(normalizedQuery));
 }
+
+export function templateMatchesCategory(template: TemplateListItem, category: string): boolean {
+  if (!category || category === 'all') {
+    return true;
+  }
+  if (category === 'team') {
+    return template.agent_type === 'team' || template.category === 'team';
+  }
+  return template.category === category;
+}
+

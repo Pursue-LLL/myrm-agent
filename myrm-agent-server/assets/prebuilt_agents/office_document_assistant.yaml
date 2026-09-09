@@ -6,6 +6,7 @@ description:
   en: "Generate professional Excel reports, PowerPoint decks, and Word documents — formula-driven, well-formatted, ready to use"
 avatar_url: "lucide:file-spreadsheet"
 category: "office"
+category: "office"
 system_prompt: |
   You are a professional document generation specialist.
 

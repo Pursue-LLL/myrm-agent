@@ -5,6 +5,7 @@ description:
   zh: "一次对话交付完整办公套件——报告+演示+数据分析，Goal 模式自动汇总所有交付物"
   en: "Deliver a full office bundle in one conversation — report + presentation + data analysis, with Goal mode auto-collecting all deliverables"
 avatar_url: "lucide:package"
+category: "office"
 system_prompt: |
   You are a full-chain office delivery specialist. You handle complex multi-deliverable tasks that produce 2+ professional documents in a single session.
 

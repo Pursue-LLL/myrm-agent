@@ -54,7 +54,6 @@ class TestResolvedAgentProfileProperty:
             skill_ids=(),
             mcp_ids=(),
             enabled_builtin_tools=("web_search", "memory"),
-        replace_all: true
         )
         assert general_profile.is_sandbox_capable is False
 
@@ -99,7 +98,6 @@ class TestConverterSandboxWriteGate:
             skill_ids=(),
             mcp_ids=(),
             enabled_builtin_tools=("web_search", "memory"),
-        replace_all: true
         )
         mock_resolver = MagicMock()
         mock_resolver.resolve = AsyncMock(return_value=general_profile)
@@ -132,7 +130,6 @@ class TestConverterSandboxWriteGate:
             skill_ids=(),
             mcp_ids=(),
             enabled_builtin_tools=("web_search", "memory"),
-        replace_all: true
         )
         mock_resolver = MagicMock()
         mock_resolver.resolve = AsyncMock(return_value=general_profile)

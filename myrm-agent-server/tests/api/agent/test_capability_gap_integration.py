@@ -14,7 +14,6 @@ from langchain_core.tools import BaseTool
 from myrm_agent_harness.agent.meta_tools.discover_capability.discover_capability_tool import (
     sync_discover_capability_tool,
 )
-from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
 from myrm_agent_harness.agent.streaming.stream_executor import (
     StreamContext,
     StreamExecutor,

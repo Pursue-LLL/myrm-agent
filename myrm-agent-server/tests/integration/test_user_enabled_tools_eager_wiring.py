@@ -5,7 +5,6 @@ Product rule: any switch ON (default or manual) → tools list (Turn1 eager).
 
 from __future__ import annotations
 
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 

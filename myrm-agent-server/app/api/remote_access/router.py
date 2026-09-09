@@ -261,6 +261,7 @@ async def mobile_spawn(body: MobileSpawnRequest, request: Request) -> dict[str, 
             raise HTTPException(status_code=401, detail="Valid pairing token or WebUI session required")
 
     import uuid
+
     from app.database.dto import ChatCreate
     from app.services.chat.chat_crud import ChatService
 

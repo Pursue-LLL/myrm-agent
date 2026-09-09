@@ -737,6 +737,7 @@ export interface TemplateListItem {
   description?: string;
   avatar_url?: string;
   agent_type: string;
+  category?: string;
   is_pareto_preset?: boolean;
   cost_reduction_ratio?: number;
   members?: TeamMemberBrief[];

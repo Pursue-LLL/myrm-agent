@@ -24,10 +24,6 @@ import time
 from collections import OrderedDict
 from threading import Lock
 
-from myrm_agent_harness.agent.meta_tools.discover_capability.capability_gap import (
-    detect_capability_gap,
-)
-
 _MAX_TRACKED_CHATS = 4096
 _GAP_TOAST_COOLDOWN_SECONDS = 900.0
 _SURFACE_UNAVAILABLE_DEDUP_SUFFIX = "surface_unavailable"

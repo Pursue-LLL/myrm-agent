@@ -5,6 +5,7 @@ description:
   zh: "生成符合国标（GB/T 9704）的公文、通知、请示、函、纪要等政务文档——正确字体、行距、页边距、结构"
   en: "Generate official government documents compliant with GB/T 9704 — correct fonts, line spacing, margins, and structure"
 avatar_url: "lucide:stamp"
+category: "office"
 system_prompt: |
   You are a Chinese official document specialist (公文写作专家).
 

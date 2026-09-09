@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-import base64
-import json
-from pathlib import Path
-
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
@@ -122,33 +118,33 @@ _CONFIGURE_OPENCODE_IN_PAGE_JS = f"""(async () => {{
   }}
 }})()"""
 
-_SELECT_OPENCODE_PROVIDER_JS = f"""(() => {{
-  try {{
+_SELECT_OPENCODE_PROVIDER_JS = """(() => {
+  try {
     const buttons = Array.from(document.querySelectorAll('button, div[role="button"]'));
     const opencodeBtn = buttons.find((btn) => btn.textContent && btn.textContent.includes('OpenCode Go'));
-    if (opencodeBtn) {{
+    if (opencodeBtn) {
       opencodeBtn.click();
-      return {{ clicked: true }};
-    }}
-    return {{ clicked: false }};
-  }} catch (err) {{
-    return {{ clicked: false, err: String(err) }};
-  }}
-}})()"""
+      return { clicked: true };
+    }
+    return { clicked: false };
+  } catch (err) {
+    return { clicked: false, err: String(err) };
+  }
+})()"""
 
-_VERIFY_UI_RENDERED_STATE = f"""(() => {{
-  try {{
+_VERIFY_UI_RENDERED_STATE = """(() => {
+  try {
     const bodyText = document.body?.innerText || '';
     const hasOpenCode = bodyText.includes('OpenCode') || bodyText.includes('opencode');
-    return {{
+    return {
       ready: location.pathname.includes('/settings/models') && hasOpenCode,
       hasOpenCode,
       bodySnippet: bodyText.slice(0, 300),
-    }};
-  }} catch (err) {{
-    return {{ ready: false, err: String(err) }};
-  }}
-}})()"""
+    };
+  } catch (err) {
+    return { ready: false, err: String(err) };
+  }
+})()"""
 
 
 @pytest.mark.chrome_e2e(
