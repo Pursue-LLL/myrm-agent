@@ -110,23 +110,11 @@ class PolicyResolver:
         from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 
         if not should_respond:
-            asyncio.create_task(
-                ChannelDataPlaneService.record_inbound(msg, is_trigger=False)
-            )
-            self._context_buffer.append(
-                chat_id,
-                ContextEntry(
-                    sender_id=msg.sender_id,
-                    content=msg.content,
-                    timestamp=time.monotonic(),
-                    sender_name=msg.sender_name,
-                ),
-            )
+            asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=False))
+            self._context_buffer.append(chat_id, ContextEntry(sender_id=msg.sender_id, content=msg.content, timestamp=time.monotonic(), sender_name=msg.sender_name))
             return None
 
-        asyncio.create_task(
-            ChannelDataPlaneService.record_inbound(msg, is_trigger=True)
-        )
+        asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=True))
 
         # Clean thread-mute message from processing to prevent agent triggering on confirmations
         if cleaned == "___MUTE_CONFIRMED___":
@@ -343,18 +331,8 @@ class PolicyResolver:
             if pn:
                 user_id = await self._pairing.resolve(msg.channel, pn)
                 if user_id:
-                    await self._pairing.bind(
-                        msg.channel,
-                        msg.sender_id,
-                        user_id,
-                        display_name=msg.sender_name,
-                    )
-                    logger.warning(
-                        "PolicyResolver: LID auto-bound via verified mapping %s → %s (user=%s)",
-                        msg.sender_id,
-                        pn,
-                        user_id,
-                    )
+                    await self._pairing.bind(msg.channel, msg.sender_id, user_id, display_name=msg.sender_name)
+                    logger.warning("PolicyResolver: LID auto-bound via mapping %s → %s", msg.sender_id, pn)
                     return user_id
 
         if not allow_default_fallback or not self._policy:
@@ -363,14 +341,8 @@ class PolicyResolver:
         if not default_uid:
             return None
 
-        await self._pairing.bind(
-            msg.channel, msg.sender_id, default_uid, display_name=msg.sender_name
-        )
-        logger.warning(
-            "PolicyResolver: LID auto-bound to default user %s → %s (open policy)",
-            msg.sender_id,
-            default_uid,
-        )
+        await self._pairing.bind(msg.channel, msg.sender_id, default_uid, display_name=msg.sender_name)
+        logger.warning("PolicyResolver: LID auto-bound to default user %s → %s", msg.sender_id, default_uid)
         return default_uid
 
     async def _resolve_with_pairing(self, msg: InboundMessage) -> str | None:
@@ -380,9 +352,7 @@ class PolicyResolver:
             return user_id
 
         if msg.sender_id.endswith("@lid"):
-            user_id = await self._resolve_lid_fallback(
-                msg, allow_default_fallback=False
-            )
+            user_id = await self._resolve_lid_fallback(msg, allow_default_fallback=False)
             if user_id:
                 return user_id
 
@@ -398,16 +368,8 @@ class PolicyResolver:
         default_uid = ""
         if self._policy:
             default_uid = await self._policy.get_default_user_id() or ""
-        await self._pairing.bind(
-            msg.channel,
-            msg.sender_id,
-            default_uid,
-            status=PairingStatus.PENDING,
-            display_name=msg.sender_name,
-        )
-        logger.warning(
-            "PolicyResolver: auto-paired %s/%s as PENDING", msg.channel, msg.sender_id
-        )
+        await self._pairing.bind(msg.channel, msg.sender_id, default_uid, status=PairingStatus.PENDING, display_name=msg.sender_name)
+        logger.warning("PolicyResolver: auto-paired %s/%s as PENDING", msg.channel, msg.sender_id)
         await self._fx.send_pairing_request_reply(msg)
         self._cooldown.should_suppress(f"{msg.channel}:{msg.sender_id}")
         return None
@@ -415,6 +377,5 @@ class PolicyResolver:
     async def _rate_limited_pending_reply(self, msg: InboundMessage) -> None:
         """Send pending reply at most once per _PENDING_REPLY_COOLDOWN per sender."""
         key = f"{msg.channel}:{msg.sender_id}"
-        if self._cooldown.should_suppress(key):
-            return
-        await self._fx.send_pending_reply(msg)
+        if not self._cooldown.should_suppress(key):
+            await self._fx.send_pending_reply(msg)

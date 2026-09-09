@@ -275,7 +275,9 @@ async def mobile_spawn(body: MobileSpawnRequest, request: Request) -> dict[str, 
             await ProjectService.move_chat_to_project(chat_id, body.project_id)
 
     token = create_pairing_token(chat_id=chat_id, purpose=MOBILE_HUB_CONTROL_PURPOSE)
-    mobile_path = mobile_path_for_pairing_token(token=token, purpose=MOBILE_HUB_CONTROL_PURPOSE)
+    mobile_path = mobile_path_for_pairing_token(
+        token=token,
+        purpose=MOBILE_HUB_CONTROL_PURPOSE,
         chat_id=chat_id,
     )
     mobile_url = await mobile_url_for_path(mobile_path)
