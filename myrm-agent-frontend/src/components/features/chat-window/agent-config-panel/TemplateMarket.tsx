@@ -205,10 +205,12 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
         />
       </div>
 
-      <div className="flex items-center gap-1.5 px-1 overflow-x-auto no-scrollbar py-0.5">
+      <div role="tablist" aria-label={t('categoryFilter') || 'Categories'} className="flex items-center gap-1.5 px-1 overflow-x-auto no-scrollbar py-0.5">
         {categories.map((cat) => (
           <button
             key={cat.id}
+            role="tab"
+            aria-selected={selectedCategory === cat.id}
             type="button"
             onClick={() => setSelectedCategory(cat.id)}
             className={cn(
