@@ -60,6 +60,7 @@ class TemplateListItem(BaseModel):
     description: str | None = None
     avatar_url: str | None = None
     agent_type: str = "individual"
+    category: str | None = None
     is_pareto_preset: bool = False
     cost_reduction_ratio: float | None = None
     routing_config: dict[str, Any] | None = None
@@ -92,6 +93,28 @@ async def list_templates(request: Request) -> JSONResponse:
                     name = resolve_i18n(data.get("name"), accept_lang) or template_id
                     description = resolve_i18n(data.get("description"), accept_lang) if data.get("description") else None
                     agent_type = data.get("agent_type", "individual")
+                    category = data.get("category")
+                    if not category:
+                        if agent_type == "team":
+                            category = "team"
+                        elif template_id in (
+                            "frontend_development_expert",
+                            "web_crawler_expert",
+                            "ui_design_expert",
+                            "database_diagnostics_expert",
+                        ):
+                            category = "engineering"
+                        elif template_id in (
+                            "office_document_assistant",
+                            "hr_recruiter",
+                            "financial_analyst",
+                            "growth_operator",
+                            "admin_specialist",
+                            "competitor_analyst",
+                        ):
+                            category = "office"
+                        else:
+                            category = "general"
 
                     members: list[TeamMemberBrief] | None = None
                     use_cases: list[str] | None = None
@@ -110,6 +133,10 @@ async def list_templates(request: Request) -> JSONResponse:
                         raw_use_cases = data.get("use_cases", [])
                         if raw_use_cases:
                             use_cases = [resolve_i18n(uc, accept_lang) for uc in raw_use_cases]
+                    else:
+                        raw_suggestions = data.get("suggestion_prompts", [])
+                        if raw_suggestions:
+                            use_cases = [resolve_i18n(sp, accept_lang) for sp in raw_suggestions]
 
                     templates.append(
                         TemplateListItem(
@@ -118,6 +145,7 @@ async def list_templates(request: Request) -> JSONResponse:
                             description=description,
                             avatar_url=data.get("avatar_url"),
                             agent_type=agent_type,
+                            category=category,
                             is_pareto_preset=bool(data.get("is_pareto_preset", False)),
                             cost_reduction_ratio=float(data["cost_reduction_ratio"])
                             if data.get("cost_reduction_ratio") is not None
@@ -201,6 +229,7 @@ async def _instantiate_individual_template(data: dict[str, Any], template_id: st
     # Remove team-specific fields that don't apply to individual
     data.pop("members", None)
     data.pop("use_cases", None)
+    data.pop("category", None)
 
     # Process routing_config into model_selection if provided in template YAML
     if "routing_config" in data and not data.get("model_selection"):

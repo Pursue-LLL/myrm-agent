@@ -23,7 +23,7 @@ def test_sanitize_preview_text() -> None:
     cleaned = _sanitize_preview_text(raw, max_chars=20)
     assert len(cleaned) <= 23  # with '...'
     assert "\n" not in cleaned
-    assert "This is a long..." in cleaned
+    assert "This is a long messa..." == cleaned
 
 
 def test_build_outline_empty() -> None:
@@ -39,6 +39,8 @@ def test_build_outline_single_turn() -> None:
             chat_id="chat-123",
             role="user",
             content="Hello world, please help me analyze this architecture document.",
+            sent_at=now,
+            sent_timezone="UTC",
             created_at=now,
         ),
         MessageDTO(
@@ -46,6 +48,8 @@ def test_build_outline_single_turn() -> None:
             chat_id="chat-123",
             role="assistant",
             content="<think>\nAnalyzing the architecture...\n</think>\nSure! Here is the architecture analysis.",
+            sent_at=now,
+            sent_timezone="UTC",
             created_at=now,
         ),
     ]
@@ -71,6 +75,8 @@ def test_build_outline_multiturn_with_tools() -> None:
             chat_id="c-1",
             role="user",
             content="First question",
+            sent_at=now,
+            sent_timezone="UTC",
             created_at=now,
         ),
         MessageDTO(
@@ -78,6 +84,8 @@ def test_build_outline_multiturn_with_tools() -> None:
             chat_id="c-1",
             role="tool",
             content="Tool result content",
+            sent_at=now,
+            sent_timezone="UTC",
             created_at=now,
         ),
         MessageDTO(
@@ -85,6 +93,8 @@ def test_build_outline_multiturn_with_tools() -> None:
             chat_id="c-1",
             role="assistant",
             content="First reply",
+            sent_at=now,
+            sent_timezone="UTC",
             created_at=now,
         ),
         MessageDTO(
@@ -92,6 +102,8 @@ def test_build_outline_multiturn_with_tools() -> None:
             chat_id="c-1",
             role="user",
             content="Second question",
+            sent_at=now,
+            sent_timezone="UTC",
             created_at=now,
         ),
         MessageDTO(
@@ -99,6 +111,8 @@ def test_build_outline_multiturn_with_tools() -> None:
             chat_id="c-1",
             role="assistant",
             content="Second reply",
+            sent_at=now,
+            sent_timezone="UTC",
             created_at=now,
         ),
     ]

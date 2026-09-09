@@ -337,17 +337,14 @@ async def mobile_takeover_snapshot(
         raise HTTPException(status_code=401, detail="Invalid or expired pairing token")
 
     require_mobile_pair_chat_access(request, chat_id)
-
     from app.services.agent.browser_snapshot import (
         BrowserSnapshotUnavailableError,
         collect_browser_snapshot_payload,
     )
-
     try:
         payload = await collect_browser_snapshot_payload(session_id=chat_id)
     except BrowserSnapshotUnavailableError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
-
     return e2ee_success_response(request, data=payload)
 
 

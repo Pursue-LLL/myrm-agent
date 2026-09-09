@@ -36,7 +36,10 @@ from app.channels.protocols.pairing import (
 )
 from app.channels.routing.context_buffer import GroupContextBuffer
 from app.channels.routing.message_effects import MessageEffects
-from app.channels.routing.policy_resolver_support import BoundedCooldownMap, GroupFollowUpTracker
+from app.channels.routing.policy_resolver_support import (
+    BoundedCooldownMap,
+    GroupFollowUpTracker,
+)
 from app.channels.types import (
     METADATA_EXPLICIT_MENTION_KEY,
     METADATA_GUEST_TURN_KEY,
@@ -88,7 +91,9 @@ class PolicyResolver:
         policy = await self._get_group_policy(msg.channel)
 
         if policy == GroupPolicy.DISABLED:
-            logger.warning("PolicyResolver: group disabled for %s, ignoring", msg.channel)
+            logger.warning(
+                "PolicyResolver: group disabled for %s, ignoring", msg.channel
+            )
             return None
 
         enabled = await self._get_enabled_groups()
@@ -105,7 +110,9 @@ class PolicyResolver:
         from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 
         if not should_respond:
-            asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=False))
+            asyncio.create_task(
+                ChannelDataPlaneService.record_inbound(msg, is_trigger=False)
+            )
             self._context_buffer.append(
                 chat_id,
                 ContextEntry(
@@ -117,7 +124,9 @@ class PolicyResolver:
             )
             return None
 
-        asyncio.create_task(ChannelDataPlaneService.record_inbound(msg, is_trigger=True))
+        asyncio.create_task(
+            ChannelDataPlaneService.record_inbound(msg, is_trigger=True)
+        )
 
         # Clean thread-mute message from processing to prevent agent triggering on confirmations
         if cleaned == "___MUTE_CONFIRMED___":
@@ -141,7 +150,9 @@ class PolicyResolver:
                     guest_meta[METADATA_GUEST_TURN_KEY] = "1"
                     msg = dataclasses.replace(msg, metadata=guest_meta)
                 elif msg.thread_id:
-                    self._tracker.activate(f"{msg.channel}:{msg.chat_id}:{msg.thread_id}")
+                    self._tracker.activate(
+                        f"{msg.channel}:{msg.chat_id}:{msg.thread_id}"
+                    )
                 return default_uid, msg
 
         return None
@@ -161,12 +172,19 @@ class PolicyResolver:
         if policy == DmPolicy.OPEN:
             user_id = await self._pairing.resolve(msg.channel, msg.sender_id)
             if not user_id and msg.sender_id.endswith("@lid"):
-                user_id = await self._resolve_lid_fallback(msg, allow_default_fallback=False)
+                user_id = await self._resolve_lid_fallback(
+                    msg, allow_default_fallback=False
+                )
             if not user_id:
                 # Security Gate: Prevent silent privilege escalation to default_user_id (e.g. sandbox/admin).
                 # Unpaired senders in OPEN policy receive an isolated guest identity with zero execution privileges.
                 guest_uid = f"guest_{msg.channel}_{msg.sender_id}"
-                logger.info("PolicyResolver: Unpaired sender %s/%s assigned sandboxed guest identity %s", msg.channel, msg.sender_id, guest_uid)
+                logger.info(
+                    "PolicyResolver: Unpaired sender %s/%s assigned sandboxed guest identity %s",
+                    msg.channel,
+                    msg.sender_id,
+                    guest_uid,
+                )
                 user_id = guest_uid
         elif policy == DmPolicy.PAIRING:
             user_id = await self._resolve_with_pairing(msg)
@@ -194,9 +212,16 @@ class PolicyResolver:
     async def _touch_display_name(self, msg: InboundMessage) -> None:
         """Best-effort update of display_name when the sender's name changes."""
         try:
-            await self._pairing.touch_display_name(msg.channel, msg.sender_id, msg.sender_name or "")
+            await self._pairing.touch_display_name(
+                msg.channel, msg.sender_id, msg.sender_name or ""
+            )
         except Exception:
-            logger.debug("touch_display_name failed for %s/%s", msg.channel, msg.sender_id, exc_info=True)
+            logger.debug(
+                "touch_display_name failed for %s/%s",
+                msg.channel,
+                msg.sender_id,
+                exc_info=True,
+            )
 
     async def _should_respond_in_group(self, msg: InboundMessage) -> tuple[bool, str]:
         """Determine whether the bot should respond based on trigger config.
@@ -213,7 +238,11 @@ class PolicyResolver:
         # 2. Check for explicit mute command
         cleaned_content = msg.content.strip()
         if cleaned_content in ("/mute", "/shutup", "闭嘴", "别吵"):
-            thread_key = f"{msg.channel}:{msg.chat_id}:{msg.thread_id}" if msg.thread_id else None
+            thread_key = (
+                f"{msg.channel}:{msg.chat_id}:{msg.thread_id}"
+                if msg.thread_id
+                else None
+            )
             if thread_key and self._tracker.is_active(thread_key):
                 self._tracker.mute(thread_key)
                 # Send microsecond-level mute confirmation, bypassing LLM agents
@@ -253,7 +282,9 @@ class PolicyResolver:
             return await self._policy.get_group_policy(channel)
         return GroupPolicy.DISABLED
 
-    async def _get_group_trigger(self, channel: str) -> tuple[GroupTriggerMode, list[str]]:
+    async def _get_group_trigger(
+        self, channel: str
+    ) -> tuple[GroupTriggerMode, list[str]]:
         if self._policy:
             return await self._policy.get_group_trigger(channel)
         return GroupTriggerMode.MENTION_ONLY, []
@@ -280,7 +311,9 @@ class PolicyResolver:
             return user_id
 
         if msg.sender_id.endswith("@lid"):
-            user_id = await self._resolve_lid_fallback(msg, allow_default_fallback=False)
+            user_id = await self._resolve_lid_fallback(
+                msg, allow_default_fallback=False
+            )
             if user_id:
                 return user_id
 
@@ -289,7 +322,11 @@ class PolicyResolver:
             logger.warning("PolicyResolver: blocked %s/%s", msg.channel, msg.sender_id)
             return None
 
-        logger.warning("PolicyResolver: unpaired %s/%s (allowlist mode)", msg.channel, msg.sender_id)
+        logger.warning(
+            "PolicyResolver: unpaired %s/%s (allowlist mode)",
+            msg.channel,
+            msg.sender_id,
+        )
         return None
 
     async def _resolve_lid_fallback(
@@ -326,7 +363,9 @@ class PolicyResolver:
         if not default_uid:
             return None
 
-        await self._pairing.bind(msg.channel, msg.sender_id, default_uid, display_name=msg.sender_name)
+        await self._pairing.bind(
+            msg.channel, msg.sender_id, default_uid, display_name=msg.sender_name
+        )
         logger.warning(
             "PolicyResolver: LID auto-bound to default user %s → %s (open policy)",
             msg.sender_id,
@@ -341,7 +380,9 @@ class PolicyResolver:
             return user_id
 
         if msg.sender_id.endswith("@lid"):
-            user_id = await self._resolve_lid_fallback(msg, allow_default_fallback=False)
+            user_id = await self._resolve_lid_fallback(
+                msg, allow_default_fallback=False
+            )
             if user_id:
                 return user_id
 
@@ -364,7 +405,9 @@ class PolicyResolver:
             status=PairingStatus.PENDING,
             display_name=msg.sender_name,
         )
-        logger.warning("PolicyResolver: auto-paired %s/%s as PENDING", msg.channel, msg.sender_id)
+        logger.warning(
+            "PolicyResolver: auto-paired %s/%s as PENDING", msg.channel, msg.sender_id
+        )
         await self._fx.send_pairing_request_reply(msg)
         self._cooldown.should_suppress(f"{msg.channel}:{msg.sender_id}")
         return None

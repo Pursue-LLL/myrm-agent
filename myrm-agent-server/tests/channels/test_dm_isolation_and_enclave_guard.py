@@ -33,9 +33,15 @@ from app.channels.types import InboundMessage
 
 def test_routing_enclave_key_isolation() -> None:
     """Verify 4-tuple enclave keys provide strict isolation across tenants and profiles."""
-    key_user_a = routing_enclave_key("telegram", "user_123", tenant_id="tenant_x", agent_profile_id="agent_coder")
-    key_user_b = routing_enclave_key("telegram", "user_456", tenant_id="tenant_x", agent_profile_id="agent_coder")
-    key_agent_b = routing_enclave_key("telegram", "user_123", tenant_id="tenant_x", agent_profile_id="agent_writer")
+    key_user_a = routing_enclave_key(
+        "telegram", "user_123", tenant_id="tenant_x", agent_profile_id="agent_coder"
+    )
+    key_user_b = routing_enclave_key(
+        "telegram", "user_456", tenant_id="tenant_x", agent_profile_id="agent_coder"
+    )
+    key_agent_b = routing_enclave_key(
+        "telegram", "user_123", tenant_id="tenant_x", agent_profile_id="agent_writer"
+    )
 
     assert key_user_a != key_user_b
     assert key_user_a != key_agent_b
@@ -67,8 +73,16 @@ def test_is_learning_eligible_filtering() -> None:
     assert is_learning_eligible("/help") is False
     assert is_learning_eligible("!deploy prod") is False
     assert is_learning_eligible("#tag") is False
-    assert is_learning_eligible("Sentry: Error encountered in prod", sender_name="alertmanager") is False
-    assert is_learning_eligible("打卡提醒：今天请记得按时打卡", sender_name="提醒助手") is False
+    assert (
+        is_learning_eligible(
+            "Sentry: Error encountered in prod", sender_name="alertmanager"
+        )
+        is False
+    )
+    assert (
+        is_learning_eligible("打卡提醒：今天请记得按时打卡", sender_name="提醒助手")
+        is False
+    )
 
 
 @pytest.mark.asyncio
