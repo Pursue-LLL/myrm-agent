@@ -11341,7 +11341,7 @@
     "agentPlugin": "Agent Plugins 플러그인",
     "agentPluginDesc": "VS Code, Copilot, Kiro, Cursor 등 Agent Plugins 표준을 지원하는 클라이언트용 휴대형 플러그인입니다. 설정 파일을 직접 편집하지 않고 Myrm 장기 기억을 연결할 수 있습니다.",
     "agentPluginEmbedToken": "번들에 토큰 포함",
-    "agentPluginEmbedTokenHint": "끄기(권장): 번들이 환경 변수 MYRM_MCP_TOKEN에서 토큰을 읽어 버전 관리에 커밋해도 안전합니다(대부분의 클라이언트는 ${VAR}, VS Code·Cursor는 ${env:VAR} 사용). 켜기: 환경 변수를 지원하지 않는 클라이언트를 위해 토큰을 인라인합니다(언제든 취소 가능).",
+    "agentPluginEmbedTokenHint": "끄기(권장): 번들이 환경 변수 MYRM_MCP_TOKEN에서 토큰을 읽어 버전 관리에 커밋해도 안전합니다(대부분의 클라이언트는 $'{VAR}', VS Code·Cursor는 $'{env:VAR}' 사용). 켜기: 환경 변수를 지원하지 않는 클라이언트를 위해 토큰을 인라인합니다(언제든 취소 가능).",
     "agentPluginGenerate": "Agent Plugins 번들 생성",
     "agentPluginReady": "Agent Plugins 번들이 준비되었습니다",
     "pluginFile": "플러그인 파일",

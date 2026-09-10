@@ -11344,7 +11344,7 @@
     "agentPlugin": "Agent Plugins プラグイン",
     "agentPluginDesc": "VS Code、Copilot、Kiro、Cursor など Agent Plugins 標準に対応したクライアント向けの可搬型プラグイン。設定ファイルを手で編集せずに Myrm の長期記憶を接続できます。",
     "agentPluginEmbedToken": "トークンをプラグインに埋め込む",
-    "agentPluginEmbedTokenHint": "オフ（推奨）: プラグインは環境変数 MYRM_MCP_TOKEN からトークンを読み取るため、バージョン管理へのコミットも安全です（多くのクライアントは ${VAR}、VS Code と Cursor は ${env:VAR}）。オン: 環境変数に対応しないクライアント向けにトークンを埋め込みます（いつでも無効化可能）。",
+    "agentPluginEmbedTokenHint": "オフ（推奨）: プラグインは環境変数 MYRM_MCP_TOKEN からトークンを読み取るため、バージョン管理へのコミットも安全です（多くのクライアントは $'{VAR}'、VS Code と Cursor は $'{env:VAR}'）。オン: 環境変数に対応しないクライアント向けにトークンを埋め込みます（いつでも無効化可能）。",
     "agentPluginGenerate": "Agent Plugins プラグインを生成",
     "agentPluginReady": "Agent Plugins プラグインが準備できました",
     "pluginFile": "プラグインファイル",

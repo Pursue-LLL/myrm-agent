@@ -18208,7 +18208,7 @@
     "agentPlugin": "Agent Plugins",
     "agentPluginDesc": "One portable bundle for VS Code, Copilot, Kiro, Cursor, and other Agent Plugins clients. Attach Myrm memory without editing client config files.",
     "agentPluginEmbedToken": "Embed the token in the bundle",
-    "agentPluginEmbedTokenHint": "Off (recommended): the bundle reads MYRM_MCP_TOKEN from the environment — safe to commit to version control. Most clients read ${VAR}; VS Code and Cursor use ${env:VAR}. On: inline the token for clients that cannot interpolate (revocable anytime).",
+    "agentPluginEmbedTokenHint": "Off (recommended): the bundle reads MYRM_MCP_TOKEN from the environment — safe to commit to version control. Most clients read $'{VAR}'; VS Code and Cursor use $'{env:VAR}'. On: inline the token for clients that cannot interpolate (revocable anytime).",
     "agentPluginGenerate": "Generate Agent Plugins bundle",
     "agentPluginReady": "Agent Plugins bundle ready",
     "pluginFile": "Plugin file",

@@ -11344,7 +11344,7 @@
     "agentPlugin": "Agent-Plugins",
     "agentPluginDesc": "Ein portables Bundle für VS Code, Copilot, Kiro, Cursor und andere Agent-Plugins-Clients. Myrm-Speicher anbinden, ohne Client-Konfigurationsdateien zu bearbeiten.",
     "agentPluginEmbedToken": "Token in das Bundle einbetten",
-    "agentPluginEmbedTokenHint": "Aus (empfohlen): Das Bundle liest das Token aus der Umgebungsvariable MYRM_MCP_TOKEN und ist damit sicher für die Versionskontrolle. Die meisten Clients verwenden ${VAR}; VS Code und Cursor verwenden ${env:VAR}. An: Token für Clients einbetten, die keine Interpolation unterstützen (jederzeit widerrufbar).",
+    "agentPluginEmbedTokenHint": "Aus (empfohlen): Das Bundle liest das Token aus der Umgebungsvariable MYRM_MCP_TOKEN und ist damit sicher für die Versionskontrolle. Die meisten Clients verwenden $'{VAR}'; VS Code und Cursor verwenden $'{env:VAR}'. An: Token für Clients einbetten, die keine Interpolation unterstützen (jederzeit widerrufbar).",
     "agentPluginGenerate": "Agent-Plugins-Bundle generieren",
     "agentPluginReady": "Agent-Plugins-Bundle bereit",
     "pluginFile": "Plugin-Datei",
@@ -17580,8 +17580,7 @@
           "e2eeBadge": "E2EE-geschützt",
           "e2eeHint": "Mobile Verbindungen beinhalten eine Ende-zu-Ende-Verschlüsselung, wenn der Tunnel aktiv ist. Pair-Tokens und Live-Streams bleiben für das Tunnel-Relay unlesbar.",
           "e2eeAlgorithm": "Algorithmus",
-          "e2eeFingerprint": "Fingerabdruck"
-        },
+          "e2eeFingerprint": "Fingerabdru        },
         "tailscale": {
           "title": "Tailscale Zero-Trust-Fernzugriff",
           "badge": "Zero-Trust",

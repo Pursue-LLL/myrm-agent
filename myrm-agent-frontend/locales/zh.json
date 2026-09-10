@@ -18208,7 +18208,7 @@
     "agentPlugin": "Agent Plugins 插件",
     "agentPluginDesc": "一份便携插件，适用于 VS Code、Copilot、Kiro、Cursor 等支持 Agent Plugins 标准的客户端。无需手改配置文件即可接入 Myrm 长期记忆。",
     "agentPluginEmbedToken": "将 token 写入插件文件",
-    "agentPluginEmbedTokenHint": "关闭（推荐）：插件从环境变量 MYRM_MCP_TOKEN 读取 token，可安全提交到版本库（多数客户端支持 ${VAR}，VS Code/Cursor 用 ${env:VAR}）。开启：将 token 写入插件文件，供不支持环境变量的客户端使用（可随时撤销）。",
+    "agentPluginEmbedTokenHint": "关闭（推荐）：插件从环境变量 MYRM_MCP_TOKEN 读取 token，可安全提交到版本库（多数客户端支持 $'{VAR}'，VS Code/Cursor 用 $'{env:VAR}'）。开启：将 token 写入插件文件，供不支持环境变量的客户端使用（可随时撤销）。",
     "agentPluginGenerate": "生成 Agent Plugins 插件",
     "agentPluginReady": "Agent Plugins 插件已就绪",
     "pluginFile": "插件文件",

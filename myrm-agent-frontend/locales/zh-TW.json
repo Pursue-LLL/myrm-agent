@@ -11338,7 +11338,7 @@
     "agentPlugin": "Agent Plugins 外掛",
     "agentPluginDesc": "一份可攜式外掛，適用於 VS Code、Copilot、Kiro、Cursor 等支援 Agent Plugins 標準的用戶端。無需手動修改設定檔即可接入 Myrm 長期記憶。",
     "agentPluginEmbedToken": "將 token 寫入外掛檔案",
-    "agentPluginEmbedTokenHint": "關閉（推薦）：外掛從環境變數 MYRM_MCP_TOKEN 讀取 token，可安全提交到版本庫（多數用戶端支援 ${VAR}，VS Code/Cursor 用 ${env:VAR}）。開啟：將 token 寫入外掛檔案，供不支援環境變數的用戶端使用（可隨時撤銷）。",
+    "agentPluginEmbedTokenHint": "關閉（推薦）：外掛從環境變數 MYRM_MCP_TOKEN 讀取 token，可安全提交到版本庫（多數用戶端支援 $'{VAR}'，VS Code/Cursor 用 $'{env:VAR}'）。開啟：將 token 寫入外掛檔案，供不支援環境變數的用戶端使用（可隨時撤銷）。",
     "agentPluginGenerate": "產生 Agent Plugins 外掛",
     "agentPluginReady": "Agent Plugins 外掛已就緒",
     "pluginFile": "外掛檔案",
