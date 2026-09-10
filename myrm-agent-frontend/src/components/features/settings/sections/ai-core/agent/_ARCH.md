@@ -13,7 +13,7 @@
 | `AgentCapabilitiesTabSections.tsx`       | 能力 Tab 基础区段（模型绑定含 org MAP 约束 badge（hook refetch 同步）、ModelSwapContinuityCard 资产连续性保障与模型能力适配、路由覆盖/迭代/工作区/**IdleCompactSection** 等） |
 | `ModelSwapContinuityCard.tsx`            | 资产连续性保障与底层模型适配卡片（已绑定 Skills/MCP/Memory/Rules 100% 连续保留凭证、模型专属 Execution Discipline 行为纪律、Vision 兼容与上下文窗口感知）                     |
 | `AgentCapabilitiesConsensusSection.tsx`  | MoA overlay 参考模型选择器（`ConsensusRefModels`，供 MoaOverlaySection 复用）                                                                                                 |
-| `AgentCapabilitiesMoaOverlaySection.tsx` | Agent 环 MoA 顾问叠加配置（fanout / privacy / 参考模型）                                                                                                                      |
+| `AgentCapabilitiesMoaOverlaySection.tsx` | Agent 环 MoA 顾问叠加配置（fanout 包含 user_turn/per_iteration/every_n/risk_triggered 自适应风险触发 / privacy / 参考模型）                                                   |
 | `AgentCapabilitiesSessionSection.tsx`    | 会话策略区段                                                                                                                                                                  |
 | `AgentInstinctInboxTab.tsx`              | **Agent Draft Inbox（洞察 tab）**：审阅后台 growth `skill_draft`，走 `/skills/drafts` API                                                                                     |
 | `AgentSecretsTab.tsx`                    | Agent 级密钥；`listAgentSecrets` 经 service normalize 为 key 名列表；失败 toast 展示后端 detail；保存/删除成功后 invalidate readiness 缓存并 SWR mutate 即时刷新              |
