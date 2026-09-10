@@ -167,6 +167,7 @@ export function AgentPreviewCard({
           <div className="p-4 bg-muted/30 space-y-3">
             {!isReadonly && (
               <Button
+                data-testid="agent-save-button"
                 disabled={!hasChanges || saving}
                 onClick={onSave}
                 variant="outline"

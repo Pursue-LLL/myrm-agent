@@ -121,3 +121,87 @@ def test_moa_overlay_auto_reasoning_gate_ui_toggle() -> None:
             assert probe.get("ready") is True, json.dumps(probe, indent=2, ensure_ascii=False)
     finally:
         _delete_agent(api_url, agent_id)
+
+
+_SELECT_RISK_TRIGGERED_AND_SAVE_JS = """(() => {
+  const tab = document.querySelector('[data-testid="agent-tab-capabilities"]');
+  if (tab) tab.click();
+
+  const trigger = document.querySelector('[data-testid="moa-fanout-select-trigger"]');
+  if (!trigger) {
+    return { ok: false, reason: 'no-trigger' };
+  }
+  trigger.click();
+
+  return new Promise(resolve => setTimeout(() => {
+    const item = document.querySelector('[data-testid="moa-fanout-item-risk_triggered"]');
+    if (!item) {
+      return resolve({ ok: false, reason: 'no-risk_triggered-item' });
+    }
+    item.click();
+
+    setTimeout(() => {
+      const saveBtn = document.querySelector('[data-testid="agent-save-button"]');
+      if (!saveBtn) {
+        return resolve({ ok: false, reason: 'no-save-btn' });
+      }
+      saveBtn.click();
+      resolve({ ok: true });
+    }, 200);
+  }, 200));
+})()"""
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
+    workload="STANDARD",
+    private_reason="global_write_non_namespace",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_moa_overlay_risk_triggered_fanout_ui_select() -> None:
+    """Lane-B: MoA fanout select exposes risk_triggered option in WebUI, updates DB on save."""
+    import time
+    api_url = get_e2e_api_url()
+    prepare_e2e_ui_session(api_url)
+
+    name = f"moa-risk-e2e-{uuid.uuid4().hex[:8]}"
+    agent_id = _create_agent_with_moa(api_url, name=name)
+    try:
+        warm_ui_route("/settings")
+        edit_url = f"{get_e2e_ui_url().rstrip('/')}{_EDIT_URL}{agent_id}"
+        with open_settings_subroute(
+            edit_url.replace(get_e2e_ui_url().rstrip("/"), ""),
+            timeout_ms=120_000,
+        ) as (client, page):
+            client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+            dismiss_blocking_modals(client, page)
+
+            probe = wait_for_state(
+                client,
+                page,
+                _CAPABILITIES_MOA_PROBE_JS,
+                timeout_sec=_warm_ui_parallel_wait_sec(60.0),
+            )
+            assert probe.get("ready") is True, json.dumps(probe, indent=2, ensure_ascii=False)
+
+            res = client.evaluate(page, _SELECT_RISK_TRIGGERED_AND_SAVE_JS, timeout_sec=15.0)
+            assert isinstance(res, dict) and res.get("ok") is True, f"select/save failed: {res}"
+
+            deadline = time.monotonic() + 15.0
+            saved = False
+            last_moa: dict[str, object] = {}
+            while time.monotonic() < deadline:
+                agent_res = http_json("GET", f"{api_url}/api/v1/user-agents/{agent_id}")
+                data = (agent_res.get("data") or {}) if isinstance(agent_res, dict) else {}
+                ep = data.get("engine_params") or {}
+                last_moa = ep.get("moa_overlay") or {}
+                if last_moa.get("fanout") == "risk_triggered":
+                    saved = True
+                    break
+                time.sleep(0.5)
+            assert saved is True, f"fanout was not persisted as risk_triggered: {last_moa}"
+    finally:
+        _delete_agent(api_url, agent_id)
+

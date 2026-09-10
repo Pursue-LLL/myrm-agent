@@ -170,12 +170,12 @@ export function MoaOverlaySection({ editor, t }: SectionProps) {
                   value={(overlay.fanout as string) || 'user_turn'}
                   onValueChange={(v) => setOverlay({ fanout: v })}
                 >
-                  <SelectTrigger className="w-full mt-1 h-9 rounded-lg text-xs">
+                  <SelectTrigger data-testid="moa-fanout-select-trigger" className="w-full mt-1 h-9 rounded-lg text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {FANOUT_OPTIONS.map(({ value, labelKey }) => (
-                      <SelectItem key={value} value={value}>
+                      <SelectItem key={value} value={value} data-testid={`moa-fanout-item-${value}`}>
                         {t(`agent.${labelKey}`)}
                       </SelectItem>
                     ))}
