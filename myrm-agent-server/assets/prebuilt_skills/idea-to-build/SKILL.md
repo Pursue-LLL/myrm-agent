@@ -24,10 +24,18 @@ contract:
     - 3. Spec Review Gate Verification (Validate non-goals, measurable criteria, and scope boundaries)
     - 4. Single-File Agent Build Handoff (Emit standalone executable build prompt contract for downstream coding agents)
   potential_traps:
-    - Conflating product intent with coding implementation details prematurely
-    - Omitting explicit Non-Goals leading to scope creep and bloated agent implementations
-    - Generating untestable, vague acceptance criteria instead of verifiable physical assertions
-    - Providing fragmented instructions rather than a self-contained single-file handoff contract
+    - description: Conflating product intent with coding implementation details prematurely
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Omitting explicit Non-Goals leading to scope creep and bloated agent implementations
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Generating untestable, vague acceptance criteria instead of verifiable physical assertions
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Providing fragmented instructions rather than a self-contained single-file handoff contract
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Confirm all 5 staged spec artifacts exist or Lite contract is complete
     - Verify Spec Review Gate passes all 3 mandatory checks (Non-Goals, Acceptance Criteria, Separation)

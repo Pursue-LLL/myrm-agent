@@ -134,7 +134,13 @@ def _seed_wiki_citation_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_wiki_citation_button_survives_reload() -> None:
@@ -147,7 +153,7 @@ def test_wiki_citation_button_survives_reload() -> None:
 
     warm_ui_route(f"/{chat_id}")
     chat_url = f"{ui_url}/{chat_id}"
-    with open_mcp_page(chat_url) as (client, page):
+    with open_mcp_page(chat_url, timeout_ms=120_000) as (client, page):
         dismiss_blocking_modals(client, page)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         ensure_desktop_viewport(client, page)
@@ -223,7 +229,13 @@ def test_wiki_citation_button_survives_reload() -> None:
 
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_settings_wiki_agent_scope_deeplink() -> None:

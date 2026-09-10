@@ -20,7 +20,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -42,6 +44,30 @@ _WIKI_SOURCE_DIR = "meeting-notes"
 
 _FFPROBE_DURATION_RE = re.compile(r"duration=(\d+(?:\.\d+)?)")
 
+
+def _resolve_ffmpeg_binaries() -> tuple[str, str]:
+    """Resolve (ffmpeg, ffprobe) executables: env override -> PATH -> imageio-ffmpeg fallback.
+
+    imageio-ffmpeg ships only an ffmpeg binary; when falling back, both probe and
+    slice operations route through ffmpeg (no separate ffprobe available).
+    """
+    env_ffmpeg = os.environ.get("MYRM_FFMPEG_PATH")
+    if env_ffmpeg and Path(env_ffmpeg).is_file():
+        return env_ffmpeg, env_ffmpeg
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg:
+        ffprobe = shutil.which("ffprobe") or ffmpeg
+        return ffmpeg, ffprobe
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe(), imageio_ffmpeg.get_ffmpeg_exe()
+    except ImportError:
+        return "ffmpeg", "ffprobe"
+
+
+_FFMPEG_BIN, _FFPROBE_BIN = _resolve_ffmpeg_binaries()
+
 _SUMMARY_PROMPT_TEMPLATE = """You are a meeting-minutes extraction engine.
 Given the full transcript of a meeting, produce:
 1. A concise title (<=60 chars).
@@ -60,24 +86,22 @@ action_items (array of {{description, owner, due_hint}}). No markdown fences."""
 async def _probe_duration(path: Path) -> float:
     """Return audio duration in seconds via ffprobe (0.0 when unavailable)."""
     proc = await asyncio.create_subprocess_exec(
-        "ffprobe",
-        "-v",
-        "error",
-        "-show_entries",
-        "format=duration",
-        "-of",
-        "default=noprint_wrappers=1",
+        _FFMPEG_BIN,
+        "-i",
         str(path),
-        stdout=asyncio.subprocess.PIPE,
+        "-f",
+        "null",
+        "-",
+        stdout=asyncio.subprocess.DEVNULL,
         stderr=asyncio.subprocess.PIPE,
     )
-    stdout, _ = await proc.communicate()
-    for line in stdout.decode(errors="replace").splitlines():
-        if line.startswith("duration="):
-            try:
-                return float(line.split("=", 1)[1])
-            except ValueError:
-                return 0.0
+    _, stderr = await proc.communicate()
+    match = _FFPROBE_DURATION_RE.search(stderr.decode(errors="replace"))
+    if match:
+        try:
+            return float(match.group(1))
+        except ValueError:
+            return 0.0
     return 0.0
 
 
@@ -100,7 +124,7 @@ def _slice_one(path: Path, start: float, end: float, out_dir: Path, index: int) 
     out = out_dir / f"chunk_{index:03d}.mp3"
     subprocess.run(
         [
-            "ffmpeg",
+            _FFMPEG_BIN,
             "-y",
             "-ss",
             f"{start:.3f}",

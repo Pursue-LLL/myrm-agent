@@ -23,10 +23,18 @@ contract:
     - 3. Usage & Latency Ledger Tracking (Log tool invocation events, latency p95/p99, and token consumption)
     - 4. 30-Day Cost & Health Audit Dashboard (Generate structured audit reports with server health grades and recommendations)
   potential_traps:
-    - Allowing unmonitored MCP tool calls to hang indefinitely beyond system timeout limits
-    - Ingesting unbounded MCP return payloads that exhaust agent context windows
-    - Ignoring cascading failures when a downstream MCP server crashes or rate-limits
-    - Missing cost attribution when external third-party MCP APIs charge per-request fees
+    - description: Allowing unmonitored MCP tool calls to hang indefinitely beyond system timeout limits
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Ingesting unbounded MCP return payloads that exhaust agent context windows
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Ignoring cascading failures when a downstream MCP server crashes or rate-limits
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Missing cost attribution when external third-party MCP APIs charge per-request fees
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Confirm pre-call health probe correctly identifies offline or high-latency servers
     - Validate circuit breaker trips after 3 consecutive health probe failures

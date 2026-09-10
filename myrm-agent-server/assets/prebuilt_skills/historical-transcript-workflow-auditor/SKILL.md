@@ -27,10 +27,18 @@ contract:
     - 3. Systematically refactor subagent persona definitions in app/config/subagents/core/ (Phase 3: Persona Matrix Refactoring)
     - 4. Establish automated anti-regression invariants and simulated replay validation (Phase 4: Benchmarking & Hardening)
   potential_traps:
-    - Overfitting persona rules to a single isolated outlier session rather than systemic friction clusters
-    - Writing vague inspirational persona prompts instead of enforceable negative constraints
-    - Bloating subagent system prompts with excessive tokens that degrade context budget
-    - Failing to verify YAML syntax and subagent schema compatibility after refactoring
+    - description: Overfitting persona rules to a single isolated outlier session rather than systemic friction clusters
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Writing vague inspirational persona prompts instead of enforceable negative constraints
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Bloating subagent system prompts with excessive tokens that degrade context budget
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Failing to verify YAML syntax and subagent schema compatibility after refactoring
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Confirm failure clustering report contains quantified frequencies, error types, and root-cause files
     - Verify refactored subagent YAML configurations pass validation against SubagentConfig schema

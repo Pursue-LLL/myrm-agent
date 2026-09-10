@@ -19,7 +19,7 @@ tags:
   - 三层解耦
   - 非对称演化
   - 知识沉淀
-allowed-tools: wiki_ingest wiki_query wiki_apply file_read_tool file_write_tool
+allowed-tools: wiki_ingest_tool wiki_query_tool wiki_apply_tool file_read_tool file_write_tool
 contract:
   steps:
     - "Phase 1: Raw Trace Distillation — ingest multi-turn execution trajectory, filtering noise to extract verified domain discoveries and edge-case exceptions"

@@ -12,7 +12,9 @@ tags:
   - productivity
   - work-rhythm
 allowed-tools:
-  - kanban_manage_tool
+  - kanban_show
+  - kanban_add_task
+  - kanban_list_tasks
   - memory_save_tool
   - memory_search_tool
   - file_write_tool
@@ -36,7 +38,7 @@ This skill establishes a closed-loop productivity rhythm that connects:
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ Phase 1: Morning Focus (晨间定焦 · 08:30)                    │
-│ • Review active Kanban board via kanban_manage_tool          │
+│ • Review active Kanban board via kanban_show          │
 │ • Select 3 core MUST-WIN tasks for the day                   │
 └──────────────────────────────┬───────────────────────────────┘
                                │

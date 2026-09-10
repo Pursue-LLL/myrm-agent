@@ -26,10 +26,18 @@ contract:
     - 3. Audit patch against schema, safety boundaries, and logic consistency (Phase 3: Pre-flight Audit)
     - 4. Atomically write update to SKILL.md and trigger watcher hot-reload (Phase 4: In-place Hot-Reload)
   potential_traps:
-    - Modifying system-critical framework prompts instead of user-facing or prebuilt skill rules
-    - Expanding tool permissions beyond what the skill contract legitimately authorizes
-    - Corrupting YAML frontmatter syntax during in-place string or file replacement
-    - Introducing mutually contradictory rules that paralyze downstream agent decision-making
+    - description: Modifying system-critical framework prompts instead of user-facing or prebuilt skill rules
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Expanding tool permissions beyond what the skill contract legitimately authorizes
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Corrupting YAML frontmatter syntax during in-place string or file replacement
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Introducing mutually contradictory rules that paralyze downstream agent decision-making
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Confirm target SKILL.md exists and frontmatter parses cleanly without YAML errors
     - Verify added rule expresses an unambiguous operational constraint or error mitigation

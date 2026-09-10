@@ -83,6 +83,39 @@ function isEarlyRecoveryProgressStep(stepKey: string): boolean {
   );
 }
 
+function formatMoaTriggerReason(reason: unknown): string {
+  if (typeof reason !== 'string' || !reason) {
+    return '';
+  }
+  switch (reason) {
+    case 'consecutive_tool_failures':
+      return '执行自适应协同 · ';
+    case 'loop_guard_warning':
+      return '循环优化协同 · ';
+    case 'multi_tool_failures':
+      return '多维诊断协同 · ';
+    default:
+      return '协同决策 · ';
+  }
+}
+
+function formatMoaSkipReason(reason: unknown): string {
+  if (typeof reason !== 'string' || !reason) {
+    return '';
+  }
+  switch (reason) {
+    case 'risk_trigger_timeout':
+      return '协同超时回退';
+    case 'budget_pressure':
+      return 'Token预算保护';
+    case 'insufficient_refs':
+      return '参考模型未就绪';
+    default:
+      return String(reason);
+  }
+}
+
+
 export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): Promise<void> {
   const data = requireStatusStreamEvent(ctx.data);
   const { actions } = ctx;
@@ -128,8 +161,11 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
                 : stepKey === 'consensus_active' && data.data?.reference_models
                   ? `(${(data.data.reference_models as string[]).join(', ')})`
                   : stepKey === 'moa_overlay_active' && data.data?.reference_models
-                    ? `(${(data.data.reference_models as string[]).join(', ')})`
-                    : stepKey === 'consensus_reference_done' && data.data?.model
+                    ? `${formatMoaTriggerReason((data.data as Record<string, unknown>).trigger_reason)}(${(data.data.reference_models as string[]).join(', ')})`
+                  : stepKey === 'moa_overlay_skipped' && data.data?.reason
+                    ? `(${formatMoaSkipReason(data.data.reason)})`
+                  : stepKey === 'consensus_reference_done' && data.data?.model
+
                       ? `${data.data.model} (${data.data.success ? '✓' : '✗'} ${typeof data.data.elapsed === 'number' ? `${data.data.elapsed.toFixed(1)}s` : ''})`
                       : (stepKey === 'workflow_init' ||
                             stepKey === 'workflow_planning' ||

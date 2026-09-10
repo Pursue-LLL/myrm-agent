@@ -29,10 +29,18 @@ contract:
     - 4. Apply deterministic rewrite transformations (YAML AST/string replacement) for all approved fix rules
     - 5. Run post-migration validation test suite to ensure schema conformity and operational health
   potential_traps:
-    - In-place file modification without creating atomic rollback backups
-    - Aggressive syntax rewriting that destroys user-defined inline YAML comments or custom metadata
-    - Misinterpreting proprietary vendor extensions as standard deprecated fields
-    - Applying fixes while concurrent agent sessions are actively executing against the target skill
+    - description: In-place file modification without creating atomic rollback backups
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Aggressive syntax rewriting that destroys user-defined inline YAML comments or custom metadata
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Misinterpreting proprietary vendor extensions as standard deprecated fields
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Applying fixes while concurrent agent sessions are actively executing against the target skill
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Verify backup snapshot directory is successfully created and populated before any file writes
     - Ensure all transformed files parse as valid YAML/Markdown with zero syntax errors

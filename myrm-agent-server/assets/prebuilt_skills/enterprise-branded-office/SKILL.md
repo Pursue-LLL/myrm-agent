@@ -27,10 +27,18 @@ contract:
     - 3. Self-Contained Automation Scaffolding (Generate deterministic python-pptx, python-docx, and openpyxl generative snippets)
     - 4. Zero-Config Colleague Handoff Packaging (Bundle metadata, preflight rules, smoke prompt templates, and export as portable Skill)
   potential_traps:
-    - Embedding binary office files without code-level generative fallbacks
-    - Hardcoding absolute local font paths that fail on colleague machines
-    - Omitting compliance disclaimers or confidential watermarks mandated by corporate policy
-    - Generating cluttered slides violating 16:9 visual hierarchy and anti-text-wall standards
+    - description: Embedding binary office files without code-level generative fallbacks
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Hardcoding absolute local font paths that fail on colleague machines
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Omitting compliance disclaimers or confidential watermarks mandated by corporate policy
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Generating cluttered slides violating 16:9 visual hierarchy and anti-text-wall standards
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Confirm brand palette tokens, typography rules, and layout dimensions are fully specified
     - Validate generative code snippets run successfully in sandbox with python-pptx/docx/openpyxl

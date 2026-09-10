@@ -28,10 +28,18 @@ contract:
     - 4. Enforce the mandatory Spec Review Gate before coding commitments
     - 5. Synthesize a zero-ambiguity, single-file build handoff prompt package in 03_build_handoff.md and sync to kanban_add_task
   potential_traps:
-    - Prematurely writing low-level code before clarifying product scope and boundaries
-    - Omitting explicit out-of-scope declarations leading to uncontrolled scope creep
-    - Producing vague milestone tasks without concrete, testable acceptance criteria
-    - Generating an agent handoff document that still requires human architectural interpretation
+    - description: Prematurely writing low-level code before clarifying product scope and boundaries
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Omitting explicit out-of-scope declarations leading to uncontrolled scope creep
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Producing vague milestone tasks without concrete, testable acceptance criteria
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Generating an agent handoff document that still requires human architectural interpretation
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Confirm staged artifacts are sequentially authored into the deliverable tree
     - Verify product thinking (What/Why) is strictly isolated from technical implementation (How)

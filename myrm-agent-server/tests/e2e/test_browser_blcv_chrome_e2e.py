@@ -34,31 +34,35 @@ _BRIDGE_READY_JS = """(() => ({
 def _seed_blcv_chat(api_url: str) -> str:
     chat_id = f"e2e-blvc-{uuid.uuid4().hex[:12]}"
     created_at = datetime.now(UTC).replace(microsecond=0).isoformat()
-    http_json(
-        "POST",
-        f"{api_url.rstrip('/')}/api/v1/chats/",
-        {
-            "chat_id": chat_id,
-            "title": "E2E BLCV Chat",
-            "action_mode": "agent",
-            "messages": [
-                {
-                    "messageId": f"e2e-blvc-user-{uuid.uuid4().hex[:8]}",
-                    "chatId": chat_id,
-                    "role": "user",
-                    "content": "BLCV isolation probe",
-                    "createdAt": created_at,
-                },
-                {
-                    "messageId": f"e2e-blvc-assistant-{uuid.uuid4().hex[:8]}",
-                    "chatId": chat_id,
-                    "role": "assistant",
-                    "content": "BLCV ready",
-                    "createdAt": created_at,
-                },
-            ],
-        },
-    )
+    payload = {
+        "chat_id": chat_id,
+        "title": "E2E BLCV Chat",
+        "action_mode": "agent",
+        "messages": [
+            {
+                "messageId": f"e2e-blvc-user-{uuid.uuid4().hex[:8]}",
+                "chatId": chat_id,
+                "role": "user",
+                "content": "BLCV isolation probe",
+                "createdAt": created_at,
+            },
+            {
+                "messageId": f"e2e-blvc-assistant-{uuid.uuid4().hex[:8]}",
+                "chatId": chat_id,
+                "role": "assistant",
+                "content": "BLCV ready",
+                "createdAt": created_at,
+            },
+        ],
+    }
+    targets = {api_url.rstrip("/")}
+    shared_8080 = "http://127.0.0.1:8080"
+    targets.add(shared_8080)
+    for target in targets:
+        try:
+            http_json("POST", f"{target}/api/v1/chats/", payload)
+        except Exception:
+            pass
     return chat_id
 
 

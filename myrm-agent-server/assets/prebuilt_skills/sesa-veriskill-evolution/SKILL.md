@@ -28,10 +28,18 @@ contract:
     - 4. Calculate Net Help-Hurt score: Delta = Help_Count - Hurt_Count across the benchmark
     - 5. Admit candidate patch into authoritative skill asset only if Delta > 0 and regression rate is 0%
   potential_traps:
-    - Overfitting on transient external environment failures (e.g. HTTP 429/500) and corrupting stable skills
-    - Merging candidate patches that resolve a single edge case but break existing standard workflows
-    - Allowing self-evolution to bloat skill prompts beyond context efficiency limits
-    - Silently mutating skill files without keeping versioned diff logs and rollback snapshots
+    - description: Overfitting on transient external environment failures (e.g. HTTP 429/500) and corrupting stable skills
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Merging candidate patches that resolve a single edge case but break existing standard workflows
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Allowing self-evolution to bloat skill prompts beyond context efficiency limits
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Silently mutating skill files without keeping versioned diff logs and rollback snapshots
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Verify 4-way attribution log exists and explicitly rules out environmental/user prompt issues
     - Confirm Help-Hurt benchmark score produces Delta > 0 with zero broken regression cases

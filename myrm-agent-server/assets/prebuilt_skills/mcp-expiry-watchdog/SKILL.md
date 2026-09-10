@@ -26,10 +26,18 @@ contract:
     - 3. Trigger pre-flight silent token refresh for refreshable credentials (Phase 3: Silent Refresh)
     - 4. Output structured HITL re-authentication prompt cards for expired credentials (Phase 4: HITL Alerting)
   potential_traps:
-    - Waiting until an MCP tool call throws a 401 error before attempting token renewal
-    - Printing raw secret tokens, client secrets, or private keys into conversation logs
-    - Blocking unaffected tools when only a single optional MCP server credential has expired
-    - Falsely reporting an active token as expired due to local vs UTC system clock skew
+    - description: Waiting until an MCP tool call throws a 401 error before attempting token renewal
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Printing raw secret tokens, client secrets, or private keys into conversation logs
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Blocking unaffected tools when only a single optional MCP server credential has expired
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Falsely reporting an active token as expired due to local vs UTC system clock skew
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Confirm all registered OAuth issuers and their expires_at timestamps are evaluated
     - Verify clock-skew safety buffer (minimum 15-minute threshold) is enforced

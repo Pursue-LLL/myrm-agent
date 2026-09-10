@@ -18,12 +18,15 @@ import { ScanSearch } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import useBrowserInspectorStore, { selectScopedBrowserViewData } from '@/store/useBrowserInspectorStore';
 import useChatStore from '@/store/useChatStore';
+import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
 
 const BrowserInspectorToggle: React.FC = () => {
   const t = useTranslations('chat.browserInspector');
-  const { isBrowserActive, isOpen, togglePanel, viewData, terminalViewData } = useBrowserInspectorStore();
+  const { isBrowserActive, isOpen, togglePanel, closePanel, viewData, terminalViewData } = useBrowserInspectorStore();
   const chatId = useChatStore((state) => state.chatId?.trim() ?? '');
   const [isHovered, setIsHovered] = useState(false);
+
+  useClosePanelOnChatSwitch(chatId, isOpen, closePanel);
 
   const effectiveViewData = viewData ?? terminalViewData;
   const scopedViewData = selectScopedBrowserViewData(effectiveViewData, chatId);

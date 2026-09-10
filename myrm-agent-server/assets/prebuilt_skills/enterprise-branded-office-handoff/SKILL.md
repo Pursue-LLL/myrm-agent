@@ -26,10 +26,18 @@ contract:
     - 3. Generate colleague handoff manifest with one-click verification and smoke prompts
     - 4. Output handoff checklist and verify zero host-dependency execution
   potential_traps:
-    - Hardcoding absolute local file paths into the skill package
-    - Requiring colleagues to install host Office software or system fonts
-    - Omitting brand VI color codes or thesis headline guidelines
-    - Failing to sanitize confidential company data from the sample templates
+    - description: Hardcoding absolute local file paths into the skill package
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Requiring colleagues to install host Office software or system fonts
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Omitting brand VI color codes or thesis headline guidelines
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Failing to sanitize confidential company data from the sample templates
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Confirm the packaged skill generates standard Office deliverables in a clean sandbox
     - Verify handoff manifest includes copy-paste ready starter prompts

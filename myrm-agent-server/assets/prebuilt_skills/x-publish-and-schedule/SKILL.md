@@ -27,10 +27,18 @@ contract:
     - 4. Access X web interface via browser automation or schedule draft via date/time picker
     - 5. Verify published tweet URL or scheduled status in X queue and record closure receipt
   potential_traps:
-    - Publishing without explicit user confirmation of final copy and tags
-    - Silent truncation of tweets exceeding standard 280 unicode characters
-    - Account lockouts or bot challenges triggered by aggressive non-human browser interactions
-    - Misconfigured timezone leading to posts firing at incorrect scheduled hours
+    - description: Publishing without explicit user confirmation of final copy and tags
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Silent truncation of tweets exceeding standard 280 unicode characters
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Account lockouts or bot challenges triggered by aggressive non-human browser interactions
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Misconfigured timezone leading to posts firing at incorrect scheduled hours
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Ensure HITL confirmation was obtained before clicking final 'Post' or 'Schedule' button
     - Verify post URL is accessible or scheduled entry appears in X Scheduled Posts drawer

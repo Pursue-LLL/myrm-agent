@@ -23,8 +23,12 @@ contract:
     - 3. Check for architectural advantages (sandbox security, WYSIWYG, zero external CDN)
     - 4. Provide turnkey prompt and activation guidance
   potential_traps:
-    - Confusing framework-level tools with user-level skills
-    - Expecting external CDN dependencies inside sandboxed HTML artifacts
+    - description: Confusing framework-level tools with user-level skills
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Expecting external CDN dependencies inside sandboxed HTML artifacts
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Verify target skill exists in assets/prebuilt_skills/
     - Confirm permissions and allowed tools align with security presets

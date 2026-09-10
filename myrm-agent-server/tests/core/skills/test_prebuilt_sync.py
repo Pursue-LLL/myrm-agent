@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
-import re
 import sys
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from myrm_agent_harness.backends.skills._utils import SkillMetadataError, parse_skill_frontmatter
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 from myrm_agent_harness.toolkits.storage.paths import (
     SKILL_METADATA_FILE,
@@ -39,10 +39,14 @@ def _iter_prebuilt_seed_allowed_tools() -> list[tuple[str, list[str]]]:
         skill_md = skill_dir / "SKILL.md"
         if not skill_dir.is_dir() or not skill_md.exists():
             continue
-        match = re.search(r"^allowed-tools:\s*(.+)$", skill_md.read_text(encoding="utf-8"), re.MULTILINE)
-        if match is None:
+        text = skill_md.read_text(encoding="utf-8")
+        try:
+            frontmatter = parse_skill_frontmatter(text, skill_dir.name)
+        except SkillMetadataError:
             continue
-        entries.append((skill_dir.name, match.group(1).split()))
+        if not frontmatter.allowed_tools:
+            continue
+        entries.append((skill_dir.name, frontmatter.allowed_tools.split()))
     return entries
 
 

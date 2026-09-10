@@ -23,10 +23,18 @@ contract:
     - 3. Role Specialization & Persona Matrix Synthesis (Decompose monolithic tasks into SRP subagents with precise tool boundaries)
     - 4. Production Agent Spec Compilation (Export standardized subagent YAML profiles and inter-agent handoff contracts)
   potential_traps:
-    - Retaining fat monolithic agents that attempt planning, coding, and testing in a single bloated system prompt
-    - Granting unrestricted tool access to subagents instead of enforcing minimal necessary privilege boundaries
-    - Omitting explicit handoff payload schemas causing silent state loss between collaborating subagents
-    - Over-fragmenting workflows into trivial 1-line subagents creating severe orchestration latency overhead
+    - description: Retaining fat monolithic agents that attempt planning, coding, and testing in a single bloated system prompt
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Granting unrestricted tool access to subagents instead of enforcing minimal necessary privilege boundaries
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Omitting explicit handoff payload schemas causing silent state loss between collaborating subagents
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Over-fragmenting workflows into trivial 1-line subagents creating severe orchestration latency overhead
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Verify all diagnostic metrics include failure frequencies, retry counts, and tool confusion rates
     - Confirm synthesized subagent profiles define explicit In-Scope and Out-of-Scope boundaries

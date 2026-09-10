@@ -23,10 +23,18 @@ contract:
     - 3. Silent Refresh & Interactive Reauth Orchestration (Trigger silent OAuth refresh token grant or emit structured Reauth Card)
     - 4. Post-Refresh Health Verification (Execute secondary ping handshake to confirm credential renewal before resuming tasks)
   potential_traps:
-    - Blindly continuing long-running multi-turn workflows when credentials expire within minutes
-    - Triggering full interactive reauth popups when silent background token refresh via refresh_token is possible
-    - Silently dropping failed reauth attempts leading to confusing HTTP 401 exceptions mid-task
-    - Leaking refreshed secret tokens or API keys into markdown outputs or unencrypted terminal logs
+    - description: Blindly continuing long-running multi-turn workflows when credentials expire within minutes
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Triggering full interactive reauth popups when silent background token refresh via refresh_token is possible
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Silently dropping failed reauth attempts leading to confusing HTTP 401 exceptions mid-task
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
+    - description: Leaking refreshed secret tokens or API keys into markdown outputs or unencrypted terminal logs
+      mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
+      severity: medium
   verification_steps:
     - Verify credential watchdog accurately detects near-expiry tokens (< 1 hour remaining)
     - Validate blocking gate halts agent execution before firing expired MCP tool requests
