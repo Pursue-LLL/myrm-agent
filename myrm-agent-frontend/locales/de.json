@@ -17580,7 +17580,8 @@
           "e2eeBadge": "E2EE-geschützt",
           "e2eeHint": "Mobile Verbindungen beinhalten eine Ende-zu-Ende-Verschlüsselung, wenn der Tunnel aktiv ist. Pair-Tokens und Live-Streams bleiben für das Tunnel-Relay unlesbar.",
           "e2eeAlgorithm": "Algorithmus",
-          "e2eeFingerprint": "Fingerabdru        },
+          "e2eeFingerprint": "Fingerabdruck"
+        },
         "tailscale": {
           "title": "Tailscale Zero-Trust-Fernzugriff",
           "badge": "Zero-Trust",
