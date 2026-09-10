@@ -1545,8 +1545,8 @@ export function WikiSection() {
                               : null;
                             const cardTitle = snippet.name || snippet.path;
                             const sectionLabel = resolveWikiSectionLabel(snippet.section || undefined, tSources);
-                            const thumbnailUrl = isAssetHit
-                              ? buildWikiAssetUrl(snippet.asset_filename!, agentScopeId)
+                            const thumbnailUrl = isAssetHit && snippet.asset_filename
+                              ? buildWikiAssetUrl(snippet.asset_filename, agentScopeId)
                               : null;
                             return (
                               <button
