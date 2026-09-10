@@ -15,8 +15,8 @@ import uuid
 
 import httpx
 import pytest
-
 from cdp_chat.support import wait_e2e_provider_ready
+
 from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     http_json,
