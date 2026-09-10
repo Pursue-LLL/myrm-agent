@@ -393,6 +393,10 @@ const MemoryKnowledgeGraph = memo<MemoryKnowledgeGraphProps>(({ className, initi
               graphData={filteredData}
               width={dimensions.width}
               height={dimensions.height}
+              d3VelocityDecay={0.55}
+              d3AlphaDecay={0.028}
+              d3AlphaMin={0.001}
+              warmupTicks={60}
               nodeCanvasObject={nodeCanvasObject}
               nodePointerAreaPaint={(node: unknown, color: string, ctx: CanvasRenderingContext2D) => {
                 const graphNode = node as ForceNode;

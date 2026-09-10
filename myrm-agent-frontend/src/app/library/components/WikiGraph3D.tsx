@@ -63,11 +63,6 @@ const GROUP_COLORS = [
 
 const getGroupColor = (group: number) => GROUP_COLORS[group % GROUP_COLORS.length];
 
-export interface WikiGraph3DHandle {
-  focusNode: (nodeId: string) => void;
-  resetView: () => void;
-}
-
 export default function WikiGraph3D({
   agentId,
   selectedNodeId,
@@ -219,6 +214,24 @@ export default function WikiGraph3D({
               links: Array.from(linkMap.values()),
             };
           });
+          // Camera smooth focus: glide toward clicked node after neighborhood expansion
+          requestAnimationFrame(() => {
+            const fg = fgRef.current;
+            const target = fg?.graphData()?.nodes.find((n: GraphNode) => n.id === center);
+            if (fg && target && Number.isFinite(target.x)) {
+              const camDist = 140 + Math.min(260, Math.sqrt(target.val || 1) * 140);
+              const lookAt = { x: target.x, y: target.y, z: target.z || 0 };
+              fg.cameraPosition(
+                {
+                  x: lookAt.x + camDist * 0.62,
+                  y: lookAt.y + camDist * 0.5,
+                  z: lookAt.z + camDist * 0.62,
+                },
+                lookAt,
+                900,
+              );
+            }
+          });
         }
       } catch (err) {
         console.error('Failed to fetch neighborhood:', err);
@@ -275,6 +288,11 @@ export default function WikiGraph3D({
             graphData={data}
             width={dimensions.width}
             height={dimensions.height}
+            d3VelocityDecay={0.55}
+            d3AlphaDecay={0.0228}
+            d3AlphaMin={0.001}
+            cooldownTicks={Infinity}
+            warmupTicks={80}
             nodeLabel="name"
             nodeColor={(node) => {
               const n = node as GraphNode;
