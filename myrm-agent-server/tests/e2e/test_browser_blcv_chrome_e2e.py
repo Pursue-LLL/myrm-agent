@@ -262,7 +262,7 @@ def test_blcv_edge_cases_switch_chat_and_desktop_approval_in_real_ui() -> None:
             page_url=f"{ui_url.rstrip('/')}/",
         )
 
-        step1_js = f"""(async () => {{
+        step1a_js = f"""(async () => {{
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.attachToChat || !bridge.simulateBrowserViewUpdate || !bridge.getBrowserInspectorSnapshot) {{
     return {{ ready: false, reason: 'missing-bridge' }};
@@ -271,57 +271,84 @@ def test_blcv_edge_cases_switch_chat_and_desktop_approval_in_real_ui() -> None:
   const inject = await bridge.simulateBrowserViewUpdate({json.dumps(chat_b)});
   if (!inject?.ok) return {{ ready: false, reason: 'inject-failed', inject }};
   const snap1 = bridge.getBrowserInspectorSnapshot();
-  if (!snap1?.hasScreenshot || snap1?.scopedHasScreenshot) {{
-    return {{ ready: false, reason: 'step1-failed', snap1 }};
-  }}
-  await bridge.attachToChat({json.dumps(chat_b)});
-  const snap2 = bridge.getBrowserInspectorSnapshot();
-  if (!snap2?.scopedHasScreenshot || snap2?.sourceChatId !== {json.dumps(chat_b)}) {{
-    return {{ ready: false, reason: 'step2-failed', snap2 }};
-  }}
-  return {{ ready: true, snap1, snap2 }};
+  const ready = snap1?.hasScreenshot === true && snap1?.scopedHasScreenshot === false;
+  return {{ ready, snap1 }};
 }})()"""
 
-        step2_js = f"""(async () => {{
+        step1b_js = f"""(async () => {{
   const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.attachToChat || !bridge.simulateBrowserToolStart || !bridge.getBrowserInspectorSnapshot) {{
+  if (!bridge?.getBrowserInspectorSnapshot) {{
     return {{ ready: false, reason: 'missing-bridge' }};
   }}
-  await bridge.attachToChat({json.dumps(chat_a)});
+  if (bridge.pokeChatRouteRender) {{
+    bridge.pokeChatRouteRender({json.dumps(chat_b)});
+  }} else if (bridge.attachToChat) {{
+    await bridge.attachToChat({json.dumps(chat_b)});
+  }}
+  const snap2 = bridge.getBrowserInspectorSnapshot();
+  const ready = snap2?.scopedHasScreenshot === true && snap2?.sourceChatId === {json.dumps(chat_b)};
+  return {{ ready, snap2 }};
+}})()"""
+
+        step2a_js = f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.simulateBrowserToolStart || !bridge.getBrowserInspectorSnapshot) {{
+    return {{ ready: false, reason: 'missing-bridge' }};
+  }}
+  if (bridge.pokeChatRouteRender) {{
+    bridge.pokeChatRouteRender({json.dumps(chat_a)});
+  }} else if (bridge.attachToChat) {{
+    await bridge.attachToChat({json.dumps(chat_a)});
+  }}
   const toolStart = await bridge.simulateBrowserToolStart({json.dumps(chat_a)});
   if (!toolStart?.ok) return {{ ready: false, reason: 'tool-start-failed', toolStart }};
   const snapOpen = bridge.getBrowserInspectorSnapshot();
-  if (!snapOpen?.isOpen) {{
-    return {{ ready: false, reason: 'panel-not-open', snapOpen }};
+  return {{ ready: Boolean(snapOpen?.isOpen), snapOpen }};
+}})()"""
+
+        step2b_js = f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.getBrowserInspectorSnapshot) {{
+    return {{ ready: false, reason: 'missing-bridge' }};
   }}
-  await bridge.attachToChat({json.dumps(chat_b)});
+  if (bridge.pokeChatRouteRender) {{
+    bridge.pokeChatRouteRender({json.dumps(chat_b)});
+  }} else if (bridge.attachToChat) {{
+    await bridge.attachToChat({json.dumps(chat_b)});
+  }}
   let closed = false;
   for (let i = 0; i < 30; i++) {{
+    await new Promise((r) => setTimeout(r, 50));
     const s = bridge.getBrowserInspectorSnapshot();
     if (!s?.isOpen) {{
       closed = true;
       break;
     }}
-    await new Promise((r) => setTimeout(r, 100));
   }}
   const snapClose = bridge.getBrowserInspectorSnapshot();
-  if (!closed || snapClose?.isOpen) {{
-    return {{ ready: false, reason: 'panel-close-failed', snapClose }};
-  }}
-  return {{ ready: true, snapOpen, snapClose }};
+  return {{ ready: closed && snapClose?.isOpen === false, snapClose }};
 }})()"""
 
-        step3_js = f"""(async () => {{
+        step3a_js = f"""(async () => {{
   const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.attachToChat || !bridge.simulateDesktopControlApprovalRequest || !bridge.getDesktopInspectorSnapshot) {{
+  if (!bridge?.simulateDesktopControlApprovalRequest || !bridge.getDesktopInspectorSnapshot) {{
     return {{ ready: false, reason: 'missing-bridge' }};
   }}
-  await bridge.attachToChat({json.dumps(chat_a)});
+  if (bridge.pokeChatRouteRender) {{
+    bridge.pokeChatRouteRender({json.dumps(chat_a)});
+  }} else if (bridge.attachToChat) {{
+    await bridge.attachToChat({json.dumps(chat_a)});
+  }}
   await bridge.simulateDesktopControlApprovalRequest({json.dumps(chat_b)});
   await new Promise((r) => setTimeout(r, 100));
   const deskBg = bridge.getDesktopInspectorSnapshot();
-  if (deskBg?.isOpen) {{
-    return {{ ready: false, reason: 'desktop-bg-opened', deskBg }};
+  return {{ ready: deskBg?.isOpen === false, deskBg }};
+}})()"""
+
+        step3b_js = f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.simulateDesktopControlApprovalRequest || !bridge.getDesktopInspectorSnapshot) {{
+    return {{ ready: false, reason: 'missing-bridge' }};
   }}
   await bridge.simulateDesktopControlApprovalRequest({json.dumps(chat_a)});
   let opened = false;
@@ -334,17 +361,24 @@ def test_blcv_edge_cases_switch_chat_and_desktop_approval_in_real_ui() -> None:
     await new Promise((r) => setTimeout(r, 100));
   }}
   const deskFg = bridge.getDesktopInspectorSnapshot();
-  if (!opened || !deskFg?.isOpen) {{
-    return {{ ready: false, reason: 'desktop-fg-failed', deskFg }};
-  }}
-  return {{ ready: true, deskBg, deskFg }};
+  return {{ ready: opened && Boolean(deskFg?.isOpen), deskFg }};
 }})()"""
 
-        res1 = wait_for_state(client, page, step1_js, timeout_sec=45.0)
-        assert res1.get("ready") is True, res1
+        res1a = wait_for_state(client, page, step1a_js, timeout_sec=45.0)
+        assert res1a.get("ready") is True, res1a
 
-        res2 = wait_for_state(client, page, step2_js, timeout_sec=45.0)
-        assert res2.get("ready") is True, res2
+        res1b = wait_for_state(client, page, step1b_js, timeout_sec=45.0)
+        assert res1b.get("ready") is True, res1b
 
-        res3 = wait_for_state(client, page, step3_js, timeout_sec=45.0)
-        assert res3.get("ready") is True, res3
+        res2a = wait_for_state(client, page, step2a_js, timeout_sec=45.0)
+        assert res2a.get("ready") is True, res2a
+
+        res2b = wait_for_state(client, page, step2b_js, timeout_sec=45.0)
+        assert res2b.get("ready") is True, res2b
+
+        res3a = wait_for_state(client, page, step3a_js, timeout_sec=45.0)
+        assert res3a.get("ready") is True, res3a
+
+        res3b = wait_for_state(client, page, step3b_js, timeout_sec=45.0)
+        assert res3b.get("ready") is True, res3b
+

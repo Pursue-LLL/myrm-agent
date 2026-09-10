@@ -5,6 +5,10 @@ import DesktopControlApprovalOverlay from '@/components/features/desktop-inspect
 import SubagentDashboard from './subagent/SubagentDashboard';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import useChatStore from '@/store/useChatStore';
+import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChatSwitch';
+import useBrowserInspectorStore from '@/store/useBrowserInspectorStore';
+import useDesktopInspectorStore from '@/store/useDesktopInspectorStore';
+import useDeviceInspectorStore from '@/store/useDeviceInspectorStore';
 
 const VisualDesktopToggle = dynamic(
   () =>
@@ -135,6 +139,21 @@ export default function ChatWindowSatellites({
   const recoveryDialogOpen = useChatStore((s) => s.recoveryDialogOpen);
   const recoveryAgentId = useChatStore((s) => s.recoveryAgentId);
   const closeRecoveryDialog = useChatStore((s) => s.closeRecoveryDialog);
+
+  const storeChatId = useChatStore((s) => s.chatId?.trim() ?? '');
+  const effectiveChatId = storeChatId || chatId?.trim() || '';
+
+  const isBrowserInspectorOpen = useBrowserInspectorStore((s) => s.isOpen);
+  const closeBrowserInspector = useBrowserInspectorStore((s) => s.closePanel);
+  useClosePanelOnChatSwitch(effectiveChatId, isBrowserInspectorOpen, closeBrowserInspector);
+
+  const isDesktopInspectorOpen = useDesktopInspectorStore((s) => s.isOpen);
+  const closeDesktopInspector = useDesktopInspectorStore((s) => s.closePanel);
+  useClosePanelOnChatSwitch(effectiveChatId, isDesktopInspectorOpen, closeDesktopInspector);
+
+  const isDeviceInspectorOpen = useDeviceInspectorStore((s) => s.isOpen);
+  const closeDeviceInspector = useDeviceInspectorStore((s) => s.closePanel);
+  useClosePanelOnChatSwitch(effectiveChatId, isDeviceInspectorOpen, closeDeviceInspector);
 
   return (
     <>
