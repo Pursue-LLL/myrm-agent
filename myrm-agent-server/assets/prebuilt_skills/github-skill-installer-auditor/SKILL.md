@@ -17,6 +17,11 @@ allowed-tools:
 
 # GitHub URL Zero-Config Dynamic Skill Installer & Sandbox Auditor (GitHub 技能零配置动态安装与沙箱审计技能)
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 A dedicated infrastructure skill for safely importing, auditing, and dynamically mounting third-party skills directly from public or private GitHub repository URLs (e.g. `https://github.com/org/repo-skill`).

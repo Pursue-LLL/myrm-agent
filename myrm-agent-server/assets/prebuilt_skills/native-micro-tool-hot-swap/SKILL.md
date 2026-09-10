@@ -47,6 +47,11 @@ contract:
 
 # In-Process Native Micro-Tool Hot-Swapping & Dual-Track Plugin Harness
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 While external Model Context Protocol (MCP) servers provide process isolation, they introduce **JSON-RPC IPC overhead, network latency, and subprocess lifecycle complexity**. For performance-critical or simple agent primitives (e.g. string formatting, fast regex search, math operations), in-process micro-tools offer 100x lower latency and zero IPC friction.

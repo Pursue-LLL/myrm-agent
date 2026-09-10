@@ -50,6 +50,11 @@ contract:
 
 # Enterprise Governance Skill Template Pack & Policy Synthesizer
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 In enterprise environments, AI agents operating without governance risk brand dilution, privacy breaches, regulatory non-compliance, and severe legal liability. The Anthropic Applied AI *AI-Native SDLC Playbook* highlights that true enterprise readiness requires formalizing governance from day zero.

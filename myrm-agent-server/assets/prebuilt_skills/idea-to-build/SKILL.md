@@ -38,6 +38,11 @@ contract:
 
 # Idea-to-Build Staged Artifact Pipeline (从灵感到构建：分阶段规格工件流水线)
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 A dedicated skill for solo builders, product managers, and software architects to transform raw, unformatted ideas

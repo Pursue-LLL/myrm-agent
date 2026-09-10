@@ -80,6 +80,7 @@ API_ONLY_DOMAINS: frozenset[str] = frozenset(
         "browser_sessions",
         "client_logs",
         "credentials",
+        "commerce",
         "datasets",
         "dev_gate",
         "eval",

@@ -6,15 +6,19 @@ Covers generate-slice and run-slices across multiple commerce scenarios and vert
 from __future__ import annotations
 
 import pytest
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app
+from app.api.commerce.evals import router as evals_router
+
+_test_app = FastAPI()
+_test_app.include_router(evals_router, prefix="/api/v1/commerce/evals")
 
 
 @pytest.mark.asyncio
 async def test_generate_commerce_slice_variant_resolution() -> None:
     """Test generating a variant resolution slice evaluation case."""
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=_test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/api/v1/commerce/evals/generate-slice",
@@ -38,7 +42,7 @@ async def test_generate_commerce_slice_variant_resolution() -> None:
 @pytest.mark.asyncio
 async def test_generate_commerce_slice_price_guardrail() -> None:
     """Test generating a price change staged guardrail slice evaluation case."""
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=_test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/api/v1/commerce/evals/generate-slice",
@@ -62,7 +66,7 @@ async def test_generate_commerce_slice_price_guardrail() -> None:
 @pytest.mark.asyncio
 async def test_run_commerce_slices_batch() -> None:
     """Test running a batch of commerce slices against vertical in-memory backends."""
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=_test_app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # 1. Generate two cases
         gen_resp1 = await client.post(

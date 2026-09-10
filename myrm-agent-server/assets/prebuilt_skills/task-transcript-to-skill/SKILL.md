@@ -49,6 +49,11 @@ contract:
 
 # One-Click Task Transcript to Reusable Skill Flywheel
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 A major bottleneck in agent productivity is the "one-off success amnesia": a user or engineer spends 20 minutes guiding an agent through a complex workflow (e.g. weekly financial reconciliation, scraping competitors, or building a PDF brief), but the resulting knowledge remains locked inside that single chat thread. Next week, the user must start from scratch.

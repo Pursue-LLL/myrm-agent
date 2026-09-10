@@ -45,6 +45,11 @@ contract:
 
 # Deprecated Plugin Syntax Migration & Doctor Auto-Fix
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 As agent ecosystems evolve, plugin and skill syntaxes undergo breaking schema migrations (e.g. moving from freeform `tools:` strings to structured `allowed-tools`, deprecated `env_vars` blocks, or obsolete OpenClaw plugin JSON manifests). Manually rewriting dozens of skill files is tedious and prone to syntax errors.

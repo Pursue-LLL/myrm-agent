@@ -18,6 +18,11 @@ allowed-tools:
 
 # Conversational Skill Self-Evolution & Rule Patching Protocol (基于自然语言反馈的技能自进化与定点规则修补协议)
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 Based on lessons from the Hermes Agent skill lifecycle patterns (Chapter 4, Case 5), this skill establishes an automated, safe **Self-Evolution & Rule Patching Pipeline**.

@@ -18,6 +18,11 @@ allowed-tools:
 
 # MCP Proactive Reauth & Credential Expiration Watchdog Protocol (MCP 凭据主动探活与临期轮转看门狗协议)
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 Based on architecture principles from Hermes Agent v0.21.0 Pantheon ("Pantheon Release: MCP Command Center & Proactive Reauth"), this skill eliminates **mid-execution credential failures** (the "Passive 401 Unauthorized Trap").

@@ -45,6 +45,11 @@ contract:
 
 # Idea to Build Specification Workflow (`idea-to-build-spec`)
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 "I have an idea but don't want to write tedious docs."

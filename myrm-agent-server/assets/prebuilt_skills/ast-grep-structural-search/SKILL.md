@@ -44,6 +44,11 @@ contract:
 
 # ast-grep Structural Code Search & Safe Refactoring
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 Regular expressions (`grep`, `ripgrep`) operate on flat characters. They struggle with multi-line signatures, nested blocks, and easily confuse real code with comments or string literals.

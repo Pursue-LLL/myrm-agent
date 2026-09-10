@@ -186,6 +186,12 @@ myrm_agent_harness.api.config
 myrm_agent_harness.api.hooks
 myrm_agent_harness.api.security
 myrm_agent_harness.api.skills
+myrm_agent_harness.backends.commerce.exceptions
+myrm_agent_harness.backends.commerce.gates
+myrm_agent_harness.backends.commerce.guardrails
+myrm_agent_harness.backends.commerce.protocols
+myrm_agent_harness.backends.commerce.types
+myrm_agent_harness.backends.commerce.verticals
 myrm_agent_harness.backends.profiles.types
 myrm_agent_harness.backends.skills
 myrm_agent_harness.backends.skills.config_version

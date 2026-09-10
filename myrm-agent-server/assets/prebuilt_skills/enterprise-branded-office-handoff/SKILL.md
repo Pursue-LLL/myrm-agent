@@ -42,6 +42,11 @@ contract:
 
 # Enterprise Branded Office Skill Pack & Colleague Handoff
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 Transform enterprise-specific Office templates (presentations, reports, financial models) into self-contained, zero-configuration Myrm Skill Packs that can be effortlessly handed off to team members.
 
 ## Why This Matters

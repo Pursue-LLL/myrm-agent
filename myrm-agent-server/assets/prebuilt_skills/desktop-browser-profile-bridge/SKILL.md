@@ -18,6 +18,11 @@ allowed-tools:
 
 # Desktop Native Browser Profile Bridge & Session Reuse Protocol (桌面原生浏览器 Profile 桥接与会话复用协议)
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 Based on architecture principles from Hermes Agent v0.21.0 Pantheon ("Pantheon Release: Controlling Desktop Browsers & Reusing Sessions"), this skill equips the Agent with **authenticated browser execution capabilities**.

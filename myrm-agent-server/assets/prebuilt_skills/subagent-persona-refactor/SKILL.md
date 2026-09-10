@@ -37,6 +37,11 @@ contract:
 
 # Historical Transcript Workflow Auditor & SubAgent Persona Refactor (历史会话工作流审计与子智能体人设重构)
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 A dedicated skill for multi-agent system architects and LLM ops engineers to analyze real-world session transcripts,

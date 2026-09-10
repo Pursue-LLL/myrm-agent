@@ -19,6 +19,11 @@ allowed-tools:
 
 # GEP Strategy Recipe Network & Context-Adaptive Reuse Protocol (基于 GEP 协议的策略基因网络与自适应复用)
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 Based on the Gene-Environment-Phenotype (GEP) protocol (arXiv:2604.15097), this skill decouples problem-solving intelligence into a formal triad:

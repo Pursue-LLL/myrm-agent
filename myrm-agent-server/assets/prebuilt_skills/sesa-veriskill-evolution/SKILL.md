@@ -43,6 +43,11 @@ contract:
 
 # SESA & VeriSkill: Evolving Skill Memory & Attribution Gate Engine
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 When AI Agents are equipped with self-evolution capabilities, they often suffer from **catastrophic degradation**:
 a transient external API outage or ambiguous user prompt causes the agent to mistakenly "fix" an already working skill,
 corrupting previously reliable workflows.

@@ -16,6 +16,11 @@ allowed-tools:
 
 # Deprecated Plugin Syntax Migration & Doctor Auto-Fix (废弃插件语法迁移与体检自愈技能)
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 A dedicated maintenance and diagnostics skill inspired by `openclaw doctor --fix`.

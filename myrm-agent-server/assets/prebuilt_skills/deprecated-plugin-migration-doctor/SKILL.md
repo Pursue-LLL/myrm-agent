@@ -44,6 +44,11 @@ contract:
 
 # Deprecated Plugin Syntax Migration & Doctor Auto-Fix Engine
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 As the Agent and Skill ecosystem evolves rapidly across versions (e.g. OpenClaw, Hermes, LangChain, and Myrm),
 breaking syntax changes frequently break legacy skills: obsolete manifest names (`plugin.yaml` vs `SKILL.md`),
 renamed permission arrays (`tools` vs `allowed-tools`), legacy lifecycle hooks, and outdated environment declarations.

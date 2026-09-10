@@ -37,6 +37,11 @@ contract:
 
 # MCP Proactive Reauth & Expiry Watchdog (MCP 凭据主动重新认证与有效期看门狗)
 
+## Bash execution contract
+
+When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
+
+
 ## Overview
 
 A dedicated skill for platform engineers, security leads, and autonomous agent workflows to actively monitor,
