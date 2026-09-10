@@ -359,23 +359,17 @@ class UserSkillConfig:
 
     @classmethod
     def from_dict(cls, data: dict[str, object]) -> UserSkillConfig:
-        updated_at = data.get("updated_at")
-        if isinstance(updated_at, str):
-            updated_at = datetime.fromisoformat(updated_at)
-        elif not isinstance(updated_at, datetime):
-            updated_at = datetime.utcnow()
+        updated_at = _parse_datetime(data.get("updated_at"))
 
-        prebuilt_ids_raw = data.get("enabled_prebuilt_ids", [])
-        prebuilt_ids = [str(s) for s in prebuilt_ids_raw] if isinstance(prebuilt_ids_raw, list) else []
+        def _str_list(key: str) -> list[str]:
+            raw = data.get(key, [])
+            return [str(s) for s in raw] if isinstance(raw, list) else []
 
-        disabled_prebuilt_raw = data.get("disabled_prebuilt_ids", [])
-        disabled_prebuilt_ids = [str(s) for s in disabled_prebuilt_raw] if isinstance(disabled_prebuilt_raw, list) else []
-
-        local_paths_raw = data.get("local_skill_paths", [])
-        local_paths = [str(p) for p in local_paths_raw] if isinstance(local_paths_raw, list) else []
-
-        enabled_local_ids_raw = data.get("enabled_local_skill_ids", [])
-        enabled_local_ids = [str(s) for s in enabled_local_ids_raw] if isinstance(enabled_local_ids_raw, list) else []
+        prebuilt_ids = _str_list("enabled_prebuilt_ids")
+        disabled_prebuilt_ids = _str_list("disabled_prebuilt_ids")
+        local_paths = _str_list("local_skill_paths")
+        enabled_local_ids = _str_list("enabled_local_skill_ids")
+        trusted_ids = _str_list("trusted_skill_ids")
 
         env_vars_raw = data.get("skill_env_vars", {})
         env_vars: dict[str, dict[str, str]] = {}
@@ -383,9 +377,6 @@ class UserSkillConfig:
             for skill_id, vars_dict in env_vars_raw.items():
                 if isinstance(vars_dict, dict):
                     env_vars[str(skill_id)] = {str(k): str(v) for k, v in vars_dict.items()}
-
-        trusted_ids_raw = data.get("trusted_skill_ids", [])
-        trusted_ids = [str(s) for s in trusted_ids_raw] if isinstance(trusted_ids_raw, list) else []
 
         return cls(
             user_id=str(data.get("user_id", "")),

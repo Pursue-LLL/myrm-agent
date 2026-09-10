@@ -62,9 +62,10 @@ _VERIFY_TAILSCALE_CARD_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(
-    execution_mode="SHARED",
-    access_scope="READ",
+    execution_mode="PRIVATE",
+    access_scope="GLOBAL_WRITE",
     workload="STANDARD",
+    private_reason="global_write_non_namespace",
 )
 @pytest.mark.integration
 @pytest.mark.timeout(600)
