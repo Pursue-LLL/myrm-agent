@@ -36,11 +36,19 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Confirm pre-call health probe correctly identifies offline or high-latency servers
-    - Validate circuit breaker trips after 3 consecutive health probe failures
-    - Ensure cost ledger accurately aggregates token volumes and estimated expenditures
-  success_criteria:
-    - Resilient MCP toolchain with sub-second fail-fast behavior, zero runaway token dumps, and transparent 30-day cost visibility
+    - step_id: verify_1
+      description: Confirm pre-call health probe correctly identifies offline or high-latency servers
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Validate circuit breaker trips after 3 consecutive health probe failures
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_3
+      description: Ensure cost ledger accurately aggregates token volumes and estimated expenditures
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: 'Resilient MCP toolchain with sub-second fail-fast behavior, zero runaway token dumps, and transparent 30-day cost visibility'
 ---
 
 # MCP Command Center: Pre-Call Health Gate & Cost Audit Dashboard (MCP 指挥中心与成本审计)

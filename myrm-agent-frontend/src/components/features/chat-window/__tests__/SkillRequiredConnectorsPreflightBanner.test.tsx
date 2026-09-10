@@ -12,15 +12,17 @@ vi.mock('next/navigation', () => ({
   }),
 }));
 
+const stableT = (key: string) => {
+  const messages: Record<string, string> = {
+    missingNotice: 'Active skills require unconfigured connectors',
+    connectAction: 'Connect Now',
+    narrowScopeAction: 'Narrow Scope',
+  };
+  return messages[key] ?? key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const messages: Record<string, string> = {
-      missingNotice: 'Active skills require unconfigured connectors',
-      connectAction: 'Connect Now',
-      narrowScopeAction: 'Narrow Scope',
-    };
-    return messages[key] ?? key;
-  },
+  useTranslations: () => stableT,
 }));
 
 import useChatStore from '@/store/useChatStore';

@@ -17,6 +17,7 @@ import { Edit04Icon, InformationCircleIcon, SparklesIcon, Copy01Icon, ArrowRight
 import { useSelectionAction } from './useSelectionAction';
 import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
+import useChatStore from '@/store/useChatStore';
 
 interface DocumentSelectionToolbarProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -261,6 +262,9 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
   return (
     <div
       ref={toolbarRef}
+      role="toolbar"
+      aria-label="Selection toolbar"
+      tabIndex={-1}
       className={cn('absolute z-50 animate-in fade-in-0 zoom-in-95 duration-150', 'flex flex-col gap-1')}
       style={{
         top: `${position.top}px`,

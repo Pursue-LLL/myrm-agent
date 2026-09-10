@@ -39,13 +39,19 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Confirm the packaged skill generates standard Office deliverables in a clean sandbox
-    - Verify handoff manifest includes copy-paste ready starter prompts
-    - Validate that generated documents conform to anti-wall-of-text and thesis statement rules
-  success_criteria:
-    - Zero host-software configuration needed for receiving colleagues
-    - High-fidelity preservation of corporate colors, typography, and layout standards
-    - Complete self-contained asset bundle with automated smoke test instructions
+    - step_id: verify_1
+      description: Confirm the packaged skill generates standard Office deliverables in a clean sandbox
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Verify handoff manifest includes copy-paste ready starter prompts
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_3
+      description: Validate that generated documents conform to anti-wall-of-text and thesis statement rules
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: 'Zero host-software configuration needed for receiving colleagues; High-fidelity preservation of corporate colors, typography, and layout standards; Complete self-contained asset bundle with automated smoke test instructions'
 ---
 
 # Enterprise Branded Office Skill Pack & Colleague Handoff

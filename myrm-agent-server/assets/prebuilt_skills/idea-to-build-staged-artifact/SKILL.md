@@ -41,13 +41,19 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Confirm staged artifacts are sequentially authored into the deliverable tree
-    - Verify product thinking (What/Why) is strictly isolated from technical implementation (How)
-    - Ensure final handoff document contains complete file paths, contracts, and test verification commands
-  success_criteria:
-    - Clear, phased progression from vague idea to production-ready specifications
-    - Explicit human Spec Review Gate between scope definition and engineering handoff
-    - Coding agents can consume the final handoff artifact autonomously without missing context
+    - step_id: verify_1
+      description: Confirm staged artifacts are sequentially authored into the deliverable tree
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Verify product thinking (What/Why) is strictly isolated from technical implementation (How)
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_3
+      description: Ensure final handoff document contains complete file paths, contracts, and test verification commands
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: 'Clear, phased progression from vague idea to production-ready specifications; Explicit human Spec Review Gate between scope definition and engineering handoff; Coding agents can consume the final handoff artifact autonomously without missing context'
 ---
 
 # Idea-to-Build: Staged Artifact Specification Pipeline

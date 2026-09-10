@@ -37,11 +37,19 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Confirm all 5 staged spec artifacts exist or Lite contract is complete
-    - Verify Spec Review Gate passes all 3 mandatory checks (Non-Goals, Acceptance Criteria, Separation)
-    - Ensure 05-agent-build-handoff contains exact file paths, constraints, and smoke commands
-  success_criteria:
-    - Turnkey, audit-grade build specification ready for immediate zero-ambiguity agent execution
+    - step_id: verify_1
+      description: Confirm all 5 staged spec artifacts exist or Lite contract is complete
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Verify Spec Review Gate passes all 3 mandatory checks (Non-Goals, Acceptance Criteria, Separation)
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_3
+      description: Ensure 05-agent-build-handoff contains exact file paths, constraints, and smoke commands
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: 'Turnkey, audit-grade build specification ready for immediate zero-ambiguity agent execution'
 ---
 
 # Idea-to-Build Staged Artifact Pipeline (从灵感到构建：分阶段规格工件流水线)

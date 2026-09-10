@@ -36,11 +36,19 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Verify all diagnostic metrics include failure frequencies, retry counts, and tool confusion rates
-    - Confirm synthesized subagent profiles define explicit In-Scope and Out-of-Scope boundaries
-    - Ensure generated YAML configurations pass Myrm agent template validation schemas
-  success_criteria:
-    - High-cohesion, low-coupling subagent persona matrix that eliminates execution deadlocks and minimizes token bloat
+    - step_id: verify_1
+      description: Verify all diagnostic metrics include failure frequencies, retry counts, and tool confusion rates
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Confirm synthesized subagent profiles define explicit In-Scope and Out-of-Scope boundaries
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_3
+      description: Ensure generated YAML configurations pass Myrm agent template validation schemas
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: 'High-cohesion, low-coupling subagent persona matrix that eliminates execution deadlocks and minimizes token bloat'
 ---
 
 # Historical Transcript Workflow Auditor & SubAgent Persona Refactor (历史会话工作流审计与子智能体人设重构)

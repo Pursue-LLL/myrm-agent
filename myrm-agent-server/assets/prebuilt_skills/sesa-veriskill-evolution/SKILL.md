@@ -41,12 +41,19 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Verify 4-way attribution log exists and explicitly rules out environmental/user prompt issues
-    - Confirm Help-Hurt benchmark score produces Delta > 0 with zero broken regression cases
-    - Validate updated SKILL.md parses cleanly and adheres to schema specifications
-  success_criteria:
-    - Continuous monotonic improvement in agent skill success rate without catastrophic degradation
-    - 100% rejection of spurious modifications triggered by external environment anomalies
+    - step_id: verify_1
+      description: Verify 4-way attribution log exists and explicitly rules out environmental/user prompt issues
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Confirm Help-Hurt benchmark score produces Delta > 0 with zero broken regression cases
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_3
+      description: Validate updated SKILL.md parses cleanly and adheres to schema specifications
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: 'Continuous monotonic improvement in agent skill success rate without catastrophic degradation; 100% rejection of spurious modifications triggered by external environment anomalies'
 ---
 
 # SESA & VeriSkill: Evolving Skill Memory & Attribution Gate Engine

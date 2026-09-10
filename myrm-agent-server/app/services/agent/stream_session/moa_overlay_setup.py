@@ -161,7 +161,11 @@ async def build_moa_overlay_middleware(
     )
 
     fanout_raw = _cfg_str(overlay_cfg, "fanout", "user_turn")
-    fanout = fanout_raw if fanout_raw in ("user_turn", "per_iteration", "every_n") else "user_turn"
+    fanout = (
+        fanout_raw
+        if fanout_raw in ("user_turn", "per_iteration", "every_n", "risk_triggered")
+        else "user_turn"
+    )
     privacy_raw = _cfg_str(overlay_cfg, "privacy_filter", "off")
     privacy: PrivacyFilterMode = privacy_raw if privacy_raw in ("off", "display", "full") else "off"
 
@@ -176,6 +180,10 @@ async def build_moa_overlay_middleware(
         reference_max_tokens=_cfg_int_or_none(overlay_cfg, "reference_max_tokens"),
         reference_reasoning_effort=_cfg_str_or_none(overlay_cfg, "reference_reasoning_effort"),
         privacy_filter=privacy,
+        risk_trigger_failure_threshold=_cfg_int(overlay_cfg, "risk_trigger_failure_threshold", 2),
+        risk_trigger_immune_turns=_cfg_int(overlay_cfg, "risk_trigger_immune_turns", 3),
+        risk_trigger_max_per_session=_cfg_int(overlay_cfg, "risk_trigger_max_per_session", 3),
+        risk_trigger_timeout=_cfg_float(overlay_cfg, "risk_trigger_timeout", 6.0),
     )
 
     privacy_redactor = None

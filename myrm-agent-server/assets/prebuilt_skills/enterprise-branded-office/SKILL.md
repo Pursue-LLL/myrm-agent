@@ -40,12 +40,19 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Confirm brand palette tokens, typography rules, and layout dimensions are fully specified
-    - Validate generative code snippets run successfully in sandbox with python-pptx/docx/openpyxl
-    - Ensure zero-config colleague handoff instructions and preflight checks are complete
-  success_criteria:
-    - Fully packaged enterprise Office skill asset ready for one-click team export and zero-setup reuse
-    - Consistent corporate visual identity across presentations, reports, and spreadsheets
+    - step_id: verify_1
+      description: Confirm brand palette tokens, typography rules, and layout dimensions are fully specified
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Validate generative code snippets run successfully in sandbox with python-pptx/docx/openpyxl
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_3
+      description: Ensure zero-config colleague handoff instructions and preflight checks are complete
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: 'Fully packaged enterprise Office skill asset ready for one-click team export and zero-setup reuse; Consistent corporate visual identity across presentations, reports, and spreadsheets'
 ---
 
 # Enterprise Branded Office Skill Pack & Colleague Handoff Suite

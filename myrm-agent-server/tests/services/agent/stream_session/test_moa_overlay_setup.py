@@ -176,3 +176,46 @@ async def test_build_moa_overlay_middleware_injects_redact_leaks_when_privacy_ac
                 from myrm_agent_harness.core.security.detection.leak_detector import redact_leaks
 
                 assert kwargs["privacy_redactor"] is redact_leaks
+
+
+@pytest.mark.asyncio
+async def test_build_moa_overlay_middleware_supports_risk_triggered_fanout() -> None:
+    from app.services.agent.stream_session.moa_overlay_setup import (
+        build_moa_overlay_middleware,
+    )
+
+    mock_cfg = MagicMock(model="ref-a", api_keys=None)
+    mock_llm = MagicMock()
+    overlay_raw = {
+        "enabled": True,
+        "fanout": "risk_triggered",
+        "risk_trigger_failure_threshold": 3,
+        "risk_trigger_immune_turns": 4,
+        "risk_trigger_max_per_session": 5,
+        "risk_trigger_timeout": 8.0,
+        "reference_model_selections": [],
+    }
+    with patch(
+        "app.services.agent.stream_session.moa_overlay_setup.resolve_moa_overlay_models",
+        new_callable=AsyncMock,
+        return_value=(overlay_raw, [mock_cfg]),
+    ):
+        with patch(
+            "myrm_agent_harness.toolkits.llms.llm_manager.get_llm_from_config",
+            new_callable=AsyncMock,
+            return_value=mock_llm,
+        ):
+            with patch(
+                "myrm_agent_harness.agent.middlewares.moa_advisor_middleware.create_moa_advisor_middleware"
+            ) as create_mock:
+                await build_moa_overlay_middleware({"moa_overlay": overlay_raw})
+                assert create_mock.called
+                _, kwargs = create_mock.call_args
+                config = kwargs.get("config")
+                assert config is not None
+                assert config.fanout == "risk_triggered"
+                assert config.risk_trigger_failure_threshold == 3
+                assert config.risk_trigger_immune_turns == 4
+                assert config.risk_trigger_max_per_session == 5
+                assert config.risk_trigger_timeout == 8.0
+

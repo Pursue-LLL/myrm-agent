@@ -42,12 +42,19 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Verify backup snapshot directory is successfully created and populated before any file writes
-    - Ensure all transformed files parse as valid YAML/Markdown with zero syntax errors
-    - Validate that migrated skill passes agentskills.io schema conformance checks
-  success_criteria:
-    - 100% resolution of target deprecated syntax patterns with zero loss of comments and custom logic
-    - Zero regression in skill functionality confirmed by post-migration verification gate
+    - step_id: verify_1
+      description: Verify backup snapshot directory is successfully created and populated before any file writes
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Ensure all transformed files parse as valid YAML/Markdown with zero syntax errors
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_3
+      description: Validate that migrated skill passes agentskills.io schema conformance checks
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: '100% resolution of target deprecated syntax patterns with zero loss of comments and custom logic; Zero regression in skill functionality confirmed by post-migration verification gate'
 ---
 
 # Deprecated Plugin Syntax Migration & Doctor Auto-Fix Engine

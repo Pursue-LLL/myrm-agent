@@ -30,10 +30,15 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Verify target skill exists in assets/prebuilt_skills/
-    - Confirm permissions and allowed tools align with security presets
-  success_criteria:
-    - Complete 1:1 mapping for all 20 essential workplace workflows
+    - step_id: verify_1
+      description: Verify target skill exists in assets/prebuilt_skills/
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Confirm permissions and allowed tools align with security presets
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: 'Complete 1:1 mapping for all 20 essential workplace workflows'
 ---
 
 # WorkBuddy Top 20 必备高频技能迁移与 Myrm 官方映射指南

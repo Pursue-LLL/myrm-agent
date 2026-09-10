@@ -40,13 +40,19 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Confirm failure clustering report contains quantified frequencies, error types, and root-cause files
-    - Verify refactored subagent YAML configurations pass validation against SubagentConfig schema
-    - Ensure every refactored persona contains explicit Negative Constraints and Fallback Pathways
-  success_criteria:
-    - Identifiable 4-phase workflow audit pipeline from log ingestion to persona refactoring
-    - Subagent personas are hardened with domain-specific boundaries, eliminating generic LLM slop
-    - Zero syntax errors in generated or updated subagent configuration YAML files
+    - step_id: verify_1
+      description: Confirm failure clustering report contains quantified frequencies, error types, and root-cause files
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Verify refactored subagent YAML configurations pass validation against SubagentConfig schema
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_3
+      description: Ensure every refactored persona contains explicit Negative Constraints and Fallback Pathways
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: 'Identifiable 4-phase workflow audit pipeline from log ingestion to persona refactoring; Subagent personas are hardened with domain-specific boundaries, eliminating generic LLM slop; Zero syntax errors in generated or updated subagent configuration YAML files'
 ---
 
 # Historical Transcript Workflow Auditor & SubAgent Persona Refactor

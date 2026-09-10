@@ -40,13 +40,19 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Ensure HITL confirmation was obtained before clicking final 'Post' or 'Schedule' button
-    - Verify post URL is accessible or scheduled entry appears in X Scheduled Posts drawer
-    - Confirm local receipt entry is written with timestamp, tweet copy, and status
-  success_criteria:
-    - 100% human-approved post published or scheduled cleanly on X
-    - Zero truncated copy or broken media attachments
-    - Immutable audit receipt generated in workspace
+    - step_id: verify_1
+      description: Ensure HITL confirmation was obtained before clicking final 'Post' or 'Schedule' button
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Verify post URL is accessible or scheduled entry appears in X Scheduled Posts drawer
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_3
+      description: Confirm local receipt entry is written with timestamp, tweet copy, and status
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: '100% human-approved post published or scheduled cleanly on X; Zero truncated copy or broken media attachments; Immutable audit receipt generated in workspace'
 ---
 
 # X (Twitter) Publish & Schedule Closure Skill

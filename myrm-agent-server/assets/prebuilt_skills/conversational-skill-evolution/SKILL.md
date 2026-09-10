@@ -39,13 +39,19 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Confirm target SKILL.md exists and frontmatter parses cleanly without YAML errors
-    - Verify added rule expresses an unambiguous operational constraint or error mitigation
-    - Ensure updated skill is verified against snapshot cache or watcher re-index
-  success_criteria:
-    - Conversational feedback is crystallized into durable, permanent skill rule patches
-    - Hot-reload takes effect immediately without requiring service or container restart
-    - Clear before-and-after audit summary presented to user with verifiable diff
+    - step_id: verify_1
+      description: Confirm target SKILL.md exists and frontmatter parses cleanly without YAML errors
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Verify added rule expresses an unambiguous operational constraint or error mitigation
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_3
+      description: Ensure updated skill is verified against snapshot cache or watcher re-index
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: 'Conversational feedback is crystallized into durable, permanent skill rule patches; Hot-reload takes effect immediately without requiring service or container restart; Clear before-and-after audit summary presented to user with verifiable diff'
 ---
 
 # Conversational Skill Self-Evolution & Rule Patching Engine

@@ -39,13 +39,19 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Confirm all registered OAuth issuers and their expires_at timestamps are evaluated
-    - Verify clock-skew safety buffer (minimum 15-minute threshold) is enforced
-    - Ensure expired credentials yield an explicit, actionable deep-link re-auth card
-  success_criteria:
-    - Zero unexpected mid-execution 401 failures during multi-step long-running agent tasks
-    - Expiring tokens are refreshed silently in the background before workflow dispatch
-    - Actionable, clean re-authentication prompts generated for human sign-off when manual OAuth is required
+    - step_id: verify_1
+      description: Confirm all registered OAuth issuers and their expires_at timestamps are evaluated
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Verify clock-skew safety buffer (minimum 15-minute threshold) is enforced
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_3
+      description: Ensure expired credentials yield an explicit, actionable deep-link re-auth card
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: 'Zero unexpected mid-execution 401 failures during multi-step long-running agent tasks; Expiring tokens are refreshed silently in the background before workflow dispatch; Actionable, clean re-authentication prompts generated for human sign-off when manual OAuth is required'
 ---
 
 # MCP Proactive Re-authentication & Expiry Watchdog

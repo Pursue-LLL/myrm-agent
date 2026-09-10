@@ -4,25 +4,27 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import PersonalTodoClosedLoopCard from '../PersonalTodoClosedLoopCard';
 import useChatStore from '@/store/useChatStore';
 
+const stableT = (key: string) => {
+  const translations: Record<string, string> = {
+    badge: '三位一体闭环',
+    title: '个人工作流闭环：待办 · 日志 · 周报',
+    desc: '以看板待办为输入源，沉淀每日日志事实，自动聚合生成高质量结构化周报。',
+    step1Title: '待办拆解',
+    step1Desc: 'Kanban 看板任务梳理',
+    step1Prompt: '帮我梳理并拆解当前的核心工作待办事项。',
+    step2Title: '日常对账',
+    step2Desc: 'DailyJournal 记录事实',
+    step2Prompt: '帮我记录并整理今日工作日志。',
+    step3Title: '智能周报',
+    step3Desc: 'WeeklyReview 蓝图聚合',
+    step3Prompt: '帮我调取本周完成的待办事项与每日日志生成周报。',
+  };
+  return translations[key] || key;
+};
+
 // Mock next-intl
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => {
-    const translations: Record<string, string> = {
-      badge: '三位一体闭环',
-      title: '个人工作流闭环：待办 · 日志 · 周报',
-      desc: '以看板待办为输入源，沉淀每日日志事实，自动聚合生成高质量结构化周报。',
-      step1Title: '待办拆解',
-      step1Desc: 'Kanban 看板任务梳理',
-      step1Prompt: '帮我梳理并拆解当前的核心工作待办事项。',
-      step2Title: '日常对账',
-      step2Desc: 'DailyJournal 记录事实',
-      step2Prompt: '帮我记录并整理今日工作日志。',
-      step3Title: '智能周报',
-      step3Desc: 'WeeklyReview 蓝图聚合',
-      step3Prompt: '帮我调取本周完成的待办事项与每日日志生成周报。',
-    };
-    return translations[key] || key;
-  },
+  useTranslations: () => stableT,
 }));
 
 describe('PersonalTodoClosedLoopCard', () => {

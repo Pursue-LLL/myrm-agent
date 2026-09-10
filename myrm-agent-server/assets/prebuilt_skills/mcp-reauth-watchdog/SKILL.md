@@ -36,11 +36,19 @@ contract:
       mitigation: Follow the skill SOP and verification_steps before proceeding; abort on ambiguity and surface the risk to the user
       severity: medium
   verification_steps:
-    - Verify credential watchdog accurately detects near-expiry tokens (< 1 hour remaining)
-    - Validate blocking gate halts agent execution before firing expired MCP tool requests
-    - Confirm post-refresh probe asserts valid connection status before lifting execution gates
-  success_criteria:
-    - Zero mid-task OAuth expiration crashes, proactive warning cards, and automated zero-touch token renewals
+    - step_id: verify_1
+      description: Verify credential watchdog accurately detects near-expiry tokens (< 1 hour remaining)
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_2
+      description: Validate blocking gate halts agent execution before firing expired MCP tool requests
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+    - step_id: verify_3
+      description: Confirm post-refresh probe asserts valid connection status before lifting execution gates
+      validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
+      is_required: true
+  success_criteria: 'Zero mid-task OAuth expiration crashes, proactive warning cards, and automated zero-touch token renewals'
 ---
 
 # MCP Proactive Reauth & Expiry Watchdog (MCP 凭据主动重新认证与有效期看门狗)
