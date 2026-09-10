@@ -275,7 +275,7 @@ def test_moa_overlay_risk_triggered_webui_chat_dom_flow_e2e() -> None:
                 client,
                 page,
                 chat_id,
-                expected_preset="explore",
+                expected_preset="hitl",
                 agent_id=agent_id,
                 timeout_sec=90.0,
             )
