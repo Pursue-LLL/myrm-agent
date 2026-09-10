@@ -36,7 +36,11 @@ def test_render_minutes_markdown_sections() -> None:
         summary="Aligned on roadmap.",
         decisions=("Adopt plan A",),
         debate_points=("Timeline risk",),
-        action_items=(MeetingActionItem(description="Draft spec", owner="Alice", due_hint="Friday"),),
+        action_items=(
+            MeetingActionItem(
+                description="Draft spec", owner="Alice", due_hint="Friday"
+            ),
+        ),
     )
     body = _render_minutes_markdown(notes, "[00:00] transcript line", 600.0)
     assert "# Weekly Sync" in body

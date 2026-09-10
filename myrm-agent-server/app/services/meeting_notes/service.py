@@ -81,7 +81,9 @@ async def _probe_duration(path: Path) -> float:
     return 0.0
 
 
-def build_chunk_plan(total_seconds: float, chunk_seconds: int = _CHUNK_SECONDS) -> list[tuple[float, float]]:
+def build_chunk_plan(
+    total_seconds: float, chunk_seconds: int = _CHUNK_SECONDS
+) -> list[tuple[float, float]]:
     """Build [start, end) slice windows covering the whole audio."""
     if total_seconds <= 0:
         return [(0.0, chunk_seconds)]
@@ -116,7 +118,9 @@ def _slice_one(path: Path, start: float, end: float, out_dir: Path, index: int) 
     return out
 
 
-async def _slice_chunk(path: Path, start: float, end: float, out_dir: Path, index: int) -> Path:
+async def _slice_chunk(
+    path: Path, start: float, end: float, out_dir: Path, index: int
+) -> Path:
     return await asyncio.to_thread(_slice_one, path, start, end, out_dir, index)
 
 
@@ -143,7 +147,10 @@ async def process_meeting_audio(
     with tempfile.TemporaryDirectory(prefix="myrm_meeting_") as tmp:
         tmp_dir = Path(tmp)
         slices = await asyncio.gather(
-            *[_slice_chunk(audio_path, s, e, tmp_dir, i) for i, (s, e) in enumerate(plan)]
+            *[
+                _slice_chunk(audio_path, s, e, tmp_dir, i)
+                for i, (s, e) in enumerate(plan)
+            ]
         )
         sem = asyncio.Semaphore(max_parallel)
 
@@ -158,10 +165,14 @@ async def process_meeting_audio(
         for i, (s, e), t in zip(range(len(plan)), plan, texts, strict=True)
     ]
     transcript = "\n".join(
-        f"[{int(c.start_seconds // 60):02d}:{int(c.start_seconds % 60):02d}] {c.text}" for c in chunks if c.text
+        f"[{int(c.start_seconds // 60):02d}:{int(c.start_seconds % 60):02d}] {c.text}"
+        for c in chunks
+        if c.text
     )
     notes = await _distill_notes(transcript, llm)
-    published = await _publish_to_wiki(structure, notes, transcript, agent_id, auto_compile, compiler_enqueue)
+    published = await _publish_to_wiki(
+        structure, notes, transcript, agent_id, auto_compile, compiler_enqueue
+    )
     return MeetingNotesResult(
         chunk_count=len(chunks),
         duration_seconds=total,
@@ -179,10 +190,16 @@ async def _distill_notes(transcript: str, llm: object) -> StructuredMeetingNotes
     response = await llm.ainvoke(prompt)  # type: ignore[attr-defined]
     content = getattr(response, "content", str(response))
     try:
-        payload = json.loads(str(content).strip().removeprefix("```json").removesuffix("```").strip())
+        payload = json.loads(
+            str(content).strip().removeprefix("```json").removesuffix("```").strip()
+        )
     except (json.JSONDecodeError, ValueError):
-        logger.warning("Meeting notes LLM response was not valid JSON; falling back to raw summary")
-        return StructuredMeetingNotes(title="Meeting Notes", summary=str(content)[:4000])
+        logger.warning(
+            "Meeting notes LLM response was not valid JSON; falling back to raw summary"
+        )
+        return StructuredMeetingNotes(
+            title="Meeting Notes", summary=str(content)[:4000]
+        )
     action_items = tuple(
         MeetingActionItem(
             description=str(item.get("description", "")),
@@ -201,7 +218,9 @@ async def _distill_notes(transcript: str, llm: object) -> StructuredMeetingNotes
     )
 
 
-def _render_minutes_markdown(notes: StructuredMeetingNotes, transcript: str, duration_seconds: float) -> str:
+def _render_minutes_markdown(
+    notes: StructuredMeetingNotes, transcript: str, duration_seconds: float
+) -> str:
     """Render structured notes + transcript into wiki-ready Markdown body."""
     lines: list[str] = [f"# {notes.title}", "", "## Summary", notes.summary, ""]
     if notes.decisions:
@@ -210,7 +229,10 @@ def _render_minutes_markdown(notes: StructuredMeetingNotes, transcript: str, dur
         lines += ["## Key Debate Points", *[f"- {p}" for p in notes.debate_points], ""]
     if notes.action_items:
         lines += ["## Action Items"]
-        lines += [f"- [ ] {item.description} (owner: {item.owner or 'TBD'}, due: {item.due_hint or 'TBD'})" for item in notes.action_items]
+        lines += [
+            f"- [ ] {item.description} (owner: {item.owner or 'TBD'}, due: {item.due_hint or 'TBD'})"
+            for item in notes.action_items
+        ]
         lines.append("")
     lines += ["## Transcript", transcript]
     return "\n".join(lines)
