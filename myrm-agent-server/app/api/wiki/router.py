@@ -3239,7 +3239,7 @@ async def transcribe_meeting_audio(
                 chunk_seconds=chunk_seconds,
                 max_parallel=max_parallel,
                 auto_compile=auto_compile,
-                compiler_enqueue=archiver._compiler.enqueue,
+                compiler_enqueue=archiver._compiler._queue,
             )
             return MeetingNotesResponse(
                 success=True,
