@@ -20,6 +20,7 @@ from tests.support.chrome_mcp_e2e import (
 
 _BRIDGE_READY_JS = """(() => ({
   ready:
+    typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function' &&
     typeof window.__MYRM_E2E_CHAT__?.getBrowserInspectorSnapshot === 'function' &&
     typeof window.__MYRM_E2E_CHAT__?.simulateBrowserViewUpdate === 'function' &&
     typeof window.__MYRM_E2E_CHAT__?.simulateBrowserToolStart === 'function' &&
@@ -46,6 +47,13 @@ def _seed_blcv_chat(api_url: str) -> str:
                     "chatId": chat_id,
                     "role": "user",
                     "content": "BLCV isolation probe",
+                    "createdAt": created_at,
+                },
+                {
+                    "messageId": f"e2e-blvc-assistant-{uuid.uuid4().hex[:8]}",
+                    "chatId": chat_id,
+                    "role": "assistant",
+                    "content": "BLCV ready",
                     "createdAt": created_at,
                 },
             ],
@@ -240,59 +248,6 @@ def test_blcv_edge_cases_switch_chat_and_desktop_approval_in_real_ui() -> None:
     chat_a = _seed_blcv_chat(api_url)
     chat_b = _seed_blcv_chat(api_url)
 
-    step1_js = f"""(async () => {{
-  const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.attachToChat || !bridge.simulateBrowserViewUpdate || !bridge.getBrowserInspectorSnapshot) {{
-    return {{ ready: false, reason: 'missing-bridge' }};
-  }}
-  await bridge.attachToChat({json.dumps(chat_a)});
-  const inject = await bridge.simulateBrowserViewUpdate({json.dumps(chat_b)});
-  if (!inject?.ok) return {{ ready: false, reason: 'inject-failed', inject }};
-  const snap = bridge.getBrowserInspectorSnapshot();
-  const ready = Boolean(snap.hasScreenshot && !snap.scopedHasScreenshot);
-  return {{ ready, snap }};
-}})()"""
-
-    step2_js = f"""(async () => {{
-  const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.attachToChat || !bridge.getBrowserInspectorSnapshot) {{
-    return {{ ready: false, reason: 'missing-bridge' }};
-  }}
-  await bridge.attachToChat({json.dumps(chat_b)});
-  const snap = bridge.getBrowserInspectorSnapshot();
-  const ready = Boolean(snap.scopedHasScreenshot && snap.sourceChatId === {json.dumps(chat_b)});
-  return {{ ready, snap }};
-}})()"""
-
-    step3_js = f"""(async () => {{
-  const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.attachToChat || !bridge.simulateBrowserToolStart || !bridge.getBrowserInspectorSnapshot) {{
-    return {{ ready: false, reason: 'missing-bridge' }};
-  }}
-  await bridge.attachToChat({json.dumps(chat_a)});
-  const start = await bridge.simulateBrowserToolStart({json.dumps(chat_a)});
-  if (!start?.ok) return {{ ready: false, reason: 'start-failed', start }};
-  const snapA = bridge.getBrowserInspectorSnapshot();
-  if (!snapA.isOpen) return {{ ready: false, step: 'panel-not-open', snapA }};
-  await bridge.attachToChat({json.dumps(chat_b)});
-  const snapB = bridge.getBrowserInspectorSnapshot();
-  return {{ ready: !snapB.isOpen, snapA, snapB }};
-}})()"""
-
-    step4_js = f"""(async () => {{
-  const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.attachToChat || !bridge.simulateDesktopControlApprovalRequest || !bridge.getDesktopInspectorSnapshot) {{
-    return {{ ready: false, reason: 'missing-bridge' }};
-  }}
-  await bridge.attachToChat({json.dumps(chat_a)});
-  await bridge.simulateDesktopControlApprovalRequest({json.dumps(chat_b)});
-  const desktopBg = bridge.getDesktopInspectorSnapshot();
-  if (desktopBg.isOpen) return {{ ready: false, step: 'desktop-approval-opened-background', desktopBg }};
-  await bridge.simulateDesktopControlApprovalRequest({json.dumps(chat_a)});
-  const desktopFg = bridge.getDesktopInspectorSnapshot();
-  return {{ ready: Boolean(desktopFg.isOpen), desktopBg, desktopFg }};
-}})()"""
-
     with open_mcp_page(f"{ui_url.rstrip('/')}/") as (client, page):
         dismiss_blocking_modals(client, page)
         wait_for_state(
@@ -302,14 +257,90 @@ def test_blcv_edge_cases_switch_chat_and_desktop_approval_in_real_ui() -> None:
             timeout_sec=60.0,
             page_url=f"{ui_url.rstrip('/')}/",
         )
-        res1 = wait_for_state(client, page, step1_js, timeout_sec=45.0, page_url=f"{ui_url.rstrip('/')}/")
-        assert res1.get("ready") is True, f"Step 1 failed: {res1}"
 
-        res2 = wait_for_state(client, page, step2_js, timeout_sec=45.0, page_url=f"{ui_url.rstrip('/')}/")
-        assert res2.get("ready") is True, f"Step 2 failed: {res2}"
+        step1_js = f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat || !bridge.simulateBrowserViewUpdate || !bridge.getBrowserInspectorSnapshot) {{
+    return {{ ready: false, reason: 'missing-bridge' }};
+  }}
+  await bridge.attachToChat({json.dumps(chat_a)});
+  const inject = await bridge.simulateBrowserViewUpdate({json.dumps(chat_b)});
+  if (!inject?.ok) return {{ ready: false, reason: 'inject-failed', inject }};
+  const snap1 = bridge.getBrowserInspectorSnapshot();
+  if (!snap1?.hasScreenshot || snap1?.scopedHasScreenshot) {{
+    return {{ ready: false, reason: 'step1-failed', snap1 }};
+  }}
+  await bridge.attachToChat({json.dumps(chat_b)});
+  const snap2 = bridge.getBrowserInspectorSnapshot();
+  if (!snap2?.scopedHasScreenshot || snap2?.sourceChatId !== {json.dumps(chat_b)}) {{
+    return {{ ready: false, reason: 'step2-failed', snap2 }};
+  }}
+  return {{ ready: true, snap1, snap2 }};
+}})()"""
 
-        res3 = wait_for_state(client, page, step3_js, timeout_sec=45.0, page_url=f"{ui_url.rstrip('/')}/")
-        assert res3.get("ready") is True, f"Step 3 failed: {res3}"
+        step2_js = f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat || !bridge.simulateBrowserToolStart || !bridge.getBrowserInspectorSnapshot) {{
+    return {{ ready: false, reason: 'missing-bridge' }};
+  }}
+  await bridge.attachToChat({json.dumps(chat_a)});
+  const toolStart = await bridge.simulateBrowserToolStart({json.dumps(chat_a)});
+  if (!toolStart?.ok) return {{ ready: false, reason: 'tool-start-failed', toolStart }};
+  const snapOpen = bridge.getBrowserInspectorSnapshot();
+  if (!snapOpen?.isOpen) {{
+    return {{ ready: false, reason: 'panel-not-open', snapOpen }};
+  }}
+  await bridge.attachToChat({json.dumps(chat_b)});
+  let closed = false;
+  for (let i = 0; i < 30; i++) {{
+    const s = bridge.getBrowserInspectorSnapshot();
+    if (!s?.isOpen) {{
+      closed = true;
+      break;
+    }}
+    await new Promise((r) => setTimeout(r, 100));
+  }}
+  const snapClose = bridge.getBrowserInspectorSnapshot();
+  if (!closed || snapClose?.isOpen) {{
+    return {{ ready: false, reason: 'panel-close-failed', snapClose }};
+  }}
+  return {{ ready: true, snapOpen, snapClose }};
+}})()"""
 
-        res4 = wait_for_state(client, page, step4_js, timeout_sec=45.0, page_url=f"{ui_url.rstrip('/')}/")
-        assert res4.get("ready") is True, f"Step 4 failed: {res4}"
+        step3_js = f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat || !bridge.simulateDesktopControlApprovalRequest || !bridge.getDesktopInspectorSnapshot) {{
+    return {{ ready: false, reason: 'missing-bridge' }};
+  }}
+  await bridge.attachToChat({json.dumps(chat_a)});
+  await bridge.simulateDesktopControlApprovalRequest({json.dumps(chat_b)});
+  await new Promise((r) => setTimeout(r, 100));
+  const deskBg = bridge.getDesktopInspectorSnapshot();
+  if (deskBg?.isOpen) {{
+    return {{ ready: false, reason: 'desktop-bg-opened', deskBg }};
+  }}
+  await bridge.simulateDesktopControlApprovalRequest({json.dumps(chat_a)});
+  let opened = false;
+  for (let i = 0; i < 30; i++) {{
+    const s = bridge.getDesktopInspectorSnapshot();
+    if (s?.isOpen) {{
+      opened = true;
+      break;
+    }}
+    await new Promise((r) => setTimeout(r, 100));
+  }}
+  const deskFg = bridge.getDesktopInspectorSnapshot();
+  if (!opened || !deskFg?.isOpen) {{
+    return {{ ready: false, reason: 'desktop-fg-failed', deskFg }};
+  }}
+  return {{ ready: true, deskBg, deskFg }};
+}})()"""
+
+        res1 = wait_for_state(client, page, step1_js, timeout_sec=45.0)
+        assert res1.get("ready") is True, res1
+
+        res2 = wait_for_state(client, page, step2_js, timeout_sec=45.0)
+        assert res2.get("ready") is True, res2
+
+        res3 = wait_for_state(client, page, step3_js, timeout_sec=45.0)
+        assert res3.get("ready") is True, res3

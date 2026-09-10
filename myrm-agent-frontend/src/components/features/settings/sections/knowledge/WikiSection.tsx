@@ -62,6 +62,7 @@ import { useWikiIngestSubscription } from './useWikiIngestSubscription';
 import WikiSourceSyncPanel from './WikiSourceSyncPanel';
 import SecondBrainSetupCard from './SecondBrainSetupCard';
 import { ObsidianVaultActions } from './ObsidianVaultActions';
+import MeetingNotesImportCard from './MeetingNotesImportCard';
 import { consumeMigrationObsidianVaultImport } from '@/lib/migrationChatHandoff';
 import { healthReportFromMaintainResponse, resolveHealthIssueNavigationTarget } from './wiki/wikiSectionUtils';
 
@@ -1310,7 +1311,7 @@ export function WikiSection() {
                     ) : null}
                     <WikiHealthIssuesSection
                       report={healthReport}
-                      isLoading={isLoadingHealthReport || (healthReport == null && !healthReportLoadError)}
+                      isLoading={isLoadingHealthReport || (healthReport === null && !healthReportLoadError)}
                       loadError={healthReportLoadError}
                       expanded={healthReportExpanded}
                       onToggleExpanded={() => setHealthReportExpanded((value) => !value)}
@@ -1410,6 +1411,8 @@ export function WikiSection() {
               vaultGitInitialized={stats?.vault_git_initialized ?? false}
               vaultGitLastCommit={stats?.vault_git_last_commit ?? null}
             />
+
+            <MeetingNotesImportCard />
 
             {/* Wiki Query */}
             <Card>

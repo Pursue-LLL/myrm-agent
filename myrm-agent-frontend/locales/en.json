@@ -3197,7 +3197,16 @@
       "archiveSuccess": "Successfully archived (undoable within 30s): {name}",
       "undoSuccess": "Successfully undone archive and restored concept",
       "reviveSuccess": "Successfully revived concept: {name}",
-      "actionError": "Governance action failed, please try again"
+      "actionError": "Governance action failed, please try again",
+      "meetingNotes": {
+        "title": "Meeting Notes Import",
+        "description": "Upload meeting audio for chunked transcription, decisions & action items extraction, and Wiki knowledge sync",
+        "processing": "Transcribing & distilling minutes…",
+        "uploadButton": "Transcribe & Generate Minutes",
+        "decisions": "Decisions",
+        "debates": "Key Debate Points",
+        "actionItems": "Action Items"
+      }
     },
     "skills": {
       "title": "Skills Management",

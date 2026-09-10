@@ -15460,7 +15460,16 @@
       "archiveSuccess": "已成功歸檔（支援30秒內復原）：{name}",
       "undoSuccess": "已成功復原歸檔恢復概念",
       "reviveSuccess": "已成功復活概念：{name}",
-      "actionError": "治理操作失敗，請重試"
+      "actionError": "治理操作失敗，請重試",
+      "meetingNotes": {
+        "title": "會議聽記導入",
+        "description": "上傳會議音頻，Myrm 將分片並行轉寫、由 LLM 蒸餾決議與待辦，並發布結構化紀要到知識庫。",
+        "processing": "轉寫中…",
+        "uploadButton": "匯入並轉寫",
+        "decisions": "會議決議",
+        "debates": "關鍵爭論點",
+        "actionItems": "待辦事項"
+      }
     },
     "skills": {
       "title": "技能管理",
@@ -15652,7 +15661,6 @@
           "emptyDesc": "添加 .well-known/skills 端點來發現私有技能",
           "alreadyExists": "源已存在"
         },
-        "trialRunInSandbox": "沙箱試跑",
         "trialRunCTA": "即刻試跑"
       },
       "market": {

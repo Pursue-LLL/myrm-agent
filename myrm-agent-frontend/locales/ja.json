@@ -5654,12 +5654,6 @@
       "images": "画像",
       "quote": "入力欄に引用",
       "quoteRow": "第 {row} 行を引用",
-      "quoteRowTooltip": "選択した行を入力欄に引用して、対象を絞った質問や部分編集を行います",
-      "quote": "入力欄に引用",
-      "quoteRow": "{row} 行目を引用",
-      "quoteRowTooltip": "選択した行を入力欄に引用して、質問や部分編集を行います",
-      "quote": "入力欄に引用",
-      "quoteRow": "第 {row} 行を引用",
       "quoteRowTooltip": "選択した行を入力欄に引用して質問または編集を行う"
     },
     "saving": "保存中...",
@@ -15466,7 +15460,16 @@
       "archiveSuccess": "正常にアーカイブしました（30秒以内なら元に戻せます）：{name}",
       "undoSuccess": "アーカイブを取り消し、概念を正常に復元しました",
       "reviveSuccess": "概念を正常に復活させました：{name}",
-      "actionError": "ガバナンス操作に失敗しました。再試行してください"
+      "actionError": "ガバナンス操作に失敗しました。再試行してください",
+      "meetingNotes": {
+        "title": "会議メモ取り込み",
+        "description": "会議音声をアップロードすると、Myrm が分割並列 ASR で文字起こしし、LLM で決議とアクションを抽出、Wiki に公開します。",
+        "processing": "文字起こし中…",
+        "uploadButton": "取り込みと文字起こし",
+        "decisions": "決議事項",
+        "debates": "主な論点",
+        "actionItems": "アクションアイテム"
+      }
     },
     "skills": {
       "title": "スキル管理",
@@ -15557,7 +15560,7 @@
       },
       "discover": {
         "title": "スキルを発見",
-        "trialRunInSandbox": "サンドボックスで試走",
+        "trialRunInSandbox": "サンドボックスで試行",
         "description": "GitHub とコミュニティからスキルを検索・インストール",
         "detail": {
           "noDescription": "スキルの説明はありません"
@@ -15658,7 +15661,6 @@
           "emptyDesc": ".well-known/skills エンドポイントを追加するとプライベートスキルを発見できます",
           "alreadyExists": "ソースは既に存在します"
         },
-        "trialRunInSandbox": "サンドボックスで試行",
         "trialRunCTA": "今すぐ試走"
       },
       "market": {

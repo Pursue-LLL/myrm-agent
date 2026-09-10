@@ -230,3 +230,5 @@ def test_wiki_tree_move_preserves_existing_canonical_id_and_wikilink_anchor(clie
     assert get_ref.status_code == 200, get_ref.text
     ref_truth = get_ref.json()["editor_sections"]["compiled_truth"]
     assert "[[relocated/custom-note-v2#Section-42|Display Label]]" in ref_truth
+
+

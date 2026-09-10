@@ -5652,12 +5652,6 @@
       "macros": "Makros",
       "pivotTables": "Pivot-Tabellen",
       "images": "Bilder",
-      "quote": "In Eingabe zitieren",
-      "quoteRow": "Zeile {row} zitieren",
-      "quoteRowTooltip": "Ausgewählte Zeile zur gezielten Nachfrage oder Teilbearbeitung in das Eingabefeld zitieren",
-      "quote": "In Eingabe zitieren",
-      "quoteRow": "Zeile {row} zitieren",
-      "quoteRowTooltip": "Ausgewählte Zeile zur gezielten Nachfrage oder Teilbearbeitung in das Eingabefeld zitieren",
       "quote": "In Eingabefeld zitieren",
       "quoteRow": "Zeile {row} zitieren",
       "quoteRowTooltip": "Ausgewählte Zeile ins Eingabefeld übernehmen, um gezielte Fragen zu stellen oder partiell zu bearbeiten"
@@ -15466,7 +15460,16 @@
       "archiveSuccess": "Erfolgreich archiviert (innerhalb von 30s widerrufbar): {name}",
       "undoSuccess": "Archivierung erfolgreich rückgängig gemacht und Konzept wiederhergestellt",
       "reviveSuccess": "Konzept erfolgreich wiederhergestellt: {name}",
-      "actionError": "Governance-Aktion fehlgeschlagen, bitte erneut versuchen"
+      "actionError": "Governance-Aktion fehlgeschlagen, bitte erneut versuchen",
+      "meetingNotes": {
+        "title": "Meeting Notes Import",
+        "description": "Upload a meeting audio file. Myrm transcribes it with chunked parallel ASR, distills decisions and action items with LLM, and publishes structured minutes to your wiki.",
+        "processing": "Transcribing…",
+        "uploadButton": "Import & Transcribe",
+        "decisions": "Decisions",
+        "debates": "Key Debate Points",
+        "actionItems": "Action Items"
+      }
     },
     "skills": {
       "title": "Fähigkeitenverwaltung",
@@ -15537,7 +15540,7 @@
       },
       "discover": {
         "title": "Fähigkeiten entdecken",
-        "trialRunInSandbox": "In Sandbox testen",
+        "trialRunInSandbox": "Testlauf in Sandbox",
         "description": "Fähigkeiten aus GitHub und der Community suchen und installieren",
         "detail": {
           "noDescription": "Keine Beschreibung angegeben"
@@ -15638,7 +15641,6 @@
           "emptyDesc": "Fügen Sie einen .well-known/skills-Endpunkt hinzu, um private Fähigkeiten zu entdecken",
           "alreadyExists": "Quelle existiert bereits"
         },
-        "trialRunInSandbox": "Testlauf in Sandbox",
         "trialRunCTA": "Jetzt in Sandbox testen"
       },
       "market": {

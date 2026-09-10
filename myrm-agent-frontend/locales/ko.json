@@ -5654,9 +5654,6 @@
       "images": "이미지",
       "quote": "입력창에 인용",
       "quoteRow": "{row}행 인용",
-      "quoteRowTooltip": "선택한 행을 입력창에 인용하여 집중 질문 또는 부분 편집을 수행합니다",
-      "quote": "입력창에 인용",
-      "quoteRow": "{row}행 인용",
       "quoteRowTooltip": "선택한 행을 입력창에 인용하여 질문하거나 부분 편집합니다"
     },
     "saving": "저장 중...",
@@ -15463,7 +15460,16 @@
       "archiveSuccess": "성공적으로 아카이브되었습니다(30초 내 취소 가능): {name}",
       "undoSuccess": "아카이브를 취소하고 개념을 성공적으로 복원했습니다",
       "reviveSuccess": "개념 복구 완료: {name}",
-      "actionError": "거버넌스 작업에 실패했습니다. 다시 시도해 주세요"
+      "actionError": "거버넌스 작업에 실패했습니다. 다시 시도해 주세요",
+      "meetingNotes": {
+        "title": "회의 메모 가져오기",
+        "description": "회의 오디오를 업로드하면 Myrm이 분할 병렬 ASR로 전사하고, LLM으로 결론과 액션 항목을 추출하여 위키에 게시합니다.",
+        "processing": "전사 중…",
+        "uploadButton": "가져오기 및 전사",
+        "decisions": "결정 사항",
+        "debates": "주요 쟁점",
+        "actionItems": "액션 항목"
+      }
     },
     "skills": {
       "title": "스킬 관리",
@@ -15635,7 +15641,6 @@
           "emptyDesc": ".well-known/skills 엔드포인트를 추가하여 프라이빗 스킬을 검색하세요",
           "alreadyExists": "이미 존재하는 소스입니다"
         },
-        "trialRunInSandbox": "샌드박스에서 시험 실행",
         "trialRunCTA": "지금 바로 시험 실행"
       },
       "market": {

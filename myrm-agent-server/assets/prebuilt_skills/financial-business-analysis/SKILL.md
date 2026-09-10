@@ -19,7 +19,7 @@ tags:
 allowed-tools: bash_code_execute_tool file_read_tool file_write_tool web_search_tool web_fetch_tool
 contract:
   steps:
-    - "Phase 1: Ingest & Source Gate — retrieve official disclosure documents (SEC EDGAR, HKEX, SSE/SZSE, company IR) and validate source authenticity"
+    - "Phase 1: Ingest & Source Gate — retrieve official disclosure documents (SEC EDGAR, HKEXnews, CnInfo, SSE/SZSE, company IR) and validate source authenticity"
     - "Phase 2: Code-Driven Reconciliation — extract financial tables and execute Python scripts to verify 3-statement balancing and calculate key financial ratios"
     - "Phase 3: 6-Dimensional Analysis — analyze revenue/growth, profitability & DuPont decomposition, balance sheet health, competitive moat, unit economics, and operational risks"
     - "Phase 4: Synthesis & Artifact Export — generate institutional-grade markdown report, visualization charts (Mermaid/ECharts/Matplotlib), and audit appendix"

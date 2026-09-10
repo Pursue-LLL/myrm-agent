@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
-import sys
-from pathlib import Path
 
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    dismiss_blocking_modals,
+    ensure_desktop_viewport,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -50,39 +50,40 @@ _BRIDGE_ATTACH_READY_JS = """(() => ({
   ready: typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function',
 }))()"""
 
-_CHAT_SHELL_READY_JS = """(() => {
-  const state = window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {};
-  return {
+
+def _attach_chat_probe(chat_id: str) -> str:
+    chat_id_json = json.dumps(chat_id)
+    return f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat) {{
+    return {{ ok: false, err: 'no-bridge' }};
+  }}
+  await bridge.attachToChat({chat_id_json});
+  const snap = bridge.turnSnapshot?.() ?? {{}};
+  return {{
+    ok: snap.chatId === {chat_id_json},
+    snap,
+  }};
+}})()"""
+
+
+def _chat_shell_ready_js(chat_id: str) -> str:
+    chat_id_json = json.dumps(chat_id)
+    return f"""(() => {{
+  const state = window.__MYRM_E2E_CHAT__?.getChatShellState?.() ?? {{}};
+  return {{
     ready:
-      state.isMessagesLoaded === true
+      state.chatId === {chat_id_json}
+      && state.isMessagesLoaded === true
       && state.notFound !== true
       && state.loadError !== true,
     state,
-  };
-})()"""
-
-
-def _bind_private_runtime_and_navigate(client, page, chat_url: str, api_url: str) -> None:
-    """Seed window.name then navigate so e2e-runtime-bootstrap.js proxies API to SHPOIB."""
-    dev_lib = Path(__file__).resolve().parents[3] / "scripts/dev/lib"
-    if str(dev_lib) not in sys.path:
-        sys.path.insert(0, str(dev_lib))
-    from cdp_chat.support import e2e_runtime_binding_source  # noqa: PLC0415
-
-    source = e2e_runtime_binding_source()
-    # SHARED execution relies on Next.js rewrites for API proxying and carries no
-    # private runtime binding (get_open_page_api_url returns the :8080 sentinel).
-    # Only PRIVATE lanes seed a binding; navigate is needed in both modes.
-    if source is not None:
-        client.evaluate(
-            page,
-            f"(() => {{{source} return window.__MYRM_E2E_API_BASE__; }})()",
-            timeout_sec=30.0,
-        )
-    client.navigate(page, chat_url, timeout_ms=90_000)
+  }};
+}})()"""
 
 
 _CITATIONS_IN_STORE_JS = """(() => {
+
   const store = window.__myrmChatStore?.getState?.();
   if (!store) {
     return { ready: false, reason: 'no-store' };
@@ -133,10 +134,11 @@ def _seed_wiki_citation_fixture(api_url: str) -> dict[str, object]:
     return seeded
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_wiki_citation_button_survives_reload() -> None:
+
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
@@ -145,20 +147,28 @@ def test_wiki_citation_button_survives_reload() -> None:
 
     warm_ui_route(f"/{chat_id}")
     chat_url = f"{ui_url}/{chat_id}"
-    with open_mcp_page("about:blank") as (client, page):
+    with open_mcp_page(chat_url) as (client, page):
+        dismiss_blocking_modals(client, page)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-        _bind_private_runtime_and_navigate(client, page, chat_url, api_url)
+        ensure_desktop_viewport(client, page)
         wait_for_state(
             client,
             page,
             _BRIDGE_ATTACH_READY_JS,
             timeout_sec=120.0,
+            page_url=chat_url,
+        )
+        client.evaluate(
+            page,
+            _attach_chat_probe(chat_id),
+            timeout_sec=90.0,
         )
         shell = wait_for_state(
             client,
             page,
-            _CHAT_SHELL_READY_JS,
+            _chat_shell_ready_js(chat_id),
             timeout_sec=120.0,
+            page_url=chat_url,
         )
         assert shell.get("ready") is True, shell
         citations = wait_for_state(
@@ -166,6 +176,7 @@ def test_wiki_citation_button_survives_reload() -> None:
             page,
             _CITATIONS_IN_STORE_JS,
             timeout_sec=120.0,
+            page_url=chat_url,
         )
         assert citations.get("ready") is True, citations
 
@@ -174,31 +185,49 @@ def test_wiki_citation_button_survives_reload() -> None:
             page,
             _CITATION_BUTTON_STATE,
             timeout_sec=60.0,
+            page_url=chat_url,
         )
         assert first_state.get("ready") is True
         assert str(first_state.get("label") or "")
 
         reload_mcp_page(client, page, timeout_ms=60_000, target_url=chat_url)
-        _bind_private_runtime_and_navigate(client, page, chat_url, api_url)
+        dismiss_blocking_modals(client, page, recover_url=chat_url)
+        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         wait_for_state(
             client,
             page,
-            _CHAT_SHELL_READY_JS,
+            _BRIDGE_ATTACH_READY_JS,
             timeout_sec=120.0,
+            page_url=chat_url,
+        )
+        client.evaluate(
+            page,
+            _attach_chat_probe(chat_id),
+            timeout_sec=90.0,
+        )
+        wait_for_state(
+            client,
+            page,
+            _chat_shell_ready_js(chat_id),
+            timeout_sec=120.0,
+            page_url=chat_url,
         )
         reloaded_state = wait_for_state(
             client,
             page,
             _CITATION_BUTTON_STATE,
             timeout_sec=90.0,
+            page_url=chat_url,
         )
         assert reloaded_state.get("ready") is True
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_settings_wiki_agent_scope_deeplink() -> None:
+
     api_url = get_e2e_api_url()
     prepare_e2e_ui_session(api_url)
     seeded = _seed_wiki_citation_fixture(api_url)

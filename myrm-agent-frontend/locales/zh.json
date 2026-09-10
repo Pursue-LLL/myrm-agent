@@ -3197,7 +3197,16 @@
       "archiveSuccess": "已成功归档（支持30秒内撤销）：{name}",
       "undoSuccess": "已成功撤销归档恢复概念",
       "reviveSuccess": "已成功复活概念：{name}",
-      "actionError": "治理操作失败，请重试"
+      "actionError": "治理操作失败，请重试",
+      "meetingNotes": {
+        "title": "会议听记导入",
+        "description": "上传会议音频，自动分片转写、提取决议与待办，并沉淀入 Wiki 知识库",
+        "processing": "转写与纪要生成中…",
+        "uploadButton": "转写并生成纪要",
+        "decisions": "会议决议",
+        "debates": "关键争论点",
+        "actionItems": "待办任务"
+      }
     },
     "skills": {
       "title": "技能管理",

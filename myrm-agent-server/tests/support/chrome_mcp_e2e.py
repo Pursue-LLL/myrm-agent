@@ -2228,7 +2228,7 @@ class _OrchestratorSharedUiChat:
             self.client,
             self.page,
             timeout_sec=resolved_timeout,
-            page_url=get_e2e_ui_url(),
+            page_url=getattr(self.page, "url", None) or get_e2e_ui_url(),
             require_attach=True,
         )
 
@@ -2325,7 +2325,7 @@ def _ensure_orchestrator_shared_ui_session(
                 client,
                 page,
                 timeout_sec=90.0,
-                page_url=get_e2e_ui_url(),
+                page_url=getattr(page, "url", None) or get_e2e_ui_url(),
                 require_attach=True,
             )
     if last_exc is not None:
