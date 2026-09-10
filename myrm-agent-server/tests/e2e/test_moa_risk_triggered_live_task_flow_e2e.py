@@ -17,13 +17,13 @@ import uuid
 
 import httpx
 import pytest
-
 from cdp_chat.support import (
     fetch_chat_messages,
     get_e2e_api_url,
     get_e2e_ui_url,
     wait_e2e_provider_ready,
 )
+
 from tests.support.chrome_mcp_e2e import (
     attach_chat_and_wait_agent_binding,
     dismiss_blocking_modals,
@@ -95,17 +95,9 @@ def _wait_assistant_reply(
             messages = fetch_chat_messages(chat_id, api_url=api_url)
         except OSError:
             messages = []
-        last_messages = [
-            m
-            for m in messages
-            if isinstance(m, dict) and m.get("role") in ("user", "assistant")
-        ]
+        last_messages = [m for m in messages if isinstance(m, dict) and m.get("role") in ("user", "assistant")]
         assistant = next(
-            (
-                m
-                for m in reversed(last_messages)
-                if isinstance(m, dict) and m.get("role") == "assistant"
-            ),
+            (m for m in reversed(last_messages) if isinstance(m, dict) and m.get("role") == "assistant"),
             None,
         )
         if isinstance(assistant, dict):
@@ -157,9 +149,7 @@ def test_moa_overlay_risk_triggered_live_task_flow_e2e() -> None:
                     "enabled": True,
                     "fanout": "risk_triggered",
                     "auto_on_reasoning": True,
-                    "reference_model_selections": [
-                        {"provider_id": "openai-like", "model": "gemini-3.8-flash-high"}
-                    ],
+                    "reference_model_selections": [{"provider_id": "openai-like", "model": "gemini-3.8-flash-high"}],
                 }
             },
         },
@@ -241,9 +231,7 @@ def test_moa_overlay_risk_triggered_webui_chat_dom_flow_e2e() -> None:
                     "enabled": True,
                     "fanout": "risk_triggered",
                     "auto_on_reasoning": True,
-                    "reference_model_selections": [
-                        {"provider_id": "openai-like", "model": "gemini-3.8-flash-high"}
-                    ],
+                    "reference_model_selections": [{"provider_id": "openai-like", "model": "gemini-3.8-flash-high"}],
                 }
             },
         },
