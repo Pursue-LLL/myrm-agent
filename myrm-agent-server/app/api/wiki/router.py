@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import tempfile
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
@@ -45,6 +46,8 @@ from pydantic import BaseModel, Field
 
 from app.api.dependencies import get_optional_llm_for_user
 from app.api.memory.utils import get_optional_memory_manager
+from app.channels.types import VoiceConfig
+from app.services.meeting_notes.service import process_meeting_audio
 from app.services.wiki import MemoryToWikiArchiver
 
 if TYPE_CHECKING:
@@ -3187,6 +3190,76 @@ async def import_video(
         error="Ingress was not written",
         message="Unknown ingestion outcome",
     )
+
+
+class MeetingNotesResponse(BaseModel):
+    """Response payload for meeting audio transcription pipeline."""
+
+    success: bool
+    chunk_count: int = 0
+    duration_seconds: float = 0.0
+    title: str = ""
+    summary: str = ""
+    decisions: list[str] = Field(default_factory=list)
+    debate_points: list[str] = Field(default_factory=list)
+    action_items: list[dict[str, str | None]] = Field(default_factory=list)
+    published_wiki_paths: list[str] = Field(default_factory=list)
+    error: str = ""
+
+
+@router.post("/meeting-notes/transcribe", response_model=MeetingNotesResponse)
+async def transcribe_meeting_audio(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    file: UploadFile = File(..., description="Long meeting audio upload"),
+    chunk_seconds: int = Query(600, ge=60, le=1800),
+    max_parallel: int = Query(3, ge=1, le=8),
+    auto_compile: bool = Query(True),
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+) -> MeetingNotesResponse:
+    """Chunked parallel ASR + LLM minutes distillation + wiki raw publish for one meeting audio upload."""
+    _MAX_AUDIO_BYTES = 500 * 1024 * 1024
+    allowed_suffixes = (".mp3", ".m4a", ".wav", ".webm", ".ogg", ".flac", ".opus")
+    filename = file.filename or ""
+    if not filename.lower().endswith(allowed_suffixes):
+        raise HTTPException(status_code=400, detail="Unsupported audio format")
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Empty upload")
+    if len(audio_bytes) > _MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="Audio file too large (max 500 MB)")
+    try:
+        with tempfile.TemporaryDirectory(prefix="myrm_meeting_upload_") as tmp_dir:
+            audio_path = Path(tmp_dir) / f"meeting{Path(filename).suffix.lower()}"
+            audio_path.write_bytes(audio_bytes)
+            result = await process_meeting_audio(
+                audio_path,
+                voice_config=VoiceConfig(stt_enabled=True),
+                llm=archiver.llm,
+                structure=archiver._structure,
+                chunk_seconds=chunk_seconds,
+                max_parallel=max_parallel,
+                auto_compile=auto_compile,
+                compiler_enqueue=archiver._compiler.enqueue,
+            )
+            return MeetingNotesResponse(
+                success=True,
+                chunk_count=result.chunk_count,
+                duration_seconds=result.duration_seconds,
+                title=result.notes.title,
+                summary=result.notes.summary,
+                decisions=list(result.notes.decisions),
+                debate_points=list(result.notes.debate_points),
+                action_items=[
+                    {"description": i.description, "owner": i.owner, "due_hint": i.due_hint}
+                    for i in result.notes.action_items
+                ],
+                published_wiki_paths=result.published_wiki_paths,
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Meeting notes transcription failed: %s", e)
+        raise HTTPException(status_code=500, detail="Meeting notes transcription failed") from e
 
 
 from app.api.wiki.governance_routes import router as wiki_governance_router  # noqa: E402
