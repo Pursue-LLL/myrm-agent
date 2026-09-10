@@ -1313,6 +1313,7 @@
     "moaOverlayFanoutUserTurn": "사용자 턴당 1회",
     "moaOverlayFanoutPerIteration": "모든 모델 호출",
     "moaOverlayFanoutEveryN": "매 N번째 모델 호출",
+    "moaOverlayFanoutRiskTriggered": "지능형 위험 트리거 (권장)",
     "moaOverlayEveryN": "N (간격)",
     "moaOverlayPrivacy": "어드바이저 개인정보 필터",
     "moaOverlayPrivacyOff": "끔",

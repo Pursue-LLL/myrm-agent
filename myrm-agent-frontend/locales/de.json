@@ -1336,6 +1336,7 @@
     "moaOverlayFanoutUserTurn": "Einmal pro Benutzerzug",
     "moaOverlayFanoutPerIteration": "Jeder Modellaufruf",
     "moaOverlayFanoutEveryN": "Alle N Modellaufrufe",
+    "moaOverlayFanoutRiskTriggered": "Risikogesteuert (Empfohlen)",
     "moaOverlayEveryN": "N (Intervall)",
     "moaOverlayPrivacy": "Advisor-Datenschutzfilter",
     "moaOverlayPrivacyOff": "Aus",

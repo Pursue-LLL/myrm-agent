@@ -29,6 +29,7 @@ const FANOUT_OPTIONS = [
   { value: 'user_turn', labelKey: 'moaOverlayFanoutUserTurn' },
   { value: 'per_iteration', labelKey: 'moaOverlayFanoutPerIteration' },
   { value: 'every_n', labelKey: 'moaOverlayFanoutEveryN' },
+  { value: 'risk_triggered', labelKey: 'moaOverlayFanoutRiskTriggered' },
 ] as const;
 
 const PRIVACY_OPTIONS = [

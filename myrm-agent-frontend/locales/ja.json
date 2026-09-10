@@ -794,6 +794,7 @@
     "moaOverlayFanoutUserTurn": "ユーザーターンごとに1回",
     "moaOverlayFanoutPerIteration": "モデル呼び出しごと",
     "moaOverlayFanoutEveryN": "N回のモデル呼び出しごと",
+    "moaOverlayFanoutRiskTriggered": "リスク自動検知 (推奨)",
     "moaOverlayEveryN": "N（間隔）",
     "moaOverlayPrivacy": "アドバイザー機密フィルター",
     "moaOverlayPrivacyOff": "オフ",

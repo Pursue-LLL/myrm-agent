@@ -7646,6 +7646,7 @@
     "moaOverlayFanoutUserTurn": "Once per user turn",
     "moaOverlayFanoutPerIteration": "Every model call",
     "moaOverlayFanoutEveryN": "Every N model calls",
+    "moaOverlayFanoutRiskTriggered": "Risk-Triggered (Recommended)",
     "moaOverlayEveryN": "N (interval)",
     "moaOverlayPrivacy": "Advisor Privacy Filter",
     "moaOverlayPrivacyOff": "Off",

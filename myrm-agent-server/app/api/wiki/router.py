@@ -3234,7 +3234,7 @@ async def transcribe_meeting_audio(
             result = await process_meeting_audio(
                 audio_path,
                 voice_config=VoiceConfig(stt_enabled=True),
-                llm=archiver.llm,
+                llm=archiver._llm,
                 structure=archiver._structure,
                 chunk_seconds=chunk_seconds,
                 max_parallel=max_parallel,

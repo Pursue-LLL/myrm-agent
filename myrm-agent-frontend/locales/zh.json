@@ -7650,6 +7650,7 @@
     "moaOverlayFanoutUserTurn": "每用户轮一次",
     "moaOverlayFanoutPerIteration": "每次模型调用",
     "moaOverlayFanoutEveryN": "每 N 次模型调用",
+    "moaOverlayFanoutRiskTriggered": "智能风险触发 (推荐)",
     "moaOverlayEveryN": "N（间隔）",
     "moaOverlayPrivacy": "顾问隐私过滤",
     "moaOverlayPrivacyOff": "关闭",

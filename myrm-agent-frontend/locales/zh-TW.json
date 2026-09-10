@@ -815,6 +815,7 @@
     "moaOverlayFanoutUserTurn": "每用戶輪一次",
     "moaOverlayFanoutPerIteration": "每次模型調用",
     "moaOverlayFanoutEveryN": "每 N 次模型調用",
+    "moaOverlayFanoutRiskTriggered": "智慧風險觸發 (推薦)",
     "moaOverlayEveryN": "N（間隔）",
     "moaOverlayPrivacy": "顧問隱私過濾",
     "moaOverlayPrivacyOff": "關閉",
