@@ -43,6 +43,7 @@ _MAX_PARALLEL_ASR = 3
 _WIKI_SOURCE_DIR = "meeting-notes"
 
 _FFPROBE_DURATION_RE = re.compile(r"duration=(\d+(?:\.\d+)?)")
+_FFMPEG_TS_DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)")
 
 
 def _resolve_ffmpeg_binaries() -> tuple[str, str]:
@@ -96,10 +97,18 @@ async def _probe_duration(path: Path) -> float:
         stderr=asyncio.subprocess.PIPE,
     )
     _, stderr = await proc.communicate()
-    match = _FFPROBE_DURATION_RE.search(stderr.decode(errors="replace"))
+    text = stderr.decode(errors="replace")
+    match = _FFPROBE_DURATION_RE.search(text)
     if match:
         try:
             return float(match.group(1))
+        except ValueError:
+            return 0.0
+    ts = _FFMPEG_TS_DURATION_RE.search(text)
+    if ts:
+        hours, minutes, seconds = ts.group(1), ts.group(2), ts.group(3)
+        try:
+            return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
         except ValueError:
             return 0.0
     return 0.0
@@ -210,6 +219,8 @@ async def _distill_notes(transcript: str, llm: object) -> StructuredMeetingNotes
     """LLM-distill decisions/debates/action items from transcript."""
     import json
 
+    if llm is None:
+        return StructuredMeetingNotes(title="Meeting Notes", summary=transcript[:4000])
     prompt = _SUMMARY_PROMPT_TEMPLATE.format(transcript=transcript[:120000])
     response = await llm.ainvoke(prompt)  # type: ignore[attr-defined]
     content = getattr(response, "content", str(response))
