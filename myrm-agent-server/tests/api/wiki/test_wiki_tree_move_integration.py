@@ -107,3 +107,126 @@ def test_wiki_tree_move_canonical_id_aliases_and_anchored_links(client: TestClie
     # 6. Verify old concept path is 404
     get_old = client.get("/api/v1/wiki/concepts/engineering/service-b")
     assert get_old.status_code == 404
+
+
+def test_wiki_tree_move_directory_recursive_batch_redirect(client: TestClient) -> None:
+    """Verify recursive directory move:
+    
+    1. Creates nested notes under a directory folder.
+    2. Moves the entire folder via PUT /api/v1/wiki/tree/move.
+    3. Verifies all nested notes have canonical_id and aliases injected.
+    4. Verifies external referrer note links are rewritten for all nested notes.
+    """
+    # Create nested notes
+    res1 = client.post(
+        "/api/v1/wiki/apply",
+        json={"op": "create_note", "concept_name": "folder-src/sub/doc-alpha", "body": "Alpha body"},
+    )
+    assert res1.status_code == 200, res1.text
+
+    res2 = client.post(
+        "/api/v1/wiki/apply",
+        json={"op": "create_note", "concept_name": "folder-src/sub/doc-beta", "body": "Beta body"},
+    )
+    assert res2.status_code == 200, res2.text
+
+    # External referrer linking to both
+    ref_body = "See [[folder-src/sub/doc-alpha]] and [[folder-src/sub/doc-beta]]"
+    res_ref = client.post(
+        "/api/v1/wiki/apply",
+        json={"op": "create_note", "concept_name": "external/index-ref", "body": ref_body},
+    )
+    assert res_ref.status_code == 200, res_ref.text
+
+    # Move directory folder-src -> folder-dest
+    move_resp = client.put(
+        "/api/v1/wiki/tree/move",
+        json={"source_path": "folder-src", "target_path": "folder-dest"},
+    )
+    assert move_resp.status_code == 200, move_resp.text
+    assert move_resp.json()["success"] is True
+
+    # Check both moved files
+    from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
+
+    get_alpha = client.get("/api/v1/wiki/concepts/folder-dest/sub/doc-alpha")
+    assert get_alpha.status_code == 200, get_alpha.text
+    meta_alpha, _ = parse_frontmatter(get_alpha.json()["content"])
+    assert meta_alpha.get("canonical_id") == "folder-src.sub.doc-alpha"
+    assert "folder-src/sub/doc-alpha" in meta_alpha.get("supersedes", [])
+
+    get_beta = client.get("/api/v1/wiki/concepts/folder-dest/sub/doc-beta")
+    assert get_beta.status_code == 200, get_beta.text
+    meta_beta, _ = parse_frontmatter(get_beta.json()["content"])
+    assert meta_beta.get("canonical_id") == "folder-src.sub.doc-beta"
+    assert "folder-src/sub/doc-beta" in meta_beta.get("supersedes", [])
+
+    # Check referrer rewritten
+    get_ref = client.get("/api/v1/wiki/concepts/external/index-ref")
+    assert get_ref.status_code == 200, get_ref.text
+    ref_content = get_ref.json()["editor_sections"]["compiled_truth"]
+    assert "[[folder-dest/sub/doc-alpha]]" in ref_content
+    assert "[[folder-dest/sub/doc-beta]]" in ref_content
+
+
+def test_wiki_tree_move_preserves_existing_canonical_id_and_wikilink_anchor(client: TestClient) -> None:
+    """Verify idempotency:
+
+    1. Note with existing canonical_id and alias preserves custom metadata on move.
+    2. Wikilinks with #anchor are correctly updated without losing anchor.
+    """
+    from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import CANONICAL_ID_KEY
+
+    # Create note with pre-set canonical_id in frontmatter
+    custom_canonical = "custom.hardened.uuid.42"
+    res_b = client.post(
+        "/api/v1/wiki/apply",
+        json={
+            "op": "create_note",
+            "concept_name": "vault/custom-note",
+            "body": "## Section-42\nContent 42",
+            "metadata": {
+                CANONICAL_ID_KEY: custom_canonical,
+                "aliases": ["legacy-custom-alias"],
+            },
+        },
+    )
+    assert res_b.status_code == 200, res_b.text
+
+    # Referrer with wikilink anchor: [[custom-note#Section-42]]
+    res_a = client.post(
+        "/api/v1/wiki/apply",
+        json={
+            "op": "create_note",
+            "concept_name": "vault/referrer-note",
+            "body": "Reference [[vault/custom-note#Section-42|Display Label]]",
+        },
+    )
+    assert res_a.status_code == 200, res_a.text
+
+    # Move custom-note -> relocated/custom-note-v2
+    move_resp = client.put(
+        "/api/v1/wiki/tree/move",
+        json={"source_path": "vault/custom-note", "target_path": "relocated/custom-note-v2"},
+    )
+    assert move_resp.status_code == 200, move_resp.text
+    assert move_resp.json()["success"] is True
+
+    # Check preserved metadata
+    from myrm_agent_harness.utils.markdown_frontmatter import parse_frontmatter
+
+    get_new = client.get("/api/v1/wiki/concepts/relocated/custom-note-v2")
+    assert get_new.status_code == 200, get_new.text
+    meta, _ = parse_frontmatter(get_new.json()["content"])
+    # Existing canonical_id must NOT be overwritten
+    assert meta.get(CANONICAL_ID_KEY) == custom_canonical
+    # Aliases must contain both legacy-custom-alias and vault/custom-note
+    aliases = meta.get("aliases", [])
+    assert "legacy-custom-alias" in aliases
+    assert "vault/custom-note" in aliases
+
+    # Check referrer anchored wikilink rewrite
+    get_ref = client.get("/api/v1/wiki/concepts/vault/referrer-note")
+    assert get_ref.status_code == 200, get_ref.text
+    ref_truth = get_ref.json()["editor_sections"]["compiled_truth"]
+    assert "[[relocated/custom-note-v2#Section-42|Display Label]]" in ref_truth
