@@ -1,7 +1,16 @@
 """WorkBuddy Top 20 essential skills migration mapping.
 
-Provides a canonical mapping from WorkBuddy high-frequency skill names/categories
-to Myrm prebuilt skills, ensuring zero migration friction for enterprise users.
+[INPUT]
+- pydantic::BaseModel, Field
+- typing::Final
+
+[OUTPUT]
+- WorkBuddySkillMappingItem
+- WORKBUDDY_TOP_20_ESSENTIAL_SKILLS_MAP
+- get_myrm_skill_for_workbuddy
+
+[POS]
+Canonical mapping from WorkBuddy high-frequency skill names and categories to Myrm prebuilt skills, ensuring zero migration friction for enterprise users.
 """
 
 from __future__ import annotations
