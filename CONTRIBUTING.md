@@ -190,6 +190,7 @@ Called from other HTTP trees or lifecycle hooks:
 | `host_assets/` | Remote server assets synchronization and status polling |
 | `remote_host/` | SSH bridge and remote execution management |
 | `ssh_bridge/` | Secure tunneling and key authentication bridge for remote hosts |
+| `meeting_notes/` | Meeting audio scribe: chunked ASR scheduling + LLM minutes distillation + wiki raw publish |
 
 **Rule of thumb:** add HTTP in `api/`; add orchestration in `services/`; add reusable primitives in `core/`; never duplicate harness execution logic in server.
 
