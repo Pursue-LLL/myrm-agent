@@ -8,12 +8,12 @@ Covers:
 """
 
 import pytest
+from myrm_agent_harness.backends.commerce.types import CommerceRole
 
 from app.ai_agents.commerce.session_state import (
     CommerceSessionManager,
     CommerceSessionScopeError,
 )
-from myrm_agent_harness.backends.commerce.types import CommerceRole
 
 
 def test_session_role_isolation() -> None:

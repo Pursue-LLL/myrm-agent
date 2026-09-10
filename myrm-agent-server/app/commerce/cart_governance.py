@@ -19,15 +19,8 @@ Guarantees id-only confirmations, option held states, and per-session serialized
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
-from myrm_agent_harness.backends.commerce.exceptions import (
-    CartCapExceeded,
-    CommerceError,
-    OptionsResolutionHeld,
-    Unavailable,
-)
 from myrm_agent_harness.backends.commerce.gates import (
     CartCapLimits,
     CartOperationReceipt,
@@ -36,7 +29,7 @@ from myrm_agent_harness.backends.commerce.gates import (
     resolve_variant_options,
 )
 from myrm_agent_harness.backends.commerce.protocols import StorefrontBackendProtocol
-from myrm_agent_harness.backends.commerce.types import Product, VariantOption
+from myrm_agent_harness.backends.commerce.types import VariantOption
 
 from app.commerce.session_state import CommerceSessionManager
 

@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import pytest
+from myrm_agent_harness.backends.commerce.exceptions import CommerceError
+from myrm_agent_harness.backends.commerce.types import StagedChange
 
 from app.commerce import (
     CommerceSessionManager,
     MerchantSessionState,
     ShoppingSessionState,
 )
-from myrm_agent_harness.backends.commerce.exceptions import CommerceError
-from myrm_agent_harness.backends.commerce.types import StagedChange
 
 
 def test_shopping_session_lifecycle() -> None:

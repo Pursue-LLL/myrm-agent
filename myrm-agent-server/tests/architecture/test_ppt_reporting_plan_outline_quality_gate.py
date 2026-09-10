@@ -1,7 +1,7 @@
 """Tests for PPT Reporting Plan Outline Quality Gate in office-document skill and subagents."""
 
-import pytest
 from pathlib import Path
+
 import yaml
 
 

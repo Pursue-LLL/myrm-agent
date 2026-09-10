@@ -15,7 +15,6 @@ shopper customer sessions and merchant back-office management sessions.
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Literal
 
 from myrm_agent_harness.backends.commerce.types import (
     CommerceRole,

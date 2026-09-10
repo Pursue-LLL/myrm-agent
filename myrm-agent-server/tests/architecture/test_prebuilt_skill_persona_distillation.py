@@ -4,8 +4,8 @@ Verifies YAML frontmatter validity, contract steps, 4-pillar cognitive matrix, a
 """
 
 from pathlib import Path
+
 import yaml
-import pytest
 
 SKILL_PATH = (
     Path(__file__).resolve().parents[2]

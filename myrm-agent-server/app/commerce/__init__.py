@@ -10,13 +10,13 @@
 Entry point for Myrm Agent Server commerce domain session management.
 """
 
+from app.commerce.gates_service import GatedStorefrontService
 from app.commerce.session_state import (
     CommerceRole,
     CommerceSessionManager,
     MerchantSessionState,
     ShoppingSessionState,
 )
-from app.commerce.gates_service import GatedStorefrontService
 
 __all__ = [
     "CommerceRole",

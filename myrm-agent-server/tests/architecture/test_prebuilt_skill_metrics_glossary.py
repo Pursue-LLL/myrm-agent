@@ -4,8 +4,8 @@ Verifies YAML frontmatter validity, contract steps, 6-dimensional metric schema,
 """
 
 from pathlib import Path
+
 import yaml
-import pytest
 
 SKILL_PATH = (
     Path(__file__).resolve().parents[2]

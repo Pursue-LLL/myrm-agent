@@ -19,15 +19,15 @@ from app.database.connection import get_session
 from app.database.models import PendingMigration
 from app.schemas.memory.archive import MemoryImportRequest
 from app.schemas.memory.crud import MEMORY_EXPORT_VERSION
+from app.services.migration.workbuddy_skills_mapping import (
+    WORKBUDDY_TOP_20_ESSENTIAL_SKILLS_MAP,
+    WorkBuddySkillMappingItem,
+)
 from app.services.skills.experience_ledger import (
     ExperienceEntityType,
     ExperienceEventType,
     ExperienceLedgerWrite,
     record_experience_event,
-)
-from app.services.migration.workbuddy_skills_mapping import (
-    WORKBUDDY_TOP_20_ESSENTIAL_SKILLS_MAP,
-    WorkBuddySkillMappingItem,
 )
 
 router = APIRouter(prefix="/migrations", tags=["migrations"])

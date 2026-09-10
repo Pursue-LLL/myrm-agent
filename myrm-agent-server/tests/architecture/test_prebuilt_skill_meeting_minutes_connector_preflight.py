@@ -14,6 +14,7 @@ Architecture test verifying the operational integrity and connector preflight st
 from __future__ import annotations
 
 from pathlib import Path
+
 import pytest
 import yaml
 

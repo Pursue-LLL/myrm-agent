@@ -16,7 +16,9 @@ Canonical mapping from WorkBuddy high-frequency skill names and categories to My
 from __future__ import annotations
 
 from typing import Final
+
 from pydantic import BaseModel, Field
+
 
 class WorkBuddySkillMappingItem(BaseModel):
     wb_skill_name: str = Field(..., description="Original WorkBuddy skill name / identifier")

@@ -13,6 +13,7 @@ Architecture test verifying the operational integrity and contract stability of 
 from __future__ import annotations
 
 from pathlib import Path
+
 import pytest
 
 _SKILL_MD = (
@@ -57,7 +58,7 @@ def test_native_micro_tool_hot_swap_char_limit(skill_text: str) -> None:
 
 
 def test_native_micro_tool_hot_swap_contains_layer_markers(skill_text: str) -> None:
-    missing = [l for l in _LAYER_MARKERS if l not in skill_text]
+    missing = [marker for marker in _LAYER_MARKERS if marker not in skill_text]
     assert not missing, f"native-micro-tool-hot-swap SKILL.md is missing layer markers: {missing}"
 
 

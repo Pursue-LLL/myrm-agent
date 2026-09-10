@@ -6,6 +6,7 @@ Ensures all 20 mapped skill IDs point to verified prebuilt skill assets without 
 from __future__ import annotations
 
 from pathlib import Path
+
 from app.services.migration.workbuddy_skills_mapping import WORKBUDDY_TOP_20_ESSENTIAL_SKILLS_MAP
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]

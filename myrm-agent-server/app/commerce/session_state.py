@@ -21,8 +21,6 @@ import threading
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, Field
-
 from myrm_agent_harness.backends.commerce.exceptions import CommerceError
 from myrm_agent_harness.backends.commerce.types import (
     Cart,
@@ -30,6 +28,7 @@ from myrm_agent_harness.backends.commerce.types import (
     ShoppingSessionContext,
     StagedChange,
 )
+from pydantic import BaseModel, Field
 
 CommerceRole = Literal["storefront", "merchant"]
 

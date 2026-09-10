@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
-from app.commerce.gates_service import GatedStorefrontService
 from myrm_agent_harness.backends.commerce.gates import CartCapLimits
 from myrm_agent_harness.backends.commerce.memory_backend import InMemoryStorefrontBackend
 from myrm_agent_harness.backends.commerce.types import (
@@ -12,6 +10,8 @@ from myrm_agent_harness.backends.commerce.types import (
     ProductVariant,
     VariantOption,
 )
+
+from app.commerce.gates_service import GatedStorefrontService
 
 
 @pytest.fixture

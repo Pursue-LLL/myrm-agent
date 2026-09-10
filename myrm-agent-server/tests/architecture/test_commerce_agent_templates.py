@@ -11,6 +11,7 @@ Verifies:
 from __future__ import annotations
 
 from pathlib import Path
+
 import yaml
 
 from app.services.agent.template_utils import PREBUILT_AGENTS_DIR, resolve_i18n

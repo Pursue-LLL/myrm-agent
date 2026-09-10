@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import pytest
 
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 _MAP_FILE = _SERVER_ROOT / "assets" / "migration_maps" / "workbuddy_top20_skills_map.json"

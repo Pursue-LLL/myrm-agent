@@ -15,7 +15,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
 
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 _SKILL_DIR = _SERVER_ROOT / "assets" / "prebuilt_skills" / "office-document"

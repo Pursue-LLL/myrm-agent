@@ -1,5 +1,5 @@
 from pathlib import Path
-import pytest
+
 import yaml
 
 _SKILL_PATH = (

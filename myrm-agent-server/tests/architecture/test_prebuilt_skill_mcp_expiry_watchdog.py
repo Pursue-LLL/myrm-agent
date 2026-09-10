@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import yaml
 
 SKILL_PATH = Path("assets/prebuilt_skills/mcp-expiry-watchdog/SKILL.md")

@@ -19,10 +19,8 @@ from __future__ import annotations
 
 import time
 from typing import Literal
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
 
-from app.schemas.responses import StandardSuccessResponse, create_success_response
+from fastapi import APIRouter, HTTPException, status
 from myrm_agent_harness.backends.commerce.gates import (
     CartCapLimits,
     check_cart_cap,
@@ -42,6 +40,9 @@ from myrm_agent_harness.backends.commerce.types import (
     StagedChange,
 )
 from myrm_agent_harness.backends.commerce.verticals import VerticalDomain, get_vertical_starter_pack
+from pydantic import BaseModel, Field
+
+from app.schemas.responses import StandardSuccessResponse, create_success_response
 
 router = APIRouter(prefix="/commerce/evals", tags=["commerce-evals"])
 

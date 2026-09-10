@@ -10,8 +10,9 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 
 from app.core.skills.gates.oauth_availability import (

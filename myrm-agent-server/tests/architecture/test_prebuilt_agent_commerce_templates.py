@@ -7,8 +7,9 @@ and integrate seamlessly with the agent templates API.
 from __future__ import annotations
 
 import os
+
 import yaml
-import pytest
+
 from app.services.agent.template_utils import PREBUILT_AGENTS_DIR
 
 
