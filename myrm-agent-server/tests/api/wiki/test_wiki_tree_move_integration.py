@@ -175,7 +175,7 @@ def test_wiki_tree_move_preserves_existing_canonical_id_and_wikilink_anchor(clie
     1. Note with existing canonical_id and alias preserves custom metadata on move.
     2. Wikilinks with #anchor are correctly updated without losing anchor.
     """
-    from myrm_agent_harness.toolkits.wiki.core.frontmatter_contract import CANONICAL_ID_KEY
+    from myrm_agent_harness.toolkits.wiki.core.canonical_registry import CANONICAL_ID_KEY
 
     # Create note with pre-set canonical_id in frontmatter
     custom_canonical = "custom.hardened.uuid.42"
