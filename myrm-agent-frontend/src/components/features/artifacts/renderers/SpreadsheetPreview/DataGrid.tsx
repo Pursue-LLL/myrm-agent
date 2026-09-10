@@ -6,12 +6,17 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
+import useChatStore from '@/store/useChatStore';
+import { SpreadsheetSelectionToolbar } from '../../portal/SpreadsheetSelectionToolbar';
 
 interface DataGridProps {
   headers: string[];
   rows: string[][];
   totalRows?: number;
   className?: string;
+  filename?: string;
+  sheetName?: string;
+  artifactId?: string;
 }
 
 type SortDir = 'asc' | 'desc' | null;
@@ -64,7 +69,7 @@ function compareValues(a: string, b: string, numeric: boolean): number {
   return a.localeCompare(b);
 }
 
-const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, className, filename, sheetName }) => {
+const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, className, filename, sheetName, artifactId }) => {
   const t = useTranslations('artifacts.spreadsheet');
   const parentRef = useRef<HTMLDivElement>(null);
   const [sortCol, setSortCol] = useState<number | null>(null);
@@ -148,16 +153,31 @@ const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, clas
     const activeTab = state.activeTabIndex >= 0 && state.activeTabIndex < state.openTabs.length ? state.openTabs[state.activeTabIndex] : null;
     const artifactName = activeTab?.artifact?.filename || '表格工件';
     const rowSnippet = headers.map((h, i) => `${h || columnLabel(i)}: ${row[i] ?? ''}`).join(', ');
+    const computedScopeLabel = sheetName
+      ? `${sheetName}!${t('rowScopeLabel', { row: selectedRow + 1 }) || `Row ${selectedRow + 1}`}`
+      : (t('rowScopeLabel', { row: selectedRow + 1 }) || `Row ${selectedRow + 1}`);
+    const targetArtifactId = activeTab?.artifact?.id || artifactId || 'current';
+
     useScopedArtifactStore.getState().setTarget({
-      artifactId: activeTab?.artifact?.id || 'current',
+      artifactId: targetArtifactId,
       artifactName,
       kind: 'spreadsheet',
-      scopeLabel: `第 ${selectedRow + 1} 行`,
+      scopeLabel: computedScopeLabel,
       selectedSnippet: rowSnippet,
     });
+
+    useChatStore.getState().addMentionReference({
+      type: 'artifact_range',
+      label: artifactName,
+      artifactId: targetArtifactId,
+      range: computedScopeLabel,
+      source: 'generated',
+      size: rowSnippet.length,
+    });
+
     const chatInput = document.querySelector('[data-chat-input]') as HTMLElement | null;
     chatInput?.focus();
-  }, [selectedRow, sortedRows, headers]);
+  }, [selectedRow, sortedRows, headers, sheetName, artifactId]);
 
   const showTruncated = totalRows != null && totalRows > rows.length;
   const showFiltered = deferredSearch.trim() && sortedRows.length !== rows.length;
@@ -196,9 +216,9 @@ const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, clas
           <button
             onClick={handleQuoteSelectedRow}
             className="h-7 px-2 text-[11px] font-medium rounded border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-            title="引用选中行到输入框"
+            title={t('quoteRowTooltip')}
           >
-            引用第 {selectedRow + 1} 行
+            {t('quoteRow', { row: selectedRow + 1 })}
           </button>
         )}
       </div>
@@ -269,6 +289,15 @@ const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, clas
           })}
         </div>
       </div>
+
+      <SpreadsheetSelectionToolbar
+        selectedRowIndex={selectedRow}
+        headers={headers}
+        rowData={selectedRow !== null ? sortedRows[selectedRow] ?? null : null}
+        filename={filename}
+        sheetName={sheetName}
+        onClearSelection={() => setSelectedRow(null)}
+      />
     </div>
   );
 });

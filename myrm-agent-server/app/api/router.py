@@ -36,6 +36,7 @@ from app.api.chats import router as chat_router
 from app.api.chats.chat.share import public_router as chat_share_public_router
 from app.api.checkpoint import router as checkpoint_router
 from app.api.client_logs import router as client_logs_router
+from app.api.commerce.evals import router as commerce_evals_router
 from app.api.companion.doctor_router import router as companion_doctor_router
 from app.api.companion.router import router as companion_router
 from app.api.compounding_playbook import router as compounding_playbook_router
@@ -194,6 +195,7 @@ api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(background_tasks_router, prefix="/background-tasks", tags=["background-tasks"])
 api_router.include_router(runs_router)
 api_router.include_router(eval_router, tags=["eval"])
+api_router.include_router(commerce_evals_router)
 
 api_router.include_router(datasets_router, prefix="/datasets", tags=["datasets"])
 api_router.include_router(lifecycle_webhook_router, tags=["lifecycle-webhooks"])

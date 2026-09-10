@@ -83,6 +83,7 @@ export interface Skill {
   requires: SkillRequires;
   available: boolean;
   unavailable_reason: string | null;
+  oauth_issuer?: string | null;
 
   trust: string;
   author: string | null;
@@ -96,6 +97,10 @@ export interface Skill {
 
   /** Declared primary env var name for apiKey mapping (from SKILL.md frontmatter) */
   primary_env: string | null;
+
+  /** Multi-connector dependencies: declared OAuth issuers and MCP server IDs */
+  required_oauth_issuers?: string[];
+  required_mcp_server_ids?: string[];
 
   /** Required permissions (from SKILL.md frontmatter) */
   required_permissions?: string[];

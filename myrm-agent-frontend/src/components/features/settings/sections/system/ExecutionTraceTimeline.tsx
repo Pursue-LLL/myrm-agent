@@ -30,6 +30,8 @@ import SessionReplayPlayer from '@/components/features/memory/replay/SessionRepl
 import TraceErrorItem from './TraceErrorItem';
 import TraceLLMCallItem from './TraceLLMCallItem';
 import TraceGanttWaterfall from './TraceGanttWaterfall';
+import ProjectExperienceWizardModal from './ProjectExperienceWizardModal';
+import { FileText } from 'lucide-react';
 
 interface ExecutionTraceTimelineProps {
   sessionId: string;
@@ -79,6 +81,7 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [replayMode, setReplayMode] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'gantt' | 'list'>('gantt');
 
   const activeSessionAnalyticsMessageId = useChatStore((state) => state.activeSessionAnalyticsMessageId);
@@ -176,6 +179,14 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold text-foreground">{t('title')}</h3>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setWizardOpen(true)}
+            className="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full font-medium transition-colors flex items-center gap-1 border border-emerald-500/20"
+            title="生成项目经验六步证据包向导"
+          >
+            <FileText className="w-3 h-3" />
+            经验向导
+          </button>
           <button
             onClick={() => setReplayMode(true)}
             className="text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full font-medium transition-colors flex items-center gap-1 border border-blue-500/20"
@@ -378,6 +389,14 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
           </span>
         )}
       </div>
+
+      {wizardOpen && (
+        <ProjectExperienceWizardModal
+          trace={trace}
+          isOpen={wizardOpen}
+          onClose={() => setWizardOpen(false)}
+        />
+      )}
     </section>
   );
 });

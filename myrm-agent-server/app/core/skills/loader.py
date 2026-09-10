@@ -24,7 +24,14 @@ logger = logging.getLogger(__name__)
 
 PREBUILT_SKILLS_PREFIX = "skills/prebuilt"
 
-WORKSPACE_SKILL_DIRS = (".myrm/skills",)
+WORKSPACE_SKILL_DIRS = (
+    ".myrm/skills",
+    ".cursor/skills",
+    ".claude/skills",
+    ".agents/skills",
+    ".codex/skills",
+    ".hermes/skills",
+)
 
 
 class _UserSkillBackend:
@@ -180,11 +187,12 @@ async def create_skill_backend(
 
 def _load_workspace_skill_backend(
     workspace_path: str | None,
-) -> LocalSkillBackend | None:
-    """Load project-level skills from workspace directory.
+) -> SkillBackend | None:
+    """Load project-level and cross-harness skills from workspace directory.
 
-    Scans .myrm/skills/ directory in the project root.
-    Returns the first valid skills directory found.
+    Scans configured workspace skill directories (.myrm/skills, .cursor/skills,
+    .claude/skills, .agents/skills, .codex/skills, .hermes/skills).
+    Returns a unified LocalSkillBackend or CompositeSkillBackend for multi-source skills.
     """
     if not workspace_path:
         return None
@@ -193,17 +201,24 @@ def _load_workspace_skill_backend(
     if not root.is_dir():
         return None
 
+    valid_backends: list[LocalSkillBackend] = []
     for skill_dir_name in WORKSPACE_SKILL_DIRS:
         skills_dir = root / skill_dir_name
         if skills_dir.is_dir() and any(skills_dir.iterdir()):
             try:
                 backend = LocalSkillBackend(skills_dir)
-                logger.warning("📂 已加载项目级技能目录: %s", skills_dir)
-                return backend
+                logger.warning("📂 已加载项目/跨生态技能目录: %s", skills_dir)
+                valid_backends.append(backend)
             except (FileNotFoundError, ValueError) as e:
-                logger.warning("⚠️ 项目级技能目录无效 %s: %s", skills_dir, e)
+                logger.warning("⚠️ 技能目录无效 %s: %s", skills_dir, e)
 
-    return None
+    if not valid_backends:
+        return None
+    if len(valid_backends) == 1:
+        return valid_backends[0]
+
+    routes = {f"/src_{i}/": b for i, b in enumerate(valid_backends)}
+    return CompositeSkillBackend(routes=routes, default=valid_backends[0])
 
 
 async def _load_user_skill_backend(

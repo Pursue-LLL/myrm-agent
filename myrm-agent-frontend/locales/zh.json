@@ -7979,6 +7979,7 @@
       "categoryFilter": "分类筛选",
       "categoryAll": "全部",
       "categoryOffice": "职场办公",
+      "categoryCommerce": "电商零售",
       "categoryEngineering": "技术研发",
       "categoryTeam": "协作团队",
       "orgMarketplace": "组织集市",
@@ -9609,7 +9610,8 @@
       "nextTurnOnly": "仅对下一条消息生效",
       "overrideSkillsShort": "技能 {skills} 项",
       "overrideMcpShort": "MCP {mcps} 项",
-      "overrideRemove": "恢复默认"
+      "overrideRemove": "恢复默认",
+      "minimalMountNotice": "活跃能力过多可能会稀释模型注意力，建议收窄至当前任务必需工具。"
     },
     "samplePrompts": {
       "fast_0": "最新的 AI 监管政策有哪些？",
@@ -9624,7 +9626,7 @@
       "fast_9": "如何提高远程办公的效率？",
       "fast_10": "目前主流的大语言模型有哪些？各有什么特点？",
       "fast_11": "解释一下 RAG 技术的核心原理",
-      "agent_0": "帮我画一张项目架构流程图",
+      "agent_0": "帮我制作一份 16:9 商业汇报 PPT (可编辑 pptx 格式)",
       "agent_1": "帮我做一份本周工作总结报告",
       "agent_2": "帮我写一篇公众号图文推送",
       "agent_3": "帮我设置每天早上 8 点的日报提醒",
@@ -9636,6 +9638,7 @@
       "agent_9": "帮我画一张团队能力分布雷达图",
       "agent_10": "搜索并总结最近一周的行业动态",
       "agent_11": "帮我设计一个用户反馈收集方案",
+      "agent_pptx": "帮我生成一份包含观点句大纲与 16:9 商业版式的汇报型 PPTX",
       "deep_research_0": "全面对比 RAG 与微调在企业级 LLM 应用中的优劣",
       "deep_research_1": "深入分析 WebAssembly 对现代 Web 性能的影响",
       "deep_research_2": "调研自动驾驶技术的现状与未来发展趋势",
@@ -9652,8 +9655,8 @@
       "time_morning_1": "帮我拆解晨会工作与未完成待办事项",
       "time_morning_2": "汇总今日关键行业资讯与关注清单",
       "time_morning_3": "起草一封今日跨团队协作与进度同步邮件",
-      "time_afternoon_0": "帮我深度审查当前工程的核心架构与安全边界",
-      "time_afternoon_1": "针对当前技术选型撰写一份前瞻性评估报告",
+      "time_afternoon_0": "帮我生成一份 16:9 现代商业汇报可编辑 PPTX 幻灯片",
+      "time_afternoon_1": "帮我深度审查当前工程的核心架构与安全边界",
       "time_afternoon_2": "分析业务指标数据并推演优化策略",
       "time_afternoon_3": "帮我优化这段核心业务代码的并发与异常处理",
       "time_evening_0": "帮我做一份今日工作产出与卡点复盘总结",
@@ -9672,6 +9675,31 @@
       "evening": "晚间复盘",
       "night": "深夜专注",
       "all": "全部探索"
+    },
+    "personalClosedLoop": {
+      "badge": "三位一体闭环",
+      "title": "个人工作流闭环：待办 · 日志 · 周报",
+      "desc": "以看板待办为输入源，沉淀每日日志事实，自动聚合生成高质量结构化周报，实现个人精细化闭环交付。",
+      "step1Title": "待办拆解",
+      "step1Desc": "Kanban 看板任务梳理与阶段跟踪",
+      "step1Prompt": "帮我梳理并拆解当前的核心工作待办事项，按优先级排期并同步至看板任务中。",
+      "step2Title": "日常对账",
+      "step2Desc": "DailyJournal 记录事实与决策卡点",
+      "step2Prompt": "帮我记录并整理今日工作日志（Daily Journal），梳理关键事实、核心决策卡点与进展证据。",
+      "step3Title": "智能周报",
+      "step3Desc": "WeeklyReview 蓝图聚合度量产出",
+      "step3Prompt": "帮我调取本周完成的待办事项与每日日志记录，按结论先行、数据度量与卡点复盘聚合生成一份标准本周工作总结报告。",
+      "oneClickAction": "一键加载闭环 Prompt"
+    },
+    "skillConnectorsPreflight": {
+      "title": "连接器前置依赖预检",
+      "missingNotice": "检测到当前启用的技能依赖未配置的连接器",
+      "missingDesc": "为确保技能稳定执行，建议在发起任务前完成授权或通过能力调节收敛工具范围。",
+      "connectAction": "前往连接",
+      "narrowScopeAction": "单轮收窄能力",
+      "allConnected": "所有依赖连接器已就绪",
+      "requiredIssuers": "需要 OAuth 授权",
+      "requiredMcp": "需要 MCP 服务"
     },
     "subagent": {
       "viewResults": "查看结果"
@@ -12493,7 +12521,10 @@
       "charts": "图表",
       "macros": "宏",
       "pivotTables": "透视表",
-      "images": "图片"
+      "images": "图片",
+      "quote": "引用到输入框",
+      "quoteRow": "引用第 {row} 行",
+      "quoteRowTooltip": "引用选中行到对话输入框进行针对性提问或局部编辑"
     },
     "saving": "保存中...",
     "saved": "已保存",
@@ -12755,6 +12786,7 @@
       "explain": "解释",
       "optimize": "优化",
       "addComment": "添加注释",
+      "quote": "引用到输入框",
       "copy": "复制",
       "modifyPlaceholder": "描述你想要的修改...",
       "queued": "操作已排队，当前任务完成后自动执行"
@@ -12763,6 +12795,7 @@
       "modify": "AI 修改",
       "explain": "解释",
       "rewrite": "润色重写",
+      "quote": "引用到输入框",
       "copy": "复制",
       "modifyPlaceholder": "描述你想对选中内容做的修改..."
     },

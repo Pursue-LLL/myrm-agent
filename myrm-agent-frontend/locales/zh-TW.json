@@ -1128,6 +1128,7 @@
       "categoryFilter": "分類篩選",
       "categoryAll": "全部",
       "categoryOffice": "職場辦公",
+      "categoryCommerce": "電商零售",
       "categoryEngineering": "技術研發",
       "categoryTeam": "協作團隊",
       "orgMarketplace": "組織集市",
@@ -2695,7 +2696,7 @@
       "fast_9": "如何提高遠端辦公的效率？",
       "fast_10": "目前主流的大語言模型有哪些？各有什麼特點？",
       "fast_11": "解釋一下 RAG 技術的核心原理",
-      "agent_0": "幫我畫一張專案架構流程圖",
+      "agent_0": "幫我製作一份 16:9 商業匯報 PPT (可編輯 pptx 格式)",
       "agent_1": "幫我做一份本週工作總結報告",
       "agent_2": "幫我寫一篇公眾號圖文推送",
       "agent_3": "幫我設定每天早上 8 點的日報提醒",
@@ -5650,7 +5651,10 @@
       "charts": "圖表",
       "macros": "宏",
       "pivotTables": "透視表",
-      "images": "圖片"
+      "images": "圖片",
+      "quote": "引用到輸入框",
+      "quoteRow": "引用第 {row} 行",
+      "quoteRowTooltip": "引用選中行到對話輸入框進行針對性提問或局部編輯"
     },
     "saving": "儲存中...",
     "saved": "已儲存",
@@ -5851,6 +5855,7 @@
       "explain": "解釋",
       "optimize": "最佳化",
       "addComment": "新增註釋",
+      "quote": "引用到輸入框",
       "copy": "複製",
       "modifyPlaceholder": "描述你想要的修改...",
       "queued": "操作已排隊，當前任務完成後自動執行"
@@ -5859,6 +5864,7 @@
       "modify": "AI 修改",
       "explain": "解釋",
       "rewrite": "潤色重寫",
+      "quote": "引用到輸入框",
       "copy": "複製",
       "modifyPlaceholder": "描述你想對選中內容做的修改..."
     },

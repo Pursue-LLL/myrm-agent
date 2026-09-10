@@ -292,9 +292,15 @@ export default function TurnCapabilityToggle({
           </div>
 
           <div className="px-3 py-2 border-t border-border/50">
-            <span className="text-xs text-muted-foreground">
-              {hasOverride ? t('nextTurnOnly') : t('usingAgentDefaults')}
-            </span>
+            {totalActiveCount >= 4 ? (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-tight">
+                {t('minimalMountNotice')}
+              </p>
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                {hasOverride ? t('nextTurnOnly') : t('usingAgentDefaults')}
+              </span>
+            )}
           </div>
         </PopoverContent>
       </Popover>

@@ -74,7 +74,9 @@ def test_tailscale_access_card_chrome_e2e() -> None:
 
     # 1. Verify backend API returns 200
     api_resp = http_json("GET", f"{api_url}/api/v1/remote-access/tailscale/status")
-    assert "installed" in api_resp or "running" in api_resp, f"Unexpected API response: {api_resp}"
+    payload = api_resp.get("data") if isinstance(api_resp, dict) and isinstance(api_resp.get("data"), dict) else api_resp
+    assert isinstance(payload, dict)
+    assert "installed" in payload or "running" in payload, f"Unexpected API response: {api_resp}"
 
     subroute = "/settings/system"
     warm_ui_route(subroute)

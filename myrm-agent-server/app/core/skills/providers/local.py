@@ -210,11 +210,11 @@ class LocalSkillsProvider:
                     continue
 
                 if not path.exists():
-                    logger.warning(f"Local skills path does not exist: {path}")
+                    logger.debug(f"Local skills path does not exist (skipping): {path}")
                     continue
 
                 if not path.is_dir():
-                    logger.warning(f"Local skills path is not a directory: {path}")
+                    logger.debug(f"Local skills path is not a directory (skipping): {path}")
                     continue
 
                 path_skills = self.scan_path(path)

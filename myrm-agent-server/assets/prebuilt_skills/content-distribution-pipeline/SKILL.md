@@ -111,7 +111,11 @@ One-to-many professional content distribution suite: write once, distribute ever
    - **Visual Specs**: 2.35:1 primary banner and 1:1 secondary thumbnail.
 4. **Channels (微信视频号)**:
    - **Cognitive & Commercial Framing**: Tailored for business decision-makers and professionals.
-5. **Unified Deliverable Bundle**:
+5. **Social Media Content Calendar & Editorial Matrix (全渠道排期与内容日历看板)**:
+   - **Multi-Week Content Matrix**: Standardized weekly/monthly publishing schedule with slot distribution (Morning commute, Lunch break, Evening prime-time).
+   - **Status Gating Workflow**: Rigorous lifecycle progression (`Idea ➔ Draft ➔ In-Review ➔ Scheduled ➔ Published`).
+   - **Asset & Copy Binding**: Direct linkage between post copy, media attachments, aspect ratio requirements, and targeted platform metrics.
+6. **Unified Deliverable Bundle**:
    - Cross-platform factual audit, consistency review, and ready-to-publish checklist.
 
 ## Reference Guides

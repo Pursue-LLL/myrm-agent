@@ -79,6 +79,9 @@ class SkillResponse(BaseModel):
     user_invocable: bool = True
     primary_env: str | None = None
     allowed_domains: list[str] | None = None
+    oauth_issuer: str | None = None
+    required_oauth_issuers: list[str] = []
+    required_mcp_server_ids: list[str] = []
 
     security: SecurityScanSummaryResponse | None = None
     user_trusted: bool = False

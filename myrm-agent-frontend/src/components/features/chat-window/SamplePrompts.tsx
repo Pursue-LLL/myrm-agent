@@ -22,6 +22,7 @@ import {
   PenLine,
   PenTool,
   Plane,
+  Presentation,
   Radar,
   Salad,
   Search,
@@ -63,7 +64,7 @@ const PROMPT_ICONS: Record<string, LucideIcon> = {
   fast_9: Timer,
   fast_10: Cpu,
   fast_11: FileText,
-  agent_0: Workflow,
+  agent_0: Presentation,
   agent_1: PenTool,
   agent_2: PenLine,
   agent_3: CalendarDays,
@@ -75,11 +76,12 @@ const PROMPT_ICONS: Record<string, LucideIcon> = {
   agent_9: Radar,
   agent_10: TrendingUp,
   agent_11: Users,
+  agent_pptx: Presentation,
   time_morning_0: Target,
   time_morning_1: ListTodo,
   time_morning_2: Newspaper,
   time_morning_3: Users,
-  time_afternoon_0: ShieldAlert,
+  time_afternoon_0: Presentation,
   time_afternoon_1: TrendingUp,
   time_afternoon_2: BarChart3,
   time_afternoon_3: Cpu,
@@ -186,6 +188,14 @@ const SamplePrompts = React.memo(() => {
         Icon: PROMPT_ICONS[key] ?? Search,
       };
     });
+
+    if (mode === 'agent') {
+      pool.push({
+        key: 'agent_pptx',
+        text: t('samplePrompts.agent_pptx'),
+        Icon: PROMPT_ICONS.agent_pptx ?? Presentation,
+      });
+    }
 
     if (currentLevel >= 3 && mode === 'agent') {
       pool.sort((a, b) => {

@@ -1106,6 +1106,98 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         default_tools_allowed=_TOOLS_RESEARCH,
         _schedule_builder="time_weekday",
     ),
+    CronBlueprint(
+        id="viral_quote_discovery",
+        icon="Flame",
+        title={"en": "Viral Quote & Hook Discovery", "zh": "高潜爆款金句与选题提炼"},
+        description={
+            "en": "Daily surveillance of social networks and industry blogs to mine viral hooks, contrasting arguments, and quotes",
+            "zh": "定时巡检社媒网络与行业前沿，挖掘高传播金句、反共识论点与金牌选题",
+        },
+        prompt_template={
+            "en": (
+                "Execute viral quote and golden hook discovery for topic: {topic} across target channels: {channels}.\n"
+                "1. Search recent popular discussions (last 24-48 hours) for high-engagement posts.\n"
+                "2. Extract top 5 viral quote candidates featuring counter-intuitive insights or strong emotional resonance.\n"
+                "3. Deconstruct why each quote works (Hook formula, pain point addressed, audience reaction).\n"
+                "4. Synthesize adapted derivative ideas for X threads, Xiaohongshu notes, and WeChat newsletters.\n"
+                "5. Save the curated quotes into `docs/marketing/viral_quotes_{topic}.md` and summarize the top candidate."
+            ),
+            "zh": (
+                "执行关于主题【{topic}】的高潜爆款金句与选题提炼，覆盖渠道：{channels}。\n"
+                "1. 检索过去 24-48 小时内的全网热门讨论与高互动内容。\n"
+                "2. 提炼 Top 5 具备反共识视角、高传播力或强烈共鸣的金句候选。\n"
+                "3. 深度拆解爆款密码（钩子公式、击中的用户痛点、争议点与情绪价值）。\n"
+                "4. 为 X 串推、小红书图文和微信长文分别衍生对应的二创选题建议。\n"
+                "5. 将金句库归档至 `docs/marketing/viral_quotes_{topic}.md` 并精简输出最优主推金句。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(
+                name="topic",
+                type="text",
+                label="topic",
+                default="AI Agent & Vibe Coding",
+            ),
+            BlueprintSlot(
+                name="channels",
+                type="text",
+                label="channels",
+                default="X (Twitter), Xiaohongshu, HackerNews",
+            ),
+            BlueprintSlot(name="time", type="time", label="time", default="08:30"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="marketing-growth",
+        tags=("marketing", "viral", "quote", "social-media", "content"),
+        sort_order=18,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
+        id="commerce_morning_digest",
+        icon="Store",
+        title={"en": "Daily Commerce Morning Digest", "zh": "店铺经营晨报与全盘诊断"},
+        description={
+            "en": "Automated headless morning briefing analyzing GMV, conversion rates, stockout risks, and staged promotions",
+            "zh": "自动化商业晨报诊断，深度分析销售大盘、缺货告警、两阶段调价提案与库存建议",
+        },
+        prompt_template={
+            "en": (
+                "Produce the morning commerce digest for store '{store_name}': review yesterday's GMV, "
+                "order volume, conversion rate, and inventory health. Highlight any critical low-stock items "
+                "or pending staged changes that require operator sign-off, and provide prioritized action recommendations."
+            ),
+            "zh": (
+                "为店铺「{store_name}」生成今日经营晨报与全盘诊断：汇总分析销售额(GMV)、订单量、转化率波动与库存健康度。"
+                "重点标出严重缺货预警与待审批的暂存调价变更，并给出优先级操作处置建议。"
+            ),
+        },
+        slots=(
+            BlueprintSlot(name="store_name", type="text", label="store_name", default="Flagship Store"),
+            BlueprintSlot(name="time", type="time", label="time", default="08:30"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="commerce",
+        tags=("commerce", "merchant", "digest", "kpi"),
+        sort_order=4,
+        default_required_capabilities=_CAP_RESEARCH,
+        default_tools_allowed=_TOOLS_RESEARCH,
+        _schedule_builder="time_weekdays",
+    ),
 )
 
 BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = tuple(_with_supplemental_locales(bp) for bp in _RAW_BUILTIN_BLUEPRINTS)
@@ -1142,7 +1234,7 @@ def _validate_slot_values(bp: CronBlueprint, values: dict[str, str]) -> dict[str
 
 
 def fill_blueprint(
-    blueprint_id: str,
+    blueprint_id: str | CronBlueprint,
     values: dict[str, str],
     *,
     locale: str = "en",
@@ -1153,7 +1245,10 @@ def fill_blueprint(
     Returns None if blueprint_id is unknown.
     Raises BlueprintFillError when slot values are invalid.
     """
-    bp = get_blueprint(blueprint_id)
+    if isinstance(blueprint_id, CronBlueprint):
+        bp: CronBlueprint | None = blueprint_id
+    else:
+        bp = get_blueprint(blueprint_id)
     if not bp:
         return None
 

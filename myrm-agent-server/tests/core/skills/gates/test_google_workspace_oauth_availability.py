@@ -241,3 +241,25 @@ async def test_integration_oauth_backend_enriches_list_skills() -> None:
 
     assert result == [meta]
     enrich_mock.assert_awaited_once_with([meta])
+
+
+@pytest.mark.asyncio
+async def test_apply_oauth_availability_handles_custom_required_oauth_issuers() -> None:
+    skill = Skill(
+        id="meeting-minutes-extractor",
+        type=SkillType.PREBUILT,
+        name="Meeting Minutes Extractor",
+        description="Sync meeting notes",
+        storage_path="skills/prebuilt/meeting-minutes-extractor",
+        required_oauth_issuers=["google_workspace"],
+    )
+    db = AsyncMock()
+
+    with patch(
+        "app.core.skills.gates.oauth_availability.is_oauth_issuer_connected",
+        AsyncMock(return_value=False),
+    ):
+        await apply_integration_oauth_availability([skill], db)
+
+    assert skill.available is False
+    assert "Connect google_workspace in Settings" in (skill.unavailable_reason or "")

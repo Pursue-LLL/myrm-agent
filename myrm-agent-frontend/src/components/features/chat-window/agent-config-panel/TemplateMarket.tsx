@@ -26,6 +26,7 @@ import useChatStore from '@/store/useChatStore';
 import {
   normalizeTemplateSearchText,
   resolveTemplateKind,
+  templateMatchesCategory,
   templateMatchesSearchQuery,
 } from '@/services/templateDiscovery';
 import { recordExpertSummonSearchUsed, recordExpertSummonSurfaceViewed } from '@/services/expertSummonMetrics';
@@ -39,6 +40,7 @@ interface TemplateMarketProps {
 
 const CATEGORY_TABS = [
   { id: 'all', labelKey: 'categoryAll', fallback: 'All' },
+  { id: 'commerce', labelKey: 'categoryCommerce', fallback: 'Commerce & Retail' },
   { id: 'office', labelKey: 'categoryOffice', fallback: 'Office & Roles' },
   { id: 'engineering', labelKey: 'categoryEngineering', fallback: 'Engineering' },
   { id: 'team', labelKey: 'categoryTeam', fallback: 'Teams' },
@@ -146,22 +148,16 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
   };
 
   const categories = useMemo(() => {
-    const list: { id: string; label: string }[] = [
-      { id: 'all', label: t('categoryAll') || '全部' },
-      { id: 'office', label: t('categoryOffice') || '职场办公' },
-      { id: 'engineering', label: t('categoryEngineering') || '技术研发' },
-      { id: 'team', label: t('categoryTeam') || '协同团队' },
-    ];
-    return list;
+    return CATEGORY_TABS.map((tab) => ({
+      id: tab.id,
+      label: t(tab.labelKey) || tab.fallback,
+    }));
   }, [t]);
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((template) => {
-      if (selectedCategory !== 'all') {
-        const cat = template.category || (template.agent_type === 'team' ? 'team' : 'general');
-        if (cat !== selectedCategory) {
-          return false;
-        }
+      if (!templateMatchesCategory(template, selectedCategory)) {
+        return false;
       }
       return templateMatchesSearchQuery(template, searchQuery);
     });

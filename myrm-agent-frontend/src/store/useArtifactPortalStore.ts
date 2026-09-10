@@ -228,6 +228,8 @@ interface ArtifactPortalActions {
   clearDirtyState: (artifactId: string) => void;
   /** 获取所有脏状态的 Artifacts */
   getDirtyArtifacts: () => Record<string, string>;
+  /** 获取当前激活的标签页 */
+  getActiveTab: () => OpenArtifactTab | null;
 }
 
 /** 根据 HTTP 状态码解析错误类型 */
@@ -864,6 +866,10 @@ const useArtifactPortalStore = create<ArtifactPortalStore>()(
 
     getDirtyArtifacts: () => {
       return get().dirtyArtifacts;
+    },
+
+    getActiveTab: () => {
+      return getActiveTab(get());
     },
   })),
 );

@@ -73,6 +73,7 @@ import InputHistoryPopup from './InputHistoryPopup';
 import { FeaturedExpertChips } from './agent-config-panel/FeaturedExpertChips';
 import { ExpertSummonPopover } from './agent-config-panel/ExpertSummonPopover';
 import { ComposerContextChipStrip } from './context-strip/ComposerContextChipStrip';
+import { SkillRequiredConnectorsPreflightBanner } from './context-strip/SkillRequiredConnectorsPreflightBanner';
 import { ScopedArtifactChip } from './ScopedArtifactChip';
 import { WechatArticleComposerHint } from './WechatArticleComposerHint';
 import { ContextSpilloverBadge } from '../message-box/ContextSpilloverBadge';
@@ -511,6 +512,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                 <ProviderLowBalanceWarningHUD className="mb-2" />
                 <FeaturedExpertChips />
                 <ScopedArtifactChip />
+                <SkillRequiredConnectorsPreflightBanner onOpenCapabilityEditor={handleOpenCapabilityEditor} />
                 <ComposerContextChipStrip
                   chips={composerContextChips}
                   summary={composerContextSummary}

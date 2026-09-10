@@ -78,6 +78,8 @@ def _build_skill_from_seed(
     version: str | None,
     tags: list[str],
     allowed_tools: list[str] | None = None,
+    required_oauth_issuers: list[str] | None = None,
+    required_mcp_server_ids: list[str] | None = None,
 ) -> Skill:
     skill_id = frontmatter_name or skill_dir_name
     storage_path = f"skills/prebuilt/{skill_id}"
@@ -99,6 +101,8 @@ def _build_skill_from_seed(
         tags=tags,
         token_cost=token_cost,
         allowed_tools=allowed_tools,
+        required_oauth_issuers=required_oauth_issuers or [],
+        required_mcp_server_ids=required_mcp_server_ids or [],
         trust="trusted",
         created_at=now,
         updated_at=now,
@@ -195,6 +199,8 @@ async def sync_prebuilt_seeds(storage: StorageProvider) -> PrebuiltSyncResult:
             version=frontmatter.version,
             tags=tags,
             allowed_tools=allowed_tools_list,
+            required_oauth_issuers=frontmatter.required_oauth_issuers,
+            required_mcp_server_ids=frontmatter.required_mcp_server_ids,
         )
 
         skill_md_storage = get_skill_file_path(SkillType.PREBUILT, skill_id, SKILL_MD_FILE)

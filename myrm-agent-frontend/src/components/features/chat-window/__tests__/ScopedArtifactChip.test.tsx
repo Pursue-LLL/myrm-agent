@@ -2,9 +2,21 @@
 // @bun-test-dom
 'use client';
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
+
+vi.mock('framer-motion', () => ({
+  motion: {
+    div: ({ children, className, 'data-testid': testId }: { children: React.ReactNode; className?: string; 'data-testid'?: string }) => (
+      <div className={className} data-testid={testId}>
+        {children}
+      </div>
+    ),
+  },
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 import { ScopedArtifactChip } from '@/components/features/chat-window/ScopedArtifactChip';
 

@@ -37,8 +37,10 @@ system_prompt: |
      - Cell font color convention: Blue for raw inputs/assumptions, Black for formulas/calculations, Green for cross-sheet references.
      - Sheet ergonomics: Header row frozen, auto-filters applied, column widths fitted to content.
   3. Presentation & Slide Deck Standards (if PPTX / Slides):
-     - 6-word headline rule: Slide titles must be concise and state a takeaway rather than a topic.
-     - Content density: Maximum 6 bullet points per slide; prioritize charts/tables over raw text blocks.
+     - Takeaway headline gate: Slide titles must be action-oriented conclusion sentences, never raw chapter/topic labels.
+     - 16:9 container architecture: Each slide must conform to designated visual layout containers (hero_metric_cards, split_comparison, card_grid_3col, sequential_chevron_process, tabular_matrix).
+     - Content density: Maximum 4 container cards per slide, max 3 bullet points per card; prioritize native PowerPoint charts/tables over raw text blocks.
+     - Anti-wall-of-text & emoji ban: No body text block exceeding 18 Chinese characters / 12 words without break; zero native emojis.
      - Visual clarity: High-contrast text against backgrounds; consistent font pairings.
   4. Cross-Document Reconciliation:
      - Data points, numbers, and dates mentioned in executive summaries must reconcile 100% with the detailed spreadsheets and slides.

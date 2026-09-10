@@ -29,9 +29,27 @@ class TestAgentTemplatesCategorization:
         templates = response.json()["data"]
         for item in templates:
             category = item.get("category")
-            assert category in ("office", "engineering", "team", "general"), (
+            assert category in ("office", "engineering", "team", "general", "commerce"), (
                 f"Template {item['id']} has invalid category: {category}"
             )
+
+    def test_templates_include_commerce_presets(self, client: TestClient) -> None:
+        response = client.get("/api/v1/agents/templates")
+        assert response.status_code == 200
+        templates = response.json()["data"]
+        template_map = {t["id"]: t for t in templates}
+
+        expected_commerce_ids = {
+            "storefront_shopper_agent",
+            "backoffice_merchant_agent",
+        }
+        for expected_id in expected_commerce_ids:
+            assert expected_id in template_map, f"Missing commerce preset template: {expected_id}"
+            item = template_map[expected_id]
+            assert item.get("category") == "commerce", f"Template {expected_id} category should be 'commerce'"
+            assert item.get("name"), f"Template {expected_id} should have localized name"
+            assert item.get("description"), f"Template {expected_id} should have description"
+            assert item.get("use_cases"), f"Template {expected_id} should have use_cases"
 
     def test_instantiate_hr_recruiter_template_succeeds(self, client: TestClient) -> None:
         response = client.post("/api/v1/agents/instantiate-template/hr_recruiter")

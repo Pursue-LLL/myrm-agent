@@ -844,6 +844,7 @@
       "categoryFilter": "카테고리 필터",
       "categoryAll": "전체",
       "categoryOffice": "오피스·업무",
+      "categoryCommerce": "커머스·유통",
       "categoryEngineering": "엔지니어링",
       "categoryTeam": "팀",
       "orgMarketplace": "조직 마켓",
@@ -2271,7 +2272,7 @@
       "fast_0": "최신 AI 규제 정책은 무엇인가요?",
       "fast_1": "건강한 식습관에 대한 실용적인 조언은 무엇인가요?",
       "fast_2": "양자 컴퓨팅을 쉽게 설명해 주세요",
-      "agent_0": "프로젝트 아키텍처 플로우차트를 그려 주세요",
+      "agent_0": "16:9 비즈니스 발표 PPT를 제작해 주세요 (편집 가능한 .pptx)",
       "agent_1": "이번 주 업무 요약 보고서를 작성해 주세요",
       "agent_2": "SNS 게시글을 작성해 주세요",
       "deep_research_0": "기업용 LLM 애플리케이션을 위한 RAG와 파인튜닝의 종합 비교",
@@ -5650,7 +5651,13 @@
       "charts": "차트",
       "macros": "매크로",
       "pivotTables": "피벗 테이블",
-      "images": "이미지"
+      "images": "이미지",
+      "quote": "입력창에 인용",
+      "quoteRow": "{row}행 인용",
+      "quoteRowTooltip": "선택한 행을 입력창에 인용하여 집중 질문 또는 부분 편집을 수행합니다",
+      "quote": "입력창에 인용",
+      "quoteRow": "{row}행 인용",
+      "quoteRowTooltip": "선택한 행을 입력창에 인용하여 질문하거나 부분 편집합니다"
     },
     "saving": "저장 중...",
     "saved": "저장됨",
@@ -5874,6 +5881,7 @@
       "explain": "설명",
       "optimize": "최적화",
       "addComment": "댓글 추가",
+      "quote": "입력창에 인용",
       "copy": "복사",
       "modifyPlaceholder": "변경할 내용을 설명하세요...",
       "queued": "작업이 대기 중이며, 현재 작업이 완료되면 실행됩니다"
@@ -5882,6 +5890,7 @@
       "modify": "AI 수정",
       "explain": "설명",
       "rewrite": "다시 쓰기",
+      "quote": "입력창에 인용",
       "copy": "복사",
       "modifyPlaceholder": "변경할 내용을 설명하세요..."
     },

@@ -142,7 +142,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
         return;
       }
 
-      const actionLabels: Record<ActionType, string> = {
+      const actionLabels: Partial<Record<ActionType, string>> = {
         modify: t('modify'),
         explain: t('explain'),
         optimize: t('rewrite'),

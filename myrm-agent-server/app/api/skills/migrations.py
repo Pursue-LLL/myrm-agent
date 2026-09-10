@@ -25,8 +25,18 @@ from app.services.skills.experience_ledger import (
     ExperienceLedgerWrite,
     record_experience_event,
 )
+from app.services.migration.workbuddy_skills_mapping import (
+    WORKBUDDY_TOP_20_ESSENTIAL_SKILLS_MAP,
+    WorkBuddySkillMappingItem,
+)
 
 router = APIRouter(prefix="/migrations", tags=["migrations"])
+
+
+@router.get("/workbuddy/skills-map", response_model=list[WorkBuddySkillMappingItem])
+async def get_workbuddy_skills_mapping() -> list[WorkBuddySkillMappingItem]:
+    """Retrieve canonical WorkBuddy Top 20 essential skills migration mapping."""
+    return WORKBUDDY_TOP_20_ESSENTIAL_SKILLS_MAP
 
 
 async def _apply_skill_migration(skills_raw: list[object]) -> dict[str, int]:

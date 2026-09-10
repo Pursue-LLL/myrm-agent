@@ -174,3 +174,37 @@ def test_office_role_template_instantiate_hr(client: TestClient):
     assert "document-extraction" in data.get("skill_ids", [])
     assert data["agent_type"] == "individual"
 
+
+def test_commerce_role_templates_loaded_and_categorized(client: TestClient):
+    """Commerce role templates (shopper, merchant) are loaded with category 'commerce'."""
+    response = client.get("/api/v1/agents/templates")
+    assert response.status_code == 200
+    templates = response.json()["data"]
+    template_map = {t["id"]: t for t in templates}
+    for role_id in ("storefront_shopper_agent", "backoffice_merchant_agent"):
+        assert role_id in template_map, f"Missing commerce template: {role_id}"
+        assert template_map[role_id].get("category") == "commerce"
+        assert len(template_map[role_id].get("use_cases", [])) >= 3
+
+
+def test_commerce_role_template_instantiate_shopper(client: TestClient):
+    """Storefront shopper template instantiates successfully."""
+    with patch("app.api.agents.templates._ensure_skills_enabled", new_callable=AsyncMock):
+        response = client.post("/api/v1/agents/instantiate-template/storefront_shopper_agent")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["agent_type"] == "individual"
+    assert "智能导购" in data["name"] or "Storefront" in data["name"]
+
+
+def test_commerce_role_template_instantiate_merchant(client: TestClient):
+    """Backoffice merchant template instantiates successfully."""
+    with patch("app.api.agents.templates._ensure_skills_enabled", new_callable=AsyncMock):
+        response = client.post("/api/v1/agents/instantiate-template/backoffice_merchant_agent")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["agent_type"] == "individual"
+    assert "店铺经营" in data["name"] or "Backoffice" in data["name"]
+
+
+

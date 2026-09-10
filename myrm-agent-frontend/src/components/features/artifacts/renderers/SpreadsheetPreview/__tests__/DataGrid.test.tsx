@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 
-const stableT = (key: string) => {
+const stableT = (key: string, values?: Record<string, unknown>) => {
   const map: Record<string, string> = {
     search: 'Search...',
     rows: 'rows',
@@ -11,6 +11,10 @@ const stableT = (key: string) => {
     export: 'Export',
     copyAll: 'Copy all to clipboard',
     exportCsv: 'Export as CSV',
+    quoteRow: `Quote row ${values?.row ?? ''}`,
+    quoteRowTooltip: 'Quote selected row to composer for targeted inquiry or partial edit',
+    quote: 'Quote to Composer',
+    rowScopeLabel: `Row ${values?.row ?? ''}`,
   };
   return map[key] ?? key;
 };
@@ -121,14 +125,14 @@ describe('DataGrid', () => {
     const cell = screen.getByText('Alice');
     fireEvent.click(cell);
 
-    const quoteBtn = screen.getByText('引用第 1 行');
+    const quoteBtn = screen.getByText('Quote row 1');
     expect(quoteBtn).toBeDefined();
 
     fireEvent.click(quoteBtn);
 
     const target = useScopedArtifactStore.getState().target;
     expect(target).not.toBeNull();
-    expect(target?.scopeLabel).toBe('第 1 行');
+    expect(target?.scopeLabel).toBe('Row 1');
     expect(target?.kind).toBe('spreadsheet');
     expect(target?.selectedSnippet).toContain('Alice');
   });

@@ -240,52 +240,57 @@ def test_blcv_edge_cases_switch_chat_and_desktop_approval_in_real_ui() -> None:
     chat_a = _seed_blcv_chat(api_url)
     chat_b = _seed_blcv_chat(api_url)
 
-    probe_js = f"""(async () => {{
+    step1_js = f"""(async () => {{
   const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.attachToChat || !bridge.simulateBrowserViewUpdate || !bridge.simulateBrowserToolStart
-      || !bridge.getBrowserInspectorSnapshot || !bridge.simulateDesktopViewUpdate
-      || !bridge.getDesktopInspectorSnapshot || !bridge.simulateDesktopControlApprovalRequest) {{
+  if (!bridge?.attachToChat || !bridge.simulateBrowserViewUpdate || !bridge.getBrowserInspectorSnapshot) {{
     return {{ ready: false, reason: 'missing-bridge' }};
   }}
-
   await bridge.attachToChat({json.dumps(chat_a)});
-  await bridge.simulateBrowserViewUpdate({json.dumps(chat_b)});
-  let snap = bridge.getBrowserInspectorSnapshot();
-  if (!(snap.hasScreenshot && !snap.scopedHasScreenshot)) {{
-    return {{ ready: false, step: 'bg-browser-sse-hidden', snap }};
-  }}
+  const inject = await bridge.simulateBrowserViewUpdate({json.dumps(chat_b)});
+  if (!inject?.ok) return {{ ready: false, reason: 'inject-failed', inject }};
+  const snap = bridge.getBrowserInspectorSnapshot();
+  const ready = Boolean(snap.hasScreenshot && !snap.scopedHasScreenshot);
+  return {{ ready, snap }};
+}})()"""
 
-  await bridge.attachToChat({json.dumps(chat_b)});
-  snap = bridge.getBrowserInspectorSnapshot();
-  if (!(snap.scopedHasScreenshot && snap.sourceChatId === {json.dumps(chat_b)})) {{
-    return {{ ready: false, step: 'switch-shows-scoped-browser', snap }};
-  }}
-
-  await bridge.attachToChat({json.dumps(chat_a)});
-  await bridge.simulateBrowserToolStart({json.dumps(chat_a)});
-  snap = bridge.getBrowserInspectorSnapshot();
-  if (!snap.isOpen) {{
-    return {{ ready: false, step: 'panel-not-open', snap }};
+    step2_js = f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat || !bridge.getBrowserInspectorSnapshot) {{
+    return {{ ready: false, reason: 'missing-bridge' }};
   }}
   await bridge.attachToChat({json.dumps(chat_b)});
-  snap = bridge.getBrowserInspectorSnapshot();
-  if (snap.isOpen) {{
-    return {{ ready: false, step: 'panel-not-closed-on-switch', snap }};
-  }}
+  const snap = bridge.getBrowserInspectorSnapshot();
+  const ready = Boolean(snap.scopedHasScreenshot && snap.sourceChatId === {json.dumps(chat_b)});
+  return {{ ready, snap }};
+}})()"""
 
+    step3_js = f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat || !bridge.simulateBrowserToolStart || !bridge.getBrowserInspectorSnapshot) {{
+    return {{ ready: false, reason: 'missing-bridge' }};
+  }}
+  await bridge.attachToChat({json.dumps(chat_a)});
+  const start = await bridge.simulateBrowserToolStart({json.dumps(chat_a)});
+  if (!start?.ok) return {{ ready: false, reason: 'start-failed', start }};
+  const snapA = bridge.getBrowserInspectorSnapshot();
+  if (!snapA.isOpen) return {{ ready: false, step: 'panel-not-open', snapA }};
+  await bridge.attachToChat({json.dumps(chat_b)});
+  const snapB = bridge.getBrowserInspectorSnapshot();
+  return {{ ready: !snapB.isOpen, snapA, snapB }};
+}})()"""
+
+    step4_js = f"""(async () => {{
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat || !bridge.simulateDesktopControlApprovalRequest || !bridge.getDesktopInspectorSnapshot) {{
+    return {{ ready: false, reason: 'missing-bridge' }};
+  }}
   await bridge.attachToChat({json.dumps(chat_a)});
   await bridge.simulateDesktopControlApprovalRequest({json.dumps(chat_b)});
-  let desktop = bridge.getDesktopInspectorSnapshot();
-  if (desktop.isOpen) {{
-    return {{ ready: false, step: 'desktop-approval-opened-background', desktop }};
-  }}
+  const desktopBg = bridge.getDesktopInspectorSnapshot();
+  if (desktopBg.isOpen) return {{ ready: false, step: 'desktop-approval-opened-background', desktopBg }};
   await bridge.simulateDesktopControlApprovalRequest({json.dumps(chat_a)});
-  desktop = bridge.getDesktopInspectorSnapshot();
-  if (!desktop.isOpen) {{
-    return {{ ready: false, step: 'desktop-approval-not-open-foreground', desktop }};
-  }}
-
-  return {{ ready: true }};
+  const desktopFg = bridge.getDesktopInspectorSnapshot();
+  return {{ ready: Boolean(desktopFg.isOpen), desktopBg, desktopFg }};
 }})()"""
 
     with open_mcp_page(f"{ui_url.rstrip('/')}/") as (client, page):
@@ -297,11 +302,14 @@ def test_blcv_edge_cases_switch_chat_and_desktop_approval_in_real_ui() -> None:
             timeout_sec=60.0,
             page_url=f"{ui_url.rstrip('/')}/",
         )
-        result = wait_for_state(
-            client,
-            page,
-            probe_js,
-            timeout_sec=90.0,
-            page_url=f"{ui_url.rstrip('/')}/",
-        )
-        assert result.get("ready") is True, result
+        res1 = wait_for_state(client, page, step1_js, timeout_sec=45.0, page_url=f"{ui_url.rstrip('/')}/")
+        assert res1.get("ready") is True, f"Step 1 failed: {res1}"
+
+        res2 = wait_for_state(client, page, step2_js, timeout_sec=45.0, page_url=f"{ui_url.rstrip('/')}/")
+        assert res2.get("ready") is True, f"Step 2 failed: {res2}"
+
+        res3 = wait_for_state(client, page, step3_js, timeout_sec=45.0, page_url=f"{ui_url.rstrip('/')}/")
+        assert res3.get("ready") is True, f"Step 3 failed: {res3}"
+
+        res4 = wait_for_state(client, page, step4_js, timeout_sec=45.0, page_url=f"{ui_url.rstrip('/')}/")
+        assert res4.get("ready") is True, f"Step 4 failed: {res4}"

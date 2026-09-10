@@ -166,21 +166,35 @@ async def apply_integration_oauth_availability(
     db: AsyncSession,
 ) -> None:
     """Set available=False when a prebuilt skill requires credentials that are missing."""
+    has_custom_issuers = any(bool(getattr(s, "required_oauth_issuers", None)) for s in skills)
     relevant_ids = {skill.id for skill in skills if skill.id in ALL_INTEGRATION_GATED_SKILL_IDS}
-    if not relevant_ids:
+    if not relevant_ids and not has_custom_issuers:
         return
 
     oauth_connected = await _issuer_connected_map(db, relevant_ids)
     other_connected = await _integration_skill_connected_map(relevant_ids)
+    issuer_status_cache: dict[str, bool] = {}
 
     for skill in skills:
-        if skill.id not in ALL_INTEGRATION_GATED_SKILL_IDS:
-            continue
-        is_connected = oauth_connected.get(skill.id, other_connected.get(skill.id, True))
-        if is_connected:
-            continue
-        skill.available = False
-        skill.unavailable_reason = _unavailable_reason(skill.id)
+        if skill.id in ALL_INTEGRATION_GATED_SKILL_IDS:
+            is_connected = oauth_connected.get(skill.id, other_connected.get(skill.id, True))
+            if not is_connected:
+                skill.available = False
+                skill.unavailable_reason = _unavailable_reason(skill.id)
+                continue
+
+        # Frontmatter declarative required_oauth_issuers dynamic preflight check
+        req_issuers = getattr(skill, "required_oauth_issuers", None) or []
+        if req_issuers:
+            for req_issuer in req_issuers:
+                if req_issuer not in issuer_status_cache:
+                    issuer_status_cache[req_issuer] = await is_oauth_issuer_connected(db, req_issuer)
+                if not issuer_status_cache[req_issuer]:
+                    skill.available = False
+                    skill.unavailable_reason = (
+                        f"Connect {req_issuer} in Settings → Integrations → Credentials (required by skill)"
+                    )
+                    break
 
 
 async def apply_integration_oauth_to_metadata(
@@ -188,27 +202,43 @@ async def apply_integration_oauth_to_metadata(
     db: AsyncSession,
 ) -> None:
     """Apply the same integration availability rules to Agent runtime SkillMetadata."""
+    has_custom_issuers = any(bool(getattr(m, "required_oauth_issuers", None)) for m in skills)
     relevant_ids = {_metadata_skill_id(meta) for meta in skills if _metadata_skill_id(meta) in ALL_INTEGRATION_GATED_SKILL_IDS}
-    if not relevant_ids:
+    if not relevant_ids and not has_custom_issuers:
         return
 
     oauth_connected = await _issuer_connected_map(db, relevant_ids)
     other_connected = await _integration_skill_connected_map(relevant_ids)
+    issuer_status_cache: dict[str, bool] = {}
 
     for meta in skills:
         skill_id = _metadata_skill_id(meta)
-        if skill_id not in ALL_INTEGRATION_GATED_SKILL_IDS:
-            continue
-        is_connected = oauth_connected.get(skill_id, other_connected.get(skill_id, True))
-        if is_connected:
-            continue
-        meta.available = False
-        meta.unavailable_reason = _unavailable_reason(skill_id)
+        if skill_id in ALL_INTEGRATION_GATED_SKILL_IDS:
+            is_connected = oauth_connected.get(skill_id, other_connected.get(skill_id, True))
+            if not is_connected:
+                meta.available = False
+                meta.unavailable_reason = _unavailable_reason(skill_id)
+                continue
+
+        # Frontmatter declarative required_oauth_issuers dynamic preflight check
+        req_issuers = getattr(meta, "required_oauth_issuers", None) or []
+        if req_issuers:
+            for req_issuer in req_issuers:
+                if req_issuer not in issuer_status_cache:
+                    issuer_status_cache[req_issuer] = await is_oauth_issuer_connected(db, req_issuer)
+                if not issuer_status_cache[req_issuer]:
+                    meta.available = False
+                    meta.unavailable_reason = (
+                        f"Connect {req_issuer} in Settings → Integrations → Credentials (required by skill)"
+                    )
+                    break
 
 
 async def enrich_skill_metadata_integration_oauth(skills: list[SkillMetadata]) -> None:
     """Load DB session and enrich SkillMetadata list (loader / backend wrapper)."""
-    if not any(_metadata_skill_id(meta) in ALL_INTEGRATION_GATED_SKILL_IDS for meta in skills):
+    has_gated_id = any(_metadata_skill_id(meta) in ALL_INTEGRATION_GATED_SKILL_IDS for meta in skills)
+    has_custom_issuers = any(bool(getattr(meta, "required_oauth_issuers", None)) for meta in skills)
+    if not has_gated_id and not has_custom_issuers:
         return
     try:
         from app.database.connection import get_session

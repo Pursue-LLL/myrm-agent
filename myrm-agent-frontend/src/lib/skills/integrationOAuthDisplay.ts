@@ -41,12 +41,25 @@ export function isXurlBinUnavailable(skill: Skill): boolean {
 }
 
 export function hasIntegrationSettingsLink(skill: Skill): boolean {
+  if (
+    ((skill.required_oauth_issuers && skill.required_oauth_issuers.length > 0) ||
+      (skill.required_mcp_server_ids && skill.required_mcp_server_ids.length > 0)) &&
+    !skill.available
+  ) {
+    return true;
+  }
   return (
     isGoogleWorkspaceOAuthUnavailable(skill) || isXLiveSearchUnavailable(skill) || isEnvGatedSkillUnavailable(skill)
   );
 }
 
 export function getIntegrationSkillSettingsPath(skill: Skill): string {
+  if (skill.required_mcp_server_ids && skill.required_mcp_server_ids.length > 0 && !skill.available) {
+    return SETTINGS_AGENTS_LOADOUT_PATH;
+  }
+  if (skill.required_oauth_issuers && skill.required_oauth_issuers.length > 0 && !skill.available) {
+    return SETTINGS_GOOGLE_OAUTH_PATH;
+  }
   if (isGoogleWorkspaceOAuthUnavailable(skill)) {
     return SETTINGS_GOOGLE_OAUTH_PATH;
   }
@@ -57,6 +70,12 @@ export function getIntegrationSkillSettingsPath(skill: Skill): string {
 }
 
 export function getIntegrationSkillSettingsLinkLabel(skill: Skill, t: SkillsCardTranslator): string {
+  if (skill.required_mcp_server_ids && skill.required_mcp_server_ids.length > 0 && !skill.available) {
+    return t('card.integrationOAuth.envSkill.configureInSettings');
+  }
+  if (skill.required_oauth_issuers && skill.required_oauth_issuers.length > 0 && !skill.available) {
+    return t('card.integrationOAuth.googleWorkspace.connectInSettings');
+  }
   if (isGoogleWorkspaceOAuthUnavailable(skill)) {
     return t('card.integrationOAuth.googleWorkspace.connectInSettings');
   }
@@ -67,6 +86,13 @@ export function getIntegrationSkillSettingsLinkLabel(skill: Skill, t: SkillsCard
 }
 
 export function getSkillUnavailableDisplayMessage(skill: Skill, t: SkillsCardTranslator): string {
+  if (
+    ((skill.required_oauth_issuers && skill.required_oauth_issuers.length > 0) ||
+      (skill.required_mcp_server_ids && skill.required_mcp_server_ids.length > 0)) &&
+    !skill.available
+  ) {
+    return skill.unavailable_reason || t('card.integrationOAuth.googleWorkspace.unavailable');
+  }
   if (isGoogleWorkspaceOAuthUnavailable(skill)) {
     return t('card.integrationOAuth.googleWorkspace.unavailable');
   }

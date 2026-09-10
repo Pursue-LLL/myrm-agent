@@ -145,3 +145,23 @@ Use `kanban_add_task` with `depends_on` to create tasks and dependencies on the 
 - **Ready:** Tasks with no pending dependencies
 - **Blocked:** Tasks waiting for dependencies
 - Include priority labels and time estimates
+
+### Option C: Staged Idea-to-Build Artifact Directory (从灵感到可构建分阶段工件)
+
+When developing a new product, feature, or tool from scratch, generate the standardized **Staged Artifacts Architecture** (`docs/idea-to-build/{feature_slug}/`):
+
+```text
+docs/idea-to-build/{feature_slug}/
+├── 01_concept_brief.md        # 核心用户痛点、价值主张、Out-of-scope 边界与成功北极星指标
+├── 02_functional_spec.md       # 用户旅程、前置条件、输入输出数据契约与错误边界
+├── 03_architecture_design.md   # 技术栈选型、前后端分层职责、存储与数据模型、安全与沙箱隔离
+├── 04_implementation_plan.md   # MECE 任务清单、工期估算、依赖拓扑与增量提交节奏
+└── 05_verification_gate.md     # 验收测试用例、端到端冒烟命令、边界异常与性能达标物理证据
+```
+
+**Spec Review Gate Protocol (规范审查门禁)**:
+1. **Separate Product Thinking from Implementation Thinking**: Never write code before `01_concept_brief.md` and `02_functional_spec.md` pass user review.
+2. **Lite vs Full Mode**:
+   - **Lite Mode**: For straightforward features (< 2 days), synthesize into a single self-contained `spec_brief.md` containing concept, spec, plan, and verify gates.
+   - **Full Mode**: For multi-system complex features, strictly output the 5-file staged artifacts directory.
+3. **Single-File Agent Build Handoff**: The final step compiles the staged specs into a single prompt bundle (`build_handoff_prompt.md`), allowing any implementation subagent or coder agent to execute the build with 100% architectural fidelity and zero ambiguity.

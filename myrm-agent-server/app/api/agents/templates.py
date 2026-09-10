@@ -114,8 +114,14 @@ async def list_templates(request: Request) -> JSONResponse:
                             "growth_operator",
                             "admin_specialist",
                             "competitor_analyst",
+                            "persona_distiller",
                         ):
                             category = "office"
+                        elif template_id in (
+                            "storefront_shopper_agent",
+                            "backoffice_merchant_agent",
+                        ):
+                            category = "commerce"
                         else:
                             category = "general"
 

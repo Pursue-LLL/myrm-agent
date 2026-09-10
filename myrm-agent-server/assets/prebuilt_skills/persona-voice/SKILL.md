@@ -56,6 +56,14 @@ When extracting or updating a voice profile, follow `references/extraction-sop.m
 - **Interactive Refinement**: If samples are scarce, trigger targeted interactive discovery questions.
 - **Persistence Protocol**: Persist using `memory_save_tool` with key `persona_voice:<voice_id>` for seamless multi-profile switching.
 - **Adaptive Flywheel**: When human edits on generated artifacts are detected, parse the diff and update the active voice matrix.
+- **Conversational Skill Preset Packaging (对话型专家技能一键封装流程)**:
+  Distilled persona corpus profiles can be bundled directly into self-contained Persona Skills (`assets/prebuilt_skills/persona-{name}/SKILL.md` or user workspace skills).
+  The packaging pipeline follows these standardized steps:
+  1. **Corpus Distillation**: Ingest raw chat logs, articles, or transcripts and extract the 5-dimensional Tone of Voice matrix.
+  2. **Persona System Prompt Synthesis**: Embed the voice matrix into an authoritative persona definition with explicit behavioral constraints, banned clichés, and domain stance.
+  3. **Few-Shot Calibration Pairs**: Generate 3-5 authentic multi-turn conversational examples showcasing characteristic syntactic pacing, greeting style, and edge-case handling.
+  4. **Skill Asset Manifest Export**: Write out a complete `SKILL.md` declaring `category: conversational-persona`, required memory tools, and runtime verification hooks.
+  Once packaged, the conversational skill is instantly installable across workspaces, allowing any agent or colleague to talk to, interview, or simulate the expert persona with zero configuration drift.
 
 ## Reference Specifications
 

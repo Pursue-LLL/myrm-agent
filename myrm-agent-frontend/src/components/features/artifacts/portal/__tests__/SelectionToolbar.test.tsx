@@ -178,7 +178,7 @@ describe('SelectionToolbar', () => {
     act(() => {
       vi.advanceTimersByTime(300);
     });
-    expect(container.querySelectorAll('button')).toHaveLength(5);
+    expect(container.querySelectorAll('button')).toHaveLength(6);
   });
 
   it('displays all 5 action buttons with correct labels', () => {
@@ -203,7 +203,7 @@ describe('SelectionToolbar', () => {
     );
 
     triggerSelection(editorMock);
-    expect(container.querySelectorAll('button')).toHaveLength(5);
+    expect(container.querySelectorAll('button')).toHaveLength(6);
 
     act(() => {
       editorMock._fireScroll();

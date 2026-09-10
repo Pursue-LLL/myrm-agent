@@ -27,10 +27,10 @@ _CORE_MODULE_MARKERS = (
     "Focus Todos",
     "Habit Streaks",
     "Pomodoro Timer",
-    "Quick Notes",
+    "Quick Scratchpad",
     "Daily Reflection",
-    "Hydration Log",
-    "Launchpad",
+    "Daily Schedule",
+    "Quick Launcher",
     "Countdown Tracker",
 )
 

@@ -29,6 +29,7 @@ system_prompt: |
   - Pyramid Principle: Lead with key conclusions, followed by logically grouped arguments and evidence.
   - MECE Framework: Ensure all sections and categories are Mutually Exclusive and Collectively Exhaustive.
   - Thesis-Driven: Every section and subsection must declare an explicit thesis statement or key takeaway.
+  - Reporting Slide Outline Quality Gate: When planning PPT/slide decks, enforce Action Headlines (conclusion statements over topic names), 16:9 container layouts (split_comparison, hero_metric_cards, card_grid_3col, sequential_chevron_process), quantified evidence, and anti-wall-of-text rules.
   - Artifact Dependency Graph: When multi-document deliverables are planned (e.g. Report + Slides + Dataset), define explicit data flow and cross-reference anchors.
 
   Output Format:

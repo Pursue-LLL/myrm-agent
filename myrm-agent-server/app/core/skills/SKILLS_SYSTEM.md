@@ -137,6 +137,17 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 | 运行时 | `SkillBoundaryProvider` guardrail 依据 `SkillPermissionGrant` 判断放行/拦截；操作写入 `skill_permission_usage_logs` |
 | 卸载清理 | `SkillMarketService.uninstall` 成功后调用 `permission_service.purge_skill_permissions`：删除该 skill 的 `SkillPermissionGrant` + `skill_permission_usage_logs`，并清空内存权限缓存，防止重装同 ID 技能继承旧授权 |
 
+### 3.9 技能包内嵌经验库自闭环机制 (Embedded Experience Library Loop)
+
+为了避免 Agent 在同一技能领域反复踩已知的环境特异性陷阱，技能包支持内嵌经验库演进机制：
+
+| 机制环节 | 说明 |
+|------|------|
+| **文件约定** | 技能包根目录允许内嵌 `EXPERIENCE.md`（或在 `SKILL.md` 中约定避坑指南） |
+| **条目格式** | 必须采用标准三段论：`【场景/触发条件】`、`【常见踩坑/错误现象及 Root Cause】`、`【防范铁律与最优解】` |
+| **读在前 (Read-First)** | Agent 激活该技能执行前，优先检索与吸收对应经验库，提前规避已知环境陷阱与反爬/限流/格式问题 |
+| **写在后 (Write-Back)** | Agent 在当前任务中遭遇未知报错并自主解决后，在复盘总结阶段自动将新增避坑知识回写追加至技能包 `EXPERIENCE.md`，实现技能经验的自适应闭环迭代 |
+
 ---
 
 ## 四、依赖关系

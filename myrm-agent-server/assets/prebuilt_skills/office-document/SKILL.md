@@ -17,7 +17,7 @@ tags:
 allowed-tools: bash_code_execute_tool file_write_tool file_read_tool
 contract:
   steps:
-    - "Phase 1: Requirements — clarify document type, content, structure, and styling preferences"
+    - "Phase 1: Requirements — clarify document type, content, structure, and styling preferences (for PPTX planning, enforce Pyramid Principle and 4-gate reporting quality checklist)"
     - "Phase 2: Environment — ensure required Python packages are installed"
     - "Phase 3: Generate — create the document following format-specific conventions"
     - "Phase 4: Validate — verify the output file opens correctly and content is complete"
@@ -29,6 +29,12 @@ contract:
     - description: "Creating presentations with walls of text instead of visual layouts"
       mitigation: "Enforce 6-word headlines, bullet points max 6 per slide, use visuals over text"
       severity: medium
+    - description: "Generating aimless topic-label PPT titles (e.g. 'Overview', 'Next Steps') without thesis statements"
+      mitigation: "Enforce Thesis-Driven Headlines: every slide headline must express a full conclusion or actionable finding"
+      severity: high
+    - description: "Generating aimless topic-label PPT titles (e.g. 'Overview', 'Next Steps') without thesis statements"
+      mitigation: "Enforce Thesis-Driven Headlines: every slide headline must express a full conclusion or actionable finding"
+      severity: high
     - description: "Missing pip install leading to ModuleNotFoundError at runtime"
       mitigation: "Always run pip install in Phase 2 before any generation code"
       severity: medium
@@ -71,6 +77,16 @@ The harness runs an automatic Office write-fidelity audit after every successful
 ## Overview
 
 Business documents must be immediately usable — not "almost done, just needs formatting." This workflow ensures every generated document meets professional standards: correct formulas in Excel, clean layouts in PowerPoint, proper styling in Word.
+
+## Experience Library Loop (经验库自闭环)
+
+This skill adopts the **Embedded Experience Library Loop** pattern defined in `SKILLS_SYSTEM.md`:
+
+1. **Read-First (前置检索避坑)**:
+   Before generating or modifying Office documents, check `EXPERIENCE.md` located in this skill package. Absorb documented pitfalls (e.g. openpyxl MergedCell write errors, formula casing, python-pptx word-wrap constraints, python-docx column-width synchronization) and treat them as non-negotiable negative constraints.
+
+2. **Write-Back (后置经验回写)**:
+   When resolving an unhandled error, discovering an environment-specific boundary, or accommodating a specific corporate layout nuance, distill the solution into a structured entry (`【场景】` / `【踩坑现象】` / `【根因分析】` / `【最佳实践】`) and append it to `EXPERIENCE.md`. Never log raw conversations; keep each entry under 6 lines.
 
 ## Phase 0: Create vs. Modify Detection
 
@@ -359,12 +375,48 @@ If formulas were lost, do **not** deliver the file. Investigate, fix, and retry.
 
 ### PowerPoint (.pptx) — python-pptx
 
+#### Reporting PPT Outline Quality Gate (汇报型 PPT 大纲质量门禁)
+
+When planning or confirming an outline for a reporting/business presentation (in Plan mode or before generating slides), you MUST strictly enforce the **4 Quality Gates** below. Do NOT proceed to slide code generation until all gates pass:
+
+1. **Gate 1: Action-Oriented Takeaway Headlines (观点句标题，拒绝纯名词/章节名)**:
+   - **FORBIDDEN**: Descriptive topic labels (e.g., "Current Architecture", "Market Analysis", "User Feedback", "Financial Results").
+   - **REQUIRED**: Conclusion-driven takeaways stating "What is the finding/decision?" (e.g., "Decoupled 3-Tier Architecture Reduces Latency by 85%", "Enterprise Segment Grew 32% QoQ While SMB Churn Stabilized", "Phase 1 Migration Succeeded with Zero Downtime").
+   - **Rule**: Every slide headline MUST be an assertive takeaway sentence (ideally ≤ 12 words / 18 Chinese characters) that communicates the complete insight even if the audience reads nothing else.
+
+2. **Gate 2: 16:9 Visual Container Layout Specification (明确 16:9 商业版式容器)**:
+   - **FORBIDDEN**: Outlines that only list bullet points without specifying slide visual architecture.
+   - **REQUIRED**: Every outline node MUST explicitly declare its layout container archetype from the approved roster:
+     - `hero_metric_cards` (1-3 prominent KPI callouts with deltas)
+     - `split_comparison` (2-column before vs after / option A vs B)
+     - `card_grid_3col` (3 distinct pillar cards / feature breakdowns)
+     - `sequential_chevron_process` (3-5 step horizontal execution flow)
+     - `data_chart_with_callout` (Native PowerPoint bar/column/line chart + side takeaway)
+     - `tabular_matrix` (Structured table for criteria scoring or roadmap phases)
+
+3. **Gate 3: Quantified Metric Evidence (必须包含确定性量化指标)**:
+   - **FORBIDDEN**: Vague qualitative fluff (e.g., "Significantly improved performance", "Cost is greatly reduced", "Many customers complained").
+   - **REQUIRED**: Concrete baseline vs target metrics (e.g., "P99 Latency: 120ms -> 18ms", "CAC dropped 24% to $42", "38 Enterprise Accounts Onboarded").
+
+4. **Gate 4: Anti-Wall-of-Text & Clean Typography (反文字墙与禁原生 Emoji)**:
+   - Maximum 4 container cards per slide; maximum 3 bullet points per card.
+   - No body text line exceeding 18 Chinese characters / 12 words without a break.
+   - **STRICT PROHIBITION**: Never use raw native emojis (🤖, 📝, 💡, 🚀) on business slides. Use structured numbers (`01`, `02`), clean badges, or geometric icons.
+
 #### Slide Composition Rules
 
 - **Title slide**: Title + subtitle + date
 - **Content slides**: Headline (max 6 words) + bullet points (max 6 per slide) or visual
 - **Data slides**: Chart or table with a clear takeaway headline
 - **Closing slide**: Key takeaways or next steps
+
+#### Plan Mode Reporting Outline & Thesis Statement Quality Gate (汇报型大纲与观点句门禁)
+- **观点句要求 (Thesis Headline Rule)**：每张幻灯片的标题【必须】是一个完整断言或业务观点句（例如“Q3 履约效率提升 18%，履约成本下降 12%”），绝对禁止使用“项目进展”、“数据统计”、“情况介绍”等无主观观点的空洞名词短语。
+- **金字塔逻辑检验 (Pyramid Logic Check)**：大纲层级必须满足“上层统领下层、下层支撑上层、同层分类 MECE（相互独立、完全穷尽）”原则。在 Plan 模式草案阶段必须逐页校验：
+  1. 结论先行（Slide 1-2 明确核心业务结论）；
+  2. 论据充分（每页提供对应的数据图表或事实论据）；
+  3. 反文字墙（单页正文行数不超过 4 行，每行不超过 25 字，必须有图表或卡片容器承载）。
+- **未达标处理**：若大纲中存在纯名词性占位标题或文字墙草案，门禁拦截并自动重构为结论型观点句。
 
 #### Layout Standards
 
@@ -394,6 +446,7 @@ for para in tf.paragraphs:
 
 - Consistent color palette across all slides
 - One key message per slide
+- **Thesis-Driven Headlines (观点句大纲门禁)**: Every slide title must state an active thesis/conclusion (e.g., "Enterprise revenue grew 24% QoQ driven by AI tier", NOT "Revenue Overview")
 - Charts over tables; tables over bullet lists
 - Add slide numbers
 - Sans-serif fonts (Calibri, Arial, or system default)

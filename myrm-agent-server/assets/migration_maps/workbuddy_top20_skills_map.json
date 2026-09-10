@@ -1,0 +1,182 @@
+[
+  {
+    "id": "meeting_minutes_extraction",
+    "name": "会议纪要提炼与待办流转",
+    "workbuddy_name": "智能会议纪要 (Meeting Minutes)",
+    "myrm_skill_id": "voice-memo-synthesizer",
+    "myrm_agent_template": "admin_specialist",
+    "category": "office",
+    "description": "从会议录音/文字实录中4D提炼核心纪要、结构化Kanban行动待办与长期记忆事实"
+  },
+  {
+    "id": "weekly_daily_journal_loop",
+    "name": "待办-对账-周报自动闭环",
+    "workbuddy_name": "工作日志与周报总结 (Weekly Report)",
+    "myrm_skill_id": "personal-life-workbench",
+    "myrm_agent_template": "admin_specialist",
+    "category": "office",
+    "description": "8模块个人工作台与时间块跟踪，结合每周自动复盘对账生成结构化周报"
+  },
+  {
+    "id": "commercial_presentation_pptx",
+    "name": "商业汇报演示文稿",
+    "workbuddy_name": "商业幻灯片生成 (PPT Generator)",
+    "myrm_skill_id": "office-document",
+    "myrm_agent_template": "office_document_assistant",
+    "category": "office",
+    "description": "严格执行观点句大纲门禁与金字塔原理，生成反文字墙的原生可编辑16:9商业PPT"
+  },
+  {
+    "id": "spreadsheet_financial_ops",
+    "name": "电子表格核算与报表分析",
+    "workbuddy_name": "数据透视与表格处理 (Spreadsheet Ops)",
+    "myrm_skill_id": "office-document",
+    "myrm_agent_template": "financial_analyst",
+    "category": "office",
+    "description": "结合Univer Editor与openpyxl，支持动态公式完整性校验、数据透视与单元格局部编辑"
+  },
+  {
+    "id": "official_doc_formatting",
+    "name": "公文拟制与报告排版",
+    "workbuddy_name": "公文与排版美化 (Docx Formatter)",
+    "myrm_skill_id": "enterprise-branded-office",
+    "myrm_agent_template": "official_document_assistant",
+    "category": "office",
+    "description": "统一企业专属母版、标准公文页眉页脚与三级标题层级，实现同事免配置交接"
+  },
+  {
+    "id": "customer_relationship_review",
+    "name": "客户沟通与敏感草稿审核",
+    "workbuddy_name": "敏感邮件与消息审查 (Draft Review)",
+    "myrm_skill_id": "customer-relationship-draft-review",
+    "myrm_agent_template": "admin_specialist",
+    "category": "office",
+    "description": "4维合规审查雷达，针对过度履约承诺、商业机密泄露与沟通语调进行硬门禁拦截"
+  },
+  {
+    "id": "relationship_signal_gate",
+    "name": "沟通意向转待办确认门禁",
+    "workbuddy_name": "社交弱意向防打扰 (Signal Gate)",
+    "myrm_skill_id": "task-planning",
+    "myrm_agent_template": "admin_specialist",
+    "category": "office",
+    "description": "通过结构化HITL问卷确认人际沟通意向，杜绝非工作场景弱信号擅自转待办"
+  },
+  {
+    "id": "brand_vi_synthesis",
+    "name": "品牌VI规范提炼与约束",
+    "workbuddy_name": "品牌视觉规范抽取 (Brand VI)",
+    "myrm_skill_id": "brand-vi-guidelines",
+    "myrm_agent_template": "growth_operator",
+    "category": "design",
+    "description": "从设计协同会话中抽取5大视觉基石与机器可读brand-vi.yaml，约束下游交付物"
+  },
+  {
+    "id": "project_evidence_pack",
+    "name": "项目经验六步证据包向导",
+    "workbuddy_name": "案例复盘证据链 (Evidence Pack)",
+    "myrm_skill_id": "project-experience-evidence-pack",
+    "myrm_agent_template": "pareto_code_craftsman",
+    "category": "engineering",
+    "description": "基于实测物理证据与执行轨迹，六步严谨复盘原始诉求、失败排查、修正依据与防复发门禁"
+  },
+  {
+    "id": "persona_corpus_distillation",
+    "name": "人物语料蒸馏与数字分身",
+    "workbuddy_name": "专家拟真对话 (Persona Voice)",
+    "myrm_skill_id": "persona-voice",
+    "myrm_agent_template": "growth_operator",
+    "category": "office",
+    "description": "5维风格矩阵蒸馏真实历史语料，一键封装具备个性DNA的拟真对话型专家技能"
+  },
+  {
+    "id": "deep_research_pipeline",
+    "name": "深度行业与竞品调研",
+    "workbuddy_name": "全网深度调研 (Deep Research)",
+    "myrm_skill_id": "deep-research",
+    "myrm_agent_template": "growth_operator",
+    "category": "office",
+    "description": "递归检索溯源、多源交叉论证、反文字墙并生成带完整证据链的战略研报"
+  },
+  {
+    "id": "web_scraping_automation",
+    "name": "网页数据精准抓取与解析",
+    "workbuddy_name": "智能网页爬虫 (Web Scraping)",
+    "myrm_skill_id": "web-scraping",
+    "myrm_agent_template": "pareto_code_craftsman",
+    "category": "engineering",
+    "description": "结合无头浏览器与反爬降级策略，批量提取结构化数据并导出为标准格式"
+  },
+  {
+    "id": "database_diagnostics_sql",
+    "name": "数据库性能诊断与优化",
+    "workbuddy_name": "SQL调优与慢查 (DB Diagnostics)",
+    "myrm_skill_id": "db-diagnostics",
+    "myrm_agent_template": "database_diagnostics_expert",
+    "category": "engineering",
+    "description": "执行计划慢查询EXPLAIN深度剖析、缺失索引推荐与生产事务安全门禁审查"
+  },
+  {
+    "id": "architecture_diagram_gen",
+    "name": "系统架构图与流程图设计",
+    "workbuddy_name": "可视化架构绘图 (Architecture)",
+    "myrm_skill_id": "architecture-diagram",
+    "myrm_agent_template": "pareto_code_craftsman",
+    "category": "engineering",
+    "description": "使用Mermaid/PlantUML纯代码绘制高可读性C4架构图、时序图与系统数据流拓扑"
+  },
+  {
+    "id": "frontend_ui_restoration",
+    "name": "前端原型还原与样式系统",
+    "workbuddy_name": "原型还原专家 (UI Design)",
+    "myrm_skill_id": "popular-web-designs",
+    "myrm_agent_template": "ui_design_expert",
+    "category": "design",
+    "description": "对标54套行业顶级设计系统Token规范，零外部CDN依赖生成暗黑主题自适应界面"
+  },
+  {
+    "id": "code_review_pipeline",
+    "name": "代码重构与安全审计流水线",
+    "workbuddy_name": "代码审查专家 (Code Review)",
+    "myrm_skill_id": "code-review-pipeline",
+    "myrm_agent_template": "pareto_code_craftsman",
+    "category": "engineering",
+    "description": "多维AST静态检测、已知CVE漏洞挖掘、测试驱动覆盖率审查与重构建议"
+  },
+  {
+    "id": "cron_host_server_ops",
+    "name": "主机服务器巡检与定时运维",
+    "workbuddy_name": "定时巡检脚本 (Host Ops)",
+    "myrm_skill_id": "host-server-ops",
+    "myrm_agent_template": "pareto_code_craftsman",
+    "category": "engineering",
+    "description": "CronJob专属沙箱调度，安全执行只读健康探测、指标采集与异常主动告警"
+  },
+  {
+    "id": "document_extraction_pdf",
+    "name": "PDF与文档结构化精准提取",
+    "workbuddy_name": "文档票据OCR (Document Extraction)",
+    "myrm_skill_id": "document-extraction",
+    "myrm_agent_template": "admin_specialist",
+    "category": "office",
+    "description": "版面自适应分析、多页表格自动缝合与排版保留的高精度结构化文本解析"
+  },
+  {
+    "id": "llm_wiki_crystallization",
+    "name": "企业业务口径与知识库Wiki沉淀",
+    "workbuddy_name": "知识库百科 (Enterprise Wiki)",
+    "myrm_skill_id": "evidence-discipline",
+    "myrm_agent_template": "growth_operator",
+    "category": "office",
+    "description": "会话知识双向闭环，将指标定义与核心业务口径结晶沉淀为版本化权威Wiki"
+  },
+  {
+    "id": "skill_experience_library_loop",
+    "name": "技能经验库自免疫演化闭环",
+    "workbuddy_name": "技能沉淀飞轮 (Experience Loop)",
+    "myrm_skill_id": "office-document",
+    "myrm_agent_template": "office_document_assistant",
+    "category": "office",
+    "description": "执行前优先检索吸收避坑指南，踩坑修正后自动回写沉淀，实现技能随调用自进化"
+  }
+]

@@ -101,7 +101,20 @@ When another loaded skill sets a narrower evidence, safety, or output contract
 preserve it. This discipline raises the evidence bar; it never overrides
 narrower contracts or clean user-facing output.
 
-## 8. Common pitfalls
+## 8. Skill Embedded Experience Library Loop (技能经验库读前写后双向闭环)
+
+Every production skill package can maintain an embedded learnings repository file (`learnings.md` or `经验库.md` under its bundle directory):
+- **Read Before Action (执行前必读)**: When a skill is loaded or activated for a task, the agent MUST first inspect its local `learnings.md` / `经验库.md` to load previously crystallized traps, workarounds, edge-case fixes, and invariant rules before taking any action.
+- **Write After Completion (完成后沉淀)**: When an unexpected edge case, subtle failure, runtime workaround, or critical environment lesson is solved during the task execution, the agent MUST append an atomic learning record to the skill's embedded `learnings.md` / `经验库.md`:
+  ```markdown
+  ### [YYYY-MM-DD] [Trap/Lesson Title]
+  - **Context**: The scenario, input parameters, or environment trigger.
+  - **Failure Symptom**: What broke or produced misleading output.
+  - **Root Cause & Workaround**: Exactly how it was resolved and how future runs must handle it.
+  ```
+- **Continuous Evolution**: This forms a self-improving operational loop where each skill becomes progressively more resilient with every execution.
+
+## 9. Common pitfalls
 
 - Exit code 0 proves only what that command established — re-run the original
   failing action to confirm the user's problem is actually gone.

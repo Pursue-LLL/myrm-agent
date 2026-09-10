@@ -33,6 +33,7 @@ import SkillSourcesPanel from './SkillSourcesPanel';
 import SkillRegistryMirrorPanel from './SkillRegistryMirrorPanel';
 import { formatSkillInstallToast } from './skillDiscoverInstallToast';
 import { launchSkillTrialRun } from '@/services/skillTrialRunner';
+import { isWorkBuddyMigrationSkill, getWorkBuddyMigrationInfo } from '@/services/skillsMigrationMap';
 import useChatStore from '@/store/useChatStore';
 import {
   AlertDialog,
@@ -148,7 +149,9 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
 
   const filteredAndSorted = useMemo(() => {
     let filtered = results;
-    if (activeTag !== 'all') {
+    if (activeTag === 'wb-top20') {
+      filtered = results.filter((s) => isWorkBuddyMigrationSkill(s.id) || isWorkBuddyMigrationSkill(s.name));
+    } else if (activeTag !== 'all') {
       filtered = results.filter((s) => s.tags.includes(activeTag));
     }
     if (sortMode === 'stars') {
@@ -373,6 +376,9 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
             <TagButton active={activeTag === 'all'} onClick={() => setActiveTag('all')}>
               {t('allTags')}
             </TagButton>
+            <TagButton active={activeTag === 'wb-top20'} onClick={() => setActiveTag('wb-top20')}>
+              <span className="font-medium text-amber-600 dark:text-amber-400">✨ WorkBuddy Top 20</span>
+            </TagButton>
             {availableTags.slice(0, 8).map((tag) => (
               <TagButton key={tag} active={activeTag === tag} onClick={() => setActiveTag(tag)}>
                 <TranslatedTag tag={tag} />
@@ -587,6 +593,7 @@ const SkillResultCard = memo(
       : t(`source.${skill.source}` as Parameters<typeof t>[0]);
     const isBusy = isInstalling || isPreviewing || isUninstalling;
     const isLocalInstalled = !!skill.installed_version;
+    const wbMigrationInfo = getWorkBuddyMigrationInfo(skill.id) || getWorkBuddyMigrationInfo(skill.name);
 
     return (
       <div
@@ -600,6 +607,14 @@ const SkillResultCard = memo(
                 <SourceIcon className="h-3 w-3" />
                 {sourceLabel}
               </Badge>
+              {wbMigrationInfo && (
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20"
+                >
+                  WB Top 20
+                </Badge>
+              )}
               {skill.package_type === 'agent_plugin' && (
                 <Badge
                   variant="secondary"

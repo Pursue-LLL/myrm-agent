@@ -110,7 +110,7 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
       artifactName,
       kind: 'spreadsheet',
       scopeLabel: rangeTag,
-      selectedSnippet,
+      selectedSnippet: selectedSnippet.replace(/\\t/g, '\t'),
     });
 
     // 2. 向会话输入框挂载上下文引用

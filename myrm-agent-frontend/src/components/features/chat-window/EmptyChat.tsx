@@ -12,6 +12,7 @@ import GrowingLoopDiscoveryChip from './GrowingLoopDiscoveryChip';
 import MemoryHygieneDiscoverChip from './MemoryHygieneDiscoverChip';
 import { ModelOrchestrationPlaybookChip, ModelOrchestrationPlaybookDialog } from './playbook';
 import FeaturedExpertChips from './FeaturedExpertChips';
+import PersonalTodoClosedLoopCard from './PersonalTodoClosedLoopCard';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
 import WorkUnitBalanceBar from '@/components/billing/WorkUnitBalanceBar';
 import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
@@ -72,6 +73,8 @@ const EmptyChat = React.memo(() => {
         </div>
 
         <NewTaskWorkContextCard />
+
+        <PersonalTodoClosedLoopCard />
 
         <FeaturedExpertChips />
 

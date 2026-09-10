@@ -7979,6 +7979,7 @@
       "categoryFilter": "Category Filter",
       "categoryAll": "All",
       "categoryOffice": "Office & Business",
+      "categoryCommerce": "E-Commerce",
       "categoryEngineering": "Engineering",
       "categoryTeam": "Teams",
       "orgMarketplace": "Org Marketplace",
@@ -9610,7 +9611,8 @@
       "nextTurnOnly": "Applies to the next message only",
       "overrideSkillsShort": "{skills} skills",
       "overrideMcpShort": "{mcps} MCP",
-      "overrideRemove": "Reset"
+      "overrideRemove": "Reset",
+      "minimalMountNotice": "Mounting too many capabilities may dilute model focus. Consider narrowing to essential tools."
     },
     "samplePrompts": {
       "fast_0": "What are the latest AI regulation policies?",
@@ -9625,7 +9627,7 @@
       "fast_9": "How can I improve my remote work productivity?",
       "fast_10": "What are the mainstream large language models and their strengths?",
       "fast_11": "Explain the core principles of RAG technology",
-      "agent_0": "Draw a project architecture flowchart for me",
+      "agent_0": "Create a 16:9 commercial presentation deck for me (editable .pptx)",
       "agent_1": "Help me create a weekly work summary report",
       "agent_2": "Help me write a social media article",
       "agent_3": "Set up a daily briefing reminder for 8 AM every morning",
@@ -9637,6 +9639,7 @@
       "agent_9": "Draw a team capability radar chart for me",
       "agent_10": "Search and summarize industry news from the past week",
       "agent_11": "Help me design a user feedback collection plan",
+      "agent_pptx": "Help me generate a reporting PPTX presentation with takeaway headlines and 16:9 business layout",
       "deep_research_0": "Comprehensive comparison of RAG vs fine-tuning for enterprise LLM applications",
       "deep_research_1": "In-depth analysis of WebAssembly's impact on modern web performance",
       "deep_research_2": "Research the current state and future of autonomous driving technology",
@@ -9653,8 +9656,8 @@
       "time_morning_1": "Help me break down standup agenda and unfinished action items",
       "time_morning_2": "Summarize today's key industry updates and watchlist",
       "time_morning_3": "Draft a cross-team sync and progress update email",
-      "time_afternoon_0": "Deeply review current project architecture and security boundaries",
-      "time_afternoon_1": "Write a forward-looking evaluation report for technical stack choices",
+      "time_afternoon_0": "Generate a modern 16:9 editable business reporting PPTX presentation",
+      "time_afternoon_1": "Deeply review current project architecture and security boundaries",
       "time_afternoon_2": "Analyze business metrics data and simulate optimization strategies",
       "time_afternoon_3": "Optimize concurrency and error handling for this core code module",
       "time_evening_0": "Generate a summary and blocker retrospective for today's work",
@@ -9673,6 +9676,31 @@
       "evening": "Evening Retro",
       "night": "Night Deep Work",
       "all": "Explore All"
+    },
+    "personalClosedLoop": {
+      "badge": "Trinity Loop",
+      "title": "Personal Workflow Loop: Todo · Log · Weekly Report",
+      "desc": "Take Kanban tasks as input, record daily factual logs, and automatically aggregate into a structured weekly review for refined personal delivery.",
+      "step1Title": "Todo Breakdown",
+      "step1Desc": "Kanban task planning and phase tracking",
+      "step1Prompt": "Help me organize and break down current key tasks, prioritize them, and synchronize them into Kanban board.",
+      "step2Title": "Daily Reconciliation",
+      "step2Desc": "DailyJournal capturing facts and decision blockers",
+      "step2Prompt": "Help me document today's work journal (Daily Journal), listing key facts, core decision blockers, and progress evidence.",
+      "step3Title": "Smart Weekly Report",
+      "step3Desc": "WeeklyReview blueprint aggregating metrics",
+      "step3Prompt": "Retrieve completed tasks and daily journal logs from this week, and compile a structured weekly summary report following conclusion-first, data-backed metrics, and blocker retrospective.",
+      "oneClickAction": "Load Workflow Prompt"
+    },
+    "skillConnectorsPreflight": {
+      "title": "Skill Connectors Preflight",
+      "missingNotice": "Active skills require unconfigured connectors",
+      "missingDesc": "To ensure reliable execution, connect required credentials or narrow tool scope before sending.",
+      "connectAction": "Connect Now",
+      "narrowScopeAction": "Narrow Scope",
+      "allConnected": "All required connectors ready",
+      "requiredIssuers": "OAuth Authorization Required",
+      "requiredMcp": "MCP Service Required"
     },
     "subagent": {
       "viewResults": "View Results"
@@ -12493,7 +12521,10 @@
       "charts": "charts",
       "macros": "macros",
       "pivotTables": "pivot tables",
-      "images": "images"
+      "images": "images",
+      "quote": "Quote to Composer",
+      "quoteRow": "Quote row {row}",
+      "quoteRowTooltip": "Quote selected row to composer for targeted inquiry or partial edit"
     },
     "saving": "Saving...",
     "saved": "Saved",
@@ -12755,6 +12786,7 @@
       "explain": "Explain",
       "optimize": "Optimize",
       "addComment": "Add Comment",
+      "quote": "Quote to Composer",
       "copy": "Copy",
       "modifyPlaceholder": "Describe what to change...",
       "queued": "Action queued, will execute when current task completes"
@@ -12763,6 +12795,7 @@
       "modify": "AI Modify",
       "explain": "Explain",
       "rewrite": "Rewrite",
+      "quote": "Quote to Composer",
       "copy": "Copy",
       "modifyPlaceholder": "Describe what to change..."
     },

@@ -53,6 +53,9 @@ class Skill:
 
     # Env injection
     primary_env: str | None = None
+    oauth_issuer: str | None = None
+    required_oauth_issuers: list[str] = field(default_factory=list)
+    required_mcp_server_ids: list[str] = field(default_factory=list)
 
     # DLP Protection
     allowed_domains: list[str] | None = None
@@ -75,6 +78,15 @@ class Skill:
     Mirror of ``SkillMetadata.required_permissions`` as plain strings —
     the business layer does not depend on the framework's enum type.
     """
+
+    oauth_issuer: str | None = None
+    """Primary OAuth issuer key for runtime credential injection."""
+
+    required_oauth_issuers: list[str] = field(default_factory=list)
+    """Multiple OAuth issuer keys required by this skill (from SKILL.md frontmatter)."""
+
+    required_mcp_server_ids: list[str] = field(default_factory=list)
+    """Multiple MCP server identifiers required by this skill for preflight checks."""
 
     config_schema: dict[str, object] | None = None
     """JSON Schema for skill configuration UI (from SKILL.md frontmatter)."""
@@ -118,6 +130,9 @@ class Skill:
             "model_invocable": self.model_invocable,
             "user_invocable": self.user_invocable,
             "primary_env": self.primary_env,
+            "oauth_issuer": self.oauth_issuer,
+            "required_oauth_issuers": self.required_oauth_issuers,
+            "required_mcp_server_ids": self.required_mcp_server_ids,
             "allowed_domains": self.allowed_domains,
             "allowed_tools": self.allowed_tools,
             "security": self.security.to_dict() if self.security else None,
@@ -176,6 +191,9 @@ class Skill:
             model_invocable=meta.model_invocable,
             user_invocable=meta.user_invocable,
             primary_env=meta.primary_env,
+            oauth_issuer=getattr(meta, "oauth_issuer", None),
+            required_oauth_issuers=_str_list(getattr(meta, "required_oauth_issuers", [])),
+            required_mcp_server_ids=_str_list(getattr(meta, "required_mcp_server_ids", [])),
             allowed_domains=meta.allowed_domains,
             allowed_tools=meta.allowed_tools,
             security=meta.scan_summary,
@@ -219,12 +237,15 @@ class Skill:
             model_invocable=bool(data.get("model_invocable", True)),
             user_invocable=bool(data.get("user_invocable", True)),
             primary_env=_opt_str(data.get("primary_env")),
+            oauth_issuer=_opt_str(data.get("oauth_issuer")),
             allowed_domains=(_str_list(data.get("allowed_domains")) if data.get("allowed_domains") is not None else None),
             allowed_tools=(_str_list(data.get("allowed_tools")) if data.get("allowed_tools") is not None else None),
             security=_parse_security_summary(data.get("security")),
             evolution_locked=bool(data.get("evolution_locked", False)),
             scope_agent_id=_opt_str(data.get("scope_agent_id")),
             required_permissions=_str_list(data.get("required_permissions")),
+            required_oauth_issuers=_str_list(data.get("required_oauth_issuers")),
+            required_mcp_server_ids=_str_list(data.get("required_mcp_server_ids")),
             config_schema=(data.get("config_schema") if isinstance(data.get("config_schema"), dict) else None),
             usage_stats=_coerce_usage_stats(data.get("usage_stats")),
             origin_hash=_opt_str(data.get("origin_hash")),
@@ -287,7 +308,15 @@ def _parse_datetime(val: object) -> datetime:
     return datetime.utcnow()
 
 
-DEFAULT_LOCAL_SKILL_PATHS: list[str] = ["~/.myrm/skills"]
+DEFAULT_LOCAL_SKILL_PATHS: list[str] = [
+    "~/.myrm/skills",
+    "~/.cursor/skills",
+    "~/.cursor/skills-cursor",
+    "~/.claude/skills",
+    "~/.openclaw/skills",
+    "~/.codex/skills",
+    "~/.windsurf/skills",
+]
 
 
 @dataclass
