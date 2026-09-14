@@ -44,20 +44,9 @@ _DISMISS_MIGRATION_JS = """(() => {
 
 
 def _seed_evolving_memory(api_url: str) -> dict[str, object]:
-    """Seed one semantic memory carrying merge audit fields via the real memory API."""
-    payload = {
-        "memory_type": "semantic",
-        "content": "E2E evolution seed - user prefers dark mode (v3)",
-        "importance": 0.8,
-        "confidence": 0.9,
-        "metadata": {
-            "merge_count": 2,
-            "merge_history": "09-12 10:00|MERGE|prefers dark mode\n09-13 18:30|REPLACE|moved dark mode preference to global scope",
-        },
-        "tags": ["e2e-evolution"],
-    }
-    item = http_json("POST", f"{api_url}/api/v1/memory/", payload=payload)
-    assert item.get("id"), f"seed memory create failed: {item}"
+    """Seed evolving memory via the local test fixture (bootstraps embedding + memory)."""
+    item = http_json("POST", f"{api_url}/api/v1/memory/test/seed-evolution-fixture")
+    assert item.get("id"), f"seed evolution fixture failed: {item}"
     return item
 
 
@@ -129,7 +118,7 @@ def _run_with_transport_retry(
 
 
 def _run_evolution_assertions(api_url: str, ui_url: str) -> None:
-    _seed_evolving_memory(api_url)
+    _seed_evolving_memory(api_url)(api_url)
     settings_url = f"{ui_url.rstrip('/')}/settings/knowledge"
     home_url = f"{ui_url.rstrip('/')}/"
 

@@ -11,6 +11,7 @@ from app.api.memory.follow_ups import router as follow_ups_router
 from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
 )
+from app.api.memory.test_seed import router as memory_test_seed_router
 from app.api.memory.operations import (
     archive_restore,
     backup,
@@ -56,3 +57,4 @@ router.include_router(archive_restore.router, tags=["memory-archive-restore"])
 router.include_router(external_transcripts.router, tags=["memory-external-transcripts"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
 router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])
+router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])
