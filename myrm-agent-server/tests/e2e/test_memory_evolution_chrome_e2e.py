@@ -11,12 +11,12 @@ Business flow (Lane-B):
 from __future__ import annotations
 
 import json
-
-import pytest
 import os
 import sys
 import time
 from collections.abc import Callable
+
+import pytest
 
 from tests.support.chrome_mcp_e2e import (
     _require_e2e_cdp_ready,
