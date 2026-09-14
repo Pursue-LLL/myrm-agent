@@ -35,14 +35,6 @@ _LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
 
-_DISMISS_MIGRATION_JS = """(() => {
-  try {
-    sessionStorage.setItem('migration_discovery_dismissed', 'true');
-  } catch (_) {}
-  return 'ok';
-})()"""
-
-
 def _seed_evolving_memory(api_url: str) -> dict[str, object]:
     """Seed evolving memory via the local test fixture (bootstraps embedding + memory)."""
     item = http_json("POST", f"{api_url}/api/v1/memory/test/seed-evolution-fixture")
