@@ -11,7 +11,6 @@ from app.api.memory.follow_ups import router as follow_ups_router
 from app.api.memory.migration_readiness_seed import (
     router as migration_readiness_fixture_router,
 )
-from app.api.memory.test_seed import router as memory_test_seed_router
 from app.api.memory.operations import (
     archive_restore,
     backup,
@@ -33,6 +32,7 @@ from app.api.memory.operations.shared_context import (
     shared_context_migration,
     shared_contexts,
 )
+from app.api.memory.test_seed import router as memory_test_seed_router
 
 logger = logging.getLogger(__name__)
 
