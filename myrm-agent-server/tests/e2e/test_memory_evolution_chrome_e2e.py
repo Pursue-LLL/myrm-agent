@@ -128,10 +128,10 @@ def _run_with_transport_retry(
 def _run_evolution_assertions(api_url: str, ui_url: str) -> None:
     seeded = _seed_evolving_memory(api_url)
     assert seeded.get("status") == "seeded", json.dumps(seeded, ensure_ascii=False)
-    settings_url = f"{ui_url.rstrip('/')}/settings/knowledge"
+    settings_url = f"{ui_url.rstrip('/')}/settings/memory"
     home_url = f"{ui_url.rstrip('/')}/"
 
-    warm_ui_route("/settings/knowledge")
+    warm_ui_route("/settings/memory")
     warm_ui_route("/")
 
     with open_mcp_page(home_url, timeout_ms=120_000) as (client, page):

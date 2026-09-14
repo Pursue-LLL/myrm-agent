@@ -27,9 +27,7 @@ like any other branched task, lanes resolve their worktree at dispatch time.
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import subprocess
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
@@ -39,8 +37,6 @@ from myrm_agent_harness.toolkits.kanban.types import (
     TaskRun,
     TaskStatus,
 )
-
-from app.core.utils.git_worktree import _GIT_ENV
 
 if TYPE_CHECKING:
     from app.services.kanban.service import KanbanService
