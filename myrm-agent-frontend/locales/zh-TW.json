@@ -2885,7 +2885,8 @@
       "nextTurnOnly": "僅對下一條消息生效",
       "overrideSkillsShort": "技能 {skills} 項",
       "overrideMcpShort": "MCP {mcps} 項",
-      "overrideRemove": "恢復默認"
+      "overrideRemove": "恢復默認",
+      "minimalMountNotice": "活躍功能過多可能稀釋模型注意力，建議收斂至當前任務必需工具。"
     },
     "retry": "重試",
     "archiveRestore": {
@@ -3027,6 +3028,16 @@
     "spillover": {
       "notice": "偵測到長文字（{chars} 字元），已自動轉存至工作區檔案以保持上下文整潔。",
       "optimized": "已保護"
+    },
+    "skillConnectorsPreflight": {
+      "title": "連接器前置依賴預檢",
+      "missingNotice": "偵測到目前啟用的技能依賴未設定的連接器",
+      "missingDesc": "為確保技能穩定執行，建議在發起任務前完成授權或透過功能調節收斂工具範圍。",
+      "connectAction": "前往連接",
+      "narrowScopeAction": "單輪收斂功能",
+      "allConnected": "所有依賴連接器已就緒",
+      "requiredIssuers": "需要 OAuth 授權",
+      "requiredMcp": "需要 MCP 服務"
     }
   },
   "mode": {
@@ -5660,7 +5671,8 @@
       "images": "圖片",
       "quote": "引用到輸入框",
       "quoteRow": "引用第 {row} 行",
-      "quoteRowTooltip": "引用選中行到對話輸入框進行針對性提問或局部編輯"
+      "quoteRowTooltip": "引用選中行到對話輸入框進行針對性提問或局部編輯",
+      "rowScopeLabel": "第 {row} 列"
     },
     "saving": "儲存中...",
     "saved": "已儲存",

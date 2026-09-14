@@ -156,15 +156,50 @@ async def test_process_skill_review_result_marks_failed_scan_for_malicious_skill
 
 
 @pytest.mark.asyncio
-async def test_process_skill_review_result_skipped_in_sandbox(
+async def test_process_skill_review_result_skipped_when_local_skills_disabled(
     mock_local_skills_dir: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Sandbox disables local skills — skill growth materialization must fail closed.
+    """When allows_local_skills is False, skill growth materialization must fail closed.
 
-    Writing a grown skill to a store the agent can never load is a silent failure,
-    so sandbox mode must skip skill drafts/patches entirely (no write, no draft).
+    Writing a grown skill to a store the agent cannot load is a silent failure,
+    so the lifecycle must skip skill drafts/patches entirely (no write, no draft).
     """
+    from app.config.deploy_mode import get_deploy_mode
+    from app.platform_utils.deployment_capabilities import (
+        _reset_capabilities_cache_for_testing,
+    )
+
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+    monkeypatch.setenv("MYRM_ALLOW_LOCAL_SKILLS", "0")
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+
+    result = {
+        "has_value": True,
+        "user_id": "growth_user_disabled",
+        "type": "skill_draft",
+        "skill_name": "disabled-grown-skill",
+        "skill_description": "Capture a workflow when disabled.",
+    }
+
+    draft = await process_skill_review_result(result)
+
+    assert draft is None
+    assert not (mock_local_skills_dir / "disabled-grown-skill" / "SKILL.md").exists()
+
+    monkeypatch.delenv("MYRM_ALLOW_LOCAL_SKILLS", raising=False)
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+
+
+@pytest.mark.asyncio
+async def test_process_skill_review_result_allowed_in_sandbox_volume(
+    mock_local_skills_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sandbox mode mounts a dedicated persistent volume, so local skills are allowed by default."""
     from app.config.deploy_mode import get_deploy_mode
     from app.platform_utils.deployment_capabilities import (
         _reset_capabilities_cache_for_testing,
@@ -178,20 +213,29 @@ async def test_process_skill_review_result_skipped_in_sandbox(
 
     result = {
         "has_value": True,
-        "user_id": "growth_user_sandbox",
+        "user_id": "growth_user_sandbox_pv",
         "type": "skill_draft",
-        "skill_name": "sandbox-grown-skill",
-        "skill_description": "Capture a workflow in sandbox.",
+        "skill_name": "sandbox-pv-skill",
+        "skill_description": "Capture a workflow in sandbox persistent volume.",
+        "trigger_condition": "Repeatable workflow.",
+        "skill_steps": "1. Run step A.\n2. Run step B.",
     }
 
     draft = await process_skill_review_result(result)
 
-    assert draft is None
-    assert not (mock_local_skills_dir / "sandbox-grown-skill" / "SKILL.md").exists()
+    assert draft is not None
+    assert draft.status == "APPROVED"
+    assert (mock_local_skills_dir / "sandbox-pv-skill" / "SKILL.md").exists()
 
     monkeypatch.delenv("DEPLOY_MODE", raising=False)
     get_deploy_mode.cache_clear()
     _reset_capabilities_cache_for_testing()
+
+    async with get_session() as db:
+        persisted = await db.get(type(draft), draft.id)
+        if persisted is not None:
+            await db.delete(persisted)
+            await db.commit()
 
 
 @pytest.mark.asyncio

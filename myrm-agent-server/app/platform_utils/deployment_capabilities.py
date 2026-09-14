@@ -1,7 +1,19 @@
-"""Deployment capability registry — semantic flags derived once at startup."""
+"""Deployment capability registry — semantic flags derived once at startup.
+
+[INPUT]
+- app.config.deploy_mode::DeployMode, get_deploy_mode, is_local_mode, is_webui_remote_mode (POS: 部署模式与运行方式枚举与判断)
+
+[OUTPUT]
+- DeploymentCapabilities: 部署能力语义标志数据类
+- get_deployment_capabilities: 单例缓存获取当前进程部署能力标志
+
+[POS]
+部署能力语义注册表。启动时一次性计算并缓存当前部署环境支持的语义能力位。
+"""
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -35,8 +47,14 @@ def get_deployment_capabilities() -> DeploymentCapabilities:
     local = is_local_mode()
     remote = is_webui_remote_mode()
 
+    env_allow_local = os.getenv("MYRM_ALLOW_LOCAL_SKILLS")
+    if env_allow_local is not None:
+        allows_local = env_allow_local.strip().lower() in {"1", "true", "yes", "on"}
+    else:
+        allows_local = local or sandbox
+
     return DeploymentCapabilities(
-        allows_local_skills=local and not sandbox,
+        allows_local_skills=allows_local,
         requires_api_key_auth=sandbox or remote,
         uses_platform_budget=sandbox,
         validates_mcp_response_size=sandbox,

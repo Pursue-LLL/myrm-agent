@@ -12539,7 +12539,8 @@
       "images": "images",
       "quote": "Quote to Composer",
       "quoteRow": "Quote row {row}",
-      "quoteRowTooltip": "Quote selected row to composer for targeted inquiry or partial edit"
+      "quoteRowTooltip": "Quote selected row to composer for targeted inquiry or partial edit",
+      "rowScopeLabel": "Row {row}"
     },
     "saving": "Saving...",
     "saved": "Saved",

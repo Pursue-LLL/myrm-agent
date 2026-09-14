@@ -2894,7 +2894,8 @@
       "nextTurnOnly": "다음 메시지에만 적용됩니다",
       "overrideSkillsShort": "스킬 {skills}개",
       "overrideMcpShort": "MCP {mcps}개",
-      "overrideRemove": "재설정"
+      "overrideRemove": "재설정",
+      "minimalMountNotice": "활성 기능이 너무 많으면 모델 집중도가 희석될 수 있습니다. 현재 작업에 필요한 도구로 좁힐 것을 권장합니다."
     },
     "retry": "다시 시도",
     "archiveRestore": {
@@ -3027,6 +3028,16 @@
     "spillover": {
       "notice": "긴 텍스트({chars}자)가 감지되었습니다. 컨텍스트 정리를 위해 워크스페이스 파일로 자동 오버플로됩니다.",
       "optimized": "보호됨"
+    },
+    "skillConnectorsPreflight": {
+      "title": "커넥터 사전 점검",
+      "missingNotice": "활성화된 스킬이 구성되지 않은 커넥터에 의존합니다",
+      "missingDesc": "스킬을 안정적으로 실행하려면 작업 시작 전에 인증을 완료하거나 기능 조정으로 도구 범위를 좁히세요.",
+      "connectAction": "연결하기",
+      "narrowScopeAction": "단일 턴 기능 좁히기",
+      "allConnected": "필수 커넥터가 모두 준비되었습니다",
+      "requiredIssuers": "OAuth 인증 필요",
+      "requiredMcp": "MCP 서비스 필요"
     }
   },
   "mode": {
@@ -5660,7 +5671,8 @@
       "images": "이미지",
       "quote": "입력창에 인용",
       "quoteRow": "{row}행 인용",
-      "quoteRowTooltip": "선택한 행을 입력창에 인용하여 질문하거나 부분 편집합니다"
+      "quoteRowTooltip": "선택한 행을 입력창에 인용하여 질문하거나 부분 편집합니다",
+      "rowScopeLabel": "{row}행"
     },
     "saving": "저장 중...",
     "saved": "저장됨",

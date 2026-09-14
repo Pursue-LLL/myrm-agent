@@ -94,3 +94,61 @@ When the target company is an unlisted startup without public regulatory 10-K/an
      - **TAM / SAM / SOM & Competitive Displacement**: Which incumbent market share is targeted.
 3. **Explicit Disclosure Tag**: Add mandatory advisory badge at the top of the report:
    > ⚠️ `[Non-Public Entity Note]`: Target company is unlisted. Analysis is derived from verified public disclosures, verified funding records, and industry benchmark proxies. Audited 3-statement financials are not publicly available.
+
+---
+
+## 5. Fact Check Sheet Deliverable SOP (Multi-Source Conflict Arbitration)
+
+When reconciliation or cross-source comparison detects conflicting figures or claims, produce a structured fact check sheet so every arbitration decision is auditable and visually reviewable.
+
+### 5.1 When to Trigger
+
+- Any core financial figure differs across official sources (e.g., prospectus vs. announcement vs. IR deck).
+- Reconciliation delta is non-zero and requires a documented non-GAAP variance explanation.
+- Two official documents describe the same metric with different scope or period definitions.
+
+### 5.2 Output Format (`fact_check.json`)
+
+Write exactly one JSON file named **`fact_check.json`** into the deliverables workspace. The file name is the packaging convention that routes it to the visual fact-check board. Schema fields must match this structure precisely:
+
+```json
+{
+  "sheet_id": "fcs_a1b2c3d4",
+  "session_id": "",
+  "title": "Financial Disclosure Conflict Arbitration Sheet: <company>",
+  "created_at": 1757481600,
+  "summary": "<1-3 sentence audit summary>",
+  "items": [
+    {
+      "id": "fci_b2c3d4e5",
+      "claim_topic": "<fact name, e.g. FY2025 Revenue>",
+      "severity": "warning",
+      "status": "resolved",
+      "sources": [
+        {
+          "source_uri": "vault://<doc-id>",
+          "document_title": "<filing name>",
+          "line_anchor": "",
+          "claimed_value": "<the value as stated by this source>",
+          "snippet": "<verbatim context excerpt>",
+          "timestamp_hint": ""
+        }
+      ],
+      "adopted_value": "<adopted authoritative value>",
+      "resolution_rationale": "<why this source wins (recency, authority, audit status)>",
+      "confidence_score": 0.85,
+      "affected_artifacts": ["<relative deliverable paths impacted>"],
+      "metadata": {}
+    }
+  ],
+  "metadata": {}
+}
+```
+
+### 5.3 Quality Rules
+
+1. **One sheet per analysis**: All conflicts from a single analysis compile into one `fact_check.json`; never split or duplicate sheets.
+2. **Verbatim snippets**: `claimed_value` and `snippet` must quote the source exactly — no paraphrasing inside evidence fields.
+3. **Rationale discipline**: `resolution_rationale` must cite why the adopted source wins (document date, audit status, regulatory tier) — never "gut feeling".
+4. **Confidence honesty**: Use `confidence_score < 0.7` plus `status: unresolved` whenever authorities conflict without a clear hierarchy.
+5. **Always pair with the report**: The analysis report must reference the sheet's critical findings in its risk section; the sheet is a mandatory sibling artifact, not an optional extra.

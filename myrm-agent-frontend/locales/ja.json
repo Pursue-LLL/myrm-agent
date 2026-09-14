@@ -2900,7 +2900,8 @@
       "nextTurnOnly": "次のメッセージのみに適用",
       "overrideSkillsShort": "スキル {skills} 件",
       "overrideMcpShort": "MCP {mcps} 件",
-      "overrideRemove": "リセット"
+      "overrideRemove": "リセット",
+      "minimalMountNotice": "アクティブな機能が多すぎるとモデルの注意力が希釈される可能性があります。現在のタスクに必要なツールに絞り込むことを推奨します。"
     },
     "retry": "再試行",
     "archiveRestore": {
@@ -3027,6 +3028,16 @@
     "spillover": {
       "notice": "長文テキスト（{chars} 文字）を検出しました。コンテキストを維持するため自動的にワークスペースファイルへ退避します。",
       "optimized": "保護済み"
+    },
+    "skillConnectorsPreflight": {
+      "title": "コネクタ事前チェック",
+      "missingNotice": "有効なスキルが未設定のコネクタに依存しています",
+      "missingDesc": "スキルを安定して実行するため、タスク実行前に認証を完了するか、機能調整でツール範囲を絞り込んでください。",
+      "connectAction": "接続する",
+      "narrowScopeAction": "単ターンで機能を絞り込む",
+      "allConnected": "必要なコネクタはすべて準備完了",
+      "requiredIssuers": "OAuth 認証が必要",
+      "requiredMcp": "MCP サービスが必要"
     }
   },
   "mode": {
@@ -5660,7 +5671,8 @@
       "images": "画像",
       "quote": "入力欄に引用",
       "quoteRow": "第 {row} 行を引用",
-      "quoteRowTooltip": "選択した行を入力欄に引用して質問または編集を行う"
+      "quoteRowTooltip": "選択した行を入力欄に引用して質問または編集を行う",
+      "rowScopeLabel": "{row} 行目"
     },
     "saving": "保存中...",
     "saved": "保存しました",

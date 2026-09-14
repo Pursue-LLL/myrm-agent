@@ -8,13 +8,13 @@ Installing to a store the agent cannot load is a silent failure, so every
 local-skill install/import entry point shares this gate.
 
 [INPUT]
-- app.platform_utils.deployment_capabilities::get_deployment_capabilities (POS: Deployment capability registry — semantic flags derived once at startup)
+- app.platform_utils.deployment_capabilities::get_deployment_capabilities (POS: 部署能力语义注册表。启动时一次性计算并缓存当前部署环境支持的语义能力位。)
 
 [OUTPUT]
 - require_local_skills_capability: Raise 403 when the deployment does not allow local skills.
 
 [POS]
-Deployment capability gate for skills API — fails closed in cloud sandbox mode.
+Deployment capability gate for skills API — fails closed when allows_local_skills is False.
 """
 
 from fastapi import HTTPException
@@ -27,5 +27,5 @@ def require_local_skills_capability() -> None:
     if not get_deployment_capabilities().allows_local_skills:
         raise HTTPException(
             status_code=403,
-            detail="Local skills are not available in sandbox mode",
+            detail="Local skills are not available in current deployment mode",
         )

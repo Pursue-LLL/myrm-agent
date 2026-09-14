@@ -48,15 +48,33 @@ _SETTINGS_SHELL_STATE = """(() => {
 })()"""
 
 _LOCAL_SKILL_PATHS_CARD_JS = """(() => {
-  let tab = Array.from(document.querySelectorAll('button, [role="tab"]')).find(el =>
-    /Installed|已安装|インストール済み|설치됨/i.test(el.textContent || '') || el.getAttribute('value') === 'installed'
+  const dispatchFullClick = (el) => {
+    if (!el) return;
+    const opts = {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      button: 0,
+      ctrlKey: false,
+      detail: 1,
+      view: window,
+    };
+    el.dispatchEvent(new PointerEvent('pointerdown', { ...opts, pointerId: 1, isPrimary: true }));
+    el.dispatchEvent(new MouseEvent('mousedown', opts));
+    el.dispatchEvent(new PointerEvent('pointerup', { ...opts, pointerId: 1, isPrimary: true }));
+    el.dispatchEvent(new MouseEvent('mouseup', opts));
+    el.dispatchEvent(new MouseEvent('click', opts));
+  };
+
+  let tab = Array.from(document.querySelectorAll('[role="tab"]')).find(el =>
+    /Installed|已安装|インストール済み|설치됨/i.test((el.textContent || '').trim()) || el.getAttribute('value') === 'installed'
   );
   if (tab && tab.getAttribute('aria-selected') !== 'true' && tab.getAttribute('data-state') !== 'active') {
-    tab.click();
+    dispatchFullClick(tab);
   }
   let trigger = document.querySelector('[data-testid="local-skill-paths-trigger"]');
   if (trigger && !document.querySelector('[data-testid="local-skill-path-input"]')) {
-    trigger.click();
+    dispatchFullClick(trigger);
   }
   const text = document.body?.innerText || '';
   const hasLocalPaths = /Local Skill Paths|本地技能目录|本地技能路径|ローカルスキル/i.test(text);

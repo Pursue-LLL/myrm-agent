@@ -11,18 +11,21 @@
 
 [POS]
 Business-layer implementation of SkillWriteBackend protocol.
-Stores skills and their resource files in /workspace/skills/{name}/.
+Stores skills and their resource files in /workspace/skills/{name}/, with syntax validation for .py, .json, and .yaml/.yml resources.
 Handles auto-enable/disable in user config on save/delete.
 Security scanning is handled by the framework-layer ScanningSkillWriteBackend wrapper.
 """
 
 from __future__ import annotations
 
+import ast
+import json
 import logging
 import re
 import shutil
 from pathlib import Path
 
+import yaml
 from myrm_agent_harness.agent.skills.market.sanitizer import (
     SKILL_MD_FILE,
     SKILL_NAME_PATTERN,
@@ -182,6 +185,37 @@ class SkillCreationService:
                 resource_path=resource_path,
                 error=containment_error,
             )
+
+        if target.suffix == ".py":
+            try:
+                ast.parse(content, filename=resource_path)
+            except SyntaxError as e:
+                return SkillResourceWriteResult(
+                    success=False,
+                    skill_name=skill_name,
+                    resource_path=resource_path,
+                    error=f"Python syntax error in '{resource_path}': {e}",
+                )
+        elif target.suffix == ".json":
+            try:
+                json.loads(content)
+            except Exception as e:
+                return SkillResourceWriteResult(
+                    success=False,
+                    skill_name=skill_name,
+                    resource_path=resource_path,
+                    error=f"JSON syntax error in '{resource_path}': {e}",
+                )
+        elif target.suffix in (".yaml", ".yml"):
+            try:
+                yaml.safe_load(content)
+            except Exception as e:
+                return SkillResourceWriteResult(
+                    success=False,
+                    skill_name=skill_name,
+                    resource_path=resource_path,
+                    error=f"YAML syntax error in '{resource_path}': {e}",
+                )
 
         try:
             target.parent.mkdir(parents=True, exist_ok=True)

@@ -12539,7 +12539,8 @@
       "images": "图片",
       "quote": "引用到输入框",
       "quoteRow": "引用第 {row} 行",
-      "quoteRowTooltip": "引用选中行到对话输入框进行针对性提问或局部编辑"
+      "quoteRowTooltip": "引用选中行到对话输入框进行针对性提问或局部编辑",
+      "rowScopeLabel": "第 {row} 行"
     },
     "saving": "保存中...",
     "saved": "已保存",

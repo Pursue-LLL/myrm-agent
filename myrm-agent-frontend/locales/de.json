@@ -2865,7 +2865,8 @@
       "nextTurnOnly": "Gilt nur für die nächste Nachricht",
       "overrideSkillsShort": "{skills} Fähigkeiten",
       "overrideMcpShort": "{mcps} MCP-Dienste",
-      "overrideRemove": "Zurücksetzen"
+      "overrideRemove": "Zurücksetzen",
+      "minimalMountNotice": "Zu viele aktive Funktionen können die Modellfokussierung verwässern. Empfehlung: auf die für die aktuelle Aufgabe notwendigen Werkzeuge eingrenzen."
     },
     "retry": "Erneut versuchen",
     "archiveRestore": {
@@ -3027,6 +3028,16 @@
     "spillover": {
       "notice": "Großer Text erkannt ({chars} Zeichen). Wird automatisch in die Workspace-Datei ausgelagert, um den Kontext sauber zu halten.",
       "optimized": "Geschützt"
+    },
+    "skillConnectorsPreflight": {
+      "title": "Connector-Vorabprüfung",
+      "missingNotice": "Aktive Skills hängen von unkonfigurierten Connectors ab",
+      "missingDesc": "Für eine zuverlässige Ausführung vor dem Senden die Autorisierung abschließen oder über die Funktionsregulierung den Werkzeugumfang eingrenzen.",
+      "connectAction": "Jetzt verbinden",
+      "narrowScopeAction": "Funktionsumfang für einen Durchlauf eingrenzen",
+      "allConnected": "Alle benötigten Connectors sind bereit",
+      "requiredIssuers": "OAuth-Autorisierung erforderlich",
+      "requiredMcp": "MCP-Dienst erforderlich"
     }
   },
   "mode": {
@@ -5660,7 +5671,8 @@
       "images": "Bilder",
       "quote": "In Eingabefeld zitieren",
       "quoteRow": "Zeile {row} zitieren",
-      "quoteRowTooltip": "Ausgewählte Zeile ins Eingabefeld übernehmen, um gezielte Fragen zu stellen oder partiell zu bearbeiten"
+      "quoteRowTooltip": "Ausgewählte Zeile ins Eingabefeld übernehmen, um gezielte Fragen zu stellen oder partiell zu bearbeiten",
+      "rowScopeLabel": "Zeile {row}"
     },
     "saving": "Speichern...",
     "saved": "Gespeichert",
@@ -15468,13 +15480,13 @@
       "reviveSuccess": "Konzept erfolgreich wiederhergestellt: {name}",
       "actionError": "Governance-Aktion fehlgeschlagen, bitte erneut versuchen",
       "meetingNotes": {
-        "title": "Meeting Notes Import",
+        "title": "Meeting-Notizen-Import",
         "description": "Upload a meeting audio file. Myrm transcribes it with chunked parallel ASR, distills decisions and action items with LLM, and publishes structured minutes to your wiki.",
         "processing": "Transcribing…",
         "uploadButton": "Import & Transcribe",
-        "decisions": "Decisions",
-        "debates": "Key Debate Points",
-        "actionItems": "Action Items"
+        "decisions": "Entscheidungen",
+        "debates": "Kernkontroversen",
+        "actionItems": "Aufgabenpunkte"
       }
     },
     "skills": {

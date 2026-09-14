@@ -22,7 +22,7 @@ contract:
     - "Phase 1: Ingest & Source Gate — retrieve official disclosure documents (SEC EDGAR, HKEXnews, CnInfo, SSE/SZSE, company IR) and validate source authenticity"
     - "Phase 2: Code-Driven Reconciliation — extract financial tables and execute Python scripts to verify 3-statement balancing and calculate key financial ratios"
     - "Phase 3: 6-Dimensional Analysis — analyze revenue/growth, profitability & DuPont decomposition, balance sheet health, competitive moat, unit economics, and operational risks"
-    - "Phase 4: Synthesis & Artifact Export — generate institutional-grade markdown report, visualization charts (Mermaid/ECharts/Matplotlib), and audit appendix"
+    - "Phase 4: Synthesis & Artifact Export — generate institutional-grade markdown report, visualization charts (Mermaid/ECharts/Matplotlib), audit appendix, and a fact_check.json arbitration sheet when multi-source conflicts are detected"
   potential_traps:
     - description: "Relying on mental arithmetic or LLM parametric estimation for financial metrics leading to arithmetic hallucinations"
       mitigation: "Strictly execute Python scripts in sandbox to compute CAGR, ROE, FCF, and reconciliation equations"
@@ -43,6 +43,10 @@ contract:
       validation_method: "Header metadata confirms normalized base currency and scale"
       is_required: true
   success_criteria: "Institutional-grade financial and business analysis report with audited numbers, 6-dimensional breakdown, charts, and executable verification appendix"
+  dependencies:
+    - deep-research
+    - document-extraction
+    - data-analysis
   estimated_duration_seconds: 1200
 ---
 
@@ -90,6 +94,10 @@ Follow the institutional structure defined in `references/financial-report-templ
 - Render charts using Mermaid, ECharts, or Matplotlib scripts.
 - Export clean Markdown and trigger PDF compilation via `pdf-generator` if requested.
 - Register all artifacts to `DeliverablesBoard` with the Python calculation script appended as an audit log.
+- **Multi-Source Conflict Arbitration**: When reconciliation detects discrepancies across official filings (e.g., prospectus vs. announcement figures) or between sources, compile every conflicted fact into a Fact Check Sheet as `fact_check.json` following `references/financial-audit-sop.md` §5. For each item, record all source claims with document titles and anchors, the adopted authoritative value with its rationale, and a confidence score. Write the file into the deliverables workspace so it is packaged and rendered as a visual fact-check board alongside the report.
+- **Fact Check Sheet Delivery**: When multi-source discrepancies or inter-statement reconciliation gaps are detected (e.g. prospectus vs. press release figures), emit a `fact_check.json` artifact following the schema in `references/financial-audit-sop.md`. Name the file exactly `fact_check.json` so it is auto-classified and rendered as an interactive fact-check matrix on the DeliverablesBoard.
+- **Fact Check Sheet Delivery Gate**: When multi-source data conflicts arise (e.g., prospectus vs. press release figures) or reconciliation deltas are non-zero, produce a `fact_check.json` deliverable following `references/financial-audit-sop.md`. Every entry must record each source claim, the adopted value, resolution rationale, and a confidence score. Name the file `fact_check.json` so the deliverables pipeline categorizes it as a Fact Check sheet and renders it in the interactive viewer.
+- **Fact Check Sheet Delivery**: When multi-source financial figures conflict (e.g., prospectus vs. press release), record every conflict as a structured fact-check entry and write `fact_check.json` to the workspace following the schema in `references/financial-audit-sop.md`. The file is auto-classified as a fact-check deliverable and rendered as an interactive verification matrix. Every adopted figure in the report must cite its winning source.
 
 ## Reference Guides
 

@@ -11,14 +11,17 @@ events. Orchestration and policy decisions live in ``growth/lifecycle.py``.
 - app.services.skills.evolution_events::publish_skill_evolved_event (POS: 技能进化事件发布)
 
 [OUTPUT]
-- auto_extract_or_patch_skill: 将已通过策略判断的成长结果落盘为真实技能或补丁
+- auto_extract_or_patch_skill: 执行代码 AST 语法门禁，将已通过策略判断的成长结果落盘为真实技能或补丁
+- validate_python_code_blocks: 校验 Markdown 中 Python 代码块语法合法性
 - SkillMaterializationResult: 物化结果 DTO
 
 [POS]
-技能物化辅助器：仅在策略判定通过后把成长结果写入技能文件（新建或补丁），并发布 ``SKILL_EVOLVED`` 事件。
+技能物化辅助器：执行 Python 代码 AST 语法门禁，仅在语法合法且策略判定通过后把成长结果写入技能文件（新建或补丁），并发布 ``SKILL_EVOLVED`` 事件。
 """
 
+import ast
 import logging
+import re
 from dataclasses import dataclass
 
 from myrm_agent_harness.agent.skills.evolution.core.types import (
@@ -36,6 +39,25 @@ from app.core.skills.creation.service import skill_creation_service
 from app.services.skills.evolution_events import publish_skill_evolved_event
 
 logger = logging.getLogger(__name__)
+
+_PYTHON_CODE_BLOCK_RE = re.compile(r"```(?:python|py)[^\n]*\n(.*?)\n```", re.DOTALL)
+
+
+def validate_python_code_blocks(text: str) -> str | None:
+    """Validate syntax of all python code blocks in markdown text.
+
+    Returns an error description if any python code block fails ast.parse,
+    otherwise None.
+    """
+    for i, match in enumerate(_PYTHON_CODE_BLOCK_RE.finditer(text), 1):
+        code = match.group(1).strip()
+        if not code:
+            continue
+        try:
+            ast.parse(code)
+        except SyntaxError as exc:
+            return f"Python code block #{i} has syntax error: {exc}"
+    return None
 
 
 @dataclass(slots=True)
@@ -132,6 +154,17 @@ async def auto_extract_or_patch_skill(
         trigger_condition = str(result.get("trigger_condition") or "")
         skill_steps = str(result.get("skill_steps") or "")
 
+        code_syntax_error = validate_python_code_blocks(skill_steps)
+        if code_syntax_error:
+            logger.warning("Auto-Extractor: Rejected skill draft '%s' due to syntax error: %s", skill_name, code_syntax_error)
+            return SkillMaterializationResult(
+                success=False,
+                evolution_type="new",
+                description=description,
+                skill_name=skill_name,
+                error=code_syntax_error,
+            )
+
         content = _build_skill_markdown(skill_name, description, trigger_condition, skill_steps)
         save_result = await skill_creation_service.save_skill(
             name=skill_name,
@@ -206,6 +239,17 @@ async def auto_extract_or_patch_skill(
         )
 
         if patch_result.success and patch_result.content:
+            code_syntax_error = validate_python_code_blocks(patch_result.content)
+            if code_syntax_error:
+                logger.warning("Auto-Extractor: Rejected skill patch '%s' due to syntax error: %s", skill_name, code_syntax_error)
+                return SkillMaterializationResult(
+                    success=False,
+                    evolution_type="patch",
+                    description="Applied optimization patch",
+                    skill_name=skill_name,
+                    error=code_syntax_error,
+                )
+
             save_result = await skill_creation_service.save_skill(
                 name=skill_name,
                 content=patch_result.content,

@@ -36,3 +36,4 @@ suggestion_prompts:
 prebuilt_skill_ids:
   - "office-document"
   - "data-analysis-pipeline"
+  - "financial-business-analysis"
