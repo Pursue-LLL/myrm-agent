@@ -6,6 +6,8 @@
   ensure_wb_bench_source (POS: WorkBuddy Bench adapter)
 - app.core.eval.browse_comp::list_browse_comp_source, build_browse_comp_cases,
   ensure_browse_comp_source (POS: BrowseComp adapter)
+- app.core.eval.locomo::list_locomo_source, build_locomo_cases,
+  ensure_locomo_source (POS: Locomo v2 memory benchmark adapter)
 
 [OUTPUT]
 - list_benchmark_sources(): merged catalog (WBBench + registered third-party)
