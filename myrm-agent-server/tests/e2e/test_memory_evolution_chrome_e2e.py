@@ -103,6 +103,43 @@ _SHEET_PROBE_JS = """(() => {
   };
 })()"""
 
+_SHEET_CLOSE_JS = """(() => {
+  // Radix Sheet: 右上角关闭按钮（aria-label）优先；回退 Escape 由 harness 处理
+  const btn = document.querySelector('[data-state="open"] [data-radix-collection-item], [data-radix-sheet-close], button[aria-label*="Close"], button[aria-label*="关闭"]');
+  if (!btn) return { ok: false, err: 'close btn not found' };
+  btn.click();
+  return { ok: true };
+})()"""
+
+_CORRECTED_SHEET_OPEN_JS = """(() => {
+  const all = [...document.querySelectorAll('div, button')];
+  const cards = all.filter((el) => (el.textContent || '').includes('user prefers dark mode (corrected v1)'));
+  if (!cards.length) {
+    return { ok: false, err: 'corrected card not found', sampleText: (document.body.innerText || '').slice(0, 300) };
+  }
+  let card = cards[cards.length - 1];
+  for (const el of cards) {
+    if ((el.textContent || '').trim() === 'user prefers dark mode (corrected v1)') {
+      card = el;
+      break;
+    }
+  }
+  card.click();
+  return { ok: true, tag: card.tagName };
+})()"""
+
+_CORRECTION_PROBE_JS = """(() => {
+  const text = document.body.innerText;
+  const hasCorrectionBadge = /Corrects|纠正/.test(text);
+  const hasSupersededId = /corrected v1/.test(text);
+  return {
+    ready: hasCorrectionBadge,
+    hasCorrectionBadge,
+    hasSupersededContent: hasSupersededId,
+    text: text.slice(0, 300),
+  };
+})()"""
+
 _RETRY_MARKERS: tuple[str, ...] = (
     "CDP request timeout",
     "Runtime.evaluate",
@@ -175,6 +212,14 @@ def _run_evolution_assertions(api_url: str, ui_url: str) -> None:
         sheet = wait_for_state(client, page, _SHEET_PROBE_JS, timeout_sec=45.0)
         assert sheet.get("hasMergeBadge") is True, json.dumps(sheet, ensure_ascii=False)
         assert sheet.get("hasMergeAction") is True, json.dumps(sheet, ensure_ascii=False)
+
+        # 6) Close the sheet, open the corrected card, assert the correction-chain entry renders
+        client.evaluate(page, _SHEET_CLOSE_JS, timeout_sec=15.0)
+        time.sleep(1.0)
+        opened2 = client.evaluate(page, _CORRECTED_SHEET_OPEN_JS, timeout_sec=30.0)
+        assert opened2.get("ok") is True, json.dumps(opened2, ensure_ascii=False)
+        correction = wait_for_state(client, page, _CORRECTION_PROBE_JS, timeout_sec=45.0)
+        assert correction.get("hasCorrectionBadge") is True, json.dumps(correction, ensure_ascii=False)
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")

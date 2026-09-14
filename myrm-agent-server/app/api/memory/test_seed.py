@@ -122,7 +122,23 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
             },
         )
         persisted = await manager.store(seeded, _bypass_approval=True)
-        return {"id": str(persisted.id), "status": "seeded"}
+
+        # 纠正链 fixture：按 correct_memory 的落库语义构造纠正记忆（correction_of 指向
+        # 旧记忆），并预填向量走真实 store 链路。不直接调 correct_memory——其内部
+        # _store_semantic 会对新记忆调 embedding API，而测试凭据已失效（402/30014）。
+        correction = SemanticMemory(
+            content="user prefers dark mode (corrected v1)",
+            importance=1.0,
+            confidence=0.95,
+            tags=["e2e-evolution"],
+            embedding=[0.0] * _PRESEEDED_EMBEDDING_DIM,
+            correction_of=str(persisted.id),
+        )
+        corrected = await manager.store(correction, _bypass_approval=True)
+        if getattr(corrected, "correction_of", None) != str(persisted.id):
+            raise HTTPException(status_code=500, detail="correction chain not persisted")
+
+        return {"id": str(persisted.id), "correction_id": str(corrected.id), "status": "seeded"}
     finally:
         close = getattr(manager, "close", None) or getattr(manager, "aclose", None)
         if close is not None:
