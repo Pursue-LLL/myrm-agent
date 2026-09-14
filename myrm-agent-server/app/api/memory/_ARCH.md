@@ -10,6 +10,8 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Memory API module | ✅ |
 | `router.py` | 路由 | Memory API router（含 `/follow-ups` 子路由、`/archive/restore` 归档恢复路由组） | ✅ |
+| `test_seed.py` | 路由 | 本地测试专用 seed fixture（仅 local mode；为 Chrome E2E 预填向量 seed 演变历史/纠正链记忆） | ✅ |
 | `follow_ups/` | 路由 | Proactive follow-up list / dismiss / snooze | [_ARCH.md](follow_ups/_ARCH.md) |
 | `shared_context_schemas.py` | 模块 | 共享上下文 API Schema 层。集中定义 Shared Context 产品接口的数据契约。 | ✅ |
 | `utils.py` | 模块 | Memory API utilities — re-exports shared service-layer helpers for route modules. | ✅ |
+| `test_seed.py` | 路由 | 本地测试专用 fixture：Chrome E2E seed 演变历史/纠正链记忆（预填向量绕过失效凭据；仅 local_mode 挂载） | ✅ |
