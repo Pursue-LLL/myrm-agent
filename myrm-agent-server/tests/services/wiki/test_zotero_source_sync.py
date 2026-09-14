@@ -35,7 +35,9 @@ def _note(
 
 class TestFormatCreators:
     def test_first_last(self) -> None:
-        assert _format_creators([{"firstName": "Jane", "lastName": "Doe"}]) == ["Jane Doe"]
+        assert _format_creators([{"firstName": "Jane", "lastName": "Doe"}]) == [
+            "Jane Doe"
+        ]
 
     def test_single_name(self) -> None:
         assert _format_creators([{"name": "ACM"}]) == ["ACM"]
@@ -61,8 +63,20 @@ class TestRenderNote:
 class TestRenderAnnotations:
     def test_highlight_and_note(self) -> None:
         children = [
-            {"data": {"itemType": "annotation", "annotationType": "highlight", "annotationText": "key finding"}},
-            {"data": {"itemType": "annotation", "annotationType": "note", "annotationComment": "my thought"}},
+            {
+                "data": {
+                    "itemType": "annotation",
+                    "annotationType": "highlight",
+                    "annotationText": "key finding",
+                }
+            },
+            {
+                "data": {
+                    "itemType": "annotation",
+                    "annotationType": "note",
+                    "annotationComment": "my thought",
+                }
+            },
         ]
         lines = _render_annotations(children)
         assert lines[0].startswith("> key finding")
@@ -71,7 +85,13 @@ class TestRenderAnnotations:
     def test_skips_non_annotation_and_empty(self) -> None:
         children = [
             {"data": {"itemType": "note", "note": "regular child note"}},
-            {"data": {"itemType": "annotation", "annotationType": "highlight", "annotationText": ""}},
+            {
+                "data": {
+                    "itemType": "annotation",
+                    "annotationType": "highlight",
+                    "annotationText": "",
+                }
+            },
         ]
         assert _render_annotations(children) == []
 
@@ -168,4 +188,6 @@ class TestSyncZoteroLibrary:
 def _publish_result(*, written: bool) -> object:
     from types import SimpleNamespace
 
-    return SimpleNamespace(written=written, conflict_skipped=False, skipped=False, absolute_path="/tmp/x")
+    return SimpleNamespace(
+        written=written, conflict_skipped=False, skipped=False, absolute_path="/tmp/x"
+    )

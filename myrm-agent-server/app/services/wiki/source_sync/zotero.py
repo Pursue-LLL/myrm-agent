@@ -256,7 +256,9 @@ def _render_annotations(children: list[object]) -> list[str]:
         if str(data.get("itemType") or "") != "annotation":
             continue
         annotation_type = str(data.get("annotationType") or "")
-        text = str(data.get("annotationText") or data.get("annotationComment") or "").strip()
+        text = str(
+            data.get("annotationText") or data.get("annotationComment") or ""
+        ).strip()
         if not text:
             continue
         if annotation_type == "highlight":
