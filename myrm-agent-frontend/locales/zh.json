@@ -14044,7 +14044,7 @@
     "raceConfirmCost": "我已知晓这将并行运行多个智能体，并接受相应成本。",
     "raceStart": "发起赛马",
     "raceStarting": "发起中…",
-    "raceTokens": "{count} tokens",
+    "raceTokens": "{count} 个 token",
     "raceViewResult": "查看结果",
     "racePickWinner": "选为获胜方案",
     "raceDeciding": "裁决中…",

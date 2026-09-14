@@ -13,10 +13,13 @@ vi.mock('@/services/kanban', () => ({
   raceLaneFile: vi.fn(),
 }));
 
-vi.mock('next-intl', () => ({
-  useLocale: () => 'en',
-  useTranslations: () => (key: string) => key,
-}));
+vi.mock('next-intl', () => {
+  const stableT = (key: string) => key;
+  return {
+    useLocale: () => 'en',
+    useTranslations: () => stableT,
+  };
+});
 
 vi.mock('@/components/features/artifacts/renderers/DiffPreview', () => ({
   default: () => <div data-testid="lane-diff-view" />,

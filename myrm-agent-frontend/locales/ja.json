@@ -7176,7 +7176,7 @@
     "raceConfirmCost": "複数のエージェントを並列実行し、コストが発生することを理解しました。",
     "raceStart": "レース開始",
     "raceStarting": "開始中…",
-    "raceTokens": "{count} tokens",
+    "raceTokens": "{count} トークン",
     "raceViewResult": "結果を見る",
     "racePickWinner": "勝者に選ぶ",
     "raceDeciding": "決定中…",

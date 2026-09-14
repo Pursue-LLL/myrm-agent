@@ -7176,7 +7176,7 @@
     "raceConfirmCost": "我已知曉這將並行運行多個智慧體，並接受相應成本。",
     "raceStart": "發起賽馬",
     "raceStarting": "發起中…",
-    "raceTokens": "{count} tokens",
+    "raceTokens": "{count} 個 token",
     "raceViewResult": "查看結果",
     "racePickWinner": "選為獲勝方案",
     "raceDeciding": "裁決中…",

@@ -7174,7 +7174,7 @@
     "raceConfirmCost": "여러 에이전트를 병렬로 실행하며 비용이 발생함을 이해합니다.",
     "raceStart": "레이스 시작",
     "raceStarting": "시작 중…",
-    "raceTokens": "{count} tokens",
+    "raceTokens": "{count}개 토큰",
     "raceViewResult": "결과 보기",
     "racePickWinner": "승자로 선택",
     "raceDeciding": "결정 중…",

@@ -295,7 +295,7 @@ async def test_lane_changes_parses_numstat() -> None:
         return SimpleNamespace(returncode=0, stdout="10\t2\tsrc/a.py\n0\t0\t../evil.py\n")
 
     with patch(
-        "app.services.kanban.race_orchestrator._run_git", side_effect=fake_git
+        "app.services.kanban.race_lane_diff._run_git", side_effect=fake_git
     ):
         outcome = await get_lane_changes(svc, "board-1", "parent-1", "lane-1")
     assert outcome["lane_task_id"] == "lane-1"
