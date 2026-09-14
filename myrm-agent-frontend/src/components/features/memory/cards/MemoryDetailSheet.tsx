@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
-import { AlertTriangle, Zap, MessageSquare, Quote } from 'lucide-react';
+import { AlertTriangle, GitCommitHorizontal, History, MessageSquare, Quote, Zap } from 'lucide-react';
 import type { Memory } from '@/store/memory';
 import MemoryTypeIcon from './MemoryTypeIcon';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/primitives/sheet';
@@ -14,6 +14,68 @@ interface MemoryDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+interface MergeHistoryEntry {
+  timestamp: string;
+  action: string;
+  summary: string;
+}
+
+const MERGE_ACTION_KEYS: Record<string, string> = {
+  MERGE: 'fields.merged',
+  REPLACE: 'fields.replaced',
+  SUPPLEMENT: 'fields.supplemented',
+};
+
+const parseMergeHistory = (raw?: string): MergeHistoryEntry[] => {
+  if (!raw) {
+    return [];
+  }
+  return raw
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [timestamp = '', action = '', ...summaryParts] = line.split('|');
+      return { timestamp, action, summary: summaryParts.join('|') };
+    });
+};
+
+const EvolutionHistory = memo<{ entries: MergeHistoryEntry[] }>(({ entries }) => {
+  const t = useTranslations('memory');
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {t('fields.evolutionHistory')}
+        </span>
+        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+          {t('fields.mergeCount', { count: entries.length })}
+        </span>
+      </div>
+      <div className="relative pl-3.5 space-y-2.5 before:absolute before:left-[5px] before:top-1.5 before:bottom-1 before:w-px before:bg-border">
+        {entries.map((entry, idx) => (
+          <div key={`${entry.timestamp}-${idx}`} className="relative">
+            <span
+              className={cn(
+                'absolute -left-3.5 top-1.5 h-1.5 w-1.5 rounded-full',
+                idx === 0 ? 'bg-primary' : 'bg-muted-foreground/40',
+              )}
+            />
+            <div className="flex flex-wrap items-baseline gap-x-2 min-w-0">
+              <span className="text-[10px] text-muted-foreground/70 font-mono shrink-0">{entry.timestamp}</span>
+              <span className="text-[10px] px-1.5 py-px rounded bg-accent text-accent-foreground font-medium shrink-0">
+                {t(MERGE_ACTION_KEYS[entry.action] ?? 'fields.merged')}
+              </span>
+              <span className="text-xs text-foreground/90 break-all min-w-0">{entry.summary}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+EvolutionHistory.displayName = 'EvolutionHistory';
 
 const formatDateTime = (dateString?: string) => {
   if (!dateString) {
@@ -205,6 +267,37 @@ const MemoryDetailSheet = memo<MemoryDetailSheetProps>(({ memory, open, onOpenCh
               </p>
             </div>
           )}
+
+          {/* Evolution history (merge audit timeline + correction chain) */}
+          {(() => {
+            const evolutionEntries = parseMergeHistory(memory.merge_history);
+            const hasEvolution = evolutionEntries.length > 0 || Boolean(memory.correction_of);
+            return hasEvolution ? (
+              <EvolutionHistory entries={evolutionEntries} />
+            ) : null;
+          })()}
+
+          {/* Evolution history (merge audit timeline) */}
+          {(() => {
+            const entries = parseMergeHistory(memory.merge_history);
+            if (entries.length === 0 && !memory.correction_of) {
+              return null;
+            }
+            return (
+              <>
+                {entries.length > 0 && <EvolutionHistory entries={entries} />}
+                {memory.correction_of && (
+                  <div className="flex items-start gap-1.5 text-xs bg-primary/5 border border-primary/20 rounded-lg px-3 py-2 text-muted-foreground">
+                    <GitCommitHorizontal size={12} className="shrink-0 mt-0.5 text-primary" />
+                    <span>
+                      <span className="font-medium text-foreground/80">{t('fields.corrects')}</span>{' '}
+                      <span className="font-mono">{memory.correction_of.slice(0, 8)}</span>
+                    </span>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {/* Source chat link */}
           {memory.source_chat_id && (

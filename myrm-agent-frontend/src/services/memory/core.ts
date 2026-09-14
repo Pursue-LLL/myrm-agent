@@ -76,6 +76,8 @@ export interface Memory {
   last_accessed_at?: string;
   access_count?: number;
   correction_of?: string;
+  merge_count?: number;
+  merge_history?: string;
   source_error?: string;
   source_chat_id?: string;
   source_message_id?: string;

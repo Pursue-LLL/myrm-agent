@@ -3910,7 +3910,12 @@
       "tags": "태그",
       "relatedEntities": "관련 엔티티",
       "ttlDays": "{days}일 후 자동 만료",
-      "id": "ID"
+      "id": "ID",
+      "evolutionHistory": "변천 이력",
+      "mergeCount": "{count}회 병합됨",
+      "merged": "병합",
+      "replaced": "대체",
+      "supplemented": "보완"
     },
     "typeDesc": {
       "profile": "키-값 사용자 속성 (이름, 언어, 직업)",

@@ -11618,7 +11618,12 @@
       "tags": "标签",
       "relatedEntities": "相关实体",
       "ttlDays": "{days} 天后自动过期",
-      "id": "ID"
+      "id": "ID",
+      "evolutionHistory": "演变历史",
+      "mergeCount": "已合并 {count} 次",
+      "merged": "合并",
+      "replaced": "替换",
+      "supplemented": "补充"
     },
     "typeDesc": {
       "profile": "用户属性键值对（名字、语言、职业）",

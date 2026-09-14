@@ -4739,7 +4739,12 @@
       "tags": "標籤",
       "relatedEntities": "相關實體",
       "ttlDays": "{days} 天後自動過期",
-      "id": "ID"
+      "id": "ID",
+      "evolutionHistory": "演變歷史",
+      "mergeCount": "已合併 {count} 次",
+      "merged": "合併",
+      "replaced": "替換",
+      "supplemented": "補充"
     },
     "typeDesc": {
       "profile": "使用者屬性鍵值對（名字、語言、職業）",

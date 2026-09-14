@@ -3951,7 +3951,12 @@
       "tags": "Schlagworte",
       "relatedEntities": "Verwandte Entitäten",
       "ttlDays": "Läuft nach {days} Tag(en) automatisch ab",
-      "id": "ID"
+      "id": "ID",
+      "evolutionHistory": "Entwicklungshistorie",
+      "mergeCount": "{count}x zusammengeführt",
+      "merged": "Zusammengeführt",
+      "replaced": "Ersetzt",
+      "supplemented": "Ergänzt"
     },
     "typeDesc": {
       "profile": "Schlüsselwert-Benutzerattribute (Name, Sprache, Beruf)",

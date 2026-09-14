@@ -11617,7 +11617,12 @@
       "tags": "Tags",
       "relatedEntities": "Related Entities",
       "ttlDays": "Auto-expires after {days} day(s)",
-      "id": "ID"
+      "id": "ID",
+      "evolutionHistory": "Evolution History",
+      "mergeCount": "Merged {count} times",
+      "merged": "Merged",
+      "replaced": "Replaced",
+      "supplemented": "Supplemented"
     },
     "typeDesc": {
       "profile": "Key-value user attributes (name, language, occupation)",

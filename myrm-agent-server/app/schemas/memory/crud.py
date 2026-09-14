@@ -46,6 +46,8 @@ class MemoryItem(BaseModel):
     event_type: str | None = None
     related_entities: list[str] = Field(default_factory=list)
     correction_of: str | None = None
+    merge_count: int | None = None
+    merge_history: str | None = None
     source_error: str | None = None
     tags: list[str] = Field(default_factory=list)
     access_count: int | None = None

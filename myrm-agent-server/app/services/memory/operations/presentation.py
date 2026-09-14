@@ -122,6 +122,13 @@ def memory_to_item(memory: AnyMemory | ProfileEntry, memory_type: MemoryType) ->
     elif isinstance(memory, EpisodicMemory):
         base["tags"] = getattr(memory, "tags", []) or []
 
+    merge_count = getattr(memory, "merge_count", 0)
+    if merge_count:
+        base["merge_count"] = merge_count
+    merge_history = getattr(memory, "merge_history", "")
+    if merge_history:
+        base["merge_history"] = merge_history
+
     source_chat = getattr(memory, "source_chat_id", None)
     if source_chat:
         base["source_chat_id"] = source_chat

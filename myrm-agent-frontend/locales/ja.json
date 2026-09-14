@@ -4695,7 +4695,12 @@
       "tags": "タグ",
       "relatedEntities": "関連実体",
       "ttlDays": "{days} 日後に自動的に失効",
-      "id": "ID"
+      "id": "ID",
+      "evolutionHistory": "変遷履歴",
+      "mergeCount": "{count} 回マージ済み",
+      "merged": "マージ",
+      "replaced": "置換",
+      "supplemented": "補足"
     },
     "typeDesc": {
       "profile": "ユーザー属性のキー・バリュー（名前、言語、職業）",
