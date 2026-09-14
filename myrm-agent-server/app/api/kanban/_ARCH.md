@@ -11,7 +11,7 @@ Kanban 看板 REST API：Board/Task CRUD、状态迁移、依赖边、Specify/De
 | `__init__.py` | 入口 | 导出 `router` | — |
 | `http_common.py` | 核心 | 共享 `APIRouter(prefix=/kanban)`、DTO 转换、附件装配 | ✅ |
 | `router.py` | 入口 | 聚合 `routes/*` 到 `http_common.router` | ✅ |
-| `schemas.py` | 模块 | Kanban API Pydantic 模型（`BoardCreate`/`BoardUpdate` 含全部 9 个 `BoardSettings` 字段，含 `block_recurrence_limit`） | — |
+| `schemas.py` | 模块 | Kanban API Pydantic 模型（`BoardCreate`/`BoardUpdate` 含全部 9 个 `BoardSettings` 字段，含 `block_recurrence_limit`；Race 域：`RaceLaneSpec`/`RaceStartRequest`/`RaceEstimateResponse`/`RaceStartResponse`/`RaceLaneResponse`/`RaceLanesResponse`/`RaceDecideRequest`/`RaceDecideResponse`） | — |
 | `pipeline_router.py` | 路由 | Pipeline 模板列表/详情/实例化（独立 router） | ✅ |
 | `routes/` | 路由 | 分域端点注册 | [routes/_ARCH.md](routes/_ARCH.md) |
 

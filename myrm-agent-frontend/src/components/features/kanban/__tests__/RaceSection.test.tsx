@@ -9,10 +9,17 @@ vi.mock('@/services/kanban', () => ({
   raceEstimate: vi.fn(),
   raceStart: vi.fn(),
   raceDecide: vi.fn(),
+  raceLaneChanges: vi.fn(),
+  raceLaneFile: vi.fn(),
 }));
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
+  useTranslations: () => (key: string) => key,
+}));
+
+vi.mock('@/components/features/artifacts/renderers/DiffPreview', () => ({
+  default: () => <div data-testid="lane-diff-view" />,
 }));
 
 vi.mock('@/store/useAgentStore', () => ({
@@ -78,6 +85,60 @@ describe('RaceSection', () => {
       }),
     );
     expect(onChanged).toHaveBeenCalled();
+  });
+
+  it('maps backend error codes to friendly copy', async () => {
+    vi.mocked(kanbanService.raceLanes).mockResolvedValue({ parent_task_id: 'parent-1', lanes: [] });
+    vi.mocked(kanbanService.raceEstimate).mockResolvedValue({
+      lanes: 3,
+      per_lane_avg_tokens: 1000,
+      total_tokens: 3000,
+      based_on_completed_tasks: 0,
+    });
+    vi.mocked(kanbanService.raceStart).mockRejectedValue({ businessCode: 'insufficient_slots' });
+    render(<RaceSection boardId="board-1" task={makeTask()} onChanged={vi.fn()} t={stableT} />);
+    await waitFor(() => expect(screen.getByText('raceStart')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('raceConfirmCost'));
+    fireEvent.click(screen.getByText('raceStart'));
+    await waitFor(() => expect(screen.getByText('raceErrorSlots')).toBeInTheDocument());
+  });
+
+  it('expands lane changes and shows the side-by-side diff', async () => {
+    vi.mocked(kanbanService.raceLanes).mockResolvedValue({
+      parent_task_id: 'parent-1',
+      lanes: [
+        {
+          task_id: 'lane-a',
+          title: 'Fix retry（方案A）',
+          status: 'in_review',
+          agent_id: null,
+          branch: 'feature/retry',
+          result: '',
+          total_tokens: 0,
+        },
+      ],
+    });
+    vi.mocked(kanbanService.raceLaneChanges).mockResolvedValue({
+      lane_task_id: 'lane-a',
+      target_branch: 'feature/retry',
+      lane_branch: 'feature/retry-lane-a',
+      truncated: false,
+      files: [{ path: 'src/a.py', additions: 10, deletions: 2 }],
+    });
+    vi.mocked(kanbanService.raceLaneFile).mockResolvedValue({
+      lane_task_id: 'lane-a',
+      path: 'src/a.py',
+      target_content: 'old',
+      lane_content: 'new',
+      truncated: false,
+    });
+    render(<RaceSection boardId="board-1" task={makeTask()} onChanged={vi.fn()} t={stableT} />);
+    await waitFor(() => expect(screen.getByText('Fix retry（方案A）')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('raceChanges'));
+    await waitFor(() => expect(screen.getByText('src/a.py')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('src/a.py'));
+    await waitFor(() => expect(screen.getByTestId('lane-diff-view')).toBeInTheDocument());
+    expect(kanbanService.raceLaneFile).toHaveBeenCalledWith('board-1', 'parent-1', 'lane-a', 'src/a.py');
   });
 
   it('shows a branch hint when the task has no branch', async () => {

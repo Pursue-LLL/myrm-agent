@@ -18,7 +18,7 @@
 | useKanbanTaskDrawerWorkflow.ts       | 辅助 | Promote / Move / Reclaim 工作流子 hook                                                                                                                                            | ✅    |
 | KanbanTaskDrawerHeader.tsx           | 辅助 | 抽屉面板头部（状态操作按钮 + Reclaim/Promote 确认）                                                                                                                               | ✅    |
 | KanbanTaskDrawerDetails.tsx          | 辅助 | 抽屉详情（超时/技能/模型覆盖/审批开关/来源 Chat 与 Board 深链/ReviewCommentThread 接入）                                                                                          | ✅    |
-| RaceSection.tsx                      | 辅助 | 赛马扇出与裁决（lane 数选择+变体指令+成本预估确认发起；lane 状态/token/结果展开；IN_REVIEW lane 一键选 winner；六套 locale；Tailwind v4 主题 tokens，禁原生 emoji） | ✅    |
+| RaceSection.tsx                      | 辅助 | 赛马扇出与裁决（lane 数选择+变体指令+成本预估确认发起；lane 状态/token/结果展开；变更文件列表+Monaco 双栏 diff；IN_REVIEW lane 一键选 winner；事件+条件轮询实时刷新；错误码友好映射；六套 locale；Tailwind v4 主题 tokens，禁原生 emoji） | ✅    |
 | ReviewCommentThread.tsx              | 辅助 | 验收标准通过/失败详情卡片与 Critical/Warning/Info 三级评审意见流展示（支持 severity 过滤、修复建议折叠展开、快捷复制与一键修复动作）                                              | ✅    |
 | KanbanSkillPicker.tsx                | 辅助 | 任务技能多选选择器（搜索 + 已选 chip + 未知 id 标记；数据源 useSkillStore，创建/详情共用）                                                                                        | ✅    |
 | KanbanTaskDrawerBodySections.tsx     | 辅助 | 抽屉附件与结果区段组件                                                                                                                                                            | ✅    |

@@ -463,6 +463,42 @@ export async function raceDecide(
   });
 }
 
+export interface RaceFileChange {
+  path: string;
+  additions: number;
+  deletions: number;
+}
+
+export interface RaceLaneChanges {
+  lane_task_id: string;
+  target_branch: string;
+  lane_branch: string;
+  truncated: boolean;
+  files: RaceFileChange[];
+}
+
+export interface RaceLaneFile {
+  lane_task_id: string;
+  path: string;
+  target_content: string;
+  lane_content: string;
+  truncated: boolean;
+}
+
+export async function raceLaneChanges(boardId: string, taskId: string, laneTaskId: string): Promise<RaceLaneChanges> {
+  return apiRequest(`/kanban/boards/${boardId}/tasks/${taskId}/race/lanes/${laneTaskId}/changes`);
+}
+
+export async function raceLaneFile(
+  boardId: string,
+  taskId: string,
+  laneTaskId: string,
+  path: string,
+): Promise<RaceLaneFile> {
+  const params = new URLSearchParams({ path });
+  return apiRequest(`/kanban/boards/${boardId}/tasks/${taskId}/race/lanes/${laneTaskId}/file?${params.toString()}`);
+}
+
 // ==================== Run & Event API ====================
 
 export async function listRuns(taskId: string): Promise<{ items: TaskRun[]; total: number }> {

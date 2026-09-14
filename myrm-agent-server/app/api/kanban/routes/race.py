@@ -24,6 +24,8 @@ from app.api.kanban.schemas import (
     RaceDecideRequest,
     RaceDecideResponse,
     RaceEstimateResponse,
+    RaceLaneChangesResponse,
+    RaceLaneFileResponse,
     RaceLaneResponse,
     RaceLanesResponse,
     RaceStartRequest,
@@ -34,6 +36,8 @@ from app.services.kanban.race_orchestrator import (
     LaneSpec,
     RaceError,
     estimate_race_cost,
+    get_lane_changes,
+    get_lane_file_contents,
     get_race_lanes,
     pick_race_winner,
     start_race,
@@ -46,7 +50,7 @@ def _race_error_to_http(exc: RaceError) -> HTTPException:
         status = 404
     if exc.code in ("bad_lane_count",):
         status = 400
-    return HTTPException(status, str(exc))
+    return HTTPException(status, detail={"code": exc.code, "message": str(exc)})
 
 
 @router.get(
@@ -58,7 +62,7 @@ async def race_estimate(
 ) -> RaceEstimateResponse:
     _ = task_id
     svc = get_kanban_service()
-    estimate = await estimate_race_cost(svc, board_id, lanes)
+    estimate = await estimate_race_cost(svc, board_id, min(max(lanes, 2), 5))
     return RaceEstimateResponse(**estimate.to_dict())
 
 
@@ -149,6 +153,38 @@ async def race_decide(
     except RaceError as exc:
         raise _race_error_to_http(exc) from None
     return RaceDecideResponse(**outcome)
+
+
+@router.get(
+    "/boards/{board_id}/tasks/{task_id}/race/lanes/{lane_task_id}/changes",
+    response_model=RaceLaneChangesResponse,
+)
+async def race_lane_changes(
+    board_id: str, task_id: str, lane_task_id: str
+) -> RaceLaneChangesResponse:
+    """List files changed by a lane against the race target branch."""
+    svc = get_kanban_service()
+    try:
+        outcome = await get_lane_changes(svc, board_id, task_id, lane_task_id)
+    except RaceError as exc:
+        raise _race_error_to_http(exc) from None
+    return RaceLaneChangesResponse(**outcome)
+
+
+@router.get(
+    "/boards/{board_id}/tasks/{task_id}/race/lanes/{lane_task_id}/file",
+    response_model=RaceLaneFileResponse,
+)
+async def race_lane_file(
+    board_id: str, task_id: str, lane_task_id: str, path: str
+) -> RaceLaneFileResponse:
+    """Return target vs lane file contents for side-by-side review."""
+    svc = get_kanban_service()
+    try:
+        outcome = await get_lane_file_contents(svc, board_id, task_id, lane_task_id, path)
+    except RaceError as exc:
+        raise _race_error_to_http(exc) from None
+    return RaceLaneFileResponse(**outcome)
 
 
 @router.get(

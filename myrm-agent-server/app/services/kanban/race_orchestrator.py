@@ -7,8 +7,9 @@
   TaskEventKind domain types.)
 
 [OUTPUT]
-- RaceError, LaneSpec, RaceEstimate, estimate_race_cost, start_race,
-  get_race_lanes, pick_race_winner.
+- RaceError, LaneSpec, RaceEstimate, LaneFileChange, estimate_race_cost,
+  start_race, get_race_lanes, pick_race_winner (idempotent via RACE_DECIDED
+  lookup), get_lane_changes, get_lane_file_contents.
 
 [POS]
 Business-layer race flow. A race fans one task out into N child lane tasks
@@ -19,13 +20,15 @@ dirty edits; loser branches are preserved, never force-deleted).
 
 Deliberately adds no harness machinery: parallelism comes from the existing
 dispatcher ``max_concurrent_tasks`` slots, isolation from per-task worktrees,
-and gating from IN_REVIEW approve/reject. V1 is git-worktree tasks only —
-non-git tasks fail closed at lane creation like any other worktree task.
+and gating from IN_REVIEW approve/reject. V1 targets git-worktree tasks;
+like any other branched task, lanes resolve their worktree at dispatch time.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import subprocess
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
@@ -35,6 +38,8 @@ from myrm_agent_harness.toolkits.kanban.types import (
     TaskRun,
     TaskStatus,
 )
+
+from app.core.utils.git_worktree import _GIT_ENV
 
 if TYPE_CHECKING:
     from app.services.kanban.service import KanbanService
@@ -136,6 +141,10 @@ async def start_race(
     parent = await _get_race_parent(svc, parent_task_id)
     if parent.board_id != board_id:
         raise RaceError("wrong_board", "Parent task is not on this board")
+    if parent.is_terminal:
+        raise RaceError("race_parent_not_ready", "Races start from backlog or ready tasks")
+    if parent.status not in (TaskStatus.BACKLOG, TaskStatus.READY):
+        raise RaceError("race_parent_not_ready", "Races start from backlog or ready tasks")
     target_branch = branch or parent.branch
     if not target_branch:
         raise RaceError(
@@ -180,23 +189,36 @@ async def start_race(
         description = parent.description
         if spec.instruction_variant:
             description = f"{description}\n\n【赛马变体】{spec.instruction_variant}"
-        lane = await svc.add_task(
-            board_id,
-            title=f"{parent.title}（{suffix}）",
-            description=description,
-            priority=parent.priority,
-            parent_task_id=parent.task_id,
-            agent_id=spec.agent_id or parent.agent_id,
-            model_override=spec.model_override or parent.model_override,
-            max_retries=parent.max_retries,
-            extra_skill_ids=list(parent.extra_skill_ids) or None,
-            completion_criteria=criteria,
-            max_runtime_seconds=parent.max_runtime_seconds,
-            branch=target_branch,
-            goal_mode=False,
-            require_approval=True,
-            metadata_patch={"race_parent": parent.task_id, "race_lane": i},
-        )
+        try:
+            lane = await svc.add_task(
+                board_id,
+                title=f"{parent.title}（{suffix}）",
+                description=description,
+                priority=parent.priority,
+                parent_task_id=parent.task_id,
+                agent_id=spec.agent_id or parent.agent_id,
+                model_override=spec.model_override or parent.model_override,
+                max_retries=parent.max_retries,
+                extra_skill_ids=list(parent.extra_skill_ids) or None,
+                completion_criteria=criteria,
+                max_runtime_seconds=parent.max_runtime_seconds,
+                branch=target_branch,
+                goal_mode=False,
+                require_approval=True,
+                metadata_patch={"race_parent": parent.task_id, "race_lane": i},
+            )
+        except Exception:
+            # A half-built race blocks retries via race_in_progress; archive
+            # what was created so the next attempt starts clean. Best effort:
+            # archive failures must not mask the original error.
+            for created_id in lane_ids:
+                try:
+                    await svc.move_task(created_id, TaskStatus.ARCHIVED)
+                except Exception:
+                    logger.warning(
+                        "Race rollback archive failed for lane %s", created_id[:8]
+                    )
+            raise
         lane_ids.append(lane.task_id)
 
     await svc.store.append_event(
@@ -214,6 +236,165 @@ async def start_race(
         "lane_ids": lane_ids,
         "estimate": estimate.to_dict(),
     }
+
+
+MAX_DIFF_FILES = 100
+MAX_FILE_BYTES = 200_000
+
+
+@dataclass(frozen=True)
+class LaneFileChange:
+    """One file changed by a lane, with line counts."""
+
+    path: str
+    additions: int
+    deletions: int
+
+    def to_dict(self) -> dict[str, object]:
+        return {"path": self.path, "additions": self.additions, "deletions": self.deletions}
+
+
+def _is_safe_repo_path(path: str) -> bool:
+    """Reject traversal/absolute paths; only in-repo relative files are served."""
+    if not path or path.startswith("/") or ".." in path.split("/"):
+        return False
+    return True
+
+
+async def _run_git(
+    base_dir: str, args: list[str], timeout: int = 15
+) -> subprocess.CompletedProcess[str]:
+    return await asyncio.to_thread(
+        subprocess.run,
+        ["git", *args],
+        cwd=base_dir,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        env=_GIT_ENV,
+    )
+
+
+async def _get_lane_context(
+    svc: KanbanService, board_id: str, parent_task_id: str, lane_task_id: str
+) -> tuple[KanbanTask, KanbanTask, str, str]:
+    """Return (parent, lane, base_dir, lane_branch) or raise RaceError."""
+    from app.services.kanban.task_runner.worktree.lifecycle import (
+        _worktree_branch_name,
+        resolve_base_dir,
+    )
+
+    parent = await _get_race_parent(svc, parent_task_id)
+    if parent.board_id != board_id:
+        raise RaceError("wrong_board", "Parent task is not on this board")
+    lane = await svc.get_task(lane_task_id)
+    if lane is None or lane.metadata.get("race_parent") != parent.task_id:
+        raise RaceError("not_a_lane", "Not a lane of this race")
+    if not lane.branch:
+        raise RaceError("lane_has_no_branch", "Lane has no git branch")
+    base_dir = await resolve_base_dir(svc.store, lane)
+    if not base_dir:
+        raise RaceError("no_workdir", "Board has no working directory")
+    return parent, lane, base_dir, _worktree_branch_name(lane.branch, lane.task_id)
+
+
+async def get_lane_changes(
+    svc: KanbanService, board_id: str, parent_task_id: str, lane_task_id: str
+) -> dict[str, Any]:
+    """List files changed by a lane against the race target branch."""
+    parent, lane, base_dir, lane_branch = await _get_lane_context(
+        svc, board_id, parent_task_id, lane_task_id
+    )
+    target = parent.branch or lane.branch
+    if not target:
+        raise RaceError("race_requires_branch", "Race target branch is missing")
+    result = await _run_git(
+        base_dir, ["diff", "--numstat", f"{target}...{lane_branch}", "--"]
+    )
+    if result.returncode != 0:
+        raise RaceError("diff_failed", "Could not compare lane with target branch")
+    changes: list[LaneFileChange] = []
+    for line in result.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 3 or not _is_safe_repo_path(parts[2]):
+            continue
+        try:
+            additions = int(parts[0]) if parts[0] != "-" else 0
+            deletions = int(parts[1]) if parts[1] != "-" else 0
+        except ValueError:
+            continue
+        changes.append(
+            LaneFileChange(path=parts[2], additions=additions, deletions=deletions)
+        )
+        if len(changes) >= MAX_DIFF_FILES:
+            break
+    return {
+        "lane_task_id": lane.task_id,
+        "target_branch": target,
+        "lane_branch": lane_branch,
+        "truncated": len(changes) >= MAX_DIFF_FILES,
+        "files": [c.to_dict() for c in changes],
+    }
+
+
+async def get_lane_file_contents(
+    svc: KanbanService,
+    board_id: str,
+    parent_task_id: str,
+    lane_task_id: str,
+    path: str,
+) -> dict[str, Any]:
+    """Return target vs lane file contents for side-by-side review."""
+    if not _is_safe_repo_path(path):
+        raise RaceError("unsafe_path", "Only in-repo relative file paths are allowed")
+    parent, lane, base_dir, lane_branch = await _get_lane_context(
+        svc, board_id, parent_task_id, lane_task_id
+    )
+    target = parent.branch or lane.branch
+    if not target:
+        raise RaceError("race_requires_branch", "Race target branch is missing")
+
+    async def show(ref: str) -> tuple[str, bool]:
+        result = await _run_git(base_dir, ["show", f"{ref}:{path}"])
+        if result.returncode != 0:
+            return "", False
+        content = result.stdout
+        if "\x00" in content:
+            return "", True
+        if len(content.encode("utf-8")) > MAX_FILE_BYTES:
+            return content[:MAX_FILE_BYTES], True
+        return content, False
+
+    target_content, target_binary = await show(target)
+    lane_content, lane_binary = await show(lane_branch)
+    return {
+        "lane_task_id": lane.task_id,
+        "path": path,
+        "target_content": target_content,
+        "lane_content": lane_content,
+        "truncated": target_binary or lane_binary,
+    }
+
+
+async def _find_decision(
+    svc: KanbanService, parent_task_id: str
+) -> dict[str, Any] | None:
+    """Return the stored decide outcome when this race was already decided."""
+    try:
+        events = await svc.list_events(parent_task_id)
+    except Exception:
+        return None
+    for event in reversed(events):
+        if event.kind == TaskEventKind.RACE_DECIDED and event.payload:
+            winner_id = event.payload.get("winner_task_id")
+            archived = event.payload.get("archived_lane_ids")
+            if isinstance(winner_id, str) and isinstance(archived, list):
+                return {
+                    "parent_task_id": parent_task_id,
+                    "winner_task_id": winner_id,
+                    "archived_lane_ids": [i for i in archived if isinstance(i, str)],
+                }
+    return None
 
 
 async def get_race_lanes(
@@ -240,6 +421,10 @@ async def pick_race_winner(
     git side effects.
     """
     parent = await _get_race_parent(svc, parent_task_id)
+    decided = await _find_decision(svc, parent.task_id)
+    if decided is not None:
+        # Idempotent retry: a previous decide already merged the winner.
+        return decided
     lanes = await get_race_lanes(svc, parent.board_id, parent.task_id)
     lane_ids = {t.task_id for t in lanes}
     if winner_task_id not in lane_ids:

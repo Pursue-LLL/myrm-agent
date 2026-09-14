@@ -17,7 +17,6 @@ carrying merge audit fields through the real memory pipeline.
 
 from __future__ import annotations
 
-import math
 import time
 
 from fastapi import APIRouter, HTTPException
@@ -69,9 +68,6 @@ async def _ensure_embedding_configured() -> None:
     invalidate_user_configs_cache()
 
 
-_E2E_EMBEDDING_DIM = 1024  # BAAI/bge-m3 output dim (KNOWn by harness KNOWN_MODEL_DIMENSIONS)
-
-
 @router.post("/test/seed-evolution-fixture", include_in_schema=False)
 async def seed_memory_evolution_fixture() -> dict[str, str]:
     """Local dev/test only: bootstrap retrieval config, then seed a merge-audit memory.
@@ -106,21 +102,23 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
     )
 
     try:
-        base = await manager.add_knowledge(
-            _EVOLUTION_SEED_CONTENT,
+        # 先以预填向量落库（embedding 非 None → store_semantic 跳过 embedding API），
+        # 再补 merge 审计字段二次落库。若先 add_knowledge（embedding 为 None）会
+        # 触发对失效 siliconflow key 的真实调用（402/30014）。
+        base = SemanticMemory(
+            content=_EVOLUTION_SEED_CONTENT,
             importance=0.8,
             tags=["e2e-evolution"],
+            embedding=[0.0] * _PRESEEDED_EMBEDDING_DIM,
         )
-        if not isinstance(base, SemanticMemory):
-            raise HTTPException(status_code=500, detail="seed add_knowledge returned non-semantic memory")
+        persisted = await manager.store(base, _bypass_approval=True)
+        if not isinstance(persisted, SemanticMemory):
+            raise HTTPException(status_code=500, detail="seed store returned non-semantic memory")
 
-        seeded = base.model_copy(
+        seeded = persisted.model_copy(
             update={
                 "merge_count": 2,
                 "merge_history": _EVOLUTION_SEED_HISTORY,
-                # 预填真实 bge-m3 维度（1024）。store_semantic 在 embedding 非 None
-                # 时跳过 embedding API 调用，规避失效 siliconflow key（402/30014）。
-                "embedding": [0.0] * _PRESEEDED_EMBEDDING_DIM,
             },
         )
         persisted = await manager.store(seeded, _bypass_approval=True)

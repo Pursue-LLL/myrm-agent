@@ -59,16 +59,24 @@ _EVO_PAGE_PROBE_JS = """(() => {
   };
 })()"""
 
-_DETAIL_SHEET_OPEN_JS = """(target) => {
-  const cards = [...document.querySelectorAll('div, button')]
-    .filter((el) => (el.textContent || '').includes('E2E evolution seed'));
-  const card = cards[cards.length - 1];
-  if (!card) {
-    return { ok: false, err: 'seed card not found' };
+_DETAIL_SHEET_OPEN_JS = """(() => {
+  const all = [...document.querySelectorAll('div, button')];
+  const cards = all.filter((el) => (el.textContent || '').includes('E2E evolution seed'));
+  if (!cards.length) {
+    return { ok: false, err: 'seed card not found', sampleText: (document.body.innerText || '').slice(0, 300) };
+  }
+  // 选最内层（叶子方向）匹配元素：textContent 命中的可能是整页容器，
+  // 点击外层容器不触发卡片 onClick。
+  let card = cards[cards.length - 1];
+  for (const el of cards) {
+    if ((el.textContent || '').trim() === 'E2E evolution seed - user prefers dark mode (v3)') {
+      card = el;
+      break;
+    }
   }
   card.click();
-  return { ok: true };
-}"""
+  return { ok: true, tag: card.tagName };
+})()"""
 
 _SHEET_PROBE_JS = """(() => {
   const text = document.body.innerText;
@@ -118,7 +126,8 @@ def _run_with_transport_retry(
 
 
 def _run_evolution_assertions(api_url: str, ui_url: str) -> None:
-    _seed_evolving_memory(api_url)(api_url)
+    seeded = _seed_evolving_memory(api_url)
+    assert seeded.get("status") == "seeded", json.dumps(seeded, ensure_ascii=False)
     settings_url = f"{ui_url.rstrip('/')}/settings/knowledge"
     home_url = f"{ui_url.rstrip('/')}/"
 
@@ -148,7 +157,8 @@ def _run_evolution_assertions(api_url: str, ui_url: str) -> None:
         time.sleep(1.5)
 
         sheet = client.evaluate(page, _SHEET_PROBE_JS, timeout_sec=30.0)
-        assert sheet.get("hasEvolutionBadge") is True, json.dumps(sheet, ensure_ascii=False)
+        assert sheet.get("sheetOpen") is True, json.dumps(sheet, ensure_ascii=False)
+        assert sheet.get("hasMergeBadge") is True, json.dumps(sheet, ensure_ascii=False)
         assert sheet.get("hasMergeAction") is True, json.dumps(sheet, ensure_ascii=False)
 
 

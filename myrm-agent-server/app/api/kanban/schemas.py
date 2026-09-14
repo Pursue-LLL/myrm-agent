@@ -826,6 +826,34 @@ class RaceDecideResponse(BaseModel):
     archived_lane_ids: list[str]
 
 
+class RaceFileChange(BaseModel):
+    """One file changed by a lane."""
+
+    path: str
+    additions: int
+    deletions: int
+
+
+class RaceLaneChangesResponse(BaseModel):
+    """Files changed by a lane against the race target branch."""
+
+    lane_task_id: str
+    target_branch: str
+    lane_branch: str
+    truncated: bool
+    files: list[RaceFileChange]
+
+
+class RaceLaneFileResponse(BaseModel):
+    """Target vs lane file contents for side-by-side review."""
+
+    lane_task_id: str
+    path: str
+    target_content: str
+    lane_content: str
+    truncated: bool
+
+
 class PlanRevisionResponse(BaseModel):
     """Response returned after plan revision."""
 

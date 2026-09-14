@@ -119,6 +119,56 @@ async def test_start_rejects_live_race() -> None:
 
 
 @pytest.mark.asyncio
+async def test_start_rejects_terminal_parent() -> None:
+    svc = _make_svc(_parent(status=TaskStatus.COMPLETED))
+    with pytest.raises(RaceError) as exc:
+        await start_race(
+            svc, "board-1", "parent-1", [LaneSpec(), LaneSpec()], confirm_cost=True
+        )
+    assert exc.value.code == "race_parent_not_ready"
+    svc.add_task.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_start_rolls_back_half_built_race() -> None:
+    svc = _make_svc(_parent())
+
+    async def add_task(board_id: str, title: str, **kwargs: object) -> KanbanTask:
+        if "方案B" in title:
+            raise RuntimeError("boom")
+        return _lane("lane-0", TaskStatus.READY)
+
+    svc.add_task.side_effect = add_task
+    with pytest.raises(RuntimeError):
+        await start_race(
+            svc, "board-1", "parent-1", [LaneSpec(), LaneSpec()], confirm_cost=True
+        )
+    svc.move_task.assert_awaited_once_with("lane-0", TaskStatus.ARCHIVED)
+
+
+@pytest.mark.asyncio
+async def test_pick_winner_is_idempotent_after_decision() -> None:
+    from myrm_agent_harness.toolkits.kanban.types import TaskEventKind
+
+    parent = _parent()
+    svc = _make_svc(parent)
+    svc.list_events.return_value = [
+        SimpleNamespace(
+            kind=TaskEventKind.RACE_DECIDED,
+            payload={"winner_task_id": "lane-w", "archived_lane_ids": ["lane-l"]},
+        )
+    ]
+    outcome = await pick_race_winner(svc, "parent-1", "lane-w")
+    assert outcome == {
+        "parent_task_id": "parent-1",
+        "winner_task_id": "lane-w",
+        "archived_lane_ids": ["lane-l"],
+    }
+    svc.approve_task.assert_not_called()
+    svc.move_task.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_start_creates_linked_lanes() -> None:
     svc = _make_svc(_parent(agent_id="agent-main"))
     created: list[KanbanTask] = []
@@ -223,6 +273,57 @@ async def test_pick_winner_requires_reviewable_lane() -> None:
     with pytest.raises(RaceError) as exc:
         await pick_race_winner(svc, "parent-1", "lane-w")
     assert exc.value.code == "winner_not_reviewable"
+
+
+@pytest.mark.asyncio
+async def test_lane_changes_parses_numstat() -> None:
+    from unittest.mock import patch
+
+    from app.services.kanban.race_orchestrator import get_lane_changes
+
+    parent = _parent()
+    lane = _lane("lane-1", TaskStatus.RUNNING)
+    lane.workspace_path = "/repo"
+    svc = _make_svc(parent)
+    svc.get_task.side_effect = lambda task_id: {
+        "parent-1": parent,
+        "lane-1": lane,
+    }.get(task_id)
+
+    async def fake_git(base_dir: str, args: list[str], timeout: int = 15):
+        assert base_dir == "/repo"
+        return SimpleNamespace(returncode=0, stdout="10\t2\tsrc/a.py\n0\t0\t../evil.py\n")
+
+    with patch(
+        "app.services.kanban.race_orchestrator._run_git", side_effect=fake_git
+    ):
+        outcome = await get_lane_changes(svc, "board-1", "parent-1", "lane-1")
+    assert outcome["lane_task_id"] == "lane-1"
+    assert outcome["files"] == [{"path": "src/a.py", "additions": 10, "deletions": 2}]
+
+
+@pytest.mark.asyncio
+async def test_lane_file_rejects_unsafe_path() -> None:
+    from app.services.kanban.race_orchestrator import get_lane_file_contents
+
+    svc = _make_svc(_parent())
+    with pytest.raises(RaceError) as exc:
+        await get_lane_file_contents(svc, "board-1", "parent-1", "lane-1", "../evil.py")
+    assert exc.value.code == "unsafe_path"
+
+
+@pytest.mark.asyncio
+async def test_lane_changes_rejects_foreign_lane() -> None:
+    from app.services.kanban.race_orchestrator import get_lane_changes
+
+    svc = _make_svc(_parent())
+    svc.get_task.side_effect = lambda task_id: {
+        "parent-1": _parent(),
+        "other": _parent(task_id="other"),
+    }.get(task_id)
+    with pytest.raises(RaceError) as exc:
+        await get_lane_changes(svc, "board-1", "parent-1", "other")
+    assert exc.value.code == "not_a_lane"
 
 
 @pytest.mark.asyncio

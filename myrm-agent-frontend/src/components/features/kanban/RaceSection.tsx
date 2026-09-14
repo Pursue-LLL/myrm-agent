@@ -3,7 +3,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { KanbanTask } from '@/services/kanban';
-import { raceDecide, raceEstimate, raceLanes, raceStart, type RaceEstimate, type RaceLane } from '@/services/kanban';
+import {
+  raceDecide,
+  raceEstimate,
+  raceLaneChanges,
+  raceLaneFile,
+  raceLanes,
+  raceStart,
+  type RaceEstimate,
+  type RaceLane,
+  type RaceLaneFile,
+} from '@/services/kanban';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { useLocale } from 'next-intl';
@@ -17,6 +27,24 @@ interface RaceSectionProps {
 }
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+
+const ERROR_KEY_BY_CODE: Record<string, string> = {
+  race_requires_branch: 'raceNeedsBranch',
+  bad_lane_count: 'raceErrorBadCount',
+  insufficient_slots: 'raceErrorSlots',
+  race_in_progress: 'raceErrorInProgress',
+  cost_confirmation_required: 'raceErrorConfirm',
+  winner_not_reviewable: 'raceErrorReviewable',
+  race_parent_not_ready: 'raceErrorParentReady',
+};
+
+function raceErrorKey(err: unknown): string {
+  const code = (err as { businessCode?: unknown }).businessCode;
+  if (typeof code === 'string' && ERROR_KEY_BY_CODE[code]) {
+    return ERROR_KEY_BY_CODE[code];
+  }
+  return 'raceErrorGeneric';
+}
 
 function LaneAgentName({ agentId }: { agentId: string | null | undefined }) {
   const locale = useLocale();
@@ -34,6 +62,115 @@ function LaneAgentName({ agentId }: { agentId: string | null | undefined }) {
   return <span>{agent ? getBuiltinAgentName(agent.id, agent.name, locale) : agentId}</span>;
 }
 
+function languageForPath(path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase() ?? '';
+  if (['ts', 'tsx', 'js', 'jsx', 'py', 'go', 'rs', 'java', 'json', 'yaml', 'yml', 'md', 'css', 'html'].includes(ext)) {
+    return ext === 'tsx' || ext === 'jsx' ? 'typescript' : ext;
+  }
+  return 'plaintext';
+}
+
+function LaneCompare({
+  boardId,
+  parentTaskId,
+  lane,
+  t,
+}: {
+  boardId: string;
+  parentTaskId: string;
+  lane: RaceLane;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [files, setFiles] = useState<{ path: string; additions: number; deletions: number }[] | null>(null);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [file, setFile] = useState<RaceLaneFile | null>(null);
+  const [DiffView, setDiffView] = useState<React.ComponentType<{
+    currentContent: string;
+    versions: { versionId: string; versionNumber: number; content: string; createdAt: string }[];
+    viewingVersionIndex: number;
+    language?: string;
+  }> | null>(null);
+
+  useEffect(() => {
+    if (!open || files !== null) {
+      return;
+    }
+    let cancelled = false;
+    Promise.resolve(raceLaneChanges(boardId, parentTaskId, lane.task_id))
+      .then((res) => {
+        if (!cancelled) {
+          setFiles(res.files);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFiles([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, files, boardId, parentTaskId, lane.task_id]);
+
+  const handleSelectFile = async (path: string) => {
+    setSelectedPath(path);
+    setFile(null);
+    try {
+      const res = await Promise.resolve(raceLaneFile(boardId, parentTaskId, lane.task_id, path));
+      setFile(res);
+      if (!DiffView) {
+        const mod = await import('@/components/features/artifacts/renderers/DiffPreview');
+        setDiffView(() => mod.default);
+      }
+    } catch {
+      setFile(null);
+    }
+  };
+
+  return (
+    <details className="mt-1.5" onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+      <summary className="text-[11px] text-primary cursor-pointer">{t('raceChanges')}</summary>
+      {open && files === null && <p className="text-[11px] text-muted-foreground mt-1">{t('loading')}</p>}
+      {open && files !== null && files.length === 0 && (
+        <p className="text-[11px] text-muted-foreground mt-1">{t('raceChangesEmpty')}</p>
+      )}
+      {open && files !== null && files.length > 0 && (
+        <div className="mt-1 space-y-1">
+          {files.map((f) => (
+            <button
+              key={f.path}
+              type="button"
+              onClick={() => handleSelectFile(f.path)}
+              className={cn(
+                'block w-full text-left text-[11px] px-2 py-1 rounded-md border border-border truncate',
+                selectedPath === f.path ? 'bg-primary/10 border-primary' : '',
+              )}
+            >
+              <span className="text-green-600 dark:text-green-400">+{f.additions}</span>{' '}
+              <span className="text-red-600 dark:text-red-400">-{f.deletions}</span>{' '}
+              <span className="font-mono">{f.path}</span>
+            </button>
+          ))}
+          {selectedPath && file && DiffView && (
+            <div className="h-72 mt-1">
+              <DiffView
+                currentContent={file.lane_content}
+                versions={[
+                  { versionId: 'target', versionNumber: 1, content: file.target_content, createdAt: '' },
+                  { versionId: 'lane', versionNumber: 2, content: file.lane_content, createdAt: '' },
+                ]}
+                viewingVersionIndex={-1}
+                language={languageForPath(file.path)}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </details>
+  );
+}
+
 export default function RaceSection({ boardId, task, onChanged, t }: RaceSectionProps) {
   const [lanes, setLanes] = useState<RaceLane[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,7 +186,7 @@ export default function RaceSection({ boardId, task, onChanged, t }: RaceSection
     setLoading(true);
     setError(null);
     try {
-      const res = await raceLanes(boardId, task.task_id);
+      const res = await Promise.resolve(raceLanes(boardId, task.task_id));
       setLanes(res.lanes);
     } catch {
       setLanes([]);
@@ -66,12 +203,35 @@ export default function RaceSection({ boardId, task, onChanged, t }: RaceSection
     load();
   }, [load]);
 
+  const hasLiveLanes =
+    lanes !== null &&
+    lanes.some((lane) => lane.status === 'ready' || lane.status === 'running' || lane.status === 'blocked');
+
+  useEffect(() => {
+    const onEvent = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { board_id?: string } | undefined;
+      if (!detail?.board_id || detail.board_id === boardId) {
+        load();
+      }
+    };
+    window.addEventListener('kanban-task-updated', onEvent);
+    return () => window.removeEventListener('kanban-task-updated', onEvent);
+  }, [boardId, load]);
+
+  useEffect(() => {
+    if (!hasLiveLanes) {
+      return;
+    }
+    const interval = setInterval(load, 8000);
+    return () => clearInterval(interval);
+  }, [hasLiveLanes, load]);
+
   useEffect(() => {
     if (lanes !== null && lanes.length > 0) {
       return;
     }
     let cancelled = false;
-    raceEstimate(boardId, task.task_id, laneCount)
+    Promise.resolve(raceEstimate(boardId, task.task_id, laneCount))
       .then((est) => {
         if (!cancelled) {
           setEstimate(est);
@@ -104,7 +264,7 @@ export default function RaceSection({ boardId, task, onChanged, t }: RaceSection
       await load();
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(raceErrorKey(err));
     } finally {
       setStarting(false);
     }
@@ -121,7 +281,7 @@ export default function RaceSection({ boardId, task, onChanged, t }: RaceSection
       await load();
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(raceErrorKey(err));
     } finally {
       setDeciding(null);
     }
@@ -165,6 +325,7 @@ export default function RaceSection({ boardId, task, onChanged, t }: RaceSection
                   <p className="text-xs whitespace-pre-wrap mt-1 max-h-40 overflow-y-auto">{lane.result}</p>
                 </details>
               )}
+              <LaneCompare boardId={boardId} parentTaskId={task.task_id} lane={lane} t={t} />
               {lane.status === 'in_review' && !decided && (
                 <button
                   type="button"
