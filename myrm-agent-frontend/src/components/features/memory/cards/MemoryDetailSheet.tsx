@@ -263,7 +263,7 @@ const MemoryDetailSheet = memo<MemoryDetailSheetProps>(({ memory, open, onOpenCh
                 <span>{t('sourceEvidence') ?? '依据发言'}</span>
               </div>
               <p className="italic text-foreground/90 pl-4 border-l-2 border-primary/30 py-0.5 whitespace-pre-wrap leading-relaxed">
-                "{String(memory.metadata?.quote_snippet)}"
+                「{String(memory.metadata?.quote_snippet)}」
               </p>
             </div>
           )}
@@ -273,19 +273,8 @@ const MemoryDetailSheet = memo<MemoryDetailSheetProps>(({ memory, open, onOpenCh
             const evolutionEntries = parseMergeHistory(memory.merge_history);
             const hasEvolution = evolutionEntries.length > 0 || Boolean(memory.correction_of);
             return hasEvolution ? (
-              <EvolutionHistory entries={evolutionEntries} />
-            ) : null;
-          })()}
-
-          {/* Evolution history (merge audit timeline) */}
-          {(() => {
-            const entries = parseMergeHistory(memory.merge_history);
-            if (entries.length === 0 && !memory.correction_of) {
-              return null;
-            }
-            return (
               <>
-                {entries.length > 0 && <EvolutionHistory entries={entries} />}
+                {evolutionEntries.length > 0 && <EvolutionHistory entries={evolutionEntries} />}
                 {memory.correction_of && (
                   <div className="flex items-start gap-1.5 text-xs bg-primary/5 border border-primary/20 rounded-lg px-3 py-2 text-muted-foreground">
                     <GitCommitHorizontal size={12} className="shrink-0 mt-0.5 text-primary" />
@@ -296,7 +285,7 @@ const MemoryDetailSheet = memo<MemoryDetailSheetProps>(({ memory, open, onOpenCh
                   </div>
                 )}
               </>
-            );
+            ) : null;
           })()}
 
           {/* Source chat link */}

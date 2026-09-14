@@ -30,7 +30,7 @@
 | `MemoryScopeHierarchyCard.tsx` | 组件 | 记忆作用域层级图谱卡片（Task/Conversation/Agent/Global 四级统一生命周期与隔离可视化）                       | ✅    |
 | `MemoryScopePicker.tsx`        | 组件 | 记忆作用域级别选择器（创建/编辑记忆时直观选择作用域范围与描述提示）                                         | ✅    |
 | `ConflictCard.tsx`             | 组件 | 冲突记忆卡                                                                                                  | ✅    |
-| `MemoryDetailSheet.tsx`        | 组件 | 记忆详情 Sheet（全文/metadata/来源）                                                                        | ✅    |
+| `MemoryDetailSheet.tsx`        | 组件 | 记忆详情 Sheet（全文/metadata/来源/演变历史时间线与纠正链）                                                 | ✅    |
 | `MemoryTypeIcon.tsx`           | 辅助 | 记忆类型 → 图标映射                                                                                         | ✅    |
 | `MemoryStats.tsx`              | 组件 | 记忆数量/类型统计摘要                                                                                       | ✅    |
 | `EvidenceBadge.tsx`            | 组件 | 证据链胶囊徽章（原话引文摘要、侧边抽屉呼出与纠偏加锁联动）                                                  | ✅    |
