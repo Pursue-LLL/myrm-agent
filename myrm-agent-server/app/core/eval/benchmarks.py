@@ -39,6 +39,7 @@ from myrm_agent_harness.eval import (
 # (module-level side effect); the catalog/run guards below rely on that
 # registration even on a cold process that never listed the catalog first.
 from app.core.eval import browse_comp as _browse_comp_registry  # noqa: F401
+from app.core.eval import locomo as _locomo_registry  # noqa: F401
 from app.core.eval import operational_assurance as _operational_assurance_registry  # noqa: F401
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ def list_benchmark_sources() -> list[dict[str, object]]:
     BrowseComp) is appended with its own ``benchmark_id``.
     """
     from app.core.eval.browse_comp import list_browse_comp_source
+    from app.core.eval.locomo import list_locomo_source
     from app.core.eval.wb_bench import list_wb_bench_sources
 
     sources: list[dict[str, object]] = []
@@ -73,6 +75,8 @@ def list_benchmark_sources() -> list[dict[str, object]]:
         source = spec.to_dict()
         if spec.id == "browsecomp":
             source = {**source, **list_browse_comp_source()}
+        elif spec.id == "locomo":
+            source = {**source, **list_locomo_source()}
         elif spec.id == "operational-assurance":
             from app.core.eval.operational_assurance import list_operational_assurance_source
 
@@ -142,6 +146,15 @@ def ensure_benchmark_source(
             progress_callback=progress_callback,
             should_abort=should_abort,
         )
+    if benchmark_id == "locomo":
+        from app.core.eval.locomo import ensure_locomo_source
+
+        return asyncio.run(
+            ensure_locomo_source(
+                on_progress=progress_callback,
+                abort_check=should_abort,
+            )
+        )
     raise ValueError(f"Unknown benchmark: {benchmark_id}")
 
 
@@ -169,6 +182,7 @@ def build_benchmark_cases(
     import random
 
     from app.core.eval.browse_comp import build_browse_comp_cases
+    from app.core.eval.locomo import build_locomo_cases
     from app.core.eval.operational_assurance import build_operational_assurance_benchmark_cases
     from app.core.eval.wb_bench import build_wb_bench_cases
 
@@ -184,6 +198,13 @@ def build_benchmark_cases(
             progress_callback=progress_callback,
             should_abort=should_abort,
         )
+    elif benchmark_id == "locomo":
+        locomo_cases, locomo_seeds, is_sampled = build_locomo_cases(
+            limit=limit or 0
+        )
+        cases = locomo_cases
+        seed_map = {k: str(v) for k, v in locomo_seeds.items()}
+        return cases, seed_map, is_sampled
     elif benchmark_id == "operational-assurance":
         cases, seed_map = build_operational_assurance_benchmark_cases(
             progress_callback=progress_callback,
