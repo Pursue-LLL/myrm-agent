@@ -15445,7 +15445,14 @@
         "lastSyncNever": "未同期",
         "lastSyncSummary": "+{published} 件の新規 · {skipped} 件スキップ · {failed} 件失敗",
         "syncIssue": "最終同期の問題: {detail}",
-        "syncIssueGeneric": "一部のソースの同期に失敗しました"
+        "syncIssueGeneric": "一部のソースの同期に失敗しました",
+        "zoteroLabel": "Zotero ライブラリ",
+        "zoteroHint": "最近更新されたZoteroアイテムとハイライトをWikiに同期します",
+        "zoteroUserIdLabel": "Zotero ユーザーID",
+        "zoteroUserIdPlaceholder": "例: 1234567",
+        "zoteroApiKeyLabel": "Zotero APIキー",
+        "zoteroApiKeyPlaceholder": "zotero.org/settings/keys で作成したAPIキー",
+        "zoteroBaseUrlLabel": "Zotero APIベースURL（任意）"
       },
       "scopeChip": {
         "label": "対象ボールト: {scope}"

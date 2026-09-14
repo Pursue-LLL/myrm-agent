@@ -15281,7 +15281,14 @@
         "lastSyncNever": "Noch nicht synchronisiert",
         "lastSyncSummary": "+{published} new · {skipped} skipped · {failed} failed",
         "syncIssue": "Letztes Synchronisierungsproblem: {detail}",
-        "syncIssueGeneric": "Einige Quellen konnten nicht synchronisiert werden"
+        "syncIssueGeneric": "Einige Quellen konnten nicht synchronisiert werden",
+        "zoteroLabel": "Zotero-Bibliothek",
+        "zoteroHint": "Aktualisierte Zotero-Einträge und Markierungen ins Wiki synchronisieren",
+        "zoteroUserIdLabel": "Zotero-Benutzer-ID",
+        "zoteroUserIdPlaceholder": "z. B. 1234567",
+        "zoteroApiKeyLabel": "Zotero API-Schlüssel",
+        "zoteroApiKeyPlaceholder": "API-Schlüssel von zotero.org/settings/keys",
+        "zoteroBaseUrlLabel": "Zotero API-Basis-URL (optional)"
       },
       "agentScopeLabel": "Agenten-Wissensbasis",
       "agentScopePlaceholder": "Einen Agenten auswählen",

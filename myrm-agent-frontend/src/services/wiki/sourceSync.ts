@@ -21,6 +21,10 @@ export interface WikiSourceSyncConfig {
   gdrive_enabled: boolean;
   gdrive_folder_id: string;
   rss_feeds: string[];
+  zotero_enabled: boolean;
+  zotero_api_key: string;
+  zotero_user_id: string;
+  zotero_base_url: string;
   auto_compile: boolean;
   max_items_per_run: number;
   mirror_integrations_to_wiki: boolean;

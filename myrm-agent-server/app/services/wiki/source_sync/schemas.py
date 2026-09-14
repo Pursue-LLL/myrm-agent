@@ -22,6 +22,14 @@ class WikiSourceSyncConfig(BaseModel):
     gdrive_enabled: bool = False
     gdrive_folder_id: str = Field(default="root", max_length=256)
     rss_feeds: list[str] = Field(default_factory=list, max_length=32)
+    zotero_enabled: bool = False
+    zotero_api_key: str = Field(default="", max_length=128)
+    zotero_user_id: str = Field(default="", max_length=64)
+    zotero_base_url: str = Field(
+        default="https://api.zotero.org",
+        max_length=256,
+        description="Zotero Web API base (override for local Zotero servers)",
+    )
     auto_compile: bool = True
     max_items_per_run: int = Field(default=10, ge=1, le=50)
     mirror_integrations_to_wiki: bool = True

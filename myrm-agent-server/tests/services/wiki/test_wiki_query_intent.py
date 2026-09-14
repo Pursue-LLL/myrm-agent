@@ -26,11 +26,12 @@ def _session(
     query: str = "上周 API 迁移方案有几个？",
     enable_wiki: bool = True,
     action_mode: str = "agent",
+    agent_id: str = "default",
 ) -> AgentStreamSession:
     request = AgentRequest(
         message_id="msg-wiki-lane",
         chat_id="chat-wiki-lane",
-        agent_id="default",
+        agent_id=agent_id,
         query=query,
         action_mode=action_mode,
         enable_memory=False,
@@ -38,7 +39,7 @@ def _session(
     params = GeneralAgentParams(
         message_id="msg-wiki-lane",
         chat_id="chat-wiki-lane",
-        agent_id="default",
+        agent_id=agent_id,
         query=query,
         model_cfg=ModelConfig(model="test/model", api_key="k"),
         enable_wiki=enable_wiki,

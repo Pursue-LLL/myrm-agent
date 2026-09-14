@@ -34,6 +34,7 @@ from app.services.wiki.source_sync.schemas import (
     WikiSourceSyncConfig,
     WikiSourceSyncRunSummary,
 )
+from app.services.wiki.source_sync.zotero import sync_zotero_library_to_wiki
 from app.services.wiki.vault import resolve_wiki_vault_path
 
 logger = logging.getLogger(__name__)
@@ -107,6 +108,18 @@ async def run_wiki_source_sync(
             compiler_enqueue=compiler_enqueue,
         )
         run.results.append(feishu_result)
+
+    if sync_gmail_rss and effective_config.zotero_enabled:
+        zotero_result = await sync_zotero_library_to_wiki(
+            structure,
+            api_key=effective_config.zotero_api_key,
+            user_id=effective_config.zotero_user_id,
+            max_items=max_items,
+            auto_compile=auto_compile,
+            compiler_enqueue=compiler_enqueue,
+            base_url=effective_config.zotero_base_url,
+        )
+        run.results.append(zotero_result)
 
     if effective_config.mirror_integrations_to_wiki and integration_sync_results and llm is not None:
         from myrm_agent_harness.toolkits.memory.integration.types import (

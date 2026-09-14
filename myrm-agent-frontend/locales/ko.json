@@ -15281,7 +15281,14 @@
         "lastSyncNever": "아직 동기화되지 않음",
         "lastSyncSummary": "+{published} 새 · {skipped} 건너뜀 · {failed} 실패",
         "syncIssue": "마지막 동기화 문제: {detail}",
-        "syncIssueGeneric": "일부 소스 동기화 실패"
+        "syncIssueGeneric": "일부 소스 동기화 실패",
+        "zoteroLabel": "Zotero 라이브러리",
+        "zoteroHint": "최근 업데이트된 Zotero 항목과 하이라이트를 Wiki에 동기화합니다",
+        "zoteroUserIdLabel": "Zotero 사용자 ID",
+        "zoteroUserIdPlaceholder": "예: 1234567",
+        "zoteroApiKeyLabel": "Zotero API 키",
+        "zoteroApiKeyPlaceholder": "zotero.org/settings/keys에서 생성한 API 키",
+        "zoteroBaseUrlLabel": "Zotero API 기본 URL(선택)"
       },
       "agentScopeLabel": "에이전트 지식 베이스",
       "agentScopePlaceholder": "에이전트 선택",

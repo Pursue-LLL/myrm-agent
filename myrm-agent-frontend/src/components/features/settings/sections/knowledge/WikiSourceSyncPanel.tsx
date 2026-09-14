@@ -77,6 +77,10 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
           gdrive_enabled: status.config.gdrive_enabled,
           gdrive_folder_id: status.config.gdrive_folder_id,
           rss_feeds: feeds,
+          zotero_enabled: status.config.zotero_enabled,
+          zotero_api_key: status.config.zotero_api_key,
+          zotero_user_id: status.config.zotero_user_id,
+          zotero_base_url: status.config.zotero_base_url,
           auto_compile: status.config.auto_compile,
           max_items_per_run: status.config.max_items_per_run,
           mirror_integrations_to_wiki: status.config.mirror_integrations_to_wiki,
@@ -250,6 +254,65 @@ export default function WikiSourceSyncPanel({ onGoToIntegrations }: WikiSourceSy
                 )
               }
             />
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <Label htmlFor="wiki-zotero-enabled">{t('zoteroLabel')}</Label>
+            <p className="text-xs text-muted-foreground">{t('zoteroHint')}</p>
+          </div>
+          <Switch
+            id="wiki-zotero-enabled"
+            checked={status.config.zotero_enabled}
+            onCheckedChange={(checked) =>
+              setStatus((prev) => (prev ? { ...prev, config: { ...prev.config, zotero_enabled: checked } } : prev))
+            }
+          />
+        </div>
+
+        {status.config.zotero_enabled && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="wiki-zotero-user-id">{t('zoteroUserIdLabel')}</Label>
+              <Input
+                id="wiki-zotero-user-id"
+                value={status.config.zotero_user_id}
+                placeholder={t('zoteroUserIdPlaceholder')}
+                onChange={(event) =>
+                  setStatus((prev) =>
+                    prev ? { ...prev, config: { ...prev.config, zotero_user_id: event.target.value } } : prev,
+                  )
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="wiki-zotero-api-key">{t('zoteroApiKeyLabel')}</Label>
+              <Input
+                id="wiki-zotero-api-key"
+                type="password"
+                value={status.config.zotero_api_key}
+                placeholder={t('zoteroApiKeyPlaceholder')}
+                onChange={(event) =>
+                  setStatus((prev) =>
+                    prev ? { ...prev, config: { ...prev.config, zotero_api_key: event.target.value } } : prev,
+                  )
+                }
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="wiki-zotero-base-url">{t('zoteroBaseUrlLabel')}</Label>
+              <Input
+                id="wiki-zotero-base-url"
+                value={status.config.zotero_base_url}
+                placeholder="https://api.zotero.org"
+                onChange={(event) =>
+                  setStatus((prev) =>
+                    prev ? { ...prev, config: { ...prev.config, zotero_base_url: event.target.value } } : prev,
+                  )
+                }
+              />
+            </div>
           </div>
         )}
 

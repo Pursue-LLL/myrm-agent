@@ -15286,7 +15286,14 @@
         "lastSyncNever": "尚未同步",
         "lastSyncSummary": "新增 {published} · 跳過 {skipped} · 失敗 {failed}",
         "syncIssue": "上次同步出現問題：{detail}",
-        "syncIssueGeneric": "部分來源同步失敗"
+        "syncIssueGeneric": "部分來源同步失敗",
+        "zoteroLabel": "Zotero 文獻庫",
+        "zoteroHint": "將最近更新的 Zotero 條目與高亮批註同步進知識庫",
+        "zoteroUserIdLabel": "Zotero 使用者 ID",
+        "zoteroUserIdPlaceholder": "例如 1234567",
+        "zoteroApiKeyLabel": "Zotero API 金鑰",
+        "zoteroApiKeyPlaceholder": "在 zotero.org/settings/keys 建立的 API 金鑰",
+        "zoteroBaseUrlLabel": "Zotero API 位址（選填）"
       },
       "scopeChip": {
         "label": "目標知識庫：{scope}"

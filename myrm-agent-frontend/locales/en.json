@@ -2553,7 +2553,14 @@
         "lastSyncNever": "Not synced yet",
         "lastSyncSummary": "+{published} new · {skipped} skipped · {failed} failed",
         "syncIssue": "Last sync issue: {detail}",
-        "syncIssueGeneric": "Some sources failed to sync"
+        "syncIssueGeneric": "Some sources failed to sync",
+        "zoteroLabel": "Zotero library",
+        "zoteroHint": "Sync recently updated Zotero items and highlights into the wiki",
+        "zoteroUserIdLabel": "Zotero user ID",
+        "zoteroUserIdPlaceholder": "e.g. 1234567",
+        "zoteroApiKeyLabel": "Zotero API key",
+        "zoteroApiKeyPlaceholder": "Zotero API key from zotero.org/settings/keys",
+        "zoteroBaseUrlLabel": "Zotero API base URL (optional)"
       },
       "loading": "Loading...",
       "agentScopeLabel": "Agent knowledge base",

@@ -2553,7 +2553,14 @@
         "lastSyncNever": "尚未同步",
         "lastSyncSummary": "新增 {published} · 跳过 {skipped} · 失败 {failed}",
         "syncIssue": "上次同步出现问题：{detail}",
-        "syncIssueGeneric": "部分来源同步失败"
+        "syncIssueGeneric": "部分来源同步失败",
+        "zoteroLabel": "Zotero 文献库",
+        "zoteroHint": "将最近更新的 Zotero 条目与高亮批注同步进知识库",
+        "zoteroUserIdLabel": "Zotero 用户 ID",
+        "zoteroUserIdPlaceholder": "例如 1234567",
+        "zoteroApiKeyLabel": "Zotero API 密钥",
+        "zoteroApiKeyPlaceholder": "在 zotero.org/settings/keys 创建的 API 密钥",
+        "zoteroBaseUrlLabel": "Zotero API 地址（可选）"
       },
       "loading": "加载中...",
       "agentScopeLabel": "智能体知识库",

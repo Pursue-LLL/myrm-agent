@@ -45,22 +45,22 @@ def test_structure_archive_dir_isolation(wiki_structure: WikiStructure) -> None:
     assert wiki_structure.archive_dir.exists()
 
     # Create active concept
-    active_path = wiki_structure.get_concept_file_path("active_rule")
+    active_path = wiki_structure.get_concept_file_path("active-rule")
     active_path.write_text("Active rule content", encoding="utf-8")
 
     # Create archived concept
-    archive_path = wiki_structure.get_archived_concept_file_path("archived_old_rule")
+    archive_path = wiki_structure.get_archived_concept_file_path("archived-old-rule")
     archive_path.write_text("Old rule content", encoding="utf-8")
 
     # list_concepts must NOT include archived concepts
     active_concepts = wiki_structure.list_concepts()
     assert len(active_concepts) == 1
-    assert active_concepts[0].name == "active_rule.md"
+    assert active_concepts[0].name == "active-rule.md"
 
     # list_archived_concepts must return the archived concept
     archived_concepts = wiki_structure.list_archived_concepts()
     assert len(archived_concepts) == 1
-    assert archived_concepts[0].name == "archived_old_rule.md"
+    assert archived_concepts[0].name == "archived-old-rule.md"
 
 
 def test_freshness_scan_aging_and_whitelist(wiki_structure: WikiStructure) -> None:
@@ -68,11 +68,11 @@ def test_freshness_scan_aging_and_whitelist(wiki_structure: WikiStructure) -> No
     service = WikiGovernanceFreshnessService(wiki_structure, freshness_threshold_days=90)
 
     # 1. Fresh concept (modified now)
-    fresh_path = wiki_structure.get_concept_file_path("fresh_policy")
+    fresh_path = wiki_structure.get_concept_file_path("fresh-policy")
     fresh_path.write_text("Fresh policy", encoding="utf-8")
 
     # 2. Old concept (>90 days old)
-    old_path = wiki_structure.get_concept_file_path("old_policy")
+    old_path = wiki_structure.get_concept_file_path("old-policy")
     old_path.write_text("Old policy", encoding="utf-8")
     old_time = time.time() - (100 * 86400)
     os.utime(old_path, (old_time, old_time))
@@ -88,7 +88,7 @@ def test_freshness_scan_aging_and_whitelist(wiki_structure: WikiStructure) -> No
     expiring = service.scan_expiring_concepts()
     names = [c.concept_name for c in expiring]
 
-    assert "old_policy" in names
+    assert "old-policy" in names
     assert "fresh_policy" not in names
     assert "company_constitution" not in names  # Exempted by whitelist!
 
@@ -136,14 +136,14 @@ def test_extend_concept_lifespan(wiki_structure: WikiStructure) -> None:
     """Verify extending concept resets expiration clock."""
     service = WikiGovernanceFreshnessService(wiki_structure, freshness_threshold_days=90)
 
-    old_path = wiki_structure.get_concept_file_path("standard_ops")
+    old_path = wiki_structure.get_concept_file_path("standard-ops")
     old_path.write_text("Operations standard", encoding="utf-8")
     old_time = time.time() - (120 * 86400)
     os.utime(old_path, (old_time, old_time))
 
     # Before extend: flagged as expiring
     expiring = service.scan_expiring_concepts()
-    assert any(c.concept_name == "standard_ops" for c in expiring)
+    assert any(c.concept_name == "standard-ops" for c in expiring)
 
     # Extend
     res = service.extend_concepts(["standard_ops"])
@@ -152,4 +152,4 @@ def test_extend_concept_lifespan(wiki_structure: WikiStructure) -> None:
 
     # After extend: no longer expiring
     expiring_after = service.scan_expiring_concepts()
-    assert not any(c.concept_name == "standard_ops" for c in expiring_after)
+    assert not any(c.concept_name == "standard-ops" for c in expiring_after)

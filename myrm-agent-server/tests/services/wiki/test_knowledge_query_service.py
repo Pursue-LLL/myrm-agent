@@ -8,6 +8,7 @@ import pytest
 from myrm_agent_harness.toolkits.wiki.core.types import QueryResult
 
 from app.services.wiki.knowledge_query_service import execute_wiki_knowledge_query
+from app.services.wiki.vault.resolver import resolve_shared_wiki_vault_paths
 
 
 @pytest.mark.asyncio
@@ -69,6 +70,11 @@ async def test_execute_wiki_knowledge_query_resolves_shared_context_paths() -> N
         ),
     )
     archiver._structure = MagicMock()
+
+    # Shared vault directories must physically exist for the resolver (must_exist=True).
+    for ctx_id in ("kb_ctx_1", "kb_ctx_2"):
+        shared_dir = resolve_shared_wiki_vault_paths([ctx_id], must_exist=False)[0]
+        shared_dir.mkdir(parents=True, exist_ok=True)
 
     with (
         patch(
