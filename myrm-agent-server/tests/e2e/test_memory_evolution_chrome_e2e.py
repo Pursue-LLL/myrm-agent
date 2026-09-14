@@ -25,7 +25,7 @@ from tests.support.chrome_mcp_e2e import (
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
-    open_mcp_page,
+    open_settings_subroute,
     prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
@@ -50,13 +50,25 @@ def _seed_evolving_memory(api_url: str) -> dict[str, object]:
     return item
 
 
-_EVO_PAGE_PROBE_JS = """(() => {
-  const text = document.body.innerText;
-  return {
-    ready: text.length > 100,
-    cardCount: document.querySelectorAll('[class*="memory-card"], [class*="MemoryCard"]').length,
-    hasEvolutionBadge: /Merged \\d+ times|已合并 \\d+ 次/.test(text),
-  };
+_MEMORY_SECTION_READY_JS = """(() => {
+  const text = document.body?.textContent || '';
+  const hasTabs = /待处理|Pending|全部|All/.test(text);
+  return { ready: hasTabs, hasTabs, text: text.slice(0, 300) };
+})()"""
+
+_CLICK_ALL_TAB_JS = """(() => {
+  const btn = Array.from(document.querySelectorAll('button')).find(
+    (el) => /^\\s*(全部|All)\\s*$/.test(el.textContent || ''),
+  );
+  if (!btn) return { ready: false, clicked: false };
+  btn.click();
+  return { ready: true, clicked: true };
+})()"""
+
+_SEED_CARD_READY_JS = """(() => {
+  const text = document.body?.textContent || '';
+  const hasSeed = text.includes('E2E evolution seed');
+  return { ready: hasSeed, hasSeed, text: text.slice(0, 400) };
 })()"""
 
 _DETAIL_SHEET_OPEN_JS = """(() => {
@@ -80,10 +92,14 @@ _DETAIL_SHEET_OPEN_JS = """(() => {
 
 _SHEET_PROBE_JS = """(() => {
   const text = document.body.innerText;
+  const sheetOpen = /Evolution History|演变历史/.test(text);
+  const hasMergeBadge = /Merged \\d+ times|已合并 \\d+ 次/.test(text);
+  const hasMergeAction = /Merged|Replaced|Supplemented|合并|替换|补充/.test(text);
   return {
-    sheetOpen: /Evolution History|演变历史/.test(text),
-    hasMergeBadge: /Merged \\d+ times|已合并 \\d+ 次/.test(text),
-    hasMergeAction: /Merged|Replaced|Supplemented|合并|替换|补充/.test(text),
+    ready: sheetOpen && hasMergeBadge && hasMergeAction,
+    sheetOpen,
+    hasMergeBadge,
+    hasMergeAction,
   };
 })()"""
 
@@ -126,38 +142,37 @@ def _run_with_transport_retry(
 
 
 def _run_evolution_assertions(api_url: str, ui_url: str) -> None:
+    del ui_url  # open_settings_subroute 内部用 get_e2e_ui_url()
     seeded = _seed_evolving_memory(api_url)
     assert seeded.get("status") == "seeded", json.dumps(seeded, ensure_ascii=False)
-    settings_url = f"{ui_url.rstrip('/')}/settings/memory"
-    home_url = f"{ui_url.rstrip('/')}/"
 
     warm_ui_route("/settings/memory")
-    warm_ui_route("/")
 
-    with open_mcp_page(home_url, timeout_ms=120_000) as (client, page):
+    # SSOT 基建：open /settings shell → 子路由 → settings-layout 就绪等待
+    with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (client, page):
         ensure_desktop_viewport(client, page)
-        dismiss_blocking_modals(client, page, recover_url=home_url)
-        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+        dismiss_blocking_modals(client, page, recover_url=f"{get_e2e_ui_url().rstrip('/')}/settings")
 
-        client.navigate(page, settings_url)  # type: ignore[attr-defined]
-        time.sleep(2.0)
-        dismiss_blocking_modals(client, page, recover_url=settings_url)
-
+        # 1) 等待记忆管理 section 渲染（tab 切换器出现 = 列表区已挂载）
         wait_for_state(
             client,
             page,
-            _EVO_PAGE_PROBE_JS,
-            timeout_sec=60.0,
-            page_url=settings_url,
+            _MEMORY_SECTION_READY_JS,
+            timeout_sec=90.0,
         )
-        time.sleep(1.0)
+        # 2) 默认 pending tab；点击「全部」tab 切到全量列表
+        switched = wait_for_state(client, page, _CLICK_ALL_TAB_JS, timeout_sec=45.0)
+        assert switched.get("clicked") is True, json.dumps(switched, ensure_ascii=False)
 
+        # 3) 等 seed 卡片出现在「全部」列表
+        wait_for_state(client, page, _SEED_CARD_READY_JS, timeout_sec=90.0)
+
+        # 4) 打开详情 Sheet
         opened = client.evaluate(page, _DETAIL_SHEET_OPEN_JS, timeout_sec=30.0)
         assert opened.get("ok") is True, json.dumps(opened, ensure_ascii=False)
-        time.sleep(1.5)
 
-        sheet = client.evaluate(page, _SHEET_PROBE_JS, timeout_sec=30.0)
-        assert sheet.get("sheetOpen") is True, json.dumps(sheet, ensure_ascii=False)
+        # 5) 断言演变历史渲染
+        sheet = wait_for_state(client, page, _SHEET_PROBE_JS, timeout_sec=45.0)
         assert sheet.get("hasMergeBadge") is True, json.dumps(sheet, ensure_ascii=False)
         assert sheet.get("hasMergeAction") is True, json.dumps(sheet, ensure_ascii=False)
 
