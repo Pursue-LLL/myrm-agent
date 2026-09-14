@@ -21,14 +21,15 @@ import shutil
 import subprocess
 import sys
 import time
-import uuid
 import urllib.error
 import urllib.request
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
 from dev_gate.contract import LIVE_SHPOIB_MAX_CONCURRENT
+
 from e2e_core.runtime_identity import _backend_source_fingerprint
 
 SEED_START_TIMEOUT_SEC: Final[int] = 180
@@ -92,14 +93,14 @@ def _read_stored_fingerprint(state_dir: Path) -> str:
 def _health_ok(api_base: str) -> bool:
     url = f"{api_base.rstrip('/')}/api/v1/health"
     try:
-        with urllib.request.urlopen(url, timeout=2.0) as resp:  # noqa: S310
+        with urllib.request.urlopen(url, timeout=2.0) as resp:
             return 200 <= resp.status < 300
     except (urllib.error.URLError, TimeoutError, OSError):
         return False
 
 
 def _count_active_backend_only() -> int:
-    from isolated_runtime.registry import (  # noqa: PLC0415
+    from isolated_runtime.registry import (
         ACTIVE_PHASES,
         owner_is_active,
         process_is_alive,
@@ -129,7 +130,9 @@ def _count_active_backend_only() -> int:
 
 def _parallel_pressure_active() -> bool:
     try:
-        from e2e_core.peer_count_ssot import parallel_active_test_count_ssot  # noqa: PLC0415
+        from e2e_core.peer_count_ssot import (
+            parallel_active_test_count_ssot,
+        )
 
         return parallel_active_test_count_ssot() > 1
     except ImportError:
@@ -179,7 +182,7 @@ def _emit_seed_progress(*, started_mono: float, budget_sec: float, phase: str) -
 def _health_source_fingerprint(api_base: str) -> str:
     url = f"{api_base.rstrip('/')}/api/v1/health"
     try:
-        with urllib.request.urlopen(url, timeout=3.0) as resp:  # noqa: S310
+        with urllib.request.urlopen(url, timeout=3.0) as resp:
             raw = json.loads(resp.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError):
         return ""
@@ -268,7 +271,7 @@ def _provider_ready(api_base: str) -> bool:
     url = f"{api_base.rstrip('/')}/api/v1/config/readiness"
     try:
         req = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
-        with urllib.request.urlopen(req, timeout=3.0) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=3.0) as resp:
             data = json.loads(resp.read())
             provider = data.get("provider") if isinstance(data, dict) else None
             return isinstance(provider, dict) and bool(provider.get("is_ready"))
@@ -276,10 +279,25 @@ def _provider_ready(api_base: str) -> bool:
         return False
 
 
+def _retrieval_ready(api_base: str) -> bool:
+    url = f"{api_base.rstrip('/')}/api/v1/config/retrieval"
+    try:
+        req = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
+        with urllib.request.urlopen(req, timeout=3.0) as resp:
+            data = json.loads(resp.read())
+            val = data.get("value") if isinstance(data, dict) else data
+            if isinstance(val, dict) and val.get("embeddingConfig"):
+                cfg = val.get("embeddingConfig")
+                return isinstance(cfg, dict) and bool(cfg.get("apiKey") and cfg.get("model"))
+            return False
+    except (OSError, TimeoutError, urllib.error.URLError, ValueError, json.JSONDecodeError):
+        return False
+
+
 def ensure_verify_backend_providers(*, api_base: str, monorepo: Path) -> bool:
     """Ensure that the verify-api instance has seeded provider configs."""
     clean_base = api_base.rstrip("/")
-    if _provider_ready(clean_base):
+    if _provider_ready(clean_base) and _retrieval_ready(clean_base):
         return True
 
     env_test = monorepo / "myrm-agent" / "myrm-agent-server" / ".env.test"
@@ -314,7 +332,7 @@ def ensure_verify_backend_providers(*, api_base: str, monorepo: Path) -> bool:
 
     deadline = time.monotonic() + 10.0
     while time.monotonic() < deadline:
-        if _provider_ready(clean_base):
+        if _provider_ready(clean_base) and _retrieval_ready(clean_base):
             return True
         time.sleep(0.5)
     return False
@@ -365,8 +383,8 @@ def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
 
 
 def _mark_runtime_cleaning(runtime_id: str) -> None:
-    from isolated_runtime.allocator import isolated_root  # noqa: PLC0415
-    from isolated_runtime.registry import (  # noqa: PLC0415
+    from isolated_runtime.allocator import isolated_root
+    from isolated_runtime.registry import (
         locked_registry,
         read_registry,
         write_registry,
@@ -391,14 +409,14 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
         )
 
     _ensure_scripts_dev_importable(root)
-    from isolated_runtime.allocator import (  # noqa: PLC0415
+    from isolated_runtime.allocator import (
         allocate_runtime,
         claim_bootstrap_slot,
         heartbeat_runtime,
         runtime_environment,
     )
-    from isolated_runtime.process import record_backend_process  # noqa: PLC0415
-    from isolated_runtime.reaper import start_reaper_daemon  # noqa: PLC0415
+    from isolated_runtime.process import record_backend_process
+    from isolated_runtime.reaper import start_reaper_daemon
 
     runtime_id = f"verify-api-{uuid.uuid4().hex[:12]}"
     owner_token = f"verify-{uuid.uuid4().hex}"

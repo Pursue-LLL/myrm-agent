@@ -30,6 +30,7 @@ Kanban 看板 REST API：Board/Task CRUD、状态迁移、依赖边、Specify/De
 | Meta | runs/events/comments/diagnostics；board/task 依赖边 CRUD |
 | Specify | `POST /tasks/{id}/specify`；`.../apply-spec`；`POST /boards/{id}/specify-all` |
 | Decompose | `POST /tasks/{id}/decompose`；`.../apply-decompose` |
+| Race | `GET /boards/{id}/tasks/{task}/race/estimate?lanes=N`；`POST .../race`（2-5 lane，需 `confirm_cost`）；`GET .../race`（lane 状态+token）；`POST .../race/decide`（winner 合并+loser 归档）；`GET .../race/winner` |
 | Pipeline | `GET /pipelines`；`GET /pipelines/{skill_id}`；`POST /boards/{id}/pipeline/instantiate` |
 
 ## 模块依赖

@@ -289,7 +289,42 @@ async function ensureProvidersFromEnv(existingConfig) {
   };
 }
 
+async function ensureRetrievalFromEnv() {
+  const embeddingKey = process.env.EMBEDDING_API_KEY?.trim();
+  if (!embeddingKey) {
+    return;
+  }
+  const embeddingModel = process.env.EMBEDDING_MODEL?.trim() || 'BAAI/bge-m3';
+  const embeddingBaseUrl = process.env.EMBEDDING_BASE_URL?.trim() || 'https://api.siliconflow.cn/v1';
+  const embeddingProvider = process.env.EMBEDDING_PROVIDER?.trim() || 'openai_compatible';
+
+  try {
+    const res = await apiFetch('/api/v1/config/retrieval');
+    if (res.ok) {
+      const data = await res.json();
+      const val = data?.value ?? data;
+      if (val?.embeddingConfig?.apiKey && val?.embeddingConfig?.model) {
+        return;
+      }
+      await putConfig('retrieval', {
+        ...(typeof val === 'object' && val !== null ? val : {}),
+        embeddingApplied: true,
+        embeddingAppliedAt: Date.now(),
+        embeddingConfig: {
+          provider: embeddingProvider,
+          model: embeddingModel,
+          apiKey: embeddingKey,
+          apiBase: embeddingBaseUrl,
+        },
+      });
+    }
+  } catch (err) {
+    console.warn(`[chrome-e2e-seed] retrieval seed warning: ${err}`);
+  }
+}
+
 export async function seedChromeE2eProviders() {
+  await ensureRetrievalFromEnv();
   const forceSeed = process.env.MYRM_E2E_FORCE_MODEL_SEED === '1';
   if (!forceSeed && (await hasDefaultModel())) {
     const providerPatch = await ensureProvidersFromEnv();

@@ -21,6 +21,7 @@ const mockStore = vi.hoisted(() => {
     setContextBranchesLoadError: vi.fn(),
     setSandboxMode: vi.fn(),
     setAgentConfig: vi.fn(),
+    fetchTurnOutlines: vi.fn().mockResolvedValue(undefined),
   };
   return store;
 });

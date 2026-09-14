@@ -11,6 +11,7 @@ import { StatusActionsBar } from './KanbanTaskDrawerHeader';
 import { TaskDetailsSection } from './KanbanTaskDrawerDetails';
 import { AttachmentsSection, TaskResultSection } from './KanbanTaskDrawerBodySections';
 import { DependenciesSection, CommentInputSection, LatestProgressSection } from './KanbanTaskDrawerBodyMetaSections';
+import RaceSection from './RaceSection';
 import KanbanDiagnosticsSection from './KanbanDiagnosticsSection';
 import KanbanTaskExecutionTraceSection from './KanbanTaskExecutionTraceSection';
 import { KanbanRunHistory, KanbanEventTimeline } from './KanbanEventTimeline';
@@ -177,6 +178,8 @@ export default function KanbanTaskDrawer({
             />
 
             <LatestProgressSection latestSummary={drawer.latestSummary} t={t} />
+
+            <RaceSection boardId={task.board_id} task={task} onChanged={onRefresh} t={t} />
 
             <DependenciesSection
               parents={drawer.parents}

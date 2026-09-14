@@ -96,6 +96,10 @@ $$ROE = \text{Net Profit Margin} \times \text{Asset Turnover} \times \text{Finan
 | **Regulatory / Geopolitical** | Tariffs / Export controls on {Product/Region} | Regulatory tightening | Margin hit by {XX} bps | Medium / High |
 | **Supply Chain / Commodity** | Concentration in single foundry / supplier | Supply disruption | Delayed delivery, CapEx surge | High / Low |
 
+### 6.1 Multi-Source Conflict Arbitration Reference
+
+> When this report relies on arbitrated figures (figures that differ across official filings), cite the Fact Check Sheet: see **`fact_check.json`** in the deliverables board for the full conflict matrix — each adopted value's source authority, rationale, and confidence score. Every conflicted metric in Sections 2–6 must trace to a fact-check item ID (`fci_*`).
+
 ---
 
 ## 7. Audit & Calculation Verification Appendix (计算与勾稽核验代码附录)

@@ -22,6 +22,7 @@ Kanban HTTP 端点分域注册模块，共享 [../http_common.py](../http_common
 | `bulk.py` | 路由 | `bulk-action`：move/archive/reassign/reclaim/delete | ✅ |
 | `task_meta.py` | 路由 | runs、events、comments、diagnostics、依赖边 | ✅ |
 | `specify.py` | 路由 | specify/apply-spec/specify-all、decompose/apply-decompose | ✅ |
+| `race.py` | 路由 | 赛马 estimate/start/lanes/decide/winner（V1 仅 git-worktree 任务） | ✅ |
 
 ## 端点明细（`/api/v1/kanban`）
 

@@ -11,6 +11,14 @@ Kanban API 聚合入口，供 app.api.router 注册。
 """
 
 from app.api.kanban.http_common import router
-from app.api.kanban.routes import boards, bulk, specify, task_meta, tasks, tasks_list  # noqa: F401
+from app.api.kanban.routes import (  # noqa: F401
+    boards,
+    bulk,
+    race,
+    specify,
+    task_meta,
+    tasks,
+    tasks_list,
+)
 
 __all__ = ["router"]

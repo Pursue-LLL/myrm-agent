@@ -750,6 +750,82 @@ class PlanRevisionRequest(BaseModel):
     author: str = "user"
 
 
+class RaceLaneSpec(BaseModel):
+    """One race contestant. Unset fields inherit the parent task."""
+
+    agent_id: str | None = Field(None, description="Agent profile for this lane")
+    model_override: str | None = Field(
+        None, max_length=255, description="Per-lane LLM model in 'provider/model' form"
+    )
+    instruction_variant: str = Field(
+        "", max_length=5000, description="Extra instructions appended to the lane prompt"
+    )
+    title_suffix: str = Field("", max_length=50, description="Custom lane label")
+
+
+class RaceStartRequest(BaseModel):
+    """Start a race: fan one task out into parallel lane children."""
+
+    lanes: list[RaceLaneSpec] = Field(..., min_length=2, max_length=5)
+    branch: str | None = Field(
+        None, max_length=255, description="Race target branch (defaults to the task branch)"
+    )
+    confirm_cost: bool = Field(
+        False, description="Must be true after reviewing the cost estimate"
+    )
+
+
+class RaceEstimateResponse(BaseModel):
+    """Token cost preview for a planned race."""
+
+    lanes: int
+    per_lane_avg_tokens: int
+    total_tokens: int
+    based_on_completed_tasks: int
+
+
+class RaceStartResponse(BaseModel):
+    """Result of starting a race."""
+
+    parent_task_id: str
+    lane_ids: list[str]
+    estimate: RaceEstimateResponse
+
+
+class RaceLaneResponse(BaseModel):
+    """One lane of a race with judging-relevant state."""
+
+    task_id: str
+    title: str
+    status: str
+    agent_id: str | None = None
+    branch: str | None = None
+    result: str = ""
+    total_tokens: int = 0
+
+
+class RaceLanesResponse(BaseModel):
+    """All lanes of a race parent."""
+
+    parent_task_id: str
+    lanes: list[RaceLaneResponse]
+
+
+class RaceDecideRequest(BaseModel):
+    """Pick the winning lane: merge it, archive the rest."""
+
+    winner_task_id: str = Field(..., min_length=1)
+    approver: str | None = Field(None, max_length=100)
+
+
+class RaceDecideResponse(BaseModel):
+    """Result of deciding a race."""
+
+    parent_task_id: str
+    winner_task_id: str
+    archived_lane_ids: list[str]
+
+
 class PlanRevisionResponse(BaseModel):
     """Response returned after plan revision."""
 

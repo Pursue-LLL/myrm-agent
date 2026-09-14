@@ -404,6 +404,65 @@ export interface TaskEvent {
   created_at: string;
 }
 
+// ==================== Race API ====================
+
+export interface RaceLaneSpec {
+  agent_id?: string | null;
+  model_override?: string | null;
+  instruction_variant?: string;
+  title_suffix?: string;
+}
+
+export interface RaceEstimate {
+  lanes: number;
+  per_lane_avg_tokens: number;
+  total_tokens: number;
+  based_on_completed_tasks: number;
+}
+
+export interface RaceLane {
+  task_id: string;
+  title: string;
+  status: TaskStatus;
+  agent_id?: string | null;
+  branch?: string | null;
+  result: string;
+  total_tokens: number;
+}
+
+export async function raceEstimate(boardId: string, taskId: string, lanes: number): Promise<RaceEstimate> {
+  return apiRequest(`/kanban/boards/${boardId}/tasks/${taskId}/race/estimate?lanes=${lanes}`);
+}
+
+export async function raceStart(
+  boardId: string,
+  taskId: string,
+  body: { lanes: RaceLaneSpec[]; branch?: string | null; confirm_cost: boolean },
+): Promise<{ parent_task_id: string; lane_ids: string[]; estimate: RaceEstimate }> {
+  return apiRequest(`/kanban/boards/${boardId}/tasks/${taskId}/race`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function raceLanes(
+  boardId: string,
+  taskId: string,
+): Promise<{ parent_task_id: string; lanes: RaceLane[] }> {
+  return apiRequest(`/kanban/boards/${boardId}/tasks/${taskId}/race`);
+}
+
+export async function raceDecide(
+  boardId: string,
+  taskId: string,
+  body: { winner_task_id: string; approver?: string | null },
+): Promise<{ parent_task_id: string; winner_task_id: string; archived_lane_ids: string[] }> {
+  return apiRequest(`/kanban/boards/${boardId}/tasks/${taskId}/race/decide`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
 // ==================== Run & Event API ====================
 
 export async function listRuns(taskId: string): Promise<{ items: TaskRun[]; total: number }> {

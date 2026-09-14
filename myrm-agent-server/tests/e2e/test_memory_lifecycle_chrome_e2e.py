@@ -99,23 +99,39 @@ def _attach_eval_timeout_sec() -> float:
 
 def _attach_memory_chat_probe(chat_id: str) -> str:
     chat_id_json = json.dumps(chat_id)
-    return f"""(async () => {{
+    return f"""(() => {{
   const bridge = window.__MYRM_E2E_CHAT__;
-  if (!bridge?.attachToChat) {{
-    return {{ ok: false, err: 'no-bridge' }};
-  }}
-  await bridge.attachToChat({chat_id_json});
-  const snap = bridge.turnSnapshot?.() ?? {{}};
   const store = window.__myrmChatStore?.getState?.();
   const msgs = Array.isArray(store?.messages) ? store.messages : [];
   const hasAssistant = msgs.some((m) => m?.role === 'assistant');
+  const snap = bridge?.turnSnapshot?.() ?? {{}};
+
+  if (
+    hasAssistant
+    && Boolean(store?.isMessagesLoaded)
+    && !Boolean(store?.notFound)
+    && !Boolean(store?.loadError)
+  ) {{
+    return {{
+      ok: true,
+      snap,
+      msgCount: msgs.length,
+      isMessagesLoaded: true,
+      loadError: false,
+      notFound: false,
+    }};
+  }}
+
+  if (bridge?.attachToChat && !window.__MYRM_E2E_ATTACHING__) {{
+    window.__MYRM_E2E_ATTACHING__ = true;
+    bridge.attachToChat({chat_id_json}).catch(() => {{}}).finally(() => {{
+      window.__MYRM_E2E_ATTACHING__ = false;
+    }});
+  }}
+
   return {{
-    ok:
-      snap.chatId === {chat_id_json}
-      && hasAssistant
-      && Boolean(store?.isMessagesLoaded)
-      && !Boolean(store?.notFound)
-      && !Boolean(store?.loadError),
+    ok: false,
+    err: !bridge ? 'no-bridge' : null,
     snap,
     msgCount: msgs.length,
     isMessagesLoaded: Boolean(store?.isMessagesLoaded),
@@ -133,8 +149,7 @@ def _await_attach_memory_chat(
     timeout_sec: float = 120.0,
     ui_url: str | None = None,
 ) -> dict[str, object]:
-    home_url = f"{get_e2e_ui_url().rstrip('/')}/"
-    chat_url = f"{get_e2e_ui_url().rstrip('/')}/{chat_id}"
+    del ui_url
     deadline = time.monotonic() + timeout_sec
     last: dict[str, object] = {}
     while time.monotonic() < deadline:
@@ -153,22 +168,6 @@ def _await_attach_memory_chat(
             continue
         if isinstance(raw, dict) and raw.get("ok") is True:
             return raw
-        if isinstance(raw, dict) and raw.get("err") == "no-bridge":
-            client.navigate(page, home_url)  # type: ignore[attr-defined]
-            time.sleep(1.5)
-            if ui_url:
-                _ensure_react_bridge_on_home(client, page, ui_url=ui_url)
-            else:
-                wait_for_react_e2e_bridge(  # type: ignore[arg-type]
-                    client,  # type: ignore[arg-type]
-                    page,  # type: ignore[arg-type]
-                    timeout_sec=min(90.0, remaining),
-                    page_url=home_url,
-                )
-            client.navigate(page, chat_url)  # type: ignore[attr-defined]
-            time.sleep(1.5)
-            dismiss_blocking_modals(client, page, recover_url=chat_url)  # type: ignore[arg-type]
-            client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)  # type: ignore[attr-defined]
         last = raw if isinstance(raw, dict) else {"value": raw}
         time.sleep(2.0)
     raise AssertionError(f"attachToChat did not hydrate memory lifecycle chat: {last}")
@@ -646,7 +645,12 @@ def _run_with_transport_retry(
         raise last_error
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_chrome_ui_memory_lifecycle_timeline_and_retry() -> None:

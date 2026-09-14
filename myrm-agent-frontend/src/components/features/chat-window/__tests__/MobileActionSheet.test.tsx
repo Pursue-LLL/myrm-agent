@@ -152,8 +152,8 @@ describe('MobileActionSheet', () => {
       vi.advanceTimersByTime(100);
     });
     const backdrop = document.querySelector('.bg-black\\/40');
-    expect(backdrop).not.toBeNull();
-    fireEvent.click(backdrop!);
+    if (!(backdrop instanceof HTMLElement)) {throw new Error('backdrop not found');}
+    fireEvent.click(backdrop);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

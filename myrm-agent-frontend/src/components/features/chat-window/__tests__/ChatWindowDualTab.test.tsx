@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import useChatStore from '@/store/useChatStore';
+import type { Message } from '@/store/chat/types';
 import ChatWindow from '../ChatWindow';
 
 const navigationMock = vi.hoisted(() => ({
@@ -70,7 +71,7 @@ describe('ChatWindow Dual Tab [Chat | Trace]', () => {
     useChatStore.setState({
       chatId: 'session-dual-tab-1',
       inputMessage: '',
-      messages: [{ id: 'msg-1', role: 'user', content: 'hello' } as any],
+      messages: [{ id: 'msg-1', role: 'user', content: 'hello' } as unknown as Message],
       isMessagesLoaded: true,
       loading: false,
       messageAppeared: true,
@@ -93,10 +94,10 @@ describe('ChatWindow Dual Tab [Chat | Trace]', () => {
     render(<ChatWindow id="session-dual-tab-1" />);
 
     const traceButton = screen.getByText('recovery.dualTabTrace').closest('button');
-    expect(traceButton).not.toBeNull();
+    if (!(traceButton instanceof HTMLButtonElement)) {throw new Error('trace tab button not found');}
 
     act(() => {
-      fireEvent.click(traceButton!);
+      fireEvent.click(traceButton);
     });
 
     expect(screen.getByTestId('execution-trace-view')).toBeInTheDocument();
@@ -104,10 +105,10 @@ describe('ChatWindow Dual Tab [Chat | Trace]', () => {
     expect(screen.queryByTestId('chat-view')).not.toBeInTheDocument();
 
     const chatButton = screen.getByText('recovery.dualTabChat').closest('button');
-    expect(chatButton).not.toBeNull();
+    if (!(chatButton instanceof HTMLButtonElement)) {throw new Error('chat tab button not found');}
 
     act(() => {
-      fireEvent.click(chatButton!);
+      fireEvent.click(chatButton);
     });
 
     expect(screen.getByTestId('chat-view')).toBeInTheDocument();

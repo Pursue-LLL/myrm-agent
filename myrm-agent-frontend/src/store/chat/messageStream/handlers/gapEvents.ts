@@ -4,8 +4,9 @@
  * ./handlerDeps::useChatStore (POS: chat session store access)
  *
  * [OUTPUT]
- * gapEvents: CAPABILITY_GAP SSE handler for factual gaps only (migration, web_search config,
- * render_ui surface_unavailable). Substring entitlement enable-and-resend toasts removed.
+ * gapEvents: CAPABILITY_GAP SSE handler for factual gaps only (migration, web_search config).
+ * render_ui surface_unavailable path removed — backend preflight returns None since tool offline.
+ * Substring entitlement enable-and-resend toasts removed.
  *
  * [POS]
  * SSE handlers for non-ambiguous capability gaps from stream preflight.
@@ -16,7 +17,6 @@ import { done } from '../streamContext';
 import * as H from './handlerDeps';
 import { isBuiltinToolId } from '@/store/chat/types/builtinTools';
 import { toast } from '@/lib/utils/toast';
-import { renderUiSurfaceUnavailableMessage } from './renderUiSurfaceUnavailableMessage';
 import {
   resolveWebSearchConfigGapActionLabel,
   runWebSearchConfigGapAction,
@@ -95,16 +95,6 @@ export async function gapEvents(ctx: StreamCtx): Promise<StreamTurn | null> {
           },
         },
       });
-      return done(ctx);
-    }
-
-    if (payload?.reason === 'surface_unavailable') {
-      const docLang = typeof document !== 'undefined' ? document.documentElement.lang : null;
-      const message =
-        typeof payload.display_message === 'string' && payload.display_message.trim()
-          ? payload.display_message.trim()
-          : renderUiSurfaceUnavailableMessage(docLang);
-      toast.info(message, { duration: 12000 });
       return done(ctx);
     }
 
