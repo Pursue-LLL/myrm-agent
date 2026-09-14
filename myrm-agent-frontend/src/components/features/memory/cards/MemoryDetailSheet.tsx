@@ -27,7 +27,7 @@ const MERGE_ACTION_KEYS: Record<string, string> = {
   SUPPLEMENT: 'fields.supplemented',
 };
 
-const parseMergeHistory = (raw?: string): MergeHistoryEntry[] => {
+export const parseMergeHistory = (raw?: string): MergeHistoryEntry[] => {
   if (!raw) {
     return [];
   }
