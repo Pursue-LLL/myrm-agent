@@ -118,13 +118,23 @@ def build_tab_hygiene_report(*, cdp_port: int | None = None) -> TabHygieneReport
 
 
 def _count_unbound_pages(cdp_port: int, *, protected: set[str] | None) -> int:
-    """Pages no ledger claims — the drift a leaked hot-path tab shows up as."""
+    """Session-scope pages no ledger claims — the drift a leaked hot-path tab shows up as.
+
+    Ownership is decided by ``browserContextId``, not by URL heuristics: the
+    orchestrator always runs a test session inside a dedicated (non-default)
+    BrowserContext, while the Agent-Owned Surface and infra warm-ups live in
+    Chrome's default context and legitimately have no session ledger. Counting a
+    default-context page as unbound would flag a healthy idle plane as drifting.
+    """
     if protected is None:
         return -1
     return sum(
         1
         for page in _list_cdp_pages(cdp_port)
-        if isinstance(page.get("id"), str) and page["id"].strip() not in protected
+        if isinstance(page.get("id"), str)
+        and page["id"].strip() not in protected
+        and isinstance(page.get("browserContextId"), str)
+        and page["browserContextId"].strip()
     )
 
 
@@ -181,6 +191,21 @@ def _protected_target_ids() -> set[str] | None:
             protected.add(item["targetId"])
     except OSError:
         return None
+    # The Agent-Owned Surface anchor is a legitimate long-lived page that no
+    # wave or infra ledger records. Counting it as unbound would report drift on
+    # a healthy, idle plane (and could target it for pruning), so treat a
+    # registered anchor as claimed. A missing ledger means no anchor exists —
+    # that is a real absence, not an unverifiable one, so it stays fail-open.
+    try:
+        anchor_payload = json.loads(
+            (state_dir / "chrome-e2e-agent-window.json").read_text(encoding="utf-8")
+        )
+    except (OSError, json.JSONDecodeError):
+        anchor_payload = {}
+    if isinstance(anchor_payload, dict):
+        anchor = anchor_payload.get("anchorTargetId")
+        if isinstance(anchor, str) and anchor.strip():
+            protected.add(anchor.strip())
     return protected
 
 
