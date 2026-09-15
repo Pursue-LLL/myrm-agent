@@ -12,7 +12,6 @@ import {
   BookMarked,
   KanbanSquare,
   Volume2,
-  LayoutTemplate,
   MessageSquareCheck,
   AlertCircle,
   ListTodo,

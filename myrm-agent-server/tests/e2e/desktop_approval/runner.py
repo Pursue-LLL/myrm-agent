@@ -59,18 +59,19 @@ async def run_desktop_approval_chrome_e2e(
             f"after ./myrm ready --chrome (readiness={readiness})"
         )
     perms = desktop_permissions()
-    if not perms.get("accessibility") or not perms.get("screen_recording"):
-        missing: list[str] = []
-        if not perms.get("accessibility"):
-            missing.append("Accessibility")
-        if not perms.get("screen_recording"):
-            missing.append("Screen Recording")
+    if not perms.get("accessibility"):
         pytest.fail(
-            "macOS desktop permissions missing for the backend: "
-            f"{', '.join(missing)}. "
-            "Open System Settings → Privacy & Security → grant the missing "
-            "capabilities to the terminal/IDE hosting the backend (and to "
-            "/usr/bin/osascript), then retry after ./myrm restart"
+            "macOS Accessibility permission missing for the backend: "
+            "Open System Settings → Privacy & Security → Accessibility, "
+            "grant the capability to the terminal/IDE hosting the backend "
+            "(and to /usr/bin/osascript), then retry after ./myrm restart"
+        )
+    if not perms.get("screen_recording"):
+        # Soft warn: primary approval flow is AX-only (snapshot @drefs + interact);
+        # SR only matters if the model falls back to desktop_vision_tool.
+        progress(
+            "WARNING: backend Screen Recording grant missing — desktop_vision_tool "
+            "fallback may fail, but the AX-only primary flow continues"
         )
 
     progress("clear persisted desktop approvals")
