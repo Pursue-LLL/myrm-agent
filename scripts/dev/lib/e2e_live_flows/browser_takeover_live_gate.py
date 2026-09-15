@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 import urllib.error
 
@@ -134,12 +135,29 @@ RETRY_MIN_BUDGET_SEC = 240.0
 
 
 def remaining_body_budget_sec() -> float | None:
-    """Remaining BODY wall budget, or None when no session budget is tracked."""
-    try:
-        from e2e_session_runtime.lifecycle import remaining_wall_sec
-    except ImportError:
+    """Remaining BODY-relative wall budget, or None when the clock is untracked.
+
+    Must measure the same clock the coordinator's BODY hung-reap enforces:
+    ``body_elapsed_sec = now - bodyStartedMonotonic`` capped at the fixed
+    ``LIVE_AGENT_BODY_WALL_CLOCK_SEC``. ``remaining_wall_sec`` is the *cumulative*
+    session budget (ADMIT+BOOTSTRAP+BODY), so it over-reports by the whole
+    pre-BODY queue — using it would let a retry start with 1680s "remaining"
+    while the reaper is seconds away from ``E2E_BODY_WALL_EXCEEDED``.
+    """
+    from e2e_session_runtime.snapshot import (  # noqa: PLC0415
+        body_elapsed_from_snapshot,
+        read_session_snapshot,
+    )
+
+    snapshot = read_session_snapshot(os.getpid())
+    if snapshot is None:
         return None
-    return float(remaining_wall_sec())
+    body_elapsed = body_elapsed_from_snapshot(snapshot)
+    if body_elapsed is None:
+        return None
+    from mux.transport_supervisor import live_agent_body_wall_cap_sec  # noqa: PLC0415
+
+    return float(live_agent_body_wall_cap_sec()) - float(body_elapsed)
 
 
 def require_retry_budget(*, attempt: int) -> None:
