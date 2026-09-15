@@ -26,9 +26,7 @@ from app.config.deploy_mode import is_local_mode
 router = APIRouter()
 
 _EVOLUTION_SEED_CONTENT = "E2E evolution seed - user prefers dark mode (v3)"
-_EVOLUTION_SEED_HISTORY = (
-    "09-12 10:00|MERGE|prefers dark mode\n09-13 18:30|REPLACE|moved dark mode preference to global scope"
-)
+_EVOLUTION_SEED_HISTORY = "09-12 10:00|MERGE|prefers dark mode\n09-13 18:30|REPLACE|moved dark mode preference to global scope"
 
 # SemanticMemory embedding 预填维度（bge-m3 = 1024 维）。
 # 预填后 store_semantic 跳过 embedding API 调用（storage.py: if memory.embedding
@@ -83,7 +81,10 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
 
     from myrm_agent_harness.toolkits.memory.types import SemanticMemory
 
-    from app.core.memory.adapters.setup import create_memory_manager, resolve_context_binding
+    from app.core.memory.adapters.setup import (
+        create_memory_manager,
+        resolve_context_binding,
+    )
     from app.services.agent.platform_config import require_platform_embedding_config
 
     await _ensure_embedding_configured()
@@ -113,7 +114,9 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
         )
         persisted = await manager.store(base, _bypass_approval=True)
         if not isinstance(persisted, SemanticMemory):
-            raise HTTPException(status_code=500, detail="seed store returned non-semantic memory")
+            raise HTTPException(
+                status_code=500, detail="seed store returned non-semantic memory"
+            )
 
         seeded = persisted.model_copy(
             update={
@@ -136,9 +139,15 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
         )
         corrected = await manager.store(correction, _bypass_approval=True)
         if getattr(corrected, "correction_of", None) != str(persisted.id):
-            raise HTTPException(status_code=500, detail="correction chain not persisted")
+            raise HTTPException(
+                status_code=500, detail="correction chain not persisted"
+            )
 
-        return {"id": str(persisted.id), "correction_id": str(corrected.id), "status": "seeded"}
+        return {
+            "id": str(persisted.id),
+            "correction_id": str(corrected.id),
+            "status": "seeded",
+        }
     finally:
         close = getattr(manager, "close", None) or getattr(manager, "aclose", None)
         if close is not None:

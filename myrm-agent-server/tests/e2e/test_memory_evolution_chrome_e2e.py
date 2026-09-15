@@ -31,9 +31,12 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 
-_LIB = os.path.join(os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib")
+_LIB = os.path.join(
+    os.path.dirname(__file__), "..", "..", "..", "scripts", "dev", "lib"
+)
 if _LIB not in sys.path:
     sys.path.insert(0, os.path.normpath(_LIB))
+
 
 def _seed_evolving_memory(api_url: str) -> dict[str, object]:
     """Seed evolving memory via the local test fixture (bootstraps embedding + memory)."""
@@ -178,9 +181,14 @@ def _run_evolution_assertions(api_url: str, ui_url: str) -> None:
     warm_ui_route("/settings/memory")
 
     # SSOT 基建：open /settings shell → 子路由 → settings-layout 就绪等待
-    with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (client, page):
+    with open_settings_subroute("/settings/memory", timeout_ms=120_000) as (
+        client,
+        page,
+    ):
         ensure_desktop_viewport(client, page)
-        dismiss_blocking_modals(client, page, recover_url=f"{get_e2e_ui_url().rstrip('/')}/settings")
+        dismiss_blocking_modals(
+            client, page, recover_url=f"{get_e2e_ui_url().rstrip('/')}/settings"
+        )
 
         # 1) 等待记忆管理 section 渲染（tab 切换器出现 = 列表区已挂载）
         wait_for_state(
@@ -203,18 +211,26 @@ def _run_evolution_assertions(api_url: str, ui_url: str) -> None:
         # 5) 断言演变历史渲染
         sheet = wait_for_state(client, page, _SHEET_PROBE_JS, timeout_sec=45.0)
         assert sheet.get("hasMergeBadge") is True, json.dumps(sheet, ensure_ascii=False)
-        assert sheet.get("hasMergeAction") is True, json.dumps(sheet, ensure_ascii=False)
+        assert sheet.get("hasMergeAction") is True, json.dumps(
+            sheet, ensure_ascii=False
+        )
 
         # 6) Close the sheet, open the corrected card, assert the correction-chain entry renders
         client.evaluate(page, _SHEET_CLOSE_JS, timeout_sec=15.0)
         time.sleep(1.0)
         opened2 = client.evaluate(page, _CORRECTED_SHEET_OPEN_JS, timeout_sec=30.0)
         assert opened2.get("ok") is True, json.dumps(opened2, ensure_ascii=False)
-        correction = wait_for_state(client, page, _CORRECTION_PROBE_JS, timeout_sec=45.0)
-        assert correction.get("hasCorrectionBadge") is True, json.dumps(correction, ensure_ascii=False)
+        correction = wait_for_state(
+            client, page, _CORRECTION_PROBE_JS, timeout_sec=45.0
+        )
+        assert correction.get("hasCorrectionBadge") is True, json.dumps(
+            correction, ensure_ascii=False
+        )
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
+)
 def test_chrome_ui_memory_evolution_history_sheet() -> None:
     """Seeded memory with merge audit renders evolution timeline in detail sheet."""
     api_url = get_e2e_api_url()
