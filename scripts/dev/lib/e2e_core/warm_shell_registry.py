@@ -7,6 +7,7 @@
 
 [OUTPUT]
 - seal_platform_shell / platform_shell_fresh / shared_read_hot_path_decision
+- reap_expired_sealed_targets — exact-target close once a seal TTL elapsed
 - bootstrap_hot_path snapshot field via set_bootstrap_hot_path
 
 [POS]
@@ -37,6 +38,7 @@ class WarmShellRecord:
     ui_origin: str
     routes: frozenset[str]
     sealed_at: float
+    sealed_targets: tuple[tuple[str, float], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,11 +173,18 @@ def read_platform_shell(*, workspace_fp: str | None = None) -> WarmShellRecord |
         for item in routes_raw:
             if isinstance(item, str) and item.strip():
                 routes.add(_normalize_route(item))
+    sealed_targets: list[tuple[str, float]] = []
+    raw_targets = payload.get("sealedTargets")
+    if isinstance(raw_targets, dict):
+        for key, value in raw_targets.items():
+            if isinstance(key, str) and key.strip() and isinstance(value, (int, float)):
+                sealed_targets.append((key.strip(), float(value)))
     return WarmShellRecord(
         workspace_fingerprint=fp,
         ui_origin=ui_origin,
         routes=frozenset(routes),
         sealed_at=float(sealed_raw),
+        sealed_targets=tuple(sorted(sealed_targets)),
     )
 
 
@@ -184,6 +193,7 @@ def seal_platform_shell(
     ui_url: str,
     route_path: str = "/",
     workspace_fp: str | None = None,
+    sealed_target_id: str = "",
 ) -> WarmShellRecord | None:
     fp = (workspace_fp or current_workspace_fingerprint()).strip()
     if not fp:
@@ -207,18 +217,39 @@ def seal_platform_shell(
                 if isinstance(item, str) and item.strip():
                     routes.add(_normalize_route(item))
         routes.add(route)
-        sealed_at = time.time()
+        # Per-target seal timestamps, not a single record-level clock: an expired
+        # target must become collectable on its own age, while a target sealed
+        # moments ago keeps the hot path alive. Carrying stale ids forward would
+        # let 过期 target 永久占用 hot path 且永远无人回收。
+        seal_now = time.time()
+        sealed_targets: dict[str, float] = {}
+        raw_existing = existing_payload.get("sealedTargets")
+        if isinstance(raw_existing, dict):
+            for key, value in raw_existing.items():
+                if (
+                    isinstance(key, str)
+                    and key.strip()
+                    and isinstance(value, (int, float))
+                    and (seal_now - float(value)) <= _DEFAULT_TTL_SEC
+                ):
+                    sealed_targets[key.strip()] = float(value)
+        target = sealed_target_id.strip()
+        if target:
+            sealed_targets[target] = seal_now
         payload: dict[str, object] = {
             "workspaceFingerprint": fp,
             "uiOrigin": origin,
             "routes": sorted(routes),
-            "sealedAt": sealed_at,
+            "sealedAt": seal_now,
         }
+        if sealed_targets:
+            payload["sealedTargets"] = sealed_targets
         record = WarmShellRecord(
             workspace_fingerprint=fp,
             ui_origin=origin,
             routes=frozenset(routes),
-            sealed_at=sealed_at,
+            sealed_at=seal_now,
+            sealed_targets=tuple(sorted(sealed_targets.items())),
         )
         _write_registry_payload(path, payload)
         return record
@@ -325,3 +356,66 @@ def set_bootstrap_hot_path(mode: BootstrapHotPath) -> None:
         annotate_bootstrap_hot_path(mode)
     except ImportError:
         pass
+
+
+def reap_expired_sealed_targets(
+    *,
+    cdp_port: int | None = None,
+    workspace_fp: str | None = None,
+    ttl_sec: float = _DEFAULT_TTL_SEC,
+) -> tuple[int, int]:
+    """Close warm-shell targets whose seal TTL elapsed — exact targetId only.
+
+    Returns (closed, failed). Expired hot shells are unreachable by the hot path
+    (``platform_shell_fresh`` already reports False), so their physical pages
+    would otherwise linger forever while every later seal creates a new page.
+    Ownership is never inferred from URL: only ids recorded by
+    ``seal_platform_shell`` are eligible.
+    """
+    fp = (workspace_fp or current_workspace_fingerprint()).strip()
+    if not fp:
+        return 0, 0
+    record = read_platform_shell(workspace_fp=fp)
+    if record is None or not record.sealed_targets:
+        return 0, 0
+    now = time.time()
+    expired = [
+        target
+        for target, sealed_at in record.sealed_targets
+        if (now - sealed_at) > float(ttl_sec)
+    ]
+    if not expired:
+        return 0, 0
+
+    from e2e_core.infra_browser_registry import close_exact_target  # noqa: PLC0415
+
+    port = cdp_port if cdp_port is not None else 9333
+    closed: list[str] = []
+    failed: list[str] = []
+    for target in expired:
+        if close_exact_target(port, target):
+            closed.append(target)
+        else:
+            failed.append(target)
+
+    path = _registry_path(fp)
+    with _registry_file_lock(workspace_fp=fp):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError):
+            payload = {}
+        if isinstance(payload, dict):
+            raw_targets = payload.get("sealedTargets")
+            if isinstance(raw_targets, dict):
+                # Drop reaped ids; keep failures so a later sweep retries them.
+                remaining = {
+                    key: value
+                    for key, value in raw_targets.items()
+                    if key not in closed
+                }
+                if remaining:
+                    payload["sealedTargets"] = remaining
+                else:
+                    payload.pop("sealedTargets", None)
+                _write_registry_payload(path, payload)
+    return len(closed), len(failed)

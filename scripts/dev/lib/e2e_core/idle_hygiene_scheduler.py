@@ -25,6 +25,8 @@ class IdleHygieneSchedulerResult(TypedDict, total=False):
     infra_failed: int
     orphan_closed: int
     orphan_failed: int
+    warm_shell_closed: int
+    warm_shell_failed: int
     active_tests: int
     trigger: str
     orphan_budget: str
@@ -38,7 +40,14 @@ def _positive_count(payload: IdleHygieneSchedulerResult, key: str) -> bool:
 def _has_material_hygiene_event(payload: IdleHygieneSchedulerResult) -> bool:
     return any(
         _positive_count(payload, key)
-        for key in ("infra_closed", "infra_failed", "orphan_closed", "orphan_failed")
+        for key in (
+            "infra_closed",
+            "infra_failed",
+            "orphan_closed",
+            "orphan_failed",
+            "warm_shell_closed",
+            "warm_shell_failed",
+        )
     )
 
 

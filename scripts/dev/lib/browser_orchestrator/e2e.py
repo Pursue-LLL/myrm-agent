@@ -1381,6 +1381,7 @@ def open_app_route_page(
                 seal_platform_shell(
                     ui_url=url,
                     route_path=manifest.shell_path,
+                    sealed_target_id=page.target_id,
                 )
         from e2e_core.orchestrator import touch_wall_progress  # noqa: PLC0415
 

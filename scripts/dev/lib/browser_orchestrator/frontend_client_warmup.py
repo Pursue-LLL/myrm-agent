@@ -652,7 +652,15 @@ async def _run_warmup(
                 try:
                     from e2e_core.warm_shell_registry import seal_platform_shell
 
-                    seal_platform_shell(ui_url=page_url, route_path="/")
+                    # A hydrated target that could not be closed stays physically
+                    # alive; record its exact id so the TTL reaper can reclaim it
+                    # later. A successfully closed target leaves no residual and
+                    # must not be recorded, or the ledger would track a dead id.
+                    seal_platform_shell(
+                        ui_url=page_url,
+                        route_path="/",
+                        sealed_target_id="" if closed else target_id,
+                    )
                 except ImportError:
                     pass
                 if closed:

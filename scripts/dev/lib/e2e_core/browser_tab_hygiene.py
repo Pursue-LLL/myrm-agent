@@ -37,6 +37,7 @@ class TabHygieneReport(TypedDict):
     cdpOpenTargets: int
     waveBoundLeases: int
     infraRegistryTargets: int
+    unboundPages: int
     ok: bool
     detail: str
 
@@ -95,17 +96,36 @@ def build_tab_hygiene_report(*, cdp_port: int | None = None) -> TabHygieneReport
     cdp_count = _count_cdp_targets(port)
     wave_bound = _count_wave_bound_leases()
     infra_count = len(registry.list_infra_targets())
-    ok = cdp_count >= 0
+    protected = _protected_target_ids()
+    unbound = _count_unbound_pages(port, protected=protected)
+    # `ok` no longer collapses to `cdp_count >= 0`: that expression is true for
+    # any reachable port, so a leaked tab could never fail the report. Keep the
+    # contract meaningful by requiring readable ledgers, while `unboundPages`
+    # exposes whether the physical page count is explained by any ledger.
+    ok = cdp_count >= 0 and protected is not None
     detail = (
-        f"cdp_pages={cdp_count} wave_bound={wave_bound} infra_registry={infra_count}"
+        f"cdp_pages={cdp_count} wave_bound={wave_bound} "
+        f"infra_registry={infra_count} unbound={unbound}"
     )
     return {
         "cdpOpenTargets": cdp_count,
         "waveBoundLeases": wave_bound,
         "infraRegistryTargets": infra_count,
+        "unboundPages": unbound,
         "ok": ok,
         "detail": detail,
     }
+
+
+def _count_unbound_pages(cdp_port: int, *, protected: set[str] | None) -> int:
+    """Pages no ledger claims — the drift a leaked hot-path tab shows up as."""
+    if protected is None:
+        return -1
+    return sum(
+        1
+        for page in _list_cdp_pages(cdp_port)
+        if isinstance(page.get("id"), str) and page["id"].strip() not in protected
+    )
 
 
 def _list_cdp_pages(cdp_port: int) -> list[dict[str, object]]:
