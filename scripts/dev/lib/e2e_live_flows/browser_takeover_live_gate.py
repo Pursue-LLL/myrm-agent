@@ -125,6 +125,35 @@ BROWSER_RECOVERY_DELAY_SEC = 12.0
 BROWSER_RECOVERY_MIN_INTERVAL_SEC = 20.0
 MAX_SEND_ATTEMPTS = 3
 
+# Minimum wall-clock a retry still needs to re-bootstrap the chat shell, run a retry
+# gate and converge a Done resume. A retry started below this is guaranteed to be
+# reaped mid-flight by the BODY hung-reap cap, and that leaves the run with no pytest
+# terminal state — the failure then reads as an external kill instead of the real
+# cause ("the model never called the gate tool").
+RETRY_MIN_BUDGET_SEC = 240.0
+
+
+def remaining_body_budget_sec() -> float | None:
+    """Remaining BODY wall budget, or None when no session budget is tracked."""
+    try:
+        from e2e_session_runtime.lifecycle import remaining_wall_sec
+    except ImportError:
+        return None
+    return float(remaining_wall_sec())
+
+
+def require_retry_budget(*, attempt: int) -> None:
+    """Fail fast instead of starting a retry that cannot finish before the BODY cap."""
+    remaining = remaining_body_budget_sec()
+    if remaining is None or remaining >= RETRY_MIN_BUDGET_SEC:
+        return
+    raise TimeoutError(
+        f"E2E_RETRY_BUDGET_EXHAUSTED: attempt={attempt} "
+        f"remaining={int(remaining)}s<{int(RETRY_MIN_BUDGET_SEC)}s — "
+        "a retry cannot complete before the BODY hung-reap cap; failing fast so the "
+        "terminal state stays observable"
+    )
+
 
 from e2e_live_flows.browser_takeover_live_mux import (
     gate_probe_evaluate,

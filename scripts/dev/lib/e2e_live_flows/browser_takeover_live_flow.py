@@ -32,6 +32,7 @@ from e2e_live_flows.browser_takeover_live_gate import (
     prepare_browser_turn,
     quiesce_mux_before_retry,
     require_browser_gate_triggered,
+    require_retry_budget,
     wait_for_browser_ask_human_gate,
     wait_takeover_banner,
     wait_ui_stream_idle,
@@ -111,6 +112,7 @@ async def run_browser_takeover_live_flow(
                     f"(attempt={attempt})"
                 )
                 break
+            require_retry_budget(attempt=attempt)
             _p(f"retry attempt={attempt} — click_new_chat")
             if chat_id_hint:
                 _p(f"cancel stale chat before retry chatId={chat_id_hint}")
