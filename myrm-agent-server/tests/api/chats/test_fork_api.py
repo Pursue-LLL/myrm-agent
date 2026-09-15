@@ -297,10 +297,13 @@ async def test_fork_records_immutable_event_log_anchor(
     await _create_chat_with_messages(root_id, 4)
 
     from app.config.settings import get_settings
+
     settings = get_settings()
 
-    with patch.object(settings.database, "event_log_dir", str(tmp_path)), \
-         patch("app.platform_utils.get_checkpointer", return_value=None):
+    with (
+        patch.object(settings.database, "event_log_dir", str(tmp_path)),
+        patch("app.platform_utils.get_checkpointer", return_value=None),
+    ):
         resp = await async_client.post(
             f"/api/v1/chats/{root_id}/fork",
             json={"message_index": 2},
@@ -309,8 +312,9 @@ async def test_fork_records_immutable_event_log_anchor(
         new_chat_id = resp.json()["data"]["new_chat_id"]
 
         from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
+
         backend = FileEventLogBackend(log_dir=tmp_path, session_id=root_id)
-        events = await backend.get_events()
+        events = await backend.get_events(root_id)
         assert len(events) >= 1
         fork_ev = events[-1]
         assert fork_ev.event_type == "fork_point"

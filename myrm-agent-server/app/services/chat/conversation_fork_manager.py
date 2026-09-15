@@ -385,7 +385,7 @@ class ConversationForkManager:
                         "is_acceptance_mode": is_acceptance_mode,
                     }
                     backend = FileEventLogBackend(log_dir=event_log_dir, session_id=parent_chat_id)
-                    parent_events = await backend.get_events()
+                    parent_events = await backend.get_events(parent_chat_id)
                     next_seq = (parent_events[-1].sequence + 1) if parent_events else 1
                     fork_event = StructuredEvent(
                         sequence=next_seq,

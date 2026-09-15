@@ -8,11 +8,14 @@ local/tauri-only via the ``is_local_mode`` guard.
 app.config.deploy_mode::is_local_mode (POS: 部署模式判定，限制 seed 端点仅 local/tauri)
 app.services.agent.agent_service::AgentService (POS: 智能体列表/创建，选取 E2E seed 关联 agent)
 app.services.chat.chat_service::ChatService (POS: 会话与消息持久化)
+app.core.skills.prebuilt_sync::sync_prebuilt_seeds (POS: 预置技能目录同步)
+app.core.skills.store.service::skills_service (POS: 技能目录与用户配置服务)
+myrm_agent_harness.toolkits.storage.factory::get_storage_provider (POS: 存储提供方工厂)
 
 [OUTPUT]
 seed_citation_fixture: 创建带 citedMemoryIds 的 assistant 消息 + wiki settings 深链参数
 seed_skill_chip_transcript_fixture: 创建带 `[use skill]` wire 前缀的用户消息（Skill chip Chrome E2E）
-seed_skill_chip_composer_fixture: 创建绑定 systematic-debugging 的空会话（Slash chip composer Chrome E2E）
+seed_skill_chip_composer_fixture: 创建绑定 systematic-debugging 的空会话（Slash chip composer Chrome E2E，并确保预置技能目录已同步启用）
 seed_embed_fixture: 创建带 YouTube markdown 链接的 assistant 消息（Link Embeds Chrome E2E）
 
 [POS]
@@ -25,8 +28,11 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
+from myrm_agent_harness.toolkits.storage.factory import get_storage_provider
 
 from app.config.deploy_mode import is_local_mode
+from app.core.skills.prebuilt_sync import sync_prebuilt_seeds
+from app.core.skills.store.service import skills_service
 from app.database.dto import AgentCreate, ChatCreate
 from app.services.agent.agent_service import AgentService
 from app.services.chat.chat_service import ChatService
@@ -36,6 +42,15 @@ router = APIRouter()
 _CITATION_COUNT = 10
 _EMBED_YOUTUBE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 _EMBED_ASSISTANT_MARKDOWN = f"Link embed E2E fixture — watch [YouTube video]({_EMBED_YOUTUBE_URL})."
+
+
+async def _ensure_prebuilt_skill_catalog_ready() -> None:
+    """Keep seeded agents' bound skills resolvable in the local skill catalog."""
+    storage = get_storage_provider()
+    sync_result = await sync_prebuilt_seeds(storage)
+    skill_ids = list(sync_result.skill_ids)
+    if skill_ids:
+        await skills_service.user_config.ensure_prebuilt_enabled_after_sync(skill_ids)
 
 
 def _build_citation_extra_data() -> dict[str, object]:
@@ -165,6 +180,8 @@ async def seed_skill_chip_composer_fixture() -> dict[str, str]:
     """Local dev/test only: seed empty chat bound to agent with systematic-debugging skill."""
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
+
+    await _ensure_prebuilt_skill_catalog_ready()
 
     suffix = uuid4().hex[:8]
     agent = await AgentService.create_agent(
