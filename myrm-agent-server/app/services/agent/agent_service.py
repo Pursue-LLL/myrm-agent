@@ -430,11 +430,14 @@ class AgentService:
             if "a2a_trusted_peer_ids" in agent_data.model_fields_set and agent_data.a2a_trusted_peer_ids is not None:
                 new_metadata["a2a_trusted_peer_ids"] = list(agent_data.a2a_trusted_peer_ids)
             if "responsibility_scope" in agent_data.model_fields_set:
-                new_metadata["responsibility_scope"] = agent_data.responsibility_scope
+                raw_rs = agent_data.responsibility_scope
+                new_metadata["responsibility_scope"] = raw_rs.strip() or None if raw_rs else None
             if "owner_label" in agent_data.model_fields_set:
-                new_metadata["owner_label"] = agent_data.owner_label
+                raw_ol = agent_data.owner_label
+                new_metadata["owner_label"] = raw_ol.strip() or None if raw_ol else None
             if "acceptance_criteria" in agent_data.model_fields_set:
-                new_metadata["acceptance_criteria"] = list(agent_data.acceptance_criteria or [])
+                raw_ac = [str(x).strip() for x in (agent_data.acceptance_criteria or [])]
+                new_metadata["acceptance_criteria"] = [x for x in raw_ac if x] or None
             if "cron_post_run_verify" in agent_data.model_fields_set and agent_data.cron_post_run_verify is not None:
                 updates["cron_post_run_verify"] = agent_data.cron_post_run_verify
 

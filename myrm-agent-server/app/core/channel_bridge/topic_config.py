@@ -55,6 +55,21 @@ def is_search_agent_channel_bind_error(exc: BaseException) -> bool:
     return isinstance(exc, ValueError) and str(exc) == SEARCH_AGENT_CHANNEL_BIND_MSG
 
 
+def clean_identity_id(raw: str) -> str:
+    """Sanitize an explicit team identity id at write time.
+
+    Collapsing ids (empty or the reserved ``baseline`` default compartment)
+    are rejected so two bindings can never silently share one memory
+    compartment. Raises ValueError on rejection (fail-closed).
+    """
+    from myrm_agent_harness.agent.security.team_identity import sanitize_identity_id
+
+    cleaned = sanitize_identity_id(raw)
+    if not cleaned or cleaned == "baseline":
+        raise ValueError(f"Invalid identity_id '{raw}'; use ASCII letters, digits, '-' or '_'.")
+    return cleaned
+
+
 class SqlTopicManager:
     """Manages per-topic/channel configuration in UserConfig DB.
 
@@ -283,7 +298,7 @@ class SqlTopicManager:
             topic_entry["identityScope"] = scope_value
         if identity_id is not _UNSET:
             if identity_id:
-                topic_entry["identityId"] = str(identity_id)
+                topic_entry["identityId"] = clean_identity_id(str(identity_id))
             else:
                 topic_entry.pop("identityId", None)
         if identity_name is not _UNSET:

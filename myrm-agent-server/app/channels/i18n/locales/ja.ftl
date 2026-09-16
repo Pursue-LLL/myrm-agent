@@ -163,7 +163,7 @@ topic_no_binding = ℹ この { $scope } にバインドはありません。
 topic_status =
      { $scope } ステータス
     { $agent_label }
-    { $workspace_label }
+    { $workspace_label }{ $identity_label }
     ステータス：{ $status }{ $bound_label }
 topic_no_binding_defaults =  この { $scope } にバインドはありません（デフォルト設定を使用中）。
 topic_command_failed =  { $scope } コマンドが失敗しました：{ $error }

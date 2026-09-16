@@ -110,6 +110,9 @@ class AgentRepository:
                 "subagent_ids": agent.subagent_ids,
                 "a2a_enabled": bool(getattr(agent, "a2a_enabled", False)),
                 "a2a_trusted_peer_ids": list(getattr(agent, "a2a_trusted_peer_ids", []) or []),
+                "responsibility_scope": getattr(agent, "responsibility_scope", None),
+                "owner_label": getattr(agent, "owner_label", None),
+                "acceptance_criteria": list(getattr(agent, "acceptance_criteria", None) or []),
                 "workspace_policy": agent.workspace_policy,
                 "allow_discovery": (bool(agent.allow_discovery) if agent.allow_discovery is not None else True),
                 "engine_params": agent.engine_params,
@@ -249,6 +252,11 @@ class AgentRepository:
             subagent_ids=meta.get("subagent_ids", []),
             a2a_enabled=bool(meta.get("a2a_enabled", False)),
             a2a_trusted_peer_ids=list(meta.get("a2a_trusted_peer_ids", []) or []),
+            responsibility_scope=meta.get("responsibility_scope") if isinstance(meta.get("responsibility_scope"), str) else None,
+            owner_label=meta.get("owner_label") if isinstance(meta.get("owner_label"), str) else None,
+            acceptance_criteria=(
+                [str(x) for x in meta["acceptance_criteria"]] if isinstance(meta.get("acceptance_criteria"), list) else None
+            ),
             allow_discovery=(bool(meta["allow_discovery"]) if meta.get("allow_discovery") is not None else True),
             enabled_builtin_tools=persist_enabled_builtin_tools(meta.get("enabled_builtin_tools", profile.tools_allowed)),
             browser_source=meta.get("browser_source"),
@@ -399,6 +407,15 @@ class AgentRepository:
                 agent.a2a_enabled = bool(metadata["a2a_enabled"])
             if "a2a_trusted_peer_ids" in metadata and metadata["a2a_trusted_peer_ids"] is not None:
                 agent.a2a_trusted_peer_ids = list(metadata["a2a_trusted_peer_ids"])
+            if "responsibility_scope" in metadata:
+                raw_rs = metadata["responsibility_scope"]
+                agent.responsibility_scope = raw_rs if isinstance(raw_rs, str) else None
+            if "owner_label" in metadata:
+                raw_ol = metadata["owner_label"]
+                agent.owner_label = raw_ol if isinstance(raw_ol, str) else None
+            if "acceptance_criteria" in metadata:
+                raw_ac = metadata["acceptance_criteria"]
+                agent.acceptance_criteria = [str(x) for x in raw_ac] if isinstance(raw_ac, list) else None
             if "allow_discovery" in metadata and metadata["allow_discovery"] is not None:
                 agent.allow_discovery = bool(metadata["allow_discovery"])
             if "workspace_policy" in metadata:

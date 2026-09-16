@@ -51,7 +51,9 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next-isolated-gov-e2e/types/**/*.ts",
-    ".next-isolated-gov-e2e/dev/types/**/*.ts"
+    ".next-isolated-gov-e2e/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_governance_responsibility_create_an-5aaf8a9f-42647-f729b71d/types/**/*.ts",
+    ".next-isolated-chrome-test_governance_responsibility_create_an-5aaf8a9f-42647-f729b71d/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

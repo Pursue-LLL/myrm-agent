@@ -682,6 +682,12 @@ async def handle_topic_command(
                 else:
                     workspace_label = get_text(msg, "topic_status_workspace_default")
                 bound_label = get_text(msg, "topic_status_bound_at", bound_at=topic_ctx.bound_at) if topic_ctx.bound_at else ""
+                if topic_ctx.identity_revoked:
+                    identity_label = get_text(msg, "topic_identity_revoked")
+                elif topic_ctx.identity_name:
+                    identity_label = get_text(msg, "topic_identity_only", name=topic_ctx.identity_name)
+                else:
+                    identity_label = ""
                 status = get_text(
                     msg,
                     ("topic_status_enabled" if topic_ctx.enabled else "topic_status_disabled"),
@@ -692,6 +698,7 @@ async def handle_topic_command(
                     scope=scope_label,
                     agent_label=agent_label,
                     workspace_label=workspace_label,
+                    identity_label=identity_label,
                     status=status,
                     bound_label=bound_label,
                 )

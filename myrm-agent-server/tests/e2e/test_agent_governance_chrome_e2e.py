@@ -138,22 +138,34 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
             )
             assert listed.get("ready") is True, json.dumps(listed, ensure_ascii=False)
 
-            # T2: create dialog exposes the Responsibility section.
-            opened = client.evaluate(
-                page,
-                """(() => {
-                  const btns = Array.from(document.querySelectorAll('button')).filter((el) =>
-                    /^(Create Agent|创建智能体)$/.test((el.textContent || '').trim()));
-                  const btn = btns.find((el) => el.offsetParent !== null) || btns[0];
-                  if (!btn) return { ok: false, count: 0 };
-                  btn.click();
-                  return { ok: true, count: btns.length };
-                })()""",
-                timeout_sec=15.0,
-            )
+            # T2: create dialog exposes the Responsibility section. The dev UI may
+            # still be hydrating when SSR HTML first paints, so retry the click
+            # until the client-rendered dialog actually appears.
+            opened: dict | None = None
+            form: dict | None = None
+            for _ in range(8):
+                opened = client.evaluate(
+                    page,
+                    """(() => {
+                      const btn = Array.from(document.querySelectorAll('button')).find((el) =>
+                        /^(Create Agent|创建智能体)$/.test((el.textContent || '').trim()) && el.offsetParent !== null);
+                      if (!btn) return { ok: false };
+                      btn.click();
+                      return { ok: true, clicked: (btn.textContent || '').trim() };
+                    })()""",
+                    timeout_sec=15.0,
+                )
+                if not (isinstance(opened, dict) and opened.get("ok")):
+                    time.sleep(3.0)
+                    continue
+                time.sleep(3.0)
+                form = client.evaluate(page, _DIALOG_READY_JS, timeout_sec=15.0)
+                if isinstance(form, dict) and form.get("ready") is True:
+                    break
             assert isinstance(opened, dict) and opened.get("ok") is True, opened
-            form = wait_for_state(client, page, _DIALOG_READY_JS, timeout_sec=60.0)
-            assert form.get("ready") is True, json.dumps(form, ensure_ascii=False)
+            assert isinstance(form, dict) and form.get("ready") is True, json.dumps(
+                {"opened": opened, "form": form}, ensure_ascii=False
+            )
 
             # T3: fill + save through the real dialog.
             js = _FILL_AND_SAVE_JS.replace(
@@ -183,30 +195,194 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
         assert target_id in rows, f"target missing from overview: {sorted(rows)}"
         assert rows[target_id]["responsibility_scope"] == "Owns e2e verification replies"
 
-        # T5: temp source via API, then dry-run + execute a real merge.
-        src_resp = _api("/api/v1/user-agents", "POST", {"name": source_name, "skill_ids": ["e2e-skill"]})
+        # T5: temp source shares two skills with the target, then the whole merge
+        # runs inside the browser wizard (preview -> confirm -> execute -> undo).
+        src_resp = _api(
+            "/api/v1/user-agents",
+            "POST",
+            {"name": source_name, "skill_ids": ["e2e-skill-a", "e2e-skill-b"]},
+        )
         source_id = str((src_resp.get("data") or {}).get("id") or "")
         assert source_id, src_resp
         created.append(source_id)
+        _api(f"/api/v1/user-agents/{target_id}", "PUT", {"skill_ids": ["e2e-skill-a", "e2e-skill-b"]})
 
-        dry = _api(
-            "/api/v1/agents/governance/merge/dry-run",
-            "POST",
-            {"source_id": source_id, "target_id": target_id},
-        ).get("data") or {}
-        assert dry.get("ok") is True, dry
-        assert "e2e-skill" in ((dry.get("plan") or {}).get("move_skills") or []), dry
+        with open_mcp_page(agents_url) as (client, page):
+            navigate_mcp_page(client, page, agents_url, timeout_ms=90_000)
+            dismiss_blocking_modals(client, page)
 
-        executed = _api(
-            "/api/v1/agents/governance/merge/execute",
-            "POST",
-            {"source_id": source_id, "target_id": target_id, "confirm_name": target_name},
-        ).get("data") or {}
-        assert executed.get("ok") is True, executed
-        created.remove(source_id)
+            # T5a: overlap row appears with a Merge button.
+            try:
+                row = wait_for_state(
+                    client,
+                    page,
+                    f"""(() => {{
+                      const rows = Array.from(document.querySelectorAll('li')).filter((el) =>
+                        (el.textContent || '').includes('{source_name}'));
+                      const btn = rows.length > 0 ? Array.from(rows[0].querySelectorAll('button')).find((b) =>
+                        /^(Merge|合并)$/.test((b.textContent || '').trim())) : null;
+                      return {{ ready: !!btn }};
+                    }})()""",
+                    timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+                )
+            except Exception as wait_err:
+                dbg = _api("/api/v1/agents/governance/overview").get("data") or {}
+                raise AssertionError(
+                    f"overlap row missing: wait_err={wait_err!r} "
+                    f"total={dbg.get('total')} orphans={len(dbg.get('orphans', []))} "
+                    f"overlaps={json.dumps(dbg.get('overlaps', []), ensure_ascii=False)[:800]}"
+                ) from wait_err
+            assert row.get("ready") is True, json.dumps(row, ensure_ascii=False)
+            clicked = client.evaluate(
+                page,
+                f"""(() => {{
+                  const rows = Array.from(document.querySelectorAll('li')).filter((el) =>
+                    (el.textContent || '').includes('{source_name}'));
+                  const btn = Array.from(rows[0].querySelectorAll('button')).find((b) =>
+                    /^(Merge|合并)$/.test((b.textContent || '').trim()));
+                  btn.click();
+                  return {{ ok: true }};
+                }})()""",
+                timeout_sec=15.0,
+            )
+            assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
+
+            # T5b: wizard opens; run preview and check the skill diff.
+            wiz = wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const dlg = document.querySelector('[role=dialog]');
+                  if (!dlg) return { ready: false };
+                  const preview = Array.from(dlg.querySelectorAll('button')).find((b) =>
+                    /^(Preview changes|预览变更)$/.test((b.textContent || '').trim()));
+                  return { ready: !!preview };
+                })()""",
+                timeout_sec=60.0,
+            )
+            assert wiz.get("ready") is True, json.dumps(wiz, ensure_ascii=False)
+
+            # T5b0: pin the target select to the UI-created agent (pair order
+            # from the overlap detector is nondeterministic).
+            picked = client.evaluate(
+                page,
+                f"""(() => {{
+                  const dlg = document.querySelector('[role=dialog]');
+                  const triggers = Array.from(dlg.querySelectorAll('[role=combobox]'));
+                  if (triggers.length < 2) return {{ ok: false, reason: 'no-triggers' }};
+                  triggers[1].click();
+                  return {{ ok: true }};
+                }})()""",
+                timeout_sec=15.0,
+            )
+            assert isinstance(picked, dict) and picked.get("ok") is True, picked
+            chosen = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const opt = Array.from(document.querySelectorAll('[role=option]')).find((el) =>
+                    (el.textContent || '').trim() === '{target_name}');
+                  if (!opt) return {{ ready: false }};
+                  opt.click();
+                  return {{ ready: true }};
+                }})()""",
+                timeout_sec=30.0,
+            )
+            assert chosen.get("ready") is True, json.dumps(chosen, ensure_ascii=False)
+            picked_src = client.evaluate(
+                page,
+                """(() => {
+                  const dlg = document.querySelector('[role=dialog]');
+                  const triggers = Array.from(dlg.querySelectorAll('[role=combobox]'));
+                  if (triggers.length < 2) return { ok: false, reason: 'no-triggers' };
+                  triggers[0].click();
+                  return { ok: true };
+                })()""",
+                timeout_sec=15.0,
+            )
+            assert isinstance(picked_src, dict) and picked_src.get("ok") is True, picked_src
+            chosen_src = wait_for_state(
+                client,
+                page,
+                f"""(() => {{
+                  const opt = Array.from(document.querySelectorAll('[role=option]')).find((el) =>
+                    (el.textContent || '').trim() === '{source_name}');
+                  if (!opt) return {{ ready: false }};
+                  opt.click();
+                  return {{ ready: true }};
+                }})()""",
+                timeout_sec=30.0,
+            )
+            assert chosen_src.get("ready") is True, json.dumps(chosen_src, ensure_ascii=False)
+            client.evaluate(
+                page,
+                """(() => {
+                  const dlg = document.querySelector('[role=dialog]');
+                  Array.from(dlg.querySelectorAll('button')).find((b) =>
+                    /^(Preview changes|预览变更)$/.test((b.textContent || '').trim())).click();
+                  return { ok: true };
+                })()""",
+                timeout_sec=15.0,
+            )
+            diff = wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const dlg = document.querySelector('[role=dialog]');
+                  const txt = dlg ? (dlg.innerText || '') : '';
+                  return { ready: txt.includes('e2e-skill-a') && txt.includes('e2e-skill-b') };
+                })()""",
+                timeout_sec=60.0,
+            )
+            assert diff.get("ready") is True, json.dumps(diff, ensure_ascii=False)
+
+            # T5c: type the target name and execute the merge in the browser.
+            fill = client.evaluate(
+                page,
+                f"""(() => {{
+                  const input = document.getElementById('merge-confirm');
+                  if (!input) return {{ ok: false }};
+                  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+                  setter.call(input, {json.dumps(target_name)});
+                  input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                  const exec = Array.from(document.querySelectorAll('[role=dialog] button')).find((b) =>
+                    /^(Merge now|立即合并)$/.test((b.textContent || '').trim()));
+                  if (!exec || exec.disabled) return {{ ok: false, reason: 'no-exec' }};
+                  exec.click();
+                  return {{ ok: true }};
+                }})()""",
+                timeout_sec=15.0,
+            )
+            assert isinstance(fill, dict) and fill.get("ok") is True, fill
+            undone_state = wait_for_state(
+                client,
+                page,
+                """(() => {
+                  const dlg = document.querySelector('[role=dialog]');
+                  if (!dlg) return { ready: false, reason: 'no-dialog' };
+                  const undo = Array.from(dlg.querySelectorAll('button')).find((b) =>
+                    /^(Restore target|还原目标)$/.test((b.textContent || '').trim()));
+                  return { ready: !!undo };
+                })()""",
+                timeout_sec=90.0,
+            )
+            assert undone_state.get("ready") is True, json.dumps(undone_state, ensure_ascii=False)
+
+            # T5d: undo in the browser rolls the target back.
+            client.evaluate(
+                page,
+                """(() => {
+                  const dlg = document.querySelector('[role=dialog]');
+                  Array.from(dlg.querySelectorAll('button')).find((b) =>
+                    /^(Restore target|还原目标)$/.test((b.textContent || '').trim())).click();
+                  return { ok: true };
+                })()""",
+                timeout_sec=15.0,
+            )
 
         merged = _api(f"/api/v1/user-agents/{target_id}").get("data") or {}
-        assert "e2e-skill" in (merged.get("skill_ids") or []), merged
+        assert "e2e-skill-a" not in (merged.get("skill_ids") or []), merged
+        created.remove(source_id)
     finally:
         # T6: cleanup leaves no residue.
         for agent_id in created:

@@ -163,7 +163,7 @@ topic_no_binding = ℹ 此 { $scope } 没有绑定。
 topic_status =
      { $scope } 状态
     { $agent_label }
-    { $workspace_label }
+    { $workspace_label }{ $identity_label }
     状态：{ $status }{ $bound_label }
 topic_no_binding_defaults =  此 { $scope } 无绑定（使用默认配置）。
 topic_command_failed =  { $scope } 命令失败：{ $error }

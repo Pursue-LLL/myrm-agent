@@ -163,7 +163,7 @@ topic_no_binding = ℹ No binding found for this { $scope }.
 topic_status =
      { $scope } Status
     { $agent_label }
-    { $workspace_label }
+    { $workspace_label }{ $identity_label }
     Status: { $status }{ $bound_label }
 topic_no_binding_defaults =  No binding for this { $scope } (using defaults).
 topic_command_failed =  { $scope } command failed: { $error }

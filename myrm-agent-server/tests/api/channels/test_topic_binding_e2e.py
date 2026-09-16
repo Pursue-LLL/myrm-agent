@@ -165,7 +165,8 @@ def test_search_agent_channel_bind_rejected_e2e(client):
         json={"agentId": "builtin-fast-search"},
     )
     assert default_response.status_code == 400, default_response.text
-    assert SEARCH_AGENT_CHANNEL_BIND_MSG in default_response.json()["detail"]
+    default_body = default_response.json()
+    assert SEARCH_AGENT_CHANNEL_BIND_MSG in default_body.get("detail", default_body.get("message", ""))
 
     topics_response = client.get(f"/api/v1/channels/manage/{channel_name}/topics")
     assert topics_response.status_code == 200, topics_response.text
@@ -176,7 +177,8 @@ def test_search_agent_channel_bind_rejected_e2e(client):
         json={"agentId": "builtin-fast-search"},
     )
     assert topic_response.status_code == 400, topic_response.text
-    assert SEARCH_AGENT_CHANNEL_BIND_MSG in topic_response.json()["detail"]
+    topic_body = topic_response.json()
+    assert SEARCH_AGENT_CHANNEL_BIND_MSG in topic_body.get("detail", topic_body.get("message", ""))
 
     asyncio.run(_seed_legacy_search_global_bind(channel_name))
     sanitized = client.get(f"/api/v1/channels/manage/{channel_name}/topics")
@@ -250,5 +252,66 @@ def test_topic_thread_sharing_mode_e2e(client):
     for t in data["topics"]:
         if t["topicId"] == topic_id:
             assert t["threadSharingMode"] == "isolated"
+
+
+def test_topic_team_identity_e2e(client):
+    """End-to-end test for team-shared identity bind/scope/revoke lifecycle."""
+
+    unique_id = str(uuid.uuid4())[:8]
+
+    agent_payload = {
+        "name": f"E2E Identity Agent {unique_id}",
+        "description": "Agent for team identity testing",
+        "model": "gpt-4o",
+        "systemPrompt": "You are a team Ariel.",
+        "skills": [],
+    }
+    res = client.post("/api/v1/user-agents", json=agent_payload)
+    assert res.status_code == 200, res.text
+    agent_id = res.json()["data"]["id"]
+
+    channel_name = f"test_identity_channel_{unique_id}"
+    topic_id = f"test_group_{unique_id}"
+
+    # 1. Bind a named shared identity
+    response = client.post(
+        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
+        json={"agentId": agent_id, "identityName": "YiFu", "identityScope": "shared"},
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["identityName"] == "YiFu"
+    assert data["identityScope"] == "shared"
+    assert data["identityId"] == f"{channel_name}-test_group_{unique_id}-channel".lower()
+    assert data["identityRevoked"] is False
+
+    # 2. Persisted and visible in topics list
+    response = client.get(f"/api/v1/channels/manage/{channel_name}/topics")
+    assert response.status_code == 200, response.text
+    listed = [t for t in response.json()["topics"] if t["topicId"] == topic_id]
+    assert len(listed) == 1
+    assert listed[0]["identityName"] == "YiFu"
+
+    # 3. Collapsing explicit ids are rejected (fail-closed, no shared compartment)
+    bad = client.post(
+        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
+        json={"agentId": agent_id, "identityId": "???", "identityName": "YiFu"},
+    )
+    assert bad.status_code == 400, bad.text
+
+    # 4. Revoke freezes (memory retained), restore reopens
+    revoked = client.post(
+        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
+        json={"agentId": agent_id, "identityRevoked": True},
+    )
+    assert revoked.status_code == 200, revoked.text
+    assert revoked.json()["identityRevoked"] is True
+    assert revoked.json()["identityName"] == "YiFu"
+    restored = client.post(
+        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
+        json={"agentId": agent_id, "identityRevoked": False},
+    )
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["identityRevoked"] is False
 
     print("Thread Sharing Mode E2E Test Passed!")

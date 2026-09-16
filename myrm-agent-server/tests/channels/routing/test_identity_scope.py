@@ -96,3 +96,15 @@ def test_invalid_scope_rejected_at_bind_layer() -> None:
 
     with pytest.raises(ValueError):
         Mode("bogus")
+
+
+def test_clean_identity_id_rejects_collapsing_values() -> None:
+    from app.core.channel_bridge.topic_config import clean_identity_id
+
+    assert clean_identity_id("Helper_1") == "helper_1"
+    with pytest.raises(ValueError):
+        clean_identity_id("义父")
+    with pytest.raises(ValueError):
+        clean_identity_id("baseline")
+    with pytest.raises(ValueError):
+        clean_identity_id("  ")

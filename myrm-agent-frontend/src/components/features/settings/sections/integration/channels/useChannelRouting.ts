@@ -260,6 +260,9 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
     setSaving(topicId);
     try {
       const topic = topics.find((item) => item.topicId === topicId);
+      // Preserve the current frozen state: renaming or switching scope must
+      // never silently unfreeze an identity; only the restore action does.
+      const keepRevoked = topic?.identityRevoked ?? false;
       await bindTopicAgent(
         selectedChannel,
         topicId,
@@ -269,11 +272,11 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
         topic?.draftTimeoutMinutes,
         topic?.draftTimeoutAction,
         undefined,
-        { identityName: name, identityScope: scope, identityRevoked: false },
+        { identityName: name, identityScope: scope, identityRevoked: keepRevoked },
       );
       setTopics((prev) =>
         prev.map((item) =>
-          item.topicId === topicId ? { ...item, identityName: name, identityScope: scope, identityRevoked: false } : item,
+          item.topicId === topicId ? { ...item, identityName: name, identityScope: scope, identityRevoked: keepRevoked } : item,
         ),
       );
       toast.success(messages.identityUpdatedToast);
