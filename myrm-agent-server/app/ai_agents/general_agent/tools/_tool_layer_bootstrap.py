@@ -30,6 +30,9 @@ _SERVER_TOOL_LAYERS: dict[str, ToolLayer] = {
     "video_tool": ToolLayer.EXTERNAL,
     "tts_generate": ToolLayer.EXTERNAL,
     "artifact_publish": ToolLayer.EXTERNAL,
+    # A2A delegation: mounted only when the agent has trusted peers configured.
+    "a2a_call": ToolLayer.EXTERNAL,
+    "a2a_orchestrate": ToolLayer.EXTERNAL,
 }
 
 

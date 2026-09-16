@@ -1023,7 +1023,6 @@
         "kanban": "タスクカンバン",
         "cron": "スケジュールタスク（チャット）",
         "answer_tool": "回答品質監査",
-        "render_ui": "インタラクティブ UI",
         "planning": "マルチステップ進捗",
         "structured_clarify": "構造化クリアリフィケーション",
         "external_cli": "外部 CLI",
@@ -1044,14 +1043,12 @@
         "kanban": "カンバンボードでタスクを管理 — 進捗報告、ブロック、完了マーク",
         "cron": "チャット内で直接スケジュールタスクを作成。オフの場合は Capability Discovery で必須時に読み込み",
         "answer_tool": "回答前に品質を自己監査 — 回答の網羅性と正確性を保証します",
-        "render_ui": "チャット内でフォーム入力・表・グラフをその場で操作",
         "planning": "マルチステップタスク用のメインエージェント todo リスト — チャット内の進捗ツリーを更新します（サブエージェントプランナーなし）",
         "structured_clarify": "ユーザーの意図が明確でないときに構造化フォームで確認 — 返信まで Agent を一時停止",
         "external_cli": "delegate_to_agent 経由で外部 CLI Agent（Claude Code、Codex、Gemini CLI 等）にコーディングタスクを委任",
         "skill_market": "チャット内で外部スキルマーケットを検索・インストール",
         "skill_manage": "エージェントがチャット内でスキルの作成・編集・削除を行えます。有効時はタスク後にレビュー用のスキル草案が提案される場合があります。/learn は常にこの機能を有効にします。"
       },
-      "renderUiWebOnlyHint": "インライン対話型 UI は Web チャットとデスクトップアプリでのみ表示されます。Telegram、スケジュールタスク、その他のチャネルではインラインフォームやチャートを表示できません。",
       "wikiScopeHint": "ドキュメントはこのエージェントのプライベートナレッジベースに保存され、他のエージェントと混ざりません。",
       "wikiScopeHintNamed": "ドキュメントは {name} のプライベートナレッジベースに保存されます。",
       "wikiActiveIndicator": "独立ナレッジベース有効",
@@ -1756,19 +1753,6 @@
     "workflowTemplateArmed": {
       "label": "ピン留めしたテンプレート",
       "disarm": "ピン留めを解除"
-    },
-    "jumpBar": {
-      "ariaLabel": "対話ナビゲーション",
-      "title": "メッセージナビゲーション",
-      "jumpTo": "ジャンプまでメッセージ",
-      "turnTitle": "ターン {turn}",
-      "loaded": "ロード済み",
-      "unloaded": "Not loaded · Click to fetch and locate",
-      "loading": "ターンメッセージを読み込み中...",
-      "userPrefix": "ユーザー: ",
-      "assistantPrefix": "アシスタント: ",
-      "fullTimeline": "セッションタイムライン",
-      "turnCount": "合計 {count} ターン"
     },
     "scrollCue": {
       "scrollToBottom": "スクロールまで下部",
@@ -3026,11 +3010,6 @@
       "assistantReply": "返答",
       "jumpToTurn": "ターン {index} にジャンプ"
     },
-    "timeline": {
-      "loaded": "読み込み済み",
-      "lazyLoad": "クリックしてターンを読み込む",
-      "noPrompt": "プロンプト内容なし"
-    },
     "spillover": {
       "notice": "長文テキスト（{chars} 文字）を検出しました。コンテキストを維持するため自動的にワークスペースファイルへ退避します。",
       "optimized": "保護済み"
@@ -3672,10 +3651,6 @@
     "image_tool_tool_error": "画像生成失敗",
     "video_tool_tool": "生成動画",
     "video_tool_tool_error": "動画生成失敗",
-    "render_ui_tool_tool": "インタラクティブ UI を生成",
-    "render_ui_tool_tool_error": "UI の生成に失敗",
-    "update_ui_data_tool_tool": "対話型 UI データを更新中",
-    "update_ui_data_tool_tool_error": "UI データの更新に失敗しました",
     "bash_code_execute_tool_tool": "コードを実行中",
     "bash_code_execute_tool_tool_error": "コード実行に失敗",
     "text_editor_tool_tool": "編集ファイル",
@@ -18860,7 +18835,10 @@
           "globalAgentSet": "グローバルAgentを設定しました",
           "replyModeUpdated": "返信モードを更新しました",
           "draftTimeoutUpdated": "下書きタイムアウト設定を更新しました",
-          "workspaceBound": "ワークスペースを正常にバインドしました"
+          "workspaceBound": "ワークスペースを正常にバインドしました",
+          "identityUpdated": "チーム情報を更新しました",
+          "identityRevoked": "チーム情報を凍結しました",
+          "identityRestored": "チーム情報を復元しました"
         },
         "errors": {
           "initialLoad": "チャネルまたはAgentの読み込みに失敗しました",
@@ -18870,7 +18848,8 @@
           "globalAgent": "グローバルAgentの設定に失敗しました",
           "replyMode": "返信モードの設定に失敗しました",
           "draftTimeout": "下書きタイムアウトの更新に失敗しました",
-          "workspaceBind": "ワークスペースのバインドに失敗しました"
+          "workspaceBind": "ワークスペースのバインドに失敗しました",
+          "identity": "チーム情報の更新に失敗しました"
         },
         "threadSharing": {
           "label": "スレッド共有モード",
@@ -18894,6 +18873,17 @@
           "label": "ワークスペース",
           "none": "-- ワークスペースなし --",
           "emptyProjects": "先にプロジェクトでプロジェクトフォルダをマウントしてください"
+        },
+        "identity": {
+          "label": "チームアイデンティティ",
+          "tooltip": "このチャットに共有の名前を付け、全員が同じ相手と話せるようにします。名前は表示用で、権限と記憶はこのチャットの範囲内です。",
+          "namePlaceholder": "名前を付ける…",
+          "inherit": "継承",
+          "shared": "共有",
+          "private": "独立",
+          "revoke": "凍結",
+          "restore": "復元",
+          "revokedBadge": "凍結中"
         }
       }
     },

@@ -4,7 +4,7 @@
 - app.services.wiki.source_sync.publish_helpers (POS: publish_raw wrapper)
 - app.services.wiki.source_sync.schemas (POS: WikiSourceSyncResult)
 - app.channels.providers.feishu.sdk.client::FeishuClient (POS: Feishu OpenAPI client)
-- app.services.wiki.source_sync.feishu_render (POS: Pure block→Markdown converter for Feishu docs)
+- app.services.wiki.source_sync.feishu.feishu_render (POS: Pure block→Markdown converter for Feishu docs)
 - myrm_agent_harness.toolkits.wiki.pipeline.ingress.asset_store (POS: image asset persistence)
 
 [OUTPUT]
@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 
-from app.services.wiki.source_sync.feishu_render import (
+from app.services.wiki.source_sync.feishu.feishu_render import (
     FEISHU_IMAGE_PREFIX,
     FEISHU_IMAGE_RE,
     feishu_docx_blocks_to_markdown,

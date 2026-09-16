@@ -53,7 +53,16 @@ def browser_identity_snapshot() -> dict[str, object]:
 
 
 def apply_browser_pool_env() -> dict[str, str]:
+    """Env that binds the whole run to the single physical E2E Chrome.
+
+    ``MYRM_CHROME_E2E`` is the harness-level switch that makes Chrome discovery use this
+    port *exclusively* (never falling back to a developer's own browser, whose stale
+    ``DevToolsActivePort`` can otherwise be picked up and leave the pool with no usable
+    page). It must travel with the port, so every consumer — the test process and the
+    private backend it spawns — agrees on which Chrome this run owns.
+    """
     return {
+        "MYRM_CHROME_E2E": "1",
         "MYRM_CHROME_E2E_PORT": str(resolve_chrome_port()),
         "MYRM_CHROME_E2E_DATA_DIR": resolve_chrome_data_dir(),
         "MYRM_E2E_TRANSPORT_CELLS": "1",

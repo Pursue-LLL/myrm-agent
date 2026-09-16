@@ -26,7 +26,9 @@ export function MobilePushDiscoveryBanner() {
   const t = useTranslations('agent.mobileCommand');
   const { state, loading, subscribe } = usePushSubscription();
   const [dismissed, setDismissed] = useState(() => {
-    if (typeof window === 'undefined') return false;
+    if (typeof window === 'undefined') {
+      return false;
+    }
     return sessionStorage.getItem('dismissed_mobile_push_banner') === '1';
   });
 

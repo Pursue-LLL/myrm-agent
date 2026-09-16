@@ -148,6 +148,14 @@
 | `__tests__/ModelViewportView.test.tsx`              | 结构化模型视口检视卡片渲染与剪贴板单测                                       | ✅    |
 | `__tests__/SessionReplayPlayer.test.tsx`            | 回放播放器安全徽标渲染、store selector 稳定性与时间机器派生分支交互测试       | ✅    |
 | `__tests__/MemoryScopeComponents.test.tsx`          | 记忆作用域层级卡片、选择器与 Doctor Mislayer Guard 诊断交互测试              | ✅    |
+| `__tests__/MemoryDetailSheet.evolution.test.tsx`    | 详情 Sheet 演变历史时间线与纠正链渲染测试（parseMergeHistory 解析契约）      | ✅    |
+| `cards/__tests__/ConflictCard.test.tsx`             | 冲突记忆卡渲染测试                                                           | ✅    |
+| `__tests__/BehavioralMetricsPanel.test.tsx`         | 零大模型开销行为特征看板测试                                                 | ✅    |
+| `__tests__/ConflictResolutionCard.test.tsx`         | 命令中心冲突解决卡渲染测试                                                   | ✅    |
+| `__tests__/EvidenceDrawer.test.tsx`                 | 证据溯源抽屉测试                                                             | ✅    |
+| `__tests__/RepoEvidenceCard.test.tsx`               | 仓库历史证据卡片测试                                                         | ✅    |
+| `pending/__tests__/PendingMemoryBadge.test.tsx`     | 待审批记忆计数徽章测试                                                       | ✅    |
+| `pending/__tests__/PendingMemoryDialog.test.tsx`    | 待审批记忆审批弹窗交互测试                                                   | ✅    |
 
 ## 依赖
 

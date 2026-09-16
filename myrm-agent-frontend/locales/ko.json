@@ -779,7 +779,6 @@
         "kanban": "작업 보드",
         "cron": "예약 작업 (채팅)",
         "answer_tool": "답변 품질 감사",
-        "render_ui": "대화형 UI",
         "planning": "다단계 진행",
         "structured_clarify": "구조화 명확화",
         "external_cli": "외부 CLI",
@@ -800,14 +799,12 @@
         "kanban": "칸반 보드에서 작업 관리 — 진행 보고, 차단, 완료 표시",
         "cron": "채팅에서 직접 예약 작업 생성. 끄면 Capability Discovery로 필요 시 도구 로드",
         "answer_tool": "응답 전에 답변 품질을 자체 감사 — 철저함과 정확성 보장",
-        "render_ui": "채팅에서 양식 작성·표·차트를 바로 확인하고 조작",
         "planning": "메인 Agent 다단계 todo — 채팅에서 진행 트리 업데이트 (Planner 서브 Agent 없음)",
         "structured_clarify": "의도가 불명확할 때 구조화 양식으로 확인 — 응답할 때까지 Agent 일시 정지",
         "external_cli": "delegate_to_agent로 외부 CLI Agent(Claude Code, Codex, Gemini CLI 등)에 코딩 작업 위임",
         "skill_market": "채팅에서 외부 스킬 마켓 검색 및 설치",
         "skill_manage": "에이전트가 채팅에서 스킬을 생성·수정·삭제할 수 있습니다. 켜면 작업 후 검토용 스킬 초안이 제안될 수 있습니다. /learn은 항상 이 기능을 활성화합니다."
       },
-      "renderUiWebOnlyHint": "인라인 UI는 Web 채팅과 데스크톱 앱에서만 렌더링됩니다. Telegram, 예약 작업 및 기타 채널에서는 인라인 양식이나 차트를 표시할 수 없습니다.",
       "externalCliSetupHint": "두 단계: (1) 설정 → 개발자 → 외부 Agent에서 CLI 백엔드 추가; (2) 이 스위치를 켜 두어 이 Agent가 코딩 작업을 외부 CLI에 위임하도록 합니다.",
       "externalCliLocalOnlyHint": "외부 CLI 위임은 로컬 또는 데스크톱 모드가 필요합니다. 클라우드/샌드박스에서는 로컬 CLI를 실행할 수 없습니다.",
       "externalCliNoBackendHint": "CLI 백엔드가 아직 구성되지 않았습니다. 설정에서 추가한 후 활성화하세요.",
@@ -1750,19 +1747,6 @@
       "moreContextTitle": "마운트된 컨텍스트 및 기능"
     },
     "uploadFailed": "업로드에 실패했습니다",
-    "jumpBar": {
-      "ariaLabel": "대화 탐색",
-      "title": "메시지 탐색",
-      "jumpTo": "메시지로 이동",
-      "turnTitle": "턴 {turn}",
-      "loaded": "로드됨",
-      "unloaded": "Not loaded · Click to fetch and locate",
-      "loading": "턴 메시지 로딩 중...",
-      "userPrefix": "사용자: ",
-      "assistantPrefix": "어시스턴트: ",
-      "fullTimeline": "세션 타임라인",
-      "turnCount": "총 {count}개 턴"
-    },
     "newChat": "새 채팅",
     "placeholder": "무엇이든 물어보세요...",
     "uploading": "업로드 중...",
@@ -3026,11 +3010,6 @@
       "assistantReply": "답변",
       "jumpToTurn": "{index}번째 턴으로 이동"
     },
-    "timeline": {
-      "loaded": "로드됨",
-      "lazyLoad": "클릭하여 턴 로드",
-      "noPrompt": "프롬프트 내용 없음"
-    },
     "spillover": {
       "notice": "긴 텍스트({chars}자)가 감지되었습니다. 컨텍스트 정리를 위해 워크스페이스 파일로 자동 오버플로됩니다.",
       "optimized": "보호됨"
@@ -3640,8 +3619,6 @@
     "image_tool_tool_error": "이미지 생성 실패",
     "video_tool_tool": "비디오 생성 중",
     "video_tool_tool_error": "비디오 생성 실패",
-    "render_ui_tool_tool": "대화형 UI 생성 중",
-    "render_ui_tool_tool_error": "UI 생성 실패",
     "bash_code_execute_tool_tool": "코드 실행 중",
     "bash_code_execute_tool_tool_error": "코드 실행 실패",
     "text_editor_tool_tool": "파일 편집 중",
@@ -3780,8 +3757,6 @@
     "wiki_knowledge_lane_clear": "위키 답변 준비됨",
     "moa_overlay_active": "어드바이저 오버레이 팬아웃 진행 중",
     "moa_ref_done": "어드바이저 참조 완료",
-    "update_ui_data_tool_tool": "대화형 UI 데이터 업데이트 중",
-    "update_ui_data_tool_tool_error": "UI 데이터 업데이트 실패",
     "copied": "복사되었습니다!",
     "copy": "복사",
     "viewStepDetail": "단계 상세 보기",
@@ -18860,7 +18835,10 @@
           "globalAgentSet": "전역 Agent가 설정되었습니다",
           "replyModeUpdated": "답장 모드가 업데이트되었습니다",
           "draftTimeoutUpdated": "초안 시간 초과 설정이 업데이트되었습니다",
-          "workspaceBound": "작업 공간이 성공적으로 바인딩되었습니다"
+          "workspaceBound": "작업 공간이 성공적으로 바인딩되었습니다",
+          "identityUpdated": "팀 정보가 업데이트되었습니다",
+          "identityRevoked": "팀 정보가 동결되었습니다",
+          "identityRestored": "팀 정보가 복원되었습니다"
         },
         "errors": {
           "initialLoad": "채널 또는 Agent를 불러오지 못했습니다",
@@ -18870,7 +18848,8 @@
           "globalAgent": "전역 Agent 설정에 실패했습니다",
           "replyMode": "답장 모드 설정 실패",
           "draftTimeout": "초안 시간 초과 업데이트 실패",
-          "workspaceBind": "작업 공간 바인딩 실패"
+          "workspaceBind": "작업 공간 바인딩 실패",
+          "identity": "팀 정보 업데이트 실패"
         },
         "threadSharing": {
           "label": "스레드 공유 모드",
@@ -18894,6 +18873,17 @@
           "onExpiry": "만료 시",
           "autoReject": "초안 폐기",
           "autoSend": "자동 전송"
+        },
+        "identity": {
+          "label": "팀 아이덴티티",
+          "tooltip": "이 채팅에 공유 이름을 지정해 모두가 같은 상대와 대화합니다. 이름은 표시용이며 권한과 기억은 이 채팅 범위로 제한됩니다.",
+          "namePlaceholder": "이름 지정…",
+          "inherit": "상속",
+          "shared": "공유",
+          "private": "독립",
+          "revoke": "동결",
+          "restore": "복원",
+          "revokedBadge": "동결됨"
         }
       }
     },

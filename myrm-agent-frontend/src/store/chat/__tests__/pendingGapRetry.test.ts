@@ -48,9 +48,9 @@ describe('pendingGapRetry', () => {
     mockState.pendingGapRetry = {
       kind: 'capability',
       text: 'deploy staging form',
-      toolId: 'render_ui',
+      toolId: 'cron',
     };
-    mockState.currentBuiltinTools = ['web_search', 'memory', 'render_ui'];
+    mockState.currentBuiltinTools = ['web_search', 'memory', 'cron'];
 
     const flushed = await flushPendingGapRetry();
 
@@ -63,10 +63,10 @@ describe('pendingGapRetry', () => {
     mockState.pendingGapRetry = {
       kind: 'capability',
       text: 'deploy staging form',
-      toolId: 'render_ui',
+      toolId: 'cron',
     };
     mockState.loading = true;
-    mockState.currentBuiltinTools = ['web_search', 'memory', 'render_ui'];
+    mockState.currentBuiltinTools = ['web_search', 'memory', 'cron'];
 
     const flushed = await flushPendingGapRetry();
 
@@ -91,9 +91,9 @@ describe('pendingGapRetry', () => {
     mockState.pendingGapRetry = {
       kind: 'capability',
       text: 'deploy staging form',
-      toolId: 'render_ui',
+      toolId: 'cron',
     };
-    mockState.currentBuiltinTools = ['web_search', 'memory', 'render_ui'];
+    mockState.currentBuiltinTools = ['web_search', 'memory', 'cron'];
 
     scheduleFlushPendingGapRetry();
     await Promise.resolve();

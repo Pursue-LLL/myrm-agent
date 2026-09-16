@@ -204,6 +204,15 @@ async function ensureProvidersFromEnv(existingConfig) {
     return { patched: false, reason: 'no_provider_env' };
   }
 
+  const basePrimary = basicEntry
+    ? { providerId: basicEntry.id, model: basicEntry.enabledModels[0] }
+    : null;
+  const existingBasePrimary = config?.defaultModelConfig?.baseModel?.primary;
+  const basePrimaryMatches =
+    !basePrimary ||
+    (existingBasePrimary?.providerId === basePrimary.providerId &&
+      existingBasePrimary?.model === basePrimary.model);
+
   const litePrimary = config?.defaultModelConfig?.liteModel?.primary;
   const expectedProviderId = liteModelRaw ? inferProviderId(liteModelRaw) : null;
   const expectedModelId = liteModelRaw ? stripProviderPrefix(liteModelRaw) : null;
@@ -238,7 +247,7 @@ async function ensureProvidersFromEnv(existingConfig) {
     (basicEntry && providerEndpointDrift(existingBasic, basicEntry)) ||
     (liteEntry && providerEndpointDrift(existingLite, liteEntry));
 
-  if (primaryMatches && !providerChanged && !endpointDrift) {
+  if (basePrimaryMatches && primaryMatches && !providerChanged && !endpointDrift) {
     return {
       patched: false,
       reason: 'providers_already_configured',
@@ -249,6 +258,15 @@ async function ensureProvidersFromEnv(existingConfig) {
 
   const defaultModelConfig = {
     ...(config.defaultModelConfig ?? {}),
+    ...(basePrimary
+      ? {
+          baseModel: {
+            ...(config.defaultModelConfig?.baseModel ?? {}),
+            primary: basePrimary,
+            fallback: null,
+          },
+        }
+      : {}),
     ...(liteEntry
       ? {
           liteModel: {

@@ -1480,29 +1480,31 @@ def chat_browser_gate_from_api(
                 break
         if last_tool:
             break
-    takeover_pending = last_tool.endswith("browser_ask_human_tool")
-    if not takeover_pending:
-        try:
-            payload = _e2e_api_get_json(
-                f"{resolved_api}/api/v1/approvals?limit=50&offset=0",
-                timeout_sec=10.0,
-            )
-            records = payload.get("approvals") if isinstance(payload, dict) else None
-            if isinstance(records, list):
-                for raw in records:
-                    if not isinstance(raw, dict):
-                        continue
-                    if (
-                        raw.get("action_type") == "browser_takeover"
-                        and raw.get("status") == "PENDING"
-                        and str(raw.get("chat_id") or "") == normalized
-                    ):
-                        takeover_pending = True
-                        if not last_tool:
-                            last_tool = "browser_ask_human_tool"
-                        break
-        except (OSError, TimeoutError, urllib.error.URLError, ValueError):
-            pass
+    # `lastTool` is display-only context. The tool *name* proves nothing: a call that
+    # raised still lands in progressSteps. `takeoverPending` must come from the approval
+    # ledger, which only records a row when the turn actually parked on the interrupt.
+    takeover_pending = False
+    try:
+        payload = _e2e_api_get_json(
+            f"{resolved_api}/api/v1/approvals?limit=50&offset=0",
+            timeout_sec=10.0,
+        )
+        records = payload.get("approvals") if isinstance(payload, dict) else None
+        if isinstance(records, list):
+            for raw in records:
+                if not isinstance(raw, dict):
+                    continue
+                if (
+                    raw.get("action_type") == "browser_takeover"
+                    and raw.get("status") == "PENDING"
+                    and str(raw.get("chat_id") or "") == normalized
+                ):
+                    takeover_pending = True
+                    if not last_tool:
+                        last_tool = "browser_ask_human_tool"
+                    break
+    except (OSError, TimeoutError, urllib.error.URLError, ValueError):
+        pass
     return {
         "lastTool": last_tool,
         "takeoverPending": takeover_pending,

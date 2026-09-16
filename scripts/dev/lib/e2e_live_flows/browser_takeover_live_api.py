@@ -19,26 +19,24 @@ def cancel_chat_via_api(*, api_base: str, chat_id: str) -> bool:
     )
     req = urllib.request.Request(url, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=15.0) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=15.0) as resp:
             return 200 <= resp.status < 300
     except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            return True
-        return False
+        return exc.code == 404
     except (OSError, urllib.error.URLError):
         return False
 
 
 def reset_hitl_runtime_via_api(*, api_base: str) -> bool:
     url = f"{api_base.rstrip('/')}/api/v1/security/allowlist/test/reset-hitl-runtime"
-    req = urllib.request.Request(  # noqa: S310
+    req = urllib.request.Request(
         url,
         data=b"{}",
         method="POST",
         headers={"Content-Type": "application/json", "Accept": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=15.0) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=15.0) as resp:
             return 200 <= resp.status < 300
     except (OSError, urllib.error.URLError, urllib.error.HTTPError):
         return False
@@ -75,7 +73,7 @@ def resume_via_api(
     resume_msg_id: str | None = None
     line_count = 0
     try:
-        resp = urllib.request.urlopen(req, timeout=timeout_sec)  # noqa: S310
+        resp = urllib.request.urlopen(req, timeout=timeout_sec)
         if resp.status != 200:
             return {"ok": False, "error": f"HTTP {resp.status}"}
         print(f"E2E_RESUME_SSE: connected, status={resp.status}", flush=True)
@@ -171,7 +169,7 @@ def resume_via_api(
         body = exc.read(512).decode(errors="replace")
         print(f"E2E_RESUME_API: HTTP {exc.code} — {body}", flush=True)
         return {"ok": False, "error": f"HTTP {exc.code}: {body}"}
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — SSE transport surfaces many layers (urllib, http.client, socket); this path is the last-resort resilience branch
         if collected_text and _SSE_DONE_RE.search(collected_text):
             return {"ok": True, "done": True, "text_sample": collected_text[:200]}
         print(f"E2E_RESUME_API: {type(exc).__name__}: {exc}", flush=True)

@@ -100,7 +100,7 @@ export function MobileStatusMessageBody({
           <div className="p-2">
             <ProgressSteps
               messageId={lastAssistantMessage.messageId}
-              steps={lastAssistantMessage.progressSteps!}
+              steps={lastAssistantMessage.progressSteps ?? []}
               loading={loading}
             />
           </div>
@@ -151,7 +151,9 @@ export function MobileStatusMessageBody({
           </div>
           <div className="p-3">
             <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap line-clamp-6">
-              {lastAssistantMessage.thinkingItems![lastAssistantMessage.thinkingItems!.length - 1]}
+              {lastAssistantMessage.thinkingItems && lastAssistantMessage.thinkingItems.length > 0
+                ? lastAssistantMessage.thinkingItems[lastAssistantMessage.thinkingItems.length - 1]
+                : ''}
             </p>
           </div>
         </div>

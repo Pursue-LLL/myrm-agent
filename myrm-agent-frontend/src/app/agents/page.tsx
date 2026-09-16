@@ -5,6 +5,7 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { AgentAvatar } from '@/components/agent/AgentAvatar';
 import { AgentEditForm } from '@/components/agent/AgentEditForm';
+import { GovernancePanel } from '@/components/agent/GovernancePanel';
 import { Button } from '@/components/primitives/button';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { Plus, Settings, Trash2, MessageSquare, Clock, ShieldAlert, Activity, Coins, Zap, Layers } from 'lucide-react';
@@ -54,6 +55,19 @@ export default function AgentsPage() {
   const agents = response?.items || EMPTY_AGENTS;
   const kpi = fleetData?.kpi;
   const agentStatsMap = fleetData?.agents || EMPTY_AGENT_STATS;
+
+  const agentNames = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const a of agents) {
+      map[a.id] = a.name;
+    }
+    return map;
+  }, [agents]);
+
+  const handleReview = (agentId: string) => {
+    setEditingAgentId(agentId);
+    setIsEditFormOpen(true);
+  };
 
   const sortedAgents = useMemo(() => {
     if (!agents.length) {
@@ -120,6 +134,8 @@ export default function AgentsPage() {
       </div>
 
       {kpi && <FleetKPIBar kpi={kpi} />}
+
+      <GovernancePanel agentNames={agentNames} onReview={handleReview} onChanged={mutate} />
 
       {error ? (
         <div className="p-4 rounded-xl border bg-destructive/10 text-destructive">

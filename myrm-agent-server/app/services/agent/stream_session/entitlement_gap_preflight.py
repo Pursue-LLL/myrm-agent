@@ -1,20 +1,17 @@
 """Entitlement gap preflight — emit capability_gap SSE before Agent execution.
 
 [INPUT]
-- myrm_agent_harness.agent.meta_tools.discover_capability.capability_gap::detect_capability_gap (POS: entitlement gap detection SSOT)
+- (none — self-contained; reads no harness capability-gap registry)
 
 [OUTPUT]
-- build_entitlement_gap_sse_event: surface-unavailable capability_gap only (substring enable-and-resend removed)
 - build_web_search_config_gap_sse_event: SSE when web_search profile on but API missing/unreachable
-- build_surface_unavailable_dedup_key: stable tracker key for IM/Web surface-unavailable toasts
-- resolve_surface_unavailable_display_message: localized surface-unavailable copy (SSE + IM)
 - resolve_web_search_config_gap_display_message: localized web_search config gap copy (IM fallback)
 - CapabilityGapEmissionTracker: per-chat cooldown dedup for gap toasts
 - get_capability_gap_emission_tracker: shared process-wide dedup tracker accessor
 - reset_capability_gap_emission_tracker: test-only tracker reset
 
 [POS]
-Scans the user message against CAPABILITY_GAP_REGISTRY before the harness stream loop.
+Emits capability_gap SSE for web_search configuration gaps before the harness stream loop.
 Does not modify Turn1 tool bindings or prompt cache.
 """
 
@@ -26,7 +23,6 @@ from threading import Lock
 
 _MAX_TRACKED_CHATS = 4096
 _GAP_TOAST_COOLDOWN_SECONDS = 900.0
-_SURFACE_UNAVAILABLE_DEDUP_SUFFIX = "surface_unavailable"
 _SEARCH_NOT_CONFIGURED_MESSAGES: dict[str, str] = {
     "en": "Web search is enabled but no search API is configured. Add a provider in Settings.",
     "zh": "已开启网页搜索，但未配置搜索 API。请前往设置添加搜索服务。",
@@ -36,25 +32,6 @@ _SEARCH_UNREACHABLE_MESSAGES: dict[str, str] = {
     "zh": "已开启网页搜索，但配置的搜索服务不可用。请检查设置中的搜索服务。",
 }
 _SEARCH_SETTINGS_PATH = "/settings/search"
-_SURFACE_UNAVAILABLE_MESSAGES: dict[str, str] = {
-    "en": (
-        "Inline interactive UI renders only in Web Chat and the desktop app. "
-        "Telegram, scheduled tasks, and other channels cannot display inline forms or charts."
-    ),
-    "zh": "交互式 UI 仅在 Web 对话与桌面客户端内渲染；Telegram、定时任务等渠道无法显示内联表单或图表。",
-}
-
-
-def build_surface_unavailable_dedup_key(tool_id: str = "render_ui") -> str:
-    """Return tracker key for surface-unavailable gap toasts."""
-    return f"{tool_id}:{_SURFACE_UNAVAILABLE_DEDUP_SUFFIX}"
-
-
-def resolve_surface_unavailable_display_message(locale: str | None) -> str:
-    """Return localized surface-unavailable copy for SSE and channel progress."""
-    if locale and locale.lower().startswith("zh"):
-        return _SURFACE_UNAVAILABLE_MESSAGES["zh"]
-    return _SURFACE_UNAVAILABLE_MESSAGES["en"]
 
 
 class CapabilityGapEmissionTracker:
@@ -115,19 +92,6 @@ def get_capability_gap_emission_tracker() -> CapabilityGapEmissionTracker:
     return _gap_emission_tracker
 
 
-def _build_surface_unavailable_sse_event(
-    *,
-    message_id: str,
-    user_text: str,
-    active_tool_groups: frozenset[str],
-    chat_id: str | None,
-    channel_name: str,
-    client_surface: str | None,
-    locale: str | None,
-) -> dict[str, object] | None:
-    return None
-
-
 def _resolve_web_search_config_message(*, reason: str, locale: str | None) -> str:
     is_zh = bool(locale and locale.lower().startswith("zh"))
     if reason == "unreachable":
@@ -168,47 +132,3 @@ def build_web_search_config_gap_sse_event(
             "settings_path": _SEARCH_SETTINGS_PATH,
         },
     }
-
-
-def build_surface_unavailable_gap_sse_event(
-    *,
-    message_id: str,
-    user_text: str,
-    active_tool_groups: frozenset[str],
-    chat_id: str | None,
-    channel_name: str = "web_chat",
-    client_surface: str | None = None,
-    locale: str | None = None,
-) -> dict[str, object] | None:
-    """Emit info-only capability_gap when render_ui is on but the channel cannot mount inline UI."""
-    return _build_surface_unavailable_sse_event(
-        message_id=message_id,
-        user_text=user_text,
-        active_tool_groups=active_tool_groups,
-        chat_id=chat_id,
-        channel_name=channel_name,
-        client_surface=client_surface,
-        locale=locale,
-    )
-
-
-def build_entitlement_gap_sse_event(
-    *,
-    message_id: str,
-    user_text: str,
-    active_tool_groups: frozenset[str],
-    chat_id: str | None,
-    channel_name: str = "web_chat",
-    client_surface: str | None = None,
-    locale: str | None = None,
-) -> dict[str, object] | None:
-    """Build a capability_gap SSE payload for surface-unavailable preflight only."""
-    return _build_surface_unavailable_sse_event(
-        message_id=message_id,
-        user_text=user_text,
-        active_tool_groups=active_tool_groups,
-        chat_id=chat_id,
-        channel_name=channel_name,
-        client_surface=client_surface,
-        locale=locale,
-    )

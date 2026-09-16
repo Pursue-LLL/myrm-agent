@@ -30,7 +30,7 @@ describe('multiplexChunkBridge', () => {
     const controller = new AbortController();
     const bridge = createMultiplexChunkBridge('msg_early_gap', controller.signal);
 
-    emitMultiplexChunk('msg_early_gap', 'data: {"type":"capability_gap","data":{"tool_id":"render_ui"}}\n\n');
+    emitMultiplexChunk('msg_early_gap', 'data: {"type":"capability_gap","data":{"tool_id":"cron"}}\n\n');
 
     const received: string[] = [];
     const buffered = bridge.attachConsumer((chunk) => {

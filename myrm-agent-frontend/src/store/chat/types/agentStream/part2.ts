@@ -138,7 +138,13 @@ export interface MessageEndStreamEvent extends BaseAgentEvent {
   wu_consumed?: number;
   context_budget?: ContextBudget;
   citations?: string[];
-  memoryBudget?: { used: number; total: number };
+  memoryBudget?: {
+    used: number;
+    total: number;
+    rulesConfigured?: number;
+    rulesInjected?: number;
+    rulesTruncated?: boolean;
+  };
   memory_brief_snapshot_id?: string;
   memory_brief_status?: MemoryBriefStatus;
   goal_status?: GoalStatusPayload;

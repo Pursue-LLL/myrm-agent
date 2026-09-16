@@ -163,11 +163,13 @@ export function MobileActionSheet({ open, onClose, title, entries, footer }: Mob
   return createPortal(
     <>
       {/* Backdrop */}
-      <div
+      <button
+        type="button"
         className={cn(
-          'fixed inset-0 z-[1100] bg-black/40 transition-opacity duration-200',
+          'fixed inset-0 z-[1100] bg-black/40 transition-opacity duration-200 border-0',
           visible ? 'opacity-100' : 'opacity-0 pointer-events-none',
         )}
+        aria-label="Close"
         onClick={onClose}
       />
       {/* Sheet */}
@@ -179,9 +181,7 @@ export function MobileActionSheet({ open, onClose, title, entries, footer }: Mob
           'myrm-safe-bottom-fallback',
           visible ? 'translate-y-0' : 'translate-y-full',
         )}
-        role="dialog"
         aria-modal="true"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Handle bar */}
         <div className="mx-auto mt-2 mb-1 h-1 w-9 shrink-0 rounded-full bg-muted-foreground/30" />

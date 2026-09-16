@@ -114,8 +114,8 @@ describe('gapEvents', () => {
     toastSuccess.mockClear();
   });
 
-  it('ignores bare capability_gap without factual reason (enable-and-resend removed)', async () => {
-    const result = await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'render_ui' }));
+  it('ignores capability_gap for unknown tool ids', async () => {
+    const result = await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'retired_tool' }));
     expect(result).toBeNull();
     expect(toastInfo).not.toHaveBeenCalled();
     expect(setPendingGapRetry).not.toHaveBeenCalled();

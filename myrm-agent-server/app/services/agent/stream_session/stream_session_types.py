@@ -46,7 +46,6 @@ class AgentStreamSession:
     had_fatal_error: bool = field(default=False)
     turn_capability_terminal_recorded: bool = field(default=False)
     disconnect_time: float | None = field(default=None)
-    entitlement_preflight_text: str | None = field(default=None)
     migration_live_readiness_status: Literal["ready", "warning", "critical"] | None = field(default=None)
     pre_reply_compact_result: CompactResult | None = field(default=None)
     pre_reply_compact_sse_sent: bool = field(default=False)

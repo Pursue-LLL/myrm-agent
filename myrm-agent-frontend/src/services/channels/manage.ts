@@ -243,6 +243,8 @@ export type ThreadSharingMode = 'isolated' | 'shared';
 export type ReplyMode = 'auto' | 'draft_review';
 export type DraftTimeoutAction = 'auto_send' | 'auto_reject';
 
+export type IdentityScopeMode = 'inherit' | 'shared' | 'private';
+
 export interface TopicBinding {
   topicId: string;
   agentId: string | null;
@@ -255,6 +257,16 @@ export interface TopicBinding {
   replyMode: ReplyMode;
   draftTimeoutMinutes: number;
   draftTimeoutAction: DraftTimeoutAction;
+  identityScope: IdentityScopeMode;
+  identityId: string | null;
+  identityName: string | null;
+  identityRevoked: boolean;
+}
+
+export interface TopicIdentityOptions {
+  identityName?: string | null;
+  identityScope?: IdentityScopeMode;
+  identityRevoked?: boolean;
 }
 
 export interface TopicWorkspaceBindOptions {
@@ -281,6 +293,7 @@ export async function bindTopicAgent(
   draftTimeoutMinutes?: number,
   draftTimeoutAction?: DraftTimeoutAction,
   workspace?: TopicWorkspaceBindOptions,
+  identity?: TopicIdentityOptions,
 ): Promise<void> {
   const body: Record<string, unknown> = {
     agentId,
@@ -294,6 +307,17 @@ export async function bindTopicAgent(
   }
   if (workspace && Object.prototype.hasOwnProperty.call(workspace, 'authorizedPath')) {
     body.authorizedPath = workspace.authorizedPath;
+  }
+  if (identity) {
+    if (Object.prototype.hasOwnProperty.call(identity, 'identityName')) {
+      body.identityName = identity.identityName;
+    }
+    if (identity.identityScope) {
+      body.identityScope = identity.identityScope;
+    }
+    if (typeof identity.identityRevoked === 'boolean') {
+      body.identityRevoked = identity.identityRevoked;
+    }
   }
   return apiRequest(`/channels/manage/${channel}/topics/${encodeURIComponent(topicId)}/bind`, {
     method: 'POST',

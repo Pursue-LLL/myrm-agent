@@ -12,7 +12,10 @@
 ```
 app/config/subagents/
 ├── _ARCH.md
-├── core/          # adversarial-reviewer.yaml, analysis.yaml, browser.yaml, coding.yaml, deep-audit.yaml, search.yaml
+├── core/          # adversarial-reviewer.yaml, analysis.yaml, browser.yaml, coding.yaml, deep-audit.yaml,
+│   │              # deep-audit.yaml 同级另有 structure-planner.yaml, layout-designer.yaml, format-verifier.yaml
+│   │              # （完整清单见 core/_ARCH.md）
+│   │              # adversarial-reviewer.yaml, analysis.yaml, browser.yaml, coding.yaml, deep-audit.yaml, search.yaml,
 └── custom/        # 用户覆盖（example.yaml.template）
 ```
 

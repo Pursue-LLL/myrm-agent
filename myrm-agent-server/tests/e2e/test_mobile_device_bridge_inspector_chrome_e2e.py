@@ -62,7 +62,7 @@ _VERIFY_DEVICE_STORE_AND_PANEL_JS = """(() => {
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="READ",
+    access_scope="GLOBAL_WRITE",
     workload="STANDARD",
     private_reason="exclusive_backend",
 )

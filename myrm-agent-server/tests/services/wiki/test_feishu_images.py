@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 
-from app.services.wiki.source_sync.feishu import _localize_feishu_images
+from app.services.wiki.source_sync.feishu.feishu import _localize_feishu_images
 
 
 async def _fake_client(images: dict[str, bytes | None]) -> Any:

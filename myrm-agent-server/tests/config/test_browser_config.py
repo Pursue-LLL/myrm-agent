@@ -33,6 +33,37 @@ class TestGetBrowserPoolConfig:
             config = get_browser_pool_config()
             assert config.cdp_endpoint == "http://127.0.0.1:9333"
 
+    def test_e2e_bound_run_uses_e2e_endpoint_over_cdp_port(self) -> None:
+        """The E2E binding wins over CDP_PORT.
+
+        Regression: resolution read ``CDP_PORT`` first and never consulted the E2E
+        binding, so a stale user-Chrome port could win and the pool attached to the wrong
+        browser (no usable page → takeover tool failed while the test still passed).
+        """
+        with (
+            patch("app.config.browser.is_local_mode", return_value=True),
+            patch.dict(
+                "os.environ",
+                {"CDP_PORT": "9222", "MYRM_CHROME_E2E": "1", "MYRM_CHROME_E2E_PORT": "9333"},
+            ),
+        ):
+            config = get_browser_pool_config()
+            assert config.cdp_endpoint == "http://127.0.0.1:9333"
+
+    def test_port_env_binds_e2e_without_the_switch(self) -> None:
+        """``MYRM_CHROME_E2E_PORT`` alone is ownership intent.
+
+        The E2E toolchain exports this port (via ``apply_browser_pool_env``) and never
+        exports ``MYRM_CHROME_E2E``, so requiring the switch would leave the pool free to
+        attach to a developer's own Chrome. Its presence is therefore sufficient to bind.
+        """
+        with (
+            patch("app.config.browser.is_local_mode", return_value=True),
+            patch.dict("os.environ", {"MYRM_CHROME_E2E_PORT": "9333"}, clear=True),
+        ):
+            config = get_browser_pool_config()
+            assert config.cdp_endpoint == "http://127.0.0.1:9333"
+
     def test_sandbox_mode_returns_launch_mode(self) -> None:
         with patch("app.config.browser.is_local_mode", return_value=False):
             config = get_browser_pool_config()

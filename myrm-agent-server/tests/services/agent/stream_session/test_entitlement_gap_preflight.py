@@ -13,7 +13,6 @@ from app.ai_agents.general_agent.active_tool_groups import (
 )
 from app.services.agent.stream_session.entitlement_gap_preflight import (
     CapabilityGapEmissionTracker,
-    build_entitlement_gap_sse_event,
     build_web_search_config_gap_sse_event,
     reset_capability_gap_emission_tracker,
 )
@@ -52,18 +51,6 @@ def test_derive_active_tool_groups_from_params_maps_media_fields() -> None:
         _params(image_generation=object()),
     )
     assert "image_generation" in groups
-
-
-def test_build_entitlement_gap_sse_event_always_none() -> None:
-    """Preflight returns None as dead surface-gap paths have been pruned."""
-    event = build_entitlement_gap_sse_event(
-        message_id="msg-1",
-        user_text="帮我填表准备 staging 部署配置",
-        active_tool_groups=derive_active_tool_groups_from_params(_params()),
-        chat_id="chat-1",
-        channel_name="telegram",
-    )
-    assert event is None
 
 
 def test_capability_gap_emission_tracker_re_emits_after_cooldown(

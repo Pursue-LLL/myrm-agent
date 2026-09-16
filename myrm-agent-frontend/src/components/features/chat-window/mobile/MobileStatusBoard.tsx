@@ -28,6 +28,8 @@ import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { MobileStatusApprovalsSection } from './MobileStatusApprovalsSection';
 import { MobileStatusMessageBody } from './MobileStatusMessageBody';
 import { MobilePushDiscoveryBanner } from './MobilePushDiscoveryBanner';
+import { MobileQuickControlAccessoryToolbar } from './MobileQuickControlAccessoryToolbar';
+import { useMobilePromptHistory } from './useMobilePromptHistory';
 import RunStatusChip from '@/components/features/copilot/RunStatusChip';
 import SessionAdvisorPanel from '@/components/features/copilot/SessionAdvisorPanel';
 
@@ -62,6 +64,14 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const e2ee = useE2EEStatus();
   const { plan } = usePlanStore();
   const activeGoal = useGoalStore((s) => s.activeGoal);
+
+  const {
+    historyCount,
+    currentIndex: historyCurrentIndex,
+    pushHistory,
+    navigatePrevious,
+    resetNavigation,
+  } = useMobilePromptHistory(chatId);
 
   useGoalPlanSync(chatId);
 
@@ -154,15 +164,30 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
       setAdvisorQuestion(askMatch[1]?.trim() ?? '');
       setAdvisorOpen(true);
       setQuickInput('');
+      resetNavigation();
       return;
     }
+    pushHistory(text);
     if (loading) {
       steerMessage(text);
     } else {
       sendMessage(text);
     }
     setQuickInput('');
-  }, [quickInput, sendMessage, steerMessage, loading]);
+    resetNavigation();
+  }, [quickInput, sendMessage, steerMessage, loading, pushHistory, resetNavigation]);
+
+  const handleNavigateHistory = useCallback(() => {
+    const prev = navigatePrevious(quickInput);
+    if (prev !== null) {
+      setQuickInput(prev);
+    }
+  }, [navigatePrevious, quickInput]);
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const handleRequestFocusInput = useCallback(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const handleOpenFullConversation = useCallback(() => {
     router.push(`/${chatId}`);
@@ -272,7 +297,30 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
       </div>
 
       <div className="border-t bg-background/80 backdrop-blur-md pb-safe">
-        <div className="p-3 flex items-center gap-2">
+        <MobileQuickControlAccessoryToolbar
+          chatId={chatId}
+          historyCount={historyCount}
+          historyCurrentIndex={historyCurrentIndex}
+          currentValue={quickInput}
+          onNavigateHistory={handleNavigateHistory}
+          onRequestFocusInput={handleRequestFocusInput}
+          onPasteText={(text) => {
+            setQuickInput((prev) => (prev ? `${prev} ${text}` : text));
+          }}
+          onOpenAdvisor={() => {
+            setAdvisorQuestion('');
+            setAdvisorOpen(true);
+          }}
+          onClearInput={() => {
+            const trimmed = quickInput.trim();
+            if (trimmed.length > 3) {
+              pushHistory(trimmed);
+            }
+            setQuickInput('');
+            resetNavigation();
+          }}
+        />
+        <div className="p-3 pt-1.5 flex items-center gap-2">
           <SpeechInputButton
             mode="push-to-talk"
             onTranscript={(text) => {
@@ -280,14 +328,17 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
               if (!trimmed) {
                 return;
               }
+              pushHistory(trimmed);
               if (loading) {
                 steerMessage(trimmed);
               } else {
                 sendMessage(trimmed);
               }
+              resetNavigation();
             }}
           />
           <input
+            ref={inputRef}
             type="text"
             value={quickInput}
             onChange={(e) => setQuickInput(e.target.value)}

@@ -25,3 +25,4 @@ Agent 产品 HTTP 层：用户自定义智能体 CRUD、GeneralAgent 流式对�
 | `templates.py` | 模块 | Agent template catalog and factory. | ✅ |
 | `profile_audit.py` | 模块 | Agent Profile security audit: POST /{agent_id}/audit — deterministic risk scoring via harness profile_audit engine. | ✅ |
 | `readiness.py` | 模块 | Per-agent readiness dry-run: GET /{agent_id}/readiness + POST /{agent_id}/readiness/invalidate — 6-dimension config readiness check. | ✅ |
+| `governance.py` | 模块 | Responsibility-unit governance: GET /governance/overview（孤儿/重叠只读巡检，零 LLM）+ POST /governance/merge/dry-run + POST /governance/merge/execute（快照→并配置→重绑定时/渠道→删来源复用级联）。 | ✅ |

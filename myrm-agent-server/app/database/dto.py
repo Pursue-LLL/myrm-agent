@@ -548,6 +548,21 @@ class AgentBase(BaseModel):
     )
     a2a_enabled: bool = Field(default=False, description="是否启用 A2A (Agent-to-Agent) 协议与远程编排能力")
     a2a_trusted_peer_ids: list[str] = Field(default_factory=list, description="该 Agent 授权使用的可信远程 A2A Peer ID 列表")
+    responsibility_scope: str | None = Field(
+        None,
+        description="责任单元职责定义：该 Agent 长期负责什么（治理展示用，不进入系统提示词）",
+        max_length=2000,
+    )
+    owner_label: str | None = Field(
+        None,
+        description="责任单元负责人标注（单机默认本人免填；云托管/分享时必填）",
+        max_length=100,
+    )
+    acceptance_criteria: list[str] | None = Field(
+        None,
+        description="责任单元交付验收条目（结构化可勾选，非自由文本）",
+        max_length=20,
+    )
 
 
 class AgentCreate(AgentBase):
@@ -665,6 +680,21 @@ class AgentUpdate(BaseModel):
     a2a_enabled: bool | None = Field(None, description="是否启用 A2A 协议与远程编排能力。None=不修改。")
     a2a_trusted_peer_ids: list[str] | None = Field(
         None, description="该 Agent 授权使用的可信远程 A2A Peer ID 列表。None=不修改。"
+    )
+    responsibility_scope: str | None = Field(
+        None,
+        description="责任单元职责定义。None=不修改；传空字符串=清空。",
+        max_length=2000,
+    )
+    owner_label: str | None = Field(
+        None,
+        description="责任单元负责人标注。None=不修改；传空字符串=清空。",
+        max_length=100,
+    )
+    acceptance_criteria: list[str] | None = Field(
+        None,
+        description="责任单元交付验收条目。None=不修改；传空列表=清空。",
+        max_length=20,
     )
 
 

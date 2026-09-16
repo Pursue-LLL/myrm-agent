@@ -26,8 +26,25 @@ logger = logging.getLogger(__name__)
 
 
 def _resolve_local_cdp_endpoint() -> str:
-    """Resolve loopback CDP HTTP endpoint for local/connect browser modes."""
-    cdp_port = os.getenv("CDP_PORT") or os.getenv("MYRM_CHROME_E2E_PORT")
+    """Resolve loopback CDP HTTP endpoint for local/connect browser modes.
+
+    Order matters: an E2E-bound run resolves through the same harness SSOT the launcher
+    uses, so the pool config and the launcher can never disagree about which Chrome the
+    run owns. Everything below is the desktop/local path.
+    """
+    try:
+        from myrm_agent_harness.toolkits.browser.pool.chrome_discovery import (
+            resolve_e2e_cdp_endpoint,
+        )
+
+        e2e_endpoint = resolve_e2e_cdp_endpoint()
+        if e2e_endpoint:
+            logger.info("E2E CDP endpoint bound: %s", e2e_endpoint)
+            return e2e_endpoint
+    except ImportError:
+        logger.debug("Harness chrome discovery unavailable; using plain env resolution")
+
+    cdp_port = os.getenv("CDP_PORT")
     if cdp_port:
         return f"http://127.0.0.1:{cdp_port}"
 

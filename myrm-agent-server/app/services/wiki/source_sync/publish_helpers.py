@@ -7,7 +7,7 @@
 - publish_source_markdown / build_frontmatter / sanitize_path_segment helpers
 
 [POS]
-Shared zero-LLM publish helpers for Gmail/RSS/integration mirror ingest paths.
+Shared zero-LLM publish helpers for Feishu/Gmail/GDrive/RSS/Zotero/integration mirror ingest paths.
 """
 
 from __future__ import annotations
@@ -56,7 +56,11 @@ def build_frontmatter(
     external_id: str,
     extra: dict[str, str] | None = None,
 ) -> str:
-    lines = ["---", f'source: "{source}"', f'title: "{title.replace(chr(34), chr(39))}"']
+    lines = [
+        "---",
+        f'source: "{source}"',
+        f'title: "{title.replace(chr(34), chr(39))}"',
+    ]
     if external_id:
         lines.append(f'external_id: "{external_id}"')
     if extra:
@@ -69,5 +73,7 @@ def build_frontmatter(
 
 
 def sanitize_path_segment(value: str) -> str:
-    cleaned = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in value.strip())
+    cleaned = "".join(
+        ch if ch.isalnum() or ch in "-_." else "_" for ch in value.strip()
+    )
     return cleaned[:120] or "item"

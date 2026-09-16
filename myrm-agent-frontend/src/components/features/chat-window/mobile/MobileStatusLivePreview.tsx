@@ -116,19 +116,19 @@ export function MobileStatusLivePreview({
       </div>
 
       {lightboxSrc && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4"
-          onClick={onLightboxClose}
-          role="dialog"
-          aria-modal="true"
-        >
+        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+          <button
+            type="button"
+            className="fixed inset-0 w-full h-full cursor-default bg-transparent border-0"
+            aria-label={t('livePreview')}
+            onClick={onLightboxClose}
+          />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={lightboxSrc}
             alt={t('livePreview')}
-            className="max-w-full max-h-full object-contain rounded-lg"
+            className="relative z-10 max-w-full max-h-full object-contain rounded-lg pointer-events-auto"
             draggable={false}
-            onClick={(e) => e.stopPropagation()}
           />
         </div>
       )}

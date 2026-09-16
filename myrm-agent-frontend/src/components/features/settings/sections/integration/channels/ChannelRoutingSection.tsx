@@ -32,6 +32,8 @@ export default function ChannelRoutingSection() {
     handleBindTopicWorkspace,
     handleSetDraftTimeout,
     handleSetGlobalAgent,
+    handleSetIdentity,
+    handleRevokeIdentity,
     handleSetReplyMode,
     handleSetThreadSharingMode,
     loadingChannels,
@@ -57,6 +59,10 @@ export default function ChannelRoutingSection() {
     globalAgentError: t('errors.globalAgent'),
     workspaceBoundToast: t('toasts.workspaceBound'),
     workspaceBindError: t('errors.workspaceBind'),
+    identityUpdatedToast: t('toasts.identityUpdated'),
+    identityError: t('errors.identity'),
+    identityRevokedToast: t('toasts.identityRevoked'),
+    identityRestoredToast: t('toasts.identityRestored'),
   });
 
   if (loadingChannels) {
@@ -169,6 +175,8 @@ export default function ChannelRoutingSection() {
                               onSetThreadSharingMode={handleSetThreadSharingMode}
                               onSetReplyMode={handleSetReplyMode}
                               onSetDraftTimeout={handleSetDraftTimeout}
+                              onSetIdentity={handleSetIdentity}
+                              onRevokeIdentity={handleRevokeIdentity}
                             />
                           ))}
                         </div>

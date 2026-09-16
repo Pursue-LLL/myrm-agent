@@ -7,46 +7,34 @@
  * - activeViewportTurn?: number | null (POS: 视口当前可见阅读轮次序号，用于阅读罗盘高亮)
  * - onJump: (messageIndex: number) => void (POS: 内存消息索引跳转回调)
  * - onJumpToMessageId?: (messageId: string) => void (POS: 消息 ID 精准定位回调)
- * - onLoadThroughTurn?: (turnIndex: number) => Promise<void> (POS: 目标轮次连续分页拉取驱动器)
+ * - onLoadThroughTurn?: (userMessageId: string) => Promise<boolean> (POS: 目标轮次连续分页拉取驱动器，按用户消息 ID 锚定)
  * - loading?: boolean (POS: 是否正在流式生成)
  * - hasGoalPanel?: boolean (POS: 目标面板是否开启，用于右侧定位偏移)
  *
  * [OUTPUT]
- * - TurnTimelineRail: PC 端固定间距 (10px Fixed-Pitch) 垂直时间线导轨
+ * - TurnTimelineRail: PC 端固定间距 (10px Fixed-Pitch) 垂直时间线导轨（含 Alt+↑/↓ 键盘轮次跳跃）
  * - MobileTurnOutlineSheet: 移动端全景大纲抽屉导航
  *
  * [POS]
  * 长会话全景导航核心组件。支持已加载/未加载双态刻度、In-Flight 流式轮次动态合成、
- * 视口阅读进度实时罗盘联动、以及双帧调度防抖动精准锚定。
+ * 视口阅读进度实时罗盘联动、键盘快捷切换与双帧调度防抖动精准锚定。
  */
 
 'use client';
 
-import React, { useMemo, useRef, useState, useCallback, memo } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback, memo } from 'react';
 import type { Message } from '@/store/chat/types';
 import type { TurnOutlineItem } from '@/services/chat';
 import { cn } from '@/lib/utils/classnameUtils';
-import { stripMarkdown, stripUserMessageDisplayText } from '@/lib/utils/messageUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
-
-/** 最少轮次阈值，超过此值才激活导航栏 */
-const MIN_TURNS_FOR_RAIL = 3;
-
-/** 预览文本截断长度 */
-const FALLBACK_PREVIEW_LIMIT = 60;
-
-export interface RailTurnItem {
-  turnIndex: number;
-  userMessageId: string;
-  assistantMessageId: string | null;
-  promptPreview: string;
-  replyPreview: string | null;
-  isLoaded: boolean;
-  messageIndex: number;
-  isInFlight?: boolean;
-}
+import {
+  MIN_TURNS_FOR_RAIL,
+  calculateRailPitchWidth,
+  normalizeRailItems,
+  type RailTurnItem,
+} from './turnRailModel';
 
 interface TurnTimelineRailProps {
   messages: Message[];
@@ -54,120 +42,9 @@ interface TurnTimelineRailProps {
   activeViewportTurn?: number | null;
   onJump: (messageIndex: number) => void;
   onJumpToMessageId?: (messageId: string) => void;
-  onLoadThroughTurn?: (turnIndex: number) => Promise<void>;
+  onLoadThroughTurn?: (userMessageId: string) => Promise<boolean>;
   loading?: boolean;
   hasGoalPanel?: boolean;
-}
-
-/**
- * 将 turnOutlines 或 messages 归一化为时间线轮次列表
- * 具备 In-Flight 活跃轮次动态合成能力
- */
-function normalizeRailItems(
-  messages: Message[],
-  turnOutlines?: TurnOutlineItem[],
-): RailTurnItem[] {
-  // 建立内存消息 ID 与索引的高速映射
-  const msgIndexMap = new Map<string, number>();
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-    if (msg.messageId) {
-      msgIndexMap.set(String(msg.messageId), i);
-    }
-    if (msg.id) {
-      msgIndexMap.set(String(msg.id), i);
-    }
-  }
-
-  // 模式 1：已存在服务端全局大纲投影（全生命周期视野）
-  if (turnOutlines && turnOutlines.length > 0) {
-    const items: RailTurnItem[] = turnOutlines.map((outline) => {
-      const idx = msgIndexMap.get(outline.user_message_id) ?? -1;
-      return {
-        turnIndex: outline.turn_index,
-        userMessageId: outline.user_message_id,
-        assistantMessageId: outline.assistant_message_id,
-        promptPreview: outline.prompt_preview || '',
-        replyPreview: outline.reply_preview,
-        isLoaded: idx !== -1,
-        messageIndex: idx,
-        isInFlight: false,
-      };
-    });
-
-    // In-Flight 轮次动态合成：补齐尚未持久化落库的最新用户消息
-    const outlineMsgIds = new Set(turnOutlines.map((o) => o.user_message_id));
-    let nextTurnIndex = turnOutlines.length + 1;
-    for (let i = 0; i < messages.length; i++) {
-      const msg = messages[i];
-      const mId = String(msg.messageId || msg.id || '');
-      if (msg.role === 'user' && mId && !outlineMsgIds.has(mId)) {
-        const cleanText = stripMarkdown(stripUserMessageDisplayText(msg.content || ''));
-        items.push({
-          turnIndex: nextTurnIndex++,
-          userMessageId: mId,
-          assistantMessageId: null,
-          promptPreview: cleanText.slice(0, FALLBACK_PREVIEW_LIMIT),
-          replyPreview: null,
-          isLoaded: true,
-          messageIndex: i,
-          isInFlight: true,
-        });
-        outlineMsgIds.add(mId);
-      }
-    }
-
-    return items;
-  }
-
-  // 模式 2：降级方案，从当前内存 messages 提取 user 轮次
-  const fallbackItems: RailTurnItem[] = [];
-  let currentTurn = 0;
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-    if (msg.role === 'user' && msg.content) {
-      currentTurn++;
-      const cleanText = stripMarkdown(stripUserMessageDisplayText(msg.content));
-      const msgId = String(msg.messageId || msg.id || `turn-${currentTurn}`);
-      fallbackItems.push({
-        turnIndex: currentTurn,
-        userMessageId: msgId,
-        assistantMessageId: null,
-        promptPreview: cleanText.slice(0, FALLBACK_PREVIEW_LIMIT),
-        replyPreview: null,
-        isLoaded: true,
-        messageIndex: i,
-        isInFlight: false,
-      });
-    }
-  }
-  return fallbackItems;
-}
-
-/** 动态计算刻度条宽度（悬浮波纹扩散算法） */
-function calculateRailPitchWidth(
-  idx: number,
-  hoverIdx: number,
-  isLoaded: boolean,
-  isActiveViewport: boolean,
-): number {
-  if (isActiveViewport) {
-    return 26;
-  }
-  if (hoverIdx < 0) {
-    return isLoaded ? 14 : 8;
-  }
-  const distance = Math.abs(idx - hoverIdx);
-  if (distance === 0) {
-    return isLoaded ? 32 : 24;
-  }
-  if (distance === 1) {
-    return isLoaded ? 22 : 16;
-  }
-  if (distance === 2) {
-    return isLoaded ? 16 : 10;
-  }
-  return isLoaded ? 14 : 8;
 }
 
 export const TurnTimelineRail = memo<TurnTimelineRailProps>(
@@ -244,11 +121,11 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
           return;
         }
 
-        // 未载入内存：触发 loadThroughTurn 连续分页加载器
+        // 未载入内存：触发 loadThroughTurn 连续分页加载器（按用户消息 ID 精准锚定）
         if (onLoadThroughTurn) {
           try {
             setLoadingTurnIndex(item.turnIndex);
-            await onLoadThroughTurn(item.turnIndex);
+            await onLoadThroughTurn(item.userMessageId);
             if (onJumpToMessageId) {
               onJumpToMessageId(item.userMessageId);
             }
@@ -261,6 +138,36 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
       },
       [loadingTurnIndex, onJump, onJumpToMessageId, onLoadThroughTurn],
     );
+
+    // 键盘轮次跳跃：Alt+↑/↓ 在激活导轨时于相邻轮次间快速移动（复用刻度点击逻辑）
+    useEffect(() => {
+      if (railItems.length < MIN_TURNS_FOR_RAIL) {
+        return;
+      }
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) {
+          return;
+        }
+        e.preventDefault();
+        const order = railItems.map((i) => i.turnIndex);
+        const current = activeViewportTurn ?? railItems[railItems.length - 1].turnIndex;
+        const pos = order.indexOf(current);
+        const nextPos =
+          e.key === 'ArrowUp'
+            ? pos < 0
+              ? order.length - 1
+              : Math.max(0, pos - 1)
+            : pos < 0
+              ? 0
+              : Math.min(order.length - 1, pos + 1);
+        const target = railItems[nextPos];
+        if (target) {
+          void handleTickClick(target);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [railItems, activeViewportTurn, handleTickClick]);
 
     if (railItems.length < MIN_TURNS_FOR_RAIL) {
       return null;
@@ -393,7 +300,7 @@ interface MobileTurnOutlineSheetProps {
   turnOutlines?: TurnOutlineItem[];
   onJump: (messageIndex: number) => void;
   onJumpToMessageId?: (messageId: string) => void;
-  onLoadThroughTurn?: (turnIndex: number) => Promise<void>;
+  onLoadThroughTurn?: (userMessageId: string) => Promise<boolean>;
   trigger: React.ReactNode;
 }
 
@@ -423,7 +330,7 @@ export const MobileTurnOutlineSheet = memo<MobileTurnOutlineSheetProps>(
         if (onLoadThroughTurn) {
           try {
             setLoadingTurn(item.turnIndex);
-            await onLoadThroughTurn(item.turnIndex);
+            await onLoadThroughTurn(item.userMessageId);
             if (onJumpToMessageId) {
               onJumpToMessageId(item.userMessageId);
             }

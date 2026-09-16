@@ -13,8 +13,10 @@
 | `builtin-agent-i18n-data.ts` | 核心 | 内置智能体 i18n 数据 SSOT（key 须与 server `_BUILTIN_AGENTS` id 一一对应；`__tests__/builtin-agent-i18n-data.test.ts` + server `test_builtin_agent_i18n_parity.py` 守护） | ✅    |
 | `builtin-agent-i18n.ts`      | 核心 | 内置智能体 locale 解析（getBuiltinAgentName/Description）                                                                                                                 | ✅    |
 | `AgentPicker.tsx`            | 辅助 | 智能体下拉选择器（头像+名称，受控 value/onChange）                                                                                                                        | ✅    |
-| `AgentEditForm.tsx`          | 辅助 | 智能体创建/编辑表单（名称、图标、指令、模型槽位）                                                                                                                         | ✅    |
+| `AgentEditForm.tsx`          | 辅助 | 智能体创建/编辑表单（名称、图标、指令、模型槽位、责任三属性）                                                                                                             | ✅    |
 | `CommandBindingsEditor.tsx`  | 辅助 | Agent 斜杠命令绑定列表编辑                                                                                                                                                | ✅    |
+| `GovernancePanel.tsx`        | 辅助 | 责任单元治理面板（孤儿/重叠展示 + 孤儿直删；仅 needs_attention 时渲染）                                                                              | ✅    |
+| `GovernanceMergeWizard.tsx`  | 辅助 | 合并向导（来源/目标双选 + dry-run 明细 + typed确认 + 成功后Undo；成功后锁定选项防错位）                                                              | ✅    |
 
 ## 消费方（示例）
 

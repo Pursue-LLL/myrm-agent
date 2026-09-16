@@ -48,7 +48,6 @@ import type { AgentStreamEvent, ChatState } from '@/store/chat/types';
 import type { StreamHandlerActions, StreamHandlerState, StreamMutableState } from '@/store/chat/messageStreamHandler';
 import Chat from './Chat';
 import ExecutionTraceTimeline from '@/components/features/settings/sections/system/ExecutionTraceTimeline';
-import { TurnTimelineRail } from '@/components/features/chat/timeline/TurnTimelineRail';
 import { MessageSquare, Activity } from 'lucide-react';
 
 const ArtifactPortal = dynamic(() => import('../artifacts/ArtifactPortal'), {
@@ -658,7 +657,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
                         chatMessagesForRender.length > chatMessages.length ? chatMessagesForRender : undefined
                       }
                     />
-                    <TurnTimelineRail />
                   </div>
                 </>
               ) : (

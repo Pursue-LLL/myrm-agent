@@ -79,6 +79,10 @@ class WikiSourceSyncConfigUpdate(BaseModel):
     gdrive_enabled: bool | None = None
     gdrive_folder_id: str | None = Field(default=None, max_length=256)
     rss_feeds: list[str] | None = None
+    zotero_enabled: bool | None = None
+    zotero_api_key: str | None = Field(default=None, max_length=128)
+    zotero_user_id: str | None = Field(default=None, max_length=64)
+    zotero_base_url: str | None = Field(default=None, max_length=256)
     auto_compile: bool | None = None
     max_items_per_run: int | None = Field(default=None, ge=1, le=50)
     mirror_integrations_to_wiki: bool | None = None

@@ -8,6 +8,7 @@ Features:
 - Dual-granularity binding: per-thread (forum topics) and per-channel
 - Agent name resolution: /bind accepts UUID or name, stores canonical UUID
 - Channel bind policy: reject prompt_mode=search at bind_topic; purge legacy search binds at resolve/get_all (General-only IM)
+- Team-shared identity: identityScope/identityId/identityName/identityRevoked per binding; revoke freezes routing, retains memory
 - Lazy expiration: idle timeout + max age checked at resolve time (no bg tasks)
 - Activity tracking: in-memory cache with interval flush to reduce DB writes
 - Auto-discovery: sync_topic_metadata with dirty checking for UI display
@@ -32,7 +33,7 @@ import logging
 import time
 from datetime import datetime, timezone
 
-from app.channels.types import DraftTimeoutAction, ReplyMode, TopicContext
+from app.channels.types import DraftTimeoutAction, IdentityScopeMode, ReplyMode, TopicContext
 from app.channels.types.thread_sharing import ThreadSharingMode
 
 logger = logging.getLogger(__name__)
@@ -141,6 +142,12 @@ class SqlTopicManager:
             if raw_timeout_action in DraftTimeoutAction.__members__.values()
             else DraftTimeoutAction.AUTO_REJECT
         )
+        raw_identity_scope = str(topic_cfg.get("identityScope", "inherit"))
+        identity_scope = (
+            IdentityScopeMode(raw_identity_scope)
+            if raw_identity_scope in IdentityScopeMode.__members__.values()
+            else IdentityScopeMode.INHERIT
+        )
 
         return TopicContext(
             topic_id=thread_id or chat_id,
@@ -154,6 +161,10 @@ class SqlTopicManager:
             draft_timeout_minutes=int(topic_cfg.get("draftTimeoutMinutes", 5)),
             draft_timeout_action=timeout_action,
             personality_style=str(topic_cfg["personalityStyle"]) if topic_cfg.get("personalityStyle") else None,
+            identity_scope=identity_scope,
+            identity_id=str(topic_cfg["identityId"]) if topic_cfg.get("identityId") else None,
+            identity_name=str(topic_cfg["identityName"]) if topic_cfg.get("identityName") else None,
+            identity_revoked=bool(topic_cfg.get("identityRevoked", False)),
         )
 
     async def bind_topic(
@@ -172,6 +183,10 @@ class SqlTopicManager:
         project_id: str | None | object = _UNSET,
         authorized_path: str | None | object = _UNSET,
         personality_style: str | None | object = _UNSET,
+        identity_scope: IdentityScopeMode | object = _UNSET,
+        identity_id: str | None | object = _UNSET,
+        identity_name: str | None | object = _UNSET,
+        identity_revoked: bool | object = _UNSET,
     ) -> TopicContext:
         resolved_agent_id: str | None = None
         if agent_id is not _UNSET:
@@ -261,6 +276,24 @@ class SqlTopicManager:
             else:
                 topic_entry.pop("personalityStyle", None)
 
+        if identity_scope is not _UNSET:
+            scope_value = (
+                identity_scope.value if isinstance(identity_scope, IdentityScopeMode) else str(identity_scope)
+            )
+            topic_entry["identityScope"] = scope_value
+        if identity_id is not _UNSET:
+            if identity_id:
+                topic_entry["identityId"] = str(identity_id)
+            else:
+                topic_entry.pop("identityId", None)
+        if identity_name is not _UNSET:
+            if identity_name:
+                topic_entry["identityName"] = str(identity_name)
+            else:
+                topic_entry.pop("identityName", None)
+        if identity_revoked is not _UNSET:
+            topic_entry["identityRevoked"] = bool(identity_revoked)
+
         await self._upsert_topic(channel, chat_id, storage_key, topic_entry)
 
         raw_reply_mode = str(topic_entry.get("replyMode", ReplyMode.AUTO.value))
@@ -270,6 +303,12 @@ class SqlTopicManager:
             DraftTimeoutAction(raw_timeout_action)
             if raw_timeout_action in DraftTimeoutAction.__members__.values()
             else DraftTimeoutAction.AUTO_REJECT
+        )
+        raw_identity_scope = str(topic_entry.get("identityScope", IdentityScopeMode.INHERIT.value))
+        effective_identity_scope = (
+            IdentityScopeMode(raw_identity_scope)
+            if raw_identity_scope in IdentityScopeMode.__members__.values()
+            else IdentityScopeMode.INHERIT
         )
 
         return TopicContext(
@@ -284,7 +323,56 @@ class SqlTopicManager:
             draft_timeout_minutes=int(topic_entry.get("draftTimeoutMinutes", 5)),
             draft_timeout_action=effective_timeout_action,
             personality_style=str(topic_entry["personalityStyle"]) if topic_entry.get("personalityStyle") else None,
+            identity_scope=effective_identity_scope,
+            identity_id=str(topic_entry["identityId"]) if topic_entry.get("identityId") else None,
+            identity_name=str(topic_entry["identityName"]) if topic_entry.get("identityName") else None,
+            identity_revoked=bool(topic_entry.get("identityRevoked", False)),
         )
+
+    async def revoke_identity(
+        self,
+        channel: str,
+        chat_id: str,
+        thread_id: str | None,
+    ) -> bool:
+        """Freeze a binding's team identity without deleting stored config.
+
+        A revoked identity routes to the default agent and stops contributing
+        its memory compartment; stored memory is retained so a later rejoin
+        restores continuity. Returns False when no binding exists.
+        """
+        config = await self._load_config(channel)
+        group_topics = config.get(chat_id)
+        storage_key = thread_id if thread_id is not None else _CHANNEL_LEVEL_KEY
+        if not isinstance(group_topics, dict):
+            return False
+        topic_cfg = group_topics.get(storage_key)
+        if not isinstance(topic_cfg, dict):
+            return False
+        topic_cfg["identityRevoked"] = True
+        await self._save_config(channel, config)
+        return True
+
+    async def restore_identity(
+        self,
+        channel: str,
+        chat_id: str,
+        thread_id: str | None,
+    ) -> bool:
+        """Clear a previous identity revocation, restoring the binding."""
+        config = await self._load_config(channel)
+        group_topics = config.get(chat_id)
+        storage_key = thread_id if thread_id is not None else _CHANNEL_LEVEL_KEY
+        if not isinstance(group_topics, dict):
+            return False
+        topic_cfg = group_topics.get(storage_key)
+        if not isinstance(topic_cfg, dict):
+            return False
+        if not topic_cfg.get("identityRevoked"):
+            return False
+        topic_cfg["identityRevoked"] = False
+        await self._save_config(channel, config)
+        return True
 
     def _is_expired(self, topic_cfg: dict[str, object]) -> bool:
         """Check if a binding has expired (idle timeout or max age)."""

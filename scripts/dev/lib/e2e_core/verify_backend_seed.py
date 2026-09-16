@@ -100,10 +100,17 @@ def _health_ok(api_base: str) -> bool:
 
 
 def _count_active_backend_only() -> int:
+    """Active backend-only weight, using the same rules as slot admission.
+
+    Mirrors ``claim_bootstrap_slot``'s weight accounting (ACTIVE_PHASES +
+    ``owner_is_active``). Counting a different set — for instance excluding
+    runtimes whose owner already exited — lets this pre-check report free
+    capacity while admission is actually full, which surfaces to the caller as
+    an unexplained cap failure instead of an honest queue signal.
+    """
     from isolated_runtime.registry import (
         ACTIVE_PHASES,
         owner_is_active,
-        process_is_alive,
         read_registry,
     )
 
@@ -114,18 +121,15 @@ def _count_active_backend_only() -> int:
         records = read_registry(registry_path)
     except RuntimeError:
         return 0
-    count = 0
+    weight = 0
     for record in records.values():
         if not record.get("backendOnly"):
             continue
         if record["phase"] not in ACTIVE_PHASES:
             continue
-        owner_pid = int(record.get("ownerPid") or 0)
-        if not process_is_alive(owner_pid):
-            continue
         if owner_is_active(record):
-            count += 1
-    return count
+            weight += int(record.get("resourceWeight", 1))
+    return weight
 
 
 def _parallel_pressure_active() -> bool:
@@ -338,6 +342,156 @@ def ensure_verify_backend_providers(*, api_base: str, monorepo: Path) -> bool:
     return False
 
 
+_VERIFY_RUNTIME_PREFIX = "verify-api-"
+
+
+def _reapable_reuse_candidate(
+    record: dict[str, object],
+    *,
+    owner_ttl_sec: float,
+    active_phases: frozenset[str],
+    warm_pool_ids: set[str] | None = None,
+) -> bool:
+    """A backend-only runtime this session may adopt.
+
+    Three independent guards apply:
+
+    * Provenance — only ``verify-api-*`` ids, which this module and the SHPOIB
+      warm pool create. The CLI's ``--persistent`` runtimes are also
+      ``reapable=False``, but they belong to whatever session started them;
+      adopting one would hijack a foreign backend and keep it alive via the
+      heartbeat refresh below.
+    * Pool ownership — ids still tracked by the SHPOIB warm pool are excluded, so
+      its borrow/release lifecycle stays single-borrower.
+    * Liveness — a heartbeat inside the owner TTL means the creating session is
+      still active, and its token stays authoritative for that session's
+      lifetime. A lapsed heartbeat is what marks the record as abandoned.
+    """
+    if not record.get("backendOnly") or record.get("reapable") is not False:
+        return False
+    runtime_id = str(record.get("runtimeId", ""))
+    if not runtime_id.startswith(_VERIFY_RUNTIME_PREFIX):
+        return False
+    if warm_pool_ids and runtime_id in warm_pool_ids:
+        return False
+    if record.get("phase") not in active_phases:
+        return False
+    heartbeat = record.get("heartbeatAt")
+    if not isinstance(heartbeat, (int, float)):
+        return False
+    if time.time() - heartbeat <= owner_ttl_sec:
+        return False
+    try:
+        backend_port = int(record.get("backendPort") or 0)
+    except (TypeError, ValueError):
+        return False
+    return backend_port > 0
+
+
+def _warm_pool_owned_runtime_ids() -> set[str]:
+    """Runtime ids the SHPOIB warm pool manages — reuse must leave those alone.
+
+    The warm pool (``shpoib_warm_pool``) owns its own borrow/release lifecycle for
+    LIVE chrome_e2e, and it spawns through the same ``verify-api-*`` allocator.
+    Adopting a runtime it still tracks would put two borrowers on one backend and
+    desynchronise its staleness clock, so those ids are excluded here.
+    """
+    try:
+        from e2e_core.shpoib_warm_pool import _load_registry
+    except ImportError:
+        return set()
+    try:
+        registry = _load_registry()
+    except (OSError, ValueError, RuntimeError):
+        # Fail closed: an unreadable pool registry must not license adoption.
+        return set()
+    backends = registry.get("backends")
+    if not isinstance(backends, dict):
+        return set()
+    return {
+        str(entry.get("runtimeId") or "")
+        for entry in backends.values()
+        if isinstance(entry, dict)
+    }
+
+
+def _reusable_verify_backend() -> VerifyBackendSeedResult | None:
+    """Adopt a live, orphaned backend-only runtime instead of spawning another.
+
+    Every seed otherwise allocated a fresh ``verify-api-*`` record, so repeated
+    verify-api calls accumulated persistent (``reapable=False``) runtimes whose
+    weight saturated the active capacity and parked later tests in
+    ``capacity_wait`` for the full wall clock.
+    """
+    from isolated_runtime.registry import (
+        ACTIVE_PHASES,
+        DEFAULT_OWNER_TTL_SEC,
+        read_registry,
+    )
+
+    registry_path = _isolated_registry_root() / "registry.json"
+    if not registry_path.is_file():
+        return None
+    try:
+        records = read_registry(registry_path)
+    except RuntimeError:
+        return None
+    warm_pool_ids = _warm_pool_owned_runtime_ids()
+    candidates = sorted(
+        (
+            record
+            for record in records.values()
+            if _reapable_reuse_candidate(
+                record,
+                owner_ttl_sec=DEFAULT_OWNER_TTL_SEC,
+                active_phases=ACTIVE_PHASES,
+                warm_pool_ids=warm_pool_ids,
+            )
+        ),
+        key=lambda record: float(record["heartbeatAt"]),
+        reverse=True,
+    )
+    best: VerifyBackendSeedResult | None = None
+    for record in candidates:
+        api_base = f"http://127.0.0.1:{int(record['backendPort'])}"
+        if not _health_ok(api_base):
+            continue
+        if _health_source_fingerprint(api_base) != _backend_source_fingerprint():
+            continue
+        result = VerifyBackendSeedResult(
+            ok=True,
+            runtime_id=str(record["runtimeId"]),
+            api_base=api_base,
+            detail="reused orphaned backend-only runtime for verify-api",
+        )
+        _adopt_orphan_heartbeat(record)
+        if _provider_ready(api_base) and _retrieval_ready(api_base):
+            return result
+        best = best or result
+    return best
+
+
+def _adopt_orphan_heartbeat(record: dict[str, object]) -> None:
+    """Refresh the adopted runtime's heartbeat so the reaper spares it.
+
+    The record is only adopted once its heartbeat has lapsed past the owner TTL,
+    which is also the reaper's reclamation trigger. Touching the heartbeat
+    immediately after adoption closes that window, so the runtime this session
+    now depends on cannot be torn down underneath it.
+    """
+    from isolated_runtime.allocator import heartbeat_runtime
+
+    try:
+        heartbeat_runtime(str(record["runtimeId"]), str(record["ownerToken"]))
+    except (OSError, RuntimeError, ValueError) as exc:
+        # Adoption is still useful when the touch fails: the caller has a live
+        # backend on a healthy port, and worst case the reaper reclaims it later.
+        sys.stderr.write(
+            f"MYRM_VERIFY_API_ADOPT_HEARTBEAT_FAILED: runtime={record['runtimeId']} "
+            f"detail={exc}\n"
+        )
+
+
 def _cap_reached_result(active: int) -> VerifyBackendSeedResult:
     return VerifyBackendSeedResult(
         ok=False,
@@ -356,7 +510,10 @@ def _is_retriable_seed_detail(detail: str) -> bool:
 
 
 def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
-    """Spawn backend-only runtime; retry once when SHPOIB cap is temporarily full."""
+    """Adopt an orphaned backend or spawn one; retry once when the cap is full."""
+    reused = _reusable_verify_backend()
+    if reused is not None:
+        return reused
     last_result: VerifyBackendSeedResult | None = None
     for attempt in range(SEED_CAP_MAX_ATTEMPTS):
         active = _count_active_backend_only()

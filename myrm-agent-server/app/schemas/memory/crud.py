@@ -42,6 +42,7 @@ class MemoryItem(BaseModel):
     application: str | None = None
     tool_name: str | None = None
     tool_rule_priority: str | None = None
+    is_user_locked: bool | None = None
     expected_valid_days: int | None = None
     event_type: str | None = None
     related_entities: list[str] = Field(default_factory=list)
@@ -180,6 +181,14 @@ class UpdateMemoryRequest(BaseModel):
     application: str | None = Field(None, max_length=2000, description="New application (How)")
     importance: float | None = Field(None, ge=0.0, le=1.0, description="New importance score")
     tags: list[str] | None = Field(None, description="New tags (semantic/episodic only)")
+    is_user_locked: bool | None = Field(
+        None,
+        description=(
+            "Procedural rules only. True protects the rule: the agent cannot delete "
+            "or rewrite it. False releases that protection so the agent can manage it "
+            "again. Omit to keep the current state."
+        ),
+    )
 
 
 class UpdateMemoryStatusRequest(BaseModel):

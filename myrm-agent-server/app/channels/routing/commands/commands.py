@@ -328,6 +328,8 @@ class TopicCommand:
     project_id: str | None = None
     authorized_path: str | None = None
     clear_workspace: bool = False
+    identity_name: str | None = None
+    identity_scope: str | None = None
 
 
 def parse_topic_args(action: str, raw_args: str) -> TopicCommand:
@@ -337,19 +339,38 @@ def parse_topic_args(action: str, raw_args: str) -> TopicCommand:
     - legacy bare agent id/name: ``/bind my-agent``
     - key/value pairs: ``/bind agent=my-agent workspace=project:uuid``
     - path workspace: ``/bind workspace=/path/to/vault``
+    - team identity: ``/bind agent=my-agent identity=义父 identity_scope=shared``
+      (multi-word names need quotes: ``identity="Yi Fu"``).
     """
     agent_id: str | None = None
     project_id: str | None = None
     authorized_path: str | None = None
     clear_workspace = False
     legacy_agent: str | None = None
+    identity_name: str | None = None
+    identity_scope: str | None = None
 
     if action == "bind" and raw_args.strip():
-        for part in raw_args.strip().split():
+        import shlex
+
+        try:
+            parts = shlex.split(raw_args.strip())
+        except ValueError:
+            parts = raw_args.strip().split()
+        seen_identity_kv = False
+        for part in parts:
             lowered = part.lower()
             if lowered.startswith("agent="):
                 value = part.split("=", 1)[1].strip()
                 agent_id = value or None
+            elif lowered.startswith("identity="):
+                seen_identity_kv = True
+                value = part.split("=", 1)[1].strip()
+                identity_name = value or None
+            elif lowered.startswith("identity_scope="):
+                seen_identity_kv = True
+                value = part.split("=", 1)[1].strip().lower()
+                identity_scope = value or None
             elif lowered.startswith("workspace="):
                 value = part.split("=", 1)[1].strip()
                 if not value or value.lower() in {"none", "clear"}:
@@ -358,7 +379,10 @@ def parse_topic_args(action: str, raw_args: str) -> TopicCommand:
                     project_id = value.split(":", 1)[1].strip() or None
                 else:
                     authorized_path = value
-            elif "=" not in part and legacy_agent is None:
+            elif "=" not in part and legacy_agent is None and not seen_identity_kv:
+                # Bare words after identity=* are name fragments, never an agent.
+                # (Multi-word names need quoting at the caller; unquoted tails
+                # are dropped instead of hijacking the agent binding.)
                 legacy_agent = part
 
         if agent_id is None and legacy_agent:
@@ -370,6 +394,8 @@ def parse_topic_args(action: str, raw_args: str) -> TopicCommand:
         project_id=project_id,
         authorized_path=authorized_path,
         clear_workspace=clear_workspace,
+        identity_name=identity_name,
+        identity_scope=identity_scope,
     )
 
 
@@ -512,6 +538,21 @@ async def handle_topic_command(
             if cmd.clear_workspace:
                 bind_kwargs["project_id"] = None
                 bind_kwargs["authorized_path"] = None
+            if cmd.identity_scope is not None:
+                from app.channels.types import IdentityScopeMode
+
+                try:
+                    bind_kwargs["identity_scope"] = IdentityScopeMode(cmd.identity_scope)
+                except ValueError:
+                    raise ValueError(
+                        f"Invalid identity_scope '{cmd.identity_scope}'; use inherit, shared, or private."
+                    ) from None
+            if cmd.identity_name is not None:
+                from app.channels.routing.identity_scope import default_identity_id
+
+                bind_kwargs["identity_id"] = default_identity_id(msg.channel, chat_id, msg.thread_id)
+                bind_kwargs["identity_name"] = cmd.identity_name
+                bind_kwargs["identity_revoked"] = False
             ctx = await topic_resolver.bind_topic(**bind_kwargs)
             if ctx.agent_id and cmd.agent_id and ctx.agent_id != cmd.agent_id:
                 agent_label = get_text(

@@ -257,7 +257,14 @@ async def update_memory(
         )
 
     try:
+        # An explicit ``is_user_locked`` from the client expresses the user's own
+        # protection intent and wins. Otherwise editing a rule's content implies
+        # the user endorses it, so it stays protected by default.
         lock_on_edit = mem_type == MemoryType.PROCEDURAL and body.content is not None
+        if body.is_user_locked is not None:
+            resolved_lock: bool | None = body.is_user_locked
+        else:
+            resolved_lock = True if lock_on_edit else None
         updated = await manager.update_memory(
             memory_id,
             content=body.content,
@@ -265,7 +272,7 @@ async def update_memory(
             reasoning=body.reasoning,
             application=body.application,
             tags=body.tags,
-            is_user_locked=True if lock_on_edit else None,
+            is_user_locked=resolved_lock,
         )
         await _record_memory_event(
             kind=MemoryOperationKind.WRITE,

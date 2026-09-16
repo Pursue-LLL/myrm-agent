@@ -5,7 +5,6 @@
  *
  * [OUTPUT]
  * gapEvents: CAPABILITY_GAP SSE handler for factual gaps only (migration, web_search config).
- * render_ui surface_unavailable path removed — backend preflight returns None since tool offline.
  * Substring entitlement enable-and-resend toasts removed.
  *
  * [POS]

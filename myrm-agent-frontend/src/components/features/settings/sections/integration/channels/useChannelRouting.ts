@@ -9,6 +9,7 @@ import {
   setChannelDefaultAgent,
   type ChannelStatus,
   type DraftTimeoutAction,
+  type IdentityScopeMode,
   type ReplyMode,
   type TopicBinding,
   type ThreadSharingMode,
@@ -33,6 +34,10 @@ interface UseChannelRoutingOptions {
   globalAgentError: string;
   workspaceBoundToast: string;
   workspaceBindError: string;
+  identityUpdatedToast: string;
+  identityError: string;
+  identityRevokedToast: string;
+  identityRestoredToast: string;
 }
 
 export function useChannelRouting(messages: UseChannelRoutingOptions) {
@@ -248,6 +253,68 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
     }
   };
 
+  const handleSetIdentity = async (topicId: string, name: string | null, scope: IdentityScopeMode) => {
+    if (!selectedChannel) {
+      return;
+    }
+    setSaving(topicId);
+    try {
+      const topic = topics.find((item) => item.topicId === topicId);
+      await bindTopicAgent(
+        selectedChannel,
+        topicId,
+        topic?.agentId ?? null,
+        topic?.threadSharingMode,
+        topic?.replyMode,
+        topic?.draftTimeoutMinutes,
+        topic?.draftTimeoutAction,
+        undefined,
+        { identityName: name, identityScope: scope, identityRevoked: false },
+      );
+      setTopics((prev) =>
+        prev.map((item) =>
+          item.topicId === topicId ? { ...item, identityName: name, identityScope: scope, identityRevoked: false } : item,
+        ),
+      );
+      toast.success(messages.identityUpdatedToast);
+    } catch (error) {
+      console.error('Failed to set identity:', error);
+      toast.error(messages.identityError);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleRevokeIdentity = async (topicId: string, revoked: boolean) => {
+    if (!selectedChannel) {
+      return;
+    }
+    setSaving(topicId);
+    try {
+      const topic = topics.find((item) => item.topicId === topicId);
+      await bindTopicAgent(
+        selectedChannel,
+        topicId,
+        topic?.agentId ?? null,
+        topic?.threadSharingMode,
+        topic?.replyMode,
+        topic?.draftTimeoutMinutes,
+        topic?.draftTimeoutAction,
+        undefined,
+        { identityRevoked: revoked },
+      );
+      setTopics((prev) =>
+        prev.map((item) => (item.topicId === topicId ? { ...item, identityRevoked: revoked } : item)),
+      );
+      toast.success(revoked ? messages.identityRevokedToast : messages.identityRestoredToast);
+    } catch (error) {
+      console.error('Failed to update identity revocation:', error);
+      toast.error(messages.identityError);
+    } finally {
+      setSaving(null);
+    }
+  };
+
   return {
     agents,
     channelBindableAgents: filterChannelBindableAgents(agents),
@@ -257,6 +324,8 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
     handleBindTopicWorkspace,
     handleSetDraftTimeout,
     handleSetGlobalAgent,
+    handleSetIdentity,
+    handleRevokeIdentity,
     handleSetReplyMode,
     handleSetThreadSharingMode,
     loadingChannels,

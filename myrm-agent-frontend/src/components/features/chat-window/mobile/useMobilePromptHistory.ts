@@ -57,11 +57,13 @@ export interface UseMobilePromptHistoryReturn {
 export function useMobilePromptHistory(chatId: string): UseMobilePromptHistoryReturn {
   // -1 indicates user is not browsing history (active draft mode)
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
+  const [historyCount, setHistoryCount] = useState<number>(() => getPromptHistory(chatId).length);
   const draftBufferRef = useRef<string>('');
 
   const pushHistory = useCallback(
     (prompt: string) => {
       recordPromptHistory(chatId, prompt);
+      setHistoryCount(getPromptHistory(chatId).length);
       setCurrentIndex(-1);
       draftBufferRef.current = '';
     },

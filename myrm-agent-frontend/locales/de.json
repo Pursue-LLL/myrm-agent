@@ -802,7 +802,6 @@
         "kanban": "Aufgabenboard",
         "cron": "Geplante Aufgaben (Chat)",
         "answer_tool": "Antwortqualitäts-Audit",
-        "render_ui": "Interaktive UI",
         "planning": "Mehrschritt-Fortschritt",
         "structured_clarify": "Strukturierte Klärung",
         "external_cli": "Externe CLI",
@@ -823,14 +822,12 @@
         "kanban": "Manage tasks on kanban boards — report progress, block tasks, and mark completion",
         "cron": "Geplante Aufgaben direkt im Chat erstellen; wenn aus, wird das Tool bei Bedarf per Capability Discovery geladen",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
-        "render_ui": "Formulare, Tabellen und Diagramme direkt im Chat ausfüllen und nutzen",
         "planning": "Todo-Liste des Haupt-Agenten für Mehrschritt-Aufgaben — aktualisiert den Fortschrittsbaum im Chat (ohne Planner-Subagent)",
         "structured_clarify": "Bei unklarer Absicht strukturierte Klärungsformulare anzeigen — Agent pausiert bis zur Antwort",
         "external_cli": "Coding-Aufgaben an externe CLI-Agenten (Claude Code, Codex, Gemini CLI) über delegate_to_agent delegieren",
         "skill_market": "Externe Skill-Marktplätze im Chat suchen und installieren",
         "skill_manage": "Dem Agent erlauben, Skills im Chat zu erstellen, zu bearbeiten und zu löschen. Bei Aktivierung können nach Aufgaben Skill-Entwürfe zur Prüfung vorgeschlagen werden. /learn aktiviert diese Funktion immer."
       },
-      "renderUiWebOnlyHint": "Interaktive UI wird nur im Web-Chat und in der Desktop-App gerendert. Telegram, geplante Aufgaben und andere Kanäle können keine Inline-Formulare oder Diagramme anzeigen.",
       "externalCliSetupHint": "Zwei Schritte: (1) CLI-Backend unter Einstellungen → Entwickler → Externe Agenten hinzufügen; (2) Schalter aktiv lassen, damit dieser Agent Coding-Aufgaben an eine externe CLI delegiert.",
       "externalCliLocalOnlyHint": "Externe CLI-Delegation erfordert lokalen oder Desktop-Modus. Cloud- und Sandbox-Hosts können keine lokalen CLI-Prozesse starten.",
       "externalCliNoBackendHint": "Noch kein CLI-Backend konfiguriert. Bitte zuerst in den Einstellungen hinzufügen.",
@@ -1750,19 +1747,6 @@
       "moreContextTitle": "Eingebundene Kontextelemente"
     },
     "uploadFailed": "Upload fehlgeschlagen",
-    "jumpBar": {
-      "ariaLabel": "Konversationsnavigation",
-      "title": "Nachrichtennavigation",
-      "jumpTo": "Zur Nachricht springen",
-      "turnTitle": "Runde {turn}",
-      "loaded": "Geladen",
-      "unloaded": "Not loaded · Click to fetch and locate",
-      "loading": "Runden-Nachrichten werden geladen...",
-      "userPrefix": "Benutzer: ",
-      "assistantPrefix": "Assistent: ",
-      "fullTimeline": "Sitzungs-Zeitleiste",
-      "turnCount": "Insgesamt {count} Runden"
-    },
     "newChat": "Neuer Chat",
     "placeholder": "Fragen Sie mich etwas...",
     "uploading": "Wird hochgeladen...",
@@ -3026,11 +3010,6 @@
       "assistantReply": "Antwort",
       "jumpToTurn": "Zu Runde {index} springen"
     },
-    "timeline": {
-      "loaded": "Geladen",
-      "lazyLoad": "Klicken zum Laden der Runde",
-      "noPrompt": "Kein Prompt-Inhalt"
-    },
     "spillover": {
       "notice": "Großer Text erkannt ({chars} Zeichen). Wird automatisch in die Workspace-Datei ausgelagert, um den Kontext sauber zu halten.",
       "optimized": "Geschützt"
@@ -3640,8 +3619,6 @@
     "image_tool_tool_error": "Die Bildgenerierung ist fehlgeschlagen",
     "video_tool_tool": "Video generieren",
     "video_tool_tool_error": "Die Videogenerierung ist fehlgeschlagen",
-    "render_ui_tool_tool": "Generieren einer interaktiven Benutzeroberfläche",
-    "render_ui_tool_tool_error": "Beim Generieren der Benutzeroberfläche ist ein Fehler aufgetreten",
     "bash_code_execute_tool_tool": "Code wird ausgeführt",
     "bash_code_execute_tool_tool_error": "Die Codeausführung ist fehlgeschlagen",
     "text_editor_tool_tool": "Datei bearbeiten",
@@ -3780,8 +3757,6 @@
     "wiki_knowledge_lane_clear": "Wiki-Antwort bereit",
     "moa_overlay_active": "Berater-Overlay-Fan-out läuft",
     "moa_ref_done": "Berater-Referenz abgeschlossen",
-    "update_ui_data_tool_tool": "Aktualisieren interaktiver UI-Daten",
-    "update_ui_data_tool_tool_error": "Beim Aktualisieren der UI-Daten ist ein Fehler aufgetreten",
     "copied": "Kopiert!",
     "copy": "Kopieren",
     "viewStepDetail": "Schrittdetails anzeigen",
@@ -18860,7 +18835,10 @@
           "globalAgentSet": "Globaler Agent erfolgreich eingerichtet",
           "replyModeUpdated": "Antwortmodus aktualisiert",
           "draftTimeoutUpdated": "Einstellungen für die Entwurfszeitüberschreitung aktualisiert",
-          "workspaceBound": "Arbeitsbereich erfolgreich gebunden"
+          "workspaceBound": "Arbeitsbereich erfolgreich gebunden",
+          "identityUpdated": "Team-Identität aktualisiert",
+          "identityRevoked": "Team-Identität gesperrt",
+          "identityRestored": "Team-Identität wiederhergestellt"
         },
         "errors": {
           "initialLoad": "Kanäle oder Agenten konnten nicht geladen werden",
@@ -18870,7 +18848,8 @@
           "globalAgent": "Der globale Agent konnte nicht festgelegt werden",
           "replyMode": "Der Antwortmodus konnte nicht festgelegt werden",
           "draftTimeout": "Zeitüberschreitung beim Aktualisieren des Entwurfs fehlgeschlagen",
-          "workspaceBind": "Der Arbeitsbereich konnte nicht gebunden werden"
+          "workspaceBind": "Der Arbeitsbereich konnte nicht gebunden werden",
+          "identity": "Team-Identität konnte nicht aktualisiert werden"
         },
         "threadSharing": {
           "label": "Thread-Sharing-Modus",
@@ -18894,6 +18873,17 @@
           "onExpiry": "Bei Ablauf",
           "autoReject": "Entwurf verwerfen",
           "autoSend": "Automatisch senden"
+        },
+        "identity": {
+          "label": "Team-Identität",
+          "tooltip": "Geben Sie diesem Chat eine gemeinsame Identität, damit alle mit demselben Partner sprechen. Namen dienen nur der Anzeige; Berechtigungen und Erinnerungen bleiben auf diesen Chat beschränkt.",
+          "namePlaceholder": "Partner benennen…",
+          "inherit": "Vererbt",
+          "shared": "Geteilt",
+          "private": "Unabhängig",
+          "revoke": "Sperren",
+          "restore": "Wiederherstellen",
+          "revokedBadge": "Gesperrt"
         }
       }
     },

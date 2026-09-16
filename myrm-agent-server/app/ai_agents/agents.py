@@ -161,6 +161,7 @@ class GeneralAgentParams(BaseAgentParams):
     memory_task_id: str | None = None
     memory_shared_context_ids: list[str] = []
     memory_shared_context_names: dict[str, str] = {}
+    memory_extra_namespaces: list[str] = []
     memory_base_path: str | None = None
     declared_capabilities: tuple[str, ...] = ()
     declared_allowed_roots: tuple[str, ...] = ()
@@ -340,6 +341,7 @@ class AgentFactory:
             memory_task_id=params.memory_task_id,
             memory_shared_context_ids=params.memory_shared_context_ids,
             memory_shared_context_names=params.memory_shared_context_names,
+            memory_extra_namespaces=params.memory_extra_namespaces,
             memory_base_path=params.memory_base_path,
             declared_capabilities=params.declared_capabilities,
             declared_allowed_roots=params.declared_allowed_roots,

@@ -212,6 +212,33 @@ def _record_is_stale(record: WarmBackendRecord, *, now: float) -> bool:
     return False
 
 
+def _release_pruned_runtime(record: WarmBackendRecord) -> None:
+    """Tear down the isolated runtime behind a pruned pool row.
+
+    Dropping the row alone does not free capacity: the runtime stays registered
+    with a live heartbeat, so it keeps counting against ``active_cap`` while no
+    borrower can ever reach it again. Releasing it here is what actually returns
+    the slot to the pool.
+    """
+    runtime_id = str(record.get("runtimeId") or "")
+    owner_token = str(record.get("ownerToken") or "")
+    if not runtime_id or not owner_token:
+        return
+    try:
+        from isolated_runtime.reaper import release_runtime
+    except ImportError:
+        return
+    try:
+        release_runtime(runtime_id, owner_token)
+    except (OSError, RuntimeError, ValueError) as exc:
+        # Cleanup failure must not abort pool maintenance; the runtime reaper
+        # still reclaims the record once its heartbeat lapses.
+        print(
+            f"E2E_SHPOIB_WARM_POOL_RELEASE_FAIL: runtime={runtime_id} detail={exc}",
+            file=sys.stderr,
+        )
+
+
 def _prune_stale(registry: WarmPoolRegistry, *, now: float) -> int:
     removed = 0
     stale_keys: list[str] = []
@@ -219,8 +246,15 @@ def _prune_stale(registry: WarmPoolRegistry, *, now: float) -> int:
         if _record_is_stale(record, now=now):
             stale_keys.append(key)
     for key in stale_keys:
-        registry["backends"].pop(key, None)
+        record = registry["backends"].pop(key, None)
+        if record is None:
+            continue
         removed += 1
+        if record.get("state") != "borrowed":
+            # A borrowed row is owned by its borrower (who releases it via
+            # release_warm_backend); only rows the pool itself retired may be
+            # torn down here.
+            _release_pruned_runtime(record)
     return removed
 
 

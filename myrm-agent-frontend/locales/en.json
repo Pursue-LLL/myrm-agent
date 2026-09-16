@@ -6511,7 +6511,10 @@
           "globalAgentSet": "Global agent set successfully",
           "replyModeUpdated": "Reply mode updated",
           "draftTimeoutUpdated": "Draft timeout settings updated",
-          "workspaceBound": "Workspace bound successfully"
+          "workspaceBound": "Workspace bound successfully",
+          "identityUpdated": "Team identity updated",
+          "identityRevoked": "Team identity revoked",
+          "identityRestored": "Team identity restored"
         },
         "errors": {
           "initialLoad": "Failed to load channels or agents",
@@ -6521,7 +6524,8 @@
           "globalAgent": "Failed to set global agent",
           "replyMode": "Failed to set reply mode",
           "draftTimeout": "Failed to update draft timeout",
-          "workspaceBind": "Failed to bind workspace"
+          "workspaceBind": "Failed to bind workspace",
+          "identity": "Failed to update team identity"
         },
         "workspace": {
           "label": "Workspace",
@@ -6545,6 +6549,17 @@
           "onExpiry": "On expiry",
           "autoReject": "Discard draft",
           "autoSend": "Send automatically"
+        },
+        "identity": {
+          "label": "Team Identity",
+          "tooltip": "Give this chat a named shared identity so everyone talks to the same teammate. Names are display-only; permissions and memory stay scoped to this chat.",
+          "namePlaceholder": "Name this teammate…",
+          "inherit": "Inherit",
+          "shared": "Shared",
+          "private": "Private",
+          "revoke": "Revoke",
+          "restore": "Restore",
+          "revokedBadge": "Revoked"
         }
       }
     },
@@ -7907,7 +7922,6 @@
         "kanban": "Task Board",
         "cron": "Scheduled Tasks (Chat)",
         "answer_tool": "Answer Quality Audit",
-        "render_ui": "Interactive UI",
         "planning": "Multi-Step Progress",
         "structured_clarify": "Structured Clarify",
         "external_cli": "External CLI",
@@ -7928,14 +7942,12 @@
         "kanban": "Manage tasks on kanban boards — report progress, block tasks, and mark completion",
         "cron": "Create scheduled tasks directly in chat; when off, the tool loads on demand via capability discovery",
         "answer_tool": "Self-audit answer quality before responding — ensures thoroughness and accuracy",
-        "render_ui": "Fill forms and view tables or charts directly in chat",
         "planning": "Main-agent todo list for multi-step tasks — updates the progress tree in chat (no sub-agent planner)",
         "structured_clarify": "Ask structured clarification forms when user intent is ambiguous — pauses the agent until you respond",
         "external_cli": "Let the agent delegate coding tasks to external CLI agents (Claude Code, Codex, Gemini CLI) via delegate_to_agent",
         "skill_market": "Search and install skills from external marketplaces in chat",
         "skill_manage": "Let the agent create, edit, and delete skills in chat. When enabled, skill drafts may be proposed after tasks for your review. /learn always enables this capability."
       },
-      "renderUiWebOnlyHint": "Inline interactive UI renders only in Web Chat and the desktop app. Telegram, scheduled tasks, and other channels cannot display inline forms or charts.",
       "wikiScopeHint": "Documents stay in this agent's private knowledge base and won't mix with other agents.",
       "wikiScopeHintNamed": "Documents stay in {name}'s private knowledge base.",
       "wikiActiveIndicator": "Private knowledge base active",
@@ -8615,19 +8627,6 @@
     "workflowTemplateArmed": {
       "label": "Pinned template",
       "disarm": "Disarm"
-    },
-    "jumpBar": {
-      "ariaLabel": "Conversation navigation",
-      "title": "Message Navigation",
-      "jumpTo": "Jump to message",
-      "turnTitle": "Turn {turn}",
-      "loaded": "Loaded",
-      "unloaded": "Not loaded · Click to fetch and locate",
-      "loading": "Loading turn messages...",
-      "userPrefix": "User: ",
-      "assistantPrefix": "Assistant: ",
-      "fullTimeline": "Session Timeline",
-      "turnCount": "{count} turns in total"
     },
     "turnRail": {
       "ariaLabel": "Session timeline outline navigation",
@@ -9911,11 +9910,6 @@
       "openModelCenter": "Model Center",
       "closeButton": "Close"
     },
-    "timeline": {
-      "loaded": "Loaded",
-      "lazyLoad": "Click to load turn",
-      "noPrompt": "No prompt content"
-    },
     "spillover": {
       "notice": "Large text detected ({chars} chars). Will automatically spill to workspace file to keep context clean.",
       "optimized": "Protected"
@@ -10586,10 +10580,6 @@
     "image_tool_tool_error": "Image generation failed",
     "video_tool_tool": "Generating video",
     "video_tool_tool_error": "Video generation failed",
-    "render_ui_tool_tool": "Generating interactive UI",
-    "render_ui_tool_tool_error": "Generate UI failed",
-    "update_ui_data_tool_tool": "Updating interactive UI data",
-    "update_ui_data_tool_tool_error": "Update UI data failed",
     "bash_code_execute_tool_tool": "Executing code",
     "bash_code_execute_tool_tool_error": "Code execution failed",
     "text_editor_tool_tool": "Editing file",

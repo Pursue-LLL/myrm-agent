@@ -142,7 +142,7 @@ describe('TurnTimelineRail', () => {
   it('calls onLoadThroughTurn and onJumpToMessageId when an unloaded turn tick is clicked', async () => {
     const onJump = vi.fn();
     const onJumpToMessageId = vi.fn();
-    const onLoadThroughTurn = vi.fn().mockResolvedValue(undefined);
+    const onLoadThroughTurn = vi.fn().mockResolvedValue(true);
 
     render(
       <TurnTimelineRail
@@ -158,7 +158,7 @@ describe('TurnTimelineRail', () => {
     // 4th turn is unloaded (msg-u4-unloaded)
     fireEvent.click(ticks[3]);
 
-    expect(onLoadThroughTurn).toHaveBeenCalledWith(4);
+    expect(onLoadThroughTurn).toHaveBeenCalledWith('msg-u4-unloaded');
     await waitFor(() => {
       expect(onJumpToMessageId).toHaveBeenCalledWith('msg-u4-unloaded');
     });

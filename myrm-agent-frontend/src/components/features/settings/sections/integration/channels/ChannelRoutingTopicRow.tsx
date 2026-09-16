@@ -1,13 +1,20 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
-import { Users, ShieldCheck, Zap } from 'lucide-react';
+import { useState } from 'react';
+import { Users, ShieldCheck, Zap, BadgeCheck, Ban, Undo2 } from 'lucide-react';
 import { IconAlertCircle, IconLoader, IconUser } from '@/components/features/icons/PremiumIcons';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import type { AgentListItem } from '@/services/agent';
 import type { Project } from '@/services/projects';
-import type { DraftTimeoutAction, ReplyMode, ThreadSharingMode, TopicBinding } from '@/services/channels';
+import type {
+  DraftTimeoutAction,
+  IdentityScopeMode,
+  ReplyMode,
+  ThreadSharingMode,
+  TopicBinding,
+} from '@/services/channels';
 import { resolveTopicWorkspaceDisplayLabel } from './topicWorkspaceLabel';
 
 interface ChannelRoutingTopicRowProps {
@@ -19,8 +26,12 @@ interface ChannelRoutingTopicRowProps {
   onSetDraftTimeout: (topicId: string, minutes: number, action: DraftTimeoutAction) => void;
   onSetReplyMode: (topicId: string, mode: ReplyMode) => void;
   onSetThreadSharingMode: (topicId: string, mode: ThreadSharingMode) => void;
+  onSetIdentity: (topicId: string, name: string | null, scope: IdentityScopeMode) => void;
+  onRevokeIdentity: (topicId: string, revoked: boolean) => void;
   topic: TopicBinding;
 }
+
+const IDENTITY_SCOPES: IdentityScopeMode[] = ['inherit', 'shared', 'private'];
 
 export function ChannelRoutingTopicRow({
   agents,
@@ -31,11 +42,16 @@ export function ChannelRoutingTopicRow({
   onSetDraftTimeout,
   onSetReplyMode,
   onSetThreadSharingMode,
+  onSetIdentity,
+  onRevokeIdentity,
   topic,
 }: ChannelRoutingTopicRowProps) {
   const t = useTranslations('settings.sections.channelRouting');
   const locale = useLocale();
   const workspaceDisplayLabel = resolveTopicWorkspaceDisplayLabel(topic, projects);
+  const [identityDraft, setIdentityDraft] = useState<string | null>(null);
+  const identityValue = identityDraft ?? topic.identityName ?? '';
+  const identityScope = topic.identityScope ?? 'inherit';
 
   return (
     <div className="flex flex-col gap-3 p-3 bg-background border rounded-lg hover:border-primary/30 transition-colors">
@@ -221,6 +237,91 @@ export function ChannelRoutingTopicRow({
           </select>
         </div>
       )}
+
+      <div className="flex flex-col gap-2 pl-11">
+        <div className="flex items-center gap-2 flex-wrap">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <IconAlertCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                <p className="text-xs">{t('identity.tooltip')}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <span className="text-xs text-muted-foreground">{t('identity.label')}:</span>
+          {topic.identityRevoked && (
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium">
+              {t('identity.revokedBadge')}
+            </span>
+          )}
+          {topic.identityName && !topic.identityRevoked && (
+            <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+              <BadgeCheck className="w-3 h-3" />
+              {topic.identityName}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            value={identityValue}
+            onChange={(event) => setIdentityDraft(event.target.value)}
+            onBlur={() => {
+              const name = identityValue.trim();
+              if (name !== (topic.identityName ?? '')) {
+                onSetIdentity(topic.topicId, name || null, identityScope);
+              }
+              setIdentityDraft(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                (event.target as HTMLInputElement).blur();
+              }
+            }}
+            disabled={isSaving}
+            placeholder={t('identity.namePlaceholder')}
+            maxLength={32}
+            className="bg-background border border-input rounded-full text-xs px-3 py-1.5 focus:ring-2 focus:ring-primary/20 outline-none w-40 placeholder:text-muted-foreground/60"
+          />
+          <div className="flex gap-1">
+            {IDENTITY_SCOPES.map((scope) => (
+              <button
+                key={scope}
+                onClick={() => onSetIdentity(topic.topicId, topic.identityName, scope)}
+                disabled={isSaving}
+                className={`px-2 py-1 rounded text-xs transition-colors ${
+                  identityScope === scope
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {t(`identity.${scope}`)}
+              </button>
+            ))}
+          </div>
+          {topic.identityName &&
+            (topic.identityRevoked ? (
+              <button
+                onClick={() => onRevokeIdentity(topic.topicId, false)}
+                disabled={isSaving}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors bg-muted/50 text-muted-foreground hover:bg-muted"
+              >
+                <Undo2 className="w-3 h-3" />
+                {t('identity.restore')}
+              </button>
+            ) : (
+              <button
+                onClick={() => onRevokeIdentity(topic.topicId, true)}
+                disabled={isSaving}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors bg-muted/50 text-muted-foreground hover:bg-muted"
+              >
+                <Ban className="w-3 h-3" />
+                {t('identity.revoke')}
+              </button>
+            ))}
+        </div>
+      </div>
     </div>
   );
 }

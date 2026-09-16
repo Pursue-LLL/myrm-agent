@@ -7,14 +7,14 @@ import os
 import time
 import urllib.error
 
+from cdp_chat.mcp_ui import McpChatSession
 from cdp_chat.support import (
     chat_browser_gate_from_api,
     get_e2e_api_url,
     wait_e2e_backend_ready,
 )
-from cdp_chat.mcp_ui import McpChatSession
+from dev_gate.contract import GATE_MUX_STALL_FAIL_FAST_SEC, EvaluateIntent
 from e2e_session_runtime.heartbeat import heartbeat_once
-from dev_gate.contract import EvaluateIntent, GATE_MUX_STALL_FAIL_FAST_SEC
 
 E2E_PROMPT = (
     "我在验证浏览器人工接管功能。请调用 browser_ask_human_tool 一次，"
@@ -144,7 +144,7 @@ def remaining_body_budget_sec() -> float | None:
     pre-BODY queue — using it would let a retry start with 1680s "remaining"
     while the reaper is seconds away from ``E2E_BODY_WALL_EXCEEDED``.
     """
-    from e2e_session_runtime.snapshot import (  # noqa: PLC0415
+    from e2e_session_runtime.snapshot import (
         body_elapsed_from_snapshot,
         read_session_snapshot,
     )
@@ -155,7 +155,7 @@ def remaining_body_budget_sec() -> float | None:
     body_elapsed = body_elapsed_from_snapshot(snapshot)
     if body_elapsed is None:
         return None
-    from mux.transport_supervisor import live_agent_body_wall_cap_sec  # noqa: PLC0415
+    from mux.transport_supervisor import live_agent_body_wall_cap_sec
 
     return float(live_agent_body_wall_cap_sec()) - float(body_elapsed)
 
@@ -175,18 +175,22 @@ def require_retry_budget(*, attempt: int) -> None:
 
 from e2e_live_flows.browser_takeover_live_mux import (
     gate_probe_evaluate,
-    quiesce_mux_before_retry,
-    wait_ui_stream_idle,
 )
 
 
 def require_browser_gate_triggered(*, last_tool: str, takeover_pending: bool) -> None:
-    if takeover_pending or last_tool.endswith("browser_ask_human_tool"):
+    """Fail unless the turn actually parked on the takeover interrupt.
+
+    ``last_tool`` is reported for diagnosis only — a call that raised still shows up as
+    the last browser tool, so it must never be treated as proof of a takeover.
+    """
+    if takeover_pending:
         return
     raise AssertionError(
         "Model never triggered browser takeover gate "
         f"(lastTool={last_tool!r}, takeoverPending={takeover_pending}). "
-        "Expected browser_ask_human_tool with extension in-chat banner."
+        "Expected browser_ask_human_tool to park the turn on a HITL interrupt and "
+        "produce the extension in-chat banner."
     )
 
 
@@ -280,14 +284,18 @@ async def wait_for_browser_ask_human_gate(
             )
             if isinstance(api_progress, dict):
                 api_tool = str(api_progress.get("lastTool") or "")
-                api_pending = api_progress.get("takeoverPending") is True
-                if api_pending or api_tool.endswith("browser_ask_human_tool"):
+                # Only a PENDING approval proves the turn really parked on a human
+                # interrupt. The tool *name* merely says the model tried: a tool that
+                # raised (e.g. no attachable browser) still leaves the name in
+                # progressSteps while the turn completes normally.
+                if api_progress.get("takeoverPending") is True:
                     print(
-                        f"E2E_GATE_API_FIRST: lastTool={api_tool!r} "
-                        f"pending={api_pending}",
+                        f"E2E_GATE_API_FIRST: lastTool={api_tool!r} pending=True",
                         flush=True,
                     )
                     return api_tool or "browser_ask_human_tool", True, True
+                if api_tool and not last_tool:
+                    last_tool = api_tool
         progress = await probe_browser_tool_progress(chat)
         last_tool = str(progress.get("lastTool") or last_tool)
         takeover_pending = progress.get("takeoverPending") is True
@@ -295,11 +303,10 @@ async def wait_for_browser_ask_human_gate(
             mux_degraded = True
             if mux_stall_started is None:
                 mux_stall_started = now
-            elif (
-                now - mux_stall_started >= GATE_MUX_STALL_FAIL_FAST_SEC
-                and not takeover_pending
-                and not last_tool.endswith("browser_ask_human_tool")
-            ):
+            elif now - mux_stall_started >= GATE_MUX_STALL_FAIL_FAST_SEC:
+                # Only a real interrupt earns the right to keep waiting; a tool that never
+                # parked the turn (name present, failure swallowed) is a stall, not a
+                # takeover in progress.
                 raise TimeoutError(
                     f"E2E_GATE_MUX_STALL_FAIL_FAST after "
                     f"{int(now - mux_stall_started)}s "
@@ -307,8 +314,8 @@ async def wait_for_browser_ask_human_gate(
                 )
         else:
             mux_stall_started = None
-        if takeover_pending or last_tool.endswith("browser_ask_human_tool"):
-            return last_tool, takeover_pending, False
+        if takeover_pending:
+            return last_tool, True, False
 
         if progress.get("muxStall") is True:
             api_progress = await api_browser_gate_progress(
@@ -318,11 +325,9 @@ async def wait_for_browser_ask_human_gate(
             )
             if isinstance(api_progress, dict):
                 api_tool = str(api_progress.get("lastTool") or "")
-                api_pending = api_progress.get("takeoverPending") is True
-                if api_pending or api_tool.endswith("browser_ask_human_tool"):
+                if api_progress.get("takeoverPending") is True:
                     print(
-                        f"E2E_GATE_API_FALLBACK: lastTool={api_tool!r} "
-                        f"pending={api_pending}",
+                        f"E2E_GATE_API_FALLBACK: lastTool={api_tool!r} pending=True",
                         flush=True,
                     )
                     return api_tool or "browser_ask_human_tool", True, True
@@ -330,9 +335,10 @@ async def wait_for_browser_ask_human_gate(
                     last_tool = api_tool
 
         banner = await gate_probe_evaluate(chat, BANNER_ASSERT_JS, label="gate_banner")
-        if isinstance(banner, dict) and (
-            banner.get("ready") is True or banner.get("storePending") is True
-        ):
+        if isinstance(banner, dict) and banner.get("storePending") is True:
+            # storePending is driven by the takeover store, which is only populated from
+            # a real interrupt/pending-approval event — unlike `ready`, which is also
+            # satisfiable by banner-looking DOM that carries no HITL semantics.
             return last_tool or "browser_ask_human_tool", True, False
 
         recovered = await maybe_recover_browser_takeover(

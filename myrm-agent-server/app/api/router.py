@@ -16,6 +16,7 @@ from app.api.agents import (
     templates,
 )
 from app.api.agents.fleet_overview import router as fleet_overview_router
+from app.api.agents.governance import router as governance_router
 from app.api.agents.openapi_services import router as openapi_services_router
 from app.api.agents.profile_audit import router as profile_audit_router
 from app.api.agents.readiness import router as readiness_router
@@ -140,6 +141,7 @@ api_router.include_router(agent_history.router, prefix="/user-agents", tags=["us
 api_router.include_router(providers.router, prefix="/user-agents/providers", tags=["user-agents"])
 
 api_router.include_router(fleet_overview_router, prefix="/agents", tags=["agents"])
+api_router.include_router(governance_router, prefix="/agents", tags=["agents"])
 api_router.include_router(openapi_services_router, prefix="/agents", tags=["agents"])
 api_router.include_router(profile_audit_router, prefix="/user-agents", tags=["user-agents"])
 api_router.include_router(readiness_router, prefix="/user-agents", tags=["user-agents"])

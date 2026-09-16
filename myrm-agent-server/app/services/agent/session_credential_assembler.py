@@ -121,21 +121,28 @@ async def assemble_session_credentials(
     oauth_credentials_dict: dict[str, object] | None = None,
     providers_dict: dict[str, object] | None = None,
     channel: str | None = None,
+    credential_track: str = "personal",
 ) -> tuple[EphemeralUserCredential, ...]:
     """Build merged session credentials for user_credentials_ctx injection.
 
     xAI credential priority: OAuth token (from SuperGrok login) takes precedence
     over API Key (from WebUI providers). If both exist, only the OAuth credential
     is included for the xAI issuer to avoid duplicate entries.
+
+    ``credential_track`` selects the credential pool: ``"personal"`` (default,
+    existing behavior) assembles owner credentials; ``"shared"`` assembles only
+    channel-level credentials so a team-shared turn can never touch the owner's
+    personal OAuth tokens.
     """
     credentials: list[EphemeralUserCredential] = []
     try:
-        oauth_creds = await _oauth_credentials_from_dict(oauth_credentials_dict)
-        credentials.extend(oauth_creds)
+        if credential_track != "shared":
+            oauth_creds = await _oauth_credentials_from_dict(oauth_credentials_dict)
+            credentials.extend(oauth_creds)
 
-        has_xai_oauth = any(c.issuer == XAI_ISSUER for c in oauth_creds)
-        if not has_xai_oauth:
-            credentials.extend(_xai_provider_credentials(providers_dict))
+            has_xai_oauth = any(c.issuer == XAI_ISSUER for c in oauth_creds)
+            if not has_xai_oauth:
+                credentials.extend(_xai_provider_credentials(providers_dict))
 
         if channel:
             credentials.extend(await _channel_token_credentials(channel))

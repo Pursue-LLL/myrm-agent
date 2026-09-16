@@ -70,8 +70,12 @@ class ContextAssemblyService:
         binding: ResolvedContextBinding | None = None
         if enable_memory:
             task_root = agent.declared_allowed_roots[0] if agent.declared_allowed_roots else None
+            extra_namespaces_raw = getattr(agent, "memory_extra_namespaces", None)
+            extra_namespaces = (
+                [str(item) for item in extra_namespaces_raw] if isinstance(extra_namespaces_raw, list) else None
+            )
             binding = resolve_context_binding(
-                namespaces=None,
+                namespaces=extra_namespaces,
                 agent_id=agent.agent_id or "default",
                 channel_id=agent.memory_channel_id or agent.channel_name,
                 conversation_id=agent.memory_conversation_id or effective_chat_id,

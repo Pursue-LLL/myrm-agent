@@ -152,27 +152,6 @@ async def generate_cancellable_stream(
             session.collector.feed_event(migration_gap_event)
             yield SSEEnvelope.from_any(migration_gap_event).to_sse_chunk()
 
-    if session.entitlement_preflight_text:
-        from app.ai_agents.general_agent.active_tool_groups import (
-            derive_active_tool_groups_from_params,
-        )
-        from app.services.agent.stream_session.entitlement_gap_preflight import (
-            build_surface_unavailable_gap_sse_event,
-        )
-
-        surface_gap_event = build_surface_unavailable_gap_sse_event(
-            message_id=session.params.message_id or "",
-            user_text=session.entitlement_preflight_text,
-            active_tool_groups=derive_active_tool_groups_from_params(session.params),
-            chat_id=session.request.chat_id,
-            channel_name=getattr(session.params, "channel_name", "web_chat"),
-            client_surface=getattr(session.params, "client_surface", None),
-            locale=getattr(session.params, "locale", None),
-        )
-        if surface_gap_event is not None:
-            session.collector.feed_event(surface_gap_event)
-            yield SSEEnvelope.from_any(surface_gap_event).to_sse_chunk()
-
     if session.request.resume_value is None and isinstance(session.extra_context, dict):
         still_warming = bool(session.extra_context.get("turn_prewarm_still_warming"))
         brief_status = session.extra_context.get("memory_brief_status")

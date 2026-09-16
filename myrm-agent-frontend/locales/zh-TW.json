@@ -1040,7 +1040,6 @@
         "kanban": "任務看板",
         "cron": "定時任務（對話）",
         "answer_tool": "回答質量自審",
-        "render_ui": "互動式 UI",
         "planning": "多步進度",
         "structured_clarify": "結構化澄清",
         "external_cli": "外部 CLI",
@@ -1061,14 +1060,12 @@
         "kanban": "管理看板任務 — 報告進度、阻塞任務、標記完成",
         "cron": "在對話中直接建立定時任務；關閉時仍可透過能力發現按需載入",
         "answer_tool": "回答前自審質量 — 確保回答的完整性和準確性",
-        "render_ui": "在對話裡直接填寫表單、檢視錶格與圖表",
         "planning": "主 Agent 多步 todo 清單 — 在對話中更新進度樹（無 Planner 子 Agent）",
         "structured_clarify": "意圖不明確時彈出結構化澄清表單 — Agent 暫停直至你回覆",
         "external_cli": "允許 Agent 透過 delegate_to_agent 將編碼任務委派給外部 CLI Agent（Claude Code、Codex、Gemini CLI 等）",
         "skill_market": "在對話中搜尋並安裝外部技能市場的技能",
         "skill_manage": "允許 Agent 在對話中建立、修改與刪除技能。開啟後，任務結束可能自動提煉技能草案供你審核。/learn 命令始終啟用此能力。"
       },
-      "renderUiWebOnlyHint": "互動式 UI 僅在 Web 對話與桌面客戶端內渲染；Telegram、定時任務等渠道無法顯示內聯表單或圖表。",
       "wikiScopeHint": "資料儲存在該智慧體獨立知識庫中，不會與其他智慧體混用。",
       "wikiScopeHintNamed": "資料儲存在 {name} 的獨立知識庫中，不會與其他智慧體混用。",
       "wikiActiveIndicator": "已啟用獨立知識庫",
@@ -1752,19 +1749,6 @@
     "uploadFailed": "上傳失敗",
     "skillActivation": {
       "remove": "移除已選技能"
-    },
-    "jumpBar": {
-      "ariaLabel": "對話導航",
-      "title": "訊息導航",
-      "jumpTo": "跳轉到訊息",
-      "turnTitle": "第 {turn} 輪",
-      "loaded": "已載入",
-      "unloaded": "Not loaded · Click to fetch and locate",
-      "loading": "正在載入輪次訊息...",
-      "userPrefix": "使用者: ",
-      "assistantPrefix": "智慧體: ",
-      "fullTimeline": "全對話時間線",
-      "turnCount": "共 {count} 輪對話"
     },
     "turnRail": {
       "ariaLabel": "對話時間軸大綱導覽",
@@ -3026,11 +3010,6 @@
       "openModelCenter": "模型中心",
       "closeButton": "關閉"
     },
-    "timeline": {
-      "loaded": "已載入",
-      "lazyLoad": "點擊載入輪次",
-      "noPrompt": "無提示詞內容"
-    },
     "spillover": {
       "notice": "偵測到長文字（{chars} 字元），已自動轉存至工作區檔案以保持上下文整潔。",
       "optimized": "已保護"
@@ -3672,10 +3651,6 @@
     "image_tool_tool_error": "圖片生成失敗",
     "video_tool_tool": "生成影片",
     "video_tool_tool_error": "影片生成失敗",
-    "render_ui_tool_tool": "生成互動介面",
-    "render_ui_tool_tool_error": "生成介面失敗",
-    "update_ui_data_tool_tool": "更新互動介面資料",
-    "update_ui_data_tool_tool_error": "更新介面資料失敗",
     "bash_code_execute_tool_tool": "執行程式碼",
     "bash_code_execute_tool_tool_error": "程式碼執行失敗",
     "text_editor_tool_tool": "編輯檔案",
@@ -18860,7 +18835,10 @@
           "globalAgentSet": "全域性 Agent 設定成功",
           "replyModeUpdated": "回覆模式已更新",
           "draftTimeoutUpdated": "草稿超時設定已更新",
-          "workspaceBound": "工作目錄綁定成功"
+          "workspaceBound": "工作目錄綁定成功",
+          "identityUpdated": "身份已更新",
+          "identityRevoked": "身份已凍結",
+          "identityRestored": "身份已恢復"
         },
         "errors": {
           "initialLoad": "載入渠道或 Agent 失敗",
@@ -18870,7 +18848,8 @@
           "globalAgent": "設定全域性 Agent 失敗",
           "replyMode": "設定回覆模式失敗",
           "draftTimeout": "更新草稿超時設定失敗",
-          "workspaceBind": "綁定工作目錄失敗"
+          "workspaceBind": "綁定工作目錄失敗",
+          "identity": "更新身份失敗"
         },
         "threadSharing": {
           "label": "會話共享模式",
@@ -18894,6 +18873,17 @@
           "label": "工作目錄",
           "none": "-- 不綁定目錄 --",
           "emptyProjects": "請先在項目中掛載資料夾"
+        },
+        "identity": {
+          "label": "團隊身份",
+          "tooltip": "為該群命名一個共享身份，所有人面對同一夥伴。名稱僅展示用，權限與記憶仍限定在本群。",
+          "namePlaceholder": "為夥伴取名…",
+          "inherit": "繼承",
+          "shared": "共享",
+          "private": "獨立",
+          "revoke": "凍結",
+          "restore": "恢復",
+          "revokedBadge": "已凍結"
         }
       }
     },

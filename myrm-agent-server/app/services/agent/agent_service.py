@@ -271,6 +271,9 @@ class AgentService:
             "cost_reduction_ratio": agent_data.cost_reduction_ratio,
             "a2a_enabled": agent_data.a2a_enabled,
             "a2a_trusted_peer_ids": agent_data.a2a_trusted_peer_ids,
+            "responsibility_scope": agent_data.responsibility_scope,
+            "owner_label": agent_data.owner_label,
+            "acceptance_criteria": list(agent_data.acceptance_criteria or []),
         }
 
         if agent_data.model_selection:
@@ -426,6 +429,12 @@ class AgentService:
                 new_metadata["a2a_enabled"] = agent_data.a2a_enabled
             if "a2a_trusted_peer_ids" in agent_data.model_fields_set and agent_data.a2a_trusted_peer_ids is not None:
                 new_metadata["a2a_trusted_peer_ids"] = list(agent_data.a2a_trusted_peer_ids)
+            if "responsibility_scope" in agent_data.model_fields_set:
+                new_metadata["responsibility_scope"] = agent_data.responsibility_scope
+            if "owner_label" in agent_data.model_fields_set:
+                new_metadata["owner_label"] = agent_data.owner_label
+            if "acceptance_criteria" in agent_data.model_fields_set:
+                new_metadata["acceptance_criteria"] = list(agent_data.acceptance_criteria or [])
             if "cron_post_run_verify" in agent_data.model_fields_set and agent_data.cron_post_run_verify is not None:
                 updates["cron_post_run_verify"] = agent_data.cron_post_run_verify
 

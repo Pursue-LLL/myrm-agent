@@ -109,6 +109,10 @@ async def list_channel_topics(
                     replyMode=str(topic_cfg.get("replyMode", "auto")),
                     draftTimeoutMinutes=int(topic_cfg.get("draftTimeoutMinutes", 5)),
                     draftTimeoutAction=str(topic_cfg.get("draftTimeoutAction", "auto_reject")),
+                    identityScope=str(topic_cfg.get("identityScope", "inherit")),
+                    identityId=str(topic_cfg.get("identityId", "")) or None,
+                    identityName=str(topic_cfg.get("identityName", "")) or None,
+                    identityRevoked=bool(topic_cfg.get("identityRevoked", False)),
                 )
             )
 
@@ -159,7 +163,7 @@ async def bind_channel_topic(
             if agent_tools.intersection(high_risk_tools):
                 logger.warning(f"Security Warning: Binding high-risk agent {agent.id} to channel {channel} topic {topic_id}")
 
-    from app.channels.types import DraftTimeoutAction, ReplyMode
+    from app.channels.types import DraftTimeoutAction, IdentityScopeMode, ReplyMode
 
     reply_mode = ReplyMode(body.reply_mode) if body.reply_mode else ReplyMode.AUTO
     draft_timeout_action = (
@@ -184,6 +188,18 @@ async def bind_channel_topic(
             bind_kwargs["project_id"] = body.project_id
         if "authorized_path" in body.model_fields_set:
             bind_kwargs["authorized_path"] = body.authorized_path
+        if body.identity_scope is not None:
+            bind_kwargs["identity_scope"] = IdentityScopeMode(body.identity_scope)
+        if "identity_id" in body.model_fields_set:
+            bind_kwargs["identity_id"] = body.identity_id
+        elif body.identity_name is not None:
+            from app.channels.routing.identity_scope import default_identity_id
+
+            bind_kwargs["identity_id"] = default_identity_id(channel, chat_id, thread_id)
+        if "identity_name" in body.model_fields_set:
+            bind_kwargs["identity_name"] = body.identity_name
+        if body.identity_revoked is not None:
+            bind_kwargs["identity_revoked"] = body.identity_revoked
         ctx = await manager.bind_topic(**bind_kwargs)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -205,6 +221,10 @@ async def bind_channel_topic(
         replyMode=ctx.reply_mode.value,
         draftTimeoutMinutes=ctx.draft_timeout_minutes,
         draftTimeoutAction=ctx.draft_timeout_action.value,
+        identityScope=ctx.identity_scope.value,
+        identityId=ctx.identity_id,
+        identityName=ctx.identity_name,
+        identityRevoked=ctx.identity_revoked,
     )
 
 

@@ -66,6 +66,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
   const [browserSource, setBrowserSource] = useState<string>('auto');
   const [dialogPolicy, setDialogPolicy] = useState<string>('smart');
   const [sessionRecording, setSessionRecording] = useState<string>('off');
+  const [responsibilityScope, setResponsibilityScope] = useState<string>('');
+  const [ownerLabel, setOwnerLabel] = useState<string>('');
+  const [acceptanceCriteriaText, setAcceptanceCriteriaText] = useState<string>('');
 
   const { data: agent, isLoading } = useSWR<Agent>(open && agentId ? `getAgent-${agentId}` : null, () =>
     getAgent(agentId!, true),
@@ -112,6 +115,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         setBrowserSource(agent.browser_source || 'auto');
         setDialogPolicy(agent.dialog_policy || 'smart');
         setSessionRecording(agent.session_recording || 'off');
+        setResponsibilityScope(agent.responsibility_scope || '');
+        setOwnerLabel(agent.owner_label || '');
+        setAcceptanceCriteriaText((agent.acceptance_criteria || []).join('\n'));
       } else if (!agentId) {
         reset({
           name: '',
@@ -123,6 +129,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         setAgentType('individual');
         setSessionPolicyEnabled(false);
         setSessionPolicy({ mode: 'daily', daily_reset_hour: 4, idle_minutes: 120 });
+        setResponsibilityScope('');
+        setOwnerLabel('');
+        setAcceptanceCriteriaText('');
       }
     }
   }, [open, agent, agentId, reset]);
@@ -131,6 +140,11 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
     setIsSubmitting(true);
     try {
       const validBindings = commandBindings.filter((b) => b.command_name && b.skill_ids.length > 0);
+      const acceptanceCriteria = acceptanceCriteriaText
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .slice(0, 20);
       const payload = {
         ...data,
         agent_type: agentType,
@@ -139,6 +153,9 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
         browser_source: browserSource === 'auto' ? null : browserSource,
         dialog_policy: dialogPolicy === 'smart' ? null : dialogPolicy,
         session_recording: sessionRecording === 'off' ? null : sessionRecording,
+        responsibility_scope: responsibilityScope.trim() ? responsibilityScope.trim() : null,
+        owner_label: ownerLabel.trim() ? ownerLabel.trim() : null,
+        acceptance_criteria: acceptanceCriteria.length > 0 ? acceptanceCriteria : null,
       };
       if (agentId) {
         await updateAgent(agentId, payload);
@@ -283,6 +300,62 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                   })}
                 />
                 {errors.description && <p className="text-sm text-destructive">{errors.description.message}</p>}
+              </div>
+
+              <div className="space-y-2 rounded-xl border border-border/60 bg-muted/20 p-4">
+                <div>
+                  <Label>{t('form.responsibilityTitle', { fallback: 'Responsibility' })}</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {t('form.responsibilityHint', {
+                      fallback: 'What this agent owns long-term. Used for health checks, never sent to the model.',
+                    })}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="responsibility_scope">
+                    {t('form.responsibilityScope', { fallback: 'Scope' })}
+                  </Label>
+                  <TextareaAutosize
+                    id="responsibility_scope"
+                    value={responsibilityScope}
+                    onChange={(e) => setResponsibilityScope(e.target.value)}
+                    minRows={2}
+                    maxRows={6}
+                    maxLength={2000}
+                    className="flex w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                    placeholder={t('form.responsibilityScopePlaceholder', {
+                      fallback: 'e.g. Owns all customer email replies and follow-ups',
+                    })}
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="owner_label">{t('form.ownerLabel', { fallback: 'Owner' })}</Label>
+                    <Input
+                      id="owner_label"
+                      value={ownerLabel}
+                      onChange={(e) => setOwnerLabel(e.target.value)}
+                      maxLength={100}
+                      placeholder={t('form.ownerLabelPlaceholder', { fallback: 'Optional on this device' })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="acceptance_criteria">
+                      {t('form.acceptanceCriteria', { fallback: 'Acceptance checklist' })}
+                    </Label>
+                    <TextareaAutosize
+                      id="acceptance_criteria"
+                      value={acceptanceCriteriaText}
+                      onChange={(e) => setAcceptanceCriteriaText(e.target.value)}
+                      minRows={2}
+                      maxRows={6}
+                      className="flex w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+                      placeholder={t('form.acceptanceCriteriaPlaceholder', {
+                        fallback: 'One item per line',
+                      })}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">

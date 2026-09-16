@@ -109,4 +109,30 @@ describe('MemoryDetailSheet evolution rendering', () => {
     renderSheet(memory);
     expect(memory.merge_history).toContain('MERGE');
   });
+
+  it('renders source evidence quote snippet block', () => {
+    renderSheet({
+      id: 'm5',
+      memory_type: 'semantic',
+      content: 'fact with evidence',
+      metadata: { quote_snippet: '用户原话引用片段' },
+    } as Memory);
+
+    expect(screen.getByText('sourceEvidence')).toBeInTheDocument();
+    expect(screen.getByText('「用户原话引用片段」')).toBeInTheDocument();
+  });
+
+  it('renders the source evidence quote block with evolution history', () => {
+    renderSheet({
+      id: 'm5',
+      memory_type: 'semantic',
+      content: 'fact with evidence',
+      metadata: { quote_snippet: 'I prefer dark mode' },
+      merge_history: '09-12 10:00|MERGE|dark mode noted',
+    } as Memory);
+
+    expect(screen.getByText('sourceEvidence')).toBeInTheDocument();
+    expect(screen.getByText(/「I prefer dark mode」/)).toBeInTheDocument();
+    expect(screen.getByText('fields.evolutionHistory')).toBeInTheDocument();
+  });
 });

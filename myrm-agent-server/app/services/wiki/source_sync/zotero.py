@@ -282,9 +282,7 @@ def _render_note(
     lines: list[str] = [f"# {title}", ""]
     meta_bits = [bit for bit in (", ".join(authors), year, item_type) if bit]
     if meta_bits:
-        lines.append(f"**{meta_bits[0]}**")
-        if len(meta_bits) > 1:
-            lines[-1] = f"**{', '.join(meta_bits)}**"
+        lines.append(f"**{', '.join(meta_bits)}**")
     if doi:
         lines.append(f"DOI: `{doi}`")
     if url:

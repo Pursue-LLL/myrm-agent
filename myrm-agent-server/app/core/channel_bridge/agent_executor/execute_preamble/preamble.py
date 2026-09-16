@@ -129,7 +129,13 @@ async def prepare_channel_execution(
     memory_decay_profile: str | None = None
     memory_extraction_preset: str | None = None
 
-    if topic_context and topic_context.agent_id:
+    if topic_context and topic_context.identity_revoked:
+        logger.info(
+            "Channel identity revoked, routing to default agent: channel=%s chat_id=%s",
+            msg.channel,
+            msg.chat_id,
+        )
+    if topic_context and topic_context.agent_id and not topic_context.identity_revoked:
         resolved_agent_id = topic_context.agent_id
         resolved_profile = await get_agent_profile_resolver().resolve(topic_context.agent_id)
         if resolved_profile:
@@ -172,6 +178,11 @@ async def prepare_channel_execution(
     if not session_ctx.chat_id:
         return PrepareChannelExecutionResult(pre_events=tuple(pre_events))
 
+    from app.channels.routing.identity_scope import resolve_team_identity
+
+    team_identity = resolve_team_identity(topic_context, msg)
+    team_identity_namespaces = [team_identity.memory_namespace] if team_identity.memory_namespace else []
+
     agent_outcome = await build_channel_execution_agent(
         msg,
         query=session_ctx.query,
@@ -198,6 +209,8 @@ async def prepare_channel_execution(
         auto_restore_domains=auto_restore_domains,
         memory_decay_profile=memory_decay_profile,
         memory_extraction_preset=memory_extraction_preset,
+        memory_identity_namespaces=team_identity_namespaces,
+        credential_track=team_identity.spec.credential_track.value,
     )
 
     if agent_outcome.early_reply is not None:

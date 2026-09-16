@@ -126,6 +126,8 @@ export interface UpdateMemoryRequest {
   application?: string;
   importance?: number;
   tags?: string[];
+  /** Procedural rules only: true protects the rule from agent edits/deletes, false releases it. */
+  is_user_locked?: boolean;
 }
 
 export interface MemorySearchResponse {

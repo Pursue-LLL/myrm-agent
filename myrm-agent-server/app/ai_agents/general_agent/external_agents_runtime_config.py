@@ -6,7 +6,6 @@
 - app.config.deploy_mode::is_local_mode (POS: deploy mode guard)
 
 [OUTPUT]
-- _default_cli_args: Known CLI defaults for local auto-detect
 - _auth_mode / _cfg_int: Config parsing helpers
 - _config_fingerprint: Stable hash aligned with RuntimeConfig-relevant fields
 - _resolve_external_agent_cfgs: Resolve explicit config or local auto-detect
@@ -31,16 +30,15 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_CLI_DEFAULT_ARGS: dict[str, list[str]] = {
-    "claude": ["-p", "--output-format", "stream-json", "--verbose"],
-    "codex": ["exec", "--json", "--sandbox", "workspace-write"],
-    "gemini": ["--output-format", "stream-json", "--yolo"],
-}
-
-
 def _default_cli_args(agent_name: str) -> list[str]:
-    """Return sensible default CLI args for a known agent, empty list otherwise."""
-    return list(_CLI_DEFAULT_ARGS.get(agent_name, []))
+    """Return sensible default CLI args for a known agent, empty list otherwise.
+
+    Single source of truth lives in the harness auth-profile registry; this
+    shim keeps the server-local call sites stable.
+    """
+    from myrm_agent_harness.toolkits.acp.auth import cli_launch_args
+
+    return cli_launch_args(agent_name)
 
 
 def _auth_mode(cfg: dict[str, object]) -> AuthMode:
@@ -122,7 +120,7 @@ def _normalize_runtime_cfg(cfg: dict[str, object]) -> _NormalizedRuntimeCfg | No
         cwd=_normalized_cwd(cfg),
         timeout_seconds=_cfg_int(cfg, "timeout", 300),
         max_response_chars=_cfg_int(cfg, "maxResponseChars", 50_000),
-        permission_mode=str(cfg.get("permissionMode", "allow_all")),
+        permission_mode=str(cfg.get("permissionMode", "safe")),
         auth_mode=_auth_mode(cfg),
         max_turns=_cfg_int(cfg, "maxTurns", 25),
         description=str(cfg.get("description", "")),
@@ -179,6 +177,7 @@ async def _resolve_external_agent_cfgs(
         return None
 
     try:
+        from myrm_agent_harness.toolkits.acp.auth import cli_launch_args
         from myrm_agent_harness.toolkits.acp.core.backend_detector import (
             BackendDetector,
         )
@@ -192,7 +191,10 @@ async def _resolve_external_agent_cfgs(
                 "name": d.name,
                 "type": "cli",
                 "command": d.path,
-                "args": _default_cli_args(d.name),
+                # Auto-detected backends inherit the fail-closed default so discovery
+                # never silently grants more autonomy than the user granted explicitly.
+                "args": cli_launch_args(d.name),
+                "permissionMode": "safe",
                 "enabled": True,
             }
             for d in detected

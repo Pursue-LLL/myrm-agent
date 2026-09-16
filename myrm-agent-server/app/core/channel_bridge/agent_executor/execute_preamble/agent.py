@@ -69,6 +69,8 @@ async def build_channel_execution_agent(
     auto_restore_domains: list[str],
     memory_decay_profile: str | None,
     memory_extraction_preset: str | None = None,
+    memory_identity_namespaces: list[str] | None = None,
+    credential_track: str = "personal",
 ) -> ChannelAgentBuildOutcome:
     from app.core.memory.proactive.settings import (
         resolve_conversation_search_enabled,
@@ -249,6 +251,7 @@ async def build_channel_execution_agent(
         memory_conversation_id=memory_identity.conversation_id,
         memory_task_id=memory_identity.task_id,
         memory_shared_context_ids=memory_shared_context_ids,
+        memory_extra_namespaces=list(memory_identity_namespaces or []),
         timezone=user_timezone,
         external_agents_config=extract_external_agents(configs.external_agents_dict),
         code_execution_allow_network=_extract_code_exec_network(memory_settings),
@@ -290,6 +293,7 @@ async def build_channel_execution_agent(
         oauth_credentials_dict=configs.oauth_credentials_dict,
         providers_dict=configs.providers_dict,
         channel=msg.channel,
+        credential_track=credential_track,
     )
     token_ctx = user_credentials_ctx.set(credentials_list)
     return ChannelAgentBuildOutcome(

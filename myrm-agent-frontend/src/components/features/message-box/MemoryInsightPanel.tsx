@@ -19,7 +19,13 @@ interface MemoryInsightPanelProps {
   messageCreatedAtMs?: number;
   memoryBrief?: MemoryBriefData;
   memoryBriefStatus?: MemoryBriefStatus;
-  memoryBudget?: { used: number; total: number };
+  memoryBudget?: {
+    used: number;
+    total: number;
+    rulesConfigured?: number;
+    rulesInjected?: number;
+    rulesTruncated?: boolean;
+  };
   citations?: string[];
   className?: string;
 }
@@ -238,6 +244,20 @@ export default function MemoryInsightPanel({
                         profiles: memoryBrief.stable.profile_keys.length,
                       })}
                     </div>
+                    {memoryBudget?.rulesConfigured != null && memoryBudget.rulesInjected != null && (
+                      <div
+                        className={cn(
+                          'text-[11px] leading-relaxed',
+                          memoryBudget.rulesTruncated ? 'text-amber-500' : 'text-muted-foreground',
+                        )}
+                      >
+                        {t('briefRulesApplied', {
+                          rules: memoryBudget.rulesConfigured,
+                          injected: memoryBudget.rulesInjected,
+                          skipped: Math.max(0, memoryBudget.rulesConfigured - memoryBudget.rulesInjected),
+                        })}
+                      </div>
+                    )}
                     <div className="text-[11px] text-muted-foreground leading-relaxed">
                       {t('briefLearnedSummary', {
                         preferences: memoryBrief.learned.preference_count,

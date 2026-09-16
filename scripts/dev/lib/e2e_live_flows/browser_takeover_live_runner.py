@@ -5,10 +5,11 @@ from __future__ import annotations
 import asyncio
 import os
 
-from chrome_mcp.client import ChromeMcpClient, McpPage
-from e2e_live_flows._flow_base import FlowLogger
 from cdp_chat.mcp_ui import McpChatSession
+from chrome_mcp.client import ChromeMcpClient, McpPage
 from e2e_core.resource_ledger import E2EResourceLedger
+
+from e2e_live_flows._flow_base import FlowLogger
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 

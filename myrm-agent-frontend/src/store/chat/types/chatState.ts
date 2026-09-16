@@ -45,8 +45,6 @@ export interface ChatState {
   newChatCreated: boolean;
   messages: Message[];
   turnOutlines: TurnOutlineItem[];
-  turnOutlinesLoading: boolean;
-  activeTimelineTurnIndex: number | null;
   compactedSummary: string | null;
   compactedBeforeId: string | null;
   contextBranches: ContextBranchRecord[];
@@ -57,8 +55,6 @@ export interface ChatState {
   compactionRefreshNonce: number;
   workspaceDir: string | null;
   sessionSkillOverrides: string[] | null;
-  activeKnowledgeBaseIds: string[];
-  activeKnowledgeBaseNames: Record<string, string>;
   sessionAccessRoots: SessionAccessRoot[];
 
   // 聊天历史列表（分页）
@@ -188,8 +184,7 @@ export interface ChatState {
   setContextPinnedFilesLoadError: (error: string | null) => void;
   setCompactedBeforeId: (id: string | null) => void;
   setTurnOutlines: (outlines: TurnOutlineItem[]) => void;
-  setTurnOutlinesLoading: (loading: boolean) => void;
-  setActiveTimelineTurnIndex: (turnIndex: number | null) => void;
+  fetchTurnOutlines: (chatId?: string) => Promise<void>;
   setWorkspaceDir: (dir: string | null) => void;
   setSessionAccessRoots: (roots: SessionAccessRoot[]) => void;
   setChatHistoryItems: (items: ChatHistoryItem[]) => void;
@@ -305,9 +300,7 @@ export interface ChatState {
   // 初始化方法
   loadMessages: (chatId: string) => Promise<void>;
   loadOlderMessages: () => Promise<void>;
-  loadThrough: (targetMessageId: string) => Promise<boolean>;
-  refreshTurnOutlines: () => Promise<void>;
-  setActiveTimelineTurnIndex: (index: number | null) => void;
+  loadThroughTurn: (targetMessageId: string) => Promise<boolean>;
   initializeChat: (id?: string, options?: { forceReload?: boolean }) => void;
   scheduleAutoSave: () => void;
 

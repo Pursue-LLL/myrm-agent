@@ -486,6 +486,19 @@ class DraftTimeoutAction(StrEnum):
     AUTO_REJECT = "auto_reject"
 
 
+class IdentityScopeMode(StrEnum):
+    """Team-shared identity scope for a topic/channel binding.
+
+    - ``INHERIT`` (default): use the channel baseline shared identity.
+    - ``SHARED``: this binding carries its own named shared identity.
+    - ``PRIVATE``: independent identity, no baseline inheritance.
+    """
+
+    INHERIT = "inherit"
+    SHARED = "shared"
+    PRIVATE = "private"
+
+
 @dataclass(frozen=True, slots=True)
 class TopicContext:
     """Per-topic configuration for forum-style thread routing.
@@ -504,6 +517,12 @@ class TopicContext:
     - ``draft_review``: Agent replies are held as drafts for human approval
       before being sent to the channel. Essential for enterprise customer
       service and sales scenarios where AI responses need quality control.
+
+    ``identity_scope`` / ``identity_id`` / ``identity_name``: Team-shared
+    identity attached to this binding. ``identity_name`` is display-only;
+    routing and audit always use the stable ``identity_id``. ``revoked``
+    freezes the identity (routes to the default agent, keeps stored memory
+    for a later rejoin) without deleting the binding.
     """
 
     topic_id: str
@@ -518,6 +537,10 @@ class TopicContext:
     draft_timeout_minutes: int = 5
     draft_timeout_action: DraftTimeoutAction = DraftTimeoutAction.AUTO_REJECT
     personality_style: str | None = None
+    identity_scope: IdentityScopeMode = IdentityScopeMode.INHERIT
+    identity_id: str | None = None
+    identity_name: str | None = None
+    identity_revoked: bool = False
 
 
 @dataclass(frozen=True, slots=True)

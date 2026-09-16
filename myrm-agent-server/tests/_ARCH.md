@@ -107,6 +107,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `e2e/test_enterprise_agent_audit_error_state_chrome_e2e.py` | 模块 | Enterprise Agent Audit Chrome E2E（PRIVATE+READ×1 SHPOIB）：打开 `/settings/enterprise` → 点击「审计日志」子 tab → Radix Tabs 完整事件序列切到「Agent 行为」→ 断言 AgentAuditView 挂载（标题 + 组织加载失败 i18n banner 或数据态）；覆盖本地无 CP 时企业审计页的 i18n 错误态渲染与不白屏 |
 | `api/wiki/test_wiki_structural_cache_invalidation.py` | 模块 | Wiki vault mutation SSOT：`_after_wiki_vault_mutation` 在 apply/move/repair-publication/delete/repair-types/pending approve 等端点触发或 skip（9 项） |
 | `api/wiki/test_maintain_endpoint.py` | 模块 | POST /maintain：默认 structural mode · `?mode=full` · compile-busy 409 |
+| `api/wiki/test_wiki_sources_status.py` | 模块 | Wiki sources API：status OAuth 标志位 + PUT config zotero 字段透传/回读断言 + exclude_unset 部分更新保持语义（断链防回归锚点） |
 | `api/chats/test_kanban_closure_seed_fixture.py` | 模块 | Kanban closure fixture seed HTTP 单测（`/chats/test/seed-kanban-closure-fixture`） |
 | `api/chats/test_kanban_closure_seed_integration.py` | 模块 | Kanban closure seed 真 DB 集成（metadata + board task） |
 | `api/chats/test_citation_seed_integration.py` | 模块 | citation seed → GET messages 集成单测（真 DB metadata） |

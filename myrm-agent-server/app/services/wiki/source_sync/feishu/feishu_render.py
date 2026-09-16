@@ -2,7 +2,7 @@
 
 [INPUT]
 - Feishu OpenAPI /docx/v1/documents/{id}/blocks payload (raw JSON)
-- app.services.wiki.source_sync.feishu_render_inline (POS: inline element renderers)
+- app.services.wiki.source_sync.feishu.feishu_render_inline (POS: inline element renderers)
 
 [OUTPUT]
 - feishu_docx_blocks_to_markdown: full docx block payload → GFM Markdown
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 
-from app.services.wiki.source_sync.feishu_render_inline import (
+from app.services.wiki.source_sync.feishu.feishu_render_inline import (
     _as_elements,
     _decode_url,
     _escape_md,

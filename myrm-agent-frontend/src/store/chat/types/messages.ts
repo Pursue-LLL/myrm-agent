@@ -129,7 +129,16 @@ export type Message = {
   privacyRoute?: string;
   completionStatus?: CompletionStatus; // LLM 回复完成状态
   contextBudget?: ContextBudget;
-  memoryBudget?: { used: number; total: number }; // 内存注入预算
+  memoryBudget?: {
+    used: number;
+    total: number;
+    /** Stable rules configured for this turn (before prompt-budget trimming). */
+    rulesConfigured?: number;
+    /** Stable rules that actually reached the model this turn. */
+    rulesInjected?: number;
+    /** True when the prompt budget dropped one or more configured rules. */
+    rulesTruncated?: boolean;
+  };
   citations?: string[]; // 引用的记忆ID
   memoryBrief?: MemoryBriefData; // 发送后、模型首 token 前的记忆简报
   memoryBriefSnapshotId?: string; // 记忆简报快照ID（用于前后追踪）

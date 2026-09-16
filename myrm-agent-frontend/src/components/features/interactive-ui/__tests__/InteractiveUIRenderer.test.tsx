@@ -38,7 +38,7 @@ describe('InteractiveUIRenderer bindings', () => {
     expect(screen.getByText('Retry')).toBeInTheDocument();
   });
 
-  it('re-renders with updated data when artifact.data changes (update_ui_data)', () => {
+  it('re-renders with updated data when artifact.data changes', () => {
     const { rerender } = render(<InteractiveUIRenderer artifact={artifact} />);
     expect(screen.getByText('E2E_UPDATE_INITIAL')).toBeInTheDocument();
 

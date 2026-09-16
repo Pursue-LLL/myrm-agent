@@ -142,6 +142,7 @@ deadlocks when an agent execution hangs without crashing.
 | router_stream_scrubber.py | Core | Stream content and progress scrubbing utilities: filters `<think>` tags and normalizes raw tool executions into user-friendly Stage descriptions. | ✅ |
 | router_stream_throttle.py | Core | Pure time-interval checks for placeholder progress edits during execute_stream. | ✅ |
 | channel_data_plane.py | Core | ChannelDataPlaneService: 渠道入站脱敏持久化、上下文拉取、知识提取自适应打标与自产回复追溯。 | ✅ |
+| identity_scope.py | Core | Team-shared identity resolution: TopicContext + InboundMessage → harness TeamIdentitySpec + `ident:<id>` memory namespace + credential track. Pure, no DB/LLM. | ✅ |
 | session_gate.py | Core | Sits between Router's consume loop and the per-message handler. Supports optional `on_busy_ack` callback (30s debounce) for immediate user feedback when messages are queued or dropped. | ✅ |
 | session_rate_limiter.py | Core | Session-level rate limiting for single-instance self-protection. | ✅ |
 | stream_config.py | Config | Unified configuration for streaming components. | ✅ |
@@ -150,7 +151,7 @@ deadlocks when an agent execution hangs without crashing.
 
 ## Channel agent bind (`/bind`)
 
-`/bind` persists via `SqlTopicManager.bind_topic` (SSOT). Search-track agents (`prompt_mode=search`) are rejected with `topic_search_agent_rejected` i18n — same rule as Settings channel routing API. Legacy Search binds are purged at `resolve_topic` / `get_all_topics` read time.
+`/bind` persists via `SqlTopicManager.bind_topic` (SSOT). Search-track agents (`prompt_mode=search`) are rejected with `topic_search_agent_rejected` i18n — same rule as Settings channel routing API. Legacy Search binds are purged at `resolve_topic` / `get_all_topics` read time. Team identity: `/bind agent=X identity=NAME identity_scope=shared|private|inherit` attaches a named shared identity (stable id, display-only name); revocation freezes routing to the default agent while retaining stored memory.
 
 ## Key Dependencies
 

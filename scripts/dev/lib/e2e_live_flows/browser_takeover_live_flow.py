@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import asyncio
 import os
-import time
 
 import pytest
-
+from cdp_chat.mcp_ui import McpChatSession
 from cdp_chat.resume import execute_resume_turn_stream_converge
+from cdp_chat.resume_turn_contract import (
+    RESUME_BUSY_BACKOFF_SEC,
+    RESUME_DONE_POLL_PROGRESS_INTERVAL_SEC,
+    parallel_active_test_count,
+    resolve_done_poll_fetch_timeout_sec,
+    resolve_stream_converge_poll_timeout_sec,
+)
 from cdp_chat.support import (
     fetch_browser_takeover_resume_ids,
     get_e2e_api_url,
@@ -16,6 +22,10 @@ from cdp_chat.support import (
     wait_e2e_backend_ready,
 )
 from cdp_chat.ui import chat_user_message_count
+from dev_gate.contract import EvaluateIntent
+from e2e_core.resource_ledger import E2EResourceLedger
+from e2e_session_runtime.heartbeat import heartbeat_once
+
 from e2e_live_flows._flow_base import FlowLogger
 from e2e_live_flows.browser_takeover_live_api import (
     cancel_chat_via_api,
@@ -30,24 +40,15 @@ from e2e_live_flows.browser_takeover_live_gate import (
     MAX_SEND_ATTEMPTS,
     api_browser_gate_progress,
     prepare_browser_turn,
-    quiesce_mux_before_retry,
     require_browser_gate_triggered,
     require_retry_budget,
     wait_for_browser_ask_human_gate,
     wait_takeover_banner,
+)
+from e2e_live_flows.browser_takeover_live_mux import (
+    quiesce_mux_before_retry,
     wait_ui_stream_idle,
 )
-from cdp_chat.mcp_ui import McpChatSession
-from cdp_chat.resume_turn_contract import (
-    RESUME_BUSY_BACKOFF_SEC,
-    RESUME_DONE_POLL_PROGRESS_INTERVAL_SEC,
-    parallel_active_test_count,
-    resolve_done_poll_fetch_timeout_sec,
-    resolve_stream_converge_poll_timeout_sec,
-)
-from e2e_session_runtime.heartbeat import heartbeat_once
-from dev_gate.contract import EvaluateIntent
-from e2e_core.resource_ledger import E2EResourceLedger
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
 
@@ -197,7 +198,11 @@ async def run_browser_takeover_live_flow(
                     _p(f"gate API reconcile pending approval: {api_progress}")
                 elif str(api_progress.get("lastTool") or ""):
                     last_tool = str(api_progress["lastTool"])
-        if not takeover_pending and not last_tool.endswith("browser_ask_human_tool"):
+        if not takeover_pending and not api_hitl:
+            # A bare `lastTool` name is not takeover evidence. A tool that raised (e.g.
+            # "No active browser page") still leaves its name in progressSteps while the
+            # turn runs to completion, so accepting it here would let a failed takeover
+            # be reported as PASSED. Only a real interrupt (pending) counts.
             if attempt >= MAX_SEND_ATTEMPTS:
                 require_browser_gate_triggered(
                     last_tool=last_tool,
@@ -205,23 +210,18 @@ async def run_browser_takeover_live_flow(
                 )
             continue
 
-        if last_tool.endswith("browser_ask_human_tool") or takeover_pending or api_hitl:
-            _p(
-                "gate confirmed — skip DOM banner wait "
-                f"(pending={takeover_pending} api_hitl={api_hitl} "
-                f"lastTool={last_tool!r}; proceed to Done resume)"
-            )
-            banner = {
-                "ready": True,
-                "hasExtensionTitle": True,
-                "source": "gate_tool_or_pending_skip_dom",
-            }
-            break
+        _p(
+            "gate confirmed — agent is parked on the HITL interrupt "
+            f"(pending={takeover_pending} api_hitl={api_hitl} lastTool={last_tool!r})"
+        )
 
         _p("wait_takeover_banner")
         try:
-            banner = await wait_takeover_banner(chat, timeout_sec=45.0)
-            _p(f"banner appeared: ready={banner.get('ready')}")
+            banner = await wait_takeover_banner(chat, timeout_sec=60.0)
+            _p(
+                f"banner appeared: ready={banner.get('ready')} "
+                f"hasExtensionTitle={banner.get('hasExtensionTitle')}"
+            )
             break
         except AssertionError:
             if attempt >= MAX_SEND_ATTEMPTS:
@@ -231,31 +231,25 @@ async def run_browser_takeover_live_flow(
 
     assert banner is not None
     assert (
-        banner.get("hasExtensionTitle") is True
+        banner.get("hasExtensionTitle") is True or banner.get("storePending") is True
     ), f"Expected extension banner: {banner}"
 
-    skip_dom_diag_sources = {
-        "gate_pending_skip_dom",
-        "gate_tool_or_pending_skip_dom",
-    }
-    pre_done_diag: dict[str, object] | str = {"skipped": "api_only_resume"}
-    if banner.get("source") not in skip_dom_diag_sources:
-        pre_done_diag = await chat.evaluate(
-            """(() => {
-              const bridge = window.__MYRM_E2E_CHAT__;
-              const snap = bridge?.getBrowserTakeoverSnapshot?.() ?? {};
-              const turn = bridge?.turnSnapshot?.() ?? {};
-              return {
-                takeoverPending: snap.pending,
-                takeoverMessageId: snap.messageId ?? null,
-                chatId: turn.chatId ?? null,
-                isStreaming: turn.isStreaming,
-                userCount: turn.userCount,
-                lastAssistantSample: turn.lastAssistantSample ?? null,
-              };
-            })()""",
-            intent=EvaluateIntent.BRIDGE_POLL,
-        )
+    pre_done_diag: dict[str, object] | str = await chat.evaluate(
+        """(() => {
+          const bridge = window.__MYRM_E2E_CHAT__;
+          const snap = bridge?.getBrowserTakeoverSnapshot?.() ?? {};
+          const turn = bridge?.turnSnapshot?.() ?? {};
+          return {
+            takeoverPending: snap.pending,
+            takeoverMessageId: snap.messageId ?? null,
+            chatId: turn.chatId ?? null,
+            isStreaming: turn.isStreaming,
+            userCount: turn.userCount,
+            lastAssistantSample: turn.lastAssistantSample ?? null,
+          };
+        })()""",
+        intent=EvaluateIntent.BRIDGE_POLL,
+    )
     _p(f"pre-Done diag: {pre_done_diag}")
 
     resume_chat_id = str(chat_id_hint or "").strip()

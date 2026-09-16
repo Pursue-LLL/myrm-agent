@@ -86,7 +86,7 @@ const Chat = ({
   messageAppeared: boolean;
   messagesOverride?: Message[];
 }) => {
-  const t = useTranslations('chat.jumpBar');
+  const t = useTranslations('chat.turnRail');
   const tMeta = useTranslations('metadata');
   const messageEnd = useRef<HTMLDivElement | null>(null);
   const lastScrollPositionRef = useRef(0);
@@ -536,7 +536,7 @@ const Chat = ({
     };
   }, [containerRef]);
 
-  // 移动端 JumpBar 触发按钮
+  // 移动端大纲抽屉触发按钮
   const mobileJumpTrigger = useMemo(
     () => (
       <button

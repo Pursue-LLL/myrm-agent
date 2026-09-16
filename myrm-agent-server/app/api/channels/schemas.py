@@ -337,6 +337,10 @@ class TopicBindingResponse(BaseModel):
     reply_mode: str = Field(default="auto", alias="replyMode")
     draft_timeout_minutes: int = Field(default=5, alias="draftTimeoutMinutes")
     draft_timeout_action: str = Field(default="auto_reject", alias="draftTimeoutAction")
+    identity_scope: str = Field(default="inherit", alias="identityScope")
+    identity_id: str | None = Field(None, alias="identityId")
+    identity_name: str | None = Field(None, alias="identityName")
+    identity_revoked: bool = Field(default=False, alias="identityRevoked")
 
     class Config:
         populate_by_name = True
@@ -368,6 +372,10 @@ class BindTopicRequest(BaseModel):
     reply_mode: Literal["auto", "draft_review"] | None = Field(None, alias="replyMode")
     draft_timeout_minutes: int | None = Field(None, alias="draftTimeoutMinutes")
     draft_timeout_action: Literal["auto_send", "auto_reject"] | None = Field(None, alias="draftTimeoutAction")
+    identity_scope: Literal["inherit", "shared", "private"] | None = Field(None, alias="identityScope")
+    identity_id: str | None = Field(None, alias="identityId")
+    identity_name: str | None = Field(None, alias="identityName")
+    identity_revoked: bool | None = Field(None, alias="identityRevoked")
 
     class Config:
         populate_by_name = True

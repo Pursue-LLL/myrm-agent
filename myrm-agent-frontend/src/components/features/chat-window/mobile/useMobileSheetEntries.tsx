@@ -79,7 +79,7 @@ export function useMobileSheetEntries({ onClose }: UseMobileSheetEntriesOptions)
     [actionMode, agentConfig, defaultModelConfig, providers],
   );
 
-  const enabledModels = useMemo(() => getEnabledModels(), [getEnabledModels, providers]);
+  const enabledModels = useMemo(() => getEnabledModels(), [getEnabledModels]);
 
   const handleModelSelect = useCallback(
     (key: string) => {

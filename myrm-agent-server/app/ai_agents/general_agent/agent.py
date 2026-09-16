@@ -132,6 +132,7 @@ class GeneralAgent(ToolSetupMixin):
         memory_task_id: str | None = None,
         memory_shared_context_ids: list[str] | None = None,
         memory_shared_context_names: dict[str, str] | None = None,
+        memory_extra_namespaces: list[str] | None = None,
         memory_base_path: str | None = None,
         declared_capabilities: tuple[str, ...] = (),
         declared_allowed_roots: tuple[str, ...] = (),
@@ -245,6 +246,7 @@ class GeneralAgent(ToolSetupMixin):
         self.memory_task_id = memory_task_id
         self.memory_shared_context_ids = list(memory_shared_context_ids or [])
         self.memory_shared_context_names = dict(memory_shared_context_names or {})
+        self.memory_extra_namespaces = list(memory_extra_namespaces or [])
         self.memory_base_path = memory_base_path
         self.declared_capabilities = declared_capabilities
         self.declared_allowed_roots = declared_allowed_roots
@@ -365,7 +367,7 @@ class GeneralAgent(ToolSetupMixin):
 
         task_root = self.declared_allowed_roots[0] if self.declared_allowed_roots else None
         return resolve_context_binding(
-            namespaces=None,
+            namespaces=self.memory_extra_namespaces or None,
             agent_id=self.agent_id or "default",
             channel_id=self.memory_channel_id or self.channel_name,
             conversation_id=self.memory_conversation_id or effective_chat_id,

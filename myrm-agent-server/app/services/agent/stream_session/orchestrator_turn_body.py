@@ -501,7 +501,6 @@ async def execute_agent_turn_after_reserve(
         routing_reason=routing_reason,
         context_warnings=context_warnings,
         stream_started_at_monotonic=stream_started_at_monotonic,
-        entitlement_preflight_text=(text_content if request.resume_value is None else None),
         pre_reply_compact_result=pre_reply_compact_result,
         pre_reply_compact_sse_sent=pre_reply_compact_sse_sent,
     )

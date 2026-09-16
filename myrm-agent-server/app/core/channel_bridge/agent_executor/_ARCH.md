@@ -13,7 +13,7 @@
 | `executor.py` | 核心 | ChannelAgentExecutor orchestration：FAQ 语义拦截 → preamble 调度 → stream → finally。topic_context.agent_id 存在且非 resume 时，先尝试 `_try_faq_intercept`，命中则直接 yield OutboundMessage 并跳过 Agent 管线。 | ✅ |
 | `execute_finalize.py` | 模块 | 流结束后 persist + metadata + media + artifact 深链 reply 组装；超限交付物压缩/提示拼接（线程池执行路径扫描）；深链成功时抑制对应超限提示（兜底：深链失败提示保留）；空内容但存在交付物（按钮/附件）时回退交付文案。 | ✅ |
 | `execute_errors.py` | 模块 | ConfigIncomplete / MyrmLLM / 通用异常 → OutboundMessage 回复。 | ✅ |
-| `stream_events.py` | 模块 | harness `process_stream` 事件 → ProgressUpdate/StreamingText 映射；`capability_gap` + `reason=surface_unavailable` 或 `web_search` + `not_configured`/`unreachable` → ProgressUpdate(display_message)；审批超时 side-effect 状态。 | ✅ |
+| `stream_events.py` | 模块 | harness `process_stream` 事件 → ProgressUpdate/StreamingText 映射；`capability_gap` + `web_search` + `not_configured`/`unreachable` → ProgressUpdate(display_message)；审批超时 side-effect 状态。 | ✅ |
 | `helpers.py` | 模块 | 入站 query 组装：`build_channel_inbound_query`（含 reply context、group context、document blocks、contact cards、forwarded email context、multimodal images）、memory identity 解析、delivery provenance banner。 | ✅ |
 | `session.py` | 模块 | Build a structured session key (base, without epoch). Exports `build_channel_budget_key(msg)` for channel budget guard key construction (single source of truth for peer resolution). | ✅ |
 | `execute_preamble/` | 子包 | InboundMessage → GeneralAgent 执行前置编排。门面 `__init__.py` 聚合导出。 | [execute_preamble/_ARCH.md](execute_preamble/_ARCH.md) |
