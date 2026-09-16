@@ -142,11 +142,12 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
             opened = client.evaluate(
                 page,
                 """(() => {
-                  const btn = Array.from(document.querySelectorAll('button')).find((el) =>
+                  const btns = Array.from(document.querySelectorAll('button')).filter((el) =>
                     /^(Create Agent|创建智能体)$/.test((el.textContent || '').trim()));
-                  if (!btn) return { ok: false };
+                  const btn = btns.find((el) => el.offsetParent !== null) || btns[0];
+                  if (!btn) return { ok: false, count: 0 };
                   btn.click();
-                  return { ok: true };
+                  return { ok: true, count: btns.length };
                 })()""",
                 timeout_sec=15.0,
             )
