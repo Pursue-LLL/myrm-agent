@@ -266,13 +266,13 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
             # from the overlap detector is nondeterministic).
             picked = client.evaluate(
                 page,
-                f"""(() => {{
+                """(() => {
                   const dlg = document.querySelector('[role=dialog]');
                   const triggers = Array.from(dlg.querySelectorAll('[role=combobox]'));
-                  if (triggers.length < 2) return {{ ok: false, reason: 'no-triggers' }};
+                  if (triggers.length < 2) return { ok: false, reason: 'no-triggers' };
                   triggers[1].click();
-                  return {{ ok: true }};
-                }})()""",
+                  return { ok: true };
+                })()""",
                 timeout_sec=15.0,
             )
             assert isinstance(picked, dict) and picked.get("ok") is True, picked
