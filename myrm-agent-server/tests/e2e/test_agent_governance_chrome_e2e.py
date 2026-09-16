@@ -211,38 +211,54 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
             navigate_mcp_page(client, page, agents_url, timeout_ms=90_000)
             dismiss_blocking_modals(client, page)
 
-            # T5a: overlap row appears with a Merge button.
+            # T5a: overlap row appears with a Merge button. Note: the orphan
+            # section renders first, so scan every matching row, not rows[0].
+            row_probe = """(() => {
+              const rows = Array.from(document.querySelectorAll('li')).filter((el) =>
+                (el.textContent || '').includes('__SRC__'));
+              const btn = rows.flatMap((r) => Array.from(r.querySelectorAll('button'))).find((b) =>
+                /^(Merge|合并)$/.test((b.textContent || '').trim()));
+              return { ready: !!btn };
+            })()""".replace("__SRC__", source_name)
             try:
                 row = wait_for_state(
                     client,
                     page,
-                    f"""(() => {{
-                      const rows = Array.from(document.querySelectorAll('li')).filter((el) =>
-                        (el.textContent || '').includes('{source_name}'));
-                      const btn = rows.length > 0 ? Array.from(rows[0].querySelectorAll('button')).find((b) =>
-                        /^(Merge|合并)$/.test((b.textContent || '').trim())) : null;
-                      return {{ ready: !!btn }};
-                    }})()""",
+                    row_probe,
                     timeout_sec=_warm_ui_parallel_wait_sec(90.0),
                 )
             except Exception as wait_err:
                 dbg = _api("/api/v1/agents/governance/overview").get("data") or {}
+                dom = client.evaluate(
+                    page,
+                    """(() => {
+                      const sec = document.querySelector('section[aria-label="Agent governance"]');
+                      return {
+                        panel: !!sec,
+                        panelText: sec ? (sec.innerText || '').slice(0, 600) : null,
+                        liCount: document.querySelectorAll('li').length,
+                      };
+                    })()""",
+                    timeout_sec=15.0,
+                )
                 raise AssertionError(
                     f"overlap row missing: wait_err={wait_err!r} "
                     f"total={dbg.get('total')} orphans={len(dbg.get('orphans', []))} "
-                    f"overlaps={json.dumps(dbg.get('overlaps', []), ensure_ascii=False)[:800]}"
+                    f"overlaps={json.dumps(dbg.get('overlaps', []), ensure_ascii=False)[:800]} "
+                    f"dom={json.dumps(dom, ensure_ascii=False)[:900]}"
                 ) from wait_err
             assert row.get("ready") is True, json.dumps(row, ensure_ascii=False)
             clicked = client.evaluate(
                 page,
-                f"""(() => {{
+                """(() => {
                   const rows = Array.from(document.querySelectorAll('li')).filter((el) =>
-                    (el.textContent || '').includes('{source_name}'));
-                  const btn = Array.from(rows[0].querySelectorAll('button')).find((b) =>
+                    (el.textContent || '').includes('__SRC__'));
+                  const btn = rows.flatMap((r) => Array.from(r.querySelectorAll('button'))).find((b) =>
                     /^(Merge|合并)$/.test((b.textContent || '').trim()));
+                  if (!btn) return { ok: false };
                   btn.click();
-                  return {{ ok: true }};
-                }})()""",
+                  return { ok: true };
+                })()""".replace("__SRC__", source_name),
                 timeout_sec=15.0,
             )
             assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
@@ -330,7 +346,12 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
                 """(() => {
                   const dlg = document.querySelector('[role=dialog]');
                   const txt = dlg ? (dlg.innerText || '') : '';
-                  return { ready: txt.includes('e2e-skill-a') && txt.includes('e2e-skill-b') };
+                  const bodyTxt = document.body.innerText || '';
+                  if (txt.includes('e2e-skill-a') && txt.includes('e2e-skill-b')) {
+                    return { ready: true };
+                  }
+                  const toast = Array.from(document.querySelectorAll('[data-sonner-toast], [role=status]')).map((el) => (el.textContent || '').slice(0, 200));
+                  return { ready: false, dlg: txt.slice(0, 400), toast };
                 })()""",
                 timeout_sec=60.0,
             )
