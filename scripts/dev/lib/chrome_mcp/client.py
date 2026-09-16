@@ -230,7 +230,40 @@ class ChromeMcpClient:
             self._unpublished_target_ids.add(tid)
 
     def _commit_unpublished_target(self, target_id: str) -> None:
-        self._unpublished_target_ids.discard(target_id.strip())
+        tid = target_id.strip()
+        self._unpublished_target_ids.discard(tid)
+        # A published page is owned by this session and must stay visible to
+        # hygiene/prune; a merely-tracked one is private to the abort path.
+        self._publish_session_page(tid)
+
+    def _publish_session_page(self, target_id: str) -> None:
+        tid = target_id.strip()
+        if not tid or self._daemon_session_id is None:
+            return
+        try:
+            from e2e_core.session_page_ledger import register_session_page  # noqa: PLC0415
+        except ImportError:
+            return
+        try:
+            register_session_page(
+                tid,
+                session_id=self._daemon_session_id,
+                lease_id=os.environ.get("MYRM_E2E_LEASE_ID", "").strip(),
+            )
+        except (OSError, ValueError):
+            return
+
+    def _retire_session_pages(self, target_ids: object) -> None:
+        if not target_ids:
+            return
+        try:
+            from e2e_core.session_page_ledger import unregister_session_pages  # noqa: PLC0415
+        except ImportError:
+            return
+        try:
+            unregister_session_pages(target_ids)  # type: ignore[arg-type]
+        except (OSError, ValueError):
+            return
 
     def _abort_unpublished_targets(self, *, keep: frozenset[str] = frozenset()) -> None:
         if not self._unpublished_target_ids:
@@ -306,6 +339,15 @@ class ChromeMcpClient:
             )
         except (OSError, RuntimeError, TimeoutError) as exc:
             _LOGGER.warning("daemon session destroy failed: %s", exc)
+            self._retire_session_pages([page.target_id for page in pages])
+        else:
+            # A sealed destroy already retired the pages it confirmed absent, so
+            # a second sweep here would only drop records for pages the daemon
+            # could not reach yet.
+            if not result.get("sealed", False):
+                self._retire_session_pages(
+                    [str(item) for item in result.get("closedTargets", [])]
+                )
         finally:
             for page in pages:
                 self._page_lease_heartbeat.untrack(page.lease_id)
@@ -1151,6 +1193,7 @@ class ChromeMcpClient:
         if physically_closed:
             self._pages.pop(page.page_id, None)
             self._disconnected_pages.pop(page.page_id, None)
+            self._retire_session_pages(page.target_id)
             self._publish_dev_gate_ownership()
         try:
             self._release_page_lease(page, unbind=physically_closed)

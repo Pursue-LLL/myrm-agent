@@ -41,8 +41,17 @@ def count_blank_cdp_pages(*, cdp_port: int | None = None) -> int:
 
 
 def count_stray_blank_cdp_pages(*, cdp_port: int | None = None) -> int:
+    """Blank session-scope pages no ledger claims.
+
+    Session scope (dedicated non-default BrowserContext) is what makes a blank
+    page an E2E leftover rather than a developer's own new tab, and a claimed
+    page is a live page. Without both conditions the budget either counted pages
+    it must never fail on, or — because the claim set was empty — treated every
+    peer's in-flight page as a violation.
+    """
     from e2e_core.browser_tab_hygiene import (  # noqa: PLC0415
         _is_blankish_url,
+        _is_session_scoped_page,
         _list_cdp_pages,
         _protected_target_ids,
     )
@@ -55,6 +64,8 @@ def count_stray_blank_cdp_pages(*, cdp_port: int | None = None) -> int:
     stray = 0
     for page in pages:
         if not _is_blankish_url(page.get("url")):
+            continue
+        if not _is_session_scoped_page(page):
             continue
         target_id = page.get("id")
         if not isinstance(target_id, str) or not target_id.strip():

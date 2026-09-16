@@ -29,6 +29,38 @@ from typing import Iterator, TypedDict
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def _record_session_page(
+    target_id: str, session_id: str, *, url: str = ""
+) -> None:
+    """Publish page ownership so hygiene/prune can tell live pages from corpses.
+
+    Best-effort: a ledger write failure must never break a browser operation,
+    but it must be visible, because it silently weakens leak protection.
+    """
+    try:
+        from e2e_core.session_page_ledger import register_session_page  # noqa: PLC0415
+
+        lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
+        register_session_page(
+            target_id,
+            session_id=session_id,
+            lease_id=lease_id,
+            url=url,
+        )
+    except (OSError, ImportError, ValueError) as exc:
+        _LOGGER.warning("session page ledger record failed: %s", exc)
+
+
+def _forget_session_pages(target_ids: list[str] | str) -> None:
+    """Retire ownership records for pages this session already closed."""
+    try:
+        from e2e_core.session_page_ledger import unregister_session_pages  # noqa: PLC0415
+
+        unregister_session_pages(target_ids)
+    except (OSError, ImportError, ValueError) as exc:
+        _LOGGER.warning("session page ledger retire failed: %s", exc)
+
 # Socket read budget = openPageTransaction wall + fair-scheduler grace (R299).
 _ORCHESTRATOR_SCHEDULER_GRACE_SEC = 30.0
 _SIGNOFF_TRUTHY = frozenset({"1", "true", "yes", "on"})
@@ -387,7 +419,7 @@ class BrowserOrchestratorClient:
     def destroy_session(self, session_id: str) -> CleanupSealResult:
         """Destroy session: close all pages, dispose context, return seal."""
         result = self._request("session/destroy", {"sessionId": session_id})
-        return CleanupSealResult(
+        receipt = CleanupSealResult(
             sessionId=session_id,
             sealed=result.get("sealed", False),
             pendingTargets=result.get("pendingTargets", []),
@@ -397,6 +429,34 @@ class BrowserOrchestratorClient:
             contextReleased=bool(result.get("contextReleased", False)),
             physicalReleased=bool(result.get("physicalReleased", False)),
         )
+        # Terminal net: whatever this session no longer owns must stop being
+        # advertised as a live page, otherwise a closed session's leftovers
+        # would keep masquerading as active work on every later hygiene sweep.
+        _forget_session_pages(self._session_pages_to_forget(session_id, receipt))
+        return receipt
+
+    def _session_pages_to_forget(
+        self, session_id: str, receipt: CleanupSealResult
+    ) -> list[str]:
+        """Targets this destroy provably removed; unresolved ones stay claimable.
+
+        A sealed receipt means every pending target is physically absent, so the
+        whole session retires. Otherwise only the confirmed closes retire, and a
+        failed close keeps its record so a later dead-owner sweep retries it.
+        """
+        confirmed = {str(item) for item in receipt["closedTargets"]}
+        if receipt["sealed"]:
+            confirmed.update(str(item) for item in receipt["pendingTargets"])
+        if not confirmed:
+            return []
+        from e2e_core.session_page_ledger import list_session_pages  # noqa: PLC0415
+
+        return [
+            record["targetId"]
+            for record in list_session_pages()
+            if record["sessionId"] == session_id
+            and record["targetId"] in confirmed
+        ]
 
     def create_page(self, session_id: str, url: str = "") -> PageResult:
         """Create a new page in the session's BrowserContext."""
@@ -411,7 +471,9 @@ class BrowserOrchestratorClient:
             params["leaseId"] = lease_id
         params["waveStateFile"] = str(validated_wave_state_file())
         result = self._request("page/create", params)
-        return PageResult(pageId=result["pageId"], targetId=result["targetId"])
+        target_id = str(result["targetId"])
+        _record_session_page(target_id, session_id, url=url)
+        return PageResult(pageId=result["pageId"], targetId=target_id)
 
     def open_app_route(
         self,
@@ -469,9 +531,11 @@ class BrowserOrchestratorClient:
             result = self._request("page/openAppRoute", params)
         finally:
             self._timeout_sec = prior_timeout
+        target_id = str(result["targetId"])
+        _record_session_page(target_id, session_id, url=str(result.get("url", url)))
         return OpenAppRouteResult(
             pageId=int(result["pageId"]),
-            targetId=str(result["targetId"]),
+            targetId=target_id,
             url=str(result.get("url", url)),
             hydrated=bool(result.get("hydrated", False)),
         )
@@ -497,9 +561,11 @@ class BrowserOrchestratorClient:
         if binding_expression is not None:
             params["bindingExpression"] = binding_expression
         result = self._request("page/openTransaction", params)
+        target_id = str(result["targetId"])
+        _record_session_page(target_id, session_id, url=str(result.get("url", url)))
         return OpenPageTransactionResult(
             pageId=int(result["pageId"]),
-            targetId=str(result["targetId"]),
+            targetId=target_id,
             url=str(result.get("url", url)),
         )
 
@@ -508,6 +574,8 @@ class BrowserOrchestratorClient:
         result = self._request(
             "page/close", {"sessionId": session_id, "targetId": target_id}
         )
+        if result.get("closed", False):
+            _forget_session_pages(target_id)
         return CloseResult(closed=result.get("closed", False))
 
     def navigate_page(

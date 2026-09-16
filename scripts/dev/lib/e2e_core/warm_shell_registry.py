@@ -6,7 +6,7 @@
 - verify-api / warm_ui_route HTTP probes
 
 [OUTPUT]
-- seal_platform_shell / platform_shell_fresh / shared_read_hot_path_decision
+- seal_platform_shell / platform_shell_fresh / shared_read_hot_path_decision / live_sealed_target_ids
 - reap_expired_sealed_targets — exact-target close once a seal TTL elapsed
 - bootstrap_hot_path snapshot field via set_bootstrap_hot_path
 
@@ -99,6 +99,23 @@ def _write_registry_payload(path: Path, payload: dict[str, object]) -> None:
         json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
         encoding="utf-8",
     )
+
+
+def _registry_files() -> list[Path]:
+    """Every fingerprint registry file, for cross-fingerprint sweeps."""
+    registry_dir = _state_dir() / _REGISTRY_DIR_NAME
+    if not registry_dir.is_dir():
+        return []
+    return sorted(registry_dir.glob("*.json"))
+
+
+def _read_registry_payload(path: Path) -> dict[str, object]:
+    """Parsed registry payload; empty dict when absent or malformed."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def _normalize_route(path: str) -> str:
@@ -358,64 +375,24 @@ def set_bootstrap_hot_path(mode: BootstrapHotPath) -> None:
         pass
 
 
+def live_sealed_target_ids(*, ttl_sec: float = _DEFAULT_TTL_SEC) -> set[str]:
+    """Re-export of the reclaim policy; see ``e2e_core.warm_shell_reap``."""
+    from e2e_core.warm_shell_reap import (  # noqa: PLC0415
+        live_sealed_target_ids as _live,
+    )
+
+    return _live(ttl_sec=ttl_sec)
+
+
 def reap_expired_sealed_targets(
     *,
     cdp_port: int | None = None,
     workspace_fp: str | None = None,
     ttl_sec: float = _DEFAULT_TTL_SEC,
 ) -> tuple[int, int]:
-    """Close warm-shell targets whose seal TTL elapsed — exact targetId only.
+    """Re-export of the reclaim policy; see ``e2e_core.warm_shell_reap``."""
+    from e2e_core.warm_shell_reap import (  # noqa: PLC0415
+        reap_expired_sealed_targets as _reap,
+    )
 
-    Returns (closed, failed). Expired hot shells are unreachable by the hot path
-    (``platform_shell_fresh`` already reports False), so their physical pages
-    would otherwise linger forever while every later seal creates a new page.
-    Ownership is never inferred from URL: only ids recorded by
-    ``seal_platform_shell`` are eligible.
-    """
-    fp = (workspace_fp or current_workspace_fingerprint()).strip()
-    if not fp:
-        return 0, 0
-    record = read_platform_shell(workspace_fp=fp)
-    if record is None or not record.sealed_targets:
-        return 0, 0
-    now = time.time()
-    expired = [
-        target
-        for target, sealed_at in record.sealed_targets
-        if (now - sealed_at) > float(ttl_sec)
-    ]
-    if not expired:
-        return 0, 0
-
-    from e2e_core.infra_browser_registry import close_exact_target  # noqa: PLC0415
-
-    port = cdp_port if cdp_port is not None else 9333
-    closed: list[str] = []
-    failed: list[str] = []
-    for target in expired:
-        if close_exact_target(port, target):
-            closed.append(target)
-        else:
-            failed.append(target)
-
-    path = _registry_path(fp)
-    with _registry_file_lock(workspace_fp=fp):
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError, json.JSONDecodeError):
-            payload = {}
-        if isinstance(payload, dict):
-            raw_targets = payload.get("sealedTargets")
-            if isinstance(raw_targets, dict):
-                # Drop reaped ids; keep failures so a later sweep retries them.
-                remaining = {
-                    key: value
-                    for key, value in raw_targets.items()
-                    if key not in closed
-                }
-                if remaining:
-                    payload["sealedTargets"] = remaining
-                else:
-                    payload.pop("sealedTargets", None)
-                _write_registry_payload(path, payload)
-    return len(closed), len(failed)
+    return _reap(cdp_port=cdp_port, workspace_fp=workspace_fp, ttl_sec=ttl_sec)

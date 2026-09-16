@@ -94,7 +94,7 @@ def idle_prune_self_owned_blanks_if_safe(
     # Expired warm shells are unreachable by the hot path yet still hold a
     # physical page each; reclaim them by exact targetId while the cluster is
     # provably idle (no active tests, no effective wave leases).
-    from e2e_core.warm_shell_registry import reap_expired_sealed_targets  # noqa: PLC0415
+    from e2e_core.warm_shell_reap import reap_expired_sealed_targets  # noqa: PLC0415
 
     warm_closed, warm_failed = reap_expired_sealed_targets(cdp_port=port)
     return {

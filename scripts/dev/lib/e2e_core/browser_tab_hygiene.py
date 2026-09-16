@@ -65,25 +65,17 @@ def _count_cdp_targets(cdp_port: int) -> int:
 
 
 def _count_wave_bound_leases() -> int:
-    state_dir = Path(
-        os.environ.get("MYRM_DEV_STATE_DIR", real_user_home() / ".local/state/myrm-dev")
-    )
-    state_file = state_dir / "wave-orchestrator.json"
+    """Leases bound to an exact session page target (live page ownership count)."""
+    return len(_claiming_session_target_ids())
+
+
+def _claiming_session_target_ids() -> set[str]:
+    """Session page targets a live ledger still claims."""
     try:
-        payload = json.loads(state_file.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return 0
-    leases = payload.get("leases")
-    if not isinstance(leases, list):
-        return 0
-    return sum(
-        1
-        for lease in leases
-        if isinstance(lease, dict)
-        and lease.get("status") in {"active", "released", "expired"}
-        and lease.get("pageId")
-        and lease.get("targetId")
-    )
+        from e2e_core.session_page_ledger import protected_session_target_ids
+    except ImportError:
+        return set()
+    return protected_session_target_ids() or set()
 
 
 def build_tab_hygiene_report(*, cdp_port: int | None = None) -> TabHygieneReport:
@@ -98,11 +90,11 @@ def build_tab_hygiene_report(*, cdp_port: int | None = None) -> TabHygieneReport
     infra_count = len(registry.list_infra_targets())
     protected = _protected_target_ids()
     unbound = _count_unbound_pages(port, protected=protected)
-    # `ok` no longer collapses to `cdp_count >= 0`: that expression is true for
-    # any reachable port, so a leaked tab could never fail the report. Keep the
-    # contract meaningful by requiring readable ledgers, while `unboundPages`
-    # exposes whether the physical page count is explained by any ledger.
-    ok = cdp_count >= 0 and protected is not None
+    # `ok` must be able to fail and must mean something. An unreadable ledger is
+    # not a healthy report (fail-closed), and a page no ledger explains is drift:
+    # collapsing `ok` back to `cdp_count >= 0` made a leaked tab indistinguishable
+    # from a clean plane, so the doctor's exit code could never flag a leak.
+    ok = cdp_count >= 0 and protected is not None and unbound == 0
     detail = (
         f"cdp_pages={cdp_count} wave_bound={wave_bound} "
         f"infra_registry={infra_count} unbound={unbound}"
@@ -131,10 +123,9 @@ def _count_unbound_pages(cdp_port: int, *, protected: set[str] | None) -> int:
     return sum(
         1
         for page in _list_cdp_pages(cdp_port)
-        if isinstance(page.get("id"), str)
+        if _is_session_scoped_page(page)
+        and isinstance(page.get("id"), str)
         and page["id"].strip() not in protected
-        and isinstance(page.get("browserContextId"), str)
-        and page["browserContextId"].strip()
     )
 
 
@@ -155,35 +146,29 @@ def _list_cdp_pages(cdp_port: int) -> list[dict[str, object]]:
 
 
 def _protected_target_ids() -> set[str] | None:
-    """Return protected target ids, or None when ledgers are unreadable (fail-closed)."""
+    """Return protected target ids, or None when any live ledger is unreadable.
+
+    Protection covers every lane that legitimately holds a page a wave ledger
+    cannot name: session-owned pages from the page-ownership ledger, infra
+    warm-ups, the Agent-Owned Surface anchor, and unexpired warm shells (a hot
+    shell is still reachable by the hot path, so closing it mid-session would
+    be a real regression rather than hygiene).
+    """
     protected: set[str] = set()
     state_dir = Path(
         os.environ.get("MYRM_DEV_STATE_DIR", real_user_home() / ".local/state/myrm-dev")
     )
-    state_file = state_dir / "wave-orchestrator.json"
-    wave_readable = True
-    try:
-        payload = json.loads(state_file.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        wave_readable = False
-        payload = {}
-    leases = payload.get("leases")
-    if isinstance(leases, list):
-        for lease in leases:
-            if not isinstance(lease, dict):
-                continue
-            if lease.get("status") not in {"active", "released", "expired"}:
-                continue
-            target_id = lease.get("targetId")
-            if isinstance(target_id, str) and target_id.strip():
-                protected.add(target_id.strip())
-    elif wave_readable:
-        pass
-    else:
-        return None
     lib_dir = Path(__file__).resolve().parent
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
+
+    from e2e_core.session_page_ledger import protected_session_target_ids
+
+    session_targets = protected_session_target_ids()
+    if session_targets is None:
+        return None
+    protected |= session_targets
+
     import e2e_core.infra_browser_registry as registry
 
     try:
@@ -206,7 +191,23 @@ def _protected_target_ids() -> set[str] | None:
         anchor = anchor_payload.get("anchorTargetId")
         if isinstance(anchor, str) and anchor.strip():
             protected.add(anchor.strip())
+    protected |= _unexpired_warm_shell_target_ids()
     return protected
+
+
+def _unexpired_warm_shell_target_ids() -> set[str]:
+    """Warm-shell targets still inside their seal TTL (unreachable ⇒ collectable)."""
+    try:
+        from e2e_core.warm_shell_reap import live_sealed_target_ids
+    except ImportError:
+        return set()
+    return live_sealed_target_ids()
+
+
+def _is_session_scoped_page(page: dict[str, object]) -> bool:
+    """True for orchestrator test-session pages (dedicated non-default context)."""
+    context_id = page.get("browserContextId")
+    return isinstance(context_id, str) and bool(context_id.strip())
 
 
 def _is_blankish_url(url: object) -> bool:
@@ -219,10 +220,48 @@ def _is_blankish_url(url: object) -> bool:
 def prune_orphan_cdp_pages(
     *, cdp_port: int | None = None, threshold: int = 20
 ) -> tuple[int, int]:
-    """Close self-owned unbound blank tabs only; fail-closed when protection set unknown."""
+    """Reclaim genuinely forgotten session pages; fail-closed when ownership is unknown.
+
+    Two sweeps run, both exact-targetId only:
+
+    1. Dead-session pages — the owner process is gone and its wave lease lapsed.
+       These are precisely the leak the old code could never see, because it only
+       ever looked at ``about:blank`` pages. A session page (navigated to the real
+       UI) therefore stayed alive forever, and its own context was the only thing
+       that ever reclaimed it.
+    2. Self-owned leftovers — blank pages this very process registered. The
+       opt-in ``MYRM_BROWSER_ORCHESTRATOR_PRUNE`` switch and the ``threshold``
+       bound belong to this conservative sweep, which is the only one safe to
+       gate on "the plane looks small enough to be idle".
+    """
+    protected = _protected_target_ids()
+    if protected is None:
+        return 0, 0
+    closed = 0
+    failed = 0
+
+    dead_closed, dead_failed = _prune_dead_session_pages(cdp_port=cdp_port)
+    closed += dead_closed
+    failed += dead_failed
+
+    opt_in_closed, opt_in_failed = _prune_self_owned_blanks(
+        cdp_port=cdp_port, threshold=threshold
+    )
+    closed += opt_in_closed
+    failed += opt_in_failed
+    return closed, failed
+
+
+def _prune_dead_session_pages(*, cdp_port: int) -> tuple[int, int]:
+    from e2e_core.session_page_ledger import prune_dead_session_pages
+
+    return prune_dead_session_pages(cdp_port=cdp_port)
+
+
+def _prune_self_owned_blanks(*, cdp_port: int, threshold: int) -> tuple[int, int]:
+    """Close blank pages this process registered itself (conservative opt-in)."""
     if os.environ.get("MYRM_BROWSER_ORCHESTRATOR_PRUNE", "").strip() != "1":
         return 0, 0
-    port = cdp_port if cdp_port is not None else _chrome_port()
     protected = _protected_target_ids()
     if protected is None:
         return 0, 0
@@ -244,7 +283,7 @@ def prune_orphan_cdp_pages(
             or item.get("ownerProcessStart") == self_start
         )
     }
-    pages = _list_cdp_pages(port)
+    pages = _list_cdp_pages(cdp_port)
     closed = 0
     failed = 0
 
@@ -257,7 +296,7 @@ def prune_orphan_cdp_pages(
             return
         if target_id not in self_owned:
             return
-        if registry.close_exact_target(port, target_id):
+        if registry.close_exact_target(cdp_port, target_id):
             closed += 1
         else:
             failed += 1
@@ -266,7 +305,7 @@ def prune_orphan_cdp_pages(
         if _is_blankish_url(page.get("url")):
             _close_if_self_blank(page)
 
-    remaining = _list_cdp_pages(port)
+    remaining = _list_cdp_pages(cdp_port)
     if len(remaining) > threshold:
         for page in remaining:
             if _is_blankish_url(page.get("url")):
