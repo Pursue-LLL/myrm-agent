@@ -64,13 +64,13 @@ async def test_identity_namespaces_isolate_write_and_recall(
         raise
 
     reader_a = await _manager_for(ns_a)
-    hits_a = await reader_a.search(f"团队A的秘密代号是什么", limit=5)
+    hits_a = await reader_a.search("团队A的秘密代号是什么", limit=5)
     assert any(secret in (hit.content if hasattr(hit, "content") else str(hit)) for hit in hits_a), (
         "fact must be recalled inside its own identity compartment"
     )
 
     reader_b = await _manager_for(ns_b)
-    hits_b = await reader_b.search(f"团队A的秘密代号是什么", limit=5)
+    hits_b = await reader_b.search("团队A的秘密代号是什么", limit=5)
     assert all(secret not in (hit.content if hasattr(hit, "content") else str(hit)) for hit in hits_b), (
         "fact must NOT leak into another identity compartment"
     )
