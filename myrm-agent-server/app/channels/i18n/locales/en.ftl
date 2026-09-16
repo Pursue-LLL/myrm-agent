@@ -150,8 +150,10 @@ topic_search_agent_rejected =
     Search agents cannot be bound to channels.
     Use a General agent here; use Web Fast mode for lightweight search.
 topic_bound =
-     { $scope } bound{ $agent_label }{ $workspace_label }.
+     { $scope } bound{ $agent_label }{ $workspace_label }{ $identity_label }.
     Use /unbind to remove.
+topic_identity_only =  (identity: { $name })
+topic_identity_revoked =  (identity frozen; routing to default agent)
 topic_workspace_only =  (workspace: { $workspace })
 topic_workspace_unavailable =  Workspace binding failed: { $error }
 topic_status_workspace = Workspace: { $workspace }

@@ -150,8 +150,10 @@ topic_search_agent_rejected =
     搜索类智能体不能绑定到渠道。
     请绑定 General 智能体；轻量搜索请使用 Web Fast 模式。
 topic_bound =
-     { $scope } 已绑定{ $agent_label }{ $workspace_label }。
+     { $scope } 已绑定{ $agent_label }{ $workspace_label }{ $identity_label }。
     使用 /unbind 解除绑定。
+topic_identity_only = （身份：{ $name }）
+topic_identity_revoked = （身份已冻结，走默认智能体）
 topic_workspace_only = （工作目录：{ $workspace }）
 topic_workspace_unavailable =  工作目录绑定失败：{ $error }
 topic_status_workspace = 工作目录：{ $workspace }

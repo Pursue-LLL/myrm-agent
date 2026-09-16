@@ -150,8 +150,10 @@ topic_search_agent_rejected =
     搜尋類智慧體不能繫結到渠道。
     請繫結 General 智慧體；輕量搜尋請使用 Web Fast 模式。
 topic_bound =
-     { $scope } 已繫結{ $agent_label }{ $workspace_label }。
+     { $scope } 已繫結{ $agent_label }{ $workspace_label }{ $identity_label }。
     使用 /unbind 解除繫結。
+topic_identity_only = （身份：{ $name }）
+topic_identity_revoked = （身份已凍結，走預設智能體）
 topic_workspace_only = （工作目錄：{ $workspace }）
 topic_workspace_unavailable =  工作目錄繫結失敗：{ $error }
 topic_status_workspace = 工作目錄：{ $workspace }

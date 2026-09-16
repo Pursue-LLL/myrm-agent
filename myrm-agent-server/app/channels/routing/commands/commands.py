@@ -579,6 +579,12 @@ async def handle_topic_command(
                 )
             else:
                 workspace_label = ""
+            if ctx.identity_revoked:
+                identity_label = get_text(msg, "topic_identity_revoked")
+            elif ctx.identity_name:
+                identity_label = get_text(msg, "topic_identity_only", name=ctx.identity_name)
+            else:
+                identity_label = ""
             scope_label = (
                 f"{get_text(msg, 'topic_scope_topic')} {msg.thread_id}" if msg.thread_id else get_text(msg, "topic_scope_channel")
             )
@@ -588,6 +594,7 @@ async def handle_topic_command(
                 scope=scope_label,
                 agent_label=agent_label,
                 workspace_label=workspace_label,
+                identity_label=identity_label,
             )
 
             channel_obj = bus.get_channel(msg.channel)

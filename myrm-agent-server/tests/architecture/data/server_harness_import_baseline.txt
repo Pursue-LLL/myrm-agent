@@ -109,6 +109,7 @@ myrm_agent_harness.agent.security.profile_audit.types
 myrm_agent_harness.agent.security.rate_limiter
 myrm_agent_harness.agent.security.redact
 myrm_agent_harness.agent.security.session_access
+myrm_agent_harness.agent.security.team_identity
 myrm_agent_harness.agent.security.transcript_classifier
 myrm_agent_harness.agent.security.trust_context
 myrm_agent_harness.agent.security.types

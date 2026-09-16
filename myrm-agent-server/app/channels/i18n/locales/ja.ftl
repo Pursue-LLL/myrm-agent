@@ -150,8 +150,10 @@ topic_search_agent_rejected =
     検索エージェントはチャンネルにバインドできません。
     General エージェントを使用してください。軽量検索には Web Fast モードを使用してください。
 topic_bound =
-     { $scope } をバインドしました{ $agent_label }{ $workspace_label }。
+     { $scope } をバインドしました{ $agent_label }{ $workspace_label }{ $identity_label }。
     /unbind で解除できます。
+topic_identity_only = （アイデンティティ：{ $name }）
+topic_identity_revoked = （アイデンティティ凍結中、デフォルトAgentで応答）
 topic_workspace_only = （ワークスペース：{ $workspace }）
 topic_workspace_unavailable =  ワークスペースのバインドに失敗しました：{ $error }
 topic_status_workspace = ワークスペース：{ $workspace }

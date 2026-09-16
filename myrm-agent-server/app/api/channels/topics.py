@@ -280,4 +280,8 @@ async def set_channel_default_agent(
         displayName=body.display_name,
         avatarUrl=body.avatar_url,
         threadSharingMode=body.thread_sharing_mode or "isolated",
+        identityScope=ctx.identity_scope.value,
+        identityId=ctx.identity_id,
+        identityName=ctx.identity_name,
+        identityRevoked=ctx.identity_revoked,
     )
