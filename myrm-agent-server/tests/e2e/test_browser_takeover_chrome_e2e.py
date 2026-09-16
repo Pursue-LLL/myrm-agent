@@ -78,7 +78,7 @@ _BANNER_ASSERT_JS = """(() => {
   const hasSkip = labels.some((label) => /Can't do this|无法完成/i.test(label));
   const snap = window.__MYRM_E2E_CHAT__?.getBrowserTakeoverSnapshot?.();
   const storePending = snap?.pending === true && snap?.uiMode === 'extension';
-  const ready = (hasAlert && hasExtensionTitle && hasDone && hasSkip) || storePending;
+  const ready = hasAlert && hasExtensionTitle && hasDone && hasSkip;
   return {
     ready,
     backendUnreachable: false,
