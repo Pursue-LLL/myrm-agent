@@ -107,7 +107,6 @@ export function MergeWizard({
         setJustMerged(true);
         setMergedTargetId(targetId);
         toast.success(t('executeOk', { fallback: 'Agents merged. Source archived.' }));
-        onDone();
       }
     } catch {
       toast.error(t('executeError', { fallback: 'Failed to execute merge.' }));
@@ -132,8 +131,13 @@ export function MergeWizard({
     }
   };
 
+  const handleClose = () => {
+    onDone();
+    onClose();
+  };
+
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) { onClose(); } }}>
+    <Dialog open onOpenChange={(open) => { if (!open) { handleClose(); } }}>
       <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('wizardTitle', { fallback: 'Merge assistants' })}</DialogTitle>
@@ -248,7 +252,7 @@ export function MergeWizard({
               {t('undo', { fallback: 'Restore target' })}
             </Button>
           )}
-          <Button variant="outline" onClick={onClose} disabled={executing}>
+          <Button variant="outline" onClick={handleClose} disabled={executing}>
             {t(justMerged ? 'done' : 'cancel', { fallback: justMerged ? 'Done' : 'Cancel' })}
           </Button>
           <Button

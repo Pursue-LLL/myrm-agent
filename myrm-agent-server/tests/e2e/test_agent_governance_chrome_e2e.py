@@ -200,7 +200,7 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
         src_resp = _api(
             "/api/v1/user-agents",
             "POST",
-            {"name": source_name, "skill_ids": ["e2e-skill-a", "e2e-skill-b"]},
+            {"name": source_name, "skill_ids": ["e2e-skill-a", "e2e-skill-b", "e2e-skill-c"]},
         )
         source_id = str((src_resp.get("data") or {}).get("id") or "")
         assert source_id, src_resp
@@ -347,7 +347,7 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
                   const dlg = document.querySelector('[role=dialog]');
                   const txt = dlg ? (dlg.innerText || '') : '';
                   const bodyTxt = document.body.innerText || '';
-                  if (txt.includes('e2e-skill-a') && txt.includes('e2e-skill-b')) {
+                  if (txt.includes('e2e-skill-c')) {
                     return { ready: true };
                   }
                   const toast = Array.from(document.querySelectorAll('[data-sonner-toast], [role=status]')).map((el) => (el.textContent || '').slice(0, 200));
@@ -402,7 +402,7 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
             )
 
         merged = _api(f"/api/v1/user-agents/{target_id}").get("data") or {}
-        assert "e2e-skill-a" not in (merged.get("skill_ids") or []), merged
+        assert "e2e-skill-c" not in (merged.get("skill_ids") or []), merged
         created.remove(source_id)
     finally:
         # T6: cleanup leaves no residue.
