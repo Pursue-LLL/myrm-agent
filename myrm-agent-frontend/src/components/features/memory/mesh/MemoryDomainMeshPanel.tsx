@@ -74,14 +74,14 @@ export const MemoryDomainMeshPanel: React.FC<MemoryDomainMeshPanelProps> = ({ cl
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold tracking-tight text-foreground">
-                Three-Domain Progressive Memory Mesh
+                Three-Domain Memory Mesh
               </h2>
               <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                L0 / L1 / L2
+                Multi-Domain Sync
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Progressive abstraction hierarchy with instant hot-cache and asynchronous mirror persistence.
+              Intelligently organizes preferences, persona, and task experiences for instant recall.
             </p>
           </div>
         </div>

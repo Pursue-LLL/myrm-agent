@@ -72,7 +72,8 @@ describe('MemoryDomainMeshPanel', () => {
   it('renders three domain cards and their highlights', async () => {
     render(<MemoryDomainMeshPanel />);
 
-    expect(screen.getByText('Three-Domain Progressive Memory Mesh')).toBeInTheDocument();
+    expect(screen.getByText('Three-Domain Memory Mesh')).toBeInTheDocument();
+    expect(screen.getByText('Multi-Domain Sync')).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText('User Domain')).toBeInTheDocument();
