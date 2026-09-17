@@ -15,6 +15,8 @@
 | `MemoryCommandCenterChrome.tsx`       | 辅助 | 命令中心外壳（标题、工具栏、tab 切换与操作区）                       | ✅    |
 | `MemoryRecallBoundaryPanel.tsx`       | 辅助 | 召回边界面板：注入预算与截断披露                                     | ✅    |
 | `CognitiveClockPanel.tsx`             | 核心 | 多频认知时钟状态面板：T0-T3 状态指示、前台打字让步指示与手动提炼     | ✅    |
+| `MemoryEconomicsPanel.tsx`            | 核心 | 长程有状态任务记忆经济学剖析面板：三阶段开销、ROI 轨迹与沉睡治理     | ✅    |
+
 
 ## 依赖
 

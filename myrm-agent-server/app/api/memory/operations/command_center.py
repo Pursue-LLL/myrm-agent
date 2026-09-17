@@ -36,6 +36,7 @@ from app.schemas.memory.command_center import (
     MemoryCommandActionRequest,
     MemoryCommandActionResponse,
     MemoryCommandCenterResponse,
+    MemoryCommandEconomicsDashboard,
     MemoryCommandGraphEdge,
     MemoryCommandGraphNode,
     MemoryCommandGraphResponse,
@@ -48,6 +49,7 @@ from app.schemas.memory.command_center import (
 )
 from app.services.memory.behavioral.measurement_service import BehavioralMeasurementService
 from app.services.memory.command_center.command_center import MemoryCommandCenterService
+from app.services.memory.command_center.command_center_economics import MemoryEconomicsService
 from app.services.memory.evidence.playback_service import EvidencePlaybackService
 from app.services.memory.evidence.repo_digest_service import RepoHistoryDigestService
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
@@ -203,6 +205,24 @@ async def get_memory_recall_boundary(
         agent_id=agent_id,
         task_id=task_id,
     )
+
+
+@router.get("/economics", response_model=MemoryCommandEconomicsDashboard)
+async def get_memory_economics(
+    session_id: str | None = None,
+    limit_turns: int = 50,
+    db: AsyncSession = Depends(get_db_session),
+    memory_manager: MemoryManager = Depends(get_crud_memory_manager),
+) -> MemoryCommandEconomicsDashboard:
+    """Return Omri et al. 2026 three-phase economics, turn trajectories, and parasitic memory identification."""
+    command_service = MemoryCommandCenterService(db, memory_manager)
+    influence = await command_service._insights.build_influence()
+    return await MemoryEconomicsService(db).build_economics_dashboard(
+        influence=influence,
+        session_id=session_id,
+        limit_turns=limit_turns,
+    )
+
 
 
 @router.get("/graph", response_model=MemoryCommandGraphResponse)

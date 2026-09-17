@@ -122,7 +122,7 @@ class MemoryCommandInfluenceItem(BaseModel):
 
 
 class MemoryCommandCostProfile(BaseModel):
-    """Prompt injection and cache impact summary."""
+    """Prompt injection, three-phase latency and cache impact summary."""
 
     prompt_tokens: int = 0
     cached_tokens: int = 0
@@ -130,6 +130,51 @@ class MemoryCommandCostProfile(BaseModel):
     cited_memory_refs: int = 0
     estimated_memory_tokens: int = 0
     cache_friendly: bool = True
+    construction_ms: float = 0.0
+    retrieval_ms: float = 0.0
+    injection_overhead_ms: float = 0.0
+    effective_cited_tokens: int = 0
+    background_construction_tokens: int = 0
+    cache_preservation_score: float = 1.0
+    roi_percentage: float = 0.0
+    roi_grade: str = "healthy"
+    parasitic_memory_count: int = 0
+
+
+class MemoryCommandTurnEconomics(BaseModel):
+    """Per-turn economics metrics for long-horizon task trajectory."""
+
+    turn_index: int
+    message_id: str | None = None
+    injected_tokens: int = 0
+    cited_tokens: int = 0
+    cached_tokens: int = 0
+    roi_percentage: float = 0.0
+    cache_aligned: bool = True
+    retrieval_ms: float = 0.0
+
+
+class MemoryCommandParasiticMemory(BaseModel):
+    """Identified low-yield, high-overhead parasitic memory candidate."""
+
+    memory_id: str
+    memory_type: str = "semantic"
+    content_preview: str = ""
+    injected_turns_count: int = 0
+    cited_turns_count: int = 0
+    wasted_tokens_estimated: int = 0
+    suggested_action: Literal["archive", "suppress", "review"] = "archive"
+
+
+class MemoryCommandEconomicsDashboard(BaseModel):
+    """Full-featured economics analytics dashboard for long-horizon sessions."""
+
+    cost_profile: MemoryCommandCostProfile
+    turn_trajectories: list[MemoryCommandTurnEconomics] = Field(default_factory=list)
+    parasitic_memories: list[MemoryCommandParasiticMemory] = Field(default_factory=list)
+    estimated_cost_savings_usd: float = 0.0
+    recommendations: list[str] = Field(default_factory=list)
+
 
 
 class MemoryCommandConflictItem(BaseModel):
@@ -458,7 +503,9 @@ class MemoryCommandCenterResponse(BaseModel):
     live_stream: list[MemoryCommandTimelineEvent] = Field(default_factory=list)
     influence: list[MemoryCommandInfluenceItem] = Field(default_factory=list)
     cost: MemoryCommandCostProfile = Field(default_factory=MemoryCommandCostProfile)
+    economics: MemoryCommandEconomicsDashboard | None = None
     conflicts: list[MemoryCommandConflictItem] = Field(default_factory=list)
+
     replay: list[MemoryCommandReplayOverlay] = Field(default_factory=list)
     replay_events: list[MemoryCommandReplayEvent] = Field(default_factory=list)
     waterfall: list[MemoryCommandWaterfallStep] = Field(default_factory=list)

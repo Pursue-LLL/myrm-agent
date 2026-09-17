@@ -40,8 +40,10 @@ import { RepoEvidenceCard } from '../cards/RepoEvidenceCard';
 
 import { ToolGuidancePanel } from './ToolGuidancePanel';
 import { CognitiveClockPanel } from './CognitiveClockPanel';
+import { MemoryEconomicsPanel } from './MemoryEconomicsPanel';
 
 const MemoryHealthDashboard = lazy(() => import('../insights/MemoryHealthDashboard'));
+
 
 
 const MEMORY_TYPES: MemoryType[] = [
@@ -169,8 +171,12 @@ export const UnderstandSection = ({
   actionId?: string | null;
 }) => (
   <div className="space-y-4">
+    {/* Stateful Long-Horizon Memory Economics Profiler (Omri et al. 2026) */}
+    <MemoryEconomicsPanel initialDashboard={snapshot.economics} />
+
     {/* Deterministic Behavioral Routine Metrics Panel (Zero Model Cost) */}
     <BehavioralMetricsPanel t={t} />
+
 
     {/* Repository History Evidence Digest Card */}
     <RepoEvidenceCard />

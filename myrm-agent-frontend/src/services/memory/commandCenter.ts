@@ -105,7 +105,46 @@ export interface MemoryCommandCostProfile {
   cited_memory_refs: number;
   estimated_memory_tokens: number;
   cache_friendly: boolean;
+  construction_ms?: number;
+  retrieval_ms?: number;
+  injection_overhead_ms?: number;
+  effective_cited_tokens?: number;
+  background_construction_tokens?: number;
+  cache_preservation_score?: number;
+  roi_percentage?: number;
+  roi_grade?: 'optimal' | 'healthy' | 'diluted' | 'critical' | string;
+  parasitic_memory_count?: number;
 }
+
+export interface MemoryCommandTurnEconomics {
+  turn_index: number;
+  message_id?: string | null;
+  injected_tokens: number;
+  cited_tokens: number;
+  cached_tokens: number;
+  roi_percentage: number;
+  cache_aligned: boolean;
+  retrieval_ms: number;
+}
+
+export interface MemoryCommandParasiticMemory {
+  memory_id: string;
+  memory_type: string;
+  content_preview: string;
+  injected_turns_count: number;
+  cited_turns_count: number;
+  wasted_tokens_estimated: number;
+  suggested_action: 'archive' | 'suppress' | 'review';
+}
+
+export interface MemoryCommandEconomicsDashboard {
+  cost_profile: MemoryCommandCostProfile;
+  turn_trajectories: MemoryCommandTurnEconomics[];
+  parasitic_memories: MemoryCommandParasiticMemory[];
+  estimated_cost_savings_usd: number;
+  recommendations: string[];
+}
+
 
 export interface MemoryCommandConflictItem {
   id: string;
@@ -360,7 +399,9 @@ export interface MemoryCommandCenterResponse {
   live_stream: MemoryCommandTimelineEvent[];
   influence: MemoryCommandInfluenceItem[];
   cost: MemoryCommandCostProfile;
+  economics?: MemoryCommandEconomicsDashboard | null;
   conflicts: MemoryCommandConflictItem[];
+
   replay: MemoryCommandReplayOverlay[];
   replay_events: MemoryCommandReplayEvent[];
   waterfall: MemoryCommandWaterfallStep[];
@@ -758,20 +799,53 @@ export const getEvidencePlayback = async (params: {
   author_name?: string | null;
 }): Promise<MemoryEvidencePlaybackResponse> => {
   const query = new URLSearchParams();
-  if (params.source_id) query.set('source_id', params.source_id);
-  if (params.message_id) query.set('message_id', params.message_id);
-  if (params.channel_id) query.set('channel_id', params.channel_id);
-  if (params.quote_snippet) query.set('quote_snippet', params.quote_snippet);
-  if (params.author_id) query.set('author_id', params.author_id);
-  if (params.author_name) query.set('author_name', params.author_name);
+  if (params.source_id) {
+    query.set('source_id', params.source_id);
+  }
+  if (params.message_id) {
+    query.set('message_id', params.message_id);
+  }
+  if (params.channel_id) {
+    query.set('channel_id', params.channel_id);
+  }
+  if (params.quote_snippet) {
+    query.set('quote_snippet', params.quote_snippet);
+  }
+  if (params.author_id) {
+    query.set('author_id', params.author_id);
+  }
+  if (params.author_name) {
+    query.set('author_name', params.author_name);
+  }
   const qStr = query.toString() ? `?${query.toString()}` : '';
   return apiRequest<MemoryEvidencePlaybackResponse>(`/memory/command-center/evidence/playback${qStr}`);
 };
 
 export const getMemoryRecallBoundary = async (agentId?: string, taskId?: string): Promise<MemoryRecallBoundaryData> => {
   const params = new URLSearchParams();
-  if (agentId) params.set('agent_id', agentId);
-  if (taskId) params.set('task_id', taskId);
+  if (agentId) {
+    params.set('agent_id', agentId);
+  }
+  if (taskId) {
+    params.set('task_id', taskId);
+  }
   const query = params.toString() ? `?${params.toString()}` : '';
   return apiRequest<MemoryRecallBoundaryData>(`/memory/command-center/recall-boundary${query}`);
 };
+
+export const getMemoryEconomics = async (options?: {
+  sessionId?: string;
+  limitTurns?: number;
+}): Promise<MemoryCommandEconomicsDashboard> => {
+  const params = new URLSearchParams();
+  if (options?.sessionId) {
+    params.set('session_id', options.sessionId);
+  }
+  if (options?.limitTurns) {
+    params.set('limit_turns', String(options.limitTurns));
+  }
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return apiRequest<MemoryCommandEconomicsDashboard>(`/memory/command-center/economics${query}`);
+};
+
+

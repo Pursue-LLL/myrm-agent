@@ -58,6 +58,9 @@ from app.schemas.memory.command_center import (
 from app.services.memory.archive.restore.archive_restore import (
     MemoryArchiveRestoreService,
 )
+from app.services.memory.command_center.command_center_economics import (
+    MemoryEconomicsService,
+)
 from app.services.memory.command_center.command_center_insights import (
     MemoryCommandCenterInsights,
 )
@@ -135,7 +138,8 @@ class MemoryCommandCenterService:
         deploy_mode = get_deploy_mode().value
         timeline = await self._build_timeline()
         influence = await self._insights.build_influence()
-        cost = await self._insights.build_cost_profile(influence)
+        economics = await MemoryEconomicsService(self._db).build_economics_dashboard(influence=influence, limit_turns=50)
+        cost = economics.cost_profile
         governance = await self._build_governance()
         conflicts = await self._insights.build_conflicts()
         migration = await self._insights.build_migration()
@@ -164,7 +168,9 @@ class MemoryCommandCenterService:
             live_stream=timeline[:12],
             influence=influence,
             cost=cost,
+            economics=economics,
             conflicts=conflicts,
+
             replay=await self._insights.build_replay(timeline, influence),
             replay_events=self._insights.build_replay_events(timeline),
             waterfall=self._insights.build_waterfall(timeline, influence, cost),

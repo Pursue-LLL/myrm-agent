@@ -42,6 +42,7 @@ from app.schemas.memory.command_center import (
     MemoryCommandWaterfallStep,
 )
 from app.services.memory.archive.restore.archive_restore import ArchiveRestoreHealth
+from app.services.memory.command_center.command_center_economics import MemoryEconomicsService
 from app.services.memory.command_center.command_center_projection_utils import (
     WATERFALL_PHASES,
     WaterfallPhase,
@@ -116,29 +117,10 @@ class MemoryCommandCenterInsights:
         return items
 
     async def build_cost_profile(self, influence: list[MemoryCommandInfluenceItem]) -> MemoryCommandCostProfile:
-        result = await self._db.execute(
-            select(Message).where(Message.extra_data.is_not(None)).order_by(desc(Message.created_at)).limit(50)
-        )
-        prompt_tokens = 0
-        cached_tokens = 0
-        completion_tokens = 0
-        cited_memory_refs = 0
-        for message in result.scalars().all():
-            extra_data = message.extra_data or {}
-            prompt, cached, completion = self._extract_token_counts(extra_data)
-            prompt_tokens += prompt
-            cached_tokens += cached
-            completion_tokens += completion
-            cited_memory_refs += len(self._extract_influence_refs(extra_data))
-        estimated_memory_tokens = sum(len(ref.content_preview.split()) for item in influence for ref in item.influence_refs)
-        return MemoryCommandCostProfile(
-            prompt_tokens=prompt_tokens,
-            cached_tokens=cached_tokens,
-            completion_tokens=completion_tokens,
-            cited_memory_refs=cited_memory_refs,
-            estimated_memory_tokens=estimated_memory_tokens,
-            cache_friendly=cached_tokens > 0 or estimated_memory_tokens <= 300,
-        )
+        economics_service = MemoryEconomicsService(self._db)
+        dashboard = await economics_service.build_economics_dashboard(influence=influence, limit_turns=50)
+        return dashboard.cost_profile
+
 
     async def build_conflicts(self) -> list[MemoryCommandConflictItem]:
         items: list[MemoryCommandConflictItem] = []
