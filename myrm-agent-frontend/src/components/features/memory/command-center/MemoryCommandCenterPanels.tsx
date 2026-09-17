@@ -38,7 +38,10 @@ import { BehavioralMetricsPanel } from '../insights/BehavioralMetricsPanel';
 import { EvidenceBadge } from '../cards/EvidenceBadge';
 import { RepoEvidenceCard } from '../cards/RepoEvidenceCard';
 
+import { ToolGuidancePanel } from './ToolGuidancePanel';
+
 const MemoryHealthDashboard = lazy(() => import('../insights/MemoryHealthDashboard'));
+
 
 const MEMORY_TYPES: MemoryType[] = [
   'profile',
@@ -224,48 +227,52 @@ export const ActSection = ({
   consolidationSummary?: ConsolidationLastSummary | null;
   onConsolidationRollback?: () => void;
 }) => (
-  <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-    <div className="space-y-4">
-      <Panel title={t('commandCenter.governanceTitle')}>
-        {snapshot.governance.length ? (
-          <div className="space-y-2">
-            {snapshot.governance.map((item) => (
-              <GovernanceRow
-                key={`${item.kind}:${item.id}`}
-                item={item}
-                t={t}
-                actionId={actionId}
-                onAction={onAction}
-              />
-            ))}
-          </div>
-        ) : (
-          <EmptyState label={t('commandCenter.governanceEmpty')} />
-        )}
-      </Panel>
-      {consolidationSummary?.available && (
-        <Panel title={t('commandCenter.consolidationRollbackTitle')}>
-          <ConsolidationRollbackCard
-            summary={consolidationSummary}
-            t={t}
-            loading={actionId === 'consolidation:rollback'}
-            onRollback={onConsolidationRollback}
-          />
+  <div className="space-y-4">
+    <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="space-y-4">
+        <Panel title={t('commandCenter.governanceTitle')}>
+          {snapshot.governance.length ? (
+            <div className="space-y-2">
+              {snapshot.governance.map((item) => (
+                <GovernanceRow
+                  key={`${item.kind}:${item.id}`}
+                  item={item}
+                  t={t}
+                  actionId={actionId}
+                  onAction={onAction}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState label={t('commandCenter.governanceEmpty')} />
+          )}
         </Panel>
-      )}
+        {consolidationSummary?.available && (
+          <Panel title={t('commandCenter.consolidationRollbackTitle')}>
+            <ConsolidationRollbackCard
+              summary={consolidationSummary}
+              t={t}
+              loading={actionId === 'consolidation:rollback'}
+              onRollback={onConsolidationRollback}
+            />
+          </Panel>
+        )}
+      </div>
+      <Panel title={t('commandCenter.migrationTitle')}>
+        <MigrationPanel
+          snapshot={snapshot}
+          t={t}
+          actionId={actionId}
+          onDoctorAction={onDoctorAction}
+          onRollbackImport={onRollbackImport}
+          onOpenMigrationWizard={onOpenMigrationWizard}
+        />
+      </Panel>
     </div>
-    <Panel title={t('commandCenter.migrationTitle')}>
-      <MigrationPanel
-        snapshot={snapshot}
-        t={t}
-        actionId={actionId}
-        onDoctorAction={onDoctorAction}
-        onRollbackImport={onRollbackImport}
-        onOpenMigrationWizard={onOpenMigrationWizard}
-      />
-    </Panel>
+    <ToolGuidancePanel />
   </div>
 );
+
 
 export const VerifySection = ({
   snapshot,

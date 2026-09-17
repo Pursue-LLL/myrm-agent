@@ -25,6 +25,7 @@ from app.api.memory.operations import (
     pending,
     radar,
     reindex,
+    tool_guidance,
     working_state,
 )
 from app.api.memory.operations.shared_context import (
@@ -55,7 +56,9 @@ router.include_router(backup.router, tags=["memory-backup"])
 router.include_router(backup_remote.router, tags=["memory-backup-remote"])
 router.include_router(reindex.router, tags=["memory-reindex"])
 router.include_router(archive_restore.router, tags=["memory-archive-restore"])
+router.include_router(tool_guidance.router, tags=["memory-tool-guidance"])
 router.include_router(external_transcripts.router, tags=["memory-external-transcripts"])
+
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
 router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])
