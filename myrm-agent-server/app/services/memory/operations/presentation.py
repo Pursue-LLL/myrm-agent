@@ -136,4 +136,9 @@ def memory_to_item(memory: AnyMemory | ProfileEntry, memory_type: MemoryType) ->
         if source_msg:
             base["source_message_id"] = source_msg
 
+    is_exact = getattr(memory, "is_exact_fact", False) or bool(meta.get("is_exact_fact", False))
+    idents = getattr(memory, "exact_identifiers", []) or meta.get("exact_identifiers", []) or []
+    base["is_exact_fact"] = bool(is_exact)
+    base["exact_identifiers"] = list(idents)
+
     return MemoryItem(**base)

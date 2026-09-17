@@ -55,6 +55,8 @@ class MemoryItem(BaseModel):
     last_accessed_at: datetime | None = None
     source_chat_id: str | None = None
     source_message_id: str | None = None
+    is_exact_fact: bool = False
+    exact_identifiers: list[str] = Field(default_factory=list)
 
 
 class MemorySearchResponse(BaseModel):
@@ -165,6 +167,10 @@ class CreateMemoryRequest(BaseModel):
         default_factory=list,
         description="Related entities (episodic only, for graph indexing)",
     )
+    is_exact_fact: bool | None = Field(
+        None,
+        description="Explicitly declare this memory as an exact fact with deterministic hard lock",
+    )
 
 
 class CorrectMemoryRequest(BaseModel):
@@ -181,6 +187,10 @@ class UpdateMemoryRequest(BaseModel):
     application: str | None = Field(None, max_length=2000, description="New application (How)")
     importance: float | None = Field(None, ge=0.0, le=1.0, description="New importance score")
     tags: list[str] | None = Field(None, description="New tags (semantic/episodic only)")
+    is_exact_fact: bool | None = Field(
+        None,
+        description="Toggle exact fact deterministic hard lock (immune to compression and forgetting)",
+    )
     is_user_locked: bool | None = Field(
         None,
         description=(

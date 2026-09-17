@@ -81,6 +81,7 @@ async def get_cascade_memory_manager() -> MemoryManager:
             namespaces=["global"],
             vector=vector_store,
             relational=relational_store,
+            fts5_searcher=relational_store.search_fts5,
             auto_warmup=False,
         )
         return _cascade_manager

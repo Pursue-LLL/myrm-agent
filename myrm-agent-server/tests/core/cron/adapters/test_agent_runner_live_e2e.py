@@ -29,7 +29,7 @@ def _make_ping_job() -> CronJob:
         user_id="user-1",
         name="TrustLatchPing",
         job_type=JobType.AGENT,
-        schedule=Schedule(kind=ScheduleKind.ONCE),
+        schedule=Schedule(kind=ScheduleKind.CRON, expr="0 2 * * *"),
         status=JobStatus.ACTIVE,
         prompt="Reply with exactly the word PONG and nothing else.",
         delivery=DeliveryConfig(channel="chat"),

@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
     from myrm_agent_harness.agent.extensions.protocols import AgentExtension
     from myrm_agent_harness.api import SkillAgent
+    from myrm_agent_harness.toolkits.memory.consolidation import WorkingMemorySnapshot
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
     from app.ai_agents.general_agent.agent import GeneralAgent
@@ -1054,32 +1055,17 @@ def _get_budget_pressure_fn() -> "Callable[[], bool] | None":
 
 def _working_memory_snapshot() -> "WorkingMemorySnapshot | None":
     """Adapt the agent working memory block into a toolkit-neutral snapshot."""
-    state = LocalWorkingMemoryBlock.get_state()
-    if state is None:
-        return None
-    return WorkingMemorySnapshot(
-        goal=state.goal,
-        active_turn=state.active_turn,
-        status=state.status,
-        subtasks=[
-            ConsolidationSubtask(
-                title=item.title,
-                completed=item.status == SubtaskStatus.COMPLETED,
-            )
-            for item in state.subtasks
-        ],
-        traps=[
-            ConsolidationTrap(
-                fingerprint=trap.fingerprint,
-                avoidance_rule=trap.avoidance_rule,
-                tool_name=trap.tool_name,
-                occurred_turn=trap.occurred_turn,
-                resolved=trap.resolved,
-            )
-            for trap in state.traps
-        ],
-        scratchpad=dict(state.scratchpad),
+    from myrm_agent_harness.agent.context_management.working_memory import (
+        LocalWorkingMemoryBlock,
     )
+    from myrm_agent_harness.toolkits.memory.consolidation import (
+        WorkingMemorySnapshot,
+    )
+
+    snapshot = LocalWorkingMemoryBlock.to_snapshot()
+    if isinstance(snapshot, WorkingMemorySnapshot):
+        return snapshot
+    return None
 
 
 def _build_session_cleanup_callback(
@@ -1095,17 +1081,13 @@ def _build_session_cleanup_callback(
     if lite_llm is None:
         return None
 
+    from myrm_agent_harness.agent.context_management.working_memory import (
+        LocalWorkingMemoryBlock,
+    )
     from myrm_agent_harness.api.hooks import (
         create_extraction_llm_func,
     )
-    from myrm_agent_harness.agent.context_management.working_memory import (
-        LocalWorkingMemoryBlock,
-        SubtaskStatus,
-    )
     from myrm_agent_harness.toolkits.memory import (
-        ConsolidationSubtask,
-        ConsolidationTrap,
-        WorkingMemorySnapshot,
         create_consolidation_cleanup_task,
     )
     from myrm_agent_harness.toolkits.memory.session_post_process import (

@@ -628,6 +628,7 @@ class AgentJobRunner:
             memory_extraction_preset: str | None = None
             cron_post_run_verify = False
             trusted_desktop_apps: tuple[dict[str, str], ...] = ()
+            resolved = None
 
             if job.agent_id:
                 from app.services.agent.profile.profile_resolver import (
