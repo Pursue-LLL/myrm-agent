@@ -12,6 +12,7 @@
 | `check_file_line_budget.py` | TS/TSX 400 行预算门禁 |
 | `check_typescript_strict.py` | `tsc --noEmit` strict 错误数门禁（`ci/typescript_strict_baseline.txt`；`tsconfig.json` `strict: true`） |
 | `check_barrel_exports.py` | 跨域 `index.ts` 桶导出白名单门禁 |
+| `check_module_resolution.py` | 导入说明符解析门禁：按 bundler 同款「扩展名替换 + index 规则」解析 `from` / `import()` / `require()` / 相对与别名路径，命中磁盘不存在即失败。填补 `tsc` 盲区——Node `require` 签名是 `(id: string) => any`，删除被 `require('./x')` 引用的模块不会报错，只在运行时 500（如 `file-service/sandbox.ts` 被误删导致全站 500）；bare 包名与测试替身 `vi.mock`/`jest.mock` 跳过 |
 | CI lockfile policy | `frontend-build.yml` 断言无 `package-lock.json`（bun.lock 为 SSOT） |
 | `ci/fractal_docs_baseline.txt` | 递归扫描豁免目录（当前无条目） |
 | `ci/file_line_budget_baseline.txt` | 存量超大文件豁免列表 |
@@ -59,3 +60,4 @@
 - 新 CI 门禁脚本放本目录并在本 `_ARCH.md` 与根 `_ARCH.md` CI 节登记
 - baseline 文件仅通过 `--write-baseline` 更新，禁止手改豁免逻辑
 - `ci/barrel_whitelist.txt` 跨域 barrel 条目须与根 `_ARCH.md` 桶表同步，手改后跑 `check_barrel_exports.py` 验证
+- 删除模块前跑 `check_module_resolution.py`：`tsc` 不校验 `require()` 目标，静态图谱扫不到的目标仍可能被动态加载器引用

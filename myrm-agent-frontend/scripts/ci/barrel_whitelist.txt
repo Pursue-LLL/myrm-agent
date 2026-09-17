@@ -1,6 +1,5 @@
 # Cross-domain index.ts barrel whitelist (src-relative paths).
 # Feature-local barrels under src/components/features/** are allowed by rule, not listed here.
-src/hooks/tasks/index.ts
 src/store/memory/index.ts
 src/store/skill/index.ts
 src/store/chat/types/index.ts
@@ -8,8 +7,6 @@ src/store/chat/messageStream/handlers/index.ts
 src/services/file-service/index.ts
 src/services/config/index.ts
 src/services/config/adapters/index.ts
-src/components/layout/index.ts
-src/components/error-boundary/index.ts
 src/lib/humanize/index.ts
 src/lib/intent-dispatcher/index.ts
 src/lib/desktop-bridge/index.ts
