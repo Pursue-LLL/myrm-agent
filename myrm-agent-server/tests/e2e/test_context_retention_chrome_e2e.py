@@ -250,7 +250,7 @@ def _await_attach_chat(
             raw = client.evaluate(  # type: ignore[attr-defined]
                 page,
                 _attach_chat_probe(chat_id),
-                timeout_sec=min(45.0, _attach_eval_timeout_sec(), remaining),
+                timeout_sec=min(15.0, remaining),
             )
         except RuntimeError as exc:
             if "CDP request timeout" not in str(exc) and "Runtime.evaluate" not in str(exc):
@@ -283,7 +283,6 @@ def _attach_chat_probe(chat_id: str) -> str:
   if (!bridge?.attachToChat) {{
     return {{ ok: false, err: 'no-bridge' }};
   }}
-  await bridge.attachToChat({chat_id_json});
   const snap = bridge.turnSnapshot?.() ?? {{}};
   const store = window.__myrmChatStore?.getState?.();
   const summary = store?.compactedSummary ?? '';
@@ -291,15 +290,36 @@ def _attach_chat_probe(chat_id: str) -> str:
     document.querySelector('[data-testid="compacted-summary-view"]')
     || document.querySelector('[data-message-id="compacted-summary-view"]'),
   );
+  const ok =
+    snap.chatId === {chat_id_json}
+    && (snap.userCount ?? 0) >= 1
+    && typeof summary === 'string'
+    && summary.length > 0
+    && Boolean(store?.isMessagesLoaded)
+    && !Boolean(store?.notFound)
+    && !Boolean(store?.loadError);
+
+  if (ok) {{
+    return {{
+      ok: true,
+      snap,
+      summaryHead: String(summary).slice(0, 120),
+      hasSummaryDom,
+      isMessagesLoaded: true,
+      loadError: false,
+      notFound: false,
+    }};
+  }}
+
+  if (!window.__MYRM_E2E_ATTACHING__) {{
+    window.__MYRM_E2E_ATTACHING__ = true;
+    bridge.attachToChat({chat_id_json}).catch(() => {{}}).finally(() => {{
+      window.__MYRM_E2E_ATTACHING__ = false;
+    }});
+  }}
+
   return {{
-    ok:
-      snap.chatId === {chat_id_json}
-      && (snap.userCount ?? 0) >= 1
-      && typeof summary === 'string'
-      && summary.length > 0
-      && Boolean(store?.isMessagesLoaded)
-      && !Boolean(store?.notFound)
-      && !Boolean(store?.loadError),
+    ok: false,
     snap,
     summaryHead: String(summary).slice(0, 120),
     hasSummaryDom,
