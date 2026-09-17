@@ -25,3 +25,4 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `manager_deps.py` | 门面 | MemoryManager FastAPI 依赖工厂（`get_memory_manager` / `get_crud_memory_manager` / `get_optional_memory_manager`），供 api 与 service handler 注入 | ✅ |
+| `preference_radar_service.py` | 核心 | 会话级动态用户偏好雷达服务。内存状态自适应拟合、并发锁控制、锁定态阻尼与检索权重推导 | ✅ |

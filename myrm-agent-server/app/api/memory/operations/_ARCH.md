@@ -22,4 +22,5 @@
 | `pending.py` | 模块 | 待处理记忆与冲突 API 操作层。提供待处理记忆的审批流管理、结构化元数据（置信度/类别/有效期/依据）投影与冲突裁决。 | ✅ |
 | `shared_context/`（子包） | 模块 | 共享上下文 API 子域：CRUD、健康检查、历史证据、遗留迁移 + 序列化辅助。5 个 `shared_context_*` 模块聚合于此，`shared_context/__init__.py` 为聚合门面统一 re-export | ✅ |
 | `reindex.py` | 模块 | Memory reindex API — orphan detection, estimation, and execution for embedding model migration. | ✅ |
+| `radar.py` | 模块 | 动态偏好雷达 API。暴露当前会话雷达状态、手动微调与隐式反馈记录 HTTP 接口。 | ✅ |
 | `working_state.py` | 模块 | Working State API — cross-session task continuity endpoint. 提供读/写/清除 `__working_state` Profile 属性的 HTTP 入口。 | ✅ |
