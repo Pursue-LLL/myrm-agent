@@ -15,6 +15,7 @@ import React from 'react';
 import { AlertTriangle, Archive, Check, CheckCircle2, Pin, X } from 'lucide-react';
 
 import type { MemoryCommandParasiticMemory } from '@/services/memory/commandCenter';
+import { cn } from '@/lib/utils/classnameUtils';
 
 interface MemoryParasiticGovernanceListProps {
   parasitic: MemoryCommandParasiticMemory[];
@@ -96,7 +97,11 @@ export const MemoryParasiticGovernanceList: React.FC<MemoryParasiticGovernanceLi
           {parasitic.map((item) => (
             <div
               key={item.memory_id}
-              className="p-2.5 rounded-lg border border-border/30 bg-card/40 flex flex-col gap-1.5 text-xs"
+              className={cn(
+                'p-2.5 rounded-lg border border-border/30 bg-card/40 flex flex-col gap-1.5 text-xs transition-opacity duration-150',
+                (archivingAll || archivingId === item.memory_id || pinningId === item.memory_id) &&
+                  'opacity-60 pointer-events-none'
+              )}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 min-w-0 flex-1">
@@ -118,7 +123,7 @@ export const MemoryParasiticGovernanceList: React.FC<MemoryParasiticGovernanceLi
                   {onPin && (
                     <button
                       onClick={() => onPin(item)}
-                      disabled={pinningId === item.memory_id || archivingId === item.memory_id}
+                      disabled={archivingAll || pinningId === item.memory_id || archivingId === item.memory_id}
                       className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-border hover:bg-primary/10 hover:text-primary text-muted-foreground transition-colors"
                       title="置顶保护：标记为核心规则并免除沉睡扫描"
                     >
@@ -128,7 +133,7 @@ export const MemoryParasiticGovernanceList: React.FC<MemoryParasiticGovernanceLi
                   )}
                   <button
                     onClick={() => onArchive(item)}
-                    disabled={archivingId === item.memory_id || pinningId === item.memory_id}
+                    disabled={archivingAll || archivingId === item.memory_id || pinningId === item.memory_id}
                     className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-border hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
                   >
                     <Archive className="w-3 h-3" />

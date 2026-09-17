@@ -13,7 +13,7 @@
  * 前端记忆命令中心经济学剖析组件。可视化长程多轮有状态任务的三阶段开销、Prompt Cache 保持率与沉睡记忆治理。
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   CheckCircle2,
@@ -54,6 +54,13 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
   const [confirmArchiveAll, setConfirmArchiveAll] = useState<boolean>(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
+
+  const dismissedIds = useMemo(() => {
+    const set = new Set(archivedIds);
+    pinnedIds.forEach((id) => set.add(id));
+    return set;
+  }, [archivedIds, pinnedIds]);
 
   const fetchEconomics = useCallback(async () => {
     try {
@@ -77,7 +84,8 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
 
   const handlePin = async (item: MemoryCommandParasiticMemory) => {
     setPinningId(item.memory_id);
-    setArchivedIds((prev) => new Set(prev).add(item.memory_id));
+    // Optimistically hide the pinned memory immediately from parasitic list
+    setPinnedIds((prev) => new Set(prev).add(item.memory_id));
     try {
       await runMemoryCommandAction({
         target_kind: 'memory',
@@ -89,7 +97,7 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
       await fetchEconomics();
       onRefreshParent?.();
     } catch {
-      setArchivedIds((prev) => {
+      setPinnedIds((prev) => {
         const next = new Set(prev);
         next.delete(item.memory_id);
         return next;
@@ -204,11 +212,23 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
   const cost = dashboard?.cost_profile;
   const trajectories = dashboard?.turn_trajectories || [];
   const parasitic = (dashboard?.parasitic_memories || []).filter(
-    (item) => !archivedIds.has(item.memory_id)
+    (item) => !dismissedIds.has(item.memory_id)
   );
   const totalWastedTokens = parasitic.reduce((acc, p) => acc + (p.wasted_tokens_estimated || 0), 0);
-  const dynamicSavingsUsd = Number(((totalWastedTokens / 1_000_000.0) * 3.0).toFixed(4));
-  const savings = parasitic.length > 0 ? dynamicSavingsUsd : 0;
+  const originalWastedTokens = (dashboard?.parasitic_memories || []).reduce(
+    (acc, p) => acc + (p.wasted_tokens_estimated || 0),
+    0
+  );
+  const backendSavingsUsd = dashboard?.estimated_cost_savings_usd ?? 0;
+  const effectiveRate =
+    originalWastedTokens > 0 && backendSavingsUsd > 0
+      ? backendSavingsUsd / (originalWastedTokens / 1_000_000.0)
+      : 3.0;
+  const dynamicSavingsUsd = Number(((totalWastedTokens / 1_000_000.0) * effectiveRate).toFixed(4));
+  const savings =
+    parasitic.length > 0
+      ? (dismissedIds.size === 0 ? backendSavingsUsd : dynamicSavingsUsd)
+      : 0;
   const recommendations = dashboard?.recommendations || [];
 
   const getRoiBadge = (grade: string | undefined) => {
