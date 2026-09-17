@@ -59,7 +59,13 @@ vi.mock('@/components/features/settings/SearxngInstallConsentDialog', () => ({
 }));
 
 vi.mock('@/components/features/settings/model-service/HardwareCookbook', () => ({
-  default: () => <div data-testid="hardware-cookbook" />,
+  default: ({ onApplyModel }: { onApplyModel?: (modelId: string) => void }) => (
+    <div data-testid="hardware-cookbook">
+      <button data-testid="cookbook-apply-btn" onClick={() => onApplyModel?.('ollama/qwen2.5:7b')}>
+        Apply Cookbook Model
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('@/components/primitives/button', () => ({
@@ -230,5 +236,49 @@ describe('LocalCapabilitiesSetup – Cloud Quick Start Card', () => {
     });
     expect(mockUpdateProvider).not.toHaveBeenCalled();
     expect(screen.getByText('Health check returned no response')).toBeInTheDocument();
+  });
+
+  it('applies cookbook model with custom probed ollama base_url (e.g. host.docker.internal)', () => {
+    const customProbe: ProbeLocalResponse = {
+      results: [
+        {
+          provider: 'ollama',
+          available: true,
+          base_url: 'http://host.docker.internal:11434',
+          models: [],
+          error: null,
+          latency_ms: 5,
+        },
+      ],
+      has_available: false,
+      recommended_model: null,
+      search: [],
+    };
+
+    render(<LocalCapabilitiesSetup probeResult={customProbe} onComplete={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('cookbook-apply-btn'));
+
+    expect(mockUpdateProvider).toHaveBeenCalledWith(
+      'ollama',
+      expect.objectContaining({
+        apiUrl: 'http://host.docker.internal:11434',
+        enabledModels: ['qwen2.5:7b'],
+        isEnabled: true,
+      }),
+    );
+  });
+
+  it('falls back to localhost:11434 when ollama is not probed', () => {
+    render(<LocalCapabilitiesSetup probeResult={NO_MODEL_PROBE} onComplete={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('cookbook-apply-btn'));
+
+    expect(mockUpdateProvider).toHaveBeenCalledWith(
+      'ollama',
+      expect.objectContaining({
+        apiUrl: 'http://localhost:11434',
+        enabledModels: ['qwen2.5:7b'],
+        isEnabled: true,
+      }),
+    );
   });
 });

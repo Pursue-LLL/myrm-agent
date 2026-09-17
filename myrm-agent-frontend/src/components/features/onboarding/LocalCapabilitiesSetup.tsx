@@ -15,14 +15,13 @@ import { buildQuickSearchConfig } from '@/store/config/quickSearchSetup';
 import { getActiveSearchServiceConfig } from '@/store/config/searchService';
 import type { SearchServiceType } from '@/store/config/types';
 import {
-  IconArrowRight,
   IconCheck,
   IconCpu,
   IconGlobe,
   IconLoader,
   IconServer,
-  IconZap,
 } from '@/components/features/icons/PremiumIcons';
+import CloudQuickStartCard from './CloudQuickStartCard';
 import SearxngInstallConsentDialog from '@/components/features/settings/SearxngInstallConsentDialog';
 import HardwareCookbook from '@/components/features/settings/model-service/HardwareCookbook';
 import {
@@ -40,11 +39,6 @@ interface LocalCapabilitiesSetupProps {
   onComplete: () => void;
 }
 
-const CLOUD_PROVIDERS = [
-  { id: 'gemini', nameKey: 'cloudProviderGemini', hintKey: 'cloudProviderGeminiHint' },
-  { id: 'siliconflow', nameKey: 'cloudProviderSiliconFlow', hintKey: 'cloudProviderSiliconFlowHint' },
-  { id: 'openrouter', nameKey: 'cloudProviderOpenRouter', hintKey: 'cloudProviderOpenRouterHint' },
-] as const;
 const LOCAL_OPENAI_COMPAT_PROVIDER_NAME = 'Local OpenAI Compatible';
 const LOCAL_OPENAI_COMPAT_PROVIDER_ID = 'local_openai_compatible';
 
@@ -155,12 +149,15 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
     handleEnableSearch('searxng', searxngBaseUrl);
   }, [searxngHit, searchConfigured, searxngBaseUrl, handleEnableSearch]);
 
+  const ollamaHit = probeResult?.results?.find((r) => r.provider === 'ollama');
+  const ollamaBaseUrl = ollamaHit?.base_url || 'http://localhost:11434';
+
   const handleApplyCookbookModel = useCallback(
     (modelId: string) => {
       const pureModelName = modelId.includes('/') ? modelId.split('/')[1] : modelId;
-      void handleActivateModel('ollama', 'http://localhost:11434', pureModelName);
+      void handleActivateModel('ollama', ollamaBaseUrl, pureModelName);
     },
-    [handleActivateModel],
+    [handleActivateModel, ollamaBaseUrl],
   );
 
   const handleGoToCloudProvider = useCallback(() => {
@@ -425,33 +422,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
       )}
 
       {!hasEnabledProvider && !availableModel && (
-        <div className="p-4 rounded-xl border bg-card space-y-4">
-          <div className="flex items-start gap-4">
-            <div className="rounded-xl bg-accent-warm/10 p-3">
-              <IconZap className="h-6 w-6 text-accent-warm" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-base font-semibold">{tBoot('onboarding.cloudQuickStart')}</span>
-              <span className="text-sm text-muted-foreground">{tBoot('onboarding.cloudQuickStartHint')}</span>
-            </div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {CLOUD_PROVIDERS.map(({ id, nameKey, hintKey }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={handleGoToCloudProvider}
-                className="flex items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-accent/50"
-              >
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{tBoot(`onboarding.${nameKey}`)}</div>
-                  <div className="text-xs text-muted-foreground truncate">{tBoot(`onboarding.${hintKey}`)}</div>
-                </div>
-                <IconArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </button>
-            ))}
-          </div>
-        </div>
+        <CloudQuickStartCard onSelectProvider={handleGoToCloudProvider} />
       )}
 
       {!searchConfigured && (
