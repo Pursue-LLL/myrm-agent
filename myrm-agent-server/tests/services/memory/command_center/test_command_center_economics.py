@@ -57,7 +57,12 @@ async def test_build_economics_dashboard_with_turns() -> None:
         created_at=now,
         extra_data={
             "usage": {"prompt_tokens": 1000, "cached_tokens": 800, "completion_tokens": 150},
-            "memory_telemetry": {"injected_memory_tokens": 200, "retrieval_ms": 45.0, "construction_ms": 120.0, "cache_aligned": True},
+            "memory_telemetry": {
+                "injected_memory_tokens": 200,
+                "retrieval_ms": 45.0,
+                "construction_ms": 120.0,
+                "cache_aligned": True,
+            },
             "injected_memory_ids": ["mem_useful_1", "mem_stale_1"],
             "citations": [{"id": "mem_useful_1", "content": "Keep functions under 400 lines", "type": "procedural"}],
         },
@@ -72,7 +77,12 @@ async def test_build_economics_dashboard_with_turns() -> None:
         created_at=now,
         extra_data={
             "usage": {"prompt_tokens": 1200, "cached_tokens": 900, "completion_tokens": 200},
-            "memory_telemetry": {"injected_memory_tokens": 200, "retrieval_ms": 35.0, "construction_ms": 80.0, "cache_aligned": True},
+            "memory_telemetry": {
+                "injected_memory_tokens": 200,
+                "retrieval_ms": 35.0,
+                "construction_ms": 80.0,
+                "cache_aligned": True,
+            },
             "injected_memory_ids": ["mem_useful_1", "mem_stale_1", "mem_profile_exempt"],
             "citations": [
                 {"id": "mem_useful_1", "content": "Keep functions under 400 lines", "type": "procedural"},
@@ -90,7 +100,12 @@ async def test_build_economics_dashboard_with_turns() -> None:
         created_at=now,
         extra_data={
             "usage": {"prompt_tokens": 1100, "cached_tokens": 900, "completion_tokens": 180},
-            "memory_telemetry": {"injected_memory_tokens": 200, "retrieval_ms": 40.0, "construction_ms": 70.0, "cache_aligned": True},
+            "memory_telemetry": {
+                "injected_memory_tokens": 200,
+                "retrieval_ms": 40.0,
+                "construction_ms": 70.0,
+                "cache_aligned": True,
+            },
             "injected_memory_ids": ["mem_useful_1", "mem_stale_1", "mem_profile_exempt"],
             "citations": [{"id": "mem_useful_1", "content": "Keep functions under 400 lines", "type": "procedural"}],
         },
@@ -309,3 +324,72 @@ async def test_parasitic_memory_resolves_real_preview_and_accurate_tokens() -> N
     assert dashboard.cost_profile.injection_overhead_ms == 2.4
 
 
+@pytest.mark.asyncio
+async def test_build_economics_dashboard_model_adaptive_rate() -> None:
+    mock_db = AsyncMock()
+    now = datetime.now(UTC)
+    msg = Message(
+        id="msg_deepseek_01",
+        chat_id="sess_deepseek",
+        role="assistant",
+        content="DeepSeek output",
+        sent_at=now,
+        sent_timezone="UTC",
+        created_at=now,
+        extra_data={
+            "model": "deepseek-chat",
+            "usage": {"prompt_tokens": 500, "cached_tokens": 400, "completion_tokens": 50},
+            "memory_telemetry": {
+                "injected_memory_tokens": 100,
+                "retrieval_ms": 10.0,
+                "construction_ms": 20.0,
+                "cache_aligned": True,
+            },
+            "injected_memory_ids": ["mem_dormant_01"],
+            "citations": [],
+        },
+    )
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [msg, msg, msg]
+    mock_db.execute.return_value = mock_result
+
+    service = MemoryEconomicsService(mock_db)
+    previews = {"mem_dormant_01": ("Some dormant memory snippet", "semantic")}
+    dashboard = await service.build_economics_dashboard(
+        influence=[],
+        session_id="sess_deepseek",
+        memory_previews=previews,
+        limit_turns=10,
+    )
+    assert len(dashboard.parasitic_memories) == 1
+    # DeepSeek rate is 0.28 per 1M tokens instead of standard 3.0
+    wasted = dashboard.parasitic_memories[0].wasted_tokens_estimated
+    expected_savings = round((wasted / 1_000_000.0) * 0.28, 4)
+    assert dashboard.estimated_cost_savings_usd == expected_savings
+
+
+@pytest.mark.asyncio
+async def test_get_active_memory_previews_procedural() -> None:
+    from myrm_agent_harness.toolkits.memory import MemoryType
+
+    from app.services.memory.command_center.command_center import MemoryCommandCenterService
+
+    mock_db = AsyncMock()
+    mock_manager = AsyncMock()
+
+    class MockRule:
+        id = "rule_001"
+        status = "active"
+        content = ""
+        trigger = "User requests refactor"
+        action = "Run tests before and after"
+
+    mock_manager.list_memories.side_effect = lambda mem_type, **kw: [MockRule()] if mem_type == MemoryType.PROCEDURAL else []
+
+    service = MemoryCommandCenterService(mock_db, memory_manager=mock_manager)
+    previews = await service.get_active_memory_previews()
+
+    assert "rule_001" in previews
+    preview_text, mem_type = previews["rule_001"]
+    assert mem_type == "procedural"
+    assert preview_text == "User requests refactor -> Run tests before and after"

@@ -12,7 +12,7 @@
  */
 
 import React from 'react';
-import { AlertTriangle, Archive, Check, CheckCircle2, X } from 'lucide-react';
+import { AlertTriangle, Archive, Check, CheckCircle2, Pin, X } from 'lucide-react';
 
 import type { MemoryCommandParasiticMemory } from '@/services/memory/commandCenter';
 
@@ -21,9 +21,11 @@ interface MemoryParasiticGovernanceListProps {
   archivingId: string | null;
   archivingAll: boolean;
   confirmArchiveAll: boolean;
+  pinningId?: string | null;
   onSetConfirmArchiveAll: (val: boolean) => void;
   onArchive: (item: MemoryCommandParasiticMemory) => Promise<void>;
   onArchiveAll: (items: MemoryCommandParasiticMemory[]) => Promise<void>;
+  onPin?: (item: MemoryCommandParasiticMemory) => Promise<void>;
 }
 
 export const MemoryParasiticGovernanceList: React.FC<MemoryParasiticGovernanceListProps> = ({
@@ -31,9 +33,11 @@ export const MemoryParasiticGovernanceList: React.FC<MemoryParasiticGovernanceLi
   archivingId,
   archivingAll,
   confirmArchiveAll,
+  pinningId,
   onSetConfirmArchiveAll,
   onArchive,
   onArchiveAll,
+  onPin,
 }) => {
   return (
     <div className="lg:col-span-5 flex flex-col gap-3 p-4 rounded-xl border border-border/40 bg-background/40">
@@ -110,14 +114,27 @@ export const MemoryParasiticGovernanceList: React.FC<MemoryParasiticGovernanceLi
                     {item.content_preview}
                   </span>
                 </div>
-                <button
-                  onClick={() => onArchive(item)}
-                  disabled={archivingId === item.memory_id}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-border hover:bg-muted text-foreground transition-colors shrink-0"
-                >
-                  <Archive className="w-3 h-3 text-muted-foreground" />
-                  {archivingId === item.memory_id ? '归档中...' : '一键归档'}
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  {onPin && (
+                    <button
+                      onClick={() => onPin(item)}
+                      disabled={pinningId === item.memory_id || archivingId === item.memory_id}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-border hover:bg-primary/10 hover:text-primary text-muted-foreground transition-colors"
+                      title="置顶保护：标记为核心规则并免除沉睡扫描"
+                    >
+                      <Pin className="w-3 h-3" />
+                      {pinningId === item.memory_id ? '置顶中...' : '置顶'}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => onArchive(item)}
+                    disabled={archivingId === item.memory_id || pinningId === item.memory_id}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-border hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
+                  >
+                    <Archive className="w-3 h-3" />
+                    {archivingId === item.memory_id ? '归档中...' : '归档'}
+                  </button>
+                </div>
               </div>
               <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                 <span>装载 {item.injected_turns_count} 轮 · 引用 0 次</span>

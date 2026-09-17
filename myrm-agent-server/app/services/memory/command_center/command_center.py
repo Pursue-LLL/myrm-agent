@@ -147,7 +147,7 @@ class MemoryCommandCenterService:
         if not self._memory_manager:
             return {}
         previews: dict[str, tuple[str, str]] = {}
-        for mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
+        for mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL):
             try:
                 memories = await self._memory_manager.list_memories(
                     mem_type, limit=500, include_archived=False
@@ -156,6 +156,8 @@ class MemoryCommandCenterService:
                     if getattr(m, "status", None) != MemoryStatus.ARCHIVED:
                         m_id = str(getattr(m, "id", "") or "")
                         content = getattr(m, "content", "") or ""
+                        if not content and hasattr(m, "trigger") and hasattr(m, "action"):
+                            content = f"{m.trigger} -> {m.action}"
                         if m_id and content:
                             type_val = mem_type.value if hasattr(mem_type, "value") else str(mem_type)
                             previews[m_id] = (self._preview(str(content), limit=100), type_val)

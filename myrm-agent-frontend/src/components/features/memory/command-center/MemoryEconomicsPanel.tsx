@@ -25,8 +25,8 @@ import {
 } from 'lucide-react';
 
 import {
-  executeMemoryAction,
   getMemoryEconomics,
+  runMemoryCommandAction,
   type MemoryCommandEconomicsDashboard,
   type MemoryCommandParasiticMemory,
 } from '@/services/memory/commandCenter';
@@ -49,6 +49,7 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
   const [loading, setLoading] = useState<boolean>(!initialDashboard);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [pinningId, setPinningId] = useState<string | null>(null);
   const [archivingAll, setArchivingAll] = useState<boolean>(false);
   const [confirmArchiveAll, setConfirmArchiveAll] = useState<boolean>(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -74,12 +75,38 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
     }
   }, [initialDashboard, fetchEconomics]);
 
+  const handlePin = async (item: MemoryCommandParasiticMemory) => {
+    setPinningId(item.memory_id);
+    setArchivedIds((prev) => new Set(prev).add(item.memory_id));
+    try {
+      await runMemoryCommandAction({
+        target_kind: 'memory',
+        target_id: item.memory_id,
+        action: 'pin',
+        memory_type: item.memory_type,
+      });
+      setActionNotice(`已成功置顶保护记忆 "${item.content_preview.slice(0, 20)}..."`);
+      await fetchEconomics();
+      onRefreshParent?.();
+    } catch {
+      setArchivedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.memory_id);
+        return next;
+      });
+      setActionNotice('置顶保护操作失败，请重试');
+    } finally {
+      setPinningId(null);
+      setTimeout(() => setActionNotice(null), 4000);
+    }
+  };
+
   const handleArchive = async (item: MemoryCommandParasiticMemory) => {
     setArchivingId(item.memory_id);
     // Optimistically hide the archived memory immediately
     setArchivedIds((prev) => new Set(prev).add(item.memory_id));
     try {
-      await executeMemoryAction({
+      await runMemoryCommandAction({
         target_kind: 'memory',
         target_id: item.memory_id,
         action: 'forget',
@@ -118,7 +145,7 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
     try {
       await Promise.all(
         items.map((item) =>
-          executeMemoryAction({
+          runMemoryCommandAction({
             target_kind: 'memory',
             target_id: item.memory_id,
             action: 'forget',
@@ -295,9 +322,11 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
           archivingId={archivingId}
           archivingAll={archivingAll}
           confirmArchiveAll={confirmArchiveAll}
+          pinningId={pinningId}
           onSetConfirmArchiveAll={setConfirmArchiveAll}
           onArchive={handleArchive}
           onArchiveAll={handleArchiveAll}
+          onPin={handlePin}
         />
       </div>
 
