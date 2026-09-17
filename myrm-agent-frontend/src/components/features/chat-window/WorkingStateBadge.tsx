@@ -15,7 +15,9 @@ const WorkingStateBadge = memo(() => {
   const [liveState, setLiveState] = useState<WorkingStateLiveState | null>(null);
   const [fallbackContent, setFallbackContent] = useState<string | null>(null);
   const loading = useChatStore((s) => s.loading);
+  const chatId = useChatStore((s) => s.chatId);
   const prevLoadingRef = useRef(loading);
+  const prevChatIdRef = useRef(chatId);
 
   const fetchState = useCallback(async () => {
     try {
@@ -36,8 +38,14 @@ const WorkingStateBadge = memo(() => {
   }, []);
 
   useEffect(() => {
+    // When switching sessions, immediately reset local workbench state to prevent ghost bleed
+    if (prevChatIdRef.current !== chatId) {
+      setLiveState(null);
+      setFallbackContent(null);
+      prevChatIdRef.current = chatId;
+    }
     fetchState();
-  }, [fetchState]);
+  }, [chatId, fetchState]);
 
   useEffect(() => {
     if (prevLoadingRef.current && !loading) {
@@ -53,7 +61,12 @@ const WorkingStateBadge = memo(() => {
         <WorkingMemoryBoard
           goal={liveState.goal}
           subtasks={liveState.subtasks}
-          traps={liveState.traps}
+          traps={liveState.traps.map((t) => ({
+            fingerprint: t.fingerprint,
+            avoidance_rule: t.avoidance_rule,
+            tool_name: t.tool_name ?? undefined,
+            resolved: t.resolved,
+          }))}
           activeTurn={liveState.active_turn}
           consolidated={liveState.consolidated}
         />

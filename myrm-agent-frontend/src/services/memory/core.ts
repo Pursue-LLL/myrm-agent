@@ -639,7 +639,9 @@ export interface WorkingStateLiveState {
   traps: Array<{
     fingerprint: string;
     avoidance_rule: string;
+    tool_name?: string | null;
     status?: string;
+    resolved?: boolean;
   }>;
   active_turn: number;
   consolidated: boolean;

@@ -8,13 +8,16 @@ vi.mock('@/services/memory', () => ({
   getWorkingState: vi.fn(),
 }));
 
+let mockChatState = { loading: false, chatId: 'chat-alpha' };
+
 vi.mock('@/store/useChatStore', () => ({
-  default: (selector: (s: { loading: boolean }) => unknown) => selector({ loading: false }),
+  default: (selector: (s: typeof mockChatState) => unknown) => selector(mockChatState),
 }));
 
 describe('WorkingStateBadge Container', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockChatState = { loading: false, chatId: 'chat-alpha' };
   });
 
   it('renders nothing when response has no content and no live_state', async () => {
@@ -48,6 +51,7 @@ describe('WorkingStateBadge Container', () => {
           {
             fingerprint: 'err-429',
             avoidance_rule: '添加自定义 User-Agent 规避限流',
+            resolved: true,
           },
         ],
         active_turn: 2,
@@ -79,6 +83,36 @@ describe('WorkingStateBadge Container', () => {
 
     await waitFor(() => {
       expect(screen.getByText('历史遗留纯文本任务')).toBeInTheDocument();
+    });
+  });
+
+  it('resets local state when chatId session changes', async () => {
+    vi.mocked(memoryService.getWorkingState).mockResolvedValueOnce({
+      content: '旧会话任务',
+      updated_at: '2026-09-17T00:00:00Z',
+      ttl_days: 7,
+      expired: false,
+      live_state: null,
+    });
+
+    const { rerender } = render(<WorkingStateBadge />);
+    await waitFor(() => {
+      expect(screen.getByText('旧会话任务')).toBeInTheDocument();
+    });
+
+    // Switch chatId
+    mockChatState = { loading: false, chatId: 'chat-beta' };
+    vi.mocked(memoryService.getWorkingState).mockResolvedValueOnce({
+      content: null,
+      updated_at: null,
+      ttl_days: 7,
+      expired: false,
+      live_state: null,
+    });
+
+    rerender(<WorkingStateBadge />);
+    await waitFor(() => {
+      expect(screen.queryByText('旧会话任务')).not.toBeInTheDocument();
     });
   });
 });
