@@ -79,6 +79,7 @@ class MemoryEconomicsService:
         influence: Sequence[MemoryCommandInfluenceItem],
         session_id: str | None = None,
         pinned_memory_ids: Sequence[str] | None = None,
+        archived_memory_ids: Sequence[str] | set[str] | None = None,
         limit_turns: int = 50,
     ) -> MemoryCommandEconomicsDashboard:
         """Construct a comprehensive long-horizon memory economics dashboard."""
@@ -92,6 +93,7 @@ class MemoryEconomicsService:
         messages = list(reversed(result.scalars().all()))
 
         all_pinned_ids: set[str] = set(pinned_memory_ids or [])
+        all_archived_ids: set[str] = set(archived_memory_ids or [])
         turn_trajectories: list[MemoryCommandTurnEconomics] = []
         injected_counter: dict[str, int] = {}
         cited_counter: dict[str, int] = {}
@@ -134,9 +136,10 @@ class MemoryEconomicsService:
                 type_map[ref_id] = mtype
                 turn_cited_tokens += estimate_memory_tokens_safe(preview)
 
-            # Injected memory tracking & pinned memory detection
+            # Injected memory tracking, pinned memory detection & archived memory extraction
             injected_ids, turn_pinned_ids = self._extract_injected_ids_and_pins(extra)
             all_pinned_ids.update(turn_pinned_ids)
+            all_archived_ids.update(self._extract_archived_ids(extra))
             for m_id in injected_ids:
                 injected_counter[m_id] = injected_counter.get(m_id, 0) + 1
 
@@ -182,11 +185,11 @@ class MemoryEconomicsService:
         roi_grade = classify_roi_grade(roi_pct)
 
         # Identify parasitic memories (injected >= 3 times but cited 0 times)
-        # Core user profile, identity facts, and pinned memories enjoy permanent exemption
+        # Core user profile, identity facts, pinned memories, and already archived memories enjoy permanent exemption
         exempt_memory_types = {"profile", "user_profile", "identity", "core_fact"}
         parasitic_memories: list[MemoryCommandParasiticMemory] = []
         for mem_id, in_count in injected_counter.items():
-            if mem_id in all_pinned_ids:
+            if mem_id in all_pinned_ids or mem_id in all_archived_ids:
                 continue
             mtype = type_map.get(mem_id, "semantic")
             if mtype in exempt_memory_types:
@@ -349,3 +352,32 @@ class MemoryEconomicsService:
         """Extract injected memory IDs from message metadata."""
         injected_ids, _ = cls._extract_injected_ids_and_pins(extra_data)
         return injected_ids
+
+    @staticmethod
+    def _extract_archived_ids(extra_data: Mapping[str, object]) -> set[str]:
+        """Extract archived or forgotten memory IDs from message metadata."""
+        archived_ids: set[str] = set()
+        raw_archived = (
+            extra_data.get("archived_memory_ids")
+            or extra_data.get("archived_memories")
+            or extra_data.get("forgotten_memory_ids")
+            or []
+        )
+        if isinstance(raw_archived, list):
+            for a_item in raw_archived:
+                if isinstance(a_item, str) and a_item:
+                    archived_ids.add(a_item)
+                elif isinstance(a_item, dict):
+                    a_id = str(a_item.get("id") or a_item.get("memory_id") or "")
+                    if a_id:
+                        archived_ids.add(a_id)
+
+        telemetry = extra_data.get("memory_telemetry")
+        if isinstance(telemetry, dict):
+            t_archived = telemetry.get("archived_memory_ids")
+            if isinstance(t_archived, list):
+                for ta in t_archived:
+                    if isinstance(ta, str) and ta:
+                        archived_ids.add(ta)
+
+        return archived_ids

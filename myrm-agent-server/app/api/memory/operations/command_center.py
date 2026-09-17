@@ -217,9 +217,11 @@ async def get_memory_economics(
     """Return Omri et al. 2026 three-phase economics, turn trajectories, and parasitic memory identification."""
     command_service = MemoryCommandCenterService(db, memory_manager)
     influence = await command_service._insights.build_influence()
+    archived_ids = await command_service.get_archived_memory_ids()
     return await MemoryEconomicsService(db).build_economics_dashboard(
         influence=influence,
         session_id=session_id,
+        archived_memory_ids=archived_ids,
         limit_turns=limit_turns,
     )
 

@@ -120,6 +120,27 @@ class MemoryCommandCenterService:
         self._project_context_ids = {b.context_id for b in bindings}
         return self._project_context_ids
 
+    async def get_archived_memory_ids(self) -> set[str]:
+        """Fetch all archived (soft-deleted / forgotten) memory IDs to prevent ghost recommendations."""
+        if not self._memory_manager:
+            return set()
+        from myrm_agent_harness.toolkits.memory.types import MemoryStatus
+
+        archived_ids: set[str] = set()
+        for mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
+            try:
+                memories = await self._memory_manager.list_memories(
+                    mem_type, limit=5000, include_archived=True
+                )
+                for m in memories:
+                    if getattr(m, "status", None) == MemoryStatus.ARCHIVED:
+                        m_id = str(getattr(m, "id", "") or "")
+                        if m_id:
+                            archived_ids.add(m_id)
+            except Exception as e:
+                logger.debug("Failed listing archived %s memories: %s", mem_type, e)
+        return archived_ids
+
     async def build_snapshot(self) -> MemoryCommandCenterResponse:
         generated_at = datetime.now(UTC)
         by_type = await self._count_memories_by_type()
@@ -138,7 +159,12 @@ class MemoryCommandCenterService:
         deploy_mode = get_deploy_mode().value
         timeline = await self._build_timeline()
         influence = await self._insights.build_influence()
-        economics = await MemoryEconomicsService(self._db).build_economics_dashboard(influence=influence, limit_turns=50)
+        archived_ids = await self.get_archived_memory_ids()
+        economics = await MemoryEconomicsService(self._db).build_economics_dashboard(
+            influence=influence,
+            archived_memory_ids=archived_ids,
+            limit_turns=50,
+        )
         cost = economics.cost_profile
         governance = await self._build_governance()
         conflicts = await self._insights.build_conflicts()

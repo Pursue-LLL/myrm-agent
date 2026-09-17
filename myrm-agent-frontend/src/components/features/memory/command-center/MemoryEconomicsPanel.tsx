@@ -56,6 +56,7 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
   const [archivingAll, setArchivingAll] = useState<boolean>(false);
   const [confirmArchiveAll, setConfirmArchiveAll] = useState<boolean>(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
 
   const fetchEconomics = useCallback(async () => {
     try {
@@ -79,6 +80,8 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
 
   const handleArchive = async (item: MemoryCommandParasiticMemory) => {
     setArchivingId(item.memory_id);
+    // Optimistically hide the archived memory immediately
+    setArchivedIds((prev) => new Set(prev).add(item.memory_id));
     try {
       await executeMemoryAction({
         target_kind: 'memory',
@@ -90,6 +93,12 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
       await fetchEconomics();
       onRefreshParent?.();
     } catch {
+      // Rollback on error
+      setArchivedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.memory_id);
+        return next;
+      });
       setActionNotice('归档操作失败，请重试');
     } finally {
       setArchivingId(null);
@@ -103,6 +112,13 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
     }
     setConfirmArchiveAll(false);
     setArchivingAll(true);
+    const itemIds = items.map((i) => i.memory_id);
+    // Optimistically hide all targeted memories immediately
+    setArchivedIds((prev) => {
+      const next = new Set(prev);
+      itemIds.forEach((id) => next.add(id));
+      return next;
+    });
     try {
       await Promise.all(
         items.map((item) =>
@@ -118,6 +134,12 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
       await fetchEconomics();
       onRefreshParent?.();
     } catch {
+      // Rollback on error
+      setArchivedIds((prev) => {
+        const next = new Set(prev);
+        itemIds.forEach((id) => next.delete(id));
+        return next;
+      });
       setActionNotice('批量归档失败，请重试');
     } finally {
       setArchivingAll(false);
@@ -138,9 +160,21 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
 
   const cost = dashboard?.cost_profile;
   const trajectories = dashboard?.turn_trajectories || [];
-  const parasitic = dashboard?.parasitic_memories || [];
-  const savings = dashboard?.estimated_cost_savings_usd || 0;
+  const parasitic = (dashboard?.parasitic_memories || []).filter(
+    (item) => !archivedIds.has(item.memory_id)
+  );
+  const totalWastedTokens = parasitic.reduce((acc, p) => acc + (p.wasted_tokens_estimated || 0), 0);
+  const dynamicSavingsUsd = Number(((totalWastedTokens / 1_000_000.0) * 3.0).toFixed(4));
+  const savings = parasitic.length > 0 ? dynamicSavingsUsd : 0;
   const recommendations = dashboard?.recommendations || [];
+
+  const retrievalMs = cost?.retrieval_ms ?? 0;
+  const constructionMs = cost?.construction_ms ?? 0;
+  const injectionMs = cost?.injection_overhead_ms ?? 0;
+  const totalPhaseMs = retrievalMs + constructionMs + injectionMs;
+  const retrievalPct = totalPhaseMs > 0 ? Math.round((retrievalMs / totalPhaseMs) * 100) : 100;
+  const constructionPct = totalPhaseMs > 0 ? Math.round((constructionMs / totalPhaseMs) * 100) : 0;
+  const injectionPct = totalPhaseMs > 0 ? Math.max(0, 100 - retrievalPct - constructionPct) : 0;
 
   const getRoiBadge = (grade: string | undefined) => {
     switch (grade) {
@@ -223,14 +257,49 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
           </div>
           <div className="flex items-baseline gap-1.5">
             <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              {cost?.retrieval_ms ?? 0}
+              {retrievalMs}
             </span>
             <span className="text-xs text-muted-foreground">ms</span>
           </div>
           <div className="text-[11px] text-muted-foreground/80 flex items-center justify-between">
-            <span>后台构建: {cost?.construction_ms ?? 0} ms</span>
-            <span>注入开销: {cost?.injection_overhead_ms ?? 0} ms</span>
+            <span>后台构建: {constructionMs} ms</span>
+            <span>注入开销: {injectionMs} ms</span>
           </div>
+          {totalPhaseMs > 0 && (
+            <div className="flex flex-col gap-1 pt-1 border-t border-border/20">
+              <div className="h-1.5 w-full rounded-full overflow-hidden flex bg-muted/60">
+                <div
+                  className="bg-amber-500 transition-all duration-300"
+                  style={{ width: `${retrievalPct}%` }}
+                  title={`检索: ${retrievalPct}%`}
+                />
+                <div
+                  className="bg-sky-500 transition-all duration-300"
+                  style={{ width: `${constructionPct}%` }}
+                  title={`构建: ${constructionPct}%`}
+                />
+                <div
+                  className="bg-indigo-500 transition-all duration-300"
+                  style={{ width: `${injectionPct}%` }}
+                  title={`注入: ${injectionPct}%`}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  检索 {retrievalPct}%
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+                  构建 {constructionPct}%
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                  注入 {injectionPct}%
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Metric 2: Cache Preservation */}
@@ -289,7 +358,9 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
             <span className="text-xs text-muted-foreground">USD / 周期</span>
           </div>
           <div className="text-[11px] text-muted-foreground/80">
-            沉睡记忆项: {parasitic.length} 条待清理 · 按主流模型 $3.00/1M Tokens 基准测算
+            {parasitic.length > 0
+              ? `沉睡记忆项: ${parasitic.length} 条待清理 · 按主流模型 $3.00/1M Tokens 基准测算`
+              : '全量记忆保持高频活跃与有效引用 · 无沉睡冗余'}
           </div>
         </div>
       </div>

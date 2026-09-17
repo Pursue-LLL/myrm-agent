@@ -168,3 +168,91 @@ async def test_pinned_memory_is_exempt_from_parasitic() -> None:
     # mem_pinned_rule_1 was injected 3 times and cited 0 times, but is pinned -> 0 parasitic memories!
     assert len(dashboard.parasitic_memories) == 0
 
+
+@pytest.mark.asyncio
+async def test_archived_memory_is_exempt_from_parasitic() -> None:
+    """Ensure already archived memories are strictly excluded from parasitic recommendations."""
+    mock_db = AsyncMock()
+    now = datetime.now(UTC)
+
+    # 3 turns with an uncited memory that was subsequently archived
+    msg = Message(
+        id="msg_archived",
+        chat_id="sess_arch",
+        role="assistant",
+        content="Testing archived exemption",
+        sent_at=now,
+        sent_timezone="UTC",
+        created_at=now,
+        extra_data={
+            "usage": {"prompt_tokens": 1000, "cached_tokens": 800, "completion_tokens": 100},
+            "memory_telemetry": {"injected_memory_tokens": 150, "retrieval_ms": 20.0},
+            "injected_memory_ids": ["mem_old_stale_archived"],
+            "citations": [],
+        },
+    )
+
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [msg, msg, msg]
+    mock_db.execute.return_value = mock_result
+
+    service = MemoryEconomicsService(mock_db)
+
+    # 1. Without passing archived_memory_ids, mem_old_stale_archived is detected as parasitic
+    unfiltered = await service.build_economics_dashboard(
+        influence=[],
+        session_id="sess_arch",
+        limit_turns=10,
+    )
+    assert len(unfiltered.parasitic_memories) == 1
+    assert unfiltered.parasitic_memories[0].memory_id == "mem_old_stale_archived"
+
+    # 2. When archived_memory_ids includes mem_old_stale_archived, it is strictly filtered out!
+    filtered = await service.build_economics_dashboard(
+        influence=[],
+        session_id="sess_arch",
+        archived_memory_ids=["mem_old_stale_archived"],
+        limit_turns=10,
+    )
+    assert len(filtered.parasitic_memories) == 0
+
+
+@pytest.mark.asyncio
+async def test_archived_memory_in_turn_telemetry_is_exempt() -> None:
+    """Ensure memories recorded as archived in turn metadata are automatically exempted."""
+    mock_db = AsyncMock()
+    now = datetime.now(UTC)
+
+    msg = Message(
+        id="msg_turn_arch",
+        chat_id="sess_turn_arch",
+        role="assistant",
+        content="Testing turn telemetry archived exemption",
+        sent_at=now,
+        sent_timezone="UTC",
+        created_at=now,
+        extra_data={
+            "usage": {"prompt_tokens": 1000, "cached_tokens": 800, "completion_tokens": 100},
+            "memory_telemetry": {
+                "injected_memory_tokens": 150,
+                "retrieval_ms": 20.0,
+                "archived_memory_ids": ["mem_forgotten_in_turn"],
+            },
+            "injected_memory_ids": ["mem_forgotten_in_turn"],
+            "citations": [],
+        },
+    )
+
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [msg, msg, msg]
+    mock_db.execute.return_value = mock_result
+
+    service = MemoryEconomicsService(mock_db)
+    dashboard = await service.build_economics_dashboard(
+        influence=[],
+        session_id="sess_turn_arch",
+        limit_turns=10,
+    )
+
+    assert len(dashboard.parasitic_memories) == 0
+
