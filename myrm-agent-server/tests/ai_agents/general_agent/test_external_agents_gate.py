@@ -13,18 +13,12 @@ from app.ai_agents.general_agent.external_agents import (
     _auth_mode,
     _cfg_int,
     _config_fingerprint,
-    _default_cli_args,
     _register_backends_on_pool,
     _resolve_external_agent_cfgs,
     _runtime_pool_scope_id,
     needs_runtime_pool,
     should_mount_invoke_acp_agent_tool,
 )
-
-
-def test_default_cli_args_known_and_unknown() -> None:
-    assert _default_cli_args("claude")
-    assert _default_cli_args("unknown-agent") == []
 
 
 def test_auth_mode_resolves_api_key_and_subscription() -> None:

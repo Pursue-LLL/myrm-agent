@@ -379,17 +379,13 @@ def test_channel_routing_followup_switches_persist_across_reload() -> None:
         settled = wait_for_state(client, page, _FOLLOWUP_RECEIPTS_OFF_JS.replace("__TOPIC__", topic_id), timeout_sec=60.0)
         assert settled.get("ready") is True, settled
         clicked_stall: dict[str, object] | None = None
+        server_flipped = False
         for _ in range(12):
             attempt = client.evaluate(page, _FOLLOWUP_CLICK_STALL_JS.replace("__TOPIC__", topic_id), timeout_sec=30.0)
             assert isinstance(attempt, dict), attempt
             if attempt.get("ok") is True:
                 clicked_stall = attempt
-                break
             time.sleep(5.0)
-        assert clicked_stall is not None and clicked_stall.get("ok") is True, clicked_stall
-        # Server truth first: poll the topics API until the stall flag persists.
-        server_flipped = False
-        for _ in range(12):
             listed = http_json("GET", f"{api_url}/api/v1/channels/manage/{channel_name}/topics")
             assert isinstance(listed, dict), listed
             rows = [
@@ -403,7 +399,7 @@ def test_channel_routing_followup_switches_persist_across_reload() -> None:
             if row.get("completionReceipts") is False and row.get("stallNudge") is True:
                 server_flipped = True
                 break
-            time.sleep(5.0)
+        assert clicked_stall is not None and clicked_stall.get("ok") is True, clicked_stall
         assert server_flipped is True, "stallNudge did not persist server-side"
         flipped = wait_for_state(client, page, _FOLLOWUP_FLIPPED_JS.replace("__TOPIC__", topic_id), timeout_sec=60.0)
         assert flipped.get("ready") is True, flipped

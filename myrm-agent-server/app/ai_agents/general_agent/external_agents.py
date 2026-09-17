@@ -40,7 +40,6 @@ logger = logging.getLogger(__name__)
 
 BUILTIN_CLI_VISUAL_AGENT_ID = "builtin-cli_visual"
 
-_default_cli_args = _runtime_cfg_helpers._default_cli_args
 _auth_mode = _runtime_cfg_helpers._auth_mode
 _cfg_int = _runtime_cfg_helpers._cfg_int
 _config_fingerprint = _runtime_cfg_helpers._config_fingerprint

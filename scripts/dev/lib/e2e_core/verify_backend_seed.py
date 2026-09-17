@@ -79,6 +79,19 @@ def _real_user_home() -> Path:
         return Path.home()
 
 
+def _agent_root_present(monorepo: Path) -> bool:
+    """Whether ``monorepo`` actually hosts the server this seed would run.
+
+    Gating *adoption* on the workspace, not just on ``_spawn_verify_backend_seed``,
+    keeps the caller's contract honest: reusing a record the runtime registry
+    happens to hold in a process whose workspace has no ``run.py`` would report a
+    reachable backend for a tree that cannot serve it at all.
+    """
+    return (
+        monorepo.resolve() / "myrm-agent" / "myrm-agent-server" / "run.py"
+    ).is_file()
+
+
 def _read_stored_fingerprint(state_dir: Path) -> str:
     epoch_file = state_dir / "stack-epoch.json"
     if not epoch_file.is_file():
@@ -625,6 +638,11 @@ def _is_retriable_seed_detail(detail: str) -> bool:
 
 def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
     """Adopt an orphaned backend or spawn one; retry once when the cap is full."""
+    # A workspace without the server must never adopt: the pre-existing
+    # "missing agent root" contract has to hold before any registry lookup, or a
+    # record left by another workspace makes a broken tree look serviceable.
+    if not _agent_root_present(monorepo):
+        return _spawn_verify_backend_seed(monorepo=monorepo)
     reused = _reusable_verify_backend()
     if reused is not None:
         return reused
