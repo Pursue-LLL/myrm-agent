@@ -1,4 +1,14 @@
-"""Domain Mesh API endpoints for Three-Domain progressive L0/L1/L2 memory view and migration."""
+"""Domain Mesh API endpoints for Three-Domain progressive L0/L1/L2 memory view and migration.
+
+[INPUT]
+MemoryManager (harness 记忆管理器), HermesMigrationRequest (Hermes 迁移请求)
+
+[OUTPUT]
+router: `/memory/domain-mesh` 三域认知网格概览、下钻追溯与无损迁移端点
+
+[POS]
+app.api.memory.operations.domain_mesh: 三域认知网格操作层，提供 User/Assistant/Task 三域概览、L0/L1/L2 追溯及迁移路由
+"""
 
 from __future__ import annotations
 

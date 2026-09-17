@@ -1,4 +1,14 @@
-"""Domain Mesh schemas for three-domain L0/L1/L2 progressive memory API."""
+"""Domain Mesh schemas for three-domain L0/L1/L2 progressive memory API.
+
+[INPUT]
+None (数据契约模型定义)
+
+[OUTPUT]
+ProgressiveHighlight, DomainBucketOverview, DomainMeshOverviewResponse, DrillDownResponse, HermesMigrationRequest, HermesMigrationResponse
+
+[POS]
+app.schemas.memory.domain_mesh: 三域认知网格与渐进式分层数据契约 Schema 定义
+"""
 
 from __future__ import annotations
 
