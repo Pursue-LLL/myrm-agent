@@ -5,10 +5,6 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/store/chat/pendingGapRetry', () => ({
-  scheduleFlushPendingGapRetry: vi.fn(),
-}));
-
 vi.mock('@/store/chat/goals/usePlanStore', () => ({
   usePlanStore: { getState: () => ({ clearActivePlan: vi.fn() }) },
 }));

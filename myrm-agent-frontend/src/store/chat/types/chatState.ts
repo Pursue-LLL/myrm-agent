@@ -24,7 +24,6 @@ import type {
   LastCompactionMeta,
   PaginationInfo,
 } from './messages';
-import type { PendingGapRetry } from './pendingGapRetry';
 import type { SessionAccessRoot } from './sessionAccess';
 
 export type SecurityPreset = 'hitl' | 'accept_edits' | 'explore';
@@ -115,9 +114,6 @@ export interface ChatState {
   pendingExplicitSkillActivation: PendingExplicitSkillActivation | null;
   pendingArchiveRestoreAction: ArchiveRestoreAction | null;
   pendingArchiveRestoreActions: ArchiveRestoreAction[];
-
-  // Deferred entitlement-gap resend (set on preflight gap, flushed after MESSAGE_END)
-  pendingGapRetry: PendingGapRetry | null;
 
   // 当前会话级挂载的知识库集合 (Unified Knowledge Base Picker)
   activeKnowledgeBaseIds: string[];
@@ -237,8 +233,6 @@ export interface ChatState {
   setPendingExplicitSkillActivation: (activation: PendingExplicitSkillActivation | null) => void;
   setPendingArchiveRestoreAction: (action: ArchiveRestoreAction | null) => void;
   setPendingArchiveRestoreActions: (actions: ArchiveRestoreAction[]) => void;
-  setPendingGapRetry: (pending: PendingGapRetry | null) => void;
-  clearPendingGapRetry: () => void;
   setLoading: (loading: boolean) => void;
   setMessageAppeared: (appeared: boolean) => void;
   setIsMessagesLoaded: (loaded: boolean) => void;

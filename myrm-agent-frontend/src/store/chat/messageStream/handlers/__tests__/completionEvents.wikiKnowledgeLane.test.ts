@@ -10,10 +10,6 @@ vi.mock('@/lib/progression/tryMarkMilestone', () => ({
   tryMarkMilestone: vi.fn(),
 }));
 
-vi.mock('@/store/chat/pendingGapRetry', () => ({
-  scheduleFlushPendingGapRetry: vi.fn(),
-}));
-
 vi.mock('@/store/chat/goals/useGoalStore', () => ({
   useGoalStore: { getState: () => ({ setActiveGoal: vi.fn() }) },
 }));

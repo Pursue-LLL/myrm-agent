@@ -20,10 +20,6 @@ vi.mock('@/lib/utils/toast', () => ({
   toast: { error: vi.fn(), warning: vi.fn() },
 }));
 
-vi.mock('@/store/chat/pendingGapRetry', () => ({
-  scheduleFlushPendingGapRetry: vi.fn(),
-}));
-
 vi.mock('@/lib/inspector/releaseTurnInspectorControls', () => ({
   releaseTurnInspectorControls: mockReleaseTurnInspectorControls,
 }));

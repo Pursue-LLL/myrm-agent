@@ -18,25 +18,16 @@ vi.mock('@/lib/deploy-mode', async (importOriginal) => {
 import { gapEvents } from '../gapEvents';
 
 const setCurrentBuiltinTools = vi.fn();
-const setPendingGapRetry = vi.fn((pending) => {
-  mockState.pendingGapRetry = pending;
-});
 const updateAgentConfig = vi.fn((partial: { selectedSkillIds?: string[] }) => {
   mockState.agentConfig = {
     selectedSkillIds: partial.selectedSkillIds ?? mockState.agentConfig.selectedSkillIds,
   };
-});
-const sendMessage = vi.fn().mockResolvedValue(undefined);
-const clearPendingGapRetry = vi.fn(() => {
-  mockState.pendingGapRetry = null;
 });
 const toastInfo = vi.fn();
 const toastSuccess = vi.fn();
 
 let mockLoading = false;
 let mockState = {
-  pendingGapRetry: null as
-    { kind: 'capability'; text: string; toolId: string } | { kind: 'skill'; text: string; skillId: string } | null,
   currentBuiltinTools: ['web_search', 'memory'] as string[],
   agentConfig: { selectedSkillIds: ['bound_skill'] as string[] },
   loading: false,
@@ -59,10 +50,7 @@ vi.mock('@/store/useChatStore', () => ({
         mockState.currentBuiltinTools = tools;
         setCurrentBuiltinTools(tools);
       },
-      setPendingGapRetry,
       updateAgentConfig,
-      sendMessage,
-      clearPendingGapRetry,
     }),
   },
 }));
@@ -100,16 +88,13 @@ describe('gapEvents', () => {
     document.documentElement.lang = 'en';
     mockLoading = false;
     mockState = {
-      pendingGapRetry: null,
       currentBuiltinTools: ['web_search', 'memory'],
       agentConfig: { selectedSkillIds: ['bound_skill'] },
       loading: false,
       messages: [{ role: 'user', content: '帮我填表准备 staging 部署配置' }],
     };
     setCurrentBuiltinTools.mockClear();
-    setPendingGapRetry.mockClear();
     updateAgentConfig.mockClear();
-    sendMessage.mockClear();
     toastInfo.mockClear();
     toastSuccess.mockClear();
   });
@@ -118,7 +103,6 @@ describe('gapEvents', () => {
     const result = await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'retired_tool' }));
     expect(result).toBeNull();
     expect(toastInfo).not.toHaveBeenCalled();
-    expect(setPendingGapRetry).not.toHaveBeenCalled();
   });
 
   it('ignores cron capability_gap without factual reason', async () => {
@@ -126,7 +110,6 @@ describe('gapEvents', () => {
     const result = await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'cron' }));
     expect(result).toBeNull();
     expect(toastInfo).not.toHaveBeenCalled();
-    expect(setPendingGapRetry).not.toHaveBeenCalled();
   });
 
   it('shows settings CTA on web_search not_configured capability_gap', async () => {
@@ -140,7 +123,6 @@ describe('gapEvents', () => {
     );
 
     expect(toastInfo).toHaveBeenCalledTimes(1);
-    expect(setPendingGapRetry).not.toHaveBeenCalled();
     const toastOptions = toastInfo.mock.calls[0]?.[1] as {
       action?: { label?: string; onClick?: () => void };
     };
@@ -159,7 +141,6 @@ describe('gapEvents', () => {
     );
 
     expect(toastInfo).toHaveBeenCalledTimes(1);
-    expect(setPendingGapRetry).not.toHaveBeenCalled();
     const toastOptions = toastInfo.mock.calls[0]?.[1] as {
       action?: { label?: string; onClick?: () => void };
     };
@@ -207,13 +188,11 @@ describe('gapEvents', () => {
     const result = await gapEvents(createCtx(AgentEventType.CAPABILITY_GAP, { tool_id: 'file_ops' }));
     expect(result).toBeNull();
     expect(toastInfo).not.toHaveBeenCalled();
-    expect(setPendingGapRetry).not.toHaveBeenCalled();
   });
 
   it('ignores skill_gap events (bind-and-resend removed)', async () => {
     const result = await gapEvents(createCtx(AgentEventType.SKILL_GAP, { skill_id: 'github_pr_skill' }));
     expect(result).toBeNull();
-    expect(setPendingGapRetry).not.toHaveBeenCalled();
     expect(toastInfo).not.toHaveBeenCalled();
   });
 });
