@@ -1307,6 +1307,50 @@ async def test_local_model(request: TestLocalModelRequest) -> TestLocalModelResp
         )
 
 
+class TestProxyRequest(BaseModel):
+    proxy_url: str = Field(..., description="Proxy URL to test (http, https, socks5, socks5h)")
+    target_url: str | None = Field(default=None, description="Optional target URL to probe through proxy")
+
+
+class TestProxyResponse(BaseModel):
+    success: bool
+    latency_ms: int | None = None
+    error: str | None = None
+
+
+@router.post("/test-proxy", response_model=TestProxyResponse)
+async def test_proxy(request: TestProxyRequest) -> TestProxyResponse:
+    """Test outbound connectivity of an egress proxy.
+
+    Validates URL schema, credentials, and probes connectivity to target URL.
+    """
+    from myrm_agent_harness.toolkits.llms.utils.proxy import (
+        probe_proxy_health,
+        validate_proxy_url,
+    )
+
+    is_valid, err_msg = validate_proxy_url(request.proxy_url)
+    if not is_valid:
+        return TestProxyResponse(
+            success=False,
+            error=err_msg or "Invalid proxy URL",
+        )
+
+    start = time.monotonic()
+    success, err_msg = await probe_proxy_health(
+        proxy_url=request.proxy_url,
+        target_url=request.target_url or "https://1.1.1.1",
+        timeout_s=5.0,
+    )
+    elapsed = int((time.monotonic() - start) * 1000)
+
+    return TestProxyResponse(
+        success=success,
+        latency_ms=elapsed if success else None,
+        error=err_msg if not success else None,
+    )
+
+
 _CREDENTIAL_KEY_TO_CHANNEL: dict[str, str] = {
     "telegramCredentials": "telegram",
     "feishuCredentials": "feishu",

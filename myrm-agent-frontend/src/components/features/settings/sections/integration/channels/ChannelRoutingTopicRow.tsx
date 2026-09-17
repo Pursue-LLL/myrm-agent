@@ -28,6 +28,7 @@ interface ChannelRoutingTopicRowProps {
   onSetThreadSharingMode: (topicId: string, mode: ThreadSharingMode) => void;
   onSetIdentity: (topicId: string, name: string | null, scope: IdentityScopeMode) => void;
   onRevokeIdentity: (topicId: string, revoked: boolean) => void;
+  onSetFollowUp: (topicId: string, completionReceipts: boolean, stallNudge: boolean) => void;
   topic: TopicBinding;
 }
 
@@ -44,6 +45,7 @@ export function ChannelRoutingTopicRow({
   onSetThreadSharingMode,
   onSetIdentity,
   onRevokeIdentity,
+  onSetFollowUp,
   topic,
 }: ChannelRoutingTopicRowProps) {
   const t = useTranslations('settings.sections.channelRouting');
@@ -320,6 +322,46 @@ export function ChannelRoutingTopicRow({
                 {t('identity.revoke')}
               </button>
             ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 pl-11">
+        <div className="flex items-center gap-2 flex-wrap">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <IconAlertCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                <p className="text-xs">{t('followUp.tooltip')}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <span className="text-xs text-muted-foreground">{t('followUp.label')}:</span>
+          <button
+            onClick={() => onSetFollowUp(topic.topicId, !(topic.completionReceipts ?? true), topic.stallNudge ?? false)}
+            disabled={isSaving}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+              (topic.completionReceipts ?? true)
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <Zap className="w-3 h-3" />
+            {t('followUp.receipts')}
+          </button>
+          <button
+            onClick={() => onSetFollowUp(topic.topicId, topic.completionReceipts ?? true, !(topic.stallNudge ?? false))}
+            disabled={isSaving}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+              (topic.stallNudge ?? false)
+                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <Users className="w-3 h-3" />
+            {t('followUp.stallNudge')}
+          </button>
         </div>
       </div>
     </div>

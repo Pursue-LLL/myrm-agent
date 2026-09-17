@@ -64,10 +64,14 @@ async def _resolve_model_config(
     )
 
     all_keys: list[str] = []
+    egress_proxy: str | None = None
     if provider:
         all_keys = _extract_all_active_keys(provider)
         provider_type = str(provider.get("providerType", "")) or None
         api_url = selection.base_url or str(provider.get("apiUrl", "")) or None
+        egress_proxy_raw = provider.get("egressProxy") or provider.get("egress_proxy")
+        if egress_proxy_raw and isinstance(egress_proxy_raw, str):
+            egress_proxy = egress_proxy_raw.strip() or None
     else:
         fallback_key = _find_provider_api_key(providers_dict, selection.provider_id)
 
@@ -92,6 +96,7 @@ async def _resolve_model_config(
             model=full_model,
             api_key=all_keys[0],
             base_url=api_url,
+            egress_proxy=egress_proxy,
             model_kwargs=selection.model_kwargs,
             api_keys=all_keys if len(all_keys) > 1 else None,
             credential_pool_strategy=selection.credential_pool_strategy,

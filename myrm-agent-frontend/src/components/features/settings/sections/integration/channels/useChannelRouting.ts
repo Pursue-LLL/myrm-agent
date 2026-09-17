@@ -362,6 +362,7 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
     handleSetGlobalAgent,
     handleSetIdentity,
     handleRevokeIdentity,
+    handleSetFollowUp,
     handleSetReplyMode,
     handleSetThreadSharingMode,
     loadingChannels,

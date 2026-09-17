@@ -34,6 +34,7 @@ export default function ChannelRoutingSection() {
     handleSetGlobalAgent,
     handleSetIdentity,
     handleRevokeIdentity,
+    handleSetFollowUp,
     handleSetReplyMode,
     handleSetThreadSharingMode,
     loadingChannels,
@@ -63,6 +64,8 @@ export default function ChannelRoutingSection() {
     identityError: t('errors.identity'),
     identityRevokedToast: t('toasts.identityRevoked'),
     identityRestoredToast: t('toasts.identityRestored'),
+    followUpUpdatedToast: t('toasts.followUpUpdated'),
+    followUpError: t('errors.followUp'),
   });
 
   if (loadingChannels) {
@@ -177,6 +180,7 @@ export default function ChannelRoutingSection() {
                               onSetDraftTimeout={handleSetDraftTimeout}
                               onSetIdentity={handleSetIdentity}
                               onRevokeIdentity={handleRevokeIdentity}
+                              onSetFollowUp={handleSetFollowUp}
                             />
                           ))}
                         </div>

@@ -291,23 +291,14 @@ async def maybe_post_completion_receipt(
 
 
 def note_group_activity(
-    channel: str,
-    chat_id: str,
-    thread_id: str | None,
-    requester_id: str,
-    requester_name: str | None,
-    locale: str,
+    channel: str, chat_id: str, thread_id: str | None, requester_id: str, requester_name: str | None, locale: str
 ) -> None:
     """Record group activity for stall tracking (never raises)."""
     try:
         get_stall_tracker().touch(
             TrackedThread(
-                channel=channel,
-                chat_id=chat_id,
-                thread_id=thread_id,
-                requester_id=requester_id,
-                requester_name=requester_name,
-                locale=locale,
+                channel=channel, chat_id=chat_id, thread_id=thread_id,
+                requester_id=requester_id, requester_name=requester_name, locale=locale,
             )
         )
     except Exception:
