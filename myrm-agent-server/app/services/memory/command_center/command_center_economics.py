@@ -78,6 +78,7 @@ class MemoryEconomicsService:
         *,
         influence: Sequence[MemoryCommandInfluenceItem],
         session_id: str | None = None,
+        pinned_memory_ids: Sequence[str] | None = None,
         limit_turns: int = 50,
     ) -> MemoryCommandEconomicsDashboard:
         """Construct a comprehensive long-horizon memory economics dashboard."""
@@ -90,6 +91,7 @@ class MemoryEconomicsService:
         result = await self._db.execute(query)
         messages = list(reversed(result.scalars().all()))
 
+        all_pinned_ids: set[str] = set(pinned_memory_ids or [])
         turn_trajectories: list[MemoryCommandTurnEconomics] = []
         injected_counter: dict[str, int] = {}
         cited_counter: dict[str, int] = {}
@@ -132,8 +134,9 @@ class MemoryEconomicsService:
                 type_map[ref_id] = mtype
                 turn_cited_tokens += estimate_memory_tokens_safe(preview)
 
-            # Injected memory tracking
-            injected_ids = self._extract_injected_ids(extra)
+            # Injected memory tracking & pinned memory detection
+            injected_ids, turn_pinned_ids = self._extract_injected_ids_and_pins(extra)
+            all_pinned_ids.update(turn_pinned_ids)
             for m_id in injected_ids:
                 injected_counter[m_id] = injected_counter.get(m_id, 0) + 1
 
@@ -179,10 +182,12 @@ class MemoryEconomicsService:
         roi_grade = classify_roi_grade(roi_pct)
 
         # Identify parasitic memories (injected >= 3 times but cited 0 times)
-        # Core user profile, identity facts, and hard constraints enjoy permanent exemption
+        # Core user profile, identity facts, and pinned memories enjoy permanent exemption
         exempt_memory_types = {"profile", "user_profile", "identity", "core_fact"}
         parasitic_memories: list[MemoryCommandParasiticMemory] = []
         for mem_id, in_count in injected_counter.items():
+            if mem_id in all_pinned_ids:
+                continue
             mtype = type_map.get(mem_id, "semantic")
             if mtype in exempt_memory_types:
                 continue
@@ -292,9 +297,55 @@ class MemoryEconomicsService:
         return results
 
     @staticmethod
-    def _extract_injected_ids(extra_data: Mapping[str, object]) -> list[str]:
+    def _extract_injected_ids_and_pins(
+        extra_data: Mapping[str, object],
+    ) -> tuple[list[str], set[str]]:
+        """Extract injected memory IDs and pinned memory IDs from message metadata."""
+        injected_ids: list[str] = []
+        pinned_ids: set[str] = set()
+
+        raw_injected = (
+            extra_data.get("injected_memory_ids")
+            or extra_data.get("injected_memories")
+            or []
+        )
+        if isinstance(raw_injected, list):
+            for item in raw_injected:
+                if isinstance(item, str) and item:
+                    injected_ids.append(item)
+                elif isinstance(item, dict):
+                    m_id = str(item.get("id") or item.get("memory_id") or "")
+                    if m_id:
+                        injected_ids.append(m_id)
+                        if item.get("pinned") is True or item.get("is_pinned") is True:
+                            pinned_ids.add(m_id)
+
+        raw_pinned = (
+            extra_data.get("pinned_memory_ids")
+            or extra_data.get("pinned_memories")
+            or []
+        )
+        if isinstance(raw_pinned, list):
+            for p_item in raw_pinned:
+                if isinstance(p_item, str) and p_item:
+                    pinned_ids.add(p_item)
+                elif isinstance(p_item, dict):
+                    p_id = str(p_item.get("id") or p_item.get("memory_id") or "")
+                    if p_id:
+                        pinned_ids.add(p_id)
+
+        telemetry = extra_data.get("memory_telemetry")
+        if isinstance(telemetry, dict):
+            t_pinned = telemetry.get("pinned_memory_ids")
+            if isinstance(t_pinned, list):
+                for tp in t_pinned:
+                    if isinstance(tp, str) and tp:
+                        pinned_ids.add(tp)
+
+        return injected_ids, pinned_ids
+
+    @classmethod
+    def _extract_injected_ids(cls, extra_data: Mapping[str, object]) -> list[str]:
         """Extract injected memory IDs from message metadata."""
-        injected = extra_data.get("injected_memory_ids") or []
-        if isinstance(injected, list):
-            return [str(item) for item in injected if item]
-        return []
+        injected_ids, _ = cls._extract_injected_ids_and_pins(extra_data)
+        return injected_ids

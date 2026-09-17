@@ -16,6 +16,7 @@ import {
   Activity,
   AlertTriangle,
   Archive,
+  Check,
   CheckCircle2,
   Cpu,
   DollarSign,
@@ -25,6 +26,7 @@ import {
   RefreshCw,
   Sparkles,
   TrendingUp,
+  X,
   Zap,
 } from 'lucide-react';
 
@@ -52,6 +54,7 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [archivingAll, setArchivingAll] = useState<boolean>(false);
+  const [confirmArchiveAll, setConfirmArchiveAll] = useState<boolean>(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   const fetchEconomics = useCallback(async () => {
@@ -98,6 +101,7 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
     if (!items.length || archivingAll) {
       return;
     }
+    setConfirmArchiveAll(false);
     setArchivingAll(true);
     try {
       await Promise.all(
@@ -285,7 +289,7 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
             <span className="text-xs text-muted-foreground">USD / 周期</span>
           </div>
           <div className="text-[11px] text-muted-foreground/80">
-            沉睡记忆项: {parasitic.length} 条待清理
+            沉睡记忆项: {parasitic.length} 条待清理 · 按主流模型 $3.00/1M Tokens 基准测算
           </div>
         </div>
       </div>
@@ -350,14 +354,38 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
               </h4>
             </div>
             {parasitic.length > 0 ? (
-              <button
-                onClick={() => handleArchiveAll(parasitic)}
-                disabled={archivingAll || archivingId !== null}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 transition-all shadow-sm active:scale-95 disabled:opacity-50"
-              >
-                <Archive className="w-3 h-3" />
-                {archivingAll ? '批量归档中...' : `一键归档全部 (${parasitic.length})`}
-              </button>
+              confirmArchiveAll ? (
+                <div className="flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-150">
+                  <span className="text-[11px] text-destructive font-medium hidden sm:inline">
+                    确认全部归档?
+                  </span>
+                  <button
+                    onClick={() => handleArchiveAll(parasitic)}
+                    disabled={archivingAll || archivingId !== null}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                  >
+                    <Check className="w-3 h-3" />
+                    确认
+                  </button>
+                  <button
+                    onClick={() => setConfirmArchiveAll(false)}
+                    disabled={archivingAll}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all active:scale-95"
+                  >
+                    <X className="w-3 h-3" />
+                    取消
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmArchiveAll(true)}
+                  disabled={archivingAll || archivingId !== null}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                >
+                  <Archive className="w-3 h-3" />
+                  {archivingAll ? '批量归档中...' : `一键归档全部 (${parasitic.length})`}
+                </button>
+              )
             ) : (
               <span className="text-[11px] text-muted-foreground">0 条待处置</span>
             )}

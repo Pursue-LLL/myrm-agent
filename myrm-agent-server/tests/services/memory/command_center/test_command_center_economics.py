@@ -129,3 +129,42 @@ async def test_build_economics_dashboard_with_turns() -> None:
 
     # Validate recommendations and savings estimate
     assert any("沉睡记忆" in r for r in dashboard.recommendations)
+
+
+@pytest.mark.asyncio
+async def test_pinned_memory_is_exempt_from_parasitic() -> None:
+    """Ensure pinned memories are strictly exempted from parasitic marking even if uncited."""
+    mock_db = AsyncMock()
+    now = datetime.now(UTC)
+
+    # 3 turns with an uncited memory that is pinned
+    msg = Message(
+        id="msg_pinned",
+        chat_id="sess_pin",
+        role="assistant",
+        content="Testing pinned exemption",
+        sent_at=now,
+        sent_timezone="UTC",
+        created_at=now,
+        extra_data={
+            "usage": {"prompt_tokens": 1000, "cached_tokens": 800, "completion_tokens": 100},
+            "memory_telemetry": {"injected_memory_tokens": 150, "retrieval_ms": 20.0, "pinned_memory_ids": ["mem_pinned_rule_1"]},
+            "injected_memory_ids": ["mem_pinned_rule_1"],
+            "citations": [],
+        },
+    )
+
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [msg, msg, msg]
+    mock_db.execute.return_value = mock_result
+
+    service = MemoryEconomicsService(mock_db)
+    dashboard = await service.build_economics_dashboard(
+        influence=[],
+        session_id="sess_pin",
+        limit_turns=10,
+    )
+
+    # mem_pinned_rule_1 was injected 3 times and cited 0 times, but is pinned -> 0 parasitic memories!
+    assert len(dashboard.parasitic_memories) == 0
+
