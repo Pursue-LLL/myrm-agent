@@ -20,8 +20,12 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/services/provider-oauth', () => ({
   getProviderOAuthProviderByProviderId: (id: string) => {
-    if (id === 'anthropic') return 'anthropic';
-    if (id === 'xai') return 'xai';
+    if (id === 'anthropic') {
+      return 'anthropic';
+    }
+    if (id === 'xai') {
+      return 'xai';
+    }
     return null;
   },
   getProviderOAuthConfig: (provider: string) => ({

@@ -92,6 +92,7 @@ const SortableProviderItem = memo<{
       }}
       tabIndex={0}
       data-testid={`provider-item-${provider.id}`}
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role
       role="button"
       aria-label={provider.name}
     >
@@ -113,10 +114,9 @@ const SortableProviderItem = memo<{
       <div className="flex items-center gap-1.5">
         {/* 熔断器状态胶囊与倒计时 */}
         {isCircuitOpen ? (
-          <div
+          <output
             className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-destructive/10 text-destructive border border-destructive/20"
             title={`Circuit open (cooldown active: ${retrySeconds}s remaining)`}
-            role="status"
             aria-live="polite"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-ping" />
@@ -134,7 +134,7 @@ const SortableProviderItem = memo<{
                 ↺
               </button>
             )}
-          </div>
+          </output>
         ) : isCircuitHalfOpen ? (
           <div
             className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-500 border border-amber-500/20"

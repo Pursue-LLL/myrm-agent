@@ -99,6 +99,7 @@ const ProviderIcon = memo<ProviderIconProps>(({ providerId, providerName, size =
   return (
     <div className={cn('flex items-center justify-center shrink-0', className)} style={{ width: size, height: size }}>
       {builtIn && iconUrl ? (
+        // oxlint-disable-next-line next/no-img-element
         <img
           src={iconUrl}
           alt=""
