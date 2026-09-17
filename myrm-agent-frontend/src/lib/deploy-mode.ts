@@ -420,7 +420,7 @@ export function getNotificationStreamUrl(): string {
   if (backend) {
     return `${backend}/api/v1/notifications/stream`;
   }
-  if (typeof window !== 'undefined' && (isLocalMode() || isLoopbackDevHost())) {
+  if (typeof window !== 'undefined' && isLoopbackDevHost()) {
     return `${FALLBACK_BACKEND_BASE_URL}/api/v1/notifications/stream`;
   }
   return `${getApiBaseUrl()}/notifications/stream`;

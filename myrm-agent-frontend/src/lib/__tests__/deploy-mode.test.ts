@@ -137,6 +137,29 @@ describe('deploy-mode base url resolution', () => {
     });
   });
 
+  it('resolves relative notification stream url for LAN host in local mode', () => {
+    delete process.env.NEXT_PUBLIC_DEPLOY_MODE;
+    const originalWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        ...originalWindow,
+        location: { hostname: '192.168.1.50' },
+        localStorage: {
+          getItem: () => null,
+          setItem: () => undefined,
+        },
+      },
+    });
+
+    expect(getNotificationStreamUrl()).toBe('/api/v1/notifications/stream');
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: originalWindow,
+    });
+  });
+
   it('prioritizes memory runtime tauri backend port over localStorage cache', () => {
     const originalWindow = globalThis.window;
     const mockWindow = {
