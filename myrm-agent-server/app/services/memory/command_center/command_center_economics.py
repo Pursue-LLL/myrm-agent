@@ -20,7 +20,7 @@ import logging
 import re
 from typing import Mapping, Sequence
 
-from myrm_agent_harness.toolkits.memory.observability import (
+from myrm_agent_harness.toolkits.memory import (
     MemoryRecallRoiGrade,
 )
 from sqlalchemy import desc, select
@@ -80,6 +80,7 @@ class MemoryEconomicsService:
         session_id: str | None = None,
         pinned_memory_ids: Sequence[str] | None = None,
         archived_memory_ids: Sequence[str] | set[str] | None = None,
+        memory_previews: Mapping[str, tuple[str, str]] | None = None,
         limit_turns: int = 50,
     ) -> MemoryCommandEconomicsDashboard:
         """Construct a comprehensive long-horizon memory economics dashboard."""
@@ -100,6 +101,19 @@ class MemoryEconomicsService:
         preview_map: dict[str, str] = {}
         type_map: dict[str, str] = {}
 
+        if memory_previews:
+            for m_id, (prev, m_type) in memory_previews.items():
+                if m_id:
+                    preview_map.setdefault(m_id, prev)
+                    type_map.setdefault(m_id, m_type)
+
+        if influence:
+            for item in influence:
+                for ref in item.influence_refs:
+                    if ref.memory_id:
+                        preview_map.setdefault(ref.memory_id, ref.content_preview)
+                        type_map.setdefault(ref.memory_id, ref.memory_type)
+
         total_prompt_tokens = 0
         total_cached_tokens = 0
         total_completion_tokens = 0
@@ -108,6 +122,7 @@ class MemoryEconomicsService:
         total_cited_refs = 0
         total_retrieval_ms = 0.0
         total_construction_ms = 0.0
+        total_injection_ms = 0.0
 
         for turn_idx, msg in enumerate(messages):
             extra: Mapping[str, object] = msg.extra_data or {}
@@ -122,10 +137,12 @@ class MemoryEconomicsService:
             injected_tok = mem_meta.get("injected_memory_tokens", 0)
             retrieval_ms = mem_meta.get("retrieval_ms", 12.0)
             construction_ms = mem_meta.get("construction_ms", 0.0)
+            injection_ms = float(mem_meta.get("injection_overhead_ms") or 1.5)
             cache_aligned = mem_meta.get("cache_aligned", True)
 
             total_retrieval_ms += retrieval_ms
             total_construction_ms += construction_ms
+            total_injection_ms += injection_ms
 
             # Cited memory tracking
             cited_refs = self._extract_cited_refs(extra)
@@ -137,7 +154,9 @@ class MemoryEconomicsService:
                 turn_cited_tokens += estimate_memory_tokens_safe(preview)
 
             # Injected memory tracking, pinned memory detection & archived memory extraction
-            injected_ids, turn_pinned_ids = self._extract_injected_ids_and_pins(extra)
+            injected_ids, turn_pinned_ids = self._extract_injected_ids_and_pins(
+                extra, preview_map=preview_map, type_map=type_map
+            )
             all_pinned_ids.update(turn_pinned_ids)
             all_archived_ids.update(self._extract_archived_ids(extra))
             for m_id in injected_ids:
@@ -231,6 +250,7 @@ class MemoryEconomicsService:
 
         avg_retrieval_ms = total_retrieval_ms / max(len(messages), 1)
         avg_construction_ms = total_construction_ms / max(len(messages), 1)
+        avg_injection_ms = total_injection_ms / max(len(messages), 1)
 
         cost_profile = MemoryCommandCostProfile(
             prompt_tokens=total_prompt_tokens,
@@ -241,7 +261,7 @@ class MemoryEconomicsService:
             cache_friendly=cache_score >= 0.5,
             construction_ms=round(avg_construction_ms, 1),
             retrieval_ms=round(avg_retrieval_ms, 1),
-            injection_overhead_ms=1.5,
+            injection_overhead_ms=round(avg_injection_ms, 1),
             effective_cited_tokens=total_cited_tokens,
             background_construction_tokens=int(total_completion_tokens * 0.1),
             cache_preservation_score=cache_score,
@@ -262,25 +282,22 @@ class MemoryEconomicsService:
     def _extract_token_counts(extra_data: Mapping[str, object]) -> tuple[int, int, int]:
         """Safely extract prompt, cached, and completion tokens from message extra_data."""
         usage = extra_data.get("usage")
-        if isinstance(usage, dict):
-            prompt = int(usage.get("prompt_tokens") or 0)
-            cached = int(
-                usage.get("cached_tokens")
-                or usage.get("prompt_cache_hit_tokens")
-                or usage.get("cache_read_input_tokens")
-                or 0
-            )
-            completion = int(usage.get("completion_tokens") or 0)
-            return prompt, cached, completion
-        return 0, 0, 0
+        if not isinstance(usage, dict):
+            return 0, 0, 0
+        prompt = int(usage.get("prompt_tokens") or 0)
+        cached = int(
+            usage.get("cached_tokens")
+            or usage.get("prompt_cache_hit_tokens")
+            or usage.get("cache_read_input_tokens")
+            or 0
+        )
+        return prompt, cached, int(usage.get("completion_tokens") or 0)
 
     @staticmethod
     def _extract_memory_metadata(extra_data: Mapping[str, object]) -> dict[str, object]:
         """Extract memory phase latency and injection metadata."""
         meta = extra_data.get("memory_telemetry")
-        if isinstance(meta, dict):
-            return dict(meta)
-        return {}
+        return dict(meta) if isinstance(meta, dict) else {}
 
     @staticmethod
     def _extract_cited_refs(
@@ -302,82 +319,71 @@ class MemoryEconomicsService:
     @staticmethod
     def _extract_injected_ids_and_pins(
         extra_data: Mapping[str, object],
+        preview_map: dict[str, str] | None = None,
+        type_map: dict[str, str] | None = None,
     ) -> tuple[list[str], set[str]]:
         """Extract injected memory IDs and pinned memory IDs from message metadata."""
         injected_ids: list[str] = []
         pinned_ids: set[str] = set()
 
-        raw_injected = (
-            extra_data.get("injected_memory_ids")
-            or extra_data.get("injected_memories")
-            or []
-        )
-        if isinstance(raw_injected, list):
-            for item in raw_injected:
-                if isinstance(item, str) and item:
-                    injected_ids.append(item)
-                elif isinstance(item, dict):
-                    m_id = str(item.get("id") or item.get("memory_id") or "")
-                    if m_id:
-                        injected_ids.append(m_id)
-                        if item.get("pinned") is True or item.get("is_pinned") is True:
-                            pinned_ids.add(m_id)
+        raw_injected = extra_data.get("injected_memory_ids") or extra_data.get("injected_memories") or []
+        for item in raw_injected if isinstance(raw_injected, list) else []:
+            if isinstance(item, str) and item:
+                injected_ids.append(item)
+            elif isinstance(item, dict):
+                m_id = str(item.get("id") or item.get("memory_id") or "")
+                if m_id:
+                    injected_ids.append(m_id)
+                    if item.get("pinned") is True or item.get("is_pinned") is True:
+                        pinned_ids.add(m_id)
+                    if preview_map is not None:
+                        cnt = item.get("content") or item.get("preview") or item.get("text")
+                        if cnt:
+                            preview_map.setdefault(m_id, str(cnt))
+                    if type_map is not None:
+                        mt = item.get("memory_type") or item.get("type")
+                        if mt:
+                            type_map.setdefault(m_id, str(mt))
 
-        raw_pinned = (
-            extra_data.get("pinned_memory_ids")
-            or extra_data.get("pinned_memories")
-            or []
-        )
-        if isinstance(raw_pinned, list):
-            for p_item in raw_pinned:
-                if isinstance(p_item, str) and p_item:
-                    pinned_ids.add(p_item)
-                elif isinstance(p_item, dict):
-                    p_id = str(p_item.get("id") or p_item.get("memory_id") or "")
-                    if p_id:
-                        pinned_ids.add(p_id)
+        raw_pinned = extra_data.get("pinned_memory_ids") or extra_data.get("pinned_memories") or []
+        for p_item in raw_pinned if isinstance(raw_pinned, list) else []:
+            if isinstance(p_item, str) and p_item:
+                pinned_ids.add(p_item)
+            elif isinstance(p_item, dict):
+                p_id = str(p_item.get("id") or p_item.get("memory_id") or "")
+                if p_id:
+                    pinned_ids.add(p_id)
 
         telemetry = extra_data.get("memory_telemetry")
         if isinstance(telemetry, dict):
-            t_pinned = telemetry.get("pinned_memory_ids")
-            if isinstance(t_pinned, list):
-                for tp in t_pinned:
-                    if isinstance(tp, str) and tp:
-                        pinned_ids.add(tp)
+            for tp in telemetry.get("pinned_memory_ids") or []:
+                if isinstance(tp, str) and tp:
+                    pinned_ids.add(tp)
 
         return injected_ids, pinned_ids
-
-    @classmethod
-    def _extract_injected_ids(cls, extra_data: Mapping[str, object]) -> list[str]:
-        """Extract injected memory IDs from message metadata."""
-        injected_ids, _ = cls._extract_injected_ids_and_pins(extra_data)
-        return injected_ids
 
     @staticmethod
     def _extract_archived_ids(extra_data: Mapping[str, object]) -> set[str]:
         """Extract archived or forgotten memory IDs from message metadata."""
         archived_ids: set[str] = set()
-        raw_archived = (
+        raw = (
             extra_data.get("archived_memory_ids")
             or extra_data.get("archived_memories")
             or extra_data.get("forgotten_memory_ids")
             or []
         )
-        if isinstance(raw_archived, list):
-            for a_item in raw_archived:
-                if isinstance(a_item, str) and a_item:
-                    archived_ids.add(a_item)
-                elif isinstance(a_item, dict):
-                    a_id = str(a_item.get("id") or a_item.get("memory_id") or "")
-                    if a_id:
-                        archived_ids.add(a_id)
+        for a_item in raw if isinstance(raw, list) else []:
+            if isinstance(a_item, str) and a_item:
+                archived_ids.add(a_item)
+            elif isinstance(a_item, dict):
+                a_id = str(a_item.get("id") or a_item.get("memory_id") or "")
+                if a_id:
+                    archived_ids.add(a_id)
 
         telemetry = extra_data.get("memory_telemetry")
         if isinstance(telemetry, dict):
-            t_archived = telemetry.get("archived_memory_ids")
-            if isinstance(t_archived, list):
-                for ta in t_archived:
-                    if isinstance(ta, str) and ta:
-                        archived_ids.add(ta)
+            for ta in telemetry.get("archived_memory_ids") or []:
+                if isinstance(ta, str) and ta:
+                    archived_ids.add(ta)
 
         return archived_ids

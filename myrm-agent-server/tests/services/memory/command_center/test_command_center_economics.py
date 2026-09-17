@@ -256,3 +256,56 @@ async def test_archived_memory_in_turn_telemetry_is_exempt() -> None:
 
     assert len(dashboard.parasitic_memories) == 0
 
+
+@pytest.mark.asyncio
+async def test_parasitic_memory_resolves_real_preview_and_accurate_tokens() -> None:
+    mock_db = AsyncMock()
+    now = datetime.now(UTC)
+
+    msg = Message(
+        id="msg_parasitic_prev",
+        chat_id="sess_parasitic_prev",
+        role="assistant",
+        content="Testing real preview resolution for parasitic memory",
+        sent_at=now,
+        sent_timezone="UTC",
+        created_at=now,
+        extra_data={
+            "usage": {"prompt_tokens": 1000, "cached_tokens": 800, "completion_tokens": 100},
+            "memory_telemetry": {
+                "injected_memory_tokens": 150,
+                "retrieval_ms": 20.0,
+                "injection_overhead_ms": 2.4,
+            },
+            "injected_memory_ids": ["mem_uncited_long_sql"],
+            "citations": [],
+        },
+    )
+
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [msg, msg, msg]
+    mock_db.execute.return_value = mock_result
+
+    service = MemoryEconomicsService(mock_db)
+    previews = {
+        "mem_uncited_long_sql": (
+            "SELECT * FROM order_events WHERE status = 'failed' AND retry_count > 3",
+            "episodic",
+        )
+    }
+    dashboard = await service.build_economics_dashboard(
+        influence=[],
+        session_id="sess_parasitic_prev",
+        memory_previews=previews,
+        limit_turns=10,
+    )
+
+    assert len(dashboard.parasitic_memories) == 1
+    item = dashboard.parasitic_memories[0]
+    assert item.memory_id == "mem_uncited_long_sql"
+    assert item.memory_type == "episodic"
+    assert "SELECT * FROM order_events" in item.content_preview
+    assert item.wasted_tokens_estimated >= 30
+    assert dashboard.cost_profile.injection_overhead_ms == 2.4
+
+

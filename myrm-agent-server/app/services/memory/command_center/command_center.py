@@ -24,6 +24,7 @@ from myrm_agent_harness.toolkits.memory import (
     MemoryOperationKind,
     MemoryOperationStatus,
     MemorySpaceKind,
+    MemoryStatus,
     MemoryType,
 )
 from sqlalchemy import Select, desc, func, select
@@ -141,6 +142,27 @@ class MemoryCommandCenterService:
                 logger.debug("Failed listing archived %s memories: %s", mem_type, e)
         return archived_ids
 
+    async def get_active_memory_previews(self) -> dict[str, tuple[str, str]]:
+        """Retrieve preview snippets and memory types for active memories."""
+        if not self._memory_manager:
+            return {}
+        previews: dict[str, tuple[str, str]] = {}
+        for mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
+            try:
+                memories = await self._memory_manager.list_memories(
+                    mem_type, limit=500, include_archived=False
+                )
+                for m in memories:
+                    if getattr(m, "status", None) != MemoryStatus.ARCHIVED:
+                        m_id = str(getattr(m, "id", "") or "")
+                        content = getattr(m, "content", "") or ""
+                        if m_id and content:
+                            type_val = mem_type.value if hasattr(mem_type, "value") else str(mem_type)
+                            previews[m_id] = (self._preview(str(content), limit=100), type_val)
+            except Exception as e:
+                logger.debug("Failed listing active %s memories for previews: %s", mem_type, e)
+        return previews
+
     async def build_snapshot(self) -> MemoryCommandCenterResponse:
         generated_at = datetime.now(UTC)
         by_type = await self._count_memories_by_type()
@@ -160,9 +182,11 @@ class MemoryCommandCenterService:
         timeline = await self._build_timeline()
         influence = await self._insights.build_influence()
         archived_ids = await self.get_archived_memory_ids()
+        active_previews = await self.get_active_memory_previews()
         economics = await MemoryEconomicsService(self._db).build_economics_dashboard(
             influence=influence,
             archived_memory_ids=archived_ids,
+            memory_previews=active_previews,
             limit_turns=50,
         )
         cost = economics.cost_profile

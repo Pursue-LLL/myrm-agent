@@ -94,10 +94,22 @@ export const MemoryParasiticGovernanceList: React.FC<MemoryParasiticGovernanceLi
               key={item.memory_id}
               className="p-2.5 rounded-lg border border-border/30 bg-card/40 flex flex-col gap-1.5 text-xs"
             >
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-foreground truncate max-w-[170px]">
-                  {item.content_preview}
-                </span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                  <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded bg-muted/80 text-muted-foreground border border-border/40">
+                    {item.memory_type === 'episodic'
+                      ? '情境'
+                      : item.memory_type === 'procedural'
+                        ? '流程'
+                        : '语义'}
+                  </span>
+                  <span
+                    className="font-medium text-foreground truncate"
+                    title={item.content_preview}
+                  >
+                    {item.content_preview}
+                  </span>
+                </div>
                 <button
                   onClick={() => onArchive(item)}
                   disabled={archivingId === item.memory_id}
