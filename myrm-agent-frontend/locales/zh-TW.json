@@ -13030,7 +13030,6 @@
         "type": "型別",
         "typeCli": "CLI（啟動程序）",
         "typeAcp": "ACP（JSON-RPC 橋接）",
-        "typeSdk": "SDK（原生整合）",
         "command": "命令",
         "commandPlaceholder": "例如 claude",
         "args": "引數",

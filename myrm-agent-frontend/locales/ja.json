@@ -13030,7 +13030,6 @@
         "type": "タイプ",
         "typeCli": "CLI（プロセス起動）",
         "typeAcp": "ACP（JSON-RPC ブリッジ）",
-        "typeSdk": "SDK（原生インテグレーション）",
         "command": "コマンド",
         "commandPlaceholder": "例：claude",
         "args": "パラメータ",

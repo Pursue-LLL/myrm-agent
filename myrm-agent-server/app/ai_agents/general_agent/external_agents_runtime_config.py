@@ -219,7 +219,7 @@ def _register_backends_on_pool(pool: RuntimePool, agent_cfgs: list[dict[str, obj
             continue
 
         backend_type = normalized_cfg.backend_type
-        if backend_type not in ("cli", "acp", "sdk"):
+        if backend_type not in ("cli", "acp"):
             logger.warning(
                 "Skipping external agent '%s': invalid type '%s'",
                 normalized_cfg.name,

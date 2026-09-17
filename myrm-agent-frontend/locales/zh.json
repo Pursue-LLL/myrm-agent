@@ -663,7 +663,6 @@
         "type": "类型",
         "typeCli": "CLI（启动进程）",
         "typeAcp": "ACP（JSON-RPC 桥接）",
-        "typeSdk": "SDK（原生集成）",
         "command": "命令",
         "commandPlaceholder": "例如 claude",
         "args": "参数",

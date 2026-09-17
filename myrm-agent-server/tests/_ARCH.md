@@ -300,7 +300,6 @@ pytest marker 是收集过滤器。四层金字塔（server 侧）：
 - **Citation seed 集成单测**：`tests/api/chats/test_citation_seed_integration.py`（seed → GET messages 断言 `citedMemoryIds`；默认 CI 套件执行，不依赖 Chrome）
 - **Prior chat recall SSOT 集成单测**：`tests/api/chats/test_prior_chat_recall_integration.py`（seed-prior-chat-fixture → GET `/recall/search` → mention inject；默认 CI，不依赖 Chrome）
 - **MCP reload confirm Chrome E2E**：`tests/e2e/test_mcp_reload_confirm_chrome_e2e.py`（READ×1 SHPOIB 单会话：toggle · delete · import · add/save → `MCPReloadConfirmDialog`；见 `CHROME_MCP_E2E.md` §MCP reload confirm）
-- `tests/integration/test_ui_artifact_cross_turn_db_integration.py`：跨轮 `data_update` collector 队列 → 真实 SQLite patch → GET messages 断言 merged binding（无 mock 持久化路径）
 - `tests/services/code_graph/test_code_graph_service.py`：AST 抽取器与 CodeGraphService 符号/调用图谱/拓扑查询单元测试
 - 并行（内存充足时）：`PYTEST_XDIST_WORKERS=4 scripts/dev/run_tests_low_memory.sh`；避免 `-n auto`（多 worker RSS 叠加，`-n auto` 在 8 核上可达数 GB）
 - 定位高内存文件：`uv run python scripts/dev/profile_test_memory.py tests/api/agent --top 20`

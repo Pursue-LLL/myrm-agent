@@ -138,10 +138,6 @@ export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     }
   }
 
-  // UI 工件事件（ui_artifact / data_update 分支已下线，A2UI 由 structured_clarify 取代）
-  if (data.type === H.AgentEventType.UI_UPDATE) {
-    return null;
-  }
-
+  // UI_UPDATE 由通用隧道承载（子代理进度转发），本 slice 不解释其 payload
   return null;
 }

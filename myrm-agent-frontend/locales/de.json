@@ -13027,7 +13027,6 @@
         "type": "Typ",
         "typeCli": "CLI (Prozess starten)",
         "typeAcp": "ACP (JSON-RPC-Brücke)",
-        "typeSdk": "SDK (native Integration)",
         "command": "Befehl",
         "commandPlaceholder": "z. B. claude",
         "args": "Argumente",

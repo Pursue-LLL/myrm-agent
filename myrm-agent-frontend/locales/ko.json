@@ -13027,7 +13027,6 @@
         "type": "유형",
         "typeCli": "CLI (프로세스 실행)",
         "typeAcp": "ACP (JSON-RPC 브리지)",
-        "typeSdk": "SDK (네이티브 통합)",
         "command": "명령",
         "commandPlaceholder": "예: claude",
         "args": "인수",

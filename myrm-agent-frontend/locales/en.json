@@ -663,7 +663,6 @@
         "type": "Type",
         "typeCli": "CLI (spawn process)",
         "typeAcp": "ACP (JSON-RPC bridge)",
-        "typeSdk": "SDK (native integration)",
         "command": "Command",
         "commandPlaceholder": "e.g. claude",
         "args": "Arguments",

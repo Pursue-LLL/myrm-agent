@@ -126,6 +126,14 @@ const PERMISSION_MODE_HINTS: Record<ExternalAgentType, string> = {
   acp: 'permissionHintAcp',
 };
 
+/** Coerce a stored mode to one the given backend type can honour (fallback: fail-closed). */
+function normalizePermissionMode(
+  type: ExternalAgentType,
+  mode: ExternalAgentPermissionMode,
+): ExternalAgentPermissionMode {
+  return PERMISSION_MODE_OPTIONS[type].some((option) => option.value === mode) ? mode : 'safe';
+}
+
 const syncManager = getConfigSyncManager();
 
 const ExternalAgentsConfig = memo(() => {
@@ -224,9 +232,7 @@ const ExternalAgentsConfig = memo(() => {
       args: (draft.args ?? []).filter((a) => a.trim() !== ''),
       // Normalize on save so the stored mode always matches what the selected type
       // can honour; otherwise switching type could persist a mode the UI never showed.
-      permissionMode: PERMISSION_MODE_OPTIONS[draft.type].some((option) => option.value === draft.permissionMode)
-        ? draft.permissionMode
-        : 'safe',
+      permissionMode: normalizePermissionMode(draft.type, draft.permissionMode),
     };
 
     let updated: ExternalAgentConfig[];
@@ -239,10 +245,10 @@ const ExternalAgentsConfig = memo(() => {
     setEditingIndex(null);
   }, [draft, editingIndex, agents, persist, t]);
 
-  const permissionModeValue: ExternalAgentPermissionMode = useMemo(() => {
-    const options = PERMISSION_MODE_OPTIONS[draft.type];
-    return options.some((option) => option.value === draft.permissionMode) ? draft.permissionMode : 'safe';
-  }, [draft.type, draft.permissionMode]);
+  const permissionModeValue: ExternalAgentPermissionMode = useMemo(
+    () => normalizePermissionMode(draft.type, draft.permissionMode),
+    [draft.type, draft.permissionMode],
+  );
 
   const handleDelete = useCallback(() => {
     if (deleteIndex === null) {
