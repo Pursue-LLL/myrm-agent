@@ -19,6 +19,7 @@ from app.api.memory.operations import (
     command_center_consolidation,
     command_center_diagnostics,
     crud,
+    domain_mesh,
     external_transcripts,
     guardian,
     head_probe,
@@ -58,6 +59,7 @@ router.include_router(reindex.router, tags=["memory-reindex"])
 router.include_router(archive_restore.router, tags=["memory-archive-restore"])
 router.include_router(tool_guidance.router, tags=["memory-tool-guidance"])
 router.include_router(external_transcripts.router, tags=["memory-external-transcripts"])
+router.include_router(domain_mesh.router, tags=["memory-domain-mesh"])
 
 router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
