@@ -63,6 +63,7 @@ vi.mock('hugeicons-react', () => ({
   Copy01Icon: (props: Record<string, unknown>) => <span data-testid="copy-icon" {...props} />,
   ArrowRight01Icon: (props: Record<string, unknown>) => <span data-testid="arrow-icon" {...props} />,
   MessageAdd01Icon: (props: Record<string, unknown>) => <span data-testid="message-icon" {...props} />,
+  CommentAdd02Icon: (props: Record<string, unknown>) => <span data-testid="comment-add-icon" {...props} />,
 }));
 
 import DocumentSelectionToolbar from '../DocumentSelectionToolbar';
