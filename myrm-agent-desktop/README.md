@@ -26,7 +26,7 @@ git push origin v0.1.0
 ```bash
 cd myrm-agent-desktop
 
-# 1. Sidecar 二进制（Python 后端 + Agent Runner）
+# 1. Sidecar 二进制（Python 后端）
 python sidecar/build.py
 
 # 2. Next standalone（Tauri bundle 资源）
@@ -36,7 +36,7 @@ bash scripts/build-frontend.sh
 cd src-tauri && cargo tauri dev
 ```
 
-Sidecar 对照（Python 后端 vs Agent Runner）见 [_ARCH.md](_ARCH.md) § Sidecar 对照表。
+Sidecar 对照见 [_ARCH.md](_ARCH.md) § Sidecar 对照表。
 
 ## 许可证
 

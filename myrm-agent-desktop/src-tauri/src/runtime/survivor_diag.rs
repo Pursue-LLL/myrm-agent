@@ -50,7 +50,6 @@ pub fn is_self_process(process_name: &str, exe_or_cmd: &str) -> bool {
             || lower_path.contains("standalone")
             || lower_path.contains("server.js")
             || lower_path.contains("run.py")
-            || lower_path.contains("agent-runner")
         {
             return true;
         }

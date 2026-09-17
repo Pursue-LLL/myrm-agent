@@ -2,25 +2,22 @@
 
 [INPUT]
 - myrm-agent-server/app/main.py（POS: Python 后端入口）
-- sidecar/agent-runner/（POS: Agent Runner TS 源码）
 
 [OUTPUT]
 - src-tauri/binaries/myrmagent-backend-*
-- src-tauri/binaries/agent-runner-*
 
 [POS]
-Sidecar **构建**入口（非运行时）。运行时进程管理在 src-tauri/src/runtime/ 与 agent_runner_rpc/。
+Sidecar **构建**入口（非运行时）。运行时进程管理在 src-tauri/src/runtime/。
 
 ## 架构概述
 
-Tauri Desktop Sidecar 构建入口：PyInstaller 打包 Python 后端 + Bun compile Agent Runner 为独立二进制。
+Tauri Desktop Sidecar 构建入口：PyInstaller 打包 Python 后端为独立二进制。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `build.py` | 核心 | Sidecar 构建总入口（后端 PyInstaller + Agent Runner compile） | ✅ |
-| `agent-runner/` | 核心 | Agent Runner TS 源码与 Bun 构建配置 | [agent-runner/_ARCH.md](agent-runner/_ARCH.md) |
+| `build.py` | 核心 | Sidecar 构建入口（后端 PyInstaller） | ✅ |
 
 ## 使用方法
 
@@ -35,7 +32,6 @@ python build.py
 | 组件 | macOS | Linux | Windows |
 |------|-------|-------|---------|
 | Python Backend | `myrmagent-backend-aarch64-apple-darwin` | `myrmagent-backend-x86_64-unknown-linux-gnu` | `myrmagent-backend-x86_64-pc-windows-msvc.exe` |
-| Agent Runner | `agent-runner-aarch64-apple-darwin` | `agent-runner-x86_64-unknown-linux-gnu` | `agent-runner-x86_64-pc-windows-msvc.exe` |
 
 ## 技术细节
 
@@ -53,6 +49,6 @@ python build.py
 
 ## 依赖
 
-- Python 3.13+、PyInstaller、Bun >= 1.1
+- Python 3.13+、PyInstaller
 - Harness 经 `uv sync` 从 PyPI 安装
 - 父模块 [myrm-agent-desktop/_ARCH.md](../_ARCH.md)

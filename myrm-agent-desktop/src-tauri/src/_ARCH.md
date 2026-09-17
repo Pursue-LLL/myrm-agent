@@ -1,7 +1,7 @@
 # Tauri Rust 后端
 
 [INPUT]
-- sidecar 二进制（POS: Python Backend + Agent Runner，release 打包产物）
+- sidecar 二进制（POS: Python Backend，release 打包产物）
 - myrm-agent-frontend standalone（POS: Next 静态资源 bundle）
 - Tauri 插件链（shell / updater / global-shortcut 等）
 
@@ -18,13 +18,12 @@ src-tauri/src/ Rust 源码根。入口 main.rs → app::run()。
 Tauri 桌面应用的 Rust 后端核心，负责：
 1. **Python Sidecar** 进程管理（FastAPI API 服务器，监听 `api_port`）
 2. **Next.js Sidecar** 进程管理（Standalone Server 前端服务器，监听 `webui_port`）
-3. **Agent Sidecar** 进程管理（Bun 编译的独立二进制，CLI 工具集成）
-4. **配置管理**（`SystemConfig`，包括 WebUI 模式、全局快捷键、最小化托盘配置等）
-5. **系统 API 封装**（后台托盘动态状态、任务栏进度条、完成弹跳通知、系统级原生通知、文件对话框等）
-6. **热键管理**（全局快捷键的动态 IPC 注册与拦截，含 Appshot 截屏快捷键、Voice PTT 语音对讲快捷键）
-7. **单实例锁与二次启动聚焦及参数派发**（`tauri-plugin-single-instance` 原生单实例互斥，二次启动自动唤醒置顶已有主窗口，并通过 `app:second-instance` 原生事件广播 CLI args/cwd 上下文，彻底杜绝 Sidecar 端口冲突并闭环唤醒协议）
-8. **端口冲突检测与幸存者智能自愈**（启动前检查端口占用，自动诊断并 Re-kill 自身残留的幸存者孤儿进程，防止冲突与文件锁死）
-9. **自动更新**（`tauri-plugin-updater`，前端通过 `@tauri-apps/plugin-updater` JS API 驱动）+ 启动期 Updater pubkey 占位符强校验（`utils/updater_safety.rs`）+ 进程树销毁与受控重启（`utils/process_tree.rs`，防止 OTA 升级文件锁死）
+3. **配置管理**（`SystemConfig`，包括 WebUI 模式、全局快捷键、最小化托盘配置等）
+4. **系统 API 封装**（后台托盘动态状态、任务栏进度条、完成弹跳通知、系统级原生通知、文件对话框等）
+5. **热键管理**（全局快捷键的动态 IPC 注册与拦截，含 Appshot 截屏快捷键、Voice PTT 语音对讲快捷键）
+6. **单实例锁与二次启动聚焦及参数派发**（`tauri-plugin-single-instance` 原生单实例互斥，二次启动自动唤醒置顶已有主窗口，并通过 `app:second-instance` 原生事件广播 CLI args/cwd 上下文，彻底杜绝 Sidecar 端口冲突并闭环唤醒协议）
+7. **端口冲突检测与幸存者智能自愈**（启动前检查端口占用，自动诊断并 Re-kill 自身残留的幸存者孤儿进程，防止冲突与文件锁死）
+8. **自动更新**（`tauri-plugin-updater`，前端通过 `@tauri-apps/plugin-updater` JS API 驱动）+ 启动期 Updater pubkey 占位符强校验（`utils/updater_safety.rs`）+ 进程树销毁与受控重启（`utils/process_tree.rs`，防止 OTA 升级文件锁死）
 
 ---
 
@@ -44,10 +43,9 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `runtime/nextjs_frontend.rs` | ✅ 核心 | Next.js Standalone 前端进程（Tauri 启动时始终自启） | ✅ |
 | `runtime/appshot/` | ✅ 核心 | 全局快捷键：Appshot 截屏、Voice PTT、窗口 toggle（见 `runtime/appshot/_ARCH.md`） | ✅ |
 | `runtime/setup_token.rs` | ✅ 核心 | WebUI Remote Setup Token 状态与 IPC | ✅ |
-| `runtime/agent_runner.rs` | ✅ 核心 | Agent Runner 路径解析、启动与事件转发 | ✅ |
 | `runtime/port.rs` | ✅ 工具 | 端口占用检测 | ✅ |
 | `config.rs` | ✅ 核心 | 配置管理（`SystemConfig`, `BackendConfig`, `FrontendConfig`），端口管理，含 `appshot_shortcut`、`voice_ptt_shortcut` 和 `appshot_excluded_apps` 隐私黑名单字段 | ✅ |
-| `commands/` | ✅ 核心 | Tauri IPC 命令（config、agent、overlay、recovery）→ 叶子清单见 [commands/_ARCH.md](commands/_ARCH.md) | — |
+| `commands/` | ✅ 核心 | Tauri IPC 命令（config、overlay、recovery）→ 叶子清单见 [commands/_ARCH.md](commands/_ARCH.md) | — |
 | `utils/` | ✅ 工具 | 系统工具封装 → 见 [utils/_ARCH.md](utils/_ARCH.md) | — |
 ---
 
@@ -56,13 +54,9 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | 模块 | 路径 | 职责 | 文档 |
 |------|------|------|------|
 | **app** | `./app/` | Tauri Builder、setup、快捷键、托盘、优雅停机 | [app/_ARCH.md](app/_ARCH.md) |
-| **cli_agent_types** | `./cli_agent_types.rs` | CLI 可视化共享类型 | — |
 | **ipc_security** | `./ipc_security/` | IPC 安全边界（sender gate、票据、高敏确认） | [ipc_security/_ARCH.md](ipc_security/_ARCH.md) |
 | **runtime** | `./runtime/` | Sidecar 编排、Appshot、Setup Token | [runtime/_ARCH.md](runtime/_ARCH.md) |
-| **agent_runner_rpc** | `./agent_runner_rpc/` | Agent Runner JSON-RPC 进程管理 | [agent_runner_rpc/_ARCH.md](agent_runner_rpc/_ARCH.md) |
-| **sessions** | `./sessions/` | CLI 会话生命周期 | [sessions/_ARCH.md](sessions/_ARCH.md) |
-| **permissions** | `./permissions/` | Explore/Ask/Auto 权限 | [permissions/_ARCH.md](permissions/_ARCH.md) |
-| **commands** | `./commands/` | Tauri IPC 命令（含 `agent/` 子模块） | [commands/_ARCH.md](commands/_ARCH.md) · [commands/agent/_ARCH.md](commands/agent/_ARCH.md) |
+| **commands** | `./commands/` | Tauri IPC 命令 | [commands/_ARCH.md](commands/_ARCH.md) |
 | **utils** | `./utils/` | 平台系统工具 | [utils/_ARCH.md](utils/_ARCH.md) |
 
 ---
@@ -70,8 +64,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 ## 依赖关系
 
 ### 内部依赖
-- `commands/agent/` → `agent_runner_rpc/`：CLI IPC 仅经 Agent Runner 进程
-- `commands/` → `cli_agent_types/`, `sessions/`, `config/`：IPC 命令与会话、配置
+- `commands/` → `config/`：IPC 命令与配置
 
 ### 外部依赖
 - `tauri`：桌面应用框架
@@ -93,12 +86,9 @@ Tauri 主进程 (Rust)
     ├─→ Python Backend Sidecar (FastAPI, Desktop :8080 / WebUI :api_port)
     │   └── API 端点：/api/v1/*
     │
-    ├─→ Next.js Frontend Sidecar (Standalone Server, :webui_port，始终自启)
-    │   ├── 提供静态前端资源
-    │   └── 反向代理：/api/v1/* → http://localhost:{backend.port}/api/v1/*
-    │
-    └─→ Agent Runner Sidecar (standalone binary, JSON-RPC)
-        └── CLI 工具集成（Claude Code, Codex, Gemini）
+    └─→ Next.js Frontend Sidecar (Standalone Server, :webui_port，始终自启)
+        ├── 提供静态前端资源
+        └── 反向代理：/api/v1/* → http://localhost:{backend.port}/api/v1/*
 ```
 
 Release 模式 WebView 先加载 `frontend-shell/`（`withGlobalTauri: true`），IPC 读取 `webui_port` 后轮询 Next 就绪并跳转。
@@ -118,16 +108,3 @@ Release 模式 WebView 先加载 `frontend-shell/`（`withGlobalTauri: true`）�
 - 通过 `WEBUI_SETUP_TOKEN` 环境变量传给 Python 后端
 - 存入 `SetupTokenState`，前端 WebView 通过 `get_setup_token` IPC 命令查询
 - 用于首次 admin 账户创建的安全验证
-
----
-
-## 消息类型（Agent Runner → 前端，JSON 事件）
-
-| 类型 | 说明 | 通道 |
-|-----|------|------|
-| `text` | 文本内容 | `agent:message:{session_id}` |
-| `thought` | 思考过程 | 同上 |
-| `tool_call_start` | 工具调用开始 | 同上 |
-| `tool_call_result` | 工具调用结果 | 同上 |
-| `permission_request` | 权限请求 | `agent:permission:{session_id}` |
-| `session_status` | 会话状态 | `agent:status:{session_id}` |

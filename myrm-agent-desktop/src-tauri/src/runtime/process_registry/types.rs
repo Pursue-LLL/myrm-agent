@@ -21,10 +21,6 @@ pub enum ProcessRole {
     Backend,
     /// Next.js Standalone 前端
     Frontend,
-    /// Agent Runner JSON-RPC Sidecar
-    AgentRunner,
-    /// 独立会话/CLI Agent 任务 Worker
-    AgentWorker,
     /// 外部工具/浏览器等支撑进程
     ToolRunner,
 }

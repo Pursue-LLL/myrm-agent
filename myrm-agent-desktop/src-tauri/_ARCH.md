@@ -1,7 +1,7 @@
 # src-tauri 模块架构
 
 [INPUT]
-- `sidecar/build.py` 产物（POS: Python Backend + Agent Runner 二进制）
+- `sidecar/build.py` 产物（POS: Python Backend 二进制）
 - `myrm-agent-frontend` standalone 资源（POS: WebView Release 资源）
 
 [OUTPUT]

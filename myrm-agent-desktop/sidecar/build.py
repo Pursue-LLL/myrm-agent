@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Tauri Desktop Sidecar Builder
 
-Builds all sidecar binaries for the Tauri desktop app:
+Builds the desktop sidecar binary for the Tauri desktop app:
 - Python Backend: PyInstaller → standalone executable
-- Agent Runner: bun build --compile → standalone binary (no Node.js required)
 """
 
 import os
@@ -265,126 +264,21 @@ def build_backend(*, skip_harness_install: bool = False):
     print("[OK] Cleanup complete")
 
 
-def _agent_runner_binary_name() -> str:
-    """Determine agent-runner binary name for current platform (Tauri naming convention)."""
-    target_arch = os.environ.get("TARGET_ARCH", platform.machine().lower())
-    if SYSTEM == "darwin":
-        suffix = "aarch64-apple-darwin" if target_arch in ("arm64", "aarch64") else "x86_64-apple-darwin"
-    elif SYSTEM == "linux":
-        suffix = "x86_64-unknown-linux-gnu"
-    elif SYSTEM == "windows":
-        return "agent-runner-x86_64-pc-windows-msvc.exe"
-    else:
-        raise RuntimeError(f"Unsupported platform: {SYSTEM}")
-    return f"agent-runner-{suffix}"
-
-
-def build_agent_runner():
-    """Compile agent-runner TypeScript sidecar into a standalone binary via Bun."""
-    print("\n" + "=" * 60)
-    print("Building Agent Runner Sidecar (Bun compile)")
-    print("=" * 60)
-
-    runner_src = PROJECT_ROOT / "myrm-agent-desktop" / "sidecar" / "agent-runner"
-    entrypoint = runner_src / "src" / "index.ts"
-
-    if not entrypoint.exists():
-        print(f"[WARN] Agent runner source not found: {entrypoint}, skipping.")
-        return
-
-    # Ensure dependencies installed
-    if not (runner_src / "node_modules").exists():
-        print("Installing agent-runner dependencies...")
-        subprocess.run(["bun", "install"], cwd=runner_src, check=True)
-
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    binary_name = _agent_runner_binary_name()
-    output_path = OUTPUT_DIR / binary_name
-
-    target_arch = os.environ.get("TARGET_ARCH", platform.machine().lower())
-    if SYSTEM == "darwin":
-        bun_target = (
-            "bun-darwin-arm64" if target_arch in ("arm64", "aarch64") else "bun-darwin-x64"
-        )
-    elif SYSTEM == "linux":
-        # glibc target; musl breaks linuxdeploy AppImage (libc.musl-x86_64.so.1 missing on Ubuntu).
-        bun_target = "bun-linux-x64"
-    elif SYSTEM == "windows":
-        bun_target = "bun-windows-x64"
-    else:
-        raise RuntimeError(f"Unsupported platform for agent-runner: {SYSTEM}")
-
-    cmd = [
-        "bun", "build",
-        str(entrypoint),
-        "--compile",
-        "--target", bun_target,
-        "--minify",
-        "--outfile", str(output_path),
-    ]
-
-    print(f"\nRunning: {' '.join(cmd)}\n")
-    result = subprocess.run(cmd, cwd=runner_src)
-
-    if result.returncode != 0:
-        print(f"\n[ERROR] Agent runner build failed (exit {result.returncode})")
-        sys.exit(1)
-
-    if output_path.exists():
-        size_mb = output_path.stat().st_size / (1024 * 1024)
-        print("\n[OK] Agent runner built successfully!")
-        print(f"Output: {output_path}")
-        print(f"Size: {size_mb:.1f} MB")
-        if SYSTEM != "windows":
-            os.chmod(output_path, 0o755)
-    else:
-        print(f"\n[ERROR] Output not found: {output_path}")
-        sys.exit(1)
-
-
 def main():
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Build Tauri desktop sidecar binaries")
-    parser.add_argument(
-        "--agent-runner-only",
-        action="store_true",
-        help="Build only the Bun agent-runner sidecar (fast dev check)",
-    )
-    parser.add_argument(
-        "--backend-only",
-        action="store_true",
-        help="Build only the PyInstaller Python backend sidecar",
-    )
-    args = parser.parse_args()
-
     print("MyrmAgent - Sidecar Builder")
     print(f"Platform: {SYSTEM}")
     print(f"Harness install mode: {_resolve_harness_install_mode()}")
-    print(f"Backend binary: {BINARY_NAME}")
-    print(f"Agent runner binary: {_agent_runner_binary_name()}\n")
+    print(f"Backend binary: {BINARY_NAME}\n")
 
-    if args.agent_runner_only and args.backend_only:
-        print("[ERROR] Choose at most one of --agent-runner-only / --backend-only")
-        sys.exit(1)
-
-    if not args.agent_runner_only:
-        ensure_production_harness_wheels()
-        check_pyinstaller()
-        build_backend(skip_harness_install=True)
-
-    if not args.backend_only:
-        build_agent_runner()
+    ensure_production_harness_wheels()
+    check_pyinstaller()
+    build_backend(skip_harness_install=True)
 
     print("\n" + "=" * 60)
     print("[OK] Sidecar build complete!")
     print("=" * 60)
-    if not args.agent_runner_only:
-        print(f"\nBackend: {OUTPUT_DIR / BINARY_NAME}")
-    if not args.backend_only:
-        print(f"Agent runner: {OUTPUT_DIR / _agent_runner_binary_name()}")
-    if not args.agent_runner_only and not args.backend_only:
-        print("\nNext: cd myrm-agent-desktop && cargo tauri build")
+    print(f"\nBackend: {OUTPUT_DIR / BINARY_NAME}")
+    print("\nNext: cd myrm-agent-desktop && cargo tauri build")
 
 
 if __name__ == "__main__":

@@ -17,8 +17,8 @@ describe('check-fractal-docs', () => {
 
   test('discovered arch paths include new submodules without manual list drift', () => {
     const required = getRequiredArchPaths();
-    expect(required).toContain('src-tauri/src/commands/agent/_ARCH.md');
-    expect(required).toContain('sidecar/agent-runner/src/_ARCH.md');
-    expect(discoverArchPathsUnderScanRoots().length).toBeGreaterThanOrEqual(10);
+    expect(required).toContain('src-tauri/src/commands/_ARCH.md');
+    expect(required).toContain('sidecar/_ARCH.md');
+    expect(discoverArchPathsUnderScanRoots().length).toBeGreaterThanOrEqual(9);
   });
 });

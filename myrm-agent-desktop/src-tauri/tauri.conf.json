@@ -21,8 +21,7 @@
       "icons/icon.icns"
     ],
     "externalBin": [
-      "binaries/myrmagent-backend",
-      "binaries/agent-runner"
+      "binaries/myrmagent-backend"
     ],
     "copyright": "Copyright © 2026 MyrmAgent Team",
     "category": "Productivity",

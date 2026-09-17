@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - Tauri 桌面安装包（macOS / Windows / Linux）
-- 三进程编排：Rust 主进程 + Python Backend + Next Standalone + Agent Runner
+- 三进程编排：Rust 主进程 + Python Backend + Next Standalone
 
 [POS]
 myrm-agent 产品仓桌面子模块根。L0 模块地图；L1 见 ARCHITECTURE.md；发版见 DESKTOP_RELEASE_SYSTEM.md。
@@ -17,13 +17,7 @@ myrm-agent 产品仓桌面子模块根。L0 模块地图；L1 见 ARCHITECTURE.m
 | 仓库路径 | 运行时角色 | 技术 | 默认端口 / 产物 | 管理者 |
 |----------|------------|------|-----------------|--------|
 | `sidecar/` | **Python 后端** Sidecar 构建脚本 | PyInstaller `build.py` | 打包到 `src-tauri/binaries/myrmagent-backend-*`；运行时 `PORT`（Desktop 常用 8080） | `sidecar/_ARCH.md` |
-| `sidecar/agent-runner/` | **Agent Runner** 源码（CLI 工具可视化） | Bun → `bun build --compile` | `src-tauri/binaries/agent-runner-*` | `sidecar/build.py` |
-| `src-tauri/src/agent_runner_rpc/` | Rust **Agent Runner JSON-RPC 进程管理** | Tauri | JSON-RPC stdio、事件转发 | `src-tauri/src/agent_runner_rpc/_ARCH.md` |
-| `src-tauri/src/runtime/` | Rust **Python/Next.js Sidecar + Agent Runner 编排** | Tauri | 进程启动、Appshot、Setup Token | `src-tauri/src/_ARCH.md` |
-
-**数据流（CLI 可视化）**: 用户输入 → Tauri IPC → Rust `agent_runner_rpc/` → Agent Runner 二进制 → 外部 CLI（claude 等）→ JSON 事件 → WebView UI。
-
-**路径对照**: 构建与源码在 `sidecar/`、`sidecar/agent-runner/`；Rust 运行时在 `src-tauri/src/agent_runner_rpc/`。`src-tauri/sidecar/` 不在仓库布局内（`.gitignore` 兜底）。
+| `src-tauri/src/runtime/` | Rust **Python/Next.js Sidecar 编排** | Tauri | 进程启动、Appshot、Setup Token | `src-tauri/src/_ARCH.md` |
 
 **与开源 server 关系**: Python Sidecar 入口为 `myrm-agent-server/app/main.py`（与本地 `myrm start` 同一应用，不同打包形态）。
 
@@ -33,7 +27,7 @@ myrm-agent 产品仓桌面子模块根。L0 模块地图；L1 见 ARCHITECTURE.m
 |------|------|
 | `src-tauri/` | Rust 主程序、IPC、托盘、更新校验（工程根） | [src-tauri/_ARCH.md](src-tauri/_ARCH.md) · [ARCHITECTURE.md](ARCHITECTURE.md) |
 | `src-tauri/frontend-shell/` | Release 模式 WebView 占位页：IPC 读 `webui_port` 轮询 Next；`frontend-start-failed` 阻断，`backend-start-failed` 警告后继续跳转 | [src-tauri/frontend-shell/_ARCH.md](src-tauri/frontend-shell/_ARCH.md) |
-| `sidecar/` | PyInstaller + agent-runner 编译入口 |
+| `sidecar/` | PyInstaller 后端 Sidecar 构建入口 |
 | `scripts/` | 桌面构建/签名辅助 → [scripts/_ARCH.md](scripts/_ARCH.md) |
 
 ## Windows 打包

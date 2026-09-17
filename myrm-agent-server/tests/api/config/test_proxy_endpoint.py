@@ -131,7 +131,7 @@ def test_proxy_endpoint_real_ssrf_metadata_blocked() -> None:
     data = response.json()
     assert data["success"] is False
     assert data["latency_ms"] is None
-    assert "Blocked cloud metadata or link-local address" in str(data["error"])
+    assert "link-local address, which is blocked" in str(data["error"])
 
 
 def test_proxy_endpoint_real_target_ssrf_blocked() -> None:
@@ -147,7 +147,8 @@ def test_proxy_endpoint_real_target_ssrf_blocked() -> None:
     data = response.json()
     assert data["success"] is False
     assert data["latency_ms"] is None
-    assert "blocked/private metadata IP" in str(data["error"])
+    assert "Probe target URL blocked" in str(data["error"])
+    assert "link-local address, which is blocked" in str(data["error"])
 
 
 def test_proxy_endpoint_real_unreachable_connection_failure() -> None:

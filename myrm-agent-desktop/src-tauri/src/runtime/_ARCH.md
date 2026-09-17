@@ -2,10 +2,9 @@
 
 [INPUT]
 - config（POS: BackendConfig / FrontendConfig / SystemConfig）
-- agent_runner_rpc（POS: Agent Runner JSON-RPC 进程）
 
 [OUTPUT]
-- Python / Next.js / Agent Runner Sidecar 启停与健康检查
+- Python / Next.js Sidecar 启停与健康检查
 - Appshot / Voice PTT / Inline Input 全局快捷键
 
 [POS]
@@ -13,7 +12,7 @@ Tauri 主进程 Sidecar 与系统运行时层。
 
 ## 架构概述
 
-Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js/Agent Runner 进程生命周期、全局快捷键、Setup Token、端口检测。
+Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js 进程生命周期、全局快捷键、Setup Token、端口检测。
 
 父模块：[../../_ARCH.md](../../_ARCH.md) · [../_ARCH.md](../_ARCH.md)
 
@@ -26,7 +25,6 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js/Agent Runne
 | `python_backend.rs` | 核心 | Python Sidecar 启停、版本自适应解析、就绪探测与启动超时自动回滚自愈 | ✅ |
 | `nextjs_frontend.rs` | 核心 | Next.js Standalone 进程（Tauri 启动时始终自启） | — |
 | `watchdog.rs` | 核心 | 后端崩溃监控与指数退避重启 | ✅ |
-| `agent_runner.rs` | 核心 | Agent Runner 路径解析与事件桥接 | ✅ |
 | `setup_token.rs` | 核心 | WebUI Remote Setup Token IPC | — |
 | `port.rs` | 工具 | 端口占用检测 | — |
 | `survivor_diag.rs` | 核心 | 端口幸存者跨平台命令行与路径诊断、安全 Re-kill 自愈回收与 TCP 释放确认 | ✅ |
@@ -37,5 +35,4 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js/Agent Runne
 ## 依赖
 
 - `config` — BackendConfig / FrontendConfig / SystemConfig
-- `agent_runner_rpc` — Agent Runner JSON-RPC
 - `commands::agent` — AgentSystemState

@@ -28,7 +28,6 @@ const STATIC_ARCH_PATHS = [
   'src-tauri/_ARCH.md',
   'scripts/_ARCH.md',
   'sidecar/_ARCH.md',
-  'sidecar/agent-runner/_ARCH.md',
   'src-tauri/frontend-shell/_ARCH.md',
 ] as const;
 
@@ -66,24 +65,16 @@ const CORE_IOP_PATHS = [
   'src-tauri/src/config.rs',
   'src-tauri/src/runtime/mod.rs',
   'src-tauri/src/runtime/python_backend.rs',
-  'src-tauri/src/runtime/agent_runner.rs',
-  'src-tauri/src/agent_runner_rpc/mod.rs',
   'src-tauri/src/runtime/appshot/mod.rs',
   'src-tauri/src/runtime/inline_input.rs',
   'src-tauri/src/runtime/watchdog.rs',
-  'src-tauri/src/sessions/mod.rs',
   'src-tauri/src/app/mod.rs',
   'src-tauri/src/app/lifecycle.rs',
   'src-tauri/src/app/tray.rs',
   'src-tauri/src/runtime/nextjs_frontend.rs',
-  'src-tauri/src/cli_agent_types.rs',
   'src-tauri/src/utils/updater_safety.rs',
   'src-tauri/src/commands/mod.rs',
-  'src-tauri/src/commands/agent/mod.rs',
-  'src-tauri/src/permissions/mod.rs',
   'src-tauri/src/utils/mod.rs',
-  'src-tauri/src/agent_runner_rpc/types.rs',
-  'src-tauri/src/agent_runner_rpc/transport.rs',
   'scripts/check-fractal-docs.ts',
 ] as const;
 

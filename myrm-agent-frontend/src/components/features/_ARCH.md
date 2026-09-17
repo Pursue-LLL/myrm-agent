@@ -40,7 +40,6 @@
 | `growth/`                                     | Growth 草稿与推广                                                    | [_ARCH.md](growth/_ARCH.md)                                                       |
 | `icons/`                                      | 功能域专用图标（非 Lucide 通用集）                                   | [_ARCH.md](icons/_ARCH.md)                                                        |
 | `image-gen/`                                  | 图片生成 UI                                                          | [_ARCH.md](image-gen/_ARCH.md)                                                    |
-| `interactive-ui/`                             | Agent 渲染 UI（A2UI）                                                | [_ARCH.md](interactive-ui/_ARCH.md)                                               |
 | `markdown-render-tools/`                      | Markdown 渲染扩展（Mermaid、代码块等）                               | [_ARCH.md](markdown-render-tools/_ARCH.md)                                        |
 | `message-actions/` / `message-input-actions/` | 消息操作与输入区动作                                                 | [_ARCH.md](message-actions/_ARCH.md) · [_ARCH.md](message-input-actions/_ARCH.md) |
 | `notifications/`                              | 通知中心                                                             | [_ARCH.md](notifications/_ARCH.md)                                                |

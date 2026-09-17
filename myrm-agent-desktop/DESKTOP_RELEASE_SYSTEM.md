@@ -98,12 +98,12 @@ Notarization uses the Apple ID, not the cert. At <https://appleid.apple.com> →
 `src-tauri/entitlements.plist` declares the minimum capabilities MyrmAgent.app needs to run after signing:
 
 - **`com.apple.security.cs.allow-jit`** + **`com.apple.security.cs.allow-unsigned-executable-memory`** — required by the embedded WebView V8 engine.
-- **`com.apple.security.cs.allow-dyld-environment-variables`** + **`com.apple.security.cs.disable-library-validation`** — required for Python/Node sidecar dynamic loading.
+- **`com.apple.security.cs.allow-dyld-environment-variables`** + **`com.apple.security.cs.disable-library-validation`** — required for Python sidecar dynamic loading.
 - **`com.apple.security.automation.apple-events`** — required by Appshot's `osascript` window text extraction.
 
 Without these entitlements, Apple Notary Service still signs successfully but **runtime functionality silently fails** (Appshot crashes, sidecar refuses to spawn, global shortcuts cannot register). The plist is the minimum set; adding more triggers extra Apple notary review.
 
-> Note on child processes: `com.apple.security.inherit` is an **App Sandbox** entitlement and has no effect under Hardened Runtime. Python sidecar and Node Agent Runner are signed independently by `tauri-action` during bundling; the embedded binaries are co-signed using the same Developer ID so they pass Gatekeeper on launch.
+> Note on child processes: `com.apple.security.inherit` is an **App Sandbox** entitlement and has no effect under Hardened Runtime. The Python sidecar is signed independently by `tauri-action` during bundling; the embedded binary is co-signed using the same Developer ID so it passes Gatekeeper on launch.
 
 TCC permissions (screen recording, accessibility, microphone) are **not** declared here — they are granted by the user at first-use prompt. `tauri.conf.json#bundle.macOS.extendInfo` provides `NSMicrophoneUsageDescription` and `NSAppleEventsUsageDescription` so the macOS TCC dialog shows a clear usage reason when the permission prompt appears.
 
