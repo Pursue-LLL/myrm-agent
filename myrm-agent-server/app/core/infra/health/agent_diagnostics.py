@@ -155,8 +155,11 @@ class OllamaModelContextDiagnostic(DiagnosticProtocol):
         try:
             import httpx
 
+            from app.services.config.onboarding import get_ollama_base_url
+
+            base_url = get_ollama_base_url()
             async with httpx.AsyncClient(timeout=2.0) as client:
-                res = await client.get("http://localhost:11434/api/tags")
+                res = await client.get(f"{base_url}/api/tags")
                 if res.status_code != 200:
                     return HealthReport(
                         component_name="OllamaContext",

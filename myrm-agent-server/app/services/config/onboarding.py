@@ -22,6 +22,7 @@ Probes local model endpoints (Ollama, LM Studio) for zero-config experience.
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
@@ -191,6 +192,25 @@ _LM_STUDIO_DEFAULT_URL = "http://localhost:1234"
 _PROBE_TIMEOUT_S = 3.0
 
 
+def get_ollama_base_url() -> str:
+    """Resolve Ollama base URL with environment override and protocol normalization.
+
+    Supports OLLAMA_BASE_URL, OLLAMA_HOST, and OLLAMA_HOST_URL.
+    Automatically prepends 'http://' if protocol is missing, and strips trailing slashes.
+    """
+    raw = (
+        os.getenv("OLLAMA_BASE_URL")
+        or os.getenv("OLLAMA_HOST")
+        or os.getenv("OLLAMA_HOST_URL")
+        or ""
+    ).strip()
+    if raw:
+        if not raw.startswith("http://") and not raw.startswith("https://"):
+            raw = f"http://{raw}"
+        return raw.rstrip("/")
+    return _OLLAMA_DEFAULT_URL
+
+
 class DetectedModel(BaseModel):
     """A model discovered on a local endpoint."""
 
@@ -210,14 +230,15 @@ class LocalProbeResult(BaseModel):
     latency_ms: int = 0
 
 
-async def _probe_ollama(base_url: str = _OLLAMA_DEFAULT_URL) -> LocalProbeResult:
+async def _probe_ollama(base_url: str | None = None) -> LocalProbeResult:
     """Probe Ollama service at the given base URL."""
     import time
 
+    resolved_base_url = (base_url or get_ollama_base_url()).rstrip("/")
     start = time.monotonic()
     try:
         async with httpx.AsyncClient(timeout=_PROBE_TIMEOUT_S) as client:
-            resp = await client.get(f"{base_url}/api/tags")
+            resp = await client.get(f"{resolved_base_url}/api/tags")
             resp.raise_for_status()
             data = resp.json()
 
@@ -234,7 +255,7 @@ async def _probe_ollama(base_url: str = _OLLAMA_DEFAULT_URL) -> LocalProbeResult
         ]
         return LocalProbeResult(
             provider="ollama",
-            base_url=base_url,
+            base_url=resolved_base_url,
             available=True,
             models=models,
             latency_ms=elapsed,
@@ -243,7 +264,7 @@ async def _probe_ollama(base_url: str = _OLLAMA_DEFAULT_URL) -> LocalProbeResult
         elapsed = int((time.monotonic() - start) * 1000)
         return LocalProbeResult(
             provider="ollama",
-            base_url=base_url,
+            base_url=resolved_base_url,
             available=False,
             error=f"{type(exc).__name__}: {exc}",
             latency_ms=elapsed,
@@ -301,7 +322,7 @@ async def probe_local_models() -> list[LocalProbeResult]:
     for i, result in enumerate(results):
         if isinstance(result, BaseException):
             provider = "ollama" if i == 0 else "lm_studio"
-            base_url = _OLLAMA_DEFAULT_URL if i == 0 else _LM_STUDIO_DEFAULT_URL
+            base_url = get_ollama_base_url() if i == 0 else _LM_STUDIO_DEFAULT_URL
             logger.warning("Probe %s failed unexpectedly: %s", provider, result)
             probe_results.append(
                 LocalProbeResult(

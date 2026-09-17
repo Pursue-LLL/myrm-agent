@@ -189,28 +189,25 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(HTTPException)
     async def _handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
-        """Handle raw HTTPException ensuring detail string is completely redacted."""
+        """Handle raw HTTPException ensuring the whole detail payload is redacted.
+
+        ``HTTPException`` is the legacy contract: the error payload stays in
+        ``detail`` (a redacted string, list, or ``{"code", "message"}`` dict), which
+        API tests and the frontend error parsers read. Only a detail that is already
+        a full structured envelope (``{"code", "message"}``) is passed through
+        unchanged. Callers wanting the canonical ``StandardErrorResponse`` envelope
+        raise ``MyrmError`` / ``StandardHTTPException`` instead — those go through
+        the dedicated handlers, so this handler never rewrites the envelope shape.
+        """
         path = request.url.path
         if exc.status_code >= 500:
             logger.error("[%s] HTTPException %s: %s", path, exc.status_code, exc.detail)
         else:
             logger.warning("[%s] HTTPException %s: %s", path, exc.status_code, exc.detail)
 
-        safe_detail = redact_error_payload(exc.detail)
-
-        # If detail is already formatted with code and message, keep structure
-        if isinstance(safe_detail, dict) and "code" in safe_detail and "message" in safe_detail:
-            body = safe_detail
-        else:
-            message_str = safe_detail if isinstance(safe_detail, str) else str(safe_detail)
-            body = create_error_response(
-                code=BusinessCode.INTERNAL_ERROR if exc.status_code >= 500 else BusinessCode.VALIDATION_ERROR,
-                message=message_str,
-            ).model_dump(mode="json")
-
         return JSONResponse(
             status_code=exc.status_code,
-            content=body,
+            content={"detail": redact_error_payload(exc.detail)},
             headers=getattr(exc, "headers", None),
         )
 

@@ -40,6 +40,8 @@ def test_nas_compose_overlay_contract() -> None:
     assert env_map.get("MYRM_DATA_DIR") == "/state/data", "MYRM_DATA_DIR must map to /state/data"
     assert env_map.get("MEMORY_BASE_PATH") == "/state/memory", "MEMORY_BASE_PATH must map to /state/memory"
     assert env_map.get("EVENT_LOG_DIR") == "/state/logs", "EVENT_LOG_DIR must map to /state/logs"
+    assert "OLLAMA_BASE_URL" in env_map, "OLLAMA_BASE_URL must be injected for host-side local model communication"
+    assert "host.docker.internal:11434" in env_map["OLLAMA_BASE_URL"]
 
     volumes_mounted: list[str] = [str(item) for item in server_raw.get("volumes", []) if isinstance(item, str)]
     assert "myrm-nas-data:/state/data" in volumes_mounted

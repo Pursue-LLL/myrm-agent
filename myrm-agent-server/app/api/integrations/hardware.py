@@ -30,6 +30,7 @@ from app.api.integrations.hardware_calculator import (
 from app.api.integrations.model_specs import get_dynamic_model_specs
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
+from app.services.config.onboarding import get_ollama_base_url
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -59,9 +60,10 @@ async def _get_cached_hardware_profile() -> object | None:
 
 async def _get_ollama_status() -> tuple[bool, list[str]]:
     """探测 Ollama 状态并获取已安装模型列表"""
+    base_url = get_ollama_base_url()
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
-            res = await client.get("http://localhost:11434/api/tags")
+            res = await client.get(f"{base_url}/api/tags")
             if res.status_code == 200:
                 data = res.json()
                 models = [m.get("name") for m in data.get("models", []) if "name" in m]
@@ -83,10 +85,11 @@ async def _ensure_agentic_modelfile(model_name: str, num_ctx: int = 64000) -> bo
     """在 Ollama 中为拉取的模型自动派生 num_ctx=64000 的 -agentic 别名 Modelfile"""
     agentic_name = f"{model_name}-agentic"
     modelfile_content = f"FROM {model_name}\nPARAMETER num_ctx {num_ctx}\n"
+    base_url = get_ollama_base_url()
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                "http://localhost:11434/api/create",
+                f"{base_url}/api/create",
                 json={"name": agentic_name, "modelfile": modelfile_content, "stream": False},
             )
             if resp.status_code == 200:
@@ -111,11 +114,12 @@ async def delete_ollama_model(request: OllamaDeleteRequest) -> JSONResponse:
     if get_deploy_mode() == DeployMode.SANDBOX:
         raise HTTPException(status_code=403, detail="Not available in SaaS mode")
 
+    base_url = get_ollama_base_url()
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.request(
                 "DELETE",
-                "http://localhost:11434/api/delete",
+                f"{base_url}/api/delete",
                 json={"name": request.model_name},
             )
             # 若删除了基础模型，顺带尝试清理其 agentic 别名衍生模型
@@ -123,7 +127,7 @@ async def delete_ollama_model(request: OllamaDeleteRequest) -> JSONResponse:
             try:
                 await client.request(
                     "DELETE",
-                    "http://localhost:11434/api/delete",
+                    f"{base_url}/api/delete",
                     json={"name": agentic_name},
                 )
             except Exception:
@@ -156,13 +160,15 @@ async def pull_ollama_model(request: OllamaPullRequest) -> StreamingResponse:
     if get_deploy_mode() == DeployMode.SANDBOX:
         raise HTTPException(status_code=403, detail="Not available in SaaS mode")
 
+    base_url = get_ollama_base_url()
+
     async def _stream_pull():
         pull_succeeded = False
         try:
             async with httpx.AsyncClient(timeout=600.0) as client:
                 async with client.stream(
                     "POST",
-                    "http://localhost:11434/api/pull",
+                    f"{base_url}/api/pull",
                     json={"name": request.model_name},
                 ) as response:
                     if response.status_code != 200:

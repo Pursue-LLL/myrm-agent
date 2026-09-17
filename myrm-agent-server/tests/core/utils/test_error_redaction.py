@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from fastapi import FastAPI, HTTPException
 from httpx import ASGITransport, AsyncClient
@@ -61,8 +63,9 @@ async def test_raw_http_exception_detail_is_automatically_redacted() -> None:
         response = await client.get("/trigger-raw-http")
         assert response.status_code == 400
         data = response.json()
-        assert "supersecret998877665544" not in data["message"]
-        assert "sk-p" in data["message"] or "***" in data["message"]
+        # Plain HTTPException keeps the legacy ``detail`` contract.
+        assert "supersecret998877665544" not in data["detail"]
+        assert "sk-p" in data["detail"] or "***" in data["detail"]
 
 
 @pytest.mark.asyncio
@@ -84,6 +87,28 @@ async def test_raw_http_exception_list_detail_is_automatically_redacted() -> Non
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/trigger-list-http")
         assert response.status_code == 422
-        data = response.json()
-        assert "nestedlisttoken1234567890" not in data["message"]
-        assert "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xyz" not in data["message"]
+        serialized = json.dumps(response.json()["detail"])
+        assert "nestedlisttoken1234567890" not in serialized
+        assert "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xyz" not in serialized
+
+
+@pytest.mark.asyncio
+async def test_structured_dict_detail_is_preserved_verbatim() -> None:
+    """Wiki-style ``{"code", "message"}`` details stay structured and redacted."""
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.get("/trigger-structured")
+    async def trigger_structured() -> None:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "already_staged", "message": "Secret sk-proj-structured0000111122223333"},
+        )
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/trigger-structured")
+        assert response.status_code == 409
+        detail = response.json()["detail"]
+        assert detail["code"] == "already_staged"
+        assert "structured0000111122223333" not in detail["message"]

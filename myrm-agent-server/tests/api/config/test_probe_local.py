@@ -323,3 +323,38 @@ class TestProbeLocalSearchUnit:
         results = await probe_local_search()
         assert len(results) == 1
         assert results[0]["provider"] == "searxng"
+
+
+class TestGetOllamaBaseUrl:
+    """Tests for get_ollama_base_url SSOT function."""
+
+    def test_default_fallback_to_localhost(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from app.services.config.onboarding import get_ollama_base_url
+
+        monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+        monkeypatch.delenv("OLLAMA_HOST", raising=False)
+        monkeypatch.delenv("OLLAMA_HOST_URL", raising=False)
+
+        assert get_ollama_base_url() == "http://localhost:11434"
+
+    def test_base_url_with_protocol_and_trailing_slash(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from app.services.config.onboarding import get_ollama_base_url
+
+        monkeypatch.setenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434/")
+        assert get_ollama_base_url() == "http://host.docker.internal:11434"
+
+    def test_bare_host_auto_prepends_http(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from app.services.config.onboarding import get_ollama_base_url
+
+        monkeypatch.setenv("OLLAMA_BASE_URL", "192.168.1.50:11434")
+        assert get_ollama_base_url() == "http://192.168.1.50:11434"
+
+    def test_fallback_to_ollama_host_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from app.services.config.onboarding import get_ollama_base_url
+
+        monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+        monkeypatch.setenv("OLLAMA_HOST", "https://ollama.lan:11434")
+        assert get_ollama_base_url() == "https://ollama.lan:11434"
+
