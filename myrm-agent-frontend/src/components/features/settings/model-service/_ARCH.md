@@ -6,6 +6,7 @@ Provider / 模型服务配置 UI：增删 Provider、API Key、批量迁移与�
 | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `ProviderConfig.tsx` / `AddProviderDialog.tsx` / `DeleteProviderDialog.tsx` | Provider CRUD                                                                                              |
 | `ApiKeyManager.tsx` / `ApiUrlSelector.tsx`                                  | 凭证与端点                                                                                                 |
+| `MainToggle.tsx` / `EgressProxyConfig.tsx`                                  | 服务主启用开关与独立出网代理配置                                                                           |
 | `ProviderOAuthSection.tsx`                                                  | Provider OAuth 订阅登录（PKCE / Device Code）                                                              |
 | `ModelCheckbox.tsx` / `ModelInfoCard.tsx` / `InlineModelInfo.tsx`           | 模型列表与信息                                                                                             |
 | `OpenCodeContributorNotice.tsx` / `opencode-contributor-utils.ts`           | OpenCode Go Contributor 模型 consent 提示（模型服务 / 默认模型 / 全局 ModelPicker）                        |
@@ -14,3 +15,4 @@ Provider / 模型服务配置 UI：增删 Provider、API Key、批量迁移与�
 | `ProviderIcon.tsx`                                                          | 内置/自定义 Provider 头像（内置走 LobeHub static SVG 按需加载）                                            |
 | `provider-brand-icon-loaders.ts`                                            | 26 个内置 Provider → `@lobehub/icons-static-svg` 动态 import 映射 + 缓存                                   |
 | `__tests__/provider-brand-icon-loaders.test.ts`                             | 内置 Provider 图标覆盖率 + SVG 文件存在性 + slug/import 对齐测试（`pretest`/`verify:provider-icons` 门禁） |
+| `__tests__/EgressProxyConfig.test.tsx`                                      | 出网代理配置输入与连通性探测单元测试                                                                       |
