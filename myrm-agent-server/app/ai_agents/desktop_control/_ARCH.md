@@ -9,7 +9,7 @@ handles per-app first approval (persisted under chat workspace volume), and emit
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `gate.py` | Core | `DesktopControlGate` callback + registry + trust helpers. Timeout via `MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC` (default 60s). Persists always-approved apps to `{workspace}/.agent/desktop_control/approved_apps.json`. `reset_all_runtime_approval_state` clears pending registry | ✅ |
+| `gate.py` | Core | `DesktopControlGate` callback + registry + trust helpers. Timeout via `MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC` (default 60s). Persists always-approved apps to `{workspace}/.agent/desktop_control/approved_apps.json`. `reset_all_runtime_approval_state` clears pending registry. Run-scoped trust: `preapproved_trust_keys` seeds instance session keys (exact match, e.g. cron blueprint); `unattended_fail_fast` denies untrusted apps immediately without the approval wait. `reset_run_scoped_trust` drops seeded keys only | ✅ |
 
 ## Trust API
 
