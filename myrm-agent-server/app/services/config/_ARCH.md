@@ -63,13 +63,14 @@ feishuCredentials, dingtalkCredentials, slackCredentials, ...
 
 ### 4. Onboarding (`onboarding.py`)
 
-**职责**：首次配置引导流程。
+**职责**：首次配置引导流程与本地模型/端点解析。
 
 **核心函数**：
+- `get_ollama_base_url()`：Ollama 基础端点解析 SSOT（支持 `OLLAMA_BASE_URL` / `OLLAMA_HOST` / `OLLAMA_HOST_URL`，自动协议补全，NAS 容器内打通宿主机）
 - `check_onboarding_status()`：检查用户是否已完成首次配置
 - `complete_onboarding()`：标记首次配置完成
 - `get_recommended_providers()`：返回推荐 provider 列表（Ollama/OpenAI/Anthropic）
-- `probe_local_models()`：并发探测本地模型服务（Ollama:11434, LM Studio:1234），返回可用性、模型列表和延迟
+- `probe_local_models()`：并发探测本地模型服务（Ollama, LM Studio:1234），返回可用性、模型列表和延迟
 
 ### 5. 健康监控 (`health_monitor.py`)
 
