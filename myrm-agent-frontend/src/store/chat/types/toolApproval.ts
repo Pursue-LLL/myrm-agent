@@ -36,6 +36,8 @@ export interface ToolApprovalRequest {
   domainApproval?: boolean;
   /** PTC/MCP annotations (e.g. readOnlyHint, destructiveHint) */
   ptcAnnotations?: Record<string, boolean>;
+  /** Unified diff preview for file-mutating tool approvals */
+  diff?: string;
   /** Pipeline segment highlight spans (shell approval UX) */
   commandSpans?: { startIndex: number; endIndex: number }[];
   /** Per-segment risk from harness risk_classifier */

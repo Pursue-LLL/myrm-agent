@@ -38,7 +38,7 @@ export default function SessionSpendSurface({ className }: SessionSpendSurfacePr
   const messages = useChatStore((s) => s.messages);
   const chatId = useChatStore((s) => s.chatId);
   const setActiveSessionAnalyticsId = useChatStore((s) => s.setActiveSessionAnalyticsId);
-  const isGenerating = useChatStore((s) => s.isGenerating);
+  const isGenerating = useChatStore((s) => s.loading);
   const { entitlements } = useEntitlements();
   const { catalog } = useBillingCatalog();
 

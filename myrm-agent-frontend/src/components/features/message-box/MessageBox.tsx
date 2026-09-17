@@ -23,8 +23,9 @@ import { useTranslations } from 'next-intl';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
 import useChatStore, { Message } from '@/store/useChatStore';
+import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useConfigStore from '@/store/useConfigStore';
-import type { McpAppView, Source, ToolImageOutput } from '@/store/chat/types';
+import type { McpAppView, ProgressItem, Source, ToolImageOutput } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { mergeMessageSources } from '@/store/chat/messageStream/streamHelpers';
 import {
@@ -98,9 +99,10 @@ const ReasoningBlock = ({
       setElapsedSec(0);
       return;
     }
-    setElapsedSec(Math.floor((Date.now() - message.reasoningStartedAt) / 1000));
+    const startedAt = message.reasoningStartedAt;
+    setElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
     const timer = setInterval(() => {
-      setElapsedSec(Math.floor((Date.now() - message.reasoningStartedAt!) / 1000));
+      setElapsedSec(Math.floor((Date.now() - startedAt) / 1000));
     }, 1000);
     return () => clearInterval(timer);
   }, [isThinking, message.reasoningStartedAt]);
@@ -141,7 +143,7 @@ const ReasoningBlock = ({
       {showExpanded && (
         <div className="px-4 py-3 border-t border-border/50 text-sm text-muted-foreground bg-muted/10">
           <MarkdownContent
-            content={message.reasoning!}
+            content={message.reasoning ?? ''}
             sources={[]}
             messageId={`${message.messageId}-reasoning`}
             isStreaming={isThinking}
@@ -182,6 +184,11 @@ const MessageBox = ({
   const hideInlineClarification = composerPendingClarification?.messageId === message.messageId;
   const hideInlineDirectoryRequest = composerPendingDirectoryRequest?.messageId === message.messageId;
   const chatId = useChatStore((state) => (typeof state.chatId === 'string' ? state.chatId : undefined));
+  // Approval cards render inline under the assistant message that produced them,
+  // so the pending flag is derived from the global approval queue keyed by messageId.
+  const approvalPending = useToolApprovalStore((state) =>
+    state.queue.some((request) => request.messageId === message.messageId),
+  );
   const workspaceDir = useChatStore((state) => state.workspaceDir ?? undefined);
   const enableEvalLab = useConfigStore((state) => state.enableEvalLab);
   const reasoningDisplayMode = useConfigStore(
@@ -526,12 +533,11 @@ const MessageBox = ({
 
         {/* 进度步骤与执行阶段 HUD */}
         {(() => {
-          const resolvedProgressSteps =
-            message.progressSteps && message.progressSteps.length > 0
-              ? message.progressSteps
-              : Array.isArray(message.metadata?.progressSteps)
-                ? (message.metadata.progressSteps as typeof message.progressSteps)
-                : [];
+          const resolvedProgressSteps: ProgressItem[] = message.progressSteps?.length
+            ? message.progressSteps
+            : Array.isArray(message.metadata?.progressSteps)
+              ? (message.metadata.progressSteps as ProgressItem[])
+              : [];
           return (
             <div className="space-y-1.5">
               {(message.phaseExecution || (loading && isLast)) && (
@@ -539,7 +545,7 @@ const MessageBox = ({
                   phaseExecution={message.phaseExecution}
                   phaseHistory={message.phaseHistory}
                   loading={loading && isLast}
-                  isApprovalPending={!!message.toolApproval?.pending}
+                  isApprovalPending={approvalPending}
                 />
               )}
               {resolvedProgressSteps.length > 0 && (
