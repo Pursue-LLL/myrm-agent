@@ -24,6 +24,7 @@ local-ip-address = "0.6"
 async-trait = "0.1"
 uuid = { version = "1", features = ["v4", "serde"] }
 thiserror = "1"
+libc = "0.2"
 tauri-plugin-clipboard-manager = "2.3.2"
 tauri-plugin-deep-link = "2.0"
 tauri-plugin-global-shortcut = "2.0.0-rc.0"

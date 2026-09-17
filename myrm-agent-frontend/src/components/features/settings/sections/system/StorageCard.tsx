@@ -6,7 +6,7 @@ import { Database, Sparkles, CheckCircle2, AlertCircle, RefreshCw, Layers, Chevr
 import { IconSettings } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
-import { isTauriRuntime } from '@/lib/deploy-mode';
+import { isTauriRuntime, getDeployMode } from '@/lib/deploy-mode';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import { systemService, type StorageOptimizePreflightResponse, type StorageOptimizeResponse } from '@/services/system';
@@ -183,19 +183,24 @@ const StorageCard = memo<{
               {storageInfo?.data_dir ?? customDataDir ?? '~/.myrm'}
             </p>
           </div>
-          {isTauriRuntime() && (
+          {isTauriRuntime() ? (
             <button
               onClick={() => void handleChangeDir()}
               disabled={isMigrating}
               className={cn(
-                'px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap',
+                'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap',
                 isMigrating
-                  ? 'bg-white/5 text-muted-foreground cursor-not-allowed'
+                  ? 'bg-white/5 text-muted-foreground cursor-not-allowed opacity-70'
                   : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20',
               )}
             >
-              {isMigrating ? t('storageMigrating') : t('storageChange')}
+              {isMigrating && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isMigrating ? t('storageMigrating') : t('storageChange')}</span>
             </button>
+          ) : (
+            <div className="text-xs text-muted-foreground/80 max-w-sm sm:text-right bg-white/[0.03] border border-white/5 px-3 py-1.5 rounded-lg">
+              {getDeployMode() === 'sandbox' ? t('storageSandboxHint') : t('storageLocalWebuiHint')}
+            </div>
           )}
         </div>
 

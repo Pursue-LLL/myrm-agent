@@ -17611,6 +17611,8 @@
         "storageMigrateFailed": "데이터 마이그레이션 실패",
         "storageLowWarning": "디스크 공간 부족, 데이터를 다른 드라이브로 마이그레이션하는 것을 고려하세요",
         "storageSelectDir": "새 데이터 저장 디렉토리 선택",
+        "storageLocalWebuiHint": "현재 WebUI 독립 모드로 실행 중입니다. 저장 경로를 변경하려면 MYRM_DATA_DIR 환경 변수를 설정하고 서비스를 다시 시작하세요.",
+        "storageSandboxHint": "클라우드 샌드박스 모드로 실행 중입니다. 데이터는 독립 샌드박스의 영구 볼륨(Persistent Volume)에서 안전하게 호스팅됩니다.",
         "storageOptimize": "저장소 최적화",
         "storageOptimizing": "최적화 중...",
         "storageOptimizeTitle": "데이터베이스 저장소 최적화",

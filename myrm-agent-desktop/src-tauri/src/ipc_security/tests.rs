@@ -184,14 +184,14 @@ fn blocks_session_webview_for_main_only_command() {
 }
 
 #[test]
-fn allows_session_webview_for_agent_message_command() {
-    let result = authorize_request("send_agent_message", "session-abc");
+fn allows_session_webview_for_stateful_command() {
+    let result = authorize_request("inline_paste_back", "session-abc");
     assert!(result.is_ok());
 }
 
 #[test]
 fn blocks_unknown_webview_label() {
-    let result = authorize_request("send_agent_message", "overlay-window");
+    let result = authorize_request("inline_paste_back", "overlay-window");
     assert!(result.is_err());
     let denied = result.expect_err("unknown webview should be blocked");
     assert_eq!(denied.reason_code, "untrusted_webview");

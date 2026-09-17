@@ -143,7 +143,7 @@ pub fn update_global_shortcut(
     result
 }
 
-/// 迁移数据目录到新路径：先校验意图票据，再停止后端、复制数据、更新配置并重启
+/// 迁移数据目录到新路径：前置路径与容量预检、意图确认、动态全量数据同步与自愈容灾
 #[tauri::command]
 pub async fn migrate_data_dir(
     app: tauri::AppHandle,
@@ -152,30 +152,6 @@ pub async fn migrate_data_dir(
     config_manager: State<'_, ConfigManager>,
     backend: State<'_, crate::runtime::PythonBackend>,
 ) -> Result<String, String> {
-    let new_path = Path::new(&new_dir);
-
-    if !new_path.exists() {
-        std::fs::create_dir_all(new_path)
-            .map_err(|e| format!("Failed to create target directory: {}", e))?;
-    }
-
-    if !new_path.is_dir() {
-        return Err("Target path is not a directory".to_string());
-    }
-
-    let test_file = new_path.join(".myrm_write_test");
-    std::fs::write(&test_file, b"test")
-        .map_err(|_| "Target directory is not writable".to_string())?;
-    let _ = std::fs::remove_file(&test_file);
-
-    ipc_security::consume_sensitive_ticket(SensitiveAction::MigrateDataDir, &action_ticket)?;
-    ipc_security::require_sensitive_action_confirmation(
-        &app,
-        SensitiveAction::MigrateDataDir,
-        Some(&new_dir),
-    )
-    .await?;
-
     let config = config_manager.load();
     let old_dir = config.custom_data_dir.clone().unwrap_or_else(|| {
         let home = std::env::var("HOME")
@@ -184,71 +160,75 @@ pub async fn migrate_data_dir(
         format!("{}/.myrm", home)
     });
     let old_path = Path::new(&old_dir);
+    let new_path = Path::new(&new_dir);
 
-    println!("📦 Migrating data: {:?} → {:?}", old_path, new_path);
+    // 1. 目标路径合法性、防嵌套递归与同名冲突预检
+    super::data_migration::validate_target_directory(old_path, new_path)?;
 
-    crate::runtime::stop_backend(app.clone(), backend.clone())?;
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-
-    if old_path.exists() {
-        let items = [
-            "data.db",
-            "checkpoints.db",
-            "qdrant",
-            "harness",
-            "event_logs",
-            "memory",
-        ];
-        for item in &items {
-            let src = old_path.join(item);
-            let dst = new_path.join(item);
-            if !src.exists() {
-                continue;
-            }
-            if src.is_dir() {
-                copy_dir_recursive(&src, &dst)?;
-            } else {
-                if let Some(parent) = dst.parent() {
-                    let _ = std::fs::create_dir_all(parent);
-                }
-                std::fs::copy(&src, &dst).map_err(|e| format!("Failed to copy {}: {}", item, e))?;
-            }
-            println!("  ✅ Copied: {}", item);
+    // 2. 磁盘可用容量硬预检（安全阈值：1.2x 源数据量 + 500MB）
+    let required_size = super::data_migration::calculate_dir_size(old_path);
+    let safety_margin = (required_size as f64 * 1.2) as u64 + 500 * 1024 * 1024;
+    if let Some(available_space) = super::data_migration::get_available_disk_space(new_path) {
+        if available_space < safety_margin {
+            return Err(format!(
+                "Insufficient disk space on target partition: available {} MB, required {} MB (with safety margin)",
+                available_space / (1024 * 1024),
+                safety_margin / (1024 * 1024)
+            ));
         }
     }
 
+    // 3. 消费敏感操作票据并弹窗要求用户最终确认
+    ipc_security::consume_sensitive_ticket(SensitiveAction::MigrateDataDir, &action_ticket)?;
+    ipc_security::require_sensitive_action_confirmation(
+        &app,
+        SensitiveAction::MigrateDataDir,
+        Some(&new_dir),
+    )
+    .await?;
+
+    println!("📦 Migrating data: {:?} → {:?}", old_path, new_path);
+
+    // 4. 优雅停止后端服务
+    crate::runtime::stop_backend(app.clone(), backend.clone())?;
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+    // 5. 动态条目全量迁移（异常时自动清理半成品并重启恢复旧后端）
+    let migration_res = super::data_migration::perform_data_migration(old_path, new_path);
+    if let Err(copy_err) = migration_res {
+        println!(
+            "⚠️ Data migration failed: {}. Restoring original backend...",
+            copy_err
+        );
+        let old_backend_config = crate::config::BackendConfig::from_system_config(&config);
+        let restart_res =
+            crate::runtime::start_backend_with_config(app.clone(), backend, old_backend_config)
+                .await;
+        let restart_msg = match restart_res {
+            Ok(_) => "Original backend successfully restored.".to_string(),
+            Err(e) => format!("Failed to restore original backend: {}", e),
+        };
+        return Err(format!(
+            "Data migration failed: {}. Rollback performed: {}",
+            copy_err, restart_msg
+        ));
+    }
+
+    // 6. 持久化新路径配置并拉起新后端服务
     let mut new_config = config;
     new_config.custom_data_dir = Some(new_dir.clone());
     config_manager.save(&new_config)?;
 
-    println!("✅ Migration complete. Restarting backend...");
+    println!("✅ Migration complete. Restarting backend with new data root...");
 
     let backend_config = crate::config::BackendConfig::from_system_config(&new_config);
     match crate::runtime::start_backend_with_config(app.clone(), backend, backend_config).await {
         Ok(msg) => Ok(format!("Migration complete, backend restarted: {}", msg)),
         Err(e) => Err(format!(
-            "Migration complete but backend restart failed: {}. Please restart the app.",
+            "Migration files copied, but backend restart failed: {}. Please restart the app.",
             e
         )),
     }
-}
-
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
-    std::fs::create_dir_all(dst).map_err(|e| format!("Failed to create dir {:?}: {}", dst, e))?;
-    for entry in
-        std::fs::read_dir(src).map_err(|e| format!("Failed to read dir {:?}: {}", src, e))?
-    {
-        let entry = entry.map_err(|e| format!("Dir entry error: {}", e))?;
-        let src_path = entry.path();
-        let dst_path = dst.join(entry.file_name());
-        if src_path.is_dir() {
-            copy_dir_recursive(&src_path, &dst_path)?;
-        } else {
-            std::fs::copy(&src_path, &dst_path)
-                .map_err(|e| format!("Failed to copy {:?}: {}", src_path, e))?;
-        }
-    }
-    Ok(())
 }
 
 fn register_shortcuts(

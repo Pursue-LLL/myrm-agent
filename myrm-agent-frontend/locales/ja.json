@@ -17611,6 +17611,8 @@
         "storageMigrateFailed": "データ移行失敗",
         "storageLowWarning": "ディスク容量が不足しています。データを別のドライブに移行することを検討してください",
         "storageSelectDir": "新しいデータ保存ディレクトリを選択",
+        "storageLocalWebuiHint": "WebUI スタンドアロンモードで実行中です。保存ルートディレクトリを変更する場合は、MYRM_DATA_DIR 環境変数を設定してサービスを再起動してください。",
+        "storageSandboxHint": "クラウドサンドボックスモードで実行中です。データは専用サンドボックスの永続ボリューム（Persistent Volume）によって安全に管理されています。",
         "storageOptimize": "ストレージを最適化",
         "storageOptimizing": "最適化中...",
         "storageOptimizeTitle": "データベースストレージの最適化",

@@ -5238,6 +5238,8 @@
         "storageMigrateFailed": "数据迁移失败",
         "storageLowWarning": "磁盘空间不足，建议迁移数据到其他磁盘",
         "storageSelectDir": "选择新的数据存储目录",
+        "storageLocalWebuiHint": "当前为 WebUI 独立服务模式，如需变更存储根目录，请在启动时配置 MYRM_DATA_DIR 环境变量并重启服务。",
+        "storageSandboxHint": "当前为云端沙箱托管模式，数据由独立沙箱持久化存储卷（Persistent Volume）安全托管。",
         "storageOptimizeTitle": "会话数据库智能优化",
         "storageOptimize": "优化瘦身",
         "storageOptimizing": "正在优化...",

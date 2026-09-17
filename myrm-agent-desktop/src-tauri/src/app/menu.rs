@@ -12,7 +12,7 @@
 //! 系统剪贴板与编辑快捷键（Cmd/Ctrl+C/V/X/A/Z）通过操作系统 Responder Chain 100% 坚如磐石。
 
 use tauri::menu::{Menu, PredefinedMenuItem, Submenu};
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 pub fn setup_app_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let app_name = &app.package_info().name;

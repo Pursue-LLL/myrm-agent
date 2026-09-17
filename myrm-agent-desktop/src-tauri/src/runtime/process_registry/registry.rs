@@ -93,6 +93,7 @@ impl ProcessRegistry {
     }
 
     /// 查询特定进程状态
+    #[allow(dead_code)]
     pub async fn get_entry(&self, id: &str) -> Option<ManagedProcessEntry> {
         let map = self.entries.read().await;
         map.get(id).cloned()

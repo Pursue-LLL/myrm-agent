@@ -17611,6 +17611,8 @@
         "storageMigrateFailed": "Die Datenmigration ist fehlgeschlagen",
         "storageLowWarning": "Wenig Speicherplatz, erwägen Sie die Migration von Daten auf ein anderes Laufwerk",
         "storageSelectDir": "Wählen Sie ein neues Datenspeicherverzeichnis",
+        "storageLocalWebuiHint": "Ausführung im eigenständigen WebUI-Modus. Um den Speicherpfad zu ändern, setzen Sie die Umgebungsvariable 'MYRM_DATA_DIR' und starten Sie den Dienst neu.",
+        "storageSandboxHint": "Ausführung im Cloud-Sandbox-Modus. Die Daten werden sicher über ein persistentes Volume (Persistent Volume) der Sandbox verwaltet.",
         "storageOptimize": "Speicher optimieren",
         "storageOptimizing": "Optimieren...",
         "storageOptimizeTitle": "Datenbank-Speicheroptimierung",

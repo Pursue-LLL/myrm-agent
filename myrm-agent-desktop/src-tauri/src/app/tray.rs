@@ -17,6 +17,8 @@ use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager};
 
+static ENGINE_VER_ITEM: std::sync::Mutex<Option<MenuItem<tauri::Wry>>> = std::sync::Mutex::new(None);
+
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         #[cfg(target_os = "macos")]
@@ -73,6 +75,9 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 
     let shell_ver_i = MenuItem::with_id(app, "version_shell", shell_ver_text, false, None::<&str>)?;
     let engine_ver_i = MenuItem::with_id(app, "version_engine", engine_ver_text, false, None::<&str>)?;
+    if let Ok(mut guard) = ENGINE_VER_ITEM.lock() {
+        *guard = Some(engine_ver_i.clone());
+    }
     let sep0 = PredefinedMenuItem::separator(app)?;
 
     let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
@@ -142,25 +147,17 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
 /// 更新托盘菜单项与版本/升级状态信息
 #[tauri::command]
 pub fn update_tray_info(
-    app: AppHandle,
+    _app: AppHandle,
     engine_version: Option<String>,
     upgrade_progress: Option<String>,
 ) -> Result<(), String> {
-    if let Some(tray) = app.tray_by_id("main") {
-        if let Some(menu) = tray.menu() {
+    if let Ok(guard) = ENGINE_VER_ITEM.lock() {
+        if let Some(ref item) = *guard {
             if let Some(engine_ver) = engine_version {
-                if let Some(item) = menu.get("version_engine") {
-                    if let Some(menu_item) = item.as_menuitem() {
-                        let _ = menu_item.set_text(format!("Engine Sidecar: v{engine_ver}"));
-                    }
-                }
+                let _ = item.set_text(format!("Engine Sidecar: v{engine_ver}"));
             }
             if let Some(progress) = upgrade_progress {
-                if let Some(item) = menu.get("version_engine") {
-                    if let Some(menu_item) = item.as_menuitem() {
-                        let _ = menu_item.set_text(format!("🔄 {progress}"));
-                    }
-                }
+                let _ = item.set_text(format!("🔄 {progress}"));
             }
         }
     }

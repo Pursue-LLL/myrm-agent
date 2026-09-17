@@ -5238,6 +5238,8 @@
         "storageMigrateFailed": "Data migration failed",
         "storageLowWarning": "Low disk space, consider migrating data to another drive",
         "storageSelectDir": "Select new data storage directory",
+        "storageLocalWebuiHint": "Running in standalone WebUI mode. To change the storage root, set the MYRM_DATA_DIR environment variable before starting the service.",
+        "storageSandboxHint": "Running in Cloud Sandbox mode. Data is securely managed by the sandboxed Persistent Volume.",
         "storageOptimize": "Optimize Storage",
         "storageOptimizing": "Optimizing...",
         "storageOptimizeTitle": "Database Storage Optimization",

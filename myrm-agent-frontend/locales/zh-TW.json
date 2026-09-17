@@ -17611,6 +17611,8 @@
         "storageMigrateFailed": "資料遷移失敗",
         "storageLowWarning": "磁碟空間不足，建議遷移資料到其他磁碟",
         "storageSelectDir": "選擇新的資料儲存目錄",
+        "storageLocalWebuiHint": "目前為 WebUI 獨立服務模式，如需變更儲存根目錄，請在啟動時配置 MYRM_DATA_DIR 環境變數並重啟服務。",
+        "storageSandboxHint": "目前為雲端沙盒託管模式，資料由獨立沙盒持久化儲存卷（Persistent Volume）安全託管。",
         "storageOptimize": "優化儲存",
         "storageOptimizing": "正在優化...",
         "storageOptimizeTitle": "資料庫儲存優化",

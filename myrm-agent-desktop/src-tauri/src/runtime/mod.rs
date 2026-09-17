@@ -25,16 +25,19 @@ pub mod sidecar_version_manager;
 pub mod survivor_diag;
 pub mod watchdog;
 
+#[allow(unused_imports)]
 pub use process_registry::{ManagedProcessEntry, ProcessRegistry, ProcessRole, ProcessStatus};
 pub use appshot::{
     force_capture, handle_appshot_shortcut, handle_toggle_window, handle_voice_ptt_start,
     handle_voice_ptt_stop, APPSHOT_SHORTCUT_STR, VOICE_PTT_SHORTCUT_STR,
 };
 pub use inline_input::{handle_inline_input_shortcut, paste_back, INLINE_INPUT_SHORTCUT_STR};
+#[allow(unused_imports)]
 pub use theme_package_open::{emit_theme_package_open, handle_open_urls, handle_startup_args};
 pub use nextjs_frontend::{start_frontend, stop_frontend, NextJSFrontend};
 pub use python_backend::{start_backend_with_config, stop_backend, PythonBackend};
 pub use setup_token::SetupTokenState;
+#[allow(unused_imports)]
 pub use sidecar_version_manager::{SidecarVersionManager, SidecarVersionManifest};
 
 /// Host environment variables that must be stripped before spawning child processes.

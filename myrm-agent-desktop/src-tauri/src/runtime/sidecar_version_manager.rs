@@ -64,6 +64,7 @@ impl SidecarVersionManager {
     }
 
     /// 获取版本根目录
+    #[allow(dead_code)]
     pub fn versions_root(&self) -> &Path {
         &self.versions_root
     }
@@ -200,7 +201,7 @@ mod tests {
     use std::fs::File;
     use std::io::Write;
 
-    fn setup_test_env(dir_name: &str) -> (tempfile::TempDir, PathBuf) {
+    fn setup_test_env(_dir_name: &str) -> (tempfile::TempDir, PathBuf) {
         let temp_dir = tempfile::tempdir().expect("create temp dir");
         let factory_binary = temp_dir.path().join("factory_backend");
         let mut file = File::create(&factory_binary).expect("create factory binary");

@@ -10,7 +10,7 @@
 //! [POS]
 //! 供前端 Doctor 面板、诊断设置及进程监视器调用的 IPC 接口。
 
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 use crate::runtime::{ManagedProcessEntry, ProcessRegistry};
 
