@@ -24,9 +24,10 @@ const WorkingStateBadge = memo(({ chatId: propChatId }: WorkingStateBadgeProps =
   const prevLoadingRef = useRef(loading);
   const prevChatIdRef = useRef(chatId);
 
-  const fetchState = useCallback(async () => {
+  const fetchState = useCallback(async (isCancelled?: () => boolean) => {
     try {
       const res = await getWorkingState();
+      if (isCancelled && isCancelled()) return;
       if (res.live_state) {
         setLiveState(res.live_state);
         setFallbackContent(null);
@@ -43,13 +44,18 @@ const WorkingStateBadge = memo(({ chatId: propChatId }: WorkingStateBadgeProps =
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     // When switching sessions, immediately reset local workbench state to prevent ghost bleed
     if (prevChatIdRef.current !== chatId) {
       setLiveState(null);
       setFallbackContent(null);
       prevChatIdRef.current = chatId;
     }
-    fetchState();
+    fetchState(() => cancelled);
+
+    return () => {
+      cancelled = true;
+    };
   }, [chatId, fetchState]);
 
   useEffect(() => {
