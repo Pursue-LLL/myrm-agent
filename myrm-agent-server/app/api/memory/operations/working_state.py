@@ -6,6 +6,9 @@
 
 [OUTPUT]
 - router: `/memory/working-state` read/write/clear working state & live workbench
+
+[POS]
+- 工作记忆与任务看板传输层。提供实时手边工作台快照、子任务动态流转、避坑项登记与历史任务成果摘要接口。
 """
 
 from __future__ import annotations
