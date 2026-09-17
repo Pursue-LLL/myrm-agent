@@ -38,6 +38,7 @@ export type {
 import type {
   BlueprintDef,
   BlueprintFillResponse,
+  ConnectorsHealthListResponse,
   CreateCronJobRequest,
   CronJob,
   CronJobsListResponse,

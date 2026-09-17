@@ -252,6 +252,8 @@ export interface CreateCronJobRequest {
   name: string;
   job_type: 'agent' | 'shell' | 'router' | 'reminder';
   schedule: CronSchedule;
+  /** Originating chat session; the job's runs are attributed to this chat */
+  chat_id?: string;
   prompt?: string;
   model?: string;
   agent_id?: string;
