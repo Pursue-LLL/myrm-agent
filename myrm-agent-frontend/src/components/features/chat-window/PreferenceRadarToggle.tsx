@@ -113,7 +113,9 @@ export const PreferenceRadarToggle: React.FC<PreferenceRadarToggleProps> = ({
   const handleSelectPreset = useCallback(
     async (presetKey: 'balanced' | 'code' | 'research') => {
       const targetPreset = RADAR_PRESETS[presetKey];
-      if (!targetPreset) return;
+      if (!targetPreset) {
+        return;
+      }
       setValues(targetPreset.values);
       try {
         await tunePreferenceRadar(effectiveSessionId, {

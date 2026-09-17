@@ -405,6 +405,7 @@ async def search_memories(
     query: str = Query(..., min_length=1, description="Search query"),
     memory_types: str | None = Query(None, description="Comma-separated memory types"),
     limit: int = Query(10, ge=1, le=50, description="Maximum results"),
+    session_id: str | None = Query(None, description="Optional session ID to apply preference radar weights"),
     manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> MemorySearchResponse:
     """Semantic search across user's memories using vector similarity."""
@@ -412,13 +413,24 @@ async def search_memories(
     if memory_types:
         types = [parse_memory_type(t.strip()) for t in memory_types.split(",")]
 
-    results = await manager.search(query, memory_types=types, limit=limit)
+    dynamic_weights: dict[str, float] | None = None
+    if session_id:
+        from app.services.memory.preference_radar_service import preference_radar_service
+
+        dynamic_weights = preference_radar_service.get_effective_signal_weights(session_id)
+
+    results = await manager.search(
+        query,
+        memory_types=types,
+        limit=limit,
+        dynamic_signal_weights=dynamic_weights,
+    )
     items = [memory_to_item(r.memory, r.memory_type) for r in results]
     scores = [r.score for r in results]
     await _record_memory_event(
         kind=MemoryOperationKind.RECALL,
         summary="Memory search executed.",
-        metadata={"result_count": len(items), "limit": limit},
+        metadata={"result_count": len(items), "limit": limit, "session_id": session_id},
     )
 
     return MemorySearchResponse(results=items, scores=scores, query=query, total=len(items))

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from app.schemas.memory.radar import (
@@ -95,3 +97,34 @@ async def test_reset_to_neutral(radar_service: PreferenceRadarService) -> None:
 
     assert reset_state.recency == 1.0
     assert reset_state.conciseness == 1.0
+
+
+@pytest.mark.asyncio
+async def test_persistence_and_cold_boot_recovery(tmp_path: object, monkeypatch: pytest.MonkeyPatch) -> None:
+    session_id = "session-persistence-01"
+    storage_file = str(tmp_path) + "/preference_radar.json"
+
+    monkeypatch.setattr(
+        PreferenceRadarService,
+        "_resolve_storage_file",
+        lambda self: Path(storage_file),
+    )
+
+    srv1 = PreferenceRadarService()
+    await srv1.update_state(
+        session_id,
+        UpdatePreferenceRadarRequest(technical_depth=2.8, conciseness=2.5, locked=True),
+    )
+
+    assert Path(storage_file).is_file()
+
+    srv2 = PreferenceRadarService()
+    state2 = await srv2.get_state(session_id)
+    assert state2.technical_depth == 2.8
+    assert state2.conciseness == 2.5
+    assert state2.locked is True
+
+    weights = srv2.get_effective_signal_weights(session_id)
+    assert "importance" in weights
+    assert weights["importance"] > 0
+

@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { PreferenceRadarToggle } from '../PreferenceRadarToggle';
 
 vi.mock('@/services/memory/preferences', () => ({
@@ -39,7 +39,9 @@ describe('PreferenceRadarToggle', () => {
   });
 
   it('renders satellite button and toggles drawer on click', async () => {
-    render(<PreferenceRadarToggle chatId="session-123" />);
+    await act(async () => {
+      render(<PreferenceRadarToggle chatId="session-123" />);
+    });
 
     const toggleBtn = screen.getByTestId('preference-radar-toggle-button');
     expect(toggleBtn).toBeInTheDocument();
@@ -48,11 +50,19 @@ describe('PreferenceRadarToggle', () => {
     expect(screen.queryByTestId('preference-radar-drawer')).toBeNull();
 
     // Click to open drawer
-    fireEvent.click(toggleBtn);
-    expect(screen.getByTestId('preference-radar-drawer')).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(toggleBtn);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('preference-radar-drawer')).toBeInTheDocument();
+    });
 
     // Click again to close drawer
-    fireEvent.click(toggleBtn);
-    expect(screen.queryByTestId('preference-radar-drawer')).toBeNull();
+    await act(async () => {
+      fireEvent.click(toggleBtn);
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId('preference-radar-drawer')).toBeNull();
+    });
   });
 });
