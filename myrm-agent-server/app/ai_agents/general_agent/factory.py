@@ -19,8 +19,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Sequence
 
     from myrm_agent_harness.agent.extensions.protocols import AgentExtension
-    from myrm_agent_harness.api import SkillAgent
-    from myrm_agent_harness.toolkits.memory.consolidation import WorkingMemorySnapshot
+    from myrm_agent_harness.api import SkillAgent, WorkingMemorySnapshot
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
     from app.ai_agents.general_agent.agent import GeneralAgent
@@ -1055,10 +1054,8 @@ def _get_budget_pressure_fn() -> "Callable[[], bool] | None":
 
 def _working_memory_snapshot() -> "WorkingMemorySnapshot | None":
     """Adapt the agent working memory block into a toolkit-neutral snapshot."""
-    from myrm_agent_harness.agent.context_management.working_memory import (
+    from myrm_agent_harness.api import (
         LocalWorkingMemoryBlock,
-    )
-    from myrm_agent_harness.toolkits.memory.consolidation import (
         WorkingMemorySnapshot,
     )
 
@@ -1081,14 +1078,12 @@ def _build_session_cleanup_callback(
     if lite_llm is None:
         return None
 
-    from myrm_agent_harness.agent.context_management.working_memory import (
+    from myrm_agent_harness.api import (
         LocalWorkingMemoryBlock,
+        create_consolidation_cleanup_task,
     )
     from myrm_agent_harness.api.hooks import (
         create_extraction_llm_func,
-    )
-    from myrm_agent_harness.toolkits.memory import (
-        create_consolidation_cleanup_task,
     )
     from myrm_agent_harness.toolkits.memory.session_post_process import (
         run_session_post_process,

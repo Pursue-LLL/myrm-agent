@@ -70,6 +70,8 @@ export interface Memory {
   tool_rule_priority?: 'critical' | 'high' | 'normal';
   expected_valid_days?: number;
   is_user_locked?: boolean;
+  is_exact_fact?: boolean;
+  exact_identifiers?: string[];
   event_type?: string;
   related_entities?: string[];
   tags?: string[];
@@ -128,6 +130,8 @@ export interface UpdateMemoryRequest {
   tags?: string[];
   /** Procedural rules only: true protects the rule from agent edits/deletes, false releases it. */
   is_user_locked?: boolean;
+  /** Exact facts: deterministic hard lock against forgetting or lossy compression. */
+  is_exact_fact?: boolean;
 }
 
 export interface MemorySearchResponse {
@@ -162,6 +166,7 @@ export interface CreateMemoryRequest {
   trigger?: string;
   action?: string;
   related_entities?: string[];
+  is_exact_fact?: boolean;
 }
 
 // ==================== API 函数 ====================

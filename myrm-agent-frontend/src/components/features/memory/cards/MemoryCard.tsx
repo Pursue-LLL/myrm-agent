@@ -154,6 +154,15 @@ const MemoryCard = memo<MemoryCardProps>(
                 </span>
               )}
               {confirmed?.is_user_locked && <Lock size={12} className="text-amber-500" aria-label={t('locked')} />}
+              {confirmed?.is_exact_fact && (
+                <span
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                  title={confirmed.exact_identifiers && confirmed.exact_identifiers.length > 0 ? `精确事实 hard-lock: ${confirmed.exact_identifiers.join(', ')}` : '精确事实 hard-lock'}
+                >
+                  <Lock size={10} className="text-blue-500" />
+                  <span>精确事实</span>
+                </span>
+              )}
               {isPending &&
                 'confidence' in memory &&
                 memory.confidence !== undefined &&

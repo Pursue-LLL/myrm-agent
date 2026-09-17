@@ -273,6 +273,7 @@ async def update_memory(
             application=body.application,
             tags=body.tags,
             is_user_locked=resolved_lock,
+            is_exact_fact=body.is_exact_fact,
         )
         await _record_memory_event(
             kind=MemoryOperationKind.WRITE,
