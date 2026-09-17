@@ -190,7 +190,7 @@ export const ToolGuidancePanel: React.FC<ToolGuidancePanelProps> = ({ className 
                   {activeGroup.guidelines.length > 0 ? (
                     <ul className="space-y-1.5">
                       {activeGroup.guidelines.map((g, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-xs text-foreground bg-background/60 rounded px-2.5 py-1.5 border border-border/50">
+                        <li key={`${activeGroup.tool_name}-${g}`} className="flex items-start gap-2 text-xs text-foreground bg-background/60 rounded px-2.5 py-1.5 border border-border/50">
                           <span className="font-mono text-primary text-[10px] shrink-0 mt-0.5">#{idx + 1}</span>
                           <span className="font-medium">{g}</span>
                         </li>
