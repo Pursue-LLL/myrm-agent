@@ -244,7 +244,7 @@ export default function MemoryInsightPanel({
                         profiles: memoryBrief.stable.profile_keys.length,
                       })}
                     </div>
-                    {memoryBudget?.rulesConfigured != null && memoryBudget.rulesInjected != null && (
+                    {memoryBudget?.rulesConfigured !== undefined && memoryBudget.rulesInjected !== undefined && (
                       <div
                         className={cn(
                           'text-[11px] leading-relaxed',

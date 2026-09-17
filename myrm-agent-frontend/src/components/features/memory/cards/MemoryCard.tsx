@@ -389,7 +389,9 @@ const MemoryCard = memo<MemoryCardProps>(
 
           {(() => {
             const tags = confirmed?.tags ?? ('tags' in memory && Array.isArray(memory.tags) ? memory.tags : []);
-            if (!tags || tags.length === 0) return null;
+            if (!tags || tags.length === 0) {
+              return null;
+            }
             return (
               <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
                 <Tag size={11} className="text-muted-foreground/60 shrink-0" />
