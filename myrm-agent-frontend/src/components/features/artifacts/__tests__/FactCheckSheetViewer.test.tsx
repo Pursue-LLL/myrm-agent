@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { FactCheckSheetViewer } from '../FactCheckSheetViewer';
 import type { FactCheckSheet } from '../deliverableTypes';
@@ -42,7 +42,10 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/lib/api', () => ({
   getApiUrl: () => 'http://127.0.0.1:8080',
-  getStorageUrl: (uri: string) => uri,
+  getStorageUrl: (uri: string) =>
+    uri.startsWith('vault://')
+      ? `http://127.0.0.1:8080/api/v1/files/vault/${uri.slice('vault://'.length).split(':')[0]}`
+      : uri,
 }));
 
 const mockSheet: FactCheckSheet = {
@@ -190,7 +193,9 @@ describe('FactCheckSheetViewer', () => {
 
     render(<FactCheckSheetViewer open={true} onOpenChange={vi.fn()} vaultUri="vault://test-uuid-fact-123" />);
 
-    expect(fetchSpy).toHaveBeenCalledWith('http://127.0.0.1:8080/api/v1/files/vault/test-uuid-fact-123');
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith('http://127.0.0.1:8080/api/v1/files/vault/test-uuid-fact-123');
+    });
     fetchSpy.mockRestore();
   });
 });

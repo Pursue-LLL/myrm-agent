@@ -49,12 +49,16 @@ vi.mock('@/lib/api', () => ({
   fetchWithTimeout: vi.fn(),
 }));
 
-vi.mock('@/services/config', () => ({
-  getConfigSyncManager: () => ({
-    get: () => ({ yoloModeEnabled: false }),
-    set: vi.fn(),
-  }),
-}));
+vi.mock('@/services/config', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    getConfigSyncManager: () => ({
+      get: () => ({ yoloModeEnabled: false }),
+      set: vi.fn(),
+    }),
+  };
+});
 
 const setPetPaletteOpenMock = vi.fn();
 const setSpriteEnabledMock = vi.fn();
