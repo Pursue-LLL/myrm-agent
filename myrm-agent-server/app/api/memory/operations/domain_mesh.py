@@ -57,12 +57,14 @@ async def get_domain_mesh_overview(
                 MemoryDomain.ASSISTANT.value,
                 MemoryDomain.TASK.value,
             ):
+                raw_tags = getattr(m, "tags", None) or []
+                safe_tags = [str(t) for t in raw_tags if isinstance(t, (str, int, float))]
                 infer_dom, infer_cat = infer_domain_and_category(
                     memory_type=mtype.value,
                     content=getattr(m, "content", ""),
                     event_type=getattr(m, "event_type", None),
                     preference_type=getattr(m, "preference_type", None),
-                    tags=getattr(m, "tags", None),
+                    tags=safe_tags,
                 )
                 dom_val = infer_dom.value
                 cat = cat or infer_cat.value
@@ -151,12 +153,14 @@ async def get_memory_drill_down(
     ):
         mem_type_name = getattr(mem, "memory_type", "semantic")
         mem_type_str = mem_type_name.value if hasattr(mem_type_name, "value") else str(mem_type_name)
+        raw_tags = getattr(mem, "tags", None) or []
+        safe_tags = [str(t) for t in raw_tags if isinstance(t, (str, int, float))]
         infer_dom, infer_cat = infer_domain_and_category(
             memory_type=mem_type_str,
             content=getattr(mem, "content", ""),
             event_type=getattr(mem, "event_type", None),
             preference_type=getattr(mem, "preference_type", None),
-            tags=getattr(mem, "tags", None),
+            tags=safe_tags,
         )
         dom_val = infer_dom.value
         cat = cat or infer_cat.value
