@@ -131,4 +131,36 @@ describe('MemoryDomainMeshPanel', () => {
       expect(screen.getByText('Start Lossless Import')).toBeInTheDocument();
     });
   });
+
+  it('handles extremely long verbatim content in drill-down dialog safely with scroll container', async () => {
+    const longContent = 'A'.repeat(5000);
+    vi.mocked(domainMeshService.getMemoryDrillDown).mockResolvedValue({
+      id: 'task-1',
+      domain: 'task',
+      category: 'traps',
+      memory_type: 'procedural',
+      l0: 'Avoid destructive git reset',
+      l1: 'Never use git reset without uncommitted work review',
+      l2_content: longContent,
+      created_at: '2026-09-18T00:00:00Z',
+      updated_at: '2026-09-18T00:00:00Z',
+      metadata: {},
+    });
+
+    render(<MemoryDomainMeshPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Avoid destructive git reset')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Avoid destructive git reset'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Memory Details & Traceability')).toBeInTheDocument();
+      expect(screen.getByText(longContent)).toBeInTheDocument();
+      const preEl = screen.getByText(longContent);
+      expect(preEl.className).toContain('overflow-y-auto');
+      expect(preEl.className).toContain('max-h-[48vh]');
+    });
+  });
 });
