@@ -110,7 +110,7 @@ const HealthBadge = memo<{ health: KeyHealthState; onRetry?: () => void }>(({ he
         <TooltipTrigger asChild>
           <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 flex-shrink-0">
             <Check className="w-3 h-3" />
-            {health.latencyMs != null && `${health.latencyMs}ms`}
+            {health.latencyMs !== null && health.latencyMs !== undefined && `${health.latencyMs}ms`}
           </span>
         </TooltipTrigger>
         <TooltipContent>{t('keyVerified')}</TooltipContent>
@@ -357,11 +357,13 @@ const ApiKeyManager = memo<ApiKeyManagerProps>(
                   <div className="flex items-center gap-3">
                     {/* Toggle switch */}
                     <button
+                      type="button"
                       onClick={() => handleToggleActive(apiKey.id)}
                       className={cn(
                         'relative w-9 h-5 rounded-full transition-all duration-200 flex-shrink-0',
                         apiKey.isActive ? 'bg-accent-warm' : 'bg-border',
                       )}
+                      aria-label={apiKey.isActive ? t('keyEnabled') : t('keyDisabled')}
                       title={apiKey.isActive ? t('keyEnabled') : t('keyDisabled')}
                     >
                       <div
@@ -480,7 +482,6 @@ const ApiKeyManager = memo<ApiKeyManagerProps>(
                 placeholder="sk-... or op://vault/item/field or bw://item"
                 className="w-full px-4 py-3 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
                 autoComplete="new-password"
-                autoFocus
               />
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
