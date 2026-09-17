@@ -62,15 +62,15 @@ const toast: ToastFunction = ((
   return sonnerToast(messageOrOptions as string | React.ReactNode, maybeOptions);
 }) as ToastFunction;
 
-// 绑定所有 Sonner 的方法到 toast 对象上
-toast.success = sonnerToast.success.bind(sonnerToast);
+// 绑定所有 Sonner 的方法到 toast 对象上（防御性空安全，兼顾测试轻量 Mock）
+toast.success = (sonnerToast?.success ? sonnerToast.success.bind(sonnerToast) : () => '') as typeof sonnerToast.success;
 toast.error = (message: string | React.ReactNode, options?: ExternalToast) => {
   const safeMessage = typeof message === 'string' ? redactErrorMessage(message) : message;
   const safeOptions =
     options && typeof options.description === 'string'
       ? { ...options, description: redactErrorMessage(options.description) }
       : options;
-  return sonnerToast.error(safeMessage as string | React.ReactNode, safeOptions);
+  return sonnerToast?.error ? sonnerToast.error(safeMessage as string | React.ReactNode, safeOptions) : '';
 };
 toast.warning = (message: string | React.ReactNode, options?: ExternalToast) => {
   const safeMessage = typeof message === 'string' ? redactErrorMessage(message) : message;
@@ -78,13 +78,13 @@ toast.warning = (message: string | React.ReactNode, options?: ExternalToast) => 
     options && typeof options.description === 'string'
       ? { ...options, description: redactErrorMessage(options.description) }
       : options;
-  return sonnerToast.warning(safeMessage as string | React.ReactNode, safeOptions);
+  return sonnerToast?.warning ? sonnerToast.warning(safeMessage as string | React.ReactNode, safeOptions) : '';
 };
-toast.info = sonnerToast.info.bind(sonnerToast);
-toast.promise = sonnerToast.promise.bind(sonnerToast);
-toast.loading = sonnerToast.loading.bind(sonnerToast);
-toast.dismiss = sonnerToast.dismiss.bind(sonnerToast);
-toast.message = sonnerToast.message.bind(sonnerToast);
+toast.info = (sonnerToast?.info ? sonnerToast.info.bind(sonnerToast) : () => '') as typeof sonnerToast.info;
+toast.promise = (sonnerToast?.promise ? sonnerToast.promise.bind(sonnerToast) : (() => Promise.resolve())) as unknown as typeof sonnerToast.promise;
+toast.loading = (sonnerToast?.loading ? sonnerToast.loading.bind(sonnerToast) : () => '') as typeof sonnerToast.loading;
+toast.dismiss = (sonnerToast?.dismiss ? sonnerToast.dismiss.bind(sonnerToast) : () => '') as typeof sonnerToast.dismiss;
+toast.message = (sonnerToast?.message ? sonnerToast.message.bind(sonnerToast) : () => '') as typeof sonnerToast.message;
 
 export { toast };
 export type { ToastOptions, ToastFunction };

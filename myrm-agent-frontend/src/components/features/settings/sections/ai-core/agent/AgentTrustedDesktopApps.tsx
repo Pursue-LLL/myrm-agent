@@ -28,10 +28,14 @@ function AgentTrustedDesktopAppsInner({ apps, onChange, readonly }: Props) {
     let cancelled = false;
     apiRequest<{ apps: TrustedAppSuggestion[] }>('/webui/desktop/trust/apps', { silent: true })
       .then((data) => {
-        if (!cancelled) setSuggestions(data.apps ?? []);
+        if (!cancelled) {
+          setSuggestions(data.apps ?? []);
+        }
       })
       .catch(() => {
-        if (!cancelled) setSuggestions([]);
+        if (!cancelled) {
+          setSuggestions([]);
+        }
       });
     return () => {
       cancelled = true;
@@ -40,7 +44,9 @@ function AgentTrustedDesktopAppsInner({ apps, onChange, readonly }: Props) {
 
   const addDraft = useCallback(() => {
     const name = draft.trim();
-    if (!name || readonly) return;
+    if (!name || readonly) {
+      return;
+    }
     if (apps.some((app) => app.name === name)) {
       setDraft('');
       return;
@@ -55,7 +61,9 @@ function AgentTrustedDesktopAppsInner({ apps, onChange, readonly }: Props) {
 
   const removeAt = useCallback(
     (index: number) => {
-      if (readonly) return;
+      if (readonly) {
+        return;
+      }
       onChange(apps.filter((_, i) => i !== index));
     },
     [apps, onChange, readonly],
@@ -96,6 +104,7 @@ function AgentTrustedDesktopAppsInner({ apps, onChange, readonly }: Props) {
         <div className="flex gap-2">
           <input
             id={inputId}
+            aria-label={t('trustedDesktopApps')}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -114,7 +123,9 @@ function AgentTrustedDesktopAppsInner({ apps, onChange, readonly }: Props) {
           />
           <datalist id={`${inputId}-suggestions`}>
             {suggestions.map((s) => (
-              <option key={s.trust_key} value={s.display_name} />
+              <option key={s.trust_key} value={s.display_name}>
+                {s.display_name}
+              </option>
             ))}
           </datalist>
           <button

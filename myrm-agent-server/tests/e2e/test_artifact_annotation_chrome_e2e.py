@@ -114,7 +114,10 @@ _LIST_READY_JS = """((args) => {
 
 
 def _seed_deliverable_fixture(api_url: str) -> dict[str, object]:
-    seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-deliverable-link-fixture")
+    # Seed into the shared backend: the :3000 WebUI proxies /api there, so
+    # isolate-seeded chats are invisible in the browser.
+    del api_url
+    seeded = http_json("POST", "http://127.0.0.1:8080/api/v1/chats/test/seed-deliverable-link-fixture")
     assert isinstance(seeded, dict)
     return seeded
 
@@ -136,61 +139,68 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
     assert chat_id.startswith("e2edeliv"), seeded
 
     intent = "E2E review note: verify this paragraph"
-    warm_ui_route("/", timeout_sec=45.0)
-    chat_url = f"{ui_url}/{chat_id}"
-    with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
-        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-        navigate_mcp_page(client, page, chat_url, timeout_ms=90_000)
+    try:
+        warm_ui_route("/", timeout_sec=45.0)
+        chat_url = f"{ui_url}/{chat_id}"
+        with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
+            client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+            navigate_mcp_page(client, page, chat_url, timeout_ms=90_000)
 
-        # T1: open the seeded deliverable, then the portal shows its content.
-        # The message list streams in, so retry the click until it lands.
-        link: dict | None = None
-        deadline = time.monotonic() + 120.0
-        while time.monotonic() < deadline:
-            link = client.evaluate(page, _OPEN_FIRST_DELIVERABLE_JS, timeout_sec=15.0)
-            if isinstance(link, dict) and link.get("ok"):
-                break
-            time.sleep(3.0)
-        assert isinstance(link, dict) and link.get("ok") is True, link
-        store_state = wait_for_state(client, page, _PORTAL_STORE_READY_JS, timeout_sec=90.0)
-        assert store_state.get("ready") is True, json.dumps(store_state, ensure_ascii=False)
-        content = wait_for_state(client, page, _PORTAL_WITH_TEXT_JS, timeout_sec=120.0)
-        assert content.get("ready") is True, json.dumps(content, ensure_ascii=False)
+            # T1: open the seeded deliverable, then the portal shows its content.
+            # The message list streams in, so retry the click until it lands.
+            link: dict | None = None
+            deadline = time.monotonic() + 120.0
+            while time.monotonic() < deadline:
+                link = client.evaluate(page, _OPEN_FIRST_DELIVERABLE_JS, timeout_sec=15.0)
+                if isinstance(link, dict) and link.get("ok"):
+                    break
+                time.sleep(3.0)
+            assert isinstance(link, dict) and link.get("ok") is True, link
+            store_state = wait_for_state(client, page, _PORTAL_STORE_READY_JS, timeout_sec=90.0)
+            assert store_state.get("ready") is True, json.dumps(store_state, ensure_ascii=False)
+            content = wait_for_state(client, page, _PORTAL_WITH_TEXT_JS, timeout_sec=120.0)
+            assert content.get("ready") is True, json.dumps(content, ensure_ascii=False)
 
-        # T2: toggle opens the annotation panel.
-        opened = client.evaluate(page, _OPEN_PANEL_JS, timeout_sec=15.0)
-        assert isinstance(opened, dict) and opened.get("ok") is True, opened
-        panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
-        assert panel.get("ready") is True, json.dumps(panel, ensure_ascii=False)
+            # T2: toggle opens the annotation panel.
+            opened = client.evaluate(page, _OPEN_PANEL_JS, timeout_sec=15.0)
+            assert isinstance(opened, dict) and opened.get("ok") is True, opened
+            panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=30.0)
+            assert panel.get("ready") is True, json.dumps(panel, ensure_ascii=False)
 
-        # T3: select text + intent + Add stores the comment and persists it.
-        added = client.evaluate(
-            page,
-            _ADD_COMMENT_JS.replace(
-                "__ARGS__",
-                json.dumps({"intent": intent, "addLabel": "Add comment"}),
-            ),
-            timeout_sec=20.0,
-        )
-        assert isinstance(added, dict) and added.get("ok") is True, added
-        listed = wait_for_state(
-            client,
-            page,
-            _LIST_READY_JS.replace("__ARGS__", json.dumps({"intent": intent})),
-            timeout_sec=30.0,
-        )
-        assert listed.get("ready") is True, json.dumps(listed, ensure_ascii=False)
-        assert listed.get("stored") is True, f"localStorage missing comment: {listed}"
+            # T3: select text + intent + Add stores the comment and persists it.
+            added = client.evaluate(
+                page,
+                _ADD_COMMENT_JS.replace(
+                    "__ARGS__",
+                    json.dumps({"intent": intent, "addLabel": "Add comment"}),
+                ),
+                timeout_sec=20.0,
+            )
+            assert isinstance(added, dict) and added.get("ok") is True, added
+            listed = wait_for_state(
+                client,
+                page,
+                _LIST_READY_JS.replace("__ARGS__", json.dumps({"intent": intent})),
+                timeout_sec=30.0,
+            )
+            assert listed.get("ready") is True, json.dumps(listed, ensure_ascii=False)
+            assert listed.get("stored") is True, f"localStorage missing comment: {listed}"
 
-        # T4: reload -> the comment survives (persistence proof).
-        navigate_mcp_page(client, page, chat_url, timeout_ms=90_000)
-        content2 = wait_for_state(client, page, _PORTAL_WITH_TEXT_JS, timeout_sec=120.0)
-        assert content2.get("ready") is True, json.dumps(content2, ensure_ascii=False)
-        client.evaluate(page, _OPEN_PANEL_JS, timeout_sec=15.0)
-        relisted = wait_for_state(
-            client,
-            page,
-            _LIST_READY_JS.replace("__ARGS__", json.dumps({"intent": intent})),
-            timeout_sec=30.0,
-        )
-        assert relisted.get("ready") is True, json.dumps(relisted, ensure_ascii=False)
+            # T4: reload -> the comment survives (persistence proof).
+            navigate_mcp_page(client, page, chat_url, timeout_ms=90_000)
+            content2 = wait_for_state(client, page, _PORTAL_WITH_TEXT_JS, timeout_sec=120.0)
+            assert content2.get("ready") is True, json.dumps(content2, ensure_ascii=False)
+            client.evaluate(page, _OPEN_PANEL_JS, timeout_sec=15.0)
+            relisted = wait_for_state(
+                client,
+                page,
+                _LIST_READY_JS.replace("__ARGS__", json.dumps({"intent": intent})),
+                timeout_sec=30.0,
+            )
+            assert relisted.get("ready") is True, json.dumps(relisted, ensure_ascii=False)
+    finally:
+        # Best-effort cleanup of the shared-backend fixture chat.
+        try:
+            http_json("DELETE", f"http://127.0.0.1:8080/api/v1/chats/{chat_id}")
+        except Exception:
+            pass

@@ -294,6 +294,30 @@ def _build_effective_prompt(job: CronJob) -> str:
     return prompt
 
 
+def resolve_trusted_desktop_keys(
+    entries: tuple[dict[str, str], ...] | list[dict[str, str]],
+) -> tuple[str, ...]:
+    """Resolve pre-trusted desktop app entries to canonical trust keys.
+
+    Unresolvable entries are skipped (caller logs the count gap).
+    """
+    from myrm_agent_harness.toolkits.computer_use.app_identity import (
+        resolve_trust_key,
+    )
+
+    return tuple(
+        key
+        for key in (
+            resolve_trust_key(
+                app_name=app.get("name", ""),
+                app_id=app.get("app_id", ""),
+            )
+            for app in entries
+        )
+        if key
+    )
+
+
 def _resolve_cron_enable_memory(
     enabled_builtin_tools: list[str],
     memory_settings: dict[str, object] | None,
@@ -705,30 +729,14 @@ class AgentJobRunner:
                 )
 
             memory_settings = user_cfgs.personal_settings_dict or {}
-            cron_trusted_desktop_keys: tuple[str, ...] = ()
-            if trusted_desktop_apps:
-                from myrm_agent_harness.toolkits.computer_use.app_identity import (
-                    resolve_trust_key,
+            cron_trusted_desktop_keys = resolve_trusted_desktop_keys(trusted_desktop_apps)
+            if len(cron_trusted_desktop_keys) != len(trusted_desktop_apps):
+                logger.warning(
+                    "Cron job %s: %d/%d trusted desktop apps unresolvable, skipped",
+                    job.id,
+                    len(trusted_desktop_apps) - len(cron_trusted_desktop_keys),
+                    len(trusted_desktop_apps),
                 )
-
-                cron_trusted_desktop_keys = tuple(
-                    key
-                    for key in (
-                        resolve_trust_key(
-                            app_name=app.get("name", ""),
-                            app_id=app.get("app_id", ""),
-                        )
-                        for app in trusted_desktop_apps
-                    )
-                    if key
-                )
-                if len(cron_trusted_desktop_keys) != len(trusted_desktop_apps):
-                    logger.warning(
-                        "Cron job %s: %d/%d trusted desktop apps unresolvable, skipped",
-                        job.id,
-                        len(trusted_desktop_apps) - len(cron_trusted_desktop_keys),
-                        len(trusted_desktop_apps),
-                    )
             from app.core.agent.tool_description_locale import (
                 resolve_agent_params_locale,
             )

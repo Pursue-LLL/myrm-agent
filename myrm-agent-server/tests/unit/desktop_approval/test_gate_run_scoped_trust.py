@@ -64,15 +64,3 @@ def test_interactive_default_still_blocks_without_trust():
     gate = DesktopControlGate(workspace_root=None, register_live=False)
     result = _call(gate, app_name="SAP GUI")
     assert result.granted is False
-
-
-def test_reset_run_scoped_trust_drops_only_seeded_keys():
-    gate = DesktopControlGate(
-        workspace_root=None,
-        register_live=False,
-        preapproved_trust_keys=["sap gui"],
-    )
-    gate._session_approved_keys.add("user approved app")
-    gate.reset_run_scoped_trust()
-    assert "user approved app" in gate._session_approved_keys
-    assert "sap gui" not in gate._session_approved_keys

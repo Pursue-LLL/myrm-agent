@@ -32,7 +32,16 @@ vi.mock('@/services/chat', () => ({
 }));
 
 vi.mock('sonner', () => ({
-  toast: { loading: vi.fn(() => 'toast-id'), dismiss: vi.fn() },
+  toast: {
+    loading: vi.fn(() => 'toast-id'),
+    dismiss: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    message: vi.fn(),
+    promise: vi.fn(),
+  },
 }));
 
 vi.mock('@/lib/api', () => ({

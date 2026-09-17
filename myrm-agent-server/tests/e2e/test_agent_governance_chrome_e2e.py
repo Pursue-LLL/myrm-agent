@@ -80,9 +80,27 @@ _FILL_AND_SAVE_JS = """((args) => {
 
 
 def _api(path: str, method: str = "GET", body: dict | None = None) -> dict:
-    resp = http_json(method, f"{get_e2e_api_url()}{path}", body)
+    # The :3000 WebUI proxies /api to the shared :8080 backend, so every API
+    # call in this test must hit the shared base. Otherwise data seeded into
+    # an isolate backend is invisible in the browser and vice versa.
+    resp = http_json(method, f"http://127.0.0.1:8080{path}", body)
     assert isinstance(resp, dict)
     return resp
+
+
+def _preclean_agents(prefix: str) -> None:
+    """Delete residue from prior interrupted runs (best effort)."""
+    try:
+        resp = _api("/api/v1/user-agents?page=1&page_size=200")
+        items = ((resp.get("data") or {}).get("items")) or []
+        for item in items:
+            if isinstance(item, dict) and str(item.get("name", "")).startswith(prefix) and not item.get("is_built_in"):
+                try:
+                    http_json("DELETE", f"http://127.0.0.1:8080/api/v1/user-agents/{item.get('id')}")
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
 
 def _find_agent_id(items: list, name: str) -> str | None:
@@ -122,6 +140,7 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
     target_name = f"gov-e2e-target-{suffix}"
     source_name = f"gov-e2e-source-{suffix}"
     created: list[str] = []
+    _preclean_agents("gov-e2e-")
     try:
         warm_ui_route("/agents")
         agents_url = f"{ui_url}/agents"

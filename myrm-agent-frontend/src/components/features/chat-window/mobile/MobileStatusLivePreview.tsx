@@ -120,6 +120,7 @@ export function MobileStatusLivePreview({
           role="dialog"
           aria-modal="true"
           aria-label={t('livePreview')}
+          onClick={onLightboxClose}
           className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4"
         >
           <button
@@ -132,6 +133,7 @@ export function MobileStatusLivePreview({
           <img
             src={lightboxSrc}
             alt={t('livePreview')}
+            onClick={(e) => e.stopPropagation()}
             className="relative z-10 max-w-full max-h-full object-contain rounded-lg pointer-events-auto"
             draggable={false}
           />

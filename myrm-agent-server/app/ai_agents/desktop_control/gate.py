@@ -141,11 +141,6 @@ class DesktopControlGate:
         if register_live:
             DesktopControlGate._live_gates.add(self)
 
-    def reset_run_scoped_trust(self) -> None:
-        """Drop run-scoped (e.g. cron blueprint) trust keys without touching user trust."""
-        self._session_approved_keys.difference_update(self._run_scoped_keys)
-        self._run_scoped_keys.clear()
-
     def reset_runtime_approval_state(self) -> None:
         """Clear in-memory approval caches and reload persisted always-approved apps."""
         self._session_approved_keys.clear()

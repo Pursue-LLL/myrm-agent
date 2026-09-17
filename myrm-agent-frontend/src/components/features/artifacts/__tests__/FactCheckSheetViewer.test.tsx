@@ -42,6 +42,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/lib/api', () => ({
   getApiUrl: () => 'http://127.0.0.1:8080',
+  getStorageUrl: (uri: string) => uri,
 }));
 
 const mockSheet: FactCheckSheet = {

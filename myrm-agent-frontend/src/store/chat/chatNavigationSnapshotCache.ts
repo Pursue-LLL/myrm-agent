@@ -69,17 +69,24 @@ function sanitizeSnapshotForL2Storage(snapshot: Partial<ChatState>): Partial<Cha
         return msg;
       }
       const safeFiles = msg.files.map((file) => {
-        // 沙箱截图等 data:image base64 会显著放大快照体积（生产者写入 fileUrl）。
+        // 沙箱截图等 data:image base64 会显著放大快照体积（生产者可能写入 url / fileUrl / previewUrl）。
         const stripIfLargeDataUrl = (value: string | undefined): string | undefined =>
           typeof value === 'string' && value.startsWith('data:image/') && value.length > 1024
             ? ''
             : value;
-        const fileUrl = stripIfLargeDataUrl(file.fileUrl);
-        const previewUrl = stripIfLargeDataUrl(file.previewUrl);
-        if (fileUrl === file.fileUrl && previewUrl === file.previewUrl) {
+        const targetFile = file as typeof file & { url?: string };
+        const url = stripIfLargeDataUrl(targetFile.url);
+        const fileUrl = stripIfLargeDataUrl(targetFile.fileUrl);
+        const previewUrl = stripIfLargeDataUrl(targetFile.previewUrl);
+        if (url === targetFile.url && fileUrl === targetFile.fileUrl && previewUrl === targetFile.previewUrl) {
           return file;
         }
-        return { ...file, fileUrl, previewUrl };
+        return {
+          ...file,
+          ...(targetFile.url !== undefined ? { url } : {}),
+          fileUrl,
+          previewUrl,
+        };
       });
       return { ...msg, files: safeFiles };
     });
