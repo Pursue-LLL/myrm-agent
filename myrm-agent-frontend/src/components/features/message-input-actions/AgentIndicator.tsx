@@ -43,6 +43,7 @@ import { useAgentGallery } from '@/hooks/agent/useAgentGallery';
 import { buildAgentConfig } from '@/lib/utils/agentConfigMapper';
 import type { PresetAgent } from '@/types/presetAgent';
 import type { AgentListItem } from '@/services/agent';
+import type { AgentConfig } from '@/store/chat/types/sessionConfig';
 import { toast } from '@/hooks/shared/useToast';
 
 // 预设头像颜色方案 - 与编辑页保持一致
