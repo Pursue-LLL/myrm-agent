@@ -1,23 +1,37 @@
 'use client';
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { IconBrain } from '@/components/features/icons/PremiumIcons';
-import { getWorkingState } from '@/services/memory';
+import { getWorkingState, type WorkingStateLiveState } from '@/services/memory';
 import useChatStore from '@/store/useChatStore';
+import { WorkingMemoryBoard } from '@/components/chat/WorkingMemoryBoard';
 
+/**
+ * WorkingStateBadge
+ *
+ * Integrated top-level workbench container in ChatWindow.
+ * Renders the full interactive WorkingMemoryBoard if live state or active content exists.
+ */
 const WorkingStateBadge = memo(() => {
-  const t = useTranslations('settings.workingState');
-  const [content, setContent] = useState<string | null>(null);
+  const [liveState, setLiveState] = useState<WorkingStateLiveState | null>(null);
+  const [fallbackContent, setFallbackContent] = useState<string | null>(null);
   const loading = useChatStore((s) => s.loading);
   const prevLoadingRef = useRef(loading);
 
   const fetchState = useCallback(async () => {
     try {
       const res = await getWorkingState();
-      setContent(res.content && !res.expired ? res.content : null);
+      if (res.live_state) {
+        setLiveState(res.live_state);
+        setFallbackContent(null);
+      } else if (res.content && !res.expired) {
+        setFallbackContent(res.content);
+        setLiveState(null);
+      } else {
+        setLiveState(null);
+        setFallbackContent(null);
+      }
     } catch {
-      /* non-critical */
+      /* non-critical: network failure or degraded memory service */
     }
   }, []);
 
@@ -32,18 +46,37 @@ const WorkingStateBadge = memo(() => {
     prevLoadingRef.current = loading;
   }, [loading, fetchState]);
 
-  if (!content) {
-    return null;
+  // If liveState has structured content, render the full board
+  if (liveState && (liveState.goal || liveState.subtasks.length > 0 || liveState.traps.length > 0)) {
+    return (
+      <div className="w-full max-w-3xl mx-auto px-4 py-1">
+        <WorkingMemoryBoard
+          goal={liveState.goal}
+          subtasks={liveState.subtasks}
+          traps={liveState.traps}
+          activeTurn={liveState.active_turn}
+          consolidated={liveState.consolidated}
+        />
+      </div>
+    );
   }
 
-  return (
-    <div className="flex items-center gap-1.5 px-3 py-1 border-b border-primary/10 bg-primary/5 dark:bg-primary/10 text-xs text-primary/80 truncate">
-      <IconBrain className="h-3 w-3 shrink-0" />
-      <span className="truncate" title={content}>
-        {t('title')}: {content}
-      </span>
-    </div>
-  );
+  // Fallback for simple legacy text working state
+  if (fallbackContent) {
+    return (
+      <div className="w-full max-w-3xl mx-auto px-4 py-1">
+        <WorkingMemoryBoard
+          goal={fallbackContent}
+          subtasks={[]}
+          traps={[]}
+          activeTurn={1}
+          consolidated={false}
+        />
+      </div>
+    );
+  }
+
+  return null;
 });
 
 WorkingStateBadge.displayName = 'WorkingStateBadge';

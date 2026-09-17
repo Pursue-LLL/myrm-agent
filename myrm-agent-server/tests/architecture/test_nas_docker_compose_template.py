@@ -14,6 +14,27 @@ _NAS_COMPOSE_PATH = _WORKSPACE_ROOT / "docker-compose.nas.yml"
 _BASE_COMPOSE_PATH = _WORKSPACE_ROOT / "docker-compose.yml"
 
 
+def _resolve_compose_command() -> list[str] | None:
+    """Return the first working Compose CLI invocation, or None when unavailable.
+
+    Docker Desktop bundles Compose as a ``docker compose`` subcommand, while
+    standalone installs expose the legacy ``docker-compose`` binary only.
+    """
+    candidates: list[list[str]] = [["docker", "compose"], ["docker-compose"]]
+    for candidate in candidates:
+        if shutil.which(candidate[0]) is None:
+            continue
+        probe = subprocess.run(
+            [*candidate, "version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if probe.returncode == 0:
+            return candidate
+    return None
+
+
 @pytest.mark.architecture
 def test_nas_compose_overlay_file_exists() -> None:
     """Verify that docker-compose.nas.yml exists at workspace root."""
@@ -62,14 +83,14 @@ def test_nas_compose_overlay_contract() -> None:
 
 @pytest.mark.architecture
 def test_nas_compose_merge_config_validity() -> None:
-    """Validate that docker compose merge runs without config schema errors."""
-    if not shutil.which("docker"):
-        pytest.skip("Docker CLI is not installed in the execution environment")
+    """Validate that the compose merge runs without config schema errors."""
+    compose_cmd = _resolve_compose_command()
+    if compose_cmd is None:
+        pytest.skip("Compose CLI is not installed in the execution environment")
 
     res = subprocess.run(
         [
-            "docker",
-            "compose",
+            *compose_cmd,
             "-f",
             str(_BASE_COMPOSE_PATH),
             "-f",
@@ -83,4 +104,4 @@ def test_nas_compose_merge_config_validity() -> None:
         text=True,
         check=False,
     )
-    assert res.returncode == 0, f"docker compose config failed:\n{res.stderr}"
+    assert res.returncode == 0, f"Compose config merge failed:\n{res.stderr}"

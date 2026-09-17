@@ -1,8 +1,8 @@
 """Consolidation and Working State application service.
 
 [INPUT]
-myrm_agent_harness.agent.context_management.working_memory::LocalWorkingMemoryBlock (POS: 本地工作记忆块)
-myrm_agent_harness.agent.context_management.working_memory::SubtaskStatus (POS: 子任务执行状态枚举)
+myrm_agent_harness.api::LocalWorkingMemoryBlock (POS: 本地工作记忆块)
+myrm_agent_harness.api::SubtaskStatus (POS: 子任务执行状态枚举)
 myrm_agent_harness.toolkits.memory.types::TaskDigestMemory (POS: 任务阶段沉淀记忆类型)
 myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: 记忆系统核心管理器)
 
@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.agent.context_management.working_memory import (
+from myrm_agent_harness.api import (
     LocalWorkingMemoryBlock,
     SubtaskStatus,
 )

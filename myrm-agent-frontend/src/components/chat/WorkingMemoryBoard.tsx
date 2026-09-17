@@ -202,3 +202,5 @@ export const WorkingMemoryBoard: React.FC<WorkingMemoryBoardProps> = ({
     </div>
   );
 };
+
+export default WorkingMemoryBoard;

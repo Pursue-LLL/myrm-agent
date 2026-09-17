@@ -17,9 +17,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from myrm_agent_harness.agent.context_management.working_memory import (
-    LocalWorkingMemoryBlock,
-)
+from myrm_agent_harness.api import LocalWorkingMemoryBlock
 from myrm_agent_harness.toolkits.memory import MemoryManager
 from pydantic import BaseModel, Field
 

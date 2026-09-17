@@ -137,9 +137,7 @@ class TestClearWorkingState:
 
 class TestLiveWorkbenchAndDualBlockEndpoints:
     def test_live_workbench_lifecycle(self, client: TestClient):
-        from myrm_agent_harness.agent.context_management.working_memory import (
-            LocalWorkingMemoryBlock,
-        )
+        from myrm_agent_harness.api import LocalWorkingMemoryBlock
 
         LocalWorkingMemoryBlock.reset()
         LocalWorkingMemoryBlock.initialize(goal="Deploy service on port 8080")
