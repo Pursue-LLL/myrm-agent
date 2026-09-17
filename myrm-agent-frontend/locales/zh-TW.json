@@ -18866,7 +18866,8 @@
           "workspaceBound": "工作目錄綁定成功",
           "identityUpdated": "身份已更新",
           "identityRevoked": "身份已凍結",
-          "identityRestored": "身份已恢復"
+          "identityRestored": "身份已恢復",
+          "followUpUpdated": "跟進策略已更新"
         },
         "errors": {
           "initialLoad": "載入渠道或 Agent 失敗",
@@ -18877,7 +18878,8 @@
           "replyMode": "設定回覆模式失敗",
           "draftTimeout": "更新草稿超時設定失敗",
           "workspaceBind": "綁定工作目錄失敗",
-          "identity": "更新身份失敗"
+          "identity": "更新身份失敗",
+          "followUp": "更新跟進策略失敗"
         },
         "threadSharing": {
           "label": "會話共享模式",
@@ -18912,6 +18914,12 @@
           "revoke": "凍結",
           "restore": "恢復",
           "revokedBadge": "已凍結"
+        },
+        "followUp": {
+          "label": "主動跟進",
+          "tooltip": "完工回執在長任務完成時回帖；停滯提醒@安靜且有待辦的串（需顯式開啟）。所有主動消息帶AI標識並走審批。",
+          "receipts": "完工回執",
+          "stallNudge": "停滯提醒"
         }
       }
     },

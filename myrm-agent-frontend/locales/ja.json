@@ -18866,7 +18866,8 @@
           "workspaceBound": "ワークスペースを正常にバインドしました",
           "identityUpdated": "チーム情報を更新しました",
           "identityRevoked": "チーム情報を凍結しました",
-          "identityRestored": "チーム情報を復元しました"
+          "identityRestored": "チーム情報を復元しました",
+          "followUpUpdated": "フォローアップ設定を更新しました"
         },
         "errors": {
           "initialLoad": "チャネルまたはAgentの読み込みに失敗しました",
@@ -18877,7 +18878,8 @@
           "replyMode": "返信モードの設定に失敗しました",
           "draftTimeout": "下書きタイムアウトの更新に失敗しました",
           "workspaceBind": "ワークスペースのバインドに失敗しました",
-          "identity": "チーム情報の更新に失敗しました"
+          "identity": "チーム情報の更新に失敗しました",
+          "followUp": "フォローアップ設定の更新に失敗しました"
         },
         "threadSharing": {
           "label": "スレッド共有モード",
@@ -18912,6 +18914,12 @@
           "revoke": "凍結",
           "restore": "復元",
           "revokedBadge": "凍結中"
+        },
+        "followUp": {
+          "label": "プロアクティブフォローアップ",
+          "tooltip": "完了レシートは長時間タスク完了時に投稿し、停滞nudgeは未完了項目のある静かなスレッドに@メンションします（明示的な有効化が必要）。すべての主动メッセージにはAIバッジが付き、承認を経由します。",
+          "receipts": "完了レシート",
+          "stallNudge": "停滞nudge"
         }
       }
     },

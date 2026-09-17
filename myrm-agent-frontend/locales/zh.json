@@ -6514,7 +6514,8 @@
           "workspaceBound": "工作目录绑定成功",
           "identityUpdated": "身份已更新",
           "identityRevoked": "身份已冻结",
-          "identityRestored": "身份已恢复"
+          "identityRestored": "身份已恢复",
+          "followUpUpdated": "跟进策略已更新"
         },
         "errors": {
           "initialLoad": "加载渠道或 Agent 失败",
@@ -6525,7 +6526,8 @@
           "replyMode": "设置回复模式失败",
           "draftTimeout": "更新草稿超时设置失败",
           "workspaceBind": "绑定工作目录失败",
-          "identity": "更新身份失败"
+          "identity": "更新身份失败",
+          "followUp": "更新跟进策略失败"
         },
         "workspace": {
           "label": "工作目录",
@@ -6560,6 +6562,12 @@
           "revoke": "冻结",
           "restore": "恢复",
           "revokedBadge": "已冻结"
+        },
+        "followUp": {
+          "label": "主动跟进",
+          "tooltip": "完工回执在长任务完成时回帖；停滞提醒@安静且有待办的串（需显式开启）。所有主动消息带AI标识并走审批。",
+          "receipts": "完工回执",
+          "stallNudge": "停滞提醒"
         }
       }
     },

@@ -6514,7 +6514,8 @@
           "workspaceBound": "Workspace bound successfully",
           "identityUpdated": "Team identity updated",
           "identityRevoked": "Team identity revoked",
-          "identityRestored": "Team identity restored"
+          "identityRestored": "Team identity restored",
+          "followUpUpdated": "Follow-up policy updated"
         },
         "errors": {
           "initialLoad": "Failed to load channels or agents",
@@ -6525,7 +6526,8 @@
           "replyMode": "Failed to set reply mode",
           "draftTimeout": "Failed to update draft timeout",
           "workspaceBind": "Failed to bind workspace",
-          "identity": "Failed to update team identity"
+          "identity": "Failed to update team identity",
+          "followUp": "Failed to update follow-up policy"
         },
         "workspace": {
           "label": "Workspace",
@@ -6560,6 +6562,12 @@
           "revoke": "Revoke",
           "restore": "Restore",
           "revokedBadge": "Revoked"
+        },
+        "followUp": {
+          "label": "Proactive Follow-up",
+          "tooltip": "Completion receipts post when long tasks finish; stall nudges @mention quiet threads with open items (explicit opt-in). All proactive messages carry an AI badge and respect approvals.",
+          "receipts": "Receipts",
+          "stallNudge": "Stall nudge"
         }
       }
     },

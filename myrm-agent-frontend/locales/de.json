@@ -18866,7 +18866,8 @@
           "workspaceBound": "Arbeitsbereich erfolgreich gebunden",
           "identityUpdated": "Team-Identität aktualisiert",
           "identityRevoked": "Team-Identität gesperrt",
-          "identityRestored": "Team-Identität wiederhergestellt"
+          "identityRestored": "Team-Identität wiederhergestellt",
+          "followUpUpdated": "Follow-up-Richtlinie aktualisiert"
         },
         "errors": {
           "initialLoad": "Kanäle oder Agenten konnten nicht geladen werden",
@@ -18877,7 +18878,8 @@
           "replyMode": "Der Antwortmodus konnte nicht festgelegt werden",
           "draftTimeout": "Zeitüberschreitung beim Aktualisieren des Entwurfs fehlgeschlagen",
           "workspaceBind": "Der Arbeitsbereich konnte nicht gebunden werden",
-          "identity": "Team-Identität konnte nicht aktualisiert werden"
+          "identity": "Team-Identität konnte nicht aktualisiert werden",
+          "followUp": "Follow-up-Richtlinie konnte nicht aktualisiert werden"
         },
         "threadSharing": {
           "label": "Thread-Sharing-Modus",
@@ -18912,6 +18914,12 @@
           "revoke": "Sperren",
           "restore": "Wiederherstellen",
           "revokedBadge": "Gesperrt"
+        },
+        "followUp": {
+          "label": "Proaktives Follow-up",
+          "tooltip": "Fertigstellungsbelege werden bei langen Aufgaben gepostet; Stau-Nudges erwähnen stille Threads mit offenen Punkten (explizite Aktivierung). Alle proaktiven Nachrichten tragen ein KI-Kennzeichen und durchlaufen Genehmigungen.",
+          "receipts": "Belege",
+          "stallNudge": "Stau-Nudge"
         }
       }
     },

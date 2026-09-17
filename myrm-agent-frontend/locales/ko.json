@@ -18866,7 +18866,8 @@
           "workspaceBound": "작업 공간이 성공적으로 바인딩되었습니다",
           "identityUpdated": "팀 정보가 업데이트되었습니다",
           "identityRevoked": "팀 정보가 동결되었습니다",
-          "identityRestored": "팀 정보가 복원되었습니다"
+          "identityRestored": "팀 정보가 복원되었습니다",
+          "followUpUpdated": "후속 조치 설정이 업데이트되었습니다"
         },
         "errors": {
           "initialLoad": "채널 또는 Agent를 불러오지 못했습니다",
@@ -18877,7 +18878,8 @@
           "replyMode": "답장 모드 설정 실패",
           "draftTimeout": "초안 시간 초과 업데이트 실패",
           "workspaceBind": "작업 공간 바인딩 실패",
-          "identity": "팀 정보 업데이트 실패"
+          "identity": "팀 정보 업데이트 실패",
+          "followUp": "후속 조치 설정 업데이트 실패"
         },
         "threadSharing": {
           "label": "스레드 공유 모드",
@@ -18912,6 +18914,12 @@
           "revoke": "동결",
           "restore": "복원",
           "revokedBadge": "동결됨"
+        },
+        "followUp": {
+          "label": "선제적 후속 조치",
+          "tooltip": "완료 레シート는 장기 작업 완료 시 게시하고, 정체 nudge는 미결 항목이 있는 조용한 스레드에 @멘션합니다(명시적 활성화 필요). 모든 선제적 메시지는 AI 배지를 달고 승인을 거칩니다.",
+          "receipts": "완료 레シート",
+          "stallNudge": "정체 nudge"
         }
       }
     },

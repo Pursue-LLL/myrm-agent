@@ -583,9 +583,8 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 continue
 
             if msg.is_group and self._topic_resolver is not None:
-                from app.channels.routing.follow_up import note_group_activity, scan_stalled_threads
-
                 from app.channels.i18n import resolve_message_locale
+                from app.channels.routing.follow_up import note_group_activity, scan_stalled_threads
 
                 note_group_activity(
                     msg.channel,
