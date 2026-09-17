@@ -51,7 +51,7 @@
 
 **敏感配置范围**：
 ```
-providers, retrieval, searchServices, mcpServers,
+providers, retrieval, searchServices, mcpServers, egress_proxy, llm_proxy,
 feishuCredentials, dingtalkCredentials, slackCredentials, ...
 ```
 

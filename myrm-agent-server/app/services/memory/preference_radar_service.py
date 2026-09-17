@@ -19,7 +19,7 @@ import asyncio
 from datetime import UTC, datetime
 from typing import Final
 
-from myrm_agent_harness.toolkits.memory.strategies.dynamic_preference import (
+from myrm_agent_harness.toolkits.memory import (
     DynamicPreferenceFitter,
     DynamicPreferenceVector,
     FeedbackAction,
