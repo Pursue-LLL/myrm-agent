@@ -141,7 +141,8 @@ _FOLLOWUP_TOGGLE_JS = """(() => {
     if (/(Receipts|完工回执)/.test(t) && /(Stall nudge|停滞提醒)/.test(t)) { scope = d; break; }
   }
   if (!scope) {
-    return { ready: false, ok: false, reason: 'row-missing' };
+    const allBtns = Array.from(document.querySelectorAll('button')).map((el) => (el.textContent || '').trim()).slice(0, 40);
+    return { ready: false, ok: false, reason: 'row-missing', buttons: allBtns, snippet: (document.body.innerText || '').slice(0, 500) };
   }
   const btns = Array.from(scope.querySelectorAll('button'));
   const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
@@ -177,7 +178,8 @@ _FOLLOWUP_CLICK_JS = """(() => {
     if (/(Receipts|完工回执)/.test(t) && /(Stall nudge|停滞提醒)/.test(t)) { scope = d; break; }
   }
   if (!scope) {
-    return { ready: false, ok: false, reason: 'row-missing' };
+    const allBtns = Array.from(document.querySelectorAll('button')).map((el) => (el.textContent || '').trim()).slice(0, 40);
+    return { ready: false, ok: false, reason: 'row-missing', buttons: allBtns, snippet: (document.body.innerText || '').slice(0, 500) };
   }
   const btns = Array.from(scope.querySelectorAll('button'));
   const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
@@ -205,7 +207,8 @@ _FOLLOWUP_CLICK_STALL_JS = """(() => {
     if (/(Receipts|完工回执)/.test(t) && /(Stall nudge|停滞提醒)/.test(t)) { scope = d; break; }
   }
   if (!scope) {
-    return { ready: false, ok: false, reason: 'row-missing' };
+    const allBtns = Array.from(document.querySelectorAll('button')).map((el) => (el.textContent || '').trim()).slice(0, 40);
+    return { ready: false, ok: false, reason: 'row-missing', buttons: allBtns, snippet: (document.body.innerText || '').slice(0, 500) };
   }
   const btns = Array.from(scope.querySelectorAll('button'));
   const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
@@ -230,7 +233,8 @@ _FOLLOWUP_RECEIPTS_OFF_JS = """(() => {
     if (/(Receipts|完工回执)/.test(t) && /(Stall nudge|停滞提醒)/.test(t)) { scope = d; break; }
   }
   if (!scope) {
-    return { ready: false, ok: false, reason: 'row-missing' };
+    const allBtns = Array.from(document.querySelectorAll('button')).map((el) => (el.textContent || '').trim()).slice(0, 40);
+    return { ready: false, ok: false, reason: 'row-missing', buttons: allBtns, snippet: (document.body.innerText || '').slice(0, 500) };
   }
   const btns = Array.from(scope.querySelectorAll('button'));
   const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
@@ -269,7 +273,8 @@ _FOLLOWUP_READ_JS = """(() => {
     if (/(Receipts|完工回执)/.test(t) && /(Stall nudge|停滞提醒)/.test(t)) { scope = d; break; }
   }
   if (!scope) {
-    return { ready: false, ok: false, reason: 'row-missing' };
+    const allBtns = Array.from(document.querySelectorAll('button')).map((el) => (el.textContent || '').trim()).slice(0, 40);
+    return { ready: false, ok: false, reason: 'row-missing', buttons: allBtns, snippet: (document.body.innerText || '').slice(0, 500) };
   }
   const btns = Array.from(scope.querySelectorAll('button'));
   const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
@@ -307,7 +312,8 @@ _FOLLOWUP_FLIPPED_JS = """(() => {
     if (/(Receipts|完工回执)/.test(t) && /(Stall nudge|停滞提醒)/.test(t)) { scope = d; break; }
   }
   if (!scope) {
-    return { ready: false, ok: false, reason: 'row-missing' };
+    const allBtns = Array.from(document.querySelectorAll('button')).map((el) => (el.textContent || '').trim()).slice(0, 40);
+    return { ready: false, ok: false, reason: 'row-missing', buttons: allBtns, snippet: (document.body.innerText || '').slice(0, 500) };
   }
   const btns = Array.from(scope.querySelectorAll('button'));
   const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
@@ -380,6 +386,24 @@ def test_channel_routing_followup_switches_persist_across_reload() -> None:
                 break
             time.sleep(5.0)
         assert clicked_stall is not None and clicked_stall.get("ok") is True, clicked_stall
+        # Server truth first: poll the topics API until the stall flag persists.
+        server_flipped = False
+        for _ in range(12):
+            listed = http_json("GET", f"{api_url}/api/v1/channels/manage/{channel_name}/topics")
+            assert isinstance(listed, dict), listed
+            rows = [
+                t
+                for t in listed.get("topics", [])
+                if isinstance(t, dict) and t.get("topicId") == topic_id
+            ]
+            assert len(rows) == 1, listed
+            row = rows[0]
+            assert isinstance(row, dict), row
+            if row.get("completionReceipts") is False and row.get("stallNudge") is True:
+                server_flipped = True
+                break
+            time.sleep(5.0)
+        assert server_flipped is True, "stallNudge did not persist server-side"
         flipped = wait_for_state(client, page, _FOLLOWUP_FLIPPED_JS.replace("__TOPIC__", topic_id), timeout_sec=60.0)
         assert flipped.get("ready") is True, flipped
         reload_mcp_page(client, page, timeout_ms=90_000)

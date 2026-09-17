@@ -119,4 +119,32 @@ describe('EgressProxyConfig', () => {
       );
     });
   });
+
+  it('auto-prefixes http:// on blur when host:port is provided without scheme', () => {
+    const handleChange = vi.fn();
+    render(
+      <EgressProxyConfig
+        value="127.0.0.1:7890"
+        onChange={handleChange}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText('egressProxyPlaceholder');
+    fireEvent.blur(input);
+    expect(handleChange).toHaveBeenCalledWith('http://127.0.0.1:7890');
+  });
+
+  it('does not auto-prefix on blur when scheme is already present', () => {
+    const handleChange = vi.fn();
+    render(
+      <EgressProxyConfig
+        value="socks5://127.0.0.1:1080"
+        onChange={handleChange}
+      />,
+    );
+
+    const input = screen.getByPlaceholderText('egressProxyPlaceholder');
+    fireEvent.blur(input);
+    expect(handleChange).not.toHaveBeenCalled();
+  });
 });

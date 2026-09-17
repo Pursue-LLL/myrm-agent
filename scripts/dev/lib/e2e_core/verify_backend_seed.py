@@ -406,6 +406,10 @@ def _reapable_reuse_candidate(
         return False
     heartbeat = record.get("heartbeatAt")
     if not isinstance(heartbeat, (int, float)):
+        # A malformed heartbeat is *unknown*, never "infinitely lapsed". Folding
+        # it into a lapsed value would satisfy `heartbeat_lapsed` and let a
+        # record whose liveness we cannot read be adopted and kept alive by the
+        # refresh — the same unknown-vs-negative mistake as the pid check below.
         return False
     heartbeat_lapsed = time.time() - heartbeat > owner_ttl_sec
     if owner_alive is not False and not heartbeat_lapsed:
@@ -445,19 +449,31 @@ def _warm_pool_owned_runtime_ids() -> set[str]:
 
 
 def _owner_alive(record: dict[str, object]) -> bool:
-    """Whether the session that created this record is still running.
+    """Whether the session that created this record may still be running.
 
     ``abandoned verify-api`` records were observed to stall capacity for the
     whole 1800s owner TTL after their creating process died — the window where a
     heartbeat is fresh but nothing will ever refresh it again. Checking the pid
     shortens that window to the time it takes the owner to exit.
+
+    Reports *alive* whenever death cannot be proven: a missing or unparseable
+    ``ownerPid`` is unknown, not dead. Folding it into the dead case (``None`` ->
+    0 -> not alive) would let a record without a pid be adopted out from under a
+    hot session and then kept alive by the heartbeat refresh — the exact
+    hijacking this guard exists to prevent.
     """
     from isolated_runtime.registry import process_is_alive
 
+    raw = record.get("ownerPid")
+    if raw is None:
+        return True
     try:
-        return process_is_alive(int(record.get("ownerPid") or 0))
+        pid = int(raw)  # type: ignore[arg-type]
     except (TypeError, ValueError):
-        return False
+        return True
+    if pid <= 0:
+        return True
+    return process_is_alive(pid)
 
 
 def _reusable_verify_backend() -> VerifyBackendSeedResult | None:
@@ -538,18 +554,22 @@ def _reclaim_unreusable_backend(record: dict[str, object]) -> None:
     records held 2/4 of the cap for ~28 min after their owners exited, and a
     larger backlog parks later seeds in ``capacity_wait``.
 
-    Only a *dead* owner is reclaimed. A record whose heartbeat merely lapsed is
-    left to the reaper: a recycled pid proves neither liveness nor death, so
-    acting on it could tear down a session that is still working.
+    Only a *proven* dead owner is reclaimed. A lapsed heartbeat is left to the
+    reaper (the pid may have been recycled, so it proves neither liveness nor
+    death), and a missing or unparseable ``ownerPid`` is unknown rather than dead
+    — acting on it could tear down a session that is still working.
     """
     from isolated_runtime.reaper import release_runtime
     from isolated_runtime.registry import process_is_alive
 
+    raw = record.get("ownerPid")
+    if raw is None:
+        return
     try:
-        owner_pid = int(record.get("ownerPid") or 0)
+        owner_pid = int(raw)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return
-    if process_is_alive(owner_pid):
+    if owner_pid <= 0 or process_is_alive(owner_pid):
         return
     runtime_id = str(record.get("runtimeId") or "")
     owner_token = str(record.get("ownerToken") or "")

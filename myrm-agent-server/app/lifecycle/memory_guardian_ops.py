@@ -1,15 +1,14 @@
 """Guardian maintenance sub-tasks (conflict auto-resolve, archive purge).
 
 [INPUT]
-- myrm_agent_harness.toolkits.memory::MemoryManager / MemoryType
-- myrm_agent_harness.toolkits.memory.types::MemoryStatus
+- myrm_agent_harness.toolkits.memory::MemoryManager
 - app.database.models::PendingMemory
 - app.core.memory.adapters.setup::create_memory_manager (POS: 业务层记忆管理器工厂)
 
 [OUTPUT]
 - create_guardian_memory_manager: guardian 上下文 MemoryManager 工厂
 - auto_resolve_expired_conflicts: keep_old resolve for expired low-risk conflicts
-- purge_expired_archives: hard-delete archived memories past their TTL
+- purge_expired_archives: delegate archived-memory retention reclamation to the harness
 - harvest_session_blind_spots: harvest missed queries & negative signals into knowledge patch approvals
 - sync_external_harness_transcripts: 增量扫描并同步外部 Agent 会话记录到会话召回索引
 
@@ -24,8 +23,7 @@ import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
-from myrm_agent_harness.toolkits.memory.types import MemoryStatus
+from myrm_agent_harness.toolkits.memory import MemoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -108,49 +106,15 @@ async def auto_resolve_expired_conflicts() -> int:
 
 
 async def purge_expired_archives(manager: MemoryManager) -> int:
-    """Hard-delete archived memories whose archive_expires_at TTL has passed.
+    """Reclaim archived memories and rules whose retention window has elapsed.
 
-    Returns total number of memories purged across all types.
+    Delegates to the harness TTL retention purge, which scans the archived
+    payload flag and falls back to ``archived_at`` for entries stamped before
+    every archival path wrote an expiration.
     """
-    total_purged = 0
-    for mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC):
-        try:
-            memories = await manager.list_memories(mem_type, limit=10000, include_archived=True)
-            expired_ids: list[str] = []
-            now = datetime.now(UTC)
-
-            for m in memories:
-                if getattr(m, "status", None) != MemoryStatus.ARCHIVED:
-                    continue
-                expires_str = getattr(m, "metadata", {}).get("archive_expires_at", "")
-                if not expires_str:
-                    continue
-                try:
-                    expires_at = datetime.fromisoformat(expires_str)
-                    if now >= expires_at:
-                        expired_ids.append(m.id)
-                except (ValueError, TypeError):
-                    continue
-
-            if not expired_ids:
-                continue
-
-            coll = manager.config.semantic_collection if mem_type == MemoryType.SEMANTIC else manager.config.episodic_collection
-            deleted = await manager.delete_memory(coll, expired_ids)
-            total_purged += deleted
-            logger.info(
-                "Memory guardian: purged %d/%d expired archived %s memories",
-                deleted,
-                len(expired_ids),
-                mem_type.value,
-            )
-        except Exception as exc:
-            logger.warning(
-                "Memory guardian: failed to purge expired %s archives: %s",
-                mem_type.value,
-                exc,
-            )
-    return total_purged
+    purged_memories = await manager.purge_expired_archived_memories()
+    purged_rules = await manager.purge_expired_archived_rules()
+    return purged_memories + purged_rules
 
 
 async def harvest_session_blind_spots(

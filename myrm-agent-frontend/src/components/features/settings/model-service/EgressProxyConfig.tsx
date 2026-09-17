@@ -52,6 +52,13 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
     }
   }, [onChange, testResult]);
 
+  const handleBlur = useCallback(() => {
+    const trimmed = value.trim();
+    if (/^[a-zA-Z0-9.-]+:\d+$/.test(trimmed)) {
+      onChange(`http://${trimmed}`);
+    }
+  }, [value, onChange]);
+
   return (
     <div className="space-y-3 pt-2">
       <div className="flex items-center justify-between">
@@ -88,6 +95,7 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
           type="text"
           value={value}
           onChange={handleInputChange}
+          onBlur={handleBlur}
           placeholder={t('egressProxyPlaceholder')}
           disabled={disabled}
           className="w-full px-3 py-2 text-sm bg-background border border-border/60 rounded-lg focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all font-mono text-xs placeholder:font-sans placeholder:text-muted-foreground/60"
@@ -115,7 +123,7 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
           ) : (
             <>
               <XCircle className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate max-w-md">
+              <span className="truncate max-w-md" title={testResult.error || undefined}>
                 {t('proxyFailed')}
                 {testResult.error ? `: ${testResult.error}` : ''}
               </span>
