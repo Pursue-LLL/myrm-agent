@@ -221,6 +221,7 @@ def _to_agent_response(
         allow_discovery=bool(metadata.get("allow_discovery", True)),
         a2a_enabled=bool(metadata.get("a2a_enabled", False)),
         a2a_trusted_peer_ids=_meta_str_list(metadata, "a2a_trusted_peer_ids", default=[]),
+        trusted_desktop_apps=[dict(e) for e in (metadata.get("trusted_desktop_apps") or []) if isinstance(e, dict)],
         responsibility_scope=_meta_str(metadata, "responsibility_scope"),
         owner_label=_meta_str(metadata, "owner_label"),
         acceptance_criteria=_meta_str_list_or_none(metadata, "acceptance_criteria"),

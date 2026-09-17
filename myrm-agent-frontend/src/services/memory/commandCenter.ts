@@ -418,9 +418,20 @@ export interface MemoryCommandGraphResponse {
 }
 
 export interface MemoryCommandActionRequest {
-  target_kind: 'pending_memory' | 'shared_context_proposal' | 'memory';
+  target_kind: 'pending_memory' | 'shared_context_proposal' | 'memory' | 'conflict_pair';
   target_id: string;
-  action: 'approve' | 'reject' | 'edit' | 'correct' | 'forget' | 'pin' | 'unpin';
+  action:
+    | 'approve'
+    | 'reject'
+    | 'edit'
+    | 'correct'
+    | 'correct_and_lock'
+    | 'forget'
+    | 'pin'
+    | 'unpin'
+    | 'keep_new'
+    | 'keep_old'
+    | 'coexist';
   memory_type?: string;
   content?: string;
 }

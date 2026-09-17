@@ -52,10 +52,7 @@ export const ProviderLowBalanceWarningHUD = memo<ProviderLowBalanceWarningHUDPro
     const gauge = getGauge(targetProviderId);
 
     // Identify candidate safety fallback
-    const safetyFallback =
-      defaultModelConfig?.safetyFallbackModelSelection ||
-      defaultModelConfig?.baseModelFallback ||
-      defaultModelConfig?.liteModel;
+    const safetyFallback = defaultModelConfig?.liteModel;
 
     const handleSwitchToSafetyFallback = useCallback(() => {
       if (!safetyFallback?.providerId || !safetyFallback?.model) return;

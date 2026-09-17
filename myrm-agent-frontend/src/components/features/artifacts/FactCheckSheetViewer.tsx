@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/p
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { FactCheckSheet, FactCheckItem, ConflictSeverity, ResolutionStatus } from './deliverableTypes';
-import { getApiUrl } from '@/lib/api';
+import { getStorageUrl } from '@/lib/api';
 
 interface FactCheckSheetViewerProps {
   sheet?: FactCheckSheet | null;
@@ -55,9 +55,9 @@ export const FactCheckSheetViewer: React.FC<FactCheckSheetViewerProps> = ({
   // 若未传入 sheet 但提供了 vaultUri，则自动从 Vault 读取
   useEffect(() => {
     if (!propSheet && vaultUri && open) {
-      const cleanId = vaultUri.replace('vault://', '');
       setLoading(true);
-      fetch(`${getApiUrl()}/api/v1/files/vault/${cleanId}`)
+      // getStorageUrl resolves the vault:// pointer to its /files/vault/{id}/content endpoint.
+      fetch(getStorageUrl(vaultUri))
         .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Failed to fetch'))))
         .then((parsed: FactCheckSheet) => {
           setData(parsed);

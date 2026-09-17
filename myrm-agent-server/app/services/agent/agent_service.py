@@ -271,6 +271,7 @@ class AgentService:
             "cost_reduction_ratio": agent_data.cost_reduction_ratio,
             "a2a_enabled": agent_data.a2a_enabled,
             "a2a_trusted_peer_ids": agent_data.a2a_trusted_peer_ids,
+            "trusted_desktop_apps": agent_data.trusted_desktop_apps,
             "responsibility_scope": agent_data.responsibility_scope,
             "owner_label": agent_data.owner_label,
             "acceptance_criteria": list(agent_data.acceptance_criteria or []),
@@ -440,6 +441,8 @@ class AgentService:
                 new_metadata["acceptance_criteria"] = [x for x in raw_ac if x] or None
             if "cron_post_run_verify" in agent_data.model_fields_set and agent_data.cron_post_run_verify is not None:
                 updates["cron_post_run_verify"] = agent_data.cron_post_run_verify
+            if "trusted_desktop_apps" in agent_data.model_fields_set and agent_data.trusted_desktop_apps is not None:
+                new_metadata["trusted_desktop_apps"] = agent_data.trusted_desktop_apps
 
             updates["metadata"] = new_metadata
 

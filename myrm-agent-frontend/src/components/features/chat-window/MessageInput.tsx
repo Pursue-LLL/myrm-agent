@@ -512,7 +512,10 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                 <ProviderLowBalanceWarningHUD className="mb-2" />
                 <FeaturedExpertChips />
                 <ScopedArtifactChip />
-                <SkillRequiredConnectorsPreflightBanner onOpenCapabilityEditor={handleOpenCapabilityEditor} />
+                <SkillRequiredConnectorsPreflightBanner
+                  activeSkillIds={turnCapabilitySelection?.skillIds ?? null}
+                  onOpenCapabilityEditor={handleOpenCapabilityEditor}
+                />
                 <ComposerContextChipStrip
                   chips={composerContextChips}
                   summary={composerContextSummary}

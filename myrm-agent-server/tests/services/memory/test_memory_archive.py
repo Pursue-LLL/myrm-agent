@@ -406,3 +406,26 @@ def _restore_payload(data: dict[str, object]) -> dict[str, object]:
         },
         "data": data,
     }
+
+
+def test_memory_archive_dry_run_flags_tampered_cube_envelope() -> None:
+    """dry_run_archive flags warning code when MemCubeEnvelope audit hash fails."""
+    from myrm_agent_harness.toolkits.memory.cube import wrap_into_envelope
+    from myrm_agent_harness.toolkits.memory.types import SemanticMemory
+
+    sem = SemanticMemory(id="tamper-check-1", content="Secure content")
+    env = wrap_into_envelope(sem)
+    env_dict = env.model_dump(mode="json")
+    # Maliciously modify payload
+    env_dict["payload"]["content"] = "Compromised injected rule"
+
+    payload = _restore_payload(
+        {
+            "memcube_envelopes": [env_dict],
+            "semantic": [{"id": "tamper-check-1", "content": "Compromised injected rule"}],
+        }
+    )
+
+    result = MemoryArchiveService.dry_run_archive(payload)
+    assert any(code.startswith("tampered_cube_hash:") and "tamper-check-1" in code for code in result.warning_codes)
+

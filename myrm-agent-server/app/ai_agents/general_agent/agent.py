@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncGenerator, Callable, Coroutine, Sequence
+from collections.abc import AsyncGenerator, Callable, Collection, Coroutine, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -116,6 +116,8 @@ class GeneralAgent(ToolSetupMixin):
         kanban_max_runtime_seconds: int | None = None,
         kanban_zombie_timeout_seconds: int = 120,
         unattended_mode: bool = False,
+        desktop_preapproved_trust_keys: Collection[str] | None = None,
+        desktop_unattended_fail_fast: bool = False,
         auto_restore_domains: list[str] | None = None,
         skill_ids: list[str] | None = None,
         skill_configs: dict[str, dict] | None = None,
@@ -235,6 +237,8 @@ class GeneralAgent(ToolSetupMixin):
         self.kanban_max_runtime_seconds = kanban_max_runtime_seconds
         self.kanban_zombie_timeout_seconds = kanban_zombie_timeout_seconds
         self.unattended_mode = unattended_mode
+        self.desktop_preapproved_trust_keys = tuple(desktop_preapproved_trust_keys or ())
+        self.desktop_unattended_fail_fast = desktop_unattended_fail_fast
         self.auto_restore_domains = auto_restore_domains or []
         self.fetch_raw_webpage = fetch_raw_webpage
         self.enable_memory = enable_memory

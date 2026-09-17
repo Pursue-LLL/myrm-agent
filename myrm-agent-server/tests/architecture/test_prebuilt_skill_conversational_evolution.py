@@ -22,7 +22,7 @@ def test_conversational_skill_evolution_frontmatter_contract():
     fm = yaml.safe_load(parts[1])
 
     assert fm["name"] == "conversational-skill-evolution"
-    assert "self-evolution" in fm["tags"]
+    assert "skill-evolution" in fm["tags"]
     assert "contract" in fm
     assert len(fm["contract"]["steps"]) == 4
     assert len(fm["contract"]["potential_traps"]) >= 2
@@ -31,8 +31,8 @@ def test_conversational_skill_evolution_frontmatter_contract():
 
 def test_conversational_skill_evolution_sop_structure():
     content = _SKILL_PATH.read_text(encoding="utf-8")
-    assert "Phase 1: In-Dialogue Feedback" in content
-    assert "Phase 2: Target File Reading & Structural Differential Analysis" in content
-    assert "Phase 3: Safety Guardrails & Regression Sanity Check" in content
-    assert "Phase 4: Atomic Rule Patch Application & Hot Reload" in content
-    assert "Acceptance Checklist" in content
+    assert "Phase 1: Intent Ingestion" in content
+    assert "Phase 2: Patch Synthesis" in content
+    assert "Phase 3: Pre-flight Audit" in content
+    assert "Phase 4: In-place Hot-Reload" in content
+    assert "技能自我进化已生效" in content

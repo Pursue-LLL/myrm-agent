@@ -116,7 +116,12 @@ export function MobileStatusLivePreview({
       </div>
 
       {lightboxSrc && (
-        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('livePreview')}
+          className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4"
+        >
           <button
             type="button"
             className="fixed inset-0 w-full h-full cursor-default bg-transparent border-0"

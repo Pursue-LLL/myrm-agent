@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
-import { suggestReferences, searchCitableChats, type ReferenceSuggestion, type SearchResult } from '@/services/chat';
+import { suggestReferences, searchCitableChats, type ReferenceSuggestion, type ReferenceSuggestionSource, type SearchResult } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
@@ -151,7 +151,7 @@ function staticSpecialMatches(query: string): ReferenceSuggestion[] {
 function historyResultToSuggestion(item: SearchResult): ReferenceSuggestion {
   const title = item.chat_title?.trim() || 'Untitled conversation';
   return {
-    source: item.source || 'special',
+    source: (item.source || 'special') as ReferenceSuggestionSource,
     reference_type: 'prior_chat',
     kind: 'reference',
     label: `@chat:${title}`,

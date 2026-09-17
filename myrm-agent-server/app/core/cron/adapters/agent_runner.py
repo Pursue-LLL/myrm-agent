@@ -603,6 +603,7 @@ class AgentJobRunner:
             memory_decay_profile: str | None = None
             memory_extraction_preset: str | None = None
             cron_post_run_verify = False
+            trusted_desktop_apps: tuple[dict[str, str], ...] = ()
 
             if job.agent_id:
                 from app.services.agent.profile.profile_resolver import (
@@ -627,6 +628,7 @@ class AgentJobRunner:
                     raw_preset = resolved.memory_extraction_preset
                     memory_extraction_preset = raw_preset if isinstance(raw_preset, str) else None
                     cron_post_run_verify = resolved.cron_post_run_verify
+                    trusted_desktop_apps = resolved.trusted_desktop_apps
 
                     if resolved.agent_type == "team":
                         from app.ai_agents.team_protocol import (
@@ -703,6 +705,30 @@ class AgentJobRunner:
                 )
 
             memory_settings = user_cfgs.personal_settings_dict or {}
+            cron_trusted_desktop_keys: tuple[str, ...] = ()
+            if trusted_desktop_apps:
+                from myrm_agent_harness.toolkits.computer_use.app_identity import (
+                    resolve_trust_key,
+                )
+
+                cron_trusted_desktop_keys = tuple(
+                    key
+                    for key in (
+                        resolve_trust_key(
+                            app_name=app.get("name", ""),
+                            app_id=app.get("app_id", ""),
+                        )
+                        for app in trusted_desktop_apps
+                    )
+                    if key
+                )
+                if len(cron_trusted_desktop_keys) != len(trusted_desktop_apps):
+                    logger.warning(
+                        "Cron job %s: %d/%d trusted desktop apps unresolvable, skipped",
+                        job.id,
+                        len(trusted_desktop_apps) - len(cron_trusted_desktop_keys),
+                        len(trusted_desktop_apps),
+                    )
             from app.core.agent.tool_description_locale import (
                 resolve_agent_params_locale,
             )
@@ -748,6 +774,8 @@ class AgentJobRunner:
                 enable_web_fetch=resolve_enable_web_fetch(agent_security_raw),
                 auto_restore_domains=auto_restore_domains,
                 unattended_mode=True,
+                desktop_preapproved_trust_keys=cron_trusted_desktop_keys,
+                desktop_unattended_fail_fast=True,
                 user_instructions=user_instructions,
                 agent_skill_ids=list(dict.fromkeys(agent_skill_ids + list(job.skill_ids))),
                 subagent_ids=agent_subagent_ids,

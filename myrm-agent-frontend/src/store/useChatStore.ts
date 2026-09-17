@@ -390,7 +390,7 @@ const useChatStore = create<ChatState>()(
       setChatHistoryItems: (items) => set({ chatHistoryItems: items }),
       setChatHistoryPagination: (pagination) => set({ chatHistoryPagination: pagination }),
       setChatHistoryLoading: (loading) => set({ chatHistoryLoading: loading }),
-      setFiles: (files) => set({ files }),
+      setFiles: (files) => set((state) => ({ files: typeof files === 'function' ? files(state.files) : files })),
       setCameraFrames: (frames) => set({ cameraFrames: frames }),
       setHideAttachList: (hide) => set({ hideAttachList: hide }),
       setHasUsedImagesInCurrentChat: (hasUsed) => set({ hasUsedImagesInCurrentChat: hasUsed }),

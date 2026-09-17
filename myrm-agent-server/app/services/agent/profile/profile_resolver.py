@@ -58,6 +58,34 @@ __all__ = [
 _CACHE_TTL_SECONDS = 300.0
 
 
+def _normalize_trusted_desktop_apps(raw: object) -> tuple[dict[str, str], ...]:
+    """Normalize pre-trusted desktop app entries to ({name, app_id?}, ...).
+
+    Accepts plain name strings or dicts ({name|display_name|app, app_id?}).
+    Entries without a usable name are dropped.
+    """
+    if not isinstance(raw, (list, tuple)):
+        return ()
+    normalized: list[dict[str, str]] = []
+    for entry in raw:
+        if isinstance(entry, str):
+            name = entry.strip()
+            if name:
+                normalized.append({"name": name})
+            continue
+        if not isinstance(entry, dict):
+            continue
+        name_raw = entry.get("name") or entry.get("display_name") or entry.get("app")
+        if not isinstance(name_raw, str) or not name_raw.strip():
+            continue
+        item = {"name": name_raw.strip()}
+        app_id_raw = entry.get("app_id") or entry.get("appId")
+        if isinstance(app_id_raw, str) and app_id_raw.strip():
+            item["app_id"] = app_id_raw.strip()
+        normalized.append(item)
+    return tuple(normalized)
+
+
 @dataclass(frozen=True, slots=True)
 class ResolvedAgentProfile:
     """Unified agent profile resolved from database.
@@ -105,6 +133,9 @@ class ResolvedAgentProfile:
 
     cron_post_run_verify: bool = field(default=False, kw_only=True)
     """When true, cron runs verify worker output via adversarial reviewer after effectful tool use."""
+
+    trusted_desktop_apps: tuple[dict[str, str], ...] = field(default_factory=tuple, kw_only=True)
+    """Desktop apps pre-trusted for unattended runs: each dict has {name, app_id?}."""
 
     a2a_enabled: bool = field(default=False, kw_only=True)
     """Whether agent-to-agent delegation is enabled for this profile."""
@@ -257,6 +288,11 @@ class AgentProfileResolver:
                     ),
                     built_in=bool(getattr(agent, "is_built_in", False) or getattr(agent, "is_public", False)),
                     cron_post_run_verify=bool(metadata.get("cron_post_run_verify", False)),
+                    trusted_desktop_apps=_normalize_trusted_desktop_apps(
+                        getattr(agent, "trusted_desktop_apps", None)
+                        if getattr(agent, "trusted_desktop_apps", None) is not None
+                        else metadata.get("trusted_desktop_apps", ())
+                    ),
                     a2a_enabled=bool(getattr(agent, "a2a_enabled", False) or metadata.get("a2a_enabled", False)),
                     a2a_trusted_peer_ids=coerce_str_tuple(
                         getattr(agent, "a2a_trusted_peer_ids", None)

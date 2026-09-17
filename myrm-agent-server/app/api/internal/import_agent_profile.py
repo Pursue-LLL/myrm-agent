@@ -250,6 +250,8 @@ async def _force_update_agent(
         updates["workspace_policy"] = profile_data["workspace_policy"]
     if "cron_post_run_verify" in profile_data and profile_data["cron_post_run_verify"] is not None:
         updates["cron_post_run_verify"] = bool(profile_data["cron_post_run_verify"])
+    if "trusted_desktop_apps" in profile_data and profile_data["trusted_desktop_apps"] is not None:
+        updates["trusted_desktop_apps"] = list(profile_data["trusted_desktop_apps"])
     if "enabled_builtin_tools" in profile_data and profile_data["enabled_builtin_tools"] is not None:
         from app.services.agent.builtin_specs.builtin_tool_ids import (
             normalize_enabled_builtin_tools,

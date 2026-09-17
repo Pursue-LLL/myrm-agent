@@ -6,7 +6,8 @@ from pathlib import Path
 
 import yaml
 
-SKILL_PATH = Path("assets/prebuilt_skills/micro-tool-hot-swap/SKILL.md")
+_SERVER_ROOT = Path(__file__).resolve().parents[2]
+SKILL_PATH = _SERVER_ROOT / "assets" / "prebuilt_skills" / "in-process-microtool-swapper" / "SKILL.md"
 
 
 def test_micro_tool_hot_swap_asset_structure() -> None:
@@ -17,7 +18,7 @@ def test_micro_tool_hot_swap_asset_structure() -> None:
     assert len(parts) >= 3, "Skill file must contain YAML frontmatter delimited by ---"
 
     frontmatter = yaml.safe_load(parts[1])
-    assert frontmatter["name"] == "micro-tool-hot-swap"
+    assert frontmatter["name"] == "in-process-microtool-swapper"
     assert "description" in frontmatter and len(frontmatter["description"]) > 10
     assert frontmatter["version"] == "1.0.0"
     assert frontmatter["category"] == "engineering"
@@ -25,12 +26,12 @@ def test_micro_tool_hot_swap_asset_structure() -> None:
 
     body = parts[2]
     # Check 4 stages exist
-    assert "Stage 1: Functional Schema Declaration" in body
-    assert "Stage 2: Dynamic In-Process Mounting" in body
-    assert "Stage 3: Sub-Millisecond Execution & Routing" in body
-    assert "Stage 4: Dynamic Hot-Swap & Unmount" in body
+    assert "Stage 1: Declarative Micro-Tool Authoring" in body
+    assert "Stage 2: In-Memory Hot Registration & Shadowing" in body
+    assert "Stage 3: Sub-Millisecond Dispatch & Telemetry" in body
+    assert "Stage 4: Hot Unload & Reversion" in body
 
     # Check Dual-Track Matrix
-    assert "Dual-Track Dispatch Matrix" in body
-    assert "Track 1: External MCP Server" in body
-    assert "Track 2: Native Micro-Tool" in body
+    assert "Dual-Track Tool Architecture" in body
+    assert "Track 1: In-Process Micro-Tool" in body
+    assert "Track 2: External MCP / CLI" in body

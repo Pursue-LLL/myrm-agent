@@ -32,19 +32,25 @@ import {
 export interface SkillRequiredConnectorsPreflightBannerProps {
   className?: string;
   onOpenCapabilityEditor?: () => void;
+  /**
+   * Per-turn narrowed skill IDs from the composer's capability selection.
+   * Owned by `useMessageInput` (turn-scoped state, not part of ChatState), so it is
+   * passed down rather than read from the store. `null` falls back to the agent config.
+   */
+  activeSkillIds?: string[] | null;
 }
 
 export function SkillRequiredConnectorsPreflightBanner({
   className,
   onOpenCapabilityEditor,
+  activeSkillIds: turnSkillIds,
 }: SkillRequiredConnectorsPreflightBannerProps) {
   const t = useTranslations('chat.skillConnectorsPreflight');
   const router = useRouter();
 
-  const { agentConfig, turnCapabilitySelection } = useChatStore(
+  const { agentConfig } = useChatStore(
     useShallow((state) => ({
       agentConfig: state.agentConfig,
-      turnCapabilitySelection: state.turnCapabilitySelection,
     })),
   );
 
@@ -59,11 +65,11 @@ export function SkillRequiredConnectorsPreflightBanner({
 
   // 1. 解析当前生效的技能集合 (优先使用单轮收窄 selection，其次为 AgentConfig)
   const activeSkillIds = useMemo(() => {
-    if (turnCapabilitySelection?.skillIds !== null && turnCapabilitySelection?.skillIds !== undefined) {
-      return turnCapabilitySelection.skillIds;
+    if (turnSkillIds != null) {
+      return turnSkillIds;
     }
     return agentConfig?.selectedSkillIds ?? [];
-  }, [agentConfig?.selectedSkillIds, turnCapabilitySelection?.skillIds]);
+  }, [agentConfig?.selectedSkillIds, turnSkillIds]);
 
   // 2. 预检依赖缺失情况
   const preflightResult = useMemo(() => {
@@ -78,7 +84,7 @@ export function SkillRequiredConnectorsPreflightBanner({
     const missingMcp: Array<{ skillName: string; serverId: string }> = [];
 
     const activeMcpIds = new Set(
-      mcpConfigs.filter((cfg) => cfg.enabled !== false).map((cfg) => cfg.id || cfg.name),
+      mcpConfigs.filter((cfg) => cfg.enabled !== false).map((cfg) => cfg.name),
     );
 
     for (const skillId of activeSkillIds) {

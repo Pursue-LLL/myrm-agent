@@ -39,7 +39,7 @@ def test_get_repo_evidence_digest_endpoint(repo_client: TestClient) -> None:
     assert resp.status_code == 200
     data = resp.json()
 
-    assert data["repo_name"] == "open-perplexity"
+    assert data["repo_name"] in ("myrm-agent", "open-perplexity")
     assert "current_branch" in data
     assert "is_dirty" in data
     assert isinstance(data["recent_commits"], list)

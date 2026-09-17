@@ -13,7 +13,7 @@
 ## 使用
 
 ```tsx
-import { ImagePreview } from '@/components/features/file-preview';
+import { ImagePreview } from '@/components/features/file-preview/ImagePreview';
 ```
 
 ## 依赖

@@ -13,6 +13,7 @@
 
 import { memo } from 'react';
 import { useTranslations } from 'next-intl';
+import { ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import {
   Dialog,
@@ -157,6 +158,18 @@ export const MemoryArchiveRestoreDialog = memo<MemoryArchiveRestoreDialogProps>(
                     return section ? <SectionPlanCard key={`${key}:mobile`} section={section} /> : null;
                   })}
                 </div>
+
+                {preview.plan.warning_codes.some((w) => w.startsWith('tampered_cube_hash')) ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+                    <ShieldAlert className="h-4 w-4 shrink-0" />
+                    <span>数据完整性告警：检测到备份文件存在异常变动或损坏风险</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                    <ShieldCheck className="h-4 w-4 shrink-0" />
+                    <span>数据完整性校验通过：备份档案结构完好且未被篡改</span>
+                  </div>
+                )}
 
                 {preview.plan.warning_codes.length > 0 && (
                   <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
@@ -400,6 +413,9 @@ function formatDiagnosticStatus(
 }
 
 function formatWarning(t: ReturnType<typeof useTranslations<'memory.archiveRestore'>>, warning: string): string {
+  if (warning.startsWith('tampered_cube_hash')) {
+    return '数据完整性校验未通过：部分记忆条目存在修改痕迹或结构损坏';
+  }
   const known = [
     'section_not_selected',
     'memory_section_invalid',

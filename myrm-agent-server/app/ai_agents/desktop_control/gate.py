@@ -24,6 +24,7 @@ import logging
 import os
 import uuid
 import weakref
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypedDict
@@ -121,16 +122,29 @@ class DesktopControlGate:
         auto_grant: bool = False,
         default_timeout_seconds: float = _DEFAULT_TIMEOUT_SEC,
         register_live: bool = True,
+        preapproved_trust_keys: Collection[str] | None = None,
+        unattended_fail_fast: bool = False,
     ) -> None:
         self._workspace_root = Path(workspace_root) if workspace_root else None
         self._auto_grant = auto_grant
         self._default_timeout = default_timeout_seconds
+        self._unattended_fail_fast = unattended_fail_fast
         self._session_approved_keys: set[str] = set()
         self._always_approved_keys: set[str] = set()
+        self._run_scoped_keys: set[str] = set()
         self._trusted_app_records: dict[str, TrustedAppRecord] = {}
         self._load_persisted_apps()
+        if preapproved_trust_keys:
+            seeded = {str(key).strip() for key in preapproved_trust_keys if str(key).strip()}
+            self._run_scoped_keys.update(seeded)
+            self._session_approved_keys.update(seeded)
         if register_live:
             DesktopControlGate._live_gates.add(self)
+
+    def reset_run_scoped_trust(self) -> None:
+        """Drop run-scoped (e.g. cron blueprint) trust keys without touching user trust."""
+        self._session_approved_keys.difference_update(self._run_scoped_keys)
+        self._run_scoped_keys.clear()
 
     def reset_runtime_approval_state(self) -> None:
         """Clear in-memory approval caches and reload persisted always-approved apps."""
@@ -304,6 +318,24 @@ class DesktopControlGate:
                 granted=True,
                 scope=ForegroundPermissionScope.once,
             )
+
+        if require_app_approval and self._run_scoped_keys:
+            trust_key = resolve_trust_key(app_name=app_name, app_id=app_id)
+            if trust_key and trust_key in self._run_scoped_keys:
+                return ForegroundPermissionResult(
+                    granted=True,
+                    scope=ForegroundPermissionScope.once,
+                )
+
+        if self._unattended_fail_fast:
+            # Unattended runs (e.g. cron) have no human to answer the approval
+            # card: deny immediately instead of burning the full approval timeout.
+            logger.warning(
+                "Desktop approval fast-denied (unattended, app=%r op=%r)",
+                app_name,
+                operation,
+            )
+            return ForegroundPermissionResult(granted=False)
 
         sink = get_tool_progress_sink()
         if sink is None:

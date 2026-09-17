@@ -27,24 +27,22 @@ _SKILL_MD = (
 
 _CORE_MODULE_MARKERS = (
     "project-experience-evidence-pack",
-    "Phase 1: Scope & Requirement Anchor",
-    "Phase 2: V0 Initial Baseline Capture",
-    "Phase 3: Execution Friction & Failure Trace",
-    "Phase 4: Root Cause & Modification Evidence",
-    "Phase 5: Physical Acceptance & Quantitative Verification",
-    "Phase 6: Crystallized Invariants & Reusable Rules",
+    "Step 1: Original Intent & Constraints",
+    "Step 2: v0 Initial Design / Prototype",
+    "Step 3: Execution Bottlenecks & Failure Traces",
+    "Step 4: Root-Cause Analysis & Fix Justifications",
+    "Step 5: Verifiable Physical Proof & Benchmark",
+    "Step 6: Crystallized Experience & Invariant Lessons",
 )
 
 _SAFETY_CONTRACT_MARKERS = (
-    "Zero Boastful Fluff",
-    "GOAL_SYSTEM.md",
-    "No Evidence, No Claim",
-    "Phase 1: Requirement Anchor & Scope Boundary",
-    "Phase 2: V0 Initial Baseline & Starting Point",
-    "Phase 3: Execution Friction & Failure Trace",
-    "Phase 4: Root Cause & Modification Evidence",
-    "Phase 5: Physical Acceptance & Quantitative Verification",
-    "Phase 6: Crystallized Invariants & Reusable Rules",
+    "empty boast case studies",
+    "Step 1: Original Intent & Constraints (原始诉求与核心边界)",
+    "Step 2: v0 Initial Design / Prototype (v0 首稿方案与基线设计)",
+    "Step 3: Execution Bottlenecks & Failure Traces (执行瓶颈与真实失败轨迹)",
+    "Step 4: Root-Cause Analysis & Fix Justifications (根本原因与修正依据)",
+    "Step 5: Verifiable Physical Proof & Benchmark (实测物理证据与指标验收)",
+    "Step 6: Crystallized Experience & Invariant Lessons (经验沉淀与防复发不变量)",
 )
 
 _MAX_SKILL_CHARS = 12_000

@@ -188,7 +188,7 @@ export interface ChatState {
   setChatHistoryLoading: (loading: boolean) => void;
   setChatHistorySourceFilter: (source: string | null) => void;
   setChatHistorySearchKeyword: (keyword: string) => void;
-  setFiles: (files: File[]) => void;
+  setFiles: (files: File[] | ((prev: File[]) => File[])) => void;
   setCameraFrames: (frames: string[]) => void;
   setHideAttachList: (hide: boolean) => void;
   setHasUsedImagesInCurrentChat: (hasUsed: boolean) => void;

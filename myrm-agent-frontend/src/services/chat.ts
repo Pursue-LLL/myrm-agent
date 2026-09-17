@@ -566,6 +566,8 @@ export const saveWorkspaceFileContent = async (
 // ---------------------------------------------------------------------------
 
 export type ReferenceSuggestionSource = 'workspace' | 'uploaded' | 'generated' | 'special' | 'agent' | 'wiki';
+/** Memory-import provenance (`external:claude_code`, `external:codex`, ...) surfaces on prior-chat hits. */
+export type ReferenceHistorySource = ReferenceSuggestionSource | `external:${string}`;
 export type ReferenceSuggestionType =
   | 'workspace_file'
   | 'workspace_folder'
@@ -579,7 +581,7 @@ export type ReferenceSuggestionType =
   | 'prior_chat';
 
 export interface ReferenceSuggestion {
-  source: ReferenceSuggestionSource;
+  source: ReferenceHistorySource;
   reference_type: ReferenceSuggestionType;
   kind: 'file' | 'directory' | 'reference' | 'agent';
   label: string;

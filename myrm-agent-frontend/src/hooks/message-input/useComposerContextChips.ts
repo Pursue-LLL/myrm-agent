@@ -122,7 +122,7 @@ export function useComposerContextChips({
   );
 
   const handleRemoveFile = useCallback(
-    (fileId: string) => {
+    (fileId: string | undefined) => {
       const next = files.filter((f) => f.id !== fileId);
       setFiles(next);
       if (next.length === 0) {

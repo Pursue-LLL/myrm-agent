@@ -502,7 +502,7 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({ node
                     >
                       <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
                         <span>{isOutbound ? `Sent to: ${msg.to_task_id}` : `Received from: ${msg.from_task_id}`}</span>
-                        <span className="font-mono">{new Date(msg.timestamp).toLocaleTimeString()}</span>
+                        <span className="font-mono">{new Date(msg.created_at).toLocaleTimeString()}</span>
                       </div>
                       <p className="whitespace-pre-wrap break-words">{msg.body}</p>
                     </div>

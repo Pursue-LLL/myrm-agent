@@ -174,6 +174,8 @@ export function MobileActionSheet({ open, onClose, title, entries, footer }: Mob
       />
       {/* Sheet */}
       <div
+        role="dialog"
+        aria-modal="true"
         className={cn(
           'fixed inset-x-0 bottom-0 z-[1101] flex flex-col',
           'max-h-[72vh] rounded-t-2xl bg-background shadow-2xl',
@@ -181,7 +183,6 @@ export function MobileActionSheet({ open, onClose, title, entries, footer }: Mob
           'myrm-safe-bottom-fallback',
           visible ? 'translate-y-0' : 'translate-y-full',
         )}
-        aria-modal="true"
       >
         {/* Handle bar */}
         <div className="mx-auto mt-2 mb-1 h-1 w-9 shrink-0 rounded-full bg-muted-foreground/30" />

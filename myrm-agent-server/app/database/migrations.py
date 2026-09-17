@@ -1034,6 +1034,7 @@ INDEX_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS idx_a2a_peers_base_url ON a2a_peers(base_url)",
     "ALTER TABLE agents ADD COLUMN a2a_enabled BOOLEAN NOT NULL DEFAULT 0",
     "ALTER TABLE agents ADD COLUMN a2a_trusted_peer_ids JSON",
+    "ALTER TABLE agents ADD COLUMN trusted_desktop_apps JSON",
 ]
 
 

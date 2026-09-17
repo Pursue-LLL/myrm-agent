@@ -27,6 +27,7 @@ async def test_multi_connector_preflight_marks_unavailable_when_issuer_missing()
     # Skill requiring two issuers: google_workspace and spotify
     meta = SkillMetadata(
         name="multi-meeting-sync",
+        description="Multi meeting sync test skill",
         storage_path="/tmp/fake-skill",
         required_oauth_issuers=["google_workspace", "spotify"],
     )
@@ -51,6 +52,7 @@ async def test_multi_connector_preflight_keeps_available_when_all_issuers_connec
 
     meta = SkillMetadata(
         name="multi-meeting-sync-full",
+        description="Multi meeting sync full test skill",
         storage_path="/tmp/fake-skill",
         required_oauth_issuers=["google_workspace", "slack"],
     )

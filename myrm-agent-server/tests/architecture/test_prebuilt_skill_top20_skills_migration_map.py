@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 _SKILL_MD = _REPO_ROOT / "assets" / "prebuilt_skills" / "top20-skills-migration-guide" / "SKILL.md"
 
 _TOP20_MIGRATION_MARKERS = (
@@ -39,11 +39,10 @@ _TOP20_MIGRATION_MARKERS = (
     "customer-relationship-draft-review",
     "brand-vi-guidelines",
     "github-workflow",
-    "competitive-analysis-pipeline",
-    "task-planning",
-    "WYSIWYG Assembly",
-    "Air-Gapped Artifact Sandbox",
-    "Turn-Level Minimal Mount",
+    "enterprise-branded-office",
+    "evidence-discipline",
+    "WYSIWYG",
+    "sandbox security",
 )
 
 

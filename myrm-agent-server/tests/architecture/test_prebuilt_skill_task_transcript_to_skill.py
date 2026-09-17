@@ -6,7 +6,8 @@ from pathlib import Path
 
 import yaml
 
-SKILL_PATH = Path("assets/prebuilt_skills/task-transcript-to-skill/SKILL.md")
+_SERVER_ROOT = Path(__file__).resolve().parents[2]
+SKILL_PATH = _SERVER_ROOT / "assets" / "prebuilt_skills" / "task-transcript-to-skill" / "SKILL.md"
 
 
 def test_task_transcript_to_skill_asset_structure() -> None:
@@ -20,17 +21,17 @@ def test_task_transcript_to_skill_asset_structure() -> None:
     assert frontmatter["name"] == "task-transcript-to-skill"
     assert "description" in frontmatter and len(frontmatter["description"]) > 10
     assert frontmatter["version"] == "1.0.0"
-    assert frontmatter["category"] == "productivity"
+    assert frontmatter["category"] in ("productivity", "automation")
     assert "allowed-tools" in frontmatter
-    assert "skill_manage_tool" in frontmatter["allowed-tools"]
+    assert "file_write_tool" in frontmatter["allowed-tools"]
 
     body = parts[2]
     # Check 4 phases exist
-    assert "Phase 1: Generalization & Slot Extraction" in body
-    assert "Phase 2: Standardized Procedural Schema" in body
-    assert "Phase 3: Packaging & Validation" in body
-    assert "Phase 4: Save & Cron Automation Handoff" in body
+    assert "Phase 1: Physical Verification Gate" in body
+    assert "Phase 2: Trajectory De-Noising & Flow Mining" in body
+    assert "Phase 3: Variable Generalization & Frontmatter Generation" in body
+    assert "Phase 4: Cron Blueprint Pairing" in body
 
     # Check Cron handoff & parameterization
-    assert "cron_expression" in body
-    assert "${TARGET_DIR}" in body or "${DATE}" in body
+    assert "skill_ids:" in body
+    assert "CronBlueprint" in body

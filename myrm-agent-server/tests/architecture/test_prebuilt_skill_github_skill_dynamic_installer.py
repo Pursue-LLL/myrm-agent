@@ -39,7 +39,7 @@ _CONTRACT_MARKERS = (
     "Phase 3: Frontmatter Schema & Contract Validation",
     "Phase 4: Dynamic Hot-Mounting & Registry Activation",
     "Ephemeral Shallow Clone",
-    "Zero-config",
+    "zero-config",
 )
 
 _MAX_SKILL_CHARS = 12_000

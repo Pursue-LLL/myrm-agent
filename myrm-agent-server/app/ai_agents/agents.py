@@ -141,6 +141,8 @@ class GeneralAgentParams(BaseAgentParams):
     kanban_max_runtime_seconds: int | None = None
     kanban_zombie_timeout_seconds: int = 120
     unattended_mode: bool = False
+    desktop_preapproved_trust_keys: tuple[str, ...] = ()
+    desktop_unattended_fail_fast: bool = False
     auto_restore_domains: list[str] = []
     enable_web_search: bool = True
     web_search_profile_enabled: bool = False
@@ -329,6 +331,8 @@ class AgentFactory:
             kanban_max_runtime_seconds=params.kanban_max_runtime_seconds,
             kanban_zombie_timeout_seconds=params.kanban_zombie_timeout_seconds,
             unattended_mode=params.unattended_mode,
+            desktop_preapproved_trust_keys=params.desktop_preapproved_trust_keys,
+            desktop_unattended_fail_fast=params.desktop_unattended_fail_fast,
             auto_restore_domains=params.auto_restore_domains,
             skill_ids=params.agent_skill_ids,
             skill_configs=params.agent_skill_configs,

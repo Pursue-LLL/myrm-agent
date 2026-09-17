@@ -2,6 +2,7 @@
 - app.ai_agents.general_agent.agent::GeneralAgent (POS: 通用 Agent 核心实现)
 - app.ai_agents.general_agent.llm_factory::create_agent_llms (POS: 创建 LLM 实例)
 - myrm_agent_harness.api.create_skill_agent (POS: SkillAgent 组装入口)
+- myrm_agent_harness.toolkits.memory.consolidation::create_consolidation_cleanup_task (POS: 工作记忆与自愈避坑经验沉淀任务工厂)
 
 [OUTPUT]
 - build_general_agent(): 将已解析配置组装为可执行的 GeneralAgent SkillAgent
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
 
     from myrm_agent_harness.agent.extensions.protocols import AgentExtension
     from myrm_agent_harness.api import SkillAgent
+    from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
     from app.ai_agents.general_agent.agent import GeneralAgent
     from app.services.agent.params.models import MCPConfig
@@ -819,7 +821,11 @@ async def build_general_agent(
         default_skill_instances=(default_skill_instances if default_skill_instances else None),
         global_env=global_env,
         on_skill_review_ready=make_skill_review_callback(),
-        on_session_cleanup=_build_session_cleanup_callback(agent_wrapper, user_id or "default"),
+        on_session_cleanup=_build_session_cleanup_callback(
+            agent_wrapper,
+            user_id or "default",
+            memory_manager=memory_manager,
+        ),
         on_loaded_skills_persist=(None if agent_wrapper.incognito_mode else make_loaded_skills_persist_callback()),
         extraction_lifecycle_observer=(
             make_extraction_lifecycle_observer(effective_chat_id)
@@ -1049,8 +1055,9 @@ def _get_budget_pressure_fn() -> "Callable[[], bool] | None":
 def _build_session_cleanup_callback(
     agent_wrapper: "GeneralAgent",
     user_id: str,
+    memory_manager: "MemoryManager | None" = None,
 ) -> "Callable[[Sequence[dict[str, str]], str | None], Awaitable[None]] | None":
-    """Build a composite session cleanup callback (follow-up extraction + correction propagation)."""
+    """Build a composite session cleanup callback (follow-up extraction + correction propagation + memory consolidation)."""
     if not agent_wrapper.enable_memory or agent_wrapper.incognito_mode:
         return None
 
@@ -1060,6 +1067,9 @@ def _build_session_cleanup_callback(
 
     from myrm_agent_harness.api.hooks import (
         create_extraction_llm_func,
+    )
+    from myrm_agent_harness.toolkits.memory import (
+        create_consolidation_cleanup_task,
     )
     from myrm_agent_harness.toolkits.memory.session_post_process import (
         run_session_post_process,
@@ -1091,6 +1101,7 @@ def _build_session_cleanup_callback(
             profile_skill_ids=list(agent_wrapper.skill_ids or []),
             llm_func=llm_func,
         ),
+        create_consolidation_cleanup_task(memory_manager=memory_manager),
     ]
 
     async def _composite(messages: "Sequence[dict[str, str]]", chat_id: str | None) -> None:

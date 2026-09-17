@@ -348,6 +348,7 @@ def _agent_create_payload_from_profile(
         "dialog_policy",
         "session_recording",
         "cron_post_run_verify",
+        "trusted_desktop_apps",
         "suggestion_prompts",
         "home_directory",
     ):

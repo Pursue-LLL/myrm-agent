@@ -62,6 +62,8 @@ export type DoctorExecutableAction = Extract<
   DoctorRepairAction,
   'run_diagnostics' | 'run_health_refresh' | 'restore_disciplined_defaults' | 'elevate_mislayered_memories'
 >;
+/** The command center owns the doctor action union; the panel must accept every variant it dispatches. */
+export type DoctorAction = DoctorExecutableAction;
 
 const isReadinessStatus = (value: string): value is ReadinessStatus =>
   READINESS_STATUSES.includes(value as ReadinessStatus);

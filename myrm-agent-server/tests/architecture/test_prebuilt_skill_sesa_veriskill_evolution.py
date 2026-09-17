@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 _SKILL_MD = (
-    Path(__file__).resolve().parents[3]
+    Path(__file__).resolve().parents[2]
     / "assets"
     / "prebuilt_skills"
     / "sesa-veriskill-evolution"
@@ -25,17 +25,17 @@ _SKILL_MD = (
 )
 
 _ATTRIBUTION_MARKERS = (
-    "Helpful",
-    "Hurtful",
-    "Spurious",
-    "Redundant",
+    "User Prompt Ambiguity",
+    "Environment / Tool Flaw",
+    "Agent Planner Drift",
+    "Skill Instruction Defect",
 )
 
 _SCHEMA_MARKERS = (
-    "The 4-Way Causal Attribution Matrix",
-    "Net Score",
-    "Differential Case Matrix",
-    "Standard Execution SOP",
+    "The 4-Way Attribution Gate",
+    "Help-Hurt Net Scoring Formula",
+    "Admission Rule",
+    "Zero-regression policy",
 )
 
 _MAX_SKILL_CHARS = 12_000

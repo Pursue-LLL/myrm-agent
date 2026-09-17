@@ -37,6 +37,7 @@ import {
   type MemoryImportRollbackResponse,
 } from '@/services/memory/archive';
 import { ActSection, ObserveSection, UnderstandSection, VerifySection } from './MemoryCommandCenterPanels';
+import { type DoctorExecutableAction } from './MemoryCommandCenterDoctorPanel';
 import {
   getMemoryCommandCenter,
   getConsolidationLastSummary,
@@ -66,7 +67,7 @@ const HEALTH_STATUSES = ['healthy', 'degraded', 'critical', 'unknown'] as const;
 
 type Section = (typeof SECTIONS)[number];
 type HealthStatus = (typeof HEALTH_STATUSES)[number];
-type DoctorAction = 'run_diagnostics' | 'run_health_refresh' | 'restore_disciplined_defaults';
+type DoctorAction = DoctorExecutableAction;
 
 const formatTime = (value: string): string =>
   new Intl.DateTimeFormat(undefined, {

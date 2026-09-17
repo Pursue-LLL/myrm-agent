@@ -176,6 +176,7 @@ class MarketplaceAgentProfileContract(BaseModel):
     dialog_policy: str | None = None
     session_recording: str | None = None
     cron_post_run_verify: bool | None = None
+    trusted_desktop_apps: list[dict[str, str]] | None = None
 
     @field_validator("display_name")
     @classmethod

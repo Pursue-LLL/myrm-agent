@@ -6,7 +6,8 @@ from pathlib import Path
 
 import yaml
 
-SKILL_PATH = Path("assets/prebuilt_skills/mcp-expiry-watchdog/SKILL.md")
+_SERVER_ROOT = Path(__file__).resolve().parents[2]
+SKILL_PATH = _SERVER_ROOT / "assets" / "prebuilt_skills" / "mcp-expiry-watchdog" / "SKILL.md"
 
 
 def test_mcp_expiry_watchdog_asset_structure() -> None:
@@ -24,14 +25,13 @@ def test_mcp_expiry_watchdog_asset_structure() -> None:
     assert "allowed-tools" in frontmatter
 
     body = parts[2]
-    # Check 4 tiers exist
-    assert "Tier 1: Credential Discovery & Expiry Harvesting" in body
-    assert "Tier 2: Expiry Risk Level Classification" in body
-    assert "Tier 3: Silent Background Token Refresh" in body
-    assert "Tier 4: Actionable Reauth Nudge & Pre-Flight Banner" in body
+    # Check 4 phases exist
+    assert "Phase 1: Credential Expiry Inspection" in body
+    assert "Phase 2: Proactive Health & Expiry Gating" in body
+    assert "Phase 3: Silent Pre-Flight Token Refresh" in body
+    assert "Phase 4: HITL Re-authentication Alerting" in body
 
     # Check contracts and thresholds
-    assert "time_to_live_sec" in body
     assert "CRITICAL" in body
-    assert "WARNING" in body
-    assert "/settings/credentials" in body
+    assert "WARN_REFRESHABLE" in body
+    assert "/settings/integrations" in body

@@ -19,7 +19,7 @@ async def test_collect_behavioral_messages_filters_bot_and_sorts() -> None:
     db = AsyncMock(spec=AsyncSession)
     manager = MagicMock()
 
-    base_time = datetime(2026, 9, 4, 12, 0, 0, tzinfo=UTC)
+    base_time = datetime.now(UTC) - timedelta(days=1)
 
     # Mock Channel messages
     c1 = ChannelMessageModel(
@@ -98,7 +98,7 @@ async def test_sync_profile_attributes_persists_when_thresholds_met() -> None:
     manager = MagicMock()
     manager.set_system_profile_attribute = AsyncMock()
 
-    base_time = datetime(2026, 9, 4, 10, 0, 0, tzinfo=UTC)
+    base_time = datetime.now(UTC) - timedelta(days=1)
 
     # Generate 25 turns to satisfy thresholds (min_self_messages=20, min_latency_samples=10)
     channel_rows: list[ChannelMessageModel] = []

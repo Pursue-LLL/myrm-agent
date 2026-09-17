@@ -6,7 +6,8 @@ from pathlib import Path
 
 import yaml
 
-SKILL_PATH = Path("assets/prebuilt_skills/deprecated-skill-doctor-fix/SKILL.md")
+_SERVER_ROOT = Path(__file__).resolve().parents[2]
+SKILL_PATH = _SERVER_ROOT / "assets" / "prebuilt_skills" / "plugin-syntax-migrator-doctor" / "SKILL.md"
 
 
 def test_deprecated_skill_doctor_fix_asset_structure() -> None:
@@ -17,7 +18,7 @@ def test_deprecated_skill_doctor_fix_asset_structure() -> None:
     assert len(parts) >= 3, "Skill file must contain YAML frontmatter delimited by ---"
 
     frontmatter = yaml.safe_load(parts[1])
-    assert frontmatter["name"] == "deprecated-skill-doctor-fix"
+    assert frontmatter["name"] == "plugin-syntax-migrator-doctor"
     assert "description" in frontmatter and len(frontmatter["description"]) > 10
     assert frontmatter["version"] == "1.0.0"
     assert frontmatter["category"] == "engineering"
@@ -25,12 +26,11 @@ def test_deprecated_skill_doctor_fix_asset_structure() -> None:
 
     body = parts[2]
     # Check 4 stages exist
-    assert "Stage 1: Multi-Point Deprecation Audit" in body
-    assert "Stage 2: Risk-Tiered Diagnosis Report" in body
-    assert "Stage 3: Non-Destructive In-Place Auto-Fix" in body
-    assert "Stage 4: Post-Fix Validation & Health Gate" in body
+    assert "Stage 1: Syntax & Legacy Schema Scanning" in body
+    assert "Stage 2: Deprecation Rules Engine" in body
+    assert "Stage 3: Safety Backup & Diff Preview" in body
+    assert "Stage 4: Idempotent Patching & Schema Validation" in body
 
     # Check key mappings and diagnostics
     assert "allowed-tools" in body
-    assert "bash_code_execute_tool" in body
-    assert "Skill Doctor Diagnosis Report" in body
+    assert "Doctor Fix Report" in body

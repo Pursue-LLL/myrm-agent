@@ -86,6 +86,10 @@ async def test_upload_empty_zip_returns_empty_sources(client: AsyncClient):
         "claude",
         "codex",
         "chatgpt",
+        "gemini",
+        "gbrain",
+        "pi",
+        "plur",
     }
 
 

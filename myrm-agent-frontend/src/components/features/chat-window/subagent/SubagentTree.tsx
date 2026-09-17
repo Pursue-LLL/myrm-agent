@@ -34,6 +34,7 @@ import {
 import {
   isNodeOvertime,
   useSubagentStore,
+  type SubagentNode,
   type SubagentVerification,
   type TeammateMessageEntry,
 } from '@/store/chat/useSubagentStore';

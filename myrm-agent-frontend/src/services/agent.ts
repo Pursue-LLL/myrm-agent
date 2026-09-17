@@ -88,6 +88,11 @@ export interface ToolGatewayConfigDTO {
   auth_token?: string | null;
 }
 
+export interface TrustedDesktopAppEntry {
+  name: string;
+  app_id?: string;
+}
+
 export interface Agent {
   id: string;
   user_id: string;
@@ -127,6 +132,7 @@ export interface Agent {
   tool_gateway_config?: ToolGatewayConfigDTO | null;
   allow_discovery?: boolean;
   cron_post_run_verify?: boolean;
+  trusted_desktop_apps?: TrustedDesktopAppEntry[];
   busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
   a2a_enabled?: boolean;
   a2a_trusted_peer_ids?: string[];
@@ -192,6 +198,7 @@ export interface AgentCreate {
   tool_gateway_config?: ToolGatewayConfigDTO | null;
   allow_discovery?: boolean;
   cron_post_run_verify?: boolean;
+  trusted_desktop_apps?: TrustedDesktopAppEntry[];
   busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
   a2a_enabled?: boolean;
   a2a_trusted_peer_ids?: string[];
@@ -237,6 +244,7 @@ export interface AgentUpdate {
   tool_gateway_config?: ToolGatewayConfigDTO | null;
   allow_discovery?: boolean;
   cron_post_run_verify?: boolean;
+  trusted_desktop_apps?: TrustedDesktopAppEntry[];
   busy_input_mode?: 'redirect' | 'steer' | 'queue' | null;
   a2a_enabled?: boolean;
   a2a_trusted_peer_ids?: string[];

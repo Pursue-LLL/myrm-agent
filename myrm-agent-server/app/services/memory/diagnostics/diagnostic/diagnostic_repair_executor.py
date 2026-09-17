@@ -14,12 +14,15 @@ need explicit operator work.
 
 from __future__ import annotations
 
+import logging
 from typing import Literal
 
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryRepairExecutionResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.memory.command_center import MemoryCommandDiagnosticRun
+
+logger = logging.getLogger(__name__)
 
 # MemoryCommandCenterService / MemoryDiagnosticsService are imported lazily in
 # run(): command_center back-references the diagnostics facade, so module-level
@@ -110,6 +113,7 @@ class MemoryDiagnosticRepairExecutor:
         if plan_id == "restore_disciplined_defaults":
             archived_count = 0
             preserved_pinned_count = 0
+            failed_count = 0
             if self._memory_manager is not None:
                 from myrm_agent_harness.toolkits.memory import MemoryType
                 from myrm_agent_harness.toolkits.memory.types import MemoryStatus
@@ -117,18 +121,40 @@ class MemoryDiagnosticRepairExecutor:
                 for mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION, MemoryType.SEMANTIC):
                     try:
                         items = await self._memory_manager.list_memories(mtype, limit=100)
-                        for item in items:
-                            if getattr(item, "pinned", False):
-                                preserved_pinned_count += 1
-                                continue
-                            item_id = str(getattr(item, "id", "") or "")
-                            if item_id:
-                                await self._memory_manager.update_memory(item_id, status=MemoryStatus.ARCHIVED)
-                                archived_count += 1
                     except Exception:
-                        pass
+                        # A broken backend must not abort the whole sweep, but the
+                        # failure has to reach the operator: the counts below are
+                        # presented as a completed repair, so silence would report
+                        # a partial sweep as success.
+                        logger.warning(
+                            "restore_disciplined_defaults: listing %s memories failed; skipping type",
+                            mtype,
+                            exc_info=True,
+                        )
+                        failed_count += 1
+                        continue
+                    for item in items:
+                        if getattr(item, "pinned", False):
+                            preserved_pinned_count += 1
+                            continue
+                        item_id = str(getattr(item, "id", "") or "")
+                        if not item_id:
+                            continue
+                        try:
+                            await self._memory_manager.update_memory(item_id, status=MemoryStatus.ARCHIVED)
+                        except Exception:
+                            logger.warning(
+                                "restore_disciplined_defaults: archiving memory %s failed",
+                                item_id,
+                                exc_info=True,
+                            )
+                            failed_count += 1
+                            continue
+                        archived_count += 1
 
             res_msg = f"Restored disciplined defaults: archived {archived_count} memories, preserved {preserved_pinned_count} pinned entries."
+            if failed_count:
+                res_msg += f" ({failed_count} entries could not be archived; see server logs.)"
 
             command_center = MemoryCommandCenterService(self._db, self._memory_manager)
             await command_center.refresh_health()

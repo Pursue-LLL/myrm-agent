@@ -33,7 +33,7 @@ _CORE_FAILURE_CATEGORIES = (
 
 _CONTRACT_MARKERS = (
     "Help-Hurt Net-Score Pruning Protocol",
-    "Delta Net-Score",
+    "Net-Score",
     "Promotion Threshold",
     "file_read_tool",
     "file_write_tool",

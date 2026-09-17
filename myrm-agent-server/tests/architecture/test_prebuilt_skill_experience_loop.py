@@ -19,7 +19,7 @@ from pathlib import Path
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 
-_EXPERIENCE_MD = _REPO_ROOT / "assets" / "prebuilt_skills" / "web-scraping" / "EXPERIENCE.md"
+_EXPERIENCE_MD = _SERVER_ROOT / "assets" / "prebuilt_skills" / "web-scraping" / "EXPERIENCE.md"
 _SKILLS_SYSTEM_MD = _SERVER_ROOT / "app" / "core" / "skills" / "SKILLS_SYSTEM.md"
 
 _EXPERIENCE_MARKERS = (

@@ -528,9 +528,21 @@ class MemoryCommandGraphResponse(BaseModel):
 class MemoryCommandActionRequest(BaseModel):
     """Command center governance action request."""
 
-    target_kind: Literal["pending_memory", "shared_context_proposal", "memory"]
+    target_kind: Literal["pending_memory", "shared_context_proposal", "memory", "conflict_pair"]
     target_id: str = ""
-    action: Literal["approve", "reject", "edit", "correct", "correct_and_lock", "forget", "pin", "unpin"]
+    action: Literal[
+        "approve",
+        "reject",
+        "edit",
+        "correct",
+        "correct_and_lock",
+        "forget",
+        "pin",
+        "unpin",
+        "keep_new",
+        "keep_old",
+        "coexist",
+    ]
     memory_type: str | None = None
     content: str | None = None
 

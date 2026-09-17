@@ -3,30 +3,14 @@
 from pathlib import Path
 
 
-def _find_repo_root() -> Path:
-    current = Path(__file__).resolve().parent
-    for p in [current, *current.parents]:
-        if (p / "myrm-agent").is_dir() or (p / "assets").is_dir():
-            return p
-    return current.parent.parent
+_SERVER_ROOT = Path(__file__).resolve().parents[2]
+_SKILL_MD = _SERVER_ROOT / "assets" / "prebuilt_skills" / "desktop-browser-profile-bridge" / "SKILL.md"
 
 
 def test_prebuilt_skill_desktop_browser_profile_bridge_structure():
-    repo_root = _find_repo_root()
-    skill_path = repo_root / "assets" / "prebuilt_skills" / "desktop-browser-profile-bridge" / "SKILL.md"
-    if not skill_path.exists():
-        skill_path = (
-            repo_root
-            / "myrm-agent"
-            / "myrm-agent-server"
-            / "assets"
-            / "prebuilt_skills"
-            / "desktop-browser-profile-bridge"
-            / "SKILL.md"
-        )
-    assert skill_path.exists(), f"Skill file not found at {skill_path}"
+    assert _SKILL_MD.exists(), f"Skill file not found at {_SKILL_MD}"
 
-    content = skill_path.read_text(encoding="utf-8")
+    content = _SKILL_MD.read_text(encoding="utf-8")
     assert content.startswith("---"), "Must start with frontmatter"
     assert "name: desktop-browser-profile-bridge" in content
     assert "profile-bridge" in content

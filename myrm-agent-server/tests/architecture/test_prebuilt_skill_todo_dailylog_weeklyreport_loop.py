@@ -60,7 +60,9 @@ _REQUIRED_WEEKLY_REPORT_SECTIONS = (
 )
 
 _ALLOWED_TOOLS = (
-    "kanban_manage_tool",
+    "kanban_show",
+    "kanban_add_task",
+    "kanban_list_tasks",
     "memory_save_tool",
     "memory_search_tool",
     "file_write_tool",

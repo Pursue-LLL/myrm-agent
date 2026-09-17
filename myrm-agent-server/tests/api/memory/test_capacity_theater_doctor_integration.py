@@ -222,3 +222,28 @@ async def test_restore_disciplined_defaults_without_memory_backend(db_session: A
         assert run is not None
     finally:
         await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_restore_disciplined_defaults_reports_partial_failures(
+    db_session: AsyncSession, memory_manager: MemoryManager, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A per-memory archive failure must be surfaced, not silently reported as success."""
+    await memory_manager.store(_semantic("Sweep target that fails to archive."))
+
+    original_update = memory_manager.update_memory
+
+    async def _failing_update(memory_id: str, **kwargs) -> None:
+        if kwargs.get("status") == MemoryStatus.ARCHIVED:
+            raise RuntimeError("simulated archive backend failure")
+        return await original_update(memory_id, **kwargs)
+
+    monkeypatch.setattr(memory_manager, "update_memory", _failing_update)
+
+    executor = MemoryDiagnosticRepairExecutor(db_session, memory_manager)
+    result, _ = await executor.run("restore_disciplined_defaults", "execute")
+
+    assert result.status == "completed"
+    assert "archived 0 memories" in result.message
+    # Silence here would let an operator read a failed sweep as a completed repair.
+    assert "1 entries could not be archived" in result.message

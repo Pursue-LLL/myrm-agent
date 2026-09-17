@@ -25,7 +25,8 @@ vi.mock('@/services/cron', () => ({
 let mockChatState = {
   chatId: 'chat_test_123',
   loading: false,
-  selectedPersona: { id: 'persona_dev' },
+  actionMode: 'agent' as const,
+  agentConfig: { agentId: 'persona_dev' },
 };
 
 vi.mock('@/store/useChatStore', () => ({
@@ -190,7 +191,8 @@ describe('executeLoopSlashCommand', () => {
     mockChatState = {
       chatId: 'chat_test_123',
       loading: false,
-      selectedPersona: { id: 'persona_dev' },
+      actionMode: 'agent' as const,
+      agentConfig: { agentId: 'persona_dev' },
     };
     mockCreateCronJob.mockResolvedValue({ id: 'cron_job_999' });
     mockTriggerCronJob.mockResolvedValue({ triggered: true });

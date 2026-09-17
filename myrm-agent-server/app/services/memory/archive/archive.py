@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
+from typing import cast
 
 from myrm_agent_harness.toolkits.memory import (
+    MemCubeEnvelope,
     MemoryArchiveDryRunResult,
     MemoryArchiveManifest,
     MemoryArchivePayload,
@@ -59,12 +61,21 @@ class MemoryArchiveService:
 
         self._redaction_count = 0
         memory = self._redact(await self._export_memory(manager))
+        memcube_envelopes: list[dict[str, object]] = []
+        if hasattr(manager, "export_memcube_envelopes"):
+            try:
+                raw_envelopes = await manager.export_memcube_envelopes()
+                memcube_envelopes = self._redact(raw_envelopes)
+            except Exception:
+                memcube_envelopes = []
+
         shared_context = self._redact(await self._export_shared_context())
         conversation = self._redact(await self._export_conversation())
         replay: list[dict[str, object]] = []
         audit = self._redact(await self._export_audit())
         data = {
             "memory": memory,
+            "memcube_envelopes": memcube_envelopes,
             "shared_context": shared_context,
             "conversation": conversation,
             "replay": replay,
@@ -88,13 +99,28 @@ class MemoryArchiveService:
 
     @staticmethod
     def dry_run_archive(payload: dict[str, object]) -> MemoryArchiveDryRunResult:
-        """Validate archive shape without mutating server state."""
+        """Validate archive shape and MemCube signatures without mutating server state."""
 
         archive = MemoryArchivePayload.model_validate(payload)
         supported_names: set[str] = {"memory", "shared_context", "conversation", "replay", "audit"}
         total_items = sum(section.item_count for section in archive.manifest.sections)
         supported_items = sum(section.item_count for section in archive.manifest.sections if section.name in supported_names)
         warning_codes = [code for section in archive.manifest.sections for code in section.warning_codes]
+
+        # Verify MemCube envelopes integrity if present
+        raw_envelopes = archive.data.get("memcube_envelopes")
+        if not raw_envelopes and isinstance(archive.data.get("memory"), dict):
+            raw_envelopes = cast(dict[str, object], archive.data["memory"]).get("memcube_envelopes")
+        if isinstance(raw_envelopes, list):
+            for raw_env in raw_envelopes:
+                if isinstance(raw_env, dict):
+                    try:
+                        env = MemCubeEnvelope[dict[str, object]].model_validate(raw_env)
+                        if not env.verify_audit_hash():
+                            warning_codes.append(f"tampered_cube_hash:{env.header.cube_id}")
+                    except Exception:
+                        warning_codes.append("malformed_memcube_envelope")
+
         unsupported_items = total_items - supported_items
         return MemoryArchiveDryRunResult(
             manifest=archive.manifest,

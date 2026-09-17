@@ -38,18 +38,18 @@ describe('loadOlderMessages deduplication', () => {
   it('filters out older messages that already exist in state to prevent duplicate keys', async () => {
     const existingMessages: Message[] = [
       {
-        id: 'msg-2',
+        messageId: 'msg-2',
+        chatId: 'chat-1',
+        createdAt: new Date('2026-08-22T00:01:00Z'),
         role: 'user',
         content: 'Existing message 2',
-        chat_id: 'chat-1',
-        created_at: '2026-08-22T00:01:00Z',
       },
       {
-        id: 'msg-3',
+        messageId: 'msg-3',
+        chatId: 'chat-1',
+        createdAt: new Date('2026-08-22T00:02:00Z'),
         role: 'assistant',
         content: 'Existing message 3',
-        chat_id: 'chat-1',
-        created_at: '2026-08-22T00:02:00Z',
       },
     ];
 
@@ -70,18 +70,18 @@ describe('loadOlderMessages deduplication', () => {
     getMessagesMock.mockResolvedValueOnce({
       messages: [
         {
-          id: 'msg-1',
+          messageId: 'msg-1',
+          chatId: 'chat-1',
+          createdAt: new Date('2026-08-22T00:00:00Z'),
           role: 'user',
           content: 'Older message 1',
-          chat_id: 'chat-1',
-          created_at: '2026-08-22T00:00:00Z',
         },
         {
-          id: 'msg-2', // Duplicate with existing message
+          messageId: 'msg-2', // Duplicate with existing message
+          chatId: 'chat-1',
+          createdAt: new Date('2026-08-22T00:01:00Z'),
           role: 'user',
           content: 'Existing message 2 duplicate from server',
-          chat_id: 'chat-1',
-          created_at: '2026-08-22T00:01:00Z',
         },
       ],
       has_more: false,
@@ -93,6 +93,6 @@ describe('loadOlderMessages deduplication', () => {
     expect(state.loadingOlder).toBe(false);
     expect(state.hasMoreMessages).toBe(false);
     expect(state.messages).toHaveLength(3);
-    expect(state.messages.map((m) => m.id)).toEqual(['msg-1', 'msg-2', 'msg-3']);
+    expect(state.messages.map((m) => m.messageId)).toEqual(['msg-1', 'msg-2', 'msg-3']);
   });
 });

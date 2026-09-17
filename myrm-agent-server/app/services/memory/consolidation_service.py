@@ -15,6 +15,7 @@ ConsolidationService: 工作记忆与历史阶段任务摘要业务服务
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import TYPE_CHECKING
 
@@ -22,7 +23,7 @@ from myrm_agent_harness.api import (
     LocalWorkingMemoryBlock,
     SubtaskStatus,
 )
-from myrm_agent_harness.toolkits.memory.types import MemoryType, TaskDigestMemory
+from myrm_agent_harness.toolkits.memory.types import MemoryType
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.manager import MemoryManager
@@ -85,32 +86,46 @@ class ConsolidationService:
         limit: int = 20,
     ) -> list[dict[str, object]]:
         """Retrieve historical TaskDigestMemories from persistent store."""
-        rel_store = getattr(memory_manager, "_relational_store", None)
-        if rel_store is None:
+        def _parse_str_list(val: object) -> list[str]:
+            if isinstance(val, list):
+                return [str(x) for x in val]
+            if isinstance(val, str):
+                try:
+                    parsed = json.loads(val)
+                    if isinstance(parsed, list):
+                        return [str(x) for x in parsed]
+                except Exception:
+                    pass
             return []
 
         results: list[dict[str, object]] = []
         try:
-            # Query relational store for memories of type TASK_DIGEST
-            if hasattr(rel_store, "list_memories"):
-                memories = await rel_store.list_memories(
-                    memory_type=MemoryType.TASK_DIGEST,
+            if hasattr(memory_manager, "list_memories"):
+                memories = await memory_manager.list_memories(
+                    memory_type=MemoryType.EPISODIC,
                     limit=limit,
                 )
                 for mem in memories:
-                    if isinstance(mem, TaskDigestMemory):
+                    meta = getattr(mem, "metadata", {}) or {}
+                    if (
+                        getattr(mem, "event_type", "") == "task_digest"
+                        or meta.get("event_type") == "task_digest"
+                        or meta.get("task_goal")
+                    ):
+                        created = getattr(mem, "created_at", getattr(mem, "timestamp", None))
+                        created_str = created.isoformat() if hasattr(created, "isoformat") else str(created or "")
                         results.append(
                             {
-                                "id": mem.id,
-                                "task_goal": mem.task_goal,
-                                "status": mem.status,
-                                "completed_steps": list(mem.completed_steps),
-                                "artifact_paths": list(mem.artifact_paths),
-                                "key_findings": list(mem.key_findings),
-                                "error_lessons": list(mem.error_lessons),
-                                "tool_call_count": mem.tool_call_count,
-                                "source_session_id": mem.source_session_id,
-                                "created_at": mem.created_at.isoformat(),
+                                "id": str(getattr(mem, "id", "")),
+                                "task_goal": str(meta.get("task_goal", getattr(mem, "content", ""))),
+                                "status": str(meta.get("status", "completed")),
+                                "completed_steps": _parse_str_list(meta.get("completed_steps")),
+                                "artifact_paths": _parse_str_list(meta.get("artifact_paths")),
+                                "key_findings": _parse_str_list(meta.get("key_findings")),
+                                "error_lessons": _parse_str_list(meta.get("error_lessons")),
+                                "tool_call_count": int(meta.get("tool_call_count", 0)),
+                                "source_session_id": getattr(mem, "source_chat_id", None),
+                                "created_at": created_str,
                             }
                         )
         except Exception as err:

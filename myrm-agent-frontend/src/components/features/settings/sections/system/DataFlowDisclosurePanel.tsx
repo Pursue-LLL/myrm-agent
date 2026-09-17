@@ -166,7 +166,7 @@ export const DataFlowDisclosurePanel = memo(
         providers: activeProviders.map((p) => ({
           id: p.id,
           name: p.name,
-          endpoint: p.apiHost || p.apiUrl || t('fallbackCloudEndpoint'),
+          endpoint: p.apiUrl || t('fallbackCloudEndpoint'),
         })),
         mcp: activeMcpConfigs.map((m) => ({
           name: m.name,
@@ -205,7 +205,7 @@ export const DataFlowDisclosurePanel = memo(
           {activeProviders.map((provider) => {
             const category = getProviderCategory(provider.id);
             const isLocal = category === 'local';
-            const endpoint = provider.apiHost || provider.apiUrl || t('fallbackCloudEndpoint');
+            const endpoint = provider.apiUrl || t('fallbackCloudEndpoint');
             const dataUsage = resolveProviderDataUsage(provider.id, isLocal);
 
             return (

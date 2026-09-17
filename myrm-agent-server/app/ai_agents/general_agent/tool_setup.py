@@ -958,7 +958,14 @@ class ToolSetupMixin(ExternalAgentsMixin):
             workspace_root = self.declared_allowed_roots[0] if getattr(self, "declared_allowed_roots", ()) else None
             auto_grant = is_sandbox() and is_computer_use_deploy_supported() and not is_local_mode()
             execution_mode = ExecutionMode.background_strict if is_local_mode() else ExecutionMode.background_best_effort
-            gate = DesktopControlGate(workspace_root=workspace_root, auto_grant=auto_grant)
+            run_trust_keys = tuple(getattr(self, "desktop_preapproved_trust_keys", ()) or ())
+            run_fail_fast = bool(getattr(self, "desktop_unattended_fail_fast", False))
+            gate = DesktopControlGate(
+                workspace_root=workspace_root,
+                auto_grant=auto_grant,
+                preapproved_trust_keys=run_trust_keys,
+                unattended_fail_fast=run_fail_fast,
+            )
             config_kwargs: dict[str, object] = {"execution_mode": execution_mode}
             if constraints:
                 config_kwargs["image_constraints"] = constraints

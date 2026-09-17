@@ -110,6 +110,7 @@ class AgentRepository:
                 "subagent_ids": agent.subagent_ids,
                 "a2a_enabled": bool(getattr(agent, "a2a_enabled", False)),
                 "a2a_trusted_peer_ids": list(getattr(agent, "a2a_trusted_peer_ids", []) or []),
+                "trusted_desktop_apps": list(getattr(agent, "trusted_desktop_apps", []) or []),
                 "responsibility_scope": getattr(agent, "responsibility_scope", None),
                 "owner_label": getattr(agent, "owner_label", None),
                 "acceptance_criteria": list(getattr(agent, "acceptance_criteria", None) or []),
@@ -252,6 +253,7 @@ class AgentRepository:
             subagent_ids=meta.get("subagent_ids", []),
             a2a_enabled=bool(meta.get("a2a_enabled", False)),
             a2a_trusted_peer_ids=list(meta.get("a2a_trusted_peer_ids", []) or []),
+            trusted_desktop_apps=list(meta.get("trusted_desktop_apps", []) or []),
             responsibility_scope=meta.get("responsibility_scope") if isinstance(meta.get("responsibility_scope"), str) else None,
             owner_label=meta.get("owner_label") if isinstance(meta.get("owner_label"), str) else None,
             acceptance_criteria=(
@@ -407,6 +409,8 @@ class AgentRepository:
                 agent.a2a_enabled = bool(metadata["a2a_enabled"])
             if "a2a_trusted_peer_ids" in metadata and metadata["a2a_trusted_peer_ids"] is not None:
                 agent.a2a_trusted_peer_ids = list(metadata["a2a_trusted_peer_ids"])
+            if "trusted_desktop_apps" in metadata and metadata["trusted_desktop_apps"] is not None:
+                agent.trusted_desktop_apps = list(metadata["trusted_desktop_apps"])
             if "responsibility_scope" in metadata:
                 raw_rs = metadata["responsibility_scope"]
                 agent.responsibility_scope = raw_rs if isinstance(raw_rs, str) else None

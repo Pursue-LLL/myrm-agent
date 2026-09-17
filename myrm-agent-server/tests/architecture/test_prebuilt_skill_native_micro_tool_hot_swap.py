@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 _SKILL_MD = (
-    Path(__file__).resolve().parents[3]
+    Path(__file__).resolve().parents[2]
     / "assets"
     / "prebuilt_skills"
     / "native-micro-tool-hot-swap"

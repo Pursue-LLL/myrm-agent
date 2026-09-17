@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_SKILL_MD = _REPO_ROOT / "myrm-agent" / "myrm-agent-server" / "assets" / "prebuilt_skills" / "persona-corpus-distillation" / "SKILL.md"
+_SERVER_ROOT = Path(__file__).resolve().parents[2]
+_SKILL_MD = _SERVER_ROOT / "assets" / "prebuilt_skills" / "persona-corpus-distillation" / "SKILL.md"
 
 _PHASE_MARKERS = (
     "Phase 1: Ingestion & PII Redaction",
