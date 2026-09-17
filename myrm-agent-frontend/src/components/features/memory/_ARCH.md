@@ -15,6 +15,7 @@
 | `guides/`         | 引导与说明卡（首次引导/分层说明）                                                              |
 | `hooks/`          | 记忆域自定义 hooks（归档恢复动作/Demo 种子）                                                   |
 | `insights/`       | 洞察展示（健康仪表盘/知识图谱/Shared Context 编辑预览）                                        |
+| `mesh/`           | 三域认知网格（DomainMesh 面板/三域卡片/追溯下钻/迁移弹窗）                                     |
 | `pending/`        | 待审批记忆（计数徽章/审批弹窗/批量列表）                                                       |
 | `replay/`         | 会话回放（回放器/消息气泡/召回面板/实时流/时间线工具）                                         |
 | `settings/`       | 设置区（功能开关/Tab 切换/回收站）                                                             |
@@ -91,6 +92,15 @@
 | `RankedHubSidebar.tsx`       | 组件 | 知识图谱核心主张与冲突焦点侧栏（双重视图、连通度度数与焦点筛选）                                  | ✅    |
 | `GraphEmptyState.tsx`        | 组件 | 知识图谱三态精细化诊断引导与恢复空态组件（存储离线、零主张与孤岛散点态）                          | ✅    |
 
+### mesh/
+
+| 文件                        | 地位 | 职责                                                                                              | I/O/P |
+| --------------------------- | ---- | ------------------------------------------------------------------------------------------------- | ----- |
+| `MemoryDomainMeshPanel.tsx` | 核心 | 三域认知网格主看板（User/Assistant/Task 域划分、条目统计、精选摘要卡片与导入迁移触发）            | ✅    |
+| `DomainMeshCard.tsx`        | 组件 | 领域卡片呈现组件（域标识、高亮条目渲染与下钻详情触发）                                           | ✅    |
+| `MemoryDrillDownDialog.tsx` | 组件 | 记忆下钻追溯弹窗（消费级 ToC 纯净化展示、核心摘要与长文本滚动防爆容器、一键内容复制）             | ✅    |
+| `HermesMigrationModal.tsx`  | 组件 | 零摩擦外部记忆导入与迁移弹窗（支持 Hermes / Markdown / JSON 自动归类与无缝同步）                  | ✅    |
+
 ### pending/
 
 | 文件                      | 地位 | 职责                                                                                                                               | I/O/P |
@@ -156,6 +166,7 @@
 | `__tests__/RepoEvidenceCard.test.tsx`               | 仓库历史证据卡片测试                                                         | ✅    |
 | `pending/__tests__/PendingMemoryBadge.test.tsx`     | 待审批记忆计数徽章测试                                                       | ✅    |
 | `pending/__tests__/PendingMemoryDialog.test.tsx`    | 待审批记忆审批弹窗交互测试                                                   | ✅    |
+| `__tests__/MemoryDomainMeshPanel.test.tsx`          | 三域认知网格主看板渲染、下钻追溯与迁移弹窗触发测试                           | ✅    |
 
 ## 依赖
 
