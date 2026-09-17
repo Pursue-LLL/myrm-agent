@@ -202,7 +202,7 @@ export function FiveContractDeliveryStatusPanel({ chatId, className = '' }: Five
         <div className="border-t p-3 space-y-2.5 bg-background/80">
           {PHASE_KEYS.map((key, idx) => {
             const record = snapshot.contracts[key];
-            if (!record) return null;
+            if (!record) {return null;}
 
             return (
               <div

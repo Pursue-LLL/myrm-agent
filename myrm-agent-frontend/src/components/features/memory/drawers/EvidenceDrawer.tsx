@@ -161,10 +161,10 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
     };
   }, [isOpen, sourceId, messageId, channelId, quoteSnippet, authorName, authorId]);
 
-  if (!isOpen) return null;
+  if (!isOpen) {return null;}
 
   const handleCorrectSubmit = async () => {
-    if (!onCorrectAndLock || !correctionText.trim()) return;
+    if (!onCorrectAndLock || !correctionText.trim()) {return;}
     setActionLoading(true);
     try {
       await onCorrectAndLock(correctionText.trim());
@@ -176,7 +176,7 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
   };
 
   const handleFalsePositive = async () => {
-    if (!onMarkFalsePositive) return;
+    if (!onMarkFalsePositive) {return;}
     setActionLoading(true);
     try {
       await onMarkFalsePositive();

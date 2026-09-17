@@ -96,7 +96,7 @@ class DesktopBridgeImpl implements DesktopBridgeInterface {
   }
 
   public async showItemInFolder(path: string): Promise<boolean> {
-    if (!path) return false;
+    if (!path) {return false;}
     if (this.isDesktop()) {
       return await this.core.shell.showInFileManager(path);
     }
@@ -104,7 +104,7 @@ class DesktopBridgeImpl implements DesktopBridgeInterface {
   }
 
   public async openExternal(url: string): Promise<boolean> {
-    if (!url) return false;
+    if (!url) {return false;}
     return await this.core.shell.openExternalUrl(url);
   }
 

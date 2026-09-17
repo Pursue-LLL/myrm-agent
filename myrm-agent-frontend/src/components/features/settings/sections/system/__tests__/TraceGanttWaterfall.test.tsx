@@ -6,7 +6,7 @@ import TraceGanttWaterfall from '../TraceGanttWaterfall';
 import type { TracePerformanceSummary } from '@/services/statistics';
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
-  if (params?.tokens) return `Cached: ${params.tokens} Tokens`;
+  if (params?.tokens) {return `Cached: ${params.tokens} Tokens`;}
   return key;
 };
 

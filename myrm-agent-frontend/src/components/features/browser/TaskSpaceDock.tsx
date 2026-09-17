@@ -37,7 +37,7 @@ export const TaskSpaceDock: React.FC<TaskSpaceDockProps> = ({ className, autoRef
 
   useEffect(() => {
     void loadSpaces();
-    if (autoRefreshIntervalMs <= 0) return;
+    if (autoRefreshIntervalMs <= 0) {return;}
 
     // Adaptive polling: relax interval when empty to conserve network & battery,
     // resume high-frequency poll when spaces are active or dock is expanded.

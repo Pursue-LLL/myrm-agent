@@ -43,8 +43,8 @@ export const ProviderLowBalanceWarningHUD = memo<ProviderLowBalanceWarningHUDPro
     const updateAgentConfig = useChatStore((state) => state.updateAgentConfig);
 
     const activeSelection = useMemo(() => {
-      if (currentProviderId) return null;
-      if (!defaultModelConfig?.baseModel?.primary) return null;
+      if (currentProviderId) {return null;}
+      if (!defaultModelConfig?.baseModel?.primary) {return null;}
       return resolveActiveModelSelection(actionMode, agentConfig, defaultModelConfig, providers);
     }, [currentProviderId, actionMode, agentConfig, defaultModelConfig, providers]);
 
@@ -65,7 +65,7 @@ export const ProviderLowBalanceWarningHUD = memo<ProviderLowBalanceWarningHUDPro
         : null;
 
     const handleSwitchToSafetyFallback = useCallback(() => {
-      if (!safetyFallback?.providerId || !safetyFallback?.model) return;
+      if (!safetyFallback?.providerId || !safetyFallback?.model) {return;}
       if (actionMode === 'fast' && typeof setBaseModel === 'function') {
         setBaseModel(safetyFallback);
       } else if (typeof updateAgentConfig === 'function') {
@@ -79,8 +79,8 @@ export const ProviderLowBalanceWarningHUD = memo<ProviderLowBalanceWarningHUDPro
       setIsDismissed(true);
     }, [safetyFallback, actionMode, updateAgentConfig, setBaseModel]);
 
-    if (!gauge || isDismissed) return null;
-    if (gauge.status !== 'warning' && gauge.status !== 'critical') return null;
+    if (!gauge || isDismissed) {return null;}
+    if (gauge.status !== 'warning' && gauge.status !== 'critical') {return null;}
 
     const isCritical = gauge.status === 'critical';
 

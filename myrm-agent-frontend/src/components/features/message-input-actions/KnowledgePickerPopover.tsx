@@ -71,7 +71,7 @@ export default function KnowledgePickerPopover() {
   // 加载可用知识库与当前会话绑定关系
   const loadKnowledgeData = useCallback(
     async (silent = false) => {
-      if (!silent) setLoading(true);
+      if (!silent) {setLoading(true);}
       try {
         const listRes = await listSharedContexts('active');
         const loadedContexts = listRes.items || [];
@@ -111,7 +111,7 @@ export default function KnowledgePickerPopover() {
       } catch (err) {
         console.error('[KnowledgePicker] Failed to load data:', err);
       } finally {
-        if (!silent) setLoading(false);
+        if (!silent) {setLoading(false);}
       }
     },
     [chatId, incognitoMode, setActiveKnowledgeBaseIds, setActiveKnowledgeBaseNames],
@@ -197,7 +197,7 @@ export default function KnowledgePickerPopover() {
 
   const filteredContexts = useMemo(() => {
     const q = searchKeyword.trim().toLowerCase();
-    if (!q) return contexts;
+    if (!q) {return contexts;}
     return contexts.filter(
       (c) => c.name.toLowerCase().includes(q) || (c.description && c.description.toLowerCase().includes(q)),
     );

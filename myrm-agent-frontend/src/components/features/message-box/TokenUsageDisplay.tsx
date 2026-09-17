@@ -171,7 +171,7 @@ function formatModelName(model: string): string {
 }
 
 function formatRoutingReason(reason: string, t: (key: string) => string): string {
-  if (!reason) return '';
+  if (!reason) {return '';}
   if (reason.includes('simple_indicator') || reason === 'judge:simple') {
     return t('routingReasonSimpleIndicator');
   }
@@ -195,7 +195,7 @@ function formatRoutingReason(reason: string, t: (key: string) => string): string
   }
   return reason
     .replace(/^(rule:|judge:)/, '')
-    .replace(/[_\(\)]/g, ' ')
+    .replace(/[_(\)]/g, ' ')
     .trim();
 }
 

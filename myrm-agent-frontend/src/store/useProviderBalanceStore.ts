@@ -54,7 +54,7 @@ export const useProviderBalanceStore = create<ProviderBalanceState>((set, get) =
   },
 
   getGauge: (providerId: string | null | undefined) => {
-    if (!providerId) return undefined;
+    if (!providerId) {return undefined;}
     return get().gauges[providerId.toLowerCase()];
   },
 }));

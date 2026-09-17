@@ -55,13 +55,13 @@ export function extractClientRootVendor(providerId?: string, model?: string): st
   // 1. OpenRouter model prefix extraction: e.g. "meta-llama/..." -> "meta"
   if (normProvider === 'openrouter' && normModel.includes('/')) {
     const prefix = normModel.split('/')[0];
-    if (prefix.includes('llama') || prefix.includes('meta')) return 'meta';
-    if (prefix.includes('qwen') || prefix.includes('alibaba')) return 'qwen';
-    if (prefix.includes('claude') || prefix.includes('anthropic')) return 'anthropic';
-    if (prefix.includes('deepseek')) return 'deepseek';
-    if (prefix.includes('openai') || prefix.includes('gpt')) return 'openai';
-    if (prefix.includes('gemini') || prefix.includes('google')) return 'google';
-    if (prefix.includes('mistral')) return 'mistral';
+    if (prefix.includes('llama') || prefix.includes('meta')) {return 'meta';}
+    if (prefix.includes('qwen') || prefix.includes('alibaba')) {return 'qwen';}
+    if (prefix.includes('claude') || prefix.includes('anthropic')) {return 'anthropic';}
+    if (prefix.includes('deepseek')) {return 'deepseek';}
+    if (prefix.includes('openai') || prefix.includes('gpt')) {return 'openai';}
+    if (prefix.includes('gemini') || prefix.includes('google')) {return 'google';}
+    if (prefix.includes('mistral')) {return 'mistral';}
     return prefix;
   }
 
@@ -117,7 +117,7 @@ export function validateClientProviderDiversity(
   for (const slot of slots) {
     const provider = slot.providerId || slot.provider || '';
     const model = slot.model || '';
-    if (!provider && !model) continue;
+    if (!provider && !model) {continue;}
 
     evaluatedCount++;
     const rootVendor = extractClientRootVendor(provider, model);

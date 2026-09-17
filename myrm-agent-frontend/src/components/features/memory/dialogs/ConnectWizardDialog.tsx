@@ -111,14 +111,14 @@ export function ConnectWizardDialog({ open, onOpenChange }: ConnectWizardDialogP
     }
     void getAgentConnectCapabilities(selectedAgentId)
       .then((res) => {
-        if (!active) return;
+        if (!active) {return;}
         setCanExposeDesktop(res.can_expose_desktop);
         if (!res.can_expose_desktop) {
           setExposeDesktop(false);
         }
       })
       .catch(() => {
-        if (!active) return;
+        if (!active) {return;}
         setCanExposeDesktop(false);
         setExposeDesktop(false);
       });

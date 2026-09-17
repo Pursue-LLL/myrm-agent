@@ -50,10 +50,10 @@ export function ComponentAblationImpactRankingChip({
   };
 
   const handleNavigate = (tab: string, settingKey: string) => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {return;}
     const targetAgentId = profileId || '';
     const searchParams = new URLSearchParams();
-    if (targetAgentId) searchParams.set('agentId', targetAgentId);
+    if (targetAgentId) {searchParams.set('agentId', targetAgentId);}
     searchParams.set('tab', tab);
     searchParams.set('highlight', settingKey);
     window.location.href = `/settings#${tab}?${searchParams.toString()}`;

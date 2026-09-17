@@ -108,7 +108,7 @@ describe('builtin action execute functions', () => {
           delete storage[key];
         },
         clear: () => {
-          for (const k in storage) delete storage[k];
+          for (const k in storage) {delete storage[k];}
         },
         length: 0,
         key: () => null,

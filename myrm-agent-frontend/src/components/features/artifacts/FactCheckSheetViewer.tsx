@@ -89,7 +89,7 @@ export const FactCheckSheetViewer: React.FC<FactCheckSheetViewerProps> = ({
   };
 
   const filteredItems = useMemo(() => {
-    if (!data?.items) return [];
+    if (!data?.items) {return [];}
     return data.items.filter((item) => {
       const matchSeverity = severityFilter === 'all' || item.severity === severityFilter;
       const kw = searchKeyword.toLowerCase();
@@ -106,7 +106,7 @@ export const FactCheckSheetViewer: React.FC<FactCheckSheetViewerProps> = ({
   }, [data, severityFilter, searchKeyword]);
 
   const counts = useMemo(() => {
-    if (!data?.items) return { total: 0, critical: 0, warning: 0, info: 0, unresolved: 0 };
+    if (!data?.items) {return { total: 0, critical: 0, warning: 0, info: 0, unresolved: 0 };}
     return {
       total: data.items.length,
       critical: data.items.filter((i) => i.severity === 'critical').length,

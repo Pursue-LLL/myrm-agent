@@ -23,7 +23,7 @@ export const ContinualOverlayWatcher = memo<ContinualOverlayWatcherProps>(({ cha
   const [overlays, setOverlays] = useState<ActiveOverlayItem[]>([]);
 
   const fetchOverlays = useCallback(async () => {
-    if (!chatId) return;
+    if (!chatId) {return;}
     try {
       const items = await getSessionOverlays(chatId);
       if (Array.isArray(items)) {

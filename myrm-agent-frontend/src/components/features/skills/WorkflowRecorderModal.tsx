@@ -61,7 +61,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   };
 
   const handleSimulateEvent = async (action: string, app: string, detail: string) => {
-    if (!sessionId) return;
+    if (!sessionId) {return;}
     const nextSeq = eventCount + 1;
     await recordDesktopEvent({
       session_id: sessionId,
@@ -75,7 +75,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   };
 
   const handleStopAndAnalyze = async () => {
-    if (!sessionId) return;
+    if (!sessionId) {return;}
     setError(null);
     setLoading(true);
     try {
@@ -91,27 +91,27 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   };
 
   const handleUpdateStepTitle = (idx: number, newTitle: string) => {
-    if (!plan) return;
+    if (!plan) {return;}
     const updated = [...plan.steps];
     updated[idx] = { ...updated[idx], title: newTitle };
     setPlan({ ...plan, steps: updated });
   };
 
   const handleUpdateStepDesc = (idx: number, newDesc: string) => {
-    if (!plan) return;
+    if (!plan) {return;}
     const updated = [...plan.steps];
     updated[idx] = { ...updated[idx], description: newDesc };
     setPlan({ ...plan, steps: updated });
   };
 
   const handleDeleteStep = (idx: number) => {
-    if (!plan) return;
+    if (!plan) {return;}
     const updated = plan.steps.filter((_, i) => i !== idx);
     setPlan({ ...plan, steps: updated });
   };
 
   const handleAddStep = () => {
-    if (!plan) return;
+    if (!plan) {return;}
     const newStep: WorkflowPlanStep = {
       step_id: `step-${plan.steps.length + 1}`,
       title: 'New Custom Action',
@@ -122,7 +122,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   };
 
   const handleCompileAndPreview = async () => {
-    if (!plan) return;
+    if (!plan) {return;}
     setError(null);
     setLoading(true);
     try {
@@ -137,7 +137,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   };
 
   const handlePublish = async () => {
-    if (!sessionId || !compiledMarkdown || !plan) return;
+    if (!sessionId || !compiledMarkdown || !plan) {return;}
     setError(null);
     setLoading(true);
     try {
@@ -151,7 +151,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {return null;}
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">

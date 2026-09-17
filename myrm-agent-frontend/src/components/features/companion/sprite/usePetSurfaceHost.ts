@@ -57,7 +57,7 @@ export function usePetSurfaceHost({ enabled, isTauri, petSize, payloadBase }: Us
     const handleVoiceUpdate = (e: Event) => {
       const detail = (e as CustomEvent<{ voiceState?: PetSurfaceStatePayload['voiceState']; audioLevel?: number }>)
         .detail;
-      if (!detail) return;
+      if (!detail) {return;}
 
       const now = Date.now();
       // 100ms 节流音量电平推送，避免高频 IPC 序列化性能浪费

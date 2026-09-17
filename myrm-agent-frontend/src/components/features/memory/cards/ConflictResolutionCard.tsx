@@ -41,7 +41,7 @@ export const ConflictResolutionCard = ({ item, onResolve, resolving = false }: C
   }
 
   const handleAction = async (action: 'keep_new' | 'keep_old' | 'coexist') => {
-    if (!onResolve || resolving) return;
+    if (!onResolve || resolving) {return;}
     setCurrentAction(action);
     try {
       await onResolve(item.id, action);

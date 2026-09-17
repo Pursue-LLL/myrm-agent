@@ -223,9 +223,9 @@ export const EvidenceStageHUD = memo<EvidenceStageHUDProps>(
 
     const filteredEvidenceSteps = selectedStage
       ? derivedStages.toolSteps.filter((s) => {
-          if (selectedStage === 'verified') return VERIFY_TOOL_REGEX.test(s.tool_name || '');
-          if (selectedStage === 'observed') return s.stdout || (s.duration_ms ?? 0) > 0 || s.status === 'success';
-          if (selectedStage === 'executing') return true;
+          if (selectedStage === 'verified') {return VERIFY_TOOL_REGEX.test(s.tool_name || '');}
+          if (selectedStage === 'observed') {return s.stdout || (s.duration_ms ?? 0) > 0 || s.status === 'success';}
+          if (selectedStage === 'executing') {return true;}
           return s.is_plan;
         })
       : derivedStages.toolSteps;

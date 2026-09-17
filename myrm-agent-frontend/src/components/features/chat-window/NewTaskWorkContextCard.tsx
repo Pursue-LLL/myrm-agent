@@ -93,8 +93,8 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
 
   // Derive active mode based on current store state
   const currentMode: NewTaskMode = useMemo(() => {
-    if (sandboxMode) return 'cloud';
-    if (workspaceDir || actionMode === 'agent') return 'local';
+    if (sandboxMode) {return 'cloud';}
+    if (workspaceDir || actionMode === 'agent') {return 'local';}
     return 'chat';
   }, [sandboxMode, workspaceDir, actionMode]);
 
@@ -137,13 +137,13 @@ export const NewTaskWorkContextCard = memo(function NewTaskWorkContextCard({ cla
       setFilterQuery('');
       try {
         const result = await browseDirectories(path);
-        if (gen !== loadGenRef.current) return;
+        if (gen !== loadGenRef.current) {return;}
         setEntries(result.entries);
         setCurrentBrowsePath(result.current);
         setParentPath(result.parent);
         setPathInput(result.current);
       } catch {
-        if (gen !== loadGenRef.current) return;
+        if (gen !== loadGenRef.current) {return;}
         toast({ title: tDir('invalidPath'), variant: 'destructive' });
       } finally {
         if (gen === loadGenRef.current) {

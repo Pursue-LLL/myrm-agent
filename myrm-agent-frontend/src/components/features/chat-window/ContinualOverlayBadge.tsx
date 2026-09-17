@@ -41,7 +41,7 @@ export const ContinualOverlayBadge = memo<ContinualOverlayBadgeProps>(({ overlay
 
   const handleRollback = useCallback(
     async (id: string) => {
-      if (!onRollback || rollingBackId) return;
+      if (!onRollback || rollingBackId) {return;}
       setRollingBackId(id);
       try {
         await onRollback(id);

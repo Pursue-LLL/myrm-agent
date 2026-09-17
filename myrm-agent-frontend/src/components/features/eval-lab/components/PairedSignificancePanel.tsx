@@ -176,7 +176,7 @@ export default function PairedSignificancePanel({
           <div className="flex items-center gap-1.5 overflow-x-auto py-1 max-w-full">
             {pairKeys.map((key) => {
               const pair = pairedSignificance[key];
-              if (!pair) return null;
+              if (!pair) {return null;}
               const isSelected = (activePairKey || pairKeys[0]) === key;
               return (
                 <button

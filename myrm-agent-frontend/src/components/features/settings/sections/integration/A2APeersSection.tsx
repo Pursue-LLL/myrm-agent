@@ -113,7 +113,7 @@ export const A2APeersSection = memo(() => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !baseUrl.trim()) return;
+    if (!name.trim() || !baseUrl.trim()) {return;}
 
     setSubmitting(true);
     try {
@@ -146,7 +146,7 @@ export const A2APeersSection = memo(() => {
   };
 
   const handleDelete = async () => {
-    if (!deleteTargetId) return;
+    if (!deleteTargetId) {return;}
     try {
       await deleteA2APeer(deleteTargetId);
       setDeleteTargetId(null);

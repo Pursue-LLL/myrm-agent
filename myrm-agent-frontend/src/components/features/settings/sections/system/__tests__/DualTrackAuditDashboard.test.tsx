@@ -5,9 +5,9 @@ import { DualTrackAuditDashboard } from '../DualTrackAuditDashboard';
 import { dualTrackAuditService } from '@/services/dualTrackAudit';
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
-  if (params?.count !== undefined) return `Count: ${params.count}`;
-  if (params?.rate !== undefined) return `Rate: ${params.rate}%`;
-  if (params?.format !== undefined) return `Format: ${params.format}`;
+  if (params?.count !== undefined) {return `Count: ${params.count}`;}
+  if (params?.rate !== undefined) {return `Rate: ${params.rate}%`;}
+  if (params?.format !== undefined) {return `Format: ${params.format}`;}
   return key;
 };
 

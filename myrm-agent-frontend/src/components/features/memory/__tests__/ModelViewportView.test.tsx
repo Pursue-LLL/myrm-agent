@@ -4,8 +4,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import ModelViewportView from '@/components/features/memory/replay/ModelViewportView';
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
-  if (params && 'count' in params) return `${key}:${params.count}`;
-  if (params && 'chars' in params) return `${key}:${params.chars}`;
+  if (params && 'count' in params) {return `${key}:${params.count}`;}
+  if (params && 'chars' in params) {return `${key}:${params.chars}`;}
   return key;
 };
 

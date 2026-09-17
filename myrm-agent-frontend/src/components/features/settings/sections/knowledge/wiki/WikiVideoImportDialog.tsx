@@ -24,7 +24,7 @@ interface WikiVideoImportDialogProps {
 
 export function isValidVideoUrl(url: string): boolean {
   const trimmed = url.trim();
-  if (!trimmed) return false;
+  if (!trimmed) {return false;}
   const isBili = /(?:bilibili\.com\/video\/|b23\.tv\/)/i.test(trimmed);
   const isYt = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)/i.test(trimmed);
   return isBili || isYt;
@@ -43,7 +43,7 @@ export function WikiVideoImportDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleClose = () => {
-    if (isSubmitting) return;
+    if (isSubmitting) {return;}
     setVideoUrl('');
     setFolderPath('videos');
     setWindowDuration('45');

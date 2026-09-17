@@ -18,9 +18,9 @@ export default function CasesTab({ casesDraft = '', onDraftChange }: CasesTabPro
   const splitStats = useMemo(() => {
     try {
       const cleanJson = (casesDraft || '').replace(/^#.*\n/gm, '').trim();
-      if (!cleanJson) return { total: 0, search: 0, test: 0 };
+      if (!cleanJson) {return { total: 0, search: 0, test: 0 };}
       const parsed = JSON.parse(cleanJson);
-      if (!Array.isArray(parsed)) return { total: 0, search: 0, test: 0 };
+      if (!Array.isArray(parsed)) {return { total: 0, search: 0, test: 0 };}
       let searchCount = 0;
       let testCount = 0;
       for (const item of parsed) {
@@ -47,7 +47,7 @@ export default function CasesTab({ casesDraft = '', onDraftChange }: CasesTabPro
     try {
       const cleanJson = (casesDraft || '').replace(/^#.*\n/gm, '').trim();
       const parsed = JSON.parse(cleanJson);
-      if (!Array.isArray(parsed) || parsed.length < 2) return;
+      if (!Array.isArray(parsed) || parsed.length < 2) {return;}
       const total = parsed.length;
       const searchCount = Math.max(1, Math.min(total - 1, Math.round(total * 0.7)));
       const updated = parsed.map((item, idx) => ({

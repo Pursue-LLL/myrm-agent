@@ -139,7 +139,7 @@ function saveL2Snapshot(chatId: string, snapshot: Partial<ChatState>): void {
     const key = `${L2_STORAGE_PREFIX}${chatId}`;
     window.sessionStorage.setItem(key, serialized);
 
-    let index = getL2Index().filter((id) => id !== chatId);
+    const index = getL2Index().filter((id) => id !== chatId);
     index.unshift(chatId);
 
     // LRU 淘汰旧条目

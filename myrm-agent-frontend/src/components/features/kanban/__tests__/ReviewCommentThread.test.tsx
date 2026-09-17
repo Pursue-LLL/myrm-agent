@@ -84,12 +84,12 @@ describe('ReviewCommentThread', () => {
     expect(screen.getByText('Check None before unpacking')).toBeInTheDocument();
 
     // Filter to Warning only
-    if (warnBtn) fireEvent.click(warnBtn);
+    if (warnBtn) {fireEvent.click(warnBtn);}
     expect(screen.getByText('Deprecated method called')).toBeInTheDocument();
     expect(screen.queryByText('AssertionError in test_stream')).not.toBeInTheDocument();
 
     // Filter to Critical only
-    if (critBtn) fireEvent.click(critBtn);
+    if (critBtn) {fireEvent.click(critBtn);}
     expect(screen.getByText('AssertionError in test_stream')).toBeInTheDocument();
     expect(screen.queryByText('Deprecated method called')).not.toBeInTheDocument();
   });

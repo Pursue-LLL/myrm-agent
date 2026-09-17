@@ -51,7 +51,7 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
   const [report, setReport] = useState<ProfileRecoveryHealthReport | null>(null);
 
   const loadHealth = useCallback(async () => {
-    if (!agentId) return;
+    if (!agentId) {return;}
     setLoading(true);
     try {
       const data = await fetchProfileRecoveryHealth(agentId);
@@ -73,7 +73,7 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
   }, [open, loadHealth]);
 
   const handleRollback = async () => {
-    if (!agentId) return;
+    if (!agentId) {return;}
     setLoading(true);
     try {
       const success = await rollbackProfileToLastKnownGood(agentId);
@@ -96,7 +96,7 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
   };
 
   const handleExportDiagnostics = async () => {
-    if (!agentId) return;
+    if (!agentId) {return;}
     try {
       const diagnostics = await exportProfileRecoveryDiagnostics(agentId);
       const blob = new Blob([JSON.stringify(diagnostics, null, 2)], {
@@ -120,7 +120,7 @@ export const StartupRecoveryDialog: React.FC<StartupRecoveryDialogProps> = ({
     }
   };
 
-  if (!open) return null;
+  if (!open) {return null;}
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>

@@ -6,7 +6,7 @@ import AgentUsageCard from '../AgentUsageCard';
 import { getAgentUsage } from '@/services/statistics';
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
-  if (params?.count !== undefined) return `Count: ${params.count}`;
+  if (params?.count !== undefined) {return `Count: ${params.count}`;}
   return key;
 };
 

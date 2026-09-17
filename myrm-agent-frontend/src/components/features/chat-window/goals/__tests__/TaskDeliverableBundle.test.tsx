@@ -20,8 +20,8 @@ const stableT = (key: string, params?: { count?: number; defaultMessage?: string
     bundleCategoryCode: 'Code & Scripts',
     bundleCategoryOther: 'Other Assets',
   };
-  if (map[key]) return map[key];
-  if (params?.defaultMessage) return params.defaultMessage;
+  if (map[key]) {return map[key];}
+  if (params?.defaultMessage) {return params.defaultMessage;}
   return key;
 };
 

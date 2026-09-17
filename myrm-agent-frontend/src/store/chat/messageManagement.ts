@@ -407,7 +407,7 @@ export const loadThroughTurn = async (
   actions: ChatActionsMethods,
 ): Promise<boolean> => {
   const state = useChatStore.getState();
-  if (!state.chatId || !targetMessageId) return false;
+  if (!state.chatId || !targetMessageId) {return false;}
 
   const isLoaded = () => {
     const current = useChatStore.getState();

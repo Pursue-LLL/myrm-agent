@@ -295,7 +295,7 @@ export const WORKBUDDY_TOP_20_MIGRATION_MAP: readonly WorkbuddySkillMappingItem[
  */
 export function resolveMyrmSkillFromWorkbuddy(key: string): WorkbuddySkillMappingItem | null {
   const normalized = key.trim().toLowerCase();
-  if (!normalized) return null;
+  if (!normalized) {return null;}
 
   return (
     WORKBUDDY_TOP_20_MIGRATION_MAP.find(

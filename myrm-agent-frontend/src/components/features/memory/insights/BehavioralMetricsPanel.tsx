@@ -83,9 +83,9 @@ export const BehavioralMetricsPanel = memo(function BehavioralMetricsPanel({
   };
 
   const currentHistogram = (() => {
-    if (!data) return [];
-    if (activeTab === 'workday') return data.workday_hour_histogram;
-    if (activeTab === 'weekend') return data.weekend_hour_histogram;
+    if (!data) {return [];}
+    if (activeTab === 'workday') {return data.workday_hour_histogram;}
+    if (activeTab === 'weekend') {return data.weekend_hour_histogram;}
     return data.hour_histogram;
   })();
 

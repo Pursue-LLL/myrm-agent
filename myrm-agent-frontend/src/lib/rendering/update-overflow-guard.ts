@@ -86,7 +86,7 @@ export function unregisterOverflowQuench(source: string): void {
 
 /** Whether an error is the nested-update overflow (#185). */
 export function isNestedUpdateOverflow(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
+  if (!(error instanceof Error)) {return false;}
   return OVERFLOW_MARKERS.some((marker) => error.message.includes(marker));
 }
 
@@ -96,7 +96,7 @@ export function isNestedUpdateOverflow(error: unknown): boolean {
  * other error returns false so callers rethrow it untouched.
  */
 export function swallowNestedUpdateOverflow(error: unknown, source: string): boolean {
-  if (!isNestedUpdateOverflow(error)) return false;
+  if (!isNestedUpdateOverflow(error)) {return false;}
   const now = Date.now();
   let state = sources.get(source);
   if (state === undefined || now - state.windowStart >= LOG_WINDOW_MS) {

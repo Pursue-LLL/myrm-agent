@@ -114,7 +114,7 @@ export const A2APeerRegistrySection = memo(() => {
   };
 
   const handleDelete = async (peerId: string) => {
-    if (!window.confirm(t('deleteConfirm'))) return;
+    if (!window.confirm(t('deleteConfirm'))) {return;}
     try {
       await deleteA2APeer(peerId);
       setPeers((prev) => prev.filter((p) => p.id !== peerId));
@@ -145,7 +145,7 @@ export const A2APeerRegistrySection = memo(() => {
   };
 
   const handleModalProbe = async () => {
-    if (!formValues.baseUrl.trim()) return;
+    if (!formValues.baseUrl.trim()) {return;}
     try {
       setModalProbeLoading(true);
       const res = await probeA2APeer({
@@ -168,7 +168,7 @@ export const A2APeerRegistrySection = memo(() => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formValues.name.trim() || !formValues.baseUrl.trim()) return;
+    if (!formValues.name.trim() || !formValues.baseUrl.trim()) {return;}
 
     try {
       setSubmitting(true);

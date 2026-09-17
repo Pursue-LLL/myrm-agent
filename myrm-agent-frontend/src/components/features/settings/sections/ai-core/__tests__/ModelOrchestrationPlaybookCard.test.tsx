@@ -73,7 +73,7 @@ vi.mock('next-intl', () => ({
   useTranslations: (ns?: string) => (key: string) => {
     if (ns) {
       const fullKey = ns + "." + key;
-      if (translations[fullKey]) return translations[fullKey];
+      if (translations[fullKey]) {return translations[fullKey];}
     }
     return translations[key] ?? key;
   },

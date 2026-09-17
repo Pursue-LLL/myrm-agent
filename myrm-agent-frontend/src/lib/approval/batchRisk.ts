@@ -41,19 +41,19 @@ const DESTRUCTIVE_COMMAND_PATTERNS: RegExp[] = [
 ];
 
 function extractCommandStrings(payload?: Record<string, unknown>): string[] {
-  if (!payload) return [];
+  if (!payload) {return [];}
   const cmds: string[] = [];
 
   for (const key of ['command', 'cmd', 'script', 'query', 'sql']) {
     const val = payload[key];
-    if (typeof val === 'string') cmds.push(val);
+    if (typeof val === 'string') {cmds.push(val);}
   }
 
   const args = payload.args;
   if (args && typeof args === 'object' && !Array.isArray(args)) {
     for (const key of ['command', 'cmd', 'script', 'query', 'sql']) {
       const val = (args as Record<string, unknown>)[key];
-      if (typeof val === 'string') cmds.push(val);
+      if (typeof val === 'string') {cmds.push(val);}
     }
   }
 
@@ -65,7 +65,7 @@ function extractCommandStrings(payload?: Record<string, unknown>): string[] {
         if (tcArgs && typeof tcArgs === 'object' && !Array.isArray(tcArgs)) {
           for (const key of ['command', 'cmd', 'script', 'query', 'sql']) {
             const val = (tcArgs as Record<string, unknown>)[key];
-            if (typeof val === 'string') cmds.push(val);
+            if (typeof val === 'string') {cmds.push(val);}
           }
         }
       }

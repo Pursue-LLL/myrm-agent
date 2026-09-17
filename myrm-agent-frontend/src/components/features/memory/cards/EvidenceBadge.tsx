@@ -47,7 +47,7 @@ export const EvidenceBadge = memo(function EvidenceBadge({
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const hasEvidence = Boolean(sourceId || messageId || channelId || quoteSnippet);
-  if (!hasEvidence) return null;
+  if (!hasEvidence) {return null;}
 
   return (
     <>

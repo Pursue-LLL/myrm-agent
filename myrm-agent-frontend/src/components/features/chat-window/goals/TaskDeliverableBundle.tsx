@@ -140,7 +140,7 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
 
   // Enrich items with inferred categories
   const enrichedItems = useMemo(() => {
-    if (!deliverables) return [];
+    if (!deliverables) {return [];}
     return deliverables.map((d) => ({
       ...d,
       category: inferDeliverableCategory(d.filename),
@@ -155,13 +155,13 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
   }, [enrichedItems]);
 
   const filteredItems = useMemo(() => {
-    if (activeCategory === 'all') return enrichedItems;
+    if (activeCategory === 'all') {return enrichedItems;}
     return enrichedItems.filter((item) => item.category === activeCategory);
   }, [enrichedItems, activeCategory]);
 
   const handleDownloadZip = useCallback(
     async (idsToDownload: string[]) => {
-      if (!idsToDownload.length) return;
+      if (!idsToDownload.length) {return;}
       setDownloading(true);
       try {
         const res = await fetchWithTimeout('/artifacts/download-bundle', {
@@ -192,12 +192,12 @@ export function TaskDeliverableBundle({ goal, chatId }: TaskDeliverableBundlePro
   );
 
   const handleDownloadAll = useCallback(() => {
-    if (!deliverables) return;
+    if (!deliverables) {return;}
     handleDownloadZip(deliverables.map((d) => d.id));
   }, [deliverables, handleDownloadZip]);
 
   const handleDownloadSelected = useCallback(() => {
-    if (!selectedIds.size) return;
+    if (!selectedIds.size) {return;}
     handleDownloadZip(Array.from(selectedIds));
   }, [selectedIds, handleDownloadZip]);
 

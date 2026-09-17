@@ -50,12 +50,10 @@
     "*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    ".next-isolated-chrome-test_behavioral_metrics_panel_contract_i-d4ad0338-39463-8895712b/types/**/*.ts",
-    ".next-isolated-chrome-test_behavioral_metrics_panel_contract_i-d4ad0338-39463-8895712b/dev/types/**/*.ts",
-    ".next-isolated-memdoc-c1/types/**/*.ts",
-    ".next-isolated-memdoc-c1/dev/types/**/*.ts",
     ".next-isolated-agentcap/types/**/*.ts",
-    ".next-isolated-agentcap/dev/types/**/*.ts"
+    ".next-isolated-agentcap/dev/types/**/*.ts",
+    ".next-isolated-memdoc-c1/types/**/*.ts",
+    ".next-isolated-memdoc-c1/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

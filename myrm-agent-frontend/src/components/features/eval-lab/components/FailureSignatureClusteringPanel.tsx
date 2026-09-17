@@ -55,7 +55,7 @@ export function FailureSignatureClusteringPanel({ clusters, profileId }: Failure
   };
 
   const handleCopyPatch = (cluster: SignatureClusterItem) => {
-    if (!cluster.patch_proposal) return;
+    if (!cluster.patch_proposal) {return;}
     const patchJson = JSON.stringify([cluster.patch_proposal], null, 2);
     navigator.clipboard.writeText(patchJson);
     setCopiedPatchId(cluster.cluster_id);
@@ -63,10 +63,10 @@ export function FailureSignatureClusteringPanel({ clusters, profileId }: Failure
   };
 
   const handleApplyNavigate = (cluster: SignatureClusterItem) => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {return;}
     const targetAgentId = profileId || '';
     const searchParams = new URLSearchParams();
-    if (targetAgentId) searchParams.set('agentId', targetAgentId);
+    if (targetAgentId) {searchParams.set('agentId', targetAgentId);}
     searchParams.set('tab', 'capabilities');
     if (cluster.patch_proposal) {
       searchParams.set('patchProposal', JSON.stringify([cluster.patch_proposal]));

@@ -99,7 +99,7 @@ const PetOverlay = memo(function PetOverlay() {
     let lastAudioPush = 0;
     const handleVoiceUpdate = (e: Event) => {
       const detail = (e as CustomEvent<{ voiceState?: PetSurfaceVoiceState; audioLevel?: number }>).detail;
-      if (!detail) return;
+      if (!detail) {return;}
       const now = Date.now();
       if (detail.voiceState === 'idle' || now - lastAudioPush >= 100) {
         lastAudioPush = now;

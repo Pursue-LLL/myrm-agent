@@ -28,7 +28,7 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
   const t = useTranslations('artifacts.spreadsheet');
 
   const handleQuote = useCallback(() => {
-    if (selectedRowIndex === null || !rowData) return;
+    if (selectedRowIndex === null || !rowData) {return;}
 
     const activeTab = useArtifactPortalStore.getState().getActiveTab();
     const artifactName = filename || activeTab?.title || '表格工件';
@@ -56,7 +56,7 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
   }, [selectedRowIndex, rowData, filename, sheetName, headers]);
 
   const handleCopy = useCallback(async () => {
-    if (selectedRowIndex === null || !rowData) return;
+    if (selectedRowIndex === null || !rowData) {return;}
     const headerLine = headers.join('\t');
     const dataLine = rowData.join('\t');
     await writeToClipboard(`${headerLine}\n${dataLine}`);

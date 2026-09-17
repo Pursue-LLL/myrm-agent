@@ -63,9 +63,9 @@ export function calculateKvCacheVramGb(
 }
 
 export function getRungByVram(vramGb: number): HardwareRungInfo {
-  if (vramGb < 10) return HARDWARE_RUNGS[0];
-  if (vramGb < 20) return HARDWARE_RUNGS[1];
-  if (vramGb < 40) return HARDWARE_RUNGS[2];
-  if (vramGb < 80) return HARDWARE_RUNGS[3];
+  if (vramGb < 10) {return HARDWARE_RUNGS[0];}
+  if (vramGb < 20) {return HARDWARE_RUNGS[1];}
+  if (vramGb < 40) {return HARDWARE_RUNGS[2];}
+  if (vramGb < 80) {return HARDWARE_RUNGS[3];}
   return HARDWARE_RUNGS[4];
 }

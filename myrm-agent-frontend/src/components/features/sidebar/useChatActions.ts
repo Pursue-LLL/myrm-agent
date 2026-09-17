@@ -49,7 +49,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
   }, []);
 
   const handleConfirmCaptureEval = useCallback(async () => {
-    if (!captureEvalChatId) return;
+    if (!captureEvalChatId) {return;}
     setCaptureEvalLoading(true);
     try {
       const { evalService } = await import('@/services/eval');

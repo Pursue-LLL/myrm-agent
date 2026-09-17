@@ -244,7 +244,7 @@ export const WB_TOP20_SKILL_MIGRATION_MAP: readonly WBSkillMigrationItem[] = [
  */
 export function findMigratedSkill(query: string): WBSkillMigrationItem | undefined {
   const q = query.trim().toLowerCase();
-  if (!q) return undefined;
+  if (!q) {return undefined;}
 
   return WB_TOP20_SKILL_MIGRATION_MAP.find(
     (item) =>

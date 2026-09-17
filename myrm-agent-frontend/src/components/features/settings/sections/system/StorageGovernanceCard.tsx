@@ -36,7 +36,7 @@ import { systemService } from '@/services/system';
 type StorageReport = Awaited<ReturnType<typeof systemService.getStorageGovernanceReport>>;
 
 function formatBytes(bytes: number): string {
-  if (bytes <= 0) return '0 B';
+  if (bytes <= 0) {return '0 B';}
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${units[i]}`;
@@ -96,7 +96,7 @@ export const StorageGovernanceCard = memo(() => {
   }, [fetchReport, t]);
 
   const handleCreateSnapshot = useCallback(async () => {
-    if (!snapshotLabel.trim()) return;
+    if (!snapshotLabel.trim()) {return;}
     setCreatingSnapshot(true);
     try {
       const res = await systemService.createStateSnapshot(snapshotLabel.trim());

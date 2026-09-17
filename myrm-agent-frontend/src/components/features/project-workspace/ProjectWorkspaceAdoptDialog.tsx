@@ -83,7 +83,7 @@ export default function ProjectWorkspaceAdoptDialog({
       setLoading(true);
       try {
         const data = await browseDirectories(path);
-        if (gen !== loadGenRef.current) return;
+        if (gen !== loadGenRef.current) {return;}
         setCurrentPath(data.current);
         setParentPath(data.parent);
         setEntries(data.entries ?? []);
@@ -91,7 +91,7 @@ export default function ProjectWorkspaceAdoptDialog({
         const extracted = data.current.split(/[/\\]/).filter(Boolean).pop() || '';
         setProjectName((prev) => (prev ? prev : extracted));
       } catch {
-        if (gen !== loadGenRef.current) return;
+        if (gen !== loadGenRef.current) {return;}
         toast({
           title: t('loadFailed'),
           variant: 'destructive',
@@ -106,7 +106,7 @@ export default function ProjectWorkspaceAdoptDialog({
   );
 
   const handleNativePick = useCallback(async () => {
-    if (!desktopBridge.isDesktop()) return;
+    if (!desktopBridge.isDesktop()) {return;}
     try {
       const selected = await desktopBridge.openDirectoryPicker({
         title: t('title'),
@@ -135,7 +135,7 @@ export default function ProjectWorkspaceAdoptDialog({
   );
 
   const handleAdopt = useCallback(async () => {
-    if (!currentPath.trim()) return;
+    if (!currentPath.trim()) {return;}
     setSubmitting(true);
     try {
       const project = await adoptProject(currentPath.trim(), projectName.trim() || undefined);
@@ -159,12 +159,12 @@ export default function ProjectWorkspaceAdoptDialog({
   }, [currentPath, projectName, adoptProject, chatId, setWorkspaceDir, t, onOpenChange]);
 
   const filteredEntries = useMemo(() => {
-    if (!filterQuery.trim()) return entries;
+    if (!filterQuery.trim()) {return entries;}
     const q = filterQuery.toLowerCase();
     return entries.filter((e) => e.name.toLowerCase().includes(q));
   }, [entries, filterQuery]);
 
-  if (!open) return null;
+  if (!open) {return null;}
 
   return (
     <div

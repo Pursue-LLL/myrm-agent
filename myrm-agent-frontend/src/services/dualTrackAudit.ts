@@ -59,10 +59,10 @@ export const dualTrackAuditService = {
     limit?: number;
   }): Promise<DualTrackAuditEntryItem[]> {
     const query = new URLSearchParams();
-    if (params?.sessionId) query.set('session_id', params.sessionId);
-    if (params?.agentId) query.set('agent_id', params.agentId);
-    if (params?.outcome) query.set('outcome', params.outcome);
-    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.sessionId) {query.set('session_id', params.sessionId);}
+    if (params?.agentId) {query.set('agent_id', params.agentId);}
+    if (params?.outcome) {query.set('outcome', params.outcome);}
+    if (params?.limit) {query.set('limit', String(params.limit));}
 
     const qs = query.toString();
     const endpoint = `/security/audit/dual-track/entries${qs ? `?${qs}` : ''}`;
@@ -71,8 +71,8 @@ export const dualTrackAuditService = {
 
   async getStats(params?: { sessionId?: string; agentId?: string }): Promise<DualTrackAuditStatsResponse> {
     const query = new URLSearchParams();
-    if (params?.sessionId) query.set('session_id', params.sessionId);
-    if (params?.agentId) query.set('agent_id', params.agentId);
+    if (params?.sessionId) {query.set('session_id', params.sessionId);}
+    if (params?.agentId) {query.set('agent_id', params.agentId);}
 
     const qs = query.toString();
     const endpoint = `/security/audit/dual-track/stats${qs ? `?${qs}` : ''}`;
@@ -82,8 +82,8 @@ export const dualTrackAuditService = {
   getExportUrl(params?: { format?: 'json' | 'csv' | 'markdown'; sessionId?: string; agentId?: string }): string {
     const query = new URLSearchParams();
     query.set('format', params?.format ?? 'json');
-    if (params?.sessionId) query.set('session_id', params.sessionId);
-    if (params?.agentId) query.set('agent_id', params.agentId);
+    if (params?.sessionId) {query.set('session_id', params.sessionId);}
+    if (params?.agentId) {query.set('agent_id', params.agentId);}
 
     return getApiUrl(`/security/audit/dual-track/export?${query.toString()}`);
   },

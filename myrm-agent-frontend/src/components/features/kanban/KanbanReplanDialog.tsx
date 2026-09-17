@@ -60,7 +60,7 @@ export default function KanbanReplanDialog({
   const removedTasks = proposedChanges.filter((c) => c.action === 'remove');
 
   const handleApply = async () => {
-    if (!board) return;
+    if (!board) {return;}
     if (!rationale.trim()) {
       toast.error(t('replanRationaleRequired') || 'Rationale is required for plan revision');
       return;

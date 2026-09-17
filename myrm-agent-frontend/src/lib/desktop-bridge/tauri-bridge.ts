@@ -49,7 +49,7 @@ class TauriWindowBridge implements IWindowBridge {
   }
 
   async minimize(): Promise<void> {
-    if (!isTauriEnvironment()) return;
+    if (!isTauriEnvironment()) {return;}
     try {
       await invokeTauriCommand('minimize_window');
     } catch (e) {
@@ -58,7 +58,7 @@ class TauriWindowBridge implements IWindowBridge {
   }
 
   async maximize(): Promise<void> {
-    if (!isTauriEnvironment()) return;
+    if (!isTauriEnvironment()) {return;}
     try {
       await invokeTauriCommand('maximize_window');
     } catch (e) {
@@ -67,7 +67,7 @@ class TauriWindowBridge implements IWindowBridge {
   }
 
   async toggleMaximize(): Promise<void> {
-    if (!isTauriEnvironment()) return;
+    if (!isTauriEnvironment()) {return;}
     try {
       await invokeTauriCommand('toggle_maximize_window');
     } catch (e) {
@@ -76,7 +76,7 @@ class TauriWindowBridge implements IWindowBridge {
   }
 
   async close(): Promise<void> {
-    if (!isTauriEnvironment()) return;
+    if (!isTauriEnvironment()) {return;}
     try {
       await invokeTauriCommand('close_window');
     } catch (e) {
@@ -85,7 +85,7 @@ class TauriWindowBridge implements IWindowBridge {
   }
 
   async isMaximized(): Promise<boolean> {
-    if (!isTauriEnvironment()) return false;
+    if (!isTauriEnvironment()) {return false;}
     try {
       return await invokeTauriCommand<boolean>('is_window_maximized');
     } catch {
@@ -94,7 +94,7 @@ class TauriWindowBridge implements IWindowBridge {
   }
 
   async startDragging(): Promise<void> {
-    if (!isTauriEnvironment()) return;
+    if (!isTauriEnvironment()) {return;}
     try {
       await invokeTauriCommand('start_dragging');
     } catch (e) {
@@ -105,7 +105,7 @@ class TauriWindowBridge implements IWindowBridge {
 
 class TauriTrayBridge implements ITrayBridge {
   async updateStatus(status: TrayStatusPayload): Promise<void> {
-    if (!isTauriEnvironment()) return;
+    if (!isTauriEnvironment()) {return;}
     try {
       await invokeTauriCommand('update_tray_status', {
         liveness: status.liveness,
@@ -139,14 +139,14 @@ class TauriTrayBridge implements ITrayBridge {
       .catch(() => {});
 
     return () => {
-      if (unlisten) unlisten();
+      if (unlisten) {unlisten();}
     };
   }
 }
 
 class TauriShellBridge implements IShellBridge {
   async openLocalFolder(path: string): Promise<boolean> {
-    if (!isTauriEnvironment() || !path) return false;
+    if (!isTauriEnvironment() || !path) {return false;}
     try {
       return await invokeTauriCommand<boolean>('open_folder', { path });
     } catch (e) {
@@ -156,7 +156,7 @@ class TauriShellBridge implements IShellBridge {
   }
 
   async showInFileManager(path: string): Promise<boolean> {
-    if (!isTauriEnvironment() || !path) return false;
+    if (!isTauriEnvironment() || !path) {return false;}
     try {
       return await invokeTauriCommand<boolean>('show_in_file_manager', { path });
     } catch (e) {
@@ -166,7 +166,7 @@ class TauriShellBridge implements IShellBridge {
   }
 
   async openExternalUrl(url: string): Promise<boolean> {
-    if (!url) return false;
+    if (!url) {return false;}
     if (!isTauriEnvironment()) {
       if (typeof window !== 'undefined') {
         window.open(url, '_blank', 'noopener,noreferrer');
@@ -186,7 +186,7 @@ class TauriShellBridge implements IShellBridge {
   }
 
   async openFileDialog(options?: NativeOpenFileDialogOptions): Promise<string | string[] | null> {
-    if (!isTauriEnvironment()) return null;
+    if (!isTauriEnvironment()) {return null;}
     try {
       const { open: openDialog } = await import('@tauri-apps/plugin-dialog');
       const selected = await openDialog({
@@ -206,7 +206,7 @@ class TauriShellBridge implements IShellBridge {
 
 class TauriPowerBridge implements IPowerBridge {
   async acquireLock(reason: string): Promise<string | null> {
-    if (!isTauriEnvironment()) return null;
+    if (!isTauriEnvironment()) {return null;}
     try {
       const lockId = await invokeTauriCommand<string>('acquire_power_lock', { reason });
       return lockId || 'lock-acquired';
@@ -217,7 +217,7 @@ class TauriPowerBridge implements IPowerBridge {
   }
 
   async releaseLock(lockId: string): Promise<boolean> {
-    if (!isTauriEnvironment()) return false;
+    if (!isTauriEnvironment()) {return false;}
     try {
       return await invokeTauriCommand<boolean>('release_power_lock', { lockId });
     } catch (e) {
@@ -247,15 +247,15 @@ class TauriAppshotBridge implements IAppshotBridge {
       .catch(() => {});
 
     return () => {
-      if (unlisten) unlisten();
+      if (unlisten) {unlisten();}
     };
   }
 
   async captureScreen(): Promise<{ base64: string; mimeType: string } | null> {
-    if (!isTauriEnvironment()) return null;
+    if (!isTauriEnvironment()) {return null;}
     try {
       const base64 = await invokeTauriCommand<string>('capture_screen');
-      if (!base64) return null;
+      if (!base64) {return null;}
       return { base64, mimeType: 'image/png' };
     } catch (e) {
       console.warn('Failed to capture screen:', e);

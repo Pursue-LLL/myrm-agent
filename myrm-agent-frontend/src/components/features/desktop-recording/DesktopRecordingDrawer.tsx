@@ -62,7 +62,7 @@ export const DesktopRecordingDrawer: React.FC = () => {
     }
   }, [skillName, draft, publishSkill]);
 
-  if (!isOpen) return null;
+  if (!isOpen) {return null;}
 
   return (
     <div

@@ -6,8 +6,8 @@ function parseInputUrls(rawText: string): string[] {
   const valid: string[] = [];
   for (const raw of rawLines) {
     const line = raw.trim();
-    if (!line) continue;
-    if (!/^https?:\/\//i.test(line)) continue;
+    if (!line) {continue;}
+    if (!/^https?:\/\//i.test(line)) {continue;}
     if (!seen.has(line)) {
       seen.add(line);
       valid.push(line);

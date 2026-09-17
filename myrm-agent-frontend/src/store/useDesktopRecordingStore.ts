@@ -106,7 +106,7 @@ export const useDesktopRecordingStore = create<DesktopRecordingState>((set, get)
 
   addEvent: async (eventData) => {
     const { sessionId, steps, status } = get();
-    if (!sessionId || status !== 'recording') return;
+    if (!sessionId || status !== 'recording') {return;}
 
     const nextSeq = steps.length + 1;
     const newStep: DesktopRecordedStep = { ...eventData, seq: nextSeq };
@@ -124,7 +124,7 @@ export const useDesktopRecordingStore = create<DesktopRecordingState>((set, get)
 
   stopRecording: async () => {
     const { sessionId } = get();
-    if (!sessionId) return;
+    if (!sessionId) {return;}
 
     set({ status: 'stopped' });
     try {
@@ -140,7 +140,7 @@ export const useDesktopRecordingStore = create<DesktopRecordingState>((set, get)
 
   synthesizeDraft: async (skillName: string, description = '') => {
     const { sessionId } = get();
-    if (!sessionId) return;
+    if (!sessionId) {return;}
 
     set({ status: 'synthesizing', error: null });
     try {
@@ -164,14 +164,14 @@ export const useDesktopRecordingStore = create<DesktopRecordingState>((set, get)
 
   updateDraftMarkdown: (content: string) => {
     set((state) => {
-      if (!state.draft) return state;
+      if (!state.draft) {return state;}
       return { draft: { ...state.draft, markdown_content: content } };
     });
   },
 
   publishSkill: async (skillName: string) => {
     const { sessionId, draft } = get();
-    if (!sessionId || !draft) return null;
+    if (!sessionId || !draft) {return null;}
 
     try {
       const response = await apiRequest<{ skill_id: string; status: string }>('/api/skills/desktop-recorder/publish', {

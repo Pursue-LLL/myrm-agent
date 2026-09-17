@@ -5,8 +5,8 @@ import { StorageGovernanceCard } from '../StorageGovernanceCard';
 import { systemService } from '@/services/system';
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
-  if (params?.freed) return `Freed ${params.freed}`;
-  if (params?.count) return `${params.count} items`;
+  if (params?.freed) {return `Freed ${params.freed}`;}
+  if (params?.count) {return `${params.count} items`;}
   return key;
 };
 

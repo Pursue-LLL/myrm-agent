@@ -197,8 +197,8 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
   }, []);
 
   const filteredRefs = React.useMemo(() => {
-    if (!scopedViewData?.refs) return {};
-    if (!searchQuery.trim()) return scopedViewData.refs;
+    if (!scopedViewData?.refs) {return {};}
+    if (!searchQuery.trim()) {return scopedViewData.refs;}
     const q = searchQuery.trim().toLowerCase();
     const res: Record<string, BrowserRefInfo> = {};
     for (const [refId, info] of Object.entries(scopedViewData.refs)) {

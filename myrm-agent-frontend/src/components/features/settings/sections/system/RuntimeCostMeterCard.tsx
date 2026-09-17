@@ -97,7 +97,7 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
   };
 
   const handleSaveLimit = async () => {
-    if (!editingProvider || editLimitValue <= 0) return;
+    if (!editingProvider || editLimitValue <= 0) {return;}
     try {
       await updateSearchQuotaLimit(editingProvider, editLimitValue);
       setEditingProvider(null);

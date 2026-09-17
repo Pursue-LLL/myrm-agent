@@ -31,7 +31,7 @@ export const DesktopBridgeProvider: React.FC<DesktopBridgeProviderProps> = ({ ch
   const [bridge, setBridge] = useState<IDesktopBridge>(() => initialBridge || fallbackBridge);
 
   useEffect(() => {
-    if (initialBridge) return;
+    if (initialBridge) {return;}
     if (isTauriEnvironment()) {
       setBridge(new TauriDesktopBridge());
     } else {

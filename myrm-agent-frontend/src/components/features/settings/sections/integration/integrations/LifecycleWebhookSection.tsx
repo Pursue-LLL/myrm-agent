@@ -106,7 +106,7 @@ export const LifecycleWebhookSection = memo(() => {
   };
 
   const handleCreate = async () => {
-    if (!createForm.name.trim() || !createForm.url.trim()) return;
+    if (!createForm.name.trim() || !createForm.url.trim()) {return;}
     try {
       setSubmitting(true);
       await createLifecycleWebhook({
@@ -127,7 +127,7 @@ export const LifecycleWebhookSection = memo(() => {
   };
 
   const handleUpdate = async (hook: LifecycleWebhook) => {
-    if (!editForm.name.trim() || !editForm.url.trim()) return;
+    if (!editForm.name.trim() || !editForm.url.trim()) {return;}
     try {
       setSubmitting(true);
       const originalAgentId = hook.agent_id ?? null;

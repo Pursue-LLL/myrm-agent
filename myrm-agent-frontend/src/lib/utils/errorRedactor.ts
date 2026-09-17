@@ -22,7 +22,7 @@ export function maskToken(token: string): string {
  */
 const PATTERNS = {
   // 1. 常见平台 API 密钥与凭证 (OpenAI, Anthropic, GitHub, Slack, HuggingFace, GitLab 等)
-  apiKeys: /\b(?:sk|ghp|gho|ghu|ghs|ghr|xoxb|xoxp|xapp|xoxa|glpat|npm_|hf_)[A-Za-z0-9_\-]{16,}\b/g,
+  apiKeys: /\b(?:sk|ghp|gho|ghu|ghs|ghr|xoxb|xoxp|xapp|xoxa|glpat|npm_|hf_)[A-Za-z0-9_-]{16,}\b/g,
 
   // 2. HTTP Bearer 认证头部
   bearerTokens: /\bBearer\s+[A-Za-z0-9_\-.]{16,}\b/gi,
@@ -39,11 +39,11 @@ const PATTERNS = {
 
   // 6. 数据库与消息队列 URI 密码 (postgres://user:password@host)
   dbUriCredentials:
-    /\b((?:postgres(?:ql)?|mysql|mariadb|redis(?:s)?|mongodb(?:\+srv)?|amqp(?:s)?):\/\/[^:\s\/]+:)([^@\s]+)(@)/gi,
+    /\b((?:postgres(?:ql)?|mysql|mariadb|redis(?:s)?|mongodb(?:\+srv)?|amqp(?:s)?):\/\/[^:\s/]+:)([^@\s]+)(@)/gi,
 
   // 7. 本地用户主目录路径 (macOS / Linux / Windows)
-  macHomePaths: /(^|[\s"'(])\/Users\/[^\/\s"')]+/g,
-  linuxHomePaths: /(^|[\s"'(])\/home\/[^\/\s"')]+/g,
+  macHomePaths: /(^|[\s"'(])\/Users\/[^/\s"')]+/g,
+  linuxHomePaths: /(^|[\s"'(])\/home\/[^/\s"')]+/g,
   windowsHomePaths: /(^|[\s"'(])[A-Za-z]:\\Users\\[^\\/\s"')]+/g,
 
   // 8. 错误信息中内网私有 IP 地址端点 (RFC1918)

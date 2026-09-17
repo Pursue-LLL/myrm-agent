@@ -6,11 +6,11 @@ import type { ApprovalPayload } from '@/store/useApprovalStore';
 
 // Stable mock references to prevent infinite re-rendering and pass CI stability gate
 const stableT = (key: string) => {
-  if (key === 'spendProtection.title') return 'Financial Transaction Protection';
-  if (key === 'spendProtection.amount') return 'Charge Amount';
-  if (key === 'spendProtection.tamperProtected') return 'SHA-256 Tamper Protected';
-  if (key === 'approve') return 'Approve';
-  if (key === 'reject') return 'Reject';
+  if (key === 'spendProtection.title') {return 'Financial Transaction Protection';}
+  if (key === 'spendProtection.amount') {return 'Charge Amount';}
+  if (key === 'spendProtection.tamperProtected') {return 'SHA-256 Tamper Protected';}
+  if (key === 'approve') {return 'Approve';}
+  if (key === 'reject') {return 'Reject';}
   return key;
 };
 

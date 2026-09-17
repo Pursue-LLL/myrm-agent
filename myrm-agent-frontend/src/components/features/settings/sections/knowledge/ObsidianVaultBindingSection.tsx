@@ -46,7 +46,7 @@ export function ObsidianVaultBindingSection({ agentScopeId }: ObsidianVaultBindi
   }, [fetchBinding]);
 
   const handleBind = useCallback(async () => {
-    if (!vaultPath.trim()) return;
+    if (!vaultPath.trim()) {return;}
     try {
       setIsSaving(true);
       const res = await wikiService.bindObsidianVault({

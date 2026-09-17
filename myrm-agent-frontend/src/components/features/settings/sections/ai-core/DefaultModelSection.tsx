@@ -1233,7 +1233,7 @@ const DefaultModelSection = memo(() => {
                         role="switch"
                         aria-checked={Boolean(defaultModelConfig.routingConfig?.autoMoaReasoning)}
                         onClick={() =>
-                          setAutoMoaReasoning(!Boolean(defaultModelConfig.routingConfig?.autoMoaReasoning))
+                          setAutoMoaReasoning(!defaultModelConfig.routingConfig?.autoMoaReasoning)
                         }
                         className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
                           defaultModelConfig.routingConfig?.autoMoaReasoning

@@ -123,12 +123,12 @@ export const DeviceLiveView: React.FC<DeviceLiveViewProps> = ({ onSendInstructio
 
   const handleTouchPointerUp = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (mode !== 'view' || !pointerStartRef.current || !imageContainerRef.current) return;
+      if (mode !== 'view' || !pointerStartRef.current || !imageContainerRef.current) {return;}
       const start = pointerStartRef.current;
       pointerStartRef.current = null;
 
       const rect = imageContainerRef.current.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) return;
+      if (rect.width <= 0 || rect.height <= 0) {return;}
 
       const startRelX = (start.x - rect.left) / rect.width;
       const startRelY = (start.y - rect.top) / rect.height;
@@ -171,7 +171,7 @@ export const DeviceLiveView: React.FC<DeviceLiveViewProps> = ({ onSendInstructio
     [mode, scopedViewData, sendTouchRelay],
   );
 
-  if (!isOpen) return null;
+  if (!isOpen) {return null;}
 
   const isViewMode = mode === 'view';
   const hasScreenshot = Boolean(scopedViewData?.screenshotBase64);

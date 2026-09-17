@@ -13,8 +13,8 @@ import {
 } from '@/services/statistics';
 
 const mockT = (key: string, params?: Record<string, unknown>) => {
-  if (params?.percent !== undefined) return `Warning (${params.percent}%)`;
-  if (params?.count !== undefined) return `Count: ${params.count}`;
+  if (params?.percent !== undefined) {return `Warning (${params.percent}%)`;}
+  if (params?.count !== undefined) {return `Count: ${params.count}`;}
   return key;
 };
 

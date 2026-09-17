@@ -60,7 +60,7 @@ const DeviceInstructionInput: React.FC<DeviceInstructionInputProps> = ({
 
   const handleSubmit = useCallback(() => {
     const text = instructionText.trim();
-    if (!text && !selectedRefId) return;
+    if (!text && !selectedRefId) {return;}
     onSubmit(text, selectedRefId);
   }, [instructionText, selectedRefId, onSubmit]);
 

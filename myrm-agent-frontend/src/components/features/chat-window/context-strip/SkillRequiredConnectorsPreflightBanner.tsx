@@ -89,7 +89,7 @@ export function SkillRequiredConnectorsPreflightBanner({
 
     for (const skillId of activeSkillIds) {
       const skill = skillMap.get(skillId);
-      if (!skill) continue;
+      if (!skill) {continue;}
 
       // 检查 OAuth issuers
       const requiredIssuers = skill.required_oauth_issuers ?? (skill.oauth_issuer ? [skill.oauth_issuer] : []);

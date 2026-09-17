@@ -35,7 +35,7 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
   const [copied, setCopied] = useState(false);
 
   const handleCopyMarkdown = useCallback(async () => {
-    if (!data) return;
+    if (!data) {return;}
     const durSec = Math.round(data.duration_ms / 1000);
     const durStr = durSec >= 60 ? `${Math.floor(durSec / 60)}m ${durSec % 60}s` : `${durSec}s`;
 
@@ -115,7 +115,7 @@ ${toolRows}
   }, [data]);
 
   const handleDownloadCsv = useCallback(() => {
-    if (!data) return;
+    if (!data) {return;}
     const durSec = Math.round(data.duration_ms / 1000);
     const escapeCsv = (val: string | number) => `"${String(val).replace(/"/g, '""')}"`;
 

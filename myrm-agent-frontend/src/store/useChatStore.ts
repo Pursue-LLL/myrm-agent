@@ -273,7 +273,7 @@ const useChatStore = create<ChatState>()(
                 ])
                   .then(([contextsResult, bindingsResult]) => {
                     const currentChatId = get().chatId;
-                    if (currentChatId !== id) return;
+                    if (currentChatId !== id) {return;}
 
                     if (bindingsResult.status === 'fulfilled' && bindingsResult.value.items?.length) {
                       const boundIds = bindingsResult.value.items.map((b) => b.context_id);
@@ -374,7 +374,7 @@ const useChatStore = create<ChatState>()(
       },
       fetchTurnOutlines: async (chatId?: string) => {
         const cid = chatId || get().chatId;
-        if (!cid) return;
+        if (!cid) {return;}
         try {
           const { getChatOutline } = await import('@/services/chat');
           const outlines = await getChatOutline(cid);

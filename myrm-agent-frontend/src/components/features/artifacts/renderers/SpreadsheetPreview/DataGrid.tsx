@@ -146,9 +146,9 @@ const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, clas
   }, [headers, sortedRows]);
 
   const handleQuoteSelectedRow = useCallback(() => {
-    if (selectedRow === null) return;
+    if (selectedRow === null) {return;}
     const row = sortedRows[selectedRow];
-    if (!row) return;
+    if (!row) {return;}
     const state = useArtifactPortalStore.getState();
     const activeTab = state.activeTabIndex >= 0 && state.activeTabIndex < state.openTabs.length ? state.openTabs[state.activeTabIndex] : null;
     const artifactName = activeTab?.artifact?.filename || '表格工件';

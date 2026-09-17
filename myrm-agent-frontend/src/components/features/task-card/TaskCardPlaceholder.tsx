@@ -40,7 +40,7 @@ export const TaskCardPlaceholder: React.FC<TaskCardPlaceholderProps> = ({
 
   const handleCancel = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!taskId || !onCancel || isCancelling) return;
+    if (!taskId || !onCancel || isCancelling) {return;}
     setIsCancelling(true);
     try {
       await onCancel(taskId);

@@ -35,8 +35,8 @@ export function WikiUrlImportDialog({ open, onOpenChange, agentScopeId, onImport
     const valid: string[] = [];
     for (const raw of rawLines) {
       const line = raw.trim();
-      if (!line) continue;
-      if (!/^https?:\/\//i.test(line)) continue;
+      if (!line) {continue;}
+      if (!/^https?:\/\//i.test(line)) {continue;}
       if (!seen.has(line)) {
         seen.add(line);
         valid.push(line);
@@ -46,7 +46,7 @@ export function WikiUrlImportDialog({ open, onOpenChange, agentScopeId, onImport
   }, [urlText]);
 
   const handleClose = () => {
-    if (isSubmitting) return;
+    if (isSubmitting) {return;}
     setUrlText('');
     setFolderPath('');
     onOpenChange(false);

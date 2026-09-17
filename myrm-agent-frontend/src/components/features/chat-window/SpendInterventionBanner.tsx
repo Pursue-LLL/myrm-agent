@@ -33,7 +33,7 @@ export const SpendInterventionBanner = memo<SpendInterventionBannerProps>(
     const [confirmed, setConfirmed] = useState(false);
 
     const handleConfirmSoftGate = useCallback(async () => {
-      if (!decision.bypassToken || submitting) return;
+      if (!decision.bypassToken || submitting) {return;}
       setSubmitting(true);
       try {
         const res = await confirmSoftSpendGate({

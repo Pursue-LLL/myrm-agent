@@ -67,10 +67,10 @@ export const FeaturedExpertChips = memo(function FeaturedExpertChips({ className
           // Prioritize teams and templates with rich use_cases or Pareto presets
           const featured = allTemplates
             .sort((a, b) => {
-              if (a.agent_type === 'team' && b.agent_type !== 'team') return -1;
-              if (a.agent_type !== 'team' && b.agent_type === 'team') return 1;
-              if (a.is_pareto_preset && !b.is_pareto_preset) return -1;
-              if (!a.is_pareto_preset && b.is_pareto_preset) return 1;
+              if (a.agent_type === 'team' && b.agent_type !== 'team') {return -1;}
+              if (a.agent_type !== 'team' && b.agent_type === 'team') {return 1;}
+              if (a.is_pareto_preset && !b.is_pareto_preset) {return -1;}
+              if (!a.is_pareto_preset && b.is_pareto_preset) {return 1;}
               return (b.use_cases?.length ?? 0) - (a.use_cases?.length ?? 0);
             })
             .slice(0, 5);
