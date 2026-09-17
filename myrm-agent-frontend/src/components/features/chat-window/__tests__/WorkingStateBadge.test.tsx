@@ -95,13 +95,12 @@ describe('WorkingStateBadge Container', () => {
       live_state: null,
     });
 
-    const { rerender } = render(<WorkingStateBadge />);
+    const { rerender } = render(<WorkingStateBadge chatId="chat-alpha" />);
     await waitFor(() => {
       expect(screen.getByText('旧会话任务')).toBeInTheDocument();
     });
 
-    // Switch chatId
-    mockChatState = { loading: false, chatId: 'chat-beta' };
+    // Switch chatId via prop
     vi.mocked(memoryService.getWorkingState).mockResolvedValueOnce({
       content: null,
       updated_at: null,
@@ -110,7 +109,7 @@ describe('WorkingStateBadge Container', () => {
       live_state: null,
     });
 
-    rerender(<WorkingStateBadge />);
+    rerender(<WorkingStateBadge chatId="chat-beta" />);
     await waitFor(() => {
       expect(screen.queryByText('旧会话任务')).not.toBeInTheDocument();
     });

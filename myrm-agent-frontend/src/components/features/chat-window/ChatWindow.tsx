@@ -609,7 +609,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
                 </div>
               </div>
             ) : null}
-            <WorkingStateBadge />
+            <WorkingStateBadge chatId={id} />
             {id ? <RunStatusChip chatId={id} /> : null}
             <YoloModeBanner />
             <EStopBanner />

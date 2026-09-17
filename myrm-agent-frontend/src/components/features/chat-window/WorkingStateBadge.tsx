@@ -11,11 +11,16 @@ import { WorkingMemoryBoard } from '@/components/chat/WorkingMemoryBoard';
  * Integrated top-level workbench container in ChatWindow.
  * Renders the full interactive WorkingMemoryBoard if live state or active content exists.
  */
-const WorkingStateBadge = memo(() => {
+export interface WorkingStateBadgeProps {
+  chatId?: string;
+}
+
+const WorkingStateBadge = memo(({ chatId: propChatId }: WorkingStateBadgeProps = {}) => {
   const [liveState, setLiveState] = useState<WorkingStateLiveState | null>(null);
   const [fallbackContent, setFallbackContent] = useState<string | null>(null);
   const loading = useChatStore((s) => s.loading);
-  const chatId = useChatStore((s) => s.chatId);
+  const storeChatId = useChatStore((s) => s.chatId);
+  const chatId = propChatId ?? storeChatId;
   const prevLoadingRef = useRef(loading);
   const prevChatIdRef = useRef(chatId);
 
