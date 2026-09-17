@@ -67,9 +67,9 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
 - **Timestamp**: ${data.created_at ? new Date(data.created_at).toLocaleString() : 'N/A'}
 - **Total Duration**: ${durStr}
 - **Total Messages**: ${data.message_count} (User: ${data.user_messages}, Assistant: ${data.assistant_messages})
-- **Total Tokens**: ${data.total_tokens.toLocaleString()} (Input: ${data.input_tokens.toLocaleString()}, Output: ${data.output_tokens.toLocaleString()}, Cached: ${data.cached_tokens.toLocaleString()})
-- **Prompt Cache Hit Ratio**: ${(data.cache_hit_ratio * 100).toFixed(1)}%
-- **Estimated Cost**: $${data.cost_usd.toFixed(4)} USD
+- **Total Tokens**: ${data.totalTokens.toLocaleString()} (Input: ${data.inputTokens.toLocaleString()}, Output: ${data.outputTokens.toLocaleString()}, Cached: ${data.cachedTokens.toLocaleString()})
+- **Prompt Cache Hit Ratio**: ${(data.cacheHitRate * 100).toFixed(1)}%
+- **Estimated Cost**: $${data.costUsd.toFixed(4)} USD
 
 ### 🤖 LLM Breakdown
 | Model | Calls | Total Duration | Avg Latency |
@@ -129,12 +129,12 @@ ${toolRows}
       `Session,TotalMessages,${data.message_count}`,
       `Session,UserMessages,${data.user_messages}`,
       `Session,AssistantMessages,${data.assistant_messages}`,
-      `Economics,TotalTokens,${data.total_tokens}`,
-      `Economics,InputTokens,${data.input_tokens}`,
-      `Economics,OutputTokens,${data.output_tokens}`,
-      `Economics,CachedTokens,${data.cached_tokens}`,
-      `Economics,CacheHitRatio,${(data.cache_hit_ratio * 100).toFixed(2)}%`,
-      `Economics,CostUSD,${data.cost_usd.toFixed(4)}`,
+      `Economics,TotalTokens,${data.totalTokens}`,
+      `Economics,InputTokens,${data.inputTokens}`,
+      `Economics,OutputTokens,${data.outputTokens}`,
+      `Economics,CachedTokens,${data.cachedTokens}`,
+      `Economics,CacheHitRatio,${(data.cacheHitRate * 100).toFixed(2)}%`,
+      `Economics,CostUSD,${data.costUsd.toFixed(4)}`,
       '',
       'Type,Name,Calls,TotalDurationMs',
     ];

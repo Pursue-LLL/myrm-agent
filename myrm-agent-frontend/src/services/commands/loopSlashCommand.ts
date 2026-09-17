@@ -15,6 +15,7 @@
  */
 
 import { showI18nToast } from '@/services/i18nToastService';
+import { resolveEffectiveAgentId } from '@/store/chat/messageRequest';
 import type { ActionResult } from '@/types/command';
 
 export const DEFAULT_LOOP_INTERVAL_MS = 600_000; // 10m
@@ -232,7 +233,7 @@ export async function executeLoopSlashCommand(inputValue: string): Promise<Actio
   const { default: useChatStore } = await import('@/store/useChatStore');
   const { createCronJob, triggerCronJob } = await import('@/services/cron');
 
-  const { chatId, loading, selectedPersona } = useChatStore.getState();
+  const { chatId, loading, actionMode, agentConfig } = useChatStore.getState();
 
   if (loading) {
     showI18nToast('commands.builtin.loopCreateFailed', undefined, { type: 'warning' });
@@ -259,7 +260,7 @@ export async function executeLoopSlashCommand(inputValue: string): Promise<Actio
       },
       prompt,
       chat_id: chatId || undefined,
-      agent_id: selectedPersona?.id ?? null,
+      agent_id: resolveEffectiveAgentId(actionMode, agentConfig),
       session_target: 'main',
       delete_after_run: false,
     });

@@ -383,8 +383,8 @@ export const loadOlderMessages = async (actions: ChatActionsMethods): Promise<vo
 
     actions.setMessages((s) => {
       if (s.chatId === state.chatId) {
-        const existingIds = new Set(s.messages.map((m) => m.id));
-        const uniqueOlder = olderMessages.filter((m) => !existingIds.has(m.id));
+        const existingIds = new Set(s.messages.map((m) => m.messageId));
+        const uniqueOlder = olderMessages.filter((m) => !existingIds.has(m.messageId));
         s.messages = [...uniqueOlder, ...s.messages];
         s.hasMoreMessages = page.has_more;
         s.nextCursor = page.next_cursor;
@@ -411,9 +411,7 @@ export const loadThroughTurn = async (
 
   const isLoaded = () => {
     const current = useChatStore.getState();
-    return current.messages.some(
-      (m) => m.id === targetMessageId || m.messageId === targetMessageId,
-    );
+    return current.messages.some((m) => m.messageId === targetMessageId);
   };
 
   if (isLoaded()) {

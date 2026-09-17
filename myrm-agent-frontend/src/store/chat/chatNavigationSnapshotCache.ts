@@ -69,10 +69,17 @@ function sanitizeSnapshotForL2Storage(snapshot: Partial<ChatState>): Partial<Cha
         return msg;
       }
       const safeFiles = msg.files.map((file) => {
-        if (typeof file.url === 'string' && file.url.startsWith('data:image/') && file.url.length > 1024) {
-          return { ...file, url: '' };
+        // 沙箱截图等 data:image base64 会显著放大快照体积（生产者写入 fileUrl）。
+        const stripIfLargeDataUrl = (value: string | undefined): string | undefined =>
+          typeof value === 'string' && value.startsWith('data:image/') && value.length > 1024
+            ? ''
+            : value;
+        const fileUrl = stripIfLargeDataUrl(file.fileUrl);
+        const previewUrl = stripIfLargeDataUrl(file.previewUrl);
+        if (fileUrl === file.fileUrl && previewUrl === file.previewUrl) {
+          return file;
         }
-        return file;
+        return { ...file, fileUrl, previewUrl };
       });
       return { ...msg, files: safeFiles };
     });

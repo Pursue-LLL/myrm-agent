@@ -281,6 +281,7 @@ export const getChatDetail = async (
     updated_at: string;
   };
   message_count: number;
+  turn_outline: TurnOutlineItem[];
 }> => {
   return apiRequest(`/chats/${chatId}`, { silent });
 };
