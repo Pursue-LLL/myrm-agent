@@ -1,7 +1,16 @@
 """Consolidation and Working State application service.
 
-Bridges the execution harness LocalWorkingMemoryBlock and HyperConsolidator
-with the FastAPI HTTP transport and persistent RelationalStore.
+[INPUT]
+myrm_agent_harness.agent.context_management.working_memory::LocalWorkingMemoryBlock (POS: 本地工作记忆块)
+myrm_agent_harness.agent.context_management.working_memory::SubtaskStatus (POS: 子任务执行状态枚举)
+myrm_agent_harness.toolkits.memory.types::TaskDigestMemory (POS: 任务阶段沉淀记忆类型)
+myrm_agent_harness.toolkits.memory.manager::MemoryManager (POS: 记忆系统核心管理器)
+
+[OUTPUT]
+ConsolidationService: 工作记忆与历史阶段任务摘要业务服务
+
+[POS]
+记忆工作台与巩固服务。连接执行端 LocalWorkingMemoryBlock 实时状态快照、子任务/避坑项变动与历史 TaskDigest 阶段摘要查询。
 """
 
 from __future__ import annotations
