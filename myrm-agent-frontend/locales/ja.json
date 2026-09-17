@@ -8561,7 +8561,9 @@
     "enableCamera": "カメラ入力",
     "enableCameraDesc": "音声セッション中にカメラのビジュアルコンテキストを許可",
     "agentBridge": "Agent Bridge モード",
-    "agentBridgeDesc": "Agent がサーバー上で直接音声を処理し、遅延を低減"
+    "agentBridgeDesc": "Agent がサーバー上で直接音声を処理し、遅延を低減",
+    "bubbleExpand": "音声パネルを展開",
+    "bubbleMinimize": "バブルに最小化"
   },
   "securityPreset": {
     "label": "セキュリティプリセット",

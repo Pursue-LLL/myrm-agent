@@ -8561,7 +8561,9 @@
     "agentBridgeDesc": "Agent verarbeitet Sprache direkt auf dem Server, reduziert Latenz",
     "tapToInterrupt": "Zum Unterbrechen tippen",
     "fullDuplex": "Vollduplex-Modus",
-    "fullDuplexDesc": "Hören Sie beim Sprechen weiter zu und erkennen Sie Unterbrechungen automatisch"
+    "fullDuplexDesc": "Hören Sie beim Sprechen weiter zu und erkennen Sie Unterbrechungen automatisch",
+    "bubbleExpand": "Sprachpanel erweitern",
+    "bubbleMinimize": "Als Blase minimieren"
   },
   "securityPreset": {
     "label": "Sicherheitsvoreinstellung",

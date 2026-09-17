@@ -14,6 +14,7 @@
 
 import { memo, useCallback, useEffect, useRef } from 'react';
 import { Cancel01Icon, CallEnd01Icon } from 'hugeicons-react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import type { VoiceSessionState, VoiceSessionMode } from '@/hooks/voice/useVoiceSession';
@@ -25,6 +26,7 @@ interface VoiceSessionOverlayProps {
   interimText: string;
   onClose: () => void;
   onInterrupt: () => void;
+  onMinimize?: () => void;
   agentResponseText?: string;
   agentToolName?: string;
   isAgentBridge?: boolean;
@@ -178,6 +180,7 @@ const VoiceSessionOverlay = memo(
     interimText,
     onClose,
     onInterrupt,
+    onMinimize,
     agentResponseText,
     agentToolName,
     isAgentBridge = false,
@@ -201,6 +204,17 @@ const VoiceSessionOverlay = memo(
 
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md">
+        {/* Minimize button */}
+        {onMinimize && (
+          <button
+            type="button"
+            onClick={onMinimize}
+            className="absolute top-4 right-16 sm:top-6 sm:right-[4.5rem] p-2 rounded-full hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
+            aria-label={t('bubbleMinimize')}
+          >
+            <ChevronDown size={20} />
+          </button>
+        )}
         {/* Close button */}
         <button
           type="button"

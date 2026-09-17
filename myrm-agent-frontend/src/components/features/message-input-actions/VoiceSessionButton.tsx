@@ -24,6 +24,8 @@ import { useTranslations } from 'next-intl';
 import { useVoiceSession, type VoiceSessionMode } from '@/hooks/voice/useVoiceSession';
 import type { VisualFrame } from '@/lib/vision/frameSelector';
 import VoiceSessionOverlay from '@/components/features/voice/VoiceSessionOverlay';
+import VoiceBubble from '@/components/features/voice/VoiceBubble';
+import { isStopCommand } from '@/hooks/voice/voiceCommands';
 import Tooltip from '@/components/features/settings/Tooltip';
 import useChatStore from '@/store/useChatStore';
 
@@ -171,10 +173,28 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
     }
   }, [voice.sessionState, voice.speakResponse]);
 
+  const [bubbleMinimized, setBubbleMinimized] = useState(false);
+
+  // Spoken stop command ends the hands-free session (exact match only).
+  const stopFiredRef = useRef(false);
+  useEffect(() => {
+    if (!voice.isActive) {
+      stopFiredRef.current = false;
+      setBubbleMinimized(false);
+    }
+  }, [voice.isActive]);
+  useEffect(() => {
+    if (voice.isActive && !stopFiredRef.current && isStopCommand(voice.interimText)) {
+      stopFiredRef.current = true;
+      voice.stopSession();
+    }
+  }, [voice.isActive, voice.interimText, voice.stopSession]);
+
   const handleToggle = useCallback(() => {
     if (voice.isActive) {
       voice.stopSession();
     } else {
+      setBubbleMinimized(false);
       voice.startSession();
     }
   }, [voice]);
@@ -252,16 +272,24 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
       </Tooltip>
 
       <VoiceSessionOverlay
-        isOpen={voice.isActive}
+        isOpen={voice.isActive && !bubbleMinimized}
         sessionState={voice.sessionState}
         audioLevel={voice.audioLevel}
         interimText={voice.interimText}
         onClose={voice.stopSession}
         onInterrupt={voice.interruptTTS}
+        onMinimize={() => setBubbleMinimized(true)}
         agentResponseText={voice.agentResponseText}
         agentToolName={voice.agentToolName}
         isAgentBridge={voiceMode === 'agent_bridge'}
         voiceMode={voiceMode}
+      />
+      <VoiceBubble
+        visible={voice.isActive && bubbleMinimized}
+        sessionState={voice.sessionState}
+        statusText={voice.agentToolName || voice.interimText}
+        speaking={voice.sessionState === 'speaking'}
+        onExpand={() => setBubbleMinimized(false)}
       />
     </>
   );

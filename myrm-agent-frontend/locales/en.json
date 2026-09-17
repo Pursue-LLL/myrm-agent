@@ -15465,7 +15465,9 @@
     "enableCamera": "Camera input",
     "enableCameraDesc": "Allow camera visual context in voice session",
     "agentBridge": "Agent Bridge mode",
-    "agentBridgeDesc": "Agent processes voice directly on server, reducing latency"
+    "agentBridgeDesc": "Agent processes voice directly on server, reducing latency",
+    "bubbleExpand": "Expand voice panel",
+    "bubbleMinimize": "Minimize to bubble"
   },
   "securityPreset": {
     "label": "Security Preset",

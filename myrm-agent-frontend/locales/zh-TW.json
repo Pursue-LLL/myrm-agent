@@ -8561,7 +8561,9 @@
     "enableCamera": "攝像頭輸入",
     "enableCameraDesc": "在語音會話中允許攝像頭提供視覺上下文",
     "agentBridge": "Agent Bridge 模式",
-    "agentBridgeDesc": "Agent 在服務端直接處理語音，降低響應延遲"
+    "agentBridgeDesc": "Agent 在服務端直接處理語音，降低響應延遲",
+    "bubbleExpand": "展開語音面板",
+    "bubbleMinimize": "最小化為氣泡"
   },
   "securityPreset": {
     "label": "安全預設",

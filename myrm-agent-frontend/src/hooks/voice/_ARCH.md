@@ -13,6 +13,7 @@
 | `useRealtimeVoice.ts`    | OpenAI Realtime WebRTC                                        |
 | `useGeminiLiveVoice.ts`  | Gemini Live WebSocket                                         |
 | `useVoicePttListener.ts` | Tauri PTT → DOM CustomEvent                                   |
+| `voiceCommands.ts`       | 语音指令纯函数（停词精确匹配，句中口述不触发）               |
 
 ## 依赖
 

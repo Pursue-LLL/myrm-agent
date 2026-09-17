@@ -8561,7 +8561,9 @@
     "agentBridgeDesc": "Agent가 서버에서 직접 음성을 처리하여 지연 시간 감소",
     "tapToInterrupt": "탭하여 중단",
     "fullDuplex": "전이중 모드",
-    "fullDuplexDesc": "말하는 동안 계속 듣고, 중단을 자동 감지"
+    "fullDuplexDesc": "말하는 동안 계속 듣고, 중단을 자동 감지",
+    "bubbleExpand": "음성 패널 펼치기",
+    "bubbleMinimize": "버블로 최소화"
   },
   "securityPreset": {
     "label": "보안 프리셋",
