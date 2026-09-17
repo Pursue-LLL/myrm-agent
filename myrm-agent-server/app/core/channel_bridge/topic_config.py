@@ -9,6 +9,7 @@ Features:
 - Agent name resolution: /bind accepts UUID or name, stores canonical UUID
 - Channel bind policy: reject prompt_mode=search at bind_topic; purge legacy search binds at resolve/get_all (General-only IM)
 - Team-shared identity: identityScope/identityId/identityName/identityRevoked per binding; revoke freezes routing, retains memory
+- Proactive follow-up: completionReceipts (default on) / stallNudge (default off, explicit opt-in) per binding
 - Lazy expiration: idle timeout + max age checked at resolve time (no bg tasks)
 - Activity tracking: in-memory cache with interval flush to reduce DB writes
 - Auto-discovery: sync_topic_metadata with dirty checking for UI display

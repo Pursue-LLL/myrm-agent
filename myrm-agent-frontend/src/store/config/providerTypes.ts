@@ -398,6 +398,7 @@ export interface ProviderConfig {
   providerType?: CustomProviderType;
   credentialPoolStrategy?: CredentialPoolStrategy;
   oauthConnected?: boolean;
+  egressProxy?: string;
 }
 
 export const LOCAL_NO_AUTH_API_KEY_MARKER = '__myrm_local_no_auth__';

@@ -16,6 +16,7 @@ export interface ModelConfig {
   api_key: string;
   base_url: string | null;
   model_kwargs: Record<string, unknown>;
+  egress_proxy?: string | null;
 }
 
 // 模型能力信息接口
@@ -202,6 +203,35 @@ export const discoverModelsFromEndpoint = async (apiUrl: string, apiKey?: string
       models: [],
       error: error instanceof Error ? error.message : 'Network request failed',
       no_auth_local: false,
+    };
+  }
+};
+
+export interface TestProxyResult {
+  success: boolean;
+  latency_ms?: number | null;
+  error?: string | null;
+}
+
+/**
+ * 测试出网代理连通性及延迟
+ */
+export const testProxyConnection = async (proxyUrl: string): Promise<TestProxyResult> => {
+  try {
+    const response = await apiRequest<TestProxyResult>('/config/test-proxy', {
+      method: 'POST',
+      body: JSON.stringify({ proxy_url: proxyUrl }),
+    });
+    return {
+      success: response.success ?? false,
+      latency_ms: response.latency_ms ?? null,
+      error: response.error ?? null,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      latency_ms: null,
+      error: error instanceof Error ? error.message : 'Network request failed',
     };
   }
 };

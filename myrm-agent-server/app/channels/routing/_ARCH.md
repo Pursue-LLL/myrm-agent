@@ -143,6 +143,7 @@ deadlocks when an agent execution hangs without crashing.
 | router_stream_throttle.py | Core | Pure time-interval checks for placeholder progress edits during execute_stream. | ✅ |
 | channel_data_plane.py | Core | ChannelDataPlaneService: 渠道入站脱敏持久化、上下文拉取、知识提取自适应打标与自产回复追溯。 | ✅ |
 | identity_scope.py | Core | Team-shared identity resolution: TopicContext + InboundMessage → harness TeamIdentitySpec + `ident:<id>` memory namespace + credential track. Pure, no DB/LLM. | ✅ |
+| follow_up.py | Core | Proactive follow-up decisions: completion receipts, lazy stall scan (no daemon), TTL dedup, cooldown caps. Pure predicates + best-effort send orchestration. | ✅ |
 | session_gate.py | Core | Sits between Router's consume loop and the per-message handler. Supports optional `on_busy_ack` callback (30s debounce) for immediate user feedback when messages are queued or dropped. | ✅ |
 | session_rate_limiter.py | Core | Session-level rate limiting for single-instance self-protection. | ✅ |
 | stream_config.py | Config | Unified configuration for streaming components. | ✅ |
