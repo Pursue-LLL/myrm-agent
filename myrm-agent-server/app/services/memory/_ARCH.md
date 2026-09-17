@@ -27,3 +27,4 @@
 | `manager_deps.py` | 门面 | MemoryManager FastAPI 依赖工厂（`get_memory_manager` / `get_crud_memory_manager` / `get_optional_memory_manager`），供 api 与 service handler 注入 | ✅ |
 | `preference_radar_service.py` | 核心 | 会话级动态用户偏好雷达服务。内存状态自适应拟合、并发锁控制、锁定态阻尼、冷启动原子持久化落盘与检索有效信号权重推导 | ✅ |
 | `consolidation_service.py` | 核心 | 双块记忆工作台应用服务。桥接 LocalWorkingMemoryBlock 实时快照、子任务/避坑变更与历史 TaskDigest 查询 | ✅ |
+| `conflict_service.py` | 核心 | 记忆冲突仲裁服务。管理未决记忆矛盾暂存、人类仲裁（采纳/保留/共存）与置信度自然平滑自愈演进 | ✅ |
