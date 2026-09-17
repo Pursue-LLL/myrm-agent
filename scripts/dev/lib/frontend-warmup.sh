@@ -477,7 +477,19 @@ _frontend_liveness_probe_seconds() {
 
 # R149: parallel Next compile may flap HTTP 000 immediately after ensure OK — require warm streak.
 _frontend_post_heal_warm_streak_ok() {
-  local max_sec="${MYRM_UI_HEAL_POST_ENSURE_MAX_SEC:-60}"
+  # The cap must cover a cold Next compile. Reading it from dev_gate.contract —
+  # the same SSOT the preflight passes down — removes the duplicated magic number
+  # that previously defaulted to 60s and starved a 72s+ cold compile.
+  local max_sec="${MYRM_UI_HEAL_POST_ENSURE_MAX_SEC:-}"
+  if [[ ! "${max_sec}" =~ ^[0-9]+$ || "${max_sec}" -le 0 ]]; then
+    max_sec="$("${PREFLIGHT_PY:-python3}" -c "
+import sys
+sys.path.insert(0, '${_MYRM_WARMUP_LIB_DIR}')
+from dev_gate.contract import attach_ui_heal_post_ensure_max_sec
+print(attach_ui_heal_post_ensure_max_sec())
+" 2>/dev/null)"
+  fi
+  [[ "${max_sec}" =~ ^[0-9]+$ && "${max_sec}" -gt 0 ]] || max_sec=120
   local streak_required="${FRONTEND_WARM_STREAK}" streak=0 i timing="" pressure=0
   pressure="$("${PREFLIGHT_PY:-python3}" -c "
 import sys

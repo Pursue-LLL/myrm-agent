@@ -133,3 +133,65 @@ class TestClearWorkingState:
         resp = client.delete("/api/v1/memory/working-state")
         assert resp.status_code == 200
         assert resp.json()["content"] is None
+
+
+class TestLiveWorkbenchAndDualBlockEndpoints:
+    def test_live_workbench_lifecycle(self, client: TestClient):
+        from myrm_agent_harness.agent.context_management.working_memory import (
+            LocalWorkingMemoryBlock,
+        )
+
+        LocalWorkingMemoryBlock.reset()
+        LocalWorkingMemoryBlock.initialize(goal="Deploy service on port 8080")
+
+        # 1. Get live workbench
+        resp = client.get("/api/v1/memory/working-state/live")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["goal"] == "Deploy service on port 8080"
+        assert data["status"] == "active"
+
+        # 2. Add subtask
+        resp_sub = client.post(
+            "/api/v1/memory/working-state/subtasks",
+            json={"title": "Prepare dockerfile"},
+        )
+        assert resp_sub.status_code == 200
+        subtask_info = resp_sub.json()
+        assert subtask_info["title"] == "Prepare dockerfile"
+        subtask_id = subtask_info["id"]
+
+        # 3. Update subtask status
+        resp_patch = client.patch(
+            f"/api/v1/memory/working-state/subtasks/{subtask_id}",
+            json={"status": "completed", "notes": "Dockerfile created"},
+        )
+        assert resp_patch.status_code == 200
+        assert resp_patch.json()["success"] is True
+
+        # 4. Register trap
+        resp_trap = client.post(
+            "/api/v1/memory/working-state/traps",
+            json={
+                "fingerprint": "port_in_use",
+                "avoidance_rule": "Kill existing process before binding port",
+                "tool_name": "bash",
+            },
+        )
+        assert resp_trap.status_code == 200
+        assert resp_trap.json()["success"] is True
+
+        # 5. Verify live state contains updated subtask and trap
+        resp_verify = client.get("/api/v1/memory/working-state/live")
+        vdata = resp_verify.json()
+        assert len(vdata["subtasks"]) == 1
+        assert vdata["subtasks"][0]["status"] == "completed"
+        assert len(vdata["traps"]) == 1
+        assert vdata["traps"][0]["fingerprint"] == "port_in_use"
+
+        # 6. List digests
+        resp_digests = client.get("/api/v1/memory/working-state/digests")
+        assert resp_digests.status_code == 200
+        assert isinstance(resp_digests.json(), list)
+
+        LocalWorkingMemoryBlock.reset()

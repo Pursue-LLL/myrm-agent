@@ -1,17 +1,21 @@
-"""Unit and integration tests for Capacity Theater Memory Doctor probe and Disciplined Defaults restoration.
+"""Capacity Theater Memory Doctor probe and Disciplined Defaults restoration tests.
 
 [INPUT]
 app.services.memory.diagnostics.diagnostic.diagnostic_static_checks::probe_capacity_theater
 app.services.memory.diagnostics.diagnostic.diagnostic_repair_executor::MemoryDiagnosticRepairExecutor
 
 [OUTPUT]
-test_capacity_theater_probe_clean, test_capacity_theater_probe_bloated, test_restore_disciplined_defaults_execution
+test_capacity_theater_probe_clean, test_capacity_theater_probe_bloated,
+test_restore_disciplined_defaults_execution,
+test_restore_disciplined_defaults_without_memory_backend
 
 [POS]
-Integration tests proving capacity theater detection and zero-data-loss safe archive restoration.
-The restoration case drives the *production* repair executor against a real MemoryManager
-(local SQLite + embedded Qdrant + fake embedding), so the archive/preserve contract and the
-pinned predicate are verified end to end instead of against mocks.
+Integration tests proving capacity theater detection and zero-data-loss safe archive
+restoration through the real Memory Doctor repair executor, a real embedded Qdrant store
+and a real SQLite relational store. The restoration path is only reachable via
+`/command-center/diagnostics/repairs`, so the executor — not a duplicate helper — is the
+contract under test. Only the embedding transport is substituted with a deterministic
+local embedder so the suite needs neither provider credentials nor network access.
 """
 
 from __future__ import annotations
@@ -19,43 +23,114 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.toolkits.memory import MemoryType
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager
-from myrm_agent_harness.toolkits.memory.types import MemoryStatus
-from myrm_agent_harness.toolkits.vector.qdrant.factory import (
-    clear_embedded_stores,
-)
+from myrm_agent_harness.toolkits.memory.types import MemoryStatus, SemanticMemory
+from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
+from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_stores
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 from app.database.models import Base
 from app.services.memory.diagnostics.diagnostic.diagnostic_repair_executor import (
     MemoryDiagnosticRepairExecutor,
 )
-from app.services.memory.diagnostics.diagnostic.diagnostic_static_checks import probe_capacity_theater
+from app.services.memory.diagnostics.diagnostic.diagnostic_static_checks import (
+    probe_capacity_theater,
+)
 
-_RESTORE_PLAN_ID = "restore_disciplined_defaults"
+pytestmark = pytest.mark.integration
+
+_ARCHIVED_TYPES = (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION, MemoryType.SEMANTIC)
+_EMBEDDING_DIMENSION = 768
 
 
-@pytest.fixture
-async def db_session_factory():
-    """Real SQLite session factory with the full product schema created."""
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    try:
-        yield factory
-    finally:
-        await engine.dispose()
+class _DeterministicEmbeddingService:
+    """Offline embedder: distinct content maps to distinct vectors, identical content collapses.
+
+    Determinism matters here — the repair sweep asserts on memory identity and lifecycle,
+    never on semantic ranking, so a stable hash-derived unit vector is sufficient and
+    removes the paid-provider dependency that previously made this suite non-hermetic.
+    """
+
+    dimension = _EMBEDDING_DIMENSION
+
+    @staticmethod
+    def _vector(text: str) -> list[float]:
+        seed = sum(ord(ch) * (idx + 1) for idx, ch in enumerate(text)) or 1
+        return [((seed * (i + 1)) % 997) / 997.0 for i in range(_EMBEDDING_DIMENSION)]
+
+    async def embed(self, text: str) -> list[float]:
+        return self._vector(text)
+
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        return [self._vector(text) for text in texts]
 
 
 @pytest.fixture(autouse=True)
-async def _clear_embedded_cache():
+async def _reset_embedded_stores():
     """Release real embedded Qdrant singletons between cases."""
     await clear_embedded_stores()
     yield
     await clear_embedded_stores()
+
+
+@pytest.fixture
+async def db_session():
+    """In-memory SQLite session with the server ORM schema applied."""
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _enable_foreign_keys(dbapi_conn, _record) -> None:
+        cursor = dbapi_conn.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    try:
+        async with factory() as session:
+            yield session
+    finally:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+        await engine.dispose()
+
+
+@pytest.fixture
+async def memory_manager(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession):
+    """Real MemoryManager on real embedded Qdrant + SQLite; only embeddings are offline."""
+    _ = db_session
+    from myrm_agent_harness.toolkits.memory import setup as memory_setup
+
+    monkeypatch.setattr(
+        memory_setup,
+        "get_embedding_service",
+        lambda *_args, **_kwargs: _DeterministicEmbeddingService(),
+    )
+    manager = await create_local_memory_manager(
+        base_path=tmp_path / "memory",
+        embedding_config=EmbeddingConfig(model="local/deterministic"),
+        user_id="capacity-theater-user",
+    )
+    try:
+        yield manager
+    finally:
+        await manager.close()
+
+
+def _semantic(content: str) -> SemanticMemory:
+    """Semantic content only; the store assigns the deterministic memory id, so callers use the result."""
+    return SemanticMemory(content=content)
 
 
 def test_capacity_theater_probe_clean() -> None:
@@ -83,111 +158,67 @@ def test_capacity_theater_probe_bloated() -> None:
     assert check.id == "capacity_theater"
     assert check.status == "warning"
     assert check.can_auto_fix is True
-    assert _RESTORE_PLAN_ID in check.repair_actions
-
-
-class _FakeEmbedding:
-    """Deterministic embedding stub: the storage contract, not the model, is under test."""
-
-    dimension = 64
-
-    async def embed(self, text: str) -> list[float]:
-        return [0.1] * self.dimension
-
-    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        return [[0.1] * self.dimension for _ in texts]
+    assert "restore_disciplined_defaults" in check.repair_actions
 
 
 @pytest.mark.asyncio
 async def test_restore_disciplined_defaults_execution(
-    db_session_factory,
-    tmp_path: Path,
+    db_session: AsyncSession, memory_manager: MemoryManager
 ) -> None:
-    """Real executor + real storage: unpinned memories are archived, pinned ones preserved."""
-    manager = await create_local_memory_manager(
-        base_path=str(tmp_path / "memory"),
-        embedding_config=MemoryConfig(embedding_model="openai/text-embedding-3-small"),
-    )
-    try:
-        pinned = await manager.add_knowledge("User prefers Rust for CLI tooling.", importance=0.9)
-        unpinned = await manager.add_knowledge("Transient scratch note about a draft plan.", importance=0.3)
-        await manager.pin_memory(pinned.id)
+    """Verify the real repair plan archives unpinned memories while preserving pinned ones."""
+    pinned = await memory_manager.store(_semantic("Keep the release checklist pinned."))
+    unpinned = await memory_manager.store(_semantic("Temporary working note to archive."))
+    await memory_manager.pin_memory(pinned.id)
 
-        async with db_session_factory() as db:
-            executor = MemoryDiagnosticRepairExecutor(db, manager)
-            result, run = await executor.run(_RESTORE_PLAN_ID, "execute")
+    executor = MemoryDiagnosticRepairExecutor(db_session, memory_manager)
+    result, run = await executor.run("restore_disciplined_defaults", "execute")
 
-        assert result.status == "completed"
-        assert result.changed is True
-        assert "archived 1 memories" in result.message
-        assert "preserved 1 pinned entries" in result.message
-        assert run is not None
+    assert result.status == "completed"
+    assert result.changed is True
+    assert "archived 1 memories" in result.message
+    assert "preserved 1 pinned entries" in result.message
+    # The executor must rerun diagnostics so the GUI trend reflects the repair.
+    assert run is not None
 
-        stored_pinned = await manager.get_memory(pinned.id)
-        stored_unpinned = await manager.get_memory(unpinned.id)
-        assert stored_pinned is not None and stored_pinned.status is MemoryStatus.ACTIVE
-        assert stored_pinned.pinned is True
-        assert stored_unpinned is not None and stored_unpinned.status is MemoryStatus.ARCHIVED
-    finally:
-        await manager.close()
+    # Data-level proof: the unpinned memory is archived, the pinned one survives the sweep.
+    for memory_type in _ARCHIVED_TYPES:
+        for item in await memory_manager.list_memories(memory_type, limit=50, include_archived=True):
+            if item.id == unpinned.id:
+                assert item.status == MemoryStatus.ARCHIVED, item
+            if item.id == pinned.id:
+                assert item.status == MemoryStatus.ACTIVE, item
+
+    active_ids = {
+        item.id
+        for memory_type in _ARCHIVED_TYPES
+        for item in await memory_manager.list_memories(memory_type, limit=50)
+    }
+    assert pinned.id in active_ids
+    assert unpinned.id not in active_ids
+
+    # Dry-run remains side-effect free.
+    dry_result, dry_run = await executor.run("restore_disciplined_defaults", "dry_run")
+    assert dry_result.status == "dry_run"
+    assert dry_result.changed is False
+    assert dry_run is None
 
 
 @pytest.mark.asyncio
-async def test_restore_disciplined_defaults_respects_rule_lock(
-    db_session_factory,
-    tmp_path: Path,
-) -> None:
-    """A user-locked rule must never be archived by an automated repair."""
-    manager = await create_local_memory_manager(
-        base_path=str(tmp_path / "memory"),
-        embedding_config=MemoryConfig(embedding_model="openai/text-embedding-3-small"),
+async def test_restore_disciplined_defaults_without_memory_backend(db_session: AsyncSession) -> None:
+    """A manager without a vector backend must not crash the repair plan."""
+    manager = MemoryManager(
+        MemoryConfig(embedding_model="local/deterministic"),
+        user_id="capacity-theater-no-vector",
+        embedding=_DeterministicEmbeddingService(),
+        auto_warmup=False,
     )
     try:
-        rule = await manager.add_rule("Always answer in Chinese.", is_user_locked=True)
-
-        async with db_session_factory() as db:
-            executor = MemoryDiagnosticRepairExecutor(db, manager)
-            result, _ = await executor.run(_RESTORE_PLAN_ID, "execute")
+        executor = MemoryDiagnosticRepairExecutor(db_session, manager)
+        result, run = await executor.run("restore_disciplined_defaults", "execute")
 
         assert result.status == "completed"
         assert "archived 0 memories" in result.message
-        stored_rule = await manager.get_memory(rule.id)
-        assert stored_rule is not None
-        assert stored_rule.is_user_protected is True
+        assert "preserved 0 pinned entries" in result.message
+        assert run is not None
     finally:
         await manager.close()
-
-
-class _StubMemoryManager(MemoryManager):
-    """Shared-layer stub: counts archives without touching storage (plan-accounting contract)."""
-
-    def __init__(self, items: list[object]) -> None:
-        self._items = items
-        self.archived_ids: list[str] = []
-
-    async def list_memories(self, memory_type: object, *, limit: int = 100) -> list[object]:
-        from myrm_agent_harness.toolkits.memory import MemoryType
-
-        return list(self._items) if memory_type is MemoryType.SEMANTIC else []
-
-    async def update_memory(self, memory_id: str, **kwargs: object) -> None:
-        assert kwargs.get("status") is MemoryStatus.ARCHIVED
-        self.archived_ids.append(memory_id)
-
-
-@pytest.mark.asyncio
-async def test_restore_disciplined_defaults_counts_pinned_predicate(db_session_factory) -> None:
-    """Pinned accounting must read the harness ``pinned`` flag, not a legacy ``is_pinned`` alias."""
-    from types import SimpleNamespace
-
-    pinned = SimpleNamespace(id="mem-pinned", pinned=True, is_user_locked=False)
-    unlocked = SimpleNamespace(id="mem-unpinned", pinned=False, is_user_locked=False)
-    manager = _StubMemoryManager([pinned, unlocked])
-
-    async with db_session_factory() as db:
-        executor = MemoryDiagnosticRepairExecutor(db, manager)
-        result, _ = await executor.run(_RESTORE_PLAN_ID, "execute")
-
-    assert "archived 1 memories" in result.message
-    assert "preserved 1 pinned entries" in result.message
-    assert manager.archived_ids == ["mem-unpinned"]

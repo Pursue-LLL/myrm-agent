@@ -60,7 +60,7 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
   }, [value, onChange]);
 
   return (
-    <div className="space-y-3 pt-2">
+    <div className="space-y-3 pt-2" data-testid="egress-proxy-config-section">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Globe className="w-4 h-4 text-muted-foreground" />
@@ -71,6 +71,7 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
 
         <button
           type="button"
+          data-testid="egress-proxy-test-button"
           onClick={handleTestProxy}
           disabled={disabled || testing || !value.trim()}
           className={cn(
@@ -93,6 +94,7 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
       <div className="space-y-1.5">
         <input
           type="text"
+          data-testid="egress-proxy-input"
           value={value}
           onChange={handleInputChange}
           onBlur={handleBlur}
@@ -107,6 +109,7 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
 
       {testResult && (
         <div
+          data-testid="egress-proxy-result"
           className={cn(
             'flex items-center gap-1.5 text-xs pt-0.5',
             testResult.success ? 'text-green-600 dark:text-green-400' : 'text-destructive',
