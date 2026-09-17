@@ -32,9 +32,6 @@ contract:
     - description: "Generating aimless topic-label PPT titles (e.g. 'Overview', 'Next Steps') without thesis statements"
       mitigation: "Enforce Thesis-Driven Headlines: every slide headline must express a full conclusion or actionable finding"
       severity: high
-    - description: "Generating aimless topic-label PPT titles (e.g. 'Overview', 'Next Steps') without thesis statements"
-      mitigation: "Enforce Thesis-Driven Headlines: every slide headline must express a full conclusion or actionable finding"
-      severity: high
     - description: "Missing pip install leading to ModuleNotFoundError at runtime"
       mitigation: "Always run pip install in Phase 2 before any generation code"
       severity: medium
