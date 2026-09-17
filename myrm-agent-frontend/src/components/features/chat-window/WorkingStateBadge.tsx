@@ -27,7 +27,9 @@ const WorkingStateBadge = memo(({ chatId: propChatId }: WorkingStateBadgeProps =
   const fetchState = useCallback(async (isCancelled?: () => boolean) => {
     try {
       const res = await getWorkingState();
-      if (isCancelled && isCancelled()) return;
+      if (isCancelled && isCancelled()) {
+        return;
+      }
       if (res.live_state) {
         setLiveState(res.live_state);
         setFallbackContent(null);

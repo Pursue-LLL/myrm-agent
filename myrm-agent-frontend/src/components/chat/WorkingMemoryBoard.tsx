@@ -27,6 +27,7 @@ export interface TrapRecordView {
   fingerprint: string;
   avoidance_rule: string;
   tool_name?: string | null;
+  resolved?: boolean;
 }
 
 export interface WorkingMemoryBoardProps {
@@ -41,6 +42,8 @@ export interface WorkingMemoryBoardProps {
   } | null;
   className?: string;
   initiallyExpanded?: boolean;
+  activeTurn?: number;
+  consolidated?: boolean;
 }
 
 export const WorkingMemoryBoard: React.FC<WorkingMemoryBoardProps> = ({
@@ -178,22 +181,42 @@ export const WorkingMemoryBoard: React.FC<WorkingMemoryBoardProps> = ({
                 <span>运行时避坑防线</span>
               </div>
               <div className="grid gap-1">
-                {traps.map((trap, idx) => (
-                  <div
-                    key={`${trap.fingerprint}-${idx}`}
-                    className="flex items-start gap-2 rounded-md border border-amber-500/20 bg-amber-500/5 px-2.5 py-1.5 text-amber-800 dark:text-amber-300 text-[11px]"
-                  >
-                    <ShieldCheck className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-                    <div className="flex-1 min-w-0">
-                      {trap.tool_name && (
-                        <span className="font-mono font-semibold mr-1.5 text-[10px] bg-amber-500/20 px-1 py-0.2 rounded">
-                          {trap.tool_name}
-                        </span>
+                {traps.map((trap, idx) => {
+                  const isResolved = Boolean(trap.resolved);
+                  return (
+                    <div
+                      key={`${trap.fingerprint}-${idx}`}
+                      className={`flex items-start gap-2 rounded-md border px-2.5 py-1.5 text-[11px] transition-colors ${
+                        isResolved
+                          ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-800 dark:text-emerald-300'
+                          : 'border-amber-500/20 bg-amber-500/5 text-amber-800 dark:text-amber-300'
+                      }`}
+                    >
+                      {isResolved ? (
+                        <ShieldCheck className="h-3.5 w-3.5 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
                       )}
-                      <span>{trap.avoidance_rule}</span>
+                      <div className="flex-1 min-w-0">
+                        {trap.tool_name && (
+                          <span
+                            className={`font-mono font-semibold mr-1.5 text-[10px] px-1 py-0.2 rounded ${
+                              isResolved ? 'bg-emerald-500/20' : 'bg-amber-500/20'
+                            }`}
+                          >
+                            {trap.tool_name}
+                          </span>
+                        )}
+                        {isResolved && (
+                          <span className="inline-block text-[10px] font-medium text-emerald-600 dark:text-emerald-400 mr-1">
+                            [已自愈]
+                          </span>
+                        )}
+                        <span className={isResolved ? 'opacity-85' : ''}>{trap.avoidance_rule}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

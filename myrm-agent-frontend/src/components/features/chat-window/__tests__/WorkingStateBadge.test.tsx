@@ -67,6 +67,7 @@ describe('WorkingStateBadge Container', () => {
       expect(screen.getByText('转换Excel')).toBeInTheDocument();
       expect(screen.getByText('1/2 (50%)')).toBeInTheDocument();
       expect(screen.getByText('添加自定义 User-Agent 规避限流')).toBeInTheDocument();
+      expect(screen.getByText('[已自愈]')).toBeInTheDocument();
     });
   });
 
