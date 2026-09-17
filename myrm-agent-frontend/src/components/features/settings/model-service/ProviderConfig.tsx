@@ -27,6 +27,8 @@ import { BatchMigrateDialog } from './BatchMigrateDialog';
 import { Settings } from 'lucide-react';
 import OpenCodeContributorNotice from './OpenCodeContributorNotice';
 import { providerHasEnabledContributorModel } from './opencode-contributor-utils';
+import MainToggle from './MainToggle';
+import EgressProxyConfig from './EgressProxyConfig';
 
 interface ModelInfo {
   name: string;
@@ -39,48 +41,6 @@ interface ProviderConfigProps {
   onValidateModel: (model: string) => Promise<{ success: boolean; message?: string }>;
   onToggleEnabled: (enabled: boolean) => Promise<boolean>;
 }
-
-// 主开关组件 - 使用开关样式
-const MainToggle = memo<{
-  enabled: boolean;
-  isLoading: boolean;
-  disabled: boolean;
-  disabledReason?: string;
-  onToggle: () => void;
-}>(({ enabled, isLoading, disabled, disabledReason, onToggle }) => {
-  return (
-    <div className="flex flex-col items-end gap-1">
-      <button
-        onClick={onToggle}
-        disabled={disabled || isLoading}
-        className={cn(
-          'relative w-14 h-8 rounded-full transition-all duration-300 ease-in-out',
-          isLoading ? 'bg-accent-warm/60' : enabled ? 'bg-accent-warm' : 'bg-border',
-          disabled && 'opacity-50 cursor-not-allowed',
-        )}
-        title={disabled ? disabledReason : undefined}
-      >
-        {isLoading ? (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Loader2 className="w-4 h-4 animate-spin text-white" />
-          </div>
-        ) : (
-          <div
-            className={cn(
-              'absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 ease-in-out',
-              enabled ? 'left-7' : 'left-1',
-            )}
-          />
-        )}
-      </button>
-      {disabled && disabledReason && (
-        <span className="text-xs text-muted-foreground max-w-[150px] text-right">{disabledReason}</span>
-      )}
-    </div>
-  );
-});
-
-MainToggle.displayName = 'MainToggle';
 
 const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValidateModel, onToggleEnabled }) => {
   const t = useTranslations('settings.modelService');
@@ -119,6 +79,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
         model: modelFullName,
         api_key: apiKey,
         base_url: normalizeApiUrl(provider.apiUrl) || null,
+        egress_proxy: provider.egressProxy?.trim() || null,
         model_kwargs: {},
       });
     },
@@ -130,6 +91,13 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
       onChange({ ...provider, apiUrl });
       setReachabilityState('idle');
       setReachabilityResult(null);
+    },
+    [provider, onChange],
+  );
+
+  const handleEgressProxyChange = useCallback(
+    (egressProxy: string) => {
+      onChange({ ...provider, egressProxy: egressProxy || undefined });
     },
     [provider, onChange],
   );
@@ -151,6 +119,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
       model: modelFullName,
       api_key: requestApiKey,
       base_url: normalizeApiUrl(provider.apiUrl) || null,
+      egress_proxy: provider.egressProxy?.trim() || null,
       model_kwargs: {},
     });
     setReachabilityResult(result);
@@ -435,6 +404,12 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
           </div>
         )}
       </div>
+
+      {/* 出网独立代理配置 */}
+      <EgressProxyConfig
+        value={provider.egressProxy ?? ''}
+        onChange={handleEgressProxyChange}
+      />
 
       {provider.id === 'opencode_go' && providerHasEnabledContributorModel(provider.id, provider.enabledModels) && (
         <OpenCodeContributorNotice variant="provider" />

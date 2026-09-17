@@ -33,7 +33,7 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
       setTestResult(res);
     } catch (err) {
       setTestResult({
-        connected: false,
+        success: false,
         error: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -97,16 +97,15 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
         <div
           className={cn(
             'flex items-center gap-1.5 text-xs pt-0.5',
-            testResult.connected ? 'text-green-600 dark:text-green-400' : 'text-destructive',
+            testResult.success ? 'text-green-600 dark:text-green-400' : 'text-destructive',
           )}
         >
-          {testResult.connected ? (
+          {testResult.success ? (
             <>
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
               <span>
                 {t('proxyConnected')}
                 {testResult.latency_ms != null && ` (${testResult.latency_ms}ms)`}
-                {testResult.target_url && ` · ${testResult.target_url}`}
               </span>
             </>
           ) : (
