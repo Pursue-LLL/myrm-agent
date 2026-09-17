@@ -1839,6 +1839,13 @@
       "noMessages": "내보낼 메시지가 없습니다",
       "print": "인쇄"
     },
+    "ideHandoff": {
+      "openInIDE": "IDE에서 열기",
+      "cursor": "Cursor",
+      "vscode": "VS Code",
+      "copiedReady": "인계 내용을 복사했습니다——IDE에 붙여넣으세요",
+      "failed": "IDE 인계를 준비하지 못했습니다"
+    },
     "revealArtifacts": {
       "action": "파일 탐색기에서 생성물 표시",
       "revealing": "폴더를 여는 중...",

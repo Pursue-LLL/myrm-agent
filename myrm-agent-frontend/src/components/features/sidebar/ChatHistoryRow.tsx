@@ -4,6 +4,7 @@ import { memo, type DragEvent } from 'react';
 import Link from 'next/link';
 import type { useTranslations } from 'next-intl';
 import type { ChatItem } from '@/services/chat';
+import type { IdeHandoffTarget } from '@/lib/ide-handoff';
 import { AiNetworkIcon } from 'hugeicons-react';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import {
@@ -86,6 +87,7 @@ export interface ChatHistoryRowProps {
   onRenameValueChange: (v: string) => void;
   onDelete: (id: string) => void;
   onExport: (id: string, mode: 'markdown' | 'json' | 'copy' | 'html' | 'print') => void;
+  onOpenInIDE?: (id: string, target: IdeHandoffTarget) => void;
   onShare?: (id: string) => void;
   onPin: (id: string) => void;
   onUnpin: (id: string) => void;
@@ -123,6 +125,7 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
     onRenameValueChange,
     onDelete,
     onExport,
+    onOpenInIDE,
     onShare,
     onPin,
     onUnpin,
@@ -416,6 +419,31 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
+                {onOpenInIDE && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger
+                      className={cn(isMobile && 'py-3 text-xs min-h-[44px]')}
+                      disabled={exportingId === chat.id}
+                    >
+                      <ExternalLink size={isMobile ? 16 : 14} className="mr-2" />
+                      {t('chat.ideHandoff.openInIDE')}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem
+                        onClick={() => onOpenInIDE(chat.id, 'cursor')}
+                        className={cn(isMobile && 'py-3 text-xs min-h-[44px]')}
+                      >
+                        {t('chat.ideHandoff.cursor')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onOpenInIDE(chat.id, 'vscode')}
+                        className={cn(isMobile && 'py-3 text-xs min-h-[44px]')}
+                      >
+                        {t('chat.ideHandoff.vscode')}
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                )}
                 {onShare && (
                   <DropdownMenuItem
                     onClick={() => onShare(chat.id)}

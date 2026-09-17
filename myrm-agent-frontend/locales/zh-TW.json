@@ -1924,6 +1924,13 @@
       "noMessages": "無訊息可匯出",
       "print": "列印"
     },
+    "ideHandoff": {
+      "openInIDE": "在 IDE 中開啟",
+      "cursor": "Cursor",
+      "vscode": "VS Code",
+      "copiedReady": "交接內容已複製——去 IDE 貼上即可",
+      "failed": "IDE 交接準備失敗"
+    },
     "revealArtifacts": {
       "action": "在檔案總管中顯示產物",
       "revealing": "正在開啟資料夾...",

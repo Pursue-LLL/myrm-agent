@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import { ChatItem, updateChatTitle, deleteChat, exportChat } from '@/services/chat';
 import { revealChatArtifacts } from '@/services/file';
 import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown, printChat } from '@/lib/utils/chatExport';
+import { desktopBridge } from '@/lib/desktopBridge';
+import { buildIdeDeepLink, type IdeHandoffTarget } from '@/lib/ide-handoff';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/shared/useToast';
 import type { useTranslations } from 'next-intl';
@@ -206,6 +208,32 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     [t],
   );
 
+  const handleOpenInIDE = useCallback(
+    async (chatId: string, target: IdeHandoffTarget) => {
+      setExportingId(chatId);
+      try {
+        const data = await exportChat(chatId);
+        if (data.messages.length === 0) {
+          toast({ title: t('chat.exportChat.noMessages'), variant: 'default' });
+          return;
+        }
+        await copyAsMarkdown(data);
+        await desktopBridge.openExternal(buildIdeDeepLink(target));
+        toast({ title: t('chat.ideHandoff.copiedReady'), variant: 'default' });
+      } catch (error) {
+        console.error('Open in IDE failed:', error);
+        toast({
+          title: t('chat.ideHandoff.failed'),
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive',
+        });
+      } finally {
+        setExportingId(null);
+      }
+    },
+    [t],
+  );
+
   const handlePin = useCallback(
     async (chatId: string) => {
       try {
@@ -299,6 +327,7 @@ export function useChatActions(chatHistoryItems: ChatItem[], t: ReturnType<typeo
     handleDeleteClick,
     handleDeleteConfirm,
     handleExport,
+    handleOpenInIDE,
     handlePin,
     handleUnpin,
     handleCreateAutomation,

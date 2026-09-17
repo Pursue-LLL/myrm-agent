@@ -1935,6 +1935,13 @@
       "noMessages": "なしメッセージ可エクスポート",
       "print": "印刷"
     },
+    "ideHandoff": {
+      "openInIDE": "IDEで開く",
+      "cursor": "Cursor",
+      "vscode": "VS Code",
+      "copiedReady": "引き継ぎ内容をコピーしました——IDEに貼り付けてください",
+      "failed": "IDE引き継ぎの準備に失敗しました"
+    },
     "revealArtifacts": {
       "action": "ファイルマネージャーで生成物を表示",
       "revealing": "フォルダーを開いています...",

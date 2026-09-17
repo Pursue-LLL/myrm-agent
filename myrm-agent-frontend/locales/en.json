@@ -8871,6 +8871,13 @@
       "noMessages": "No messages to export",
       "print": "Print"
     },
+    "ideHandoff": {
+      "openInIDE": "Open in IDE",
+      "cursor": "Cursor",
+      "vscode": "VS Code",
+      "copiedReady": "Handoff copied — paste it in your IDE",
+      "failed": "Failed to prepare IDE handoff"
+    },
     "revealArtifacts": {
       "action": "Reveal Artifacts in Folder",
       "revealing": "Opening Folder...",

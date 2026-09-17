@@ -1839,6 +1839,13 @@
       "noMessages": "Keine Nachrichten zum Exportieren",
       "print": "Drucken"
     },
+    "ideHandoff": {
+      "openInIDE": "In IDE öffnen",
+      "cursor": "Cursor",
+      "vscode": "VS Code",
+      "copiedReady": "Übergabe kopiert — in der IDE einfügen",
+      "failed": "IDE-Übergabe fehlgeschlagen"
+    },
     "revealArtifacts": {
       "action": "Artefakte im Datei-Manager anzeigen",
       "revealing": "Ordner wird geöffnet...",
