@@ -397,8 +397,7 @@ export interface ArtifactContentStreamEvent extends BaseAgentEvent {
 
 export interface UIUpdateStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.UI_UPDATE;
-  subtype: 'ui_artifact' | 'data_update';
-  /** `ui_artifact` 分支为 UIArtifact[]；`data_update` 分支为 { surface_id, updates } 对象。由 handler 运行时守卫区分。 */
+  subtype: string;
   data: unknown;
 }
 

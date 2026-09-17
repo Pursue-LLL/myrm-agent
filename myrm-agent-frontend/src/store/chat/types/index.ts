@@ -13,7 +13,7 @@ export * from './progress';
 export * from './contextMetrics';
 export * from './tokens';
 export * from './artifacts';
-export * from './interactiveUi';
+export * from './builtinTools';
 export * from './toolApproval';
 export * from './agentStream/part1';
 export * from './agentStream/part2';

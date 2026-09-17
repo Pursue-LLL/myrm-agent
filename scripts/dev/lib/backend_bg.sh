@@ -48,7 +48,7 @@ _require_harness_editable_for_monorepo() {
 import pathlib
 import myrm_agent_harness
 from myrm_agent_harness.runtime.install_guard.probe import get_distribution_mode
-from myrm_agent_harness.agent.artifacts.ui_registry import bind_run_message_id  # noqa: F401
+from myrm_agent_harness.api import create_skill_agent  # noqa: F401 (stable public API probe)
 pkg = pathlib.Path(myrm_agent_harness.__file__).resolve().parent
 print(get_distribution_mode().value)
 print(pkg)

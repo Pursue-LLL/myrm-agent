@@ -10,7 +10,6 @@ export type {
   AgentStreamEvent,
   Artifact,
   ArtifactType,
-  UIArtifact,
   ClarificationForm,
   ClarificationOption,
   ClarificationQuestion,
@@ -28,7 +27,6 @@ export {
 } from '../../archiveRestoreActions';
 export {
   findAssistantMessageIndex,
-  findUiArtifactLocation,
   ensureAssistantStreamMessage,
   clearAssistantDraft,
   discardStreamedDraft,

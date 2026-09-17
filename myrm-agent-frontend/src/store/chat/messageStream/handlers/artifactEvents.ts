@@ -4,7 +4,6 @@
  */
 
 import type { StreamCtx, StreamTurn } from '../streamContext';
-import { mergeUiDataModel } from '../mergeUiDataModel';
 import type { Artifact, ArtifactType } from '../../types/artifacts';
 import * as H from './handlerDeps';
 
@@ -139,56 +138,9 @@ export async function artifactEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     }
   }
 
-  // 处理 UI 工件事件
+  // UI 工件事件（ui_artifact / data_update 分支已下线，A2UI 由 structured_clarify 取代）
   if (data.type === H.AgentEventType.UI_UPDATE) {
-    actions.setMessages((state) => {
-      if (data.subtype === 'ui_artifact') {
-        const messageIndex = H.findAssistantMessageIndex(state.messages, data.messageId);
-        if (messageIndex === -1) {
-          return;
-        }
-
-        // 初始化 uiArtifacts 数组
-        if (!state.messages[messageIndex].uiArtifacts) {
-          state.messages[messageIndex].uiArtifacts = [];
-        }
-
-        // 添加 UI artifacts
-        if (Array.isArray(data.data)) {
-          state.messages[messageIndex].uiArtifacts!.push(...(data.data as H.UIArtifact[]));
-        }
-      } else if (data.subtype === 'data_update') {
-        const payload = data.data;
-        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-          return;
-        }
-        const update = payload as { surface_id?: string; updates?: Record<string, unknown> };
-        const surfaceId = update.surface_id;
-        const updates = update.updates;
-        if (!surfaceId || !updates || typeof updates !== 'object') {
-          return;
-        }
-        const location = H.findUiArtifactLocation(state.messages, surfaceId);
-        if (!location) {
-          return;
-        }
-        const artifacts = state.messages[location.messageIndex].uiArtifacts;
-        if (!artifacts) {
-          return;
-        }
-        const current = artifacts[location.artifactIndex];
-        artifacts[location.artifactIndex] = {
-          ...current,
-          data: mergeUiDataModel(current.data, updates),
-        };
-      } else {
-        return;
-      }
-
-      if (!state.messageAppeared) {
-        state.messageAppeared = true;
-      }
-    });
+    return null;
   }
 
   return null;

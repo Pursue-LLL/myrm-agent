@@ -68,24 +68,6 @@ export const ensureAssistantStreamMessage = (
   return messages.length - 1;
 };
 
-/** Locate a UI artifact by surface_id across assistant messages (newest first). */
-export const findUiArtifactLocation = (
-  messages: Message[],
-  surfaceId: string,
-): { messageIndex: number; artifactIndex: number } | null => {
-  for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
-    const msg = messages[messageIndex];
-    if (msg.role !== 'assistant' || !msg.uiArtifacts?.length) {
-      continue;
-    }
-    const artifactIndex = msg.uiArtifacts.findIndex((item) => item.surface_id === surfaceId);
-    if (artifactIndex !== -1) {
-      return { messageIndex, artifactIndex };
-    }
-  }
-  return null;
-};
-
 /**
  * Drop a half-streamed assistant draft before a recovery that restarts the turn.
  *

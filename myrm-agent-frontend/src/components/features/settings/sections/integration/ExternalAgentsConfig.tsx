@@ -1,9 +1,8 @@
 'use client';
 
-import { memo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   IconBot,
-  IconCode,
   IconLoader,
   IconPencil,
   IconPlug,
@@ -74,7 +73,7 @@ const AGENT_PRESETS: { key: string; config: ExternalAgentConfig }[] = [
       ...DEFAULT_AGENT,
       name: 'claude-code',
       command: 'claude',
-      args: ['--output-format', 'stream-json', '-p'],
+      args: ['-p', '--output-format', 'stream-json'],
       description: 'Full-stack coding agent powered by Anthropic Claude',
     },
   },
@@ -84,7 +83,7 @@ const AGENT_PRESETS: { key: string; config: ExternalAgentConfig }[] = [
       ...DEFAULT_AGENT,
       name: 'codex-cli',
       command: 'codex',
-      args: ['exec', '--json', '--full-auto'],
+      args: ['exec', '--json'],
       description: 'OpenAI Codex CLI coding agent (requires Responses API provider)',
     },
   },
@@ -94,7 +93,7 @@ const AGENT_PRESETS: { key: string; config: ExternalAgentConfig }[] = [
       ...DEFAULT_AGENT,
       name: 'gemini-cli',
       command: 'gemini',
-      args: ['--output-format', 'stream-json', '--yolo'],
+      args: ['--output-format', 'stream-json'],
       description: 'Google Gemini-powered coding agent',
     },
   },
@@ -103,7 +102,28 @@ const AGENT_PRESETS: { key: string; config: ExternalAgentConfig }[] = [
 const TYPE_ICONS: Record<ExternalAgentType, React.ElementType> = {
   cli: IconTerminal,
   acp: IconPlug,
-  sdk: IconCode,
+};
+
+/**
+ * Permission modes each backend can actually honour. ACP bridges expose a real
+ * approve/deny channel, so `ask` is meaningful there; CLI backends receive fixed
+ * command-line flags only and therefore must not advertise an interactive prompt.
+ */
+const PERMISSION_MODE_OPTIONS: Record<ExternalAgentType, { value: ExternalAgentPermissionMode; labelKey: string }[]> = {
+  cli: [
+    { value: 'allow_all', labelKey: 'permissionAllowAll' },
+    { value: 'safe', labelKey: 'permissionSafe' },
+  ],
+  acp: [
+    { value: 'allow_all', labelKey: 'permissionAllowAll' },
+    { value: 'ask', labelKey: 'permissionAsk' },
+    { value: 'safe', labelKey: 'permissionSafe' },
+  ],
+};
+
+const PERMISSION_MODE_HINTS: Record<ExternalAgentType, string> = {
+  cli: 'permissionHintCli',
+  acp: 'permissionHintAcp',
 };
 
 const syncManager = getConfigSyncManager();
@@ -202,6 +222,11 @@ const ExternalAgentsConfig = memo(() => {
       name: trimmedName,
       command: draft.command.trim(),
       args: (draft.args ?? []).filter((a) => a.trim() !== ''),
+      // Normalize on save so the stored mode always matches what the selected type
+      // can honour; otherwise switching type could persist a mode the UI never showed.
+      permissionMode: PERMISSION_MODE_OPTIONS[draft.type].some((option) => option.value === draft.permissionMode)
+        ? draft.permissionMode
+        : 'safe',
     };
 
     let updated: ExternalAgentConfig[];
@@ -213,6 +238,11 @@ const ExternalAgentsConfig = memo(() => {
     persist(updated);
     setEditingIndex(null);
   }, [draft, editingIndex, agents, persist, t]);
+
+  const permissionModeValue: ExternalAgentPermissionMode = useMemo(() => {
+    const options = PERMISSION_MODE_OPTIONS[draft.type];
+    return options.some((option) => option.value === draft.permissionMode) ? draft.permissionMode : 'safe';
+  }, [draft.type, draft.permissionMode]);
 
   const handleDelete = useCallback(() => {
     if (deleteIndex === null) {
@@ -380,7 +410,6 @@ const ExternalAgentsConfig = memo(() => {
                   <SelectContent>
                     <SelectItem value="cli">{t('typeCli')}</SelectItem>
                     <SelectItem value="acp">{t('typeAcp')}</SelectItem>
-                    <SelectItem value="sdk">{t('typeSdk')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -426,18 +455,21 @@ const ExternalAgentsConfig = memo(() => {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">{t('permissionMode')}</label>
                 <Select
-                  value={draft.permissionMode}
+                  value={permissionModeValue}
                   onValueChange={(v: ExternalAgentPermissionMode) => setDraft({ ...draft, permissionMode: v })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="allow_all">{t('permissionAllowAll')}</SelectItem>
-                    <SelectItem value="ask">{t('permissionAsk')}</SelectItem>
-                    <SelectItem value="safe">{t('permissionSafe')}</SelectItem>
+                    {PERMISSION_MODE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {t(option.labelKey)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                <p className="text-[11px] text-muted-foreground/60">{t(PERMISSION_MODE_HINTS[draft.type])}</p>
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">{t('maxTurns')}</label>

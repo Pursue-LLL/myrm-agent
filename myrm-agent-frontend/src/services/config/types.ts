@@ -318,7 +318,7 @@ export type FeishuCredentialsConfigValue = FeishuCredentials;
 /**
  * External Agent runtime type.
  */
-export type ExternalAgentType = 'cli' | 'acp' | 'sdk';
+export type ExternalAgentType = 'cli' | 'acp';
 
 /**
  * External Agent permission mode.

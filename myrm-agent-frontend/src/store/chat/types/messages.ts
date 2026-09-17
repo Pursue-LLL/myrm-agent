@@ -10,7 +10,6 @@
  */
 
 import type { Artifact } from './artifacts';
-import type { UIArtifact } from './interactiveUi';
 import type { CostStatus, ContextBudget } from './contextMetrics';
 import type { MemoryBriefData, MemoryBriefStatus, SensitivityLevel } from './agentStream/part2';
 import type { CompletionStatus, ToolCallInfo } from './toolApproval';
@@ -144,7 +143,6 @@ export type Message = {
   memoryBriefSnapshotId?: string; // 记忆简报快照ID（用于前后追踪）
   memoryBriefStatus?: MemoryBriefStatus; // 记忆简报可用性状态（用于降级可观测）
   artifacts?: Artifact[]; // 生成的工件
-  uiArtifacts?: UIArtifact[]; // 交互式 UI 工件
   isFadingOut?: boolean; // 标记内容正在淡出（工具调用时清空中间内容）
   toolCalls?: ToolCallInfo[];
   files?: File[];

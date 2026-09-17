@@ -72,9 +72,6 @@ vi.mock('@/components/features/chat-window/approval/VisualApprovalInlineSection'
 vi.mock('@/components/features/artifacts/ArtifactsDisplay', () => ({
   default: () => null,
 }));
-vi.mock('@/components/features/interactive-ui', () => ({
-  InteractiveUIDisplay: () => null,
-}));
 vi.mock('@/components/features/artifacts/ArtifactErrorBoundary', () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));

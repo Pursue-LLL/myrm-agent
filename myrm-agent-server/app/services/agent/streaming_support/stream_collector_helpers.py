@@ -4,7 +4,7 @@
 - stdlib json (POS: tool result JSON decode)
 
 [OUTPUT]
-- deep_merge_ui_data, is_memory_citation_tool, parse_tool_end_result
+- is_memory_citation_tool, parse_tool_end_result
 - collect_kanban_task_created, collect_cron_job_result
 - collect_clarification_required, collect_plan_confirmation_status
 - collect_file_mutation_failures
@@ -19,22 +19,6 @@ Stateless parsing helpers for stream_collector. Keeps StreamContentCollector und
 from __future__ import annotations
 
 import json
-
-
-def deep_merge_ui_data(
-    base: dict[str, object],
-    updates: dict[str, object],
-) -> dict[str, object]:
-    """Deep-merge A2UI binding dicts; nested dicts merge, leaves in updates win."""
-    merged: dict[str, object] = dict(base)
-    for key, value in updates.items():
-        existing = merged.get(key)
-        if isinstance(existing, dict) and isinstance(value, dict):
-            merged[key] = deep_merge_ui_data(existing, value)
-        else:
-            merged[key] = value
-    return merged
-
 
 _MEMORY_CITATION_TOOL_NAMES = frozenset(
     {"memory_search", "memory_search_tool", "memory_recall", "memory_recall_tool"}

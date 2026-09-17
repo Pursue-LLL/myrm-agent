@@ -46,7 +46,6 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_kanban_task_created,
     collect_plan_confirmation_status,
     collect_workspace_merge_failures,
-    deep_merge_ui_data,
     is_memory_citation_tool,
     merge_sources_list,
     source_dedup_key,
@@ -405,7 +404,6 @@ class StreamContentCollector:
         self._clarification: dict[str, object] | None = None
         self._directory_request: dict[str, object] | None = None
         self._plan_confirmation: dict[str, object] | None = None
-        self._ui_artifacts: list[dict[str, object]] = []
         self._pending_interrupt_events: list[dict[str, object]] = []
         self._kanban_tasks_created: list[dict[str, object]] = []
         self._cron_job_result: dict[str, object] | None = None
@@ -487,7 +485,6 @@ class StreamContentCollector:
             "reasoning": "".join(self._reasoning_parts),
             "progress_steps": ordered_steps,
             "sources": ordered_sources,
-            "ui_artifacts": self._ui_artifacts,
         }
 
     def subscribe(self) -> tuple[dict[str, object], asyncio.Queue[dict[str, object]]]:
@@ -722,20 +719,6 @@ class StreamContentCollector:
             directory_request = collect_directory_request_required(event)
             if directory_request is not None:
                 self._directory_request = directory_request
-        elif event_type == "ui_update":
-            subtype = event.get("subtype")
-            if subtype == "ui_artifact" and isinstance(data, list):
-                self._ui_artifacts.extend(string_keyed_dicts(data))
-            elif subtype == "data_update" and isinstance(data, dict):
-                surface_id = data.get("surface_id")
-                updates = data.get("updates")
-                if isinstance(surface_id, str) and isinstance(updates, dict):
-                    for artifact in self._ui_artifacts:
-                        if artifact.get("surface_id") == surface_id:
-                            existing_data = artifact.get("data")
-                            if isinstance(existing_data, dict):
-                                artifact["data"] = deep_merge_ui_data(existing_data, updates)
-                            break
         elif event_type == "status":
             step_key = event.get("step_key")
             if isinstance(data, dict):
@@ -970,8 +953,6 @@ class StreamContentCollector:
             result["directoryRequest"] = self._directory_request
         if self._plan_confirmation:
             result["planConfirmation"] = self._plan_confirmation
-        if self._ui_artifacts:
-            result["uiArtifacts"] = self._ui_artifacts
         if self._staged_artifacts:
             result["stagedArtifacts"] = self._staged_artifacts
         if self._kanban_tasks_created:

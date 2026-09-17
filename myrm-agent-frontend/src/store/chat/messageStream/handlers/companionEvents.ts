@@ -46,7 +46,6 @@ export async function companionEvents(ctx: StreamCtx): Promise<StreamTurn | null
         if (Array.isArray(snap.sources) && snap.sources.length > 0) {
           msg.sources = H.mergeMessageSources(msg.sources || [], snap.sources);
         }
-        msg.uiArtifacts = snap.ui_artifacts || [];
       }
     });
     return done(ctx);
