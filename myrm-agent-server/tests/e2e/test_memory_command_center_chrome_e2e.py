@@ -192,3 +192,58 @@ def test_memory_tool_guidance_panel_chrome_e2e() -> None:
         assert refreshed.get("clicked") is True, refreshed
 
 
+_OPEN_UNDERSTAND_TAB_JS = """(() => {
+  const btn = Array.from(document.querySelectorAll('button')).find(
+    (el) => {
+      const label = (el.textContent || '').trim();
+      return /^(理解|Understand)$/.test(label);
+    },
+  );
+  if (!btn) return { ready: false, clicked: false };
+  btn.click();
+  return { ready: true, clicked: true };
+})()"""
+
+_ECONOMICS_PANEL_READY_JS = """(() => {
+  const text = document.body?.textContent || '';
+  const hasTitle = /长程记忆经济学剖析器|Memory Economics Profiler/i.test(text);
+  const hasTrajectories = /长程轮次记忆装载与时序轨迹|Turn Trajectories/i.test(text);
+  const refreshBtn = Array.from(document.querySelectorAll('button')).find(
+    (el) => /刷新分析|Refresh Analysis/i.test(el.textContent || ''),
+  );
+  return {
+    ready: hasTitle && hasTrajectories && !!refreshBtn,
+    hasTitle,
+    hasTrajectories,
+    hasRefreshBtn: !!refreshBtn,
+    text: text.slice(0, 1000),
+  };
+})()"""
+
+_CLICK_REFRESH_ECONOMICS_JS = """(() => {
+  const btn = Array.from(document.querySelectorAll('button')).find(
+    (el) => /刷新分析|Refresh Analysis/i.test(el.textContent || ''),
+  );
+  if (!btn || btn.disabled) return { ready: false, clicked: false };
+  btn.click();
+  return { ready: true, clicked: true };
+})()"""
+
+
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_memory_economics_panel_chrome_e2e() -> None:
+    """Real user flow: open memory command center, switch to Understand tab, verify Memory Economics panel renders & refresh works."""
+    with _memory_doctor_panel() as (client, page):
+        opened = wait_for_state(client, page, _OPEN_UNDERSTAND_TAB_JS, timeout_sec=60.0)
+        assert opened.get("clicked") is True, opened
+
+        panel = wait_for_state(client, page, _ECONOMICS_PANEL_READY_JS, timeout_sec=90.0)
+        assert panel.get("ready") is True, panel
+
+        refreshed = wait_for_state(client, page, _CLICK_REFRESH_ECONOMICS_JS, timeout_sec=30.0)
+        assert refreshed.get("clicked") is True, refreshed
+
+
+
