@@ -218,11 +218,13 @@ async def get_memory_economics(
     command_service = MemoryCommandCenterService(db, memory_manager)
     influence = await command_service._insights.build_influence()
     archived_ids = await command_service.get_archived_memory_ids()
+    pinned_ids = await command_service.get_pinned_memory_ids()
     active_previews = await command_service.get_active_memory_previews()
     return await MemoryEconomicsService(db).build_economics_dashboard(
         influence=influence,
         session_id=session_id,
         archived_memory_ids=archived_ids,
+        pinned_memory_ids=pinned_ids,
         memory_previews=active_previews,
         limit_turns=limit_turns,
     )

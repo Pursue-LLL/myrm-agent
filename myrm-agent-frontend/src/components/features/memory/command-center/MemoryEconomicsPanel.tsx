@@ -143,7 +143,7 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
       return next;
     });
     try {
-      await Promise.all(
+      const results = await Promise.allSettled(
         items.map((item) =>
           runMemoryCommandAction({
             target_kind: 'memory',
@@ -153,7 +153,27 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
           })
         )
       );
-      setActionNotice(`已成功批量归档 ${items.length} 条沉睡记忆`);
+      const failedIds: string[] = [];
+      results.forEach((res, idx) => {
+        if (res.status === 'rejected') {
+          failedIds.push(items[idx].memory_id);
+        }
+      });
+      if (failedIds.length > 0) {
+        setArchivedIds((prev) => {
+          const next = new Set(prev);
+          failedIds.forEach((id) => next.delete(id));
+          return next;
+        });
+        const successCount = items.length - failedIds.length;
+        setActionNotice(
+          successCount > 0
+            ? `已归档 ${successCount} 条记忆，${failedIds.length} 条失败`
+            : '批量归档失败，请重试'
+        );
+      } else {
+        setActionNotice(`已成功批量归档 ${items.length} 条沉睡记忆`);
+      }
       await fetchEconomics();
       onRefreshParent?.();
     } catch {
@@ -163,7 +183,7 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
         itemIds.forEach((id) => next.delete(id));
         return next;
       });
-      setActionNotice('批量归档失败，请重试');
+      setActionNotice('批量归档操作异常，请重试');
     } finally {
       setArchivingAll(false);
       setTimeout(() => setActionNotice(null), 4000);

@@ -20,9 +20,7 @@ import logging
 import re
 from typing import Mapping, Sequence
 
-from myrm_agent_harness.toolkits.memory import (
-    MemoryRecallRoiGrade,
-)
+from myrm_agent_harness.toolkits.memory import MemoryRecallRoiGrade
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -234,12 +232,15 @@ class MemoryEconomicsService:
 
         # Estimate potential financial savings based on model rate
         rate_per_1m = 3.0
-        if messages:
-            m_name = str((messages[-1].extra_data or {}).get("model") or "").lower()
-            if "deepseek" in m_name:
-                rate_per_1m = 0.28
-            elif "mini" in m_name or "flash" in m_name:
-                rate_per_1m = 0.30
+        for msg in reversed(messages):
+            m_cand = (msg.extra_data or {}).get("model")
+            if m_cand:
+                m_name = str(m_cand).lower()
+                if "deepseek" in m_name:
+                    rate_per_1m = 0.28
+                elif "mini" in m_name or "flash" in m_name:
+                    rate_per_1m = 0.30
+                break
         total_wasted_tokens = sum(p.wasted_tokens_estimated for p in parasitic_memories)
         est_savings_usd = round((total_wasted_tokens / 1_000_000.0) * rate_per_1m, 4)
 

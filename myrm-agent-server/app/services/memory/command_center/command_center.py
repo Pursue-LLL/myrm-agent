@@ -142,6 +142,25 @@ class MemoryCommandCenterService:
                 logger.debug("Failed listing archived %s memories: %s", mem_type, e)
         return archived_ids
 
+    async def get_pinned_memory_ids(self) -> set[str]:
+        """Retrieve all memory IDs that are pinned by user or system for exemption."""
+        if not self._memory_manager:
+            return set()
+        pinned_ids: set[str] = set()
+        for mem_type in (MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL):
+            try:
+                memories = await self._memory_manager.list_memories(
+                    mem_type, limit=5000, include_archived=False
+                )
+                for m in memories:
+                    if getattr(m, "pinned", False) or getattr(m, "is_pinned", False):
+                        m_id = str(getattr(m, "id", "") or "")
+                        if m_id:
+                            pinned_ids.add(m_id)
+            except Exception as e:
+                logger.debug("Failed listing pinned %s memories: %s", mem_type, e)
+        return pinned_ids
+
     async def get_active_memory_previews(self) -> dict[str, tuple[str, str]]:
         """Retrieve preview snippets and memory types for active memories."""
         if not self._memory_manager:
@@ -184,10 +203,12 @@ class MemoryCommandCenterService:
         timeline = await self._build_timeline()
         influence = await self._insights.build_influence()
         archived_ids = await self.get_archived_memory_ids()
+        pinned_ids = await self.get_pinned_memory_ids()
         active_previews = await self.get_active_memory_previews()
         economics = await MemoryEconomicsService(self._db).build_economics_dashboard(
             influence=influence,
             archived_memory_ids=archived_ids,
+            pinned_memory_ids=pinned_ids,
             memory_previews=active_previews,
             limit_turns=50,
         )
