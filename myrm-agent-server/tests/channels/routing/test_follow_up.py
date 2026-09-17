@@ -8,6 +8,7 @@ from app.channels.routing.follow_up import (
     should_nudge_stall,
     should_post_receipt,
 )
+from app.channels.types import InboundMessage
 
 
 def test_should_post_receipt_long_group_turn() -> None:
@@ -123,58 +124,120 @@ def test_format_elapsed_units() -> None:
     assert "h" in _format_elapsed(3700)
 
 
-def test_receipt_dedup_keyed_by_trigger_message() -> None:
-    """Same trigger retried collapses; distinct triggers each deliver."""
-    import asyncio
+class _FakeBus:
+    def __init__(self) -> None:
+        self.sent: list[object] = []
 
+    async def publish_outbound(self, message: object) -> str:
+        self.sent.append(message)
+        return "mid-1"
+
+
+def _group_msg(message_id: str | None, chat_id: str = "chat-1") -> InboundMessage:
+    return InboundMessage(
+        channel="feishu",
+        sender_id="u1",
+        content="do it",
+        chat_id=chat_id,
+        is_group=True,
+        mentioned=True,
+        message_id=message_id,
+    )
+
+
+async def test_receipt_short_turn_silent() -> None:
     from app.channels.routing.follow_up import maybe_post_completion_receipt
-    from app.channels.types import InboundMessage, TopicContext
+    from app.channels.types import TopicContext
 
-    sent: list[object] = []
-
-    class FakeBus:
-        async def publish_outbound(self, message: object) -> str:
-            sent.append(message)
-            return "mid-1"
-
-    def _msg(message_id: str | None) -> InboundMessage:
-        return InboundMessage(
-            channel="feishu",
-            sender_id="u1",
-            content="do it",
-            chat_id="chat-1",
-            is_group=True,
-            mentioned=True,
-            message_id=message_id,
-        )
-
+    bus = _FakeBus()
     topic = TopicContext(topic_id="chat-1", agent_id="a1")
-    kwargs: dict[str, object] = {
-        "bus": FakeBus(),
-        "topic": topic,
-        "chat_id": "chat-1",
-        "elapsed_seconds": 400.0,
-        "is_resume": False,
-        "delivered": True,
-    }
-    bus = kwargs["bus"]
-    assert bus is not None
     assert (
-        asyncio.run(
-            maybe_post_completion_receipt(**kwargs, msg=_msg("m-1"))  # type: ignore[arg-type]
+        await maybe_post_completion_receipt(
+            bus=bus,
+            topic=topic,
+            msg=_group_msg("m-1"),
+            chat_id="chat-1",
+            elapsed_seconds=5.0,
+            is_resume=False,
+            delivered=True,
+        )
+        is False
+    )
+    assert bus.sent == []
+
+
+async def test_receipt_long_turn_posts_once_per_trigger() -> None:
+    from app.channels.routing.follow_up import maybe_post_completion_receipt
+    from app.channels.types import TopicContext
+
+    bus = _FakeBus()
+    # Unique ids: the dedup registry is process-wide, tests must not collide.
+    topic = TopicContext(topic_id="chat-dedup", agent_id="a1")
+    base = dict(bus=bus, topic=topic, chat_id="chat-dedup")
+    assert (
+        await maybe_post_completion_receipt(
+            **base,  # type: ignore[arg-type]
+            msg=_group_msg("m-1", chat_id="chat-dedup"),
+            elapsed_seconds=400.0,
+            is_resume=False,
+            delivered=True,
         )
         is True
     )
     assert (
-        asyncio.run(
-            maybe_post_completion_receipt(**kwargs, msg=_msg("m-1"))  # type: ignore[arg-type]
+        await maybe_post_completion_receipt(
+            **base,  # type: ignore[arg-type]
+            msg=_group_msg("m-1", chat_id="chat-dedup"),
+            elapsed_seconds=401.0,
+            is_resume=False,
+            delivered=True,
         )
         is False
     )
     assert (
-        asyncio.run(
-            maybe_post_completion_receipt(**kwargs, msg=_msg("m-2"))  # type: ignore[arg-type]
+        await maybe_post_completion_receipt(
+            **base,  # type: ignore[arg-type]
+            msg=_group_msg("m-2", chat_id="chat-dedup"),
+            elapsed_seconds=402.0,
+            is_resume=False,
+            delivered=True,
         )
         is True
     )
-    assert len(sent) == 2
+    assert len(bus.sent) == 2
+
+
+async def test_receipt_gates_draft_revoked_disabled() -> None:
+    from app.channels.routing.follow_up import maybe_post_completion_receipt
+    from app.channels.types import ReplyMode, TopicContext
+
+    bus = _FakeBus()
+    base = dict(chat_id="chat-1", elapsed_seconds=9999.0, is_resume=True, delivered=True)
+    draft = TopicContext(topic_id="chat-1", agent_id="a1", reply_mode=ReplyMode.DRAFT_REVIEW)
+    assert await maybe_post_completion_receipt(bus=bus, topic=draft, msg=_group_msg("m-1"), **base) is False  # type: ignore[arg-type]
+    revoked = TopicContext(topic_id="chat-1", agent_id="a1", identity_revoked=True)
+    assert await maybe_post_completion_receipt(bus=bus, topic=revoked, msg=_group_msg("m-1"), **base) is False  # type: ignore[arg-type]
+    off = TopicContext(topic_id="chat-1", agent_id="a1", completion_receipts=False)
+    assert await maybe_post_completion_receipt(bus=bus, topic=off, msg=_group_msg("m-1"), **base) is False  # type: ignore[arg-type]
+    assert bus.sent == []
+
+
+def test_activity_helpers_never_raise() -> None:
+    from app.channels.routing.follow_up import drop_tracked_thread, mute_tracked_thread, note_group_activity
+
+    note_group_activity("feishu", "chat-1", None, "u1", None, "en")
+    mute_tracked_thread("feishu", "chat-1", None)
+    drop_tracked_thread("feishu", "chat-1", None)
+
+
+async def test_scan_empty_tracker_sends_nothing() -> None:
+    from app.channels.routing.follow_up import get_stall_tracker, scan_stalled_threads
+
+    bus = _FakeBus()
+    get_stall_tracker()._slots.clear()
+
+    async def resolve(channel: str, chat_id: str, thread_id: str | None) -> None:
+        return None
+
+    assert await scan_stalled_threads(bus=bus, resolve_topic=resolve) == 0
+    assert bus.sent == []

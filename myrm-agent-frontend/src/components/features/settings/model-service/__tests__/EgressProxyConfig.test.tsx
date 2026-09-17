@@ -66,7 +66,7 @@ describe('EgressProxyConfig', () => {
     fireEvent.click(button);
 
     await waitFor(() => {
-      expect(llmConfig.testProxyConnection).toHaveBeenCalledWith('http://127.0.0.1:7890');
+      expect(llmConfig.testProxyConnection).toHaveBeenCalledWith('http://127.0.0.1:7890', undefined);
       expect(screen.getByText(/proxyConnected/)).toBeInTheDocument();
       expect(screen.getByText(/120ms/)).toBeInTheDocument();
     });
@@ -91,6 +91,32 @@ describe('EgressProxyConfig', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/proxyFailed: Connection refused/)).toBeInTheDocument();
+    });
+  });
+
+  it('forwards targetUrl to testProxyConnection when provided', async () => {
+    vi.mocked(llmConfig.testProxyConnection).mockResolvedValueOnce({
+      success: true,
+      latency_ms: 85,
+      error: null,
+    });
+
+    render(
+      <EgressProxyConfig
+        value="http://127.0.0.1:7890"
+        onChange={vi.fn()}
+        targetUrl="https://api.openai.com/v1"
+      />,
+    );
+
+    const button = screen.getByText('testProxy');
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(llmConfig.testProxyConnection).toHaveBeenCalledWith(
+        'http://127.0.0.1:7890',
+        'https://api.openai.com/v1',
+      );
     });
   });
 });

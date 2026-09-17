@@ -1336,10 +1336,11 @@ async def test_proxy(request: TestProxyRequest) -> TestProxyResponse:
             error=err_msg or "Invalid proxy URL",
         )
 
+    target = (request.target_url or "").strip() or "https://1.1.1.1"
     start = time.monotonic()
     success, err_msg = await probe_proxy_health(
         proxy_url=request.proxy_url,
-        target_url=request.target_url or "https://1.1.1.1",
+        target_url=target,
         timeout_s=5.0,
     )
     elapsed = int((time.monotonic() - start) * 1000)

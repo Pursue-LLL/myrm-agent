@@ -216,11 +216,21 @@ export interface TestProxyResult {
 /**
  * 测试出网代理连通性及延迟
  */
-export const testProxyConnection = async (proxyUrl: string): Promise<TestProxyResult> => {
+export const testProxyConnection = async (
+  proxyUrl: string,
+  targetUrl?: string,
+): Promise<TestProxyResult> => {
   try {
+    const payload: { proxy_url: string; target_url?: string } = {
+      proxy_url: proxyUrl,
+    };
+    const trimmedTarget = targetUrl?.trim();
+    if (trimmedTarget) {
+      payload.target_url = trimmedTarget;
+    }
     const response = await apiRequest<TestProxyResult>('/config/test-proxy', {
       method: 'POST',
-      body: JSON.stringify({ proxy_url: proxyUrl }),
+      body: JSON.stringify(payload),
     });
     return {
       success: response.success ?? false,
@@ -527,7 +537,10 @@ export const fetchModelCapabilitiesBatch = async (models: string[]): Promise<Rec
   if (uncachedModels.length === 0) {
     const result: Record<string, ModelCapabilities> = {};
     for (const model of models) {
-      result[model] = modelCapabilitiesCache.get(model)!;
+      const cached = modelCapabilitiesCache.get(model);
+      if (cached) {
+        result[model] = cached;
+      }
     }
     return result;
   }

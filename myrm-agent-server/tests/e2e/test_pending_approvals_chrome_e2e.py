@@ -207,7 +207,7 @@ def _click_pending_kpi_and_verify_kanban_deep_link(
           }};
         }})()""",
         timeout_sec=90.0,
-        page_url=href,
+        page_url=target_kanban_url,
     )
     assert landed.get("ready") is True, f"kanban deep link did not land on the in-review task: {landed}"
 
@@ -247,7 +247,7 @@ def _open_task_drawer_and_click(
           return {{ ready: !!view && text.includes({board_name!r}), text }};
         }})()""",
         timeout_sec=120.0,
-        page_url="/settings/kanban",
+        page_url=kanban_url,
     )
     assert board_name in str(view_state.get("text") or "")
 
@@ -259,7 +259,7 @@ def _open_task_drawer_and_click(
           return {{ ready: !!card, hasCard: !!card }};
         }})()""",
         timeout_sec=90.0,
-        page_url="/settings/kanban",
+        page_url=kanban_url,
     )
     assert card_ready.get("hasCard") is True
 

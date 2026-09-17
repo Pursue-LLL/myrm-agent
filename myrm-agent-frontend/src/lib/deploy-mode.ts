@@ -313,19 +313,7 @@ export function resolveE2eApiBase(): string | null {
   if (typeof window === 'undefined') {
     return null;
   }
-  let raw = window.__MYRM_E2E_RUNTIME__?.apiBase ?? window.__MYRM_E2E_API_BASE__;
-  if (!raw && typeof window.name === 'string' && window.name.startsWith('myrm-e2e-v1:')) {
-    try {
-      const parsed = JSON.parse(window.name.slice('myrm-e2e-v1:'.length));
-      if (parsed && typeof parsed.apiBase === 'string') {
-        raw = parsed.apiBase;
-        window.__MYRM_E2E_RUNTIME__ = parsed;
-        window.__MYRM_E2E_API_BASE__ = parsed.apiBase;
-      }
-    } catch {
-      // ignore parse failure
-    }
-  }
+  const raw = window.__MYRM_E2E_RUNTIME__?.apiBase ?? window.__MYRM_E2E_API_BASE__;
   if (typeof raw !== 'string') {
     return null;
   }

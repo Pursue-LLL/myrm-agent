@@ -57,7 +57,9 @@
     ".next-isolated-chrome-test_fleet_pending_approvals_kpi_tracks_-507718e2-25344-dc8f6884/types/**/*.ts",
     ".next-isolated-chrome-test_fleet_pending_approvals_kpi_tracks_-507718e2-25344-dc8f6884/dev/types/**/*.ts",
     ".next-isolated-chrome-test_fleet_pending_approvals_kpi_tracks_-507718e2-38615-ec30a846/types/**/*.ts",
-    ".next-isolated-chrome-test_fleet_pending_approvals_kpi_tracks_-507718e2-38615-ec30a846/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_fleet_pending_approvals_kpi_tracks_-507718e2-38615-ec30a846/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_fleet_pending_approvals_kpi_tracks_-507718e2-56495-bf7f7d19/types/**/*.ts",
+    ".next-isolated-chrome-test_fleet_pending_approvals_kpi_tracks_-507718e2-56495-bf7f7d19/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

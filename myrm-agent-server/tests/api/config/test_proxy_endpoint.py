@@ -66,3 +66,25 @@ def test_proxy_probe_failure(mock_probe: AsyncMock) -> None:
     assert data["success"] is False
     assert data["error"] == "Proxy connection timed out"
     assert data["latency_ms"] is None
+
+
+@patch("myrm_agent_harness.toolkits.llms.utils.proxy.probe_proxy_health", new_callable=AsyncMock)
+def test_proxy_probe_custom_target_url(mock_probe: AsyncMock) -> None:
+    """Test that a custom target URL is forwarded to probe_proxy_health."""
+    mock_probe.return_value = (True, None)
+
+    response = client.post(
+        "/api/v1/config/test-proxy",
+        json={
+            "proxy_url": "http://127.0.0.1:7890",
+            "target_url": "https://api.openai.com/v1",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    mock_probe.assert_called_once_with(
+        proxy_url="http://127.0.0.1:7890",
+        target_url="https://api.openai.com/v1",
+        timeout_s=5.0,
+    )

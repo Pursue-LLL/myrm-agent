@@ -10,12 +10,14 @@ interface EgressProxyConfigProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  targetUrl?: string;
 }
 
 export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
   value,
   onChange,
   disabled = false,
+  targetUrl,
 }) => {
   const t = useTranslations('settings.modelService');
   const [testing, setTesting] = useState(false);
@@ -23,13 +25,15 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
 
   const handleTestProxy = useCallback(async () => {
     const trimmed = value.trim();
-    if (!trimmed || testing) return;
+    if (!trimmed || testing) {
+      return;
+    }
 
     setTesting(true);
     setTestResult(null);
 
     try {
-      const res = await testProxyConnection(trimmed);
+      const res = await testProxyConnection(trimmed, targetUrl);
       setTestResult(res);
     } catch (err) {
       setTestResult({
@@ -39,7 +43,7 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
     } finally {
       setTesting(false);
     }
-  }, [value, testing]);
+  }, [value, testing, targetUrl]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
@@ -105,7 +109,7 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
               <span>
                 {t('proxyConnected')}
-                {testResult.latency_ms != null && ` (${testResult.latency_ms}ms)`}
+                {testResult.latency_ms !== null && testResult.latency_ms !== undefined && ` (${testResult.latency_ms}ms)`}
               </span>
             </>
           ) : (
