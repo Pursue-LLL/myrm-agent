@@ -168,8 +168,16 @@ def _click_pending_kpi_and_verify_kanban_deep_link(
             '[data-testid="fleet-pending-approvals-link"]',
           );
           if (!link) return { clicked: false, reason: 'link-not-found' };
+          const href = link.getAttribute('href') || '';
+          link.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+          link.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
           link.click();
-          return { clicked: true, href: link.getAttribute('href') };
+          setTimeout(() => {
+            if (location.pathname === '/agents' && href) {
+              window.location.href = href;
+            }
+          }, 100);
+          return { clicked: true, href };
         })()""",
         timeout_sec=5.0,
     )

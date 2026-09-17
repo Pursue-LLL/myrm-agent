@@ -53,7 +53,11 @@
     ".next-isolated-gov-e2e/types/**/*.ts",
     ".next-isolated-gov-e2e/dev/types/**/*.ts",
     ".next-isolated-chrome-test_governance_responsibility_create_an-5aaf8a9f-42647-f729b71d/types/**/*.ts",
-    ".next-isolated-chrome-test_governance_responsibility_create_an-5aaf8a9f-42647-f729b71d/dev/types/**/*.ts"
+    ".next-isolated-chrome-test_governance_responsibility_create_an-5aaf8a9f-42647-f729b71d/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_fleet_pending_approvals_kpi_tracks_-507718e2-25344-dc8f6884/types/**/*.ts",
+    ".next-isolated-chrome-test_fleet_pending_approvals_kpi_tracks_-507718e2-25344-dc8f6884/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_fleet_pending_approvals_kpi_tracks_-507718e2-38615-ec30a846/types/**/*.ts",
+    ".next-isolated-chrome-test_fleet_pending_approvals_kpi_tracks_-507718e2-38615-ec30a846/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

@@ -23,6 +23,7 @@ from app.api.memory.operations import (
     guardian,
     head_probe,
     pending,
+    radar,
     reindex,
     working_state,
 )
@@ -55,6 +56,7 @@ router.include_router(backup_remote.router, tags=["memory-backup-remote"])
 router.include_router(reindex.router, tags=["memory-reindex"])
 router.include_router(archive_restore.router, tags=["memory-archive-restore"])
 router.include_router(external_transcripts.router, tags=["memory-external-transcripts"])
+router.include_router(radar.router, tags=["memory-radar"])
 router.include_router(follow_ups_router, tags=["memory-follow-ups"])
 router.include_router(migration_readiness_fixture_router, tags=["memory-test-fixtures"])
 router.include_router(memory_test_seed_router, tags=["memory-test-fixtures"])

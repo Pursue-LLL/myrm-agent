@@ -28,6 +28,7 @@ from app.api.memory.operations import (
     guardian,
     head_probe,
     pending,
+    radar,
     reindex,
     working_state,
 )
@@ -50,6 +51,7 @@ __all__ = [
     "guardian",
     "head_probe",
     "pending",
+    "radar",
     "reindex",
     "working_state",
     "shared_context_health",

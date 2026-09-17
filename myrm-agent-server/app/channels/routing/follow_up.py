@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -107,33 +107,6 @@ def should_nudge_stall(
     return silent_seconds >= stall_after_seconds
 
 
-@dataclass(slots=True)
-class ThreadActivityTracker:
-    """Bounded per-thread last-activity clock for lazy stall scans.
-
-    Updated on agent delivery and inbound group messages; scanned lazily on
-    each inbound turn, so no background daemon is required.
-    """
-
-    stall_after_seconds: float = STALL_AFTER_SECONDS
-    max_size: int = 1000
-    _active: dict[str, float] = field(default_factory=dict)
-
-    def touch(self, key: str) -> None:
-        """Record activity now, evicting the oldest entry when over capacity."""
-        if len(self._active) >= self.max_size:
-            oldest = min(self._active, key=lambda k: self._active[k])
-            self._active.pop(oldest, None)
-        self._active[key] = time.monotonic()
-
-    def silent_seconds(self, key: str) -> float | None:
-        """Return seconds since last activity, or None when untracked."""
-        stamped = self._active.get(key)
-        if stamped is None:
-            return None
-        return time.monotonic() - stamped
-
-
 @dataclass(frozen=True, slots=True)
 class TrackedThread:
     """A group thread candidate for stall evaluation."""
@@ -157,6 +130,7 @@ class ThreadStallTracker:
         self._max_size = max_size
         self._slots: dict[str, TrackedThread] = {}
         self._active: dict[str, float] = {}
+        self._muted: set[str] = set()
 
     @staticmethod
     def thread_key(channel: str, chat_id: str, thread_id: str | None) -> str:
@@ -164,12 +138,18 @@ class ThreadStallTracker:
         return f"{channel}:{chat_id}:{thread_id or ''}"
 
     def touch(self, slot: TrackedThread) -> None:
-        """Record activity now, evicting the oldest entry when over capacity."""
+        """Record activity now, evicting the oldest entry when over capacity.
+
+        Muted threads stay muted: activity refreshes nothing for them.
+        """
         key = self.thread_key(slot.channel, slot.chat_id, slot.thread_id)
+        if key in self._muted:
+            return
         if len(self._slots) >= self._max_size:
             oldest = min(self._active, key=lambda k: self._active.get(k, 0.0))
             self._slots.pop(oldest, None)
             self._active.pop(oldest, None)
+            self._muted.discard(oldest)
         self._slots[key] = slot
         self._active[key] = time.monotonic()
 
@@ -179,7 +159,7 @@ class ThreadStallTracker:
         return [
             (key, slot)
             for key, slot in self._slots.items()
-            if now - self._active.get(key, now) >= stall_after_seconds
+            if key not in self._muted and now - self._active.get(key, now) >= stall_after_seconds
         ]
 
     def refresh(self, key: str) -> None:
@@ -188,9 +168,19 @@ class ThreadStallTracker:
             self._active[key] = time.monotonic()
 
     def drop(self, key: str) -> None:
-        """Forget a thread (unbind, mute, or policy disabled)."""
+        """Forget a thread (unbind or policy disabled). Clears mute as well."""
         self._slots.pop(key, None)
         self._active.pop(key, None)
+        self._muted.discard(key)
+
+    def mute(self, key: str) -> None:
+        """Silence a thread until unbound. Muted threads are never nudged."""
+        if key in self._slots:
+            self._muted.add(key)
+
+    def is_muted(self, key: str) -> bool:
+        """Return True when the thread was explicitly muted."""
+        return key in self._muted
 
 
 _dedup: FollowUpDedup | None = None
@@ -306,11 +296,19 @@ def note_group_activity(
 
 
 def drop_tracked_thread(channel: str, chat_id: str, thread_id: str | None) -> None:
-    """Forget a thread (mute/unbind). Never raises."""
+    """Forget a thread (unbind). Never raises."""
     try:
         get_stall_tracker().drop(ThreadStallTracker.thread_key(channel, chat_id, thread_id))
     except Exception:
         logger.warning("Stall tracker drop skipped", exc_info=True)
+
+
+def mute_tracked_thread(channel: str, chat_id: str, thread_id: str | None) -> None:
+    """Mute a thread until unbound. Muted threads are never nudged. Never raises."""
+    try:
+        get_stall_tracker().mute(ThreadStallTracker.thread_key(channel, chat_id, thread_id))
+    except Exception:
+        logger.warning("Stall tracker mute skipped", exc_info=True)
 
 
 def _locale_of(msg: object) -> str:
