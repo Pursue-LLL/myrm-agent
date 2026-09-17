@@ -18,6 +18,10 @@ SENSITIVE_CONFIG_KEY_EXACT: set[str] = {
     "browserCloudProvider",
     "browserProxy",
     "captchaSolverConfig",
+    "egress_proxy",
+    "egressProxy",
+    "llm_proxy",
+    "llmProxy",
 }
 
 

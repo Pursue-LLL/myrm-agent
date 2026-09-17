@@ -61,6 +61,10 @@ SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
         "browserProxy",
         "captchaSolverConfig",
         "webFetchEscalation",
+        "egress_proxy",
+        "egressProxy",
+        "llm_proxy",
+        "llmProxy",
     }
 )
 
