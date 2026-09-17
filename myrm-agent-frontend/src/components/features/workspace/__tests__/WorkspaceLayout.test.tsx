@@ -4,8 +4,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import WorkspaceLayout from '../WorkspaceLayout';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 
+const stableT = (key: string) => key;
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('next/navigation', () => ({

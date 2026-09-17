@@ -158,6 +158,55 @@ describe('ReviewPanel Component', () => {
     expect(screen.getByText('b.ts')).toBeInTheDocument();
   });
 
+  it('renders truncated rows with stats hint and no inline diff', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        msg1: [
+          {
+            path: 'src/huge.bin.csv',
+            operation: 'modify',
+            original: null,
+            current: null,
+            isBinary: false,
+            truncated: true,
+            additions: 0,
+            deletions: 0,
+          },
+        ],
+      }),
+    } as Response);
+
+    render(<ReviewPanel sessionId="session-123" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('huge.bin.csv')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('huge.bin.csv'));
+    expect(screen.getByText('Too large')).toBeInTheDocument();
+    expect(screen.getByText(/too large to preview/i)).toBeInTheDocument();
+  });
+
+  it('renders the virtualized branch for large file lists', async () => {
+    const files = Array.from({ length: 35 }, (_, i) => ({
+      path: `src/file_${i}.ts`,
+      operation: 'modify',
+      original: 'aaa\n',
+      current: 'aab\n',
+      isBinary: false,
+    }));
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ msg1: files }),
+    } as Response);
+
+    render(<ReviewPanel sessionId="session-123" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Showing 35 of 35 files')).toBeInTheDocument();
+    });
+  });
+
   it('keeps same-path rows from different messages independent', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
