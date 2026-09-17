@@ -87,4 +87,5 @@ def test_proxy_probe_custom_target_url(mock_probe: AsyncMock) -> None:
         proxy_url="http://127.0.0.1:7890",
         target_url="https://api.openai.com/v1",
         timeout_s=5.0,
+        cache_ttl_s=0.0,
     )

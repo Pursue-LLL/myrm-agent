@@ -265,7 +265,9 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
 
   // 动态计算模拟显存适配后的推荐与评分
   const simulatedRecommendations = useMemo(() => {
-    if (!profile?.recommendations) return [];
+    if (!profile?.recommendations) {
+      return [];
+    }
     return profile.recommendations.map((rec) => {
       const weightGb = rec.req_vram_gb;
       const kvFp16Gb =
@@ -573,7 +575,7 @@ export default function HardwareCookbook({ onApplyModel }: HardwareCookbookProps
                           {t('vram64kFp16')}: ~{rec.totalNeeded64k} GB
                         </span>
                       </div>
-                      {rec.est_tok_per_sec != null && (
+                      {rec.est_tok_per_sec !== null && rec.est_tok_per_sec !== undefined && (
                         <span
                           className={`font-medium tabular-nums ${
                             rec.est_tok_per_sec >= 20

@@ -84,6 +84,13 @@ const SortableProviderItem = memo<{
       onClick={() => {
         onSelect();
       }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      tabIndex={0}
       data-testid={`provider-item-${provider.id}`}
       role="button"
       aria-label={provider.name}
@@ -109,7 +116,8 @@ const SortableProviderItem = memo<{
           <div
             className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-destructive/10 text-destructive border border-destructive/20"
             title={`Circuit open (cooldown active: ${retrySeconds}s remaining)`}
-            onClick={(e) => e.stopPropagation()}
+            role="status"
+            aria-live="polite"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-ping" />
             <span>{retrySeconds}s</span>

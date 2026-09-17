@@ -166,7 +166,6 @@ const ModelCheckbox = memo<ModelCheckboxProps>(
                         checked={model.isEnabled}
                         isLoading={isModelLoading}
                         onChange={() => handleToggleModel(model.name, model.isEnabled)}
-                        autoFocus={model.name === 'mimo-v2.5-pro'}
                       />
                       <button
                         onClick={() => onRemoveModel(model.name)}

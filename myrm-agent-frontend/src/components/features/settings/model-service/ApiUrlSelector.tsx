@@ -155,7 +155,6 @@ const ApiUrlSelector = memo<ApiUrlSelectorProps>(
               onBlur={handleCustomUrlBlur}
               placeholder={t('apiUrlPlaceholder')}
               className="flex-1 text-sm bg-transparent focus:outline-none"
-              autoFocus
             />
           ) : (
             // 显示当前 URL（只读）

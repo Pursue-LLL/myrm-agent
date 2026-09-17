@@ -1342,6 +1342,7 @@ async def test_proxy(request: TestProxyRequest) -> TestProxyResponse:
         proxy_url=request.proxy_url,
         target_url=target,
         timeout_s=5.0,
+        cache_ttl_s=0.0,
     )
     elapsed = int((time.monotonic() - start) * 1000)
 
