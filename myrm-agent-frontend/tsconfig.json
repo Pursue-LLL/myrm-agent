@@ -49,11 +49,7 @@
     "*.ts",
     "*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    ".next-isolated-memdoc-c1/types/**/*.ts",
-    ".next-isolated-memdoc-c1/dev/types/**/*.ts",
-    ".next-isolated-agentcap/types/**/*.ts",
-    ".next-isolated-agentcap/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
