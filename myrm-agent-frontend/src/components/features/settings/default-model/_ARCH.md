@@ -6,4 +6,3 @@
 | ------------------------ | ---------------------------------------------------------- |
 | `EnabledModelSelect.tsx` | 启用模型选择；OpenCode Contributor 选中时展示 consent 提示 |
 | `TemperatureSlider.tsx`  | 温度滑块                                                   |
-| `ModelKwargsEditor.tsx`  | 模型 kwargs JSON 编辑                                      |

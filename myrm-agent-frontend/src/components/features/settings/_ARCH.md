@@ -21,7 +21,6 @@
 | ---------------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------------------- | ----- |
 | `SettingsLayout.tsx`                                                               | 核心 | Tab 路由、动态加载 Section、脏状态守卫                                       | ✅    |
 | `SettingsMenu.tsx`                                                                 | 核心 | 分组侧栏（personal / ai-core / ai-tools / knowledge / integration / system） | ✅    |
-| `SettingsIcons.tsx`                                                                | 辅助 | 设置页图标映射                                                               | ✅    |
 | `FormFields.tsx`                                                                   | 辅助 | 通用表单字段                                                                 | ✅    |
 | `SchemaForm.tsx`                                                                   | 辅助 | JSON Schema 驱动表单                                                         | ✅    |
 | `ConfigImportExport.tsx`                                                           | 辅助 | 配置导入导出                                                                 | ✅    |

@@ -30,9 +30,7 @@
 | `NavBar.tsx`              | 侧栏导航，三模式 Tab（Chat / Work / Projects）+ 快捷入口 + `navbar.bottom.tools` 扩展插槽 + macOS 交通灯自适应留白                                |
 | `ContentSidebar.tsx`      | 内容区侧栏（chat → 聊天历史，work → 智能体列表）                                                                                                  |
 | `PageLayout.tsx`          | 根 layout：hydration 后直进 `AppLayout`；readiness 后台；Onboarding/Boot 全屏 overlay                                                             |
-| `TabBar.tsx`              | Work 模式多标签页栏                                                                                                                               |
 | `RouteSegmentLoading.tsx` | 路由 segment 统一 loading shell（chat/settings/dashboard）                                                                                        |
-| `index.ts`                | 导出 AppLayout、NavBar、ContentSidebar、PageLayout；**`app/layout.tsx` 须直接 `from './PageLayout'`**（勿经桶重导出，见 error-boundary/_ARCH.md） |
 
 ## 依赖
 

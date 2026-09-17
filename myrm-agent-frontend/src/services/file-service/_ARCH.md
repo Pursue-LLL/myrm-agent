@@ -16,7 +16,6 @@
 | `index.ts`   | `getFileService()` 单例；`selectFiles` / `readFileAsDataURL` 门面               |
 | `types.ts`   | `FileService`、`StoreFile`、`FileReference`；复用 `file.ts` 的 `UploadProgress` |
 | `tauri.ts`   | 桌面端原生对话框与 FS 读                                                        |
-| `sandbox.ts` | Web/Sandbox：委托 `file.ts` 上传 API                                            |
 
 ## 依赖
 

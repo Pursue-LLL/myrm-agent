@@ -21,7 +21,6 @@ Settings「AI Tools」分组：MCP、技能与工具质量仪表盘 Section。
 | `GlobalSkillQualityDashboard.tsx`    | 全局技能质量仪表盘                                                                          |
 | `SkillQualityTrendChart.tsx`         | 质量趋势图                                                                                  |
 | `QualityDistributionChart.tsx`       | 质量分布图                                                                                  |
-| `SkillFunnelChart.tsx`               | 技能漏斗图                                                                                  |
 
 ## 依赖
 

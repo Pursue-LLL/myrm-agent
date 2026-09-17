@@ -96,7 +96,6 @@
 | `BudgetPolicySection.tsx`     | 预算策略与四级渐进式柔性限额风控面板（四级阶梯风控：可视化预警、柔性自确认卡、无损模型自动降级、冻结暂停审批；Fleet Quota 跨维度看板） |
 | `ChannelBudgetSection.tsx`    | 渠道预算管理                                                                                                                           |
 | `MemoryGuardianCard.tsx`      | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合）                                                                      |
-| `RateLimitMonitor.tsx`        | 速率限制监控                                                                                                                           |
 | `RoutingAnalyticsPanel.tsx`   | 路由分析面板（模型路由/成本格式化）                                                                                                    |
 
 ### Trace 可视化与调试
@@ -125,7 +124,6 @@
 | `HeartbeatSection.tsx`       | 心跳巡检配置（含 Agent 绑定 + 模型继承显示）                                                                                                                |
 | `CompanionSection.tsx`       | 伴侣模式配置                                                                                                                                                |
 | `CronSection.tsx`            | 定时任务管理；点进详情前 `getCronJob` 拉 fresh binding enrich                                                                                               |
-| `DLQSection.tsx`             | 死信队列管理                                                                                                                                                |
 | `KanbanSection.tsx`          | 看板任务视图（支持 project scope 列表/创建，`kanban_last_board_id` 按项目持久化；深链 `board_id`/`status` 无视 project filter 全量拉取 board 直达目标任务） |
 | `MediaGenerationSection.tsx` | 媒体生成配置                                                                                                                                                |
 | `TimezoneSelector.tsx`       | 时区选择器                                                                                                                                                  |
