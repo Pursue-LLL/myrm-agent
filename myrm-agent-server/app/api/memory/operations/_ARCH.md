@@ -25,4 +25,5 @@
 | `radar.py` | 模块 | 动态偏好雷达 API。暴露当前会话雷达状态、手动微调与隐式反馈记录 HTTP 接口。 | ✅ |
 | `tool_guidance.py` | 模块 | 工具规约与动态经验 API。暴露工具黄金指南列表（JIT 合成）、人工置顶/取消置顶与规则清理端点。 | ✅ |
 | `working_state.py` | 模块 | Working State API — cross-session task continuity endpoint. 提供读/写/清除 `__working_state` Profile 属性的 HTTP 入口。 | ✅ |
+| `domain_mesh.py` | 模块 | 三域认知网格（User/Assistant/Task）渐进式 L0/L1/L2 记忆聚合概览、单条下钻与 Hermes 资产导入迁移 API，采用确定性启发式兜底保障存量与外部条目口径一致。 | ✅ |
 

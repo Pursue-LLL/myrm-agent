@@ -9,6 +9,7 @@ from myrm_agent_harness.toolkits.memory import (
     MemoryDomain,
     MemoryManager,
     import_hermes_bundle,
+    infer_domain_and_category,
 )
 
 from app.api.memory.utils import get_memory_manager
@@ -47,9 +48,27 @@ async def get_domain_mesh_overview(
             continue
 
         for m in mems:
-            dom = getattr(m, "domain", MemoryDomain.USER)
-            dom_val = dom.value if hasattr(dom, "value") else str(dom)
-            cat = getattr(m, "domain_category", "profile") or "profile"
+            dom = getattr(m, "domain", None)
+            dom_val = dom.value if hasattr(dom, "value") else (str(dom) if dom is not None else "")
+            cat = getattr(m, "domain_category", None) or ""
+
+            if not dom_val or dom_val not in (
+                MemoryDomain.USER.value,
+                MemoryDomain.ASSISTANT.value,
+                MemoryDomain.TASK.value,
+            ):
+                infer_dom, infer_cat = infer_domain_and_category(
+                    memory_type=mtype.value,
+                    content=getattr(m, "content", ""),
+                    event_type=getattr(m, "event_type", None),
+                    preference_type=getattr(m, "preference_type", None),
+                    tags=getattr(m, "tags", None),
+                )
+                dom_val = infer_dom.value
+                cat = cat or infer_cat.value
+            else:
+                cat = cat or "profile"
+
             l0 = getattr(m, "summary_l0", "") or (
                 m.content[:120].strip() if hasattr(m, "content") else ""
             )
@@ -121,9 +140,29 @@ async def get_memory_drill_down(
     if mem is None:
         raise HTTPException(status_code=404, detail=f"Memory '{memory_id}' not found.")
 
-    dom = getattr(mem, "domain", MemoryDomain.USER)
-    dom_val = dom.value if hasattr(dom, "value") else str(dom)
-    cat = getattr(mem, "domain_category", "profile") or "profile"
+    dom = getattr(mem, "domain", None)
+    dom_val = dom.value if hasattr(dom, "value") else (str(dom) if dom is not None else "")
+    cat = getattr(mem, "domain_category", None) or ""
+
+    if not dom_val or dom_val not in (
+        MemoryDomain.USER.value,
+        MemoryDomain.ASSISTANT.value,
+        MemoryDomain.TASK.value,
+    ):
+        mem_type_name = getattr(mem, "memory_type", "semantic")
+        mem_type_str = mem_type_name.value if hasattr(mem_type_name, "value") else str(mem_type_name)
+        infer_dom, infer_cat = infer_domain_and_category(
+            memory_type=mem_type_str,
+            content=getattr(mem, "content", ""),
+            event_type=getattr(mem, "event_type", None),
+            preference_type=getattr(mem, "preference_type", None),
+            tags=getattr(mem, "tags", None),
+        )
+        dom_val = infer_dom.value
+        cat = cat or infer_cat.value
+    else:
+        cat = cat or "profile"
+
     l0 = getattr(mem, "summary_l0", "") or (
         mem.content[:120].strip() if hasattr(mem, "content") else ""
     )

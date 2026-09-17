@@ -148,3 +148,39 @@ User prefers fast response times.
     data = resp.json()
     assert data["success_count"] == 1
     assert data["fail_count"] == 0
+
+
+def test_domain_mesh_legacy_untyped_fallback(
+    client: TestClient, auth_headers: dict[str, str], mock_memory_mgr: AsyncMock
+) -> None:
+    legacy_task_mem = SemanticMemory(
+        id="mem-legacy-sop",
+        content="CI deploy workflow SOP: always run unit tests before merge.",
+        tags=["sop", "workflow"],
+    )
+    object.__setattr__(legacy_task_mem, "domain", None)
+    object.__setattr__(legacy_task_mem, "domain_category", None)
+
+    async def mock_list(mtype, limit=2000):
+        if str(mtype.value) == "semantic":
+            return [legacy_task_mem]
+        return []
+
+    mock_memory_mgr.list_memories.side_effect = mock_list
+    mock_memory_mgr.get_memory.return_value = legacy_task_mem
+
+    resp = client.get("/api/v1/memory/domain-mesh/overview", headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_memories"] == 1
+    assert data["task"]["total_count"] == 1
+    assert data["user"]["total_count"] == 0
+
+    drill_resp = client.get(
+        "/api/v1/memory/domain-mesh/drill-down/mem-legacy-sop", headers=auth_headers
+    )
+    assert drill_resp.status_code == 200
+    drill_data = drill_resp.json()
+    assert drill_data["domain"] == "task"
+    assert drill_data["category"] == "trajectories"
+
