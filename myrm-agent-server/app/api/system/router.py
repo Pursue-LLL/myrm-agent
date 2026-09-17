@@ -175,10 +175,11 @@ async def optimize_storage(request: StorageOptimizeRequest) -> StorageOptimizeRe
 
     from myrm_agent_harness.api.hooks import count_running_background_shell_jobs
 
-    if count_running_background_shell_jobs() > 0:
+    active_jobs = count_running_background_shell_jobs()
+    if active_jobs > 0:
         raise HTTPException(
             status_code=409,
-            detail="Cannot optimize database while background job(s) are active.",
+            detail=f"Cannot optimize database while {active_jobs} background job(s) are active.",
         )
 
     settings = get_settings()

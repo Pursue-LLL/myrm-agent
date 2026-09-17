@@ -331,10 +331,12 @@ mod tests {
 
     #[test]
     fn backend_config_from_system_config() {
-        let mut sys = SystemConfig::default();
-        sys.enable_webui_mode = true;
-        sys.enable_remote_access = true;
-        sys.api_port = 9999;
+        let sys = SystemConfig {
+            enable_webui_mode: true,
+            enable_remote_access: true,
+            api_port: 9999,
+            ..Default::default()
+        };
 
         let backend = BackendConfig::from_system_config(&sys);
         assert_eq!(backend.port, 9999);
@@ -345,10 +347,12 @@ mod tests {
 
     #[test]
     fn frontend_config_from_system_config_desktop_mode() {
-        let mut sys = SystemConfig::default();
-        sys.webui_port = 4000;
-        sys.api_port = 8888;
-        sys.enable_remote_access = false;
+        let sys = SystemConfig {
+            webui_port: 4000,
+            api_port: 8888,
+            enable_remote_access: false,
+            ..Default::default()
+        };
 
         let frontend = FrontendConfig::from_system_config(&sys);
         assert_eq!(frontend.port, 4000);
@@ -358,10 +362,12 @@ mod tests {
 
     #[test]
     fn frontend_config_from_system_config_webui_mode() {
-        let mut sys = SystemConfig::default();
-        sys.enable_webui_mode = true;
-        sys.webui_port = 4000;
-        sys.api_port = 8888;
+        let sys = SystemConfig {
+            enable_webui_mode: true,
+            webui_port: 4000,
+            api_port: 8888,
+            ..Default::default()
+        };
 
         let frontend = FrontendConfig::from_system_config(&sys);
         assert_eq!(frontend.port, 4000);

@@ -181,7 +181,7 @@ _attach_health_require_args() {
   active_leases="$(_parallel_attach_active_leases)"
   # R032/UBDP-H: use real wave leases only — never fake active_leases=1 when idle.
   # R290: parallel attach with live UI/API — signoff-stream gate (no frontendEpoch SMP defer).
-  if [[ "${active_leases}" -gt 0 ]] && _shared_stack_endpoints_ok; then
+  if _shared_stack_endpoints_ok; then
     echo "--require-signoff-stream-ready"
     return 0
   fi
