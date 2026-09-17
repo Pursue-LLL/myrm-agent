@@ -5,21 +5,20 @@
  * 因浏览器事件时序竞争导致的 isComposing 提前翻转或 keyCode=229 / key='Process' 导致的误触提交问题。
  */
 
-import type React from 'react';
-
-export type KeyboardEventLike =
-  | React.KeyboardEvent
-  | KeyboardEvent
-  | {
-      isComposing?: boolean;
-      key?: string;
-      keyCode?: number;
-      which?: number;
-      nativeEvent?: {
-        isComposing?: boolean;
-        keyCode?: number;
-      };
-    };
+/**
+ * Structural subset shared by React synthetic events, native DOM events and test doubles.
+ * Declared as a single interface so field access stays type-safe for every caller shape.
+ */
+export interface KeyboardEventLike {
+  isComposing?: boolean;
+  key?: string;
+  keyCode?: number;
+  which?: number;
+  nativeEvent?: {
+    isComposing?: boolean;
+    keyCode?: number;
+  };
+}
 
 /**
  * 严格判定当前键盘事件是否处于 IME 输入法组合键阶段（候选词挑选 / 拼音输入中）

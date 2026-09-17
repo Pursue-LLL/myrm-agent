@@ -15,6 +15,7 @@
 import { useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import useChatStore, { File as FileType } from '@/store/useChatStore';
+import type { MentionReference } from '@/store/chat/types/messages';
 import type { TurnCapabilitySelection } from '@/hooks/message-input/turnCapabilityOverrideCore';
 import { formatSkillChipLabel } from '@/lib/utils/messageUtils';
 import { deleteSharedContextBindingByTarget } from '@/services/memory/sharedContexts';
@@ -39,15 +40,7 @@ export interface UseComposerContextChipsParams {
   files: FileType[];
   setFiles: (files: FileType[]) => void;
   clearCurrentSessionMessageId: () => void;
-  mentionReferences: Array<{
-    type: string;
-    path?: string;
-    fileId?: string;
-    url?: string;
-    label: string;
-    startLine?: number;
-    endLine?: number;
-  }>;
+  mentionReferences: MentionReference[];
   removeMentionReference: (key: string) => void;
   onOpenCapabilityEditor?: () => void;
   hideAttachList?: boolean;
@@ -233,7 +226,7 @@ export function useComposerContextChips({
     // 6. 附加文件 (Attachments) - 仅在 AttachList 被折叠隐藏时作为紧凑胶囊呈现，避免双重卡片堆叠
     if (hideAttachList && files.length > 0) {
       files.forEach((file) => {
-        const isImg = file.type?.startsWith('image/') || file.fileName?.match(/\.(png|jpe?g|webp|gif|svg)$/i);
+        const isImg = file.fileType === 'uploaded' && file.fileName?.match(/\.(png|jpe?g|webp|gif|svg)$/i);
         list.push({
           id: `file-${file.id}`,
           category: 'attachment',

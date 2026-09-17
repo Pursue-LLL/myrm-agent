@@ -129,7 +129,9 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
   const filteredActiveGoals = useMemo(() => {
-    if (!normalizedQuery) return activeGoals;
+    if (!normalizedQuery) {
+      return activeGoals;
+    }
     return activeGoals.filter((goal) => {
       return (
         goal.objective.toLowerCase().includes(normalizedQuery) ||
@@ -140,7 +142,9 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   }, [activeGoals, normalizedQuery]);
 
   const filteredMediaTasks = useMemo(() => {
-    if (!normalizedQuery) return mediaTasks;
+    if (!normalizedQuery) {
+      return mediaTasks;
+    }
     return mediaTasks.filter((task) => {
       const prompt = (task.payload?.prompt ?? '').toLowerCase();
       const taskType = (task.task_type ?? '').toLowerCase();
@@ -156,7 +160,9 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
   }, [mediaTasks, normalizedQuery]);
 
   const filteredRecentTerminalMediaTasks = useMemo(() => {
-    if (!normalizedQuery) return recentTerminalMediaTasks;
+    if (!normalizedQuery) {
+      return recentTerminalMediaTasks;
+    }
     return recentTerminalMediaTasks.filter((task) => {
       const prompt = (task.payload?.prompt ?? '').toLowerCase();
       const taskType = (task.task_type ?? '').toLowerCase();
@@ -173,7 +179,9 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
 
   const agentTasks = useMemo(() => {
     const list = tasks.filter((task) => (task.kind ?? 'agent') !== 'shell');
-    if (!normalizedQuery) return list;
+    if (!normalizedQuery) {
+      return list;
+    }
     return list.filter((task) => {
       const prompt = (task.prompt ?? '').toLowerCase();
       const status = (task.status ?? '').toLowerCase();
@@ -190,19 +198,19 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
 
   const shellTasks = useMemo(() => {
     const list = tasks.filter((task) => task.kind === 'shell');
-    if (!normalizedQuery) return list;
+    if (!normalizedQuery) {
+      return list;
+    }
     return list.filter((task) => {
       const prompt = (task.prompt ?? '').toLowerCase();
       const status = (task.status ?? '').toLowerCase();
       const taskId = (task.task_id ?? '').toLowerCase();
       const resultPreview = (task.result_preview ?? '').toLowerCase();
-      const command = (task.command ?? '').toLowerCase();
       return (
         prompt.includes(normalizedQuery) ||
         status.includes(normalizedQuery) ||
         taskId.includes(normalizedQuery) ||
-        resultPreview.includes(normalizedQuery) ||
-        command.includes(normalizedQuery)
+        resultPreview.includes(normalizedQuery)
       );
     });
   }, [tasks, normalizedQuery]);

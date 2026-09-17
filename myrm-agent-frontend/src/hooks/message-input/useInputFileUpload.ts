@@ -31,7 +31,7 @@ const RAG_DOC_EXTENSIONS = new Set(['pdf', 'docx', 'doc', 'xlsx', 'xls', 'pptx',
 interface UseInputFileUploadParams {
   actionMode: ActionMode;
   files: ChatFile[];
-  setFiles: React.Dispatch<React.SetStateAction<ChatFile[]>> | ((files: ChatFile[]) => void);
+  setFiles: React.Dispatch<React.SetStateAction<ChatFile[]>>;
   setHideAttachList: (hide: boolean) => void;
 }
 

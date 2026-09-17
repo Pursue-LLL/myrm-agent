@@ -25,6 +25,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { isTauriRuntime } from '@/lib/deploy-mode';
+import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useChatStore from '@/store/useChatStore';
 import { listBackgroundTasks } from '@/services/background-tasks';
 import { listActiveMediaTasks } from '@/services/mediaTasks';
@@ -62,10 +63,7 @@ export function useTrayStatus() {
   const t = useTranslations('backgroundTasks');
   const liveness = useLivenessState();
   const isGenerating = useChatStore((state) => state.loading);
-  const isApprovalPending = useChatStore((state) => {
-    const lastMsg = state.messages[state.messages.length - 1];
-    return !!lastMsg?.toolApproval?.pending;
-  });
+  const isApprovalPending = useToolApprovalStore((state) => state.queue.length > 0);
   const prevGenerating = useRef(false);
   const prevLivenessState = useRef<LivenessState>('idle');
   const [bgRunningCount, setBgRunningCount] = useState(0);

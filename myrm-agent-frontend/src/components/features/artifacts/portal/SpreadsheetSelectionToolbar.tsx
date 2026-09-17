@@ -74,34 +74,40 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
   const executeAction = useCallback(
     (action: ActionType, customPrompt?: string) => {
       const activeTab = useArtifactPortalStore.getState().getActiveTab();
-      const artifactName = filename || activeTab?.title || '表格工件';
+      const artifactName = filename || activeTab?.artifact.filename || '表格工件';
       const rangeTag = sheetName ? `${sheetName}!${selectedRangeLabel}` : selectedRangeLabel;
 
       let message = '';
       if (action === 'modify') {
         const prompt = customPrompt || inputValue.trim();
-        if (!prompt) return;
+        if (!prompt) {
+          return;
+        }
         message = `针对表格「${artifactName}」的范围 (${rangeTag}) 进行修改：\n${prompt}\n\n当前选中数据：\n\`\`\`\n${selectedSnippet}\n\`\`\``;
       } else if (action === 'explain') {
         message = `请分析并解释表格「${artifactName}」中 (${rangeTag}) 的数据：\n\`\`\`\n${selectedSnippet}\n\`\`\``;
       }
 
-      if (!message) return;
+      if (!message) {
+        return;
+      }
       sendAction({ message });
     },
     [filename, sheetName, selectedRangeLabel, inputValue, selectedSnippet, sendAction],
   );
 
   const handleCopy = useCallback(async () => {
-    if (!selectedSnippet) return;
+    if (!selectedSnippet) {
+      return;
+    }
     await writeToClipboard(selectedSnippet);
     onClose();
   }, [selectedSnippet, onClose]);
 
   const handleQuote = useCallback(() => {
     const activeTab = useArtifactPortalStore.getState().getActiveTab();
-    const artifactName = filename || activeTab?.title || '表格工件';
-    const targetArtifactId = artifactId || activeTab?.artifactId || 'current';
+    const artifactName = filename || activeTab?.artifact.filename || '表格工件';
+    const targetArtifactId = artifactId || activeTab?.artifact.id || 'current';
     const rangeTag = sheetName ? `${sheetName}!${selectedRangeLabel}` : selectedRangeLabel;
 
     // 1. 设置 ScopedArtifactStore，用于输入框挂载定向编辑芯片
@@ -130,7 +136,9 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
   }, [artifactId, filename, sheetName, selectedRangeLabel, selectedSnippet, onClose]);
 
   const handleModifySubmit = useCallback(() => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim()) {
+      return;
+    }
     executeAction('modify', inputValue.trim());
   }, [inputValue, executeAction]);
 
@@ -147,11 +155,17 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
     [handleModifySubmit],
   );
 
-  if (!visible) return null;
-  if (typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT) return null;
+  if (!visible) {
+    return null;
+  }
+  if (typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT) {
+    return null;
+  }
 
   return (
     <div
+      role="toolbar"
+      tabIndex={-1}
       ref={toolbarRef}
       data-testid="spreadsheet-selection-toolbar"
       className={cn(

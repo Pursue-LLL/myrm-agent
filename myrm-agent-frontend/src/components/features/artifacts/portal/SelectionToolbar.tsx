@@ -194,6 +194,7 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
         explain: t('explain'),
         optimize: t('optimize'),
         comment: t('addComment'),
+        quote: t('quote'),
       };
 
       const message = buildSelectionContext(actionLabels[action], customInstruction);
@@ -276,9 +277,9 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
       label: t('quote') || '引用到输入框',
       onClick: () => {
         const activeTab = useArtifactPortalStore.getState().getActiveTab();
-        const artifactName = activeTab?.title || '代码工件';
+        const artifactName = activeTab?.artifact.filename || '代码工件';
         useScopedArtifactStore.getState().setTarget({
-          artifactId: activeTab?.artifactId || 'current',
+          artifactId: activeTab?.artifact.id || 'current',
           artifactName,
           kind: 'code',
           scopeLabel: selection ? `选区 (${selection.text.split('\n').length}行)` : '选中代码',
@@ -299,6 +300,8 @@ const SelectionToolbar: React.FC<SelectionToolbarProps> = ({ editorInstance, art
 
   return (
     <div
+      role="toolbar"
+      tabIndex={-1}
       ref={toolbarRef}
       className={cn('absolute z-50 animate-in fade-in-0 zoom-in-95 duration-150', 'flex flex-col gap-1')}
       style={{

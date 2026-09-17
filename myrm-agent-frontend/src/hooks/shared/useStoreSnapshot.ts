@@ -74,7 +74,7 @@ export function useStoreSnapshot<T>(
   getServerSnapshot?: () => T,
   resubscribeKey?: string | number | null,
 ): T {
-  const [snapshot, setSnapshot] = useState<T>(() => getServerSnapshot ?? getSnapshot);
+  const [snapshot, setSnapshot] = useState<T>(() => (getServerSnapshot ?? getSnapshot)());
 
   // Latest-refs, NOT effect deps: callers pass inline closures (e.g.
   // `() => useChatStore.getState().messages`), and a fresh reference per

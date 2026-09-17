@@ -99,7 +99,7 @@ const AgentIndicator = () => {
   // 快速切换预设智能体
   const handleSelectPreset = useCallback(
     async (preset: PresetAgent, workingDirectory?: string) => {
-      let config = {
+      let config: AgentConfig = {
         agentId: preset.id,
         selectedSkillIds: preset.skillIds || [],
         skillConfigs: {},
@@ -148,15 +148,18 @@ const AgentIndicator = () => {
         if (fullAgent) {
           setAgentConfig(buildAgentConfig(fullAgent));
         } else {
+          // The list endpoint omits system_prompt / auto_restore_domains, so fall back to
+          // the shared mapper shape rather than fabricating fields the list DTO never carries.
           setAgentConfig({
             agentId: agent.id,
             agentName: agent.name,
             avatarUrl: agent.avatar_url,
-            selectedSkillIds: agent.skill_ids || [],
-            selectedMcpNames: agent.mcp_ids || [],
-            systemPrompt: agent.system_prompt || '',
+            selectedSkillIds: agent.skill_ids ?? [],
+            selectedMcpNames: agent.mcp_ids ?? [],
+            systemPrompt: '',
             useGlobalInstruction: true,
-            autoRestoreDomains: agent.auto_restore_domains || [],
+            skillConfigs: {},
+            autoRestoreDomains: [],
           });
         }
         setDropdownOpen(false);
