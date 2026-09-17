@@ -360,4 +360,117 @@ def test_topic_follow_up_policy_e2e(client):
     assert rows[0]["completionReceipts"] is False
     assert rows[0]["stallNudge"] is True
 
+
+def test_stall_nudge_fires_on_pending_with_stale_thread(client):
+    """Real DB + real scan: stale thread with stall opt-in and open approval gets one nudge."""
+    import asyncio
+    import time
+
+    from app.channels.routing.follow_up import (
+        TrackedThread,
+        get_stall_tracker,
+        scan_stalled_threads,
+    )
+    from app.core.channel_bridge.topic_config import SqlTopicManager
+    from app.services.approvals.registry import ApprovalRegistry
+
+    unique_id = str(uuid.uuid4())[:8]
+    channel_name = f"test_stall_channel_{unique_id}"
+    chat_id = f"test_stall_chat_{unique_id}"
+
+    async def _seed() -> None:
+        manager = SqlTopicManager()
+        await manager.bind_topic(
+            channel_name,
+            chat_id,
+            None,
+            stall_nudge=True,
+        )
+        await ApprovalRegistry.create_approval(
+            agent_id="e2e-stall-agent",
+            action_type="outbound_draft",
+            payload={"draft_content": "pending draft"},
+            chat_id=chat_id,
+        )
+        tracker = get_stall_tracker()
+        tracker.touch(
+            TrackedThread(
+                channel=channel_name,
+                chat_id=chat_id,
+                thread_id=None,
+                requester_id="u-stall",
+                requester_name="StallUser",
+                locale="en",
+            )
+        )
+        tracker._active[f"{channel_name}:{chat_id}:"] = time.monotonic() - 49 * 3600
+
+    asyncio.run(_seed())
+
+    sent: list[object] = []
+
+    class _FakeBus:
+        async def publish_outbound(self, message: object) -> str:
+            sent.append(message)
+            return "mid-stall"
+
+    async def _resolve(channel: str, chat: str, thread: str | None):  # type: ignore[no-untyped-def]
+        return await SqlTopicManager().resolve_topic(channel, chat, thread)
+
+    nudged = asyncio.run(scan_stalled_threads(bus=_FakeBus(), resolve_topic=_resolve))
+    assert nudged >= 1, "stalled thread with pending approval must be nudged"
+    assert len(sent) >= 1
+    first = sent[0]
+    assert getattr(first, "thread_id", None) is None
+    assert "StallUser" in str(getattr(first, "content", ""))
+    assert getattr(first, "metadata", {}).get("followup_kind") == "stall_nudge"
+
+    get_stall_tracker().drop(f"{channel_name}:{chat_id}:")
+
+
+def test_cron_delivery_revoked_identity_fails_closed(client):
+    """Real DB: cron delivery into a revoked-identity chat raises instead of sending."""
+    import asyncio
+
+    from myrm_agent_harness.toolkits.cron.types import (
+        CronJob,
+        DeliveryConfig,
+        JobResult,
+        JobType,
+        Schedule,
+        ScheduleKind,
+    )
+
+    from app.core.channel_bridge.topic_config import SqlTopicManager
+    from app.core.cron.adapters.channel_delivery import ChannelResultDelivery
+
+    unique_id = str(uuid.uuid4())[:8]
+    channel_name = f"test_revoke_channel_{unique_id}"
+    chat_id = f"test_revoke_chat_{unique_id}"
+
+    async def _seed() -> None:
+        manager = SqlTopicManager()
+        await manager.bind_topic(
+            channel_name,
+            chat_id,
+            None,
+            identity_name="Frozen",
+            identity_revoked=True,
+        )
+
+    asyncio.run(_seed())
+
+    job = CronJob(
+        id=f"job-{unique_id}",
+        user_id="e2e-user",
+        name="revoke-probe",
+        job_type=JobType.AGENT,
+        schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3600_000),
+        delivery=DeliveryConfig(channel=channel_name, target=chat_id),
+    )
+    result = JobResult(success=True, output="hello")
+
+    with __import__("pytest").raises(RuntimeError, match="identity revoked"):
+        asyncio.run(ChannelResultDelivery().deliver(job, result))
+
     print("Thread Sharing Mode E2E Test Passed!")

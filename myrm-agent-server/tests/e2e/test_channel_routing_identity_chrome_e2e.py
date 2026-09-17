@@ -12,6 +12,7 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_settings_subroute,
     prepare_e2e_ui_session,
+    reload_mcp_page,
     wait_for_state,
     warm_ui_route,
 )
@@ -113,3 +114,169 @@ def test_channel_routing_topic_row_renders_team_identity() -> None:
         )
         assert state.get("ready") is True, state
         assert state.get("identityBlockHasEmoji") is False, state
+
+
+_FOLLOWUP_TOGGLE_JS = """(() => {
+  const navButtons0 = Array.from(document.querySelectorAll('button'));
+  const routingTab0 = navButtons0.find((el) =>
+    /Channel Routing|渠道路由/i.test(el.textContent || '')
+  );
+  if (routingTab0) {
+    routingTab0.click();
+  }
+  const channelBtns0 = Array.from(document.querySelectorAll('button'));
+  const webhookBtn0 = channelBtns0.find((el) =>
+    /^webhook$/i.test((el.textContent || '').trim())
+  );
+  if (webhookBtn0) {
+    webhookBtn0.click();
+  }
+  const btns = Array.from(document.querySelectorAll('button'));
+  const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
+  const receipts = byText(/^(Receipts|完工回执|完了レシート|完工回執|완료 레시트|Belege)$/);
+  const stall = byText(/^(Stall nudge|停滞提醒|停滞nudge|停滯提醒|정체 nudge|Stau-Nudge)$/);
+  if (!receipts || !stall) {
+    return { ready: false, reason: 'followup-buttons-missing' };
+  }
+  return { ready: true };
+})()"""
+
+_FOLLOWUP_CLICK_JS = """(() => {
+  const navButtons0 = Array.from(document.querySelectorAll('button'));
+  const routingTab0 = navButtons0.find((el) =>
+    /Channel Routing|渠道路由/i.test(el.textContent || '')
+  );
+  if (routingTab0) {
+    routingTab0.click();
+  }
+  const channelBtns0 = Array.from(document.querySelectorAll('button'));
+  const webhookBtn0 = channelBtns0.find((el) =>
+    /^webhook$/i.test((el.textContent || '').trim())
+  );
+  if (webhookBtn0) {
+    webhookBtn0.click();
+  }
+  const btns = Array.from(document.querySelectorAll('button'));
+  const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
+  const receipts = byText(/^(Receipts|完工回执|完了レシート|完工回執|완료 레시트|Belege)$/);
+  const stall = byText(/^(Stall nudge|停滞提醒|停滞nudge|停滯提醒|정체 nudge|Stau-Nudge)$/);
+  if (!receipts || !stall) {
+    return { ok: false, reason: 'followup-buttons-missing' };
+  }
+  const wasReceiptsOn = (receipts.className || '').includes('bg-primary');
+  const wasStallOn = (stall.className || '').includes('bg-primary');
+  receipts.click();
+  stall.click();
+  return { ok: true, wasReceiptsOn, wasStallOn };
+})()"""
+
+_FOLLOWUP_READ_JS = """(() => {
+  const navButtons0 = Array.from(document.querySelectorAll('button'));
+  const routingTab0 = navButtons0.find((el) =>
+    /Channel Routing|渠道路由/i.test(el.textContent || '')
+  );
+  if (routingTab0) {
+    routingTab0.click();
+  }
+  const channelBtns0 = Array.from(document.querySelectorAll('button'));
+  const webhookBtn0 = channelBtns0.find((el) =>
+    /^webhook$/i.test((el.textContent || '').trim())
+  );
+  if (webhookBtn0) {
+    webhookBtn0.click();
+  }
+  const btns = Array.from(document.querySelectorAll('button'));
+  const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
+  const receipts = byText(/^(Receipts|完工回执|完了レシート|完工回執|완료 레시트|Belege)$/);
+  const stall = byText(/^(Stall nudge|停滞提醒|停滞nudge|停滯提醒|정체 nudge|Stau-Nudge)$/);
+  if (!receipts || !stall) {
+    return { ready: false, reason: 'followup-buttons-missing' };
+  }
+  const receiptsOn = (receipts.className || '').includes('bg-primary');
+  const stallOn = (stall.className || '').includes('bg-primary');
+  return { ready: true, receiptsOn, stallOn };
+})()"""
+
+_FOLLOWUP_FLIPPED_JS = """(() => {
+  const navButtons0 = Array.from(document.querySelectorAll('button'));
+  const routingTab0 = navButtons0.find((el) =>
+    /Channel Routing|渠道路由/i.test(el.textContent || '')
+  );
+  if (routingTab0) {
+    routingTab0.click();
+  }
+  const channelBtns0 = Array.from(document.querySelectorAll('button'));
+  const webhookBtn0 = channelBtns0.find((el) =>
+    /^webhook$/i.test((el.textContent || '').trim())
+  );
+  if (webhookBtn0) {
+    webhookBtn0.click();
+  }
+  const btns = Array.from(document.querySelectorAll('button'));
+  const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
+  const receipts = byText(/^(Receipts|完工回执|完了レシート|完工回執|완료 레시트|Belege)$/);
+  const stall = byText(/^(Stall nudge|停滞提醒|停滞nudge|停滯提醒|정체 nudge|Stau-Nudge)$/);
+  if (!receipts || !stall) {
+    return { ready: false, reason: 'followup-buttons-missing' };
+  }
+  const receiptsOn = (receipts.className || '').includes('bg-primary');
+  const stallOn = (stall.className || '').includes('bg-primary');
+  const flipped = receiptsOn === false && stallOn === true;
+  return { ready: flipped, receiptsOn, stallOn };
+})()"""
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_channel_routing_followup_switches_persist_across_reload() -> None:
+    """A real user toggles follow-up switches; reload proves server persistence."""
+    api_url = get_e2e_api_url()
+    prepare_e2e_ui_session(api_url)
+
+    suffix = uuid.uuid4().hex[:8]
+    agent_payload = {
+        "name": f"E2E FollowUp Agent {suffix}",
+        "description": "Agent for follow-up switch chrome e2e",
+        "model": "gpt-4o",
+        "systemPrompt": "You are a team Ariel.",
+        "skills": [],
+    }
+    created = http_json("POST", f"{api_url}/api/v1/user-agents", body=agent_payload)
+    assert isinstance(created, dict), created
+    agent_id = created["data"]["id"]
+
+    channel_name = "webhook"
+    topic_id = f"e2e_followup_chat_{suffix}"
+    bound = http_json(
+        "POST",
+        f"{api_url}/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
+        body={"agentId": agent_id},
+    )
+    assert isinstance(bound, dict), bound
+
+    warm_ui_route("/settings/channels?sub=routing")
+    with open_settings_subroute("/settings/channels?sub=routing", timeout_ms=90_000) as (
+        client,
+        page,
+    ):
+        dismiss_blocking_modals(client, page)
+        present = wait_for_state(client, page, _FOLLOWUP_TOGGLE_JS, timeout_sec=120.0)
+        assert present.get("ready") is True, present
+        clicked = client.evaluate(page, _FOLLOWUP_CLICK_JS, timeout_sec=30.0)
+        assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
+        assert clicked.get("wasReceiptsOn") is True, clicked
+        assert clicked.get("wasStallOn") is False, clicked
+        flipped = wait_for_state(client, page, _FOLLOWUP_FLIPPED_JS, timeout_sec=60.0)
+        assert flipped.get("ready") is True, flipped
+        reload_mcp_page(client, page, timeout_ms=90_000)
+        dismiss_blocking_modals(client, page)
+        state = wait_for_state(client, page, _FOLLOWUP_READ_JS, timeout_sec=120.0)
+        assert state.get("ready") is True, state
+        assert state.get("receiptsOn") is False, state
+        assert state.get("stallOn") is True, state

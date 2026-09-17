@@ -93,7 +93,7 @@ class MemoryDiagnosticsService:
                         total_chars += len(content_str)
                         if mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION):
                             working_count += 1
-                        if not getattr(item, "is_pinned", False):
+                        if not getattr(item, "pinned", False):
                             unpinned_count += 1
             except Exception:
                 pass
@@ -158,7 +158,7 @@ class MemoryDiagnosticsService:
                         total_chars += len(content_str)
                         if mtype in (MemoryType.TASK_DIGEST, MemoryType.CONVERSATION):
                             working_count += 1
-                        if not getattr(item, "is_pinned", False):
+                        if not getattr(item, "pinned", False):
                             unpinned_count += 1
             except Exception:
                 pass

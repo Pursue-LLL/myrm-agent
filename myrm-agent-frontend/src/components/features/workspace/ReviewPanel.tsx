@@ -2,33 +2,32 @@
 
 /**
  * [INPUT]
- * - @/lib/utils/pathValidation::formatPathForDisplay (POS: 全平台路径规范、工作区校验与展示截断)
+ * - @/lib/utils/pathValidation::formatPathForDisplay (POS: 工作区路径规范与展示截断)
  * - @/lib/utils/imeUtils::isImeComposing (POS: 输入法组合输入状态检测)
  * - @/services/chat::getMessages (POS: 会话历史消息加载服务)
+ * - ./ReviewDiffRow::ReviewDiffRow (POS: workspace 审查面板的单文件行组件)
  *
  * [OUTPUT]
  * - ReviewPanel: 变更审阅与会话反馈侧栏组件
  *
  * [POS]
- * 工作区审阅面板。负责展示会话文件差异对比（含大文件 Diff 折叠与片段复制）、会话绑定的工作区路径徽章及交互式消息反馈。
+ * 工作区审阅面板。文件头列表虚拟化（千文件不卡）、检索与状态过滤、
+ * 大文件 Diff 折叠与一键复制、服务端截断感知、工作区路径徽章及消息反馈。
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
-  FileEdit,
   ChevronDown,
-  ChevronRight,
   RefreshCw,
   MessageSquare,
   MessagesSquare,
   User,
   Bot,
-  Copy,
-  Check,
-  ChevronUp,
+  FileEdit,
+  Search,
 } from 'lucide-react';
-import { createPatch } from 'diff';
 import { cn } from '@/lib/utils/classnameUtils';
 import { isImeComposing } from '@/lib/utils/imeUtils';
 import { formatPathForDisplay } from '@/lib/utils/pathValidation';
@@ -36,14 +35,7 @@ import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import { getMessages } from '@/services/chat';
 import type { Message } from '@/store/chat/types';
-
-interface FileDiff {
-  path: string;
-  operation: string;
-  original: string | null;
-  current: string | null;
-  isBinary: boolean;
-}
+import ReviewDiffRow, { reviewRowKey, type ReviewFileDiff } from './ReviewDiffRow';
 
 interface ReviewPanelProps {
   sessionId: string | null;
@@ -53,12 +45,7 @@ interface ReviewPanelProps {
 }
 
 type ReviewTab = 'diff' | 'messages';
-
-const MAX_VISIBLE_DIFF_LINES = 300;
-
-function computeUnifiedDiff(original: string | null, current: string | null, path: string): string {
-  return createPatch(path, original ?? '', current ?? '', '', '', { context: 3 });
-}
+type StatusFilter = 'all' | 'create' | 'modify';
 
 function MessagePreview({ chatId }: { chatId: string }) {
   const t = useTranslations('multiPane');
@@ -128,12 +115,15 @@ function MessagePreview({ chatId }: { chatId: string }) {
 export default function ReviewPanel({ sessionId, messageId, workspacePath, onSendFeedback }: ReviewPanelProps) {
   const t = useTranslations('multiPane');
   const [activeTab, setActiveTab] = useState<ReviewTab>('diff');
-  const [diffs, setDiffs] = useState<FileDiff[]>([]);
+  const [diffs, setDiffs] = useState<ReviewFileDiff[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const [expandedLongDiffs, setExpandedLongDiffs] = useState<Set<string>>(new Set());
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const fetchDiffs = useCallback(async () => {
     if (!sessionId) {
@@ -151,11 +141,11 @@ export default function ReviewPanel({ sessionId, messageId, workspacePath, onSen
       const data = await resp.json();
 
       if (messageId) {
-        setDiffs(data as FileDiff[]);
+        setDiffs(data as ReviewFileDiff[]);
       } else {
-        const allDiffs: FileDiff[] = [];
-        for (const msgDiffs of Object.values(data as Record<string, FileDiff[]>)) {
-          allDiffs.push(...msgDiffs);
+        const allDiffs: ReviewFileDiff[] = [];
+        for (const [msgId, msgDiffs] of Object.entries(data as Record<string, ReviewFileDiff[]>)) {
+          allDiffs.push(...msgDiffs.map((d) => ({ ...d, _msgId: msgId })));
         }
         setDiffs(allDiffs);
       }
@@ -170,35 +160,76 @@ export default function ReviewPanel({ sessionId, messageId, workspacePath, onSen
     fetchDiffs();
   }, [fetchDiffs]);
 
-  const toggleFile = (path: string) => {
+  const filteredDiffs = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return diffs.filter((d) => {
+      if (statusFilter !== 'all' && d.operation !== statusFilter) {
+        return false;
+      }
+      if (q && !d.path.toLowerCase().includes(q)) {
+        return false;
+      }
+      return true;
+    });
+  }, [diffs, query, statusFilter]);
+
+  // Small lists render directly; virtualization only pays off for large change sets
+  // and avoids measurement overhead (including jsdom) for the common case.
+  const useVirtual = filteredDiffs.length > 30;
+  const virtualizer = useVirtualizer({
+    count: useVirtual ? filteredDiffs.length : 0,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 41,
+    overscan: 8,
+    measureElement: (el) => el.getBoundingClientRect().height,
+  });
+  const virtualItems = virtualizer.getVirtualItems();
+  const totalSize = virtualizer.getTotalSize();
+
+  // Filtering shrinks the list; reset scroll so the viewport never strands on empty space.
+  useEffect(() => {
+    const el = parentRef.current;
+    if (el) {
+      if (typeof el.scrollTo === 'function') {
+        el.scrollTo({ top: 0 });
+      } else {
+        el.scrollTop = 0;
+      }
+    }
+    if (useVirtual) {
+      virtualizer.scrollToIndex(0, { align: 'start', behavior: 'auto' });
+    }
+  }, [query, statusFilter, useVirtual, virtualizer]);
+
+  const toggleFile = useCallback((key: string) => {
     setExpandedFiles((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
+      if (next.has(key)) {
+        next.delete(key);
       } else {
-        next.add(path);
+        next.add(key);
       }
       return next;
     });
-  };
+  }, []);
 
-  const toggleLongDiff = (path: string) => {
+  const toggleLongDiff = useCallback((key: string) => {
     setExpandedLongDiffs((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
+      if (next.has(key)) {
+        next.delete(key);
       } else {
-        next.add(path);
+        next.add(key);
       }
       return next;
     });
-  };
+  }, []);
 
-  const handleCopyDiff = (content: string, path: string) => {
+  const handleCopyDiff = useCallback((content: string, key: string) => {
     navigator.clipboard.writeText(content);
-    setCopiedFile(path);
+    setCopiedFile(key);
     setTimeout(() => setCopiedFile(null), 2000);
-  };
+  }, []);
 
   if (!sessionId) {
     return (
@@ -251,6 +282,7 @@ export default function ReviewPanel({ sessionId, messageId, workspacePath, onSen
             <button
               onClick={fetchDiffs}
               disabled={loading}
+              aria-label="Refresh diffs"
               className="p-1.5 rounded-full hover:bg-muted transition-colors text-muted-foreground"
             >
               <RefreshCw size={14} className={cn(loading && 'animate-spin')} />
@@ -259,8 +291,41 @@ export default function ReviewPanel({ sessionId, messageId, workspacePath, onSen
         )}
       </div>
 
+      {/* Diff toolbar: search + status filter */}
+      {activeTab === 'diff' && diffs.length > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border/30">
+          <div className="flex items-center gap-1.5 flex-1 min-w-0 bg-muted/50 border border-border/50 rounded-lg px-2 py-1">
+            <Search size={13} className="text-muted-foreground shrink-0" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search files"
+              aria-label="Search files"
+              className="flex-1 min-w-0 bg-transparent text-xs focus:outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+          <div className="flex items-center gap-1 shrink-0" aria-label="Filter by status">
+            {(['all', 'create', 'modify'] as StatusFilter[]).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatusFilter(s)}
+                className={cn(
+                  'px-2 py-1 rounded-md text-[11px] font-medium transition-colors',
+                  statusFilter === s
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                )}
+              >
+                {s === 'all' ? 'All' : s === 'create' ? 'A' : 'M'}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Tab Content */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-hidden flex flex-col min-h-0">
         {activeTab === 'diff' ? (
           <>
             {diffs.length === 0 && !loading && (
@@ -268,100 +333,74 @@ export default function ReviewPanel({ sessionId, messageId, workspacePath, onSen
                 {t('noChangesDetected')}
               </div>
             )}
-            {diffs.map((diff) => {
-              const isExpanded = expandedFiles.has(diff.path);
-              const isLongExpanded = expandedLongDiffs.has(diff.path);
-              const fileName = diff.path.split('/').pop() || diff.path;
-              const rawDiff = !diff.isBinary ? computeUnifiedDiff(diff.original, diff.current, diff.path) : '';
-              const diffLines = rawDiff ? rawDiff.split('\n') : [];
-              const isLong = diffLines.length > MAX_VISIBLE_DIFF_LINES;
-              const visibleLines = isLong && !isLongExpanded ? diffLines.slice(0, MAX_VISIBLE_DIFF_LINES) : diffLines;
-
-              return (
-                <div key={diff.path} className="border-b border-border/30">
-                  <div className="w-full flex items-center justify-between px-4 py-2 text-sm hover:bg-muted/50 transition-colors">
-                    <button
-                      type="button"
-                      onClick={() => toggleFile(diff.path)}
-                      className="flex items-center gap-2 min-w-0 flex-1 text-left"
-                    >
-                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                      <span
-                        className={cn(
-                          'text-xs px-1.5 py-0.5 rounded font-mono shrink-0',
-                          diff.operation === 'create'
-                            ? 'bg-green-500/10 text-green-600'
-                            : 'bg-yellow-500/10 text-yellow-600',
-                        )}
-                      >
-                        {diff.operation === 'create' ? 'A' : 'M'}
-                      </span>
-                      <span className="text-muted-foreground truncate">{diff.path.replace(fileName, '')}</span>
-                      <span className="font-medium shrink-0">{fileName}</span>
-                    </button>
-
-                    {isExpanded && !diff.isBinary && (
-                      <button
-                        type="button"
-                        onClick={() => handleCopyDiff(rawDiff, diff.path)}
-                        title={t('copyDiff')}
-                        className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0 ml-2"
-                      >
-                        {copiedFile === diff.path ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
-                      </button>
-                    )}
-                  </div>
-
-                  {isExpanded && !diff.isBinary && (
-                    <div className="px-4 pb-3 space-y-1.5">
-                      <pre className="text-xs font-mono bg-muted/30 rounded-lg p-3 overflow-x-auto max-h-[400px] overflow-y-auto">
-                        {visibleLines.map((line, i) => (
-                          <div
-                            key={i}
-                            className={cn(
-                              'px-1',
-                              line.startsWith('+') &&
-                                !line.startsWith('+++') &&
-                                'bg-green-500/10 text-green-700 dark:text-green-400',
-                              line.startsWith('-') &&
-                                !line.startsWith('---') &&
-                                'bg-red-500/10 text-red-700 dark:text-red-400',
-                              line.startsWith('@@') && 'text-blue-500 font-semibold',
-                            )}
-                          >
-                            {line}
-                          </div>
-                        ))}
-                      </pre>
-
-                      {isLong && (
-                        <button
-                          type="button"
-                          onClick={() => toggleLongDiff(diff.path)}
-                          className="w-full flex items-center justify-center gap-1.5 text-xs text-primary/80 hover:text-primary py-1.5 rounded bg-muted/40 hover:bg-muted/70 transition-colors font-medium"
+            {diffs.length > 0 && filteredDiffs.length === 0 && !loading && (
+              <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                No files match your search.
+              </div>
+            )}
+            <div ref={parentRef} className="flex-1 overflow-auto">
+              {filteredDiffs.length > 0 &&
+                (useVirtual ? (
+                  <div style={{ height: `${totalSize}px`, position: 'relative' }}>
+                    {virtualItems.map((row) => {
+                      const diff = filteredDiffs[row.index];
+                      if (!diff) {
+                        return null;
+                      }
+                      return (
+                        <div
+                          key={row.key}
+                          data-index={row.index}
+                          ref={virtualizer.measureElement}
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            transform: `translateY(${row.start}px)`,
+                          }}
                         >
-                          {isLongExpanded ? (
-                            <>
-                              <ChevronUp size={13} />
-                              <span>{t('collapseLongDiff')}</span>
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown size={13} />
-                              <span>{t('expandLongDiff', { count: diffLines.length - MAX_VISIBLE_DIFF_LINES })}</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {isExpanded && diff.isBinary && (
-                    <div className="px-4 pb-3 text-xs text-muted-foreground italic">{t('binaryFileDiff')}</div>
-                  )}
-                </div>
-              );
-            })}
+                        <ReviewDiffRow
+                          diff={diff}
+                          rowKey={reviewRowKey(diff)}
+                          expanded={expandedFiles.has(reviewRowKey(diff))}
+                          longExpanded={expandedLongDiffs.has(reviewRowKey(diff))}
+                          copied={copiedFile === reviewRowKey(diff)}
+                          onToggle={toggleFile}
+                          onToggleLong={toggleLongDiff}
+                          onCopy={handleCopyDiff}
+                        />
+                      </div>
+                    );
+                  })}
+                  </div>
+                ) : (
+                  <div>
+                    {filteredDiffs.map((diff) => {
+                      const key = reviewRowKey(diff);
+                      return (
+                        <ReviewDiffRow
+                          key={key}
+                          diff={diff}
+                          rowKey={key}
+                          expanded={expandedFiles.has(key)}
+                          longExpanded={expandedLongDiffs.has(key)}
+                          copied={copiedFile === key}
+                          onToggle={toggleFile}
+                          onToggleLong={toggleLongDiff}
+                          onCopy={handleCopyDiff}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+            </div>
+            {filteredDiffs.length > 0 && (
+              <div className="px-4 py-1.5 text-[11px] text-muted-foreground border-t border-border/30 flex items-center gap-1">
+                <ChevronDown size={12} />
+                Showing {filteredDiffs.length} of {diffs.length} files
+              </div>
+            )}
           </>
         ) : (
           <MessagePreview chatId={sessionId} />

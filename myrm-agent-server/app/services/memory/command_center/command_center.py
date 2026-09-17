@@ -322,7 +322,7 @@ class MemoryCommandCenterService:
                                 importance=float(getattr(mem, "importance", 0.7) or 0.7),
                                 access_count=int(getattr(mem, "access_count", 1) or 1),
                                 char_count=char_len,
-                                is_pinned=bool(getattr(mem, "is_pinned", False)),
+                                is_pinned=bool(getattr(mem, "pinned", False)),
                             )
                         )
             except Exception as exc:

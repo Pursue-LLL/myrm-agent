@@ -50,6 +50,9 @@ def _to_change_info(c: FileChange) -> FileChangeInfo:
     )
 
 
+MAX_DIFF_CONTENT_BYTES = 512 * 1024
+
+
 class FileDiffItem(BaseModel):
     """Diff content for a single file: original vs current."""
 
@@ -58,6 +61,44 @@ class FileDiffItem(BaseModel):
     original: str | None = None
     current: str | None = None
     is_binary: bool = False
+    truncated: bool = False
+    additions: int = 0
+    deletions: int = 0
+
+
+def _diff_stats(original: str | None, current: str | None) -> tuple[int, int]:
+    import difflib
+
+    if not original and not current:
+        return 0, 0
+    additions = 0
+    deletions = 0
+    for line in difflib.unified_diff(
+        (original or "").splitlines(),
+        (current or "").splitlines(),
+        lineterm="",
+    ):
+        if line.startswith("+++") or line.startswith("---") or line.startswith("@@"):
+            continue
+        if line.startswith("+"):
+            additions += 1
+        elif line.startswith("-"):
+            deletions += 1
+    return additions, deletions
+
+
+def _is_oversized(original: str | None, current: str | None, file_path: Path | None = None) -> bool:
+    total = len((original or "").encode("utf-8", errors="ignore"))
+    total += len((current or "").encode("utf-8", errors="ignore"))
+    if total > MAX_DIFF_CONTENT_BYTES:
+        return True
+    try:
+        if file_path is not None and file_path.exists() and file_path.is_file():
+            if file_path.stat().st_size > MAX_DIFF_CONTENT_BYTES:
+                return True
+    except OSError:
+        pass
+    return False
 
 
 async def _hydrate_session(session_id: str) -> None:
@@ -112,29 +153,54 @@ async def get_message_diff(session_id: str, message_id: str) -> list[FileDiffIte
 
     diffs: list[FileDiffItem] = []
     for snap in snapshots:
-        current_content: str | None = None
-        is_binary = False
-
-        file_path = _snapshot_local_path(snap.path)
-        if file_path.exists():
-            try:
-                current_content = file_path.read_text(encoding="utf-8")
-            except UnicodeDecodeError:
-                is_binary = True
-            except OSError as e:
-                logger.warning("Cannot read file %s for diff: %s", snap.path, e)
-
-        diffs.append(
-            FileDiffItem(
-                path=snap.path,
-                operation=snap.operation.value,
-                original=snap.original_content,
-                current=current_content,
-                is_binary=is_binary,
-            )
-        )
+        diffs.append(_build_diff_item(snap.path, snap.operation.value, snap.original_content))
 
     return diffs
+
+
+def _read_current_safe(file_path: Path) -> tuple[str | None, bool]:
+    try:
+        if file_path.exists() and file_path.is_file():
+            try:
+                if file_path.stat().st_size > MAX_DIFF_CONTENT_BYTES:
+                    return None, False
+            except OSError:
+                pass
+            return file_path.read_text(encoding="utf-8"), False
+    except UnicodeDecodeError:
+        return None, True
+    except OSError as e:
+        logger.warning("Cannot read file for diff: %s", e)
+    return None, False
+
+
+def _build_diff_item(path: str, operation: str, original: str | None) -> FileDiffItem:
+    file_path = _snapshot_local_path(path)
+    current_content, is_binary = _read_current_safe(file_path) if file_path.exists() else (None, False)
+    if is_binary:
+        return FileDiffItem(path=path, operation=operation, original=None, current=None, is_binary=True)
+    if _is_oversized(original, current_content, file_path):
+        return FileDiffItem(
+            path=path,
+            operation=operation,
+            original=None,
+            current=None,
+            is_binary=False,
+            truncated=True,
+            additions=0,
+            deletions=0,
+        )
+    additions, deletions = _diff_stats(original, current_content)
+    return FileDiffItem(
+        path=path,
+        operation=operation,
+        original=original,
+        current=current_content,
+        is_binary=False,
+        truncated=False,
+        additions=additions,
+        deletions=deletions,
+    )
 
 
 @router.get("/diff/{session_id}")
@@ -146,30 +212,9 @@ async def get_session_diff(session_id: str) -> dict[str, list[FileDiffItem]]:
 
     result: dict[str, list[FileDiffItem]] = {}
     for msg_id, snapshots in session_snaps.items():
-        diffs: list[FileDiffItem] = []
-        for snap in snapshots:
-            current_content: str | None = None
-            is_binary = False
-
-            file_path = _snapshot_local_path(snap.path)
-            if file_path.exists():
-                try:
-                    current_content = file_path.read_text(encoding="utf-8")
-                except UnicodeDecodeError:
-                    is_binary = True
-                except OSError:
-                    pass
-
-            diffs.append(
-                FileDiffItem(
-                    path=snap.path,
-                    operation=snap.operation.value,
-                    original=snap.original_content,
-                    current=current_content,
-                    is_binary=is_binary,
-                )
-            )
-        result[msg_id] = diffs
+        result[msg_id] = [
+            _build_diff_item(snap.path, snap.operation.value, snap.original_content) for snap in snapshots
+        ]
 
     return result
 

@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { Plus, Layout } from 'lucide-react';
+import { Plus, Layout, FileDiff, X } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -33,6 +33,7 @@ export default function WorkspaceLayout() {
   const chatHistory = useChatStore((s) => s.chatHistoryItems);
   const loadChatHistory = useChatStore((s) => s.loadChatHistory);
   const setInputMessage = useChatStore((s) => s.setInputMessage);
+  const [reviewOpenMobile, setReviewOpenMobile] = useState(false);
 
   const handleSendFeedback = useCallback(
     (chatId: string, feedback: string) => {
@@ -63,6 +64,19 @@ export default function WorkspaceLayout() {
           </div>
           <div className="flex items-center gap-3">
             <ActiveSessionsBar />
+            {panes.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setReviewOpenMobile(true)}
+                className="gap-2 rounded-lg lg:hidden"
+                aria-label="Open review panel"
+              >
+                <FileDiff size={16} />
+                Review
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -119,6 +133,41 @@ export default function WorkspaceLayout() {
             workspacePath={activePane?.snapshot?.agentConfig?.projectDir ?? null}
             onSendFeedback={handleSendFeedback}
           />
+        </div>
+      )}
+
+      {/* Mobile: Review Drawer */}
+      {reviewOpenMobile && panes.length > 0 && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Review changes">
+          <button
+            type="button"
+            aria-label="Close review"
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm cursor-default"
+            onClick={() => setReviewOpenMobile(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 top-12 rounded-t-2xl border-t border-border bg-background shadow-xl flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50">
+              <span className="text-sm font-semibold">Review changes</span>
+              <button
+                type="button"
+                onClick={() => setReviewOpenMobile(false)}
+                aria-label="Close review panel"
+                className="p-1.5 rounded-full hover:bg-muted transition-colors text-muted-foreground"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0">
+              <ReviewPanel
+                sessionId={activePane?.chatId ?? null}
+                workspacePath={activePane?.snapshot?.agentConfig?.projectDir ?? null}
+                onSendFeedback={(chatId, feedback) => {
+                  setReviewOpenMobile(false);
+                  handleSendFeedback(chatId, feedback);
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

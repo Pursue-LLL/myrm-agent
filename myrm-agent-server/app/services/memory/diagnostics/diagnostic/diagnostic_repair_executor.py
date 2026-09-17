@@ -118,7 +118,7 @@ class MemoryDiagnosticRepairExecutor:
                     try:
                         items = await self._memory_manager.list_memories(mtype, limit=100)
                         for item in items:
-                            if getattr(item, "is_pinned", False):
+                            if getattr(item, "pinned", False):
                                 preserved_pinned_count += 1
                                 continue
                             item_id = str(getattr(item, "id", "") or "")

@@ -16,6 +16,7 @@ Verification Plane helper — unblocks verify-api during parallel E2E without st
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -40,6 +41,8 @@ SEED_CAP_RETRY_BACKOFF_SEC: Final[float] = 5.0
 SEED_PARALLEL_CAP_RETRY_BACKOFF_SEC: Final[float] = 2.0
 SEED_CAP_MAX_ATTEMPTS: Final[int] = 2
 SEED_PROGRESS_EMIT_INTERVAL_SEC: Final[float] = 10.0
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -279,7 +282,13 @@ def _provider_ready(api_base: str) -> bool:
             data = json.loads(resp.read())
             provider = data.get("provider") if isinstance(data, dict) else None
             return isinstance(provider, dict) and bool(provider.get("is_ready"))
-    except (OSError, TimeoutError, urllib.error.URLError, ValueError, json.JSONDecodeError):
+    except (
+        OSError,
+        TimeoutError,
+        urllib.error.URLError,
+        ValueError,
+        json.JSONDecodeError,
+    ):
         return False
 
 
@@ -292,9 +301,17 @@ def _retrieval_ready(api_base: str) -> bool:
             val = data.get("value") if isinstance(data, dict) else data
             if isinstance(val, dict) and val.get("embeddingConfig"):
                 cfg = val.get("embeddingConfig")
-                return isinstance(cfg, dict) and bool(cfg.get("apiKey") and cfg.get("model"))
+                return isinstance(cfg, dict) and bool(
+                    cfg.get("apiKey") and cfg.get("model")
+                )
             return False
-    except (OSError, TimeoutError, urllib.error.URLError, ValueError, json.JSONDecodeError):
+    except (
+        OSError,
+        TimeoutError,
+        urllib.error.URLError,
+        ValueError,
+        json.JSONDecodeError,
+    ):
         return False
 
 
@@ -307,7 +324,9 @@ def ensure_verify_backend_providers(*, api_base: str, monorepo: Path) -> bool:
     env_test = monorepo / "myrm-agent" / "myrm-agent-server" / ".env.test"
     if not env_test.is_file():
         env_test = monorepo / ".env.test"
-    seed_script = monorepo / "myrm-agent" / "scripts" / "dev" / "chrome-e2e-model-seed.mjs"
+    seed_script = (
+        monorepo / "myrm-agent" / "scripts" / "dev" / "chrome-e2e-model-seed.mjs"
+    )
     if not seed_script.is_file():
         return False
 
@@ -351,6 +370,7 @@ def _reapable_reuse_candidate(
     owner_ttl_sec: float,
     active_phases: frozenset[str],
     warm_pool_ids: set[str] | None = None,
+    owner_alive: bool | None = None,
 ) -> bool:
     """A backend-only runtime this session may adopt.
 
@@ -363,9 +383,10 @@ def _reapable_reuse_candidate(
       heartbeat refresh below.
     * Pool ownership — ids still tracked by the SHPOIB warm pool are excluded, so
       its borrow/release lifecycle stays single-borrower.
-    * Liveness — a heartbeat inside the owner TTL means the creating session is
-      still active, and its token stays authoritative for that session's
-      lifetime. A lapsed heartbeat is what marks the record as abandoned.
+    * Abandonment — the creating session must have stopped keeping the record
+      alive. A dead ``ownerPid`` proves that. A heartbeat that lapsed past the
+      owner TTL proves it too, and is what covers pid reuse, where the pid now
+      belongs to an unrelated process. Either signal alone is sufficient.
     """
     if not record.get("backendOnly") or record.get("reapable") is not False:
         return False
@@ -379,7 +400,8 @@ def _reapable_reuse_candidate(
     heartbeat = record.get("heartbeatAt")
     if not isinstance(heartbeat, (int, float)):
         return False
-    if time.time() - heartbeat <= owner_ttl_sec:
+    heartbeat_lapsed = time.time() - heartbeat > owner_ttl_sec
+    if owner_alive is not False and not heartbeat_lapsed:
         return False
     try:
         backend_port = int(record.get("backendPort") or 0)
@@ -415,6 +437,22 @@ def _warm_pool_owned_runtime_ids() -> set[str]:
     }
 
 
+def _owner_alive(record: dict[str, object]) -> bool:
+    """Whether the session that created this record is still running.
+
+    ``abandoned verify-api`` records were observed to stall capacity for the
+    whole 1800s owner TTL after their creating process died — the window where a
+    heartbeat is fresh but nothing will ever refresh it again. Checking the pid
+    shortens that window to the time it takes the owner to exit.
+    """
+    from isolated_runtime.registry import process_is_alive
+
+    try:
+        return process_is_alive(int(record.get("ownerPid") or 0))
+    except (TypeError, ValueError):
+        return False
+
+
 def _reusable_verify_backend() -> VerifyBackendSeedResult | None:
     """Adopt a live, orphaned backend-only runtime instead of spawning another.
 
@@ -446,6 +484,7 @@ def _reusable_verify_backend() -> VerifyBackendSeedResult | None:
                 owner_ttl_sec=DEFAULT_OWNER_TTL_SEC,
                 active_phases=ACTIVE_PHASES,
                 warm_pool_ids=warm_pool_ids,
+                owner_alive=_owner_alive(record),
             )
         ),
         key=lambda record: float(record["heartbeatAt"]),
@@ -455,8 +494,10 @@ def _reusable_verify_backend() -> VerifyBackendSeedResult | None:
     for record in candidates:
         api_base = f"http://127.0.0.1:{int(record['backendPort'])}"
         if not _health_ok(api_base):
+            _reclaim_unreusable_backend(record)
             continue
         if _health_source_fingerprint(api_base) != _backend_source_fingerprint():
+            _reclaim_unreusable_backend(record)
             continue
         result = VerifyBackendSeedResult(
             ok=True,
@@ -469,6 +510,43 @@ def _reusable_verify_backend() -> VerifyBackendSeedResult | None:
             return result
         best = best or result
     return best
+
+
+def _reclaim_unreusable_backend(record: dict[str, object]) -> None:
+    """Free an abandoned backend that no future borrower can reuse.
+
+    A ``verify-api-*`` backend serves borrowers only while its source fingerprint
+    matches the workspace epoch. Once the code moves on, an abandoned backend can
+    never be adopted again — yet as a ``reapable=False`` runtime it keeps counting
+    against active capacity until its 1800s owner TTL lapses. Measured: two such
+    records held 2/4 of the cap for ~28 min after their owners exited, and a
+    larger backlog parks later seeds in ``capacity_wait``.
+
+    Only a *dead* owner is reclaimed. A record whose heartbeat merely lapsed is
+    left to the reaper: a recycled pid proves neither liveness nor death, so
+    acting on it could tear down a session that is still working.
+    """
+    from isolated_runtime.reaper import release_runtime
+    from isolated_runtime.registry import process_is_alive
+
+    try:
+        owner_pid = int(record.get("ownerPid") or 0)
+    except (TypeError, ValueError):
+        return
+    if process_is_alive(owner_pid):
+        return
+    runtime_id = str(record.get("runtimeId") or "")
+    owner_token = str(record.get("ownerToken") or "")
+    if not runtime_id or not owner_token:
+        return
+    try:
+        release_runtime(runtime_id, owner_token)
+        logger.info(
+            "verify-api reclaimed unreusable backend %s (stale epoch, owner exited)",
+            runtime_id,
+        )
+    except Exception:
+        logger.warning("verify-api reclaim failed for %s", runtime_id, exc_info=True)
 
 
 def _adopt_orphan_heartbeat(record: dict[str, object]) -> None:
@@ -620,9 +698,7 @@ def _spawn_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
         {
             "MYRM_SUPERVISOR_BYPASS": "1",
             "MYRM_WAVE_GATE_BYPASS": "1",
-            "MYRM_BACKEND_HEALTH_WAIT_SEC": str(
-                min(120, _seed_spawn_timeout_sec())
-            ),
+            "MYRM_BACKEND_HEALTH_WAIT_SEC": str(min(120, _seed_spawn_timeout_sec())),
             "MYRM_BACKEND_ENSURING_HEALTH_SEC": str(
                 min(120, _seed_spawn_timeout_sec())
             ),

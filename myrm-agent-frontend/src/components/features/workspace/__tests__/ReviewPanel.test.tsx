@@ -120,4 +120,40 @@ describe('ReviewPanel Component', () => {
     fireEvent.click(screen.getByText('Collapse long diff'));
     expect(screen.getByText(/Show \d+ more lines/)).toBeInTheDocument();
   });
+
+  it('keeps same-path rows from different messages independent', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        msg1: [
+          {
+            path: 'src/shared.ts',
+            operation: 'modify',
+            original: 'aaa\n',
+            current: 'aab\n',
+            isBinary: false,
+          },
+        ],
+        msg2: [
+          {
+            path: 'src/shared.ts',
+            operation: 'modify',
+            original: 'aab\n',
+            current: 'aac\n',
+            isBinary: false,
+          },
+        ],
+      }),
+    } as Response);
+
+    render(<ReviewPanel sessionId="session-123" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('shared.ts')).toHaveLength(2);
+    });
+
+    // Expand only the first row; the second must stay collapsed (no second copy button).
+    fireEvent.click(screen.getAllByText('shared.ts')[0]);
+    expect(screen.getAllByTitle('Copy diff')).toHaveLength(1);
+  });
 });
