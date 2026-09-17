@@ -1,4 +1,18 @@
-"""Schemas for Tool Guidance operations and governance."""
+"""Schemas for Tool Guidance operations and governance.
+
+[INPUT]
+- pydantic::BaseModel (POS: Validation and serialization foundation)
+
+[OUTPUT]
+- ToolGuidanceItemDTO: Data transfer object for individual tool guidance rule
+- ToolGuidanceGroupDTO: Data transfer object grouping synthesized guidelines and items by tool
+- ToolGuidanceResponseDTO: Top-level API response DTO for tool guidance listing
+- ToolGuidancePinRequestDTO: Request DTO for pinning/unpinning a tool rule
+
+[POS]
+Tool memory governance schema layer. Defines HTTP request and response DTOs
+for tool-level behavioral rules and dynamic guidelines.
+"""
 
 from __future__ import annotations
 

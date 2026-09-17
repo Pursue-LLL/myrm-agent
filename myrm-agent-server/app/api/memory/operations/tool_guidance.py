@@ -1,4 +1,17 @@
-"""Tool Guidance API endpoints for observing and governing tool evolution."""
+"""Tool Guidance API endpoints for observing and governing tool evolution.
+
+[INPUT]
+- myrm_agent_harness.toolkits.memory::MemoryManager (POS: Core memory manager)
+- myrm_agent_harness.toolkits.memory::synthesize_tool_guidance (POS: Tool memory guidance synthesizer)
+- app.schemas.memory.tool_guidance::* (POS: Tool memory governance schema layer)
+
+[OUTPUT]
+- router: APIRouter exposing GET /tool-guidance, POST /tool-guidance/pin, DELETE /tool-guidance/{rule_id}
+
+[POS]
+Tool memory governance endpoint layer. Bridges harness tool experience synthesizers
+to client UI and provides pin/unpin/delete capabilities.
+"""
 
 from __future__ import annotations
 

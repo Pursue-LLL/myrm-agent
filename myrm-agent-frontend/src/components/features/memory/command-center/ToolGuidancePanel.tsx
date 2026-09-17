@@ -99,13 +99,13 @@ export const ToolGuidancePanel: React.FC<ToolGuidancePanelProps> = ({ className 
           </div>
           <div>
             <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-              工具自适应规约与经验沉淀
+              工具使用指南与自适应避坑
               <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                ReMe 引擎
+                智能自适应
               </span>
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              自动捕获执行异常与自愈反馈，收敛为确定性 Golden Guidelines 并动态挂载
+              自动沉淀工具调用踩坑经验，智能生成避坑指南并在调用时自动生效
             </p>
           </div>
         </div>
@@ -113,7 +113,7 @@ export const ToolGuidancePanel: React.FC<ToolGuidancePanelProps> = ({ className 
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <div className="flex items-center gap-3 text-xs text-muted-foreground mr-2">
             <span>活跃工具: <strong className="text-foreground">{totalTools}</strong></span>
-            <span>沉淀经验: <strong className="text-foreground">{totalRules}</strong></span>
+            <span>避坑经验: <strong className="text-foreground">{totalRules}</strong></span>
           </div>
           <button
             type="button"
@@ -138,8 +138,8 @@ export const ToolGuidancePanel: React.FC<ToolGuidancePanelProps> = ({ className 
       {tools.length === 0 && !isLoading ? (
         <div className="py-12 text-center text-muted-foreground space-y-2">
           <ShieldCheck className="mx-auto h-10 w-10 text-muted-foreground/50" />
-          <p className="text-sm font-medium">暂无工具自愈规约记录</p>
-          <p className="text-xs text-muted-foreground">当模型调用工具遭遇环境异常并自愈后，将自动在此沉淀黄金指南</p>
+          <p className="text-sm font-medium">暂无工具避坑经验</p>
+          <p className="text-xs text-muted-foreground">当 Agent 调用工具遇到环境异常并自动修复后，将自动在此沉淀使用指南</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -181,10 +181,10 @@ export const ToolGuidancePanel: React.FC<ToolGuidancePanelProps> = ({ className 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
                       <Sparkles className="h-3.5 w-3.5" />
-                      <span>已收敛的黄金指南 (JIT Prompt 注入上限 3 条)</span>
+                      <span>生效中的避坑指南 (单工具至多精选 3 条)</span>
                     </div>
                     <span className="text-[10px] text-muted-foreground font-mono">
-                      Cache-Stable 字母序排序
+                      严格防遗忘排序
                     </span>
                   </div>
                   {activeGroup.guidelines.length > 0 ? (
@@ -197,16 +197,17 @@ export const ToolGuidancePanel: React.FC<ToolGuidancePanelProps> = ({ className 
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-xs text-muted-foreground italic">未达到收敛阈值，暂未生成黄金指南</p>
+                    <p className="text-xs text-muted-foreground italic">暂无生效指南，将在工具执行中自动提炼</p>
                   )}
                 </div>
 
                 {/* Granular Rules Table */}
                 <div className="space-y-2">
                   <div className="text-xs font-medium text-foreground flex items-center justify-between">
-                    <span>沉淀的规则明细</span>
+                    <span>工具经验明细</span>
                     <span className="text-[10px] text-muted-foreground">共 {activeGroup.items.length} 条记录</span>
                   </div>
+
 
                   <div className="space-y-2">
                     {activeGroup.items.map((item) => (
