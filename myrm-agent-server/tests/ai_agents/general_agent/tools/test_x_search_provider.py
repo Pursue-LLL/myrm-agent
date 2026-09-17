@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
-
 from app.ai_agents.general_agent.tools.x_search_provider import (
     XSearchProvider,
     XSearchProviderConfig,

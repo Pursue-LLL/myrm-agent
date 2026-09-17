@@ -23,7 +23,7 @@ from app.schemas.memory.radar import (
 )
 from app.services.memory.preference_radar_service import preference_radar_service
 
-router = APIRouter(prefix="/memory/radar", tags=["memory-radar"])
+router = APIRouter(prefix="/radar", tags=["memory-radar"])
 
 
 @router.get("/{session_id}", response_model=PreferenceRadarStateResponse)

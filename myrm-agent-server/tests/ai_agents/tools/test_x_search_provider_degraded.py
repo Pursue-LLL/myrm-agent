@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 import pytest
-
 from app.ai_agents.general_agent.tools.x_search_provider import XSearchProvider, XSearchProviderConfig
 
 

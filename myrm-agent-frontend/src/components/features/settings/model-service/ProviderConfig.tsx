@@ -409,7 +409,11 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
       <EgressProxyConfig
         value={provider.egressProxy ?? ''}
         onChange={handleEgressProxyChange}
-        targetUrl={provider.apiUrl || undefined}
+        targetUrl={
+          provider.apiUrl ||
+          BUILT_IN_PROVIDER_INFO[provider.id as keyof typeof BUILT_IN_PROVIDER_INFO]?.defaultApiUrl ||
+          undefined
+        }
       />
 
       {provider.id === 'opencode_go' && providerHasEnabledContributorModel(provider.id, provider.enabledModels) && (

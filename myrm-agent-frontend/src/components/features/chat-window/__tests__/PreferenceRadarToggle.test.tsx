@@ -65,4 +65,36 @@ describe('PreferenceRadarToggle', () => {
       expect(screen.queryByTestId('preference-radar-drawer')).toBeNull();
     });
   });
+
+  it('handles API error gracefully and falls back to default values without crashing', async () => {
+    const { getPreferenceRadarState } = await import('@/services/memory/preferences');
+    vi.mocked(getPreferenceRadarState).mockRejectedValueOnce(new Error('Network error 500'));
+
+    await act(async () => {
+      render(<PreferenceRadarToggle chatId="session-error" />);
+    });
+
+    const toggleBtn = screen.getByTestId('preference-radar-toggle-button');
+    expect(toggleBtn).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(toggleBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('preference-radar-drawer')).toBeInTheDocument();
+    });
+  });
+
+  it('refetches preference state when chatId changes (session switch)', async () => {
+    const { getPreferenceRadarState } = await import('@/services/memory/preferences');
+
+    const { rerender } = render(<PreferenceRadarToggle chatId="session-a" />);
+    expect(getPreferenceRadarState).toHaveBeenCalledWith('session-a');
+
+    rerender(<PreferenceRadarToggle chatId="session-b" />);
+    await waitFor(() => {
+      expect(getPreferenceRadarState).toHaveBeenCalledWith('session-b');
+    });
+  });
 });

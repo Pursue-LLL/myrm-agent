@@ -128,3 +128,107 @@ async def test_persistence_and_cold_boot_recovery(tmp_path: object, monkeypatch:
     assert "importance" in weights
     assert weights["importance"] > 0
 
+
+@pytest.mark.asyncio
+async def test_multi_session_isolation(radar_service: PreferenceRadarService) -> None:
+    """Verify session A and session B maintain completely isolated preference states."""
+    session_a = "session-iso-a"
+    session_b = "session-iso-b"
+
+    await radar_service.update_state(
+        session_a,
+        UpdatePreferenceRadarRequest(recency=2.6, technical_depth=2.4, locked=True),
+    )
+
+    state_b = await radar_service.get_state(session_b)
+    assert state_b.recency == 1.0
+    assert state_b.technical_depth == 1.0
+    assert state_b.locked is False
+
+    state_a = await radar_service.get_state(session_a)
+    assert state_a.recency == 2.6
+    assert state_a.technical_depth == 2.4
+    assert state_a.locked is True
+
+
+@pytest.mark.asyncio
+async def test_concurrent_updates_thread_safety(radar_service: PreferenceRadarService) -> None:
+    """Verify concurrent updates from multiple tasks do not corrupt radar state."""
+    import asyncio
+
+    session_id = "session-concurrent-01"
+
+    async def update_dim(depth: float) -> None:
+        await radar_service.update_state(
+            session_id,
+            UpdatePreferenceRadarRequest(technical_depth=depth),
+        )
+
+    tasks = [update_dim(1.0 + i * 0.1) for i in range(10)]
+    await asyncio.gather(*tasks)
+
+    final_state = await radar_service.get_state(session_id)
+    assert 1.0 <= final_state.technical_depth <= 3.0
+
+
+@pytest.mark.asyncio
+async def test_corrupted_storage_fallback_graceful(tmp_path: object, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify corrupt/malformed JSON in storage recovers gracefully to baseline without crashing."""
+    storage_file = Path(str(tmp_path) + "/corrupt_radar.json")
+    storage_file.write_text("MALFORMED_JSON_CONTENT{{{", encoding="utf-8")
+
+    monkeypatch.setattr(
+        PreferenceRadarService,
+        "_resolve_storage_file",
+        lambda self: storage_file,
+    )
+
+    srv = PreferenceRadarService()
+    state = await srv.get_state("session-recover-01")
+    assert state.recency == 1.0
+    assert state.actionability == 1.0
+    assert state.locked is False
+
+
+def test_radar_http_router_endpoints() -> None:
+    """End-to-end HTTP contract test verifying API routing and status codes via FastAPI."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.api.memory.router import router as memory_router
+
+    test_app = FastAPI()
+    test_app.include_router(memory_router, prefix="/api/v1/memory")
+    client = TestClient(test_app)
+
+    session_id = "http-e2e-session"
+
+    # 1. GET initial state
+    resp_get = client.get(f"/api/v1/memory/radar/{session_id}")
+    assert resp_get.status_code == 200
+    get_json = resp_get.json()
+    assert get_json["session_id"] == session_id
+    assert get_json["recency"] == 1.0
+    assert get_json["locked"] is False
+
+    # 2. POST tune
+    resp_tune = client.post(
+        f"/api/v1/memory/radar/{session_id}/tune",
+        json={"recency": 2.2, "locked": True},
+    )
+    assert resp_tune.status_code == 200
+    tune_json = resp_tune.json()
+    assert tune_json["recency"] == 2.2
+    assert tune_json["locked"] is True
+
+    # 3. POST feedback (locked -> preserves weights)
+    resp_fb = client.post(
+        f"/api/v1/memory/radar/{session_id}/feedback",
+        json={"action": "more_code", "raw_prompt": "more code"},
+    )
+    assert resp_fb.status_code == 200
+    fb_json = resp_fb.json()
+    assert fb_json["recency"] == 2.2
+
+
+
