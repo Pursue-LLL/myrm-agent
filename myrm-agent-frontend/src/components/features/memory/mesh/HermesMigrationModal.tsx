@@ -103,8 +103,8 @@ export const HermesMigrationModal: React.FC<HermesMigrationModalProps> = ({
             Import from Hermes or OpenViking
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Paste raw Markdown (with optional frontmatter) or JSON exported from Hermes or OpenViking.
-            Memory domains and L0/L1 progressive tiers will be losslessly inferred.
+            Paste raw Markdown (with optional frontmatter) or JSON exported from Hermes or other agents.
+            Items will be automatically categorized into preferences and workflows while preserving all historical notes.
           </DialogDescription>
         </DialogHeader>
 

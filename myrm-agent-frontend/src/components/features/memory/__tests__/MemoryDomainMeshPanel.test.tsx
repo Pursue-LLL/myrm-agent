@@ -108,7 +108,7 @@ describe('MemoryDomainMeshPanel', () => {
     fireEvent.click(screen.getByText('Dark mode user preference'));
 
     await waitFor(() => {
-      expect(screen.getByText('Progressive Memory Drill-Down')).toBeInTheDocument();
+      expect(screen.getByText('Memory Details & Traceability')).toBeInTheDocument();
       expect(
         screen.getByText('Full verbatim text of the dark mode preference item.')
       ).toBeInTheDocument();

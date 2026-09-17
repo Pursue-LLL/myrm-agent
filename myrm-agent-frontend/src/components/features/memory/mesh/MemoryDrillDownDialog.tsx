@@ -84,7 +84,7 @@ export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({
         <DialogHeader>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            Progressive Memory Drill-Down
+            Memory Details & Traceability
           </div>
           <DialogTitle className="text-base font-semibold leading-snug">
             {detail?.l0 || (loading ? 'Loading memory details...' : 'Memory Not Found')}
@@ -117,21 +117,21 @@ export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({
           </div>
         ) : detail ? (
           <div className="flex flex-1 flex-col gap-4 overflow-y-auto pr-1 text-xs">
-            {/* L1 Overview */}
+            {/* Summary */}
             {detail.l1 && (
               <div className="rounded-lg border border-border/60 bg-accent/20 p-3">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                  L1 Overview (Digest)
+                  Key Summary
                 </div>
                 <p className="text-foreground/90 leading-relaxed">{detail.l1}</p>
               </div>
             )}
 
-            {/* L2 Full Verbatim Body */}
+            {/* Full Body */}
             <div className="flex flex-1 flex-col rounded-lg border border-border/80 bg-muted/30 p-3">
               <div className="flex items-center justify-between pb-2 border-b border-border/40">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  L2 Verbatim Ground Truth & Evidence
+                  Full Content
                 </span>
                 <button
                   type="button"
@@ -151,14 +151,14 @@ export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({
                   )}
                 </button>
               </div>
-              <pre className="mt-2 flex-1 whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-foreground/90 break-all">
+              <pre className="mt-2 max-h-[48vh] overflow-y-auto whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-foreground/90 break-all pr-1">
                 {detail.l2_content}
               </pre>
             </div>
           </div>
         ) : (
           <div className="p-8 text-center text-xs text-muted-foreground">
-            Unable to load verbatim details for memory ID {memoryId}.
+            Unable to load details for memory ID {memoryId}.
           </div>
         )}
       </DialogContent>
