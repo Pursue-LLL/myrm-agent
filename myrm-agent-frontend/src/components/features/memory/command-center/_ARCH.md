@@ -16,6 +16,8 @@
 | `MemoryRecallBoundaryPanel.tsx`       | 辅助 | 召回边界面板：注入预算与截断披露                                     | ✅    |
 | `CognitiveClockPanel.tsx`             | 核心 | 多频认知时钟状态面板：T0-T3 状态指示、前台打字让步指示与手动提炼     | ✅    |
 | `MemoryEconomicsPanel.tsx`            | 核心 | 长程有状态任务记忆经济学剖析面板：三阶段开销、ROI 轨迹与沉睡治理     | ✅    |
+| `MemoryEconomicsKpiCards.tsx`         | 辅助 | 经济学面板指标卡片子组件：三阶段时延细分、前缀缓存保持率与 ROI       | ✅    |
+| `MemoryParasiticGovernanceList.tsx`   | 辅助 | 经济学面板沉睡治理子组件：低效沉睡记忆列表、单条与批量归档操作       | ✅    |
 
 
 ## 依赖

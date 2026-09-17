@@ -3,6 +3,8 @@
 /**
  * [INPUT]
  * @/services/memory/commandCenter::getMemoryEconomics (POS: 记忆命令中心经济学数据接口与契约)
+ * ./MemoryEconomicsKpiCards::MemoryEconomicsKpiCards (POS: 4 大核心 KPI 指标卡片与三阶段细分占比)
+ * ./MemoryParasiticGovernanceList::MemoryParasiticGovernanceList (POS: 低效沉睡记忆治理池与归档交互)
  *
  * [OUTPUT]
  * MemoryEconomicsPanel: Interactive long-horizon memory economics profiler dashboard.
@@ -14,20 +16,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Activity,
-  AlertTriangle,
-  Archive,
-  Check,
   CheckCircle2,
-  Cpu,
-  DollarSign,
-  Gauge,
   HelpCircle,
   Layers,
   RefreshCw,
   Sparkles,
   TrendingUp,
-  X,
-  Zap,
 } from 'lucide-react';
 
 import {
@@ -37,6 +31,8 @@ import {
   type MemoryCommandParasiticMemory,
 } from '@/services/memory/commandCenter';
 import { cn } from '@/lib/utils/classnameUtils';
+import { MemoryEconomicsKpiCards } from './MemoryEconomicsKpiCards';
+import { MemoryParasiticGovernanceList } from './MemoryParasiticGovernanceList';
 
 interface MemoryEconomicsPanelProps {
   className?: string;
@@ -168,14 +164,6 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
   const savings = parasitic.length > 0 ? dynamicSavingsUsd : 0;
   const recommendations = dashboard?.recommendations || [];
 
-  const retrievalMs = cost?.retrieval_ms ?? 0;
-  const constructionMs = cost?.construction_ms ?? 0;
-  const injectionMs = cost?.injection_overhead_ms ?? 0;
-  const totalPhaseMs = retrievalMs + constructionMs + injectionMs;
-  const retrievalPct = totalPhaseMs > 0 ? Math.round((retrievalMs / totalPhaseMs) * 100) : 100;
-  const constructionPct = totalPhaseMs > 0 ? Math.round((constructionMs / totalPhaseMs) * 100) : 0;
-  const injectionPct = totalPhaseMs > 0 ? Math.max(0, 100 - retrievalPct - constructionPct) : 0;
-
   const getRoiBadge = (grade: string | undefined) => {
     switch (grade) {
       case 'optimal':
@@ -201,27 +189,27 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
     }
   };
 
-  const badge = getRoiBadge(cost?.roi_grade);
+  const roiBadge = getRoiBadge(cost?.roi_grade);
 
   return (
-    <div className={cn('flex flex-col gap-6 p-4 sm:p-6 rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm', className)}>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/40">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-primary/10 text-primary">
-              <TrendingUp className="w-5 h-5" />
-            </span>
-            <h3 className="text-base sm:text-lg font-semibold tracking-tight text-foreground">
-              长程记忆经济学剖析看板
-            </h3>
-            <span className={cn('px-2.5 py-0.5 text-xs font-semibold rounded-full border', badge.color)}>
-              ROI {badge.label}
-            </span>
+    <div className={cn('p-5 sm:p-6 rounded-2xl border border-border/60 bg-card/30 backdrop-blur-sm flex flex-col gap-6', className)}>
+      {/* Header with Title and ROI Grade */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/40 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+            <TrendingUp className="w-5 h-5" />
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            拆解构建、检索与注入三阶段耗时，监督长程会话召回 ROI 与提示词前缀缓存对齐。
-          </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-semibold text-foreground">长程记忆经济学剖析器</h3>
+              <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium border', roiBadge.color)}>
+                ROI: {roiBadge.label}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              长程有状态任务开销拆解 · 检索/构建/注入三阶段时延与沉睡记忆精细化治理
+            </p>
+          </div>
         </div>
 
         <button
@@ -245,125 +233,11 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
       )}
 
       {/* Top 4 Metric KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Metric 1: Three-Phase Latency */}
-        <div className="p-4 rounded-xl border border-border/40 bg-background/50 flex flex-col gap-2">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5 font-medium">
-              <Zap className="w-3.5 h-3.5 text-amber-500" />
-              检索阶段时延
-            </span>
-            <span>平均</span>
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              {retrievalMs}
-            </span>
-            <span className="text-xs text-muted-foreground">ms</span>
-          </div>
-          <div className="text-[11px] text-muted-foreground/80 flex items-center justify-between">
-            <span>后台构建: {constructionMs} ms</span>
-            <span>注入开销: {injectionMs} ms</span>
-          </div>
-          {totalPhaseMs > 0 && (
-            <div className="flex flex-col gap-1 pt-1 border-t border-border/20">
-              <div className="h-1.5 w-full rounded-full overflow-hidden flex bg-muted/60">
-                <div
-                  className="bg-amber-500 transition-all duration-300"
-                  style={{ width: `${retrievalPct}%` }}
-                  title={`检索: ${retrievalPct}%`}
-                />
-                <div
-                  className="bg-sky-500 transition-all duration-300"
-                  style={{ width: `${constructionPct}%` }}
-                  title={`构建: ${constructionPct}%`}
-                />
-                <div
-                  className="bg-indigo-500 transition-all duration-300"
-                  style={{ width: `${injectionPct}%` }}
-                  title={`注入: ${injectionPct}%`}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                  检索 {retrievalPct}%
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-                  构建 {constructionPct}%
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                  注入 {injectionPct}%
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Metric 2: Cache Preservation */}
-        <div className="p-4 rounded-xl border border-border/40 bg-background/50 flex flex-col gap-2">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5 font-medium">
-              <Cpu className="w-3.5 h-3.5 text-blue-500" />
-              前缀缓存保持率
-            </span>
-            <span>Cache</span>
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              {Math.round((cost?.cache_preservation_score ?? 1) * 100)}%
-            </span>
-            <span className="text-xs text-muted-foreground">保持率</span>
-          </div>
-          <div className="text-[11px] text-muted-foreground/80">
-            {cost?.cache_friendly ? '前缀对齐良好，命中最大化' : '提示词前缀需进一步对齐'}
-          </div>
-        </div>
-
-        {/* Metric 3: Effective Recall ROI */}
-        <div className="p-4 rounded-xl border border-border/40 bg-background/50 flex flex-col gap-2">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5 font-medium">
-              <Gauge className="w-3.5 h-3.5 text-emerald-500" />
-              记忆召回有效 ROI
-            </span>
-            <span>利用率</span>
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              {cost?.roi_percentage ?? 0}%
-            </span>
-            <span className="text-xs text-muted-foreground">有效转化</span>
-          </div>
-          <div className="text-[11px] text-muted-foreground/80">
-            引用 Tokens: {cost?.effective_cited_tokens ?? 0} / 装载: {cost?.estimated_memory_tokens ?? 0}
-          </div>
-        </div>
-
-        {/* Metric 4: Potential Savings */}
-        <div className="p-4 rounded-xl border border-border/40 bg-background/50 flex flex-col gap-2">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5 font-medium">
-              <DollarSign className="w-3.5 h-3.5 text-purple-500" />
-              治理沉睡收益预估
-            </span>
-            <span>节约</span>
-          </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              ${savings.toFixed(4)}
-            </span>
-            <span className="text-xs text-muted-foreground">USD / 周期</span>
-          </div>
-          <div className="text-[11px] text-muted-foreground/80">
-            {parasitic.length > 0
-              ? `沉睡记忆项: ${parasitic.length} 条待清理 · 按主流模型 $3.00/1M Tokens 基准测算`
-              : '全量记忆保持高频活跃与有效引用 · 无沉睡冗余'}
-          </div>
-        </div>
-      </div>
+      <MemoryEconomicsKpiCards
+        cost={cost}
+        savings={savings}
+        parasiticCount={parasitic.length}
+      />
 
       {/* Trajectory and Parasitic Candidates Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -416,86 +290,15 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
         </div>
 
         {/* Right: Parasitic Stale Memories (5 cols) */}
-        <div className="lg:col-span-5 flex flex-col gap-3 p-4 rounded-xl border border-border/40 bg-background/40">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-              <h4 className="text-xs sm:text-sm font-semibold text-foreground">
-                低效沉睡记忆治理池
-              </h4>
-            </div>
-            {parasitic.length > 0 ? (
-              confirmArchiveAll ? (
-                <div className="flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-150">
-                  <span className="text-[11px] text-destructive font-medium hidden sm:inline">
-                    确认全部归档?
-                  </span>
-                  <button
-                    onClick={() => handleArchiveAll(parasitic)}
-                    disabled={archivingAll || archivingId !== null}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-all shadow-sm active:scale-95 disabled:opacity-50"
-                  >
-                    <Check className="w-3 h-3" />
-                    确认
-                  </button>
-                  <button
-                    onClick={() => setConfirmArchiveAll(false)}
-                    disabled={archivingAll}
-                    className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all active:scale-95"
-                  >
-                    <X className="w-3 h-3" />
-                    取消
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setConfirmArchiveAll(true)}
-                  disabled={archivingAll || archivingId !== null}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 transition-all shadow-sm active:scale-95 disabled:opacity-50"
-                >
-                  <Archive className="w-3 h-3" />
-                  {archivingAll ? '批量归档中...' : `一键归档全部 (${parasitic.length})`}
-                </button>
-              )
-            ) : (
-              <span className="text-[11px] text-muted-foreground">0 条待处置</span>
-            )}
-          </div>
-
-          {parasitic.length === 0 ? (
-            <div className="py-8 text-center text-xs text-muted-foreground flex flex-col items-center gap-1.5">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-              <span>当前记忆库极具活力，未检出低效沉睡记忆。</span>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2 max-h-[260px] overflow-y-auto pr-1">
-              {parasitic.map((item) => (
-                <div
-                  key={item.memory_id}
-                  className="p-2.5 rounded-lg border border-border/30 bg-card/40 flex flex-col gap-1.5 text-xs"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-foreground truncate max-w-[170px]">
-                      {item.content_preview}
-                    </span>
-                    <button
-                      onClick={() => handleArchive(item)}
-                      disabled={archivingId === item.memory_id}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-border hover:bg-muted text-foreground transition-colors shrink-0"
-                    >
-                      <Archive className="w-3 h-3 text-muted-foreground" />
-                      {archivingId === item.memory_id ? '归档中...' : '一键归档'}
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>装载 {item.injected_turns_count} 轮 · 引用 0 次</span>
-                    <span className="text-rose-500 font-medium">浪费 ~{item.wasted_tokens_estimated} T</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <MemoryParasiticGovernanceList
+          parasitic={parasitic}
+          archivingId={archivingId}
+          archivingAll={archivingAll}
+          confirmArchiveAll={confirmArchiveAll}
+          onSetConfirmArchiveAll={setConfirmArchiveAll}
+          onArchive={handleArchive}
+          onArchiveAll={handleArchiveAll}
+        />
       </div>
 
       {/* Actionable Recommendations */}
