@@ -5865,7 +5865,9 @@
       "rewrite": "書き換え",
       "quote": "入力欄に引用",
       "copy": "コピー",
-      "modifyPlaceholder": "変更内容を説明してください…"
+      "modifyPlaceholder": "変更内容を説明してください…",
+      "annotate": "コメント",
+      "annotatePlaceholder": "問題点を説明..."
     },
     "skillActions": {
       "moreActions": "もっと見る操作",
@@ -5955,6 +5957,31 @@
       "inline": "インライン",
       "sideBySide": "並べて表示",
       "noVersions": "差分を比較するには少なくとも2つのバージョンが必要です"
+    },
+    "annotation": {
+      "toggle": "レビューコメント",
+      "title": "レビューコメント",
+      "add": "コメントを追加",
+      "needSelection": "プレビューで文字を選択し、変更内容を説明してください。",
+      "intentPlaceholder": "変更内容を説明し、文字を選択",
+      "review": "確認",
+      "remove": "コメントを削除",
+      "wholeDoc": "文書全体",
+      "lines": "{from}-{to} 行目",
+      "statusOpen": "未対応",
+      "statusSubmitted": "送付済み",
+      "statusResolved": "解決済み",
+      "driftedShort": "移動済み",
+      "sendToChat": "レビューを送信",
+      "sendToTask": "タスクに戻す",
+      "sendFailed": "レビューの送信に失敗しました。",
+      "noLinkedTask": "このファイルの連携タスクが見つかりません。",
+      "sentToTask": "修正のため差し戻しました。",
+      "versions": "{count} バージョン",
+      "howItWorks": "コメントは送信まで保持され、エージェントはマーク部分のみ修正します。",
+      "resolve": "解決済みにする",
+      "revisionOutside": "マーク外の行も変更されています：{lines}",
+      "revisionLocal": "マーク範囲内で修正されました。"
     }
   },
   "MessageSources": {
@@ -12104,6 +12131,7 @@
     "briefColdStartDescription": "このターンでは過去メモリに一致しませんでした。エージェントは探索モードで開始します。",
     "briefStableSummary": "安定コンテキスト: 指示 {instructions} 件、ルール {rules} 件、プロフィール項目 {profiles} 件。",
     "briefLearnedSummary": "学習コンテキスト: 嗜好 {preferences} 件、ルール {rules} 件、補正項目 {corrections} 件。",
+    "briefRulesApplied": "ルール予算：{injected}/{rules} 件のルールを適用（{skipped} 件スキップ）。",
     "briefPreferenceIdPrefix": "環境設定",
     "briefRuleIdPrefix": "ルール",
     "briefUnavailablePill": "メモリ概要は利用できません",

@@ -261,12 +261,19 @@ export interface TopicBinding {
   identityId: string | null;
   identityName: string | null;
   identityRevoked: boolean;
+  completionReceipts: boolean;
+  stallNudge: boolean;
 }
 
 export interface TopicIdentityOptions {
   identityName?: string | null;
   identityScope?: IdentityScopeMode;
   identityRevoked?: boolean;
+}
+
+export interface TopicFollowUpOptions {
+  completionReceipts?: boolean;
+  stallNudge?: boolean;
 }
 
 export interface TopicWorkspaceBindOptions {
@@ -294,6 +301,7 @@ export async function bindTopicAgent(
   draftTimeoutAction?: DraftTimeoutAction,
   workspace?: TopicWorkspaceBindOptions,
   identity?: TopicIdentityOptions,
+  followUp?: TopicFollowUpOptions,
 ): Promise<void> {
   const body: Record<string, unknown> = {
     agentId,
@@ -317,6 +325,14 @@ export async function bindTopicAgent(
     }
     if (typeof identity.identityRevoked === 'boolean') {
       body.identityRevoked = identity.identityRevoked;
+    }
+  }
+  if (followUp) {
+    if (typeof followUp.completionReceipts === 'boolean') {
+      body.completionReceipts = followUp.completionReceipts;
+    }
+    if (typeof followUp.stallNudge === 'boolean') {
+      body.stallNudge = followUp.stallNudge;
     }
   }
   return apiRequest(`/channels/manage/${channel}/topics/${encodeURIComponent(topicId)}/bind`, {

@@ -12,7 +12,8 @@
 
 | 文件                                       | 地位 | 职责                                                                                                                                                                                                    |
 | ------------------------------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ArtifactPortal.tsx`                       | 核心 | Artifact 预览入口容器；支持 overlay/side-by-side 双布局模式；协调加载、手势、快捷键与 Diff 截断 UX                                                                                                      |
+| `ArtifactPortal.tsx`                       | 核心 | Artifact 预览入口容器；支持 overlay/side-by-side 双布局模式；协调加载、手势、快捷键与 Diff 截断 UX；审阅批注面板开关                                                                                  |
+| `ArtifactAnnotationPanel.tsx`            | 辅助 | 行内批注列表/提交（聊天重发与看板退回双路径）与版本对齐徽标                                                                                                                                            |
 | `DeliverablesBoard.tsx`                    | 核心 | 交付物全景看板：支持品类筛选（文章/图文/脚本/数据表/视觉/核查表）、关键词搜索、高保真卡片与一键整包流式 ZIP 打包                                                                                        |
 | `FactCheckSheetViewer.tsx`                 | 核心 | 事实核查表专属可视化核查矩阵：红黄绿冲突对比、置信度审计、多源主张对照矩阵与原文锚点溯源                                                                                                                |
 | `DeliverableBundleCard.tsx`                | 核心 | 会话消息流成套交付物卡片：展示成品数量徽章、品类统计与一键看板/打包导出                                                                                                                                 |
@@ -37,7 +38,7 @@
 | `renderers/MermaidPreview.tsx`             | 辅助 | Mermaid 图表渲染（Suspense + dynamic import）                                                                                                                                                           |
 | `portal/useSelectionAction.ts`             | 辅助 | Artifact 选中交互的通用消息发送 hook（dirtyArtifacts 注入 + Agent 忙碌排队）                                                                                                                            |
 | `portal/SelectionToolbar.tsx`              | 辅助 | Monaco Editor 选中文本悬浮操作栏                                                                                                                                                                        |
-| `portal/DocumentSelectionToolbar.tsx`      | 辅助 | 文档预览 DOM 选中文本悬浮操作栏                                                                                                                                                                         |
+| `portal/DocumentSelectionToolbar.tsx`      | 辅助 | 文档预览 DOM 选中文本悬浮操作栏（含批注落盘入口）                                                                                                                                                       |
 | `portal/SpreadsheetSelectionToolbar.tsx`   | 辅助 | 电子表格 (CSV/XLSX) 选中数据行/区域操作与定向编辑工具栏                                                                                                                                                 |
 | `portal/ElementPickerToolbar.tsx`          | 辅助 | DOM 元素拾取指令栏                                                                                                                                                                                      |
 | `renderers/architecture/`                  | 核心 | 交互式系统架构图谱与演变比对套件（React Flow + Dagre 自动排版，单节点聚焦，三态演变比对与导出）                                                                                                         |

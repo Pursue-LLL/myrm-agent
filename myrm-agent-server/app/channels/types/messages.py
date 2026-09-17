@@ -523,8 +523,12 @@ class TopicContext:
     routing and audit always use the stable ``identity_id``. ``revoked``
     freezes the identity (routes to the default agent, keeps stored memory
     for a later rejoin) without deleting the binding.
-    """
 
+    ``completion_receipts``: Post a delivery receipt in the origin thread
+    when a long/delegated task finishes (default on).
+    ``stall_nudge``: Proactively @-mention on stalled threads with pending
+    items (default off, explicit opt-in).
+    """
     topic_id: str
     agent_id: str | None = None
     project_id: str | None = None
@@ -541,6 +545,8 @@ class TopicContext:
     identity_id: str | None = None
     identity_name: str | None = None
     identity_revoked: bool = False
+    completion_receipts: bool = True
+    stall_nudge: bool = False
 
 
 @dataclass(frozen=True, slots=True)

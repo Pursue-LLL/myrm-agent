@@ -38,6 +38,8 @@ interface UseChannelRoutingOptions {
   identityError: string;
   identityRevokedToast: string;
   identityRestoredToast: string;
+  followUpUpdatedToast: string;
+  followUpError: string;
 }
 
 export function useChannelRouting(messages: UseChannelRoutingOptions) {
@@ -313,6 +315,37 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
     } catch (error) {
       console.error('Failed to update identity revocation:', error);
       toast.error(messages.identityError);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleSetFollowUp = async (topicId: string, completionReceipts: boolean, stallNudge: boolean) => {
+    if (!selectedChannel) {
+      return;
+    }
+    setSaving(topicId);
+    try {
+      const topic = topics.find((item) => item.topicId === topicId);
+      await bindTopicAgent(
+        selectedChannel,
+        topicId,
+        topic?.agentId ?? null,
+        topic?.threadSharingMode,
+        topic?.replyMode,
+        topic?.draftTimeoutMinutes,
+        topic?.draftTimeoutAction,
+        undefined,
+        undefined,
+        { completionReceipts, stallNudge },
+      );
+      setTopics((prev) =>
+        prev.map((item) => (item.topicId === topicId ? { ...item, completionReceipts, stallNudge } : item)),
+      );
+      toast.success(messages.followUpUpdatedToast);
+    } catch (error) {
+      console.error('Failed to set follow-up policy:', error);
+      toast.error(messages.followUpError);
     } finally {
       setSaving(null);
     }

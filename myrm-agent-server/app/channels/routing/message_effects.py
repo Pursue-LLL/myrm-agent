@@ -59,6 +59,7 @@ _ERROR_KIND_KEYS: dict[ErrorKind, str] = {
     ErrorKind.FORMAT_ERROR: "error_format",
     ErrorKind.MODEL_NOT_FOUND: "error_model_not_found",
     ErrorKind.SAFETY_BLOCK: "error_safety_block",
+    ErrorKind.CHALLENGE_BLOCKED: "error_challenge_blocked",
     ErrorKind.RESPONSE_FORMAT_ERROR: "error_response_format",
     ErrorKind.UNKNOWN: "error_unknown",
 }

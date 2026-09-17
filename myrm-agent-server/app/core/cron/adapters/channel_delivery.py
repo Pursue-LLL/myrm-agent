@@ -70,6 +70,7 @@ class ChannelResultDelivery:
 
     async def _deliver_channel(self, job: CronJob, result: JobResult) -> None:
         from app.core.channel_bridge import channel_gateway
+        from app.core.channel_bridge.topic_config import SqlTopicManager
 
         content = result.output or ""
         if result.error:
@@ -77,15 +78,22 @@ class ChannelResultDelivery:
 
         recipient_id = self._resolve_recipient(job)
 
+        topic = await SqlTopicManager().resolve_topic(job.delivery.channel, recipient_id, job.delivery.thread_id)
+        if topic is not None and topic.identity_revoked:
+            raise RuntimeError(f"Cron job {job.id}: team identity revoked for {job.delivery.channel}/{recipient_id}")
+
         meta: dict[str, object] = dict(result.metadata) if result.metadata else {}
         meta["job_name"] = job.name
         meta["success"] = result.success
+        meta["proactive"] = True
+        meta["followup_kind"] = "cron_writeback"
 
         msg = OutboundMessage(
             channel=job.delivery.channel,
             recipient_id=recipient_id,
             content=content,
             user_id=job.user_id,
+            thread_id=job.delivery.thread_id,
             metadata=meta,
         )
 

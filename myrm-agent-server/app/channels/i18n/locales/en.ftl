@@ -154,6 +154,8 @@ topic_bound =
     Use /unbind to remove.
 topic_identity_only =  (identity: { $name })
 topic_identity_revoked =  (identity frozen; routing to default agent)
+followup_receipt_done = ✅ Done in { $elapsed } — reply in this thread if you need changes. [AI proactive]
+followup_stall_nudge = 👋 Checking in — this thread has been quiet with an open item. { $mention }Reply here and I'll pick it up. [AI proactive]
 topic_workspace_only =  (workspace: { $workspace })
 topic_workspace_unavailable =  Workspace binding failed: { $error }
 topic_status_workspace = Workspace: { $workspace }
@@ -266,6 +268,7 @@ error_context_overflow = The conversation is too long. Please start a new sessio
 error_format = The AI generated an invalid format. Please try again.
 error_model_not_found = The requested model is not available. Please select a different model.
 error_safety_block = The request was blocked by safety filters.
+error_challenge_blocked = The request was blocked by an upstream challenge or verification.
 error_response_format = The AI generated an invalid format. Please try again.
 error_unknown = Something went wrong while processing your request. Please try again later.
 cmd_stop = Stop the currently running agent task

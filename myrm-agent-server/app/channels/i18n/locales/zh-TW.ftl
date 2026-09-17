@@ -154,6 +154,8 @@ topic_bound =
     使用 /unbind 解除繫結。
 topic_identity_only = （身份：{ $name }）
 topic_identity_revoked = （身份已凍結，走預設智能體）
+followup_receipt_done = ✅ 已完成，用時{ $elapsed }——如需調整請直接在本串回覆。[AI 主動跟進]
+followup_stall_nudge = 👋 來跟進一下——這個串安靜很久了還有未辦事項。{ $mention }直接回覆我來接手。[AI 主動跟進]
 topic_workspace_only = （工作目錄：{ $workspace }）
 topic_workspace_unavailable =  工作目錄繫結失敗：{ $error }
 topic_status_workspace = 工作目錄：{ $workspace }
@@ -266,6 +268,7 @@ error_context_overflow = 對話過長，請開始新會話。
 error_format = AI 生成了無效格式，請重試。
 error_model_not_found = 請求的模型不可用，請選擇其他模型。
 error_safety_block = 請求被安全過濾器攔截。
+error_challenge_blocked = 請求被上游質詢或安全驗證攔截。
 error_response_format = AI 生成了無效格式，請重試。
 error_unknown = 處理請求時出現問題，請稍後再試。
 cmd_stop = 停止當前正在執行的 Agent 任務

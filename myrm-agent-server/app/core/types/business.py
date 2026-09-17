@@ -66,6 +66,10 @@ class ModelConfig(BaseModel):
         default=None,
         description="Dispatch strategy for credential pool: round_robin, fill_first, least_used, random",
     )
+    egress_proxy: str | None = Field(
+        default=None,
+        description="Outbound egress proxy URL for network isolation and anti-ban defense",
+    )
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, frozen=True)
 
@@ -74,9 +78,9 @@ class ModelConfig(BaseModel):
     def _strip_whitespace(cls, v: str) -> str:
         return v.strip() if isinstance(v, str) else v
 
-    @field_validator("base_url", mode="before")
+    @field_validator("base_url", "egress_proxy", mode="before")
     @classmethod
-    def _normalize_base_url(cls, v: str | None) -> str | None:
+    def _normalize_url_fields(cls, v: str | None) -> str | None:
         if not isinstance(v, str):
             return v
         normalized = v.strip().rstrip("/")

@@ -164,8 +164,7 @@ class SqlTopicManager:
             else IdentityScopeMode.INHERIT
         )
 
-        return TopicContext(
-            topic_id=thread_id or chat_id,
+        return TopicContext(            topic_id=thread_id or chat_id,
             agent_id=str(topic_cfg["agentId"]) if topic_cfg.get("agentId") else None,
             project_id=str(topic_cfg["projectId"]) if topic_cfg.get("projectId") else None,
             authorized_path=(str(topic_cfg["authorizedPath"]) if topic_cfg.get("authorizedPath") else None),
@@ -180,6 +179,8 @@ class SqlTopicManager:
             identity_id=str(topic_cfg["identityId"]) if topic_cfg.get("identityId") else None,
             identity_name=str(topic_cfg["identityName"]) if topic_cfg.get("identityName") else None,
             identity_revoked=bool(topic_cfg.get("identityRevoked", False)),
+            completion_receipts=bool(topic_cfg.get("completionReceipts", True)),
+            stall_nudge=bool(topic_cfg.get("stallNudge", False)),
         )
 
     async def bind_topic(
@@ -202,6 +203,8 @@ class SqlTopicManager:
         identity_id: str | None | object = _UNSET,
         identity_name: str | None | object = _UNSET,
         identity_revoked: bool | object = _UNSET,
+        completion_receipts: bool | object = _UNSET,
+        stall_nudge: bool | object = _UNSET,
     ) -> TopicContext:
         resolved_agent_id: str | None = None
         if agent_id is not _UNSET:
@@ -308,6 +311,10 @@ class SqlTopicManager:
                 topic_entry.pop("identityName", None)
         if identity_revoked is not _UNSET:
             topic_entry["identityRevoked"] = bool(identity_revoked)
+        if completion_receipts is not _UNSET:
+            topic_entry["completionReceipts"] = bool(completion_receipts)
+        if stall_nudge is not _UNSET:
+            topic_entry["stallNudge"] = bool(stall_nudge)
 
         await self._upsert_topic(channel, chat_id, storage_key, topic_entry)
 
@@ -342,6 +349,8 @@ class SqlTopicManager:
             identity_id=str(topic_entry["identityId"]) if topic_entry.get("identityId") else None,
             identity_name=str(topic_entry["identityName"]) if topic_entry.get("identityName") else None,
             identity_revoked=bool(topic_entry.get("identityRevoked", False)),
+            completion_receipts=bool(topic_entry.get("completionReceipts", True)),
+            stall_nudge=bool(topic_entry.get("stallNudge", False)),
         )
 
     async def revoke_identity(

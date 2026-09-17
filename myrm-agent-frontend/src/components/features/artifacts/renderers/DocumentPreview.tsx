@@ -139,7 +139,7 @@ const MarkdownPreview: React.FC<{ content: string; artifactId?: string }> = memo
       <Suspense fallback={<SkeletonLoader />}>
         <ReactMarkdownRenderer content={content} />
       </Suspense>
-      {artifactId && <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} />}
+      {artifactId && <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} content={content} />}
     </div>
   );
 });
@@ -165,7 +165,7 @@ const DocumentPreview: React.FC<{ content: string; filename?: string; artifactId
         )}
       >
         <pre className="whitespace-pre-wrap font-sans text-foreground">{content}</pre>
-        {artifactId && <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} />}
+        {artifactId && <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} content={content} />}
       </div>
     );
   },

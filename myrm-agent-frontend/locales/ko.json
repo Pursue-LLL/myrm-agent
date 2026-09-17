@@ -5888,7 +5888,9 @@
       "rewrite": "다시 쓰기",
       "quote": "입력창에 인용",
       "copy": "복사",
-      "modifyPlaceholder": "변경할 내용을 설명하세요..."
+      "modifyPlaceholder": "변경할 내용을 설명하세요...",
+      "annotate": "의견",
+      "annotatePlaceholder": "검토용 문제 설명..."
     },
     "wechatDraft": {
       "openPanel": "WeChat 초안으로 보내기",
@@ -5955,6 +5957,31 @@
       "toggle": "포인트 & 편집",
       "placeholder": "이 요소에서 변경할 내용을 설명하세요...",
       "queued": "작업이 대기 중이며, 현재 작업이 완료되면 실행됩니다"
+    },
+    "annotation": {
+      "toggle": "검토 의견",
+      "title": "검토 의견",
+      "add": "의견 추가",
+      "needSelection": "미리보기에서 텍스트를 선택한 뒤 변경 내용을 설명하세요.",
+      "intentPlaceholder": "변경 내용 설명 후 텍스트 선택",
+      "review": "보기",
+      "remove": "의견 삭제",
+      "wholeDoc": "문서 전체",
+      "lines": "{from}-{to}번째 줄",
+      "statusOpen": "대기 중",
+      "statusSubmitted": "전송됨",
+      "statusResolved": "해결됨",
+      "driftedShort": "이동됨",
+      "sendToChat": "검토 전송",
+      "sendToTask": "작업으로 반려",
+      "sendFailed": "검토 의견 전송에 실패했습니다.",
+      "noLinkedTask": "이 파일의 연결된 검토 작업이 없습니다.",
+      "sentToTask": "수정을 위해 반려했습니다.",
+      "versions": "버전 {count}개",
+      "howItWorks": "의견은 전송할 때까지 유지되며 에이전트는 표시된 부분만 수정합니다.",
+      "resolve": "해결됨으로 표시",
+      "revisionOutside": "표시되지 않은 줄도 바뀌었습니다: {lines}",
+      "revisionLocal": "표시된 범위 안에서 수정되었습니다."
     }
   },
   "MessageSources": {
@@ -12104,6 +12131,7 @@
     "briefColdStartDescription": "이번 턴에서는 기존 메모리가 매칭되지 않았습니다. 에이전트가 탐색 모드로 시작합니다.",
     "briefStableSummary": "안정 컨텍스트: 지시 {instructions}개, 규칙 {rules}개, 프로필 필드 {profiles}개.",
     "briefLearnedSummary": "학습 컨텍스트: 선호 {preferences}개, 규칙 {rules}개, 교정 항목 {corrections}개.",
+    "briefRulesApplied": "규칙 예산: {injected}/{rules}개 규칙 적용됨 ({skipped}개 건너뜀).",
     "briefPreferenceIdPrefix": "pref",
     "briefRuleIdPrefix": "rule",
     "briefUnavailablePill": "메모리 브리프를 사용할 수 없음",

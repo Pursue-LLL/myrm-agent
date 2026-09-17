@@ -5865,7 +5865,9 @@
       "rewrite": "潤色重寫",
       "quote": "引用到輸入框",
       "copy": "複製",
-      "modifyPlaceholder": "描述你想對選中內容做的修改..."
+      "modifyPlaceholder": "描述你想對選中內容做的修改...",
+      "annotate": "批註",
+      "annotatePlaceholder": "描述問題以供審閱..."
     },
     "skillActions": {
       "moreActions": "更多操作",
@@ -5955,6 +5957,31 @@
       "inline": "單欄",
       "sideBySide": "雙欄",
       "noVersions": "至少需要兩個版本才能對比差異"
+    },
+    "annotation": {
+      "toggle": "審閱批註",
+      "title": "審閱批註",
+      "add": "新增批註",
+      "needSelection": "先在預覽中選取文字，再描述修改。",
+      "intentPlaceholder": "描述修改，先選取文字",
+      "review": "查看",
+      "remove": "刪除批註",
+      "wholeDoc": "整篇文件",
+      "lines": "第 {from}-{to} 行",
+      "statusOpen": "待處理",
+      "statusSubmitted": "已送審",
+      "statusResolved": "已解決",
+      "driftedShort": "已移位",
+      "sendToChat": "傳送審閱",
+      "sendToTask": "退回任務",
+      "sendFailed": "傳送審閱意見失敗。",
+      "noLinkedTask": "找不到此檔案的關聯審閱任務。",
+      "sentToTask": "意見已退回等待修訂。",
+      "versions": "共 {count} 個版本",
+      "howItWorks": "批註隨身攜帶直到傳送；智慧體只改標記處。",
+      "resolve": "標為已解決",
+      "revisionOutside": "本次修訂還動了未標記行：{lines}",
+      "revisionLocal": "本次修訂未超出標記範圍。"
     }
   },
   "MessageSources": {
@@ -12104,6 +12131,7 @@
     "briefColdStartDescription": "當前輪次未匹配到歷史記憶，智慧體將以探索模式啟動。",
     "briefStableSummary": "穩定上下文：{instructions} 條指令，{rules} 條規則，{profiles} 個畫像欄位。",
     "briefLearnedSummary": "學習上下文：{preferences} 條偏好，{rules} 條規則，{corrections} 條糾偏項。",
+    "briefRulesApplied": "規則預算：已套用 {injected}/{rules} 條規則（略過 {skipped} 條）。",
     "briefPreferenceIdPrefix": "偏好",
     "briefRuleIdPrefix": "規則",
     "briefUnavailablePill": "記憶簡報暫不可用",

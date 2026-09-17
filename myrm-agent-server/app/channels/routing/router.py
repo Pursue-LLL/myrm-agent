@@ -582,6 +582,29 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
                 )
                 continue
 
+            if msg.is_group and self._topic_resolver is not None:
+                from app.channels.routing.follow_up import note_group_activity, scan_stalled_threads
+
+                from app.channels.i18n import resolve_message_locale
+
+                note_group_activity(
+                    msg.channel,
+                    msg.chat_id or msg.sender_id,
+                    msg.thread_id,
+                    msg.sender_id,
+                    msg.sender_name,
+                    resolve_message_locale(msg),
+                )
+                from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+
+                asyncio.create_task(
+                    scan_stalled_threads(
+                        bus=self._bus,
+                        resolve_topic=self._topic_resolver.resolve_topic,
+                        record_outbound=ChannelDataPlaneService.record_outbound,
+                    )
+                )
+
             msg = await self._enrich_message_locale(msg)
 
             # Record all sanitized inbound messages to the Channel Data Plane DWD ledger

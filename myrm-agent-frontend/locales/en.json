@@ -12816,7 +12816,9 @@
       "rewrite": "Rewrite",
       "quote": "Quote to Composer",
       "copy": "Copy",
-      "modifyPlaceholder": "Describe what to change..."
+      "modifyPlaceholder": "Describe what to change...",
+      "annotate": "Comment",
+      "annotatePlaceholder": "Describe the issue for review..."
     },
     "skillActions": {
       "moreActions": "More Actions",
@@ -12845,6 +12847,31 @@
         "networkError": "Network connection failed, please check your connection and try again",
         "unknownError": "An unknown error occurred, please try again later"
       }
+    },
+    "annotation": {
+      "toggle": "Review comments",
+      "title": "Review comments",
+      "add": "Add comment",
+      "needSelection": "Select text in the preview, then describe the change.",
+      "intentPlaceholder": "Describe the change, then select text",
+      "review": "Review",
+      "remove": "Remove comment",
+      "wholeDoc": "Whole document",
+      "lines": "Lines {from}-{to}",
+      "statusOpen": "open",
+      "statusSubmitted": "submitted",
+      "statusResolved": "resolved",
+      "driftedShort": "moved",
+      "sendToChat": "Send for revision",
+      "sendToTask": "Return to task",
+      "sendFailed": "Failed to send review feedback.",
+      "noLinkedTask": "No linked review task found for this file.",
+      "sentToTask": "Feedback sent back for revision.",
+      "versions": "{count} versions",
+      "howItWorks": "Comments ride along until you send them; the agent revises only the marked parts.",
+      "resolve": "Mark resolved",
+      "revisionOutside": "Revision also touched unmarked lines: {lines}",
+      "revisionLocal": "Revision stayed inside the marked areas."
     }
   },
   "MessageSources": {
@@ -18994,6 +19021,7 @@
     "briefColdStartDescription": "No prior memory was matched for this turn. The agent starts in discovery mode.",
     "briefStableSummary": "Stable context: {instructions} instructions, {rules} rules, {profiles} profile fields.",
     "briefLearnedSummary": "Learned context: {preferences} preferences, {rules} rules, {corrections} correction items.",
+    "briefRulesApplied": "Rule budget: {injected}/{rules} rules applied ({skipped} skipped).",
     "briefPreferenceIdPrefix": "pref",
     "briefRuleIdPrefix": "rule",
     "briefUnavailablePill": "Memory Brief Unavailable",

@@ -239,18 +239,20 @@ class RouterExecutionMixin:
         last_progress_at: float,
         inbound_had_voice: bool,
         topic_ctx: TopicContext | None = None,
-    ) -> None:
+    ) -> bool:
         """Deliver agent result: TTS processing, edit placeholder or send new message.
 
         When ``topic_ctx.reply_mode`` is ``draft_review``, the outbound message
         is held as an ApprovalRecord instead of being sent immediately.
+
+        Returns True when the result was actually sent to the channel.
         """
         placeholder_id = await deferred.resolve_for_delivery(result) if deferred else None
 
         if result and _is_silent_content(result.content):
             if placeholder_id:
                 await self._fx.cleanup_placeholder(msg.channel, chat_id, placeholder_id, "\u200b")
-            return
+            return False
 
         if result:
             if msg.channel != "web":
@@ -268,7 +270,7 @@ class RouterExecutionMixin:
                         await self._fx.edit_placeholder(msg.channel, chat_id, placeholder_id, result)
                     else:
                         await self._bus.publish_outbound(result)
-                    return
+                    return True
                 if placeholder_id:
                     await self._fx.cleanup_placeholder(
                         msg.channel,
@@ -276,7 +278,7 @@ class RouterExecutionMixin:
                         placeholder_id,
                         get_text(msg, "draft_review_pending"),
                     )
-                return
+                return False
 
             if placeholder_id:
                 await self._fx.wait_for_edit_gap(last_progress_at, _MIN_PROGRESS_INTERVAL)
@@ -295,6 +297,7 @@ class RouterExecutionMixin:
                     reply_to_id=result.reply_to_id,
                 )
             )
+            return True
         elif placeholder_id:
             await self._fx.cleanup_placeholder(
                 msg.channel,
@@ -302,6 +305,7 @@ class RouterExecutionMixin:
                 placeholder_id,
                 get_text(msg, "placeholder_no_response"),
             )
+        return False
 
     async def _create_outbound_draft(
         self: RouterExecutionHost,
@@ -430,7 +434,7 @@ class RouterExecutionMixin:
                 topic_context=ctx.topic_ctx if not is_resume else None,
             )
             deferred = scratch.deferred_placeholder if isinstance(scratch.deferred_placeholder, DeferredPlaceholder) else None
-            await self._deliver_agent_result(
+            delivered = await self._deliver_agent_result(
                 result,
                 deferred,
                 ctx.exec_msg,
@@ -440,6 +444,34 @@ class RouterExecutionMixin:
                 topic_ctx=ctx.topic_ctx,
             )
             scratch.completed = True
+            if ctx.exec_msg.is_group:
+                from app.channels.routing.follow_up import (
+                    maybe_post_completion_receipt,
+                    note_group_activity,
+                )
+
+                note_group_activity(
+                    ctx.exec_msg.channel,
+                    ctx.chat_id,
+                    ctx.exec_msg.thread_id,
+                    ctx.exec_msg.sender_id,
+                    ctx.exec_msg.sender_name,
+                    resolve_message_locale(ctx.exec_msg),
+                )
+                active = self._active_tasks.get(ctx.state_key)
+                elapsed = time.monotonic() - active.started_at if active is not None else 0.0
+                from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+
+                await maybe_post_completion_receipt(
+                    bus=self._bus,
+                    topic=ctx.topic_ctx,
+                    msg=ctx.exec_msg,
+                    chat_id=ctx.chat_id,
+                    elapsed_seconds=elapsed,
+                    is_resume=is_resume,
+                    delivered=delivered,
+                    record_outbound=ChannelDataPlaneService.record_outbound,
+                )
         except asyncio.CancelledError:
             logger.warning(
                 "AgentRouter: task cancelled for %s/%s",

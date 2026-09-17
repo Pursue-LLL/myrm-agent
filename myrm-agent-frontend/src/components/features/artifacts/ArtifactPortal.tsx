@@ -46,6 +46,7 @@ import PortalHeader from './portal/PortalHeader';
 import PortalTabs from './portal/PortalTabs';
 import PortalErrorDisplay from './portal/PortalErrorDisplay';
 import ElementPickerToolbar from './portal/ElementPickerToolbar';
+import { ArtifactAnnotationPanel } from './ArtifactAnnotationPanel';
 import { VersionHistoryBanner } from './portal/VersionHistory';
 import { usePortalGestures } from './portal/usePortalGestures';
 import { usePortalKeyboard } from './portal/usePortalKeyboard';
@@ -111,6 +112,7 @@ const ArtifactPortal: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [pickerMode, setPickerMode] = useState(false);
   const [pickedElement, setPickedElement] = useState<PickedElement | null>(null);
+  const [showAnnotations, setShowAnnotations] = useState(false);
   const isMobile = useIsMobile();
   const portalMode = usePortalMode();
   const portalRef = useRef<HTMLDivElement>(null);
@@ -515,6 +517,10 @@ const ArtifactPortal: React.FC = () => {
             setPickerMode((p) => !p);
             setPickedElement(null);
           }}
+          onToggleAnnotations={() => {
+            setShowAnnotations((v) => !v);
+          }}
+          showAnnotations={showAnnotations}
           onSwitchVersion={handleSwitchVersion}
           onRollbackVersion={handleRollbackVersion}
           labels={{
@@ -530,6 +536,7 @@ const ArtifactPortal: React.FC = () => {
             generating: t('tabs.generating'),
             type: (type: string) => t(`types.${type}`),
             elementPicker: t('elementPicker.toggle'),
+            annotations: t('annotation.toggle'),
             sideBySide: t('sideBySide'),
             overlay: t('overlay'),
           }}
@@ -541,6 +548,23 @@ const ArtifactPortal: React.FC = () => {
           viewingIndex={viewingVersionIndex}
           onBackToLatest={() => switchToVersion(-1)}
         />
+
+        {/* 审阅批注面板 */}
+        {showAnnotations && currentArtifact && (
+          <div className="shrink-0 border-b max-h-72 overflow-y-auto">
+            <ArtifactAnnotationPanel
+              artifactId={currentArtifact.id}
+              artifactName={currentArtifact.filename}
+              content={content}
+              versionId={viewingVersionIndex >= 0 && versions[viewingVersionIndex] ? 'v' + viewingVersionIndex : 'latest'}
+              chatId={chatId}
+              versionCount={versions.length}
+              versionIds={versions.map((v) => v.versionId)}
+              viewingVersionIndex={viewingVersionIndex}
+              onSwitchVersion={handleSwitchVersion}
+            />
+          </div>
+        )}
 
         {activeTab?.diffPreviewTruncated && (
           <div

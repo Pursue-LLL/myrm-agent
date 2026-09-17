@@ -341,6 +341,8 @@ class TopicBindingResponse(BaseModel):
     identity_id: str | None = Field(None, alias="identityId")
     identity_name: str | None = Field(None, alias="identityName")
     identity_revoked: bool = Field(default=False, alias="identityRevoked")
+    completion_receipts: bool = Field(default=True, alias="completionReceipts")
+    stall_nudge: bool = Field(default=False, alias="stallNudge")
 
     class Config:
         populate_by_name = True
@@ -376,6 +378,8 @@ class BindTopicRequest(BaseModel):
     identity_id: str | None = Field(None, alias="identityId")
     identity_name: str | None = Field(None, alias="identityName")
     identity_revoked: bool | None = Field(None, alias="identityRevoked")
+    completion_receipts: bool | None = Field(None, alias="completionReceipts")
+    stall_nudge: bool | None = Field(None, alias="stallNudge")
 
     class Config:
         populate_by_name = True

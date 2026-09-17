@@ -12816,7 +12816,9 @@
       "rewrite": "润色重写",
       "quote": "引用到输入框",
       "copy": "复制",
-      "modifyPlaceholder": "描述你想对选中内容做的修改..."
+      "modifyPlaceholder": "描述你想对选中内容做的修改...",
+      "annotate": "批注",
+      "annotatePlaceholder": "描述问题以供审阅..."
     },
     "skillActions": {
       "moreActions": "更多操作",
@@ -12845,6 +12847,31 @@
         "networkError": "网络连接失败，请检查网络后重试",
         "unknownError": "发生未知错误，请稍后重试"
       }
+    },
+    "annotation": {
+      "toggle": "审阅批注",
+      "title": "审阅批注",
+      "add": "添加批注",
+      "needSelection": "先在预览中选中文本，再描述修改。",
+      "intentPlaceholder": "描述修改，先选中文本",
+      "review": "查看",
+      "remove": "删除批注",
+      "wholeDoc": "整篇文档",
+      "lines": "第 {from}-{to} 行",
+      "statusOpen": "待处理",
+      "statusSubmitted": "已送审",
+      "statusResolved": "已解决",
+      "driftedShort": "已移位",
+      "sendToChat": "发送审阅",
+      "sendToTask": "退回任务",
+      "sendFailed": "发送审阅意见失败。",
+      "noLinkedTask": "未找到此文件的关联审阅任务。",
+      "sentToTask": "意见已退回等待修订。",
+      "versions": "共 {count} 个版本",
+      "howItWorks": "批注随身携带直到发送；智能体只改标记处。",
+      "resolve": "标为已解决",
+      "revisionOutside": "本次修订还动了未标记行：{lines}",
+      "revisionLocal": "本次修订未超出标记范围。"
     }
   },
   "MessageSources": {
@@ -18994,6 +19021,7 @@
     "briefColdStartDescription": "当前轮次未匹配到历史记忆，智能体将以探索模式启动。",
     "briefStableSummary": "稳定上下文：{instructions} 条指令，{rules} 条规则，{profiles} 个画像字段。",
     "briefLearnedSummary": "学习上下文：{preferences} 条偏好，{rules} 条规则，{corrections} 条纠偏项。",
+    "briefRulesApplied": "规则预算：已应用 {injected}/{rules} 条规则（跳过 {skipped} 条）。",
     "briefPreferenceIdPrefix": "偏好",
     "briefRuleIdPrefix": "规则",
     "briefUnavailablePill": "记忆简报暂不可用",

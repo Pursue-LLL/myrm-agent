@@ -139,3 +139,36 @@ def test_get_memory_graph_ready_with_ranked_hubs_and_conflicts(graph_api_client)
     base_hub = next(h for h in hubs if h["id"] == "claim_base")
     assert base_hub["degree"] == 3
     assert base_hub["supported_count"] == 2
+
+
+def test_get_memory_graph_pushdown_contract(graph_api_client):
+    """Verify list_nodes and list_relationships receive pushdown parameters."""
+    client, manager = graph_api_client
+    manager.has_graph = True
+    graph = AsyncMock()
+    graph.get_stats = AsyncMock(
+        return_value=GraphStats(node_count=2, relationship_count=1, node_label_counts={"Claim": 2}, relationship_type_counts={})
+    )
+    graph.list_nodes = AsyncMock(
+        return_value=[
+            GraphNode(id="n1", labels=["Claim"], properties={"primary_namespace": "agent_alpha"}),
+            GraphNode(id="n2", labels=["Claim"], properties={"primary_namespace": "agent_alpha"}),
+        ]
+    )
+    graph.list_relationships = AsyncMock(
+        return_value=[
+            GraphRelationship(id="r1", start_id="n1", end_id="n2", rel_type="SUPPORTS"),
+        ]
+    )
+    manager._graph = graph
+
+    resp = client.get("/api/memory/command-center/graph?namespace=agent_alpha&limit=100")
+    assert resp.status_code == 200
+
+    # Verify namespace was passed to list_nodes
+    graph.list_nodes.assert_awaited_once_with(limit=100, offset=0, namespace="agent_alpha")
+
+    # Verify node_ids were passed to list_relationships
+    assert graph.list_relationships.await_count == 1
+    call_kwargs = graph.list_relationships.await_args.kwargs
+    assert set(call_kwargs.get("node_ids", [])) == {"n1", "n2"}

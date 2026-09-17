@@ -5888,7 +5888,9 @@
       "rewrite": "Umschreiben",
       "quote": "In Eingabe zitieren",
       "copy": "Kopie",
-      "modifyPlaceholder": "Beschreiben Sie, was geändert werden soll ..."
+      "modifyPlaceholder": "Beschreiben Sie, was geändert werden soll ...",
+      "annotate": "Kommentieren",
+      "annotatePlaceholder": "Problem für Review beschreiben..."
     },
     "wechatDraft": {
       "openPanel": "Push zum WeChat-Entwurf",
@@ -5955,6 +5957,31 @@
       "toggle": "Zeigen und bearbeiten",
       "placeholder": "Beschreiben Sie, was an diesem Element geändert werden soll ...",
       "queued": "Aktion in der Warteschlange, wird ausgeführt, wenn die aktuelle Aufgabe abgeschlossen ist"
+    },
+    "annotation": {
+      "toggle": "Prüfkommentare",
+      "title": "Prüfkommentare",
+      "add": "Kommentar hinzufügen",
+      "needSelection": "Text in der Vorschau markieren, dann Änderung beschreiben.",
+      "intentPlaceholder": "Änderung beschreiben, dann Text markieren",
+      "review": "Ansehen",
+      "remove": "Kommentar löschen",
+      "wholeDoc": "Gesamtes Dokument",
+      "lines": "Zeilen {from}-{to}",
+      "statusOpen": "offen",
+      "statusSubmitted": "gesendet",
+      "statusResolved": "gelöst",
+      "driftedShort": "verschoben",
+      "sendToChat": "Zur Überarbeitung senden",
+      "sendToTask": "An Aufgabe zurück",
+      "sendFailed": "Senden fehlgeschlagen.",
+      "noLinkedTask": "Keine verknüpfte Prüfaufgabe für diese Datei.",
+      "sentToTask": "Zur Überarbeitung zurückgegeben.",
+      "versions": "{count} Versionen",
+      "howItWorks": "Kommentare bleiben bis zum Senden erhalten; der Agent ändert nur Markiertes.",
+      "resolve": "Als gelöst markieren",
+      "revisionOutside": "Auch unmarkierte Zeilen geändert: {lines}",
+      "revisionLocal": "Änderung blieb im markierten Bereich."
     }
   },
   "MessageSources": {
@@ -12104,6 +12131,7 @@
     "briefColdStartDescription": "Für diese Runde wurde keine vorherige Erinnerung gefunden. Der Agent startet im Discovery-Modus.",
     "briefStableSummary": "Stabiler Kontext: {instructions} Anweisungen, {rules} Regeln, {profiles} Profilfelder.",
     "briefLearnedSummary": "Gelernter Kontext: {preferences} Präferenzen, {rules} Regeln, {corrections} Korrekturpunkte.",
+    "briefRulesApplied": "Regelbudget: {injected}/{rules} Regeln angewendet ({skipped} übersprungen).",
     "briefPreferenceIdPrefix": "pref",
     "briefRuleIdPrefix": "rule",
     "briefUnavailablePill": "Memory Brief nicht verfügbar",

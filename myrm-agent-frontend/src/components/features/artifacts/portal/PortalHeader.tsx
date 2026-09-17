@@ -13,6 +13,7 @@ import {
   Maximize01Icon,
   Minimize01Icon,
   Cursor02Icon,
+  CommentAdd02Icon,
   LeftToRightBlockQuoteIcon,
   SquareArrowMoveRightDownIcon,
   GitCompareIcon,
@@ -53,6 +54,10 @@ interface PortalHeaderProps {
   onClose: () => void;
   /** Toggle element picker */
   onTogglePicker?: () => void;
+  /** Toggle review annotation panel */
+  onToggleAnnotations?: () => void;
+  /** Review annotation panel visible */
+  showAnnotations?: boolean;
   /** 切换版本 */
   onSwitchVersion: (index: number) => void;
   /** 回滚版本 */
@@ -72,6 +77,7 @@ interface PortalHeaderProps {
     generating: string;
     type: (type: string) => string;
     elementPicker?: string;
+    annotations?: string;
     sideBySide?: string;
     overlay?: string;
   };
@@ -101,6 +107,8 @@ const PortalHeader: React.FC<PortalHeaderProps> = ({
   onToggleFullscreen,
   onClose,
   onTogglePicker,
+  onToggleAnnotations,
+  showAnnotations,
   onSwitchVersion,
   onRollbackVersion,
   labels,
@@ -218,6 +226,20 @@ const PortalHeader: React.FC<PortalHeaderProps> = ({
             title={labels.elementPicker}
           >
             <Cursor02Icon className="w-4 h-4" />
+          </Button>
+        )}
+
+        {/* Review annotation panel toggle */}
+        {onToggleAnnotations && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn('w-8 h-8 flex-shrink-0', showAnnotations && 'bg-primary/10 text-primary')}
+            onClick={onToggleAnnotations}
+            title={labels.annotations}
+            data-testid="annotation-toggle"
+          >
+            <CommentAdd02Icon className="w-4 h-4" />
           </Button>
         )}
 

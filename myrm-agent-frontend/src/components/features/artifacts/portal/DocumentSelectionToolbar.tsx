@@ -13,23 +13,28 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { MOBILE_BREAKPOINT } from '@/lib/constants/artifact';
-import { Edit04Icon, InformationCircleIcon, SparklesIcon, Copy01Icon, ArrowRight01Icon, MessageAdd01Icon } from 'hugeicons-react';
+import { Edit04Icon, InformationCircleIcon, SparklesIcon, Copy01Icon, ArrowRight01Icon, MessageAdd01Icon, CommentAdd02Icon } from 'hugeicons-react';
 import { useSelectionAction } from './useSelectionAction';
 import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import useChatStore from '@/store/useChatStore';
+import { useArtifactAnnotationStore } from '@/store/useArtifactAnnotationStore';
+import { buildAnchor } from '@/lib/artifacts/artifactAnnotations';
 
 interface DocumentSelectionToolbarProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   artifactId?: string;
+  /** Raw document text for line-anchored comments; falls back to selection-only anchors. */
+  content?: string;
+  versionId?: string;
 }
 
-type ActionType = 'modify' | 'explain' | 'optimize' | 'quote';
+type ActionType = 'modify' | 'explain' | 'optimize' | 'quote' | 'annotate';
 
 const TOOLBAR_DEBOUNCE_MS = 250;
 const TOOLBAR_HEIGHT_ESTIMATE = 48;
 
-const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ containerRef, artifactId }) => {
+const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ containerRef, artifactId, content, versionId }) => {
   const t = useTranslations('artifacts.documentSelection');
 
   const [visible, setVisible] = useState(false);
@@ -37,6 +42,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
   const [selectedText, setSelectedText] = useState('');
   const [showInput, setShowInput] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [inputMode, setInputMode] = useState<'modify' | 'annotate'>('modify');
 
   const toolbarRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,8 +52,39 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
     setVisible(false);
     setShowInput(false);
     setInputValue('');
+    setInputMode('modify');
     setSelectedText('');
   }, []);
+
+  const handleAnnotateSubmit = useCallback(() => {
+    const instruction = inputValue.trim();
+    if (!instruction || !selectedText || !artifactId) {
+      return;
+    }
+    const firstLine = selectedText.trim().split('\n')[0];
+    let start = -1;
+    let end = -1;
+    if (content) {
+      const index = content.indexOf(firstLine);
+      if (index >= 0) {
+        start = content.slice(0, index).split('\n').length;
+        end = start + selectedText.trim().split('\n').length - 1;
+      }
+    }
+    const source = content || selectedText.trim();
+    const anchor =
+      start > 0 ? buildAnchor(source, start, end) : buildAnchor(source, 1, source.split('\n').length);
+    useArtifactAnnotationStore.getState().addAnnotation({
+      id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      artifactId,
+      versionId: versionId || 'latest',
+      anchor,
+      intent: instruction,
+      status: 'open',
+      createdAt: new Date().toISOString(),
+    });
+    hideToolbar();
+  }, [inputValue, selectedText, artifactId, content, versionId, hideToolbar]);
 
   const { sendAction } = useSelectionAction({ onSent: hideToolbar });
 
@@ -143,10 +180,12 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
         return;
       }
 
-      const actionLabels: Partial<Record<ActionType, string>> = {
+      const actionLabels: Record<ActionType, string> = {
         modify: t('modify'),
         explain: t('explain'),
         optimize: t('rewrite'),
+        annotate: t('annotate'),
+        quote: t('quote'),
       };
 
       const message = buildContext(actionLabels[action], customInstruction);
@@ -168,6 +207,12 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
   }, [selectedText, hideToolbar]);
 
   const handleModifyClick = useCallback(() => {
+    setInputMode('modify');
+    setShowInput(true);
+  }, []);
+
+  const handleAnnotateClick = useCallback(() => {
+    setInputMode('annotate');
     setShowInput(true);
   }, []);
 
@@ -175,8 +220,12 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
     if (!inputValue.trim()) {
       return;
     }
+    if (inputMode === 'annotate') {
+      handleAnnotateSubmit();
+      return;
+    }
     executeAction('modify', inputValue.trim());
-  }, [inputValue, executeAction]);
+  }, [inputValue, executeAction, inputMode, handleAnnotateSubmit]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -206,6 +255,12 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
       onClick: handleModifyClick,
     },
     {
+      type: 'annotate',
+      icon: <CommentAdd02Icon className="w-3.5 h-3.5" />,
+      label: t('annotate'),
+      onClick: handleAnnotateClick,
+    },
+    {
       type: 'explain',
       icon: <InformationCircleIcon className="w-3.5 h-3.5" />,
       label: t('explain'),
@@ -223,8 +278,8 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
       label: t('quote') || '引用到输入框',
       onClick: () => {
         const activeTab = useArtifactPortalStore.getState().getActiveTab();
-        const artifactName = activeTab?.title || '文档工件';
-        const targetArtifactId = artifactId || activeTab?.artifactId || 'current';
+        const artifactName = activeTab?.artifact?.filename || '文档工件';
+        const targetArtifactId = artifactId || activeTab?.artifact?.id || 'current';
         
         // 1. 同步设置 ScopedArtifactStore，用于针对特定工件范围聚焦
         useScopedArtifactStore.getState().setTarget({
@@ -287,7 +342,8 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
               'flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium',
               'text-popover-foreground/80 hover:text-popover-foreground',
               'hover:bg-accent transition-colors duration-100',
-              action.type === 'modify' && showInput && 'bg-accent text-popover-foreground',
+              action.type === 'modify' && showInput && inputMode === 'modify' && 'bg-accent text-popover-foreground',
+              action.type === 'annotate' && showInput && inputMode === 'annotate' && 'bg-accent text-popover-foreground',
             )}
             title={action.label}
           >
@@ -309,7 +365,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={t('modifyPlaceholder')}
+            placeholder={inputMode === 'annotate' ? t('annotatePlaceholder') : t('modifyPlaceholder')}
             className={cn(
               'flex-1 min-w-[200px] bg-transparent text-sm text-popover-foreground',
               'placeholder:text-muted-foreground/60 outline-none',

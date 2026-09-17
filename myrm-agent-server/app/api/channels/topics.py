@@ -113,6 +113,8 @@ async def list_channel_topics(
                     identityId=str(topic_cfg.get("identityId", "")) or None,
                     identityName=str(topic_cfg.get("identityName", "")) or None,
                     identityRevoked=bool(topic_cfg.get("identityRevoked", False)),
+                    completionReceipts=bool(topic_cfg.get("completionReceipts", True)),
+                    stallNudge=bool(topic_cfg.get("stallNudge", False)),
                 )
             )
 
@@ -200,6 +202,10 @@ async def bind_channel_topic(
             bind_kwargs["identity_name"] = body.identity_name
         if body.identity_revoked is not None:
             bind_kwargs["identity_revoked"] = body.identity_revoked
+        if body.completion_receipts is not None:
+            bind_kwargs["completion_receipts"] = body.completion_receipts
+        if body.stall_nudge is not None:
+            bind_kwargs["stall_nudge"] = body.stall_nudge
         ctx = await manager.bind_topic(**bind_kwargs)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -225,6 +231,8 @@ async def bind_channel_topic(
         identityId=ctx.identity_id,
         identityName=ctx.identity_name,
         identityRevoked=ctx.identity_revoked,
+        completionReceipts=ctx.completion_receipts,
+        stallNudge=ctx.stall_nudge,
     )
 
 

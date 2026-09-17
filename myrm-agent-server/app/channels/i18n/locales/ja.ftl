@@ -154,6 +154,8 @@ topic_bound =
     /unbind で解除できます。
 topic_identity_only = （アイデンティティ：{ $name }）
 topic_identity_revoked = （アイデンティティ凍結中、デフォルトAgentで応答）
+followup_receipt_done = ✅ 完了（所要時間{ $elapsed }）——修正が必要ならこのスレッドで返信してください。[AI プロアクティブ]
+followup_stall_nudge = 👋 フォローアップです——未完了の項目があるまま静かになっています。{ $mention }返信いただければ対応します。[AI プロアクティブ]
 topic_workspace_only = （ワークスペース：{ $workspace }）
 topic_workspace_unavailable =  ワークスペースのバインドに失敗しました：{ $error }
 topic_status_workspace = ワークスペース：{ $workspace }
@@ -266,6 +268,7 @@ error_context_overflow = 会話が長すぎます。新しいセッションを�
 error_format = AI が無効なフォーマットを生成しました。再試行してください。
 error_model_not_found = リクエストされたモデルは利用できません。別のモデルを選択してください。
 error_safety_block = リクエストがセーフティフィルターによりブロックされました。
+error_challenge_blocked = リクエストが上流のチャレンジまたはセキュリティ検証によってブロックされました。
 error_response_format = AI が無効なフォーマットを生成しました。再試行してください。
 error_unknown = リクエストの処理中に問題が発生しました。しばらくしてから再試行してください。
 cmd_stop = 実行中の Agent タスクを停止

@@ -237,16 +237,18 @@ async def get_memory_graph(
 
     safe_limit = min(max(limit, 1), 300)
     safe_offset = max(offset, 0)
-    nodes_raw = await graph.list_nodes(limit=safe_limit, offset=safe_offset)
-    # Fetch higher edge limit to prevent cutting off connected clusters
-    rels_raw = await graph.list_relationships(limit=min(safe_limit * 3, 600), offset=safe_offset)
-
-    namespaces = [namespace] if namespace else None
-
-    filtered_nodes = [
-        n for n in nodes_raw if not namespaces or str(n.properties.get("primary_namespace", "")).strip() in namespaces
-    ]
+    target_ns = namespace.strip() if namespace and namespace.strip() else None
+    nodes_raw = await graph.list_nodes(limit=safe_limit, offset=safe_offset, namespace=target_ns)
+    filtered_nodes = nodes_raw
     filtered_node_ids = {n.id for n in filtered_nodes}
+
+    # Fetch induced subgraph edges for current nodes, preventing orphan nodes & truncation
+    if filtered_node_ids:
+        rels_raw = await graph.list_relationships(
+            limit=safe_limit * 5, offset=0, node_ids=list(filtered_node_ids)
+        )
+    else:
+        rels_raw = []
 
     # Degree and conflict tracking for dual-view ranking
     in_degrees: dict[str, int] = {}

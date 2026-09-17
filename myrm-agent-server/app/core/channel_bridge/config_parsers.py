@@ -325,9 +325,16 @@ def _build_enriched_model_config(
     oauth_base = provider.get("_oauthBaseUrl")
     api_url_raw = oauth_base if oauth_base else provider.get("apiUrl") or provider.get("baseURL") or ""
     api_url = str(api_url_raw).strip() or None
+    egress_proxy_raw = provider.get("egressProxy") or provider.get("egress_proxy")
+    egress_proxy = str(egress_proxy_raw).strip() or None if egress_proxy_raw else None
 
     cfg = enrich_model_config(
-        ModelConfig(model=full_model, api_key=api_key, base_url=api_url),
+        ModelConfig(
+            model=full_model,
+            api_key=api_key,
+            base_url=api_url,
+            egress_proxy=egress_proxy,
+        ),
         provider_id=provider_id,
     )
     if providers_dict is not None:
