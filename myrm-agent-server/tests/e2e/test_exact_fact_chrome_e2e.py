@@ -59,7 +59,7 @@ def test_exact_fact_contract_in_chrome_e2e() -> None:
 
     search_res = http_json("GET", f"{api_url}/api/v1/memory/search?query=test&memory_type=semantic")
     assert isinstance(search_res, dict), f"Unexpected search response: {search_res}"
-    assert "items" in search_res, f"items missing in search response: {search_res}"
+    assert "results" in search_res, f"results missing in search response: {search_res}"
 
     # 2. Verify WebUI /settings/memory in real Chrome browser
     warm_ui_route("/settings/memory")
