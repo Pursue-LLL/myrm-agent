@@ -30,8 +30,24 @@ export interface DynamicPreferenceRadarDrawerProps {
   onValueChange: (dimension: keyof RadarDimensionValues, value: number) => void;
   onToggleLock: (nextLocked: boolean) => void;
   onReset: () => void;
+  onSelectPreset?: (preset: 'balanced' | 'code' | 'research') => void;
   className?: string;
 }
+
+export const RADAR_PRESETS: Record<'balanced' | 'code' | 'research', { label: string; values: RadarDimensionValues }> = {
+  balanced: {
+    label: '平衡通用',
+    values: { recency: 1.0, actionability: 1.0, technical_depth: 1.0, conciseness: 1.0, breadth: 1.0 },
+  },
+  code: {
+    label: '编码实战',
+    values: { recency: 1.5, actionability: 2.5, technical_depth: 2.0, conciseness: 1.8, breadth: 0.5 },
+  },
+  research: {
+    label: '调研推演',
+    values: { recency: 2.0, actionability: 0.5, technical_depth: 2.5, conciseness: 0.8, breadth: 2.5 },
+  },
+};
 
 interface DimensionConfig {
   key: keyof RadarDimensionValues;
@@ -62,6 +78,7 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
   onValueChange,
   onToggleLock,
   onReset,
+  onSelectPreset,
   className = '',
 }) => {
   const radarPoints = useMemo(() => {
@@ -89,6 +106,22 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
       return pts.join(' ');
     });
   }, []);
+
+  const semanticSummary = useMemo(() => {
+    const entries = DIMENSIONS.map((d) => ({
+      key: d.key,
+      label: d.label,
+      val: values[d.key] ?? 1.0,
+    })).sort((a, b) => b.val - a.val);
+
+    const highest = entries[0];
+    const second = entries[1];
+
+    if (highest.val < 1.15 && entries[entries.length - 1].val > 0.85) {
+      return '偏好均衡：各维度均衡召回，通用协同工作';
+    }
+    return `偏好聚焦：强化「${highest.label} (${highest.val.toFixed(1)}x)」与「${second.label} (${second.val.toFixed(1)}x)」`;
+  }, [values]);
 
   if (!isOpen) {
     return null;
@@ -134,6 +167,38 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
           >
             <X className="h-4 w-4" />
           </button>
+        </div>
+      </div>
+
+      {/* 语义摘要与一键预设栏 */}
+      <div className="my-3 space-y-2">
+        <div className="rounded-lg border border-border/50 bg-primary/5 px-3 py-2 text-xs text-primary/90 font-medium">
+          {semanticSummary}
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+          {(Object.keys(RADAR_PRESETS) as Array<'balanced' | 'code' | 'research'>).map((presetKey) => {
+            const preset = RADAR_PRESETS[presetKey];
+            return (
+              <button
+                key={presetKey}
+                type="button"
+                data-testid={`preset-${presetKey}`}
+                disabled={locked}
+                onClick={() => {
+                  if (onSelectPreset) {
+                    onSelectPreset(presetKey);
+                  } else {
+                    (Object.keys(preset.values) as Array<keyof RadarDimensionValues>).forEach((k) => {
+                      onValueChange(k, preset.values[k]);
+                    });
+                  }
+                }}
+                className="whitespace-nowrap rounded-md border border-border/70 bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-primary/10 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {preset.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

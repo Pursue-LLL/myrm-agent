@@ -119,6 +119,11 @@ const ContinualOverlayWatcher = dynamic(
   { ssr: false },
 );
 
+const PreferenceRadarToggle = dynamic(
+  () => import('./PreferenceRadarToggle').then((m) => ({ default: m.PreferenceRadarToggle })),
+  { ssr: false },
+);
+
 interface ChatWindowSatellitesProps {
   chatId?: string;
   onInspectorInstruction: (instruction: string, refId: string | null) => void;
@@ -165,6 +170,7 @@ export default function ChatWindowSatellites({
       <DeviceInspectorToggle />
       <DeviceLiveView onSendInstruction={onDesktopInspectorInstruction} />
       <FileSnapshotPanel />
+      <PreferenceRadarToggle chatId={chatId} />
       {chatId ? (
         <div className="fixed bottom-24 right-[4.5rem] z-50 max-sm:bottom-20 max-sm:right-16 bg-secondary rounded-full shadow-lg">
           <SessionRevertButton sessionId={chatId} />

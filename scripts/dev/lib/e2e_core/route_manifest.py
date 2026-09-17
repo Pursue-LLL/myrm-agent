@@ -28,6 +28,7 @@ class HydrationGate(str, Enum):
     MCP_SETTINGS = "mcp-settings"
     WIKI_SETTINGS_SHELL = "wiki-settings-shell"
     CHAT_BRIDGE = "chat-bridge"
+    STANDALONE = "standalone"
 
 
 @dataclass(frozen=True)
@@ -76,6 +77,30 @@ ROUTE_MANIFEST: tuple[RouteManifestEntry, ...] = (
         hydration_gate=HydrationGate.CHAT_BRIDGE,
     ),
     RouteManifestEntry(
+        path_prefix="/pricing",
+        shell_path="/pricing",
+        subroute=False,
+        hydration_gate=HydrationGate.STANDALONE,
+    ),
+    RouteManifestEntry(
+        path_prefix="/auth",
+        shell_path="/auth",
+        subroute=False,
+        hydration_gate=HydrationGate.STANDALONE,
+    ),
+    RouteManifestEntry(
+        path_prefix="/payment",
+        shell_path="/payment",
+        subroute=False,
+        hydration_gate=HydrationGate.STANDALONE,
+    ),
+    RouteManifestEntry(
+        path_prefix="/pet-overlay",
+        shell_path="/pet-overlay",
+        subroute=False,
+        hydration_gate=HydrationGate.STANDALONE,
+    ),
+    RouteManifestEntry(
         path_prefix="/",
         shell_path="/",
         subroute=False,
@@ -93,6 +118,10 @@ _GATE_FORBIDDEN_MAP: dict[HydrationGate, tuple[HydrationGate, ...]] = {
     ),
     HydrationGate.CHAT_BRIDGE: (HydrationGate.SETTINGS_LAYOUT,),
     HydrationGate.APP_LAYOUT: (HydrationGate.SETTINGS_LAYOUT,),
+    HydrationGate.STANDALONE: (
+        HydrationGate.SETTINGS_LAYOUT,
+        HydrationGate.CHAT_BRIDGE,
+    ),
 }
 
 _APP_LAYOUT_PROBE = """(() => ({
@@ -154,6 +183,18 @@ _WIKI_SETTINGS_SHELL_PROBE = """(() => {
   };
 })()"""
 
+_STANDALONE_PROBE = """(() => {
+  const pathname = location.pathname || '';
+  const standalone = /^\\/(pricing|auth|payment|pet-overlay)(\\/|$)/.test(pathname);
+  const bodyLength = (document.body?.innerText || '').length;
+  return {
+    ready: standalone && bodyLength > 40 && !document.querySelector('[data-testid="app-shell-skeleton"]'),
+    pathname,
+    bodyLength,
+    kind: 'standalone',
+  };
+})()"""
+
 _CHAT_BRIDGE_PROBE = """(() => ({
   ready:
     typeof window.__MYRM_E2E_CHAT__?.attachToChat === 'function'
@@ -192,6 +233,11 @@ HYDRATION_PROBES: dict[HydrationGate, HydrationProbe] = {
         gate=HydrationGate.CHAT_BRIDGE,
         js=_CHAT_BRIDGE_PROBE,
         forbidden_gates=_GATE_FORBIDDEN_MAP[HydrationGate.CHAT_BRIDGE],
+    ),
+    HydrationGate.STANDALONE: HydrationProbe(
+        gate=HydrationGate.STANDALONE,
+        js=_STANDALONE_PROBE,
+        forbidden_gates=_GATE_FORBIDDEN_MAP[HydrationGate.STANDALONE],
     ),
 }
 

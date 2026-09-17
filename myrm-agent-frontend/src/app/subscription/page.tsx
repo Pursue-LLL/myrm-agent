@@ -99,13 +99,15 @@ export default function SubscriptionPage() {
     setTopupLoading(true);
     try {
       const authToken = localStorage.getItem('auth_token');
+      const localeRegion = typeof navigator !== 'undefined' ? navigator.language.split('-')[1] : undefined;
+      const country = localeRegion?.toUpperCase().match(/^[A-Z]{2}$/)?.[0];
       const response = await fetch('/api/topup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         },
-        body: JSON.stringify({ amount_usd: amountUsd }),
+        body: JSON.stringify({ amount_usd: amountUsd, ...(country ? { country } : {}) }),
       });
       if (!response.ok) {
         toast.error(tBilling('checkoutFailed'));

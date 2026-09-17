@@ -101,28 +101,26 @@ export default function KanbanSection() {
         : boards;
       let cancelled = false;
       (async () => {
-        for (const board of candidates) {
+        try {
+          const summaries = await Promise.all(
+            candidates.map(async (board) => {
+              try {
+                const s = await getBoardSummary(board.board_id);
+                return { board, count: s.task_counts[statusParam] ?? 0 };
+              } catch {
+                return { board, count: 0 };
+              }
+            }),
+          );
           if (cancelled) {
             return;
           }
-          try {
-            const summary = await getBoardSummary(board.board_id);
-            if (cancelled) {
-              return;
-            }
-            if ((summary.task_counts[statusParam] ?? 0) > 0) {
-              selectBoard(board);
-              return;
-            }
-          } catch {
-            // Board summary is best-effort here; fall through to the next board.
+          const matched = summaries.find((item) => item.count > 0)?.board;
+          selectBoard(matched ?? candidates[0] ?? null);
+        } catch {
+          if (!cancelled && candidates[0]) {
+            selectBoard(candidates[0]);
           }
-        }
-        if (cancelled) {
-          return;
-        }
-        if (candidates[0]) {
-          selectBoard(candidates[0]!);
         }
       })();
       return () => {

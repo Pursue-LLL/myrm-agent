@@ -49,6 +49,7 @@ import { toast as actionToast } from '@/lib/utils/toast';
 import {
   exportMemories,
   exportMemoriesMarkdown,
+  updateMemory,
   updateMemoryStatus,
   getMemoryTags,
   type TagStatsItem,
@@ -429,6 +430,26 @@ const MemorySection = memo(() => {
         toast({
           title: newStatus === 'disabled' ? t('disableSuccess') : t('enableSuccess'),
           description: newStatus === 'disabled' ? t('disableSuccessDesc') : t('enableSuccessDesc'),
+        });
+      } catch (error) {
+        toast({
+          title: t('statusUpdateFailed'),
+          description: error instanceof Error ? error.message : t('unknownError'),
+          variant: 'destructive',
+        });
+      }
+    },
+    [fetchMemories, t],
+  );
+
+  const handleToggleProtect = useCallback(
+    async (mem: Memory, nextLocked: boolean) => {
+      try {
+        await updateMemory(mem.memory_type as MemoryType, mem.id, { is_user_locked: nextLocked });
+        await fetchMemories();
+        toast({
+          title: nextLocked ? t('protectRuleSuccess') : t('releaseProtectionSuccess'),
+          description: nextLocked ? t('protectRuleSuccessDesc') : t('releaseProtectionSuccessDesc'),
         });
       } catch (error) {
         toast({
@@ -837,6 +858,7 @@ const MemorySection = memo(() => {
                         onDelete={(permanent) => handleDelete(memory.id, memory.memory_type as MemoryType, permanent)}
                         onToggleDisable={() => handleToggleDisable(memory)}
                         onChatFromMemory={() => handleChatFromMemory(memory)}
+                        onToggleProtect={(nextLocked) => handleToggleProtect(memory, nextLocked)}
                       />
                     ))}
                   </div>

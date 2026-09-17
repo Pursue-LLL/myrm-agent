@@ -247,9 +247,9 @@ class PolicyResolver:
             )
             if thread_key and self._tracker.is_active(thread_key):
                 self._tracker.mute(thread_key)
-                from app.channels.routing.follow_up import drop_tracked_thread
+                from app.channels.routing.follow_up import mute_tracked_thread
 
-                drop_tracked_thread(msg.channel, msg.chat_id or msg.sender_id, msg.thread_id)
+                mute_tracked_thread(msg.channel, msg.chat_id or msg.sender_id, msg.thread_id)
                 # Send microsecond-level mute confirmation, bypassing LLM agents
                 await self._fx.send_mute_reply(msg)
                 return True, "___MUTE_CONFIRMED___"

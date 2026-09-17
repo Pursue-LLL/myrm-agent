@@ -252,6 +252,8 @@ def _fallback_model_from_providers(
                     oauth_base = provider.get("_oauthBaseUrl")
                     api_url = str(oauth_base) if oauth_base else str(provider.get("apiUrl") or provider.get("baseURL") or "")
                     api_url = api_url if api_url else None
+                    egress_proxy_raw = provider.get("egressProxy") or provider.get("egress_proxy")
+                    egress_proxy = str(egress_proxy_raw).strip() or None if egress_proxy_raw else None
                     pool_strategy = str(provider.get("credentialPoolStrategy", "")) or None
                     model_kwargs = _build_transport_headers(all_keys[0], pid, api_url)
                     # Warn if default base model is a preview/beta slug
@@ -270,6 +272,7 @@ def _fallback_model_from_providers(
                             base_url=api_url,
                             api_keys=all_keys if len(all_keys) > 1 else None,
                             credential_pool_strategy=pool_strategy if len(all_keys) > 1 else None,
+                            egress_proxy=egress_proxy,
                             model_kwargs=model_kwargs,
                         ),
                         provider_id=pid,
@@ -335,6 +338,8 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
         oauth_base = p.get("_oauthBaseUrl")
         api_url = str(oauth_base) if oauth_base else str(p.get("apiUrl") or p.get("baseURL") or "")
         api_url = api_url if api_url else None
+        egress_proxy_raw = p.get("egressProxy") or p.get("egress_proxy")
+        egress_proxy = str(egress_proxy_raw).strip() or None if egress_proxy_raw else None
         pool_strategy = str(p.get("credentialPoolStrategy", "")) or None
         resolved_model = _to_litellm_model(pid, raw_model, ptype or None)
         model_kwargs = _build_transport_headers(all_keys[0], pid, api_url)
@@ -345,6 +350,7 @@ def _resolve_override(providers_dict: dict[str, object], model_name: str) -> "Mo
                 base_url=api_url,
                 api_keys=all_keys if len(all_keys) > 1 else None,
                 credential_pool_strategy=pool_strategy if len(all_keys) > 1 else None,
+                egress_proxy=egress_proxy,
                 model_kwargs=model_kwargs,
             ),
             provider_id=pid,

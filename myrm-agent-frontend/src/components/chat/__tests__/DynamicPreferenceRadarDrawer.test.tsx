@@ -123,4 +123,27 @@ describe('DynamicPreferenceRadarDrawer Component', () => {
     fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('renders semantic summary banner and preset buttons', () => {
+    const onSelectPreset = vi.fn();
+    render(
+      <DynamicPreferenceRadarDrawer
+        isOpen={true}
+        onClose={vi.fn()}
+        values={mockDefaultValues}
+        locked={false}
+        onValueChange={vi.fn()}
+        onToggleLock={vi.fn()}
+        onReset={vi.fn()}
+        onSelectPreset={onSelectPreset}
+      />
+    );
+
+    expect(screen.getByText(/偏好聚焦/)).toBeInTheDocument();
+    const codePresetBtn = screen.getByTestId('preset-code');
+    expect(codePresetBtn).toBeInTheDocument();
+    fireEvent.click(codePresetBtn);
+    expect(onSelectPreset).toHaveBeenCalledWith('code');
+  });
 });
+

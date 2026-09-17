@@ -156,7 +156,7 @@ export class AgentBusyError extends Error {
 
 /** Backend agent-stream busy uses HTTP 200 + SSE error (status_code 409 in payload). */
 export function isAgentBusySseEvent(event: { type: string } & Record<string, unknown>): boolean {
-  if (event.type !== 'error') {
+  if (!event || event.type !== 'error') {
     return false;
   }
   if (event.error_type === 'AgentBusyError') {

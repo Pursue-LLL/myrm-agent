@@ -12,7 +12,10 @@ interface CheckoutRequest {
   billingCycle: 'monthly' | 'yearly';
   email?: string;
   enableTrial?: boolean;
+  country?: string;
 }
+
+const COUNTRY_PATTERN = /^[A-Z]{2}$/;
 
 interface CpCheckoutResponse {
   checkout_url: string;
@@ -22,7 +25,7 @@ interface CpCheckoutResponse {
 export async function POST(request: NextRequest) {
   try {
     const body: CheckoutRequest = await request.json();
-    const { plan, billingCycle, email, enableTrial } = body;
+    const { plan, billingCycle, email, enableTrial, country } = body;
 
     if (!plan) {
       return NextResponse.json({ error: 'Plan is required' }, { status: 400 });
@@ -30,6 +33,10 @@ export async function POST(request: NextRequest) {
 
     if (!isPaidBillingPlan(plan)) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
+    }
+
+    if (country !== undefined && (typeof country !== 'string' || !COUNTRY_PATTERN.test(country))) {
+      return NextResponse.json({ error: 'Invalid country' }, { status: 400 });
     }
 
     const authHeader = request.headers.get('Authorization');
@@ -50,6 +57,7 @@ export async function POST(request: NextRequest) {
         billing_cycle: billingCycle,
         email,
         enable_trial: enableTrial ?? false,
+        ...(country ? { country } : {}),
         success_url: `${baseUrl}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/payment/cancel`,
       }),

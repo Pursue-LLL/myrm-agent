@@ -26,7 +26,11 @@ export default function PricingPage() {
 
   const currentPlan = isSandbox() && entitlements ? entitlements.plan : 'free';
   const billingNotReady =
-    isSandbox() && !catalogLoading && planCatalog.some((plan) => plan.key !== 'free' && !plan.checkoutAvailable);
+    isSandbox() &&
+    !catalogLoading &&
+    planCatalog.some(
+      (plan) => plan.key !== 'free' && !plan.checkoutAvailable && !plan.yearlyCheckoutAvailable,
+    );
 
   const PREV_PLAN: Record<string, string | null> = {
     free: null,
@@ -43,13 +47,16 @@ export default function PricingPage() {
     }
 
     const planEntry = planCatalog.find((plan) => plan.key === planKey);
-    if (!planEntry?.checkoutAvailable) {
+    const cycleAvailable = isYearly ? planEntry?.yearlyCheckoutAvailable : planEntry?.checkoutAvailable;
+    if (!cycleAvailable) {
       return;
     }
 
     setCheckoutLoading(planKey);
     try {
       const authToken = token || localStorage.getItem('auth_token');
+      const localeRegion = typeof navigator !== 'undefined' ? navigator.language.split('-')[1] : undefined;
+      const country = localeRegion?.toUpperCase().match(/^[A-Z]{2}$/)?.[0];
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
@@ -61,6 +68,7 @@ export default function PricingPage() {
           billingCycle: isYearly ? 'yearly' : 'monthly',
           email: user?.email,
           enableTrial,
+          ...(country ? { country } : {}),
         }),
       });
 
@@ -155,10 +163,11 @@ export default function PricingPage() {
             : null}
           {!catalogLoading || planCatalog.length > 0
             ? planCatalog.map(
-                ({ key, icon: Icon, monthlyUsd, yearlyUsd, monthlyWu, highlight, trialDays, checkoutAvailable }) => {
+                ({ key, icon: Icon, monthlyUsd, yearlyUsd, monthlyWu, highlight, trialDays, checkoutAvailable, yearlyCheckoutAvailable }) => {
                   const isCurrent = currentPlan === key;
                   const isPaid = key !== 'free';
                   const displayPrice = isYearly && isPaid ? yearlyUsd : monthlyUsd;
+                  const cycleAvailable = isYearly && isPaid ? yearlyCheckoutAvailable : checkoutAvailable;
                   const hasTrial = trialDays > 0 && currentPlan === 'free';
 
                   return (
@@ -287,12 +296,12 @@ export default function PricingPage() {
                                   'bg-gradient-to-r from-primary to-primary-hover hover:opacity-90 shadow-lg shadow-primary/20 border-0',
                               )}
                               variant="default"
-                              disabled={checkoutLoading !== null || !checkoutAvailable}
+                              disabled={checkoutLoading !== null || !cycleAvailable}
                               onClick={() => handleSubscribe(key as PaidBillingPlanKey, true)}
                             >
                               {checkoutLoading === key
                                 ? t('processing')
-                                : !checkoutAvailable
+                                : !cycleAvailable
                                   ? t('checkoutUnavailable')
                                   : t('startTrial')}
                             </Button>
@@ -306,7 +315,7 @@ export default function PricingPage() {
                             )}
                             variant={highlight && !hasTrial ? 'default' : 'outline'}
                             disabled={
-                              isCurrent || (isPaid && checkoutLoading !== null) || !isPaid || !checkoutAvailable
+                              isCurrent || (isPaid && checkoutLoading !== null) || !isPaid || !cycleAvailable
                             }
                             onClick={() => (isPaid ? handleSubscribe(key as PaidBillingPlanKey) : undefined)}
                           >
@@ -314,7 +323,7 @@ export default function PricingPage() {
                               ? t('processing')
                               : isCurrent
                                 ? t('currentPlan')
-                                : isPaid && !checkoutAvailable
+                                : isPaid && !cycleAvailable
                                   ? t('checkoutUnavailable')
                                   : isPaid
                                     ? t('subscribe')

@@ -65,3 +65,38 @@ export const unforgetPreference = async (facetId: string): Promise<{ success: bo
     method: 'POST',
   });
 };
+
+export interface RadarDimensionValues {
+  recency: number;
+  actionability: number;
+  technical_depth: number;
+  conciseness: number;
+  breadth: number;
+}
+
+export interface PreferenceRadarStateResponse {
+  session_id: string;
+  dimensions: RadarDimensionValues;
+  effective_signal_weights: Record<string, number>;
+  locked: boolean;
+  updated_at: string;
+}
+
+export const getPreferenceRadarState = async (sessionId: string): Promise<PreferenceRadarStateResponse> => {
+  return apiRequest<PreferenceRadarStateResponse>(`/memory/radar/${encodeURIComponent(sessionId)}`);
+};
+
+export const tunePreferenceRadar = async (
+  sessionId: string,
+  req: {
+    dimensions?: Partial<RadarDimensionValues>;
+    locked?: boolean;
+    reset_to_baseline?: boolean;
+  }
+): Promise<PreferenceRadarStateResponse> => {
+  return apiRequest<PreferenceRadarStateResponse>(`/memory/radar/${encodeURIComponent(sessionId)}/tune`, {
+    method: 'POST',
+    body: JSON.stringify(req),
+  });
+};
+

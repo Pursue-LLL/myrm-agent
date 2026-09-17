@@ -72,8 +72,31 @@ async def _finalize_heartbeat_follow_up_delivery(job: CronJob, result: JobResult
 
     if result.success and not result.skipped:
         await confirm_follow_up_delivery(delivered=_heartbeat_follow_up_delivered(result.output))
-        return
-    reset_follow_up_delivery()
+    else:
+        reset_follow_up_delivery()
+    await _scan_stalled_group_threads()
+
+
+async def _scan_stalled_group_threads() -> int:
+    """Run one lazy stall scan from the heartbeat path (no new daemon).
+
+    Covers fully silent groups that inbound traffic would never trigger.
+    Best-effort: failures never propagate to the cron run.
+    """
+    try:
+        from app.channels.routing.channel_data_plane import ChannelDataPlaneService
+        from app.channels.routing.follow_up import scan_stalled_threads
+        from app.core.channel_bridge import channel_gateway
+        from app.core.channel_bridge.topic_config import SqlTopicManager
+
+        return await scan_stalled_threads(
+            bus=channel_gateway.bus,
+            resolve_topic=SqlTopicManager().resolve_topic,
+            record_outbound=ChannelDataPlaneService.record_outbound,
+        )
+    except Exception:
+        logger.warning("Heartbeat stall scan skipped", exc_info=True)
+        return 0
 
 
 def _source_sort_key(s: dict[str, object]) -> int:

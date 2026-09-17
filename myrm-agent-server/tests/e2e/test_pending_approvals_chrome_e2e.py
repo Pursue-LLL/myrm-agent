@@ -172,11 +172,6 @@ def _click_pending_kpi_and_verify_kanban_deep_link(
           link.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
           link.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
           link.click();
-          setTimeout(() => {
-            if (location.pathname === '/agents' && href) {
-              window.location.href = href;
-            }
-          }, 100);
           return { clicked: true, href };
         })()""",
         timeout_sec=5.0,
@@ -184,6 +179,9 @@ def _click_pending_kpi_and_verify_kanban_deep_link(
     assert clicked.get("clicked") is True, f"pending KPI link not clickable: {clicked}"
     href = str(clicked.get("href") or "")
     assert href.endswith("/settings/kanban?status=in_review"), f"pending KPI must deep link to kanban in_review filter: {href}"
+
+    target_kanban_url = f"{ui_url}{href}"
+    navigate_mcp_page(client, page, target_kanban_url, timeout_ms=90_000)
 
     # Client-side nav: the board view mounts and KanbanSection auto-selects a
     # board holding the status. The in-review column must show our seeded card.
@@ -209,7 +207,7 @@ def _click_pending_kpi_and_verify_kanban_deep_link(
           }};
         }})()""",
         timeout_sec=90.0,
-        page_url="/settings/kanban",
+        page_url=href,
     )
     assert landed.get("ready") is True, f"kanban deep link did not land on the in-review task: {landed}"
 
@@ -445,6 +443,7 @@ def test_fleet_pending_approvals_kpi_tracks_kanban_in_review() -> None:
     ui_url = get_e2e_ui_url()
 
     warm_ui_route("/agents")
+    warm_ui_route("/settings/kanban")
     agents_url = f"{ui_url}/agents"
 
     with open_mcp_page(agents_url) as (client, page):

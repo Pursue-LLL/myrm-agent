@@ -40,6 +40,8 @@ interface MemoryCardProps {
   onDelete?: (permanent?: boolean) => void;
   onToggleDisable?: () => void;
   onChatFromMemory?: () => void;
+  /** Procedural rules only: protect the rule from agent edits/deletes, or release it. */
+  onToggleProtect?: (nextLocked: boolean) => void;
   onClick?: () => void;
   className?: string;
 }
@@ -68,6 +70,7 @@ const MemoryCard = memo<MemoryCardProps>(
     onDelete,
     onToggleDisable,
     onChatFromMemory,
+    onToggleProtect,
     onClick,
     className,
   }) => {
@@ -222,6 +225,18 @@ const MemoryCard = memo<MemoryCardProps>(
                         >
                           <MessageSquarePlus size={14} />
                           {t('chatFromMemory')}
+                        </button>
+                      )}
+                      {memoryType === 'procedural' && onToggleProtect && (
+                        <button
+                          onClick={() => {
+                            setShowActions(false);
+                            onToggleProtect(!confirmed?.is_user_locked);
+                          }}
+                          className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
+                        >
+                          <Lock size={14} className={confirmed?.is_user_locked ? 'text-amber-500' : undefined} />
+                          {confirmed?.is_user_locked ? t('releaseProtection') : t('protectRule')}
                         </button>
                       )}
                       {canEdit && onEdit && (

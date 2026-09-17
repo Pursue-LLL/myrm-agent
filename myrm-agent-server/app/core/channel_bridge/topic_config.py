@@ -657,6 +657,10 @@ class SqlTopicManager:
             del config[chat_id]
 
         await self._save_config(channel, config)
+
+        from app.channels.routing.follow_up import drop_tracked_thread
+
+        drop_tracked_thread(channel, chat_id, thread_id)
         return True
 
     async def _upsert_topic(

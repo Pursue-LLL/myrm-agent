@@ -8,7 +8,10 @@ const CP_API_URL = process.env.MYRM_CP_API_URL || 'http://127.0.0.1:8003';
 
 interface TopupRequest {
   amount_usd: number;
+  country?: string;
 }
+
+const COUNTRY_PATTERN = /^[A-Z]{2}$/;
 
 interface CpTopupResponse {
   checkout_url: string;
@@ -19,10 +22,14 @@ interface CpTopupResponse {
 export async function POST(request: NextRequest) {
   try {
     const body: TopupRequest = await request.json();
-    const { amount_usd } = body;
+    const { amount_usd, country } = body;
 
     if (!amount_usd || amount_usd < 1 || amount_usd > 100) {
       return NextResponse.json({ error: 'amount_usd must be between 1 and 100' }, { status: 400 });
+    }
+
+    if (country !== undefined && (typeof country !== 'string' || !COUNTRY_PATTERN.test(country))) {
+      return NextResponse.json({ error: 'Invalid country' }, { status: 400 });
     }
 
     const authHeader = request.headers.get('Authorization');
@@ -40,6 +47,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         amount_usd,
+        ...(country ? { country } : {}),
         success_url: `${baseUrl}/payment/success?type=topup&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/payment/cancel`,
       }),

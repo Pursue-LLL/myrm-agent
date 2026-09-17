@@ -250,7 +250,8 @@ async def maybe_post_completion_receipt(
         ):
             return False
 
-        dedup_key = f"receipt:{msg.channel}:{chat_id}:{msg.thread_id or ''}:{int(elapsed_seconds // 60)}"
+        trigger_id = msg.message_id or f"elapsed-{int(elapsed_seconds // 60)}"
+        dedup_key = f"receipt:{msg.channel}:{chat_id}:{msg.thread_id or ''}:{trigger_id}"
         dedup = get_follow_up_dedup()
         if dedup.seen(dedup_key):
             return False

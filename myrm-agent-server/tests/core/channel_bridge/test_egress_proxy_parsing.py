@@ -75,3 +75,49 @@ async def test_resolve_model_config_with_egress_proxy() -> None:
     }
     cfg = await _resolve_model_config(selection, providers_dict)
     assert cfg.egress_proxy == "socks5://10.0.0.2:1080"
+
+
+def test_fallback_model_from_providers_with_egress_proxy() -> None:
+    """Test that _fallback_model_from_providers extracts egressProxy for default model."""
+    from app.core.channel_bridge.model_resolver import _fallback_model_from_providers
+
+    providers_dict = {
+        "defaultModelConfig": {
+            "baseModel": {
+                "primary": {
+                    "providerId": "openai",
+                    "model": "gpt-4o",
+                }
+            }
+        },
+        "providers": [
+            {
+                "id": "openai",
+                "isEnabled": True,
+                "apiKeys": [{"key": "sk-test", "isActive": True}],
+                "egressProxy": "http://corp-proxy.local:3128",
+            }
+        ],
+    }
+    cfg = _fallback_model_from_providers(providers_dict)
+    assert cfg.egress_proxy == "http://corp-proxy.local:3128"
+
+
+def test_resolve_override_with_egress_proxy() -> None:
+    """Test that _resolve_override extracts egress_proxy when resolving model overrides."""
+    from app.core.channel_bridge.model_resolver import _resolve_override
+
+    providers_dict = {
+        "providers": [
+            {
+                "id": "anthropic",
+                "isEnabled": True,
+                "apiKeys": [{"key": "sk-ant-test", "isActive": True}],
+                "egress_proxy": "socks5://sec-proxy.corp:1080",
+            }
+        ]
+    }
+    cfg = _resolve_override(providers_dict, "anthropic/claude-3-5-sonnet-20241022")
+    assert cfg is not None
+    assert cfg.egress_proxy == "socks5://sec-proxy.corp:1080"
+
