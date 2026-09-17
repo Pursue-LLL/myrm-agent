@@ -325,7 +325,8 @@ _FOLLOWUP_FLIPPED_JS = """(() => {
   const receiptsOn = (receipts.className || '').includes('bg-primary');
   const stallOn = (stall.className || '').includes('bg-primary');
   const flipped = receiptsOn === false && stallOn === true;
-  return { ready: flipped, receiptsOn, stallOn };
+  const scopeText = (scope.innerText || '').slice(0, 200);
+  return { ready: flipped, receiptsOn, stallOn, scopeText };
 })()"""
 
 
