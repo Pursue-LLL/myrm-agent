@@ -146,21 +146,17 @@ class PreferenceRadarService:
         return self._vectors[key], self._timestamps[key]
 
     def _derive_signal_weights(self, vec: DynamicPreferenceVector) -> dict[str, float]:
-        """Convert 5D radar vector into retrieval scoring weights."""
+        """Convert 5D radar vector into relative signal multipliers for retrieval."""
         raw_recency = vec.recency
         raw_importance = (vec.technical_depth * 0.6) + (vec.actionability * 0.4)
         raw_preference = vec.conciseness
         raw_rating = vec.breadth
 
-        total = raw_recency + raw_importance + raw_preference + raw_rating
-        if total <= 0.0:
-            total = 1.0
-
         return {
-            "recency": round(raw_recency / total * 0.35, 4),
-            "importance": round(raw_importance / total * 0.35, 4),
-            "preference": round(raw_preference / total * 0.15, 4),
-            "rating": round(raw_rating / total * 0.15, 4),
+            "recency": round(raw_recency, 4),
+            "importance": round(raw_importance, 4),
+            "preference": round(raw_preference, 4),
+            "rating": round(raw_rating, 4),
         }
 
     async def get_state(self, session_id: str) -> PreferenceRadarStateResponse:

@@ -12137,7 +12137,7 @@
     "briefColdStartDescription": "このターンでは過去メモリに一致しませんでした。エージェントは探索モードで開始します。",
     "briefStableSummary": "安定コンテキスト: 指示 {instructions} 件、ルール {rules} 件、プロフィール項目 {profiles} 件。",
     "briefLearnedSummary": "学習コンテキストは利用可能（自動注入ではなく必要時に検索）：嗜好 {preferences} 件、ルール {rules} 件、補正項目 {corrections} 件。",
-    "briefRulesApplied": "ルール予算：{injected}/{rules} 件のルールを適用（{skipped} 件スキップ）。",
+    "briefRulesApplied": "この返信では {rules} 件のルールのうち特に関連する {injected} 件のみを使用しました。",
     "briefPreferenceIdPrefix": "環境設定",
     "briefRuleIdPrefix": "ルール",
     "briefUnavailablePill": "メモリ概要は利用できません",

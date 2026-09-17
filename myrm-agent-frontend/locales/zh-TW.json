@@ -12137,7 +12137,7 @@
     "briefColdStartDescription": "當前輪次未匹配到歷史記憶，智慧體將以探索模式啟動。",
     "briefStableSummary": "穩定上下文：{instructions} 條指令，{rules} 條規則，{profiles} 個畫像欄位。",
     "briefLearnedSummary": "學習上下文已就緒，按需檢索而非自動注入：{preferences} 條偏好，{rules} 條規則，{corrections} 條糾偏項。",
-    "briefRulesApplied": "規則預算：已套用 {injected}/{rules} 條規則（略過 {skipped} 條）。",
+    "briefRulesApplied": "本次回覆只採用了 {rules} 條規則中最相關的 {injected} 條。",
     "briefPreferenceIdPrefix": "偏好",
     "briefRuleIdPrefix": "規則",
     "briefUnavailablePill": "記憶簡報暫不可用",

@@ -12137,7 +12137,7 @@
     "briefColdStartDescription": "이번 턴에서는 기존 메모리가 매칭되지 않았습니다. 에이전트가 탐색 모드로 시작합니다.",
     "briefStableSummary": "안정 컨텍스트: 지시 {instructions}개, 규칙 {rules}개, 프로필 필드 {profiles}개.",
     "briefLearnedSummary": "학습 컨텍스트 사용 가능(자동 주입 아님, 필요 시 검색): 선호 {preferences}개, 규칙 {rules}개, 교정 항목 {corrections}개.",
-    "briefRulesApplied": "규칙 예산: {injected}/{rules}개 규칙 적용됨 ({skipped}개 건너뜀).",
+    "briefRulesApplied": "이 답변에는 {rules}개 규칙 중 가장 관련 있는 {injected}개만 사용되었습니다.",
     "briefPreferenceIdPrefix": "pref",
     "briefRuleIdPrefix": "rule",
     "briefUnavailablePill": "메모리 브리프를 사용할 수 없음",

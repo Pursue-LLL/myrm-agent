@@ -12137,7 +12137,7 @@
     "briefColdStartDescription": "Für diese Runde wurde keine vorherige Erinnerung gefunden. Der Agent startet im Discovery-Modus.",
     "briefStableSummary": "Stabiler Kontext: {instructions} Anweisungen, {rules} Regeln, {profiles} Profilfelder.",
     "briefLearnedSummary": "Gelernter Kontext verfügbar, nicht automatisch eingespeist: {preferences} Präferenzen, {rules} Regeln, {corrections} Korrekturpunkte.",
-    "briefRulesApplied": "Regelbudget: {injected}/{rules} Regeln angewendet ({skipped} übersprungen).",
+    "briefRulesApplied": "Für diese Antwort wurden nur die {injected} relevantesten von {rules} Regeln verwendet.",
     "briefPreferenceIdPrefix": "pref",
     "briefRuleIdPrefix": "rule",
     "briefUnavailablePill": "Memory Brief nicht verfügbar",

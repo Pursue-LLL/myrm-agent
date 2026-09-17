@@ -19041,7 +19041,7 @@
     "briefColdStartDescription": "No prior memory was matched for this turn. The agent starts in discovery mode.",
     "briefStableSummary": "Stable context: {instructions} instructions, {rules} rules, {profiles} profile fields.",
     "briefLearnedSummary": "Learned context available, not auto-injected: {preferences} preferences, {rules} rules, {corrections} correction items.",
-    "briefRulesApplied": "Rule budget: {injected}/{rules} rules applied ({skipped} skipped).",
+    "briefRulesApplied": "Only the {injected} most relevant rules of {rules} were used for this reply.",
     "briefPreferenceIdPrefix": "pref",
     "briefRuleIdPrefix": "rule",
     "briefUnavailablePill": "Memory Brief Unavailable",

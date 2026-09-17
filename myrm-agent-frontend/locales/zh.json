@@ -19041,7 +19041,7 @@
     "briefColdStartDescription": "当前轮次未匹配到历史记忆，智能体将以探索模式启动。",
     "briefStableSummary": "稳定上下文：{instructions} 条指令，{rules} 条规则，{profiles} 个画像字段。",
     "briefLearnedSummary": "学习上下文已就绪，按需检索而非自动注入：{preferences} 条偏好，{rules} 条规则，{corrections} 条纠偏项。",
-    "briefRulesApplied": "规则预算：已应用 {injected}/{rules} 条规则（跳过 {skipped} 条）。",
+    "briefRulesApplied": "本次回复只采用了 {rules} 条规则中最相关的 {injected} 条。",
     "briefPreferenceIdPrefix": "偏好",
     "briefRuleIdPrefix": "规则",
     "briefUnavailablePill": "记忆简报暂不可用",
