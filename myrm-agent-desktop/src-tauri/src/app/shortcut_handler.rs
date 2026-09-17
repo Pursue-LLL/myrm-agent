@@ -14,7 +14,7 @@ pub fn handle_global_shortcut(app: &AppHandle, shortcut: &Shortcut, event: Short
 
     let is_voice_ptt = VOICE_PTT_SHORTCUT_STR
         .lock()
-        .map_or(false, |saved| !saved.is_empty() && *saved == shortcut_str);
+        .is_ok_and(|saved| !saved.is_empty() && *saved == shortcut_str);
 
     if is_voice_ptt {
         match event.state {
@@ -30,11 +30,11 @@ pub fn handle_global_shortcut(app: &AppHandle, shortcut: &Shortcut, event: Short
 
     let is_appshot = APPSHOT_SHORTCUT_STR
         .lock()
-        .map_or(false, |saved| *saved == shortcut_str);
+        .is_ok_and(|saved| *saved == shortcut_str);
 
     let is_inline_input = INLINE_INPUT_SHORTCUT_STR
         .lock()
-        .map_or(false, |saved| !saved.is_empty() && *saved == shortcut_str);
+        .is_ok_and(|saved| !saved.is_empty() && *saved == shortcut_str);
 
     if is_appshot {
         handle_appshot_shortcut(app);

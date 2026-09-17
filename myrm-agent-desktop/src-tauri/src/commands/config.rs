@@ -1,6 +1,18 @@
 //! 系统配置相关的 Tauri 命令
 //!
-//! 提供前端调用的系统配置相关命令。
+//! [INPUT]
+//! - crate::config::{ConfigManager, SystemConfig} (POS: 桌面配置持久化管理)
+//! - crate::commands::data_migration (POS: 数据目录迁移核心引擎)
+//! - crate::runtime::{start_backend_with_config, stop_backend} (POS: Sidecar 生命周期编排)
+//! - crate::ipc_security (POS: 敏感操作鉴权与确认弹窗)
+//!
+//! [OUTPUT]
+//! - `load_system_config`: 加载系统运行时配置
+//! - `save_system_config`: 保存系统配置并按需更新快捷键与自启
+//! - `migrate_data_dir`: 迁移数据存储根目录并重启后端服务
+//!
+//! [POS]
+//! 桌面端系统配置 IPC 命令接口。处理前端设置页面的读取、保存与数据存储路径迁移编排。
 
 use std::path::Path;
 
@@ -152,6 +164,9 @@ pub async fn migrate_data_dir(
     config_manager: State<'_, ConfigManager>,
     backend: State<'_, crate::runtime::PythonBackend>,
 ) -> Result<String, String> {
+    // 0. 全局互斥锁，防止并发重复触发导致数据污染与竞态
+    let _migration_guard = super::data_migration::acquire_migration_lock()?;
+
     let config = config_manager.load();
     let old_dir = config.custom_data_dir.clone().unwrap_or_else(|| {
         let home = std::env::var("HOME")

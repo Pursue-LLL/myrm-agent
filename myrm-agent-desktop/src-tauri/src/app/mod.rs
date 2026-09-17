@@ -81,8 +81,8 @@ pub fn run() {
                 })
                 .build(),
         )
-        .setup(|app| setup::on_setup(app))
-        .on_window_event(|window, event| setup::on_window_event(window, event))
+        .setup(setup::on_setup)
+        .on_window_event(setup::on_window_event)
         .invoke_handler(move |invoke: tauri::ipc::Invoke| {
             match crate::ipc_security::authorize_invoke(&invoke) {
                 Ok(()) => invoke_handler(invoke),
@@ -97,7 +97,7 @@ pub fn run() {
         .run(|app_handle, event| {
             match event {
                 tauri::RunEvent::Opened { urls } => {
-                    runtime::handle_open_urls(&app_handle, urls);
+                    runtime::handle_open_urls(app_handle, urls);
                 }
                 tauri::RunEvent::ExitRequested { api, .. } => {
                     println!("🛑 Exit requested (e.g., Cmd+Q), initiating graceful shutdown...");

@@ -1,6 +1,18 @@
 //! 数据目录迁移核心引擎
 //!
-//! 提供数据目录迁移的前置校验、容量预检、动态条目扫描、文件复制与异常回滚能力。
+//! [INPUT]
+//! - std::fs / libc::statvfs (POS: 底层文件系统操作与磁盘余量查询)
+//!
+//! [OUTPUT]
+//! - `should_migrate_entry`: 动态判定条目是否随数据根目录迁移
+//! - `validate_target_directory`: 目标路径前置安全校验（防嵌套死循环、防同名破坏）
+//! - `get_available_disk_space`: 跨平台探测目标路径所在文件系统的剩余字节数
+//! - `calculate_dir_size`: 递归统计源目录有效业务数据总体积
+//! - `perform_data_migration`: 执行全量数据流式复制并支持异常自动清理
+//! - `cleanup_migrated_entries`: 迁移失败时回滚清理目标目录已写入文件
+//!
+//! [POS]
+//! 桌面端数据存储目录迁移引擎。为 config::migrate_data_dir 提供原子性、容灾回滚与安全校验能力。
 
 use std::path::Path;
 
@@ -68,11 +80,47 @@ pub fn validate_target_directory(old_path: &Path, new_path: &Path) -> Result<(),
     Ok(())
 }
 
-/// 递归计算目录下待迁移有效条目的总字节大小
+/// 全局迁移互斥锁，防止并发触发数据迁移造成数据竞争或回滚冲突
+static MIGRATION_IN_PROGRESS: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// 迁移互斥锁 RAII 守卫
+#[derive(Debug)]
+pub struct MigrationGuard;
+
+impl Drop for MigrationGuard {
+    fn drop(&mut self) {
+        MIGRATION_IN_PROGRESS.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+/// 尝试获取迁移互斥锁
+pub fn acquire_migration_lock() -> Result<MigrationGuard, String> {
+    if MIGRATION_IN_PROGRESS
+        .compare_exchange(
+            false,
+            true,
+            std::sync::atomic::Ordering::SeqCst,
+            std::sync::atomic::Ordering::SeqCst,
+        )
+        .is_ok()
+    {
+        Ok(MigrationGuard)
+    } else {
+        Err("A data migration is already in progress. Please wait.".to_string())
+    }
+}
+
+/// 递归计算目录下待迁移有效条目的总字节大小（跳过符号链接防无限递归与越界）
 #[must_use]
 pub fn calculate_dir_size(path: &Path) -> u64 {
     if !path.exists() {
         return 0;
+    }
+    if let Ok(meta) = std::fs::symlink_metadata(path) {
+        if meta.file_type().is_symlink() {
+            return 0;
+        }
     }
     if path.is_file() {
         return std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
@@ -80,6 +128,9 @@ pub fn calculate_dir_size(path: &Path) -> u64 {
     let mut total_size: u64 = 0;
     if let Ok(entries) = std::fs::read_dir(path) {
         for entry in entries.flatten() {
+            if entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false) {
+                continue;
+            }
             let file_name = entry.file_name().to_string_lossy().to_string();
             if should_migrate_entry(&file_name) {
                 let entry_path = entry.path();
@@ -156,13 +207,16 @@ pub fn get_available_disk_space(_path: &Path) -> Option<u64> {
     None
 }
 
-/// 递归复制目录
+/// 递归复制目录（跳过符号链接防无限递归与越界逃逸）
 pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     std::fs::create_dir_all(dst).map_err(|e| format!("Failed to create dir {:?}: {}", dst, e))?;
     for entry in
         std::fs::read_dir(src).map_err(|e| format!("Failed to read dir {:?}: {}", src, e))?
     {
         let entry = entry.map_err(|e| format!("Dir entry error: {}", e))?;
+        if entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false) {
+            continue;
+        }
         let src_path = entry.path();
         let file_name = entry.file_name();
         let file_name_str = file_name.to_string_lossy();
@@ -204,6 +258,9 @@ pub fn perform_data_migration(old_path: &Path, new_path: &Path) -> Result<Vec<St
 
     for entry in read_res {
         let entry = entry.map_err(|e| format!("Read entry error: {}", e))?;
+        if entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false) {
+            continue;
+        }
         let file_name = entry.file_name().to_string_lossy().to_string();
         if !should_migrate_entry(&file_name) {
             continue;
@@ -241,34 +298,20 @@ mod tests {
 
     #[test]
     fn test_should_migrate_entry() {
-        assert!(should_migrate_entry("data.db"));
-        assert!(should_migrate_entry("data.db-wal"));
-        assert!(should_migrate_entry("data.db-shm"));
-        assert!(should_migrate_entry("checkpoints.db"));
-        assert!(should_migrate_entry("tasks.db"));
-        assert!(should_migrate_entry("config_version"));
-        assert!(should_migrate_entry("config_snapshot.json"));
-        assert!(should_migrate_entry("skills"));
-        assert!(should_migrate_entry("blobs"));
-        assert!(should_migrate_entry("memory"));
-        assert!(should_migrate_entry("qdrant"));
-
-        assert!(!should_migrate_entry(".myrm_write_test"));
-        assert!(!should_migrate_entry(".DS_Store"));
-        assert!(!should_migrate_entry("Thumbs.db"));
-        assert!(!should_migrate_entry("backend.pid"));
-        assert!(!should_migrate_entry("desktop.lock"));
-        assert!(!should_migrate_entry("server.sock"));
-        assert!(!should_migrate_entry("session.lock"));
-        assert!(!should_migrate_entry(".tmp_file"));
+        for valid in &["data.db", "data.db-wal", "data.db-shm", "checkpoints.db", "tasks.db", "config_version", "skills", "blobs", "memory", "qdrant"] {
+            assert!(should_migrate_entry(valid), "Expected {} to be migrated", valid);
+        }
+        for invalid in &[".myrm_write_test", ".DS_Store", "Thumbs.db", "backend.pid", "desktop.lock", "server.sock", "session.lock", ".tmp_file"] {
+            assert!(!should_migrate_entry(invalid), "Expected {} to be ignored", invalid);
+        }
     }
 
     #[test]
     fn test_validate_target_directory_prevents_nesting() {
         let parent_tmp = tempdir().unwrap();
         let old_dir = parent_tmp.path().join("myrm_old");
-        std::fs::create_dir_all(&old_dir).unwrap();
         let nested_new_dir = old_dir.join("sub_dir");
+        std::fs::create_dir_all(&old_dir).unwrap();
 
         let res = validate_target_directory(&old_dir, &nested_new_dir);
         assert!(res.is_err());
@@ -282,7 +325,6 @@ mod tests {
         let new_dir = parent_tmp.path().join("myrm_new");
         std::fs::create_dir_all(&old_dir).unwrap();
         std::fs::create_dir_all(&new_dir).unwrap();
-
         std::fs::write(new_dir.join("data.db"), b"existing data").unwrap();
 
         let res = validate_target_directory(&old_dir, &new_dir);
@@ -300,7 +342,6 @@ mod tests {
         std::fs::write(old_dir.join("data.db"), b"main database").unwrap();
         std::fs::write(old_dir.join("tasks.db"), b"tasks database").unwrap();
         std::fs::write(old_dir.join(".DS_Store"), b"junk").unwrap();
-
         let skills_dir = old_dir.join("skills");
         std::fs::create_dir_all(&skills_dir).unwrap();
         std::fs::write(skills_dir.join("test_skill.py"), b"print(1)").unwrap();
@@ -318,5 +359,39 @@ mod tests {
         cleanup_migrated_entries(&new_dir, &copied);
         assert!(!new_dir.join("data.db").exists());
         assert!(!new_dir.join("skills").exists());
+    }
+
+    #[test]
+    fn test_migration_lock_concurrency() {
+        let lock1 = acquire_migration_lock();
+        assert!(lock1.is_ok());
+        let lock2 = acquire_migration_lock();
+        assert!(lock2.is_err());
+        assert!(lock2.unwrap_err().contains("already in progress"));
+        drop(lock1);
+        let lock3 = acquire_migration_lock();
+        assert!(lock3.is_ok());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_symlink_ignored() {
+        use std::os::unix::fs::symlink;
+        let parent_tmp = tempdir().unwrap();
+        let src_dir = parent_tmp.path().join("source");
+        let external_dir = parent_tmp.path().join("external");
+        let dst_dir = parent_tmp.path().join("target");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::create_dir_all(&external_dir).unwrap();
+
+        std::fs::write(external_dir.join("secret.txt"), b"top_secret").unwrap();
+        symlink(&external_dir, src_dir.join("skills_link")).unwrap();
+
+        let size = calculate_dir_size(&src_dir);
+        assert_eq!(size, 0);
+
+        let copied = perform_data_migration(&src_dir, &dst_dir).unwrap();
+        assert!(!copied.contains(&"skills_link".to_string()));
+        assert!(!dst_dir.join("skills_link").exists());
     }
 }

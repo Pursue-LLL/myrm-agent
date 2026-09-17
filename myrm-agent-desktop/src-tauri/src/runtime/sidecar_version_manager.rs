@@ -22,7 +22,7 @@ const VERSIONS_JSON_FILE: &str = "versions.json";
 const VERSIONS_DIR_NAME: &str = "versions";
 
 /// 版本状态清单持久化结构
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct SidecarVersionManifest {
     /// 当前活跃版本 Tag（如 "v1.2.1" 或 None 使用内置版）
     pub current_version: Option<String>,
@@ -31,16 +31,6 @@ pub struct SidecarVersionManifest {
     /// 已知启动崩溃的故障版本黑名单（避免死循环重试）
     #[serde(default)]
     pub broken_versions: HashSet<String>,
-}
-
-impl Default for SidecarVersionManifest {
-    fn default() -> Self {
-        Self {
-            current_version: None,
-            last_known_good: None,
-            broken_versions: HashSet::new(),
-        }
-    }
 }
 
 /// Sidecar 运行时版本管理器

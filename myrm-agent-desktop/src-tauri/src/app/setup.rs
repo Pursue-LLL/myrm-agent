@@ -150,7 +150,7 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
             Ok(msg) => println!("✅ {}", msg),
             Err(e) => {
                 eprintln!("❌ Failed to auto-start frontend: {}", e);
-                let tooltip = format!("MyrmAgent - UI failed to start. Restart the app or change the WebUI port in Settings.");
+                let tooltip = "MyrmAgent - UI failed to start. Restart the app or change the WebUI port in Settings.".to_string();
                 tray::update_native_tray_status(&app_handle, "error", &tooltip);
                 let _ = app_handle.emit("frontend-start-failed", e.clone());
             }
@@ -171,7 +171,7 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
         }
     }
 
-    runtime::handle_startup_args(&app.handle());
+    runtime::handle_startup_args(app.handle());
 
     Ok(())
 }

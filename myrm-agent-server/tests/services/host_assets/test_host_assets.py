@@ -1,4 +1,4 @@
-"""Unit tests for Host Asset Vault, Remote SSH Ops Bridge, and SFTP Bridge.
+"""Unit tests for Host Asset Vault, SSH Ops Bridge, and SFTP Bridge.
 
 [INPUT]
 - app.services.host_assets.*
@@ -10,47 +10,49 @@
 Unit tests in myrm-agent/myrm-agent-server/tests/services/host_assets/test_host_assets.py.
 """
 
+from __future__ import annotations
+
+import pytest
+
 from app.services.host_assets import (
-    AuthType,
-    HostAssetCreate,
+    HostAssetConfig,
     HostAssetVault,
-    RemoteSSHOpsBridge,
+    HostAuthType,
     SFTPBridge,
-    SFTPTransferRequest,
+    SFTPReadRequest,
+    SFTPWriteRequest,
     SSHCommandRequest,
+    SSHOpsBridge,
 )
 
 
-def test_host_asset_vault_encryption_and_crud() -> None:
+def test_host_asset_vault_crud() -> None:
     vault = HostAssetVault()
-    create_payload = HostAssetCreate(
-        alias="gpu-node-1",
+    host = HostAssetConfig(
+        host_id="gpu-node-1",
+        name="Main GPU Server",
         hostname="192.168.1.100",
         port=2222,
         username="developer",
-        auth_type=AuthType.PASSWORD,
-        description="Main GPU Server",
+        auth_type=HostAuthType.PASSWORD,
         password="super_secret_password",
+        description="Main GPU Server",
     )
-    asset = vault.create_asset(create_payload)
-    assert asset.alias == "gpu-node-1"
-    assert asset.has_password is True
-    assert asset.has_private_key is False
-    assert asset.encrypted_secret != ""
+    registered = vault.register_host(host)
+    assert registered.host_id == "gpu-node-1"
+    assert registered.auth_type == HostAuthType.PASSWORD
+    assert registered.password == "super_secret_password"
 
-    # Decrypt verification
-    secrets = vault.get_decrypted_secrets(asset.id)
-    assert secrets.get("password") == "super_secret_password"
-
-    # Fetch by alias
-    fetched = vault.get_asset("gpu-node-1")
+    # Fetch by id
+    fetched = vault.get_host("gpu-node-1")
     assert fetched is not None
-    assert fetched.id == asset.id
+    assert fetched.host_id == "gpu-node-1"
+    assert fetched.name == "Main GPU Server"
 
     # List & Delete
-    assert len(vault.list_assets()) == 1
-    assert vault.delete_asset("gpu-node-1") is True
-    assert len(vault.list_assets()) == 0
+    assert len(vault.list_hosts()) == 1
+    assert vault.remove_host("gpu-node-1") is True
+    assert len(vault.list_hosts()) == 0
 
 
 def test_ssh_config_import() -> None:
@@ -65,76 +67,96 @@ def test_ssh_config_import() -> None:
         HostName 10.0.0.51
         User admin
     """
-    imported = vault.import_from_ssh_config_content(sample_ssh_config)
-    assert len(imported) == 2
-    assert imported[0].alias == "test-vm"
-    assert imported[0].port == 2200
-    assert imported[1].alias == "dev-cluster"
-    assert imported[1].username == "admin"
+    res = vault.import_from_ssh_config(config_text=sample_ssh_config)
+    assert res.total_parsed == 2
+    assert res.total_imported == 2
+    vm = vault.get_host("host_test_vm")
+    assert vm is not None
+    assert vm.port == 2200
+    cluster = vault.get_host("host_dev_cluster")
+    assert cluster is not None
+    assert cluster.username == "admin"
 
 
-def test_remote_ssh_ops_bridge_security_and_execution() -> None:
+@pytest.mark.asyncio
+async def test_ssh_ops_bridge_security_and_execution() -> None:
     vault = HostAssetVault()
-    _ = vault.create_asset(
-        HostAssetCreate(
-            alias="prod-server",
+    vault.register_host(
+        HostAssetConfig(
+            host_id="prod-server",
+            name="prod-server",
             hostname="1.2.3.4",
             username="root",
-            auth_type=AuthType.PASSWORD,
+            auth_type=HostAuthType.PASSWORD,
             password="pwd",
         )
     )
 
-    bridge = RemoteSSHOpsBridge(vault)
+    bridge = SSHOpsBridge(vault)
 
-    # 1. Normal safe command
+    # 1. Normal safe command with mock_runner
+    async def mock_runner(host: HostAssetConfig, cmd: str, timeout: float) -> tuple[int, str, str]:
+        return (0, "nvidia-smi utilization: 42%", "")
+
     req = SSHCommandRequest(
-        host_id_or_alias="prod-server",
+        host_id="prod-server",
         command="nvidia-smi --query-gpu=utilization.gpu --format=csv",
     )
-    res = bridge.execute_command(req)
+    res = await bridge.execute_command(req, mock_runner=mock_runner)
     assert res.success is True
-    assert "Executed" in res.stdout
+    assert "nvidia-smi" in res.stdout
     assert res.exit_code == 0
 
     # 2. Dangerous destructive command rejection
     dangerous_req = SSHCommandRequest(
-        host_id_or_alias="prod-server",
+        host_id="prod-server",
         command="rm -rf / --no-preserve-root",
     )
-    res_danger = bridge.execute_command(dangerous_req)
+    res_danger = await bridge.execute_command(dangerous_req, mock_runner=mock_runner)
     assert res_danger.success is False
     assert res_danger.exit_code == 126
-    assert "destructive" in (res_danger.error_message or "")
+    assert "destructive" in res_danger.stderr.lower()
 
 
-def test_sftp_bridge_explorer_and_transfer() -> None:
+@pytest.mark.asyncio
+async def test_sftp_bridge_read_and_write() -> None:
     vault = HostAssetVault()
-    vault.create_asset(
-        HostAssetCreate(
-            alias="storage-node",
+    vault.register_host(
+        HostAssetConfig(
+            host_id="storage-node",
+            name="storage-node",
             hostname="10.0.0.10",
             username="backup",
-            auth_type=AuthType.AGENT,
+            auth_type=HostAuthType.AGENT_FORWARD,
         )
     )
 
     sftp = SFTPBridge(vault)
 
-    # 1. Directory explorer
-    entries = sftp.list_remote_directory("storage-node", "/var/log")
-    assert len(entries) == 2
-    assert entries[0].filename == "logs"
-    assert entries[0].is_dir is True
+    # 1. Mock read
+    async def mock_reader(host: HostAssetConfig, path: str, max_bytes: int) -> tuple[bool, str | None, int, str | None]:
+        data = "log line 1\nlog line 2"
+        return (True, data, len(data), None)
 
-    # 2. Transfer upload
-    upload_res = sftp.transfer_file(
-        SFTPTransferRequest(
-            host_id_or_alias="storage-node",
-            direction="upload",
-            local_path="/tmp/test.txt",
-            remote_path="/var/log/test.txt",
-        )
+    read_res = await sftp.read_remote_file(
+        SFTPReadRequest(host_id="storage-node", remote_path="/var/log/syslog"),
+        mock_reader=mock_reader,
     )
-    assert upload_res.success is True
-    assert upload_res.bytes_transferred > 0
+    assert read_res.success is True
+    assert read_res.content == "log line 1\nlog line 2"
+    assert read_res.bytes_transferred > 0
+
+    # 2. Mock write
+    async def mock_writer(host: HostAssetConfig, path: str, content: str, mode: str) -> tuple[bool, int, str | None]:
+        return (True, len(content), None)
+
+    write_res = await sftp.write_remote_file(
+        SFTPWriteRequest(
+            host_id="storage-node",
+            remote_path="/var/log/test.txt",
+            content="hello world",
+        ),
+        mock_writer=mock_writer,
+    )
+    assert write_res.success is True
+    assert write_res.bytes_transferred == 11

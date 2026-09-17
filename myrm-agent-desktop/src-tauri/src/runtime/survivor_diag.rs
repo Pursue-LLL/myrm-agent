@@ -45,14 +45,13 @@ pub fn is_self_process(process_name: &str, exe_or_cmd: &str) -> bool {
         || lower_name.ends_with("/python")
         || lower_name.ends_with("/node");
 
-    if is_script_runtime {
-        if lower_path.contains("myrm")
+    if is_script_runtime
+        && (lower_path.contains("myrm")
             || lower_path.contains("standalone")
             || lower_path.contains("server.js")
-            || lower_path.contains("run.py")
-        {
-            return true;
-        }
+            || lower_path.contains("run.py"))
+    {
+        return true;
     }
 
     // 3. 命令行本身包含核心标志

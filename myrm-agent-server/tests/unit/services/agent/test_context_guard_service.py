@@ -37,6 +37,7 @@ async def test_context_guard_service_oversized_prompt() -> None:
             assert Path(res.payload.file_path).exists()
             assert Path(res.payload.file_path).read_text(encoding="utf-8") == oversized_content
             assert "<file_spillover" in res.sanitized_content
+            assert res.payload.sha256_digest[:16] in res.sanitized_content
             assert res.payload.relative_path in res.sanitized_content
 
 
