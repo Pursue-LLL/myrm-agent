@@ -5,7 +5,7 @@
 Single frontend module that turns raw `tool_name` + args into human-readable one-liners for:
 
 - ProgressSteps titles
-- Approval card headlines (SingleApprovalCard, PolymorphicApprovalCard, ToolCallApproval)
+- Approval card headlines (SingleApprovalCard, PolymorphicApprovalCard)
 
 ## Public API (`index.ts`)
 
@@ -29,7 +29,6 @@ Subtrees: `progress`, `approval`, `ask`, `scope`, `fallback`.
 | `progress-steps/utils.ts`     | `getStepTitle(..., tHumanize)` — humanize SSOT 唯一标题入口  |
 | `SingleApprovalCard.tsx`      | title + scope note + compact payload hide                    |
 | `PolymorphicApprovalCard.tsx` | subagent tool call headers + scope (`ApprovalScopeNoteLine`) |
-| `ToolCallApproval.tsx`        | CLI agent approvals + scope + PTC badges                     |
 
 ## Boundaries
 

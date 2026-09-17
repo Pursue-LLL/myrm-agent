@@ -26,7 +26,7 @@
 
 ## humanize 集成
 
-审批标题与 scope 说明由 `@/lib/humanize` SSOT 提供（见 `lib/humanize/_ARCH.md`）。`SingleApprovalCard` / `PolymorphicApprovalCard` / `ToolCallApproval` 消费 `humanizeApprovalTitle` + `resolveScopeNote` + `classifyApprovalSurface`。save_skill 预览 body 由 `SaveSkillApprovalPreview` + `saveSkillApproval.ts` 提供（#8，三处审批 outlet）。
+审批标题与 scope 说明由 `@/lib/humanize` SSOT 提供（见 `lib/humanize/_ARCH.md`）。`SingleApprovalCard` / `PolymorphicApprovalCard` 消费 `humanizeApprovalTitle` + `resolveScopeNote` + `classifyApprovalSurface`。save_skill 预览 body 由 `SaveSkillApprovalPreview` + `saveSkillApproval.ts` 提供（#8，三处审批 outlet）。
 
 ## 依赖
 

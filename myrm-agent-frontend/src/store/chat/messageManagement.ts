@@ -53,7 +53,7 @@ import { abortCurrentUpload } from '@/services/uploadController';
 
 const CHAT_TITLE_MAX_LENGTH = 50;
 const CHAT_SUMMARY_MAX_LENGTH = 100;
-const VALID_ACTION_MODES: readonly ActionMode[] = ['fast', 'agent', 'deep_research', 'claude_code'];
+const VALID_ACTION_MODES: readonly ActionMode[] = ['fast', 'agent', 'deep_research'];
 
 export interface LoadMessagesOptions {
   preserveInstantSessionConfig?: boolean;

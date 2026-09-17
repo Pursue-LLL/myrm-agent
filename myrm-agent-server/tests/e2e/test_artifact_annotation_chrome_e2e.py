@@ -20,7 +20,6 @@ from tests.support.chrome_mcp_e2e import (
     navigate_mcp_page,
     open_mcp_page,
     prepare_e2e_ui_session,
-    wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
 )
@@ -141,7 +140,6 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
     chat_url = f"{ui_url}/{chat_id}"
     with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-        wait_for_react_e2e_bridge(client, page, timeout_sec=180.0, page_url=chat_url)
         navigate_mcp_page(client, page, chat_url, timeout_ms=90_000)
 
         # T1: open the seeded deliverable, then the portal shows its content.

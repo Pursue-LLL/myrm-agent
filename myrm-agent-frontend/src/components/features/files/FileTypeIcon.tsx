@@ -1,5 +1,5 @@
 /**
- * CLI 文件图标组件
+ * 文件类型图标组件
  *
  * 1. 本文件的 INPUT/OUTPUT/POS 注释
  * 2. 所属文件夹的 _ARCH.md
@@ -10,11 +10,11 @@
  * - isExpanded: 目录是否展开
  *
  * [OUTPUT]
- * - CLIFileIcon: 根据文件类型显示对应图标
+ * - FileTypeIcon: 根据文件类型显示对应图标
  *
  * [POS]
- * CLI 可视化工具的文件图标组件。根据文件扩展名
- * 返回对应的图标，用于文件目录树展示。
+ * 文件展示层的共享图标组件。根据扩展名返回对应图标与配色，
+ * 供文件树、文件预览与 diff 视图复用。
  */
 
 import React, { memo } from 'react';
@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 
-export interface CLIFileIconProps {
+export interface FileTypeIconProps {
   filename: string;
   isDirectory?: boolean;
   isExpanded?: boolean;
@@ -115,22 +115,16 @@ const extensionIconMap: Record<string, React.FC<{ className?: string }>> = {
   flac: FileAudio,
 };
 
-/**
- * 获取文件扩展名
- */
+/** 获取文件扩展名 */
 function getExtension(filename: string): string {
   const parts = filename.split('.');
   return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
 }
 
-/**
- * CLI 文件图标组件
- */
-export const CLIFileIcon: React.FC<CLIFileIconProps> = memo(
+export const FileTypeIcon: React.FC<FileTypeIconProps> = memo(
   ({ filename, isDirectory = false, isExpanded = false, className }) => {
     const iconClass = cn('h-4 w-4 flex-shrink-0', className);
 
-    // 目录图标
     if (isDirectory) {
       return isExpanded ? (
         <FolderOpen className={cn(iconClass, 'text-amber-500')} />
@@ -139,11 +133,9 @@ export const CLIFileIcon: React.FC<CLIFileIconProps> = memo(
       );
     }
 
-    // 根据扩展名获取图标
     const ext = getExtension(filename);
     const IconComponent = extensionIconMap[ext] || File;
 
-    // 特定文件类型的颜色
     const colorClass = ext.match(/^(ts|tsx)$/)
       ? 'text-blue-500'
       : ext.match(/^(js|jsx)$/)
@@ -160,6 +152,6 @@ export const CLIFileIcon: React.FC<CLIFileIconProps> = memo(
   },
 );
 
-CLIFileIcon.displayName = 'CLIFileIcon';
+FileTypeIcon.displayName = 'FileTypeIcon';
 
-export default CLIFileIcon;
+export default FileTypeIcon;

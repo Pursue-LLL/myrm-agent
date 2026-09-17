@@ -17,8 +17,7 @@
  *
  * [POS]
  * 侧边栏聊天内容区域。显示搜索、新建对话按钮、聊天历史列表。
- * Tauri+ACP 使用 CLIWorkspaceTree；主 Agent 有 workspaceDir 时优先
- * WorkspaceFileBrowser（含 P1 SSE 自动刷新），与 CLI 轨可并存 Tab 切换。
+ * 主 Agent 有 workspaceDir 时显示 WorkspaceFileBrowser（含 P1 SSE 自动刷新）。
  */
 
 import { memo, useState, useCallback, useEffect, Suspense } from 'react';
@@ -30,49 +29,19 @@ import { FolderOpen, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { SearchDialog, SearchTrigger } from '@/components/features/app-shell/search-dialog';
 import ChatHistoryList from '@/components/features/sidebar/ChatHistoryList';
-import { useFileWatcher } from '@/components/features/cli-visualization/hooks/useFileWatcher';
-import { useFilePreview } from '@/components/features/cli-visualization/hooks/useFilePreview';
-import type { FileNode } from '@/components/features/cli-visualization/CLIWorkspaceTree';
 import { useWorkspaceFiles } from '@/components/features/workspace-browser/useWorkspaceFiles';
-import { useWorkingDirectory } from '@/store/useCLIAgentStore';
 import useChatStore from '@/store/useChatStore';
 import { type FileEntry } from '@/services/chat';
-import { isTauriEnvironment } from '@/lib/tauri';
 import { ExtensionSlot } from '@/components/features/extension-slots';
 import { CatchupInbox } from '@/components/features/chat-window/catchup/CatchupInbox';
 import SessionTrashPanel from '@/components/features/chat-window/SessionTrashPanel';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
 import { getTrashCount } from '@/services/chatTrash';
-import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 
 const sidebarPanelLoading = (
   <div className="flex h-full items-center justify-center p-6">
     <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
   </div>
-);
-
-const CLIWorkspaceTree = dynamic(
-  () =>
-    import('@/components/features/cli-visualization/CLIWorkspaceTree').then((module) => ({
-      default: module.CLIWorkspaceTree,
-    })),
-  { ssr: false, loading: () => sidebarPanelLoading },
-);
-
-const CLIFilePreview = dynamic(
-  () =>
-    import('@/components/features/cli-visualization/CLIFilePreview').then((module) => ({
-      default: module.CLIFilePreview,
-    })),
-  { ssr: false },
-);
-
-const CLIContextMenu = dynamic(
-  () =>
-    import('@/components/features/cli-visualization/CLIContextMenu').then((module) => ({
-      default: module.CLIContextMenu,
-    })),
-  { ssr: false },
 );
 
 const WorkspaceFileBrowser = dynamic(
@@ -164,12 +133,6 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
     const [searchDialogOpen, setSearchDialogOpen] = useState(false);
 
     // -----------------------------------------------------------------------
-    // ACP/CLI workspace (Tauri only)
-    // -----------------------------------------------------------------------
-    const cliWorkingDirectory = useWorkingDirectory();
-    const showCliWorkspace = isTauriEnvironment() && !!cliWorkingDirectory;
-
-    // -----------------------------------------------------------------------
     // Main Agent workspace (Web/SaaS)
     // -----------------------------------------------------------------------
     const chatId = useChatStore((s) => s.chatId);
@@ -186,7 +149,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
     }, [chatId, actionMode, workspaceDir]);
 
     const showWebWorkspace = actionMode === 'agent' && !!webWorkspaceDir;
-    const showTabs = showCliWorkspace || showWebWorkspace;
+    const showTabs = showWebWorkspace;
 
     const [activeView, setActiveView] = useState<'chat' | 'workspace'>('chat');
 
@@ -195,13 +158,6 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
         setActiveView('chat');
       }
     }, [showTabs, activeView]);
-
-    // ACP file watcher (Tauri FS)
-    const {
-      files: cliFiles,
-      loading: cliFilesLoading,
-      refresh: cliRefresh,
-    } = useFileWatcher(showCliWorkspace && activeView === 'workspace' ? cliWorkingDirectory : undefined);
 
     // Web file browser (HTTP API)
     const {
@@ -212,84 +168,8 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
       refresh: webRefresh,
     } = useWorkspaceFiles(showWebWorkspace && activeView === 'workspace' ? webWorkspaceDir : null);
 
-    // ACP file preview (Tauri)
-    const {
-      previewFile,
-      isOpen: isPreviewOpen,
-      content,
-      fileType,
-      language,
-      loading: previewLoading,
-      error: previewError,
-      openPreview,
-      closePreview,
-    } = useFilePreview();
-
     // Web file preview state
     const [webPreviewFile, setWebPreviewFile] = useState<FileEntry | null>(null);
-
-    // ACP context menu
-    const [contextMenu, setContextMenu] = useState<{
-      visible: boolean;
-      position: { x: number; y: number };
-      file: FileNode | null;
-    }>({ visible: false, position: { x: 0, y: 0 }, file: null });
-
-    const handleCliFileClick = useCallback(
-      (file: FileNode) => {
-        if (file.type === 'file') {
-          openPreview(file);
-        }
-      },
-      [openPreview],
-    );
-
-    const handleCliFileRightClick = useCallback((file: FileNode, event: React.MouseEvent) => {
-      setContextMenu({ visible: true, position: { x: event.clientX, y: event.clientY }, file });
-    }, []);
-
-    const closeContextMenu = useCallback(() => {
-      setContextMenu((prev) => ({ ...prev, visible: false }));
-    }, []);
-
-    const handleOpenInEditor = useCallback(async () => {
-      if (!contextMenu.file || !isTauriEnvironment()) {
-        return;
-      }
-      try {
-        const shell = await import('@tauri-apps/plugin-shell');
-        await shell.open(contextMenu.file.path);
-      } catch (error) {
-        console.error('Failed to open in editor:', error);
-      }
-    }, [contextMenu.file]);
-
-    const handleShowInFinder = useCallback(async () => {
-      if (!contextMenu.file || !isTauriEnvironment()) {
-        return;
-      }
-      try {
-        const shell = await import('@tauri-apps/plugin-shell');
-        const dirPath =
-          contextMenu.file.type === 'directory'
-            ? contextMenu.file.path
-            : contextMenu.file.path.substring(0, contextMenu.file.path.lastIndexOf('/'));
-        await shell.open(dirPath);
-      } catch (error) {
-        console.error('Failed to show in Finder:', error);
-      }
-    }, [contextMenu.file]);
-
-    const handleCopyPath = useCallback(async () => {
-      if (!contextMenu.file) {
-        return;
-      }
-      try {
-        await writeToClipboard(contextMenu.file.path);
-      } catch (error) {
-        console.error('Failed to copy path:', error);
-      }
-    }, [contextMenu.file]);
 
     const handleWebFileClick = useCallback((file: FileEntry) => {
       if (file.type === 'file') {
@@ -385,7 +265,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
                 activeView === 'workspace' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50',
               )}
             >
-              {showWebWorkspace ? t('sidebar.files') : showCliWorkspace ? t('sidebar.workspace') : t('sidebar.files')}
+              {t('sidebar.files')}
             </button>
           </div>
         )}
@@ -414,17 +294,6 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
                 onFileClick={handleWebFileClick}
               />
             </Suspense>
-          ) : showCliWorkspace ? (
-            <Suspense fallback={sidebarPanelLoading}>
-              <CLIWorkspaceTree
-                workspacePath={cliWorkingDirectory!}
-                files={cliFiles}
-                loading={cliFilesLoading}
-                onRefresh={cliRefresh}
-                onFileClick={handleCliFileClick}
-                onFileRightClick={handleCliFileRightClick}
-              />
-            </Suspense>
           ) : actionMode === 'agent' && !webWorkspaceDir ? (
             <div className="flex flex-col items-center justify-center py-8 px-4 text-muted-foreground">
               <FolderOpen className="h-8 w-8 mb-2" />
@@ -439,23 +308,6 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
                   file={webPreviewFile}
                   workspace={webWorkspaceDir}
                   onClose={() => setWebPreviewFile(null)}
-                  className="h-full"
-                />
-              </div>
-            </Suspense>
-          ) : null}
-
-          {isPreviewOpen && previewFile ? (
-            <Suspense fallback={null}>
-              <div className="absolute inset-0 z-10 bg-background">
-                <CLIFilePreview
-                  file={previewFile}
-                  content={content}
-                  fileType={fileType}
-                  language={language}
-                  loading={previewLoading}
-                  error={previewError}
-                  onClose={closePreview}
                   className="h-full"
                 />
               </div>

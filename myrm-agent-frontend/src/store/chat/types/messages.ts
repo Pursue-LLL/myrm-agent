@@ -12,7 +12,7 @@
 import type { Artifact } from './artifacts';
 import type { CostStatus, ContextBudget } from './contextMetrics';
 import type { MemoryBriefData, MemoryBriefStatus, SensitivityLevel } from './agentStream/part2';
-import type { CompletionStatus, ToolCallInfo } from './toolApproval';
+import type { CompletionStatus } from './toolApproval';
 import type { CitedMemoryReference, FileMutationFailure, Source, WorkspaceMergeFailure } from './sources';
 import type { ProgressItem } from './progress';
 import type { TokenEconomicsSnapshot, TokenUsage } from './tokens';
@@ -144,7 +144,6 @@ export type Message = {
   memoryBriefStatus?: MemoryBriefStatus; // 记忆简报可用性状态（用于降级可观测）
   artifacts?: Artifact[]; // 生成的工件
   isFadingOut?: boolean; // 标记内容正在淡出（工具调用时清空中间内容）
-  toolCalls?: ToolCallInfo[];
   files?: File[];
   sendFailed?: boolean;
   clarification?: {

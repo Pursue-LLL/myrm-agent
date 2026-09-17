@@ -53,7 +53,6 @@ vi.mock('../WorkingStateBadge', () => ({ default: () => null }));
 vi.mock('../SubagentPromptButton', () => ({ default: () => null }));
 vi.mock('../subagent/SubagentDashboard', () => ({ default: () => null }));
 vi.mock('../artifacts/ArtifactPortal', () => ({ default: () => null }));
-vi.mock('@/components/features/cli-agent/PermissionDialog', () => ({ PermissionDialog: () => null }));
 vi.mock('@/components/features/app-shell/VisualDesktopToggle', () => ({ VisualDesktopToggle: () => null }));
 vi.mock('@/components/features/message-actions/SessionRevertButton', () => ({ default: () => null }));
 vi.mock('@/components/features/copilot/RunStatusChip', () => ({ default: () => null }));

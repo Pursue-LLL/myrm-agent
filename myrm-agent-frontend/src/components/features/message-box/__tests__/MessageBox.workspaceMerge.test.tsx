@@ -56,10 +56,6 @@ vi.mock('@/store/useConfigStore', () => ({
     }),
 }));
 
-vi.mock('@/store/useCLIAgentStore', () => ({
-  useCLIAgentStore: { getState: () => ({ respondPermission: vi.fn() }) },
-}));
-
 vi.mock('@/components/features/message-box/progress-steps/ProgressSteps', () => ({
   default: () => null,
 }));
@@ -74,9 +70,6 @@ vi.mock('@/components/features/artifacts/ArtifactsDisplay', () => ({
 }));
 vi.mock('@/components/features/artifacts/ArtifactErrorBoundary', () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
-vi.mock('@/components/features/message-box/ToolCallApproval', () => ({
-  default: () => null,
 }));
 vi.mock('@/components/features/message-box/MarkdownContent', () => ({
   default: ({ content }: { content: string }) => <div data-testid="markdown">{content}</div>,

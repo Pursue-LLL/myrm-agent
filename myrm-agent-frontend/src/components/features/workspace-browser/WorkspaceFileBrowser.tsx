@@ -16,7 +16,7 @@
  * [POS]
  * Main Agent's workspace file browser. Displays the workspace directory tree
  * in the sidebar, allowing users to browse, preview, and manage files. Works in
- * Web/SaaS mode via HTTP API (unlike CLIWorkspaceTree which requires Tauri).
+ * Web/SaaS mode via HTTP API.
  * Write-operation UI primitives are in WorkspaceFileOps.tsx.
  */
 
@@ -26,7 +26,7 @@ import { ChevronRight, RefreshCw, FolderOpen, AlertTriangle } from 'lucide-react
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
-import { CLIFileIcon } from '@/components/features/cli-visualization/CLIFileIcon';
+import { FileTypeIcon } from '@/components/features/files/FileTypeIcon';
 import type { FileEntry } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import {
@@ -133,7 +133,7 @@ const TreeItem: React.FC<TreeItemProps> = memo(
             )}
           </div>
 
-          <CLIFileIcon filename={node.name} isDirectory={isDir} isExpanded={isExpanded} />
+          <FileTypeIcon filename={node.name} isDirectory={isDir} isExpanded={isExpanded} />
 
           {isRenaming ? (
             <InlineRenameInput

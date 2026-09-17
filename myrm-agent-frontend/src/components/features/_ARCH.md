@@ -34,7 +34,7 @@
 | `workspace-browser/`                          | 工作区内嵌文件浏览器与预览                                           | [_ARCH.md](workspace-browser/_ARCH.md)                                            |
 | `background-tasks/`                           | 后台任务面板                                                         | [_ARCH.md](background-tasks/_ARCH.md)                                             |
 | `browser-recording/`                          | 浏览器录制回放                                                       | [_ARCH.md](browser-recording/_ARCH.md)                                            |
-| `cli-agent/` / `cli-visualization/`           | CLI Agent 与终端可视化                                               | [_ARCH.md](cli-agent/_ARCH.md) · [_ARCH.md](cli-visualization/_ARCH.md)           |
+| `files/`                                     | 文件展示层共享组件（文件类型图标）                                     | —                                                                                 |
 | `checkpoint/`                                 | 会话检查点 UI                                                        | [_ARCH.md](checkpoint/_ARCH.md)                                                   |
 | `eval-lab/`                                   | 评测实验室                                                           | [_ARCH.md](eval-lab/_ARCH.md)                                                     |
 | `growth/`                                     | Growth 草稿与推广                                                    | [_ARCH.md](growth/_ARCH.md)                                                       |

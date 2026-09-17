@@ -1,18 +1,16 @@
 //! Tauri `setup` 钩子：配置管理、快捷键注册、Sidecar 自启动（Python + Next 始终）。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 use super::{lifecycle, menu, tray};
-use crate::commands::agent::AgentSystemState;
 use crate::config::{BackendConfig, ConfigManager, FrontendConfig};
 use crate::runtime::{
-    bootstrap_agent_runner, resolve_agent_runner_path, start_backend_with_config, start_frontend,
-    NextJSFrontend, PythonBackend, SetupTokenState, APPSHOT_SHORTCUT_STR,
-    INLINE_INPUT_SHORTCUT_STR, VOICE_PTT_SHORTCUT_STR,
+    start_backend_with_config, start_frontend, NextJSFrontend, PythonBackend, SetupTokenState,
+    APPSHOT_SHORTCUT_STR, INLINE_INPUT_SHORTCUT_STR, VOICE_PTT_SHORTCUT_STR,
 };
 use crate::{commands, runtime, utils};
 
@@ -115,20 +113,6 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     if let Err(e) = menu::setup_app_menu(&app.handle().clone()) {
         println!("⚠️ Failed to setup app menu: {e}");
     }
-
-    let sidecar_path = resolve_agent_runner_path(&app.handle().clone());
-    println!("📦 Agent sidecar path: {}", sidecar_path);
-
-    let app_data_dir = app.path().app_data_dir().ok();
-    if let Some(ref dir) = app_data_dir {
-        println!("📂 App data dir: {:?}", dir);
-    }
-
-    let agent_system = Arc::new(AgentSystemState::new(sidecar_path, app_data_dir));
-    bootstrap_agent_runner(agent_system.clone(), &app.handle().clone());
-
-    app.manage(agent_system);
-    println!("🤖 Agent system initialized");
 
     let backend_config = BackendConfig::from_system_config(&system_config);
 

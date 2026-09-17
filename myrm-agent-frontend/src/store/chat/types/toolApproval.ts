@@ -3,10 +3,10 @@
  * ./sessionConfig::ActionMode (POS: 会话级 Agent 与模式配置类型)
  *
  * [OUTPUT]
- * ToolApprovalRequest, ToolCallInfo, CompletionStatus.
+ * ToolApprovalRequest, CompletionStatus.
  *
  * [POS]
- * 工具审批与 CLI diff 预览契约。
+ * 工具审批契约。
  */
 
 import type { ActionMode } from './sessionConfig';
@@ -64,19 +64,6 @@ export interface ToolApprovalRequest {
   scriptOperandPath?: string;
   scriptOperandHash?: string;
   scriptOperandProtected?: boolean;
-}
-export interface ToolCallInfo {
-  callId: string;
-  toolName: string;
-  arguments: Record<string, unknown>;
-  requiresApproval: boolean;
-  status: 'pending' | 'approved' | 'rejected' | 'completed';
-  /** Diff 内容（apply_patch/edit_file 工具调用） */
-  diff?: string;
-  /** 文件路径 */
-  filePath?: string;
-  /** PTC/MCP annotations (e.g. readOnlyHint, destructiveHint) */
-  ptcAnnotations?: Record<string, boolean>;
 }
 export type CompletionStatus =
   'complete' | 'truncated' | 'filtered' | 'budget_blocked' | 'warning' | 'success' | 'error' | 'cancelled';

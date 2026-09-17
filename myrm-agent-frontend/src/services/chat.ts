@@ -730,8 +730,6 @@ export interface StreamRequestBody {
 
 const getActionModeEndpoint = (actionMode: ActionMode): string => {
   switch (actionMode) {
-    case 'claude_code':
-      throw new Error('claude_code mode should be handled by Tauri IPC, not backend API');
     default:
       return '/agents/agent-stream';
   }

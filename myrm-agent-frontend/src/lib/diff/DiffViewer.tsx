@@ -6,7 +6,7 @@
  * - lib/diff/parseUnifiedDiff::buildSplitPairs (POS: Split 视图配对算法)
  * - lib/diff/parseUnifiedDiff::inferLanguage (POS: 文件路径语言推断)
  * - prism-react-renderer::Highlight, Prism (POS: 语法高亮引擎与运行时语言校验)
- * - cli-visualization/CLIFileIcon (POS: 文件图标组件)
+ * - features/files/FileTypeIcon (POS: 文件图标组件)
  *
  * [OUTPUT]
  * - DiffViewer: 通用 Diff 对比预览组件
@@ -17,7 +17,7 @@
  *
  * [POS]
  * lib/diff 层的共享 Diff 可视化组件。提供 Unified 和 Split 两种视图模式，
- * 由 InlineDiffViewer 与 CLIDiffViewer 作为薄包装层引用。
+ * 由 InlineDiffViewer 等表现层组件作为薄包装层引用。
  */
 
 'use client';
@@ -31,7 +31,7 @@ import { useTheme } from 'next-themes';
 import { useDiffParser } from '@/hooks/shared/useDiffParser';
 import type { DiffLine, DiffHunk, SplitPair } from '@/lib/diff/parseUnifiedDiff';
 import { buildSplitPairs, inferLanguage } from '@/lib/diff/parseUnifiedDiff';
-import { CLIFileIcon } from '@/components/features/cli-visualization/CLIFileIcon';
+import { FileTypeIcon } from '@/components/features/files/FileTypeIcon';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 
 export interface DiffViewerProps {
@@ -256,7 +256,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = memo(
           <div className="flex items-center justify-between px-2 sm:px-4 py-2 bg-muted/50 border-b border-border">
             <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
               <FileEdit className="h-4 w-4 text-orange-500 shrink-0" />
-              <CLIFileIcon filename={displayPath} className="h-4 w-4 shrink-0 hidden sm:block" />
+              <FileTypeIcon filename={displayPath} className="h-4 w-4 shrink-0 hidden sm:block" />
               <span className="text-sm font-medium truncate max-w-[120px] sm:max-w-[300px]" title={displayPath}>
                 {displayPath.split('/').pop()}
               </span>

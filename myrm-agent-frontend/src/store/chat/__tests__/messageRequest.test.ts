@@ -174,10 +174,6 @@ describe('messageRequest - agent id fallback', () => {
       }),
     ).toBe('builtin-general');
   });
-
-  it('should return undefined for claude_code mode', () => {
-    expect(resolveEffectiveAgentId('claude_code', baseAgentConfig)).toBeUndefined();
-  });
 });
 
 describe('messageRequest - archive restore contract', () => {

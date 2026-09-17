@@ -54,7 +54,6 @@ import { isRetryableHttpStatus } from '@/lib/utils/networkResilience';
 import { buildMultimodalQuery } from './multimodalBuilder';
 import { resolveKanbanDefaultBoardIdForRequest, resolveKanbanSendBlockReason } from '@/lib/kanban/kanbanChatBoard';
 import { createAISearchStream } from '@/services/chat';
-import { isCLIAgentMode, sendCLIAgentMessage } from './cliAgentMessageHandler';
 import { resolveActiveModelConfig, isModelAvailable } from '@/lib/model-binding';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/localeUtils';
@@ -1081,33 +1080,6 @@ export const sendMessage = async (
   useToolApprovalStore.getState().markProcessing(requestMessageId);
 
   try {
-    // ============================================================================
-    // CLI Agent 模式检测和处理 (Claude Code)
-    // ============================================================================
-    if (isCLIAgentMode(state.actionMode)) {
-      actions.setLoading(true);
-
-      await sendCLIAgentMessage(
-        input,
-        {
-          messages: requestState.messages,
-          chatId: requestState.chatId,
-          loading: requestState.loading,
-          messageAppeared: requestState.messageAppeared,
-          agentConfig: requestState.agentConfig,
-        },
-        {
-          setMessages: actions.setMessages,
-          setLoading: actions.setLoading,
-          setMessageAppeared: actions.setMessageAppeared,
-          scheduleAutoSave: actions.scheduleAutoSave,
-          setInputMessage: actions.setInputMessage,
-        },
-      );
-
-      return;
-    }
-
     // 搜索服务检查：
     // - 快速搜索/深度研究模式：严格要求搜索服务，否则拦截
     // - agent 模式：未配置时由 stream preflight SSE capability_gap 通知（避免与 client toast 重复）

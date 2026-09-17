@@ -7,7 +7,7 @@
  * - useDiffParser: memoized ParsedDiff
  *
  * [POS]
- * 跨 feature 共用的 diff 解析 Hook（cli-visualization、markdown-render-tools）。
+ * 跨 feature 共用的 diff 解析 Hook（markdown-render-tools、workspace-browser）。
  */
 
 import { useMemo } from 'react';

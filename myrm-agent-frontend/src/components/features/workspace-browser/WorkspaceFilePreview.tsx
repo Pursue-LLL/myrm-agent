@@ -25,7 +25,7 @@ import { X, Download, RefreshCw, FileText, AlertTriangle, Pencil, Save, Eye, Git
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
-import { CLIFileIcon } from '@/components/features/cli-visualization/CLIFileIcon';
+import { FileTypeIcon } from '@/components/features/files/FileTypeIcon';
 import {
   fetchWorkspaceFileContent,
   getWorkspaceFileContentUrl,
@@ -277,7 +277,7 @@ export const WorkspaceFilePreview: React.FC<WorkspaceFilePreviewProps> = memo(
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <CLIFileIcon filename={file.name} className="shrink-0" />
+            <FileTypeIcon filename={file.name} className="shrink-0" />
             <span className="text-sm font-medium truncate" title={file.path}>
               {file.name}
             </span>

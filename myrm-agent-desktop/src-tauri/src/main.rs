@@ -12,15 +12,11 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod agent_runner_rpc;
 mod app;
-mod cli_agent_types;
 mod commands;
 mod config;
 mod ipc_security;
-mod permissions;
 mod runtime;
-mod sessions;
 mod utils;
 
 fn main() {

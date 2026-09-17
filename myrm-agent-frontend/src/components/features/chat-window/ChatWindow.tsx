@@ -18,7 +18,6 @@ import { useSkillStore } from '@/store/skill';
 import { validateAgentDependencies, buildMissingDependenciesParts } from '@/lib/utils/agentConfigValidator';
 import { toast } from '@/hooks/shared/useToast';
 import { useTranslations } from 'next-intl';
-import { PermissionDialog } from '@/components/features/cli-agent/PermissionDialog';
 import ToolApprovalDialog from './ToolApprovalDialog';
 import ToolApprovalExpiryWatcher from './ToolApprovalExpiryWatcher';
 import AgentInfoBanner from './AgentInfoBanner';
@@ -565,8 +564,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
   if (showChatRouteLayout) {
     return (
       <>
-        {/* CLI Agent 权限对话框 */}
-        <PermissionDialog />
         <ToolApprovalDialog />
         <ToolApprovalExpiryWatcher />
         <PendingMemoryDialog />
@@ -698,8 +695,6 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
   return (
     <>
-      {/* CLI Agent 权限对话框 */}
-      <PermissionDialog />
       <ToolApprovalDialog />
       <ToolApprovalExpiryWatcher />
       <YoloModeBanner />

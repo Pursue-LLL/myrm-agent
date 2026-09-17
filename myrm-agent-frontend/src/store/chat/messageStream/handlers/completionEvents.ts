@@ -232,13 +232,6 @@ export async function completionEvents(ctx: StreamCtx): Promise<StreamTurn | nul
     // Passive progression milestone detection
     void import('@/lib/progression/tryMarkMilestone').then(({ tryMarkMilestone }) => {
       tryMarkMilestone('first_chat');
-      const msg = state.messages[state.messages.length - 1];
-      if (msg?.toolCalls && msg.toolCalls.length > 0) {
-        tryMarkMilestone('first_tool_use');
-        if (msg.toolCalls.some((tc) => tc.toolName === 'invoke_acp_agent_tool')) {
-          tryMarkMilestone('first_remote_takeover');
-        }
-      }
     });
   }
 

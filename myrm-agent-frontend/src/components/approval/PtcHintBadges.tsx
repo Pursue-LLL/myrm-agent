@@ -8,7 +8,7 @@
  * - PtcHintBadges: MCP PTC read-only / destructive / open-world 注解 badge
  *
  * [POS]
- * SingleApprovalCard 与 ToolCallApproval 共用的 PTC 注解 badge 组。
+ * SingleApprovalCard 与 PolymorphicApprovalCard 共用的 PTC 注解 badge 组。
  */
 
 import { Check, Globe, Terminal } from 'lucide-react';

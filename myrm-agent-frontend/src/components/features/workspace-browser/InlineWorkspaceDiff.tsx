@@ -23,7 +23,7 @@ import { X, GitCommit } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { DiffViewer } from '@/lib/diff/DiffViewer';
 import type { FileEntry } from '@/services/chat';
-import { CLIFileIcon } from '@/components/features/cli-visualization/CLIFileIcon';
+import { FileTypeIcon } from '@/components/features/files/FileTypeIcon';
 
 interface InlineWorkspaceDiffProps {
   file: FileEntry;
@@ -79,7 +79,7 @@ export const InlineWorkspaceDiff: React.FC<InlineWorkspaceDiffProps> = memo(
         <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <GitCommit className="h-4 w-4 text-emerald-500 shrink-0" />
-            <CLIFileIcon filename={file.name} className="shrink-0" />
+            <FileTypeIcon filename={file.name} className="shrink-0" />
             <span className="text-sm font-medium truncate" title={file.path}>
               {file.name}
             </span>

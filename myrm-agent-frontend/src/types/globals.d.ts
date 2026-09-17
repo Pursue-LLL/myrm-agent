@@ -224,8 +224,8 @@ interface Window {
     setBrowserSource?: (source: string) => void;
     getBrowserSource?: () => string | null | undefined;
     ensureComputerUseReady?: () => void;
-    getActionMode?: () => 'fast' | 'agent' | 'deep_research' | 'claude_code';
-    setActionMode?: (mode: 'fast' | 'agent' | 'deep_research' | 'claude_code') => void;
+    getActionMode?: () => 'fast' | 'agent' | 'deep_research';
+    setActionMode?: (mode: 'fast' | 'agent' | 'deep_research') => void;
     getBrowserToolProgress?: () => {
       active: boolean;
       takeoverPending: boolean;

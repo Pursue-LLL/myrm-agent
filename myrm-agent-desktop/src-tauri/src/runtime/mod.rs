@@ -1,21 +1,18 @@
-//! 桌面运行时：Sidecar 进程、全局快捷键、Setup Token、Agent Runner 编排
+//! 桌面运行时：Sidecar 进程、全局快捷键、Setup Token 编排
 //!
 //! [INPUT]
 //! - config::BackendConfig / FrontendConfig (POS: 系统与 Sidecar 配置)
-//! - agent_runner_rpc::SidecarManager (POS: Agent Runner JSON-RPC 进程管理)
 //!
 //! [OUTPUT]
 //! - PythonBackend / NextJSFrontend 进程状态与 IPC 命令
 //! - 全局快捷键处理（Appshot 截屏、Voice PTT、Inline Input、窗口 toggle）
 //! - SetupTokenState / get_setup_token
-//! - bootstrap_agent_runner / resolve_agent_runner_path
 //! - Inline Input: handle_inline_input_shortcut / paste_back / INLINE_INPUT_SHORTCUT_STR
 //! - `.myrmtheme` open-file bridge via theme_package_open (emit theme-package-open)
 //!
 //! [POS]
-//! Tauri 主进程内的 Sidecar 与系统运行时层，承接 Python/Next.js/Agent Runner 进程生命周期。
+//! Tauri 主进程内的 Sidecar 与系统运行时层，承接 Python/Next.js 进程生命周期。
 
-mod agent_runner;
 mod appshot;
 mod inline_input;
 mod theme_package_open;
@@ -28,7 +25,6 @@ pub mod sidecar_version_manager;
 pub mod survivor_diag;
 pub mod watchdog;
 
-pub use agent_runner::{bootstrap_agent_runner, resolve_agent_runner_path};
 pub use process_registry::{ManagedProcessEntry, ProcessRegistry, ProcessRole, ProcessStatus};
 pub use appshot::{
     force_capture, handle_appshot_shortcut, handle_toggle_window, handle_voice_ptt_start,

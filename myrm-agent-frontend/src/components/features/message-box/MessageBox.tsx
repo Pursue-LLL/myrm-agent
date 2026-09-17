@@ -24,7 +24,7 @@ import { findActivePendingClarification } from '@/store/chat/clarificationState'
 import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
 import useChatStore, { Message } from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
-import type { McpAppView, Source, ToolCallInfo, ToolImageOutput } from '@/store/chat/types';
+import type { McpAppView, Source, ToolImageOutput } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { mergeMessageSources } from '@/store/chat/messageStream/streamHelpers';
 import {
@@ -43,16 +43,12 @@ import MarkdownContent from './MarkdownContent';
 import Suggestions from './Suggestions';
 import ArtifactsDisplay from '@/components/features/artifacts/ArtifactsDisplay';
 import ArtifactErrorBoundary from '@/components/features/artifacts/ArtifactErrorBoundary';
-import ToolCallApproval from './ToolCallApproval';
 import ClarificationInput from './ClarificationInput';
 import DirectoryApprovalInput from './DirectoryApprovalInput';
 import PlanConfirmationCard from './PlanConfirmationCard';
 import { HumanGateCard } from './HumanGateCard';
 import WorkflowSuggestionCard from './WorkflowSuggestionCard';
 import MessageActionBar from './MessageActionBar';
-import { useCLIAgentStore } from '@/store/useCLIAgentStore';
-import { CLIDiffViewer } from '@/components/features/cli-visualization/CLIDiffViewer';
-import { isTauriEnvironment } from '@/lib/tauri';
 import { ImageTaskCard, VideoTaskCard } from '@/components/features/task-card';
 import { recordQualityOutcomeNegative } from '@/services/wiki/evidenceMetrics';
 import { CronJobSystemCard } from './CronJobSystemCard';
@@ -228,7 +224,6 @@ const MessageBox = ({
     ? (message.toolImages as ToolImageOutput[])
     : [];
   const mcpApps: McpAppView[] = Array.isArray(message.mcpApps) ? (message.mcpApps as McpAppView[]) : [];
-  const toolCalls: ToolCallInfo[] = Array.isArray(message.toolCalls) ? (message.toolCalls as ToolCallInfo[]) : [];
   const cronJobResult =
     message.metadata && typeof message.metadata === 'object' && 'cron_job_result' in message.metadata
       ? (message.metadata.cron_job_result as import('./CronJobSystemCard').CronJobResult)
@@ -588,28 +583,6 @@ const MessageBox = ({
             <McpAppSection views={mcpApps} />
           </ArtifactErrorBoundary>
         )}
-
-        {/* CLI Agent 工具调用审批 */}
-        {toolCalls.length > 0 && chatId && (
-          <ToolCallApproval
-            toolCalls={toolCalls}
-            chatId={chatId}
-            onApprove={async (callId) => {
-              const { respondPermission } = useCLIAgentStore.getState();
-              await respondPermission(callId, true);
-            }}
-            onReject={async (callId) => {
-              const { respondPermission } = useCLIAgentStore.getState();
-              await respondPermission(callId, false);
-            }}
-          />
-        )}
-
-        {/* CLI Agent Diff 预览（仅 Tauri 桌面环境） */}
-        {isTauriEnvironment() &&
-          toolCalls
-            ?.filter((tc) => tc.diff)
-            .map((tc) => <CLIDiffViewer key={tc.callId} diff={tc.diff!} filePath={tc.filePath} />)}
 
         {/* 异步任务卡片（如图片生成） */}
         {taskResponse &&

@@ -22,8 +22,8 @@ vi.mock('sonner', () => {
   return { __esModule: true, default: toastFn, toast: toastFn };
 });
 
-vi.mock('@/components/features/cli-visualization/CLIFileIcon', () => ({
-  CLIFileIcon: () => <div data-testid="file-icon" />,
+vi.mock('@/components/features/files/FileTypeIcon', () => ({
+  FileTypeIcon: () => <div data-testid="file-icon" />,
 }));
 
 vi.mock('@/services/chat', () => ({
