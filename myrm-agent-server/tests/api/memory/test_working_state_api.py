@@ -193,3 +193,27 @@ class TestLiveWorkbenchAndDualBlockEndpoints:
         assert isinstance(resp_digests.json(), list)
 
         LocalWorkingMemoryBlock.reset()
+
+    def test_consolidation_service_resolve_trap(self):
+        from myrm_agent_harness.api import LocalWorkingMemoryBlock
+
+        from app.services.memory.consolidation_service import ConsolidationService
+
+        LocalWorkingMemoryBlock.initialize(goal="Resolve trap verification")
+        ConsolidationService.record_trap(
+            fingerprint="test_fp_1",
+            avoidance_rule="Fix config",
+            tool_name="bash",
+        )
+        live = ConsolidationService.get_live_working_state()
+        assert len(live["traps"]) == 1
+        assert live["traps"][0]["resolved"] is False
+
+        resolved = ConsolidationService.resolve_trap("test_fp_1")
+        assert resolved is True
+
+        live_after = ConsolidationService.get_live_working_state()
+        assert live_after["traps"][0]["resolved"] is True
+
+        assert ConsolidationService.resolve_trap("non_existent") is False
+        LocalWorkingMemoryBlock.reset()

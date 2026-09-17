@@ -53,6 +53,11 @@ class ConsolidationService:
         )
 
     @staticmethod
+    def resolve_trap(fingerprint: str) -> bool:
+        """Resolve an active runtime error trap on the current coroutine workbench."""
+        return LocalWorkingMemoryBlock.resolve_trap(fingerprint=fingerprint)
+
+    @staticmethod
     def add_subtask(title: str, subtask_id: str | None = None) -> dict[str, str] | None:
         """Add a subtask to the live working block."""
         item = LocalWorkingMemoryBlock.add_subtask(title=title, subtask_id=subtask_id)
