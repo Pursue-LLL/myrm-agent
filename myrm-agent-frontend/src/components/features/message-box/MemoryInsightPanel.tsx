@@ -251,7 +251,6 @@ export default function MemoryInsightPanel({
                           {t('briefRulesApplied', {
                             rules: memoryBudget.rulesConfigured,
                             injected: memoryBudget.rulesInjected,
-                            skipped: Math.max(0, memoryBudget.rulesConfigured - memoryBudget.rulesInjected),
                           })}
                         </div>
                       )}
