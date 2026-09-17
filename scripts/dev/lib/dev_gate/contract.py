@@ -374,9 +374,14 @@ SHARED_ATTACH_RECOVERY_WAIT_SEC: Final[int] = 360
 # parallel attach fail before ui-heal could restore a cold-compiling frontend
 # (regression vs R161 "≥ heal+120"; R122 dogpile is solved by flock, not by cap).
 # R132: attach UI heal must cover frontend cold compile + post-ensure warm streak (not 72s).
+# Measured 2026-09-17: Turbopack dev cold compile of `/` takes 85s–282s (turbopackFileSystemCacheForDev
+# is deliberately off to avoid Next 16 cache-corruption panics), so the ensure subprocess budget must
+# exceed the coldest observed compile or the heal leader SIGTERMs its own child mid-compile.
+# This stays SSOT: no caller may hardcode a smaller subprocess_timeout_sec.
 E2E_ATTACH_UI_HEAL_POST_ENSURE_FLOOR_SEC: Final[int] = 120
 E2E_ATTACH_UI_HEAL_TIMEOUT_FLOOR_SEC: Final[int] = 300
 E2E_ATTACH_UI_HEAL_TIMEOUT_CAP_SEC: Final[int] = 600
+E2E_ATTACH_UI_HEAL_ENSURE_SUBPROCESS_CAP_SEC: Final[int] = 420
 STACK_FRONTEND_ENSURE_WAIT_SEC: Final[int] = 180
 STACK_FRONTEND_ATTACH_HEAL_ENSURE_WAIT_SEC: Final[int] = 360
 # Solo ADMIT attach: readiness + dev_servers + chrome_cdp + attach_health exceed 180s under cold UI.
@@ -405,6 +410,21 @@ def attach_ui_heal_timeout_sec(active_leases: int = 0) -> int:
     return min(
         E2E_ATTACH_UI_HEAL_TIMEOUT_CAP_SEC,
         max(E2E_ATTACH_UI_HEAL_TIMEOUT_FLOOR_SEC, total),
+    )
+
+
+def attach_ui_heal_ensure_subprocess_sec(active_leases: int = 0) -> int:
+    """Budget for the ``dev-stack.sh frontend-only ensure`` child inside the heal leader.
+
+    Must exceed the coldest Turbopack dev compile plus the inner ensure wait, otherwise
+    the leader kills a healthy in-flight compile (observed 282s compile vs a 90s budget)
+    and enters a restart loop that never reaches HTTP 200. The outer wall is always at
+    least as large as this budget, so bounding it cannot exceed the attach contract.
+    """
+    scaled = STACK_FRONTEND_ENSURE_WAIT_SEC + max(active_leases, 0) * 30
+    return min(
+        E2E_ATTACH_UI_HEAL_ENSURE_SUBPROCESS_CAP_SEC,
+        max(E2E_ATTACH_UI_HEAL_TIMEOUT_FLOOR_SEC, scaled),
     )
 
 

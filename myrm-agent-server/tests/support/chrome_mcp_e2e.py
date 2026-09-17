@@ -46,6 +46,9 @@ from dev_gate.contract import (
     resolve_evaluate_budget,
     shpoib_rebind_location_wait_cap_sec,
 )  # noqa: E402
+from dev_gate.contract import (
+    attach_ui_heal_ensure_subprocess_sec as _attach_ui_heal_ensure_subprocess_sec,
+)
 from e2e_core.orchestrator import touch_wall_progress  # noqa: E402
 from e2e_core.shared_ui_hydrate import (  # noqa: E402
     parallel_shared_ui_hydrate_queue_enabled,
@@ -392,12 +395,12 @@ def warm_ui_route(path: str, *, timeout_sec: float | None = None) -> None:
         except ImportError:
             if os.environ.get("MYRM_E2E_LAUNCH_FORCE", "").strip() == "1":
                 return
-        heal_timeout = 60.0
+        heal_timeout = float(_attach_ui_heal_ensure_subprocess_sec())
         try:
             from mux.transport_supervisor import parallel_active_test_count
 
             if parallel_active_test_count() > 1:
-                heal_timeout = 20.0
+                heal_timeout = float(_attach_ui_heal_ensure_subprocess_sec(1))
         except ImportError:
             pass
         heal_shared_frontend_debounced(
@@ -2573,7 +2576,9 @@ def _trigger_attach_frontend_heal_once() -> None:
         heal_shared_frontend_attach(
             monorepo_root,
             flock_wait_sec=flock_wait,
-            subprocess_timeout_sec=90.0,
+            # SSOT budget: a cold Turbopack compile runs 85s–282s, so a hardcoded 90s
+            # child timeout killed healthy compiles and looped the heal forever.
+            subprocess_timeout_sec=float(_attach_ui_heal_ensure_subprocess_sec()),
         )
         _ATTACH_CLIENT_WARMUP_URLS.clear()
     except ImportError:

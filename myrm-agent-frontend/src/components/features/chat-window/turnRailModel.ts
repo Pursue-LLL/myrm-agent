@@ -52,9 +52,6 @@ export function normalizeRailItems(
     if (msg.messageId) {
       msgIndexMap.set(String(msg.messageId), i);
     }
-    if (msg.id) {
-      msgIndexMap.set(String(msg.id), i);
-    }
   }
 
   // 模式 1：已存在服务端全局大纲投影（全生命周期视野）
@@ -78,7 +75,7 @@ export function normalizeRailItems(
     let nextTurnIndex = turnOutlines.length + 1;
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i];
-      const mId = String(msg.messageId || msg.id || '');
+      const mId = String(msg.messageId || '');
       if (msg.role === 'user' && mId && !outlineMsgIds.has(mId)) {
         const cleanText = stripMarkdown(stripUserMessageDisplayText(msg.content || ''));
         items.push({
@@ -106,7 +103,7 @@ export function normalizeRailItems(
     if (msg.role === 'user' && msg.content) {
       currentTurn++;
       const cleanText = stripMarkdown(stripUserMessageDisplayText(msg.content));
-      const msgId = String(msg.messageId || msg.id || `turn-${currentTurn}`);
+      const msgId = String(msg.messageId || `turn-${currentTurn}`);
       fallbackItems.push({
         turnIndex: currentTurn,
         userMessageId: msgId,

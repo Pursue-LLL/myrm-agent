@@ -7,7 +7,7 @@ import {
 } from '../layout';
 import { computeArchitectureDiff } from '../diff';
 import type { ArchitectureIR } from '../types';
-import { isArchitectureType } from '../../artifactUtils';
+import { isArchitectureType } from '../../../artifactUtils';
 
 describe('Architecture Layout & Sanitization', () => {
   it('sanitizes dangling edges and normalizes node fields', () => {

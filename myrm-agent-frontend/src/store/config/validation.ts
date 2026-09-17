@@ -4,6 +4,7 @@ import {
   type SearchServiceConfig,
   type ValidationResult,
 } from '@/services/llm-config';
+import type { MCPServiceConfig } from '@/store/config/types';
 
 // 验证搜索服务配置
 export const validateSearchServiceConfig = async (config: SearchServiceConfig): Promise<ValidationResult> => {

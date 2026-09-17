@@ -16,7 +16,7 @@ export async function phaseTransitionEvents(ctx: StreamCtx): Promise<StreamTurn 
   if (data.type === H.AgentEventType.PHASE_TRANSITION) {
     const rawData = data.data;
     if (!rawData || typeof rawData !== 'object') {
-      return done();
+      return done(ctx);
     }
 
     const payload = rawData as PhaseTransitionPayload;

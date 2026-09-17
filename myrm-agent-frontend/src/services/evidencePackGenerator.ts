@@ -14,7 +14,7 @@
  * 项目经验六步证据包提炼核心服务。将零散的执行轨迹收敛为结构化工程资产。
  */
 
-import type { ExecutionTrace, TraceToolCall, TraceError } from '@/services/statistics';
+import type { ExecutionTrace, TraceToolCall, TraceError, TraceOutcome } from '@/services/statistics';
 import { sanitizeFilename, triggerDownload } from '@/lib/utils/fileUtils';
 
 export interface EvidencePackStep {
@@ -30,7 +30,7 @@ export interface SixStepEvidencePack {
   sessionId: string;
   generatedAt: string;
   taskTitle: string;
-  outcome: 'success' | 'failure' | 'cancelled' | 'running';
+  outcome: TraceOutcome;
   totalDurationMs: number;
   totalTokens: number;
   totalToolCalls: number;
@@ -91,7 +91,7 @@ export function generateEvidencePackFromTrace(trace: ExecutionTrace): SixStepEvi
   execDetails.push(`总工具调用 ${trace.tool_calls.length} 次，其中异常拦截/修复 ${failedCalls.length} 次`);
   if (trace.errors && trace.errors.length > 0) {
     trace.errors.slice(0, 3).forEach((err: TraceError) => {
-      execDetails.push(`[异常记录] ${err.error_type || 'Error'}: ${err.message.slice(0, 120)}`);
+      execDetails.push(`[异常记录] ${err.error_type || 'Error'}: ${err.error.slice(0, 120)}`);
     });
   }
   if (failedCalls.length > 0) {
