@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import uuid
 
 import pytest
@@ -131,7 +132,18 @@ _FOLLOWUP_TOGGLE_JS = """(() => {
   if (webhookBtn0) {
     webhookBtn0.click();
   }
-  const btns = Array.from(document.querySelectorAll('button'));
+  const TOPIC = '__TOPIC__';
+  const cands = Array.from(document.querySelectorAll('div')).filter((d) => (d.innerText || '').includes(TOPIC));
+  cands.sort((a, b) => (a.innerText.length - b.innerText.length));
+  let scope = null;
+  for (const d of cands) {
+    const t = d.innerText || '';
+    if (/(Receipts|完工回执)/.test(t) && /(Stall nudge|停滞提醒)/.test(t)) { scope = d; break; }
+  }
+  if (!scope) {
+    return { ready: false, ok: false, reason: 'row-missing' };
+  }
+  const btns = Array.from(scope.querySelectorAll('button'));
   const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
   const receipts = byText(/^(Receipts|完工回执|完了レシート|完工回執|완료 레시트|Belege)$/);
   const stall = byText(/^(Stall nudge|停滞提醒|停滞nudge|停滯提醒|정체 nudge|Stau-Nudge)$/);
@@ -156,7 +168,18 @@ _FOLLOWUP_CLICK_JS = """(() => {
   if (webhookBtn0) {
     webhookBtn0.click();
   }
-  const btns = Array.from(document.querySelectorAll('button'));
+  const TOPIC = '__TOPIC__';
+  const cands = Array.from(document.querySelectorAll('div')).filter((d) => (d.innerText || '').includes(TOPIC));
+  cands.sort((a, b) => (a.innerText.length - b.innerText.length));
+  let scope = null;
+  for (const d of cands) {
+    const t = d.innerText || '';
+    if (/(Receipts|完工回执)/.test(t) && /(Stall nudge|停滞提醒)/.test(t)) { scope = d; break; }
+  }
+  if (!scope) {
+    return { ready: false, ok: false, reason: 'row-missing' };
+  }
+  const btns = Array.from(scope.querySelectorAll('button'));
   const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
   const receipts = byText(/^(Receipts|完工回执|完了レシート|完工回執|완료 레시트|Belege)$/);
   const stall = byText(/^(Stall nudge|停滞提醒|停滞nudge|停滯提醒|정체 nudge|Stau-Nudge)$/);
@@ -165,9 +188,61 @@ _FOLLOWUP_CLICK_JS = """(() => {
   }
   const wasReceiptsOn = (receipts.className || '').includes('bg-primary');
   const wasStallOn = (stall.className || '').includes('bg-primary');
+  if (receipts.disabled) {
+    return { ok: false, reason: 'saving-in-flight', wasReceiptsOn, wasStallOn };
+  }
   receipts.click();
+  return { ok: true, wasReceiptsOn, wasStallOn, clicked: 'receipts' };
+})()"""
+
+_FOLLOWUP_CLICK_STALL_JS = """(() => {
+  const TOPIC = '__TOPIC__';
+  const cands = Array.from(document.querySelectorAll('div')).filter((d) => (d.innerText || '').includes(TOPIC));
+  cands.sort((a, b) => (a.innerText.length - b.innerText.length));
+  let scope = null;
+  for (const d of cands) {
+    const t = d.innerText || '';
+    if (/(Receipts|完工回执)/.test(t) && /(Stall nudge|停滞提醒)/.test(t)) { scope = d; break; }
+  }
+  if (!scope) {
+    return { ready: false, ok: false, reason: 'row-missing' };
+  }
+  const btns = Array.from(scope.querySelectorAll('button'));
+  const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
+  const stall = byText(/^(Stall nudge|停滞提醒|停滞nudge|停滯提醒|정체 nudge|Stau-Nudge)$/);
+  if (!stall) {
+    return { ok: false, reason: 'stall-button-missing' };
+  }
+  if (stall.disabled) {
+    return { ok: false, reason: 'saving-in-flight' };
+  }
   stall.click();
-  return { ok: true, wasReceiptsOn, wasStallOn };
+  return { ok: true, clicked: 'stall' };
+})()"""
+
+_FOLLOWUP_RECEIPTS_OFF_JS = """(() => {
+  const TOPIC = '__TOPIC__';
+  const cands = Array.from(document.querySelectorAll('div')).filter((d) => (d.innerText || '').includes(TOPIC));
+  cands.sort((a, b) => (a.innerText.length - b.innerText.length));
+  let scope = null;
+  for (const d of cands) {
+    const t = d.innerText || '';
+    if (/(Receipts|完工回执)/.test(t) && /(Stall nudge|停滞提醒)/.test(t)) { scope = d; break; }
+  }
+  if (!scope) {
+    return { ready: false, ok: false, reason: 'row-missing' };
+  }
+  const btns = Array.from(scope.querySelectorAll('button'));
+  const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
+  const receipts = byText(/^(Receipts|完工回执|完了レシート|完工回執|완료 레시트|Belege)$/);
+  const stall = byText(/^(Stall nudge|停滞提醒|停滞nudge|停滯提醒|정체 nudge|Stau-Nudge)$/);
+  if (!receipts || !stall) {
+    return { ready: false, reason: 'followup-buttons-missing' };
+  }
+  const receiptsOn = (receipts.className || '').includes('bg-primary');
+  const stallOn = (stall.className || '').includes('bg-primary');
+  const disabled = Boolean(receipts.disabled || stall.disabled);
+  return { ready: receiptsOn === false && disabled === false, receiptsOn, stallOn, disabled };
 })()"""
 
 _FOLLOWUP_READ_JS = """(() => {
@@ -185,7 +260,18 @@ _FOLLOWUP_READ_JS = """(() => {
   if (webhookBtn0) {
     webhookBtn0.click();
   }
-  const btns = Array.from(document.querySelectorAll('button'));
+  const TOPIC = '__TOPIC__';
+  const cands = Array.from(document.querySelectorAll('div')).filter((d) => (d.innerText || '').includes(TOPIC));
+  cands.sort((a, b) => (a.innerText.length - b.innerText.length));
+  let scope = null;
+  for (const d of cands) {
+    const t = d.innerText || '';
+    if (/(Receipts|完工回执)/.test(t) && /(Stall nudge|停滞提醒)/.test(t)) { scope = d; break; }
+  }
+  if (!scope) {
+    return { ready: false, ok: false, reason: 'row-missing' };
+  }
+  const btns = Array.from(scope.querySelectorAll('button'));
   const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
   const receipts = byText(/^(Receipts|完工回执|完了レシート|完工回執|완료 레시트|Belege)$/);
   const stall = byText(/^(Stall nudge|停滞提醒|停滞nudge|停滯提醒|정체 nudge|Stau-Nudge)$/);
@@ -212,7 +298,18 @@ _FOLLOWUP_FLIPPED_JS = """(() => {
   if (webhookBtn0) {
     webhookBtn0.click();
   }
-  const btns = Array.from(document.querySelectorAll('button'));
+  const TOPIC = '__TOPIC__';
+  const cands = Array.from(document.querySelectorAll('div')).filter((d) => (d.innerText || '').includes(TOPIC));
+  cands.sort((a, b) => (a.innerText.length - b.innerText.length));
+  let scope = null;
+  for (const d of cands) {
+    const t = d.innerText || '';
+    if (/(Receipts|完工回执)/.test(t) && /(Stall nudge|停滞提醒)/.test(t)) { scope = d; break; }
+  }
+  if (!scope) {
+    return { ready: false, ok: false, reason: 'row-missing' };
+  }
+  const btns = Array.from(scope.querySelectorAll('button'));
   const byText = (re) => btns.find((el) => re.test((el.textContent || '').trim()));
   const receipts = byText(/^(Receipts|完工回执|完了レシート|完工回執|완료 레시트|Belege)$/);
   const stall = byText(/^(Stall nudge|停滞提醒|停滞nudge|停滯提醒|정체 nudge|Stau-Nudge)$/);
@@ -266,17 +363,28 @@ def test_channel_routing_followup_switches_persist_across_reload() -> None:
         page,
     ):
         dismiss_blocking_modals(client, page)
-        present = wait_for_state(client, page, _FOLLOWUP_TOGGLE_JS, timeout_sec=120.0)
+        present = wait_for_state(client, page, _FOLLOWUP_TOGGLE_JS.replace("__TOPIC__", topic_id), timeout_sec=120.0)
         assert present.get("ready") is True, present
-        clicked = client.evaluate(page, _FOLLOWUP_CLICK_JS, timeout_sec=30.0)
+        clicked = client.evaluate(page, _FOLLOWUP_CLICK_JS.replace("__TOPIC__", topic_id), timeout_sec=30.0)
         assert isinstance(clicked, dict) and clicked.get("ok") is True, clicked
         assert clicked.get("wasReceiptsOn") is True, clicked
         assert clicked.get("wasStallOn") is False, clicked
-        flipped = wait_for_state(client, page, _FOLLOWUP_FLIPPED_JS, timeout_sec=60.0)
+        settled = wait_for_state(client, page, _FOLLOWUP_RECEIPTS_OFF_JS.replace("__TOPIC__", topic_id), timeout_sec=60.0)
+        assert settled.get("ready") is True, settled
+        clicked_stall: dict[str, object] | None = None
+        for _ in range(12):
+            attempt = client.evaluate(page, _FOLLOWUP_CLICK_STALL_JS.replace("__TOPIC__", topic_id), timeout_sec=30.0)
+            assert isinstance(attempt, dict), attempt
+            if attempt.get("ok") is True:
+                clicked_stall = attempt
+                break
+            time.sleep(5.0)
+        assert clicked_stall is not None and clicked_stall.get("ok") is True, clicked_stall
+        flipped = wait_for_state(client, page, _FOLLOWUP_FLIPPED_JS.replace("__TOPIC__", topic_id), timeout_sec=60.0)
         assert flipped.get("ready") is True, flipped
         reload_mcp_page(client, page, timeout_ms=90_000)
         dismiss_blocking_modals(client, page)
-        state = wait_for_state(client, page, _FOLLOWUP_READ_JS, timeout_sec=120.0)
+        state = wait_for_state(client, page, _FOLLOWUP_READ_JS.replace("__TOPIC__", topic_id), timeout_sec=120.0)
         assert state.get("ready") is True, state
         assert state.get("receiptsOn") is False, state
         assert state.get("stallOn") is True, state

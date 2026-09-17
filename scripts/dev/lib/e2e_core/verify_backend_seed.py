@@ -187,6 +187,13 @@ def _emit_seed_progress(*, started_mono: float, budget_sec: float, phase: str) -
 
 
 def _health_source_fingerprint(api_base: str) -> str:
+    """Read the workspace fingerprint a live backend was built at.
+
+    Returns ``""`` when the probe fails or the payload lacks one. Callers must
+    treat that as *unknown*, never as a mismatch: an empty string never equals a
+    real fingerprint, so a naive comparison would condemn a healthy backend
+    merely because one request timed out.
+    """
     url = f"{api_base.rstrip('/')}/api/v1/health"
     try:
         with urllib.request.urlopen(url, timeout=3.0) as resp:
@@ -496,7 +503,16 @@ def _reusable_verify_backend() -> VerifyBackendSeedResult | None:
         if not _health_ok(api_base):
             _reclaim_unreusable_backend(record)
             continue
-        if _health_source_fingerprint(api_base) != _backend_source_fingerprint():
+        fingerprint = _health_source_fingerprint(api_base)
+        if not fingerprint:
+            # The probe failed, so its stale-epoch verdict is unknown. The
+            # record still counts against capacity, but reclaiming on a failed
+            # read would tear down a session's backend on a mere timeout —
+            # leave it to the owner-TTL reaper. This is the fail-closed half of
+            # the fingerprint check below: an *empty* fingerprint can never equal
+            # a real one, so treating it as a mismatch would free live backends.
+            continue
+        if fingerprint != _backend_source_fingerprint():
             _reclaim_unreusable_backend(record)
             continue
         result = VerifyBackendSeedResult(

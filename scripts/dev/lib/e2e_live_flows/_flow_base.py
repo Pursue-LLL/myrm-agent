@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import time
 
 
@@ -15,4 +16,11 @@ class FlowLogger:
     def emit(self, msg: str) -> None:
         elapsed = time.monotonic() - self._t0
         line = f"{self._prefix}: [{elapsed:.1f}s] {msg}"
-        print(line, flush=True)
+        # stderr, not stdout: pytest captures stdout and replays it only for
+        # *failing* tests, so a passing run's takeover evidence (gate confirmed,
+        # banner appeared, DONE) was invisible in the detach log — the exact
+        # artifact an operator reads to judge a green run. stderr reaches the
+        # log live regardless of outcome, matching the session-phase markers in
+        # `e2e_session_runtime/lifecycle.py` that make the rest of the flow
+        # auditable. Keep flush so the ordering is real, not buffered.
+        print(line, file=sys.stderr, flush=True)
