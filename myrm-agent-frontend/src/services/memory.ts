@@ -9,3 +9,5 @@ export * from './memory/preferences';
 export * from './memory/sharedContexts';
 export * from './memory/health';
 export * from './memory/integration';
+export * from './memory/cognitiveClock';
+

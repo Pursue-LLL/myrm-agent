@@ -16,6 +16,7 @@
 | `sharedContexts.ts`      | Shared Context：状态/提案 DTO、目标绑定、CRUD                                                                     |
 | `health.ts`              | Shared Context 记忆依赖健康探测                                                                                   |
 | `integration.ts`         | Integration Memory：sync / browse / status                                                                        |
+| `cognitiveClock.ts`      | 嵌套多频认知时钟客户端：时钟调度状态查询、用户活跃通知上报与 T1 会话防抖手动提炼触发                             |
 
 ## 依赖
 

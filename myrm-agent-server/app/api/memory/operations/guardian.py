@@ -276,3 +276,42 @@ async def trigger_pattern_discovery() -> dict[str, object]:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Pattern discovery trigger failed",
         ) from exc
+
+
+class CognitiveClockActivityRequest(BaseModel):
+    session_id: str | None = None
+    reason: str = "typing"
+
+
+class CognitiveClockT1TriggerRequest(BaseModel):
+    session_id: str
+
+
+@router.get("/cognitive-clock/status")
+async def get_cognitive_clock_status(request: Request) -> dict[str, object]:
+    """Return nested multi-frequency cognitive clock status."""
+    from app.lifecycle.cognitive_clock import get_clock_coordinator
+
+    policy = await _resolve_guardian_policy(request)
+    coordinator = get_clock_coordinator()
+    return await coordinator.get_status(policy=policy)
+
+
+@router.post("/cognitive-clock/activity")
+async def record_user_activity(body: CognitiveClockActivityRequest) -> dict[str, object]:
+    """Record foreground user activity to trigger cooperative backoff."""
+    from app.lifecycle.cognitive_clock import get_activity_sensor
+
+    sensor = get_activity_sensor()
+    sensor.record_activity(session_id=body.session_id, reason=body.reason)
+    return {"status": "ok", "recorded": True, "reason": body.reason}
+
+
+@router.post("/cognitive-clock/trigger-t1")
+async def trigger_t1_session_debounce(body: CognitiveClockT1TriggerRequest) -> dict[str, object]:
+    """Manually trigger T1 meso-session consolidation for a session."""
+    from app.lifecycle.cognitive_clock.executors import execute_t1_session_debounce
+
+    success = await execute_t1_session_debounce(session_id=body.session_id)
+    return {"status": "ok" if success else "failed", "session_id": body.session_id}
+

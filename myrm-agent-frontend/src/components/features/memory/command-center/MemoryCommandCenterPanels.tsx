@@ -39,6 +39,7 @@ import { EvidenceBadge } from '../cards/EvidenceBadge';
 import { RepoEvidenceCard } from '../cards/RepoEvidenceCard';
 
 import { ToolGuidancePanel } from './ToolGuidancePanel';
+import { CognitiveClockPanel } from './CognitiveClockPanel';
 
 const MemoryHealthDashboard = lazy(() => import('../insights/MemoryHealthDashboard'));
 
@@ -269,6 +270,7 @@ export const ActSection = ({
         />
       </Panel>
     </div>
+    <CognitiveClockPanel />
     <ToolGuidancePanel />
   </div>
 );

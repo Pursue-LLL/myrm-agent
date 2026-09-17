@@ -48,6 +48,16 @@ import ActiveWorkingMemoryPanel from '../message-input-actions/ActiveWorkingMemo
 import { useTranslations } from 'next-intl';
 import { useMessageInput } from '@/hooks/message-input/useMessageInput';
 import { useDragDrop } from '@/hooks/ui/useDragDrop';
+import { reportUserActivity } from '@/services/memory';
+
+let lastTypingReportTime = 0;
+const reportTypingActivityThrottled = (chatId?: string) => {
+  const now = Date.now();
+  if (now - lastTypingReportTime > 5000) {
+    lastTypingReportTime = now;
+    void reportUserActivity(chatId, 'typing').catch(() => {});
+  }
+};
 import { usePriorChatComposerDrop } from '@/hooks/chat/usePriorChatComposerDrop';
 import { useDesktopFolderDrop } from '@/hooks/message-input/useDesktopFolderDrop';
 import { LinkDetectionDialog } from './LinkDetectionDialog';
@@ -549,6 +559,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
                   }}
                   onChange={(e) => {
                     handleInputChange(e);
+                    reportTypingActivityThrottled(chatId);
                     updateCursorPosition();
                     if (inputHistory.popup.open) {
                       inputHistory.close();
