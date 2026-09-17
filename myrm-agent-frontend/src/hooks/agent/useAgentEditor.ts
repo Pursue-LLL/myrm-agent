@@ -26,6 +26,7 @@ import {
   AgentUpdate,
   AgentCreate,
   OpenAPIServiceConfig,
+  TrustedDesktopAppEntry,
   invalidateAgentReadiness,
   type WorkspacePolicy,
 } from '@/services/agent';
@@ -156,6 +157,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
   // 可发现性
   const [allowDiscovery, setAllowDiscovery] = useState<boolean>(true);
   const [cronPostRunVerify, setCronPostRunVerify] = useState<boolean>(false);
+  const [trustedDesktopApps, setTrustedDesktopApps] = useState<TrustedDesktopAppEntry[]>([]);
   const [busyInputMode, setBusyInputMode] = useState<'redirect' | 'steer' | 'queue'>('redirect');
 
   // 对话框状态
@@ -201,6 +203,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     notifyTargets: [] as import('@/services/agent').NotifyTarget[],
     allowDiscovery: true,
     cronPostRunVerify: false,
+    trustedDesktopApps: [] as TrustedDesktopAppEntry[],
     busyInputMode: 'redirect' as 'redirect' | 'steer' | 'queue',
     a2aEnabled: false,
     a2aTrustedPeerIds: [] as string[],
@@ -248,6 +251,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
       notifyChanged ||
       allowDiscovery !== originalData.allowDiscovery ||
       cronPostRunVerify !== originalData.cronPostRunVerify ||
+      JSON.stringify(trustedDesktopApps) !== JSON.stringify(originalData.trustedDesktopApps) ||
       busyInputMode !== originalData.busyInputMode ||
       a2aEnabled !== originalData.a2aEnabled ||
       !arraysEqual(a2aTrustedPeerIds, originalData.a2aTrustedPeerIds) ||
@@ -283,6 +287,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     notifyTargets,
     allowDiscovery,
     cronPostRunVerify,
+    trustedDesktopApps,
     busyInputMode,
     a2aEnabled,
     a2aTrustedPeerIds,
@@ -385,6 +390,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
         promptMode: data.prompt_mode || 'full',
         allowDiscovery: data.allow_discovery ?? true,
         cronPostRunVerify: data.cron_post_run_verify ?? false,
+        trustedDesktopApps: data.trusted_desktop_apps ?? [],
         busyInputMode: data.busy_input_mode || 'redirect',
         a2aEnabled: data.a2a_enabled ?? false,
         a2aTrustedPeerIds: data.a2a_trusted_peer_ids || [],
@@ -487,6 +493,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           personality_style: personalityStyle,
           allow_discovery: allowDiscovery,
           cron_post_run_verify: cronPostRunVerify,
+          trusted_desktop_apps: trustedDesktopApps,
           busy_input_mode: busyInputMode,
           a2a_enabled: a2aEnabled,
           a2a_trusted_peer_ids: a2aTrustedPeerIds,
@@ -528,6 +535,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           personality_style: personalityStyle,
           allow_discovery: allowDiscovery,
           cron_post_run_verify: cronPostRunVerify,
+          trusted_desktop_apps: trustedDesktopApps,
           busy_input_mode: busyInputMode,
           a2a_enabled: a2aEnabled,
           a2a_trusted_peer_ids: a2aTrustedPeerIds,
@@ -572,6 +580,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
           personalityStyle,
           allowDiscovery,
           cronPostRunVerify,
+          trustedDesktopApps: [...trustedDesktopApps],
           busyInputMode,
           promptMode,
           maxIterations,
@@ -635,6 +644,7 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     notifyTargets,
     allowDiscovery,
     cronPostRunVerify,
+    trustedDesktopApps,
     busyInputMode,
     workspacePolicy,
     sessionPolicy,
@@ -788,6 +798,8 @@ export function useAgentEditor(agentId: string | null, isNew: boolean, t: (key: 
     setAllowDiscovery,
     cronPostRunVerify,
     setCronPostRunVerify,
+    trustedDesktopApps,
+    setTrustedDesktopApps,
     busyInputMode,
     setBusyInputMode,
     // 迭代次数

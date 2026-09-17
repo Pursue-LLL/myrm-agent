@@ -65,6 +65,8 @@ describe('ModelSwapContinuityCard', () => {
     setSessionPolicy: vi.fn(),
     cronPostRunVerify: false,
     setCronPostRunVerify: vi.fn(),
+    trustedDesktopApps: [],
+    setTrustedDesktopApps: vi.fn(),
     busyInputMode: 'steer',
     setBusyInputMode: vi.fn(),
     selectedSkillDetails: [{ id: 'skill-1', name: 'GitOps Skill' }] as any,

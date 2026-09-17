@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 _SKILL_MD = _SERVER_ROOT / "assets" / "prebuilt_skills" / "skill-evolution-patcher" / "SKILL.md"
 

@@ -9,6 +9,7 @@ import { AgentSubagentBinding } from './AgentSubagentBinding';
 import { AgentA2ABinding } from './AgentA2ABinding';
 import { AgentSharedContextBinding } from './AgentSharedContextBinding';
 import { AgentNotifyTargets } from './AgentNotifyTargets';
+import { AgentTrustedDesktopApps } from './AgentTrustedDesktopApps';
 import { AgentLoadoutSummary } from '@/components/features/loadout/AgentLoadoutSummary';
 import { agentSharedContextBindingAnchor } from '@/components/features/loadout/loadoutDeepLinks';
 import { AgentBrowserConfigSection } from './AgentBrowserConfigSection';
@@ -81,6 +82,8 @@ export interface AgentCapabilitiesTabProps {
     setA2aEnabled: (val: boolean) => void;
     a2aTrustedPeerIds: string[];
     setA2aTrustedPeerIds: (val: string[]) => void;
+    trustedDesktopApps: { name: string; app_id?: string }[];
+    setTrustedDesktopApps: (val: { name: string; app_id?: string }[]) => void;
   };
   agentId: string | null;
   isNew: boolean;
@@ -118,6 +121,12 @@ export function AgentCapabilitiesTab({ editor, agentId, isNew }: AgentCapabiliti
       />
 
       <DeliveryAssuranceSection editor={editor} t={t} />
+
+      <AgentTrustedDesktopApps
+        apps={editor.trustedDesktopApps}
+        onChange={editor.setTrustedDesktopApps}
+        readonly={editor.isReadonly}
+      />
 
       <BusyInputModeSection editor={editor} t={t} />
 
