@@ -1052,6 +1052,36 @@ def _get_budget_pressure_fn() -> "Callable[[], bool] | None":
         return None
 
 
+def _working_memory_snapshot() -> "WorkingMemorySnapshot | None":
+    """Adapt the agent working memory block into a toolkit-neutral snapshot."""
+    state = LocalWorkingMemoryBlock.get_state()
+    if state is None:
+        return None
+    return WorkingMemorySnapshot(
+        goal=state.goal,
+        active_turn=state.active_turn,
+        status=state.status,
+        subtasks=[
+            ConsolidationSubtask(
+                title=item.title,
+                completed=item.status == SubtaskStatus.COMPLETED,
+            )
+            for item in state.subtasks
+        ],
+        traps=[
+            ConsolidationTrap(
+                fingerprint=trap.fingerprint,
+                avoidance_rule=trap.avoidance_rule,
+                tool_name=trap.tool_name,
+                occurred_turn=trap.occurred_turn,
+                resolved=trap.resolved,
+            )
+            for trap in state.traps
+        ],
+        scratchpad=dict(state.scratchpad),
+    )
+
+
 def _build_session_cleanup_callback(
     agent_wrapper: "GeneralAgent",
     user_id: str,
@@ -1068,7 +1098,14 @@ def _build_session_cleanup_callback(
     from myrm_agent_harness.api.hooks import (
         create_extraction_llm_func,
     )
+    from myrm_agent_harness.agent.context_management.working_memory import (
+        LocalWorkingMemoryBlock,
+        SubtaskStatus,
+    )
     from myrm_agent_harness.toolkits.memory import (
+        ConsolidationSubtask,
+        ConsolidationTrap,
+        WorkingMemorySnapshot,
         create_consolidation_cleanup_task,
     )
     from myrm_agent_harness.toolkits.memory.session_post_process import (
@@ -1101,7 +1138,11 @@ def _build_session_cleanup_callback(
             profile_skill_ids=list(agent_wrapper.skill_ids or []),
             llm_func=llm_func,
         ),
-        create_consolidation_cleanup_task(memory_manager=memory_manager),
+        create_consolidation_cleanup_task(
+            memory_manager=memory_manager,
+            snapshot_provider=_working_memory_snapshot,
+            after_run=LocalWorkingMemoryBlock.reset,
+        ),
     ]
 
     async def _composite(messages: "Sequence[dict[str, str]]", chat_id: str | None) -> None:

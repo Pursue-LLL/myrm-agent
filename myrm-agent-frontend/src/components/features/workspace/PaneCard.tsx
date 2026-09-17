@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import type { PaneConfig } from '@/store/useWorkspaceStore';
 import type { ChatHistoryItem } from '@/store/chat/types';
 import useWorkspaceStore from '@/store/useWorkspaceStore';
+import { useShallow } from 'zustand/react/shallow';
 
 interface PaneCardProps {
   pane: PaneConfig;
@@ -20,10 +21,12 @@ interface PaneCardProps {
 export default function PaneCard({ pane, isActive, chatHistory, onSelect, onClose }: PaneCardProps) {
   const t = useTranslations('multiPane');
   const router = useRouter();
-  const { activeSessions, updatePaneChatId } = useWorkspaceStore((s) => ({
-    activeSessions: s.activeSessions,
-    updatePaneChatId: s.updatePaneChatId,
-  }));
+  const { activeSessions, updatePaneChatId } = useWorkspaceStore(
+    useShallow((s) => ({
+      activeSessions: s.activeSessions,
+      updatePaneChatId: s.updatePaneChatId,
+    })),
+  );
 
   const activeSession = pane.chatId ? activeSessions.find((s) => s.chatId === pane.chatId) : null;
   const isRunning = !!activeSession;
@@ -46,7 +49,15 @@ export default function PaneCard({ pane, isActive, chatHistory, onSelect, onClos
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       className={cn(
         'relative flex flex-col rounded-xl border transition-all cursor-pointer',
         'bg-card hover:shadow-md',

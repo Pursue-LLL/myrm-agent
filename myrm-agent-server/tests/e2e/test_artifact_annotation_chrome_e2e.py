@@ -60,7 +60,15 @@ _PORTAL_STORE_READY_JS = """(() => {
 _PORTAL_WITH_TEXT_JS = """(() => {
   const container = document.getElementById('artifact-content-container');
   const text = container ? (container.innerText || '') : '';
-  return { ready: !!container && text.includes('Deliverable E2E'), len: text.length };
+  const store = window.__myrmArtifactPortalStore?.getState?.();
+  const tabs = store?.openTabs ?? [];
+  return {
+    ready: !!container && text.includes('Deliverable E2E'),
+    len: text.length,
+    hasContainer: !!container,
+    tabCount: tabs.length,
+    tabFile: tabs.length > 0 ? (tabs[0]?.artifact?.filename ?? null) : null,
+  };
 })()"""
 
 _OPEN_PANEL_JS = """(() => {

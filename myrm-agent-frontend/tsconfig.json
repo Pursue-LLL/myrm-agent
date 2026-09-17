@@ -49,7 +49,9 @@
     "*.ts",
     "*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    ".next-isolated-chrome-test_behavioral_metrics_panel_contract_i-d4ad0338-39463-8895712b/types/**/*.ts",
+    ".next-isolated-chrome-test_behavioral_metrics_panel_contract_i-d4ad0338-39463-8895712b/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

@@ -121,6 +121,43 @@ describe('ReviewPanel Component', () => {
     expect(screen.getByText(/Show \d+ more lines/)).toBeInTheDocument();
   });
 
+  it('resets list scroll when the search query changes', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        msg1: [
+          {
+            path: 'src/a.ts',
+            operation: 'modify',
+            original: 'aaa\n',
+            current: 'aab\n',
+            isBinary: false,
+          },
+          {
+            path: 'src/b.ts',
+            operation: 'create',
+            original: '',
+            current: 'bbb\n',
+            isBinary: false,
+          },
+        ],
+      }),
+    } as Response);
+
+    const { container } = render(<ReviewPanel sessionId="session-123" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('a.ts')).toBeInTheDocument();
+    });
+
+    const scroller = container.querySelector('.flex-1.overflow-auto') as HTMLElement;
+    scroller.scrollTop = 200;
+    fireEvent.change(screen.getByLabelText('Search files'), { target: { value: 'b.ts' } });
+    expect(scroller.scrollTop).toBe(0);
+    expect(screen.queryByText('a.ts')).not.toBeInTheDocument();
+    expect(screen.getByText('b.ts')).toBeInTheDocument();
+  });
+
   it('keeps same-path rows from different messages independent', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
