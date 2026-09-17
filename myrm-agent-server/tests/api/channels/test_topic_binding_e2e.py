@@ -314,4 +314,50 @@ def test_topic_team_identity_e2e(client):
     assert restored.status_code == 200, restored.text
     assert restored.json()["identityRevoked"] is False
 
+
+def test_topic_follow_up_policy_e2e(client):
+    """End-to-end test for proactive follow-up policy fields."""
+
+    unique_id = str(uuid.uuid4())[:8]
+
+    agent_payload = {
+        "name": f"E2E FollowUp Agent {unique_id}",
+        "description": "Agent for follow-up policy testing",
+        "model": "gpt-4o",
+        "systemPrompt": "You are a team Ariel.",
+        "skills": [],
+    }
+    res = client.post("/api/v1/user-agents", json=agent_payload)
+    assert res.status_code == 200, res.text
+    agent_id = res.json()["data"]["id"]
+
+    channel_name = f"test_followup_channel_{unique_id}"
+    topic_id = f"test_group_{unique_id}"
+
+    # Defaults: receipts on, stall nudge off
+    response = client.post(
+        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
+        json={"agentId": agent_id},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["completionReceipts"] is True
+    assert response.json()["stallNudge"] is False
+
+    # Explicit opt-in to stall nudges, receipts off
+    updated = client.post(
+        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
+        json={"agentId": agent_id, "completionReceipts": False, "stallNudge": True},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["completionReceipts"] is False
+    assert updated.json()["stallNudge"] is True
+
+    # Persisted in topics list
+    listed = client.get(f"/api/v1/channels/manage/{channel_name}/topics")
+    assert listed.status_code == 200, listed.text
+    rows = [t for t in listed.json()["topics"] if t["topicId"] == topic_id]
+    assert len(rows) == 1
+    assert rows[0]["completionReceipts"] is False
+    assert rows[0]["stallNudge"] is True
+
     print("Thread Sharing Mode E2E Test Passed!")

@@ -67,7 +67,7 @@ async def test_resolve_model_config_with_egress_proxy() -> None:
             {
                 "id": "custom_prov",
                 "isEnabled": True,
-                "apiKey": "sk-custom",
+                "apiKeys": [{"key": "sk-custom", "isActive": True}],
                 "apiUrl": "https://api.custom.com/v1",
                 "egressProxy": "socks5://10.0.0.2:1080",
             }
