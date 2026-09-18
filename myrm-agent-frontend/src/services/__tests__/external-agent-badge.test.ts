@@ -95,6 +95,8 @@ describe('external agent delegation badge helpers', () => {
     // A locally auto-detected CLI counts as ready even with nothing configured in-app.
     expect(resolveExternalCliReadiness([], [present], true)).toBe('ready');
     expect(resolveExternalCliReadiness([], [present], false)).toBe('not_configured');
+    // A whitespace-only command cannot match any backend row and must not read as ready.
+    expect(resolveExternalCliReadiness([{ enabled: true, command: '   ' }], [present], true)).toBe('not_configured');
     expect(
       hasAutoDetectedExternalCliBackend([{ backend: 'claude', installed: true, readyForDelegation: true } as never]),
     ).toBe(true);
