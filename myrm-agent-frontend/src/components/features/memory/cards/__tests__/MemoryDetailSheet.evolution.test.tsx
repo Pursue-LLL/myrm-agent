@@ -105,7 +105,7 @@ describe('MemoryDetailSheet evolution rendering', () => {
       content: 'no mutation case',
       merge_count: 1,
       merge_history: '09-12 10:00|MERGE|x',
-    } as Memory;
+    } as unknown as Memory;
     renderSheet(memory);
     expect(memory.merge_history).toContain('MERGE');
   });

@@ -204,7 +204,7 @@ describe('PluginImportDialog', () => {
     mockFetchAgents.mockClear();
     mockAgents = [{ id: 'agent-1', name: 'Research Assistant' }];
     fetchMock = vi.fn();
-    global.fetch = fetchMock;
+    global.fetch = fetchMock as unknown as typeof fetch;
   });
 
   afterEach(() => {

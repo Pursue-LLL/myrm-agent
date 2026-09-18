@@ -20,6 +20,8 @@ describe('InlineWorkspaceDiff', () => {
     name: 'test_code.py',
     path: '/workspace/test_code.py',
     type: 'file',
+    is_text: true,
+    children: [],
     size: 120,
     mtime: '2026-08-22',
   };

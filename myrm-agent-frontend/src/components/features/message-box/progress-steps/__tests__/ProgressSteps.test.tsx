@@ -151,7 +151,7 @@ describe('ProgressSteps fault-side badge', () => {
     const searchStep: ProgressItem = {
       step_key: 'web_search_tool',
       tool_name: 'web_search_tool',
-      status: 'completed',
+      status: 'complete',
       items: [
         { query: 'Analyze "CVE-2024-38077" patch details' },
         { query: 'NVDA stock price earnings' },

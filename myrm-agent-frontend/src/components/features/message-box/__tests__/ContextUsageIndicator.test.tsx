@@ -743,7 +743,6 @@ describe('ContextUsageIndicator', () => {
             mcp_tools_tokens: 8000,
             skills_tools_tokens: 4000,
             builtin_tools_tokens: 3000,
-            other_tokens: 10000,
           },
         },
       ];

@@ -65,6 +65,10 @@ describe('ChatHistoryRow Artifact Reveal', () => {
     title: 'Test Artifact Session',
     createdAt: new Date(),
     updatedAt: new Date(),
+    firstMessage: '',
+    lastMessage: '',
+    actionMode: 'agent',
+    source: 'web',
   };
 
   it('renders reveal artifacts menu item and triggers callback', () => {
