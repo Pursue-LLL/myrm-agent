@@ -46,17 +46,20 @@ describe('TurnCapabilityOverrideBar', () => {
       actionMode: 'agent',
       agentConfig: {
         agentId: 'agent-1',
-        name: 'Test Agent',
+        agentName: 'Test Agent',
+        systemPrompt: '',
+        useGlobalInstruction: true,
+        autoRestoreDomains: [],
         selectedSkillIds: ['skill-a', 'skill-b'],
         selectedMcpNames: ['mcp-a'],
       },
     });
     useSkillStore.setState({
-      marketSkills: [{ id: 'skill-a', name: 'Skill A', user_invocable: true }],
-      localSkills: [{ id: 'skill-b', name: 'Skill B', user_invocable: true }],
+      marketSkills: [{ id: 'skill-a', name: 'Skill A', user_invocable: true } as Skill],
+      localSkills: [{ id: 'skill-b', name: 'Skill B', user_invocable: true } as Skill],
     });
     useConfigStore.setState({
-      mcpConfigs: [{ name: 'mcp-a', enabled: true, command: 'mcp-cmd' }],
+      mcpConfigs: [{ name: 'mcp-a', type: 'stdio', description: '', enabled: true, command: 'mcp-cmd' }],
     });
   });
 

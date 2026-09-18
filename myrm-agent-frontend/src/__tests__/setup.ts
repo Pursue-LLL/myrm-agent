@@ -6,16 +6,14 @@
  * - 配置测试环境
  * - 清理测试状态
  */
-
+// @ts-expect-error jsdom ships no bundled type declarations.
 import { JSDOM } from 'jsdom';
 
 if (typeof document === 'undefined') {
   const dom = new JSDOM('<!doctype html><html><body></body></html>');
-  // @ts-expect-error polyfill for non-browser testing
   globalThis.window = dom.window;
   globalThis.document = dom.window.document;
   try {
-    // @ts-expect-error polyfill for non-browser testing
     globalThis.navigator = dom.window.navigator;
   } catch {
     Object.defineProperty(globalThis, 'navigator', {
