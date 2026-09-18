@@ -46,6 +46,8 @@ describe('QueuedMessagesList override badge', () => {
         id: 'q-2',
         text: 'Normal queued task',
         turnCapabilitySelection: null,
+        files: [],
+        timestamp: 1,
       },
     ];
 

@@ -19,8 +19,8 @@ describe('Architecture Layout & Sanitization', () => {
         { id: 'node-1', label: 'Duplicate Service A' }, // duplicate id
       ],
       edges: [
-        { source: 'node-1', target: 'node-2', label: 'Calls' },
-        { source: 'node-1', target: 'nonexistent', label: 'Dangling' },
+        { id: 'e-1', source: 'node-1', target: 'node-2', label: 'Calls' },
+        { id: 'e-2', source: 'node-1', target: 'nonexistent', label: 'Dangling' },
       ],
     };
 

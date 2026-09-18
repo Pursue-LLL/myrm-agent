@@ -140,7 +140,6 @@ describe('SubagentViewportTab', () => {
         refs: {},
         pageUrl: 'https://sandbox.internal/dashboard',
         pageTitle: 'Sandbox Live App',
-        chatId: 'chat-42',
         viewportWidth: 1280,
         viewportHeight: 720,
         sourceChatId: 'chat-42',
