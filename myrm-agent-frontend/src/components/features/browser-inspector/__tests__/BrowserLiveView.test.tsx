@@ -127,6 +127,8 @@ describe('BrowserLiveView', () => {
           'btn-1': {
             role: 'button',
             name: 'Submit',
+            nth: null,
+            position: null,
             bbox: { x: 10, y: 20, width: 100, height: 30, centerX: 60, centerY: 35, viewport_width: 1280, viewport_height: 720 },
           },
         },

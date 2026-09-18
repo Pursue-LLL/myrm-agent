@@ -68,6 +68,8 @@ describe('useComposerContextChips', () => {
             type: 'workspace_file',
             path: 'src/index.ts',
             label: 'index.ts',
+            source: 'workspace',
+            size: null,
             startLine: 1,
             endLine: 20,
           },

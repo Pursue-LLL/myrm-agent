@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type React from 'react';
 import { renderHook, act } from '@testing-library/react';
 
 const mockToast = vi.hoisted(() => ({
@@ -124,7 +125,7 @@ describe('useInputFileUpload', () => {
   const defaultParams: UploadParams = {
     actionMode: 'agent' as const,
     files: [],
-    setFiles: vi.fn<(files: UploadParams['files']) => void>(),
+    setFiles: vi.fn<React.Dispatch<React.SetStateAction<UploadParams['files']>>>(),
     setHideAttachList: vi.fn<(hide: boolean) => void>(),
   };
 

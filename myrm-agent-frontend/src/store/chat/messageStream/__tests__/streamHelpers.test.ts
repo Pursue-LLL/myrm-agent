@@ -42,12 +42,13 @@ describe('mergeMessageSources', () => {
       [],
       [
         {
-          index: '1' as unknown as number,
+          index: 1,
           type: 'web_search',
           url: 'https://example.com/a',
           title: 'A',
         },
         {
+          index: 2,
           type: 'web_search',
           url: 'https://example.com/b',
           title: 'B',
