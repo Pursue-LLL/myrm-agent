@@ -35,4 +35,3 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js 进程生�
 ## 依赖
 
 - `config` — BackendConfig / FrontendConfig / SystemConfig
-- `commands::agent` — AgentSystemState

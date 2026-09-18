@@ -60,5 +60,5 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 
 ## 运行
 
-- 本地：`bash myrm-agent-server/scripts/ci/run_architecture_gates.sh`（fractal + `--no-stub` + line budget + `promtool check rules` + architecture pytest）
+- 本地：`bash myrm-agent-server/scripts/ci/run_architecture_gates.sh`（fractal + `--no-stub` + `promtool check rules` + architecture pytest）
 - CI：`myrm-agent/.github/workflows/server-architecture.yml`（无 PyPI 且无 checkout harness 时失败闭合）

@@ -9,6 +9,7 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 | 项 | 配置 | 说明 |
 |----|------|------|
 | `@shared/*` | `tsconfig.base.json` paths + `next.config.ts` | 指向 `../shared/*`（`tsconfig.json` 经 `extends` 继承） |
+| `tsconfig` 分层（**不可合并**） | `tsconfig.json`（`extends` + `include`）· `tsconfig.base.json`（`compilerOptions`） | `compilerOptions` **必须**留在 base：Next 的 `writeConfigurationDefaults` 在检测到 `extends` 时会直接跳过配置重写，这正是隔离 lane（`MYRM_NEXT_DIST_DIR=.next-isolated-*`）无法再把 lane 路径写进被 git 追踪的 `tsconfig.json` 的原因。把 `compilerOptions` 合回根文件会立刻让门禁瞬态假红与脏 glob 入库复发（见 `BUGFIX_LOG.md` BUG-AGENT-2026-09-17-003） |
 | `turbopack.root` | monorepo 根（`myrm-agent/`） | dev/build 解析跨包 JSON |
 | `outputFileTracingRoot` | monorepo 根 | standalone/Tauri 打包 trace |
 | Docker build | [Dockerfile](Dockerfile) | builder 布局 `/app/frontend` + `/app/shared`（context = `myrm-agent/` 根） |

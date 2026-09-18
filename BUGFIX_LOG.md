@@ -450,3 +450,148 @@ Multiplex 分支：若 POST `content-type` 含 `text/event-stream` → **直接 
 2. **保持 Harness 纯粹性** — 图像 C 扩展库（如 Pillow）应留在 Server 业务层，Harness 引擎维持纯粹和轻量，防止重型依赖反向污染执行框架。
 
 ---
+
+## BUG-AGENT-2026-09-17-001: 前端 `require('./sandbox')` 悬空导入导致全站 500（模块删除误判动态加载）
+
+| 属性 | 值 |
+|------|-----|
+| 发现日期 | 2026-09-17 |
+| 修复日期 | 2026-09-17 |
+| 严重程度 | **P0（前端全站不可用：所有路由 HTTP 500）** |
+| 影响范围 | `myrm-agent-frontend/src/services/file-service/`、`src/components/features/message-input-actions/AttachButton.tsx`（消费方） |
+| 出现次数 | 1（一次性根治 + 新增静态门禁防止复发） |
+| 关联 | `scripts/dev/tests/test_*_static.py`、`myrm-agent-frontend/scripts/check_module_resolution.py` |
+
+### 现象
+
+前端所有路由（`/`、`/memory`、`/settings`）返回 **HTTP 500**，页面为 Next 错误页而非应用；`tsc --noEmit` 与 oxlint 均**不报错**，构建期无任何提示。
+
+### 根因
+
+提交 `acd1883c1`（`refactor(frontend): delete 56 modules unreachable from every entrypoint`）以「可达性扫描确认这些模块无人引用」为由删除了 `src/services/file-service/sandbox.ts`。但该模块的真实引用点是**动态 CommonJS require**：
+
+```ts
+// src/services/file-service/index.ts:34
+const { sandboxFileService } = require('./sandbox');
+```
+
+`tsc` 对 `require` 的签名是 `(id: string) => any`，specifier 是运行时字符串，**类型系统无法校验目标是否存在**；可达性扫描器只认静态 `import` 字面量，因此漏判。该模块经 `AttachButton → MessageInput → Chat → ChatWindow → app/page.tsx` 挂载，缺失即导致整个页面树编译失败。删除提交的说明文字恰好写明了这个错误假设：*"A textual scan confirmed every import in the tree is a static string literal, so no dynamic loader can reach them."*
+
+### 修复
+
+1. **恢复被误删模块**：`git show acd1883c1^:...sandbox.ts` 取回并逐字节比对一致（139 行）；
+2. **补回 `_ARCH.md` 漂移行**：`services/file-service/_ARCH.md` 文件清单恢复 `sandbox.ts` 行；
+3. **新增根因门禁**（由并行开发者落地 `check_module_resolution.py`）：按 bundler 同款「扩展名替换 + index 规则」解析 `from` / `import()` / `require()` / 相对与别名路径，命中磁盘不存在即 CI 失败，专门填补 `require` 盲区；并接入 `frontend-build.yml`。
+
+### 验证
+
+- 恢复后 `curl http://localhost:3000/` 立即由 **HTTP 500 → HTTP 200**，`/memory`、`/settings` 全部 200 且无 500 页；
+- `check_module_resolution.py` 全仓 2628 个源文件 **0 未解析**；
+- 人工审计被删 56 个文件：逐一检查 `require`/`import()`/`React.lazy`/`next/dynamic` 引用，确认仅 `sandbox.ts` 为真实断裂（其余为 basename 子串误报）。
+
+### 踩坑经验
+
+1. **`require()` 是 `tsc` 的绝对盲区** — 删除「看似无人引用」的模块前，必须用能解析动态 specifier 的检查（`check_module_resolution.py`）复核，不能只看静态 import 图；Node 的 `require(id: string) => any` 签名让类型系统完全无法兜底；
+2. **可达性扫描 ≠ 安全检查** — 静态扫描器漏掉动态加载时会静默产出「安全可删」的假结论，且失败被推迟到运行时（表现为 500），代价远高于扫描器本身的局限；
+3. **门禁必须真的运行**：本仓所有质量门禁原先只挂 `on: pull_request`，而团队直提 `main`（3408 个 commit 仅 2 个 squash 标记），因此这类断裂不会被任何门禁拦截 —— 现已补 `push: main` 触发。
+
+---
+
+## BUG-AGENT-2026-09-17-002: Memory Doctor「纪律默认恢复」静默吞掉归档失败并汇报为成功
+
+| 属性 | 值 |
+|------|-----|
+| 发现日期 | 2026-09-17 |
+| 修复日期 | 2026-09-17 |
+| 严重程度 | P1（数据治理动作向用户谎报成功，运维不可观测） |
+| 影响范围 | `myrm-agent-server/app/services/memory/diagnostics/diagnostic/diagnostic_repair_executor.py` |
+| 出现次数 | 1 |
+| 关联 | `tests/api/memory/test_capacity_theater_doctor_integration.py` |
+
+### 现象
+
+Memory Doctor 执行 `restore_disciplined_defaults`（纪律默认恢复，会把未锁定记忆归档以恢复预算纪律）时，即使归档全部失败，返回消息仍是朴素的成功文案：`Restored disciplined defaults: archived 0 memories, preserved 0 pinned entries.`，GUI 与审计看不到任何失败信号。
+
+### 根因
+
+归档循环体用裸 `except Exception: pass` 包住整个类型扫描与逐条归档：
+
+```python
+try:
+    items = await self._memory_manager.list_memories(mtype, limit=100)
+    for item in items:
+        ...
+        await self._memory_manager.update_memory(item_id, status=MemoryStatus.ARCHIVED)
+        archived_count += 1
+except Exception:
+    pass
+```
+
+任一 `list_memories` 或 `update_memory` 抛错（如向量库不可用、记忆条目损坏）都会被静默丢弃，`archived_count` 停在 0 但 `status="completed"` 照常上报 —— **把「部分/全部失败」伪装成「已完成」**，用户无从察觉治理未生效。
+
+### 修复
+
+拆分为分层捕获 + 可观测上报：
+
+1. **列表失败与单条归档失败分开捕获**，分别 `logger.warning(..., exc_info=True)` 并累加 `failed_count`；
+2. **失败计数进入面向用户的消息**：有失败时追加 `(N entries could not be archived; see server logs.)`，让 GUI 不再谎报成功；
+3. **保留「单条失败不中断整轮清扫」语义**（一个坏条目不应阻止其余记忆的治理），仅把沉默换成显式上报；
+4. 空 `item_id` 明确 `continue` 并计为失败，不再落入宽泛捕获。
+
+### 验证
+
+- `tests/api/memory/test_capacity_theater_doctor_integration.py` **5 passed**（新增 `test_restore_disciplined_defaults_reports_partial_failures` 断言失败必须出现在消息中）；
+- memory 全量套件 `tests/services/memory` + `tests/api/memory` **678 passed / 0 failed**；
+- 真实 API 闭环 `POST /api/v1/memory/command-center/diagnostics/repairs`（dry_run / execute）实测正常。
+
+### 踩坑经验
+
+1. **裸 `except Exception: pass` 在「向用户汇报结果」的路径上是缺陷而非容错** — 它把可恢复错误与致命错误一视同仁地抹掉，让「治理动作」变成不可观测的黑盒；治理类逻辑必须让失败可见（计数 + 日志 + 消息），哪怕选择继续执行；
+2. **宽泛 try 的作用域过大** — 原代码的 try 同时罩住「列取」和「逐条写入」两种失败语义，无法区分；应先缩小作用域再决定各自的降级策略。
+
+---
+
+## BUG-AGENT-2026-09-17-003: Next 隔离 lane 将构建产物路径写入被追踪的 tsconfig.json（门禁瞬态假红 + 污染入库）
+
+| 属性 | 值 |
+|------|-----|
+| 发现日期 | 2026-09-17 |
+| 修复日期 | 2026-09-18 |
+| 严重程度 | P1（CI 门禁瞬态假红；脏 glob 可被提交进共享配置） |
+| 影响范围 | `myrm-agent-frontend/tsconfig.json`（及新增 `tsconfig.base.json`）、`scripts/dev/isolated_runtime/`、`scripts/dev/workspace_hygiene.py` |
+| 出现次数 | 反复（每个 E2E lane 启动都会触发） |
+| 关联 | `myrm-agent-frontend/scripts/check_fractal_docs.py`、`strip_isolated_tsconfig.py` |
+
+### 现象
+
+1. 只要有任何 E2E 隔离 lane 存活，前端 fractal 文档门禁就会**瞬态变红**，报告 `tsconfig.json include must not list .next-isolated-* paths`；
+2. `tsconfig.json`（**被 git 追踪的共享文件**）里出现 `.next-isolated-memdoc-c1`、`agentcap` 等具体 lane 宽字符 glob，最后退出的 lane 会把自己的路径留在提交内容里。
+
+### 根因
+
+每个私池 lane 通过 `MYRM_NEXT_DIST_DIR=.next-isolated-<id>` 启动 Next，而 Next 的 `writeConfigurationDefaults` 会把该 dist 路径当「必需 include」写回**同一个共享 `tsconfig.json`**（`getTypeDefinitionGlobPatterns(distDir)`）。由于 tsconfig 是被追踪的共享文件，写入即污染 + 门禁假红。
+
+### 修复（结构性根治，非加检查）
+
+关键发现：Next 的 `writeConfigurationDefaults` 在 tsconfig 声明了 `extends` 或 `references` 时**直接 return，完全跳过配置重写**。因此把 `compilerOptions` 拆到 `tsconfig.base.json`，让 `tsconfig.json` 用 `extends` 继承 —— 写入目标消失：
+
+- `tsconfig.json` 只保留 `extends` + `include`（+ `exclude`），不再被 Next 写入；
+- `tsconfig.base.json` 承载 `compilerOptions`（含 `paths` 别名）。
+
+`next-env.d.ts` 无此逃生门（Next 无条件重写，不读 tsconfig），仍由 `strip_isolated_tsconfig.py` + `workspace_hygiene.heal_isolated_tsconfig` 在栈启动时自愈。
+
+### 验证（全部实测，非推断）
+
+- **写入侧**：直接调用 Next 16.3.0 的 `writeConfigurationDefaults` —— 无 `extends` 时注入 **2** 条 lane glob，有 `extends` 时注入 **0** 条；
+- **读取侧**：调用 Next 真实读取链 `getTypeScriptConfiguration` → `ts.parseJsonConfigFileContent`，`paths` 正确解析出 `{"@/*":["./src/*"],"#locales/*":["./locales/*"]}`，别名未丢；
+- **线上真实性**：dev server 重新编译后 `/` 返回 **HTTP 200 且真实渲染**（非 500 页）；
+- **免疫力**：在 **6 个 lane 同时存活**时 `tsconfig.json` 的 `include` 中 lane 路径数 = **0**，`check_fractal_docs.py` **exit 0**；
+- 私池 runtime 相关测试 **43 passed**。
+
+### 踩坑经验
+
+1. **「加检查」不是治本** — 原先的做法是让门禁禁止 tsconfig 出现 lane 路径 + teardown 时 strip，但污染源（Next 的配置重写）仍在，且并行 lane 会让 strip 时序竞态（谁最后退出谁写脏）。正解是**让共享文件不可被写**，从源头消灭竞态；
+2. **调试 Next 行为要读它自己发布的代码**：`writeConfigurationDefaults` 顶部 `if ('extends' in userTsConfig || 'references' in userTsConfig) return;` 这个逃生门没有文档宣传，只能从源码/实测得到；结论必须用 Next 真实模块跑出来，不能凭「应该支持」下判断；
+3. **被追踪的共享配置 + 并行隔离构建 = 结构性冲突**：任何「多个进程写同一份版本控制文件」的设计，最终都会表现为随机假红与脏提交。
+
+---

@@ -45,7 +45,7 @@
 | `next-dev-gate.cjs` | Node/Bun preload gate；SSOT 仍 `frontend_dev_pause.py` |
 | `port-cleanup.ts` | `:3000` LISTEN-only 清理 |
 | `cleanup.ts` | dev 残留清理（next 进程、stale lock、`.next-isolated-*`、dev log、pause stamp 8h 默认、stamp write 失败 exit 非零） |
-| `strip_isolated_tsconfig.py` | 移除 Next isolated build 写入的 `tsconfig.json` include 与 `next-env.d.ts` 污染；重置 next-env 为 `.next/dev/types/routes.d.ts` + `root-params.d.ts`；由 E2E `release_runtime` teardown、`cleanup.ts` 与 dev 栈启动 hygiene 调用 |
+| `strip_isolated_tsconfig.py` | 清除 dev lane 写入共享 TS 配置的残留并重置 `next-env.d.ts` 为 `.next/dev/types/routes.d.ts` + `root-params.d.ts`。**`tsconfig.json` 现已结构性豁免**（声明 `extends` 使 Next 跳过配置重写，见根 `_ARCH.md` 的 tsconfig 分层约束），故实际主要是 `next-env.d.ts`（Next 无条件重写、不读 tsconfig）与历史遗留 tsconfig 脏 glob 的兜底；由 E2E `release_runtime` teardown、`cleanup.ts` 与 dev 栈启动 `workspace_hygiene.heal_isolated_tsconfig` 调用 |
 | `generate-artifact-types.ts` | 工件类型生成 |
 | `export-known-sse-event-types.ts` | SSE 事件类型导出对齐 |
 | `__tests__/` | 脚本相关单测 |
