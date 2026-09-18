@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PreviewStep, ResultStep, type TranslationFn } from '../MigrationWizardSteps';
+import type { MemoryImportDryRunResponse } from '@/services/memory/archive';
 
 const mockPush = vi.fn();
 const mockQueueMigrationChatAgent = vi.fn();
@@ -341,28 +342,29 @@ describe('ResultStep conversation search opt-in', () => {
 });
 
 describe('PreviewStep trusted source disclosure gate', () => {
-  const dummyDryRun = {
+  const dummyDryRun: MemoryImportDryRunResponse = {
     dry_run_id: 'dry-run-123',
-    expires_at: 1800000000,
+    payload_hash: 'hash-123',
+    expires_at: '2026-01-01T00:00:00Z',
     result: {
       summary: {
+        version: '1',
         total_items: 5,
+        mapped_items: 5,
+        unmapped_items: 0,
         status: 'ready' as const,
         source: 'pi',
-        counts: { memory: 3, skills: 2 },
       },
       mappings: [],
       warnings: [],
-      integrity_report: null,
-      diagnostic_report: null,
-      security_summary: null,
-      recommended_action: 'proceed',
+      normalized_data: {},
     },
+    coverage_items: [],
+    migration_lanes: [],
     pending_skills: [
       {
         name: 'test-skill',
-        description: 'a test skill',
-        content_preview: 'echo hi',
+        content: 'echo hi',
       },
     ],
   };
@@ -372,12 +374,13 @@ describe('PreviewStep trusted source disclosure gate', () => {
     const { rerender } = render(
       <PreviewStep
         source={{
-          id: 'src-1',
-          name: 'Pi Agent Source',
           competitor: 'pi',
-          status: 'ready',
-          item_count: 5,
+          root: '/home/user/.pi',
+          confidence: 'high',
+          files: [],
+          memory_count_estimate: 5,
           skill_count: 2,
+          has_api_keys: false,
         }}
         dryRun={dummyDryRun}
         importing={false}
@@ -408,12 +411,13 @@ describe('PreviewStep trusted source disclosure gate', () => {
     render(
       <PreviewStep
         source={{
-          id: 'src-2',
-          name: 'Hermes Source',
           competitor: 'hermes',
-          status: 'ready',
-          item_count: 3,
+          root: '/home/user/.hermes',
+          confidence: 'medium',
+          files: [],
+          memory_count_estimate: 3,
           skill_count: 0,
+          has_api_keys: false,
         }}
         dryRun={{
           ...dummyDryRun,
@@ -423,7 +427,6 @@ describe('PreviewStep trusted source disclosure gate', () => {
             summary: {
               ...dummyDryRun.result.summary,
               source: 'hermes',
-              counts: { memory: 3 },
             },
           },
         }}

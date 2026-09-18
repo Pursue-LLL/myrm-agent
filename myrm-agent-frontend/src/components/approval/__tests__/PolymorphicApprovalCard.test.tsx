@@ -316,7 +316,6 @@ describe('PolymorphicApprovalCard', () => {
             ],
             reviewConfigs: [
               {
-                allowedDecisions: ['approve', 'reject'],
                 isSpend: true,
                 spendAmount: 25.0,
                 spendCurrency: 'USD',

@@ -60,6 +60,7 @@ describe('UpdateHandoffNotifier component', () => {
         currentVersion: '0.2.0',
       },
       dismiss: mockDismiss,
+      recordHandoff: vi.fn(),
     });
 
     render(<UpdateHandoffNotifier />);
@@ -92,6 +93,7 @@ describe('UpdateHandoffNotifier component', () => {
         currentVersion: '0.2.0',
       },
       dismiss: mockDismiss,
+      recordHandoff: vi.fn(),
     });
 
     render(<UpdateHandoffNotifier />);
@@ -115,6 +117,7 @@ describe('UpdateHandoffNotifier component', () => {
         currentVersion: '0.1.0',
       },
       dismiss: mockDismiss,
+      recordHandoff: vi.fn(),
     });
 
     render(<UpdateHandoffNotifier />);
@@ -133,7 +136,7 @@ describe('UpdateHandoffNotifier component', () => {
 
     // Test clicking retry action
     const errorCall = vi.mocked(toast.error).mock.calls[0];
-    const options = errorCall[1] as { action: { onClick: () => void } };
+    const options = errorCall[1] as unknown as { action: { onClick: () => void } };
     options.action.onClick();
     expect(mockCheck).toHaveBeenCalledTimes(1);
   });

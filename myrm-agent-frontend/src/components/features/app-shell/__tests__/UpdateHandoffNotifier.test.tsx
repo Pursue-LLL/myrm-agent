@@ -45,7 +45,6 @@ describe('UpdateHandoffNotifier Component', () => {
       check: mockCheck,
       install: vi.fn(),
       reset: vi.fn(),
-      clearError: vi.fn(),
     });
   });
 

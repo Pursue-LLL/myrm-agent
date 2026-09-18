@@ -39,6 +39,10 @@ vi.mock('@/services/llm-config', () => ({
 describe('ModelSwapContinuityCard', () => {
   const mockEditor: AgentCapabilitiesTabProps['editor'] = {
     modelSelection: { providerId: 'anthropic', model: 'claude-3-5-sonnet' },
+    a2aEnabled: false,
+    setA2aEnabled: vi.fn(),
+    a2aTrustedPeerIds: [],
+    setA2aTrustedPeerIds: vi.fn(),
     setModelSelection: vi.fn(),
     maxIterations: 100,
     setMaxIterations: vi.fn(),

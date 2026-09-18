@@ -12,14 +12,14 @@ import type { DesktopPlatform } from '@/lib/desktop-bridge/types';
 
 function mockControls(
   overrides: Partial<{
-    platform: string;
+    platform: DesktopPlatform;
     isDesktop: boolean;
     controlsInsetTop: number;
     controlsInsetLeft: number;
   }> = {},
 ) {
   vi.spyOn(desktopBridge, 'getWindowControlsState').mockReturnValue({
-    platform: 'macos' as DesktopPlatform,
+    platform: 'macos',
     isDesktop: false,
     controlsInsetTop: 0,
     controlsInsetLeft: 0,

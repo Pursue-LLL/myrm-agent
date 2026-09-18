@@ -78,7 +78,7 @@ function makeItem(overrides: Partial<SkillGrowthCaseSummary>): SkillGrowthCaseSu
     createdAt: '2026-08-10T00:00:00Z',
     impactedDependents: [],
     ...overrides,
-  };
+  } as unknown as SkillGrowthCaseSummary;
 }
 
 const noop = async (): Promise<void> => {};
