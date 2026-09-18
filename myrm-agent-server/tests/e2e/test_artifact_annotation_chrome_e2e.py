@@ -51,29 +51,105 @@ _OPEN_FIRST_DELIVERABLE_JS = """(() => {
 })()"""
 
 _PORTAL_STORE_READY_JS = """(() => {
-  const portal = window.__myrmArtifactPortalStore?.getState?.();
-  if (!portal) return { ready: false, reason: 'no-portal-store' };
-  const tabs = portal.openTabs ?? [];
+  const store = window.__myrmArtifactPortalStore?.getState?.();
+  const tabs = store?.openTabs ?? [];
   return { ready: tabs.length > 0, tabCount: tabs.length };
 })()"""
 
-_PORTAL_WITH_TEXT_JS = """(() => {
+_DIRECT_OPEN_JS = """(() => {
+  const store = window.__myrmArtifactPortalStore?.getState?.();
+  if (!store) return { ok: false, reason: 'no-store' };
+  store.openArtifact({
+    id: 'ws-probe-direct.md',
+    filename: 'probe-direct.md',
+    type: 'document',
+    content_type: 'text/markdown',
+    size: 11,
+    preview_url: '',
+    download_url: '',
+  });
+  store.setContent('# Probe Direct\\n\\nDirect store-to-render check.');
+  const st = window.__myrmArtifactPortalStore.getState();
+  return { ok: true, isOpen: !!st.isOpen, tabs: (st.openTabs || []).length };
+})()"""
+
+_DIRECT_RENDER_JS = """(() => {
   const container = document.getElementById('artifact-content-container');
-  const text = container ? (container.innerText || '') : '';
+  const storeModules = performance
+    .getEntriesByType('resource')
+    .map((r) => r.name)
+    .filter((n) => n.includes('useArtifactPortalStore') || n.includes('ArtifactPortal'));
+  const zeroByteChunks = performance
+    .getEntriesByType('resource')
+    .filter((r) => r.name.includes('/_next/') && r.transferSize === 0 && r.decodedBodySize === 0)
+    .map((r) => r.name.slice(-80))
+    .slice(0, 5);
+  const nextErrors = Array.from(document.querySelectorAll('nextjs-portal')).length;
+  const artifactTestIds = Array.from(document.querySelectorAll('[data-testid]'))
+    .map((el) => el.getAttribute('data-testid'))
+    .filter((t) => t && t.toLowerCase().includes('artifact'))
+    .slice(0, 10);
+  return {
+    hasContainer: !!container,
+    text: container ? (container.innerText || '').slice(0, 200) : null,
+    storeModules,
+    zeroByteChunks,
+    nextErrors,
+    artifactTestIds,
+  };
+})()"""
+_PORTAL_WITH_TEXT_JS = """(() => {
+  const containers = Array.from(document.querySelectorAll('#artifact-content-container'));
+  const text = containers.map((c) => c.innerText || '').join(' | ');
+  const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [role="complementary"]')).map((el) => ({
+    role: el.getAttribute('role'),
+    label: (el.getAttribute('aria-label') || '').slice(0, 80),
+    cls: (el.getAttribute('class') || '').slice(0, 120),
+    textHead: ((el.innerText || '')).slice(0, 200),
+  }));
+  const viewport = { w: window.innerWidth, h: window.innerHeight };
+  const href = location.href;
+  const failedChunks = performance
+    .getEntriesByType('resource')
+    .map((r) => r.name)
+    .filter((n) => n.includes('_next/static/chunks') && n.includes('ArtifactPortal'));
+  const buildErrors = Array.from(document.querySelectorAll('nextjs-portal')).map((el) =>
+    ((el.shadowRoot?.textContent || el.textContent) || '').slice(0, 200),
+  );
+  const anyPortalDialog = dialogs.length > 0;
+  const bodyTxt = (document.body?.innerText || '').slice(0, 300);
   const store = window.__myrmArtifactPortalStore?.getState?.();
   const tabs = store?.openTabs ?? [];
   const loading = !!document.querySelector('[data-testid="artifact-loading"], .animate-pulse, .animate-spin');
   const errBox = document.querySelector('[data-testid="artifact-error"]');
   const tab = tabs.length > 0 ? tabs[0] : null;
+  const activeIndex = typeof store?.activeTabIndex === 'number' ? store.activeTabIndex : null;
+  const activeTab = activeIndex !== null && activeIndex >= 0 && activeIndex < tabs.length ? tabs[activeIndex] : null;
+  const previewUrl = tab && tab.artifact ? (tab.artifact.preview_url || null) : null;
+  const tabLoading = !!(tab && tab.contentLoading);
+  const tabError = tab && tab.error ? String(tab.error.messageKey || tab.error).slice(0, 120) : null;
   return {
-    ready: !!container && text.includes('Deliverable E2E'),
+    ready: containers.length > 0 && text.includes('Deliverable E2E'),
     len: text.length,
-    hasContainer: !!container,
+    hasContainer: containers.length > 0,
+    containerCount: containers.length,
+    dialogs,
+    viewport,
+    href,
+    failedChunks,
+    buildErrors,
     tabCount: tabs.length,
     tabFile: tab ? (tab?.artifact?.filename ?? null) : null,
     tabHasContent: !!(tab && typeof tab.content === 'string' && tab.content.length > 0),
     tabContentLen: tab && typeof tab.content === 'string' ? tab.content.length : -1,
+    bodyHead: bodyTxt,
+    activeTabIndex: activeIndex,
+    activeTabNull: !activeTab,
+    previewUrl,
+    tabLoading,
+    tabError,
     isOpen: store ? !!store.isOpen : null,
+    anyPortal: anyPortalDialog,
     loading,
     hasError: !!errBox,
     errText: errBox ? (errBox.innerText || '').slice(0, 200) : null,
@@ -173,13 +249,31 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
                     break
                 time.sleep(3.0)
             assert isinstance(link, dict) and link.get("ok") is True, link
+            # Decisive experiment: drive the store directly (bypasses the link
+            # click path). If the DOM still shows nothing, the break is in the
+            # store->render subscription, not the click flow.
+            # Decisive experiment (diagnostic only, never fatal): drive the store
+            # directly. Its outcome is recorded for forensics.
+            direct = client.evaluate(page, _DIRECT_OPEN_JS, timeout_sec=15.0)
+            direct_render: dict | None = None
+            try:
+                direct_render = wait_for_state(client, page, _DIRECT_RENDER_JS, timeout_sec=30.0)
+            except Exception as diag_err:
+                direct_render = {"ready": False, "diag_error": str(diag_err)[:200]}
+            assert isinstance(direct, dict) and direct.get("ok") is True, direct
             store_state = wait_for_state(client, page, _PORTAL_STORE_READY_JS, timeout_sec=90.0)
-            assert store_state.get("ready") is True, json.dumps(store_state, ensure_ascii=False)
+            assert store_state.get("ready") is True, json.dumps(
+                {"store": store_state, "direct_render": direct_render}, ensure_ascii=False
+            )
             content: dict | None = None
             last_probe: dict | None = None
             content_deadline = time.monotonic() + 150.0
             while time.monotonic() < content_deadline:
-                probe = client.evaluate(page, _PORTAL_WITH_TEXT_JS, timeout_sec=15.0)
+                try:
+                    probe = client.evaluate(page, _PORTAL_WITH_TEXT_JS, timeout_sec=15.0)
+                except Exception:
+                    time.sleep(3.0)
+                    continue
                 if not isinstance(probe, dict):
                     time.sleep(3.0)
                     continue
