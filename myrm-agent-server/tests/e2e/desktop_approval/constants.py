@@ -113,7 +113,11 @@ INFRA_ABORT_MARKERS = (
 )
 TEXTEDIT_FIXTURE_MARKER = "E2E desktop control scroll target line 1"
 E2E_PROMPT = (
-    "INSTRUCTION: You MUST call tools. Do NOT reply with text only.\n"
+    # NOTE: do not label this block "INSTRUCTION" — MiniMax-M3 class models
+    # flag message-trailing INSTRUCTION sections as prompt injection and
+    # refuse with a risk analysis instead of calling tools. MANDATORY carries
+    # the same force and matches E2E_NUDGE_PROMPT vocabulary.
+    "MANDATORY TEST STEPS: You MUST call tools. Do NOT reply with text only.\n"
     "Step 1: Call desktop_snapshot_tool(scope='foreground') to capture the screen.\n"
     "Step 2: Call desktop_interact_tool(ref=@d1, action='click') to click the first line.\n"
     "Step 3: Reply exactly: DONE\n"

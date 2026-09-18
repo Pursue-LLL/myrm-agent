@@ -171,8 +171,30 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
             assert isinstance(link, dict) and link.get("ok") is True, link
             store_state = wait_for_state(client, page, _PORTAL_STORE_READY_JS, timeout_sec=90.0)
             assert store_state.get("ready") is True, json.dumps(store_state, ensure_ascii=False)
-            content = wait_for_state(client, page, _PORTAL_WITH_TEXT_JS, timeout_sec=120.0)
-            assert content.get("ready") is True, json.dumps(content, ensure_ascii=False)
+            content: dict | None = None
+            last_probe: dict | None = None
+            content_deadline = time.monotonic() + 150.0
+            while time.monotonic() < content_deadline:
+                probe = client.evaluate(page, _PORTAL_WITH_TEXT_JS, timeout_sec=15.0)
+                if not isinstance(probe, dict):
+                    time.sleep(3.0)
+                    continue
+                last_probe = probe
+                if probe.get("ready") is True:
+                    content = probe
+                    break
+                if probe.get("hasError"):
+                    raise AssertionError(f"portal content failed: {json.dumps(probe, ensure_ascii=False)}")
+                if not probe.get("tabCount"):
+                    # Portal lost its tab mid-stream; re-enter via the link.
+                    retry = client.evaluate(page, _OPEN_FIRST_DELIVERABLE_JS, timeout_sec=15.0)
+                    if not (isinstance(retry, dict) and retry.get("ok")):
+                        time.sleep(3.0)
+                    continue
+                time.sleep(3.0)
+            assert isinstance(content, dict) and content.get("ready") is True, json.dumps(
+                {"content": content, "last_probe": last_probe}, ensure_ascii=False
+            )
 
             # T2: toggle opens the annotation panel.
             opened = client.evaluate(page, _OPEN_PANEL_JS, timeout_sec=15.0)

@@ -772,17 +772,25 @@ async def sync_approval_banner_from_pending_api(chat: McpChatSession) -> None:
         "app_name": "TextEdit",
         "require_app_approval": True,
     }
-    result = await chat.evaluate(
-        f"""(() => {{
-          const bridge = window.__MYRM_E2E_CHAT__;
-          if (typeof bridge?.syncDesktopControlApproval !== 'function') {{
-            return {{ ok: false, err: 'no-sync-bridge' }};
-          }}
-          bridge.syncDesktopControlApproval({json.dumps(payload)});
-          return {{ ok: true, requestId: {json.dumps(request_id)} }};
-        }})()""",
-        intent=EvaluateIntent.AGENT_SUBMIT,
-    )
+    # The bridge object can be re-created by React remounts after navigation;
+    # poll briefly for the method instead of single-shot asserting so a
+    # mid-remount evaluation does not fail the whole E2E run.
+    result: dict[str, object] | None = None
+    for _ in range(4):
+        result = await chat.evaluate(
+            f"""(() => {{
+              const bridge = window.__MYRM_E2E_CHAT__;
+              if (typeof bridge?.syncDesktopControlApproval !== 'function') {{
+                return {{ ok: false, err: 'no-sync-bridge' }};
+              }}
+              bridge.syncDesktopControlApproval({json.dumps(payload)});
+              return {{ ok: true, requestId: {json.dumps(request_id)} }};
+            }})()""",
+            intent=EvaluateIntent.AGENT_SUBMIT,
+        )
+        if isinstance(result, dict) and result.get("ok") is True:
+            break
+        await asyncio.sleep(5.0)
     assert isinstance(result, dict) and result.get("ok") is True, f"syncDesktopControlApproval failed: {result}"
 
 
