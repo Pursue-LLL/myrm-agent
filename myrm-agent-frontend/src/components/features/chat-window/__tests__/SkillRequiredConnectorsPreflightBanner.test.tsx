@@ -35,12 +35,14 @@ describe('SkillRequiredConnectorsPreflightBanner', () => {
     useChatStore.setState({
       agentConfig: {
         agentId: 'default',
-        name: 'Default Agent',
-        description: 'Test',
+        agentName: 'Default Agent',
+        agentDescription: 'Test',
         systemPrompt: '',
+        useGlobalInstruction: true,
+        autoRestoreDomains: [],
         selectedSkillIds: ['google-workspace'],
+        selectedMcpNames: [],
       },
-      turnCapabilitySelection: null,
     });
 
     useSkillStore.setState({
@@ -71,6 +73,11 @@ describe('SkillRequiredConnectorsPreflightBanner', () => {
           security: null,
           has_upstream_update: false,
           type: 'prebuilt',
+          traps: [],
+          verification_steps: [],
+          eval_cases: [],
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
         },
       ],
       localSkills: [],
@@ -117,6 +124,11 @@ describe('SkillRequiredConnectorsPreflightBanner', () => {
           security: null,
           has_upstream_update: false,
           type: 'prebuilt',
+          traps: [],
+          verification_steps: [],
+          eval_cases: [],
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
         },
       ],
       localSkills: [],
