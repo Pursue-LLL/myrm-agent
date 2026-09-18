@@ -86,7 +86,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
   it('evicts oldest entries in L2 when exceeding MAX_L2_ENTRIES (3 entries limit)', () => {
     for (let i = 1; i <= 4; i++) {
       saveChatNavigationSnapshot(`chat-${i}`, {
-        messages: [{ id: `m-${i}`, role: 'user', content: `Message ${i}`, createdAt: new Date('2026-08-20') }],
+        messages: [{ messageId: `m-${i}`, chatId: 'chat-inline', role: 'user', content: `Message ${i}`, createdAt: new Date('2026-08-20') }],
       });
     }
 
@@ -103,7 +103,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
   it('skips L2 storage for incognitoMode sessions', () => {
     saveChatNavigationSnapshot('chat-incognito', {
       incognitoMode: true,
-      messages: [{ id: 'm-incognito', role: 'user', content: 'Secret prompt', createdAt: new Date('2026-08-20') }],
+      messages: [{ messageId: 'm-incognito', chatId: 'chat-inline', role: 'user', content: 'Secret prompt', createdAt: new Date('2026-08-20') }],
     });
 
     // L1 中应存在
@@ -153,7 +153,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
 
     expect(() => {
       saveChatNavigationSnapshot('chat-quota-fail', {
-        messages: [{ id: 'm-quota', role: 'user', content: 'Safe fallback', createdAt: new Date('2026-08-20') }],
+        messages: [{ messageId: 'm-quota', chatId: 'chat-inline', role: 'user', content: 'Safe fallback', createdAt: new Date('2026-08-20') }],
       });
     }).not.toThrow();
 
@@ -166,7 +166,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
 
   it('clears snapshot from both L1 and L2', () => {
     saveChatNavigationSnapshot('chat-to-clear', {
-      messages: [{ id: 'm-c', role: 'user', content: 'To be cleared', createdAt: new Date('2026-08-20') }],
+      messages: [{ messageId: 'm-c', chatId: 'chat-inline', role: 'user', content: 'To be cleared', createdAt: new Date('2026-08-20') }],
     });
 
     expect(getChatNavigationSnapshot('chat-to-clear')).not.toBeNull();

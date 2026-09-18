@@ -19,7 +19,7 @@ describe('CronRunItem', () => {
     duration_ms: 5000,
     status: 'ok',
     output: 'Execution succeeded',
-    tokens_used: 1500,
+    usage_total_tokens: 1500,
   };
 
   it('renders ok status correctly', () => {

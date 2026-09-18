@@ -157,7 +157,7 @@ describe('KnowledgePickerPopover Component', () => {
       context_id: 'kb-test-1',
       target_type: 'conversation',
       target_id: 'test-chat-123',
-      created_at: 1700000000,
+      created_at: '2026-01-01T00:00:00Z',
     });
 
     render(<KnowledgePickerPopover />);
