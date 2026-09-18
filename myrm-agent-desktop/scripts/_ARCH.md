@@ -27,7 +27,6 @@
 | `verify-signing.sh` | Unix (macOS CI) | 发版后 codesign / Gatekeeper / notary staple 四重验签；失败计数作为 exit code | ✅ |
 | `verify-signing.ps1` | Windows | Windows 安装包签名验证（与 `verify-signing.sh` 对称） | ✅ |
 | `inset-app-icon.py` | 双平台 | 从 `myrm-agent-frontend/public/brand` 源图生成 PWA/Tauri/tray 图标；维护者手动运行 | ✅ |
-| `ci/rust_line_budget_baseline.txt` | 参考 | Rust 行数台账（Rust ≤400 行已从 `check-fractal-docs.ts` 移除，文件保留作历史参考） | — |
 
 ## 约束
 
