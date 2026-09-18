@@ -3,9 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   isExternalAgentDelegationReady,
   resolveExternalAgentBadgeKind,
-  hasResolvableExternalCliBackend,
+  resolveExternalCliReadiness,
   hasAutoDetectedExternalCliBackend,
-  hasExternalCliBackendAvailable,
 } from '@/services/external-agents';
 
 describe('external agent delegation badge helpers', () => {
@@ -67,51 +66,37 @@ describe('external agent delegation badge helpers', () => {
     ).toBe('logged_out');
   });
 
-  it('requires server confirmation for known backends but trusts unverifiable custom commands', () => {
-    const claudeStatus = {
-      backend: 'claude',
-      installed: false,
-      readyForDelegation: false,
-    } as never;
+  it('distinguishes not-configured from configured-but-unavailable', () => {
+    const missing = { backend: 'claude', installed: false, readyForDelegation: false } as never;
+    const present = { backend: 'claude', installed: true, readyForDelegation: true } as never;
 
-    // An enabled known backend whose binary is missing from PATH must not read as ready.
-    expect(hasResolvableExternalCliBackend([{ enabled: true, command: 'claude' }], [claudeStatus])).toBe(false);
+    // Nothing configured: the user still has to add a backend.
+    expect(resolveExternalCliReadiness([], [], true)).toBe('not_configured');
+    expect(resolveExternalCliReadiness([{ enabled: false, command: 'claude' }], [], true)).toBe('not_configured');
+    expect(resolveExternalCliReadiness([{ enabled: true, command: '   ' }], [], false)).toBe('not_configured');
+
+    // Configured but the binary is missing: a different problem, needing a different fix.
+    expect(resolveExternalCliReadiness([{ enabled: true, command: 'claude' }], [missing], true)).toBe('unavailable');
+
+    // Ready once the server confirms the binary, or when the server cannot judge the command.
+    expect(resolveExternalCliReadiness([{ enabled: true, command: 'claude' }], [present], true)).toBe('ready');
+    expect(resolveExternalCliReadiness([{ enabled: true, command: 'my-wrapper' }], [missing], true)).toBe('ready');
     expect(
-      hasResolvableExternalCliBackend(
-        [{ enabled: true, command: 'claude' }],
-        [{ backend: 'claude', installed: true, readyForDelegation: true } as never],
-      ),
-    ).toBe(true);
+      resolveExternalCliReadiness([{ enabled: true, command: '/opt/homebrew/bin/claude' }], [missing], true),
+    ).toBe('ready');
 
-    // A command the server does not track cannot be verified, so explicit config wins.
-    expect(hasResolvableExternalCliBackend([{ enabled: true, command: 'my-wrapper' }], [claudeStatus])).toBe(true);
+    // A derived or wrapped binary is a different program the server cannot vouch for, so
+    // it must not inherit another backend's negative detection result.
+    expect(resolveExternalCliReadiness([{ enabled: true, command: 'claude-bedrock' }], [missing], true)).toBe('ready');
+    expect(resolveExternalCliReadiness([{ enabled: true, command: 'my-claude-wrapper' }], [missing], true)).toBe(
+      'ready',
+    );
 
-    // A user-pinned absolute path is not a PATH lookup, so server detection cannot judge it.
-    expect(
-      hasResolvableExternalCliBackend([{ enabled: true, command: '/opt/homebrew/bin/claude' }], [claudeStatus]),
-    ).toBe(true);
-
-    // Disabled agents never count.
-    expect(hasResolvableExternalCliBackend([{ enabled: false, command: 'claude' }], [claudeStatus])).toBe(false);
-    expect(hasResolvableExternalCliBackend([], [])).toBe(false);
-
+    // A locally auto-detected CLI counts as ready even with nothing configured in-app.
+    expect(resolveExternalCliReadiness([], [present], true)).toBe('ready');
+    expect(resolveExternalCliReadiness([], [present], false)).toBe('not_configured');
     expect(
       hasAutoDetectedExternalCliBackend([{ backend: 'claude', installed: true, readyForDelegation: true } as never]),
     ).toBe(true);
-    expect(
-      hasExternalCliBackendAvailable(
-        [],
-        [{ backend: 'claude', installed: true, readyForDelegation: true } as never],
-        true,
-      ),
-    ).toBe(true);
-    expect(
-      hasExternalCliBackendAvailable(
-        [],
-        [{ backend: 'claude', installed: true, readyForDelegation: true } as never],
-        false,
-      ),
-    ).toBe(false);
-    expect(hasExternalCliBackendAvailable([{ enabled: true, command: 'claude' }], [claudeStatus], true)).toBe(false);
   });
 });

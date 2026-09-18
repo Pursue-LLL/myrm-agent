@@ -74,8 +74,9 @@ export function resolveExternalAgentBadgeKind(
 /**
  * Match a configured command to the server's status row for the same backend.
  *
- * Returns undefined for a command the server does not track (a custom wrapper or an
- * unknown CLI).
+ * Matches the executable basename exactly: the server only tracks its own known
+ * binaries, so a derived name (`claude-bedrock`) or a wrapper is a different program it
+ * cannot vouch for. Returns undefined for those, which callers treat as unknown.
  */
 function resolveConfiguredBackendStatus(
   command: string,
@@ -90,10 +91,7 @@ function resolveConfiguredBackendStatus(
   if (!executable) {
     return undefined;
   }
-  return statuses.find((row) => {
-    const backend = row.backend.toLowerCase();
-    return executable === backend || executable.includes(backend);
-  });
+  return statuses.find((row) => executable === row.backend.toLowerCase());
 }
 
 /**

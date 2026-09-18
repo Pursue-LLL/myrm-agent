@@ -7,8 +7,8 @@ import type { MemoryCommandConflictItem } from '@/services/memory/commandCenter'
 describe('ConflictResolutionCard', () => {
   const mockItem: MemoryCommandConflictItem = {
     id: 'conflict:conf-123',
-    kind: 'pending_conflict',
-    status: 'pending',
+    kind: 'claim',
+    status: 'active',
     memory_id: 'mem-1',
     related_memory_id: 'mem-2',
     title: '工作地变动',

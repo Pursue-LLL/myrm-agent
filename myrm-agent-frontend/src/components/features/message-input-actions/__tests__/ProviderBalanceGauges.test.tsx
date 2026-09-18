@@ -28,9 +28,13 @@ vi.mock('@/store/useProviderStore', () => ({
   default: vi.fn((selector: (state: object) => unknown) =>
     selector({
       defaultModelConfig: {
-        safetyFallbackModelSelection: {
-          providerId: 'siliconflow',
-          model: 'deepseek-ai/DeepSeek-V3',
+        baseModel: {
+          primary: { providerId: 'deepseek', model: 'deepseek-chat' },
+          fallback: { providerId: 'siliconflow', model: 'deepseek-ai/DeepSeek-V3' },
+        },
+        liteModel: {
+          primary: { providerId: 'siliconflow', model: 'deepseek-ai/DeepSeek-V3' },
+          fallback: null,
         },
       },
       setBaseModel: mockSetBaseModel,
