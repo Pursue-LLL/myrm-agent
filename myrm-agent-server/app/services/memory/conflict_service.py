@@ -15,6 +15,7 @@ MemoryConflictService: 冲突管理与仲裁业务服务
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import Literal
 from uuid import uuid4
@@ -28,6 +29,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.memory import MemoryConflictModel
+
+logger = logging.getLogger(__name__)
 
 
 class MemoryConflictService:
@@ -131,14 +134,14 @@ class MemoryConflictService:
             # Demote/archive old memory, promote candidate
             try:
                 await self._manager.update_memory(existing_id, importance=0.01)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to demote old memory %s during conflict resolution: %s", existing_id, e)
 
             if candidate_id:
                 try:
                     await self._manager.update_memory(candidate_id, confidence=0.95)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Failed to promote candidate memory %s during conflict resolution: %s", candidate_id, e)
             else:
                 await self._manager.add_memory(
                     conflict.candidate_content,
@@ -150,26 +153,26 @@ class MemoryConflictService:
             # Lock existing memory against future overwrite; discard candidate
             try:
                 await self._manager.update_memory(existing_id, confidence=0.95, is_user_locked=True)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to lock existing memory %s during conflict resolution: %s", existing_id, e)
 
             if candidate_id:
                 try:
                     await self._manager.delete_memory(candidate_id)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Failed to delete candidate memory %s during conflict resolution: %s", candidate_id, e)
 
         elif action == "coexist":
             # Both statements are retained with standard active confidence
             try:
                 await self._manager.update_memory(existing_id, confidence=0.85)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to update existing memory %s during coexistence: %s", existing_id, e)
             if candidate_id:
                 try:
                     await self._manager.update_memory(candidate_id, confidence=0.85)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Failed to update candidate memory %s during coexistence: %s", candidate_id, e)
 
         await self._db.commit()
         return True

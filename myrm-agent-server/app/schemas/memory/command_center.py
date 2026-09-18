@@ -535,6 +535,10 @@ class MemoryCommandGraphEdge(BaseModel):
     target: str
     rel_type: str
     properties: dict[str, str | int | float] = Field(default_factory=dict)
+    valid_from: str | None = None
+    valid_until: str | None = None
+    superseded_by: str | None = None
+    supersedes_id: str | None = None
 
 
 class MemoryCommandGraphStats(BaseModel):

@@ -168,7 +168,70 @@ def test_get_memory_graph_pushdown_contract(graph_api_client):
     # Verify namespace was passed to list_nodes
     graph.list_nodes.assert_awaited_once_with(limit=100, offset=0, namespace="agent_alpha")
 
-    # Verify node_ids were passed to list_relationships
+    # Verify node_ids and default temporal parameters were passed to list_relationships
     assert graph.list_relationships.await_count == 1
     call_kwargs = graph.list_relationships.await_args.kwargs
     assert set(call_kwargs.get("node_ids", [])) == {"n1", "n2"}
+    assert call_kwargs.get("as_of_time") is None
+    assert call_kwargs.get("include_superseded") is False
+
+
+def test_get_memory_graph_temporal_query(graph_api_client):
+    """Verify as_of_time and include_superseded parameters are propagated and edge temporal fields are serialized."""
+    client, manager = graph_api_client
+    manager.has_graph = True
+    graph = AsyncMock()
+    graph.get_stats = AsyncMock(
+        return_value=GraphStats(node_count=2, relationship_count=1, node_label_counts={"Claim": 2}, relationship_type_counts={})
+    )
+    graph.list_nodes = AsyncMock(
+        return_value=[
+            GraphNode(id="n1", labels=["Claim"], properties={"primary_namespace": "agent_alpha"}),
+            GraphNode(id="n2", labels=["Claim"], properties={"primary_namespace": "agent_alpha"}),
+        ]
+    )
+    graph.list_relationships = AsyncMock(
+        return_value=[
+            GraphRelationship(
+                id="r_temporal",
+                start_id="n1",
+                end_id="n2",
+                rel_type="CONTRADICTS",
+                properties={"weight": 1.0},
+                valid_from="2026-08-01T00:00:00Z",
+                valid_until="2026-09-01T00:00:00Z",
+                superseded_by="r_newer",
+                supersedes_id="r_older",
+            ),
+        ]
+    )
+    manager._graph = graph
+
+    query_time = "2026-08-15T12:00:00Z"
+    resp = client.get(
+        f"/api/memory/command-center/graph?namespace=agent_alpha&as_of_time={query_time}&include_superseded=true"
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+
+    # Verify temporal parameters were pushed down to list_relationships
+    assert graph.list_relationships.await_count == 1
+    call_kwargs = graph.list_relationships.await_args.kwargs
+    assert set(call_kwargs.get("node_ids", [])) == {"n1", "n2"}
+    assert call_kwargs.get("as_of_time") == query_time
+    assert call_kwargs.get("include_superseded") is True
+
+
+    # Verify edge schema mapping
+    edges = data["edges"]
+    assert len(edges) == 1
+    edge = edges[0]
+    assert edge["id"] == "r_temporal"
+    assert edge["source"] == "n1"
+    assert edge["target"] == "n2"
+    assert edge["rel_type"] == "CONTRADICTS"
+    assert edge["valid_from"] == "2026-08-01T00:00:00Z"
+    assert edge["valid_until"] == "2026-09-01T00:00:00Z"
+    assert edge["superseded_by"] == "r_newer"
+    assert edge["supersedes_id"] == "r_older"
+

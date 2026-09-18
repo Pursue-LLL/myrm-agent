@@ -427,6 +427,10 @@ export interface MemoryCommandGraphEdge {
   target: string;
   rel_type: string;
   properties: Record<string, string | number>;
+  valid_from?: string | null;
+  valid_until?: string | null;
+  superseded_by?: string | null;
+  supersedes_id?: string | null;
 }
 
 export interface MemoryCommandGraphStats {
@@ -578,10 +582,18 @@ export const getMemoryGraph = async (
   limit = 50,
   offset = 0,
   namespace?: string,
+  asOfTime?: string,
+  includeSuperseded = false,
 ): Promise<MemoryCommandGraphResponse> => {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (namespace) {
     params.set('namespace', namespace);
+  }
+  if (asOfTime) {
+    params.set('as_of_time', asOfTime);
+  }
+  if (includeSuperseded) {
+    params.set('include_superseded', 'true');
   }
   return apiRequest<MemoryCommandGraphResponse>(`/memory/command-center/graph?${params.toString()}`);
 };

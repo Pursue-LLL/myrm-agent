@@ -236,12 +236,16 @@ async def get_memory_graph(
     limit: int = 50,
     offset: int = 0,
     namespace: str | None = None,
+    as_of_time: str | None = None,
+    include_superseded: bool = False,
     memory_manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> MemoryCommandGraphResponse:
     """Return claim graph nodes and edges for visualization.
 
     Args:
         namespace: Filter nodes by primary_namespace property. None = show all.
+        as_of_time: ISO-8601 temporal snapshot timestamp. If provided, returns relationships valid at this point in time.
+        include_superseded: If True, includes superseded historical relationships.
     """
 
     if not memory_manager.has_graph or memory_manager._graph is None:
@@ -271,7 +275,11 @@ async def get_memory_graph(
     # Fetch induced subgraph edges for current nodes, preventing orphan nodes & truncation
     if filtered_node_ids:
         rels_raw = await graph.list_relationships(
-            limit=safe_limit * 5, offset=0, node_ids=list(filtered_node_ids)
+            limit=safe_limit * 5,
+            offset=0,
+            node_ids=list(filtered_node_ids),
+            as_of_time=as_of_time,
+            include_superseded=include_superseded,
         )
     else:
         rels_raw = []
@@ -292,6 +300,10 @@ async def get_memory_graph(
                     target=r.end_id,
                     rel_type=r.rel_type,
                     properties=r.properties,
+                    valid_from=r.valid_from,
+                    valid_until=r.valid_until,
+                    superseded_by=r.superseded_by,
+                    supersedes_id=r.supersedes_id,
                 )
             )
             out_degrees[r.start_id] = out_degrees.get(r.start_id, 0) + 1
