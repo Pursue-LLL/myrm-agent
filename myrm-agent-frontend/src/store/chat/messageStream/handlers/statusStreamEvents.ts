@@ -83,7 +83,7 @@ export async function statusStreamEvents(ctx: StreamCtx): Promise<StreamTurn | n
   }
 
   if (data.type === H.AgentEventType.PHASE_TRANSITION) {
-    const raw = (data.data && typeof data.data === 'object' ? data.data : data) as Record<string, unknown>;
+    const raw = (data.data && typeof data.data === 'object' ? data.data : data) as unknown as Record<string, unknown>;
     const phasePayload = {
       phase: typeof raw.phase === 'string' ? raw.phase : 'planning',
       phase_index: typeof raw.phase_index === 'number' ? raw.phase_index : 1,

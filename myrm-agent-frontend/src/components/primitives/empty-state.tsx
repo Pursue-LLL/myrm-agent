@@ -26,7 +26,7 @@ const emptyStateVariants = cva(
   },
 );
 
-export interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof emptyStateVariants> {
+export interface EmptyStateProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'>, VariantProps<typeof emptyStateVariants> {
   icon?: React.ComponentType<{ className?: string }>;
   title: React.ReactNode;
   description?: React.ReactNode;

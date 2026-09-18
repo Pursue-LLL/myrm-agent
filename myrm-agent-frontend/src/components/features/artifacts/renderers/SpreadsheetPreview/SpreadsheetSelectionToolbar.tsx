@@ -31,8 +31,8 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
     if (selectedRowIndex === null || !rowData) {return;}
 
     const activeTab = useArtifactPortalStore.getState().getActiveTab();
-    const artifactName = filename || activeTab?.title || '表格工件';
-    const artifactId = activeTab?.artifactId || 'current';
+    const artifactName = filename || activeTab?.artifact.filename || '表格工件';
+    const artifactId = activeTab?.artifact.id || 'current';
     const rowNum = selectedRowIndex + 1;
     const scopeLabel = sheetName ? `${sheetName}!Row ${rowNum}` : `Row ${rowNum}`;
 

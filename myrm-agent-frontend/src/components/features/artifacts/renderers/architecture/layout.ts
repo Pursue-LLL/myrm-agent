@@ -35,7 +35,7 @@ export function sanitizeArchitectureIR(raw: ArchitectureIR): ArchitectureIR {
   const nodeMap = new Map<string, ArchitectureNodeIR>();
   for (const n of raw.nodes || []) {
     if (n && n.id && !nodeMap.has(n.id)) {
-      const rawNode = n as Record<string, unknown>;
+      const rawNode = n as unknown as Record<string, unknown>;
       const normalizedCategory = (n.category || rawNode.type || 'backend') as ArchitectureNodeIR['category'];
       const normalizedGroup = (n.group || rawNode.group_id) as string | undefined;
       const normalizedTech = n.technologies || (rawNode.tech_stack ? [String(rawNode.tech_stack)] : undefined);

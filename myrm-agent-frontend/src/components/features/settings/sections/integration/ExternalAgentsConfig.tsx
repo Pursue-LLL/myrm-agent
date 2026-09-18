@@ -468,7 +468,7 @@ const ExternalAgentsConfig = memo(() => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {PERMISSION_MODE_OPTIONS.map((option) => (
+                    {PERMISSION_MODE_OPTIONS[draft.type].map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {t(option.labelKey)}
                       </SelectItem>

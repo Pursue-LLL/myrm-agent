@@ -146,7 +146,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
       return mediaTasks;
     }
     return mediaTasks.filter((task) => {
-      const prompt = (task.payload?.prompt ?? '').toLowerCase();
+      const prompt = String(task.payload?.prompt ?? '').toLowerCase();
       const taskType = (task.task_type ?? '').toLowerCase();
       const status = (task.status ?? '').toLowerCase();
       const taskId = (task.task_id ?? '').toLowerCase();
@@ -164,7 +164,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
       return recentTerminalMediaTasks;
     }
     return recentTerminalMediaTasks.filter((task) => {
-      const prompt = (task.payload?.prompt ?? '').toLowerCase();
+      const prompt = String(task.payload?.prompt ?? '').toLowerCase();
       const taskType = (task.task_type ?? '').toLowerCase();
       const status = (task.status ?? '').toLowerCase();
       const taskId = (task.task_id ?? '').toLowerCase();

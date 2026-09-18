@@ -72,7 +72,7 @@ const WorkingStateBadge = memo(({ chatId: propChatId }: WorkingStateBadgeProps =
     return (
       <div className="w-full max-w-3xl mx-auto px-4 py-1">
         <WorkingMemoryBoard
-          goal={liveState.goal}
+          goal={liveState.goal ?? undefined}
           subtasks={liveState.subtasks}
           traps={liveState.traps.map((t) => ({
             fingerprint: t.fingerprint,

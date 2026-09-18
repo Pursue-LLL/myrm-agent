@@ -26,7 +26,7 @@ export interface ConflictResolutionCardProps {
 export const ConflictResolutionCard = ({ item, onResolve, resolving = false }: ConflictResolutionCardProps) => {
   const [currentAction, setCurrentAction] = useState<string | null>(null);
 
-  const isPending = item.status === 'pending';
+  const isPending = item.status === 'active' || item.status === 'needs_review';
 
   // Parse existing vs candidate from description if structured as "当前认知：... ⟷ 最新陈述：..."
   const separator = ' ⟷ 最新陈述：';

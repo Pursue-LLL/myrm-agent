@@ -22,6 +22,7 @@ import useProviderBalanceStore from '@/store/useProviderBalanceStore';
 import useProviderStore from '@/store/useProviderStore';
 import useChatStore from '@/store/useChatStore';
 import { resolveActiveModelSelection } from '@/lib/model-binding';
+import type { SingleModelSelection } from '@/store/config/providerTypes';
 import { cn } from '@/lib/utils/classnameUtils';
 
 interface ProviderLowBalanceWarningHUDProps {
@@ -51,16 +52,12 @@ export const ProviderLowBalanceWarningHUD = memo<ProviderLowBalanceWarningHUDPro
     const targetProviderId = currentProviderId ?? activeSelection?.providerId;
     const gauge = getGauge(targetProviderId);
 
-    // Identify candidate safety fallback
-    const rawFallback =
-      (defaultModelConfig as { safetyFallbackModelSelection?: { providerId: string; model: string } | null })
-        ?.safetyFallbackModelSelection ??
-      defaultModelConfig?.baseModel?.fallback ??
-      defaultModelConfig?.liteModel?.primary ??
-      (defaultModelConfig?.liteModel as unknown as { providerId?: string; model?: string });
+    // Identify candidate safety fallback from the default model slots.
+    const rawFallback: SingleModelSelection | null =
+      defaultModelConfig?.baseModel?.fallback ?? defaultModelConfig?.liteModel?.primary ?? null;
 
     const safetyFallback =
-      rawFallback && rawFallback.providerId && rawFallback.model
+      rawFallback?.providerId && rawFallback?.model
         ? { providerId: rawFallback.providerId, model: rawFallback.model }
         : null;
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isExternalAgentDelegationReady,
   resolveExternalAgentBadgeKind,
-  hasExplicitExternalCliBackend,
+  hasResolvableExternalCliBackend,
   hasAutoDetectedExternalCliBackend,
   hasExternalCliBackendAvailable,
 } from '@/services/external-agents';
@@ -67,9 +67,29 @@ describe('external agent delegation badge helpers', () => {
     ).toBe('logged_out');
   });
 
-  it('detects explicit config vs local auto-detect for backend availability', () => {
-    expect(hasExplicitExternalCliBackend([{ enabled: true, command: 'claude' }])).toBe(true);
-    expect(hasExplicitExternalCliBackend([])).toBe(false);
+  it('requires server confirmation for known backends but trusts unverifiable custom commands', () => {
+    const claudeStatus = {
+      backend: 'claude',
+      installed: false,
+      readyForDelegation: false,
+    } as never;
+
+    // An enabled known backend whose binary is missing from PATH must not read as ready.
+    expect(hasResolvableExternalCliBackend([{ enabled: true, command: 'claude' }], [claudeStatus])).toBe(false);
+    expect(
+      hasResolvableExternalCliBackend(
+        [{ enabled: true, command: 'claude' }],
+        [{ backend: 'claude', installed: true, readyForDelegation: true } as never],
+      ),
+    ).toBe(true);
+
+    // A command the server does not track cannot be verified, so explicit config wins.
+    expect(hasResolvableExternalCliBackend([{ enabled: true, command: 'my-wrapper' }], [claudeStatus])).toBe(true);
+
+    // Disabled agents never count.
+    expect(hasResolvableExternalCliBackend([{ enabled: false, command: 'claude' }], [claudeStatus])).toBe(false);
+    expect(hasResolvableExternalCliBackend([], [])).toBe(false);
+
     expect(
       hasAutoDetectedExternalCliBackend([{ backend: 'claude', installed: true, readyForDelegation: true } as never]),
     ).toBe(true);
@@ -87,5 +107,6 @@ describe('external agent delegation badge helpers', () => {
         false,
       ),
     ).toBe(false);
+    expect(hasExternalCliBackendAvailable([{ enabled: true, command: 'claude' }], [claudeStatus], true)).toBe(false);
   });
 });

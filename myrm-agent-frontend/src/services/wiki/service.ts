@@ -84,7 +84,7 @@ export interface WikiClaimEvidence {
 export interface WikiClaim {
   id: string;
   text: string;
-  status: string;
+  status: WikiClaimStatus;
   confidence: number;
   updated_at?: string;
   evidence: WikiClaimEvidence[];

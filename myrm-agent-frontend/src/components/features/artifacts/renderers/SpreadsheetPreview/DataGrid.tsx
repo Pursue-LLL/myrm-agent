@@ -294,8 +294,8 @@ const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, clas
         selectedRowIndex={selectedRow}
         headers={headers}
         rowData={selectedRow !== null ? sortedRows[selectedRow] ?? null : null}
-        filename={filename}
-        sheetName={sheetName}
+        filename={filename ?? ''}
+        sheetName={sheetName ?? ''}
         onClearSelection={() => setSelectedRow(null)}
       />
     </div>

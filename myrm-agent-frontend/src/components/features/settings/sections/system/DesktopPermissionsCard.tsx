@@ -255,7 +255,7 @@ const DesktopPermissionsCardLocal = memo(() => {
         {showFixHints && (
           <div className="p-5 space-y-3">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('fixHints')}</p>
-            {Object.entries(status.settings_deeplinks).map(([key, value]) => (
+            {Object.entries(status?.settings_deeplinks ?? {}).map(([key, value]) => (
               <DeeplinkItem
                 key={key}
                 label={key}

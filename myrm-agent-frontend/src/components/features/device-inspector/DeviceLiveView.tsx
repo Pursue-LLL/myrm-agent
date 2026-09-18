@@ -272,10 +272,12 @@ export const DeviceLiveView: React.FC<DeviceLiveViewProps> = ({ onSendInstructio
             {!isViewMode && imageSize.width > 0 && (
               <ElementOverlay
                 refs={scopedViewData.refs}
+                imageWidth={imageSize.width}
+                imageHeight={imageSize.height}
+                viewportWidth={scopedViewData.viewportWidth || imageSize.width}
+                viewportHeight={scopedViewData.viewportHeight || imageSize.height}
                 selectedRefId={selectedElement?.refId ?? null}
-                onSelect={handleElementSelect}
-                imageNaturalWidth={imageSize.width}
-                imageNaturalHeight={imageSize.height}
+                onElementClick={handleElementSelect}
               />
             )}
 

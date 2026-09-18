@@ -7,7 +7,6 @@
 
 export interface SkillLikeWithDescription {
   description?: string | null;
-  [key: string]: unknown;
 }
 
 /**

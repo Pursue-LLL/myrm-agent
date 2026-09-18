@@ -204,8 +204,7 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
     for (const [refId, info] of Object.entries(scopedViewData.refs)) {
       const name = (info.name || '').toLowerCase();
       const role = (info.role || '').toLowerCase();
-      const value = (info.value || '').toLowerCase();
-      if (refId.toLowerCase().includes(q) || name.includes(q) || role.includes(q) || value.includes(q)) {
+      if (refId.toLowerCase().includes(q) || name.includes(q) || role.includes(q)) {
         res[refId] = info;
       }
     }

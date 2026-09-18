@@ -420,6 +420,9 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
     [agentDecisions],
   );
 
+  // Optional in the payload; narrow once so the notice renders with a concrete count.
+  const workspaceFileCount = preview?.workspace_file_count ?? 0;
+
   return (
     <Dialog
       open={open}
@@ -690,16 +693,16 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                 )}
 
                 {/* Workspace Template Assets Notice */}
-                {(preview.workspace_file_count ?? 0) > 0 && (
+                {workspaceFileCount > 0 && (
                   <div className="rounded-xl border bg-muted/20 px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm">
                       <IconFolder className="w-4 h-4 text-primary" />
                       <span className="font-medium">
-                        {t('sections.workspaceFiles', { count: preview.workspace_file_count })}
+                        {t('sections.workspaceFiles', { count: workspaceFileCount })}
                       </span>
                     </div>
                     <Badge variant="outline" className="text-xs">
-                      {t('agents.templateFiles', { count: preview.workspace_file_count })}
+                      {t('agents.templateFiles', { count: workspaceFileCount })}
                     </Badge>
                   </div>
                 )}

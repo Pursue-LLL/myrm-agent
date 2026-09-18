@@ -71,11 +71,51 @@ export function resolveExternalAgentBadgeKind(
   return 'logged_out';
 }
 
-/** True when UserConfig lists an enabled CLI backend with a command. */
-export function hasExplicitExternalCliBackend(
+/**
+ * Match a configured command to the server's status row for the same backend.
+ *
+ * Returns undefined for a command the server does not track (a custom wrapper or an
+ * unknown CLI), which callers must treat as "unverifiable" rather than as failure.
+ */
+function resolveConfiguredBackendStatus(
+  command: string,
+  statuses: ReadonlyArray<ExternalAgentAuthStatus>,
+): ExternalAgentAuthStatus | undefined {
+  const executable = command
+    .trim()
+    .split(/[\\/]/)
+    .pop()
+    ?.toLowerCase()
+    .replace(/\.[^.]+$/, '');
+  if (!executable) {
+    return undefined;
+  }
+  return statuses.find((row) => {
+    const backend = row.backend.toLowerCase();
+    return executable === backend || executable.includes(backend);
+  });
+}
+
+/**
+ * True when an enabled CLI backend can actually be delegated to, per the server.
+ *
+ * A configured command alone proves nothing — the CLI may be missing from PATH, in
+ * which case delegation fails at spawn time. Known backends therefore require the
+ * server's `readyForDelegation`; a custom command the server does not track is
+ * unverifiable, so the explicit user configuration is trusted instead of blocking it.
+ */
+export function hasResolvableExternalCliBackend(
   agents: ReadonlyArray<{ enabled?: boolean; command?: string }> | undefined,
+  statuses: ReadonlyArray<ExternalAgentAuthStatus>,
 ): boolean {
-  return (agents ?? []).some((agent) => agent.enabled !== false && Boolean(agent.command?.trim()));
+  return (agents ?? []).some((agent) => {
+    const command = agent.command?.trim();
+    if (agent.enabled === false || !command) {
+      return false;
+    }
+    const status = resolveConfiguredBackendStatus(command, statuses);
+    return status ? isExternalAgentDelegationReady(status) : true;
+  });
 }
 
 /** True when auth/status reports any backend ready for delegation (PATH auto-detect). */
@@ -83,13 +123,13 @@ export function hasAutoDetectedExternalCliBackend(statuses: ReadonlyArray<Extern
   return statuses.some((row) => isExternalAgentDelegationReady(row));
 }
 
-/** Whether runtime can resolve a CLI backend (explicit config or local auto-detect). */
+/** Whether runtime can resolve a CLI backend (verified config or local auto-detect). */
 export function hasExternalCliBackendAvailable(
   agents: ReadonlyArray<{ enabled?: boolean; command?: string }> | undefined,
   statuses: ReadonlyArray<ExternalAgentAuthStatus>,
   localMode: boolean,
 ): boolean {
-  if (hasExplicitExternalCliBackend(agents)) {
+  if (hasResolvableExternalCliBackend(agents, statuses)) {
     return true;
   }
   if (localMode) {
