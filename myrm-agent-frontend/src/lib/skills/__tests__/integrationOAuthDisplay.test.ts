@@ -42,6 +42,12 @@ describe('integrationOAuthDisplay generic multi-connector paths', () => {
       security: null,
       user_trusted: false,
       evolution_locked: false,
+      has_upstream_update: false,
+      traps: [],
+      verification_steps: [],
+      eval_cases: [],
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
     };
 
     expect(hasIntegrationSettingsLink(skill)).toBe(true);
@@ -75,6 +81,12 @@ describe('integrationOAuthDisplay generic multi-connector paths', () => {
       security: null,
       user_trusted: false,
       evolution_locked: false,
+      has_upstream_update: false,
+      traps: [],
+      verification_steps: [],
+      eval_cases: [],
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
     };
 
     expect(hasIntegrationSettingsLink(skill)).toBe(true);

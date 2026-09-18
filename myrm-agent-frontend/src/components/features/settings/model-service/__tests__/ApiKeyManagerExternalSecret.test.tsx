@@ -44,7 +44,7 @@ describe('ApiKeyManager External Secret Source Support', () => {
         id: 'key-1',
         key: 'op://Personal/OpenAI/credential',
         isActive: true,
-        createdAt: 1000,
+        remark: '',
       },
     ];
 
@@ -80,7 +80,7 @@ describe('ApiKeyManager External Secret Source Support', () => {
         id: 'key-2',
         key: 'sk-normal-api-key-value',
         isActive: true,
-        createdAt: 1000,
+        remark: '',
       },
     ];
 
