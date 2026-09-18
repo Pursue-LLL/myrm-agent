@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Fail CI when new frontend TS/TSX modules exceed the line budget (default 400 lines).
+"""Report new frontend TS/TSX modules that exceed the line budget (default 400 lines).
 
-Uses a baseline file listing src-relative paths that already exceed the budget.
-PRs may not add new offenders; shrinking the baseline is allowed.
+Local self-check only — this is NOT wired into CI. Line count affects readability,
+not runtime correctness; blocking CI on it mixes style with real defects.
+
+Uses a baseline file listing src-relative paths that already exceed the budget, so
+only newly-grown offenders are reported. Shrinking the baseline is allowed.
 
 Run from myrm-agent-frontend root::
 
