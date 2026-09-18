@@ -34,6 +34,10 @@ export interface ApprovalPayloadData {
   reason?: string;
   messageId?: string;
   action_type?: string;
+  /** Shell approval payload: the exact command awaiting execution (harness executor). */
+  command?: string;
+  /** Shell approval payload: originating session id, used for scoped grants. */
+  session_id?: string;
   plan_items?: PlanItem[];
   total_items?: number;
   goal?: string;
