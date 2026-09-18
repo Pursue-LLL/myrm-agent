@@ -53,13 +53,6 @@ async def validate_embedding(
 
     通过实际调用 API 来验证配置的有效性。
     """
-    if request.api_key == "sk-nznibczsofctvcsavtubpsgtyhqxijdsspzcvwypkouawunz":
-        return ValidationResponse(
-            success=True,
-            message="Validation successful (mocked)",
-            error=None,
-        )
-
     try:
         from myrm_agent_harness.toolkits.retriever.embedding.cloud_embedding import (
             CloudEmbedding,
@@ -122,13 +115,6 @@ async def validate_reranker(
 
     通过实际调用 API 来验证配置的有效性。
     """
-    if request.api_key == "sk-nznibczsofctvcsavtubpsgtyhqxijdsspzcvwypkouawunz":
-        return ValidationResponse(
-            success=True,
-            message="Validation successful (mocked)",
-            error=None,
-        )
-
     try:
         from myrm_agent_harness.toolkits.retriever.reranker.cloud_reranker import (
             CloudReranker,

@@ -36,10 +36,10 @@ _PRESEEDED_EMBEDDING_DIM = 1024
 _E2E_EMBEDDING_CONFIG = {
     "provider": "openai_compatible",
     "model": "BAAI/bge-m3",
-    # siliconflow key 已失效（402/30014）。seed 用预填向量绕过 embedding 调用，
-    # 见 _PRESEEDED_EMBEDDING_DIM。配置仍写入以保持链路真实（store 时 embedding
-    # 已非 None，不会实际调用该失效 key）。
-    "apiKey": "sk-nznibczsofctvcsavtubpsgtyhqxijdsspzcvwypkouawunz",
+    # 该 fixture 只服务于本地 E2E 记忆演化 UI 渲染：两条记忆均以预填向量落库
+    # （见 _PRESEEDED_EMBEDDING_DIM），store 路径不会真正调用该远端凭据。
+    # 因此这里只提供占位 key，避免把任何真实密钥写进仓库。
+    "apiKey": "sk-e2e-fixture-embedding-placeholder",
     "apiBase": "https://api.siliconflow.cn/v1",
 }
 
@@ -104,8 +104,8 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
 
     try:
         # 先以预填向量落库（embedding 非 None → store_semantic 跳过 embedding API），
-        # 再补 merge 审计字段二次落库。若先 add_knowledge（embedding 为 None）会
-        # 触发对失效 siliconflow key 的真实调用（402/30014）。
+        # 再补 merge 审计字段二次落库。该 fixture 只验证持久化 + API 投影 + UI 渲染，
+        # 因此不需要可用的远端 embedding 凭据。
         base = SemanticMemory(
             content=_EVOLUTION_SEED_CONTENT,
             importance=0.8,
@@ -128,7 +128,7 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
 
         # 纠正链 fixture：按 correct_memory 的落库语义构造纠正记忆（correction_of 指向
         # 旧记忆），并预填向量走真实 store 链路。不直接调 correct_memory——其内部
-        # _store_semantic 会对新记忆调 embedding API，而测试凭据已失效（402/30014）。
+        # _store_semantic 会对新记忆调 embedding API，而该 fixture 不含真实远端凭据。
         correction = SemanticMemory(
             content="user prefers dark mode (corrected v1)",
             importance=1.0,

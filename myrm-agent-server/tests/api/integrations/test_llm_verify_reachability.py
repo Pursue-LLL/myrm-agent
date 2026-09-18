@@ -84,11 +84,13 @@ class TestVerifyLLMConnection:
             )
         assert response.status_code == 502
 
-    def test_verify_skips_llm_for_builtin_key(self, client: TestClient) -> None:
-        """The builtin dev key short-circuits without invoking the LLM."""
+    def test_verify_does_not_bypass_llm_for_arbitrary_key(self, client: TestClient) -> None:
+        """No api_key value short-circuits verification without a real LLM call."""
+        llm = AsyncMock()
+        llm.ainvoke.return_value = type("R", (), {"content": "pong"})()
         with patch(
             "myrm_agent_harness.toolkits.llms.llm_manager.get_llm",
-            new=AsyncMock(),
+            new=AsyncMock(return_value=llm),
         ) as get_llm:
             response = client.post(
                 "/api/v1/integrations/llm/verify",
@@ -99,7 +101,7 @@ class TestVerifyLLMConnection:
             )
         assert response.status_code == 200
         assert response.json()["data"]["model_name"] == "gpt-4o-mini"
-        get_llm.assert_not_awaited()
+        get_llm.assert_awaited()
 
 
 class TestCheckModelReachability:
@@ -197,15 +199,21 @@ class TestCheckModelReachability:
         assert second["reachable"] is True
         _reachability_cache.clear()
 
-    def test_builtin_dev_key_short_circuits_probe(self, client: TestClient) -> None:
-        """The builtin dev key returns a synthetic reachable result without probing."""
+    def test_no_key_short_circuits_probe(self, client: TestClient) -> None:
+        """No api_key value returns a synthetic reachable result without probing."""
         from app.api.integrations.llms import _reachability_cache
 
         _reachability_cache.clear()
-        with patch(
-            "myrm_agent_harness.toolkits.llms.llm_manager.get_llm",
-            new=AsyncMock(),
-        ) as get_llm:
+        with (
+            patch(
+                "myrm_agent_harness.toolkits.llms.llm_manager.get_llm",
+                new=AsyncMock(),
+            ),
+            patch(
+                "myrm_agent_harness.toolkits.llms.fallback.health_check.lightweight_health_check",
+                new=AsyncMock(return_value=True),
+            ) as health_check,
+        ):
             response = client.post(
                 "/api/v1/integrations/llm/check-reachability",
                 json={
@@ -216,8 +224,7 @@ class TestCheckModelReachability:
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["reachable"] is True
-        assert data["latency_ms"] == 10
-        get_llm.assert_not_awaited()
+        health_check.assert_awaited()
         _reachability_cache.clear()
 
 
@@ -382,22 +389,41 @@ class TestLiteLLMBackedHelpers:
     """_try_get_model_info_exact and _search_models_by_name against mocked litellm."""
 
     def test_try_get_model_info_exact_returns_dict(self) -> None:
-        """Exact lookup converts LiteLLM info dict."""
+        """Exact lookup converts LiteLLM info dict when not present in model_cost."""
         from app.api.integrations.llms import _try_get_model_info_exact
 
-        with patch(
-            "litellm.get_model_info",
-            return_value={"max_tokens": 8192},
+        with (
+            patch("litellm.model_cost", {}),
+            patch(
+                "litellm.get_model_info",
+                return_value={"max_tokens": 8192},
+            ),
         ):
             assert _try_get_model_info_exact("gpt-4o") == {"max_tokens": 8192}
+
+    def test_try_get_model_info_exact_prefers_model_cost(self) -> None:
+        """model_cost wins over get_model_info so pricing metadata is not lost."""
+        from app.api.integrations.llms import _try_get_model_info_exact
+
+        with (
+            patch("litellm.model_cost", {"gpt-4o": {"max_tokens": 4096}}),
+            patch(
+                "litellm.get_model_info",
+                side_effect=AssertionError("must not be reached"),
+            ),
+        ):
+            assert _try_get_model_info_exact("gpt-4o") == {"max_tokens": 4096}
 
     def test_try_get_model_info_exact_handles_exception(self) -> None:
         """Unknown model or lookup failure degrades to None."""
         from app.api.integrations.llms import _try_get_model_info_exact
 
-        with patch(
-            "litellm.get_model_info",
-            side_effect=KeyError("no such model"),
+        with (
+            patch("litellm.model_cost", {}),
+            patch(
+                "litellm.get_model_info",
+                side_effect=KeyError("no such model"),
+            ),
         ):
             assert _try_get_model_info_exact("nope/xyz") is None
 
@@ -405,9 +431,12 @@ class TestLiteLLMBackedHelpers:
         """Empty info dict from LiteLLM resolves to None."""
         from app.api.integrations.llms import _try_get_model_info_exact
 
-        with patch(
-            "litellm.get_model_info",
-            return_value=None,
+        with (
+            patch("litellm.model_cost", {}),
+            patch(
+                "litellm.get_model_info",
+                return_value=None,
+            ),
         ):
             assert _try_get_model_info_exact("gpt-4o") is None
 

@@ -313,10 +313,6 @@ async def verify_llm_connection(request: LLMVerifyRequest) -> JSONResponse:
         kwargs.get("api_key"),
     )
 
-    if kwargs.get("api_key") == "sk-nznibczsofctvcsavtubpsgtyhqxijdsspzcvwypkouawunz":
-        data = LLMVerifyData(model_name=request.model)
-        return success_response(data=data.model_dump())
-
     try:
         from langchain_core.messages import HumanMessage
         from myrm_agent_harness.toolkits.llms import llm_manager as llm_tools
@@ -383,15 +379,6 @@ async def check_model_reachability(request: LLMVerifyRequest) -> JSONResponse:
         kwargs.get("model_kwargs"),
         kwargs.get("api_key"),
     )
-
-    if kwargs.get("api_key") == "sk-nznibczsofctvcsavtubpsgtyhqxijdsspzcvwypkouawunz":
-        result = ReachabilityResult(
-            reachable=True,
-            latency_ms=10,
-            error=None,
-        )
-        _reachability_cache[key] = (time.monotonic(), result)
-        return success_response(data=result.model_dump())
 
     try:
         from myrm_agent_harness.toolkits.llms import llm_manager as llm_tools
