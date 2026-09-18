@@ -210,7 +210,7 @@ describe('DataFlowYourRightsStrip component', () => {
     mockToastError.mockReset();
     useConfigStore.setState({
       privacyEnabled: true,
-      privacyS2Action: 'mask',
+      privacyS2Action: 'redact',
       privacyS3Action: 'block',
       privacyDeepScan: false,
       privacyRouting: { localModel: 'llama3:8b', localApiKey: 'sk-secret' },
@@ -219,7 +219,7 @@ describe('DataFlowYourRightsStrip component', () => {
 
   it('downloads compliance export and shows success toast', async () => {
     mockExportMemories.mockResolvedValue({ version: 1, total_count: 0, data: [] });
-    const createObjectURL = vi.fn(() => 'blob:export');
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:export');
     const revokeObjectURL = vi.fn();
     vi.stubGlobal('URL', {
       createObjectURL,

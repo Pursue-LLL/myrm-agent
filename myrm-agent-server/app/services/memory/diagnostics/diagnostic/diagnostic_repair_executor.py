@@ -9,7 +9,8 @@ Whitelisted dry-run or execution result plus optional diagnostic run.
 [POS]
 Single-user Memory Doctor repair executor. It closes the loop between visible
 repair plans and server-side actions while blocking config-changing repairs that
-need explicit operator work.
+need explicit operator work. Sweeping repairs surface per-entry failures through
+the result message and logs instead of reporting a partial sweep as completed.
 """
 
 from __future__ import annotations

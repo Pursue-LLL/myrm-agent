@@ -595,3 +595,93 @@ except Exception:
 3. **被追踪的共享配置 + 并行隔离构建 = 结构性冲突**：任何「多个进程写同一份版本控制文件」的设计，最终都会表现为随机假红与脏提交。
 
 ---
+
+## BUG-AGENT-2026-09-17-004: 400 行预算强制门禁无法执行其声称职责（台账被反复重写至失去信号）
+
+| 属性 | 值 |
+|------|-----|
+| 发现日期 | 2026-09-17 |
+| 修复日期 | 2026-09-18 |
+| 严重程度 | P1（质量门禁长期失效，技术债静默累积） |
+| 影响范围 | `.github/workflows/{frontend-build,server-fractal-docs,desktop-fractal-docs}.yml` · `myrm-agent-server/scripts/ci/run_architecture_gates.sh`（含 pre-push 钩子）· `myrm-agent-desktop/scripts/check-fractal-docs.ts` · 三端 `file_line_budget_baseline.txt` |
+| 出现次数 | 反复（每次基线漂移都会再红一次） |
+| 关联 | `BUG-AGENT-2026-09-17-003`（同批次暴露的门禁失效问题） |
+
+### 现象
+
+1. `check_file_line_budget.py` 在 `main` 上长期变红：前端报告 **46 个文件**超 400 行，且**全部**不在豁免台账中（`in baseline: 0`）。
+2. 台账 `file_line_budget_baseline.txt` 自 **2026-08-15** 后再未更新，期间 46 个文件越线无人登记。
+3. 该门禁的失败信息**自己就宣传逃生命令** `--write-baseline`。
+
+### 根因
+
+1. **门禁语义是「相对基线的棘轮」而非绝对红线**：它比对「当前超限集」与「人工维护的台账」，只对新增超限报错；但台账从未随代码增长同步刷新，于是存量越线全部计为「新增」。
+2. **逃生命令让门禁自我消解**：台账被反复重写 **13 次**（最后一次一次性豁免 224 条、最大行数达 2168）。一个**要么常绿、要么一条命令就变绿**的门禁不产生任何信号，只消耗 CI 并阻塞合并。
+3. **叠加 `BUG-AGENT-2026-09-17-003` 的同类问题**：门禁只挂 `on: pull_request` 而团队直推 `main`，因此「台账漂移」这件事本身也从未被任何门禁拦截。
+
+### 修复
+
+1. **退役强制阻断**：从 `frontend-build.yml`、`run_architecture_gates.sh`（含 pre-push 钩子）与 desktop 分形门禁中移除 400 行预算步骤；
+2. **脚本降级为本地自查工具**：`check_file_line_budget.py` 与三端台账文件均保留，供开发者自查与磁盘/规模盘点，但**不再阻断 CI**；
+3. **文件规模回归评审指南**：遵循 `CONTRIBUTING.md`（期望 ~400 行，超 ~500 行才需拆分）——规模问题交由 code review 与本地自查处理，而不是混进 CI 红灯；
+4. **文档同步**：`ARCHITECTURE.md`、`myrm-agent-frontend/scripts/_ARCH.md`、desktop `_ARCH.md` 均改为「本地自查工具（非 CI 阻断）」。
+
+### 验证
+
+- 三端 CI 步骤列表实测不含 `check_file_line_budget`（`rg` 0 命中）；
+- 前端 4 个仍生效门禁（`check_fractal_docs` / `check_barrel_exports` / `check_typescript_strict` / `check_module_resolution`）全部 PASS；
+- desktop 门禁输出已不含 line budget 文案；
+- 本地自查工具仍可正常运行（`--write-baseline` 保留）。
+
+### 踩坑经验
+
+1. **台账式豁免门禁天然会失效** —— 失败信息一旦宣传逃生命令，台账就会被反复重写直至失去意义；
+2. **门禁应当只看仓库受控内容** —— 凡依赖「人工维护的台账 + 可一键重写的豁免」的规则，都不适合作为阻断式 CI 判据；这类「软约束」应作为本地自查；
+3. **区隔「风格/文档」与「真 bug」** —— 行数只影响可读性、不影响运行正确性；把它接进 CI 会把两类性质不同的问题混在同一道红灯里，导致真 bug 被「噪声红灯」稀释；
+4. **退役门禁同样要更新文档与文档断言**，否则「文档说 CI 阻断、实际已移除」会形成新的漂移（本次已同步 `ARCHITECTURE.md` 与三处 `_ARCH.md`）。
+
+---
+
+## BUG-AGENT-2026-09-17-005: 全套质量门禁只挂 `pull_request`，而团队直推 `main` → 门禁从未运行
+
+| 属性 | 值 |
+|------|-----|
+| 发现日期 | 2026-09-17 |
+| 修复日期 | 2026-09-18 |
+| 严重程度 | P1（所有质量门禁形同虚设，任何断裂都无人拦截） |
+| 影响范围 | `.github/workflows/{frontend-build,server-architecture,server-fractal-docs,desktop-fractal-docs}.yml` · `scripts/ci/install-pre-push-hook.sh`（本地亦无前端执行点） |
+| 出现次数 | 持续存在（自门禁引入起） |
+| 关联 | `BUG-AGENT-2026-09-17-001`（悬空 import 未被拦截）· `-003`（tsconfig 假红）· `-004`（台账漂移）——三者能长期潜伏都因本缺陷 |
+
+### 现象
+
+1. 前端 5 个质量门禁在 `main` 上**长期变红**却无人处理；`BUG-AGENT-2026-09-17-001` 的悬空 import 能一路进入 main 并导致全站 500。
+2. 前端 400 行台账自 **2026-08-15** 后漂移一个月（46 个文件越线未登记）而无人察觉。
+3. `check_fractal_docs.py` 的 tsconfig 假红反复出现，也没有任何自动化反馈闭环。
+
+### 根因
+
+1. **4 个质量门禁全部只配 `on: pull_request`**，但本仓真实交付路径是**直推 main**：实测 **3408 个 commit 中仅 7 个 merge commit、仅 2 个带 `(#N)` squash 标记**，最近 300 个 commit 里 **154 个**是 `Co-authored-by: Cursor` 的本地 agent 提交。→ CI 从未被触发，门禁从未运行。
+2. **旁证（既有约定）**：仓库根的 `pr-hygiene.yml` 是**唯一**同时配了 `push: branches: [main]` 的工作流 —— 说明「push main 触发」本是本仓既有约定，只是这 4 个质量门禁漏配。
+3. **本地也无兜底**：`scripts/ci/install-pre-push-hook.sh` 安装的 pre-push 钩子只执行 `run_architecture_gates.sh`（**仅 server 门禁**），前端门禁在本地没有任何执行点。
+
+### 修复
+
+1. **补全触发器**：4 个质量门禁均加 `push: branches: [main]`，与既有 `pr-hygiene.yml` 约定对齐；
+2. **保持作用域一致**：新增的 `push.paths` 逐条复制原 `pull_request.paths`，确保两个事件运行完全相同的检查范围，不引入新的「只在某事件下才会跑」的盲区；
+3. **保留分支保护路径**：`pull_request` 触发器原样保留，分支保护 / PR 校验流程不受影响。
+
+### 验证
+
+- 4 个 workflow YAML 均可被解析，实测触发键为 `['pull_request', 'push']`；
+- `push.branches` 实测为 `- main`，path filter 与对应 `pull_request.paths` 逐条一致；
+- 静态契约 `scripts/dev/tests/test_*_static.py` **269 passed**。
+
+### 踩坑经验
+
+1. **CI 门禁必须与团队真实交付路径一致**：如果团队直推 main，`on: pull_request` 等于**从未运行**。配置门禁时不能只写「标准做法」，必须先确认团队实际怎么合并代码；
+2. **门禁配好后必须实测触发过一次**，而不是假定它生效 —— 本次是「配置文件看起来完全正确、但从未执行」的典型静默失效；
+3. **排查「为什么这个 bug 没被拦住」时，优先验证门禁到底跑没跑**，而不是先怀疑规则不够严：本次三个独立缺陷（`-001`/`-003`/`-004`）能同时长期潜伏，共同原因就是门禁根本没运行；
+4. **本地钩子覆盖不全会造成同样的盲区**：`install-pre-push-hook.sh` 只跑 server 门禁，因此即使开发者勤于本地校验，前端断裂依然可以直接进 main。
+
+---

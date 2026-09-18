@@ -39,18 +39,27 @@ describe('ToolsPanel Component', () => {
         source: 'builtin',
         layer: 'high_priority',
         summary: 'Web search tool',
+        description: '',
+        provider: null,
+        parameters_schema: null,
       },
       {
         name: 'bash_code_execute_tool',
         source: 'builtin',
         layer: 'core',
         summary: 'Bash execution tool',
+        description: '',
+        provider: null,
+        parameters_schema: null,
       },
       {
         name: 'pdf_reader_tool',
         source: 'builtin',
         layer: 'extended',
         summary: 'PDF reader tool',
+        description: '',
+        provider: null,
+        parameters_schema: null,
       },
     ];
 
