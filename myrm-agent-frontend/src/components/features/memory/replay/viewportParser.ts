@@ -31,7 +31,7 @@ export interface ViewportInspectionSummary {
   truncatedCharsCount: number;
 }
 
-const ROLE_HEADER_REGEX = /^\[(system|user|assistant|tool|[^\]]+)\]\s*(.*)$/is;
+const ROLE_HEADER_REGEX = /^\[(system|user|assistant|tool|[^\]]+)\]\s*([\s\S]*)$/i;
 const TRUNCATED_FOOTER_REGEX = /\.\.\.\s*\[truncated\s+(\d+)\s+chars\]$/i;
 
 /**

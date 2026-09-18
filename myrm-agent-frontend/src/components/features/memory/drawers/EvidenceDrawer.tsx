@@ -254,12 +254,6 @@ export const EvidenceDrawer = memo(function EvidenceDrawer({
                     {t('commandCenter.evidence.lockedLabel')}
                   </span>
                 )}
-                {data.is_exact_fact && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-0.5 text-blue-700 dark:text-blue-300">
-                    <Lock className="h-3 w-3" />
-                    <span>精确事实硬锁</span>
-                  </span>
-                )}
               </div>
 
               {/* Turns Timeline Slice */}

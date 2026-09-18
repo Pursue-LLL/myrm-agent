@@ -437,7 +437,8 @@ export interface DiscoverySearchResult {
   tags: string[];
   readme_url: string | null;
   subdirectory: string | null;
-  installed_version: string;
+  /** Null when the package is not installed in the local scope. */
+  installed_version: string | null;
   upgrade_available: boolean;
   installed_skill_id?: string;
   package_type?: 'skill' | 'agent_plugin' | string;

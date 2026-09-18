@@ -20,6 +20,7 @@ export type {
   JobStatus,
   MonitorConfig,
   PollTrigger,
+  PrerequisiteCheckResponse,
   RunStatus,
   SessionTarget,
   StreamTrigger,

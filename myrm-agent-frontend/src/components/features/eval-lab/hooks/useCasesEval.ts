@@ -14,6 +14,22 @@ export interface EvalProfile {
   name: string;
 }
 
+/**
+ * Empirical harness-config ablation suggestion derived from an eval report.
+ * Shared by ReportTab and the ablation impact ranking chip.
+ */
+export interface AblationRecommendationItem {
+  component: 'tool' | 'middleware' | 'memory' | 'prompt';
+  priority: number;
+  action_key: string;
+  title: string;
+  reason: string;
+  target_config_tab: string;
+  target_setting_key: string;
+  affected_case_count: number;
+  evidence_modes: string[];
+}
+
 export interface ReportItem {
   timestamp?: number;
   total?: number;
@@ -98,17 +114,7 @@ export interface ReportItem {
     attempt_pass_rates: number[];
     difficulty_breakdown?: Record<string, { total_runs: number; pass_rate: number }>;
   };
-  ablation_recommendations?: Array<{
-    component: 'tool' | 'middleware' | 'memory' | 'prompt';
-    priority: number;
-    action_key: string;
-    title: string;
-    reason: string;
-    target_config_tab: string;
-    target_setting_key: string;
-    affected_case_count: number;
-    evidence_modes: string[];
-  }>;
+  ablation_recommendations?: AblationRecommendationItem[];
   signature_clusters?: Array<{
     cluster_id: string;
     ci: string;

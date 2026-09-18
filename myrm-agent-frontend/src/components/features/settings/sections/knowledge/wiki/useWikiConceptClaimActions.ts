@@ -13,7 +13,7 @@ import { getWikiOperationErrorMessage } from './wikiTreeUtils';
 export interface UseWikiConceptClaimActionsProps {
   selectedConcept: Concept | null;
   setSelectedConcept: (concept: Concept | null) => void;
-  agentScopeId?: string;
+  agentScopeId?: string | null;
   onVaultMutated?: () => void;
 }
 

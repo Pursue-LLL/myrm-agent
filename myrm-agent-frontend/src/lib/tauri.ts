@@ -23,7 +23,7 @@ interface TauriWindow {
   __TAURI__?: {
     invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
     event: {
-      listen: (event: string, handler: (event: unknown) => void) => Promise<() => void>;
+      listen: (event: string, handler: (event: { payload: unknown }) => void) => Promise<() => void>;
       emit: (event: string, payload?: unknown) => Promise<void>;
     };
   };

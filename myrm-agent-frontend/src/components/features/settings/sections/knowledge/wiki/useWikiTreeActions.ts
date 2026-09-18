@@ -14,7 +14,7 @@ import type { TreeNode } from '@/services/wikiService';
 
 export interface UseWikiTreeActionsProps {
   treeRef: React.RefObject<TreeApi<TreeNode> | null>;
-  agentScopeId?: string;
+  agentScopeId?: string | null;
   fetchTree: () => Promise<void>;
   createParentFolder: string | null;
   setCreateParentFolder: (folder: string | null) => void;

@@ -75,6 +75,10 @@ export interface ApprovalPayloadData {
   confidence?: number;
   source_queries?: string[];
   suggested_action?: string;
+  /** Obsidian inbox write approval fields (harness obsidian_inbox_write payload) */
+  target_vault?: string;
+  inbox_folder?: string;
+  subfolder?: string;
 }
 
 export interface ApprovalPayload {
