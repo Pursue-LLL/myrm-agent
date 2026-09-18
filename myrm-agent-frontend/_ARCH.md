@@ -8,7 +8,7 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 
 | 项 | 配置 | 说明 |
 |----|------|------|
-| `@shared/*` | `tsconfig.json` paths + `next.config.ts` | 指向 `../shared/*` |
+| `@shared/*` | `tsconfig.base.json` paths + `next.config.ts` | 指向 `../shared/*`（`tsconfig.json` 经 `extends` 继承） |
 | `turbopack.root` | monorepo 根（`myrm-agent/`） | dev/build 解析跨包 JSON |
 | `outputFileTracingRoot` | monorepo 根 | standalone/Tauri 打包 trace |
 | Docker build | [Dockerfile](Dockerfile) | builder 布局 `/app/frontend` + `/app/shared`（context = `myrm-agent/` 根） |
@@ -16,7 +16,7 @@ Next.js 16 WebUI。与 `myrm-agent-server` 同处 monorepo，可引用根目录 
 
 ## 脚本
 
-详见 [scripts/_ARCH.md](scripts/_ARCH.md)。CI 核心：`oxlint`（errors 阻断 / warnings 不阻断，配置 `.oxlintrc.json` + `.oxlintignore`）、`check_fractal_docs.py`、`check_file_line_budget.py`、`check_typescript_strict.py`、`check_barrel_exports.py`、`check_module_resolution.py`、`verify-i18n.mjs`、`verify-sw-push.mjs`（`bun run build` 后）。
+详见 [scripts/_ARCH.md](scripts/_ARCH.md)。CI 核心：`oxlint`（errors 阻断 / warnings 不阻断，配置 `.oxlintrc.json` + `.oxlintignore`）、`check_fractal_docs.py`、`check_typescript_strict.py`、`check_barrel_exports.py`、`check_module_resolution.py`、`verify-i18n.mjs`、`verify-sw-push.mjs`（`bun run build` 后）。
 
 ## PWA / Service Worker（Web 部署）
 

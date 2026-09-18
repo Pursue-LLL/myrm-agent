@@ -33,7 +33,7 @@ For channels work, use [task path C](#c--channels-im--webhook) below (three-laye
 | 1 | [ARCHITECTURE.md](ARCHITECTURE.md) → [app/_ARCH.md](myrm-agent-server/app/_ARCH.md) |
 | 2 | Target [api/*/_ARCH.md](myrm-agent-server/app/api/_ARCH.md) **and** the mapped [services/*/_ARCH.md](myrm-agent-server/app/services/_ARCH.md) ([vocabulary table](#api--services-domain-vocabulary) below) |
 | 3 | Open the route handler you will edit and trace imports — some routes call harness or `database/` directly with **no** `services/` folder |
-| 4 | Run fractal + line-budget checks (see [Documentation convention](#documentation-convention)) |
+| 4 | Run fractal docs checks (see [Documentation convention](#documentation-convention)) |
 
 #### B — Web UI
 
@@ -205,10 +205,9 @@ Each directory under `myrm-agent-server/app/` must have `_ARCH.md` (not README).
 ```bash
 .venv/bin/python scripts/check_fractal_docs.py
 .venv/bin/python scripts/check_fractal_docs.py --no-stub
-.venv/bin/python scripts/check_file_line_budget.py
 ```
 
-CI enforces fractal docs, no-stub guards on `api/` and `channels/providers/`, line-budget gate, and `tests/architecture/test_api_services_vocabulary.py` (keep in sync with the vocabulary section below).
+CI enforces fractal docs, no-stub guards on `api/` and `channels/providers/`, and `tests/architecture/test_api_services_vocabulary.py` (keep in sync with the vocabulary section below).
 
 `scripts/sync_arch_file_tables.py` only refreshes stub `_ARCH.md` (markers `待补` / `（见目录）`) and skips directories that already have a substantive `## 架构概述`. Do not run it with `--force` on rich module docs (e.g. `services/memory/`, `core/skills/`).
 
