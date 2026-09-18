@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Strip Next.js isolated-build pollution from tsconfig.json and next-env.d.ts.
 
-When dev runs with MYRM_NEXT_DIST_DIR=.next-isolated-*, Next auto-appends those paths
-to tsconfig include and next-env.d.ts imports. CI (check_fractal_docs.py) forbids this.
+When dev runs with MYRM_NEXT_DIST_DIR=.next-isolated-*, Next appends those paths to
+tsconfig include and next-env.d.ts imports. Next skips that rewrite only when the
+config declares ``extends``/``references``, so every isolated lane otherwise mutates
+the committed config. The E2E reaper and the stack-startup hygiene pass both call
+this script to restore the canonical state.
 
 Run after E2E teardown or ``bun run cleanup``::
 

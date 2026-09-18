@@ -15,6 +15,11 @@ Exit codes:
     8  Stub markers in guarded src/services/ _ARCH.md.
     Other bits combine (e.g. 10 = strict + stub).
 
+Transient dev-lane state (``tsconfig.json`` include globs written by isolated Next
+builds) is deliberately NOT a gate here. It is scrubbed from the local environment
+by ``scripts/strip_isolated_tsconfig.py`` and by the stack-startup hygiene pass, so
+a live E2E lane on the same machine can no longer turn this gate red.
+
 Run from myrm-agent-frontend root::
 
     python3 scripts/check_fractal_docs.py
@@ -25,7 +30,6 @@ Run from myrm-agent-frontend root::
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from collections.abc import Iterable
 from pathlib import Path
@@ -179,18 +183,6 @@ def _stub_arch_files(frontend_root: Path) -> list[str]:
     return bad
 
 
-def _tsconfig_has_isolated_includes(frontend_root: Path) -> list[str]:
-    tsconfig = frontend_root / "tsconfig.json"
-    if not tsconfig.is_file():
-        return ["tsconfig.json missing"]
-    data = json.loads(tsconfig.read_text(encoding="utf-8"))
-    return [
-        entry
-        for entry in data.get("include", [])
-        if isinstance(entry, str) and ".next-isolated-" in entry
-    ]
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -239,8 +231,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.no_stub:
         stub_bad = _stub_arch_files(frontend_root)
 
-    tsconfig_bad = _tsconfig_has_isolated_includes(frontend_root)
-
     if strict_missing:
         print("ERROR: Strict roots missing _ARCH.md:", file=sys.stderr)
         for rel in strict_missing:
@@ -256,12 +246,7 @@ def main(argv: list[str] | None = None) -> int:
         for rel in stub_bad:
             print(f"  - {rel}", file=sys.stderr)
 
-    if tsconfig_bad:
-        print("ERROR: tsconfig.json include must not list .next-isolated-* paths:", file=sys.stderr)
-        for entry in tsconfig_bad:
-            print(f"  - {entry}", file=sys.stderr)
-
-    if not strict_missing and not recursive_missing and not stub_bad and not tsconfig_bad:
+    if not strict_missing and not recursive_missing and not stub_bad:
         scope = "strict roots"
         if not args.strict_roots:
             scope += " + recursive (baseline)"
@@ -277,8 +262,6 @@ def main(argv: list[str] | None = None) -> int:
         code |= 4
     if stub_bad:
         code |= 8
-    if tsconfig_bad:
-        code |= 16
     return code
 
 

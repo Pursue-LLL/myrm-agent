@@ -8,7 +8,7 @@
 
 | 文件 | 职责 |
 |------|------|
-| `check_fractal_docs.py` | 分形 `_ARCH.md` 门禁（strict roots + recursive baseline）；禁止 `tsconfig.json` include 写入 `.next-isolated-*` |
+| `check_fractal_docs.py` | 分形 `_ARCH.md` 门禁（strict roots + recursive baseline）；只管文档覆盖，不读取 `tsconfig.json`（dev lane 瞬态状态由 strip + hygiene 本地自愈） |
 | `check_file_line_budget.py` | TS/TSX 400 行预算门禁 |
 | `check_typescript_strict.py` | `tsc --noEmit` strict 错误数门禁（`ci/typescript_strict_baseline.txt`；`tsconfig.json` `strict: true`） |
 | `check_barrel_exports.py` | 跨域 `index.ts` 桶导出白名单门禁 |
@@ -45,7 +45,7 @@
 | `next-dev-gate.cjs` | Node/Bun preload gate；SSOT 仍 `frontend_dev_pause.py` |
 | `port-cleanup.ts` | `:3000` LISTEN-only 清理 |
 | `cleanup.ts` | dev 残留清理（next 进程、stale lock、`.next-isolated-*`、dev log、pause stamp 8h 默认、stamp write 失败 exit 非零） |
-| `strip_isolated_tsconfig.py` | 移除 Next isolated build 写入的 `tsconfig.json` include 与 `next-env.d.ts` 污染；重置 next-env 为 `.next/dev/types/routes.d.ts` + `root-params.d.ts`；E2E `release_runtime` teardown 与 `cleanup.ts` 调用 |
+| `strip_isolated_tsconfig.py` | 移除 Next isolated build 写入的 `tsconfig.json` include 与 `next-env.d.ts` 污染；重置 next-env 为 `.next/dev/types/routes.d.ts` + `root-params.d.ts`；由 E2E `release_runtime` teardown、`cleanup.ts` 与 dev 栈启动 hygiene 调用 |
 | `generate-artifact-types.ts` | 工件类型生成 |
 | `export-known-sse-event-types.ts` | SSE 事件类型导出对齐 |
 | `__tests__/` | 脚本相关单测 |
