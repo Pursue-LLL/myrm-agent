@@ -93,6 +93,8 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
         {
           name: 'super-search',
           description: 'A deep web search skill',
+
+          author: null,
           version: '1.5.0',
           category: 'search',
           tags: ['web', 'ai'],
@@ -107,6 +109,8 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
         {
           name: 'markdown-formatter',
           description: 'Cleans up markdown formatting',
+
+          author: null,
           version: '2.0.0',
           category: 'text',
           tags: ['markdown'],
@@ -175,6 +179,8 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
         {
           name: 'skill-one',
           description: 'First skill',
+
+          author: null,
           version: '1.0.0',
           category: 'tool',
           tags: [],
@@ -189,6 +195,8 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
         {
           name: 'skill-two',
           description: 'Second skill',
+
+          author: null,
           version: '1.0.0',
           category: 'tool',
           tags: [],

@@ -29,7 +29,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
     const mockSnapshot: Partial<ChatState> = {
       messages: [
         {
-          id: 'm-1',
+          messageId: 'm-1',
           role: 'user',
           content: 'Hello World',
           createdAt: new Date('2026-08-20T00:00:00.000Z'),
@@ -54,7 +54,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
     const mockSnapshot: Partial<ChatState> = {
       messages: [
         {
-          id: 'm-2',
+          messageId: 'm-2',
           role: 'assistant',
           content: 'Persisted Response',
           createdAt: new Date('2026-08-20T00:00:00.000Z'),
@@ -117,7 +117,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
       loading: true,
       messages: [
         {
-          id: 'm-img',
+          messageId: 'm-img',
           role: 'user',
           content: 'Here is an image',
           createdAt: new Date('2026-08-20'),
