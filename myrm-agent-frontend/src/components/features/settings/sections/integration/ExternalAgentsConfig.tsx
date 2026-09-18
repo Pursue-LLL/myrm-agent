@@ -105,9 +105,10 @@ const TYPE_ICONS: Record<ExternalAgentType, React.ElementType> = {
 };
 
 /**
- * Permission modes each backend can actually honour. ACP bridges expose a real
- * approve/deny channel, so `ask` is meaningful there; CLI backends receive fixed
- * command-line flags only and therefore must not advertise an interactive prompt.
+ * Permission modes each backend can actually honour. CLI backends receive fixed
+ * command-line flags, while ACP backends get their permission requests answered by the
+ * bridge on the user's behalf. Neither exposes an interactive prompt today, so no
+ * backend may advertise one.
  */
 const PERMISSION_MODE_OPTIONS: Record<ExternalAgentType, { value: ExternalAgentPermissionMode; labelKey: string }[]> = {
   cli: [
@@ -116,7 +117,6 @@ const PERMISSION_MODE_OPTIONS: Record<ExternalAgentType, { value: ExternalAgentP
   ],
   acp: [
     { value: 'allow_all', labelKey: 'permissionAllowAll' },
-    { value: 'ask', labelKey: 'permissionAsk' },
     { value: 'safe', labelKey: 'permissionSafe' },
   ],
 };
@@ -346,7 +346,7 @@ const ExternalAgentsConfig = memo(() => {
                   className="flex items-center justify-between p-3 rounded-lg border border-border bg-background/50 hover:bg-muted/40 transition-colors group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div onClick={(e) => e.stopPropagation()}>
+                    <div role="presentation" onClick={(e) => e.stopPropagation()}>
                       <Switch checked={agent.enabled} onCheckedChange={() => handleToggle(index)} />
                     </div>
                     <TypeIcon className="w-4 h-4 text-muted-foreground shrink-0" />

@@ -5,12 +5,12 @@ import { buildMessageRenderFingerprint } from '@/store/chat/messageRenderFingerp
 describe('buildMessageRenderFingerprint', () => {
   it('changes when sources arrive without content length change', () => {
     const base = [{ messageId: 'm1', content: 'answer【1】', sources: undefined }];
-    const withSources = [{ messageId: 'm1', content: 'answer【1】', sources: [{ index: 1, type: 'web_search' }] }];
+    const withSources = [{ messageId: 'm1', content: 'answer【1】', sources: [{ index: 1, type: 'web_search' as const }] }];
     expect(buildMessageRenderFingerprint(base)).not.toBe(buildMessageRenderFingerprint(withSources));
   });
 
   it('is stable when neither content nor sources change', () => {
-    const messages = [{ messageId: 'm1', content: 'hello', sources: [{ index: 1, type: 'web_search' }] }];
+    const messages = [{ messageId: 'm1', content: 'hello', sources: [{ index: 1, type: 'web_search' as const }] }];
     expect(buildMessageRenderFingerprint(messages)).toBe(buildMessageRenderFingerprint([...messages]));
   });
 });
