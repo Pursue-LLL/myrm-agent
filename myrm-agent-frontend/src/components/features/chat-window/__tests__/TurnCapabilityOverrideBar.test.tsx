@@ -9,6 +9,7 @@ import TurnCapabilityOverrideBar from '../TurnCapabilityOverrideBar';
 import useChatStore from '@/store/useChatStore';
 import useSkillStore from '@/store/skill/useSkillStore';
 import useConfigStore from '@/store/useConfigStore';
+import type { Skill } from '@/store/skill/types';
 
 const TURN_T: Record<string, string> = {
   overrideSkillsShort: '{skills} skills',
