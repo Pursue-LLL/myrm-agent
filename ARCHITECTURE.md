@@ -81,7 +81,7 @@ myrm-agent/
 3. **模块** — 每目录 `_ARCH.md`（模块说明；GitHub 入口 README 仅保留快速启动）
 4. **文件** — `[INPUT]` / `[OUTPUT]` / `[POS]` 或 `@input` / `@output` / `@pos`
 
-Server 门禁：`myrm-agent-server/scripts/check_fractal_docs.py`（`app/**` 目录 `_ARCH.md`；`--strict-headers` + `fractal_header_baseline.txt`；`--no-stub` 守卫 `api/` 与 `channels/providers/`）；`check_file_line_budget.py`（禁止新增 >400 行 Python 模块）；`tests/architecture/test_api_services_vocabulary.py`（`api/`↔`services/` 顶域与 `CONTRIBUTING.md` 同步）。Frontend：`check_fractal_docs.py`（strict roots + recursive baseline）；`check_file_line_budget.py` + `verify:i18n` + `next build` 校验 settings 模块图（见 `.github/workflows/frontend-build.yml`）。Desktop：`scripts/check-fractal-docs.ts`（14 项 `_ARCH` + 14 核心 IOP + Rust ≤400 行；见 `desktop-fractal-docs.yml`）。
+Server 门禁：`myrm-agent-server/scripts/check_fractal_docs.py`（`app/**` 目录 `_ARCH.md`；`--strict-headers` + `fractal_header_baseline.txt`；`--no-stub` 守卫 `api/` 与 `channels/providers/`）；`tests/architecture/test_api_services_vocabulary.py`（`api/`↔`services/` 顶域与 `CONTRIBUTING.md` 同步）。`check_file_line_budget.py` 保留为**本地自查工具**（超限台账 `scripts/ci/file_line_budget_baseline.txt`），不接入 CI 阻断。Frontend：`check_fractal_docs.py`（strict roots + recursive baseline）+ `verify:i18n` + `next build` 校验 settings 模块图（见 `.github/workflows/frontend-build.yml`）；`check_file_line_budget.py` 同为本地自查。Desktop：`scripts/check-fractal-docs.ts`（14 项 `_ARCH` + 14 核心 IOP；见 `desktop-fractal-docs.yml`）。
 
 **运行时产物 gitignore（五仓口径）**：`.myrm/`、`.agent/`（harness workspace 树）— 仓根与各子项目 `.gitignore` 均已覆盖，勿提交。
 
