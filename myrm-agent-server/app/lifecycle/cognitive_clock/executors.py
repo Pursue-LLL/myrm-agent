@@ -100,7 +100,7 @@ async def execute_t2_idle_maintenance(
         await sync_external_harness_transcripts()
 
         # 5. Ledger audit event
-        await record_maintenance_event(report=report, policy=active_policy)
+        await record_maintenance_event(report=report, forced=force, policy=active_policy)
 
         # 6. Health snapshot
         if report.health is not None:

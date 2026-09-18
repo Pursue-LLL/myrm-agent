@@ -685,3 +685,46 @@ except Exception:
 4. **本地钩子覆盖不全会造成同样的盲区**：`install-pre-push-hook.sh` 只跑 server 门禁，因此即使开发者勤于本地校验，前端断裂依然可以直接进 main。
 
 ---
+
+## BUG-AGENT-2026-09-18-006: `tsconfig` include 全量 glob 生成目录，导致 `check_typescript_strict` 随机假红（flaky gate）
+
+| 属性 | 值 |
+|------|-----|
+| 发现日期 | 2026-09-18 |
+| 修复日期 | 2026-09-18 |
+| 严重程度 | **P2（门禁可反复性失效：同一代码随机红/绿，会逐渐被团队当成噪声忽略）** |
+| 影响范围 | `myrm-agent-frontend/tsconfig.json`；`scripts/check_typescript_strict.py`（`frontend-build.yml` CI 阻断项） |
+| 出现次数 | 任意次（取决于 i18n 生成写入与门禁扫描的时间竞态） |
+| 关联 | `BUG-AGENT-2026-09-17-003`（同属「瞬态文件状态污染门禁」族）· `-004`/`-005`（门禁失去信号） |
+
+### 现象
+
+同一条 `python3 scripts/check_typescript_strict.py` 在相隔数分钟、代码未变的情况下给出**相反结论**：先返回 `FAIL(1)`，复跑即 `OK (strict errors 65, baseline 489)`。
+
+### 根因
+
+1. `tsconfig.json` 的 `include` 含 `locales/**/*.json`；
+2. 而 `locales/namespaces/` 是 **`.gitignore` 忽略的生成目录**（`.gitignore:35 /locales/namespaces/`），当时含 **3157 个 JSON**，由 i18n 生成脚本持续写入；
+3. 失败运行的实际报错是 **6 条 `TS6053: File ... not found`**，目标均为生成中的 `locales/namespaces/**`（如 `ko/settings/workspaceRules.json`、`zh-TW/settings/webPushTestSent.json`）——文件在扫描瞬间被生成器替换/重建；
+4. `check_typescript_strict.py` 用 `_ERROR_RE = re.compile(r"error TS\d+")` **无差别计数**（第 19、31 行），无法区分「生成竞态导致的临时缺失」与「真实类型错误增加」，于是把前者误判为门禁回归；
+5. `include` 中的 `locales/**/*.json` 在 `tsconfig.base.json` 拆分**之前就已存在**，故本缺陷与拆分无关，属既有隐患；`incremental: true` 生成的 `tsconfig.tsbuildinfo` 会缓存绝对路径，进一步放大不确定性。
+
+### 修复
+
+`tsconfig.json` 的 `include` 由 `locales/**/*.json` 收窄为 **`locales/*.json`**，即只类型检查 6 个**被 git 追踪**的顶层 locale 文件。
+
+覆盖面未损失：`src/**` 对所需 namespace JSON 的静态 `import`（`src/i18n/locale-manifest.ts` → `n/manifest.json`、`src/lib/local-backend-dev.ts` → `n/{en,zh}/common.json`、`src/lib/metadata/static-metadata.ts` → `n/zh/metadata.json`、`src/lib/i18n/streamNotificationCopy.ts` → `n/*/notifications.json`）仍会被 TypeScript 自动纳入程序，只是不再全量 glob 生成物。
+
+### 验证
+
+- 收窄前后 `check_typescript_strict.py` 错误数**完全一致（65）**，证明 3157 个生成文件对类型检查零贡献；
+- 收窄后复跑门禁 `OK (strict errors 65, baseline 489)`；
+- `git diff` 确认仅 1 行 include 变更，无其他副作用。
+
+### 踩坑经验
+
+1. **`include` 绝不能 glob `.gitignore` 忽略的生成目录**：生成器与门禁并发时必然产生瞬态 `TS6053`，门禁失去可反复性；
+2. **门禁计数必须区分「环境噪声」与「真实回归」**：`error TS\d+` 这类无差别正则会同时吞掉两类信号，应至少对 `TS6053` 做存在性甄别或排除未追踪路径；
+3. **排查「门禁随机红」优先怀疑瞬态文件状态**（生成目录、buildinfo、lock、dist），而不是先怀疑代码回归——同一命令跑出两种结论本身就是最强的「非确定性」证据。
+
+---

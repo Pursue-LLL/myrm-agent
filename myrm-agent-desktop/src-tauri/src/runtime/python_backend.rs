@@ -346,14 +346,47 @@ pub fn stop_backend(
 
     if let Some(mut child) = process_guard.take() {
         let pid = child.id();
-        kill_process_tree(pid);
-        match child.kill() {
-            Ok(_) => {
-                println!("Backend process tree killed (root PID: {})", pid);
-                Ok("Backend stopped successfully".to_string())
-            }
-            Err(e) => Err(format!("Failed to stop backend: {}", e)),
+        // 已自行退出的进程直接视为停止成功，避免误报阻断调用方
+        if let Ok(Some(status)) = child.try_wait() {
+            println!(
+                "Backend already exited (root PID: {}, status: {})",
+                pid, status
+            );
+            return Ok("Backend stopped successfully".to_string());
         }
+        kill_process_tree(pid);
+        if let Err(e) = child.kill() {
+            // kill 失败但进程可能已死：再确认一次，确认已死即成功
+            if let Ok(Some(status)) = child.try_wait() {
+                println!(
+                    "Backend exited during stop (root PID: {}, status: {})",
+                    pid, status
+                );
+                return Ok("Backend stopped successfully".to_string());
+            }
+            return Err(format!("Failed to stop backend: {}", e));
+        }
+        // 确认进程真正退出后再返回：避免调用方在文件句柄未释放时即开始拷贝
+        const EXIT_WAIT_ITERS: u32 = 100;
+        for _ in 0..EXIT_WAIT_ITERS {
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    println!(
+                        "Backend process tree exited (root PID: {}, status: {})",
+                        pid, status
+                    );
+                    return Ok("Backend stopped successfully".to_string());
+                }
+                Ok(None) => std::thread::sleep(std::time::Duration::from_millis(100)),
+                Err(e) => {
+                    return Err(format!("Failed to confirm backend exit: {}", e));
+                }
+            }
+        }
+        Err(format!(
+            "Backend process (root PID: {}) did not exit within 10s after kill",
+            pid
+        ))
     } else {
         Ok("Backend is not running".to_string())
     }

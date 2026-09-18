@@ -51,6 +51,13 @@ const StorageCard = memo<{
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMigrating, setIsMigrating] = useState(false);
+  const [migrateProgress, setMigrateProgress] = useState<{
+    doneEntries: number;
+    totalEntries: number;
+    currentEntry: string;
+    bytesCopied: number;
+    bytesTotal: number;
+  } | null>(null);
 
   // Storage Optimization States
   const [showOptimizePanel, setShowOptimizePanel] = useState(false);
@@ -94,18 +101,44 @@ const StorageCard = memo<{
       const selectedDir = typeof selected === 'string' ? selected : String(selected);
 
       setIsMigrating(true);
+      setMigrateProgress(null);
       toast.info(t('storageMigrating'));
 
       const { invoke } = await import('@tauri-apps/api/core');
-      const actionTicket = await invoke<string>('issue_sensitive_action_ticket', { action: 'migrate_data_dir' });
-      await invoke('migrate_data_dir', { newDir: selectedDir, actionTicket });
+      const { listen } = await import('@tauri-apps/api/event');
+      let unlisten: (() => void) | undefined;
+      try {
+        unlisten = await listen<{
+          done_entries: number;
+          total_entries: number;
+          current_entry: string;
+          bytes_copied: number;
+          bytes_total: number;
+        }>('data-migration-progress', (event) => {
+          const p = event.payload;
+          setMigrateProgress({
+            doneEntries: p.done_entries,
+            totalEntries: p.total_entries,
+            currentEntry: p.current_entry,
+            bytesCopied: p.bytes_copied,
+            bytesTotal: p.bytes_total,
+          });
+        });
+        const actionTicket = await invoke<string>('issue_sensitive_action_ticket', { action: 'migrate_data_dir' });
+        await invoke('migrate_data_dir', { newDir: selectedDir, actionTicket });
 
-      onDataDirChange(selectedDir);
-      toast.success(t('storageMigrateSuccess'));
-      await fetchStorageInfo();
+        onDataDirChange(selectedDir);
+        toast.success(t('storageMigrateSuccess'));
+        await fetchStorageInfo();
+      } catch (err) {
+        toast.error(`${t('storageMigrateFailed')}: ${err instanceof Error ? err.message : String(err)}`);
+      } finally {
+        unlisten?.();
+        setIsMigrating(false);
+        setMigrateProgress(null);
+      }
     } catch (err) {
       toast.error(`${t('storageMigrateFailed')}: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
       setIsMigrating(false);
     }
   }, [t, onDataDirChange, fetchStorageInfo]);
@@ -184,19 +217,40 @@ const StorageCard = memo<{
             </p>
           </div>
           {isTauriRuntime() ? (
-            <button
-              onClick={() => void handleChangeDir()}
-              disabled={isMigrating}
-              className={cn(
-                'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap',
-                isMigrating
-                  ? 'bg-white/5 text-muted-foreground cursor-not-allowed opacity-70'
-                  : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20',
+            <div className="flex flex-col items-stretch sm:items-end gap-2 shrink-0">
+              <button
+                onClick={() => void handleChangeDir()}
+                disabled={isMigrating}
+                className={cn(
+                  'inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap',
+                  isMigrating
+                    ? 'bg-white/5 text-muted-foreground cursor-not-allowed opacity-70'
+                    : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20',
+                )}
+              >
+                {isMigrating && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                <span>{isMigrating ? t('storageMigrating') : t('storageChange')}</span>
+              </button>
+              {isMigrating && migrateProgress && migrateProgress.bytesTotal > 0 && (
+              <div className="space-y-1 w-full sm:min-w-56">
+                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all bg-indigo-500"
+                    style={{
+                      width: `${Math.min(100, Math.round((migrateProgress.bytesCopied / migrateProgress.bytesTotal) * 100))}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground font-mono truncate">
+                  {t('storageMigratingProgress', {
+                    done: migrateProgress.doneEntries,
+                    total: migrateProgress.totalEntries,
+                    entry: migrateProgress.currentEntry,
+                  })}
+                </p>
+              </div>
               )}
-            >
-              {isMigrating && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-              <span>{isMigrating ? t('storageMigrating') : t('storageChange')}</span>
-            </button>
+            </div>
           ) : (
             <div className="text-xs text-muted-foreground/80 max-w-sm sm:text-right bg-white/[0.03] border border-white/5 px-3 py-1.5 rounded-lg">
               {getDeployMode() === 'sandbox' ? t('storageSandboxHint') : t('storageLocalWebuiHint')}

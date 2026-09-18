@@ -258,7 +258,7 @@ async def _run_guardian_cycle(
 
         await harvest_session_blind_spots()
         await sync_external_harness_transcripts()
-        await record_maintenance_event(report=report, policy=active_policy)
+        await record_maintenance_event(report=report, forced=effective_force, policy=active_policy)
 
         if report.health is not None:
             await record_health_snapshot(

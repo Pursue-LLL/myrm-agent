@@ -18,7 +18,8 @@
 .mypy_cache/
 # next.js
 /.next/
-/.next-isolated-*/
+# Any custom dist dir set via MYRM_NEXT_DIST_DIR (isolated lanes `.n-*`, probes, variant builds).
+/.next-*/
 /out/
 
 # production

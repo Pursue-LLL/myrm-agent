@@ -31,7 +31,12 @@ logger = logging.getLogger(__name__)
 HEALTH_THRESHOLD = 70
 
 
-async def record_maintenance_event(report: MaintenanceReport, *, forced: bool) -> None:
+async def record_maintenance_event(
+    report: MaintenanceReport,
+    *,
+    forced: bool,
+    policy: MemoryGuardianPolicy | None = None,
+) -> None:
     """Record a single batched audit event for the completed maintenance cycle.
 
     Follows the bulk-audit pattern (one record per cycle) to avoid flooding
@@ -152,8 +157,12 @@ async def record_health_snapshot(
         logger.warning("Memory guardian: failed to persist health snapshot: %s", exc)
 
 
-async def record_purge_audit(purge_count: int) -> None:
-    """Record an audit event for expired archive purging."""
+async def record_purge_audit(*, purged_count: int, policy: MemoryGuardianPolicy | None = None) -> None:
+    """Record an audit event for expired archive purging.
+
+    ``policy`` is accepted for call-site symmetry with the sibling guardian
+    events; the ledger summary only needs the reclaimed count.
+    """
     from app.database.connection import get_session
     from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
 
@@ -162,16 +171,16 @@ async def record_purge_audit(purge_count: int) -> None:
             await MemoryOperationLedgerService(db).record_event(
                 kind=MemoryOperationKind.MAINTENANCE,
                 status=MemoryOperationStatus.SUCCESS,
-                summary=f"Guardian purged {purge_count} expired archived memories.",
+                summary=f"Guardian purged {purged_count} expired archived memories and rules.",
                 source="memory_guardian",
-                metadata={"purged_count": purge_count, "operation": "archive_ttl_purge"},
+                metadata={"purged_count": purged_count, "operation": "archive_ttl_purge"},
                 commit=True,
             )
     except Exception as exc:
         logger.warning("Memory guardian: failed to record purge audit event: %s", exc)
 
 
-async def record_conflict_auto_resolve_event(count: int) -> None:
+async def record_conflict_auto_resolve_event(*, resolved_count: int, policy: MemoryGuardianPolicy | None = None) -> None:
     """Record an audit event when the guardian auto-resolves expired conflicts.
 
     Every silent write-time decision must be logged so the judge's choice
@@ -185,10 +194,10 @@ async def record_conflict_auto_resolve_event(count: int) -> None:
             await MemoryOperationLedgerService(db).record_event(
                 kind=MemoryOperationKind.MAINTENANCE,
                 status=MemoryOperationStatus.SUCCESS,
-                summary=f"Guardian auto-resolved {count} expired low-risk conflicts (keep_old).",
+                summary=f"Guardian auto-resolved {resolved_count} expired low-risk conflicts (keep_old).",
                 source="memory_guardian",
                 metadata={
-                    "auto_resolved_conflicts": count,
+                    "auto_resolved_conflicts": resolved_count,
                     "operation": "conflict_auto_resolve",
                     "resolution": "keep_old",
                 },

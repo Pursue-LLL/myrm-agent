@@ -949,7 +949,8 @@
         "equippedCountSuffix": "Ausgerüstet",
         "pureInstructionNotice": "Keine Fähigkeiten ausgerüstet · Reiner Anweisungsmodus",
         "emptyExplanation": "Derzeit sind keine Fähigkeiten ausgerüstet. Der Agent läuft im reinen Anweisungsmodus. Klicken Sie oben auf \"Alle auswählen\" oder wählen Sie unten Fähigkeiten aus."
-      }
+      },
+      "externalCliUnavailableHint": "Das konfigurierte CLI ist nicht im PATH verfügbar. Installiere es oder gib in den Einstellungen den vollständigen Pfad an."
     },
     "validation": {
       "dependencyInvalid": "Agentenkonfiguration hat Probleme",
@@ -13039,10 +13040,9 @@
         "argsPlaceholder": "z. B. --verbose (eine pro Zeile)",
         "permissionMode": "Berechtigungsmodus",
         "permissionAllowAll": "Volle Autonomie",
-        "permissionAsk": "Jeden Schritt bestätigen",
         "permissionSafe": "Nur Lesen",
         "permissionHintCli": "Setzt beim Start feste Befehlszeilen-Parameter. Volle Autonomie lässt den Agent unbeaufsichtigt handeln; Nur Lesen blockiert jede Dateiänderung.",
-        "permissionHintAcp": "Die Brücke fragt diese App vor jeder sensiblen Aktion. Jeden Schritt bestätigen fragt Sie; Nur Lesen erlaubt ausschließlich Lesezugriffe.",
+        "permissionHintAcp": "Die Brücke beantwortet die Berechtigungsanfragen des externen Agenten für Sie. Volle Autonomie genehmigt sie; Nur Lesen erlaubt ausschließlich Lesezugriffe.",
         "enabled": "Aktiviert",
         "save": "Speichern",
         "cancel": "Abbrechen",
@@ -17607,6 +17607,7 @@
         "storageFree": "Verfügbar",
         "storageChange": "Ändern",
         "storageMigrating": "Daten werden migriert...",
+        "storageMigratingProgress": "Migriere {done}/{total}: {entry}",
         "storageMigrateSuccess": "Datenmigration abgeschlossen",
         "storageMigrateFailed": "Die Datenmigration ist fehlgeschlagen",
         "storageLowWarning": "Wenig Speicherplatz, erwägen Sie die Migration von Daten auf ein anderes Laufwerk",

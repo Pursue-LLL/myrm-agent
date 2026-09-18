@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from typing import Awaitable
 
 import pytest
@@ -46,6 +47,31 @@ from tests.support.chrome_mcp_e2e import OpenMcpPageSession, open_mcp_page_async
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 
+def _backend_lost_ax_mid_run(initial_ax: bool) -> bool:
+    """Mid-run Accessibility sentinel: fail fast when the backend chain lost AX.
+
+    Compares the start-of-run grant against two fresh probes (double-confirm so
+    a single flaky probe never kills a healthy run). Empty payloads (transport
+    errors surface as {}) and malformed non-JSON payloads fail open
+    (return False) so infra blips keep the normal retry path instead of a
+    misdiagnosed AX failure or a masked original error.
+    """
+    if not initial_ax:
+        return False
+    for _ in range(2):
+        try:
+            probe = desktop_permissions()
+        except (OSError, ValueError):
+            return False
+        if not probe:
+            return False
+        if bool(probe.get("accessibility")):
+            return False
+        time.sleep(2.0)
+    progress("backend lost macOS Accessibility mid-run (start=true, now=false x2)")
+    return True
+
+
 async def run_desktop_approval_chrome_e2e(
     *,
     scope: str,
@@ -59,7 +85,8 @@ async def run_desktop_approval_chrome_e2e(
             f"after ./myrm ready --chrome (readiness={readiness})"
         )
     perms = desktop_permissions()
-    if not perms.get("accessibility"):
+    initial_ax = bool(perms.get("accessibility"))
+    if not initial_ax:
         pytest.fail(
             "macOS Accessibility permission missing for the backend: "
             "Open System Settings → Privacy & Security → Accessibility, "
@@ -110,6 +137,15 @@ async def run_desktop_approval_chrome_e2e(
                     "error": str(exc),
                     "type": type(exc).__name__,
                 }
+                if _backend_lost_ax_mid_run(initial_ax):
+                    pytest.fail(
+                        "Desktop approval Chrome E2E lost macOS Accessibility mid-run "
+                        f"(attempt {attempt}/{attempts}, api={get_e2e_api_url()}): "
+                        "the backend was replaced/restarted under a chain without the "
+                        "Accessibility grant. Recover with "
+                        "myrm-agent/scripts/dev/desktop-tcc-recover.sh from the granted "
+                        "terminal/IDE shell, then rerun — do not blind-retry."
+                    )
                 if is_retriable_page_transport(exc):
                     progress(f"page transport error during attempt: {last_error}")
                     raise

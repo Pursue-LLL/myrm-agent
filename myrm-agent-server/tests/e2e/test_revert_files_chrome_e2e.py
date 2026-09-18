@@ -96,9 +96,15 @@ def _probe_revert_changes_js(*, expect_empty: bool) -> str:
     // 与真实 RevertFiles 组件一致：刷新 hydrate 后 messageId 为 DB UUID，
     // 须用 requestMessageId（r- 前缀）定位快照，否则回退到 messageId。
     const mid = msg.requestMessageId || msg.messageId;
+    // 与前端 getApiBaseUrl 一致：优先 E2E 注入基址（种子落盘的隔离后端），
+    // 无注入时回退相对路径（共享后端）。否则种子与读取跨盘，恒为空。
+    const e2eBase = (window.__MYRM_E2E_RUNTIME__?.apiBase ?? window.__MYRM_E2E_API_BASE__ ?? '').replace(/\\/+$/, '');
+    const changesUrl = e2eBase
+      ? `${{e2eBase}}/api/v1/files/revert/changes/${{chatId}}/${{mid}}`
+      : `/api/v1/files/revert/changes/${{chatId}}/${{mid}}`;
     let last = {{ ok: false, status: 0, chatId, messageId: msg.messageId, requestMessageId: msg.requestMessageId ?? null, mid, body: '' }};
     for (let attempt = 0; attempt < 12; attempt += 1) {{
-      const res = await fetch(`/api/v1/files/revert/changes/${{chatId}}/${{mid}}`);
+      const res = await fetch(changesUrl);
       const body = await res.text();
       last = {{
         ok: {ok_check},

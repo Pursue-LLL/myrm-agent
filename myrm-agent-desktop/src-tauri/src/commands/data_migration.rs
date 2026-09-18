@@ -9,6 +9,8 @@
 //! - `get_available_disk_space`: 跨平台探测目标路径所在文件系统的剩余字节数
 //! - `calculate_dir_size`: 递归统计源目录有效业务数据总体积
 //! - `perform_data_migration`: 执行全量数据流式复制并支持异常自动清理
+//! - `perform_data_migration_with_progress`: 带逐条目进度回调的全量复制
+//! - `verify_migrated_size`: 拷贝后源与目标体积对账（静默损坏拦截）
 //! - `cleanup_migrated_entries`: 迁移失败时回滚清理目标目录已写入文件
 //!
 //! [POS]
@@ -207,8 +209,13 @@ pub fn get_available_disk_space(_path: &Path) -> Option<u64> {
     None
 }
 
-/// 递归复制目录（跳过符号链接防无限递归与越界逃逸）
-pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
+/// 带字节累积的递归复制；`bytes_copied` 累加每个成功落盘文件的体积
+/// （跳过符号链接防无限递归与越界逃逸）
+pub fn copy_dir_recursive_tracked(
+    src: &Path,
+    dst: &Path,
+    bytes_copied: &mut u64,
+) -> Result<(), String> {
     std::fs::create_dir_all(dst).map_err(|e| format!("Failed to create dir {:?}: {}", dst, e))?;
     for entry in
         std::fs::read_dir(src).map_err(|e| format!("Failed to read dir {:?}: {}", src, e))?
@@ -225,10 +232,11 @@ pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
         }
         let dst_path = dst.join(file_name);
         if src_path.is_dir() {
-            copy_dir_recursive(&src_path, &dst_path)?;
+            copy_dir_recursive_tracked(&src_path, &dst_path, bytes_copied)?;
         } else {
-            std::fs::copy(&src_path, &dst_path)
+            let copied = std::fs::copy(&src_path, &dst_path)
                 .map_err(|e| format!("Failed to copy {:?}: {}", src_path, e))?;
+            *bytes_copied = bytes_copied.saturating_add(copied);
         }
     }
     Ok(())
@@ -246,9 +254,31 @@ pub fn cleanup_migrated_entries(dst_dir: &Path, copied_entries: &[String]) {
     }
 }
 
+/// 迁移进度快照（按顶层条目 emit，供前端进度条消费）
+#[derive(Debug, Clone)]
+pub struct MigrationProgress {
+    pub done_entries: usize,
+    pub total_entries: usize,
+    pub current_entry: String,
+    pub bytes_copied: u64,
+    pub bytes_total: u64,
+}
+
 /// 执行动态全量数据迁移，返回已复制的条目清单
+#[cfg(test)]
 pub fn perform_data_migration(old_path: &Path, new_path: &Path) -> Result<Vec<String>, String> {
+    perform_data_migration_with_progress(old_path, new_path, 0, &|_| {})
+}
+
+/// 带逐条目进度回调的全量复制；`bytes_total` 为预检体积（0 表示未知，不阻塞）
+pub fn perform_data_migration_with_progress(
+    old_path: &Path,
+    new_path: &Path,
+    bytes_total: u64,
+    on_progress: &dyn Fn(MigrationProgress),
+) -> Result<Vec<String>, String> {
     let mut copied_entries: Vec<String> = Vec::new();
+    let mut bytes_copied: u64 = 0;
     if !old_path.exists() {
         return Ok(copied_entries);
     }
@@ -256,6 +286,7 @@ pub fn perform_data_migration(old_path: &Path, new_path: &Path) -> Result<Vec<St
     let read_res = std::fs::read_dir(old_path)
         .map_err(|e| format!("Failed to read source directory {:?}: {}", old_path, e))?;
 
+    let mut pending: Vec<(String, std::path::PathBuf)> = Vec::new();
     for entry in read_res {
         let entry = entry.map_err(|e| format!("Read entry error: {}", e))?;
         if entry.file_type().map(|ft| ft.is_symlink()).unwrap_or(false) {
@@ -265,19 +296,26 @@ pub fn perform_data_migration(old_path: &Path, new_path: &Path) -> Result<Vec<St
         if !should_migrate_entry(&file_name) {
             continue;
         }
+        pending.push((file_name, entry.path()));
+    }
+    let total_entries = pending.len();
 
-        let src = entry.path();
+    for (index, (file_name, src)) in pending.into_iter().enumerate() {
         let dst = new_path.join(&file_name);
 
         let copy_step = if src.is_dir() {
-            copy_dir_recursive(&src, &dst)
+            copy_dir_recursive_tracked(&src, &dst, &mut bytes_copied)
         } else {
             if let Some(parent) = dst.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }
-            std::fs::copy(&src, &dst)
-                .map(|_| ())
-                .map_err(|e| format!("Failed to copy file {}: {}", file_name, e))
+            match std::fs::copy(&src, &dst) {
+                Ok(copied) => {
+                    bytes_copied = bytes_copied.saturating_add(copied);
+                    Ok(())
+                }
+                Err(e) => Err(format!("Failed to copy file {}: {}", file_name, e)),
+            }
         };
 
         if let Err(err) = copy_step {
@@ -285,10 +323,30 @@ pub fn perform_data_migration(old_path: &Path, new_path: &Path) -> Result<Vec<St
             return Err(err);
         }
 
-        copied_entries.push(file_name);
+        copied_entries.push(file_name.clone());
+        on_progress(MigrationProgress {
+            done_entries: index + 1,
+            total_entries,
+            current_entry: file_name,
+            bytes_copied,
+            bytes_total,
+        });
     }
 
     Ok(copied_entries)
+}
+
+/// 拷贝后体积对账：源与目标有效业务体积必须一致，否则视为静默损坏
+pub fn verify_migrated_size(old_path: &Path, new_path: &Path) -> Result<u64, String> {
+    let src_bytes = calculate_dir_size(old_path);
+    let dst_bytes = calculate_dir_size(new_path);
+    if src_bytes != dst_bytes {
+        return Err(format!(
+            "Migration integrity check failed: source {} bytes but target {} bytes. Target left for inspection; original data untouched.",
+            src_bytes, dst_bytes
+        ));
+    }
+    Ok(dst_bytes)
 }
 
 #[cfg(test)]
@@ -359,6 +417,52 @@ mod tests {
         cleanup_migrated_entries(&new_dir, &copied);
         assert!(!new_dir.join("data.db").exists());
         assert!(!new_dir.join("skills").exists());
+    }
+
+    #[test]
+    fn test_verify_migrated_size_matches() {
+        let parent_tmp = tempdir().unwrap();
+        let old_dir = parent_tmp.path().join("source");
+        let new_dir = parent_tmp.path().join("target");
+        std::fs::create_dir_all(&old_dir).unwrap();
+        std::fs::write(old_dir.join("data.db"), b"0123456789").unwrap();
+
+        let copied = perform_data_migration(&old_dir, &new_dir).unwrap();
+        assert_eq!(copied, vec!["data.db".to_string()]);
+        assert_eq!(verify_migrated_size(&old_dir, &new_dir), Ok(10));
+    }
+
+    #[test]
+    fn test_verify_migrated_size_detects_truncation() {
+        let parent_tmp = tempdir().unwrap();
+        let old_dir = parent_tmp.path().join("source");
+        let new_dir = parent_tmp.path().join("target");
+        std::fs::create_dir_all(&old_dir).unwrap();
+        std::fs::create_dir_all(&new_dir).unwrap();
+        std::fs::write(old_dir.join("data.db"), b"0123456789").unwrap();
+        std::fs::write(new_dir.join("data.db"), b"01234").unwrap();
+
+        assert!(verify_migrated_size(&old_dir, &new_dir).is_err());
+    }
+
+    #[test]
+    fn test_progress_callback_per_entry() {
+        let parent_tmp = tempdir().unwrap();
+        let old_dir = parent_tmp.path().join("source");
+        let new_dir = parent_tmp.path().join("target");
+        std::fs::create_dir_all(&old_dir).unwrap();
+        std::fs::write(old_dir.join("a.db"), b"aaa").unwrap();
+        std::fs::write(old_dir.join("b.db"), b"bb").unwrap();
+
+        let seen = std::sync::Mutex::new(Vec::new());
+        let copied = perform_data_migration_with_progress(&old_dir, &new_dir, 5, &|p| {
+            seen.lock().unwrap().push((p.done_entries, p.bytes_copied));
+        })
+        .unwrap();
+        assert_eq!(copied.len(), 2);
+        let seen = seen.lock().unwrap();
+        assert_eq!(seen.len(), 2);
+        assert_eq!(seen[1], (2, 5));
     }
 
     #[test]

@@ -129,7 +129,10 @@ async def test_memory_e2e_real_world(client: TestClient):
 
     request_2 = {
         "messageId": str(uuid.uuid4()),
-        "query": "我最喜欢的颜色是什么？我的猫叫什么名字？请直接简短回答事实。",
+        "query": (
+            "请使用记忆检索工具（memory_search_tool）查询我的长期记忆，然后回答问题："
+            "我最喜欢的颜色是什么？我的猫叫什么名字？请直接简短回答事实。"
+        ),
         "chatId": chat_id_2,
         "modelSelection": get_model_selection(),
         "actionMode": "agent",

@@ -62,12 +62,17 @@ _PORTAL_WITH_TEXT_JS = """(() => {
   const text = container ? (container.innerText || '') : '';
   const store = window.__myrmArtifactPortalStore?.getState?.();
   const tabs = store?.openTabs ?? [];
+  const loading = !!document.querySelector('[data-testid="artifact-loading"], .animate-pulse, .animate-spin');
+  const errBox = document.querySelector('[data-testid="artifact-error"]');
   return {
     ready: !!container && text.includes('Deliverable E2E'),
     len: text.length,
     hasContainer: !!container,
     tabCount: tabs.length,
     tabFile: tabs.length > 0 ? (tabs[0]?.artifact?.filename ?? null) : null,
+    loading,
+    hasError: !!errBox,
+    errText: errBox ? (errBox.innerText || '').slice(0, 200) : null,
   };
 })()"""
 

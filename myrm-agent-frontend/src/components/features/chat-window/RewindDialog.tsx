@@ -20,6 +20,7 @@ import {
 import { rewindToMessage, type RewindResult } from '@/services/chat';
 import { ApiError } from '@/lib/api';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
+import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { useToast } from '@/hooks/shared/useToast';
 import useChatStore from '@/store/useChatStore';
 import { stripUserMessageDisplayText, parseExplicitSkillActivation } from '@/lib/utils/messageUtils';
@@ -83,7 +84,7 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       const results = await Promise.all(
         assistantIds.map(async (mid) => {
           try {
-            const res = await fetch(`/api/v1/files/revert/changes/${chatId}/${mid}`, {
+            const res = await fetch(`${getBackendUrl()}/api/v1/files/revert/changes/${chatId}/${mid}`, {
               headers: getAuthHeaders(),
             });
             if (!res.ok) {

@@ -10,6 +10,7 @@ import { IconTrash, IconUndo } from '@/components/features/icons/PremiumIcons';
 import { DiffViewer } from '@/lib/diff/DiffViewer';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getAuthHeaders } from '@/lib/utils/authHeaders';
+import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { toast } from '@/hooks/shared/useToast';
 
 interface FileChange {
@@ -59,7 +60,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
 
   const fetchChanges = useCallback(async (): Promise<FileChange[] | 'error'> => {
     try {
-      const res = await fetch(`/api/v1/files/revert/changes/${chatId}/${messageId}`, {
+      const res = await fetch(`${getBackendUrl()}/api/v1/files/revert/changes/${chatId}/${messageId}`, {
         headers: getAuthHeaders(),
       });
       if (!res.ok) {
@@ -92,7 +93,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
 
   const fetchDiffs = useCallback(async () => {
     try {
-      const res = await fetch(`/api/v1/files/revert/diff/${chatId}/${messageId}`, {
+      const res = await fetch(`${getBackendUrl()}/api/v1/files/revert/diff/${chatId}/${messageId}`, {
         headers: getAuthHeaders(),
       });
       if (!res.ok) {
@@ -186,7 +187,7 @@ const RevertFiles = ({ chatId, messageId }: RevertFilesProps) => {
     const nonRevertibleCount = changes?.filter((c) => c.revertible === false).length ?? 0;
     setStatus('loading');
     try {
-      const res = await fetch('/api/v1/files/revert/message', {
+      const res = await fetch(`${getBackendUrl()}/api/v1/files/revert/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
