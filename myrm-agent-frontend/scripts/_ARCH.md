@@ -39,7 +39,7 @@
 | `verify-shell-i18n-runtime.mjs` | 运行时 SSR HTML / deferred API 校验（dev；shell 清单从 locale-manifest 解析） |
 | `split-locale-namespaces.mjs` | 从 `locales/{lang}.json` 生成 `locales/namespaces/`（`dev.ts` / `build` / `build:tauri` / `prestart` / `pretest` 前置） |
 | `sync_i18n.py` | 从 en（SSOT）补全其余 5 种语言缺失键（本地维护） |
-| `dev.ts` | locale split + Next dev 入口（`dev` / `dev:lan` / `dev:clean`；pause gate；`node --require next-dev-gate.cjs`；lock 健康跳过） |
+| `dev.ts` | locale split + Next dev 入口（`dev` / `dev:lan` / `dev:clean`；pause gate；`node --require next-dev-gate.cjs`；lock 健康跳过；Next 启动前先 `strip_isolated_tsconfig.py` 清除上一条 lane 写入共享 `next-env.d.ts` 的 dist import，实现 lane 级单写者） |
 | `dev-lock.ts` | dev lock 读写与 LISTEN 健康判定 |
 | `frontend-dev-pause-gate.ts` | TS pause gate SSOT（probe / enforce / reclaim）；`dev.ts` + `next.config.ts` |
 | `next-dev-gate.cjs` | Node/Bun preload gate；SSOT 仍 `frontend_dev_pause.py` |

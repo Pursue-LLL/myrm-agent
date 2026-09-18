@@ -121,6 +121,7 @@ function setupSignalHandlers(child: ChildProcess) {
       }
       setTimeout(() => {
         killListenersOnPort(APP_DEV_PORT, true);
+        normalizeSharedTsConfig();
         releaseDevLock();
         process.exit(0);
       }, 1000);
@@ -183,6 +184,33 @@ reclaimAndExitIfPaused();
 console.log(`🧹 Freeing port ${APP_DEV_PORT} (myrm-agent-frontend only)...`);
 killListenersOnPort(APP_DEV_PORT);
 acquireDevLock(APP_DEV_PORT);
+
+/**
+ * Restore the shared TypeScript entry files before Next starts.
+ *
+ * Next writes this lane's dist paths into the shared `tsconfig.json` include list and
+ * `next-env.d.ts` imports on every start. `tsconfig.json` opts out structurally by
+ * declaring `extends`, but `next-env.d.ts` has no equivalent switch — Next always
+ * rewrites it with the current lane's paths. Every lane therefore inherits whatever
+ * dist directory ran last, and a lane that exits uncleanly keeps owning the imports
+ * until some later teardown strips them.
+ *
+ * Because each lane is its own process, clearing the previous lane's imports here
+ * makes ownership single-writer: a lane always starts from the canonical config and is
+ * free to write its own. That is what every lane needs anyway — pointing
+ * `next-env.d.ts` at another lane's dist directory is never correct.
+ */
+function normalizeSharedTsConfig(): void {
+  const result = spawnSync('python3', ['scripts/strip_isolated_tsconfig.py'], {
+    cwd: process.cwd(),
+    encoding: 'utf-8',
+  });
+  if (result.status !== 0) {
+    console.warn('⚠️  strip_isolated_tsconfig.py exited non-zero; continuing with Next startup');
+  }
+}
+
+normalizeSharedTsConfig();
 
 const bindLan =
   process.env.WEBUI_DEV_BIND_ALL === '1' || process.env.WEBUI_DEV_BIND_ALL === 'true' || args.includes('--lan');
@@ -254,6 +282,7 @@ setupSignalHandlers(child);
 child.on('exit', (code) => {
   console.log('🏁 Next.js exited with code:', code);
   killListenersOnPort(APP_DEV_PORT, true);
+  normalizeSharedTsConfig();
   releaseDevLock();
   process.exit(code ?? 0);
 });
