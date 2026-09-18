@@ -32,7 +32,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
           id: 'm-1',
           role: 'user',
           content: 'Hello World',
-          createdAt: '2026-08-20T00:00:00.000Z',
+          createdAt: new Date('2026-08-20T00:00:00.000Z'),
         },
       ],
       actionMode: 'agent',
@@ -57,7 +57,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
           id: 'm-2',
           role: 'assistant',
           content: 'Persisted Response',
-          createdAt: '2026-08-20T00:00:00.000Z',
+          createdAt: new Date('2026-08-20T00:00:00.000Z'),
         },
       ],
       actionMode: 'fast',
@@ -84,7 +84,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
   it('evicts oldest entries in L2 when exceeding MAX_L2_ENTRIES (3 entries limit)', () => {
     for (let i = 1; i <= 4; i++) {
       saveChatNavigationSnapshot(`chat-${i}`, {
-        messages: [{ id: `m-${i}`, role: 'user', content: `Message ${i}`, createdAt: '2026-08-20' }],
+        messages: [{ id: `m-${i}`, role: 'user', content: `Message ${i}`, createdAt: new Date('2026-08-20') }],
       });
     }
 
@@ -101,7 +101,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
   it('skips L2 storage for incognitoMode sessions', () => {
     saveChatNavigationSnapshot('chat-incognito', {
       incognitoMode: true,
-      messages: [{ id: 'm-incognito', role: 'user', content: 'Secret prompt', createdAt: '2026-08-20' }],
+      messages: [{ id: 'm-incognito', role: 'user', content: 'Secret prompt', createdAt: new Date('2026-08-20') }],
     });
 
     // L1 中应存在
@@ -120,8 +120,16 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
           id: 'm-img',
           role: 'user',
           content: 'Here is an image',
-          createdAt: '2026-08-20',
-          files: [{ id: 'f-1', name: 'test.png', url: largeBase64, size: 2048 }],
+          createdAt: new Date('2026-08-20'),
+          files: [
+            {
+              id: 'f-1',
+              fileName: 'test.png',
+              fileExtension: 'png',
+              fileType: 'uploaded',
+              fileUrl: largeBase64,
+            },
+          ],
         },
       ],
     });
@@ -132,7 +140,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
     // loading 必须被安全重置为 false
     expect(parsed.loading).toBe(false);
     // 超大 base64 必须被安全裁剪
-    expect(parsed.messages[0].files[0].url).toBe('');
+    expect(parsed.messages[0].files[0].fileUrl).toBe('');
   });
 
   it('handles QuotaExceeded gracefully without throwing', () => {
@@ -142,7 +150,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
 
     expect(() => {
       saveChatNavigationSnapshot('chat-quota-fail', {
-        messages: [{ id: 'm-quota', role: 'user', content: 'Safe fallback', createdAt: '2026-08-20' }],
+        messages: [{ id: 'm-quota', role: 'user', content: 'Safe fallback', createdAt: new Date('2026-08-20') }],
       });
     }).not.toThrow();
 
@@ -155,7 +163,7 @@ describe('chatNavigationSnapshotCache (L1/L2 Fast UI Restore)', () => {
 
   it('clears snapshot from both L1 and L2', () => {
     saveChatNavigationSnapshot('chat-to-clear', {
-      messages: [{ id: 'm-c', role: 'user', content: 'To be cleared', createdAt: '2026-08-20' }],
+      messages: [{ id: 'm-c', role: 'user', content: 'To be cleared', createdAt: new Date('2026-08-20') }],
     });
 
     expect(getChatNavigationSnapshot('chat-to-clear')).not.toBeNull();

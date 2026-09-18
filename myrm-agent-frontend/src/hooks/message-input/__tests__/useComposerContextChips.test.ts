@@ -65,7 +65,7 @@ describe('useComposerContextChips', () => {
         clearCurrentSessionMessageId: vi.fn(),
         mentionReferences: [
           {
-            type: 'file',
+            type: 'workspace_file',
             path: 'src/index.ts',
             label: 'index.ts',
             startLine: 1,
@@ -84,7 +84,7 @@ describe('useComposerContextChips', () => {
       result.current.chips[0].onRemove?.();
     });
 
-    expect(removeMentionReference).toHaveBeenCalledWith('file:src/index.ts:1:20');
+    expect(removeMentionReference).toHaveBeenCalledWith('workspace_file:src/index.ts:1:20');
   });
 
   it('hides individual file chips when hideAttachList is false (AttachList handles preview)', () => {
@@ -93,7 +93,7 @@ describe('useComposerContextChips', () => {
         id: 'file-1',
         fileName: 'architecture.png',
         fileExtension: 'png',
-        fileSize: 1024,
+        fileType: 'uploaded',
         fileUrl: 'blob://arch',
         status: 'ready',
       },
@@ -126,7 +126,7 @@ describe('useComposerContextChips', () => {
         id: 'file-1',
         fileName: 'architecture.png',
         fileExtension: 'png',
-        fileSize: 1024,
+        fileType: 'uploaded',
         fileUrl: 'blob://arch',
         status: 'ready',
       },
