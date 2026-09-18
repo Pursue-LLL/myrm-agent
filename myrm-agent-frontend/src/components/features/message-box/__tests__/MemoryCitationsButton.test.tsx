@@ -242,7 +242,6 @@ describe('MemoryCitationsButton', () => {
           {
             id: 'mem-multi-line',
             content: 'Rule line 1\nRule line 2\n\nRule line 3',
-            type: 'semantic',
           },
         ]}
       />,

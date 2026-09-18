@@ -76,7 +76,7 @@ describe('batchRisk classification logic', () => {
       severity: 'info',
       payload: {
         tool_name: 'bash',
-        command: 'rm -rf /Users/test/data',
+        tool_input: { command: 'rm -rf /Users/test/data' },
       },
     };
     const res = classifySingleApprovalRisk(item);

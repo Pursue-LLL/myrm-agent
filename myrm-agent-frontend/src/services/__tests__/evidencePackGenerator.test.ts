@@ -62,7 +62,6 @@ describe('evidencePackGenerator', () => {
         timestamp: 1015,
         error_type: 'SyntaxError',
         error: 'SyntaxError: Unexpected token in sync.ts',
-        recoverable: true,
       },
     ],
     human_feedback: [],

@@ -73,6 +73,8 @@ describe('BrowserLiveView', () => {
         viewportWidth: 1280,
         viewportHeight: 720,
         isTurnView: true,
+        pageUrl: 'https://example.com',
+        pageTitle: 'Example',
         updatedAt: Date.now(),
       },
     });
@@ -94,6 +96,8 @@ describe('BrowserLiveView', () => {
         viewportWidth: 1280,
         viewportHeight: 720,
         isTurnView: true,
+        pageUrl: 'https://example.com',
+        pageTitle: 'Example',
         updatedAt: Date.now(),
       },
     });
@@ -136,6 +140,8 @@ describe('BrowserLiveView', () => {
         viewportWidth: 1280,
         viewportHeight: 720,
         isTurnView: true,
+        pageUrl: 'https://example.com',
+        pageTitle: 'Example',
         updatedAt: Date.now(),
       },
     });

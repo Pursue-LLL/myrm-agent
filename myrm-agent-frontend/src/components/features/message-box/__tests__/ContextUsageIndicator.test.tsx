@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ContextUsageIndicator from '../ContextUsageIndicator';
 import type { ContextHealth } from '@/services/contextHealth';
 import type { ContextHealthStatus } from '@/store/chat/types';
+import type { ContextBudget } from '@/store/chat/types/contextMetrics';
 
 const translate = vi.hoisted(() => (key: string, params?: Record<string, unknown>) => {
   if (params) {
@@ -743,7 +744,7 @@ describe('ContextUsageIndicator', () => {
             mcp_tools_tokens: 8000,
             skills_tools_tokens: 4000,
             builtin_tools_tokens: 3000,
-          },
+          } as ContextBudget,
         },
       ];
       render(<ContextUsageIndicator />);

@@ -1225,8 +1225,12 @@ describe('messageRequest - mention reference lifetime contract', () => {
     createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
 
     const customAgentConfig: AgentConfig = {
-      id: 'agent-moa',
-      name: 'MoA Agent',
+      agentId: 'agent-moa',
+      agentName: 'MoA Agent',
+      systemPrompt: '',
+      useGlobalInstruction: true,
+      selectedSkillIds: [],
+      selectedMcpNames: [],
       engineParams: {
         moa_overlay: {
           auto_on_reasoning: true,

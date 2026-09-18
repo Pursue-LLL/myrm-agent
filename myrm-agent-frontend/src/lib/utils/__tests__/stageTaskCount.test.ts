@@ -26,7 +26,7 @@ describe('classifyNodeStage', () => {
     const nodeWithVerification = mkNode({
       task_id: '2b',
       agent_type: 'auditor',
-      verification: { passed: true, rounds: 1, max_rounds: 3, confidence: 0.95 },
+      verification: { passed: true, rounds: 1, max_rounds: 3, confidence: 'high' },
     });
     expect(classifyNodeStage(nodeWithVerification).category).toBe('verify');
   });

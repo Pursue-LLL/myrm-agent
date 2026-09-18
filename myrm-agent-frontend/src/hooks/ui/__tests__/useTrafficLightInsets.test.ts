@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useTrafficLightInsets } from '../useTrafficLightInsets';
 import { desktopBridge } from '@/lib/desktop-bridge';
+import type { DesktopPlatform } from '@/lib/desktop-bridge/types';
 
 function mockControls(
   overrides: Partial<{
@@ -18,10 +19,11 @@ function mockControls(
   }> = {},
 ) {
   vi.spyOn(desktopBridge, 'getWindowControlsState').mockReturnValue({
-    platform: 'web',
+    platform: 'macos' as DesktopPlatform,
     isDesktop: false,
     controlsInsetTop: 0,
     controlsInsetLeft: 0,
+    isOverlayTitlebar: false,
     ...overrides,
   });
 }

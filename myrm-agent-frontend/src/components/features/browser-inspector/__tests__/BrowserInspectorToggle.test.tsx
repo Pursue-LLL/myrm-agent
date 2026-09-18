@@ -119,6 +119,8 @@ describe('BrowserInspectorToggle', () => {
         viewportWidth: 800,
         viewportHeight: 600,
         isTurnView: true,
+        pageUrl: 'https://example.com',
+        pageTitle: 'Example',
         updatedAt: Date.now(),
       },
     });

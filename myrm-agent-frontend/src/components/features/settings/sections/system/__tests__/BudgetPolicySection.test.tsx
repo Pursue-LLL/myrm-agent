@@ -36,15 +36,14 @@ describe('BudgetPolicySection', () => {
   };
 
   const mockStatus: BudgetStatus = {
+    enabled: true,
     status: 'warning',
-    daily_spend_usd: 12.5,
     daily_limit_usd: 15.0,
-    daily_percent: 83.3,
-    active_sessions: 2,
-    total_calls_today: 45,
-    warning_triggered: true,
-    finalization_triggered: false,
-    exceeded_triggered: false,
+    session_limit_usd: 5.0,
+    today_cost_usd: 12.5,
+    session_cost_usd: 1.5,
+    remaining_usd: 2.5,
+    usage_pct: 83.3,
   };
 
   const mockFleetItems: FleetQuotaItem[] = [

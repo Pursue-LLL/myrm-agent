@@ -41,6 +41,8 @@ describe('QueuedMessagesList override badge', () => {
           skillIds: ['skill-1', 'skill-2'],
           mcpNames: ['mcp-1'],
         },
+        files: [],
+        timestamp: 1,
       },
       {
         id: 'q-2',

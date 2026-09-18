@@ -65,7 +65,7 @@ describe('MemoryDetailSheet evolution rendering', () => {
       content: 'user prefers dark mode',
       merge_count: 2,
       merge_history: '09-12 10:00|MERGE|prefers dark mode\n09-13 18:30|REPLACE|moved to global',
-    } as Memory);
+    } as unknown as Memory);
 
     expect(screen.getByText('fields.evolutionHistory')).toBeInTheDocument();
     // mergeCount 徽标：stableT 对带 count 的 key 返回 "key count"
@@ -81,7 +81,7 @@ describe('MemoryDetailSheet evolution rendering', () => {
       memory_type: 'semantic',
       content: 'corrected fact',
       correction_of: 'abcdef1234567890',
-    } as Memory);
+    } as unknown as Memory);
 
     expect(screen.getByText('fields.corrects')).toBeInTheDocument();
     expect(screen.getByText('abcdef12')).toBeInTheDocument();
@@ -92,7 +92,7 @@ describe('MemoryDetailSheet evolution rendering', () => {
       id: 'm3',
       memory_type: 'semantic',
       content: 'plain fact',
-    } as Memory);
+    } as unknown as Memory);
 
     expect(screen.queryByText('fields.evolutionHistory')).not.toBeInTheDocument();
     expect(screen.queryByText('fields.corrects')).not.toBeInTheDocument();
@@ -116,7 +116,7 @@ describe('MemoryDetailSheet evolution rendering', () => {
       memory_type: 'semantic',
       content: 'fact with evidence',
       metadata: { quote_snippet: '用户原话引用片段' },
-    } as Memory);
+    } as unknown as Memory);
 
     expect(screen.getByText('sourceEvidence')).toBeInTheDocument();
     expect(screen.getByText('「用户原话引用片段」')).toBeInTheDocument();
@@ -129,7 +129,7 @@ describe('MemoryDetailSheet evolution rendering', () => {
       content: 'fact with evidence',
       metadata: { quote_snippet: 'I prefer dark mode' },
       merge_history: '09-12 10:00|MERGE|dark mode noted',
-    } as Memory);
+    } as unknown as Memory);
 
     expect(screen.getByText('sourceEvidence')).toBeInTheDocument();
     expect(screen.getByText(/「I prefer dark mode」/)).toBeInTheDocument();

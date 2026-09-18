@@ -151,7 +151,7 @@ describe('VoiceModeHostReadyGate in useSpeechInput', () => {
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     };
-    // @ts-expect-error mock Web Speech constructor
+    // mock Web Speech constructor
     window.SpeechRecognition = vi.fn().mockImplementation(function (this: unknown) {
       return mockRecognition;
     });
