@@ -12,7 +12,7 @@
 | deploy_pkg/ | 核心 | 部署子包：actions/checks/constants/docker_core/modes/utils | ✅ |
 | cli.py | 核心 | Myrm CLI 配置管理工具（config validate 等） | ✅ |
 | check_fractal_docs.py | 门禁 | 分形文档合规（`app/**` 目录 `_ARCH.md`；`--strict-headers` + baseline；`--no-stub` 守卫 `api/` 与 `channels/providers/`） | ✅ |
-| check_file_line_budget.py | 门禁 | 禁止新增超过 400 行的 Python 模块（`scripts/ci/file_line_budget_baseline.txt` grandfather 存量） | ✅ |
+| check_file_line_budget.py | 自查工具 | Python 单文件 400 行预算本地自查（超限清单见 `scripts/ci/file_line_budget_baseline.txt`）；不接入 CI 阻断 | ✅ |
 | sync_arch_file_tables.py | 工具 | 从文件头 POS/模块 docstring 刷新 stub `_ARCH.md` 文件表（`--path-prefix` / `--force`） | ✅ |
 | run_myrm_core_coverage_gate.sh | 门禁 | Harness 核心搜索+上下文路径覆盖率 ≥80% 门禁 | ✅ |
 | cleanup_qdrant_locks.py | 运维 | 清理 Qdrant 嵌入式模式残留锁文件（运行时自动调用） | ✅ |

@@ -100,7 +100,7 @@
 | `app/tasks/`          | 后台任务层   | 消费 harness `toolkits/tasks/` 队列：worker、executor、crypto、SSE 事件；异步入图生产路径 |
 | `app/config/`         | 配置层       | 环境变量、设置、部署模式检测、预检                                                                                               |
 | `tests/`              | 测试套件     | 单元/集成/API 测试；默认 `pytest -m 'not e2e'`；WebUI E2E 用 MCP chrome-devtools（禁止 `@playwright/test`）；CI 见 `scripts/ci/run_default_tests.sh`                                                                                                     |
-| `scripts/`            | 运维脚本     | 部署脚本、CLI、分形文档门禁（`check_fractal_docs.py`：`--strict-headers` + `--no-stub`；`check_file_line_budget.py`；见 `scripts/ci/run_architecture_gates.sh`） |
+| `scripts/`            | 运维脚本     | 部署脚本、CLI、分形文档门禁（`check_fractal_docs.py`：`--strict-headers` + `--no-stub`；见 `scripts/ci/run_architecture_gates.sh`） |
 | `docker/`             | 容器构建     | Server runtime：`Dockerfile.official`（源码双 wheel）；`../Dockerfile`（PyPI / 预构建 wheel）；`sandbox/` 技能沙箱镜像 |
 | `deployments/`        | 部署配置     | Prometheus 规则等运维配置                                                                                                        |
 | `searxng/`            | 搜索引擎配置 | SearXNG 搜索引擎部署配置                                                                                                         |

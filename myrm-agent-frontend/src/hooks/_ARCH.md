@@ -56,6 +56,6 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 ## 约束
 
 - Hook 内不写 UI JSX（除 `globalEvents/*.tsx` 等 toast 渲染例外）。
-- 单文件 >400 行应拆分子 hook 或下沉逻辑到 `@/lib`；**已在** `scripts/ci/file_line_budget_baseline.txt` **登记者为 CI 存量豁免**（禁止新增超标文件，见 `scripts/check_file_line_budget.py`）。
+- 单文件 >400 行应拆分子 hook 或下沉逻辑到 `@/lib`；超出清单见 `scripts/ci/file_line_budget_baseline.txt`（本地自查，非 CI 阻断）。
 - 域外 import：`@/hooks/<domain>/<file>`；域内优先相对 import。
 - 桶导出政策见根 [_ARCH.md](../../_ARCH.md)「桶导出政策」表。
