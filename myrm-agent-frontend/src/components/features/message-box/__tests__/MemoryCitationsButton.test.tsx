@@ -179,7 +179,7 @@ describe('MemoryCitationsButton', () => {
         sources={[
           {
             index: 1,
-            type: 'knowledge_base',
+            type: 'knowledge',
             title: 'Local Policy Guide',
             url: '',
           },

@@ -19,7 +19,6 @@ describe('CronRunItem', () => {
     duration_ms: 5000,
     status: 'ok',
     output: 'Execution succeeded',
-    error: null,
     tokens_used: 1500,
   };
 
@@ -52,7 +51,6 @@ describe('CronRunItem', () => {
       ...baseRun,
       id: 'run-cb-2',
       status: 'circuit_break',
-      error: null,
     };
 
     render(<CronRunItem run={circuitBreakRunWithoutError} isLast={false} />);

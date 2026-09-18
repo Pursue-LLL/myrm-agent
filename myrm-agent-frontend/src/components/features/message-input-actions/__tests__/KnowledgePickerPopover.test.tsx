@@ -135,11 +135,13 @@ describe('KnowledgePickerPopover Component', () => {
   it('loads available contexts and mounts selected context on click', async () => {
     const mockContext = {
       id: 'kb-test-1',
+      namespace: 'default',
       name: '研发规范与架构守则',
       description: '团队内部架构指南',
       status: 'active' as const,
-      created_at: 1700000000,
-      updated_at: 1700000000,
+      policy: {},
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
     };
 
     vi.mocked(sharedContextsApi.listSharedContexts).mockResolvedValue({
