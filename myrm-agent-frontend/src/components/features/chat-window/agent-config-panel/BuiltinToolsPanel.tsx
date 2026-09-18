@@ -218,8 +218,9 @@ function ExternalCliConfigSection({
         }
       } catch {
         if (!cancelled) {
-          setReadiness('unavailable');
-          onBackendReady?.(false);
+          // Detection unavailable: claim neither state, so no misleading hint is shown.
+          setReadiness(null);
+          onBackendReady?.(null);
         }
       }
     })();

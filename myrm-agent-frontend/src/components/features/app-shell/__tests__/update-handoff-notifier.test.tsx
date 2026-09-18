@@ -39,14 +39,14 @@ describe('UpdateHandoffNotifier component', () => {
     vi.clearAllMocks();
     vi.spyOn(deployMode, 'isTauriRuntime').mockReturnValue(true);
     vi.spyOn(appUpdateHook, 'useAppUpdate').mockReturnValue({
-      state: 'idle',
-      updateInfo: null,
-      progress: null,
+      phase: 'idle',
+      info: null,
+      bytesDownloaded: 0,
+      totalBytes: null,
       error: null,
       check: mockCheck,
-      downloadAndInstall: vi.fn(),
-      dismiss: vi.fn(),
-      setDismissed: vi.fn(),
+      install: vi.fn(),
+      reset: vi.fn(),
     });
   });
 
@@ -56,6 +56,7 @@ describe('UpdateHandoffNotifier component', () => {
       result: {
         type: 'success',
         fromVersion: '0.1.0',
+        targetVersion: '0.2.0',
         currentVersion: '0.2.0',
       },
       dismiss: mockDismiss,
@@ -72,6 +73,7 @@ describe('UpdateHandoffNotifier component', () => {
     vi.spyOn(handoffHook, 'useUpdateHandoff').mockReturnValue({
       result: null,
       dismiss: mockDismiss,
+      recordHandoff: vi.fn(),
     });
 
     render(<UpdateHandoffNotifier />);
@@ -86,6 +88,7 @@ describe('UpdateHandoffNotifier component', () => {
       result: {
         type: 'success',
         fromVersion: '0.1.0',
+        targetVersion: '0.2.0',
         currentVersion: '0.2.0',
       },
       dismiss: mockDismiss,
@@ -107,6 +110,7 @@ describe('UpdateHandoffNotifier component', () => {
     vi.spyOn(handoffHook, 'useUpdateHandoff').mockReturnValue({
       result: {
         type: 'failure',
+        fromVersion: '0.1.0',
         targetVersion: '0.3.0',
         currentVersion: '0.1.0',
       },
