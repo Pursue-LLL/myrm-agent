@@ -1,6 +1,12 @@
 name: Desktop fractal docs
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'myrm-agent-desktop/**'
+      - '.github/workflows/desktop-fractal-docs.yml'
   pull_request:
     paths:
       - 'myrm-agent-desktop/**'

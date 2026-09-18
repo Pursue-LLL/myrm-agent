@@ -1,6 +1,19 @@
 name: Server architecture gates
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'myrm-agent-server/app/**'
+      - 'myrm-agent-server/assets/**'
+      - 'myrm-agent-server/tests/architecture/**'
+      - 'myrm-agent-server/**/*.md'
+      - 'myrm-agent-server/pyproject.toml'
+      - 'myrm-agent-server/uv.lock'
+      - 'myrm-agent-server/Dockerfile'
+      - 'myrm-agent-server/docker/**'
+      - 'myrm-agent-server/scripts/ci/run_architecture_gates.sh'
   pull_request:
     paths:
       - 'myrm-agent-server/app/**'

@@ -1,6 +1,13 @@
 name: Frontend build
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'myrm-agent-frontend/**'
+      - 'shared/**'
+      - '.github/workflows/frontend-build.yml'
   pull_request:
     paths:
       - 'myrm-agent-frontend/**'
