@@ -9,7 +9,7 @@ import {
 describe('evidencePackGenerator', () => {
   const mockTrace: ExecutionTrace = {
     session_id: 'sess-abc-123',
-    metadata: { agent_id: 'agent-1' },
+    metadata: { user_id: null, agent_id: 'agent-1', task_type: null, trace_id: null },
     outcome: 'success',
     start_time: 1000,
     end_time: 1050,
@@ -59,7 +59,6 @@ describe('evidencePackGenerator', () => {
     llm_calls: [],
     errors: [
       {
-        sequence: 1,
         timestamp: 1015,
         error_type: 'SyntaxError',
         error: 'SyntaxError: Unexpected token in sync.ts',

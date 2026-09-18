@@ -74,23 +74,15 @@ export function resolveExternalAgentBadgeKind(
 /**
  * Match a configured command to the server's status row for the same backend.
  *
- * Matches the executable basename exactly: the server only tracks its own known
- * binaries, so a derived name (`claude-bedrock`) or a wrapper is a different program it
- * cannot vouch for. Returns undefined for those, which callers treat as unknown.
+ * Receives only a non-empty, path-free command (the caller handles explicit paths), so
+ * this compares the bare executable name — minus any extension like `.cmd` / `.exe`.
+ * Returns undefined for a name the server does not track, which callers treat as unknown.
  */
 function resolveConfiguredBackendStatus(
   command: string,
   statuses: ReadonlyArray<ExternalAgentAuthStatus>,
 ): ExternalAgentAuthStatus | undefined {
-  const executable = command
-    .trim()
-    .split(/[\\/]/)
-    .pop()
-    ?.toLowerCase()
-    .replace(/\.[^.]+$/, '');
-  if (!executable) {
-    return undefined;
-  }
+  const executable = command.toLowerCase().replace(/\.[^.]+$/, '');
   return statuses.find((row) => executable === row.backend.toLowerCase());
 }
 

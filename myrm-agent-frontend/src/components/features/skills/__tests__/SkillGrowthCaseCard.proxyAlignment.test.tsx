@@ -106,7 +106,14 @@ describe('SkillGrowthCaseCard Proxy Alignment Badges', () => {
       },
     });
 
-    render(<SkillGrowthCaseCard item={item} isSimple={true} />);
+    render(
+      <SkillGrowthCaseCard
+        item={item}
+        isProcessing={false}
+        onApprove={async () => {}}
+        onReject={async () => {}}
+      />,
+    );
 
     expect(screen.getByText('Goodhart Drift Risk')).toBeInTheDocument();
   });
@@ -124,7 +131,14 @@ describe('SkillGrowthCaseCard Proxy Alignment Badges', () => {
       },
     });
 
-    render(<SkillGrowthCaseCard item={item} isSimple={true} />);
+    render(
+      <SkillGrowthCaseCard
+        item={item}
+        isProcessing={false}
+        onApprove={async () => {}}
+        onReject={async () => {}}
+      />,
+    );
 
     expect(screen.getByText('Metrics Aligned')).toBeInTheDocument();
   });

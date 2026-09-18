@@ -103,7 +103,7 @@ function makeActions(): Parameters<typeof loadMessages>[1] {
   } as unknown as Parameters<typeof loadMessages>[1];
 }
 
-function chatDetailPayload(): Record<string, unknown> {
+function chatDetailPayload(): { chat: Record<string, unknown> } {
   return {
     chat: {
       actionMode: 'agent',
