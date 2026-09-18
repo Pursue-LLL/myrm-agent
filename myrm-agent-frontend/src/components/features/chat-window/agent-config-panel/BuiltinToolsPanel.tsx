@@ -33,7 +33,7 @@ import { KanbanConfigSection } from './KanbanConfigSection';
 import { useFeatureEntitlements } from '@/hooks/billing/useFeatureEntitlements';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import { getConfigSyncManager } from '@/services/config';
-import { getExternalAgentAuthStatus, hasExternalCliBackendAvailable } from '@/services/external-agents';
+import { getExternalAgentAuthStatus, resolveExternalCliReadiness, type ExternalCliReadiness } from '@/services/external-agents';
 
 export interface BuiltinToolsPanelProps {
   localBuiltinTools: BuiltinToolId[];
@@ -202,7 +202,7 @@ function ExternalCliConfigSection({
   onBackendReady?: (ready: boolean | null) => void;
 }) {
   const localOnly = isLocalMode();
-  const [hasEnabledBackend, setHasEnabledBackend] = useState<boolean | null>(null);
+  const [readiness, setReadiness] = useState<ExternalCliReadiness | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -211,14 +211,14 @@ function ExternalCliConfigSection({
       try {
         const agents = getConfigSyncManager().get('externalAgents')?.agents ?? [];
         const statuses = await getExternalAgentAuthStatus();
-        const ready = hasExternalCliBackendAvailable(agents, statuses, localOnly);
+        const resolved = resolveExternalCliReadiness(agents, statuses, localOnly);
         if (!cancelled) {
-          setHasEnabledBackend(ready);
-          onBackendReady?.(ready);
+          setReadiness(resolved);
+          onBackendReady?.(resolved !== 'not_configured');
         }
       } catch {
         if (!cancelled) {
-          setHasEnabledBackend(false);
+          setReadiness('unavailable');
           onBackendReady?.(false);
         }
       }
@@ -237,13 +237,19 @@ function ExternalCliConfigSection({
           {tPanel('externalCliLocalOnlyHint')}
         </p>
       )}
-      {hasEnabledBackend === false && (
+      {readiness === 'not_configured' && (
         <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
           <AlertCircle size={12} className="mt-0.5 shrink-0" />
           {tPanel('externalCliNoBackendHint')}
         </p>
       )}
-      {hasEnabledBackend === true && localOnly && (
+      {readiness === 'unavailable' && (
+        <p className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+          <AlertCircle size={12} className="mt-0.5 shrink-0" />
+          {tPanel('externalCliUnavailableHint')}
+        </p>
+      )}
+      {readiness === 'ready' && localOnly && (
         <p className="text-xs text-muted-foreground leading-relaxed">{tPanel('externalCliPermissionHint')}</p>
       )}
       <Link

@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import useChatStore from '@/store/useChatStore';
-import { SpreadsheetSelectionToolbar } from '../../portal/SpreadsheetSelectionToolbar';
+import { SpreadsheetSelectionToolbar } from './SpreadsheetSelectionToolbar';
 
 interface DataGridProps {
   headers: string[];

@@ -75,7 +75,7 @@ export function resolveExternalAgentBadgeKind(
  * Match a configured command to the server's status row for the same backend.
  *
  * Returns undefined for a command the server does not track (a custom wrapper or an
- * unknown CLI), which callers must treat as "unverifiable" rather than as failure.
+ * unknown CLI).
  */
 function resolveConfiguredBackendStatus(
   command: string,
@@ -97,45 +97,45 @@ function resolveConfiguredBackendStatus(
 }
 
 /**
- * True when an enabled CLI backend can actually be delegated to, per the server.
- *
- * A configured command alone proves nothing — the CLI may be missing from PATH, in
- * which case delegation fails at spawn time. Known backends therefore require the
- * server's `readyForDelegation`; a custom command the server does not track is
- * unverifiable, so the explicit user configuration is trusted instead of blocking it.
+ * Delegation readiness, split so the UI can tell "nothing configured" apart from
+ * "configured but not installed" — two different problems needing two different fixes.
  */
-export function hasResolvableExternalCliBackend(
-  agents: ReadonlyArray<{ enabled?: boolean; command?: string }> | undefined,
-  statuses: ReadonlyArray<ExternalAgentAuthStatus>,
-): boolean {
-  return (agents ?? []).some((agent) => {
-    const command = agent.command?.trim();
-    if (agent.enabled === false || !command) {
-      return false;
-    }
-    const status = resolveConfiguredBackendStatus(command, statuses);
-    return status ? isExternalAgentDelegationReady(status) : true;
-  });
-}
+export type ExternalCliReadiness = 'not_configured' | 'unavailable' | 'ready';
 
 /** True when auth/status reports any backend ready for delegation (PATH auto-detect). */
 export function hasAutoDetectedExternalCliBackend(statuses: ReadonlyArray<ExternalAgentAuthStatus>): boolean {
   return statuses.some((row) => isExternalAgentDelegationReady(row));
 }
 
-/** Whether runtime can resolve a CLI backend (verified config or local auto-detect). */
-export function hasExternalCliBackendAvailable(
+/**
+ * Whether external CLI delegation can run, and if not, why.
+ *
+ * A bare command name is resolved through `PATH`, so the server's detection decides
+ * whether it exists. A command the server does not track (a custom wrapper) or an
+ * explicit path the user pinned is not something the server can confirm, so that
+ * explicit configuration is trusted instead of reported as missing.
+ */
+export function resolveExternalCliReadiness(
   agents: ReadonlyArray<{ enabled?: boolean; command?: string }> | undefined,
   statuses: ReadonlyArray<ExternalAgentAuthStatus>,
   localMode: boolean,
-): boolean {
-  if (hasResolvableExternalCliBackend(agents, statuses)) {
-    return true;
+): ExternalCliReadiness {
+  const configured = (agents ?? [])
+    .filter((agent) => agent.enabled !== false)
+    .map((agent) => agent.command?.trim())
+    .filter((command): command is string => Boolean(command));
+  if (configured.length === 0) {
+    return localMode && hasAutoDetectedExternalCliBackend(statuses) ? 'ready' : 'not_configured';
   }
-  if (localMode) {
-    return hasAutoDetectedExternalCliBackend(statuses);
-  }
-  return false;
+  const resolvable = configured.some((command) => {
+    if (/[\\/]/.test(command)) {
+      // An explicit path is user-pinned; PATH-based detection says nothing about it.
+      return true;
+    }
+    const status = resolveConfiguredBackendStatus(command, statuses);
+    return status ? isExternalAgentDelegationReady(status) : true;
+  });
+  return resolvable ? 'ready' : 'unavailable';
 }
 
 export async function* streamExternalAgentInstall(

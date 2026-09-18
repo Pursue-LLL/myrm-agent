@@ -86,6 +86,11 @@ describe('external agent delegation badge helpers', () => {
     // A command the server does not track cannot be verified, so explicit config wins.
     expect(hasResolvableExternalCliBackend([{ enabled: true, command: 'my-wrapper' }], [claudeStatus])).toBe(true);
 
+    // A user-pinned absolute path is not a PATH lookup, so server detection cannot judge it.
+    expect(
+      hasResolvableExternalCliBackend([{ enabled: true, command: '/opt/homebrew/bin/claude' }], [claudeStatus]),
+    ).toBe(true);
+
     // Disabled agents never count.
     expect(hasResolvableExternalCliBackend([{ enabled: false, command: 'claude' }], [claudeStatus])).toBe(false);
     expect(hasResolvableExternalCliBackend([], [])).toBe(false);

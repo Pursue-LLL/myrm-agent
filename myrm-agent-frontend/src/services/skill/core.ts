@@ -440,7 +440,8 @@ export interface DiscoverySearchResult {
   /** Null when the package is not installed in the local scope. */
   installed_version: string | null;
   upgrade_available: boolean;
-  installed_skill_id?: string;
+  /** Null when the package is not linked to a locally installed skill. */
+  installed_skill_id?: string | null;
   package_type?: 'skill' | 'agent_plugin' | string;
   keywords?: string[];
   declared_mcp_servers?: string[];
