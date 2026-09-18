@@ -64,12 +64,16 @@ _PORTAL_WITH_TEXT_JS = """(() => {
   const tabs = store?.openTabs ?? [];
   const loading = !!document.querySelector('[data-testid="artifact-loading"], .animate-pulse, .animate-spin');
   const errBox = document.querySelector('[data-testid="artifact-error"]');
+  const tab = tabs.length > 0 ? tabs[0] : null;
   return {
     ready: !!container && text.includes('Deliverable E2E'),
     len: text.length,
     hasContainer: !!container,
     tabCount: tabs.length,
-    tabFile: tabs.length > 0 ? (tabs[0]?.artifact?.filename ?? null) : null,
+    tabFile: tab ? (tab?.artifact?.filename ?? null) : null,
+    tabHasContent: !!(tab && typeof tab.content === 'string' && tab.content.length > 0),
+    tabContentLen: tab && typeof tab.content === 'string' ? tab.content.length : -1,
+    isOpen: store ? !!store.isOpen : null,
     loading,
     hasError: !!errBox,
     errText: errBox ? (errBox.innerText || '').slice(0, 200) : null,
