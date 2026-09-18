@@ -42,7 +42,7 @@
 | `dev.ts` | locale split + Next dev 入口（`dev` / `dev:lan` / `dev:clean`；pause gate；`node --require next-dev-gate.cjs`；lock 健康跳过；Next 启动前先 `strip_isolated_tsconfig.py` 清除上一条 lane 写入共享 `next-env.d.ts` 的 dist import，实现 lane 级单写者） |
 | `dev-lock.ts` | dev lock 读写与 LISTEN 健康判定 |
 | `frontend-dev-pause-gate.ts` | TS pause gate SSOT（probe / enforce / reclaim）；`dev.ts` + `next.config.ts` |
-| `next-dev-gate.cjs` | Node/Bun preload gate；SSOT 仍 `frontend_dev_pause.py` |
+| `next-dev-gate.cjs` | Node/Bun preload gate；SSOT 仍 `frontend_dev_pause.py`；**并在 Next 载入前把 `next-env.d.ts` 固定到本 lane 的 `MYRM_NEXT_DIST_DIR`** —— Next 无条件重写该文件且不读 tsconfig（无 `extends` 逃生门），若不预置，lane B 会读到 lane A 残留的 `.next-isolated-<A>/dev/types` 死路径直至自身改写。幂等、保留未知标记行，`:3000` 主 lane 字节级不变 |
 | `port-cleanup.ts` | `:3000` LISTEN-only 清理 |
 | `cleanup.ts` | dev 残留清理（next 进程、stale lock、`.next-isolated-*`、dev log、pause stamp 8h 默认、stamp write 失败 exit 非零） |
 | `strip_isolated_tsconfig.py` | 清除 dev lane 写入共享 TS 配置的残留并重置 `next-env.d.ts` 为 `.next/dev/types/routes.d.ts` + `root-params.d.ts`。**`tsconfig.json` 现已结构性豁免**（声明 `extends` 使 Next 跳过配置重写，见根 `_ARCH.md` 的 tsconfig 分层约束），故实际主要是 `next-env.d.ts`（Next 无条件重写、不读 tsconfig）与历史遗留 tsconfig 脏 glob 的兜底；由 E2E `release_runtime` teardown、`cleanup.ts` 与 dev 栈启动 `workspace_hygiene.heal_isolated_tsconfig` 调用 |
