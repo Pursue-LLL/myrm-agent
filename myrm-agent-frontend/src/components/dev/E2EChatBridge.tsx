@@ -968,6 +968,11 @@ export default function E2EChatBridge() {
           }
           useChatStore.getState().initializeChat(undefined);
         });
+        // initializeChat(undefined) leaves a fresh unsaved session while the
+        // URL still shows the previous /chat/<id>; navigate home so later
+        // chat_id_from_path reads never track a stale (server-unknown) id.
+        // Same window.location.assign precedent as forkContextBranch below.
+        window.location.assign('/');
       },
       setInputMessage: (message: string) => {
         flushSync(() => {
