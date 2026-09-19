@@ -109,12 +109,16 @@ _PORTAL_WITH_TEXT_JS = """(() => {
   }));
   const viewport = { w: window.innerWidth, h: window.innerHeight };
   const href = location.href;
+  const reactMounted =
+    typeof window.__REACT_DEVTOOLS_GLOBAL_HOOK__ !== 'undefined' &&
+    (window.__REACT_DEVTOOLS_GLOBAL_HOOK__.renderers?.size ?? 0) > 0;
+  const nextRootKids = document.getElementById('__next')?.childElementCount ?? -1;
   const failedChunks = performance
     .getEntriesByType('resource')
     .map((r) => r.name)
     .filter((n) => n.includes('_next/static/chunks') && n.includes('ArtifactPortal'));
   const buildErrors = Array.from(document.querySelectorAll('nextjs-portal')).map((el) =>
-    ((el.shadowRoot?.textContent || el.textContent) || '').slice(0, 200),
+    (((el.shadowRoot?.textContent || el.textContent) || '').replace(/\s+/g, ' ').slice(0, 1500)),
   );
   const anyPortalDialog = dialogs.length > 0;
   const bodyTxt = (document.body?.innerText || '').slice(0, 300);
@@ -136,6 +140,8 @@ _PORTAL_WITH_TEXT_JS = """(() => {
     dialogs,
     viewport,
     href,
+    reactMounted,
+    nextRootKids,
     failedChunks,
     buildErrors,
     tabCount: tabs.length,
@@ -206,6 +212,29 @@ _LIST_READY_JS = """((args) => {
 })(__ARGS__)"""
 
 
+_BODY_ALIVE_JS = """(() => ({ len: (document.body?.innerText || '').length }))()"""
+
+
+def _navigate_alive(client: object, page: object, url: str, *, attempts: int = 4) -> None:
+    """Navigate until the document body is non-blank (dev HMR can serve an
+    empty shell while Turbopack recompiles under parallel edits)."""
+    last_len = 0
+    for _ in range(attempts):
+        navigate_mcp_page(client, page, url, timeout_ms=90_000)
+        deadline = time.monotonic() + 45.0
+        while time.monotonic() < deadline:
+            try:
+                state = client.evaluate(page, _BODY_ALIVE_JS, timeout_sec=15.0)
+            except Exception:
+                time.sleep(3.0)
+                continue
+            if isinstance(state, dict) and int(state.get("len") or 0) > 100:
+                return
+            time.sleep(3.0)
+        last_len = 0
+    raise AssertionError(f"page body stayed blank after {attempts} navigations to {url}")
+
+
 def _seed_deliverable_fixture(api_url: str) -> dict[str, object]:
     # Seed into the shared backend: the :3000 WebUI proxies /api there, so
     # isolate-seeded chats are invisible in the browser.
@@ -237,7 +266,7 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
         chat_url = f"{ui_url}/{chat_id}"
         with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
-            navigate_mcp_page(client, page, chat_url, timeout_ms=90_000)
+            _navigate_alive(client, page, chat_url)
 
             # T1: open the seeded deliverable, then the portal shows its content.
             # The message list streams in, so retry the click until it lands.
@@ -320,7 +349,7 @@ def test_artifact_annotation_panel_roundtrip_via_ui() -> None:
             assert listed.get("stored") is True, f"localStorage missing comment: {listed}"
 
             # T4: reload -> the comment survives (persistence proof).
-            navigate_mcp_page(client, page, chat_url, timeout_ms=90_000)
+            _navigate_alive(client, page, chat_url)
             content2 = wait_for_state(client, page, _PORTAL_WITH_TEXT_JS, timeout_sec=120.0)
             assert content2.get("ready") is True, json.dumps(content2, ensure_ascii=False)
             client.evaluate(page, _OPEN_PANEL_JS, timeout_sec=15.0)
