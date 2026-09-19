@@ -218,7 +218,6 @@ _BODY_ALIVE_JS = """(() => ({ len: (document.body?.innerText || '').length }))()
 def _navigate_alive(client: object, page: object, url: str, *, attempts: int = 4) -> None:
     """Navigate until the document body is non-blank (dev HMR can serve an
     empty shell while Turbopack recompiles under parallel edits)."""
-    last_len = 0
     for _ in range(attempts):
         navigate_mcp_page(client, page, url, timeout_ms=90_000)
         deadline = time.monotonic() + 45.0
@@ -231,7 +230,6 @@ def _navigate_alive(client: object, page: object, url: str, *, attempts: int = 4
             if isinstance(state, dict) and int(state.get("len") or 0) > 100:
                 return
             time.sleep(3.0)
-        last_len = 0
     raise AssertionError(f"page body stayed blank after {attempts} navigations to {url}")
 
 
