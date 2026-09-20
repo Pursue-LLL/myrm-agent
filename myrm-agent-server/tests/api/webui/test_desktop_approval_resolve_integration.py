@@ -11,7 +11,8 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
-from app.ai_agents.desktop_control.gate import DesktopControlGate, resolve_desktop_control_approval
+from app.ai_agents.desktop_control.gate import DesktopControlGate
+from app.ai_agents.desktop_control.registry import resolve_desktop_control_approval
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app(webui=True)

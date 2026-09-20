@@ -8,9 +8,9 @@ import json
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.ai_agents.desktop_control.gate import (
+from app.ai_agents.desktop_control.gate import DesktopControlGate
+from app.ai_agents.desktop_control.registry import (
     DesktopApprovalRegistry,
-    DesktopControlGate,
     approval_fingerprint,
     resolve_desktop_control_approval,
     resolve_desktop_control_approval_status,
@@ -177,17 +177,17 @@ def test_resolve_bool_contract_preserved():
 def test_registry_cap_evicts_oldest_fail_closed():
     DesktopApprovalRegistry._pending.clear()
     DesktopApprovalRegistry._tombstones.clear()
-    import app.ai_agents.desktop_control.gate as gate_mod
+    import app.ai_agents.desktop_control.registry as registry_mod
 
-    old_max = gate_mod._MAX_PENDING
-    gate_mod._MAX_PENDING = 3
+    old_max = registry_mod._MAX_PENDING
+    registry_mod._MAX_PENDING = 3
     try:
         ids = [DesktopApprovalRegistry.create(reason="t", operation="op")[0] for _ in range(4)]
         assert len(DesktopApprovalRegistry._pending) == 3
         assert ids[0] not in DesktopApprovalRegistry._pending
         assert resolve_desktop_control_approval_status(ids[0], granted=True, scope="once") == "expired"
     finally:
-        gate_mod._MAX_PENDING = old_max
+        registry_mod._MAX_PENDING = old_max
         DesktopApprovalRegistry._pending.clear()
         DesktopApprovalRegistry._tombstones.clear()
 

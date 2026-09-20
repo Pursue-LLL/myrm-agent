@@ -183,7 +183,7 @@ async def _warmup_desktop_gate() -> None:
     scan. Consuming both during startup keeps the first real request fast.
     """
     try:
-        from app.ai_agents.desktop_control.gate import list_trusted_desktop_apps
+        from app.ai_agents.desktop_control.trust_store import list_trusted_desktop_apps
 
         await asyncio.to_thread(list_trusted_desktop_apps, workspace_root=None)
         logger.info("[Startup] Desktop control gate warmed up")

@@ -535,7 +535,7 @@ async def reset_desktop_approval_runtime() -> JSONResponse:
 @router.get("/desktop/trust/apps")
 async def list_desktop_trusted_apps() -> JSONResponse:
     """List always-trusted desktop applications for the current workspace."""
-    from app.ai_agents.desktop_control.gate import list_trusted_desktop_apps
+    from app.ai_agents.desktop_control.trust_store import list_trusted_desktop_apps
     from app.platform_utils.workspace_root import get_workspace_root
 
     apps = list_trusted_desktop_apps(workspace_root=get_workspace_root())
@@ -549,7 +549,7 @@ class DesktopTrustRevokeBody(BaseModel):
 @router.delete("/desktop/trust/apps")
 async def revoke_desktop_trusted_app(body: DesktopTrustRevokeBody) -> JSONResponse:
     """Revoke always-trusted status for a desktop application."""
-    from app.ai_agents.desktop_control.gate import revoke_trusted_desktop_app
+    from app.ai_agents.desktop_control.trust_store import revoke_trusted_desktop_app
     from app.platform_utils.workspace_root import get_workspace_root
 
     revoked = revoke_trusted_desktop_app(
@@ -571,7 +571,7 @@ async def list_pending_desktop_approvals() -> JSONResponse:
     The `pending` id list and `count` shape is frozen for E2E helpers;
     `details` and `decisions` are additive diagnostics.
     """
-    from app.ai_agents.desktop_control.gate import DesktopApprovalRegistry
+    from app.ai_agents.desktop_control.registry import DesktopApprovalRegistry
 
     pending_ids = DesktopApprovalRegistry.pending_snapshot()
     return JSONResponse(
@@ -594,7 +594,7 @@ class DesktopApprovalResolveBody(BaseModel):
 @router.post("/desktop/approval/resolve")
 async def resolve_desktop_approval(body: DesktopApprovalResolveBody) -> JSONResponse:
     """Resolve a pending desktop control approval request from the Web UI."""
-    from app.ai_agents.desktop_control.gate import resolve_desktop_control_approval_status
+    from app.ai_agents.desktop_control.registry import resolve_desktop_control_approval_status
 
     status = resolve_desktop_control_approval_status(
         body.request_id,
@@ -637,7 +637,7 @@ async def seed_desktop_approval_for_test(
     """Local dev/test only: seed an in-memory desktop approval request."""
     from myrm_agent_harness.toolkits.computer_use.app_identity import resolve_trust_key
 
-    from app.ai_agents.desktop_control.gate import DesktopApprovalRegistry, approval_fingerprint
+    from app.ai_agents.desktop_control.registry import DesktopApprovalRegistry, approval_fingerprint
     from app.config.deploy_mode import is_local_mode
 
     if not is_local_mode():

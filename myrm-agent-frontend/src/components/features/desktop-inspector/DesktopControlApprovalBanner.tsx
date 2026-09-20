@@ -17,8 +17,7 @@ async function resolveApproval(
 ): Promise<void> {
   await apiRequest('/webui/desktop/approval/resolve', {
     method: 'POST',
-    // Omit an empty rationale so the wire shape stays identical to the
-    // pre-reason contract; the backend defaults it to "".
+    // Empty rationales are omitted from the payload; the backend defaults them.
     body: JSON.stringify({
       request_id: requestId,
       granted,
@@ -164,7 +163,7 @@ const DesktopControlApprovalBanner: React.FC = () => {
               type="button"
               data-testid="desktop-control-allow-session"
               disabled={submitting}
-              className="hidden sm:inline-flex px-3 py-1.5 text-xs rounded-lg border border-primary/40 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+              className="px-3 py-1.5 text-xs rounded-lg border border-primary/40 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
               onClick={() => void handleDecision(true, 'session')}
             >
               {t('allowSession')}
@@ -173,7 +172,7 @@ const DesktopControlApprovalBanner: React.FC = () => {
               type="button"
               data-testid="desktop-control-allow-always"
               disabled={submitting}
-              className="hidden md:inline-flex px-3 py-1.5 text-xs rounded-lg border border-primary/40 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+              className="px-3 py-1.5 text-xs rounded-lg border border-primary/40 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
               onClick={() => void handleDecision(true, 'always')}
             >
               {t('allowAlways')}

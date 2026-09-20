@@ -9,7 +9,9 @@ handles per-app first approval (persisted under chat workspace volume), and emit
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `gate.py` | Core | `DesktopControlGate` callback + registry + trust helpers. Timeout via `MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC` (default 60s). Persists always-approved apps to `{workspace}/.agent/desktop_control/approved_apps.json`; operator persistent denials in `denied_apps.json` (`{"denied": [...]}`). `reset_all_runtime_approval_state` clears pending registry. Run-scoped trust: `preapproved_trust_keys` seeds instance session keys (exact match, e.g. cron blueprint); `unattended_fail_fast` denies untrusted apps immediately without the approval wait. Approval semantics: deny-first (persistent deny → session-final user refusal → allow caches → prompt); execution fingerprint (`operation` + trust key) binds each grant, same-app fingerprint drift flags `changed_since_last_grant` on the card; explicit user refusals are session-final (timeouts/recovery resets never persist); first-settlement wins on resolve-vs-timeout races; registry bounded (`_MAX_PENDING=200` fail-closed evict, tombstones for expired resolves, 50-entry decision audit) | ✅ |
+| `gate.py` | Core | `DesktopControlGate` foreground-permission callback: deny-first evaluation (persistent deny → session-final refusal → allow caches → prompt), fingerprint-bound grants with drift flag, session-final explicit refusals, first-settlement race rule | ✅ |
+| `registry.py` | Core | `DesktopApprovalRegistry` pending ledger: settlement semantics (resolved \| expired \| missing), bounded registries, decision audit, `approval_fingerprint`, drift helper, withdraw-card emit, resolve entry points | ✅ |
+| `trust_store.py` | Support | Workspace trust persistence: `approved_apps.json` / `denied_apps.json` I/O, live-gate plus harness-disk merged listing, revoke, workspace-root discovery | ✅ |
 
 ## Trust API
 
