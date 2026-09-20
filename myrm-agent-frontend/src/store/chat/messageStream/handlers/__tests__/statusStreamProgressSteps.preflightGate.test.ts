@@ -154,7 +154,7 @@ describe('preflight gate progress steps', () => {
           content: 'user text',
           messageId: 'user-1',
           chatId: 'c1',
-          role: 'user' as const,
+          role: 'user' as 'user' | 'assistant',
           progressSteps: [] as ProgressItem[],
           createdAt: new Date(),
         },
