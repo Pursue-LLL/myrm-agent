@@ -117,6 +117,8 @@ export interface DesktopControlApprovalRequestStreamEvent extends BaseAgentEvent
     app_name?: string;
     window_title?: string;
     require_app_approval?: boolean;
+    withdrawn?: boolean;
+    changed_since_last_grant?: boolean;
   };
 }
 
