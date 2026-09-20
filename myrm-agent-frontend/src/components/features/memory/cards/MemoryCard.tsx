@@ -9,7 +9,6 @@ import {
   Trash2,
   Pencil,
   MoreHorizontal,
-  Zap,
   AlertTriangle,
   EyeOff,
   Eye,
@@ -28,6 +27,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import type { PendingMemory, Memory, MemoryType } from '@/store/memory';
 import MemoryTypeIcon from './MemoryTypeIcon';
 import { EvidenceBadge } from './EvidenceBadge';
+import { MemoryProceduralDetails } from './MemoryProceduralDetails';
 
 interface MemoryCardProps {
   memory: PendingMemory | Memory;
@@ -195,10 +195,10 @@ const MemoryCard = memo<MemoryCardProps>(
               {confirmed?.is_veto && (
                 <span
                   className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
-                  title="否定性硬约束 (VETO Gate) — 运行时前置执行严格拦截"
+                  title="行为禁令 — 系统将严格执行此限制，避免触发违规操作"
                 >
                   <ShieldAlert size={10} />
-                  <span>VETO 红线</span>
+                  <span>行为禁令</span>
                 </span>
               )}
               {confirmed?.is_user_locked && (
@@ -339,63 +339,7 @@ const MemoryCard = memo<MemoryCardProps>(
             </div>
           )}
 
-          {confirmed && memoryType === 'procedural' && confirmed.trigger && (
-            <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Zap size={12} className="text-amber-500" />
-                <span>
-                  {t('fields.trigger')}: {confirmed.trigger}
-                </span>
-                {confirmed.tool_name && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium">
-                    {confirmed.tool_name}
-                  </span>
-                )}
-                {confirmed.tool_rule_priority && confirmed.tool_rule_priority !== 'normal' && (
-                  <span
-                    className={cn(
-                      'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium',
-                      confirmed.tool_rule_priority === 'critical'
-                        ? 'bg-destructive/10 text-destructive'
-                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-                    )}
-                  >
-                    {confirmed.tool_rule_priority.toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-1.5 pl-[18px]">
-                <span>
-                  {t('fields.action')}: {confirmed.action}
-                </span>
-              </div>
-              {confirmed.expected_valid_days !== undefined &&
-                confirmed.expected_valid_days !== null &&
-                !confirmed.is_user_locked && (
-                  <div className="flex items-center gap-1.5 pl-[18px] text-muted-foreground/80 mt-0.5">
-                    <span className="italic">
-                      <span className="font-medium mr-1">
-                        {t('fields.ttlDays', { days: confirmed.expected_valid_days })}
-                      </span>
-                    </span>
-                  </div>
-                )}
-              {confirmed.reasoning && (
-                <div className="flex items-center gap-1.5 pl-[18px] text-muted-foreground/80 mt-0.5">
-                  <span className="italic">
-                    <span className="font-medium mr-1">Why:</span> {confirmed.reasoning}
-                  </span>
-                </div>
-              )}
-              {confirmed.application && (
-                <div className="flex items-center gap-1.5 pl-[18px] text-muted-foreground/80 mt-0.5">
-                  <span className="italic">
-                    <span className="font-medium mr-1">How:</span> {confirmed.application}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
+          {confirmed && <MemoryProceduralDetails confirmed={confirmed} />}
 
           {confirmed && confirmed.access_count !== undefined && (
             <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">

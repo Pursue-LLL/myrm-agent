@@ -20,6 +20,7 @@
 | `MemoryScopePicker.tsx`          | 辅助 | 作用域选择器                                                     | ✅    |
 | `PreferenceStabilityCard.tsx`    | 辅助 | 偏好稳定性卡（动态信号权重收敛度）                               | ✅    |
 | `TasteSummaryCard.tsx`           | 辅助 | 偏好雷达摘要卡                                                   | ✅    |
+| `MemoryProceduralDetails.tsx`    | 辅助 | 行为规约与行为禁令（Veto）详情渲染与自愈建议展现                 | ✅    |
 
 ## 依赖
 
