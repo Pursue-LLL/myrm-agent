@@ -11672,7 +11672,11 @@
       "mergeCount": "已合并 {count} 次",
       "merged": "合并",
       "replaced": "替换",
-      "supplemented": "补充"
+      "supplemented": "补充",
+      "vetoGuardrail": "运行时执行门禁",
+      "vetoPattern": "受控模式",
+      "remediation": "自愈建议",
+      "scope": "范围"
     },
     "typeDesc": {
       "profile": "用户属性键值对（名字、语言、职业）",

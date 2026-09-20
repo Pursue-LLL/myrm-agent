@@ -11671,7 +11671,11 @@
       "mergeCount": "Merged {count} times",
       "merged": "Merged",
       "replaced": "Replaced",
-      "supplemented": "Supplemented"
+      "supplemented": "Supplemented",
+      "vetoGuardrail": "Runtime Execution Guardrail",
+      "vetoPattern": "Controlled Pattern",
+      "remediation": "Remediation Advice",
+      "scope": "Scope"
     },
     "typeDesc": {
       "profile": "Key-value user attributes (name, language, occupation)",
