@@ -214,6 +214,15 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
 
   if (data.type === H.AgentEventType.DESKTOP_CONTROL_APPROVAL_REQUEST) {
     const { default: useDesktopControlApprovalStore } = await import('@/store/useDesktopControlApprovalStore');
+    // Withdraw cards reuse the request event: a timed-out or superseded
+    // request clears the matching banner instead of lingering.
+    if (data.data.withdrawn === true) {
+      const store = useDesktopControlApprovalStore.getState();
+      if (store.pending && store.requestId === String(data.data.request_id ?? '')) {
+        store.markExpired();
+      }
+      return done(ctx);
+    }
     const approvalPayload = {
       request_id: String(data.data.request_id ?? ''),
       reason: String(data.data.reason ?? ''),
@@ -221,6 +230,7 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
       app_name: data.data.app_name ? String(data.data.app_name) : '',
       window_title: data.data.window_title ? String(data.data.window_title) : '',
       require_app_approval: Boolean(data.data.require_app_approval ?? true),
+      changed_since_last_grant: Boolean(data.data.changed_since_last_grant ?? false),
       messageId: data.messageId,
     };
     useDesktopControlApprovalStore.getState().requestApproval(approvalPayload);

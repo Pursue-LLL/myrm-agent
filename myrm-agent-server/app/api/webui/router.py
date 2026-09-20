@@ -566,38 +566,59 @@ async def revoke_desktop_trusted_app(body: DesktopTrustRevokeBody) -> JSONRespon
 
 @router.get("/desktop/approval/pending")
 async def list_pending_desktop_approvals() -> JSONResponse:
-    """List pending desktop approval request ids (E2E diagnostics)."""
+    """List pending desktop approval request ids (E2E diagnostics).
+
+    The `pending` id list and `count` shape is frozen for E2E helpers;
+    `details` and `decisions` are additive diagnostics.
+    """
     from app.ai_agents.desktop_control.gate import DesktopApprovalRegistry
 
     pending_ids = DesktopApprovalRegistry.pending_snapshot()
-    return JSONResponse(content={"pending": pending_ids, "count": len(pending_ids)})
+    return JSONResponse(
+        content={
+            "pending": pending_ids,
+            "count": len(pending_ids),
+            "details": DesktopApprovalRegistry.pending_details(),
+            "decisions": DesktopApprovalRegistry.decision_snapshot(),
+        }
+    )
 
 
 class DesktopApprovalResolveBody(BaseModel):
     request_id: str
     granted: bool
     scope: str = "once"
+    reason: str = ""
 
 
 @router.post("/desktop/approval/resolve")
 async def resolve_desktop_approval(body: DesktopApprovalResolveBody) -> JSONResponse:
     """Resolve a pending desktop control approval request from the Web UI."""
-    from app.ai_agents.desktop_control.gate import resolve_desktop_control_approval
+    from app.ai_agents.desktop_control.gate import resolve_desktop_control_approval_status
 
-    resolved = resolve_desktop_control_approval(
+    status = resolve_desktop_control_approval_status(
         body.request_id,
         granted=body.granted,
         scope=body.scope,
+        reason=body.reason,
     )
-    if not resolved:
+    if status == "resolved":
+        return JSONResponse(content={"ok": True})
+    if status == "expired":
         return JSONResponse(
-            status_code=404,
+            status_code=410,
             content={
-                "error": "not_found",
-                "message": "Approval request not found or already resolved",
+                "error": "expired",
+                "message": "Approval request already settled (timeout); the agent run moved on",
             },
         )
-    return JSONResponse(content={"ok": True})
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": "not_found",
+            "message": "Approval request not found or already resolved",
+        },
+    )
 
 
 class DesktopApprovalTestSeedBody(BaseModel):
@@ -614,13 +635,24 @@ async def seed_desktop_approval_for_test(
     body: DesktopApprovalTestSeedBody,
 ) -> JSONResponse:
     """Local dev/test only: seed an in-memory desktop approval request."""
-    from app.ai_agents.desktop_control.gate import DesktopApprovalRegistry
+    from myrm_agent_harness.toolkits.computer_use.app_identity import resolve_trust_key
+
+    from app.ai_agents.desktop_control.gate import DesktopApprovalRegistry, approval_fingerprint
     from app.config.deploy_mode import is_local_mode
 
     if not is_local_mode():
         raise HTTPException(status_code=404, detail="Not found")
 
-    request_id, _pending = DesktopApprovalRegistry.create()
+    trust_key = resolve_trust_key(app_name=body.app_name, app_id=body.app_id) or ""
+    request_id, _pending = DesktopApprovalRegistry.create(
+        reason=body.reason,
+        operation=body.operation,
+        app_name=body.app_name,
+        window_title=body.window_title,
+        app_id=body.app_id,
+        fingerprint=approval_fingerprint(operation=body.operation, trust_key=trust_key),
+        test_only=True,
+    )
     return JSONResponse(
         content={
             "ok": True,

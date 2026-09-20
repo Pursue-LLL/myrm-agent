@@ -9,7 +9,7 @@ handles per-app first approval (persisted under chat workspace volume), and emit
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `gate.py` | Core | `DesktopControlGate` callback + registry + trust helpers. Timeout via `MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC` (default 60s). Persists always-approved apps to `{workspace}/.agent/desktop_control/approved_apps.json`. `reset_all_runtime_approval_state` clears pending registry. Run-scoped trust: `preapproved_trust_keys` seeds instance session keys (exact match, e.g. cron blueprint); `unattended_fail_fast` denies untrusted apps immediately without the approval wait | ✅ |
+| `gate.py` | Core | `DesktopControlGate` callback + registry + trust helpers. Timeout via `MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC` (default 60s). Persists always-approved apps to `{workspace}/.agent/desktop_control/approved_apps.json`; operator persistent denials in `denied_apps.json` (`{"denied": [...]}`). `reset_all_runtime_approval_state` clears pending registry. Run-scoped trust: `preapproved_trust_keys` seeds instance session keys (exact match, e.g. cron blueprint); `unattended_fail_fast` denies untrusted apps immediately without the approval wait. Approval semantics: deny-first (persistent deny → session-final user refusal → allow caches → prompt); execution fingerprint (`operation` + trust key) binds each grant, same-app fingerprint drift flags `changed_since_last_grant` on the card; explicit user refusals are session-final (timeouts/recovery resets never persist); first-settlement wins on resolve-vs-timeout races; registry bounded (`_MAX_PENDING=200` fail-closed evict, tombstones for expired resolves, 50-entry decision audit) | ✅ |
 
 ## Trust API
 
@@ -17,7 +17,9 @@ handles per-app first approval (persisted under chat workspace volume), and emit
 |-------|------|
 | `GET /webui/desktop/trust/apps` | List always-trusted apps from live gates + harness workspace disks + fallback workspace root |
 | `DELETE /webui/desktop/trust/apps` | Revoke one trust key across live gates and persisted workspace stores |
-| `POST /webui/desktop/approval/reset-runtime` | Clears in-memory session approvals and reloads persisted always-trusted apps |
+| `GET /webui/desktop/approval/pending` | `pending` id list + `count` frozen for E2E; additive `details` (per-request metadata) + `decisions` (recent grant/deny/timeout audit) |
+| `POST /webui/desktop/approval/resolve` | Resolve with settlement semantics: 200 resolved, 410 expired (timeout), 404 missing; optional `reason` recorded on explicit refusals |
+| `POST /webui/desktop/approval/reset-runtime` | Clears in-memory session approvals (incl. session-final denials) and reloads persisted always-trusted apps + persistent denials |
 
 Revoke does **not** call `reset_all_runtime_approval_state()` — other apps' session approvals stay intact.
 

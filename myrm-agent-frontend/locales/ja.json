@@ -2508,7 +2508,11 @@
         "deny": "拒否",
         "allowOnce": "許可一回",
         "allowSession": "本セッション許可",
-        "allowAlways": "このアプリを常に許可"
+        "allowAlways": "このアプリを常に許可",
+        "expiredNotice": "This request already settled (timeout). The agent run moved on.",
+        "dismiss": "Dismiss",
+        "denyReasonPlaceholder": "Reason for denial (optional)",
+        "targetChangedNotice": "The target changed since your last approval. Please review again."
       }
     },
     "deviceInspector": {

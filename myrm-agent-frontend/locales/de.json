@@ -2475,7 +2475,11 @@
         "deny": "Ablehnen",
         "allowOnce": "Einmal erlauben",
         "allowSession": "Diesen Chat erlauben",
-        "allowAlways": "Diese App immer erlauben"
+        "allowAlways": "Diese App immer erlauben",
+        "expiredNotice": "This request already settled (timeout). The agent run moved on.",
+        "dismiss": "Dismiss",
+        "denyReasonPlaceholder": "Reason for denial (optional)",
+        "targetChangedNotice": "The target changed since your last approval. Please review again."
       }
     },
     "deviceInspector": {

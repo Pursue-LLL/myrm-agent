@@ -2521,7 +2521,11 @@
         "deny": "拒絕",
         "allowOnce": "允許一次",
         "allowSession": "本會話允許",
-        "allowAlways": "始終允許此應用"
+        "allowAlways": "始終允許此應用",
+        "expiredNotice": "該請求已結束（逾時），任務已繼續。請忽略此卡片。",
+        "dismiss": "關閉",
+        "denyReasonPlaceholder": "拒絕原因（選填）",
+        "targetChangedNotice": "目標自上次批准後發生變化，請重新確認。"
       }
     },
     "deviceInspector": {

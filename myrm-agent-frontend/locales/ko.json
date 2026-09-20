@@ -2477,7 +2477,11 @@
         "deny": "거부",
         "allowOnce": "한 번만 허용",
         "allowSession": "이 채팅 허용",
-        "allowAlways": "이 앱 항상 허용"
+        "allowAlways": "이 앱 항상 허용",
+        "expiredNotice": "This request already settled (timeout). The agent run moved on.",
+        "dismiss": "Dismiss",
+        "denyReasonPlaceholder": "Reason for denial (optional)",
+        "targetChangedNotice": "The target changed since your last approval. Please review again."
       }
     },
     "deviceInspector": {

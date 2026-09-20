@@ -18,7 +18,7 @@ Chrome MCP E2E helpers for Desktop Control approval (allow once / allow always �
 | `turn_flow.py` | Core | navigate guard + E2E bridge openPanel/sync; scope-aware banner probe; DONE wait; Settings revoke | ✅ |
 | `runner.py` | Core | `run_desktop_approval_chrome_e2e` + retry 路径 attach heal → mux recover → reopen page；前置硬需 Accessibility（缺失即 fail），Screen Recording 缺失仅软告警（AX-only 主链继续）；attempt 失败后重探针，AX 由 true→false（双确认）即 fail-fast 并指引恢复 | ✅ |
 
-Unit smoke (no Chrome): `tests/unit/desktop_approval/test_trust_api_smoke.py`, `test_gate_probe_smoke.py`.
+Unit smoke (no Chrome): `tests/unit/desktop_approval/test_trust_api_smoke.py`, `test_gate_probe_smoke.py`, `test_gate_approval_semantics.py` (fingerprint binding, durable deny, deny-first, settlement tri-state, registry bounds, grant audit).
 
 ## Dependencies
 
