@@ -192,6 +192,30 @@ def test_registry_cap_evicts_oldest_fail_closed():
         DesktopApprovalRegistry._tombstones.clear()
 
 
+def test_last_grants_bounded_at_capacity():
+    import app.ai_agents.desktop_control.gate as gate_mod
+
+    DesktopApprovalRegistry._pending.clear()
+    gate = _fresh_gate()
+    old_max = gate_mod._MAX_GRANTS
+    gate_mod._MAX_GRANTS = 3
+    try:
+        for index in range(5):
+            sink = _sink()
+            _run(
+                _settle(
+                    _call(gate, sink, app_name=f"App{index}", operation="click"),
+                    _resolve_when_emitted(sink, granted=True, scope="once"),
+                )
+            )
+        assert len(gate._last_grants) == 3
+        assert "app0" not in gate._last_grants
+        assert "app4" in gate._last_grants
+    finally:
+        gate_mod._MAX_GRANTS = old_max
+        DesktopApprovalRegistry._pending.clear()
+
+
 def test_changed_flag_on_fingerprint_drift():
     DesktopApprovalRegistry._pending.clear()
     gate = _fresh_gate()

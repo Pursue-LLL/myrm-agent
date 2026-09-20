@@ -64,6 +64,8 @@ try:
 except ValueError:
     _parsed_timeout = _DEFAULT_TIMEOUT_SEC
 _DEFAULT_TIMEOUT_SEC = max(5.0, _parsed_timeout)
+# Last-grant tracker bound; oldest entry sheds first at capacity.
+_MAX_GRANTS = 500
 
 
 class DesktopControlGate:
@@ -451,6 +453,8 @@ class DesktopControlGate:
             return ForegroundPermissionResult(granted=False)
         if decided.granted:
             if trust_key:
+                if len(self._last_grants) >= _MAX_GRANTS:
+                    self._last_grants.pop(next(iter(self._last_grants)))
                 self._last_grants[trust_key] = (fingerprint, time.monotonic())
             if app_name.strip() and require_app_approval and trust_key:
                 if decided.scope == ForegroundPermissionScope.session:

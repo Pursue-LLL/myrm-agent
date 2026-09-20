@@ -9486,7 +9486,8 @@
         "expiredNotice": "该请求已结束（超时），任务已继续。请忽略此卡片。",
         "dismiss": "关闭",
         "denyReasonPlaceholder": "拒绝原因（选填）",
-        "targetChangedNotice": "目标自上次批准后发生变化，请重新确认。"
+        "targetChangedNotice": "目标自上次批准后发生变化，请重新确认。",
+        "deniedNotice": "已拒绝，该请求在本会话内不再询问。"
       }
     },
     "deviceInspector": {

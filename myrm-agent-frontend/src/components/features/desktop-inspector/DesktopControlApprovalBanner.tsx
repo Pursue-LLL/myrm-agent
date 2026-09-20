@@ -29,7 +29,7 @@ async function resolveApproval(
 
 const DesktopControlApprovalBanner: React.FC = () => {
   const t = useTranslations('chat.desktopInspector.controlApproval');
-  const { pending, expired, changed, requestId, reason, operation, appName, windowTitle, requireAppApproval, clear, markExpired } =
+  const { pending, expired, denied, changed, requestId, reason, operation, appName, windowTitle, requireAppApproval, clear, markExpired, markDenied } =
     useDesktopControlApprovalStore();
   const [submitting, setSubmitting] = useState(false);
   const [denyReason, setDenyReason] = useState('');
@@ -53,18 +53,23 @@ const DesktopControlApprovalBanner: React.FC = () => {
         setSubmitting(false);
         return;
       }
-      clear();
+      if (!granted) {
+        // Keep the card mounted on the denied confirmation view; dismiss clears it.
+        markDenied();
+      } else {
+        clear();
+      }
       setDenyReason('');
       setSubmitting(false);
     },
-    [requestId, submitting, denyReason, clear, markExpired],
+    [requestId, submitting, denyReason, clear, markExpired, markDenied],
   );
 
   if (!pending) {
     return null;
   }
 
-  if (expired) {
+  if (expired || denied) {
     return (
       <div
         className={cn(
@@ -78,7 +83,9 @@ const DesktopControlApprovalBanner: React.FC = () => {
           </div>
           <div className="min-w-0 flex-1 space-y-1">
             <p className="text-sm font-semibold text-foreground">{t('title')}</p>
-            <p className="text-xs text-muted-foreground">{t('expiredNotice')}</p>
+            <p className="text-xs text-muted-foreground">
+              {denied ? t('deniedNotice') : t('expiredNotice')}
+            </p>
             {operation ? (
               <p className="text-xs text-muted-foreground font-mono truncate">{operation}</p>
             ) : null}
@@ -87,7 +94,7 @@ const DesktopControlApprovalBanner: React.FC = () => {
         <div className="flex flex-wrap gap-2 justify-end">
           <button
             type="button"
-            data-testid="desktop-control-expired-dismiss"
+            data-testid={denied ? 'desktop-control-denied-dismiss' : 'desktop-control-expired-dismiss'}
             className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-muted transition-colors"
             onClick={() => clear()}
           >

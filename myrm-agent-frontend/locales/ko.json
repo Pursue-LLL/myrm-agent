@@ -2481,7 +2481,8 @@
         "expiredNotice": "This request already settled (timeout). The agent run moved on.",
         "dismiss": "Dismiss",
         "denyReasonPlaceholder": "Reason for denial (optional)",
-        "targetChangedNotice": "The target changed since your last approval. Please review again."
+        "targetChangedNotice": "The target changed since your last approval. Please review again.",
+        "deniedNotice": "Denied. This request will not be asked again in this session."
       }
     },
     "deviceInspector": {

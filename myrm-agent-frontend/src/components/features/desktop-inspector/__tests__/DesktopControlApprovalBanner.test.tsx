@@ -25,6 +25,9 @@ describe('DesktopControlApprovalBanner', () => {
     mockApiRequest.mockResolvedValue({ ok: true });
     useDesktopControlApprovalStore.setState({
       pending: true,
+      expired: false,
+      denied: false,
+      changed: false,
       requestId: 'req-desktop-1',
       reason: 'Control TextEdit',
       operation: 'desktop_interact(scroll, @d1)',
@@ -42,7 +45,7 @@ describe('DesktopControlApprovalBanner', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('posts deny decision and clears pending state', async () => {
+  it('posts deny decision and shows denied confirmation', async () => {
     render(<DesktopControlApprovalBanner />);
 
     expect(screen.getByText('Control TextEdit')).toBeInTheDocument();
@@ -61,6 +64,15 @@ describe('DesktopControlApprovalBanner', () => {
           scope: 'once',
         }),
       });
+    });
+    // Deny keeps the card mounted on the confirmation view instead of vanishing.
+    expect(useDesktopControlApprovalStore.getState().pending).toBe(true);
+    expect(useDesktopControlApprovalStore.getState().denied).toBe(true);
+    expect(screen.getByText('deniedNotice')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('desktop-control-denied-dismiss'));
+      await Promise.resolve();
     });
     expect(useDesktopControlApprovalStore.getState().pending).toBe(false);
   });

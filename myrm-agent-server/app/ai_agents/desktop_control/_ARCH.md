@@ -9,7 +9,7 @@ handles per-app first approval (persisted under chat workspace volume), and emit
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `gate.py` | Core | `DesktopControlGate` foreground-permission callback: deny-first evaluation (persistent deny → session-final refusal → allow caches → prompt), fingerprint-bound grants with drift flag, session-final explicit refusals, first-settlement race rule | ✅ |
+| `gate.py` | Core | `DesktopControlGate` foreground-permission callback: deny-first evaluation (persistent deny → session-final refusal → allow caches → prompt), fingerprint-bound grants with drift flag, session-final explicit refusals, first-settlement race rule. Granularity asymmetry is deliberate: session *denials* are operation-scoped (trust key + fingerprint) while session *allows* stay app-scoped | ✅ |
 | `registry.py` | Core | `DesktopApprovalRegistry` pending ledger: settlement semantics (resolved \| expired \| missing), bounded registries, decision audit, `approval_fingerprint`, drift helper, withdraw-card emit, resolve entry points | ✅ |
 | `trust_store.py` | Support | Workspace trust persistence: `approved_apps.json` / `denied_apps.json` I/O, live-gate plus harness-disk merged listing, revoke, workspace-root discovery | ✅ |
 

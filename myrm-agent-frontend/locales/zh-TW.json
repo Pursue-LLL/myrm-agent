@@ -2525,7 +2525,8 @@
         "expiredNotice": "該請求已結束（逾時），任務已繼續。請忽略此卡片。",
         "dismiss": "關閉",
         "denyReasonPlaceholder": "拒絕原因（選填）",
-        "targetChangedNotice": "目標自上次批准後發生變化，請重新確認。"
+        "targetChangedNotice": "目標自上次批准後發生變化，請重新確認。",
+        "deniedNotice": "已拒絕，該請求在本會話內不再詢問。"
       }
     },
     "deviceInspector": {

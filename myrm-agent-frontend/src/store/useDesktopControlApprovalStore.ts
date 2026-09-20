@@ -16,6 +16,7 @@ export type DesktopControlApprovalScope = 'once' | 'session' | 'always';
 interface DesktopControlApprovalState {
   pending: boolean;
   expired: boolean;
+  denied: boolean;
   changed: boolean;
   requestId: string;
   reason: string;
@@ -37,12 +38,14 @@ interface DesktopControlApprovalState {
     messageId?: string;
   }) => void;
   markExpired: () => void;
+  markDenied: () => void;
   clear: () => void;
 }
 
 const useDesktopControlApprovalStore = create<DesktopControlApprovalState>((set) => ({
   pending: false,
   expired: false,
+  denied: false,
   changed: false,
   requestId: '',
   reason: '',
@@ -57,6 +60,7 @@ const useDesktopControlApprovalStore = create<DesktopControlApprovalState>((set)
     set({
       pending: true,
       expired: false,
+      denied: false,
       changed: Boolean(payload.changed_since_last_grant ?? false),
       requestId: payload.request_id,
       reason: payload.reason,
@@ -70,10 +74,13 @@ const useDesktopControlApprovalStore = create<DesktopControlApprovalState>((set)
 
   markExpired: () => set({ expired: true }),
 
+  markDenied: () => set({ denied: true }),
+
   clear: () =>
     set({
       pending: false,
       expired: false,
+      denied: false,
       changed: false,
       requestId: '',
       reason: '',
