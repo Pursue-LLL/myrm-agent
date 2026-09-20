@@ -33,6 +33,7 @@ class SSEEnvelope(BaseModel):
     error: str | None = None
     error_type: str | None = None
     compression_exhausted: bool | None = None
+    terminal_code: str | None = None
 
     @classmethod
     def from_any(cls, chunk: object) -> "SSEEnvelope":

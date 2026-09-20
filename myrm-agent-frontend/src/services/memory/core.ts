@@ -70,6 +70,10 @@ export interface Memory {
   tool_rule_priority?: 'critical' | 'high' | 'normal';
   expected_valid_days?: number;
   is_user_locked?: boolean;
+  is_veto?: boolean;
+  veto_pattern?: string;
+  veto_scope?: string;
+  remediation_advice?: string;
   is_exact_fact?: boolean;
   exact_identifiers?: string[];
   event_type?: string;

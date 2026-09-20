@@ -43,6 +43,10 @@ class MemoryItem(BaseModel):
     tool_name: str | None = None
     tool_rule_priority: str | None = None
     is_user_locked: bool | None = None
+    is_veto: bool | None = None
+    veto_pattern: str | None = None
+    veto_scope: str | None = None
+    remediation_advice: str | None = None
     expected_valid_days: int | None = None
     event_type: str | None = None
     related_entities: list[str] = Field(default_factory=list)

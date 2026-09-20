@@ -173,6 +173,10 @@ export interface StatusStreamEvent extends BaseAgentEvent {
   status?: ProgressItem['status'];
   attempt?: number;
   tokens_saved?: number;
+  freed_tokens?: number;
+  request_tokens?: number;
+  strategy?: string;
+  terminal_code?: string;
   stripped_count?: number;
   tool_name?: string | null;
   error_kind?: ErrorKind;
@@ -405,6 +409,7 @@ export interface IterationLimitReachedStreamEvent extends BaseAgentEvent {
 
 export interface ContextOverflowResetStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.CONTEXT_OVERFLOW_RESET;
+  terminal_code?: string;
   data?: {
     chat_id?: string;
   };

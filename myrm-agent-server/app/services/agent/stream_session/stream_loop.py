@@ -639,6 +639,7 @@ async def iter_agent_stream_chunks(
                     "type": "context_overflow_reset",
                     "messageId": session.params.message_id,
                     "data": {"chat_id": session.request.chat_id},
+                    "terminal_code": "context_overflow_after_compaction",
                 }
                 yield SSEEnvelope.from_any(reset_event).to_sse_chunk()
 

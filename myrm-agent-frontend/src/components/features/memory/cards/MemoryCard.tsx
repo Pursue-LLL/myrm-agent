@@ -192,6 +192,24 @@ const MemoryCard = memo<MemoryCardProps>(
                     </span>
                   );
                 })()}
+              {confirmed?.is_veto && (
+                <span
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
+                  title="否定性硬约束 (VETO Gate) — 运行时前置执行严格拦截"
+                >
+                  <ShieldAlert size={10} />
+                  <span>VETO 红线</span>
+                </span>
+              )}
+              {confirmed?.is_user_locked && (
+                <span
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                  title="用户已锁定保护"
+                >
+                  <Lock size={10} />
+                  <span>锁定</span>
+                </span>
+              )}
               {isPending && 'kind' in memory && memory.kind && (
                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
                   <Tag size={9} />

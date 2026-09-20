@@ -16,6 +16,11 @@ const PROGRESS_STEP_KEYS = new Set([
   'safety_fallback_unconfigured',
   'context_compaction',
   'context_truncation',
+  'context_preflight_compact',
+  'context_preflight_truncation',
+  'context_preflight_exhausted',
+  'context_presumed_overflow',
+  'context_presumed_overflow_exhausted',
   'safety_fallback_active',
   'memory_archived',
   'context_pruned',
@@ -76,6 +81,9 @@ function isEarlyRecoveryProgressStep(stepKey: string): boolean {
     stepKey === 'empty_response_recovery' ||
     stepKey === 'tool_call_retry' ||
     stepKey === 'vision_fallback_recovery' ||
+    stepKey === 'context_preflight_compact' ||
+    stepKey === 'context_preflight_truncation' ||
+    stepKey === 'context_presumed_overflow' ||
     stepKey === 'media_rejected_recovery' ||
     stepKey === 'image_shrink_recovery' ||
     stepKey === 'image_payload_recovery' ||
@@ -115,7 +123,6 @@ function formatMoaSkipReason(reason: unknown): string {
   }
 }
 
-
 export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): Promise<void> {
   const data = requireStatusStreamEvent(ctx.data);
   const { actions } = ctx;
@@ -152,28 +159,35 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         ? _formatCompactionItemText(data.data as Record<string, unknown>)
         : (stepKey === 'memory_archived' || stepKey === 'context_pruned') && data.tokens_saved
           ? `(Tokens saved: ${data.tokens_saved})`
-          : stepKey === 'archive_checkpoint' && data.tool_name
-            ? `(${data.tool_name})`
-            : stepKey === 'media_stripped' && data.stripped_count
-              ? `(${data.stripped_count})`
-              : stepKey === 'transient_retry' && data.attempt
-                ? `(${data.attempt}/15)`
-                : stepKey === 'consensus_active' && data.data?.reference_models
-                  ? `(${(data.data.reference_models as string[]).join(', ')})`
-                  : stepKey === 'moa_overlay_active' && data.data?.reference_models
-                    ? `${formatMoaTriggerReason((data.data as Record<string, unknown>).trigger_reason)}(${(data.data.reference_models as string[]).join(', ')})`
-                  : stepKey === 'moa_overlay_skipped' && data.data?.reason
-                    ? `(${formatMoaSkipReason(data.data.reason)})`
-                  : stepKey === 'consensus_reference_done' && data.data?.model
-
-                      ? `${data.data.model} (${data.data.success ? '✓' : '✗'} ${typeof data.data.elapsed === 'number' ? `${data.data.elapsed.toFixed(1)}s` : ''})`
-                      : (stepKey === 'workflow_init' ||
-                            stepKey === 'workflow_planning' ||
-                            stepKey === 'workflow_execution' ||
-                            stepKey === 'workflow_stage') &&
-                          typeof data.data?.message === 'string'
-                        ? data.data.message
-                        : '';
+          : (stepKey === 'context_preflight_compact' ||
+                stepKey === 'context_preflight_truncation' ||
+                stepKey === 'context_presumed_overflow') &&
+              typeof data.freed_tokens === 'number'
+            ? `(freed ${data.freed_tokens} tokens)`
+            : (stepKey === 'context_preflight_exhausted' || stepKey === 'context_presumed_overflow_exhausted') &&
+                typeof data.request_tokens === 'number'
+              ? `(${data.request_tokens} tokens)`
+              : stepKey === 'archive_checkpoint' && data.tool_name
+                ? `(${data.tool_name})`
+                : stepKey === 'media_stripped' && data.stripped_count
+                  ? `(${data.stripped_count})`
+                  : stepKey === 'transient_retry' && data.attempt
+                    ? `(${data.attempt}/15)`
+                    : stepKey === 'consensus_active' && data.data?.reference_models
+                      ? `(${(data.data.reference_models as string[]).join(', ')})`
+                      : stepKey === 'moa_overlay_active' && data.data?.reference_models
+                        ? `${formatMoaTriggerReason((data.data as Record<string, unknown>).trigger_reason)}(${(data.data.reference_models as string[]).join(', ')})`
+                        : stepKey === 'moa_overlay_skipped' && data.data?.reason
+                          ? `(${formatMoaSkipReason(data.data.reason)})`
+                          : stepKey === 'consensus_reference_done' && data.data?.model
+                            ? `${data.data.model} (${data.data.success ? '✓' : '✗'} ${typeof data.data.elapsed === 'number' ? `${data.data.elapsed.toFixed(1)}s` : ''})`
+                            : (stepKey === 'workflow_init' ||
+                                  stepKey === 'workflow_planning' ||
+                                  stepKey === 'workflow_execution' ||
+                                  stepKey === 'workflow_stage') &&
+                                typeof data.data?.message === 'string'
+                              ? data.data.message
+                              : '';
   // dropped-manifest: constraint snippets evicted by compaction, surfaced so the
   // user can tell "compression dropped my instruction" from "the model ignored
   // it" (fault-side attribution, InteractionCentricFailureLocalizerStack).
@@ -243,7 +257,9 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
               ? 'warning'
               : compactionPhase === 'completed'
                 ? 'complete'
-                : data.status,
+                : stepKey === 'context_preflight_exhausted' || stepKey === 'context_presumed_overflow_exhausted'
+                  ? 'warning'
+                  : data.status,
       };
       if (droppedManifestItems.length > 0) {
         progressStep.dropped_manifest = droppedManifestItems;
