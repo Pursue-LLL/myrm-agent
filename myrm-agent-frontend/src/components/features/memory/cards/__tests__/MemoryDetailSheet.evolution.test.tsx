@@ -135,4 +135,21 @@ describe('MemoryDetailSheet evolution rendering', () => {
     expect(screen.getByText(/「I prefer dark mode」/)).toBeInTheDocument();
     expect(screen.getByText('fields.evolutionHistory')).toBeInTheDocument();
   });
+
+  it('renders VETO behavior guardrail panel with pattern, scope, and remediation', () => {
+    renderSheet({
+      id: 'm6',
+      memory_type: 'procedural',
+      content: '禁止执行危险脚本',
+      is_veto: true,
+      veto_pattern: 'sudo rm -rf',
+      remediation_advice: '使用无特权安全命令替换',
+      veto_scope: 'command_execution',
+    } as unknown as Memory);
+
+    expect(screen.getByText('fields.vetoGuardrail')).toBeInTheDocument();
+    expect(screen.getByText('sudo rm -rf')).toBeInTheDocument();
+    expect(screen.getByText(/使用无特权安全命令替换/)).toBeInTheDocument();
+    expect(screen.getByText(/command_execution/)).toBeInTheDocument();
+  });
 });

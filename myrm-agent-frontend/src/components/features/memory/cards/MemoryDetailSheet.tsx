@@ -159,36 +159,44 @@ const MemoryDetailSheet = memo<MemoryDetailSheetProps>(({ memory, open, onOpenCh
           )}
 
           {/* Procedural fields */}
-          {memoryType === 'procedural' && memory.trigger && (
+          {memoryType === 'procedural' && (memory.trigger || memory.action || memory.is_veto || memory.veto_pattern) && (
             <div className="space-y-3">
-              <div className="flex items-center gap-1.5 text-xs text-amber-500">
-                <Zap size={12} />
-                <span className="font-medium uppercase tracking-wide">{t('fields.trigger')}</span>
-              </div>
-              <div className="text-sm text-foreground bg-accent/30 rounded-lg p-3">
-                <span>{memory.trigger}</span>
-                {memory.tool_name && (
-                  <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium align-middle">
-                    {memory.tool_name}
-                  </span>
-                )}
-                {memory.tool_rule_priority && memory.tool_rule_priority !== 'normal' && (
-                  <span
-                    className={cn(
-                      'ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium align-middle',
-                      memory.tool_rule_priority === 'critical'
-                        ? 'bg-destructive/10 text-destructive'
-                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+              {memory.trigger && (
+                <>
+                  <div className="flex items-center gap-1.5 text-xs text-amber-500">
+                    <Zap size={12} />
+                    <span className="font-medium uppercase tracking-wide">{t('fields.trigger')}</span>
+                  </div>
+                  <div className="text-sm text-foreground bg-accent/30 rounded-lg p-3">
+                    <span>{memory.trigger}</span>
+                    {memory.tool_name && (
+                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium align-middle">
+                        {memory.tool_name}
+                      </span>
                     )}
-                  >
-                    {memory.tool_rule_priority.toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                {t('fields.action')}
-              </div>
-              <div className="text-sm text-foreground bg-accent/30 rounded-lg p-3">{memory.action}</div>
+                    {memory.tool_rule_priority && memory.tool_rule_priority !== 'normal' && (
+                      <span
+                        className={cn(
+                          'ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium align-middle',
+                          memory.tool_rule_priority === 'critical'
+                            ? 'bg-destructive/10 text-destructive'
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+                        )}
+                      >
+                        {memory.tool_rule_priority.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+              {memory.action && (
+                <>
+                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {t('fields.action')}
+                  </div>
+                  <div className="text-sm text-foreground bg-accent/30 rounded-lg p-3">{memory.action}</div>
+                </>
+              )}
               {(memory.is_veto || memory.veto_pattern) && (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
