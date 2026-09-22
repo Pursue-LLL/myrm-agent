@@ -39,6 +39,11 @@ _PLANE_REAP_LOG: Final[str] = "plane-health-reap.jsonl"
 _CONVERGE_LOCK: Final[str] = "plane-converge.lockdir"
 _CONVERGE_LOCK_STALE_SEC: Final[float] = 120.0
 _IDLE_CONVERGE_WALL_SEC: Final[float] = 45.0
+# Wait budget for a cold mux daemon start. A direct daemon invocation may first wait
+# for a cold Chrome CDP endpoint (bounded by the mux package's CDP wait), so this must
+# outlast it — a shorter poll reported failure while the daemon was still legitimately
+# starting, which masqueraded as a permanently broken plane.
+_MUX_COLD_START_WAIT_SEC: Final[float] = 20.0
 
 
 class PlaneHealthState(str, Enum):
@@ -350,10 +355,16 @@ def _start_mux_daemon_if_needed() -> bool:
     mux_dir.mkdir(parents=True, exist_ok=True)
     mux_socket = mux_dir / "cdmcp-mux.sock"
     chrome_data = _default_chrome_data_dir()
-    request_timeout = os.getenv("CDMCP_MUX_REQUEST_TIMEOUT_MS", "180000").strip() or "180000"
+    request_timeout = (
+        os.getenv("CDMCP_MUX_REQUEST_TIMEOUT_MS", "180000").strip() or "180000"
+    )
     node_dir = str(Path(node).parent)
     current_path = os.environ.get("PATH", "")
-    fixed_path = f"{node_dir}:{current_path}" if node_dir not in current_path.split(":") else current_path
+    fixed_path = (
+        f"{node_dir}:{current_path}"
+        if node_dir not in current_path.split(":")
+        else current_path
+    )
     env = {
         **os.environ,
         "PATH": fixed_path,
@@ -371,7 +382,7 @@ def _start_mux_daemon_if_needed() -> bool:
     except OSError:
         log_handle = None
     try:
-        subprocess.Popen(
+        proc = subprocess.Popen(
             [node, str(mux_bin), "daemon"],
             stdout=log_handle or subprocess.DEVNULL,
             stderr=subprocess.STDOUT if log_handle is not None else subprocess.DEVNULL,
@@ -385,10 +396,16 @@ def _start_mux_daemon_if_needed() -> bool:
         return False
     if log_handle is not None:
         log_handle.close()
-    deadline = time.monotonic() + 15.0
+    # A direct daemon start may legitimately wait for a cold Chrome CDP endpoint
+    # (bounded by the mux package's own CDP wait), so this poll must outlast that
+    # wait. Short-circuiting on process death keeps a genuinely broken start from
+    # burning the whole budget.
+    deadline = time.monotonic() + _MUX_COLD_START_WAIT_SEC
     while time.monotonic() < deadline:
         if _mux_daemon_count_live() >= 1:
             return True
+        if proc.poll() is not None:
+            return False
         time.sleep(0.5)
     return False
 
