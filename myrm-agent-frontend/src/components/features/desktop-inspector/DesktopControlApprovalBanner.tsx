@@ -127,7 +127,9 @@ const DesktopControlApprovalBanner: React.FC = () => {
               </span>
             </p>
           ) : null}
-          <p className="text-sm text-foreground/90" title={reason && operation ? operation : undefined}>{reason || operation}</p>
+          {(reason || operation) ? (
+            <p className="text-sm text-foreground/90" title={reason && operation ? operation : undefined}>{reason || operation}</p>
+          ) : null}
           {!reason && operation ? (
             <p className="text-xs text-muted-foreground font-mono truncate">{operation}</p>
           ) : null}
