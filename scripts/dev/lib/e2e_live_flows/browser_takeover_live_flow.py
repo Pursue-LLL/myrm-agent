@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
-from collections.abc import Callable
 
 import pytest
 from cdp_chat.mcp_ui import McpChatSession
@@ -31,6 +29,7 @@ from e2e_session_runtime.heartbeat import heartbeat_once
 from e2e_live_flows._flow_base import FlowLogger
 from e2e_live_flows.browser_takeover_live_api import (
     cancel_chat_via_api,
+    log_resume_reply_diagnostic,
     reset_hitl_runtime_via_api,
     resume_via_api,
 )
@@ -53,48 +52,6 @@ from e2e_live_flows.browser_takeover_live_mux import (
 )
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
-
-
-def _log_resume_reply_diagnostic(
-    *,
-    api_base: str,
-    chat_id: str,
-    log: Callable[[str], None],
-) -> None:
-    """Emit the newest assistant replies verbatim so a DONE miss is diagnosable.
-
-    The gate is a literal-word match on persisted content, so its failures are
-    invisible without the text itself: ``'ONE'`` (a reply that lost its leading
-    ``D``) and a wrong word entirely look identical in the assertion, yet point at
-    different layers. Logs each of the last few assistant turns (repr, so leading
-    whitespace and empty strings stay visible) plus their lengths.
-    """
-    try:
-        from cdp_chat.support import fetch_chat_messages
-
-        messages = fetch_chat_messages(chat_id, api_url=api_base, timeout_sec=15.0)
-    except Exception as exc:  # noqa: BLE001 — see below
-        # Deliberately total: this runs on the failure path, directly before the
-        # gate's assertion, so *any* leak here would replace the real failure
-        # ("the agent did not reply DONE") with a diagnostic crash and destroy the
-        # evidence it exists to collect. `fetch_chat_messages` can raise beyond
-        # network errors — a malformed payload surfaces as JSONDecodeError, which
-        # is not an OSError.
-        log(f"ResumeReplyDiagnostic unavailable: {type(exc).__name__}: {exc!s:.160}")
-        return
-
-    replies = [
-        msg
-        for msg in messages
-        if isinstance(msg, dict) and str(msg.get("role") or "").lower() == "assistant"
-    ]
-    log(
-        f"ResumeReplyDiagnostic: messages={len(messages)} assistant_turns={len(replies)}"
-    )
-    for index, msg in enumerate(replies[-3:]):
-        raw = msg.get("content")
-        text = raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False)
-        log(f"ResumeReplyDiagnostic[{index}] len={len(text)} content={text[:200]!r}")
 
 
 async def run_browser_takeover_live_flow(
@@ -421,8 +378,7 @@ async def run_browser_takeover_live_flow(
         # without it the operator cannot tell whether the model emitted the wrong
         # word, the text was mutated on the way to the DB, or the poll read a stale
         # message. Each needs a different fix, and only the text distinguishes them.
-        _log_resume_reply_diagnostic(api_base=api_base, chat_id=resume_chat_id, log=_p)
-
+        log_resume_reply_diagnostic(api_base=api_base, chat_id=resume_chat_id, log=_p)
     assert done, (
         f"Agent did not reply DONE after browser takeover resume "
         f"for chat {resume_chat_id}; ui_ack={ui_ack}"

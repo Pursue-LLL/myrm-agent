@@ -7,6 +7,7 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 
 _SSE_DONE_RE = re.compile(r"(?:\bOK\b|GOAL_OK|\bDONE\b)", re.IGNORECASE)
 
@@ -174,3 +175,39 @@ def resume_via_api(
             return {"ok": True, "done": True, "text_sample": collected_text[:200]}
         print(f"E2E_RESUME_API: {type(exc).__name__}: {exc}", flush=True)
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def log_resume_reply_diagnostic(
+    *,
+    api_base: str,
+    chat_id: str,
+    log: Callable[[str], None],
+) -> None:
+    """Emit the newest assistant replies verbatim so a DONE miss is diagnosable.
+
+    The gate is a literal-word match on persisted content, so its failures are
+    invisible without the text itself: a reply that lost its leading ``D`` and a
+    wrong word entirely look identical in the assertion, yet point at different
+    layers. Logs each of the last few assistant turns (repr, so leading whitespace
+    and empty strings stay visible) plus their lengths.
+    """
+    try:
+        from cdp_chat.support import fetch_chat_messages
+
+        messages = fetch_chat_messages(chat_id, api_url=api_base, timeout_sec=15.0)
+    except Exception as exc:  # noqa: BLE001 — deliberately total: this runs immediately before the gate's assertion, so any leak would replace the real failure with a diagnostic crash and destroy the evidence it collects (a malformed payload surfaces as JSONDecodeError, which is not an OSError)
+        log(f"ResumeReplyDiagnostic unavailable: {type(exc).__name__}: {exc!s:.160}")
+        return
+
+    replies = [
+        msg
+        for msg in messages
+        if isinstance(msg, dict) and str(msg.get("role") or "").lower() == "assistant"
+    ]
+    log(
+        f"ResumeReplyDiagnostic: messages={len(messages)} assistant_turns={len(replies)}"
+    )
+    for index, msg in enumerate(replies[-3:]):
+        raw = msg.get("content")
+        text = raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False)
+        log(f"ResumeReplyDiagnostic[{index}] len={len(text)} content={text[:200]!r}")
