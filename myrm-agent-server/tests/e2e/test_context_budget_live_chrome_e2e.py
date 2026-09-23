@@ -135,15 +135,20 @@ _ATTACH_CHAT_JS = """(async () => {
 })()"""
 
 
-def _seed_empty_chat(api_url: str) -> dict[str, object]:
+def _seed_empty_chat(ui_url: str) -> dict[str, object]:
     """Seed the retention chat: proven to render the composer and usage indicator.
+
+    Seeded through the **UI origin** rather than ``get_e2e_api_url()``: the API helper can
+    resolve to an isolated backend while the WebUI proxies to the shared one, which makes
+    a chat created via the API invisible to the UI (``notFound``). Going through the UI's
+    own proxy guarantees the chat lands in the backend the browser actually talks to.
 
     That fixture carries one seeded assistant turn, so the live turn is verified by
     difference (budget count and turn_count must both grow) rather than by presence.
     """
     seeded = http_json(
         "POST",
-        f"{api_url}/api/v1/chats/test/seed-context-retention-fixture",
+        f"{ui_url.rstrip('/')}/api/v1/chats/test/seed-context-retention-fixture",
     )
     assert isinstance(seeded, dict), seeded
     chat_id = str(seeded.get("chat_id") or "")
@@ -164,7 +169,7 @@ def test_live_turn_emits_context_budget_with_server_turn_count() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
-    seeded = _seed_empty_chat(api_url)
+    seeded = _seed_empty_chat(ui_url)
     chat_id = str(seeded["chat_id"])
     agent_id = str(seeded["agent_id"])
     chat_path = str(seeded.get("ui_path") or f"/{chat_id}?agentId={agent_id}")
