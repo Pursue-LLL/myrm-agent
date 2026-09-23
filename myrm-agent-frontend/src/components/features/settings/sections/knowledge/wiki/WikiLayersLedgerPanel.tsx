@@ -1,4 +1,16 @@
-'use client';
+/**
+ * [INPUT]
+ * - @/services/wikiService::writebackService (POS: 五层资产统计与分层词条查询服务)
+ * - ./WikiReviewSlipModal (POS: 作者审阅单批量回写确认对话框)
+ * - ./WikiLayerItemPreviewModal (POS: 词条 Markdown 只读预览模态框)
+ * - ../WikiAgentScopeContext::useWikiAgentScope (POS: Agent Wiki 作用域上下文)
+ *
+ * [OUTPUT]
+ * - WikiLayersLedgerPanel: 五层知识资产全局态势总览、分层下钻浏览与审阅单工作台面板
+ *
+ * [POS]
+ * - 知识库全局资产态势展示与微观下钻层。展示 L1-L5 资产分布，提供下钻词条抽屉与审阅单回写入口。
+ */
 
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -23,6 +35,7 @@ import { Badge } from '@/components/primitives/badge';
 import { writebackService, type WikiLayersStats, type WikiLayerItem } from '@/services/wikiService';
 import { useWikiAgentScope } from '../WikiAgentScopeContext';
 import { WikiReviewSlipModal } from './WikiReviewSlipModal';
+import { WikiLayerItemPreviewModal } from './WikiLayerItemPreviewModal';
 
 export function WikiLayersLedgerPanel() {
   const { agentScopeId } = useWikiAgentScope();
@@ -340,66 +353,11 @@ export function WikiLayersLedgerPanel() {
         }}
       />
 
-      {/* Readonly Document Preview Modal */}
-      {previewItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in-50">
-          <dialog
-            open
-            aria-label="词条文档预览"
-            className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden m-auto"
-          >
-            <div className="p-4 border-b border-border/60 flex items-center justify-between bg-secondary/20">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-foreground tracking-tight flex items-center gap-2">
-                    {previewItem.title}
-                    <Badge
-                      variant={previewItem.publish_status === 'draft' ? 'outline' : 'secondary'}
-                      className={`text-[10px] ${
-                        previewItem.publish_status === 'draft' ? 'border-amber-500/40 text-amber-500' : ''
-                      }`}
-                    >
-                      {previewItem.publish_status === 'draft' ? 'Draft' : 'Live'}
-                    </Badge>
-                  </h3>
-                  <p className="text-xs font-mono text-muted-foreground mt-0.5">
-                    {previewItem.relative_path}
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setPreviewItem(null)}
-                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-
-            <div className="p-5 overflow-y-auto space-y-4 text-xs leading-relaxed text-foreground/90">
-              <div className="p-3 rounded-lg bg-secondary/30 border border-border/40 font-mono text-[11px] text-muted-foreground flex flex-col gap-1">
-                <div>更新时间：{previewItem.updated_at || '刚刚'}</div>
-                <div>存储分层：{selectedLayerTitle}</div>
-                <div>溯源凭据：已校验负向排除策略，关联交付审计链</div>
-              </div>
-
-              <div className="p-4 rounded-xl border border-border/50 bg-background/60 font-sans whitespace-pre-wrap leading-relaxed">
-                {previewItem.content_snippet}
-              </div>
-            </div>
-
-            <div className="p-3 border-t border-border/60 flex justify-end bg-secondary/10">
-              <Button variant="outline" size="sm" onClick={() => setPreviewItem(null)} className="h-8 text-xs">
-                关闭预览
-              </Button>
-            </div>
-          </dialog>
-        </div>
-      )}
+      <WikiLayerItemPreviewModal
+        item={previewItem}
+        layerTitle={selectedLayerTitle}
+        onClose={() => setPreviewItem(null)}
+      />
     </Card>
   );
 }

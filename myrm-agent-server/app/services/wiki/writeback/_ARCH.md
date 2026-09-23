@@ -12,14 +12,16 @@
    - 存储于 `{vault_path}/deliverables/ledgers/{task_id}.json`。
 2. **Negative Exclusion Guard（负向不回写硬拦截）**：
    - 基于 Harness `NegativeExclusionPolicy`，拦截 5 类单次瞬态数据（讲师逐字稿、特定环境IP/VPC、虚拟样本数据、临时崩溃日志、定制客户报价）。
-3. **Review Slip（作者审阅单）**：
+3. **Review Slip 与 Provenance 溯源凭证注入**：
    - 将通过过滤的有效洞察聚合提炼为 1~5 道极简单选题决策卡；
-   - 支持单键将经验归档至 `knowledge/methods/` 或 `knowledge/claims/`（保持 `draft` 状态）。
+   - 支持单键将经验归档至 `knowledge/methods/` 或 `knowledge/claims/`（保持 `draft` 状态），并在 YAML frontmatter 中规范注入 `evidence` 凭证链（`source_task_id`, `source_deliverable`, `negative_exclusion_verified: true`）。
+4. **Layer Items Inspection（五层资产微观下钻）**：
+   - 按分层（L1-L5）提供轻量级文档清单与 Markdown 摘要检索，支持前端态势看板直接下钻预览。
 
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `schemas.py` | 契约 | Pydantic DTO 定义（台账记录、审阅单问题、提交回写请求） | ✅ |
-| `service.py` | 核心 | `WikiWritebackService` 单机核心服务 | ✅ |
+| `schemas.py` | 契约 | Pydantic DTO 定义（台账记录、审阅单问题、提交回写请求、`WikiLayerItem`） | ✅ |
+| `service.py` | 核心 | `WikiWritebackService` 单机核心服务（台账管理、回写执行、分层文档列表） | ✅ |
 | `__init__.py` | 入口 | 模块门面统一导出 | ✅ |
