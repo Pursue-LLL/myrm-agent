@@ -13,7 +13,8 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 | useWikiTreeActions.ts                                | Core | 词条树节点拖拽移动、新建文件夹、重命名与弹窗处理 Handler                                                                                                                                                          | ✅    |
 | WikiConceptTree.tsx                                  | UI   | react-arborist 管理树；`ingest_status` amber 点标示关联源过期                                                                                                                                                     | ✅    |
 | WikiConceptDetailPanel.tsx                           | UI   | 预览 + 视频笔记内嵌播放（`VideoKnowledgePlayer`）+ **四标签编辑**（truth/advanced 用分屏实时预览编辑器）+ 结构化 claims 展示（`lib/wiki/claimStatusDisplay` badge）；来源对话消息级/会话级跳转                    | ✅    |
-| WikiMarkdownEditor.tsx                               | UI   | **分屏实时预览编辑器**：Monaco 源码（懒加载）+ MarkdownContent 实时渲染；`useDeferredValue` 防抖、受控写回保光标、Cmd/Ctrl+S、移动端编辑/预览 Tab；`onMount` 暴露 `window.__wikiMarkdownEditor` 供 E2E 编程式输入 | ✅    |
+| WikiEditorToolbar.tsx                                | UI   | **Wiki Markdown 格式工具栏**：加粗/斜体/二级标题/代码块/引用/无序列表/待办任务/Wiki双链（`[[]]`）/表格模板；矢量图标；深浅主题自适应                                                                             | ✅    |
+| WikiMarkdownEditor.tsx                               | UI   | **分屏实时预览编辑器**：Monaco 源码（懒加载）+ MarkdownContent 实时渲染；WikiEditorToolbar 挂载与原生 executeEdits 执行；onDidScrollChange 平滑滚动比例同步；unmount 内存释放清理；Cmd/Ctrl+S、移动端编辑/预览 Tab | ✅    |
 | WikiRawSourceTree.tsx                                | UI   | Overview raw 目录树；三色 ingest 点；Settings 侧 forget raw（reason dialog）                                                                                                                                      | ✅    |
 | WikiFolderSelectTree.tsx                             | UI   | 仅文件夹的选择树（Create/SaveToWiki 复用）                                                                                                                                                                        | ✅    |
 | ../WikiHealthIssuesSection.tsx                       | UI   | Overview 健康报告：lint issues + duplicate/synthesis 快捷入口                                                                                                                                                     | ✅    |
@@ -29,6 +30,7 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 | **tests**/wikiTreeUtils.test.ts                      | Test | 树工具 + 溯源 frontmatter 解析（source_chat/source_message）单测                                                                                                                                                  | ✅    |
 | **tests**/WikiConceptDetailPanel.sourceJump.test.tsx | Test | 概念详情来源对话跳转（消息级/会话级/无来源）                                                                                                                                                                      | ✅    |
 | **tests**/VideoKnowledgePlayer.test.ts               | Test | 视频播放器嵌入、时间戳解析、Frontmatter 元数据抽取与 URL 校验单测                                                                                                                                                 | ✅    |
+| **tests**/WikiEditorToolbar.test.tsx                 | Test | WikiEditorToolbar 按钮渲染、格式操作分发与 disabled 状态保护单测                                                                                                                                                  | ✅    |
 
 ## Dependencies
 

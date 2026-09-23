@@ -1,7 +1,7 @@
 /**
- * UTF-8 安全的 Base64 编解码工具。
- * 针对包含多字节 Unicode 字符（如中文、Emoji、数学符号等）的 Base64 字符串，
- * 使用标准 TextDecoder / TextEncoder 正确处理字节流，避免原生 atob 仅支持 Latin1 的致命乱码问题。
+ * [INPUT] 无外部业务模块依赖，依赖原生 Uint8Array / TextDecoder / TextEncoder / atob / btoa
+ * [OUTPUT] safeBase64DecodeUtf8: UTF-8 安全 Base64 解码; safeBase64EncodeUtf8: UTF-8 安全 Base64 编码
+ * [POS] 通用字符编码工具层。提供跨多字节 Unicode（中文、日韩文、Emoji）标准 Base64 编解码能力。
  */
 
 /**

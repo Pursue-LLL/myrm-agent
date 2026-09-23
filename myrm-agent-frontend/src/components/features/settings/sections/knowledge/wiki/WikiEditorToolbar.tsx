@@ -1,5 +1,10 @@
 'use client';
 
+/**
+ * [INPUT] lucide-react 矢量图标, cn 样式拼接工具
+ * [OUTPUT] WikiEditorToolbar: Wiki Markdown 格式快捷工具栏组件, ToolbarAction: 工具栏动作枚举
+ * [POS] Wiki 编辑器子组件层。提供紧凑精巧的 Markdown 语法与 Wiki 双链快捷插入操作面板。
+ */
 import React, { memo } from 'react';
 import {
   Bold,
