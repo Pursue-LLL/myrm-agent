@@ -103,6 +103,13 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
     )
 
     try:
+        # 动态获取当前 semantic collection 的实际向量维度（避免硬编码 1024 与系统已配置 embedding 模型如 1536 不一致导致 broadcast 错误）
+        dim = _PRESEEDED_EMBEDDING_DIM
+        if hasattr(manager, "_vector") and manager._vector:
+            col_info = await manager._vector.get_collection_info(manager._config.semantic_collection)
+            if col_info and col_info.dimension:
+                dim = col_info.dimension
+
         # 先以预填向量落库（embedding 非 None → store_semantic 跳过 embedding API），
         # 再补 merge 审计字段二次落库。该 fixture 只验证持久化 + API 投影 + UI 渲染，
         # 因此不需要可用的远端 embedding 凭据。
@@ -110,7 +117,7 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
             content=_EVOLUTION_SEED_CONTENT,
             importance=0.8,
             tags=["e2e-evolution"],
-            embedding=[0.0] * _PRESEEDED_EMBEDDING_DIM,
+            embedding=[0.0] * dim,
         )
         persisted = await manager.store(base, _bypass_approval=True)
         if not isinstance(persisted, SemanticMemory):
@@ -134,7 +141,7 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
             importance=1.0,
             confidence=0.95,
             tags=["e2e-evolution"],
-            embedding=[0.0] * _PRESEEDED_EMBEDDING_DIM,
+            embedding=[0.0] * dim,
             correction_of=str(persisted.id),
         )
         corrected = await manager.store(correction, _bypass_approval=True)
@@ -148,9 +155,7 @@ async def seed_memory_evolution_fixture() -> dict[str, str]:
             "correction_id": str(corrected.id),
             "status": "seeded",
         }
-    finally:
-        close = getattr(manager, "close", None) or getattr(manager, "aclose", None)
-        if close is not None:
-            result = close()
-            if hasattr(result, "__await__"):
-                await result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

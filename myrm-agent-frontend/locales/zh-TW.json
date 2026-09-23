@@ -4766,7 +4766,11 @@
       "mergeCount": "已合併 {count} 次",
       "merged": "合併",
       "replaced": "替換",
-      "supplemented": "補充"
+      "supplemented": "補充",
+      "vetoGuardrail": "執行階段門禁",
+      "vetoPattern": "受控模式",
+      "remediation": "自我修復建議",
+      "scope": "範圍"
     },
     "typeDesc": {
       "profile": "使用者屬性鍵值對（名字、語言、職業）",
@@ -9633,6 +9637,35 @@
       "error": "上傳頭像失敗。"
     },
     "testChat": "測試對話",
+    "setupWizard": {
+      "title": "分步指引",
+      "open": "分步指引",
+      "template": {
+        "hint": "選一個起點，之後都可以再調整。",
+        "loading": "正在載入範本…",
+        "error": "載入範本失敗。",
+        "createError": "建立智能體失敗。"
+      },
+      "readiness": {
+        "hint": "首次使用前先檢查一下這位助手。",
+        "checking": "正在檢查…",
+        "error": "檢查就緒狀態失敗。",
+        "blockedHint": "請先解決被阻斷的項，或調整設定。"
+      },
+      "verify": {
+        "hint": "發一條試用訊息，確認{name}能正常運作。",
+        "openChat": "開啟試用對話"
+      },
+      "done": {
+        "hint": "設定完成，之後隨時可以修改。"
+      },
+      "actions": {
+        "continue": "繼續",
+        "finish": "完成",
+        "close": "關閉",
+        "skip": "略過"
+      }
+    },
     "delete": {
       "title": "刪除智慧體",
       "confirm": "確定要刪除此智慧體嗎？此操作無法撤銷。",

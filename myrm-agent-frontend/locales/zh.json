@@ -16544,6 +16544,35 @@
       "error": "上传头像失败。"
     },
     "testChat": "测试对话",
+    "setupWizard": {
+      "title": "分步指引",
+      "open": "分步指引",
+      "template": {
+        "hint": "选一个起点，之后都可以再调整。",
+        "loading": "正在加载模板…",
+        "error": "加载模板失败。",
+        "createError": "创建智能体失败。"
+      },
+      "readiness": {
+        "hint": "首次使用前先检查一下这位助手。",
+        "checking": "正在检查…",
+        "error": "检查就绪状态失败。",
+        "blockedHint": "请先解决被阻断的项，或调整配置。"
+      },
+      "verify": {
+        "hint": "发一条试用消息，确认{name}能正常工作。",
+        "openChat": "打开试用对话"
+      },
+      "done": {
+        "hint": "设置完成，之后随时可以修改。"
+      },
+      "actions": {
+        "continue": "继续",
+        "finish": "完成",
+        "close": "关闭",
+        "skip": "跳过"
+      }
+    },
     "delete": {
       "title": "删除智能体",
       "confirm": "确定要删除此智能体吗？此操作无法撤销。",

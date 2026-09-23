@@ -16544,6 +16544,35 @@
       "error": "Failed to upload avatar."
     },
     "testChat": "Test Chat",
+    "setupWizard": {
+      "title": "Guided setup",
+      "open": "Guided setup",
+      "template": {
+        "hint": "Pick a starting point. You can adjust everything later.",
+        "loading": "Loading templates…",
+        "error": "Failed to load templates.",
+        "createError": "Failed to create agent."
+      },
+      "readiness": {
+        "hint": "Checking this assistant before first use.",
+        "checking": "Checking…",
+        "error": "Failed to check readiness.",
+        "blockedHint": "Resolve blocked items first, or adjust the configuration."
+      },
+      "verify": {
+        "hint": "Send a trial message to confirm {name} works.",
+        "openChat": "Open a trial chat"
+      },
+      "done": {
+        "hint": "Setup complete. You can change anything later."
+      },
+      "actions": {
+        "continue": "Continue",
+        "finish": "Finish",
+        "close": "Close",
+        "skip": "Skip"
+      }
+    },
     "delete": {
       "title": "Delete Agent",
       "confirm": "Are you sure you want to delete this agent? This action cannot be undone.",

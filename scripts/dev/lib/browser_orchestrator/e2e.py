@@ -33,6 +33,8 @@ _orchestrator_watchdog_last_spawn_at: float = 0.0
 def _route_binding_expression(extra_expression: str | None) -> str | None:
     """Bind a PRIVATE runtime before the final route can issue API requests."""
     runtime_expression = e2e_runtime_bootstrap_apply_js()
+    if runtime_expression is None:
+        runtime_expression = e2e_api_base_inject_js()
     expressions = [
         expression.strip()
         for expression in (runtime_expression, extra_expression)

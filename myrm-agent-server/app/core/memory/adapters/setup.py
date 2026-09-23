@@ -169,9 +169,18 @@ async def create_memory_manager(
     async with _memory_manager_cache_lock:
         cached = _memory_manager_cache.get(cache_key)
         if cached is not None:
-            cached._on_conflict = on_conflict
-            cached._on_consolidation_complete = on_consolidation_complete
-            return cached
+            is_closed = False
+            try:
+                rel = getattr(cached, "_rel", None)
+                if rel and getattr(rel(), "_closed", False):
+                    is_closed = True
+            except Exception:
+                pass
+            if not is_closed:
+                cached._on_conflict = on_conflict
+                cached._on_consolidation_complete = on_consolidation_complete
+                return cached
+            _memory_manager_cache.pop(cache_key, None)
 
         from app.core.retriever.vector.defaults import create_default_vector_store
 

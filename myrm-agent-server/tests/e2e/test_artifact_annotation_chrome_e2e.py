@@ -98,7 +98,7 @@ _DIRECT_RENDER_JS = """(() => {
     artifactTestIds,
   };
 })()"""
-_PORTAL_WITH_TEXT_JS = """(() => {
+_PORTAL_WITH_TEXT_JS = r"""(() => {
   const containers = Array.from(document.querySelectorAll('#artifact-content-container'));
   const text = containers.map((c) => c.innerText || '').join(' | ');
   const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [role="complementary"]')).map((el) => ({

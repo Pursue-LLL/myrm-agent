@@ -2478,11 +2478,11 @@
         "allowOnce": "한 번만 허용",
         "allowSession": "이 채팅 허용",
         "allowAlways": "이 앱 항상 허용",
-        "expiredNotice": "This request already settled (timeout). The agent run moved on.",
-        "dismiss": "Dismiss",
-        "denyReasonPlaceholder": "Reason for denial (optional)",
-        "targetChangedNotice": "The target changed since your last approval. Please review again.",
-        "deniedNotice": "Denied. This request will not be asked again in this session."
+        "expiredNotice": "이 요청은 이미 종료되었습니다(시간 초과). 작업이 계속 진행되었습니다.",
+        "dismiss": "닫기",
+        "denyReasonPlaceholder": "거부 사유(선택사항)",
+        "targetChangedNotice": "마지막 승인 이후 대상이 변경되었습니다. 다시 확인해 주세요.",
+        "deniedNotice": "거부되었습니다. 이 세션 동안 이 요청을 다시 묻지 않습니다."
       }
     },
     "deviceInspector": {
@@ -3931,7 +3931,11 @@
       "mergeCount": "{count}회 병합됨",
       "merged": "병합",
       "replaced": "대체",
-      "supplemented": "보완"
+      "supplemented": "보완",
+      "vetoGuardrail": "런타임 실행 가드레일",
+      "vetoPattern": "제어 패턴",
+      "remediation": "해결 지침",
+      "scope": "범위"
     },
     "typeDesc": {
       "profile": "키-값 사용자 속성 (이름, 언어, 직업)",
@@ -9633,6 +9637,35 @@
       "error": "아바타 업로드에 실패했습니다."
     },
     "testChat": "테스트 채팅",
+    "setupWizard": {
+      "title": "가이드 설정",
+      "open": "가이드 설정",
+      "template": {
+        "hint": "시작점을 선택하세요. 나중에 언제든 조정할 수 있습니다.",
+        "loading": "템플릿을 불러오는 중…",
+        "error": "템플릿을 불러오지 못했습니다.",
+        "createError": "에이전트를 만들지 못했습니다."
+      },
+      "readiness": {
+        "hint": "처음 사용하기 전에 이 어시스턴트를 확인합니다.",
+        "checking": "확인 중…",
+        "error": "준비 상태 확인에 실패했습니다.",
+        "blockedHint": "차단된 항목을 먼저 해결하거나 구성을 조정하세요."
+      },
+      "verify": {
+        "hint": "시험 메시지를 보내 {name}의 동작을 확인하세요.",
+        "openChat": "시험 채팅 열기"
+      },
+      "done": {
+        "hint": "설정이 완료되었습니다. 나중에 언제든 변경할 수 있습니다."
+      },
+      "actions": {
+        "continue": "계속",
+        "finish": "완료",
+        "close": "닫기",
+        "skip": "건너뛰기"
+      }
+    },
     "delete": {
       "title": "에이전트 삭제",
       "confirm": "이 에이전트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",

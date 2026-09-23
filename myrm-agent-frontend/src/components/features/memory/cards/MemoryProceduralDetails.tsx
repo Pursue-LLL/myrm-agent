@@ -33,7 +33,7 @@ export const MemoryProceduralDetails = memo<MemoryProceduralDetailsProps>(({ con
       {confirmed.is_veto && (
         <div className="flex items-center gap-1.5 text-destructive bg-destructive/10 rounded-md px-2 py-1 mb-1.5 font-medium">
           <ShieldAlert size={12} className="shrink-0" />
-          <span>{confirmed.veto_scope ? `[${confirmed.veto_scope}] ` : ''}{confirmed.action || confirmed.veto_pattern || t('fields.vetoRule')}</span>
+          <span>{confirmed.veto_scope ? `[${confirmed.veto_scope}] ` : ''}{confirmed.action || confirmed.veto_pattern || t('fields.vetoGuardrail')}</span>
         </div>
       )}
 
@@ -74,7 +74,7 @@ export const MemoryProceduralDetails = memo<MemoryProceduralDetailsProps>(({ con
       {confirmed.remediation_advice && (
         <div className="flex items-center gap-1.5 pl-[18px] text-primary/90 mt-0.5">
           <span className="italic">
-            <span className="font-medium mr-1">{t('fields.advice', { defaultMessage: '建议替代' })}:</span>
+            <span className="font-medium mr-1">{t('fields.remediation')}:</span>
             {confirmed.remediation_advice}
           </span>
         </div>

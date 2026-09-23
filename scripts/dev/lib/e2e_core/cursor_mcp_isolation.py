@@ -1,14 +1,17 @@
-"""Cursor Agent MCP isolation contract (§25.8 SSOT).
+"""Agent MCP isolation contract (§25.8 SSOT, generic across MCP clients).
 
 [INPUT]
 - Global and multi-instance Cursor mcp.json paths
+- opencode opencode.json path (same :9410 contract, opencode schema)
 - Optional project-level .cursor/mcp.json
 - Live ChromeAgent pipe-proxy (:9410) health probe
 
 [OUTPUT]
-- inspect_mcp_json(): per-file contract verdict
+- inspect_mcp_json(): per-file contract verdict (Cursor schema)
+- inspect_opencode_mcp_json(): per-file verdict (opencode schema)
 - assert_agent_mcp_contract(): aggregate FAIL/WARN across instances
 - fix_cursor_mcp_configs(): idempotent SSOT restore for chrome-devtools entry
+- fix_opencode_mcp_configs(): idempotent :9410 restore for opencode entry
 - canonical_chrome_devtools_entry(): ChromeAgent :9410 MCP server dict
 - probe_chrome_agent_reachable(): live ChromeAgent prerequisite
 - probe_chrome_agent_launchagent(): LaunchAgent daemon state
@@ -163,6 +166,26 @@ def known_cursor_mcp_paths() -> list[Path]:
         home / ".cursor2" / ".cursor" / "mcp.json",
         home / ".cursor-3.1.15" / "mcp.json",
     ]
+
+
+OPENCODE_MCP_KEY = "chrome-devtools-mcp"
+
+
+def known_opencode_mcp_paths() -> list[Path]:
+    home = _real_home()
+    return [home / ".config" / "opencode" / "opencode.json"]
+
+
+def known_agent_mcp_paths() -> list[Path]:
+    seen: set[str] = set()
+    paths: list[Path] = []
+    for candidate in [*known_cursor_mcp_paths(), *known_opencode_mcp_paths()]:
+        key = str(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        paths.append(candidate)
+    return paths
 
 
 def project_cursor_mcp_paths(start: Path | None = None) -> list[Path]:
@@ -342,14 +365,166 @@ def inspect_mcp_json(path: Path) -> McpInspection:
     }
 
 
+def _opencode_chrome_entry(payload: object) -> dict[str, object] | None:
+    if not isinstance(payload, dict):
+        return None
+    mcp = payload.get("mcp")
+    if not isinstance(mcp, dict):
+        return None
+    entry = mcp.get(OPENCODE_MCP_KEY)
+    return entry if isinstance(entry, dict) else None
+
+
+def _normalize_opencode_entry(entry: dict[str, object]) -> dict[str, object]:
+    command = entry.get("command")
+    if isinstance(command, list):
+        text = " ".join(str(i).strip() for i in command if str(i).strip())
+    elif isinstance(command, str):
+        text = command.strip()
+    else:
+        text = ""
+    env = entry.get("environment")
+    return {
+        "command": text,
+        "args": [],
+        "env": env if isinstance(env, dict) else {},
+    }
+
+
+def inspect_opencode_mcp_json(path: Path) -> McpInspection:
+    if not path.is_file():
+        return {
+            "ok": True,
+            "path": str(path),
+            "present": False,
+            "violations": [],
+            "chrome_devtools_command": None,
+        }
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {
+            "ok": False,
+            "path": str(path),
+            "present": True,
+            "violations": [_violation_message("MCP_JSON_INVALID", path=path)],
+            "chrome_devtools_command": None,
+        }
+    if not isinstance(payload, dict):
+        return {
+            "ok": False,
+            "path": str(path),
+            "present": True,
+            "violations": [_violation_message("MCP_JSON_INVALID", path=path)],
+            "chrome_devtools_command": None,
+        }
+    entry = _opencode_chrome_entry(payload)
+    if entry is None:
+        return {
+            "ok": True,
+            "path": str(path),
+            "present": True,
+            "violations": [],
+            "chrome_devtools_command": None,
+        }
+    normalized = _normalize_opencode_entry(entry)
+    command = _command_text(normalized)
+    violations: list[str] = []
+    if _references_e2e_chrome(normalized):
+        if "cdmcp-mux" in command.lower():
+            violations.append(_violation_message("AGENT_MUX_FORBIDDEN", path=path))
+        else:
+            violations.append(_violation_message("AGENT_E2E_PORT_FORBIDDEN", path=path))
+    elif _references_auto_connect(normalized):
+        violations.append(_violation_message("AGENT_AUTO_CONNECT_FORBIDDEN", path=path))
+    elif _references_daily_cdp_port(normalized):
+        violations.append(_violation_message("AGENT_DAILY_PORT_FORBIDDEN", path=path))
+    elif not _has_chrome_agent_browser_url(normalized):
+        violations.append(_violation_message("AGENT_MISSING_CHROME_AGENT", path=path))
+    return {
+        "ok": not violations,
+        "path": str(path),
+        "present": True,
+        "violations": violations,
+        "chrome_devtools_command": command or None,
+    }
+
+
+def _sanitize_opencode_command(command: list[str]) -> list[str]:
+    kept: list[str] = []
+    skip_next = False
+    for item in command:
+        text = str(item)
+        if skip_next:
+            skip_next = False
+            continue
+        lowered = text.strip().lower().replace("_", "-")
+        if lowered in ("--auto-connect", "--autoconnect"):
+            continue
+        if lowered in ("--browserurl", "--browser-url"):
+            skip_next = True
+            continue
+        if lowered.startswith(("--browserurl=", "--browser-url=")):
+            continue
+        if any(
+            marker in lowered
+            for marker in (":9333", ":9222", "cdmcp-mux", "chromee2e")
+        ):
+            continue
+        kept.append(text)
+    if not any(f":{AGENT_CDP_PORT}" in str(i) for i in kept):
+        kept.extend(["--browserUrl", f"http://127.0.0.1:{AGENT_CDP_PORT}"])
+    return kept
+
+
+def fix_opencode_mcp_configs(*, paths: list[Path] | None = None) -> list[str]:
+    """Idempotently point opencode chrome MCP at ChromeAgent :9410.
+
+    Preserves every other key (timeout/environment/sibling servers) and the
+    pinned package version; only the browser-targeting flags are repaired.
+    """
+    target_paths = paths or [path for path in known_opencode_mcp_paths() if path.is_file()]
+    changed: list[str] = []
+    for path in target_paths:
+        if not path.is_file():
+            continue
+        if inspect_opencode_mcp_json(path)["ok"]:
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise SystemExit(f"Cannot fix invalid MCP config {path}: {exc}") from exc
+        if not isinstance(payload, dict):
+            raise SystemExit(f"Cannot fix invalid MCP config shape: {path}")
+        entry = _opencode_chrome_entry(payload)
+        if entry is None:
+            continue
+        command = entry.get("command")
+        if isinstance(command, list):
+            entry["command"] = _sanitize_opencode_command([str(i) for i in command])
+        elif isinstance(command, str):
+            if f":{AGENT_CDP_PORT}" in command:
+                continue
+            entry["command"] = (
+                f"{command.strip()} --browserUrl http://127.0.0.1:{AGENT_CDP_PORT}"
+            ).strip()
+        else:
+            continue
+        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        changed.append(str(path))
+    return changed
+
+
 def assert_agent_mcp_contract(
     *,
     extra_paths: list[Path] | None = None,
     require_present_paths: bool = False,
+    include_opencode: bool = True,
 ) -> ContractReport:
     paths: list[Path] = []
     seen: set[str] = set()
-    for candidate in [*known_cursor_mcp_paths(), *(extra_paths or [])]:
+    base = known_agent_mcp_paths() if include_opencode else known_cursor_mcp_paths()
+    for candidate in [*base, *(extra_paths or [])]:
         key = str(candidate)
         if key in seen:
             continue
@@ -359,7 +534,10 @@ def assert_agent_mcp_contract(
     inspections: list[McpInspection] = []
     violations: list[str] = []
     for path in paths:
-        result = inspect_mcp_json(path)
+        if path.name == "opencode.json":
+            result = inspect_opencode_mcp_json(path)
+        else:
+            result = inspect_mcp_json(path)
         inspections.append(result)
         if require_present_paths and not result["present"]:
             msg = _violation_message("MCP_FILE_MISSING", path=path)
@@ -585,12 +763,17 @@ def _print_doctor_report(report: DoctorReport) -> None:
     print("CURSOR_MCP_ISOLATION_DOCTOR: starting")
     for inspection in report.contract["inspections"]:
         label = inspection["path"]
+        prefix = (
+            "OPENCODE_MCP_ISOLATION"
+            if label.endswith("opencode.json")
+            else "CURSOR_MCP_ISOLATION"
+        )
         if not inspection["present"]:
-            print(f"CURSOR_MCP_ISOLATION_SKIP: {label} (absent)")
+            print(f"{prefix}_SKIP: {label} (absent)")
             continue
         command = inspection["chrome_devtools_command"] or "(missing)"
         status = "OK" if inspection["ok"] else "FAIL"
-        print(f"CURSOR_MCP_ISOLATION_{status}: {label}")
+        print(f"{prefix}_{status}: {label}")
         print(f"  chrome-devtools: {command}")
         for violation in inspection["violations"]:
             print(f"  - {violation}", file=sys.stderr)
@@ -651,13 +834,15 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help=(
             "Restore chrome-devtools SSOT entry "
-            f"(ChromeAgent :{AGENT_CDP_PORT}) in known Cursor mcp.json files"
+            f"(ChromeAgent :{AGENT_CDP_PORT}) in known Cursor mcp.json "
+            "and opencode opencode.json files"
         ),
     )
     args = parser.parse_args(argv)
 
     if args.fix:
         changed = fix_cursor_mcp_configs()
+        changed += fix_opencode_mcp_configs()
         if changed:
             print("CURSOR_MCP_ISOLATION_FIX: restored chrome-devtools in:")
             for path in changed:

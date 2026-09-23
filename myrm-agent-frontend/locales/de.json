@@ -2476,11 +2476,11 @@
         "allowOnce": "Einmal erlauben",
         "allowSession": "Diesen Chat erlauben",
         "allowAlways": "Diese App immer erlauben",
-        "expiredNotice": "This request already settled (timeout). The agent run moved on.",
-        "dismiss": "Dismiss",
-        "denyReasonPlaceholder": "Reason for denial (optional)",
-        "targetChangedNotice": "The target changed since your last approval. Please review again.",
-        "deniedNotice": "Denied. This request will not be asked again in this session."
+        "expiredNotice": "Diese Anfrage wurde bereits erledigt (Zeitüberschreitung). Der Agent hat fortgefahren.",
+        "dismiss": "Schließen",
+        "denyReasonPlaceholder": "Grund für die Ablehnung (optional)",
+        "targetChangedNotice": "Das Ziel hat sich seit Ihrer letzten Genehmigung geändert. Bitte überprüfen Sie es erneut.",
+        "deniedNotice": "Abgelehnt. Diese Anfrage wird in dieser Sitzung nicht mehr gestellt."
       }
     },
     "deviceInspector": {
@@ -3972,7 +3972,11 @@
       "mergeCount": "{count}x zusammengeführt",
       "merged": "Zusammengeführt",
       "replaced": "Ersetzt",
-      "supplemented": "Ergänzt"
+      "supplemented": "Ergänzt",
+      "vetoGuardrail": "Laufzeit-Sicherheitsleitplanke",
+      "vetoPattern": "Gesteuertes Muster",
+      "remediation": "Behebungshinweis",
+      "scope": "Geltungsbereich"
     },
     "typeDesc": {
       "profile": "Schlüsselwert-Benutzerattribute (Name, Sprache, Beruf)",
@@ -9633,6 +9637,35 @@
       "error": "Avatar konnte nicht hochgeladen werden."
     },
     "testChat": "Test-Chat",
+    "setupWizard": {
+      "title": "Geführte Einrichtung",
+      "open": "Geführte Einrichtung",
+      "template": {
+        "hint": "Wähle einen Startpunkt. Alles lässt sich später anpassen.",
+        "loading": "Vorlagen werden geladen…",
+        "error": "Vorlagen konnten nicht geladen werden.",
+        "createError": "Agent konnte nicht erstellt werden."
+      },
+      "readiness": {
+        "hint": "Dieser Assistent wird vor der ersten Nutzung geprüft.",
+        "checking": "Wird geprüft…",
+        "error": "Bereitschaftsprüfung fehlgeschlagen.",
+        "blockedHint": "Behebe zuerst die blockierten Punkte oder passe die Konfiguration an."
+      },
+      "verify": {
+        "hint": "Sende eine Testnachricht, um zu prüfen, ob {name} funktioniert.",
+        "openChat": "Test-Chat öffnen"
+      },
+      "done": {
+        "hint": "Einrichtung abgeschlossen. Alles lässt sich später ändern."
+      },
+      "actions": {
+        "continue": "Weiter",
+        "finish": "Fertig",
+        "close": "Schließen",
+        "skip": "Überspringen"
+      }
+    },
     "delete": {
       "title": "Agent löschen",
       "confirm": "Möchten Sie diesen Agenten wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",

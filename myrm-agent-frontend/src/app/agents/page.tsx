@@ -5,10 +5,11 @@ import Link from 'next/link';
 import useSWR from 'swr';
 import { AgentAvatar } from '@/components/agent/AgentAvatar';
 import { AgentEditForm } from '@/components/agent/AgentEditForm';
+import { AgentSetupWizard } from '@/components/agent/AgentSetupWizard';
 import { GovernancePanel } from '@/components/agent/GovernancePanel';
 import { Button } from '@/components/primitives/button';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
-import { Plus, Settings, Trash2, MessageSquare, Clock, ShieldAlert, Activity, Coins, Zap, Layers } from 'lucide-react';
+import { Plus, Settings, Trash2, MessageSquare, Clock, ShieldAlert, Activity, Coins, Zap, Layers, Sparkles } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { agentSettingsHref } from '@/components/features/loadout/loadoutDeepLinks';
 import { listAgents, deleteAgent, getFleetOverview, AgentListItem, AgentFleetStats } from '@/services/agent';
@@ -43,6 +44,7 @@ export default function AgentsPage() {
   const locale = useLocale();
 
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
+  const [isSetupWizardOpen, setIsSetupWizardOpen] = useState(false);
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
   const [deletingAgentId, setDeletingAgentId] = useState<string | null>(null);
 
@@ -127,10 +129,16 @@ export default function AgentsPage() {
             })}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+        <Button variant="outline" onClick={() => setIsSetupWizardOpen(true)}>
+          <Sparkles className="mr-2 h-4 w-4" />
+          {t('setupWizard.open', { fallback: 'Guided setup' })}
+        </Button>
         <Button onClick={handleCreate}>
           <Plus className="mr-2 h-4 w-4" />
           {t('create.button', { fallback: 'Create Agent' })}
         </Button>
+        </div>
       </div>
 
       {kpi && <FleetKPIBar kpi={kpi} />}
@@ -173,6 +181,12 @@ export default function AgentsPage() {
         onOpenChange={setIsEditFormOpen}
         agentId={editingAgentId}
         onSaveSuccess={handleSaveSuccess}
+      />
+
+      <AgentSetupWizard
+        open={isSetupWizardOpen}
+        onOpenChange={setIsSetupWizardOpen}
+        onDone={mutate}
       />
 
       <ConfirmDialog

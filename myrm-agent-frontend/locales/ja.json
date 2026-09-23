@@ -2509,11 +2509,11 @@
         "allowOnce": "許可一回",
         "allowSession": "本セッション許可",
         "allowAlways": "このアプリを常に許可",
-        "expiredNotice": "This request already settled (timeout). The agent run moved on.",
-        "dismiss": "Dismiss",
-        "denyReasonPlaceholder": "Reason for denial (optional)",
-        "targetChangedNotice": "The target changed since your last approval. Please review again.",
-        "deniedNotice": "Denied. This request will not be asked again in this session."
+        "expiredNotice": "このリクエストは期限切れになりました（タイムアウト）。タスクは継続しました。",
+        "dismiss": "閉じる",
+        "denyReasonPlaceholder": "拒否理由（任意）",
+        "targetChangedNotice": "前回の承認以降に対象が変更されました。再度確認してください。",
+        "deniedNotice": "拒否されました。このリクエストは本セッション内では再確認されません。"
       }
     },
     "deviceInspector": {
@@ -4722,7 +4722,11 @@
       "mergeCount": "{count} 回マージ済み",
       "merged": "マージ",
       "replaced": "置換",
-      "supplemented": "補足"
+      "supplemented": "補足",
+      "vetoGuardrail": "実行時ガードレール",
+      "vetoPattern": "制御対象パターン",
+      "remediation": "修復ガイダンス",
+      "scope": "適用範囲"
     },
     "typeDesc": {
       "profile": "ユーザー属性のキー・バリュー（名前、言語、職業）",
@@ -9633,6 +9637,35 @@
       "error": "アバターのアップロードに失敗しました。"
     },
     "testChat": "テストチャット",
+    "setupWizard": {
+      "title": "ガイド付きセットアップ",
+      "open": "ガイド付きセットアップ",
+      "template": {
+        "hint": "開始点を選択。将来的調整はいつでも可能です。",
+        "loading": "テンプレートを読み込み中…",
+        "error": "テンプレートの読み込みに失敗しました。",
+        "createError": "エージェントの作成に失敗しました。"
+      },
+      "readiness": {
+        "hint": "初回利用前にこのアシスタントを確認します。",
+        "checking": "確認中…",
+        "error": "就緒状態の確認に失敗しました。",
+        "blockedHint": "ブロックされた項目を先に解決するか、設定を調整してください。"
+      },
+      "verify": {
+        "hint": "試用メッセージを送信して{name}の動作を確認します。",
+        "openChat": "試用チャットを開く"
+      },
+      "done": {
+        "hint": "セットアップ完了。後からいつでも変更できます。"
+      },
+      "actions": {
+        "continue": "続ける",
+        "finish": "完了",
+        "close": "閉じる",
+        "skip": "スキップ"
+      }
+    },
     "delete": {
       "title": "エージェントを削除",
       "confirm": "このエージェントを削除してもよろしいですか？この操作は元に戻せません。",

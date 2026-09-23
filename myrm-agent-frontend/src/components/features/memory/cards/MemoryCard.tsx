@@ -107,14 +107,24 @@ const MemoryCard = memo<MemoryCardProps>(
 
     return (
       <div
+        data-testid="memory-card"
         className={cn(
           'group relative rounded-xl border transition-all duration-200',
           'bg-card hover:bg-accent/30',
           selected ? 'border-primary ring-2 ring-primary/20' : 'border-border/50 hover:border-border',
           'hover:shadow-md hover:shadow-primary/5',
           isDisabled && 'opacity-50',
+          onClick && 'cursor-pointer',
           className,
         )}
+        onClick={(e) => {
+          if (!onClick) return;
+          const target = e.target as HTMLElement;
+          if (target.closest('button, [role="button"], input, a, [data-prevent-card-click]')) {
+            return;
+          }
+          onClick();
+        }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => {
           setIsHovered(false);
@@ -318,6 +328,7 @@ const MemoryCard = memo<MemoryCardProps>(
           {onClick ? (
             <button
               type="button"
+              data-testid="memory-card-content-btn"
               className={cn(
                 'text-sm text-foreground leading-relaxed line-clamp-3 text-left',
                 'cursor-pointer hover:text-primary/80 transition-colors',

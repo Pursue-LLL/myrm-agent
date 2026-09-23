@@ -67,71 +67,104 @@ _SEED_CARD_READY_JS = """(() => {
 })()"""
 
 _DETAIL_SHEET_OPEN_JS = """(() => {
+  // 1) 优先通过 content-btn 查找
+  const contentBtns = Array.from(document.querySelectorAll('[data-testid="memory-card-content-btn"]'));
+  const targetBtn = contentBtns.find((el) => (el.textContent || '').includes('E2E evolution seed'));
+  if (targetBtn) {
+    targetBtn.click();
+    return { ok: true, method: 'testid_content_btn', tag: targetBtn.tagName };
+  }
+  // 2) 优先通过 memory-card 容器查找
+  const cards = Array.from(document.querySelectorAll('[data-testid="memory-card"]'));
+  const targetCard = cards.find((el) => (el.textContent || '').includes('E2E evolution seed'));
+  if (targetCard) {
+    targetCard.click();
+    return { ok: true, method: 'testid_card', tag: targetCard.tagName };
+  }
+  // 3) 回退通用匹配
   const all = [...document.querySelectorAll('div, button')];
-  const cards = all.filter((el) => (el.textContent || '').includes('E2E evolution seed'));
-  if (!cards.length) {
+  const candidates = all.filter((el) => (el.textContent || '').includes('E2E evolution seed'));
+  if (!candidates.length) {
     return { ok: false, err: 'seed card not found', sampleText: (document.body.innerText || '').slice(0, 300) };
   }
-  // 选最内层（叶子方向）匹配元素：textContent 命中的可能是整页容器，
-  // 点击外层容器不触发卡片 onClick。
-  let card = cards[cards.length - 1];
-  for (const el of cards) {
+  let card = candidates[candidates.length - 1];
+  for (const el of candidates) {
     if ((el.textContent || '').trim() === 'E2E evolution seed - user prefers dark mode (v3)') {
       card = el;
       break;
     }
   }
   card.click();
-  return { ok: true, tag: card.tagName };
+  return { ok: true, method: 'fallback_leaf', tag: card.tagName };
 })()"""
 
 _SHEET_PROBE_JS = """(() => {
-  const text = document.body.innerText;
-  const sheetOpen = /Evolution History|演变历史/.test(text);
-  const hasMergeBadge = /Merged \\d+ times|已合并 \\d+ 次/.test(text);
-  const hasMergeAction = /Merged|Replaced|Supplemented|合并|替换|补充/.test(text);
+  const sheetEl = document.querySelector('[data-testid="memory-detail-sheet"], [role="dialog"]');
+  const historyEl = document.querySelector('[data-testid="evolution-history"]');
+  const countEl = document.querySelector('[data-testid="merge-count"]');
+  const actionEl = document.querySelector('[data-testid="merge-action"]');
+  const text = document.body.innerText || '';
+
+  const sheetOpen = Boolean(sheetEl || historyEl || /Evolution History|演变历史|演變歷史|変遷履歴|변천 이력|Entwicklungshistorie/.test(text));
+  const hasMergeBadge = Boolean(countEl || /Merged \\d+ times|已合并 \\d+ 次|已合併 \\d+ 次|\\d+ 回マージ済み|\\d+회 병合됨|\\d+x zusammengeführt/.test(text));
+  const hasMergeAction = Boolean(actionEl || /Merged|Replaced|Supplemented|合并|替换|补充|合併|替換|マージ|置換|補足|병합|대체|보완|Zusammengeführt|Ersetzt|Ergänzt/.test(text));
+
   return {
     ready: sheetOpen && hasMergeBadge && hasMergeAction,
     sheetOpen,
     hasMergeBadge,
     hasMergeAction,
+    sample: text.slice(0, 200),
   };
 })()"""
 
 _SHEET_CLOSE_JS = """(() => {
   // Radix Sheet: 右上角关闭按钮（aria-label）优先；回退 Escape 由 harness 处理
-  const btn = document.querySelector('[data-state="open"] [data-radix-collection-item], [data-radix-sheet-close], button[aria-label*="Close"], button[aria-label*="关闭"]');
+  const btn = document.querySelector('[data-state="open"] [data-radix-collection-item], [data-radix-sheet-close], button[aria-label*="Close"], button[aria-label*="关闭"], button[aria-label*="關閉"]');
   if (!btn) return { ok: false, err: 'close btn not found' };
   btn.click();
   return { ok: true };
 })()"""
 
 _CORRECTED_SHEET_OPEN_JS = """(() => {
+  const contentBtns = Array.from(document.querySelectorAll('[data-testid="memory-card-content-btn"]'));
+  const targetBtn = contentBtns.find((el) => (el.textContent || '').includes('user prefers dark mode (corrected v1)'));
+  if (targetBtn) {
+    targetBtn.click();
+    return { ok: true, method: 'testid_content_btn', tag: targetBtn.tagName };
+  }
+  const cards = Array.from(document.querySelectorAll('[data-testid="memory-card"]'));
+  const targetCard = cards.find((el) => (el.textContent || '').includes('user prefers dark mode (corrected v1)'));
+  if (targetCard) {
+    targetCard.click();
+    return { ok: true, method: 'testid_card', tag: targetCard.tagName };
+  }
   const all = [...document.querySelectorAll('div, button')];
-  const cards = all.filter((el) => (el.textContent || '').includes('user prefers dark mode (corrected v1)'));
-  if (!cards.length) {
+  const candidates = all.filter((el) => (el.textContent || '').includes('user prefers dark mode (corrected v1)'));
+  if (!candidates.length) {
     return { ok: false, err: 'corrected card not found', sampleText: (document.body.innerText || '').slice(0, 300) };
   }
-  let card = cards[cards.length - 1];
-  for (const el of cards) {
+  let card = candidates[candidates.length - 1];
+  for (const el of candidates) {
     if ((el.textContent || '').trim() === 'user prefers dark mode (corrected v1)') {
       card = el;
       break;
     }
   }
   card.click();
-  return { ok: true, tag: card.tagName };
+  return { ok: true, method: 'fallback_leaf', tag: card.tagName };
 })()"""
 
 _CORRECTION_PROBE_JS = """(() => {
-  const text = document.body.innerText;
-  const hasCorrectionBadge = /Corrects|纠正/.test(text);
-  const hasSupersededId = /corrected v1/.test(text);
+  const chainEl = document.querySelector('[data-testid="correction-chain"]');
+  const text = document.body.innerText || '';
+  const hasCorrectionBadge = Boolean(chainEl || /Corrects|纠正|糾正|修正|수정|Korrigiert/.test(text));
+  const hasSupersededContent = Boolean(chainEl || /corrected v1/.test(text));
   return {
     ready: hasCorrectionBadge,
     hasCorrectionBadge,
-    hasSupersededContent: hasSupersededId,
-    text: text.slice(0, 300),
+    hasSupersededContent,
+    sample: text.slice(0, 200),
   };
 })()"""
 
@@ -207,6 +240,7 @@ def _run_evolution_assertions(api_url: str, ui_url: str) -> None:
         # 4) 打开详情 Sheet
         opened = client.evaluate(page, _DETAIL_SHEET_OPEN_JS, timeout_sec=30.0)
         assert opened.get("ok") is True, json.dumps(opened, ensure_ascii=False)
+        time.sleep(1.0)
 
         # 5) 断言演变历史渲染
         sheet = wait_for_state(client, page, _SHEET_PROBE_JS, timeout_sec=45.0)

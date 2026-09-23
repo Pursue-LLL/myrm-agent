@@ -43,12 +43,12 @@ export const parseMergeHistory = (raw?: string): MergeHistoryEntry[] => {
 const EvolutionHistory = memo<{ entries: MergeHistoryEntry[] }>(({ entries }) => {
   const t = useTranslations('memory');
   return (
-    <div className="space-y-2">
+    <div data-testid="evolution-history" className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           {t('fields.evolutionHistory')}
         </span>
-        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+        <span data-testid="merge-count" className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
           {t('fields.mergeCount', { count: entries.length })}
         </span>
       </div>
@@ -63,7 +63,7 @@ const EvolutionHistory = memo<{ entries: MergeHistoryEntry[] }>(({ entries }) =>
             />
             <div className="flex flex-wrap items-baseline gap-x-2 min-w-0">
               <span className="text-[10px] text-muted-foreground/70 font-mono shrink-0">{entry.timestamp}</span>
-              <span className="text-[10px] px-1.5 py-px rounded bg-accent text-accent-foreground font-medium shrink-0">
+              <span data-testid="merge-action" className="text-[10px] px-1.5 py-px rounded bg-accent text-accent-foreground font-medium shrink-0">
                 {t(MERGE_ACTION_KEYS[entry.action] ?? 'fields.merged')}
               </span>
               <span className="text-xs text-foreground/90 break-all min-w-0">{entry.summary}</span>
@@ -111,7 +111,7 @@ const MemoryDetailSheet = memo<MemoryDetailSheetProps>(({ memory, open, onOpenCh
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-[440px] overflow-y-auto">
+      <SheetContent data-testid="memory-detail-sheet" className="sm:max-w-[440px] overflow-y-auto">
         <SheetHeader className="pb-4 border-b border-border/50">
           <div className="flex items-center gap-3">
             <MemoryTypeIcon type={memoryType} size={24} showBackground showTooltip />
@@ -318,7 +318,7 @@ const MemoryDetailSheet = memo<MemoryDetailSheetProps>(({ memory, open, onOpenCh
               <>
                 {evolutionEntries.length > 0 && <EvolutionHistory entries={evolutionEntries} />}
                 {memory.correction_of && (
-                  <div className="flex items-start gap-1.5 text-xs bg-primary/5 border border-primary/20 rounded-lg px-3 py-2 text-muted-foreground">
+                  <div data-testid="correction-chain" className="flex items-start gap-1.5 text-xs bg-primary/5 border border-primary/20 rounded-lg px-3 py-2 text-muted-foreground">
                     <GitCommitHorizontal size={12} className="shrink-0 mt-0.5 text-primary" />
                     <span>
                       <span className="font-medium text-foreground/80">{t('fields.corrects')}</span>{' '}

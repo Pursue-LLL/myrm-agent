@@ -89,7 +89,12 @@ def _api(path: str, method: str = "GET", body: dict | None = None) -> dict:
 
 
 def _preclean_agents(prefix: str) -> None:
-    """Delete residue from prior interrupted runs (best effort)."""
+    """Delete residue from prior interrupted runs (best effort).
+
+    Scoped to the caller run suffix so parallel lane runs cannot delete
+    each other's live agents. Stale residue from crashed runs is left for
+    manual cleanup (see created[] teardown in the test body).
+    """
     try:
         resp = _api("/api/v1/user-agents?page=1&page_size=200")
         items = ((resp.get("data") or {}).get("items")) or []
@@ -110,7 +115,7 @@ def _find_agent_id(items: list, name: str) -> str | None:
     return None
 
 
-def _wait_agent_name(api_url: str, name: str, timeout_sec: float = 60.0) -> str:
+def _wait_agent_name(name: str, timeout_sec: float = 60.0) -> str:
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
         resp = _api("/api/v1/user-agents?page=1&page_size=100")
@@ -140,7 +145,8 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
     target_name = f"gov-e2e-target-{suffix}"
     source_name = f"gov-e2e-source-{suffix}"
     created: list[str] = []
-    _preclean_agents("gov-e2e-")
+    _preclean_agents(f"gov-e2e-target-{suffix}")
+    _preclean_agents(f"gov-e2e-source-{suffix}")
     try:
         warm_ui_route("/agents")
         agents_url = f"{ui_url}/agents"
@@ -201,7 +207,7 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
             saved = client.evaluate(page, js, timeout_sec=20.0)
             assert isinstance(saved, dict) and saved.get("ok") is True, saved
 
-        target_id = _wait_agent_name(api_url, target_name)
+        target_id = _wait_agent_name(target_name)
         created.append(target_id)
         detail = _api(f"/api/v1/user-agents/{target_id}").get("data") or {}
         assert detail.get("responsibility_scope") == "Owns e2e verification replies", detail
@@ -424,9 +430,9 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
         assert "e2e-skill-c" not in (merged.get("skill_ids") or []), merged
         created.remove(source_id)
     finally:
-        # T6: cleanup leaves no residue.
+        # T6: cleanup leaves no residue (same shared base as creation/list).
         for agent_id in created:
             try:
-                http_json("DELETE", f"{api_url}/api/v1/user-agents/{agent_id}")
+                _api(f"/api/v1/user-agents/{agent_id}", method="DELETE")
             except Exception:
                 pass

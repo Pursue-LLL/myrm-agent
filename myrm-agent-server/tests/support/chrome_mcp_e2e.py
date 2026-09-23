@@ -283,8 +283,12 @@ def http_json(
     allowed_bases = [get_e2e_ui_url(), get_e2e_api_url()]
     port_raw = os.environ.get("MYRM_BACKEND_PORT", "8080").strip()
     shared_hot = f"http://127.0.0.1:{port_raw if port_raw.isdigit() else 8080}"
-    if shared_hot.rstrip("/") not in {base.rstrip("/") for base in allowed_bases}:
-        allowed_bases.append(shared_hot)
+    # The canonical shared backend stays reachable on :8080 across backend
+    # rotations (seeded/isolated runtimes come and go); keep it allowlisted
+    # alongside the volatile env-derived base. Loopback-only, no trust change.
+    for base in (shared_hot, "http://127.0.0.1:8080"):
+        if base.rstrip("/") not in {known.rstrip("/") for known in allowed_bases}:
+            allowed_bases.append(base)
     allowed = tuple(allowed_bases)
     if not url.startswith(allowed):
         raise ValueError(f"Chrome E2E HTTP helper only permits loopback app URLs: {url}")
@@ -870,6 +874,12 @@ def _ensure_e2e_private_api_live(
                 timeout_sec=min(60.0, timeout_sec),
             )
             return
+
+    client.evaluate(
+        page,
+        e2e_api_base_inject_js(api_base),
+        timeout_sec=min(15.0, timeout_sec),
+    )
 
     probe_raw = client.evaluate(
         page,
