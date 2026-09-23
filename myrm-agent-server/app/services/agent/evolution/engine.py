@@ -145,7 +145,9 @@ def check_skill_budget_before_evolution(
         store = get_evolution_skill_store()
         active_skills = store.get_active_skills(agent_id=agent_id)
         current_count = len(active_skills)
-        current_tokens = sum(max(100, len(s.content) // 4) for s in active_skills)
+        from myrm_agent_harness.utils.text_utils import get_token_count
+
+        current_tokens = sum(max(100, get_token_count(s.content)) for s in active_skills)
 
         return gov.check_budget(
             evolution_type=evolution_type,

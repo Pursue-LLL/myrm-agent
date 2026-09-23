@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, Clock3, List, RefreshCw, ShieldAlert, SquareStack } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, Cpu, List, RefreshCw, ShieldAlert, SquareStack } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
@@ -42,7 +42,13 @@ import {
 export function PendingEvolutionsDashboard() {
   const t = useTranslations('settings.skills.growth');
   const { user } = useAuthStore();
-  const { fetchLocalSkills, fetchUserSkillConfig } = useSkillStore();
+  const { fetchLocalSkills, fetchUserSkillConfig, localSkills } = useSkillStore();
+
+  const skillCount = localSkills?.length ?? 0;
+  const maxSkillCount = 50;
+  const capacityPercent = Math.min(100, Math.round((skillCount / maxSkillCount) * 100));
+  const isWarning = capacityPercent >= 80 && capacityPercent < 100;
+  const isLimit = capacityPercent >= 100;
 
   const [cases, setCases] = useState<SkillGrowthCaseSummary[]>([]);
   const [listTotal, setListTotal] = useState(0);
@@ -92,6 +98,7 @@ export function PendingEvolutionsDashboard() {
         const [casesResult, summaryResult] = await Promise.allSettled([
           listSkillGrowthCases(LIST_CASES_LIMIT),
           getSkillGrowthSummary(),
+          fetchLocalSkills(),
         ]);
 
         if (casesResult.status === 'rejected') {
@@ -286,6 +293,22 @@ export function PendingEvolutionsDashboard() {
       description={t('description')}
       action={
         <div className="flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-secondary/30 text-xs">
+            <Cpu className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-muted-foreground">容量池:</span>
+            <span
+              className={cn(
+                'font-medium font-mono',
+                isLimit
+                  ? 'text-rose-600 dark:text-rose-400 font-semibold'
+                  : isWarning
+                    ? 'text-amber-600 dark:text-amber-400 font-semibold'
+                    : 'text-emerald-600 dark:text-emerald-400'
+              )}
+            >
+              {skillCount}/{maxSkillCount} ({capacityPercent}%)
+            </span>
+          </div>
           <Button variant="outline" size="sm" className="gap-2" onClick={toggleViewMode}>
             {viewMode === 'simple' ? <List className="h-4 w-4" /> : <SquareStack className="h-4 w-4" />}
             {t(`viewMode.${viewMode}` as Parameters<typeof t>[0])}
@@ -323,6 +346,39 @@ export function PendingEvolutionsDashboard() {
           toneClassName="border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"
         />
       </div>
+
+      {(isWarning || isLimit) && (
+        <div
+          className={cn(
+            'flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl border backdrop-blur-sm transition-all',
+            isLimit
+              ? 'border-rose-300/80 bg-rose-50/70 dark:border-rose-900/60 dark:bg-rose-950/20 text-rose-900 dark:text-rose-200'
+              : 'border-amber-300/80 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200'
+          )}
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle
+              className={cn(
+                'w-4 h-4 shrink-0 mt-0.5',
+                isLimit ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
+              )}
+            />
+            <div className="space-y-0.5 text-xs">
+              <div className="font-semibold flex items-center gap-2">
+                <span>{isLimit ? '技能自进化已触碰硬限熔断 (100%)' : '技能池接近容量安全阈值 (80%)'}</span>
+                <span className="px-1.5 py-0.2 rounded bg-background/60 border border-current font-mono text-[10px]">
+                  {skillCount}/{maxSkillCount} ({capacityPercent}%)
+                </span>
+              </div>
+              <p className="opacity-90 leading-relaxed">
+                {isLimit
+                  ? '已暂停新技能自动捕获以保护系统提示词预算（Bug修复自愈不受影响）。建议前往技能库归档冷门技能以恢复容量。'
+                  : '已习得技能数接近上限。建议主动检查并停用长期未调用的冷门技能，防止会话上下文膨胀。'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showListScopeHint && (
         <p className="text-sm text-muted-foreground">{t('listScopeHint', { shown: cases.length, total: listTotal })}</p>
