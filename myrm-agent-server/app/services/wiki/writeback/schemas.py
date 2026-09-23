@@ -79,6 +79,7 @@ class WritebackDecisionItem(BaseModel):
     target_layer: Literal["methods", "claims", "deliverables_only", "discard"]
     candidate_title: str
     candidate_content: str
+    source_deliverable: str = Field("", description="Source deliverable document relative path")
 
 
 class WritebackApplyRequest(BaseModel):
@@ -86,6 +87,7 @@ class WritebackApplyRequest(BaseModel):
 
     task_id: str
     decisions: list[WritebackDecisionItem]
+    source_deliverable: str = Field("", description="Default source deliverable document relative path")
 
 
 class WritebackApplyResult(BaseModel):
@@ -96,3 +98,14 @@ class WritebackApplyResult(BaseModel):
     discarded_count: int
     created_paths: list[str] = Field(default_factory=list)
     message: str = "Writeback applied successfully"
+
+
+class WikiLayerItem(BaseModel):
+    """Summary of a single markdown document within a wiki layer."""
+
+    slug: str = Field(..., description="Document slug or filename")
+    title: str = Field(..., description="Document title")
+    relative_path: str = Field(..., description="Relative path within wiki vault")
+    publish_status: str = Field("published", description="draft or published")
+    updated_at: str = Field("", description="Last modified ISO timestamp")
+    content_snippet: str = Field("", description="First few lines of document body")

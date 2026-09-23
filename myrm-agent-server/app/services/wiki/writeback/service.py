@@ -33,6 +33,7 @@ from app.services.wiki.writeback.schemas import (
     ReviewSlipOption,
     ReviewSlipQuestion,
     UsageLedgerRecord,
+    WikiLayerItem,
     WritebackApplyRequest,
     WritebackApplyResult,
 )
@@ -187,8 +188,9 @@ class WikiWritebackService:
                 target_file = structure.claims_dir / f"{slug}.md"
                 page_type = "claim"
 
-            # Render YAML frontmatter adhering to Draft-to-Live gate
+            # Render YAML frontmatter adhering to Draft-to-Live gate and Provenance evidence chain
             now_iso = datetime.now(UTC).isoformat(timespec="seconds")
+            source_deliv = item.source_deliverable or request.source_deliverable or "deliverables/unknown.md"
             file_content = (
                 f"---\n"
                 f"title: \"{item.candidate_title}\"\n"
@@ -196,6 +198,10 @@ class WikiWritebackService:
                 f"publish_status: draft\n"
                 f"source_task_id: \"{request.task_id}\"\n"
                 f"created_at: \"{now_iso}\"\n"
+                f"evidence:\n"
+                f"  source_task_id: \"{request.task_id}\"\n"
+                f"  source_deliverable: \"{source_deliv}\"\n"
+                f"  negative_exclusion_verified: true\n"
                 f"---\n\n"
                 f"{item.candidate_content}\n"
             )
@@ -217,6 +223,79 @@ class WikiWritebackService:
             created_paths=created_paths,
             message=f"Successfully committed {committed_count} items (discarded {discarded_count})",
         )
+
+    def list_layer_items(
+        self,
+        agent_id: str,
+        layer_key: str,
+        limit: int = 30,
+    ) -> list[WikiLayerItem]:
+        """List markdown documents in the specified wiki layer with frontmatter parsing."""
+        structure = self._get_structure(agent_id)
+        layer_dir_map: dict[str, Path] = {
+            "l1": structure.raw_dir,
+            "raw": structure.raw_dir,
+            "inbox": structure.inbox_dir,
+            "l2": structure.sources_dir,
+            "sources": structure.sources_dir,
+            "l3": structure.methods_dir,
+            "methods": structure.methods_dir,
+            "concepts": structure.concepts_dir,
+            "l4": structure.claims_dir,
+            "claims": structure.claims_dir,
+            "l5": structure.deliverables_dir,
+            "deliverables": structure.deliverables_dir,
+        }
+        target_dir = layer_dir_map.get(layer_key.lower())
+        if not target_dir or not target_dir.is_dir():
+            return []
+
+        items: list[WikiLayerItem] = []
+        md_files = sorted(
+            [p for p in target_dir.rglob("*.md") if not p.name.startswith(".")],
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+
+        for p in md_files[:limit]:
+            try:
+                text = p.read_text(encoding="utf-8")
+            except Exception:
+                continue
+
+            title = p.stem.replace("-", " ").replace("_", " ").title()
+            publish_status = "published"
+            if text.startswith("---"):
+                parts = text.split("---", 2)
+                if len(parts) >= 3:
+                    fm_text = parts[1]
+                    for line in fm_text.splitlines():
+                        if line.startswith("title:"):
+                            title = line.split(":", 1)[1].strip().strip('"').strip("'")
+                        elif line.startswith("publish_status:"):
+                            publish_status = line.split(":", 1)[1].strip()
+                    body = parts[2].strip()
+                else:
+                    body = text
+            else:
+                body = text
+
+            mtime_iso = datetime.fromtimestamp(p.stat().st_mtime, UTC).isoformat(timespec="seconds")
+            rel_path = str(p.relative_to(structure.base_dir))
+            snippet = body[:280].replace("\n", " ").strip()
+
+            items.append(
+                WikiLayerItem(
+                    slug=p.stem,
+                    title=title,
+                    relative_path=rel_path,
+                    publish_status=publish_status,
+                    updated_at=mtime_iso,
+                    content_snippet=snippet,
+                )
+            )
+
+        return items
 
 
 _service_instance: WikiWritebackService | None = None

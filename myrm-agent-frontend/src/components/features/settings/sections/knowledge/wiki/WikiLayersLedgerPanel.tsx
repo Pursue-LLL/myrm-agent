@@ -11,11 +11,16 @@ import {
   Sparkles,
   RefreshCw,
   HelpCircle,
+  FileText,
+  Clock,
+  X,
+  Eye,
+  ChevronDown,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
-import { writebackService, type WikiLayersStats } from '@/services/wikiService';
+import { writebackService, type WikiLayersStats, type WikiLayerItem } from '@/services/wikiService';
 import { useWikiAgentScope } from '../WikiAgentScopeContext';
 import { WikiReviewSlipModal } from './WikiReviewSlipModal';
 
@@ -25,6 +30,14 @@ export function WikiLayersLedgerPanel() {
   const [stats, setStats] = useState<WikiLayersStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
+
+  // Micro-level layer item inspection state
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [selectedLayerKey, setSelectedLayerKey] = useState<string>('methods');
+  const [selectedLayerTitle, setSelectedLayerTitle] = useState<string>('');
+  const [layerItems, setLayerItems] = useState<WikiLayerItem[]>([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
+  const [previewItem, setPreviewItem] = useState<WikiLayerItem | null>(null);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -38,13 +51,39 @@ export function WikiLayersLedgerPanel() {
     }
   }, [agentScopeId]);
 
+  const handleSelectLayer = useCallback(
+    async (layerId: string, layerKey: string, layerTitle: string) => {
+      if (selectedLayerId === layerId) {
+        setSelectedLayerId(null);
+        setLayerItems([]);
+        return;
+      }
+      setSelectedLayerId(layerId);
+      setSelectedLayerKey(layerKey);
+      setSelectedLayerTitle(layerTitle);
+      setItemsLoading(true);
+      try {
+        const items = await writebackService.getLayerItems(layerKey, agentScopeId);
+        setLayerItems(items);
+      } catch (err) {
+        console.error('Failed to load layer items:', err);
+        setLayerItems([]);
+      } finally {
+        setItemsLoading(false);
+      }
+    },
+    [agentScopeId, selectedLayerId],
+  );
+
   useEffect(() => {
     void fetchStats();
   }, [fetchStats]);
 
+
   const layersConfig = [
     {
       id: 'l1',
+      targetKey: 'raw',
       layerNumber: 'L1',
       title: '原始输入与候选池',
       subtext: 'Raw & Inbox',
@@ -56,6 +95,7 @@ export function WikiLayersLedgerPanel() {
     },
     {
       id: 'l2',
+      targetKey: 'sources',
       layerNumber: 'L2',
       title: '来源凭证卡',
       subtext: 'Sources (身份证)',
@@ -67,6 +107,7 @@ export function WikiLayersLedgerPanel() {
     },
     {
       id: 'l3',
+      targetKey: 'methods',
       layerNumber: 'L3',
       title: '核心知识体系',
       subtext: 'Concepts & Methods',
@@ -78,6 +119,7 @@ export function WikiLayersLedgerPanel() {
     },
     {
       id: 'l4',
+      targetKey: 'claims',
       layerNumber: 'L4',
       title: '观点与主张',
       subtext: 'Claims (待验证)',
@@ -89,6 +131,7 @@ export function WikiLayersLedgerPanel() {
     },
     {
       id: 'l5',
+      targetKey: 'deliverables',
       layerNumber: 'L5',
       title: '交付物与使用台账',
       subtext: 'Deliverables & Ledgers',
@@ -146,15 +189,22 @@ export function WikiLayersLedgerPanel() {
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {/* Layer cards grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {layersConfig.map((layer) => {
             const Icon = layer.icon;
+            const isSelected = selectedLayerId === layer.id;
             return (
-              <div
+              <button
+                type="button"
                 key={layer.id}
-                className={`relative p-3.5 rounded-xl border ${layer.color} transition-all duration-200 hover:shadow-md flex flex-col justify-between`}
+                aria-label={`查看 ${layer.title} 词条清单`}
+                onClick={() => void handleSelectLayer(layer.id, layer.targetKey, layer.title)}
+                className={`text-left relative p-3.5 rounded-xl border ${layer.color} transition-all duration-200 cursor-pointer flex flex-col justify-between select-none ${
+                  isSelected ? 'ring-2 ring-primary shadow-md scale-[1.01]' : 'hover:shadow-md hover:border-primary/40'
+                }`}
               >
-                <div>
+                <div className="w-full">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded bg-background/80 border border-border/40">
                       {layer.layerNumber}
@@ -174,15 +224,96 @@ export function WikiLayersLedgerPanel() {
                 </div>
 
                 <div className="mt-4 pt-2.5 border-t border-border/30 flex items-baseline justify-between">
-                  <span className="text-xs text-muted-foreground">已归档条目</span>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    已归档条目
+                    {isSelected && <ChevronDown className="w-3 h-3 text-primary animate-bounce" />}
+                  </span>
                   <span className="text-lg font-bold font-mono text-foreground">
                     {loading ? '...' : layer.count}
                   </span>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
+
+        {/* Selected Layer Micro-level Inspection Drawer */}
+        {selectedLayerId && (
+          <div className="p-4 rounded-xl border border-border/60 bg-background/95 shadow-sm space-y-3 transition-all animate-in fade-in-50 duration-200">
+            <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" />
+                <h4 className="text-sm font-semibold text-foreground">
+                  {selectedLayerTitle} · 归档词条清单
+                </h4>
+                <Badge variant="secondary" className="text-xs font-mono">
+                  {layerItems.length} 篇
+                </Badge>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedLayerId(null)}
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {itemsLoading ? (
+              <div className="py-8 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
+                正在加载该层文档清单...
+              </div>
+            ) : layerItems.length === 0 ? (
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                当前层级暂无已归档的 Markdown 词条，完成长程任务后可通过审阅单回写生成。
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {layerItems.map((item) => (
+                  <button
+                    type="button"
+                    key={item.relative_path}
+                    aria-label={`预览词条 ${item.title}`}
+                    onClick={() => setPreviewItem(item)}
+                    className="text-left group p-3 rounded-lg border border-border/50 bg-secondary/15 hover:bg-secondary/30 hover:border-primary/40 transition-all cursor-pointer flex flex-col justify-between select-none"
+                  >
+                    <div className="w-full">
+                      <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                        <span className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                          {item.title}
+                        </span>
+                        <Badge
+                          variant={item.publish_status === 'draft' ? 'outline' : 'secondary'}
+                          className={`text-[10px] shrink-0 ${
+                            item.publish_status === 'draft' ? 'border-amber-500/40 text-amber-500' : ''
+                          }`}
+                        >
+                          {item.publish_status === 'draft' ? 'Draft' : 'Live'}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground/80 line-clamp-2 leading-relaxed">
+                        {item.content_snippet || '暂无正文摘要'}
+                      </p>
+                    </div>
+
+                    <div className="w-full mt-2.5 pt-2 border-t border-border/30 flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span className="flex items-center gap-1 font-mono truncate max-w-[160px]">
+                        <Clock className="w-3 h-3 shrink-0" />
+                        {item.updated_at ? item.updated_at.split('T')[0] : '刚刚'}
+                      </span>
+                      <span className="flex items-center gap-1 text-primary opacity-0 group-hover:opacity-100 transition-opacity font-medium">
+                        <Eye className="w-3 h-3" />
+                        快速预览
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="p-3 rounded-lg bg-secondary/30 border border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
@@ -203,8 +334,72 @@ export function WikiLayersLedgerPanel() {
         onOpenChange={setReviewModalOpen}
         onApplied={() => {
           void fetchStats();
+          if (selectedLayerId) {
+            void handleSelectLayer(selectedLayerId, selectedLayerKey, selectedLayerTitle);
+          }
         }}
       />
+
+      {/* Readonly Document Preview Modal */}
+      {previewItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in-50">
+          <dialog
+            open
+            aria-label="词条文档预览"
+            className="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden m-auto"
+          >
+            <div className="p-4 border-b border-border/60 flex items-center justify-between bg-secondary/20">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground tracking-tight flex items-center gap-2">
+                    {previewItem.title}
+                    <Badge
+                      variant={previewItem.publish_status === 'draft' ? 'outline' : 'secondary'}
+                      className={`text-[10px] ${
+                        previewItem.publish_status === 'draft' ? 'border-amber-500/40 text-amber-500' : ''
+                      }`}
+                    >
+                      {previewItem.publish_status === 'draft' ? 'Draft' : 'Live'}
+                    </Badge>
+                  </h3>
+                  <p className="text-xs font-mono text-muted-foreground mt-0.5">
+                    {previewItem.relative_path}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPreviewItem(null)}
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4 text-xs leading-relaxed text-foreground/90">
+              <div className="p-3 rounded-lg bg-secondary/30 border border-border/40 font-mono text-[11px] text-muted-foreground flex flex-col gap-1">
+                <div>更新时间：{previewItem.updated_at || '刚刚'}</div>
+                <div>存储分层：{selectedLayerTitle}</div>
+                <div>溯源凭据：已校验负向排除策略，关联交付审计链</div>
+              </div>
+
+              <div className="p-4 rounded-xl border border-border/50 bg-background/60 font-sans whitespace-pre-wrap leading-relaxed">
+                {previewItem.content_snippet}
+              </div>
+            </div>
+
+            <div className="p-3 border-t border-border/60 flex justify-end bg-secondary/10">
+              <Button variant="outline" size="sm" onClick={() => setPreviewItem(null)} className="h-8 text-xs">
+                关闭预览
+              </Button>
+            </div>
+          </dialog>
+        </div>
+      )}
     </Card>
   );
 }

@@ -28,6 +28,7 @@ from app.services.wiki.vault import resolve_wiki_vault_path
 from app.services.wiki.writeback import (
     ReviewSlipBatch,
     UsageLedgerRecord,
+    WikiLayerItem,
     WritebackApplyRequest,
     WritebackApplyResult,
     get_writeback_service,
@@ -120,3 +121,16 @@ async def get_wiki_layers_stats(
         deliverables_count=count_files(structure.deliverables_dir),
         inbox_count=count_files(structure.inbox_dir),
     )
+
+
+@router.get("/layer-items", response_model=list[WikiLayerItem])
+async def get_wiki_layer_items(
+    layer: str = Query(..., description="Target layer key, e.g. methods, claims, deliverables, sources, raw"),
+    agent_id: str = Query("default", description="Target agent ID"),
+    limit: int = Query(30, description="Max documents to return"),
+    workspace_root: Path = Depends(get_workspace_root),
+) -> list[WikiLayerItem]:
+    """Retrieve list of documents inside a specific layer with metadata snippet."""
+    service = get_writeback_service(workspace_root=workspace_root)
+    return service.list_layer_items(agent_id=agent_id, layer_key=layer, limit=limit)
+

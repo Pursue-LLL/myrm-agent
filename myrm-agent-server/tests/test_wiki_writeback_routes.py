@@ -150,12 +150,21 @@ def test_writeback_service_apply_decisions(temp_vault):
         assert result.discarded_count == 1
         assert len(result.created_paths) == 2
 
-        # 验证物理文件生成与 frontmatter
+        # 验证物理文件生成与 frontmatter 及 evidence 凭据链
         method_file = temp_vault / "wiki" / "concepts" / "methods" / "双写平滑迁移四部曲.md"
         assert method_file.is_file()
         content = method_file.read_text(encoding="utf-8")
         assert "type: method" in content
         assert "publish_status: draft" in content
+        assert "evidence:" in content
+        assert "negative_exclusion_verified: true" in content
+
+        # 验证层级条目查询
+        items = service.list_layer_items("agent_test", "methods")
+        assert len(items) == 1
+        assert items[0].title == "双写平滑迁移四部曲"
+        assert items[0].publish_status == "draft"
+
 
 
 def test_writeback_routes_e2e(client: TestClient, temp_vault: Path):
@@ -205,3 +214,8 @@ def test_writeback_routes_e2e(client: TestClient, temp_vault: Path):
         stats = stats_res.json()
         assert "deliverables_count" in stats
         assert "methods_count" in stats
+
+        # 4. GET /writeback/layer-items
+        items_res = client.get("/api/v1/wiki/writeback/layer-items?layer=methods&agent_id=default")
+        assert items_res.status_code == 200
+        assert isinstance(items_res.json(), list)
