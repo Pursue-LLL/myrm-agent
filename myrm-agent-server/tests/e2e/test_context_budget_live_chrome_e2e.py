@@ -124,23 +124,25 @@ _ATTACH_CHAT_JS = """(async () => {
 
 
 def _seed_empty_chat(ui_url: str) -> dict[str, object]:
-    """Seed the retention chat: proven to render the composer and usage indicator.
+    """Seed a zero-message chat that renders the composer.
 
-    Seeded through the **UI origin** rather than ``get_e2e_api_url()``: the API helper can
-    resolve to an isolated backend while the WebUI proxies to the shared one, which makes
-    a chat created via the API invisible to the UI (``notFound``). Going through the UI's
-    own proxy guarantees the chat lands in the backend the browser actually talks to.
+    Two constraints drive this choice:
+    - Seeded through the **UI origin** rather than ``get_e2e_api_url()``: the API helper can
+      resolve to an isolated backend while the WebUI proxies to the shared one, which makes
+      a chat created via the API invisible to the UI (``notFound``).
+    - Zero messages: the context-retention fixture sits at ~92% context, so a first real
+      turn would trigger heavyweight auto-compaction and never answer inside the budget.
 
-    That fixture carries one seeded assistant turn, so the live turn is verified by
-    difference (budget count and turn_count must both grow) rather than by presence.
+    With no seeded assistant turn, any contextBudget observed afterwards is produced by the
+    live turn itself.
     """
     seeded = http_json(
         "POST",
-        f"{ui_url.rstrip('/')}/api/v1/chats/test/seed-context-retention-fixture",
+        f"{ui_url.rstrip('/')}/api/v1/chats/test/seed-skill-chip-composer-fixture",
     )
     assert isinstance(seeded, dict), seeded
     chat_id = str(seeded.get("chat_id") or "")
-    assert chat_id.startswith("e2econtextret"), seeded
+    assert chat_id.startswith("e2eslashchip"), seeded
     return seeded
 
 

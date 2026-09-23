@@ -18,8 +18,8 @@
 
 ## 文件清单
 
-| 文件 | 职责 |
-|------|------|
-| `schemas.py` | Pydantic DTO 定义（台账记录、审阅单问题、提交回写请求） |
-| `service.py` | `WikiWritebackService` 单机核心服务 |
-| `__init__.py` | 统一导出门面 |
+| 文件 | 地位 | 职责 | I/O/P |
+|------|------|------|-------|
+| `schemas.py` | 契约 | Pydantic DTO 定义（台账记录、审阅单问题、提交回写请求） | ✅ |
+| `service.py` | 核心 | `WikiWritebackService` 单机核心服务 | ✅ |
+| `__init__.py` | 入口 | 模块门面统一导出 | ✅ |

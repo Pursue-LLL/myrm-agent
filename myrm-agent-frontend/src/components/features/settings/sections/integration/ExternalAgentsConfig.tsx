@@ -407,15 +407,19 @@ const ExternalAgentsConfig = memo(() => {
                   placeholder={t('namePlaceholder')}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5" data-testid="external-agent-type">
                 <label className="text-xs font-medium text-muted-foreground">{t('type')}</label>
                 <Select value={draft.type} onValueChange={(v: ExternalAgentType) => setDraft({ ...draft, type: v })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cli">{t('typeCli')}</SelectItem>
-                    <SelectItem value="acp">{t('typeAcp')}</SelectItem>
+                    <SelectItem value="cli" data-testid="external-agent-type-cli">
+                      {t('typeCli')}
+                    </SelectItem>
+                    <SelectItem value="acp" data-testid="external-agent-type-acp">
+                      {t('typeAcp')}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>

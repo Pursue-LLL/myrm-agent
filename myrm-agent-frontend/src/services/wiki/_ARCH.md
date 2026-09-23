@@ -14,6 +14,7 @@
 | `evidenceContextCore.ts`             | Wiki 证据 query 上下文解析核心（chat `context_key` 回溯边界 + `turn_distance`），供输入 Hook 与流式发送链路复用统一口径                                       |
 | `evidenceMetrics.ts`                 | `/statistics/wiki-evidence/*` 客户端：证据曝光/展开/核验停留/query attempt+success/负向结果事件上报与聚合摘要查询                                             |
 | `evidenceQuerySuccessPendingCore.ts` | Chat steer query success 延迟确认核心：按 `chatId + expectedMessageId` 注册待确认 success，首个匹配业务 SSE 帧到达时消费                                      |
+| `writeback.ts`                       | 交付物使用台账、作者审阅单生成、五层架构资产统计与选择性回写决策提交客户端                                                        |
 
 ## 依赖
 
