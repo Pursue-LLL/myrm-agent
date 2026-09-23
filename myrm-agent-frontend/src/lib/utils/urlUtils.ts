@@ -141,3 +141,24 @@ export function isValidPublicIngressBaseUrl(url: string): boolean {
     return false;
   }
 }
+
+/**
+ * 校验外部链接是否安全（严格仅允许 http: 与 https: 协议）。
+ * 拦截 javascript:、data:、file: 等危险协议，防止 XSS 与 Tauri 桌面端沙箱逃逸。
+ */
+export function isValidExternalUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') {
+    return false;
+  }
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return false;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+

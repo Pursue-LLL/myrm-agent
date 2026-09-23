@@ -2,6 +2,8 @@
 
 import React, { memo, useRef, useEffect, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
+import { safeBase64DecodeUtf8 } from '@/lib/utils/encodingUtils';
+import { isValidExternalUrl } from '@/lib/utils/urlUtils';
 import { subscribeHostThemeVars } from '@/lib/widget-theme-bridge';
 import { fetchWithTimeout } from '@/lib/api';
 import { toast } from 'sonner';
@@ -56,7 +58,7 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
         if (!content) {
           throw new Error('Empty resource content');
         }
-        const decoded = atob(content);
+        const decoded = safeBase64DecodeUtf8(content);
         setHtmlContent(decoded);
       } catch (err) {
         if (!cancelled) {
@@ -127,11 +129,13 @@ export const McpAppViewer: React.FC<McpAppViewerProps> = memo(({ view, className
       }
     }
 
-    // openLink → open external URL in new tab
+    // openLink → open external URL in new tab (strictly validates HTTP/HTTPS protocols)
     if (type === 'openLink' || type === 'app:openLink' || type === 'widget-navigate') {
       const url = typeof e.data.url === 'string' ? e.data.url : '';
-      if (url) {
+      if (url && isValidExternalUrl(url)) {
         window.open(url, '_blank', 'noopener,noreferrer');
+      } else if (url) {
+        console.warn('[McpAppViewer] Blocked unsafe external link navigation attempt:', url);
       }
     }
 
