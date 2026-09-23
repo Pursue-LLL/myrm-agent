@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import urllib.error
 from collections.abc import Callable
 
 import pytest
@@ -74,8 +73,14 @@ def _log_resume_reply_diagnostic(
         from cdp_chat.support import fetch_chat_messages
 
         messages = fetch_chat_messages(chat_id, api_url=api_base, timeout_sec=15.0)
-    except (TimeoutError, OSError, urllib.error.URLError) as exc:
-        log(f"ResumeReplyDiagnostic unavailable: {exc!s:.160}")
+    except Exception as exc:  # noqa: BLE001 — see below
+        # Deliberately total: this runs on the failure path, directly before the
+        # gate's assertion, so *any* leak here would replace the real failure
+        # ("the agent did not reply DONE") with a diagnostic crash and destroy the
+        # evidence it exists to collect. `fetch_chat_messages` can raise beyond
+        # network errors — a malformed payload surfaces as JSONDecodeError, which
+        # is not an OSError.
+        log(f"ResumeReplyDiagnostic unavailable: {type(exc).__name__}: {exc!s:.160}")
         return
 
     replies = [
