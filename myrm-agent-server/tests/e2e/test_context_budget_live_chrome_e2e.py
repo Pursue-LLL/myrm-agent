@@ -115,14 +115,22 @@ _CLOSE_PANEL_JS = """(() => {
   return { ok: true };
 })()"""
 
-_COMPOSER_READY_JS = """(() => {
-  const store = window.__myrmChatStore?.getState?.();
+_ATTACH_CHAT_JS = """(async () => {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge?.attachToChat) return { ok: false, err: 'no-bridge' };
   const input = document.querySelector('[data-chat-input]');
+  const store = window.__myrmChatStore?.getState?.();
+  const ok =
+    Boolean(input)
+    && Boolean(store?.isMessagesLoaded)
+    && !Boolean(store?.notFound)
+    && !Boolean(store?.loadError);
   return {
-    ready: Boolean(store?.isMessagesLoaded) && Boolean(input),
-    isMessagesLoaded: Boolean(store?.isMessagesLoaded),
+    ok,
     hasInput: Boolean(input),
-    msgCount: store?.messages?.length ?? 0,
+    isMessagesLoaded: Boolean(store?.isMessagesLoaded),
+    notFound: Boolean(store?.notFound),
+    loadError: Boolean(store?.loadError),
   };
 })()"""
 
@@ -177,8 +185,8 @@ def test_live_turn_emits_context_budget_with_server_turn_count() -> None:
         time.sleep(1.5)
         dismiss_blocking_modals(client, page)
 
-        composer_ready = wait_for_state(client, page, _COMPOSER_READY_JS, timeout_sec=90.0)
-        assert isinstance(composer_ready, dict) and composer_ready.get("ready") is True, composer_ready
+        attached = wait_for_state(client, page, _ATTACH_CHAT_JS, timeout_sec=90.0)
+        assert isinstance(attached, dict) and attached.get("ok") is True, attached
 
         baseline = client.evaluate(page, _ASSISTANT_REPLY_JS, timeout_sec=15.0)
         assert isinstance(baseline, dict), baseline
