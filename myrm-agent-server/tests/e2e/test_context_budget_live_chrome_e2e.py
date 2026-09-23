@@ -188,11 +188,8 @@ def test_live_turn_emits_context_budget_with_server_turn_count() -> None:
         )
         assert isinstance(baseline, dict), baseline
         baseline_budgeted = int(baseline.get("budgetedCount") or 0)
-        assert baseline_budgeted >= 1, f"retention fixture should carry a seeded budget: {baseline}"
-        # The seeded fixture metadata has no turn_count at all — only a real runtime
-        # snapshot produces it. That makes its appearance after the turn the proof.
-        assert baseline.get("liveTurnCount") is None, (
-            f"seeded fixture must not fabricate turn_count: {baseline}"
+        assert baseline_budgeted == 0, (
+            f"zero-message chat must start with no contextBudget: {baseline}"
         )
 
         send_ready = wait_for_state(client, page, _SEND_READY_JS, timeout_sec=60.0)
