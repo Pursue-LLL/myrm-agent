@@ -92,7 +92,7 @@ export function WikiConceptDetailPanel({
 
   const videoNoteMeta = useMemo(() => {
     return selectedConcept ? extractVideoNoteMeta(selectedConcept.content) : null;
-  }, [selectedConcept?.content]);
+  }, [selectedConcept]);
 
   return (
     <Card className="col-span-1 md:col-span-2 h-full overflow-hidden flex flex-col min-h-0">
@@ -126,7 +126,12 @@ export function WikiConceptDetailPanel({
                     <IconX className="w-4 h-4 mr-2" />
                     {t('cancel')}
                   </Button>
-                  <Button size="sm" onClick={() => void onSave()} disabled={isSaving}>
+                  <Button
+                    data-testid="wiki-concept-save-btn"
+                    size="sm"
+                    onClick={() => void onSave()}
+                    disabled={isSaving}
+                  >
                     {isSaving ? (
                       <IconLoader className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
@@ -136,7 +141,7 @@ export function WikiConceptDetailPanel({
                   </Button>
                 </>
               ) : (
-                <Button variant="outline" size="sm" onClick={onEdit}>
+                <Button data-testid="wiki-concept-edit-btn" variant="outline" size="sm" onClick={onEdit}>
                   <IconEdit className="w-4 h-4 mr-2" />
                   {t('edit')}
                 </Button>

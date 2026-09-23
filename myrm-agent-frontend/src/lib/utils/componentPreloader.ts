@@ -4,8 +4,8 @@
  * 用于在用户hover时预加载重型组件，提升首次渲染体验
  */
 
-let monacoPreloadPromise: Promise<any> | null = null;
-let sandpackPreloadPromise: Promise<any> | null = null;
+let monacoPreloadPromise: Promise<void> | null = null;
+let sandpackPreloadPromise: Promise<void> | null = null;
 
 /**
  * 预加载Monaco编辑器
@@ -13,8 +13,12 @@ let sandpackPreloadPromise: Promise<any> | null = null;
  */
 export function preloadMonacoEditor() {
   if (!monacoPreloadPromise) {
-    monacoPreloadPromise = import('@monaco-editor/react')
-      .then(() => {
+    monacoPreloadPromise = Promise.all([
+      import('@monaco-editor/react'),
+      import('monaco-editor'),
+    ])
+      .then(([reactMod, monacoMod]) => {
+        reactMod.loader.config({ monaco: monacoMod });
         console.log('[Preload] Monaco editor loaded');
       })
       .catch((error) => {

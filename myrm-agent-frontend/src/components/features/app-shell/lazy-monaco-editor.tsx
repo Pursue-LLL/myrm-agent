@@ -10,13 +10,30 @@ const Loading = () => (
   </div>
 );
 
-export const LazyMonacoEditor = dynamic<EditorProps>(() => import('@monaco-editor/react').then((mod) => mod.Editor), {
-  ssr: false,
-  loading: Loading,
-});
+export const LazyMonacoEditor = dynamic<EditorProps>(
+  () =>
+    Promise.all([
+      import('@monaco-editor/react'),
+      import('monaco-editor'),
+    ]).then(([reactMod, monacoMod]) => {
+      reactMod.loader.config({ monaco: monacoMod });
+      return reactMod.Editor;
+    }),
+  {
+    ssr: false,
+    loading: Loading,
+  },
+);
 
 export const LazyMonacoDiffEditor = dynamic<DiffEditorProps>(
-  () => import('@monaco-editor/react').then((mod) => mod.DiffEditor),
+  () =>
+    Promise.all([
+      import('@monaco-editor/react'),
+      import('monaco-editor'),
+    ]).then(([reactMod, monacoMod]) => {
+      reactMod.loader.config({ monaco: monacoMod });
+      return reactMod.DiffEditor;
+    }),
   {
     ssr: false,
     loading: Loading,

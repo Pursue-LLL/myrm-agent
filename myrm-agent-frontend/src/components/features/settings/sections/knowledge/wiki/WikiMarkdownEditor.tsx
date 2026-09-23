@@ -97,6 +97,7 @@ export function WikiMarkdownEditor({
     // Expose the editor for E2E to drive programmatic input
     if (typeof window !== 'undefined') {
       window.__wikiMarkdownEditor = editorInstance;
+      (window as unknown as { monaco?: Monaco }).monaco = monaco;
     }
   };
 

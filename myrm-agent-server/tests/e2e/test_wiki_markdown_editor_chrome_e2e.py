@@ -26,6 +26,7 @@ if _LIB not in sys.path:
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     dismiss_blocking_modals,
+    ensure_desktop_viewport,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -149,25 +150,28 @@ def _concepts_active_state() -> str:
 def _detail_edit_ready_js() -> str:
     return """(() => {
       const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
-      const btn = [...(shell?.querySelectorAll('button') ?? [])].find(
+      const testidBtn = shell?.querySelector('[data-testid="wiki-concept-edit-btn"]');
+      const textBtn = [...(shell?.querySelectorAll('button') ?? [])].find(
         (el) => (el.textContent || '').trim() === '编辑'
           || (el.textContent || '').trim() === 'Edit',
       );
-      return { ready: !!btn };
+      return { ready: !!(testidBtn || textBtn) };
     })()"""
 
 
 def _click_edit_js() -> str:
     return """(() => {
       const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
-      const btn = [...(shell?.querySelectorAll('button') ?? [])].find(
-        (el) => (el.textContent || '').trim() === '编辑'
-          || (el.textContent || '').trim() === 'Edit',
-      );
+      const btn = shell?.querySelector('[data-testid="wiki-concept-edit-btn"]')
+        || [...(shell?.querySelectorAll('button') ?? [])].find(
+          (el) => (el.textContent || '').trim() === '编辑'
+            || (el.textContent || '').trim() === 'Edit',
+        );
       if (!btn) return { ok: false, reason: 'no-edit-btn' };
       for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
         btn.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
       }
+      try { btn.click(); } catch (_) {}
       return { ok: true };
     })()"""
 
@@ -177,10 +181,19 @@ def _monaco_ready_js() -> str:
       const editor = document.querySelector('.monaco-editor');
       const textarea = editor?.querySelector('textarea');
       const loader = document.querySelector('.monaco-editor .loading');
+      const spin = document.querySelector('.animate-spin');
+      const preview = document.querySelector('[data-testid="wiki-markdown-preview"]');
+      const ed = window.__wikiMarkdownEditor || window.monaco?.editor?.getEditors?.()[0];
       return {
-        ready: !!editor && !!textarea && !loader,
+        ready: !!editor && !!textarea && !loader && !!ed,
         hasEditor: !!editor,
         hasTextarea: !!textarea,
+        hasLoader: !!loader,
+        hasSpin: !!spin,
+        hasPreview: !!preview,
+        hasEditorInstance: !!ed,
+        windowMonaco: typeof window.monaco,
+        windowWikiEditor: typeof window.__wikiMarkdownEditor,
       };
     })()"""
 
@@ -190,8 +203,11 @@ def _monaco_type_js(text: str) -> str:
     # Drive the editor instance directly via executeEdits (fires onDidChangeContent,
     # which @monaco-editor/react surfaces as onChange → the live preview updates).
     return """(() => {
-      const ed = window.__wikiMarkdownEditor;
+      const ed = window.__wikiMarkdownEditor || window.monaco?.editor?.getEditors?.()[0];
       if (!ed) return { ok: false, reason: 'no-editor-instance' };
+      if (!window.__wikiMarkdownEditor) {
+        window.__wikiMarkdownEditor = ed;
+      }
       const model = ed.getModel();
       if (!model) return { ok: false, reason: 'no-model' };
       const lineCount = model.getLineCount();
@@ -209,14 +225,16 @@ def _monaco_type_js(text: str) -> str:
 def _click_save_js() -> str:
     return """(() => {
       const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
-      const btn = [...(shell?.querySelectorAll('button') ?? [])].find(
-        (el) => (el.textContent || '').trim() === '保存'
-          || (el.textContent || '').trim() === 'Save',
-      );
+      const btn = shell?.querySelector('[data-testid="wiki-concept-save-btn"]')
+        || [...(shell?.querySelectorAll('button') ?? [])].find(
+          (el) => (el.textContent || '').trim() === '保存'
+            || (el.textContent || '').trim() === 'Save',
+        );
       if (!btn) return { ok: false, reason: 'no-save-btn' };
       for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) {
         btn.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
       }
+      try { btn.click(); } catch (_) {}
       return { ok: true };
     })()"""
 
@@ -225,14 +243,16 @@ def _edit_btn_gone_js() -> str:
     # After a successful save the panel leaves edit mode and the Edit button returns.
     return """(() => {
       const shell = document.querySelector('[data-testid="wiki-settings-shell"]');
-      const editBtn = [...(shell?.querySelectorAll('button') ?? [])].find(
-        (el) => (el.textContent || '').trim() === '编辑'
-          || (el.textContent || '').trim() === 'Edit',
-      );
-      const saveBtn = [...(shell?.querySelectorAll('button') ?? [])].find(
-        (el) => (el.textContent || '').trim() === '保存'
-          || (el.textContent || '').trim() === 'Save',
-      );
+      const editBtn = shell?.querySelector('[data-testid="wiki-concept-edit-btn"]')
+        || [...(shell?.querySelectorAll('button') ?? [])].find(
+          (el) => (el.textContent || '').trim() === '编辑'
+            || (el.textContent || '').trim() === 'Edit',
+        );
+      const saveBtn = shell?.querySelector('[data-testid="wiki-concept-save-btn"]')
+        || [...(shell?.querySelectorAll('button') ?? [])].find(
+          (el) => (el.textContent || '').trim() === '保存'
+            || (el.textContent || '').trim() === 'Save',
+        );
       return { ready: !!editBtn && !saveBtn };
     })()"""
 
@@ -274,6 +294,7 @@ def test_wiki_markdown_editor_live_preview_loop() -> None:
     ) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         dismiss_blocking_modals(client, page, recover_url=wiki_page_url)
+        ensure_desktop_viewport(client, page)
 
         # Wait for the Concepts tab to mount, then click it (Radix Tabs needs
         # the full pointer sequence under real-browser hydration).
