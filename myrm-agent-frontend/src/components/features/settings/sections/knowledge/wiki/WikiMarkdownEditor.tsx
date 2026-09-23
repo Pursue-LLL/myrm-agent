@@ -48,6 +48,8 @@ export function WikiMarkdownEditor({
   const deferredValue = useDeferredValue(value);
   const previewSource = previewTransform ? previewTransform(deferredValue) : deferredValue;
 
+  const handleToolbarActionRef = useRef<((action: ToolbarAction) => void) | null>(null);
+
   const handleEditorDidMount = (editorInstance: editor.IStandaloneCodeEditor, monaco: Monaco) => {
     editorInstanceRef.current = editorInstance;
 
@@ -56,6 +58,17 @@ export function WikiMarkdownEditor({
         onSaveShortcut();
       });
     }
+
+    // Native hotkeys matching toolbar tooltips (Cmd/Ctrl + B, I, K)
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
+      handleToolbarActionRef.current?.('bold');
+    });
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
+      handleToolbarActionRef.current?.('italic');
+    });
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => {
+      handleToolbarActionRef.current?.('wikilink');
+    });
 
     // Bind scroll synchronization from Monaco editor to preview container
     scrollDisposableRef.current?.dispose();
@@ -114,14 +127,22 @@ export function WikiMarkdownEditor({
     }
 
     const selectedText = model.getValueInRange(selection);
+    const isCollapsed = !selectedText;
+    let targetSelectionOffset: { startOffset: number; length: number } | null = null;
     let replaceText = '';
 
     switch (action) {
       case 'bold':
         replaceText = selectedText ? `**${selectedText}**` : '**粗体文本**';
+        if (isCollapsed) {
+          targetSelectionOffset = { startOffset: 2, length: 4 };
+        }
         break;
       case 'italic':
         replaceText = selectedText ? `*${selectedText}*` : '*斜体文本*';
+        if (isCollapsed) {
+          targetSelectionOffset = { startOffset: 1, length: 4 };
+        }
         break;
       case 'h2':
         replaceText = selectedText ? `\n## ${selectedText}\n` : '\n## 二级标题\n';
@@ -131,6 +152,9 @@ export function WikiMarkdownEditor({
           replaceText = `\n\`\`\`markdown\n${selectedText}\n\`\`\`\n`;
         } else {
           replaceText = selectedText ? `\`${selectedText}\`` : '`代码`';
+          if (isCollapsed) {
+            targetSelectionOffset = { startOffset: 1, length: 2 };
+          }
         }
         break;
       case 'quote':
@@ -144,6 +168,9 @@ export function WikiMarkdownEditor({
         break;
       case 'wikilink':
         replaceText = selectedText ? `[[${selectedText}]]` : '[[页面名称]]';
+        if (isCollapsed) {
+          targetSelectionOffset = { startOffset: 2, length: 4 };
+        }
         break;
       case 'table':
         replaceText = '\n| 标题 1 | 标题 2 |\n| --- | --- |\n| 内容 1 | 内容 2 |\n';
@@ -157,8 +184,22 @@ export function WikiMarkdownEditor({
         forceMoveMarkers: true,
       },
     ]);
+
+    if (isCollapsed && targetSelectionOffset) {
+      const startLine = selection.startLineNumber;
+      const startCol = selection.startColumn + targetSelectionOffset.startOffset;
+      editorInstance.setSelection({
+        startLineNumber: startLine,
+        startColumn: startCol,
+        endLineNumber: startLine,
+        endColumn: startCol + targetSelectionOffset.length,
+      });
+    }
+
     editorInstance.focus();
   }, []);
+
+  handleToolbarActionRef.current = handleToolbarAction;
 
   const editorPane = (
     <div
