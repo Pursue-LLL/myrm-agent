@@ -21,7 +21,7 @@ interface WikiMarkdownEditorProps {
   previewTransform?: (source: string) => string;
   onSaveShortcut?: () => void;
   /** Unique suffix used to scope preview heading anchor ids. */
-  messageIdSuffix: string;
+  messageIdSuffix?: string;
   className?: string;
 }
 
@@ -31,7 +31,7 @@ export function WikiMarkdownEditor({
   placeholder,
   previewTransform,
   onSaveShortcut,
-  messageIdSuffix,
+  messageIdSuffix = 'editor',
   className,
 }: WikiMarkdownEditorProps) {
   const t = useTranslations('settings.wiki.editor');

@@ -65,6 +65,7 @@ import { ObsidianVaultActions } from './ObsidianVaultActions';
 import MeetingNotesImportCard from './MeetingNotesImportCard';
 import { consumeMigrationObsidianVaultImport } from '@/lib/migrationChatHandoff';
 import { healthReportFromMaintainResponse, resolveHealthIssueNavigationTarget } from './wiki/wikiSectionUtils';
+import { WikiLayersLedgerPanel } from './wiki/WikiLayersLedgerPanel';
 
 interface WikiStats {
   total_concepts: number;
@@ -1124,6 +1125,8 @@ export function WikiSection() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
+            <WikiLayersLedgerPanel />
+
             <SecondBrainSetupCard
               onApplied={(agentId) => {
                 void loadStats();
