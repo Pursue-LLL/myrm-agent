@@ -20,7 +20,8 @@ E2E_PROMPT = (
     "我在验证浏览器人工接管功能。请调用 browser_ask_human_tool 一次，"
     "reason 为「请在 Chrome 完成操作后，在聊天横幅点击完成」。"
     "当工具返回后，只回复纯文本 DONE，不要再调用任何工具，"
-    "不要 take_snapshot，不要 screenshot，不要 browser_navigate，不要再次调用 browser_ask_human_tool。"
+    "不要 browser_snapshot_tool，不要 browser_inspect_tool，不要 browser_navigate_tool，"
+    "不要再次调用 browser_ask_human_tool。"
     "只回复 DONE 一个词。"
 )
 
