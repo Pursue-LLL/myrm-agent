@@ -1,5 +1,3 @@
-"""Unit and API tests for Wiki writeback service and routes."""
-
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -7,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.core.security.auth.identity import LOCAL_USER_ID, ResolvedIdentity
 from app.services.wiki.writeback.schemas import (
     UsageLedgerItem,
     UsageLedgerRecord,
@@ -15,9 +13,6 @@ from app.services.wiki.writeback.schemas import (
     WritebackDecisionItem,
 )
 from app.services.wiki.writeback.service import WikiWritebackService
-
-
-from app.core.security.auth.identity import LOCAL_USER_ID, ResolvedIdentity
 
 
 @pytest.fixture(autouse=True)
