@@ -64,11 +64,13 @@ class WikiWritebackService:
 
         safe_task_id = re.sub(r"[^\w\s-]", "", record.task_id).strip() or "task_unknown"
         target_path = ledgers_dir / f"{safe_task_id}.json"
+        tmp_path = target_path.with_suffix(".tmp")
 
-        target_path.write_text(
+        tmp_path.write_text(
             record.model_dump_json(indent=2),
             encoding="utf-8",
         )
+        tmp_path.replace(target_path)
         logger.info(
             "Persisted usage ledger for task %s to %s",
             record.task_id,
@@ -199,7 +201,9 @@ class WikiWritebackService:
             )
 
             target_file.parent.mkdir(parents=True, exist_ok=True)
-            target_file.write_text(file_content, encoding="utf-8")
+            tmp_file = target_file.with_suffix(".tmp")
+            tmp_file.write_text(file_content, encoding="utf-8")
+            tmp_file.replace(target_file)
 
             rel_path = str(target_file.relative_to(structure.base_dir))
             created_paths.append(rel_path)
