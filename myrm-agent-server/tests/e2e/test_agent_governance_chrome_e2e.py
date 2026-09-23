@@ -116,13 +116,22 @@ def _find_agent_id(items: list, name: str) -> str | None:
 
 
 def _wait_agent_name(name: str, timeout_sec: float = 60.0) -> str:
+    # New agents sort last; page through the whole list or a fresh agent is
+    # invisible once total agents exceed one page.
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
-        resp = _api("/api/v1/user-agents?page=1&page_size=100")
-        items = ((resp.get("data") or {}).get("items")) or []
-        found = _find_agent_id(items, name)
-        if found:
-            return found
+        page = 1
+        while True:
+            resp = _api(f"/api/v1/user-agents?page={page}&page_size=100")
+            data = resp.get("data") or {}
+            items = data.get("items") or []
+            found = _find_agent_id(items, name)
+            if found:
+                return found
+            pagination = data.get("pagination") or {}
+            if not pagination.get("has_next", False) or not items:
+                break
+            page += 1
         time.sleep(2.0)
     raise AssertionError(f"agent {name!r} never appeared in list")
 
