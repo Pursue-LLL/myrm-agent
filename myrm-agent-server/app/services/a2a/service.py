@@ -104,6 +104,7 @@ class A2AServerService(A2ATaskService):
             created_at=now,
             updated_at=now,
             agent_id=agent_id,
+            peer_id=peer_id,
             push_url=push_url,
             push_secret=push_secret,
         )
@@ -159,7 +160,7 @@ class A2AServerService(A2ATaskService):
             return None
 
         prompt = task.messages[0].content if task.messages else ""
-        run_coro = self._execute_task_in_background(task_id, prompt, task.agent_id)
+        run_coro = self._execute_task_in_background(task_id, prompt, task.agent_id, peer_id=task.peer_id)
         bg_task = asyncio.create_task(run_coro)
         self._running_tasks[task_id] = bg_task
         bg_task.add_done_callback(lambda _: self._running_tasks.pop(task_id, None))

@@ -57,6 +57,13 @@ class A2ATaskStore:
         async with self._lock:
             return self._tasks.get(task_id)
 
+    async def list_tasks(self, status: TaskStatus | None = None) -> list[A2ATask]:
+        """List tasks, optionally filtered by lifecycle status."""
+        async with self._lock:
+            if status is None:
+                return list(self._tasks.values())
+            return [t for t in self._tasks.values() if t.status == status]
+
     async def update_status(
         self,
         task_id: str,
@@ -94,6 +101,7 @@ class A2ATaskStore:
                 updated_at=now,
                 error=error or current.error,
                 agent_id=current.agent_id,
+                peer_id=current.peer_id,
                 push_url=current.push_url,
                 push_secret=current.push_secret,
             )
@@ -119,6 +127,7 @@ class A2ATaskStore:
                 updated_at=now,
                 error="Task cancelled by caller request.",
                 agent_id=current.agent_id,
+                peer_id=current.peer_id,
                 push_url=current.push_url,
                 push_secret=current.push_secret,
             )

@@ -21,6 +21,9 @@ vi.mock('@/services/a2aPeer', () => ({
   updateA2APeer: vi.fn(),
   deleteA2APeer: vi.fn(),
   probeA2APeer: vi.fn(),
+  listPendingA2ATasks: vi.fn().mockResolvedValue([]),
+  approveA2ATask: vi.fn().mockResolvedValue({ taskId: 't1', status: 'pending' }),
+  rejectA2ATask: vi.fn().mockResolvedValue({ taskId: 't1', status: 'cancelled' }),
 }));
 
 describe('A2APeerRegistrySection - Full Flow', () => {
@@ -147,4 +150,59 @@ describe('A2APeerRegistrySection - Full Flow', () => {
       expect(a2aService.deleteA2APeer).toHaveBeenCalledWith('peer-1');
     });
   });
+
+  it('renders pending inbound task and handles approve action', async () => {
+    (a2aService.listA2APeers as any).mockResolvedValueOnce([]);
+    (a2aService.listPendingA2ATasks as any).mockResolvedValueOnce([
+      {
+        taskId: 'a2a-task-approval-999',
+        status: 'pending_approval',
+        peer_id: 'peer-external-alpha',
+        messages: [{ role: 'user', content: 'Inbound research request', timestamp: 1774000000 }],
+        created_at: 1774000000,
+        updated_at: 1774000000,
+      },
+    ]);
+
+    render(<A2APeerRegistrySection />);
+
+    expect(await screen.findByText('a2a-task-approval-999')).toBeInTheDocument();
+    expect(screen.getByText('Inbound research request')).toBeInTheDocument();
+    expect(screen.getByText(/From:\s*peer-external-alpha/)).toBeInTheDocument();
+
+    const approveBtn = screen.getByRole('button', { name: /approve/i });
+    fireEvent.click(approveBtn);
+
+    await waitFor(() => {
+      expect(a2aService.approveA2ATask).toHaveBeenCalledWith('a2a-task-approval-999');
+    });
+  });
+
+  it('handles reject action on pending inbound task', async () => {
+    (a2aService.listA2APeers as any).mockResolvedValueOnce([]);
+    (a2aService.listPendingA2ATasks as any).mockResolvedValueOnce([
+      {
+        taskId: 'a2a-task-reject-111',
+        status: 'pending_approval',
+        messages: [{ role: 'user', content: 'Malicious payload', timestamp: 1774000000 }],
+        created_at: 1774000000,
+        updated_at: 1774000000,
+      },
+    ]);
+
+    render(<A2APeerRegistrySection />);
+
+    expect(await screen.findByText('a2a-task-reject-111')).toBeInTheDocument();
+
+    const rejectBtn = screen.getByRole('button', { name: /reject/i });
+    fireEvent.click(rejectBtn);
+
+    await waitFor(() => {
+      expect(a2aService.rejectA2ATask).toHaveBeenCalledWith(
+        'a2a-task-reject-111',
+        expect.stringContaining('operator'),
+      );
+    });
+  });
 });
+

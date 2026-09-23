@@ -84,3 +84,39 @@ export async function probeA2APeer(input: A2APeerProbeInput): Promise<A2APeerPro
     body: JSON.stringify(input),
   });
 }
+
+export interface A2APendingTaskMessage {
+  role: string;
+  content: string;
+  timestamp: number;
+}
+
+export interface A2APendingTask {
+  taskId: string;
+  status: string;
+  messages: A2APendingTaskMessage[];
+  created_at: number;
+  updated_at: number;
+  agent_id?: string | null;
+  peer_id?: string | null;
+  peerId?: string | null;
+  push_url?: string | null;
+}
+
+export async function listPendingA2ATasks(): Promise<A2APendingTask[]> {
+  return apiRequest<A2APendingTask[]>('/a2a/tasks/pending-approval');
+}
+
+export async function approveA2ATask(taskId: string): Promise<{ taskId: string; status: string }> {
+  return apiRequest<{ taskId: string; status: string }>(`/a2a/tasks/${taskId}/approve`, {
+    method: 'POST',
+  });
+}
+
+export async function rejectA2ATask(taskId: string, reason?: string): Promise<{ taskId: string; status: string }> {
+  const query = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+  return apiRequest<{ taskId: string; status: string }>(`/a2a/tasks/${taskId}/reject${query}`, {
+    method: 'POST',
+  });
+}
+
