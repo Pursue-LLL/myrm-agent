@@ -419,9 +419,8 @@ async def run_browser_takeover_live_flow(
         # message, so a failure here is *content* evidence — a reply that never
         # contained it. Capture the persisted text verbatim before asserting:
         # without it the operator cannot tell whether the model emitted the wrong
-        # word (generation race: also lost its leading "D", e.g. "ONE"), the text
-        # was mutated on the way to the DB, or the poll read a stale message. Each
-        # needs a different fix, and only the text distinguishes them.
+        # word, the text was mutated on the way to the DB, or the poll read a stale
+        # message. Each needs a different fix, and only the text distinguishes them.
         _log_resume_reply_diagnostic(api_base=api_base, chat_id=resume_chat_id, log=_p)
 
     assert done, (

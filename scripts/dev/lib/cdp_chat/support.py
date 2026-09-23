@@ -2603,7 +2603,10 @@ def wait_chat_messages_done(
                     api_url=api_url,
                     timeout_sec=fetch_timeout_sec,
                 )
-                assistant_tail = next(
+                # Leading slice, not a tail: the DONE gate matches the literal word
+                # at the start of the newest assistant reply, so the head is what an
+                # operator needs to see.
+                assistant_head = next(
                     (
                         str(msg.get("content") or "")[:80]
                         for msg in reversed(messages)
@@ -2613,7 +2616,7 @@ def wait_chat_messages_done(
                 )
                 print(
                     f"E2E_WAIT_API_DONE_PROGRESS: chatId={chat_id} "
-                    f"messages={len(messages)} assistant_tail={assistant_tail!r} "
+                    f"messages={len(messages)} assistant_head={assistant_head!r} "
                     f"remaining={int(deadline - now)}s",
                     flush=True,
                 )
