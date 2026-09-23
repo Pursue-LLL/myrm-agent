@@ -37,12 +37,17 @@ import { useWikiAgentScope } from '../WikiAgentScopeContext';
 import { WikiReviewSlipModal } from './WikiReviewSlipModal';
 import { WikiLayerItemPreviewModal } from './WikiLayerItemPreviewModal';
 
-export function WikiLayersLedgerPanel() {
+interface WikiLayersLedgerPanelProps {
+  onOpenConcept?: (relativePath: string) => void;
+}
+
+export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelProps = {}) {
   const { agentScopeId } = useWikiAgentScope();
 
   const [stats, setStats] = useState<WikiLayersStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
+
 
   // Micro-level layer item inspection state
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
@@ -297,14 +302,21 @@ export function WikiLayersLedgerPanel() {
                         <span className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
                           {item.title}
                         </span>
-                        <Badge
-                          variant={item.publish_status === 'draft' ? 'outline' : 'secondary'}
-                          className={`text-[10px] shrink-0 ${
-                            item.publish_status === 'draft' ? 'border-amber-500/40 text-amber-500' : ''
-                          }`}
-                        >
-                          {item.publish_status === 'draft' ? 'Draft' : 'Live'}
-                        </Badge>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {item.file_type === 'json' && (
+                            <Badge variant="default" className="text-[9px] px-1 py-0">
+                              JSON
+                            </Badge>
+                          )}
+                          <Badge
+                            variant={item.publish_status === 'draft' ? 'outline' : 'secondary'}
+                            className={`text-[10px] ${
+                              item.publish_status === 'draft' ? 'border-amber-500/40 text-amber-500' : ''
+                            }`}
+                          >
+                            {item.publish_status === 'draft' ? 'Draft' : 'Live'}
+                          </Badge>
+                        </div>
                       </div>
                       <p className="text-[11px] text-muted-foreground/80 line-clamp-2 leading-relaxed">
                         {item.content_snippet || '暂无正文摘要'}
@@ -315,6 +327,11 @@ export function WikiLayersLedgerPanel() {
                       <span className="flex items-center gap-1 font-mono truncate max-w-[160px]">
                         <Clock className="w-3 h-3 shrink-0" />
                         {item.updated_at ? item.updated_at.split('T')[0] : '刚刚'}
+                        {item.source_task_id && (
+                          <span className="text-[9px] text-primary/80 truncate">
+                            #{item.source_task_id.slice(-4)}
+                          </span>
+                        )}
                       </span>
                       <span className="flex items-center gap-1 text-primary opacity-0 group-hover:opacity-100 transition-opacity font-medium">
                         <Eye className="w-3 h-3" />
@@ -357,6 +374,7 @@ export function WikiLayersLedgerPanel() {
         item={previewItem}
         layerTitle={selectedLayerTitle}
         onClose={() => setPreviewItem(null)}
+        onOpenInEditor={onOpenConcept}
       />
     </Card>
   );

@@ -17,6 +17,7 @@ and author review slip confirmation to safe selective writeback.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from datetime import UTC, datetime
@@ -251,38 +252,72 @@ class WikiWritebackService:
             return []
 
         items: list[WikiLayerItem] = []
-        md_files = sorted(
-            [p for p in target_dir.rglob("*.md") if not p.name.startswith(".")],
-            key=lambda p: p.stat().st_mtime,
-            reverse=True,
-        )
+        is_deliverables = layer_key.lower() in ("l5", "deliverables")
+        if is_deliverables:
+            candidate_files = [
+                p
+                for p in target_dir.rglob("*")
+                if p.is_file()
+                and not p.name.startswith(".")
+                and p.suffix.lower() in (".md", ".json")
+            ]
+        else:
+            candidate_files = [
+                p
+                for p in target_dir.rglob("*.md")
+                if p.is_file() and not p.name.startswith(".")
+            ]
 
-        for p in md_files[:limit]:
+        candidate_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+        for p in candidate_files[:limit]:
             try:
                 text = p.read_text(encoding="utf-8")
             except Exception:
                 continue
 
+            file_type = "json" if p.suffix.lower() == ".json" else "markdown"
             title = p.stem.replace("-", " ").replace("_", " ").title()
             publish_status = "published"
-            if text.startswith("---"):
-                parts = text.split("---", 2)
-                if len(parts) >= 3:
-                    fm_text = parts[1]
-                    for line in fm_text.splitlines():
-                        if line.startswith("title:"):
-                            title = line.split(":", 1)[1].strip().strip('"').strip("'")
-                        elif line.startswith("publish_status:"):
-                            publish_status = line.split(":", 1)[1].strip()
-                    body = parts[2].strip()
+            source_task_id: str | None = None
+
+            if file_type == "json":
+                try:
+                    data = json.loads(text)
+                    if isinstance(data, dict):
+                        source_task_id = str(data.get("task_id") or "").strip() or None
+                        raw_title = data.get("title")
+                        if raw_title and isinstance(raw_title, str):
+                            title = raw_title.strip()
+                        executed_at = data.get("executed_at", "")
+                        items_count = len(data.get("items", []))
+                        snippet = f"Task: {source_task_id or p.stem} | Entries: {items_count} | Executed: {executed_at}"
+                    else:
+                        snippet = text[:280].replace("\n", " ").strip()
+                except Exception:
+                    snippet = text[:280].replace("\n", " ").strip()
+            else:
+                if text.startswith("---"):
+                    parts = text.split("---", 2)
+                    if len(parts) >= 3:
+                        fm_text = parts[1]
+                        for line in fm_text.splitlines():
+                            stripped = line.strip()
+                            if stripped.startswith("title:"):
+                                title = stripped.split(":", 1)[1].strip().strip('"').strip("'")
+                            elif stripped.startswith("publish_status:"):
+                                publish_status = stripped.split(":", 1)[1].strip()
+                            elif stripped.startswith("source_task_id:"):
+                                source_task_id = stripped.split(":", 1)[1].strip().strip('"').strip("'")
+                        body = parts[2].strip()
+                    else:
+                        body = text
                 else:
                     body = text
-            else:
-                body = text
+                snippet = body[:280].replace("\n", " ").strip()
 
             mtime_iso = datetime.fromtimestamp(p.stat().st_mtime, UTC).isoformat(timespec="seconds")
             rel_path = str(p.relative_to(structure.base_dir))
-            snippet = body[:280].replace("\n", " ").strip()
 
             items.append(
                 WikiLayerItem(
@@ -292,6 +327,8 @@ class WikiWritebackService:
                     publish_status=publish_status,
                     updated_at=mtime_iso,
                     content_snippet=snippet,
+                    source_task_id=source_task_id,
+                    file_type=file_type,
                 )
             )
 

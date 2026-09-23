@@ -664,8 +664,9 @@ export interface WorkingStateResponse {
   live_state?: WorkingStateLiveState | null;
 }
 
-export const getWorkingState = async (): Promise<WorkingStateResponse> => {
-  return apiRequest<WorkingStateResponse>('/memory/working-state');
+export const getWorkingState = async (sessionId?: string): Promise<WorkingStateResponse> => {
+  const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : '';
+  return apiRequest<WorkingStateResponse>(`/memory/working-state${query}`);
 };
 
 export const updateWorkingState = async (content: string): Promise<WorkingStateResponse> => {

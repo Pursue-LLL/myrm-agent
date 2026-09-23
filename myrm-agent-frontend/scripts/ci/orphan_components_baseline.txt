@@ -1,0 +1,11 @@
+# 存量孤儿组件基线（scripts/check-orphan-components.mjs）
+# 每行一个相对 myrm-agent-frontend 的路径；仅登记本门禁上线前已存在的孤儿。
+# 新增孤儿会被门禁拦截；条目不再孤儿时会被报为 drift，需从基线删除。
+src/components/chat/TaskBudgetPill.tsx
+src/components/features/artifacts/portal/SpreadsheetSelectionToolbar.tsx
+src/components/features/chat-window/PersonalWorkflowClosedLoopCard.tsx
+src/components/features/chat-window/SpendInterventionBanner.tsx
+src/components/features/chat-window/TurnCapabilityOverrideBar.tsx
+src/components/features/desktop-recording/DesktopRecordingDrawer.tsx
+src/components/features/file-preview/ImagePreview.tsx
+src/components/features/settings/model-service/CircuitBreakerDashboard.tsx

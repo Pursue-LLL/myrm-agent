@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, CheckCircle2, Clock3, Cpu, List, RefreshCw, ShieldAlert, SquareStack } from 'lucide-react';
+import { CheckCircle2, Clock3, List, RefreshCw, ShieldAlert, SquareStack } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
@@ -30,6 +30,8 @@ import { useSkillStore } from '@/store/skill';
 import useAuthStore from '@/store/useAuthStore';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
+  CapacityAlertBanner,
+  CapacityPoolBadge,
   EMPTY_SUMMARY,
   FILTER_ORDER,
   LIST_CASES_LIMIT,

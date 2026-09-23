@@ -219,3 +219,58 @@ def test_writeback_routes_e2e(client: TestClient, temp_vault: Path):
         items_res = client.get("/api/v1/wiki/writeback/layer-items?layer=methods&agent_id=default")
         assert items_res.status_code == 200
         assert isinstance(items_res.json(), list)
+
+
+def test_list_layer_items_deliverables_and_provenance(temp_vault):
+    import json
+
+    service = WikiWritebackService(workspace_root=temp_vault)
+
+    with patch("app.services.wiki.writeback.service.resolve_wiki_vault_path", return_value=temp_vault):
+        # 1. 模拟在 deliverables/ledgers/ 下生成任务审计 JSON 台账
+        ledgers_dir = temp_vault / "deliverables" / "ledgers"
+        ledgers_dir.mkdir(parents=True, exist_ok=True)
+        ledger_file = ledgers_dir / "task_audit_9999.json"
+        ledger_data = {
+            "task_id": "task_audit_9999",
+            "title": "大模型成本分析执行台账",
+            "executed_at": "2026-09-23T20:00:00Z",
+            "items": [
+                {"concept_or_path": "methods/cost.md", "contribution_type": "referenced", "detail": "成本优化"}
+            ],
+            "deliverable_paths": ["deliverables/report.md"],
+        }
+        ledger_file.write_text(json.dumps(ledger_data), encoding="utf-8")
+
+        # 2. 模拟在 methods/ 下生成带 source_task_id 的 markdown
+        methods_dir = service._get_structure("agent_test").methods_dir
+        methods_dir.mkdir(parents=True, exist_ok=True)
+        method_file = methods_dir / "provenance_test.md"
+        method_content = (
+            "---\n"
+            "title: \"成本控制核心法则\"\n"
+            "publish_status: draft\n"
+            "source_task_id: \"task_audit_9999\"\n"
+            "---\n\n"
+            "详细的方法论内容..."
+        )
+        method_file.write_text(method_content, encoding="utf-8")
+
+        # 验证 deliverables 能够穿透扫描并解析 ledgers/*.json
+        deliv_items = service.list_layer_items(agent_id="agent_test", layer_key="deliverables")
+        assert len(deliv_items) >= 1
+        ledger_item = next((item for item in deliv_items if item.file_type == "json"), None)
+        assert ledger_item is not None
+        assert ledger_item.source_task_id == "task_audit_9999"
+        assert ledger_item.title == "大模型成本分析执行台账"
+        assert "task_audit_9999" in ledger_item.content_snippet
+
+        # 验证 methods 能够提取 frontmatter 中的 source_task_id
+        method_items = service.list_layer_items(agent_id="agent_test", layer_key="methods")
+        target_method = next((item for item in method_items if item.slug == "provenance_test"), None)
+        assert target_method is not None
+        assert target_method.source_task_id == "task_audit_9999"
+        assert target_method.file_type == "markdown"
+        assert target_method.publish_status == "draft"
+
+

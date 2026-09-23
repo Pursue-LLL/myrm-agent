@@ -74,6 +74,7 @@ import type {
   ToolFallbackStreamEvent,
   ToolsSnapshotStreamEvent,
   VerificationVerdictStreamEvent,
+  WorkingMemoryStreamEvent,
 } from './part2';
 import type {
   BrowserTakeoverCompletedStreamEvent,
@@ -164,4 +165,5 @@ export type AgentStreamEvent =
   | ContextReferenceWarningStreamEvent
   | GoalStatusStreamEvent
   | FissionTopologyUpdateStreamEvent
-  | VerificationVerdictStreamEvent;
+  | VerificationVerdictStreamEvent
+  | WorkingMemoryStreamEvent;

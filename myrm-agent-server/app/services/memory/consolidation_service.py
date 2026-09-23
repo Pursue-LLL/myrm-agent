@@ -34,10 +34,48 @@ logger = logging.getLogger(__name__)
 class ConsolidationService:
     """Service providing query and mutation facilities for runtime working boards and task digests."""
 
-    @staticmethod
-    def get_live_working_state() -> dict[str, object]:
-        """Return the current active execution workbench state as serialized dict."""
-        return LocalWorkingMemoryBlock.to_dict()
+    _MAX_ACTIVE_SESSIONS: int = 100
+    _active_sessions_state: dict[str, dict[str, object]] = {}
+
+    @classmethod
+    def update_session_working_state(cls, session_id: str, state: dict[str, object]) -> None:
+        """Register or update runtime execution working state snapshot for a chat session."""
+        if not session_id:
+            return
+        if len(cls._active_sessions_state) >= cls._MAX_ACTIVE_SESSIONS and session_id not in cls._active_sessions_state:
+            first_key = next(iter(cls._active_sessions_state))
+            cls._active_sessions_state.pop(first_key, None)
+        cls._active_sessions_state[session_id] = dict(state)
+
+    @classmethod
+    def clear_session_working_state(cls, session_id: str) -> None:
+        """Clear cached working state snapshot for a terminated chat session."""
+        cls._active_sessions_state.pop(session_id, None)
+
+    @classmethod
+    def get_live_working_state(cls, session_id: str | None = None) -> dict[str, object]:
+        """Return the active execution workbench state as serialized dict.
+
+        Prioritizes session snapshot if session_id is provided, otherwise falls back
+        to coroutine-local state or the latest active session.
+        """
+        if session_id and session_id in cls._active_sessions_state:
+            return dict(cls._active_sessions_state[session_id])
+
+        local_state = LocalWorkingMemoryBlock.to_dict()
+        has_local_content = (
+            bool(local_state.get("subtasks"))
+            or bool(local_state.get("traps"))
+            or bool(local_state.get("scratchpad"))
+        )
+        if has_local_content:
+            return local_state
+
+        if not session_id and cls._active_sessions_state:
+            last_key = next(reversed(cls._active_sessions_state))
+            return dict(cls._active_sessions_state[last_key])
+
+        return local_state
 
     @staticmethod
     def record_trap(

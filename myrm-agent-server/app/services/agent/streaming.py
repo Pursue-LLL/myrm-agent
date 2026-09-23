@@ -514,8 +514,14 @@ async def ai_agent_service_stream(
                     (getattr(event, "data", {}) if not isinstance(event, dict) else event.get("data", {}))
                     # We yield it so the SSE connection can push it to the client
                     # The frontend should listen for this event type
+                elif event_type == "working_memory":
+                    data = getattr(event, "data", {}) if not isinstance(event, dict) else event.get("data", {})
+                    if isinstance(data, dict) and params.chat_id:
+                        from app.services.memory.consolidation_service import ConsolidationService
+
+                        ConsolidationService.update_session_working_state(params.chat_id, data)
             except Exception as ex:
-                logger.warning("Failed to process dag state update: %s", ex)
+                logger.warning("Failed to process event state update: %s", ex)
 
             yield event
     except Exception:

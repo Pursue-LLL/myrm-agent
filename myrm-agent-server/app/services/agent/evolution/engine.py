@@ -3,6 +3,8 @@
 [INPUT]
 - app.services.chat.chat_service::ChatService
 - myrm_agent_harness.toolkits.llms::llm_manager
+- myrm_agent_harness.agent.skills.evolution::SkillBudgetGovernor (POS: Skill budget governor protocol and evaluator)
+- myrm_agent_harness.utils.text_utils::get_token_count (POS: Token counting utility)
 - app.core.types::ModelConfig
 
 [OUTPUT]

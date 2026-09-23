@@ -1,4 +1,8 @@
-"""Integration tests for Deliverable Bundles REST API & FactCheck integration."""
+"""Integration tests for the Deliverable Bundles REST API.
+
+Covers the three generic bundle routes end to end: manifest registration,
+manifest retrieval, and streaming ZIP export with real archive contents.
+"""
 
 from __future__ import annotations
 
@@ -9,95 +13,140 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
-from myrm_agent_harness.api import (
-    ConflictSeverity,
-    FactCheckItem,
-    FactCheckSheet,
-    ResolutionStatus,
-    SourceClaim,
+from myrm_agent_harness.core.artifacts.manifest import (
+    DeliverableCategory,
+    DeliverableItem,
+    DeliverableStatus,
 )
 
 from app.api.files.bundle_api import _get_vault
 from app.api.files.bundle_api import router as bundle_router
-from app.services.artifacts.fact_check_service import FactCheckService
 
 
-def test_bundle_api_fact_check_integration(tmp_path: Path) -> None:
+def _make_vault_items(vault: ArtifactVault) -> list[DeliverableItem]:
+    """Persist two real vault objects and describe them as deliverable items."""
+    strategy_md = "# 发布会全案策略\n\n渠道投放节奏与预算分配。".encode()
+    strategy_uri = vault.put(
+        content=strategy_md,
+        filename="launch_strategy.md",
+        content_type="text/markdown",
+        description="发布会策略方案",
+    )
+    schedule_csv = "stage,owner,due\n预热,市场部,D-14\n首发,运营部,D-day\n".encode()
+    schedule_uri = vault.put(
+        content=schedule_csv,
+        filename="launch_schedule.csv",
+        content_type="text/csv",
+        description="发布会排期表",
+    )
+
+    return [
+        DeliverableItem(
+            id="dlv_strategy_01",
+            filename="launch_strategy.md",
+            relative_path="01_strategy/launch_strategy.md",
+            title="发布会策略方案",
+            category=DeliverableCategory.STRATEGY,
+            status=DeliverableStatus.VERIFIED,
+            vault_uri=strategy_uri,
+            size_bytes=len(strategy_md),
+            mime_type="text/markdown",
+        ),
+        DeliverableItem(
+            id="dlv_schedule_01",
+            filename="launch_schedule.csv",
+            relative_path="06_schedule/launch_schedule.csv",
+            title="发布会排期表",
+            category=DeliverableCategory.SCHEDULE,
+            status=DeliverableStatus.VERIFIED,
+            vault_uri=schedule_uri,
+            size_bytes=len(schedule_csv),
+            mime_type="text/csv",
+        ),
+    ]
+
+
+def test_bundle_api_manifest_crud_and_zip_export(tmp_path: Path) -> None:
     vault = ArtifactVault(str(tmp_path))
-    service = FactCheckService(vault)
+    items = _make_vault_items(vault)
 
-    # 1. 模拟生成事实核查单
-    src1 = SourceClaim(
-        source_uri="vault://meeting.docx",
-        document_title="草案.docx",
-        claimed_value="1699元",
-        line_anchor="L42",
-    )
-    src2 = SourceClaim(
-        source_uri="vault://notice.pdf",
-        document_title="通告.pdf",
-        claimed_value="1999元",
-        line_anchor="P2",
-    )
-    item = FactCheckItem(
-        claim_topic="官方首发零售价",
-        severity=ConflictSeverity.CRITICAL,
-        status=ResolutionStatus.RESOLVED,
-        sources=[src1, src2],
-        adopted_value="1999元 (首发特惠1799元)",
-        resolution_rationale="8月定稿通告晚于7月草案",
-    )
-    sheet = FactCheckSheet(
-        sheet_id="fcs_bundle_e2e_01",
-        session_id="session_alpha_01",
-        title="发布会全案事实核查单",
-        summary="完成核心定价冲突仲裁",
-        items=[item],
-    )
-
-    deliverable_items = service.persist_fact_check_sheet(sheet)
-    assert len(deliverable_items) == 2
-
-    # 2. 构建独立测试 App 挂载 bundle_router
     test_app = FastAPI()
     test_app.include_router(bundle_router, prefix="/api/v1/files/artifacts")
     test_app.dependency_overrides[_get_vault] = lambda: vault
 
     with TestClient(test_app) as client:
-        # POST /api/v1/files/artifacts/bundles
+        # 1. POST /bundles — register the manifest
         create_resp = client.post(
             "/api/v1/files/artifacts/bundles",
             json={
-                "bundle_id": "bundle_fact_001",
+                "bundle_id": "bundle_launch_001",
                 "session_id": "session_alpha_01",
                 "title": "发布会全套交付物清单",
-                "items": [d.model_dump() for d in deliverable_items],
+                "task_prompt": "产出发布会全案并打包交付",
+                "items": [item.model_dump() for item in items],
             },
         )
         assert create_resp.status_code == 200
         manifest_data = create_resp.json()
-        assert manifest_data["bundle_id"] == "bundle_fact_001"
+        assert manifest_data["bundle_id"] == "bundle_launch_001"
+        assert manifest_data["title"] == "发布会全套交付物清单"
         assert len(manifest_data["items"]) == 2
 
-        # GET /api/v1/files/artifacts/bundles/{bundle_id}
-        get_resp = client.get("/api/v1/files/artifacts/bundles/bundle_fact_001")
+        # 2. GET /bundles/{bundle_id} — read the persisted manifest back
+        get_resp = client.get("/api/v1/files/artifacts/bundles/bundle_launch_001")
         assert get_resp.status_code == 200
         retrieved_manifest = get_resp.json()
         assert retrieved_manifest["title"] == "发布会全套交付物清单"
+        assert retrieved_manifest["session_id"] == "session_alpha_01"
 
-        # GET /api/v1/files/artifacts/bundles/{bundle_id}/zip (验证真实流式 ZIP 导出与解压)
-        zip_resp = client.get("/api/v1/files/artifacts/bundles/bundle_fact_001/zip")
+        # 3. GET /bundles/{bundle_id}/zip — stream and unpack the archive
+        zip_resp = client.get("/api/v1/files/artifacts/bundles/bundle_launch_001/zip")
         assert zip_resp.status_code == 200
         assert zip_resp.headers["content-type"] == "application/zip"
+        assert zip_resp.headers["X-Deliverable-Bundle-Id"] == "bundle_launch_001"
 
         with zipfile.ZipFile(io.BytesIO(zip_resp.content)) as zf:
             namelist = zf.namelist()
-            assert any("fact_check.json" in name for name in namelist)
-            assert any("fact_check_report.md" in name for name in namelist)
+            assert any("launch_strategy.md" in name for name in namelist)
+            assert any("launch_schedule.csv" in name for name in namelist)
 
-            # 读取 zip 内部的 Markdown 并验证
-            md_name = next(name for name in namelist if name.endswith("fact_check_report.md"))
-            md_bytes = zf.read(md_name)
-            assert "发布会全案事实核查单" in md_bytes.decode("utf-8")
-            assert "官方首发零售价" in md_bytes.decode("utf-8")
-            assert "1999元" in md_bytes.decode("utf-8")
+            strategy_name = next(name for name in namelist if name.endswith("launch_strategy.md"))
+            strategy_bytes = zf.read(strategy_name)
+            assert "发布会全案策略" in strategy_bytes.decode("utf-8")
+
+            schedule_name = next(name for name in namelist if name.endswith("launch_schedule.csv"))
+            schedule_bytes = zf.read(schedule_name)
+            assert "预热" in schedule_bytes.decode("utf-8")
+
+
+def test_get_unknown_bundle_returns_404(tmp_path: Path) -> None:
+    vault = ArtifactVault(str(tmp_path))
+
+    test_app = FastAPI()
+    test_app.include_router(bundle_router, prefix="/api/v1/files/artifacts")
+    test_app.dependency_overrides[_get_vault] = lambda: vault
+
+    with TestClient(test_app) as client:
+        resp = client.get("/api/v1/files/artifacts/bundles/bundle_missing")
+        assert resp.status_code == 404
+
+
+def test_zip_export_rejects_empty_bundle(tmp_path: Path) -> None:
+    vault = ArtifactVault(str(tmp_path))
+
+    test_app = FastAPI()
+    test_app.include_router(bundle_router, prefix="/api/v1/files/artifacts")
+    test_app.dependency_overrides[_get_vault] = lambda: vault
+
+    with TestClient(test_app) as client:
+        client.post(
+            "/api/v1/files/artifacts/bundles",
+            json={
+                "bundle_id": "bundle_empty_001",
+                "session_id": "session_beta_02",
+                "title": "空交付包",
+                "items": [],
+            },
+        )
+        resp = client.get("/api/v1/files/artifacts/bundles/bundle_empty_001/zip")
+        assert resp.status_code == 400

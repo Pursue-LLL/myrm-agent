@@ -452,4 +452,11 @@ export interface DagStateUpdateStreamEvent {
   data: unknown;
 }
 
+export interface WorkingMemoryStreamEvent {
+  type: typeof AgentEventType.WORKING_MEMORY;
+  messageId?: string;
+  data?: Record<string, unknown>;
+  action?: string;
+}
+
 export type { CatchupSnapshotStreamEvent } from './part2Catchup';

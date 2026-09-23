@@ -92,7 +92,9 @@ async def _dispatch_rpc(
     authorization: str | None,
 ) -> JsonRpcResponse:
     """Handle standard A2A JSON-RPC 2.0 methods."""
-    _ = sanitize_bearer_token(authorization)
+    clean_token = sanitize_bearer_token(authorization)
+    peer_registry = get_a2a_peer_registry()
+    is_trusted, peer = await peer_registry.verify_inbound_authorization(clean_token)
     service = get_a2a_server_service()
     req_id = req.id
     method = (req.method or "").strip()
@@ -121,6 +123,8 @@ async def _dispatch_rpc(
                 agent_id=target_agent,
                 push_url=push_url_param,
                 push_secret=push_secret_param,
+                requires_approval=not is_trusted,
+                peer_id=peer.id if peer else None,
             )
             return JsonRpcResponse(
                 id=req_id,
@@ -265,3 +269,46 @@ async def probe_a2a_peer(body: A2APeerProbeRequest) -> A2APeerProbeResponse:
     """Probe connectivity to a remote A2A peer and retrieve its AgentCard."""
     registry = get_a2a_peer_registry()
     return await registry.probe(body)
+
+
+# ============================================================================
+# Inbound Tasks Approval Endpoints
+# ============================================================================
+
+
+@router.get("/tasks/pending-approval", response_model=list[dict[str, object]])
+async def list_pending_approval_tasks() -> list[dict[str, object]]:
+    """List all inbound tasks awaiting operator approval."""
+    service = get_a2a_server_service()
+    tasks = await service.list_pending_approval_tasks()
+    return [t.model_dump(by_alias=True) for t in tasks]
+
+
+@router.post("/tasks/{task_id}/approve", response_model=dict[str, object])
+async def approve_a2a_task(task_id: str) -> dict[str, object]:
+    """Approve a pending inbound task and dispatch execution."""
+    service = get_a2a_server_service()
+    task = await service.approve_task(task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task '{task_id}' not found or not in pending_approval status.",
+        )
+    return task.model_dump(by_alias=True)
+
+
+@router.post("/tasks/{task_id}/reject", response_model=dict[str, object])
+async def reject_a2a_task(
+    task_id: str,
+    reason: str = "Rejected by operator",
+) -> dict[str, object]:
+    """Reject a pending inbound task."""
+    service = get_a2a_server_service()
+    task = await service.reject_task(task_id, reason=reason)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task '{task_id}' not found or not in pending_approval status.",
+        )
+    return task.model_dump(by_alias=True)
+

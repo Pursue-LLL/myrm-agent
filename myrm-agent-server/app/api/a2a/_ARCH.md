@@ -9,4 +9,4 @@ discovery manifests and JSON-RPC 2.0 task lifecycle routing.
 
 | File | Role |
 |------|------|
-| `router.py` | FastAPI APIRouter registering `/.well-known/agent-card.json` and `/rpc` task dispatch |
+| `router.py` | FastAPI APIRouter registering `/.well-known/agent-card.json`, `/rpc` task dispatch with inbound peer whitelist zero-trust gating, and `/tasks/pending-approval`, `/tasks/{task_id}/approve`, `/tasks/{task_id}/reject` approval lifecycle endpoints |

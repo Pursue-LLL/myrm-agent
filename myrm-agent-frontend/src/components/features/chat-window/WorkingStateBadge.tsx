@@ -26,7 +26,7 @@ const WorkingStateBadge = memo(({ chatId: propChatId }: WorkingStateBadgeProps =
 
   const fetchState = useCallback(async (isCancelled?: () => boolean) => {
     try {
-      const res = await getWorkingState();
+      const res = await getWorkingState(chatId);
       if (isCancelled && isCancelled()) {
         return;
       }
@@ -43,7 +43,7 @@ const WorkingStateBadge = memo(({ chatId: propChatId }: WorkingStateBadgeProps =
     } catch {
       /* non-critical: network failure or degraded memory service */
     }
-  }, []);
+  }, [chatId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +59,27 @@ const WorkingStateBadge = memo(({ chatId: propChatId }: WorkingStateBadgeProps =
       cancelled = true;
     };
   }, [chatId, fetchState]);
+
+  useEffect(() => {
+    const handleUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{
+        data?: WorkingStateLiveState;
+        sessionId?: string;
+        action?: string;
+      }>;
+      if (customEvent.detail?.sessionId && chatId && customEvent.detail.sessionId !== chatId) {
+        return;
+      }
+      if (customEvent.detail?.data) {
+        setLiveState(customEvent.detail.data);
+        setFallbackContent(null);
+      }
+    };
+    window.addEventListener('working_memory_update', handleUpdate);
+    return () => {
+      window.removeEventListener('working_memory_update', handleUpdate);
+    };
+  }, [chatId]);
 
   useEffect(() => {
     if (prevLoadingRef.current && !loading) {

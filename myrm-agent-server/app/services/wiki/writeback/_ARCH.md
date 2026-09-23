@@ -16,7 +16,10 @@
    - 将通过过滤的有效洞察聚合提炼为 1~5 道极简单选题决策卡；
    - 支持单键将经验归档至 `knowledge/methods/` 或 `knowledge/claims/`（保持 `draft` 状态），并在 YAML frontmatter 中规范注入 `evidence` 凭证链（`source_task_id`, `source_deliverable`, `negative_exclusion_verified: true`）。
 4. **Layer Items Inspection（五层资产微观下钻）**：
-   - 按分层（L1-L5）提供轻量级文档清单与 Markdown 摘要检索，支持前端态势看板直接下钻预览。
+   - 按分层（L1-L5）提供轻量级文档清单与 Markdown/JSON 摘要检索；
+   - L5 交付物层同时支持穿透扫描与安全解析 `deliverables/ledgers/*.json` 机器审计台账；
+   - 完整提取并透传 `source_task_id` 溯源凭证与 `file_type`，支持前端卡片徽标展示与单键在 Wiki 编辑器中打开。
+
 
 ## 文件清单
 

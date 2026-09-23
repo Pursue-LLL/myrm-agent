@@ -1125,7 +1125,16 @@ export function WikiSection() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <WikiLayersLedgerPanel />
+            <WikiLayersLedgerPanel
+              onOpenConcept={(relPath) => {
+                const params = new URLSearchParams(searchParams.toString());
+                params.set('wikiTab', 'concepts');
+                params.set('conceptPath', relPath);
+                setActiveTab('concepts');
+                const query = params.toString();
+                router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+              }}
+            />
 
             <SecondBrainSetupCard
               onApplied={(agentId) => {

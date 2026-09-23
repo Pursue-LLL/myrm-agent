@@ -64,6 +64,7 @@ class TrapCreateRequest(BaseModel):
 
 @router.get("", response_model=WorkingStateResponse)
 async def get_working_state(
+    session_id: str | None = Query(None, description="Optional chat session ID for active execution state"),
     memory_manager: MemoryManager = Depends(get_crud_memory_manager),
 ) -> WorkingStateResponse:
     """Read current working state along with live in-memory workbench if active."""
@@ -80,7 +81,7 @@ async def get_working_state(
         except (ValueError, TypeError):
             pass
 
-    live_state = ConsolidationService.get_live_working_state()
+    live_state = ConsolidationService.get_live_working_state(session_id=session_id)
     return WorkingStateResponse(
         content=content,
         updated_at=updated_at,
@@ -113,9 +114,11 @@ async def clear_working_state(
 
 
 @router.get("/live")
-async def get_live_workbench() -> dict[str, object]:
+async def get_live_workbench(
+    session_id: str | None = Query(None, description="Optional chat session ID for active execution state"),
+) -> dict[str, object]:
     """Retrieve active coroutine/task live working board."""
-    return ConsolidationService.get_live_working_state()
+    return ConsolidationService.get_live_working_state(session_id=session_id)
 
 
 @router.post("/subtasks")

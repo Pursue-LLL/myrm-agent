@@ -101,7 +101,7 @@ class WritebackApplyResult(BaseModel):
 
 
 class WikiLayerItem(BaseModel):
-    """Summary of a single markdown document within a wiki layer."""
+    """Summary of a single markdown or structured document within a wiki layer."""
 
     slug: str = Field(..., description="Document slug or filename")
     title: str = Field(..., description="Document title")
@@ -109,3 +109,6 @@ class WikiLayerItem(BaseModel):
     publish_status: str = Field("published", description="draft or published")
     updated_at: str = Field("", description="Last modified ISO timestamp")
     content_snippet: str = Field("", description="First few lines of document body")
+    source_task_id: str | None = Field(None, description="Source task ID if written back from a task")
+    file_type: str = Field("markdown", description="File type: markdown or json")
+

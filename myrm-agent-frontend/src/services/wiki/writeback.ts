@@ -91,7 +91,10 @@ export interface WikiLayerItem {
   publish_status: string;
   updated_at: string;
   content_snippet: string;
+  source_task_id?: string;
+  file_type?: 'markdown' | 'json';
 }
+
 
 export const writebackService = {
   async recordUsageLedger(record: UsageLedgerRecord, agentId?: string | null): Promise<{ status: string; saved_path: string }> {

@@ -34,6 +34,7 @@ import {
   type A2APeerUpdateInput,
   type A2APeerProbeResult,
 } from '@/services/a2aPeer';
+import { A2AInboundApprovalSection } from './A2AInboundApprovalSection';
 
 interface PeerFormValues {
   name: string;
@@ -246,6 +247,10 @@ export const A2APeerRegistrySection = memo(() => {
           <Plus className="w-4 h-4" />
           {t('addPeer')}
         </Button>
+      </div>
+
+      <div className="mb-6">
+        <A2AInboundApprovalSection />
       </div>
 
       {loading ? (

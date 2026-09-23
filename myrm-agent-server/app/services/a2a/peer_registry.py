@@ -131,6 +131,22 @@ class A2APeerRegistryService:
             token = _decrypt_token(peer.encrypted_auth_token) if peer.encrypted_auth_token else None
             return (peer.base_url, peer.auth_type, token)
 
+    async def verify_inbound_authorization(self, token: str | None) -> tuple[bool, A2APeerResponse | None]:
+        """Verify whether an inbound bearer token matches any registered active peer."""
+        if not token:
+            return False, None
+        clean_token = token.strip()
+        async with get_session() as session:
+            stmt = select(A2APeerModel).where(A2APeerModel.is_active.is_(True))
+            result = await session.execute(stmt)
+            peers = result.scalars().all()
+            for peer in peers:
+                if peer.encrypted_auth_token:
+                    decrypted = _decrypt_token(peer.encrypted_auth_token)
+                    if decrypted and decrypted == clean_token:
+                        return True, self._model_to_response(peer)
+            return False, None
+
     async def create_peer(self, data: A2APeerCreate) -> A2APeerResponse:
         """Register a new trusted A2A peer."""
         encrypted_token = _encrypt_token(data.auth_token) if data.auth_token else None
