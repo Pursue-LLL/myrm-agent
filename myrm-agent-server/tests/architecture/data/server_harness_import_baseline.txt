@@ -487,6 +487,7 @@ myrm_agent_harness.toolkits.wiki.core.claims_contract
 myrm_agent_harness.toolkits.wiki.core.config
 myrm_agent_harness.toolkits.wiki.core.fact_trust_contract
 myrm_agent_harness.toolkits.wiki.core.frontmatter_contract
+myrm_agent_harness.toolkits.wiki.core.negative_exclusion_policy
 myrm_agent_harness.toolkits.wiki.core.refactor
 myrm_agent_harness.toolkits.wiki.core.section_contract
 myrm_agent_harness.toolkits.wiki.core.structure
