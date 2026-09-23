@@ -79,11 +79,20 @@ _FILL_AND_SAVE_JS = """((args) => {
 })(__ARGS__)"""
 
 
+def _api_base() -> str:
+    # The browser writes through the lane-injected E2E runtime binding
+    # (window.__MYRM_E2E_API_BASE__, honored by deploy-mode.ts), which points
+    # at the isolated per-run backend — not the shared :8080. Readback must
+    # use the same base or created agents are invisible by construction.
+    try:
+        base = get_e2e_api_url()
+    except Exception:
+        base = ""
+    return base.strip().rstrip("/") if base and base.strip() else "http://127.0.0.1:8080"
+
+
 def _api(path: str, method: str = "GET", body: dict | None = None) -> dict:
-    # The :3000 WebUI proxies /api to the shared :8080 backend, so every API
-    # call in this test must hit the shared base. Otherwise data seeded into
-    # an isolate backend is invisible in the browser and vice versa.
-    resp = http_json(method, f"http://127.0.0.1:8080{path}", body)
+    resp = http_json(method, f"{_api_base()}{path}", body)
     assert isinstance(resp, dict)
     return resp
 
@@ -101,7 +110,7 @@ def _preclean_agents(prefix: str) -> None:
         for item in items:
             if isinstance(item, dict) and str(item.get("name", "")).startswith(prefix) and not item.get("is_built_in"):
                 try:
-                    http_json("DELETE", f"http://127.0.0.1:8080/api/v1/user-agents/{item.get('id')}")
+                    _api(f"/api/v1/user-agents/{item.get('id')}", method="DELETE")
                 except Exception:
                     pass
     except Exception:

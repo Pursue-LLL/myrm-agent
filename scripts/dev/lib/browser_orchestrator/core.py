@@ -115,7 +115,15 @@ def _effective_operation_credit_cap() -> int:
         pass
     override = os.environ.get("CDMCP_MUX_MAX_IN_FLIGHT")
     if override:
-        return max(1, min(MAX_OPERATION_CREDITS, int(override)))
+        # A non-numeric override raises ValueError, which would escape through the
+        # snapshot builders that call this (they read it to report capacity) and crash
+        # the status path rather than merely reporting a wrong cap. Ignore unparseable
+        # values so the documented default applies.
+        try:
+            parsed = int(override)
+        except ValueError:
+            return MAX_OPERATION_CREDITS
+        return max(1, min(MAX_OPERATION_CREDITS, parsed))
     return MAX_OPERATION_CREDITS
 
 

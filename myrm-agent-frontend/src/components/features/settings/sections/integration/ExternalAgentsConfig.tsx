@@ -458,7 +458,7 @@ const ExternalAgentsConfig = memo(() => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+              <div className="space-y-1.5" data-testid="external-agent-permission-mode">
                 <label className="text-xs font-medium text-muted-foreground">{t('permissionMode')}</label>
                 <Select
                   value={permissionModeValue}
@@ -469,7 +469,11 @@ const ExternalAgentsConfig = memo(() => {
                   </SelectTrigger>
                   <SelectContent>
                     {PERMISSION_MODE_OPTIONS[draft.type].map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        data-testid={`permission-option-${option.value}`}
+                      >
                         {t(option.labelKey)}
                       </SelectItem>
                     ))}
