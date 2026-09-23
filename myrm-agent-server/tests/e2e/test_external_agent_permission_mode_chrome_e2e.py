@@ -66,7 +66,7 @@ _READ_PERMISSION_OPTIONS_JS = """(() => {
   };
 })()"""
 
-_SELECT_TYPE_JS_TEMPLATE = """(() => {
+_OPEN_TYPE_SELECT_JS = """(() => {
   const field = document.querySelector('[data-testid="external-agent-type"]');
   if (!field) {
     return { ok: false, reason: 'missing-type-field' };
@@ -115,7 +115,7 @@ def _permission_option_ids(client: object, page: object) -> list[str]:
 
 def _switch_type(client: object, page: object, agent_type: str) -> None:
     """Switch the external-agent type via its own selector."""
-    opened = client.evaluate(page, _SELECT_TYPE_JS_TEMPLATE, timeout_sec=15.0)
+    opened = client.evaluate(page, _OPEN_TYPE_SELECT_JS, timeout_sec=15.0)
     assert isinstance(opened, dict) and opened.get("ok") is True, f"type selector not usable: {opened}"
 
     click_js = _CLICK_TYPE_OPTION_JS_TEMPLATE.replace("__TYPE__", agent_type)

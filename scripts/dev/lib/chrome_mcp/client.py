@@ -159,7 +159,23 @@ _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC = LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC
 _MCP_READ_POLL_SEC = _LIVE_AGENT_TOOL_MIN_TIMEOUT_SEC
 _TOOL_RETRY_ATTEMPTS = TOOL_RETRY_ATTEMPTS
 _NEW_PAGE_TOOL_RETRY_ATTEMPTS = NEW_PAGE_TOOL_RETRY_ATTEMPTS
-_PAGE_LEASE_TTL_SEC = int(os.environ.get("MYRM_PAGE_LEASE_TTL_SEC", "600"))
+def _env_int(name: str, default: int) -> int:
+    """Read an int env override, falling back when it cannot be parsed.
+
+    This runs at import time, so an unguarded int() on a malformed value (e.g.
+    ``MYRM_PAGE_LEASE_TTL_SEC=10m``) would make the whole module unimportable and take
+    every page-lease caller with it, instead of just ignoring a bad override.
+    """
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+_PAGE_LEASE_TTL_SEC = _env_int("MYRM_PAGE_LEASE_TTL_SEC", 600)
 _PAGE_LEASE_HEARTBEAT_INTERVAL_SEC = 30.0
 _EXPLICIT_SHORT_TOOL_TIMEOUT_CEILING_SEC = 30.0
 _LOGGER = logging.getLogger(__name__)
