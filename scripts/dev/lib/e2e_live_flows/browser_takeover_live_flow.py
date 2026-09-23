@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
+import urllib.error
+from collections.abc import Callable
 
 import pytest
 from cdp_chat.mcp_ui import McpChatSession
@@ -51,6 +54,42 @@ from e2e_live_flows.browser_takeover_live_mux import (
 )
 
 BASE_URL = os.getenv("E2E_UI_BASE", "http://127.0.0.1:3000").rstrip("/")
+
+
+def _log_resume_reply_diagnostic(
+    *,
+    api_base: str,
+    chat_id: str,
+    log: Callable[[str], None],
+) -> None:
+    """Emit the newest assistant replies verbatim so a DONE miss is diagnosable.
+
+    The gate is a literal-word match on persisted content, so its failures are
+    invisible without the text itself: ``'ONE'`` (a reply that lost its leading
+    ``D``) and a wrong word entirely look identical in the assertion, yet point at
+    different layers. Logs each of the last few assistant turns (repr, so leading
+    whitespace and empty strings stay visible) plus their lengths.
+    """
+    try:
+        from cdp_chat.support import fetch_chat_messages
+
+        messages = fetch_chat_messages(chat_id, api_url=api_base, timeout_sec=15.0)
+    except (TimeoutError, OSError, urllib.error.URLError) as exc:
+        log(f"ResumeReplyDiagnostic unavailable: {exc!s:.160}")
+        return
+
+    replies = [
+        msg
+        for msg in messages
+        if isinstance(msg, dict) and str(msg.get("role") or "").lower() == "assistant"
+    ]
+    log(
+        f"ResumeReplyDiagnostic: messages={len(messages)} assistant_turns={len(replies)}"
+    )
+    for index, msg in enumerate(replies[-3:]):
+        raw = msg.get("content")
+        text = raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False)
+        log(f"ResumeReplyDiagnostic[{index}] len={len(text)} content={text[:200]!r}")
 
 
 async def run_browser_takeover_live_flow(
@@ -148,10 +187,7 @@ async def run_browser_takeover_live_flow(
         if not chat_id_hint:
             chat_id_hint = str((await chat.bridge_chat_id()) or "").strip() or None
         submit_mode = str(send_result.get("submit", {}).get("mode") or "")
-        _p(
-            f"send_message sealed chatId={chat_id_hint} "
-            f"submitMode={submit_mode}"
-        )
+        _p(f"send_message sealed chatId={chat_id_hint} submitMode={submit_mode}")
         if submit_mode != "sendTurnSealed":
             raise RuntimeError(
                 f"SendTurnContract expected sendTurnSealed, got: {send_result}"
@@ -166,7 +202,9 @@ async def run_browser_takeover_live_flow(
             f"disconnected={len(getattr(chat._client, '_disconnected_pages', {}))}"
         )
         _p("wait_for_browser_ask_human_gate")
-        gate_timeout = BROWSER_GATE_WAIT_SEC if attempt == 1 else min(90.0, BROWSER_GATE_WAIT_SEC)
+        gate_timeout = (
+            BROWSER_GATE_WAIT_SEC if attempt == 1 else min(90.0, BROWSER_GATE_WAIT_SEC)
+        )
         last_tool, takeover_pending, api_hitl = await wait_for_browser_ask_human_gate(
             chat,
             chat_id=chat_id_hint,
@@ -370,6 +408,16 @@ async def run_browser_takeover_live_flow(
             log=_p,
         )
     _p(f"ResumeTurnContract STREAM_CONVERGE done={done}")
+
+    if not done:
+        # The DONE gate matches the literal word "DONE" in the newest assistant
+        # message, so a failure here is *content* evidence — a reply that never
+        # contained it. Capture the persisted text verbatim before asserting:
+        # without it the operator cannot tell whether the model emitted the wrong
+        # word (generation race: also lost its leading "D", e.g. "ONE"), the text
+        # was mutated on the way to the DB, or the poll read a stale message. Each
+        # needs a different fix, and only the text distinguishes them.
+        _log_resume_reply_diagnostic(api_base=api_base, chat_id=resume_chat_id, log=_p)
 
     assert done, (
         f"Agent did not reply DONE after browser takeover resume "
