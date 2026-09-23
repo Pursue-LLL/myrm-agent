@@ -18,6 +18,12 @@ generates reusable SKILL.md definitions, saving them to the local persistent vol
 import asyncio
 import logging
 
+from myrm_agent_harness.agent.skills.evolution import (
+    BudgetCheckResult,
+    BudgetStatus,
+    EvolutionType,
+    SkillBudgetGovernor,
+)
 from myrm_agent_harness.toolkits.llms import llm_manager
 
 from app.core.types import ModelConfig
@@ -126,14 +132,48 @@ async def _run_evolution_task(
         logger.error(f"Background skill evolution failed for chat {chat_id}: {e}", exc_info=True)
 
 
+def check_skill_budget_before_evolution(
+    agent_id: str | None = None,
+    evolution_type: EvolutionType = EvolutionType.CAPTURED,
+    governor: SkillBudgetGovernor | None = None,
+) -> BudgetCheckResult:
+    """Evaluate whether capacity permits triggering another skill evolution cycle."""
+    gov = governor or SkillBudgetGovernor()
+    try:
+        from app.core.skills.store.evolution_store import get_evolution_skill_store
+
+        store = get_evolution_skill_store()
+        active_skills = store.get_active_skills(agent_id=agent_id)
+        current_count = len(active_skills)
+        current_tokens = sum(max(100, len(s.content) // 4) for s in active_skills)
+
+        return gov.check_budget(
+            evolution_type=evolution_type,
+            current_tokens=current_tokens,
+            current_count=current_count,
+        )
+    except Exception as exc:
+        logger.debug("Skill budget check skipped on error: %s", exc)
+        return BudgetCheckResult(
+            allowed=True,
+            status=BudgetStatus.NORMAL,
+            current_tokens=0,
+            max_tokens=gov.config.max_tokens,
+            current_count=0,
+            max_count=gov.config.max_skill_count,
+            message="Check skipped",
+        )
+
+
 def trigger_skill_evolution(
     chat_id: str,
     model_cfg: ModelConfig,
     tool_steps_count: int = 0,
     conversation_text: str | None = None,
     agent_id: str | None = None,
+    governor: SkillBudgetGovernor | None = None,
 ) -> None:
-    """Trigger the background skill evolution engine.
+    """Trigger the background skill evolution engine with capacity protection.
 
     Args:
         chat_id: The chat session ID.
@@ -142,6 +182,7 @@ def trigger_skill_evolution(
         conversation_text: Pre-built conversation text (e.g. from DW stream collector).
             When provided, skips loading from ChatService.
         agent_id: Originating agent profile ID for proposal attribution.
+        governor: Optional custom capacity governor.
     """
     if _RUNNING_EVOLUTION_TASKS.get(chat_id) is not None:
         logger.debug(f"Skill evolution already in flight for chat {chat_id}; skipping duplicate trigger")
@@ -152,6 +193,65 @@ def trigger_skill_evolution(
             f"Chat {chat_id} turn too shallow for skill capture (tool_steps={tool_steps_count} < {_MIN_TOOL_STEPS_FOR_CAPTURE})"
         )
         return
+
+    budget_check = check_skill_budget_before_evolution(
+        agent_id=agent_id,
+        evolution_type=EvolutionType.CAPTURED,
+        governor=governor,
+    )
+
+    if not budget_check.allowed:
+        logger.warning(
+            "Skill evolution paused for chat %s due to capacity limit: %s",
+            chat_id,
+            budget_check.message,
+        )
+        try:
+            from app.services.skills.ws_hub import broadcast_message
+
+            asyncio.create_task(
+                broadcast_message(
+                    "SKILL_CAPACITY_LIMIT",
+                    {
+                        "chat_id": chat_id,
+                        "agent_id": agent_id,
+                        "status": str(budget_check.status),
+                        "message": budget_check.message,
+                        "current_tokens": budget_check.current_tokens,
+                        "max_tokens": budget_check.max_tokens,
+                        "current_count": budget_check.current_count,
+                        "max_count": budget_check.max_count,
+                    },
+                )
+            )
+        except Exception as ws_err:
+            logger.debug("Failed to broadcast skill capacity limit event: %s", ws_err)
+        return
+
+    if budget_check.status == BudgetStatus.SOFT_LIMIT:
+        logger.info(
+            "Skill capacity warning for chat %s: %s",
+            chat_id,
+            budget_check.message,
+        )
+        try:
+            from app.services.skills.ws_hub import broadcast_message
+
+            asyncio.create_task(
+                broadcast_message(
+                    "SKILL_CAPACITY_WARNING",
+                    {
+                        "chat_id": chat_id,
+                        "agent_id": agent_id,
+                        "status": str(budget_check.status),
+                        "message": budget_check.message,
+                        "current_tokens": budget_check.current_tokens,
+                        "max_tokens": budget_check.max_tokens,
+                    },
+                )
+            )
+        except Exception as ws_err:
+            logger.debug("Failed to broadcast skill capacity warning event: %s", ws_err)
 
     task = asyncio.create_task(
         _run_evolution_task(chat_id, model_cfg, conversation_text=conversation_text, agent_id=agent_id),

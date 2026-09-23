@@ -1041,3 +1041,37 @@ class DiscordChannel(BaseChannel):
         except Exception as e:
             logger.warning("Failed to fetch Discord history for %s: %s", chat_id, e)
             return []
+
+    async def send_capacity_alert(
+        self,
+        recipient_id: str,
+        status: str,
+        current_tokens: int,
+        max_tokens: int,
+        current_count: int,
+        max_count: int,
+    ) -> str | None:
+        """Send a formatted proactive capacity alert to a Discord channel."""
+        title = (
+            "⚠️ Skill Evolution Capacity Limit Reached"
+            if status == "hard_limit"
+            else "ℹ️ Skill Evolution Capacity Warning"
+        )
+        action_note = (
+            "New skill captures are temporarily paused."
+            if status == "hard_limit"
+            else "Consolidation is recommended."
+        )
+        text = (
+            f"**{title}**\n\n"
+            f"• **Tokens**: {current_tokens:,} / {max_tokens:,}\n"
+            f"• **Active Skills**: {current_count} / {max_count}\n\n"
+            f"> Proactive long-session guard is active. {action_note}\n"
+            f"Manage skills in WebUI or consolidate to restore full capacity."
+        )
+        outbound = OutboundMessage(
+            channel=self.name,
+            recipient_id=recipient_id,
+            content=text,
+        )
+        return await self.send(outbound)
