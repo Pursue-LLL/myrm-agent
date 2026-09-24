@@ -228,10 +228,10 @@ async def test_export_pack_get_options_and_errors(
 
 def test_export_pack_internal_helpers(tmp_path: Path) -> None:
     from app.api.chats.chat.export_pack import (
-        _ZipStreamBuffer,
         _build_content_disposition,
         _is_path_strictly_within,
         _sanitize_arcname,
+        _ZipStreamBuffer,
     )
 
     # 1. _sanitize_arcname
