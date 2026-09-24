@@ -9,6 +9,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | 文件 | 职责 |
 |------|------|
 | `test_sse_event_type_parity.py` | harness `AgentEventType` ⊆ 前端 `knownSseEventTypes` 清单 |
+| `test_harness_api_export_parity.py` | server 引用的 `myrm_agent_harness.api.X` 必须已在该层 `_EXPORTS`/`__all__` 导出（消费侧护栏：harness 内部重构漏导出会让后端启动 `ImportError`）|
 | `test_memory_injection_contract_parity.py` | 前端 `MemoryBriefStatus(source)/MemoryBriefInjectionStatus` union 与 server+harness 状态契约严格同构 |
 | `test_memory_brief_prometheus_rules_contract.py` | memory brief 告警规则契约（flush HTTP attempts-based ratio + strict dedup reject ratio/burst 关键片段；直接跑 pytest 时本地无 promtool 可 skip；`scripts/ci/run_architecture_gates.sh` 与 CI 均强制 promtool `check rules`） |
 | `test_memory_brief_telemetry_layout.py` | memory brief CP 遥测须位于 `app/services/agent/memory_brief_telemetry/` 子包，禁止根目录 legacy 平铺文件复活 |

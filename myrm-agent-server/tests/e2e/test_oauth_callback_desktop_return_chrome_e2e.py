@@ -35,6 +35,18 @@ _CALLBACK_ERROR_JS = """(() => {
   };
 })()"""
 
+_SETTINGS_SHELL_JS = """(() => {
+  const bodyText = document.body ? (document.body.innerText || '') : '';
+  return {
+    ready:
+      location.pathname.startsWith('/settings') &&
+      bodyText.length > 20 &&
+      !!document.querySelector('[data-testid="settings-layout"]'),
+    pathname: location.pathname,
+    bodyLength: bodyText.length,
+  };
+})()"""
+
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
 @pytest.mark.e2e_search_policy("empty")
@@ -71,3 +83,14 @@ def test_oauth_callback_desktop_return_error_chrome_e2e() -> None:
         )
         assert missing.get("ready") is True, missing
         assert missing.get("leaksDeepLink") is False, missing
+
+        # Settings shell must still hydrate in browsers: guards the
+        # ServerConnection import changes against breaking the web bundle.
+        navigate_mcp_page(client, page, f"{ui_base}/settings")
+        shell = wait_for_state(
+            client,
+            page,
+            _SETTINGS_SHELL_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+        )
+        assert shell.get("ready") is True, shell
