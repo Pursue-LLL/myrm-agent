@@ -121,8 +121,7 @@ def resolve_wave_paths() -> WavePaths:
                 break
     server_python = agent_root / "myrm-agent-server" / ".venv" / "bin" / "python"
     return WavePaths(
-        state_dir=state_dir,
-        state_file=state_dir / "wave-orchestrator.json",
+        state_dir=state_dir,        state_file=state_dir / "wave-orchestrator.json",
         agent_dev_lib=dev_dir / "lib",
         server_python=server_python,
     )
