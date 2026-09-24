@@ -135,15 +135,29 @@ def spawn_ensure_orchestrator() -> None:
         bun_bin = str(real_user_home() / ".bun/bin")
         env["PATH"] = f"{node_dir}:{bun_bin}:{path}"
     try:
-        subprocess.run(
+        result = subprocess.run(
             ["bash", str(script)],
             env=env,
             timeout=45.0,
             capture_output=True,
             check=False,
+            text=True,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         _LOGGER.warning("orchestrator respawn failed: %s", exc)
+        return
+    # Surface the script's own verdict. It reports every refusal through
+    # BROWSER_ORCHESTRATOR_* tokens on stdout/stderr, and discarding them left the
+    # caller with only the generic "daemon not running after respawn" — which names
+    # the symptom and hides the cause (stale socket, unresponsive peer, CDP down,
+    # exit 74 observability guard). Those are distinguishable only by this output.
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        _LOGGER.warning(
+            "orchestrator respawn exited %d: %s",
+            result.returncode,
+            detail[-2000:] or "(no diagnostic output)",
+        )
 
 
 def _wait_daemon_ready(daemon: "BrowserOrchestratorClient") -> None:
