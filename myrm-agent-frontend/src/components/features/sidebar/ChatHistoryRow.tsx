@@ -419,6 +419,13 @@ export const ChatHistoryRow = memo<ChatHistoryRowProps>(
                       <Printer size={isMobile ? 16 : 14} className="mr-2" />
                       {t('chat.exportChat.print')}
                     </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => exportSessionZipPack(chat.id)}
+                      className={cn(isMobile && 'py-3 text-xs min-h-[44px]')}
+                    >
+                      <Archive size={isMobile ? 16 : 14} className="mr-2" />
+                      {t('chat.exportChat.exportZipPack', { defaultMessage: '导出会话日志包 (.zip)' })}
+                    </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
                 {onOpenInIDE && (

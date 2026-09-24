@@ -54,7 +54,7 @@ const ArtifactPortal = dynamic(() => import('../artifacts/ArtifactPortal'), {
   // Skeleton while the portal chunk loads: avoids a silent blank panel under
   // dev-chunk stalls and satisfies the `artifact-loading` E2E contract.
   loading: () => (
-    <div data-testid="artifact-loading" role="status" aria-busy="true" className="animate-pulse h-full w-full" />
+    <output data-testid="artifact-loading" aria-busy="true" className="block animate-pulse h-full w-full" />
   ),
 });
 
@@ -428,7 +428,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       window.removeEventListener('system-notification', handleSystemNotification);
       unsubscribe();
     };
-  }, [id, initializeChat]);
+  }, [id, initializeChat, snapshotT]);
 
   useEffect(() => {
     initConfig();

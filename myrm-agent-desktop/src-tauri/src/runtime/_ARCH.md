@@ -24,7 +24,8 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js 进程生�
 | `sidecar_version_manager.rs` | 核心 | Sidecar 独立引擎版本状态机（versions.json、原子写入、三级降级链路与坏版本拉黑） | ✅ |
 | `python_backend.rs` | 核心 | Python Sidecar 启停、版本自适应解析、就绪探测与启动超时自动回滚自愈 | ✅ |
 | `nextjs_frontend.rs` | 核心 | Next.js Standalone 进程（Tauri 启动时始终自启） | — |
-| `watchdog.rs` | 核心 | 后端崩溃监控与指数退避重启 | ✅ |
+| `watchdog.rs` | 核心 | 后端崩溃监控与指数退避重启（Remote 跟随态不 spawn） | ✅ |
+| `remote_follow.rs` | 核心 | Remote 跟随标记文件（`remote_follow.json` 布尔意图）；`get/set_remote_follow` IPC；setup 期 defer 判定 | ✅ |
 | `setup_token.rs` | 核心 | WebUI Remote Setup Token IPC | — |
 | `port.rs` | 工具 | 端口占用检测 | — |
 | `survivor_diag.rs` | 核心 | 端口幸存者跨平台命令行与路径诊断、安全 Re-kill 自愈回收与 TCP 释放确认 | ✅ |
