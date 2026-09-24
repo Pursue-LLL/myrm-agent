@@ -10942,12 +10942,12 @@
     },
     "workflowRecorder": {
       "title": "Desktop-Workflow-Recorder & Skill-Generator",
-      "idleDesc": "Zeichnen Sie eine Multi-App-Aufgabe einmal auf, und die KI rekonstruiert automatisch Absichten und geordnete Schritte zu einem Skill.",
+      "idleDesc": "Erstellen Sie einen wiederverwendbaren Skill aus einem Desktop-Workflow. Die automatische Desktop-Aufzeichnung ist noch nicht verfügbar; fügen Sie die Schritte während der Aufzeichnung manuell hinzu, um die Skill-Kompilierung zu prüfen.",
       "workflowNameLabel": "Skill-Name",
       "intentHintLabel": "Absichtshinweis (Optional)",
       "startRecording": "Aufnahme starten",
-      "recordingActive": "Desktop-Workflow-Aufnahme läuft...",
-      "eventsCaptured": "{count} Ereignisse erfasst",
+      "recordingActive": "Manuelles Hinzufügen von Schritten läuft...",
+      "eventsCaptured": "{count} Schritte hinzugefügt",
       "stopAndAnalyze": "Stoppen & Absicht analysieren",
       "reviewStepsTitle": "Rekonstruierte Ausführungsschritte & Variablen",
       "addStep": "Schritt hinzufügen",
@@ -10957,7 +10957,9 @@
       "publishSuccessTitle": "Skill erfolgreich veröffentlicht!",
       "publishSuccessDesc": "Skill \"{name}\" ist kompiliert und sofort einsatzbereit.",
       "cancel": "Abbrechen",
-      "close": "Schließen"
+      "close": "Schließen",
+      "manualCaptureNotice": "Die automatische Desktop-Aufzeichnung ist noch nicht verfügbar. Die Schaltflächen unten fügen Beispielschritte manuell hinzu, damit Sie die Skill-Kompilierung vollständig prüfen können.",
+      "manualStepsLabel": "Schritt manuell hinzufügen"
     }
   },
   "followUps": {

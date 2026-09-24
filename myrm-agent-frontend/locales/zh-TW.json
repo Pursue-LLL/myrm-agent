@@ -10942,12 +10942,12 @@
     },
     "workflowRecorder": {
       "title": "桌面工作流程錄製與技能生成",
-      "idleDesc": "點擊開始錄製後，在電腦上演示一次跨應用操作，AI 將自動分析意圖並提煉出可泛化複用的自動化技能。",
+      "idleDesc": "從桌面工作流程產生可複用技能。桌面自動擷取尚未可用，請在錄製過程中手動新增步驟，以預覽技能編譯的完整流程。",
       "workflowNameLabel": "技能名稱",
       "intentHintLabel": "意圖提示（可選）",
       "startRecording": "開始錄製",
-      "recordingActive": "正在錄製桌面工作流程...",
-      "eventsCaptured": "已捕獲 {count} 個互動事件",
+      "recordingActive": "正在手動新增步驟...",
+      "eventsCaptured": "已新增 {count} 個步驟",
       "stopAndAnalyze": "結束錄製並提煉意圖",
       "reviewStepsTitle": "AI 提煉的執行步驟與變數",
       "addStep": "新增步驟",
@@ -10957,7 +10957,9 @@
       "publishSuccessTitle": "技能發布成功！",
       "publishSuccessDesc": "已成功生成並發布技能「{name}」，各智慧體已可即時調用。",
       "cancel": "取消",
-      "close": "關閉"
+      "close": "關閉",
+      "manualCaptureNotice": "桌面自動擷取尚未可用。下方按鈕用於手動新增範例步驟，便於端到端預覽技能編譯流程。",
+      "manualStepsLabel": "手動新增步驟"
     }
   },
   "followUps": {

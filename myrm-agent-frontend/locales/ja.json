@@ -10942,12 +10942,12 @@
     },
     "workflowRecorder": {
       "title": "デスクトップワークフロー録画とスキル生成",
-      "idleDesc": "マルチアプリタスクを1回録画すると、AIが意図と順序付きステップを自動的に再構成し、再利用可能なスキルを生成します。",
+      "idleDesc": "デスクトップ作業から再利用可能なスキルを作成します。デスクトップの自動キャプチャはまだ利用できないため、記録中に手動でステップを追加してスキル生成の流れを確認してください。",
       "workflowNameLabel": "スキル名",
       "intentHintLabel": "意図ヒント（任意）",
       "startRecording": "録画開始",
-      "recordingActive": "デスクトップ操作を録画中...",
-      "eventsCaptured": "{count} 件のイベントを記録",
+      "recordingActive": "ステップを手動で追加中...",
+      "eventsCaptured": "{count} 件のステップを追加しました",
       "stopAndAnalyze": "録画終了と意図再構成",
       "reviewStepsTitle": "再構成された実行手順と変数",
       "addStep": "ステップ追加",
@@ -10957,7 +10957,9 @@
       "publishSuccessTitle": "スキルの公開に成功しました！",
       "publishSuccessDesc": "スキル「{name}」がコンパイルされ、即座に利用可能になりました。",
       "cancel": "キャンセル",
-      "close": "閉じる"
+      "close": "閉じる",
+      "manualCaptureNotice": "デスクトップの自動キャプチャはまだ利用できません。以下のボタンはサンプルステップを手動で追加し、スキル生成の流れを確認するためのものです。",
+      "manualStepsLabel": "ステップを手動で追加"
     }
   },
   "followUps": {

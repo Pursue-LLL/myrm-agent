@@ -17898,12 +17898,12 @@
     },
     "workflowRecorder": {
       "title": "桌面工作流录制与技能生成",
-      "idleDesc": "点击开始录制后，在电脑上演示一次跨应用操作，AI 将自动分析意图并提炼出可泛化复用的自动化技能。",
+      "idleDesc": "从桌面工作流生成可复用技能。桌面自动采集尚未可用，请在录制过程中手动添加步骤，以预览技能编译的完整流程。",
       "workflowNameLabel": "技能名称",
       "intentHintLabel": "意图提示（可选）",
       "startRecording": "开始录制",
-      "recordingActive": "正在录制桌面工作流...",
-      "eventsCaptured": "已捕获 {count} 个交互事件",
+      "recordingActive": "正在手动添加步骤...",
+      "eventsCaptured": "已添加 {count} 个步骤",
       "stopAndAnalyze": "结束录制并提炼意图",
       "reviewStepsTitle": "AI 提炼的执行步骤与变量",
       "addStep": "添加步骤",
@@ -17913,7 +17913,9 @@
       "publishSuccessTitle": "技能发布成功！",
       "publishSuccessDesc": "已成功生成并发布技能「{name}」，各智能体已可即时调用。",
       "cancel": "取消",
-      "close": "关闭"
+      "close": "关闭",
+      "manualCaptureNotice": "桌面自动采集尚未可用。下方按钮用于手动添加示例步骤，便于端到端预览技能编译流程。",
+      "manualStepsLabel": "手动添加步骤"
     }
   },
   "followUps": {

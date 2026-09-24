@@ -17898,12 +17898,12 @@
     },
     "workflowRecorder": {
       "title": "Desktop Workflow Skill Recorder",
-      "idleDesc": "Record yourself performing a multi-app task once, and AI will automatically reconstruct intent and ordered steps into a reusable skill.",
+      "idleDesc": "Build a reusable skill from a desktop workflow. Automatic desktop capture is not available yet, so add the steps manually during recording to preview how a skill is compiled.",
       "workflowNameLabel": "Skill Name",
       "intentHintLabel": "Intent Hint (Optional)",
       "startRecording": "Start Recording",
-      "recordingActive": "Recording desktop workflow in progress...",
-      "eventsCaptured": "{count} events captured",
+      "recordingActive": "Manual step entry in progress...",
+      "eventsCaptured": "{count} steps added",
       "stopAndAnalyze": "Stop & Reconstruct Intent",
       "reviewStepsTitle": "Reconstructed Execution Steps & Variables",
       "addStep": "Add Step",
@@ -17913,7 +17913,9 @@
       "publishSuccessTitle": "Skill Published Successfully!",
       "publishSuccessDesc": "Skill \"{name}\" is compiled and ready for immediate use across agents.",
       "cancel": "Cancel",
-      "close": "Close"
+      "close": "Close",
+      "manualCaptureNotice": "Automatic desktop capture is not available yet. The buttons below add example steps manually so you can preview how a skill is compiled end to end.",
+      "manualStepsLabel": "Add step manually"
     }
   },
   "followUps": {

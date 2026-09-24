@@ -207,37 +207,45 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
           )}
 
           {step === 'recording' && (
-            <div className="space-y-4 text-center py-6">
-              <div className="inline-flex p-4 rounded-full bg-red-500/10 text-red-500 animate-pulse">
-                <Video className="h-8 w-8" />
-              </div>
-              <div>
-                <h4 className="font-medium text-foreground">{t('recordingActive')}</h4>
+            <div className="space-y-4 py-4">
+              <div className="text-center">
+                <div className="inline-flex p-4 rounded-full bg-primary/10 text-primary">
+                  <Video className="h-8 w-8" />
+                </div>
+                <h4 className="font-medium text-foreground mt-3">{t('recordingActive')}</h4>
                 <p className="text-xs text-muted-foreground mt-1">{t('eventsCaptured', { count: eventCount })}</p>
               </div>
-              {/* Quick simulation helper buttons for GUI testing */}
-              <div className="flex flex-wrap gap-2 justify-center pt-2">
-                <button
-                  type="button"
-                  onClick={() => handleSimulateEvent('app_switch', 'Microsoft Excel', 'Spreadsheet')}
-                  className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
-                >
-                  + Excel Switch
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSimulateEvent('click', 'Chrome Browser', 'Submit Button')}
-                  className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
-                >
-                  + Click Submit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSimulateEvent('type', 'Chrome Browser', 'Tax Account')}
-                  className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
-                >
-                  + Type Account
-                </button>
+
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{t('manualCaptureNotice')}</span>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-foreground text-center">{t('manualStepsLabel')}</p>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <button
+                    type="button"
+                    onClick={() => handleSimulateEvent('app_switch', 'Microsoft Excel', 'Spreadsheet')}
+                    className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
+                  >
+                    + Excel Switch
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSimulateEvent('click', 'Chrome Browser', 'Submit Button')}
+                    className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
+                  >
+                    + Click Submit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSimulateEvent('type', 'Chrome Browser', 'Tax Account')}
+                    className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
+                  >
+                    + Type Account
+                  </button>
+                </div>
               </div>
             </div>
           )}
