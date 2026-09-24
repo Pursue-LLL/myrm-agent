@@ -70,7 +70,9 @@ export const AgentCommerceBudgetSection = memo(() => {
   }, [fetchData]);
 
   const handleToggleFreeze = async () => {
-    if (!status) return;
+    if (!status) {
+      return;
+    }
     try {
       const nextStatus = await setEmergencySpendingFreeze(!status.is_frozen);
       setStatus(nextStatus);
