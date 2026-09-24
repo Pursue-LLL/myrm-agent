@@ -17887,7 +17887,9 @@
       "manualStepsLabel": "Add step manually",
       "manualRecordingActive": "Manual step entry in progress...",
       "captureEventsCaptured": "{count} interactions captured",
-      "captureHint": "Perform the workflow on your desktop now; each click and text entry is captured automatically."
+      "captureHint": "Perform the workflow on your desktop now; each click and text entry is captured automatically.",
+      "capturePermissionNotice": "Automatic capture needs screen access permission. Grant it in your system privacy settings, then start a new recording. Until then, add steps manually below to preview the skill.",
+      "captureUnsupportedNotice": "Automatic capture is not supported on this platform. Add steps manually below to preview the skill."
     }
   },
   "followUps": {

@@ -10931,7 +10931,9 @@
       "manualStepsLabel": "단계 직접 추가",
       "manualRecordingActive": "단계를 직접 추가하는 중...",
       "captureEventsCaptured": "{count}개 상호작용 캡처됨",
-      "captureHint": "지금 데스크톱에서 작업을 시연하세요. 클릭과 텍스트 입력이 자동으로 기록됩니다."
+      "captureHint": "지금 데스크톱에서 작업을 시연하세요. 클릭과 텍스트 입력이 자동으로 기록됩니다.",
+      "capturePermissionNotice": "자동 캡처에는 화면 접근 권한이 필요합니다. 시스템 개인정보 보호 설정에서 권한을 허용한 뒤 녹화를 다시 시작하세요. 그 전까지는 아래에서 단계를 직접 추가해 스킬을 미리 볼 수 있습니다.",
+      "captureUnsupportedNotice": "이 플랫폼에서는 자동 캡처를 지원하지 않습니다. 아래에서 단계를 직접 추가해 스킬을 미리 볼 수 있습니다."
     }
   },
   "followUps": {

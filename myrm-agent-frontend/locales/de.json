@@ -10931,7 +10931,9 @@
       "manualStepsLabel": "Schritt manuell hinzufügen",
       "manualRecordingActive": "Manuelles Hinzufügen von Schritten läuft...",
       "captureEventsCaptured": "{count} Interaktionen erfasst",
-      "captureHint": "Führen Sie den Ablauf jetzt auf Ihrem Desktop aus; jeder Klick und jede Texteingabe wird automatisch erfasst."
+      "captureHint": "Führen Sie den Ablauf jetzt auf Ihrem Desktop aus; jeder Klick und jede Texteingabe wird automatisch erfasst.",
+      "capturePermissionNotice": "Die automatische Aufzeichnung benötigt eine Bildschirmzugriffs-Berechtigung. Erteilen Sie sie in den Datenschutzeinstellungen und starten Sie die Aufzeichnung neu. Bis dahin können Sie Schritte unten manuell hinzufügen.",
+      "captureUnsupportedNotice": "Die automatische Aufzeichnung wird auf dieser Plattform nicht unterstützt. Fügen Sie Schritte unten manuell hinzu, um den Skill zu prüfen."
     }
   },
   "followUps": {

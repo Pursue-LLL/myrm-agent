@@ -131,16 +131,26 @@ describe('WorkflowRecorderModal', () => {
     await waitFor(() => {
       expect(screen.getByText('manualRecordingActive')).toBeInTheDocument();
     });
+    // The guidance must be actionable, not a generic notice.
+    expect(screen.getByText('capturePermissionNotice')).toBeInTheDocument();
   });
 
   it('falls back to honest manual step entry when platform capture is unavailable', async () => {
     const startMock = vi.mocked(skillService.startDesktopRecording);
+    const sessionPoll = vi.mocked(skillService.getDesktopRecordingSession);
     // A platform without AX capture reports capture_active=false, so the modal must disclose
     // that steps are entered manually instead of implying an automatic recording is running.
     startMock.mockResolvedValueOnce({
       session_id: 'rec-manual',
       status: 'recording',
       started_at: 1000,
+      capture_active: false,
+      capture_error: 'desktop_capture_unavailable: no AX backend',
+    });
+    sessionPoll.mockResolvedValue({
+      session_id: 'rec-manual',
+      status: 'recording',
+      events_count: 0,
       capture_active: false,
       capture_error: 'desktop_capture_unavailable: no AX backend',
     });
@@ -152,7 +162,8 @@ describe('WorkflowRecorderModal', () => {
     await waitFor(() => {
       expect(screen.getByText('manualRecordingActive')).toBeInTheDocument();
     });
-    expect(screen.getByText('manualCaptureNotice')).toBeInTheDocument();
+    // Platform-level unavailability is reported as unsupported, distinct from a permission ask.
+    expect(screen.getByText('captureUnsupportedNotice')).toBeInTheDocument();
     // The automatic-capture copy must not be shown while capture is unavailable.
     expect(screen.queryByText('captureHint')).not.toBeInTheDocument();
   });

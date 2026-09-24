@@ -10931,7 +10931,9 @@
       "manualStepsLabel": "手動新增步驟",
       "manualRecordingActive": "正在手動新增步驟...",
       "captureEventsCaptured": "已擷取 {count} 個互動",
-      "captureHint": "現在就在電腦上示範該流程，每次點擊與文字輸入都會被自動擷取。"
+      "captureHint": "現在就在電腦上示範該流程，每次點擊與文字輸入都會被自動擷取。",
+      "capturePermissionNotice": "自動擷取需要螢幕存取權限。請在系統隱私設定中授權後重新開始錄製。在此之前，可在下方手動新增步驟以預覽技能效果。",
+      "captureUnsupportedNotice": "目前平台不支援自動擷取。可在下方手動新增步驟以預覽技能效果。"
     }
   },
   "followUps": {

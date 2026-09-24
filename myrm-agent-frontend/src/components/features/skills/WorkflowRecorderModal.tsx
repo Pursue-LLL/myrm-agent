@@ -47,6 +47,17 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   // Whether the server is capturing the demonstration through platform AX; false means the
   // platform exposes no capture (or permission was denied) and steps are entered manually.
   const [captureActive, setCaptureActive] = useState<boolean>(false);
+  // Why capture is unavailable (permission not granted vs platform unsupported), surfaced as
+  // actionable guidance rather than a silent downgrade to manual entry.
+  const [captureIssue, setCaptureIssue] = useState<'permission' | 'unsupported' | null>(null);
+
+  // Map a server capture error onto the guidance the dialog shows.
+  const resolveCaptureIssue = (captureError: string | null): 'permission' | 'unsupported' | null => {
+    if (!captureError) {
+      return null;
+    }
+    return captureError.includes('permission') ? 'permission' : 'unsupported';
+  };
 
   // Poll the live session so the interaction count reflects real capture, and so a capture
   // that stops mid-recording (permission revoked, backend failure) is reflected immediately.
@@ -63,6 +74,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
         }
         setEventCount(state.events_count);
         setCaptureActive(state.capture_active);
+        setCaptureIssue(state.capture_active ? null : resolveCaptureIssue(state.capture_error));
       } catch {
         // A transient poll failure must not disturb the recording UI.
       }
@@ -83,6 +95,9 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
       setSessionId(newSessionId);
       const started = await startDesktopRecording(newSessionId);
       setCaptureActive(started.capture_active);
+      // The start response already reports why capture is off; showing it immediately avoids a
+      // window where the dialog gives a generic message instead of the actionable one.
+      setCaptureIssue(started.capture_active ? null : resolveCaptureIssue(started.capture_error));
       setEventCount(0);
       setStep('recording');
     } catch (err: unknown) {
@@ -261,7 +276,13 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
                 <>
                   <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
                     <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                    <span>{t('manualCaptureNotice')}</span>
+                    <span>
+                      {captureIssue === 'permission'
+                        ? t('capturePermissionNotice')
+                        : captureIssue === 'unsupported'
+                          ? t('captureUnsupportedNotice')
+                          : t('manualCaptureNotice')}
+                    </span>
                   </div>
 
                   <div className="space-y-2">
