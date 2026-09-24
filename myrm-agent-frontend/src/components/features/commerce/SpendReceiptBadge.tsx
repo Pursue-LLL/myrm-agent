@@ -1,5 +1,7 @@
 'use client';
 
+// @orphan-ok Autonomous micro-budget commerce receipt badge for chat timeline and ledger items
+
 /**
  * [INPUT]
  * lucide-react::CreditCard, ShieldCheck, Clock, AlertCircle

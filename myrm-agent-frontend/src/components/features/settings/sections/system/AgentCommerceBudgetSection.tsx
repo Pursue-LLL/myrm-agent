@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
+import { SpendReceiptBadge } from '@/components/features/commerce/SpendReceiptBadge';
 import {
   getCommerceBudgetStatus,
   updateCommerceBudgetConfig,
@@ -322,23 +323,13 @@ export const AgentCommerceBudgetSection = memo(() => {
                       ${(item.amount_cents / 100).toFixed(2)}
                     </td>
                     <td className="py-2">
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium',
-                          item.status === 'committed'
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                            : item.status === 'reserved'
-                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                              : 'bg-zinc-500/10 text-muted-foreground'
-                        )}
-                      >
-                        {item.status === 'committed' ? (
-                          <ShieldCheck className="w-3 h-3" />
-                        ) : (
-                          <Clock className="w-3 h-3" />
-                        )}
-                        <span>{item.status}</span>
-                      </span>
+                      <SpendReceiptBadge
+                        merchantDomain={item.merchant_domain}
+                        amountCents={item.amount_cents}
+                        currency={item.currency}
+                        status={item.status}
+                        hasEntryHash={Boolean(item.entry_hash)}
+                      />
                     </td>
                     <td className="py-2 text-[11px] text-muted-foreground">
                       {item.created_at.slice(0, 16).replace('T', ' ')}
