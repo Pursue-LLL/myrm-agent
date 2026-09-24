@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
-import { SpendReceiptBadge } from '@/components/features/commerce/SpendReceiptBadge';
+import { SpendReceiptBadge } from '@/components/features/commerce';
 import {
   getCommerceBudgetStatus,
   updateCommerceBudgetConfig,
