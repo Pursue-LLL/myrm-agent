@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.computer_use.desktop_session::create_desktop_session
-- myrm_agent_harness.toolkits.computer_use.recording::DesktopCaptureDriver
+- myrm_agent_harness.api::DesktopCaptureDriver
 - app.api.skills.desktop_recorder_schemas::RecordingSessionState
 
 [OUTPUT]
@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from myrm_agent_harness.toolkits.computer_use.recording import DesktopCaptureDriver
+from myrm_agent_harness.api import DesktopCaptureDriver
 
 from app.api.skills.desktop_recorder_schemas import RecordingSessionState
 
