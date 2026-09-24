@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 /**
- * 孤儿模块门禁：拦截「只有自己的测试引用、生产代码无人引用」的组件。
+ * 孤儿模块门禁：拦截「只有自己的测试引用、生产代码无人引用」的源文件。
  *
  * 背景：单元测试通过相对/别名路径 import 被测文件；若一个组件已从产品入口不可达，
  * 它的测试仍会通过——测试绿不等于代码活着。本门禁补上这个结构性盲区。
  *
  * 判定口径（避免误报，三条同时成立才算孤儿）：
- *   1. 文件位于 `src/components/`（组件目录；`src/app/` 路由页天然不被 import）
+ *   1. 文件位于 `src/`（`src/app/` 路由页与生成物天然不被 import，已排除）
  *   2. 解析真实模块说明符（`import ... from '...'` / `export ... from '...'` /
  *      动态 `import('...')`）。按文件名子串匹配会命中同名标识符，产生大量误报
  *   3. 排除测试文件自身的引用；且没有任何生产文件 import 它
  *
  * 反向自检：若待扫描组件数为 0，说明路径或解析器失效，直接失败而非静默通过。
  *
- * 基线：`scripts/ci/orphan_components_baseline.txt` 登记存量孤儿（本门禁上线前已存在，
+ * 基线：`scripts/ci/orphan_modules_baseline.txt` 登记存量孤儿（本门禁上线前已存在，
  * 归属各自模块后续处理）。门禁只拦截**新增**孤儿，使存量债不阻塞 CI 又让趋势只降不升；
  * 基线中已不再孤儿的条目会被报为 drift（应删除以收紧基线）。
  *
@@ -33,28 +33,48 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = resolve(__dirname, '..');
 const srcDir = join(rootDir, 'src');
-const componentsDir = join(srcDir, 'components');
-const baselinePath = join(__dirname, 'ci', 'orphan_components_baseline.txt');
+const baselinePath = join(__dirname, 'ci', 'orphan_modules_baseline.txt');
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
 const PRUNE_DIRS = new Set(['node_modules', '.next', 'dist', '__tests__', '__mocks__']);
 const EXEMPT_MARKER = '@orphan-ok';
 const EXEMPT_SCAN_LINES = 30;
 
-// Only real components are in scope: app-route pages are entry points, and
-// non-component .ts/.tsx modules (hooks, utils, barrels) are not mountable units.
-const NON_COMPONENT_BASENAMES = new Set(['index', 'layout', 'page', 'loading', 'error', 'not-found', 'route']);
+// Files that are legitimately unreferenced: Next.js app-router entries are routed by path, and
+// generated/ambient files are consumed by tooling rather than imported.
+const ENTRY_OR_GENERATED = [
+  /^app[\\/]/, // app-router routes, layouts, boundaries
+  /[\\/]litellmRouting\.generated\.ts$/,
+  /\.d\.ts$/,
+];
+const CONVENTION_BASENAMES = new Set([
+  'index',
+  'layout',
+  'page',
+  'loading',
+  'error',
+  'not-found',
+  'route',
+  'template',
+  'default',
+  'globals',
+  'sw',
+  'middleware',
+  'instrumentation',
+]);
 
 const isTestFile = (path) => /\.(test|spec)\./.test(path) || path.includes('__tests__');
 
-function isScannableComponent(file) {
-  const basename = file.slice(file.lastIndexOf('/') + 1).replace(/\.tsx?$/, '');
-  if (NON_COMPONENT_BASENAMES.has(basename)) {
+function isScannableModule(file) {
+  const relative = file.slice(srcDir.length + 1);
+  if (ENTRY_OR_GENERATED.some((pattern) => pattern.test(relative))) {
     return false;
   }
-  // PascalCase (or camelCase with a capital) signals a component; lowercase-only names are
-  // helpers/hooks/theme scripts.
-  return /[A-Z]/.test(basename.slice(0, 1));
+  const basename = file.slice(file.lastIndexOf('/') + 1).replace(/\.tsx?$/, '');
+  if (CONVENTION_BASENAMES.has(basename) || basename.startsWith('_')) {
+    return false;
+  }
+  return true;
 }
 
 function walk(dir, out = [], predicate = () => true) {
@@ -129,17 +149,17 @@ function readExemption(file) {
   return markerIndex === -1 ? null : head.slice(markerIndex).split('\n')[0].trim();
 }
 
-let componentFiles;
+let scannableFiles;
 try {
-  componentFiles = walk(componentsDir, [], (file) => !isTestFile(file) && isScannableComponent(file));
+  scannableFiles = walk(srcDir, [], (file) => !isTestFile(file) && isScannableModule(file));
 } catch (error) {
-  console.error(`[orphan-gate] 无法扫描 ${relative(rootDir, componentsDir)}: ${error.message}`);
+  console.error(`[orphan-gate] 无法扫描 ${relative(rootDir, srcDir)}: ${error.message}`);
   process.exit(1);
 }
 
-if (componentFiles.length === 0) {
+if (scannableFiles.length === 0) {
   console.error(
-    `[orphan-gate] 自检失败：未在 ${relative(rootDir, componentsDir)} 扫描到任何组件文件，` +
+    `[orphan-gate] 自检失败：未在 ${relative(rootDir, srcDir)} 扫描到任何模块，` +
       '路径或扩展名配置可能已失效——拒绝静默通过。',
   );
   process.exit(1);
@@ -148,7 +168,7 @@ if (componentFiles.length === 0) {
 const importedByProduction = collectImportedFiles(walk(srcDir));
 const orphans = [];
 
-for (const file of componentFiles) {
+for (const file of scannableFiles) {
   if (importedByProduction.has(file)) {
     continue;
   }
@@ -164,7 +184,7 @@ orphans.sort();
 
 if (process.argv.includes('--ratchet')) {
   const header =
-    '# 存量孤儿组件基线（scripts/check-orphan-components.mjs）\n' +
+    '# 存量孤儿模块基线（scripts/check-orphan-components.mjs）\n' +
     '# 每行一个相对 myrm-agent-frontend 的路径；仅登记本门禁上线前已存在的孤儿。\n' +
     '# 新增孤儿会被门禁拦截；条目不再孤儿时会被报为 drift，需从基线删除。\n';
   writeFileSync(baselinePath, header + orphans.map((o) => `${o}\n`).join(''), 'utf8');
@@ -189,7 +209,7 @@ const newOrphans = orphans.filter((orphan) => !baselined.has(orphan));
 const drifted = [...baselined].filter((entry) => !orphans.includes(entry));
 
 if (newOrphans.length > 0) {
-  console.error(`[orphan-gate] 新增 ${newOrphans.length} 个孤儿组件（无任何生产代码引用）：`);
+  console.error(`[orphan-gate] 新增 ${newOrphans.length} 个孤儿模块（无任何生产代码引用）：`);
   for (const orphan of newOrphans) {
     console.error(`    - ${orphan}`);
   }
@@ -211,6 +231,6 @@ if (newOrphans.length > 0 || drifted.length > 0) {
 }
 
 console.log(
-  `[orphan-gate] OK：${componentFiles.length} 个组件均有生产引用或已豁免；` +
+  `[orphan-gate] OK：${scannableFiles.length} 个模块均有生产引用或已豁免；` +
     `存量基线 ${baselined.size} 条，无新增、无 drift。`,
 );
