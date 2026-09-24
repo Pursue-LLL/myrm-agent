@@ -17792,7 +17792,11 @@
         "connected": "已連接到遠程伺服器",
         "disconnected": "已切換為本地模式",
         "loginRequired": "該伺服器需要身份驗證，連接後將跳轉到登錄頁面。",
-        "invalidUrl": "請輸入有效的 HTTP 或 HTTPS 地址"
+        "invalidUrl": "請輸入有效的 HTTP 或 HTTPS 地址",
+        "duplicateProfile": "已存在同名或同位址的連線檔案",
+        "remove": "移除",
+        "profileNamePlaceholder": "名稱，例如家庭伺服器",
+        "offlineHint": "即使本機關機或離線，排程任務仍在遠端伺服器上繼續執行。"
       },
       "push": {
         "deniedHint": "通知已被封鎖。請在瀏覽器設定中啟用。",

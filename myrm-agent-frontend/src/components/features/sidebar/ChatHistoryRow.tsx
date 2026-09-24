@@ -29,7 +29,9 @@ import {
   Share2,
   FolderOpen,
   FlaskConical,
+  Archive,
 } from 'lucide-react';
+import { exportSessionZipPack } from '@/services/chatExportPack';
 import {
   DropdownMenu,
   DropdownMenuContent,

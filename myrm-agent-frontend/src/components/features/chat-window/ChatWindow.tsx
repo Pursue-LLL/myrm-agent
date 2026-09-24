@@ -51,6 +51,11 @@ import { MessageSquare, Activity } from 'lucide-react';
 
 const ArtifactPortal = dynamic(() => import('../artifacts/ArtifactPortal'), {
   ssr: false,
+  // Skeleton while the portal chunk loads: avoids a silent blank panel under
+  // dev-chunk stalls and satisfies the `artifact-loading` E2E contract.
+  loading: () => (
+    <div data-testid="artifact-loading" role="status" aria-busy="true" className="animate-pulse h-full w-full" />
+  ),
 });
 
 interface ErrorViewProps {

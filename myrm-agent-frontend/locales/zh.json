@@ -5276,7 +5276,11 @@
         "connected": "已连接到远程服务器",
         "disconnected": "已切换为本地模式",
         "loginRequired": "该服务器需要身份验证，连接后将跳转到登录页面。",
-        "invalidUrl": "请输入有效的 HTTP 或 HTTPS 地址"
+        "invalidUrl": "请输入有效的 HTTP 或 HTTPS 地址",
+        "duplicateProfile": "已存在同名或同地址的连接档案",
+        "remove": "移除",
+        "profileNamePlaceholder": "名称，例如家庭服务器",
+        "offlineHint": "即使本机关机或离线，定时任务仍在远端服务器上继续运行。"
       },
       "webuiAccess": {
         "title": "WebUI 访问密码",

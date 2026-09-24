@@ -58,6 +58,7 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "get_setup_token"
             | "check_backend_health"
             | "get_backend_status"
+            | "get_remote_follow"
             | "get_desktop_process_registry"
             | "power_lock_status"
             | "screen_is_locked"
@@ -104,6 +105,7 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "close_session_window"
             | "set_tray_status"
             | "update_tray_info"
+            | "set_remote_follow"
     );
 
     if !(read_only || critical || stateful) {

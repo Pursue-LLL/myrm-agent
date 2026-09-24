@@ -31,7 +31,8 @@ import TraceErrorItem from './TraceErrorItem';
 import TraceLLMCallItem from './TraceLLMCallItem';
 import TraceGanttWaterfall from './TraceGanttWaterfall';
 import ProjectExperienceWizardModal from './ProjectExperienceWizardModal';
-import { FileText } from 'lucide-react';
+import { Archive, FileText, Loader2 } from 'lucide-react';
+import { exportSessionZipPack } from '@/services/chatExportPack';
 
 interface ExecutionTraceTimelineProps {
   sessionId: string;
@@ -83,6 +84,19 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
   const [replayMode, setReplayMode] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'gantt' | 'list'>('gantt');
+  const [isExportingPack, setIsExportingPack] = useState(false);
+
+  const handleExportPack = useCallback(async () => {
+    if (!sessionId || isExportingPack) return;
+    try {
+      setIsExportingPack(true);
+      await exportSessionZipPack(sessionId);
+    } catch (err: unknown) {
+      console.error('Failed to export session zip pack:', err);
+    } finally {
+      setIsExportingPack(false);
+    }
+  }, [sessionId, isExportingPack]);
 
   const activeSessionAnalyticsMessageId = useChatStore((state) => state.activeSessionAnalyticsMessageId);
   const messages = useChatStore((state) => state.messages);
@@ -193,6 +207,19 @@ const ExecutionTraceTimeline = memo<ExecutionTraceTimelineProps>(({ sessionId, s
           >
             <IconPlay className="w-3 h-3" />
             {t('enterReplay', { defaultMessage: 'Enter Replay' })}
+          </button>
+          <button
+            onClick={handleExportPack}
+            disabled={isExportingPack}
+            className="text-xs bg-sky-500/10 hover:bg-sky-500/20 text-sky-600 dark:text-sky-400 px-3 py-1 rounded-full font-medium transition-colors flex items-center gap-1 border border-sky-500/20 disabled:opacity-50"
+            title="导出会话原始事件日志与工件 ZIP 归档包"
+          >
+            {isExportingPack ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Archive className="w-3 h-3" />
+            )}
+            导出轨迹 (ZIP)
           </button>
           {trace.outcome === 'failure' && showEvalCase && (
             <div className="mr-2" title={t('saveAsEval', { defaultMessage: 'Save as Eval Case' })}>

@@ -17792,7 +17792,11 @@
         "connected": "Mit Remote-Server verbunden",
         "disconnected": "In den lokalen Modus gewechselt",
         "loginRequired": "Dieser Server erfordert eine Authentifizierung. Nach dem Herstellen der Verbindung werden Sie zur Anmeldung weitergeleitet.",
-        "invalidUrl": "Bitte geben Sie eine gültige HTTP- oder HTTPS-URL ein."
+        "invalidUrl": "Bitte geben Sie eine gültige HTTP- oder HTTPS-URL ein.",
+        "duplicateProfile": "Ein Profil mit gleichem Namen oder URL existiert bereits",
+        "remove": "Entfernen",
+        "profileNamePlaceholder": "Name, z. B. Homelab",
+        "offlineHint": "Geplante Aufgaben laufen auf dem Remote-Server weiter, auch wenn dieser Desktop offline ist."
       },
       "push": {
         "deniedHint": "Benachrichtigungen sind blockiert. Aktivieren Sie sie in den Browsereinstellungen.",

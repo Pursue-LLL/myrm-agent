@@ -20,6 +20,8 @@ macro_rules! tauri_command_registry {
             ("stop_backend", crate::runtime::python_backend::stop_backend),
             ("check_backend_health", crate::runtime::python_backend::check_backend_health),
             ("get_backend_status", crate::runtime::python_backend::get_backend_status),
+            ("get_remote_follow", crate::runtime::remote_follow::get_remote_follow),
+            ("set_remote_follow", crate::runtime::remote_follow::set_remote_follow),
             ("stop_frontend", crate::runtime::nextjs_frontend::stop_frontend),
             ("power_lock_acquire", crate::commands::power::power_lock_acquire),
             ("power_lock_release", crate::commands::power::power_lock_release),

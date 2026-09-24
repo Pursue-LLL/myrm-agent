@@ -7,6 +7,7 @@ from .catchup import router as catchup_router
 from .compaction import router as compaction_router
 from .copilot import router as copilot_router
 from .core import router as core_router
+from .export_pack import router as export_pack_router
 from .fork import router as fork_router
 from .handoff import router as handoff_router
 from .memory_extract import router as memory_extract_router
@@ -43,5 +44,6 @@ router.include_router(sandbox_router)
 router.include_router(share_router)
 router.include_router(trajectory_router)
 router.include_router(replay_router)
+router.include_router(export_pack_router)
 
 __all__ = ["router"]

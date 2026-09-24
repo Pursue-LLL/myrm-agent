@@ -48,6 +48,13 @@
  * 2. **默认值**：tauri（Tauri 桌面客户端的 WebView 环境）
  */
 
+import {
+  addRemoteProfile,
+  getActiveRemoteProfile,
+  listRemoteProfiles,
+  setActiveRemoteProfileId,
+} from './remote-profiles';
+
 export type DeployMode = 'tauri' | 'local' | 'sandbox';
 
 const LOCAL_MODES: ReadonlySet<DeployMode> = new Set(['tauri', 'local']);
@@ -55,7 +62,6 @@ const FALLBACK_API_BASE_URL = 'http://127.0.0.1:8080/api/v1';
 const FALLBACK_BACKEND_BASE_URL = 'http://127.0.0.1:8080';
 
 // ── Remote Gateway (Tauri Desktop → Remote Server) ──────────────────────────
-const REMOTE_GATEWAY_STORAGE_KEY = 'myrm-remote-gateway';
 const LOCAL_TOKEN_BACKUP_KEY = 'myrm-local-auth-token-backup';
 
 export interface RemoteGatewayConfig {
@@ -67,28 +73,11 @@ export function getRemoteGatewayConfig(): RemoteGatewayConfig | null {
   if (typeof window === 'undefined') {
     return null;
   }
-  try {
-    const raw = window.localStorage.getItem(REMOTE_GATEWAY_STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-    const parsed = JSON.parse(raw) as Partial<RemoteGatewayConfig>;
-    if (!parsed.enabled || !parsed.url) {
-      return null;
-    }
-    const url = parsed.url.trim().replace(/\/+$/, '');
-    try {
-      const p = new URL(url);
-      if (p.protocol !== 'http:' && p.protocol !== 'https:') {
-        return null;
-      }
-    } catch {
-      return null;
-    }
-    return { enabled: true, url };
-  } catch {
+  const active = getActiveRemoteProfile();
+  if (!active) {
     return null;
   }
+  return { enabled: true, url: active.url };
 }
 
 export function setRemoteGatewayConfig(config: RemoteGatewayConfig | null): void {
@@ -96,12 +85,17 @@ export function setRemoteGatewayConfig(config: RemoteGatewayConfig | null): void
     return;
   }
   if (!config || !config.enabled) {
-    window.localStorage.removeItem(REMOTE_GATEWAY_STORAGE_KEY);
+    setActiveRemoteProfileId(null);
     restoreLocalAuthToken();
     return;
   }
   const url = config.url.trim().replace(/\/+$/, '');
-  window.localStorage.setItem(REMOTE_GATEWAY_STORAGE_KEY, JSON.stringify({ enabled: true, url }));
+  const existing = listRemoteProfiles().find((p) => p.url === url);
+  if (existing) {
+    setActiveRemoteProfileId(existing.id);
+  } else {
+    addRemoteProfile('Remote server', url);
+  }
   backupLocalAuthToken();
 }
 

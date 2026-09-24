@@ -17792,7 +17792,11 @@
         "connected": "リモートサーバーに接続しました",
         "disconnected": "ローカルモードに切り替えました",
         "loginRequired": "このサーバーは認証が必要です。接続後にログインページへリダイレクトされます。",
-        "invalidUrl": "有効なHTTPまたはHTTPS URLを入力してください"
+        "invalidUrl": "有効なHTTPまたはHTTPS URLを入力してください",
+        "duplicateProfile": "同名または同一URLの接続が既にあります",
+        "remove": "削除",
+        "profileNamePlaceholder": "名前（例：自宅サーバー）",
+        "offlineHint": "このPCがオフラインでも、定期タスクはリモートサーバーで実行され続けます。"
       },
       "push": {
         "deniedHint": "通知がブロックされています。ブラウザの設定で有効にしてください。",

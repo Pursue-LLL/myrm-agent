@@ -18,6 +18,7 @@ mod inline_input;
 mod theme_package_open;
 pub mod nextjs_frontend;
 pub mod port;
+pub mod remote_follow;
 pub mod process_registry;
 pub mod python_backend;
 pub mod setup_token;
@@ -36,6 +37,7 @@ pub use inline_input::{handle_inline_input_shortcut, paste_back, INLINE_INPUT_SH
 pub use theme_package_open::{emit_theme_package_open, handle_open_urls, handle_startup_args};
 pub use nextjs_frontend::{start_frontend, stop_frontend, NextJSFrontend};
 pub use python_backend::{start_backend_with_config, stop_backend, PythonBackend};
+pub use remote_follow::is_remote_follow_deferred;
 pub use setup_token::SetupTokenState;
 #[allow(unused_imports)]
 pub use sidecar_version_manager::{SidecarVersionManager, SidecarVersionManifest};

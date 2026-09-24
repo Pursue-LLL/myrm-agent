@@ -5276,7 +5276,11 @@
         "connected": "Connected to remote server",
         "disconnected": "Switched to local mode",
         "loginRequired": "This server requires authentication. You will be redirected to login after connecting.",
-        "invalidUrl": "Please enter a valid HTTP or HTTPS URL"
+        "invalidUrl": "Please enter a valid HTTP or HTTPS URL",
+        "duplicateProfile": "A profile with the same name or URL already exists",
+        "remove": "Remove",
+        "profileNamePlaceholder": "Name, e.g. Homelab",
+        "offlineHint": "Scheduled tasks keep running on the remote server even when this desktop is offline or closed."
       },
       "webuiAccess": {
         "title": "WebUI access password",

@@ -4,6 +4,14 @@ import { memo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconPlug, IconCheck, IconAlertCircle } from '@/components/features/icons/PremiumIcons';
 import { isTauriRuntime, getRemoteGatewayConfig, setRemoteGatewayConfig } from '@/lib/deploy-mode';
+import {
+  addRemoteProfile,
+  getActiveRemoteProfileId,
+  listRemoteProfiles,
+  removeRemoteProfile,
+  setActiveRemoteProfileId,
+  type RemoteConnectionProfile,
+} from '@/lib/remote-profiles';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
 
@@ -30,13 +38,35 @@ function isValidServerUrl(raw: string): boolean {
   }
 }
 
+async function notifyRemoteFollow(deferred: boolean): Promise<void> {
+  if (!isTauriRuntime()) {
+    return;
+  }
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('set_remote_follow', { deferred });
+    await invoke(deferred ? 'stop_backend' : 'start_backend');
+  } catch {
+    // Best effort: old builds lack the command, routing still works.
+  }
+}
+
 const ServerConnectionCard = memo(() => {
   const t = useTranslations('settings.system.serverConnection');
 
   const currentConfig = getRemoteGatewayConfig();
   const [isRemote, setIsRemote] = useState(currentConfig !== null);
+  const [profiles, setProfiles] = useState<RemoteConnectionProfile[]>(() => listRemoteProfiles());
+  const [activeId, setActiveId] = useState<string | null>(() => getActiveRemoteProfileId());
+  const [nameInput, setNameInput] = useState('');
   const [urlInput, setUrlInput] = useState(currentConfig?.url ?? '');
   const [testState, setTestState] = useState<ConnectionTestState>('idle');
+  const [testingId, setTestingId] = useState<string | null>(null);
+
+  const refresh = useCallback(() => {
+    setProfiles(listRemoteProfiles());
+    setActiveId(getActiveRemoteProfileId());
+  }, []);
 
   const handleTest = useCallback(async () => {
     const trimmed = urlInput.trim().replace(/\/+$/, '');
@@ -50,25 +80,54 @@ const ServerConnectionCard = memo(() => {
     toast[ok ? 'success' : 'error'](ok ? t('testSuccess') : t('testFailed'));
   }, [urlInput, t]);
 
-  const handleConnect = useCallback(() => {
+  const handleAddConnect = useCallback(() => {
+    const name = nameInput.trim() || 'Remote server';
     const trimmed = urlInput.trim().replace(/\/+$/, '');
     if (!isValidServerUrl(trimmed)) {
       toast.error(t('invalidUrl'));
       return;
     }
-    setRemoteGatewayConfig({ enabled: true, url: trimmed });
+    const created = addRemoteProfile(name, trimmed);
+    if (!created) {
+      toast.error(t('duplicateProfile'));
+      return;
+    }
+    setRemoteGatewayConfig({ enabled: true, url: created.url });
+    setNameInput('');
+    refresh();
     toast.success(t('connected'));
-    window.location.reload();
-  }, [urlInput, t]);
+    void notifyRemoteFollow(true).then(() => window.location.reload());
+  }, [nameInput, urlInput, t, refresh]);
+
+  const handleSelect = useCallback(
+    (id: string) => {
+      if (!setActiveRemoteProfileId(id)) {
+        return;
+      }
+      refresh();
+      toast.success(t('connected'));
+      void notifyRemoteFollow(true).then(() => window.location.reload());
+    },
+    [t, refresh],
+  );
+
+  const handleRemove = useCallback(
+    (id: string) => {
+      removeRemoteProfile(id);
+      refresh();
+    },
+    [refresh],
+  );
 
   const handleDisconnect = useCallback(() => {
     setRemoteGatewayConfig(null);
     setIsRemote(false);
     setUrlInput('');
     setTestState('idle');
+    refresh();
     toast.success(t('disconnected'));
-    window.location.reload();
-  }, [t]);
+    void notifyRemoteFollow(false).then(() => window.location.reload());
+  }, [t, refresh]);
 
   if (!isTauriRuntime()) {
     return null;
@@ -84,7 +143,6 @@ const ServerConnectionCard = memo(() => {
       <div className="space-y-6 p-8 rounded-[2.5rem] bg-white/5 border border-white/10">
         <p className="text-xs text-muted-foreground leading-relaxed">{t('description')}</p>
 
-        {/* Mode toggle */}
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <label className="text-sm font-bold text-foreground">{isRemote ? t('modeRemote') : t('modeLocal')}</label>
@@ -113,13 +171,69 @@ const ServerConnectionCard = memo(() => {
           </button>
         </div>
 
-        {/* Remote URL input & actions */}
         {isRemote && (
           <>
             <div className="h-px bg-white/5" />
 
-            <div className="space-y-3">
-              <label className="text-sm font-bold text-foreground">{t('serverUrl')}</label>
+            {profiles.length > 0 && (
+              <div className="space-y-2">
+                {profiles.map((p) => (
+                  <div
+                    key={p.id}
+                    className={cn(
+                      'flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center',
+                      p.id === activeId ? 'border-indigo-500/50 bg-indigo-500/5' : 'border-white/10',
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-foreground">{p.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{p.url}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTestingId(p.id);
+                          void testRemoteHealth(p.url).then((ok) => {
+                            setTestingId(null);
+                            toast[ok ? 'success' : 'error'](ok ? t('testSuccess') : t('testFailed'));
+                          });
+                        }}
+                        disabled={testingId === p.id}
+                        className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold hover:bg-white/5 disabled:opacity-50 transition-colors"
+                      >
+                        {testingId === p.id ? t('testing') : t('testConnection')}
+                      </button>
+                      {p.id !== activeId && (
+                        <button
+                          type="button"
+                          onClick={() => handleSelect(p.id)}
+                          className="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-600 transition-colors"
+                        >
+                          {t('save')}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(p.id)}
+                        className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold text-muted-foreground hover:bg-white/5 transition-colors"
+                      >
+                        {t('remove')}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-[1fr_2fr]">
+              <input
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder={t('profileNamePlaceholder')}
+                maxLength={64}
+                className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              />
               <input
                 type="url"
                 value={urlInput}
@@ -132,7 +246,6 @@ const ServerConnectionCard = memo(() => {
               />
             </div>
 
-            {/* Test result */}
             {testState === 'success' && (
               <div className="flex items-center gap-2 text-emerald-400 text-xs">
                 <IconCheck className="w-4 h-4" />
@@ -147,8 +260,8 @@ const ServerConnectionCard = memo(() => {
             )}
 
             <p className="text-xs text-muted-foreground/70">{t('loginRequired')}</p>
+            <p className="text-xs text-muted-foreground/70">{t('offlineHint')}</p>
 
-            {/* Action buttons */}
             <div className="flex gap-3">
               <button
                 type="button"
@@ -160,7 +273,7 @@ const ServerConnectionCard = memo(() => {
               </button>
               <button
                 type="button"
-                onClick={handleConnect}
+                onClick={handleAddConnect}
                 disabled={!urlInput.trim()}
                 className="flex-1 px-5 py-2.5 rounded-xl bg-indigo-500 text-white text-sm font-bold hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >

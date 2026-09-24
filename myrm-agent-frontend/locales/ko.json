@@ -17792,7 +17792,11 @@
         "connected": "원격 서버에 연결됨",
         "disconnected": "로컬 모드로 전환됨",
         "loginRequired": "이 서버는 인증이 필요합니다. 연결 후 로그인 페이지로 리디렉션됩니다.",
-        "invalidUrl": "유효한 HTTP 또는 HTTPS URL을 입력하세요"
+        "invalidUrl": "유효한 HTTP 또는 HTTPS URL을 입력하세요",
+        "duplicateProfile": "같은 이름이나 URL의 연결이 이미 있습니다",
+        "remove": "삭제",
+        "profileNamePlaceholder": "이름(예: 홈 서버)",
+        "offlineHint": "이 PC가 꺼져 있어도 예약 작업은 원격 서버에서 계속 실행됩니다."
       },
       "push": {
         "deniedHint": "알림이 차단되었습니다. 브라우저 설정에서 활성화하세요.",

@@ -116,25 +116,35 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
 
     let backend_config = BackendConfig::from_system_config(&system_config);
 
+    let remote_deferred = runtime::is_remote_follow_deferred(app.handle());
+    if remote_deferred {
+        println!("🌐 Remote follow active, deferring local Python backend autostart");
+    }
+
     let app_handle = app.handle().clone();
     let system_config_clone = system_config.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(Duration::from_millis(500)).await;
 
-        let backend_state = app_handle.state::<PythonBackend>();
-        let backend_port = BackendConfig::from_system_config(&system_config_clone).port;
-        match start_backend_with_config(app_handle.clone(), backend_state, backend_config).await {
-            Ok(msg) => {
-                println!("✅ {}", msg);
-                let handle = runtime::watchdog::spawn_watchdog(&app_handle, backend_port);
-                app_handle.manage(handle);
-            }
-            Err(e) => {
-                eprintln!("❌ Failed to auto-start backend: {}", e);
-                let tooltip =
-                    "MyrmAgent - Backend failed to start. Restart the app or check Settings.";
-                tray::update_native_tray_status(&app_handle, "error", tooltip);
-                let _ = app_handle.emit("backend-start-failed", e.clone());
+        if runtime::is_remote_follow_deferred(&app_handle) {
+            println!("🌐 Remote follow active, local backend stays deferred");
+            let _ = app_handle.emit("backend-deferred-remote", ());
+        } else {
+            let backend_state = app_handle.state::<PythonBackend>();
+            let backend_port = BackendConfig::from_system_config(&system_config_clone).port;
+            match start_backend_with_config(app_handle.clone(), backend_state, backend_config).await {
+                Ok(msg) => {
+                    println!("✅ {}", msg);
+                    let handle = runtime::watchdog::spawn_watchdog(&app_handle, backend_port);
+                    app_handle.manage(handle);
+                }
+                Err(e) => {
+                    eprintln!("❌ Failed to auto-start backend: {}", e);
+                    let tooltip =
+                        "MyrmAgent - Backend failed to start. Restart the app or check Settings.";
+                    tray::update_native_tray_status(&app_handle, "error", tooltip);
+                    let _ = app_handle.emit("backend-start-failed", e.clone());
+                }
             }
         }
 
