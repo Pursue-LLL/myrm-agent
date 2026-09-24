@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
+import time
 
 from myrm_agent_harness.api.security import (
     SpendGovernor,
@@ -96,6 +97,16 @@ class CommerceBudgetService:
         self._governor = governor or SpendGovernor()
         self._ledger = ledger_store or get_spending_ledger_store()
         self._lock = threading.RLock()
+        self._reconcile_daily_spent()
+
+    def _reconcile_daily_spent(self) -> None:
+        """Restore today's committed spend baseline into in-memory SpendGovernor."""
+        with self._lock:
+            now = time.time()
+            today_utc_start = (int(now) // 86400) * 86400
+            today_spent = self._ledger.get_committed_cents_since(float(today_utc_start))
+            if hasattr(self._governor, "restore_daily_spent"):
+                self._governor.restore_daily_spent(today_spent, now=now)
 
     def get_status(self) -> CommerceBudgetStatusDTO:
         """Fetch current budget caps and real-time spend metrics."""

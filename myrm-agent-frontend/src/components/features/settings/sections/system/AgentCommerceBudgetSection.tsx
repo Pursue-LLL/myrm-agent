@@ -48,6 +48,7 @@ export const AgentCommerceBudgetSection = memo(() => {
   const [newMerchant, setNewMerchant] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -318,26 +319,50 @@ export const AgentCommerceBudgetSection = memo(() => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/20">
-                {ledger.map((item) => (
-                  <tr key={item.entry_id} className="text-foreground">
-                    <td className="py-2 font-mono">{item.merchant_domain}</td>
-                    <td className="py-2 font-semibold">
-                      ${(item.amount_cents / 100).toFixed(2)}
-                    </td>
-                    <td className="py-2">
-                      <SpendReceiptBadge
-                        merchantDomain={item.merchant_domain}
-                        amountCents={item.amount_cents}
-                        currency={item.currency}
-                        status={item.status}
-                        hasEntryHash={Boolean(item.entry_hash)}
-                      />
-                    </td>
-                    <td className="py-2 text-[11px] text-muted-foreground">
-                      {item.created_at.slice(0, 16).replace('T', ' ')}
-                    </td>
-                  </tr>
-                ))}
+                {ledger.map((item) => {
+                  const isExpanded = expandedId === item.entry_id;
+                  return (
+                    <React.Fragment key={item.entry_id}>
+                      <tr
+                        onClick={() => setExpandedId(isExpanded ? null : item.entry_id)}
+                        className="text-foreground hover:bg-muted/40 cursor-pointer transition-colors"
+                      >
+                        <td className="py-2 font-mono">{item.merchant_domain}</td>
+                        <td className="py-2 font-semibold">
+                          ${(item.amount_cents / 100).toFixed(2)}
+                        </td>
+                        <td className="py-2">
+                          <SpendReceiptBadge
+                            merchantDomain={item.merchant_domain}
+                            amountCents={item.amount_cents}
+                            currency={item.currency}
+                            status={item.status}
+                            hasEntryHash={Boolean(item.entry_hash)}
+                          />
+                        </td>
+                        <td className="py-2 text-[11px] text-muted-foreground">
+                          {item.created_at.slice(0, 16).replace('T', ' ')}
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-muted/30">
+                          <td colSpan={4} className="py-2 px-3 space-y-1 font-mono text-[11px] text-muted-foreground border-b border-border/20">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-foreground">Entry Hash:</span>
+                              <span className="truncate max-w-[420px] select-all">{item.entry_hash || 'Pending / N/A'}</span>
+                            </div>
+                            {item.idempotency_key ? (
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-foreground">Idempotency Key:</span>
+                                <span className="truncate">{item.idempotency_key}</span>
+                              </div>
+                            ) : null}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

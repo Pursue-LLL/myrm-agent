@@ -186,3 +186,36 @@ class TestCommerceSpendingApi:
         l_resp = client.get("/api/v1/commerce/spending/ledger?session_id=test_sess_05")
         entry = l_resp.json()["data"][0]
         assert entry["status"] == "refunded"
+
+    def test_startup_reconciliation(self, tmp_path: pytest.TempPathFactory) -> None:
+        """Test that server reboot restores today's committed spend baseline from ledger."""
+        temp_ledger_file = tmp_path / "reboot_ledger.json"
+        store = SpendingLedgerStore(storage_path=temp_ledger_file)
+
+        # Record a committed entry directly in store
+        from myrm_agent_harness.core.security.egress.spend_governor import (
+            SpendGovernor,
+            SpendGovernorConfig,
+        )
+
+        from app.commerce.spending_ledger import SpendingLedgerEntry
+
+        entry = SpendingLedgerEntry(
+            entry_id="reboot_entry_1",
+            lease_id="lease_reboot",
+            session_id="reboot_session",
+            merchant_domain="namesilo.com",
+            amount_cents=350,
+            status="committed",
+        )
+        store.record_entry(entry)
+
+        # Simulate fresh server startup by instantiating new CommerceBudgetService
+        gov = SpendGovernor(
+            config=SpendGovernorConfig(daily_cap_cents=1000, per_action_cap_cents=500),
+        )
+        new_svc = CommerceBudgetService(governor=gov, ledger_store=store)
+
+        status = new_svc.get_status()
+        assert status.daily_spent_cents == 350
+        assert status.remaining_cents == 650

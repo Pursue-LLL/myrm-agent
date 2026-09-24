@@ -140,6 +140,21 @@ class SpendingLedgerStore:
                     break
             return results
 
+    def get_committed_cents_since(self, since_iso_or_timestamp: float | str) -> int:
+        """Calculate total committed cents since a given timestamp or ISO time."""
+        since_iso: str
+        if isinstance(since_iso_or_timestamp, (int, float)):
+            since_iso = datetime.fromtimestamp(since_iso_or_timestamp, tz=timezone.utc).isoformat()
+        else:
+            since_iso = since_iso_or_timestamp
+
+        with self._lock:
+            total = 0
+            for entry in self._entries:
+                if entry.status == "committed" and entry.updated_at >= since_iso:
+                    total += entry.amount_cents
+            return total
+
     def get_entry(self, entry_id_or_lease_id: str) -> SpendingLedgerEntry | None:
         """Look up an entry by entry_id or lease_id."""
         with self._lock:

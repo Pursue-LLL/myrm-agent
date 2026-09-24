@@ -10,6 +10,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from fastapi import HTTPException
 from httpx import ASGITransport
 
 from app.config.settings import settings
@@ -264,4 +265,54 @@ def test_export_pack_internal_helpers(tmp_path: Path) -> None:
     buf.flush()
     assert buf.read_and_clear() == b"data1data2"
     assert buf.read_and_clear() == b""
+
+
+@pytest.mark.asyncio
+async def test_export_pack_direct_route_invocation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.api.chats.chat.export_pack import export_chat_pack, preflight_export_pack
+
+    chat_id = "test-direct-pack-1"
+    log_dir = tmp_path / "logs_direct"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(settings.database, "event_log_dir", str(log_dir))
+
+    factory = get_session_factory()
+    async with factory() as db:
+        chat = Chat(
+            id=chat_id,
+            title="Direct Test",
+            source="web",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        db.add(chat)
+        await db.commit()
+
+        # Direct preflight invocation
+        head_res = await preflight_export_pack(chat_id=chat_id, db=db)
+        assert head_res.status_code == 200
+
+        # Direct GET streaming invocation
+        get_res = await export_chat_pack(chat_id=chat_id, db=db)
+        assert get_res.media_type == "application/zip"
+
+        # Preflight unsafe ID & not found
+        with pytest.raises(HTTPException) as exc_info:
+            await preflight_export_pack(chat_id="unsafe/../id", db=db)
+        assert exc_info.value.status_code == 404
+
+        with pytest.raises(HTTPException) as exc_info:
+            await preflight_export_pack(chat_id="non-existent-id", db=db)
+        assert exc_info.value.status_code == 404
+
+        # Export unsafe ID & not found
+        with pytest.raises(HTTPException) as exc_info:
+            await export_chat_pack(chat_id="unsafe/../id", db=db)
+        assert exc_info.value.status_code == 404
+
+        with pytest.raises(HTTPException) as exc_info:
+            await export_chat_pack(chat_id="non-existent-id", db=db)
+        assert exc_info.value.status_code == 404
+
+
 
