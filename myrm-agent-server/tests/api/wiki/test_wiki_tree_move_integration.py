@@ -104,9 +104,15 @@ def test_wiki_tree_move_canonical_id_aliases_and_anchored_links(client: TestClie
     # Wikilink must point to new slug
     assert "[[core/services/service-b-renamed]]" in ref_body
 
-    # 6. Verify old concept path is 404
+    # 6. Verify old concept path resolves transparently via alias to the moved note
     get_old = client.get("/api/v1/wiki/concepts/engineering/service-b")
-    assert get_old.status_code == 404
+    assert get_old.status_code == 200
+    assert get_old.json()["content"] == new_concept_data["content"]
+
+    # Verify a truly non-existent concept returns 404
+    get_missing = client.get("/api/v1/wiki/concepts/engineering/non-existent-note-xyz")
+    assert get_missing.status_code == 404
+
 
 
 def test_wiki_tree_move_directory_recursive_batch_redirect(client: TestClient) -> None:

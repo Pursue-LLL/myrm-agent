@@ -16,7 +16,7 @@ describe('WikiConceptLinksPanel', () => {
   });
 
   it('renders backlinks with context snippet and handles tab switching', async () => {
-    vi.mocked(wikiService.getConceptLinks).mockResolvedValueOnce({
+    (wikiService.getConceptLinks as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       concept_name: 'test-concept',
       outlinks: [
         {
@@ -32,6 +32,8 @@ describe('WikiConceptLinksPanel', () => {
           weight: 4.5,
           exists: true,
           context_snippet: 'This document references [[test-concept]] directly.',
+          heading: '采购审核机制',
+          line_number: 7,
         },
       ],
       ego_graph: {
@@ -57,6 +59,10 @@ describe('WikiConceptLinksPanel', () => {
     // 验证标题和统计胶囊
     expect(await screen.findByText('双向链接与知识脉络')).toBeInTheDocument();
     expect(screen.getByText(/1 引用 · 1 出链/)).toBeInTheDocument();
+
+    // 验证小节标题和行号徽章渲染
+    expect(screen.getByText('§ 采购审核机制')).toBeInTheDocument();
+    expect(screen.getByText('L7')).toBeInTheDocument();
 
     // 默认展示 Backlinks tab
     expect(screen.getByText('referencing-source')).toBeInTheDocument();

@@ -52,14 +52,14 @@ class DesktopCaptureTask:
         if self.is_running:
             return
         try:
-            session = self._create_session()
+            desktop_session = self._create_session()
         except Exception as exc:
             self._session.capture_error = f"desktop_capture_unavailable: {exc}"
             logger.warning("Desktop capture unavailable for session %s: %s", self._session.session_id, exc)
             return
 
         driver = DesktopCaptureDriver(
-            session.backend,
+            desktop_session,
             app_scope=self._session.app_scope,
         )
         self._session.capture_active = True

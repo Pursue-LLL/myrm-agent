@@ -155,6 +155,8 @@ export interface ConceptLinkItem {
   weight: number;
   exists: boolean;
   context_snippet: string | null;
+  line_number?: number | null;
+  heading?: string | null;
 }
 
 export interface ConceptLinksResponse {
@@ -864,9 +866,15 @@ export const wikiService = {
     agentId?: string | null
   ): Promise<WikiGraphResponse> => {
     const params = new URLSearchParams();
-    if (centerNode) params.set('center_node', centerNode);
-    if (depth) params.set('depth', String(depth));
-    if (limit) params.set('limit', String(limit));
+    if (centerNode) {
+      params.set('center_node', centerNode);
+    }
+    if (depth) {
+      params.set('depth', String(depth));
+    }
+    if (limit) {
+      params.set('limit', String(limit));
+    }
     const query = params.toString() ? `?${params.toString()}` : '';
     return apiRequest<WikiGraphResponse>(buildWikiApiPath(`/wiki/graph${query}`, agentId));
   },

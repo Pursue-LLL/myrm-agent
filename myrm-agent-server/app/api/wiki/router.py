@@ -301,6 +301,8 @@ class ConceptLinkItem(BaseModel):
     weight: float = 1.0
     exists: bool = True
     context_snippet: str | None = None
+    line_number: int | None = None
+    heading: str | None = None
 
 
 class ConceptLinksResponse(BaseModel):

@@ -13,7 +13,7 @@
  * 词条脉络导航组件。嵌入词条详情抽屉，展示词条的入链、出链及 Ego 拓扑图，支持点击直达关联词条。
  */
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState, useTransition, useCallback } from 'react';
 import { ArrowUpRight, CornerDownLeft, Network, FileText, AlertCircle, RefreshCw } from 'lucide-react';
 import { wikiService, type ConceptLinksResponse, type ConceptLinkItem } from '@/services/wikiService';
 import { Button } from '@/components/primitives/button';
@@ -36,8 +36,10 @@ export function WikiConceptLinksPanel({
   const [activeTab, setActiveTab] = useState<'backlinks' | 'outlinks' | 'ego'>('backlinks');
   const [, startTransition] = useTransition();
 
-  const fetchLinks = async () => {
-    if (!conceptName) return;
+  const fetchLinks = useCallback(async () => {
+    if (!conceptName) {
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -48,11 +50,11 @@ export function WikiConceptLinksPanel({
     } finally {
       setLoading(false);
     }
-  };
+  }, [conceptName, agentId]);
 
   useEffect(() => {
     fetchLinks();
-  }, [conceptName, agentId]);
+  }, [fetchLinks]);
 
   if (loading && !linksData) {
     return (
@@ -153,17 +155,19 @@ export function WikiConceptLinksPanel({
           ) : (
             <div className="grid grid-cols-1 gap-2">
               {backlinks.map((link: ConceptLinkItem) => (
-                <div
+                <button
+                  type="button"
                   key={link.name}
+                  disabled={!link.exists || !onSelectConcept}
                   onClick={() => {
                     if (link.exists && onSelectConcept) {
                       startTransition(() => onSelectConcept(link.name));
                     }
                   }}
                   className={cn(
-                    'group rounded-lg border p-2.5 transition-all text-left flex flex-col gap-1',
+                    'group w-full rounded-lg border p-2.5 transition-all text-left flex flex-col gap-1',
                     link.exists
-                      ? 'border-border/60 bg-muted/15 hover:bg-muted/30 hover:border-primary/40 cursor-pointer'
+                      ? 'border-border/60 bg-muted/15 hover:bg-muted/30 hover:border-primary/40 cursor-pointer focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring'
                       : 'border-dashed border-amber-500/30 bg-amber-500/5 cursor-default'
                   )}
                 >
@@ -182,12 +186,27 @@ export function WikiConceptLinksPanel({
                     </span>
                   </div>
 
-                  {link.context_snippet && (
-                    <p className="text-[11px] text-muted-foreground bg-background/50 border border-border/40 rounded px-2 py-1 leading-relaxed font-mono line-clamp-2">
-                      &ldquo;{link.context_snippet}&rdquo;
-                    </p>
+                  {(link.heading || link.line_number) && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      {link.heading && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50 font-mono truncate max-w-[220px]">
+                          § {link.heading}
+                        </span>
+                      )}
+                      {link.line_number && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 font-mono">
+                          L{link.line_number}
+                        </span>
+                      )}
+                    </div>
                   )}
-                </div>
+
+                  {link.context_snippet && (
+                    <span className="text-[11px] text-muted-foreground bg-background/50 border border-border/40 rounded px-2 py-1 leading-relaxed font-mono line-clamp-2 block">
+                      &ldquo;{link.context_snippet}&rdquo;
+                    </span>
+                  )}
+                </button>
               ))}
             </div>
           )}
@@ -204,17 +223,19 @@ export function WikiConceptLinksPanel({
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {outlinks.map((link: ConceptLinkItem) => (
-                <div
+                <button
+                  type="button"
                   key={link.name}
+                  disabled={!link.exists || !onSelectConcept}
                   onClick={() => {
                     if (link.exists && onSelectConcept) {
                       startTransition(() => onSelectConcept(link.name));
                     }
                   }}
                   className={cn(
-                    'group rounded-lg border p-2.5 transition-all text-left flex items-center justify-between gap-2',
+                    'group w-full rounded-lg border p-2.5 transition-all text-left flex items-center justify-between gap-2',
                     link.exists
-                      ? 'border-border/60 bg-muted/15 hover:bg-muted/30 hover:border-emerald-500/40 cursor-pointer'
+                      ? 'border-border/60 bg-muted/15 hover:bg-muted/30 hover:border-emerald-500/40 cursor-pointer focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring'
                       : 'border-dashed border-amber-500/30 bg-amber-500/5 cursor-default'
                   )}
                 >
@@ -233,7 +254,7 @@ export function WikiConceptLinksPanel({
                       W{link.weight.toFixed(1)}
                     </span>
                   )}
-                </div>
+                </button>
               ))}
             </div>
           )}
