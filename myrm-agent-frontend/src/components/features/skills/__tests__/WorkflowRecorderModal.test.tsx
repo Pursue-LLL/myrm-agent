@@ -16,7 +16,13 @@ vi.mock('next-intl', () => ({
 }));
 
 vi.mock('@/services/skill/core', () => ({
-  startDesktopRecording: vi.fn().mockResolvedValue({ session_id: 'rec-123', status: 'recording', started_at: 1000 }),
+  startDesktopRecording: vi.fn().mockResolvedValue({
+    session_id: 'rec-123',
+    status: 'recording',
+    started_at: 1000,
+    capture_active: true,
+    capture_error: null,
+  }),
   stopDesktopRecording: vi
     .fn()
     .mockResolvedValue({ session_id: 'rec-123', status: 'stopped', event_count: 2, duration_seconds: 5 }),
@@ -97,5 +103,29 @@ describe('WorkflowRecorderModal', () => {
   it('does not render when isOpen is false', () => {
     const { container } = render(<WorkflowRecorderModal isOpen={false} onClose={vi.fn()} />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it('falls back to honest manual step entry when platform capture is unavailable', async () => {
+    const startMock = vi.mocked(skillService.startDesktopRecording);
+    // A platform without AX capture reports capture_active=false, so the modal must disclose
+    // that steps are entered manually instead of implying an automatic recording is running.
+    startMock.mockResolvedValueOnce({
+      session_id: 'rec-manual',
+      status: 'recording',
+      started_at: 1000,
+      capture_active: false,
+      capture_error: 'desktop_capture_unavailable: no AX backend',
+    });
+
+    render(<WorkflowRecorderModal isOpen={true} onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByText('startRecording'));
+
+    await waitFor(() => {
+      expect(screen.getByText('manualRecordingActive')).toBeInTheDocument();
+    });
+    expect(screen.getByText('manualCaptureNotice')).toBeInTheDocument();
+    // The automatic-capture copy must not be shown while capture is unavailable.
+    expect(screen.queryByText('captureHint')).not.toBeInTheDocument();
   });
 });

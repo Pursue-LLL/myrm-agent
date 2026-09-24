@@ -10915,7 +10915,7 @@
       "workflowNameLabel": "スキル名",
       "intentHintLabel": "意図ヒント（任意）",
       "startRecording": "録画開始",
-      "recordingActive": "ステップを手動で追加中...",
+      "recordingActive": "デスクトップ操作を記録中...",
       "eventsCaptured": "{count} 件のステップを追加しました",
       "stopAndAnalyze": "録画終了と意図再構成",
       "reviewStepsTitle": "再構成された実行手順と変数",
@@ -10928,7 +10928,10 @@
       "cancel": "キャンセル",
       "close": "閉じる",
       "manualCaptureNotice": "デスクトップの自動キャプチャはまだ利用できません。以下のボタンはサンプルステップを手動で追加し、スキル生成の流れを確認するためのものです。",
-      "manualStepsLabel": "ステップを手動で追加"
+      "manualStepsLabel": "ステップを手動で追加",
+      "manualRecordingActive": "ステップを手動で追加中...",
+      "captureEventsCaptured": "{count} 件の操作をキャプチャしました",
+      "captureHint": "このままデスクトップで作業を実演してください。クリックと文字入力は自動的に記録されます。"
     }
   },
   "followUps": {

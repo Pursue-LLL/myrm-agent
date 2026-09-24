@@ -28,6 +28,7 @@ from myrm_agent_harness.api import (
     synthesize_desktop_skill_draft,
 )
 
+from app.api.skills.desktop_capture_task import DesktopCaptureTask
 from app.api.skills.desktop_recorder_schemas import (
     AnalyzeDesktopPlanRequest,
     AnalyzeDesktopPlanResponse,
@@ -51,20 +52,34 @@ router = APIRouter(prefix="/desktop-recorder", tags=["skills-desktop-recorder"])
 
 # In-memory session store for active recording sessions (bounded ring-buffer per session)
 _ACTIVE_SESSIONS: dict[str, RecordingSessionState] = {}
+# Capture loops keyed by session id; stopped and dropped when the session ends.
+_CAPTURE_TASKS: dict[str, DesktopCaptureTask] = {}
 
 
 @router.post("/start", response_model=StartDesktopRecordingResponse)
 async def start_desktop_recording(
     request: StartDesktopRecordingRequest,
 ) -> StartDesktopRecordingResponse:
-    """Start a new desktop workflow recording session."""
+    """Start a new desktop workflow recording session and launch platform capture."""
     session = RecordingSessionState(session_id=request.session_id, app_scope=request.app_scope)
     _ACTIVE_SESSIONS[request.session_id] = session
-    logger.info("Started desktop skill recording session: %s", request.session_id)
+
+    task = DesktopCaptureTask(session)
+    task.start()
+    _CAPTURE_TASKS[request.session_id] = task
+
+    logger.info(
+        "Started desktop skill recording session: %s (capture_active=%s, capture_error=%s)",
+        request.session_id,
+        session.capture_active,
+        session.capture_error,
+    )
     return StartDesktopRecordingResponse(
         session_id=session.session_id,
         status=session.status,
         started_at=session.started_at,
+        capture_active=session.capture_active,
+        capture_error=session.capture_error,
     )
 
 
@@ -103,10 +118,14 @@ async def record_desktop_event(request: RecordDesktopEventRequest) -> dict[str, 
 async def stop_desktop_recording(
     request: StopDesktopRecordingRequest,
 ) -> StopDesktopRecordingResponse:
-    """Stop the recording session."""
+    """Stop the recording session and terminate its capture loop."""
     session = _ACTIVE_SESSIONS.get(request.session_id)
     if not session:
         raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
+
+    capture_task = _CAPTURE_TASKS.pop(request.session_id, None)
+    if capture_task is not None:
+        await capture_task.stop()
 
     session.status = "stopped"
     session.stopped_at = time.time()

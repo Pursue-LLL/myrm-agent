@@ -185,6 +185,7 @@ def test_export_pack_lifecycle_chrome_e2e() -> None:
 
     # Step 3: Lane-B WebUI browser verification
     warm_ui_route("/", timeout_sec=45.0)
+    warm_ui_route(seeded["ui_path"], timeout_sec=90.0)
     with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=chat_url)

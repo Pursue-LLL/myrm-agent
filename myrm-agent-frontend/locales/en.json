@@ -17871,7 +17871,7 @@
       "workflowNameLabel": "Skill Name",
       "intentHintLabel": "Intent Hint (Optional)",
       "startRecording": "Start Recording",
-      "recordingActive": "Manual step entry in progress...",
+      "recordingActive": "Recording desktop workflow...",
       "eventsCaptured": "{count} steps added",
       "stopAndAnalyze": "Stop & Reconstruct Intent",
       "reviewStepsTitle": "Reconstructed Execution Steps & Variables",
@@ -17884,7 +17884,10 @@
       "cancel": "Cancel",
       "close": "Close",
       "manualCaptureNotice": "Automatic desktop capture is not available yet. The buttons below add example steps manually so you can preview how a skill is compiled end to end.",
-      "manualStepsLabel": "Add step manually"
+      "manualStepsLabel": "Add step manually",
+      "manualRecordingActive": "Manual step entry in progress...",
+      "captureEventsCaptured": "{count} interactions captured",
+      "captureHint": "Perform the workflow on your desktop now; each click and text entry is captured automatically."
     }
   },
   "followUps": {

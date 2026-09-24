@@ -989,7 +989,14 @@ export interface PublishDesktopSkillResponse {
 export async function startDesktopRecording(
   sessionId: string,
   appScope: string = 'all',
-): Promise<{ session_id: string; status: string; started_at: number }> {
+): Promise<{
+  session_id: string;
+  status: string;
+  started_at: number;
+  /** False when the platform provides no AX capture; the caller falls back to manual steps. */
+  capture_active: boolean;
+  capture_error: string | null;
+}> {
   return apiRequest(`${SKILLS_API_PREFIX}/desktop-recorder/start`, {
     method: 'POST',
     body: JSON.stringify({ session_id: sessionId, app_scope: appScope }),

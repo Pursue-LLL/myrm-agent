@@ -10915,7 +10915,7 @@
       "workflowNameLabel": "스킬 이름",
       "intentHintLabel": "의도 힌트 (선택)",
       "startRecording": "녹화 시작",
-      "recordingActive": "단계를 직접 추가하는 중...",
+      "recordingActive": "데스크톱 작업 흐름 녹화 중...",
       "eventsCaptured": "{count}개 단계 추가됨",
       "stopAndAnalyze": "녹화 종료 및 의도 분석",
       "reviewStepsTitle": "재구성된 실행 단계 및 변수",
@@ -10928,7 +10928,10 @@
       "cancel": "취소",
       "close": "닫기",
       "manualCaptureNotice": "데스크톱 자동 캡처는 아직 사용할 수 없습니다. 아래 버튼은 예시 단계를 직접 추가하여 스킬 생성 과정을 미리 확인하기 위한 것입니다.",
-      "manualStepsLabel": "단계 직접 추가"
+      "manualStepsLabel": "단계 직접 추가",
+      "manualRecordingActive": "단계를 직접 추가하는 중...",
+      "captureEventsCaptured": "{count}개 상호작용 캡처됨",
+      "captureHint": "지금 데스크톱에서 작업을 시연하세요. 클릭과 텍스트 입력이 자동으로 기록됩니다."
     }
   },
   "followUps": {

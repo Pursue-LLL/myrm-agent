@@ -37,6 +37,10 @@ class RecordingSessionState:
         self.stopped_at: float | None = None
         self.events: list[DesktopRecordedEvent] = []
         self.latest_draft: SynthesizedSkillDraft | None = None
+        # Capture-loop state: whether platform AX capture is driving this session, and why not
+        # when it is unavailable (unsupported platform, missing permission, capture failure).
+        self.capture_active: bool = False
+        self.capture_error: str | None = None
 
     def add_event(self, event: DesktopRecordedEvent) -> None:
         if len(self.events) >= _MAX_EVENTS_PER_SESSION:
@@ -53,6 +57,9 @@ class StartDesktopRecordingResponse(BaseModel):
     session_id: str
     status: str
     started_at: float
+    # Whether platform AX capture is driving this session; false means manual step entry.
+    capture_active: bool = False
+    capture_error: str | None = None
 
 
 class RecordDesktopEventRequest(BaseModel):

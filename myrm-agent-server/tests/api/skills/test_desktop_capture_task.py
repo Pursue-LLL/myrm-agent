@@ -1,0 +1,130 @@
+"""Tests for DesktopCaptureTask: AX-driven capture loop feeding a recording session."""
+
+from __future__ import annotations
+
+import asyncio
+from unittest.mock import MagicMock, patch
+
+from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
+from myrm_agent_harness.toolkits.computer_use.recording.types import RecordedActionType
+
+from app.api.skills.desktop_capture_task import DesktopCaptureTask
+from app.api.skills.desktop_recorder_schemas import RecordingSessionState
+
+
+def _meta(app_name: str = "Finder", needs_permission: bool = False) -> SnapshotMeta:
+    return SnapshotMeta(
+        ref_count=1,
+        app_name=app_name,
+        window_title="Main",
+        scope="foreground",
+        needs_permission=needs_permission,
+    )
+
+
+def _element(ref_id: str, role: str = "AXButton", name: str = "Open") -> ElementRef:
+    return ElementRef(
+        ref_id=ref_id,
+        role=role,
+        name=name,
+        bbox=BBox(0, 0, 10, 10),
+        backend_key=ref_id,
+    )
+
+
+def test_marks_capture_unavailable_when_session_creation_fails() -> None:
+    """A platform without AX support must degrade to manual entry instead of failing start."""
+    session = RecordingSessionState(session_id="rec-1")
+    task = DesktopCaptureTask(session)
+
+    with patch.object(task, "_create_session", side_effect=RuntimeError("no AX backend")):
+        task.start()
+
+    assert session.capture_active is False
+    assert session.capture_error is not None
+    assert "desktop_capture_unavailable" in session.capture_error
+    assert task.is_running is False
+
+
+def test_capture_loop_appends_events_from_driver() -> None:
+    """Observed interactions reach the session event list."""
+    session = RecordingSessionState(session_id="rec-2")
+    task = DesktopCaptureTask(session, poll_interval_sec=0.01)
+
+    backend = MagicMock()
+    # Same app throughout: an app switch would legitimately emit only window_focus, because a
+    # newly focused app's elements are not interactions the user just performed.
+    frames = [
+        (_meta("Finder"), {"r1": _element("r1")}),
+        (_meta("Finder"), {"r1": _element("r1"), "r2": _element("r2", name="Taxes")}),
+        (_meta("Finder"), {"r1": _element("r1"), "r2": _element("r2", name="Taxes")}),
+    ]
+    calls = {"n": 0}
+
+    def fake_capture(snapshot_backend: object, scope: str, app_name: str | None = None):
+        index = min(calls["n"], len(frames) - 1)
+        calls["n"] += 1
+        return frames[index]
+
+    async def run() -> None:
+        with (
+            patch.object(task, "_create_session", return_value=backend),
+            patch(
+                "myrm_agent_harness.toolkits.computer_use.recording.capture_driver.capture_snapshot",
+                fake_capture,
+            ),
+        ):
+            task.start()
+            assert session.capture_active is True
+            # Let the loop consume the scripted frames.
+            for _ in range(50):
+                if session.events:
+                    break
+                await asyncio.sleep(0.01)
+            await task.stop()
+
+    asyncio.run(run())
+
+    assert session.events, "capture loop should have appended events"
+    click = next(
+        event for event in session.events if event.action == RecordedActionType.CLICK.value
+    )
+    assert click.dref_id == "r2"
+    assert click.element_title == "Taxes"
+    assert task.is_running is False
+
+
+def test_capture_loop_records_permission_requirement() -> None:
+    """A permission-denied frame surfaces as capture_error while the loop stays alive."""
+    session = RecordingSessionState(session_id="rec-3")
+    task = DesktopCaptureTask(session, poll_interval_sec=0.01)
+    backend = MagicMock()
+
+    async def run() -> None:
+        with (
+            patch.object(task, "_create_session", return_value=backend),
+            patch(
+                "myrm_agent_harness.toolkits.computer_use.recording.capture_driver.capture_snapshot",
+                return_value=(_meta("", needs_permission=True), {}),
+            ),
+        ):
+            task.start()
+            for _ in range(50):
+                if session.capture_error:
+                    break
+                await asyncio.sleep(0.01)
+            await task.stop()
+
+    asyncio.run(run())
+
+    assert session.capture_error == "desktop_capture_permission_required"
+
+
+def test_stop_is_safe_without_start() -> None:
+    """Stopping a session that never started capture must not raise."""
+    session = RecordingSessionState(session_id="rec-4")
+    task = DesktopCaptureTask(session)
+
+    asyncio.run(task.stop())
+
+    assert task.is_running is False

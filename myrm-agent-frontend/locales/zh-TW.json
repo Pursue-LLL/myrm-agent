@@ -10915,7 +10915,7 @@
       "workflowNameLabel": "技能名稱",
       "intentHintLabel": "意圖提示（可選）",
       "startRecording": "開始錄製",
-      "recordingActive": "正在手動新增步驟...",
+      "recordingActive": "正在錄製桌面工作流程...",
       "eventsCaptured": "已新增 {count} 個步驟",
       "stopAndAnalyze": "結束錄製並提煉意圖",
       "reviewStepsTitle": "AI 提煉的執行步驟與變數",
@@ -10928,7 +10928,10 @@
       "cancel": "取消",
       "close": "關閉",
       "manualCaptureNotice": "桌面自動擷取尚未可用。下方按鈕用於手動新增範例步驟，便於端到端預覽技能編譯流程。",
-      "manualStepsLabel": "手動新增步驟"
+      "manualStepsLabel": "手動新增步驟",
+      "manualRecordingActive": "正在手動新增步驟...",
+      "captureEventsCaptured": "已擷取 {count} 個互動",
+      "captureHint": "現在就在電腦上示範該流程，每次點擊與文字輸入都會被自動擷取。"
     }
   },
   "followUps": {

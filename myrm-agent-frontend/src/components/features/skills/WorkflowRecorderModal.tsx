@@ -43,6 +43,9 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<WorkflowIntentPlan | null>(null);
   const [compiledMarkdown, setCompiledMarkdown] = useState<string>('');
+  // Whether the server is capturing the demonstration through platform AX; false means the
+  // platform exposes no capture (or permission was denied) and steps are entered manually.
+  const [captureActive, setCaptureActive] = useState<boolean>(false);
 
   const handleStart = async () => {
     setError(null);
@@ -50,7 +53,8 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
     try {
       const newSessionId = `rec-${Date.now()}`;
       setSessionId(newSessionId);
-      await startDesktopRecording(newSessionId);
+      const started = await startDesktopRecording(newSessionId);
+      setCaptureActive(started.capture_active);
       setEventCount(0);
       setStep('recording');
     } catch (err: unknown) {
@@ -212,41 +216,54 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
                 <div className="inline-flex p-4 rounded-full bg-primary/10 text-primary">
                   <Video className="h-8 w-8" />
                 </div>
-                <h4 className="font-medium text-foreground mt-3">{t('recordingActive')}</h4>
-                <p className="text-xs text-muted-foreground mt-1">{t('eventsCaptured', { count: eventCount })}</p>
+                <h4 className="font-medium text-foreground mt-3">
+                  {captureActive ? t('recordingActive') : t('manualRecordingActive')}
+                </h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {captureActive
+                    ? t('captureEventsCaptured', { count: eventCount })
+                    : t('eventsCaptured', { count: eventCount })}
+                </p>
+                {captureActive && (
+                  <p className="text-xs text-muted-foreground/80 mt-1">{t('captureHint')}</p>
+                )}
               </div>
 
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
-                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>{t('manualCaptureNotice')}</span>
-              </div>
+              {!captureActive && (
+                <>
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{t('manualCaptureNotice')}</span>
+                  </div>
 
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-foreground text-center">{t('manualStepsLabel')}</p>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  <button
-                    type="button"
-                    onClick={() => handleSimulateEvent('app_switch', 'Microsoft Excel', 'Spreadsheet')}
-                    className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
-                  >
-                    + Excel Switch
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSimulateEvent('click', 'Chrome Browser', 'Submit Button')}
-                    className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
-                  >
-                    + Click Submit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSimulateEvent('type', 'Chrome Browser', 'Tax Account')}
-                    className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
-                  >
-                    + Type Account
-                  </button>
-                </div>
-              </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground text-center">{t('manualStepsLabel')}</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      <button
+                        type="button"
+                        onClick={() => handleSimulateEvent('app_switch', 'Microsoft Excel', 'Spreadsheet')}
+                        className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
+                      >
+                        + Excel Switch
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSimulateEvent('click', 'Chrome Browser', 'Submit Button')}
+                        className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
+                      >
+                        + Click Submit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSimulateEvent('type', 'Chrome Browser', 'Tax Account')}
+                        className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
+                      >
+                        + Type Account
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

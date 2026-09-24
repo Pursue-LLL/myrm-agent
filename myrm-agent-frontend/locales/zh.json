@@ -17871,7 +17871,7 @@
       "workflowNameLabel": "技能名称",
       "intentHintLabel": "意图提示（可选）",
       "startRecording": "开始录制",
-      "recordingActive": "正在手动添加步骤...",
+      "recordingActive": "正在录制桌面工作流...",
       "eventsCaptured": "已添加 {count} 个步骤",
       "stopAndAnalyze": "结束录制并提炼意图",
       "reviewStepsTitle": "AI 提炼的执行步骤与变量",
@@ -17884,7 +17884,10 @@
       "cancel": "取消",
       "close": "关闭",
       "manualCaptureNotice": "桌面自动采集尚未可用。下方按钮用于手动添加示例步骤，便于端到端预览技能编译流程。",
-      "manualStepsLabel": "手动添加步骤"
+      "manualStepsLabel": "手动添加步骤",
+      "manualRecordingActive": "正在手动添加步骤...",
+      "captureEventsCaptured": "已捕获 {count} 个交互",
+      "captureHint": "现在就在电脑上演示该流程，每次点击和文字输入都会被自动捕获。"
     }
   },
   "followUps": {

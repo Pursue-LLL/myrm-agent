@@ -10915,7 +10915,7 @@
       "workflowNameLabel": "Skill-Name",
       "intentHintLabel": "Absichtshinweis (Optional)",
       "startRecording": "Aufnahme starten",
-      "recordingActive": "Manuelles Hinzufügen von Schritten läuft...",
+      "recordingActive": "Desktop-Workflow wird aufgezeichnet...",
       "eventsCaptured": "{count} Schritte hinzugefügt",
       "stopAndAnalyze": "Stoppen & Absicht analysieren",
       "reviewStepsTitle": "Rekonstruierte Ausführungsschritte & Variablen",
@@ -10928,7 +10928,10 @@
       "cancel": "Abbrechen",
       "close": "Schließen",
       "manualCaptureNotice": "Die automatische Desktop-Aufzeichnung ist noch nicht verfügbar. Die Schaltflächen unten fügen Beispielschritte manuell hinzu, damit Sie die Skill-Kompilierung vollständig prüfen können.",
-      "manualStepsLabel": "Schritt manuell hinzufügen"
+      "manualStepsLabel": "Schritt manuell hinzufügen",
+      "manualRecordingActive": "Manuelles Hinzufügen von Schritten läuft...",
+      "captureEventsCaptured": "{count} Interaktionen erfasst",
+      "captureHint": "Führen Sie den Ablauf jetzt auf Ihrem Desktop aus; jeder Klick und jede Texteingabe wird automatisch erfasst."
     }
   },
   "followUps": {
