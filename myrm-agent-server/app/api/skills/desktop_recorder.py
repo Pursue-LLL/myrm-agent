@@ -50,10 +50,31 @@ from app.api.skills.desktop_recorder_schemas import (
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/desktop-recorder", tags=["skills-desktop-recorder"])
 
-# In-memory session store for active recording sessions (bounded ring-buffer per session)
+# In-memory session store for active recording sessions (bounded ring-buffer per session).
+# Sessions are dropped once finalized, and capped so a client that abandons recordings cannot
+# grow this process-lifetime map without bound.
 _ACTIVE_SESSIONS: dict[str, RecordingSessionState] = {}
 # Capture loops keyed by session id; stopped and dropped when the session ends.
 _CAPTURE_TASKS: dict[str, DesktopCaptureTask] = {}
+# Retained finished sessions, newest last: a client may still fetch the summary or publish
+# right after stopping, but old ones are evicted so memory cannot accumulate.
+_MAX_RETAINED_SESSIONS = 8
+
+
+def _remember_session(session: RecordingSessionState) -> None:
+    """Track a session, evicting the oldest finalized entries when the cap is exceeded."""
+    # Re-insertion keeps dict order aligned with recency for the eviction scan below.
+    _ACTIVE_SESSIONS.pop(session.session_id, None)
+    _ACTIVE_SESSIONS[session.session_id] = session
+    if len(_ACTIVE_SESSIONS) <= _MAX_RETAINED_SESSIONS:
+        return
+    overflow = len(_ACTIVE_SESSIONS) - _MAX_RETAINED_SESSIONS
+    for sid in list(_ACTIVE_SESSIONS):
+        if overflow <= 0:
+            break
+        if _ACTIVE_SESSIONS[sid].status != "recording":
+            _ACTIVE_SESSIONS.pop(sid, None)
+            overflow -= 1
 
 
 @router.post("/start", response_model=StartDesktopRecordingResponse)
@@ -62,7 +83,7 @@ async def start_desktop_recording(
 ) -> StartDesktopRecordingResponse:
     """Start a new desktop workflow recording session and launch platform capture."""
     session = RecordingSessionState(session_id=request.session_id, app_scope=request.app_scope)
-    _ACTIVE_SESSIONS[request.session_id] = session
+    _remember_session(session)
 
     task = DesktopCaptureTask(session)
     task.start()
