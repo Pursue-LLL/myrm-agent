@@ -34,17 +34,34 @@ describe("exportSessionZipPack", () => {
 	const originalFetch = globalThis.fetch;
 	const originalCreateObjectURL = URL.createObjectURL;
 	const originalRevokeObjectURL = URL.revokeObjectURL;
+	const originalDocument = globalThis.document;
 
 	beforeEach(() => {
 		globalThis.fetch = vi.fn();
 		URL.createObjectURL = vi.fn(() => "blob:mock-url");
 		URL.revokeObjectURL = vi.fn();
+
+		if (typeof document === "undefined") {
+			const mockElement = { click: vi.fn(), setAttribute: vi.fn(), style: {} };
+			globalThis.document = {
+				createElement: vi.fn().mockReturnValue(mockElement),
+				body: {
+					appendChild: vi.fn(),
+					removeChild: vi.fn(),
+				},
+			} as unknown as Document;
+		}
 	});
 
 	afterEach(() => {
 		globalThis.fetch = originalFetch;
 		URL.createObjectURL = originalCreateObjectURL;
 		URL.revokeObjectURL = originalRevokeObjectURL;
+		if (originalDocument === undefined) {
+			delete (globalThis as { document?: unknown }).document;
+		} else {
+			globalThis.document = originalDocument;
+		}
 		vi.restoreAllMocks();
 	});
 

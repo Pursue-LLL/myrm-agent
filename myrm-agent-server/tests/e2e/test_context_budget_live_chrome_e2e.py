@@ -84,6 +84,8 @@ _LIVE_BUDGET_JS = """(() => {
   );
   const budget = budgeted.length ? budgeted[budgeted.length - 1].contextBudget : null;
   return {
+    // ready must gate on the live budget actually being readable.
+    ready: Boolean(budget) && panel !== null,
     hasPanel: Boolean(panel),
     budgetedCount: budgeted.length,
     turnCount: budget?.turn_count ?? null,
@@ -123,22 +125,21 @@ _ATTACH_CHAT_JS = """(async () => {
 })()"""
 
 
-def _seed_empty_chat(ui_url: str) -> dict[str, object]:
-    """Seed a zero-message chat that renders the composer.
+def _seed_chat(api_url: str) -> dict[str, object]:
+    """Seed a zero-message chat through the E2E-pinned API (official E2E pattern).
 
     Two constraints drive this choice:
-    - Seeded through the **UI origin** rather than ``get_e2e_api_url()``: the API helper can
-      resolve to an isolated backend while the WebUI proxies to the shared one, which makes
-      a chat created via the API invisible to the UI (``notFound``).
+    - Use ``get_e2e_api_url()`` like every other Chrome E2E: the framework pins the API the
+      browser's WebUI also talks to, so no extra proxy hop is involved.
     - Zero messages: the context-retention fixture sits at ~92% context, so a first real
       turn would trigger heavyweight auto-compaction and never answer inside the budget.
 
-    With no seeded assistant turn, any contextBudget observed afterwards is produced by the
+    With no seeded assistant turn, the contextBudget observed afterwards is produced by the
     live turn itself.
     """
     seeded = http_json(
         "POST",
-        f"{ui_url.rstrip('/')}/api/v1/chats/test/seed-skill-chip-composer-fixture",
+        f"{api_url}/api/v1/chats/test/seed-skill-chip-composer-fixture",
     )
     assert isinstance(seeded, dict), seeded
     chat_id = str(seeded.get("chat_id") or "")
@@ -159,7 +160,7 @@ def test_live_turn_emits_context_budget_with_server_turn_count() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
-    seeded = _seed_empty_chat(ui_url)
+    seeded = _seed_chat(api_url)
     chat_id = str(seeded["chat_id"])
     agent_id = str(seeded["agent_id"])
     chat_path = str(seeded.get("ui_path") or f"/{chat_id}?agentId={agent_id}")
