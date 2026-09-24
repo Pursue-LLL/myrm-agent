@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
@@ -100,6 +100,52 @@ export function WikiConceptDetailPanel({
     return selectedConcept ? extractVideoNoteMeta(selectedConcept.content) : null;
   }, [selectedConcept]);
 
+  const [targetHeading, setTargetHeading] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const scrollToHeading = useCallback((headingText: string) => {
+    const container = contentRef.current;
+    if (!container) return;
+    const headings = Array.from(container.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+    const normalizedTarget = headingText.trim().toLowerCase();
+    const matched = headings.find((h) => {
+      const text = (h.textContent || '').trim().toLowerCase();
+      return text === normalizedTarget || text.includes(normalizedTarget) || normalizedTarget.includes(text);
+    });
+    if (matched) {
+      matched.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      matched.classList.add('bg-primary/10', 'ring-1', 'ring-primary/40', 'rounded-md', 'transition-all', 'duration-500');
+      const timer = setTimeout(() => {
+        matched.classList.remove('bg-primary/10', 'ring-1', 'ring-primary/40', 'rounded-md');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!targetHeading || isEditing) return;
+    const timer = setTimeout(() => {
+      scrollToHeading(targetHeading);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [selectedConcept?.name, selectedConcept?.content, targetHeading, isEditing, scrollToHeading]);
+
+  const handleSelectConceptFromLinks = useCallback(
+    (name: string, heading?: string | null) => {
+      setTargetHeading(heading || null);
+      if (selectedConcept && selectedConcept.name === name) {
+        if (heading) {
+          scrollToHeading(heading);
+        }
+        return;
+      }
+      if (onSelectConcept) {
+        onSelectConcept(name);
+      }
+    },
+    [selectedConcept, onSelectConcept, scrollToHeading],
+  );
+
   return (
     <Card className="col-span-1 md:col-span-2 h-full overflow-hidden flex flex-col min-h-0">
       {selectedConcept ? (
@@ -170,7 +216,7 @@ export function WikiConceptDetailPanel({
               )}
             </div>
           </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto p-4 min-h-0 space-y-6">
+          <CardContent ref={contentRef} className="flex-1 overflow-y-auto p-4 min-h-0 space-y-6">
             {isEditing ? (
               <div className="space-y-4 h-full flex flex-col min-h-[420px]">
                 <div className="flex flex-wrap gap-2 overflow-x-auto pb-1">
@@ -408,7 +454,7 @@ export function WikiConceptDetailPanel({
                 <WikiConceptLinksPanel
                   conceptName={selectedConcept.name}
                   agentId={agentId}
-                  onSelectConcept={onSelectConcept}
+                  onSelectConcept={handleSelectConceptFromLinks}
                 />
               </>
             )}

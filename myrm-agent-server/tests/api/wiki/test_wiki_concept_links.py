@@ -1,6 +1,7 @@
 """Test GET /api/v1/wiki/concepts/{name}/links endpoint."""
 
 from dataclasses import dataclass
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -174,4 +175,41 @@ def test_get_concept_links_error_handling(client: TestClient):
 
     assert response.status_code == 500
     assert response.json()["detail"] == "Failed to fetch concept links"
+
+
+def test_heading_markdown_syntax_stripping_and_alias_caching(tmp_path: Path):
+    """Verify that headings with rich markdown formatting are stripped cleanly and alias cache works."""
+    from myrm_agent_harness.toolkits.wiki.retrieval.graph_store import _clean_heading_text
+    from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
+
+    # 1. Test markdown syntax stripping
+    raw_heading = "## 4.2 **核心网关** 下的 `TokenBucket` [自适应限流](https://example.com/ratelimit)"
+    cleaned = _clean_heading_text(raw_heading)
+    assert cleaned == "4.2 核心网关 下的 TokenBucket 自适应限流"
+
+    raw_heading_2 = "### 架构演进 [[链路设计|全景图]] ~~废弃逻辑~~"
+    cleaned_2 = _clean_heading_text(raw_heading_2)
+    assert cleaned_2 == "架构演进 全景图 废弃逻辑"
+
+    # 2. Test alias mtime shared cache
+    wiki = WikiStructure(tmp_path)
+    wiki.ensure_structure()
+    concept_file = wiki.concepts_dir / "ratelimit.md"
+    concept_file.write_text(
+        "---\naliases:\n  - 限流算法\n  - TokenBucket\n---\n# RateLimit\nContent",
+        encoding="utf-8",
+    )
+
+    # First resolve builds cache
+    res1 = wiki.resolve_alias_file_path("限流算法")
+    assert res1 is not None and res1.name == "ratelimit.md"
+
+    # Create a fresh WikiStructure instance for the same directory: should hit class-level mtime cache
+    wiki2 = WikiStructure(tmp_path)
+    res2 = wiki2.resolve_alias_file_path("TokenBucket")
+    assert res2 is not None and res2.name == "ratelimit.md"
+
+    # Invalidate cache clears correctly
+    wiki2.invalidate_alias_cache()
+    assert wiki2._alias_to_path_cache is None
 

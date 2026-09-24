@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 interface WikiConceptLinksPanelProps {
   conceptName: string;
   agentId?: string | null;
-  onSelectConcept?: (name: string) => void;
+  onSelectConcept?: (name: string, heading?: string | null) => void;
 }
 
 export function WikiConceptLinksPanel({
@@ -161,7 +161,7 @@ export function WikiConceptLinksPanel({
                   disabled={!link.exists || !onSelectConcept}
                   onClick={() => {
                     if (link.exists && onSelectConcept) {
-                      startTransition(() => onSelectConcept(link.name));
+                      startTransition(() => onSelectConcept(link.name, link.heading));
                     }
                   }}
                   className={cn(
@@ -189,7 +189,10 @@ export function WikiConceptLinksPanel({
                   {(link.heading || link.line_number) && (
                     <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                       {link.heading && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50 font-mono truncate max-w-[220px]">
+                        <span
+                          title={`点击卡片可直达小节：${link.heading}`}
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/50 font-mono truncate max-w-[220px]"
+                        >
                           § {link.heading}
                         </span>
                       )}
