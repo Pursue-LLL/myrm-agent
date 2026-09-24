@@ -152,6 +152,20 @@ def test_permission_denied_stops_loop_and_reports_reason() -> None:
     assert session.capture_active is False
 
 
+def test_reports_unsupported_deployment_without_starting_capture() -> None:
+    """A headless deployment has no desktop; report that instead of an unusable permission ask."""
+    session = RecordingSessionState(session_id="rec-6")
+    task = DesktopCaptureTask(session)
+
+    with patch.object(task, "_deploy_supports_capture", return_value=False):
+        task.start()
+
+    assert session.capture_active is False
+    assert session.capture_error is not None
+    assert "no desktop in this deployment" in session.capture_error
+    assert task.is_running is False
+
+
 def test_stop_is_safe_without_start() -> None:
     """Stopping a session that never started capture must not raise."""
     session = RecordingSessionState(session_id="rec-4")

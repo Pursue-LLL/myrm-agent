@@ -52,6 +52,15 @@ class DesktopCaptureTask:
         """Launch the capture loop. Failures leave the session in manual-entry mode."""
         if self.is_running:
             return
+        if not self._deploy_supports_capture():
+            # A deployment without desktop infrastructure (headless sandbox) would otherwise fail
+            # with a permission error the user cannot act on. Report the real cause instead.
+            self._session.capture_error = "desktop_capture_unavailable: no desktop in this deployment"
+            logger.info(
+                "Desktop capture skipped for %s: deployment has no desktop",
+                self._session.session_id,
+            )
+            return
         try:
             desktop_session = self._create_session()
         except Exception as exc:
@@ -89,6 +98,13 @@ class DesktopCaptureTask:
         )
 
         return create_desktop_session()
+
+    @staticmethod
+    def _deploy_supports_capture() -> bool:
+        """Whether this deployment can run desktop capture (same gate as desktop control)."""
+        from app.config.computer_use_deploy import is_computer_use_deploy_supported
+
+        return is_computer_use_deploy_supported()
 
     async def _run(self, driver: DesktopCaptureDriver) -> None:
         from myrm_agent_harness.toolkits.computer_use.dref.errors import (

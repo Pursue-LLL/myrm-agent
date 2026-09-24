@@ -577,8 +577,9 @@ async def finalize_agent_stream_session(
 
     enqueue_context_compaction_telemetry(session.request.chat_id)
     clear_context_task_metrics(session.request.chat_id)
-    await session.monitor.stop()
-    CancellationRegistry.unregister(session.params.message_id)
+    target_msg_id = getattr(session.params, "message_id", None) or getattr(session.request, "message_id", None)
+    if target_msg_id:
+        CancellationRegistry.unregister(target_msg_id)
     if session.request.chat_id:
         SteeringRegistry.unregister(session.request.chat_id)
         from app.services.agent.goals.goal_registry import GoalRegistry

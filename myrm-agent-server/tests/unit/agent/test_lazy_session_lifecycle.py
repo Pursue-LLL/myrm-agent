@@ -115,6 +115,10 @@ async def test_finalize_discards_draft_when_cancelled_before_first_token():
     session.migration_live_readiness_status = None
     session.params = None
     session.monitor = AsyncMock()
+    # cancel_token has no dataclass default, so spec-mocks don't expose it;
+    # production requires it (stream_session_types.py:30).
+    session.cancel_token = MagicMock()
+    session.cancel_token.is_cancelled = False
 
     token_ctx = user_credentials_ctx.set(None)
     approval = MagicMock()
@@ -169,8 +173,13 @@ async def test_finalize_commits_draft_when_assistant_content_present():
     session.stream_ttft_ms = 120
     session.extra_context = {}
     session.migration_live_readiness_status = None
-    session.params = None
     session.monitor = AsyncMock()
+    # cancel_token has no dataclass default, so spec-mocks don't expose it;
+    # production requires it (stream_session_types.py:30).
+    session.cancel_token = MagicMock()
+    session.cancel_token.is_cancelled = False
+    # Keep skill-evolution branch off: this test targets draft commit ordering.
+    session.params = MagicMock(enable_skill_manage=False)
 
     token_ctx = user_credentials_ctx.set(None)
     approval = MagicMock()

@@ -3,6 +3,19 @@
 Defers database persistence and sandbox materialization for new sessions until
 the model emits the first active generation event (text token, reasoning chain,
 or tool call), preventing orphan empty sessions and zero-byte directory pollution.
+
+[INPUT]
+- stream chunks (str | dict): inspected by is_active_generation_chunk
+- AgentStreamSession: committed once by commit_lazy_session_barrier
+
+[OUTPUT]
+- is_active_generation_chunk(): True when a chunk represents authentic model activity
+- PendingSessionDraft: in-memory draft held until the commit barrier
+- commit_lazy_session_barrier(): persists the draft session exactly once
+
+[POS]
+Stream-session persistence gate: no session row or sandbox directory exists
+until the first active generation event; empty sessions never materialize.
 """
 
 from __future__ import annotations
