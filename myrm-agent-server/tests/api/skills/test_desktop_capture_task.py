@@ -89,8 +89,8 @@ def test_capture_loop_appends_events_from_driver() -> None:
     click = next(
         event for event in session.events if event.action == RecordedActionType.CLICK.value
     )
-    assert click.dref_id == "r2"
     assert click.element_title == "Taxes"
+    assert click.element_role == "AXButton"
     assert task.is_running is False
 
 
@@ -164,6 +164,63 @@ def test_reports_unsupported_deployment_without_starting_capture() -> None:
     assert session.capture_error is not None
     assert "no desktop in this deployment" in session.capture_error
     assert task.is_running is False
+
+
+def test_transient_tree_errors_do_not_stop_capture() -> None:
+    """A briefly unreadable AX tree (app switch, system busy) must not end the recording."""
+    from myrm_agent_harness.toolkits.computer_use.dref.errors import AXTreeEmptyError
+    from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
+
+    session = RecordingSessionState(session_id="rec-7")
+    task = DesktopCaptureTask(session, poll_interval_sec=0.01)
+    backend = MagicMock()
+
+    def _meta() -> SnapshotMeta:
+        return SnapshotMeta(
+            ref_count=1, app_name="Finder", window_title="Main", scope="foreground"
+        )
+
+    def _element(ref_id: str) -> ElementRef:
+        return ElementRef(
+            ref_id=ref_id,
+            role="AXButton",
+            name="Open",
+            bbox=BBox(0, 0, 10, 10),
+            backend_key=ref_id,
+        )
+
+    calls = {"n": 0}
+
+    def flaky_capture(backend_arg: object, scope: str, app_name: str | None = None):
+        calls["n"] += 1
+        # Fail once mid-recording, then resume normally with a newly added element.
+        if calls["n"] == 2:
+            raise AXTreeEmptyError("macOS AX snapshot timed out")
+        if calls["n"] <= 3:
+            return _meta(), {"r1": _element("r1")}
+        return _meta(), {"r1": _element("r1"), "r2": _element("r2")}
+
+    async def run() -> None:
+        with (
+            patch.object(task, "_create_session", return_value=backend),
+            patch(
+                "myrm_agent_harness.toolkits.computer_use.recording.capture_driver.capture_snapshot",
+                flaky_capture,
+            ),
+        ):
+            task.start()
+            for _ in range(80):
+                if session.events:
+                    break
+                await asyncio.sleep(0.01)
+            await task.stop()
+
+    asyncio.run(run())
+
+    # The recording survived the transient failure and kept collecting interactions.
+    assert session.events, "capture must continue after a transient AX failure"
+    assert session.capture_error is None
+    assert calls["n"] > 3
 
 
 def test_stop_is_safe_without_start() -> None:

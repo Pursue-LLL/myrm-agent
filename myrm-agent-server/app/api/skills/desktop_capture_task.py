@@ -109,20 +109,31 @@ class DesktopCaptureTask:
     async def _run(self, driver: DesktopCaptureDriver) -> None:
         from myrm_agent_harness.toolkits.computer_use.dref.errors import (
             AXPermissionRequiredError,
+            AXTreeEmptyError,
         )
 
         try:
             while True:
-                # The first poll only primes the diff baseline; it intentionally emits nothing.
-                frame = await driver.poll()
-                if frame.meta.needs_permission:
-                    self._session.capture_error = "desktop_capture_permission_required"
-                for event in frame.events:
-                    self._session.add_event(event)
+                try:
+                    # The first poll only primes the diff baseline; it intentionally emits nothing.
+                    frame = await driver.poll()
+                    if frame.meta.needs_permission:
+                        self._session.capture_error = "desktop_capture_permission_required"
+                    for event in frame.events:
+                        self._session.add_event(event)
+                except AXPermissionRequiredError:
+                    # Retrying cannot fix a missing OS permission; stop so the UI can guide the
+                    # user to grant access, instead of silently polling a blocked API.
+                    raise
+                except AXTreeEmptyError as exc:
+                    # Transient by nature: the tree is briefly unreadable while apps switch or
+                    # the system is busy. Losing the rest of the demonstration here would waste
+                    # the whole recording, so skip this tick and keep capturing.
+                    logger.debug(
+                        "Desktop capture skipped a frame for %s: %s", self._session.session_id, exc
+                    )
                 await asyncio.sleep(self._poll_interval_sec)
         except AXPermissionRequiredError:
-            # Retrying cannot fix a missing OS permission; stop and tell the UI why, so it can
-            # guide the user to grant Accessibility access and start a new recording.
             self._session.capture_active = False
             self._session.capture_error = "desktop_capture_permission_required"
             logger.info(
