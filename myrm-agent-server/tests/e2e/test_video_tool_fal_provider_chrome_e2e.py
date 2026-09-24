@@ -32,6 +32,7 @@ _VERIFY_MEDIA_SECTION_JS = """(() => {
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
 )
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_fal_media_provider_settings_and_doctor_lifecycle() -> None:

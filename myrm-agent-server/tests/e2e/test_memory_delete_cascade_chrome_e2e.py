@@ -38,6 +38,7 @@ _MEMORY_DELETE_CASCADE_CONTRACT_JS = """(async () => {
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_memory_delete_cascade_contract_in_chrome_e2e() -> None:

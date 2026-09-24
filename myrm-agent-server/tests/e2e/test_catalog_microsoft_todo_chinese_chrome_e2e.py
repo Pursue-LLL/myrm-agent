@@ -39,6 +39,7 @@ def _is_retryable_open_mcp_error(exc: RuntimeError) -> bool:
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_microsoft_todo_chinese_discoverability_and_connect_guide() -> None:

@@ -49,6 +49,7 @@ _DISTILLATION_GUARD_CONTRACT_JS = """(async () => {
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_distillation_guards_contract_chrome_e2e() -> None:

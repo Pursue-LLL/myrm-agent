@@ -38,6 +38,7 @@ _PENDING_METADATA_CHECK_JS = """(async () => {
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_memory_pending_metadata_chrome_e2e() -> None:

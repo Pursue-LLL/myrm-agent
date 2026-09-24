@@ -22,6 +22,7 @@ from tests.support.chrome_mcp_e2e import (
     access_scope="READ",
     workload="STANDARD",
 )
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.timeout(240)
 def test_settings_security_shows_delegation_permission_guide_and_types() -> None:
     """Lane-B: WebUI /settings/security renders DPSEAG dual-key guide + permission labels."""

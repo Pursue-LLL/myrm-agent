@@ -139,6 +139,7 @@ def _is_retryable_open_mcp_error(exc: RuntimeError) -> bool:
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(240)
 def test_integration_catalog_loopback_guard_end_to_end() -> None:

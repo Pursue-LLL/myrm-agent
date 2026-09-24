@@ -112,6 +112,7 @@ def _assert_review_dialog(
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_mem0_import_review_source_label_not_raw_key() -> None:

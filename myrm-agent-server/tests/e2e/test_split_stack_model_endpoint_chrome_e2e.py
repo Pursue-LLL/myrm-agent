@@ -40,6 +40,7 @@ _VERIFY_SPLIT_STACK_SETTINGS_JS = """(() => {
     access_scope="READ",
     workload="STANDARD",
 )
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_split_stack_settings_ui_and_discover_api_chrome_e2e() -> None:

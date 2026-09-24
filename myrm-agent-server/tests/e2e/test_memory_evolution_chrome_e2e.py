@@ -265,6 +265,7 @@ def _run_evolution_assertions(api_url: str, ui_url: str) -> None:
 @pytest.mark.chrome_e2e(
     execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD"
 )
+@pytest.mark.e2e_search_policy("empty")
 def test_chrome_ui_memory_evolution_history_sheet() -> None:
     """Seeded memory with merge audit renders evolution timeline in detail sheet."""
     api_url = get_e2e_api_url()

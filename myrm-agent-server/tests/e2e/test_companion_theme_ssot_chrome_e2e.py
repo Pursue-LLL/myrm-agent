@@ -76,6 +76,7 @@ def _wait_profile_snippet(profile_id: str, *, primary: str | None = None) -> str
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_appearance_preset_updates_workspace_primary_token() -> None:

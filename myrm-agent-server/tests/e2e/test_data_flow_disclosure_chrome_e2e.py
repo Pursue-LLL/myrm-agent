@@ -120,6 +120,7 @@ def provider_egress_visible_js(provider_id: str) -> str:
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.timeout(240)
 def test_settings_security_shows_data_flow_disclosure_panel() -> None:
     security_url = f"{get_e2e_ui_url().rstrip('/')}/settings/security"

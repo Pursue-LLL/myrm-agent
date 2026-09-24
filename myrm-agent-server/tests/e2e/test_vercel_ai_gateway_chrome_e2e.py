@@ -92,6 +92,7 @@ _VERIFY_VERCEL_CONFIG_DETAILS_JS = """(() => {
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
 )
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:

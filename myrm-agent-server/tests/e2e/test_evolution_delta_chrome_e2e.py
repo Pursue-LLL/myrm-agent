@@ -66,6 +66,7 @@ _SKILL_HISTORY_STATE = """(() => {
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_evolution_delta_badge_renders_in_history_panel() -> None:

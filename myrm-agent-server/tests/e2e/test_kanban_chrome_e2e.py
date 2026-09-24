@@ -287,6 +287,7 @@ def _open_kanban_board(client, page, board_id: str, board_name: str) -> None:
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_kanban_board_and_task_render_in_real_ui() -> None:

@@ -59,6 +59,7 @@ _ROUTING_AGENT_OPTIONS_STATE = """(() => {
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_channel_routing_dropdown_excludes_search_agents() -> None:

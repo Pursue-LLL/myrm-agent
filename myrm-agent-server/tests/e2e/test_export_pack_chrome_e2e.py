@@ -28,8 +28,20 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
+    wait_for_react_e2e_bridge,
     wait_for_state,
+    warm_ui_route,
 )
+
+_DISMISS_MIGRATION_JS = """(() => {
+  try {
+    sessionStorage.setItem('migration_discovery_dismissed', 'true');
+    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+  } catch (err) {
+    return { ok: false, err: String(err) };
+  }
+  return { ok: true };
+})()"""
 
 
 def _seed_chat_fixture(api_url: str) -> dict[str, str]:
@@ -122,7 +134,7 @@ def test_export_pack_lifecycle_chrome_e2e() -> None:
     # Step 1: Seed real chat fixture
     seeded = _seed_chat_fixture(api_url)
     chat_id = seeded["chat_id"]
-    chat_url = f"{ui_url}/{chat_id}"
+    chat_url = f"{ui_url}{seeded['ui_path']}"
 
     # Step 2: Lane-C Real API Full Flow verification
     # 2.1 HEAD preflight check
@@ -169,7 +181,10 @@ def test_export_pack_lifecycle_chrome_e2e() -> None:
     assert err.value.code == 404
 
     # Step 3: Lane-B WebUI browser verification
-    with open_mcp_page(chat_url) as (client, page):
+    warm_ui_route("/", timeout_sec=45.0)
+    with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
+        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+        wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=chat_url)
         dismiss_blocking_modals(client, page)
 
         menu_state = wait_for_state(

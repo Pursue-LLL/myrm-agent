@@ -86,6 +86,7 @@ _TRIGGER_REAL_TOAST_AND_VERIFY_JS = """(() => {
     access_scope="READ",
     workload="STANDARD",
 )
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_ui_error_redaction_real_chrome_e2e() -> None:

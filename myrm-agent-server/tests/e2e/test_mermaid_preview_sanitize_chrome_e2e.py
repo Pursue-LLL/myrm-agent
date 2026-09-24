@@ -126,6 +126,7 @@ _CLEANUP_MERMAID_DOM_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_mermaid_preview_sanitize_chrome_e2e() -> None:

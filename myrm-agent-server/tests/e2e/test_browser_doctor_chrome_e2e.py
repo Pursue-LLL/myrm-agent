@@ -73,6 +73,7 @@ _BROWSER_DOCTOR_REPORT_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_chrome_ui_browser_doctor_card_renders_report() -> None:

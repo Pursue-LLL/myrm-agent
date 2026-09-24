@@ -31,6 +31,7 @@ _VERIFY_MEDIA_SETTINGS_FAL_JS = """(() => {
     access_scope="READ",
     workload="STANDARD",
 )
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_media_settings_fal_provider_e2e_lifecycle() -> None:

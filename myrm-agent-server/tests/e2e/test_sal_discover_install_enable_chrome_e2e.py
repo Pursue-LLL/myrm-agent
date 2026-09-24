@@ -265,6 +265,7 @@ def _assert_agent_allowlist_untouched(api_url: str) -> None:
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_discover_prebuilt_install_enables_catalog_without_agent_allowlist() -> None:

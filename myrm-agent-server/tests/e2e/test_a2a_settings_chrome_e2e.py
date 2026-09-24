@@ -44,6 +44,7 @@ _VERIFY_A2A_SETTINGS_JS = """(() => {
     access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
 )
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_a2a_peer_registry_api_and_settings_chrome_e2e() -> None:

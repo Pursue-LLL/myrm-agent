@@ -237,6 +237,7 @@ def _seed_wechat_draft_fixture(api_url: str, *, variant: str = "compliance_block
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(180)
 def test_wechat_official_settings_shows_ip_whitelist_hint() -> None:

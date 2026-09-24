@@ -162,6 +162,7 @@ _CLEANUP_TEST_PAGE_JS = """(() => {
 
 
 @pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(300)
 def test_paginated_table_harvest_real_chrome_e2e() -> None:
