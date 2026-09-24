@@ -337,6 +337,7 @@ myrm_agent_harness.toolkits.computer_use
 myrm_agent_harness.toolkits.computer_use.app_identity
 myrm_agent_harness.toolkits.computer_use.backends.macos
 myrm_agent_harness.toolkits.computer_use.desktop_session
+myrm_agent_harness.toolkits.computer_use.dref.errors
 myrm_agent_harness.toolkits.computer_use.mcp_server
 myrm_agent_harness.toolkits.computer_use.session
 myrm_agent_harness.toolkits.computer_use.types

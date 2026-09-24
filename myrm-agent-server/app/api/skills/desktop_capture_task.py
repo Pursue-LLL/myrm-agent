@@ -3,6 +3,7 @@
 [INPUT]
 - myrm_agent_harness.toolkits.computer_use.desktop_session::create_desktop_session
 - myrm_agent_harness.api::DesktopCaptureDriver
+- myrm_agent_harness.api::AXPermissionRequiredError
 - app.api.skills.desktop_recorder_schemas::RecordingSessionState
 
 [OUTPUT]

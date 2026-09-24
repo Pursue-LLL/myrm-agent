@@ -54,7 +54,17 @@ def test_get_concept_links_endpoint(client: TestClient):
                 "weight": 3.5,
                 "exists": True,
                 "context_snippet": "This article depends on [[target-concept]].",
-            }
+                "line_number": 42,
+                "heading": "Detailed Architecture",
+            },
+            {
+                "name": "root-summary",
+                "weight": 1.0,
+                "exists": True,
+                "context_snippet": "Mentions [[target-concept]] in lead.",
+                "line_number": None,
+                "heading": None,
+            },
         ],
         "ego_graph": {
             "nodes": [
@@ -84,8 +94,13 @@ def test_get_concept_links_endpoint(client: TestClient):
     assert len(data["outlinks"]) == 1
     assert data["outlinks"][0]["name"] == "outgoing-dep"
     assert data["outlinks"][0]["weight"] == 3.0
-    assert len(data["backlinks"]) == 1
+    assert len(data["backlinks"]) == 2
     assert data["backlinks"][0]["name"] == "source-article"
     assert data["backlinks"][0]["context_snippet"] == "This article depends on [[target-concept]]."
+    assert data["backlinks"][0]["line_number"] == 42
+    assert data["backlinks"][0]["heading"] == "Detailed Architecture"
+    assert data["backlinks"][1]["name"] == "root-summary"
+    assert data["backlinks"][1]["line_number"] is None
+    assert data["backlinks"][1]["heading"] is None
     assert len(data["ego_graph"]["nodes"]) == 3
     assert len(data["ego_graph"]["edges"]) == 2
