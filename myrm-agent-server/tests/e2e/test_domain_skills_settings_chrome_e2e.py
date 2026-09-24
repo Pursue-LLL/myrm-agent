@@ -62,7 +62,14 @@ _DOMAIN_SKILLS_CARD_JS = """(() => {
 })()"""
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+# PRIVATE+exclusive_backend: workspace harness often drifts from shared :8080;
+# SHARED would epoch-skip under PRIVATE_EPOCH_REQUIRED (TAB-9 requires private_reason).
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="READ",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_chrome_ui_domain_skills_card_visible() -> None:
