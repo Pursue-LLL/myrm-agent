@@ -223,6 +223,35 @@ def test_transient_tree_errors_do_not_stop_capture() -> None:
     assert calls["n"] > 3
 
 
+def test_abandoned_session_is_reaped() -> None:
+    """A client that stopped polling (closed tab) must not leave capture running forever."""
+    session = RecordingSessionState(session_id="rec-8")
+    task = DesktopCaptureTask(session, poll_interval_sec=0.01)
+    backend = MagicMock()
+    # Simulate a client that vanished long ago.
+    session.last_seen_at = 0.0
+
+    async def run() -> None:
+        with (
+            patch.object(task, "_create_session", return_value=backend),
+            patch(
+                "myrm_agent_harness.toolkits.computer_use.recording.capture_driver.capture_snapshot",
+                return_value=(_meta(), {"r1": _element("r1")}),
+            ),
+        ):
+            task.start()
+            for _ in range(60):
+                if not session.capture_active:
+                    break
+                await asyncio.sleep(0.01)
+
+    asyncio.run(run())
+
+    assert session.capture_active is False
+    assert session.capture_error == "desktop_capture_abandoned"
+    assert task.is_running is False
+
+
 def test_stop_is_safe_without_start() -> None:
     """Stopping a session that never started capture must not raise."""
     session = RecordingSessionState(session_id="rec-4")

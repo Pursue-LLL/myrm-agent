@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Video,
@@ -33,8 +33,7 @@ interface WorkflowRecorderModalProps {
   onPublished?: (skillName: string) => void;
 }
 
-export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ isOpen, onClose, onPublished }) => {
-  const t = useTranslations('skills.workflowRecorder');
+export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ isOpen, onClose, onPublished }) => {  const t = useTranslations('skills.workflowRecorder');
   const [step, setStep] = useState<'idle' | 'recording' | 'review' | 'preview' | 'published'>('idle');
   const [sessionId, setSessionId] = useState<string>('');
   const [skillName, setSkillName] = useState<string>('Custom Desktop Workflow');
@@ -87,8 +86,18 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
     };
   }, [step, sessionId]);
 
-  const handleStart = async () => {
-    setError(null);
+  // Closing the dialog while a session is still recording must stop the server-side capture
+  // loop: otherwise the platform would keep polling and the session would stay resident.
+  const handleClose = useCallback(() => {
+    if (step === 'recording' && sessionId) {
+      void stopDesktopRecording(sessionId).catch(() => {
+        // The dialog is closing regardless; a failed stop must not block it.
+      });
+    }
+    onClose();
+  }, [step, sessionId, onClose]);
+
+  const handleStart = async () => {    setError(null);
     setLoading(true);
     try {
       const newSessionId = `rec-${Date.now()}`;
@@ -210,7 +219,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
             <h3 className="font-semibold text-lg text-foreground">{t('title')}</h3>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition"
             aria-label="Close"
           >
@@ -392,7 +401,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
         <div className="flex items-center justify-between border-t border-border px-6 py-4 bg-muted/30">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted transition"
           >
             {step === 'published' ? t('close') : t('cancel')}

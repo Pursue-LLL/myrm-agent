@@ -27,6 +27,10 @@ if TYPE_CHECKING:
 
 _MAX_EVENTS_PER_SESSION = 500
 
+# A recording whose session is never polled or stopped again (browser tab closed, client
+# crashed) must not leave a capture loop running for the life of the process.
+SESSION_IDLE_TIMEOUT_SEC = 600
+
 
 class RecordingSessionState:
     def __init__(self, session_id: str, app_scope: str = "all") -> None:
@@ -41,6 +45,11 @@ class RecordingSessionState:
         # when it is unavailable (unsupported platform, missing permission, capture failure).
         self.capture_active: bool = False
         self.capture_error: str | None = None
+        self.last_seen_at: float = time.time()
+
+    def touch(self) -> None:
+        """Record client activity so an abandoned session can be reaped."""
+        self.last_seen_at = time.time()
 
     def add_event(self, event: DesktopRecordedEvent) -> None:
         if len(self.events) >= _MAX_EVENTS_PER_SESSION:

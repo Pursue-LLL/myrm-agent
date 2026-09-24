@@ -108,6 +108,7 @@ async def start_desktop_recording(
 async def record_desktop_event(request: RecordDesktopEventRequest) -> dict[str, Any]:
     """Append a recorded interaction event to the active session."""
     session = _ACTIVE_SESSIONS.get(request.session_id)
+    session.touch()
     if not session:
         raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
     if session.status != "recording":
@@ -141,6 +142,7 @@ async def stop_desktop_recording(
 ) -> StopDesktopRecordingResponse:
     """Stop the recording session and terminate its capture loop."""
     session = _ACTIVE_SESSIONS.get(request.session_id)
+    session.touch()
     if not session:
         raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
 
@@ -169,6 +171,7 @@ async def stop_desktop_recording(
 async def get_desktop_recording_session(session_id: str) -> dict[str, Any]:
     """Get the current recording session state and events."""
     session = _ACTIVE_SESSIONS.get(session_id)
+    session.touch()
     if not session:
         raise HTTPException(status_code=404, detail=f"Recording session not found: {session_id}")
 
@@ -192,6 +195,7 @@ async def synthesize_desktop_skill(
 ) -> dict[str, Any]:
     """Synthesize a structured skill draft from the recorded event trace."""
     session = _ACTIVE_SESSIONS.get(request.session_id)
+    session.touch()
     if not session:
         raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
     if not session.events:
@@ -212,6 +216,7 @@ async def analyze_desktop_plan(
 ) -> AnalyzeDesktopPlanResponse:
     """Analyze recorded session events into a structured Intent + Ordered Steps Plan."""
     session = _ACTIVE_SESSIONS.get(request.session_id)
+    session.touch()
     if not session:
         raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
     if not session.events:

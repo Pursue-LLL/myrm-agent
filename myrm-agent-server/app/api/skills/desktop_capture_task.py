@@ -19,10 +19,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 
 from myrm_agent_harness.api import DesktopCaptureDriver
 
-from app.api.skills.desktop_recorder_schemas import RecordingSessionState
+from app.api.skills.desktop_recorder_schemas import (
+    SESSION_IDLE_TIMEOUT_SEC,
+    RecordingSessionState,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +136,15 @@ class DesktopCaptureTask:
                     logger.debug(
                         "Desktop capture skipped a frame for %s: %s", self._session.session_id, exc
                     )
+                # A client that vanished (closed tab, crashed) stops polling; end the loop so the
+                # platform is not captured and the session is not held forever.
+                if time.time() - self._session.last_seen_at > SESSION_IDLE_TIMEOUT_SEC:
+                    self._session.capture_active = False
+                    self._session.capture_error = "desktop_capture_abandoned"
+                    logger.info(
+                        "Desktop capture idle-stopped for %s", self._session.session_id
+                    )
+                    return
                 await asyncio.sleep(self._poll_interval_sec)
         except AXPermissionRequiredError:
             self._session.capture_active = False

@@ -135,6 +135,34 @@ describe('WorkflowRecorderModal', () => {
     expect(screen.getByText('capturePermissionNotice')).toBeInTheDocument();
   });
 
+  it('stops the server-side capture when closed mid-recording', async () => {
+    const stopMock = vi.mocked(skillService.stopDesktopRecording);
+    stopMock.mockClear();
+
+    render(<WorkflowRecorderModal isOpen={true} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByText('startRecording'));
+    await waitFor(() => {
+      expect(screen.getByText('recordingActive')).toBeInTheDocument();
+    });
+
+    // Dismissing the dialog must not leave the platform capture loop running.
+    fireEvent.click(screen.getByLabelText('Close'));
+
+    await waitFor(() => {
+      expect(stopMock).toHaveBeenCalled();
+    });
+  });
+
+  it('does not call stop when closing without an active recording', async () => {
+    const stopMock = vi.mocked(skillService.stopDesktopRecording);
+    stopMock.mockClear();
+
+    render(<WorkflowRecorderModal isOpen={true} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText('Close'));
+
+    expect(stopMock).not.toHaveBeenCalled();
+  });
+
   it('falls back to honest manual step entry when platform capture is unavailable', async () => {
     const startMock = vi.mocked(skillService.startDesktopRecording);
     const sessionPoll = vi.mocked(skillService.getDesktopRecordingSession);
