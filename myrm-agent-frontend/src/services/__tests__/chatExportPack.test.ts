@@ -89,7 +89,7 @@ describe("exportSessionZipPack", () => {
 			ok: false,
 			status: 404,
 		});
-		vi.stubGlobal("fetch", mockFetch);
+		globalThis.fetch = mockFetch as unknown as typeof fetch;
 
 		await expect(exportSessionZipPack("non-existent")).rejects.toThrow(
 			"会话不存在或已被删除",

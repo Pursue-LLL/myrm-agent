@@ -1,12 +1,12 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import AgentCommerceBudgetSection from '../AgentCommerceBudgetSection';
+import { AgentCommerceBudgetSection } from '../AgentCommerceBudgetSection';
 import {
   getCommerceBudgetStatus,
   updateCommerceBudgetConfig,
-  setEmergencyFreeze,
-  getCommerceSpendingLedger,
+  setEmergencySpendingFreeze,
+  getSpendingLedger,
   type CommerceBudgetStatus,
   type SpendingLedgerEntry,
 } from '@/services/commerceBudget';
@@ -17,35 +17,29 @@ vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
 
-vi.mock('sonner', () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-  },
-}));
-
 vi.mock('@/services/commerceBudget', () => ({
   getCommerceBudgetStatus: vi.fn(),
   updateCommerceBudgetConfig: vi.fn(),
-  setEmergencyFreeze: vi.fn(),
-  getCommerceSpendingLedger: vi.fn(),
+  setEmergencySpendingFreeze: vi.fn(),
+  getSpendingLedger: vi.fn(),
 }));
 
 describe('AgentCommerceBudgetSection', () => {
   const mockBudgetStatus: CommerceBudgetStatus = {
-    dailyCapCents: 1000,
-    perActionCapCents: 200,
-    dailySpentCents: 150,
-    activeReservedCents: 50,
-    remainingCents: 800,
+    daily_cap_cents: 1000,
+    per_action_cap_cents: 200,
+    daily_spent_cents: 150,
+    active_reserved_cents: 50,
+    remaining_cents: 800,
     currency: 'USD',
-    isFrozen: false,
-    allowedMerchants: ['namesilo.com', '*.openai.com'],
-    totalLeasesTracked: 3,
+    is_frozen: false,
+    allowed_merchants: ['namesilo.com', '*.openai.com'],
+    total_leases_tracked: 3,
   };
 
   const mockLedger: SpendingLedgerEntry[] = [
     {
+      entry_id: 'entry_1',
       lease_id: 'lease_abc123',
       merchant_domain: 'namesilo.com',
       amount_cents: 99,
@@ -55,8 +49,7 @@ describe('AgentCommerceBudgetSection', () => {
       task_id: 'task_1',
       idempotency_key: 'idemp_1',
       created_at: '2026-09-24T00:00:00Z',
-      committed_at: '2026-09-24T00:01:00Z',
-      refunded_at: null,
+      updated_at: '2026-09-24T00:01:00Z',
       entry_hash: 'hash123',
     },
   ];
@@ -64,7 +57,7 @@ describe('AgentCommerceBudgetSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getCommerceBudgetStatus).mockResolvedValue(mockBudgetStatus);
-    vi.mocked(getCommerceSpendingLedger).mockResolvedValue(mockLedger);
+    vi.mocked(getSpendingLedger).mockResolvedValue(mockLedger);
   });
 
   it('renders budget metrics and ledger entries successfully', async () => {
@@ -83,9 +76,9 @@ describe('AgentCommerceBudgetSection', () => {
   });
 
   it('toggles emergency freeze breaker', async () => {
-    vi.mocked(setEmergencyFreeze).mockResolvedValue({
+    vi.mocked(setEmergencySpendingFreeze).mockResolvedValue({
       ...mockBudgetStatus,
-      isFrozen: true,
+      is_frozen: true,
     });
 
     render(<AgentCommerceBudgetSection />);
@@ -98,14 +91,14 @@ describe('AgentCommerceBudgetSection', () => {
     fireEvent.click(freezeBtn);
 
     await waitFor(() => {
-      expect(setEmergencyFreeze).toHaveBeenCalledWith(true);
+      expect(setEmergencySpendingFreeze).toHaveBeenCalledWith(true);
     });
   });
 
   it('adds and removes merchant domain in whitelist and saves config', async () => {
     vi.mocked(updateCommerceBudgetConfig).mockResolvedValue({
       ...mockBudgetStatus,
-      allowedMerchants: ['namesilo.com', '*.openai.com', '2captcha.com'],
+      allowed_merchants: ['namesilo.com', '*.openai.com', '2captcha.com'],
     });
 
     render(<AgentCommerceBudgetSection />);
@@ -129,9 +122,6 @@ describe('AgentCommerceBudgetSection', () => {
       expect(updateCommerceBudgetConfig).toHaveBeenCalledWith({
         daily_cap_cents: 1000,
         per_action_cap_cents: 200,
-        currency: 'USD',
-        is_frozen: false,
-        lease_ttl_seconds: 300,
         allowed_merchants: ['namesilo.com', '*.openai.com', '2captcha.com'],
       });
     });
