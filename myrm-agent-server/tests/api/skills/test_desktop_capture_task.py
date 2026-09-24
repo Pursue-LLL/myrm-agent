@@ -120,6 +120,38 @@ def test_capture_loop_records_permission_requirement() -> None:
     assert session.capture_error == "desktop_capture_permission_required"
 
 
+def test_permission_denied_stops_loop_and_reports_reason() -> None:
+    """Missing Accessibility permission cannot be retried away: stop and surface the reason."""
+    from myrm_agent_harness.toolkits.computer_use.dref.errors import AXPermissionRequiredError
+
+    session = RecordingSessionState(session_id="rec-5")
+    task = DesktopCaptureTask(session, poll_interval_sec=0.01)
+    backend = MagicMock()
+
+    def raise_permission(backend_arg: object, scope: str, app_name: str | None = None):
+        raise AXPermissionRequiredError("Accessibility permission required on macOS")
+
+    async def run() -> None:
+        with (
+            patch.object(task, "_create_session", return_value=backend),
+            patch(
+                "myrm_agent_harness.toolkits.computer_use.recording.capture_driver.capture_snapshot",
+                raise_permission,
+            ),
+        ):
+            task.start()
+            for _ in range(50):
+                if session.capture_error:
+                    break
+                await asyncio.sleep(0.01)
+            await task.stop()
+
+    asyncio.run(run())
+
+    assert session.capture_error == "desktop_capture_permission_required"
+    assert session.capture_active is False
+
+
 def test_stop_is_safe_without_start() -> None:
     """Stopping a session that never started capture must not raise."""
     session = RecordingSessionState(session_id="rec-4")

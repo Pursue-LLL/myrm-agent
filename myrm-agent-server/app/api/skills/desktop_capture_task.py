@@ -90,6 +90,10 @@ class DesktopCaptureTask:
         return create_desktop_session()
 
     async def _run(self, driver: DesktopCaptureDriver) -> None:
+        from myrm_agent_harness.toolkits.computer_use.dref.errors import (
+            AXPermissionRequiredError,
+        )
+
         try:
             while True:
                 # The first poll only primes the diff baseline; it intentionally emits nothing.
@@ -99,6 +103,15 @@ class DesktopCaptureTask:
                 for event in frame.events:
                     self._session.add_event(event)
                 await asyncio.sleep(self._poll_interval_sec)
+        except AXPermissionRequiredError:
+            # Retrying cannot fix a missing OS permission; stop and tell the UI why, so it can
+            # guide the user to grant Accessibility access and start a new recording.
+            self._session.capture_active = False
+            self._session.capture_error = "desktop_capture_permission_required"
+            logger.info(
+                "Desktop capture stopped for %s: Accessibility permission not granted",
+                self._session.session_id,
+            )
         except asyncio.CancelledError:
             raise
         except Exception as exc:
