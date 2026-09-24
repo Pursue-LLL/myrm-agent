@@ -35,6 +35,8 @@ interface RosterPayload {
 
 const ROSTER_STORAGE_KEY = 'myrm-remote-gateway-roster';
 const LEGACY_STORAGE_KEY = 'myrm-remote-gateway';
+/** 桌面 OAuth 回跳前在浏览器侧暂存的 CP 地址键（深链仅带 token）。 */
+export const CLOUD_OAUTH_PENDING_KEY = 'myrm-cloud-oauth-pending';
 const MAX_NAME_LENGTH = 64;
 
 function isBrowser(): boolean {

@@ -395,6 +395,42 @@ describe('remote gateway URL routing', () => {
     expect(getBackendBaseUrl()).toBe('http://127.0.0.1:19999');
   });
 
+  it('routes API calls through the CP proxy when a cloud profile is active', () => {
+    const roster = JSON.stringify({
+      profiles: [
+        {
+          id: 'remote-1',
+          name: 'Cloud sandbox',
+          url: 'https://cp.example.com/proxy/me',
+          kind: 'cloud',
+          cpBaseUrl: 'https://cp.example.com',
+        },
+      ],
+      activeId: 'remote-1',
+    });
+    const store = new Map([['myrm-remote-gateway-roster', roster]]);
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        __TAURI__: {},
+        location: { hostname: 'desktop.myrm.local' },
+        localStorage: {
+          getItem: (k: string) => store.get(k) ?? null,
+          setItem: (k: string, v: string) => {
+            store.set(k, v);
+          },
+          removeItem: (k: string) => {
+            store.delete(k);
+          },
+        },
+      },
+    });
+
+    expect(getApiBaseUrl()).toBe('https://cp.example.com/proxy/me/api/v1');
+    expect(getBackendBaseUrl()).toBe('https://cp.example.com/proxy/me');
+    expect(getAgentApiBaseUrl()).toBe('https://cp.example.com/proxy/me/v1');
+  });
+
   it('falls back to local backend when remote gateway is removed', () => {
     Object.defineProperty(globalThis, 'window', {
       configurable: true,

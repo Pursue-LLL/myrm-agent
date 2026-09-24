@@ -35,8 +35,8 @@ export class IntentDispatcher {
    * 用户在浏览器点“回到桌面”显式触发，无静默登录；校验失败则清 token 防错绑。
    */
   private async handleOAuthCallback(token: string) {
-    const CLOUD_OAUTH_PENDING_KEY = 'myrm-cloud-oauth-pending';
     const LOCAL_TOKEN_BACKUP_KEY = 'myrm-local-auth-token-backup';
+    const { CLOUD_OAUTH_PENDING_KEY } = await import('@/lib/remote-profiles');
     try {
       const pendingRaw =
         typeof window !== 'undefined' ? window.localStorage.getItem(CLOUD_OAUTH_PENDING_KEY) : null;

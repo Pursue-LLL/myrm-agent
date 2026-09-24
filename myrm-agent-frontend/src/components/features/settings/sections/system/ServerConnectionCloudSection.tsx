@@ -5,13 +5,12 @@ import { useTranslations } from 'next-intl';
 import { setRemoteGatewayConfig } from '@/lib/deploy-mode';
 import { resolveCpBaseUrl } from '@/lib/cp-base-url';
 import {
+  CLOUD_OAUTH_PENDING_KEY,
   addRemoteProfile,
   listRemoteProfiles,
   removeRemoteProfile,
 } from '@/lib/remote-profiles';
 import { toast } from '@/lib/utils/toast';
-
-const CLOUD_OAUTH_PENDING_KEY = 'myrm-cloud-oauth-pending';
 
 interface ServerConnectionCloudSectionProps {
   onConnected: () => void;
