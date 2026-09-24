@@ -11,8 +11,12 @@ from __future__ import annotations
 import pytest
 
 from tests.support.chrome_mcp_e2e import (
+    dismiss_blocking_modals,
+    ensure_desktop_viewport,
     open_settings_subroute,
+    wait_for_settings_layout,
     wait_for_state,
+    warm_ui_route,
 )
 
 _DEVELOPER_SECTION_READY_JS = """(() => ({
@@ -130,7 +134,13 @@ def _switch_type(client: object, page: object, agent_type: str) -> None:
 @pytest.mark.integration
 def test_external_agent_permission_modes_offer_only_supported_options() -> None:
     """Every external-agent type must offer exactly the modes its runtime can honour."""
-    with open_settings_subroute("/settings/developer", timeout_ms=120_000) as (client, page):
+    subroute = "/settings/developer"
+    warm_ui_route(subroute)
+    with open_settings_subroute(subroute, timeout_ms=120_000) as (client, page):
+        ensure_desktop_viewport(client, page)
+        dismiss_blocking_modals(client, page)
+        wait_for_settings_layout(client, page)
+
         wait_for_state(client, page, _DEVELOPER_SECTION_READY_JS, timeout_sec=90.0)
 
         opened = client.evaluate(page, _OPEN_AGENT_EDITOR_JS, timeout_sec=15.0)

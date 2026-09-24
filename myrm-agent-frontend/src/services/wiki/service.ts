@@ -133,6 +133,37 @@ export interface WikiCommunityItem {
   cohesion: number;
 }
 
+export interface GraphNodeItem {
+  id: string;
+  name: string;
+  group: number;
+}
+
+export interface GraphEdgeItem {
+  source: string;
+  target: string;
+  weight: number;
+}
+
+export interface WikiGraphResponse {
+  nodes: GraphNodeItem[];
+  edges: GraphEdgeItem[];
+}
+
+export interface ConceptLinkItem {
+  name: string;
+  weight: number;
+  exists: boolean;
+  context_snippet: string | null;
+}
+
+export interface ConceptLinksResponse {
+  concept_name: string;
+  outlinks: ConceptLinkItem[];
+  backlinks: ConceptLinkItem[];
+  ego_graph: WikiGraphResponse;
+}
+
 export interface WikiGraphInsights {
   unexpected_connections: WikiUnexpectedConnectionItem[];
   knowledge_gaps: WikiKnowledgeGapItem[];
@@ -824,6 +855,32 @@ export const wikiService = {
 
   getHealthReport: async (agentId?: string | null): Promise<WikiHealthReport> => {
     return apiRequest<WikiHealthReport>(buildWikiApiPath('/wiki/health-report', agentId));
+  },
+
+  getWikiGraph: async (
+    centerNode?: string | null,
+    depth: number = 1,
+    limit: number = 500,
+    agentId?: string | null
+  ): Promise<WikiGraphResponse> => {
+    const params = new URLSearchParams();
+    if (centerNode) params.set('center_node', centerNode);
+    if (depth) params.set('depth', String(depth));
+    if (limit) params.set('limit', String(limit));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiRequest<WikiGraphResponse>(buildWikiApiPath(`/wiki/graph${query}`, agentId));
+  },
+
+  getConceptLinks: async (
+    conceptName: string,
+    depth: number = 1,
+    agentId?: string | null
+  ): Promise<ConceptLinksResponse> => {
+    const encodedName = encodeURIComponent(conceptName.trim());
+    const params = new URLSearchParams({ depth: String(depth) });
+    return apiRequest<ConceptLinksResponse>(
+      buildWikiApiPath(`/wiki/concepts/${encodedName}/links?${params.toString()}`, agentId)
+    );
   },
 
   getGraphInsights: async (agentId?: string | null): Promise<WikiGraphInsights> => {

@@ -177,6 +177,8 @@ export function WikiConceptsList({
         onEditAliasesChange={setEditAliases}
         onUpdateClaimStatus={handleUpdateClaimStatus}
         onHealClaims={handleHealClaims}
+        agentId={agentScopeId}
+        onSelectConcept={requestSelectConcept}
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

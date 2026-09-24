@@ -12,6 +12,8 @@
 - assert_agent_mcp_contract(): aggregate FAIL/WARN across instances
 - fix_cursor_mcp_configs(): idempotent SSOT restore for chrome-devtools entry
 - fix_opencode_mcp_configs(): idempotent :9410 restore for opencode entry
+- audit_browser_processes(): report-only main-Chrome census by profile
+  (--audit-browsers; never kills/stops; never affects PASS/FAIL)
 - canonical_chrome_devtools_entry(): ChromeAgent :9410 MCP server dict
 - probe_chrome_agent_reachable(): live ChromeAgent prerequisite
 - probe_chrome_agent_launchagent(): LaunchAgent daemon state
@@ -738,6 +740,111 @@ def probe_chrome_agent_reachable() -> ChromeProbe:
     }
 
 
+class BrowserProcess(TypedDict):
+    pid: int
+    etime: str
+    profile: str
+    role: str
+    detail: str
+    suspicious: bool
+
+
+def _classify_browser_process(command: str) -> tuple[str, str, str, bool]:
+    """Classify one main Chrome command line.
+
+    Returns (profile, role, detail, suspicious). Pure function — unit tested.
+    Roles: agent-pipe / agent-login / e2e / default-rogue / daily-user.
+    Read-only by construction: inspects strings only, never touches processes.
+    """
+    marker = "user-data-dir="
+    profile = ""
+    idx = command.find(marker)
+    if idx >= 0:
+        profile = command[idx + len(marker) :].split(" --")[0]
+    low_profile = profile.lower()
+    low_command = command.lower()
+    has_pipe = "remote-debugging-pipe" in low_command
+    if "myrm/chromeagent" in low_profile.replace(" ", ""):
+        if has_pipe:
+            return (profile, "agent-pipe", "ChromeAgent pipe-proxy (:9410)", False)
+        return (
+            profile,
+            "agent-login",
+            (
+                "ChromeAgent login window (no CDP) — holds profile lock; "
+                "close with Cmd+W then re-run daemon"
+            ),
+            True,
+        )
+    if "chromee2e" in low_profile.replace(" ", ""):
+        return (profile, "e2e", "E2E Chrome (:9333, harness-only)", False)
+    if "chrome-devtools-mcp/chrome-profile" in low_profile.replace(" ", ""):
+        return (
+            profile,
+            "default-rogue",
+            (
+                "default-profile MCP spawn — not covered by SSOT; "
+                "point owner session at --browserUrl :9410"
+            ),
+            True,
+        )
+    return (profile or "(default)", "daily-user", "user daily Chrome", False)
+
+
+def audit_browser_processes() -> list[BrowserProcess]:
+    """List main Chrome processes classified by profile. Report-only.
+
+    Never kills, stops, or writes anything — safe to run anytime, even with
+    peers active. A second agent-pipe on the same profile is flagged because
+    Chrome grants single ownership per profile dir.
+    """
+    try:
+        completed = subprocess.run(
+            ["ps", "-ax", "-o", "pid=,etime=,command="],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    if completed.returncode != 0:
+        return []
+    rows: list[BrowserProcess] = []
+    for line in completed.stdout.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) != 3:
+            continue
+        pid_text, etime, command = parts
+        if "MacOS/Google Chrome --" not in command:
+            continue
+        try:
+            pid = int(pid_text)
+        except ValueError:
+            continue
+        profile, role, detail, suspicious = _classify_browser_process(command)
+        rows.append(
+            {
+                "pid": pid,
+                "etime": etime,
+                "profile": profile,
+                "role": role,
+                "detail": detail,
+                "suspicious": suspicious,
+            }
+        )
+    pipe_pids = [row["pid"] for row in rows if row["role"] == "agent-pipe"]
+    if len(pipe_pids) > 1:
+        for row in rows:
+            if row["role"] == "agent-pipe":
+                row["suspicious"] = True
+                row["detail"] += (
+                    f"; CONFLICT: {len(pipe_pids)} pipe owners "
+                    f"({', '.join(str(p) for p in pipe_pids)}) on one profile"
+                )
+    return rows
+
+
 def build_doctor_report(
     *, skip_live: bool = False, strict_live: bool = False
 ) -> DoctorReport:
@@ -838,6 +945,15 @@ def main(argv: list[str] | None = None) -> int:
             "and opencode opencode.json files"
         ),
     )
+    parser.add_argument(
+        "--audit-browsers",
+        action="store_true",
+        help=(
+            "List main Chrome processes classified by profile "
+            "(report-only; never kills or stops anything; "
+            "does not affect doctor PASS/FAIL)"
+        ),
+    )
     args = parser.parse_args(argv)
 
     if args.fix:
@@ -858,6 +974,7 @@ def main(argv: list[str] | None = None) -> int:
         skip_live=args.skip_live,
         strict_live=args.strict_live,
     )
+    audit_rows = audit_browser_processes() if args.audit_browsers else None
     if args.json:
         payload = {
             "ok": report.ok,
@@ -867,9 +984,21 @@ def main(argv: list[str] | None = None) -> int:
             "install_probe": report.install_probe,
             "focus_probe": report.focus_probe,
         }
+        if audit_rows is not None:
+            payload["browser_audit"] = audit_rows
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
         _print_doctor_report(report)
+        if audit_rows is not None:
+            print("BROWSER_AUDIT: main Chrome processes by profile (report-only)")
+            if not audit_rows:
+                print("  (none found)")
+            for row in audit_rows:
+                flag = "SUSPICIOUS" if row["suspicious"] else "ok"
+                print(
+                    f"  [{flag}] pid={row['pid']} etime={row['etime']} "
+                    f"role={row['role']} :: {row['detail']}"
+                )
     return 0 if report.ok else 1
 
 

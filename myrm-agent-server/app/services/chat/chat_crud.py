@@ -4,6 +4,7 @@
 - _base::_ChatServiceBase, _ChatRepositoryPort (POS: repository 协议和访问器)
 - database.dto::ChatCreate, ChatDTO, MessageCreate, MessageDTO (POS: 数据传输对象)
 - conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
+- services.memory.consolidation_service::ConsolidationService (POS: 记忆工作台与巩固服务)
 
 [OUTPUT]
 - _ChatCrudMixin: Chat CRUD、session flush、channel chat 管理、`ensure_chat_source`（cron 打标并同步 recall 索引 source）
@@ -309,6 +310,7 @@ class _ChatCrudMixin(_ChatServiceBase):
         await close_external_agent_pool_for_chat(chat_id)
         await close_execution_cache_for_chat_all_agents(chat_id)
         await _clear_extract_retry_queue(chat_id)
+        _clear_session_working_memory(chat_id)
         return True
 
     @staticmethod
@@ -356,6 +358,7 @@ class _ChatCrudMixin(_ChatServiceBase):
         if ok:
             await _cascade_delete_memories(chat_id)
             await _ChatCrudMixin._cleanup_checkpointer(chat_id)
+            _clear_session_working_memory(chat_id)
             if sandbox_base_dir:
                 try:
                     from app.services.chat.sandbox_worktree import (
@@ -663,6 +666,16 @@ async def _clear_extract_retry_queue(chat_id: str) -> None:
         await clear_for_chat(chat_id)
     except Exception as exc:
         logger.warning("Failed to clear memory extract retry queue (chat=%s): %s", chat_id, exc)
+
+
+def _clear_session_working_memory(chat_id: str) -> None:
+    """Evict active working memory state cache for deleted chat (fail-open)."""
+    try:
+        from app.services.memory.consolidation_service import ConsolidationService
+
+        ConsolidationService.clear_session_working_state(chat_id)
+    except Exception as exc:
+        logger.warning("Failed to clear session working state (chat=%s): %s", chat_id, exc)
 
 
 async def _cascade_delete_memories(chat_id: str) -> None:

@@ -30,11 +30,15 @@ async def test_delete_chat_closes_external_agent_pool() -> None:
             "app.services.chat.chat_crud.close_external_agent_pool_for_chat",
             mock_close,
         ),
+        patch(
+            "app.services.memory.consolidation_service.ConsolidationService.clear_session_working_state",
+        ) as mock_clear_wm,
     ):
         ok = await ChatService.delete_chat("chat-del-1")
 
     assert ok is True
     mock_close.assert_awaited_once_with("chat-del-1")
+    mock_clear_wm.assert_called_once_with("chat-del-1")
 
 
 @pytest.mark.asyncio
@@ -62,11 +66,15 @@ async def test_permanently_delete_chat_closes_external_agent_pool() -> None:
             "app.services.chat.chat_crud.close_external_agent_pool_for_chat",
             mock_close,
         ),
+        patch(
+            "app.services.memory.consolidation_service.ConsolidationService.clear_session_working_state",
+        ) as mock_clear_wm,
     ):
         ok = await ChatService.permanently_delete_chat("chat-perm-1")
 
     assert ok is True
     mock_close.assert_awaited_once_with("chat-perm-1")
+    mock_clear_wm.assert_called_once_with("chat-perm-1")
 
 
 @pytest.mark.integration

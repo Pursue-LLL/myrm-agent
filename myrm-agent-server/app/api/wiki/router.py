@@ -296,6 +296,20 @@ class WikiGraphResponse(BaseModel):
     edges: list[GraphEdgeItem]
 
 
+class ConceptLinkItem(BaseModel):
+    name: str
+    weight: float = 1.0
+    exists: bool = True
+    context_snippet: str | None = None
+
+
+class ConceptLinksResponse(BaseModel):
+    concept_name: str
+    outlinks: list[ConceptLinkItem] = Field(default_factory=list)
+    backlinks: list[ConceptLinkItem] = Field(default_factory=list)
+    ego_graph: WikiGraphResponse
+
+
 class WikiEditorSectionsResponse(BaseModel):
     compiled_truth: str = ""
     timeline: str = ""
@@ -1422,6 +1436,34 @@ async def delete_wiki_folder(
     except Exception as e:
         logger.error("Wiki folder deletion failed: %s", e)
         raise HTTPException(status_code=500, detail="Folder deletion failed") from e
+
+
+@router.get("/concepts/{name:path}/links", response_model=ConceptLinksResponse)
+def get_concept_links(
+    name: str,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    depth: int = Query(1, ge=1, le=2, description="Neighborhood depth for ego graph"),
+) -> ConceptLinksResponse:
+    """Fetch bidirectional links (outlinks and backlinks) with context snippets and 1-degree ego graph."""
+    try:
+        indexer = archiver._query_engine._indexer
+        res = indexer.get_concept_links(name, depth=depth)
+        ego_raw = res.get("ego_graph") or {}
+        ego_graph = WikiGraphResponse(
+            nodes=[GraphNodeItem(**n) for n in ego_raw.get("nodes", [])],
+            edges=[GraphEdgeItem(**e) for e in ego_raw.get("edges", [])],
+        )
+        return ConceptLinksResponse(
+            concept_name=str(res.get("concept_name", name)),
+            outlinks=[ConceptLinkItem(**item) for item in res.get("outlinks", [])],
+            backlinks=[ConceptLinkItem(**item) for item in res.get("backlinks", [])],
+            ego_graph=ego_graph,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fetch concept links for '{name}': {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch concept links") from e
 
 
 @router.get("/concepts/{name:path}", response_model=ConceptResponse)

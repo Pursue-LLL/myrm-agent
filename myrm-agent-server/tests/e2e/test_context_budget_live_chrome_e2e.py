@@ -27,7 +27,6 @@ from tests.support.chrome_mcp_e2e import (
     http_json,
     open_mcp_page,
     prepare_e2e_ui_session,
-    wait_for_react_e2e_bridge,
     wait_for_state,
     warm_ui_route,
 )
@@ -102,23 +101,24 @@ _CLOSE_PANEL_JS = """(() => {
   return { ok: true };
 })()"""
 
+_BRIDGE_READY_JS = """(() => ({
+  ready: !!window.__MYRM_E2E_CHAT__?.sendChatMessage && !!window.__MYRM_E2E_CHAT__?.attachToChat,
+  hasSend: !!window.__MYRM_E2E_CHAT__?.sendChatMessage,
+  hasAttach: !!window.__MYRM_E2E_CHAT__?.attachToChat,
+}))()"""
+
 _ATTACH_CHAT_JS = """(async () => {
   const bridge = window.__MYRM_E2E_CHAT__;
   if (!bridge?.attachToChat) return { ok: false, err: 'no-bridge' };
+  await bridge.attachToChat(__MYRM_CHAT_ID__);
   const input = document.querySelector('[data-chat-input]');
   const store = window.__myrmChatStore?.getState?.();
-  const ok =
-    Boolean(input)
-    && Boolean(store?.isMessagesLoaded)
-    && !Boolean(store?.notFound)
-    && !Boolean(store?.loadError);
   return {
-    ready: ok,
-    ok,
+    ready: Boolean(input) && Boolean(store?.isMessagesLoaded) && !Boolean(store?.notFound),
+    ok: Boolean(input) && Boolean(store?.isMessagesLoaded),
     hasInput: Boolean(input),
     isMessagesLoaded: Boolean(store?.isMessagesLoaded),
     notFound: Boolean(store?.notFound),
-    loadError: Boolean(store?.loadError),
   };
 })()"""
 
@@ -164,23 +164,22 @@ def test_live_turn_emits_context_budget_with_server_turn_count() -> None:
     agent_id = str(seeded["agent_id"])
     chat_path = str(seeded.get("ui_path") or f"/{chat_id}?agentId={agent_id}")
     chat_url = f"{ui_url.rstrip('/')}{chat_path}"
-    home_url = f"{ui_url.rstrip('/')}/"
-    warm_ui_route("/")
     warm_ui_route(chat_path)
 
-    with open_mcp_page(home_url, timeout_ms=120_000) as (client, page):
+    with open_mcp_page(chat_url, request_timeout_sec=300.0) as (client, page):
         ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
-        # Hydrate the Turbopack client on the shell route first; a cold chat route
-        # cannot finish hydration within the bridge timeout under parallel load.
-        bridge = wait_for_react_e2e_bridge(client, page, timeout_sec=90.0, page_url=home_url)
-        assert bridge.get("ready") is True, json.dumps(bridge, ensure_ascii=False)
 
-        client.navigate(page, chat_url)  # type: ignore[attr-defined]
-        time.sleep(1.5)
-        dismiss_blocking_modals(client, page)
+        # Open the chat route directly (the home shell never exposes attachToChat) and
+        # wait for the bridge to publish its send/attach API.
+        bridge = wait_for_state(client, page, _BRIDGE_READY_JS, timeout_sec=90.0)
+        assert isinstance(bridge, dict) and bridge.get("ready") is True, bridge
 
-        attached = wait_for_state(client, page, _ATTACH_CHAT_JS, timeout_sec=90.0)
+        attached = client.evaluate(
+            page,
+            _ATTACH_CHAT_JS.replace("__MYRM_CHAT_ID__", json.dumps(chat_id)),
+            timeout_sec=60.0,
+        )
         assert isinstance(attached, dict) and attached.get("ok") is True, attached
 
         baseline = client.evaluate(

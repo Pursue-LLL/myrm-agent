@@ -11,6 +11,8 @@ import { IconBook, IconEdit, IconLoader, IconSave, IconX } from '@/components/fe
 import MarkdownContent from '@/components/features/message-box/MarkdownContent';
 import { WikiMarkdownEditor } from './WikiMarkdownEditor';
 import { VideoKnowledgePlayer, extractVideoNoteMeta } from './VideoKnowledgePlayer';
+import { WikiConceptLinksPanel } from './WikiConceptLinksPanel';
+import { Network } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { Concept } from '@/services/wikiService';
 import type { WikiEditTab } from './useWikiConceptsList';
@@ -43,6 +45,8 @@ interface WikiConceptDetailPanelProps {
   onEditAliasesChange: (value: string) => void;
   onUpdateClaimStatus?: (claimId: string, status: 'supported' | 'contested') => void;
   onHealClaims?: () => void;
+  agentId?: string | null;
+  onSelectConcept?: (name: string) => void;
 }
 
 const EDIT_TABS: WikiEditTab[] = ['truth', 'timeline', 'metadata', 'advanced'];
@@ -73,6 +77,8 @@ export function WikiConceptDetailPanel({
   onEditAliasesChange,
   onUpdateClaimStatus,
   onHealClaims,
+  agentId,
+  onSelectConcept,
 }: WikiConceptDetailPanelProps) {
   const t = useTranslations('settings.wiki.concepts');
   const locale = useLocale();
@@ -141,10 +147,26 @@ export function WikiConceptDetailPanel({
                   </Button>
                 </>
               ) : (
-                <Button data-testid="wiki-concept-edit-btn" variant="outline" size="sm" onClick={onEdit}>
-                  <IconEdit className="w-4 h-4 mr-2" />
-                  {t('edit')}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const el = document.getElementById('wiki-concept-links');
+                      el?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground hidden sm:flex items-center gap-1.5"
+                    title="跳转到双向链接与脉络"
+                  >
+                    <Network className="w-3.5 h-3.5 text-primary" />
+                    <span>脉络</span>
+                  </Button>
+                  <Button data-testid="wiki-concept-edit-btn" variant="outline" size="sm" onClick={onEdit}>
+                    <IconEdit className="w-4 h-4 mr-2" />
+                    {t('edit')}
+                  </Button>
+                </div>
               )}
             </div>
           </CardHeader>
@@ -382,6 +404,12 @@ export function WikiConceptDetailPanel({
                     </div>
                   )}
                 </div>
+
+                <WikiConceptLinksPanel
+                  conceptName={selectedConcept.name}
+                  agentId={agentId}
+                  onSelectConcept={onSelectConcept}
+                />
               </>
             )}
           </CardContent>
