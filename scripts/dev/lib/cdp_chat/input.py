@@ -579,6 +579,7 @@ class CdpChatInput(CdpChatBootstrap):
         """Wait for React E2E bridge or install localhost fallback after hydration."""
         deadline = time.monotonic() + timeout_sec
         polls = 0
+        last_probe: object = None
         while time.monotonic() < deadline:
             polls += 1
             await self.dismiss_modals()
@@ -587,6 +588,7 @@ class CdpChatInput(CdpChatBootstrap):
                 E2E_BRIDGE_INSTALL_JS, intent=EvaluateIntent.SYNC_PROBE
             )
             probe = await self.evaluate(PAGE_PROBE_JS, intent=EvaluateIntent.SYNC_PROBE)
+            last_probe = probe
             if (
                 isinstance(probe, dict)
                 and probe.get("hasBridge")
@@ -604,7 +606,15 @@ class CdpChatInput(CdpChatBootstrap):
                 await self.cdp("Page.reload", {"ignoreCache": True}, recv_timeout=120.0)
                 await asyncio.sleep(4)
             await asyncio.sleep(1)
-        raise TimeoutError("Dev E2E chat bridge not available on WebUI")
+        # Report the last probe. Every flag distinguishes a different layer: no
+        # hasBridge means the React bundle never executed (compile error, error page,
+        # or wrong document) — the case that produced bare, unattributable timeouts
+        # before. hasBridge without hasInput means it executed but the chat surface
+        # is not mounted. Without this the error named only the symptom.
+        raise TimeoutError(
+            "Dev E2E chat bridge not available on WebUI after "
+            f"{timeout_sec:.0f}s ({polls} polls); last probe={last_probe!r}"
+        )
 
     async def wait_dev_bridge(self, *, timeout_sec: float = 90.0) -> None:
         await self.ensure_dev_bridge(timeout_sec=timeout_sec)
