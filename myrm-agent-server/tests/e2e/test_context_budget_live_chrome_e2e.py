@@ -61,10 +61,12 @@ _AWAIT_LIVE_REPLY_JS = """(() => {
   const last = assistants.length ? assistants[assistants.length - 1] : null;
   const streaming = Boolean(store?.isStreaming || store?.loading);
   return {
-    // Ready only once the live turn has produced an ADDITIONAL budgeted assistant.
+    // Ready only once the live turn has produced an ADDITIONAL budgeted assistant
+    // whose streamed reply has non-empty text.
     ready: assistants.length >= MIN_BUDGET && !streaming,
     budgetedCount: assistants.length,
     streaming,
+    liveReply: String(last?.content || last?.text || '').trim(),
     liveTurnCount: last?.contextBudget?.turn_count ?? null,
     liveMessagesEstimated: Number(last?.contextBudget?.messages_estimated_tokens ?? 0),
     liveBoundTools: Number(last?.contextBudget?.bound_tools_overhead_tokens ?? 0),
@@ -209,6 +211,13 @@ def test_live_turn_emits_context_budget_with_server_turn_count() -> None:
             timeout_sec=180.0,
         )
         assert isinstance(reply, dict) and reply.get("ready") is True, reply
+
+        # The model must actually answer: a real streamed reply, not an empty turn.
+        live_reply = str(reply.get("liveReply") or "").strip()
+        assert live_reply, f"model returned no reply text: {reply}"
+        assert "hello" in live_reply.lower(), (
+            f"model reply does not follow the prompt: {live_reply!r}"
+        )
 
         # A live turn must add a budget whose turn_count is a real server value.
         assert reply.get("budgetedCount", 0) > baseline_budgeted, (

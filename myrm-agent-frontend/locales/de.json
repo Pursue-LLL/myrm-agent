@@ -10767,37 +10767,6 @@
     "unlockFailed": "Entsperren fehlgeschlagen"
   },
   "skills": {
-    "desktopRecording": {
-      "drawerTitle": "Desktop-Workflow-Skill-Rekorder",
-      "close": "Schließen",
-      "currentStatus": "Aktueller Status",
-      "status_idle": "Bereit zur Aufnahme",
-      "status_recording": "Desktop-Aktivität wird aufgezeichnet...",
-      "status_stopped": "Aufnahme gestoppt",
-      "status_synthesizing": "Skill wird mit KI synthetisiert...",
-      "status_draft_ready": "Skill-Entwurf bereit zur Überprüfung",
-      "status_published": "Skill erfolgreich veröffentlicht",
-      "btnStart": "Aufnahme starten",
-      "btnStop": "Aufnahme stoppen",
-      "btnReset": "Zurücksetzen",
-      "skillNameLabel": "Skill-Name",
-      "skillNamePlaceholder": "z. B. erp_invoice_export_workflow",
-      "skillDescLabel": "Beschreibung & Absicht",
-      "skillDescPlaceholder": "Beschreiben Sie kurz das Geschäftsziel dieses Workflows...",
-      "btnSynthesize": "Skill aus Aufnahme synthetisieren",
-      "draftTitle": "Synthetisierter Skill-Entwurf",
-      "toolLiftingActive": "Tool-Lifting aktiv",
-      "parameterSlots": "Erkannte dynamische Parameter",
-      "markdownEditorLabel": "SKILL.md Quellcode (editierbar)",
-      "btnPublish": "Im Skill-Store veröffentlichen",
-      "publishing": "Wird veröffentlicht...",
-      "publishSuccessTitle": "Skill erfolgreich veröffentlicht",
-      "publishSuccessDesc": "Der neue Desktop-Workflow-Skill ist jetzt für alle Agenten verfügbar.",
-      "btnNewRecord": "Weiteren Workflow aufnehmen",
-      "stepsHeading": "Aufgezeichnete Interaktionsschritte ({count})",
-      "noStepsYet": "Noch keine Desktop-Interaktionen aufgezeichnet. Klicken Sie auf Aufnahme starten.",
-      "deleteStep": "Schritt löschen"
-    },
     "permissions": {
       "types": {
         "fileRead": {

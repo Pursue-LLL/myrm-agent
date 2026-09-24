@@ -96,7 +96,7 @@ def _open_export_pack_menu_js(chat_id: str) -> str:
       const menuItems = Array.from(document.querySelectorAll('[role="menuitem"]'));
       const zipItem = menuItems.find((el) => {{
         const text = (el.textContent || '').trim();
-        return /导出会话日志包|Export Session.*Zip|Export Session Pack/i.test(text);
+        return /导出会话(归档|日志)包|Export Session.*Zip|Export Session Pack/i.test(text);
       }});
       if (!zipItem) {{
         return resolve({{
@@ -105,9 +105,12 @@ def _open_export_pack_menu_js(chat_id: str) -> str:
           items: menuItems.map((i) => (i.textContent || '').trim()),
         }});
       }}
+      zipItem.dispatchEvent(new PointerEvent('pointerdown', {{ bubbles: true, cancelable: true, button: 0 }}));
+      zipItem.click();
       resolve({{
         ready: true,
         found: true,
+        clicked: true,
         label: (zipItem.textContent || '').trim(),
       }});
     }}, 400);

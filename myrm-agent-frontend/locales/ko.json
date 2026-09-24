@@ -10767,37 +10767,6 @@
     "unlockFailed": "잠금 해제 실패"
   },
   "skills": {
-    "desktopRecording": {
-      "drawerTitle": "데스크톱 워크플로 스킬 레코더",
-      "close": "닫기",
-      "currentStatus": "현재 상태",
-      "status_idle": "기록 준비 완료",
-      "status_recording": "데스크톱 작업 기록 중...",
-      "status_stopped": "기록 중지됨",
-      "status_synthesizing": "AI가 스킬을 요약 및 추출 중...",
-      "status_draft_ready": "스킬 초안 검토 준비 완료",
-      "status_published": "스킬 게시 성공",
-      "btnStart": "기록 시작",
-      "btnStop": "기록 중지",
-      "btnReset": "초기화",
-      "skillNameLabel": "스킬 이름",
-      "skillNamePlaceholder": "예: erp_invoice_export_workflow",
-      "skillDescLabel": "설명 및 의도",
-      "skillDescPlaceholder": "이 데스크톱 워크플로의 목표를 간단히 설명하세요...",
-      "btnSynthesize": "기록에서 스킬 추출",
-      "draftTitle": "추출된 스킬 초안",
-      "toolLiftingActive": "도구 승격 활성화됨",
-      "parameterSlots": "감지된 동적 매개변수",
-      "markdownEditorLabel": "SKILL.md 소스 코드 (편집 가능)",
-      "btnPublish": "로컬 스킬 저장소에 게시",
-      "publishing": "게시 중...",
-      "publishSuccessTitle": "스킬 게시 완료",
-      "publishSuccessDesc": "새로운 데스크톱 워크플로 스킬을 이제 모든 에이전트에서 사용할 수 있습니다.",
-      "btnNewRecord": "다른 워크플로 기록",
-      "stepsHeading": "기록된 작업 단계 ({count})",
-      "noStepsYet": "아직 기록된 데스크톱 작업이 없습니다. 기록 시작을 클릭하고 작업을 시연하세요.",
-      "deleteStep": "단계 삭제"
-    },
     "permissions": {
       "types": {
         "fileRead": {
