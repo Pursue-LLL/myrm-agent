@@ -1,5 +1,18 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/services/wikiService::wikiService (POS: Wiki REST 客户端，提供 getConceptLinks 词条链接与拓扑网络检索)
+ * - @/components/primitives/button::Button (POS: 基础按钮组件)
+ * - @/lib/utils/classnameUtils::cn (POS: 类名合并工具)
+ *
+ * [OUTPUT]
+ * - WikiConceptLinksPanel: 词条双向链接与局部微型拓扑雷达面板，呈现反向引用（含上下文切片）、前置引用与局部图谱
+ *
+ * [POS]
+ * 词条脉络导航组件。嵌入词条详情抽屉，展示词条的入链、出链及 Ego 拓扑图，支持点击直达关联词条。
+ */
+
 import { useEffect, useState, useTransition } from 'react';
 import { ArrowUpRight, CornerDownLeft, Network, FileText, AlertCircle, RefreshCw } from 'lucide-react';
 import { wikiService, type ConceptLinksResponse, type ConceptLinkItem } from '@/services/wikiService';

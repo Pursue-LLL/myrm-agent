@@ -23,6 +23,7 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 | WikiUrlImportDialog.tsx                              | UI   | 网页链接批量导入 Dialog（多行 URL 解析、去重校验、上限 50、SSRF 安全防御、入队提示）                                                                                                                              | ✅    |
 | WikiVideoImportDialog.tsx                            | UI   | 在线音视频导入 Dialog（Bilibili/YouTube URL 校验、目标目录与滑动窗口配置、入库提示）                                                                                                                              | ✅    |
 | VideoKnowledgePlayer.tsx                             | UI   | 视频知识播放器（Bilibili/YouTube/原生视频自适应内嵌、秒级时间戳 seek、章节列表导航、Frontmatter 视频元数据与章节解析）                                                                                            | ✅    |
+| WikiConceptLinksPanel.tsx                            | UI   | 词条双向链接与脉络导航面板：反向引用列表（含上下文高亮穿透）、前置引用列表（含幽灵链接状态）、局部 Ego 拓扑雷达（支持单键穿透跳转）                                                                               | ✅    |
 | WikiGovernanceWorkbench.tsx                          | UI   | 知识生命周期治理工作台：四队列看板（待审核草稿/即将过期/知识盲区/已归档）、90 天老化延期、原子隔离归档、30s 内存撤销与一键复活                                                                                    | ✅    |
 | `WikiLayersLedgerPanel.tsx`                          | UI   | 五层知识资产全局态势看板（L1-L5）；支持层级卡片交互选中、微观条目下钻列表抽屉、单键审阅单回写入口，全响应式适配                               | ✅    |
 | `WikiLayerItemPreviewModal.tsx`                      | UI   | 分层资产微观文档条目只读 Markdown 与凭据元数据在线预览弹窗                                                                                        | ✅    |
@@ -34,6 +35,7 @@ Settings Wiki 词条管理 UI：目录树 CRUD、拖拽排序、Markdown 预览�
 | **tests**/WikiConceptDetailPanel.sourceJump.test.tsx | Test | 概念详情来源对话跳转（消息级/会话级/无来源）                                                                                                                                                                      | ✅    |
 | **tests**/VideoKnowledgePlayer.test.ts               | Test | 视频播放器嵌入、时间戳解析、Frontmatter 元数据抽取与 URL 校验单测                                                                                                                                                 | ✅    |
 | **tests**/WikiEditorToolbar.test.tsx                 | Test | WikiEditorToolbar 按钮渲染、格式操作分发与 disabled 状态保护单测                                                                                                                                                  | ✅    |
+| **tests**/WikiConceptLinksPanel.test.tsx             | Test | WikiConceptLinksPanel 双向引用渲染、上下文片段展示与 Tab 切换单测                                                                                                                                                  | ✅    |
 
 ## Dependencies
 
