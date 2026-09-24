@@ -18791,7 +18791,7 @@
       "noEntries": "Keine Transaktionen aufgezeichnet",
       "merchant": "Händler",
       "amount": "Betrag",
-      "status": "Status",
+      "status": "Statuszustand",
       "time": "Zeit",
       "verifiedReceipt": "HMAC-Signatur verifiziert"
     },

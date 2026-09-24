@@ -25,4 +25,5 @@
 | `turn.py` | 模块 | Turn lifecycle: retry, regenerate, sibling switch, truncate-after (edit-resend), undo, rewind. | ✅ |
 | `trajectory.py` | 模块 | `GET /{chat_id}/trajectory` — 抽取多轮执行轨迹（包含 tool_calls、参数、耗时、Token 与错误分类），供前端跨会话时序瀑布流与双轨 Diff 对比消费。 | ✅ |
 | `replay.py` | 模块 | `POST /{chat_id}/replay` — 会话重放与确定性验证接口，计算工具调用序列对齐率、Jaccard指数与确定性得分（0.0 ~ 1.0）。 | ✅ |
+| `export_pack.py` | 模块 | `HEAD & GET /{chat_id}/export-pack` — 会话事件日志、子Agent日志与工件文件的自包含流式 ZIP 导出管道，支持 O(1) 内存分块与 SHA256 清单。 | ✅ |
 | `memory_extract.py` | 模块 | `POST /{chat_id}/memory/retry-extract` — 对最近一轮 user/assistant 重新调度 memory extract；incognito / 无效 turn → 400；chat 不存在 → 404；返回 `scheduled` / `already_in_flight` | ✅ |
