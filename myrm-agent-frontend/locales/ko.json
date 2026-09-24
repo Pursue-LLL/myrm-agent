@@ -1844,7 +1844,8 @@
       "copySuccessRedacted": "클립보드에 복사됨 (민감한 자격 증명 마스킹됨)",
       "error": "내보내기 실패",
       "noMessages": "내보낼 메시지가 없습니다",
-      "print": "인쇄"
+      "print": "인쇄",
+      "exportZipPack": "세션 아카이브 내보내기 (.zip)"
     },
     "ideHandoff": {
       "openInIDE": "IDE에서 열기",
@@ -18764,6 +18765,35 @@
       "softGateActive": "소프트 게이트 활성화됨",
       "autoDowngradedActive": "경제 모델로 원활하게 다운그레이드됨",
       "criticalPauseActive": "승인 대기 일시 정지됨"
+    },
+    "commerceBudget": {
+      "title": "자율 소액 결제 및 지출 금고",
+      "description": "가맹점 화이트리스트 기반 에이전트 마이크로 예산 자율 결제 금고",
+      "dailyCap": "일일 자율 지출 한도",
+      "dailyCapDesc": "에이전트가 자율적으로 지출할 수 있는 하루 최대 총액",
+      "perActionCap": "건당 결제 한도",
+      "perActionCapDesc": "단일 소액 결제 작업에 허용되는 최대 금액 (권장 <= $2.00)",
+      "todaySpent": "오늘 지출액",
+      "activeReserved": "동시 예약 금액",
+      "remainingBudget": "남은 가용 예산",
+      "emergencyFreeze": "긴급 동결",
+      "emergencyFreezeDesc": "모든 자율 결제를 즉시 차단하고 수동 승인을 강제합니다",
+      "frozenStatus": "긴급 동결됨",
+      "activeStatus": "금고 활성 중",
+      "allowedMerchants": "신뢰할 수 있는 가맹점 화이트리스트",
+      "allowedMerchantsDesc": "화이트리스트에 포함된 도메인으로의 결제만 허용 (와일드카드 지원: *.openai.com)",
+      "addMerchant": "가맹점 추가",
+      "addMerchantPlaceholder": "가맹점 도메인 입력 (예: namesilo.com)",
+      "save": "설정 저장",
+      "savedSuccess": "지출 금고 설정이 성공적으로 업데이트되었습니다",
+      "ledgerTitle": "위변조 방지 지출 원장",
+      "ledgerDesc": "HMAC 연쇄 암호화 서명 기반 감사 기록",
+      "noEntries": "자율 지출 기록이 없습니다",
+      "merchant": "가맹점",
+      "amount": "금액",
+      "status": "상태",
+      "time": "시간",
+      "verifiedReceipt": "HMAC 서명 검증됨"
     },
     "channelBudget": {
       "title": "채널 예산 할당",

@@ -1844,7 +1844,8 @@
       "copySuccessRedacted": "In die Zwischenablage kopiert (sensible Daten geschwärzt)",
       "error": "Export fehlgeschlagen",
       "noMessages": "Keine Nachrichten zum Exportieren",
-      "print": "Drucken"
+      "print": "Drucken",
+      "exportZipPack": "Sitzungsarchiv exportieren (.zip)"
     },
     "ideHandoff": {
       "openInIDE": "In IDE öffnen",
@@ -18764,6 +18765,35 @@
       "softGateActive": "Soft-Gate aktiv",
       "autoDowngradedActive": "Nahtlos auf Sparmodell abgestuft",
       "criticalPauseActive": "Kritische Pause wartet auf Genehmigung"
+    },
+    "commerceBudget": {
+      "title": "Autonomes Micro-Payment & Ausgaben-Tresor",
+      "description": "Kontrollierter Agenten-Micro-Budget-Zahlungstresor mit Händler-Allowlist",
+      "dailyCap": "Tägliches Ausgabenlimit",
+      "dailyCapDesc": "Maximaler Betrag, den der Agent pro Tag autonom ausgeben darf",
+      "perActionCap": "Limit pro Transaktion",
+      "perActionCapDesc": "Maximalbetrag pro Micro-Zahlung (empfohlen <= $2.00)",
+      "todaySpent": "Heute ausgegeben",
+      "activeReserved": "Aktiv reserviert",
+      "remainingBudget": "Verbleibendes Budget",
+      "emergencyFreeze": "Notfall-Sperre",
+      "emergencyFreezeDesc": "Blockiert alle autonomen Zahlungen sofort und erzwingt manuelle Freigabe",
+      "frozenStatus": "Notfall-gesperrt",
+      "activeStatus": "Tresor aktiv",
+      "allowedMerchants": "Erlaubte Händler-Whitelist",
+      "allowedMerchantsDesc": "Erlaubt nur Zahlungen an Domains der Whitelist (unterstützt *.openai.com)",
+      "addMerchant": "Händler hinzufügen",
+      "addMerchantPlaceholder": "Händler-Domain eingeben (z. B. namesilo.com)",
+      "save": "Änderungen speichern",
+      "savedSuccess": "Ausgaben-Tresor-Einstellungen erfolgreich aktualisiert",
+      "ledgerTitle": "Manipulationssicheres Ausgabenbuch",
+      "ledgerDesc": "Kryptographisch verketteter Prüfpfad mit HMAC-Signaturen",
+      "noEntries": "Keine Transaktionen aufgezeichnet",
+      "merchant": "Händler",
+      "amount": "Betrag",
+      "status": "Status",
+      "time": "Zeit",
+      "verifiedReceipt": "HMAC-Signatur verifiziert"
     },
     "channelBudget": {
       "title": "Kanal-Budgetlimits",

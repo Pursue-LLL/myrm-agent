@@ -130,8 +130,13 @@ def _switch_type(client: object, page: object, agent_type: str) -> None:
     wait_for_state(client, page, applied_js, timeout_sec=20.0)
 
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.chrome_e2e(
+    execution_mode="SHARED",
+    access_scope="READ",
+    workload="STANDARD",
+)
 @pytest.mark.integration
+@pytest.mark.timeout(600)
 def test_external_agent_permission_modes_offer_only_supported_options() -> None:
     """Every external-agent type must offer exactly the modes its runtime can honour."""
     subroute = "/settings/developer"

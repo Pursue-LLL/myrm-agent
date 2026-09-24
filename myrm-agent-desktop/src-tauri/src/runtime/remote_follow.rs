@@ -60,6 +60,8 @@ pub fn set_remote_follow(app: AppHandle, deferred: bool) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     #[test]
     fn missing_file_means_not_deferred() {
         let path = PathBuf::from("/nonexistent-remote-follow-flag.json");

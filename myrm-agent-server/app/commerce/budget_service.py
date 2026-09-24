@@ -21,7 +21,7 @@ import logging
 import os
 import threading
 
-from myrm_agent_harness.core.security.egress.spend_governor import (
+from myrm_agent_harness.api.security import (
     SpendGovernor,
     SpendGovernorConfig,
 )
@@ -95,7 +95,7 @@ class CommerceBudgetService:
     ) -> None:
         self._governor = governor or SpendGovernor()
         self._ledger = ledger_store or get_spending_ledger_store()
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
     def get_status(self) -> CommerceBudgetStatusDTO:
         """Fetch current budget caps and real-time spend metrics."""

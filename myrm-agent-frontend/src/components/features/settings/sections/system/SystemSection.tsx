@@ -28,6 +28,7 @@ import SandboxResetCard from './SandboxResetCard';
 import DomainSkillsCard from './DomainSkillsCard';
 import SavedSessionsCard from './SavedSessionsCard';
 import PushNotificationCard from './PushNotificationCard';
+import AgentCommerceBudgetSection from './AgentCommerceBudgetSection';
 
 /**
  * 系统设置 Section
@@ -728,6 +729,9 @@ const SystemSection = memo(() => {
 
       {/* Memory Monitor */}
       <MemoryMonitorCard />
+
+      {/* Autonomous Commerce Budget & Spending Ledger */}
+      <AgentCommerceBudgetSection />
 
       {/* System Doctor */}
       <DoctorDashboard />

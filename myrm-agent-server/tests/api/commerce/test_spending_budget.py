@@ -36,18 +36,17 @@ def custom_service(tmp_path: pytest.TempPathFactory) -> CommerceBudgetService:
 @pytest.fixture
 def client(custom_service: CommerceBudgetService) -> TestClient:
     """Fixture providing TestClient with monkeypatched singleton service."""
+    import app.commerce.budget_service as bs_mod
+
+    orig_service = bs_mod._GLOBAL_COMMERCE_BUDGET_SERVICE
+    bs_mod._GLOBAL_COMMERCE_BUDGET_SERVICE = custom_service
+
     app = FastAPI()
     app.include_router(spending_router, prefix="/api/v1")
-
-    # Patch global accessor
-    import app.api.commerce.spending_router as mod
-
-    orig = mod.get_commerce_budget_service
-    mod.get_commerce_budget_service = lambda: custom_service
     try:
         yield TestClient(app)
     finally:
-        mod.get_commerce_budget_service = orig
+        bs_mod._GLOBAL_COMMERCE_BUDGET_SERVICE = orig_service
 
 
 class TestCommerceSpendingApi:
