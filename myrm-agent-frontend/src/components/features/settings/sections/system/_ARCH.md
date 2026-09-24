@@ -95,6 +95,7 @@
 | `AgentUsageCard.tsx`          | Agent 用量卡片                                                                                                                         |
 | `BudgetPolicySection.tsx`     | 预算策略与四级渐进式柔性限额风控面板（四级阶梯风控：可视化预警、柔性自确认卡、无损模型自动降级、冻结暂停审批；Fleet Quota 跨维度看板） |
 | `ChannelBudgetSection.tsx`    | 渠道预算管理                                                                                                                           |
+| `AgentCommerceBudgetSection.tsx` | 智能体受控微预算自主支付与商户白名单消费保险箱面板（单笔/日限额微支付、商户域名白名单、一键紧急熔断与防篡改账本审计） |
 | `MemoryGuardianCard.tsx`      | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合）                                                                      |
 | `RoutingAnalyticsPanel.tsx`   | 路由分析面板（模型路由/成本格式化）                                                                                                    |
 

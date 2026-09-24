@@ -1,8 +1,16 @@
 /**
  * Session event logs and artifacts ZIP export pack client service.
  *
- * Provides HEAD preflight verification, in-flight download debouncing,
- * RFC 5987 content-disposition filename parsing, and browser blob downloading.
+ * [INPUT]
+ * - '@/lib/api'::API_BASE_URL (POS: API base URL provider)
+ *
+ * [OUTPUT]
+ * - parseContentDispositionFilename: parse RFC 5987 / standard content-disposition header safely
+ * - checkExportPackAvailable: preflight HEAD request to check availability
+ * - downloadChatExportPack: download zipped event log & artifacts pack
+ *
+ * [POS]
+ * - services.chatExportPack: Client download service for session event logs & artifacts ZIP packs.
  */
 
 import { API_BASE_URL } from '@/lib/api';

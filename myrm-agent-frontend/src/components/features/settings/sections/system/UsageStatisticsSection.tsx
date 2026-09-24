@@ -18,6 +18,7 @@ import {
 import SettingsSection from '../SettingsSection';
 import BudgetPolicySection from './BudgetPolicySection';
 import ChannelBudgetSection from './ChannelBudgetSection';
+import AgentCommerceBudgetSection from './AgentCommerceBudgetSection';
 import MemoryGuardianCard from '../knowledge/MemoryGuardianCard';
 import RuntimeCostMeterCard from './RuntimeCostMeterCard';
 import AgentUsageCard from './AgentUsageCard';
@@ -147,6 +148,7 @@ function UsageStatisticsSection() {
     <div className="space-y-6">
       <BudgetPolicySection />
       <ChannelBudgetSection />
+      <AgentCommerceBudgetSection />
       <MemoryGuardianCard />
       <RuntimeCostMeterCard />
       <SettingsSection
