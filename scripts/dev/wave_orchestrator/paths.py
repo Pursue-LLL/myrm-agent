@@ -65,6 +65,15 @@ def _state_dir_candidates() -> tuple[Path, ...]:
         if not raw:
             continue
         path = Path(raw).expanduser().resolve()
+        # A sandbox-shadowed override must not outrank the real-home default. Cursor
+        # redirects HOME to ~/.cursor-3, so a caller that exports `$HOME/.local/state/
+        # myrm-dev` hands us a shadow path that no daemon listens on — while
+        # `resolve_wave_paths` only drops such paths when *_state_dir is *unset*
+        # (`_is_cursor2_shadow` guard). Keeping it first here made the client dial a
+        # non-existent socket and report `FileNotFoundError` / `STACK_FAIL`, with the
+        # live supervisor sitting in the real home the whole time.
+        if _is_cursor2_shadow(path):
+            continue
         key = str(path)
         if key in seen:
             continue
