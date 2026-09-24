@@ -38,6 +38,7 @@ from app.core.infra.health.agent_diagnostics import (
     OllamaModelContextDiagnostic,
 )
 from app.core.infra.health.anthropic_policy_diagnostic import AnthropicSubscriptionPolicyDiagnostic
+from app.core.infra.health.session_diagnostics import OrphanSessionDiagnostic
 from app.core.infra.health.skill_diagnostics import (
     SkillHoardingHealthDiagnostic,
 )
@@ -51,6 +52,7 @@ __all__ = [
     "DLQDiagnostic",
     "ExecutionCacheDiagnostic",
     "OllamaModelContextDiagnostic",
+    "OrphanSessionDiagnostic",
     "ServerDiagnosticsManager",
     "SkillHoardingHealthDiagnostic",
     "TraceExportSecurityDiagnostic",
@@ -222,6 +224,7 @@ class ServerDiagnosticsManager:
             SkillHoardingHealthDiagnostic(),
             AnthropicSubscriptionPolicyDiagnostic(),
             TraceExportSecurityDiagnostic(),
+            OrphanSessionDiagnostic(),
         ]
 
     async def run_all(self) -> Sequence[HealthReport]:

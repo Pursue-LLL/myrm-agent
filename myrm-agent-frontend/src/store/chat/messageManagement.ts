@@ -720,6 +720,13 @@ export const autoSaveChat = async (
       return;
     }
 
+    // Lazy Session Persistence: Do not auto-save titles or add session to sidebar
+    // until at least one assistant message exists (avoids phantom blank sessions on early abort).
+    const hasAssistantMessage = messages.some((msg) => msg.role === 'assistant');
+    if (!hasAssistantMessage) {
+      return;
+    }
+
     const title = await _generateTitle(messages);
 
     await updateChatTitle(chatId, title);

@@ -21,6 +21,11 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+async def materialize_default_chat_workspace_dir(chat_id: str) -> str | None:
+    """Ensure the physical sandbox directory and bundled templates exist on disk."""
+    return await resolve_default_chat_workspace_dir(chat_id, persist_workspace=True)
+
+
 async def resolve_default_chat_workspace_dir(
     chat_id: str,
     *,

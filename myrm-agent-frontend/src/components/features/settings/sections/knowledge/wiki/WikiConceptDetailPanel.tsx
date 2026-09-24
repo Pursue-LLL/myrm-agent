@@ -1,5 +1,20 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/services/wikiService::Concept (POS: 知识库核心词条实体模型)
+ * - @/components/features/message-box/MarkdownContent::MarkdownContent (POS: Markdown 渲染与锚点生成核心组件)
+ * - ./WikiMarkdownEditor::WikiMarkdownEditor (POS: Wiki 词条分屏实时编辑组件)
+ * - ./VideoKnowledgePlayer::VideoKnowledgePlayer (POS: 视频知识播放与时间戳对齐组件)
+ * - ./WikiConceptLinksPanel::WikiConceptLinksPanel (POS: 词条双向链接与脉络导航组件)
+ *
+ * [OUTPUT]
+ * - WikiConceptDetailPanel: 词条详情预览、反向引用小节锚点聚焦定位、多标签窄写与分屏编辑一体化面板
+ *
+ * [POS]
+ * 知识库词条主阅读与编辑工作区。承载概念预览、来源对话跳转、反向链接小节直达与多模态知识交互。
+ */
+
 import { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
@@ -103,9 +118,9 @@ export function WikiConceptDetailPanel({
   const [targetHeading, setTargetHeading] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const scrollToHeading = useCallback((headingText: string) => {
+  const scrollToHeading = useCallback((headingText: string): boolean => {
     const container = contentRef.current;
-    if (!container) return;
+    if (!container) return false;
     const headings = Array.from(container.querySelectorAll('h1, h2, h3, h4, h5, h6'));
     const normalizedTarget = headingText.trim().toLowerCase();
     const matched = headings.find((h) => {
@@ -118,16 +133,33 @@ export function WikiConceptDetailPanel({
       const timer = setTimeout(() => {
         matched.classList.remove('bg-primary/10', 'ring-1', 'ring-primary/40', 'rounded-md');
       }, 2000);
-      return () => clearTimeout(timer);
+      return true;
     }
+    return false;
   }, []);
 
   useEffect(() => {
     if (!targetHeading || isEditing) return;
-    const timer = setTimeout(() => {
-      scrollToHeading(targetHeading);
-    }, 150);
-    return () => clearTimeout(timer);
+
+    let cancelled = false;
+    const delays = [80, 250, 600];
+    const timers: NodeJS.Timeout[] = [];
+
+    delays.forEach((delay) => {
+      const timer = setTimeout(() => {
+        if (cancelled) return;
+        const found = scrollToHeading(targetHeading);
+        if (found) {
+          timers.forEach((t) => clearTimeout(t));
+        }
+      }, delay);
+      timers.push(timer);
+    });
+
+    return () => {
+      cancelled = true;
+      timers.forEach((t) => clearTimeout(t));
+    };
   }, [selectedConcept?.name, selectedConcept?.content, targetHeading, isEditing, scrollToHeading]);
 
   const handleSelectConceptFromLinks = useCallback(

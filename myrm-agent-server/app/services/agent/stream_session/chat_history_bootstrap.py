@@ -17,11 +17,28 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from app.services.agent.params import AgentRequest, _extract_text_from_query
+from app.services.agent.stream_session.lazy_session_gate import PendingSessionDraft
 from app.services.chat.chat_service import ChatService
 
 logger = logging.getLogger(__name__)
+
+
+class BootstrappedMessageId(str):
+    """String message ID with attached pending lazy session draft when deferred."""
+
+    pending_draft: PendingSessionDraft | None = None
+
+    def __new__(
+        cls,
+        value: str,
+        pending_draft: PendingSessionDraft | None = None,
+    ) -> BootstrappedMessageId:
+        instance = super().__new__(cls, value)
+        instance.pending_draft = pending_draft
+        return instance
 
 
 async def persist_user_message_and_load_history(
@@ -44,14 +61,11 @@ async def persist_user_message(
     request: AgentRequest,
     *,
     text_content: str,
-) -> str | None:
-    """Commit the user row before optional pre-reply work can run.
+) -> BootstrappedMessageId | None:
+    """Commit the user row for existing chats, or defer persistence for new chats.
 
-    The early buffered stream is allowed to perform a stale-context compact
-    before building the agent.  That work can involve profile and model-window
-    resolution, so the user row must be committed in its own transaction first;
-    otherwise the API can show no user turn while the accepted stream is still
-    doing setup.
+    For new sessions, database persistence is deferred until the first active
+    assistant output (First Token Barrier), preventing ghost empty sessions.
     """
     if not request.chat_id:
         logger.info("E1 user persist skipped: missing chat_id message_id=%s", request.message_id)
@@ -78,12 +92,38 @@ async def persist_user_message(
     if isinstance(request.query, list):
         extra_data_val = {"original_query": request.query}
 
-    msg = await ChatService.ensure_chat_and_append_user_message(
+    existing_chat = await ChatService.get_chat_metadata(request.chat_id)
+    if existing_chat is not None:
+        msg = await ChatService.ensure_chat_and_append_user_message(
+            chat_id=request.chat_id,
+            content=text_content,
+            sent_at=sent_at_utc,
+            sent_timezone=sent_timezone,
+            message_id=request.message_id,
+            action_mode=request.action_mode,
+            agent_id=request.agent_id or "default",
+            ephemeral_subagents=request.ephemeral_subagents,
+            extra_data=extra_data_val,
+            is_incognito=request.incognito_mode,
+            active_moa_preset_id=request.active_moa_preset_id,
+            persist_moa_preset=(request.action_mode == "agent" and not request.incognito_mode),
+        )
+        logger.info(
+            "E1 user row committed for existing chat_id=%s message_id=%s persisted_id=%s",
+            request.chat_id,
+            request.message_id,
+            msg.id,
+        )
+        return BootstrappedMessageId(msg.id, pending_draft=None)
+
+    # Defer persistence for new session until first assistant event
+    resolved_id = request.message_id or str(uuid4())
+    draft = PendingSessionDraft(
         chat_id=request.chat_id,
-        content=text_content,
+        user_content=text_content,
         sent_at=sent_at_utc,
         sent_timezone=sent_timezone,
-        message_id=request.message_id,
+        message_id=resolved_id,
         action_mode=request.action_mode,
         agent_id=request.agent_id or "default",
         ephemeral_subagents=request.ephemeral_subagents,
@@ -93,12 +133,12 @@ async def persist_user_message(
         persist_moa_preset=(request.action_mode == "agent" and not request.incognito_mode),
     )
     logger.info(
-        "E1 user row committed chat_id=%s message_id=%s persisted_id=%s",
+        "E1 user persistence deferred for new chat_id=%s message_id=%s",
         request.chat_id,
-        request.message_id,
-        msg.id,
+        resolved_id,
     )
-    return msg.id
+    return BootstrappedMessageId(resolved_id, pending_draft=draft)
+
 
 
 async def load_chat_history(

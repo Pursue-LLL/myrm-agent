@@ -647,6 +647,24 @@ class _ChatCrudMixin(_ChatServiceBase):
             logger.warning("Failed to get cascade info (chat=%s): %s", chat_id, e)
             return {}
 
+    @staticmethod
+    async def count_orphan_empty_sessions(older_than_minutes: int = 15) -> int:
+        """Count legacy orphan sessions lacking assistant messages."""
+        from app.core.infra.health.session_diagnostics import (
+            count_orphan_empty_sessions,
+        )
+
+        return await count_orphan_empty_sessions(older_than_minutes=older_than_minutes)
+
+    @staticmethod
+    async def purge_orphan_empty_sessions(older_than_minutes: int = 15) -> int:
+        """Purge legacy orphan sessions lacking assistant messages."""
+        from app.core.infra.health.session_diagnostics import (
+            purge_orphan_empty_sessions,
+        )
+
+        return await purge_orphan_empty_sessions(older_than_minutes=older_than_minutes)
+
 
 async def _delete_widget_kv_for_chat(session: AsyncSession, chat_id: str) -> None:
     """Remove all widget KV entries associated with a chat."""

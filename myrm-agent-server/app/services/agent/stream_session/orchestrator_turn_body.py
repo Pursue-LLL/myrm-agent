@@ -190,11 +190,13 @@ async def execute_agent_turn_after_reserve(
         request.message_id,
         callable(persist_user_message) and callable(load_chat_history),
     )
+    pending_draft: object | None = None
     if callable(persist_user_message) and callable(load_chat_history):
         persisted_message_id = await persist_user_message(
             request,
             text_content=text_content,
         )
+        pending_draft = getattr(persisted_message_id, "pending_draft", None)
     else:
         # Mixed-generation hot reload fallback.  A fresh process always takes
         # the split path above; an old worker remains functional until it exits.
@@ -202,6 +204,8 @@ async def execute_agent_turn_after_reserve(
             request,
             text_content=text_content,
         )
+        if isinstance(chat_history, tuple) and len(chat_history) > 1:
+            pending_draft = chat_history[1]
 
     pre_reply_compact_result: CompactResult | None = None
     pre_reply_compact_sse_sent = False
@@ -503,6 +507,7 @@ async def execute_agent_turn_after_reserve(
         stream_started_at_monotonic=stream_started_at_monotonic,
         pre_reply_compact_result=pre_reply_compact_result,
         pre_reply_compact_sse_sent=pre_reply_compact_sse_sent,
+        pending_session_draft=pending_draft,  # type: ignore[arg-type]
     )
     session.monitor = CancellationMonitor(
         token=cancel_token,
@@ -511,10 +516,11 @@ async def execute_agent_turn_after_reserve(
     )
 
     if request.chat_id and request.resume_value is None and not is_long_running_task:
-        try:
-            await write_interrupted_turn_marker(request, params)
-        except Exception as marker_exc:
-            logger.debug("Turn marker write skipped: %s", marker_exc)
+        if pending_draft is None or getattr(pending_draft, "committed", False):
+            try:
+                await write_interrupted_turn_marker(request, params)
+            except Exception as marker_exc:
+                logger.debug("Turn marker write skipped: %s", marker_exc)
 
     await pump_to_buffer(session, buffer)
 

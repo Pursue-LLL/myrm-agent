@@ -31,8 +31,9 @@ async def schedule_wiki_vault_git_snapshot(archiver: MemoryToWikiArchiver, reaso
 
 
 async def after_wiki_vault_mutation(archiver: MemoryToWikiArchiver, reason: str) -> None:
-    """Invalidate structural stats cache and schedule a vault git snapshot."""
+    """Invalidate structural stats cache, clear alias index, and schedule a vault git snapshot."""
     from app.services.wiki.structural_stats_cache import invalidate_structural_lint_cache
 
     invalidate_structural_lint_cache(archiver._structure)
+    archiver._structure.invalidate_alias_cache()
     await schedule_wiki_vault_git_snapshot(archiver, reason)

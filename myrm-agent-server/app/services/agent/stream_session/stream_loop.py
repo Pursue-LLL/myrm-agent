@@ -34,6 +34,10 @@ from app.services.agent.stream_session._memory_status_helpers import (
 from app.services.agent.stream_session.lanes.wiki_knowledge_lane import (
     create_wiki_knowledge_lane_stream,
 )
+from app.services.agent.stream_session.lazy_session_gate import (
+    commit_lazy_session_barrier,
+    is_active_generation_chunk,
+)
 from app.services.agent.stream_session.stream_lane_factory import (
     create_deep_research_stream,
     create_fast_lane_stream,
@@ -343,6 +347,13 @@ async def iter_agent_stream_chunks(
                 if chunk.get("type") == "reasoning" and _is_reasoning_hidden(session):
                     continue
                 _capture_stream_ttft_if_needed(session=session, chunk=chunk)
+
+            if (
+                session.pending_session_draft is not None
+                and not session.pending_session_draft.committed
+                and is_active_generation_chunk(chunk)
+            ):
+                await commit_lazy_session_barrier(session)
 
             if session.cancel_token.is_cancelled:
                 logger.warning(

@@ -15,6 +15,7 @@ from myrm_agent_harness.utils.runtime.steering import SteeringToken
 from app.ai_agents import GeneralAgentParams
 from app.core.types import ModelConfig
 from app.services.agent.params import AgentRequest
+from app.services.agent.stream_session.lazy_session_gate import PendingSessionDraft
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.chat.compact_service import CompactResult
 
@@ -49,3 +50,4 @@ class AgentStreamSession:
     migration_live_readiness_status: Literal["ready", "warning", "critical"] | None = field(default=None)
     pre_reply_compact_result: CompactResult | None = field(default=None)
     pre_reply_compact_sse_sent: bool = field(default=False)
+    pending_session_draft: PendingSessionDraft | None = field(default=None)

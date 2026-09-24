@@ -432,7 +432,21 @@ async def finalize_agent_stream_session(
     from myrm_agent_harness.agent.security import user_credentials_ctx
 
     user_credentials_ctx.reset(token_ctx)
-    if session.collector.has_persistable_turn and session.request.chat_id:
+    draft = getattr(session, "pending_session_draft", None)
+    if draft is not None and not draft.committed:
+        if not session.collector.has_content:
+            logger.info(
+                "Discarding uncommitted blank session draft: chat_id=%s",
+                session.request.chat_id,
+            )
+        else:
+            from app.services.agent.stream_session.lazy_session_gate import (
+                commit_lazy_session_barrier,
+            )
+
+            await commit_lazy_session_barrier(session)
+
+    if session.collector.has_persistable_turn and session.request.chat_id and (draft is None or draft.committed):
         import asyncio
         import re
 
