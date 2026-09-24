@@ -315,4 +315,63 @@ async def test_export_pack_direct_route_invocation(tmp_path: Path, monkeypatch: 
         assert exc_info.value.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_export_pack_empty_session_and_missing_log(
+    async_client: httpx.AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Validate empty or missing event log handles gracefully without crash."""
+    chat_id = "test-export-empty-1"
+    log_dir = tmp_path / "logs_empty"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(settings.database, "event_log_dir", str(log_dir))
+
+    factory = get_session_factory()
+    async with factory() as db:
+        chat = Chat(
+            id=chat_id,
+            title="Empty Session Test",
+            source="web",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        db.add(chat)
+        await db.commit()
+
+    # 1. 完全没有生成日志文件时的导出
+    resp_missing = await async_client.get(f"/api/v1/chats/{chat_id}/export-pack")
+    assert resp_missing.status_code == 200
+    assert resp_missing.headers["content-type"] == "application/zip"
+
+    with zipfile.ZipFile(io.BytesIO(resp_missing.content), "r") as zf:
+        namelist = zf.namelist()
+        assert "manifest.json" in namelist
+        assert "session.jsonl" in namelist
+        assert zf.read("session.jsonl") == b""
+
+        manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
+        files = manifest["integrity_report"]["files"]
+        session_file = [f for f in files if f["path"] == "session.jsonl"][0]
+        assert session_file["size_bytes"] == 0
+        assert session_file["status"] == "empty_or_missing"
+        assert session_file["sha256"] == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+    # 2. 磁盘上存在 0 字节的空日志文件时的导出
+    (log_dir / f"{chat_id}.jsonl").touch()
+    resp_empty_file = await async_client.get(f"/api/v1/chats/{chat_id}/export-pack")
+    assert resp_empty_file.status_code == 200
+
+    with zipfile.ZipFile(io.BytesIO(resp_empty_file.content), "r") as zf:
+        namelist = zf.namelist()
+        assert "manifest.json" in namelist
+        assert "session.jsonl" in namelist
+        assert zf.read("session.jsonl") == b""
+
+        manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
+        files = manifest["integrity_report"]["files"]
+        session_file = [f for f in files if f["path"] == "session.jsonl"][0]
+        assert session_file["size_bytes"] == 0
+        assert session_file["status"] == "empty_or_missing"
+
+
+
 
