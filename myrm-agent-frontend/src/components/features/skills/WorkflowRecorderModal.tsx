@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Video,
@@ -21,6 +21,7 @@ import {
   startDesktopRecording,
   stopDesktopRecording,
   recordDesktopEvent,
+  getDesktopRecordingSession,
   analyzeDesktopPlan,
   compileDesktopPlan,
   publishDesktopSkill,
@@ -46,6 +47,33 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   // Whether the server is capturing the demonstration through platform AX; false means the
   // platform exposes no capture (or permission was denied) and steps are entered manually.
   const [captureActive, setCaptureActive] = useState<boolean>(false);
+
+  // Poll the live session so the interaction count reflects real capture, and so a capture
+  // that stops mid-recording (permission revoked, backend failure) is reflected immediately.
+  useEffect(() => {
+    if (step !== 'recording' || !sessionId) {
+      return;
+    }
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const state = await getDesktopRecordingSession(sessionId);
+        if (cancelled) {
+          return;
+        }
+        setEventCount(state.events_count);
+        setCaptureActive(state.capture_active);
+      } catch {
+        // A transient poll failure must not disturb the recording UI.
+      }
+    };
+    const timer = setInterval(tick, 1000);
+    void tick();
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [step, sessionId]);
 
   const handleStart = async () => {
     setError(null);

@@ -27,6 +27,14 @@ vi.mock('@/services/skill/core', () => ({
     .fn()
     .mockResolvedValue({ session_id: 'rec-123', status: 'stopped', event_count: 2, duration_seconds: 5 }),
   recordDesktopEvent: vi.fn().mockResolvedValue({ status: 'ok', recorded_count: 1 }),
+  // Live session polling; the capture state is asserted through dialog copy, not the count.
+  getDesktopRecordingSession: vi.fn().mockResolvedValue({
+    session_id: 'rec-123',
+    status: 'recording',
+    events_count: 2,
+    capture_active: true,
+    capture_error: null,
+  }),
   analyzeDesktopPlan: vi.fn().mockResolvedValue({
     plan: {
       name: 'Test Workflow Skill',
@@ -103,6 +111,26 @@ describe('WorkflowRecorderModal', () => {
   it('does not render when isOpen is false', () => {
     const { container } = render(<WorkflowRecorderModal isOpen={false} onClose={vi.fn()} />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it('surfaces a capture that stops mid-recording', async () => {
+    const sessionPoll = vi.mocked(skillService.getDesktopRecordingSession);
+    // Capture was running at start, then the platform reported it stopped (e.g. the user
+    // revoked Accessibility access) — the dialog must switch back to manual step entry.
+    sessionPoll.mockResolvedValue({
+      session_id: 'rec-123',
+      status: 'recording',
+      events_count: 5,
+      capture_active: false,
+      capture_error: 'desktop_capture_permission_required',
+    });
+
+    render(<WorkflowRecorderModal isOpen={true} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByText('startRecording'));
+
+    await waitFor(() => {
+      expect(screen.getByText('manualRecordingActive')).toBeInTheDocument();
+    });
   });
 
   it('falls back to honest manual step entry when platform capture is unavailable', async () => {

@@ -1012,6 +1012,22 @@ export async function stopDesktopRecording(
   });
 }
 
+export interface DesktopRecordingSessionState {
+  session_id: string;
+  status: string;
+  events_count: number;
+  /** False when the platform stopped capturing (unsupported, missing permission, failure). */
+  capture_active: boolean;
+  capture_error: string | null;
+}
+
+/** Poll the live recording session: interaction count plus whether capture is still running. */
+export async function getDesktopRecordingSession(
+  sessionId: string,
+): Promise<DesktopRecordingSessionState> {
+  return apiRequest(`${SKILLS_API_PREFIX}/desktop-recorder/session/${encodeURIComponent(sessionId)}`);
+}
+
 export async function recordDesktopEvent(payload: {
   session_id: string;
   seq: number;

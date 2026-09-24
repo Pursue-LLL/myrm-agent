@@ -159,6 +159,9 @@ async def get_desktop_recording_session(session_id: str) -> dict[str, Any]:
         "stopped_at": session.stopped_at,
         "events_count": len(session.events),
         "events": [e.to_dict() for e in session.events],
+        # Live capture state so the UI can show progress and explain an unavailable capture.
+        "capture_active": session.capture_active,
+        "capture_error": session.capture_error,
     }
 
 
