@@ -8883,7 +8883,8 @@
       "copySuccessRedacted": "已复制到剪贴板（已自动脱敏敏感凭据）",
       "error": "导出失败",
       "noMessages": "无消息可导出",
-      "print": "打印"
+      "print": "打印",
+      "exportZipPack": "导出会话归档包 (.zip)"
     },
     "ideHandoff": {
       "openInIDE": "在 IDE 中打开",

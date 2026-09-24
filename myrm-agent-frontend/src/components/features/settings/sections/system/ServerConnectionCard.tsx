@@ -150,6 +150,7 @@ const ServerConnectionCard = memo(() => {
           </div>
           <button
             type="button"
+            aria-label={isRemote ? t('modeRemote') : t('modeLocal')}
             onClick={() => {
               if (isRemote) {
                 handleDisconnect();

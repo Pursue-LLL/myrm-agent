@@ -29,11 +29,8 @@ from pydantic import BaseModel, Field
 
 from app.commerce.budget_service import (
     CommerceBudgetConfigDTO,
-    CommerceBudgetStatusDTO,
-    PreAuthResultDTO,
     get_commerce_budget_service,
 )
-from app.commerce.spending_ledger import SpendingLedgerEntry
 from app.schemas.responses import StandardSuccessResponse, create_success_response
 
 logger = logging.getLogger(__name__)
@@ -70,38 +67,38 @@ class ReleaseRequest(BaseModel):
     lease_id: str = Field(description="Reserved lease ID")
 
 
-@router.get("/budget", response_model=StandardSuccessResponse[CommerceBudgetStatusDTO])
-async def get_budget_status() -> StandardSuccessResponse[CommerceBudgetStatusDTO]:
+@router.get("/budget", response_model=StandardSuccessResponse)
+async def get_budget_status() -> StandardSuccessResponse:
     """Retrieve autonomous commerce spending status and current limits."""
     service = get_commerce_budget_service()
     status_dto = service.get_status()
     return create_success_response(status_dto)
 
 
-@router.put("/budget", response_model=StandardSuccessResponse[CommerceBudgetStatusDTO])
+@router.put("/budget", response_model=StandardSuccessResponse)
 async def update_budget_config(
     payload: CommerceBudgetConfigDTO,
-) -> StandardSuccessResponse[CommerceBudgetStatusDTO]:
+) -> StandardSuccessResponse:
     """Update spending limits and merchant domain whitelist."""
     service = get_commerce_budget_service()
     updated_status = service.update_config(payload)
     return create_success_response(updated_status)
 
 
-@router.post("/freeze", response_model=StandardSuccessResponse[CommerceBudgetStatusDTO])
+@router.post("/freeze", response_model=StandardSuccessResponse)
 async def set_emergency_freeze(
     payload: FreezeRequest,
-) -> StandardSuccessResponse[CommerceBudgetStatusDTO]:
+) -> StandardSuccessResponse:
     """Emergency circuit breaker: freeze or unfreeze autonomous micro-payments."""
     service = get_commerce_budget_service()
     status_dto = service.set_freeze(payload.freeze)
     return create_success_response(status_dto)
 
 
-@router.post("/preauth", response_model=StandardSuccessResponse[PreAuthResultDTO])
+@router.post("/preauth", response_model=StandardSuccessResponse)
 async def pre_authorize_spend(
     payload: PreAuthRequest,
-) -> StandardSuccessResponse[PreAuthResultDTO]:
+) -> StandardSuccessResponse:
     """Request an atomic spend lease and signed voucher before executing payment."""
     service = get_commerce_budget_service()
     res = service.pre_authorize_spend(
@@ -119,10 +116,10 @@ async def pre_authorize_spend(
     return create_success_response(res)
 
 
-@router.post("/commit", response_model=StandardSuccessResponse[dict[str, object]])
+@router.post("/commit", response_model=StandardSuccessResponse)
 async def commit_spend(
     payload: CommitRequest,
-) -> StandardSuccessResponse[dict[str, object]]:
+) -> StandardSuccessResponse:
     """Commit executed spend lease and record cryptographic receipt in ledger."""
     service = get_commerce_budget_service()
     res = service.commit_spend(
@@ -137,21 +134,21 @@ async def commit_spend(
     return create_success_response(res)
 
 
-@router.post("/release", response_model=StandardSuccessResponse[dict[str, bool]])
+@router.post("/release", response_model=StandardSuccessResponse)
 async def release_spend(
     payload: ReleaseRequest,
-) -> StandardSuccessResponse[dict[str, bool]]:
+) -> StandardSuccessResponse:
     """Release a reserved spend lease if transaction aborted or failed."""
     service = get_commerce_budget_service()
     released = service.release_spend(payload.lease_id)
     return create_success_response({"released": released})
 
 
-@router.get("/ledger", response_model=StandardSuccessResponse[list[SpendingLedgerEntry]])
+@router.get("/ledger", response_model=StandardSuccessResponse)
 async def get_spending_ledger(
     session_id: str | None = Query(default=None, description="Filter by session ID"),
     limit: int = Query(default=50, ge=1, le=200, description="Max records to return"),
-) -> StandardSuccessResponse[list[SpendingLedgerEntry]]:
+) -> StandardSuccessResponse:
     """Fetch audit ledger entries for autonomous agent expenditures."""
     service = get_commerce_budget_service()
     entries = service.list_ledger_entries(session_id=session_id, limit=limit)

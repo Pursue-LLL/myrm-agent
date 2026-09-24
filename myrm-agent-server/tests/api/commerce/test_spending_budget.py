@@ -8,9 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.api.commerce.spending_router import router as spending_router
 from app.commerce.budget_service import (
-    CommerceBudgetConfigDTO,
     CommerceBudgetService,
-    get_commerce_budget_service,
 )
 from app.commerce.spending_ledger import SpendingLedgerStore
 

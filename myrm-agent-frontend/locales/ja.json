@@ -1940,7 +1940,8 @@
       "copySuccessRedacted": "クリップボードにコピーしました（機密情報はマスキング済み）",
       "error": "エクスポートに失敗しました",
       "noMessages": "なしメッセージ可エクスポート",
-      "print": "印刷"
+      "print": "印刷",
+      "exportZipPack": "セッションアーカイブをエクスポート (.zip)"
     },
     "ideHandoff": {
       "openInIDE": "IDEで開く",

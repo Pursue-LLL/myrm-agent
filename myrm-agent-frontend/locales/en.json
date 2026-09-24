@@ -8883,7 +8883,8 @@
       "copySuccessRedacted": "Copied to clipboard (secrets redacted)",
       "error": "Export failed",
       "noMessages": "No messages to export",
-      "print": "Print"
+      "print": "Print",
+      "exportZipPack": "Export Session Archive (.zip)"
     },
     "ideHandoff": {
       "openInIDE": "Open in IDE",
