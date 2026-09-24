@@ -1941,7 +1941,8 @@
       "error": "エクスポートに失敗しました",
       "noMessages": "なしメッセージ可エクスポート",
       "print": "印刷",
-      "exportZipPack": "セッションアーカイブをエクスポート (.zip)"
+      "exportZipPack": "セッションアーカイブをエクスポート (.zip)",
+      "exportZipFailed": "セッションログパックのエクスポートに失敗しました"
     },
     "ideHandoff": {
       "openInIDE": "IDEで開く",
@@ -18632,7 +18633,10 @@
         "cacheTokens": "キャッシュヒット: {tokens} Tokens",
         "privacyMode": "プライバシー保護",
         "privacyHint": "プロンプトおよびツールの機密入力を非表示にしました",
-        "searchPlaceholder": "プロンプトまたはタイトルでトレースを検索..."
+        "searchPlaceholder": "プロンプトまたはタイトルでトレースを検索...",
+        "exportZip": "トレースをエクスポート (ZIP)",
+        "exportZipTooltip": "セッションの生イベントログと成果物をZIP形式でエクスポート",
+        "exportZipFailed": "セッションパックのエクスポートに失敗しました"
       },
       "replay": {
         "title": "セッションリプレイ",

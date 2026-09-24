@@ -1845,7 +1845,8 @@
       "error": "Export fehlgeschlagen",
       "noMessages": "Keine Nachrichten zum Exportieren",
       "print": "Drucken",
-      "exportZipPack": "Sitzungsarchiv exportieren (.zip)"
+      "exportZipPack": "Sitzungsarchiv exportieren (.zip)",
+      "exportZipFailed": "Fehler beim Exportieren des Sitzungsprotokoll-Pakets"
     },
     "ideHandoff": {
       "openInIDE": "In IDE öffnen",
@@ -18632,7 +18633,10 @@
         "cacheTokens": "Gecached: {tokens} Tokens",
         "privacyMode": "Datenschutzmodus",
         "privacyHint": "Sensible Prompts und Tool-Eingaben ausgeblendet",
-        "searchPlaceholder": "Traces nach Prompt oder Titel durchsuchen..."
+        "searchPlaceholder": "Traces nach Prompt oder Titel durchsuchen...",
+        "exportZip": "Trace exportieren (ZIP)",
+        "exportZipTooltip": "Rohe Sitzungsereignisprotokolle und Artefakte als ZIP-Paket exportieren",
+        "exportZipFailed": "Fehler beim Exportieren des Sitzungspakets"
       },
       "replay": {
         "title": "Sitzungs-Wiedergabe",

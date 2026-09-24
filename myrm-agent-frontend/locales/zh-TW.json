@@ -1930,7 +1930,8 @@
       "error": "匯出失敗",
       "noMessages": "無訊息可匯出",
       "print": "列印",
-      "exportZipPack": "匯出對話封包 (.zip)"
+      "exportZipPack": "匯出對話封包 (.zip)",
+      "exportZipFailed": "匯出工作階段記錄包失敗"
     },
     "ideHandoff": {
       "openInIDE": "在 IDE 中開啟",
@@ -18632,7 +18633,10 @@
         "cacheTokens": "命中快取: {tokens} Tokens",
         "privacyMode": "隱私保護",
         "privacyHint": "已隱藏長文字 Prompt 與入參",
-        "searchPlaceholder": "依任務內容或標題搜尋 Trace..."
+        "searchPlaceholder": "依任務內容或標題搜尋 Trace...",
+        "exportZip": "匯出軌跡 (ZIP)",
+        "exportZipTooltip": "匯出工作階段原始事件記錄與產物 ZIP 封存包",
+        "exportZipFailed": "匯出工作階段封存包失敗"
       },
       "replay": {
         "title": "錄影回放",

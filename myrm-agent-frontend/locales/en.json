@@ -6214,7 +6214,10 @@
         "cacheTokens": "Cached: {tokens} Tokens",
         "privacyMode": "Privacy Mode",
         "privacyHint": "Sensitive prompts and tool inputs hidden",
-        "searchPlaceholder": "Search traces by prompt or title..."
+        "searchPlaceholder": "Search traces by prompt or title...",
+        "exportZip": "Export Trace (ZIP)",
+        "exportZipTooltip": "Export raw session event logs and artifacts ZIP pack",
+        "exportZipFailed": "Failed to export session pack"
       },
       "contextDoctor": {
         "title": "Context Doctor (Token Hotspot & Cost Auditor)",
@@ -8913,7 +8916,8 @@
       "error": "Export failed",
       "noMessages": "No messages to export",
       "print": "Print",
-      "exportZipPack": "Export Session Archive (.zip)"
+      "exportZipPack": "Export Session Archive (.zip)",
+      "exportZipFailed": "Failed to export session log pack"
     },
     "ideHandoff": {
       "openInIDE": "Open in IDE",

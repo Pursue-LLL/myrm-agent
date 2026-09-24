@@ -1845,7 +1845,8 @@
       "error": "내보내기 실패",
       "noMessages": "내보낼 메시지가 없습니다",
       "print": "인쇄",
-      "exportZipPack": "세션 아카이브 내보내기 (.zip)"
+      "exportZipPack": "세션 아카이브 내보내기 (.zip)",
+      "exportZipFailed": "세션 로그 팩 내보내기 실패"
     },
     "ideHandoff": {
       "openInIDE": "IDE에서 열기",
@@ -18632,7 +18633,10 @@
         "cacheTokens": "캐시 적중: {tokens} 토큰",
         "privacyMode": "개인정보 보호",
         "privacyHint": "민감한 프롬프트 및 도구 입력이 숨겨졌습니다",
-        "searchPlaceholder": "프롬프트 또는 제목으로 추적 검색..."
+        "searchPlaceholder": "프롬프트 또는 제목으로 추적 검색...",
+        "exportZip": "추적 내보내기 (ZIP)",
+        "exportZipTooltip": "세션 원본 이벤트 로그 및 아티팩트 ZIP 팩 내보내기",
+        "exportZipFailed": "세션 팩 내보내기 실패"
       },
       "replay": {
         "title": "세션 리플레이",

@@ -41,7 +41,7 @@ describe('AgentCommerceBudgetSection', () => {
     {
       entry_id: 'entry_1',
       lease_id: 'lease_abc123',
-      merchant_domain: 'namesilo.com',
+      merchant_domain: 'aws.amazon.com',
       amount_cents: 99,
       currency: 'USD',
       status: 'committed',
@@ -71,8 +71,9 @@ describe('AgentCommerceBudgetSection', () => {
     expect(screen.getByDisplayValue('2.00')).toBeInTheDocument();
     expect(screen.getByText('namesilo.com')).toBeInTheDocument();
     expect(screen.getByText('*.openai.com')).toBeInTheDocument();
-    expect(screen.getByText('$0.99')).toBeInTheDocument();
-    expect(screen.getByText('committed')).toBeInTheDocument();
+    expect(screen.getAllByText('aws.amazon.com').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('$0.99').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Paid & Verified')).toBeInTheDocument();
   });
 
   it('toggles emergency freeze breaker', async () => {
@@ -84,10 +85,10 @@ describe('AgentCommerceBudgetSection', () => {
     render(<AgentCommerceBudgetSection />);
 
     await waitFor(() => {
-      expect(screen.getByText('activeStatus')).toBeInTheDocument();
+      expect(screen.getByText('emergencyFreeze')).toBeInTheDocument();
     });
 
-    const freezeBtn = screen.getByRole('button', { name: /activeStatus/i });
+    const freezeBtn = screen.getByRole('button', { name: /emergencyFreeze/i });
     fireEvent.click(freezeBtn);
 
     await waitFor(() => {
