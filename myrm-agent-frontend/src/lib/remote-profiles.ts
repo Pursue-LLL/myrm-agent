@@ -10,10 +10,22 @@
  * Tauri Remote Profile 连接档案 SSOT。server-authoritative，桌面不镜像远端状态。
  */
 
+export type RemoteProfileKind = 'server' | 'cloud';
+
 export interface RemoteConnectionProfile {
   id: string;
   name: string;
   url: string;
+  kind: RemoteProfileKind;
+  cpBaseUrl?: string;
+}
+
+/** Cloud 档案经 CP 代理访问用户沙箱（SaaS 约定 `https://<cp-host>/proxy/me`）。 */
+export function resolveProfileApiBase(profile: RemoteConnectionProfile): string {
+  if (profile.kind === 'cloud' && profile.cpBaseUrl) {
+    return `${profile.cpBaseUrl.replace(/\/+$/, '')}/proxy/me`;
+  }
+  return profile.url;
 }
 
 interface RosterPayload {
@@ -64,10 +76,15 @@ function readRoster(): RosterPayload {
     }
     const parsed = JSON.parse(raw) as Partial<RosterPayload>;
     const profiles = Array.isArray(parsed.profiles)
-      ? parsed.profiles.filter(
-          (p): p is RemoteConnectionProfile =>
-            !!p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.url === 'string',
-        )
+      ? parsed.profiles
+          .filter(
+            (p): p is RemoteConnectionProfile =>
+              !!p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.url === 'string',
+          )
+          .map((p) => ({
+            ...p,
+            kind: p.kind === 'cloud' ? ('cloud' as const) : ('server' as const),
+          }))
       : [];
     const activeId =
       typeof parsed.activeId === 'string' && profiles.some((p) => p.id === parsed.activeId)
@@ -95,6 +112,7 @@ function migrateLegacyOnce(): RosterPayload {
       id: `remote-${Date.now()}`,
       name: 'Remote server',
       url,
+      kind: 'server',
     };
     const roster: RosterPayload = { profiles: [profile], activeId: profile.id };
     window.localStorage.setItem(ROSTER_STORAGE_KEY, JSON.stringify(roster));
@@ -133,10 +151,24 @@ export function getActiveRemoteProfileId(): string | null {
   return readRoster().activeId;
 }
 
-export function addRemoteProfile(name: string, url: string): RemoteConnectionProfile | null {
+export interface AddRemoteProfileOptions {
+  kind?: RemoteProfileKind;
+  cpBaseUrl?: string;
+}
+
+export function addRemoteProfile(
+  name: string,
+  url: string,
+  opts?: AddRemoteProfileOptions,
+): RemoteConnectionProfile | null {
   const cleanName = normalizeName(name);
   const cleanUrl = normalizeUrl(url);
   if (!cleanName || !cleanUrl) {
+    return null;
+  }
+  const kind: RemoteProfileKind = opts?.kind === 'cloud' ? 'cloud' : 'server';
+  const cpBaseUrl = kind === 'cloud' && opts?.cpBaseUrl ? normalizeUrl(opts.cpBaseUrl) : undefined;
+  if (kind === 'cloud' && !cpBaseUrl) {
     return null;
   }
   const roster = readRoster();
@@ -150,6 +182,8 @@ export function addRemoteProfile(name: string, url: string): RemoteConnectionPro
     id: `remote-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
     name: cleanName,
     url: cleanUrl,
+    kind,
+    ...(cpBaseUrl ? { cpBaseUrl } : {}),
   };
   roster.profiles.push(profile);
   roster.activeId = profile.id;

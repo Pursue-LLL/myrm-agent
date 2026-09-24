@@ -14,6 +14,10 @@ import {
 } from '@/lib/remote-profiles';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
+import RemoteFirstRunChooser from './RemoteFirstRunChooser';
+import ServerConnectionCloudSection from './ServerConnectionCloudSection';
+
+const FIRST_RUN_SEEN_KEY = 'myrm-remote-first-run-seen';
 
 type ConnectionTestState = 'idle' | 'testing' | 'success' | 'failed';
 
@@ -62,10 +66,22 @@ const ServerConnectionCard = memo(() => {
   const [urlInput, setUrlInput] = useState(currentConfig?.url ?? '');
   const [testState, setTestState] = useState<ConnectionTestState>('idle');
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [showFirstRun, setShowFirstRun] = useState(
+    () => typeof window !== 'undefined' && !window.localStorage.getItem(FIRST_RUN_SEEN_KEY),
+  );
 
   const refresh = useCallback(() => {
     setProfiles(listRemoteProfiles());
     setActiveId(getActiveRemoteProfileId());
+  }, []);
+
+  const dismissFirstRun = useCallback(() => {
+    try {
+      window.localStorage.setItem(FIRST_RUN_SEEN_KEY, '1');
+    } catch {
+      // ignore
+    }
+    setShowFirstRun(false);
   }, []);
 
   const handleTest = useCallback(async () => {
@@ -129,6 +145,12 @@ const ServerConnectionCard = memo(() => {
     void notifyRemoteFollow(false).then(() => window.location.reload());
   }, [t, refresh]);
 
+  const handleCloudConnected = useCallback(() => {
+    refresh();
+    toast.success(t('connected'));
+    void notifyRemoteFollow(true).then(() => window.location.reload());
+  }, [t, refresh]);
+
   if (!isTauriRuntime()) {
     return null;
   }
@@ -142,6 +164,20 @@ const ServerConnectionCard = memo(() => {
 
       <div className="space-y-6 p-8 rounded-[2.5rem] bg-white/5 border border-white/10">
         <p className="text-xs text-muted-foreground leading-relaxed">{t('description')}</p>
+
+        {showFirstRun && profiles.length === 0 && (
+          <RemoteFirstRunChooser
+            onSelectLocal={dismissFirstRun}
+            onSelectRemote={() => {
+              dismissFirstRun();
+              setIsRemote(true);
+            }}
+            onSelectCloud={() => {
+              dismissFirstRun();
+              setIsRemote(true);
+            }}
+          />
+        )}
 
         <div className="flex items-center justify-between">
           <div className="space-y-1">
@@ -191,20 +227,22 @@ const ServerConnectionCard = memo(() => {
                       <p className="truncate text-xs text-muted-foreground">{p.url}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTestingId(p.id);
-                          void testRemoteHealth(p.url).then((ok) => {
-                            setTestingId(null);
-                            toast[ok ? 'success' : 'error'](ok ? t('testSuccess') : t('testFailed'));
-                          });
-                        }}
-                        disabled={testingId === p.id}
-                        className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold hover:bg-white/5 disabled:opacity-50 transition-colors"
-                      >
-                        {testingId === p.id ? t('testing') : t('testConnection')}
-                      </button>
+                      {p.kind !== 'cloud' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTestingId(p.id);
+                            void testRemoteHealth(p.url).then((ok) => {
+                              setTestingId(null);
+                              toast[ok ? 'success' : 'error'](ok ? t('testSuccess') : t('testFailed'));
+                            });
+                          }}
+                          disabled={testingId === p.id}
+                          className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold hover:bg-white/5 disabled:opacity-50 transition-colors"
+                        >
+                          {testingId === p.id ? t('testing') : t('testConnection')}
+                        </button>
+                      )}
                       {p.id !== activeId && (
                         <button
                           type="button"
@@ -281,6 +319,10 @@ const ServerConnectionCard = memo(() => {
                 {t('save')}
               </button>
             </div>
+
+            <div className="h-px bg-white/5" />
+
+            <ServerConnectionCloudSection onConnected={handleCloudConnected} />
           </>
         )}
       </div>

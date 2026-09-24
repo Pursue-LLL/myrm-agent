@@ -6128,7 +6128,9 @@
         "oidc": "使用企業 SSO 登入"
       },
       "backToLogin": "返回登入",
-      "unavailableHint": "Google 登入暫不可用。請檢查控制平面 Google OAuth 配置與 NEXT_PUBLIC_CP_BASE_URL。"
+      "unavailableHint": "Google 登入暫不可用。請檢查控制平面 Google OAuth 配置與 NEXT_PUBLIC_CP_BASE_URL。",
+      "desktopDescription": "登入完成，點按回到桌面端完成連接。",
+      "openInDesktop": "回到桌面端"
     }
   },
   "migration": {
@@ -17798,7 +17800,20 @@
         "duplicateProfile": "已存在同名或同位址的連線檔案",
         "remove": "移除",
         "profileNamePlaceholder": "名稱，例如家庭伺服器",
-        "offlineHint": "即使本機關機或離線，排程任務仍在遠端伺服器上繼續執行。"
+        "offlineHint": "即使本機關機或離線，排程任務仍在遠端伺服器上繼續執行。",
+        "cloudTitle": "雲託管",
+        "cloudDesc": "使用雲端帳號登入，然後發現你的雲端沙箱，無需貼上伺服器位址。",
+        "checkProviders": "查看登入方式",
+        "providersUnavailable": "該位址暫不支援登入，請檢查位址後重試。",
+        "continueWith": "使用 {provider} 繼續",
+        "signInFirst": "請先使用雲端帳號登入。",
+        "discoverSandbox": "發現我的沙箱",
+        "discoverFailed": "未找到沙箱，請先登入或檢查訂閱。",
+        "wizardTitle": "你的助手運行在哪裡？",
+        "wizardDesc": "使用本機、連接遠端伺服器，或使用雲託管，隨時可以更改。",
+        "optLocal": "本機",
+        "optRemote": "遠端伺服器",
+        "optCloud": "雲託管"
       },
       "push": {
         "deniedHint": "通知已被封鎖。請在瀏覽器設定中啟用。",

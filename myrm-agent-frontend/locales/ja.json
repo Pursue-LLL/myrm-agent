@@ -6128,7 +6128,9 @@
         "oidc": "企業 SSO でログイン"
       },
       "backToLogin": "ログインに戻る",
-      "unavailableHint": "Google サインインは現在利用できません。コントロールプレーンの Google OAuth 設定と NEXT_PUBLIC_CP_BASE_URL を確認してください。"
+      "unavailableHint": "Google サインインは現在利用できません。コントロールプレーンの Google OAuth 設定と NEXT_PUBLIC_CP_BASE_URL を確認してください。",
+      "desktopDescription": "サインイン完了。デスクトップアプリに戻って接続を完了します。",
+      "openInDesktop": "デスクトップで開く"
     }
   },
   "migration": {
@@ -17798,7 +17800,20 @@
         "duplicateProfile": "同名または同一URLの接続が既にあります",
         "remove": "削除",
         "profileNamePlaceholder": "名前（例：自宅サーバー）",
-        "offlineHint": "このPCがオフラインでも、定期タスクはリモートサーバーで実行され続けます。"
+        "offlineHint": "このPCがオフラインでも、定期タスクはリモートサーバーで実行され続けます。",
+        "cloudTitle": "クラウドホスティング",
+        "cloudDesc": "クラウドアカウントでサインインし、ホストされたサンドボックスを検出します。URLの貼り付けは不要です。",
+        "checkProviders": "サインイン方法を確認",
+        "providersUnavailable": "このアドレスではサインインできません。アドレスを確認してください。",
+        "continueWith": "{provider}で続ける",
+        "signInFirst": "先にクラウドアカウントでサインインしてください。",
+        "discoverSandbox": "サンドボックスを検出",
+        "discoverFailed": "サンドボックスが見つかりません。サインインまたはプランを確認してください。",
+        "wizardTitle": "アシスタントの実行場所",
+        "wizardDesc": "このPC、リモートサーバー、クラウドホスティングから選べます。後から変更できます。",
+        "optLocal": "このPC",
+        "optRemote": "リモートサーバー",
+        "optCloud": "クラウド"
       },
       "push": {
         "deniedHint": "通知がブロックされています。ブラウザの設定で有効にしてください。",

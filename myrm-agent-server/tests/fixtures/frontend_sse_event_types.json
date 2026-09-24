@@ -86,5 +86,6 @@
   "tools_snapshot",
   "ui_update",
   "verification_verdict",
+  "working_memory",
   "workspace_merge_failed"
 ]

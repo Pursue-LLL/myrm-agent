@@ -4,6 +4,7 @@ import {
   getActiveRemoteProfile,
   listRemoteProfiles,
   removeRemoteProfile,
+  resolveProfileApiBase,
   setActiveRemoteProfileId,
 } from '@/lib/remote-profiles';
 
@@ -50,6 +51,17 @@ describe('remote profiles roster', () => {
     expect(first).not.toBeNull();
     expect(addRemoteProfile('homelab', 'https://other.example.com')).toBeNull();
     expect(addRemoteProfile('Other', 'https://homelab.example.com')).toBeNull();
+  });
+
+  it('creates cloud profiles resolving to the CP proxy base', () => {
+    makeWindow();
+    const created = addRemoteProfile('Cloud sandbox', 'https://cp.example.com/proxy/me', {
+      kind: 'cloud',
+      cpBaseUrl: 'https://cp.example.com',
+    });
+    expect(created?.kind).toBe('cloud');
+    expect(created && resolveProfileApiBase(created)).toBe('https://cp.example.com/proxy/me');
+    expect(addRemoteProfile('Cloud 2', 'https://other.example.com/proxy/me', { kind: 'cloud' })).toBeNull();
   });
 
   it('clears active selection on remove', () => {

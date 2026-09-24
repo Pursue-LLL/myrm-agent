@@ -52,6 +52,7 @@ import {
   addRemoteProfile,
   getActiveRemoteProfile,
   listRemoteProfiles,
+  resolveProfileApiBase,
   setActiveRemoteProfileId,
 } from './remote-profiles';
 
@@ -77,7 +78,7 @@ export function getRemoteGatewayConfig(): RemoteGatewayConfig | null {
   if (!active) {
     return null;
   }
-  return { enabled: true, url: active.url };
+  return { enabled: true, url: resolveProfileApiBase(active) };
 }
 
 export function setRemoteGatewayConfig(config: RemoteGatewayConfig | null): void {

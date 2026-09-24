@@ -6128,7 +6128,9 @@
         "oidc": "SSO로 계속"
       },
       "backToLogin": "로그인으로 돌아가기",
-      "unavailableHint": "Google 로그인을 사용할 수 없습니다. 컨트롤 플레인 Google OAuth 설정과 NEXT_PUBLIC_CP_BASE_URL을 확인하세요."
+      "unavailableHint": "Google 로그인을 사용할 수 없습니다. 컨트롤 플레인 Google OAuth 설정과 NEXT_PUBLIC_CP_BASE_URL을 확인하세요.",
+      "desktopDescription": "로그인 완료. 데스크톱 앱으로 돌아가 연결을 마치세요.",
+      "openInDesktop": "데스크톱에서 열기"
     }
   },
   "migration": {
@@ -17798,7 +17800,20 @@
         "duplicateProfile": "같은 이름이나 URL의 연결이 이미 있습니다",
         "remove": "삭제",
         "profileNamePlaceholder": "이름(예: 홈 서버)",
-        "offlineHint": "이 PC가 꺼져 있어도 예약 작업은 원격 서버에서 계속 실행됩니다."
+        "offlineHint": "이 PC가 꺼져 있어도 예약 작업은 원격 서버에서 계속 실행됩니다.",
+        "cloudTitle": "클라우드 호스팅",
+        "cloudDesc": "클라우드 계정으로 로그인한 뒤 호스팅된 샌드박스를 찾습니다. 주소를 붙여넣을 필요가 없습니다.",
+        "checkProviders": "로그인 방법 확인",
+        "providersUnavailable": "이 주소에서는 로그인할 수 없습니다. 주소를 확인하세요.",
+        "continueWith": "{provider}로 계속",
+        "signInFirst": "먼저 클라우드 계정으로 로그인하세요.",
+        "discoverSandbox": "내 샌드박스 찾기",
+        "discoverFailed": "샌드박스를 찾지 못했습니다. 로그인 또는 요금제를 확인하세요.",
+        "wizardTitle": "어시스턴트 실행 위치",
+        "wizardDesc": "이 PC, 원격 서버, 클라우드 호스팅 중 선택하세요. 언제든 변경できます.",
+        "optLocal": "이 PC",
+        "optRemote": "원격 서버",
+        "optCloud": "클라우드"
       },
       "push": {
         "deniedHint": "알림이 차단되었습니다. 브라우저 설정에서 활성화하세요.",

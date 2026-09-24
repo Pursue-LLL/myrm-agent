@@ -19,6 +19,9 @@ export default function OAuthCallbackPage() {
   const cpLogin = useAuthStore((s) => s.login);
 
   const [error, setError] = useState('');
+  const [desktopToken, setDesktopToken] = useState<string | null>(null);
+
+  const isDesktopReturn = searchParams.get('desktop') === '1';
 
   useEffect(() => {
     const oauthError = searchParams.get('error');
@@ -47,6 +50,11 @@ export default function OAuthCallbackPage() {
           setError(typeof data.detail === 'string' ? data.detail : t('failed'));
           return;
         }
+        // 桌面回跳：token 经用户显式点击 myrmagent:// 深链交回桌面，不在此浏览器落会话。
+        if (isDesktopReturn && typeof data.token === 'string' && data.token) {
+          setDesktopToken(data.token);
+          return;
+        }
         await cpLogin(data.token, { id: data.user_id, email: data.email });
         await syncCookieLocaleToPersonalSettings();
         window.location.href = postAuthPath;
@@ -54,7 +62,7 @@ export default function OAuthCallbackPage() {
         setError(t('failed'));
       }
     })();
-  }, [cpLogin, router, searchParams, t]);
+  }, [cpLogin, router, searchParams, t, isDesktopReturn]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-background to-primary-50 dark:from-gray-900 dark:via-background dark:to-gray-900 p-4">
@@ -72,6 +80,19 @@ export default function OAuthCallbackPage() {
               <p className="text-sm text-destructive text-center px-2">{error}</p>
               <Button asChild variant="outline" className="w-full sm:w-auto">
                 <Link href="/auth/login">{t('backToLogin')}</Link>
+              </Button>
+            </>
+          ) : desktopToken ? (
+            <>
+              <p className="text-sm text-muted-foreground text-center px-2">{t('desktopDescription')}</p>
+              <Button
+                type="button"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  window.location.href = `myrmagent://oauth/callback?token=${encodeURIComponent(desktopToken)}`;
+                }}
+              >
+                {t('openInDesktop')}
               </Button>
             </>
           ) : (

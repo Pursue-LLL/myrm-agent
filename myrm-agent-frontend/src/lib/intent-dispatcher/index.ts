@@ -30,6 +30,63 @@ export class IntentDispatcher {
     }
   }
 
+  /**
+   * Desktop OAuth 回调：持久化 CP token 并用沙箱列表校验，成功后落为 Cloud 档案。
+   * 用户在浏览器点“回到桌面”显式触发，无静默登录；校验失败则清 token 防错绑。
+   */
+  private async handleOAuthCallback(token: string) {
+    const CLOUD_OAUTH_PENDING_KEY = 'myrm-cloud-oauth-pending';
+    const LOCAL_TOKEN_BACKUP_KEY = 'myrm-local-auth-token-backup';
+    try {
+      const pendingRaw =
+        typeof window !== 'undefined' ? window.localStorage.getItem(CLOUD_OAUTH_PENDING_KEY) : null;
+      const pending = pendingRaw ? (JSON.parse(pendingRaw) as { cpBaseUrl?: string }) : null;
+      const cpBaseUrl =
+        typeof pending?.cpBaseUrl === 'string' ? pending.cpBaseUrl.replace(/\/+$/, '') : null;
+
+      // 先验后写：token 有效性用沙箱列表校验，通过后才动本地会话，失败零副作用。
+      if (cpBaseUrl) {
+        const res = await fetch(`${cpBaseUrl}/api/sandboxes`, {
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          cache: 'no-store',
+        });
+        if (!res.ok) {
+          throw new Error(`Sandbox discovery failed: ${res.status}`);
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        const current = window.localStorage.getItem('auth_token');
+        if (current && current !== token && !window.localStorage.getItem(LOCAL_TOKEN_BACKUP_KEY)) {
+          window.localStorage.setItem(LOCAL_TOKEN_BACKUP_KEY, current);
+        }
+        window.localStorage.removeItem(CLOUD_OAUTH_PENDING_KEY);
+      }
+
+      const { default: useAuthStore } = await import('@/store/useAuthStore');
+      await useAuthStore.getState().login(token);
+
+      if (cpBaseUrl) {
+        const { addRemoteProfile, listRemoteProfiles, setActiveRemoteProfileId } = await import(
+          '@/lib/remote-profiles'
+        );
+        const proxyBase = `${cpBaseUrl}/proxy/me`;
+        const existing = listRemoteProfiles().find((p) => p.url === proxyBase);
+        if (existing) {
+          setActiveRemoteProfileId(existing.id);
+        } else {
+          addRemoteProfile('Cloud sandbox', proxyBase, { kind: 'cloud', cpBaseUrl });
+        }
+      }
+
+      toast.success('授权成功');
+      this.router.push('/settings');
+    } catch {
+      toast.error('授权校验失败，请重试');
+      this.router.push('/settings');
+    }
+  }
+
   private async execute(intent: UIPIntent) {
     console.log(`[UIP] Executing intent:`, intent);
 
@@ -59,10 +116,7 @@ export class IntentDispatcher {
         this.openFlowPad(intent.text);
         break;
       case 'oauth':
-        // Handle OAuth callback (e.g., save token, redirect to settings)
-        // For now, just show a toast and redirect to settings
-        toast.success('授权成功');
-        this.router.push('/settings');
+        await this.handleOAuthCallback(intent.token);
         break;
       case 'install-skill':
         this.router.push(`/settings/skills?action=install&url=${encodeURIComponent(intent.url)}`);

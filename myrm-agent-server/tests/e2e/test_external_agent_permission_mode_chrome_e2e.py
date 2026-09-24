@@ -135,6 +135,7 @@ def _switch_type(client: object, page: object, agent_type: str) -> None:
     access_scope="READ",
     workload="STANDARD",
 )
+@pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_external_agent_permission_modes_offer_only_supported_options() -> None:

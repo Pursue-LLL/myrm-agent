@@ -5280,7 +5280,20 @@
         "duplicateProfile": "已存在同名或同地址的连接档案",
         "remove": "移除",
         "profileNamePlaceholder": "名称，例如家庭服务器",
-        "offlineHint": "即使本机关机或离线，定时任务仍在远端服务器上继续运行。"
+        "offlineHint": "即使本机关机或离线，定时任务仍在远端服务器上继续运行。",
+        "cloudTitle": "云托管",
+        "cloudDesc": "使用云账号登录，然后发现你的云端沙箱，无需粘贴服务器地址。",
+        "checkProviders": "查看登录方式",
+        "providersUnavailable": "该地址暂不支持登录，请检查地址后重试。",
+        "continueWith": "使用 {provider} 继续",
+        "signInFirst": "请先使用云账号登录。",
+        "discoverSandbox": "发现我的沙箱",
+        "discoverFailed": "未找到沙箱，请先登录或检查订阅。",
+        "wizardTitle": "你的助手运行在哪里？",
+        "wizardDesc": "使用本机、连接远端服务器，或使用云托管，随时可以更改。",
+        "optLocal": "本机",
+        "optRemote": "远端服务器",
+        "optCloud": "云托管"
       },
       "webuiAccess": {
         "title": "WebUI 访问密码",
@@ -13071,7 +13084,9 @@
         "oidc": "使用企业 SSO 登录"
       },
       "backToLogin": "返回登录",
-      "unavailableHint": "Google 登录暂不可用。请检查控制平面 Google OAuth 配置与 NEXT_PUBLIC_CP_BASE_URL。"
+      "unavailableHint": "Google 登录暂不可用。请检查控制平面 Google OAuth 配置与 NEXT_PUBLIC_CP_BASE_URL。",
+      "desktopDescription": "登录完成，点击回到桌面端完成连接。",
+      "openInDesktop": "回到桌面端"
     }
   },
   "migration": {

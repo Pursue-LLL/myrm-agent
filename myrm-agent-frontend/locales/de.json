@@ -6128,7 +6128,9 @@
         "oidc": "Fahren Sie mit SSO fort"
       },
       "backToLogin": "Zurück zur Anmeldung",
-      "unavailableHint": "Die Google-Anmeldung ist nicht verfügbar. Überprüfen Sie die Google-Einstellungen OAuth und NEXT_PUBLIC_CP_BASE_URL der Steuerungsebene."
+      "unavailableHint": "Die Google-Anmeldung ist nicht verfügbar. Überprüfen Sie die Google-Einstellungen OAuth und NEXT_PUBLIC_CP_BASE_URL der Steuerungsebene.",
+      "desktopDescription": "Anmeldung abgeschlossen. Kehre zur Desktop-App zurück.",
+      "openInDesktop": "In Desktop-App öffnen"
     }
   },
   "migration": {
@@ -17798,7 +17800,20 @@
         "duplicateProfile": "Ein Profil mit gleichem Namen oder URL existiert bereits",
         "remove": "Entfernen",
         "profileNamePlaceholder": "Name, z. B. Homelab",
-        "offlineHint": "Geplante Aufgaben laufen auf dem Remote-Server weiter, auch wenn dieser Desktop offline ist."
+        "offlineHint": "Geplante Aufgaben laufen auf dem Remote-Server weiter, auch wenn dieser Desktop offline ist.",
+        "cloudTitle": "Cloud-Hosting",
+        "cloudDesc": "Melde dich mit deinem Cloud-Konto an und finde deine gehostete Sandbox. Keine Serveradresse nötig.",
+        "checkProviders": "Anmeldeoptionen prüfen",
+        "providersUnavailable": "Anmeldung unter dieser Adresse nicht verfügbar. Prüfe die Adresse.",
+        "continueWith": "Mit {provider} fortfahren",
+        "signInFirst": "Melde dich zuerst mit deinem Cloud-Konto an.",
+        "discoverSandbox": "Meine Sandbox finden",
+        "discoverFailed": "Keine Sandbox gefunden. Melde dich an oder prüfe deinen Plan.",
+        "wizardTitle": "Wo läuft dein Assistent?",
+        "wizardDesc": "Dieser Computer, ein Remote-Server oder Cloud-Hosting. Jederzeit änderbar.",
+        "optLocal": "Dieser Computer",
+        "optRemote": "Remote-Server",
+        "optCloud": "Cloud"
       },
       "push": {
         "deniedHint": "Benachrichtigungen sind blockiert. Aktivieren Sie sie in den Browsereinstellungen.",

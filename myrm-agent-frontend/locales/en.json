@@ -5280,7 +5280,20 @@
         "duplicateProfile": "A profile with the same name or URL already exists",
         "remove": "Remove",
         "profileNamePlaceholder": "Name, e.g. Homelab",
-        "offlineHint": "Scheduled tasks keep running on the remote server even when this desktop is offline or closed."
+        "offlineHint": "Scheduled tasks keep running on the remote server even when this desktop is offline or closed.",
+        "cloudTitle": "Cloud hosting",
+        "cloudDesc": "Sign in with your cloud account, then discover your hosted sandbox. No server address to paste.",
+        "checkProviders": "Check sign-in options",
+        "providersUnavailable": "Sign-in is unavailable on this address. Check the address and try again.",
+        "continueWith": "Continue with {provider}",
+        "signInFirst": "Sign in with your cloud account first.",
+        "discoverSandbox": "Discover my sandbox",
+        "discoverFailed": "Sandbox not found. Sign in first or check your plan.",
+        "wizardTitle": "Where does your assistant run?",
+        "wizardDesc": "Use this computer, connect a remote server, or use cloud hosting. You can change this anytime.",
+        "optLocal": "This computer",
+        "optRemote": "Remote server",
+        "optCloud": "Cloud hosting"
       },
       "webuiAccess": {
         "title": "WebUI access password",
@@ -13071,7 +13084,9 @@
         "oidc": "Continue with SSO"
       },
       "backToLogin": "Back to sign in",
-      "unavailableHint": "Google sign-in is unavailable. Verify control plane Google OAuth settings and NEXT_PUBLIC_CP_BASE_URL."
+      "unavailableHint": "Google sign-in is unavailable. Verify control plane Google OAuth settings and NEXT_PUBLIC_CP_BASE_URL.",
+      "desktopDescription": "Sign-in complete. Return to the desktop app to finish connecting.",
+      "openInDesktop": "Open in desktop app"
     }
   },
   "migration": {

@@ -28,7 +28,9 @@
 | 文件                           | 职责                                                                                    |
 | ------------------------------ | --------------------------------------------------------------------------------------- |
 | `AccessCard.tsx`               | 访问地址、CF tunnel 启停、Mobile Hub QR、PWA 引导、E2EE 指纹与算法详情                  |
-| `ServerConnectionCard.tsx`     | Tauri Desktop 远程服务器网关：本地/远程模式切换、URL 输入、连接测试、断开恢复本地 token |
+| `ServerConnectionCard.tsx`     | Tauri Desktop 远程服务器网关：本地/远程模式切换、多档案 roster、URL 输入、连接测试、断开恢复本地 token |
+| `RemoteFirstRunChooser.tsx`    | 首启三选一（本机/远端/云托管，一次性指引，可关闭）          |
+| `ServerConnectionCloudSection.tsx` | 云托管区：CP 登录方式查询、浏览器 OAuth（桌面回跳）、沙箱发现建档 |
 | `WebuiAccessSecurityPanel.tsx` | WebUI 访问安全配置                                                                      |
 
 ### 通知
