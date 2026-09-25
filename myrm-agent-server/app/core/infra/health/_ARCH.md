@@ -23,6 +23,7 @@ Diagnostic aggregation for `/health/doctor` lives here:
 | skill_diagnostics.py | Core | Skill ecosystem diagnostic probe (SkillHoardingHealthDiagnostic skill hoarding & wrong-but-frequent low-quality audit). | ✅ |
 | server_diagnostics.py | Core | Server business diagnostic probes (DLQ & Durable Outbound Redelivery, ExecutionCache & Process RSS) and probe runner manager. Tests: `tests/core/infra/health/test_server_diagnostics_execution_cache.py`. | ✅ |
 | trace_security_diagnostic.py | Core | Probes OpenTelemetry trace exporter posture ensuring zero unauthorized egress and local-only isolation. | ✅ |
+| session_diagnostics.py | Core | OrphanSessionDiagnostic 孤儿空壳会话（缺少 Assistant 回复的遗留空会话）健康诊断探针与清理审计。 | ✅ |
 | qdrant.py | Core | Qdrant path verifier (Lock management is natively handled by Qdrant Rust engine with Server entrypoint Phantom-Kill). | ✅ |
 | sqlite.py | Core | SQLite health checker with PRAGMA quick_check integrity verification and backup-based recovery via SQLiteBackupManager. | ✅ |
 | browser.py | Core | Browser & driver automation pool health checker delegating to Harness authoritative orphans doctor. Tests: `tests/core/infra/health/test_browser_health_checker.py`. | ✅ |

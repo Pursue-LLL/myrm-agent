@@ -11,6 +11,7 @@ General Agent SSE 流式会话的服务层实现。HTTP 路由装饰器保留在
 | `pre_reply_compact_sse.py` | 核心 | Web pre-reply idle compact SSE 生命周期（active → gate → completed/failure；gate exception → failure SSE；复用 frontend `context_compaction` progress steps） | ✅ |
 | `stream_session_types.py` | 核心 | `AgentStreamSession` 数据类与断连宽限常量；承载流式会话起点时钟与端到端 TTFT 采样值（`stream_started_at_monotonic` / `stream_ttft_ms`）及智能路由归因（`routing_reason`）；`pre_reply_compact_result` + `pre_reply_compact_sse_sent` 供 pump 去重 SSE | ✅ |
 | `stream_disconnect.py` | 核心 | PWA 断连宽限与 Offline Durable Guardian 注册 | ✅ |
+| `lazy_session_gate.py` | 核心 | 延迟持久化门禁协议：推迟全新会话的数据库记录与沙箱目录物理创建，直至收到首个 active generation chunk（token/reasoning/tool_call）；提供 `PendingSessionDraft` 与幂等提交屏障 `commit_lazy_session_barrier` | ✅ |
 | `memory_brief.py` | 核心 | 发送后首 token 前的记忆简报预计算（同源 snapshot + 预览 payload） | ✅ |
 | `_memory_status_helpers.py` | 辅助 | Memory brief 状态组装 SSOT：统一构建 `memory_brief_status`（`ready/skipped` + `source(preflight/runtime_fallback)` + `injection`）供 `stream_loop` 与 `stream_finalize` 复用，避免双实现漂移；injection 校验复用 harness 公共契约，并导出 brief 状态契约供前端同构测试；内置 Prometheus 观测（含 `not_applied` 原因聚合）与 unknown 枚举告警 | ✅ |
 | `stream_chunks.py` | 核心 | SSE 预检编排（凭据、Vision fallback、**config gap / migration readiness gap / entitlement gap 三轨**；**turn prewarm** 等待态 STATUS `turn_prewarm_agent` / `turn_prewarm_memory`；`routing_decision` 事件下发 tier、specialty 与 `routing_reason` 归因）+ `generate_cancellable_stream` 生成器主体;`BaseException` 兜底捕获 → `yield_stream_exception_chunks`,`finally` 调 `finalize_agent_stream_session` | ✅ |
