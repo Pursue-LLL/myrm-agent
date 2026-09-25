@@ -1,4 +1,14 @@
-"""Desktop workflow recording service — session registry and capture-loop lifecycle."""
+"""Desktop workflow recording service — session registry and capture-loop lifecycle.
+
+[POS]
+Desktop recording service subpackage. Provides recording session management, AX capture task
+and session state model.
+
+[INPUT]
+- app.services.skills.desktop_recording.capture_task
+- app.services.skills.desktop_recording.session_manager
+- app.services.skills.desktop_recording.state
+"""
 
 from app.services.skills.desktop_recording.capture_task import DesktopCaptureTask
 from app.services.skills.desktop_recording.session_manager import (

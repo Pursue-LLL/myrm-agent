@@ -8,7 +8,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `desktop_recording/` | 子域 | 桌面工作流录制采集后台任务（清单见 [`desktop_recording/_ARCH.md`](desktop_recording/_ARCH.md)） | — |
+| `desktop_recording/` | 子域 | 桌面工作流录制：会话注册表（保留上限 + 并发采集预算）与采集循环生命周期（清单见 [`desktop_recording/_ARCH.md`](desktop_recording/_ARCH.md)） | — |
 | `evolution_review/` | 子域 | Evolution 审核：类型 + 持久化 + 查询 + 写操作 + 落盘编排（清单见 [`evolution_review/_ARCH.md`](evolution_review/_ARCH.md)） | — |
 | `growth/` | 子域 | 技能成长：动作 SSOT + case DTO + case 查询 + 账本审计/投影 + 生命周期编排（清单见 [`growth/_ARCH.md`](growth/_ARCH.md)） | — |
 | `evolution_reviews.py` | 门面 | evolution 审核生命周期门面（re-export `evolution_review/` 公共 API） | ✅ |

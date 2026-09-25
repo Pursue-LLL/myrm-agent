@@ -18,10 +18,7 @@
 | `converter.py` | 辅助 | 技能模型转换适配器：将核心 Skill 实体精确转换为 API SkillResponse 强类型响应模型。 | ✅ |
 | `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability | ✅ |
 | `curator.py` | 模块 | Curator API — skill lifecycle management endpoints. | ✅ |
-| `desktop_recorder/`（子包） | 模块 | 桌面工作流录制 HTTP 域：会话生命周期、事件收集、意图规划分析与技能发布（清单见 [`desktop_recorder/_ARCH.md`](desktop_recorder/_ARCH.md)）。 | ✅ |
-| `desktop_recorder.py` | 模块 | Desktop Workflow Skill Recorder API — 桌面操作录制会话、事件流收集、意图与Tool Lifting技能合成及落盘发布。 | ✅ |
-| `desktop_capture_task.py` | 模块 | 录制会话的后台 AX 采集循环：轮询前台桌面树、差分出交互事件并追加到会话；平台不支持或无权限时降级为手动录入并回传原因。 | ✅ |
-| `desktop_recorder_schemas.py` | 模块 | Desktop Workflow Skill Recorder request/response Pydantic schemas and session state container. | ✅ |
+| `desktop_recorder/`（子包） | 模块 | 桌面工作流录制域：`router.py`（`/desktop-recorder/*` 会话生命周期、事件收集、意图规划、技能编译与发布）、`schemas.py`（请求/响应模型 + `RecordingSessionState`）；会话语义委托给 `services/skills/desktop_recording/`。清单见 [`desktop_recorder/_ARCH.md`](desktop_recorder/_ARCH.md) | ✅ |
 | `discovery.py` | 模块 | Skill discovery API — search/install/enable-after-install/uninstall/sources/registry-probe/pool-sync；search 支持 package_type 过滤与 MCP 声明透传；install/update/uninstall/install-from-url 受沙箱能力门控；uninstall 支持父子技能级联清理、孤儿智能体白名单清理与依赖者校验；/pool/sync 支持跨 Agent 白名单同步与广播 | ✅ |
 | `discovery_schemas.py` | 模块 | Discovery request/response Pydantic models（含 package_type, keywords, declared_mcp_servers, installed_skills, SkillPoolSyncRequest, SkillPoolSyncResponse；`SkillUninstallRequest.force` 支持强制卸载依赖者技能） | ✅ |
 | `drafts.py` | 模块 | Agent Draft Inbox API：按 status 查询 growth drafts；`POST /drafts/test/seed-mock?agent_id=` 本地 E2E seed；approve skill_draft/skill_patch 受沙箱能力门控（延迟导入避免 router 循环依赖） | ✅ |

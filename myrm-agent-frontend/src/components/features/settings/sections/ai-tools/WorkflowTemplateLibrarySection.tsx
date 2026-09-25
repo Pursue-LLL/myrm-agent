@@ -16,6 +16,7 @@ import {
 } from '@/services/workflowTemplates';
 import { useWorkflowTemplateTransfer } from '@/lib/workflow/useWorkflowTemplateTransfer';
 import { submitWorkflowTemplateRun } from '@/lib/workflow/submitWorkflowTemplateRun';
+import { admitTemplateRun } from '@/services/workflowTemplates';
 import { useToast } from '@/hooks/shared/useToast';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import WorkflowTemplateScriptPreview from './WorkflowTemplateScriptPreview';
@@ -23,6 +24,25 @@ import WorkflowTemplateArgsDialog from './WorkflowTemplateArgsDialog';
 
 interface WorkflowTemplateLibrarySectionProps {
   className?: string;
+}
+
+/** Map server gate reason codes to locale keys (fallback: generic denial). */
+function mapAdmitReasonKey(reasonCode: string): string {
+  switch (reasonCode) {
+    case 'EVIDENCE_MISSING':
+      return 'admitEvidenceMissing';
+    case 'ARGS_INVALID':
+      return 'admitArgsInvalid';
+    case 'TEMPLATE_NOT_FOUND':
+      return 'admitTemplateGone';
+    case 'TRUST_POLICY':
+      return 'admitTrustPolicy';
+    case 'CRITERIA_UNMET':
+    case 'CRITERIA_MISSING':
+      return 'admitCriteriaOpen';
+    default:
+      return 'admitDeniedGeneric';
+  }
 }
 
 const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibrarySectionProps) => {
@@ -87,6 +107,13 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
       }
       setRunningTemplateId(template.template_id);
       try {
+        const admission = await admitTemplateRun(template.template_id, {
+          template_args: templateArgs ?? null,
+        });
+        if (!admission.admitted) {
+          toast({ title: t(mapAdmitReasonKey(admission.reason_code)), variant: 'destructive' });
+          return;
+        }
         const result = await submitWorkflowTemplateRun({
           templateId: template.template_id,
           displayName: template.display_name,
@@ -231,6 +258,11 @@ const WorkflowTemplateLibrarySection = memo(({ className }: WorkflowTemplateLibr
                 </p>
               )}
               <div className="flex flex-wrap items-center gap-2 mt-2">
+                {template.is_trunk && (
+                  <Badge variant="default" className="text-[10px] uppercase tracking-wide">
+                    {t('trunkBadge')}
+                  </Badge>
+                )}
                 {template.trust_latch ? (
                   <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
                     {t('trustLatchOn')}
