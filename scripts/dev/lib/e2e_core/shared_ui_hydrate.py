@@ -77,6 +77,32 @@ def shpoib_shared_ui_queue_enabled() -> bool:
     return os.environ.get("MYRM_E2E_SHPOIB", "").strip() == "1"
 
 
+def _live_parallel_shared_ui_load() -> int:
+    """Live parallel chrome_e2e load for shared :3000 hydrate serialization.
+
+    ``wave_active_lease_count`` alone under-report during pytest peers that hold
+    no *wave* lease (daily ``./myrm test`` parallelism), which let the bridge cap
+    fall back to the serial 60s budget while 4-12 peers were compiling :3000 —
+    surfacing as ``E2E_SHARED_UI_SESSION_BRIDGE: bridge-ready-timeout``.
+    """
+    load = 0
+    try:
+        from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
+
+        load = max(load, parallel_active_test_count_ssot())
+    except (ImportError, OSError, RuntimeError, ValueError):
+        pass
+    root = _monorepo_root()
+    if root is not None:
+        try:
+            from e2e_core.stack_mutation_policy import wave_active_lease_count
+
+            load = max(load, wave_active_lease_count(root))
+        except (ImportError, OSError, RuntimeError, ValueError):
+            pass
+    return load
+
+
 def parallel_shared_ui_hydrate_queue_enabled() -> bool:
     """Serialize shared :3000 compile bursts for parallel Chrome E2E (SHPOIB + READ shared-hot)."""
     if os.environ.get("MYRM_E2E_PHASE_C_BURST_SKIP_ATTACH", "").strip() == "1":
@@ -92,23 +118,14 @@ def parallel_shared_ui_hydrate_queue_enabled() -> bool:
             return True
     except ImportError:
         pass
-    if os.environ.get("E2E_SIGNOFF", "").strip() == "1":
-        try:
-            from mux.transport_supervisor import parallel_active_test_count
-
-            if parallel_active_test_count() >= 2:
-                return True
-        except ImportError:
-            pass
-    root = _monorepo_root()
-    if root is None:
-        return False
     try:
-        from e2e_core.stack_mutation_policy import wave_active_lease_count
+        from mux.transport_supervisor import parallel_active_test_count
 
-        return wave_active_lease_count(root) > 1
-    except (ImportError, OSError, RuntimeError, ValueError):
-        return False
+        if parallel_active_test_count() >= 2:
+            return True
+    except ImportError:
+        pass
+    return _live_parallel_shared_ui_load() > 1
 
 
 @contextmanager

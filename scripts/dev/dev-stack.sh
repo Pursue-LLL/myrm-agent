@@ -287,8 +287,17 @@ _frontend_healthy() {
   _http_ok "${APP_URL}/" "${1:-${probe_timeout}}"
 }
 
+_frontend_proxy_healthy() {
+  # The static shell can serve 200 while the API rewrite behind it is dead: the
+  # frontend bakes its upstream at spawn time, so it can point at a backend that has
+  # since gone away. A shell-only probe reports that broken state as healthy, which
+  # silently fails every UI test that reads data. Kept separate from
+  # `_frontend_healthy` so the frontend restart path never churns on an API blip.
+  _http_ok "${APP_URL}/api/v1/health" "${1:-5}"
+}
+
 _stack_healthy() {
-  _api_healthy 5 && _frontend_healthy 8
+  _api_healthy 5 && _frontend_healthy 8 && _frontend_proxy_healthy 5 && _frontend_binding_matches 2>/dev/null
 }
 
 _stack_warm() {
@@ -296,6 +305,8 @@ _stack_warm() {
   _lock_supervisor_alive || return 1
   _api_healthy 5 || return 1
   _frontend_healthy 8 || return 1
+  _frontend_proxy_healthy 5 || return 1
+  _frontend_binding_matches 2>/dev/null || return 1
   [[ "$(_frontend_compile_hot_status)" == "yes" ]]
 }
 
@@ -339,6 +350,34 @@ try:
 except (OSError, ValueError):
     raise SystemExit(1)
 ' "${FRONTEND_PORT}" >/dev/null 2>&1
+}
+
+_frontend_bound_api_port() {
+  # The frontend rewrites /api/v1 to whichever port it was spawned with; recover that
+  # port from the live process so a stale binding can be detected before adoption.
+  local pid
+  pid="$(lsof -nP -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN -t 2>/dev/null | head -1)"
+  if [[ -z "${pid}" ]]; then
+    if [[ -f "${FRONTEND_PID}" ]]; then
+      pid="$(cat "${FRONTEND_PID}" 2>/dev/null)"
+    fi
+  fi
+  [[ -n "${pid}" ]] || return 1
+  ps eww -p "${pid}" 2>/dev/null | tr ' ' '\n' | sed -n 's/^API_PORT=//p' | head -1
+}
+
+_frontend_binding_matches() {
+  # Reusing a frontend whose upstream moved means every /api/v1 call can hit a dead or
+  # foreign port while the shell still answers 200. Only adopt it when the bound port
+  # is the backend this ensure targets.
+  local bound
+  bound="$(_frontend_bound_api_port)" || return 0
+  [[ -z "${bound}" ]] && return 0
+  if [[ "${bound}" == "${BACKEND_PORT}" ]]; then
+    return 0
+  fi
+  echo "STACK_REBIND: frontend :${FRONTEND_PORT} bound to api=:${bound} but this ensure targets :${BACKEND_PORT} — restarting frontend" >&2
+  return 1
 }
 
 _sync_frontend_pid_from_lock() {
@@ -575,7 +614,7 @@ _start_frontend_supervisor() {
     echo "STACK_FRONTEND_SKIP: frontend dev paused (bun run cleanup); run: frontend-only clear-pause" >&2
     return 0
   fi
-  if _frontend_healthy; then
+  if _frontend_healthy && _frontend_binding_matches; then
     _sync_frontend_pid_from_lock
     echo "STACK_OK: frontend already healthy → ${APP_URL}"
     return 0

@@ -69,10 +69,18 @@ class WorkflowTemplateDetailResponse(BaseModel):
     script_code: str
     bound_cron_count: int = Field(default=0, ge=0)
 
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
 
 class AdmitHandoffMaterial(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     excerpt: str = Field(min_length=1, max_length=4000)
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
 
 
 class AdmitHandoff(BaseModel):
@@ -84,12 +92,20 @@ class AdmitHandoff(BaseModel):
     materials: list[AdmitHandoffMaterial] = Field(default_factory=list, max_length=20)
     evidence_refs: list[str] = Field(default_factory=list, max_length=20)
 
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
+
 
 class AdmitTemplateRunRequest(BaseModel):
     template_args: dict[str, str] | None = None
     handoff: AdmitHandoff | None = None
     prior_criteria: list[str] | None = None
     prior_deliverable: str | None = None
+
+    class Config:
+        alias_generator = to_camel
+        populate_by_name = True
 
 
 class AdmitTemplateRunResponse(BaseModel):

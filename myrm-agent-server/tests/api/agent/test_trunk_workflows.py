@@ -157,6 +157,25 @@ def test_admit_api_end_to_end(client: TestClient, tmp_path, monkeypatch) -> None
     assert body["admitted"] is True
     assert body["reasonCode"] == "ADMITTED"
 
+    # Frontend contract: camelCase aliases must also be accepted.
+    camel = client.post(
+        base,
+        json={
+            "templateArgs": {"error_report": "boom", "stack_trace": "line 1"},
+            "handoff": {
+                "sourceFlow": "trunk-product-triage",
+                "targetFlow": "trunk-bugfix",
+                "intent": "Fix the crash.",
+                "materials": [{"title": "Report", "excerpt": "It crashes on login."}],
+                "evidenceRefs": ["chat-1"],
+            },
+            "priorCriteria": ["login works"],
+            "priorDeliverable": "Login works now.",
+        },
+    )
+    assert camel.status_code == 200
+    assert camel.json()["reasonCode"] == "ADMITTED"
+
 
 def test_list_marks_trunk_templates(client: TestClient, tmp_path, monkeypatch) -> None:
     _seeded_store(tmp_path, monkeypatch)
