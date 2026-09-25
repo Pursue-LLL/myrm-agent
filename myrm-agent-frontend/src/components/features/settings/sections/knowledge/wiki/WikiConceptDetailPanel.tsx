@@ -113,6 +113,15 @@ export function WikiConceptDetailPanel({
 
   const [targetHeading, setTargetHeading] = useState<string | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const highlightTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+      }
+    };
+  }, []);
 
   const scrollToHeading = useCallback((headingText: string): boolean => {
     const container = contentRef.current;
@@ -127,9 +136,13 @@ export function WikiConceptDetailPanel({
     });
     if (matched) {
       matched.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+      }
       matched.classList.add('bg-primary/10', 'ring-1', 'ring-primary/40', 'rounded-md', 'transition-all', 'duration-500');
-      const timer = setTimeout(() => {
+      highlightTimerRef.current = setTimeout(() => {
         matched.classList.remove('bg-primary/10', 'ring-1', 'ring-primary/40', 'rounded-md');
+        highlightTimerRef.current = null;
       }, 2000);
       return true;
     }
@@ -153,6 +166,7 @@ export function WikiConceptDetailPanel({
         const found = scrollToHeading(targetHeading);
         if (found) {
           timers.forEach((t) => clearTimeout(t));
+          setTargetHeading(null);
         }
       }, delay);
       timers.push(timer);
@@ -169,7 +183,10 @@ export function WikiConceptDetailPanel({
       setTargetHeading(heading || null);
       if (selectedConcept && selectedConcept.name === name) {
         if (heading) {
-          scrollToHeading(heading);
+          const found = scrollToHeading(heading);
+          if (found) {
+            setTargetHeading(null);
+          }
         }
         return;
       }
