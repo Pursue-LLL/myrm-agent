@@ -434,7 +434,7 @@ async def finalize_agent_stream_session(
     user_credentials_ctx.reset(token_ctx)
     draft = getattr(session, "pending_session_draft", None)
     if draft is not None and not draft.committed:
-        if not session.collector.has_content:
+        if not session.collector.has_active_generation:
             logger.info(
                 "Discarding uncommitted blank session draft: chat_id=%s",
                 session.request.chat_id,

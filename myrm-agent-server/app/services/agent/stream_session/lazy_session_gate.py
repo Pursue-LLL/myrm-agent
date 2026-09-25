@@ -57,7 +57,7 @@ def is_active_generation_chunk(chunk: str | dict[str, object]) -> bool:
     if not isinstance(chunk, dict):
         return False
 
-    event_type = chunk.get("type")
+    event_type = chunk.get("type") or chunk.get("event")
     if not isinstance(event_type, str) or event_type not in _ACTIVE_GENERATION_EVENT_TYPES:
         return False
 

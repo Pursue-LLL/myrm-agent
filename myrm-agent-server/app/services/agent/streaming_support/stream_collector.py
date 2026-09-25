@@ -812,6 +812,11 @@ class StreamContentCollector:
         return self.has_content or self.extra_data is not None
 
     @property
+    def has_active_generation(self) -> bool:
+        """True when authentic model output (text, reasoning, or tool step) was collected."""
+        return self.has_content or bool(self._progress_steps) or bool(getattr(self, "_clarification", None))
+
+    @property
     def sibling_group_id(self) -> str | None:
         return self._sibling_group_id
 

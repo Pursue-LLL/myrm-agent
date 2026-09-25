@@ -103,6 +103,7 @@ async def test_finalize_discards_draft_when_cancelled_before_first_token():
 
     collector = MagicMock()
     collector.has_persistable_turn = True
+    collector.has_active_generation = False  # No authentic model generation
     collector.has_content = False  # No assistant content produced!
     collector.content = ""
     collector.extra_data = {"cancelled": True}
@@ -137,6 +138,67 @@ async def test_finalize_discards_draft_when_cancelled_before_first_token():
         assert draft.committed is False
         mock_commit_chat.assert_not_called()
         mock_persist_asst.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_finalize_commits_draft_when_tool_step_present_without_text():
+    """Verify that if tool calls occurred without plain text, draft is committed safely."""
+    req = AgentRequest(
+        query="Run inspection",
+        chat_id="chat-tool-step-888",
+        message_id="msg-tool-1",
+        action_mode="fast",
+        user_id="user-1",
+        timezone="UTC",
+    )
+
+    draft = PendingSessionDraft(
+        chat_id="chat-tool-step-888",
+        user_content="Run inspection",
+        sent_at=datetime.now(UTC),
+        sent_timezone="UTC",
+        message_id="msg-tool-1",
+        action_mode="fast",
+        agent_id="general",
+    )
+
+    collector = MagicMock()
+    collector.has_persistable_turn = True
+    collector.has_active_generation = True  # Tool step generated!
+    collector.has_content = False  # Text content is empty
+    collector.content = ""
+    collector.extra_data = {"progressSteps": [{"tool_name": "list_files"}]}
+    collector.sibling_group_id = None
+
+    session = MagicMock(spec=AgentStreamSession)
+    session.request = req
+    session.collector = collector
+    session.pending_session_draft = draft
+    session.had_fatal_error = False
+    session.stream_ttft_ms = 85
+    session.extra_context = {}
+    session.migration_live_readiness_status = None
+    session.monitor = AsyncMock()
+    session.cancel_token = MagicMock()
+    session.cancel_token.is_cancelled = False
+    session.params = MagicMock(enable_skill_manage=False)
+
+    token_ctx = user_credentials_ctx.set(None)
+    approval = MagicMock()
+    clarification = MagicMock()
+    clarification.pending = False
+
+    with (
+        patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", new_callable=AsyncMock) as mock_persist_asst,
+        patch("app.services.chat.chat_service.ChatService.ensure_chat_and_append_user_message", new_callable=AsyncMock) as mock_commit_chat,
+        patch("app.services.agent.params.workspace_resolve.materialize_default_chat_workspace_dir", new_callable=AsyncMock) as mock_mat,
+    ):
+        await finalize_agent_stream_session(session, token_ctx, approval, clarification)
+
+        assert draft.committed is True
+        mock_commit_chat.assert_awaited_once()
+        mock_persist_asst.assert_awaited_once()
+        mock_mat.assert_awaited_once_with("chat-tool-step-888")
 
 
 @pytest.mark.asyncio
