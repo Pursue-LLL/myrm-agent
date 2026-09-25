@@ -10928,7 +10928,6 @@
       "publishSuccessDesc": "スキル「{name}」がコンパイルされ、即座に利用可能になりました。",
       "cancel": "キャンセル",
       "close": "閉じる",
-      "manualCaptureNotice": "デスクトップの自動キャプチャはまだ利用できません。以下のボタンはサンプルステップを手動で追加し、スキル生成の流れを確認するためのものです。",
       "manualStepsLabel": "ステップを手動で追加",
       "manualRecordingActive": "ステップを手動で追加中...",
       "captureEventsCaptured": "{count} 件の操作をキャプチャしました",

@@ -73,7 +73,9 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
         }
         setEventCount(state.events_count);
         setCaptureActive(state.capture_active);
-        setCaptureIssue(state.capture_active ? null : resolveCaptureIssue(state.capture_error));
+        // Show the guidance whenever capture reports an issue, including while it is paused
+        // waiting for the user to grant screen access — that is exactly when they need to know.
+        setCaptureIssue(resolveCaptureIssue(state.capture_error));
       } catch {
         // A transient poll failure must not disturb the recording UI.
       }
@@ -293,24 +295,26 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
                     ? t('captureEventsCaptured', { count: eventCount })
                     : t('eventsCaptured', { count: eventCount })}
                 </p>
-                {captureActive && (
+                {captureActive && captureIssue === null && (
                   <p className="text-xs text-muted-foreground/80 mt-1">{t('captureHint')}</p>
                 )}
               </div>
 
+              {/* An issue is shown whenever capture reports one, so a paused-but-waiting capture
+                  still tells the user that access must be granted. */}
+              {captureIssue !== null && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>
+                    {captureIssue === 'permission'
+                      ? t('capturePermissionNotice')
+                      : t('captureUnsupportedNotice')}
+                  </span>
+                </div>
+              )}
+
               {!captureActive && (
                 <>
-                  <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
-                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                    <span>
-                      {captureIssue === 'permission'
-                        ? t('capturePermissionNotice')
-                        : captureIssue === 'unsupported'
-                          ? t('captureUnsupportedNotice')
-                          : t('manualCaptureNotice')}
-                    </span>
-                  </div>
-
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-foreground text-center">{t('manualStepsLabel')}</p>
                     <div className="flex flex-wrap gap-2 justify-center">

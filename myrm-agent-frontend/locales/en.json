@@ -17891,7 +17891,6 @@
       "publishSuccessDesc": "Skill \"{name}\" is compiled and ready for immediate use across agents.",
       "cancel": "Cancel",
       "close": "Close",
-      "manualCaptureNotice": "Automatic desktop capture is not available yet. The buttons below add example steps manually so you can preview how a skill is compiled end to end.",
       "manualStepsLabel": "Add step manually",
       "manualRecordingActive": "Manual step entry in progress...",
       "captureEventsCaptured": "{count} interactions captured",

@@ -10928,7 +10928,6 @@
       "publishSuccessDesc": "已成功生成並發布技能「{name}」，各智慧體已可即時調用。",
       "cancel": "取消",
       "close": "關閉",
-      "manualCaptureNotice": "桌面自動擷取尚未可用。下方按鈕用於手動新增範例步驟，便於端到端預覽技能編譯流程。",
       "manualStepsLabel": "手動新增步驟",
       "manualRecordingActive": "正在手動新增步驟...",
       "captureEventsCaptured": "已擷取 {count} 個互動",

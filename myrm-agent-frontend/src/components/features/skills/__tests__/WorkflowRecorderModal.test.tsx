@@ -179,6 +179,26 @@ describe('WorkflowRecorderModal', () => {
     expect(screen.queryByText('recordingActive')).not.toBeInTheDocument();
   });
 
+  it('shows permission guidance while capture is paused waiting for access', async () => {
+    const sessionPoll = vi.mocked(skillService.getDesktopRecordingSession);
+    // Capture is still polling (waiting for the user to grant access), so the dialog must keep
+    // telling them what to do instead of looking like a healthy recording.
+    sessionPoll.mockResolvedValue({
+      session_id: 'rec-123',
+      status: 'recording',
+      events_count: 0,
+      capture_active: true,
+      capture_error: 'desktop_capture_permission_required',
+    });
+
+    render(<WorkflowRecorderModal isOpen={true} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByText('startRecording'));
+
+    await waitFor(() => {
+      expect(screen.getByText('capturePermissionNotice')).toBeInTheDocument();
+    });
+  });
+
   it('falls back to honest manual step entry when platform capture is unavailable', async () => {
     const startMock = vi.mocked(skillService.startDesktopRecording);
     const sessionPoll = vi.mocked(skillService.getDesktopRecordingSession);

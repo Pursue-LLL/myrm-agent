@@ -10928,7 +10928,6 @@
       "publishSuccessDesc": "Skill \"{name}\" ist kompiliert und sofort einsatzbereit.",
       "cancel": "Abbrechen",
       "close": "Schließen",
-      "manualCaptureNotice": "Die automatische Desktop-Aufzeichnung ist noch nicht verfügbar. Die Schaltflächen unten fügen Beispielschritte manuell hinzu, damit Sie die Skill-Kompilierung vollständig prüfen können.",
       "manualStepsLabel": "Schritt manuell hinzufügen",
       "manualRecordingActive": "Manuelles Hinzufügen von Schritten läuft...",
       "captureEventsCaptured": "{count} Interaktionen erfasst",
