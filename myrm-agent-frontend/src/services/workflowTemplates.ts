@@ -150,6 +150,18 @@ export async function fetchWorkflowTemplates(): Promise<WorkflowTemplateListResp
   return { templates: (data.templates ?? []).map(fromApiWorkflowTemplate) };
 }
 
+let trunkCatalogPromise: Promise<WorkflowTemplateSummary[]> | null = null;
+
+/** Session-cached trunk subset for suggestion UIs (single network call). */
+export function fetchTrunkCatalog(): Promise<WorkflowTemplateSummary[]> {
+  if (!trunkCatalogPromise) {
+    trunkCatalogPromise = fetchWorkflowTemplates()
+      .then((response) => response.templates.filter((template) => template.is_trunk))
+      .catch(() => []);
+  }
+  return trunkCatalogPromise;
+}
+
 export async function fetchWorkflowTemplateDetail(templateId: string): Promise<WorkflowTemplateDetailResponse> {
   const data = await apiRequest<{
     template?: ApiWorkflowTemplateSummary;

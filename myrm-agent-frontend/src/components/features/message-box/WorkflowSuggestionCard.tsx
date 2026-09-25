@@ -13,20 +13,29 @@
  * the standard agent stream — appears as an inline tip above the response.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
 import { cn } from '@/lib/utils';
 import { IconWorkflow } from '@/components/features/icons/PremiumIcons';
+import { fetchTrunkCatalog } from '@/services/workflowTemplates';
+
+export interface TrunkQuickPin {
+  template_id: string;
+  display_name: string;
+}
 
 interface WorkflowSuggestionCardProps {
   messageId: string;
   status: 'suggested' | 'accepted' | 'dismissed';
+  /** Optional trunk quick-pins; when omitted the card loads the catalog lazily. */
+  trunkTemplates?: TrunkQuickPin[] | null;
 }
 
-const WorkflowSuggestionCard = ({ messageId, status }: WorkflowSuggestionCardProps) => {
+const WorkflowSuggestionCard = ({ messageId, status, trunkTemplates }: WorkflowSuggestionCardProps) => {
   const t = useTranslations('chat.workflowSuggestion');
   const [dismissed, setDismissed] = useState(status === 'dismissed');
+  const [trunkList, setTrunkList] = useState<TrunkQuickPin[] | null>(trunkTemplates ?? null);
 
   const handleActivate = useCallback(() => {
     useChatStore.setState((state) => {
