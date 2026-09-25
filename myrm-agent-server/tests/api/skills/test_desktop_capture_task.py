@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
 from myrm_agent_harness.toolkits.computer_use.recording.types import RecordedActionType
 
-from app.api.skills.desktop_capture_task import DesktopCaptureTask
-from app.api.skills.desktop_recorder_schemas import RecordingSessionState
+from app.api.skills.desktop_recorder.schemas import RecordingSessionState
+from app.services.skills.desktop_recording import DesktopCaptureTask
 
 
 def _meta(app_name: str = "Finder", needs_permission: bool = False) -> SnapshotMeta:
