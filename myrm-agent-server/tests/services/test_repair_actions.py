@@ -830,3 +830,53 @@ async def test_execute_purge_orphan_sessions_confirmed_zero_deleted() -> None:
     assert result.changed is False
     assert result.dry_run is False
     assert result.details == {"deleted_count": 0}
+
+
+@pytest.mark.asyncio
+async def test_build_orphan_session_action_invalid_meta_safe() -> None:
+    server_reports: list[dict[str, object]] = [
+        {
+            "component_name": "OrphanSession",
+            "status": "warn",
+            "message": "Corrupt meta.",
+            "meta_data": {"orphan_session_count": "invalid-int"},
+        }
+    ]
+    actions = await build_repair_actions([], server_reports)
+    orphan_actions = [a for a in actions if a.action_id == RepairActionId.PURGE_ORPHAN_SESSIONS]
+    assert len(orphan_actions) == 0
+
+
+@pytest.mark.asyncio
+async def test_execute_purge_orphan_sessions_dry_run_failure() -> None:
+    with patch(
+        "app.core.infra.health.session_diagnostics.count_orphan_empty_sessions",
+        side_effect=RuntimeError("database locked"),
+    ):
+        result = await execute_repair_action(
+            RepairActionId.PURGE_ORPHAN_SESSIONS,
+            RepairActionExecuteRequest(dry_run=True, confirm=False),
+        )
+
+    assert result.status == "failed"
+    assert result.changed is False
+    assert result.dry_run is True
+    assert "Dry run failed: database locked" in result.message
+
+
+@pytest.mark.asyncio
+async def test_execute_purge_orphan_sessions_confirmed_failure() -> None:
+    with patch(
+        "app.core.infra.health.session_diagnostics.purge_orphan_empty_sessions",
+        side_effect=RuntimeError("disk I/O error"),
+    ):
+        result = await execute_repair_action(
+            RepairActionId.PURGE_ORPHAN_SESSIONS,
+            RepairActionExecuteRequest(dry_run=False, confirm=True),
+        )
+
+    assert result.status == "failed"
+    assert result.changed is False
+    assert result.dry_run is False
+    assert "Purge failed: disk I/O error" in result.message
+

@@ -201,7 +201,11 @@ def _orphan_session_action(server_reports: list[dict[str, object]]) -> RepairAct
 
         orphan_count = 0
         if isinstance(meta, dict):
-            orphan_count = int(meta.get("orphan_session_count", 0))
+            raw_count = meta.get("orphan_session_count", 0)
+            try:
+                orphan_count = int(raw_count) if raw_count is not None else 0
+            except (ValueError, TypeError):
+                orphan_count = 0
 
         if comp_name == "OrphanSession" and orphan_count > 0:
             return RepairAction(
@@ -281,25 +285,44 @@ async def execute_repair_action(action_id: RepairActionId, request: RepairAction
             )
 
         if request.dry_run:
-            orphan_count = await count_orphan_empty_sessions(older_than_minutes=15)
+            try:
+                orphan_count = await count_orphan_empty_sessions(older_than_minutes=15)
+                return RepairActionExecuteResult(
+                    action_id=action_id,
+                    status="dry_run",
+                    changed=False,
+                    dry_run=True,
+                    message=f"Dry run: {orphan_count} orphan session(s) would be permanently purged.",
+                    details={"orphan_count": orphan_count},
+                )
+            except Exception as exc:
+                return RepairActionExecuteResult(
+                    action_id=action_id,
+                    status="failed",
+                    changed=False,
+                    dry_run=True,
+                    message=f"Dry run failed: {exc}",
+                )
+
+        try:
+            deleted_count = await purge_orphan_empty_sessions(older_than_minutes=15)
             return RepairActionExecuteResult(
                 action_id=action_id,
-                status="dry_run",
+                status="completed",
+                changed=deleted_count > 0,
+                dry_run=False,
+                message=f"Permanently purged {deleted_count} orphan session(s).",
+                details={"deleted_count": deleted_count},
+            )
+        except Exception as exc:
+            return RepairActionExecuteResult(
+                action_id=action_id,
+                status="failed",
                 changed=False,
-                dry_run=True,
-                message=f"Dry run: {orphan_count} orphan session(s) would be permanently purged.",
-                details={"orphan_count": orphan_count},
+                dry_run=False,
+                message=f"Purge failed: {exc}",
             )
 
-        deleted_count = await purge_orphan_empty_sessions(older_than_minutes=15)
-        return RepairActionExecuteResult(
-            action_id=action_id,
-            status="completed",
-            changed=deleted_count > 0,
-            dry_run=False,
-            message=f"Permanently purged {deleted_count} orphan session(s).",
-            details={"deleted_count": deleted_count},
-        )
 
     if action_id != RepairActionId.CLEANUP_BROWSER_ORPHANS:
         return RepairActionExecuteResult(
