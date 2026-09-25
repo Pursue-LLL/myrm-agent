@@ -16,7 +16,7 @@
 
 import crypto from 'crypto';
 import { Message, ChatHistoryItem, type ActionMode, type ChatState } from '@/store/chat/types';
-import { ChatActionsMethods } from './messageRequest';
+import type { ChatActionsMethods } from './messageRequest';
 import {
   getChatDetail,
   getMessages,
@@ -450,7 +450,7 @@ function parseMessages(raw: Message[]): Message[] {
     const parsed = {
       ...msg,
       ...metadata,
-      createdAt: createdAtMs != null ? new Date(createdAtMs) : new Date(),
+      createdAt: createdAtMs !== null && createdAtMs !== undefined ? new Date(createdAtMs) : new Date(),
       ...(citedMemoryIds ? { citedMemoryIds } : {}),
       ...(citedMemoryRefs ? { citedMemoryRefs } : {}),
     } as Message;

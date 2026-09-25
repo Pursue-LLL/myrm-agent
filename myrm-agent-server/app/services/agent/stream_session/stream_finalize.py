@@ -586,11 +586,16 @@ async def finalize_agent_stream_session(
 
         GoalRegistry.unregister(session.request.chat_id)
 
+    cancel_token = getattr(session, "cancel_token", None)
+    is_cancelled = cancel_token.is_cancelled if cancel_token is not None else False
+    params = getattr(session, "params", None)
+    enable_skill_manage = getattr(params, "enable_skill_manage", False) if params is not None else False
+
     if (
         session.collector.has_content
         and session.request.chat_id
-        and not session.cancel_token.is_cancelled
-        and session.params.enable_skill_manage
+        and not is_cancelled
+        and enable_skill_manage
     ):
         try:
             from app.services.agent.evolution.engine import trigger_skill_evolution

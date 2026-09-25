@@ -113,7 +113,7 @@ async def test_finalize_discards_draft_when_cancelled_before_first_token():
     session.stream_ttft_ms = None
     session.extra_context = {}
     session.migration_live_readiness_status = None
-    session.params = None
+    session.params = MagicMock(enable_skill_manage=False)
     session.monitor = AsyncMock()
     # cancel_token has no dataclass default, so spec-mocks don't expose it;
     # production requires it (stream_session_types.py:30).
