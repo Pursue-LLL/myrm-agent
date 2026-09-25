@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.api::DesktopCaptureDriver (POS: AX snapshot diffing into recorded events)
-- app.api.skills.desktop_recorder::schemas (POS: recording DTOs + session state container)
+- app.schemas.desktop_recorder::schemas (POS: recording DTOs + session state container)
 - app.config.computer_use_deploy::is_computer_use_deploy_supported (POS: desktop deploy gate)
 
 [OUTPUT]
@@ -22,7 +22,7 @@ import time
 
 from myrm_agent_harness.api import DesktopCaptureDriver
 
-from app.api.skills.desktop_recorder.schemas import (
+from app.services.skills.desktop_recording.state import (
     SESSION_IDLE_TIMEOUT_SEC,
     RecordingSessionState,
 )

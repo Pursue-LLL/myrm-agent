@@ -1,7 +1,7 @@
 """Desktop recording session registry: retention, lifecycle and capture-loop ownership.
 
 [INPUT]
-- app.api.skills.desktop_recorder::schemas (POS: recording DTOs + session state container)
+- app.schemas.desktop_recorder::schemas (POS: recording DTOs + session state container)
 - app.services.skills.desktop_recording::capture_task (POS: AX capture loop lifecycle)
 
 [OUTPUT]
@@ -18,8 +18,8 @@ from __future__ import annotations
 import logging
 import time
 
-from app.api.skills.desktop_recorder.schemas import RecordingSessionState
 from app.services.skills.desktop_recording.capture_task import DesktopCaptureTask
+from app.services.skills.desktop_recording.state import RecordingSessionState
 
 logger = logging.getLogger(__name__)
 

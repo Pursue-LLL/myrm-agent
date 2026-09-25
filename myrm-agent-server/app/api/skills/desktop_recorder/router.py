@@ -50,70 +50,22 @@ from app.api.skills.desktop_recorder.schemas import (
     WorkflowIntentPlanSchema,
     WorkflowPlanStepSchema,
 )
-from app.services.skills.desktop_recording import DesktopCaptureTask
+from app.services.skills.desktop_recording import (
+    create_session,
+    lookup_session,
+    stop_session,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/desktop-recorder", tags=["skills-desktop-recorder"])
 
-# In-memory session store for active recording sessions (bounded ring-buffer per session).
-# Sessions are dropped once finalized, and capped so a client that abandons recordings cannot
-# grow this process-lifetime map without bound.
-_ACTIVE_SESSIONS: dict[str, RecordingSessionState] = {}
-# Capture loops keyed by session id; stopped and dropped when the session ends.
-_CAPTURE_TASKS: dict[str, DesktopCaptureTask] = {}
-# Retained finished sessions, newest last: a client may still fetch the summary or publish
-# right after stopping, but old ones are evicted so memory cannot accumulate.
-_MAX_RETAINED_SESSIONS = 8
-# Concurrent capture loops are a native resource; keep the running set small so a misbehaving
-# client cannot pin the host by starting recordings it never stops.
-_MAX_CONCURRENT_CAPTURES = 2
 
-
-def _lookup_session(session_id: str) -> RecordingSessionState:
-    """Resolve a session and mark it as seen, so an active recording is not treated as idle."""
-    session = _ACTIVE_SESSIONS.get(session_id)
+def _require_session(session_id: str) -> RecordingSessionState:
+    """Resolve a tracked session or fail with the contract's 404."""
+    session = lookup_session(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail=f"Recording session not found: {session_id}")
-    session.touch()
     return session
-
-
-def _remember_session(session: RecordingSessionState) -> None:
-    """Track a session, evicting the oldest finalized entries when the cap is exceeded."""
-    # Re-insertion keeps dict order aligned with recency for the eviction scan below.
-    _ACTIVE_SESSIONS.pop(session.session_id, None)
-    _ACTIVE_SESSIONS[session.session_id] = session
-    if len(_ACTIVE_SESSIONS) <= _MAX_RETAINED_SESSIONS:
-        return
-    overflow = len(_ACTIVE_SESSIONS) - _MAX_RETAINED_SESSIONS
-    for sid in list(_ACTIVE_SESSIONS):
-        if overflow <= 0:
-            break
-        if _ACTIVE_SESSIONS[sid].status != "recording":
-            _ACTIVE_SESSIONS.pop(sid, None)
-            overflow -= 1
-
-
-def _enforce_capture_budget() -> None:
-    """Stop recordings beyond the concurrent-capture cap, oldest first.
-
-    Each active session runs a native AX poll loop, so an unbounded number of them would pin the
-    host. Finalized sessions are exempt because they no longer capture.
-    """
-    active = [sid for sid, s in _ACTIVE_SESSIONS.items() if s.status == "recording"]
-    excess = len(active) - _MAX_CONCURRENT_CAPTURES
-    if excess <= 0:
-        return
-    for sid in active[:excess]:
-        session = _ACTIVE_SESSIONS.get(sid)
-        if session is None:
-            continue
-        session.status = "stopped"
-        session.stopped_at = time.time()
-        capture_task = _CAPTURE_TASKS.pop(sid, None)
-        if capture_task is not None:
-            capture_task.abandon()
-        logger.warning("Stopped recording %s: concurrent capture budget exceeded", sid)
 
 
 @router.post("/start", response_model=StartDesktopRecordingResponse)
@@ -121,15 +73,7 @@ async def start_desktop_recording(
     request: StartDesktopRecordingRequest,
 ) -> StartDesktopRecordingResponse:
     """Start a new desktop workflow recording session and launch platform capture."""
-    session = RecordingSessionState(session_id=request.session_id, app_scope=request.app_scope)
-    _remember_session(session)
-    # Stop any recordings beyond the concurrent budget first, so this session's capture does not
-    # push the host past the cap of native capture loops.
-    _enforce_capture_budget()
-
-    task = DesktopCaptureTask(session)
-    task.start()
-    _CAPTURE_TASKS[request.session_id] = task
+    session = create_session(request.session_id, request.app_scope)
 
     logger.info(
         "Started desktop skill recording session: %s (capture_active=%s, capture_error=%s)",
@@ -149,7 +93,7 @@ async def start_desktop_recording(
 @router.post("/event")
 async def record_desktop_event(request: RecordDesktopEventRequest) -> dict[str, Any]:
     """Append a recorded interaction event to the active session."""
-    session = _lookup_session(request.session_id)
+    session = _require_session(request.session_id)
     if session.status != "recording":
         raise HTTPException(
             status_code=400,
@@ -180,21 +124,12 @@ async def stop_desktop_recording(
     request: StopDesktopRecordingRequest,
 ) -> StopDesktopRecordingResponse:
     """Stop the recording session and terminate its capture loop."""
-    session = _lookup_session(request.session_id)
+    _require_session(request.session_id)
+    session = await stop_session(request.session_id)
+    if session is None:  # pragma: no cover - defensive, the lookup above already resolved it
+        raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
 
-    capture_task = _CAPTURE_TASKS.pop(request.session_id, None)
-    if capture_task is not None:
-        await capture_task.stop()
-
-    session.status = "stopped"
-    session.stopped_at = time.time()
-    duration = session.stopped_at - session.started_at
-    logger.info(
-        "Stopped desktop skill recording session %s with %d events",
-        session.session_id,
-        len(session.events),
-    )
-
+    duration = (session.stopped_at or time.time()) - session.started_at
     return StopDesktopRecordingResponse(
         session_id=session.session_id,
         status=session.status,
@@ -206,7 +141,7 @@ async def stop_desktop_recording(
 @router.get("/session/{session_id}")
 async def get_desktop_recording_session(session_id: str) -> dict[str, Any]:
     """Get the current recording session state and events."""
-    session = _lookup_session(session_id)
+    session = _require_session(session_id)
 
     return {
         "session_id": session.session_id,
@@ -227,7 +162,7 @@ async def synthesize_desktop_skill(
     request: SynthesizeDesktopSkillRequest,
 ) -> dict[str, Any]:
     """Synthesize a structured skill draft from the recorded event trace."""
-    session = _lookup_session(request.session_id)
+    session = _require_session(request.session_id)
     if not session.events:
         raise HTTPException(status_code=400, detail="No events recorded in this session to synthesize.")
 
@@ -245,7 +180,7 @@ async def analyze_desktop_plan(
     request: AnalyzeDesktopPlanRequest,
 ) -> AnalyzeDesktopPlanResponse:
     """Analyze recorded session events into a structured Intent + Ordered Steps Plan."""
-    session = _lookup_session(request.session_id)
+    session = _require_session(request.session_id)
     if not session.events:
         raise HTTPException(status_code=400, detail="No events recorded in this session to analyze.")
 
