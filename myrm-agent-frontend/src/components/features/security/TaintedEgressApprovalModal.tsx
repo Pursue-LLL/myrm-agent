@@ -1,5 +1,6 @@
 'use client';
 
+// @orphan-ok Autonomous tainted egress approval modal for session host trust and HITL intercept
 import React, { useState } from 'react';
 import {
   ShieldAlert,

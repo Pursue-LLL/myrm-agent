@@ -17,6 +17,14 @@ const mockState = vi.hoisted(() => ({
   setIsWorkflowMode: (v: boolean) => {
     mockState.isWorkflowMode = v;
   },
+  pendingWorkflowTemplate: null as { templateId: string; args: unknown; displayName: string | null } | null,
+  setPendingWorkflowTemplate: (templateId: string, args: unknown, displayName: string | null) => {
+    mockState.pendingWorkflowTemplate = { templateId, args, displayName };
+  },
+}));
+
+vi.mock('@/services/workflowTemplates', () => ({
+  fetchTrunkCatalog: () => Promise.resolve([]),
 }));
 
 vi.mock('@/store/useChatStore', () => ({
@@ -45,6 +53,7 @@ describe('WorkflowSuggestionCard', () => {
   beforeEach(() => {
     mockState.messages = [makeMessage('msg-1')];
     mockState.isWorkflowMode = false;
+    mockState.pendingWorkflowTemplate = null;
   });
 
   it('renders nothing when dismissed', () => {
@@ -78,6 +87,26 @@ describe('WorkflowSuggestionCard', () => {
     // 找不到目标消息时，不应修改任何消息，且仍开启 workflow 模式
     expect(mockState.messages[0].workflowSuggestion?.status).toBe('suggested');
     expect(mockState.isWorkflowMode).toBe(true);
+  });
+
+  it('pins a trunk template: arms pending template without sending', async () => {
+    const user = userEvent.setup();
+    render(
+      <WorkflowSuggestionCard
+        messageId="msg-1"
+        status="suggested"
+        trunkTemplates={[{ template_id: 'trunk-bugfix', display_name: 'Trunk · Bugfix' }]}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Trunk · Bugfix' }));
+
+    expect(mockState.pendingWorkflowTemplate).toEqual({
+      templateId: 'trunk-bugfix',
+      args: null,
+      displayName: 'Trunk · Bugfix',
+    });
+    expect(mockState.isWorkflowMode).toBe(true);
+    expect(mockState.messages[0].workflowSuggestion?.status).toBe('accepted');
   });
 
   it('does not mutate when the matched assistant message has no workflowSuggestion', async () => {

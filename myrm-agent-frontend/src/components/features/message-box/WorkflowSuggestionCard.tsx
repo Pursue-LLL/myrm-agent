@@ -57,6 +57,36 @@ const WorkflowSuggestionCard = ({ messageId, status, trunkTemplates }: WorkflowS
     });
   }, [messageId]);
 
+  useEffect(() => {
+    if (trunkTemplates !== undefined || status !== 'suggested' || dismissed) {
+      return;
+    }
+    let cancelled = false;
+    void fetchTrunkCatalog().then((catalog) => {
+      if (cancelled) {
+        return;
+      }
+      setTrunkList(catalog.map((item) => ({ template_id: item.template_id, display_name: item.display_name })));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [trunkTemplates, status, dismissed]);
+
+  const handlePinTrunk = useCallback(
+    (template: TrunkQuickPin) => {
+      useChatStore.setState((state) => {
+        const msg = state.messages.find((m) => m.messageId === messageId && m.role === 'assistant');
+        if (msg?.workflowSuggestion) {
+          msg.workflowSuggestion.status = 'accepted';
+        }
+      });
+      useChatStore.getState().setPendingWorkflowTemplate(template.template_id, null, template.display_name);
+      useChatStore.getState().setIsWorkflowMode(true);
+    },
+    [messageId],
+  );
+
   if (dismissed || status === 'dismissed') {
     return null;
   }
@@ -71,29 +101,46 @@ const WorkflowSuggestionCard = ({ messageId, status, trunkTemplates }: WorkflowS
   }
 
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 dark:border-amber-400/20 dark:bg-amber-500/10">
-      <IconWorkflow className="shrink-0 text-amber-600 dark:text-amber-400" />
-      <span className="min-w-0 flex-1 text-xs leading-relaxed text-amber-800 dark:text-amber-200">{t('hint')}</span>
-      <div className="flex shrink-0 items-center gap-1.5">
-        <button
-          type="button"
-          onClick={handleDismiss}
-          className="rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted/60"
-        >
-          {t('dismiss')}
-        </button>
-        <button
-          type="button"
-          onClick={handleActivate}
-          className={cn(
-            'inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
-            'bg-primary/10 text-primary hover:bg-primary/20',
-          )}
-        >
-          {t('activate')}
-        </button>
+    <>
+      <div className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 dark:border-amber-400/20 dark:bg-amber-500/10">
+        <IconWorkflow className="shrink-0 text-amber-600 dark:text-amber-400" />
+        <span className="min-w-0 flex-1 text-xs leading-relaxed text-amber-800 dark:text-amber-200">{t('hint')}</span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={handleDismiss}
+            className="rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted/60"
+          >
+            {t('dismiss')}
+          </button>
+          <button
+            type="button"
+            onClick={handleActivate}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
+              'bg-primary/10 text-primary hover:bg-primary/20',
+            )}
+          >
+            {t('activate')}
+          </button>
+        </div>
       </div>
-    </div>
+      {trunkList !== null && trunkList.length > 0 && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-border/50 bg-card/40 px-3 py-2">
+          <span className="text-[11px] text-muted-foreground">{t('trunkPinHint')}</span>
+          {trunkList.slice(0, 5).map((item) => (
+            <button
+              key={item.template_id}
+              type="button"
+              onClick={() => handlePinTrunk(item)}
+              className="rounded-md border border-border/60 bg-card/60 px-2 py-1 text-[11px] text-foreground transition-colors hover:bg-muted/60"
+            >
+              {item.display_name}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
   );
 };
 

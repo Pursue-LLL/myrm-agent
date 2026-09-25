@@ -2614,7 +2614,8 @@
       "hint": "複雑なタスクを検出 — ワークフローモードを有効にすると並列マルチエージェント実行でより良い結果が得られます。",
       "activate": "有効化",
       "dismiss": "閉じる",
-      "activated": "次のメッセージでワークフローモードが有効化されました"
+      "activated": "次のメッセージでワークフローモードが有効化されました",
+      "trunkPinHint": "定型フローを使う："
     },
     "humanGate": {
       "title": "手動での意思決定が必要です",
@@ -16535,6 +16536,13 @@
         "runFailed": "ピン留めしたテンプレートの実行を開始できませんでした",
         "trustLatchOn": "トラストラッチ",
         "trustLatchOff": "毎回確認",
+        "trunkBadge": "基幹フロー",
+        "admitEvidenceMissing": "次のステップの材料を先に追加してください",
+        "admitArgsInvalid": "必須項目が不足しています。すべて入力してください",
+        "admitTemplateGone": "そのワークフローは存在しません。別のものを選んでください",
+        "admitTrustPolicy": "定期実行はレビュー済みワークフローのみ利用できます",
+        "admitCriteriaOpen": "前のチェック項目が未完了です",
+        "admitDeniedGeneric": "このワークフローを開始できませんでした",
         "trustLatch": "トラストラッチ（コストしきい値以下の読み取り専用スポーンではプラン確認をスキップ）",
         "agentTypes": "エージェントタイプ: {types}",
         "previewScript": "スクリプトを表示",

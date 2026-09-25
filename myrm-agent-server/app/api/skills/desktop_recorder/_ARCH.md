@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 导出 `router` | — |
 | `router.py` | 核心 | `/desktop-recorder/*` 端点：`start`（建会话并启动采集）、`event`（事件落库）、`stop`、`session/{id}`（轮询采集状态）、`synthesize`、`analyze-plan`、`compile-plan`、`publish`（写本地技能库并 bump 配置版本）；会话解析统一走 `_require_session` => 未知 id 返回 404 | ✅ |
-| `schemas.py` | 契约 | 请求/响应 Pydantic 模型 + `RecordingSessionState`（会话状态容器、事件环形缓冲上限、`SESSION_IDLE_TIMEOUT_SEC` 闲置阈值、`touch()` 活跃标记） | ✅ |
+| `schemas.py` | 契约 | 从 `app.schemas.desktop_recorder` re-export 请求/响应模型与 `RecordingSessionState`（会话运行时状态实际定义在 [`services/skills/desktop_recording/state.py`](../../../services/skills/desktop_recording/state.py)，避免 api↔services 反向依赖） | ✅ |
 
 ## 依赖
 

@@ -4038,6 +4038,13 @@
         "runFailed": "启动固定模板运行失败",
         "trustLatchOn": "信任锁",
         "trustLatchOff": "每次需确认",
+        "trunkBadge": "主干流程",
+        "admitEvidenceMissing": "请先补齐下一步要处理的内容",
+        "admitArgsInvalid": "有必填项缺失，请填写完整",
+        "admitTemplateGone": "该工作流已不存在，请另选一个",
+        "admitTrustPolicy": "定时任务只能使用已审核的工作流",
+        "admitCriteriaOpen": "前序验收项尚未完成",
+        "admitDeniedGeneric": "无法启动这次工作流",
         "trustLatch": "信任锁（只读 spawn 且成本低于阈值时跳过计划确认）",
         "agentTypes": "Agent 类型：{types}",
         "previewScript": "查看脚本",
@@ -9637,7 +9644,8 @@
       "hint": "检测到复杂任务 — 开启工作流模式可启用多 Agent 并行执行，获得更好效果。",
       "activate": "开启",
       "dismiss": "忽略",
-      "activated": "工作流模式已为下条消息启用"
+      "activated": "工作流模式已为下条消息启用",
+      "trunkPinHint": "或钉选现成流程："
     },
     "humanGate": {
       "title": "需要人工决策",

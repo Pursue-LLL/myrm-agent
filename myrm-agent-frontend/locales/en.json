@@ -4038,6 +4038,13 @@
         "runFailed": "Failed to start pinned template run",
         "trustLatchOn": "Trust latch",
         "trustLatchOff": "Confirm each run",
+        "trunkBadge": "Trunk flow",
+        "admitEvidenceMissing": "Please add what the next step should work on first",
+        "admitArgsInvalid": "Some required details are missing — please fill in every field",
+        "admitTemplateGone": "That workflow no longer exists — please pick another one",
+        "admitTrustPolicy": "Scheduled jobs can only use reviewed workflows",
+        "admitCriteriaOpen": "Earlier checklist items are still open",
+        "admitDeniedGeneric": "Could not start this workflow run",
         "trustLatch": "Trust latch (skip plan confirm for readonly spawns under cost threshold)",
         "agentTypes": "Agent types: {types}",
         "previewScript": "View script",
@@ -9638,7 +9645,8 @@
       "hint": "Complex task detected — enable Workflow Mode for parallel multi-agent execution and better results.",
       "activate": "Enable",
       "dismiss": "Dismiss",
-      "activated": "Workflow Mode activated for next message"
+      "activated": "Workflow Mode activated for next message",
+      "trunkPinHint": "Or pin a ready-made flow:"
     },
     "humanGate": {
       "title": "Human Decision Required",

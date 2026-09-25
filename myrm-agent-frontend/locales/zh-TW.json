@@ -2627,7 +2627,8 @@
       "hint": "檢測到複雜任務 — 開啟工作流模式可啟用多 Agent 並行執行，獲得更好效果。",
       "activate": "開啟",
       "dismiss": "忽略",
-      "activated": "工作流模式已為下條訊息啟用"
+      "activated": "工作流模式已為下條訊息啟用",
+      "trunkPinHint": "或釘選現成流程："
     },
     "humanGate": {
       "title": "需要人工決策",
@@ -16535,6 +16536,13 @@
         "runFailed": "啟動固定模板運行失敗",
         "trustLatchOn": "信任鎖",
         "trustLatchOff": "每次需確認",
+        "trunkBadge": "主幹流程",
+        "admitEvidenceMissing": "請先補齊下一步要處理的內容",
+        "admitArgsInvalid": "有必填項缺失，請填寫完整",
+        "admitTemplateGone": "該工作流已不存在，請另選一個",
+        "admitTrustPolicy": "定時任務只能使用已審核的工作流",
+        "admitCriteriaOpen": "前序驗收項尚未完成",
+        "admitDeniedGeneric": "無法啟動這次工作流",
         "trustLatch": "信任鎖（只讀 spawn 且成本低於閾值時跳過計劃確認）",
         "agentTypes": "Agent 類型：{types}",
         "previewScript": "查看腳本",

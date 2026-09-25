@@ -2841,7 +2841,8 @@
       "hint": "복잡한 작업이 감지되었습니다 — 병렬 멀티 에이전트 실행과 더 나은 결과를 위해 워크플로 모드를 활성화하세요.",
       "activate": "활성화",
       "dismiss": "닫기",
-      "activated": "다음 메시지에 워크플로 모드가 활성화되었습니다"
+      "activated": "다음 메시지에 워크플로 모드가 활성화되었습니다",
+      "trunkPinHint": "준비된 플로우 고정:"
     },
     "humanGate": {
       "title": "수동 의사결정 필요",
@@ -16535,6 +16536,13 @@
         "runFailed": "고정 템플릿 실행을 시작하지 못했습니다",
         "trustLatchOn": "신뢰 래치",
         "trustLatchOff": "매 실행 확인",
+        "trunkBadge": "핵심 플로우",
+        "admitEvidenceMissing": "다음 단계의 자료를 먼저 추가해 주세요",
+        "admitArgsInvalid": "필수 항목이 부족합니다. 모두 입력해 주세요",
+        "admitTemplateGone": "해당 워크플로가 없습니다. 다른 항목을 선택해 주세요",
+        "admitTrustPolicy": "예약 작업은 검토된 워크플로만 사용할 수 있습니다",
+        "admitCriteriaOpen": "이전 체크 항목이 미완료 상태입니다",
+        "admitDeniedGeneric": "이 워크플로를 시작할 수 없습니다",
         "trustLatch": "신뢰 래치 (비용 임계값 미만의 읽기 전용 실행에 대해 계획 확인 건너뛰기)",
         "agentTypes": "에이전트 유형: {types}",
         "previewScript": "스크립트 보기",

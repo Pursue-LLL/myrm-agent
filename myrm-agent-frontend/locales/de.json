@@ -2812,7 +2812,8 @@
       "hint": "Complex task detected — enable Workflow Mode for parallel multi-agent execution and better results.",
       "activate": "Aktivieren",
       "dismiss": "Verwerfen",
-      "activated": "Workflow-Modus für nächste Nachricht aktiviert"
+      "activated": "Workflow-Modus für nächste Nachricht aktiviert",
+      "trunkPinHint": "Oder fertigen Flow anheften:"
     },
     "humanGate": {
       "title": "Menschliche Entscheidung erforderlich",
@@ -16535,6 +16536,13 @@
         "runFailed": "Die Ausführung der angehefteten Vorlage konnte nicht gestartet werden",
         "trustLatchOn": "Vertrauensriegel",
         "trustLatchOff": "Bestätigen Sie jeden Lauf",
+        "trunkBadge": "Stamm-Flow",
+        "admitEvidenceMissing": "Bitte ergänzen Sie zuerst, woran weitergearbeitet werden soll",
+        "admitArgsInvalid": "Pflichtangaben fehlen – bitte alles ausfüllen",
+        "admitTemplateGone": "Dieser Workflow existiert nicht mehr – bitte einen anderen wählen",
+        "admitTrustPolicy": "Geplante Jobs dürfen nur geprüfte Workflows nutzen",
+        "admitCriteriaOpen": "Frühere Prüfpunkte sind noch offen",
+        "admitDeniedGeneric": "Dieser Workflow-Lauf konnte nicht gestartet werden",
         "trustLatch": "Vertrauensriegel (Planbestätigung für schreibgeschützte Spawns unter Kostenschwelle überspringen)",
         "agentTypes": "Agententypen: {types}",
         "previewScript": "Skript ansehen",
