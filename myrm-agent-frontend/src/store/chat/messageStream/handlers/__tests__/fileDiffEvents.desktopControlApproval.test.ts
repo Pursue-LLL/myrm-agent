@@ -84,4 +84,39 @@ describe('fileDiffEvents desktop_control_approval_request', () => {
     expect(useDesktopControlApprovalStore.getState().requestId).toBe('req-1');
     expect(useDesktopInspectorStore.getState().isOpen).toBe(false);
   });
+
+  it('marks matching banner expired on withdraw event', async () => {
+    const ctx = buildCtx('chat-fg');
+    await fileDiffEvents(ctx);
+    expect(useDesktopControlApprovalStore.getState().pending).toBe(true);
+
+    const withdraw = buildCtx('chat-fg');
+    withdraw.data = {
+      type: AgentEventType.DESKTOP_CONTROL_APPROVAL_REQUEST,
+      messageId: 'msg-1',
+      data: { request_id: 'req-1', withdrawn: true },
+    };
+    await fileDiffEvents(withdraw);
+
+    const store = useDesktopControlApprovalStore.getState();
+    expect(store.pending).toBe(true);
+    expect(store.expired).toBe(true);
+  });
+
+  it('ignores withdraw for unknown request id', async () => {
+    const ctx = buildCtx('chat-fg');
+    await fileDiffEvents(ctx);
+
+    const withdraw = buildCtx('chat-fg');
+    withdraw.data = {
+      type: AgentEventType.DESKTOP_CONTROL_APPROVAL_REQUEST,
+      messageId: 'msg-1',
+      data: { request_id: 'req-other', withdrawn: true },
+    };
+    await fileDiffEvents(withdraw);
+
+    const store = useDesktopControlApprovalStore.getState();
+    expect(store.pending).toBe(true);
+    expect(store.expired).toBe(false);
+  });
 });

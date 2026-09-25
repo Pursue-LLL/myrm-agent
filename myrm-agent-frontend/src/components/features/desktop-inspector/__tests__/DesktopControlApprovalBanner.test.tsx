@@ -97,4 +97,17 @@ describe('DesktopControlApprovalBanner', () => {
     });
     expect(useDesktopControlApprovalStore.getState().pending).toBe(false);
   });
+
+  it('renders expired view and dismisses it', async () => {
+    useDesktopControlApprovalStore.setState({ expired: true });
+    render(<DesktopControlApprovalBanner />);
+
+    expect(screen.getByText('expiredNotice')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('desktop-control-expired-dismiss'));
+      await Promise.resolve();
+    });
+    expect(useDesktopControlApprovalStore.getState().pending).toBe(false);
+  });
 });
