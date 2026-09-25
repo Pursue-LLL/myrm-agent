@@ -3,6 +3,9 @@
 [INPUT]
 - myrm_agent_harness.observability.diagnostics.protocols::HealthReport (POS: framework health report)
 - myrm_agent_harness.toolkits.browser::* (POS: browser orphan process maintenance)
+- app.services.repair.models::RepairActionId, RepairRiskLevel, RepairScope, RepairAction, RepairActionExecuteRequest, RepairActionExecuteResult (POS: 修复动作数据契约与模型定义)
+- app.services.repair.sqlite_repair::build_sqlite_backup_action, execute_sqlite_backup, execute_sqlite_restore (POS: SQLite 热备份与还原自愈动作具体执行逻辑)
+- app.core.infra.health.session_diagnostics::count_orphan_empty_sessions, purge_orphan_empty_sessions (POS: 孤儿会话统计与物理清理)
 
 [OUTPUT]
 - RepairAction: GUI-safe repair action contract
@@ -18,77 +21,40 @@ explicit user decision.
 from __future__ import annotations
 
 import asyncio
-from enum import StrEnum
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.observability.diagnostics.protocols import HealthReport
-from pydantic import BaseModel, Field
 
-if TYPE_CHECKING:
-    from myrm_agent_harness.infra.sqlite_backup import SQLiteBackupManager
+from .models import (
+    RepairAction,
+    RepairActionExecuteRequest,
+    RepairActionExecuteResult,
+    RepairActionId,
+    RepairRiskLevel,
+    RepairScope,
+)
+from .sqlite_repair import (
+    build_sqlite_backup_action as _sqlite_backup_action,
+)
+from .sqlite_repair import (
+    execute_sqlite_backup as _execute_sqlite_backup,
+)
+from .sqlite_repair import (
+    execute_sqlite_restore as _execute_sqlite_restore,
+)
+from .sqlite_repair import (
+    get_sqlite_backup_manager as _get_sqlite_backup_manager,
+)
 
-
-class RepairActionId(StrEnum):
-    """Known repair actions exposed to GUI clients."""
-
-    CLEANUP_BROWSER_ORPHANS = "cleanup_browser_orphans"
-    REVIEW_CHANNEL_DLQ = "review_channel_dlq"
-    REVIEW_WORKSPACE_STORAGE = "review_workspace_storage"
-    REVIEW_RUNTIME_DEPENDENCY = "review_runtime_dependency"
-    SQLITE_BACKUP_NOW = "sqlite_backup_now"
-    SQLITE_RESTORE_LATEST = "sqlite_restore_latest"
-
-
-class RepairRiskLevel(StrEnum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-
-
-class RepairScope(StrEnum):
-    CURRENT_RUNTIME = "current_runtime"
-    CURRENT_WORKSPACE = "current_workspace"
-    INTEGRATION = "integration"
-    PLATFORM_SANDBOX = "platform_sandbox"
-
-
-class RepairAction(BaseModel):
-    """A GUI-safe, auditable repair recommendation."""
-
-    action_id: RepairActionId
-    title: str
-    description: str
-    component: str
-    layer: str
-    scope: RepairScope
-    risk_level: RepairRiskLevel
-    requires_approval: bool = True
-    dry_run_supported: bool = True
-    executable: bool
-    method: str | None = None
-    endpoint: str | None = None
-    confirm_required: bool = True
-    reason: str
-    expected_effect: str
-    does_not_do: list[str] = Field(default_factory=list)
-
-
-class RepairActionExecuteRequest(BaseModel):
-    """Execution request for a white-listed repair action."""
-
-    dry_run: bool = Field(default=True, description="Preview the action without changing runtime state.")
-    confirm: bool = Field(default=False, description="Required for state-changing execution.")
-
-
-class RepairActionExecuteResult(BaseModel):
-    """Execution result for a white-listed repair action."""
-
-    action_id: RepairActionId
-    status: str
-    changed: bool
-    dry_run: bool
-    message: str
-    details: dict[str, object] = Field(default_factory=dict)
+__all__ = [
+    "RepairAction",
+    "RepairActionExecuteRequest",
+    "RepairActionExecuteResult",
+    "RepairActionId",
+    "RepairRiskLevel",
+    "RepairScope",
+    "build_repair_actions",
+    "execute_repair_action",
+]
 
 
 def _action_key(action: RepairAction) -> tuple[str, str]:
@@ -223,6 +189,43 @@ def _dlq_action(server_reports: list[dict[str, object]]) -> RepairAction | None:
     return None
 
 
+def _orphan_session_action(server_reports: list[dict[str, object]]) -> RepairAction | None:
+    for report in server_reports:
+        comp_name = report.get("component_name") if isinstance(report, dict) else getattr(report, "component_name", None)
+        meta = report.get("meta_data") if isinstance(report, dict) else getattr(report, "meta_data", None)
+        msg = str(
+            report.get("message", "Orphan blank sessions detected.")
+            if isinstance(report, dict)
+            else getattr(report, "message", "Orphan blank sessions detected.")
+        )
+
+        orphan_count = 0
+        if isinstance(meta, dict):
+            orphan_count = int(meta.get("orphan_session_count", 0))
+
+        if comp_name == "OrphanSession" and orphan_count > 0:
+            return RepairAction(
+                action_id=RepairActionId.PURGE_ORPHAN_SESSIONS,
+                title="Purge orphan blank sessions",
+                description="Permanently purge legacy empty sessions with zero assistant responses, releasing database rows, search indices, and sandbox volumes.",
+                component="OrphanSession",
+                layer="server",
+                scope=RepairScope.CURRENT_WORKSPACE,
+                risk_level=RepairRiskLevel.MEDIUM,
+                requires_approval=True,
+                executable=True,
+                method="POST",
+                endpoint=f"/health/repair-actions/{RepairActionId.PURGE_ORPHAN_SESSIONS.value}/execute",
+                reason=msg,
+                expected_effect="Permanently removes orphan session DB records, FTS5 indices, checkpointer data, and workspace sandbox directories.",
+                does_not_do=[
+                    "Does not delete active sessions or sessions with any assistant messages.",
+                    "Does not purge sessions created within the 15-minute grace window.",
+                ],
+            )
+    return None
+
+
 async def build_repair_actions(
     harness_reports: list[HealthReport], server_reports: list[dict[str, object]]
 ) -> list[RepairAction]:
@@ -238,6 +241,10 @@ async def build_repair_actions(
     if dlq_action is not None:
         actions.append(dlq_action)
 
+    orphan_action = _orphan_session_action(server_reports)
+    if orphan_action is not None:
+        actions.append(orphan_action)
+
     browser_action = await _browser_orphan_action()
     if browser_action is not None:
         actions.append(browser_action)
@@ -249,47 +256,50 @@ async def build_repair_actions(
     return _dedupe(actions)
 
 
-def _sqlite_backup_action() -> RepairAction | None:
-    from pathlib import Path
-
-    try:
-        from app.config.settings import settings
-
-        db_path = Path(settings.database.sqlite_path)
-        if not db_path.exists():
-            return None
-    except Exception:
-        return None
-
-    return RepairAction(
-        action_id=RepairActionId.SQLITE_BACKUP_NOW,
-        title="Create SQLite backup",
-        description="Create a hot-backup of the SQLite database for disaster recovery.",
-        component="Database",
-        layer="server",
-        scope=RepairScope.CURRENT_WORKSPACE,
-        risk_level=RepairRiskLevel.LOW,
-        requires_approval=False,
-        executable=True,
-        method="POST",
-        endpoint=f"/health/repair-actions/{RepairActionId.SQLITE_BACKUP_NOW.value}/execute",
-        reason="Periodic backup ensures data can be recovered after corruption.",
-        expected_effect="Creates a verified backup snapshot with SHA-256 checksum.",
-        does_not_do=[
-            "Does not modify the live database.",
-            "Does not block agent execution.",
-        ],
-    )
-
-
 async def execute_repair_action(action_id: RepairActionId, request: RepairActionExecuteRequest) -> RepairActionExecuteResult:
     """Execute a white-listed repair action."""
 
     if action_id == RepairActionId.SQLITE_BACKUP_NOW:
-        return _execute_sqlite_backup(request)
+        return _execute_sqlite_backup(request, manager_getter=_get_sqlite_backup_manager)
 
     if action_id == RepairActionId.SQLITE_RESTORE_LATEST:
-        return _execute_sqlite_restore(request)
+        return _execute_sqlite_restore(request, manager_getter=_get_sqlite_backup_manager)
+
+    if action_id == RepairActionId.PURGE_ORPHAN_SESSIONS:
+        from app.core.infra.health.session_diagnostics import (
+            count_orphan_empty_sessions,
+            purge_orphan_empty_sessions,
+        )
+
+        if not request.dry_run and not request.confirm:
+            return RepairActionExecuteResult(
+                action_id=action_id,
+                status="confirmation_required",
+                changed=False,
+                dry_run=False,
+                message="Purging orphan sessions permanently deletes database rows and sandbox directories. Confirm required.",
+            )
+
+        if request.dry_run:
+            orphan_count = await count_orphan_empty_sessions(older_than_minutes=15)
+            return RepairActionExecuteResult(
+                action_id=action_id,
+                status="dry_run",
+                changed=False,
+                dry_run=True,
+                message=f"Dry run: {orphan_count} orphan session(s) would be permanently purged.",
+                details={"orphan_count": orphan_count},
+            )
+
+        deleted_count = await purge_orphan_empty_sessions(older_than_minutes=15)
+        return RepairActionExecuteResult(
+            action_id=action_id,
+            status="completed",
+            changed=deleted_count > 0,
+            dry_run=False,
+            message=f"Permanently purged {deleted_count} orphan session(s).",
+            details={"deleted_count": deleted_count},
+        )
 
     if action_id != RepairActionId.CLEANUP_BROWSER_ORPHANS:
         return RepairActionExecuteResult(
@@ -341,119 +351,3 @@ async def execute_repair_action(action_id: RepairActionId, request: RepairAction
             "failed": result.get("failed", []),
         },
     )
-
-
-def _get_sqlite_backup_manager() -> "SQLiteBackupManager | None":
-    from app.database.operations.backup import get_sqlite_backup_manager
-
-    return get_sqlite_backup_manager()
-
-
-def _execute_sqlite_backup(
-    request: RepairActionExecuteRequest,
-) -> RepairActionExecuteResult:
-    if request.dry_run:
-        return RepairActionExecuteResult(
-            action_id=RepairActionId.SQLITE_BACKUP_NOW,
-            status="dry_run",
-            changed=False,
-            dry_run=True,
-            message="Would create a hot-backup of the SQLite database.",
-        )
-
-    try:
-        manager = _get_sqlite_backup_manager()
-        if manager is None:
-            return RepairActionExecuteResult(
-                action_id=RepairActionId.SQLITE_BACKUP_NOW,
-                status="failed",
-                changed=False,
-                dry_run=False,
-                message="Cannot backup: database is in-memory or file not found",
-            )
-        record = manager.create_backup()
-        return RepairActionExecuteResult(
-            action_id=RepairActionId.SQLITE_BACKUP_NOW,
-            status="completed",
-            changed=True,
-            dry_run=False,
-            message=f"Backup created: {record.file_name} ({record.size_bytes} bytes)",
-            details={
-                "backup_id": record.backup_id,
-                "file_name": record.file_name,
-                "size_bytes": record.size_bytes,
-                "checksum": record.checksum_sha256[:16] + "…",
-            },
-        )
-    except Exception as exc:
-        return RepairActionExecuteResult(
-            action_id=RepairActionId.SQLITE_BACKUP_NOW,
-            status="failed",
-            changed=False,
-            dry_run=False,
-            message=f"Backup failed: {exc}",
-        )
-
-
-def _execute_sqlite_restore(
-    request: RepairActionExecuteRequest,
-) -> RepairActionExecuteResult:
-    if request.dry_run:
-        manager = _get_sqlite_backup_manager()
-        backups = manager.list_backups() if manager else []
-        return RepairActionExecuteResult(
-            action_id=RepairActionId.SQLITE_RESTORE_LATEST,
-            status="dry_run",
-            changed=False,
-            dry_run=True,
-            message=f"Would restore from latest backup ({len(backups)} available).",
-            details={"available_backups": len(backups)},
-        )
-
-    if not request.confirm:
-        return RepairActionExecuteResult(
-            action_id=RepairActionId.SQLITE_RESTORE_LATEST,
-            status="confirmation_required",
-            changed=False,
-            dry_run=False,
-            message="Database restore requires confirm=true. This will replace the current database.",
-        )
-
-    try:
-        manager = _get_sqlite_backup_manager()
-        if manager is None:
-            return RepairActionExecuteResult(
-                action_id=RepairActionId.SQLITE_RESTORE_LATEST,
-                status="failed",
-                changed=False,
-                dry_run=False,
-                message="Cannot restore: database is in-memory or file not found",
-            )
-        result = manager.restore_latest()
-        if result.restored:
-            return RepairActionExecuteResult(
-                action_id=RepairActionId.SQLITE_RESTORE_LATEST,
-                status="completed",
-                changed=True,
-                dry_run=False,
-                message=f"Database restored from {result.snapshot_file}",
-                details={
-                    "snapshot": result.snapshot_file,
-                    "quarantine": result.quarantine_dir,
-                },
-            )
-        return RepairActionExecuteResult(
-            action_id=RepairActionId.SQLITE_RESTORE_LATEST,
-            status="failed",
-            changed=False,
-            dry_run=False,
-            message=f"Restore failed: {result.error}",
-        )
-    except Exception as exc:
-        return RepairActionExecuteResult(
-            action_id=RepairActionId.SQLITE_RESTORE_LATEST,
-            status="failed",
-            changed=False,
-            dry_run=False,
-            message=f"Restore failed: {exc}",
-        )

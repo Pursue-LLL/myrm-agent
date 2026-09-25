@@ -737,3 +737,96 @@ def test_sqlite_backup_action_returns_none_when_db_missing() -> None:
         action = _original_sqlite_backup_action()
 
     assert action is None
+
+
+@pytest.mark.asyncio
+async def test_build_orphan_session_action_detected() -> None:
+    server_reports: list[dict[str, object]] = [
+        {
+            "component_name": "OrphanSession",
+            "status": "warn",
+            "message": "Detected 5 orphan empty session(s).",
+            "meta_data": {"orphan_session_count": 5},
+        }
+    ]
+    actions = await build_repair_actions([], server_reports)
+    orphan_actions = [a for a in actions if a.action_id == RepairActionId.PURGE_ORPHAN_SESSIONS]
+    assert len(orphan_actions) == 1
+    action = orphan_actions[0]
+    assert action.component == "OrphanSession"
+    assert action.executable is True
+    assert action.requires_approval is True
+    assert action.risk_level == "medium"
+    assert "5" in action.reason
+
+
+@pytest.mark.asyncio
+async def test_build_orphan_session_action_zero_ignored() -> None:
+    server_reports: list[dict[str, object]] = [
+        {
+            "component_name": "OrphanSession",
+            "status": "pass",
+            "message": "No orphan sessions.",
+            "meta_data": {"orphan_session_count": 0},
+        }
+    ]
+    actions = await build_repair_actions([], server_reports)
+    orphan_actions = [a for a in actions if a.action_id == RepairActionId.PURGE_ORPHAN_SESSIONS]
+    assert len(orphan_actions) == 0
+
+
+@pytest.mark.asyncio
+async def test_execute_purge_orphan_sessions_dry_run() -> None:
+    with patch("app.core.infra.health.session_diagnostics.count_orphan_empty_sessions", return_value=7):
+        result = await execute_repair_action(
+            RepairActionId.PURGE_ORPHAN_SESSIONS,
+            RepairActionExecuteRequest(dry_run=True, confirm=False),
+        )
+
+    assert result.status == "dry_run"
+    assert result.changed is False
+    assert result.dry_run is True
+    assert result.details == {"orphan_count": 7}
+    assert "7" in result.message
+
+
+@pytest.mark.asyncio
+async def test_execute_purge_orphan_sessions_requires_confirm() -> None:
+    result = await execute_repair_action(
+        RepairActionId.PURGE_ORPHAN_SESSIONS,
+        RepairActionExecuteRequest(dry_run=False, confirm=False),
+    )
+
+    assert result.status == "confirmation_required"
+    assert result.changed is False
+    assert result.dry_run is False
+    assert "Confirm required" in result.message
+
+
+@pytest.mark.asyncio
+async def test_execute_purge_orphan_sessions_confirmed_success() -> None:
+    with patch("app.core.infra.health.session_diagnostics.purge_orphan_empty_sessions", return_value=4):
+        result = await execute_repair_action(
+            RepairActionId.PURGE_ORPHAN_SESSIONS,
+            RepairActionExecuteRequest(dry_run=False, confirm=True),
+        )
+
+    assert result.status == "completed"
+    assert result.changed is True
+    assert result.dry_run is False
+    assert result.details == {"deleted_count": 4}
+    assert "4" in result.message
+
+
+@pytest.mark.asyncio
+async def test_execute_purge_orphan_sessions_confirmed_zero_deleted() -> None:
+    with patch("app.core.infra.health.session_diagnostics.purge_orphan_empty_sessions", return_value=0):
+        result = await execute_repair_action(
+            RepairActionId.PURGE_ORPHAN_SESSIONS,
+            RepairActionExecuteRequest(dry_run=False, confirm=True),
+        )
+
+    assert result.status == "completed"
+    assert result.changed is False
+    assert result.dry_run is False
+    assert result.details == {"deleted_count": 0}
