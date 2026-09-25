@@ -52,8 +52,7 @@ def evidence_gate(handoff: TaskContextHandoff) -> GateDecision:
             ok=False,
             reason_code="EVIDENCE_MISSING",
             user_message=(
-                "Not enough to start yet — please add the missing pieces: "
-                f"{joined}. The next step needs to know what to work on."
+                f"Not enough to start yet — please add the missing pieces: {joined}. The next step needs to know what to work on."
             ),
         )
     return GateDecision(
@@ -81,19 +80,13 @@ def safety_gate(
         return GateDecision(
             ok=False,
             reason_code="ARGS_INVALID",
-            user_message=(
-                "Some required details are missing or invalid. "
-                f"{error or 'Please fill in every field.'}"
-            ),
+            user_message=(f"Some required details are missing or invalid. {error or 'Please fill in every field.'}"),
         )
     if for_cron and not record.trust_latch:
         return GateDecision(
             ok=False,
             reason_code="TRUST_POLICY",
-            user_message=(
-                "Scheduled jobs can only use reviewed workflows. "
-                "Please ask for a review first, or run it manually."
-            ),
+            user_message=("Scheduled jobs can only use reviewed workflows. Please ask for a review first, or run it manually."),
         )
     return GateDecision(
         ok=True,
@@ -122,10 +115,7 @@ def acceptance_gate(criteria: list[str], deliverable: str) -> GateDecision:
         return GateDecision(
             ok=False,
             reason_code="CRITERIA_UNMET",
-            user_message=(
-                "Not done yet — these checklist items are still open: "
-                f"{preview}."
-            ),
+            user_message=(f"Not done yet — these checklist items are still open: {preview}."),
         )
     return GateDecision(
         ok=True,

@@ -8,7 +8,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from myrm_agent_harness.agent.security import user_credentials_ctx
 
-from app.core.infra.health.session_diagnostics import OrphanSessionDiagnostic
+from app.core.infra.health.session_diagnostics import (
+    OrphanSessionDiagnostic,
+    purge_orphan_empty_sessions,
+)
 from app.services.agent.params import AgentRequest
 from app.services.agent.stream_session.chat_history_bootstrap import (
     BootstrappedMessageId,
@@ -214,3 +217,81 @@ async def test_orphan_session_diagnostic_probe():
         assert report.status == "pass"
         assert report.code == "INFO_ORPHAN_SESSIONS_DETECTED"
         assert report.meta_data.get("orphan_session_count") == 5
+
+
+class _FakeSessionDiagnosticsUoW:
+    def __init__(self, orphan_ids: list[str]) -> None:
+        self._orphan_ids = orphan_ids
+        mock_result = MagicMock()
+        mock_result.all.return_value = [(oid,) for oid in orphan_ids]
+        mock_sess = AsyncMock()
+        mock_sess.execute.return_value = mock_result
+        self.session = mock_sess
+
+    async def __aenter__(self) -> _FakeSessionDiagnosticsUoW:
+        return self
+
+    async def __aexit__(self, *_exc: object) -> None:
+        return None
+
+
+@pytest.mark.asyncio
+async def test_purge_orphan_empty_sessions_when_empty():
+    """Verify purge_orphan_empty_sessions returns 0 when no orphan chats exist."""
+    fake_uow = _FakeSessionDiagnosticsUoW([])
+    with patch("app.core.infra.health.session_diagnostics.UnitOfWork", return_value=fake_uow):
+        count = await purge_orphan_empty_sessions(older_than_minutes=15)
+        assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_purge_orphan_empty_sessions_soft_then_permanently_deletes():
+    """Verify purge_orphan_empty_sessions soft-deletes then permanently deletes each orphan chat."""
+    fake_uow = _FakeSessionDiagnosticsUoW(["chat-orphan-1", "chat-orphan-2"])
+    with (
+        patch("app.core.infra.health.session_diagnostics.UnitOfWork", return_value=fake_uow),
+        patch("app.services.chat.chat_service.ChatService.delete_chat", new_callable=AsyncMock) as mock_soft,
+        patch("app.services.chat.chat_service.ChatService.permanently_delete_chat", new_callable=AsyncMock) as mock_perm,
+    ):
+        mock_soft.return_value = True
+        mock_perm.return_value = True
+
+        count = await purge_orphan_empty_sessions(older_than_minutes=15)
+
+        assert count == 2
+        assert mock_soft.await_count == 2
+        assert mock_perm.await_count == 2
+        mock_soft.assert_any_await("chat-orphan-1")
+        mock_soft.assert_any_await("chat-orphan-2")
+        mock_perm.assert_any_await("chat-orphan-1")
+        mock_perm.assert_any_await("chat-orphan-2")
+
+
+@pytest.mark.asyncio
+async def test_purge_orphan_empty_sessions_handles_individual_failures():
+    """Verify purge_orphan_empty_sessions gracefully handles errors on individual sessions."""
+    fake_uow = _FakeSessionDiagnosticsUoW(["chat-fail-soft", "chat-fail-perm", "chat-success"])
+    with (
+        patch("app.core.infra.health.session_diagnostics.UnitOfWork", return_value=fake_uow),
+        patch("app.services.chat.chat_service.ChatService.delete_chat", new_callable=AsyncMock) as mock_soft,
+        patch("app.services.chat.chat_service.ChatService.permanently_delete_chat", new_callable=AsyncMock) as mock_perm,
+    ):
+        async def side_effect_soft(cid: str) -> bool:
+            if cid == "chat-fail-soft":
+                return False
+            return True
+
+        async def side_effect_perm(cid: str) -> bool:
+            if cid == "chat-fail-perm":
+                raise RuntimeError("disk IO error")
+            return True
+
+        mock_soft.side_effect = side_effect_soft
+        mock_perm.side_effect = side_effect_perm
+
+        count = await purge_orphan_empty_sessions(older_than_minutes=15)
+
+        assert count == 1
+        assert mock_soft.await_count == 3
+        assert mock_perm.await_count == 2
+

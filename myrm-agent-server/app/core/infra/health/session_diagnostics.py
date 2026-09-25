@@ -55,7 +55,12 @@ async def count_orphan_empty_sessions(older_than_minutes: int = 15) -> int:
 
 
 async def purge_orphan_empty_sessions(older_than_minutes: int = 15) -> int:
-    """Soft-delete legacy orphan blank sessions lacking assistant messages."""
+    """Permanently purge legacy orphan blank sessions lacking assistant messages.
+
+    To satisfy the underlying repository constraint (requiring deleted_at is not None),
+    each chat is marked as soft-deleted first and then permanently deleted, releasing
+    associated database records, FTS5 indices, checkpointers, and sandbox directories.
+    """
     from app.services.chat.chat_service import ChatService
 
     cutoff = datetime.now(UTC) - timedelta(minutes=older_than_minutes)
@@ -83,10 +88,24 @@ async def purge_orphan_empty_sessions(older_than_minutes: int = 15) -> int:
     if not orphan_ids:
         return 0
 
-    batch_res = await ChatService.batch_delete(orphan_ids)
-    deleted_count = batch_res.get("deleted", 0)
-    logger.info("Purged %d legacy orphan sessions", deleted_count)
+    deleted_count = 0
+    for chat_id in orphan_ids:
+        try:
+            soft_ok = await ChatService.delete_chat(chat_id)
+            if not soft_ok:
+                logger.warning("Failed to soft-delete orphan chat %s before physical purge", chat_id)
+                continue
+            perm_ok = await ChatService.permanently_delete_chat(chat_id)
+            if perm_ok:
+                deleted_count += 1
+            else:
+                logger.warning("Failed to permanently delete orphan chat %s", chat_id)
+        except Exception as exc:
+            logger.error("Error permanently purging orphan chat %s: %s", chat_id, exc)
+
+    logger.info("Permanently purged %d legacy orphan sessions", deleted_count)
     return deleted_count
+
 
 
 class OrphanSessionDiagnostic(DiagnosticProtocol):

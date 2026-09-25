@@ -96,9 +96,7 @@ def test_gates_cover_all_paths(tmp_path, monkeypatch) -> None:
 
     bad = build_handoff(source_flow="a", target_flow="", intent="", materials=[])
     assert evidence_gate(bad).reason_code == "EVIDENCE_MISSING"
-    good = build_handoff(
-        source_flow="a", target_flow="b", intent="fix it", materials=[("M", "text")]
-    )
+    good = build_handoff(source_flow="a", target_flow="b", intent="fix it", materials=[("M", "text")])
     assert evidence_gate(good).ok
 
     assert acceptance_gate([], "anything").reason_code == "CRITERIA_MISSING"
