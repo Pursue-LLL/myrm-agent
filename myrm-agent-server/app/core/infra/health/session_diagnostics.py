@@ -3,6 +3,7 @@
 - myrm_agent_harness.observability.diagnostics.protocols::DiagnosticProtocol (POS: 诊断接口)
 - app.database.models.chat::Chat, Message (POS: 会话与消息 ORM 模型)
 - app.database.repositories.uow::UnitOfWork (POS: 数据库工作单元)
+- app.services.chat.chat_service::ChatService (POS: 聊天业务统一入口，组合各 mixin 的所有方法)
 
 [OUTPUT]
 - OrphanSessionDiagnostic: 孤儿空壳会话（缺少 Assistant 回复的遗留空会话）健康诊断探针。
