@@ -18,6 +18,7 @@ const SAMPLE_DETAIL: WorkflowTemplateDetailResponse = {
     trust_latch: true,
     required_agent_types: ['generalPurpose'],
     placeholders: ['topic'],
+    is_trunk: false,
     created_at: '2026-08-06T00:00:00.000Z',
     updated_at: '2026-08-06T00:00:00.000Z',
   },

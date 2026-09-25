@@ -71,9 +71,11 @@ describe('admitTemplateRun', () => {
 
   it('maps a 422 gate denial to data instead of throwing', async () => {
     const { ApiError } = await import('@/lib/api');
-    apiRequestMock.mockRejectedValue(
-      new ApiError('denied', { reason_code: 'EVIDENCE_MISSING', message: 'Add more.' }),
-    );
+    // Gate denials carry their payload on `data`; the service reads it to return a result
+    // instead of throwing.
+    const denial = new ApiError('denied');
+    denial.data = { reason_code: 'EVIDENCE_MISSING', message: 'Add more.' };
+    apiRequestMock.mockRejectedValue(denial);
     const result = await admitTemplateRun('trunk-bugfix', { template_args: {} });
     expect(result).toEqual({
       admitted: false,

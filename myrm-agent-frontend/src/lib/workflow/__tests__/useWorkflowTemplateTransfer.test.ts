@@ -25,6 +25,7 @@ const EXISTING_TEMPLATE: WorkflowTemplateSummary = {
   trust_latch: true,
   required_agent_types: ['generalPurpose'],
   placeholders: [],
+  is_trunk: false,
   created_at: '2026-08-06T00:00:00.000Z',
   updated_at: '2026-08-06T00:00:00.000Z',
 };
