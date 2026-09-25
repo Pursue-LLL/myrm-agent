@@ -6,6 +6,7 @@
  * - @/components/features/message-box/MarkdownContent::MarkdownContent (POS: Markdown 渲染与锚点生成核心组件)
  * - ./WikiMarkdownEditor::WikiMarkdownEditor (POS: Wiki 词条分屏实时编辑组件)
  * - ./VideoKnowledgePlayer::VideoKnowledgePlayer (POS: 视频知识播放与时间戳对齐组件)
+ * - ./WikiConceptClaimsSection::WikiConceptClaimsSection (POS: 词条声明与事实凭证下钻组件)
  * - ./WikiConceptLinksPanel::WikiConceptLinksPanel (POS: 词条双向链接与脉络导航组件)
  *
  * [OUTPUT]
@@ -26,17 +27,12 @@ import { IconBook, IconEdit, IconLoader, IconSave, IconX } from '@/components/fe
 import MarkdownContent from '@/components/features/message-box/MarkdownContent';
 import { WikiMarkdownEditor } from './WikiMarkdownEditor';
 import { VideoKnowledgePlayer, extractVideoNoteMeta } from './VideoKnowledgePlayer';
+import { WikiConceptClaimsSection } from './WikiConceptClaimsSection';
 import { WikiConceptLinksPanel } from './WikiConceptLinksPanel';
 import { Network } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { Concept } from '@/services/wikiService';
 import type { WikiEditTab } from './useWikiConceptsList';
-import {
-  claimStatusClass,
-  claimStatusLabel,
-  formatClaimConfidence,
-  shouldShowClaimConfidence,
-} from '@/lib/wiki/claimStatusDisplay';
 
 interface WikiConceptDetailPanelProps {
   selectedConcept: Concept | null;
@@ -120,7 +116,9 @@ export function WikiConceptDetailPanel({
 
   const scrollToHeading = useCallback((headingText: string): boolean => {
     const container = contentRef.current;
-    if (!container) return false;
+    if (!container) {
+      return false;
+    }
     const headings = Array.from(container.querySelectorAll('h1, h2, h3, h4, h5, h6'));
     const normalizedTarget = headingText.trim().toLowerCase();
     const matched = headings.find((h) => {
@@ -139,7 +137,9 @@ export function WikiConceptDetailPanel({
   }, []);
 
   useEffect(() => {
-    if (!targetHeading || isEditing) return;
+    if (!targetHeading || isEditing) {
+      return;
+    }
 
     let cancelled = false;
     const delays = [80, 250, 600];
@@ -147,7 +147,9 @@ export function WikiConceptDetailPanel({
 
     delays.forEach((delay) => {
       const timer = setTimeout(() => {
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         const found = scrollToHeading(targetHeading);
         if (found) {
           timers.forEach((t) => clearTimeout(t));
@@ -358,130 +360,14 @@ export function WikiConceptDetailPanel({
                     messageId={`wiki-${selectedConcept.name}`}
                   />
                 </div>
-                <div className="space-y-3 border-t border-border/60 pt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">{t('claimsTitle')}</div>
-                    {claims.length > 0 && onHealClaims && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={onHealClaims}
-                        className="h-7 text-xs px-2.5"
-                      >
-                        {t('claimsHealAction')}
-                      </Button>
-                    )}
-                  </div>
-                  {claims.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">{t('claimsEmpty')}</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {claims.map((claim) => (
-                        <div
-                          key={claim.id}
-                          className={cn(
-                            'rounded-lg border p-3 space-y-2',
-                            claim.status === 'unknown'
-                              ? 'border-border/40 bg-muted/10 opacity-80'
-                              : 'border-border/60 bg-muted/20',
-                          )}
-                        >
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                className={cn(
-                                  'text-sm font-medium',
-                                  claim.status === 'unknown' && 'text-muted-foreground',
-                                )}
-                              >
-                                {claim.text}
-                              </span>
-                              <span
-                                className={cn(
-                                  'text-[10px] leading-4 px-1.5 py-0.5 rounded-full border',
-                                  claimStatusClass(claim.status),
-                                )}
-                              >
-                                {claimStatusLabel(claim.status, claimStatusLabels)}
-                              </span>
-                              {shouldShowClaimConfidence(claim.confidence) && (
-                                <span className="text-[10px] leading-4 px-1.5 py-0.5 rounded-full border bg-sky-500/10 text-sky-800 dark:text-sky-200 border-sky-500/20">
-                                  {formatClaimConfidence(claim.confidence, locale)}
-                                </span>
-                              )}
-                            </div>
-                            {onUpdateClaimStatus && (
-                              <div className="flex items-center gap-1.5">
-                                {claim.status !== 'supported' && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => onUpdateClaimStatus(claim.id, 'supported')}
-                                    className="h-6 text-[11px] px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400"
-                                  >
-                                    {t('claimsVerifyAction')}
-                                  </Button>
-                                )}
-                                {claim.status !== 'contested' && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => onUpdateClaimStatus(claim.id, 'contested')}
-                                    className="h-6 text-[11px] px-2 text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 dark:text-rose-400"
-                                  >
-                                    {t('claimsContestAction')}
-                                  </Button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          {claim.evidence.length > 0 && (
-                            <ul className="space-y-1 text-xs text-muted-foreground">
-                              {claim.evidence.map((evidence, index) => (
-                                <li key={`${claim.id}-${index}`} className="space-y-0.5">
-                                  {evidence.path && (
-                                    <div className="font-mono truncate">
-                                      {t('evidencePath')}: {evidence.path}
-                                      {evidence.lines ? ` · ${t('evidenceLines')}: ${evidence.lines}` : ''}
-                                    </div>
-                                  )}
-                                  {evidence.snapshot_status === 'verified' && (
-                                    <div className="text-[11px] text-emerald-700 dark:text-emerald-300">
-                                      {t('evidenceSnapshotVerified')}
-                                    </div>
-                                  )}
-                                  {evidence.snapshot_status === 'stale' && (
-                                    <div className="text-[11px] text-amber-700 dark:text-amber-300">
-                                      {t('evidenceSnapshotStale')}
-                                    </div>
-                                  )}
-                                  {evidence.snapshot_status === 'missing' && evidence.path && (
-                                    <div className="text-[11px] text-muted-foreground">
-                                      {t('evidenceSnapshotMissing')}
-                                    </div>
-                                  )}
-                                  {evidence.resource_uri ? (
-                                    <div className="text-[11px] text-muted-foreground font-mono break-all">
-                                      {t('evidenceResourceUri', { uri: evidence.resource_uri })}
-                                    </div>
-                                  ) : null}
-                                  {evidence.superseded_from_uri ? (
-                                    <div className="text-[11px] text-amber-700/90 dark:text-amber-300/90 font-mono break-all">
-                                      {t('evidenceSupersededFrom', { uri: evidence.superseded_from_uri })}
-                                    </div>
-                                  ) : null}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <WikiConceptClaimsSection
+                  claims={claims}
+                  locale={locale}
+                  claimStatusLabels={claimStatusLabels}
+                  onHealClaims={onHealClaims}
+                  onUpdateClaimStatus={onUpdateClaimStatus}
+                  t={t}
+                />
 
                 <WikiConceptLinksPanel
                   conceptName={selectedConcept.name}

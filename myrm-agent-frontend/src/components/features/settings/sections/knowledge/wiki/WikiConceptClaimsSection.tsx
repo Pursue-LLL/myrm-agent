@@ -16,18 +16,19 @@
 
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
-import type { ConceptClaim } from '@/services/wikiService';
+import type { WikiClaim, WikiClaimEvidence } from '@/services/wikiService';
 import {
   claimStatusClass,
   claimStatusLabel,
   formatClaimConfidence,
   shouldShowClaimConfidence,
+  type WikiClaimStatusLabels,
 } from '@/lib/wiki/claimStatusDisplay';
 
 interface WikiConceptClaimsSectionProps {
-  claims: ConceptClaim[];
+  claims: WikiClaim[];
   locale: string;
-  claimStatusLabels: Record<string, string>;
+  claimStatusLabels: WikiClaimStatusLabels;
   onHealClaims?: () => void;
   onUpdateClaimStatus?: (claimId: string, status: 'supported' | 'contested') => void;
   t: (key: string, params?: Record<string, string | number>) => string;
@@ -124,7 +125,7 @@ export function WikiConceptClaimsSection({
               </div>
               {claim.evidence.length > 0 && (
                 <ul className="space-y-1 text-xs text-muted-foreground">
-                  {claim.evidence.map((evidence, index) => (
+                  {claim.evidence.map((evidence: WikiClaimEvidence, index: number) => (
                     <li key={`${claim.id}-${index}`} className="space-y-0.5">
                       {evidence.path && (
                         <div className="font-mono truncate">

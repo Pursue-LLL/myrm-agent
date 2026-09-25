@@ -254,12 +254,27 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logger.debug("[Startup] Channel budget init skipped: %s", e)
 
+    # Seed prebuilt trunk workflow templates (idempotent, never fails boot)
+    asyncio.create_task(_seed_trunk_templates())
+
     yield
 
     # === Shutdown ===
     logger.info("[Shutdown] Application shutting down...")
     await _shutdown(app_instance)
     logger.info("[Shutdown] Application stopped")
+
+
+async def _seed_trunk_templates() -> None:
+    """Upsert trunk templates in the background; boot never waits on it."""
+    try:
+        from app.services.workflow_templates.service import get_template_store
+        from app.services.workflow_templates.trunk_templates import seed_trunk_templates
+
+        records = await asyncio.to_thread(seed_trunk_templates, get_template_store())
+        logger.info("[Startup] Trunk workflow templates ready: %d", len(records))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[Startup] Trunk template seeding skipped: %s", exc)
 
 
 async def _phase_1a_sequential() -> None:

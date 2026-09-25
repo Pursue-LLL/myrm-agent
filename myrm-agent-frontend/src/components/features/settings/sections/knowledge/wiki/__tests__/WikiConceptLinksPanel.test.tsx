@@ -70,10 +70,10 @@ describe('WikiConceptLinksPanel', () => {
       screen.getByText(/“This document references \[\[test-concept\]\] directly\.”/)
     ).toBeInTheDocument();
 
-    // 点击反链项触发跳转
+    // 点击反链项触发跳转（携带小节标题锚点）
     const backlinkItem = screen.getByText('referencing-source');
     await userEvent.click(backlinkItem);
-    expect(handleSelect).toHaveBeenCalledWith('referencing-source');
+    expect(handleSelect).toHaveBeenCalledWith('referencing-source', '采购审核机制');
 
     // 切换到 Outlinks tab
     const outlinksTabBtn = screen.getByText(/引用前置/);
