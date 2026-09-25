@@ -118,15 +118,54 @@ def test_capture_loop_records_permission_requirement() -> None:
     assert session.capture_error == "desktop_capture_permission_required"
 
 
-def test_permission_denied_stops_loop_and_reports_reason() -> None:
-    """Missing Accessibility permission cannot be retried away: stop and surface the reason."""
+def test_permission_denied_pauses_then_resumes_when_granted() -> None:
+    """A user who grants access while the dialog is open must keep their demonstration."""
     from myrm_agent_harness.toolkits.computer_use.dref.errors import AXPermissionRequiredError
 
     session = RecordingSessionState(session_id="rec-5")
     task = DesktopCaptureTask(session, poll_interval_sec=0.01)
     backend = MagicMock()
+    calls = {"n": 0}
 
-    def raise_permission(backend_arg: object, scope: str, app_name: str | None = None):
+    def deny_then_grant(backend_arg: object, scope: str, app_name: str | None = None):
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            raise AXPermissionRequiredError("Accessibility permission required on macOS")
+        return _meta("Finder"), {"r1": _element("r1", "AXButton", "Open")}
+
+    async def run() -> None:
+        with (
+            patch.object(task, "_create_session", return_value=backend),
+            patch(
+                "myrm_agent_harness.toolkits.computer_use.recording.capture_driver.capture_snapshot",
+                deny_then_grant,
+            ),
+        ):
+            task.start()
+            for _ in range(80):
+                if session.capture_active and session.capture_error is None and calls["n"] > 2:
+                    break
+                await asyncio.sleep(0.01)
+            await task.stop()
+
+    asyncio.run(run())
+
+    # Capture kept polling through the denial and resumed once access was granted.
+    assert calls["n"] > 2
+    assert session.capture_error is None
+
+
+def test_permission_denied_releases_session_after_the_grace_window() -> None:
+    """Waiting forever would leave the UI implying a recording that can never happen."""
+    from myrm_agent_harness.toolkits.computer_use.dref.errors import AXPermissionRequiredError
+
+    session = RecordingSessionState(session_id="rec-6")
+    task = DesktopCaptureTask(session, poll_interval_sec=0.01)
+    backend = MagicMock()
+    calls = {"n": 0}
+
+    def always_deny(backend_arg: object, scope: str, app_name: str | None = None):
+        calls["n"] += 1
         raise AXPermissionRequiredError("Accessibility permission required on macOS")
 
     async def run() -> None:
@@ -134,20 +173,24 @@ def test_permission_denied_stops_loop_and_reports_reason() -> None:
             patch.object(task, "_create_session", return_value=backend),
             patch(
                 "myrm_agent_harness.toolkits.computer_use.recording.capture_driver.capture_snapshot",
-                raise_permission,
+                always_deny,
+            ),
+            patch(
+                "app.services.skills.desktop_recording.capture_task._PERMISSION_GRACE_SEC",
+                0.0,
             ),
         ):
             task.start()
-            for _ in range(50):
-                if session.capture_error:
+            for _ in range(80):
+                if not session.capture_active:
                     break
                 await asyncio.sleep(0.01)
-            await task.stop()
 
     asyncio.run(run())
 
-    assert session.capture_error == "desktop_capture_permission_required"
     assert session.capture_active is False
+    assert session.capture_error == "desktop_capture_permission_required"
+    assert task.is_running is False
 
 
 def test_reports_unsupported_deployment_without_starting_capture() -> None:

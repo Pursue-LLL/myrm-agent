@@ -33,6 +33,10 @@ logger = logging.getLogger(__name__)
 # event stream responsive without pinning a CPU core for the whole demonstration.
 _DEFAULT_POLL_INTERVAL_SEC = 0.7
 
+# How long to keep polling after a missing screen-access permission, so a user who grants it while
+# the dialog is open keeps the demonstration they are about to give.
+_PERMISSION_GRACE_SEC = 120.0
+
 
 class DesktopCaptureTask:
     """Poll the foreground AX tree and append observed interactions to a session."""
@@ -123,6 +127,11 @@ class DesktopCaptureTask:
             AXTreeEmptyError,
         )
 
+        # A user who has not granted screen access yet can grant it while the dialog is open.
+        # Ending the session immediately would discard the demonstration they are about to give,
+        # so a missing permission pauses capture for a grace window and resumes if it is granted.
+        permission_wait_started: float | None = None
+
         try:
             while True:
                 try:
@@ -130,12 +139,36 @@ class DesktopCaptureTask:
                     frame = await driver.poll()
                     if frame.meta.needs_permission:
                         self._session.capture_error = "desktop_capture_permission_required"
+                    else:
+                        # Capture is healthy again (e.g. the user just granted access).
+                        if permission_wait_started is not None:
+                            logger.info(
+                                "Desktop capture resumed for %s after permission was granted",
+                                self._session.session_id,
+                            )
+                        permission_wait_started = None
+                        if self._session.capture_error == "desktop_capture_permission_required":
+                            self._session.capture_error = None
                     for event in frame.events:
                         self._session.add_event(event)
-                except AXPermissionRequiredError:
-                    # Retrying cannot fix a missing OS permission; stop so the UI can guide the
-                    # user to grant access, instead of silently polling a blocked API.
-                    raise
+                except AXPermissionRequiredError as exc:
+                    self._session.capture_error = "desktop_capture_permission_required"
+                    if permission_wait_started is None:
+                        permission_wait_started = time.time()
+                        logger.info(
+                            "Desktop capture waiting for permission on %s: %s",
+                            self._session.session_id,
+                            exc,
+                        )
+                    elif time.time() - permission_wait_started > _PERMISSION_GRACE_SEC:
+                        # The user had ample time and still cannot capture; release the session so
+                        # the UI stops implying a recording is in progress.
+                        self._session.capture_active = False
+                        logger.info(
+                            "Desktop capture gave up waiting for permission on %s",
+                            self._session.session_id,
+                        )
+                        return
                 except AXTreeEmptyError as exc:
                     # Transient by nature: the tree is briefly unreadable while apps switch or
                     # the system is busy. Losing the rest of the demonstration here would waste
@@ -153,13 +186,6 @@ class DesktopCaptureTask:
                     )
                     return
                 await asyncio.sleep(self._poll_interval_sec)
-        except AXPermissionRequiredError:
-            self._session.capture_active = False
-            self._session.capture_error = "desktop_capture_permission_required"
-            logger.info(
-                "Desktop capture stopped for %s: Accessibility permission not granted",
-                self._session.session_id,
-            )
         except asyncio.CancelledError:
             raise
         except Exception as exc:
