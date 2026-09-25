@@ -620,6 +620,13 @@ _start_frontend_supervisor() {
     return 0
   fi
 
+  if _frontend_port_listening && ! _frontend_binding_matches; then
+    # Reusing this frontend would keep serving /api/v1 from the wrong backend, and the
+    # compile wait below would be satisfied by the same stale process. Stop it so the
+    # launch path starts a fresh server with the current API_PORT.
+    _kill_frontend_supervisor || return 1
+  fi
+
   if _lock_supervisor_alive; then
     echo "STACK_WAIT: frontend compiling — up to ${ENSURE_FRONTEND_WAIT_SEC}s..."
     if _wait_frontend_http_200 "${ENSURE_FRONTEND_WAIT_SEC}"; then
