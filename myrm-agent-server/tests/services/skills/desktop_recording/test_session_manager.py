@@ -1,4 +1,4 @@
-"""Tests for desktop recording session registry: retention and capture budget."""
+"""Tests for the desktop recording session registry: retention and capture budget."""
 
 from __future__ import annotations
 
@@ -51,21 +51,19 @@ def test_finalized_sessions_are_evicted_past_the_retention_cap() -> None:
     assert lookup_session(f"rec-{count - 1}") is not None
 
 
-def test_active_recording_is_not_evicted() -> None:
+def test_active_recording_is_not_evicted(monkeypatch: pytest.MonkeyPatch) -> None:
     """A session that is still recording must never be dropped to make room."""
-    session_manager._MAX_RETAINED_SESSIONS = 2
+    monkeypatch.setattr(session_manager, "_MAX_RETAINED_SESSIONS", 2)
     create_session("rec-active", "all")
 
     for index in range(6):
-        create_session(f"rec-done-{index}", "all")
-        session_manager._SESSIONS[f"rec-done-{index}"].status = "stopped"
+        session_id = f"rec-done-{index}"
+        create_session(session_id, "all")
+        session_manager._SESSIONS[session_id].status = "stopped"
 
-    # The registry must have kept the still-recording session even under pressure.
-    session_manager._SESSIONS.pop("rec-done-5", None)  # evictable neighbours may be dropped
     assert lookup_session("rec-active") is not None
 
 
-@pytest.mark.anyio
 async def test_stop_session_finalizes_and_marks_stopped() -> None:
     """Stopping a recording must finalize it so retention can reclaim it."""
     create_session("rec-stop", "all")

@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
 from myrm_agent_harness.toolkits.computer_use.recording.types import RecordedActionType
 
-from app.api.skills.desktop_recorder.schemas import RecordingSessionState
 from app.services.skills.desktop_recording import DesktopCaptureTask
+from app.services.skills.desktop_recording.state import RecordingSessionState
 
 
 def _meta(app_name: str = "Finder", needs_permission: bool = False) -> SnapshotMeta:
@@ -86,9 +86,7 @@ def test_capture_loop_appends_events_from_driver() -> None:
     asyncio.run(run())
 
     assert session.events, "capture loop should have appended events"
-    click = next(
-        event for event in session.events if event.action == RecordedActionType.CLICK.value
-    )
+    click = next(event for event in session.events if event.action == RecordedActionType.CLICK.value)
     assert click.element_title == "Taxes"
     assert click.element_role == "AXButton"
     assert task.is_running is False
@@ -176,9 +174,7 @@ def test_transient_tree_errors_do_not_stop_capture() -> None:
     backend = MagicMock()
 
     def _meta() -> SnapshotMeta:
-        return SnapshotMeta(
-            ref_count=1, app_name="Finder", window_title="Main", scope="foreground"
-        )
+        return SnapshotMeta(ref_count=1, app_name="Finder", window_title="Main", scope="foreground")
 
     def _element(ref_id: str) -> ElementRef:
         return ElementRef(

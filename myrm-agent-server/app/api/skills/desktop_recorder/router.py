@@ -124,9 +124,8 @@ async def stop_desktop_recording(
     request: StopDesktopRecordingRequest,
 ) -> StopDesktopRecordingResponse:
     """Stop the recording session and terminate its capture loop."""
-    _require_session(request.session_id)
     session = await stop_session(request.session_id)
-    if session is None:  # pragma: no cover - defensive, the lookup above already resolved it
+    if session is None:
         raise HTTPException(status_code=404, detail=f"Recording session not found: {request.session_id}")
 
     duration = (session.stopped_at or time.time()) - session.started_at
