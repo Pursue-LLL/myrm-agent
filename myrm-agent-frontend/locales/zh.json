@@ -18162,6 +18162,55 @@
         "pageDescription": "为对话、看板和设置选一个起始主题。之后可随时在外观设置中深度定制。",
         "continueButton": "继续",
         "skipButton": "保持默认"
+      },
+      "deploymentTitle": "你的助手运行在哪里？",
+      "deploymentDescription": "使用本机、连接远端服务器，或使用云托管，随时可以在设置中更改。",
+      "doctorTitle": "快速自检",
+      "doctorDescription": "我们检查了最常挡住首次使用的三件事，标红的可一键修复，也可稍后处理。",
+      "doctorContinueButton": "继续",
+      "powerStack": {
+        "title": "已经在为别的 AI 工具付费？",
+        "description": "留着它们。在各自擅长处使用，让 Myrm 负责编排其余工作。价格以定价页为准，这里不猜。",
+        "pricingLink": "查看真实价格",
+        "columns": {
+          "external": {
+            "title": "编码工具照常用",
+            "description": "日常编码继续用 Cursor、Devin 或 Claude Code，编排、定时与跨渠道工作交给 Myrm。"
+          },
+          "orchestrator": {
+            "title": "Myrm 负责编排",
+            "description": "一个智能体配置驱动对话、定时任务与各渠道，记忆共享，不用反复交代背景。"
+          },
+          "local": {
+            "title": "免费本地档",
+            "description": "草稿与分流用免费本地模型跑，重活再上云。"
+          }
+        }
+      },
+      "doctor": {
+        "fix": "去修复",
+        "allClear": "三项检查全部通过，可以开始了。",
+        "hasIssues": "修复上方标红项，或继续并稍后在设置中处理。",
+        "rows": {
+          "provider": {
+            "title": "模型就绪",
+            "okHint": "至少有一个模型可用。",
+            "failHint": "还没有可用模型。",
+            "pendingHint": "正在检查模型…"
+          },
+          "backend": {
+            "title": "后端可达",
+            "okHint": "后端响应正常。",
+            "failHint": "后端无响应。",
+            "pendingHint": "正在探测后端…"
+          },
+          "quota": {
+            "title": "用量额度",
+            "okHint": "可以开始工作。",
+            "failHint": "额度已用完。",
+            "pendingHint": "正在检查额度…"
+          }
+        }
       }
     }
   },

@@ -11199,6 +11199,55 @@
         "pageDescription": "Wählen Sie ein Startthema für Chat, Kanban und Einstellungen. Sie können das Erscheinungsbild jederzeit weiter anpassen.",
         "continueButton": "Weitermachen",
         "skipButton": "Behalten Sie die Standardeinstellung bei"
+      },
+      "deploymentTitle": "Wo läuft Ihr Assistent?",
+      "deploymentDescription": "Dieser Computer, ein Remote-Server oder Cloud-Hosting. Jederzeit in den Einstellungen änderbar.",
+      "doctorTitle": "Kurzer Gesundheitscheck",
+      "doctorDescription": "Wir haben die drei häufigsten Hürden der ersten Nutzung geprüft. Rote Punkte lassen sich mit einem Klick beheben oder später nachholen.",
+      "doctorContinueButton": "Weiter",
+      "powerStack": {
+        "title": "Zahlen Sie bereits für andere KI-Tools?",
+        "description": "Behalten Sie sie. Nutzen Sie jedes Tool dort, wo es stark ist, den Rest orchestriert Myrm. Preise stehen auf der Preisseite.",
+        "pricingLink": "Echte Preise ansehen",
+        "columns": {
+          "external": {
+            "title": "Coding-Tools bleiben",
+            "description": "Alltägliches Coding bleibt bei Cursor, Devin oder Claude Code. Orchestrierung, Pläne und Kanäle übernimmt Myrm."
+          },
+          "orchestrator": {
+            "title": "Myrm orchestriert",
+            "description": "Ein Assistentenprofil steuert Chat, geplante Aufgaben und Kanäle mit geteiltem Gedächtnis. Kein ständiges Wiederholen des Kontexts."
+          },
+          "local": {
+            "title": "Kostenloser lokaler Slot",
+            "description": "Entwürfe und Triage laufen lokal kostenlos, nur schwere Last geht in die Cloud."
+          }
+        }
+      },
+      "doctor": {
+        "fix": "Beheben",
+        "allClear": "Alle drei Prüfungen bestanden. Es kann losgehen.",
+        "hasIssues": "Beheben Sie die roten Zeilen oder fahren Sie fort und holen Sie es später in den Einstellungen nach.",
+        "rows": {
+          "provider": {
+            "title": "Modell bereit",
+            "okHint": "Mindestens ein Modell kann antworten.",
+            "failHint": "Noch kein nutzbares Modell.",
+            "pendingHint": "Modelle werden geprüft…"
+          },
+          "backend": {
+            "title": "Backend erreichbar",
+            "okHint": "Das Backend antwortet.",
+            "failHint": "Das Backend antwortet nicht.",
+            "pendingHint": "Backend wird angepingt…"
+          },
+          "quota": {
+            "title": "Nutzungskontingent",
+            "okHint": "Bereit zur Arbeit.",
+            "failHint": "Das Kontingent ist leer.",
+            "pendingHint": "Kontingent wird geprüft…"
+          }
+        }
       }
     }
   },

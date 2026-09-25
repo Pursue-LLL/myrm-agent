@@ -35,7 +35,7 @@ export default function ToolsConnectOnboardingStep({ onComplete, onSkip }: Tools
           return;
         }
         const featured = FEATURED_SERVICE_IDS.map((id) => data.entries.find((e) => e.id === id)).filter(
-          (e): e is CatalogEntry => e != null,
+          (e): e is CatalogEntry => e !== null && e !== undefined,
         );
         const resolved = featured.length > 0 ? featured : data.entries.slice(0, 5);
         if (resolved.length === 0) {

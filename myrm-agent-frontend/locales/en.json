@@ -18162,6 +18162,55 @@
         "pageDescription": "Pick a starting theme for chat, kanban, and settings. You can customize further anytime in Appearance.",
         "continueButton": "Continue",
         "skipButton": "Keep default"
+      },
+      "deploymentTitle": "Where does your assistant run?",
+      "deploymentDescription": "Use this computer, connect a remote server, or use cloud hosting. You can change this anytime in Settings.",
+      "doctorTitle": "Quick health check",
+      "doctorDescription": "We checked the three things that most often block first use. Fix anything red, or continue.",
+      "doctorContinueButton": "Continue",
+      "powerStack": {
+        "title": "Already paying for other AI tools?",
+        "description": "Keep them. Use each tool where it shines and let Myrm orchestrate the rest. Prices live on the pricing page, not here.",
+        "pricingLink": "See real prices",
+        "columns": {
+          "external": {
+            "title": "Your coding tools stay",
+            "description": "Keep Cursor, Devin, or Claude Code for daily coding. Myrm takes the orchestration, scheduling, and cross-channel work they skip."
+          },
+          "orchestrator": {
+            "title": "Myrm orchestrates",
+            "description": "One assistant profile drives chat, scheduled tasks, and channels with shared memory, so you stop repeating context."
+          },
+          "local": {
+            "title": "A free local slot",
+            "description": "Run a free local model for drafts and triage, and send only heavy work to the cloud."
+          }
+        }
+      },
+      "doctor": {
+        "fix": "Fix",
+        "allClear": "All three checks pass. Good to go.",
+        "hasIssues": "Fix the red rows above, or continue and fix later in Settings.",
+        "rows": {
+          "provider": {
+            "title": "Model ready",
+            "okHint": "At least one model can answer.",
+            "failHint": "No usable model yet.",
+            "pendingHint": "Checking models…"
+          },
+          "backend": {
+            "title": "Backend reachable",
+            "okHint": "The backend is answering.",
+            "failHint": "The backend is not answering.",
+            "pendingHint": "Pinging the backend…"
+          },
+          "quota": {
+            "title": "Usage allowance",
+            "okHint": "Ready to work.",
+            "failHint": "The allowance is empty.",
+            "pendingHint": "Checking allowance…"
+          }
+        }
       }
     }
   },

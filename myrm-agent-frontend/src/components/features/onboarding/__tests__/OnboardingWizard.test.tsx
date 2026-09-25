@@ -20,6 +20,10 @@ const mockIsLocalMode = vi.hoisted(() => ({ value: true }));
 
 const stableT = (key: string) => key;
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
 }));
@@ -222,6 +226,20 @@ async function completeToolsConnectStep() {
   fireEvent.click(screen.getByTestId('tools-connect-skip'));
 }
 
+async function completeDeploymentStep() {
+  await waitFor(() => {
+    expect(screen.getByText('optLocal')).toBeInTheDocument();
+  });
+  fireEvent.click(screen.getByText('optLocal'));
+}
+
+async function completeHealthStep() {
+  await waitFor(() => {
+    expect(screen.getByText('onboarding.doctorContinueButton')).toBeInTheDocument();
+  });
+  fireEvent.click(screen.getByText('onboarding.doctorContinueButton'));
+}
+
 async function completeThemePickStep() {
   await waitFor(() => {
     expect(screen.getByTestId('theme-onboarding-step')).toBeInTheDocument();
@@ -282,6 +300,8 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
       });
@@ -293,6 +313,8 @@ describe('OnboardingWizard', () => {
       await act(async () => {
         vi.advanceTimersByTime(3000);
       });
+
+      await completeDeploymentStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
@@ -306,6 +328,8 @@ describe('OnboardingWizard', () => {
       await act(async () => {
         vi.advanceTimersByTime(3000);
       });
+
+      await completeDeploymentStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
@@ -324,7 +348,10 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -350,7 +377,10 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -376,6 +406,8 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('migration-wizard')).toBeInTheDocument();
       });
@@ -398,6 +430,8 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
       });
@@ -417,6 +451,8 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
       });
@@ -424,6 +460,7 @@ describe('OnboardingWizard', () => {
       fireEvent.click(screen.getByTestId('capabilities-done'));
 
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -453,7 +490,10 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -480,6 +520,8 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
       });
@@ -487,6 +529,7 @@ describe('OnboardingWizard', () => {
       fireEvent.click(screen.getByTestId('capabilities-done'));
 
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -516,6 +559,8 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
       });
@@ -523,6 +568,7 @@ describe('OnboardingWizard', () => {
       fireEvent.click(screen.getByTestId('capabilities-done'));
 
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -556,6 +602,8 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
       });
@@ -563,6 +611,7 @@ describe('OnboardingWizard', () => {
       fireEvent.click(screen.getByTestId('capabilities-done'));
 
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -609,7 +658,10 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -641,7 +693,10 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -678,7 +733,10 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -700,7 +758,10 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -723,6 +784,8 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await waitFor(() => {
         expect(screen.getByTestId('local-capabilities')).toBeInTheDocument();
       });
@@ -741,7 +804,10 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -773,7 +839,10 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -799,7 +868,10 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -825,7 +897,10 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -855,7 +930,10 @@ describe('OnboardingWizard', () => {
         vi.advanceTimersByTime(3000);
       });
 
+      await completeDeploymentStep();
+
       await completeToolsConnectStep();
+      await completeHealthStep();
 
       await waitFor(() => {
         expect(screen.getByTestId('sync-folder-step')).toBeInTheDocument();
@@ -884,6 +962,8 @@ describe('OnboardingWizard', () => {
       await act(async () => {
         vi.advanceTimersByTime(3000);
       });
+
+      await completeDeploymentStep();
 
       await waitFor(() => {
         expect(screen.getByText('onboarding.instantStartButton')).toBeInTheDocument();

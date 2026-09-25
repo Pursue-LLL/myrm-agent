@@ -11199,6 +11199,55 @@
         "pageDescription": "チャット、カンバン、設定の開始テーマを選びます。外観設定でいつでもカスタマイズできます。",
         "continueButton": "続行",
         "skipButton": "デフォルトを維持"
+      },
+      "deploymentTitle": "アシスタントの実行場所",
+      "deploymentDescription": "このPC、リモートサーバー、クラウドホスティングから選べます。設定で後から変更できます。",
+      "doctorTitle": "クイックヘルスチェック",
+      "doctorDescription": "初回利用でつまずきやすい3点を確認しました。赤はワンクリックで修正、後回しも可能です。",
+      "doctorContinueButton": "続ける",
+      "powerStack": {
+        "title": "他のAIツールに課金中ですか?",
+        "description": "そのまま使えます。得意分野で使い分け、残りはMyrmが編排します。価格は料金ページが正本です。",
+        "pricingLink": "実際の価格を見る",
+        "columns": {
+          "external": {
+            "title": "コーディングツールは継続",
+            "description": "日常のコーディングはCursor・Devin・Claude Codeのまま。編排・定期実行・チャネル横断はMyrmが担当。"
+          },
+          "orchestrator": {
+            "title": "Myrmが編排",
+            "description": "一つのエージェント設定が対話・定期タスク・各チャネルを駆動し、記憶を共有するので背景説明の繰り返しが不要。"
+          },
+          "local": {
+            "title": "無料のローカル枠",
+            "description": "下書きと振り分けは無料ローカルモデルで、重い処理だけクラウドへ。"
+          }
+        }
+      },
+      "doctor": {
+        "fix": "修正する",
+        "allClear": "3項目すべて通過。開始できます。",
+        "hasIssues": "赤の項目を修正するか、続けて設定で後から対応できます。",
+        "rows": {
+          "provider": {
+            "title": "モデル準備完了",
+            "okHint": "応答可能なモデルがあります。",
+            "failHint": "利用可能なモデルがありません。",
+            "pendingHint": "モデルを確認中…"
+          },
+          "backend": {
+            "title": "バックエンド到達可能",
+            "okHint": "バックエンドが応答しています。",
+            "failHint": "バックエンドが応答しません。",
+            "pendingHint": "バックエンドに ping 中…"
+          },
+          "quota": {
+            "title": "利用枠",
+            "okHint": "作業できます。",
+            "failHint": "利用枠が空です。",
+            "pendingHint": "利用枠を確認中…"
+          }
+        }
       }
     }
   },
