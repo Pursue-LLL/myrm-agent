@@ -19525,5 +19525,17 @@
     "footerNote": "您可在設定中心隨時切換或微調以上模型配置策略。",
     "closeBtn": "關閉",
     "configureBtn": "前往設定中心配置"
+  },
+  "security": {
+    "taintedEgress": {
+      "title": "敏感資料出網攔截",
+      "description": "偵測到包含敏感憑證的出網請求試圖連接外部主機。",
+      "destinationHost": "目標主機",
+      "dataType": "敏感資料類型",
+      "detectedPattern": "命中模式",
+      "trustSession": "在本次工作階段中始終信任該目標（消除後續彈窗）",
+      "approve": "允許出網",
+      "reject": "阻斷攔截"
+    }
   }
 }

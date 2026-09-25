@@ -52,6 +52,7 @@
 | `runs/`                                       | Unified Runs Hub 聚合运行历史                                        | [_ARCH.md](runs/_ARCH.md)                                                         |
 | `loadout/`                                    | Agent Loadout 摘要 + Team Assets Hub（组合现有 API/面板）            | [_ARCH.md](loadout/_ARCH.md)                                                      |
 | `embeds/`                                     | 外链 URL 富媒体嵌入（provider 匹配 + consent + iframe）              | [_ARCH.md](embeds/_ARCH.md)                                                       |
+| `security/`                                   | 安全防线与敏感出网人眼拦截审批                                       | [_ARCH.md](security/_ARCH.md)                                                     |
 
 上表覆盖当前全部 feature 子目录。新增目录须同步本表并添加目录级 `_ARCH.md`。
 

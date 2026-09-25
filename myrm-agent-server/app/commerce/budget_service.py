@@ -86,6 +86,18 @@ class PreAuthResultDTO(BaseModel):
     expires_at: float | None = None
 
 
+class VirtualCardVoucherDTO(BaseModel):
+    """One-time isolated virtual card token binding for autonomous purchases."""
+
+    voucher_id: str
+    merchant_domain: str
+    amount_cap_cents: int
+    currency: str = "USD"
+    session_id: str = ""
+    expires_at: float
+    status: str = "active"
+
+
 class CommerceBudgetService:
     """Orchestrates in-memory SpendGovernor state machine with persistent SpendingLedger."""
 
@@ -97,6 +109,7 @@ class CommerceBudgetService:
         self._governor = governor or SpendGovernor()
         self._ledger = ledger_store or get_spending_ledger_store()
         self._lock = threading.RLock()
+        self._vouchers: dict[str, VirtualCardVoucherDTO] = {}
         self._reconcile_daily_spent()
 
     def _reconcile_daily_spent(self) -> None:
@@ -239,6 +252,72 @@ class CommerceBudgetService:
     ) -> list[SpendingLedgerEntry]:
         """Fetch audit log entries."""
         return self._ledger.list_entries(session_id=session_id, limit=limit)
+
+    def create_virtual_card_voucher(
+        self,
+        merchant_domain: str,
+        amount_cap_cents: int,
+        ttl_seconds: int = 300,
+        session_id: str = "",
+    ) -> dict[str, object]:
+        """Issue an isolated one-time virtual card voucher with bounded amount and merchant."""
+        with self._lock:
+            pre_auth = self.pre_authorize_spend(
+                merchant_domain=merchant_domain,
+                amount_cents=amount_cap_cents,
+                session_id=session_id or "global",
+            )
+            if not pre_auth.success:
+                return {
+                    "success": False,
+                    "code": pre_auth.code,
+                    "message": pre_auth.message,
+                }
+
+            now = time.time()
+            rand_suffix = os.urandom(8).hex()
+            clean_domain = merchant_domain.replace(".", "_").replace("*", "wildcard")
+            voucher_id = f"vcard-{clean_domain}-{int(now)}-{rand_suffix}"
+
+            voucher = VirtualCardVoucherDTO(
+                voucher_id=voucher_id,
+                merchant_domain=merchant_domain,
+                amount_cap_cents=amount_cap_cents,
+                currency=self._governor.config.currency,
+                session_id=session_id,
+                expires_at=now + ttl_seconds,
+                status="active",
+            )
+            self._vouchers[voucher_id] = voucher
+            return {
+                "success": True,
+                "code": "VOUCHER_ISSUED",
+                "message": "One-time virtual card voucher successfully bound",
+                "voucher": voucher.model_dump(),
+                "lease_id": pre_auth.lease_id,
+            }
+
+    def resolve_virtual_card_voucher(self, voucher_id: str) -> VirtualCardVoucherDTO | None:
+        """Resolve a voucher, checking validity and expiration."""
+        with self._lock:
+            v = self._vouchers.get(voucher_id)
+            if not v:
+                return None
+            if time.time() > v.expires_at:
+                v.status = "expired"
+                return None
+            if v.status != "active":
+                return None
+            return v
+
+    def revoke_virtual_card_voucher(self, voucher_id: str) -> bool:
+        """Revoke an active virtual card voucher."""
+        with self._lock:
+            v = self._vouchers.get(voucher_id)
+            if v and v.status == "active":
+                v.status = "revoked"
+                return True
+            return False
 
 
 _GLOBAL_COMMERCE_BUDGET_SERVICE: CommerceBudgetService | None = None

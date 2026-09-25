@@ -7,6 +7,7 @@
 
 [OUTPUT]
 - get_template_store, record_to_summary, resolve_workflow_db_path
+- is_trunk flagging via trunk_templates catalog (POS: prebuilt trunk badge)
 
 [POS]
 Server-side adapter for workflow template persistence. Uses the same SQLite file as the DW engine.
@@ -26,6 +27,7 @@ from myrm_agent_harness.agent.dynamic_workflow.template_validation import (
 )
 
 from app.schemas.workflow_templates import WorkflowTemplateSummary
+from app.services.workflow_templates.trunk_templates import is_trunk_template
 
 
 def resolve_workflow_db_path() -> Path:
@@ -49,6 +51,7 @@ def record_to_summary(record: WorkflowTemplateRecord) -> WorkflowTemplateSummary
         trust_latch=record.trust_latch,
         required_agent_types=list(record.required_agent_types),
         placeholders=list(extract_template_placeholders(record.script_code)),
+        is_trunk=is_trunk_template(record.template_id),
         created_at=record.created_at,
         updated_at=record.updated_at,
     )

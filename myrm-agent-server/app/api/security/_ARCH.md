@@ -19,6 +19,7 @@ Security Center 与 Agent 工具安全策略的 HTTP 层：供应链仪表盘、
 | `test_fixtures.py` | 测试 | local-only：allowlist pattern seed/clear、hitl-probe（`pending_interrupt_events`） | ✅ |
 | `vault.py` | 路由 | `POST /security/vault/unlock`：本地主密钥派生 | ✅ |
 | `vault_credentials.py` | 路由 | `/security/vault-credentials` CRUD | ✅ |
+| `tainted_egress.py` | 路由 | `/security/tainted-egress` 拦截受污染出网审批与会话信任管理 | ✅ |
 
 ## 路由（前缀 `/api/v1`）
 

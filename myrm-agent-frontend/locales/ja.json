@@ -19525,5 +19525,17 @@
     "footerNote": "設定センターからいつでもモデル連携ポリシーを調整・微調整できます。",
     "closeBtn": "閉じる",
     "configureBtn": "設定センターで構成"
+  },
+  "security": {
+    "taintedEgress": {
+      "title": "機密データ送信の傍受",
+      "description": "機密認証情報を含む送信リクエストが外部ホストへの接続を試行したため傍受されました。",
+      "destinationHost": "宛先ホスト",
+      "dataType": "機密データ種別",
+      "detectedPattern": "検出パターン",
+      "trustSession": "このセッション中はこの宛先を常に信頼する（今後のプロンプトを防止）",
+      "approve": "送信を許可",
+      "reject": "ブロックして拒否"
+    }
   }
 }

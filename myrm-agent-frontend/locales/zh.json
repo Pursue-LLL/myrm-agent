@@ -19541,5 +19541,17 @@
       "viewSubscriptions": "查看订阅方案",
       "close": "关闭"
     }
+  },
+  "security": {
+    "taintedEgress": {
+      "title": "敏感数据出网拦截",
+      "description": "检测到包含敏感凭证的出网请求试图连接外部主机。",
+      "destinationHost": "目标主机",
+      "dataType": "敏感数据类型",
+      "detectedPattern": "命中模式",
+      "trustSession": "在本次会话中始终信任该目标（消除后续弹窗）",
+      "approve": "允许出网",
+      "reject": "阻断拦截"
+    }
   }
 }

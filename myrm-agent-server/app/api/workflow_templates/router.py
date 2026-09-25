@@ -5,7 +5,7 @@
 - app.schemas.workflow_templates (POS: REST DTOs)
 
 [OUTPUT]
-- router: /workflow-templates CRUD and save-from-run endpoints
+- router: /workflow-templates CRUD, save-from-run, and admit-gate endpoints
 
 [POS]
 HTTP boundary for named Dynamic Workflow template library (vMIN).
@@ -16,6 +16,8 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.workflow_templates import (
+    AdmitTemplateRunRequest,
+    AdmitTemplateRunResponse,
     SaveWorkflowTemplateFromRunRequest,
     SaveWorkflowTemplateRequest,
     WorkflowTemplateDetailResponse,
@@ -92,3 +94,56 @@ async def delete_workflow_template(template_id: str) -> dict[str, bool]:
     if not deleted:
         raise HTTPException(status_code=404, detail="Workflow template not found.")
     return {"deleted": True}
+
+
+@router.post("/{template_id}/admit", response_model=AdmitTemplateRunResponse)
+async def admit_template_run(template_id: str, body: AdmitTemplateRunRequest) -> AdmitTemplateRunResponse:
+    """Run trunk admission gates (evidence, safety, prior acceptance)."""
+    from app.services.workflow_templates.gates import (
+        GateDecision,
+        acceptance_gate,
+        evidence_gate,
+        log_admit_decision,
+        safety_gate,
+    )
+    from app.services.workflow_templates.handoff import build_handoff
+
+    store = get_template_store()
+    record = store.get_template(template_id)
+
+    decision = safety_gate(record, body.template_args)
+    if not decision.ok:
+        log_admit_decision(template_id, decision)
+        raise HTTPException(status_code=422, detail={"reason_code": decision.reason_code, "message": decision.user_message})
+
+    if body.handoff is not None:
+        handoff = build_handoff(
+            source_flow=body.handoff.source_flow,
+            target_flow=body.handoff.target_flow,
+            intent=body.handoff.intent,
+            materials=[(item.title, item.excerpt) for item in body.handoff.materials],
+            evidence_refs=list(body.handoff.evidence_refs),
+        )
+        decision = evidence_gate(handoff)
+        if not decision.ok:
+            log_admit_decision(template_id, decision)
+            raise HTTPException(status_code=422, detail={"reason_code": decision.reason_code, "message": decision.user_message})
+
+    prior_checked = body.prior_criteria is not None
+    if prior_checked:
+        decision = acceptance_gate(list(body.prior_criteria or []), body.prior_deliverable or "")
+        if not decision.ok:
+            log_admit_decision(template_id, decision, prior_checked=True)
+            raise HTTPException(status_code=422, detail={"reason_code": decision.reason_code, "message": decision.user_message})
+
+    admitted = AdmitTemplateRunResponse(
+        admitted=True,
+        template_id=template_id,
+        reason_code="ADMITTED",
+        user_message="Ready — starting the workflow.",
+    )
+    log_admit_decision(
+        template_id,
+        GateDecision(ok=True, reason_code="ADMITTED", user_message=admitted.user_message),
+    )
+    return admitted

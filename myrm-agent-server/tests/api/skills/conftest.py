@@ -63,7 +63,7 @@ def app() -> FastAPI:
     app.include_router(curator_module.router, prefix="/api/v1/skills", tags=["skills-curator"])
     sync_module = _load_module_by_path("app.api.skills.sync", "sync.py")
     app.include_router(sync_module.router, prefix="/api/v1/skills", tags=["skills-sync"])
-    desktop_recorder_module = _load_module_by_path("app.api.skills.desktop_recorder", "desktop_recorder.py")
+    desktop_recorder_module = _load_module_by_path("app.api.skills.desktop_recorder", "desktop_recorder/router.py")
     app.include_router(
         desktop_recorder_module.router,
         prefix="/api/v1/skills",

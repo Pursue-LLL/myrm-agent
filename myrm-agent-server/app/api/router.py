@@ -87,6 +87,7 @@ from app.api.security.generate import router as security_generate_router
 from app.api.security.managed_policy import router as security_managed_policy_router
 from app.api.security.profiles import router as security_profiles_router
 from app.api.security.router import router as security_dashboard_router
+from app.api.security.tainted_egress import router as tainted_egress_router
 from app.api.security.vault import router as vault_router
 from app.api.security.vault_credentials import router as vault_credentials_router
 from app.api.security.workspace_trust import router as workspace_trust_router
@@ -270,6 +271,7 @@ api_router.include_router(security_profiles_router, tags=["security"])
 api_router.include_router(security_managed_policy_router, tags=["security"])
 api_router.include_router(vault_router, prefix="/security", tags=["security"])
 api_router.include_router(vault_credentials_router, prefix="/security", tags=["security"])
+api_router.include_router(tainted_egress_router, prefix="/security", tags=["security"])
 api_router.include_router(message_filter_router, tags=["message-filter"])
 api_router.include_router(risk_router, prefix="/risk", tags=["risk"])
 api_router.include_router(auth_audit_router, tags=["audit"])

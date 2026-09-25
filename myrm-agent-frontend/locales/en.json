@@ -19541,5 +19541,17 @@
     "footerNote": "Configure models and fine-tune routing anytime in Settings.",
     "closeBtn": "Close",
     "configureBtn": "Configure in Settings"
+  },
+  "security": {
+    "taintedEgress": {
+      "title": "Sensitive Egress Intercepted",
+      "description": "An outbound network request containing sensitive credentials was intercepted.",
+      "destinationHost": "Destination Host",
+      "dataType": "Sensitive Data Type",
+      "detectedPattern": "Detected Pattern",
+      "trustSession": "Always trust this destination for this session (prevents future prompts)",
+      "approve": "Allow Outbound",
+      "reject": "Block & Deny"
+    }
   }
 }

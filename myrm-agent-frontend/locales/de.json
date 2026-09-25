@@ -19525,5 +19525,17 @@
     "footerNote": "Sie können diese Modellstrategien jederzeit in den Einstellungen anpassen.",
     "closeBtn": "Schließen",
     "configureBtn": "In Einstellungen konfigurieren"
+  },
+  "security": {
+    "taintedEgress": {
+      "title": "Sensible Datenübertragung abgefangen",
+      "description": "Eine ausgehende Netzwerkanfrage mit sensiblen Zugangsdaten wurde abgefangen.",
+      "destinationHost": "Ziel-Host",
+      "dataType": "Sensibler Datentyp",
+      "detectedPattern": "Erkanntes Muster",
+      "trustSession": "Diesem Ziel in dieser Sitzung immer vertrauen (verhindert weitere Abfragen)",
+      "approve": "Verbindung erlauben",
+      "reject": "Blockieren & Verweigern"
+    }
   }
 }
