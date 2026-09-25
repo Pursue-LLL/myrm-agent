@@ -88,6 +88,23 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
 
   // Closing the dialog while a session is still recording must stop the server-side capture
   // loop: otherwise the platform would keep polling and the session would stay resident.
+  // The dialog is mounted for the lifetime of the settings panel, so a dismissed session must
+  // be reset on open: otherwise reopening shows stale progress — including a "recording" view
+  // for a session the close handler already stopped.
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+    setStep('idle');
+    setSessionId('');
+    setEventCount(0);
+    setCaptureActive(false);
+    setCaptureIssue(null);
+    setError(null);
+    setPlan(null);
+    setCompiledMarkdown('');
+  }, [isOpen]);
+
   const handleClose = useCallback(() => {
     if (step === 'recording' && sessionId) {
       void stopDesktopRecording(sessionId).catch(() => {

@@ -96,6 +96,14 @@ class DesktopCaptureTask:
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning("Desktop capture task for %s ended with error: %s", self._session.session_id, exc)
 
+    def abandon(self) -> None:
+        """Cancel the capture loop without awaiting it (used from synchronous eviction)."""
+        self._session.capture_active = False
+        task = self._task
+        self._task = None
+        if task is not None and not task.done():
+            task.cancel()
+
     def _create_session(self) -> object:
         from myrm_agent_harness.toolkits.computer_use.desktop_session import (
             create_desktop_session,

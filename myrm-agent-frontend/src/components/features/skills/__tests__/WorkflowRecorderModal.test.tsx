@@ -163,6 +163,22 @@ describe('WorkflowRecorderModal', () => {
     expect(stopMock).not.toHaveBeenCalled();
   });
 
+  it('resets to a fresh session when reopened after being dismissed', async () => {
+    const { rerender } = render(<WorkflowRecorderModal isOpen={true} onClose={vi.fn()} />);
+
+    fireEvent.click(screen.getByText('startRecording'));
+    await waitFor(() => {
+      expect(screen.getByText('recordingActive')).toBeInTheDocument();
+    });
+
+    // Close, then reopen: the dialog must not still claim a previous recording is in progress.
+    rerender(<WorkflowRecorderModal isOpen={false} onClose={vi.fn()} />);
+    rerender(<WorkflowRecorderModal isOpen={true} onClose={vi.fn()} />);
+
+    expect(screen.getByText('startRecording')).toBeInTheDocument();
+    expect(screen.queryByText('recordingActive')).not.toBeInTheDocument();
+  });
+
   it('falls back to honest manual step entry when platform capture is unavailable', async () => {
     const startMock = vi.mocked(skillService.startDesktopRecording);
     const sessionPoll = vi.mocked(skillService.getDesktopRecordingSession);

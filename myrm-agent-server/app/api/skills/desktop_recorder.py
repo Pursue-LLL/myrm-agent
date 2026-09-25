@@ -59,6 +59,9 @@ _CAPTURE_TASKS: dict[str, DesktopCaptureTask] = {}
 # Retained finished sessions, newest last: a client may still fetch the summary or publish
 # right after stopping, but old ones are evicted so memory cannot accumulate.
 _MAX_RETAINED_SESSIONS = 8
+# Concurrent capture loops are a native resource; keep the running set small so a misbehaving
+# client cannot pin the host by starting recordings it never stops.
+_MAX_CONCURRENT_CAPTURES = 2
 
 
 def _remember_session(session: RecordingSessionState) -> None:
@@ -77,6 +80,28 @@ def _remember_session(session: RecordingSessionState) -> None:
             overflow -= 1
 
 
+def _enforce_capture_budget() -> None:
+    """Stop recordings beyond the concurrent-capture cap, oldest first.
+
+    Each active session runs a native AX poll loop, so an unbounded number of them would pin the
+    host. Finalized sessions are exempt because they no longer capture.
+    """
+    active = [sid for sid, s in _ACTIVE_SESSIONS.items() if s.status == "recording"]
+    excess = len(active) - _MAX_CONCURRENT_CAPTURES
+    if excess <= 0:
+        return
+    for sid in active[:excess]:
+        session = _ACTIVE_SESSIONS.get(sid)
+        if session is None:
+            continue
+        session.status = "stopped"
+        session.stopped_at = time.time()
+        capture_task = _CAPTURE_TASKS.pop(sid, None)
+        if capture_task is not None:
+            capture_task.abandon()
+        logger.warning("Stopped recording %s: concurrent capture budget exceeded", sid)
+
+
 @router.post("/start", response_model=StartDesktopRecordingResponse)
 async def start_desktop_recording(
     request: StartDesktopRecordingRequest,
@@ -84,6 +109,9 @@ async def start_desktop_recording(
     """Start a new desktop workflow recording session and launch platform capture."""
     session = RecordingSessionState(session_id=request.session_id, app_scope=request.app_scope)
     _remember_session(session)
+    # Stop any recordings beyond the concurrent budget first, so this session's capture does not
+    # push the host past the cap of native capture loops.
+    _enforce_capture_budget()
 
     task = DesktopCaptureTask(session)
     task.start()
