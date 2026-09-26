@@ -61,12 +61,28 @@ async def test_run_opens_watches_and_publishes_digest() -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_with_clean_day_reports_all_clear() -> None:
+async def test_second_run_skips_already_open_watches() -> None:
+    for _ in range(3):
+        await _record_negative("agent-dup")
+    first = await run_nightly_review()
+    assert first.watches_opened == 1
+    second = await run_nightly_review()
+    assert second.findings_count == 1
+    assert second.watches_opened == 0
+
+
+@pytest.mark.asyncio
+async def test_run_with_clean_day_stays_quiet_but_leaves_ledger_proof() -> None:
     report = await run_nightly_review()
     assert report.events_scanned == 0
     assert report.findings_count == 0
     assert report.watches_opened == 0
     async with get_session() as db:
         notes = (await db.execute(select(SystemNotification))).scalars().all()
-    assert len(notes) == 1
-    assert "一切正常" in notes[0].message
+        digests = (
+            (await db.execute(select(ExperienceLedgerEvent).where(ExperienceLedgerEvent.entity_id.like("nightly-digest-%"))))
+            .scalars()
+            .all()
+        )
+    assert notes == []
+    assert len(digests) == 1

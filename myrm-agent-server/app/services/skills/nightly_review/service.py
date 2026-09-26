@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 LOOKBACK_HOURS = 24
 VERIFY_WINDOW_HOURS = 24
+WATCH_HISTORY_HOURS = 24 * 30
+WATCH_SCAN_LIMIT = 2000
 MIN_FINDING_COUNT = 3
 QUIET_START_HOUR = 2
 QUIET_END_HOUR = 5
@@ -60,16 +62,15 @@ def _in_quiet_hours(now: datetime) -> bool:
 
 async def run_nightly_review(*, now: datetime | None = None) -> NightlyReport:
     """Run one full pass: score yesterday, open watches, verify due ones."""
-    from app.services.skills.nightly_review.acceptance import open_watch
-    from app.services.skills.nightly_review.scorer import score_day
-
     from ..experience_ledger import (
         list_experience_events,
     )
+    from .acceptance import open_watch
+    from .scorer import score_day
 
     current = now or datetime.now(UTC)
     since = current - timedelta(hours=LOOKBACK_HOURS)
-    recent = await list_experience_events(limit=2000, event_types=_NEGATIVE_TYPES, since=since)
+    recent = await list_experience_events(limit=WATCH_SCAN_LIMIT, event_types=_NEGATIVE_TYPES, since=since)
     events = [
         {
             "event_type": event.event_type,
@@ -83,9 +84,12 @@ async def run_nightly_review(*, now: datetime | None = None) -> NightlyReport:
 
     watches_opened = 0
     summaries: list[str] = []
+    already_open = await _open_watch_keys(current)
     for finding in findings:
         summary = f"{finding.entity_id}：{finding.count}次{finding.category}"
         summaries.append(summary)
+        if (finding.entity_type, finding.entity_id) in already_open:
+            continue
         await open_watch(
             entity_type=finding.entity_type,
             entity_id=finding.entity_id,
@@ -103,30 +107,69 @@ async def run_nightly_review(*, now: datetime | None = None) -> NightlyReport:
         watches_verified=watches_verified,
         finding_summaries=summaries,
     )
-    await _publish_digest(report)
+    # Quiet nights stay quiet: the ledger mirror always lands (run proof),
+    # but the user-facing notification only fires when there is news.
+    if report.findings_count or report.watches_verified:
+        await _publish_digest(report)
     await _record_digest_ledger(report)
     return report
 
 
+async def _open_watch_keys(current: datetime) -> set[tuple[str, str]]:
+    """Return (entity_type, entity_id) pairs with a still-open watch."""
+    from ..experience_ledger import list_experience_events
+    from .acceptance import (
+        WATCH_OUTCOME_OPEN,
+        WATCH_OUTCOME_VERIFIED,
+    )
+
+    recent = await list_experience_events(
+        limit=WATCH_SCAN_LIMIT,
+        event_type="review.approved",
+        entity_type="review",
+        since=current - timedelta(hours=WATCH_HISTORY_HOURS),
+    )
+    verified_ids = {event.entity_id for event in recent if event.outcome == WATCH_OUTCOME_VERIFIED}
+    open_keys: set[tuple[str, str]] = set()
+    for event in recent:
+        if event.outcome != WATCH_OUTCOME_OPEN:
+            continue
+        if event.entity_id in verified_ids:
+            continue
+        detail = event.detail or {}
+        open_keys.add(
+            (
+                str(detail.get("entity_type") or "unknown"),
+                str(detail.get("entity_id") or "unknown"),
+            )
+        )
+    return open_keys
+
+
 async def _verify_due_watches(current: datetime) -> int:
     """Verify watches old enough to judge; returns verified count."""
-    from app.services.skills.nightly_review.acceptance import (
+    from ..experience_ledger import list_experience_events
+    from .acceptance import (
         WATCH_OUTCOME_OPEN,
+        WATCH_OUTCOME_VERIFIED,
         RegressionWatch,
         verify_watch,
     )
 
-    from ..experience_ledger import list_experience_events
-
-    opened = await list_experience_events(
-        limit=200,
+    recent = await list_experience_events(
+        limit=WATCH_SCAN_LIMIT,
         event_type="review.approved",
         entity_type="review",
-        since=current - timedelta(hours=VERIFY_WINDOW_HOURS * 2),
+        since=current - timedelta(hours=WATCH_HISTORY_HOURS),
     )
+    verified_ids = {event.entity_id for event in recent if event.outcome == WATCH_OUTCOME_VERIFIED}
     verified = 0
-    for event in opened:
+    for event in recent:
         if event.outcome != WATCH_OUTCOME_OPEN:
+            continue
+        if event.entity_id in verified_ids:
+            continue
+        if event.created_at is None:
             continue
         detail = event.detail or {}
         watch = RegressionWatch(
