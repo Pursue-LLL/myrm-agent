@@ -9,7 +9,8 @@
 
 [POS]
 Acceptance bookkeeping only. Never mutates skills or approvals; verification
-is a read (negative-event count) plus a closing ledger event.
+is a bounded recent-negative scan with in-memory entity matching, plus a
+closing ledger event.
 """
 
 from __future__ import annotations
