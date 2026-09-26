@@ -18,5 +18,5 @@ Chrome E2E（server）：`tests/e2e/test_workflow_template_export_import_chrome_
 
 ## 模块依赖
 
-- `@/services/workflowTemplates` — REST client（GET detail、PUT upsert）
+- `@/services/workflowTemplates` — REST client（GET detail、PUT upsert、POST admit、trunk catalog）
 - `@/components/features/settings/sections/ai-tools/WorkflowTemplateLibrarySection.tsx` — 消费 transfer hook

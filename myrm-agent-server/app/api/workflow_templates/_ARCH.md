@@ -8,7 +8,7 @@ HTTP boundary for the Dynamic Workflow named template library (vMIN).
 
 | 文件 | 职责 | I/O/P |
 | --- | --- | --- |
-| `router.py` | REST CRUD + save-from-run; GET detail includes `bound_cron_count`; PUT upsert is import SSOT for Web UI JSON bundle | ✅ |
+| `router.py` | REST CRUD + save-from-run + `POST /{id}/admit` (evidence/safety/prior gates, 422 reason codes); GET detail includes `bound_cron_count`; PUT upsert is import SSOT for Web UI JSON bundle | ✅ |
 | `__init__.py` | Router re-export | — |
 
 ## 模块依赖
