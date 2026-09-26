@@ -89,4 +89,21 @@ describe('admitTemplateRun', () => {
     apiRequestMock.mockRejectedValue(new Error('boom'));
     await expect(admitTemplateRun('trunk-bugfix', {})).rejects.toThrow('boom');
   });
+
+  it('invalidates the cached catalog when the template is gone', async () => {
+    const { ApiError } = await import('@/lib/api');
+    vi.resetModules();
+    const mod = await import('@/services/workflowTemplates');
+    apiRequestMock.mockResolvedValue({
+      templates: [{ templateId: 'trunk-bugfix', displayName: 'Trunk · Bugfix', isTrunk: true }],
+    });
+    await expect(mod.fetchTrunkCatalog()).resolves.toHaveLength(1);
+    expect(apiRequestMock).toHaveBeenCalledTimes(1);
+    apiRequestMock.mockRejectedValue(
+      new ApiError('gone', { reason_code: 'TEMPLATE_NOT_FOUND', message: 'Gone.' }),
+    );
+    await mod.admitTemplateRun('trunk-bugfix', {});
+    await expect(mod.fetchTrunkCatalog()).resolves.toHaveLength(1);
+    expect(apiRequestMock).toHaveBeenCalledTimes(2);
+  });
 });
