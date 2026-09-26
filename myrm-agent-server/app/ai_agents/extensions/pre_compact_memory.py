@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from langchain_core.messages import BaseMessage
 from myrm_agent_harness.agent.context_management.infra.schemas import (
     ContextPreCompactCallback,
+    PreCompactDecision,
     PreCompactInjection,
 )
 from myrm_agent_harness.agent.context_management.pre_compact_service import (
@@ -71,7 +72,7 @@ class PreCompactMemoryExtension(AgentExtension):
             compaction_tier: str,
             token_pressure_ratio: float,
             user_goal_hint: str,
-        ) -> PreCompactInjection | None:
+        ) -> PreCompactDecision | PreCompactInjection | None:
             injection = await service.build_injection(
                 messages=messages,
                 chat_id=chat_id or effective_chat_id,
