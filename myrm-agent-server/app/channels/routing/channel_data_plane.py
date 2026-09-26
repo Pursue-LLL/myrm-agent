@@ -80,8 +80,8 @@ class ChannelDataPlaneService:
             if not chat_id:
                 return None
 
-            # Guest/unpaired identities are barred from memory learning
-            is_guest = bool(msg.user_id and msg.user_id.startswith("guest_"))
+            # Guest/unpaired identities and non-admin paired members are barred from memory learning
+            is_guest = bool(msg.user_id and (msg.user_id.startswith("guest_") or msg.user_id.startswith("paired_member_")))
             raw_content = str(msg.content or "")
             redacted_content = redact_sensitive(raw_content)
             eligible = is_learning_eligible(redacted_content, msg.sender_name) if (is_authenticated and not is_guest) else False

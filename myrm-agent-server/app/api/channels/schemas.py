@@ -73,6 +73,8 @@ class ChannelInstallDependenciesResponse(BaseModel):
 class PairingCreate(BaseModel):
     channel: str = Field(..., min_length=1, max_length=50)
     sender_id: str = Field(..., min_length=1, max_length=255)
+    role: Literal["admin", "member"] = "member"
+    daily_quota: int | None = Field(None, ge=1)
 
 
 class PairingResponse(BaseModel):
@@ -82,6 +84,8 @@ class PairingResponse(BaseModel):
     user_id: str
     status: str
     display_name: str | None = None
+    role: str = "member"
+    daily_quota: int | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -89,6 +93,8 @@ class PairingResponse(BaseModel):
 class PairingStatusUpdate(BaseModel):
     status: Literal["active", "blocked"] | None = None
     display_name: str | None = None
+    role: Literal["admin", "member"] | None = None
+    daily_quota: int | None = None
 
 
 class WhatsAppStatusResponse(BaseModel):

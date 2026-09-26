@@ -548,6 +548,8 @@ export default function ChannelsSection() {
             onDeletePairing={state.handleDeletePairing}
             onUpdatePairingStatus={state.handleUpdatePairingStatus}
             onUpdatePairingDisplayName={state.handleUpdatePairingDisplayName}
+            onUpdatePairingRole={state.handleUpdatePairingRole}
+            onUpdatePairingQuota={state.handleUpdatePairingQuota}
             saving={state.policySaving}
             t={t}
           />

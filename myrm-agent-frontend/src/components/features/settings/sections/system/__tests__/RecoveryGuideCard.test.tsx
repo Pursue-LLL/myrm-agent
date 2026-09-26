@@ -104,7 +104,7 @@ describe('RecoveryGuideCard', () => {
   it('surfaces failure events when they arrive', async () => {
     const { listen } = await import('@tauri-apps/api/event');
     let handler: ((e: { payload: unknown }) => void) | null = null;
-    vi.mocked(listen).mockImplementation(async (event: string, cb: never) => {
+    vi.mocked(listen).mockImplementation(async (event: string, cb: Parameters<typeof listen>[1]) => {
       if (event === 'backend-start-failed') {
         handler = cb as unknown as (e: { payload: unknown }) => void;
       }

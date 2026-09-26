@@ -195,13 +195,38 @@ class PolicyResolver:
         else:
             user_id = await self._resolve_allowlist(msg)
 
+        if user_id and user_id.startswith("paired_member_"):
+            if hasattr(self._pairing, "get_pairing_detail"):
+                pairing_detail = await self._pairing.get_pairing_detail(msg.channel, msg.sender_id)
+                if pairing_detail and pairing_detail[2] is not None and pairing_detail[2] > 0:
+                    daily_quota = pairing_detail[2]
+                    from app.database.connection import get_session
+                    from app.database.repositories.channel_message_repo import (
+                        ChannelMessageRepository,
+                    )
+
+                    async with get_session() as session:
+                        usage_count = await ChannelMessageRepository.get_daily_trigger_count(
+                            session, msg.channel, msg.sender_id
+                        )
+                    if usage_count >= daily_quota:
+                        logger.warning(
+                            "PolicyResolver: sender %s/%s exceeded daily quota %d (used %d)",
+                            msg.channel,
+                            msg.sender_id,
+                            daily_quota,
+                            usage_count,
+                        )
+                        await self._fx.send_quota_exceeded_reply(msg, daily_quota)
+                        return None
+
         if user_id and msg.sender_name:
             await self._touch_display_name(msg)
 
         if user_id:
             from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 
-            is_auth = not user_id.startswith("guest_")
+            is_auth = not user_id.startswith("guest_") and not user_id.startswith("paired_member_")
             msg_with_user = dataclasses.replace(msg, user_id=user_id)
             asyncio.create_task(
                 ChannelDataPlaneService.record_inbound(

@@ -315,9 +315,11 @@ async def list_pairings(
             id=r.id,
             channel=r.channel,
             sender_id=r.sender_id,
-            user_id="sandbox",
+            user_id="sandbox" if getattr(r, "role", "member") == "admin" else f"paired_member_{r.channel}_{r.sender_id}",
             status=r.status,
             display_name=r.display_name,
+            role=getattr(r, "role", "member") or "member",
+            daily_quota=getattr(r, "daily_quota", None),
             created_at=r.created_at,
             updated_at=r.updated_at,
         )
@@ -346,9 +348,11 @@ async def create_pairing(
             id=existing.id,
             channel=existing.channel,
             sender_id=existing.sender_id,
-            user_id="sandbox",
+            user_id="sandbox" if getattr(existing, "role", "member") == "admin" else f"paired_member_{existing.channel}_{existing.sender_id}",
             status=existing.status,
             display_name=existing.display_name,
+            role=getattr(existing, "role", "member") or "member",
+            daily_quota=getattr(existing, "daily_quota", None),
             created_at=existing.created_at,
             updated_at=existing.updated_at,
         )
@@ -358,6 +362,8 @@ async def create_pairing(
         channel=body.channel,
         sender_id=sender_id,
         status="active",
+        role=body.role,
+        daily_quota=body.daily_quota,
     )
     db.add(row)
     await db.commit()
@@ -367,9 +373,11 @@ async def create_pairing(
         id=row.id,
         channel=row.channel,
         sender_id=row.sender_id,
-        user_id="sandbox",
+        user_id="sandbox" if row.role == "admin" else f"paired_member_{row.channel}_{row.sender_id}",
         status=row.status,
         display_name=row.display_name,
+        role=row.role,
+        daily_quota=row.daily_quota,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -395,8 +403,8 @@ async def update_pairing_status(
     body: PairingStatusUpdate,
     db: AsyncSession = Depends(get_db),
 ) -> PairingResponse:
-    """Update the status and/or display_name of a channel pairing."""
-    if body.status is None and body.display_name is None:
+    """Update the status, role, daily_quota and/or display_name of a channel pairing."""
+    if body.status is None and body.display_name is None and body.role is None and body.daily_quota is None:
         raise HTTPException(status_code=422, detail="Nothing to update")
 
     row = (await db.execute(select(ChannelPairingModel).where(ChannelPairingModel.id == pairing_id))).scalar_one_or_none()
@@ -409,6 +417,10 @@ async def update_pairing_status(
         row.status = body.status
     if body.display_name is not None:
         row.display_name = body.display_name
+    if body.role is not None:
+        row.role = body.role
+    if body.daily_quota is not None:
+        row.daily_quota = body.daily_quota
     await db.commit()
     await db.refresh(row)
 
@@ -419,9 +431,11 @@ async def update_pairing_status(
         id=row.id,
         channel=row.channel,
         sender_id=row.sender_id,
-        user_id="sandbox",
+        user_id="sandbox" if row.role == "admin" else f"paired_member_{row.channel}_{row.sender_id}",
         status=row.status,
         display_name=row.display_name,
+        role=row.role,
+        daily_quota=row.daily_quota,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )

@@ -16,10 +16,12 @@ export interface ChannelPolicyOverrideProps {
   onOverride: (channel: string, overrides: ChannelOverrides | undefined) => void;
   pairings: Parameters<typeof PairingManager>[0]['pairings'];
   pairingsLoading: boolean;
-  onAddPairing: (channel: string, senderId: string) => Promise<void>;
+  onAddPairing: (channel: string, senderId: string, role?: 'admin' | 'member', dailyQuota?: number | null) => Promise<void>;
   onDeletePairing: (id: string) => Promise<void>;
   onUpdatePairingStatus: (id: string, status: 'active' | 'blocked') => Promise<void>;
   onUpdatePairingDisplayName?: (id: string, displayName: string) => Promise<void>;
+  onUpdatePairingRole?: (id: string, role: 'admin' | 'member') => Promise<void>;
+  onUpdatePairingQuota?: (id: string, dailyQuota: number | null) => Promise<void>;
   saving: boolean;
   t: (key: string, values?: Record<string, string | number>) => string;
 }
@@ -37,6 +39,8 @@ export function ChannelPolicyOverride({
   onDeletePairing,
   onUpdatePairingStatus,
   onUpdatePairingDisplayName,
+  onUpdatePairingRole,
+  onUpdatePairingQuota,
   saving,
   t,
 }: ChannelPolicyOverrideProps) {
@@ -177,6 +181,8 @@ export function ChannelPolicyOverride({
             onDelete={onDeletePairing}
             onUpdateStatus={onUpdatePairingStatus}
             onUpdateDisplayName={onUpdatePairingDisplayName}
+            onUpdateRole={onUpdatePairingRole}
+            onUpdateDailyQuota={onUpdatePairingQuota}
             t={t}
           />
         </div>

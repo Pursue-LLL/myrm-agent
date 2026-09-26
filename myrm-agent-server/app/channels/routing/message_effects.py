@@ -395,6 +395,21 @@ class MessageEffects:
         )
         await self._bus.publish_outbound(reply)
 
+    async def send_quota_exceeded_reply(self, msg: InboundMessage, quota: int) -> None:
+        """Notify the sender that their daily conversation quota has been exhausted."""
+        recipient = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id
+        content = get_text(msg, "daily_quota_exceeded", quota=quota)
+        reply = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=recipient,
+            content=content,
+            user_id=msg.user_id or "",
+            reply_to_id=msg.message_id or (msg.metadata.get("message_id") if msg.metadata else None),
+            thread_id=msg.thread_id,
+            priority=MessagePriority.SYSTEM,
+        )
+        await self._bus.publish_outbound(reply)
+
     async def send_mute_reply(self, msg: InboundMessage) -> None:
         """Send a thread mute confirmation message."""
         recipient = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id

@@ -231,6 +231,7 @@ skill_not_configured = ℹ 技能命令 /{ $cmd } 未配置。
 skill_load_failed =  無法載入 /{ $cmd } 的技能。
 pairing_pending = 您的訪問請求正在等待管理員審批。
 pairing_submitted = 您的訪問請求已提交，管理員將盡快稽核。
+daily_quota_exceeded = ⚠️ 今日對話額度已達上限（{ $quota } 次/天），請明日再試或聯絡管理員提升額度。
 mute_confirm = 已閉嘴，接下來我只會在被 @ 時回應。
 search_not_configured = 當前智慧體需要網路搜尋能力，但搜尋服務尚未配置。請先在設定中新增並啟用搜尋服務。
 analyzing_image = 正在分析圖片…

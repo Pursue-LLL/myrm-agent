@@ -9,6 +9,8 @@ export interface ChannelPairing {
   user_id: string;
   status: string;
   display_name: string | null;
+  role: 'admin' | 'member';
+  daily_quota: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -16,6 +18,8 @@ export interface ChannelPairing {
 export interface CreatePairingRequest {
   channel: string;
   sender_id: string;
+  role?: 'admin' | 'member';
+  daily_quota?: number | null;
 }
 
 // ==================== Channel Status ====================
@@ -153,6 +157,22 @@ export async function updatePairingDisplayName(id: string, displayName: string):
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ display_name: displayName }),
+  });
+}
+
+export async function updatePairingRole(id: string, role: 'admin' | 'member'): Promise<ChannelPairing> {
+  return apiRequest(`/channels/manage/pairings/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function updatePairingQuota(id: string, daily_quota: number | null): Promise<ChannelPairing> {
+  return apiRequest(`/channels/manage/pairings/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ daily_quota }),
   });
 }
 

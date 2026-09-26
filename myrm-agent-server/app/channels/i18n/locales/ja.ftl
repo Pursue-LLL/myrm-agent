@@ -231,6 +231,7 @@ skill_not_configured = ℹ スキルコマンド /{ $cmd } が設定されてい
 skill_load_failed =  /{ $cmd } のスキルの読み込みに失敗しました。
 pairing_pending = アクセスリクエストは管理者の承認待ちです。
 pairing_submitted = アクセスリクエストを送信しました。管理者が近日中に審査します。
+daily_quota_exceeded = ⚠️ 1日の会話上限（{ $quota } 回/日）に達しました。明日再度お試しいただくか、管理者に問い合わせてください。
 mute_confirm = ミュートしました。今後はメンション時のみ応答します。
 search_not_configured = このエージェントにはウェブ検索が必要ですが、検索サービスが設定されていません。先に設定で検索サービスを追加・有効化してください。
 analyzing_image = 画像を解析中...

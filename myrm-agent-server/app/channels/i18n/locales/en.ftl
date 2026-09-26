@@ -231,6 +231,7 @@ skill_not_configured = ℹ Skill command /{ $cmd } is not configured.
 skill_load_failed =  Failed to load skill for /{ $cmd }.
 pairing_pending = Your access request is pending approval.
 pairing_submitted = Your access request has been submitted. An admin will review it soon.
+daily_quota_exceeded = ⚠️ Daily conversation quota exceeded ({ $quota } msgs/day). Please try again tomorrow or contact admin.
 mute_confirm = Muted. I will only respond when mentioned now.
 search_not_configured = This agent requires web search, but no search service is configured. Please set up a search service in Settings first.
 analyzing_image = Analyzing image...

@@ -99,6 +99,26 @@ class ChannelMessageRepository:
         return int(result.rowcount or 0)
 
     @staticmethod
+    async def get_daily_trigger_count(
+        session: AsyncSession,
+        channel: str,
+        sender_id: str,
+    ) -> int:
+        """Count the number of trigger messages sent by a sender on a channel today (UTC)."""
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        stmt = (
+            select(func.count(ChannelMessageModel.id))
+            .where(
+                ChannelMessageModel.channel == channel,
+                ChannelMessageModel.sender_id == sender_id,
+                ChannelMessageModel.is_trigger.is_(True),
+                ChannelMessageModel.created_at >= today_start,
+            )
+        )
+        result = await session.execute(stmt)
+        return int(result.scalar() or 0)
+
+    @staticmethod
     async def get_messages_for_behavioral_analysis(
         session: AsyncSession,
         channel: str | None = None,

@@ -90,7 +90,29 @@ class ChannelAgentExecutor:
         # allowlist entry on the real user instead of `DEFAULT_USER_ID`.
         # This is the single integration point where channel-resolved identity
         # crosses into the harness approval subsystem.
-        set_approval_user_id(user_id or msg.user_id or msg.sender_id)
+        effective_uid = user_id or msg.user_id or msg.sender_id
+        set_approval_user_id(effective_uid)
+
+        # Security Fence: Enforce physical tool stripping for non-admin paired members and guests
+        is_untrusted_ingress = (
+            effective_uid.startswith("paired_member_")
+            or effective_uid.startswith("guest_")
+            or bool(msg.metadata and msg.metadata.get("guest_turn"))
+        )
+        if is_untrusted_ingress:
+            from myrm_agent_harness.agent.security.guards.taint_tracker import (
+                TaintLabel,
+                get_taint_tracker,
+            )
+            from myrm_agent_harness.agent.security.guards.untrusted_ingress_fence import (
+                set_untrusted_ingress,
+            )
+
+            set_untrusted_ingress(True)
+            get_taint_tracker().record_ingress_taint(
+                TaintLabel.UNTRUSTED_INGRESS,
+                source=f"channel:{msg.channel}:{effective_uid}",
+            )
 
         if not is_resume and topic_context and topic_context.agent_id and msg.content:
             faq_reply = await self._try_faq_intercept(
@@ -231,6 +253,12 @@ class ChannelAgentExecutor:
                     agent_id=params.agent_id,
                     extra_context=runtime_context,
                 )
+            if is_untrusted_ingress:
+                from myrm_agent_harness.agent.security.guards.untrusted_ingress_fence import (
+                    reset_untrusted_ingress,
+                )
+
+                reset_untrusted_ingress()
 
     @staticmethod
     async def _try_faq_intercept(

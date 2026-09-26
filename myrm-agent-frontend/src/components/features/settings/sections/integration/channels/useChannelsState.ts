@@ -21,6 +21,8 @@ import {
   deletePairing,
   updatePairingStatus,
   updatePairingDisplayName,
+  updatePairingRole,
+  updatePairingQuota,
   getWhatsAppStatus,
   getChannelsConfig,
   saveChannelsConfig,
@@ -298,10 +300,13 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
     [channelOverrides, dmPolicy, groupPolicy, groupTrigger, saveAllPolicies],
   );
 
-  const handleAddPairing = useCallback(async (channel: string, senderId: string) => {
-    const p = await createPairing({ channel, sender_id: senderId });
-    setPairings((prev) => [p, ...prev]);
-  }, []);
+  const handleAddPairing = useCallback(
+    async (channel: string, senderId: string, role: 'admin' | 'member' = 'member', dailyQuota?: number | null) => {
+      const p = await createPairing({ channel, sender_id: senderId, role, daily_quota: dailyQuota });
+      setPairings((prev) => [p, ...prev]);
+    },
+    [],
+  );
 
   const handleDeletePairing = useCallback(async (id: string) => {
     await deletePairing(id);
@@ -327,6 +332,30 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
     async (id: string, displayName: string) => {
       try {
         const updated = await updatePairingDisplayName(id, displayName);
+        setPairings((prev) => prev.map((p) => (p.id === id ? updated : p)));
+      } catch {
+        toast.error(t('policySaveError'));
+      }
+    },
+    [t],
+  );
+
+  const handleUpdatePairingRole = useCallback(
+    async (id: string, role: 'admin' | 'member') => {
+      try {
+        const updated = await updatePairingRole(id, role);
+        setPairings((prev) => prev.map((p) => (p.id === id ? updated : p)));
+      } catch {
+        toast.error(t('policySaveError'));
+      }
+    },
+    [t],
+  );
+
+  const handleUpdatePairingQuota = useCallback(
+    async (id: string, dailyQuota: number | null) => {
+      try {
+        const updated = await updatePairingQuota(id, dailyQuota);
         setPairings((prev) => prev.map((p) => (p.id === id ? updated : p)));
       } catch {
         toast.error(t('policySaveError'));
@@ -569,6 +598,8 @@ export function useChannelsState(t: (key: string, values?: Record<string, string
     handleDeletePairing,
     handleUpdatePairingStatus,
     handleUpdatePairingDisplayName,
+    handleUpdatePairingRole,
+    handleUpdatePairingQuota,
     handleChannelToggle,
     fetchChannelStatuses,
   };

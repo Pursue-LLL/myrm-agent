@@ -31,6 +31,17 @@ class PairingStatus(StrEnum):
     BLOCKED = "blocked"
 
 
+class PairingRole(StrEnum):
+    """Authorization role for channel pairings.
+
+    ADMIN: Full sandbox owner privileges (root access, arbitrary code execution, file mutation).
+    MEMBER: Restricted collaboration member (UntrustedIngressFence enforced, destructive tools stripped).
+    """
+
+    ADMIN = "admin"
+    MEMBER = "member"
+
+
 class DmPolicy(StrEnum):
     """DM access policy for inbound channel messages."""
 
@@ -90,6 +101,8 @@ class PairingStore(Protocol):
         *,
         status: PairingStatus = PairingStatus.ACTIVE,
         display_name: str | None = None,
+        role: PairingRole = PairingRole.MEMBER,
+        daily_quota: int | None = None,
     ) -> None:
         """Create or update a pairing between a channel identity and a system user."""
         ...
@@ -103,6 +116,12 @@ class PairingStore(Protocol):
 
         Returns None if no pairing exists.
         """
+        ...
+
+    async def get_pairing_detail(
+        self, channel: str, sender_id: str
+    ) -> tuple[PairingStatus, PairingRole, int | None] | None:
+        """Get the full pairing detail (status, role, daily_quota) for a channel identity."""
         ...
 
 

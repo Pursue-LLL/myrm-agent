@@ -23,7 +23,7 @@ import logging
 from nanoid import generate as nanoid
 from sqlalchemy import select
 
-from app.channels.protocols.pairing import PairingStatus
+from app.channels.protocols.pairing import PairingRole, PairingStatus
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,12 @@ class SqlPairingStore:
                 )
             ).scalar_one_or_none()
 
-            return "sandbox" if row else None
+            if not row:
+                return None
+            role_val = getattr(row, "role", "member") or "member"
+            if role_val == PairingRole.ADMIN:
+                return "sandbox"
+            return f"paired_member_{channel}_{sender_id}"
 
     async def touch_display_name(self, channel: str, sender_id: str, display_name: str) -> None:
         from sqlalchemy import or_, update
@@ -77,44 +82,68 @@ class SqlPairingStore:
         *,
         status: PairingStatus = PairingStatus.ACTIVE,
         display_name: str | None = None,
+        role: PairingRole = PairingRole.MEMBER,
+        daily_quota: int | None = None,
     ) -> None:
-        from sqlalchemy import update
+        import asyncio
+
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+        from sqlalchemy.exc import OperationalError
 
         from app.database.connection import get_session
         from app.database.models import ChannelPairingModel
 
-        is_new = False
-        async with get_session() as session:
-            existing = (
-                await session.execute(
-                    select(ChannelPairingModel).where(
-                        ChannelPairingModel.channel == channel,
-                        ChannelPairingModel.sender_id == sender_id,
-                    )
-                )
-            ).scalar_one_or_none()
+        role_str = role.value if hasattr(role, "value") else str(role)
+        status_str = status.value if hasattr(status, "value") else str(status)
 
-            if existing:
-                values: dict[str, str | None] = {"status": status}
-                if display_name:
-                    values["display_name"] = display_name
-                await session.execute(update(ChannelPairingModel).where(ChannelPairingModel.id == existing.id).values(**values))
-            else:
-                is_new = True
-                session.add(
-                    ChannelPairingModel(
-                        id=nanoid(size=16),
-                        channel=channel,
-                        sender_id=sender_id,
-                        status=status,
-                        display_name=display_name,
-                    )
-                )
-            await session.commit()
+        update_set: dict[str, object] = {
+            "status": status_str,
+            "role": role_str,
+        }
+        if display_name is not None:
+            update_set["display_name"] = display_name
+        if daily_quota is not None:
+            update_set["daily_quota"] = daily_quota
 
-        logger.warning("Pairing bound: %s/%s  (status=%s)", channel, sender_id, status)
+        stmt = (
+            sqlite_insert(ChannelPairingModel)
+            .values(
+                id=nanoid(size=16),
+                channel=channel,
+                sender_id=sender_id,
+                status=status_str,
+                display_name=display_name,
+                role=role_str,
+                daily_quota=daily_quota,
+            )
+            .on_conflict_do_update(
+                index_elements=["channel", "sender_id"],
+                set_=update_set,
+            )
+        )
 
-        if status == PairingStatus.PENDING and is_new:
+        for attempt in range(5):
+            try:
+                async with get_session() as session:
+                    await session.execute(stmt)
+                    await session.commit()
+                break
+            except OperationalError as exc:
+                if "database is locked" in str(exc) and attempt < 4:
+                    await asyncio.sleep(0.02 * (attempt + 1))
+                    continue
+                raise
+
+        logger.warning(
+            "Pairing bound: %s/%s (status=%s, role=%s, quota=%s)",
+            channel,
+            sender_id,
+            status_str,
+            role_str,
+            daily_quota,
+        )
+
+        if status_str == PairingStatus.PENDING:
             self._emit_pending_event(channel, sender_id, display_name)
 
     @staticmethod
@@ -146,6 +175,12 @@ class SqlPairingStore:
             await session.commit()
 
     async def get_status(self, channel: str, sender_id: str) -> PairingStatus | None:
+        detail = await self.get_pairing_detail(channel, sender_id)
+        return detail[0] if detail else None
+
+    async def get_pairing_detail(
+        self, channel: str, sender_id: str
+    ) -> tuple[PairingStatus, PairingRole, int | None] | None:
         from app.database.connection import get_session
         from app.database.models import ChannelPairingModel
 
@@ -161,4 +196,7 @@ class SqlPairingStore:
 
             if not row:
                 return None
-            return PairingStatus(row.status)
+            status_val = PairingStatus(row.status)
+            role_val = PairingRole(getattr(row, "role", "member") or "member")
+            quota_val = getattr(row, "daily_quota", None)
+            return status_val, role_val, quota_val
