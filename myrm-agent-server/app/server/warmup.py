@@ -440,4 +440,11 @@ async def run_async_warmup() -> None:
     except Exception as e:
         logger.warning("[Startup] Curator background task failed to start: %s", e)
 
+    try:
+        from app.services.skills.nightly_review.service import start_nightly_review_task
+
+        start_nightly_review_task()
+    except Exception as e:
+        logger.warning("[Startup] Nightly review task failed to start: %s", e)
+
     logger.info("[Startup] Warmup completed")

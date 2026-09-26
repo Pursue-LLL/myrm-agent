@@ -10,6 +10,7 @@
 |------|------|------|-------|
 | `desktop_recording/` | 子域 | 桌面工作流录制：会话注册表（保留上限 + 并发采集预算）与采集循环生命周期（清单见 [`desktop_recording/_ARCH.md`](desktop_recording/_ARCH.md)） | — |
 | `evolution_review/` | 子域 | Evolution 审核：类型 + 持久化 + 查询 + 写操作 + 落盘编排（清单见 [`evolution_review/_ARCH.md`](evolution_review/_ARCH.md)） | — |
+| `nightly_review/` | 子域 | 夜间体检：协作评分 + 不再犯盯梢验收 + 早晨 digest（清单见 [`nightly_review/_ARCH.md`](nightly_review/_ARCH.md)） | — |
 | `growth/` | 子域 | 技能成长：动作 SSOT + case DTO + case 查询 + 账本审计/投影 + 生命周期编排（清单见 [`growth/_ARCH.md`](growth/_ARCH.md)） | — |
 | `evolution_reviews.py` | 门面 | evolution 审核生命周期门面（re-export `evolution_review/` 公共 API） | ✅ |
 | `experience_ledger.py` | 核心 | 学习资产事件账本（append-only，统一记录 migration/evolution/review/skill_growth 事件，并提供技能成长聚合查询） | ✅ |

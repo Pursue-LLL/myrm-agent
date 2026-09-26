@@ -727,6 +727,13 @@ async def _shutdown(app_instance: FastAPI) -> None:
         logger.error("[Shutdown] Curator background task stop failed: %s", e)
 
     try:
+        from app.services.skills.nightly_review.service import stop_nightly_review_task
+
+        stop_nightly_review_task()
+    except Exception as e:
+        logger.error("[Shutdown] Nightly review task stop failed: %s", e)
+
+    try:
         from app.lifecycle.harness_bridge import stop_harness_bridge
 
         harness_bridge_task = stop_harness_bridge()
