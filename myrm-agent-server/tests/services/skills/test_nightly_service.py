@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from sqlalchemy import delete, select
 
@@ -69,6 +71,22 @@ async def test_second_run_skips_already_open_watches() -> None:
     second = await run_nightly_review()
     assert second.findings_count == 1
     assert second.watches_opened == 0
+
+
+@pytest.mark.asyncio
+async def test_background_task_lifecycle_is_idempotent() -> None:
+    from app.services.skills.nightly_review import service as nightly_service
+
+    nightly_service.stop_nightly_review_task()
+    nightly_service.start_nightly_review_task()
+    first = nightly_service._background_task
+    assert first is not None and not first.done()
+    nightly_service.start_nightly_review_task()
+    assert nightly_service._background_task is first
+    nightly_service.stop_nightly_review_task()
+    assert nightly_service._background_task is None
+    await asyncio.sleep(0)
+    assert first.done()
 
 
 @pytest.mark.asyncio
