@@ -1,5 +1,5 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import RecoveryGuideCard from '../RecoveryGuideCard';
 
 const stableT = (key: string) => key;
@@ -22,7 +22,7 @@ vi.mock('@/lib/utils/classnameUtils', () => ({
 }));
 
 vi.mock('@/lib/utils/toast', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 vi.mock('@/lib/deploy-mode', () => ({
@@ -37,9 +37,31 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn(async () => () => undefined),
 }));
 
+const mockInvoke = vi.fn();
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: (...args: unknown[]) => mockInvoke(...args),
+}));
+
 describe('RecoveryGuideCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (window as unknown as { __TAURI_INTERNALS__: { invoke: typeof mockInvoke } }).__TAURI_INTERNALS__ = {
+      invoke: mockInvoke,
+    };
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_backend_status') {
+        return 'running';
+      }
+      if (cmd === 'get_remote_follow') {
+        return false;
+      }
+      return undefined;
+    });
+  });
+
+  afterEach(() => {
+    delete (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
   });
 
   it('renders non-destructive recovery actions', () => {
@@ -60,14 +82,15 @@ describe('RecoveryGuideCard', () => {
   });
 
   it('skips local restart while remote follow is active', async () => {
-    vi.doMock('@tauri-apps/api/core', () => ({
-      invoke: vi.fn(async (cmd: string) => {
-        if (cmd === 'get_remote_follow') {
-          return true;
-        }
-        throw new Error('unexpected command');
-      }),
-    }));
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_remote_follow') {
+        return true;
+      }
+      if (cmd === 'get_backend_status') {
+        return 'running';
+      }
+      return undefined;
+    });
     const { tauriBackend } = await import('@/lib/tauri');
     const { toast } = await import('@/lib/utils/toast');
     render(<RecoveryGuideCard />);
@@ -76,7 +99,6 @@ describe('RecoveryGuideCard', () => {
       expect(vi.mocked(toast.info)).toHaveBeenCalled();
     });
     expect(vi.mocked(tauriBackend.start)).not.toHaveBeenCalled();
-    vi.doUnmock('@tauri-apps/api/core');
   });
 
   it('surfaces failure events when they arrive', async () => {
@@ -92,7 +114,9 @@ describe('RecoveryGuideCard', () => {
     await waitFor(() => {
       expect(handler).not.toBeNull();
     });
-    handler?.({ payload: 'Port 8080 in use' });
+    act(() => {
+      handler?.({ payload: 'Port 8080 in use' });
+    });
     await waitFor(() => {
       expect(screen.getByText('Port 8080 in use')).toBeTruthy();
     });
