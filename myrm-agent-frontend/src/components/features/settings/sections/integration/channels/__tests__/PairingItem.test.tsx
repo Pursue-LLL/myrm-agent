@@ -157,6 +157,7 @@ describe('PairingItem', () => {
     );
 
     expect(screen.getByText('今日用量：10 / 20 次')).toBeTruthy();
+    expect(screen.getByTitle('每日 00:00 UTC (北京时间 08:00) 自动刷新')).toBeTruthy();
     const progress = screen.getByRole('progressbar');
     expect(progress.getAttribute('aria-valuenow')).toBe('50');
   });

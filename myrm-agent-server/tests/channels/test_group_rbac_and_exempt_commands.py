@@ -11,12 +11,14 @@ Covers:
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.channels.protocols.pairing import DmPolicy, PairingRole, PairingStatus
 from app.channels.routing.policy_resolver import PolicyResolver
+from app.channels.routing.router import AgentRouter
 from app.channels.types import METADATA_GUEST_TURN_KEY, InboundMessage
 
 
@@ -170,3 +172,108 @@ class TestGroupRbacAndExemptCommands:
         assert res_admin is not None
         adm_uid, _ = res_admin
         assert adm_uid == "sandbox"
+
+    @pytest.mark.asyncio
+    async def test_quota_command_direct_output_zero_llm(self) -> None:
+        """Assert /quota yields direct local card and 0 LLM executor calls."""
+        bus = MagicMock()
+        bus.publish_outbound = AsyncMock()
+        bus.get_channel = MagicMock(return_value=None)
+
+        pairing = MagicMock()
+        pairing.get_pairing_detail = AsyncMock(
+            return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 15)
+        )
+        pairing.resolve = AsyncMock(return_value="paired_member_slack_user1")
+        pairing.touch_display_name = AsyncMock()
+
+        executor = MagicMock()
+        executor.execute_stream = MagicMock()
+
+        policy = MagicMock()
+        policy.get_dm_policy = AsyncMock(return_value=DmPolicy.OPEN)
+
+        router = AgentRouter(
+            bus=bus,
+            pairing_store=pairing,
+            agent_executor=executor,
+            policy_provider=policy,
+        )
+
+        msg = InboundMessage(
+            channel="slack",
+            sender_id="user1",
+            chat_id="chat1",
+            content="/quota",
+        )
+
+        with patch(
+            "app.database.repositories.channel_message_repo.ChannelMessageRepository.get_daily_trigger_count",
+            new_callable=AsyncMock,
+            return_value=7,
+        ):
+            resolved = router._registry.resolve(msg.content)
+            assert resolved is not None
+            dispatched = await router._dispatch_resolved(msg, resolved)
+            assert dispatched is True
+            # Let the async background task complete
+            await asyncio.sleep(0.05)
+
+        # 1. Zero LLM executor call
+        executor.execute_stream.assert_not_called()
+
+        # 2. Outbound message delivered
+        bus.publish_outbound.assert_called_once()
+        sent_outbound = bus.publish_outbound.call_args[0][0]
+        assert "user1" in sent_outbound.content
+        assert "member" in sent_outbound.content
+        assert "7" in sent_outbound.content
+        assert "15" in sent_outbound.content
+        assert "00:00 UTC" in sent_outbound.content
+        assert "08:00" in sent_outbound.content
+
+    @pytest.mark.asyncio
+    async def test_quota_command_guest_unlimited_zero_llm(self) -> None:
+        """Assert unpaired guest gets unlimited display without hitting LLM."""
+        bus = MagicMock()
+        bus.publish_outbound = AsyncMock()
+        bus.get_channel = MagicMock(return_value=None)
+
+        pairing = MagicMock()
+        pairing.get_pairing_detail = AsyncMock(return_value=None)
+        pairing.resolve = AsyncMock(return_value=None)
+
+        executor = MagicMock()
+        executor.execute_stream = MagicMock()
+
+        router = AgentRouter(
+            bus=bus,
+            pairing_store=pairing,
+            agent_executor=executor,
+        )
+
+        msg = InboundMessage(
+            channel="telegram",
+            sender_id="guest_999",
+            chat_id="chat_999",
+            content="/quota",
+        )
+
+        with patch(
+            "app.database.repositories.channel_message_repo.ChannelMessageRepository.get_daily_trigger_count",
+            new_callable=AsyncMock,
+            return_value=0,
+        ):
+            resolved = router._registry.resolve(msg.content)
+            assert resolved is not None
+            dispatched = await router._dispatch_resolved(msg, resolved)
+            assert dispatched is True
+            await asyncio.sleep(0.05)
+
+        executor.execute_stream.assert_not_called()
+        bus.publish_outbound.assert_called_once()
+        sent_outbound = bus.publish_outbound.call_args[0][0]
+        assert "guest_999" in sent_outbound.content
+        assert "guest" in sent_outbound.content
+        assert "00:00 UTC" in sent_outbound.content
+
