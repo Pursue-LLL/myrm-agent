@@ -7,6 +7,7 @@
 - BoundedCooldownMap: TTL-bounded rate-limit map
 - GroupFollowUpTracker: active group thread tracker for mention-exempt follow-up
 - query_dm_policy, query_group_policy, query_group_trigger, query_enabled_groups, check_guest_mention_allowed: Policy provider query delegates
+- resolve_group_sender_identity, is_exempt_diagnostic_command, should_respond_in_group_support: Group RBAC arbitration, diagnostic bypass check, and trigger evaluation helpers
 
 [POS]
 Extracted helpers for PolicyResolver to keep the resolver module under line budget.

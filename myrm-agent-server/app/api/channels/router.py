@@ -5,6 +5,7 @@
 - api.dependencies::get_deploy_identity (POS: 用户身份认证依赖)
 - database.connection::get_db (POS: 数据库连接管理)
 - database.models::ChannelPairingModel, UserConfig (POS: ORM 模型)
+- database.repositories.channel_message_repo::ChannelMessageRepository (POS: 多渠道入站明细仓储层)
 
 [OUTPUT]
 - router: Channel 状态/切换/install-dependencies（含 registered）/Pairings/群组管理端点
