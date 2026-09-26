@@ -101,6 +101,7 @@ myrm_agent_harness.agent.security.config
 myrm_agent_harness.agent.security.detection.content_boundary
 myrm_agent_harness.agent.security.engine
 myrm_agent_harness.agent.security.guards.estop
+myrm_agent_harness.agent.security.guards.taint_tracker
 myrm_agent_harness.agent.security.guards.untrusted_ingress_fence
 myrm_agent_harness.agent.security.message_filtering
 myrm_agent_harness.agent.security.path_security
@@ -110,7 +111,6 @@ myrm_agent_harness.agent.security.profile_audit.types
 myrm_agent_harness.agent.security.rate_limiter
 myrm_agent_harness.agent.security.redact
 myrm_agent_harness.agent.security.session_access
-myrm_agent_harness.agent.security.taint_tracking
 myrm_agent_harness.agent.security.team_identity
 myrm_agent_harness.agent.security.transcript_classifier
 myrm_agent_harness.agent.security.trust_context
