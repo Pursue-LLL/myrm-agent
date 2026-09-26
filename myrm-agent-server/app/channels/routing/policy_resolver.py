@@ -85,6 +85,11 @@ class PolicyResolver:
         # Thread-Aware active multiround follower-up tracker
         self._tracker = GroupFollowUpTracker(ttl_seconds=600.0, max_size=1000)
 
+    @property
+    def pairing(self) -> PairingStore:
+        """Expose pairing store for router commands."""
+        return self._pairing
+
     async def resolve_group_user(
         self,
         msg: InboundMessage,

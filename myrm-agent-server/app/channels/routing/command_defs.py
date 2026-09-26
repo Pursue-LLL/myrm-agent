@@ -46,6 +46,7 @@ class CommandAction(Enum):
     MEMORY = "memory"
     LEARN = "learn"
     STATUS = "status"
+    QUOTA = "quota"
     HELP = "help"
 
 
@@ -271,6 +272,12 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         name="status",
         description="Show current session status (tokens, model, agent state)",
         action=CommandAction.STATUS,
+        category="Info",
+    ),
+    CommandDef(
+        name="quota",
+        description="Show your daily message quota and usage status",
+        action=CommandAction.QUOTA,
         category="Info",
     ),
     CommandDef(

@@ -231,7 +231,7 @@ skill_not_configured = ℹ Skill command /{ $cmd } is not configured.
 skill_load_failed =  Failed to load skill for /{ $cmd }.
 pairing_pending = Your access request is pending approval.
 pairing_submitted = Your access request has been submitted. An admin will review it soon.
-daily_quota_exceeded = ⚠️ Daily conversation quota exceeded ({ $quota } msgs/day). Please try again tomorrow or contact admin.
+daily_quota_exceeded = Daily conversation quota exceeded ({ $quota } msgs/day). Quota resets daily at 00:00 UTC (08:00 Beijing Time). Please try again tomorrow or contact admin.
 mute_confirm = Muted. I will only respond when mentioned now.
 search_not_configured = This agent requires web search, but no search service is configured. Please set up a search service in Settings first.
 analyzing_image = Analyzing image...
@@ -356,3 +356,10 @@ goal_failed =
     ❌ Goal ended: "{ $objective }"
     { $turns } turns · { $duration } min · { $files } files modified
 bang_command_unsupported = ℹ️ For sandboxing and security protection, Myrm does not execute remote `!` shell commands from IM channels. Please use the WebUI/Desktop console, or ask via natural language.
+quota_header = [ Daily Quota & Usage ]
+quota_user = • User: { $user }
+quota_role = • Role: { $role }
+quota_usage = • Today's Usage: { $used } / { $limit }
+quota_remaining = • Remaining: { $remaining }
+quota_reset_time = • Reset Time: Daily at 00:00 UTC (08:00 Beijing Time)
+quota_unlimited = Unlimited

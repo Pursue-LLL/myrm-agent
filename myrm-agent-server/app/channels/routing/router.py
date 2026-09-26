@@ -979,6 +979,10 @@ class AgentRouter(RouterExecutionMixin, RouterStreamMixin, RouterCommandsMixin):
             asyncio.create_task(self._handle_status_command(msg))
             return True
 
+        if action == CommandAction.QUOTA:
+            asyncio.create_task(self._handle_quota_command(msg))
+            return True
+
         if action == CommandAction.HELP:
             asyncio.create_task(self._handle_help_command(msg))
             return True

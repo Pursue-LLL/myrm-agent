@@ -130,6 +130,55 @@ class RouterCommandsMemoryMixin:
         )
         await self._bus.publish_outbound(reply)
 
+    async def _handle_quota_command(self: RouterCommandsHost, msg: InboundMessage) -> None:
+        """Handle /quota command: show user's daily quota and today's usage without hitting LLM."""
+        chat_id = msg.chat_id or msg.sender_id
+        pairing = getattr(self._resolver, "pairing", None)
+        detail = await pairing.get_pairing_detail(msg.channel, msg.sender_id) if pairing else None
+
+        role_str = detail[1].value if detail and detail[1] else "guest"
+        daily_quota = detail[2] if detail and detail[2] is not None and detail[2] > 0 else None
+
+        today_usage = 0
+        try:
+            from app.database.connection import get_session
+            from app.database.repositories.channel_message_repo import (
+                ChannelMessageRepository,
+            )
+
+            async with get_session() as session:
+                today_usage = await ChannelMessageRepository.get_daily_trigger_count(
+                    session, msg.channel, msg.sender_id
+                )
+        except Exception:
+            logger.exception("Failed to query daily usage for /quota: %s/%s", msg.channel, msg.sender_id)
+
+        limit_str = str(daily_quota) if daily_quota is not None else get_text(msg, "quota_unlimited")
+        remaining_str = (
+            str(max(0, daily_quota - today_usage))
+            if daily_quota is not None
+            else get_text(msg, "quota_unlimited")
+        )
+
+        lines: list[str] = [
+            get_text(msg, "quota_header"),
+            get_text(msg, "quota_user", user=msg.sender_id),
+            get_text(msg, "quota_role", role=role_str),
+            get_text(msg, "quota_usage", used=str(today_usage), limit=limit_str),
+            get_text(msg, "quota_remaining", remaining=remaining_str),
+            get_text(msg, "quota_reset_time"),
+        ]
+
+        reply = OutboundMessage(
+            channel=msg.channel,
+            recipient_id=chat_id,
+            content="\n".join(lines),
+            user_id=msg.user_id or "",
+            thread_id=msg.thread_id,
+            reply_to_id=((msg.message_id or str(msg.metadata.get("message_id", ""))) if msg.is_group else None),
+        )
+        await self._bus.publish_outbound(reply)
+
     async def _handle_kanban_command(
         self: RouterCommandsHost,
         msg: InboundMessage,

@@ -231,7 +231,7 @@ skill_not_configured = ℹ 技能命令 /{ $cmd } 未配置。
 skill_load_failed =  无法加载 /{ $cmd } 的技能。
 pairing_pending = 您的访问请求正在等待管理员审批。
 pairing_submitted = 您的访问请求已提交，管理员将尽快审核。
-daily_quota_exceeded = ⚠️ 今日对话额度已达上限（{ $quota } 次/天），请明日再试或联系管理员提升额度。
+daily_quota_exceeded = 今日对话额度已达上限（{ $quota } 次/天）。额度将于每日 00:00 UTC（北京时间 08:00）自动刷新，请明日再试或联系管理员提升额度。
 mute_confirm = 已闭嘴，接下来我只会在被 @ 时回应。
 search_not_configured = 当前智能体需要网络搜索能力，但搜索服务尚未配置。请先在设置中添加并启用搜索服务。
 analyzing_image = 正在分析图片…
@@ -356,3 +356,10 @@ goal_failed =
     ❌ 目标已结束："{ $objective }"
     { $turns } 轮 · { $duration } 分钟 · { $files } 个文件变更
 bang_command_unsupported = ℹ️ 出于安全隔离与沙箱保护，Myrm 不支持在 IM 渠道直接执行 `!shell` 远程命令。如需执行脚本或管理工作区，请在 WebUI 或桌面端控制台中操作，或直接使用自然语言向我提问。
+quota_header = [ 配额与使用状态 ]
+quota_user = • 用户: { $user }
+quota_role = • 角色: { $role }
+quota_usage = • 今日用量: { $used } / { $limit }
+quota_remaining = • 剩余额度: { $remaining }
+quota_reset_time = • 刷新时间: 每日 00:00 UTC（北京时间 08:00）自动刷新
+quota_unlimited = 无限制
