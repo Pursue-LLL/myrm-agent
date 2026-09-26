@@ -26,7 +26,7 @@
 | `memory.py` | 域模块 | ProfileAttribute, ProceduralRule, PendingMemory, SharedContextModel, SharedContextBindingModel, SharedContextWriteProposalModel, MemoryOperationEventModel, MemoryHealthSnapshotModel, MemoryMigrationProvenanceModel, MemoryImportDryRunModel, MemoryImportBatchModel, MemoryImportItemModel, MemoryArchiveRestoreBatchModel, MemoryArchiveRestoreItemModel；导入审查和归档恢复模型持久化 dry-run、确认批次、回滚状态和清理所需时间字段 | ✅ |
 | `config.py` | 域模块 | UserConfig | ✅ |
 | `cron.py` | 域模块 | CronJobModel, CronRunModel, MonitorStateModel | ✅ |
-| `channel.py` | 域模块 | ChannelPairingModel | ✅ |
+| `channel.py` | 域模块 | ChannelPairingModel（渠道配对持久化实体，含 role 权限角色与 daily_quota 每日限额，支撑所有者独占与成员特权隔离） | ✅ |
 | `channel_message.py` | 域模块 | ChannelMessageModel（多渠道入站明细持久化实体，支撑凭据脱敏、打标与记忆候选） | ✅ |
 | `media.py` | 域模块 | BatchImageJob, MediaLibrary | ✅ |
 | `security.py` | 域模块 | UserToolAllowlist, RiskRule, RiskHit, SecurityProfile, SkillPermissionGrant, SkillPermissionUsageLog | ✅ |

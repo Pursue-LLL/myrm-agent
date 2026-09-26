@@ -203,3 +203,33 @@ async def resolve_lid_fallback_helper(
     return default_uid
 
 
+async def check_sender_daily_quota(
+    pairing: PairingStore,
+    msg: InboundMessage,
+) -> tuple[bool, int, int]:
+    """Check if paired_member sender has exceeded their configured daily quota.
+
+    Returns (is_exceeded, daily_quota, usage_count).
+    """
+    if not hasattr(pairing, "get_pairing_detail"):
+        return False, 0, 0
+    pairing_detail = await pairing.get_pairing_detail(msg.channel, msg.sender_id)
+    if not pairing_detail or pairing_detail[2] is None or pairing_detail[2] <= 0:
+        return False, 0, 0
+
+    daily_quota = pairing_detail[2]
+    from app.database.connection import get_session
+    from app.database.repositories.channel_message_repo import (
+        ChannelMessageRepository,
+    )
+
+    async with get_session() as session:
+        usage_count = await ChannelMessageRepository.get_daily_trigger_count(
+            session, msg.channel, msg.sender_id
+        )
+
+    if usage_count >= daily_quota:
+        return True, daily_quota, usage_count
+    return False, daily_quota, usage_count
+
+

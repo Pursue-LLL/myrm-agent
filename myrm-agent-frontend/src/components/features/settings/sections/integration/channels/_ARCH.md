@@ -17,8 +17,11 @@
 | `topicWorkspaceLabel.ts`                                                      | `resolveTopicWorkspaceDisplayLabel`：从已加载 projects 解析人类可读 workspace 路径                                                                         |
 | `VoiceSection.tsx`                                                            | 语音输入输出设置                                                                                                                                           |
 | `ChannelList.tsx` / `ChannelIcon.tsx`                                         | 渠道列表与图标                                                                                                                                             |
-| `ConnectionBadge.tsx` / `ChannelIngressBadge.tsx` / `PairingManager.tsx`      | 连接状态、Ingress 提示与配对管理                                                                                                                           |
-| `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks                                                                                                                                             |
+| `ConnectionBadge.tsx` / `ChannelIngressBadge.tsx`                             | 连接状态、Ingress 提示                                                                                                                                     |
+| `PairingManager.tsx`                                                          | 外部渠道配对审批管理容器（数据获取、状态更新、角色切换与配额管理回调编排）                                                                                 |
+| `PairingItem.tsx`                                                             | 单条配对卡片项（所有者/协作成员角色 Badge 切换、行内每日限额编辑与保存、状态切换与删除）                                                                  |
+| `PairingForm.tsx`                                                             | 新增配对表单（Channel/Sender ID 输入、角色选择与每日调用上限配置）                                                                                        |
+| `useChannelsState.ts` / `useChannelConfig.ts` / `useConnectionStatusLabel.ts` | 渠道状态 hooks（含 handleUpdatePairingRole、handleUpdatePairingQuota）                                                                                     |
 | `@/hooks/billing/useIngressRequirement.ts`                                    | Server `/system/ingress-requirement`；`ChannelsSection` 统一 `ChannelIngressBadge`                                                                         |
 | `*ConfigCard.tsx` / `WhatsAppCard.tsx`                                        | 各平台配置 UI（含 `WeChatConfigCard` 微信多实例+风控披露+企微跳转闭环、`WeChatOfficialConfigCard` 认证服务号凭证 + 动态出口 IP 复制/刷新 + IP 白名单指引） |
 | `WeChatRiskDisclosureBanner.tsx`                                              | 个人微信接入风控告示横幅（可折叠持久化记忆、企微官方通道跳转分流引导）                                                                                     |
@@ -39,6 +42,7 @@
 - 后端 `tests/e2e/test_channel_delete_confirmation_chrome_e2e.py` — 删除确认 Chrome MCP E2E（PRIVATE：主账号登出取消/确认 + wechat extra 实例删除取消/确认 + 删除失败容错保持对话框打开，均走真实 API；依赖本模块 `ConfirmDialog` 的 `data-testid="confirm-dialog-confirm/cancel"` 探针）
 - `__tests__/FeishuCredentialsEditDialog.test.tsx` — 编辑凭据弹窗（脱敏回显、留空保留、校验）
 - `__tests__/FeishuQrRegisterDialog.test.tsx` — QR 注册弹窗（扫描/超时/手动回退）
+- `__tests__/PairingItem.test.tsx` — 配对卡片项（所有者/协作成员角色切换 Badge、行内 Daily Quota 编辑与保存交互断言）
 
 ## Reaction 配置链路
 

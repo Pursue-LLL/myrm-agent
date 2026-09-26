@@ -40,6 +40,7 @@ from app.channels.routing.policy_resolver_support import (
     BoundedCooldownMap,
     GroupFollowUpTracker,
     check_guest_mention_allowed,
+    check_sender_daily_quota,
     query_dm_policy,
     query_enabled_groups,
     query_group_policy,
@@ -196,29 +197,19 @@ class PolicyResolver:
             user_id = await self._resolve_allowlist(msg)
 
         if user_id and user_id.startswith("paired_member_"):
-            if hasattr(self._pairing, "get_pairing_detail"):
-                pairing_detail = await self._pairing.get_pairing_detail(msg.channel, msg.sender_id)
-                if pairing_detail and pairing_detail[2] is not None and pairing_detail[2] > 0:
-                    daily_quota = pairing_detail[2]
-                    from app.database.connection import get_session
-                    from app.database.repositories.channel_message_repo import (
-                        ChannelMessageRepository,
-                    )
-
-                    async with get_session() as session:
-                        usage_count = await ChannelMessageRepository.get_daily_trigger_count(
-                            session, msg.channel, msg.sender_id
-                        )
-                    if usage_count >= daily_quota:
-                        logger.warning(
-                            "PolicyResolver: sender %s/%s exceeded daily quota %d (used %d)",
-                            msg.channel,
-                            msg.sender_id,
-                            daily_quota,
-                            usage_count,
-                        )
-                        await self._fx.send_quota_exceeded_reply(msg, daily_quota)
-                        return None
+            is_exceeded, daily_quota, usage_count = await check_sender_daily_quota(
+                self._pairing, msg
+            )
+            if is_exceeded:
+                logger.warning(
+                    "PolicyResolver: sender %s/%s exceeded daily quota %d (used %d)",
+                    msg.channel,
+                    msg.sender_id,
+                    daily_quota,
+                    usage_count,
+                )
+                await self._fx.send_quota_exceeded_reply(msg, daily_quota)
+                return None
 
         if user_id and msg.sender_name:
             await self._touch_display_name(msg)
