@@ -17896,7 +17896,8 @@
         "reinstall": "공식 다운로드에서 다시 설치",
         "dataSafeHint": "복구 과정은 채팅·기억·설정을 절대 지우지 않습니다.",
         "title": "충돌 복구",
-        "backendStopped": "로컬 백엔드가 실행 중이 아닙니다."
+        "backendStopped": "로컬 백엔드가 실행 중이 아닙니다.",
+        "remoteDeferredHint": "원격 모드이므로 로컬 백엔드는 꺼진 채로 둡니다."
       }
     },
     "push": {

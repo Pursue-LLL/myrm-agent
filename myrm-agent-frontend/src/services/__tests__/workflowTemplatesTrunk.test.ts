@@ -103,7 +103,11 @@ describe('admitTemplateRun', () => {
       new ApiError('gone', { reason_code: 'TEMPLATE_NOT_FOUND', message: 'Gone.' }),
     );
     await mod.admitTemplateRun('trunk-bugfix', {});
+    apiRequestMock.mockResolvedValue({
+      templates: [{ templateId: 'trunk-bugfix', displayName: 'Trunk · Bugfix', isTrunk: true }],
+    });
     await expect(mod.fetchTrunkCatalog()).resolves.toHaveLength(1);
-    expect(apiRequestMock).toHaveBeenCalledTimes(2);
+    // fetch(1) + admit(2) + refetch-after-invalidate(3)
+    expect(apiRequestMock).toHaveBeenCalledTimes(3);
   });
 });

@@ -65,6 +65,12 @@ const RecoveryGuideCard = memo(() => {
   const handleRetry = useCallback(async () => {
     setRetrying(true);
     try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const deferred = await invoke<boolean>('get_remote_follow').catch(() => false);
+      if (deferred) {
+        toast.info(t('remoteDeferredHint'));
+        return;
+      }
       await tauriBackend.start();
       toast.success(t('retrySuccess'));
       setFailure(null);

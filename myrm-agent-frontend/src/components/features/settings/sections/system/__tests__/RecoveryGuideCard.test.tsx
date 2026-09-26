@@ -59,6 +59,26 @@ describe('RecoveryGuideCard', () => {
     });
   });
 
+  it('skips local restart while remote follow is active', async () => {
+    vi.doMock('@tauri-apps/api/core', () => ({
+      invoke: vi.fn(async (cmd: string) => {
+        if (cmd === 'get_remote_follow') {
+          return true;
+        }
+        throw new Error('unexpected command');
+      }),
+    }));
+    const { tauriBackend } = await import('@/lib/tauri');
+    const { toast } = await import('@/lib/utils/toast');
+    render(<RecoveryGuideCard />);
+    fireEvent.click(screen.getByText('retryBackend'));
+    await waitFor(() => {
+      expect(vi.mocked(toast.info)).toHaveBeenCalled();
+    });
+    expect(vi.mocked(tauriBackend.start)).not.toHaveBeenCalled();
+    vi.doUnmock('@tauri-apps/api/core');
+  });
+
   it('surfaces failure events when they arrive', async () => {
     const { listen } = await import('@tauri-apps/api/event');
     let handler: ((e: { payload: unknown }) => void) | null = null;

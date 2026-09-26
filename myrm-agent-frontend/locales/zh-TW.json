@@ -17896,7 +17896,8 @@
         "reinstall": "從官網下載重裝",
         "dataSafeHint": "恢復流程永不刪除對話、記憶與設定。",
         "title": "崩潰恢復",
-        "backendStopped": "本地後端未運行。"
+        "backendStopped": "本地後端未運行。",
+        "remoteDeferredHint": "遠端模式生效中，本地後端按設計保持關閉。"
       }
     },
     "push": {

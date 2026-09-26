@@ -17896,7 +17896,8 @@
         "reinstall": "Über offiziellen Download neu installieren",
         "dataSafeHint": "Die Wiederherstellung löscht niemals Chats, Gedächtnis oder Einstellungen.",
         "title": "Absturz-Wiederherstellung",
-        "backendStopped": "Das lokale Backend läuft nicht."
+        "backendStopped": "Das lokale Backend läuft nicht.",
+        "remoteDeferredHint": "Der Remote-Modus ist aktiv. Das lokale Backend bleibt planmäßig aus."
       }
     },
     "push": {

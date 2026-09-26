@@ -5447,7 +5447,8 @@
         "reinstall": "Reinstall from official download",
         "dataSafeHint": "Recovery never deletes chats, memory, or settings.",
         "title": "Crash recovery",
-        "backendStopped": "The local backend is not running."
+        "backendStopped": "The local backend is not running.",
+        "remoteDeferredHint": "Remote mode is active. The local backend stays off by design."
       }
     },
     "push": {

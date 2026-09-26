@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from app.api.skills.schemas import ScanFindingResponse
+
 
 class SkillSearchResultResponse(BaseModel):
     id: str
@@ -115,13 +117,6 @@ class SkillUninstallRequest(BaseModel):
 class SkillPreviewRequest(BaseModel):
     skill_id: str
     source: str
-
-
-class ScanFindingResponse(BaseModel):
-    threat_type: str
-    severity: int
-    description: str
-    line_number: int | None = None
 
 
 class PrerequisiteDiagnosticResponse(BaseModel):

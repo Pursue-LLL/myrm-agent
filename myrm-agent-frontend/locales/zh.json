@@ -5447,7 +5447,8 @@
         "reinstall": "从官网下载重装",
         "dataSafeHint": "恢复流程永不删除对话、记忆与设置。",
         "title": "崩溃恢复",
-        "backendStopped": "本地后端未运行。"
+        "backendStopped": "本地后端未运行。",
+        "remoteDeferredHint": "远端模式生效中，本地后端按设计保持关闭。"
       }
     },
     "push": {
