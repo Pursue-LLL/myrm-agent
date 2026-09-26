@@ -14,7 +14,18 @@ SETTINGS_SECURITY_SHELL_READY_JS = """(() => {
 
 
 REFRESH_ALLOWLIST_JS = """(() => {
-  const buttons = Array.from(document.querySelectorAll('button'));
+  // The allowlist card sits below memory/system sections that also render a refresh
+  // button, so a document-wide search clicks the wrong card and the list never
+  // reloads. Anchor on the allowlist heading and search only inside its own section.
+  const titles = Array.from(document.querySelectorAll('h1,h2,h3,h4'));
+  const anchor = titles.find((el) => /Allowlist Records|允许记录/.test(el.textContent || ''));
+  if (!anchor) return { ok: false, err: 'no-allowlist-section' };
+  let container = anchor;
+  for (let depth = 0; depth < 6 && container; depth += 1) {
+    container = container.parentElement;
+    if (container && container.querySelector('button')) break;
+  }
+  const buttons = Array.from((container || anchor).querySelectorAll('button'));
   const refresh = buttons.find((btn) => /Refresh|刷新|重新整理|更新/.test(btn.textContent || ''));
   if (!refresh) return { ok: false, err: 'no-refresh-button' };
   refresh.click();

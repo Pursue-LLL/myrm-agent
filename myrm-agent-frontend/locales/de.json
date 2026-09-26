@@ -11222,7 +11222,8 @@
             "title": "Kostenloser lokaler Slot",
             "description": "Entwürfe und Triage laufen lokal kostenlos, nur schwere Last geht in die Cloud."
           }
-        }
+        },
+        "setupGuideLink": "Setup-Anleitung"
       },
       "doctor": {
         "fix": "Beheben",
@@ -11247,7 +11248,9 @@
             "failHint": "Das Kontingent ist leer.",
             "pendingHint": "Kontingent wird geprüft…"
           }
-        }
+        },
+        "contextRemote": "Sie haben einen Remote-Server gewählt. Nach dem Verbinden in den Einstellungen laufen die Prüfungen dagegen.",
+        "contextCloud": "Sie haben Cloud-Hosting gewählt. Nach dem Verbinden in den Einstellungen laufen die Prüfungen gegen Ihre Sandbox."
       }
     }
   },

@@ -1,23 +1,25 @@
-"""Re-exports for Desktop Workflow Skill Recording Schemas.
+"""Desktop Workflow Skill Recorder request/response contract.
 
 [INPUT]
-- app.schemas.desktop_recorder (POS: 数据模型与 DTO 定义)
+- app.schemas.desktop_recorder (POS: 请求/响应 DTO)
+- app.services.skills.desktop_recording::state (POS: 会话运行时状态容器)
 
 [OUTPUT]
-- RecordingSessionState, StartDesktopRecordingRequest, StartDesktopRecordingResponse,
-  RecordDesktopEventRequest, StopDesktopRecordingRequest, StopDesktopRecordingResponse,
-  SynthesizeDesktopSkillRequest, WorkflowPlanStepSchema, WorkflowIntentPlanSchema,
-  AnalyzeDesktopPlanRequest, AnalyzeDesktopPlanResponse, CompileDesktopPlanRequest,
-  CompileDesktopPlanResponse, PublishDesktopSkillRequest, PublishDesktopSkillResponse
+- SESSION_IDLE_TIMEOUT_SEC, RecordingSessionState, StartDesktopRecordingRequest,
+  StartDesktopRecordingResponse, RecordDesktopEventRequest, StopDesktopRecordingRequest,
+  StopDesktopRecordingResponse, SynthesizeDesktopSkillRequest, WorkflowPlanStepSchema,
+  WorkflowIntentPlanSchema, AnalyzeDesktopPlanRequest, AnalyzeDesktopPlanResponse,
+  CompileDesktopPlanRequest, CompileDesktopPlanResponse, PublishDesktopSkillRequest,
+  PublishDesktopSkillResponse
 
 [POS]
-API compatibility layer re-exporting schemas from app.schemas.desktop_recorder.
+Recorder endpoint contract for the API layer: re-exports the shared DTOs and the service-owned
+session state, so the API depends on services rather than the reverse.
 """
 
 from __future__ import annotations
 
 from app.schemas.desktop_recorder import (
-    SESSION_IDLE_TIMEOUT_SEC,
     AnalyzeDesktopPlanRequest,
     AnalyzeDesktopPlanResponse,
     CompileDesktopPlanRequest,
@@ -25,7 +27,6 @@ from app.schemas.desktop_recorder import (
     PublishDesktopSkillRequest,
     PublishDesktopSkillResponse,
     RecordDesktopEventRequest,
-    RecordingSessionState,
     StartDesktopRecordingRequest,
     StartDesktopRecordingResponse,
     StopDesktopRecordingRequest,
@@ -33,6 +34,10 @@ from app.schemas.desktop_recorder import (
     SynthesizeDesktopSkillRequest,
     WorkflowIntentPlanSchema,
     WorkflowPlanStepSchema,
+)
+from app.services.skills.desktop_recording.state import (
+    SESSION_IDLE_TIMEOUT_SEC,
+    RecordingSessionState,
 )
 
 __all__ = [

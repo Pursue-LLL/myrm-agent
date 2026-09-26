@@ -10,6 +10,7 @@ import { isSandbox } from '@/lib/deploy-mode';
 import useProviderStore from '@/store/useProviderStore';
 import { hasUsableProviderAuth } from '@/store/config/providerTypes';
 import { cn } from '@/lib/utils/classnameUtils';
+import type { OnboardingDeployChoice } from '@/lib/onboarding-deploy-choice';
 
 /**
  * [POS]
@@ -33,7 +34,11 @@ const ROW_ROUTES = {
   quota: '/pricing',
 } as const;
 
-const FirstRunDoctorCard = memo(() => {
+interface FirstRunDoctorCardProps {
+  deployChoice?: OnboardingDeployChoice | null;
+}
+
+const FirstRunDoctorCard = memo(({ deployChoice }: FirstRunDoctorCardProps) => {
   const t = useTranslations('boot.onboarding.doctor');
   const router = useRouter();
   const providers = useProviderStore((s) => s.providers);
@@ -90,6 +95,11 @@ const FirstRunDoctorCard = memo(() => {
 
   return (
     <div className="space-y-2">
+      {deployChoice && deployChoice !== 'local' && (
+        <p className="text-xs text-muted-foreground/70">
+          {t(deployChoice === 'cloud' ? 'contextCloud' : 'contextRemote')}
+        </p>
+      )}
       {ALL_ROWS.map((row) => {
         const state = rows[row];
         return (

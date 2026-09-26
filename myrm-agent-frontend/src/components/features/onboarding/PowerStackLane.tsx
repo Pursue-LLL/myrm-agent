@@ -3,6 +3,7 @@
 import { memo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { getDocsUrl } from '@/lib/deploy-mode';
 
 /**
  * [POS]
@@ -41,13 +42,23 @@ const PowerStackLane = memo(() => {
           </button>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={() => router.push('/pricing')}
-        className="mt-3 text-xs font-medium text-indigo-400 underline underline-offset-2 hover:no-underline"
-      >
-        {t('pricingLink')}
-      </button>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+        <button
+          type="button"
+          onClick={() => router.push('/pricing')}
+          className="text-xs font-medium text-indigo-400 underline underline-offset-2 hover:no-underline"
+        >
+          {t('pricingLink')}
+        </button>
+        <a
+          href={getDocsUrl('/getting-started/quickstart')}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-medium text-indigo-400 underline underline-offset-2 hover:no-underline"
+        >
+          {t('setupGuideLink')}
+        </a>
+      </div>
     </div>
   );
 });

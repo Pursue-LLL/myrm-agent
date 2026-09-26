@@ -13,3 +13,4 @@
 | `memory/command_center.py` | Memory Command Center 响应模型 |
 | `responses.py` | 标准化 API 响应信封模型（`StandardSuccessResponse`/`StandardErrorResponse`）、业务码枚举 `BusinessCode`、工厂函数 `create_success_response`/`create_list_response`/`create_error_response` |
 | `security/dashboard.py` | 安全仪表盘 DTO（API + services 共用） |
+| `desktop_recorder.py` | 桌面工作流录制请求/响应 DTO（`Start/Stop/Synthesize/Analyze/Compile/Publish` 契约 + `WorkflowIntentPlanSchema`）。运行时会话状态归 services 层，故本 DTO 层不依赖 services |

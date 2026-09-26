@@ -27,4 +27,11 @@ describe('PowerStackLane', () => {
     fireEvent.click(screen.getByText('pricingLink'));
     expect(mockPush).toHaveBeenCalledWith('/pricing');
   });
+
+  it('links the pinned setup guide to docs getting-started', () => {
+    render(<PowerStackLane />);
+    const guide = screen.getByText('setupGuideLink');
+    expect(guide.getAttribute('href')).toContain('/getting-started/quickstart');
+    expect(guide.getAttribute('target')).toBe('_blank');
+  });
 });

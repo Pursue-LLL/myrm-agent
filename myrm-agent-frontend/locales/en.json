@@ -18185,7 +18185,8 @@
             "title": "A free local slot",
             "description": "Run a free local model for drafts and triage, and send only heavy work to the cloud."
           }
-        }
+        },
+        "setupGuideLink": "Setup guide"
       },
       "doctor": {
         "fix": "Fix",
@@ -18210,7 +18211,9 @@
             "failHint": "The allowance is empty.",
             "pendingHint": "Checking allowance…"
           }
-        }
+        },
+        "contextRemote": "You chose a remote server. These checks will target it once you connect in Settings.",
+        "contextCloud": "You chose cloud hosting. These checks will target your sandbox once you connect in Settings."
       }
     }
   },

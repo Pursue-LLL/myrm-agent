@@ -19,7 +19,11 @@ import LocalCapabilitiesSetup from './LocalCapabilitiesSetup';
 import DeployChoiceStep from './DeployChoiceStep';
 import PowerStackLane from './PowerStackLane';
 import FirstRunDoctorCard from './FirstRunDoctorCard';
-import { setOnboardingDeployChoice } from '@/lib/onboarding-deploy-choice';
+import {
+  getOnboardingDeployChoice,
+  setOnboardingDeployChoice,
+  type OnboardingDeployChoice,
+} from '@/lib/onboarding-deploy-choice';
 import SmartRoutingStep from './SmartRoutingStep';
 import SmartGuardStep from './SmartGuardStep';
 import TelegramAssistantOnboardingStep from './TelegramAssistantOnboardingStep';
@@ -68,6 +72,9 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const [telegramConfigured, setTelegramConfigured] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const [initDone, setInitDone] = useState(false);
+  const [deployChoice, setDeployChoice] = useState<OnboardingDeployChoice | null>(() =>
+    getOnboardingDeployChoice(),
+  );
 
   const providers = useProviderStore((s) => s.providers);
   const isInitialized = useProviderStore((s) => s.isInitialized);
@@ -163,15 +170,19 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initDone, isInitialized, step, decidePostWelcome]);
 
-  const handleDeployCompleteOrSkip = useCallback(
-    (recordLocal: boolean) => {
-      if (recordLocal) {
-        setOnboardingDeployChoice('local');
-      }
+  const handleDeployComplete = useCallback(
+    (choice: OnboardingDeployChoice) => {
+      setDeployChoice(choice);
       decidePostWelcome();
     },
     [decidePostWelcome],
   );
+
+  const handleDeploySkip = useCallback(() => {
+    setOnboardingDeployChoice('local');
+    setDeployChoice('local');
+    decidePostWelcome();
+  }, [decidePostWelcome]);
 
   const advanceToThemePick = useCallback(() => {
     setStep('theme_pick');
@@ -293,10 +304,10 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
               <p className="text-muted-foreground">{t('onboarding.deploymentDescription')}</p>
             </div>
             <div className="bg-card border rounded-xl p-6">
-              <DeployChoiceStep onComplete={() => handleDeployCompleteOrSkip(false)} />
+              <DeployChoiceStep onComplete={handleDeployComplete} />
             </div>
             <div className="flex justify-center mt-6">
-              <Button variant="ghost" onClick={() => handleDeployCompleteOrSkip(true)}>
+              <Button variant="ghost" onClick={handleDeploySkip}>
                 {t('onboarding.skipStep')}
               </Button>
             </div>
@@ -327,7 +338,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
                 {isLocalDeployment ? t('onboarding.migrationDescription') : t('onboarding.migrationCloudDescription')}
               </p>
             </div>
-            <PowerStackLane />
+            {isLocalDeployment && <PowerStackLane />}
             <div className="bg-card border rounded-xl p-6">
               <MigrationWizardSection
                 onMigrationComplete={handleMigrationCompleteOrSkip}
@@ -376,7 +387,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
               <p className="text-muted-foreground">{t('onboarding.doctorDescription')}</p>
             </div>
             <div className="bg-card border rounded-xl p-6">
-              <FirstRunDoctorCard />
+              <FirstRunDoctorCard deployChoice={deployChoice} />
             </div>
             <div className="flex justify-center gap-3 mt-6">
               <Button variant="ghost" onClick={handleHealthCompleteOrSkip}>

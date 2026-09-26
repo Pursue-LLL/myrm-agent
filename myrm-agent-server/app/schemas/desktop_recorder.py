@@ -1,33 +1,23 @@
-"""Schemas and session state models for Desktop Workflow Skill Recording.
+"""Data transfer objects for Desktop Workflow Skill Recording.
 
 [INPUT]
 - pydantic::BaseModel, Field
-- myrm_agent_harness.api::DesktopRecordedEvent, SynthesizedSkillDraft
 
 [OUTPUT]
-- RecordingSessionState, StartDesktopRecordingRequest, StartDesktopRecordingResponse,
+- StartDesktopRecordingRequest, StartDesktopRecordingResponse,
   RecordDesktopEventRequest, StopDesktopRecordingRequest, StopDesktopRecordingResponse,
   SynthesizeDesktopSkillRequest, WorkflowPlanStepSchema, WorkflowIntentPlanSchema,
   AnalyzeDesktopPlanRequest, AnalyzeDesktopPlanResponse, CompileDesktopPlanRequest,
   CompileDesktopPlanResponse, PublishDesktopSkillRequest, PublishDesktopSkillResponse
 
 [POS]
-Data transfer objects and active recording session state container for desktop recorder endpoints.
+Request/response contracts for the desktop recorder endpoints. Runtime session state is owned by
+the service layer, so this shared DTO layer stays free of service dependencies.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from pydantic import BaseModel, Field
-
-if TYPE_CHECKING:
-    pass
-
-from app.services.skills.desktop_recording.state import (
-    SESSION_IDLE_TIMEOUT_SEC,
-    RecordingSessionState,
-)
 
 
 class StartDesktopRecordingRequest(BaseModel):
@@ -130,8 +120,6 @@ class PublishDesktopSkillResponse(BaseModel):
 
 
 __all__ = [
-    "SESSION_IDLE_TIMEOUT_SEC",
-    "RecordingSessionState",
     "StartDesktopRecordingRequest",
     "StartDesktopRecordingResponse",
     "RecordDesktopEventRequest",
