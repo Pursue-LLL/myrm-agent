@@ -239,6 +239,18 @@ def _release_pruned_runtime(record: WarmBackendRecord) -> None:
         )
 
 
+def _borrower_still_alive(record: WarmBackendRecord) -> bool:
+    """True when a borrowed row's owner process is still running.
+
+    ``_record_is_stale`` already flags borrowed rows whose owner PID died, so a
+    borrowed row only legitimately survives pruning while its borrower is alive
+    (it releases the row via ``release_warm_backend``). A malformed/missing
+    ``ownerPid`` is treated as dead so the row cannot pin capacity forever.
+    """
+    owner_pid = record.get("ownerPid")
+    return isinstance(owner_pid, int) and _pid_alive(owner_pid)
+
+
 def _prune_stale(registry: WarmPoolRegistry, *, now: float) -> int:
     removed = 0
     stale_keys: list[str] = []
@@ -250,11 +262,17 @@ def _prune_stale(registry: WarmPoolRegistry, *, now: float) -> int:
         if record is None:
             continue
         removed += 1
-        if record.get("state") != "borrowed":
-            # A borrowed row is owned by its borrower (who releases it via
-            # release_warm_backend); only rows the pool itself retired may be
-            # torn down here.
-            _release_pruned_runtime(record)
+        if record.get("state") == "borrowed" and _borrower_still_alive(record):
+            # A live borrower owns this row and releases it via
+            # release_warm_backend; the pool must not tear down a backend that
+            # is currently serving an in-flight test.
+            continue
+        # Every other pruned row must actually free its isolated runtime.
+        # Dropping the row alone leaves the runtime registered with a live
+        # heartbeat, so it keeps counting against active_cap while no borrower
+        # can ever reach it again — a leaked slot that stalls later PRIVATE
+        # tests in ``E2E_SHPOIB_CAPACITY_WAIT``.
+        _release_pruned_runtime(record)
     return removed
 
 
