@@ -116,14 +116,17 @@ def parallel_shared_ui_hydrate_queue_enabled() -> bool:
 
         if phase_c_burst_lane_count() >= 2:
             return True
-    except ImportError:
+    except (ImportError, OSError, RuntimeError, TimeoutError, ValueError):
         pass
     try:
         from mux.transport_supervisor import parallel_active_test_count
 
         if parallel_active_test_count() >= 2:
             return True
-    except ImportError:
+    except (ImportError, OSError, RuntimeError, TimeoutError, ValueError):
+        # Peer probing shells out to pgrep/ps and reads the session registry, so
+        # it can fail transiently under exactly the load it is trying to detect.
+        # Fail closed to "no peer signal" instead of aborting the contract.
         pass
     return _live_parallel_shared_ui_load() > 1
 
