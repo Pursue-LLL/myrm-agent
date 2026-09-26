@@ -156,6 +156,48 @@ export function PairingItem({
               )}
             </div>
           )}
+
+          {/* Today Usage Watermark & Streamline Progress Bar */}
+          {!isAdmin && (
+            <div className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span>今日用量：{p.today_usage ?? 0} / {p.daily_quota ? String(p.daily_quota) : '∞'} 次</span>
+              {p.daily_quota && p.daily_quota > 0 && (() => {
+                const todayUsage = p.today_usage ?? 0;
+                const quota = p.daily_quota;
+                const percent = Math.min(100, Math.round((todayUsage / quota) * 100));
+                const isOver = todayUsage >= quota;
+                const isWarning = percent >= 70 && !isOver;
+                return (
+                  <>
+                    <div
+                      className="w-14 h-1.5 rounded-full bg-muted overflow-hidden flex items-center"
+                      role="progressbar"
+                      aria-valuenow={percent}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      title={`${percent}%`}
+                    >
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all duration-300',
+                          isOver ? 'bg-destructive' : isWarning ? 'bg-amber-500' : 'bg-emerald-500',
+                        )}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                    {isOver && (
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] px-1 py-0 h-4 bg-destructive/10 text-destructive border-destructive/30"
+                      >
+                        已超额
+                      </Badge>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
 
         {/* Display name and sender_id */}

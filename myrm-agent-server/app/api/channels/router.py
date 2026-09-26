@@ -42,6 +42,7 @@ from app.channels import ChannelStatus
 from app.channels.types import ChannelIssue
 from app.database.connection import get_db
 from app.database.models import ChannelPairingModel
+from app.database.repositories.channel_message_repo import ChannelMessageRepository
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -310,21 +311,27 @@ async def list_pairings(
     """List all channel pairings for the current user."""
     rows = (await db.execute(select(ChannelPairingModel).order_by(ChannelPairingModel.created_at.desc()))).scalars().all()
 
-    return [
-        PairingResponse(
-            id=r.id,
-            channel=r.channel,
-            sender_id=r.sender_id,
-            user_id="sandbox" if getattr(r, "role", "member") == "admin" else f"paired_member_{r.channel}_{r.sender_id}",
-            status=r.status,
-            display_name=r.display_name,
-            role=getattr(r, "role", "member") or "member",
-            daily_quota=getattr(r, "daily_quota", None),
-            created_at=r.created_at,
-            updated_at=r.updated_at,
+    pairings: list[PairingResponse] = []
+    for r in rows:
+        today_usage = await ChannelMessageRepository.get_daily_trigger_count(
+            db, r.channel, r.sender_id
         )
-        for r in rows
-    ]
+        pairings.append(
+            PairingResponse(
+                id=r.id,
+                channel=r.channel,
+                sender_id=r.sender_id,
+                user_id="sandbox" if getattr(r, "role", "member") == "admin" else f"paired_member_{r.channel}_{r.sender_id}",
+                status=r.status,
+                display_name=r.display_name,
+                role=getattr(r, "role", "member") or "member",
+                daily_quota=getattr(r, "daily_quota", None),
+                today_usage=today_usage,
+                created_at=r.created_at,
+                updated_at=r.updated_at,
+            )
+        )
+    return pairings
 
 
 @router.post("/pairings", response_model=PairingResponse, status_code=201)
@@ -344,6 +351,9 @@ async def create_pairing(
     ).scalar_one_or_none()
 
     if existing:
+        today_usage = await ChannelMessageRepository.get_daily_trigger_count(
+            db, existing.channel, existing.sender_id
+        )
         return PairingResponse(
             id=existing.id,
             channel=existing.channel,
@@ -353,6 +363,7 @@ async def create_pairing(
             display_name=existing.display_name,
             role=getattr(existing, "role", "member") or "member",
             daily_quota=getattr(existing, "daily_quota", None),
+            today_usage=today_usage,
             created_at=existing.created_at,
             updated_at=existing.updated_at,
         )
@@ -369,6 +380,9 @@ async def create_pairing(
     await db.commit()
     await db.refresh(row)
 
+    today_usage = await ChannelMessageRepository.get_daily_trigger_count(
+        db, row.channel, row.sender_id
+    )
     return PairingResponse(
         id=row.id,
         channel=row.channel,
@@ -378,6 +392,7 @@ async def create_pairing(
         display_name=row.display_name,
         role=row.role,
         daily_quota=row.daily_quota,
+        today_usage=today_usage,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -427,6 +442,9 @@ async def update_pairing_status(
     if was_pending and body.status == "active":
         await _notify_pairing_approved(row.channel, row.sender_id)
 
+    today_usage = await ChannelMessageRepository.get_daily_trigger_count(
+        db, row.channel, row.sender_id
+    )
     return PairingResponse(
         id=row.id,
         channel=row.channel,
@@ -436,6 +454,7 @@ async def update_pairing_status(
         display_name=row.display_name,
         role=row.role,
         daily_quota=row.daily_quota,
+        today_usage=today_usage,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )

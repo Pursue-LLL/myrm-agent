@@ -11,6 +11,7 @@ export interface ChannelPairing {
   display_name: string | null;
   role: 'admin' | 'member';
   daily_quota: number | null;
+  today_usage?: number;
   created_at: string;
   updated_at: string;
 }

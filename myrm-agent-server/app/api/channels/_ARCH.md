@@ -17,9 +17,9 @@
 | `instances.py` | 模块 | 频道实例管理路由。提供多实例 CRUD、显示名更新与 `GET /instances/meta` 容量元数据（透出后端每类型实例上限，前端不再镜像硬编码常量）；实例凭证/配置端点拆分至 `instances_credentials.py`（此处 re-export 保持旧入口可用）。 | ✅ |
 | `instances_credentials.py` | 模块 | 频道实例凭证与配置端点（从 `instances.py` 拆分以控制单文件行数）。`save_channel_credentials` 按 merge 语义落库（仅覆盖提交字段，保留 verificationToken 等未提交值）；已注册实例按其 instance_id 重建 channel 对象（**先 factory_create 成功后**再经 `ChannelGateway.swap_channel` 原子替换，构造失败不影响在跑实例；替换失败自动恢复旧实例，保证多实例重建路径不会静默丢频道；channel_name 与智能体绑定保留）使新凭据即时生效，默认实例复用 `_try_hot_register_channel` 热重载（未注册时也发起热注册尝试），未注册实例于下次启动生效。读取凭据时布尔值统一转小写字符串（`useLark` 稳定为 `"true"/"false"`）。 | ✅ |
 | `login.py` | 模块 | Business layer API router. | ✅ |
-| `router.py` | 路由 | Channel 管理核心路由。提供频道状态查询、启用/禁用切换、账号绑定 CRUD、群组管理与 GitHub webhook URL 获取（Ingress 优先）。 | ✅ |
+| `router.py` | 路由 | Channel 管理核心路由。提供频道状态查询、启用/禁用切换、账号绑定 CRUD（集成当日用量实时统计 `today_usage`）、群组管理与 GitHub webhook URL 获取（Ingress 优先）。 | ✅ |
 | `routes_management.py` | 模块 | Routes management endpoints. | ✅ |
-| `schemas.py` | 模块 | Channel 管理 API 数据模型。定义 Channel 状态查询、账号绑定与 GitHub webhook URL 的 schema。 | ✅ |
+| `schemas.py` | 模块 | Channel 管理 API 数据模型。定义 Channel 状态查询、账号绑定（含 `PairingResponse.today_usage`）与 GitHub webhook URL 的 schema。 | ✅ |
 | `test_connections.py` | 测试 | 频道连接测试路由。提供各频道凭据连通性验证端点，用于前端配置时实时测试。 | ✅ |
 | `topics.py` | 模块 | 频道 Topic 路由。提供 Topic 列表查询、Agent 绑定和频道级默认 Agent 设置功能。 | ✅ |
 | `wechat.py` | 模块 | WeChat/WhatsApp 专用路由。提供扫码登录、QR 码获取、连接状态查询和登出操作。 | ✅ |

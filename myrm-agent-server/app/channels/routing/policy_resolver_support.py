@@ -14,9 +14,12 @@ Extracted helpers for PolicyResolver to keep the resolver module under line budg
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import time
 from typing import TYPE_CHECKING, Callable
+
+from app.channels.types import METADATA_GUEST_TURN_KEY
 
 if TYPE_CHECKING:
     from app.channels.protocols.pairing import (
@@ -26,6 +29,7 @@ if TYPE_CHECKING:
         GroupTriggerMode,
         PairingStore,
     )
+    from app.channels.routing.message_effects import MessageEffects
     from app.channels.types import InboundMessage
 
 logger = logging.getLogger(__name__)
@@ -233,3 +237,105 @@ async def check_sender_daily_quota(
     return False, daily_quota, usage_count
 
 
+def is_exempt_diagnostic_command(content: str) -> bool:
+    """Check if the inbound message is a read-only diagnostic command (/status, /quota, /help)."""
+    tokens = content.strip().lower().split()
+    if not tokens:
+        return False
+    if tokens[0] in ("/status", "/quota", "/help"):
+        return True
+    if len(tokens) > 1 and tokens[0].startswith("@") and tokens[1] in ("/status", "/quota", "/help"):
+        return True
+    return False
+
+
+async def resolve_group_sender_identity(
+    pairing: PairingStore,
+    fx: MessageEffects,
+    msg: InboundMessage,
+    default_uid: str,
+    tracker: GroupFollowUpTracker,
+) -> tuple[str, InboundMessage] | None:
+    """Arbitrate sender identity in an enabled group to enforce PoLP and prevent Confused Deputy privilege escalation."""
+    sender_uid = await pairing.resolve(msg.channel, msg.sender_id)
+    if sender_uid and sender_uid.startswith("paired_member_"):
+        if not is_exempt_diagnostic_command(msg.content):
+            is_exceeded, daily_quota, usage_count = await check_sender_daily_quota(pairing, msg)
+            if is_exceeded:
+                logger.warning(
+                    "PolicyResolver: group sender %s/%s exceeded daily quota %d (used %d)",
+                    msg.channel,
+                    msg.sender_id,
+                    daily_quota,
+                    usage_count,
+                )
+                await fx.send_quota_exceeded_reply(msg, daily_quota)
+                return None
+        if msg.thread_id:
+            tracker.activate(f"{msg.channel}:{msg.chat_id}:{msg.thread_id}")
+        return sender_uid, msg
+
+    if sender_uid == default_uid:
+        if msg.thread_id:
+            tracker.activate(f"{msg.channel}:{msg.chat_id}:{msg.thread_id}")
+        return default_uid, msg
+
+    guest_meta = dict(msg.metadata or {})
+    guest_meta[METADATA_GUEST_TURN_KEY] = "1"
+    if msg.thread_id:
+        tracker.activate(f"{msg.channel}:{msg.chat_id}:{msg.thread_id}")
+    return f"guest_{msg.channel}_{msg.sender_id}", dataclasses.replace(msg, metadata=guest_meta)
+
+
+async def should_respond_in_group_support(
+    policy: ChannelPolicyProvider | None,
+    tracker: GroupFollowUpTracker,
+    fx: MessageEffects,
+    msg: InboundMessage,
+) -> tuple[bool, str]:
+    """Determine whether the bot should respond in group based on trigger config."""
+    # 1. Group Whitelist Check (freeResponseChats)
+    if policy and hasattr(policy, "get_free_response_chats"):
+        whitelist = await policy.get_free_response_chats(msg.channel)
+        if whitelist and msg.chat_id in whitelist:
+            return True, msg.content
+
+    # 2. Check for explicit mute command
+    cleaned_content = msg.content.strip()
+    if cleaned_content in ("/mute", "/shutup", "闭嘴", "别吵"):
+        thread_key = (
+            f"{msg.channel}:{msg.chat_id}:{msg.thread_id}"
+            if msg.thread_id
+            else None
+        )
+        if thread_key and tracker.is_active(thread_key):
+            tracker.mute(thread_key)
+            from app.channels.routing.follow_up import mute_tracked_thread
+
+            mute_tracked_thread(msg.channel, msg.chat_id or msg.sender_id, msg.thread_id)
+            await fx.send_mute_reply(msg)
+            return True, "___MUTE_CONFIRMED___"
+
+    # 3. Explicit Mention Trigger
+    if msg.mentioned:
+        return True, msg.content
+
+    # 4. Thread-Aware Exemption Check (exempt-mention for active multiround thread follow-up)
+    if msg.thread_id:
+        thread_key = f"{msg.channel}:{msg.chat_id}:{msg.thread_id}"
+        if tracker.is_active(thread_key):
+            return True, msg.content
+
+    # 5. Standard Static Trigger Mode Fallback
+    mode, prefixes = await query_group_trigger(policy, msg.channel)
+    from app.channels.protocols.pairing import GroupTriggerMode
+
+    if mode == GroupTriggerMode.ALL:
+        return True, msg.content
+
+    if mode == GroupTriggerMode.PREFIX and prefixes:
+        for prefix in prefixes:
+            if prefix and msg.content.startswith(prefix):
+                return True, msg.content[len(prefix) :].strip()
+
+    return False, msg.content

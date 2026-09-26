@@ -68,6 +68,7 @@ async def test_create_update_pairing_role_and_quota(async_client: httpx.AsyncCli
     assert item["role"] == "admin"
     assert item["daily_quota"] == 50
     assert item["user_id"] == "sandbox"
+    assert item["today_usage"] == 0
     pairing_id = item["id"]
 
     # Update role to member and daily_quota to 10
@@ -84,6 +85,7 @@ async def test_create_update_pairing_role_and_quota(async_client: httpx.AsyncCli
     assert updated["role"] == "member"
     assert updated["daily_quota"] == 10
     assert updated["user_id"] == f"paired_member_telegram_{sender_id}"
+    assert updated["today_usage"] == 0
 
     # Verify listing reflects updated role and quota
     listed = (await async_client.get("/api/v1/channels/manage/pairings")).json()
@@ -92,6 +94,7 @@ async def test_create_update_pairing_role_and_quota(async_client: httpx.AsyncCli
     assert target["role"] == "member"
     assert target["daily_quota"] == 10
     assert target["user_id"] == f"paired_member_telegram_{sender_id}"
+    assert target["today_usage"] == 0
 
     # Cleanup
     del_res = await async_client.delete(f"/api/v1/channels/manage/pairings/{pairing_id}")

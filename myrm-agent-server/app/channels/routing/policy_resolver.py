@@ -41,11 +41,14 @@ from app.channels.routing.policy_resolver_support import (
     GroupFollowUpTracker,
     check_guest_mention_allowed,
     check_sender_daily_quota,
+    is_exempt_diagnostic_command,
     query_dm_policy,
     query_enabled_groups,
     query_group_policy,
     query_group_trigger,
+    resolve_group_sender_identity,
     resolve_lid_fallback_helper,
+    should_respond_in_group_support,
 )
 from app.channels.types import (
     METADATA_GUEST_TURN_KEY,
@@ -154,12 +157,16 @@ class PolicyResolver:
                 if is_guest_turn:
                     guest_meta = dict(msg.metadata or {})
                     guest_meta[METADATA_GUEST_TURN_KEY] = "1"
-                    msg = dataclasses.replace(msg, metadata=guest_meta)
-                elif msg.thread_id:
-                    self._tracker.activate(
-                        f"{msg.channel}:{msg.chat_id}:{msg.thread_id}"
+                    if msg.thread_id:
+                        self._tracker.activate(
+                            f"{msg.channel}:{msg.chat_id}:{msg.thread_id}"
+                        )
+                    return f"guest_{msg.channel}_{msg.sender_id}", dataclasses.replace(
+                        msg, metadata=guest_meta
                     )
-                return default_uid, msg
+                return await resolve_group_sender_identity(
+                    self._pairing, self._fx, msg, default_uid, self._tracker
+                )
 
         return None
 
@@ -197,19 +204,20 @@ class PolicyResolver:
             user_id = await self._resolve_allowlist(msg)
 
         if user_id and user_id.startswith("paired_member_"):
-            is_exceeded, daily_quota, usage_count = await check_sender_daily_quota(
-                self._pairing, msg
-            )
-            if is_exceeded:
-                logger.warning(
-                    "PolicyResolver: sender %s/%s exceeded daily quota %d (used %d)",
-                    msg.channel,
-                    msg.sender_id,
-                    daily_quota,
-                    usage_count,
+            if not is_exempt_diagnostic_command(msg.content):
+                is_exceeded, daily_quota, usage_count = await check_sender_daily_quota(
+                    self._pairing, msg
                 )
-                await self._fx.send_quota_exceeded_reply(msg, daily_quota)
-                return None
+                if is_exceeded:
+                    logger.warning(
+                        "PolicyResolver: sender %s/%s exceeded daily quota %d (used %d)",
+                        msg.channel,
+                        msg.sender_id,
+                        daily_quota,
+                        usage_count,
+                    )
+                    await self._fx.send_quota_exceeded_reply(msg, daily_quota)
+                    return None
 
         if user_id and msg.sender_name:
             await self._touch_display_name(msg)
@@ -242,56 +250,10 @@ class PolicyResolver:
             )
 
     async def _should_respond_in_group(self, msg: InboundMessage) -> tuple[bool, str]:
-        """Determine whether the bot should respond based on trigger config.
-
-        Returns (should_respond, cleaned_content).
-        Supports thread-aware exempt-mention dynamics and explicit mute commands.
-        """
-        # 1. Group Whitelist Check (freeResponseChats)
-        if self._policy and hasattr(self._policy, "get_free_response_chats"):
-            whitelist = await self._policy.get_free_response_chats(msg.channel)
-            if whitelist and msg.chat_id in whitelist:
-                return True, msg.content
-
-        # 2. Check for explicit mute command
-        cleaned_content = msg.content.strip()
-        if cleaned_content in ("/mute", "/shutup", "闭嘴", "别吵"):
-            thread_key = (
-                f"{msg.channel}:{msg.chat_id}:{msg.thread_id}"
-                if msg.thread_id
-                else None
-            )
-            if thread_key and self._tracker.is_active(thread_key):
-                self._tracker.mute(thread_key)
-                from app.channels.routing.follow_up import mute_tracked_thread
-
-                mute_tracked_thread(msg.channel, msg.chat_id or msg.sender_id, msg.thread_id)
-                # Send microsecond-level mute confirmation, bypassing LLM agents
-                await self._fx.send_mute_reply(msg)
-                return True, "___MUTE_CONFIRMED___"
-
-        # 3. Explicit Mention Trigger
-        if msg.mentioned:
-            return True, msg.content
-
-        # 4. Thread-Aware Exemption Check (exempt-mention for active multiround thread follow-up)
-        if msg.thread_id:
-            thread_key = f"{msg.channel}:{msg.chat_id}:{msg.thread_id}"
-            if self._tracker.is_active(thread_key):
-                return True, msg.content
-
-        # 5. Standard Static Trigger Mode Fallback
-        mode, prefixes = await self._get_group_trigger(msg.channel)
-
-        if mode == GroupTriggerMode.ALL:
-            return True, msg.content
-
-        if mode == GroupTriggerMode.PREFIX and prefixes:
-            for prefix in prefixes:
-                if prefix and msg.content.startswith(prefix):
-                    return True, msg.content[len(prefix) :].strip()
-
-        return False, msg.content
+        """Determine whether the bot should respond based on trigger config."""
+        return await should_respond_in_group_support(
+            self._policy, self._tracker, self._fx, msg
+        )
 
     async def _get_dm_policy(self, channel: str) -> DmPolicy:
         return await query_dm_policy(self._policy, channel)

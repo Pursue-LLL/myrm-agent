@@ -129,8 +129,8 @@ deadlocks when an agent execution hangs without crashing.
 | graceful_degradation.py | Core | Graceful degradation controller for smooth quality adaptation. | ✅ |
 | message_effects.py | Core | Message side-effect operations (typing/keepalive, reactions, placeholder, reply, busy ack). send_quota_exceeded_reply 提供配额超限多语言提醒。 | ✅ |
 | placeholder_strategy.py | Core | Adaptive placeholder defer (180ms) and short-circuit for fast replies; eager materialize on stream activity. | ✅ |
-| policy_resolver.py | Core | Policy resolution module extracted from Router core routing logic. 支持 paired_member 每日限额熔断拦截，guest mode requires explicit_mention metadata. | ✅ |
-| policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker helpers for PolicyResolver. | ✅ |
+| policy_resolver.py | Core | Policy resolution module extracted from Router core routing logic. 支持群聊发言人特权解耦 (Group Ingress Sender-Scoped RBAC & Confused Deputy Mitigation)，仲裁 Admin (沙箱所有者特权) / Member (每日配额与受限栅栏) / Guest (元工具特权剥离)。放行 /status, /quota, /help 只读自查诊断命令。 | ✅ |
+| policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker + 群聊发言人身份仲裁与诊断命令判定 (resolve_group_sender_identity, is_exempt_diagnostic_command, should_respond_in_group_support). | ✅ |
 | retry_policy.py | Core | Generic retry policy component with exponential backoff, circuit breaker integration, | — |
 | router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, checks active task `busy_input_mode` (steer/redirect auto-dispatch), applies inbound risk gate (symmetric with outbound risk gate in bus.py), dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | ✅ |
 | router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds and `_is_silent_content` outbound filter. Unit tests can import directly. | — |

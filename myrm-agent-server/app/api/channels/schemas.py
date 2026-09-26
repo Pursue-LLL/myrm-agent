@@ -86,6 +86,7 @@ class PairingResponse(BaseModel):
     display_name: str | None = None
     role: str = "member"
     daily_quota: int | None = None
+    today_usage: int = 0
     created_at: datetime
     updated_at: datetime
 

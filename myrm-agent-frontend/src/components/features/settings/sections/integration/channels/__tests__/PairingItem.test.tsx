@@ -134,4 +134,56 @@ describe('PairingItem', () => {
 
     expect(mockOnUpdateQuota).toHaveBeenCalledWith('pair_123', 100);
   });
+
+  it('renders today usage and progress bar watermark', () => {
+    const pairingWithUsage: ChannelPairing = {
+      ...mockPairing,
+      today_usage: 10,
+      daily_quota: 20,
+    };
+
+    render(
+      <PairingItem
+        pairing={pairingWithUsage}
+        isUpdating={false}
+        channelLabel={(c) => c}
+        onUpdateStatus={mockOnUpdateStatus}
+        onDeleteRequest={mockOnDelete}
+        onUpdateDisplayName={mockOnUpdateDisplayName}
+        onUpdateRole={mockOnUpdateRole}
+        onUpdateDailyQuota={mockOnUpdateQuota}
+        t={stableT}
+      />
+    );
+
+    expect(screen.getByText('今日用量：10 / 20 次')).toBeTruthy();
+    const progress = screen.getByRole('progressbar');
+    expect(progress.getAttribute('aria-valuenow')).toBe('50');
+  });
+
+  it('displays exceeded badge when today_usage >= daily_quota', () => {
+    const exceededPairing: ChannelPairing = {
+      ...mockPairing,
+      today_usage: 25,
+      daily_quota: 20,
+    };
+
+    render(
+      <PairingItem
+        pairing={exceededPairing}
+        isUpdating={false}
+        channelLabel={(c) => c}
+        onUpdateStatus={mockOnUpdateStatus}
+        onDeleteRequest={mockOnDelete}
+        onUpdateDisplayName={mockOnUpdateDisplayName}
+        onUpdateRole={mockOnUpdateRole}
+        onUpdateDailyQuota={mockOnUpdateQuota}
+        t={stableT}
+      />
+    );
+
+    expect(screen.getByText('今日用量：25 / 20 次')).toBeTruthy();
+    expect(screen.getByText('已超额')).toBeTruthy();
+  });
 });
+
