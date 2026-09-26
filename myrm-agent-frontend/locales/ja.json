@@ -17883,7 +17883,8 @@
         },
         "officialSite": "公式サイト",
         "officialDownload": "公式ダウンロード",
-        "officialReleases": "GitHub Releases"
+        "officialReleases": "GitHub Releases",
+        "title": "公式リリース"
       },
       "recoveryGuide": {
         "description": "デスクトップバックエンドの起動に失敗したら、この手順で復旧します。データには触れません。",
@@ -17893,7 +17894,9 @@
         "retryFailed": "まだ失敗します。Aboutから診断情報をコピーし、必要なら再インストールしてください。",
         "openAbout": "Aboutと診断を開く",
         "reinstall": "公式ダウンロードから再インストール",
-        "dataSafeHint": "復旧手順でチャット・記憶・設定を削除することはありません。"
+        "dataSafeHint": "復旧手順でチャット・記憶・設定を削除することはありません。",
+        "title": "クラッシュ復旧",
+        "backendStopped": "ローカルバックエンドが停止しています。"
       }
     },
     "push": {

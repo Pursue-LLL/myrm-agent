@@ -5434,7 +5434,8 @@
         },
         "officialSite": "Official site",
         "officialDownload": "Official download",
-        "officialReleases": "GitHub Releases"
+        "officialReleases": "GitHub Releases",
+        "title": "Official release"
       },
       "recoveryGuide": {
         "description": "If the desktop backend fails to start, work through these steps. Nothing here touches your data.",
@@ -5444,7 +5445,9 @@
         "retryFailed": "Still failing. Copy the diagnostics from About and reinstall if needed.",
         "openAbout": "Open About & diagnostics",
         "reinstall": "Reinstall from official download",
-        "dataSafeHint": "Recovery never deletes chats, memory, or settings."
+        "dataSafeHint": "Recovery never deletes chats, memory, or settings.",
+        "title": "Crash recovery",
+        "backendStopped": "The local backend is not running."
       }
     },
     "push": {

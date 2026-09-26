@@ -17883,7 +17883,8 @@
         },
         "officialSite": "공식 사이트",
         "officialDownload": "공식 다운로드",
-        "officialReleases": "GitHub Releases"
+        "officialReleases": "GitHub Releases",
+        "title": "공식 릴리스"
       },
       "recoveryGuide": {
         "description": "데스크톱 백엔드 시작에 실패하면 이 단계로 복구하세요. 데이터에는 손대지 않습니다.",
@@ -17893,7 +17894,9 @@
         "retryFailed": "여전히 실패합니다. About에서 진단 정보를 복사하고 필요하면 다시 설치하세요.",
         "openAbout": "About·진단 열기",
         "reinstall": "공식 다운로드에서 다시 설치",
-        "dataSafeHint": "복구 과정은 채팅·기억·설정을 절대 지우지 않습니다."
+        "dataSafeHint": "복구 과정은 채팅·기억·설정을 절대 지우지 않습니다.",
+        "title": "충돌 복구",
+        "backendStopped": "로컬 백엔드가 실행 중이 아닙니다."
       }
     },
     "push": {

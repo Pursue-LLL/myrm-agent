@@ -37,6 +37,17 @@ async def list_workflow_templates() -> WorkflowTemplateListResponse:
     return WorkflowTemplateListResponse(templates=templates)
 
 
+@router.get("/trunk-catalog")
+async def get_trunk_catalog() -> dict[str, object]:
+    """Serve prebuilt trunk catalog metadata (no script bodies)."""
+    from app.services.workflow_templates.trunk_templates import (
+        TRUNK_CATALOG_VERSION,
+        describe_trunk_catalog,
+    )
+
+    return {"version": TRUNK_CATALOG_VERSION, "templates": describe_trunk_catalog()}
+
+
 @router.get("/{template_id}", response_model=WorkflowTemplateDetailResponse)
 async def get_workflow_template(template_id: str) -> WorkflowTemplateDetailResponse:
     store = get_template_store()
@@ -106,16 +117,12 @@ async def admit_template_run(template_id: str, body: AdmitTemplateRunRequest) ->
         log_admit_decision,
         safety_gate,
     )
-    from app.services.workflow_templates.handoff import build_handoff
+    from app.services.workflow_templates.handoff import build_handoff, to_template_args
 
     store = get_template_store()
     record = store.get_template(template_id)
 
-    decision = safety_gate(record, body.template_args)
-    if not decision.ok:
-        log_admit_decision(template_id, decision)
-        raise HTTPException(status_code=422, detail={"reason_code": decision.reason_code, "message": decision.user_message})
-
+    merged_args: dict[str, str] = dict(body.template_args or {})
     if body.handoff is not None:
         handoff = build_handoff(
             source_flow=body.handoff.source_flow,
@@ -128,6 +135,13 @@ async def admit_template_run(template_id: str, body: AdmitTemplateRunRequest) ->
         if not decision.ok:
             log_admit_decision(template_id, decision)
             raise HTTPException(status_code=422, detail={"reason_code": decision.reason_code, "message": decision.user_message})
+        for key, value in to_template_args(handoff).items():
+            merged_args.setdefault(key, value)
+
+    decision = safety_gate(record, merged_args)
+    if not decision.ok:
+        log_admit_decision(template_id, decision)
+        raise HTTPException(status_code=422, detail={"reason_code": decision.reason_code, "message": decision.user_message})
 
     prior_checked = body.prior_criteria is not None
     if prior_checked:

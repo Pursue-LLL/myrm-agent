@@ -14,6 +14,7 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/components/features/icons/PremiumIcons', () => ({
   IconAlertCircle: () => <span data-testid="icon-fail" />,
+  IconWrench: () => <span data-testid="icon-wrench" />,
 }));
 
 vi.mock('@/lib/utils/classnameUtils', () => ({

@@ -357,9 +357,13 @@ def describe_trunk_catalog() -> list[dict[str, object]]:
 
 
 def seed_trunk_templates(store: WorkflowTemplateStore) -> list[WorkflowTemplateRecord]:
-    """Idempotently upsert the five trunk templates (trust_latch off)."""
+    """Insert missing trunk templates (trust_latch off); never overwrite user edits."""
     records: list[WorkflowTemplateRecord] = []
     for template in TRUNK_TEMPLATES:
+        existing = store.get_template(template.template_id)
+        if existing is not None:
+            records.append(existing)
+            continue
         record = store.save_template(
             template_id=template.template_id,
             display_name=template.display_name,
@@ -367,5 +371,5 @@ def seed_trunk_templates(store: WorkflowTemplateStore) -> list[WorkflowTemplateR
             trust_latch=False,
         )
         records.append(record)
-    logger.info("[Trunk] Seeded %d templates (catalog v%d)", len(records), TRUNK_CATALOG_VERSION)
+    logger.info("[Trunk] Ensured %d templates (catalog v%d)", len(records), TRUNK_CATALOG_VERSION)
     return records

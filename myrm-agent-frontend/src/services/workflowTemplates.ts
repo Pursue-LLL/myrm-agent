@@ -133,6 +133,9 @@ export async function admitTemplateRun(
     if (err instanceof ApiError) {
       const detail = (err.data ?? {}) as { reason_code?: unknown; message?: unknown };
       if (typeof detail.reason_code === 'string') {
+        if (detail.reason_code === 'TEMPLATE_NOT_FOUND') {
+          invalidateTrunkCatalog();
+        }
         return {
           admitted: false,
           template_id: templateId,
@@ -160,6 +163,11 @@ export function fetchTrunkCatalog(): Promise<WorkflowTemplateSummary[]> {
       .catch(() => []);
   }
   return trunkCatalogPromise;
+}
+
+/** Drop the cached catalog (e.g. after a template was deleted). */
+export function invalidateTrunkCatalog(): void {
+  trunkCatalogPromise = null;
 }
 
 export async function fetchWorkflowTemplateDetail(templateId: string): Promise<WorkflowTemplateDetailResponse> {

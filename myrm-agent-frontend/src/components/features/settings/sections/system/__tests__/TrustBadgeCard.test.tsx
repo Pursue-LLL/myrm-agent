@@ -11,6 +11,7 @@ vi.mock('next-intl', () => ({
 vi.mock('@/components/features/icons/PremiumIcons', () => ({
   IconCheck: () => <span data-testid="icon-ok" />,
   IconAlertCircle: () => <span data-testid="icon-fail" />,
+  IconShield: () => <span data-testid="icon-shield" />,
 }));
 
 vi.mock('@/lib/utils/classnameUtils', () => ({

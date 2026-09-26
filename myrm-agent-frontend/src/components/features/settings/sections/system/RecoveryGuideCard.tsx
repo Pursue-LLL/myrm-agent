@@ -23,6 +23,8 @@ const RecoveryGuideCard = memo(() => {
     }
     const unlisteners: (() => void)[] = [];
     let cancelled = false;
+    // Cold-open probe and live failure listeners run concurrently: neither may
+    // block the other, so a slow status check can never delay failure display.
     void (async () => {
       try {
         const { invoke } = await import('@tauri-apps/api/core');
@@ -33,6 +35,8 @@ const RecoveryGuideCard = memo(() => {
       } catch {
         // Best effort: older builds may lack the status command.
       }
+    })();
+    void (async () => {
       try {
         const { listen } = await import('@tauri-apps/api/event');
         for (const event of FAILURE_EVENTS) {
@@ -55,6 +59,7 @@ const RecoveryGuideCard = memo(() => {
         unlisten();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRetry = useCallback(async () => {

@@ -266,13 +266,16 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
 
 
 async def _seed_trunk_templates() -> None:
-    """Upsert trunk templates in the background; boot never waits on it."""
+    """Insert missing trunk templates in the background; boot never waits on it."""
     try:
         from app.services.workflow_templates.service import get_template_store
         from app.services.workflow_templates.trunk_templates import seed_trunk_templates
 
-        records = await asyncio.to_thread(seed_trunk_templates, get_template_store())
-        logger.info("[Startup] Trunk workflow templates ready: %d", len(records))
+        def _seed() -> int:
+            return len(seed_trunk_templates(get_template_store()))
+
+        ready = await asyncio.to_thread(_seed)
+        logger.info("[Startup] Trunk workflow templates ready: %d", ready)
     except Exception as exc:  # noqa: BLE001
         logger.warning("[Startup] Trunk template seeding skipped: %s", exc)
 

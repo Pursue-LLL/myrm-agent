@@ -5434,7 +5434,8 @@
         },
         "officialSite": "官网",
         "officialDownload": "官网下载",
-        "officialReleases": "GitHub Releases"
+        "officialReleases": "GitHub Releases",
+        "title": "官方发行"
       },
       "recoveryGuide": {
         "description": "桌面后端启动失败时，按以下步骤恢复。这里的任何操作都不会动你的数据。",
@@ -5444,7 +5445,9 @@
         "retryFailed": "仍然失败。请从关于页复制诊断信息，必要时重装。",
         "openAbout": "打开关于与诊断",
         "reinstall": "从官网下载重装",
-        "dataSafeHint": "恢复流程永不删除对话、记忆与设置。"
+        "dataSafeHint": "恢复流程永不删除对话、记忆与设置。",
+        "title": "崩溃恢复",
+        "backendStopped": "本地后端未运行。"
       }
     },
     "push": {

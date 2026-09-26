@@ -17883,7 +17883,8 @@
         },
         "officialSite": "官網",
         "officialDownload": "官網下載",
-        "officialReleases": "GitHub Releases"
+        "officialReleases": "GitHub Releases",
+        "title": "官方發行"
       },
       "recoveryGuide": {
         "description": "桌面後端啟動失敗時，按以下步驟恢復。這裡的任何操作都不會動你的資料。",
@@ -17893,7 +17894,9 @@
         "retryFailed": "仍然失敗。請從關於頁複製診斷資訊，必要時重裝。",
         "openAbout": "打開關於與診斷",
         "reinstall": "從官網下載重裝",
-        "dataSafeHint": "恢復流程永不刪除對話、記憶與設定。"
+        "dataSafeHint": "恢復流程永不刪除對話、記憶與設定。",
+        "title": "崩潰恢復",
+        "backendStopped": "本地後端未運行。"
       }
     },
     "push": {

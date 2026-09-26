@@ -63,6 +63,64 @@ def test_trunk_seed_is_idempotent_and_valid(tmp_path, monkeypatch) -> None:
     assert all(is_trunk_template(record.template_id) for record in first)
 
 
+def test_seed_never_overwrites_user_edits(tmp_path, monkeypatch) -> None:
+    from app.services.workflow_templates.trunk_templates import seed_trunk_templates as seed
+
+    store = _seeded_store(tmp_path, monkeypatch)
+    seed(store)
+    custom = "import myrm_tools\nmyrm_tools.spawn_subagent(task_id='t', agent_type='generalPurpose', task_description='custom', readonly=True)\n"
+    store.save_template(
+        template_id="trunk-bugfix",
+        display_name="My Custom Bugfix",
+        script_code=custom,
+        trust_latch=False,
+    )
+    seed(store)
+    record = store.get_template("trunk-bugfix")
+    assert record is not None
+    assert record.display_name == "My Custom Bugfix"
+    assert record.script_code == custom
+
+
+def test_trunk_catalog_endpoint_lists_five(client: TestClient, tmp_path, monkeypatch) -> None:
+    from app.services.workflow_templates.trunk_templates import seed_trunk_templates as seed
+
+    _seeded_store(tmp_path, monkeypatch)
+    resp = client.get("/api/v1/workflow-templates/trunk-catalog")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["version"] == 1
+    assert len(body["templates"]) == 5
+    assert body["templates"][0]["templateId"] == "trunk-product-triage"
+
+    store = workflow_templates_service.get_template_store()
+    seed(store)
+    again = client.get("/api/v1/workflow-templates/trunk-catalog")
+    assert again.status_code == 200
+    assert len(again.json()["templates"]) == 5
+
+
+def test_admit_merges_handoff_args(client: TestClient, tmp_path, monkeypatch) -> None:
+    from app.services.workflow_templates.trunk_templates import seed_trunk_templates as seed
+
+    _seeded_store(tmp_path, monkeypatch)
+    seed(workflow_templates_service.get_template_store())
+    resp = client.post(
+        "/api/v1/workflow-templates/trunk-product-triage/admit",
+        json={
+            "template_args": {"topic": "Q3", "source_hint": "support inbox"},
+            "handoff": {
+                "source_flow": "inbox",
+                "target_flow": "trunk-product-triage",
+                "intent": "Triage Q3 feedback.",
+                "materials": [{"title": "Note", "excerpt": "Users complain about login."}],
+            },
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["admitted"] is True
+
+
 def test_handoff_build_validate_and_args() -> None:
     handoff = build_handoff(
         source_flow="trunk-product-triage",

@@ -17883,7 +17883,8 @@
         },
         "officialSite": "Offizielle Seite",
         "officialDownload": "Offizieller Download",
-        "officialReleases": "GitHub Releases"
+        "officialReleases": "GitHub Releases",
+        "title": "Offizielles Release"
       },
       "recoveryGuide": {
         "description": "Wenn das Desktop-Backend nicht startet, gehen Sie so vor. Ihre Daten werden dabei nicht angerührt.",
@@ -17893,7 +17894,9 @@
         "retryFailed": "Weiterhin fehlerhaft. Kopieren Sie die Diagnose aus About und installieren Sie bei Bedarf neu.",
         "openAbout": "About & Diagnose öffnen",
         "reinstall": "Über offiziellen Download neu installieren",
-        "dataSafeHint": "Die Wiederherstellung löscht niemals Chats, Gedächtnis oder Einstellungen."
+        "dataSafeHint": "Die Wiederherstellung löscht niemals Chats, Gedächtnis oder Einstellungen.",
+        "title": "Absturz-Wiederherstellung",
+        "backendStopped": "Das lokale Backend läuft nicht."
       }
     },
     "push": {
