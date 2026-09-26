@@ -91,7 +91,7 @@ def test_trunk_catalog_endpoint_lists_five(client: TestClient, tmp_path, monkeyp
     body = resp.json()
     assert body["version"] == 1
     assert len(body["templates"]) == 5
-    assert body["templates"][0]["template_id"] == "trunk-product-triage"
+    assert body["templates"][0]["templateId"] == "trunk-product-triage"
 
     store = workflow_templates_service.get_template_store()
     seed(store)

@@ -39,13 +39,23 @@ async def list_workflow_templates() -> WorkflowTemplateListResponse:
 
 @router.get("/trunk-catalog")
 async def get_trunk_catalog() -> dict[str, object]:
-    """Serve prebuilt trunk catalog metadata (no script bodies)."""
+    """Serve prebuilt trunk catalog metadata (no script bodies, camelCase)."""
     from app.services.workflow_templates.trunk_templates import (
         TRUNK_CATALOG_VERSION,
         describe_trunk_catalog,
     )
 
-    return {"version": TRUNK_CATALOG_VERSION, "templates": describe_trunk_catalog()}
+    templates = [
+        {
+            "templateId": item["template_id"],
+            "displayName": item["display_name"],
+            "description": item["description"],
+            "placeholders": item["placeholders"],
+            "catalogVersion": item["catalog_version"],
+        }
+        for item in describe_trunk_catalog()
+    ]
+    return {"version": TRUNK_CATALOG_VERSION, "templates": templates}
 
 
 @router.get("/{template_id}", response_model=WorkflowTemplateDetailResponse)
