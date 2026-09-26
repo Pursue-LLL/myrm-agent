@@ -31,6 +31,8 @@
 | `ServerConnectionCard.tsx`     | Tauri Desktop 远程服务器网关：本地/远程模式切换、多档案 roster、URL 输入、连接测试、断开恢复本地 token |
 | `RemoteFirstRunChooser.tsx`    | 首启三选一（本机/远端/云托管，一次性指引，可关闭）          |
 | `ServerConnectionCloudSection.tsx` | 云托管区：CP 登录方式查询、浏览器 OAuth（桌面回跳）、沙箱发现建档 |
+| `TrustBadgeCard.tsx`           | 官方发行信任徽章（Tauri限定）：签名态三态诚实呈现 + 官网/下载/Releases 深链 |
+| `RecoveryGuideCard.tsx`        | 崩溃恢复向导（Tauri限定）：失败事件显现 + About常驻；仅非破坏三动作（重试/诊断/重装深链） |
 | `WebuiAccessSecurityPanel.tsx` | WebUI 访问安全配置                                                                      |
 
 ### 通知

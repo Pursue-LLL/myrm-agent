@@ -59,6 +59,7 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "check_backend_health"
             | "get_backend_status"
             | "get_remote_follow"
+            | "get_updater_safety"
             | "get_desktop_process_registry"
             | "power_lock_status"
             | "screen_is_locked"

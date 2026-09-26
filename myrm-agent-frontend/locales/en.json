@@ -5416,7 +5416,36 @@
       },
       "pushDisabled": "Notifications disabled",
       "pushEnabled": "Notifications enabled",
-      "pushTestSent": "Test notification sent"
+      "pushTestSent": "Test notification sent",
+      "trustBadge": {
+        "state": {
+          "safe": "Signed official release",
+          "placeholder_dev": "Development build",
+          "placeholder_prod": "Signature check unavailable",
+          "invalid": "Signature check unavailable",
+          "unknown": "Signature status unknown"
+        },
+        "hint": {
+          "safe": "This package passed signature verification. Only download MyrmAgent from the official site or GitHub Releases.",
+          "placeholder_dev": "Development build without release signature. Normal for local development, never ship this to users.",
+          "placeholder_prod": "Release signature missing. Updates are disabled for safety. Reinstall from the official download page.",
+          "invalid": "Signature status could not be determined. Reinstall from the official download page.",
+          "unknown": "Signature status could not be determined right now."
+        },
+        "officialSite": "Official site",
+        "officialDownload": "Official download",
+        "officialReleases": "GitHub Releases"
+      },
+      "recoveryGuide": {
+        "description": "If the desktop backend fails to start, work through these steps. Nothing here touches your data.",
+        "retryBackend": "Retry backend start",
+        "retrying": "Retrying…",
+        "retrySuccess": "Backend started.",
+        "retryFailed": "Still failing. Copy the diagnostics from About and reinstall if needed.",
+        "openAbout": "Open About & diagnostics",
+        "reinstall": "Reinstall from official download",
+        "dataSafeHint": "Recovery never deletes chats, memory, or settings."
+      }
     },
     "push": {
       "title": "Notifications",

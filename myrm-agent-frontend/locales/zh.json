@@ -5416,7 +5416,36 @@
       },
       "pushDisabled": "通知已禁用",
       "pushEnabled": "通知已启用",
-      "pushTestSent": "测试通知已发送"
+      "pushTestSent": "测试通知已发送",
+      "trustBadge": {
+        "state": {
+          "safe": "官方签名发行版",
+          "placeholder_dev": "开发构建",
+          "placeholder_prod": "签名校验不可用",
+          "invalid": "签名校验不可用",
+          "unknown": "签名状态未知"
+        },
+        "hint": {
+          "safe": "此安装包已通过签名校验。请只从官网或 GitHub Releases 下载 MyrmAgent。",
+          "placeholder_dev": "无发行签名的开发构建，本地开发属正常，切勿分发给用户。",
+          "placeholder_prod": "缺失发行签名，出于安全已停用更新。请从官网下载页重装。",
+          "invalid": "无法确定签名状态。请从官网下载页重装。",
+          "unknown": "暂时无法确定签名状态。"
+        },
+        "officialSite": "官网",
+        "officialDownload": "官网下载",
+        "officialReleases": "GitHub Releases"
+      },
+      "recoveryGuide": {
+        "description": "桌面后端启动失败时，按以下步骤恢复。这里的任何操作都不会动你的数据。",
+        "retryBackend": "重试启动后端",
+        "retrying": "重试中…",
+        "retrySuccess": "后端已启动。",
+        "retryFailed": "仍然失败。请从关于页复制诊断信息，必要时重装。",
+        "openAbout": "打开关于与诊断",
+        "reinstall": "从官网下载重装",
+        "dataSafeHint": "恢复流程永不删除对话、记忆与设置。"
+      }
     },
     "push": {
       "title": "通知",

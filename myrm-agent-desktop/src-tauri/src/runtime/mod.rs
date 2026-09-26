@@ -19,6 +19,7 @@ mod theme_package_open;
 pub mod nextjs_frontend;
 pub mod port;
 pub mod remote_follow;
+pub mod update_safety;
 pub mod process_registry;
 pub mod python_backend;
 pub mod setup_token;

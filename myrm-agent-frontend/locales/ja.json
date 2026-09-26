@@ -17865,7 +17865,36 @@
       },
       "pushDisabled": "通知が無効になりました",
       "pushEnabled": "通知が有効になりました",
-      "pushTestSent": "テスト通知を送信しました"
+      "pushTestSent": "テスト通知を送信しました",
+      "trustBadge": {
+        "state": {
+          "safe": "署名付き公式リリース",
+          "placeholder_dev": "開発ビルド",
+          "placeholder_prod": "署名確認を利用不可",
+          "invalid": "署名確認を利用不可",
+          "unknown": "署名ステータス不明"
+        },
+        "hint": {
+          "safe": "このパッケージは署名検証済みです。MyrmAgentは公式サイトまたはGitHub Releasesからのみ入手してください。",
+          "placeholder_dev": "リリース署名のない開発ビルドです。ローカル開発では正常ですが配布しないでください。",
+          "placeholder_prod": "リリース署名がありません。安全のため更新を無効化しました。公式ダウンロードページから再インストールしてください。",
+          "invalid": "署名ステータスを判定できません。公式ダウンロードページから再インストールしてください。",
+          "unknown": "署名ステータスを現在判定できません。"
+        },
+        "officialSite": "公式サイト",
+        "officialDownload": "公式ダウンロード",
+        "officialReleases": "GitHub Releases"
+      },
+      "recoveryGuide": {
+        "description": "デスクトップバックエンドの起動に失敗したら、この手順で復旧します。データには触れません。",
+        "retryBackend": "バックエンド再起動を再試行",
+        "retrying": "再試行中…",
+        "retrySuccess": "バックエンドが起動しました。",
+        "retryFailed": "まだ失敗します。Aboutから診断情報をコピーし、必要なら再インストールしてください。",
+        "openAbout": "Aboutと診断を開く",
+        "reinstall": "公式ダウンロードから再インストール",
+        "dataSafeHint": "復旧手順でチャット・記憶・設定を削除することはありません。"
+      }
     },
     "push": {
       "title": "通知",

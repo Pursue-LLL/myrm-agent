@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-get-updater-safety"
+description = "Enables the get_updater_safety command without any pre-configured scope."
+commands.allow = ["get_updater_safety"]
+
+[[permission]]
+identifier = "deny-get-updater-safety"
+description = "Denies the get_updater_safety command without any pre-configured scope."
+commands.deny = ["get_updater_safety"]

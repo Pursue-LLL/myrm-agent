@@ -17865,7 +17865,36 @@
       },
       "pushDisabled": "Benachrichtigungen deaktiviert",
       "pushEnabled": "Benachrichtigungen aktiviert",
-      "pushTestSent": "Testbenachrichtigung gesendet"
+      "pushTestSent": "Testbenachrichtigung gesendet",
+      "trustBadge": {
+        "state": {
+          "safe": "Signiertes offizielles Release",
+          "placeholder_dev": "Entwicklungsbuild",
+          "placeholder_prod": "Signaturprüfung nicht verfügbar",
+          "invalid": "Signaturprüfung nicht verfügbar",
+          "unknown": "Signaturstatus unbekannt"
+        },
+        "hint": {
+          "safe": "Dieses Paket hat die Signaturprüfung bestanden. Laden Sie MyrmAgent nur von der offiziellen Seite oder GitHub Releases.",
+          "placeholder_dev": "Entwicklungsbuild ohne Release-Signatur. Für lokale Entwicklung normal, nicht verteilen.",
+          "placeholder_prod": "Release-Signatur fehlt. Updates wurden sicherheitshalber deaktiviert. Bitte von der offiziellen Downloadseite neu installieren.",
+          "invalid": "Signaturstatus unklar. Bitte von der offiziellen Downloadseite neu installieren.",
+          "unknown": "Signaturstatus derzeit unklar."
+        },
+        "officialSite": "Offizielle Seite",
+        "officialDownload": "Offizieller Download",
+        "officialReleases": "GitHub Releases"
+      },
+      "recoveryGuide": {
+        "description": "Wenn das Desktop-Backend nicht startet, gehen Sie so vor. Ihre Daten werden dabei nicht angerührt.",
+        "retryBackend": "Backend-Start erneut versuchen",
+        "retrying": "Wird erneut versucht…",
+        "retrySuccess": "Backend gestartet.",
+        "retryFailed": "Weiterhin fehlerhaft. Kopieren Sie die Diagnose aus About und installieren Sie bei Bedarf neu.",
+        "openAbout": "About & Diagnose öffnen",
+        "reinstall": "Über offiziellen Download neu installieren",
+        "dataSafeHint": "Die Wiederherstellung löscht niemals Chats, Gedächtnis oder Einstellungen."
+      }
     },
     "push": {
       "title": "Benachrichtigungen",

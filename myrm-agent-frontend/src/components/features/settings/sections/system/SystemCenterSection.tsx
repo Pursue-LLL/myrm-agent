@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, type ComponentProps } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitives/tabs';
@@ -8,6 +8,8 @@ import { Settings, Info } from 'lucide-react';
 import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/settings/useSettingsSubTabUrl';
 import SystemSection from './SystemSection';
 import AboutSection from './AboutSection';
+import TrustBadgeCard from './TrustBadgeCard';
+import RecoveryGuideCard from './RecoveryGuideCard';
 
 const SystemCenterSection = memo(() => {
   const t = useTranslations('settings');
@@ -62,7 +64,11 @@ const SystemCenterSection = memo(() => {
           <SystemSection />
         </TabsContent>
         <TabsContent value="about" className="focus-visible:outline-none focus-visible:ring-0">
-          <AboutSection />
+          <div className="space-y-6">
+            <TrustBadgeCard />
+            <RecoveryGuideCard />
+            <AboutSection />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
@@ -70,7 +76,7 @@ const SystemCenterSection = memo(() => {
 });
 
 // Helper wrapper for the Info icon since Lucide's Info is sometimes styled as IconInfo in pre-existing packages, but let's use Lucide Info icon
-const IconInfo = (props: any) => <Info {...props} />;
+const IconInfo = (props: ComponentProps<typeof Info>) => <Info {...props} />;
 
 SystemCenterSection.displayName = 'SystemCenterSection';
 
