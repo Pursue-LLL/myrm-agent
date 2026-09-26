@@ -113,7 +113,7 @@ class TestCredentialPoolApi:
     def test_validate_external_secret_valid(self, client: TestClient) -> None:
         """Validate resolution of an external secret reference."""
         with patch(
-            "myrm_agent_harness.backends.secrets.resolve_external_secret",
+            "myrm_agent_harness.api.resolve_external_secret",
             return_value="sk-real-secret-123456",
         ):
             response = client.post(
@@ -126,6 +126,24 @@ class TestCredentialPoolApi:
             assert data["data"]["valid"] is True
             assert data["data"]["masked_preview"] == "sk-...456"
 
+    def test_validate_external_secret_resolution_failure(self, client: TestClient) -> None:
+        """Handle resolution error gracefully."""
+        from myrm_agent_harness.api import ExternalSecretResolutionError
+
+        with patch(
+            "myrm_agent_harness.api.resolve_external_secret",
+            side_effect=ExternalSecretResolutionError("1Password CLI not logged in"),
+        ):
+            response = client.post(
+                "/api/v1/integrations/llm/credential-pool/validate-secret-reference",
+                json={"reference": "op://Vault/OpenAI/credential"},
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert data["data"]["valid"] is False
+            assert "1Password CLI not logged in" in data["data"]["error"]
+
     def test_validate_external_secret_invalid_scheme(self, client: TestClient) -> None:
         """Reject non-URI strings."""
         response = client.post(
@@ -137,3 +155,4 @@ class TestCredentialPoolApi:
         assert data["success"] is True
         assert data["data"]["valid"] is False
         assert "Not a recognized" in data["data"]["error"]
+
