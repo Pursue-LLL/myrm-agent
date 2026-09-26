@@ -2,7 +2,7 @@
 
 import logging
 
-from myrm_agent_harness.core.security.external_secrets import (
+from myrm_agent_harness.api import (
     is_external_secret_reference,
     resolve_external_secret,
 )
