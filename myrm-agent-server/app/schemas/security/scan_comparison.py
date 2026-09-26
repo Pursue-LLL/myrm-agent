@@ -16,19 +16,16 @@ import hashlib
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
-from pydantic.alias_generators import to_camel
+from pydantic import Field
+
+from app.schemas.security.base import CamelModel
 
 FindingSeverity = Literal["critical", "high", "medium", "low", "info"]
 FindingStatus = Literal["new", "persisting", "resolved", "regressed"]
 ScanMode = Literal["diff", "full", "deep"]
 
 
-class _CamelModel(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
-
-
-class FindingItem(_CamelModel):
+class FindingItem(CamelModel):
     """Represents an agentic security finding with optional PoC verification."""
 
     fingerprint: str = Field(description="Deterministic hash identifying the vulnerability signature across runs.")
@@ -52,7 +49,7 @@ class FindingItem(_CamelModel):
         return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()[:16]
 
 
-class ScanRunSummary(_CamelModel):
+class ScanRunSummary(CamelModel):
     """Snapshot metadata and findings for a single security scan execution."""
 
     run_id: str = Field(description="Unique scan run identifier.")
@@ -95,7 +92,7 @@ class ScanRunSummary(_CamelModel):
         )
 
 
-class ScanComparisonResult(_CamelModel):
+class ScanComparisonResult(CamelModel):
     """Diff analysis between two scan runs tracking new, persisting, resolved, and regressed findings."""
 
     base_run_id: str | None = Field(default=None, description="Previous baseline run ID.")

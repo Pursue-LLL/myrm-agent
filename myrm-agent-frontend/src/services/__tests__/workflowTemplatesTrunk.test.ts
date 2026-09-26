@@ -99,9 +99,9 @@ describe('admitTemplateRun', () => {
     });
     await expect(mod.fetchTrunkCatalog()).resolves.toHaveLength(1);
     expect(apiRequestMock).toHaveBeenCalledTimes(1);
-    apiRequestMock.mockRejectedValue(
-      new ApiError('gone', { reason_code: 'TEMPLATE_NOT_FOUND', message: 'Gone.' }),
-    );
+    const denial = new ApiError('gone', 422);
+    denial.data = { reason_code: 'TEMPLATE_NOT_FOUND', message: 'Gone.' };
+    apiRequestMock.mockRejectedValue(denial);
     await mod.admitTemplateRun('trunk-bugfix', {});
     apiRequestMock.mockResolvedValue({
       templates: [{ templateId: 'trunk-bugfix', displayName: 'Trunk · Bugfix', isTrunk: true }],

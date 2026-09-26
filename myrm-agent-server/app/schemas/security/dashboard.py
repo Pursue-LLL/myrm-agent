@@ -15,15 +15,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
-from pydantic.alias_generators import to_camel
+from pydantic import Field
+
+from app.schemas.security.base import CamelModel
 
 
-class _CamelModel(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
-
-
-class SecurityAlert(_CamelModel):
+class SecurityAlert(CamelModel):
     id: int
     severity: str
     rule_id: str
@@ -33,7 +30,7 @@ class SecurityAlert(_CamelModel):
     html_url: str
 
 
-class DependabotPR(_CamelModel):
+class DependabotPR(CamelModel):
     number: int
     title: str
     state: str
@@ -42,7 +39,7 @@ class DependabotPR(_CamelModel):
     created_at: datetime
 
 
-class SecurityMetrics(_CamelModel):
+class SecurityMetrics(CamelModel):
     total_alerts: int
     critical_count: int
     high_count: int
@@ -52,7 +49,7 @@ class SecurityMetrics(_CamelModel):
     security_prs: int
 
 
-class SecurityDashboard(_CamelModel):
+class SecurityDashboard(CamelModel):
     metrics: SecurityMetrics
     recent_alerts: list[SecurityAlert]
     recent_prs: list[DependabotPR]
@@ -60,7 +57,7 @@ class SecurityDashboard(_CamelModel):
     data_source: Literal["github", "control_plane", "merged"] = "github"
 
 
-class SecuritySetupHints(_CamelModel):
+class SecuritySetupHints(CamelModel):
     deploy_mode: str
     is_sandbox: bool
     cp_ingress_configured: bool
@@ -73,7 +70,7 @@ class SecuritySetupHints(_CamelModel):
     )
 
 
-class RateLimitStatusItem(_CamelModel):
+class RateLimitStatusItem(CamelModel):
     user_id: str
     resource: str
     current: int
@@ -82,12 +79,12 @@ class RateLimitStatusItem(_CamelModel):
     window_seconds: int
 
 
-class SecurityRateLimitsResponse(_CamelModel):
+class SecurityRateLimitsResponse(CamelModel):
     items: list[RateLimitStatusItem]
     is_live: bool = False
 
 
-class PlatformAuditEvent(_CamelModel):
+class PlatformAuditEvent(CamelModel):
     event_type: str
     timestamp: str
     severity: str
@@ -104,35 +101,35 @@ class PlatformAuditEvent(_CamelModel):
     source: Literal["control_plane", "auth"] = "control_plane"
 
 
-class PlatformAuditLogsResponse(_CamelModel):
+class PlatformAuditLogsResponse(CamelModel):
     events: list[PlatformAuditEvent]
     total: int
     is_live: bool = False
 
 
-class PlatformAuditTimeSeriesPoint(_CamelModel):
+class PlatformAuditTimeSeriesPoint(CamelModel):
     timestamp: str
     total: int
     success: int
     failed: int
 
 
-class PlatformAuditTopIp(_CamelModel):
+class PlatformAuditTopIp(CamelModel):
     ip_address: str
     request_count: int
 
 
-class PlatformAuditEventCount(_CamelModel):
+class PlatformAuditEventCount(CamelModel):
     event_type: str
     count: int
 
 
-class PlatformAuditSuccessFailed(_CamelModel):
+class PlatformAuditSuccessFailed(CamelModel):
     success: int
     failed: int
 
 
-class PlatformAuditStatsResponse(_CamelModel):
+class PlatformAuditStatsResponse(CamelModel):
     time_series: list[PlatformAuditTimeSeriesPoint]
     top_ips: list[PlatformAuditTopIp]
     event_distribution: list[PlatformAuditEventCount]
@@ -142,7 +139,7 @@ class PlatformAuditStatsResponse(_CamelModel):
     is_live: bool = False
 
 
-class DualTrackAuditEntryItem(_CamelModel):
+class DualTrackAuditEntryItem(CamelModel):
     entry_id: str
     session_id: str
     agent_id: str
@@ -160,7 +157,7 @@ class DualTrackAuditEntryItem(_CamelModel):
     error_message: str | None = None
 
 
-class RuleTriggerHitItem(_CamelModel):
+class RuleTriggerHitItem(CamelModel):
     rule_name: str
     trigger_count: int
     refused_count: int
@@ -170,7 +167,7 @@ class RuleTriggerHitItem(_CamelModel):
     sample_targets: list[str]
 
 
-class DualTrackAuditStatsResponse(_CamelModel):
+class DualTrackAuditStatsResponse(CamelModel):
     total_entries: int
     permitted_count: int
     refused_count: int
