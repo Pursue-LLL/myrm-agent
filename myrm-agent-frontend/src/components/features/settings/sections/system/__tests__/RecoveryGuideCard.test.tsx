@@ -101,6 +101,73 @@ describe('RecoveryGuideCard', () => {
     expect(vi.mocked(tauriBackend.start)).not.toHaveBeenCalled();
   });
 
+  it('shows the stopped hint from the cold-open probe', async () => {
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_backend_status') {
+        return 'stopped';
+      }
+      if (cmd === 'get_remote_follow') {
+        return false;
+      }
+      return undefined;
+    });
+    render(<RecoveryGuideCard />);
+    await waitFor(() => {
+      expect(screen.getByText('backendStopped')).toBeTruthy();
+    });
+  });
+
+  it('falls back to the event name on empty failure payloads', async () => {
+    const { listen } = await import('@tauri-apps/api/event');
+    let handler: ((e: { payload: unknown }) => void) | null = null;
+    vi.mocked(listen).mockImplementation(async (event: string, cb: Parameters<typeof listen>[1]) => {
+      if (event === 'frontend-start-failed') {
+        handler = cb as unknown as (e: { payload: unknown }) => void;
+      }
+      return () => undefined;
+    });
+    render(<RecoveryGuideCard />);
+    await waitFor(() => {
+      expect(handler).not.toBeNull();
+    });
+    act(() => {
+      handler?.({ payload: '' });
+    });
+    await waitFor(() => {
+      expect(screen.getByText('frontend-start-failed')).toBeTruthy();
+    });
+  });
+
+  it('reports retry failure without clearing state', async () => {
+    const { tauriBackend } = await import('@/lib/tauri');
+    const { toast } = await import('@/lib/utils/toast');
+    vi.mocked(tauriBackend.start).mockRejectedValueOnce(new Error('start down'));
+    render(<RecoveryGuideCard />);
+    fireEvent.click(screen.getByText('retryBackend'));
+    await waitFor(() => {
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith('retryFailed');
+    });
+    expect(vi.mocked(tauriBackend.start)).toHaveBeenCalledTimes(1);
+  });
+
+  it('proceeds with retry when the follow check itself fails', async () => {
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_remote_follow') {
+        throw new Error('follow check down');
+      }
+      if (cmd === 'get_backend_status') {
+        return 'running';
+      }
+      return undefined;
+    });
+    const { tauriBackend } = await import('@/lib/tauri');
+    render(<RecoveryGuideCard />);
+    fireEvent.click(screen.getByText('retryBackend'));
+    await waitFor(() => {
+      expect(vi.mocked(tauriBackend.start)).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('surfaces failure events when they arrive', async () => {
     const { listen } = await import('@tauri-apps/api/event');
     let handler: ((e: { payload: unknown }) => void) | null = null;

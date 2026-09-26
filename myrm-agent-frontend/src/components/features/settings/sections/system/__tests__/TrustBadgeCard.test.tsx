@@ -58,4 +58,30 @@ describe('TrustBadgeCard', () => {
     const { container } = render(<TrustBadgeCard />);
     expect(container.firstChild).toBeNull();
   });
+
+  it('flags unofficial builds with the destructive tone', async () => {
+    mockSafety.value = 'placeholder_prod';
+    render(<TrustBadgeCard />);
+    await waitFor(() => {
+      expect(screen.getByText('state.placeholder_prod')).toBeTruthy();
+    });
+    expect(screen.getByTestId('icon-fail')).toBeTruthy();
+  });
+
+  it('treats invoke rejection as unknown instead of crashing', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockRejectedValueOnce(new Error('ipc down'));
+    render(<TrustBadgeCard />);
+    await waitFor(() => {
+      expect(screen.getByText('state.unknown')).toBeTruthy();
+    });
+  });
+
+  it('treats unexpected safety strings as unknown', async () => {
+    mockSafety.value = 'tampered-value';
+    render(<TrustBadgeCard />);
+    await waitFor(() => {
+      expect(screen.getByText('state.unknown')).toBeTruthy();
+    });
+  });
 });
