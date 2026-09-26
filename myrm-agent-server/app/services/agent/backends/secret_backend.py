@@ -2,6 +2,10 @@
 
 import logging
 
+from myrm_agent_harness.core.security.external_secrets import (
+    is_external_secret_reference,
+    resolve_external_secret,
+)
 from myrm_agent_harness.utils.crypto.config_crypto import ConfigCrypto
 from sqlalchemy import select
 
@@ -43,7 +47,19 @@ class DatabaseSecretBackend:
                 return None
 
             try:
-                return str(ConfigCrypto.decrypt_value(secret.secret_value, self._key)["value"])
+                raw_val = str(ConfigCrypto.decrypt_value(secret.secret_value, self._key)["value"])
+                if is_external_secret_reference(raw_val):
+                    try:
+                        return resolve_external_secret(raw_val)
+                    except Exception as res_err:
+                        logger.warning(
+                            "Failed to dynamically resolve external secret '%s' for agent %s: %s",
+                            key,
+                            agent_id,
+                            res_err,
+                        )
+                        return raw_val
+                return raw_val
             except Exception as e:
                 logger.error(f"Failed to decrypt secret '{key}' for agent {agent_id}: {e}")
                 return None
@@ -65,12 +81,21 @@ class DatabaseSecretBackend:
             result = await db.execute(select(AgentSecret).where(AgentSecret.agent_id == agent_id))
             secrets = result.scalars().all()
 
-            decrypted_secrets = {}
+            decrypted_secrets: dict[str, str] = {}
             for secret in secrets:
                 try:
-                    decrypted_secrets[secret.secret_key] = str(
-                        ConfigCrypto.decrypt_value(secret.secret_value, self._key)["value"]
-                    )
+                    val = str(ConfigCrypto.decrypt_value(secret.secret_value, self._key)["value"])
+                    if is_external_secret_reference(val):
+                        try:
+                            val = resolve_external_secret(val)
+                        except Exception as res_err:
+                            logger.warning(
+                                "Failed to dynamically resolve external secret '%s' for agent %s: %s",
+                                secret.secret_key,
+                                agent_id,
+                                res_err,
+                            )
+                    decrypted_secrets[secret.secret_key] = val
                 except Exception as e:
                     logger.error(f"Failed to decrypt secret '{secret.secret_key}' for agent {agent_id}: {e}")
 
