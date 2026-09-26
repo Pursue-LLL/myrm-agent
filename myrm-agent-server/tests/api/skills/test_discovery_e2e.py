@@ -109,15 +109,15 @@ class TestSkillDiscoveryE2E:
 
         # 1. Test search returns package_type and keywords
         monkeypatch.setattr(
-            "app.api.skills.discovery.market_service.search",
+            "app.api.skills.discovery.discovery.market_service.search",
             AsyncMock(return_value=[plugin_search_res]),
         )
         monkeypatch.setattr(
-            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.discovery.market_service.ensure_clawhub_registry",
             AsyncMock(),
         )
         monkeypatch.setattr(
-            "app.api.skills.discovery.market_service.get_installed_local_ids_by_name",
+            "app.api.skills.discovery.discovery.market_service.get_installed_local_ids_by_name",
             AsyncMock(return_value={}),
         )
 
@@ -149,7 +149,7 @@ class TestSkillDiscoveryE2E:
             declared_mcp_servers=["sqlite-srv"],
         )
         monkeypatch.setattr(
-            "app.api.skills.discovery.market_service.install",
+            "app.api.skills.discovery.discovery.market_service.install",
             AsyncMock(return_value=install_res),
         )
 
@@ -184,11 +184,11 @@ class TestSkillDiscoveryE2E:
             error_code="DOWNGRADE_BLOCKED",
         )
         monkeypatch.setattr(
-            "app.api.skills.discovery.market_service.install",
+            "app.api.skills.discovery.discovery.market_service.install",
             AsyncMock(return_value=downgrade_res),
         )
         monkeypatch.setattr(
-            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.discovery.market_service.ensure_clawhub_registry",
             AsyncMock(),
         )
 
@@ -221,7 +221,7 @@ class TestSkillDiscoveryE2E:
             installed_skills=["code-review", "git-lint"],
         )
         monkeypatch.setattr(
-            "app.api.skills.discovery.market_service.uninstall",
+            "app.api.skills.discovery.discovery.market_service.uninstall",
             AsyncMock(return_value=uninstall_res),
         )
         monkeypatch.setattr(

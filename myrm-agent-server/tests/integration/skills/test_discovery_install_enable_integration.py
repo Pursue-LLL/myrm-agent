@@ -83,10 +83,10 @@ async def test_install_api_enables_catalog_and_runtime_includes_skill(
             new=AsyncMock(),
         ) as update_agent,
         patch(
-            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.discovery.market_service.ensure_clawhub_registry",
             new=AsyncMock(),
         ),
-        patch("app.api.skills.discovery._audit_skill_action"),
+        patch("app.api.skills.discovery.discovery._audit_skill_action"),
     ):
         response = discovery_client.post(
             "/api/v1/skills/discovery/install",
@@ -132,7 +132,7 @@ async def test_install_api_skips_enable_when_mount_disabled(
             new=AsyncMock(return_value=_local_install_result(skill_dir)),
         ),
         patch(
-            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.discovery.market_service.ensure_clawhub_registry",
             new=AsyncMock(),
         ),
         patch(
@@ -143,7 +143,7 @@ async def test_install_api_skips_enable_when_mount_disabled(
             "app.services.agent.agent_service.AgentService.update_agent",
             new=AsyncMock(),
         ) as update_agent,
-        patch("app.api.skills.discovery._audit_skill_action"),
+        patch("app.api.skills.discovery.discovery._audit_skill_action"),
     ):
         response = discovery_client.post(
             "/api/v1/skills/discovery/install",
@@ -189,10 +189,10 @@ async def test_install_from_url_enables_catalog(
             new=AsyncMock(return_value=_local_install_result(skill_dir)),
         ),
         patch(
-            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.discovery.market_service.ensure_clawhub_registry",
             new=AsyncMock(),
         ),
-        patch("app.api.skills.discovery._audit_skill_action"),
+        patch("app.api.skills.discovery.discovery._audit_skill_action"),
     ):
         response = discovery_client.post(
             "/api/v1/skills/discovery/install-from-url",
@@ -227,10 +227,10 @@ async def test_update_api_enables_catalog_after_reinstall(
             new=AsyncMock(return_value=_local_install_result(skill_dir)),
         ),
         patch(
-            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.discovery.market_service.ensure_clawhub_registry",
             new=AsyncMock(),
         ),
-        patch("app.api.skills.discovery._audit_skill_action"),
+        patch("app.api.skills.discovery.discovery._audit_skill_action"),
     ):
         response = discovery_client.post(
             "/api/v1/skills/discovery/update",
@@ -271,10 +271,10 @@ async def test_prebuilt_install_enables_catalog(
             new=AsyncMock(return_value=install_result),
         ),
         patch(
-            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.discovery.market_service.ensure_clawhub_registry",
             new=AsyncMock(),
         ),
-        patch("app.api.skills.discovery._audit_skill_action"),
+        patch("app.api.skills.discovery.discovery._audit_skill_action"),
     ):
         response = discovery_client.post(
             "/api/v1/skills/discovery/install",
@@ -315,10 +315,10 @@ async def test_install_idempotent_reports_already_enabled(
             new=AsyncMock(return_value=_local_install_result(skill_dir)),
         ),
         patch(
-            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.discovery.market_service.ensure_clawhub_registry",
             new=AsyncMock(),
         ),
-        patch("app.api.skills.discovery._audit_skill_action"),
+        patch("app.api.skills.discovery.discovery._audit_skill_action"),
     ):
         first = discovery_client.post(
             "/api/v1/skills/discovery/install",
@@ -378,10 +378,10 @@ async def test_install_failure_passes_error_and_error_code(
             new=AsyncMock(return_value=failed_result),
         ),
         patch(
-            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.discovery.market_service.ensure_clawhub_registry",
             new=AsyncMock(),
         ),
-        patch("app.api.skills.discovery._audit_skill_action") as audit,
+        patch("app.api.skills.discovery.discovery._audit_skill_action") as audit,
         patch(
             "app.services.agent.agent_service.AgentService.get_agent_by_id",
             new=AsyncMock(),
@@ -438,10 +438,10 @@ async def test_install_from_url_failure_passes_error_and_error_code(
             new=AsyncMock(return_value=failed_result),
         ),
         patch(
-            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.discovery.market_service.ensure_clawhub_registry",
             new=AsyncMock(),
         ),
-        patch("app.api.skills.discovery._audit_skill_action") as audit,
+        patch("app.api.skills.discovery.discovery._audit_skill_action") as audit,
     ):
         response = discovery_client.post(
             "/api/v1/skills/discovery/install-from-url",
@@ -475,7 +475,7 @@ async def test_update_api_failure_passes_error_and_error_code(
             "app.core.skills.discovery.autoupdate.SkillAutoUpdateChecker.update_skill",
             new=AsyncMock(return_value=failed_result),
         ),
-        patch("app.api.skills.discovery._audit_skill_action") as audit,
+        patch("app.api.skills.discovery.discovery._audit_skill_action") as audit,
         patch(
             "app.services.agent.agent_service.AgentService.get_agent_by_id",
             new=AsyncMock(),
@@ -524,7 +524,7 @@ async def test_install_appends_explicit_allowlist_when_agent_has_subset(
             new=AsyncMock(return_value=install_result),
         ),
         patch(
-            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.discovery.market_service.ensure_clawhub_registry",
             new=AsyncMock(),
         ),
         patch(
@@ -535,7 +535,7 @@ async def test_install_appends_explicit_allowlist_when_agent_has_subset(
             "app.services.agent.agent_service.AgentService.update_agent",
             new=update_agent,
         ),
-        patch("app.api.skills.discovery._audit_skill_action"),
+        patch("app.api.skills.discovery.discovery._audit_skill_action"),
     ):
         response = discovery_client.post(
             "/api/v1/skills/discovery/install",
@@ -595,10 +595,10 @@ async def test_install_returns_receipt_when_provided(
             new=AsyncMock(return_value=install_result),
         ),
         patch(
-            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.discovery.market_service.ensure_clawhub_registry",
             new=AsyncMock(),
         ),
-        patch("app.api.skills.discovery._audit_skill_action"),
+        patch("app.api.skills.discovery.discovery._audit_skill_action"),
     ):
         response = discovery_client.post(
             "/api/v1/skills/discovery/install",
@@ -638,7 +638,7 @@ async def test_install_reports_allowlist_append_error_when_update_fails(
             new=AsyncMock(return_value=install_result),
         ),
         patch(
-            "app.api.skills.discovery.market_service.ensure_clawhub_registry",
+            "app.api.skills.discovery.discovery.market_service.ensure_clawhub_registry",
             new=AsyncMock(),
         ),
         patch(
@@ -649,7 +649,7 @@ async def test_install_reports_allowlist_append_error_when_update_fails(
             "app.services.agent.agent_service.AgentService.update_agent",
             new=AsyncMock(return_value=None),
         ),
-        patch("app.api.skills.discovery._audit_skill_action"),
+        patch("app.api.skills.discovery.discovery._audit_skill_action"),
     ):
         response = discovery_client.post(
             "/api/v1/skills/discovery/install",
@@ -693,7 +693,7 @@ async def test_uninstall_triggers_event_bus_broadcast(
             "app.services.event.app_event_bus.get_event_bus",
             return_value=mock_bus,
         ),
-        patch("app.api.skills.discovery._audit_skill_action"),
+        patch("app.api.skills.discovery.discovery._audit_skill_action"),
     ):
         response = discovery_client.post(
             "/api/v1/skills/discovery/uninstall",

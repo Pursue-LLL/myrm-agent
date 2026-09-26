@@ -59,7 +59,7 @@ def test_api_trigger_rescan() -> None:
         recommendation=SkillTrustRecommendation.TRUSTED,
     )
     with (
-        patch("app.api.skills.rescan.require_local_skills_capability"),
+        patch("app.api.skills.rescan.rescan.require_local_skills_capability"),
         patch("app.core.skills.discovery.rescan_service.rescan_service.rescan_skills") as mock_rescan,
         patch("app.core.skills.discovery.rescan_service.rescan_service.get_last_report") as mock_get_last,
     ):

@@ -1,7 +1,7 @@
 """Skill discovery API endpoints.
 
 [INPUT]
-app.api.skills.discovery_schemas (POS: Request/response Pydantic models)
+app.api.skills.discovery.discovery_schemas (POS: Request/response Pydantic models)
 app.api.skills.audit::_audit_skill_action (POS: Skill action audit logging)
 app.core.skills.marketplace.market_service::SkillMarketService (POS: Skill search/install orchestrator)
 app.core.skills.discovery.mount::maybe_mount_after_install (POS: Post-install user catalog enable)
@@ -27,7 +27,7 @@ from myrm_agent_harness.api.skills import SkillInstallResult
 
 from app.api.skills._deploy_capability import require_local_skills_capability
 from app.api.skills.audit import _audit_skill_action
-from app.api.skills.discovery_schemas import (
+from app.api.skills.discovery.discovery_schemas import (
     CustomSourceListResponse,
     CustomSourceProbeResponse,
     CustomSourceRequest,
@@ -78,7 +78,7 @@ def _install_response(
     allowlist_appended: bool = False,
     allowlist_append_error: str = "",
 ) -> SkillInstallResponse:
-    from app.api.skills.discovery_schemas import SkillReceiptResponse
+    from app.api.skills.discovery.discovery_schemas import SkillReceiptResponse
 
     response_skill_id = resolve_mount_skill_id(result) or result.skill_id
     mounted = False

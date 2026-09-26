@@ -102,8 +102,8 @@ async def test_full_supply_chain_rescan_compromise_and_quarantine_integration(
     event_queue = event_bus.subscribe()
 
     with (
-        patch("app.api.skills.rescan.require_local_skills_capability"),
-        patch("app.api.skills.rescan.rescan_service", custom_rescan_service),
+        patch("app.api.skills.rescan.rescan.require_local_skills_capability"),
+        patch("app.api.skills.rescan.rescan.rescan_service", custom_rescan_service),
         patch("app.core.skills.discovery.rescan_service.LOCAL_INSTALL_DIR", skills_root),
         patch("myrm_agent_harness.backends.skills.scanning.rescan_engine.query_osv_batch", AsyncMock(return_value=[])),
     ):
@@ -178,8 +178,8 @@ async def test_supply_chain_advisory_ack_and_reinstatement_integration(
     custom_rescan_service = SkillRescanService(engine=engine, acks_file=acks_file)
 
     with (
-        patch("app.api.skills.rescan.require_local_skills_capability"),
-        patch("app.api.skills.rescan.rescan_service", custom_rescan_service),
+        patch("app.api.skills.rescan.rescan.require_local_skills_capability"),
+        patch("app.api.skills.rescan.rescan.rescan_service", custom_rescan_service),
         patch("app.core.skills.discovery.rescan_service.LOCAL_INSTALL_DIR", skills_root),
         patch("myrm_agent_harness.backends.skills.scanning.rescan_engine.query_osv_batch", AsyncMock(return_value=[])),
     ):

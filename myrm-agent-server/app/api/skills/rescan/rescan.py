@@ -1,7 +1,7 @@
 """Skill supply chain rescan and advisory governance endpoints.
 
 [INPUT]
-- app.api.skills.rescan_schemas (POS: request/response schemas)
+- app.api.skills.rescan.rescan_schemas (POS: request/response schemas)
 - app.core.skills.discovery.rescan_service::rescan_service (POS: skill rescan engine)
 
 [OUTPUT]
@@ -19,7 +19,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 
 from app.api.skills._deploy_capability import require_local_skills_capability
-from app.api.skills.rescan_schemas import (
+from app.api.skills.rescan.rescan_schemas import (
     AdvisoryAckRequest,
     AdvisoryAckResponse,
     AdvisoryUnackRequest,

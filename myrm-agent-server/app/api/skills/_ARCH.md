@@ -19,8 +19,7 @@
 | `core.py` | 模块 | 核心技能获取与 reveal；list/get 时 apply integration OAuth availability | ✅ |
 | `curator.py` | 模块 | Curator API — skill lifecycle management endpoints. | ✅ |
 | `desktop_recorder/`（子包） | 模块 | 桌面工作流录制域：`router.py`（`/desktop-recorder/*` 会话生命周期、事件收集、意图规划、技能编译与发布）、`schemas.py`（请求/响应模型 + `RecordingSessionState`）；会话语义委托给 `services/skills/desktop_recording/`。清单见 [`desktop_recorder/_ARCH.md`](desktop_recorder/_ARCH.md) | ✅ |
-| `discovery.py` | 模块 | Skill discovery API — search/install/enable-after-install/uninstall/sources/registry-probe/pool-sync；search 支持 package_type 过滤与 MCP 声明透传；install/update/uninstall/install-from-url 受沙箱能力门控；uninstall 支持父子技能级联清理、孤儿智能体白名单清理与依赖者校验；/pool/sync 支持跨 Agent 白名单同步与广播 | ✅ |
-| `discovery_schemas.py` | 模块 | Discovery request/response Pydantic models（含 package_type, keywords, declared_mcp_servers, installed_skills, SkillPoolSyncRequest, SkillPoolSyncResponse；`SkillUninstallRequest.force` 支持强制卸载依赖者技能） | ✅ |
+| `discovery/`（子包） | 模块 | 技能发现域：`discovery.py`（search/install/preview/update/sources 路由）+ `discovery_schemas.py`（请求/响应模型）；`__init__.py` 为聚合门面。清单见 [`discovery/_ARCH.md`](discovery/_ARCH.md) | ✅ |
 | `drafts.py` | 模块 | Agent Draft Inbox API：按 status 查询 growth drafts；`POST /drafts/test/seed-mock?agent_id=` 本地 E2E seed；approve skill_draft/skill_patch 受沙箱能力门控（延迟导入避免 router 循环依赖） | ✅ |
 | `experience_ledger.py` | 模块 | 经验账本接口层。对外暴露原始 ledger 事件查询，以及 skill-growth projection 事件/摘要查询。 | ✅ |
 | `growth.py` | 模块 | Unified skill growth API：`GET /cases` summary、`GET /cases/{id}` detail、`GET /stats` 全量 status COUNT 统计；summary/detail 均携带 `impacted_dependents`（依赖本技能的库内技能 ID，经 core/skills/dependency_guard 查询） | ✅ |
@@ -31,8 +30,7 @@
 | `permissions.py` | 模块 | Skill Permission Management API | ✅ |
 | `prebuilt.py` | 模块 | Prebuilt skill admin and update management API. | ✅ |
 | `quality.py` | 模块 | Skill Quality Aggregation API | ✅ |
-| `rescan.py` | 模块 | Skill supply chain rescan and advisory acknowledgment API (`POST /rescan`, `GET /rescan/report`, `POST /advisories/ack`, `POST /advisories/unack`, `GET /advisories/acks`). | ✅ |
-| `rescan_schemas.py` | 模块 | Request/response Pydantic schemas for rescan and advisory governance endpoints. | ✅ |
+| `rescan/`（子包） | 模块 | 供应链重扫与公告治理域：`rescan.py`（`POST /rescan`、`GET /rescan/report`、公告 ack/unack）+ `rescan_schemas.py`（请求/响应模型）；`__init__.py` 为聚合门面。清单见 [`rescan/_ARCH.md`](rescan/_ARCH.md) | ✅ |
 | `router.py` | 路由 | Skills API router — aggregates all skill-related endpoints. | ✅ |
 | `schemas.py` | 模块 | Skills API request/response schemas. | ✅ |
 | `sync.py` | 模块 | Skill synchronization and backup protocol；export 打包 `manifest.json`（format/format_version/skills[].sha256+version），import 按 manifest 做完整性校验并返回 `imported/updated/unchanged/hash_mismatch` 恢复摘要；`_safe_extract` 逐成员校验路径（绝对路径/`..` 穿越/反斜杠分隔符归一化），恶意 ZIP 返回 400；import 受沙箱能力门控（export 只读天然安全） | ✅ |
