@@ -30,7 +30,7 @@ WATCH_OUTCOME_VERIFIED = "watch_verified"
 WATCH_EVENT = ExperienceEventType.REVIEW_APPROVED.value
 WATCH_ENTITY = ExperienceEntityType.REVIEW.value
 
-_NEGATIVE_TYPES = (
+NEGATIVE_EVENT_TYPES = (
     "review.rejected",
     "evolution.rejected",
     "evolution.apply_failed",
@@ -98,7 +98,7 @@ async def verify_watch(
     # bounded recent list with in-memory matching is sufficient and exact.
     recent = await list_experience_events(
         limit=500,
-        event_types=_NEGATIVE_TYPES,
+        event_types=NEGATIVE_EVENT_TYPES,
         since=watch.opened_at,
     )
     recurred = any(event.entity_type == watch.entity_type and event.entity_id == watch.entity_id for event in recent)

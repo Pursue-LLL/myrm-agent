@@ -48,3 +48,15 @@ def test_custom_threshold() -> None:
     events = [_event("review.rejected", "agent-a") for _ in range(2)]
     assert score_day(events) == []
     assert len(score_day(events, min_count=2)) == 1
+
+
+def test_blank_entities_never_cluster() -> None:
+    events = [_event("review.rejected", "", "") for _ in range(5)]
+    assert score_day(events, min_count=1) == []
+
+
+def test_category_labels_cover_all_categories() -> None:
+    from app.services.skills.nightly_review.scorer import CATEGORY_LABELS
+
+    assert set(CATEGORY_LABELS) == {"approval_return", "tool_error"}
+    assert all(isinstance(label, str) and label for label in CATEGORY_LABELS.values())

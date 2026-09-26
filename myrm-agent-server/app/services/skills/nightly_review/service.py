@@ -20,8 +20,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.database.models.skill import ExperienceLedgerEvent
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +37,6 @@ WATCH_SCAN_LIMIT = 2000
 MIN_FINDING_COUNT = 3
 QUIET_START_HOUR = 2
 QUIET_END_HOUR = 5
-
-_NEGATIVE_TYPES = (
-    "review.rejected",
-    "evolution.rejected",
-    "evolution.apply_failed",
-    "skill_growth.rejected",
-    "skill_growth.blocked",
-    "skill_growth.failed_scan",
-)
 
 
 @dataclass(slots=True)
@@ -65,13 +61,13 @@ async def run_nightly_review(*, now: datetime | None = None) -> NightlyReport:
     from ..experience_ledger import (
         list_experience_events,
     )
-    from .acceptance import open_watch
-    from .scorer import score_day
+    from .acceptance import NEGATIVE_EVENT_TYPES, open_watch
+    from .scorer import CATEGORY_LABELS, score_day
 
     current = now or datetime.now(UTC)
     since = current - timedelta(hours=LOOKBACK_HOURS)
-    recent = await list_experience_events(limit=WATCH_SCAN_LIMIT, event_types=_NEGATIVE_TYPES, since=since)
-    events = [
+    recent = await list_experience_events(limit=WATCH_SCAN_LIMIT, event_types=NEGATIVE_EVENT_TYPES, since=since)
+    events: list[dict[str, object]] = [
         {
             "event_type": event.event_type,
             "entity_type": event.entity_type,
@@ -82,11 +78,13 @@ async def run_nightly_review(*, now: datetime | None = None) -> NightlyReport:
     ]
     findings = score_day(events, min_count=MIN_FINDING_COUNT)
 
+    history = await _fetch_review_history(current)
     watches_opened = 0
     summaries: list[str] = []
-    already_open = await _open_watch_keys(current)
+    already_open = _open_watch_keys(history)
     for finding in findings:
-        summary = f"{finding.entity_id}：{finding.count}次{finding.category}"
+        label = CATEGORY_LABELS.get(finding.category, finding.category)
+        summary = f"{finding.entity_id}：{label}{finding.count}次"
         summaries.append(summary)
         if (finding.entity_type, finding.entity_id) in already_open:
             continue
@@ -97,7 +95,7 @@ async def run_nightly_review(*, now: datetime | None = None) -> NightlyReport:
         )
         watches_opened += 1
 
-    watches_verified = await _verify_due_watches(current)
+    watches_verified = await _verify_due_watches(current, history)
 
     report = NightlyReport(
         ran_at=current,
@@ -115,20 +113,27 @@ async def run_nightly_review(*, now: datetime | None = None) -> NightlyReport:
     return report
 
 
-async def _open_watch_keys(current: datetime) -> set[tuple[str, str]]:
-    """Return (entity_type, entity_id) pairs with a still-open watch."""
+async def _fetch_review_history(current: datetime) -> Sequence[ExperienceLedgerEvent]:
+    """Fetch review-entity approved events once per pass."""
     from ..experience_ledger import list_experience_events
+    from .acceptance import WATCH_ENTITY, WATCH_EVENT
+
+    return await list_experience_events(
+        limit=WATCH_SCAN_LIMIT,
+        event_type=WATCH_EVENT,
+        entity_type=WATCH_ENTITY,
+        since=current - timedelta(hours=WATCH_HISTORY_HOURS),
+    )
+
+
+def _open_watch_keys(history: Sequence[ExperienceLedgerEvent]) -> set[tuple[str, str]]:
+    """Return (entity_type, entity_id) pairs with a still-open watch."""
     from .acceptance import (
         WATCH_OUTCOME_OPEN,
         WATCH_OUTCOME_VERIFIED,
     )
 
-    recent = await list_experience_events(
-        limit=WATCH_SCAN_LIMIT,
-        event_type="review.approved",
-        entity_type="review",
-        since=current - timedelta(hours=WATCH_HISTORY_HOURS),
-    )
+    recent = history
     verified_ids = {event.entity_id for event in recent if event.outcome == WATCH_OUTCOME_VERIFIED}
     open_keys: set[tuple[str, str]] = set()
     for event in recent:
@@ -146,9 +151,8 @@ async def _open_watch_keys(current: datetime) -> set[tuple[str, str]]:
     return open_keys
 
 
-async def _verify_due_watches(current: datetime) -> int:
+async def _verify_due_watches(current: datetime, history: Sequence[ExperienceLedgerEvent]) -> int:
     """Verify watches old enough to judge; returns verified count."""
-    from ..experience_ledger import list_experience_events
     from .acceptance import (
         WATCH_OUTCOME_OPEN,
         WATCH_OUTCOME_VERIFIED,
@@ -156,12 +160,7 @@ async def _verify_due_watches(current: datetime) -> int:
         verify_watch,
     )
 
-    recent = await list_experience_events(
-        limit=WATCH_SCAN_LIMIT,
-        event_type="review.approved",
-        entity_type="review",
-        since=current - timedelta(hours=WATCH_HISTORY_HOURS),
-    )
+    recent = history
     verified_ids = {event.entity_id for event in recent if event.outcome == WATCH_OUTCOME_VERIFIED}
     verified = 0
     for event in recent:

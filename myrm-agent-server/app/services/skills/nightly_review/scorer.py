@@ -47,6 +47,11 @@ _TOOL_ERROR_TYPES = frozenset(
 
 _MIN_COUNT = 3
 
+CATEGORY_LABELS = {
+    "approval_return": "退回",
+    "tool_error": "报错",
+}
+
 
 def _categorize(event_type: str) -> str | None:
     if event_type in _APPROVAL_RETURN_TYPES:
@@ -74,8 +79,10 @@ def score_day(
         category = _categorize(event_type)
         if category is None:
             continue
-        entity_type = str(event.get("entity_type") or "unknown")
-        entity_id = str(event.get("entity_id") or "unknown")
+        entity_type = str(event.get("entity_type") or "").strip()
+        entity_id = str(event.get("entity_id") or "").strip()
+        if not entity_type or not entity_id:
+            continue
         clusters[(entity_type, entity_id, category)] += 1
     findings = [
         NightlyFinding(
