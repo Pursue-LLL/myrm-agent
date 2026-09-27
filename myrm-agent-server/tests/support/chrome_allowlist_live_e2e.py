@@ -124,6 +124,44 @@ _SELECT_PATTERN_SCOPE_JS = """(async () => {
   };
 })()"""
 
+_SELECT_DURATION_JS = """(async () => {
+  // The dialog defaults to "session", and session grants are intentionally in-memory
+  // only (never written to the allowlist table), so a session-scoped pattern can never
+  // appear in Settings. Select a persistable duration before confirming.
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const trigger =
+      document.querySelector('#allowlist-duration') ||
+      document.querySelector('[id="allowlist-duration"]');
+    if (!trigger) {
+      await sleep(200);
+      continue;
+    }
+    trigger.scrollIntoView({ block: 'center' });
+    trigger.click();
+    await sleep(120);
+    let option =
+      document.querySelector('[role="option"][data-value="1h"]') ||
+      document.querySelector('[data-value="1h"]');
+    if (!option) {
+      const options = Array.from(document.querySelectorAll('[role="option"]'));
+      option =
+        options.find((opt) => /1 Hour|1 小时|1時間|1시간/.test(opt.textContent || '')) || null;
+    }
+    if (option) {
+      option.click();
+      return { ok: true, attempt };
+    }
+    await sleep(150);
+  }
+  return {
+    ok: false,
+    err: 'duration-option-not-found',
+    optionCount: document.querySelectorAll('[role="option"]').length,
+    hasTrigger: Boolean(document.querySelector('#allowlist-duration')),
+  };
+})()"""
+
 _CONFIRM_ALLOW_ALWAYS_DIALOG_JS = """(() => {
   const buttons = Array.from(document.querySelectorAll('button'));
   const confirm = buttons.find((btn) =>

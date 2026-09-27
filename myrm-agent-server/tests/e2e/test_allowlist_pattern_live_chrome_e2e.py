@@ -51,6 +51,7 @@ from tests.support.chrome_allowlist_live_e2e import (
     _CONFIRM_ALLOW_ALWAYS_DIALOG_JS,
     _RECOVER_HITL_JS,
     _RUNTIME_BINDING_JS,
+    _SELECT_DURATION_JS,
     _SELECT_PATTERN_SCOPE_JS,
     SETTINGS_PATTERN_VISIBLE_JS,
 )
@@ -549,6 +550,13 @@ async def _run_live_pattern_flow(chat: McpChatSession, agent_id: str, *, api_url
         intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert isinstance(select_scope, dict) and select_scope.get("ok") is True, select_scope
+    await asyncio.sleep(0.3)
+
+    select_duration = await chat.evaluate(
+        _SELECT_DURATION_JS,
+        intent=EvaluateIntent.AGENT_SUBMIT,
+    )
+    assert isinstance(select_duration, dict) and select_duration.get("ok") is True, select_duration
     await asyncio.sleep(0.3)
 
     confirm = await chat.evaluate(_CONFIRM_ALLOW_ALWAYS_DIALOG_JS, intent=EvaluateIntent.SYNC_PROBE)
