@@ -44,6 +44,7 @@ def _parallel_bridge_ready_cap_sec() -> float:
 def _resolve_bridge_ready_timeout_sec(timeout_sec: float) -> float:
     """Parallel SHPOIB hydrate queue can defer React mount beyond 60s."""
     from dev_gate.contract import shared_ui_hydrate_wait_sec
+
     from e2e_core.shared_ui_hydrate import parallel_shared_ui_hydrate_queue_enabled
 
     if parallel_shared_ui_hydrate_queue_enabled():
@@ -270,9 +271,7 @@ def _bridge_probe_ready(probe: dict[str, object], *, policy: SearchPolicy) -> bo
         return False
     if probe.get("hasSubmitAndObserveTurn") is not True:
         return False
-    if policy == "empty" and probe.get("blockSearchSync") is not True:
-        return False
-    return True
+    return not (policy == "empty" and probe.get("blockSearchSync") is not True)
 
 
 async def _apply_empty_search_block(
