@@ -214,6 +214,15 @@ export type Message = {
   councilResult?: CouncilResultView; // 多专家 Council 编排结构化会商与仲裁结果
   mcpApps?: McpAppView[]; // MCP Apps (ext-apps) 嵌入式 UI 视图
   sessionRecording?: { filename: string; preview_url: string; content_type: string };
+  ttsrInterventions?: Array<{
+    ruleId: string;
+    ruleName: string;
+    reminder: string;
+    target?: 'assistant' | 'thinking' | 'tool_args' | 'all';
+    retryCount?: number;
+    maxRetries?: number;
+    timestamp?: string | number | Date;
+  }>;
   siblingGroupId?: string;
   siblingCount?: number;
   siblingIndex?: number;

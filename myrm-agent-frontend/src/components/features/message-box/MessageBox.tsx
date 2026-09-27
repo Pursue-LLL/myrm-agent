@@ -61,6 +61,7 @@ import MemoryInsightPanel from './MemoryInsightPanel';
 import { resolveMessageCreatedAtMs } from './memoryLifecyclePhases';
 import { FileMutationWarning } from './FileMutationWarning';
 import { WorkspaceMergeWarning } from './WorkspaceMergeWarning';
+import { TtsrInterventionBadge } from './TtsrInterventionBadge';
 import { StagedArtifactsNotice } from './StagedArtifactsNotice';
 import WorkflowTemplateSaveCard from './WorkflowTemplateSaveCard';
 import ToolImageGallery from './ToolImageGallery';
@@ -805,6 +806,24 @@ const MessageBox = ({
               onRegenerate={handleRegenerate}
               onUndo={handleUndo}
             />
+
+            {/* 时间旅行流规则拦截与纠偏徽章 (TTSR) */}
+            {message.ttsrInterventions && message.ttsrInterventions.length > 0 && (
+              <div className="space-y-1.5 my-1.5">
+                {message.ttsrInterventions.map((intervention) => (
+                  <TtsrInterventionBadge
+                    key={`${intervention.ruleId}-${intervention.retryCount ?? 1}`}
+                    ruleId={intervention.ruleId}
+                    ruleName={intervention.ruleName}
+                    reminder={intervention.reminder}
+                    target={intervention.target}
+                    retryCount={intervention.retryCount}
+                    maxRetries={intervention.maxRetries}
+                    timestamp={intervention.timestamp}
+                  />
+                ))}
+              </div>
+            )}
 
             {/* 文件修改失败警告 */}
             {!(isLast && loading) && message.fileMutationFailures && message.fileMutationFailures.length > 0 && (

@@ -97,6 +97,7 @@ export const AgentEventType = {
   SKILL_GAP: 'skill_gap',
   PHASE_TRANSITION: 'phase_transition',
   WORKING_MEMORY: 'working_memory',
+  TTSR_TRIGGERED: 'ttsr_triggered',
 } as const;
 
 export interface BaseAgentEvent {

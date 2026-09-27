@@ -1,4 +1,3 @@
-// @orphan-ok Dedicated UI badge for Time-Traveling Stream Rules (TTSR) intervention in chat stream
 import React, { useState } from 'react';
 import { ShieldAlert, Sparkles, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -15,10 +14,14 @@ export interface TtsrInterventionBadgeProps {
 }
 
 const formatTimestamp = (raw?: string | number | Date): string | null => {
-  if (!raw) return null;
+  if (!raw) {
+    return null;
+  }
   try {
     const date = raw instanceof Date ? raw : new Date(raw);
-    if (Number.isNaN(date.getTime())) return null;
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   } catch {
     return null;
@@ -40,8 +43,7 @@ export const TtsrInterventionBadge: React.FC<TtsrInterventionBadgeProps> = ({
   const detailsId = `ttsr-details-${ruleId}`;
 
   return (
-    <div
-      role="status"
+    <output
       aria-live="polite"
       className={cn(
         'group relative my-2 mx-auto max-w-3xl w-full rounded-lg border px-3.5 py-2.5 transition-all duration-200',
@@ -118,6 +120,6 @@ export const TtsrInterventionBadge: React.FC<TtsrInterventionBadgeProps> = ({
           <p className="whitespace-pre-wrap">{reminder}</p>
         </div>
       )}
-    </div>
+    </output>
   );
 };
