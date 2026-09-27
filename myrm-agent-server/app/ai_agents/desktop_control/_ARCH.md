@@ -43,7 +43,7 @@ Revoke does **not** call `reset_all_runtime_approval_state()` — other apps' se
 | Test | `myrm-agent-server/tests/e2e/test_desktop_control_approval_chrome_e2e.py` (`@pytest.mark.chrome_e2e(lane="LIVE_AGENT", private_backend=False)`) |
 | Preflight | `./myrm ready --chrome`；共享 `:8080` + 私有 chat workspace gate 文件；LIVE_AGENT cap 背压并行 |
 | Gate trigger | Assert `GET /webui/desktop/approval/pending` → `server_pending>0`（禁止用 tool 名 substring 误判） |
-| UI | `DesktopControlApprovalBanner` — `desktop-control-allow-once` / `allow-session` / `allow-always` / `deny` |
+| UI | `DesktopControlApprovalBanner` — `desktop-control-allow-once` / `allow-session` / `allow-always` / `allow-envelope` / `deny` |
 | Settings | `DesktopPermissionsCard` — `data-testid="desktop-trust-revoke-{trust_key}"` |
 | E2E | `test_desktop_control_approval_chrome_e2e.py` + `tests/e2e/desktop_approval/` — allow_once + allow_session + allow_always→Settings revoke |
 | Bridge | `E2EChatBridge.hasDone` 或 API `chat_messages_have_done()`；无 DONE 时 poll≥15 一次性 nudge |

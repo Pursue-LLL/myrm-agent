@@ -9608,6 +9608,7 @@
         "deny": "Deny",
         "allowOnce": "Allow once",
         "allowSession": "Allow this chat",
+        "allowEnvelope": "Full-speed run (30 steps)",
         "allowAlways": "Always allow this app",
         "expiredNotice": "This request already settled (timeout). The agent run moved on.",
         "dismiss": "Dismiss",

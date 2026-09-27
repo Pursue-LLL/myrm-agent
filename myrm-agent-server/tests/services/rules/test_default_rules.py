@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from app.services.rules.default_rules import get_default_stream_rules
 from myrm_agent_harness.agent.streaming.rules.coordinator import TtsrCoordinator
+
+from app.services.rules.default_rules import get_default_stream_rules
 
 
 def test_get_default_stream_rules() -> None:

@@ -1,6 +1,15 @@
 """Production-grade default stream rules for TTSR zero-tax engine.
 
 Enforces critical security boundaries against catastrophic deletions and credential leakages.
+
+[INPUT]
+- regex patterns for destructive terminal commands and token leaks
+
+[OUTPUT]
+- get_default_stream_rules(): list[StreamRule]
+
+[POS]
+- Server-level default stream rules defining dormant safety guards for TTSR stream parsing.
 """
 
 from __future__ import annotations

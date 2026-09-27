@@ -295,3 +295,35 @@ def test_deny_reason_recorded_in_decisions():
     assert decisions and decisions[-1]["decision"] == "denied"
     assert decisions[-1]["reason"] == "not now"
     DesktopApprovalRegistry._decisions.clear()
+
+
+def test_envelope_scope_resolution_activates_fast_path():
+    DesktopApprovalRegistry._pending.clear()
+    DesktopApprovalRegistry._decisions.clear()
+    gate = _fresh_gate()
+    sink = _sink()
+
+    # 1. First action prompts and user approves with scope="envelope"
+    res1 = _run(
+        _settle(
+            _call(gate, sink, app_name="TextEdit", operation="type: hello"),
+            _resolve_when_emitted(sink, granted=True, scope="envelope"),
+        )
+    )
+    assert res1.granted is True
+    assert gate.envelope_manager.active_envelope is not None
+    assert gate.envelope_manager.active_envelope.used_actions == 0
+
+    # 2. Subsequent action within the envelope fast-path is automatically allowed without prompting
+    sink2 = _sink()
+    res2 = _run(_call(gate, sink2, app_name="TextEdit", operation="type: world"))
+    assert res2.granted is True
+    assert sink2.emit.await_count == 0
+    assert gate.envelope_manager.active_envelope.used_actions == 1
+
+    # 3. Action outside envelope (different app) triggers approval card escalation
+    sink3 = _sink()
+    _run(_drain_emit_then_cancel(sink3, lambda: _call(gate, sink3, app_name="Safari", operation="click")))
+    assert sink3.emit.await_count == 1
+    DesktopApprovalRegistry._pending.clear()
+    DesktopApprovalRegistry._decisions.clear()

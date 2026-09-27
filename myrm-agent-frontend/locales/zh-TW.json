@@ -2523,6 +2523,7 @@
         "deny": "拒絕",
         "allowOnce": "允許一次",
         "allowSession": "本會話允許",
+        "allowEnvelope": "免打擾全速運行 (30步)",
         "allowAlways": "始終允許此應用",
         "expiredNotice": "該請求已結束（逾時），任務已繼續。請忽略此卡片。",
         "dismiss": "關閉",

@@ -2510,6 +2510,7 @@
         "deny": "拒否",
         "allowOnce": "許可一回",
         "allowSession": "本セッション許可",
+        "allowEnvelope": "全速実行 (30ステップ)",
         "allowAlways": "このアプリを常に許可",
         "expiredNotice": "このリクエストは期限切れになりました（タイムアウト）。タスクは継続しました。",
         "dismiss": "閉じる",

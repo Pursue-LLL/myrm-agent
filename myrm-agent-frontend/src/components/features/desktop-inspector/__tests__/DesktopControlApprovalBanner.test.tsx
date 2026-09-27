@@ -110,4 +110,25 @@ describe('DesktopControlApprovalBanner', () => {
     });
     expect(useDesktopControlApprovalStore.getState().pending).toBe(false);
   });
+
+  it('posts allow-envelope decision and clears pending state', async () => {
+    render(<DesktopControlApprovalBanner />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('desktop-control-allow-envelope'));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockApiRequest).toHaveBeenCalledWith('/webui/desktop/approval/resolve', {
+        method: 'POST',
+        body: JSON.stringify({
+          request_id: 'req-desktop-1',
+          granted: true,
+          scope: 'envelope',
+        }),
+      });
+    });
+    expect(useDesktopControlApprovalStore.getState().pending).toBe(false);
+  });
 });

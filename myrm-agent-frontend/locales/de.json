@@ -2477,6 +2477,7 @@
         "deny": "Ablehnen",
         "allowOnce": "Einmal erlauben",
         "allowSession": "Diesen Chat erlauben",
+        "allowEnvelope": "Vollgas-Ausführung (30 Schritte)",
         "allowAlways": "Diese App immer erlauben",
         "expiredNotice": "Diese Anfrage wurde bereits erledigt (Zeitüberschreitung). Der Agent hat fortgefahren.",
         "dismiss": "Schließen",

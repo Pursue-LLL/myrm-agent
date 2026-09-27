@@ -11,7 +11,7 @@
 
 import { create } from 'zustand';
 
-export type DesktopControlApprovalScope = 'once' | 'session' | 'always';
+export type DesktopControlApprovalScope = 'once' | 'session' | 'always' | 'envelope';
 
 export interface ActiveEnvelopeState {
   taskId: string;
@@ -122,7 +122,9 @@ const useDesktopControlApprovalStore = create<DesktopControlApprovalState>((set)
 
   updateEnvelopeProgress: ({ used, max, remaining, canExtend, hardLimit }) =>
     set((state) => {
-      if (!state.activeEnvelope) return {};
+      if (!state.activeEnvelope) {
+        return {};
+      }
       const rem = remaining !== undefined ? remaining : Math.max(0, max - used);
       const isExhausted = used >= max;
       return {
@@ -140,7 +142,9 @@ const useDesktopControlApprovalStore = create<DesktopControlApprovalState>((set)
 
   extendEnvelopeLease: (additionalSteps = 10) =>
     set((state) => {
-      if (!state.activeEnvelope) return {};
+      if (!state.activeEnvelope) {
+        return {};
+      }
       const newMax = state.activeEnvelope.maxActions + Math.max(1, additionalSteps);
       return {
         activeEnvelope: {
@@ -154,7 +158,9 @@ const useDesktopControlApprovalStore = create<DesktopControlApprovalState>((set)
 
   escalateEnvelope: (reason) =>
     set((state) => {
-      if (!state.activeEnvelope) return {};
+      if (!state.activeEnvelope) {
+        return {};
+      }
       return {
         activeEnvelope: {
           ...state.activeEnvelope,

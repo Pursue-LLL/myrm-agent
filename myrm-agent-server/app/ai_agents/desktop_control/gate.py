@@ -30,6 +30,7 @@ from myrm_agent_harness.toolkits.computer_use.app_identity import (
     resolve_trust_key,
     trust_key_matches,
 )
+from myrm_agent_harness.toolkits.computer_use.envelope import IntentEnvelopeSpec
 from myrm_agent_harness.toolkits.computer_use.types import (
     ForegroundPermissionResult,
     ForegroundPermissionScope,
@@ -301,23 +302,15 @@ class DesktopControlGate:
             app_id=app_id,
             fingerprint=fingerprint,
         )
-        await sink.emit(
-            {
-                "type": AgentEventType.DESKTOP_CONTROL_APPROVAL_REQUEST,
-                "data": {
-                    "request_id": request_id,
-                    "reason": reason,
-                    "operation": operation,
-                    "app_name": app_name,
-                    "window_title": window_title,
-                    "app_id": app_id,
-                    "require_app_approval": require_app_approval,
-                    "timeout_seconds": timeout_seconds,
-                    "fingerprint": fingerprint,
-                    "changed_since_last_grant": changed,
-                },
-            }
-        )
+        await sink.emit({
+            "type": AgentEventType.DESKTOP_CONTROL_APPROVAL_REQUEST,
+            "data": {
+                "request_id": request_id, "reason": reason, "operation": operation,
+                "app_name": app_name, "window_title": window_title, "app_id": app_id,
+                "require_app_approval": require_app_approval, "timeout_seconds": timeout_seconds,
+                "fingerprint": fingerprint, "changed_since_last_grant": changed,
+            },
+        })
 
         try:
             await asyncio.wait_for(pending.event.wait(), timeout=timeout_seconds)
@@ -374,23 +367,25 @@ class DesktopControlGate:
                     self._session_approved_keys.add(trust_key)
                 elif decided.scope == ForegroundPermissionScope.always:
                     self._persist_app(app_name, app_id)
+                elif decided.scope == ForegroundPermissionScope.envelope:
+                    self._envelope_manager.register_envelope(
+                        IntentEnvelopeSpec(
+                            task_id=request_id,
+                            allowed_app_names=(app_name.strip(),),
+                            allowed_app_ids=(app_id.strip(),) if app_id.strip() else (),
+                            max_actions=30,
+                            idle_timeout_seconds=180.0,
+                        )
+                    )
             DesktopApprovalRegistry.record_decision(
-                request_id=request_id,
-                trust_key=trust_key,
-                fingerprint=fingerprint,
-                operation=operation,
-                decision="granted",
-                scope=decided.scope.value,
+                request_id=request_id, trust_key=trust_key, fingerprint=fingerprint,
+                operation=operation, decision="granted", scope=decided.scope.value,
             )
             return decided
         if pending.decided_by == "user" and trust_key:
             self._denied_session_keys.add(deny_key_for(trust_key=trust_key, fingerprint=fingerprint))
             DesktopApprovalRegistry.record_decision(
-                request_id=request_id,
-                trust_key=trust_key,
-                fingerprint=fingerprint,
-                operation=operation,
-                decision="denied",
-                reason=pending.deny_reason,
+                request_id=request_id, trust_key=trust_key, fingerprint=fingerprint,
+                operation=operation, decision="denied", reason=pending.deny_reason,
             )
         return decided

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { History, Monitor, ShieldAlert } from 'lucide-react';
+import { History, Monitor, ShieldAlert, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { ApiError, apiRequest } from '@/lib/api';
 import useDesktopControlApprovalStore, {
@@ -170,6 +170,16 @@ const DesktopControlApprovalBanner: React.FC = () => {
         </button>
         {requireAppApproval ? (
           <>
+            <button
+              type="button"
+              data-testid="desktop-control-allow-envelope"
+              disabled={submitting}
+              className="px-3 py-1.5 text-xs rounded-lg border border-primary/40 text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
+              onClick={() => void handleDecision(true, 'envelope')}
+            >
+              <Zap className="h-3.5 w-3.5" aria-hidden />
+              {t('allowEnvelope')}
+            </button>
             <button
               type="button"
               data-testid="desktop-control-allow-session"
