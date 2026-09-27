@@ -205,6 +205,49 @@ describe('StackUpdatePanel', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/health/update-status?force=true');
   });
 
+  it('disables doctor button during diagnostic probe to prevent duplicate clicks', async () => {
+    let resolveProbe!: (value: unknown) => void;
+    const probePromise = new Promise((resolve) => {
+      resolveProbe = resolve;
+    });
+
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('force=true')) {
+        return probePromise;
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({}),
+      });
+    });
+
+    render(<StackUpdatePanel />);
+
+    const doctorBtn = screen.getByText('doctorRun');
+    expect(doctorBtn).not.toBeDisabled();
+
+    fireEvent.click(doctorBtn);
+
+    expect(doctorBtn).toBeDisabled();
+    expect(doctorBtn.textContent).toContain('...');
+
+    await act(async () => {
+      resolveProbe({
+        ok: true,
+        json: async () => ({
+          server_version: '0.1.0',
+          latest: { version: 'v0.1.0' },
+          fetch_error: null,
+        }),
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('doctorPass')).toBeInTheDocument();
+      expect(doctorBtn).not.toBeDisabled();
+    });
+  });
+
   it('disables deferral and renders securityPatch badge when is_security is true', async () => {
     const mockPayload = {
       server_version: '0.1.0',

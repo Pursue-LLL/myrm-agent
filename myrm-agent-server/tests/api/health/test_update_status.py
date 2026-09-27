@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -161,3 +164,35 @@ def test_update_status_endpoint_force_bypasses_cache(monkeypatch) -> None:
     assert res3.status_code == 200
     assert res3.json()["latest"]["version"] == "v0.2.2"
     assert fetch_count == 2
+
+
+@pytest.mark.asyncio
+async def test_update_status_singleflight_concurrent_probes(monkeypatch) -> None:
+    fetch_count = 0
+
+    async def slow_fetch(repo: str) -> dict[str, object]:
+        nonlocal fetch_count
+        fetch_count += 1
+        await asyncio.sleep(0.05)
+        return {
+            "release": {"version": f"v0.3.{fetch_count}", "body": "fix"},
+            "error": None,
+        }
+
+    async def fake_git() -> dict[str, object] | None:
+        return None
+
+    monkeypatch.setattr(update_status, "_fetch_latest_release", slow_fetch)
+    monkeypatch.setattr(update_status, "_git_behind", fake_git)
+    monkeypatch.setattr(update_status, "_latest_cache", {"fetched_at": 0.0, "payload": None})
+    monkeypatch.setattr(update_status, "_force_in_flight", None)
+
+    r1, r2 = await asyncio.gather(
+        update_status.update_status(force=True),
+        update_status.update_status(force=True),
+    )
+    assert isinstance(r1["latest"], dict)
+    assert isinstance(r2["latest"], dict)
+    assert r1["latest"]["version"] == "v0.3.1"
+    assert r2["latest"]["version"] == "v0.3.1"
+    assert fetch_count == 1

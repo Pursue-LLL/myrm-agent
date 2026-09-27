@@ -10079,6 +10079,8 @@
     "updateNudge": {
       "title": "有可用更新：{version}",
       "description": "先看看改了什么，再挑合适的时间更新。",
+      "securityTitle": "关键安全更新：{version}",
+      "securityDescription": "包含重要漏洞修复，已为您优先提醒，建议立即升级。",
       "open": "查看更新",
       "dismiss": "忽略"
     }

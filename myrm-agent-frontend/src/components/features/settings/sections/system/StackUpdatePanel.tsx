@@ -62,6 +62,7 @@ export default function StackUpdatePanel() {
   const [quietStart, setQuietStart] = useState<string>(QUIET_OFF);
   const [quietEnd, setQuietEnd] = useState<string>(QUIET_OFF);
   const [doctorResult, setDoctorResult] = useState<'pass' | 'fail' | null>(null);
+  const [isDoctoring, setIsDoctoring] = useState(false);
 
   const quietRef = useRef({ start: QUIET_OFF, end: QUIET_OFF });
   quietRef.current = { start: quietStart, end: quietEnd };
@@ -173,6 +174,7 @@ export default function StackUpdatePanel() {
 
   const handleDoctor = useCallback(async () => {
     setDoctorResult(null);
+    setIsDoctoring(true);
     try {
       const response = await fetch('/api/v1/health/update-status?force=true');
       if (!response.ok) {
@@ -185,6 +187,8 @@ export default function StackUpdatePanel() {
       setDoctorResult(payload.fetch_error ? 'fail' : 'pass');
     } catch {
       setDoctorResult('fail');
+    } finally {
+      setIsDoctoring(false);
     }
   }, []);
 
@@ -336,9 +340,13 @@ export default function StackUpdatePanel() {
           <button
             type="button"
             onClick={handleDoctor}
-            className="px-4 py-2 rounded-xl border border-white/10 text-xs font-bold hover:bg-white/5 transition-colors"
+            disabled={isDoctoring}
+            className={cn(
+              "px-4 py-2 rounded-xl border border-white/10 text-xs font-bold transition-colors",
+              isDoctoring ? "opacity-60 cursor-not-allowed" : "hover:bg-white/5"
+            )}
           >
-            {t('doctorRun')}
+            {isDoctoring ? `${t('doctorRun')}...` : t('doctorRun')}
           </button>
           {doctorResult === 'pass' && (
             <p className="text-xs text-emerald-400 self-center">{t('doctorPass')}</p>

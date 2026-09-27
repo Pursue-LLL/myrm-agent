@@ -3049,6 +3049,8 @@
     "updateNudge": {
       "title": "Update verfügbar: {version}",
       "description": "Änderungen ansehen und bei Gelegenheit aktualisieren.",
+      "securityTitle": "Kritisches Sicherheitsupdate: {version}",
+      "securityDescription": "Enthält dringende Sicherheitskorrekturen. Sofortige Aktualisierung empfohlen.",
       "open": "Update ansehen",
       "dismiss": "Schließen"
     }

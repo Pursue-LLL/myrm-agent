@@ -20,7 +20,8 @@ import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/primitives/button';
 import { getDeferredVersion, getQuietHours, isQuietNow } from '@/lib/update-prefs';
-import { IconArrowRight, IconDownload } from '@/components/features/icons/PremiumIcons';
+import { IconArrowRight, IconDownload, IconShield } from '@/components/features/icons/PremiumIcons';
+import { cn } from '@/lib/utils/classnameUtils';
 
 const DISMISS_KEY = 'update_nudge_dismissed';
 
@@ -29,6 +30,7 @@ export default function UpdateNudgeBanner() {
   const router = useRouter();
   const [visible, setVisible] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
+  const [isSecurity, setIsSecurity] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,10 +55,11 @@ export default function UpdateNudgeBanner() {
         if (payload.stale !== true || !latestVersion) {
           return;
         }
-        const isSecurity = payload.changelog?.is_security === true;
-        if (!isSecurity && (getDeferredVersion() === latestVersion || isQuietNow(getQuietHours()))) {
+        const isSecurityPatch = payload.changelog?.is_security === true;
+        if (!isSecurityPatch && (getDeferredVersion() === latestVersion || isQuietNow(getQuietHours()))) {
           return;
         }
+        setIsSecurity(isSecurityPatch);
         setVersion(latestVersion);
         setVisible(true);
       } catch {
@@ -87,11 +90,26 @@ export default function UpdateNudgeBanner() {
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4">
-      <IconDownload className="w-5 h-5 shrink-0 text-primary" />
+    <div
+      className={cn(
+        "flex items-center gap-3 rounded-2xl p-4 transition-colors",
+        isSecurity
+          ? "border border-amber-500/30 bg-amber-500/5 text-amber-400"
+          : "border border-primary/25 bg-primary/5"
+      )}
+    >
+      {isSecurity ? (
+        <IconShield className="w-5 h-5 shrink-0 text-amber-400" />
+      ) : (
+        <IconDownload className="w-5 h-5 shrink-0 text-primary" />
+      )}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground">{t('title', { version: version ?? '' })}</p>
-        <p className="text-xs text-muted-foreground leading-relaxed">{t('description')}</p>
+        <p className="text-sm font-semibold text-foreground">
+          {isSecurity ? t('securityTitle', { version: version ?? '' }) : t('title', { version: version ?? '' })}
+        </p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {isSecurity ? t('securityDescription') : t('description')}
+        </p>
       </div>
       <Button size="sm" onClick={handleOpen} className="gap-1 shrink-0">
         {t('open')}

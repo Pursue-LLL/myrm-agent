@@ -489,7 +489,7 @@ def _owner_alive(record: dict[str, object]) -> bool:
     return process_is_alive(pid)
 
 
-def _reusable_verify_backend() -> VerifyBackendSeedResult | None:
+def _reusable_verify_backend(*, monorepo: Path) -> VerifyBackendSeedResult | None:
     """Adopt a live, orphaned backend-only runtime instead of spawning another.
 
     Every seed otherwise allocated a fresh ``verify-api-*`` record, so repeated
@@ -553,6 +553,13 @@ def _reusable_verify_backend() -> VerifyBackendSeedResult | None:
         _adopt_orphan_heartbeat(record)
         if _provider_ready(api_base) and _retrieval_ready(api_base):
             return result
+        # A reused runtime may predate the provider seed (for example an orphan
+        # adopted after the provider config was cleared), and unlike the spawn
+        # path this branch used to skip seeding entirely. LIVE tests then ran on
+        # a backend with no LLM provider, so the agent never mounted
+        # bash_code_execute_tool and allowlist never recorded a pattern row.
+        # Mirror the spawn path: seed before lending the backend out.
+        ensure_verify_backend_providers(api_base=api_base, monorepo=monorepo)
         best = best or result
     return best
 
@@ -643,7 +650,7 @@ def ensure_verify_backend_seed(*, monorepo: Path) -> VerifyBackendSeedResult:
     # record left by another workspace makes a broken tree look serviceable.
     if not _agent_root_present(monorepo):
         return _spawn_verify_backend_seed(monorepo=monorepo)
-    reused = _reusable_verify_backend()
+    reused = _reusable_verify_backend(monorepo=monorepo)
     if reused is not None:
         return reused
     last_result: VerifyBackendSeedResult | None = None

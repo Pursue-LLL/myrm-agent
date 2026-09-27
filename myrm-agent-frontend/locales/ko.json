@@ -3049,6 +3049,8 @@
     "updateNudge": {
       "title": "업데이트 있음: {version}",
       "description": "변경 내용을 보고 편할 때 업데이트하세요.",
+      "securityTitle": "중요 보안 업데이트: {version}",
+      "securityDescription": "긴급 취약점 패치가 포함되어 있습니다. 즉시 업데이트를 권장합니다.",
       "open": "업데이트 보기",
       "dismiss": "닫기"
     }

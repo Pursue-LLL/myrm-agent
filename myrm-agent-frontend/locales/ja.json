@@ -3049,6 +3049,8 @@
     "updateNudge": {
       "title": "更新あり：{version}",
       "description": "変更内容を確認して、都合の良いときに更新。",
+      "securityTitle": "重要なセキュリティ更新：{version}",
+      "securityDescription": "緊急の脆弱性修正が含まれています。早めの更新をお勧めします。",
       "open": "更新を見る",
       "dismiss": "閉じる"
     }

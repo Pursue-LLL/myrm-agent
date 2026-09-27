@@ -40,6 +40,15 @@ _CHANGELOG_CAP = 50
 
 _latest_cache: dict[str, object] = {"fetched_at": 0.0, "payload": None}
 _last_prebuilt: dict[str, object] = {"synced_count": None, "at": None}
+_force_lock: asyncio.Lock | None = None
+_force_in_flight: asyncio.Task[dict[str, object]] | None = None
+
+
+def _get_force_lock() -> asyncio.Lock:
+    global _force_lock
+    if _force_lock is None:
+        _force_lock = asyncio.Lock()
+    return _force_lock
 
 
 def note_prebuilt_sync_result(synced_count: int) -> None:
@@ -214,8 +223,18 @@ async def update_status(force: bool = False) -> dict[str, object]:
     now = time.monotonic()
     cached_at = float(_latest_cache.get("fetched_at") or 0.0)
     cached_payload = _latest_cache.get("payload")
-    if not force and cached_payload is not None and now - cached_at < _LATEST_TTL_SEC:
-        latest_result = cached_payload
+    cached_dict = cached_payload if isinstance(cached_payload, dict) else None
+    if not force and cached_dict is not None and now - cached_at < _LATEST_TTL_SEC:
+        latest_result = cached_dict
+    elif force:
+        global _force_in_flight
+        async with _get_force_lock():
+            if _force_in_flight is None or _force_in_flight.done():
+                _force_in_flight = asyncio.create_task(_fetch_latest_release(repo))
+            task = _force_in_flight
+        latest_result = await task
+        _latest_cache["fetched_at"] = time.monotonic()
+        _latest_cache["payload"] = latest_result
     else:
         latest_result = await _fetch_latest_release(repo)
         _latest_cache["fetched_at"] = now

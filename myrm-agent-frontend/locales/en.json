@@ -10079,6 +10079,8 @@
     "updateNudge": {
       "title": "Update available: {version}",
       "description": "See what changed, then update when it suits you.",
+      "securityTitle": "Critical Security Update: {version}",
+      "securityDescription": "Contains urgent vulnerability fixes. Immediate update recommended.",
       "open": "View update",
       "dismiss": "Dismiss"
     }
