@@ -97,5 +97,5 @@ def guarded_httpx_request(
 ) -> object:
     """Effect-guarded httpx.Client.request wrapper for formal chrome_e2e."""
     assert_http_effect_allowed(method=method, url=url)
-    request = getattr(client, "request")
+    request = client.request
     return request(method, url, **kwargs)
