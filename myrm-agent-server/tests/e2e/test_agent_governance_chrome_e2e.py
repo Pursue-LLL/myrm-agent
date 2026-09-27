@@ -444,8 +444,18 @@ def test_governance_responsibility_create_and_merge_via_ui() -> None:
                 timeout_sec=15.0,
             )
 
-        merged = _api(f"/api/v1/user-agents/{target_id}").get("data") or {}
-        assert "e2e-skill-c" not in (merged.get("skill_ids") or []), merged
+        # The undo click is fire-and-forget, so reading immediately can observe the
+        # still-merged skills and fail even though the rollback is in flight. Poll up
+        # to a bounded budget; a genuine regression still fails, just later.
+        skills_after_undo: list[object] = []
+        undo_deadline = time.monotonic() + 30.0
+        while time.monotonic() < undo_deadline:
+            merged = _api(f"/api/v1/user-agents/{target_id}").get("data") or {}
+            skills_after_undo = list(merged.get("skill_ids") or [])
+            if "e2e-skill-c" not in skills_after_undo:
+                break
+            time.sleep(0.5)
+        assert "e2e-skill-c" not in skills_after_undo, merged
         created.remove(source_id)
     finally:
         # T6: cleanup leaves no residue (same shared base as creation/list).
