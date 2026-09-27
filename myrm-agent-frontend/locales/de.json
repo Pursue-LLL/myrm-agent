@@ -17962,7 +17962,8 @@
         "restartRequired": "Zum Anwenden neu starten.",
         "snapshotEmpty": "Noch keine Snapshots.",
         "snapshotRestore": "Wiederherstellen",
-        "snapshotDelete": "Löschen"
+        "snapshotDelete": "Löschen",
+        "backupManualGuide": "Snapshots liegen im snapshots-Ordner des Datenverzeichnisses (Standard ~/.myrm). Nach Neuinstallation data.db und checkpoints.db manuell zurückkopieren — siehe Docs."
       }
     },
     "push": {

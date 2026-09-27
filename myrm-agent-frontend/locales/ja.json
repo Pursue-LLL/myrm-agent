@@ -17962,7 +17962,8 @@
         "restartRequired": "適用には再起動してください。",
         "snapshotEmpty": "スナップショットなし。",
         "snapshotRestore": "復元",
-        "snapshotDelete": "削除"
+        "snapshotDelete": "削除",
+        "backupManualGuide": "スナップショットはデータディレクトリの snapshots フォルダ（既定 ~/.myrm）にあります。再インストール後に data.db と checkpoints.db を戻せば手動復旧可——詳細はドキュメントへ。"
       }
     },
     "push": {

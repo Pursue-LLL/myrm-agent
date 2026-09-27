@@ -5491,7 +5491,8 @@
         "restartRequired": "Please restart the app to apply it.",
         "snapshotEmpty": "No snapshots yet.",
         "snapshotRestore": "Restore",
-        "snapshotDelete": "Delete"
+        "snapshotDelete": "Delete",
+        "backupManualGuide": "Snapshots live in the snapshots folder of your data directory (~/.myrm by default). After reinstalling, copy data.db and checkpoints.db back to recover manually — see docs."
       }
     },
     "push": {

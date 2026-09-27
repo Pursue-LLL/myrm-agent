@@ -481,6 +481,36 @@ describe('StackUpdatePanel', () => {
     });
   });
 
+  it('shows manual recovery guidance when backup fails', async () => {
+    mockIsTauri = false;
+    mockUseAppUpdate.mockReturnValue({
+      phase: 'idle',
+      info: null,
+      bytesDownloaded: 0,
+      totalBytes: null,
+      error: null,
+      check: vi.fn(),
+      install: vi.fn(),
+      reset: vi.fn(),
+    });
+
+    global.fetch = vi.fn(async () => {
+      throw new Error('down');
+    });
+
+    render(<StackUpdatePanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('webUnknown')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('backupNow'));
+    await waitFor(() => {
+      expect(screen.getByText('backupFailed')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/backupManualGuide/)).toBeInTheDocument();
+  });
+
   it('persists the auto-backup toggle', async () => {
     mockIsTauri = false;
     mockUseAppUpdate.mockReturnValue({

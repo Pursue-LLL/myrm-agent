@@ -17962,7 +17962,8 @@
         "restartRequired": "請重啟應用以生效。",
         "snapshotEmpty": "暫無快照。",
         "snapshotRestore": "恢復",
-        "snapshotDelete": "刪除"
+        "snapshotDelete": "刪除",
+        "backupManualGuide": "快照在數據目錄的 snapshots 資料夾（默認 ~/.myrm）。重裝後可手動拷回 data.db 與 checkpoints.db 恢復——詳見文檔。"
       }
     },
     "push": {

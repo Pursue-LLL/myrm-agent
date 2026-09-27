@@ -17962,7 +17962,8 @@
         "restartRequired": "적용하려면 재시작하세요.",
         "snapshotEmpty": "스냅샷 없음.",
         "snapshotRestore": "복원",
-        "snapshotDelete": "삭제"
+        "snapshotDelete": "삭제",
+        "backupManualGuide": "스냅샷은 데이터 디렉터리의 snapshots 폴더(기본 ~/.myrm)에 있습니다. 재설치 후 data.db와 checkpoints.db를 되돌리면 수동 복구됩니다. 자세한 내용은 문서를 보세요."
       }
     },
     "push": {

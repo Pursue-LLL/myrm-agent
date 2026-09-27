@@ -430,7 +430,7 @@ def _start_mux_daemon_if_needed() -> bool:
             # Reporting that as failure denied attach for every losing lane even though
             # the shared mux was up — and each race appended megabytes to mux.log.
             return _mux_daemon_count_live() >= 1 or _socket_has_listener(
-                _mux_socket_path()
+                _mux_state_dir() / "cdmcp-mux.sock"
             )
         time.sleep(0.5)
     return _mux_daemon_count_live() >= 1

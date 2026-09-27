@@ -499,7 +499,12 @@ export default function StackUpdatePanel() {
               {t('backupNow')}
             </button>
           </div>
-          {backupError && <p className="text-xs text-destructive/90">{t('backupFailed')}</p>}
+          {backupError && (
+            <div className="space-y-1">
+              <p className="text-xs text-destructive/90">{t('backupFailed')}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{t('backupManualGuide')}</p>
+            </div>
+          )}
           {restoredId && (
             <p className="text-xs text-emerald-400">
               {t('restoreDone')} {t('restartRequired')}
