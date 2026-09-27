@@ -164,6 +164,57 @@ async def test_resolve_always_persists_to_trust_list_across_workspace_roots(
         assert empty_response.json()["apps"] == []
 
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_resolve_envelope_activates_fast_path_via_router(client: httpx.AsyncClient) -> None:
+    gate = DesktopControlGate(workspace_root=None, auto_grant=False)
+    sink = MagicMock()
+    sink.emit = AsyncMock()
+
+    async def _resolve_envelope_after_emit() -> None:
+        for _ in range(100):
+            if sink.emit.await_args_list:
+                break
+            await asyncio.sleep(0.01)
+        request_id = sink.emit.await_args_list[0].args[0]["data"]["request_id"]
+        response = await client.post(
+            "/webui/desktop/approval/resolve",
+            json={"request_id": request_id, "granted": True, "scope": "envelope"},
+        )
+        assert response.status_code == 200
+        assert response.json()["ok"] is True
+
+    with patch("app.ai_agents.desktop_control.gate.get_tool_progress_sink", return_value=sink):
+        task = asyncio.create_task(_resolve_envelope_after_emit())
+        result = await gate(
+            reason="Control TextEdit batch",
+            operation="desktop_interact(type, @d1)",
+            estimated_duration_seconds=1.0,
+            app_name="TextEdit",
+            timeout_seconds=2.0,
+        )
+        await task
+
+    assert result.granted is True
+    assert result.scope.value == "envelope"
+    assert gate.envelope_manager.active_envelope is not None
+
+    # Fast-path verification: subsequent action inside envelope is granted without new approval
+    sink2 = MagicMock()
+    sink2.emit = AsyncMock()
+    with patch("app.ai_agents.desktop_control.gate.get_tool_progress_sink", return_value=sink2):
+        result2 = await gate(
+            reason="Control TextEdit batch step 2",
+            operation="desktop_interact(type, @d2)",
+            estimated_duration_seconds=1.0,
+            app_name="TextEdit",
+            timeout_seconds=2.0,
+        )
+    assert result2.granted is True
+    assert sink2.emit.await_count == 0
+
+
+
 def test_direct_resolve_idempotent_after_pop() -> None:
     gate = DesktopControlGate(workspace_root=None, auto_grant=False)
     sink = MagicMock()
