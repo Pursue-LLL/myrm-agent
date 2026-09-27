@@ -1038,7 +1038,7 @@ export async function recordDesktopEvent(payload: {
   window_title?: string;
   element_title?: string;
   value?: string;
-}): Promise<{ status: string; recorded_count: number }> {
+}): Promise<{ status: string; recorded_count: number; events_dropped: number }> {
   return apiRequest(`${SKILLS_API_PREFIX}/desktop-recorder/event`, {
     method: 'POST',
     body: JSON.stringify(payload),

@@ -71,7 +71,7 @@ def test_compiled_plan_declares_only_registered_tools(client: TestClient) -> Non
 
     compiled = client.post(f"{_BASE}/compile-plan", json={"plan": plan}).json()
     assert compiled["validation_errors"] == []
-    line = next(l for l in compiled["markdown_content"].splitlines() if l.startswith("allowed-tools:"))
+    line = next(ln for ln in compiled["markdown_content"].splitlines() if ln.startswith("allowed-tools:"))
     for name in line.removeprefix("allowed-tools:").split():
         assert name in _TOOL_LAYERS, f"compiled SKILL.md declares unregistered tool: {name}"
 
