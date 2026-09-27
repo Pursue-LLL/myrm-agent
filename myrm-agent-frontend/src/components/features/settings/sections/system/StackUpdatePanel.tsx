@@ -202,7 +202,7 @@ export default function StackUpdatePanel() {
       setBackupError(false);
       setRestoredId(null);
       try {
-        const response = await fetch(`/api/v1/system/storage/snapshots/${snapshotId}/restore`, {
+        const response = await fetch(`/api/v1/system/storage/snapshots/${snapshotId}/restore-update`, {
           method: 'POST',
         });
         if (!response.ok) {

@@ -1628,6 +1628,12 @@ sys.path.insert(0, '${SCRIPT_DIR}/lib')
 from e2e_core.plane_health import ensure_mux_daemon_if_absent
 raise SystemExit(0 if ensure_mux_daemon_if_absent() else 1)
 "; then
+    # A losing racer of a concurrent cold start exits with "already owned"; the shared
+    # mux is up in that case, so re-check presence before failing the lane.
+    if _mux_daemon_present; then
+      ok "cdmcp-mux daemon cold-start raced with a peer but the daemon is present"
+      return 0
+    fi
     fail "cdmcp-mux daemon cold-start failed — run: ./myrm restart --chrome"
   fi
   local attempt mux_count

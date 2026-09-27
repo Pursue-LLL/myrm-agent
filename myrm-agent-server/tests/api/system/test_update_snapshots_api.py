@@ -76,6 +76,69 @@ def test_list_snapshots_route(client) -> None:
     assert payload["snapshots"][0]["to_version"] == "v0.2.0"
 
 
+def test_restore_update_round_trips_both_dbs(client, data_dir: Path, monkeypatch) -> None:
+    import importlib
+    import types
+
+    checkpoints = data_dir / "checkpoints.db"
+    connection = sqlite3.connect(str(checkpoints))
+    try:
+        connection.execute("CREATE TABLE threads (id INTEGER PRIMARY KEY, state TEXT)")
+        connection.execute("INSERT INTO threads (state) VALUES ('running')")
+        connection.commit()
+    finally:
+        connection.close()
+
+    system_router = importlib.import_module("app.api.system.router")
+    stub_settings = types.SimpleNamespace(
+        database=types.SimpleNamespace(state_dir=str(data_dir))
+    )
+    monkeypatch.setattr(system_router, "get_settings", lambda: stub_settings)
+
+    created = client.post(
+        "/api/v1/system/storage/snapshots/pre-update",
+        json={"from_version": "v0.1.0", "to_version": "v0.2.0"},
+    )
+    assert created.status_code == 200
+    snapshot_id = created.json()["snapshot_id"]
+
+    listed = client.get("/api/v1/system/storage/snapshots")
+    assert listed.status_code == 200
+    entries = listed.json()["snapshots"]
+    assert entries[0]["extra_files"] == ["checkpoints.db"]
+
+    # Mutate both live DBs, then restore and verify contents return.
+    live_main = sqlite3.connect(str(data_dir / "data.db"))
+    try:
+        live_main.execute("DELETE FROM chats")
+        live_main.commit()
+    finally:
+        live_main.close()
+    live_threads = sqlite3.connect(str(checkpoints))
+    try:
+        live_threads.execute("DELETE FROM threads")
+        live_threads.commit()
+    finally:
+        live_threads.close()
+
+    restored = client.post(f"/api/v1/system/storage/snapshots/{snapshot_id}/restore-update")
+    assert restored.status_code == 200
+    assert restored.json()["requires_restart"] is True
+
+    check_main = sqlite3.connect(str(data_dir / "data.db"))
+    try:
+        rows = check_main.execute("SELECT title FROM chats").fetchall()
+    finally:
+        check_main.close()
+    assert rows == [("hello",)]
+    check_threads = sqlite3.connect(str(checkpoints))
+    try:
+        thread_rows = check_threads.execute("SELECT state FROM threads").fetchall()
+    finally:
+        check_threads.close()
+    assert thread_rows == [("running",)]
+
+
 def test_pre_update_route_validates_versions(client) -> None:
     response = client.post(
         "/api/v1/system/storage/snapshots/pre-update",

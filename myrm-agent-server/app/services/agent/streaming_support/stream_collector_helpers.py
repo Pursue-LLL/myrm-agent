@@ -9,6 +9,7 @@
 - collect_clarification_required, collect_plan_confirmation_status
 - collect_file_mutation_failures
 - collect_workspace_merge_failures
+- collect_ttsr_intervention
 - merge_sources_list, source_dedup_key
 - string_keyed_dict, string_keyed_dicts
 

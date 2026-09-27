@@ -598,10 +598,30 @@ def list_update_snapshots() -> dict[str, object]:
                 "created_at": item.created_at,
                 "from_version": item.from_version,
                 "to_version": item.to_version,
+                "extra_files": item.extra_files,
             }
             for item in items
         ]
     }
+
+
+@router.post("/storage/snapshots/{snapshot_id}/restore-update")
+def restore_update_snapshot(snapshot_id: str) -> dict[str, object]:
+    """Restore a pre-update snapshot including companion DBs.
+
+    The backend must be restarted afterwards: in-memory caches go stale.
+    """
+    from app.services.system.update_snapshot_service import (
+        restore_update_snapshot as restore_service,
+    )
+
+    settings = get_settings()
+    ok = restore_service(Path(settings.database.state_dir), snapshot_id)
+    if not ok:
+        raise HTTPException(
+            status_code=400, detail=f"Failed to restore snapshot '{snapshot_id}'."
+        )
+    return {"snapshot_id": snapshot_id, "requires_restart": True}
 
 
 @router.post("/storage/snapshots/pre-update")

@@ -424,9 +424,16 @@ def _start_mux_daemon_if_needed() -> bool:
         if _mux_daemon_count_live() >= 1:
             return True
         if proc.poll() is not None:
-            return False
+            # Our spawn exited. That is NOT failure when a daemon is already owned:
+            # concurrent cold starts (e.g. several lanes attaching at once) race, and
+            # the loser intentionally exits with "mux daemon already owned by pid N".
+            # Reporting that as failure denied attach for every losing lane even though
+            # the shared mux was up — and each race appended megabytes to mux.log.
+            return _mux_daemon_count_live() >= 1 or _socket_has_listener(
+                _mux_socket_path()
+            )
         time.sleep(0.5)
-    return False
+    return _mux_daemon_count_live() >= 1
 
 
 def ensure_mux_daemon_if_absent() -> bool:
