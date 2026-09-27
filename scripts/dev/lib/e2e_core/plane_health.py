@@ -464,9 +464,11 @@ def _classify_state(
         # answered, not whether the plane is down (core._try_daemon_snapshot returns
         # None on any RPC miss). A listening daemon means the plane is alive and the
         # snapshot merely lapsed under load -> recoverable, not STALE.
-        if _orchestrator_daemon_listening():
-            return PlaneHealthState.UNKNOWN
-        return PlaneHealthState.STALE
+        return (
+            PlaneHealthState.UNKNOWN
+            if orchestrator_listening
+            else PlaneHealthState.STALE
+        )
     if orch_health in {"DEGRADED", "UNKNOWN"}:
         return PlaneHealthState.DEGRADED
     if orch_health == "READY" and mux_count >= 1 and mux_available:

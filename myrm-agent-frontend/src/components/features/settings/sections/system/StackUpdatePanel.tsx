@@ -20,10 +20,19 @@ import { IconCheck, IconShield } from '@/components/features/icons/PremiumIcons'
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { useAppUpdate } from '@/hooks/tauri/useAppUpdate';
 import {
-  getDeferredVersion, getQuietHours, isDeferred, isQuietNow,
-  setDeferredVersion, setQuietHours,
+  getAutoBackup, getDeferredVersion, getQuietHours, isDeferred, isQuietNow,
+  setAutoBackup, setDeferredVersion, setQuietHours,
   type QuietHours,
 } from '@/lib/update-prefs';
+
+interface SnapshotItem {
+  snapshot_id: string;
+  label: string;
+  size_bytes: number;
+  created_at: string;
+  from_version?: string | null;
+  to_version?: string | null;
+}
 import { cn } from '@/lib/utils/classnameUtils';
 
 interface ChangelogGroups {
@@ -62,6 +71,11 @@ export default function StackUpdatePanel() {
   const [quietStart, setQuietStart] = useState<string>(QUIET_OFF);
   const [quietEnd, setQuietEnd] = useState<string>(QUIET_OFF);
   const [doctorResult, setDoctorResult] = useState<'pass' | 'fail' | null>(null);
+  const [autoBackupEnabled, setAutoBackupState] = useState(true);
+  const [snapshots, setSnapshots] = useState<SnapshotItem[]>([]);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupError, setBackupError] = useState(false);
+  const [restoredId, setRestoredId] = useState<string | null>(null);
   const [isDoctoring, setIsDoctoring] = useState(false);
 
   const quietRef = useRef({ start: QUIET_OFF, end: QUIET_OFF });
@@ -92,8 +106,39 @@ export default function StackUpdatePanel() {
     }
   }, []);
 
+  const refreshSnapshots = useCallback(async () => {
+    try {
+      const response = await fetch('/api/v1/system/storage/snapshots');
+      if (!response.ok) {
+        return;
+      }
+      const payload = (await response.json()) as { snapshots?: SnapshotItem[] };
+      if (Array.isArray(payload.snapshots)) {
+        setSnapshots(payload.snapshots);
+      }
+    } catch {
+      // Snapshot list is best effort; the update panel works without it.
+    }
+  }, []);
+
+  const snapshotBeforeInstall = useCallback(async (fromVersion: string, toVersion: string) => {
+    if (!getAutoBackup()) {
+      return;
+    }
+    try {
+      await fetch('/api/v1/system/storage/snapshots/pre-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from_version: fromVersion, to_version: toVersion }),
+      });
+    } catch {
+      // A failed pre-update snapshot must never block the update itself.
+    }
+  }, []);
+
   useEffect(() => {
     setDeferredVersionState(getDeferredVersion());
+    setAutoBackupState(getAutoBackup());
     const initialQuiet = getQuietHours();
     setQuiet(initialQuiet);
     if (initialQuiet) {
@@ -104,7 +149,8 @@ export default function StackUpdatePanel() {
       quietRef.current = { start: s, end: e };
     }
     void refreshStatus();
-  }, [refreshStatus]);
+    void refreshSnapshots();
+  }, [refreshStatus, refreshSnapshots]);
 
   const latestVersion = status?.latest?.version ?? null;
   const isSecurity = status?.changelog?.is_security === true;
@@ -120,8 +166,79 @@ export default function StackUpdatePanel() {
   const handleDesktopInstall = useCallback(() => {
     // Post-restart success/failure feedback is owned by UpdateHandoffNotifier
     // (verified handoff); the hook records the handoff on install.
+    if (desktopInfo) {
+      void snapshotBeforeInstall(desktopInfo.currentVersion, desktopInfo.version).then(() => {
+        void refreshSnapshots();
+      });
+    }
     void desktopInstall();
-  }, [desktopInstall]);
+  }, [desktopInfo, desktopInstall, refreshSnapshots, snapshotBeforeInstall]);
+
+  const handleBackupNow = useCallback(async () => {
+    setBackupBusy(true);
+    setBackupError(false);
+    try {
+      const current = status?.server_version ?? 'unknown';
+      const target = latestVersion ?? 'manual';
+      const response = await fetch('/api/v1/system/storage/snapshots/pre-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from_version: String(current), to_version: String(target) }),
+      });
+      if (!response.ok) {
+        setBackupError(true);
+      }
+      await refreshSnapshots();
+    } catch {
+      setBackupError(true);
+    } finally {
+      setBackupBusy(false);
+    }
+  }, [latestVersion, refreshSnapshots, status?.server_version]);
+
+  const handleRestore = useCallback(
+    async (snapshotId: string) => {
+      setBackupBusy(true);
+      setBackupError(false);
+      setRestoredId(null);
+      try {
+        const response = await fetch(`/api/v1/system/storage/snapshots/${snapshotId}/restore`, {
+          method: 'POST',
+        });
+        if (!response.ok) {
+          setBackupError(true);
+          return;
+        }
+        setRestoredId(snapshotId);
+      } catch {
+        setBackupError(true);
+      } finally {
+        setBackupBusy(false);
+      }
+    },
+    [],
+  );
+
+  const handleDeleteSnapshot = useCallback(
+    async (snapshotId: string) => {
+      try {
+        await fetch(`/api/v1/system/storage/snapshots/${snapshotId}`, { method: 'DELETE' });
+        await refreshSnapshots();
+      } catch {
+        // Best effort; the list refresh shows the truth.
+        await refreshSnapshots();
+      }
+    },
+    [refreshSnapshots],
+  );
+
+  const handleAutoBackupToggle = useCallback(() => {
+    setAutoBackupState((enabled) => {
+      const next = !enabled;
+      setAutoBackup(next);
+      return next;
+    });
+  }, []);
 
   const handleDefer = useCallback(() => {
     if (latestVersion) {

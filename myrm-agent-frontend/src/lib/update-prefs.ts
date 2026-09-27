@@ -14,6 +14,7 @@
 
 const DEFERRED_VERSION_KEY = 'myrm-update-deferred-version';
 const QUIET_HOURS_KEY = 'myrm-update-quiet-hours';
+const AUTO_BACKUP_KEY = 'myrm-update-auto-backup';
 
 export interface QuietHours {
   startHour: number;
@@ -101,6 +102,19 @@ export function setQuietHours(hours: QuietHours | null): void {
     return;
   }
   writeStorage(QUIET_HOURS_KEY, JSON.stringify(hours));
+}
+
+/** Auto pre-update snapshots default ON; explicit off persists. */
+export function getAutoBackup(): boolean {
+  const raw = readStorage(AUTO_BACKUP_KEY);
+  if (raw === null) {
+    return true;
+  }
+  return raw !== 'false';
+}
+
+export function setAutoBackup(enabled: boolean): void {
+  writeStorage(AUTO_BACKUP_KEY, enabled ? 'true' : 'false');
 }
 
 /** True when `now` falls inside the quiet window (wraps midnight). */
