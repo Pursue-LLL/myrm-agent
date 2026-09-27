@@ -54,9 +54,17 @@ vi.mock('@/components/features/message-box/MarkdownContent', () => ({
 
 vi.mock('../WikiConceptLinksPanel', () => ({
   WikiConceptLinksPanel: ({ onSelectConcept }: { onSelectConcept?: (name: string, heading?: string) => void }) => (
-    <button data-testid="mock-jump-btn" onClick={() => onSelectConcept?.('Alpha', '简介')}>
-      Jump to Intro
-    </button>
+    <div>
+      <button data-testid="mock-jump-btn" onClick={() => onSelectConcept?.('Alpha', '简介')}>
+        Jump to Intro
+      </button>
+      <button data-testid="mock-jump-fuzzy" onClick={() => onSelectConcept?.('Alpha', '核心概念')}>
+        Jump Fuzzy
+      </button>
+      <button data-testid="mock-jump-404" onClick={() => onSelectConcept?.('Alpha', '完全不存在的章节')}>
+        Jump 404
+      </button>
+    </div>
   ),
 }));
 
@@ -164,5 +172,63 @@ describe('WikiConceptDetailPanel source provenance jump', () => {
     expect(exactHeading.classList.contains('bg-primary/10')).toBe(true);
     // 前序模糊子串标题绝对不能被错误高亮
     expect(fuzzyHeading.classList.contains('bg-primary/10')).toBe(false);
+  });
+
+  it('falls back to fuzzy substring match when exact match is absent', () => {
+    const scrollMock = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollMock,
+    });
+
+    const concept: Concept = {
+      name: 'Alpha',
+      content: '## 1. 架构简介与核心概念\n## 简介',
+    };
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
+
+    const jumpBtn = screen.getByTestId('mock-jump-fuzzy');
+    act(() => {
+      jumpBtn.click();
+    });
+
+    expect(scrollMock).toHaveBeenCalledTimes(1);
+    const fuzzyHeading = screen.getByTestId('heading-fuzzy');
+    const exactHeading = screen.getByTestId('heading-exact');
+
+    // 模糊包含目标（核心概念）命中 fuzzyHeading 并获得高亮
+    expect(fuzzyHeading.classList.contains('bg-primary/10')).toBe(true);
+    // 无关标题不受影响
+    expect(exactHeading.classList.contains('bg-primary/10')).toBe(false);
+  });
+
+  it('gracefully ignores non-existent heading without throwing errors', () => {
+    const scrollMock = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollMock,
+    });
+
+    const concept: Concept = {
+      name: 'Alpha',
+      content: '## 1. 架构简介与核心概念\n## 简介',
+    };
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
+
+    const jumpBtn = screen.getByTestId('mock-jump-404');
+    expect(() => {
+      act(() => {
+        jumpBtn.click();
+      });
+    }).not.toThrow();
+
+    // 完全不存在的小节不触发滚动，也不附加任何高亮
+    expect(scrollMock).not.toHaveBeenCalled();
+    const fuzzyHeading = screen.getByTestId('heading-fuzzy');
+    const exactHeading = screen.getByTestId('heading-exact');
+    expect(fuzzyHeading.classList.contains('bg-primary/10')).toBe(false);
+    expect(exactHeading.classList.contains('bg-primary/10')).toBe(false);
   });
 });
