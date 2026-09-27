@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 # Hard limits for safety guardrails
 _MAX_LEASE_HARD_LIMIT = 100
 _DEFAULT_LEASE_EXTEND_STEP = 10
+_MAX_ENVELOPES_CAPACITY = 200
 
 
 class DesktopEnvelopeManager:
@@ -51,6 +52,12 @@ class DesktopEnvelopeManager:
         """Register and activate an intent envelope for a task."""
         clamped_max = min(max(1, spec.max_actions), _MAX_LEASE_HARD_LIMIT)
         spec.max_actions = clamped_max
+        if len(self._envelopes_by_task) >= _MAX_ENVELOPES_CAPACITY:
+            candidates = [k for k in self._last_active_by_task if k != spec.task_id]
+            if candidates:
+                oldest_task = min(candidates, key=lambda k: self._last_active_by_task.get(k, 0.0))
+                self._envelopes_by_task.pop(oldest_task, None)
+                self._last_active_by_task.pop(oldest_task, None)
         self._envelopes_by_task[spec.task_id] = spec
         self._last_active_by_task[spec.task_id] = time.monotonic()
         self._active_envelope = spec

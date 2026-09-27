@@ -379,6 +379,7 @@ class DesktopControlGate:
                             idle_timeout_seconds=180.0,
                         )
                     )
+                    asyncio.create_task(self._envelope_manager.emit_progress(request_id))
             DesktopApprovalRegistry.record_decision(
                 request_id=request_id, trust_key=trust_key, fingerprint=fingerprint,
                 operation=operation, decision="granted", scope=decided.scope.value,
