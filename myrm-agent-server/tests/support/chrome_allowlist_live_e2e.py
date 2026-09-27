@@ -130,9 +130,10 @@ _SELECT_PATTERN_SCOPE_JS = """(async () => {
 _SELECT_DURATION_JS = """(async () => {
   // The dialog defaults to "session", and session grants are intentionally in-memory
   // only (never written to the allowlist table), so a session-scoped pattern can never
-  // appear in Settings. Select a persistable duration before confirming.
+  // appear in Settings. Select a persistable duration before confirming. Same mount
+  // budget as the scope select: the trigger appears a beat after the scope is chosen.
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  for (let attempt = 0; attempt < 24; attempt += 1) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
     const trigger =
       document.querySelector('#allowlist-duration') ||
       document.querySelector('[id="allowlist-duration"]');
