@@ -431,8 +431,17 @@ def _classify_state(
         return PlaneHealthState.RECOVERING
     if orch_state == "FAILED" or orch_health == "FAILED":
         return PlaneHealthState.FAILED_LATCHED
-    if mux_count < 1 or not mux_available:
+    # A live mux with a lapsed orchestrator snapshot is UNKNOWN, not STALE. The
+    # snapshot is unavailable whenever the orchestrator RPC did not answer in time, and
+    # under parallel load that RPC legitimately queues behind peer tabs — the same
+    # reason chrome-e2e-preflight::_heal_mux_under_parallel_attach_load trusts
+    # upstream+ws+pid and skips its expensive probe. Classifying that transient
+    # timeout as STALE failed every attach while the plane was actually healthy
+    # (observed: 3/4 SHARED lanes failed body_started=0 under a 4-lane ramp).
+    if mux_count < 1:
         return PlaneHealthState.STALE
+    if not mux_available:
+        return PlaneHealthState.UNKNOWN
     if orch_health in {"DEGRADED", "UNKNOWN"}:
         return PlaneHealthState.DEGRADED
     if orch_health == "READY" and mux_count >= 1 and mux_available:
