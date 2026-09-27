@@ -185,6 +185,24 @@ def _mux_daemon_count_live() -> int:
         return 0
 
 
+def _orchestrator_daemon_listening() -> bool:
+    """Cheap transport-independent liveness of the orchestrator daemon socket.
+
+    `is_alive()` itself issues a `status()` RPC, so a loaded daemon makes *every*
+    liveness check answer "not alive". Probing whether the unix socket has a live
+    listener distinguishes "daemon is dead" from "daemon is merely busy answering
+    peers", which is what keeps a transient parallel-load timeout from being
+    reported as a plane outage.
+    """
+    try:
+        from browser_orchestrator.client import _default_socket_path
+
+        socket_path = Path(_default_socket_path())
+    except (ImportError, OSError, TypeError, ValueError):
+        return False
+    return _socket_has_listener(socket_path)
+
+
 def _orchestrator_status() -> tuple[str, str, bool]:
     try:
         from browser_orchestrator import browser_orchestrator_snapshot
@@ -426,6 +444,7 @@ def _classify_state(
     orch_health: str,
     orch_state: str,
     mux_available: bool,
+    orchestrator_listening: bool = True,
 ) -> PlaneHealthState:
     if orch_state == "RECOVERING" or orch_health == "RECOVERING":
         return PlaneHealthState.RECOVERING
@@ -441,7 +460,13 @@ def _classify_state(
     if mux_count < 1:
         return PlaneHealthState.STALE
     if not mux_available:
-        return PlaneHealthState.UNKNOWN
+        # `mux_snapshot_available` reports whether the orchestrator-daemon status RPC
+        # answered, not whether the plane is down (core._try_daemon_snapshot returns
+        # None on any RPC miss). A listening daemon means the plane is alive and the
+        # snapshot merely lapsed under load -> recoverable, not STALE.
+        if _orchestrator_daemon_listening():
+            return PlaneHealthState.UNKNOWN
+        return PlaneHealthState.STALE
     if orch_health in {"DEGRADED", "UNKNOWN"}:
         return PlaneHealthState.DEGRADED
     if orch_health == "READY" and mux_count >= 1 and mux_available:
@@ -505,6 +530,7 @@ def plane_health_snapshot(
         orch_health=orch_health,
         orch_state=orch_state,
         mux_available=mux_available,
+        orchestrator_listening=_orchestrator_daemon_listening(),
     )
     converge_action: str | None = None
     if (

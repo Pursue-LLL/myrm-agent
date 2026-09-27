@@ -129,6 +129,12 @@ class CreateSnapshotRequest(BaseModel):
     label: str
 
 
+class PreUpdateSnapshotRequest(BaseModel):
+    from_version: str
+    to_version: str
+    keep_latest: int = 5
+
+
 class SnapshotActionResponse(BaseModel):
     success: bool
     message: str

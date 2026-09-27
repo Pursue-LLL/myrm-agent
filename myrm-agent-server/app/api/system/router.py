@@ -29,6 +29,7 @@ from myrm_agent_harness.utils import get_local_ip
 from app.api.system.schemas import (
     CreateSnapshotRequest,
     IngressRequirementResponse,
+    PreUpdateSnapshotRequest,
     SandboxRecreateResponse,
     SnapshotActionResponse,
     StateSnapshotItem,
@@ -579,3 +580,51 @@ def delete_state_snapshot(snapshot_id: str) -> SnapshotActionResponse:
         success=True,
         message=f"Snapshot '{snapshot_id}' deleted successfully.",
     )
+
+
+@router.get("/storage/snapshots")
+def list_update_snapshots() -> dict[str, object]:
+    """Newest-first snapshot inventory for the Stack Update Panel."""
+    from app.services.system.update_snapshot_service import list_update_snapshots as list_items
+
+    settings = get_settings()
+    items = list_items(Path(settings.database.state_dir))
+    return {
+        "snapshots": [
+            {
+                "snapshot_id": item.snapshot_id,
+                "label": item.label,
+                "size_bytes": item.size_bytes,
+                "created_at": item.created_at,
+                "from_version": item.from_version,
+                "to_version": item.to_version,
+            }
+            for item in items
+        ]
+    }
+
+
+@router.post("/storage/snapshots/pre-update")
+def create_pre_update_snapshot(req: PreUpdateSnapshotRequest) -> dict[str, object]:
+    """Snapshot before an update install, then enforce retention."""
+    from app.services.system.update_snapshot_service import (
+        create_pre_update_snapshot as create_snapshot,
+    )
+
+    if not req.from_version.strip() or not req.to_version.strip():
+        raise HTTPException(status_code=400, detail="from_version and to_version are required.")
+    settings = get_settings()
+    item = create_snapshot(
+        Path(settings.database.state_dir),
+        from_version=req.from_version.strip(),
+        to_version=req.to_version.strip(),
+        keep_latest=max(1, req.keep_latest),
+    )
+    return {
+        "snapshot_id": item.snapshot_id,
+        "label": item.label,
+        "size_bytes": item.size_bytes,
+        "created_at": item.created_at,
+        "from_version": item.from_version,
+        "to_version": item.to_version,
+    }
