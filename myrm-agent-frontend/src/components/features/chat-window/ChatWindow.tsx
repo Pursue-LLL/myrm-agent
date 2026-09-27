@@ -25,6 +25,8 @@ import YoloModeBanner from './YoloModeBanner';
 import EStopBanner from './EStopBanner';
 import ExtensionDisconnectedBanner from './ExtensionDisconnectedBanner';
 import ExtensionTakeoverBanner from './ExtensionTakeoverBanner';
+import WorkspaceTrustBanner from '@/components/features/project-workspace/WorkspaceTrustBanner';
+import { useProjectStore } from '@/store/useProjectStore';
 import { MemoryRecallDegradedBanner } from '@/components/features/message-box/MemoryRecallDegradedBanner';
 import ChatWindowSatellites, { GoalControlPlane, GoalStatusCard, LifeStatusCapsule } from './ChatWindowSatellites';
 import { FiveContractDeliveryStatusPanel } from './FiveContractDeliveryStatusPanel';
@@ -208,6 +210,10 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
       agentConfig: state.agentConfig,
     })),
   );
+
+  const activeProjectId = useProjectStore((s) => (typeof s.activeFilter === 'string' ? s.activeFilter : null));
+  const activeProject = useProjectStore((s) => s.projects.find((p) => p.id === activeProjectId));
+  const activeWorkspacePath = activeProject?.workspace_path || null;
 
   const chatMessages = useStoreSnapshot(
     (onStoreChange) => useChatStore.subscribe(onStoreChange),
@@ -620,6 +626,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             <EStopBanner />
             <ExtensionDisconnectedBanner />
             <ExtensionTakeoverBanner />
+            <WorkspaceTrustBanner workspacePath={activeWorkspacePath} />
             <MemoryRecallDegradedBanner
               compact
               dismissStorageKey={id ? `memory-recall-degraded:${id}` : undefined}

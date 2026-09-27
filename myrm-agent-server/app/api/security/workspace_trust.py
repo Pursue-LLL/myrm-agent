@@ -45,14 +45,24 @@ def _manifest_to_dict(manifest: object) -> dict[str, object]:
 
     if not isinstance(manifest, WorkspaceTrustManifest):
         return {}
+    requires_trust = bool(
+        manifest.skill_count
+        or manifest.rule_count
+        or manifest.mcp_count
+        or manifest.plugin_count
+        or manifest.repo_command_prefixes
+    )
     return {
         "path": manifest.path,
         "canonical_path": manifest.canonical_path,
         "skill_count": manifest.skill_count,
         "rule_count": manifest.rule_count,
+        "mcp_count": manifest.mcp_count,
+        "plugin_count": manifest.plugin_count,
         "repo_command_prefixes": list(manifest.repo_command_prefixes),
         "has_myrm_config": manifest.has_myrm_config,
         "current_level": manifest.current_level.value if manifest.current_level else None,
+        "requires_trust": requires_trust,
     }
 
 
@@ -78,7 +88,16 @@ async def preview_manifest(body: ManifestRequest) -> JSONResponse:
         manifest = await store.build_manifest(body.path)
     except ValueError as exc:
         raise validation_error(str(exc)) from exc
-    return success_response(data=_manifest_to_dict(manifest))
+
+    manifest_dict = _manifest_to_dict(manifest)
+    if not manifest_dict.get("requires_trust") and manifest.current_level is None:
+        try:
+            entry = await store.decide(body.path, WorkspaceTrustLevel.TRUSTED, manifest=manifest)
+            manifest_dict["current_level"] = entry.level.value
+        except Exception:
+            pass
+
+    return success_response(data=manifest_dict)
 
 
 @router.post("/decide")

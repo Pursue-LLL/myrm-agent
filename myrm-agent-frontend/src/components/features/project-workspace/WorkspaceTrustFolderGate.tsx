@@ -132,6 +132,18 @@ const WorkspaceTrustFolderGate = memo(
                         <span>{t('rules')}</span>
                         <Badge variant="secondary">{manifest.rule_count}</Badge>
                       </li>
+                      {Boolean(manifest.mcp_count) && (
+                        <li className="flex items-center justify-between gap-2">
+                          <span>Local MCP Servers</span>
+                          <Badge variant="secondary">{manifest.mcp_count}</Badge>
+                        </li>
+                      )}
+                      {Boolean(manifest.plugin_count) && (
+                        <li className="flex items-center justify-between gap-2">
+                          <span>Local Plugins</span>
+                          <Badge variant="secondary">{manifest.plugin_count}</Badge>
+                        </li>
+                      )}
                       {manifest.has_myrm_config && (
                         <li className="text-amber-700 dark:text-amber-300">{t('hasMyrmConfig')}</li>
                       )}

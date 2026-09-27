@@ -53,6 +53,45 @@ def test_manifest_preview(client: TestClient) -> None:
     assert body["success"] is True
     assert body["data"]["skill_count"] == 2
     assert body["data"]["rule_count"] == 1
+    assert body["data"]["requires_trust"] is True
+
+
+def test_clean_workspace_manifest_auto_trusts(client: TestClient) -> None:
+    manifest = WorkspaceTrustManifest(
+        path="/tmp/clean",
+        canonical_path="/tmp/clean",
+        skill_count=0,
+        rule_count=0,
+        mcp_count=0,
+        plugin_count=0,
+        repo_command_prefixes=(),
+        has_myrm_config=False,
+        current_level=None,
+    )
+    auto_entry = WorkspaceTrustEntry(
+        path="/tmp/clean",
+        level=WorkspaceTrustLevel.TRUSTED,
+        decided_at="2026-09-27T00:00:00+00:00",
+        manifest_hash="clean123",
+    )
+    mock_store = AsyncMock()
+    mock_store.loaded = True
+    mock_store.load = AsyncMock()
+    mock_store.build_manifest = AsyncMock(return_value=manifest)
+    mock_store.decide = AsyncMock(return_value=auto_entry)
+
+    with patch(
+        "app.api.security.workspace_trust.get_workspace_trust_store",
+        return_value=mock_store,
+    ):
+        response = client.post("/api/v1/security/workspace-trust/manifest", json={"path": "/tmp/clean"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["data"]["requires_trust"] is False
+    assert body["data"]["current_level"] == "TRUSTED"
+    mock_store.decide.assert_awaited_once()
 
 
 def test_decide_trust_persists(client: TestClient) -> None:

@@ -18,9 +18,12 @@ export interface WorkspaceTrustManifest {
   canonical_path: string;
   skill_count: number;
   rule_count: number;
+  mcp_count?: number;
+  plugin_count?: number;
   repo_command_prefixes: string[];
   has_myrm_config: boolean;
   current_level: WorkspaceTrustLevel | null;
+  requires_trust?: boolean;
 }
 
 export interface WorkspaceTrustEntry {

@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any
 
 from myrm_agent_harness.agent.security.workspace_trust.manifest import (
     build_workspace_trust_manifest,
@@ -86,7 +85,7 @@ class WorkspaceTrustStore:
     async def _persist(self) -> None:
         from app.services.config.service import config_service
 
-        payload: dict[str, Any] = {
+        payload: dict[str, object] = {
             "entries": {
                 path: {
                     "level": entry.level.value,

@@ -31,6 +31,7 @@ import {
 } from '@/lib/directoryBrowseRecent';
 import { toast } from '@/hooks/shared/useToast';
 import { isTauriEnvironment } from '@/lib/tauri';
+import { previewWorkspaceTrustManifest } from '@/services/workspaceTrust';
 import WorkspaceTrustFolderGate from './WorkspaceTrustFolderGate';
 
 function addRecentDir(dir: string): void {
@@ -103,6 +104,15 @@ export default function ProjectWorkspaceMount({
       if (dir === null) {
         await finalizeWorkspaceBind(null);
         return;
+      }
+      try {
+        const preview = await previewWorkspaceTrustManifest(dir);
+        if (!preview.requires_trust || preview.current_level === 'TRUSTED') {
+          await finalizeWorkspaceBind(dir);
+          return;
+        }
+      } catch {
+        // Fall through to explicit gate dialog on error
       }
       setPendingPath(dir);
       setGateOpen(true);
