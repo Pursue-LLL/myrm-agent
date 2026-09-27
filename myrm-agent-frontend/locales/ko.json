@@ -17943,6 +17943,7 @@
         "showMore": "모두 보기",
         "showLess": "접기",
         "defer": "나중에 알림({version})",
+        "securityPatch": "보안 업데이트 (연기 불가)",
         "doctorRun": "업데이트 점검 실행",
         "doctorPass": "업데이트 서비스가 정상입니다.",
         "doctorFail": "업데이트 서비스에 문제 — 위를 확인하세요.",

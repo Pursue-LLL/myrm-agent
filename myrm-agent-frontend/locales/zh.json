@@ -5476,6 +5476,7 @@
         "showMore": "展开全部",
         "showLess": "收起",
         "defer": "稍后提醒（{version}）",
+        "securityPatch": "安全更新（不支持推迟）",
         "doctorRun": "运行更新自检",
         "doctorPass": "更新服务正常。",
         "doctorFail": "更新服务有问题——请看上方提示。",

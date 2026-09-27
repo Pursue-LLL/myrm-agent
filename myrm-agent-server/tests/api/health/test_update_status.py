@@ -101,3 +101,63 @@ def test_update_status_endpoint_unknown_when_fetch_fails(monkeypatch) -> None:
     assert payload["fetch_error"] == "ConnectError"
     assert payload["stale"] is None
     assert payload["git"] is None
+
+
+def test_split_changelog_detects_security_cve() -> None:
+    body = "## Fixed\n- Fix CVE-2026-1234 remote sandbox escape vulnerability\n- Regular fix"
+    grouped = split_changelog(body)
+    assert grouped["grouped"] is True
+    assert grouped["is_security"] is True
+
+    normal_body = "## Fixed\n- Fix UI color layout"
+    normal_grouped = split_changelog(normal_body)
+    assert normal_grouped["is_security"] is False
+
+
+def test_update_status_endpoint_force_bypasses_cache(monkeypatch) -> None:
+    fetch_count = 0
+
+    async def fake_latest(repo: str) -> dict[str, object]:
+        nonlocal fetch_count
+        fetch_count += 1
+        return {
+            "release": {
+                "version": f"v0.2.{fetch_count}",
+                "published_at": "2026-09-01T00:00:00Z",
+                "url": "https://example.invalid/r",
+                "body": "## Fixed\n- Security patch CVE-2026-9999",
+            },
+            "error": None,
+        }
+
+    async def fake_git() -> dict[str, object] | None:
+        return None
+
+    monkeypatch.setattr(update_status, "_fetch_latest_release", fake_latest)
+    monkeypatch.setattr(update_status, "_git_behind", fake_git)
+    monkeypatch.setattr(
+        update_status, "_latest_cache", {"fetched_at": 0.0, "payload": None}
+    )
+
+    app = FastAPI()
+    app.include_router(update_status.router, prefix="/health")
+    client = TestClient(app)
+
+    # First fetch: populates cache
+    res1 = client.get("/health/update-status")
+    assert res1.status_code == 200
+    assert res1.json()["latest"]["version"] == "v0.2.1"
+    assert res1.json()["changelog"]["is_security"] is True
+    assert fetch_count == 1
+
+    # Second fetch without force: hits cache
+    res2 = client.get("/health/update-status")
+    assert res2.status_code == 200
+    assert res2.json()["latest"]["version"] == "v0.2.1"
+    assert fetch_count == 1
+
+    # Third fetch with force=true: bypasses cache and increments fetch_count
+    res3 = client.get("/health/update-status?force=true")
+    assert res3.status_code == 200
+    assert res3.json()["latest"]["version"] == "v0.2.2"
+    assert fetch_count == 2

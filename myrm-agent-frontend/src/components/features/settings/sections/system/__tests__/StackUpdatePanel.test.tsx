@@ -183,8 +183,8 @@ describe('StackUpdatePanel', () => {
     expect(setDeferredSpy).toHaveBeenCalledWith('v0.2.0');
   });
 
-  it('executes doctor test and shows doctorPass on success', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+  it('executes doctor test with force=true probe and shows doctorPass on success', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
         server_version: '0.1.0',
@@ -192,6 +192,7 @@ describe('StackUpdatePanel', () => {
         fetch_error: null,
       }),
     } as Response);
+    global.fetch = fetchMock;
 
     render(<StackUpdatePanel />);
 
@@ -201,6 +202,34 @@ describe('StackUpdatePanel', () => {
     await waitFor(() => {
       expect(screen.getByText('doctorPass')).toBeInTheDocument();
     });
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/health/update-status?force=true');
+  });
+
+  it('disables deferral and renders securityPatch badge when is_security is true', async () => {
+    const mockPayload = {
+      server_version: '0.1.0',
+      harness_version: '0.1.0',
+      latest: { version: 'v0.2.0' },
+      stale: true,
+      changelog: {
+        fixed: ['CVE-2026-1234: remote code execution fix'],
+        other: [],
+        is_security: true,
+      },
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockPayload,
+    } as Response);
+
+    render(<StackUpdatePanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('securityPatch')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/defer/)).not.toBeInTheDocument();
   });
 
   it('handles quiet hours dropdown selection', async () => {

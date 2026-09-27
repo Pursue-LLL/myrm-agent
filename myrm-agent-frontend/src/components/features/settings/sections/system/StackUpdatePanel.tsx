@@ -30,6 +30,7 @@ interface ChangelogGroups {
   fixed: string[];
   other: string[];
   grouped: boolean;
+  is_security?: boolean;
 }
 
 interface UpdateStatusPayload {
@@ -105,6 +106,7 @@ export default function StackUpdatePanel() {
   }, [refreshStatus]);
 
   const latestVersion = status?.latest?.version ?? null;
+  const isSecurity = status?.changelog?.is_security === true;
   const deferred = isDeferred(latestVersion);
   const quietNow = isQuietNow(quiet);
   const fixed = status?.changelog?.fixed ?? [];
@@ -172,7 +174,7 @@ export default function StackUpdatePanel() {
   const handleDoctor = useCallback(async () => {
     setDoctorResult(null);
     try {
-      const response = await fetch('/api/v1/health/update-status');
+      const response = await fetch('/api/v1/health/update-status?force=true');
       if (!response.ok) {
         setDoctorResult('fail');
         return;
@@ -186,7 +188,7 @@ export default function StackUpdatePanel() {
     }
   }, []);
 
-  const staleBadge = status?.stale === true && !deferred && !quietNow;
+  const staleBadge = status?.stale === true && (isSecurity || (!deferred && !quietNow));
 
   return (
     <section className="space-y-6">
@@ -257,7 +259,7 @@ export default function StackUpdatePanel() {
                 )}
                 {status.stale !== true && <span className="font-bold text-emerald-400">{t('upToDateBadge')}</span>}
                 {status.fetch_error && <span>· {t('unknownBadge')}</span>}
-                {deferred && <span>· {t('deferredHint', { version: deferredVersion ?? '' })}</span>}
+                {deferred && !isSecurity && <span>· {t('deferredHint', { version: deferredVersion ?? '' })}</span>}
               </p>
               {status.git && typeof status.git.behind_count === 'number' && status.git.behind_count > 0 && (
                 <p className="mt-1">
@@ -316,7 +318,7 @@ export default function StackUpdatePanel() {
         )}
 
         <div className="flex flex-wrap gap-2">
-          {latestVersion && !deferred && (
+          {latestVersion && !deferred && !isSecurity && (
             <button
               type="button"
               onClick={handleDefer}
@@ -324,6 +326,12 @@ export default function StackUpdatePanel() {
             >
               {t('defer', { version: latestVersion })}
             </button>
+          )}
+          {latestVersion && isSecurity && (
+            <div className="px-4 py-2 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-400 text-xs font-bold flex items-center gap-1.5">
+              <IconShield className="w-3.5 h-3.5 shrink-0" />
+              <span>{t('securityPatch')}</span>
+            </div>
           )}
           <button
             type="button"

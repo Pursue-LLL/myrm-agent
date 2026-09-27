@@ -213,21 +213,22 @@ async def analyze_desktop_plan(
         is_browser = "browser" in app_name.lower() or "chrome" in app_name.lower()
         tool_hint = "browser_interact_tool" if is_browser else "desktop_interact_tool"
 
-        if ev.action == RecordedActionType.WINDOW_FOCUS.value or app_name != current_app:
-            current_app = app_name
-            title = f"Switch to application {app_name}"
-            desc = f"Activate {app_name} (Window: {ev.window_title or 'Main'})."
-            tool_hint = ""
+        if ev.action == RecordedActionType.CLICK.value:
+            elem = ev.element_title or ev.element_role or "target element"
+            title = f"Interact with {elem} in {app_name}"
+            desc = f"Perform {ev.action} on '{elem}' (Window: {ev.window_title or 'active'})."
         elif ev.action == RecordedActionType.TYPE.value:
             var_key = f"input_val_{step_idx}"
             variables[var_key] = f"Input value for {ev.element_title or 'form field'}"
             variables_used = [var_key]
             title = f"Input value into {ev.element_title or 'field'} in {app_name}"
             desc = f"Enter `{{{{{var_key}}}}}` into {ev.element_title or 'input'}."
-        elif ev.action == RecordedActionType.CLICK.value:
-            elem = ev.element_title or ev.element_role or "target element"
-            title = f"Interact with {elem} in {app_name}"
-            desc = f"Perform {ev.action} on '{elem}' (Window: {ev.window_title or 'active'})."
+        elif ev.action == RecordedActionType.WINDOW_FOCUS.value or app_name != current_app:
+            # A focus event, or the first event attributed to a different app, is an app switch.
+            current_app = app_name
+            title = f"Switch to application {app_name}"
+            desc = f"Activate {app_name} (Window: {ev.window_title or 'Main'})."
+            tool_hint = ""
         else:
             title = f"Execute {ev.action} in {app_name}"
             desc = f"Action {ev.action} recorded on {ev.window_title or app_name}."

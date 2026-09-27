@@ -5476,6 +5476,7 @@
         "showMore": "Show all",
         "showLess": "Show less",
         "defer": "Remind me later ({version})",
+        "securityPatch": "Security Update (cannot be deferred)",
         "doctorRun": "Run update checkup",
         "doctorPass": "Update service looks healthy.",
         "doctorFail": "Update service has a problem — check the message above.",

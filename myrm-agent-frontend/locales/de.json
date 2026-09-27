@@ -17943,6 +17943,7 @@
         "showMore": "Alle anzeigen",
         "showLess": "Weniger anzeigen",
         "defer": "Später erinnern ({version})",
+        "securityPatch": "Sicherheitsupdate (kann nicht aufgeschoben werden)",
         "doctorRun": "Update-Check ausführen",
         "doctorPass": "Update-Dienst ist gesund.",
         "doctorFail": "Update-Dienst hat ein Problem — Hinweis oben beachten.",

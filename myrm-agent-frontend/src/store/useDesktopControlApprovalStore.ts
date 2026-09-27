@@ -22,6 +22,8 @@ export interface ActiveEnvelopeState {
   allowSystemDialogs: boolean;
   status: 'pending_consent' | 'active' | 'escalated' | 'exhausted' | 'completed';
   escalationReason?: string;
+  canExtend?: boolean;
+  hardLimit?: number;
 }
 
 interface DesktopControlApprovalState {
@@ -55,7 +57,13 @@ interface DesktopControlApprovalState {
   clear: () => void;
 
   setEnvelope: (envelope: ActiveEnvelopeState | null) => void;
-  updateEnvelopeProgress: (payload: { used: number; max: number; remaining?: number }) => void;
+  updateEnvelopeProgress: (payload: {
+    used: number;
+    max: number;
+    remaining?: number;
+    canExtend?: boolean;
+    hardLimit?: number;
+  }) => void;
   extendEnvelopeLease: (additionalSteps?: number) => void;
   escalateEnvelope: (reason: string) => void;
 }
@@ -112,7 +120,7 @@ const useDesktopControlApprovalStore = create<DesktopControlApprovalState>((set)
 
   setEnvelope: (envelope) => set({ activeEnvelope: envelope }),
 
-  updateEnvelopeProgress: ({ used, max, remaining }) =>
+  updateEnvelopeProgress: ({ used, max, remaining, canExtend, hardLimit }) =>
     set((state) => {
       if (!state.activeEnvelope) return {};
       const rem = remaining !== undefined ? remaining : Math.max(0, max - used);
@@ -124,6 +132,8 @@ const useDesktopControlApprovalStore = create<DesktopControlApprovalState>((set)
           maxActions: max,
           remainingBudget: rem,
           status: isExhausted ? 'exhausted' : state.activeEnvelope.status,
+          canExtend: canExtend !== undefined ? canExtend : state.activeEnvelope.canExtend,
+          hardLimit: hardLimit !== undefined ? hardLimit : state.activeEnvelope.hardLimit,
         },
       };
     }),

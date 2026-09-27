@@ -17943,6 +17943,7 @@
         "showMore": "展開全部",
         "showLess": "收起",
         "defer": "稍後提醒（{version}）",
+        "securityPatch": "安全性更新（不支援延後）",
         "doctorRun": "運行更新自檢",
         "doctorPass": "更新服務正常。",
         "doctorFail": "更新服務有問題——請看上方提示。",

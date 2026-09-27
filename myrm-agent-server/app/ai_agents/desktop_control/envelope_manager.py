@@ -16,6 +16,7 @@ inherits modal window trusts, and dispatches progress updates to the frontend.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Literal
 
 from myrm_agent_harness.core.events.types import AgentEventType
@@ -39,6 +40,7 @@ class DesktopEnvelopeManager:
     def __init__(self) -> None:
         self._active_envelope: IntentEnvelopeSpec | None = None
         self._envelopes_by_task: dict[str, IntentEnvelopeSpec] = {}
+        self._last_active_by_task: dict[str, float] = {}
 
     @property
     def active_envelope(self) -> IntentEnvelopeSpec | None:
@@ -50,12 +52,14 @@ class DesktopEnvelopeManager:
         clamped_max = min(max(1, spec.max_actions), _MAX_LEASE_HARD_LIMIT)
         spec.max_actions = clamped_max
         self._envelopes_by_task[spec.task_id] = spec
+        self._last_active_by_task[spec.task_id] = time.monotonic()
         self._active_envelope = spec
         logger.info(
-            "Registered intent envelope for task %s (apps=%s, budget=%d)",
+            "Registered intent envelope for task %s (apps=%s, budget=%d, idle_timeout=%.1fs)",
             spec.task_id,
             spec.allowed_app_names or spec.allowed_app_ids,
             spec.max_actions,
+            spec.idle_timeout_seconds,
         )
 
     def get_envelope(self, task_id: str | None = None) -> IntentEnvelopeSpec | None:
@@ -68,11 +72,13 @@ class DesktopEnvelopeManager:
         """Clear active envelope or specified task envelope."""
         if task_id:
             self._envelopes_by_task.pop(task_id, None)
+            self._last_active_by_task.pop(task_id, None)
             if self._active_envelope and self._active_envelope.task_id == task_id:
                 self._active_envelope = None
         else:
             self._active_envelope = None
             self._envelopes_by_task.clear()
+            self._last_active_by_task.clear()
 
     def extend_lease(
         self,
@@ -90,6 +96,7 @@ class DesktopEnvelopeManager:
 
         new_max = min(envelope.max_actions + max(1, additional_steps), _MAX_LEASE_HARD_LIMIT)
         envelope.max_actions = new_max
+        self._last_active_by_task[envelope.task_id] = time.monotonic()
         logger.info(
             "Extended lease for envelope %s: new limit=%d (used=%d)",
             envelope.task_id,
@@ -108,7 +115,7 @@ class DesktopEnvelopeManager:
         parent_app_id: str | None = None,
         is_system_dialog: bool = False,
         task_id: str | None = None,
-    ) -> tuple[bool, Literal["ok", "no_envelope", "out_of_boundary", "budget_exhausted", "keystroke_violation", "system_dialog_parent_untrusted"], str]:
+    ) -> tuple[bool, Literal["ok", "no_envelope", "out_of_boundary", "budget_exhausted", "keystroke_violation", "system_dialog_parent_untrusted", "idle_timeout"], str]:
         """Verify action against envelope and consume one step quota if permitted.
 
         Returns:
@@ -117,6 +124,17 @@ class DesktopEnvelopeManager:
         envelope = self.get_envelope(task_id)
         if not envelope:
             return False, "no_envelope", "No active intent envelope registered"
+
+        now = time.monotonic()
+        last_active = self._last_active_by_task.get(envelope.task_id, now)
+        if envelope.idle_timeout_seconds > 0 and (now - last_active) > envelope.idle_timeout_seconds:
+            logger.warning(
+                "Envelope lease idle timeout exceeded (task=%s, idle=%.1fs > limit=%.1fs)",
+                envelope.task_id,
+                now - last_active,
+                envelope.idle_timeout_seconds,
+            )
+            return False, "idle_timeout", f"Lease idle timed out (> {envelope.idle_timeout_seconds:.0f}s)"
 
         window = WindowHierarchyContext(
             app_name=app_name,
@@ -134,6 +152,7 @@ class DesktopEnvelopeManager:
 
         if result.allowed:
             envelope.used_actions += 1
+            self._last_active_by_task[envelope.task_id] = now
             logger.debug(
                 "Envelope action granted without interruption (task=%s, used=%d/%d, app=%r)",
                 envelope.task_id,
@@ -170,6 +189,8 @@ class DesktopEnvelopeManager:
                     "used_actions": envelope.used_actions,
                     "max_actions": envelope.max_actions,
                     "remaining_budget": envelope.remaining_budget(),
+                    "can_extend": envelope.max_actions < _MAX_LEASE_HARD_LIMIT,
+                    "hard_limit": _MAX_LEASE_HARD_LIMIT,
                 },
             }
         )

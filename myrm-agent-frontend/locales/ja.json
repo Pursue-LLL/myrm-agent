@@ -17943,6 +17943,7 @@
         "showMore": "すべて表示",
         "showLess": "折りたたむ",
         "defer": "後で通知（{version}）",
+        "securityPatch": "セキュリティ更新（延期不可）",
         "doctorRun": "更新チェック実行",
         "doctorPass": "更新サービスは正常です。",
         "doctorFail": "更新サービスに問題——上記を確認。",

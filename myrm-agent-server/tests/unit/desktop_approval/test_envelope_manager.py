@@ -189,3 +189,79 @@ async def test_gate_with_envelope_escalation_on_violation(tmp_path: pytest.TempP
         assert mock_sink.emit.called
         req_args = mock_sink.emit.call_args_list[0][0][0]
         assert "[OUT_OF_BOUNDARY]" in req_args["data"]["reason"]
+
+
+def test_envelope_manager_idle_timeout(envelope_manager: DesktopEnvelopeManager) -> None:
+    spec = IntentEnvelopeSpec(
+        task_id="task_idle_1",
+        allowed_app_names=("Calculator",),
+        allowed_app_ids=("com.apple.calculator",),
+        idle_timeout_seconds=0.1,  # Short timeout for testing
+    )
+    envelope_manager.register_envelope(spec)
+
+    # Immediately allowed
+    allowed, reason, _ = envelope_manager.evaluate_and_consume(
+        app_name="Calculator",
+        app_id="com.apple.calculator",
+    )
+    assert allowed is True
+    assert reason == "ok"
+
+    # Simulate idle time passing
+    envelope_manager._last_active_by_task[spec.task_id] -= 1.0
+
+    allowed, reason, detail = envelope_manager.evaluate_and_consume(
+        app_name="Calculator",
+        app_id="com.apple.calculator",
+    )
+    assert allowed is False
+    assert reason == "idle_timeout"
+    assert "idle timed out" in detail
+
+    # Extending lease resets the idle timer
+    envelope_manager.extend_lease(task_id=spec.task_id)
+    allowed, reason, _ = envelope_manager.evaluate_and_consume(
+        app_name="Calculator",
+        app_id="com.apple.calculator",
+    )
+    assert allowed is True
+    assert reason == "ok"
+
+
+@pytest.mark.asyncio
+async def test_gate_with_envelope_keystroke_violation_escalation(tmp_path: pytest.TempPathFactory) -> None:
+    mgr = DesktopEnvelopeManager()
+    spec = IntentEnvelopeSpec(
+        task_id="task_key_1",
+        allowed_app_names=("TextEdit",),
+        allowed_app_ids=("com.apple.TextEdit",),
+        max_actions=5,
+    )
+    mgr.register_envelope(spec)
+
+    gate = DesktopControlGate(
+        workspace_root=str(tmp_path),
+        envelope_manager=mgr,
+        register_live=False,
+    )
+
+    mock_sink = AsyncMock()
+    with patch("app.ai_agents.desktop_control.gate.get_tool_progress_sink", return_value=mock_sink):
+        # Typing dangerous command inside allowed app should be caught and escalated
+        task = asyncio.create_task(
+            gate(
+                reason="Execute destructive command",
+                operation="type: rm -rf /",
+                estimated_duration_seconds=0.5,
+                timeout_seconds=0.1,
+                app_name="TextEdit",
+                app_id="com.apple.TextEdit",
+            )
+        )
+        res = await task
+        assert res.granted is False
+        assert mock_sink.emit.called
+        req_args = mock_sink.emit.call_args_list[0][0][0]
+        assert "[KEYSTROKE_VIOLATION]" in req_args["data"]["reason"]
+

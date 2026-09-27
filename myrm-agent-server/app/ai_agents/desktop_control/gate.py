@@ -232,11 +232,24 @@ class DesktopControlGate:
 
         # Non-interruptive Intent Envelope Evaluation
         if require_app_approval and self._envelope_manager.active_envelope is not None:
+            text_to_type = ""
+            norm_op = operation.strip()
+            if norm_op.lower().startswith("type:"):
+                text_to_type = norm_op[5:].strip()
+            elif norm_op.lower().startswith("type "):
+                text_to_type = norm_op[5:].strip()
+            elif norm_op.lower().startswith("key:"):
+                text_to_type = norm_op[4:].strip()
+            elif norm_op.lower().startswith("key "):
+                text_to_type = norm_op[4:].strip()
+            elif ":" in norm_op and any(k in norm_op.lower() for k in ("type", "input", "write", "text")):
+                text_to_type = norm_op.split(":", 1)[1].strip()
+
             allowed, check_reason, check_detail = self._envelope_manager.evaluate_and_consume(
                 app_name=app_name,
                 app_id=app_id,
                 window_title=window_title,
-                text_to_type="",
+                text_to_type=text_to_type,
             )
             if allowed:
                 asyncio.create_task(self._envelope_manager.emit_progress())

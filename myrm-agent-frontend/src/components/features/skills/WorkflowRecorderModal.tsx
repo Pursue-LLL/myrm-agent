@@ -49,6 +49,9 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   // Why capture is unavailable (permission not granted vs platform unsupported), surfaced as
   // actionable guidance rather than a silent downgrade to manual entry.
   const [captureIssue, setCaptureIssue] = useState<'permission' | 'unsupported' | null>(null);
+  // Older events evicted once the session hit its cap. Non-zero means the trace was clipped, so
+  // the user is told the resulting skill may be missing its opening steps.
+  const [eventsDropped, setEventsDropped] = useState<number>(0);
 
   // Map a server capture error onto the guidance the dialog shows.
   const resolveCaptureIssue = (captureError: string | null): 'permission' | 'unsupported' | null => {
@@ -72,6 +75,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
           return;
         }
         setEventCount(state.events_count);
+        setEventsDropped(state.events_dropped ?? 0);
         setCaptureActive(state.capture_active);
         // Show the guidance whenever capture reports an issue, including while it is paused
         // waiting for the user to grant screen access — that is exactly when they need to know.
@@ -100,6 +104,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
     setStep('idle');
     setSessionId('');
     setEventCount(0);
+    setEventsDropped(0);
     setCaptureActive(false);
     setCaptureIssue(null);
     setError(null);
@@ -143,7 +148,8 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
       seq: nextSeq,
       action,
       app_name: app,
-      element_title: detail,
+      window_title: action === 'window_focus' ? detail : undefined,
+      element_title: action === 'window_focus' ? undefined : detail,
       value: action === 'type' ? 'PARAM_VALUE' : undefined,
     });
     setEventCount(nextSeq);
@@ -313,6 +319,15 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
                 </div>
               )}
 
+              {/* A clipped trace must be stated explicitly: the resulting skill would silently
+                  be missing its opening steps, which is impossible to notice after publishing. */}
+              {eventsDropped > 0 && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{t('captureTraceTruncatedNotice', { count: eventsDropped })}</span>
+                </div>
+              )}
+
               {!captureActive && (
                 <>
                   <div className="space-y-2">
@@ -320,7 +335,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
                     <div className="flex flex-wrap gap-2 justify-center">
                       <button
                         type="button"
-                        onClick={() => handleSimulateEvent('app_switch', 'Microsoft Excel', 'Spreadsheet')}
+                        onClick={() => handleSimulateEvent('window_focus', 'Microsoft Excel', 'Spreadsheet')}
                         className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
                       >
                         + Excel Switch

@@ -1016,6 +1016,8 @@ export interface DesktopRecordingSessionState {
   session_id: string;
   status: string;
   events_count: number;
+  /** How many older events were evicted at the session cap; non-zero means a clipped trace. */
+  events_dropped: number;
   /** False when the platform stopped capturing (unsupported, missing permission, failure). */
   capture_active: boolean;
   capture_error: string | null;

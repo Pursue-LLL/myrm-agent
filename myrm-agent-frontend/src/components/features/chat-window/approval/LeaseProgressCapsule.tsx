@@ -27,19 +27,25 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({
   onExtend,
   className = '',
 }) => {
+  const [isExtending, setIsExtending] = React.useState(false);
   const { activeEnvelope, extendEnvelopeLease } = useDesktopControlApprovalStore();
 
   if (!activeEnvelope || activeEnvelope.status === 'completed') {
     return null;
   }
 
-  const { usedActions, maxActions, remainingBudget, status } = activeEnvelope;
+  const { usedActions, maxActions, remainingBudget } = activeEnvelope;
   const isNearLimit = remainingBudget <= 3 && remainingBudget > 0;
   const isExhausted = remainingBudget <= 0;
+  const canExtend =
+    activeEnvelope.canExtend !== false && maxActions < (activeEnvelope.hardLimit ?? 100);
 
   const handleExtend = (steps = 10) => {
+    if (!canExtend || isExtending) return;
+    setIsExtending(true);
     extendEnvelopeLease(steps);
     onExtend?.(steps);
+    setTimeout(() => setIsExtending(false), 300);
   };
 
   return (
@@ -70,11 +76,16 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({
         <button
           type="button"
           data-testid="extend-lease-btn"
+          disabled={!canExtend || isExtending}
           onClick={() => handleExtend(10)}
-          className="inline-flex items-center gap-0.5 rounded-full border border-current/30 bg-background/80 px-2 py-0.5 text-[11px] font-semibold text-foreground hover:bg-background hover:scale-105 active:scale-95 transition-all"
+          className={`inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all ${
+            !canExtend
+              ? 'border-border/40 bg-muted/40 text-muted-foreground/50 cursor-not-allowed'
+              : 'border-current/30 bg-background/80 text-foreground hover:bg-background hover:scale-105 active:scale-95'
+          }`}
         >
           <Plus className="h-3 w-3" />
-          +10 步续期
+          {canExtend ? '+10 步续期' : '已达上限'}
         </button>
       )}
     </div>

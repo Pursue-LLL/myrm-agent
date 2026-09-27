@@ -43,6 +43,7 @@ export default function UpdateNudgeBanner() {
         const payload = (await response.json()) as {
           stale?: boolean | null;
           latest?: { version?: string } | null;
+          changelog?: { is_security?: boolean } | null;
         };
         if (cancelled) {
           return;
@@ -51,7 +52,8 @@ export default function UpdateNudgeBanner() {
         if (payload.stale !== true || !latestVersion) {
           return;
         }
-        if (getDeferredVersion() === latestVersion || isQuietNow(getQuietHours())) {
+        const isSecurity = payload.changelog?.is_security === true;
+        if (!isSecurity && (getDeferredVersion() === latestVersion || isQuietNow(getQuietHours()))) {
           return;
         }
         setVersion(latestVersion);
