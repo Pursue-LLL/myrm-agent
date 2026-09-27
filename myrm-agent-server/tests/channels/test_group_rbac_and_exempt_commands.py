@@ -216,8 +216,10 @@ class TestGroupRbacAndExemptCommands:
             assert resolved is not None
             dispatched = await router._dispatch_resolved(msg, resolved)
             assert dispatched is True
-            # Let the async background task complete
-            await asyncio.sleep(0.05)
+            for _ in range(50):
+                if bus.publish_outbound.called:
+                    break
+                await asyncio.sleep(0.02)
 
         # 1. Zero LLM executor call
         executor.execute_stream.assert_not_called()
@@ -269,7 +271,10 @@ class TestGroupRbacAndExemptCommands:
             assert resolved is not None
             dispatched = await router._dispatch_resolved(msg, resolved)
             assert dispatched is True
-            await asyncio.sleep(0.05)
+            for _ in range(50):
+                if bus.publish_outbound.called:
+                    break
+                await asyncio.sleep(0.02)
 
         executor.execute_stream.assert_not_called()
         bus.publish_outbound.assert_called_once()
