@@ -331,7 +331,8 @@ def test_envelope_scope_resolution_activates_fast_path():
 
 def test_envelope_capacity_eviction_bounded():
     from myrm_agent_harness.toolkits.computer_use.envelope import IntentEnvelopeSpec
-    from app.ai_agents.desktop_control.envelope_manager import DesktopEnvelopeManager, _MAX_ENVELOPES_CAPACITY
+
+    from app.ai_agents.desktop_control.envelope_manager import _MAX_ENVELOPES_CAPACITY, DesktopEnvelopeManager
 
     manager = DesktopEnvelopeManager()
     # Fill up to capacity

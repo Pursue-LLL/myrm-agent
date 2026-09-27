@@ -116,7 +116,7 @@ describe('WorkflowRecorderModal', () => {
   it('surfaces a capture that stops mid-recording', async () => {
     const sessionPoll = vi.mocked(skillService.getDesktopRecordingSession);
     // Capture was running at start, then the platform reported it stopped (e.g. the user
-    // revoked Accessibility access) — the dialog must switch back to manual step entry.
+    // revoked Accessibility access) — the dialog must stop implying a recording is running.
     sessionPoll.mockResolvedValue({
       session_id: 'rec-123',
       status: 'recording',
@@ -130,7 +130,7 @@ describe('WorkflowRecorderModal', () => {
     fireEvent.click(screen.getByText('startRecording'));
 
     await waitFor(() => {
-      expect(screen.getByText('manualRecordingActive')).toBeInTheDocument();
+      expect(screen.getByText('captureUnavailableTitle')).toBeInTheDocument();
     });
     // The guidance must be actionable, not a generic notice.
     expect(screen.getByText('capturePermissionNotice')).toBeInTheDocument();
@@ -201,11 +201,11 @@ describe('WorkflowRecorderModal', () => {
     });
   });
 
-  it('falls back to honest manual step entry when platform capture is unavailable', async () => {
+  it('discloses that capture is unavailable instead of fabricating a recording', async () => {
     const startMock = vi.mocked(skillService.startDesktopRecording);
     const sessionPoll = vi.mocked(skillService.getDesktopRecordingSession);
-    // A platform without AX capture reports capture_active=false, so the modal must disclose
-    // that steps are entered manually instead of implying an automatic recording is running.
+    // A platform without AX capture reports capture_active=false, so the modal must say so
+    // rather than implying an automatic recording is running.
     startMock.mockResolvedValueOnce({
       session_id: 'rec-manual',
       status: 'recording',
@@ -227,7 +227,7 @@ describe('WorkflowRecorderModal', () => {
     fireEvent.click(screen.getByText('startRecording'));
 
     await waitFor(() => {
-      expect(screen.getByText('manualRecordingActive')).toBeInTheDocument();
+      expect(screen.getByText('captureUnavailableTitle')).toBeInTheDocument();
     });
     // Platform-level unavailability is reported as unsupported, distinct from a permission ask.
     expect(screen.getByText('captureUnsupportedNotice')).toBeInTheDocument();
@@ -256,3 +256,29 @@ describe('WorkflowRecorderModal', () => {
     });
   });
 });
+
+  it('never offers to fabricate recorded steps when capture is unavailable', async () => {
+    const sessionPoll = vi.mocked(skillService.getDesktopRecordingSession);
+    // A published skill must describe what the user actually did. Offering canned "add step"
+    // buttons would let a user publish a workflow for an app they never touched, so no such
+    // affordance may be rendered while capture is unavailable.
+    sessionPoll.mockResolvedValue({
+      session_id: 'rec-no-capture',
+      status: 'recording',
+      events_count: 0,
+      events_dropped: 0,
+      capture_active: false,
+      capture_error: 'desktop_capture_unavailable: no desktop in this deployment',
+    });
+
+    render(<WorkflowRecorderModal isOpen={true} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByText('startRecording'));
+
+    await waitFor(() => {
+      expect(screen.getByText('captureUnavailableTitle')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('manualStepsLabel')).not.toBeInTheDocument();
+    // No canned demo target may appear: it would be recorded as if the user acted on it.
+    expect(screen.queryByText(/Excel Switch|Click Submit|Type Account/)).not.toBeInTheDocument();
+    expect(vi.mocked(skillService.recordDesktopEvent)).not.toHaveBeenCalled();
+  });
