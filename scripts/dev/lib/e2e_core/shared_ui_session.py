@@ -509,7 +509,13 @@ async def apply_shared_ui_session_contract(
             touch_wall_progress(current_node="E2E_SHARED_UI_SESSION_BRIDGE")
         except ImportError:
             pass
-        bridge_wall = bridge_timeout + 5.0
+        # One bounded reload-recovery extension must reach the inner loop, which then
+        # owns the total budget: ensure_react_e2e_bridge() can only extend its own
+        # deadline *after* a reload, which work the caller's deadline cannot predict.
+        # An outer wait_for pinned to bridge_timeout + 5 would cap the inner loop and
+        # re-create the very timeout this extension exists to absorb, so the outer wall
+        # grants the same one-time extension.
+        bridge_wall = 2 * bridge_timeout + 5.0
         try:
             await asyncio.wait_for(
                 ensure_bridge(timeout_sec=bridge_timeout),

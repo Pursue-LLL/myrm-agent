@@ -10,6 +10,9 @@
 
 [OUTPUT]
 - DesktopControlGate: async callback for foreground permission requests with envelope fast-path and dynamic escalation
+
+[POS]
+Desktop control gate layer. Intercepts foreground actions, verifies execution against intent envelope fast-path, and handles dynamic permission escalation.
 """
 
 from __future__ import annotations
@@ -53,15 +56,23 @@ from app.ai_agents.desktop_control.trust_store import (
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_TIMEOUT_SEC = 60.0
-_raw_timeout = os.getenv("MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC", "60").strip()
 try:
-    _parsed_timeout = float(_raw_timeout)
+    _DEFAULT_TIMEOUT_SEC = max(5.0, float(os.getenv("MYRM_DESKTOP_APPROVAL_TIMEOUT_SEC", "60").strip()))
 except ValueError:
-    _parsed_timeout = _DEFAULT_TIMEOUT_SEC
-_DEFAULT_TIMEOUT_SEC = max(5.0, _parsed_timeout)
+    _DEFAULT_TIMEOUT_SEC = 60.0
 # Last-grant tracker bound; oldest entry sheds first at capacity.
 _MAX_GRANTS = 500
+
+
+def _extract_text_to_type(operation: str) -> str:
+    norm_op = operation.strip()
+    lower_op = norm_op.lower()
+    for prefix in ("type:", "type ", "key:", "key "):
+        if lower_op.startswith(prefix):
+            return norm_op[len(prefix):].strip()
+    if ":" in norm_op and any(k in lower_op for k in ("type", "input", "write", "text")):
+        return norm_op.split(":", 1)[1].strip()
+    return ""
 
 
 class DesktopControlGate:
@@ -232,18 +243,7 @@ class DesktopControlGate:
 
         # Non-interruptive Intent Envelope Evaluation
         if require_app_approval and self._envelope_manager.active_envelope is not None:
-            text_to_type = ""
-            norm_op = operation.strip()
-            if norm_op.lower().startswith("type:"):
-                text_to_type = norm_op[5:].strip()
-            elif norm_op.lower().startswith("type "):
-                text_to_type = norm_op[5:].strip()
-            elif norm_op.lower().startswith("key:"):
-                text_to_type = norm_op[4:].strip()
-            elif norm_op.lower().startswith("key "):
-                text_to_type = norm_op[4:].strip()
-            elif ":" in norm_op and any(k in norm_op.lower() for k in ("type", "input", "write", "text")):
-                text_to_type = norm_op.split(":", 1)[1].strip()
+            text_to_type = _extract_text_to_type(operation)
 
             allowed, check_reason, check_detail = self._envelope_manager.evaluate_and_consume(
                 app_name=app_name,

@@ -89,7 +89,10 @@ _CLICK_ALLOW_ALWAYS_JS = """(() => {
 
 _SELECT_PATTERN_SCOPE_JS = """(async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  for (let attempt = 0; attempt < 24; attempt += 1) {
+  // The confirm dialog mounts a beat after the allow-always click, and the shared UI
+  // stretches that beat under parallel load; 8s was too tight and produced
+  // `hasTrigger: false` flakes. Budget ~20s before giving up.
+  for (let attempt = 0; attempt < 60; attempt += 1) {
     const trigger =
       document.querySelector('#allowlist-scope') ||
       document.querySelector('[id="allowlist-scope"]');
