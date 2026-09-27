@@ -167,6 +167,7 @@ myrm_agent_harness.agent.streaming.broadcast.catchup
 myrm_agent_harness.agent.streaming.broadcast.event_bus
 myrm_agent_harness.agent.streaming.broadcast.types
 myrm_agent_harness.agent.streaming.citation_audit
+myrm_agent_harness.agent.streaming.rules.types
 myrm_agent_harness.agent.streaming.run_digest
 myrm_agent_harness.agent.streaming.stream_buffer
 myrm_agent_harness.agent.streaming.types
