@@ -4,19 +4,52 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import StackUpdatePanel from '../StackUpdatePanel';
 import * as updatePrefs from '@/lib/update-prefs';
 
+const mockStorage: Record<string, string> = {};
+const storageMock = {
+  getItem: (key: string) => mockStorage[key] ?? null,
+  setItem: (key: string, val: string) => {
+    mockStorage[key] = String(val);
+  },
+  removeItem: (key: string) => {
+    delete mockStorage[key];
+  },
+  clear: () => {
+    for (const key of Object.keys(mockStorage)) {
+      delete mockStorage[key];
+    }
+  },
+  length: 0,
+  key: () => null,
+};
+
+if (typeof global.localStorage === 'undefined') {
+  Object.defineProperty(global, 'localStorage', {
+    value: storageMock,
+    writable: true,
+  });
+}
+if (typeof window !== 'undefined' && typeof window.localStorage === 'undefined') {
+  Object.defineProperty(window, 'localStorage', {
+    value: storageMock,
+    writable: true,
+  });
+}
+
 const mockUseAppUpdate = vi.fn();
 let mockIsTauri = false;
 
+const stableT = (key: string, params?: Record<string, unknown>) => {
+  if (params) {
+    return Object.entries(params).reduce(
+      (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
+      key
+    );
+  }
+  return key;
+};
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params) {
-      return Object.entries(params).reduce(
-        (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
-        key
-      );
-    }
-    return key;
-  },
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/lib/deploy-mode', () => ({

@@ -15,5 +15,8 @@
 | `BrowserSessionView.tsx` / `ShellCommandDisplay.tsx`               | 浏览器/命令上下文                                                                           |
 | `EditModeView.tsx` / `HandoverModeView.tsx` / `RejectModeView.tsx` | 审批模式 UI（Edit 含 pattern 预览与时效阶梯配置）                                           |
 | `AllowAlwaysConfirmDialog.tsx`                                     | 「始终允许」确认（支持 pattern 预览与 Session/15m/1h/Permanent 时效阶梯门禁）               |
+| `IntentEnvelopeCard.tsx`                                           | Pre-flight 前瞻意图执行包络线授权卡片（约定目标应用白名单、执行步数预算与敏感凭证边界声明）  |
+| `LeaseProgressCapsule.tsx`                                         | 执行态配额进度 HUD 胶囊（显示剩余步数配额并在临近用尽时提供原地一键快捷续期）                |
 | `__tests__/AllowAlwaysConfirmDialog.test.tsx`                      | 单元测试：覆盖时效阶梯与高危永久授权防呆警示                                                |
 | `__tests__/EditModeView.test.tsx`                                  | 单元测试：覆盖 EditModeView 时效阶梯选择与确认回调行为                                      |
+| `__tests__/IntentEnvelopeCard.test.tsx`                            | 单元测试：覆盖前瞻授权卡片渲染、激活包络线与原地租期续期状态流转                             |

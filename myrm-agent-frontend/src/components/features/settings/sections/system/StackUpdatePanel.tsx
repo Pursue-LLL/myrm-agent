@@ -51,6 +51,8 @@ const StackUpdatePanel = memo(() => {
   const [expanded, setExpanded] = useState(false);
   const [deferredVersion, setDeferredVersionState] = useState<string | null>(null);
   const [quiet, setQuiet] = useState<QuietHours | null>(null);
+  const [quietStart, setQuietStart] = useState<string>(QUIET_OFF);
+  const [quietEnd, setQuietEnd] = useState<string>(QUIET_OFF);
   const [receipt, setReceipt] = useState<UpdateReceipt | null>(null);
   const [doctorResult, setDoctorResult] = useState<'pass' | 'fail' | null>(null);
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import useDesktopControlApprovalStore from '@/store/useDesktopControlApprovalStore';
 import DesktopControlApprovalBanner from './DesktopControlApprovalBanner';
-import { LeaseProgressCapsule } from '@/components/chat-window/approval/LeaseProgressCapsule';
+import { LeaseProgressCapsule } from '@/components/features/chat-window/approval/LeaseProgressCapsule';
 
 /**
  * Always-mounted approval surface for desktop control SSE requests and active envelopes.
