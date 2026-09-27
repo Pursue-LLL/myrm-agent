@@ -282,3 +282,29 @@ describe('WorkflowRecorderModal', () => {
     expect(screen.queryByText(/Excel Switch|Click Submit|Type Account/)).not.toBeInTheDocument();
     expect(vi.mocked(skillService.recordDesktopEvent)).not.toHaveBeenCalled();
   });
+
+  it('offers to replace an existing skill instead of dead-ending the recording', async () => {
+    const publish = vi.mocked(skillService.publishDesktopSkill);
+    // A duplicate name comes back as a 409 from the server. The user has just finished recording,
+    // so the dialog must let them replace the old skill rather than discarding the session.
+    publish.mockRejectedValueOnce(new Error('A skill named \'weekly_export\' already exists.'));
+    publish.mockResolvedValueOnce({ skill_id: 'weekly_export', skill_name: 'Weekly Export', status: 'published', file_path: '/tmp/x' });
+
+    render(<WorkflowRecorderModal isOpen={true} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByText('startRecording'));
+    await waitFor(() => expect(screen.getByText('stopAndAnalyze')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('stopAndAnalyze'));
+    await waitFor(() => expect(screen.getByText('compilePreview')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('compilePreview'));
+    await waitFor(() => expect(screen.getByText('publishSkill')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('publishSkill'));
+    await waitFor(() => expect(screen.getByText(/publishConflictNotice/)).toBeInTheDocument());
+
+    // The retry must carry the explicit overwrite opt-in.
+    fireEvent.click(screen.getByText('replaceSkill'));
+    await waitFor(() => expect(screen.getByText('publishSuccessTitle')).toBeInTheDocument());
+    expect(publish).toHaveBeenLastCalledWith(
+      expect.any(String), expect.any(String), expect.any(String), expect.any(String), true,
+    );
+  });

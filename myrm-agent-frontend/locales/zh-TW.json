@@ -10953,7 +10953,9 @@
       "capturePermissionNotice": "自動擷取需要螢幕存取權限。請於「系統設定 → 隱私權與安全性 → 輔助使用」授權後重新開始錄製，每次點擊與輸入都會自動擷取。",
       "captureUnsupportedNotice": "目前平台不支援自動擷取，暫時無法錄製。",
       "captureTraceTruncatedNotice": "錄製達到容量上限，已丟棄較早的 {count} 步互動。產生的技能可能缺少開頭的步驟。",
-      "captureUnavailableTitle": "擷取無法使用"
+      "captureUnavailableTitle": "擷取無法使用",
+      "publishConflictNotice": "已存在名為「{name}」的技能。可用本次錄製覆蓋它，或取消後回到第一步改用其他名稱。",
+      "replaceSkill": "覆蓋技能"
     }
   },
   "followUps": {

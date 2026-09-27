@@ -51,6 +51,8 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   // Older events evicted once the session hit its cap. Non-zero means the trace was clipped, so
   // the user is told the resulting skill may be missing its opening steps.
   const [eventsDropped, setEventsDropped] = useState<number>(0);
+  // Name of an already-published skill the user tried to reuse; drives the replace confirmation.
+  const [publishConflict, setPublishConflict] = useState<string | null>(null);
 
   // Map a server capture error onto the guidance the dialog shows.
   const resolveCaptureIssue = (captureError: string | null): 'permission' | 'unsupported' | null => {
@@ -106,6 +108,8 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
     setEventsDropped(0);
     setCaptureActive(false);
     setCaptureIssue(null);
+    setEventsDropped(0);
+    setPublishConflict(null);
     setError(null);
     setPlan(null);
     setCompiledMarkdown('');
@@ -201,16 +205,24 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
     }
   };
 
-  const handlePublish = async () => {
+  const handlePublish = async (overwrite = false) => {
     if (!sessionId || !compiledMarkdown || !plan) {return;}
     setError(null);
     setLoading(true);
     try {
-      await publishDesktopSkill(sessionId, plan.name, compiledMarkdown, plan.description || '');
+      await publishDesktopSkill(sessionId, plan.name, compiledMarkdown, plan.description || '', overwrite);
       setStep('published');
       onPublished?.(plan.name);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to publish skill');
+      // A duplicate name is not a failure the user caused by mistake: it means a skill with this
+      // name already exists, so offer to replace it instead of dead-ending the recording.
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('already exists')) {
+        setPublishConflict(plan.name);
+        setError(null);
+      } else {
+        setError(message || 'Failed to publish skill');
+      }
     } finally {
       setLoading(false);
     }
@@ -372,6 +384,12 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
               <pre className="p-4 rounded-lg border border-border bg-muted/40 text-xs font-mono text-foreground overflow-x-auto max-h-60 leading-relaxed">
                 {compiledMarkdown}
               </pre>
+              {publishConflict !== null && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{t('publishConflictNotice', { name: publishConflict })}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -436,12 +454,12 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
             {step === 'preview' && (
               <button
                 type="button"
-                onClick={handlePublish}
+                onClick={() => void handlePublish(publishConflict !== null)}
                 disabled={loading}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                {t('publishSkill')}
+                {publishConflict !== null ? t('replaceSkill') : t('publishSkill')}
               </button>
             )}
           </div>

@@ -17992,7 +17992,9 @@
       "capturePermissionNotice": "Automatic capture needs screen access permission. Grant it in your system privacy settings (Accessibility), then start the recording again — every click and text entry is captured automatically.",
       "captureUnsupportedNotice": "Automatic capture is not available on this platform. Recording is not possible here.",
       "captureTraceTruncatedNotice": "{count} earlier interactions were dropped because the recording hit its size limit. The generated skill may be missing its opening steps.",
-      "captureUnavailableTitle": "Capture unavailable"
+      "captureUnavailableTitle": "Capture unavailable",
+      "publishConflictNotice": "A skill named “{name}” already exists. Replace it with this recording, or cancel and choose a different name in the first step.",
+      "replaceSkill": "Replace skill"
     }
   },
   "followUps": {

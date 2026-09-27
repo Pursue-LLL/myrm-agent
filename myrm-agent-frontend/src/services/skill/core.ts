@@ -1068,6 +1068,7 @@ export async function publishDesktopSkill(
   skillName: string,
   markdownContent: string,
   description: string = '',
+  overwrite: boolean = false,
 ): Promise<PublishDesktopSkillResponse> {
   return apiRequest<PublishDesktopSkillResponse>(`${SKILLS_API_PREFIX}/desktop-recorder/publish`, {
     method: 'POST',
@@ -1076,6 +1077,7 @@ export async function publishDesktopSkill(
       skill_name: skillName,
       markdown_content: markdownContent,
       description,
+      overwrite,
     }),
   });
 }

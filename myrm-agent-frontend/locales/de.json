@@ -10953,7 +10953,9 @@
       "capturePermissionNotice": "Die automatische Aufzeichnung benötigt Bildschirmzugriff. Erteilen Sie ihn unter „Systemeinstellungen → Datenschutz & Sicherheit → Bedienungshilfen“ und starten Sie die Aufnahme erneut — jeder Klick und jede Eingabe wird automatisch erfasst.",
       "captureUnsupportedNotice": "Auf dieser Plattform ist keine automatische Aufzeichnung verfügbar. Eine Aufnahme ist hier nicht möglich.",
       "captureTraceTruncatedNotice": "{count} frühere Interaktionen wurden verworfen, weil die Aufzeichnung ihr Größenlimit erreicht hat. Dem erstellten Skill könnten die ersten Schritte fehlen.",
-      "captureUnavailableTitle": "Aufzeichnung nicht verfügbar"
+      "captureUnavailableTitle": "Aufzeichnung nicht verfügbar",
+      "publishConflictNotice": "Ein Skill mit dem Namen „{name}“ existiert bereits. Ersetzen Sie ihn durch diese Aufnahme oder brechen Sie ab und wählen Sie im ersten Schritt einen anderen Namen.",
+      "replaceSkill": "Skill ersetzen"
     }
   },
   "followUps": {

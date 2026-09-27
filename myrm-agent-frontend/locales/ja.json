@@ -10953,7 +10953,9 @@
       "capturePermissionNotice": "自動キャプチャには画面アクセス権限が必要です。「システム設定 → プライバシーとセキュリティ → アクセシビリティ」で許可してから録画をやり直してください。クリックと入力は自動でキャプチャされます。",
       "captureUnsupportedNotice": "このプラットフォームでは自動キャプチャを利用できないため、録画できません。",
       "captureTraceTruncatedNotice": "録画が上限に達したため、古い操作 {count} 件を破棄しました。生成されるスキルは冒頭の手順を欠いている可能性があります。",
-      "captureUnavailableTitle": "キャプチャを利用できません"
+      "captureUnavailableTitle": "キャプチャを利用できません",
+      "publishConflictNotice": "「{name}」という名前のスキルが既に存在します。今回の録画で置き換えるか、キャンセルして最初の手順で別の名前を指定してください。",
+      "replaceSkill": "スキルを置き換え"
     }
   },
   "followUps": {

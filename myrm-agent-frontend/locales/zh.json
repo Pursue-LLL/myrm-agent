@@ -17992,7 +17992,9 @@
       "capturePermissionNotice": "自动采集需要屏幕访问权限。请在「系统设置 → 隐私与安全性 → 辅助功能」中授权，然后重新开始录制——每次点击和输入都会被自动采集。",
       "captureUnsupportedNotice": "当前平台不支持自动采集，暂时无法录制。",
       "captureTraceTruncatedNotice": "录制达到容量上限，已丢弃较早的 {count} 步交互。生成的技能可能缺少开头的步骤。",
-      "captureUnavailableTitle": "采集不可用"
+      "captureUnavailableTitle": "采集不可用",
+      "publishConflictNotice": "已存在名为「{name}」的技能。可用本次录制覆盖它，或取消后返回第一步换个名称。",
+      "replaceSkill": "覆盖技能"
     }
   },
   "followUps": {
