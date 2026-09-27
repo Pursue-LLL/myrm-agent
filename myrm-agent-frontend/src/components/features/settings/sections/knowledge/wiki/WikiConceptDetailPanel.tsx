@@ -130,10 +130,13 @@ export function WikiConceptDetailPanel({
     }
     const headings = Array.from(container.querySelectorAll('h1, h2, h3, h4, h5, h6'));
     const normalizedTarget = headingText.trim().toLowerCase();
-    const matched = headings.find((h) => {
-      const text = (h.textContent || '').trim().toLowerCase();
-      return text === normalizedTarget || text.includes(normalizedTarget) || normalizedTarget.includes(text);
-    });
+    let matched = headings.find((h) => (h.textContent || '').trim().toLowerCase() === normalizedTarget);
+    if (!matched) {
+      matched = headings.find((h) => {
+        const text = (h.textContent || '').trim().toLowerCase();
+        return text.includes(normalizedTarget) || normalizedTarget.includes(text);
+      });
+    }
     if (matched) {
       matched.scrollIntoView({ behavior: 'smooth', block: 'center' });
       if (highlightTimerRef.current) {

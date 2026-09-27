@@ -22,6 +22,7 @@ from .router_commands_approval import RouterCommandsApprovalMixin
 from .router_commands_goals import RouterCommandsGoalsMixin
 from .router_commands_memory import RouterCommandsMemoryMixin
 from .router_commands_modes import RouterCommandsModesMixin
+from .router_commands_quota import RouterCommandsQuotaMixin
 from .router_commands_session import RouterCommandsSessionMixin
 
 
@@ -31,5 +32,6 @@ class RouterCommandsMixin(
     RouterCommandsModesMixin,
     RouterCommandsGoalsMixin,
     RouterCommandsMemoryMixin,
+    RouterCommandsQuotaMixin,
 ):
     """Mixin: task cancellation and slash-command handlers from the consume loop."""

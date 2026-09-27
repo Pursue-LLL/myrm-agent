@@ -40,7 +40,20 @@ vi.mock('@/components/features/icons/PremiumIcons', () => ({
 }));
 
 vi.mock('@/components/features/message-box/MarkdownContent', () => ({
-  default: () => <div data-testid="markdown-content" />,
+  default: () => (
+    <div data-testid="markdown-content">
+      <h2 data-testid="heading-fuzzy">1. 架构简介与核心概念</h2>
+      <h2 data-testid="heading-exact">简介</h2>
+    </div>
+  ),
+}));
+
+vi.mock('../WikiConceptLinksPanel', () => ({
+  WikiConceptLinksPanel: ({ onSelectConcept }: { onSelectConcept?: (name: string, heading?: string) => void }) => (
+    <button data-testid="mock-jump-btn" onClick={() => onSelectConcept?.('Alpha', '简介')}>
+      Jump to Intro
+    </button>
+  ),
 }));
 
 vi.mock('@/lib/wiki/claimStatusDisplay', () => ({
@@ -118,5 +131,32 @@ describe('WikiConceptDetailPanel source provenance jump', () => {
     };
     render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
     expect(screen.queryByText('sourceChat')).toBeNull();
+  });
+
+  it('prioritizes exact heading match over preceding fuzzy substring heading', () => {
+    const scrollMock = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollMock,
+    });
+
+    const concept: Concept = {
+      name: 'Alpha',
+      content: '## 1. 架构简介与核心概念\n## 简介',
+    };
+    render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
+
+    const jumpBtn = screen.getByTestId('mock-jump-btn');
+    jumpBtn.click();
+
+    expect(scrollMock).toHaveBeenCalledTimes(1);
+    const exactHeading = screen.getByTestId('heading-exact');
+    const fuzzyHeading = screen.getByTestId('heading-fuzzy');
+
+    // 精确匹配的标题必须获得高亮类
+    expect(exactHeading.classList.contains('bg-primary/10')).toBe(true);
+    // 前序模糊子串标题绝对不能被错误高亮
+    expect(fuzzyHeading.classList.contains('bg-primary/10')).toBe(false);
   });
 });

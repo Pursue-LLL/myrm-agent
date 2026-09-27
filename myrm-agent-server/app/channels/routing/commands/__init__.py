@@ -45,6 +45,7 @@ from app.channels.routing.commands.router_commands_approval import RouterCommand
 from app.channels.routing.commands.router_commands_goals import RouterCommandsGoalsMixin
 from app.channels.routing.commands.router_commands_memory import RouterCommandsMemoryMixin
 from app.channels.routing.commands.router_commands_modes import RouterCommandsModesMixin
+from app.channels.routing.commands.router_commands_quota import RouterCommandsQuotaMixin
 from app.channels.routing.commands.router_commands_session import RouterCommandsSessionMixin
 
 __all__ = [
@@ -56,6 +57,7 @@ __all__ = [
     "RouterCommandsMemoryMixin",
     "RouterCommandsMixin",
     "RouterCommandsModesMixin",
+    "RouterCommandsQuotaMixin",
     "RouterCommandsSessionMixin",
     "TopicCommand",
     "handle_compact",

@@ -13,5 +13,6 @@ IM 渠道斜杠命令解析与执行域：统一命令解析入口与各功能�
 | `router_commands.py` | 模块 | 基础命令路由与调度 | ✅ |
 | `router_commands_approval.py` | 模块 | 审批相关命令（approve/reject 等） | ✅ |
 | `router_commands_goals.py` | 模块 | 目标（goal）相关命令 | ✅ |
-| `router_commands_memory.py` | 模块 | 会话状态诊断与配额自查（/status, /quota）、看板与长期记忆交互（/kanban, /learn, /memory） | ✅ |
-| `router_commands_modes.py` | 模块 | 模式切换命令 | ✅ |
+| `router_commands_memory.py` | 模块 | 会话状态诊断（/status）、看板与长期记忆交互（/kanban, /learn, /memory） | [OK] |
+| `router_commands_modes.py` | 模块 | 模式切换命令 | [OK] |
+| `router_commands_quota.py` | 模块 | 配额使用诊断与本地直出（/quota）、字符进度条与动态倒计时 | [OK] |
