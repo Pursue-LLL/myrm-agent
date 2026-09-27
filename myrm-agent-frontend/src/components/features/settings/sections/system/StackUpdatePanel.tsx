@@ -21,8 +21,8 @@ import { isTauriRuntime } from '@/lib/deploy-mode';
 import { useAppUpdate } from '@/hooks/tauri/useAppUpdate';
 import {
   getDeferredVersion, getQuietHours, isDeferred, isQuietNow,
-  saveUpdateReceipt, setDeferredVersion, setQuietHours, takeUpdateReceipt,
-  type QuietHours, type UpdateReceipt,
+  setDeferredVersion, setQuietHours,
+  type QuietHours,
 } from '@/lib/update-prefs';
 import { cn } from '@/lib/utils/classnameUtils';
 
@@ -60,7 +60,6 @@ export default function StackUpdatePanel() {
   const [quiet, setQuiet] = useState<QuietHours | null>(null);
   const [quietStart, setQuietStart] = useState<string>(QUIET_OFF);
   const [quietEnd, setQuietEnd] = useState<string>(QUIET_OFF);
-  const [receipt, setReceipt] = useState<UpdateReceipt | null>(null);
   const [doctorResult, setDoctorResult] = useState<'pass' | 'fail' | null>(null);
 
   const quietRef = useRef({ start: QUIET_OFF, end: QUIET_OFF });
@@ -102,7 +101,6 @@ export default function StackUpdatePanel() {
       setQuietEnd(e);
       quietRef.current = { start: s, end: e };
     }
-    setReceipt(takeUpdateReceipt());
     void refreshStatus();
   }, [refreshStatus]);
 
@@ -117,15 +115,10 @@ export default function StackUpdatePanel() {
     totalBytes && totalBytes > 0 ? Math.min(100, Math.round((bytesDownloaded / totalBytes) * 100)) : null;
 
   const handleDesktopInstall = useCallback(() => {
-    if (desktopInfo) {
-      saveUpdateReceipt({
-        fromVersion: desktopInfo.currentVersion,
-        toVersion: desktopInfo.version,
-        at: new Date().toISOString(),
-      });
-    }
+    // Post-restart success/failure feedback is owned by UpdateHandoffNotifier
+    // (verified handoff); the hook records the handoff on install.
     void desktopInstall();
-  }, [desktopInfo, desktopInstall]);
+  }, [desktopInstall]);
 
   const handleDefer = useCallback(() => {
     if (latestVersion) {
@@ -203,15 +196,6 @@ export default function StackUpdatePanel() {
       </div>
 
       <div className="space-y-6 p-8 rounded-[2.5rem] bg-white/5 border border-white/10">
-        {receipt && (
-          <div className="flex items-start gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3">
-            <IconCheck className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
-            <p className="text-xs text-emerald-200/90 leading-relaxed">
-              {t('receipt', { from: receipt.fromVersion, to: receipt.toVersion })}
-            </p>
-          </div>
-        )}
-
         <div className="space-y-2">
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t('desktopTitle')}</p>
           {!isTauriRuntime() && <p className="text-xs text-muted-foreground">{t('desktopWebNote')}</p>}

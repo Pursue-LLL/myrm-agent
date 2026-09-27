@@ -5,10 +5,8 @@ import {
   getQuietHours,
   isDeferred,
   isQuietNow,
-  saveUpdateReceipt,
   setDeferredVersion,
   setQuietHours,
-  takeUpdateReceipt,
 } from '../update-prefs';
 
 describe('update-prefs', () => {
@@ -50,10 +48,4 @@ describe('update-prefs', () => {
     expect(isQuietNow({ startHour: 9, endHour: 18 }, noon)).toBe(true);
   });
 
-  it('receipts are read-once', () => {
-    expect(takeUpdateReceipt()).toBeNull();
-    saveUpdateReceipt({ fromVersion: 'v0.1.0', toVersion: 'v0.2.0', at: 'now' });
-    expect(takeUpdateReceipt()).toEqual({ fromVersion: 'v0.1.0', toVersion: 'v0.2.0', at: 'now' });
-    expect(takeUpdateReceipt()).toBeNull();
-  });
 });

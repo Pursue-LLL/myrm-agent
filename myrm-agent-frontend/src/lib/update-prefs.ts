@@ -1,14 +1,19 @@
 /**
- * Update preference helpers for the Stack Update Panel.
+ * [INPUT]
+ * - (localStorage)
  *
- * Deferred versions, quiet hours, and post-update receipts live in
- * localStorage (per-device, no backend round-trip). All readers are
- * defensive: corrupt or missing values degrade to "no preference".
+ * [OUTPUT]
+ * - getDeferredVersion, setDeferredVersion, clearDeferredVersion, isDeferred
+ * - getQuietHours, setQuietHours, isQuietNow, QuietHours
+ *
+ * [POS]
+ * Update preference helpers for the Stack Update Panel.
+ * Deferred versions and quiet hours live in localStorage (per-device, no backend round-trip).
+ * All readers are defensive: corrupt or missing values degrade to "no preference".
  */
 
 const DEFERRED_VERSION_KEY = 'myrm-update-deferred-version';
 const QUIET_HOURS_KEY = 'myrm-update-quiet-hours';
-const JUST_UPDATED_KEY = 'myrm-just-updated';
 
 export interface QuietHours {
   startHour: number;
@@ -110,38 +115,4 @@ export function isQuietNow(hours: QuietHours | null, now: Date = new Date()): bo
   return current >= hours.startHour || current < hours.endHour;
 }
 
-export interface UpdateReceipt {
-  fromVersion: string;
-  toVersion: string;
-  at: string;
-}
 
-export function saveUpdateReceipt(receipt: UpdateReceipt): void {
-  writeStorage(JUST_UPDATED_KEY, JSON.stringify(receipt));
-}
-
-/** Read-and-clear: the receipt shows once after restart, then disappears. */
-export function takeUpdateReceipt(): UpdateReceipt | null {
-  const raw = readStorage(JUST_UPDATED_KEY);
-  if (!raw) {
-    return null;
-  }
-  try {
-    localStorage.removeItem(JUST_UPDATED_KEY);
-  } catch {
-    // Best effort only.
-  }
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      typeof (parsed as { toVersion?: unknown }).toVersion === 'string'
-    ) {
-      return parsed as UpdateReceipt;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
