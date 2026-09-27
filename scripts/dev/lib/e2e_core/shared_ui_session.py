@@ -523,7 +523,15 @@ async def apply_shared_ui_session_contract(
         except TimeoutError as exc:
             raise _session_error(
                 "E2E_SHARED_UI_SESSION_BRIDGE",
-                {"err": "bridge-ready-timeout", "timeout_sec": bridge_timeout},
+                {
+                    "err": "bridge-ready-timeout",
+                    "timeout_sec": bridge_timeout,
+                    "wall_sec": bridge_wall,
+                    # Distinguish an inner-poll exhaustion (carries the last probe, which
+                    # names the missing bridge capability) from the outer wall killing a
+                    # hung loop. Without this the two are indistinguishable in logs.
+                    "inner": exc.args[0] if exc.args else None,
+                },
             ) from exc
 
     if policy == "empty":
