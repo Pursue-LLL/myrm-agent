@@ -590,6 +590,7 @@ class CdpChatInput(CdpChatBootstrap):
         deadline = time.monotonic() + timeout_sec
         polls = 0
         last_probe: object = None
+        last_reload_at = time.monotonic()
         while time.monotonic() < deadline:
             polls += 1
             await self.dismiss_modals()
@@ -612,7 +613,14 @@ class CdpChatInput(CdpChatBootstrap):
                 and probe.get("clientHydrated")
             ):
                 return
-            if allow_reload and polls in {15, 30, 45}:
+            if allow_reload and (
+                polls in {15, 30, 45} or time.monotonic() - last_reload_at >= 20.0
+            ):
+                # Poll counts assume a cheap probe. Under parallel load each probe can
+                # take many seconds, so a fixed poll index can fall past the deadline and
+                # the page never reloads, leaving React unhydrated with no recovery. Kick
+                # a cache-bypassing reload on a wall-clock cadence instead.
+                last_reload_at = time.monotonic()
                 await self.cdp("Page.reload", {"ignoreCache": True}, recv_timeout=120.0)
                 await asyncio.sleep(4)
             await asyncio.sleep(1)
