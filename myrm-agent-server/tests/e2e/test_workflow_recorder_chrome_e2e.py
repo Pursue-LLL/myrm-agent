@@ -36,15 +36,24 @@ _SETTINGS_SHELL_STATE = """(() => {
   };
 })()"""
 
-# The Curator panel hosts the recorder trigger; its presence proves the mount point is live
-# (the dialog itself is only rendered once opened).
+# The Curator panel (which hosts the recorder trigger) renders inside the "installed" tab and is
+# gated on a logged-in user, so the test selects that tab before looking for the trigger.
+_SELECT_INSTALLED_TAB_JS = """(() => {
+  const tabs = Array.from(document.querySelectorAll('[role="tab"], button'));
+  const installed = tabs.find((t) => /installed|已安装|インストール済み|설치됨|Installiert/i.test(t.textContent || ''));
+  if (installed) installed.click();
+  return { clicked: !!installed };
+})()"""
+
 _RECORDER_TRIGGER_STATE = """(() => {
   const buttons = Array.from(document.querySelectorAll('button'));
   const trigger = buttons.find((b) => /Record Workflow|录制工作流|錄製工作流程|ワークフローを録画|워크플로 녹화|Workflow aufzeichnen/i.test(b.textContent || ''));
+  const text = document.body?.innerText || '';
   return {
     ready: !!trigger,
     hasTrigger: !!trigger,
-    snippet: (document.body?.innerText || '').slice(0, 600),
+    needsLogin: /sign in|log in|登录|登入|ログイン|로그인|Anmelden/i.test(text),
+    snippet: text.slice(0, 600),
   };
 })()"""
 
@@ -93,6 +102,9 @@ def test_chrome_ui_workflow_recorder_reflects_capture_state() -> None:
                 timeout_sec=_warm_ui_parallel_wait_sec(120.0),
             )
             assert shell.get("ready") is True, json.dumps(shell, indent=2, ensure_ascii=False)
+
+            # The recorder trigger lives in the "installed" tab of the skills panel.
+            client.evaluate(page, _SELECT_INSTALLED_TAB_JS, timeout_sec=15.0)
 
             trigger = wait_for_state(
                 client,
