@@ -98,6 +98,8 @@ export const CustomMessageCard: React.FC<CustomMessageCardProps> = ({
             <button
               type="button"
               onClick={() => setDetailsOpen((prev) => !prev)}
+              aria-expanded={detailsOpen}
+              aria-controls="custom-message-details"
               className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
             >
               <span>Details</span>
@@ -116,7 +118,10 @@ export const CustomMessageCard: React.FC<CustomMessageCardProps> = ({
       </div>
 
       {detailsOpen && details && (
-        <div className="mt-3 rounded-lg border border-border/50 bg-background/80 p-3 text-xs font-mono text-muted-foreground dark:bg-background/40">
+        <div
+          id="custom-message-details"
+          className="mt-3 rounded-lg border border-border/50 bg-background/80 p-3 text-xs font-mono text-muted-foreground dark:bg-background/40"
+        >
           <pre className="overflow-x-auto whitespace-pre-wrap break-all">
             {JSON.stringify(details, null, 2)}
           </pre>

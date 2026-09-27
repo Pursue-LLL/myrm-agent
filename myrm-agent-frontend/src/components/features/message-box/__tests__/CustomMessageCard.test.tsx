@@ -56,9 +56,13 @@ describe('CustomMessageCard', () => {
 
     expect(screen.queryByText(/abc123/)).toBeNull();
 
-    const detailsBtn = screen.getByText('Details');
-    fireEvent.click(detailsBtn);
+    const detailsBtn = screen.getByText('Details').closest('button');
+    expect(detailsBtn?.getAttribute('aria-expanded')).toBe('false');
+    expect(detailsBtn?.getAttribute('aria-controls')).toBe('custom-message-details');
 
+    fireEvent.click(detailsBtn!);
+
+    expect(detailsBtn?.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByText(/abc123/)).toBeDefined();
   });
 
