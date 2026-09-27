@@ -13,8 +13,8 @@
 | `SystemSection.tsx`       | WebUI 开关、端口、系统诊断等主面板 |
 | `SystemCenterSection.tsx` | 系统 Tab 容器                      |
 | `AboutSection.tsx`        | 关于/版本信息                      |
-| `StackUpdatePanel.tsx`    | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 分组更新日志 / 勿扰窗口） |
-| `__tests__/StackUpdatePanel.test.tsx` | 全栈更新面板单测（OTA三态、Changelog折叠、推迟版本、自检Doctor、勿扰时段） |
+| `StackUpdatePanel.tsx`    | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 分组更新日志 / 勿扰窗口 / 自检Doctor并发防重） |
+| `__tests__/StackUpdatePanel.test.tsx` | 全栈更新面板单测（OTA三态、Changelog折叠、推迟版本、自检Doctor与Pending禁用、勿扰时段） |
 | `ImportExportSection.tsx` | 配置导入导出                       |
 
 ### 存储管理
