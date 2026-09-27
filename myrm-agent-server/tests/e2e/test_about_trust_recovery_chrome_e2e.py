@@ -1,4 +1,4 @@
-"""Lane-B: About tab hydrates with trust/recovery cards mounted (read-only).
+"""Lane-B: About tab hydrates with trust/recovery/stack-update mounted (read-only).
 
 Covers the SystemCenterSection about tab where TrustBadgeCard and
 RecoveryGuideCard mount. No writes, no backend mutation: asserts shell
@@ -27,7 +27,9 @@ _ABOUT_TAB_STATE = """(() => {
     ready:
       location.pathname.startsWith('/settings') &&
       bodyText.length > 20 &&
-      !!document.querySelector('[data-testid="settings-layout"]'),
+      !!document.querySelector('[data-testid="settings-layout"]') &&
+      headings.some((h) => h.includes('MyrmAgent')),
+    bodyText: bodyText.slice(0, 8000),
     headings: headings.slice(0, 60),
     hasErrors,
     url: window.location.href,
@@ -59,3 +61,5 @@ def test_about_tab_trust_recovery_chrome_e2e() -> None:
         assert state.get("hasErrors") is False, state
         headings = state.get("headings") or []
         assert any("MyrmAgent" in h for h in headings), state
+        body_text = state.get("bodyText") or ""
+        assert "Stack updates" in body_text, state

@@ -17,16 +17,14 @@ const SystemCenterSection = memo(() => {
   const searchParams = useSearchParams();
   const { handleTabChange: syncTabChange } = useSettingsSubTabUrl('system');
 
-  const [activeTab, setActiveTab] = useState<string>('settings');
+  const sub = searchParams.get('sub');
+  const [prevSub, setPrevSub] = useState(sub);
+  const [activeTab, setActiveTab] = useState<string>(() => (sub === 'about' ? 'about' : 'settings'));
 
-  useEffect(() => {
-    const sub = searchParams.get('sub');
-    if (sub === 'about') {
-      setActiveTab('about');
-    } else {
-      setActiveTab('settings');
-    }
-  }, [searchParams]);
+  if (sub !== prevSub) {
+    setPrevSub(sub);
+    setActiveTab(sub === 'about' ? 'about' : 'settings');
+  }
 
   const handleTabChange = (value: string) => {
     syncTabChange(value, setActiveTab, defaultSubTabResolver('settings'));
