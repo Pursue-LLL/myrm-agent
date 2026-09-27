@@ -1,6 +1,6 @@
 // @orphan-ok Dedicated UI card for custom plugin message entries in conversation stream
 import React, { useState } from 'react';
-import { Puzzle, ChevronDown, ChevronRight, Clock, ShieldAlert, Layers } from 'lucide-react';
+import { Puzzle, ChevronDown, ChevronRight, Clock, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 
 export interface CustomMessageCardProps {
