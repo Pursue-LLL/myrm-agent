@@ -1,3 +1,14 @@
+/**
+ * [INPUT]
+ * - store/chat/messageStream/handlers/ttsrEvents::ttsrEvents (POS: 捕获 ttsr_triggered 流式事件切片)
+ * 
+ * [OUTPUT]
+ * - ttsrEvents.test.ts: 单元测试套件，验证流式事件拦截追加、多轮重试累积与非目标事件忽略
+ * 
+ * [POS]
+ * 单元测试层。验证消息流切片中 TTSR 安全事件对聊天消息实体的原子状态变更。
+ */
+
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../types/agentStream/part1', () => ({
