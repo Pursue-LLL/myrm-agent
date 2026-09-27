@@ -1,21 +1,28 @@
 'use client';
 
+/**
+ * [INPUT]
+ * @/hooks/tauri/useAppUpdate::useAppUpdate (POS: Tauri OTA updater hook)
+ * @/lib/update-prefs (POS: LocalStorage update preferences and quiet hours)
+ * @/lib/deploy-mode::isTauriRuntime (POS: Deployment mode detection)
+ *
+ * [OUTPUT]
+ * StackUpdatePanel: Renders the full-stack update status across Tauri, WebUI, and Cloud.
+ *
+ * [POS]
+ * Central update status surface within Settings/About. Presents grouped changelogs,
+ * version comparison, git behind status, and update preferences.
+ */
+
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconCheck, IconShield } from '@/components/features/icons/PremiumIcons';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { useAppUpdate } from '@/hooks/tauri/useAppUpdate';
 import {
-  getDeferredVersion,
-  getQuietHours,
-  isDeferred,
-  isQuietNow,
-  saveUpdateReceipt,
-  setDeferredVersion,
-  setQuietHours,
-  takeUpdateReceipt,
-  type QuietHours,
-  type UpdateReceipt,
+  getDeferredVersion, getQuietHours, isDeferred, isQuietNow,
+  saveUpdateReceipt, setDeferredVersion, setQuietHours, takeUpdateReceipt,
+  type QuietHours, type UpdateReceipt,
 } from '@/lib/update-prefs';
 import { cn } from '@/lib/utils/classnameUtils';
 

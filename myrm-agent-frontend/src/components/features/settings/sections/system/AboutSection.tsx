@@ -1,17 +1,22 @@
 'use client';
 
+/**
+ * [INPUT]
+ * @/components/features/settings/sections/system/StackUpdatePanel (POS: Central update status surface)
+ * @/lib/deploy-mode (POS: Runtime detection and docs url helper)
+ *
+ * [OUTPUT]
+ * AboutSection: Renders application overview, version metadata, diagnostics, and stack update panel.
+ *
+ * [POS]
+ * Primary "About" settings section under System. Presents system versions, diagnostics report, and links.
+ */
+
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  IconGlobe,
-  IconBook,
-  IconExternalLink,
-  IconCode,
-  IconZap,
-  IconShield,
-  IconFolder,
-  IconBriefcase,
-  IconClock,
+  IconGlobe, IconBook, IconExternalLink, IconCode,
+  IconZap, IconShield, IconFolder, IconBriefcase, IconClock,
 } from '@/components/features/icons/PremiumIcons';
 import { Users, CheckCircle2 } from 'lucide-react';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
@@ -69,12 +74,7 @@ const LinkCard = memo<LinkCardProps>(({ icon: Icon, title, description, href }) 
 
 LinkCard.displayName = 'LinkCard';
 
-interface TechBadgeProps {
-  name: string;
-  color: string;
-}
-
-const TechBadge = memo<TechBadgeProps>(({ name, color }) => (
+const TechBadge = memo<{ name: string; color: string }>(({ name, color }) => (
   <div className={cn('px-3 py-1.5 rounded-lg text-xs font-medium border transition-all hover:scale-105', color)}>
     {name}
   </div>
