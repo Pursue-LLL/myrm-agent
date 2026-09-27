@@ -927,7 +927,6 @@ def _compute_next_action(
         E2E_ADMISSION_WALL_CLOCK_SEC,
         LIVE_AGENT_BODY_WALL_CLOCK_SEC,
         LIVE_AGENT_PYTEST_WALL_CAP_SEC,
-        LIVE_SINGLE_TEST_WALL_CLOCK_SEC,
     )
 
     # Cluster-level admit hung verdict uses the PRIVATE admission contract
@@ -981,7 +980,14 @@ def _compute_next_action(
                         return "FAIL_FAST"
             elif isinstance(row.get("elapsed_sec"), (int, float)) and float(
                 row["elapsed_sec"]
-            ) >= float(LIVE_SINGLE_TEST_WALL_CLOCK_SEC):
+            ) >= float(admit_wall_cap):
+                # Fall back to the PRIVATE ADMISSION contract, not the LIVE single-test
+                # wall. This branch only runs for wall_phase=="admit" peers, whose
+                # elapsed time is credit-queue wait bounded by E2E_ADMISSION_WALL_CLOCK_SEC
+                # (900s). Using the 600s single-test wall here mislabelled a peer that was
+                # legitimately queued as hung and aborted every unrelated launch
+                # (observed: 4/4 lanes denied FAIL_FAST while one peer held 771s of
+                # admit wait before its body began).
                 from e2e_core.cluster_launch_policy import (
                     cluster_fail_fast_suppressed_for_active_test,
                 )
