@@ -327,3 +327,26 @@ def test_envelope_scope_resolution_activates_fast_path():
     assert sink3.emit.await_count == 1
     DesktopApprovalRegistry._pending.clear()
     DesktopApprovalRegistry._decisions.clear()
+
+
+def test_envelope_capacity_eviction_bounded():
+    from myrm_agent_harness.toolkits.computer_use.envelope import IntentEnvelopeSpec
+    from app.ai_agents.desktop_control.envelope_manager import DesktopEnvelopeManager, _MAX_ENVELOPES_CAPACITY
+
+    manager = DesktopEnvelopeManager()
+    # Fill up to capacity
+    for i in range(_MAX_ENVELOPES_CAPACITY + 10):
+        spec = IntentEnvelopeSpec(
+            task_id=f"task_{i}",
+            allowed_app_names=("TestApp",),
+            max_actions=10,
+        )
+        manager.register_envelope(spec)
+
+    assert len(manager._envelopes_by_task) == _MAX_ENVELOPES_CAPACITY
+    # Oldest tasks (task_0 .. task_9) must be evicted
+    assert "task_0" not in manager._envelopes_by_task
+    assert "task_9" not in manager._envelopes_by_task
+    # Recent tasks must be retained
+    assert f"task_{_MAX_ENVELOPES_CAPACITY + 9}" in manager._envelopes_by_task
+

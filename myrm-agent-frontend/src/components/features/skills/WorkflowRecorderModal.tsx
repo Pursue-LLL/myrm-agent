@@ -20,7 +20,6 @@ import {
   WorkflowPlanStep,
   startDesktopRecording,
   stopDesktopRecording,
-  recordDesktopEvent,
   getDesktopRecordingSession,
   analyzeDesktopPlan,
   compileDesktopPlan,
@@ -138,21 +137,6 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSimulateEvent = async (action: string, app: string, detail: string) => {
-    if (!sessionId) {return;}
-    const nextSeq = eventCount + 1;
-    await recordDesktopEvent({
-      session_id: sessionId,
-      seq: nextSeq,
-      action,
-      app_name: app,
-      window_title: action === 'window_focus' ? detail : undefined,
-      element_title: action === 'window_focus' ? undefined : detail,
-      value: action === 'type' ? 'PARAM_VALUE' : undefined,
-    });
-    setEventCount(nextSeq);
   };
 
   const handleStopAndAnalyze = async () => {
@@ -294,13 +278,13 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
                   <Video className="h-8 w-8" />
                 </div>
                 <h4 className="font-medium text-foreground mt-3">
-                  {captureActive ? t('recordingActive') : t('manualRecordingActive')}
+                  {captureActive ? t('recordingActive') : t('captureUnavailableTitle')}
                 </h4>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {captureActive
-                    ? t('captureEventsCaptured', { count: eventCount })
-                    : t('eventsCaptured', { count: eventCount })}
-                </p>
+                {captureActive && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t('captureEventsCaptured', { count: eventCount })}
+                  </p>
+                )}
                 {captureActive && captureIssue === null && (
                   <p className="text-xs text-muted-foreground/80 mt-1">{t('captureHint')}</p>
                 )}
@@ -326,37 +310,6 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
                   <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                   <span>{t('captureTraceTruncatedNotice', { count: eventsDropped })}</span>
                 </div>
-              )}
-
-              {!captureActive && (
-                <>
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-foreground text-center">{t('manualStepsLabel')}</p>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      <button
-                        type="button"
-                        onClick={() => handleSimulateEvent('window_focus', 'Microsoft Excel', 'Spreadsheet')}
-                        className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
-                      >
-                        + Excel Switch
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSimulateEvent('click', 'Chrome Browser', 'Submit Button')}
-                        className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
-                      >
-                        + Click Submit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSimulateEvent('type', 'Chrome Browser', 'Tax Account')}
-                        className="text-xs px-2.5 py-1 rounded border border-border bg-muted/40 hover:bg-muted"
-                      >
-                        + Type Account
-                      </button>
-                    </div>
-                  </div>
-                </>
               )}
             </div>
           )}

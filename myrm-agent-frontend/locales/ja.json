@@ -10938,7 +10938,6 @@
       "intentHintLabel": "意図ヒント（任意）",
       "startRecording": "録画開始",
       "recordingActive": "デスクトップ操作を記録中...",
-      "eventsCaptured": "{count} 件のステップを追加しました",
       "stopAndAnalyze": "録画終了と意図再構成",
       "reviewStepsTitle": "再構成された実行手順と変数",
       "addStep": "ステップ追加",
@@ -10949,13 +10948,12 @@
       "publishSuccessDesc": "スキル「{name}」がコンパイルされ、即座に利用可能になりました。",
       "cancel": "キャンセル",
       "close": "閉じる",
-      "manualStepsLabel": "ステップを手動で追加",
-      "manualRecordingActive": "ステップを手動で追加中...",
       "captureEventsCaptured": "{count} 件の操作をキャプチャしました",
       "captureHint": "このままデスクトップで作業を実演してください。クリックと文字入力は自動的に記録されます。",
-      "capturePermissionNotice": "自動キャプチャには画面アクセス権限が必要です。システムのプライバシー設定で許可してから、記録をやり直してください。それまでは以下でステップを手動追加してスキルを確認できます。",
-      "captureUnsupportedNotice": "このプラットフォームでは自動キャプチャに対応していません。以下でステップを手動追加してスキルを確認できます。",
-      "captureTraceTruncatedNotice": "録画が上限に達したため、古い操作 {count} 件を破棄しました。生成されるスキルは冒頭の手順を欠いている可能性があります。"
+      "capturePermissionNotice": "自動キャプチャには画面アクセス権限が必要です。「システム設定 → プライバシーとセキュリティ → アクセシビリティ」で許可してから録画をやり直してください。クリックと入力は自動でキャプチャされます。",
+      "captureUnsupportedNotice": "このプラットフォームでは自動キャプチャを利用できないため、録画できません。",
+      "captureTraceTruncatedNotice": "録画が上限に達したため、古い操作 {count} 件を破棄しました。生成されるスキルは冒頭の手順を欠いている可能性があります。",
+      "captureUnavailableTitle": "キャプチャを利用できません"
     }
   },
   "followUps": {

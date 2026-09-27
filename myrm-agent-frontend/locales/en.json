@@ -17977,7 +17977,6 @@
       "intentHintLabel": "Intent Hint (Optional)",
       "startRecording": "Start Recording",
       "recordingActive": "Recording desktop workflow...",
-      "eventsCaptured": "{count} steps added",
       "stopAndAnalyze": "Stop & Reconstruct Intent",
       "reviewStepsTitle": "Reconstructed Execution Steps & Variables",
       "addStep": "Add Step",
@@ -17988,13 +17987,12 @@
       "publishSuccessDesc": "Skill \"{name}\" is compiled and ready for immediate use across agents.",
       "cancel": "Cancel",
       "close": "Close",
-      "manualStepsLabel": "Add step manually",
-      "manualRecordingActive": "Manual step entry in progress...",
       "captureEventsCaptured": "{count} interactions captured",
       "captureHint": "Perform the workflow on your desktop now; each click and text entry is captured automatically.",
-      "capturePermissionNotice": "Automatic capture needs screen access permission. Grant it in your system privacy settings, then start a new recording. Until then, add steps manually below to preview the skill.",
-      "captureUnsupportedNotice": "Automatic capture is not supported on this platform. Add steps manually below to preview the skill.",
-      "captureTraceTruncatedNotice": "{count} earlier interactions were dropped because the recording hit its size limit. The generated skill may be missing its opening steps."
+      "capturePermissionNotice": "Automatic capture needs screen access permission. Grant it in your system privacy settings (Accessibility), then start the recording again — every click and text entry is captured automatically.",
+      "captureUnsupportedNotice": "Automatic capture is not available on this platform. Recording is not possible here.",
+      "captureTraceTruncatedNotice": "{count} earlier interactions were dropped because the recording hit its size limit. The generated skill may be missing its opening steps.",
+      "captureUnavailableTitle": "Capture unavailable"
     }
   },
   "followUps": {
