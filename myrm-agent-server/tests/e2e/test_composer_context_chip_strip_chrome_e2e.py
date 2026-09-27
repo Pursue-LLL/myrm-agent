@@ -223,7 +223,7 @@ _CLEAR_MULTI_CAPABILITY_STATE_JS = """(() => {
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="READ",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
     private_reason="exclusive_backend",
 )
@@ -333,7 +333,7 @@ def test_composer_inline_context_chip_strip_lifecycle_and_removal() -> None:
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="READ",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
     private_reason="exclusive_backend",
 )
@@ -399,7 +399,7 @@ def test_composer_context_chip_strip_overflow_popover_and_overload_nudge() -> No
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
-    access_scope="READ",
+    access_scope="NAMESPACE_WRITE",
     workload="STANDARD",
     private_reason="exclusive_backend",
 )
