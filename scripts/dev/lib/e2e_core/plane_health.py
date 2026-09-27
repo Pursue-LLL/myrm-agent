@@ -481,6 +481,13 @@ def _build_agent_rule(
         )
     if state is PlaneHealthState.RECOVERING:
         return "PLANE_RECOVERING: wait for orchestrator recovery or retry attach"
+    if state is PlaneHealthState.UNKNOWN:
+        return (
+            "PLANE_UNKNOWN: orchestrator snapshot unavailable while mux is alive — "
+            "transient under parallel load; launch proceeds and attach retries. "
+            "If it persists with no active tests, run ./myrm e2e-context json then "
+            "./myrm restart --chrome"
+        )
     return "PLANE_UNKNOWN: run ./myrm e2e-context json and execute agent_rule"
 
 
