@@ -467,6 +467,9 @@ const MessageBox = ({
         details?: Record<string, unknown>;
       };
     }).extraData || {};
+    if (extra.display === false) {
+      return null;
+    }
     return (
       <CustomMessageCard
         customType={extra.custom_type || 'plugin'}

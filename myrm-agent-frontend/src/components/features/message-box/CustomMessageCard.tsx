@@ -13,6 +13,17 @@ export interface CustomMessageCardProps {
   className?: string;
 }
 
+const formatTimestamp = (raw?: string | number | Date): string | null => {
+  if (!raw) return null;
+  try {
+    const date = raw instanceof Date ? raw : new Date(raw);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch {
+    return null;
+  }
+};
+
 export const CustomMessageCard: React.FC<CustomMessageCardProps> = ({
   customType,
   content,
@@ -23,6 +34,7 @@ export const CustomMessageCard: React.FC<CustomMessageCardProps> = ({
   className,
 }) => {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const formattedTime = formatTimestamp(timestamp);
 
   // If display is explicitly false, do not render in the conversation stream
   if (display === false) {
@@ -76,20 +88,27 @@ export const CustomMessageCard: React.FC<CustomMessageCardProps> = ({
           </span>
         </div>
 
-        {details && Object.keys(details).length > 0 && (
-          <button
-            type="button"
-            onClick={() => setDetailsOpen((prev) => !prev)}
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
-          >
-            <span>Details</span>
-            {detailsOpen ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {formattedTime && (
+            <span className="text-[10px] text-muted-foreground/70 font-mono tracking-tight">
+              {formattedTime}
+            </span>
+          )}
+          {details && Object.keys(details).length > 0 && (
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((prev) => !prev)}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
+            >
+              <span>Details</span>
+              {detailsOpen ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">

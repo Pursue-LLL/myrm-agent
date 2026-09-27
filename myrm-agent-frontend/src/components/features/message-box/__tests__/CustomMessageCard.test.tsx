@@ -61,4 +61,20 @@ describe('CustomMessageCard', () => {
 
     expect(screen.getByText(/abc123/)).toBeDefined();
   });
+
+  it('renders formatted timestamp when timestamp prop is provided', () => {
+    const testDate = new Date('2026-09-27T14:30:00Z');
+    render(
+      <CustomMessageCard
+        customType="audit_log"
+        content="Audit event recorded"
+        display={true}
+        timestamp={testDate}
+      />
+    );
+
+    // Formatted time string should be rendered in the document
+    const timeRegex = /\d{1,2}:\d{2}/;
+    expect(screen.getByText(timeRegex)).toBeDefined();
+  });
 });
