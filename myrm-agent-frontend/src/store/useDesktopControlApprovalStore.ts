@@ -13,6 +13,17 @@ import { create } from 'zustand';
 
 export type DesktopControlApprovalScope = 'once' | 'session' | 'always';
 
+export interface ActiveEnvelopeState {
+  taskId: string;
+  allowedApps: string[];
+  maxActions: number;
+  usedActions: number;
+  remainingBudget: number;
+  allowSystemDialogs: boolean;
+  status: 'pending_consent' | 'active' | 'escalated' | 'exhausted' | 'completed';
+  escalationReason?: string;
+}
+
 interface DesktopControlApprovalState {
   pending: boolean;
   expired: boolean;
@@ -27,6 +38,8 @@ interface DesktopControlApprovalState {
   messageId: string;
   requestedAt: number;
 
+  activeEnvelope: ActiveEnvelopeState | null;
+
   requestApproval: (payload: {
     request_id: string;
     reason: string;
@@ -40,6 +53,11 @@ interface DesktopControlApprovalState {
   markExpired: () => void;
   markDenied: () => void;
   clear: () => void;
+
+  setEnvelope: (envelope: ActiveEnvelopeState | null) => void;
+  updateEnvelopeProgress: (payload: { used: number; max: number; remaining?: number }) => void;
+  extendEnvelopeLease: (additionalSteps?: number) => void;
+  escalateEnvelope: (reason: string) => void;
 }
 
 const useDesktopControlApprovalStore = create<DesktopControlApprovalState>((set) => ({
@@ -55,6 +73,7 @@ const useDesktopControlApprovalStore = create<DesktopControlApprovalState>((set)
   requireAppApproval: true,
   messageId: '',
   requestedAt: 0,
+  activeEnvelope: null,
 
   requestApproval: (payload) =>
     set({
@@ -89,6 +108,50 @@ const useDesktopControlApprovalStore = create<DesktopControlApprovalState>((set)
       windowTitle: '',
       requireAppApproval: true,
       messageId: '',
+    }),
+
+  setEnvelope: (envelope) => set({ activeEnvelope: envelope }),
+
+  updateEnvelopeProgress: ({ used, max, remaining }) =>
+    set((state) => {
+      if (!state.activeEnvelope) return {};
+      const rem = remaining !== undefined ? remaining : Math.max(0, max - used);
+      const isExhausted = used >= max;
+      return {
+        activeEnvelope: {
+          ...state.activeEnvelope,
+          usedActions: used,
+          maxActions: max,
+          remainingBudget: rem,
+          status: isExhausted ? 'exhausted' : state.activeEnvelope.status,
+        },
+      };
+    }),
+
+  extendEnvelopeLease: (additionalSteps = 10) =>
+    set((state) => {
+      if (!state.activeEnvelope) return {};
+      const newMax = state.activeEnvelope.maxActions + Math.max(1, additionalSteps);
+      return {
+        activeEnvelope: {
+          ...state.activeEnvelope,
+          maxActions: newMax,
+          remainingBudget: Math.max(0, newMax - state.activeEnvelope.usedActions),
+          status: 'active',
+        },
+      };
+    }),
+
+  escalateEnvelope: (reason) =>
+    set((state) => {
+      if (!state.activeEnvelope) return {};
+      return {
+        activeEnvelope: {
+          ...state.activeEnvelope,
+          status: 'escalated',
+          escalationReason: reason,
+        },
+      };
     }),
 }));
 

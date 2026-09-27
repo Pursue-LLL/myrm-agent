@@ -64,6 +64,8 @@ async def cancel_agent_request(
 
 class SteerRequest(BaseModel):
     message: str
+    mode: str = "direct"
+    quoted_ref: str | None = None
 
     class Config:
         alias_generator = to_camel
@@ -84,6 +86,32 @@ async def steer_agent(
     if not body.message.strip():
         return error_response(message="Steering message cannot be empty", code=400)
 
+    if body.mode.strip().lower() == "policy":
+        from app.services.agent.steering_policy import policy_steer
+
+        outcome = policy_steer(chat_id, body.message, quoted_ref=body.quoted_ref)
+        if outcome["status"] == "no_active":
+            return error_response(message="No active agent for this chat", code=404)
+        if outcome["status"] == "too_large":
+            return error_response(
+                message="Steering message too large; reference artifacts instead",
+                code=400,
+            )
+        logger.info(
+            "User policy-steered agent: chat_id=%s status=%s",
+            chat_id,
+            outcome["status"],
+        )
+        return success_response(
+            data={
+                "steered": True,
+                "chat_id": chat_id,
+                "mode": "policy",
+                "deduped": outcome["deduped"],
+                "metrics": outcome["metrics"],
+            }
+        )
+
     success = SteeringRegistry.steer(chat_id, body.message)
 
     if success:
@@ -91,6 +119,22 @@ async def steer_agent(
         return success_response(data={"steered": True, "chat_id": chat_id})
 
     return error_response(message="No active agent for this chat", code=404)
+
+
+@router.get("/chats/{chat_id}/steer-metrics")
+@limiter.limit(settings.rate_limit.chat)
+async def steer_metrics(
+    chat_id: str,
+    http_request: Request,
+) -> JSONResponse:
+    from app.core.utils.response_utils import error_response, success_response
+    from app.remote_access.mobile_gate import require_mobile_pair_chat_access
+    from app.services.agent.steering_policy import policy_metrics
+
+    require_mobile_pair_chat_access(http_request, chat_id)
+    if not SteeringRegistry.has_active(chat_id):
+        return error_response(message="No active agent for this chat", code=404)
+    return success_response(data={"chat_id": chat_id, "metrics": policy_metrics(chat_id)})
 
 
 @router.post("/chats/{chat_id}/redirect")

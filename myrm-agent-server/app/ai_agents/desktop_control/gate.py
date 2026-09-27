@@ -5,23 +5,16 @@
 - myrm_agent_harness.toolkits.computer_use.app_identity::resolve_trust_key, trust_key_matches
 - myrm_agent_harness.core.events.types::AgentEventType
 - myrm_agent_harness.utils.runtime.progress_sink::get_tool_progress_sink
-- app.ai_agents.desktop_control.registry::DesktopApprovalRegistry (POS: approval ledger), approval_fingerprint, deny_key_for, grant_changed_since, emit_withdraw_card
-- app.ai_agents.desktop_control.trust_store::TrustedAppRecord (POS: trust persistence), load_denied_keys, _APPROVAL_DIR, _APPROVAL_FILE
+- app.ai_agents.desktop_control.registry::DesktopApprovalRegistry, approval_fingerprint, deny_key_for, grant_changed_since, emit_withdraw_card
+- app.ai_agents.desktop_control.trust_store::TrustedAppRecord, load_denied_keys, load_trusted_apps_map, save_trusted_apps_map
 
 [OUTPUT]
-- DesktopControlGate: async callback for foreground permission requests
-  with deny-first evaluation, fingerprint-bound grants, and session-final refusals
-
-[POS]
-Server-layer gate that bridges harness ForegroundPermissionCallback with
-frontend approval UI via SSE events. Evaluates deny rules before allow
-caches and issues one prompt per undecided request.
+- DesktopControlGate: async callback for foreground permission requests with envelope fast-path and dynamic escalation
 """
 
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import time
@@ -40,6 +33,7 @@ from myrm_agent_harness.toolkits.computer_use.types import (
 )
 from myrm_agent_harness.utils.runtime.progress_sink import get_tool_progress_sink
 
+from app.ai_agents.desktop_control.envelope_manager import DesktopEnvelopeManager
 from app.ai_agents.desktop_control.registry import (
     DesktopApprovalRegistry,
     _PendingApproval,
@@ -53,6 +47,8 @@ from app.ai_agents.desktop_control.trust_store import (
     _APPROVAL_FILE,
     TrustedAppRecord,
     load_denied_keys,
+    load_trusted_apps_map,
+    save_trusted_apps_map,
 )
 
 logger = logging.getLogger(__name__)
@@ -82,24 +78,18 @@ class DesktopControlGate:
         register_live: bool = True,
         preapproved_trust_keys: Collection[str] | None = None,
         unattended_fail_fast: bool = False,
+        envelope_manager: DesktopEnvelopeManager | None = None,
     ) -> None:
         self._workspace_root = Path(workspace_root) if workspace_root else None
         self._auto_grant = auto_grant
         self._default_timeout = default_timeout_seconds
         self._unattended_fail_fast = unattended_fail_fast
+        self._envelope_manager = envelope_manager if envelope_manager is not None else DesktopEnvelopeManager()
         self._session_approved_keys: set[str] = set()
         self._always_approved_keys: set[str] = set()
         self._run_scoped_keys: set[str] = set()
-        # Session-final denials (explicit user refusals): same trust key plus
-        # same execution fingerprint is denied without re-prompting until the
-        # session state resets. Timeouts never land here.
         self._denied_session_keys: set[str] = set()
-        # Operator-configured denials persisted in denied_apps.json. These
-        # survive runtime resets; session denials do not.
         self._denied_persistent_keys: set[str] = set()
-        # Last once-grant per trust key for drift surfacing: a same-app
-        # request with a different fingerprint inside the window flags the
-        # approval card.
         self._last_grants: dict[str, tuple[str, float]] = {}
         self._trusted_app_records: dict[str, TrustedAppRecord] = {}
         self._load_persisted_apps()
@@ -112,6 +102,10 @@ class DesktopControlGate:
         if register_live:
             DesktopControlGate._live_gates.add(self)
 
+    @property
+    def envelope_manager(self) -> DesktopEnvelopeManager:
+        return self._envelope_manager
+
     def reset_runtime_approval_state(self) -> None:
         """Clear in-memory approval caches and reload persisted always-approved apps.
 
@@ -123,6 +117,7 @@ class DesktopControlGate:
         self._denied_session_keys.clear()
         self._last_grants.clear()
         self._trusted_app_records.clear()
+        self._envelope_manager.clear_envelope()
         self._load_persisted_apps()
         root = str(self._workspace_root) if self._workspace_root is not None else None
         self._denied_persistent_keys = load_denied_keys(workspace_root=root)
@@ -159,45 +154,9 @@ class DesktopControlGate:
             return True
         return False
 
-    @staticmethod
-    def _parse_trusted_entry(key: str, entry: object) -> TrustedAppRecord | None:
-        if not isinstance(entry, dict):
-            return None
-        scope = entry.get("scope")
-        if scope != ForegroundPermissionScope.always.value:
-            return None
-        display_name = str(entry.get("display_name") or key).strip()
-        app_id = str(entry.get("app_id") or "").strip()
-        trust_key = resolve_trust_key(app_name=display_name, app_id=app_id) or key.strip()
-        if not trust_key:
-            return None
-        return {
-            "trust_key": trust_key,
-            "display_name": display_name or key,
-            "app_id": app_id,
-            "scope": ForegroundPermissionScope.always.value,
-        }
-
     def _load_persisted_apps(self) -> None:
-        path = self._approval_path()
-        if path is None or not path.is_file():
-            return
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            apps = data.get("apps", {})
-            if not isinstance(apps, dict):
-                return
-            for key, entry in apps.items():
-                if not isinstance(key, str):
-                    continue
-                record = self._parse_trusted_entry(key, entry)
-                if record is None:
-                    continue
-                trust_key = record["trust_key"]
-                self._always_approved_keys.add(trust_key)
-                self._trusted_app_records[trust_key] = record
-        except Exception as exc:
-            logger.warning("Failed to load desktop approval file: %s", exc)
+        self._trusted_app_records = load_trusted_apps_map(self._approval_path())
+        self._always_approved_keys = set(self._trusted_app_records.keys())
 
     def _is_app_preapproved(self, app_name: str, app_id: str = "") -> bool:
         for stored_key in self._always_approved_keys | self._session_approved_keys:
@@ -219,49 +178,13 @@ class DesktopControlGate:
         self._trusted_app_records.pop(normalized, None)
         self._always_approved_keys.discard(normalized)
         self._session_approved_keys.discard(normalized)
-
-        path = self._approval_path()
-        if path is None:
-            return True
-
-        remaining = {
-            record["trust_key"]: {
-                "scope": ForegroundPermissionScope.always.value,
-                "display_name": record["display_name"],
-                "app_id": record["app_id"],
-            }
-            for record in self._trusted_app_records.values()
-        }
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({"apps": remaining}, indent=2), encoding="utf-8")
+        save_trusted_apps_map(self._approval_path(), self._trusted_app_records)
         return True
 
     def _persist_app(self, app_name: str, app_id: str = "") -> None:
-        path = self._approval_path()
-        if path is None or not app_name.strip():
-            return
-
         trust_key = resolve_trust_key(app_name=app_name, app_id=app_id)
         if not trust_key:
             return
-
-        existing: dict[str, object] = {}
-        if path.is_file():
-            try:
-                raw = json.loads(path.read_text(encoding="utf-8"))
-                if isinstance(raw, dict) and isinstance(raw.get("apps"), dict):
-                    existing = dict(raw["apps"])
-            except Exception:
-                existing = {}
-
-        existing[trust_key] = {
-            "scope": ForegroundPermissionScope.always.value,
-            "display_name": app_name.strip(),
-            "app_id": app_id.strip(),
-        }
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({"apps": existing}, indent=2), encoding="utf-8")
-
         record: TrustedAppRecord = {
             "trust_key": trust_key,
             "display_name": app_name.strip(),
@@ -270,6 +193,7 @@ class DesktopControlGate:
         }
         self._always_approved_keys.add(trust_key)
         self._trusted_app_records[trust_key] = record
+        save_trusted_apps_map(self._approval_path(), self._trusted_app_records)
 
     async def __call__(
         self,
@@ -289,47 +213,39 @@ class DesktopControlGate:
         fingerprint = approval_fingerprint(operation=operation, trust_key=trust_key)
 
         if self._auto_grant:
-            # Cloud-sandbox posture (no human watching): grant with an audit
-            # trail. Call sites enable auto_grant for sandbox non-local mode
-            # only; local runs must never reach here.
-            logger.warning(
-                "Desktop approval auto-granted (sandbox, app=%r op=%r fp=%s)",
-                app_name,
-                operation,
-                fingerprint,
-            )
+            logger.warning("Desktop approval auto-granted (sandbox, app=%r op=%r fp=%s)", app_name, operation, fingerprint)
             if trust_key:
                 self._session_approved_keys.add(trust_key)
             DesktopApprovalRegistry.record_decision(
-                request_id="",
-                trust_key=trust_key,
-                fingerprint=fingerprint,
-                operation=operation,
-                decision="auto_granted",
-                scope=ForegroundPermissionScope.always.value,
+                request_id="", trust_key=trust_key, fingerprint=fingerprint,
+                operation=operation, decision="auto_granted", scope=ForegroundPermissionScope.always.value,
             )
-            return ForegroundPermissionResult(
-                granted=True,
-                scope=ForegroundPermissionScope.always,
-            )
+            return ForegroundPermissionResult(granted=True, scope=ForegroundPermissionScope.always)
 
         if require_app_approval and trust_key and self._is_denied(trust_key=trust_key, fingerprint=fingerprint):
-            # Deny-first: persistent operator denials and session-final user
-            # refusals win over every allow cache below.
-            logger.info(
-                "Desktop approval denied by rule (app=%r op=%r fp=%s)",
-                app_name,
-                operation,
-                fingerprint,
-            )
+            logger.info("Desktop approval denied by rule (app=%r op=%r fp=%s)", app_name, operation, fingerprint)
             DesktopApprovalRegistry.record_decision(
-                request_id="",
-                trust_key=trust_key,
-                fingerprint=fingerprint,
-                operation=operation,
-                decision="denied_by_rule",
+                request_id="", trust_key=trust_key, fingerprint=fingerprint,
+                operation=operation, decision="denied_by_rule",
             )
             return ForegroundPermissionResult(granted=False)
+
+        # Non-interruptive Intent Envelope Evaluation
+        if require_app_approval and self._envelope_manager.active_envelope is not None:
+            allowed, check_reason, check_detail = self._envelope_manager.evaluate_and_consume(
+                app_name=app_name,
+                app_id=app_id,
+                window_title=window_title,
+                text_to_type="",
+            )
+            if allowed:
+                asyncio.create_task(self._envelope_manager.emit_progress())
+                return ForegroundPermissionResult(
+                    granted=True,
+                    scope=ForegroundPermissionScope.once,
+                )
+            # Boundary violation or quota exhausted: escalate to user approval
+            reason = f"[{check_reason.upper()}] {check_detail or reason}"
 
         if require_app_approval and self._is_app_preapproved(app_name, app_id):
             return ForegroundPermissionResult(
@@ -394,40 +310,24 @@ class DesktopControlGate:
             await asyncio.wait_for(pending.event.wait(), timeout=timeout_seconds)
         except TimeoutError:
             if pending.result is not None:
-                # A user decision landed between the deadline check and this
-                # branch: the late answer wins.
                 return self._settle_user_decision(
-                    pending=pending,
-                    request_id=request_id,
-                    trust_key=trust_key,
-                    fingerprint=fingerprint,
-                    operation=operation,
-                    app_name=app_name,
-                    app_id=app_id,
-                    require_app_approval=require_app_approval,
+                    pending=pending, request_id=request_id, trust_key=trust_key,
+                    fingerprint=fingerprint, operation=operation, app_name=app_name,
+                    app_id=app_id, require_app_approval=require_app_approval,
                 )
             DesktopApprovalRegistry._settle_timeout(request_id)
             DesktopApprovalRegistry.record_decision(
-                request_id=request_id,
-                trust_key=trust_key,
-                fingerprint=fingerprint,
-                operation=operation,
-                decision="timeout",
+                request_id=request_id, trust_key=trust_key, fingerprint=fingerprint,
+                operation=operation, decision="timeout",
             )
             await emit_withdraw_card(sink, request_id=request_id)
             return ForegroundPermissionResult(granted=False)
 
         result = pending.result or ForegroundPermissionResult(granted=False)
         return self._settle_user_decision(
-            pending=pending,
-            request_id=request_id,
-            trust_key=trust_key,
-            fingerprint=fingerprint,
-            operation=operation,
-            app_name=app_name,
-            app_id=app_id,
-            require_app_approval=require_app_approval,
-            result=result,
+            pending=pending, request_id=request_id, trust_key=trust_key,
+            fingerprint=fingerprint, operation=operation, app_name=app_name,
+            app_id=app_id, require_app_approval=require_app_approval, result=result,
         )
 
     def _settle_user_decision(

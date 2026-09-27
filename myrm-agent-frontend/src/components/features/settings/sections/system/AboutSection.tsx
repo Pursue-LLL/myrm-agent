@@ -19,6 +19,7 @@ import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getDocsUrl, isTauriRuntime } from '@/lib/deploy-mode';
 import { Button } from '@/components/primitives/button';
+import { useAppUpdate } from '@/hooks/tauri/useAppUpdate';
 
 interface FeatureCardProps {
   icon: React.ElementType;
@@ -112,17 +113,24 @@ ChangelogItem.displayName = 'ChangelogItem';
 
 const FALLBACK_VERSION = '0.1.0';
 
-type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'up-to-date' | 'error';
-
 const AboutSection = memo(() => {
   const t = useTranslations('settings.about');
   const [version, setVersion] = useState(FALLBACK_VERSION);
   const [engineVersion, setEngineVersion] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle');
-  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
-  const [updateBody, setUpdateBody] = useState<string | null>(null);
-  const [updateError, setUpdateError] = useState<string | null>(null);
+  // Single update truth: the shared useAppUpdate state machine. Auto check and
+  // auto download stay with the global AppUpdatePrompt driver; this panel only
+  // drives manual check/install so the two never double-download.
+  const {
+    phase: updatePhase,
+    info: updateInfo,
+    bytesDownloaded,
+    totalBytes,
+    error: updateError,
+    check: checkUpdate,
+    install: installUpdate,
+    reset: resetUpdate,
+  } = useAppUpdate({ autoCheck: false, autoDownload: false });
 
   useEffect(() => {
     if (isTauriRuntime()) {
@@ -162,47 +170,23 @@ const AboutSection = memo(() => {
     });
   }, [version, engineVersion]);
 
-  const handleCheckUpdate = useCallback(async () => {
+  const handleCheckUpdate = useCallback(() => {
     if (!isTauriRuntime()) {
       return;
     }
-    setUpdateStatus('checking');
-    setUpdateError(null);
-    try {
-      const { check } = await import('@tauri-apps/plugin-updater');
-      const update = await check();
-      if (update) {
-        setUpdateVersion(update.version);
-        setUpdateBody(update.body ?? null);
-        setUpdateStatus('available');
-      } else {
-        setUpdateStatus('up-to-date');
-      }
-    } catch (err) {
-      setUpdateError(err instanceof Error ? err.message : String(err));
-      setUpdateStatus('error');
-    }
-  }, []);
+    resetUpdate();
+    void checkUpdate();
+  }, [checkUpdate, resetUpdate]);
 
-  const handleInstallUpdate = useCallback(async () => {
+  const handleInstallUpdate = useCallback(() => {
     if (!isTauriRuntime()) {
       return;
     }
-    setUpdateStatus('downloading');
-    try {
-      const { check } = await import('@tauri-apps/plugin-updater');
-      const update = await check();
-      if (update) {
-        await update.downloadAndInstall();
-        setUpdateStatus('ready');
-        const { relaunch } = await import('@tauri-apps/plugin-process');
-        await relaunch();
-      }
-    } catch (err) {
-      setUpdateError(err instanceof Error ? err.message : String(err));
-      setUpdateStatus('error');
-    }
-  }, []);
+    void installUpdate();
+  }, [installUpdate]);
+
+  const downloadProgress =
+    totalBytes && totalBytes > 0 ? Math.min(100, Math.round((bytesDownloaded / totalBytes) * 100)) : null;
 
   return (
     <div className="space-y-6">

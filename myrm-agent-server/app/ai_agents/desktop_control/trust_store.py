@@ -24,6 +24,8 @@ from collections.abc import Collection
 from pathlib import Path
 from typing import TypedDict
 
+from myrm_agent_harness.toolkits.computer_use.app_identity import resolve_trust_key
+
 from app.ai_agents.desktop_control.registry import _DENY_FILE
 
 logger = logging.getLogger(__name__)
@@ -37,6 +39,53 @@ class TrustedAppRecord(TypedDict):
     display_name: str
     app_id: str
     scope: str
+
+
+def load_trusted_apps_map(path: Path | None) -> dict[str, TrustedAppRecord]:
+    """Read approved_apps.json into a dict mapping trust_key to TrustedAppRecord."""
+    if path is None or not path.is_file():
+        return {}
+    records: dict[str, TrustedAppRecord] = {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        apps = data.get("apps", {})
+        if isinstance(apps, dict):
+            for key, entry in apps.items():
+                if not isinstance(key, str) or not isinstance(entry, dict):
+                    continue
+                if entry.get("scope") != "always":
+                    continue
+                display_name = str(entry.get("display_name") or key).strip()
+                app_id = str(entry.get("app_id") or "").strip()
+                trust_key = resolve_trust_key(app_name=display_name, app_id=app_id) or key.strip()
+                if trust_key:
+                    records[trust_key] = {
+                        "trust_key": trust_key,
+                        "display_name": display_name or key,
+                        "app_id": app_id,
+                        "scope": "always",
+                    }
+    except Exception as exc:
+        logger.warning("Failed to load desktop approval file %s: %s", path, exc)
+    return records
+
+
+def save_trusted_apps_map(path: Path | None, records: dict[str, TrustedAppRecord]) -> None:
+    """Save TrustedAppRecord mapping to approved_apps.json."""
+    if path is None:
+        return
+    payload = {
+        "apps": {
+            record["trust_key"]: {
+                "scope": "always",
+                "display_name": record["display_name"],
+                "app_id": record["app_id"],
+            }
+            for record in records.values()
+        }
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def _add_root(roots: list[Path], seen: set[str], candidate: Path | None) -> None:

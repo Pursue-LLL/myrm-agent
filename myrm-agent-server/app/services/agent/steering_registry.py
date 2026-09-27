@@ -150,6 +150,12 @@ class SteeringRegistry:
         return False
 
     @classmethod
+    def get_token(cls, chat_id: str) -> SteeringToken | None:
+        """Return the active token for a chat session, if any (read-only)."""
+        with cls._lock:
+            return cls._tokens.get(chat_id)
+
+    @classmethod
     def has_active(cls, chat_id: str) -> bool:
         """Check if a chat session has an active steering token."""
         with cls._lock:

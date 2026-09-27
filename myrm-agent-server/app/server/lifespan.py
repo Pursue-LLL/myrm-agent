@@ -561,6 +561,9 @@ async def _phase_1b_parallel() -> None:
 
         storage = get_storage_provider()
         sync_result = await sync_prebuilt_seeds(storage)
+        from app.api.health.update_status import note_prebuilt_sync_result
+
+        note_prebuilt_sync_result(sync_result.synced_count)
         if sync_result.skill_ids:
             await skills_service.user_config.ensure_prebuilt_enabled_after_sync(list(sync_result.skill_ids))
 

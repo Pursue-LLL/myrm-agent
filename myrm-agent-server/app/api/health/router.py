@@ -32,6 +32,7 @@ from app.api.health.browser import router as browser_router
 from app.api.health.diagnostic import router as diagnostic_router
 from app.api.health.liveness import router as liveness_router
 from app.api.health.memory import router as memory_router
+from app.api.health.update_status import router as update_status_router
 from app.database.connection import get_session
 from app.services.repair import (
     RepairActionExecuteRequest,
@@ -48,6 +49,7 @@ router.include_router(browser_router)
 router.include_router(diagnostic_router)
 router.include_router(liveness_router)
 router.include_router(memory_router)
+router.include_router(update_status_router)
 
 
 @router.get("")
