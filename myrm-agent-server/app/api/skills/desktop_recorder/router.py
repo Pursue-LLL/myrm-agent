@@ -304,12 +304,10 @@ async def publish_desktop_skill(
     # default skill name is shared, so a silent overwrite would destroy a previously published
     # workflow — the same conflict the rest of the skills API reports as an error.
     if skill_file.exists() and not request.overwrite:
+        logger.info("Refused to overwrite existing recorded skill: %s", skill_file)
         raise HTTPException(
             status_code=409,
-            detail=(
-                f"A skill named '{safe_name}' already exists at {skill_file}. "
-                "Choose another name or set overwrite=true to replace it."
-            ),
+            detail=f"A skill named '{safe_name}' already exists. Choose a different name to publish this workflow.",
         )
 
     target_dir.mkdir(parents=True, exist_ok=True)
