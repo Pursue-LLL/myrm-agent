@@ -3045,6 +3045,12 @@
       "allConnected": "必要なコネクタはすべて準備完了",
       "requiredIssuers": "OAuth 認証が必要",
       "requiredMcp": "MCP サービスが必要"
+    },
+    "updateNudge": {
+      "title": "更新あり：{version}",
+      "description": "変更内容を確認して、都合の良いときに更新。",
+      "open": "更新を見る",
+      "dismiss": "閉じる"
     }
   },
   "mode": {
@@ -3116,7 +3122,8 @@
     "pwaDescription": "アプリはバックグラウンドで更新されました。最新機能を利用するにはページを更新してください。",
     "pwaRefresh": "今すぐ更新",
     "pwaInstallApp": "アプリをインストール",
-    "pwaInstallTitle": "デスクトップアプリとしてインストール"
+    "pwaInstallTitle": "デスクトップアプリとしてインストール",
+    "viewDetails": "詳細を見る"
   },
   "metadata": {
     "appTitle": "MyrmAgent",
@@ -17909,6 +17916,40 @@
         "title": "クラッシュ復旧",
         "backendStopped": "ローカルバックエンドが停止しています。",
         "remoteDeferredHint": "リモートモード中のため、ローカルバックエンドは停止のままです。"
+      },
+      "stackUpdate": {
+        "title": "スタック更新",
+        "desktopTitle": "デスクトップアプリ",
+        "desktopWebNote": "デスクトップ更新はTauriアプリで確認。",
+        "desktopUpToDate": "デスクトップは最新です。",
+        "desktopAvailable": "デスクトップ v{version} が利用可能。",
+        "desktopState": "デスクトップ更新器：{phase}。",
+        "checkNow": "今すぐ確認",
+        "installNow": "今すぐインストール",
+        "webTitle": "サーバースタック",
+        "webUnknown": "更新サービスに接続できません。",
+        "serverRow": "サーバー {version}",
+        "harnessRow": "エンジン {version}",
+        "staleBadge": "更新あり：{version}。",
+        "upToDateBadge": "すべて最新です。",
+        "unknownBadge": "最新版不明。",
+        "deferredHint": "v{version} を後回し中。",
+        "gitBehind": "上流より {count} コミット遅延。",
+        "prebuiltSynced": "{count} 件の組込スキルを同期済み。",
+        "cloudRow": "クラウドsandbox",
+        "cloudUnknown": "バージョン不明。",
+        "changelogFixed": "修正",
+        "changelogOther": "その他の改善",
+        "showMore": "すべて表示",
+        "showLess": "折りたたむ",
+        "defer": "後で通知（{version}）",
+        "doctorRun": "更新チェック実行",
+        "doctorPass": "更新サービスは正常です。",
+        "doctorFail": "更新サービスに問題——上記を確認。",
+        "quietTitle": "おやすみ時間",
+        "quietOff": "オフ",
+        "quietActive": "おやすみ時間中——通知を停止中。",
+        "receipt": "{from} から {to} に更新しました。"
       }
     },
     "push": {

@@ -11,6 +11,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { useAppUpdate, type AppUpdatePhase } from '@/hooks/tauri/useAppUpdate';
@@ -42,7 +43,12 @@ const UpdateIcon = ({ className }: { className?: string }) => (
 
 export function AppUpdatePrompt() {
   const t = useTranslations('appUpdate');
+  const router = useRouter();
   const { phase, info, error, install, check, reset } = useAppUpdate();
+
+  const handleViewDetails = useCallback(() => {
+    router.push('/settings/system?sub=about');
+  }, [router]);
 
   const [dismissed, setDismissed] = useState(() => isDismissedForVersion(info?.version));
   const [prevPhase, setPrevPhase] = useState(phase);
@@ -148,6 +154,12 @@ export function AppUpdatePrompt() {
                   {t('restartNow')}
                 </button>
                 <button
+                  onClick={handleViewDetails}
+                  className="px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted text-xs transition-colors"
+                >
+                  {t('viewDetails')}
+                </button>
+                <button
                   onClick={handleLater}
                   className="px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted text-xs transition-colors"
                 >
@@ -194,7 +206,7 @@ export function AppUpdatePrompt() {
 }
 
 function ProgressBar({ indeterminate, percent }: { indeterminate?: boolean; percent?: number | null }) {
-  const isIndet = indeterminate || percent == null;
+  const isIndet = indeterminate || percent === null || percent === undefined;
   return (
     <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
       <div

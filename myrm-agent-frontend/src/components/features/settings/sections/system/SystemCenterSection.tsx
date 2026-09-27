@@ -10,6 +10,7 @@ import SystemSection from './SystemSection';
 import AboutSection from './AboutSection';
 import TrustBadgeCard from './TrustBadgeCard';
 import RecoveryGuideCard from './RecoveryGuideCard';
+import StackUpdatePanel from './StackUpdatePanel';
 
 const SystemCenterSection = memo(() => {
   const t = useTranslations('settings');
@@ -67,6 +68,7 @@ const SystemCenterSection = memo(() => {
           <div className="space-y-6">
             <TrustBadgeCard />
             <RecoveryGuideCard />
+            <StackUpdatePanel />
             <AboutSection />
           </div>
         </TabsContent>

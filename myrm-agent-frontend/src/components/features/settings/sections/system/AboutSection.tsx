@@ -236,9 +236,9 @@ const AboutSection = memo(() => {
 
             {isTauriRuntime() && (
               <div className="mt-3 flex flex-col items-center gap-2">
-                {(updatePhase === 'idle' || updatePhase === 'up-to-date') && (
+                {(updatePhase === 'idle' || updatePhase === 'up_to_date') && (
                   <div className="flex flex-col items-center gap-2">
-                    {updatePhase === 'up-to-date' && (
+                    {updatePhase === 'up_to_date' && (
                       <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         {t('update.upToDate')}

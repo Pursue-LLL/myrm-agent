@@ -25,6 +25,8 @@
   "context_snapshot",
   "correction_learned",
   "council_phase",
+  "custom",
+  "custom_message",
   "dag_state_update",
   "desktop_control_approval_request",
   "desktop_view_update",

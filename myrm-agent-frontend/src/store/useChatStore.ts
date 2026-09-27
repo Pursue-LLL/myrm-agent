@@ -701,21 +701,28 @@ const useChatStore = create<ChatState>()(
           }
         });
       },
-      steerMessage: async (message: string) => {
+      steerMessage: async (message: string, options?: { mode?: string; quotedRef?: string }) => {
         const { chatId } = get();
         if (!chatId) {
           return false;
         }
+        const payload: { message: string; mode?: string; quotedRef?: string } = { message };
+        if (options?.mode !== undefined) {
+          payload.mode = options.mode;
+        }
+        if (options?.quotedRef !== undefined) {
+          payload.quotedRef = options.quotedRef;
+        }
         try {
           const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');
           if (isMobileRemoteSurface()) {
-            await mobileRemotePost(`/api/v1/agents/chats/${chatId}/steer`, { message });
+            await mobileRemotePost(`/api/v1/agents/chats/${chatId}/steer`, payload);
             return true;
           }
           const res = await fetchWithTimeout(`/agents/chats/${chatId}/steer`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message }),
+            body: JSON.stringify(payload),
           });
           return res.ok;
         } catch {

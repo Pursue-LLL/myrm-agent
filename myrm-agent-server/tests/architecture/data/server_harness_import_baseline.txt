@@ -87,6 +87,7 @@ myrm_agent_harness.agent.middlewares.guardrails
 myrm_agent_harness.agent.middlewares.guardrails.core
 myrm_agent_harness.agent.middlewares.memory_context.memory_context_middleware
 myrm_agent_harness.agent.middlewares.moa_advisor_middleware
+myrm_agent_harness.agent.orchestration.steering
 myrm_agent_harness.agent.parallel.config
 myrm_agent_harness.agent.parallel.fission
 myrm_agent_harness.agent.plugins.mcp_config
@@ -340,6 +341,7 @@ myrm_agent_harness.toolkits.computer_use.app_identity
 myrm_agent_harness.toolkits.computer_use.backends.macos
 myrm_agent_harness.toolkits.computer_use.desktop_session
 myrm_agent_harness.toolkits.computer_use.dref.errors
+myrm_agent_harness.toolkits.computer_use.envelope
 myrm_agent_harness.toolkits.computer_use.mcp_server
 myrm_agent_harness.toolkits.computer_use.session
 myrm_agent_harness.toolkits.computer_use.types

@@ -5449,6 +5449,40 @@
         "title": "Crash recovery",
         "backendStopped": "The local backend is not running.",
         "remoteDeferredHint": "Remote mode is active. The local backend stays off by design."
+      },
+      "stackUpdate": {
+        "title": "Stack updates",
+        "desktopTitle": "Desktop app",
+        "desktopWebNote": "Desktop updates appear in the Tauri app.",
+        "desktopUpToDate": "Desktop is up to date.",
+        "desktopAvailable": "Desktop v{version} is available.",
+        "desktopState": "Desktop updater: {phase}.",
+        "checkNow": "Check now",
+        "installNow": "Install now",
+        "webTitle": "Server stack",
+        "webUnknown": "Could not reach the update service.",
+        "serverRow": "Server {version}",
+        "harnessRow": "Engine {version}",
+        "staleBadge": "Update available: {version}.",
+        "upToDateBadge": "Everything is up to date.",
+        "unknownBadge": "Latest version unknown.",
+        "deferredHint": "v{version} deferred.",
+        "gitBehind": "{count} commits behind origin.",
+        "prebuiltSynced": "{count} built-in skills synced.",
+        "cloudRow": "Cloud sandbox",
+        "cloudUnknown": "Version unknown.",
+        "changelogFixed": "Fixed",
+        "changelogOther": "Other improvements",
+        "showMore": "Show all",
+        "showLess": "Show less",
+        "defer": "Remind me later ({version})",
+        "doctorRun": "Run update checkup",
+        "doctorPass": "Update service looks healthy.",
+        "doctorFail": "Update service has a problem — check the message above.",
+        "quietTitle": "Quiet hours",
+        "quietOff": "Off",
+        "quietActive": "Quiet hours active — nudges paused.",
+        "receipt": "Updated from {from} to {to}."
       }
     },
     "push": {
@@ -10041,6 +10075,12 @@
     "spillover": {
       "notice": "Large text detected ({chars} chars). Will automatically spill to workspace file to keep context clean.",
       "optimized": "Protected"
+    },
+    "updateNudge": {
+      "title": "Update available: {version}",
+      "description": "See what changed, then update when it suits you.",
+      "open": "View update",
+      "dismiss": "Dismiss"
     }
   },
   "mode": {
@@ -10112,7 +10152,8 @@
     "pwaDescription": "The app has been updated in the background. Refresh to enjoy the latest features.",
     "pwaRefresh": "Refresh Now",
     "pwaInstallApp": "Install App",
-    "pwaInstallTitle": "Install as desktop app"
+    "pwaInstallTitle": "Install as desktop app",
+    "viewDetails": "View details"
   },
   "metadata": {
     "appTitle": "MyrmAgent",

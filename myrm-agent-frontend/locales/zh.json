@@ -5449,6 +5449,40 @@
         "title": "崩溃恢复",
         "backendStopped": "本地后端未运行。",
         "remoteDeferredHint": "远端模式生效中，本地后端按设计保持关闭。"
+      },
+      "stackUpdate": {
+        "title": "堆栈更新",
+        "desktopTitle": "桌面端",
+        "desktopWebNote": "桌面更新请前往 Tauri 应用查看。",
+        "desktopUpToDate": "桌面已是最新。",
+        "desktopAvailable": "桌面端 v{version} 可用。",
+        "desktopState": "桌面更新器：{phase}。",
+        "checkNow": "立即检查",
+        "installNow": "立即安装",
+        "webTitle": "服务端堆栈",
+        "webUnknown": "无法连接到更新服务。",
+        "serverRow": "服务端 {version}",
+        "harnessRow": "引擎 {version}",
+        "staleBadge": "有可用更新：{version}。",
+        "upToDateBadge": "全部已是最新。",
+        "unknownBadge": "最新版本未知。",
+        "deferredHint": "已推迟 v{version}。",
+        "gitBehind": "落后上游 {count} 个提交。",
+        "prebuiltSynced": "已同步 {count} 个内置技能。",
+        "cloudRow": "云沙箱",
+        "cloudUnknown": "版本未知。",
+        "changelogFixed": "已修复",
+        "changelogOther": "其他改进",
+        "showMore": "展开全部",
+        "showLess": "收起",
+        "defer": "稍后提醒（{version}）",
+        "doctorRun": "运行更新自检",
+        "doctorPass": "更新服务正常。",
+        "doctorFail": "更新服务有问题——请看上方提示。",
+        "quietTitle": "免打扰时段",
+        "quietOff": "关闭",
+        "quietActive": "免打扰生效中——提醒已暂停。",
+        "receipt": "已从 {from} 更新到 {to}。"
       }
     },
     "push": {
@@ -10041,6 +10075,12 @@
     "spillover": {
       "notice": "检测到长文本（{chars} 字符），已自动转存至工作区文件以保持上下文整洁。",
       "optimized": "已保护"
+    },
+    "updateNudge": {
+      "title": "有可用更新：{version}",
+      "description": "先看看改了什么，再挑合适的时间更新。",
+      "open": "查看更新",
+      "dismiss": "忽略"
     }
   },
   "mode": {
@@ -10112,7 +10152,8 @@
     "pwaDescription": "应用已在后台更新完毕，点击刷新以体验最新功能。",
     "pwaRefresh": "立即刷新",
     "pwaInstallApp": "安装应用",
-    "pwaInstallTitle": "安装为桌面应用"
+    "pwaInstallTitle": "安装为桌面应用",
+    "viewDetails": "查看详情"
   },
   "metadata": {
     "appTitle": "MyrmAgent",

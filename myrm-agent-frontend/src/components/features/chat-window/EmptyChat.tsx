@@ -8,6 +8,7 @@ import AgentConfigPanel from './agent-config-panel/AgentConfigPanel';
 import SamplePrompts from './SamplePrompts';
 import ConversationRecallHint from './ConversationRecallHint';
 import MigrationDiscoveryBanner from './MigrationDiscoveryBanner';
+import UpdateNudgeBanner from './UpdateNudgeBanner';
 import GrowingLoopDiscoveryChip from './GrowingLoopDiscoveryChip';
 import MemoryHygieneDiscoverChip from './MemoryHygieneDiscoverChip';
 import { ModelOrchestrationPlaybookChip, ModelOrchestrationPlaybookDialog } from './playbook';
@@ -79,6 +80,8 @@ const EmptyChat = React.memo(() => {
         <FeaturedExpertChips />
 
         <MigrationDiscoveryBanner />
+
+        <UpdateNudgeBanner />
 
         <GrowingLoopDiscoveryChip />
 

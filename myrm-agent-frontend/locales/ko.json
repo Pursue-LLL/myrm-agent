@@ -3045,6 +3045,12 @@
       "allConnected": "필수 커넥터가 모두 준비되었습니다",
       "requiredIssuers": "OAuth 인증 필요",
       "requiredMcp": "MCP 서비스 필요"
+    },
+    "updateNudge": {
+      "title": "업데이트 있음: {version}",
+      "description": "변경 내용을 보고 편할 때 업데이트하세요.",
+      "open": "업데이트 보기",
+      "dismiss": "닫기"
     }
   },
   "mode": {
@@ -3116,7 +3122,8 @@
     "pwaDescription": "앱이 백그라운드에서 업데이트되었습니다. 최신 기능을 사용하려면 새로고침하세요.",
     "pwaRefresh": "지금 새로고침",
     "pwaInstallApp": "앱 설치",
-    "pwaInstallTitle": "데스크톱 앱으로 설치"
+    "pwaInstallTitle": "데스크톱 앱으로 설치",
+    "viewDetails": "자세히 보기"
   },
   "metadata": {
     "appTitle": "MyrmAgent",
@@ -17909,6 +17916,40 @@
         "title": "충돌 복구",
         "backendStopped": "로컬 백엔드가 실행 중이 아닙니다.",
         "remoteDeferredHint": "원격 모드이므로 로컬 백엔드는 꺼진 채로 둡니다."
+      },
+      "stackUpdate": {
+        "title": "스택 업데이트",
+        "desktopTitle": "데스크톱 앱",
+        "desktopWebNote": "데스크톱 업데이트는 Tauri 앱에서 확인하세요.",
+        "desktopUpToDate": "데스크톱이 최신입니다.",
+        "desktopAvailable": "데스크톱 v{version} 사용 가능.",
+        "desktopState": "데스크톱 업데이터: {phase}.",
+        "checkNow": "지금 확인",
+        "installNow": "지금 설치",
+        "webTitle": "서버 스택",
+        "webUnknown": "업데이트 서비스에 연결할 수 없습니다.",
+        "serverRow": "서버 {version}",
+        "harnessRow": "엔진 {version}",
+        "staleBadge": "업데이트 있음: {version}.",
+        "upToDateBadge": "모두 최신입니다.",
+        "unknownBadge": "최신 버전 알 수 없음.",
+        "deferredHint": "v{version} 미룸.",
+        "gitBehind": "상류보다 {count} 커밋 뒤처짐.",
+        "prebuiltSynced": "기본 스킬 {count}개 동기화됨.",
+        "cloudRow": "클라우드 샌드박스",
+        "cloudUnknown": "버전 알 수 없음.",
+        "changelogFixed": "수정됨",
+        "changelogOther": "기타 개선",
+        "showMore": "모두 보기",
+        "showLess": "접기",
+        "defer": "나중에 알림({version})",
+        "doctorRun": "업데이트 점검 실행",
+        "doctorPass": "업데이트 서비스가 정상입니다.",
+        "doctorFail": "업데이트 서비스에 문제 — 위를 확인하세요.",
+        "quietTitle": "방해 금지 시간",
+        "quietOff": "끔",
+        "quietActive": "방해 금지 시간 중 — 알림 일시중지.",
+        "receipt": "{from}에서 {to}로 업데이트했습니다."
       }
     },
     "push": {

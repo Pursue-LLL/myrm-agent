@@ -3045,6 +3045,12 @@
       "allConnected": "Alle benötigten Connectors sind bereit",
       "requiredIssuers": "OAuth-Autorisierung erforderlich",
       "requiredMcp": "MCP-Dienst erforderlich"
+    },
+    "updateNudge": {
+      "title": "Update verfügbar: {version}",
+      "description": "Änderungen ansehen und bei Gelegenheit aktualisieren.",
+      "open": "Update ansehen",
+      "dismiss": "Schließen"
     }
   },
   "mode": {
@@ -3116,7 +3122,8 @@
     "pwaDescription": "Die App wurde im Hintergrund aktualisiert. Aktualisieren Sie die Seite, um die neuesten Funktionen zu nutzen.",
     "pwaRefresh": "Jetzt aktualisieren",
     "pwaInstallApp": "App installieren",
-    "pwaInstallTitle": "Als Desktop-App installieren"
+    "pwaInstallTitle": "Als Desktop-App installieren",
+    "viewDetails": "Details ansehen"
   },
   "metadata": {
     "appTitle": "MyrmAgent",
@@ -17909,6 +17916,40 @@
         "title": "Absturz-Wiederherstellung",
         "backendStopped": "Das lokale Backend läuft nicht.",
         "remoteDeferredHint": "Der Remote-Modus ist aktiv. Das lokale Backend bleibt planmäßig aus."
+      },
+      "stackUpdate": {
+        "title": "Stack-Updates",
+        "desktopTitle": "Desktop-App",
+        "desktopWebNote": "Desktop-Updates in der Tauri-App prüfen.",
+        "desktopUpToDate": "Desktop ist aktuell.",
+        "desktopAvailable": "Desktop v{version} verfügbar.",
+        "desktopState": "Desktop-Updater: {phase}.",
+        "checkNow": "Jetzt prüfen",
+        "installNow": "Jetzt installieren",
+        "webTitle": "Server-Stack",
+        "webUnknown": "Update-Dienst nicht erreichbar.",
+        "serverRow": "Serverdienst {version}",
+        "harnessRow": "Harness-Engine {version}",
+        "staleBadge": "Update verfügbar: {version}.",
+        "upToDateBadge": "Alles ist aktuell.",
+        "unknownBadge": "Neueste Version unbekannt.",
+        "deferredHint": "v{version} zurückgestellt.",
+        "gitBehind": "{count} Commits hinter Origin.",
+        "prebuiltSynced": "{count} eingebaute Skills synchronisiert.",
+        "cloudRow": "Cloud-Sandbox",
+        "cloudUnknown": "Version unbekannt.",
+        "changelogFixed": "Behoben",
+        "changelogOther": "Weitere Verbesserungen",
+        "showMore": "Alle anzeigen",
+        "showLess": "Weniger anzeigen",
+        "defer": "Später erinnern ({version})",
+        "doctorRun": "Update-Check ausführen",
+        "doctorPass": "Update-Dienst ist gesund.",
+        "doctorFail": "Update-Dienst hat ein Problem — Hinweis oben beachten.",
+        "quietTitle": "Ruhezeiten",
+        "quietOff": "Aus",
+        "quietActive": "Ruhezeiten aktiv — Hinweise pausiert.",
+        "receipt": "Von {from} auf {to} aktualisiert."
       }
     },
     "push": {

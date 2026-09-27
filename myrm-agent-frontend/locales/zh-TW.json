@@ -3045,6 +3045,12 @@
       "allConnected": "所有依賴連接器已就緒",
       "requiredIssuers": "需要 OAuth 授權",
       "requiredMcp": "需要 MCP 服務"
+    },
+    "updateNudge": {
+      "title": "有可用更新：{version}",
+      "description": "先看看改了什麼，再挑合適的時間更新。",
+      "open": "查看更新",
+      "dismiss": "忽略"
     }
   },
   "mode": {
@@ -3116,7 +3122,8 @@
     "pwaDescription": "應用已在後臺更新完畢，點選重新整理以體驗最新功能。",
     "pwaRefresh": "立即重新整理",
     "pwaInstallApp": "安裝應用",
-    "pwaInstallTitle": "安裝為桌面應用"
+    "pwaInstallTitle": "安裝為桌面應用",
+    "viewDetails": "查看詳情"
   },
   "metadata": {
     "appTitle": "MyrmAgent",
@@ -17909,6 +17916,40 @@
         "title": "崩潰恢復",
         "backendStopped": "本地後端未運行。",
         "remoteDeferredHint": "遠端模式生效中，本地後端按設計保持關閉。"
+      },
+      "stackUpdate": {
+        "title": "堆疊更新",
+        "desktopTitle": "桌面端",
+        "desktopWebNote": "桌面更新請前往 Tauri 應用查看。",
+        "desktopUpToDate": "桌面已是最新。",
+        "desktopAvailable": "桌面端 v{version} 可用。",
+        "desktopState": "桌面更新器：{phase}。",
+        "checkNow": "立即檢查",
+        "installNow": "立即安裝",
+        "webTitle": "服務端堆疊",
+        "webUnknown": "無法連接到更新服務。",
+        "serverRow": "服務端 {version}",
+        "harnessRow": "引擎 {version}",
+        "staleBadge": "有可用更新：{version}。",
+        "upToDateBadge": "全部已是最新。",
+        "unknownBadge": "最新版本未知。",
+        "deferredHint": "已推遲 v{version}。",
+        "gitBehind": "落後上游 {count} 個提交。",
+        "prebuiltSynced": "已同步 {count} 個內置技能。",
+        "cloudRow": "雲沙盒",
+        "cloudUnknown": "版本未知。",
+        "changelogFixed": "已修復",
+        "changelogOther": "其他改進",
+        "showMore": "展開全部",
+        "showLess": "收起",
+        "defer": "稍後提醒（{version}）",
+        "doctorRun": "運行更新自檢",
+        "doctorPass": "更新服務正常。",
+        "doctorFail": "更新服務有問題——請看上方提示。",
+        "quietTitle": "免打擾時段",
+        "quietOff": "關閉",
+        "quietActive": "免打擾生效中——提醒已暫停。",
+        "receipt": "已從 {from} 更新到 {to}。"
       }
     },
     "push": {
