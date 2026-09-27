@@ -57,7 +57,10 @@ def db_messages_to_langchain(messages: list[Message]) -> list[BaseMessage]:
 
     lc_messages: list[BaseMessage] = []
     for msg in messages:
-        if msg.role == "user":
+        extra = msg.extra_data or {}
+        if extra.get("retention") == "ephemeral":
+            continue
+        if msg.role in ("user", "human", "custom_message"):
             lc_messages.append(HumanMessage(content=msg.content or ""))
         elif msg.role == "assistant":
             lc_messages.append(AIMessage(content=msg.content or ""))

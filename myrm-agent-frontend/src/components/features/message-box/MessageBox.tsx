@@ -44,6 +44,7 @@ import MarkdownContent from './MarkdownContent';
 import Suggestions from './Suggestions';
 import ArtifactsDisplay from '@/components/features/artifacts/ArtifactsDisplay';
 import ArtifactErrorBoundary from '@/components/features/artifacts/ArtifactErrorBoundary';
+import { CustomMessageCard } from './CustomMessageCard';
 import ClarificationInput from './ClarificationInput';
 import DirectoryApprovalInput from './DirectoryApprovalInput';
 import PlanConfirmationCard from './PlanConfirmationCard';
@@ -451,6 +452,30 @@ const MessageBox = ({
           </div>
         </div>
       </div>
+    );
+  }
+
+  if (
+    message.role === 'custom_message' ||
+    (message as { extraData?: { is_custom_message?: boolean } }).extraData?.is_custom_message
+  ) {
+    const extra = (message as {
+      extraData?: {
+        custom_type?: string;
+        display?: boolean;
+        retention?: 'ephemeral' | 'persistent';
+        details?: Record<string, unknown>;
+      };
+    }).extraData || {};
+    return (
+      <CustomMessageCard
+        customType={extra.custom_type || 'plugin'}
+        content={message.content}
+        display={extra.display ?? true}
+        retention={extra.retention || 'persistent'}
+        details={extra.details}
+        timestamp={message.createdAt}
+      />
     );
   }
 

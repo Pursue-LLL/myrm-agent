@@ -497,6 +497,7 @@ export interface ExecutionTrace {
   anomalies?: TraceAnomaly[];
   memory_events?: TraceMemoryEvent[];
   performance_summary?: TracePerformanceSummary;
+  custom_states?: Record<string, Record<string, unknown>>;
   total_events: number;
   total_tokens: number;
   prompt_tokens?: number;

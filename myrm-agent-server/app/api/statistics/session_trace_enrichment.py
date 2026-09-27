@@ -72,6 +72,7 @@ def _empty_trace_payload(session_id: str, memory_events: list[dict[str, object]]
         "human_feedback": [],
         "anomalies": [],
         "memory_events": memory_events,
+        "custom_states": {},
         "total_events": 0,
         "total_tokens": 0,
         "performance_summary": {

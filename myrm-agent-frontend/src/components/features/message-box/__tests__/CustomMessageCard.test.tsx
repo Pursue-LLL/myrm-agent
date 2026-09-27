@@ -1,0 +1,64 @@
+import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
+import { CustomMessageCard } from '../CustomMessageCard';
+
+describe('CustomMessageCard', () => {
+  it('renders content, customType badge, and retention badge correctly', () => {
+    render(
+      <CustomMessageCard
+        customType="code_analysis"
+        content="AST parsed 42 source files"
+        display={true}
+        retention="persistent"
+      />
+    );
+
+    expect(screen.getByText('code_analysis')).toBeDefined();
+    expect(screen.getByText('AST parsed 42 source files')).toBeDefined();
+    expect(screen.getByText('Persistent')).toBeDefined();
+  });
+
+  it('renders ephemeral badge when retention is ephemeral', () => {
+    render(
+      <CustomMessageCard
+        customType="rate_limit"
+        content="Near rate limit warning"
+        display={true}
+        retention="ephemeral"
+      />
+    );
+
+    expect(screen.getByText('Ephemeral')).toBeDefined();
+  });
+
+  it('returns null when display is false', () => {
+    const { container } = render(
+      <CustomMessageCard
+        customType="hidden_plugin"
+        content="Should not be visible"
+        display={false}
+      />
+    );
+
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('expands details drawer upon clicking Details button', () => {
+    render(
+      <CustomMessageCard
+        customType="git_hook"
+        content="Branch policy check passed"
+        display={true}
+        details={{ branch: 'main', commit: 'abc123' }}
+      />
+    );
+
+    expect(screen.queryByText(/abc123/)).toBeNull();
+
+    const detailsBtn = screen.getByText('Details');
+    fireEvent.click(detailsBtn);
+
+    expect(screen.getByText(/abc123/)).toBeDefined();
+  });
+});

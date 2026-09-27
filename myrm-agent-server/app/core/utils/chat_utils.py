@@ -211,10 +211,38 @@ async def convert_chat_history(
             continue
         role, content = item[0], item[1]
 
-        if role == "human":
+        if role == "custom":
+            # Extension private state: does NOT participate in LLM context (0 token leak)
+            continue
+        elif role == "custom_message":
+            meta = item[2] if len(item) > 2 and isinstance(item[2], dict) else {}
+            custom_type = meta.get("custom_type") or "custom"
+            display = meta.get("display", True)
+            retention = meta.get("retention", "persistent")
+            details = meta.get("details")
+            msg = HumanMessage(
+                content=str(content),
+                additional_kwargs={
+                    "is_custom_message": True,
+                    "custom_type": custom_type,
+                    "display": display,
+                    "retention": retention,
+                    **({"details": details} if details is not None else {}),
+                },
+            )
+            messages.append(msg)
+        elif role == "human":
             meta = item[2] if len(item) > 2 and isinstance(item[2], dict) else {}
             processed_content = await _process_human_content(content, meta, model_cfg, vision_fallback_model_cfg)
-            messages.append(HumanMessage(content=processed_content))
+            msg = HumanMessage(content=processed_content)
+            if meta.get("is_custom_message") or meta.get("custom_type"):
+                msg.additional_kwargs["is_custom_message"] = True
+                msg.additional_kwargs["custom_type"] = meta.get("custom_type", "custom")
+                msg.additional_kwargs["display"] = meta.get("display", True)
+                msg.additional_kwargs["retention"] = meta.get("retention", "persistent")
+                if "details" in meta:
+                    msg.additional_kwargs["details"] = meta["details"]
+            messages.append(msg)
         else:
             assistant_meta = item[2] if len(item) > 2 and isinstance(item[2], dict) else {}
             text_content = str(content) if not isinstance(content, str) else content
