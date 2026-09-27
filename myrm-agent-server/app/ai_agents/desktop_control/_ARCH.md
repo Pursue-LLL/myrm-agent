@@ -11,6 +11,7 @@ handles per-app first approval (persisted under chat workspace volume), and emit
 |------|------|-------------|-------|
 | `__init__.py` | Package | Docstring-only package marker | ✅ |
 | `gate.py` | Core | `DesktopControlGate` foreground-permission callback: deny-first evaluation (persistent deny → session-final refusal → allow caches → prompt), fingerprint-bound grants with drift flag, session-final explicit refusals, first-settlement race rule. Granularity asymmetry is deliberate: session *denials* are operation-scoped (trust key + fingerprint) while session *allows* stay app-scoped | ✅ |
+| `envelope_manager.py` | Core | `DesktopEnvelopeManager`: task-scoped intent envelope registration, lease step consumption, `extend_lease` in-place quota replenishment, and SSE progress dispatch | ✅ |
 | `registry.py` | Core | `DesktopApprovalRegistry` pending ledger: settlement semantics (resolved \| expired \| missing), bounded registries, decision audit, `approval_fingerprint`, drift helper, withdraw-card emit, resolve entry points | ✅ |
 | `trust_store.py` | Support | Workspace trust persistence: `approved_apps.json` / `denied_apps.json` I/O, live-gate plus harness-disk merged listing, revoke, workspace-root discovery | ✅ |
 
@@ -29,6 +30,7 @@ Revoke does **not** call `reset_all_runtime_approval_state()` — other apps' se
 ## Dependencies
 
 - `myrm_agent_harness.toolkits.computer_use` (ForegroundPermissionCallback, ExecutionMode)
+- `myrm_agent_harness.toolkits.computer_use.envelope` (IntentEnvelopeSpec, WindowHierarchyContext, EnvelopeCheckResult, check_envelope_action)
 - `myrm_agent_harness.toolkits.computer_use.app_identity` (resolve_trust_key, trust_key_matches)
 - `myrm_agent_harness.utils.runtime.progress_sink` (SSE emit during tool execution)
 - `app.ai_agents.general_agent.tool_setup` (session wiring)

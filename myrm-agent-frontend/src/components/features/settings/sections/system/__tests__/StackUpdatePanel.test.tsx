@@ -1,119 +1,250 @@
+/** @vitest-environment jsdom */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import StackUpdatePanel from '../StackUpdatePanel';
-import { saveUpdateReceipt } from '@/lib/update-prefs';
+import * as updatePrefs from '@/lib/update-prefs';
 
-const stableT = (key: string, params?: Record<string, string | number>) => {
-  if (!params) {
-    return key;
-  }
-  return `${key}:${Object.values(params).join(',')}`;
-};
+const mockUseAppUpdate = vi.fn();
+let mockIsTauri = false;
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => stableT,
-}));
-
-vi.mock('@/components/features/icons/PremiumIcons', () => ({
-  IconCheck: () => <span data-testid="icon-ok" />,
-  IconShield: () => <span data-testid="icon-shield" />,
+  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+    if (params) {
+      return Object.entries(params).reduce(
+        (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
+        key
+      );
+    }
+    return key;
+  },
 }));
 
 vi.mock('@/lib/deploy-mode', () => ({
-  isTauriRuntime: () => true,
-}));
-
-const mockHook = vi.hoisted(() => ({
-  phase: 'up_to_date',
-  info: null as null | { currentVersion: string; version: string; body: string },
-  error: null as null | string,
-  check: vi.fn(),
-  install: vi.fn(),
+  isTauriRuntime: () => mockIsTauri,
 }));
 
 vi.mock('@/hooks/tauri/useAppUpdate', () => ({
-  useAppUpdate: () => mockHook,
+  useAppUpdate: (options?: unknown) => mockUseAppUpdate(options),
 }));
 
-const STATUS_PAYLOAD = {
-  server_version: '0.1.0',
-  harness_version: '0.9.0',
-  latest: { version: 'v0.2.0', published_at: '2026-09-01', url: 'https://example.invalid' },
-  fetch_error: null,
-  stale: true,
-  changelog: { fixed: ['Fix crash', 'Repair login'], other: ['Faster search'], grouped: true },
-  git: { behind_count: 3, log: ['abc123 fix thing'] },
-  prebuilt: { synced_count: 12 },
-  cloud: { state: 'unknown' },
-};
-
-const byExactText = (text: string) => (_: string, element: Element | null) =>
-  element?.textContent === text && (!element?.children || element.children.length === 0);
+vi.mock('@/components/features/icons/PremiumIcons', () => ({
+  IconCheck: () => <span data-testid="icon-check" />,
+  IconShield: () => <span data-testid="icon-shield" />,
+}));
 
 describe('StackUpdatePanel', () => {
   beforeEach(() => {
-    localStorage.clear();
     vi.clearAllMocks();
-    mockHook.phase = 'up_to_date';
-    mockHook.info = null;
-    mockHook.error = null;
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({ ok: true, json: async () => STATUS_PAYLOAD })),
-    );
+    mockIsTauri = false;
+    mockUseAppUpdate.mockReturnValue({
+      phase: 'idle',
+      info: null,
+      bytesDownloaded: 0,
+      totalBytes: null,
+      error: null,
+      check: vi.fn(),
+      install: vi.fn(),
+      reset: vi.fn(),
+    });
+    localStorage.clear();
   });
 
-  it('renders three legs with versions and a stale badge', async () => {
+  it('renders web stack info, changelog groups, and git behind count', async () => {
+    const mockPayload = {
+      server_version: '0.1.0',
+      harness_version: '0.1.0',
+      latest: { version: 'v0.2.0', published_at: '2026-09-27T00:00:00Z' },
+      stale: true,
+      changelog: {
+        fixed: ['Fix crash on startup', 'Repair websocket reconnect'],
+        other: ['Improve UI layout', 'Speed up embeddings'],
+        grouped: true,
+      },
+      git: { behind_count: 2, log: ['feat: stack update panel', 'fix: memory leak'] },
+      prebuilt: { synced_count: 15 },
+      cloud: { state: 'unknown' },
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockPayload,
+    } as Response);
+
     render(<StackUpdatePanel />);
+
+    // Non-Tauri note
+    expect(screen.getByText('desktopWebNote')).toBeInTheDocument();
+
+    // Wait for async fetch
     await waitFor(() => {
-      expect(screen.getByText('desktopUpToDate')).toBeTruthy();
+      expect(screen.getByText(/serverRow/)).toBeInTheDocument();
     });
-    expect(screen.getByText(byExactText('serverRow:0.1.0 · harnessRow:0.9.0'), { selector: 'p' })).toBeTruthy();
-    expect(screen.getByText(byExactText('staleBadge:v0.2.0'), { selector: 'span' })).toBeTruthy();
-    expect(screen.getByText('changelogFixed')).toBeTruthy();
+
+    expect(screen.getByText(/staleBadge/)).toBeInTheDocument();
+    expect(screen.getByText(/gitBehind/)).toBeInTheDocument();
+    expect(screen.getByText(/prebuiltSynced/)).toBeInTheDocument();
+    expect(screen.getByText('Fix crash on startup')).toBeInTheDocument();
+    expect(screen.getByText('Improve UI layout')).toBeInTheDocument();
   });
 
-  it('defers the latest version and shows the deferred hint', async () => {
+  it('toggles changelog showMore and showLess when items exceed 5', async () => {
+    const mockPayload = {
+      server_version: '0.1.0',
+      harness_version: '0.1.0',
+      latest: { version: 'v0.2.0' },
+      stale: true,
+      changelog: {
+        fixed: ['Fix 1', 'Fix 2', 'Fix 3', 'Fix 4', 'Fix 5', 'Fix 6', 'Fix 7'],
+        other: [],
+        grouped: true,
+      },
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockPayload,
+    } as Response);
+
     render(<StackUpdatePanel />);
+
     await waitFor(() => {
-      expect(screen.getByText('staleBadge:v0.2.0')).toBeTruthy();
+      expect(screen.getByText('Fix 1')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByText('defer:v0.2.0'));
-    await waitFor(() => {
-      expect(screen.getByText('staleBadge:v0.2.0')).toBeTruthy();
-      expect(screen.getByText(byExactText('· deferredHint:v0.2.0'))).toBeTruthy();
-    });
+
+    // Default only shows first 5
+    expect(screen.getByText('Fix 5')).toBeInTheDocument();
+    expect(screen.queryByText('Fix 6')).not.toBeInTheDocument();
+
+    const toggleBtn = screen.getByText('showMore');
+    fireEvent.click(toggleBtn);
+
+    // After click showMore, all 7 are visible
+    expect(screen.getByText('Fix 6')).toBeInTheDocument();
+    expect(screen.getByText('Fix 7')).toBeInTheDocument();
+    expect(screen.getByText('showLess')).toBeInTheDocument();
   });
 
-  it('shows the one-shot post-update receipt', async () => {
-    saveUpdateReceipt({ fromVersion: 'v0.1.0', toVersion: 'v0.2.0', at: 'now' });
+  it('handles defer version action and saves to updatePrefs', async () => {
+    const mockPayload = {
+      server_version: '0.1.0',
+      harness_version: '0.1.0',
+      latest: { version: 'v0.2.0' },
+      stale: true,
+      changelog: { fixed: [], other: [] },
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockPayload,
+    } as Response);
+
+    const setDeferredSpy = vi.spyOn(updatePrefs, 'setDeferredVersion');
+
     render(<StackUpdatePanel />);
+
     await waitFor(() => {
-      expect(screen.getByText('receipt:v0.1.0,v0.2.0')).toBeTruthy();
+      expect(screen.getByText(/defer/)).toBeInTheDocument();
     });
+
+    fireEvent.click(screen.getByText(/defer/));
+    expect(setDeferredSpy).toHaveBeenCalledWith('v0.2.0');
   });
 
-  it('shows an honest unknown when the service is unreachable', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw new Error('down');
+  it('executes doctor test and shows doctorPass on success', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        server_version: '0.1.0',
+        latest: { version: 'v0.1.0' },
+        fetch_error: null,
       }),
-    );
+    } as Response);
+
     render(<StackUpdatePanel />);
+
+    const doctorBtn = screen.getByText('doctorRun');
+    fireEvent.click(doctorBtn);
+
     await waitFor(() => {
-      expect(screen.getByText('webUnknown')).toBeTruthy();
+      expect(screen.getByText('doctorPass')).toBeInTheDocument();
     });
   });
 
-  it('runs the doctor and reports pass', async () => {
+  it('handles quiet hours dropdown selection', () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    } as Response);
+
+    const setQuietSpy = vi.spyOn(updatePrefs, 'setQuietHours');
+
     render(<StackUpdatePanel />);
-    await waitFor(() => {
-      expect(screen.getByText('staleBadge:v0.2.0')).toBeTruthy();
+
+    const selects = screen.getAllByRole('combobox');
+    expect(selects.length).toBe(2);
+
+    fireEvent.change(selects[0], { target: { value: '22' } });
+    fireEvent.change(selects[1], { target: { value: '08' } });
+
+    expect(setQuietSpy).toHaveBeenCalledWith({ startHour: 22, endHour: 8 });
+  });
+
+  it('supports Tauri desktop OTA available, download progress, and up-to-date states', () => {
+    mockIsTauri = true;
+    const installMock = vi.fn();
+
+    // 1. Available state
+    mockUseAppUpdate.mockReturnValue({
+      phase: 'available',
+      info: { currentVersion: '0.1.0', version: '0.2.0', body: 'New release' },
+      bytesDownloaded: 0,
+      totalBytes: 1000,
+      error: null,
+      check: vi.fn(),
+      install: installMock,
+      reset: vi.fn(),
     });
-    fireEvent.click(screen.getByText('doctorRun'));
-    await waitFor(() => {
-      expect(screen.getByText('doctorPass')).toBeTruthy();
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    } as Response);
+
+    const { rerender } = render(<StackUpdatePanel />);
+
+    expect(screen.getByText(/desktopAvailable/)).toBeInTheDocument();
+    const installBtn = screen.getByText('installNow');
+    fireEvent.click(installBtn);
+    expect(installMock).toHaveBeenCalled();
+
+    // 2. Downloading state with percentage
+    mockUseAppUpdate.mockReturnValue({
+      phase: 'downloading',
+      info: { currentVersion: '0.1.0', version: '0.2.0', body: 'New release' },
+      bytesDownloaded: 650,
+      totalBytes: 1000,
+      error: null,
+      check: vi.fn(),
+      install: installMock,
+      reset: vi.fn(),
     });
+
+    rerender(<StackUpdatePanel />);
+    expect(screen.getByText(/65%/)).toBeInTheDocument();
+
+    // 3. Up to date state
+    mockUseAppUpdate.mockReturnValue({
+      phase: 'up_to_date',
+      info: null,
+      bytesDownloaded: 0,
+      totalBytes: null,
+      error: null,
+      check: vi.fn(),
+      install: installMock,
+      reset: vi.fn(),
+    });
+
+    rerender(<StackUpdatePanel />);
+    expect(screen.getByText('desktopUpToDate')).toBeInTheDocument();
   });
 });

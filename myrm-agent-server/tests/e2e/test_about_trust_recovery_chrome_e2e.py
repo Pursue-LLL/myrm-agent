@@ -62,4 +62,12 @@ def test_about_tab_trust_recovery_chrome_e2e() -> None:
         headings = state.get("headings") or []
         assert any("MyrmAgent" in h for h in headings), state
         body_text = state.get("bodyText") or ""
-        assert "Stack updates" in body_text, state
+        panel_titles = (
+            "Stack updates",
+            "堆栈更新",
+            "堆疊更新",
+            "スタック更新",
+            "스택 업데이트",
+            "Stack-Updates",
+        )
+        assert any(title in body_text for title in panel_titles), state

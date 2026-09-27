@@ -13,13 +13,12 @@ import {
   IconBriefcase,
   IconClock,
 } from '@/components/features/icons/PremiumIcons';
-import { Users, Download, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import { Users, CheckCircle2 } from 'lucide-react';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
 import { getDocsUrl, isTauriRuntime } from '@/lib/deploy-mode';
 import { Button } from '@/components/primitives/button';
-import { useAppUpdate } from '@/hooks/tauri/useAppUpdate';
 
 interface FeatureCardProps {
   icon: React.ElementType;
@@ -118,19 +117,6 @@ const AboutSection = memo(() => {
   const [version, setVersion] = useState(FALLBACK_VERSION);
   const [engineVersion, setEngineVersion] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  // Single update truth: the shared useAppUpdate state machine. Auto check and
-  // auto download stay with the global AppUpdatePrompt driver; this panel only
-  // drives manual check/install so the two never double-download.
-  const {
-    phase: updatePhase,
-    info: updateInfo,
-    bytesDownloaded,
-    totalBytes,
-    error: updateError,
-    check: checkUpdate,
-    install: installUpdate,
-    reset: resetUpdate,
-  } = useAppUpdate({ autoCheck: false, autoDownload: false });
 
   useEffect(() => {
     if (isTauriRuntime()) {
@@ -170,23 +156,6 @@ const AboutSection = memo(() => {
     });
   }, [version, engineVersion]);
 
-  const handleCheckUpdate = useCallback(() => {
-    if (!isTauriRuntime()) {
-      return;
-    }
-    resetUpdate();
-    void checkUpdate();
-  }, [checkUpdate, resetUpdate]);
-
-  const handleInstallUpdate = useCallback(() => {
-    if (!isTauriRuntime()) {
-      return;
-    }
-    void installUpdate();
-  }, [installUpdate]);
-
-  const downloadProgress =
-    totalBytes && totalBytes > 0 ? Math.min(100, Math.round((bytesDownloaded / totalBytes) * 100)) : null;
 
   return (
     <div className="space-y-6">
@@ -233,79 +202,6 @@ const AboutSection = memo(() => {
                 )}
               </Button>
             </div>
-
-            {isTauriRuntime() && (
-              <div className="mt-3 flex flex-col items-center gap-2">
-                {(updatePhase === 'idle' || updatePhase === 'up_to_date') && (
-                  <div className="flex flex-col items-center gap-2">
-                    {updatePhase === 'up_to_date' && (
-                      <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        {t('update.upToDate')}
-                      </div>
-                    )}
-                    <Button variant="outline" size="sm" onClick={handleCheckUpdate} className="gap-1.5">
-                      <Download className="w-3.5 h-3.5" />
-                      {t('update.check')}
-                    </Button>
-                  </div>
-                )}
-                {updatePhase === 'checking' && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    {t('update.checking')}
-                  </div>
-                )}
-                {updatePhase === 'available' && (
-                  <div className="flex flex-col items-center gap-2 w-full max-w-sm">
-                    <p className="text-xs text-primary font-medium">
-                      {t('update.available', { version: updateInfo?.version ?? '' })}
-                    </p>
-                    {updateInfo?.body && (
-                      <div className="w-full max-h-32 overflow-y-auto rounded-md bg-muted/50 p-3 text-left text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                        {updateInfo.body}
-                      </div>
-                    )}
-                    <Button variant="default" size="sm" onClick={handleInstallUpdate} className="gap-1.5">
-                      <Download className="w-3.5 h-3.5" />
-                      {t('update.install')}
-                    </Button>
-                  </div>
-                )}
-                {updatePhase === 'downloading' && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    {t('update.downloading')}
-                    {downloadProgress !== null && <span>· {downloadProgress}%</span>}
-                  </div>
-                )}
-                {(updatePhase === 'ready' || updatePhase === 'installing' || updatePhase === 'restarting') && (
-                  <div className="flex flex-col items-center gap-2 w-full max-w-sm">
-                    <p className="text-xs text-primary font-medium">
-                      {t('update.available', { version: updateInfo?.version ?? '' })}
-                    </p>
-                    <Button variant="default" size="sm" onClick={handleInstallUpdate} className="gap-1.5">
-                      <Download className="w-3.5 h-3.5" />
-                      {t('update.install')}
-                    </Button>
-                  </div>
-                )}
-                {updatePhase === 'error' && (
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="flex items-center gap-2 text-xs text-destructive">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      {t('update.error')}
-                    </div>
-                    {updateError && (
-                      <p className="text-[10px] text-muted-foreground max-w-xs text-center">{updateError}</p>
-                    )}
-                    <Button variant="outline" size="sm" onClick={handleCheckUpdate} className="gap-1.5 mt-1">
-                      {t('update.retry')}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </SettingsSection>

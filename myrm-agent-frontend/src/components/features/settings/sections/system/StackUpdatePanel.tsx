@@ -57,6 +57,8 @@ const StackUpdatePanel = memo(() => {
   const {
     phase: desktopPhase,
     info: desktopInfo,
+    bytesDownloaded,
+    totalBytes,
     error: desktopError,
     check: desktopCheck,
     install: desktopInstall,
@@ -91,6 +93,8 @@ const StackUpdatePanel = memo(() => {
   const other = status?.changelog?.other ?? [];
   const visibleFixed = expanded ? fixed : fixed.slice(0, 5);
   const visibleOther = expanded ? other : other.slice(0, 5);
+  const downloadProgress =
+    totalBytes && totalBytes > 0 ? Math.min(100, Math.round((bytesDownloaded / totalBytes) * 100)) : null;
 
   const handleDesktopInstall = useCallback(() => {
     if (desktopInfo) {
@@ -184,14 +188,21 @@ const StackUpdatePanel = memo(() => {
           )}
           {isTauriRuntime() && desktopPhase !== 'up_to_date' && desktopPhase !== 'available' && (
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs text-muted-foreground">{t('desktopState', { phase: desktopPhase })}</p>
-              <button
-                type="button"
-                onClick={() => void desktopCheck()}
-                className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold hover:bg-white/5 transition-colors"
-              >
-                {t('checkNow')}
-              </button>
+              <p className="text-xs text-muted-foreground">
+                {t('desktopState', { phase: desktopPhase })}
+                {desktopPhase === 'downloading' && downloadProgress !== null && (
+                  <span> · {downloadProgress}%</span>
+                )}
+              </p>
+              {desktopPhase !== 'downloading' && desktopPhase !== 'installing' && desktopPhase !== 'restarting' && (
+                <button
+                  type="button"
+                  onClick={() => void desktopCheck()}
+                  className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold hover:bg-white/5 transition-colors"
+                >
+                  {t('checkNow')}
+                </button>
+              )}
             </div>
           )}
           {isTauriRuntime() && desktopError && (
