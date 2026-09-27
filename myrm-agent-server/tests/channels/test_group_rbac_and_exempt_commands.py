@@ -231,6 +231,7 @@ class TestGroupRbacAndExemptCommands:
         assert "15" in sent_outbound.content
         assert "00:00 UTC" in sent_outbound.content
         assert "08:00" in sent_outbound.content
+        assert "█" in sent_outbound.content
 
     @pytest.mark.asyncio
     async def test_quota_command_guest_unlimited_zero_llm(self) -> None:
@@ -326,5 +327,42 @@ class TestGroupRbacAndExemptCommands:
         assert "user2" in sent_outbound.content
         assert "5" in sent_outbound.content
         assert "20" in sent_outbound.content
+        assert "█" in sent_outbound.content
+
+    def test_ascii_progress_and_countdown_functions(self) -> None:
+        """Verify ASCII progress bar formatting and countdown calculation."""
+        from app.channels.routing.commands.router_commands_quota import (
+            calculate_quota_countdown,
+            render_ascii_progress,
+        )
+
+        assert render_ascii_progress(5, 10, width=10) == "[█████░░░░░] 50%"
+        assert render_ascii_progress(10, 10, width=10) == "[██████████] 100%"
+        assert render_ascii_progress(0, 10, width=10) == "[░░░░░░░░░░] 0%"
+        assert render_ascii_progress(12, 10, width=10) == "[██████████] 100%"
+        assert render_ascii_progress(5, 0) == ""
+
+        hours, minutes = calculate_quota_countdown()
+        assert 0 <= hours <= 24
+        assert 0 <= minutes <= 59
+
+    def test_daily_quota_exceeded_and_cmd_quota_locale(self) -> None:
+        """Verify all locales contain cmd_quota and /quota hint in daily_quota_exceeded."""
+        from app.channels.i18n import get_text
+        from app.channels.types import InboundMessage
+
+        for lang in ("zh-CN", "en", "zh-TW", "ja"):
+            msg = InboundMessage(
+                channel="slack",
+                sender_id="u1",
+                chat_id="c1",
+                content="hi",
+                metadata={"lang": lang},
+            )
+            cmd_quota = get_text(msg, "cmd_quota")
+            assert cmd_quota and not cmd_quota.startswith("cmd_quota")
+
+            exceeded = get_text(msg, "daily_quota_exceeded", quota=20)
+            assert "/quota" in exceeded
 
 

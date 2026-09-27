@@ -1,5 +1,4 @@
-/** @vitest-environment jsdom */
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const stableT = (key: string) => key;
@@ -25,11 +24,16 @@ vi.mock('@/components/primitives/badge', () => ({
   Badge: ({ children, ...rest }: { children: React.ReactNode }) => <span {...rest}>{children}</span>,
 }));
 
-vi.mock('@/components/primitives/card', () => ({
-  Card: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  CardContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  CardHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
+vi.mock('@/components/primitives/card', async () => {
+  const React = await import('react');
+  return {
+    Card: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    CardContent: React.forwardRef<HTMLDivElement, { children: React.ReactNode }>(({ children }, ref) => (
+      <div ref={ref}>{children}</div>
+    )),
+    CardHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  };
+});
 
 vi.mock('@/components/features/icons/PremiumIcons', () => ({
   IconBook: () => <span data-testid="icon-book" />,
@@ -148,7 +152,9 @@ describe('WikiConceptDetailPanel source provenance jump', () => {
     render(<WikiConceptDetailPanel {...baseProps} selectedConcept={concept} />);
 
     const jumpBtn = screen.getByTestId('mock-jump-btn');
-    jumpBtn.click();
+    act(() => {
+      jumpBtn.click();
+    });
 
     expect(scrollMock).toHaveBeenCalledTimes(1);
     const exactHeading = screen.getByTestId('heading-exact');

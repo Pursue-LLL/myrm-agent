@@ -170,7 +170,7 @@ export function PairingItem({
           {/* Today Usage Watermark & Streamline Progress Bar */}
           {!isAdmin && (
             <div
-              className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground"
+              className="inline-flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground cursor-help"
               title="每日 00:00 UTC (北京时间 08:00) 自动刷新"
             >
               <span>今日用量：{p.today_usage ?? 0} / {p.daily_quota ? String(p.daily_quota) : '∞'} 次</span>
