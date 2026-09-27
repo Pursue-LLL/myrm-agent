@@ -17953,7 +17953,16 @@
         "doctorFail": "업데이트 서비스에 문제 — 위를 확인하세요.",
         "quietTitle": "방해 금지 시간",
         "quietOff": "끔",
-        "quietActive": "방해 금지 시간 중 — 알림 일시중지."
+        "quietActive": "방해 금지 시간 중 — 알림 일시중지.",
+        "backupTitle": "업데이트 전 백업",
+        "backupAuto": "설치 전 자동 백업",
+        "backupNow": "지금 백업",
+        "backupFailed": "백업 실패.",
+        "restoreDone": "복원됨.",
+        "restartRequired": "적용하려면 재시작하세요.",
+        "snapshotEmpty": "스냅샷 없음.",
+        "snapshotRestore": "복원",
+        "snapshotDelete": "삭제"
       }
     },
     "push": {

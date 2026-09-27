@@ -5482,7 +5482,16 @@
         "doctorFail": "Update service has a problem — check the message above.",
         "quietTitle": "Quiet hours",
         "quietOff": "Off",
-        "quietActive": "Quiet hours active — nudges paused."
+        "quietActive": "Quiet hours active — nudges paused.",
+        "backupTitle": "Pre-update backups",
+        "backupAuto": "Auto-backup before install",
+        "backupNow": "Back up now",
+        "backupFailed": "Backup failed.",
+        "restoreDone": "Restored. ",
+        "restartRequired": "Please restart the app to apply it.",
+        "snapshotEmpty": "No snapshots yet.",
+        "snapshotRestore": "Restore",
+        "snapshotDelete": "Delete"
       }
     },
     "push": {

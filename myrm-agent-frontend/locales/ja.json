@@ -17953,7 +17953,16 @@
         "doctorFail": "更新サービスに問題——上記を確認。",
         "quietTitle": "おやすみ時間",
         "quietOff": "オフ",
-        "quietActive": "おやすみ時間中——通知を停止中。"
+        "quietActive": "おやすみ時間中——通知を停止中。",
+        "backupTitle": "更新前バックアップ",
+        "backupAuto": "インストール前に自動バックアップ",
+        "backupNow": "今すぐバックアップ",
+        "backupFailed": "バックアップ失敗。",
+        "restoreDone": "復元しました。",
+        "restartRequired": "適用には再起動してください。",
+        "snapshotEmpty": "スナップショットなし。",
+        "snapshotRestore": "復元",
+        "snapshotDelete": "削除"
       }
     },
     "push": {

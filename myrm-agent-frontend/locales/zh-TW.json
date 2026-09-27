@@ -17953,7 +17953,16 @@
         "doctorFail": "更新服務有問題——請看上方提示。",
         "quietTitle": "免打擾時段",
         "quietOff": "關閉",
-        "quietActive": "免打擾生效中——提醒已暫停。"
+        "quietActive": "免打擾生效中——提醒已暫停。",
+        "backupTitle": "更新前備份",
+        "backupAuto": "安裝前自動備份",
+        "backupNow": "立即備份",
+        "backupFailed": "備份失敗。",
+        "restoreDone": "已恢復。",
+        "restartRequired": "請重啟應用以生效。",
+        "snapshotEmpty": "暫無快照。",
+        "snapshotRestore": "恢復",
+        "snapshotDelete": "刪除"
       }
     },
     "push": {

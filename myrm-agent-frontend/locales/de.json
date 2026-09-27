@@ -17953,7 +17953,16 @@
         "doctorFail": "Update-Dienst hat ein Problem — Hinweis oben beachten.",
         "quietTitle": "Ruhezeiten",
         "quietOff": "Aus",
-        "quietActive": "Ruhezeiten aktiv — Hinweise pausiert."
+        "quietActive": "Ruhezeiten aktiv — Hinweise pausiert.",
+        "backupTitle": "Backups vor Update",
+        "backupAuto": "Auto-Backup vor Installation",
+        "backupNow": "Jetzt sichern",
+        "backupFailed": "Sicherung fehlgeschlagen.",
+        "restoreDone": "Wiederhergestellt. ",
+        "restartRequired": "Zum Anwenden neu starten.",
+        "snapshotEmpty": "Noch keine Snapshots.",
+        "snapshotRestore": "Wiederherstellen",
+        "snapshotDelete": "Löschen"
       }
     },
     "push": {

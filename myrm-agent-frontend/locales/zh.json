@@ -5482,7 +5482,16 @@
         "doctorFail": "更新服务有问题——请看上方提示。",
         "quietTitle": "免打扰时段",
         "quietOff": "关闭",
-        "quietActive": "免打扰生效中——提醒已暂停。"
+        "quietActive": "免打扰生效中——提醒已暂停。",
+        "backupTitle": "更新前备份",
+        "backupAuto": "安装前自动备份",
+        "backupNow": "立即备份",
+        "backupFailed": "备份失败。",
+        "restoreDone": "已恢复。",
+        "restartRequired": "请重启应用以生效。",
+        "snapshotEmpty": "暂无快照。",
+        "snapshotRestore": "恢复",
+        "snapshotDelete": "删除"
       }
     },
     "push": {
