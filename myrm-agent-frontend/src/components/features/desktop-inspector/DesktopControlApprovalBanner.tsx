@@ -1,5 +1,17 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - useDesktopControlApprovalStore::useDesktopControlApprovalStore (POS: 桌面控制审批状态管理)
+ * - lib.api::apiRequest (POS: 统一 API 请求客户端)
+ *
+ * [OUTPUT]
+ * - DesktopControlApprovalBanner: 桌面控制前台审批横幅组件，支持单次、应用、会话及免打扰包络线授权
+ *
+ * [POS]
+ * 前端桌面检查器审批卡片。呈现当前待处理的桌面控制权限请求，并向后端下发用户决策。
+ */
+
 import React, { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { History, Monitor, ShieldAlert, Zap } from 'lucide-react';

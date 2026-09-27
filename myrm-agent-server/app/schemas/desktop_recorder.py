@@ -110,6 +110,10 @@ class PublishDesktopSkillRequest(BaseModel):
     skill_name: str
     markdown_content: str
     description: str = ""
+    overwrite: bool = Field(
+        default=False,
+        description="Replace an existing skill of the same name instead of failing with 409",
+    )
 
 
 class PublishDesktopSkillResponse(BaseModel):

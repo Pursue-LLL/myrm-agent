@@ -384,4 +384,126 @@ describe('StackUpdatePanel', () => {
       expect(screen.getByText('desktopUpToDate')).toBeInTheDocument();
     });
   });
+
+  it('lists snapshots and restores with restart hint', async () => {
+    mockIsTauri = false;
+    mockUseAppUpdate.mockReturnValue({
+      phase: 'idle',
+      info: null,
+      bytesDownloaded: 0,
+      totalBytes: null,
+      error: null,
+      check: vi.fn(),
+      install: vi.fn(),
+      reset: vi.fn(),
+    });
+
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (typeof url === 'string' && url.includes('/storage/snapshots/pre-update')) {
+        return { ok: true, json: async () => ({ snapshot_id: 'snap_new' }) } as Response;
+      }
+      if (
+        typeof url === 'string' &&
+        url.includes('/storage/snapshots/snap_1/restore')
+      ) {
+        expect(init?.method).toBe('POST');
+        return { ok: true, json: async () => ({}) } as Response;
+      }
+      if (typeof url === 'string' && url.endsWith('/storage/snapshots')) {
+        return {
+          ok: true,
+          json: async () => ({
+            snapshots: [
+              {
+                snapshot_id: 'snap_1',
+                label: 'pre-update:v0.1.0->v0.2.0',
+                size_bytes: 2048,
+                created_at: '2026-09-27T00:00:00Z',
+                from_version: 'v0.1.0',
+                to_version: 'v0.2.0',
+              },
+            ],
+          }),
+        } as Response;
+      }
+      return { ok: true, json: async () => ({}) } as Response;
+    });
+    global.fetch = fetchMock;
+
+    render(<StackUpdatePanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('pre-update:v0.1.0->v0.2.0')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('snapshotRestore'));
+    await waitFor(() => {
+      expect(screen.getByText(/restoreDone/)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/restartRequired/)).toBeInTheDocument();
+  });
+
+  it('creates a pre-update snapshot on demand', async () => {
+    mockIsTauri = false;
+    mockUseAppUpdate.mockReturnValue({
+      phase: 'idle',
+      info: null,
+      bytesDownloaded: 0,
+      totalBytes: null,
+      error: null,
+      check: vi.fn(),
+      install: vi.fn(),
+      reset: vi.fn(),
+    });
+
+    const fetchMock = vi.fn(async (url: string) => {
+      if (typeof url === 'string' && url.includes('/storage/snapshots/pre-update')) {
+        return { ok: true, json: async () => ({ snapshot_id: 'snap_new' }) } as Response;
+      }
+      return { ok: true, json: async () => ({ snapshots: [] }) } as Response;
+    });
+    global.fetch = fetchMock;
+
+    render(<StackUpdatePanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('snapshotEmpty')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('backupNow'));
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/v1/system/storage/snapshots/pre-update',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+  });
+
+  it('persists the auto-backup toggle', async () => {
+    mockIsTauri = false;
+    mockUseAppUpdate.mockReturnValue({
+      phase: 'idle',
+      info: null,
+      bytesDownloaded: 0,
+      totalBytes: null,
+      error: null,
+      check: vi.fn(),
+      install: vi.fn(),
+      reset: vi.fn(),
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ snapshots: [] }),
+    } as Response);
+
+    const setAutoSpy = vi.spyOn(updatePrefs, 'setAutoBackup');
+
+    render(<StackUpdatePanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('backupAuto')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('backupAuto'));
+    expect(setAutoSpy).toHaveBeenCalledWith(false);
+  });
 });

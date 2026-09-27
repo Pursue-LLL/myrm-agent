@@ -298,9 +298,21 @@ async def publish_desktop_skill(
     config = await skills_service.user_config.get_config()
     target_base = config.local_skill_paths[0] if config.local_skill_paths else DEFAULT_LOCAL_SKILL_PATHS[0]
     target_dir = Path(target_base).expanduser() / safe_name
-    target_dir.mkdir(parents=True, exist_ok=True)
-
     skill_file = target_dir / "SKILL.md"
+
+    # Refuse to clobber an existing skill unless the caller explicitly opts in. The recorder's
+    # default skill name is shared, so a silent overwrite would destroy a previously published
+    # workflow — the same conflict the rest of the skills API reports as an error.
+    if skill_file.exists() and not request.overwrite:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"A skill named '{safe_name}' already exists at {skill_file}. "
+                "Choose another name or set overwrite=true to replace it."
+            ),
+        )
+
+    target_dir.mkdir(parents=True, exist_ok=True)
     skill_file.write_text(request.markdown_content, encoding="utf-8")
     logger.info("Published recorded desktop skill to %s", skill_file)
 

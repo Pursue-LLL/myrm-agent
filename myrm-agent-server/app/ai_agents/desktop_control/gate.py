@@ -1,10 +1,12 @@
 """Desktop control gate — per-app approval and foreground permission.
 
 [INPUT]
+- myrm_agent_harness.toolkits.computer_use.envelope::IntentEnvelopeSpec (POS: 意图包络线结构规范)
 - myrm_agent_harness.toolkits.computer_use.types::ForegroundPermissionResult, ForegroundPermissionScope
 - myrm_agent_harness.toolkits.computer_use.app_identity::resolve_trust_key, trust_key_matches
 - myrm_agent_harness.core.events.types::AgentEventType
 - myrm_agent_harness.utils.runtime.progress_sink::get_tool_progress_sink
+- app.ai_agents.desktop_control.envelope_manager::DesktopEnvelopeManager (POS: 桌面意图包络线与租约管理器)
 - app.ai_agents.desktop_control.registry::DesktopApprovalRegistry, approval_fingerprint, deny_key_for, grant_changed_since, emit_withdraw_card
 - app.ai_agents.desktop_control.trust_store::TrustedAppRecord, load_denied_keys, load_trusted_apps_map, save_trusted_apps_map
 
