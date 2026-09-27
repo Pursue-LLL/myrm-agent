@@ -186,21 +186,22 @@ def _mux_daemon_count_live() -> int:
 
 
 def _orchestrator_daemon_listening() -> bool:
-    """Cheap transport-independent liveness of the orchestrator daemon socket.
+    """Whether the orchestrator daemon serves its socket, independent of any RPC.
 
-    `is_alive()` itself issues a `status()` RPC, so a loaded daemon makes *every*
-    liveness check answer "not alive". Probing whether the unix socket has a live
-    listener distinguishes "daemon is dead" from "daemon is merely busy answering
-    peers", which is what keeps a transient parallel-load timeout from being
-    reported as a plane outage.
+    Delegates to the client-layer SSOT so plane classification and every launch gate
+    share one definition of "daemon is up". `BrowserOrchestratorClient.is_alive()`
+    answers a status RPC and therefore reports "not alive" for a daemon that is merely
+    busy answering peers, which is what made a transient parallel-load timeout look
+    like a plane outage.
     """
     try:
-        from browser_orchestrator.client import _default_socket_path
-
-        socket_path = Path(_default_socket_path())
-    except (ImportError, OSError, TypeError, ValueError):
+        from browser_orchestrator.client import BrowserOrchestratorClient
+    except ImportError:
         return False
-    return _socket_has_listener(socket_path)
+    try:
+        return BrowserOrchestratorClient.transport_is_alive()
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
+        return False
 
 
 def _orchestrator_status() -> tuple[str, str, bool]:

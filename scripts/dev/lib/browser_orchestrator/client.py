@@ -23,9 +23,10 @@ import socket
 import subprocess
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, TypedDict
+from typing import TypedDict
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ def _record_session_page(
     but it must be visible, because it silently weakens leak protection.
     """
     try:
-        from e2e_core.session_page_ledger import register_session_page  # noqa: PLC0415
+        from e2e_core.session_page_ledger import register_session_page
 
         lease_id = os.environ.get("MYRM_E2E_LEASE_ID", "").strip()
         register_session_page(
@@ -55,7 +56,9 @@ def _record_session_page(
 def _forget_session_pages(target_ids: list[str] | str) -> None:
     """Retire ownership records for pages this session already closed."""
     try:
-        from e2e_core.session_page_ledger import unregister_session_pages  # noqa: PLC0415
+        from e2e_core.session_page_ledger import (
+            unregister_session_pages,
+        )
 
         unregister_session_pages(target_ids)
     except (OSError, ImportError, ValueError) as exc:
@@ -130,7 +133,7 @@ def spawn_ensure_orchestrator() -> None:
     node_dir = "/opt/homebrew/bin"
     path = env.get("PATH", "")
     if node_dir not in path:
-        from e2e_core.real_user_home import real_user_home  # noqa: PLC0415
+        from e2e_core.real_user_home import real_user_home
 
         bun_bin = str(real_user_home() / ".bun/bin")
         env["PATH"] = f"{node_dir}:{bun_bin}:{path}"
@@ -160,7 +163,7 @@ def spawn_ensure_orchestrator() -> None:
         )
 
 
-def _wait_daemon_ready(daemon: "BrowserOrchestratorClient") -> None:
+def _wait_daemon_ready(daemon: BrowserOrchestratorClient) -> None:
     """Wait until the daemon reports READY (new generation)."""
     deadline = time.monotonic() + _DAEMON_READY_WALL_SEC
     while time.monotonic() < deadline:
@@ -228,7 +231,7 @@ def _wave_lease_count_probe() -> int:
 
 def orchestrator_open_tx_wall_sec() -> float:
     """Whole-RPC openPageTransaction wall — must match browser-orchestrator daemon default."""
-    from dev_gate.contract import (  # noqa: PLC0415
+    from dev_gate.contract import (
         DEV_OPEN_PAGE_TRANSACTION_WALL_SEC,
         SIGNOFF_OPEN_PAGE_WALL_BUDGET_SEC,
     )
@@ -294,7 +297,7 @@ def _default_socket_path() -> str:
     into two worlds. Anchor on the real user home, same directory that holds
     ``daemon.pid``.
     """
-    from e2e_core.real_user_home import real_user_home  # noqa: PLC0415
+    from e2e_core.real_user_home import real_user_home
 
     return str(
         real_user_home()
@@ -463,7 +466,7 @@ class BrowserOrchestratorClient:
             confirmed.update(str(item) for item in receipt["pendingTargets"])
         if not confirmed:
             return []
-        from e2e_core.session_page_ledger import list_session_pages  # noqa: PLC0415
+        from e2e_core.session_page_ledger import list_session_pages
 
         return [
             record["targetId"]
@@ -698,7 +701,7 @@ class BrowserOrchestratorClient:
         )
         effective = result.get("effectiveCredits")
         if not isinstance(effective, int):
-            raise RuntimeError("orchestrator did not acknowledge effective credits")
+            raise TypeError("orchestrator did not acknowledge effective credits")
         return effective
 
     def supports_open_app_route(self) -> bool:
@@ -716,6 +719,39 @@ class BrowserOrchestratorClient:
             return state not in ("", "UNKNOWN", "FAILED")
         except (OSError, TimeoutError, RuntimeError):
             return False
+
+    @staticmethod
+    def transport_is_alive() -> bool:
+        """Whether the daemon process serves its socket, independent of any RPC.
+
+        ``is_alive()`` answers a *status RPC*, so under parallel load it reports "not
+        alive" for a daemon that is merely busy answering peers — the browser
+        operation queue sits in front of it (see chrome-e2e-preflight, which for the
+        same reason skips its expensive probe under active leases). Callers that only
+        need "is the daemon up" must ask this instead: the socket must have a live
+        listener, and the recorded pid must still be running when present.
+        """
+        try:
+            from e2e_core.plane_health import _socket_has_listener
+        except ImportError:
+            return False
+        socket_path = Path(_SOCKET_PATH)
+        if not _socket_has_listener(socket_path):
+            return False
+        pid_path = socket_path.parent / "daemon.pid"
+        try:
+            raw_pid = pid_path.read_text(encoding="utf-8").strip()
+        except OSError:
+            return True
+        if not raw_pid.isdigit():
+            return True
+        try:
+            os.kill(int(raw_pid), 0)
+        except ProcessLookupError:
+            return False
+        except (PermissionError, OSError):
+            return True
+        return True
 
     def is_ready(self) -> bool:
         """Check if the daemon is reachable and accepts browser operations."""
