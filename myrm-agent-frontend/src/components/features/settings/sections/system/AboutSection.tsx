@@ -236,32 +236,34 @@ const AboutSection = memo(() => {
 
             {isTauriRuntime() && (
               <div className="mt-3 flex flex-col items-center gap-2">
-                {updateStatus === 'idle' && (
-                  <Button variant="outline" size="sm" onClick={handleCheckUpdate} className="gap-1.5">
-                    <Download className="w-3.5 h-3.5" />
-                    {t('update.check')}
-                  </Button>
+                {(updatePhase === 'idle' || updatePhase === 'up-to-date') && (
+                  <div className="flex flex-col items-center gap-2">
+                    {updatePhase === 'up-to-date' && (
+                      <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        {t('update.upToDate')}
+                      </div>
+                    )}
+                    <Button variant="outline" size="sm" onClick={handleCheckUpdate} className="gap-1.5">
+                      <Download className="w-3.5 h-3.5" />
+                      {t('update.check')}
+                    </Button>
+                  </div>
                 )}
-                {updateStatus === 'checking' && (
+                {updatePhase === 'checking' && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     {t('update.checking')}
                   </div>
                 )}
-                {updateStatus === 'up-to-date' && (
-                  <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    {t('update.upToDate')}
-                  </div>
-                )}
-                {updateStatus === 'available' && (
+                {updatePhase === 'available' && (
                   <div className="flex flex-col items-center gap-2 w-full max-w-sm">
                     <p className="text-xs text-primary font-medium">
-                      {t('update.available', { version: updateVersion ?? '' })}
+                      {t('update.available', { version: updateInfo?.version ?? '' })}
                     </p>
-                    {updateBody && (
+                    {updateInfo?.body && (
                       <div className="w-full max-h-32 overflow-y-auto rounded-md bg-muted/50 p-3 text-left text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                        {updateBody}
+                        {updateInfo.body}
                       </div>
                     )}
                     <Button variant="default" size="sm" onClick={handleInstallUpdate} className="gap-1.5">
@@ -270,13 +272,25 @@ const AboutSection = memo(() => {
                     </Button>
                   </div>
                 )}
-                {updateStatus === 'downloading' && (
+                {updatePhase === 'downloading' && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     {t('update.downloading')}
+                    {downloadProgress !== null && <span>· {downloadProgress}%</span>}
                   </div>
                 )}
-                {updateStatus === 'error' && (
+                {(updatePhase === 'ready' || updatePhase === 'installing' || updatePhase === 'restarting') && (
+                  <div className="flex flex-col items-center gap-2 w-full max-w-sm">
+                    <p className="text-xs text-primary font-medium">
+                      {t('update.available', { version: updateInfo?.version ?? '' })}
+                    </p>
+                    <Button variant="default" size="sm" onClick={handleInstallUpdate} className="gap-1.5">
+                      <Download className="w-3.5 h-3.5" />
+                      {t('update.install')}
+                    </Button>
+                  </div>
+                )}
+                {updatePhase === 'error' && (
                   <div className="flex flex-col items-center gap-2">
                     <div className="flex items-center gap-2 text-xs text-destructive">
                       <AlertCircle className="w-3.5 h-3.5" />

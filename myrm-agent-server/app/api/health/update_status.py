@@ -1,11 +1,16 @@
 """Stack update truth for the Settings → System → About Stack Update Panel.
 
+[INPUT]
+- (none)
+
+[OUTPUT]
+- router: GET /api/v1/health/update-status
+
+[POS]
 Single endpoint behind the panel's Web leg — version compare is the primary
 behind signal (production images ship without .git, so rev-list cannot be
 primary); git rev-list/log is a best-effort enrichment for source checkouts.
 Every unreachable source degrades to an honest unknown instead of a guess.
-
-- GET /api/v1/health/update-status (public, same as the rest of /health)
 """
 
 from __future__ import annotations
