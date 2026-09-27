@@ -98,3 +98,35 @@ def test_normalize_skill_name(raw: str, expected: str) -> None:
 def test_normalize_skill_name_returns_empty_for_symbols_only() -> None:
     """A symbols-only name yields an empty string so the caller can reject it."""
     assert _normalize_skill_name("!!!") == ""
+
+
+def test_publish_refuses_to_overwrite_an_existing_skill(client: TestClient, publish_env: Path) -> None:
+    """Republishing under a used name must fail rather than silently replace the old skill.
+
+    The recorder's default skill name is shared, so an accidental overwrite would destroy a
+    workflow the user had already published.
+    """
+    payload = {"session_id": "s1", "skill_name": "Shared Name", "markdown_content": "# first\n"}
+    assert client.post("/api/skills/desktop-recorder/publish", json=payload).status_code == 200
+
+    payload["markdown_content"] = "# second\n"
+    conflict = client.post("/api/skills/desktop-recorder/publish", json=payload)
+    assert conflict.status_code == 409
+    assert "already exists" in conflict.json()["detail"]
+
+    # The original content must be untouched.
+    written = publish_env / "shared_name" / "SKILL.md"
+    assert written.read_text(encoding="utf-8") == "# first\n"
+
+
+def test_publish_overwrites_when_explicitly_requested(client: TestClient, publish_env: Path) -> None:
+    """An explicit ``overwrite`` opt-in replaces the previous skill."""
+    payload = {"session_id": "s1", "skill_name": "Shared Name", "markdown_content": "# first\n"}
+    client.post("/api/skills/desktop-recorder/publish", json=payload)
+
+    payload["markdown_content"] = "# second\n"
+    replaced = client.post("/api/skills/desktop-recorder/publish", json={**payload, "overwrite": True})
+
+    assert replaced.status_code == 200
+    written = publish_env / "shared_name" / "SKILL.md"
+    assert written.read_text(encoding="utf-8") == "# second\n"
