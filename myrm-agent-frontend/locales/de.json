@@ -10933,7 +10933,7 @@
     },
     "workflowRecorder": {
       "title": "Desktop-Workflow-Recorder & Skill-Generator",
-      "idleDesc": "Erstellen Sie einen wiederverwendbaren Skill aus einem Desktop-Workflow. Die automatische Desktop-Aufzeichnung ist noch nicht verfügbar; fügen Sie die Schritte während der Aufzeichnung manuell hinzu, um die Skill-Kompilierung zu prüfen.",
+      "idleDesc": "Erstellen Sie einen wiederverwendbaren Skill aus einem Desktop-Workflow. Benennen Sie den Workflow, starten Sie die Aufnahme und führen Sie ihn auf Ihrem Desktop aus — jeder Klick und jede Eingabe wird automatisch erfasst.",
       "workflowNameLabel": "Skill-Name",
       "intentHintLabel": "Absichtshinweis (Optional)",
       "startRecording": "Aufnahme starten",

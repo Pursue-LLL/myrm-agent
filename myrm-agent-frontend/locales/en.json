@@ -17972,7 +17972,7 @@
     },
     "workflowRecorder": {
       "title": "Desktop Workflow Skill Recorder",
-      "idleDesc": "Build a reusable skill from a desktop workflow. Automatic desktop capture is not available yet, so add the steps manually during recording to preview how a skill is compiled.",
+      "idleDesc": "Build a reusable skill from a desktop workflow. Name the workflow, start recording, then perform it on your desktop — each click and text entry is captured automatically.",
       "workflowNameLabel": "Skill Name",
       "intentHintLabel": "Intent Hint (Optional)",
       "startRecording": "Start Recording",

@@ -993,7 +993,7 @@ export async function startDesktopRecording(
   session_id: string;
   status: string;
   started_at: number;
-  /** False when the platform provides no AX capture; the caller falls back to manual steps. */
+  /** False when the platform cannot capture (no desktop, or screen access not granted yet). */
   capture_active: boolean;
   capture_error: string | null;
 }> {
