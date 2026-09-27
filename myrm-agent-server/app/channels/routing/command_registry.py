@@ -122,6 +122,11 @@ class CommandRegistry:
         Returns None if no command matches.
         """
         text = user_input.strip()
+        if text.startswith("@"):
+            parts = text.split(maxsplit=1)
+            if len(parts) > 1 and parts[1].startswith("/"):
+                text = parts[1].strip()
+
         if not text.startswith("/"):
             return None
 

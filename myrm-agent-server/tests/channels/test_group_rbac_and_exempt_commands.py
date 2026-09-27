@@ -277,3 +277,54 @@ class TestGroupRbacAndExemptCommands:
         assert "guest" in sent_outbound.content
         assert "00:00 UTC" in sent_outbound.content
 
+    @pytest.mark.asyncio
+    async def test_quota_command_with_mention_prefix_in_group(self) -> None:
+        """Assert @bot /quota in group chat is resolved and outputs directly with 0 LLM calls."""
+        bus = MagicMock()
+        bus.publish_outbound = AsyncMock()
+        bus.get_channel = MagicMock(return_value=None)
+
+        pairing = MagicMock()
+        pairing.get_pairing_detail = AsyncMock(
+            return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 20)
+        )
+        pairing.resolve = AsyncMock(return_value="paired_member_slack_user2")
+
+        executor = MagicMock()
+        executor.execute_stream = MagicMock()
+
+        router = AgentRouter(
+            bus=bus,
+            pairing_store=pairing,
+            agent_executor=executor,
+        )
+
+        msg = InboundMessage(
+            channel="slack",
+            sender_id="user2",
+            chat_id="group_abc",
+            content="@mybot /quota",
+            is_group=True,
+            mentioned=True,
+        )
+
+        with patch(
+            "app.database.repositories.channel_message_repo.ChannelMessageRepository.get_daily_trigger_count",
+            new_callable=AsyncMock,
+            return_value=5,
+        ):
+            resolved = router._registry.resolve(msg.content)
+            assert resolved is not None
+            assert resolved.command_def.name == "quota"
+            dispatched = await router._dispatch_resolved(msg, resolved)
+            assert dispatched is True
+            await asyncio.sleep(0.05)
+
+        executor.execute_stream.assert_not_called()
+        bus.publish_outbound.assert_called_once()
+        sent_outbound = bus.publish_outbound.call_args[0][0]
+        assert "user2" in sent_outbound.content
+        assert "5" in sent_outbound.content
+        assert "20" in sent_outbound.content
+
+

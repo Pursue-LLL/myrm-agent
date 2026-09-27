@@ -68,13 +68,17 @@ export function PairingItem({
   const isAdmin = p.role === 'admin';
 
   const handleSaveName = async () => {
-    if (!onUpdateDisplayName) return;
+    if (!onUpdateDisplayName) {
+      return;
+    }
     await onUpdateDisplayName(p.id, editNameValue.trim());
     setIsEditingName(false);
   };
 
   const handleSaveQuota = async () => {
-    if (!onUpdateDailyQuota) return;
+    if (!onUpdateDailyQuota) {
+      return;
+    }
     const trimmed = editQuotaValue.trim();
     const quotaNum = trimmed ? Math.max(1, parseInt(trimmed, 10)) : null;
     await onUpdateDailyQuota(p.id, Number.isNaN(quotaNum) ? null : quotaNum);
@@ -82,7 +86,9 @@ export function PairingItem({
   };
 
   const handleToggleRole = async () => {
-    if (!onUpdateRole) return;
+    if (!onUpdateRole) {
+      return;
+    }
     const nextRole = isAdmin ? 'member' : 'admin';
     await onUpdateRole(p.id, nextRole);
   };
@@ -127,8 +133,12 @@ export function PairingItem({
                     placeholder={t('unlimitedQuota')}
                     autoFocus
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveQuota();
-                      if (e.key === 'Escape') setIsEditingQuota(false);
+                      if (e.key === 'Enter') {
+                        handleSaveQuota();
+                      }
+                      if (e.key === 'Escape') {
+                        setIsEditingQuota(false);
+                      }
                     }}
                   />
                   <Button size="icon" variant="ghost" className="h-5 w-5" onClick={handleSaveQuota} disabled={isUpdating}>
@@ -214,8 +224,12 @@ export function PairingItem({
                 placeholder={t('displayNamePlaceholder')}
                 autoFocus
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveName();
-                  if (e.key === 'Escape') setIsEditingName(false);
+                  if (e.key === 'Enter') {
+                    handleSaveName();
+                  }
+                  if (e.key === 'Escape') {
+                    setIsEditingName(false);
+                  }
                 }}
               />
               <Button size="icon" variant="ghost" className="h-5 w-5" disabled={isUpdating} onClick={handleSaveName}>

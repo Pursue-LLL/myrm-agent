@@ -1,4 +1,4 @@
-"""Router memory mixin: /status, /kanban, /learn, /memory commands.
+"""Router memory mixin: /status, /quota, /kanban, /learn, /memory commands.
 
 [INPUT]
 - channels.routing.commands::parse_memory_args (POS: slash command argument parsing and handling.)
@@ -9,10 +9,10 @@
 - services.budget.channel_budget::get_channel_budget_registry (POS: per-channel budget isolation, runtime import in _get_channel_budget_summary.)
 
 [OUTPUT]
-- RouterCommandsMemoryMixin: session status, kanban, directed learning, pending memory approval handlers
+- RouterCommandsMemoryMixin: session status, daily quota diagnostic, kanban, directed learning, pending memory approval handlers
 
 [POS]
-Router memory mixin segment. Surfaces session diagnostics, kanban IM control,
+Router memory mixin segment. Surfaces session diagnostics, daily quota check, kanban IM control,
 /learn skill capture kickoff, and /memory pending-write approval workflow.
 """
 
