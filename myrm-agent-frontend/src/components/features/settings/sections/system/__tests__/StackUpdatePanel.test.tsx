@@ -398,7 +398,8 @@ describe('StackUpdatePanel', () => {
       reset: vi.fn(),
     });
 
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
       if (typeof url === 'string' && url.includes('/storage/snapshots/pre-update')) {
         return { ok: true, json: async () => ({ snapshot_id: 'snap_new' }) } as Response;
       }
@@ -456,7 +457,8 @@ describe('StackUpdatePanel', () => {
       reset: vi.fn(),
     });
 
-    const fetchMock = vi.fn(async (url: string) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
       if (typeof url === 'string' && url.includes('/storage/snapshots/pre-update')) {
         return { ok: true, json: async () => ({ snapshot_id: 'snap_new' }) } as Response;
       }
