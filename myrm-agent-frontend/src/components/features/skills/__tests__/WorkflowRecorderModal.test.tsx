@@ -121,6 +121,7 @@ describe('WorkflowRecorderModal', () => {
       session_id: 'rec-123',
       status: 'recording',
       events_count: 5,
+      events_dropped: 0,
       capture_active: false,
       capture_error: 'desktop_capture_permission_required',
     });
@@ -187,6 +188,7 @@ describe('WorkflowRecorderModal', () => {
       session_id: 'rec-123',
       status: 'recording',
       events_count: 0,
+      events_dropped: 0,
       capture_active: true,
       capture_error: 'desktop_capture_permission_required',
     });
@@ -215,6 +217,7 @@ describe('WorkflowRecorderModal', () => {
       session_id: 'rec-manual',
       status: 'recording',
       events_count: 0,
+      events_dropped: 0,
       capture_active: false,
       capture_error: 'desktop_capture_unavailable: no AX backend',
     });
@@ -230,5 +233,26 @@ describe('WorkflowRecorderModal', () => {
     expect(screen.getByText('captureUnsupportedNotice')).toBeInTheDocument();
     // The automatic-capture copy must not be shown while capture is unavailable.
     expect(screen.queryByText('captureHint')).not.toBeInTheDocument();
+  });
+
+  it('discloses a clipped trace instead of presenting it as a complete recording', async () => {
+    const sessionPoll = vi.mocked(skillService.getDesktopRecordingSession);
+    // The server evicts the oldest events once the session cap is hit, so the resulting skill
+    // would silently be missing its opening steps unless the dialog says so.
+    sessionPoll.mockResolvedValue({
+      session_id: 'rec-clipped',
+      status: 'recording',
+      events_count: 500,
+      events_dropped: 12,
+      capture_active: true,
+      capture_error: null,
+    });
+
+    render(<WorkflowRecorderModal isOpen={true} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByText('startRecording'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/captureTraceTruncatedNotice/)).toBeInTheDocument();
+    });
   });
 });
