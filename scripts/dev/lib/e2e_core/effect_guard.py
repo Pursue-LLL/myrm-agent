@@ -9,6 +9,7 @@ from urllib.parse import unquote, urlparse
 from e2e_core.effect_policy import (
     GLOBAL_MUTATION_PREFIXES,
     NAMESPACE_WRITE_BOOTSTRAP_PATHS,
+    NON_PERSISTENT_OPERATION_PREFIXES,
     TEST_FIXTURE_EXACT_PATHS,
     TEST_FIXTURE_PREFIXES,
 )
@@ -57,6 +58,11 @@ def assert_http_effect_allowed(*, method: str, url: str) -> None:
         return
     path = _normalized_path(url)
     if is_test_fixture_path(path):
+        return
+    if any(path.startswith(prefix) for prefix in NON_PERSISTENT_OPERATION_PREFIXES):
+        # POST used for transport only; nothing is persisted, so READ scope may
+        # call it. Keeping this in the runtime guard is what makes the classifier
+        # in the static scan and the live enforcement agree.
         return
     if scope == "READ":
         raise RuntimeError(f"E2E_EFFECT_GUARD: access_scope=READ forbids {verb} {path}")

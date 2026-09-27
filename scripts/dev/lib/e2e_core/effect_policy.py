@@ -52,4 +52,7 @@ NAMESPACE_WRITE_BOOTSTRAP_PATHS: Final[frozenset[str]] = frozenset(
 NON_PERSISTENT_OPERATION_PREFIXES: Final[tuple[str, ...]] = (
     "/api/v1/tts/synthesize",
     "/api/v1/tts/synthesize-stream",
+    # Resolves an external secret URI in memory and only echoes whether it is
+    # readable; no credential is written or mutated.
+    "/api/v1/integrations/llm/credential-pool/validate-secret-reference",
 )
