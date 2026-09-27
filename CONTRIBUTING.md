@@ -189,6 +189,7 @@ Called from other HTTP trees or lifecycle hooks:
 | `event/` | `api/events/`, agent stream persistence |
 | `host_assets/` | Remote server assets synchronization and status polling |
 | `remote_host/` | SSH bridge and remote execution management |
+| `rules/` | TTSR zero-tax stream rules and boundary guards |
 | `ssh_bridge/` | Secure tunneling and key authentication bridge for remote hosts |
 | `meeting_notes/` | Meeting audio scribe: chunked ASR scheduling + LLM minutes distillation + wiki raw publish |
 

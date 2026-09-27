@@ -132,6 +132,7 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "project",
         "remote_host",
         "repair",
+        "rules",
         "ssh_bridge",
         "trajectory",
         "web_fetch",
