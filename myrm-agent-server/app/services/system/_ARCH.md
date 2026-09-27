@@ -13,3 +13,4 @@
 | `support_bundle_service.py` | 核心 | 结构化系统诊断信息聚合与内存 ZIP 归档生成（带双重脱敏、超时保护与体积熔断） | ✅ |
 | `takeout_service.py` | 核心 | 用户个人全量数据资产（SQLite 数据库事务快照、Markdown Wiki、自定义技能、工件产物）标准化便携 Takeout 打包服务 | ✅ |
 | `vault_purge_service.py` | 核心 | 安全金库清空编排器（FTS5 逆序清空、自增序列/游标重置、白名单资产持久化与物理磁盘空间紧凑化） | ✅ |
+| `update_snapshot_service.py` | 核心 | 更新前快照编排（`pre-update:{from}->{to}`  manifest 关联、保留策略、快照清单） | ✅ |
