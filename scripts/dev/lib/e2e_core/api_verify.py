@@ -940,8 +940,20 @@ def _compute_next_action(
     # The operation plane is the authority for browser isolation and credit
     # state. If its snapshot is unavailable, no epoch/lease signal can prove
     # that a new launch is safe; fail closed before drift or queue routing.
+    #
+    # `muxSnapshotAvailable` is a misnomer: core._try_daemon_snapshot returns None on
+    # any orchestrator-daemon RPC miss, and under parallel load that status RPC queues
+    # behind peer tabs (the reason chrome-e2e-preflight skips its expensive probe under
+    # active leases). Denying every launch on a transient miss is what produced
+    # E2E_LAUNCH_DENIED: WAIT:OBSERVABILITY_UNKNOWN while the plane was healthy. Only
+    # fail closed when the daemon socket has no live listener, i.e. a real outage.
     if mux_fields.get("muxSnapshotAvailable") is False:
-        return "OBSERVABILITY_UNKNOWN"
+        from e2e_core.plane_health import (
+            _orchestrator_daemon_listening,
+        )
+
+        if not _orchestrator_daemon_listening():
+            return "OBSERVABILITY_UNKNOWN"
     admit_active = 0
     shared_candidates = [
         candidate for candidate in ctx.candidates if candidate.source == "shared"
@@ -1112,6 +1124,7 @@ def _format_agent_decision_human(
         E2E_BODY_WALL_EXCEEDED_TOKEN,
         LIVE_AGENT_BODY_WALL_CLOCK_SEC,
     )
+
     from e2e_core.readiness import evaluate_chrome_e2e_readiness
 
     readiness = evaluate_chrome_e2e_readiness(
