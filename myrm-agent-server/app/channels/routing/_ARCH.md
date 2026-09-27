@@ -124,31 +124,31 @@ deadlocks when an agent execution hangs without crashing.
 | __init__.py | Package | Inbound message processing pipeline: routing, commands, policy, sessions. | — |
 | command_defs.py | Core | CommandDef data model, CommandAction/CommandKind enums, built-in SYSTEM_COMMANDS tuple (stop, new, compact, retry, undo, yolo, personality, bind, unbind, topic, goal, steer, queue, background, kanban, memory, learn, memo, review-week, handoff, status, quota, help). | — |
 | command_registry.py | Core | CommandRegistry: central O(1) lookup for slash commands. Validates names and prevents system command overwriting. | — |
-| commands/（子包） | Core | 命令域子包：`commands.py`（参数解析 + 高层 handler）、`router_commands.py`（聚合 `RouterCommandsMixin`）、`router_commands_approval.py`（`/stop`、reaction/button approval）、`router_commands_session.py`（`/new`、`/compact`、`/retry`、`/undo`、topic）、`router_commands_modes.py`（`/yolo`、`/personality`、`/steer`、`/queue`）、`router_commands_goals.py`（`/goal`、`/subgoal`、`/background`、`/handoff`）、`router_commands_memory.py`（`/status`、`/quota`、`/kanban`、`/learn`、`/memory`）。`commands/__init__.py` 为聚合门面 | ✅ |
-| context_buffer.py | Core | GroupContextBuffer: 结合持久化数据平面异步拉取与内存兜底的上下文缓冲。 | ✅ |
-| graceful_degradation.py | Core | Graceful degradation controller for smooth quality adaptation. | ✅ |
-| message_effects.py | Core | Message side-effect operations (typing/keepalive, reactions, placeholder, reply, busy ack). send_quota_exceeded_reply 提供配额超限多语言提醒。 | ✅ |
-| placeholder_strategy.py | Core | Adaptive placeholder defer (180ms) and short-circuit for fast replies; eager materialize on stream activity. | ✅ |
-| policy_resolver.py | Core | Policy resolution module extracted from Router core routing logic. 支持群聊发言人特权解耦 (Group Ingress Sender-Scoped RBAC & Confused Deputy Mitigation)，仲裁 Admin (沙箱所有者特权) / Member (每日配额与受限栅栏) / Guest (元工具特权剥离)。放行 /status, /quota, /help 只读自查诊断命令。 | ✅ |
-| policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker + 群聊发言人身份仲裁与诊断命令判定 (resolve_group_sender_identity, is_exempt_diagnostic_command, should_respond_in_group_support). | ✅ |
+| commands/（子包） | Core | 命令域子包：`commands.py`（参数解析 + 高层 handler）、`router_commands.py`（聚合 `RouterCommandsMixin`）、`router_commands_approval.py`（`/stop`、reaction/button approval）、`router_commands_session.py`（`/new`、`/compact`、`/retry`、`/undo`、topic）、`router_commands_modes.py`（`/yolo`、`/personality`、`/steer`、`/queue`）、`router_commands_goals.py`（`/goal`、`/subgoal`、`/background`、`/handoff`）、`router_commands_memory.py`（`/status`、`/kanban`、`/learn`、`/memory`）、`router_commands_quota.py`（`/quota` 直出诊断与进度倒计时）。`commands/__init__.py` 为聚合门面 | [OK] |
+| context_buffer.py | Core | GroupContextBuffer: 结合持久化数据平面异步拉取与内存兜底的上下文缓冲。 | [OK] |
+| graceful_degradation.py | Core | Graceful degradation controller for smooth quality adaptation. | [OK] |
+| message_effects.py | Core | Message side-effect operations (typing/keepalive, reactions, placeholder, reply, busy ack). send_quota_exceeded_reply 提供配额超限多语言提醒。 | [OK] |
+| placeholder_strategy.py | Core | Adaptive placeholder defer (180ms) and short-circuit for fast replies; eager materialize on stream activity. | [OK] |
+| policy_resolver.py | Core | Policy resolution module extracted from Router core routing logic. 支持群聊发言人特权解耦 (Group Ingress Sender-Scoped RBAC & Confused Deputy Mitigation)，仲裁 Admin (沙箱所有者特权) / Member (每日配额与受限栅栏) / Guest (元工具特权剥离)。放行 /status, /quota, /help 只读自查诊断命令。 | [OK] |
+| policy_resolver_support.py | 辅助 | BoundedCooldownMap + GroupFollowUpTracker + 群聊发言人身份仲裁与诊断命令判定 (resolve_group_sender_identity, is_exempt_diagnostic_command, should_respond_in_group_support). | [OK] |
 | retry_policy.py | Core | Generic retry policy component with exponential backoff, circuit breaker integration, | — |
-| router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, checks active task `busy_input_mode` (steer/redirect auto-dispatch), applies inbound risk gate (symmetric with outbound risk gate in bus.py), dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | ✅ |
+| router.py | Core | Core inbound message routing loop. After approval/reaction/slash filtering, checks active task `busy_input_mode` (steer/redirect auto-dispatch), applies inbound risk gate (symmetric with outbound risk gate in bus.py), dispatches cron event triggers via `inbound_event_dispatch` then submits to SessionGate. | [OK] |
 | router_constants.py | Core | Constants and pure helpers shared by routing modules. Includes silence reassurance thresholds and `_is_silent_content` outbound filter. Unit tests can import directly. | — |
 | router_execution.py | Core | `RouterExecutionMixin` is composed into `AgentRouter` via multiple inheritance; `_prepare_execution_context` rejects search-track `route_agent_id` (external CLI aliases like `claude` unchanged); `_deliver_agent_result` auto-attaches WebUI handoff deep link button for IM channel replies and intercepts outbound messages as draft ApprovalRecord when `topic_ctx.reply_mode == "draft_review"` (Channel Outbound HITL). | — |
-| router_host.py | Core | Typing protocols: host instance attributes required by Router Mixins. | ✅ |
-| router_keys.py | Core | ``routing_session_key`` builds ``f"{channel}:{peer_id}"``; ``routing_enclave_key`` builds 4-tuple enclave ``tenant_id:channel:peer_id:agent_profile_id`` for multi-tenant and multi-agent context isolation. | ✅ |
+| router_host.py | Core | Typing protocols: host instance attributes required by Router Mixins. | [OK] |
+| router_keys.py | Core | ``routing_session_key`` builds ``f"{channel}:{peer_id}"``; ``routing_enclave_key`` builds 4-tuple enclave ``tenant_id:channel:peer_id:agent_profile_id`` for multi-tenant and multi-agent context isolation. | [OK] |
 | router_models.py | Core | Data models referenced by AgentRouter in router.py and commands/ (_ActiveTask with steering_token, `requester_id` for reaction approval auth, `locale` for stuck watchdog i18n, ReactionPolicy, etc.) | — |
 | router_stream.py | Core | RouterStreamMixin composed into AgentRouter (router.py) via multiple inheritance; includes edit-in-place heartbeat loop for long-task silence detection (sends once, then edits the same message with elapsed time). | — |
-| router_stream_scrubber.py | Core | Stream content and progress scrubbing utilities: filters `<think>` tags and normalizes raw tool executions into user-friendly Stage descriptions. | ✅ |
-| router_stream_throttle.py | Core | Pure time-interval checks for placeholder progress edits during execute_stream. | ✅ |
-| channel_data_plane.py | Core | ChannelDataPlaneService: 渠道入站脱敏持久化、上下文拉取、知识提取自适应打标（paired_member 与 guest 统一隔离防长期记忆投毒）与自产回复追溯。 | ✅ |
-| identity_scope.py | Core | Team-shared identity resolution: TopicContext + InboundMessage → harness TeamIdentitySpec + `ident:<id>` memory namespace + credential track. Pure, no DB/LLM. | ✅ |
-| follow_up.py | Core | Proactive follow-up decisions: completion receipts (message-id keyed dedup), lazy stall scan (no daemon; heartbeat-driven for silent groups), muted-set (mute survives inbound), cooldown caps. Pure predicates + best-effort send orchestration. | ✅ |
-| session_gate.py | Core | Sits between Router's consume loop and the per-message handler. Supports optional `on_busy_ack` callback (30s debounce) for immediate user feedback when messages are queued or dropped. | ✅ |
-| session_rate_limiter.py | Core | Session-level rate limiting for single-instance self-protection. | ✅ |
-| stream_config.py | Config | Unified configuration for streaming components. | ✅ |
-| stream_manager.py | Core | Streaming optimization components used by Router for intelligent updates. | ✅ |
-| stream_metrics.py | Core | Provides observability into streaming quality via tracing infrastructure. | ✅ |
+| router_stream_scrubber.py | Core | Stream content and progress scrubbing utilities: filters `<think>` tags and normalizes raw tool executions into user-friendly Stage descriptions. | [OK] |
+| router_stream_throttle.py | Core | Pure time-interval checks for placeholder progress edits during execute_stream. | [OK] |
+| channel_data_plane.py | Core | ChannelDataPlaneService: 渠道入站脱敏持久化、上下文拉取、知识提取自适应打标（paired_member 与 guest 统一隔离防长期记忆投毒）与自产回复追溯。 | [OK] |
+| identity_scope.py | Core | Team-shared identity resolution: TopicContext + InboundMessage → harness TeamIdentitySpec + `ident:<id>` memory namespace + credential track. Pure, no DB/LLM. | [OK] |
+| follow_up.py | Core | Proactive follow-up decisions: completion receipts (message-id keyed dedup), lazy stall scan (no daemon; heartbeat-driven for silent groups), muted-set (mute survives inbound), cooldown caps. Pure predicates + best-effort send orchestration. | [OK] |
+| session_gate.py | Core | Sits between Router's consume loop and the per-message handler. Supports optional `on_busy_ack` callback (30s debounce) for immediate user feedback when messages are queued or dropped. | [OK] |
+| session_rate_limiter.py | Core | Session-level rate limiting for single-instance self-protection. | [OK] |
+| stream_config.py | Config | Unified configuration for streaming components. | [OK] |
+| stream_manager.py | Core | Streaming optimization components used by Router for intelligent updates. | [OK] |
+| stream_metrics.py | Core | Provides observability into streaming quality via tracing infrastructure. | [OK] |
 
 ## Channel agent bind (`/bind`)
 
