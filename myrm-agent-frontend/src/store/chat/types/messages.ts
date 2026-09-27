@@ -78,7 +78,7 @@ export type Message = {
   reasoning?: string;
   reasoningStartedAt?: number;
   reasoningDurationMs?: number;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'custom_message';
   /** True while the assistant message is still streaming. */
   loading?: boolean;
   isCompactedSummaryView?: boolean;

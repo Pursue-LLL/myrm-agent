@@ -213,7 +213,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
   const activeProjectId = useProjectStore((s) => (typeof s.activeFilter === 'string' ? s.activeFilter : null));
   const activeProject = useProjectStore((s) => s.projects.find((p) => p.id === activeProjectId));
-  const activeWorkspacePath = activeProject?.workspace_path || null;
+  const activeWorkspacePath = activeProject?.workspacePath || null;
 
   const chatMessages = useStoreSnapshot(
     (onStoreChange) => useChatStore.subscribe(onStoreChange),
