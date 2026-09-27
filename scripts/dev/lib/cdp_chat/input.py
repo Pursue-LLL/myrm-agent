@@ -8,6 +8,8 @@ import os
 import sys
 import time
 
+from dev_gate.contract import EvaluateIntent
+
 from cdp_chat.bootstrap import CdpChatBootstrap
 from cdp_chat.support import (
     E2E_BRIDGE_INSTALL_JS,
@@ -22,7 +24,6 @@ from cdp_chat.support import (
     fetch_provider_readiness_snapshot,
     get_e2e_ui_url,
 )
-from dev_gate.contract import EvaluateIntent
 
 
 class CdpChatInput(CdpChatBootstrap):
@@ -223,6 +224,7 @@ class CdpChatInput(CdpChatBootstrap):
         deadline = time.monotonic() + timeout_sec
         polls = 0
         probe: object = None
+        extended_after_reload = False
         while time.monotonic() < deadline:
             polls += 1
             if polls % 5 == 0:
@@ -294,6 +296,14 @@ class CdpChatInput(CdpChatBootstrap):
                 await self.cdp("Page.reload", {"ignoreCache": True}, recv_timeout=120.0)
                 await asyncio.sleep(4)
                 await self.ensure_e2e_api_base_binding()
+                # A reload tears down the React tree, so the bridge cannot return
+                # until React remounts — work that is not attributable to the
+                # caller's deadline. In parallel runs a warm-shell reclaim can force
+                # this reload late (observed: 180s bridge timeout), so grant one
+                # bounded extension, once, and let the shared cap remain the ceiling.
+                if not extended_after_reload:
+                    extended_after_reload = True
+                    deadline = max(deadline, time.monotonic() + timeout_sec)
             await asyncio.sleep(1)
         raise TimeoutError(
             "React E2E chat bridge missing pinLiteModelForE2e/pinBasicModelForE2e "
@@ -599,9 +609,9 @@ class CdpChatInput(CdpChatBootstrap):
                 isinstance(probe, dict)
                 and probe.get("hasBridge")
                 and probe.get("hasInput")
+                and probe.get("clientHydrated")
             ):
-                if probe.get("clientHydrated"):
-                    return
+                return
             if allow_reload and polls in {15, 30, 45}:
                 await self.cdp("Page.reload", {"ignoreCache": True}, recv_timeout=120.0)
                 await asyncio.sleep(4)
