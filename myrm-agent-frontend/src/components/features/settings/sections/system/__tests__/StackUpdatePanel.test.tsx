@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import StackUpdatePanel from '../StackUpdatePanel';
 import * as updatePrefs from '@/lib/update-prefs';
@@ -203,7 +203,7 @@ describe('StackUpdatePanel', () => {
     });
   });
 
-  it('handles quiet hours dropdown selection', () => {
+  it('handles quiet hours dropdown selection', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({}),
@@ -213,20 +213,25 @@ describe('StackUpdatePanel', () => {
 
     render(<StackUpdatePanel />);
 
+    await waitFor(() => {
+      expect(screen.getByText('webTitle')).toBeInTheDocument();
+    });
+
     const selects = screen.getAllByRole('combobox');
     expect(selects.length).toBe(2);
 
-    fireEvent.change(selects[0], { target: { value: '22' } });
-    fireEvent.change(selects[1], { target: { value: '08' } });
+    act(() => {
+      fireEvent.change(selects[0], { target: { value: '22' } });
+      fireEvent.change(selects[1], { target: { value: '8' } });
+    });
 
-    expect(setQuietSpy).toHaveBeenCalledWith({ startHour: 22, endHour: 8 });
+    expect(setQuietSpy).toHaveBeenLastCalledWith({ startHour: 22, endHour: 8 });
   });
 
-  it('supports Tauri desktop OTA available, download progress, and up-to-date states', () => {
+  it('supports Tauri desktop OTA available state and install action', async () => {
     mockIsTauri = true;
     const installMock = vi.fn();
 
-    // 1. Available state
     mockUseAppUpdate.mockReturnValue({
       phase: 'available',
       info: { currentVersion: '0.1.0', version: '0.2.0', body: 'New release' },
@@ -243,14 +248,22 @@ describe('StackUpdatePanel', () => {
       json: async () => ({}),
     } as Response);
 
-    const { rerender } = render(<StackUpdatePanel />);
+    render(<StackUpdatePanel />);
 
-    expect(screen.getByText(/desktopAvailable/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/desktopAvailable/)).toBeInTheDocument();
+    });
+
     const installBtn = screen.getByText('installNow');
-    fireEvent.click(installBtn);
+    act(() => {
+      fireEvent.click(installBtn);
+    });
     expect(installMock).toHaveBeenCalled();
+  });
 
-    // 2. Downloading state with percentage
+  it('supports Tauri desktop download progress', async () => {
+    mockIsTauri = true;
+
     mockUseAppUpdate.mockReturnValue({
       phase: 'downloading',
       info: { currentVersion: '0.1.0', version: '0.2.0', body: 'New release' },
@@ -258,14 +271,25 @@ describe('StackUpdatePanel', () => {
       totalBytes: 1000,
       error: null,
       check: vi.fn(),
-      install: installMock,
+      install: vi.fn(),
       reset: vi.fn(),
     });
 
-    rerender(<StackUpdatePanel />);
-    expect(screen.getByText(/65%/)).toBeInTheDocument();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    } as Response);
 
-    // 3. Up to date state
+    render(<StackUpdatePanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/65%/)).toBeInTheDocument();
+    });
+  });
+
+  it('supports Tauri desktop up-to-date state', async () => {
+    mockIsTauri = true;
+
     mockUseAppUpdate.mockReturnValue({
       phase: 'up_to_date',
       info: null,
@@ -273,11 +297,19 @@ describe('StackUpdatePanel', () => {
       totalBytes: null,
       error: null,
       check: vi.fn(),
-      install: installMock,
+      install: vi.fn(),
       reset: vi.fn(),
     });
 
-    rerender(<StackUpdatePanel />);
-    expect(screen.getByText('desktopUpToDate')).toBeInTheDocument();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    } as Response);
+
+    render(<StackUpdatePanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('desktopUpToDate')).toBeInTheDocument();
+    });
   });
 });

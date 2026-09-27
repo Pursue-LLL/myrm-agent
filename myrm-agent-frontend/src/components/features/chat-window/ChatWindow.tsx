@@ -236,6 +236,19 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
     () => false,
   );
 
+  // `isChatRouteHydratedForId` reads `useChatStore.getState()` directly, so a
+  // pre-populated store (previous chat kept across navigation) makes it report
+  // `true` before React has hydrated. On the server / first client render that
+  // disagrees with the hydration-safe `getServerSnapshot` (`false`), flipping
+  // the skeleton subtree in `renderChatContent` and failing hydration
+  // (`clientHydrated: false` → E2E bridge never becomes ready). Only trust the
+  // direct read once we are actually on the client.
+  const isClientHydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
   const storeMessageCountDirect =
     id && useChatStore.getState().chatId === id ? useChatStore.getState().messages.length : 0;
 
@@ -250,7 +263,8 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
 
   const chatMessagesForRender = chatMessages.length > 0 ? chatMessages : storeMessagesDirect;
 
-  const chatRouteHydrated = chatRouteHydratedFromSelector || chatRouteHydratedSync || chatRouteHydratedDirect;
+  const chatRouteHydrated =
+    chatRouteHydratedSync || (isClientHydrated && (chatRouteHydratedFromSelector || chatRouteHydratedDirect));
   const storeMessageCount = Math.max(storeMessageCountSync, storeMessageCountDirect);
   void routeHydrationEpoch;
 

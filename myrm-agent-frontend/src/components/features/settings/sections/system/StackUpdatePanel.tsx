@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconCheck, IconShield } from '@/components/features/icons/PremiumIcons';
 import { isTauriRuntime } from '@/lib/deploy-mode';
@@ -44,7 +44,7 @@ function parseHour(value: string): number | null {
   return Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : null;
 }
 
-const StackUpdatePanel = memo(() => {
+export default function StackUpdatePanel() {
   const t = useTranslations('settings.system.stackUpdate');
   const [status, setStatus] = useState<UpdateStatusPayload | null>(null);
   const [statusError, setStatusError] = useState(false);
@@ -55,6 +55,9 @@ const StackUpdatePanel = memo(() => {
   const [quietEnd, setQuietEnd] = useState<string>(QUIET_OFF);
   const [receipt, setReceipt] = useState<UpdateReceipt | null>(null);
   const [doctorResult, setDoctorResult] = useState<'pass' | 'fail' | null>(null);
+
+  const quietRef = useRef({ start: QUIET_OFF, end: QUIET_OFF });
+  quietRef.current = { start: quietStart, end: quietEnd };
 
   const {
     phase: desktopPhase,
@@ -83,7 +86,15 @@ const StackUpdatePanel = memo(() => {
 
   useEffect(() => {
     setDeferredVersionState(getDeferredVersion());
-    setQuiet(getQuietHours());
+    const initialQuiet = getQuietHours();
+    setQuiet(initialQuiet);
+    if (initialQuiet) {
+      const s = String(initialQuiet.startHour);
+      const e = String(initialQuiet.endHour);
+      setQuietStart(s);
+      setQuietEnd(e);
+      quietRef.current = { start: s, end: e };
+    }
     setReceipt(takeUpdateReceipt());
     void refreshStatus();
   }, [refreshStatus]);
@@ -116,15 +127,41 @@ const StackUpdatePanel = memo(() => {
     }
   }, [latestVersion]);
 
-  const handleQuietChange = useCallback((start: string, end: string) => {
-    if (start === QUIET_OFF || end === QUIET_OFF) {
+  const handleStartHourChange = useCallback((startVal: string) => {
+    quietRef.current.start = startVal;
+    setQuietStart(startVal);
+    const currentEnd = quietRef.current.end;
+    if (startVal === QUIET_OFF || currentEnd === QUIET_OFF) {
       setQuietHours(null);
       setQuiet(null);
       return;
     }
-    const startHour = parseHour(start);
-    const endHour = parseHour(end);
+    const startHour = parseHour(startVal);
+    const endHour = parseHour(currentEnd);
     if (startHour === null || endHour === null || startHour === endHour) {
+      setQuietHours(null);
+      setQuiet(null);
+      return;
+    }
+    const hours = { startHour, endHour };
+    setQuietHours(hours);
+    setQuiet(hours);
+  }, []);
+
+  const handleEndHourChange = useCallback((endVal: string) => {
+    quietRef.current.end = endVal;
+    setQuietEnd(endVal);
+    const currentStart = quietRef.current.start;
+    if (currentStart === QUIET_OFF || endVal === QUIET_OFF) {
+      setQuietHours(null);
+      setQuiet(null);
+      return;
+    }
+    const startHour = parseHour(currentStart);
+    const endHour = parseHour(endVal);
+    if (startHour === null || endHour === null || startHour === endHour) {
+      setQuietHours(null);
+      setQuiet(null);
       return;
     }
     const hours = { startHour, endHour };
@@ -316,10 +353,8 @@ const StackUpdatePanel = memo(() => {
           <span>{t('quietTitle')}</span>
           <select
             aria-label={t('quietTitle')}
-            value={quiet ? String(quiet.startHour) : QUIET_OFF}
-            onChange={(event) =>
-              handleQuietChange(event.target.value, quiet ? String(quiet.endHour) : QUIET_OFF)
-            }
+            value={quietStart}
+            onChange={(event) => handleStartHourChange(event.target.value)}
             className="px-2 py-1 rounded-lg border border-white/10 bg-transparent text-xs"
           >
             <option value={QUIET_OFF}>{t('quietOff')}</option>
@@ -332,10 +367,8 @@ const StackUpdatePanel = memo(() => {
           <span>→</span>
           <select
             aria-label={t('quietTitle')}
-            value={quiet ? String(quiet.endHour) : QUIET_OFF}
-            onChange={(event) =>
-              handleQuietChange(quiet ? String(quiet.startHour) : QUIET_OFF, event.target.value)
-            }
+            value={quietEnd}
+            onChange={(event) => handleEndHourChange(event.target.value)}
             className="px-2 py-1 rounded-lg border border-white/10 bg-transparent text-xs"
           >
             <option value={QUIET_OFF}>{t('quietOff')}</option>
@@ -350,7 +383,4 @@ const StackUpdatePanel = memo(() => {
       </div>
     </section>
   );
-});
-
-StackUpdatePanel.displayName = 'StackUpdatePanel';
-export default StackUpdatePanel;
+}
