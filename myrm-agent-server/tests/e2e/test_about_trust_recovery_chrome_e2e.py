@@ -71,3 +71,12 @@ def test_about_tab_trust_recovery_chrome_e2e() -> None:
             "Stack-Updates",
         )
         assert any(title in body_text for title in panel_titles), state
+        web_markers = (
+            "Server ",
+            "Engine ",
+            "Everything is up to date.",
+            "Update available:",
+            "Latest version unknown.",
+            "Could not reach the update service.",
+        )
+        assert any(marker in body_text for marker in web_markers), state

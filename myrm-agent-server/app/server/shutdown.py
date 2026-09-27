@@ -60,6 +60,12 @@ async def safe_stop_task_worker() -> None:
 async def safe_close_checkpointer(cleanup_fn: Callable[[], Awaitable[None]] | None) -> None:
     if cleanup_fn is not None:
         await cleanup_fn()
+    try:
+        from myrm_agent_harness.api import close_subagent_checkpointer
+
+        await close_subagent_checkpointer()
+    except Exception as exc:
+        logger.debug("[Shutdown] Subagent checkpointer close error: %s", exc)
 
 
 async def safe_stop_maintenance_daemon() -> None:

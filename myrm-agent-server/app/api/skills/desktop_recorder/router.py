@@ -27,9 +27,12 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from myrm_agent_harness.api import (
+    DEFAULT_ALLOWED_TOOLS,
     DesktopRecordedEvent,
+    RecordedActionType,
     WorkflowIntentPlan,
     WorkflowSkillCompiler,
+    is_secure_role,
     synthesize_desktop_skill_draft,
 )
 
@@ -111,12 +114,18 @@ async def record_desktop_event(request: RecordDesktopEventRequest) -> dict[str, 
         element_role=request.element_role,
         element_title=request.element_title,
         value=request.value,
-        is_password=request.is_password,
+        # A password field's value must never be persisted in the clear. The client declares the
+        # field type, so the server owns masking rather than trusting the caller to redact it.
+        is_password=request.is_password or is_secure_role(request.element_role),
         modifiers=request.modifiers,
         screenshot_b64=request.screenshot_b64,
     )
     session.add_event(ev)
-    return {"status": "ok", "recorded_count": len(session.events)}
+    return {
+        "status": "ok",
+        "recorded_count": len(session.events),
+        "events_dropped": session.events_dropped,
+    }
 
 
 @router.post("/stop", response_model=StopDesktopRecordingResponse)
@@ -149,7 +158,12 @@ async def get_desktop_recording_session(session_id: str) -> dict[str, Any]:
         "started_at": session.started_at,
         "stopped_at": session.stopped_at,
         "events_count": len(session.events),
+        # Events are serialized through to_dict() so a password field's value is masked even if
+        # a client sent one, rather than echoing the raw stored value back over HTTP.
         "events": [e.to_dict() for e in session.events],
+        # Non-zero means the trace was clipped at the session cap; the UI must say so instead of
+        # presenting a truncated recording as a complete workflow.
+        "events_dropped": session.events_dropped,
         # Live capture state so the UI can show progress and explain an unavailable capture.
         "capture_active": session.capture_active,
         "capture_error": session.capture_error,
@@ -183,7 +197,9 @@ async def analyze_desktop_plan(
     if not session.events:
         raise HTTPException(status_code=400, detail="No events recorded in this session to analyze.")
 
-    # Aggregate events into ordered semantic plan steps
+    # Aggregate events into ordered semantic plan steps. Action comparisons use the
+    # RecordedActionType enum so a renamed literal can never silently fall through to the
+    # generic branch and lose the step's real meaning.
     steps: list[WorkflowPlanStepSchema] = []
     variables: dict[str, str] = {}
     current_app = ""
@@ -191,24 +207,27 @@ async def analyze_desktop_plan(
 
     for ev in session.events:
         app_name = ev.app_name or "System"
-        title = ""
-        desc = ""
-        tool_hint = "browser_interact_tool" if "browser" in app_name.lower() or "chrome" in app_name.lower() else "shell_execute"
+        variables_used: list[str] = []
+        # Browser apps are driven through the browser toolkit; every other app is driven by
+        # re-resolving the recorded element in the desktop tree.
+        is_browser = "browser" in app_name.lower() or "chrome" in app_name.lower()
+        tool_hint = "browser_interact_tool" if is_browser else "desktop_interact_tool"
 
-        if ev.action in ("click", "double_click"):
-            elem = ev.element_title or ev.element_role or "target element"
-            title = f"Interact with {elem} in {app_name}"
-            desc = f"Perform {ev.action} on '{elem}' (Window: {ev.window_title or 'active'})."
-        elif ev.action in ("input", "type"):
-            var_key = f"input_val_{step_idx}"
-            variables[var_key] = f"Input value for {ev.element_title or 'form field'}"
-            title = f"Input value into {ev.element_title or 'field'} in {app_name}"
-            desc = f"Enter `{{{{{var_key}}}}}` into {ev.element_title or 'input'}."
-        elif ev.action == "app_switch" or app_name != current_app:
+        if ev.action == RecordedActionType.WINDOW_FOCUS.value or app_name != current_app:
             current_app = app_name
             title = f"Switch to application {app_name}"
             desc = f"Activate {app_name} (Window: {ev.window_title or 'Main'})."
             tool_hint = ""
+        elif ev.action == RecordedActionType.TYPE.value:
+            var_key = f"input_val_{step_idx}"
+            variables[var_key] = f"Input value for {ev.element_title or 'form field'}"
+            variables_used = [var_key]
+            title = f"Input value into {ev.element_title or 'field'} in {app_name}"
+            desc = f"Enter `{{{{{var_key}}}}}` into {ev.element_title or 'input'}."
+        elif ev.action == RecordedActionType.CLICK.value:
+            elem = ev.element_title or ev.element_role or "target element"
+            title = f"Interact with {elem} in {app_name}"
+            desc = f"Perform {ev.action} on '{elem}' (Window: {ev.window_title or 'active'})."
         else:
             title = f"Execute {ev.action} in {app_name}"
             desc = f"Action {ev.action} recorded on {ev.window_title or app_name}."
@@ -220,7 +239,7 @@ async def analyze_desktop_plan(
                 description=desc,
                 tool_hint=tool_hint,
                 target_app=app_name,
-                variables_used=([f"input_val_{step_idx}"] if ev.action in ("input", "type") else []),
+                variables_used=variables_used,
             )
         )
         step_idx += 1
@@ -232,13 +251,7 @@ async def analyze_desktop_plan(
         or f"Automates recorded sequence across {len(set(e.app_name for e in session.events if e.app_name))} applications.",
         steps=steps,
         variables=variables,
-        allowed_tools=[
-            "browser_navigate_tool",
-            "browser_interact_tool",
-            "shell_execute",
-            "read_file",
-            "write_file",
-        ],
+        allowed_tools=list(DEFAULT_ALLOWED_TOOLS),
     )
 
     harness_plan = WorkflowIntentPlan.from_dict(plan.model_dump())

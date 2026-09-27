@@ -37,12 +37,22 @@ class RecordingSessionState:
         self.capture_active: bool = False
         self.capture_error: str | None = None
         self.last_seen_at: float = time.time()
+        # How many events were evicted to honour the session cap. Surfaced to the UI so a
+        # truncated trace is reported instead of silently producing an incomplete skill.
+        self.events_dropped: int = 0
 
     def touch(self) -> None:
         """Record client activity so an abandoned session can be reaped."""
         self.last_seen_at = time.time()
 
     def add_event(self, event: DesktopRecordedEvent) -> None:
+        """Append an event, preserving the beginning of the trace when the cap is exceeded.
+
+        Dropping the oldest event keeps the most recent context, but a truncation must be
+        observable: otherwise a long recording silently produces a skill whose opening steps
+        are missing and nobody can tell the trace was clipped.
+        """
         if len(self.events) >= _MAX_EVENTS_PER_SESSION:
             self.events.pop(0)
+            self.events_dropped += 1
         self.events.append(event)

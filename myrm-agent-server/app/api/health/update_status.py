@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -87,12 +88,16 @@ def split_changelog(body: str) -> dict[str, object]:
             fixed.append(item)
         else:
             other.append(item)
+    is_security = bool(
+        re.search(r"\b(cve-\d+|security|vulnerability|critical vulnerability)\b", body or "", re.IGNORECASE)
+    )
     if not fixed and not other:
-        return {"fixed": [], "other": [], "grouped": False, "raw": (body or "")[:2000]}
+        return {"fixed": [], "other": [], "grouped": False, "is_security": is_security, "raw": (body or "")[:2000]}
     return {
         "fixed": fixed[:_CHANGELOG_CAP],
         "other": other[:_CHANGELOG_CAP],
         "grouped": True,
+        "is_security": is_security,
         "raw": "",
     }
 
@@ -196,7 +201,7 @@ async def _git_behind() -> dict[str, object] | None:
 
 
 @router.get("/update-status")
-async def update_status() -> dict[str, object]:
+async def update_status(force: bool = False) -> dict[str, object]:
     """Stack update truth: versions, latest release, changelog groups, prebuilt."""
     from myrm_agent_harness import __version__ as harness_version
 
@@ -208,7 +213,7 @@ async def update_status() -> dict[str, object]:
     now = time.monotonic()
     cached_at = float(_latest_cache.get("fetched_at") or 0.0)
     cached_payload = _latest_cache.get("payload")
-    if cached_payload is not None and now - cached_at < _LATEST_TTL_SEC:
+    if not force and cached_payload is not None and now - cached_at < _LATEST_TTL_SEC:
         latest_result = cached_payload
     else:
         latest_result = await _fetch_latest_release(repo)
