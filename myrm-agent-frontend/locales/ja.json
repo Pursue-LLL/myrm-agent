@@ -17948,8 +17948,7 @@
         "doctorFail": "更新サービスに問題——上記を確認。",
         "quietTitle": "おやすみ時間",
         "quietOff": "オフ",
-        "quietActive": "おやすみ時間中——通知を停止中。",
-        "receipt": "{from} から {to} に更新しました。"
+        "quietActive": "おやすみ時間中——通知を停止中。"
       }
     },
     "push": {

@@ -17948,8 +17948,7 @@
         "doctorFail": "업데이트 서비스에 문제 — 위를 확인하세요.",
         "quietTitle": "방해 금지 시간",
         "quietOff": "끔",
-        "quietActive": "방해 금지 시간 중 — 알림 일시중지.",
-        "receipt": "{from}에서 {to}로 업데이트했습니다."
+        "quietActive": "방해 금지 시간 중 — 알림 일시중지."
       }
     },
     "push": {

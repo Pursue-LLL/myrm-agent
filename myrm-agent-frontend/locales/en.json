@@ -5481,8 +5481,7 @@
         "doctorFail": "Update service has a problem — check the message above.",
         "quietTitle": "Quiet hours",
         "quietOff": "Off",
-        "quietActive": "Quiet hours active — nudges paused.",
-        "receipt": "Updated from {from} to {to}."
+        "quietActive": "Quiet hours active — nudges paused."
       }
     },
     "push": {

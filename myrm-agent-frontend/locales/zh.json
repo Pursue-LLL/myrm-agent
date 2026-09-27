@@ -5481,8 +5481,7 @@
         "doctorFail": "更新服务有问题——请看上方提示。",
         "quietTitle": "免打扰时段",
         "quietOff": "关闭",
-        "quietActive": "免打扰生效中——提醒已暂停。",
-        "receipt": "已从 {from} 更新到 {to}。"
+        "quietActive": "免打扰生效中——提醒已暂停。"
       }
     },
     "push": {

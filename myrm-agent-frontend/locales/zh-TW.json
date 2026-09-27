@@ -17948,8 +17948,7 @@
         "doctorFail": "更新服務有問題——請看上方提示。",
         "quietTitle": "免打擾時段",
         "quietOff": "關閉",
-        "quietActive": "免打擾生效中——提醒已暫停。",
-        "receipt": "已從 {from} 更新到 {to}。"
+        "quietActive": "免打擾生效中——提醒已暫停。"
       }
     },
     "push": {

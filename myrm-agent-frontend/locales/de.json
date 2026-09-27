@@ -17948,8 +17948,7 @@
         "doctorFail": "Update-Dienst hat ein Problem — Hinweis oben beachten.",
         "quietTitle": "Ruhezeiten",
         "quietOff": "Aus",
-        "quietActive": "Ruhezeiten aktiv — Hinweise pausiert.",
-        "receipt": "Von {from} auf {to} aktualisiert."
+        "quietActive": "Ruhezeiten aktiv — Hinweise pausiert."
       }
     },
     "push": {
