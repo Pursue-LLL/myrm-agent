@@ -1,7 +1,8 @@
 """Stack update truth for the Settings → System → About Stack Update Panel.
 
 [INPUT]
-- (none)
+- app.config.settings::settings (POS: 系统全局运行时配置)
+- myrm_agent_harness::__version__ (POS: 执行引擎版本号)
 
 [OUTPUT]
 - router: GET /api/v1/health/update-status

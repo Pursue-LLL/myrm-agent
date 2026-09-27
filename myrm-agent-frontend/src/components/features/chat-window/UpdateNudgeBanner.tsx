@@ -10,7 +10,8 @@
  *
  * [POS]
  * EmptyChat banner shown when the server stack is stale, unless the version
- * is deferred, quiet hours are active, or the session dismissed it.
+ * is deferred, quiet hours are active, or the session dismissed it. Security
+ * patches bypass deferral and quiet hours.
  */
 
 import { useCallback, useEffect, useState } from 'react';
