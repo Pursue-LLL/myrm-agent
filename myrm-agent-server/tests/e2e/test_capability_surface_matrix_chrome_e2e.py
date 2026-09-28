@@ -14,7 +14,6 @@ Covers the full real-user workflow in the WebUI Settings Security tab:
 from __future__ import annotations
 
 import json
-from typing import Any
 
 import pytest
 
@@ -81,20 +80,21 @@ _CLICK_AUTONOMOUS_PRESET_JS = """(() => {
   return { ok: true };
 })()"""
 
-_ALL_SURFACES_ALLOW_ACTIVE_JS = """(() => {
+_AUTONOMOUS_PRESET_ACTIVE_JS = """(() => {
   const surfaces = [
     'knowledge_read',
     'knowledge_write',
     'web_egress',
     'candidate_create',
-    'remote_tools',
     'local_filesystem',
   ];
   const allAllow = surfaces.every((key) => {
     const btn = document.querySelector(`[data-testid="capability-action-${key}-allow"]`);
     return btn && btn.className.includes('bg-emerald-500');
   });
-  return { ready: allAllow };
+  const remoteToolsAsk = document.querySelector('[data-testid="capability-action-remote_tools-ask"]');
+  const isRemoteAsk = remoteToolsAsk && remoteToolsAsk.className.includes('bg-amber-500');
+  return { ready: Boolean(allAllow && isRemoteAsk) };
 })()"""
 
 _CLICK_GUARDED_PRESET_JS = """(() => {
@@ -119,6 +119,12 @@ _CLICK_BALANCED_PRESET_JS = """(() => {
   return { ok: true };
 })()"""
 
+_BALANCED_PRESET_ACTIVE_JS = """(() => {
+  const kwAsk = document.querySelector('[data-testid="capability-action-knowledge_write-ask"]');
+  const isKwAsk = kwAsk && kwAsk.className.includes('bg-amber-500');
+  return { ready: Boolean(isKwAsk) };
+})()"""
+
 
 @pytest.mark.chrome_e2e(
     execution_mode="PRIVATE",
@@ -133,10 +139,7 @@ def test_capability_surface_matrix_chrome_e2e() -> None:
     api_base = get_e2e_api_url()
     warm_ui_route("/settings/security")
 
-    with open_settings_subroute("/settings/security", timeout_ms=90_000) as (
-        client: ChromeMcpClient,
-        page: McpPage,
-    ):
+    with open_settings_subroute("/settings/security", timeout_ms=90_000) as (client, page):
         # 0. 先等待 Settings Security 外层 Shell 水合就绪
         shell_state = wait_for_state(client, page, SETTINGS_SECURITY_SHELL_READY_JS, timeout_sec=90.0)
         assert shell_state.get("ready") is True, f"Shell not ready: {json.dumps(shell_state)}"
@@ -157,8 +160,8 @@ def test_capability_surface_matrix_chrome_e2e() -> None:
         auto_click = client.evaluate(page, _CLICK_AUTONOMOUS_PRESET_JS, timeout_sec=15.0)
         assert isinstance(auto_click, dict) and auto_click.get("ok") is True, auto_click
 
-        all_allow = wait_for_state(client, page, _ALL_SURFACES_ALLOW_ACTIVE_JS, timeout_sec=20.0)
-        assert all_allow.get("ready") is True, f"All surfaces allow not active: {json.dumps(all_allow)}"
+        auto_active = wait_for_state(client, page, _AUTONOMOUS_PRESET_ACTIVE_JS, timeout_sec=20.0)
+        assert auto_active.get("ready") is True, f"Autonomous preset not active: {json.dumps(auto_active)}"
 
         # 4. 模拟真实用户点击预设：应用 Guarded (谨慎防范) 预设
         guarded_click = client.evaluate(page, _CLICK_GUARDED_PRESET_JS, timeout_sec=15.0)
@@ -168,7 +171,7 @@ def test_capability_surface_matrix_chrome_e2e() -> None:
         assert guarded_active.get("ready") is True, f"Guarded preset not active: {json.dumps(guarded_active)}"
 
         # 5. 校验后端配置接口返回数据落盘一致性
-        res: Any = http_json("GET", f"{api_base}/api/v1/config/securityConfig")
+        res: dict[str, object] = http_json("GET", f"{api_base}/api/v1/config/securityConfig")
         cfg_val = res.get("value") if isinstance(res, dict) and "value" in res else res
         assert isinstance(cfg_val, dict), f"Invalid config payload: {res}"
         matrix = cfg_val.get("capabilityMatrix")
@@ -178,3 +181,4 @@ def test_capability_surface_matrix_chrome_e2e() -> None:
 
         # 6. 环境恢复与清理：重置为 Balanced 预设，避免污染其他测试
         client.evaluate(page, _CLICK_BALANCED_PRESET_JS, timeout_sec=15.0)
+        wait_for_state(client, page, _BALANCED_PRESET_ACTIVE_JS, timeout_sec=20.0)
