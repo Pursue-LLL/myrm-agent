@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Copy, Check, Pencil, FileText, ImageOff, RotateCw, Download, Undo2 } from 'lucide-react';
+import { Copy, Check, Pencil, FileText, ImageOff, RotateCw, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils/classnameUtils';
 import { stripUserMessageDisplayText, parseExplicitSkillActivation } from '@/lib/utils/messageUtils';
@@ -15,7 +15,7 @@ import { formatMessageTimestamp } from '@/lib/utils/timeUtils';
 import { isImeComposing } from '@/lib/utils/imeUtils';
 import { ImageLightbox } from '../message-input-actions/ImageLightbox';
 import { ForkButton } from '../chat-window/ForkButton';
-import { RewindDialog } from '../chat-window/RewindDialog';
+import { RewindButton } from '../chat-window/RewindButton';
 
 interface UserMessageProps {
   content: string;
@@ -154,7 +154,6 @@ const UserMessage = React.memo(
     const [copied, setCopied] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
     const [editText, setEditText] = useState('');
-    const [rewindOpen, setRewindOpen] = useState(false);
     const editTextareaRef = useRef<HTMLTextAreaElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const { state: quoteState, dismiss: dismissQuote } = useQuoteSelection(contentRef);
@@ -329,16 +328,12 @@ const UserMessage = React.memo(
                   )}
                   {chatId && messageIndex !== undefined && (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => setRewindOpen(true)}
+                      <RewindButton
+                        chatId={chatId}
+                        messageId={messageId}
+                        messageIndex={messageIndex}
                         disabled={continuityBlocked}
-                        className="p-1.5 text-black/50 dark:text-white/50 rounded-lg hover:bg-secondary dark:hover:bg-secondary transition duration-200 hover:text-black dark:hover:text-white disabled:opacity-40 disabled:pointer-events-none"
-                        title={continuityBlocked ? t('rewind.streamingBlocked') : t('rewind.buttonTitle')}
-                        aria-label={t('rewind.buttonLabel')}
-                      >
-                        <Undo2 size={16} />
-                      </button>
+                      />
                       {!continuityBlocked && <ForkButton chatId={chatId} messageIndex={messageIndex} />}
                     </>
                   )}
@@ -392,15 +387,6 @@ const UserMessage = React.memo(
             />
           )}
         </div>
-        {chatId && messageIndex !== undefined && (
-          <RewindDialog
-            open={rewindOpen}
-            onOpenChange={setRewindOpen}
-            chatId={chatId}
-            messageId={messageId}
-            messageIndex={messageIndex}
-          />
-        )}
       </>,
       locale,
     );

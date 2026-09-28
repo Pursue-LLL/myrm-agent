@@ -71,7 +71,7 @@ _OPEN_REWIND_JS = """(() => {
   const allBtns = () =>
     Array.from(
       document.querySelectorAll(
-        '[aria-label="Rewind to here"], [aria-label="回退到这里"]',
+        '[data-testid="rewind-message-button"], [aria-label="Rewind to here"], [aria-label="回退到这里"]',
       ),
     );
   const msgIds = Array.from(
@@ -79,7 +79,7 @@ _OPEN_REWIND_JS = """(() => {
   ).map((el) => ({
     id: el.getAttribute('data-message-id'),
     hasRewindBtn: !!el.querySelector(
-      '[aria-label="Rewind to here"], [aria-label="回退到这里"]',
+      '[data-testid="rewind-message-button"], [aria-label="Rewind to here"], [aria-label="回退到这里"]',
     ),
   }));
   const connected = allBtns().filter((b) => b.isConnected && !b.disabled);
@@ -102,6 +102,11 @@ _OPEN_REWIND_JS = """(() => {
       sample: (document.body.innerText || '').slice(0, 400),
     };
   }
+  btn.scrollIntoView({ block: 'center', inline: 'nearest' });
+  btn.focus();
+  btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+  btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+  btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   btn.click();
   // Immediate post-click diagnostics: confirm React actually opened the dialog.
   return {
@@ -109,13 +114,35 @@ _OPEN_REWIND_JS = """(() => {
     count: connected.length,
     clickedIndex: connected.length >= 2 ? 1 : 0,
     btnDisabled: btn.disabled,
+    btnOuterHtml: (btn.outerHTML || '').slice(0, 300),
+    btnRenderedHook: window.__REWIND_BTN_RENDERED__ ?? null,
+    btnClickedHook: window.__REWIND_BTN_CLICKED__ ?? null,
+    dialogRenderedHook: window.__REWIND_DIALOG_RENDERED__ ?? null,
     dialogImmediately: !!document.querySelector('[role="dialog"]'),
     msgIds,
   };
 })()"""
 
 _DIALOG_READY_JS = """(() => {
-  const dlg = document.querySelector('[role="dialog"]');
+  let dlg = document.querySelector('[role="dialog"]');
+  if (!dlg) {
+    // Retry click if dialog is not yet present
+    const allBtns = Array.from(
+      document.querySelectorAll(
+        '[data-testid="rewind-message-button"], [aria-label="Rewind to here"], [aria-label="回退到这里"]',
+      ),
+    ).filter((b) => b.isConnected && !b.disabled);
+    const btn = allBtns[1] || allBtns[0] || null;
+    if (btn) {
+      btn.scrollIntoView({ block: 'center', inline: 'nearest' });
+      btn.focus();
+      btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+      btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      btn.click();
+    }
+    dlg = document.querySelector('[role="dialog"]');
+  }
   const scopeBtns = Array.from(dlg?.querySelectorAll('button') || []).map(
     (b) => (b.textContent || '').trim(),
   );
@@ -125,6 +152,9 @@ _DIALOG_READY_JS = """(() => {
     hasScopeBoth: scopeBtns.some(
       (t) => t.includes('Conversation and files') || t.includes('对话和文件'),
     ),
+    btnRenderedHook: window.__REWIND_BTN_RENDERED__ ?? null,
+    btnClickedHook: window.__REWIND_BTN_CLICKED__ ?? null,
+    dialogRenderedHook: window.__REWIND_DIALOG_RENDERED__ ?? null,
   };
 })()"""
 
@@ -138,6 +168,11 @@ _SELECT_SCOPE_JS = """(() => {
       (b.textContent || '').includes('仅对话'),
   );
   if (!target) return { ok: false, err: 'no-scope-btn', btns: btns.map((b) => (b.textContent || '').trim()) };
+  target.scrollIntoView({ block: 'center', inline: 'nearest' });
+  target.focus();
+  target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+  target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+  target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   target.click();
   return { ok: true };
 })()"""
@@ -151,6 +186,11 @@ _CONFIRM_REWIND_JS = """(() => {
     return t === 'Rewind' || t === '回退';
   });
   if (!target) return { ok: false, err: 'no-confirm-btn', btns: btns.map((b) => (b.textContent || '').trim()) };
+  target.scrollIntoView({ block: 'center', inline: 'nearest' });
+  target.focus();
+  target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+  target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+  target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   target.click();
   return { ok: true };
 })()"""
@@ -167,7 +207,9 @@ _FINAL_STATE_JS = """(() => {
     .map((t) => (t.textContent || '').trim())
     .filter(Boolean);
   const rewoundBtns = Array.from(
-    document.querySelectorAll('[aria-label="Rewind to here"], [aria-label="回退到这里"]'),
+    document.querySelectorAll(
+      '[data-testid="rewind-message-button"], [aria-label="Rewind to here"], [aria-label="回退到这里"]',
+    ),
   );
   return {
     ok: value.includes('REWIND_MARKER_B'),

@@ -58,6 +58,16 @@ interface FilePreview {
 }
 
 export function RewindDialog({ open, onOpenChange, chatId, messageId, messageIndex }: RewindDialogProps) {
+  if (typeof window !== 'undefined') {
+    const g = window as unknown as Record<string, unknown>;
+    g.__REWIND_DIALOG_RENDERED__ = {
+      open,
+      chatId,
+      messageId,
+      messageIndex,
+      time: Date.now(),
+    };
+  }
   const { toast } = useToast();
   const t = useTranslations('chat.rewind');
   const [isRewinding, setIsRewinding] = useState(false);
