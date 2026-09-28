@@ -28,6 +28,7 @@ interface MeetingNotesResponse {
   summary: string;
   decisions: string[];
   debate_points: string[];
+  risks: string[];
   action_items: Array<{ description: string; owner: string | null; due_hint: string | null }>;
   published_wiki_paths: string[];
   error: string;
@@ -129,6 +130,16 @@ export default function MeetingNotesImportCard() {
                 <ul className="list-disc pl-5 text-xs text-muted-foreground">
                   {result.debate_points.map((p) => (
                     <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {result.risks.length > 0 && (
+              <div>
+                <p className="text-xs font-medium">{t('meetingNotes.risks')}</p>
+                <ul className="list-disc pl-5 text-xs text-muted-foreground">
+                  {result.risks.map((risk) => (
+                    <li key={risk}>{risk}</li>
                   ))}
                 </ul>
               </div>

@@ -3231,7 +3231,8 @@
         "uploadButton": "转写并生成纪要",
         "decisions": "会议决议",
         "debates": "关键争论点",
-        "actionItems": "待办任务"
+        "actionItems": "待办任务",
+        "risks": "风险"
       }
     },
     "skills": {

@@ -3231,7 +3231,8 @@
         "uploadButton": "Transcribe & Generate Minutes",
         "decisions": "Decisions",
         "debates": "Key Debate Points",
-        "actionItems": "Action Items"
+        "actionItems": "Action Items",
+        "risks": "Risks"
       }
     },
     "skills": {

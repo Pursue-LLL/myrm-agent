@@ -3377,7 +3377,13 @@ async def ingest_live_meeting_transcript(
         session = await get_live_notes_registry().get_or_create(session_id)
         if not session.ingest(payload.text, payload.timestamp):
             return _live_notes_response(session, refreshed=False)
-        refreshed = await session.maybe_refresh(archiver._llm)
+        refreshed = None
+        try:
+            refreshed = await session.maybe_refresh(archiver._llm)
+        except Exception:
+            # A transient distillation failure must not fail the ingest itself: the
+            # line is already recorded and the last good snapshot is returned.
+            logger.warning("Live meeting refresh failed; returning last snapshot", exc_info=True)
         return _live_notes_response(session, refreshed=refreshed is not None)
     except Exception as e:
         logger.error("Live meeting ingest failed: %s", e)
