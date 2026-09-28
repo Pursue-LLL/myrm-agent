@@ -90,10 +90,13 @@ _BASH_TOOL = "bash_code_execute_tool"
 _PATTERN_COMMAND = "curl -sS http://127.0.0.1:9/ALLOWLIST_LIVE_PROBE"
 # Matches deriveCommandPattern(first_two_tokens + " *") for the probe command.
 _PATTERN_STORED = "curl -sS *"
-# Natural-language user turn (no E2E_* / MUST injection — mimo rejects those in user text).
+# Natural-language user turn (no E2E_* / MUST injection — models reject those in user
+# text as prompt injection). Do not name the tool either: verbatim tool instructions read
+# as routing metadata and get refused; the agent system prompt already selects the shell
+# tool for this probe.
 _USER_PROMPT = (
-    "Run this shell connectivity probe exactly once with bash_code_execute_tool: "
-    f"`{_PATTERN_COMMAND}`. Connection refused is expected."
+    "Please run this shell connectivity probe for me, exactly once. "
+    f"`{_PATTERN_COMMAND}` — a connection refusal is the expected result."
 )
 _APPROVAL_WAIT_SEC = 240.0
 _STALL_AFTER_STREAM_SEC = 90.0
