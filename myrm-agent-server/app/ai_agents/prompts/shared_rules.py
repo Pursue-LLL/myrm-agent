@@ -79,7 +79,10 @@ DESKTOP_CONTROL_RULES_EN = """
 - Use set_value for atomic field replacement; use type for keystroke simulation.
 - Never pass printable operators (e.g. "*", "/", "+", "-", "%", "=") as desktop_vision_tool key= names. Type those characters with type, or click the matching calculator/@dref button via desktop_interact_tool. Note: interact action=press activates the @dref control; it is not a keyboard key name.
 - After desktop_interact_tool, read the follow-up snapshot before the next action.
-- To act on a specific app without switching the foreground, call desktop_snapshot_tool(scope="target", app_name="<app name>") and then interact via its @dref refs.
+- To act on a specific app without switching the foreground, call desktop_snapshot_tool(scope="target", app_name="<app name>") and then interact via its @dref refs. Background input is delivered to that app; if the foreground changes unexpectedly the call aborts — re-snapshot and retry.
+- Batch deterministic reversible steps into as few tool calls as possible instead of stopping to ask whether to continue; stop only for ambiguous identity, fresh coordinates, irreversible actions, or unexpected UI state.
+- Cheapest check first: visible state → one screenshot; semantic state → one AX query; use both only when they prove different things.
+- Wait for async UI by re-querying inside the running tool call (wait_seconds) instead of asking round after round.
 - On macOS, if snapshot reports permission required, ask the user to grant Accessibility access before retrying.
 - First-time control of each desktop app requires user approval in the Web UI.
 - **When Not to Use Mobile Mirroring**: If a task can be achieved via browser, Web API, or native desktop app, do not switch to iPhone Mirroring. Agent must never automatically click iPhone connection or biometric pairing prompts.
@@ -97,7 +100,10 @@ DESKTOP_CONTROL_RULES_ZH = """
 - 使用 set_value 进行原子字段替换；使用 type 进行击键模拟。
 - 禁止把可打印运算符（如 "*"、"/"、"+"、"-"、"%"、"="）当作 desktop_vision_tool 的 key= 键名。请用 type 输入这些字符，或通过 desktop_interact_tool click 计算器等界面上的对应 @dref 按钮。注意：interact 的 action=press 是激活 @dref 控件，不是键盘键名。
 - 调用 desktop_interact_tool 后，在执行下一步操作前先读取后续快照。
-- 若要在不切换前台的情况下操作特定应用，调用 desktop_snapshot_tool(scope="target", app_name="<app name>")，随后通过其 @dref 引用交互。
+- 若要在不切换前台的情况下操作特定应用，调用 desktop_snapshot_tool(scope="target", app_name="<app name>")，随后通过其 @dref 引用交互。后台输入直达该应用；若前台意外变化调用会中止，重拍快照后重试。
+- 确定可逆的步骤尽量打包进最少的工具调用，不要中途停下询问是否继续；仅在身份歧义、需要新坐标、不可逆动作或意外 UI 状态时停下。
+- 最便宜的检查优先：可见状态→一张截图；语义状态→一次 AX 查询；两者证明不同时才都用。
+- 用运行中工具调用内的重复查询（含 wait_seconds）等待异步 UI，不要一轮一轮追问。
 - 在 macOS 上，若快照报告需要权限，请在重试前提示用户授予辅助功能访问权限。
 - 首次控制每个桌面应用时，需在 Web UI 中获得用户批准。
 - **手机镜像非必要不使用原则（When Not to Use）**: 凡可通过网页、Web API 或桌面原生客户端解决的任务，严禁切换至 iPhone 镜像。Agent 严禁擅自代点 iPhone 连接确认与生物配对授权弹窗。
