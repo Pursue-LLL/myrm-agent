@@ -10,6 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包导出 | — |
 | `router.py` | 路由 | `GET /approvals`、`POST /{id}/resolve`、`POST /batch-resolve`、`POST /test/seed-mock`（local E2E） | ✅ |
+| `credentials.py` | 路由 | `POST /{approval_id}/credentials` 瞬态敏感凭证内存暂存与 handle 签发 | ✅ |
 | `knowledge_patch.py` | 辅助 | 知识补丁审批通过后的 Wiki/Procedural 规则写入处理 | ✅ |
 
 ## 路由（前缀 `/api/v1/approvals`）
@@ -17,6 +18,7 @@
 | 方法 | 路径 | 职责 |
 |------|------|------|
 | GET | `` | 分页列出 pending（`limit` 1–100，`offset`）；排除无 `thread_id` 的后台 growth draft |
+| POST | `/{id}/credentials` | 内存暂存一次性执行凭据，返回 handle_id 引用，无密文落地与回显 |
 | POST | `/{approval_id}/resolve` | 单条决策：`decision`（`approve`/`deny`/`reject`→`deny`）、`edited_payload`、`comment`、`allow_always`（bool 或 `{tool,args,pattern,duration,ttl_seconds}`）；有 `thread_id` 时发布 `APPROVAL_RESOLVED` |
 | POST | `/batch-resolve` | 批量 `approval_ids` + `decision`；逐条 resolve 并对有 `thread_id` 项发事件 |
 | POST | `/test/seed-mock` | local/test only：创建 chat + inline pending approval，返回 `push_url`（Chrome push deeplink E2E） |

@@ -16,12 +16,14 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
+from app.api.approvals.credentials import router as credentials_router
 from app.database.models.approval import ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/approvals", tags=["approvals"])
+router.include_router(credentials_router)
 
 
 async def _handle_outbound_draft_resolution(record: ApprovalRecord, decision: str) -> None:
@@ -62,6 +64,7 @@ class ResolveApprovalRequest(BaseModel):
     comment: str | None = None
     allow_always: bool | AllowAlwaysValue | None = None
     ttl_seconds: int | float | None = None
+    ephemeral_credential_handles: list[str] | None = None
 
 
 class BatchResolveApprovalRequest(BaseModel):
@@ -250,6 +253,7 @@ async def resolve_approval(
                         "allow_always": req.allow_always,
                         "ttl_seconds": req.ttl_seconds,
                         "edited_payload": req.edited_payload,
+                        "ephemeral_credential_handles": req.ephemeral_credential_handles,
                     },
                 )
             )
