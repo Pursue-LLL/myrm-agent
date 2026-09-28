@@ -39,11 +39,12 @@ _PLANE_REAP_LOG: Final[str] = "plane-health-reap.jsonl"
 _CONVERGE_LOCK: Final[str] = "plane-converge.lockdir"
 _CONVERGE_LOCK_STALE_SEC: Final[float] = 120.0
 _IDLE_CONVERGE_WALL_SEC: Final[float] = 45.0
-# Wait budget for a cold mux daemon start. A direct daemon invocation may first wait
-# for a cold Chrome CDP endpoint (bounded by the mux package's CDP wait), so this must
-# outlast it — a shorter poll reported failure while the daemon was still legitimately
-# starting, which masqueraded as a permanently broken plane.
-_MUX_COLD_START_WAIT_SEC: Final[float] = 20.0
+# Wait budget for a cold mux daemon start. The daemon waits for Chrome's cold CDP
+# endpoint before it attaches its upstream and creates its socket (ensure-cdp-ready.mjs
+# waits up to 45s), so this must outlast that wait — a shorter poll reported failure while
+# the daemon was still legitimately starting, which masqueraded as a broken plane and
+# triggered a cold-start storm.
+_MUX_COLD_START_WAIT_SEC: Final[float] = 60.0
 # mux.log is appended to continuously with no rotation; cap it so a long-lived workspace
 # cannot grow the daemon log without bound (observed 409 MB).
 _MUX_LOG_MAX_BYTES: Final[int] = 64 * 1024 * 1024

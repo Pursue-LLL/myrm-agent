@@ -70,7 +70,20 @@ chrome_e2e_owner_pid() {
 }
 
 chrome_e2e_cdp_healthy() {
-  curl -sf --max-time 3 "${MYRM_CHROME_E2E_BROWSER_URL}/json/version" >/dev/null 2>&1
+  # A single curl is NOT evidence that Chrome is dead: while several lanes drive CDP the
+  # endpoint can exceed one timeout. Callers respond to a negative verdict by killing the
+  # browser (ensure-myrm-chrome-e2e.sh: "terminate unhealthy dedicated listener"), which
+  # under parallel load killed a healthy Chrome, removed CDP :9333, made the shared mux
+  # fatal out ("CDP /json/version unreachable") and sent the whole cluster into a reap /
+  # restart spiral. Retry before declaring the browser unhealthy.
+  local attempt
+  for attempt in 1 2 3 4; do
+    if curl -sf --max-time 3 "${MYRM_CHROME_E2E_BROWSER_URL}/json/version" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 0.5
+  done
+  return 1
 }
 
 chrome_e2e_process_owns_port() {
