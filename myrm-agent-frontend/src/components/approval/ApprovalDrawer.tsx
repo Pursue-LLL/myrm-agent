@@ -57,6 +57,7 @@ export function ApprovalDrawer() {
           allow_always: extra?.allow_always,
           ttl_seconds: extra?.ttl_seconds,
           action_digest: extra?.action_digest || extra?.actionDigest,
+          ephemeral_credential_handles: extra?.ephemeral_credential_handles,
         }),
       });
 

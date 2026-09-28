@@ -9,6 +9,7 @@ export interface ApprovalDecision {
   guidance?: string;
   action_digest?: string;
   actionDigest?: string;
+  ephemeral_credential_handles?: string[];
   extensions: {
     allowAlways: AllowAlwaysValue;
     ttlSeconds?: number;
@@ -17,6 +18,7 @@ export interface ApprovalDecision {
     grantDirectoryMeta?: { path: string; writable: boolean };
     actionDigest?: string;
     action_digest?: string;
+    ephemeralCredentialHandles?: string[];
   };
 }
 
@@ -71,6 +73,7 @@ export interface ToolApprovalResolveExtra {
   grant_directory_writable?: boolean;
   action_digest?: string;
   actionDigest?: string;
+  ephemeral_credential_handles?: string[];
 }
 
 /**
@@ -119,11 +122,17 @@ export function buildApprovalDecision(decision: DecisionType, extra?: ToolApprov
     feedback: extra?.feedback,
     ...(extra?.guidance && { guidance: extra.guidance }),
     ...(resolvedDigest && { action_digest: resolvedDigest, actionDigest: resolvedDigest }),
+    ...(extra?.ephemeral_credential_handles && {
+      ephemeral_credential_handles: extra.ephemeral_credential_handles,
+    }),
     extensions: {
       allowAlways: allowAlwaysVal,
       ...(effectiveTtl !== undefined && { ttlSeconds: effectiveTtl }),
       ...(extra?.allow_domain && { allowDomain: true }),
       ...(resolvedDigest && { actionDigest: resolvedDigest, action_digest: resolvedDigest }),
+      ...(extra?.ephemeral_credential_handles && {
+        ephemeralCredentialHandles: extra.ephemeral_credential_handles,
+      }),
       ...(extra?.grant_directory && {
         grantDirectory: true,
         ...(extra.grant_directory_path && {

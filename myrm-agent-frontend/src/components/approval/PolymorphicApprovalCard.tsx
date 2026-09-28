@@ -14,6 +14,7 @@ import {
   DollarSign,
   Layers,
   Pencil,
+  Key,
 } from 'lucide-react';
 
 const KeyboardIcon = ({ className = 'h-3.5 w-3.5' }: { className?: string }) => (
@@ -68,6 +69,7 @@ import {
 } from '@/lib/approval/shellCommandDisplay';
 import { useTheme } from 'next-themes';
 import useApprovalStore from '@/store/useApprovalStore';
+import { MaskedCredentialInputCard } from '@/components/approval/MaskedCredentialInputCard';
 
 type DrawerDecisionAction = 'approve' | 'reject' | 'edit';
 type CardDialogMode = 'default' | 'editing';
@@ -277,6 +279,8 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     }
     return '';
   });
+  const [showCredentialCard, setShowCredentialCard] = useState(false);
+  const [stagedCredentialHandles, setStagedCredentialHandles] = useState<string[]>([]);
   const { resolvedTheme } = useTheme();
 
   const isDark = resolvedTheme === 'dark';
@@ -410,8 +414,9 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
       allow_always: scopeToAllowAlwaysValue(allowAlwaysScope, allowAlwaysDuration),
       ttl_seconds: ttlSeconds,
       feedback: comment || undefined,
+      ephemeral_credential_handles: stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
     });
-  }, [allowAlwaysDuration, allowAlwaysScope, comment, onResolve]);
+  }, [allowAlwaysDuration, allowAlwaysScope, comment, onResolve, stagedCredentialHandles]);
 
   const handleConfirmShellEdit = useCallback(async () => {
     const parsed: Record<string, unknown> = {};
@@ -458,12 +463,14 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         allow_always: allowAlwaysValue,
         ttl_seconds: ttlSeconds,
         feedback: comment || undefined,
+        ephemeral_credential_handles: stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
       });
     } else {
       await onResolve('approve', comment, undefined, {
         allow_always: allowAlwaysValue || undefined,
         ttl_seconds: ttlSeconds,
         feedback: comment || undefined,
+        ephemeral_credential_handles: stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
       });
     }
 
@@ -477,9 +484,11 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     allowAlwaysScopeInEdit,
     comment,
     onResolve,
+    primaryToolName,
     shellEditedArgs,
     shellInputEntries,
     singleShellToolCall,
+    stagedCredentialHandles,
     t,
   ]);
 
@@ -824,7 +833,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
               </div>
             </div>
 
-            {remainingBudget != null && (
+            {remainingBudget !== null && remainingBudget !== undefined && (
               <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 text-sm">
                 <span className="text-muted-foreground">{t('batchCostRemaining')}</span>
                 <span className="font-mono font-medium">${remainingBudget.toFixed(2)}</span>
@@ -1205,6 +1214,48 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         />
       </div>
 
+      {/* Ephemeral credentials injection entry & card */}
+      <div className="pt-2">
+        {!showCredentialCard ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowCredentialCard(true)}
+            className="h-7 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 hover:bg-amber-500/10"
+          >
+            <Key className="mr-1.5 h-3.5 w-3.5" />
+            {stagedCredentialHandles.length > 0
+              ? `Credentials Staged (${stagedCredentialHandles.length})`
+              : 'Inject Ephemeral Credentials (Single-Use)'}
+          </Button>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Key className="h-3.5 w-3.5 text-amber-500" />
+                Sensitive Credentials Gate
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCredentialCard(false)}
+                className="h-6 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Hide
+              </Button>
+            </div>
+            <MaskedCredentialInputCard
+              approvalId={approval.approval_id}
+              stagedHandles={stagedCredentialHandles}
+              onStagedChange={setStagedCredentialHandles}
+              disabled={isSubmitting}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-wrap items-center justify-end gap-3 pt-4 border-t">
         {hasAnySmartDenied ? (
           <>
@@ -1222,6 +1273,8 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                   feedback: comment || undefined,
                   action_digest: spendConfig?.actionDigest,
                   actionDigest: spendConfig?.actionDigest,
+                  ephemeral_credential_handles:
+                    stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
                 });
               }}
               disabled={isSubmitting}
@@ -1270,6 +1323,8 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                   feedback: comment || undefined,
                   action_digest: spendConfig?.actionDigest,
                   actionDigest: spendConfig?.actionDigest,
+                  ephemeral_credential_handles:
+                    stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
                 });
               }}
               disabled={isSubmitting}
