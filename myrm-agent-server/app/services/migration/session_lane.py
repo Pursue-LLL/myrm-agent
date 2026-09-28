@@ -138,16 +138,18 @@ class SessionMigrationService:
                         first_msg_text = t.content
                     last_msg_text = t.content
 
-                created_dt = (
-                    datetime.fromtimestamp(item.created_at, tz=UTC)
-                    if item.created_at > 0
-                    else datetime.now(tz=UTC)
-                )
-                updated_dt = (
-                    datetime.fromtimestamp(item.updated_at, tz=UTC)
-                    if item.updated_at > 0
-                    else created_dt
-                )
+                now_utc = datetime.now(tz=UTC)
+                if item.created_at > 0:
+                    raw_created = datetime.fromtimestamp(item.created_at, tz=UTC)
+                    created_dt = min(raw_created, now_utc)
+                else:
+                    created_dt = now_utc
+
+                if item.updated_at > 0:
+                    raw_updated = datetime.fromtimestamp(item.updated_at, tz=UTC)
+                    updated_dt = min(raw_updated, now_utc)
+                else:
+                    updated_dt = created_dt
 
                 db_chat = Chat(
                     id=chat_id,
@@ -166,11 +168,11 @@ class SessionMigrationService:
 
                 for turn_idx, turn in enumerate(item.turns):
                     msg_id = f"msg_{chat_id[:32]}_{turn_idx}_{uuid4().hex[:8]}"
-                    sent_dt = (
-                        datetime.fromtimestamp(turn.timestamp, tz=UTC)
-                        if turn.timestamp > 0
-                        else created_dt
-                    )
+                    if turn.timestamp > 0:
+                        raw_sent = datetime.fromtimestamp(turn.timestamp, tz=UTC)
+                        sent_dt = min(raw_sent, now_utc)
+                    else:
+                        sent_dt = created_dt
 
                     extra_data: dict[str, object] = {
                         "turn_id": turn.turn_id,
