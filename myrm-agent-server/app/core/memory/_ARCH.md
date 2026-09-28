@@ -26,7 +26,7 @@ Server 产品层 Shared Context 由 `app/services/memory/shared_context/shared_c
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 核心 | 模块入口，导出 `create_memory_manager` 和 Embedding 服务 | - |
+| `__init__.py` | 核心 | 模块入口，导出 `create_memory_manager`、`purge_chat_memories`、`purge_project_memories` 和 Embedding 服务 | - |
 
 ---
 
