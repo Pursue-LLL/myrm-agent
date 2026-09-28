@@ -151,10 +151,18 @@ class SessionMigrationService:
                 else:
                     updated_dt = created_dt
 
+                effective_title = (item.title or "").strip()
+                if not effective_title:
+                    effective_title = (
+                        first_msg_text.strip().splitlines()[0][:45]
+                        if first_msg_text and first_msg_text.strip()
+                        else "Imported Session"
+                    )
+
                 db_chat = Chat(
                     id=chat_id,
                     agent_id=target_agent_id,
-                    title=item.title,
+                    title=effective_title,
                     first_message=first_msg_text,
                     last_message=last_msg_text,
                     action_mode="fast",
