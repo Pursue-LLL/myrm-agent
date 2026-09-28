@@ -32,16 +32,12 @@ export const ModelOrchestrationPlaybookCard = memo(function ModelOrchestrationPl
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-foreground">
-                  {t('cardTitle')}
-                </span>
+                <span className="text-sm font-semibold text-foreground">{t('cardTitle')}</span>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-300">
                   {t('cardBadge')}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {t('cardSubtitle')}
-              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t('cardSubtitle')}</p>
             </div>
           </div>
 
@@ -63,11 +59,7 @@ export const ModelOrchestrationPlaybookCard = memo(function ModelOrchestrationPl
               className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
               aria-label={isExpanded ? t('collapse') : t('expand')}
             >
-              {isExpanded ? (
-                <IconChevronUp className="w-4 h-4" />
-              ) : (
-                <IconChevronDown className="w-4 h-4" />
-              )}
+              {isExpanded ? <IconChevronUp className="w-4 h-4" /> : <IconChevronDown className="w-4 h-4" />}
             </Button>
           </div>
         </div>
@@ -79,9 +71,7 @@ export const ModelOrchestrationPlaybookCard = memo(function ModelOrchestrationPl
                 <IconBrain className="w-3.5 h-3.5 text-purple-500" />
                 <span>{t('miniBrainHandsTitle')}</span>
               </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {t('miniBrainHandsDesc')}
-              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{t('miniBrainHandsDesc')}</p>
             </div>
 
             <div className="p-3 rounded-lg bg-background/50 border border-border/40 space-y-1">
@@ -89,9 +79,7 @@ export const ModelOrchestrationPlaybookCard = memo(function ModelOrchestrationPl
                 <IconRoute className="w-3.5 h-3.5 text-emerald-500" />
                 <span>{t('miniDynamicRoutingTitle')}</span>
               </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {t('miniDynamicRoutingDesc')}
-              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{t('miniDynamicRoutingDesc')}</p>
             </div>
 
             <div className="p-3 rounded-lg bg-background/50 border border-border/40 space-y-1">
@@ -99,9 +87,7 @@ export const ModelOrchestrationPlaybookCard = memo(function ModelOrchestrationPl
                 <IconZap className="w-3.5 h-3.5 text-blue-500" />
                 <span>{t('miniMoaTitle')}</span>
               </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {t('miniMoaDesc')}
-              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{t('miniMoaDesc')}</p>
             </div>
           </div>
         )}

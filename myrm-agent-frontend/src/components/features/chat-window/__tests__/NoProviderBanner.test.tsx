@@ -200,4 +200,3 @@ describe('NoProviderBanner', () => {
     expect(container.innerHTML).toBe('');
   });
 });
-

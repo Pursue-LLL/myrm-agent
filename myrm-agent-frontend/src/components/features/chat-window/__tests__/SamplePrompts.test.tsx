@@ -44,9 +44,10 @@ describe('SamplePrompts', () => {
     expect(buttons.length).toBeGreaterThan(0);
 
     // Filter cards
-    const promptCard = buttons.find((btn) =>
-      btn.textContent?.includes('帮我制作一份 16:9 商业汇报 PPT (可编辑 pptx 格式)') ||
-      btn.textContent?.includes('PPT')
+    const promptCard = buttons.find(
+      (btn) =>
+        btn.textContent?.includes('帮我制作一份 16:9 商业汇报 PPT (可编辑 pptx 格式)') ||
+        btn.textContent?.includes('PPT'),
     );
 
     if (promptCard) {

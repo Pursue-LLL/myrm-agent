@@ -49,8 +49,7 @@ const FirstRunDoctorCard = memo(({ deployChoice }: FirstRunDoctorCardProps) => {
     let cancelled = false;
 
     void (async () => {
-      const providerOk =
-        isInitialized && providers.some((p) => p.isEnabled && hasUsableProviderAuth(p));
+      const providerOk = isInitialized && providers.some((p) => p.isEnabled && hasUsableProviderAuth(p));
 
       let backendOk = false;
       try {
@@ -140,9 +139,7 @@ const FirstRunDoctorCard = memo(({ deployChoice }: FirstRunDoctorCardProps) => {
             : 'text-muted-foreground/70',
         )}
       >
-        {rows.provider === 'ok' && rows.backend === 'ok' && rows.quota === 'ok'
-          ? t('allClear')
-          : t('hasIssues')}
+        {rows.provider === 'ok' && rows.backend === 'ok' && rows.quota === 'ok' ? t('allClear') : t('hasIssues')}
       </p>
     </div>
   );

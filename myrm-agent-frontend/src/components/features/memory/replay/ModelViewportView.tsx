@@ -164,12 +164,15 @@ export const ModelViewportView = memo<ModelViewportViewProps>(({ promptPreview, 
               )}
             >
               <div className="flex items-center justify-between text-[10px]">
-                <span className={cn('px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider border', style.badge)}>
+                <span
+                  className={cn(
+                    'px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider border',
+                    style.badge,
+                  )}
+                >
                   {msg.role}
                 </span>
-                <span className="text-muted-foreground font-mono text-[9px]">
-                  {msg.content.length} chars
-                </span>
+                <span className="text-muted-foreground font-mono text-[9px]">{msg.content.length} chars</span>
               </div>
               <div className="text-[11px] font-mono text-foreground/90 whitespace-pre-wrap break-all select-text leading-relaxed">
                 {msg.content}

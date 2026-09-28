@@ -33,7 +33,10 @@ export const MemoryProceduralDetails = memo<MemoryProceduralDetailsProps>(({ con
       {confirmed.is_veto && (
         <div className="flex items-center gap-1.5 text-destructive bg-destructive/10 rounded-md px-2 py-1 mb-1.5 font-medium">
           <ShieldAlert size={12} className="shrink-0" />
-          <span>{confirmed.veto_scope ? `[${confirmed.veto_scope}] ` : ''}{confirmed.action || confirmed.veto_pattern || t('fields.vetoGuardrail')}</span>
+          <span>
+            {confirmed.veto_scope ? `[${confirmed.veto_scope}] ` : ''}
+            {confirmed.action || confirmed.veto_pattern || t('fields.vetoGuardrail')}
+          </span>
         </div>
       )}
 
@@ -85,9 +88,7 @@ export const MemoryProceduralDetails = memo<MemoryProceduralDetailsProps>(({ con
         !confirmed.is_user_locked && (
           <div className="flex items-center gap-1.5 pl-[18px] text-muted-foreground/80 mt-0.5">
             <span className="italic">
-              <span className="font-medium mr-1">
-                {t('fields.ttlDays', { days: confirmed.expected_valid_days })}
-              </span>
+              <span className="font-medium mr-1">{t('fields.ttlDays', { days: confirmed.expected_valid_days })}</span>
             </span>
           </div>
         )}

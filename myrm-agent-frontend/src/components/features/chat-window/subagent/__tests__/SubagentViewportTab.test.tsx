@@ -89,7 +89,8 @@ describe('SubagentViewportTab', () => {
           text: JSON.stringify({
             url: 'https://news.ycombinator.com',
             title: 'Hacker News',
-            screenshot_base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+            screenshot_base64:
+              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
           }),
           timestamp: Date.now(),
         },

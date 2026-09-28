@@ -26,9 +26,10 @@ export async function workingMemoryEvents(ctx: StreamCtx): Promise<StreamTurn | 
   }
 
   if (typeof window !== 'undefined' && data.data && typeof data.data === 'object') {
-    const action = typeof (data as WorkingMemoryEventPayload).action === 'string'
-      ? (data as WorkingMemoryEventPayload).action
-      : undefined;
+    const action =
+      typeof (data as WorkingMemoryEventPayload).action === 'string'
+        ? (data as WorkingMemoryEventPayload).action
+        : undefined;
 
     window.dispatchEvent(
       new CustomEvent('working_memory_update', {
@@ -37,7 +38,7 @@ export async function workingMemoryEvents(ctx: StreamCtx): Promise<StreamTurn | 
           sessionId: resolveChatId(ctx.state),
           action,
         },
-      })
+      }),
     );
   }
 

@@ -50,7 +50,7 @@ export const CustomMessageCard: React.FC<CustomMessageCardProps> = ({
         'border-primary/20 bg-primary/5 hover:border-primary/30',
         'dark:border-primary/25 dark:bg-primary/[0.03] dark:hover:border-primary/40',
         'shadow-xs',
-        className
+        className,
       )}
     >
       <div className="flex items-center justify-between gap-3 mb-2">
@@ -66,7 +66,7 @@ export const CustomMessageCard: React.FC<CustomMessageCardProps> = ({
               'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium tracking-tight',
               isEphemeral
                 ? 'bg-amber-500/10 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400'
-                : 'bg-muted text-muted-foreground'
+                : 'bg-muted text-muted-foreground',
             )}
             title={
               isEphemeral
@@ -90,9 +90,7 @@ export const CustomMessageCard: React.FC<CustomMessageCardProps> = ({
 
         <div className="flex items-center gap-2">
           {formattedTime && (
-            <span className="text-[10px] text-muted-foreground/70 font-mono tracking-tight">
-              {formattedTime}
-            </span>
+            <span className="text-[10px] text-muted-foreground/70 font-mono tracking-tight">{formattedTime}</span>
           )}
           {details && Object.keys(details).length > 0 && (
             <button
@@ -103,28 +101,20 @@ export const CustomMessageCard: React.FC<CustomMessageCardProps> = ({
               className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
             >
               <span>Details</span>
-              {detailsOpen ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
-              )}
+              {detailsOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
             </button>
           )}
         </div>
       </div>
 
-      <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
-        {content}
-      </div>
+      <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">{content}</div>
 
       {detailsOpen && details && (
         <div
           id="custom-message-details"
           className="mt-3 rounded-lg border border-border/50 bg-background/80 p-3 text-xs font-mono text-muted-foreground dark:bg-background/40"
         >
-          <pre className="overflow-x-auto whitespace-pre-wrap break-all">
-            {JSON.stringify(details, null, 2)}
-          </pre>
+          <pre className="overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(details, null, 2)}</pre>
         </div>
       )}
     </div>

@@ -13,10 +13,7 @@ import { useClosePanelOnChatSwitch } from '@/hooks/inspector/useClosePanelOnChat
 import DesktopInspectorToolbar from './DesktopInspectorToolbar';
 import DesktopInstructionInput from './DesktopInstructionInput';
 import { openPermissionDeepLinkWithGuideFallback, pickSettingsDeepLink } from '@/lib/desktop/permissionDeepLink';
-import {
-  desktopPermissionsPath,
-  type DesktopPermissionsStatus,
-} from '@/lib/desktop/desktopPermissionsStatus';
+import { desktopPermissionsPath, type DesktopPermissionsStatus } from '@/lib/desktop/desktopPermissionsStatus';
 
 const PermissionBanner: React.FC<{ t: ReturnType<typeof useTranslations> }> = ({ t }) => {
   const [details, setDetails] = useState<DesktopPermissionsStatus | null>(null);
@@ -197,8 +194,12 @@ const DesktopLiveView: React.FC<DesktopLiveViewProps> = ({ onSendInstruction }) 
   }, []);
 
   const filteredRefs = React.useMemo(() => {
-    if (!scopedViewData?.refs) {return {};}
-    if (!searchQuery.trim()) {return scopedViewData.refs;}
+    if (!scopedViewData?.refs) {
+      return {};
+    }
+    if (!searchQuery.trim()) {
+      return scopedViewData.refs;
+    }
     const q = searchQuery.trim().toLowerCase();
     const res: Record<string, BrowserRefInfo> = {};
     for (const [refId, info] of Object.entries(scopedViewData.refs)) {

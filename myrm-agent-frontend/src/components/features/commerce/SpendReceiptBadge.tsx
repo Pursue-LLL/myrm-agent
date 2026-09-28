@@ -29,26 +29,17 @@ export interface SpendReceiptBadgeProps {
 }
 
 export const SpendReceiptBadge: React.FC<SpendReceiptBadgeProps> = memo(
-  ({
-    merchantDomain,
-    amountCents,
-    currency = 'USD',
-    status,
-    hasEntryHash = false,
-    className,
-  }) => {
+  ({ merchantDomain, amountCents, currency = 'USD', status, hasEntryHash = false, className }) => {
     const formattedAmount = (amountCents / 100).toFixed(2);
 
     const statusConfig = {
       committed: {
-        badgeClass:
-          'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+        badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
         icon: <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />,
         text: 'Paid & Verified',
       },
       reserved: {
-        badgeClass:
-          'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+        badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
         icon: <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0 animate-spin" />,
         text: 'Reserved',
       },
@@ -69,7 +60,7 @@ export const SpendReceiptBadge: React.FC<SpendReceiptBadgeProps> = memo(
         className={cn(
           'inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium border shadow-xs transition-colors',
           statusConfig.badgeClass,
-          className
+          className,
         )}
       >
         {statusConfig.icon}
@@ -82,14 +73,11 @@ export const SpendReceiptBadge: React.FC<SpendReceiptBadgeProps> = memo(
         <span className="opacity-60">•</span>
         <span className="text-[10px] uppercase tracking-wider">{statusConfig.text}</span>
         {hasEntryHash && status === 'committed' && (
-          <span
-            className="w-1.5 h-1.5 rounded-full bg-emerald-500"
-            title="HMAC Ledger Hash Verified"
-          />
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="HMAC Ledger Hash Verified" />
         )}
       </div>
     );
-  }
+  },
 );
 
 SpendReceiptBadge.displayName = 'SpendReceiptBadge';

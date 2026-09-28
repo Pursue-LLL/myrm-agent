@@ -6,10 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  globalMermaidRenderQueue,
-  MermaidRenderTimeoutError,
-} from '../mermaidRenderQueue';
+import { globalMermaidRenderQueue, MermaidRenderTimeoutError } from '../mermaidRenderQueue';
 
 describe('MermaidRenderQueue', () => {
   beforeEach(() => {

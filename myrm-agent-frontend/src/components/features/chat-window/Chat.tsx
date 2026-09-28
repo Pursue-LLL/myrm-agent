@@ -213,9 +213,7 @@ const Chat = ({
       const performJump = () => {
         // 解耦闭包，优先从最新的状态仓库获取消息列表
         const currentMessages = useChatStore.getState().messages;
-        const targetIndex = currentMessages.findIndex(
-          (m) => String(m.messageId) === messageId,
-        );
+        const targetIndex = currentMessages.findIndex((m) => String(m.messageId) === messageId);
 
         if (targetIndex >= 0 && scrollToMessageRef.current) {
           scrollToMessageRef.current(targetIndex);

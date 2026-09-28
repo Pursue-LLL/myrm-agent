@@ -6,11 +6,11 @@ Theme Studio 的网关与预览 hooks：市场可达性（CP 健康 + JWT）单�
 
 ## 文件清单
 
-| 文件                                | 地位 | 职责                                                         | I/O/P |
-| ----------------------------------- | ---- | ------------------------------------------------------------ | ----- |
-| `ThemeMarketplaceGateProvider.tsx`  | 核心 | 共享 CP `/api/health` + JWT 网关（所有面板单次探测）          | ✅    |
-| `useThemeMarketplaceGate.ts`        | 核心 | 网关 context hook 再导出                                     | ✅    |
-| `useThemeStudioDomPreview.ts`       | 核心 | 工作区实时预览：仅 DOM 编译，零 ConfigSync 写入               | ✅    |
+| 文件                               | 地位 | 职责                                                 | I/O/P |
+| ---------------------------------- | ---- | ---------------------------------------------------- | ----- |
+| `ThemeMarketplaceGateProvider.tsx` | 核心 | 共享 CP `/api/health` + JWT 网关（所有面板单次探测） | ✅    |
+| `useThemeMarketplaceGate.ts`       | 核心 | 网关 context hook 再导出                             | ✅    |
+| `useThemeStudioDomPreview.ts`      | 核心 | 工作区实时预览：仅 DOM 编译，零 ConfigSync 写入      | ✅    |
 
 ## 依赖
 

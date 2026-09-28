@@ -8,34 +8,34 @@
 
 ### 入口与容器
 
-| 文件                      | 职责                               |
-| ------------------------- | ---------------------------------- |
-| `SystemSection.tsx`       | WebUI 开关、端口、系统诊断等主面板 |
-| `SystemCenterSection.tsx` | 系统 Tab 容器                      |
-| `AboutSection.tsx`        | 关于/版本信息                      |
-| `StackUpdatePanel.tsx`    | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 分组更新日志 / 勿扰窗口 / 自检Doctor并发防重） |
-| `__tests__/StackUpdatePanel.test.tsx` | 全栈更新面板单测（OTA三态、Changelog折叠、推迟版本、自检Doctor与Pending禁用、勿扰时段） |
-| `ImportExportSection.tsx` | 配置导入导出                       |
+| 文件                                  | 职责                                                                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `SystemSection.tsx`                   | WebUI 开关、端口、系统诊断等主面板                                                                      |
+| `SystemCenterSection.tsx`             | 系统 Tab 容器                                                                                           |
+| `AboutSection.tsx`                    | 关于/版本信息                                                                                           |
+| `StackUpdatePanel.tsx`                | 全栈更新与版本控制中心（Tauri OTA / WebUI / Git behind / 分组更新日志 / 勿扰窗口 / 自检Doctor并发防重） |
+| `__tests__/StackUpdatePanel.test.tsx` | 全栈更新面板单测（OTA三态、Changelog折叠、推迟版本、自检Doctor与Pending禁用、勿扰时段）                 |
+| `ImportExportSection.tsx`             | 配置导入导出                                                                                            |
 
 ### 存储管理
 
-| 文件                                      | 职责                                                                                                       |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 文件                                      | 职责                                                                                                                   |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `StorageCard.tsx`                         | 存储位置与会话数据库智能优化（当前路径、磁盘三元组用量、预检、FTS/VACUUM/WAL双模式瘦身、迁移＋实时进度条、低空间预警） |
-| `__tests__/StorageCard.test.tsx`          | 迁移目录高敏链路回归：先签发敏感操作票据，再执行迁移；目录选择取消不签发票据；拒绝/取消场景错误提示        |
-| `__tests__/StorageCard.optimize.test.tsx` | 数据库存储优化完整流程回归：三元组容量预检、Deep/Light双模式选择、活跃任务拦截门禁与优化成功 Toast 反馈    |
+| `__tests__/StorageCard.test.tsx`          | 迁移目录高敏链路回归：先签发敏感操作票据，再执行迁移；目录选择取消不签发票据；拒绝/取消场景错误提示                    |
+| `__tests__/StorageCard.optimize.test.tsx` | 数据库存储优化完整流程回归：三元组容量预检、Deep/Light双模式选择、活跃任务拦截门禁与优化成功 Toast 反馈                |
 
 ### 网络与访问
 
-| 文件                           | 职责                                                                                    |
-| ------------------------------ | --------------------------------------------------------------------------------------- |
-| `AccessCard.tsx`               | 访问地址、CF tunnel 启停、Mobile Hub QR、PWA 引导、E2EE 指纹与算法详情                  |
-| `ServerConnectionCard.tsx`     | Tauri Desktop 远程服务器网关：本地/远程模式切换、多档案 roster、URL 输入、连接测试、断开恢复本地 token |
-| `RemoteFirstRunChooser.tsx`    | 首启三选一（本机/远端/云托管，一次性指引，可关闭）          |
-| `ServerConnectionCloudSection.tsx` | 云托管区：CP 登录方式查询、浏览器 OAuth（桌面回跳）、沙箱发现建档 |
-| `TrustBadgeCard.tsx`           | 官方发行信任徽章（Tauri限定）：签名态三态诚实呈现 + 官网/下载/Releases 深链 |
-| `RecoveryGuideCard.tsx`        | 崩溃恢复向导（Tauri限定）：失败事件显现 + About常驻；仅非破坏三动作（重试/诊断/重装深链） |
-| `WebuiAccessSecurityPanel.tsx` | WebUI 访问安全配置                                                                      |
+| 文件                               | 职责                                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `AccessCard.tsx`                   | 访问地址、CF tunnel 启停、Mobile Hub QR、PWA 引导、E2EE 指纹与算法详情                                 |
+| `ServerConnectionCard.tsx`         | Tauri Desktop 远程服务器网关：本地/远程模式切换、多档案 roster、URL 输入、连接测试、断开恢复本地 token |
+| `RemoteFirstRunChooser.tsx`        | 首启三选一（本机/远端/云托管，一次性指引，可关闭）                                                     |
+| `ServerConnectionCloudSection.tsx` | 云托管区：CP 登录方式查询、浏览器 OAuth（桌面回跳）、沙箱发现建档                                      |
+| `TrustBadgeCard.tsx`               | 官方发行信任徽章（Tauri限定）：签名态三态诚实呈现 + 官网/下载/Releases 深链                            |
+| `RecoveryGuideCard.tsx`            | 崩溃恢复向导（Tauri限定）：失败事件显现 + About常驻；仅非破坏三动作（重试/诊断/重装深链）              |
+| `WebuiAccessSecurityPanel.tsx`     | WebUI 访问安全配置                                                                                     |
 
 ### 通知
 
@@ -54,7 +54,7 @@
 | `DomainSkillsCard.tsx`                      | 域技能管理（列表/删除/内置标识）                                                                                                                                                                                                                                                                                              |
 | `SavedSessionsCard.tsx`                     | 已保存浏览器会话管理（加密登录态/删除/过期清理）                                                                                                                                                                                                                                                                              |
 | `LockedUseCard.tsx`                         | 锁定使用模式（Computer Use 锁屏管理）                                                                                                                                                                                                                                                                                         |
-| `DesktopPermissionsCard.tsx`                | 桌面自动化就绪检测：首屏 grant-only 四态（verified=`capture_ready` / unverified / capture_failed / missing）+ 刷新 `?probe_capture=true` + 功能捕获行 + 始终信任应用（`GET/DELETE /webui/desktop/trust/apps`）                                                                                                               |
+| `DesktopPermissionsCard.tsx`                | 桌面自动化就绪检测：首屏 grant-only 四态（verified=`capture_ready` / unverified / capture_failed / missing）+ 刷新 `?probe_capture=true` + 功能捕获行 + 始终信任应用（`GET/DELETE /webui/desktop/trust/apps`）                                                                                                                |
 | `__tests__/DesktopPermissionsCard.test.tsx` | vitest：首屏未验证 / capture_failed / Recheck 达 allReady / deeplink / API fail / trusted revoke / trust load error                                                                                                                                                                                                           |
 
 ### 安全策略
@@ -87,23 +87,23 @@
 
 ### 用量与成本
 
-| 文件                          | 职责                                                                                                                                   |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `UsageStatisticsSection.tsx`  | 用量统计主面板（时间范围/多维度）；含 Wiki 证据治理卡片（deep verification/requery/dwell/dropped telemetry/negative outcome rate）     |
-| `UsageStatisticsCharts.tsx`   | 用量图表 barrel 导出                                                                                                                   |
-| `UsageStatCard.tsx`           | 统计卡片                                                                                                                               |
-| `UsageCacheBreakTimeline.tsx` | 缓存击穿时间线                                                                                                                         |
-| `UsageDailyChart.tsx`         | 日趋势柱状图 + 缓存命中率折线                                                                                                          |
-| `UsageSessionTable.tsx`       | Top 会话表格                                                                                                                           |
-| `UsageDistributionCharts.tsx` | 周/日/小时活动分布图                                                                                                                   |
-| `UsagePrivacyRoutePanel.tsx`  | 隐私路由 local/cloud 占比                                                                                                              |
-| `UsageModelBreakdown.tsx`     | 模型用量明细                                                                                                                           |
-| `AgentUsageCard.tsx`          | Agent 用量卡片                                                                                                                         |
-| `BudgetPolicySection.tsx`     | 预算策略与四级渐进式柔性限额风控面板（四级阶梯风控：可视化预警、柔性自确认卡、无损模型自动降级、冻结暂停审批；Fleet Quota 跨维度看板） |
-| `ChannelBudgetSection.tsx`    | 渠道预算管理                                                                                                                           |
-| `AgentCommerceBudgetSection.tsx` | 智能体受控微预算自主支付与商户白名单消费保险箱面板（单笔/日限额微支付、商户域名白名单、一键紧急熔断与防篡改账本审计） |
-| `MemoryGuardianCard.tsx`      | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合）                                                                      |
-| `RoutingAnalyticsPanel.tsx`   | 路由分析面板（模型路由/成本格式化）                                                                                                    |
+| 文件                             | 职责                                                                                                                                   |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `UsageStatisticsSection.tsx`     | 用量统计主面板（时间范围/多维度）；含 Wiki 证据治理卡片（deep verification/requery/dwell/dropped telemetry/negative outcome rate）     |
+| `UsageStatisticsCharts.tsx`      | 用量图表 barrel 导出                                                                                                                   |
+| `UsageStatCard.tsx`              | 统计卡片                                                                                                                               |
+| `UsageCacheBreakTimeline.tsx`    | 缓存击穿时间线                                                                                                                         |
+| `UsageDailyChart.tsx`            | 日趋势柱状图 + 缓存命中率折线                                                                                                          |
+| `UsageSessionTable.tsx`          | Top 会话表格                                                                                                                           |
+| `UsageDistributionCharts.tsx`    | 周/日/小时活动分布图                                                                                                                   |
+| `UsagePrivacyRoutePanel.tsx`     | 隐私路由 local/cloud 占比                                                                                                              |
+| `UsageModelBreakdown.tsx`        | 模型用量明细                                                                                                                           |
+| `AgentUsageCard.tsx`             | Agent 用量卡片                                                                                                                         |
+| `BudgetPolicySection.tsx`        | 预算策略与四级渐进式柔性限额风控面板（四级阶梯风控：可视化预警、柔性自确认卡、无损模型自动降级、冻结暂停审批；Fleet Quota 跨维度看板） |
+| `ChannelBudgetSection.tsx`       | 渠道预算管理                                                                                                                           |
+| `AgentCommerceBudgetSection.tsx` | 智能体受控微预算自主支付与商户白名单消费保险箱面板（单笔/日限额微支付、商户域名白名单、一键紧急熔断与防篡改账本审计）                  |
+| `MemoryGuardianCard.tsx`         | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合）                                                                      |
+| `RoutingAnalyticsPanel.tsx`      | 路由分析面板（模型路由/成本格式化）                                                                                                    |
 
 ### Trace 可视化与调试
 

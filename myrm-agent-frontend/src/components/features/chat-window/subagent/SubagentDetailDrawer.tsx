@@ -562,9 +562,7 @@ export const SubagentDetailDrawer: React.FC<SubagentDetailDrawerProps> = ({ node
             </div>
           )}
 
-          {activeTab === 'viewport' && (
-            <SubagentViewportTab node={node} chatId={chatId} />
-          )}
+          {activeTab === 'viewport' && <SubagentViewportTab node={node} chatId={chatId} />}
         </ScrollArea>
       </SheetContent>
     </Sheet>

@@ -18,16 +18,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import {
-  ChevronDown,
-  RefreshCw,
-  MessageSquare,
-  MessagesSquare,
-  User,
-  Bot,
-  FileEdit,
-  Search,
-} from 'lucide-react';
+import { ChevronDown, RefreshCw, MessageSquare, MessagesSquare, User, Bot, FileEdit, Search } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { isImeComposing } from '@/lib/utils/imeUtils';
 import { formatPathForDisplay } from '@/lib/utils/pathValidation';
@@ -360,19 +351,19 @@ export default function ReviewPanel({ sessionId, messageId, workspacePath, onSen
                             transform: `translateY(${row.start}px)`,
                           }}
                         >
-                        <ReviewDiffRow
-                          diff={diff}
-                          rowKey={reviewRowKey(diff)}
-                          expanded={expandedFiles.has(reviewRowKey(diff))}
-                          longExpanded={expandedLongDiffs.has(reviewRowKey(diff))}
-                          copied={copiedFile === reviewRowKey(diff)}
-                          onToggle={toggleFile}
-                          onToggleLong={toggleLongDiff}
-                          onCopy={handleCopyDiff}
-                        />
-                      </div>
-                    );
-                  })}
+                          <ReviewDiffRow
+                            diff={diff}
+                            rowKey={reviewRowKey(diff)}
+                            expanded={expandedFiles.has(reviewRowKey(diff))}
+                            longExpanded={expandedLongDiffs.has(reviewRowKey(diff))}
+                            copied={copiedFile === reviewRowKey(diff)}
+                            onToggle={toggleFile}
+                            onToggleLong={toggleLongDiff}
+                            onCopy={handleCopyDiff}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div>

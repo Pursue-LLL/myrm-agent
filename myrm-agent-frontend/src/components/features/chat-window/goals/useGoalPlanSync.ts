@@ -54,11 +54,7 @@ export function useGoalPlanSync(chatId: string | null | undefined): void {
       if (stepKey === 'progress_root') {
         const currentPlan = usePlanStore.getState().plan;
         const revision = (detail as { revision?: number }).revision;
-        if (
-          !currentPlan ||
-          revision === undefined ||
-          revision > (currentPlan.revision ?? 0)
-        ) {
+        if (!currentPlan || revision === undefined || revision > (currentPlan.revision ?? 0)) {
           void fetchPlan(chatId);
         }
       }

@@ -24,10 +24,7 @@ import useChatStore from '@/store/useChatStore';
 import { useSkillStore } from '@/store/skill';
 import useConfigStore from '@/store/useConfigStore';
 import { useShallow } from 'zustand/react/shallow';
-import {
-  SETTINGS_GOOGLE_OAUTH_PATH,
-  SETTINGS_SKILLS_PATH,
-} from '@/lib/skills/integrationOAuthDisplay';
+import { SETTINGS_GOOGLE_OAUTH_PATH, SETTINGS_SKILLS_PATH } from '@/lib/skills/integrationOAuthDisplay';
 
 export interface SkillRequiredConnectorsPreflightBannerProps {
   className?: string;
@@ -83,13 +80,13 @@ export function SkillRequiredConnectorsPreflightBanner({
     const missingIssuers: Array<{ skillName: string; issuer: string }> = [];
     const missingMcp: Array<{ skillName: string; serverId: string }> = [];
 
-    const activeMcpIds = new Set(
-      mcpConfigs.filter((cfg) => cfg.enabled !== false).map((cfg) => cfg.name),
-    );
+    const activeMcpIds = new Set(mcpConfigs.filter((cfg) => cfg.enabled !== false).map((cfg) => cfg.name));
 
     for (const skillId of activeSkillIds) {
       const skill = skillMap.get(skillId);
-      if (!skill) {continue;}
+      if (!skill) {
+        continue;
+      }
 
       // 检查 OAuth issuers
       const requiredIssuers = skill.required_oauth_issuers ?? (skill.oauth_issuer ? [skill.oauth_issuer] : []);

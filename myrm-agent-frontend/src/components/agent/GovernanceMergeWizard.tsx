@@ -6,13 +6,7 @@ import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Label } from '@/components/primitives/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/primitives/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/primitives/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { GitMerge, Loader2, TriangleAlert } from 'lucide-react';
 import {
   mergeDryRun,
@@ -137,7 +131,14 @@ export function MergeWizard({
   };
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) { handleClose(); } }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          handleClose();
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('wizardTitle', { fallback: 'Merge assistants' })}</DialogTitle>
@@ -216,9 +217,7 @@ export function MergeWizard({
                   {(preview.affected.cron_names?.length || preview.affected.channel_topics?.length) && (
                     <p className="text-muted-foreground break-words">
                       {t('planBindings', { fallback: 'Bindings on the move' })}:{' '}
-                      {[...(preview.affected.cron_names || []), ...(preview.affected.channel_topics || [])].join(
-                        ', ',
-                      )}
+                      {[...(preview.affected.cron_names || []), ...(preview.affected.channel_topics || [])].join(', ')}
                       {(preview.affected.cron_truncated || preview.affected.channel_truncated) && ' …'}
                     </p>
                   )}
@@ -226,9 +225,7 @@ export function MergeWizard({
               )}
             </div>
           )}
-          {preview && !preview.ok && (
-            <p className="text-sm text-destructive">{preview.reason}</p>
-          )}
+          {preview && !preview.ok && <p className="text-sm text-destructive">{preview.reason}</p>}
 
           {result && <p className="text-sm text-destructive">{result}</p>}
 
@@ -255,10 +252,7 @@ export function MergeWizard({
           <Button variant="outline" onClick={handleClose} disabled={executing}>
             {t(justMerged ? 'done' : 'cancel', { fallback: justMerged ? 'Done' : 'Cancel' })}
           </Button>
-          <Button
-            onClick={handleExecute}
-            disabled={executing || justMerged || !preview?.ok || !confirmName.trim()}
-          >
+          <Button onClick={handleExecute} disabled={executing || justMerged || !preview?.ok || !confirmName.trim()}>
             {executing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {t('execute', { fallback: 'Merge now' })}
           </Button>

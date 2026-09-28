@@ -115,7 +115,9 @@ export const A2APeerRegistrySection = memo(() => {
   };
 
   const handleDelete = async (peerId: string) => {
-    if (!window.confirm(t('deleteConfirm'))) {return;}
+    if (!window.confirm(t('deleteConfirm'))) {
+      return;
+    }
     try {
       await deleteA2APeer(peerId);
       setPeers((prev) => prev.filter((p) => p.id !== peerId));
@@ -146,7 +148,9 @@ export const A2APeerRegistrySection = memo(() => {
   };
 
   const handleModalProbe = async () => {
-    if (!formValues.baseUrl.trim()) {return;}
+    if (!formValues.baseUrl.trim()) {
+      return;
+    }
     try {
       setModalProbeLoading(true);
       const res = await probeA2APeer({
@@ -169,7 +173,9 @@ export const A2APeerRegistrySection = memo(() => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formValues.name.trim() || !formValues.baseUrl.trim()) {return;}
+    if (!formValues.name.trim() || !formValues.baseUrl.trim()) {
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -204,7 +210,10 @@ export const A2APeerRegistrySection = memo(() => {
   const renderStatusBadge = (peer: A2APeer) => {
     if (peer.last_probe_status === 'ok') {
       return (
-        <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 gap-1 text-[11px]">
+        <Badge
+          variant="outline"
+          className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 gap-1 text-[11px]"
+        >
           <CheckCircle2 className="w-3 h-3" />
           {t('statusOk')}
         </Badge>
@@ -212,7 +221,10 @@ export const A2APeerRegistrySection = memo(() => {
     }
     if (peer.last_probe_status === 'ssrf_blocked') {
       return (
-        <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 gap-1 text-[11px]">
+        <Badge
+          variant="outline"
+          className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 gap-1 text-[11px]"
+        >
           <ShieldAlert className="w-3 h-3" />
           {t('statusSsrf')}
         </Badge>
@@ -220,7 +232,10 @@ export const A2APeerRegistrySection = memo(() => {
     }
     if (peer.last_probe_status === 'error') {
       return (
-        <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400 gap-1 text-[11px]">
+        <Badge
+          variant="outline"
+          className="border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400 gap-1 text-[11px]"
+        >
           <AlertCircle className="w-3 h-3" />
           {t('statusError')}
         </Badge>
@@ -324,12 +339,7 @@ export const A2APeerRegistrySection = memo(() => {
                       {t('probe')}
                     </Button>
 
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0"
-                      onClick={() => handleOpenEdit(peer)}
-                    >
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleOpenEdit(peer)}>
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
 
@@ -342,10 +352,7 @@ export const A2APeerRegistrySection = memo(() => {
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
 
-                    <Switch
-                      checked={peer.is_active}
-                      onCheckedChange={(checked) => handleToggleActive(peer, checked)}
-                    />
+                    <Switch checked={peer.is_active} onCheckedChange={(checked) => handleToggleActive(peer, checked)} />
                   </div>
                 </div>
 

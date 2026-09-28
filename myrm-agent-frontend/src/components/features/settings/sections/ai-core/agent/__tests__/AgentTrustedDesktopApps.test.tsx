@@ -58,18 +58,14 @@ describe('AgentTrustedDesktopApps', () => {
   it('removes an app', () => {
     mockApiRequest.mockResolvedValue({ apps: [] });
     const onChange = vi.fn();
-    render(
-      <AgentTrustedDesktopApps apps={[{ name: 'SAP GUI' }]} onChange={onChange} />,
-    );
+    render(<AgentTrustedDesktopApps apps={[{ name: 'SAP GUI' }]} onChange={onChange} />);
     fireEvent.click(screen.getByRole('button', { name: 'trustedDesktopAppsRemove' }));
     expect(onChange).toHaveBeenCalledWith([]);
   });
 
   it('is read-only when readonly', () => {
     mockApiRequest.mockResolvedValue({ apps: [] });
-    render(
-      <AgentTrustedDesktopApps apps={[{ name: 'SAP GUI' }]} onChange={vi.fn()} readonly />,
-    );
+    render(<AgentTrustedDesktopApps apps={[{ name: 'SAP GUI' }]} onChange={vi.fn()} readonly />);
     expect(screen.queryByPlaceholderText('trustedDesktopAppsPlaceholder')).toBeNull();
   });
 });

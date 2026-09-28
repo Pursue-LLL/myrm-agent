@@ -787,7 +787,10 @@ const ProgressSteps: React.FC<ProgressStepsProps> = React.memo(({ messageId, ste
                         <Layers className="w-3.5 h-3.5 text-primary/70 group-hover/fold:text-primary transition-colors" />
                         {t('folding.showMore', { count: intermediateRoots.length })}
                       </span>
-                      <Badge variant="outline" className="text-[10px] font-mono h-5 px-2 bg-background/50 border-border/40">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] font-mono h-5 px-2 bg-background/50 border-border/40"
+                      >
                         {t('folding.stepSummary', { completed: intermediateRoots.length, total: treeRoots.length })}
                       </Badge>
                     </button>

@@ -40,7 +40,9 @@ export function WeChatTroubleshootGuide({
   }, []);
 
   const handleRefresh = useCallback(async () => {
-    if (!onRefreshStatus) {return;}
+    if (!onRefreshStatus) {
+      return;
+    }
     setRefreshing(true);
     try {
       await Promise.resolve(onRefreshStatus());

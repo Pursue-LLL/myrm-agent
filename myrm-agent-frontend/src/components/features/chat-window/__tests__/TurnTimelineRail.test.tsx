@@ -101,23 +101,12 @@ describe('TurnTimelineRail', () => {
   ];
 
   it('renders nothing when turns count is below 3', () => {
-    const { container } = render(
-      <TurnTimelineRail
-        messages={mockMessages.slice(0, 2)}
-        onJump={vi.fn()}
-      />,
-    );
+    const { container } = render(<TurnTimelineRail messages={mockMessages.slice(0, 2)} onJump={vi.fn()} />);
     expect(container.firstChild).toBeNull();
   });
 
   it('renders rail ticks from turnOutlines when provided', () => {
-    render(
-      <TurnTimelineRail
-        messages={mockMessages}
-        turnOutlines={mockOutlines}
-        onJump={vi.fn()}
-      />,
-    );
+    render(<TurnTimelineRail messages={mockMessages} turnOutlines={mockOutlines} onJump={vi.fn()} />);
 
     const ticks = screen.getAllByRole('button');
     expect(ticks).toHaveLength(4);
@@ -125,13 +114,7 @@ describe('TurnTimelineRail', () => {
 
   it('calls onJump when a loaded turn tick is clicked', () => {
     const onJump = vi.fn();
-    render(
-      <TurnTimelineRail
-        messages={mockMessages}
-        turnOutlines={mockOutlines}
-        onJump={onJump}
-      />,
-    );
+    render(<TurnTimelineRail messages={mockMessages} turnOutlines={mockOutlines} onJump={onJump} />);
 
     const ticks = screen.getAllByRole('button');
     // First turn is loaded (msg-u1)

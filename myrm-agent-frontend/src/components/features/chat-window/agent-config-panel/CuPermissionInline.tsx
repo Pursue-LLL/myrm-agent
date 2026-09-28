@@ -19,10 +19,7 @@ import { Loader2, CheckCircle2, AlertTriangle, RefreshCw, ExternalLink, CircleDa
 import { apiRequest } from '@/lib/api';
 import { cn } from '@/lib/utils/classnameUtils';
 import { openPermissionDeepLinkWithGuideFallback, pickSettingsDeepLink } from '@/lib/desktop/permissionDeepLink';
-import {
-  desktopPermissionsPath,
-  type DesktopPermissionsStatus,
-} from '@/lib/desktop/desktopPermissionsStatus';
+import { desktopPermissionsPath, type DesktopPermissionsStatus } from '@/lib/desktop/desktopPermissionsStatus';
 
 type InlineTone = 'verified' | 'unverified' | 'capture_failed' | 'missing';
 

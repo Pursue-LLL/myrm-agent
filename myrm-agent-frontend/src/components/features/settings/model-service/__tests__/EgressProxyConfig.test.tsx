@@ -22,12 +22,7 @@ describe('EgressProxyConfig', () => {
 
   it('renders proxy input with current value', () => {
     const handleChange = vi.fn();
-    render(
-      <EgressProxyConfig
-        value="http://127.0.0.1:7890"
-        onChange={handleChange}
-      />,
-    );
+    render(<EgressProxyConfig value="http://127.0.0.1:7890" onChange={handleChange} />);
 
     const input = screen.getByPlaceholderText('egressProxyPlaceholder') as HTMLInputElement;
     expect(input).toBeInTheDocument();
@@ -36,12 +31,7 @@ describe('EgressProxyConfig', () => {
 
   it('triggers onChange when user modifies input', () => {
     const handleChange = vi.fn();
-    render(
-      <EgressProxyConfig
-        value=""
-        onChange={handleChange}
-      />,
-    );
+    render(<EgressProxyConfig value="" onChange={handleChange} />);
 
     const input = screen.getByPlaceholderText('egressProxyPlaceholder');
     fireEvent.change(input, { target: { value: 'socks5://127.0.0.1:1080' } });
@@ -55,12 +45,7 @@ describe('EgressProxyConfig', () => {
       error: null,
     });
 
-    render(
-      <EgressProxyConfig
-        value="http://127.0.0.1:7890"
-        onChange={vi.fn()}
-      />,
-    );
+    render(<EgressProxyConfig value="http://127.0.0.1:7890" onChange={vi.fn()} />);
 
     const button = screen.getByText('testProxy');
     fireEvent.click(button);
@@ -79,12 +64,7 @@ describe('EgressProxyConfig', () => {
       error: 'Connection refused',
     });
 
-    render(
-      <EgressProxyConfig
-        value="http://127.0.0.1:9999"
-        onChange={vi.fn()}
-      />,
-    );
+    render(<EgressProxyConfig value="http://127.0.0.1:9999" onChange={vi.fn()} />);
 
     const button = screen.getByText('testProxy');
     fireEvent.click(button);
@@ -102,32 +82,20 @@ describe('EgressProxyConfig', () => {
     });
 
     render(
-      <EgressProxyConfig
-        value="http://127.0.0.1:7890"
-        onChange={vi.fn()}
-        targetUrl="https://api.openai.com/v1"
-      />,
+      <EgressProxyConfig value="http://127.0.0.1:7890" onChange={vi.fn()} targetUrl="https://api.openai.com/v1" />,
     );
 
     const button = screen.getByText('testProxy');
     fireEvent.click(button);
 
     await waitFor(() => {
-      expect(llmConfig.testProxyConnection).toHaveBeenCalledWith(
-        'http://127.0.0.1:7890',
-        'https://api.openai.com/v1',
-      );
+      expect(llmConfig.testProxyConnection).toHaveBeenCalledWith('http://127.0.0.1:7890', 'https://api.openai.com/v1');
     });
   });
 
   it('auto-prefixes http:// on blur when host:port is provided without scheme', () => {
     const handleChange = vi.fn();
-    render(
-      <EgressProxyConfig
-        value="127.0.0.1:7890"
-        onChange={handleChange}
-      />,
-    );
+    render(<EgressProxyConfig value="127.0.0.1:7890" onChange={handleChange} />);
 
     const input = screen.getByPlaceholderText('egressProxyPlaceholder');
     fireEvent.blur(input);
@@ -136,12 +104,7 @@ describe('EgressProxyConfig', () => {
 
   it('does not auto-prefix on blur when scheme is already present', () => {
     const handleChange = vi.fn();
-    render(
-      <EgressProxyConfig
-        value="socks5://127.0.0.1:1080"
-        onChange={handleChange}
-      />,
-    );
+    render(<EgressProxyConfig value="socks5://127.0.0.1:1080" onChange={handleChange} />);
 
     const input = screen.getByPlaceholderText('egressProxyPlaceholder');
     fireEvent.blur(input);

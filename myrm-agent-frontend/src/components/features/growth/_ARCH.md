@@ -17,7 +17,7 @@
 | `DailyWrapCard.tsx`            | 组件 | AI 日报摘要卡片（Daily Wrap），由 DailyJournal 使用                                                                                                        | ✅    |
 | `HealthRadar.tsx`              | 组件 | 记忆健康雷达图（多维度可视化）                                                                                                                             | ✅    |
 | `SkillEventList.tsx`           | 组件 | 技能演进事件列表                                                                                                                                           | ✅    |
-| `SkillHealthPanel.tsx`         | 组件 | 技能健康度与周复盘治理面板。支持全量/待治理/健康分类筛选、平滑展开全量资产，带参直达技能管理，展示 Harness 纯规则健康分与多语言治理建议 | ✅    |
+| `SkillHealthPanel.tsx`         | 组件 | 技能健康度与周复盘治理面板。支持全量/待治理/健康分类筛选、平滑展开全量资产，带参直达技能管理，展示 Harness 纯规则健康分与多语言治理建议                    | ✅    |
 
 ## 依赖
 

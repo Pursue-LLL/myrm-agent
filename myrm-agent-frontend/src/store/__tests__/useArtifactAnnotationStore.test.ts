@@ -29,7 +29,8 @@ describe('useArtifactAnnotationStore', () => {
     store.clearArtifact('file-2');
   });
 
-  it('transitions status and removes entries', () => {    const store = useArtifactAnnotationStore.getState();
+  it('transitions status and removes entries', () => {
+    const store = useArtifactAnnotationStore.getState();
     store.clearArtifact('file-1');
     store.addAnnotation(annotation({ id: 'a1' }));
     store.markSubmitted('file-1', ['a1']);

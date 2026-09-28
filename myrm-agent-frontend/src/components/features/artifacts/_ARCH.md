@@ -12,8 +12,8 @@
 
 | 文件                                       | 地位 | 职责                                                                                                                                                                                                    |
 | ------------------------------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ArtifactPortal.tsx`                       | 核心 | Artifact 预览入口容器；支持 overlay/side-by-side 双布局模式；协调加载、手势、快捷键与 Diff 截断 UX；审阅批注面板开关                                                                                  |
-| `ArtifactAnnotationPanel.tsx`            | 辅助 | 行内批注列表/提交（聊天重发与看板退回双路径）与版本对齐徽标                                                                                                                                            |
+| `ArtifactPortal.tsx`                       | 核心 | Artifact 预览入口容器；支持 overlay/side-by-side 双布局模式；协调加载、手势、快捷键与 Diff 截断 UX；审阅批注面板开关                                                                                    |
+| `ArtifactAnnotationPanel.tsx`              | 辅助 | 行内批注列表/提交（聊天重发与看板退回双路径）与版本对齐徽标                                                                                                                                             |
 | `ArtifactCard.tsx`                         | 核心 | 聊天卡片；HTML/SVG/Mermaid 默认 inline 渲染；Globe 发布；Wiki ingest（**chat agentConfig.agentId scoped**）；HTML 工件 HITL「推送到公众号草稿」入口；`*.organize-plan.json` HITL 整理计划审阅/执行/回滚 |
 | `SkillDetectionCard.tsx`                   | 核心 | 检测工件中 SKILL.md → 打包下载 / 打包注册；注册成功 toast 展示还原的回归门禁用例数（`restored_eval_cases`）                                                                                             |
 | `WeChatDraftPanel.tsx`                     | 核心 | 公众号草稿 HITL 面板：author/digest/title/cover、合规命中展示、封面 suggest                                                                                                                             |

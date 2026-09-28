@@ -22,11 +22,7 @@ interface MemoryEconomicsKpiCardsProps {
   parasiticCount: number;
 }
 
-export const MemoryEconomicsKpiCards: React.FC<MemoryEconomicsKpiCardsProps> = ({
-  cost,
-  savings,
-  parasiticCount,
-}) => {
+export const MemoryEconomicsKpiCards: React.FC<MemoryEconomicsKpiCardsProps> = ({ cost, savings, parasiticCount }) => {
   const retrievalMs = cost?.retrieval_ms ?? 0;
   const constructionMs = cost?.construction_ms ?? 0;
   const injectionMs = cost?.injection_overhead_ms ?? 0;
@@ -47,9 +43,7 @@ export const MemoryEconomicsKpiCards: React.FC<MemoryEconomicsKpiCardsProps> = (
           <span>平均</span>
         </div>
         <div className="flex items-baseline gap-1.5">
-          <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            {retrievalMs}
-          </span>
+          <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{retrievalMs}</span>
           <span className="text-xs text-muted-foreground">ms</span>
         </div>
         <div className="text-[11px] text-muted-foreground/80 flex items-center justify-between">
@@ -143,9 +137,7 @@ export const MemoryEconomicsKpiCards: React.FC<MemoryEconomicsKpiCardsProps> = (
           <span>节约</span>
         </div>
         <div className="flex items-baseline gap-1.5">
-          <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            ${savings.toFixed(4)}
-          </span>
+          <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">${savings.toFixed(4)}</span>
           <span className="text-xs text-muted-foreground">USD / 周期</span>
         </div>
         <div className="text-[11px] text-muted-foreground/80">

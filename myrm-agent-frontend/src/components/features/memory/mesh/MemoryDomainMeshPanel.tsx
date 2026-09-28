@@ -73,9 +73,7 @@ export const MemoryDomainMeshPanel: React.FC<MemoryDomainMeshPanelProps> = ({ cl
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-base font-bold tracking-tight text-foreground">
-                Three-Domain Memory Mesh
-              </h2>
+              <h2 className="text-base font-bold tracking-tight text-foreground">Three-Domain Memory Mesh</h2>
               <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                 Multi-Domain Sync
               </span>
@@ -112,11 +110,7 @@ export const MemoryDomainMeshPanel: React.FC<MemoryDomainMeshPanelProps> = ({ cl
         <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
-          <button
-            type="button"
-            onClick={loadData}
-            className="ml-auto underline font-medium hover:text-destructive/80"
-          >
+          <button type="button" onClick={loadData} className="ml-auto underline font-medium hover:text-destructive/80">
             Retry
           </button>
         </div>
@@ -155,11 +149,7 @@ export const MemoryDomainMeshPanel: React.FC<MemoryDomainMeshPanelProps> = ({ cl
       />
 
       {/* Hermes Migration Modal */}
-      <HermesMigrationModal
-        open={migrationOpen}
-        onOpenChange={setMigrationOpen}
-        onSuccess={loadData}
-      />
+      <HermesMigrationModal open={migrationOpen} onOpenChange={setMigrationOpen} onSuccess={loadData} />
     </div>
   );
 };

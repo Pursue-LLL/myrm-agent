@@ -69,238 +69,247 @@ function compareValues(a: string, b: string, numeric: boolean): number {
   return a.localeCompare(b);
 }
 
-const DataGrid: React.FC<DataGridProps> = memo(({ headers, rows, totalRows, className, filename, sheetName, artifactId }) => {
-  const t = useTranslations('artifacts.spreadsheet');
-  const parentRef = useRef<HTMLDivElement>(null);
-  const [sortCol, setSortCol] = useState<number | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>(null);
-  const [search, setSearch] = useState('');
-  const deferredSearch = useDeferredValue(search);
-  const [selectedRow, setSelectedRow] = useState<number | null>(null);
+const DataGrid: React.FC<DataGridProps> = memo(
+  ({ headers, rows, totalRows, className, filename, sheetName, artifactId }) => {
+    const t = useTranslations('artifacts.spreadsheet');
+    const parentRef = useRef<HTMLDivElement>(null);
+    const [sortCol, setSortCol] = useState<number | null>(null);
+    const [sortDir, setSortDir] = useState<SortDir>(null);
+    const [search, setSearch] = useState('');
+    const deferredSearch = useDeferredValue(search);
+    const [selectedRow, setSelectedRow] = useState<number | null>(null);
 
-  const numericCols = useMemo(() => detectNumericColumns(headers, rows), [headers, rows]);
+    const numericCols = useMemo(() => detectNumericColumns(headers, rows), [headers, rows]);
 
-  const filteredRows = useMemo(() => {
-    if (!deferredSearch.trim()) {
-      return rows;
-    }
-    const q = deferredSearch.toLowerCase();
-    return rows.filter((row) => row.some((cell) => cell.toLowerCase().includes(q)));
-  }, [rows, deferredSearch]);
+    const filteredRows = useMemo(() => {
+      if (!deferredSearch.trim()) {
+        return rows;
+      }
+      const q = deferredSearch.toLowerCase();
+      return rows.filter((row) => row.some((cell) => cell.toLowerCase().includes(q)));
+    }, [rows, deferredSearch]);
 
-  const sortedRows = useMemo(() => {
-    if (sortCol === null || sortDir === null) {
-      return filteredRows;
-    }
-    const isNum = numericCols[sortCol];
-    const sorted = [...filteredRows].sort((a, b) => compareValues(a[sortCol], b[sortCol], isNum));
-    return sortDir === 'desc' ? sorted.reverse() : sorted;
-  }, [filteredRows, sortCol, sortDir, numericCols]);
+    const sortedRows = useMemo(() => {
+      if (sortCol === null || sortDir === null) {
+        return filteredRows;
+      }
+      const isNum = numericCols[sortCol];
+      const sorted = [...filteredRows].sort((a, b) => compareValues(a[sortCol], b[sortCol], isNum));
+      return sortDir === 'desc' ? sorted.reverse() : sorted;
+    }, [filteredRows, sortCol, sortDir, numericCols]);
 
-  const virtualizer = useVirtualizer({
-    count: sortedRows.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 20,
-  });
+    const virtualizer = useVirtualizer({
+      count: sortedRows.length,
+      getScrollElement: () => parentRef.current,
+      estimateSize: () => ROW_HEIGHT,
+      overscan: 20,
+    });
 
-  const handleSort = useCallback(
-    (colIdx: number) => {
-      if (sortCol === colIdx) {
-        if (sortDir === 'asc') {
-          setSortDir('desc');
-        } else if (sortDir === 'desc') {
-          setSortCol(null);
-          setSortDir(null);
+    const handleSort = useCallback(
+      (colIdx: number) => {
+        if (sortCol === colIdx) {
+          if (sortDir === 'asc') {
+            setSortDir('desc');
+          } else if (sortDir === 'desc') {
+            setSortCol(null);
+            setSortDir(null);
+          }
+        } else {
+          setSortCol(colIdx);
+          setSortDir('asc');
         }
-      } else {
-        setSortCol(colIdx);
-        setSortDir('asc');
+      },
+      [sortCol, sortDir],
+    );
+
+    const handleCopy = useCallback(() => {
+      const headerLine = headers.join('\t');
+      const dataLines = sortedRows.map((r) => r.join('\t')).join('\n');
+      navigator.clipboard.writeText(`${headerLine}\n${dataLines}`).catch(() => {});
+    }, [headers, sortedRows]);
+
+    const handleExport = useCallback(() => {
+      const escapeCell = (cell: string) => {
+        if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
+          return `"${cell.replace(/"/g, '""')}"`;
+        }
+        return cell;
+      };
+      const headerLine = headers.map(escapeCell).join(',');
+      const dataLines = sortedRows.map((r) => r.map(escapeCell).join(',')).join('\n');
+      const blob = new Blob([`${headerLine}\n${dataLines}`], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'export.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }, [headers, sortedRows]);
+
+    const handleQuoteSelectedRow = useCallback(() => {
+      if (selectedRow === null) {
+        return;
       }
-    },
-    [sortCol, sortDir],
-  );
-
-  const handleCopy = useCallback(() => {
-    const headerLine = headers.join('\t');
-    const dataLines = sortedRows.map((r) => r.join('\t')).join('\n');
-    navigator.clipboard.writeText(`${headerLine}\n${dataLines}`).catch(() => {});
-  }, [headers, sortedRows]);
-
-  const handleExport = useCallback(() => {
-    const escapeCell = (cell: string) => {
-      if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
-        return `"${cell.replace(/"/g, '""')}"`;
+      const row = sortedRows[selectedRow];
+      if (!row) {
+        return;
       }
-      return cell;
-    };
-    const headerLine = headers.map(escapeCell).join(',');
-    const dataLines = sortedRows.map((r) => r.map(escapeCell).join(',')).join('\n');
-    const blob = new Blob([`${headerLine}\n${dataLines}`], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'export.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [headers, sortedRows]);
+      const state = useArtifactPortalStore.getState();
+      const activeTab =
+        state.activeTabIndex >= 0 && state.activeTabIndex < state.openTabs.length
+          ? state.openTabs[state.activeTabIndex]
+          : null;
+      const artifactName = activeTab?.artifact?.filename || '表格工件';
+      const rowSnippet = headers.map((h, i) => `${h || columnLabel(i)}: ${row[i] ?? ''}`).join(', ');
+      const computedScopeLabel = sheetName
+        ? `${sheetName}!${t('rowScopeLabel', { row: selectedRow + 1 }) || `Row ${selectedRow + 1}`}`
+        : t('rowScopeLabel', { row: selectedRow + 1 }) || `Row ${selectedRow + 1}`;
+      const targetArtifactId = activeTab?.artifact?.id || artifactId || 'current';
 
-  const handleQuoteSelectedRow = useCallback(() => {
-    if (selectedRow === null) {return;}
-    const row = sortedRows[selectedRow];
-    if (!row) {return;}
-    const state = useArtifactPortalStore.getState();
-    const activeTab = state.activeTabIndex >= 0 && state.activeTabIndex < state.openTabs.length ? state.openTabs[state.activeTabIndex] : null;
-    const artifactName = activeTab?.artifact?.filename || '表格工件';
-    const rowSnippet = headers.map((h, i) => `${h || columnLabel(i)}: ${row[i] ?? ''}`).join(', ');
-    const computedScopeLabel = sheetName
-      ? `${sheetName}!${t('rowScopeLabel', { row: selectedRow + 1 }) || `Row ${selectedRow + 1}`}`
-      : (t('rowScopeLabel', { row: selectedRow + 1 }) || `Row ${selectedRow + 1}`);
-    const targetArtifactId = activeTab?.artifact?.id || artifactId || 'current';
+      useScopedArtifactStore.getState().setTarget({
+        artifactId: targetArtifactId,
+        artifactName,
+        kind: 'spreadsheet',
+        scopeLabel: computedScopeLabel,
+        selectedSnippet: rowSnippet,
+      });
 
-    useScopedArtifactStore.getState().setTarget({
-      artifactId: targetArtifactId,
-      artifactName,
-      kind: 'spreadsheet',
-      scopeLabel: computedScopeLabel,
-      selectedSnippet: rowSnippet,
-    });
+      useChatStore.getState().addMentionReference({
+        type: 'artifact_range',
+        label: artifactName,
+        artifactId: targetArtifactId,
+        range: computedScopeLabel,
+        source: 'generated',
+        size: rowSnippet.length,
+      });
 
-    useChatStore.getState().addMentionReference({
-      type: 'artifact_range',
-      label: artifactName,
-      artifactId: targetArtifactId,
-      range: computedScopeLabel,
-      source: 'generated',
-      size: rowSnippet.length,
-    });
+      const chatInput = document.querySelector('[data-chat-input]') as HTMLElement | null;
+      chatInput?.focus();
+    }, [selectedRow, sortedRows, headers, sheetName, artifactId]);
 
-    const chatInput = document.querySelector('[data-chat-input]') as HTMLElement | null;
-    chatInput?.focus();
-  }, [selectedRow, sortedRows, headers, sheetName, artifactId]);
+    const showTruncated = totalRows != null && totalRows > rows.length;
+    const showFiltered = deferredSearch.trim() && sortedRows.length !== rows.length;
 
-  const showTruncated = totalRows != null && totalRows > rows.length;
-  const showFiltered = deferredSearch.trim() && sortedRows.length !== rows.length;
-
-  return (
-    <div className={cn('flex flex-col h-full bg-background', className)}>
-      {/* Toolbar */}
-      <div className="shrink-0 flex flex-wrap items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 border-b border-border bg-muted/30">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t('search')}
-          className="flex-1 min-w-[100px] h-7 px-2 text-xs rounded border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-        />
-        <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-          {showFiltered && `${sortedRows.length} / `}
-          {rows.length}
-          {showTruncated && ` ${t('of')} ${totalRows!.toLocaleString()}`} {t('rows')}
-        </span>
-        <button
-          onClick={handleCopy}
-          className="h-7 px-2 text-[11px] rounded border border-border bg-background text-foreground hover:bg-muted transition-colors"
-          title={t('copyAll')}
-        >
-          {t('copy')}
-        </button>
-        <button
-          onClick={handleExport}
-          className="h-7 px-2 text-[11px] rounded border border-border bg-background text-foreground hover:bg-muted transition-colors"
-          title={t('exportCsv')}
-        >
-          {t('export')}
-        </button>
-        {selectedRow !== null && (
+    return (
+      <div className={cn('flex flex-col h-full bg-background', className)}>
+        {/* Toolbar */}
+        <div className="shrink-0 flex flex-wrap items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 border-b border-border bg-muted/30">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('search')}
+            className="flex-1 min-w-[100px] h-7 px-2 text-xs rounded border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+            {showFiltered && `${sortedRows.length} / `}
+            {rows.length}
+            {showTruncated && ` ${t('of')} ${totalRows!.toLocaleString()}`} {t('rows')}
+          </span>
           <button
-            onClick={handleQuoteSelectedRow}
-            className="h-7 px-2 text-[11px] font-medium rounded border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-            title={t('quoteRowTooltip')}
+            onClick={handleCopy}
+            className="h-7 px-2 text-[11px] rounded border border-border bg-background text-foreground hover:bg-muted transition-colors"
+            title={t('copyAll')}
           >
-            {t('quoteRow', { row: selectedRow + 1 })}
+            {t('copy')}
           </button>
-        )}
-      </div>
-
-      {/* Table */}
-      <div ref={parentRef} className="flex-1 min-h-0 overflow-auto">
-        <div style={{ height: `${virtualizer.getTotalSize() + ROW_HEIGHT}px`, position: 'relative' }}>
-          {/* Sticky header */}
-          <div className="sticky top-0 z-10 flex bg-muted border-b border-border" style={{ height: ROW_HEIGHT }}>
-            {headers.map((h, i) => (
-              <div
-                key={i}
-                onClick={() => handleSort(i)}
-                className={cn(
-                  'flex items-center px-3 text-[11px] font-semibold text-foreground cursor-pointer select-none whitespace-nowrap',
-                  'border-r border-border last:border-r-0 hover:bg-muted/80 transition-colors',
-                  numericCols[i] && 'justify-end',
-                )}
-                style={{ minWidth: 72, maxWidth: 320, flex: '1 0 auto' }}
-              >
-                <span className="truncate">{h || columnLabel(i)}</span>
-                {sortCol === i && <span className="ml-1 text-primary">{sortDir === 'asc' ? '↑' : '↓'}</span>}
-              </div>
-            ))}
-          </div>
-
-          {/* Virtual rows */}
-          {virtualizer.getVirtualItems().map((vRow) => {
-            const row = sortedRows[vRow.index];
-            const isSelected = selectedRow === vRow.index;
-            return (
-              <div
-                key={vRow.index}
-                onClick={() => setSelectedRow(isSelected ? null : vRow.index)}
-                className={cn(
-                  'absolute left-0 right-0 flex cursor-pointer transition-colors',
-                  isSelected
-                    ? 'bg-primary/10'
-                    : vRow.index % 2 === 0
-                      ? 'bg-background hover:bg-muted/40'
-                      : 'bg-muted/20 hover:bg-muted/40',
-                )}
-                style={{
-                  height: ROW_HEIGHT,
-                  top: vRow.start + ROW_HEIGHT,
-                }}
-              >
-                {headers.map((_, ci) => {
-                  const val = row?.[ci] ?? '';
-                  const isEmpty = val.trim() === '';
-                  return (
-                    <div
-                      key={ci}
-                      className={cn(
-                        'flex items-center px-3 text-[12px] border-r border-border/50 last:border-r-0 whitespace-nowrap',
-                        numericCols[ci] ? 'justify-end font-mono' : 'text-foreground',
-                        isEmpty && 'text-muted-foreground/40',
-                      )}
-                      style={{ minWidth: 72, maxWidth: 320, flex: '1 0 auto' }}
-                      title={val}
-                    >
-                      <span className="truncate">{isEmpty ? '—' : val}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+          <button
+            onClick={handleExport}
+            className="h-7 px-2 text-[11px] rounded border border-border bg-background text-foreground hover:bg-muted transition-colors"
+            title={t('exportCsv')}
+          >
+            {t('export')}
+          </button>
+          {selectedRow !== null && (
+            <button
+              onClick={handleQuoteSelectedRow}
+              className="h-7 px-2 text-[11px] font-medium rounded border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              title={t('quoteRowTooltip')}
+            >
+              {t('quoteRow', { row: selectedRow + 1 })}
+            </button>
+          )}
         </div>
-      </div>
 
-      <SpreadsheetSelectionToolbar
-        selectedRowIndex={selectedRow}
-        headers={headers}
-        rowData={selectedRow !== null ? sortedRows[selectedRow] ?? null : null}
-        filename={filename ?? ''}
-        sheetName={sheetName ?? ''}
-        onClearSelection={() => setSelectedRow(null)}
-      />
-    </div>
-  );
-});
+        {/* Table */}
+        <div ref={parentRef} className="flex-1 min-h-0 overflow-auto">
+          <div style={{ height: `${virtualizer.getTotalSize() + ROW_HEIGHT}px`, position: 'relative' }}>
+            {/* Sticky header */}
+            <div className="sticky top-0 z-10 flex bg-muted border-b border-border" style={{ height: ROW_HEIGHT }}>
+              {headers.map((h, i) => (
+                <div
+                  key={i}
+                  onClick={() => handleSort(i)}
+                  className={cn(
+                    'flex items-center px-3 text-[11px] font-semibold text-foreground cursor-pointer select-none whitespace-nowrap',
+                    'border-r border-border last:border-r-0 hover:bg-muted/80 transition-colors',
+                    numericCols[i] && 'justify-end',
+                  )}
+                  style={{ minWidth: 72, maxWidth: 320, flex: '1 0 auto' }}
+                >
+                  <span className="truncate">{h || columnLabel(i)}</span>
+                  {sortCol === i && <span className="ml-1 text-primary">{sortDir === 'asc' ? '↑' : '↓'}</span>}
+                </div>
+              ))}
+            </div>
+
+            {/* Virtual rows */}
+            {virtualizer.getVirtualItems().map((vRow) => {
+              const row = sortedRows[vRow.index];
+              const isSelected = selectedRow === vRow.index;
+              return (
+                <div
+                  key={vRow.index}
+                  onClick={() => setSelectedRow(isSelected ? null : vRow.index)}
+                  className={cn(
+                    'absolute left-0 right-0 flex cursor-pointer transition-colors',
+                    isSelected
+                      ? 'bg-primary/10'
+                      : vRow.index % 2 === 0
+                        ? 'bg-background hover:bg-muted/40'
+                        : 'bg-muted/20 hover:bg-muted/40',
+                  )}
+                  style={{
+                    height: ROW_HEIGHT,
+                    top: vRow.start + ROW_HEIGHT,
+                  }}
+                >
+                  {headers.map((_, ci) => {
+                    const val = row?.[ci] ?? '';
+                    const isEmpty = val.trim() === '';
+                    return (
+                      <div
+                        key={ci}
+                        className={cn(
+                          'flex items-center px-3 text-[12px] border-r border-border/50 last:border-r-0 whitespace-nowrap',
+                          numericCols[ci] ? 'justify-end font-mono' : 'text-foreground',
+                          isEmpty && 'text-muted-foreground/40',
+                        )}
+                        style={{ minWidth: 72, maxWidth: 320, flex: '1 0 auto' }}
+                        title={val}
+                      >
+                        <span className="truncate">{isEmpty ? '—' : val}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <SpreadsheetSelectionToolbar
+          selectedRowIndex={selectedRow}
+          headers={headers}
+          rowData={selectedRow !== null ? (sortedRows[selectedRow] ?? null) : null}
+          filename={filename ?? ''}
+          sheetName={sheetName ?? ''}
+          onClearSelection={() => setSelectedRow(null)}
+        />
+      </div>
+    );
+  },
+);
 
 DataGrid.displayName = 'DataGrid';
 export default DataGrid;

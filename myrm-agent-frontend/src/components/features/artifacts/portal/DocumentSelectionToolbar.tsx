@@ -13,7 +13,15 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { MOBILE_BREAKPOINT } from '@/lib/constants/artifact';
-import { Edit04Icon, InformationCircleIcon, SparklesIcon, Copy01Icon, ArrowRight01Icon, MessageAdd01Icon, CommentAdd02Icon } from 'hugeicons-react';
+import {
+  Edit04Icon,
+  InformationCircleIcon,
+  SparklesIcon,
+  Copy01Icon,
+  ArrowRight01Icon,
+  MessageAdd01Icon,
+  CommentAdd02Icon,
+} from 'hugeicons-react';
 import { useSelectionAction } from './useSelectionAction';
 import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';
@@ -34,7 +42,12 @@ type ActionType = 'modify' | 'explain' | 'optimize' | 'quote' | 'annotate';
 const TOOLBAR_DEBOUNCE_MS = 250;
 const TOOLBAR_HEIGHT_ESTIMATE = 48;
 
-const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ containerRef, artifactId, content, versionId }) => {
+const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({
+  containerRef,
+  artifactId,
+  content,
+  versionId,
+}) => {
   const t = useTranslations('artifacts.documentSelection');
 
   const [visible, setVisible] = useState(false);
@@ -72,8 +85,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
       }
     }
     const source = content || selectedText.trim();
-    const anchor =
-      start > 0 ? buildAnchor(source, start, end) : buildAnchor(source, 1, source.split('\n').length);
+    const anchor = start > 0 ? buildAnchor(source, start, end) : buildAnchor(source, 1, source.split('\n').length);
     useArtifactAnnotationStore.getState().addAnnotation({
       id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
       artifactId,
@@ -280,7 +292,7 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
         const activeTab = useArtifactPortalStore.getState().getActiveTab();
         const artifactName = activeTab?.artifact?.filename || '文档工件';
         const targetArtifactId = artifactId || activeTab?.artifact?.id || 'current';
-        
+
         // 1. 同步设置 ScopedArtifactStore，用于针对特定工件范围聚焦
         useScopedArtifactStore.getState().setTarget({
           artifactId: targetArtifactId,
@@ -343,7 +355,10 @@ const DocumentSelectionToolbar: React.FC<DocumentSelectionToolbarProps> = ({ con
               'text-popover-foreground/80 hover:text-popover-foreground',
               'hover:bg-accent transition-colors duration-100',
               action.type === 'modify' && showInput && inputMode === 'modify' && 'bg-accent text-popover-foreground',
-              action.type === 'annotate' && showInput && inputMode === 'annotate' && 'bg-accent text-popover-foreground',
+              action.type === 'annotate' &&
+                showInput &&
+                inputMode === 'annotate' &&
+                'bg-accent text-popover-foreground',
             )}
             title={action.label}
           >

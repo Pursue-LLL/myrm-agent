@@ -56,9 +56,7 @@ export const TailscaleAccessCard = memo<TailscaleAccessCardProps>(({ webuiPort }
   const magicDnsUrl = status?.fqdn ? `http://${status.fqdn}:${webuiPort}` : null;
   const preferredUrl = status?.serveUrl || magicDnsUrl || directIpUrl;
 
-  const qrSrc = preferredUrl
-    ? `/webui/qrcode.png?url=${encodeURIComponent(preferredUrl)}`
-    : '';
+  const qrSrc = preferredUrl ? `/webui/qrcode.png?url=${encodeURIComponent(preferredUrl)}` : '';
 
   return (
     <div className="p-6 rounded-2xl bg-cyan-500/5 border border-cyan-500/20 space-y-4">
@@ -83,9 +81,7 @@ export const TailscaleAccessCard = memo<TailscaleAccessCardProps>(({ webuiPort }
         </button>
       </div>
 
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        {t('tailscale.description')}
-      </p>
+      <p className="text-xs text-muted-foreground leading-relaxed">{t('tailscale.description')}</p>
 
       {status?.running ? (
         <div className="space-y-3">
@@ -105,7 +101,8 @@ export const TailscaleAccessCard = memo<TailscaleAccessCardProps>(({ webuiPort }
             )}
             {status.nodeName && (
               <span className="text-xs text-muted-foreground">
-                ({status.nodeName}{status.tailnet ? ` @ ${status.tailnet}` : ''})
+                ({status.nodeName}
+                {status.tailnet ? ` @ ${status.tailnet}` : ''})
               </span>
             )}
           </div>
@@ -141,13 +138,7 @@ export const TailscaleAccessCard = memo<TailscaleAccessCardProps>(({ webuiPort }
               {qrSrc && (
                 <div className="hidden md:flex flex-col items-center gap-2 pt-2">
                   <div className="p-3 bg-white rounded-xl">
-                    <img
-                      src={qrSrc}
-                      alt={t('tailscale.qrAlt')}
-                      width={160}
-                      height={160}
-                      className="block"
-                    />
+                    <img src={qrSrc} alt={t('tailscale.qrAlt')} width={160} height={160} className="block" />
                   </div>
                   <p className="text-xs text-muted-foreground">{t('tailscale.scanHint')}</p>
                 </div>

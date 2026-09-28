@@ -50,11 +50,7 @@ export const BUILTIN_TOOL_IDS: readonly BuiltinToolId[] = [
   'skill_manage',
 ] as const;
 
-export const DEFAULT_ENABLED_BUILTIN_TOOLS: BuiltinToolId[] = [
-  'web_search',
-  'memory',
-  'structured_clarify',
-];
+export const DEFAULT_ENABLED_BUILTIN_TOOLS: BuiltinToolId[] = ['web_search', 'memory', 'structured_clarify'];
 
 const BUILTIN_TOOL_ID_SET = new Set<string>(BUILTIN_TOOL_IDS);
 

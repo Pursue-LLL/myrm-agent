@@ -52,9 +52,7 @@ function AgentTrustedDesktopAppsInner({ apps, onChange, readonly }: Props) {
       return;
     }
     const match = suggestions.find((s) => s.display_name === name);
-    const entry: TrustedDesktopAppEntry = match?.app_id
-      ? { name, app_id: match.app_id }
-      : { name };
+    const entry: TrustedDesktopAppEntry = match?.app_id ? { name, app_id: match.app_id } : { name };
     onChange([...apps, entry]);
     setDraft('');
   }, [apps, draft, onChange, readonly, suggestions]);
@@ -74,9 +72,7 @@ function AgentTrustedDesktopAppsInner({ apps, onChange, readonly }: Props) {
       <div className="mb-3">
         <h4 className="text-sm font-medium text-foreground">{t('trustedDesktopApps')}</h4>
         <p className="text-xs text-muted-foreground mt-0.5">{t('trustedDesktopAppsDesc')}</p>
-        <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-relaxed">
-          {t('trustedDesktopAppsHint')}
-        </p>
+        <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-relaxed">{t('trustedDesktopAppsHint')}</p>
       </div>
       {apps.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3">

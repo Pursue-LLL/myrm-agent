@@ -16,7 +16,12 @@ export interface ChannelPolicyOverrideProps {
   onOverride: (channel: string, overrides: ChannelOverrides | undefined) => void;
   pairings: Parameters<typeof PairingManager>[0]['pairings'];
   pairingsLoading: boolean;
-  onAddPairing: (channel: string, senderId: string, role?: 'admin' | 'member', dailyQuota?: number | null) => Promise<void>;
+  onAddPairing: (
+    channel: string,
+    senderId: string,
+    role?: 'admin' | 'member',
+    dailyQuota?: number | null,
+  ) => Promise<void>;
   onDeletePairing: (id: string) => Promise<void>;
   onUpdatePairingStatus: (id: string, status: 'active' | 'blocked') => Promise<void>;
   onUpdatePairingDisplayName?: (id: string, displayName: string) => Promise<void>;

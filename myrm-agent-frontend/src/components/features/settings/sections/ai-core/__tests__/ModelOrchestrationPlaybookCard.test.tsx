@@ -48,7 +48,8 @@ const translations: Record<string, string> = {
   configureBtn: 'Configure in Settings',
   'chat.modelPlaybook.subtitle': 'Architectural Guide & Recipes',
   'chat.modelPlaybook.title': 'Model Orchestration Playbook',
-  'chat.modelPlaybook.description': 'Master the division between Planning (Brain) and Tool Execution (Hands) for optimal quality and token economics.',
+  'chat.modelPlaybook.description':
+    'Master the division between Planning (Brain) and Tool Execution (Hands) for optimal quality and token economics.',
   'chat.modelPlaybook.tabRecipes': 'Preset Recipes',
   'chat.modelPlaybook.tabPrinciples': 'Core Principles',
   'chat.modelPlaybook.tabEconomics': 'Economics & TCO',
@@ -72,8 +73,10 @@ const stableT = (key: string) => translations[key] ?? key;
 vi.mock('next-intl', () => ({
   useTranslations: (ns?: string) => (key: string) => {
     if (ns) {
-      const fullKey = ns + "." + key;
-      if (translations[fullKey]) {return translations[fullKey];}
+      const fullKey = ns + '.' + key;
+      if (translations[fullKey]) {
+        return translations[fullKey];
+      }
     }
     return translations[key] ?? key;
   },

@@ -74,21 +74,22 @@ function UsageStatisticsSection() {
     setLoading(true);
     setError(null);
     try {
-      const [statsData, dailyData, sessionData, activityData, topSessionsData, wikiEvidenceData, cacheRadarData] = await Promise.all([
-        getUsageStatistics(),
-        getDailyUsage(30),
-        getSessionUsage(10),
-        getGlobalActivityPatterns(timeRange),
-        getTopSessions(topSessionMetric, 10, timeRange),
-        getWikiEvidenceSummary(timeRange).catch((error) => {
-          console.warn('[UsageStatistics] Failed to load wiki evidence summary:', error);
-          return null;
-        }),
-        getPromptCacheRadar(timeRange).catch((error) => {
-          console.warn('[UsageStatistics] Failed to load prompt cache radar:', error);
-          return null;
-        }),
-      ]);
+      const [statsData, dailyData, sessionData, activityData, topSessionsData, wikiEvidenceData, cacheRadarData] =
+        await Promise.all([
+          getUsageStatistics(),
+          getDailyUsage(30),
+          getSessionUsage(10),
+          getGlobalActivityPatterns(timeRange),
+          getTopSessions(topSessionMetric, 10, timeRange),
+          getWikiEvidenceSummary(timeRange).catch((error) => {
+            console.warn('[UsageStatistics] Failed to load wiki evidence summary:', error);
+            return null;
+          }),
+          getPromptCacheRadar(timeRange).catch((error) => {
+            console.warn('[UsageStatistics] Failed to load prompt cache radar:', error);
+            return null;
+          }),
+        ]);
       setStats(statsData);
       setDaily(dailyData.daily);
       setSessions(sessionData.sessions);
@@ -245,25 +246,33 @@ function UsageStatisticsSection() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="bg-background/80 rounded-lg p-2 border border-border/40">
-                <div className="text-muted-foreground text-[11px]">{locale === 'zh' ? '缓存命中率' : 'Cache Hit Ratio'}</div>
+                <div className="text-muted-foreground text-[11px]">
+                  {locale === 'zh' ? '缓存命中率' : 'Cache Hit Ratio'}
+                </div>
                 <div className="text-base font-bold text-foreground font-mono mt-0.5">
                   {(promptCacheRadar.prompt_cache_hit_ratio * 100).toFixed(1)}%
                 </div>
               </div>
               <div className="bg-background/80 rounded-lg p-2 border border-border/40">
-                <div className="text-muted-foreground text-[11px]">{locale === 'zh' ? '缓存复用 Tokens' : 'Cached Tokens'}</div>
+                <div className="text-muted-foreground text-[11px]">
+                  {locale === 'zh' ? '缓存复用 Tokens' : 'Cached Tokens'}
+                </div>
                 <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
                   {formatTokenCount(promptCacheRadar.total_cache_read_tokens)}
                 </div>
               </div>
               <div className="bg-background/80 rounded-lg p-2 border border-border/40">
-                <div className="text-muted-foreground text-[11px]">{locale === 'zh' ? '冷启动 Tokens' : 'Fresh Input'}</div>
+                <div className="text-muted-foreground text-[11px]">
+                  {locale === 'zh' ? '冷启动 Tokens' : 'Fresh Input'}
+                </div>
                 <div className="text-base font-bold text-foreground font-mono mt-0.5">
                   {formatTokenCount(promptCacheRadar.fresh_input_tokens)}
                 </div>
               </div>
               <div className="bg-background/80 rounded-lg p-2 border border-border/40">
-                <div className="text-muted-foreground text-[11px]">{locale === 'zh' ? '总 Prompt Tokens' : 'Total Prompt'}</div>
+                <div className="text-muted-foreground text-[11px]">
+                  {locale === 'zh' ? '总 Prompt Tokens' : 'Total Prompt'}
+                </div>
                 <div className="text-base font-bold text-foreground font-mono mt-0.5">
                   {formatTokenCount(promptCacheRadar.total_prompt_tokens)}
                 </div>

@@ -36,9 +36,7 @@ const PowerStackLane = memo(() => {
             className="rounded-xl border border-white/10 bg-black/20 p-3 text-left hover:bg-white/5 transition-colors"
           >
             <p className="text-xs font-bold text-foreground">{t(`columns.${column}.title`)}</p>
-            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-              {t(`columns.${column}.description`)}
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{t(`columns.${column}.description`)}</p>
           </button>
         ))}
       </div>

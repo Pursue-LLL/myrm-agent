@@ -76,4 +76,3 @@ export function templateMatchesCategory(template: TemplateListItem, category: st
   }
   return template.category === category;
 }
-

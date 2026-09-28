@@ -263,7 +263,9 @@ export const PublishModal: React.FC<PublishModalProps> = ({
   };
 
   const handleCopy = async (text: string, type: 'url' | 'password' | 'all', successMsg: string) => {
-    if (!text) {return;}
+    if (!text) {
+      return;
+    }
     try {
       await writeToClipboard(text);
       setCopiedType(type);

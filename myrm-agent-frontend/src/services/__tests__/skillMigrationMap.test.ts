@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  WB_TOP20_SKILL_MIGRATION_MAP,
-  findMigratedSkill,
-} from '../skillMigrationMap';
+import { WB_TOP20_SKILL_MIGRATION_MAP, findMigratedSkill } from '../skillMigrationMap';
 
 describe('WB_TOP20_SKILL_MIGRATION_MAP', () => {
   it('should contain exactly 20 essential skills', () => {

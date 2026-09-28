@@ -14,13 +14,7 @@ import { startLocalSearxngAndRefreshProbe } from '@/services/searxngSetup';
 import { buildQuickSearchConfig } from '@/store/config/quickSearchSetup';
 import { getActiveSearchServiceConfig } from '@/store/config/searchService';
 import type { SearchServiceType } from '@/store/config/types';
-import {
-  IconCheck,
-  IconCpu,
-  IconGlobe,
-  IconLoader,
-  IconServer,
-} from '@/components/features/icons/PremiumIcons';
+import { IconCheck, IconCpu, IconGlobe, IconLoader, IconServer } from '@/components/features/icons/PremiumIcons';
 import CloudQuickStartCard from './CloudQuickStartCard';
 import SearxngInstallConsentDialog from '@/components/features/settings/SearxngInstallConsentDialog';
 import HardwareCookbook from '@/components/features/settings/model-service/HardwareCookbook';
@@ -421,9 +415,7 @@ export default function LocalCapabilitiesSetup({ probeResult: initialProbe, onCo
         </div>
       )}
 
-      {!hasEnabledProvider && !availableModel && (
-        <CloudQuickStartCard onSelectProvider={handleGoToCloudProvider} />
-      )}
+      {!hasEnabledProvider && !availableModel && <CloudQuickStartCard onSelectProvider={handleGoToCloudProvider} />}
 
       {!searchConfigured && (
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 rounded-xl border bg-card">

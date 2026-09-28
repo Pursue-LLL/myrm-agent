@@ -278,7 +278,9 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
       );
       setTopics((prev) =>
         prev.map((item) =>
-          item.topicId === topicId ? { ...item, identityName: name, identityScope: scope, identityRevoked: keepRevoked } : item,
+          item.topicId === topicId
+            ? { ...item, identityName: name, identityScope: scope, identityRevoked: keepRevoked }
+            : item,
         ),
       );
       toast.success(messages.identityUpdatedToast);

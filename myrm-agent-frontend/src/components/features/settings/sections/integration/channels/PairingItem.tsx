@@ -141,7 +141,13 @@ export function PairingItem({
                       }
                     }}
                   />
-                  <Button size="icon" variant="ghost" className="h-5 w-5" onClick={handleSaveQuota} disabled={isUpdating}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-5 w-5"
+                    onClick={handleSaveQuota}
+                    disabled={isUpdating}
+                  >
                     <IconCheck className="h-3 w-3" />
                   </Button>
                   <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => setIsEditingQuota(false)}>
@@ -151,10 +157,14 @@ export function PairingItem({
               ) : (
                 <Badge
                   variant="outline"
-                  onClick={onUpdateDailyQuota ? () => {
-                    setIsEditingQuota(true);
-                    setEditQuotaValue(p.daily_quota ? String(p.daily_quota) : '');
-                  } : undefined}
+                  onClick={
+                    onUpdateDailyQuota
+                      ? () => {
+                          setIsEditingQuota(true);
+                          setEditQuotaValue(p.daily_quota ? String(p.daily_quota) : '');
+                        }
+                      : undefined
+                  }
                   title={onUpdateDailyQuota ? t('editQuota') : undefined}
                   className={cn(
                     'text-[10px] text-muted-foreground',
@@ -173,42 +183,46 @@ export function PairingItem({
               className="inline-flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground cursor-help"
               title="每日 00:00 UTC (北京时间 08:00) 自动刷新"
             >
-              <span>今日用量：{p.today_usage ?? 0} / {p.daily_quota ? String(p.daily_quota) : '∞'} 次</span>
-              {p.daily_quota && p.daily_quota > 0 && (() => {
-                const todayUsage = p.today_usage ?? 0;
-                const quota = p.daily_quota;
-                const percent = Math.min(100, Math.round((todayUsage / quota) * 100));
-                const isOver = todayUsage >= quota;
-                const isWarning = percent >= 70 && !isOver;
-                return (
-                  <>
-                    <div
-                      className="w-14 h-1.5 rounded-full bg-muted overflow-hidden flex items-center"
-                      role="progressbar"
-                      aria-valuenow={percent}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      title={`${percent}%`}
-                    >
+              <span>
+                今日用量：{p.today_usage ?? 0} / {p.daily_quota ? String(p.daily_quota) : '∞'} 次
+              </span>
+              {p.daily_quota &&
+                p.daily_quota > 0 &&
+                (() => {
+                  const todayUsage = p.today_usage ?? 0;
+                  const quota = p.daily_quota;
+                  const percent = Math.min(100, Math.round((todayUsage / quota) * 100));
+                  const isOver = todayUsage >= quota;
+                  const isWarning = percent >= 70 && !isOver;
+                  return (
+                    <>
                       <div
-                        className={cn(
-                          'h-full rounded-full transition-all duration-300',
-                          isOver ? 'bg-destructive' : isWarning ? 'bg-amber-500' : 'bg-emerald-500',
-                        )}
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-                    {isOver && (
-                      <Badge
-                        variant="outline"
-                        className="text-[9px] px-1 py-0 h-4 bg-destructive/10 text-destructive border-destructive/30"
+                        className="w-14 h-1.5 rounded-full bg-muted overflow-hidden flex items-center"
+                        role="progressbar"
+                        aria-valuenow={percent}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        title={`${percent}%`}
                       >
-                        已超额
-                      </Badge>
-                    )}
-                  </>
-                );
-              })()}
+                        <div
+                          className={cn(
+                            'h-full rounded-full transition-all duration-300',
+                            isOver ? 'bg-destructive' : isWarning ? 'bg-amber-500' : 'bg-emerald-500',
+                          )}
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                      {isOver && (
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] px-1 py-0 h-4 bg-destructive/10 text-destructive border-destructive/30"
+                        >
+                          已超额
+                        </Badge>
+                      )}
+                    </>
+                  );
+                })()}
             </div>
           )}
         </div>
@@ -281,7 +295,11 @@ export function PairingItem({
             disabled={isUpdating}
             onClick={() => onUpdateStatus(p.id, 'active')}
           >
-            {isUpdating ? <IconLoader className="h-3.5 w-3.5 animate-spin" /> : <IconCheckCircle className="h-3.5 w-3.5 mr-1" />}
+            {isUpdating ? (
+              <IconLoader className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <IconCheckCircle className="h-3.5 w-3.5 mr-1" />
+            )}
             {t('approve')}
           </Button>
         )}
@@ -294,7 +312,11 @@ export function PairingItem({
             disabled={isUpdating}
             onClick={() => onUpdateStatus(p.id, 'blocked')}
           >
-            {isUpdating ? <IconLoader className="h-3.5 w-3.5 animate-spin" /> : <IconBan className="h-3.5 w-3.5 mr-1" />}
+            {isUpdating ? (
+              <IconLoader className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <IconBan className="h-3.5 w-3.5 mr-1" />
+            )}
             {t('block')}
           </Button>
         )}
@@ -307,7 +329,11 @@ export function PairingItem({
             disabled={isUpdating}
             onClick={() => onUpdateStatus(p.id, 'active')}
           >
-            {isUpdating ? <IconLoader className="h-3.5 w-3.5 animate-spin" /> : <IconLock className="h-3.5 w-3.5 mr-1" />}
+            {isUpdating ? (
+              <IconLoader className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <IconLock className="h-3.5 w-3.5 mr-1" />
+            )}
             {t('unblock')}
           </Button>
         )}

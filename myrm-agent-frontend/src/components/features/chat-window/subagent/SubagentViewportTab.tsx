@@ -116,7 +116,10 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
     const isBrowserRelated =
       Boolean(node.last_tool && (node.last_tool.includes('browser') || node.last_tool.includes('desktop'))) ||
       Boolean(node.agent_type && (node.agent_type.includes('browser') || node.agent_type.includes('web'))) ||
-      stream.some((s) => s.kind === 'tool' && (s.text.toLowerCase().includes('browser') || s.text.toLowerCase().includes('navigate')));
+      stream.some(
+        (s) =>
+          s.kind === 'tool' && (s.text.toLowerCase().includes('browser') || s.text.toLowerCase().includes('navigate')),
+      );
 
     if ((isBrowserRelated || node.status === 'running') && scopedInspectorView?.screenshotBase64) {
       return {
@@ -232,9 +235,7 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
               </a>
             </div>
           ) : (
-            <span className="text-xs text-muted-foreground truncate">
-              {viewportData.title || '沙箱浏览器视口'}
-            </span>
+            <span className="text-xs text-muted-foreground truncate">{viewportData.title || '沙箱浏览器视口'}</span>
           )}
         </div>
 
@@ -267,9 +268,7 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
         data-testid="subagent-viewport-image-container"
         className={cn(
           'relative rounded-xl border border-border/80 overflow-hidden bg-black/5 dark:bg-black/40 flex items-center justify-center transition-all duration-200',
-          isZoomed
-            ? 'fixed inset-4 z-50 p-4 bg-background/95 backdrop-blur-md shadow-2xl'
-            : 'w-full max-h-[520px]',
+          isZoomed ? 'fixed inset-4 z-50 p-4 bg-background/95 backdrop-blur-md shadow-2xl' : 'w-full max-h-[520px]',
         )}
       >
         {isZoomed && (
@@ -298,7 +297,9 @@ export const SubagentViewportTab: React.FC<SubagentViewportTabProps> = ({ node, 
           alt={viewportData.title || 'Subagent Viewport Preview'}
           className={cn(
             'object-contain rounded-lg transition-transform duration-150',
-            isZoomed ? 'relative z-10 w-auto h-auto max-w-full max-h-full cursor-default' : 'w-full h-auto max-h-[480px]',
+            isZoomed
+              ? 'relative z-10 w-auto h-auto max-w-full max-h-full cursor-default'
+              : 'w-full h-auto max-h-[480px]',
           )}
           draggable={false}
         />

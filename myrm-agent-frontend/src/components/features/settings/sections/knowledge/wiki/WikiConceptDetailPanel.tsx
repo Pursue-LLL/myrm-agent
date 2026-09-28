@@ -142,7 +142,14 @@ export function WikiConceptDetailPanel({
       if (highlightTimerRef.current) {
         clearTimeout(highlightTimerRef.current);
       }
-      matched.classList.add('bg-primary/10', 'ring-1', 'ring-primary/40', 'rounded-md', 'transition-all', 'duration-500');
+      matched.classList.add(
+        'bg-primary/10',
+        'ring-1',
+        'ring-primary/40',
+        'rounded-md',
+        'transition-all',
+        'duration-500',
+      );
       highlightTimerRef.current = setTimeout(() => {
         matched.classList.remove('bg-primary/10', 'ring-1', 'ring-primary/40', 'rounded-md');
         highlightTimerRef.current = null;

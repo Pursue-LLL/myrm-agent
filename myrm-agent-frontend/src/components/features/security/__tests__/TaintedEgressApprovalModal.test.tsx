@@ -1,10 +1,7 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import {
-  TaintedEgressApprovalModal,
-  type TaintedEgressApprovalItem,
-} from '../TaintedEgressApprovalModal';
+import { TaintedEgressApprovalModal, type TaintedEgressApprovalItem } from '../TaintedEgressApprovalModal';
 
 describe('TaintedEgressApprovalModal', () => {
   const mockItem: TaintedEgressApprovalItem = {
@@ -32,7 +29,7 @@ describe('TaintedEgressApprovalModal', () => {
         onApprove={onApprove}
         onReject={onReject}
         onClose={onClose}
-      />
+      />,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -45,7 +42,7 @@ describe('TaintedEgressApprovalModal', () => {
         onApprove={onApprove}
         onReject={onReject}
         onClose={onClose}
-      />
+      />,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -58,7 +55,7 @@ describe('TaintedEgressApprovalModal', () => {
         onApprove={onApprove}
         onReject={onReject}
         onClose={onClose}
-      />
+      />,
     );
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -77,7 +74,7 @@ describe('TaintedEgressApprovalModal', () => {
         onApprove={onApprove}
         onReject={onReject}
         onClose={onClose}
-      />
+      />,
     );
 
     const approveBtn = screen.getByRole('button', { name: /approve/i });
@@ -99,7 +96,7 @@ describe('TaintedEgressApprovalModal', () => {
         onApprove={onApprove}
         onReject={onReject}
         onClose={onClose}
-      />
+      />,
     );
 
     const checkbox = screen.getByRole('checkbox');
@@ -126,7 +123,7 @@ describe('TaintedEgressApprovalModal', () => {
         onApprove={onApprove}
         onReject={onReject}
         onClose={onClose}
-      />
+      />,
     );
 
     const rejectBtn = screen.getByRole('button', { name: /reject/i });
@@ -146,7 +143,7 @@ describe('TaintedEgressApprovalModal', () => {
         onApprove={onApprove}
         onReject={onReject}
         onClose={onClose}
-      />
+      />,
     );
 
     const closeBtn = screen.getByRole('button', { name: /close/i });

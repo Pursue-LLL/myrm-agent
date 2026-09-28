@@ -164,7 +164,7 @@ describe('TailscaleAccessCard', () => {
   });
 
   it('handles refresh button click by fetching status again', async () => {
-    const mockGetStatus = (remoteAccessService.getTailscaleStatus as unknown as ReturnType<typeof vi.fn>);
+    const mockGetStatus = remoteAccessService.getTailscaleStatus as unknown as ReturnType<typeof vi.fn>;
     mockGetStatus.mockResolvedValue({
       installed: true,
       running: true,

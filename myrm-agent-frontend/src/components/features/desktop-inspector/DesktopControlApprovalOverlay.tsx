@@ -17,9 +17,7 @@ const DesktopControlApprovalOverlay: React.FC = () => {
 
   return (
     <div className="fixed bottom-4 left-1/2 z-[60] flex flex-col items-center gap-2 -translate-x-1/2 pointer-events-auto w-[min(100%-1.5rem,32rem)]">
-      {activeEnvelope && activeEnvelope.status === 'active' && !pending && (
-        <LeaseProgressCapsule />
-      )}
+      {activeEnvelope && activeEnvelope.status === 'active' && !pending && <LeaseProgressCapsule />}
       {pending && <DesktopControlApprovalBanner />}
     </div>
   );

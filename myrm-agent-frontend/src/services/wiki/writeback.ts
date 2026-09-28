@@ -95,9 +95,11 @@ export interface WikiLayerItem {
   file_type?: 'markdown' | 'json';
 }
 
-
 export const writebackService = {
-  async recordUsageLedger(record: UsageLedgerRecord, agentId?: string | null): Promise<{ status: string; saved_path: string }> {
+  async recordUsageLedger(
+    record: UsageLedgerRecord,
+    agentId?: string | null,
+  ): Promise<{ status: string; saved_path: string }> {
     return apiRequest<{ status: string; saved_path: string }>(buildWikiApiPath('/wiki/writeback/ledger', agentId), {
       method: 'POST',
       body: JSON.stringify(record),
@@ -118,7 +120,10 @@ export const writebackService = {
     });
   },
 
-  async applyWritebackDecisions(request: WritebackApplyRequest, agentId?: string | null): Promise<WritebackApplyResult> {
+  async applyWritebackDecisions(
+    request: WritebackApplyRequest,
+    agentId?: string | null,
+  ): Promise<WritebackApplyResult> {
     return apiRequest<WritebackApplyResult>(buildWikiApiPath('/wiki/writeback/apply', agentId), {
       method: 'POST',
       body: JSON.stringify(request),
@@ -135,4 +140,3 @@ export const writebackService = {
     );
   },
 };
-

@@ -20,4 +20,3 @@
 - `errorRedactor.ts`：Control UI 全面错误展示脱敏引擎 — `redactErrorMessage` 与 `redactErrorObject` 纯函数，覆盖 API Key、Bearer Token、JWT、数据库 URI 密码、macOS/Linux/Windows 主目录路径与私有内网 IP 地址，保障 UI 表面（Toast、API 响应解析、内联错误文本）零凭据泄漏。
 - `encodingUtils.ts`：UTF-8 安全 Base64 编解码引擎 — `safeBase64DecodeUtf8` 与 `safeBase64EncodeUtf8` 纯函数，基于原生 `TextDecoder('utf-8')` / `TextEncoder` 还原多字节 Unicode 字节流，杜绝原生 `atob` 导致的中文、日韩文与 Emoji 数据乱码崩溃，具备优雅容错降级保护。
 - `urlUtils.ts`：URL 协议安全性与外部跳转校验工具 — 提供 `isValidExternalUrl` 严格协议白名单校验（仅放行 `http:` 与 `https:`），阻断 `javascript:`、`data:` 与桌面本地伪协议，防御工件与应用外链 XSS 及客户端沙箱逃逸。
-

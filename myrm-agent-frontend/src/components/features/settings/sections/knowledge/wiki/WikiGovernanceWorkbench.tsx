@@ -105,7 +105,9 @@ export function WikiGovernanceWorkbench({
   };
 
   const handleUndo = async () => {
-    if (!undoToken) {return;}
+    if (!undoToken) {
+      return;
+    }
     try {
       const res = await wikiService.undoGovernanceArchive(undoToken, agentId);
       setUndoToken(null);
@@ -132,7 +134,9 @@ export function WikiGovernanceWorkbench({
     }
   };
 
-  if (!data) {return null;}
+  if (!data) {
+    return null;
+  }
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-4 shadow-xs">

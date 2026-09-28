@@ -36,9 +36,7 @@ export function AgentA2ABinding({
   }, []);
 
   const availablePeers = peers.filter((p) => !selectedPeerIds.includes(p.id));
-  const selectedPeers = selectedPeerIds
-    .map((id) => peers.find((p) => p.id === id))
-    .filter(Boolean) as A2APeer[];
+  const selectedPeers = selectedPeerIds.map((id) => peers.find((p) => p.id === id)).filter(Boolean) as A2APeer[];
 
   const handleAdd = (peerId: string) => {
     onSelectedPeerIdsChange([...selectedPeerIds, peerId]);

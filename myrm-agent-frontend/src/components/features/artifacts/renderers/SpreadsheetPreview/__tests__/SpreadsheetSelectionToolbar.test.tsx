@@ -36,7 +36,7 @@ describe('SpreadsheetSelectionToolbar', () => {
         headers={['Name', 'Age']}
         rowData={null}
         onClearSelection={vi.fn()}
-      />
+      />,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -51,7 +51,7 @@ describe('SpreadsheetSelectionToolbar', () => {
         filename="market.xlsx"
         sheetName="Sheet1"
         onClearSelection={onClear}
-      />
+      />,
     );
 
     expect(screen.getByText('Sheet1!Row 2')).toBeDefined();
@@ -75,7 +75,7 @@ describe('SpreadsheetSelectionToolbar', () => {
         headers={['Col1']}
         rowData={['Val1']}
         onClearSelection={onClear}
-      />
+      />,
     );
 
     const clearBtn = screen.getByLabelText('Clear selection');

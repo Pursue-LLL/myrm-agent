@@ -35,7 +35,9 @@ const SessionAnalyticsDialog = memo<SessionAnalyticsDialogProps>(({ sessionId, o
   const [copied, setCopied] = useState(false);
 
   const handleCopyMarkdown = useCallback(async () => {
-    if (!data) {return;}
+    if (!data) {
+      return;
+    }
     const durSec = Math.round(data.duration_ms / 1000);
     const durStr = durSec >= 60 ? `${Math.floor(durSec / 60)}m ${durSec % 60}s` : `${durSec}s`;
 
@@ -83,7 +85,11 @@ ${toolRows}
 `;
 
     try {
-      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === 'function'
+      ) {
         await navigator.clipboard.writeText(markdown);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -115,7 +121,9 @@ ${toolRows}
   }, [data]);
 
   const handleDownloadCsv = useCallback(() => {
-    if (!data) {return;}
+    if (!data) {
+      return;
+    }
     const durSec = Math.round(data.duration_ms / 1000);
     const escapeCsv = (val: string | number) => `"${String(val).replace(/"/g, '""')}"`;
 
@@ -271,7 +279,11 @@ ${toolRows}
               title={t('copyMarkdownTooltip')}
               aria-label={t('copyMarkdown')}
             >
-              {copied ? <IconCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <IconCopy className="w-3.5 h-3.5 shrink-0" />}
+              {copied ? (
+                <IconCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              ) : (
+                <IconCopy className="w-3.5 h-3.5 shrink-0" />
+              )}
               <span className="hidden sm:inline">{copied ? t('copied') : t('copyMarkdown')}</span>
             </button>
             <button
@@ -417,9 +429,7 @@ ${toolRows}
           )}
 
           {/* Context Doctor Breakdown */}
-          {data.context_breakdown && (
-            <ContextBreakdownCard breakdown={data.context_breakdown} />
-          )}
+          {data.context_breakdown && <ContextBreakdownCard breakdown={data.context_breakdown} />}
 
           <ExecutionTraceTimeline sessionId={sessionId} />
 

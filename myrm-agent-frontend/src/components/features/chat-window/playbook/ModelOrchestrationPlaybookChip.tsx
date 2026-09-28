@@ -57,12 +57,7 @@ export const ModelOrchestrationPlaybookChip = memo(function ModelOrchestrationPl
   }, []);
 
   if (dismissed) {
-    return (
-      <ModelOrchestrationPlaybookDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-      />
-    );
+    return <ModelOrchestrationPlaybookDialog open={dialogOpen} onOpenChange={setDialogOpen} />;
   }
 
   return (
@@ -100,9 +95,7 @@ export const ModelOrchestrationPlaybookChip = memo(function ModelOrchestrationPl
                 {t('chipBadge')}
               </span>
             </div>
-            <span className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
-              {t('chipSubtitle')}
-            </span>
+            <span className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">{t('chipSubtitle')}</span>
           </div>
         </div>
 
@@ -122,10 +115,7 @@ export const ModelOrchestrationPlaybookChip = memo(function ModelOrchestrationPl
         </div>
       </div>
 
-      <ModelOrchestrationPlaybookDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-      />
+      <ModelOrchestrationPlaybookDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </>
   );
 });

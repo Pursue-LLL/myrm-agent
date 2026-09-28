@@ -5,11 +5,7 @@ import useSWR from 'swr';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import { Archive, GitMerge, ShieldCheck, Trash2 } from 'lucide-react';
-import {
-  deleteAgent,
-  getGovernanceOverview,
-  type GovernanceOverview,
-} from '@/services/agent';
+import { deleteAgent, getGovernanceOverview, type GovernanceOverview } from '@/services/agent';
 import { toast } from '@/hooks/shared/useToast';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { MergeWizard } from '@/components/agent/GovernanceMergeWizard';
@@ -55,9 +51,7 @@ export function GovernancePanel({ agentNames, onReview, onChanged }: GovernanceP
     <section className="rounded-xl border bg-card p-5 mb-6" aria-label="Agent governance">
       <div className="flex items-center gap-2 mb-1">
         <ShieldCheck className="h-4 w-4 text-primary" />
-        <h2 className="text-base font-semibold">
-          {t('title', { fallback: 'Agent Health Check' })}
-        </h2>
+        <h2 className="text-base font-semibold">{t('title', { fallback: 'Agent Health Check' })}</h2>
       </div>
       <p className="text-sm text-muted-foreground mb-4">
         {t('subtitle', {
@@ -169,7 +163,9 @@ function OverlapRow({
         <GitMerge className="mr-2 h-4 w-4" />
         {t('merge', { fallback: 'Merge' })}
       </Button>
-      {wizardOpen && <MergeWizard pair={pair} agentNames={agentNames} onClose={() => setWizardOpen(false)} onDone={onDone} />}
+      {wizardOpen && (
+        <MergeWizard pair={pair} agentNames={agentNames} onClose={() => setWizardOpen(false)} onDone={onDone} />
+      )}
     </li>
   );
 }

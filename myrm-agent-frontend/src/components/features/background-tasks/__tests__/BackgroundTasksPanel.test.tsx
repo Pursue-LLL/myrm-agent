@@ -48,12 +48,8 @@ vi.mock('@/components/primitives/popover', () => ({
       {children}
     </div>
   ),
-  PopoverTrigger: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="popover-trigger">{children}</div>
-  ),
-  PopoverContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="popover-content">{children}</div>
-  ),
+  PopoverTrigger: ({ children }: { children: React.ReactNode }) => <div data-testid="popover-trigger">{children}</div>,
+  PopoverContent: ({ children }: { children: React.ReactNode }) => <div data-testid="popover-content">{children}</div>,
 }));
 
 vi.mock('@/components/primitives/tooltip', () => ({
@@ -86,8 +82,7 @@ vi.mock('@/services/background-tasks', () => ({
   listBackgroundTasks: () => mockListBackgroundTasks(),
   cancelBackgroundTask: (id: string) => mockCancelBackgroundTask(id),
   steerBackgroundTask: (id: string, text: string) => mockSteerBackgroundTask(id, text),
-  sendShellBackgroundStdin: (id: string, text: string, opts?: unknown) =>
-    mockSendShellBackgroundStdin(id, text, opts),
+  sendShellBackgroundStdin: (id: string, text: string, opts?: unknown) => mockSendShellBackgroundStdin(id, text, opts),
   evictedFilenameFromVaultRef: (ref: string) => ref,
 }));
 
@@ -183,11 +178,7 @@ describe('BackgroundTasksPanel with Search and Filter', () => {
   });
 
   it('renders search input when tasks or goals exist', async () => {
-    render(
-      <BackgroundTasksPanel
-        trigger={<button data-testid="panel-trigger">Open</button>}
-      />,
-    );
+    render(<BackgroundTasksPanel trigger={<button data-testid="panel-trigger">Open</button>} />);
 
     // Open popover by clicking trigger
     const trigger = screen.getByTestId('panel-trigger');
@@ -199,11 +190,7 @@ describe('BackgroundTasksPanel with Search and Filter', () => {
   });
 
   it('filters task rows dynamically as user types query', async () => {
-    render(
-      <BackgroundTasksPanel
-        trigger={<button data-testid="panel-trigger">Open</button>}
-      />,
-    );
+    render(<BackgroundTasksPanel trigger={<button data-testid="panel-trigger">Open</button>} />);
 
     const trigger = screen.getByTestId('panel-trigger');
     fireEvent.click(trigger);
@@ -236,11 +223,7 @@ describe('BackgroundTasksPanel with Search and Filter', () => {
   });
 
   it('shows no-results state when search query matches nothing', async () => {
-    render(
-      <BackgroundTasksPanel
-        trigger={<button data-testid="panel-trigger">Open</button>}
-      />,
-    );
+    render(<BackgroundTasksPanel trigger={<button data-testid="panel-trigger">Open</button>} />);
 
     const trigger = screen.getByTestId('panel-trigger');
     fireEvent.click(trigger);

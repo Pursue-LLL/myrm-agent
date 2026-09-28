@@ -128,5 +128,3 @@ export function isQuietNow(hours: QuietHours | null, now: Date = new Date()): bo
   }
   return current >= hours.startHour || current < hours.endHour;
 }
-
-

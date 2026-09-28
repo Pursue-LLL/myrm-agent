@@ -342,10 +342,6 @@ describe('SessionReplayPlayer store selector stability', () => {
     const forkBtns = await screen.findAllByTitle('forkFromThisStep');
     expect(forkBtns.length).toBeGreaterThan(0);
     fireEvent.click(forkBtns[0]);
-    expect(forkModule.forkConversation).toHaveBeenCalledWith(
-      'sess-1',
-      0,
-      expect.stringContaining('run pwd'),
-    );
+    expect(forkModule.forkConversation).toHaveBeenCalledWith('sess-1', 0, expect.stringContaining('run pwd'));
   });
 });

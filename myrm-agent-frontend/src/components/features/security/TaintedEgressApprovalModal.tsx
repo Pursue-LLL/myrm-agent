@@ -2,15 +2,7 @@
 
 // @orphan-ok Autonomous tainted egress approval modal for session host trust and HITL intercept
 import React, { useState } from 'react';
-import {
-  ShieldAlert,
-  Globe,
-  Lock,
-  ExternalLink,
-  Check,
-  X,
-  AlertTriangle,
-} from 'lucide-react';
+import { ShieldAlert, Globe, Lock, ExternalLink, Check, X, AlertTriangle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 export interface TaintedEgressApprovalItem {
@@ -80,9 +72,7 @@ export const TaintedEgressApprovalModal: React.FC<TaintedEgressApprovalModalProp
       aria-labelledby="tainted-egress-title"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm sm:p-6 w-full h-full border-none m-0 max-w-none max-h-none"
     >
-      <div
-        className="w-full max-w-lg rounded-xl border border-red-200 dark:border-red-900/50 bg-white dark:bg-zinc-900 shadow-2xl p-6 transition-all animate-in fade-in zoom-in-95"
-      >
+      <div className="w-full max-w-lg rounded-xl border border-red-200 dark:border-red-900/50 bg-white dark:bg-zinc-900 shadow-2xl p-6 transition-all animate-in fade-in zoom-in-95">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -90,15 +80,10 @@ export const TaintedEgressApprovalModal: React.FC<TaintedEgressApprovalModalProp
               <ShieldAlert className="w-6 h-6" />
             </div>
             <div>
-              <h2
-                id="tainted-egress-title"
-                className="text-lg font-semibold text-zinc-900 dark:text-zinc-100"
-              >
+              <h2 id="tainted-egress-title" className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                 {t('title')}
               </h2>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                {t('description')}
-              </p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{t('description')}</p>
             </div>
           </div>
           <button
@@ -165,9 +150,7 @@ export const TaintedEgressApprovalModal: React.FC<TaintedEgressApprovalModalProp
             disabled={isSubmitting}
             className="mt-0.5 h-4 w-4 rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500"
           />
-          <span className="text-zinc-600 dark:text-zinc-300">
-            {t('trustSession')}
-          </span>
+          <span className="text-zinc-600 dark:text-zinc-300">{t('trustSession')}</span>
         </label>
 
         {/* Action Buttons */}

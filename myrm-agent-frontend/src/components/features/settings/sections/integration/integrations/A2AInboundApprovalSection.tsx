@@ -3,22 +3,8 @@
 import { memo, useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
-import {
-  ShieldAlert,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  RefreshCw,
-  ExternalLink,
-  MessageSquare,
-  Radio,
-} from 'lucide-react';
-import {
-  listPendingA2ATasks,
-  approveA2ATask,
-  rejectA2ATask,
-  type A2APendingTask,
-} from '@/services/a2aPeer';
+import { ShieldAlert, CheckCircle2, XCircle, Clock, RefreshCw, ExternalLink, MessageSquare, Radio } from 'lucide-react';
+import { listPendingA2ATasks, approveA2ATask, rejectA2ATask, type A2APendingTask } from '@/services/a2aPeer';
 
 export const A2AInboundApprovalSection = memo(() => {
   const [tasks, setTasks] = useState<A2APendingTask[]>([]);
@@ -107,9 +93,7 @@ export const A2AInboundApprovalSection = memo(() => {
             >
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-xs font-medium text-foreground">
-                    {task.taskId}
-                  </span>
+                  <span className="font-mono text-xs font-medium text-foreground">{task.taskId}</span>
                   <Badge
                     variant="outline"
                     className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px]"
@@ -122,11 +106,7 @@ export const A2AInboundApprovalSection = memo(() => {
                       From: {task.peer_id || task.peerId}
                     </span>
                   )}
-                  {task.agent_id && (
-                    <span className="text-[11px] text-muted-foreground">
-                      Target: @{task.agent_id}
-                    </span>
-                  )}
+                  {task.agent_id && <span className="text-[11px] text-muted-foreground">Target: @{task.agent_id}</span>}
                   <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                     <Clock className="w-3 h-3" />
                     {new Date(task.created_at * 1000).toLocaleTimeString()}
@@ -135,9 +115,7 @@ export const A2AInboundApprovalSection = memo(() => {
 
                 <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
                   <MessageSquare className="w-3.5 h-3.5 mt-0.5 shrink-0 text-foreground/40" />
-                  <p className="line-clamp-2 break-all text-foreground/80 font-mono text-[11px]">
-                    {firstMsg}
-                  </p>
+                  <p className="line-clamp-2 break-all text-foreground/80 font-mono text-[11px]">{firstMsg}</p>
                 </div>
               </div>
 

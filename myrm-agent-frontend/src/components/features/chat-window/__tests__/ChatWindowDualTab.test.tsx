@@ -93,7 +93,9 @@ describe('ChatWindow Dual Tab [Chat | Trace]', () => {
     render(<ChatWindow id="session-dual-tab-1" />);
 
     const traceButton = screen.getByText('recovery.dualTabTrace').closest('button');
-    if (!(traceButton instanceof HTMLButtonElement)) {throw new Error('trace tab button not found');}
+    if (!(traceButton instanceof HTMLButtonElement)) {
+      throw new Error('trace tab button not found');
+    }
 
     act(() => {
       fireEvent.click(traceButton);
@@ -104,7 +106,9 @@ describe('ChatWindow Dual Tab [Chat | Trace]', () => {
     expect(screen.queryByTestId('chat-view')).not.toBeInTheDocument();
 
     const chatButton = screen.getByText('recovery.dualTabChat').closest('button');
-    if (!(chatButton instanceof HTMLButtonElement)) {throw new Error('chat tab button not found');}
+    if (!(chatButton instanceof HTMLButtonElement)) {
+      throw new Error('chat tab button not found');
+    }
 
     act(() => {
       fireEvent.click(chatButton);

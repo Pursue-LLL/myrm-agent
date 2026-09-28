@@ -1,11 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiRequest } from '@/lib/api';
-import {
-  getCognitiveClockStatus,
-  reportUserActivity,
-  triggerT1SessionDebounce,
-} from '@/services/memory';
+import { getCognitiveClockStatus, reportUserActivity, triggerT1SessionDebounce } from '@/services/memory';
 
 vi.mock('@/lib/api', () => ({
   apiRequest: vi.fn(),
@@ -53,13 +49,10 @@ describe('cognitive clock service api', () => {
     apiRequestMock.mockResolvedValue({ status: 'ok', recorded: true, reason: 'typing' });
 
     const result = await reportUserActivity('sess-abc', 'typing');
-    expect(apiRequestMock).toHaveBeenCalledWith(
-      '/memory/guardian/cognitive-clock/activity',
-      {
-        method: 'POST',
-        body: JSON.stringify({ session_id: 'sess-abc', reason: 'typing' }),
-      }
-    );
+    expect(apiRequestMock).toHaveBeenCalledWith('/memory/guardian/cognitive-clock/activity', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: 'sess-abc', reason: 'typing' }),
+    });
     expect(result.recorded).toBe(true);
   });
 
@@ -67,13 +60,10 @@ describe('cognitive clock service api', () => {
     apiRequestMock.mockResolvedValue({ status: 'ok', session_id: 'sess-xyz' });
 
     const result = await triggerT1SessionDebounce('sess-xyz');
-    expect(apiRequestMock).toHaveBeenCalledWith(
-      '/memory/guardian/cognitive-clock/trigger-t1',
-      {
-        method: 'POST',
-        body: JSON.stringify({ session_id: 'sess-xyz' }),
-      }
-    );
+    expect(apiRequestMock).toHaveBeenCalledWith('/memory/guardian/cognitive-clock/trigger-t1', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: 'sess-xyz' }),
+    });
     expect(result.status).toBe('ok');
   });
 });

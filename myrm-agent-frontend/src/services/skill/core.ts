@@ -1024,9 +1024,7 @@ export interface DesktopRecordingSessionState {
 }
 
 /** Poll the live recording session: interaction count plus whether capture is still running. */
-export async function getDesktopRecordingSession(
-  sessionId: string,
-): Promise<DesktopRecordingSessionState> {
+export async function getDesktopRecordingSession(sessionId: string): Promise<DesktopRecordingSessionState> {
   return apiRequest(`${SKILLS_API_PREFIX}/desktop-recorder/session/${encodeURIComponent(sessionId)}`);
 }
 

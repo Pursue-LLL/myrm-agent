@@ -24,26 +24,29 @@ const WorkingStateBadge = memo(({ chatId: propChatId }: WorkingStateBadgeProps =
   const prevLoadingRef = useRef(loading);
   const prevChatIdRef = useRef(chatId);
 
-  const fetchState = useCallback(async (isCancelled?: () => boolean) => {
-    try {
-      const res = await getWorkingState(chatId);
-      if (isCancelled && isCancelled()) {
-        return;
+  const fetchState = useCallback(
+    async (isCancelled?: () => boolean) => {
+      try {
+        const res = await getWorkingState(chatId);
+        if (isCancelled && isCancelled()) {
+          return;
+        }
+        if (res.live_state) {
+          setLiveState(res.live_state);
+          setFallbackContent(null);
+        } else if (res.content && !res.expired) {
+          setFallbackContent(res.content);
+          setLiveState(null);
+        } else {
+          setLiveState(null);
+          setFallbackContent(null);
+        }
+      } catch {
+        /* non-critical: network failure or degraded memory service */
       }
-      if (res.live_state) {
-        setLiveState(res.live_state);
-        setFallbackContent(null);
-      } else if (res.content && !res.expired) {
-        setFallbackContent(res.content);
-        setLiveState(null);
-      } else {
-        setLiveState(null);
-        setFallbackContent(null);
-      }
-    } catch {
-      /* non-critical: network failure or degraded memory service */
-    }
-  }, [chatId]);
+    },
+    [chatId],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -112,13 +115,7 @@ const WorkingStateBadge = memo(({ chatId: propChatId }: WorkingStateBadgeProps =
   if (fallbackContent) {
     return (
       <div className="w-full max-w-3xl mx-auto px-4 py-1">
-        <WorkingMemoryBoard
-          goal={fallbackContent}
-          subtasks={[]}
-          traps={[]}
-          activeTurn={1}
-          consolidated={false}
-        />
+        <WorkingMemoryBoard goal={fallbackContent} subtasks={[]} traps={[]} activeTurn={1} consolidated={false} />
       </div>
     );
   }

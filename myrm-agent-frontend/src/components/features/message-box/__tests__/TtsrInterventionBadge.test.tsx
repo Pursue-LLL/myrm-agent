@@ -1,10 +1,10 @@
 /**
  * [INPUT]
  * - components/features/message-box/TtsrInterventionBadge::TtsrInterventionBadge (POS: 实时安全拦截提示徽章组件)
- * 
+ *
  * [OUTPUT]
  * - TtsrInterventionBadge.test.tsx: 验证徽章组件渲染、安全防护标签、展开指引与重试文案
- * 
+ *
  * [POS]
  * 单元测试层。验证消息气泡中的 TTSR 动态防御徽章交互行为及 DOM 语义化输出。
  */
@@ -12,11 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import {
-  TtsrInterventionBadge,
-  groupTtsrInterventions,
-  type TtsrInterventionItem,
-} from '../TtsrInterventionBadge';
+import { TtsrInterventionBadge, groupTtsrInterventions, type TtsrInterventionItem } from '../TtsrInterventionBadge';
 
 describe('groupTtsrInterventions', () => {
   it('handles nullish or empty intervention lists gracefully', () => {
@@ -79,7 +75,7 @@ describe('TtsrInterventionBadge', () => {
         target="assistant"
         retryCount={1}
         maxRetries={2}
-      />
+      />,
     );
 
     expect(screen.getByRole('status')).toBeDefined();
@@ -115,7 +111,7 @@ describe('TtsrInterventionBadge', () => {
         maxRetries={2}
         attemptsCount={2}
         history={history}
-      />
+      />,
     );
 
     expect(screen.getByText(/Auto-Corrected \(2\/2 · 2 attempts\)/i)).toBeDefined();
@@ -135,7 +131,7 @@ describe('TtsrInterventionBadge', () => {
         ruleName="Ban Secret Leak"
         reminder="Do not leak private tokens."
         target="tool_args"
-      />
+      />,
     );
 
     expect(screen.queryByText('Do not leak private tokens.')).toBeNull();
@@ -154,4 +150,3 @@ describe('TtsrInterventionBadge', () => {
     expect(screen.queryByText('Do not leak private tokens.')).toBeNull();
   });
 });
-

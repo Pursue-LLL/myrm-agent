@@ -13,13 +13,7 @@ interface MainToggleProps {
 }
 
 // 主开关组件 - 使用开关样式
-export const MainToggle = memo<MainToggleProps>(({
-  enabled,
-  isLoading,
-  disabled,
-  disabledReason,
-  onToggle,
-}) => {
+export const MainToggle = memo<MainToggleProps>(({ enabled, isLoading, disabled, disabledReason, onToggle }) => {
   return (
     <div className="flex flex-col items-end gap-1">
       <button

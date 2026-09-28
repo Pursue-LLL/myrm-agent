@@ -50,13 +50,7 @@ describe('ClarificationInput', () => {
   };
 
   it('collapses options when exceeding 4 items by default', () => {
-    render(
-      <ClarificationInput
-        messageId="msg-1"
-        answered={false}
-        form={formWithManyOptions}
-      />,
-    );
+    render(<ClarificationInput messageId="msg-1" answered={false} form={formWithManyOptions} />);
 
     expect(screen.getByText('Option 1')).toBeInTheDocument();
     expect(screen.getByText('Option 4')).toBeInTheDocument();
@@ -77,13 +71,7 @@ describe('ClarificationInput', () => {
   });
 
   it('renders recommended badge and strips suffix from label', () => {
-    render(
-      <ClarificationInput
-        messageId="msg-2"
-        answered={false}
-        form={formWithManyOptions}
-      />,
-    );
+    render(<ClarificationInput messageId="msg-2" answered={false} form={formWithManyOptions} />);
 
     // Label should be stripped of "(Recommended)"
     expect(screen.getByText('Option 1')).toBeInTheDocument();
@@ -94,13 +82,7 @@ describe('ClarificationInput', () => {
   });
 
   it('renders inline code for description containing backticks', () => {
-    const { container } = render(
-      <ClarificationInput
-        messageId="msg-3"
-        answered={false}
-        form={formWithManyOptions}
-      />,
-    );
+    const { container } = render(<ClarificationInput messageId="msg-3" answered={false} form={formWithManyOptions} />);
 
     const codeEl = container.querySelector('code');
     expect(codeEl).toBeInTheDocument();
@@ -108,13 +90,7 @@ describe('ClarificationInput', () => {
   });
 
   it('triggers submit on Enter key without shift key in structured form textarea', () => {
-    const { container } = render(
-      <ClarificationInput
-        messageId="msg-4"
-        answered={false}
-        form={formWithManyOptions}
-      />,
-    );
+    const { container } = render(<ClarificationInput messageId="msg-4" answered={false} form={formWithManyOptions} />);
 
     const textarea = container.querySelector('textarea');
     expect(textarea).toBeInTheDocument();
@@ -131,20 +107,12 @@ describe('ClarificationInput', () => {
         {
           id: 'q_pure',
           prompt: 'Choose one',
-          options: [
-            { id: 'opt_pure', label: '(Recommended)' },
-          ],
+          options: [{ id: 'opt_pure', label: '(Recommended)' }],
         },
       ],
     };
 
-    render(
-      <ClarificationInput
-        messageId="msg-5"
-        answered={false}
-        form={singlePureRecommendForm}
-      />,
-    );
+    render(<ClarificationInput messageId="msg-5" answered={false} form={singlePureRecommendForm} />);
 
     // Label fallback to '(Recommended)' rather than empty string
     expect(screen.getByText('(Recommended)')).toBeInTheDocument();
@@ -153,13 +121,7 @@ describe('ClarificationInput', () => {
   });
 
   it('automatically keeps options expanded if an option in the hidden slice is selected', () => {
-    render(
-      <ClarificationInput
-        messageId="msg-6"
-        answered={false}
-        form={formWithManyOptions}
-      />,
-    );
+    render(<ClarificationInput messageId="msg-6" answered={false} form={formWithManyOptions} />);
 
     // Expand first
     const expandBtn = screen.getByRole('button', { name: /expandOptions:2/i });

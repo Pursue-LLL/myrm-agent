@@ -41,8 +41,21 @@ async function resolveApproval(
 
 const DesktopControlApprovalBanner: React.FC = () => {
   const t = useTranslations('chat.desktopInspector.controlApproval');
-  const { pending, expired, denied, changed, requestId, reason, operation, appName, windowTitle, requireAppApproval, clear, markExpired, markDenied } =
-    useDesktopControlApprovalStore();
+  const {
+    pending,
+    expired,
+    denied,
+    changed,
+    requestId,
+    reason,
+    operation,
+    appName,
+    windowTitle,
+    requireAppApproval,
+    clear,
+    markExpired,
+    markDenied,
+  } = useDesktopControlApprovalStore();
   const [submitting, setSubmitting] = useState(false);
   const [denyReason, setDenyReason] = useState('');
 
@@ -108,12 +121,8 @@ const DesktopControlApprovalBanner: React.FC = () => {
           </div>
           <div className="min-w-0 flex-1 space-y-1">
             <p className="text-sm font-semibold text-foreground">{t('title')}</p>
-            <p className="text-xs text-muted-foreground">
-              {denied ? t('deniedNotice') : t('expiredNotice')}
-            </p>
-            {operation ? (
-              <p className="text-xs text-muted-foreground font-mono truncate">{operation}</p>
-            ) : null}
+            <p className="text-xs text-muted-foreground">{denied ? t('deniedNotice') : t('expiredNotice')}</p>
+            {operation ? <p className="text-xs text-muted-foreground font-mono truncate">{operation}</p> : null}
           </div>
         </div>
         <div className="flex flex-wrap gap-2 justify-end">
@@ -152,15 +161,15 @@ const DesktopControlApprovalBanner: React.FC = () => {
               </span>
             </p>
           ) : null}
-          {(reason || operation) ? (
-            <p className="text-sm text-foreground/90" title={reason && operation ? operation : undefined}>{reason || operation}</p>
+          {reason || operation ? (
+            <p className="text-sm text-foreground/90" title={reason && operation ? operation : undefined}>
+              {reason || operation}
+            </p>
           ) : null}
           {!reason && operation ? (
             <p className="text-xs text-muted-foreground font-mono truncate">{operation}</p>
           ) : null}
-          {changed ? (
-            <p className="text-xs text-amber-600 dark:text-amber-400">{t('targetChangedNotice')}</p>
-          ) : null}
+          {changed ? <p className="text-xs text-amber-600 dark:text-amber-400">{t('targetChangedNotice')}</p> : null}
         </div>
       </div>
 

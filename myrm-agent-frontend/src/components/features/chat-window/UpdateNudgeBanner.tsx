@@ -92,10 +92,10 @@ export default function UpdateNudgeBanner() {
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-2xl p-4 transition-colors",
+        'flex items-center gap-3 rounded-2xl p-4 transition-colors',
         isSecurity
-          ? "border border-amber-500/30 bg-amber-500/5 text-amber-400"
-          : "border border-primary/25 bg-primary/5"
+          ? 'border border-amber-500/30 bg-amber-500/5 text-amber-400'
+          : 'border border-primary/25 bg-primary/5',
       )}
     >
       {isSecurity ? (

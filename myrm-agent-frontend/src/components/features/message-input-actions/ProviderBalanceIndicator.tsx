@@ -33,10 +33,14 @@ export const ProviderBalanceIndicator = memo<ProviderBalanceIndicatorProps>(({ p
     fetchGauges();
   }, [fetchGauges]);
 
-  if (!providerId) {return null;}
+  if (!providerId) {
+    return null;
+  }
 
   const gauge = getGauge(providerId);
-  if (!gauge) {return null;}
+  if (!gauge) {
+    return null;
+  }
 
   const status = gauge.status;
   if (status === 'unsupported' && !gauge.details) {
@@ -69,13 +73,20 @@ export const ProviderBalanceIndicator = memo<ProviderBalanceIndicatorProps>(({ p
   };
 
   const badge = getStatusBadge();
-  if (!badge) {return null;}
+  if (!badge) {
+    return null;
+  }
 
-  const tooltipText = gauge.details || (gauge.balance !== null ? `${gauge.balance.toFixed(2)} ${gauge.currency}` : badge.label);
+  const tooltipText =
+    gauge.details || (gauge.balance !== null ? `${gauge.balance.toFixed(2)} ${gauge.currency}` : badge.label);
 
   return (
     <div
-      className={cn('inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium border transition-colors', badge.badgeClass, className)}
+      className={cn(
+        'inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium border transition-colors',
+        badge.badgeClass,
+        className,
+      )}
       title={`${t('tooltipPrefix')}: ${tooltipText}`}
       data-testid="provider-balance-indicator"
     >

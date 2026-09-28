@@ -20,10 +20,7 @@ import {
   RadarDimensionValues,
   RADAR_PRESETS,
 } from '@/components/chat/DynamicPreferenceRadarDrawer';
-import {
-  getPreferenceRadarState,
-  tunePreferenceRadar,
-} from '@/services/memory/preferences';
+import { getPreferenceRadarState, tunePreferenceRadar } from '@/services/memory/preferences';
 import { cn } from '@/lib/utils/classnameUtils';
 
 const DEFAULT_DIMENSIONS: RadarDimensionValues = {
@@ -39,10 +36,7 @@ export interface PreferenceRadarToggleProps {
   className?: string;
 }
 
-export const PreferenceRadarToggle: React.FC<PreferenceRadarToggleProps> = ({
-  chatId,
-  className = '',
-}) => {
+export const PreferenceRadarToggle: React.FC<PreferenceRadarToggleProps> = ({ chatId, className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [locked, setLocked] = useState(false);
   const [values, setValues] = useState<RadarDimensionValues>(DEFAULT_DIMENSIONS);
@@ -82,7 +76,7 @@ export const PreferenceRadarToggle: React.FC<PreferenceRadarToggleProps> = ({
         // Optimistic UI updates
       }
     },
-    [effectiveSessionId, values]
+    [effectiveSessionId, values],
   );
 
   const handleToggleLock = useCallback(
@@ -96,7 +90,7 @@ export const PreferenceRadarToggle: React.FC<PreferenceRadarToggleProps> = ({
         // Optimistic UI updates
       }
     },
-    [effectiveSessionId]
+    [effectiveSessionId],
   );
 
   const handleReset = useCallback(async () => {
@@ -125,17 +119,12 @@ export const PreferenceRadarToggle: React.FC<PreferenceRadarToggleProps> = ({
         // Optimistic UI updates
       }
     },
-    [effectiveSessionId]
+    [effectiveSessionId],
   );
 
   return (
     <>
-      <div
-        className={cn(
-          'fixed bottom-24 right-32 z-50 max-sm:bottom-20 max-sm:right-28',
-          className
-        )}
-      >
+      <div className={cn('fixed bottom-24 right-32 z-50 max-sm:bottom-20 max-sm:right-28', className)}>
         <button
           type="button"
           data-testid="preference-radar-toggle-button"
@@ -144,7 +133,7 @@ export const PreferenceRadarToggle: React.FC<PreferenceRadarToggleProps> = ({
             'flex h-9 w-9 items-center justify-center rounded-full border border-border/80 shadow-md transition-all duration-200',
             isOpen
               ? 'bg-primary text-primary-foreground scale-105 ring-2 ring-primary/30'
-              : 'bg-secondary/90 hover:bg-secondary text-secondary-foreground hover:scale-105'
+              : 'bg-secondary/90 hover:bg-secondary text-secondary-foreground hover:scale-105',
           )}
           title="记忆偏好动态拟合雷达"
           aria-label="偏好雷达"

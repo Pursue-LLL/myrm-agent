@@ -13,10 +13,7 @@ let sandpackPreloadPromise: Promise<void> | null = null;
  */
 export function preloadMonacoEditor() {
   if (!monacoPreloadPromise) {
-    monacoPreloadPromise = Promise.all([
-      import('@monaco-editor/react'),
-      import('monaco-editor'),
-    ])
+    monacoPreloadPromise = Promise.all([import('@monaco-editor/react'), import('monaco-editor')])
       .then(([reactMod, monacoMod]) => {
         reactMod.loader.config({ monaco: monacoMod });
         console.log('[Preload] Monaco editor loaded');

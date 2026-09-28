@@ -84,9 +84,7 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
                   </Badge>
                 )}
               </h3>
-              <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">
-                {item.relative_path}
-              </p>
+              <p className="text-xs font-mono text-muted-foreground mt-0.5 truncate">{item.relative_path}</p>
             </div>
           </div>
           <Button
@@ -131,8 +129,7 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
                 onClick={handleOpenEditor}
                 className="h-8 text-xs flex items-center gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
-                在 Wiki 编辑器中打开
+                <ExternalLink className="w-3.5 h-3.5" />在 Wiki 编辑器中打开
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={onClose} className="h-8 text-xs">
@@ -144,4 +141,3 @@ export const WikiLayerItemPreviewModal: React.FC<WikiLayerItemPreviewModalProps>
     </div>
   );
 };
-

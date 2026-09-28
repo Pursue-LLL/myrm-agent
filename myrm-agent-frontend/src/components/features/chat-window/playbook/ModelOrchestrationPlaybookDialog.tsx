@@ -20,13 +20,7 @@
 import React, { memo, useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/primitives/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/primitives/dialog';
 import { Button } from '@/components/primitives/button';
 import {
   Brain,
@@ -155,12 +149,8 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
             <Sparkles className="w-5 h-5" />
             <span className="text-xs font-semibold tracking-wider uppercase">{t('subtitle')}</span>
           </div>
-          <DialogTitle className="text-xl font-bold tracking-tight text-foreground">
-            {t('title')}
-          </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground mt-1">
-            {t('description')}
-          </DialogDescription>
+          <DialogTitle className="text-xl font-bold tracking-tight text-foreground">{t('title')}</DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground mt-1">{t('description')}</DialogDescription>
 
           <div className="flex items-center gap-2 mt-4 p-1 rounded-xl bg-muted/40 border border-border/30 w-full sm:w-auto">
             <button
@@ -208,9 +198,7 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {activeTab === 'recipes' && (
             <div className="space-y-4">
-              <div className="text-xs text-muted-foreground leading-relaxed">
-                {t('recipesIntro')}
-              </div>
+              <div className="text-xs text-muted-foreground leading-relaxed">{t('recipesIntro')}</div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
                 {MODEL_ORCHESTRATION_RECIPES.map((recipe) => {
@@ -260,9 +248,7 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
 
                         <div>
                           <h4 className="text-sm font-semibold text-foreground">{t(recipe.titleKey)}</h4>
-                          <p className="text-xs text-muted-foreground mt-1 leading-snug">
-                            {t(recipe.descriptionKey)}
-                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 leading-snug">{t(recipe.descriptionKey)}</p>
                         </div>
 
                         <div className="space-y-1.5 pt-2 border-t border-border/40 text-xs">
@@ -271,9 +257,7 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
                             <div className="min-w-0">
                               <span className="font-medium text-foreground">{t('brainLabel')}: </span>
                               <span className="text-muted-foreground break-all">
-                                {readiness?.reasoningMatch
-                                  ? readiness.reasoningMatch.model
-                                  : t(recipe.brainRoleKey)}
+                                {readiness?.reasoningMatch ? readiness.reasoningMatch.model : t(recipe.brainRoleKey)}
                               </span>
                             </div>
                           </div>
@@ -306,12 +290,9 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
                             onClick={() => handleApplyRecipe(recipe)}
                             className={cn(
                               'w-full text-xs font-semibold transition-all',
-                              recipe.accentColor === 'emerald' &&
-                                'bg-emerald-600 hover:bg-emerald-700 text-white',
-                              recipe.accentColor === 'purple' &&
-                                'bg-purple-600 hover:bg-purple-700 text-white',
-                              recipe.accentColor === 'amber' &&
-                                'bg-amber-600 hover:bg-amber-700 text-white',
+                              recipe.accentColor === 'emerald' && 'bg-emerald-600 hover:bg-emerald-700 text-white',
+                              recipe.accentColor === 'purple' && 'bg-purple-600 hover:bg-purple-700 text-white',
+                              recipe.accentColor === 'amber' && 'bg-amber-600 hover:bg-amber-700 text-white',
                             )}
                           >
                             {t('applyRecipeButton')}
@@ -341,9 +322,7 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
                   <Brain className="w-4 h-4" />
                   <span>{t('brainVsHandsTitle')}</span>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {t('brainVsHandsDesc')}
-                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{t('brainVsHandsDesc')}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <div className="p-3 rounded-lg bg-background/80 border border-border/40">
                     <span className="text-xs font-semibold text-foreground flex items-center gap-1.5 mb-1">
@@ -367,9 +346,7 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
                   <GitFork className="w-4 h-4 text-sky-500" />
                   <span>{t('routingVsMoaTitle')}</span>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {t('routingVsMoaDesc')}
-                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{t('routingVsMoaDesc')}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <div className="p-3 rounded-lg bg-background/80 border border-border/40">
                     <span className="text-xs font-semibold text-foreground flex items-center gap-1.5 mb-1">
@@ -397,9 +374,7 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
                   <Coins className="w-4 h-4" />
                   <span>{t('economicsTitle')}</span>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {t('economicsDesc')}
-                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{t('economicsDesc')}</p>
                 <div className="space-y-2 pt-1 text-xs text-muted-foreground">
                   <div className="flex items-start gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
@@ -424,12 +399,7 @@ export const ModelOrchestrationPlaybookDialog = memo(function ModelOrchestration
                   </span>
                   <p className="text-[11px] text-muted-foreground">{t('externalStacksDesc')}</p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleNavigateToSettings}
-                  className="text-xs shrink-0"
-                >
+                <Button size="sm" variant="outline" onClick={handleNavigateToSettings} className="text-xs shrink-0">
                   <Sliders className="w-3.5 h-3.5 mr-1" />
                   {t('advancedSettingsButton')}
                 </Button>

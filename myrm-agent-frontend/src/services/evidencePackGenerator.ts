@@ -42,7 +42,7 @@ export interface SixStepEvidencePack {
  */
 export function generateEvidencePackFromTrace(trace: ExecutionTrace): SixStepEvidencePack {
   const taskTitle = trace.task_input ? trace.task_input.split('\n')[0].slice(0, 60) : 'Untitled Project Task';
-  
+
   // Step 1: 原始需求 (Requirements)
   const reqDetails: string[] = [];
   if (trace.task_input) {
@@ -61,7 +61,9 @@ export function generateEvidencePackFromTrace(trace: ExecutionTrace): SixStepEvi
   if (planningCalls.length > 0) {
     archDetails.push(`识别到 ${planningCalls.length} 次架构与规划决策阶段调度`);
     planningCalls.slice(0, 5).forEach((t) => {
-      archDetails.push(`[${t.tool_name}] ${t.output_summary || (t.input_data ? JSON.stringify(t.input_data).slice(0, 100) : '规划节点')}`);
+      archDetails.push(
+        `[${t.tool_name}] ${t.output_summary || (t.input_data ? JSON.stringify(t.input_data).slice(0, 100) : '规划节点')}`,
+      );
     });
   } else {
     archDetails.push('遵循端到端直连执行与敏捷响应模式');
@@ -76,7 +78,9 @@ export function generateEvidencePackFromTrace(trace: ExecutionTrace): SixStepEvi
   if (firstWrite) {
     v0Details.push(`首次物料落地动作: [${firstWrite.tool_name}] (序列 #${firstWrite.sequence})`);
     if (firstWrite.input_data && typeof firstWrite.input_data === 'object') {
-      const pathVal = (firstWrite.input_data as Record<string, unknown>).path || (firstWrite.input_data as Record<string, unknown>).file_path;
+      const pathVal =
+        (firstWrite.input_data as Record<string, unknown>).path ||
+        (firstWrite.input_data as Record<string, unknown>).file_path;
       if (pathVal) {
         v0Details.push(`目标文件: ${String(pathVal)}`);
       }
@@ -109,7 +113,9 @@ export function generateEvidencePackFromTrace(trace: ExecutionTrace): SixStepEvi
   );
   if (testCalls.length > 0) {
     const passedTests = testCalls.filter((t) => t.success).length;
-    verifDetails.push(`执行了 ${testCalls.length} 次验证/测试动作，通过率 ${(passedTests / testCalls.length * 100).toFixed(0)}%`);
+    verifDetails.push(
+      `执行了 ${testCalls.length} 次验证/测试动作，通过率 ${((passedTests / testCalls.length) * 100).toFixed(0)}%`,
+    );
     testCalls.slice(0, 3).forEach((tc) => {
       verifDetails.push(`[实证执行] ${tc.tool_name}: ${tc.success ? 'PASSED ✅' : 'FAILED ❌'}`);
     });
@@ -158,8 +164,8 @@ export function generateEvidencePackFromTrace(trace: ExecutionTrace): SixStepEvi
       summary: '工具调用流水、报错排查与纠偏证据',
       details: execDetails,
       metrics: {
-        '总调用': trace.tool_calls.length,
-        '异常数': failedCalls.length,
+        总调用: trace.tool_calls.length,
+        异常数: failedCalls.length,
       },
     },
     {

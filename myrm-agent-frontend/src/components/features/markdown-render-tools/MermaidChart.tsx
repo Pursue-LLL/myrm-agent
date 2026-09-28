@@ -548,7 +548,10 @@ const MermaidChart: React.FC<MermaidChartProps> = ({ chart, id }) => {
   // 错误状态渲染
   if (showError && chart?.trim()) {
     return (
-      <div className="border border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-700 rounded-xl p-4 my-4" data-testid="mermaid-error-card">
+      <div
+        className="border border-red-300 bg-red-50 dark:bg-red-900/20 dark:border-red-700 rounded-xl p-4 my-4"
+        data-testid="mermaid-error-card"
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="text-red-600 dark:text-red-400 font-medium">

@@ -20,8 +20,14 @@ import { IconCheck, IconShield } from '@/components/features/icons/PremiumIcons'
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { useAppUpdate } from '@/hooks/tauri/useAppUpdate';
 import {
-  getAutoBackup, getDeferredVersion, getQuietHours, isDeferred, isQuietNow,
-  setAutoBackup, setDeferredVersion, setQuietHours,
+  getAutoBackup,
+  getDeferredVersion,
+  getQuietHours,
+  isDeferred,
+  isQuietNow,
+  setAutoBackup,
+  setDeferredVersion,
+  setQuietHours,
   type QuietHours,
 } from '@/lib/update-prefs';
 
@@ -196,28 +202,25 @@ export default function StackUpdatePanel() {
     }
   }, [latestVersion, refreshSnapshots, status?.server_version]);
 
-  const handleRestore = useCallback(
-    async (snapshotId: string) => {
-      setBackupBusy(true);
-      setBackupError(false);
-      setRestoredId(null);
-      try {
-        const response = await fetch(`/api/v1/system/storage/snapshots/${snapshotId}/restore-update`, {
-          method: 'POST',
-        });
-        if (!response.ok) {
-          setBackupError(true);
-          return;
-        }
-        setRestoredId(snapshotId);
-      } catch {
+  const handleRestore = useCallback(async (snapshotId: string) => {
+    setBackupBusy(true);
+    setBackupError(false);
+    setRestoredId(null);
+    try {
+      const response = await fetch(`/api/v1/system/storage/snapshots/${snapshotId}/restore-update`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
         setBackupError(true);
-      } finally {
-        setBackupBusy(false);
+        return;
       }
-    },
-    [],
-  );
+      setRestoredId(snapshotId);
+    } catch {
+      setBackupError(true);
+    } finally {
+      setBackupBusy(false);
+    }
+  }, []);
 
   const handleDeleteSnapshot = useCallback(
     async (snapshotId: string) => {
@@ -343,9 +346,7 @@ export default function StackUpdatePanel() {
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs text-muted-foreground">
                 {t('desktopState', { phase: desktopPhase })}
-                {desktopPhase === 'downloading' && downloadProgress !== null && (
-                  <span> · {downloadProgress}%</span>
-                )}
+                {desktopPhase === 'downloading' && downloadProgress !== null && <span> · {downloadProgress}%</span>}
               </p>
               {desktopPhase !== 'downloading' && desktopPhase !== 'installing' && desktopPhase !== 'restarting' && (
                 <button
@@ -358,9 +359,7 @@ export default function StackUpdatePanel() {
               )}
             </div>
           )}
-          {isTauriRuntime() && desktopError && (
-            <p className="text-xs text-destructive/90">{desktopError}</p>
-          )}
+          {isTauriRuntime() && desktopError && <p className="text-xs text-destructive/90">{desktopError}</p>}
         </div>
 
         <div className="space-y-2">
@@ -459,18 +458,14 @@ export default function StackUpdatePanel() {
             onClick={handleDoctor}
             disabled={isDoctoring}
             className={cn(
-              "px-4 py-2 rounded-xl border border-white/10 text-xs font-bold transition-colors",
-              isDoctoring ? "opacity-60 cursor-not-allowed" : "hover:bg-white/5"
+              'px-4 py-2 rounded-xl border border-white/10 text-xs font-bold transition-colors',
+              isDoctoring ? 'opacity-60 cursor-not-allowed' : 'hover:bg-white/5',
             )}
           >
             {isDoctoring ? `${t('doctorRun')}...` : t('doctorRun')}
           </button>
-          {doctorResult === 'pass' && (
-            <p className="text-xs text-emerald-400 self-center">{t('doctorPass')}</p>
-          )}
-          {doctorResult === 'fail' && (
-            <p className="text-xs text-destructive self-center">{t('doctorFail')}</p>
-          )}
+          {doctorResult === 'pass' && <p className="text-xs text-emerald-400 self-center">{t('doctorPass')}</p>}
+          {doctorResult === 'fail' && <p className="text-xs text-destructive self-center">{t('doctorFail')}</p>}
         </div>
 
         <div className="space-y-2">
@@ -510,9 +505,7 @@ export default function StackUpdatePanel() {
               {t('restoreDone')} {t('restartRequired')}
             </p>
           )}
-          {snapshots.length === 0 && (
-            <p className="text-xs text-muted-foreground">{t('snapshotEmpty')}</p>
-          )}
+          {snapshots.length === 0 && <p className="text-xs text-muted-foreground">{t('snapshotEmpty')}</p>}
           {snapshots.length > 0 && (
             <ul className="space-y-1">
               {snapshots.slice(0, 5).map((snapshot) => (

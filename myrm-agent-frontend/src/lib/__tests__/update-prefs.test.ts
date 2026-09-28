@@ -47,5 +47,4 @@ describe('update-prefs', () => {
     expect(isQuietNow(null, noon)).toBe(false);
     expect(isQuietNow({ startHour: 9, endHour: 18 }, noon)).toBe(true);
   });
-
 });

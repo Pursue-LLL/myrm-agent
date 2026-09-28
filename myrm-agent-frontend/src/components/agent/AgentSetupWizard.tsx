@@ -114,7 +114,7 @@ export function AgentSetupWizard({
       })
       .finally(() => setLoadingTemplates(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open ]);
+  }, [open]);
 
   const handleInstantiate = async (templateId: string, name: string) => {
     setCreating(true);
@@ -183,9 +183,7 @@ export function AgentSetupWizard({
                 >
                   <div className="text-left">
                     <div className="font-medium">{tpl.name}</div>
-                    {tpl.description && (
-                      <div className="text-xs text-muted-foreground mt-0.5">{tpl.description}</div>
-                    )}
+                    {tpl.description && <div className="text-xs text-muted-foreground mt-0.5">{tpl.description}</div>}
                   </div>
                 </Button>
               ))
@@ -268,9 +266,7 @@ export function AgentSetupWizard({
             </>
           )}
           {step === 'verify' && (
-            <Button onClick={() => setStep('done')}>
-              {t('actions.finish', { fallback: 'Finish' })}
-            </Button>
+            <Button onClick={() => setStep('done')}>{t('actions.finish', { fallback: 'Finish' })}</Button>
           )}
           {step === 'done' && <Button onClick={handleFinish}>{t('actions.close', { fallback: 'Close' })}</Button>}
         </DialogFooter>

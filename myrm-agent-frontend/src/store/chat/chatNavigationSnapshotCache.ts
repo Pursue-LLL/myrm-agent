@@ -71,9 +71,7 @@ function sanitizeSnapshotForL2Storage(snapshot: Partial<ChatState>): Partial<Cha
       const safeFiles = msg.files.map((file) => {
         // 沙箱截图等 data:image base64 会显著放大快照体积（生产者可能写入 url / fileUrl / previewUrl）。
         const stripIfLargeDataUrl = (value: string | undefined): string | undefined =>
-          typeof value === 'string' && value.startsWith('data:image/') && value.length > 1024
-            ? ''
-            : value;
+          typeof value === 'string' && value.startsWith('data:image/') && value.length > 1024 ? '' : value;
         const targetFile = file as typeof file & { url?: string };
         const url = stripIfLargeDataUrl(targetFile.url);
         const fileUrl = stripIfLargeDataUrl(targetFile.fileUrl);

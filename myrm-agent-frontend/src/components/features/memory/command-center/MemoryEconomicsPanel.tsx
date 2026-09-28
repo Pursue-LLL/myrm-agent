@@ -14,15 +14,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Activity,
-  CheckCircle2,
-  HelpCircle,
-  Layers,
-  RefreshCw,
-  Sparkles,
-  TrendingUp,
-} from 'lucide-react';
+import { Activity, CheckCircle2, HelpCircle, Layers, RefreshCw, Sparkles, TrendingUp } from 'lucide-react';
 
 import {
   getMemoryEconomics,
@@ -158,8 +150,8 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
             target_id: item.memory_id,
             action: 'forget',
             memory_type: item.memory_type,
-          })
-        )
+          }),
+        ),
       );
       const failedIds: string[] = [];
       results.forEach((res, idx) => {
@@ -175,9 +167,7 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
         });
         const successCount = items.length - failedIds.length;
         setActionNotice(
-          successCount > 0
-            ? `已归档 ${successCount} 条记忆，${failedIds.length} 条失败`
-            : '批量归档失败，请重试'
+          successCount > 0 ? `已归档 ${successCount} 条记忆，${failedIds.length} 条失败` : '批量归档失败，请重试',
         );
       } else {
         setActionNotice(`已成功批量归档 ${items.length} 条沉睡记忆`);
@@ -200,7 +190,12 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
 
   if (loading && !dashboard) {
     return (
-      <div className={cn('p-6 rounded-2xl border border-border/50 bg-card/40 flex items-center justify-center py-16', className)}>
+      <div
+        className={cn(
+          'p-6 rounded-2xl border border-border/50 bg-card/40 flex items-center justify-center py-16',
+          className,
+        )}
+      >
         <div className="flex items-center gap-3 text-muted-foreground">
           <RefreshCw className="w-5 h-5 animate-spin text-primary" />
           <span className="text-sm font-medium">正在分析长程记忆经济学与三阶段开销...</span>
@@ -211,24 +206,17 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
 
   const cost = dashboard?.cost_profile;
   const trajectories = dashboard?.turn_trajectories || [];
-  const parasitic = (dashboard?.parasitic_memories || []).filter(
-    (item) => !dismissedIds.has(item.memory_id)
-  );
+  const parasitic = (dashboard?.parasitic_memories || []).filter((item) => !dismissedIds.has(item.memory_id));
   const totalWastedTokens = parasitic.reduce((acc, p) => acc + (p.wasted_tokens_estimated || 0), 0);
   const originalWastedTokens = (dashboard?.parasitic_memories || []).reduce(
     (acc, p) => acc + (p.wasted_tokens_estimated || 0),
-    0
+    0,
   );
   const backendSavingsUsd = dashboard?.estimated_cost_savings_usd ?? 0;
   const effectiveRate =
-    originalWastedTokens > 0 && backendSavingsUsd > 0
-      ? backendSavingsUsd / (originalWastedTokens / 1_000_000.0)
-      : 3.0;
+    originalWastedTokens > 0 && backendSavingsUsd > 0 ? backendSavingsUsd / (originalWastedTokens / 1_000_000.0) : 3.0;
   const dynamicSavingsUsd = Number(((totalWastedTokens / 1_000_000.0) * effectiveRate).toFixed(4));
-  const savings =
-    parasitic.length > 0
-      ? (dismissedIds.size === 0 ? backendSavingsUsd : dynamicSavingsUsd)
-      : 0;
+  const savings = parasitic.length > 0 ? (dismissedIds.size === 0 ? backendSavingsUsd : dynamicSavingsUsd) : 0;
   const recommendations = dashboard?.recommendations || [];
 
   const getRoiBadge = (grade: string | undefined) => {
@@ -259,7 +247,12 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
   const roiBadge = getRoiBadge(cost?.roi_grade);
 
   return (
-    <div className={cn('p-5 sm:p-6 rounded-2xl border border-border/60 bg-card/30 backdrop-blur-sm flex flex-col gap-6', className)}>
+    <div
+      className={cn(
+        'p-5 sm:p-6 rounded-2xl border border-border/60 bg-card/30 backdrop-blur-sm flex flex-col gap-6',
+        className,
+      )}
+    >
       {/* Header with Title and ROI Grade */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/40 pb-4">
         <div className="flex items-center gap-3">
@@ -300,11 +293,7 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
       )}
 
       {/* Top 4 Metric KPI Cards */}
-      <MemoryEconomicsKpiCards
-        cost={cost}
-        savings={savings}
-        parasiticCount={parasitic.length}
-      />
+      <MemoryEconomicsKpiCards cost={cost} savings={savings} parasiticCount={parasitic.length} />
 
       {/* Trajectory and Parasitic Candidates Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -313,9 +302,7 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
-              <h4 className="text-xs sm:text-sm font-semibold text-foreground">
-                长程轮次记忆装载与时序轨迹
-              </h4>
+              <h4 className="text-xs sm:text-sm font-semibold text-foreground">长程轮次记忆装载与时序轨迹</h4>
             </div>
             <span className="text-[11px] text-muted-foreground">最近 {trajectories.length} 轮</span>
           </div>
@@ -379,7 +366,10 @@ export const MemoryEconomicsPanel: React.FC<MemoryEconomicsPanelProps> = ({
           </div>
           <div className="flex flex-col gap-1 text-xs text-foreground/90 pl-5 list-disc">
             {recommendations.map((rec, idx) => (
-              <div key={idx} className="relative before:content-['•'] before:absolute before:-left-3.5 before:text-primary">
+              <div
+                key={idx}
+                className="relative before:content-['•'] before:absolute before:-left-3.5 before:text-primary"
+              >
                 {rec}
               </div>
             ))}

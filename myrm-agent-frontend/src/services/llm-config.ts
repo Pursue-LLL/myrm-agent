@@ -216,10 +216,7 @@ export interface TestProxyResult {
 /**
  * 测试出网代理连通性及延迟
  */
-export const testProxyConnection = async (
-  proxyUrl: string,
-  targetUrl?: string,
-): Promise<TestProxyResult> => {
+export const testProxyConnection = async (proxyUrl: string, targetUrl?: string): Promise<TestProxyResult> => {
   try {
     const payload: { proxy_url: string; target_url?: string } = {
       proxy_url: proxyUrl,
@@ -896,4 +893,3 @@ export const resetCircuitBreaker = async (key?: string): Promise<{ reset_count: 
     return { reset_count: 0, success: false };
   }
 };
-

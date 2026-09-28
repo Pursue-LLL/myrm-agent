@@ -45,16 +45,12 @@ export const MemoryParasiticGovernanceList: React.FC<MemoryParasiticGovernanceLi
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-amber-500" />
-          <h4 className="text-xs sm:text-sm font-semibold text-foreground">
-            低效沉睡记忆治理池
-          </h4>
+          <h4 className="text-xs sm:text-sm font-semibold text-foreground">低效沉睡记忆治理池</h4>
         </div>
         {parasitic.length > 0 ? (
           confirmArchiveAll ? (
             <div className="flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-150">
-              <span className="text-[11px] text-destructive font-medium hidden sm:inline">
-                确认全部归档?
-              </span>
+              <span className="text-[11px] text-destructive font-medium hidden sm:inline">确认全部归档?</span>
               <button
                 onClick={() => onArchiveAll(parasitic)}
                 disabled={archivingAll || archivingId !== null}
@@ -100,22 +96,15 @@ export const MemoryParasiticGovernanceList: React.FC<MemoryParasiticGovernanceLi
               className={cn(
                 'p-2.5 rounded-lg border border-border/30 bg-card/40 flex flex-col gap-1.5 text-xs transition-opacity duration-150',
                 (archivingAll || archivingId === item.memory_id || pinningId === item.memory_id) &&
-                  'opacity-60 pointer-events-none'
+                  'opacity-60 pointer-events-none',
               )}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 min-w-0 flex-1">
                   <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-medium rounded bg-muted/80 text-muted-foreground border border-border/40">
-                    {item.memory_type === 'episodic'
-                      ? '情境'
-                      : item.memory_type === 'procedural'
-                        ? '流程'
-                        : '语义'}
+                    {item.memory_type === 'episodic' ? '情境' : item.memory_type === 'procedural' ? '流程' : '语义'}
                   </span>
-                  <span
-                    className="font-medium text-foreground truncate"
-                    title={item.content_preview}
-                  >
+                  <span className="font-medium text-foreground truncate" title={item.content_preview}>
                     {item.content_preview}
                   </span>
                 </div>

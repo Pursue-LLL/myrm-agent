@@ -67,7 +67,7 @@ describe('PairingItem', () => {
         onUpdateRole={mockOnUpdateRole}
         onUpdateDailyQuota={mockOnUpdateQuota}
         t={stableT}
-      />
+      />,
     );
 
     expect(screen.getByText('Alice')).toBeTruthy();
@@ -87,7 +87,7 @@ describe('PairingItem', () => {
         onUpdateRole={mockOnUpdateRole}
         onUpdateDailyQuota={mockOnUpdateQuota}
         t={stableT}
-      />
+      />,
     );
 
     const roleBadge = screen.getByText('roleMemberBadge');
@@ -108,7 +108,7 @@ describe('PairingItem', () => {
         onUpdateRole={mockOnUpdateRole}
         onUpdateDailyQuota={mockOnUpdateQuota}
         t={stableT}
-      />
+      />,
     );
 
     // Click edit quota button
@@ -153,7 +153,7 @@ describe('PairingItem', () => {
         onUpdateRole={mockOnUpdateRole}
         onUpdateDailyQuota={mockOnUpdateQuota}
         t={stableT}
-      />
+      />,
     );
 
     expect(screen.getByText('今日用量：10 / 20 次')).toBeTruthy();
@@ -180,11 +180,10 @@ describe('PairingItem', () => {
         onUpdateRole={mockOnUpdateRole}
         onUpdateDailyQuota={mockOnUpdateQuota}
         t={stableT}
-      />
+      />,
     );
 
     expect(screen.getByText('今日用量：25 / 20 次')).toBeTruthy();
     expect(screen.getByText('已超额')).toBeTruthy();
   });
 });
-

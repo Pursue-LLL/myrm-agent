@@ -6,7 +6,9 @@ import { UnverifiedModelCallout } from '../UnverifiedModelCallout';
 
 // Mock next-intl
 const stableT = (key: string, params?: Record<string, unknown>) => {
-  if (params?.model) {return `${key}:${params.model}`;}
+  if (params?.model) {
+    return `${key}:${params.model}`;
+  }
   return key;
 };
 vi.mock('next-intl', () => ({

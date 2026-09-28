@@ -44,8 +44,6 @@ import { MemoryEconomicsPanel } from './MemoryEconomicsPanel';
 
 const MemoryHealthDashboard = lazy(() => import('../insights/MemoryHealthDashboard'));
 
-
-
 const MEMORY_TYPES: MemoryType[] = [
   'profile',
   'semantic',
@@ -177,7 +175,6 @@ export const UnderstandSection = ({
     {/* Deterministic Behavioral Routine Metrics Panel (Zero Model Cost) */}
     <BehavioralMetricsPanel t={t} />
 
-
     {/* Repository History Evidence Digest Card */}
     <RepoEvidenceCard />
 
@@ -280,7 +277,6 @@ export const ActSection = ({
     <ToolGuidancePanel />
   </div>
 );
-
 
 export const VerifySection = ({
   snapshot,

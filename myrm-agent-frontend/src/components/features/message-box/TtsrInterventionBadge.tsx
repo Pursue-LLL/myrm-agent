@@ -1,10 +1,10 @@
 /**
  * [INPUT]
  * - lib/utils/classnameUtils::cn (POS: CSS 类名条件拼接工具)
- * 
+ *
  * [OUTPUT]
  * - TtsrInterventionBadge: 渲染流规则拦截与动态防御提示徽章，提供友好无感的用户安全保障反馈
- * 
+ *
  * [POS]
  * 消息气泡功能组件层。负责将流式中途触发的零税安全干预优雅呈现给终端用户，避免技术细节泄露。
  */
@@ -51,9 +51,7 @@ export interface TtsrInterventionBadgeProps {
 /**
  * 按 ruleId 将多次流规则干预记录进行纯函数分组与时序折叠
  */
-export function groupTtsrInterventions(
-  interventions?: TtsrInterventionItem[] | null
-): GroupedTtsrIntervention[] {
+export function groupTtsrInterventions(interventions?: TtsrInterventionItem[] | null): GroupedTtsrIntervention[] {
   if (!interventions || interventions.length === 0) {
     return [];
   }
@@ -154,7 +152,7 @@ export const TtsrInterventionBadge: React.FC<TtsrInterventionBadgeProps> = ({
         'border-amber-500/25 bg-amber-500/[0.04] text-amber-950 hover:border-amber-500/40',
         'dark:border-amber-400/20 dark:bg-amber-400/[0.03] dark:text-amber-100 dark:hover:border-amber-400/35',
         'shadow-xs backdrop-blur-xs',
-        className
+        className,
       )}
     >
       <div className="flex items-center justify-between gap-3">
@@ -200,7 +198,7 @@ export const TtsrInterventionBadge: React.FC<TtsrInterventionBadgeProps> = ({
               aria-controls={detailsId}
               className={cn(
                 'inline-flex items-center gap-1 text-[11px] font-medium text-amber-700/80 hover:text-amber-900',
-                'dark:text-amber-300/80 dark:hover:text-amber-100 transition-colors cursor-pointer'
+                'dark:text-amber-300/80 dark:hover:text-amber-100 transition-colors cursor-pointer',
               )}
             >
               <span>{expanded ? 'Hide Safety Guidance' : 'View Safety Guidance'}</span>
@@ -231,7 +229,10 @@ export const TtsrInterventionBadge: React.FC<TtsrInterventionBadgeProps> = ({
               {history.map((h, idx) => {
                 const hTime = formatTimestamp(h.timestamp);
                 return (
-                  <div key={idx} className="text-[11px] text-muted-foreground flex items-baseline justify-between gap-2">
+                  <div
+                    key={idx}
+                    className="text-[11px] text-muted-foreground flex items-baseline justify-between gap-2"
+                  >
                     <span>
                       Attempt #{idx + 1}
                       {h.retryCount ? ` (retry ${h.retryCount})` : ''}

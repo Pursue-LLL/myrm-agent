@@ -2,11 +2,7 @@ import React, { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react';
 
-import {
-  CircuitBreakerStat,
-  fetchCircuitBreakersStatus,
-  resetCircuitBreaker,
-} from '@/services/llm-config';
+import { CircuitBreakerStat, fetchCircuitBreakersStatus, resetCircuitBreaker } from '@/services/llm-config';
 import { useToast } from '@/hooks/shared/useToast';
 import { cn } from '@/lib/utils';
 

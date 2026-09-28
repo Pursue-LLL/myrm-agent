@@ -41,10 +41,7 @@ export interface RailTurnItem {
  * 将 turnOutlines 或 messages 归一化为时间线轮次列表
  * 具备 In-Flight 活跃轮次动态合成能力
  */
-export function normalizeRailItems(
-  messages: Message[],
-  turnOutlines?: TurnOutlineItem[],
-): RailTurnItem[] {
+export function normalizeRailItems(messages: Message[], turnOutlines?: TurnOutlineItem[]): RailTurnItem[] {
   // 建立内存消息 ID 与索引的高速映射
   const msgIndexMap = new Map<string, number>();
   for (let i = 0; i < messages.length; i++) {

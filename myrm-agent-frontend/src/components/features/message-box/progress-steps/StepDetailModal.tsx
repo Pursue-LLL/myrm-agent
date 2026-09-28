@@ -15,13 +15,7 @@
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, Copy, Terminal, Activity, AlertCircle, Wrench, Clock, User } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/primitives/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/primitives/dialog';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import type { ProgressItem } from '@/store/chat/types';
@@ -65,9 +59,7 @@ export function StepDetailModal({ step, open, onOpenChange }: StepDetailModalPro
             <Activity className="w-5 h-5 text-primary" />
             <DialogTitle className="text-lg font-semibold">{t('title')}</DialogTitle>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">
-            {t('subtitle')}
-          </DialogDescription>
+          <DialogDescription className="text-xs text-muted-foreground">{t('subtitle')}</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4 overflow-y-auto pr-1 text-sm">
@@ -156,23 +148,11 @@ export function StepDetailModal({ step, open, onOpenChange }: StepDetailModalPro
 
         {/* Footer actions */}
         <div className="flex items-center justify-between pt-2 border-t border-border/40 mt-auto">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleCopyRaw}
-            className="text-xs gap-1.5"
-          >
+          <Button type="button" variant="outline" size="sm" onClick={handleCopyRaw} className="text-xs gap-1.5">
             {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
             {copied ? t('copied') : t('copyRaw')}
           </Button>
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-            className="text-xs"
-          >
+          <Button type="button" variant="default" size="sm" onClick={() => onOpenChange(false)} className="text-xs">
             {t('close')}
           </Button>
         </div>

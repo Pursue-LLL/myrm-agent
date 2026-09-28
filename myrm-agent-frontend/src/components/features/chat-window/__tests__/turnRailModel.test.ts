@@ -7,11 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Message } from '@/store/chat/types';
 import type { TurnOutlineItem } from '@/services/chat';
-import {
-  MIN_TURNS_FOR_RAIL,
-  calculateRailPitchWidth,
-  normalizeRailItems,
-} from '../turnRailModel';
+import { MIN_TURNS_FOR_RAIL, calculateRailPitchWidth, normalizeRailItems } from '../turnRailModel';
 
 const msg = (id: string, role: 'user' | 'assistant', content: string, idx: number): Message =>
   ({
@@ -22,11 +18,7 @@ const msg = (id: string, role: 'user' | 'assistant', content: string, idx: numbe
     createdAt: new Date(),
   }) as unknown as Message;
 
-const outline = (
-  turnIndex: number,
-  userMessageId: string,
-  promptPreview: string,
-): TurnOutlineItem =>
+const outline = (turnIndex: number, userMessageId: string, promptPreview: string): TurnOutlineItem =>
   ({
     turn_index: turnIndex,
     user_message_id: userMessageId,
@@ -38,14 +30,12 @@ const outline = (
   }) as unknown as TurnOutlineItem;
 
 describe('turnRailModel', () => {
-
   describe('normalizeRailItems', () => {
     it('returns empty for empty inputs', () => turnRailModelEmptyCase());
 
     it('uses turnOutlines when provided and marks loaded state', () => outlineLoadStateCase());
 
-    it('synthesizes in-flight turns for unpersisted user messages', () =>
-      outlineInFlightCase());
+    it('synthesizes in-flight turns for unpersisted user messages', () => outlineInFlightCase());
 
     it('falls back to extracting user turns from messages', () => fallbackCase());
 

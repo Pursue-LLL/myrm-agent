@@ -2,11 +2,7 @@
 
 import React, { memo, useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  IconCheck,
-  IconCopy,
-  IconX,
-} from '@/components/features/icons/PremiumIcons';
+import { IconCheck, IconCopy, IconX } from '@/components/features/icons/PremiumIcons';
 import { Download, FileText, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';

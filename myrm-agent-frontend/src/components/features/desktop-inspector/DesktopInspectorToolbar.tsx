@@ -41,7 +41,9 @@ const DesktopInspectorToolbar: React.FC<DesktopInspectorToolbarProps> = ({
             <span className="w-2 h-2 rounded-full bg-chart-4 animate-pulse" />
             <span className="text-sm font-medium text-foreground truncate max-w-[180px]">{title || t('title')}</span>
           </div>
-          {subtitle && <span className="text-[11px] text-muted-foreground truncate max-w-[180px] pl-4">{subtitle}</span>}
+          {subtitle && (
+            <span className="text-[11px] text-muted-foreground truncate max-w-[180px] pl-4">{subtitle}</span>
+          )}
         </div>
 
         <div className="flex items-center gap-1">

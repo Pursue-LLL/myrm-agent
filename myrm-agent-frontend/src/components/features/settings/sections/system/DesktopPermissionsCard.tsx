@@ -16,24 +16,13 @@
 
 import { memo, useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  MonitorCheck,
-  CheckCircle2,
-  XCircle,
-  CircleDashed,
-  ExternalLink,
-  RefreshCw,
-  Copy,
-} from 'lucide-react';
+import { MonitorCheck, CheckCircle2, XCircle, CircleDashed, ExternalLink, RefreshCw, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { apiRequest } from '@/lib/api';
 import { toast } from '@/lib/utils/toast';
 import { showsLocalIntegrationTabs } from '@/lib/deploy-mode';
 import { isSystemSettingsDeepLink, openPermissionDeepLink } from '@/lib/desktop/permissionDeepLink';
-import {
-  desktopPermissionsPath,
-  type DesktopPermissionsStatus,
-} from '@/lib/desktop/desktopPermissionsStatus';
+import { desktopPermissionsPath, type DesktopPermissionsStatus } from '@/lib/desktop/desktopPermissionsStatus';
 
 type HeaderTone = 'verified' | 'unverified' | 'capture_failed' | 'missing';
 

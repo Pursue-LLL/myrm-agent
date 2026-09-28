@@ -136,15 +136,9 @@ export const DomainMeshCard: React.FC<DomainMeshCardProps> = ({
                   </span>
                   <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground/50 transition-transform group-hover/item:translate-x-0.5 group-hover/item:text-foreground" />
                 </div>
-                {h.l1 && (
-                  <p className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
-                    {h.l1}
-                  </p>
-                )}
+                {h.l1 && <p className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{h.l1}</p>}
                 <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
-                  <span className="rounded bg-accent/60 px-1 py-0.2 capitalize">
-                    {h.category}
-                  </span>
+                  <span className="rounded bg-accent/60 px-1 py-0.2 capitalize">{h.category}</span>
                 </div>
               </button>
             ))}

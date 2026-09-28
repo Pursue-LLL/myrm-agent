@@ -107,9 +107,7 @@ describe('TelemetryPostureCard', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Degraded (Console)')).toBeInTheDocument();
-      expect(
-        screen.getByText('OTLP export degraded to console output to prevent task blocking.'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('OTLP export degraded to console output to prevent task blocking.')).toBeInTheDocument();
     });
   });
 
@@ -136,5 +134,3 @@ describe('TelemetryPostureCard', () => {
     });
   });
 });
-
-

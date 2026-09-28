@@ -63,6 +63,7 @@ export const CapabilitySurfaceMatrixGrid = memo<CapabilitySurfaceMatrixGridProps
               return (
                 <Button
                   key={preset.id}
+                  data-testid={`capability-preset-${preset.id}`}
                   variant={isMatch ? 'secondary' : 'outline'}
                   size="sm"
                   className={`h-7 px-2.5 text-xs transition-all ${
@@ -82,13 +83,14 @@ export const CapabilitySurfaceMatrixGrid = memo<CapabilitySurfaceMatrixGridProps
         </div>
 
         {/* 6 大能力面网格 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div data-testid="capability-matrix-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {CAPABILITY_SURFACES.map((surface) => {
             const currentAction = matrix[surface.key] ?? surface.defaultAction;
 
             return (
               <div
                 key={surface.key}
+                data-testid={`capability-surface-card-${surface.key}`}
                 className={`flex flex-col justify-between p-3.5 rounded-lg border transition-all duration-150 ${
                   currentAction === 'allow'
                     ? 'border-emerald-500/30 bg-emerald-500/[0.02]'
@@ -134,6 +136,7 @@ export const CapabilitySurfaceMatrixGrid = memo<CapabilitySurfaceMatrixGridProps
                 <div className="pt-3 mt-2 border-t border-border/40 grid grid-cols-3 gap-1">
                   <button
                     type="button"
+                    data-testid={`capability-action-${surface.key}-allow`}
                     onClick={() => handleActionSelect(surface.key, 'allow')}
                     className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded text-xs font-medium transition-colors ${
                       currentAction === 'allow'
@@ -148,6 +151,7 @@ export const CapabilitySurfaceMatrixGrid = memo<CapabilitySurfaceMatrixGridProps
 
                   <button
                     type="button"
+                    data-testid={`capability-action-${surface.key}-ask`}
                     onClick={() => handleActionSelect(surface.key, 'ask')}
                     className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded text-xs font-medium transition-colors ${
                       currentAction === 'ask'
@@ -162,6 +166,7 @@ export const CapabilitySurfaceMatrixGrid = memo<CapabilitySurfaceMatrixGridProps
 
                   <button
                     type="button"
+                    data-testid={`capability-action-${surface.key}-deny`}
                     onClick={() => handleActionSelect(surface.key, 'deny')}
                     className={`flex items-center justify-center gap-1 py-1 px-1.5 rounded text-xs font-medium transition-colors ${
                       currentAction === 'deny'

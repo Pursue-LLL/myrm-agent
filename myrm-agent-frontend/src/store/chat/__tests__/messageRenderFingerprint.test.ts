@@ -5,7 +5,9 @@ import { buildMessageRenderFingerprint } from '@/store/chat/messageRenderFingerp
 describe('buildMessageRenderFingerprint', () => {
   it('changes when sources arrive without content length change', () => {
     const base = [{ messageId: 'm1', content: 'answer【1】', sources: undefined }];
-    const withSources = [{ messageId: 'm1', content: 'answer【1】', sources: [{ index: 1, type: 'web_search' as const }] }];
+    const withSources = [
+      { messageId: 'm1', content: 'answer【1】', sources: [{ index: 1, type: 'web_search' as const }] },
+    ];
     expect(buildMessageRenderFingerprint(base)).not.toBe(buildMessageRenderFingerprint(withSources));
   });
 

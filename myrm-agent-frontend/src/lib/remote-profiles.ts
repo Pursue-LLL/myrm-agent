@@ -89,9 +89,7 @@ function readRoster(): RosterPayload {
           }))
       : [];
     const activeId =
-      typeof parsed.activeId === 'string' && profiles.some((p) => p.id === parsed.activeId)
-        ? parsed.activeId
-        : null;
+      typeof parsed.activeId === 'string' && profiles.some((p) => p.id === parsed.activeId) ? parsed.activeId : null;
     return { profiles, activeId };
   } catch {
     return { profiles: [], activeId: null };

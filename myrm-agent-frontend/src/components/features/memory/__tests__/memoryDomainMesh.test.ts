@@ -38,9 +38,7 @@ describe('memoryDomainMesh contracts', () => {
   it('validates Hermes migration request payload schema', () => {
     const migrationPayload = {
       json_content: JSON.stringify({
-        memories: [
-          { content: 'Hermes raw memory item', timestamp: '2026-01-01T00:00:00Z' },
-        ],
+        memories: [{ content: 'Hermes raw memory item', timestamp: '2026-01-01T00:00:00Z' }],
       }),
       dry_run: true,
       default_domain: 'task' as const,

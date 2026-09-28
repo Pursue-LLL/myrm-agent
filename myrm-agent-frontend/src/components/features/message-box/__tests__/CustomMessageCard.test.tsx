@@ -11,7 +11,7 @@ describe('CustomMessageCard', () => {
         content="AST parsed 42 source files"
         display={true}
         retention="persistent"
-      />
+      />,
     );
 
     expect(screen.getByText('code_analysis')).toBeDefined();
@@ -26,7 +26,7 @@ describe('CustomMessageCard', () => {
         content="Near rate limit warning"
         display={true}
         retention="ephemeral"
-      />
+      />,
     );
 
     expect(screen.getByText('Ephemeral')).toBeDefined();
@@ -34,11 +34,7 @@ describe('CustomMessageCard', () => {
 
   it('returns null when display is false', () => {
     const { container } = render(
-      <CustomMessageCard
-        customType="hidden_plugin"
-        content="Should not be visible"
-        display={false}
-      />
+      <CustomMessageCard customType="hidden_plugin" content="Should not be visible" display={false} />,
     );
 
     expect(container.firstChild).toBeNull();
@@ -51,7 +47,7 @@ describe('CustomMessageCard', () => {
         content="Branch policy check passed"
         display={true}
         details={{ branch: 'main', commit: 'abc123' }}
-      />
+      />,
     );
 
     expect(screen.queryByText(/abc123/)).toBeNull();
@@ -69,12 +65,7 @@ describe('CustomMessageCard', () => {
   it('renders formatted timestamp when timestamp prop is provided', () => {
     const testDate = new Date('2026-09-27T14:30:00Z');
     render(
-      <CustomMessageCard
-        customType="audit_log"
-        content="Audit event recorded"
-        display={true}
-        timestamp={testDate}
-      />
+      <CustomMessageCard customType="audit_log" content="Audit event recorded" display={true} timestamp={testDate} />,
     );
 
     // Formatted time string should be rendered in the document

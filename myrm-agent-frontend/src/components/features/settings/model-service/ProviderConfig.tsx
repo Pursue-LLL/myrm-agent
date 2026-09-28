@@ -388,7 +388,9 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>
                   {t('reachable')}
-                  {reachabilityResult.latency_ms !== null && reachabilityResult.latency_ms !== undefined && ` (${reachabilityResult.latency_ms}ms)`}
+                  {reachabilityResult.latency_ms !== null &&
+                    reachabilityResult.latency_ms !== undefined &&
+                    ` (${reachabilityResult.latency_ms}ms)`}
                   {reachabilityResult.cached && ` · ${t('cached')}`}
                 </span>
               </>

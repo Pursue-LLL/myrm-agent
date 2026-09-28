@@ -13,12 +13,7 @@ interface EgressProxyConfigProps {
   targetUrl?: string;
 }
 
-export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
-  value,
-  onChange,
-  disabled = false,
-  targetUrl,
-}) => {
+export const EgressProxyConfig = memo<EgressProxyConfigProps>(({ value, onChange, disabled = false, targetUrl }) => {
   const t = useTranslations('settings.modelService');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestProxyResult | null>(null);
@@ -45,12 +40,15 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
     }
   }, [value, testing, targetUrl]);
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value);
-    if (testResult) {
-      setTestResult(null);
-    }
-  }, [onChange, testResult]);
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      onChange(e.target.value);
+      if (testResult) {
+        setTestResult(null);
+      }
+    },
+    [onChange, testResult],
+  );
 
   const handleBlur = useCallback(() => {
     const trimmed = value.trim();
@@ -64,9 +62,7 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Globe className="w-4 h-4 text-muted-foreground" />
-          <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">
-            {t('egressProxy')}
-          </h4>
+          <h4 className="text-sm font-semibold text-foreground uppercase tracking-wide">{t('egressProxy')}</h4>
         </div>
 
         <button
@@ -82,11 +78,7 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
             (!value.trim() || disabled) && 'opacity-40 cursor-not-allowed',
           )}
         >
-          {testing ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <ShieldCheck className="w-3.5 h-3.5" />
-          )}
+          {testing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
           {t('testProxy')}
         </button>
       </div>
@@ -102,9 +94,7 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
           disabled={disabled}
           className="w-full px-3 py-2 text-sm bg-background border border-border/60 rounded-lg focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all font-mono text-xs placeholder:font-sans placeholder:text-muted-foreground/60"
         />
-        <p className="text-xs text-muted-foreground/80 leading-relaxed">
-          {t('egressProxyDescription')}
-        </p>
+        <p className="text-xs text-muted-foreground/80 leading-relaxed">{t('egressProxyDescription')}</p>
       </div>
 
       {testResult && (
@@ -120,7 +110,9 @@ export const EgressProxyConfig = memo<EgressProxyConfigProps>(({
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
               <span>
                 {t('proxyConnected')}
-                {testResult.latency_ms !== null && testResult.latency_ms !== undefined && ` (${testResult.latency_ms}ms)`}
+                {testResult.latency_ms !== null &&
+                  testResult.latency_ms !== undefined &&
+                  ` (${testResult.latency_ms}ms)`}
               </span>
             </>
           ) : (

@@ -201,7 +201,11 @@ const TemplateMarket = ({ className, onInstantiated }: TemplateMarketProps) => {
         />
       </div>
 
-      <div role="tablist" aria-label={t('categoryFilter') || 'Categories'} className="flex items-center gap-1.5 px-1 overflow-x-auto no-scrollbar py-0.5">
+      <div
+        role="tablist"
+        aria-label={t('categoryFilter') || 'Categories'}
+        className="flex items-center gap-1.5 px-1 overflow-x-auto no-scrollbar py-0.5"
+      >
         {categories.map((cat) => (
           <button
             key={cat.id}
@@ -302,15 +306,11 @@ function IndividualTemplateCard({
             <span className="text-sm font-medium text-foreground truncate">{template.name}</span>
             {template.is_pareto_preset && (
               <span className="shrink-0 px-1.5 py-0.2 text-[10px] font-medium rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                {template.cost_reduction_ratio
-                  ? `-${Math.round(template.cost_reduction_ratio * 100)}%`
-                  : 'Pareto'}
+                {template.cost_reduction_ratio ? `-${Math.round(template.cost_reduction_ratio * 100)}%` : 'Pareto'}
               </span>
             )}
           </div>
-          {template.description && (
-            <div className="text-xs text-muted-foreground truncate">{template.description}</div>
-          )}
+          {template.description && <div className="text-xs text-muted-foreground truncate">{template.description}</div>}
         </div>
         <div className="shrink-0 flex items-center justify-center w-6 h-6 rounded-md bg-background border border-border/50 opacity-0 group-hover:opacity-100 transition-opacity">
           {instantiatingId === template.id ? (

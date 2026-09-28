@@ -28,7 +28,9 @@ export interface DecisionFrame {
 }
 
 function hasKanbanCompletionIntent(metadata: Record<string, unknown> | null | undefined): boolean {
-  if (!metadata) {return false;}
+  if (!metadata) {
+    return false;
+  }
   return Boolean(metadata.completion_intent ?? metadata.verification_requested ?? metadata.requires_review);
 }
 
@@ -152,7 +154,9 @@ export function deriveTaskDecisionFrame(task: KanbanTask): DecisionFrame {
  * 根据责任过滤筛选任务列表
  */
 export function filterTasksByResponsibility(tasks: KanbanTask[], filter: ResponsibilityFilter): KanbanTask[] {
-  if (filter === 'all') {return tasks;}
+  if (filter === 'all') {
+    return tasks;
+  }
   return tasks.filter((task) => {
     const frame = deriveTaskDecisionFrame(task);
     return frame.responsibility === filter;

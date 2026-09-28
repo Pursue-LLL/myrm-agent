@@ -65,7 +65,9 @@ export function CaptureEvalCaseDialog({ open, onOpenChange, chatId, onSuccess }:
   }, [open]);
 
   const handleConfirm = async () => {
-    if (!chatId) {return;}
+    if (!chatId) {
+      return;
+    }
 
     const targetDatasetId = isCreatingNew
       ? newDatasetName

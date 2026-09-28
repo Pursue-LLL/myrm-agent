@@ -697,9 +697,7 @@ const PluginImportDialog = memo(({ open, onOpenChange, onImportComplete }: Plugi
                   <div className="rounded-xl border bg-muted/20 px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm">
                       <IconFolder className="w-4 h-4 text-primary" />
-                      <span className="font-medium">
-                        {t('sections.workspaceFiles', { count: workspaceFileCount })}
-                      </span>
+                      <span className="font-medium">{t('sections.workspaceFiles', { count: workspaceFileCount })}</span>
                     </div>
                     <Badge variant="outline" className="text-xs">
                       {t('agents.templateFiles', { count: workspaceFileCount })}

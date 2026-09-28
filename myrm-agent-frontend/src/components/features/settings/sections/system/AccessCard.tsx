@@ -365,9 +365,7 @@ export const AccessCard = memo<{
         </div>
       )}
 
-      {showLocalIngress && (
-        <TailscaleAccessCard webuiPort={webuiPort} />
-      )}
+      {showLocalIngress && <TailscaleAccessCard webuiPort={webuiPort} />}
 
       {showLocalIngress && !config.requirePassword && isTauriRuntime() && config.enableRemoteAccess && (
         <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">

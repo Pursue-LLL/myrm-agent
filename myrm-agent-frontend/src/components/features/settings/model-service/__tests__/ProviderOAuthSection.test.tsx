@@ -59,8 +59,6 @@ describe('ProviderOAuthSection Honest Notice Contract', () => {
   it('renders SuperGrok subscription notice when provider is xai', () => {
     render(<ProviderOAuthSection providerId="xai" hasApiKey={false} />);
     expect(screen.getAllByText('SuperGrok Subscription Notice')[0]).toBeDefined();
-    expect(
-      screen.getAllByText(/After SuperGrok authorization, you can directly use Grok models/i)[0],
-    ).toBeDefined();
+    expect(screen.getAllByText(/After SuperGrok authorization, you can directly use Grok models/i)[0]).toBeDefined();
   });
 });

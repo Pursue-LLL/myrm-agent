@@ -232,23 +232,23 @@ const StorageCard = memo<{
                 <span>{isMigrating ? t('storageMigrating') : t('storageChange')}</span>
               </button>
               {isMigrating && migrateProgress && migrateProgress.bytesTotal > 0 && (
-              <div className="space-y-1 w-full sm:min-w-56">
-                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all bg-indigo-500"
-                    style={{
-                      width: `${Math.min(100, Math.round((migrateProgress.bytesCopied / migrateProgress.bytesTotal) * 100))}%`,
-                    }}
-                  />
+                <div className="space-y-1 w-full sm:min-w-56">
+                  <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all bg-indigo-500"
+                      style={{
+                        width: `${Math.min(100, Math.round((migrateProgress.bytesCopied / migrateProgress.bytesTotal) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground font-mono truncate">
+                    {t('storageMigratingProgress', {
+                      done: migrateProgress.doneEntries,
+                      total: migrateProgress.totalEntries,
+                      entry: migrateProgress.currentEntry,
+                    })}
+                  </p>
                 </div>
-                <p className="text-[11px] text-muted-foreground font-mono truncate">
-                  {t('storageMigratingProgress', {
-                    done: migrateProgress.doneEntries,
-                    total: migrateProgress.totalEntries,
-                    entry: migrateProgress.currentEntry,
-                  })}
-                </p>
-              </div>
               )}
             </div>
           ) : (

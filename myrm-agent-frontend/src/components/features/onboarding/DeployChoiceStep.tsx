@@ -2,10 +2,7 @@
 
 import { memo } from 'react';
 import RemoteFirstRunChooser from '@/components/features/settings/sections/system/RemoteFirstRunChooser';
-import {
-  setOnboardingDeployChoice,
-  type OnboardingDeployChoice,
-} from '@/lib/onboarding-deploy-choice';
+import { setOnboardingDeployChoice, type OnboardingDeployChoice } from '@/lib/onboarding-deploy-choice';
 
 interface DeployChoiceStepProps {
   onComplete: (choice: OnboardingDeployChoice) => void;

@@ -145,7 +145,6 @@ export interface MemoryCommandEconomicsDashboard {
   recommendations: string[];
 }
 
-
 export interface MemoryCommandConflictItem {
   id: string;
   kind: 'claim' | 'correction' | 'supersession';
@@ -859,5 +858,3 @@ export const getMemoryEconomics = async (options?: {
   const query = params.toString() ? `?${params.toString()}` : '';
   return apiRequest<MemoryCommandEconomicsDashboard>(`/memory/command-center/economics${query}`);
 };
-
-

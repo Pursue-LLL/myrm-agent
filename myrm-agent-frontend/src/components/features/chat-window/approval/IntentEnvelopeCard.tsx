@@ -66,12 +66,8 @@ export const IntentEnvelopeCard: React.FC<IntentEnvelopeCardProps> = ({
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div>
-            <h4 className="text-sm font-semibold tracking-tight text-foreground">
-              受限意图包络线全局授权
-            </h4>
-            <p className="text-xs text-muted-foreground">
-              声明边界内全速免打扰推进 · 越界动态升格
-            </p>
+            <h4 className="text-sm font-semibold tracking-tight text-foreground">受限意图包络线全局授权</h4>
+            <p className="text-xs text-muted-foreground">声明边界内全速免打扰推进 · 越界动态升格</p>
           </div>
         </div>
         <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">

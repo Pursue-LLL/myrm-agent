@@ -47,13 +47,7 @@ export function WikiConceptClaimsSection({
       <div className="flex items-center justify-between">
         <div className="text-sm font-medium">{t('claimsTitle')}</div>
         {claims.length > 0 && onHealClaims && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onHealClaims}
-            className="h-7 text-xs px-2.5"
-          >
+          <Button type="button" variant="outline" size="sm" onClick={onHealClaims} className="h-7 text-xs px-2.5">
             {t('claimsHealAction')}
           </Button>
         )}
@@ -67,19 +61,12 @@ export function WikiConceptClaimsSection({
               key={claim.id}
               className={cn(
                 'rounded-lg border p-3 space-y-2',
-                claim.status === 'unknown'
-                  ? 'border-border/40 bg-muted/10 opacity-80'
-                  : 'border-border/60 bg-muted/20',
+                claim.status === 'unknown' ? 'border-border/40 bg-muted/10 opacity-80' : 'border-border/60 bg-muted/20',
               )}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={cn(
-                      'text-sm font-medium',
-                      claim.status === 'unknown' && 'text-muted-foreground',
-                    )}
-                  >
+                  <span className={cn('text-sm font-medium', claim.status === 'unknown' && 'text-muted-foreground')}>
                     {claim.text}
                   </span>
                   <span
@@ -144,9 +131,7 @@ export function WikiConceptClaimsSection({
                         </div>
                       )}
                       {evidence.snapshot_status === 'missing' && evidence.path && (
-                        <div className="text-[11px] text-muted-foreground">
-                          {t('evidenceSnapshotMissing')}
-                        </div>
+                        <div className="text-[11px] text-muted-foreground">{t('evidenceSnapshotMissing')}</div>
                       )}
                       {evidence.resource_uri ? (
                         <div className="text-[11px] text-muted-foreground font-mono break-all">

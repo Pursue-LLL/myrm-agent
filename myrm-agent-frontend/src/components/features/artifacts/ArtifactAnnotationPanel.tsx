@@ -8,13 +8,7 @@ import { Label } from '@/components/primitives/label';
 import { MessageSquarePlus, Send, GitPullRequestArrow, Trash2, Loader2 } from 'lucide-react';
 import useChatStore from '@/store/useChatStore';
 import { useArtifactAnnotationStore } from '@/store/useArtifactAnnotationStore';
-import {
-  addComment,
-  listBoards,
-  listTasks,
-  rejectTask,
-  type KanbanTask,
-} from '@/services/kanban';
+import { addComment, listBoards, listTasks, rejectTask, type KanbanTask } from '@/services/kanban';
 import {
   buildAnchor,
   composeReviewMessage,
@@ -65,9 +59,7 @@ async function resolveOwningTask(chatId: string, artifactId: string): Promise<Ka
     let offset = 0;
     for (;;) {
       const page = await listTasks(board.board_id, { source_chat_id: chatId, limit: 50, offset });
-      const hit = (page.items || []).find((t) =>
-        (t.attachments || []).some((a) => a.file_id === artifactId),
-      );
+      const hit = (page.items || []).find((t) => (t.attachments || []).some((a) => a.file_id === artifactId));
       if (hit) {
         return hit;
       }
@@ -120,9 +112,7 @@ export function ArtifactAnnotationPanel({
     if (prev === null || prev === content) {
       return;
     }
-    const open = useArtifactAnnotationStore
-      .getState()
-      .byArtifact[artifactId]?.filter((a) => a.status !== 'resolved');
+    const open = useArtifactAnnotationStore.getState().byArtifact[artifactId]?.filter((a) => a.status !== 'resolved');
     if (!open || open.length === 0) {
       setRevisionNote(null);
       return;
@@ -148,9 +138,7 @@ export function ArtifactAnnotationPanel({
 
   const latestVersionId = versionIds && versionIds.length > 0 ? versionIds[versionIds.length - 1] : undefined;
   const currentRealVersionId =
-    versionIds && versionIds.length > 0
-      ? (versionIds[viewingVersionIndex ?? -1] ?? latestVersionId)
-      : undefined;
+    versionIds && versionIds.length > 0 ? (versionIds[viewingVersionIndex ?? -1] ?? latestVersionId) : undefined;
 
   const versionChips = useMemo(() => {
     if (!versionIds || versionIds.length < 2) {
@@ -260,9 +248,7 @@ export function ArtifactAnnotationPanel({
           {t('annotation.versions', { fallback: '{count} versions', count: versionCount })}
         </span>
       </div>
-      {revisionNote && (
-        <output className="block text-xs text-amber-600 dark:text-amber-400">{revisionNote}</output>
-      )}
+      {revisionNote && <output className="block text-xs text-amber-600 dark:text-amber-400">{revisionNote}</output>}
       {versionChips.length > 0 && (
         <nav className="flex flex-wrap items-center gap-1.5" aria-label="versions">
           {versionChips.map((chip) => (

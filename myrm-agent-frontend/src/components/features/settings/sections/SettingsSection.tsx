@@ -11,7 +11,10 @@ interface SettingsSectionProps {
 }
 
 const SettingsSection = memo<SettingsSectionProps>(({ id, title, description, action, children }) => (
-  <div id={id} className="flex flex-col space-y-6 p-6 lg:p-8 bg-secondary/30 dark:bg-secondary/20 rounded-2xl border border-border/50">
+  <div
+    id={id}
+    className="flex flex-col space-y-6 p-6 lg:p-8 bg-secondary/30 dark:bg-secondary/20 rounded-2xl border border-border/50"
+  >
     <div className="flex items-start justify-between gap-4">
       <div className="space-y-2">
         <h2 className="text-lg font-semibold text-foreground">{title}</h2>

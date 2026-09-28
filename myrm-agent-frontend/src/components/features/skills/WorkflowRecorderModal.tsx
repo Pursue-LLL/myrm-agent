@@ -32,7 +32,8 @@ interface WorkflowRecorderModalProps {
   onPublished?: (skillName: string) => void;
 }
 
-export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ isOpen, onClose, onPublished }) => {  const t = useTranslations('skills.workflowRecorder');
+export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ isOpen, onClose, onPublished }) => {
+  const t = useTranslations('skills.workflowRecorder');
   const [step, setStep] = useState<'idle' | 'recording' | 'review' | 'preview' | 'published'>('idle');
   const [sessionId, setSessionId] = useState<string>('');
   const [skillName, setSkillName] = useState<string>('Custom Desktop Workflow');
@@ -124,7 +125,8 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
     onClose();
   }, [step, sessionId, onClose]);
 
-  const handleStart = async () => {    setError(null);
+  const handleStart = async () => {
+    setError(null);
     setLoading(true);
     try {
       const newSessionId = `rec-${Date.now()}`;
@@ -144,7 +146,9 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   };
 
   const handleStopAndAnalyze = async () => {
-    if (!sessionId) {return;}
+    if (!sessionId) {
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -160,27 +164,35 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   };
 
   const handleUpdateStepTitle = (idx: number, newTitle: string) => {
-    if (!plan) {return;}
+    if (!plan) {
+      return;
+    }
     const updated = [...plan.steps];
     updated[idx] = { ...updated[idx], title: newTitle };
     setPlan({ ...plan, steps: updated });
   };
 
   const handleUpdateStepDesc = (idx: number, newDesc: string) => {
-    if (!plan) {return;}
+    if (!plan) {
+      return;
+    }
     const updated = [...plan.steps];
     updated[idx] = { ...updated[idx], description: newDesc };
     setPlan({ ...plan, steps: updated });
   };
 
   const handleDeleteStep = (idx: number) => {
-    if (!plan) {return;}
+    if (!plan) {
+      return;
+    }
     const updated = plan.steps.filter((_, i) => i !== idx);
     setPlan({ ...plan, steps: updated });
   };
 
   const handleAddStep = () => {
-    if (!plan) {return;}
+    if (!plan) {
+      return;
+    }
     const newStep: WorkflowPlanStep = {
       step_id: `step-${plan.steps.length + 1}`,
       title: 'New Custom Action',
@@ -191,7 +203,9 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   };
 
   const handleCompileAndPreview = async () => {
-    if (!plan) {return;}
+    if (!plan) {
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -206,7 +220,9 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
   };
 
   const handlePublish = async (overwrite = false) => {
-    if (!sessionId || !compiledMarkdown || !plan) {return;}
+    if (!sessionId || !compiledMarkdown || !plan) {
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -228,7 +244,9 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
     }
   };
 
-  if (!isOpen) {return null;}
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -308,9 +326,7 @@ export const WorkflowRecorderModal: React.FC<WorkflowRecorderModalProps> = ({ is
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs leading-relaxed">
                   <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                   <span>
-                    {captureIssue === 'permission'
-                      ? t('capturePermissionNotice')
-                      : t('captureUnsupportedNotice')}
+                    {captureIssue === 'permission' ? t('capturePermissionNotice') : t('captureUnsupportedNotice')}
                   </span>
                 </div>
               )}

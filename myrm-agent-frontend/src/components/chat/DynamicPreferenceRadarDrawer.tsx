@@ -1,18 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import {
-  Code,
-  Compass,
-  Cpu,
-  Flame,
-  Lock,
-  Minimize2,
-  RotateCcw,
-  SlidersHorizontal,
-  Unlock,
-  X,
-} from 'lucide-react';
+import { Code, Compass, Cpu, Flame, Lock, Minimize2, RotateCcw, SlidersHorizontal, Unlock, X } from 'lucide-react';
 
 export interface RadarDimensionValues {
   recency: number;
@@ -34,20 +23,21 @@ export interface DynamicPreferenceRadarDrawerProps {
   className?: string;
 }
 
-export const RADAR_PRESETS: Record<'balanced' | 'code' | 'research', { label: string; values: RadarDimensionValues }> = {
-  balanced: {
-    label: '平衡通用',
-    values: { recency: 1.0, actionability: 1.0, technical_depth: 1.0, conciseness: 1.0, breadth: 1.0 },
-  },
-  code: {
-    label: '编码实战',
-    values: { recency: 1.5, actionability: 2.5, technical_depth: 2.0, conciseness: 1.8, breadth: 0.5 },
-  },
-  research: {
-    label: '调研推演',
-    values: { recency: 2.0, actionability: 0.5, technical_depth: 2.5, conciseness: 0.8, breadth: 2.5 },
-  },
-};
+export const RADAR_PRESETS: Record<'balanced' | 'code' | 'research', { label: string; values: RadarDimensionValues }> =
+  {
+    balanced: {
+      label: '平衡通用',
+      values: { recency: 1.0, actionability: 1.0, technical_depth: 1.0, conciseness: 1.0, breadth: 1.0 },
+    },
+    code: {
+      label: '编码实战',
+      values: { recency: 1.5, actionability: 2.5, technical_depth: 2.0, conciseness: 1.8, breadth: 0.5 },
+    },
+    research: {
+      label: '调研推演',
+      values: { recency: 2.0, actionability: 0.5, technical_depth: 2.5, conciseness: 0.8, breadth: 2.5 },
+    },
+  };
 
 interface DimensionConfig {
   key: keyof RadarDimensionValues;
@@ -93,7 +83,6 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
       return { x, y, angle };
     });
   }, [values]);
-
 
   const gridPolygons = useMemo(() => {
     const total = DIMENSIONS.length;
@@ -282,9 +271,7 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
                   <span>{dim.label}</span>
                   <span className="text-[10px] text-muted-foreground">({dim.subLabel})</span>
                 </div>
-                <span className="font-mono text-xs font-semibold text-primary">
-                  {currentVal.toFixed(2)}x
-                </span>
+                <span className="font-mono text-xs font-semibold text-primary">{currentVal.toFixed(2)}x</span>
               </div>
               <input
                 type="range"
@@ -313,9 +300,7 @@ export const DynamicPreferenceRadarDrawer: React.FC<DynamicPreferenceRadarDrawer
           <RotateCcw className="h-3.5 w-3.5" />
           <span>重置基准 (1.0x)</span>
         </button>
-        <span className="text-[11px] text-muted-foreground">
-          {locked ? '手动固定模式' : '动态学习模式'}
-        </span>
+        <span className="text-[11px] text-muted-foreground">{locked ? '手动固定模式' : '动态学习模式'}</span>
       </div>
     </aside>
   );

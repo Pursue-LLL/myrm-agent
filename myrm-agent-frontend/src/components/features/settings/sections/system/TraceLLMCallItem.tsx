@@ -19,7 +19,8 @@ interface TraceLLMCallItemProps {
  */
 const TraceLLMCallItem = memo<TraceLLMCallItemProps>(({ llmCall, isHighlighted }) => {
   const [viewportExpanded, setViewportExpanded] = useState(false);
-  const { duration_ms, ttft_ms, model_name, prompt_tokens, completion_tokens, total_tokens, attempt, retry_count } = llmCall;
+  const { duration_ms, ttft_ms, model_name, prompt_tokens, completion_tokens, total_tokens, attempt, retry_count } =
+    llmCall;
 
   const hasLatencyData = duration_ms !== null && ttft_ms !== null && duration_ms > 0;
   let ttftRatio = 0;
@@ -60,7 +61,7 @@ const TraceLLMCallItem = memo<TraceLLMCallItemProps>(({ llmCall, isHighlighted }
           <span className="text-sm font-medium text-foreground">{model_name || 'Unknown Model'}</span>
           {((attempt && attempt > 1) || (retry_count && retry_count > 0)) && (
             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-              Retry x{attempt || (retry_count! + 1)}
+              Retry x{attempt || retry_count! + 1}
             </span>
           )}
         </div>

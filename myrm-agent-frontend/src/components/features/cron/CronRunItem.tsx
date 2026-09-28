@@ -165,13 +165,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                       : 'bg-destructive',
               )}
             />
-            {isOk
-              ? t('runOk')
-              : isSkipped
-                ? t('runSkipped')
-                : isCircuitBreak
-                  ? t('runCircuitBreak')
-                  : t('runError')}
+            {isOk ? t('runOk') : isSkipped ? t('runSkipped') : isCircuitBreak ? t('runCircuitBreak') : t('runError')}
           </span>
 
           {showJobName && run.job_name && (
@@ -275,9 +269,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
           <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">{monitorFailureCountLabel}</p>
         )}
         {!expanded && isCircuitBreak && (
-          <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1 font-medium">
-            {t('circuitBreakBanner')}
-          </p>
+          <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1 font-medium">{t('circuitBreakBanner')}</p>
         )}
         {!expanded && !run.output && run.error && !isCircuitBreak && (
           <p className="text-xs text-destructive mt-1 line-clamp-1">{run.error}</p>
@@ -291,9 +283,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                   <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
                   <span>{t('circuitBreakTitle')}</span>
                 </div>
-                <p className="text-[11px] opacity-90 leading-relaxed">
-                  {run.error || t('circuitBreakDesc')}
-                </p>
+                <p className="text-[11px] opacity-90 leading-relaxed">{run.error || t('circuitBreakDesc')}</p>
               </div>
             )}
             {run.usage_input_tokens != null && (

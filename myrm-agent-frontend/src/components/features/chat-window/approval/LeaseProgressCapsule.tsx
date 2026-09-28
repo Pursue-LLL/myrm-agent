@@ -25,11 +25,7 @@ export interface LeaseProgressCapsuleProps {
   className?: string;
 }
 
-export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({
-  onExtend,
-  onPause,
-  className = '',
-}) => {
+export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({ onExtend, onPause, className = '' }) => {
   const [isExtending, setIsExtending] = useState(false);
   const [isPausing, setIsPausing] = useState(false);
   const { activeEnvelope, extendEnvelopeLease, setEnvelope } = useDesktopControlApprovalStore();
@@ -41,8 +37,7 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({
   const { usedActions, maxActions, remainingBudget } = activeEnvelope;
   const isNearLimit = remainingBudget <= 3 && remainingBudget > 0;
   const isExhausted = remainingBudget <= 0;
-  const canExtend =
-    activeEnvelope.canExtend !== false && maxActions < (activeEnvelope.hardLimit ?? 100);
+  const canExtend = activeEnvelope.canExtend !== false && maxActions < (activeEnvelope.hardLimit ?? 100);
 
   const handleExtend = (steps = 10) => {
     if (!canExtend || isExtending) return;

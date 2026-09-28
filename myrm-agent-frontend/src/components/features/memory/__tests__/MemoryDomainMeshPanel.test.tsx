@@ -110,9 +110,7 @@ describe('MemoryDomainMeshPanel', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Memory Details & Traceability')).toBeInTheDocument();
-      expect(
-        screen.getByText('Full verbatim text of the dark mode preference item.')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Full verbatim text of the dark mode preference item.')).toBeInTheDocument();
     });
   });
 

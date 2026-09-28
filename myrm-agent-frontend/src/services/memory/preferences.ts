@@ -92,11 +92,10 @@ export const tunePreferenceRadar = async (
     dimensions?: Partial<RadarDimensionValues>;
     locked?: boolean;
     reset_to_baseline?: boolean;
-  }
+  },
 ): Promise<PreferenceRadarStateResponse> => {
   return apiRequest<PreferenceRadarStateResponse>(`/memory/radar/${encodeURIComponent(sessionId)}/tune`, {
     method: 'POST',
     body: JSON.stringify(req),
   });
 };
-

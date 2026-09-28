@@ -9,10 +9,7 @@ interface ContextSpilloverBadgeProps {
   className?: string;
 }
 
-export const ContextSpilloverBadge: React.FC<ContextSpilloverBadgeProps> = ({
-  charCount,
-  className = '',
-}) => {
+export const ContextSpilloverBadge: React.FC<ContextSpilloverBadgeProps> = ({ charCount, className = '' }) => {
   const t = useTranslations('chat');
 
   if (charCount <= 16000) {

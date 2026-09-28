@@ -45,25 +45,20 @@ export const getCognitiveClockStatus = async (): Promise<CognitiveClockStatus> =
 
 export const reportUserActivity = async (
   sessionId?: string,
-  reason: string = 'typing'
+  reason: string = 'typing',
 ): Promise<{ status: string; recorded: boolean; reason: string }> => {
   return apiRequest<{ status: string; recorded: boolean; reason: string }>(
     '/memory/guardian/cognitive-clock/activity',
     {
       method: 'POST',
       body: JSON.stringify({ session_id: sessionId, reason }),
-    }
+    },
   );
 };
 
-export const triggerT1SessionDebounce = async (
-  sessionId: string
-): Promise<{ status: string; session_id: string }> => {
-  return apiRequest<{ status: string; session_id: string }>(
-    '/memory/guardian/cognitive-clock/trigger-t1',
-    {
-      method: 'POST',
-      body: JSON.stringify({ session_id: sessionId }),
-    }
-  );
+export const triggerT1SessionDebounce = async (sessionId: string): Promise<{ status: string; session_id: string }> => {
+  return apiRequest<{ status: string; session_id: string }>('/memory/guardian/cognitive-clock/trigger-t1', {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId }),
+  });
 };

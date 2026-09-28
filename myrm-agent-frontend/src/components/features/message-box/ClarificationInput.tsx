@@ -101,7 +101,8 @@ const ChevronDownIcon = ({ className }: { className?: string }) => (
 
 const COLLAPSED_OPTIONS_LIMIT = 4;
 
-const RECOMMENDED_REGEX = /(?:\s*[(（](?:Recommended|推荐|建議|おすすめ|추천|Empfohlen)[)）]|\s*\[(?:Recommended|推荐|建議|おすすめ|추천|Empfohlen)\])$/i;
+const RECOMMENDED_REGEX =
+  /(?:\s*[(（](?:Recommended|推荐|建議|おすすめ|추천|Empfohlen)[)）]|\s*\[(?:Recommended|推荐|建議|おすすめ|추천|Empfohlen)\])$/i;
 
 function parseOptionLabel(rawLabel: string): { displayLabel: string; isRecommended: boolean } {
   const match = rawLabel.match(RECOMMENDED_REGEX);
@@ -459,60 +460,60 @@ const ClarificationInput = ({
                       </p>
                     </div>
 
-                    {question.options && question.options.length > 0 ? (() => {
-                      const totalOptions = question.options.length;
-                      const hasSelectedInHidden =
-                        totalOptions > COLLAPSED_OPTIONS_LIMIT &&
-                        question.options
-                          .slice(COLLAPSED_OPTIONS_LIMIT)
-                          .some((opt) => selected.includes(opt.id));
-                      const isExpanded = Boolean(expandedQuestions[question.id]) || hasSelectedInHidden;
-                      const visibleOptions =
-                        !isExpanded && totalOptions > COLLAPSED_OPTIONS_LIMIT
-                          ? question.options.slice(0, COLLAPSED_OPTIONS_LIMIT)
-                          : question.options;
+                    {question.options && question.options.length > 0
+                      ? (() => {
+                          const totalOptions = question.options.length;
+                          const hasSelectedInHidden =
+                            totalOptions > COLLAPSED_OPTIONS_LIMIT &&
+                            question.options.slice(COLLAPSED_OPTIONS_LIMIT).some((opt) => selected.includes(opt.id));
+                          const isExpanded = Boolean(expandedQuestions[question.id]) || hasSelectedInHidden;
+                          const visibleOptions =
+                            !isExpanded && totalOptions > COLLAPSED_OPTIONS_LIMIT
+                              ? question.options.slice(0, COLLAPSED_OPTIONS_LIMIT)
+                              : question.options;
 
-                      return (
-                        <div className="flex flex-col gap-2.5">
-                          <p className="text-xs text-muted-foreground">
-                            {questionAllowMultiple ? t('multipleChoicePrompt') : t('singleChoicePrompt')}
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {visibleOptions.map((option) => (
-                              <OptionPill
-                                key={option.id}
-                                label={option.label}
-                                description={option.description}
-                                selected={selected.includes(option.id)}
-                                allowMultiple={questionAllowMultiple}
-                                disabled={submitting}
-                                onSelect={() => toggleFormOption(question.id, option.id, questionAllowMultiple)}
-                                recommendedBadgeText={t('recommendedBadge')}
-                              />
-                            ))}
-                          </div>
-                          {totalOptions > COLLAPSED_OPTIONS_LIMIT ? (
-                            <button
-                              type="button"
-                              onClick={() => toggleQuestionExpand(question.id)}
-                              className="inline-flex items-center gap-1.5 self-start rounded-full border border-dashed border-border/70 bg-background/50 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-accent/40 hover:text-foreground"
-                            >
-                              <ChevronDownIcon
-                                className={cn(
-                                  'h-3.5 w-3.5 transition-transform duration-200',
-                                  isExpanded && 'rotate-180',
-                                )}
-                              />
-                              <span>
-                                {isExpanded
-                                  ? t('collapseOptions')
-                                  : t('expandOptions', { count: totalOptions - COLLAPSED_OPTIONS_LIMIT })}
-                              </span>
-                            </button>
-                          ) : null}
-                        </div>
-                      );
-                    })() : null}
+                          return (
+                            <div className="flex flex-col gap-2.5">
+                              <p className="text-xs text-muted-foreground">
+                                {questionAllowMultiple ? t('multipleChoicePrompt') : t('singleChoicePrompt')}
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {visibleOptions.map((option) => (
+                                  <OptionPill
+                                    key={option.id}
+                                    label={option.label}
+                                    description={option.description}
+                                    selected={selected.includes(option.id)}
+                                    allowMultiple={questionAllowMultiple}
+                                    disabled={submitting}
+                                    onSelect={() => toggleFormOption(question.id, option.id, questionAllowMultiple)}
+                                    recommendedBadgeText={t('recommendedBadge')}
+                                  />
+                                ))}
+                              </div>
+                              {totalOptions > COLLAPSED_OPTIONS_LIMIT ? (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleQuestionExpand(question.id)}
+                                  className="inline-flex items-center gap-1.5 self-start rounded-full border border-dashed border-border/70 bg-background/50 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-accent/40 hover:text-foreground"
+                                >
+                                  <ChevronDownIcon
+                                    className={cn(
+                                      'h-3.5 w-3.5 transition-transform duration-200',
+                                      isExpanded && 'rotate-180',
+                                    )}
+                                  />
+                                  <span>
+                                    {isExpanded
+                                      ? t('collapseOptions')
+                                      : t('expandOptions', { count: totalOptions - COLLAPSED_OPTIONS_LIMIT })}
+                                  </span>
+                                </button>
+                              ) : null}
+                            </div>
+                          );
+                        })()
+                      : null}
 
                     {hasQuestionOptions ? <p className="text-xs text-muted-foreground">{t('optionalNote')}</p> : null}
 
@@ -536,60 +537,60 @@ const ClarificationInput = ({
             </div>
           ) : (
             <div className="flex flex-col gap-3 sm:gap-4">
-              {options && options.length > 0 ? (() => {
-                const totalSimpleOptions = options.length;
-                const hasSelectedInHidden =
-                  totalSimpleOptions > COLLAPSED_OPTIONS_LIMIT &&
-                  options
-                    .slice(COLLAPSED_OPTIONS_LIMIT)
-                    .some((opt) => selectedOptions.includes(opt));
-                const effectiveExpanded = isSimpleOptionsExpanded || hasSelectedInHidden;
-                const visibleSimpleOptions =
-                  !effectiveExpanded && totalSimpleOptions > COLLAPSED_OPTIONS_LIMIT
-                    ? options.slice(0, COLLAPSED_OPTIONS_LIMIT)
-                    : options;
+              {options && options.length > 0
+                ? (() => {
+                    const totalSimpleOptions = options.length;
+                    const hasSelectedInHidden =
+                      totalSimpleOptions > COLLAPSED_OPTIONS_LIMIT &&
+                      options.slice(COLLAPSED_OPTIONS_LIMIT).some((opt) => selectedOptions.includes(opt));
+                    const effectiveExpanded = isSimpleOptionsExpanded || hasSelectedInHidden;
+                    const visibleSimpleOptions =
+                      !effectiveExpanded && totalSimpleOptions > COLLAPSED_OPTIONS_LIMIT
+                        ? options.slice(0, COLLAPSED_OPTIONS_LIMIT)
+                        : options;
 
-                return (
-                  <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-background/70 p-3 sm:p-4">
-                    <p className="text-xs text-muted-foreground">
-                      {allowMultiple ? t('multipleChoicePrompt') : t('singleChoicePrompt')}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {visibleSimpleOptions.map((opt) => (
-                        <OptionPill
-                          key={opt}
-                          label={opt}
-                          selected={selectedOptions.includes(opt)}
-                          allowMultiple={Boolean(allowMultiple)}
-                          disabled={submitting}
-                          onSelect={() => toggleOption(opt)}
-                          recommendedBadgeText={t('recommendedBadge')}
-                        />
-                      ))}
-                    </div>
-                    {totalSimpleOptions > COLLAPSED_OPTIONS_LIMIT ? (
-                      <button
-                        type="button"
-                        onClick={() => setIsSimpleOptionsExpanded((prev) => !prev)}
-                        className="inline-flex items-center gap-1.5 self-start rounded-full border border-dashed border-border/70 bg-background/50 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-accent/40 hover:text-foreground"
-                      >
-                        <ChevronDownIcon
-                          className={cn(
-                            'h-3.5 w-3.5 transition-transform duration-200',
-                            effectiveExpanded && 'rotate-180',
-                          )}
-                        />
-                        <span>
-                          {effectiveExpanded
-                            ? t('collapseOptions')
-                            : t('expandOptions', { count: totalSimpleOptions - COLLAPSED_OPTIONS_LIMIT })}
-                        </span>
-                      </button>
-                    ) : null}
-                    <p className="text-xs text-muted-foreground">{t('optionalNote')}</p>
-                  </div>
-                );
-              })() : null}
+                    return (
+                      <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-background/70 p-3 sm:p-4">
+                        <p className="text-xs text-muted-foreground">
+                          {allowMultiple ? t('multipleChoicePrompt') : t('singleChoicePrompt')}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {visibleSimpleOptions.map((opt) => (
+                            <OptionPill
+                              key={opt}
+                              label={opt}
+                              selected={selectedOptions.includes(opt)}
+                              allowMultiple={Boolean(allowMultiple)}
+                              disabled={submitting}
+                              onSelect={() => toggleOption(opt)}
+                              recommendedBadgeText={t('recommendedBadge')}
+                            />
+                          ))}
+                        </div>
+                        {totalSimpleOptions > COLLAPSED_OPTIONS_LIMIT ? (
+                          <button
+                            type="button"
+                            onClick={() => setIsSimpleOptionsExpanded((prev) => !prev)}
+                            className="inline-flex items-center gap-1.5 self-start rounded-full border border-dashed border-border/70 bg-background/50 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-accent/40 hover:text-foreground"
+                          >
+                            <ChevronDownIcon
+                              className={cn(
+                                'h-3.5 w-3.5 transition-transform duration-200',
+                                effectiveExpanded && 'rotate-180',
+                              )}
+                            />
+                            <span>
+                              {effectiveExpanded
+                                ? t('collapseOptions')
+                                : t('expandOptions', { count: totalSimpleOptions - COLLAPSED_OPTIONS_LIMIT })}
+                            </span>
+                          </button>
+                        ) : null}
+                        <p className="text-xs text-muted-foreground">{t('optionalNote')}</p>
+                      </div>
+                    );
+                  })()
+                : null}
 
               <textarea
                 className={clarificationTextareaClass}

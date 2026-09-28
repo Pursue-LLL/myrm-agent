@@ -15,8 +15,15 @@
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
-  IconGlobe, IconBook, IconExternalLink, IconCode,
-  IconZap, IconShield, IconFolder, IconBriefcase, IconClock,
+  IconGlobe,
+  IconBook,
+  IconExternalLink,
+  IconCode,
+  IconZap,
+  IconShield,
+  IconFolder,
+  IconBriefcase,
+  IconClock,
 } from '@/components/features/icons/PremiumIcons';
 import { Users, CheckCircle2 } from 'lucide-react';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
@@ -155,7 +162,6 @@ const AboutSection = memo(() => {
       setTimeout(() => setCopied(false), 2000);
     });
   }, [version, engineVersion]);
-
 
   return (
     <div className="space-y-6">

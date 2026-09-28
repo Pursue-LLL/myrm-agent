@@ -402,12 +402,11 @@ export const loadOlderMessages = async (actions: ChatActionsMethods): Promise<vo
 /**
  * 连续批量向前翻页加载直至目标消息 (轮次用户消息ID) 被完全载入到内存 (loadThroughTurn 投影导轨驱动器)
  */
-export const loadThroughTurn = async (
-  targetMessageId: string,
-  actions: ChatActionsMethods,
-): Promise<boolean> => {
+export const loadThroughTurn = async (targetMessageId: string, actions: ChatActionsMethods): Promise<boolean> => {
   const state = useChatStore.getState();
-  if (!state.chatId || !targetMessageId) {return false;}
+  if (!state.chatId || !targetMessageId) {
+    return false;
+  }
 
   const isLoaded = () => {
     const current = useChatStore.getState();

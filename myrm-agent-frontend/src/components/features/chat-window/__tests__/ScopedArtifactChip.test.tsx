@@ -8,7 +8,15 @@ import React from 'react';
 
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, className, 'data-testid': testId }: { children: React.ReactNode; className?: string; 'data-testid'?: string }) => (
+    div: ({
+      children,
+      className,
+      'data-testid': testId,
+    }: {
+      children: React.ReactNode;
+      className?: string;
+      'data-testid'?: string;
+    }) => (
       <div className={className} data-testid={testId}>
         {children}
       </div>

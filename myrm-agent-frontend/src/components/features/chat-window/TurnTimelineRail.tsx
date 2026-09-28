@@ -29,12 +29,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/primitives/sheet';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
-import {
-  MIN_TURNS_FOR_RAIL,
-  calculateRailPitchWidth,
-  normalizeRailItems,
-  type RailTurnItem,
-} from './turnRailModel';
+import { MIN_TURNS_FOR_RAIL, calculateRailPitchWidth, normalizeRailItems, type RailTurnItem } from './turnRailModel';
 
 interface TurnTimelineRailProps {
   messages: Message[];
@@ -65,10 +60,7 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
     const barRef = useRef<HTMLDivElement>(null);
     const previewTopRef = useRef(0);
 
-    const railItems = useMemo(
-      () => normalizeRailItems(messages, turnOutlines),
-      [messages, turnOutlines],
-    );
+    const railItems = useMemo(() => normalizeRailItems(messages, turnOutlines), [messages, turnOutlines]);
 
     const handleMouseMove = useCallback(
       (e: React.MouseEvent) => {
@@ -193,8 +185,7 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
         <div
           className="flex flex-col gap-1.5 items-center max-h-[calc(100vh-8rem)] overflow-y-auto scrollbar-hide py-3 relative"
           style={{
-            maskImage:
-              'linear-gradient(to bottom, transparent, black 16px, black calc(100% - 16px), transparent)',
+            maskImage: 'linear-gradient(to bottom, transparent, black 16px, black calc(100% - 16px), transparent)',
             WebkitMaskImage:
               'linear-gradient(to bottom, transparent, black 16px, black calc(100% - 16px), transparent)',
           }}
@@ -227,12 +218,7 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
                       hoveredIdx >= 0 && Math.abs(idx - hoveredIdx) <= 2 && 'bg-primary',
                     )}
                     style={{
-                      width: calculateRailPitchWidth(
-                        idx,
-                        hoveredIdx,
-                        item.isLoaded,
-                        isActiveViewport,
-                      ),
+                      width: calculateRailPitchWidth(idx, hoveredIdx, item.isLoaded, isActiveViewport),
                       transitionDuration: '150ms',
                     }}
                   />
@@ -252,9 +238,7 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
             style={{ top: previewTopRef.current, transform: 'translateY(-50%)' }}
           >
             <div className="flex items-center justify-between gap-3 mb-1.5 pb-1 border-b border-border/40 font-medium">
-              <span className="text-primary font-semibold">
-                {t('turn', { index: activeHoverItem.turnIndex })}
-              </span>
+              <span className="text-primary font-semibold">{t('turn', { index: activeHoverItem.turnIndex })}</span>
               <span
                 className={cn(
                   'px-1.5 py-0.2 rounded text-[10px]',
@@ -265,11 +249,7 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
                       : 'bg-muted text-muted-foreground',
                 )}
               >
-                {activeHoverItem.isInFlight
-                  ? t('inFlight')
-                  : activeHoverItem.isLoaded
-                    ? t('loaded')
-                    : t('unloaded')}
+                {activeHoverItem.isInFlight ? t('inFlight') : activeHoverItem.isLoaded ? t('loaded') : t('unloaded')}
               </span>
             </div>
             <div className="space-y-1">
@@ -310,10 +290,7 @@ export const MobileTurnOutlineSheet = memo<MobileTurnOutlineSheetProps>(
     const [open, setOpen] = useState(false);
     const [loadingTurn, setLoadingTurn] = useState<number | null>(null);
 
-    const railItems = useMemo(
-      () => normalizeRailItems(messages, turnOutlines),
-      [messages, turnOutlines],
-    );
+    const railItems = useMemo(() => normalizeRailItems(messages, turnOutlines), [messages, turnOutlines]);
 
     const handleSelect = useCallback(
       async (item: RailTurnItem) => {
@@ -366,9 +343,7 @@ export const MobileTurnOutlineSheet = memo<MobileTurnOutlineSheetProps>(
                 onClick={() => handleSelect(item)}
               >
                 <div className="flex items-center justify-between text-xs font-medium">
-                  <span className="text-primary font-mono">
-                    {t('turn', { index: item.turnIndex })}
-                  </span>
+                  <span className="text-primary font-mono">{t('turn', { index: item.turnIndex })}</span>
                   <span
                     className={cn(
                       'px-1.5 py-0.5 rounded text-[10px]',
@@ -388,13 +363,9 @@ export const MobileTurnOutlineSheet = memo<MobileTurnOutlineSheetProps>(
                           : t('unloaded')}
                   </span>
                 </div>
-                <p className="text-xs text-foreground/90 line-clamp-2">
-                  {item.promptPreview || '...'}
-                </p>
+                <p className="text-xs text-foreground/90 line-clamp-2">{item.promptPreview || '...'}</p>
                 {item.replyPreview && (
-                  <p className="text-[11px] text-muted-foreground line-clamp-1">
-                    {item.replyPreview}
-                  </p>
+                  <p className="text-[11px] text-muted-foreground line-clamp-1">{item.replyPreview}</p>
                 )}
               </button>
             ))}

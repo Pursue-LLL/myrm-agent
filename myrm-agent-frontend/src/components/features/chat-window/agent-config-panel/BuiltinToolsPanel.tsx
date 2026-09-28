@@ -33,7 +33,11 @@ import { KanbanConfigSection } from './KanbanConfigSection';
 import { useFeatureEntitlements } from '@/hooks/billing/useFeatureEntitlements';
 import { isLocalMode, isSandbox } from '@/lib/deploy-mode';
 import { getConfigSyncManager } from '@/services/config';
-import { getExternalAgentAuthStatus, resolveExternalCliReadiness, type ExternalCliReadiness } from '@/services/external-agents';
+import {
+  getExternalAgentAuthStatus,
+  resolveExternalCliReadiness,
+  type ExternalCliReadiness,
+} from '@/services/external-agents';
 
 export interface BuiltinToolsPanelProps {
   localBuiltinTools: BuiltinToolId[];

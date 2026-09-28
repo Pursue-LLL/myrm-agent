@@ -463,9 +463,7 @@ const CronJobCard = memo<CronJobCardProps>(({ job, onSelect, onRequestDelete }) 
                   <span>{job.skill_ids.length === 1 ? job.skill_ids[0] : `${job.skill_ids.length} skills`}</span>
                 </span>
               </TooltipTrigger>
-              <TooltipContent>
-                {job.skill_ids.join(', ')}
-              </TooltipContent>
+              <TooltipContent>{job.skill_ids.join(', ')}</TooltipContent>
             </Tooltip>
           )}
           {job.expires_at && (

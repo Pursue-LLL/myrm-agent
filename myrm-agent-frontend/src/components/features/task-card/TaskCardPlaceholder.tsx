@@ -40,7 +40,9 @@ export const TaskCardPlaceholder: React.FC<TaskCardPlaceholderProps> = ({
 
   const handleCancel = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!taskId || !onCancel || isCancelling) {return;}
+    if (!taskId || !onCancel || isCancelling) {
+      return;
+    }
     setIsCancelling(true);
     try {
       await onCancel(taskId);
@@ -74,7 +76,7 @@ export const TaskCardPlaceholder: React.FC<TaskCardPlaceholderProps> = ({
             onClick={handleCancel}
             aria-label={t('cancelTask')}
             className={cn(
-              'shrink-0 text-xs px-2 py-0.5 rounded border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50'
+              'shrink-0 text-xs px-2 py-0.5 rounded border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50',
             )}
           >
             {isCancelling ? t('cancelling') : t('cancelTask')}

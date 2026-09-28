@@ -12,17 +12,8 @@ import {
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import { toast } from 'sonner';
-import {
-  Sparkles,
-  ShieldAlert,
-  CheckCircle2,
-  Info,
-} from 'lucide-react';
-import {
-  writebackService,
-  type ReviewSlipBatch,
-  type WritebackDecisionItem,
-} from '@/services/wikiService';
+import { Sparkles, ShieldAlert, CheckCircle2, Info } from 'lucide-react';
+import { writebackService, type ReviewSlipBatch, type WritebackDecisionItem } from '@/services/wikiService';
 import { useWikiAgentScope } from '../WikiAgentScopeContext';
 
 interface WikiReviewSlipModalProps {
@@ -230,7 +221,10 @@ export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiRevie
                               <span>{opt.label}</span>
                             </div>
                             {opt.recommended && (
-                              <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-primary/15 text-primary border-primary/20">
+                              <Badge
+                                variant="secondary"
+                                className="text-[9px] px-1 py-0 bg-primary/15 text-primary border-primary/20"
+                              >
                                 推荐
                               </Badge>
                             )}
@@ -246,9 +240,7 @@ export function WikiReviewSlipModal({ open, onOpenChange, onApplied }: WikiRevie
         </div>
 
         <DialogFooter className="p-4 border-t border-border/40 bg-secondary/10 flex items-center justify-between sm:justify-between">
-          <span className="text-xs text-muted-foreground">
-            提交后将写入对应层并打上 Draft 标签，由人工后续发布
-          </span>
+          <span className="text-xs text-muted-foreground">提交后将写入对应层并打上 Draft 标签，由人工后续发布</span>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={submitting}>
               稍后再说

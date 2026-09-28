@@ -19,7 +19,7 @@ describe('WorkingMemoryBoard Component', () => {
           { id: 'step-2', title: 'Apply migration SQL', status: 'in_progress', notes: 'running DDL' },
           { id: 'step-3', title: 'Verify integrity', status: 'pending' },
         ]}
-      />
+      />,
     );
 
     expect(screen.getByTestId('working-memory-board')).toBeInTheDocument();
@@ -35,7 +35,7 @@ describe('WorkingMemoryBoard Component', () => {
         goal="Build dashboard"
         subtasks={[{ id: 'step-1', title: 'Setup Vite', status: 'completed' }]}
         initiallyExpanded={true}
-      />
+      />,
     );
 
     expect(screen.getByText('任务执行清单')).toBeInTheDocument();
@@ -64,7 +64,7 @@ describe('WorkingMemoryBoard Component', () => {
           completedStepsCount: 3,
           ruleCount: 1,
         }}
-      />
+      />,
     );
 
     expect(screen.getByText('运行时避坑防线')).toBeInTheDocument();

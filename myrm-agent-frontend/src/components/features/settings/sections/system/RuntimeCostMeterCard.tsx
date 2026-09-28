@@ -97,7 +97,9 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
   };
 
   const handleSaveLimit = async () => {
-    if (!editingProvider || editLimitValue <= 0) {return;}
+    if (!editingProvider || editLimitValue <= 0) {
+      return;
+    }
     try {
       await updateSearchQuotaLimit(editingProvider, editLimitValue);
       setEditingProvider(null);
@@ -279,7 +281,9 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
               <div className="p-3 rounded-lg bg-muted/40 space-y-1">
                 <span className="text-[11px] text-muted-foreground">{t('activeComputeTime')}</span>
                 <div className="text-lg font-bold text-foreground">
-                  {browserSummary ? `${browserSummary.active_compute_minutes} ${t('minutesUnit')}` : `0 ${t('minutesUnit')}`}
+                  {browserSummary
+                    ? `${browserSummary.active_compute_minutes} ${t('minutesUnit')}`
+                    : `0 ${t('minutesUnit')}`}
                 </div>
                 <span className="text-[10px] text-muted-foreground block">
                   {t('sessionsCount', { count: browserSummary?.session_count ?? 0 })}
@@ -315,9 +319,7 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
                     ? `${browserSummary.total_active_compute_minutes ?? browserSummary.active_compute_minutes} ${t('minutesUnit')}`
                     : `0 ${t('minutesUnit')}`}
                 </div>
-                <span className="text-[10px] text-muted-foreground block">
-                  {t('allSandboxesCombined')}
-                </span>
+                <span className="text-[10px] text-muted-foreground block">{t('allSandboxesCombined')}</span>
               </div>
             </div>
 
@@ -329,7 +331,13 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
                 </span>
               </div>
               <span className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono text-sm">
-                +${(browserSummary?.estimated_cloud_value_saved_usd ?? browserSummary?.estimated_compute_cost_usd ?? 0).toFixed(3)} USD
+                +$
+                {(
+                  browserSummary?.estimated_cloud_value_saved_usd ??
+                  browserSummary?.estimated_compute_cost_usd ??
+                  0
+                ).toFixed(3)}{' '}
+                USD
               </span>
             </div>
 
@@ -384,7 +392,7 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
                         ? 'bg-rose-500/5 border-rose-500/20 text-rose-700 dark:text-rose-400'
                         : isHalfOpen
                           ? 'bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-400'
-                          : 'bg-muted/30 border-border/40 text-foreground'
+                          : 'bg-muted/30 border-border/40 text-foreground',
                     )}
                   >
                     <div className="space-y-0.5 truncate pr-2">
@@ -397,9 +405,7 @@ export default function RuntimeCostMeterCard({ className }: RuntimeCostMeterCard
                               ? t('circuitStateHalfOpen')
                               : t('circuitStateClosed')}
                         </span>
-                        {stats.failure_count > 0 && (
-                          <span>{t('circuitFailures', { count: stats.failure_count })}</span>
-                        )}
+                        {stats.failure_count > 0 && <span>{t('circuitFailures', { count: stats.failure_count })}</span>}
                         {isOpen && stats.retry_after_ms > 0 && (
                           <span>{t('circuitRetryCooldown', { seconds: Math.ceil(stats.retry_after_ms / 1000) })}</span>
                         )}

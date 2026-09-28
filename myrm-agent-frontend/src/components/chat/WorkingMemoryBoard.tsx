@@ -161,9 +161,7 @@ export const WorkingMemoryBoard: React.FC<WorkingMemoryBoardProps> = ({
                           </span>
                         </div>
                         {sub.notes && (
-                          <p className="text-[10px] text-muted-foreground/80 mt-0.5 break-words">
-                            {sub.notes}
-                          </p>
+                          <p className="text-[10px] text-muted-foreground/80 mt-0.5 break-words">{sub.notes}</p>
                         )}
                       </div>
                     </div>

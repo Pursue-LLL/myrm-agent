@@ -112,9 +112,7 @@ export const PersonalWorkflowClosedLoopCard = memo(function PersonalWorkflowClos
                   <h4 className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
                     {step.title}
                   </h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
-                    {step.desc}
-                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">{step.desc}</p>
                 </div>
               </div>
 

@@ -46,7 +46,7 @@ const ContextBreakdownCard = memo<ContextBreakdownCardProps>(({ breakdown }) => 
           <span
             className={cn(
               'px-2 py-0.5 rounded text-xs font-semibold tabular-nums border',
-              getStatusColor(breakdown.diagnosis_status)
+              getStatusColor(breakdown.diagnosis_status),
             )}
           >
             {breakdown.health_score}/100

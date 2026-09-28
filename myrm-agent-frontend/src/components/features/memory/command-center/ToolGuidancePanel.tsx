@@ -64,7 +64,6 @@ export const ToolGuidancePanel: React.FC<ToolGuidancePanelProps> = ({ className 
     void loadData();
   }, [loadData]);
 
-
   const handleTogglePin = (ruleId: string, currentPinned: boolean) => {
     startTransition(async () => {
       try {
@@ -112,8 +111,12 @@ export const ToolGuidancePanel: React.FC<ToolGuidancePanelProps> = ({ className 
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <div className="flex items-center gap-3 text-xs text-muted-foreground mr-2">
-            <span>活跃工具: <strong className="text-foreground">{totalTools}</strong></span>
-            <span>避坑经验: <strong className="text-foreground">{totalRules}</strong></span>
+            <span>
+              活跃工具: <strong className="text-foreground">{totalTools}</strong>
+            </span>
+            <span>
+              避坑经验: <strong className="text-foreground">{totalRules}</strong>
+            </span>
           </div>
           <button
             type="button"
@@ -139,7 +142,9 @@ export const ToolGuidancePanel: React.FC<ToolGuidancePanelProps> = ({ className 
         <div className="py-12 text-center text-muted-foreground space-y-2">
           <ShieldCheck className="mx-auto h-10 w-10 text-muted-foreground/50" />
           <p className="text-sm font-medium">暂无工具避坑经验</p>
-          <p className="text-xs text-muted-foreground">当 Agent 调用工具遇到环境异常并自动修复后，将自动在此沉淀使用指南</p>
+          <p className="text-xs text-muted-foreground">
+            当 Agent 调用工具遇到环境异常并自动修复后，将自动在此沉淀使用指南
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -161,9 +166,13 @@ export const ToolGuidancePanel: React.FC<ToolGuidancePanelProps> = ({ className 
                   <span className="truncate max-w-[140px] font-mono">{t.tool_name}</span>
                   <div className="flex items-center gap-1">
                     {t.has_pinned && <Pin className="h-3 w-3 shrink-0" />}
-                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                      isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-background/80 text-foreground'
-                    }`}>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                        isSelected
+                          ? 'bg-primary-foreground/20 text-primary-foreground'
+                          : 'bg-background/80 text-foreground'
+                      }`}
+                    >
                       {t.items.length}
                     </span>
                   </div>
@@ -183,14 +192,15 @@ export const ToolGuidancePanel: React.FC<ToolGuidancePanelProps> = ({ className 
                       <Sparkles className="h-3.5 w-3.5" />
                       <span>生效中的避坑指南 (单工具至多精选 3 条)</span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      严格防遗忘排序
-                    </span>
+                    <span className="text-[10px] text-muted-foreground font-mono">严格防遗忘排序</span>
                   </div>
                   {activeGroup.guidelines.length > 0 ? (
                     <ul className="space-y-1.5">
                       {activeGroup.guidelines.map((g, idx) => (
-                        <li key={`${activeGroup.tool_name}-${g}`} className="flex items-start gap-2 text-xs text-foreground bg-background/60 rounded px-2.5 py-1.5 border border-border/50">
+                        <li
+                          key={`${activeGroup.tool_name}-${g}`}
+                          className="flex items-start gap-2 text-xs text-foreground bg-background/60 rounded px-2.5 py-1.5 border border-border/50"
+                        >
                           <span className="font-mono text-primary text-[10px] shrink-0 mt-0.5">#{idx + 1}</span>
                           <span className="font-medium">{g}</span>
                         </li>
@@ -207,7 +217,6 @@ export const ToolGuidancePanel: React.FC<ToolGuidancePanelProps> = ({ className 
                     <span>工具经验明细</span>
                     <span className="text-[10px] text-muted-foreground">共 {activeGroup.items.length} 条记录</span>
                   </div>
-
 
                   <div className="space-y-2">
                     {activeGroup.items.map((item) => (

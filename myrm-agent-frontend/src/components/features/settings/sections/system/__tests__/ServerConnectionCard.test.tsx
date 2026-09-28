@@ -26,10 +26,7 @@ describe('ServerConnectionCard switch guard', () => {
     const { toast } = await import('@/lib/utils/toast');
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
     localStorage.clear();
-    localStorage.setItem(
-      'myrm-remote-first-run-seen',
-      '1',
-    );
+    localStorage.setItem('myrm-remote-first-run-seen', '1');
     localStorage.setItem(
       'myrm-remote-gateway-roster',
       JSON.stringify({

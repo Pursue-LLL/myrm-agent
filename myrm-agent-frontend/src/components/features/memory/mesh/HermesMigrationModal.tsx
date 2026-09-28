@@ -15,13 +15,7 @@
 
 import React, { useState, useRef } from 'react';
 import { UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/primitives/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/primitives/dialog';
 import { toast } from '@/hooks/shared/useToast';
 import { migrateFromHermes } from '@/services/memory/domainMesh';
 
@@ -31,11 +25,7 @@ interface HermesMigrationModalProps {
   onSuccess: () => void;
 }
 
-export const HermesMigrationModal: React.FC<HermesMigrationModalProps> = ({
-  open,
-  onOpenChange,
-  onSuccess,
-}) => {
+export const HermesMigrationModal: React.FC<HermesMigrationModalProps> = ({ open, onOpenChange, onSuccess }) => {
   const [content, setContent] = useState('');
   const [format, setFormat] = useState<'markdown' | 'json'>('markdown');
   const [loading, setLoading] = useState(false);
@@ -99,12 +89,10 @@ export const HermesMigrationModal: React.FC<HermesMigrationModalProps> = ({
             <UploadCloud className="h-4 w-4" />
             Zero-Friction Migration
           </div>
-          <DialogTitle className="text-base font-semibold leading-snug">
-            Import from Hermes or OpenViking
-          </DialogTitle>
+          <DialogTitle className="text-base font-semibold leading-snug">Import from Hermes or OpenViking</DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Paste raw Markdown (with optional frontmatter) or JSON exported from Hermes or other agents.
-            Items will be automatically categorized into preferences and workflows while preserving all historical notes.
+            Paste raw Markdown (with optional frontmatter) or JSON exported from Hermes or other agents. Items will be
+            automatically categorized into preferences and workflows while preserving all historical notes.
           </DialogDescription>
         </DialogHeader>
 

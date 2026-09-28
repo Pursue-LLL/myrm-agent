@@ -460,14 +460,17 @@ const MessageBox = ({
     message.role === 'custom_message' ||
     (message as { extraData?: { is_custom_message?: boolean } }).extraData?.is_custom_message
   ) {
-    const extra = (message as {
-      extraData?: {
-        custom_type?: string;
-        display?: boolean;
-        retention?: 'ephemeral' | 'persistent';
-        details?: Record<string, unknown>;
-      };
-    }).extraData || {};
+    const extra =
+      (
+        message as {
+          extraData?: {
+            custom_type?: string;
+            display?: boolean;
+            retention?: 'ephemeral' | 'persistent';
+            details?: Record<string, unknown>;
+          };
+        }
+      ).extraData || {};
     if (extra.display === false) {
       return null;
     }

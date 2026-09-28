@@ -52,9 +52,7 @@ export async function getCommerceBudgetStatus(): Promise<CommerceBudgetStatus> {
   return apiRequest<CommerceBudgetStatus>('/commerce/spending/budget', { silent: true });
 }
 
-export async function updateCommerceBudgetConfig(
-  config: CommerceBudgetConfig
-): Promise<CommerceBudgetStatus> {
+export async function updateCommerceBudgetConfig(config: CommerceBudgetConfig): Promise<CommerceBudgetStatus> {
   return apiRequest<CommerceBudgetStatus>('/commerce/spending/budget', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -62,9 +60,7 @@ export async function updateCommerceBudgetConfig(
   });
 }
 
-export async function setEmergencySpendingFreeze(
-  freeze: boolean
-): Promise<CommerceBudgetStatus> {
+export async function setEmergencySpendingFreeze(freeze: boolean): Promise<CommerceBudgetStatus> {
   return apiRequest<CommerceBudgetStatus>('/commerce/spending/freeze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

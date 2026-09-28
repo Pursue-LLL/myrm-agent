@@ -99,8 +99,7 @@ export interface ReviewPayload {
  */
 export function composeReviewMessage(payload: ReviewPayload): string {
   const blocks = payload.annotations.map((a, index) => {
-    const range =
-      a.anchor.startLine < 0 ? 'whole document' : `lines ${a.anchor.startLine}-${a.anchor.endLine}`;
+    const range = a.anchor.startLine < 0 ? 'whole document' : `lines ${a.anchor.startLine}-${a.anchor.endLine}`;
     return [
       `--- annotation ${index + 1} (${range}, hash ${a.anchor.textHash}) ---`,
       `ORIGINAL:\n${a.anchor.excerpt}`,

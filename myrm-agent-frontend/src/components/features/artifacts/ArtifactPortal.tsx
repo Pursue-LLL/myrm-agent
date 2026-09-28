@@ -556,7 +556,9 @@ const ArtifactPortal: React.FC = () => {
               artifactId={currentArtifact.id}
               artifactName={currentArtifact.filename}
               content={content}
-              versionId={viewingVersionIndex >= 0 && versions[viewingVersionIndex] ? 'v' + viewingVersionIndex : 'latest'}
+              versionId={
+                viewingVersionIndex >= 0 && versions[viewingVersionIndex] ? 'v' + viewingVersionIndex : 'latest'
+              }
               chatId={chatId}
               versionCount={versions.length}
               versionIds={versions.map((v) => v.versionId)}

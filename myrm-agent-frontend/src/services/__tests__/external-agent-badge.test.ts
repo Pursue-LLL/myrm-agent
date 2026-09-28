@@ -81,9 +81,9 @@ describe('external agent delegation badge helpers', () => {
     // Ready once the server confirms the binary, or when the server cannot judge the command.
     expect(resolveExternalCliReadiness([{ enabled: true, command: 'claude' }], [present], true)).toBe('ready');
     expect(resolveExternalCliReadiness([{ enabled: true, command: 'my-wrapper' }], [missing], true)).toBe('ready');
-    expect(
-      resolveExternalCliReadiness([{ enabled: true, command: '/opt/homebrew/bin/claude' }], [missing], true),
-    ).toBe('ready');
+    expect(resolveExternalCliReadiness([{ enabled: true, command: '/opt/homebrew/bin/claude' }], [missing], true)).toBe(
+      'ready',
+    );
 
     // A derived or wrapped binary is a different program the server cannot vouch for, so
     // it must not inherit another backend's negative detection result.

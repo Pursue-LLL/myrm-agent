@@ -28,7 +28,9 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
   const t = useTranslations('artifacts.spreadsheet');
 
   const handleQuote = useCallback(() => {
-    if (selectedRowIndex === null || !rowData) {return;}
+    if (selectedRowIndex === null || !rowData) {
+      return;
+    }
 
     const activeTab = useArtifactPortalStore.getState().getActiveTab();
     const artifactName = filename || activeTab?.artifact.filename || '表格工件';
@@ -56,7 +58,9 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
   }, [selectedRowIndex, rowData, filename, sheetName, headers]);
 
   const handleCopy = useCallback(async () => {
-    if (selectedRowIndex === null || !rowData) {return;}
+    if (selectedRowIndex === null || !rowData) {
+      return;
+    }
     const headerLine = headers.join('\t');
     const dataLine = rowData.join('\t');
     await writeToClipboard(`${headerLine}\n${dataLine}`);
@@ -80,9 +84,7 @@ export const SpreadsheetSelectionToolbar: React.FC<SpreadsheetSelectionToolbarPr
       )}
       onMouseDown={(e) => e.preventDefault()}
     >
-      <span className="text-xs font-medium text-foreground px-1 select-none">
-        {label}
-      </span>
+      <span className="text-xs font-medium text-foreground px-1 select-none">{label}</span>
       <div className="h-3.5 w-px bg-border mx-0.5" />
       <button
         type="button"

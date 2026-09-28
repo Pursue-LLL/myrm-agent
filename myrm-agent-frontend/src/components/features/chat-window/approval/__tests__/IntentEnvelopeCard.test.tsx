@@ -12,13 +12,7 @@ describe('IntentEnvelopeCard & LeaseProgressCapsule', () => {
   });
 
   it('renders pre-flight envelope details correctly', () => {
-    render(
-      <IntentEnvelopeCard
-        taskId="task_test_1"
-        allowedApps={['Microsoft Excel', 'WeChat']}
-        maxActions={20}
-      />
-    );
+    render(<IntentEnvelopeCard taskId="task_test_1" allowedApps={['Microsoft Excel', 'WeChat']} maxActions={20} />);
 
     expect(screen.getByText('受限意图包络线全局授权')).toBeInTheDocument();
     expect(screen.getByText('Microsoft Excel')).toBeInTheDocument();
@@ -34,7 +28,7 @@ describe('IntentEnvelopeCard & LeaseProgressCapsule', () => {
         allowedApps={['Google Chrome']}
         maxActions={15}
         onApproveFastPath={onApprove}
-      />
+      />,
     );
 
     const approveBtn = screen.getByRole('button', { name: /批准全速推进/i });
@@ -48,7 +42,7 @@ describe('IntentEnvelopeCard & LeaseProgressCapsule', () => {
         allowedApps: ['Google Chrome'],
         maxActions: 15,
         status: 'active',
-      })
+      }),
     );
   });
 

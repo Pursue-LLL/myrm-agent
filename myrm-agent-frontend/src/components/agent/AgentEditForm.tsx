@@ -312,9 +312,7 @@ export function AgentEditForm({ open, onOpenChange, agentId, onSaveSuccess }: Ag
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="responsibility_scope">
-                    {t('form.responsibilityScope', { fallback: 'Scope' })}
-                  </Label>
+                  <Label htmlFor="responsibility_scope">{t('form.responsibilityScope', { fallback: 'Scope' })}</Label>
                   <TextareaAutosize
                     id="responsibility_scope"
                     value={responsibilityScope}

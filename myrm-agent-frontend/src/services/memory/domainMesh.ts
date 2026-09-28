@@ -66,9 +66,7 @@ export const getMemoryDrillDown = async (memoryId: string): Promise<DrillDownRes
   return apiRequest<DrillDownResponse>(`/memory/domain-mesh/drill-down/${encodeURIComponent(memoryId)}`);
 };
 
-export const migrateFromHermes = async (
-  payload: HermesMigrationRequest
-): Promise<HermesMigrationResponse> => {
+export const migrateFromHermes = async (payload: HermesMigrationRequest): Promise<HermesMigrationResponse> => {
   return apiRequest<HermesMigrationResponse>('/memory/domain-mesh/migrate/hermes', {
     method: 'POST',
     body: JSON.stringify({

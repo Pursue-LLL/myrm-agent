@@ -41,20 +41,12 @@ describe('WikiConceptLinksPanel', () => {
           { id: 'test-concept', name: 'test concept', group: 1 },
           { id: 'referencing-source', name: 'referencing source', group: 1 },
         ],
-        edges: [
-          { source: 'referencing-source', target: 'test-concept', weight: 4.5 },
-        ],
+        edges: [{ source: 'referencing-source', target: 'test-concept', weight: 4.5 }],
       },
     });
 
     const handleSelect = vi.fn();
-    render(
-      <WikiConceptLinksPanel
-        conceptName="test-concept"
-        agentId="agent-1"
-        onSelectConcept={handleSelect}
-      />
-    );
+    render(<WikiConceptLinksPanel conceptName="test-concept" agentId="agent-1" onSelectConcept={handleSelect} />);
 
     // 验证标题和统计胶囊
     expect(await screen.findByText('双向链接与知识脉络')).toBeInTheDocument();
@@ -66,9 +58,7 @@ describe('WikiConceptLinksPanel', () => {
 
     // 默认展示 Backlinks tab
     expect(screen.getByText('referencing-source')).toBeInTheDocument();
-    expect(
-      screen.getByText(/“This document references \[\[test-concept\]\] directly\.”/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/“This document references \[\[test-concept\]\] directly\.”/)).toBeInTheDocument();
 
     // 点击反链项触发跳转（携带小节标题锚点）
     const backlinkItem = screen.getByText('referencing-source');
@@ -97,16 +87,12 @@ describe('WikiConceptLinksPanel', () => {
     render(<WikiConceptLinksPanel conceptName="empty-concept" />);
 
     // Tab 1 (Backlinks) 默认展示空态
-    expect(
-      await screen.findByText('暂无上游词条或研报直接引用此知识点')
-    ).toBeInTheDocument();
+    expect(await screen.findByText('暂无上游词条或研报直接引用此知识点')).toBeInTheDocument();
 
     // 切换 Tab 2 (Outlinks) 展示空态
     const outlinksTabBtn = screen.getByText(/引用前置/);
     await userEvent.click(outlinksTabBtn);
-    expect(
-      await screen.findByText('此词条尚未显式引用其他知识点')
-    ).toBeInTheDocument();
+    expect(await screen.findByText('此词条尚未显式引用其他知识点')).toBeInTheDocument();
 
     // 切换 Tab 3 (Ego Graph) 展示空态
     const egoTabBtn = screen.getByText(/局部拓扑/);
@@ -139,12 +125,7 @@ describe('WikiConceptLinksPanel', () => {
     });
 
     const handleSelect = vi.fn();
-    render(
-      <WikiConceptLinksPanel
-        conceptName="ghost-test"
-        onSelectConcept={handleSelect}
-      />
-    );
+    render(<WikiConceptLinksPanel conceptName="ghost-test" onSelectConcept={handleSelect} />);
 
     // 验证反链中的“待补充”徽章与禁用态
     expect(await screen.findByText('待补充')).toBeInTheDocument();
@@ -177,19 +158,12 @@ describe('WikiConceptLinksPanel', () => {
           { id: 'center-node', name: 'Center Concept', group: 1 },
           { id: 'neighbor-node', name: 'Neighbor Concept', group: 1 },
         ],
-        edges: [
-          { source: 'center-node', target: 'neighbor-node', weight: 1.0 },
-        ],
+        edges: [{ source: 'center-node', target: 'neighbor-node', weight: 1.0 }],
       },
     });
 
     const handleSelect = vi.fn();
-    render(
-      <WikiConceptLinksPanel
-        conceptName="center-node"
-        onSelectConcept={handleSelect}
-      />
-    );
+    render(<WikiConceptLinksPanel conceptName="center-node" onSelectConcept={handleSelect} />);
 
     // 切换到局部拓扑
     const egoTabBtn = await screen.findByText(/局部拓扑/);
@@ -219,9 +193,7 @@ describe('WikiConceptLinksPanel', () => {
     render(<WikiConceptLinksPanel conceptName="retry-test" />);
 
     // 验证错误提示展示
-    expect(
-      await screen.findByText('Network connection timeout')
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Network connection timeout')).toBeInTheDocument();
 
     // 点击右上角刷新按钮重试
     const refreshBtn = screen.getByTitle('刷新链接拓扑');
@@ -229,13 +201,8 @@ describe('WikiConceptLinksPanel', () => {
 
     // 验证重试成功后错误条消失，空态正常展示
     await waitFor(() => {
-      expect(
-        screen.queryByText('Network connection timeout')
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText('Network connection timeout')).not.toBeInTheDocument();
     });
-    expect(
-      screen.getByText('暂无上游词条或研报直接引用此知识点')
-    ).toBeInTheDocument();
+    expect(screen.getByText('暂无上游词条或研报直接引用此知识点')).toBeInTheDocument();
   });
 });
-

@@ -65,7 +65,10 @@ const BrowserInspectorToggle: React.FC = () => {
               </span>
             </div>
             {scopedViewData.pageTitle && (
-              <span className="text-[10px] text-muted-foreground truncate max-w-[80px]" title={scopedViewData.pageTitle}>
+              <span
+                className="text-[10px] text-muted-foreground truncate max-w-[80px]"
+                title={scopedViewData.pageTitle}
+              >
                 {scopedViewData.pageTitle}
               </span>
             )}

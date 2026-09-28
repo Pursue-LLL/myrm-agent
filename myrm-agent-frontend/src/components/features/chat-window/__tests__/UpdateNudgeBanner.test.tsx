@@ -14,10 +14,7 @@ vi.mock('next/navigation', () => ({
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
   if (params) {
-    return Object.entries(params).reduce(
-      (acc, [k, v]) => acc.replace(`{${k}}`, String(v)),
-      key
-    );
+    return Object.entries(params).reduce((acc, [k, v]) => acc.replace(`{${k}}`, String(v)), key);
   }
   return key;
 };

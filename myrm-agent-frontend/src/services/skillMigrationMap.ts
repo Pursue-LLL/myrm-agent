@@ -44,7 +44,8 @@ export const WB_TOP20_SKILL_MIGRATION_MAP: readonly WBSkillMigrationItem[] = [
     myrmSkillId: 'voice-memo-synthesizer',
     matchQuality: 'superset',
     enhancementsZh: '具备四维结构化解构（纪要、看板任务、长期记忆、统计表格），幂等去重且支持自动写入看板',
-    enhancementsEn: 'Provides 4D decomposition (minutes, kanban tasks, long-term memory, spreadsheets) with deduplication.',
+    enhancementsEn:
+      'Provides 4D decomposition (minutes, kanban tasks, long-term memory, spreadsheets) with deduplication.',
   },
   {
     wbSkillId: 'wb-office-doc-helper',
@@ -54,7 +55,8 @@ export const WB_TOP20_SKILL_MIGRATION_MAP: readonly WBSkillMigrationItem[] = [
     myrmSkillId: 'office-document',
     matchQuality: 'superset',
     enhancementsZh: '沙箱内高保真 python-docx / openpyxl / python-pptx 真实渲染，支持观点句门禁与反文字墙审查',
-    enhancementsEn: 'In-sandbox high-fidelity docx/xlsx/pptx generation with thesis statement gate & anti-text-wall guards.',
+    enhancementsEn:
+      'In-sandbox high-fidelity docx/xlsx/pptx generation with thesis statement gate & anti-text-wall guards.',
   },
   {
     wbSkillId: 'wb-deep-web-research',
@@ -64,7 +66,8 @@ export const WB_TOP20_SKILL_MIGRATION_MAP: readonly WBSkillMigrationItem[] = [
     myrmSkillId: 'deep-research',
     matchQuality: 'superset',
     enhancementsZh: '多轮递归搜索、信源权威度交叉验证、自动生成架构对比图与参考文献索引',
-    enhancementsEn: 'Recursive multi-turn web search, authoritative source cross-validation, and structured report synthesis.',
+    enhancementsEn:
+      'Recursive multi-turn web search, authoritative source cross-validation, and structured report synthesis.',
   },
   {
     wbSkillId: 'wb-code-review-audit',
@@ -74,7 +77,8 @@ export const WB_TOP20_SKILL_MIGRATION_MAP: readonly WBSkillMigrationItem[] = [
     myrmSkillId: 'code-review-pipeline',
     matchQuality: 'superset',
     enhancementsZh: '结合 AST 语法树与调用图拓扑分析，聚焦安全漏洞、内存泄漏与性能瓶颈',
-    enhancementsEn: 'Integrates AST & repo call graph with automated security diff scan and performance bottleneck audits.',
+    enhancementsEn:
+      'Integrates AST & repo call graph with automated security diff scan and performance bottleneck audits.',
   },
   {
     wbSkillId: 'wb-data-analysis-bi',
@@ -144,7 +148,8 @@ export const WB_TOP20_SKILL_MIGRATION_MAP: readonly WBSkillMigrationItem[] = [
     myrmSkillId: 'personal-life-workbench',
     matchQuality: 'superset',
     enhancementsZh: '提供 8 模块微应用自包含 HTML 工件，零外部依赖，数据持久化于 localStorage 且主题自适应',
-    enhancementsEn: '8-module micro-app HTML artifact, zero CDN dependencies, local state persistence & dual-theme sync.',
+    enhancementsEn:
+      '8-module micro-app HTML artifact, zero CDN dependencies, local state persistence & dual-theme sync.',
   },
   {
     wbSkillId: 'wb-copywriting-humanizer',
@@ -174,7 +179,8 @@ export const WB_TOP20_SKILL_MIGRATION_MAP: readonly WBSkillMigrationItem[] = [
     myrmSkillId: 'customer-relationship-draft-review',
     matchQuality: 'exact',
     enhancementsZh: '4 维红线合规雷达（过度承诺防御、商业机密保护、得体语调、明确闭环行动项）',
-    enhancementsEn: '4-dimension compliance radar (promise containment, confidentiality, professional tone, actionable closure).',
+    enhancementsEn:
+      '4-dimension compliance radar (promise containment, confidentiality, professional tone, actionable closure).',
   },
   {
     wbSkillId: 'wb-wechat-article-format',
@@ -204,7 +210,8 @@ export const WB_TOP20_SKILL_MIGRATION_MAP: readonly WBSkillMigrationItem[] = [
     myrmSkillId: 'brand-vi-synthesizer',
     matchQuality: 'superset',
     enhancementsZh: '支持导出机器可读的 tokens.css、tailwind.brand.js 与 tokens.json，直通驱动后续工件',
-    enhancementsEn: 'Synthesizes machine-readable design tokens (tokens.css, tailwind tokens) to drive downstream artifacts.',
+    enhancementsEn:
+      'Synthesizes machine-readable design tokens (tokens.css, tailwind tokens) to drive downstream artifacts.',
   },
   {
     wbSkillId: 'wb-tdd-test-craft',
@@ -224,7 +231,8 @@ export const WB_TOP20_SKILL_MIGRATION_MAP: readonly WBSkillMigrationItem[] = [
     myrmSkillId: 'project-experience-evidence-pack',
     matchQuality: 'exact',
     enhancementsZh: '标准 6 步证据链（原始诉求、v0 首稿、执行失败轨迹、修正依据、实测物理证据、不变量沉淀）',
-    enhancementsEn: 'Standard 6-step evidence chain (demands, v0 draft, failed trace, fixes, physical proof, invariants).',
+    enhancementsEn:
+      'Standard 6-step evidence chain (demands, v0 draft, failed trace, fixes, physical proof, invariants).',
   },
   {
     wbSkillId: 'wb-ui-design-tailor',
@@ -244,7 +252,9 @@ export const WB_TOP20_SKILL_MIGRATION_MAP: readonly WBSkillMigrationItem[] = [
  */
 export function findMigratedSkill(query: string): WBSkillMigrationItem | undefined {
   const q = query.trim().toLowerCase();
-  if (!q) {return undefined;}
+  if (!q) {
+    return undefined;
+  }
 
   return WB_TOP20_SKILL_MIGRATION_MAP.find(
     (item) =>

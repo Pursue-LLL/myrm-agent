@@ -23,12 +23,7 @@ interface PlanStore {
   setPlan: (plan: Plan | null) => void;
   clearPlan: () => void;
   clearActivePlan: () => void;
-  updateStepStatus: (
-    stepId: string,
-    status: PlanStep['status'],
-    revision?: number,
-    description?: string,
-  ) => void;
+  updateStepStatus: (stepId: string, status: PlanStep['status'], revision?: number, description?: string) => void;
   fetchPlan: (chatId: string) => Promise<void>;
 }
 
@@ -42,11 +37,7 @@ export const usePlanStore = create<PlanStore>((set) => ({
       if (!plan) {
         return { plan: null };
       }
-      if (
-        state.plan?.revision !== undefined &&
-        plan.revision !== undefined &&
-        plan.revision < state.plan.revision
-      ) {
+      if (state.plan?.revision !== undefined && plan.revision !== undefined && plan.revision < state.plan.revision) {
         return state;
       }
       return { plan };
@@ -65,11 +56,7 @@ export const usePlanStore = create<PlanStore>((set) => ({
       if (!state.plan) {
         return state;
       }
-      if (
-        revision !== undefined &&
-        state.plan.revision !== undefined &&
-        revision < state.plan.revision
-      ) {
+      if (revision !== undefined && state.plan.revision !== undefined && revision < state.plan.revision) {
         return state;
       }
 
@@ -99,10 +86,7 @@ export const usePlanStore = create<PlanStore>((set) => ({
             },
           ];
 
-      const nextRevision =
-        revision !== undefined
-          ? Math.max(state.plan.revision ?? 0, revision)
-          : state.plan.revision;
+      const nextRevision = revision !== undefined ? Math.max(state.plan.revision ?? 0, revision) : state.plan.revision;
 
       return {
         plan: {

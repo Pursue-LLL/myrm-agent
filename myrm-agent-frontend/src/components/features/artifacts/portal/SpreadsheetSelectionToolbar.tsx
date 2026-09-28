@@ -14,13 +14,7 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { MOBILE_BREAKPOINT } from '@/lib/constants/artifact';
-import {
-  Edit04Icon,
-  InformationCircleIcon,
-  Copy01Icon,
-  ArrowRight01Icon,
-  MessageAdd01Icon,
-} from 'hugeicons-react';
+import { Edit04Icon, InformationCircleIcon, Copy01Icon, ArrowRight01Icon, MessageAdd01Icon } from 'hugeicons-react';
 import { useSelectionAction } from './useSelectionAction';
 import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
 import useArtifactPortalStore from '@/store/useArtifactPortalStore';

@@ -14,17 +14,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  Activity,
-  CheckCircle2,
-  Clock,
-  Layers,
-  Moon,
-  RefreshCw,
-  ShieldCheck,
-  Sparkles,
-  Zap,
-} from 'lucide-react';
+import { Activity, CheckCircle2, Clock, Layers, Moon, RefreshCw, ShieldCheck, Sparkles, Zap } from 'lucide-react';
 
 import {
   getCognitiveClockStatus,
@@ -137,7 +127,7 @@ export const CognitiveClockPanel: React.FC<CognitiveClockPanelProps> = ({ classN
     <div
       className={cn(
         'rounded-2xl border border-border/70 bg-card/80 p-5 shadow-xs backdrop-blur-xs transition-colors',
-        className
+        className,
       )}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-border/50">
@@ -192,23 +182,14 @@ export const CognitiveClockPanel: React.FC<CognitiveClockPanelProps> = ({ classN
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
                     <Icon className="h-4 w-4 text-primary" />
-                    <span className="text-xs font-semibold text-foreground tracking-tight">
-                      {cadence.tag}
-                    </span>
+                    <span className="text-xs font-semibold text-foreground tracking-tight">{cadence.tag}</span>
                   </div>
-                  <span
-                    className={cn(
-                      'text-[10px] font-medium px-2 py-0.5 rounded-full border',
-                      cadence.statusColor
-                    )}
-                  >
+                  <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full border', cadence.statusColor)}>
                     {cadence.status}
                   </span>
                 </div>
                 <div className="text-xs font-medium text-foreground">{cadence.title}</div>
-                <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
-                  {cadence.desc}
-                </p>
+                <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{cadence.desc}</p>
               </div>
 
               <div className="mt-3.5 pt-2.5 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
@@ -217,7 +198,9 @@ export const CognitiveClockPanel: React.FC<CognitiveClockPanelProps> = ({ classN
                   {cadence.interval}
                 </span>
                 <span className="text-muted-foreground/80 font-mono text-[10px]">
-                  {cadence.id === 't2' && status?.seconds_until_next !== null && status?.seconds_until_next !== undefined
+                  {cadence.id === 't2' &&
+                  status?.seconds_until_next !== null &&
+                  status?.seconds_until_next !== undefined
                     ? `下次: ${Math.round(status.seconds_until_next / 60)}m`
                     : '自动调度'}
                 </span>
@@ -234,7 +217,7 @@ export const CognitiveClockPanel: React.FC<CognitiveClockPanelProps> = ({ classN
               'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border',
               status?.user_activity_detected
                 ? 'bg-amber-500/10 border-amber-500/20 text-amber-500'
-                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500',
             )}
           >
             <Activity className="h-4 w-4" />
@@ -247,7 +230,7 @@ export const CognitiveClockPanel: React.FC<CognitiveClockPanelProps> = ({ classN
                   'text-[10px] px-1.5 py-0.2 rounded font-mono',
                   status?.user_activity_detected
                     ? 'text-amber-500 bg-amber-500/10'
-                    : 'text-emerald-500 bg-emerald-500/10'
+                    : 'text-emerald-500 bg-emerald-500/10',
                 )}
               >
                 {status?.user_activity_detected ? '检测到输入中' : '常态就绪'}
@@ -265,7 +248,7 @@ export const CognitiveClockPanel: React.FC<CognitiveClockPanelProps> = ({ classN
               'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border',
               status?.wakeup_grace_period_active
                 ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500'
-                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500',
             )}
           >
             <ShieldCheck className="h-4 w-4" />
@@ -278,7 +261,7 @@ export const CognitiveClockPanel: React.FC<CognitiveClockPanelProps> = ({ classN
                   'text-[10px] px-1.5 py-0.2 rounded font-mono',
                   status?.wakeup_grace_period_active
                     ? 'text-indigo-500 bg-indigo-500/10'
-                    : 'text-emerald-500 bg-emerald-500/10'
+                    : 'text-emerald-500 bg-emerald-500/10',
                 )}
               >
                 {status?.wakeup_grace_period_active ? '唤醒保护生效中' : '监控中'}

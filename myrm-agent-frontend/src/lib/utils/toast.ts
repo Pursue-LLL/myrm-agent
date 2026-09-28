@@ -81,7 +81,9 @@ toast.warning = (message: string | React.ReactNode, options?: ExternalToast) => 
   return sonnerToast?.warning ? sonnerToast.warning(safeMessage as string | React.ReactNode, safeOptions) : '';
 };
 toast.info = (sonnerToast?.info ? sonnerToast.info.bind(sonnerToast) : () => '') as typeof sonnerToast.info;
-toast.promise = (sonnerToast?.promise ? sonnerToast.promise.bind(sonnerToast) : (() => Promise.resolve())) as unknown as typeof sonnerToast.promise;
+toast.promise = (sonnerToast?.promise
+  ? sonnerToast.promise.bind(sonnerToast)
+  : () => Promise.resolve()) as unknown as typeof sonnerToast.promise;
 toast.loading = (sonnerToast?.loading ? sonnerToast.loading.bind(sonnerToast) : () => '') as typeof sonnerToast.loading;
 toast.dismiss = (sonnerToast?.dismiss ? sonnerToast.dismiss.bind(sonnerToast) : () => '') as typeof sonnerToast.dismiss;
 toast.message = (sonnerToast?.message ? sonnerToast.message.bind(sonnerToast) : () => '') as typeof sonnerToast.message;

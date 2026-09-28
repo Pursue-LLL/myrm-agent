@@ -21,7 +21,5 @@ export type DesktopPermissionsStatus = {
 };
 
 export function desktopPermissionsPath(probeCapture = false): string {
-  return probeCapture
-    ? '/webui/desktop/permissions?probe_capture=true'
-    : '/webui/desktop/permissions';
+  return probeCapture ? '/webui/desktop/permissions?probe_capture=true' : '/webui/desktop/permissions';
 }

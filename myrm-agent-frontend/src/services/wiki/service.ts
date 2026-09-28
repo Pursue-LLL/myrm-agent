@@ -863,7 +863,7 @@ export const wikiService = {
     centerNode?: string | null,
     depth: number = 1,
     limit: number = 500,
-    agentId?: string | null
+    agentId?: string | null,
   ): Promise<WikiGraphResponse> => {
     const params = new URLSearchParams();
     if (centerNode) {
@@ -882,12 +882,12 @@ export const wikiService = {
   getConceptLinks: async (
     conceptName: string,
     depth: number = 1,
-    agentId?: string | null
+    agentId?: string | null,
   ): Promise<ConceptLinksResponse> => {
     const encodedName = encodeURIComponent(conceptName.trim());
     const params = new URLSearchParams({ depth: String(depth) });
     return apiRequest<ConceptLinksResponse>(
-      buildWikiApiPath(`/wiki/concepts/${encodedName}/links?${params.toString()}`, agentId)
+      buildWikiApiPath(`/wiki/concepts/${encodedName}/links?${params.toString()}`, agentId),
     );
   },
 

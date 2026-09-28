@@ -417,9 +417,7 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
 
         <div className="bg-background flex flex-col p-3 sm:p-4 overflow-y-auto border-t lg:border-t-0 border-border/40">
           <div className="flex items-center justify-between mb-3 shrink-0">
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {t('inspector')}
-            </h4>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('inspector')}</h4>
             <button
               type="button"
               onClick={handleForkFromCurrent}
@@ -427,11 +425,7 @@ const SessionReplayPlayer = memo<SessionReplayPlayerProps>(({ sessionId, trace }
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-colors disabled:opacity-50"
               title={t('forkFromThisStep')}
             >
-              {isForking ? (
-                <IconLoader className="h-3 w-3 animate-spin" />
-              ) : (
-                <IconGitBranch className="h-3 w-3" />
-              )}
+              {isForking ? <IconLoader className="h-3 w-3 animate-spin" /> : <IconGitBranch className="h-3 w-3" />}
               <span className="hidden sm:inline">{isForking ? t('forkingBranch') : t('forkBranch')}</span>
             </button>
           </div>

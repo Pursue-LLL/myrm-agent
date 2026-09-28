@@ -1061,9 +1061,14 @@ export async function getLLMProviderHealth(): Promise<LLMProviderHealthResponse>
   return apiRequest<LLMProviderHealthResponse>('/statistics/llm-provider-health');
 }
 
-export async function resetLLMProviderCircuit(provider_or_key?: string): Promise<{ success: boolean; reset_count: number; provider?: string | null }> {
-  return apiRequest<{ success: boolean; reset_count: number; provider?: string | null }>('/statistics/llm-provider-health/reset', {
-    method: 'POST',
-    body: JSON.stringify({ provider_or_key: provider_or_key ?? null }),
-  });
+export async function resetLLMProviderCircuit(
+  provider_or_key?: string,
+): Promise<{ success: boolean; reset_count: number; provider?: string | null }> {
+  return apiRequest<{ success: boolean; reset_count: number; provider?: string | null }>(
+    '/statistics/llm-provider-health/reset',
+    {
+      method: 'POST',
+      body: JSON.stringify({ provider_or_key: provider_or_key ?? null }),
+    },
+  );
 }

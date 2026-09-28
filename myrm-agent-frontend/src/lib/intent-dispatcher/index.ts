@@ -38,11 +38,9 @@ export class IntentDispatcher {
     const LOCAL_TOKEN_BACKUP_KEY = 'myrm-local-auth-token-backup';
     const { CLOUD_OAUTH_PENDING_KEY } = await import('@/lib/remote-profiles');
     try {
-      const pendingRaw =
-        typeof window !== 'undefined' ? window.localStorage.getItem(CLOUD_OAUTH_PENDING_KEY) : null;
+      const pendingRaw = typeof window !== 'undefined' ? window.localStorage.getItem(CLOUD_OAUTH_PENDING_KEY) : null;
       const pending = pendingRaw ? (JSON.parse(pendingRaw) as { cpBaseUrl?: string }) : null;
-      const cpBaseUrl =
-        typeof pending?.cpBaseUrl === 'string' ? pending.cpBaseUrl.replace(/\/+$/, '') : null;
+      const cpBaseUrl = typeof pending?.cpBaseUrl === 'string' ? pending.cpBaseUrl.replace(/\/+$/, '') : null;
 
       // 先验后写：token 有效性用沙箱列表校验，通过后才动本地会话，失败零副作用。
       if (cpBaseUrl) {
@@ -67,9 +65,8 @@ export class IntentDispatcher {
       await useAuthStore.getState().login(token);
 
       if (cpBaseUrl) {
-        const { addRemoteProfile, listRemoteProfiles, setActiveRemoteProfileId } = await import(
-          '@/lib/remote-profiles'
-        );
+        const { addRemoteProfile, listRemoteProfiles, setActiveRemoteProfileId } =
+          await import('@/lib/remote-profiles');
         const proxyBase = `${cpBaseUrl}/proxy/me`;
         const existing = listRemoteProfiles().find((p) => p.url === proxyBase);
         if (existing) {

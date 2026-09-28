@@ -49,11 +49,7 @@ const TrustBadgeCard = memo(() => {
   }
 
   const tone =
-    state === 'safe'
-      ? 'text-emerald-400'
-      : state === 'unknown'
-        ? 'text-muted-foreground'
-        : 'text-destructive';
+    state === 'safe' ? 'text-emerald-400' : state === 'unknown' ? 'text-muted-foreground' : 'text-destructive';
 
   return (
     <section className="space-y-6">

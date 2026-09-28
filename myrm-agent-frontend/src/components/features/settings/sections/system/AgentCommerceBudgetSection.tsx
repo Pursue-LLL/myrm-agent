@@ -52,10 +52,7 @@ export const AgentCommerceBudgetSection = memo(() => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [s, l] = await Promise.all([
-        getCommerceBudgetStatus(),
-        getSpendingLedger({ limit: 10 }).catch(() => []),
-      ]);
+      const [s, l] = await Promise.all([getCommerceBudgetStatus(), getSpendingLedger({ limit: 10 }).catch(() => [])]);
       setStatus(s);
       setLedger(l);
       setDailyCapUsd((s.daily_cap_cents / 100).toFixed(2));
@@ -117,10 +114,8 @@ export const AgentCommerceBudgetSection = memo(() => {
     ? Math.min(
         100,
         Math.round(
-          ((status.daily_spent_cents + status.active_reserved_cents) /
-            Math.max(1, status.daily_cap_cents)) *
-            100
-        )
+          ((status.daily_spent_cents + status.active_reserved_cents) / Math.max(1, status.daily_cap_cents)) * 100,
+        ),
       )
     : 0;
 
@@ -142,7 +137,7 @@ export const AgentCommerceBudgetSection = memo(() => {
             'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer',
             status?.is_frozen
               ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30 hover:bg-red-500/20'
-              : 'bg-secondary text-foreground border-border hover:bg-accent'
+              : 'bg-secondary text-foreground border-border hover:bg-accent',
           )}
         >
           {status?.is_frozen ? (
@@ -172,23 +167,17 @@ export const AgentCommerceBudgetSection = memo(() => {
           <div
             className={cn(
               'h-full transition-all duration-300',
-              status?.is_frozen
-                ? 'bg-red-500'
-                : spentRatio > 80
-                  ? 'bg-amber-500'
-                  : 'bg-emerald-500'
+              status?.is_frozen ? 'bg-red-500' : spentRatio > 80 ? 'bg-amber-500' : 'bg-emerald-500',
             )}
             style={{ width: `${spentRatio}%` }}
           />
         </div>
         <div className="flex justify-between items-center text-[11px] text-muted-foreground pt-1">
           <span>
-            {t('activeReserved')}: $
-            {((status?.active_reserved_cents || 0) / 100).toFixed(2)}
+            {t('activeReserved')}: ${((status?.active_reserved_cents || 0) / 100).toFixed(2)}
           </span>
           <span>
-            {t('remainingBudget')}: $
-            {((status?.remaining_cents || 0) / 100).toFixed(2)}
+            {t('remainingBudget')}: ${((status?.remaining_cents || 0) / 100).toFixed(2)}
           </span>
         </div>
       </div>
@@ -211,9 +200,7 @@ export const AgentCommerceBudgetSection = memo(() => {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-foreground">
-            {t('perActionCap')}
-          </label>
+          <label className="text-xs font-medium text-foreground">{t('perActionCap')}</label>
           <div className="relative">
             <span className="absolute left-3 top-2.5 text-xs text-muted-foreground">$</span>
             <input
@@ -231,12 +218,8 @@ export const AgentCommerceBudgetSection = memo(() => {
       {/* Allowed Merchants Whitelist */}
       <div className="space-y-3">
         <div>
-          <h3 className="text-xs font-semibold text-foreground">
-            {t('allowedMerchants')}
-          </h3>
-          <p className="text-[11px] text-muted-foreground">
-            {t('allowedMerchantsDesc')}
-          </p>
+          <h3 className="text-xs font-semibold text-foreground">{t('allowedMerchants')}</h3>
+          <p className="text-[11px] text-muted-foreground">{t('allowedMerchantsDesc')}</p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -328,9 +311,7 @@ export const AgentCommerceBudgetSection = memo(() => {
                         className="text-foreground hover:bg-muted/40 cursor-pointer transition-colors"
                       >
                         <td className="py-2 font-mono">{item.merchant_domain}</td>
-                        <td className="py-2 font-semibold">
-                          ${(item.amount_cents / 100).toFixed(2)}
-                        </td>
+                        <td className="py-2 font-semibold">${(item.amount_cents / 100).toFixed(2)}</td>
                         <td className="py-2">
                           <SpendReceiptBadge
                             merchantDomain={item.merchant_domain}
@@ -346,10 +327,15 @@ export const AgentCommerceBudgetSection = memo(() => {
                       </tr>
                       {isExpanded && (
                         <tr className="bg-muted/30">
-                          <td colSpan={4} className="py-2 px-3 space-y-1 font-mono text-[11px] text-muted-foreground border-b border-border/20">
+                          <td
+                            colSpan={4}
+                            className="py-2 px-3 space-y-1 font-mono text-[11px] text-muted-foreground border-b border-border/20"
+                          >
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-foreground">Entry Hash:</span>
-                              <span className="truncate max-w-[420px] select-all">{item.entry_hash || 'Pending / N/A'}</span>
+                              <span className="truncate max-w-[420px] select-all">
+                                {item.entry_hash || 'Pending / N/A'}
+                              </span>
                             </div>
                             {item.idempotency_key ? (
                               <div className="flex items-center gap-2">

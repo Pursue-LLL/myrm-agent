@@ -15,13 +15,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Layers, Copy, Check, Calendar, Tag, Loader2, Sparkles } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/primitives/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/primitives/dialog';
 import { getMemoryDrillDown, type DrillDownResponse } from '@/services/memory/domainMesh';
 
 interface MemoryDrillDownDialogProps {
@@ -30,11 +24,7 @@ interface MemoryDrillDownDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({
-  memoryId,
-  open,
-  onOpenChange,
-}) => {
+export const MemoryDrillDownDialog: React.FC<MemoryDrillDownDialogProps> = ({ memoryId, open, onOpenChange }) => {
   const [detail, setDetail] = useState<DrillDownResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);

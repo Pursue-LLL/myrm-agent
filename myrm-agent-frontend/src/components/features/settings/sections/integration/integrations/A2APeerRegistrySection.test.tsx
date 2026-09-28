@@ -198,11 +198,7 @@ describe('A2APeerRegistrySection - Full Flow', () => {
     fireEvent.click(rejectBtn);
 
     await waitFor(() => {
-      expect(a2aService.rejectA2ATask).toHaveBeenCalledWith(
-        'a2a-task-reject-111',
-        expect.stringContaining('operator'),
-      );
+      expect(a2aService.rejectA2ATask).toHaveBeenCalledWith('a2a-task-reject-111', expect.stringContaining('operator'));
     });
   });
 });
-

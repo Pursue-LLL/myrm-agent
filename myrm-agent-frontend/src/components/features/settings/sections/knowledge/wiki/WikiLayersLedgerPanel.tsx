@@ -48,7 +48,6 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
   const [loading, setLoading] = useState(false);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
 
-
   // Micro-level layer item inspection state
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [selectedLayerKey, setSelectedLayerKey] = useState<string>('methods');
@@ -96,7 +95,6 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
   useEffect(() => {
     void fetchStats();
   }, [fetchStats]);
-
 
   const layersConfig = [
     {
@@ -246,9 +244,7 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
                     已归档条目
                     {isSelected && <ChevronDown className="w-3 h-3 text-primary animate-bounce" />}
                   </span>
-                  <span className="text-lg font-bold font-mono text-foreground">
-                    {loading ? '...' : layer.count}
-                  </span>
+                  <span className="text-lg font-bold font-mono text-foreground">{loading ? '...' : layer.count}</span>
                 </div>
               </button>
             );
@@ -261,9 +257,7 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
             <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-primary" />
-                <h4 className="text-sm font-semibold text-foreground">
-                  {selectedLayerTitle} · 归档词条清单
-                </h4>
+                <h4 className="text-sm font-semibold text-foreground">{selectedLayerTitle} · 归档词条清单</h4>
                 <Badge variant="secondary" className="text-xs font-mono">
                   {layerItems.length} 篇
                 </Badge>
@@ -328,9 +322,7 @@ export function WikiLayersLedgerPanel({ onOpenConcept }: WikiLayersLedgerPanelPr
                         <Clock className="w-3 h-3 shrink-0" />
                         {item.updated_at ? item.updated_at.split('T')[0] : '刚刚'}
                         {item.source_task_id && (
-                          <span className="text-[9px] text-primary/80 truncate">
-                            #{item.source_task_id.slice(-4)}
-                          </span>
+                          <span className="text-[9px] text-primary/80 truncate">#{item.source_task_id.slice(-4)}</span>
                         )}
                       </span>
                       <span className="flex items-center gap-1 text-primary opacity-0 group-hover:opacity-100 transition-opacity font-medium">

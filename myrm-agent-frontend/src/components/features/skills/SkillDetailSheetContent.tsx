@@ -146,7 +146,9 @@ export function SkillDetailSheetContent({
   };
 
   const handleSaveSource = async () => {
-    if (!isEditorDirty || isSavingSource) {return;}
+    if (!isEditorDirty || isSavingSource) {
+      return;
+    }
     setIsSavingSource(true);
     try {
       const res = await saveSkillFile(skill.id, 'SKILL.md', editorContent);

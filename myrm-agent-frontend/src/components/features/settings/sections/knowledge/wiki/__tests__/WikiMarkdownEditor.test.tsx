@@ -81,9 +81,7 @@ vi.mock('@/components/features/app-shell/lazy-monaco-editor', () => ({
 
 // Mock MarkdownContent correctly with alias
 vi.mock('@/components/features/message-box/MarkdownContent', () => ({
-  default: ({ content }: { content: string }) => (
-    <div data-testid="mock-markdown-content">{content}</div>
-  ),
+  default: ({ content }: { content: string }) => <div data-testid="mock-markdown-content">{content}</div>,
 }));
 
 // Mock useIsMobile hook
@@ -114,11 +112,7 @@ describe('WikiMarkdownEditor Component Suite', () => {
   it('renders dual-pane layout in desktop view', () => {
     const handleChange = vi.fn();
     render(
-      <WikiMarkdownEditor
-        value="# Title\nHello world"
-        onChange={handleChange}
-        placeholder="Enter wiki content..."
-      />,
+      <WikiMarkdownEditor value="# Title\nHello world" onChange={handleChange} placeholder="Enter wiki content..." />,
     );
 
     expect(screen.getByTestId('mock-monaco-editor')).toBeDefined();
@@ -128,9 +122,7 @@ describe('WikiMarkdownEditor Component Suite', () => {
   });
 
   it('exposes window.__wikiMarkdownEditor and window.monaco on mount, and cleans up on unmount', () => {
-    const { unmount } = render(
-      <WikiMarkdownEditor value="content" onChange={vi.fn()} />,
-    );
+    const { unmount } = render(<WikiMarkdownEditor value="content" onChange={vi.fn()} />);
 
     expect((window as unknown as { __wikiMarkdownEditor?: unknown }).__wikiMarkdownEditor).toBeDefined();
     expect((window as unknown as { monaco?: unknown }).monaco).toBeDefined();
@@ -149,13 +141,7 @@ describe('WikiMarkdownEditor Component Suite', () => {
 
   it('applies previewTransform when provided (MCP App / Sandpack artifact support)', () => {
     const transform = vi.fn((source: string) => `TRANSFORMED: ${source}`);
-    render(
-      <WikiMarkdownEditor
-        value="raw input"
-        onChange={vi.fn()}
-        previewTransform={transform}
-      />,
-    );
+    render(<WikiMarkdownEditor value="raw input" onChange={vi.fn()} previewTransform={transform} />);
 
     expect(transform).toHaveBeenCalledWith('raw input');
     expect(screen.getByTestId('mock-markdown-content').textContent).toBe('TRANSFORMED: raw input');
@@ -188,36 +174,41 @@ describe('WikiMarkdownEditor Component Suite', () => {
     // Bold action
     const boldBtn = screen.getByRole('button', { name: /加粗/ });
     fireEvent.click(boldBtn);
-    expect(editor?.executeEdits).toHaveBeenCalledWith('toolbar-action', expect.arrayContaining([
-      expect.objectContaining({ text: '**粗体文本**' }),
-    ]));
+    expect(editor?.executeEdits).toHaveBeenCalledWith(
+      'toolbar-action',
+      expect.arrayContaining([expect.objectContaining({ text: '**粗体文本**' })]),
+    );
 
     // Italic action
     const italicBtn = screen.getByRole('button', { name: /斜体/ });
     fireEvent.click(italicBtn);
-    expect(editor?.executeEdits).toHaveBeenCalledWith('toolbar-action', expect.arrayContaining([
-      expect.objectContaining({ text: '*斜体文本*' }),
-    ]));
+    expect(editor?.executeEdits).toHaveBeenCalledWith(
+      'toolbar-action',
+      expect.arrayContaining([expect.objectContaining({ text: '*斜体文本*' })]),
+    );
 
     // Wiki 双链 action
     const wikilinkBtn = screen.getByRole('button', { name: /Wiki 双链/ });
     fireEvent.click(wikilinkBtn);
-    expect(editor?.executeEdits).toHaveBeenCalledWith('toolbar-action', expect.arrayContaining([
-      expect.objectContaining({ text: '[[页面名称]]' }),
-    ]));
+    expect(editor?.executeEdits).toHaveBeenCalledWith(
+      'toolbar-action',
+      expect.arrayContaining([expect.objectContaining({ text: '[[页面名称]]' })]),
+    );
 
     // Codeblock action
     const codeBtn = screen.getByRole('button', { name: /代码块/ });
     fireEvent.click(codeBtn);
-    expect(editor?.executeEdits).toHaveBeenCalledWith('toolbar-action', expect.arrayContaining([
-      expect.objectContaining({ text: '`代码`' }),
-    ]));
+    expect(editor?.executeEdits).toHaveBeenCalledWith(
+      'toolbar-action',
+      expect.arrayContaining([expect.objectContaining({ text: '`代码`' })]),
+    );
 
     // Table action
     const tableBtn = screen.getByRole('button', { name: /插入表格/ });
     fireEvent.click(tableBtn);
-    expect(editor?.executeEdits).toHaveBeenCalledWith('toolbar-action', expect.arrayContaining([
-      expect.objectContaining({ text: expect.stringContaining('| 标题 1 | 标题 2 |') }),
-    ]));
+    expect(editor?.executeEdits).toHaveBeenCalledWith(
+      'toolbar-action',
+      expect.arrayContaining([expect.objectContaining({ text: expect.stringContaining('| 标题 1 | 标题 2 |') })]),
+    );
   });
 });

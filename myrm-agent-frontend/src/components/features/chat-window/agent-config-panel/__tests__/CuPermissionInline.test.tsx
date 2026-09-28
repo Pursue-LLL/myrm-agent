@@ -144,10 +144,7 @@ describe('CuPermissionInline', () => {
       expect(screen.getByText('cuPermission.captureFailed')).toBeInTheDocument();
     });
     expect(screen.getByText('cuPermission.captureNotReady')).toBeInTheDocument();
-    expect(mockApiRequest).toHaveBeenLastCalledWith(
-      '/webui/desktop/permissions?probe_capture=true',
-      { silent: true },
-    );
+    expect(mockApiRequest).toHaveBeenLastCalledWith('/webui/desktop/permissions?probe_capture=true', { silent: true });
   });
 
   it('recheck probes capture and can reach verified', async () => {
@@ -184,10 +181,7 @@ describe('CuPermissionInline', () => {
     await waitFor(() => {
       expect(screen.getByText('cuPermission.allGranted')).toBeInTheDocument();
     });
-    expect(mockApiRequest).toHaveBeenLastCalledWith(
-      '/webui/desktop/permissions?probe_capture=true',
-      { silent: true },
-    );
+    expect(mockApiRequest).toHaveBeenLastCalledWith('/webui/desktop/permissions?probe_capture=true', { silent: true });
   });
 
   it('shows missing permissions and opens settings deeplink', async () => {

@@ -165,7 +165,9 @@ const DocumentPreview: React.FC<{ content: string; filename?: string; artifactId
         )}
       >
         <pre className="whitespace-pre-wrap font-sans text-foreground">{content}</pre>
-        {artifactId && <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} content={content} />}
+        {artifactId && (
+          <DocumentSelectionToolbar containerRef={containerRef} artifactId={artifactId} content={content} />
+        )}
       </div>
     );
   },

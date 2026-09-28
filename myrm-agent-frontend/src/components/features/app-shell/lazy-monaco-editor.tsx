@@ -12,10 +12,7 @@ const Loading = () => (
 
 export const LazyMonacoEditor = dynamic<EditorProps>(
   () =>
-    Promise.all([
-      import('@monaco-editor/react'),
-      import('monaco-editor'),
-    ]).then(([reactMod, monacoMod]) => {
+    Promise.all([import('@monaco-editor/react'), import('monaco-editor')]).then(([reactMod, monacoMod]) => {
       reactMod.loader.config({ monaco: monacoMod });
       return reactMod.Editor;
     }),
@@ -27,10 +24,7 @@ export const LazyMonacoEditor = dynamic<EditorProps>(
 
 export const LazyMonacoDiffEditor = dynamic<DiffEditorProps>(
   () =>
-    Promise.all([
-      import('@monaco-editor/react'),
-      import('monaco-editor'),
-    ]).then(([reactMod, monacoMod]) => {
+    Promise.all([import('@monaco-editor/react'), import('monaco-editor')]).then(([reactMod, monacoMod]) => {
       reactMod.loader.config({ monaco: monacoMod });
       return reactMod.DiffEditor;
     }),

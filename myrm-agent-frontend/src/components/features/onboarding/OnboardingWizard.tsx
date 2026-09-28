@@ -72,9 +72,7 @@ export default function OnboardingWizard({ onComplete }: OnboardingWizardProps) 
   const [telegramConfigured, setTelegramConfigured] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const [initDone, setInitDone] = useState(false);
-  const [deployChoice, setDeployChoice] = useState<OnboardingDeployChoice | null>(() =>
-    getOnboardingDeployChoice(),
-  );
+  const [deployChoice, setDeployChoice] = useState<OnboardingDeployChoice | null>(() => getOnboardingDeployChoice());
 
   const providers = useProviderStore((s) => s.providers);
   const isInitialized = useProviderStore((s) => s.isInitialized);

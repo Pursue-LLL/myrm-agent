@@ -3,10 +3,10 @@
  * - types/agentStream/part1::AgentEventType (POS: Agent 流式事件类型枚举)
  * - messageUtils::findAssistantMessageIndex (POS: 查找助理消息索引工具函数)
  * - streamContext::StreamCtx (POS: 流上下文环境定义与控制函数)
- * 
+ *
  * [OUTPUT]
  * - ttsrEvents: 捕获 ttsr_triggered 流式事件并原子记录安全规则拦截元数据到对应 assistant 消息状态
- * 
+ *
  * [POS]
  * 消息流事件处理切片层。负责实时解析底座抛出的 TTSR 安全拦截事件并将其附加至聊天消息实体中。
  */

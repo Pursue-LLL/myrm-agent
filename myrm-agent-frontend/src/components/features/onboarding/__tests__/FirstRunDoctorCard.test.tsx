@@ -50,9 +50,7 @@ vi.mock('@/store/config/providerTypes', () => ({
 describe('FirstRunDoctorCard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockProviders.value = [
-      { id: 'openai', isEnabled: true, apiKeys: [{ isActive: true, key: 'sk-x' }] },
-    ] as unknown[];
+    mockProviders.value = [{ id: 'openai', isEnabled: true, apiKeys: [{ isActive: true, key: 'sk-x' }] }] as unknown[];
     mockBackendOk.value = true;
   });
 

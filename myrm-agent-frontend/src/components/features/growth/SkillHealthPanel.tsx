@@ -59,8 +59,7 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
   const attentionItems = items.filter((item) => item.status === 'AT_RISK' || item.status === 'STALE');
   const healthyItems = items.filter((item) => item.status === 'STAR' || item.status === 'HEALTHY');
 
-  const filteredItems =
-    activeTab === 'attention' ? attentionItems : activeTab === 'healthy' ? healthyItems : items;
+  const filteredItems = activeTab === 'attention' ? attentionItems : activeTab === 'healthy' ? healthyItems : items;
 
   const displayItems = isExpanded ? filteredItems : filteredItems.slice(0, 8);
 
@@ -124,9 +123,7 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                 key={item.skill_name}
                 className={cn(
                   'rounded-lg border px-3 py-2.5 transition-colors',
-                  isAttention
-                    ? 'border-border/80 bg-muted/20 dark:bg-muted/10'
-                    : 'border-border/60 bg-card',
+                  isAttention ? 'border-border/80 bg-muted/20 dark:bg-muted/10' : 'border-border/60 bg-card',
                 )}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -147,7 +144,10 @@ export default function SkillHealthPanel({ items }: SkillHealthPanelProps) {
                     <span className="text-sm font-semibold tabular-nums">{Math.round(item.health_score)}</span>
                     <Badge
                       variant="outline"
-                      className={cn('text-xs flex items-center gap-1', STATUS_VARIANT[item.status] ?? STATUS_VARIANT.STALE)}
+                      className={cn(
+                        'text-xs flex items-center gap-1',
+                        STATUS_VARIANT[item.status] ?? STATUS_VARIANT.STALE,
+                      )}
                     >
                       {t(`status.${item.status}`, { default: item.status })}
                     </Badge>

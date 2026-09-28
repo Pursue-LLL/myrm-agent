@@ -28,9 +28,7 @@ export default function PricingPage() {
   const billingNotReady =
     isSandbox() &&
     !catalogLoading &&
-    planCatalog.some(
-      (plan) => plan.key !== 'free' && !plan.checkoutAvailable && !plan.yearlyCheckoutAvailable,
-    );
+    planCatalog.some((plan) => plan.key !== 'free' && !plan.checkoutAvailable && !plan.yearlyCheckoutAvailable);
 
   const PREV_PLAN: Record<string, string | null> = {
     free: null,
@@ -163,7 +161,17 @@ export default function PricingPage() {
             : null}
           {!catalogLoading || planCatalog.length > 0
             ? planCatalog.map(
-                ({ key, icon: Icon, monthlyUsd, yearlyUsd, monthlyWu, highlight, trialDays, checkoutAvailable, yearlyCheckoutAvailable }) => {
+                ({
+                  key,
+                  icon: Icon,
+                  monthlyUsd,
+                  yearlyUsd,
+                  monthlyWu,
+                  highlight,
+                  trialDays,
+                  checkoutAvailable,
+                  yearlyCheckoutAvailable,
+                }) => {
                   const isCurrent = currentPlan === key;
                   const isPaid = key !== 'free';
                   const displayPrice = isYearly && isPaid ? yearlyUsd : monthlyUsd;
@@ -314,9 +322,7 @@ export default function PricingPage() {
                                 'bg-gradient-to-r from-primary to-primary-hover hover:opacity-90 shadow-lg shadow-primary/20 border-0 font-semibold',
                             )}
                             variant={highlight && !hasTrial ? 'default' : 'outline'}
-                            disabled={
-                              isCurrent || (isPaid && checkoutLoading !== null) || !isPaid || !cycleAvailable
-                            }
+                            disabled={isCurrent || (isPaid && checkoutLoading !== null) || !isPaid || !cycleAvailable}
                             onClick={() => (isPaid ? handleSubscribe(key as PaidBillingPlanKey) : undefined)}
                           >
                             {checkoutLoading === key && !hasTrial

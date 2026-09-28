@@ -266,14 +266,16 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
   if (data.type === H.AgentEventType.DESKTOP_ENVELOPE_PROGRESS) {
     const { default: useDesktopControlApprovalStore } = await import('@/store/useDesktopControlApprovalStore');
     const store = useDesktopControlApprovalStore.getState();
-    const eventData = data.data as {
-      task_id?: string;
-      used_actions?: number;
-      max_actions?: number;
-      remaining_budget?: number;
-      can_extend?: boolean;
-      hard_limit?: number;
-    } | undefined;
+    const eventData = data.data as
+      | {
+          task_id?: string;
+          used_actions?: number;
+          max_actions?: number;
+          remaining_budget?: number;
+          can_extend?: boolean;
+          hard_limit?: number;
+        }
+      | undefined;
     if (eventData) {
       store.updateEnvelopeProgress({
         used: Number(eventData.used_actions ?? 0),

@@ -23,7 +23,7 @@ describe('DynamicPreferenceRadarDrawer Component', () => {
         onValueChange={vi.fn()}
         onToggleLock={vi.fn()}
         onReset={vi.fn()}
-      />
+      />,
     );
     expect(container.firstChild).toBeNull();
   });
@@ -38,7 +38,7 @@ describe('DynamicPreferenceRadarDrawer Component', () => {
         onValueChange={vi.fn()}
         onToggleLock={vi.fn()}
         onReset={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByTestId('preference-radar-drawer')).toBeInTheDocument();
@@ -59,7 +59,7 @@ describe('DynamicPreferenceRadarDrawer Component', () => {
         onValueChange={onValueChange}
         onToggleLock={vi.fn()}
         onReset={vi.fn()}
-      />
+      />,
     );
 
     const slider = screen.getByTestId('slider-actionability');
@@ -78,7 +78,7 @@ describe('DynamicPreferenceRadarDrawer Component', () => {
         onValueChange={vi.fn()}
         onToggleLock={onToggleLock}
         onReset={vi.fn()}
-      />
+      />,
     );
 
     const lockBtn = screen.getByTestId('radar-toggle-lock');
@@ -97,7 +97,7 @@ describe('DynamicPreferenceRadarDrawer Component', () => {
         onValueChange={vi.fn()}
         onToggleLock={vi.fn()}
         onReset={onReset}
-      />
+      />,
     );
 
     const resetBtn = screen.getByTestId('radar-reset-button');
@@ -116,7 +116,7 @@ describe('DynamicPreferenceRadarDrawer Component', () => {
         onValueChange={vi.fn()}
         onToggleLock={vi.fn()}
         onReset={vi.fn()}
-      />
+      />,
     );
 
     const closeBtn = screen.getByTestId('radar-close-button');
@@ -136,7 +136,7 @@ describe('DynamicPreferenceRadarDrawer Component', () => {
         onToggleLock={vi.fn()}
         onReset={vi.fn()}
         onSelectPreset={onSelectPreset}
-      />
+      />,
     );
 
     expect(screen.getByText(/偏好聚焦/)).toBeInTheDocument();
@@ -146,4 +146,3 @@ describe('DynamicPreferenceRadarDrawer Component', () => {
     expect(onSelectPreset).toHaveBeenCalledWith('code');
   });
 });
-

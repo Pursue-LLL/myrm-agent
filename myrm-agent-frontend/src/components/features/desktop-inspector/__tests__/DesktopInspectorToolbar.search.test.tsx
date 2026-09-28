@@ -59,13 +59,7 @@ describe('DesktopInspectorToolbar Search', () => {
 
   it('clears query when clear button is clicked', () => {
     const onSearchQueryChange = vi.fn();
-    render(
-      <DesktopInspectorToolbar
-        {...defaultProps}
-        searchQuery="save"
-        onSearchQueryChange={onSearchQueryChange}
-      />
-    );
+    render(<DesktopInspectorToolbar {...defaultProps} searchQuery="save" onSearchQueryChange={onSearchQueryChange} />);
 
     const clearButton = screen.getByRole('button', { name: 'clearSearch' });
     fireEvent.click(clearButton);

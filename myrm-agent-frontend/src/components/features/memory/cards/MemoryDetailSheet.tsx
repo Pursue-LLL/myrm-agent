@@ -48,7 +48,10 @@ const EvolutionHistory = memo<{ entries: MergeHistoryEntry[] }>(({ entries }) =>
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           {t('fields.evolutionHistory')}
         </span>
-        <span data-testid="merge-count" className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+        <span
+          data-testid="merge-count"
+          className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium"
+        >
           {t('fields.mergeCount', { count: entries.length })}
         </span>
       </div>
@@ -63,7 +66,10 @@ const EvolutionHistory = memo<{ entries: MergeHistoryEntry[] }>(({ entries }) =>
             />
             <div className="flex flex-wrap items-baseline gap-x-2 min-w-0">
               <span className="text-[10px] text-muted-foreground/70 font-mono shrink-0">{entry.timestamp}</span>
-              <span data-testid="merge-action" className="text-[10px] px-1.5 py-px rounded bg-accent text-accent-foreground font-medium shrink-0">
+              <span
+                data-testid="merge-action"
+                className="text-[10px] px-1.5 py-px rounded bg-accent text-accent-foreground font-medium shrink-0"
+              >
                 {t(MERGE_ACTION_KEYS[entry.action] ?? 'fields.merged')}
               </span>
               <span className="text-xs text-foreground/90 break-all min-w-0">{entry.summary}</span>
@@ -159,80 +165,79 @@ const MemoryDetailSheet = memo<MemoryDetailSheetProps>(({ memory, open, onOpenCh
           )}
 
           {/* Procedural fields */}
-          {memoryType === 'procedural' && (memory.trigger || memory.action || memory.is_veto || memory.veto_pattern) && (
-            <div className="space-y-3">
-              {memory.trigger && (
-                <>
-                  <div className="flex items-center gap-1.5 text-xs text-amber-500">
-                    <Zap size={12} />
-                    <span className="font-medium uppercase tracking-wide">{t('fields.trigger')}</span>
-                  </div>
-                  <div className="text-sm text-foreground bg-accent/30 rounded-lg p-3">
-                    <span>{memory.trigger}</span>
-                    {memory.tool_name && (
-                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium align-middle">
-                        {memory.tool_name}
-                      </span>
-                    )}
-                    {memory.tool_rule_priority && memory.tool_rule_priority !== 'normal' && (
-                      <span
-                        className={cn(
-                          'ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium align-middle',
-                          memory.tool_rule_priority === 'critical'
-                            ? 'bg-destructive/10 text-destructive'
-                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-                        )}
-                      >
-                        {memory.tool_rule_priority.toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                </>
-              )}
-              {memory.action && (
-                <>
-                  <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {t('fields.action')}
-                  </div>
-                  <div className="text-sm text-foreground bg-accent/30 rounded-lg p-3">{memory.action}</div>
-                </>
-              )}
-              {(memory.is_veto || memory.veto_pattern) && (
-                <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
-                    <ShieldAlert size={14} className="shrink-0" />
-                    <span>{t('fields.vetoGuardrail')}</span>
-                  </div>
-                  {memory.veto_pattern && (
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-muted-foreground uppercase tracking-wide text-[10px]">
-                        {t('fields.vetoPattern')}:
-                      </span>
-                      <code className="rounded bg-destructive/10 px-1.5 py-0.5 font-mono text-[11px] text-destructive">
-                        {memory.veto_pattern}
-                      </code>
-                      {memory.veto_scope && (
-                        <span className="text-[10px] text-muted-foreground">
-                          ({t('fields.scope')}: {memory.veto_scope})
+          {memoryType === 'procedural' &&
+            (memory.trigger || memory.action || memory.is_veto || memory.veto_pattern) && (
+              <div className="space-y-3">
+                {memory.trigger && (
+                  <>
+                    <div className="flex items-center gap-1.5 text-xs text-amber-500">
+                      <Zap size={12} />
+                      <span className="font-medium uppercase tracking-wide">{t('fields.trigger')}</span>
+                    </div>
+                    <div className="text-sm text-foreground bg-accent/30 rounded-lg p-3">
+                      <span>{memory.trigger}</span>
+                      {memory.tool_name && (
+                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-medium align-middle">
+                          {memory.tool_name}
+                        </span>
+                      )}
+                      {memory.tool_rule_priority && memory.tool_rule_priority !== 'normal' && (
+                        <span
+                          className={cn(
+                            'ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium align-middle',
+                            memory.tool_rule_priority === 'critical'
+                              ? 'bg-destructive/10 text-destructive'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+                          )}
+                        >
+                          {memory.tool_rule_priority.toUpperCase()}
                         </span>
                       )}
                     </div>
-                  )}
-                  {memory.remediation_advice && (
-                    <div className="flex items-start gap-1.5 text-xs text-muted-foreground bg-accent/40 rounded p-2">
-                      <ShieldCheck size={12} className="shrink-0 mt-0.5 text-emerald-500" />
-                      <span>
-                        <span className="font-medium text-foreground">
-                          {t('fields.remediation')}:
-                        </span>{' '}
-                        {memory.remediation_advice}
-                      </span>
+                  </>
+                )}
+                {memory.action && (
+                  <>
+                    <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {t('fields.action')}
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+                    <div className="text-sm text-foreground bg-accent/30 rounded-lg p-3">{memory.action}</div>
+                  </>
+                )}
+                {(memory.is_veto || memory.veto_pattern) && (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
+                      <ShieldAlert size={14} className="shrink-0" />
+                      <span>{t('fields.vetoGuardrail')}</span>
+                    </div>
+                    {memory.veto_pattern && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground uppercase tracking-wide text-[10px]">
+                          {t('fields.vetoPattern')}:
+                        </span>
+                        <code className="rounded bg-destructive/10 px-1.5 py-0.5 font-mono text-[11px] text-destructive">
+                          {memory.veto_pattern}
+                        </code>
+                        {memory.veto_scope && (
+                          <span className="text-[10px] text-muted-foreground">
+                            ({t('fields.scope')}: {memory.veto_scope})
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {memory.remediation_advice && (
+                      <div className="flex items-start gap-1.5 text-xs text-muted-foreground bg-accent/40 rounded p-2">
+                        <ShieldCheck size={12} className="shrink-0 mt-0.5 text-emerald-500" />
+                        <span>
+                          <span className="font-medium text-foreground">{t('fields.remediation')}:</span>{' '}
+                          {memory.remediation_advice}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
           {/* Metadata grid */}
           <div className={cn('grid gap-4', 'grid-cols-2')}>
@@ -318,7 +323,10 @@ const MemoryDetailSheet = memo<MemoryDetailSheetProps>(({ memory, open, onOpenCh
               <>
                 {evolutionEntries.length > 0 && <EvolutionHistory entries={evolutionEntries} />}
                 {memory.correction_of && (
-                  <div data-testid="correction-chain" className="flex items-start gap-1.5 text-xs bg-primary/5 border border-primary/20 rounded-lg px-3 py-2 text-muted-foreground">
+                  <div
+                    data-testid="correction-chain"
+                    className="flex items-start gap-1.5 text-xs bg-primary/5 border border-primary/20 rounded-lg px-3 py-2 text-muted-foreground"
+                  >
                     <GitCommitHorizontal size={12} className="shrink-0 mt-0.5 text-primary" />
                     <span>
                       <span className="font-medium text-foreground/80">{t('fields.corrects')}</span>{' '}

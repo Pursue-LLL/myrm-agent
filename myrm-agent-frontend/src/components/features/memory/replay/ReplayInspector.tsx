@@ -114,9 +114,7 @@ function ReplayInspector({ activeEvent, onForkFromCurrent, isForking = false }: 
         <div className="text-xs font-medium text-foreground">
           {t('llmCallTitle', { model: lc.model_name ?? 'unknown' })}
         </div>
-        {lc.prompt_preview && (
-          <ModelViewportView promptPreview={lc.prompt_preview} />
-        )}
+        {lc.prompt_preview && <ModelViewportView promptPreview={lc.prompt_preview} />}
         <div className="text-[10px] text-muted-foreground font-mono bg-muted/30 p-2 rounded-xl whitespace-pre-wrap break-all">
           {JSON.stringify(
             {

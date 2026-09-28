@@ -94,7 +94,7 @@ export function CapacityPoolBadge({
             ? 'text-rose-600 dark:text-rose-400 font-semibold'
             : isWarning
               ? 'text-amber-600 dark:text-amber-400 font-semibold'
-              : 'text-emerald-600 dark:text-emerald-400'
+              : 'text-emerald-600 dark:text-emerald-400',
         )}
       >
         {skillCount}/{maxSkillCount} ({capacityPercent}%)
@@ -120,14 +120,14 @@ export function CapacityAlertBanner({
         'flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl border backdrop-blur-sm transition-all',
         isLimit
           ? 'border-rose-300/80 bg-rose-50/70 dark:border-rose-900/60 dark:bg-rose-950/20 text-rose-900 dark:text-rose-200'
-          : 'border-amber-300/80 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200'
+          : 'border-amber-300/80 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/20 text-amber-900 dark:text-amber-200',
       )}
     >
       <div className="flex items-start gap-3">
         <AlertTriangle
           className={cn(
             'w-4 h-4 shrink-0 mt-0.5',
-            isLimit ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'
+            isLimit ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400',
           )}
         />
         <div className="space-y-0.5 text-xs">
