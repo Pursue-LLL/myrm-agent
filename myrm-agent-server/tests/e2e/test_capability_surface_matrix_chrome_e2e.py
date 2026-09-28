@@ -19,8 +19,6 @@ import pytest
 
 from tests.support.chrome_allowlist_settings_e2e import SETTINGS_SECURITY_SHELL_READY_JS
 from tests.support.chrome_mcp_e2e import (
-    ChromeMcpClient,
-    McpPage,
     get_e2e_api_url,
     http_json,
     open_settings_subroute,
