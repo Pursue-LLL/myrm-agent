@@ -20,12 +20,25 @@ import pytest
 
 from tests.support.chrome_allowlist_settings_e2e import SETTINGS_SECURITY_SHELL_READY_JS
 from tests.support.chrome_mcp_e2e import (
+    _warm_ui_parallel_wait_sec,
+    dismiss_blocking_modals,
     get_e2e_api_url,
     http_json,
     open_settings_subroute,
+    prepare_e2e_ui_session,
     wait_for_state,
     warm_ui_route,
 )
+
+_DISMISS_MIGRATION_JS = """(() => {
+  try {
+    sessionStorage.setItem('migration_discovery_dismissed', 'true');
+    sessionStorage.setItem('competitor_migration_dismissed', 'true');
+  } catch (err) {
+    return { ok: false, err: String(err) };
+  }
+  return { ok: true };
+})()"""
 
 _MATRIX_MOUNT_READY_JS = """(() => {
   const text = document.body?.innerText || '';
@@ -136,15 +149,33 @@ _BALANCED_PRESET_ACTIVE_JS = """(() => {
 def test_capability_surface_matrix_chrome_e2e() -> None:
     """Real-user E2E workflow: verify CapabilitySurface Always/Ask/Deny matrix."""
     api_base = get_e2e_api_url()
-    warm_ui_route("/settings/security")
+    prepare_e2e_ui_session(api_base)
+    warm_ui_route("/settings")
+    warm_ui_route(
+        "/settings/security",
+        timeout_sec=_warm_ui_parallel_wait_sec(180.0),
+    )
 
-    with open_settings_subroute("/settings/security", timeout_ms=90_000) as (client, page):
+    with open_settings_subroute("/settings/security", timeout_ms=120_000) as (client, page):
+        client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
+        dismiss_blocking_modals(client, page)
+
         # 0. 先等待 Settings Security 外层 Shell 水合就绪
-        shell_state = wait_for_state(client, page, SETTINGS_SECURITY_SHELL_READY_JS, timeout_sec=90.0)
+        shell_state = wait_for_state(
+            client,
+            page,
+            SETTINGS_SECURITY_SHELL_READY_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(120.0),
+        )
         assert shell_state.get("ready") is True, f"Shell not ready: {json.dumps(shell_state)}"
 
         # 1. 验证能力面矩阵卡片及 6 大能力面网格完全加载挂载
-        mount_state = wait_for_state(client, page, _MATRIX_MOUNT_READY_JS, timeout_sec=60.0)
+        mount_state = wait_for_state(
+            client,
+            page,
+            _MATRIX_MOUNT_READY_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+        )
         assert mount_state.get("ready") is True, f"Matrix failed to mount: {json.dumps(mount_state)}"
         assert mount_state.get("cardsCount", 0) >= 6
 
@@ -154,6 +185,7 @@ def test_capability_surface_matrix_chrome_e2e() -> None:
 
         deny_active = wait_for_state(client, page, _KNOWLEDGE_WRITE_DENY_ACTIVE_JS, timeout_sec=20.0)
         assert deny_active.get("ready") is True, f"Deny button not active: {json.dumps(deny_active)}"
+        time.sleep(1.0)
 
         # 3. 模拟真实用户点击预设：应用 Autonomous (全自动放行) 预设
         auto_click = client.evaluate(page, _CLICK_AUTONOMOUS_PRESET_JS, timeout_sec=15.0)
@@ -161,6 +193,7 @@ def test_capability_surface_matrix_chrome_e2e() -> None:
 
         auto_active = wait_for_state(client, page, _AUTONOMOUS_PRESET_ACTIVE_JS, timeout_sec=20.0)
         assert auto_active.get("ready") is True, f"Autonomous preset not active: {json.dumps(auto_active)}"
+        time.sleep(1.0)
 
         # 4. 模拟真实用户点击预设：应用 Guarded (谨慎防范) 预设
         guarded_click = client.evaluate(page, _CLICK_GUARDED_PRESET_JS, timeout_sec=15.0)
