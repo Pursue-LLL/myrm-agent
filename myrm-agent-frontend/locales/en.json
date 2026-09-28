@@ -9446,11 +9446,11 @@
     "steer": {
       "placeholder": "Type to guide agent...",
       "send": "Send guidance",
-      "tooltip": "Send guidance to the running agent"
+      "tooltip": "Send guidance to the running agent (Enter)"
     },
     "redirect": {
       "send": "Redirect now",
-      "tooltip": "Interrupt current generation and redirect the agent"
+      "tooltip": "Interrupt current generation and redirect the agent (Enter)"
     },
     "input": {
       "placeholder": "Type a message...",
@@ -9464,8 +9464,8 @@
       "added": "Message queued — will send after current task completes",
       "added_with_position": "Message queued (#{position}) — will send after current task completes",
       "sendLater": "Queue for later",
-      "sendLaterTooltip": "Don't interrupt — send after the current task finishes",
-      "placeholder": "Type next task (will queue, not interrupt)...",
+      "sendLaterTooltip": "Don't interrupt — send after the current task finishes (⌥↵ Alt+Enter)",
+      "placeholder": "Agent busy... Enter to steer · ⌥+Enter to queue follow-up",
       "edit": "Edit message",
       "saveEdit": "Save",
       "cancelEdit": "Cancel",

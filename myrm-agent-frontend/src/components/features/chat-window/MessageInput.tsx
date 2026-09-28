@@ -47,6 +47,7 @@ import { QueuedMessagesList } from './QueuedMessagesList';
 import ActiveWorkingMemoryPanel from '../message-input-actions/ActiveWorkingMemoryPanel';
 import { useTranslations } from 'next-intl';
 import { useMessageInput } from '@/hooks/message-input/useMessageInput';
+import { resolveDualChannelAction } from '@/hooks/message-input/messageInputKeyRouter';
 import { useDragDrop } from '@/hooks/ui/useDragDrop';
 import { reportUserActivity } from '@/services/memory';
 
@@ -421,9 +422,14 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
               return;
             }
 
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSubmit();
+            const dualAction = resolveDualChannelAction(e, { loading });
+            if (dualAction === 'queue') {
+              void handleQueueSubmit();
+              return;
+            }
+            if (dualAction === 'submit') {
+              void handleSubmit();
+              return;
             }
           }}
           className="w-full"

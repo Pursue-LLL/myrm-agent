@@ -9445,11 +9445,11 @@
     "steer": {
       "placeholder": "输入引导消息...",
       "send": "发送引导",
-      "tooltip": "向正在运行的 Agent 发送引导消息"
+      "tooltip": "向正在运行的 Agent 发送引导消息 (Enter)"
     },
     "redirect": {
       "send": "立即纠偏",
-      "tooltip": "中断当前生成并纠正 Agent 方向"
+      "tooltip": "中断当前生成并纠正 Agent 方向 (Enter)"
     },
     "input": {
       "placeholder": "输入消息...",
@@ -9463,8 +9463,8 @@
       "added": "消息已排队 — 当前任务完成后自动发送",
       "added_with_position": "消息已排队（第 {position} 条）— 当前任务完成后自动发送",
       "sendLater": "排队稍后发送",
-      "sendLaterTooltip": "不打断当前任务 — 任务完成后自动发送",
-      "placeholder": "输入下个任务（排队等待，不会打断）...",
+      "sendLaterTooltip": "不打断当前任务 — 任务完成后自动发送 (⌥↵ Alt+Enter)",
+      "placeholder": "正在执行... Enter 引导纠偏 · ⌥+Enter 排队跟进",
       "edit": "编辑消息",
       "saveEdit": "保存",
       "cancelEdit": "取消",
