@@ -125,7 +125,14 @@ def _pid_alive(pid: int) -> bool:
     return True
 
 
-def _socket_has_listener(socket_path: Path) -> bool:
+def _socket_listener_probe(socket_path: Path) -> bool | None:
+    """Tri-state socket listener probe: True, False, or None when unknowable.
+
+    ``None`` means the probe itself failed (e.g. lsof timed out under load). Callers that
+    decide whether to *destroy* something must treat ``None`` as "do not act": a probe
+    error was previously indistinguishable from "no listener", which let the plane remove
+    a live daemon's socket and then reap that daemon, spiralling the whole cluster.
+    """
     if not socket_path.is_socket():
         return False
     try:
@@ -137,7 +144,10 @@ def _socket_has_listener(socket_path: Path) -> bool:
             timeout=2.0,
         )
     except (OSError, subprocess.TimeoutExpired):
-        return False
+        return None
+    # A non-zero lsof exit with no stdout means lsof ran and found nothing listening.
+    if proc.returncode != 0 and not proc.stdout.strip():
+        return None if proc.returncode not in (0, 1) else False
     for line in proc.stdout.splitlines():
         text = line.strip()
         if not text:
@@ -148,6 +158,10 @@ def _socket_has_listener(socket_path: Path) -> bool:
         except ValueError:
             continue
     return False
+
+
+def _socket_has_listener(socket_path: Path) -> bool:
+    return _socket_listener_probe(socket_path) is True
 
 
 def _resolve_monorepo_root() -> Path:
@@ -263,7 +277,7 @@ def reap_stale_plane_artifacts() -> ReapReceipt:
             except OSError as exc:
                 details.append(f"mux_pid_unlink_failed={exc}")
 
-    if socket_path.exists() and not _socket_has_listener(socket_path):
+    if socket_path.exists() and _socket_listener_probe(socket_path) is False:
         try:
             socket_path.unlink(missing_ok=True)
             mux_socket_removed = True
