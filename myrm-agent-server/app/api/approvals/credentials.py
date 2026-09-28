@@ -99,12 +99,21 @@ async def stage_approval_credentials(
                 detail=str(e),
             ) from e
 
+        # Compute expected action digest if approval payload specifies command
+        expected_digest: str | None = None
+        cmd = record.payload.get("command") or record.payload.get("cmd")
+        if isinstance(cmd, str) and cmd.strip():
+            import hashlib
+
+            expected_digest = hashlib.sha256(cmd.strip().encode("utf-8")).hexdigest()
+
         cred = store.store_credential(
             session_id=session_id,
             key=valid_key,
             secret=item.secret,
             ttl_seconds=item.ttl_seconds,
             single_use=item.single_use,
+            expected_action_digest=expected_digest,
         )
 
         staged_items.append(

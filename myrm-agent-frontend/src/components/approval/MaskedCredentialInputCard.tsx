@@ -54,6 +54,7 @@ export interface MaskedCredentialInputCardProps {
   approvalId: string;
   stagedHandles: string[];
   onStagedChange: (handles: string[]) => void;
+  suggestedKeys?: string[];
   disabled?: boolean;
   className?: string;
 }
@@ -82,14 +83,15 @@ export function MaskedCredentialInputCard({
   approvalId,
   stagedHandles,
   onStagedChange,
+  suggestedKeys,
   disabled = false,
   className = '',
 }: MaskedCredentialInputCardProps) {
   const initialId = useId();
-  const [drafts, setDrafts] = useState<CredentialDraft[]>([
+  const [drafts, setDrafts] = useState<CredentialDraft[]>(() => [
     {
       id: initialId,
-      key: '',
+      key: suggestedKeys && suggestedKeys.length > 0 ? suggestedKeys[0] : '',
       secret: '',
       ttlSeconds: 60,
       singleUse: true,
@@ -281,8 +283,47 @@ export function MaskedCredentialInputCard({
           </div>
         </div>
       ) : (
-        /* Input drafts form */
-        <div className="mt-3 space-y-3">
+        <>
+          {/* Suggested Keys chips */}
+          {suggestedKeys && suggestedKeys.length > 0 && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Key className="h-3 w-3 text-amber-500" />
+                Suggested:
+              </span>
+              {suggestedKeys.map((sKey) => (
+                <button
+                  key={sKey}
+                  type="button"
+                  onClick={() => {
+                    setDrafts((prev) => {
+                      const emptyIdx = prev.findIndex((d) => !d.key.trim());
+                      if (emptyIdx >= 0) {
+                        return prev.map((d, i) => (i === emptyIdx ? { ...d, key: sKey } : d));
+                      }
+                      return [
+                        ...prev,
+                        {
+                          id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                          key: sKey,
+                          secret: '',
+                          ttlSeconds: 60,
+                          singleUse: true,
+                          showSecret: false,
+                        },
+                      ];
+                    });
+                  }}
+                  className="px-2 py-0.5 text-[10px] font-mono rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition-colors cursor-pointer"
+                >
+                  {sKey}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Input drafts form */}
+          <div className="mt-3 space-y-3">
           {drafts.map((draft, idx) => {
             const keyValidation = draft.key ? validateKeyName(draft.key) : { isValid: true };
             return (
@@ -433,7 +474,8 @@ export function MaskedCredentialInputCard({
             </Button>
           </div>
         </div>
-      )}
-    </div>
-  );
+      </>
+    )}
+  </div>
+);
 }

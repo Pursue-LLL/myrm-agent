@@ -198,6 +198,24 @@ async def resolve_approval(
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
 
+    if normalized_decision == "deny" and req.ephemeral_credential_handles:
+        try:
+            from myrm_agent_harness.core.security.ephemeral_credentials import (
+                get_ephemeral_credential_store,
+            )
+
+            store = get_ephemeral_credential_store()
+            session_id = record.chat_id or "default"
+            wiped = store.wipe_handles(session_id, req.ephemeral_credential_handles)
+            logger.info(
+                "[APPROVAL_ROUTER] Wiped %d ephemeral credential handles upon denial for approval %s (session %s)",
+                wiped,
+                approval_id,
+                session_id,
+            )
+        except Exception as e:
+            logger.warning("[APPROVAL_ROUTER] Failed to wipe handles on denial: %s", e)
+
     if record.action_type == "outbound_draft":
         await _handle_outbound_draft_resolution(record, normalized_decision)
         return ApprovalRecordResponse.from_orm(record)

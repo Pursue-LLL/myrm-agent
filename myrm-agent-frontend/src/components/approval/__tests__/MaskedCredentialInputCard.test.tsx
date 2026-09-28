@@ -120,4 +120,40 @@ describe('MaskedCredentialInputCard', () => {
     expect(handleStagedChange).toHaveBeenCalledWith([]);
     expect(screen.getByPlaceholderText('API_SECRET_KEY')).toBeDefined();
   });
+
+  it('prefills single suggested key and renders clickable chips for multiple suggested keys', () => {
+    // 1. Single suggested key prefilled
+    const { unmount } = render(
+      <MaskedCredentialInputCard
+        approvalId="app_test_1"
+        stagedHandles={[]}
+        onStagedChange={vi.fn()}
+        suggestedKeys={['PGPASSWORD']}
+      />,
+    );
+
+    const keyInput = screen.getByPlaceholderText('API_SECRET_KEY') as HTMLInputElement;
+    expect(keyInput.value).toBe('PGPASSWORD');
+    unmount();
+
+    // 2. Multiple suggested keys render chips and click to fill
+    render(
+      <MaskedCredentialInputCard
+        approvalId="app_test_2"
+        stagedHandles={[]}
+        onStagedChange={vi.fn()}
+        suggestedKeys={['DB_HOST_PASSWORD', 'AWS_SECRET_ACCESS_KEY']}
+      />,
+    );
+
+    expect(screen.getByText('Suggested:')).toBeDefined();
+    expect(screen.getByText('DB_HOST_PASSWORD')).toBeDefined();
+    const awsChip = screen.getByText('AWS_SECRET_ACCESS_KEY');
+    expect(awsChip).toBeDefined();
+
+    // Clicking the chip should add or populate key
+    fireEvent.click(awsChip);
+    const inputs = screen.getAllByPlaceholderText('API_SECRET_KEY') as HTMLInputElement[];
+    expect(inputs.some((input) => input.value === 'AWS_SECRET_ACCESS_KEY')).toBe(true);
+  });
 });

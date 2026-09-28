@@ -279,7 +279,16 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     }
     return '';
   });
-  const [showCredentialCard, setShowCredentialCard] = useState(false);
+  const requiredCredentials = useMemo(() => {
+    const rc = approval.payload?.required_credentials;
+    if (Array.isArray(rc) && rc.length > 0) {
+      return rc.filter((k): k is string => typeof k === 'string' && k.trim().length > 0);
+    }
+    return undefined;
+  }, [approval.payload?.required_credentials]);
+  const [showCredentialCard, setShowCredentialCard] = useState<boolean>(
+    () => Boolean(requiredCredentials && requiredCredentials.length > 0)
+  );
   const [stagedCredentialHandles, setStagedCredentialHandles] = useState<string[]>([]);
   const { resolvedTheme } = useTheme();
 
@@ -1250,6 +1259,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
               approvalId={approval.approval_id}
               stagedHandles={stagedCredentialHandles}
               onStagedChange={setStagedCredentialHandles}
+              suggestedKeys={requiredCredentials}
               disabled={isSubmitting}
             />
           </div>

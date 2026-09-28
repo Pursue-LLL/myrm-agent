@@ -93,3 +93,55 @@ async def test_stage_credentials_success_and_resolve(client) -> None:
     bus.publish.assert_called_once()
     event = bus.publish.call_args.args[0]
     assert event.data["ephemeral_credential_handles"] == [handle]
+
+
+@pytest.mark.asyncio
+async def test_deny_approval_wipes_ephemeral_credentials(client) -> None:
+    from myrm_agent_harness.core.security.ephemeral_credentials import (
+        get_ephemeral_credential_store,
+    )
+
+    from app.services.approvals.registry import ApprovalRegistry
+
+    record = await ApprovalRegistry.create_approval(
+        agent_id="agent-deny-test",
+        action_type="shell_execution",
+        reason="Run database query",
+        severity="high",
+        payload={"command": "psql -h localhost"},
+        chat_id="session_deny_test",
+        thread_id="thread_deny_test",
+    )
+
+    stage_resp = client.post(
+        f"/api/v1/approvals/{record.id}/credentials",
+        json={
+            "credentials": [
+                {
+                    "key": "PGPASSWORD",
+                    "secret": "my_pass_123",
+                    "ttl_seconds": 60.0,
+                    "single_use": True,
+                }
+            ]
+        },
+    )
+    assert stage_resp.status_code == 201
+    handle = stage_resp.json()["staged"][0]["handle_id"]
+
+    store = get_ephemeral_credential_store()
+    assert len(store.list_summaries("session_deny_test")) == 1
+
+    # Deny the approval passing the handle
+    resolve_resp = client.post(
+        f"/api/v1/approvals/{record.id}/resolve",
+        json={
+            "decision": "deny",
+            "ephemeral_credential_handles": [handle],
+        },
+    )
+    assert resolve_resp.status_code == 200
+
+    # Credential must be immediately wiped from store
+    assert store.list_summaries("session_deny_test") == []
+
