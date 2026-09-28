@@ -645,18 +645,45 @@ def _try_acquire_converge_lock() -> bool:
             return False
 
 
+def _repair_additive_plane_services() -> None:
+    """Start-only repair of the plane's additive components.
+
+    Safe while lanes are running: ``_start_mux_daemon_if_needed`` starts at most one
+    daemon and never touches an existing one, and ``ensure-browser-orchestrator.sh`` is
+    fail-closed with ownership receipts (it refuses to kill any daemon that owns a live
+    context or operation). Neither step applies pending drift, reaps, or restarts.
+    """
+    _start_mux_daemon_if_needed()
+    ensure_script = (
+        _resolve_monorepo_root() / "scripts" / "dev" / "ensure-browser-orchestrator.sh"
+    )
+    if not ensure_script.is_file():
+        return
+    try:
+        subprocess.run(
+            ["bash", str(ensure_script)],
+            capture_output=True,
+            check=False,
+            timeout=20.0,
+            env={**os.environ, "MYRM_BROWSER_ORCHESTRATOR": "1"},
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return
+
+
 def converge_plane_if_idle() -> ConvergeReceipt:
-    """Idle-only plane reset: reap → drift apply → mux → orchestrator."""
+    """Plane reset: reap → drift apply → mux → orchestrator.
+
+    Full reset (drift apply + reap) only runs when no lane is active. While lanes are
+    active it degrades to additive repair instead of skipping: the plane could not
+    recover at all under load, so one lane's transient hiccup outlived every peer and
+    forced a manual restart (the failure the product contract forbids). Additive repair
+    cannot disturb a running lane, and destructive repair still waits for idle.
+    """
     started = time.monotonic()
     wave_leases = _wave_active_leases()
     cluster_active = _cluster_active_sessions()
-    if wave_leases > 0 or cluster_active > 0:
-        return ConvergeReceipt(
-            ok=False,
-            action="skipped",
-            detail=f"active wave_leases={wave_leases} cluster={cluster_active}",
-            elapsed_sec=time.monotonic() - started,
-        )
+    under_load = wave_leases > 0 or cluster_active > 0
 
     if not _try_acquire_converge_lock():
         return ConvergeReceipt(
@@ -668,6 +695,18 @@ def converge_plane_if_idle() -> ConvergeReceipt:
 
     lock_dir = _converge_lock_dir()
     try:
+        if under_load:
+            _repair_additive_plane_services()
+            snap = plane_health_snapshot()
+            ok = snap.state is PlaneHealthState.OBSERVABLE
+            return ConvergeReceipt(
+                ok=ok,
+                action="additive_repaired" if ok else "additive_partial",
+                detail=f"under_load wave_leases={wave_leases} cluster={cluster_active}; "
+                f"{snap.agent_rule}",
+                elapsed_sec=time.monotonic() - started,
+            )
+
         reap_stale_plane_artifacts()
         root = _resolve_monorepo_root()
         state_dir = _state_dir()
@@ -692,16 +731,7 @@ def converge_plane_if_idle() -> ConvergeReceipt:
         except ImportError:
             pass
 
-        _start_mux_daemon_if_needed()
-        ensure_script = root / "scripts" / "dev" / "ensure-browser-orchestrator.sh"
-        if ensure_script.is_file():
-            subprocess.run(
-                ["bash", str(ensure_script)],
-                capture_output=True,
-                check=False,
-                timeout=20.0,
-                env={**os.environ, "MYRM_BROWSER_ORCHESTRATOR": "1"},
-            )
+        _repair_additive_plane_services()
 
         snap = plane_health_snapshot()
         ok = snap.state is PlaneHealthState.OBSERVABLE
