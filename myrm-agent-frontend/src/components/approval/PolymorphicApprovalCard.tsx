@@ -56,7 +56,7 @@ import ApprovalScopeNoteLine from '@/components/approval/ApprovalScopeNoteLine';
 import CompactFileWriteApprovalRow from '@/components/approval/CompactFileWriteApprovalRow';
 import SaveSkillApprovalPreview from '@/components/approval/SaveSkillApprovalPreview';
 import { isSaveSkillApproval } from '@/lib/approval/saveSkillApproval';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, ShieldAlert } from 'lucide-react';
 import {
   extractShellCommand,
   getShellEditInputEntries,
@@ -584,6 +584,40 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                         </div>
                       )}
                       <ApprovalScopeNoteLine toolName={call.name} toolInput={args} tHumanize={tHumanize} />
+                      {Array.isArray(args.escalations) && args.escalations.length > 0 && (
+                        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 dark:bg-amber-950/20 p-3 space-y-2">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                            <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                            <span>检测到敏感能力边界申请</span>
+                          </div>
+                          <div className="space-y-1.5 pl-6">
+                            {(args.escalations as Array<{ command?: string; base_cmd?: string; reason?: string; details?: string }>).map((esc, escIdx) => {
+                              const reasonKey = esc.reason || '';
+                              const labelMap: Record<string, string> = {
+                                symlink_creation: '创建符号链接 (Symlink)',
+                                network_egress: '外部网络连接 (Network Egress)',
+                                privilege_escalation: '系统提权操作 (Privilege Escalation)',
+                                permission_alteration: '修改文件权限 (Permission Change)',
+                                process_termination: '终止系统进程 (Process Termination)',
+                                system_administration: '系统管理与服务操作 (System Admin)',
+                                filesystem_destruction: '高危文件系统格式化 (Filesystem Modification)',
+                                raw_disk_write: '裸磁盘底层写入 (Raw Disk Write)',
+                                system_file_write: '系统敏感文件写入 (System File Write)',
+                              };
+                              return (
+                                <div key={escIdx} className="flex flex-wrap items-center gap-2 text-xs text-foreground/90">
+                                  <span className="font-medium text-amber-800 dark:text-amber-300">
+                                    {labelMap[reasonKey] || reasonKey || '能力越界'}:
+                                  </span>
+                                  <code className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] border border-border/40">
+                                    {esc.command || esc.base_cmd}
+                                  </code>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                       <ShellCommandDisplay
                         toolName={call.name}
                         command={command}

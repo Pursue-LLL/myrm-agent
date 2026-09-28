@@ -13,6 +13,7 @@ Server migration layer only. Shared by load_codex and workspace_bind_candidates.
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from pathlib import Path
 
 _OBSIDIAN_SETTING_KEY_HINTS = (
@@ -125,7 +126,7 @@ def _scan_nearby_obsidian_vaults(root: Path) -> list[str]:
     return paths
 
 
-def _existing_directory_paths(raw_paths: list[Path | str]) -> list[str]:
+def _existing_directory_paths(raw_paths: Sequence[Path | str]) -> list[str]:
     existing: list[str] = []
     for raw in raw_paths:
         path = Path(str(raw)).expanduser()

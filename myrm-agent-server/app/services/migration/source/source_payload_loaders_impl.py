@@ -93,7 +93,10 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
             pool_data = auth_data.get("credential_pool") or auth_data.get("credential_pools")
             if isinstance(pool_data, dict):
                 result["credential_pool"] = pool_data
-                existing_env_keys: list[dict[str, str]] = list(result.get("env_keys") or [])  # type: ignore[arg-type]
+                raw_env_keys = result.get("env_keys")
+                existing_env_keys: list[dict[str, str]] = [
+                    item for item in raw_env_keys if isinstance(item, dict)
+                ] if isinstance(raw_env_keys, list) else []
                 existing_names = {k.get("name") for k in existing_env_keys if isinstance(k, dict)}
                 for prov in pool_data:
                     norm = str(prov).strip().upper()

@@ -253,7 +253,7 @@ class SessionMigrationService:
                             role=role,
                             content=str(t.get("content", "")),
                             thinking_trace=str(t.get("thinking_trace")) if t.get("thinking_trace") else None,
-                            timestamp=float(t.get("timestamp") or 0.0),
+                            timestamp=_safe_float(t.get("timestamp")),
                             source_event_type=str(t.get("source_event_type", "")),
                         )
                     )
@@ -263,8 +263,32 @@ class SessionMigrationService:
             title=str(raw.get("title", "Imported Session")),
             turns=turns,
             source_platform=str(raw.get("source_platform", "external")),
-            created_at=float(raw.get("created_at") or 0.0),
-            updated_at=float(raw.get("updated_at") or 0.0),
+            created_at=_safe_float(raw.get("created_at")),
+            updated_at=_safe_float(raw.get("updated_at")),
             detected_workspace_hint=str(raw.get("detected_workspace_hint")) if raw.get("detected_workspace_hint") else None,
-            total_tool_calls=int(raw.get("total_tool_calls") or 0),
+            total_tool_calls=_safe_int(raw.get("total_tool_calls")),
         )
+
+
+def _safe_float(val: object, default: float = 0.0) -> float:
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
+        try:
+            return float(val)
+        except ValueError:
+            return default
+    return default
+
+
+def _safe_int(val: object, default: int = 0) -> int:
+    if isinstance(val, int):
+        return val
+    if isinstance(val, float):
+        return int(val)
+    if isinstance(val, str):
+        try:
+            return int(val)
+        except ValueError:
+            return default
+    return default
