@@ -180,4 +180,87 @@ describe('SSHVaultPanel', () => {
       expect(screen.getByText('bg_tok_test_nonce_9999')).toBeInTheDocument();
     });
   });
+
+  it('renders offline status when host probe indicates unreachable', async () => {
+    mockProbeSSHHost.mockResolvedValueOnce({
+      host_alias: 'prod-cluster-01',
+      is_reachable: false,
+      latency_ms: 0,
+      error_message: 'Connection timed out',
+    } as SSHProbeResult);
+
+    render(<SSHVaultPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('prod-cluster-01')).toBeInTheDocument();
+    });
+
+    const probeButtons = screen.getAllByRole('button', { name: /测试连接/i });
+    fireEvent.click(probeButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Offline/i)).toBeInTheDocument();
+    });
+  });
+
+  it('displays custom config_source path in header', async () => {
+    mockGetSSHVaultSummary.mockResolvedValueOnce({
+      total_hosts: 1,
+      config_source: '/etc/ssh/ssh_config.d/custom.conf',
+      hosts: [
+        {
+          host_alias: 'custom-node',
+          hostname: '10.10.10.1',
+          user: 'ops',
+          port: 22,
+          is_read_only: true,
+          environment_tier: 'staging',
+          require_confirm_on_write: true,
+          source: 'custom',
+        },
+      ],
+    });
+
+    render(<SSHVaultPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/\/etc\/ssh\/ssh_config\.d\/custom\.conf/i)).toBeInTheDocument();
+    });
+  });
+
+  it('renders empty hosts message when summary returns no hosts', async () => {
+    mockGetSSHVaultSummary.mockResolvedValueOnce({
+      total_hosts: 0,
+      hosts: [],
+      config_source: '~/.ssh/config',
+    });
+
+    render(<SSHVaultPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/未发现已配置的 SSH 主机/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows error toast when probe fails with network exception', async () => {
+    mockProbeSSHHost.mockRejectedValueOnce(new Error('Network error 500'));
+
+    render(<SSHVaultPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('prod-cluster-01')).toBeInTheDocument();
+    });
+
+    const probeButtons = screen.getAllByRole('button', { name: /测试连接/i });
+    fireEvent.click(probeButtons[0]);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variant: 'destructive',
+          title: expect.stringContaining('Network error 500'),
+        }),
+      );
+    });
+  });
 });

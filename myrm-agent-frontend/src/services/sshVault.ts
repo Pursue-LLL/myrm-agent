@@ -27,12 +27,14 @@ export interface SSHHostConfig {
 export interface SSHAssetSummary {
   hosts: SSHHostConfig[];
   total_hosts: number;
+  config_source?: string;
   config_path?: string;
 }
 
 export interface SSHProbeResult {
   host_alias: string;
-  reachable: boolean;
+  is_reachable: boolean;
+  reachable?: boolean;
   latency_ms: number;
   error_message?: string;
 }

@@ -63,8 +63,8 @@ class HostPolicyUpdate(BaseModel):
 @router.get("/summary", response_model=SSHAssetSummary)
 async def get_ssh_assets_summary() -> SSHAssetSummary:
     """Retrieve summary of all discovered SSH host configurations."""
-    service = get_ssh_asset_service()
     try:
+        service = get_ssh_asset_service()
         return service.get_summary()
     except Exception as e:
         logger.error("Failed to load SSH summary: %s", e)
@@ -77,8 +77,8 @@ async def probe_ssh_host(
     timeout: Optional[float] = Query(default=3.0, ge=0.5, le=10.0),
 ) -> SSHProbeResult:
     """Probe network connectivity to a specific SSH host."""
-    service = get_ssh_asset_service()
     try:
+        service = get_ssh_asset_service()
         return await service.probe_host(host_alias, timeout_seconds=timeout or 3.0)
     except Exception as e:
         logger.error("Failed to probe host %s: %s", host_alias, e)
@@ -88,8 +88,8 @@ async def probe_ssh_host(
 @router.post("/execute", response_model=SSHCommandResult)
 async def execute_ssh_command(payload: SSHCommandPayload) -> SSHCommandResult:
     """Execute a remote shell command with read-only and break-glass gates."""
-    service = get_ssh_asset_service()
     try:
+        service = get_ssh_asset_service()
         return await service.execute_remote_command(
             host_alias=payload.host_alias,
             command=payload.command,

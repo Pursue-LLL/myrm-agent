@@ -169,7 +169,7 @@ export function SSHVaultPanel() {
             )}
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {t('source')}: {summary?.config_path || '~/.ssh/config'}
+            {t('source')}: {summary?.config_source || summary?.config_path || '~/.ssh/config'}
           </p>
         </div>
         <Button size="sm" variant="ghost" onClick={loadSummary} disabled={isLoading} className="gap-1.5 text-xs">
@@ -225,25 +225,30 @@ export function SSHVaultPanel() {
                       </Badge>
                     )}
 
-                    {probe && (
-                      <span
-                        className={`text-xs flex items-center gap-1 font-mono ${
-                          probe.reachable ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
-                        }`}
-                      >
-                        {probe.reachable ? (
-                          <>
-                            <CheckCircle className="h-3.5 w-3.5" />
-                            {probe.latency_ms.toFixed(1)}ms
-                          </>
-                        ) : (
-                          <>
-                            <WarningCircle className="h-3.5 w-3.5" />
-                            Offline
-                          </>
-                        )}
-                      </span>
-                    )}
+                    {probe && (() => {
+                      const isOnline = probe.is_reachable ?? probe.reachable;
+                      return (
+                        <span
+                          className={`text-xs flex items-center gap-1 font-mono ${
+                            isOnline ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
+                          }`}
+                        >
+                          {isOnline ? (
+                            <>
+                              <CheckCircle className="h-3.5 w-3.5" />
+                              {probe.latency_ms !== undefined && probe.latency_ms !== null
+                                ? `${probe.latency_ms.toFixed(1)}ms`
+                                : 'Online'}
+                            </>
+                          ) : (
+                            <>
+                              <WarningCircle className="h-3.5 w-3.5" />
+                              Offline
+                            </>
+                          )}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   <div className="text-xs text-muted-foreground font-mono">
