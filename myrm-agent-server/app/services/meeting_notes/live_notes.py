@@ -91,6 +91,10 @@ class LiveNotesSession:
 
     # -- state -------------------------------------------------------------
     @property
+    def started_at(self) -> float:
+        return self._started_at
+
+    @property
     def line_count(self) -> int:
         return len(self._lines)
 
@@ -130,26 +134,39 @@ class LiveNotesSession:
     async def refresh(self, llm: object) -> LiveNotesSnapshot:
         """Force a rolling distillation over the transcript and return the snapshot."""
         async with self._lock:
-            transcript = self.render_transcript()
-            if transcript.strip():
-                self._notes = await distill_meeting_notes(transcript, llm)
-            self._last_refreshed_at = float(self._clock())
-            self._chars_since_refresh = 0
-            return self.snapshot()
+            return await self._refresh_locked(llm)
 
     async def maybe_refresh(self, llm: object) -> LiveNotesSnapshot | None:
-        """Refresh only when due; returns a snapshot on refresh, otherwise None."""
-        if not self.should_refresh():
-            return None
-        return await self.refresh(llm)
+        """Refresh only when due; returns a snapshot on refresh, otherwise None.
+
+        The due-ness re-check happens under the lock so concurrent ingests for the
+        same session cannot trigger overlapping (and therefore redundant) LLM calls.
+        """
+        async with self._lock:
+            if not self.should_refresh():
+                return None
+            return await self._refresh_locked(llm)
+
+    async def _refresh_locked(self, llm: object) -> LiveNotesSnapshot:
+        transcript = self.render_transcript()
+        if transcript.strip():
+            self._notes = await distill_meeting_notes(transcript, llm)
+        self._last_refreshed_at = float(self._clock())
+        self._chars_since_refresh = 0
+        return self.snapshot()
 
 
 class LiveNotesRegistry:
-    """Process-local registry of live meeting sessions (single-machine product model)."""
+    """Process-local registry of live meeting sessions (single-machine product model).
 
-    def __init__(self) -> None:
+    Bounded to ``max_sessions``; when full, the oldest session (by start time) is
+    evicted so a caller that never finalizes cannot grow the process unboundedly.
+    """
+
+    def __init__(self, *, max_sessions: int = 64) -> None:
         self._sessions: dict[str, LiveNotesSession] = {}
         self._lock = asyncio.Lock()
+        self._max_sessions = max(1, max_sessions)
 
     async def get_or_create(
         self,
@@ -160,13 +177,17 @@ class LiveNotesRegistry:
     ) -> LiveNotesSession:
         async with self._lock:
             session = self._sessions.get(session_id)
-            if session is None:
-                session = LiveNotesSession(
-                    session_id,
-                    refresh_seconds=refresh_seconds,
-                    min_new_chars=min_new_chars,
-                )
-                self._sessions[session_id] = session
+            if session is not None:
+                return session
+            if len(self._sessions) >= self._max_sessions:
+                oldest_id = min(self._sessions, key=lambda sid: self._sessions[sid].started_at)
+                self._sessions.pop(oldest_id, None)
+            session = LiveNotesSession(
+                session_id,
+                refresh_seconds=refresh_seconds,
+                min_new_chars=min_new_chars,
+            )
+            self._sessions[session_id] = session
             return session
 
     async def get(self, session_id: str) -> LiveNotesSession | None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 from pathlib import Path
@@ -27,6 +28,7 @@ class _FakeLLM:
 
     async def ainvoke(self, _prompt: str) -> _FakeResponse:
         self.calls += 1
+        await asyncio.sleep(0)
         return _FakeResponse(
             json.dumps(
                 {
@@ -98,3 +100,23 @@ async def test_registry_get_or_create_get_drop() -> None:
     assert await registry.get("meeting-1") is session
     await registry.drop("meeting-1")
     assert await registry.get("meeting-1") is None
+
+
+async def test_concurrent_maybe_refresh_is_single_flight() -> None:
+    clock = _Clock()
+    session = LiveNotesSession("s1", refresh_seconds=120, min_new_chars=1, clock=clock)
+    llm = _FakeLLM()
+    session.ingest("line one")
+    results = await asyncio.gather(session.maybe_refresh(llm), session.maybe_refresh(llm))
+    assert llm.calls == 1
+    assert sum(1 for result in results if result is not None) == 1
+
+
+async def test_registry_evicts_oldest_when_bounded() -> None:
+    registry = LiveNotesRegistry(max_sessions=2)
+    await registry.get_or_create("a")
+    await registry.get_or_create("b")
+    await registry.get_or_create("c")
+    assert await registry.get("a") is None
+    assert await registry.get("b") is not None
+    assert await registry.get("c") is not None
