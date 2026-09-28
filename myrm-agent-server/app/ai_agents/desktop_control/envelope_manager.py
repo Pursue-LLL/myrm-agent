@@ -202,7 +202,7 @@ class DesktopEnvelopeManager:
 
         await sink.emit(
             {
-                "type": AgentEventType.CUSTOM_EVENT,
+                "type": AgentEventType.DESKTOP_ENVELOPE_PROGRESS,
                 "data": {
                     "event_name": "desktop_envelope_progress",
                     "task_id": envelope.task_id,

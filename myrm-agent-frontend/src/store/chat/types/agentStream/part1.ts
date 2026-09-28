@@ -83,6 +83,7 @@ export const AgentEventType = {
   BROWSER_VIEW_UPDATE: 'browser_view_update',
   DESKTOP_VIEW_UPDATE: 'desktop_view_update',
   DESKTOP_CONTROL_APPROVAL_REQUEST: 'desktop_control_approval_request',
+  DESKTOP_ENVELOPE_PROGRESS: 'desktop_envelope_progress',
   PTC_NOTIFY: 'ptc_notify',
   TOOL_PROGRESS: 'tool_progress',
   FISSION_TOPOLOGY: 'fission_topology',

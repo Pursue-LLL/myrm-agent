@@ -244,3 +244,39 @@ def test_direct_resolve_idempotent_after_pop() -> None:
     request_id, only_once = asyncio.run(_run())
     assert request_id
     assert only_once is True
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_pause_desktop_envelope_via_router(client: httpx.AsyncClient) -> None:
+    from myrm_agent_harness.toolkits.computer_use.envelope import IntentEnvelopeSpec
+
+    gate = DesktopControlGate(workspace_root=None, auto_grant=False, register_live=True)
+    gate.envelope_manager.register_envelope(
+        IntentEnvelopeSpec(
+            task_id="pause_test_task",
+            allowed_app_names=("TextEdit",),
+            max_actions=10,
+        )
+    )
+
+    # 1. Verify status is active
+    status_resp = await client.get("/webui/desktop/envelope/status?task_id=pause_test_task")
+    assert status_resp.status_code == 200
+    assert status_resp.json()["active"] is True
+    assert status_resp.json()["remaining_budget"] == 10
+
+    # 2. Emergency pause
+    pause_resp = await client.post(
+        "/webui/desktop/envelope/pause",
+        json={"task_id": "pause_test_task"},
+    )
+    assert pause_resp.status_code == 200
+    assert pause_resp.json()["ok"] is True
+    assert pause_resp.json()["paused"] is True
+
+    # 3. Verify status is now inactive
+    status_resp2 = await client.get("/webui/desktop/envelope/status?task_id=pause_test_task")
+    assert status_resp2.status_code == 200
+    assert status_resp2.json()["active"] is False
+

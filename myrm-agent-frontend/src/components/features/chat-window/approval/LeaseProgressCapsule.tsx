@@ -14,21 +14,25 @@
  * one-click lease extension when nearing budget depletion.
  */
 
-import React from 'react';
-import { Clock, Plus, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Clock, Plus, AlertTriangle, CheckCircle2, Pause } from 'lucide-react';
+import { apiRequest } from '@/lib/api';
 import useDesktopControlApprovalStore from '@/store/useDesktopControlApprovalStore';
 
 export interface LeaseProgressCapsuleProps {
   onExtend?: (additionalSteps: number) => void;
+  onPause?: () => void;
   className?: string;
 }
 
 export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({
   onExtend,
+  onPause,
   className = '',
 }) => {
-  const [isExtending, setIsExtending] = React.useState(false);
-  const { activeEnvelope, extendEnvelopeLease } = useDesktopControlApprovalStore();
+  const [isExtending, setIsExtending] = useState(false);
+  const [isPausing, setIsPausing] = useState(false);
+  const { activeEnvelope, extendEnvelopeLease, setEnvelope } = useDesktopControlApprovalStore();
 
   if (!activeEnvelope || activeEnvelope.status === 'completed') {
     return null;
@@ -46,6 +50,23 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({
     extendEnvelopeLease(steps);
     onExtend?.(steps);
     setTimeout(() => setIsExtending(false), 300);
+  };
+
+  const handlePause = async () => {
+    if (isPausing) return;
+    setIsPausing(true);
+    try {
+      await apiRequest('/webui/desktop/envelope/pause', {
+        method: 'POST',
+        body: JSON.stringify({ task_id: activeEnvelope.taskId }),
+      });
+    } catch {
+      // Best-effort pause request
+    } finally {
+      setEnvelope(null);
+      onPause?.();
+      setIsPausing(false);
+    }
   };
 
   return (
@@ -68,26 +89,39 @@ export const LeaseProgressCapsule: React.FC<LeaseProgressCapsuleProps> = ({
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
         )}
         <span>
-          配额: {usedActions}/{maxActions} 步
+          免打扰配额: {usedActions}/{maxActions} 步
         </span>
       </div>
 
-      {(isNearLimit || isExhausted) && (
+      <div className="flex items-center gap-1">
+        {(isNearLimit || isExhausted) && (
+          <button
+            type="button"
+            data-testid="extend-lease-btn"
+            disabled={!canExtend || isExtending}
+            onClick={() => handleExtend(10)}
+            className={`inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all ${
+              !canExtend
+                ? 'border-border/40 bg-muted/40 text-muted-foreground/50 cursor-not-allowed'
+                : 'border-current/30 bg-background/80 text-foreground hover:bg-background hover:scale-105 active:scale-95'
+            }`}
+          >
+            <Plus className="h-3 w-3" />
+            {canExtend ? '+10 步续期' : '已达上限'}
+          </button>
+        )}
         <button
           type="button"
-          data-testid="extend-lease-btn"
-          disabled={!canExtend || isExtending}
-          onClick={() => handleExtend(10)}
-          className={`inline-flex items-center gap-0.5 rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all ${
-            !canExtend
-              ? 'border-border/40 bg-muted/40 text-muted-foreground/50 cursor-not-allowed'
-              : 'border-current/30 bg-background/80 text-foreground hover:bg-background hover:scale-105 active:scale-95'
-          }`}
+          data-testid="pause-lease-btn"
+          disabled={isPausing}
+          onClick={() => void handlePause()}
+          className="inline-flex items-center gap-1 rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive hover:bg-destructive/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+          title="紧急暂停免打扰包络"
         >
-          <Plus className="h-3 w-3" />
-          {canExtend ? '+10 步续期' : '已达上限'}
+          <Pause className="h-3 w-3" />
+          暂停
         </button>
-      )}
+      </div>
     </div>
   );
 };

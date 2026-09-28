@@ -332,3 +332,26 @@ async def test_gate_envelope_task_id_isolation(tmp_path: pytest.TempPathFactory)
     assert spec2.used_actions == 1
 
 
+@pytest.mark.asyncio
+async def test_envelope_manager_emit_progress_payload() -> None:
+    from myrm_agent_harness.core.events.types import AgentEventType
+
+    mgr = DesktopEnvelopeManager()
+    spec = IntentEnvelopeSpec(task_id="t_emit", allowed_app_names=("TextEdit",), max_actions=10, used_actions=3)
+    mgr.register_envelope(spec)
+
+    mock_sink = AsyncMock()
+    with patch("app.ai_agents.desktop_control.envelope_manager.get_tool_progress_sink", return_value=mock_sink):
+        await mgr.emit_progress(task_id="t_emit")
+        assert mock_sink.emit.called
+        event = mock_sink.emit.call_args[0][0]
+        assert event["type"] == AgentEventType.DESKTOP_ENVELOPE_PROGRESS
+        data = event["data"]
+        assert data["task_id"] == "t_emit"
+        assert data["used_actions"] == 3
+        assert data["max_actions"] == 10
+        assert data["remaining_budget"] == 7
+        assert data["can_extend"] is True
+
+
+

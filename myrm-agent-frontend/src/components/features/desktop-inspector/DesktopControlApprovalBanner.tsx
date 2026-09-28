@@ -69,12 +69,25 @@ const DesktopControlApprovalBanner: React.FC = () => {
         // Keep the card mounted on the denied confirmation view; dismiss clears it.
         markDenied();
       } else {
+        if (scope === 'envelope') {
+          useDesktopControlApprovalStore.getState().setEnvelope({
+            taskId: requestId,
+            allowedApps: appName ? [appName] : [],
+            maxActions: 30,
+            usedActions: 0,
+            remainingBudget: 30,
+            allowSystemDialogs: true,
+            status: 'active',
+            canExtend: true,
+            hardLimit: 100,
+          });
+        }
         clear();
       }
       setDenyReason('');
       setSubmitting(false);
     },
-    [requestId, submitting, denyReason, clear, markExpired, markDenied],
+    [requestId, submitting, denyReason, appName, clear, markExpired, markDenied],
   );
 
   if (!pending) {

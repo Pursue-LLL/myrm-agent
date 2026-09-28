@@ -263,6 +263,29 @@ export async function fileDiffEvents(ctx: StreamCtx): Promise<StreamTurn | null>
     return done(ctx);
   }
 
+  if (data.type === H.AgentEventType.DESKTOP_ENVELOPE_PROGRESS) {
+    const { default: useDesktopControlApprovalStore } = await import('@/store/useDesktopControlApprovalStore');
+    const store = useDesktopControlApprovalStore.getState();
+    const eventData = data.data as {
+      task_id?: string;
+      used_actions?: number;
+      max_actions?: number;
+      remaining_budget?: number;
+      can_extend?: boolean;
+      hard_limit?: number;
+    } | undefined;
+    if (eventData) {
+      store.updateEnvelopeProgress({
+        used: Number(eventData.used_actions ?? 0),
+        max: Number(eventData.max_actions ?? 30),
+        remaining: Number(eventData.remaining_budget ?? 0),
+        canExtend: Boolean(eventData.can_extend ?? false),
+        hardLimit: Number(eventData.hard_limit ?? 100),
+      });
+    }
+    return done(ctx);
+  }
+
   if (data.type === H.AgentEventType.BROWSER_TAKEOVER_REQUESTED) {
     const { activateBrowserTakeover } = await import('@/store/useApprovalStore');
     const isManaged = Boolean(data.data.is_managed);
