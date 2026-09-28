@@ -32,6 +32,7 @@ from myrm_agent_harness.api import (
     RecordedActionType,
     WorkflowIntentPlan,
     WorkflowSkillCompiler,
+    cluster_and_debounce_events,
     is_secure_role,
     synthesize_desktop_skill_draft,
 )
@@ -205,7 +206,12 @@ async def analyze_desktop_plan(
     current_app = ""
     step_idx = 1
 
-    for ev in session.events:
+    # Debounce consecutive typing on the same input element and collapse redundant
+    # window focus transitions before semantic aggregation, preventing intermediate keystroke
+    # noise from fragmenting the workflow into redundant steps.
+    debounced_events = cluster_and_debounce_events(session.events)
+
+    for ev in debounced_events:
         app_name = ev.app_name or "System"
         variables_used: list[str] = []
         # Browser apps are driven through the browser toolkit; every other app is driven by

@@ -88,3 +88,69 @@ def test_desktop_recorder_lifecycle_and_plan_compile(client: TestClient) -> None
     assert "### 1. Switch to application Microsoft Excel" in md
     assert "### 2. Interact with Export Button in Microsoft Excel" in md
     assert "### 3. Input value into Search Input in Chrome Browser" in md
+
+
+def test_desktop_recorder_analyze_plan_typing_debounced(client: TestClient) -> None:
+    """Consecutive typing events on the same element must debounce into a single semantic plan step."""
+    session_id = "test-session-debounce-002"
+
+    start_resp = client.post(
+        "/api/v1/skills/desktop-recorder/start",
+        json={"session_id": session_id, "app_scope": "Chrome"},
+    )
+    assert start_resp.status_code == 200
+
+    # 1. Click field
+    client.post(
+        "/api/v1/skills/desktop-recorder/event",
+        json={
+            "session_id": session_id,
+            "seq": 1,
+            "action": "click",
+            "app_name": "Google Chrome",
+            "element_title": "Customer Name",
+        },
+    )
+    # 2. Typing snapshots simulating 500ms AX poll: "Z" -> "Zhang" -> "Zhang San"
+    for seq, val in enumerate(["Z", "Zhang", "Zhang San"], start=2):
+        client.post(
+            "/api/v1/skills/desktop-recorder/event",
+            json={
+                "session_id": session_id,
+                "seq": seq,
+                "action": "type",
+                "app_name": "Google Chrome",
+                "element_title": "Customer Name",
+                "value": val,
+            },
+        )
+    # 3. Submit click
+    client.post(
+        "/api/v1/skills/desktop-recorder/event",
+        json={
+            "session_id": session_id,
+            "seq": 5,
+            "action": "click",
+            "app_name": "Google Chrome",
+            "element_title": "Submit Button",
+        },
+    )
+
+    client.post("/api/v1/skills/desktop-recorder/stop", json={"session_id": session_id})
+
+    analyze_resp = client.post(
+        "/api/v1/skills/desktop-recorder/analyze-plan",
+        json={"session_id": session_id, "skill_name": "CRM Entry"},
+    )
+    assert analyze_resp.status_code == 200
+    plan = analyze_resp.json()["plan"]
+
+    # Exactly 3 steps: Click -> Debounced Type -> Click (NOT 5 steps)
+    assert len(plan["steps"]) == 3
+    assert plan["steps"][0]["title"] == "Interact with Customer Name in Google Chrome"
+    assert plan["steps"][1]["title"] == "Input value into Customer Name in Google Chrome"
+    assert plan["steps"][2]["title"] == "Interact with Submit Button in Google Chrome"
+
+    # Only 1 variable created for this field, not 3 redundant variables
+    assert len(plan["variables"]) == 1
+    assert "input_val_2" in plan["variables"]
