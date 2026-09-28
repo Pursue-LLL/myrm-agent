@@ -603,13 +603,15 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                                 filesystem_destruction: '高危文件系统格式化 (Filesystem Modification)',
                                 raw_disk_write: '裸磁盘底层写入 (Raw Disk Write)',
                                 system_file_write: '系统敏感文件写入 (System File Write)',
+                                git_destructive_action: 'Git 仓库破坏性重置/清理 (Git Destructive Action)',
+                                git_remote_sync: 'Git 远程分支同步/推送 (Git Remote Push)',
                               };
                               return (
                                 <div key={escIdx} className="flex flex-wrap items-center gap-2 text-xs text-foreground/90">
                                   <span className="font-medium text-amber-800 dark:text-amber-300">
                                     {labelMap[reasonKey] || reasonKey || '能力越界'}:
                                   </span>
-                                  <code className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] border border-border/40">
+                                  <code className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[11px] border border-border/40 break-all max-w-full">
                                     {esc.command || esc.base_cmd}
                                   </code>
                                 </div>
