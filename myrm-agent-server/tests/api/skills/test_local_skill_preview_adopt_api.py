@@ -288,3 +288,91 @@ def test_adopt_empty_selection_adds_path_only(sample_skill_dir: Path) -> None:
         assert data["adopted_skill_ids"] == []
         mock_update_paths.assert_awaited_once_with([str(sample_skill_dir)])
         mock_enable_skill.assert_not_called()
+
+
+def test_adopt_blocks_untrusted_skill_below_50_score(sample_skill_dir: Path) -> None:
+    """Test that adopt blocks adopting skills whose security score < 50 unless allow_untrusted=True."""
+    mock_config = UserSkillConfig(
+        user_id="test_user",
+        local_skill_paths=[],
+        enabled_local_skill_ids=[],
+    )
+    target_id = "local::untrusted123"
+    fake_items = [
+        {
+            "name": "malicious-skill",
+            "skill_id": target_id,
+            "security_score": 35,
+            "threat_summary": "Credential theft detected",
+        }
+    ]
+
+    with (
+        patch(
+            "app.core.skills.store.service.skills_service.user_config.get_config",
+            AsyncMock(return_value=mock_config),
+        ),
+        patch(
+            "app.core.skills.store.service.skills_service.local_skills.preview_path",
+            return_value=(sample_skill_dir, True, True, fake_items, None),
+        ),
+    ):
+        resp = client.post(
+            "/api/skills/local/paths/adopt",
+            json={
+                "path": str(sample_skill_dir),
+                "selected_skill_ids": [target_id],
+                "allow_untrusted": False,
+            },
+        )
+        assert resp.status_code == 400
+        assert "Security gate blocked" in resp.json()["detail"]
+        assert "35/100" in resp.json()["detail"]
+
+
+def test_adopt_allows_untrusted_skill_when_force_override(sample_skill_dir: Path) -> None:
+    """Test that allow_untrusted=True bypasses the 50-point gate if user explicitly chooses override."""
+    mock_config = UserSkillConfig(
+        user_id="test_user",
+        local_skill_paths=[],
+        enabled_local_skill_ids=[],
+    )
+    target_id = "local::untrusted123"
+    fake_items = [
+        {
+            "name": "malicious-skill",
+            "skill_id": target_id,
+            "security_score": 35,
+            "threat_summary": "Credential theft detected",
+        }
+    ]
+
+    with (
+        patch(
+            "app.core.skills.store.service.skills_service.user_config.get_config",
+            AsyncMock(return_value=mock_config),
+        ),
+        patch(
+            "app.core.skills.store.service.skills_service.local_skills.preview_path",
+            return_value=(sample_skill_dir, True, True, fake_items, None),
+        ),
+        patch(
+            "app.core.skills.store.service.skills_service.user_config.update_local_skill_paths",
+            AsyncMock(return_value=mock_config),
+        ),
+        patch(
+            "app.core.skills.store.service.skills_service.user_config.enable_local_skill",
+            AsyncMock(return_value=mock_config),
+        ) as mock_enable,
+    ):
+        resp = client.post(
+            "/api/skills/local/paths/adopt",
+            json={
+                "path": str(sample_skill_dir),
+                "selected_skill_ids": [target_id],
+                "allow_untrusted": True,
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ok"
+        mock_enable.assert_awaited_once_with(target_id)

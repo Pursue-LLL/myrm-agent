@@ -4174,7 +4174,14 @@
           "selectAll": "全选",
           "deselectAll": "全不选",
           "selectedCount": "已选择 {count} 个技能",
-          "tools": "依赖工具"
+          "tools": "依赖工具",
+          "securityScore": "安全分 {score}",
+          "securityBlocked": "门禁阻断",
+          "securityBlockedTooltip": "安全评分低于 50 分，已触发自动化合规门禁阻断，不可直接采纳",
+          "showFindings": "展开风险明细 ({count})",
+          "hideFindings": "收起风险明细",
+          "line": "第 {line} 行",
+          "threatLevel": "等级"
         }
       },
       "instances": {

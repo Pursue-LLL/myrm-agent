@@ -16361,7 +16361,14 @@
           "addPathOnly": "경로만 추가",
           "selectAll": "전체 선택",
           "deselectAll": "전체 선택 해제",
-          "selectedCount": "{count}개 스킬 선택됨"
+          "selectedCount": "{count}개 스킬 선택됨",
+          "securityScore": "보안 점수 {score}",
+          "securityBlocked": "차단됨",
+          "securityBlockedTooltip": "보안 점수가 50점 미만이므로 사전 보안 게이트에 의해 차단되어 직접 채택할 수 없습니다",
+          "showFindings": "위험 상세 보기 ({count})",
+          "hideFindings": "위험 상세 숨기기",
+          "line": "{line}번째 줄",
+          "threatLevel": "심각도"
         },
         "discoveredSkillsBadge": "{count}개 스킬",
         "pathNotFoundBadge": "경로를 찾을 수 없음",

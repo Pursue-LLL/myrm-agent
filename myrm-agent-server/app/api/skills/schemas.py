@@ -178,6 +178,8 @@ class LocalSkillPreviewItem(BaseModel):
     conflict_reason: str | None = None
     is_safe: bool = True
     threat_summary: str | None = None
+    security_score: int = 100
+    security: SecurityScanSummaryResponse | None = None
 
 
 class LocalSkillPathPreviewResponse(BaseModel):
@@ -197,6 +199,7 @@ class LocalSkillPathAdoptRequest(BaseModel):
     path: str
     selected_skill_ids: list[str] = []
     agent_id: str | None = None
+    allow_untrusted: bool = False
 
 
 class LocalSkillPathAdoptResponse(BaseModel):

@@ -16548,7 +16548,14 @@
           "addPathOnly": "パスのみ追加",
           "selectAll": "すべて選択",
           "deselectAll": "選択を全解除",
-          "selectedCount": "{count} 個のスキルを選択済み"
+          "selectedCount": "{count} 個のスキルを選択済み",
+          "securityScore": "セキュリティスコア {score}",
+          "securityBlocked": "ブロック",
+          "securityBlockedTooltip": "セキュリティスコアが50点未満のため、事前セキュリティゲートによりブロックされ、直接採用できません",
+          "showFindings": "リスク詳細を表示 ({count})",
+          "hideFindings": "リスク詳細を非表示",
+          "line": "{line} 行目",
+          "threatLevel": "重大度"
         },
         "discoveredSkillsBadge": "{count} 個のスキル",
         "pathNotFoundBadge": "パスが見つかりません",

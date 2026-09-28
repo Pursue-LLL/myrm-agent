@@ -16548,7 +16548,14 @@
           "addPathOnly": "僅添加路徑",
           "selectAll": "全選",
           "deselectAll": "全不選",
-          "selectedCount": "已選擇 {count} 個技能"
+          "selectedCount": "已選擇 {count} 個技能",
+          "securityScore": "安全分 {score}",
+          "securityBlocked": "門禁阻斷",
+          "securityBlockedTooltip": "安全評分低於 50 分，已觸發自動化合規門禁阻斷，不可直接採納",
+          "showFindings": "展開風險明細 ({count})",
+          "hideFindings": "收起風險明細",
+          "line": "第 {line} 行",
+          "threatLevel": "等級"
         },
         "discoveredSkillsBadge": "{count} 個技能",
         "pathNotFoundBadge": "路徑不存在",

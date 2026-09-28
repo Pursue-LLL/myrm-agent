@@ -249,6 +249,8 @@ export interface LocalSkillPreviewItem {
   conflict_reason: string | null;
   is_safe: boolean;
   threat_summary: string | null;
+  security_score?: number;
+  security?: SecurityScanSummary | null;
 }
 
 export interface LocalSkillPathPreviewResponse {

@@ -16361,7 +16361,14 @@
           "addPathOnly": "Nur Pfad hinzufügen",
           "selectAll": "Alle auswählen",
           "deselectAll": "Auswahl aufheben",
-          "selectedCount": "{count} Skill(s) ausgewählt"
+          "selectedCount": "{count} Skill(s) ausgewählt",
+          "securityScore": "Sicherheitsbewertung {score}",
+          "securityBlocked": "Blockiert",
+          "securityBlockedTooltip": "Die Sicherheitsbewertung liegt unter 50. Durch das Preflight-Sicherheits-Gate blockiert und kann nicht direkt übernommen werden.",
+          "showFindings": "Risikodetails anzeigen ({count})",
+          "hideFindings": "Risikodetails ausblenden",
+          "line": "Zeile {line}",
+          "threatLevel": "Schweregrad"
         },
         "discoveredSkillsBadge": "{count} Skills",
         "pathNotFoundBadge": "Pfad nicht gefunden",

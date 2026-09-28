@@ -4174,7 +4174,14 @@
           "selectAll": "Select All",
           "deselectAll": "Deselect All",
           "selectedCount": "Selected {count} skill(s)",
-          "tools": "Required Tools"
+          "tools": "Required Tools",
+          "securityScore": "Score {score}",
+          "securityBlocked": "Blocked",
+          "securityBlockedTooltip": "Security score is below 50. Blocked by preflight security gate and cannot be directly adopted.",
+          "showFindings": "View Risk Findings ({count})",
+          "hideFindings": "Hide Risk Findings",
+          "line": "Line {line}",
+          "threatLevel": "Severity"
         }
       },
       "instances": {

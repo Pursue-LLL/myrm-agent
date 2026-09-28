@@ -22,13 +22,27 @@ const mockTranslations: Record<string, string> = {
   'previewDialog.deselectAll': '全不选',
   'previewDialog.selectedCount': '已选择技能',
   'previewDialog.tools': '依赖工具',
+  'previewDialog.securityScore': '安全分',
+  'previewDialog.securityBlocked': '门禁阻断',
+  'previewDialog.securityBlockedTooltip': '安全评分低于 50 分，已触发自动化合规门禁阻断，不可直接采纳',
+  'previewDialog.showFindings': '展开风险明细',
+  'previewDialog.hideFindings': '收起风险明细',
+  'previewDialog.line': '第 {line} 行',
+  'previewDialog.threatLevel': '等级',
 };
 
-const stableT = (key: string, params?: { count?: number }) => {
+const stableT = (key: string, params?: Record<string, unknown>) => {
+  let val = mockTranslations[key] ?? key;
   if (params?.count !== undefined) {
-    return `${mockTranslations[key] ?? key} (${params.count})`;
+    val = `${val} (${params.count})`;
   }
-  return mockTranslations[key] ?? key;
+  if (params?.score !== undefined) {
+    val = `${val} ${params.score}`;
+  }
+  if (params?.line !== undefined) {
+    val = val.replace('{line}', String(params.line));
+  }
+  return val;
 };
 
 vi.mock('next-intl', () => ({
@@ -93,7 +107,6 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
         {
           name: 'super-search',
           description: 'A deep web search skill',
-
           author: null,
           version: '1.5.0',
           category: 'search',
@@ -105,11 +118,11 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
           conflict_reason: "Conflicts with existing prebuilt skill 'super-search'",
           is_safe: false,
           threat_summary: 'Potential command injection risk detected',
+          security_score: 40,
         },
         {
           name: 'markdown-formatter',
           description: 'Cleans up markdown formatting',
-
           author: null,
           version: '2.0.0',
           category: 'text',
@@ -121,6 +134,7 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
           conflict_reason: null,
           is_safe: true,
           threat_summary: null,
+          security_score: 95,
         },
       ],
       warning_message: 'Sample test warning',
@@ -139,27 +153,31 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
     expect(screen.getByText('/Users/developer/custom-skills')).toBeInTheDocument();
     expect(screen.getByText('Sample test warning')).toBeInTheDocument();
 
-    // Verify Skill 1 details
+    // Verify Skill 1 (Blocked: score 40 < 50)
     expect(screen.getAllByText('super-search').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('v1.5.0')).toBeInTheDocument();
     expect(screen.getByText('search')).toBeInTheDocument();
     expect(screen.getByText('同名冲突')).toBeInTheDocument();
     expect(screen.getByText("Conflicts with existing prebuilt skill 'super-search'")).toBeInTheDocument();
-    expect(screen.getByText('潜在安全风险')).toBeInTheDocument();
+    expect(screen.getByTestId('security-score-badge-blocked')).toBeInTheDocument();
+    expect(screen.getByTestId('security-blocked-notice')).toBeInTheDocument();
     expect(screen.getByText('curl')).toBeInTheDocument();
     expect(screen.getByText('jq')).toBeInTheDocument();
 
-    // Verify Skill 2 details
+    // Checkbox for blocked skill should be disabled
+    const blockedCheckbox = screen.getByTestId('preview-skill-checkbox-super-search');
+    expect(blockedCheckbox).toBeDisabled();
+
+    // Verify Skill 2 (Safe: score 95)
     expect(screen.getAllByText('markdown-formatter').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('v2.0.0')).toBeInTheDocument();
-    expect(screen.getByText('安全无风险')).toBeInTheDocument();
+    expect(screen.getByTestId('security-score-badge-safe')).toBeInTheDocument();
 
-    // Verify Adopt Action
+    // Verify Adopt Action: only markdown-formatter should be adopted
     const adoptBtn = screen.getByRole('button', { name: '确认采纳并保存路径' });
     expect(adoptBtn).not.toBeDisabled();
     fireEvent.click(adoptBtn);
     expect(onConfirmAdopt).toHaveBeenCalledTimes(1);
-    // Non-conflicted valid skill is selected by default
     expect(onConfirmAdopt).toHaveBeenCalledWith(['local::markdown67890']);
 
     // Verify Cancel Action
@@ -168,45 +186,61 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it('supports select all, deselect all, and add path only actions', () => {
+  it('supports select all (excluding blocked skills), deselect all, and add path only actions', () => {
     const onAddPathOnly = vi.fn();
     const previewWithSkills: LocalSkillPathPreviewResponse = {
       resolved_path: '/Users/developer/test-skills',
       exists: true,
       is_directory: true,
-      total_discovered: 2,
+      total_discovered: 3,
       skills: [
         {
-          name: 'skill-one',
-          description: 'First skill',
-
+          name: 'skill-safe',
+          description: 'Safe skill',
           author: null,
           version: '1.0.0',
           category: 'tool',
           tags: [],
           required_tools: [],
-          relative_path: 'skill-one',
-          skill_id: 'local::one111',
+          relative_path: 'skill-safe',
+          skill_id: 'local::safe111',
           is_conflicted: false,
           conflict_reason: null,
           is_safe: true,
           threat_summary: null,
+          security_score: 90,
         },
         {
-          name: 'skill-two',
-          description: 'Second skill',
-
+          name: 'skill-warn',
+          description: 'Moderate risk skill',
           author: null,
           version: '1.0.0',
           category: 'tool',
           tags: [],
           required_tools: [],
-          relative_path: 'skill-two',
-          skill_id: 'local::two222',
+          relative_path: 'skill-warn',
+          skill_id: 'local::warn222',
           is_conflicted: false,
           conflict_reason: null,
-          is_safe: true,
-          threat_summary: null,
+          is_safe: false,
+          threat_summary: 'Minor warning',
+          security_score: 65,
+        },
+        {
+          name: 'skill-blocked',
+          description: 'Dangerous skill blocked by gate',
+          author: null,
+          version: '1.0.0',
+          category: 'tool',
+          tags: [],
+          required_tools: [],
+          relative_path: 'skill-blocked',
+          skill_id: 'local::blocked333',
+          is_conflicted: false,
+          conflict_reason: null,
+          is_safe: false,
+          threat_summary: 'Critical vulnerability',
+          security_score: 30,
         },
       ],
       warning_message: null,
@@ -223,21 +257,101 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
       />,
     );
 
-    // Initial state: both selected
+    // Initial state: safe and warn selected, blocked excluded
+    const adoptBtn = screen.getByTestId('preview-adopt-confirm-btn');
+    expect(adoptBtn).not.toBeDisabled();
+
+    // Deselect all
     const toggleBtn = screen.getByTestId('preview-toggle-selection-btn');
     fireEvent.click(toggleBtn);
-
-    // After deselect all, adopt button should be disabled
-    const adoptBtn = screen.getByTestId('preview-adopt-confirm-btn');
     expect(adoptBtn).toBeDisabled();
 
-    // Select all
+    // Select all (should only select safe and warn, never blocked)
     fireEvent.click(toggleBtn);
     expect(adoptBtn).not.toBeDisabled();
+
+    fireEvent.click(adoptBtn);
+    expect(onConfirmAdopt).toHaveBeenCalledWith(['local::safe111', 'local::warn222']);
 
     // Add path only button
     const addPathOnlyBtn = screen.getByTestId('preview-adopt-add-path-only-btn');
     fireEvent.click(addPathOnlyBtn);
     expect(onAddPathOnly).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders findings details drawer and toggles expansion correctly', () => {
+    const previewWithFindings: LocalSkillPathPreviewResponse = {
+      resolved_path: '/Users/developer/findings-skills',
+      exists: true,
+      is_directory: true,
+      total_discovered: 1,
+      skills: [
+        {
+          name: 'audited-skill',
+          description: 'Skill with audit findings',
+          author: null,
+          version: '1.0.0',
+          category: 'ops',
+          tags: [],
+          required_tools: [],
+          relative_path: 'audited-skill',
+          skill_id: 'local::audit123',
+          is_conflicted: false,
+          conflict_reason: null,
+          is_safe: false,
+          threat_summary: 'Found sensitive patterns',
+          security_score: 45,
+          security: {
+            score: 45,
+            trust_recommendation: 'blocked',
+            total_findings: 2,
+            finding_counts: { command_injection: 1, hardcoded_secret: 1 },
+            findings: [
+              {
+                threat_type: 'command_injection',
+                severity: 'critical',
+                description: 'Detected raw shell execution via os.system',
+                line_number: 28,
+              },
+              {
+                threat_type: 'hardcoded_secret',
+                severity: 'high',
+                description: 'Exposed API token pattern in config',
+                line_number: 42,
+              },
+            ],
+          },
+        },
+      ],
+      warning_message: null,
+    };
+
+    render(
+      <LocalSkillPathScanPreviewBeforeAdoptDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        previewData={previewWithFindings}
+        isAdopting={false}
+        onConfirmAdopt={onConfirmAdopt}
+      />,
+    );
+
+    // Toggle button should be visible
+    const toggleFindingsBtn = screen.getByTestId('toggle-findings-btn');
+    expect(toggleFindingsBtn).toBeInTheDocument();
+    expect(screen.queryByTestId('findings-inspection-panel')).not.toBeInTheDocument();
+
+    // Click to expand
+    fireEvent.click(toggleFindingsBtn);
+    expect(screen.getByTestId('findings-inspection-panel')).toBeInTheDocument();
+    expect(screen.getByText('command_injection')).toBeInTheDocument();
+    expect(screen.getByText('Detected raw shell execution via os.system')).toBeInTheDocument();
+    expect(screen.getByText('第 28 行')).toBeInTheDocument();
+    expect(screen.getByText('hardcoded_secret')).toBeInTheDocument();
+    expect(screen.getByText('第 42 行')).toBeInTheDocument();
+
+    // Click to hide
+    fireEvent.click(toggleFindingsBtn);
+    expect(screen.queryByTestId('findings-inspection-panel')).not.toBeInTheDocument();
   });
 });

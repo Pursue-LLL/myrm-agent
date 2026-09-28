@@ -103,13 +103,24 @@ def _extract_skill_preview(
 
     is_safe = True
     threat_summary: str | None = None
+    security_score: int = 100
+    security_dict: dict[str, object] | None = None
     try:
-        from myrm_agent_harness.backends.skills.scanning import scan_skill_content
+        from myrm_agent_harness.backends.skills.scanning import (
+            compute_scan_summary,
+            scan_skill_directory,
+        )
 
-        scan_res = scan_skill_content(skill_name, content)
-        if not scan_res.is_clean:
+        scan_res = scan_skill_directory(skill_name, skill_dir)
+        scan_sum = compute_scan_summary(scan_res)
+        security_score = scan_sum.score
+        security_dict = scan_sum.to_dict()
+
+        if scan_sum.score < 50:
             is_safe = False
-            threat_summary = f"{len(scan_res.findings)} potential security findings detected"
+            threat_summary = f"Security score {scan_sum.score}/100 (< 50 threshold): {scan_res.summary}"
+        elif not scan_res.is_clean:
+            threat_summary = f"Security score {scan_sum.score}/100: {scan_res.summary}"
     except Exception as scan_err:
         logger.debug("Security scan skipped for %s: %s", skill_name, scan_err)
 
@@ -127,6 +138,8 @@ def _extract_skill_preview(
         "conflict_reason": conflict_reason,
         "is_safe": is_safe,
         "threat_summary": threat_summary,
+        "security_score": security_score,
+        "security": security_dict,
     }
 
 

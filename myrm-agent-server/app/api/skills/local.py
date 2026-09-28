@@ -25,6 +25,8 @@ from app.api.skills.schemas import (
     LocalSkillPathsResponse,
     LocalSkillPathStatus,
     LocalSkillPreviewItem,
+    SecurityFindingResponse,
+    SecurityScanSummaryResponse,
     SkillListResponse,
     ToggleLocalSkillRequest,
     ToggleLocalSkillResponse,
@@ -139,24 +141,51 @@ async def preview_local_skill_path(
         existing_skills=existing_skills,
     )
 
-    preview_items = [
-        LocalSkillPreviewItem(
-            name=str(it["name"]),
-            description=str(it["description"]),
-            version=str(it["version"]),
-            author=str(it["author"]) if it.get("author") else None,
-            category=str(it["category"]) if it.get("category") else None,
-            tags=([str(t) for t in it.get("tags", [])] if isinstance(it.get("tags"), list) else []),
-            required_tools=([str(b) for b in it.get("required_tools", [])] if isinstance(it.get("required_tools"), list) else []),
-            relative_path=str(it["relative_path"]),
-            skill_id=str(it.get("skill_id", "")),
-            is_conflicted=bool(it["is_conflicted"]),
-            conflict_reason=(str(it["conflict_reason"]) if it.get("conflict_reason") else None),
-            is_safe=bool(it["is_safe"]),
-            threat_summary=(str(it["threat_summary"]) if it.get("threat_summary") else None),
+    preview_items: list[LocalSkillPreviewItem] = []
+    for it in items:
+        sec_dict = it.get("security")
+        sec_resp: SecurityScanSummaryResponse | None = None
+        if isinstance(sec_dict, dict):
+            findings_raw = sec_dict.get("findings", [])
+            findings_list = [
+                SecurityFindingResponse(
+                    threat_type=str(f.get("threat_type", "")),
+                    severity=str(f.get("severity", "")),
+                    description=str(f.get("description", "")),
+                    line_number=(int(f["line_number"]) if f.get("line_number") is not None else None),
+                )
+                for f in findings_raw
+                if isinstance(f, dict)
+            ] if isinstance(findings_raw, list) else []
+            fc_raw = sec_dict.get("finding_counts", {})
+            finding_counts = {str(k): int(v) for k, v in fc_raw.items()} if isinstance(fc_raw, dict) else {}
+            sec_resp = SecurityScanSummaryResponse(
+                score=int(sec_dict.get("score", 100)),
+                trust_recommendation=str(sec_dict.get("trust_recommendation", "trusted")),
+                finding_counts=finding_counts,
+                total_findings=int(sec_dict.get("total_findings", 0)),
+                findings=findings_list,
+            )
+
+        preview_items.append(
+            LocalSkillPreviewItem(
+                name=str(it["name"]),
+                description=str(it["description"]),
+                version=str(it["version"]),
+                author=str(it["author"]) if it.get("author") else None,
+                category=str(it["category"]) if it.get("category") else None,
+                tags=([str(t) for t in it.get("tags", [])] if isinstance(it.get("tags"), list) else []),
+                required_tools=([str(b) for b in it.get("required_tools", [])] if isinstance(it.get("required_tools"), list) else []),
+                relative_path=str(it["relative_path"]),
+                skill_id=str(it.get("skill_id", "")),
+                is_conflicted=bool(it["is_conflicted"]),
+                conflict_reason=(str(it["conflict_reason"]) if it.get("conflict_reason") else None),
+                is_safe=bool(it["is_safe"]),
+                threat_summary=(str(it["threat_summary"]) if it.get("threat_summary") else None),
+                security_score=int(it.get("security_score", 100)),
+                security=sec_resp,
+            )
         )
-        for it in items
-    ]
 
     return LocalSkillPathPreviewResponse(
         resolved_path=str(resolved_path),
@@ -186,6 +215,19 @@ async def adopt_local_skill_path(
             status_code=400,
             detail="Path traversal not allowed",
         )
+
+    # Preflight security gate: probe path and block adopting skills with score < 50 unless allow_untrusted=True
+    if request.selected_skill_ids and not request.allow_untrusted:
+        _, _, _, preview_items_raw, _ = skills_service.local_skills.preview_path(raw_path=raw_path)
+        preview_by_id = {str(item.get("skill_id")): item for item in preview_items_raw if item.get("skill_id")}
+        for sid in request.selected_skill_ids:
+            item = preview_by_id.get(sid.strip())
+            if item and int(item.get("security_score", 100)) < 50:
+                score = int(item.get("security_score", 100))
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Security gate blocked: Skill '{item.get('name')}' has a security score of {score}/100 (< 50 threshold). {item.get('threat_summary', '')}. Pass allow_untrusted=True to force override.",
+                )
 
     config = await skills_service.user_config.get_config()
     current_paths = list(config.local_skill_paths)
