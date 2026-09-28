@@ -175,6 +175,14 @@ class ProjectService:
         from app.services.project.orchestrator import project_orchestrator
 
         project_orchestrator.forget(project_id)
+
+        try:
+            from app.core.memory import purge_project_memories
+
+            await purge_project_memories(project_id)
+        except Exception as exc:
+            logger.warning("Project memory purge failed for %s: %s", project_id, exc)
+
         return True
 
     @staticmethod

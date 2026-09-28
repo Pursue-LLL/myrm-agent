@@ -17,9 +17,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
-from app.core.utils.chat_utils import extract_answer_text
 from app.database.repositories.chat_repo import SiblingDetail
 from app.database.repositories.uow import UnitOfWork
 
@@ -267,8 +266,18 @@ class _ChatTurnMixin(_ChatServiceBase):
 
         file_revert: dict[str, list[str]] = {}
         if revert_files:
-            await _ChatTurnMixin._snapshot_pre_rewind(chat_id)
-            file_revert = await _ChatTurnMixin._revert_files_for_messages(chat_id, deleted_ids)
+            pre_snap_id = await _ChatTurnMixin._snapshot_pre_rewind(chat_id)
+            try:
+                file_revert = await _ChatTurnMixin._revert_files_for_messages(chat_id, deleted_ids)
+            except Exception as exc:
+                logger.error(
+                    "Physical file revert failed for chat=%s, executing rollback compensation: %s",
+                    chat_id,
+                    exc,
+                )
+                if pre_snap_id:
+                    await _ChatTurnMixin._restore_pre_rewind_snapshot(chat_id, pre_snap_id)
+                raise exc
         else:
             await _ChatTurnMixin._cleanup_orphan_snapshots(chat_id, deleted_ids)
 
@@ -312,6 +321,28 @@ class _ChatTurnMixin(_ChatServiceBase):
         except Exception as e:
             logger.warning("Pre-rewind snapshot failed (chat=%s): %s", chat_id, e)
             return None
+
+    @staticmethod
+    async def _restore_pre_rewind_snapshot(chat_id: str, snapshot_id: str) -> bool:
+        """Restore workspace to pre-rewind snapshot when physical file revert fails."""
+        from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
+
+        from app.services.chat.effective_workspace import resolve_effective_chat_workspace
+
+        async with UnitOfWork() as uow:
+            chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
+        if not chat:
+            return False
+        workspace = await resolve_effective_chat_workspace(chat, jit_fallback=False)
+        if not workspace:
+            return False
+        try:
+            store = await create_file_snapshot_store()
+            res = await store.restore(snapshot_id)
+            return res.success
+        except Exception as exc:
+            logger.warning("Restoring pre-rewind snapshot failed (chat=%s): %s", chat_id, exc)
+            return False
 
     @staticmethod
     async def _revert_files_for_messages(chat_id: str, deleted_message_ids: list[str]) -> dict[str, list[str]]:
@@ -384,118 +415,23 @@ class _ChatTurnMixin(_ChatServiceBase):
         title_model: "_TitleModelConfig | None" = None,
         fallback_title_model: "_TitleModelConfig | None" = None,
     ) -> str:
-        """使用前端配置的轻量模型生成聊天标题，主模型失败时自动尝试备用模型"""
-        import re
+        """Generate concise chat title via dedicated chat_title module."""
+        from app.services.chat.chat_title import generate_chat_title as _impl_generate_title
 
-        from myrm_agent_harness.core.security.detection.leak_detector import redact_leaks
-        from myrm_agent_harness.toolkits.llms.errors.resilient import resilient_llm_call
-
-        dialogue_parts = []
-        user_count = 0
-        for msg in messages:
-            if msg.role == "user":
-                dialogue_parts.append(f"User: {msg.content}")
-                user_count += 1
-                if user_count >= 2:
-                    break
-            elif msg.role == "assistant" and user_count > 0:
-                dialogue_parts.append(f"Assistant: {msg.content}")
-
-        if not dialogue_parts:
-            return "Untitled Chat"
-
-        # Early Truncation: Prevent O(N) Event Loop Blocking on massive inputs (e.g. 1MB pasted logs)
-        # by limiting the string size before expensive regex and entropy calculations.
-        raw_content = "\n\n".join(dialogue_parts)[:2000]
-
-        # 1. Structural Stripping & Sniffing
-        lang_match = re.search(r"```([a-zA-Z0-9_+-]+)", raw_content)
-        lang = lang_match.group(1).strip() if lang_match else ""
-
-        clean_content = re.sub(r"```.*?```", "", raw_content, flags=re.DOTALL)
-        clean_content = re.sub(r"```.*$", "", clean_content, flags=re.DOTALL)  # Strip unclosed code blocks from truncation
-        clean_content = re.sub(r"<think>.*?</think>", "", clean_content, flags=re.DOTALL)
-        clean_content = re.sub(r"<think>.*$", "", clean_content, flags=re.DOTALL)  # Strip unclosed think blocks
-        clean_content = re.sub(r"http[s]?://\S+", "", clean_content)
-        clean_content = re.sub(r"<[^>]+>", "", clean_content)
-        clean_content = re.sub(r"<[^>]*$", "", clean_content)  # Strip unclosed HTML tags from truncation
-        clean_content = clean_content.strip()
-
-        # 2. Credential Redaction
-        clean_content = redact_leaks(clean_content)
-
-        # 3. Smart Fallback
-        has_code_block = "```" in raw_content
-        # Remove the injected "User: " and "Assistant: " prefixes before checking length
-        stripped_for_check = re.sub(r"^(User|Assistant):\s*", "", clean_content, flags=re.MULTILINE).strip()
-        if len(stripped_for_check) < 5:
-            if lang:
-                lang_display = lang.capitalize() if len(lang) > 1 else lang
-                return f"{lang_display} Snippet"
-            if has_code_block:
-                return "Snippet"
-            return "Untitled Chat"
-
-        content = clean_content[:500]
-
-        if title_model is None:
-            return _ChatTurnMixin._generate_fallback_title(content)
-        try:
-            return cast(
-                str,
-                await resilient_llm_call(
-                    primary_fn=lambda: _ChatTurnMixin._call_llm_for_title(content, title_model),
-                    fallback_fn=(
-                        (lambda: _ChatTurnMixin._call_llm_for_title(content, fallback_title_model))
-                        if fallback_title_model
-                        else None
-                    ),
-                ),
-            )
-        except Exception as e:
-            logger.error(f"❌ 生成聊天标题失败: {e}")
-            return _ChatTurnMixin._generate_fallback_title(content)
-
-    @staticmethod
-    async def _call_llm_for_title(content: str, title_model: "_TitleModelConfig") -> str:
-        """调用 LLM 生成标题"""
-        import re
-
-        from langchain_core.messages import HumanMessage
-        from myrm_agent_harness.toolkits.llms import llm_manager
-
-        from app.core.types import ModelConfig
-        from app.core.wire.enrich import enrich_model_config
-
-        model_kwargs = dict(title_model.model_kwargs or {})
-        model_kwargs.setdefault("temperature", 0.3)
-        model_kwargs.setdefault("max_tokens", 1024)
-        cfg = enrich_model_config(
-            ModelConfig(
-                model=title_model.model,
-                api_key=title_model.api_key,
-                base_url=title_model.base_url,
-                model_kwargs=model_kwargs,
-            )
+        return await _impl_generate_title(
+            messages=messages,
+            title_model=title_model,
+            fallback_title_model=fallback_title_model,
         )
-        llm = await llm_manager.get_llm_from_config(cfg, streaming=False)
-        prompt = f"Summarize this conversation into a short title (5-15 characters). Reply strictly in the SAME LANGUAGE as the user input. Output ONLY the title:\n<user_input>\n{content[:200]}\n</user_input>"
-        response = await llm.ainvoke([HumanMessage(content=prompt)])
-        # 兼容 Anthropic 块列表 / reasoning 模型 content 空回退（title_model 为用户可配置模型）
-        title = extract_answer_text(response).strip().strip("\"'「」【】：:。.")
-        title = re.sub(r"^(Title|标题|Chat Title)[:：\s]*", "", title, flags=re.IGNORECASE)
-        if len(title) < 2 or len(title) > 50:
-            return _ChatTurnMixin._generate_fallback_title(content)
-        return title
 
     @staticmethod
     def _generate_fallback_title(content: str) -> str:
-        """后备标题（无模型配置或 LLM 调用失败时）"""
-        import re
+        from app.services.chat.chat_title import generate_fallback_title
 
-        # Strip User/Assistant prefixes for cleaner fallback titles
-        clean_title = re.sub(r"^(User|Assistant):\s*", "", content, flags=re.MULTILINE).strip()
-        title = clean_title[:20]
-        if len(title) < 3:
-            return "Untitled Chat"
-        return title + ("..." if len(clean_title) > 20 else "")
+        return generate_fallback_title(content)
+
+    @staticmethod
+    async def _call_llm_for_title(content: str, title_model: "_TitleModelConfig") -> str:
+        from app.services.chat.chat_title import call_llm_for_title
+
+        return await call_llm_for_title(content, title_model)

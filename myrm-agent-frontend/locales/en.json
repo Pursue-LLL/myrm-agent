@@ -8925,7 +8925,10 @@
       "fileRevertSummary": "{count} file change(s) will be reverted",
       "noFileSnapshots": "No file snapshots are available to revert.",
       "filesSkippedNotice": "{count} file(s) cannot be reverted automatically",
-      "filesRevertedToast": "{count} file(s) were reverted"
+      "filesRevertedToast": "{count} file(s) were reverted",
+      "operationAdded": "Added",
+      "operationModified": "Modified",
+      "operationDeleted": "Deleted"
     },
     "deleteChat": {
       "title": "Delete Conversation",

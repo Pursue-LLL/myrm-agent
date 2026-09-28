@@ -72,6 +72,7 @@ import { ReferenceMentionPopover } from './ReferenceMentionPopover';
 import ClarificationInput from '../message-box/ClarificationInput';
 import DirectoryApprovalInput from '../message-box/DirectoryApprovalInput';
 import SessionAccessRootsBar from './SessionAccessRootsBar';
+import ProjectBoundaryBadge from './ProjectBoundaryBadge';
 import { findActivePendingClarification } from '@/store/chat/clarificationState';
 import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequestState';
 import { useComposerContextChips } from '@/hooks/message-input/useComposerContextChips';
@@ -505,6 +506,7 @@ const MessageInput = ({ loading, hideWorkspacePicker = false }: MessageInputProp
               onClose={inputHistory.close}
             />
             <QuoteCard />
+            <ProjectBoundaryBadge />
             <SessionAccessRootsBar />
             {isComposerClarifyMode && pendingClarification ? (
               <ClarificationInput

@@ -266,3 +266,34 @@ def test_project_workspace_boundary_enforcement() -> None:
         assert is_cross_project_workspace_collision(proj_a, proj_a) is True
         nested_sub = proj_a / "subfolder"
         assert is_cross_project_workspace_collision(proj_a, nested_sub) is True
+
+
+@pytest.mark.asyncio
+async def test_purge_project_memories_lifecycle() -> None:
+    """Test purge_project_memories orchestrates metadata deletion with safe namespace expansion."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from app.core.memory.adapters.cascade import purge_project_memories
+
+    # 1. Empty project_id boundary
+    assert await purge_project_memories("") == {}
+    assert await purge_project_memories("   ") == {}
+
+    # 2. Mock manager execution
+    mock_mgr = MagicMock()
+    mock_mgr._namespaces = ["global", "agent:default"]
+    mock_mgr.delete_memories_by_metadata = AsyncMock(side_effect=[
+        {"semantic": 2, "episodic": 1},
+        {"conversation": 1},
+    ])
+
+    with patch("app.core.memory.adapters.cascade.get_cascade_memory_manager", AsyncMock(return_value=mock_mgr)):
+        res = await purge_project_memories("proj-abc")
+        assert res == {"semantic": 2, "episodic": 1, "conversation": 1}
+        # Verify namespaces safely restored
+        assert mock_mgr._namespaces == ["global", "agent:default"]
+        # Verify calls
+        assert mock_mgr.delete_memories_by_metadata.call_count == 2
+        mock_mgr.delete_memories_by_metadata.assert_any_call("primary_namespace", "project:proj-abc")
+        mock_mgr.delete_memories_by_metadata.assert_any_call("project_id", "proj-abc")
+

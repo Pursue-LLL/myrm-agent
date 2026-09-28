@@ -2685,7 +2685,10 @@
       "fileRevertSummary": "{count}개의 파일 변경이 롤백됩니다",
       "noFileSnapshots": "롤백할 수 있는 파일 스냅샷이 없습니다.",
       "filesSkippedNotice": "{count}개의 파일을 자동으로 롤백할 수 없습니다",
-      "filesRevertedToast": "{count}개의 파일이 롤백되었습니다"
+      "filesRevertedToast": "{count}개의 파일이 롤백되었습니다",
+      "operationAdded": "추가됨",
+      "operationModified": "수정됨",
+      "operationDeleted": "삭제됨"
     },
     "share": {
       "share": "공유",

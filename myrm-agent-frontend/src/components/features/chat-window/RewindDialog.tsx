@@ -44,10 +44,17 @@ interface FileChangeInfo {
 
 type RewindScope = 'conversation' | 'both';
 
+interface FileChangeItem {
+  path: string;
+  operation: string;
+  revertible: boolean;
+}
+
 interface FilePreview {
   status: 'checking' | 'ready' | 'empty';
   fileCount: number;
   skippedCount: number;
+  files: FileChangeItem[];
 }
 
 export function RewindDialog({ open, onOpenChange, chatId, messageId, messageIndex }: RewindDialogProps) {
@@ -59,6 +66,7 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
     status: 'checking',
     fileCount: 0,
     skippedCount: 0,
+    files: [],
   });
 
   useEffect(() => {
@@ -67,7 +75,7 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
     }
 
     let cancelled = false;
-    setPreview({ status: 'checking', fileCount: 0, skippedCount: 0 });
+    setPreview({ status: 'checking', fileCount: 0, skippedCount: 0, files: [] });
 
     const assistantIds = useChatStore
       .getState()
@@ -76,7 +84,7 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       .map((m) => m.messageId);
 
     if (assistantIds.length === 0) {
-      setPreview({ status: 'empty', fileCount: 0, skippedCount: 0 });
+      setPreview({ status: 'empty', fileCount: 0, skippedCount: 0, files: [] });
       return;
     }
 
@@ -101,17 +109,27 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
         return;
       }
 
-      const revertiblePaths = new Set<string>();
-      const skippedPaths = new Set<string>();
+      const filesMap = new Map<string, FileChangeItem>();
       for (const list of results) {
         for (const change of list) {
-          (change.revertible ? revertiblePaths : skippedPaths).add(change.path);
+          if (!filesMap.has(change.path)) {
+            filesMap.set(change.path, {
+              path: change.path,
+              operation: change.operation,
+              revertible: change.revertible,
+            });
+          }
         }
       }
+      const allFiles = Array.from(filesMap.values());
+      const revertibleCount = allFiles.filter((f) => f.revertible).length;
+      const skippedCount = allFiles.filter((f) => !f.revertible).length;
+
       setPreview({
-        status: revertiblePaths.size > 0 ? 'ready' : 'empty',
-        fileCount: revertiblePaths.size,
-        skippedCount: skippedPaths.size,
+        status: revertibleCount > 0 ? 'ready' : 'empty',
+        fileCount: revertibleCount,
+        skippedCount,
+        files: allFiles,
       });
     })();
 
@@ -226,7 +244,56 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
             <p className="text-sm text-muted-foreground">{t('filesChecking')}</p>
           )}
           {scope === 'both' && preview.status === 'ready' && (
-            <p className="text-sm text-muted-foreground">{t('fileRevertSummary', { count: preview.fileCount })}</p>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">{t('fileRevertSummary', { count: preview.fileCount })}</p>
+              {preview.files.length > 0 && (
+                <div
+                  data-testid="rewind-files-list"
+                  className="max-h-36 overflow-y-auto rounded-md border border-border/60 bg-muted/30 p-2 text-xs divide-y divide-border/40"
+                >
+                  {preview.files.map((file) => {
+                    const fileName = file.path.split('/').pop() || file.path;
+                    const dirName = file.path.includes('/')
+                      ? file.path.substring(0, file.path.lastIndexOf('/'))
+                      : '';
+                    const opLower = file.operation?.toLowerCase();
+                    const isAdded = opLower === 'create' || opLower === 'add';
+                    const isDeleted = opLower === 'delete' || opLower === 'remove';
+
+                    const badgeClass = isAdded
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                      : isDeleted
+                      ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                      : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+
+                    const opKey = isAdded
+                      ? 'operationAdded'
+                      : isDeleted
+                      ? 'operationDeleted'
+                      : 'operationModified';
+
+                    return (
+                      <div
+                        key={file.path}
+                        className="flex items-center justify-between gap-2 py-1.5 first:pt-0 last:pb-0"
+                      >
+                        <div className="min-w-0 flex-1 truncate font-mono" title={file.path}>
+                          <span className="font-medium text-foreground">{fileName}</span>
+                          {dirName && (
+                            <span className="ml-1 text-[11px] text-muted-foreground/80 truncate">({dirName})</span>
+                          )}
+                        </div>
+                        <span
+                          className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium leading-none ${badgeClass}`}
+                        >
+                          {t(opKey)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
           {scope === 'both' && preview.status === 'empty' && (
             <p className="text-sm text-muted-foreground">{t('noFileSnapshots')}</p>

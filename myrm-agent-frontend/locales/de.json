@@ -2656,7 +2656,10 @@
       "fileRevertSummary": "{count} Dateiänderung(en) werden zurückgesetzt",
       "noFileSnapshots": "Keine Datei-Snapshots zum Zurücksetzen verfügbar.",
       "filesSkippedNotice": "{count} Datei(en) können nicht automatisch zurückgesetzt werden",
-      "filesRevertedToast": "{count} Datei(en) wurden zurückgesetzt"
+      "filesRevertedToast": "{count} Datei(en) wurden zurückgesetzt",
+      "operationAdded": "Hinzugefügt",
+      "operationModified": "Geändert",
+      "operationDeleted": "Gelöscht"
     },
     "share": {
       "share": "Teilen",

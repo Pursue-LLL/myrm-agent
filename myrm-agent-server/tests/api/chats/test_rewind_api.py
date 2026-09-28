@@ -585,3 +585,65 @@ async def test_rewind_both_scope_snapshots_before_file_revert(
 
     assert response.status_code == 200
     assert call_order == ["snapshot", "revert"]
+
+
+@pytest.mark.asyncio
+async def test_rewind_both_scope_triggers_rollback_compensation_on_revert_failure(
+    async_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When physical file revert raises an exception, the pre-rewind snapshot is restored for compensation."""
+    chat_id = f"rewind-comp-{uuid.uuid4().hex[:8]}"
+    await _create_chat(chat_id)
+    ids = await _insert_messages(chat_id)
+
+    async def _fake_sync(_chat_id: str) -> int:
+        return 2
+
+    monkeypatch.setattr(
+        "app.services.chat.session_continuity_service.sync_chat_checkpoint_from_db",
+        _fake_sync,
+    )
+
+    async def _fake_pause(_chat_id: str) -> bool:
+        return True
+
+    monkeypatch.setattr(
+        "app.services.chat.session_continuity_service.pause_active_goal_for_rewind",
+        _fake_pause,
+    )
+
+    restored_snapshots: list[tuple[str, str]] = []
+
+    async def _fake_pre_rewind(chat_id_arg: str) -> str | None:
+        return "snap-pre-comp"
+
+    monkeypatch.setattr(
+        "app.services.chat.chat_turn._ChatTurnMixin._snapshot_pre_rewind",
+        _fake_pre_rewind,
+    )
+
+    async def _fake_revert_files(chat_id_arg: str, deleted_ids: list[str]) -> dict[str, list[str]]:
+        raise OSError("Disk full while reverting files")
+
+    monkeypatch.setattr(
+        "app.services.chat.chat_turn._ChatTurnMixin._revert_files_for_messages",
+        _fake_revert_files,
+    )
+
+    async def _fake_restore_snapshot(chat_id_arg: str, snapshot_id_arg: str) -> bool:
+        restored_snapshots.append((chat_id_arg, snapshot_id_arg))
+        return True
+
+    monkeypatch.setattr(
+        "app.services.chat.chat_turn._ChatTurnMixin._restore_pre_rewind_snapshot",
+        _fake_restore_snapshot,
+    )
+
+    response = await async_client.post(
+        f"/api/v1/chats/{chat_id}/rewind",
+        json={"message_id": ids["u2"], "scope": "both"},
+    )
+
+    assert response.status_code == 500
+    assert restored_snapshots == [(chat_id, "snap-pre-comp")]

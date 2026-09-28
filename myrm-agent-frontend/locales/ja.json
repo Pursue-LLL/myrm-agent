@@ -2861,7 +2861,10 @@
       "fileRevertSummary": "{count} 件のファイル変更をロールバックします",
       "noFileSnapshots": "ロールバック可能なファイルスナップショットはありません。",
       "filesSkippedNotice": "{count} 件のファイルを自動ロールバックできません",
-      "filesRevertedToast": "{count} 件のファイルをロールバックしました"
+      "filesRevertedToast": "{count} 件のファイルをロールバックしました",
+      "operationAdded": "追加",
+      "operationModified": "変更",
+      "operationDeleted": "削除"
     },
     "visionNotConfigured": {
       "imageTitle": "画像には視覚モデルが必要です",

@@ -8925,7 +8925,10 @@
       "fileRevertSummary": "将回滚 {count} 个文件变更",
       "noFileSnapshots": "没有可回滚的文件快照。",
       "filesSkippedNotice": "{count} 个文件无法自动回滚",
-      "filesRevertedToast": "已回滚 {count} 个文件"
+      "filesRevertedToast": "已回滚 {count} 个文件",
+      "operationAdded": "新增",
+      "operationModified": "修改",
+      "operationDeleted": "删除"
     },
     "deleteChat": {
       "title": "删除会话",

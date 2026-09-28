@@ -87,6 +87,39 @@ async def get_cascade_memory_manager() -> MemoryManager:
         return _cascade_manager
 
 
+async def purge_project_memories(project_id: str) -> dict[str, int]:
+    """Cascade-delete all memories belonging to a project's namespace."""
+    clean_id = project_id.strip() if project_id else ""
+    if not clean_id:
+        return {}
+
+    manager = await get_cascade_memory_manager()
+    project_ns = f"project:{clean_id}"
+
+    # Temporarily grant project namespace to cascade manager so ownership check passes
+    orig_namespaces = list(getattr(manager, "_namespaces", []))
+    if project_ns not in orig_namespaces:
+        manager._namespaces = [*orig_namespaces, project_ns]
+
+    counts: dict[str, int] = {}
+    try:
+        # Purge by primary_namespace metadata
+        c1 = await manager.delete_memories_by_metadata("primary_namespace", project_ns)
+        for k, v in c1.items():
+            counts[k] = counts.get(k, 0) + v
+
+        # Also purge any memory tagged with project_id in flat metadata
+        c2 = await manager.delete_memories_by_metadata("project_id", clean_id)
+        for k, v in c2.items():
+            counts[k] = counts.get(k, 0) + v
+    except Exception as exc:
+        logger.warning("Project memory purge failed (project=%s): %s", clean_id, exc)
+    finally:
+        manager._namespaces = orig_namespaces
+
+    return counts
+
+
 async def shutdown_cascade_manager() -> None:
     """Close the cascade manager if it exists."""
     global _cascade_manager

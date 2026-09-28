@@ -2871,7 +2871,10 @@
       "fileRevertSummary": "將回滾 {count} 個檔案變更",
       "noFileSnapshots": "沒有可回滾的檔案快照。",
       "filesSkippedNotice": "{count} 個檔案無法自動回滾",
-      "filesRevertedToast": "已回滾 {count} 個檔案"
+      "filesRevertedToast": "已回滾 {count} 個檔案",
+      "operationAdded": "新增",
+      "operationModified": "修改",
+      "operationDeleted": "刪除"
     },
     "visionNotConfigured": {
       "imageTitle": "當前配置無法讀圖",

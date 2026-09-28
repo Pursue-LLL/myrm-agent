@@ -85,6 +85,9 @@ describe('RewindDialog', () => {
     renderDialog(1);
     await waitFor(() => {
       expect(screen.getByText('fileRevertSummary:1')).toBeInTheDocument();
+      expect(screen.getByTestId('rewind-files-list')).toBeInTheDocument();
+      expect(screen.getByText('a.txt')).toBeInTheDocument();
+      expect(screen.getByText('operationModified')).toBeInTheDocument();
     });
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/files/revert/changes/c1/a1',
