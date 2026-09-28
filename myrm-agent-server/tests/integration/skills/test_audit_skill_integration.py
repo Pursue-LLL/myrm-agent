@@ -97,7 +97,7 @@ async def test_user_enabled_and_resolvable(skills_service: SkillsService) -> Non
     """enablement → get_skills_by_ids / list_skills resolve the skill."""
     await prebuilt_sync.sync_prebuilt_seeds(skills_service.storage)
     manager = UserSkillConfigManager(skills_service.storage)
-    await manager.ensure_prebuilt_enabled_after_sync([SKILL_ID])
+    await manager.enable_prebuilt_skill(SKILL_ID)
 
     config = await manager.get_config()
     assert SKILL_ID in config.enabled_prebuilt_ids
