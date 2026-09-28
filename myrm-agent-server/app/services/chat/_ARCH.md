@@ -28,7 +28,8 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `chat_usage_sync.py` | ✅ 核心 | `sync_chat_usage` + `ChatUsageCache` 实例：assistant 消息落库及轮次突变（retry/undo/truncate/rewind/regenerate/switch_sibling）后聚合该 chat 全部 active 消息 extra_data 的 `tokenEconomics` 快照，覆盖式写 `Chat.total_calls/total_tokens/total_usd`；进程内 TTL 缓存按「最后聚合消息 id」校验防重复全量聚合且不漏最新消息；源为 DB 消息级数据，不依赖 event-log 文件 | ✅ |
 | `chat_memory_events.py` | ✅ 辅助 | 将 assistant 消息的 `citedMemoryRefs` / `memoryRetrievalTraces` 投影为记忆操作账本事件（`record_memory_influence_event`），消息持久化的有界 best-effort 副作用 | ✅ |
 | `chat_history.py` | ✅ 核心 | `_ChatHistoryMixin`: Web/Channel 历史加载（含 compaction summary 注入）、FTS5 搜索 | ✅ |
-| `chat_turn.py` | ✅ 核心 | `_ChatTurnMixin`: 重试/撤销/截断/rewind/重新生成、兄弟消息切换、LLM 标题生成；rewind 支持 `scope=conversation/files/both`（both 联动体系 A 文件 revert + 快照清理 + restore_inbox，且 revert 前先取体系 B `PRE_ROLLBACK` 工作区快照作为可撤销保护点；conversation-only 联动孤儿快照清理）；突变后 checkpoint sync + `Chat.total_*` 用量重算（retry/undo/truncate/rewind/regenerate/switch_sibling 均触发） | ✅ |
+| `chat_turn.py` | ✅ 核心 | `_ChatTurnMixin`: 重试/撤销/截断/rewind/重新生成、兄弟消息切换；rewind 支持 `scope=conversation/both`（both 联动文件 revert + 快照清理 + 异常自愈补偿 `_restore_pre_rewind_snapshot`，revert 前先取体系 B `PRE_ROLLBACK` 工作区快照作为可撤销保护点；conversation-only 联动孤儿快照清理）；突变后 checkpoint sync + `Chat.total_*` 用量重算 | ✅ |
+| `chat_title.py` | ✅ 核心 | 独立聊天标题生成服务：支持轻量模型自动总结、多级容灾降级调用与智能 Snippet 后备提取 | ✅ |
 | `chat_compaction.py` | ✅ 核心 | `_ChatCompactionMixin`: compaction summary 更新、后台 drain 调度与 LLM 离线摘要（跟随真实模型窗口） | ✅ |
 | `chat_helpers.py` | ✅ 辅助 | 用于内部解耦的通用 DTO 和静态辅助函数（如消息过滤、Snippet清理）。 | ✅ |
 | `usage_cache.py` | ✅ 辅助 | `ChatUsageCache`: 进程内 TTL 缓存（默认 5s，key=chat_id），携带「最后聚合 assistant 消息 id」，同一会话连续消息落库/连续突变防抖；last_message_id 变化（新消息或 sibling 切换）强制重算 | ✅ |

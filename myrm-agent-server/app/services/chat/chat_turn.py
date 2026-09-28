@@ -1,17 +1,16 @@
-"""Retry, undo, truncate, sibling switching, and title generation mixin.
+"""Retry, undo, truncate, sibling switching, and rewind mixin.
 
 [INPUT]
 - _base::_ChatServiceBase (POS: repository 协议和访问器)
-- chat_helpers::RetryResult, RegenerateResult, UndoResult, TruncateResult (POS: 操作结果 DTO)
+- chat_helpers::RetryResult, RegenerateResult, UndoResult, TruncateResult, RewindResult (POS: 操作结果 DTO)
 - database.repositories.chat_repo::SiblingDetail (POS: 兄弟消息详情)
-- core.utils.chat_utils::extract_answer_text (POS: LLM 响应文本提取)
+- services.chat.chat_title::generate_chat_title, generate_fallback_title, call_llm_for_title (POS: Chat title generation layer decoupled from turn management)
 
 [OUTPUT]
-- _ChatTurnMixin: 重试、撤销、截断、重新生成、兄弟切换、标题生成
+- _ChatTurnMixin: 重试、撤销、截断、重新生成、兄弟切换、原子回滚自愈
 
 [POS]
-对话轮次操作与标题生成编排层。提供消息重试、撤销、截断（编辑重发）、重新生成（含兄弟消息管理）
-和 LLM 驱动的聊天标题生成。
+对话轮次操作编排层。提供消息重试、撤销、截断（编辑重发）、重新生成（含兄弟消息管理）以及物理回滚原子补偿自愈。
 """
 
 from __future__ import annotations
