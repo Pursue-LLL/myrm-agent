@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - @/hooks/message-input/useMessageInput::useMessageInput (POS: 聊天输入状态与提交编排)
+ * - @/hooks/message-input/messageInputKeyRouter::resolveDualChannelAction (POS: 聊天输入框双通道键盘交互路由核心)
  * - @/store/useChatStore::useChatStore (POS: 聊天状态总线)
  * - ./LivenessIndicator::LivenessIndicator (POS: 聊天输入区 Agent 状态指示灯)
  *
