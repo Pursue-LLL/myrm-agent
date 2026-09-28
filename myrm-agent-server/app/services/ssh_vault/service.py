@@ -28,6 +28,11 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from myrm_agent_harness.toolkits.ssh_remote import ReadOnlySSHValidator
+
+from app.services.ssh_vault.change_window import (
+    ProtectedChangeWindowService,
+)
 from app.services.ssh_vault.models import (
     SSHAssetSummary,
     SSHCommandResult,
@@ -50,10 +55,42 @@ _HIGH_RISK_COMMAND_PATTERNS = [
 class SSHAssetService:
     """Enterprise SSH & SFTP asset coordinator for discovery, probing, and execution."""
 
-    def __init__(self, config_path: Optional[Path] = None) -> None:
+    def __init__(
+        self,
+        config_path: Optional[Path] = None,
+        change_window_service: Optional[ProtectedChangeWindowService] = None,
+        readonly_validator: Optional[ReadOnlySSHValidator] = None,
+    ) -> None:
         self._config_path = config_path or Path.home() / ".ssh" / "config"
         self._hosts_cache: Dict[str, SSHHostConfig] = {}
         self._last_loaded: float = 0.0
+        self._change_window = change_window_service or ProtectedChangeWindowService()
+        self._readonly_validator = readonly_validator or ReadOnlySSHValidator()
+
+    @property
+    def change_window(self) -> ProtectedChangeWindowService:
+        """Access the protected change window and break-glass coordinator."""
+        return self._change_window
+
+    def update_host_policy(
+        self,
+        host_alias: str,
+        *,
+        is_read_only: Optional[bool] = None,
+        environment_tier: Optional[str] = None,
+        require_confirm_on_write: Optional[bool] = None,
+    ) -> bool:
+        """Update runtime security policy for a host."""
+        host = self.get_host(host_alias)
+        if not host:
+            return False
+        if is_read_only is not None:
+            host.is_read_only = is_read_only
+        if environment_tier is not None:
+            host.environment_tier = environment_tier
+        if require_confirm_on_write is not None:
+            host.require_confirm_on_write = require_confirm_on_write
+        return True
 
     def register_host(self, host: SSHHostConfig) -> bool:
         """Register or update a host asset with strict validation."""
@@ -199,6 +236,7 @@ class SSHAssetService:
         *,
         timeout_seconds: float = 30.0,
         allow_high_risk: bool = False,
+        break_glass_token: Optional[str] = None,
     ) -> SSHCommandResult:
         """Execute a remote shell command on the target host via safe SSH subprocess."""
         host = self.get_host(host_alias)
@@ -225,6 +263,37 @@ class SSHAssetService:
                 is_blocked_high_risk=True,
                 error_message="High-risk command blocked by security guard.",
             )
+
+        break_glass_used = False
+        if host.is_read_only:
+            val_res = self._readonly_validator.validate(command)
+            if not val_res.is_safe:
+                is_authorized, auth_msg, bg_used = self._change_window.evaluate_write_authorization(
+                    host_config=host,
+                    command=command,
+                    break_glass_token=break_glass_token,
+                )
+                if not is_authorized:
+                    logger.warning(
+                        "Blocked read-only violation on host '%s': %s (%s)",
+                        host_alias,
+                        command,
+                        val_res.reason,
+                    )
+                    return SSHCommandResult(
+                        host_alias=host_alias,
+                        command=command,
+                        exit_code=126,
+                        stdout="",
+                        stderr=f"Read-only security gate blocked: {val_res.reason}. {auth_msg}",
+                        duration_ms=0,
+                        is_blocked_high_risk=True,
+                        is_read_only_violation=True,
+                        blocked_command_snippet=val_res.violation_snippet,
+                        break_glass_token_used=False,
+                        error_message=auth_msg,
+                    )
+                break_glass_used = bg_used
 
         ssh_args = [
             "ssh",
@@ -262,6 +331,7 @@ class SSHAssetService:
                 stdout=stdout_bytes.decode("utf-8", errors="replace"),
                 stderr=stderr_bytes.decode("utf-8", errors="replace"),
                 duration_ms=duration_ms,
+                break_glass_token_used=break_glass_used,
             )
         except asyncio.TimeoutError:
             duration_ms = int((time.perf_counter() - start_time) * 1000)

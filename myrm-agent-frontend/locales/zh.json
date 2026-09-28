@@ -7035,7 +7035,22 @@
       "statusUntested": "未测试",
       "copyPrompt": "复制 Agent 调用提示词",
       "copied": "已复制！",
-      "useInPrompt": "在对话中使用此主机"
+      "useInPrompt": "在对话中使用此主机",
+      "readOnlyBadge": "只读安全锁",
+      "writableBadge": "读写模式",
+      "readOnlyDesc": "生产级受保护隔离，拦截所有高危破坏性与写命令",
+      "breakGlassAction": "申请变更破窗",
+      "breakGlassModalTitle": "受保护变更窗口破窗申请",
+      "breakGlassReason": "变更原因",
+      "breakGlassReasonPlaceholder": "说明在受保护节点上执行变更的必要性与工单号...",
+      "breakGlassCommand": "变更命令",
+      "breakGlassTtl": "窗口有效期 (秒)",
+      "breakGlassSubmit": "签发单次破窗令牌",
+      "breakGlassSuccess": "破窗令牌已签发并可单次执行",
+      "policyUpdated": "安全策略更新成功",
+      "tierProd": "生产环境",
+      "tierStaging": "预发环境",
+      "tierDev": "开发环境"
     }
   },
   "recovery": {

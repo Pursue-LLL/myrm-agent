@@ -7035,7 +7035,22 @@
       "statusUntested": "Untested",
       "copyPrompt": "Copy Agent Prompt",
       "copied": "Copied!",
-      "useInPrompt": "Use host in chat prompt"
+      "useInPrompt": "Use host in chat prompt",
+      "readOnlyBadge": "Read-Only Gate",
+      "writableBadge": "Read-Write Mode",
+      "readOnlyDesc": "Production protected isolation, blocks destructive and mutating commands",
+      "breakGlassAction": "Request Break-Glass Window",
+      "breakGlassModalTitle": "Emergency Break-Glass Window Request",
+      "breakGlassReason": "Change Justification",
+      "breakGlassReasonPlaceholder": "Describe the necessity of state mutation on this protected host...",
+      "breakGlassCommand": "Command",
+      "breakGlassTtl": "Window Validity (seconds)",
+      "breakGlassSubmit": "Issue One-Time Token",
+      "breakGlassSuccess": "Break-glass token issued successfully for single execution",
+      "policyUpdated": "Security policy updated successfully",
+      "tierProd": "Production",
+      "tierStaging": "Staging",
+      "tierDev": "Development"
     }
   },
   "recovery": {

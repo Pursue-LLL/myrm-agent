@@ -57,6 +57,7 @@ class SSHHostAsset:
     tags: tuple[str, ...] = ()
     description: str = ""
     is_active: bool = True
+    is_read_only: bool = True
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 

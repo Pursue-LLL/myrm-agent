@@ -19589,7 +19589,22 @@
       "statusUntested": "未テスト",
       "copyPrompt": "Agentプロンプトをコピー",
       "copied": "コピーしました！",
-      "useInPrompt": "チャットプロンプトでこのホストを使用"
+      "useInPrompt": "チャットプロンプトでこのホストを使用",
+      "readOnlyBadge": "読み取り専用ゲート",
+      "writableBadge": "読み書きモード",
+      "readOnlyDesc": "本番環境の保護隔離。すべての高リスクな破壊的・変更コマンドをブロックします",
+      "breakGlassAction": "ブレークグラス申請",
+      "breakGlassModalTitle": "保護対象変更ウィンドウのブレークグラス申請",
+      "breakGlassReason": "変更理由",
+      "breakGlassReasonPlaceholder": "保護対象ノードで変更を実行する理由とチケット番号を入力してください...",
+      "breakGlassCommand": "実行コマンド",
+      "breakGlassTtl": "有効時間 (秒)",
+      "breakGlassSubmit": "ワンタイムトークン発行",
+      "breakGlassSuccess": "ブレークグラストークンが発行されました（1回限り有効）",
+      "policyUpdated": "セキュリティポリシーが更新されました",
+      "tierProd": "本番環境",
+      "tierStaging": "ステージング",
+      "tierDev": "開発環境"
     }
   },
   "continualOverlay": {

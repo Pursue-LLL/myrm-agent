@@ -19,6 +19,7 @@ import { CredentialsDialogs } from './CredentialsDialogs';
 import { CredentialsFilePanel } from './CredentialsFilePanel';
 import { CredentialsOAuthPanel } from './CredentialsOAuthPanel';
 import { CredentialsVaultPanel } from './CredentialsVaultPanel';
+import { SSHVaultPanel } from './SSHVaultPanel';
 import { useCredentialsSection } from './useCredentialsSection';
 
 const CredentialsSection = memo(() => {
@@ -38,6 +39,7 @@ const CredentialsSection = memo(() => {
           setDeleteVaultTarget={state.setDeleteVaultTarget}
           vaultCredentials={state.vaultCredentials}
         />
+        <SSHVaultPanel />
         <CredentialsFilePanel
           credentials={state.credentials}
           handleUpload={state.handleUpload}

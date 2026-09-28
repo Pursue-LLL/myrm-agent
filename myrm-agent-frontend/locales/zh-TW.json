@@ -19589,7 +19589,22 @@
       "statusUntested": "未測試",
       "copyPrompt": "複製 Agent 調用提示詞",
       "copied": "已複製！",
-      "useInPrompt": "在對話中使用此主機"
+      "useInPrompt": "在對話中使用此主機",
+      "readOnlyBadge": "唯讀安全鎖",
+      "writableBadge": "讀寫模式",
+      "readOnlyDesc": "生產級受保護隔離，攔截所有高危破壞性與寫入命令",
+      "breakGlassAction": "申請變更破窗",
+      "breakGlassModalTitle": "受保護變更視窗破窗申請",
+      "breakGlassReason": "變更原因",
+      "breakGlassReasonPlaceholder": "說明在受保護節點上執行變更的必要性與工單號...",
+      "breakGlassCommand": "變更命令",
+      "breakGlassTtl": "視窗有效期間 (秒)",
+      "breakGlassSubmit": "簽發單次破窗權杖",
+      "breakGlassSuccess": "破窗權杖已簽發並可單次執行",
+      "policyUpdated": "安全策略更新成功",
+      "tierProd": "生產環境",
+      "tierStaging": "預發環境",
+      "tierDev": "開發環境"
     }
   },
   "continualOverlay": {

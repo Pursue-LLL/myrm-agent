@@ -19,6 +19,8 @@ import time
 from datetime import datetime, timezone
 from typing import Callable, Sequence
 
+from myrm_agent_harness.toolkits.ssh_remote import ReadOnlySSHValidator
+
 from app.services.ssh_bridge.manager import SSHAssetManager
 from app.services.ssh_bridge.models import (
     SFTPFileMetadata,
@@ -45,9 +47,11 @@ class SSHBridgeExecutor:
         self,
         asset_manager: SSHAssetManager,
         custom_remote_runner: Callable[[SSHHostAsset, str, float], tuple[int, str, str]] | None = None,
+        readonly_validator: ReadOnlySSHValidator | None = None,
     ) -> None:
         self._asset_manager = asset_manager
         self._custom_runner = custom_remote_runner
+        self._readonly_validator = readonly_validator or ReadOnlySSHValidator()
 
     def execute_command(
         self,
@@ -82,6 +86,21 @@ class SSHBridgeExecutor:
                     duration_ms=0.0,
                     is_blocked=True,
                     block_reason="HIGH_RISK_DESTRUCTIVE_COMMAND",
+                )
+
+        # Read-only policy gate
+        if getattr(asset, "is_read_only", False):
+            val_res = self._readonly_validator.validate(command)
+            if not val_res.is_safe:
+                return SSHCommandResult(
+                    asset_alias=host_alias,
+                    command=command,
+                    exit_code=126,
+                    stdout="",
+                    stderr=f"Read-Only Gate Blocked: {val_res.reason}",
+                    duration_ms=0.0,
+                    is_blocked=True,
+                    block_reason="READ_ONLY_VIOLATION",
                 )
 
         start_time = time.perf_counter()

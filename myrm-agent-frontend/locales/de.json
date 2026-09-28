@@ -19589,7 +19589,22 @@
       "statusUntested": "Ungetestet",
       "copyPrompt": "Agent-Prompt kopieren",
       "copied": "Kopiert!",
-      "useInPrompt": "Diesen Host im Chat-Prompt verwenden"
+      "useInPrompt": "Diesen Host im Chat-Prompt verwenden",
+      "readOnlyBadge": "Schreibgeschütztes Gate",
+      "writableBadge": "Lese-/Schreibmodus",
+      "readOnlyDesc": "Produktionsisolierung blockiert destruktive und mutierende Befehle",
+      "breakGlassAction": "Break-Glass-Fenster anfordern",
+      "breakGlassModalTitle": "Notfall-Break-Glass-Fenster-Anfrage",
+      "breakGlassReason": "Begründung der Änderung",
+      "breakGlassReasonPlaceholder": "Geben Sie die Notwendigkeit der Änderung und Ticketnummer an...",
+      "breakGlassCommand": "Befehl",
+      "breakGlassTtl": "Gültigkeitsdauer (Sekunden)",
+      "breakGlassSubmit": "Einmaliges Token ausstellen",
+      "breakGlassSuccess": "Break-Glass-Token erfolgreich für Einzelausführung ausgestellt",
+      "policyUpdated": "Sicherheitsrichtlinie erfolgreich aktualisiert",
+      "tierProd": "Produktion",
+      "tierStaging": "Staging-Umgebung",
+      "tierDev": "Entwicklung"
     }
   },
   "continualOverlay": {

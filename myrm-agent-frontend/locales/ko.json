@@ -19589,7 +19589,22 @@
       "statusUntested": "테스트되지 않음",
       "copyPrompt": "Agent 프롬프트 복사",
       "copied": "복사되었습니다!",
-      "useInPrompt": "채팅 프롬프트에서 이 호스트 사용"
+      "useInPrompt": "채팅 프롬프트에서 이 호스트 사용",
+      "readOnlyBadge": "읽기 전용 게이트",
+      "writableBadge": "읽기/쓰기 모드",
+      "readOnlyDesc": "프로덕션 보호 격리로 모든 고위험 파괴 및 변경 명령을 차단합니다",
+      "breakGlassAction": "브레이크글래스 신청",
+      "breakGlassModalTitle": "보호된 변경 윈도우 브레이크글래스 신청",
+      "breakGlassReason": "변경 사유",
+      "breakGlassReasonPlaceholder": "보호된 호스트에서 변경을 수행해야 하는 이유와 티켓 번호를 입력하세요...",
+      "breakGlassCommand": "실행 명령",
+      "breakGlassTtl": "유효 시간 (초)",
+      "breakGlassSubmit": "일회용 토큰 발급",
+      "breakGlassSuccess": "브레이크글래스 토큰이 성공적으로 발급되었습니다 (1회 유효)",
+      "policyUpdated": "보안 정책이 성공적으로 업데이트되었습니다",
+      "tierProd": "프로덕션",
+      "tierStaging": "스테이징",
+      "tierDev": "개발 환경"
     }
   },
   "continualOverlay": {

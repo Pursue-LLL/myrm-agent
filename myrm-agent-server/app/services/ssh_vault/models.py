@@ -34,6 +34,9 @@ class SSHHostConfig(BaseModel):
     identity_file: Optional[str] = Field(default=None, description="Path to identity private key file")
     tags: List[str] = Field(default_factory=list, description="Categorization tags (e.g. gpu, prod, test)")
     description: Optional[str] = Field(default=None, description="Human readable description")
+    is_read_only: bool = Field(default=True, description="Enforce strict read-only execution gate")
+    environment_tier: str = Field(default="production", description="Environment tier: production, staging, development")
+    require_confirm_on_write: bool = Field(default=True, description="Require user confirmation before write operations")
 
     def validate_alias(self) -> bool:
         """Verify alias contains only safe characters to prevent CLI injection."""
@@ -58,6 +61,7 @@ class SSHCommandPayload(BaseModel):
     timeout_seconds: float = Field(default=30.0, description="Max execution timeout in seconds")
     allow_high_risk: bool = Field(default=False, description="Whether to bypass high-risk command guard")
     working_directory: Optional[str] = Field(default=None, description="Optional working directory on remote")
+    break_glass_token: Optional[str] = Field(default=None, description="One-time break-glass authorization token")
 
 
 class SSHCommandResult(BaseModel):
@@ -72,6 +76,9 @@ class SSHCommandResult(BaseModel):
     distilled: bool = Field(default=False, description="Whether log was processed by distiller")
     is_timeout: bool = Field(default=False, description="Whether execution exceeded timeout")
     is_blocked_high_risk: bool = Field(default=False, description="Whether command was blocked by safety policy")
+    is_read_only_violation: bool = Field(default=False, description="Whether command violated read-only policy")
+    blocked_command_snippet: Optional[str] = Field(default=None, description="Snippet causing read-only violation")
+    break_glass_token_used: bool = Field(default=False, description="Whether execution was authorized via break-glass token")
     error_message: Optional[str] = Field(default=None, description="Detailed error message if failed")
 
 
