@@ -51,13 +51,21 @@ vi.mock('../securityPolicyUtils', () => ({
 
 const t = (key: string) => key;
 
+async function setupHook() {
+  const rendered = renderHook(() => useSecurityPolicy(t));
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return rendered;
+}
+
 describe('useSecurityPolicy – command denylist toast feedback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('shows toast.success when adding a valid command pattern', () => {
-    const { result } = renderHook(() => useSecurityPolicy(t));
+  it('shows toast.success when adding a valid command pattern', async () => {
+    const { result } = await setupHook();
 
     act(() => {
       result.current.handleAddCommandPattern('git push --force*');
@@ -72,8 +80,8 @@ describe('useSecurityPolicy – command denylist toast feedback', () => {
     );
   });
 
-  it('shows toast.success when removing a command pattern', () => {
-    const { result } = renderHook(() => useSecurityPolicy(t));
+  it('shows toast.success when removing a command pattern', async () => {
+    const { result } = await setupHook();
 
     act(() => {
       result.current.handleAddCommandPattern('*DROP DATABASE*');
@@ -93,8 +101,8 @@ describe('useSecurityPolicy – command denylist toast feedback', () => {
     );
   });
 
-  it('shows toast.error for invalid pattern (single char, no glob)', () => {
-    const { result } = renderHook(() => useSecurityPolicy(t));
+  it('shows toast.error for invalid pattern (single char, no glob)', async () => {
+    const { result } = await setupHook();
 
     act(() => {
       result.current.handleAddCommandPattern('a');
@@ -105,8 +113,8 @@ describe('useSecurityPolicy – command denylist toast feedback', () => {
     expect(mockSet).not.toHaveBeenCalled();
   });
 
-  it('shows toast.error for duplicate pattern', () => {
-    const { result } = renderHook(() => useSecurityPolicy(t));
+  it('shows toast.error for duplicate pattern', async () => {
+    const { result } = await setupHook();
 
     act(() => {
       result.current.handleAddCommandPattern('rm -rf*');
@@ -121,8 +129,8 @@ describe('useSecurityPolicy – command denylist toast feedback', () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 
-  it('accepts single-char pattern with glob wildcard', () => {
-    const { result } = renderHook(() => useSecurityPolicy(t));
+  it('accepts single-char pattern with glob wildcard', async () => {
+    const { result } = await setupHook();
 
     act(() => {
       result.current.handleAddCommandPattern('*');
@@ -132,8 +140,8 @@ describe('useSecurityPolicy – command denylist toast feedback', () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it('trims whitespace before processing', () => {
-    const { result } = renderHook(() => useSecurityPolicy(t));
+  it('trims whitespace before processing', async () => {
+    const { result } = await setupHook();
 
     act(() => {
       result.current.handleAddCommandPattern('  git push --force*  ');
@@ -148,8 +156,8 @@ describe('useSecurityPolicy – command denylist toast feedback', () => {
     );
   });
 
-  it('ignores empty or whitespace-only input silently', () => {
-    const { result } = renderHook(() => useSecurityPolicy(t));
+  it('ignores empty or whitespace-only input silently', async () => {
+    const { result } = await setupHook();
 
     act(() => {
       result.current.handleAddCommandPattern('');
@@ -169,8 +177,8 @@ describe('useSecurityPolicy – capability surface matrix', () => {
     vi.clearAllMocks();
   });
 
-  it('updates capability matrix and calls syncManager when surface action changes', () => {
-    const { result } = renderHook(() => useSecurityPolicy(t));
+  it('updates capability matrix and calls syncManager when surface action changes', async () => {
+    const { result } = await setupHook();
 
     act(() => {
       result.current.handleCapabilityChange('knowledge_write', 'deny');
@@ -188,8 +196,8 @@ describe('useSecurityPolicy – capability surface matrix', () => {
     );
   });
 
-  it('applies capability preset matrix correctly', () => {
-    const { result } = renderHook(() => useSecurityPolicy(t));
+  it('applies capability preset matrix correctly', async () => {
+    const { result } = await setupHook();
 
     const autonomousPreset = {
       knowledge_read: 'allow' as const,
