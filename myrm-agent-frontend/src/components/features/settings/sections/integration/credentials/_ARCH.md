@@ -19,6 +19,8 @@
 | `CredentialsFilePanel.tsx`  | 文件凭证列表与缺失提示                           |
 | `CredentialsOAuthPanel.tsx` | OAuth 集成卡片网格                               |
 | `CredentialsDialogs.tsx`    | Vault/OAuth 模态框与删除确认                     |
+| `SSHVaultPanel.tsx`         | SSH 主机凭证资产列表、连通性探测与只读门禁控制台 |
+| `BreakGlassModal.tsx`       | 300s TTL 受保护变更窗口单次破窗紧急申请弹窗      |
 
 ## 依赖
 
@@ -26,4 +28,5 @@
 - `@/services/google-workspace-oauth`
 - `@/services/xai-oauth`
 - `@/services/memory/integration`
+- `@/services/sshVault`
 - 父模块 [integration/_ARCH.md](../_ARCH.md)

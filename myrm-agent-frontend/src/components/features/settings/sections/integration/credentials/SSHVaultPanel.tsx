@@ -123,7 +123,7 @@ export function SSHVaultPanel() {
       });
     } catch {
       toast({
-        title: 'Failed to copy prompt',
+        title: t('copyFailed'),
         variant: 'destructive',
       });
     }

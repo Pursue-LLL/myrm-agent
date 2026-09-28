@@ -4,7 +4,7 @@ Defines host configurations, probe results, execution results, and SFTP transfer
 
 [INPUT]
 - pydantic::BaseModel, Field
-- typing::Any, Dict, List, Optional
+- typing::List, Optional
 - re::Pattern
 
 [OUTPUT]

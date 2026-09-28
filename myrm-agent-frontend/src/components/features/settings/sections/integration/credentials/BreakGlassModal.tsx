@@ -96,7 +96,7 @@ export function BreakGlassModal({ isOpen, onClose, hostAlias }: BreakGlassModalP
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast({
-        title: 'Failed to copy',
+        title: t('copyFailed'),
         variant: 'destructive',
       });
     }
@@ -134,7 +134,7 @@ export function BreakGlassModal({ isOpen, onClose, hostAlias }: BreakGlassModalP
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={handleClose}>Done</Button>
+              <Button onClick={handleClose}>{t('done')}</Button>
             </DialogFooter>
           </div>
         ) : (
@@ -179,7 +179,7 @@ export function BreakGlassModal({ isOpen, onClose, hostAlias }: BreakGlassModalP
 
             <DialogFooter className="gap-2 sm:gap-0">
               <Button type="button" variant="outline" onClick={handleClose}>
-                Cancel
+                {t('cancel')}
               </Button>
               <Button type="submit" disabled={isSubmitting || !command.trim() || !reason.trim()} className="gap-1.5">
                 <Key className="h-4 w-4" />
