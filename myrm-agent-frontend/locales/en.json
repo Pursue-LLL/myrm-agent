@@ -15697,7 +15697,8 @@
       "owner": "Owner",
       "unassigned": "Unassigned",
       "due": "Due",
-      "lines": "{count, plural, one {# line} other {# lines}}"
+      "lines": "{count, plural, one {# line} other {# lines}}",
+      "risks": "Risks"
     }
   },
   "stt": {

@@ -21,6 +21,7 @@ const EMPTY_SNAPSHOT = {
   summary: '',
   decisions: [],
   debate_points: [],
+  risks: [],
   action_items: [],
   published_wiki_paths: [],
   error: '',

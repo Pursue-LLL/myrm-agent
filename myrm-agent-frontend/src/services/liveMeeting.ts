@@ -31,6 +31,7 @@ export interface LiveMeetingSnapshot {
   summary: string;
   decisions: string[];
   debate_points: string[];
+  risks: string[];
   action_items: LiveMeetingActionItem[];
   published_wiki_paths: string[];
   error: string;

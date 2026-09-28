@@ -8615,7 +8615,8 @@
       "owner": "担当",
       "unassigned": "未定",
       "due": "期限",
-      "lines": "{count, plural, other {# 行}}"
+      "lines": "{count, plural, other {# 行}}",
+      "risks": "リスク"
     }
   },
   "stt": {

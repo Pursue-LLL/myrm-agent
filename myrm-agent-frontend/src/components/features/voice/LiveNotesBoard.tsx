@@ -14,7 +14,7 @@
 
 import { memo } from 'react';
 import { useTranslations } from 'next-intl';
-import { ClipboardList, ListChecks, MessageSquareQuote } from 'lucide-react';
+import { ClipboardList, ListChecks, MessageSquareQuote, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { LiveMeetingSnapshot } from '@/services/liveMeeting';
 
@@ -29,6 +29,7 @@ const LiveNotesBoard = memo(function LiveNotesBoard({ snapshot, className }: Liv
     snapshot !== null &&
     (Boolean(snapshot.summary) ||
       snapshot.decisions.length > 0 ||
+      snapshot.risks.length > 0 ||
       snapshot.action_items.length > 0);
 
   return (
@@ -75,6 +76,23 @@ const LiveNotesBoard = memo(function LiveNotesBoard({ snapshot, className }: Liv
                 <li key={`${index}-${decision}`} className="flex gap-2 text-sm text-foreground/90">
                   <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-primary" />
                   <span>{decision}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {snapshot && snapshot.risks.length > 0 && (
+          <section className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <TriangleAlert className="h-3.5 w-3.5" />
+              {t('risks')}
+            </div>
+            <ul className="space-y-1">
+              {snapshot.risks.map((risk, index) => (
+                <li key={`${index}-${risk}`} className="flex gap-2 text-sm text-foreground/90">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-amber-500" />
+                  <span>{risk}</span>
                 </li>
               ))}
             </ul>

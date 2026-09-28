@@ -36,6 +36,7 @@ class _FakeLLM:
                     "summary": "Discussed rollout.",
                     "decisions": ["Ship plan A"],
                     "debate_points": ["Timeline"],
+                    "risks": ["Vendor lock-in"],
                     "action_items": [
                         {"description": "Draft spec", "owner": "Alice", "due_hint": "Fri"}
                     ],
@@ -61,6 +62,17 @@ def test_ingest_ignores_empty_and_counts_lines() -> None:
     assert "hello" in session.render_transcript()
 
 
+def test_render_transcript_uses_session_relative_timestamps() -> None:
+    clock = _Clock()
+    session = LiveNotesSession("s1", clock=clock)
+    session.ingest("first")
+    clock.now += 65.0
+    session.ingest("second")
+    rendered = session.render_transcript()
+    assert "[00:00] first" in rendered
+    assert "[01:05] second" in rendered
+
+
 def test_should_refresh_requires_min_chars_and_interval() -> None:
     clock = _Clock()
     session = LiveNotesSession("s1", refresh_seconds=120, min_new_chars=10, clock=clock)
@@ -79,6 +91,7 @@ async def test_maybe_refresh_and_snapshot() -> None:
     assert refreshed is not None
     assert refreshed.notes is not None
     assert refreshed.notes.title == "Live Sync"
+    assert refreshed.notes.risks == ("Vendor lock-in",)
     assert refreshed.notes.action_items[0].owner == "Alice"
     assert llm.calls == 1
 

@@ -80,12 +80,17 @@ class LiveNotesSession:
 
     # -- ingestion ---------------------------------------------------------
     def ingest(self, text: str, timestamp: float | None = None) -> bool:
-        """Append a finalized transcript line. Returns True when it was non-empty."""
+        """Append a finalized transcript line. Returns True when it was non-empty.
+
+        ``timestamp`` is seconds since session start; when omitted the session-relative
+        wall time is derived from the injected clock (never the raw clock value, which
+        would render as meaningless absolute minutes).
+        """
         cleaned = text.strip()
         if not cleaned:
             return False
-        ts = float(timestamp) if timestamp is not None else float(self._clock())
-        self._lines.append(_TranscriptLine(timestamp=ts, text=cleaned))
+        ts = float(timestamp) if timestamp is not None else float(self._clock()) - self._started_at
+        self._lines.append(_TranscriptLine(timestamp=max(0.0, ts), text=cleaned))
         self._chars_since_refresh += len(cleaned)
         return True
 

@@ -8615,7 +8615,8 @@
       "owner": "담당자",
       "unassigned": "미정",
       "due": "기한",
-      "lines": "{count, plural, other {# 줄}}"
+      "lines": "{count, plural, other {# 줄}}",
+      "risks": "리스크"
     }
   },
   "stt": {

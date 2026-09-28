@@ -45,6 +45,7 @@ class StructuredMeetingNotes:
     summary: str
     decisions: tuple[str, ...] = ()
     debate_points: tuple[str, ...] = ()
+    risks: tuple[str, ...] = ()
     action_items: tuple[MeetingActionItem, ...] = ()
 
 

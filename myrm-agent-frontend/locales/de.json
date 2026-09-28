@@ -8615,7 +8615,8 @@
       "owner": "Verantwortlich",
       "unassigned": "Offen",
       "due": "Fällig",
-      "lines": "{count, plural, one {# Zeile} other {# Zeilen}}"
+      "lines": "{count, plural, one {# Zeile} other {# Zeilen}}",
+      "risks": "Risiken"
     }
   },
   "stt": {

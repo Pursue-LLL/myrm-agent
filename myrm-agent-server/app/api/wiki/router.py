@@ -3246,6 +3246,7 @@ class MeetingNotesResponse(BaseModel):
     summary: str = ""
     decisions: list[str] = Field(default_factory=list)
     debate_points: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
     action_items: list[dict[str, str | None]] = Field(default_factory=list)
     published_wiki_paths: list[str] = Field(default_factory=list)
     error: str = ""
@@ -3293,6 +3294,7 @@ async def transcribe_meeting_audio(
                 summary=result.notes.summary,
                 decisions=list(result.notes.decisions),
                 debate_points=list(result.notes.debate_points),
+                risks=list(result.notes.risks),
                 action_items=[
                     {"description": i.description, "owner": i.owner, "due_hint": i.due_hint}
                     for i in result.notes.action_items
@@ -3328,6 +3330,7 @@ class LiveNotesSnapshotResponse(BaseModel):
     summary: str = ""
     decisions: list[str] = Field(default_factory=list)
     debate_points: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
     action_items: list[dict[str, str | None]] = Field(default_factory=list)
     published_wiki_paths: list[str] = Field(default_factory=list)
     error: str = ""
@@ -3350,6 +3353,7 @@ def _live_notes_response(
         summary=notes.summary if notes else "",
         decisions=list(notes.decisions) if notes else [],
         debate_points=list(notes.debate_points) if notes else [],
+        risks=list(notes.risks) if notes else [],
         action_items=(
             [
                 {"description": item.description, "owner": item.owner, "due_hint": item.due_hint}

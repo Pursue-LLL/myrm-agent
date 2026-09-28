@@ -288,6 +288,7 @@ const VoiceSessionOverlay = memo(
         {liveNotes &&
           (liveNotes.summary ||
             liveNotes.decisions.length > 0 ||
+            liveNotes.risks.length > 0 ||
             liveNotes.action_items.length > 0) && (
             <div className="absolute inset-x-4 bottom-4 max-h-[38vh] lg:inset-x-auto lg:right-6 lg:top-24 lg:bottom-24 lg:max-h-none lg:w-80">
               <LiveNotesBoard snapshot={liveNotes} className="max-h-full" />

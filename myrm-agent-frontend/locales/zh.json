@@ -15697,7 +15697,8 @@
       "owner": "责任人",
       "unassigned": "待定",
       "due": "截止",
-      "lines": "{count, plural, other {# 行}}"
+      "lines": "{count, plural, other {# 行}}",
+      "risks": "风险"
     }
   },
   "stt": {

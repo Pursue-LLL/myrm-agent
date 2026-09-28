@@ -77,12 +77,13 @@ Given the full transcript of a meeting, produce:
 2. A 3-5 sentence summary.
 3. Decisions made (bullets).
 4. Key debate points (bullets).
-5. Action items with optional owner and due hint.
+5. Key risks or blockers (bullets).
+6. Action items with optional owner and due hint.
 
 Transcript:
 {transcript}
 
-Return strict JSON with keys: title, summary, decisions, debate_points,
+Return strict JSON with keys: title, summary, decisions, debate_points, risks,
 action_items (array of {{description, owner, due_hint}}). No markdown fences."""
 
 
@@ -255,6 +256,7 @@ async def distill_meeting_notes(transcript: str, llm: object) -> StructuredMeeti
         summary=str(payload.get("summary", "")),
         decisions=tuple(str(d) for d in payload.get("decisions", [])),
         debate_points=tuple(str(d) for d in payload.get("debate_points", [])),
+        risks=tuple(str(r) for r in payload.get("risks", [])),
         action_items=action_items,
     )
 
@@ -268,6 +270,8 @@ def _render_minutes_markdown(
         lines += ["## Decisions", *[f"- {d}" for d in notes.decisions], ""]
     if notes.debate_points:
         lines += ["## Key Debate Points", *[f"- {p}" for p in notes.debate_points], ""]
+    if notes.risks:
+        lines += ["## Risks", *[f"- {r}" for r in notes.risks], ""]
     if notes.action_items:
         lines += ["## Action Items"]
         lines += [
