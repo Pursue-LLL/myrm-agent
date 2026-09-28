@@ -24,6 +24,8 @@ handles per-app first approval (persisted under chat workspace volume), and emit
 | `GET /webui/desktop/approval/pending` | `pending` id list + `count` frozen for E2E; additive `details` (per-request metadata) + `decisions` (recent grant/deny/timeout audit) |
 | `POST /webui/desktop/approval/resolve` | Resolve with settlement semantics: 200 resolved, 410 expired (timeout), 404 missing; optional `reason` recorded on explicit refusals |
 | `POST /webui/desktop/approval/reset-runtime` | Clears in-memory session approvals (incl. session-final denials) and reloads persisted always-trusted apps + persistent denials |
+| `POST /webui/desktop/envelope/pause` | Emergency pause: revoke active intent envelope and broadcast progress |
+| `GET /webui/desktop/envelope/status` | Query active envelope execution status and remaining budget |
 
 Revoke does **not** call `reset_all_runtime_approval_state()` — other apps' session approvals stay intact.
 
