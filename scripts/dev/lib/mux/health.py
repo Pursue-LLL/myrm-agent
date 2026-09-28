@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import signal
+import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -31,6 +32,7 @@ if __package__ in (None, ""):
         sys.path.insert(0, _lib_root)
 
 from e2e_core.real_user_home import real_user_home
+
 from mux.load import mux_context_count, read_mux_status, wave_lease_count
 from mux.responsive_probe import mux_timeout_effective, mux_tools_list_responsive
 
@@ -40,10 +42,36 @@ DEFAULT_SOCKET_NAME = "cdmcp-mux.sock"
 DEFAULT_EXPECTED_TIMEOUT_MS = 180_000
 REAP_GRACE_SEC = 0.5
 REAP_KILL_WAIT_SEC = 2.0
+# A starting daemon waits for Chrome's cold CDP endpoint before it creates its socket.
+# That wait is legitimate, so a pid-without-socket younger than this is STARTING, not a
+# zombie. Must comfortably exceed the mux's own CDP wait budget.
+MUX_STARTUP_GRACE_SEC = 90.0
+
+
+def _process_start_epoch(pid: int) -> float | None:
+    """Epoch seconds when ``pid`` started, or None when it cannot be determined."""
+    try:
+        proc = subprocess.run(
+            ["ps", "-o", "lstart=", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=2.0,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    text = proc.stdout.strip()
+    if not text:
+        return None
+    try:
+        return time.mktime(time.strptime(text, "%a %b %d %H:%M:%S %Y"))
+    except ValueError:
+        return None
 
 
 class MuxDaemonState(str, Enum):
     HEALTHY = "HEALTHY"
+    STARTING = "STARTING"
     ZOMBIE_ALIVE_NO_SOCKET = "ZOMBIE_ALIVE_NO_SOCKET"
     DEAD = "DEAD"
     CORRUPT_PID = "CORRUPT_PID"
@@ -185,6 +213,21 @@ def evaluate_mux_health(
     pid_alive = candidate_pid is not None and _process_alive(candidate_pid)
 
     if pid_alive and not socket_present:
+        # A freshly started daemon legitimately has no socket yet: it waits for Chrome's
+        # cold CDP endpoint before it attaches its upstream and creates the socket (see
+        # ensure-cdp-ready.mjs in cdmcp-mux-autoconnect). Classifying that window as
+        # ZOMBIE let the reaper terminate the daemon mid-startup on every cold start,
+        # which is why the cluster could never settle and lanes kept failing attach.
+        started_at = _process_start_epoch(candidate_pid)
+        if started_at is not None and time.time() - started_at <= MUX_STARTUP_GRACE_SEC:
+            return MuxHealthVerdict(
+                state=MuxDaemonState.STARTING,
+                owner_pid=candidate_pid,
+                socket_path=sock,
+                probe_ok=False,
+                agent_rule="",
+                detail="daemon starting (waiting for CDP before it exposes its socket)",
+            )
         return MuxHealthVerdict(
             state=MuxDaemonState.ZOMBIE_ALIVE_NO_SOCKET,
             owner_pid=candidate_pid,
@@ -348,9 +391,7 @@ def should_allow_mux_restart(
     if verdict.state is MuxDaemonState.UNKNOWN:
         return True
     if verdict.state is MuxDaemonState.HEALTHY:
-        if wave_leases > 0 or mux_contexts > 0:
-            return False
-        return True
+        return not (wave_leases > 0 or mux_contexts > 0)
     return True
 
 
