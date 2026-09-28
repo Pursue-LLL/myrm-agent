@@ -70,7 +70,6 @@ function mockVoiceSession(shape: VoiceSessionShape) {
       snapshot: null,
       ingest: vi.fn(),
       finalize: vi.fn(),
-      reset: vi.fn(),
     },
   });
 }

@@ -26,7 +26,6 @@ export interface UseLiveMeetingNotesReturn {
   snapshot: LiveMeetingSnapshot | null;
   ingest: (text: string) => void;
   finalize: () => Promise<LiveMeetingSnapshot | null>;
-  reset: () => void;
 }
 
 const STORAGE_PREFIX = 'myrm-live-notes:';
@@ -59,7 +58,7 @@ function resolveInitialSessionId(sessionKey: string | undefined): string {
 }
 
 export function useLiveMeetingNotes(sessionKey?: string): UseLiveMeetingNotesReturn {
-  const [sessionId, setSessionId] = useState(() => resolveInitialSessionId(sessionKey));
+  const [sessionId] = useState(() => resolveInitialSessionId(sessionKey));
   const [snapshot, setSnapshot] = useState<LiveMeetingSnapshot | null>(null);
   const inFlightRef = useRef(false);
   const queueRef = useRef<string[]>([]);
@@ -111,23 +110,8 @@ export function useLiveMeetingNotes(sessionKey?: string): UseLiveMeetingNotesRet
     }
   }, [sessionId, sessionKey]);
 
-  const reset = useCallback(() => {
-    queueRef.current = [];
-    inFlightRef.current = false;
-    setSnapshot(null);
-    const next = newSessionId();
-    if (sessionKey && typeof window !== 'undefined') {
-      try {
-        window.sessionStorage.setItem(storageKey(sessionKey), next);
-      } catch {
-        // ignore storage failures
-      }
-    }
-    setSessionId(next);
-  }, [sessionKey]);
-
   return useMemo(
-    () => ({ sessionId, snapshot, ingest, finalize, reset }),
-    [sessionId, snapshot, ingest, finalize, reset],
+    () => ({ sessionId, snapshot, ingest, finalize }),
+    [sessionId, snapshot, ingest, finalize],
   );
 }
