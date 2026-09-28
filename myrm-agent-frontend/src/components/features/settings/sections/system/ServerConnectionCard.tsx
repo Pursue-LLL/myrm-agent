@@ -18,6 +18,7 @@ import {
   clearPendingSwitch,
   getLastGood,
   getPendingSwitch,
+  isPendingFresh,
   setLastGood,
   setPendingSwitch,
 } from '@/lib/connection-switch-guard';
@@ -96,8 +97,12 @@ const ServerConnectionCard = memo(() => {
   // Post-reload verification: a pending switch that lands on an unreachable
   // target rolls back to last-known-good instead of stranding the user.
   useEffect(() => {
+    if (!isTauriRuntime()) {
+      return;
+    }
     const pending = getPendingSwitch();
-    if (!pending) {
+    if (!pending || !isPendingFresh(pending)) {
+      clearPendingSwitch();
       return;
     }
     const current = getRemoteGatewayConfig();
@@ -114,17 +119,22 @@ const ServerConnectionCard = memo(() => {
         return;
       }
       if (healthy) {
-        setLastGood({ enabled: true, url: targetUrl });
+        setLastGood({ activeId: getActiveRemoteProfileId(), url: targetUrl });
         clearPendingSwitch();
         return;
       }
+      // Restore by roster id: stored urls are resolved API bases, which differ
+      // from raw profile urls for cloud profiles. Rollback never writes new
+      // profiles; unknown ids fall back to local.
       const lastGood = getLastGood();
-      if (lastGood === null) {
-        setRemoteGatewayConfig(null);
-      } else if (lastGood.url === null) {
+      const profiles = listRemoteProfiles();
+      const byId = lastGood?.activeId ? profiles.find((p) => p.id === lastGood.activeId) : undefined;
+      const byUrl = lastGood?.url ? profiles.find((p) => p.url === lastGood.url) : undefined;
+      const restoreId = byId?.id ?? byUrl?.id ?? null;
+      if (restoreId === null) {
         setRemoteGatewayConfig(null);
       } else {
-        setRemoteGatewayConfig({ enabled: true, url: lastGood.url });
+        setActiveRemoteProfileId(restoreId);
       }
       clearPendingSwitch();
       refresh();
@@ -154,7 +164,7 @@ const ServerConnectionCard = memo(() => {
       }
       failedUrlRef.current = null;
       const current = getRemoteGatewayConfig();
-      setLastGood({ enabled: current !== null, url: current?.url ?? null });
+      setLastGood({ activeId: getActiveRemoteProfileId(), url: current?.url ?? null });
       setPendingSwitch({ url: nextUrl, at: Date.now() });
       apply();
     },

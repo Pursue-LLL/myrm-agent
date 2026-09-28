@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - lib/deploy-mode::getRemoteGatewayConfig (POS: current remote config reader)
+ * - (none: localStorage only, zero module imports)
  *
  * [OUTPUT]
  * - Last-good connection memory + pending-switch verification for safe switches.
@@ -8,16 +8,21 @@
  * [POS]
  * Guards ServerConnectionCard profile switches: health-gate before switching,
  * last-known-good rollback when the new target proves unreachable after reload.
- * localStorage only; corrupt values degrade to "no memory".
+ * Snapshots carry the roster profile id (raw profile urls and resolved API
+ * bases differ for cloud profiles, so rollback must restore by id and never
+ * write new profiles). localStorage only; corrupt values degrade to "no memory".
  */
 
 export interface GatewayConfigSnapshot {
-  enabled: boolean;
+  activeId: string | null;
   url: string | null;
 }
 
 const LAST_GOOD_KEY = 'myrm-connection-last-good';
 const PENDING_SWITCH_KEY = 'myrm-connection-pending-switch';
+
+/** Crash leftovers older than this are discarded instead of verified. */
+export const PENDING_SWITCH_TTL_MS = 10 * 60 * 1000;
 
 export interface PendingSwitch {
   url: string | null;
@@ -58,14 +63,14 @@ export function getLastGood(): GatewayConfigSnapshot | null {
     if (typeof parsed !== 'object' || parsed === null) {
       return null;
     }
-    const record = parsed as { enabled?: unknown; url?: unknown };
-    if (typeof record.enabled !== 'boolean') {
+    const record = parsed as { activeId?: unknown; url?: unknown };
+    if (record.activeId !== null && typeof record.activeId !== 'string') {
       return null;
     }
     if (record.url !== null && typeof record.url !== 'string') {
       return null;
     }
-    return { enabled: record.enabled, url: record.url };
+    return { activeId: record.activeId, url: record.url };
   } catch {
     return null;
   }
@@ -104,4 +109,8 @@ export function setPendingSwitch(pending: PendingSwitch): void {
 
 export function clearPendingSwitch(): void {
   removeStorage(PENDING_SWITCH_KEY);
+}
+
+export function isPendingFresh(pending: PendingSwitch, now: number = Date.now()): boolean {
+  return now - pending.at <= PENDING_SWITCH_TTL_MS;
 }

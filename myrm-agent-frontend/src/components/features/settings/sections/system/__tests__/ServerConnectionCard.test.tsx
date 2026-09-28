@@ -61,6 +61,52 @@ describe('ServerConnectionCard switch guard', () => {
     vi.doUnmock('@/lib/deploy-mode');
     vi.unstubAllGlobals();
   });
+
+  it('rolls a dead switch back to a cloud profile by id without junk profiles', async () => {
+    const testing = await import('@testing-library/react');
+    const { toast } = await import('@/lib/utils/toast');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
+    localStorage.clear();
+    localStorage.setItem('myrm-remote-first-run-seen', '1');
+    localStorage.setItem(
+      'myrm-remote-gateway-roster',
+      JSON.stringify({
+        profiles: [
+          { id: 'c1', name: 'Cloud', url: 'cloud-slot', kind: 'cloud', cpBaseUrl: 'https://cp.example' },
+          { id: 'p2', name: 'Pi', url: 'http://127.0.0.1:9', kind: 'server' },
+        ],
+        activeId: 'p2',
+      }),
+    );
+    localStorage.setItem(
+      'myrm-connection-pending-switch',
+      JSON.stringify({ url: 'http://127.0.0.1:9', at: Date.now() }),
+    );
+    localStorage.setItem(
+      'myrm-connection-last-good',
+      JSON.stringify({ activeId: 'c1', url: 'https://cp.example/proxy/me' }),
+    );
+
+    vi.resetModules();
+    vi.doMock('@/lib/deploy-mode', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
+      return { ...actual, isTauriRuntime: () => true };
+    });
+    const { default: TauriCard } = await import('../ServerConnectionCard');
+    const { unmount } = testing.render(<TauriCard />);
+
+    await testing.waitFor(() => {
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith('restoredLastGood');
+    });
+    const roster = JSON.parse(localStorage.getItem('myrm-remote-gateway-roster') ?? '{}');
+    // Restored to the cloud profile, and no duplicate was written.
+    expect(roster.activeId).toBe('c1');
+    expect(roster.profiles).toHaveLength(2);
+    expect(localStorage.getItem('myrm-connection-pending-switch')).toBeNull();
+    unmount();
+    vi.doUnmock('@/lib/deploy-mode');
+    vi.unstubAllGlobals();
+  });
 });
 
 describe('ServerConnectionCard runtime gating', () => {
