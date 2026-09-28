@@ -30,10 +30,10 @@ from tests.support.e2e_desktop_model_pin import ensure_desktop_basic_model_pinne
 from tests.support.e2e_runtime_guard import E2EResourceLedger, heartbeat_once
 
 _PROMPT = (
-    "QA SAFETY PROBE — use ONLY desktop_vision_tool. "
+    "Please type an asterisk '*' on screen using desktop_vision_tool. "
     "Preferred: action=key text=* (asterisk) once. "
     "Allowed alternate: action=type text=*. "
-    "Forbidden: web_search, bash, snapshot, click, screenshot. "
+    "Do not use other tools. "
     "After one desktop_vision_tool result, reply DONE immediately."
 )
 _REJECT = "Rejected printable operator"

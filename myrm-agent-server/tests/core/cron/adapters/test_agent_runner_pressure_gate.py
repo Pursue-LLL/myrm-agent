@@ -56,6 +56,18 @@ def test_overload_reason_none_when_monitor_missing(monkeypatch: pytest.MonkeyPat
     assert _memory_overload_reason() is None
 
 
+def test_overload_reason_fail_open_on_probe_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.lifecycle.monitors as monitors_module
+
+    class _BrokenMonitor:
+        @property
+        def current_level(self):  # noqa: ANN202
+            raise RuntimeError("sensor dead")
+
+    monkeypatch.setattr(monitors_module, "_memory_pressure_monitor", _BrokenMonitor())
+    assert _memory_overload_reason() is None
+
+
 @pytest.mark.asyncio
 async def test_run_skips_without_consuming_attempts(
     monkeypatch: pytest.MonkeyPatch,
