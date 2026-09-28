@@ -480,6 +480,9 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
   }, [enabled, cameraEnabled, camera, speech, mode, agentBridge, realtimeVoice, geminiLive]);
 
   const stopSession = useCallback(() => {
+    // Publish/archive the in-meeting rolling notes when the session ends and reset
+    // the live session so the next session starts fresh.
+    void liveNotes.finalize();
     sessionActiveRef.current = false;
     pendingTTSRef.current = [];
     isSpeakingRef.current = false;
@@ -500,7 +503,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     camera.stopCamera();
 
     setSessionState('inactive');
-  }, [speech, tts, camera, mode, agentBridge, realtimeVoice, geminiLive]);
+  }, [speech, tts, camera, mode, agentBridge, realtimeVoice, geminiLive, liveNotes]);
 
   const interruptTTS = useCallback(() => {
     if (mode === 'openai_realtime' || mode === 'gemini_live') {
