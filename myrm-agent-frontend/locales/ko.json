@@ -8605,7 +8605,18 @@
     "ttsPlaybackFailedTitle": "읽어주기 실패",
     "ttsPlaybackFailedDesc": "음성 합성이 오디오를 생성하지 못했습니다. 음성 설정을 확인하거나 다른 제공자를 시도하세요.",
     "voiceModeGeminiLive": "Gemini Live (WebSocket, ~200ms, 비디오)",
-    "geminiLiveModel": "Gemini Live 모델"
+    "geminiLiveModel": "Gemini Live 모델",
+    "liveNotes": {
+      "title": "실시간 회의록",
+      "empty": "회의가 시작되면 여기에 실시간 구조화 회의록이 표시됩니다.",
+      "summary": "요약",
+      "decisions": "결정 사항",
+      "actionItems": "할 일",
+      "owner": "담당자",
+      "unassigned": "미정",
+      "due": "기한",
+      "lines": "{count, plural, other {# 줄}}"
+    }
   },
   "stt": {
     "startRecording": "음성 입력",

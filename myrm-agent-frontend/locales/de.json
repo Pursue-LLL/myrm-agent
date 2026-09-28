@@ -8605,7 +8605,18 @@
     "ttsPlaybackFailedTitle": "Das Vorlesen ist fehlgeschlagen",
     "ttsPlaybackFailedDesc": "Die Sprachsynthese erzeugte kein Audio. Überprüfen Sie Ihre Spracheinstellungen oder versuchen Sie es mit einem anderen Anbieter.",
     "voiceModeGeminiLive": "Gemini Live (WebSocket, ~200 ms, Video)",
-    "geminiLiveModel": "Gemini Live-Modell"
+    "geminiLiveModel": "Gemini Live-Modell",
+    "liveNotes": {
+      "title": "Live-Notizen",
+      "empty": "Live-Struktur-Notizen erscheinen hier, sobald das Meeting beginnt.",
+      "summary": "Zusammenfassung",
+      "decisions": "Entscheidungen",
+      "actionItems": "Aufgaben",
+      "owner": "Verantwortlich",
+      "unassigned": "Offen",
+      "due": "Fällig",
+      "lines": "{count, plural, one {# Zeile} other {# Zeilen}}"
+    }
   },
   "stt": {
     "startRecording": "Spracheingabe",

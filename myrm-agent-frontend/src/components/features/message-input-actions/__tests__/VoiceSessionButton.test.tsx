@@ -65,6 +65,13 @@ function mockVoiceSession(shape: VoiceSessionShape) {
     ttsState: 'idle',
     agentResponseText: '',
     agentToolName: '',
+    liveNotes: {
+      sessionId: 'live-test',
+      snapshot: null,
+      ingest: vi.fn(),
+      finalize: vi.fn(),
+      reset: vi.fn(),
+    },
   });
 }
 

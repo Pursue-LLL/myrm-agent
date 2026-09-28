@@ -405,6 +405,7 @@ async def get_desktop_permissions(probe_capture: bool = False) -> JSONResponse:
                 "accessibility": status.accessibility,
                 "screen_recording": status.screen_recording,
                 "screen_recording_capturable": status.screen_recording_capturable,
+                "post_event_access": status.post_event_access,
                 "all_granted": status.all_granted,
                 "capture_ready": status.capture_ready,
                 "platform": status.platform,

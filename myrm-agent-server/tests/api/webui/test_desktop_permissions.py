@@ -40,6 +40,7 @@ class TestGetDesktopPermissions:
         mock_status.accessibility = True
         mock_status.screen_recording = True
         mock_status.screen_recording_capturable = True
+        mock_status.post_event_access = True
         mock_status.all_granted = True
         mock_status.capture_ready = True
         mock_status.platform = "macos"
@@ -61,6 +62,7 @@ class TestGetDesktopPermissions:
         assert data["accessibility"] is True
         assert data["screen_recording"] is True
         assert data["screen_recording_capturable"] is True
+        assert data["post_event_access"] is True
         assert data["all_granted"] is True
         assert data["capture_ready"] is True
         assert data["platform"] == "macos"
@@ -76,6 +78,7 @@ class TestGetDesktopPermissions:
         mock_status.accessibility = True
         mock_status.screen_recording = True
         mock_status.screen_recording_capturable = True
+        mock_status.post_event_access = True
         mock_status.all_granted = True
         mock_status.capture_ready = True
         mock_status.platform = "macos"
@@ -103,6 +106,7 @@ class TestGetDesktopPermissions:
         mock_status.accessibility = True
         mock_status.screen_recording = True
         mock_status.screen_recording_capturable = None
+        mock_status.post_event_access = False
         mock_status.all_granted = True
         mock_status.capture_ready = False
         mock_status.platform = "macos"
@@ -130,6 +134,7 @@ class TestGetDesktopPermissions:
         mock_status.accessibility = False
         mock_status.screen_recording = True
         mock_status.screen_recording_capturable = True
+        mock_status.post_event_access = True
         mock_status.all_granted = False
         mock_status.capture_ready = False
         mock_status.platform = "macos"
@@ -161,6 +166,7 @@ class TestGetDesktopPermissions:
         mock_status.accessibility = True
         mock_status.screen_recording = False
         mock_status.screen_recording_capturable = False
+        mock_status.post_event_access = False
         mock_status.all_granted = False
         mock_status.capture_ready = False
         mock_status.platform = "macos"

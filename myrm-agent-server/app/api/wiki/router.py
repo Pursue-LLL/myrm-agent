@@ -3306,6 +3306,124 @@ async def transcribe_meeting_audio(
         raise HTTPException(status_code=500, detail="Meeting notes transcription failed") from e
 
 
+from app.services.meeting_notes.live_notes import (  # noqa: E402
+    LiveNotesSession,
+    get_live_notes_registry,
+)
+from app.services.meeting_notes.service import publish_meeting_notes  # noqa: E402
+
+
+class LiveNotesIngestRequest(BaseModel):
+    text: str = Field(..., min_length=1, description="Finalized transcript chunk")
+    timestamp: float | None = Field(default=None, ge=0, description="Seconds since session start")
+
+
+class LiveNotesSnapshotResponse(BaseModel):
+    success: bool = True
+    session_id: str
+    line_count: int
+    transcript_chars: int
+    refreshed: bool = False
+    title: str = ""
+    summary: str = ""
+    decisions: list[str] = Field(default_factory=list)
+    debate_points: list[str] = Field(default_factory=list)
+    action_items: list[dict[str, str | None]] = Field(default_factory=list)
+    published_wiki_paths: list[str] = Field(default_factory=list)
+    error: str = ""
+
+
+def _live_notes_response(
+    session: LiveNotesSession,
+    *,
+    refreshed: bool,
+    published: list[str] | None = None,
+) -> LiveNotesSnapshotResponse:
+    snap = session.snapshot()
+    notes = snap.notes
+    return LiveNotesSnapshotResponse(
+        session_id=snap.session_id,
+        line_count=snap.line_count,
+        transcript_chars=snap.transcript_chars,
+        refreshed=refreshed,
+        title=notes.title if notes else "",
+        summary=notes.summary if notes else "",
+        decisions=list(notes.decisions) if notes else [],
+        debate_points=list(notes.debate_points) if notes else [],
+        action_items=(
+            [
+                {"description": item.description, "owner": item.owner, "due_hint": item.due_hint}
+                for item in notes.action_items
+            ]
+            if notes
+            else []
+        ),
+        published_wiki_paths=published or [],
+    )
+
+
+@router.post("/meeting-notes/live/{session_id}/ingest", response_model=LiveNotesSnapshotResponse)
+async def ingest_live_meeting_transcript(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    session_id: str,
+    payload: LiveNotesIngestRequest,
+) -> LiveNotesSnapshotResponse:
+    """Ingest one finalized transcript chunk; refresh rolling notes when due."""
+    try:
+        session = await get_live_notes_registry().get_or_create(session_id)
+        if not session.ingest(payload.text, payload.timestamp):
+            return _live_notes_response(session, refreshed=False)
+        refreshed = await session.maybe_refresh(archiver._llm)
+        return _live_notes_response(session, refreshed=refreshed is not None)
+    except Exception as e:
+        logger.error("Live meeting ingest failed: %s", e)
+        raise HTTPException(status_code=500, detail="Live meeting ingest failed") from e
+
+
+@router.get("/meeting-notes/live/{session_id}", response_model=LiveNotesSnapshotResponse)
+async def get_live_meeting_snapshot(session_id: str) -> LiveNotesSnapshotResponse:
+    """Return the current rolling notes snapshot for a live meeting."""
+    session = await get_live_notes_registry().get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Live meeting session not found")
+    return _live_notes_response(session, refreshed=False)
+
+
+@router.post("/meeting-notes/live/{session_id}/finalize", response_model=LiveNotesSnapshotResponse)
+async def finalize_live_meeting(
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    session_id: str,
+    auto_compile: bool = Query(True),
+    agent_id: Annotated[str | None, Query(description="Agent whose wiki vault to use")] = None,
+) -> LiveNotesSnapshotResponse:
+    """Force a final distillation, publish minutes to the wiki, and release the session."""
+    registry = get_live_notes_registry()
+    session = await registry.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Live meeting session not found")
+    try:
+        await session.refresh(archiver._llm)
+        snapshot = session.snapshot()
+        published: list[str] = []
+        if snapshot.notes is not None:
+            published = await publish_meeting_notes(
+                archiver._structure,
+                snapshot.notes,
+                session.render_transcript(),
+                agent_id,
+                auto_compile,
+                archiver._compiler._queue,
+            )
+        response = _live_notes_response(session, refreshed=True, published=published)
+        await registry.drop(session_id)
+        return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Live meeting finalize failed: %s", e)
+        raise HTTPException(status_code=500, detail="Live meeting finalize failed") from e
+
+
 from app.api.wiki.governance_routes import router as wiki_governance_router  # noqa: E402
 from app.api.wiki.ingest_stream import register_ingest_stream_routes  # noqa: E402
 from app.api.wiki.obsidian_binding_routes import router as wiki_obsidian_binding_router  # noqa: E402

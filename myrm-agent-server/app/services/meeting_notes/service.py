@@ -8,7 +8,9 @@
 
 [OUTPUT]
 - process_meeting_audio(): audio file -> chunked parallel transcription -> LLM distillation -> wiki raw publish
-- split_audio_into_chunks(): ffmpeg slice plan builder
+- build_chunk_plan(): audio slice window builder
+- distill_meeting_notes(): shared LLM minutes distillation (batch + live)
+- publish_meeting_notes(): shared wiki raw publish (batch + live)
 
 [POS]
 Business orchestration facade for the Meeting Scribe pipeline. Delegates ASR to
@@ -202,8 +204,8 @@ async def process_meeting_audio(
         for c in chunks
         if c.text
     )
-    notes = await _distill_notes(transcript, llm)
-    published = await _publish_to_wiki(
+    notes = await distill_meeting_notes(transcript, llm)
+    published = await publish_meeting_notes(
         structure, notes, transcript, agent_id, auto_compile, compiler_enqueue
     )
     return MeetingNotesResult(
@@ -215,8 +217,12 @@ async def process_meeting_audio(
     )
 
 
-async def _distill_notes(transcript: str, llm: object) -> StructuredMeetingNotes:
-    """LLM-distill decisions/debates/action items from transcript."""
+async def distill_meeting_notes(transcript: str, llm: object) -> StructuredMeetingNotes:
+    """LLM-distill decisions/debates/action items from transcript.
+
+    Shared by the batch pipeline (`process_meeting_audio`) and the live pipeline
+    (`live_notes.LiveNotesSession`).
+    """
     import json
 
     if llm is None:
@@ -273,7 +279,7 @@ def _render_minutes_markdown(
     return "\n".join(lines)
 
 
-async def _publish_to_wiki(
+async def publish_meeting_notes(
     structure: object,
     notes: StructuredMeetingNotes,
     transcript: str,
@@ -281,7 +287,10 @@ async def _publish_to_wiki(
     auto_compile: bool,
     compiler_enqueue: object | None,
 ) -> list[str]:
-    """Publish minutes markdown into the wiki raw pipeline; returns published paths."""
+    """Publish minutes markdown into the wiki raw pipeline; returns published paths.
+
+    Shared by the batch pipeline and the live session finalize path.
+    """
     from app.services.wiki.source_sync.publish_helpers import (
         build_frontmatter,
         publish_source_markdown,

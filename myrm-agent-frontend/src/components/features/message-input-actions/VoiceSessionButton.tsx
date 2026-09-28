@@ -283,6 +283,7 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
         agentToolName={voice.agentToolName}
         isAgentBridge={voiceMode === 'agent_bridge'}
         voiceMode={voiceMode}
+        liveNotes={voice.liveNotes.snapshot}
       />
       <VoiceBubble
         visible={voice.isActive && bubbleMinimized}

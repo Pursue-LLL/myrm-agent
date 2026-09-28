@@ -18,6 +18,8 @@ import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import type { VoiceSessionState, VoiceSessionMode } from '@/hooks/voice/useVoiceSession';
+import type { LiveMeetingSnapshot } from '@/services/liveMeeting';
+import LiveNotesBoard from './LiveNotesBoard';
 
 interface VoiceSessionOverlayProps {
   isOpen: boolean;
@@ -31,6 +33,8 @@ interface VoiceSessionOverlayProps {
   agentToolName?: string;
   isAgentBridge?: boolean;
   voiceMode?: VoiceSessionMode;
+  /** Live in-meeting rolling structured notes snapshot (nullable before first refresh) */
+  liveNotes?: LiveMeetingSnapshot | null;
 }
 
 const WAVEFORM_BARS = 24;
@@ -185,6 +189,7 @@ const VoiceSessionOverlay = memo(
     agentToolName,
     isAgentBridge = false,
     voiceMode,
+    liveNotes,
   }: VoiceSessionOverlayProps) => {
     const t = useTranslations('voiceSession');
 
@@ -279,6 +284,15 @@ const VoiceSessionOverlay = memo(
           <CallEnd01Icon size={18} />
           <span className="text-sm font-medium">{t('stopSession')}</span>
         </button>
+
+        {liveNotes &&
+          (liveNotes.summary ||
+            liveNotes.decisions.length > 0 ||
+            liveNotes.action_items.length > 0) && (
+            <div className="absolute inset-x-4 bottom-4 max-h-[38vh] lg:inset-x-auto lg:right-6 lg:top-24 lg:bottom-24 lg:max-h-none lg:w-80">
+              <LiveNotesBoard snapshot={liveNotes} className="max-h-full" />
+            </div>
+          )}
       </div>
     );
   },

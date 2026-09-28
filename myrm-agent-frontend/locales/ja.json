@@ -8605,7 +8605,18 @@
     "saved": "音声設定を保存しました",
     "saveError": "音声設定の保存に失敗しました",
     "localSttUnavailableTitle": "ローカルのWhisper STTを利用できません",
-    "localSttUnavailableDesc": "管理者にサーバーへlocal-sttコンポーネントのインストールを依頼するか（uv sync --extra local-stt）、クラウドSTTプロバイダーに切り替えてください。"
+    "localSttUnavailableDesc": "管理者にサーバーへlocal-sttコンポーネントのインストールを依頼するか（uv sync --extra local-stt）、クラウドSTTプロバイダーに切り替えてください。",
+    "liveNotes": {
+      "title": "リアルタイム議事録",
+      "empty": "会議が始まるとここに構造化された議事録がリアルタイムで表示されます。",
+      "summary": "要約",
+      "decisions": "決定事項",
+      "actionItems": "アクションアイテム",
+      "owner": "担当",
+      "unassigned": "未定",
+      "due": "期限",
+      "lines": "{count, plural, other {# 行}}"
+    }
   },
   "stt": {
     "startRecording": "音声入力",

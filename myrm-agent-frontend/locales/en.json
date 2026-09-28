@@ -15687,7 +15687,18 @@
     "geminiLiveModel": "Gemini Live Model",
     "realtimeVoice": "Realtime Voice",
     "saved": "Voice settings saved",
-    "saveError": "Failed to save voice settings"
+    "saveError": "Failed to save voice settings",
+    "liveNotes": {
+      "title": "Live Notes",
+      "empty": "Live structured notes will appear here once the meeting starts.",
+      "summary": "Summary",
+      "decisions": "Decisions",
+      "actionItems": "Action Items",
+      "owner": "Owner",
+      "unassigned": "Unassigned",
+      "due": "Due",
+      "lines": "{count, plural, one {# line} other {# lines}}"
+    }
   },
   "stt": {
     "startRecording": "Voice input",

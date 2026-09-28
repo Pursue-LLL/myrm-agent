@@ -22,6 +22,7 @@ import { useSpeechInput, type SpeechMode } from './useSpeechInput';
 import { useTTS, type TTSMode } from './useTTS';
 import { useCameraInput } from '../multimodal/useCameraInput';
 import { useVisionIntent } from '../multimodal/useVisionIntent';
+import { useLiveMeetingNotes, type UseLiveMeetingNotesReturn } from './useLiveMeetingNotes';
 import { useVoiceAgentBridge } from './useVoiceAgentBridge';
 import { useRealtimeVoice } from './useRealtimeVoice';
 import { useGeminiLiveVoice } from './useGeminiLiveVoice';
@@ -81,6 +82,8 @@ interface UseVoiceSessionReturn {
   agentResponseText: string;
   /** Current agent tool name being used (agent_bridge mode) */
   agentToolName: string;
+  /** Live in-meeting rolling structured notes (summary / decisions / action items) */
+  liveNotes: UseLiveMeetingNotesReturn;
 }
 
 const SENTENCE_END_PATTERN = /[.!?。！？\n]/;
@@ -178,12 +181,15 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
   const tts = useTTS({ mode: ttsMode, provider: ttsProvider });
 
+  const liveNotes = useLiveMeetingNotes();
+
   const agentBridge = useVoiceAgentBridge({
     enabled: mode === 'agent_bridge',
     agentId,
     chatId,
     keyterms,
     onError,
+    onSttFinal: liveNotes.ingest,
     onAgentResponse: useCallback(
       (text: string, done: boolean) => {
         onAgentResponse?.(text, done);
@@ -700,5 +706,6 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
           ? agentBridge.agentResponseText
           : agentResponseText,
     agentToolName: isAgentBridge ? agentBridge.agentToolName : agentToolName,
+    liveNotes,
   };
 }

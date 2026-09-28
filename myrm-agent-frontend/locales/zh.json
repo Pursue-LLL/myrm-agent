@@ -15687,7 +15687,18 @@
     "geminiLiveModel": "Gemini Live 模型",
     "realtimeVoice": "实时音色",
     "saved": "语音设置已保存",
-    "saveError": "保存语音设置失败"
+    "saveError": "保存语音设置失败",
+    "liveNotes": {
+      "title": "实时纪要",
+      "empty": "会议开始后，这里将实时生成结构化纪要。",
+      "summary": "摘要",
+      "decisions": "关键决策",
+      "actionItems": "待办事项",
+      "owner": "责任人",
+      "unassigned": "待定",
+      "due": "截止",
+      "lines": "{count, plural, other {# 行}}"
+    }
   },
   "stt": {
     "startRecording": "语音输入",

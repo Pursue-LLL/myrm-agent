@@ -8605,7 +8605,18 @@
     "saved": "語音設定已儲存",
     "saveError": "儲存語音設定失敗",
     "localSttUnavailableTitle": "本地 Whisper 語音識別不可用",
-    "localSttUnavailableDesc": "請聯繫管理員在伺服器安裝 local-stt 組件（uv sync --extra local-stt），或切換至雲端 STT 服務商。"
+    "localSttUnavailableDesc": "請聯繫管理員在伺服器安裝 local-stt 組件（uv sync --extra local-stt），或切換至雲端 STT 服務商。",
+    "liveNotes": {
+      "title": "即時紀要",
+      "empty": "會議開始後，這裡會即時產生結構化紀要。",
+      "summary": "摘要",
+      "decisions": "關鍵決策",
+      "actionItems": "待辦事項",
+      "owner": "負責人",
+      "unassigned": "待定",
+      "due": "截止",
+      "lines": "{count, plural, other {# 行}}"
+    }
   },
   "stt": {
     "startRecording": "語音輸入",

@@ -12,6 +12,7 @@
 | `useVoiceAgentBridge.ts` | 服务端 Agent WebSocket bridge 与主机就绪连接守卫              |
 | `useRealtimeVoice.ts`    | OpenAI Realtime WebRTC                                        |
 | `useGeminiLiveVoice.ts`  | Gemini Live WebSocket                                         |
+| `useLiveMeetingNotes.ts` | 会中实时纪要会话：final 转录入队上报（单飞）+ 滚动结构化纪要快照 |
 | `useVoicePttListener.ts` | Tauri PTT → DOM CustomEvent                                   |
 | `voiceCommands.ts`       | 语音指令纯函数（停词精确匹配，句中口述不触发）                |
 
