@@ -3054,6 +3054,28 @@
       "securityDescription": "包含重要漏洞修復，已為您優先提醒，建議立即升級。",
       "open": "查看更新",
       "dismiss": "忽略"
+    },
+    "pressureBanner": {
+      "open": "查看詳情",
+      "dismiss": "忽略",
+      "trigger": {
+        "disk_critical": {
+          "title": "磁碟即將寫滿",
+          "description": "資料碟快滿了，寫入可能靜默失敗——請立即清理或修剪快照。"
+        },
+        "memory_critical": {
+          "title": "記憶體嚴重告急",
+          "description": "服務端記憶體壓力嚴重，重任務已自動延後。"
+        },
+        "disk_elevated": {
+          "title": "磁碟空間告急",
+          "description": "可用空間不多了，盡快清理快照或產物。"
+        },
+        "memory_elevated": {
+          "title": "記憶體偏高",
+          "description": "記憶體佔用偏高，大任務可能延後到壓力緩解。"
+        }
+      }
     }
   },
   "mode": {

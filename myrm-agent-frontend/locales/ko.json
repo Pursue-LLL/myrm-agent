@@ -3054,6 +3054,28 @@
       "securityDescription": "긴급 취약점 패치가 포함되어 있습니다. 즉시 업데이트를 권장합니다.",
       "open": "업데이트 보기",
       "dismiss": "닫기"
+    },
+    "pressureBanner": {
+      "open": "자세히 보기",
+      "dismiss": "닫기",
+      "trigger": {
+        "disk_critical": {
+          "title": "디스크 거의 참",
+          "description": "데이터 드라이브가 거의 찼습니다. 쓰기가 조용히 실패할 수 있습니다 — 지금 정리하세요."
+        },
+        "memory_critical": {
+          "title": "메모리 심각",
+          "description": "서버 메모리가 심각합니다. 무거운 작업은 자동 연기됩니다."
+        },
+        "disk_elevated": {
+          "title": "디스크 부족",
+          "description": "여유 공간이 부족합니다. 스냅샷이나 산출물을 정리하세요."
+        },
+        "memory_elevated": {
+          "title": "메모리 높음",
+          "description": "메모리 사용이 높습니다. 압력이 내려가면 대형 작업이 실행됩니다."
+        }
+      }
     }
   },
   "mode": {

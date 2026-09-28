@@ -9,6 +9,7 @@ import SamplePrompts from './SamplePrompts';
 import ConversationRecallHint from './ConversationRecallHint';
 import MigrationDiscoveryBanner from './MigrationDiscoveryBanner';
 import UpdateNudgeBanner from './UpdateNudgeBanner';
+import ResourcePressureBanner from './ResourcePressureBanner';
 import GrowingLoopDiscoveryChip from './GrowingLoopDiscoveryChip';
 import MemoryHygieneDiscoverChip from './MemoryHygieneDiscoverChip';
 import { ModelOrchestrationPlaybookChip, ModelOrchestrationPlaybookDialog } from './playbook';
@@ -82,6 +83,8 @@ const EmptyChat = React.memo(() => {
         <MigrationDiscoveryBanner />
 
         <UpdateNudgeBanner />
+
+        <ResourcePressureBanner />
 
         <GrowingLoopDiscoveryChip />
 

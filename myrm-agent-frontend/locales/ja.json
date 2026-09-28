@@ -3054,6 +3054,28 @@
       "securityDescription": "緊急の脆弱性修正が含まれています。早めの更新をお勧めします。",
       "open": "更新を見る",
       "dismiss": "閉じる"
+    },
+    "pressureBanner": {
+      "open": "詳細を見る",
+      "dismiss": "閉じる",
+      "trigger": {
+        "disk_critical": {
+          "title": "ディスク残量わずか",
+          "description": "データドライブが満杯寸前です。書込みが黙って失敗する恐れ——今すぐ整理かスナップショット削減を。"
+        },
+        "memory_critical": {
+          "title": "メモリ逼迫",
+          "description": "サーバーメモリが逼迫しています。重いタスクは自動延期されます。"
+        },
+        "disk_elevated": {
+          "title": "ディスク残量低下",
+          "description": "空きが少なくなっています。スナップショットや成果物の整理を。"
+        },
+        "memory_elevated": {
+          "title": "メモリ高め",
+          "description": "メモリ使用が高めです。圧力緩和まで大型ジョブは延期されます。"
+        }
+      }
     }
   },
   "mode": {

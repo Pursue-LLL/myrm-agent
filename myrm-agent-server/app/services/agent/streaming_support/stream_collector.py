@@ -13,6 +13,7 @@ StreamContentCollector: collects assistant content and message extra_data, inclu
 retrieval traces, end-to-end stream TTFT (`streamTtftMs`), kanban_tasks_created, cron_job_result,
 HITL clarification (`clarification`), deep-research plan confirmation (`planConfirmation`),
 file mutation failures (`fileMutationFailures`), workspace merge failures (`workspaceMergeFailures`, `workspaceMergeFailedCount`, `workspaceMergeTruncated`), council phase progress (`councilPhases`),
+TTSR rule interventions (`ttsrInterventions`),
 reasoning safety metadata (`reasoningTruncated` / `reasoningCharLimit`),
 per-stream evicted output references (`evicted_file_ref` for stdout, `evicted_stderr_file_ref` for stderr,
 with stored_chars/total_lines/storage_truncated metrics for each),
@@ -45,6 +46,7 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_file_mutation_failures,
     collect_kanban_task_created,
     collect_plan_confirmation_status,
+    collect_ttsr_intervention,
     collect_workspace_merge_failures,
     is_memory_citation_tool,
     merge_sources_list,
@@ -412,6 +414,7 @@ class StreamContentCollector:
         self._workspace_merge_failed_count: int | None = None
         self._workspace_merge_truncated: int | None = None
         self._council_phases: list[dict[str, object]] = []
+        self._ttsr_interventions: list[dict[str, object]] = []
         self._staged_artifacts: list[dict[str, object]] = []
         self._pending_evicted: list[dict[str, object]] = []
         self._sibling_group_id: str | None = sibling_group_id
@@ -607,6 +610,8 @@ class StreamContentCollector:
             phase_entry = string_keyed_dict(data)
             if phase_entry is not None:
                 self._council_phases.append(phase_entry)
+        elif event_type == "ttsr_triggered":
+            collect_ttsr_intervention(self._ttsr_interventions, data)
         elif event_type == "tasks_steps":
             step = _merge_tasks_step(self._progress_steps, event, data)
             if self._pending_evicted:
@@ -974,6 +979,8 @@ class StreamContentCollector:
             result["workspaceMergeTruncated"] = self._workspace_merge_truncated
         if self._council_phases:
             result["councilPhases"] = list(self._council_phases)
+        if self._ttsr_interventions:
+            result["ttsrInterventions"] = list(self._ttsr_interventions)
         if self.reasoning:
             result["reasoning"] = self.reasoning
             if self._reasoning_truncated:

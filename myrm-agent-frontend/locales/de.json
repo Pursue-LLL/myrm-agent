@@ -3054,6 +3054,28 @@
       "securityDescription": "Enthält dringende Sicherheitskorrekturen. Sofortige Aktualisierung empfohlen.",
       "open": "Update ansehen",
       "dismiss": "Schließen"
+    },
+    "pressureBanner": {
+      "open": "Details ansehen",
+      "dismiss": "Schließen",
+      "trigger": {
+        "disk_critical": {
+          "title": "Platte fast voll",
+          "description": "Das Datenlaufwerk ist fast voll. Schreibvorgänge können still scheitern — jetzt aufräumen."
+        },
+        "memory_critical": {
+          "title": "Speicher kritisch",
+          "description": "Der Server steht unter starkem Speicherdruck. Schwere Aufgaben werden automatisch verschoben."
+        },
+        "disk_elevated": {
+          "title": "Plattenplatz knapp",
+          "description": "Der freie Platz wird knapp. Snapshots oder Artefakte bald aufräumen."
+        },
+        "memory_elevated": {
+          "title": "Speicher erhöht",
+          "description": "Speichernutzung ist hoch. Große Jobs werden bis zur Entspannung verschoben."
+        }
+      }
     }
   },
   "mode": {

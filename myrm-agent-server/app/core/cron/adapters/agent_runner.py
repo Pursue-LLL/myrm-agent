@@ -403,6 +403,26 @@ async def _build_daily_context(job: CronJob) -> str:
     return "<daily_context>\n" + "\n---\n".join(fragments) + "\n</daily_context>"
 
 
+def _memory_overload_reason() -> str | None:
+    """Return a skip reason when memory is critical, else None.
+
+    Fail-open by design: any probe failure proceeds with execution rather
+    than blocking scheduled work on a broken sensor.
+    """
+    try:
+        from app.lifecycle.monitors import get_memory_pressure_monitor_instance
+
+        monitor = get_memory_pressure_monitor_instance()
+        if monitor is None:
+            return None
+        level = monitor.current_level.name
+        if level in ("CRITICAL", "EMERGENCY"):
+            return f"memory_pressure:{level.lower()}"
+        return None
+    except Exception:
+        return None
+
+
 class AgentJobRunner:
     """JobRunner implementation that delegates to AgentFactory.
 
@@ -415,6 +435,16 @@ class AgentJobRunner:
         self._situation_builder = situation_builder
 
     async def run(self, job: CronJob, *, context: str = "") -> JobResult:
+        overload_reason = _memory_overload_reason()
+        if overload_reason is not None:
+            # Skip now, retry next tick: skipped runs don't consume retries or
+            # increment failure counters (JobResult.skipped contract).
+            logger.warning(
+                "Cron agent job %s deferred: %s. Retrying on next tick.",
+                job.id,
+                overload_reason,
+            )
+            return JobResult(success=False, skipped=True, skip_reason=overload_reason)
         last_result = JobResult(success=False, error="never executed")
 
         for attempt in range(1 + job.max_retries):

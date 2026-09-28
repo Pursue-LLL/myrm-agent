@@ -594,3 +594,38 @@ def test_model_escalated_discards_draft() -> None:
     collector.feed_event({"type": "message", "data": "Replayed with stronger model"})
     assert collector.content == "Replayed with stronger model"
     collector.cleanup()
+
+
+def test_stream_collector_ttsr_triggered() -> None:
+    """ttsr_triggered event is collected and persisted in extra_data under ttsrInterventions."""
+    collector = StreamContentCollector(chat_id="chat-ttsr-test")
+    collector.feed_event({"type": "message", "data": "Safe output"})
+    collector.feed_event(
+        {
+            "type": "ttsr_triggered",
+            "data": {
+                "rule_id": "rule_block_rm_rf",
+                "rule_name": "Destructive Command Filter",
+                "reminder": "Do not delete files without confirmation",
+                "target": "assistant",
+                "retry_count": 1,
+                "max_retries": 2,
+            },
+        }
+    )
+
+    extra = collector.extra_data
+    assert extra is not None
+    assert "ttsrInterventions" in extra
+    interventions = extra["ttsrInterventions"]
+    assert isinstance(interventions, list)
+    assert len(interventions) == 1
+    assert interventions[0] == {
+        "ruleId": "rule_block_rm_rf",
+        "ruleName": "Destructive Command Filter",
+        "reminder": "Do not delete files without confirmation",
+        "target": "assistant",
+        "retryCount": 1,
+        "maxRetries": 2,
+    }
+    collector.cleanup()

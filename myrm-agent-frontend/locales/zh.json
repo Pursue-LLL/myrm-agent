@@ -10094,6 +10094,28 @@
       "securityDescription": "包含重要漏洞修复，已为您优先提醒，建议立即升级。",
       "open": "查看更新",
       "dismiss": "忽略"
+    },
+    "pressureBanner": {
+      "open": "查看详情",
+      "dismiss": "忽略",
+      "trigger": {
+        "disk_critical": {
+          "title": "磁盘即将写满",
+          "description": "数据盘快满了，写入可能静默失败——请立即清理或修剪快照。"
+        },
+        "memory_critical": {
+          "title": "内存严重告急",
+          "description": "服务端内存压力严重，重任务已自动延后。"
+        },
+        "disk_elevated": {
+          "title": "磁盘空间告急",
+          "description": "可用空间不多了，尽快清理快照或产物。"
+        },
+        "memory_elevated": {
+          "title": "内存偏高",
+          "description": "内存占用偏高，大任务可能延后到压力缓解。"
+        }
+      }
     }
   },
   "mode": {

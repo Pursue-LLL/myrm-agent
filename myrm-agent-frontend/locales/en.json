@@ -10094,6 +10094,28 @@
       "securityDescription": "Contains urgent vulnerability fixes. Immediate update recommended.",
       "open": "View update",
       "dismiss": "Dismiss"
+    },
+    "pressureBanner": {
+      "open": "View details",
+      "dismiss": "Dismiss",
+      "trigger": {
+        "disk_critical": {
+          "title": "Disk almost full",
+          "description": "The data drive is nearly full. Writes may silently fail — free space or trim snapshots now."
+        },
+        "memory_critical": {
+          "title": "Memory critical",
+          "description": "The server is under severe memory pressure. Heavy tasks are paused automatically."
+        },
+        "disk_elevated": {
+          "title": "Disk filling up",
+          "description": "Free space is getting low. Consider cleaning snapshots or artifacts soon."
+        },
+        "memory_elevated": {
+          "title": "Memory elevated",
+          "description": "Memory use is high. Large jobs may be deferred until pressure drops."
+        }
+      }
     }
   },
   "mode": {

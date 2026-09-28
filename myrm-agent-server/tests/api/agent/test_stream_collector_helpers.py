@@ -2,6 +2,7 @@ from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_clarification_required,
     collect_file_mutation_failures,
     collect_plan_confirmation_status,
+    collect_ttsr_intervention,
     collect_workspace_merge_failures,
 )
 
@@ -127,4 +128,55 @@ def test_collect_workspace_merge_failures_skips_invalid_payload() -> None:
             ]
         },
     )
+    assert target == []
+
+
+def test_collect_ttsr_intervention_normalizes_payload() -> None:
+    target: list[dict[str, object]] = []
+    collect_ttsr_intervention(
+        target,
+        {
+            "rule_id": "rule_block_rm_rf",
+            "rule_name": "Block Destructive Commands",
+            "reminder": "rm -rf is dangerous",
+            "target": "assistant",
+            "retry_count": 1,
+            "max_retries": 2,
+        },
+    )
+    assert len(target) == 1
+    assert target[0] == {
+        "ruleId": "rule_block_rm_rf",
+        "ruleName": "Block Destructive Commands",
+        "reminder": "rm -rf is dangerous",
+        "target": "assistant",
+        "retryCount": 1,
+        "maxRetries": 2,
+    }
+
+
+def test_collect_ttsr_intervention_camel_case_fallback_and_defaults() -> None:
+    target: list[dict[str, object]] = []
+    collect_ttsr_intervention(
+        target,
+        {
+            "ruleId": "rule_custom",
+            "ruleName": "Custom Rule",
+            "reminder": "Be safe",
+        },
+    )
+    assert len(target) == 1
+    assert target[0]["ruleId"] == "rule_custom"
+    assert target[0]["ruleName"] == "Custom Rule"
+    assert target[0]["target"] == "all"
+    assert target[0]["retryCount"] == 1
+    assert target[0]["maxRetries"] == 2
+
+
+def test_collect_ttsr_intervention_skips_invalid() -> None:
+    target: list[dict[str, object]] = []
+    collect_ttsr_intervention(target, "not-a-dict")
+    collect_ttsr_intervention(target, {})
+    collect_ttsr_intervention(target, {"rule_id": ""})
+    collect_ttsr_intervention(target, {"rule_id": "   "})
     assert target == []
