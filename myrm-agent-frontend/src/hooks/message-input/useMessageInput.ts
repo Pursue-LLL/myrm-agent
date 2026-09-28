@@ -56,9 +56,7 @@ function composeOutboundUserMessage(rawInput: string): string {
   const scopedTarget = useScopedArtifactStore.getState().target;
   if (scopedTarget) {
     const scopeHeader = `[针对工件 "${scopedTarget.artifactName}" 的局部范围 (${scopedTarget.scopeLabel}) 定向编辑]`;
-    const snippetBody = scopedTarget.selectedSnippet
-      ? `\n\`\`\`\n${scopedTarget.selectedSnippet}\n\`\`\`\n`
-      : '';
+    const snippetBody = scopedTarget.selectedSnippet ? `\n\`\`\`\n${scopedTarget.selectedSnippet}\n\`\`\`\n` : '';
     outbound = `${scopeHeader}${snippetBody}\n${outbound}`.trim();
     useScopedArtifactStore.getState().clearTarget();
   }

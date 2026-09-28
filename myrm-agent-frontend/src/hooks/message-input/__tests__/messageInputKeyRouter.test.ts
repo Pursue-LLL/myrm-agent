@@ -36,6 +36,14 @@ describe('resolveDualChannelAction (Dual-Channel Steering vs Queue Router)', () 
       expect(action).toBe('none');
       expect(event.preventDefault).not.toHaveBeenCalled();
     });
+
+    it('Shift+Alt+Enter 应保持原生换行（Shift 优先级最高，避免误触排队）', () => {
+      const event = createMockKeyEvent({ shiftKey: true, altKey: true, key: 'Enter' });
+      const action = resolveDualChannelAction(event, { loading: true });
+
+      expect(action).toBe('none');
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    });
   });
 
   describe('loading=false (Agent 空闲态)', () => {
@@ -57,6 +65,14 @@ describe('resolveDualChannelAction (Dual-Channel Steering vs Queue Router)', () 
 
     it('Shift+Enter 在空闲时保持原生换行', () => {
       const event = createMockKeyEvent({ shiftKey: true, key: 'Enter' });
+      const action = resolveDualChannelAction(event, { loading: false });
+
+      expect(action).toBe('none');
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('Shift+Alt+Enter 在空闲时也保持原生换行', () => {
+      const event = createMockKeyEvent({ shiftKey: true, altKey: true, key: 'Enter' });
       const action = resolveDualChannelAction(event, { loading: false });
 
       expect(action).toBe('none');

@@ -197,7 +197,7 @@ export function useComposerContextChips({
           id: `mention-${key}`,
           category: 'mention',
           label: ref.label,
-          detail: isSpreadsheetRange ? (ref.range || 'Range') : ref.type,
+          detail: isSpreadsheetRange ? ref.range || 'Range' : ref.type,
           tooltip: ref.path ?? ref.fileId ?? ref.url ?? ref.label,
           iconType: isSpreadsheetRange ? 'spreadsheet' : 'mention',
           isRemovable: true,

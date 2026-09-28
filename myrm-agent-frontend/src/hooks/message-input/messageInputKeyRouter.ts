@@ -33,10 +33,7 @@ export interface DualChannelKeyEvent extends KeyboardEventLike {
  * 3. 输入法合成态 (IME isComposing)：
  *    - 严格放行，避免拼音/候选词确认击发误触。
  */
-export function resolveDualChannelAction(
-  e: DualChannelKeyEvent,
-  options: { loading: boolean },
-): DualChannelAction {
+export function resolveDualChannelAction(e: DualChannelKeyEvent, options: { loading: boolean }): DualChannelAction {
   if (isImeComposing(e)) {
     return 'none';
   }
@@ -45,15 +42,16 @@ export function resolveDualChannelAction(
     return 'none';
   }
 
+  // 只要按下 Shift（例如 Shift+Enter 或 Shift+Alt+Enter），一律保持原生多行换行，绝不误触提前提交或排队
+  if (e.shiftKey) {
+    return 'none';
+  }
+
   if (e.altKey) {
     e.preventDefault?.();
     return options.loading ? 'queue' : 'submit';
   }
 
-  if (!e.shiftKey) {
-    e.preventDefault?.();
-    return 'submit';
-  }
-
-  return 'none';
+  e.preventDefault?.();
+  return 'submit';
 }

@@ -9,6 +9,7 @@ const mockRecordChatWikiQuerySubmitted = vi.hoisted(() => vi.fn());
 const mockQueuePendingChatWikiQuerySuccess = vi.hoisted(() => vi.fn());
 const mockSendMessage = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<undefined>>(async () => undefined));
 const mockSteerMessage = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true));
+const mockRedirectMessage = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true));
 const mockEnqueue = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilitySelectionSubmitted = vi.hoisted(() => vi.fn());
 const mockRecordTurnCapabilityOverrideApplied = vi.hoisted(() => vi.fn());
@@ -122,6 +123,7 @@ function buildChatState(overrides: Partial<Record<string, unknown>> = {}): Recor
     chatId: 'chat-test',
     sendMessage: (...args: unknown[]) => mockSendMessage(...args),
     steerMessage: (...args: unknown[]) => mockSteerMessage(...args),
+    redirectMessage: (...args: unknown[]) => mockRedirectMessage(...args),
     actionMode: 'agent',
     setActionMode: vi.fn(),
     files: [],
@@ -156,6 +158,7 @@ describe('useMessageInput submit telemetry integration', () => {
     mockRecordChatWikiQuerySubmitted.mockClear();
     mockSendMessage.mockClear();
     mockSteerMessage.mockClear();
+    mockRedirectMessage.mockClear();
     mockEnqueue.mockClear();
     mockSetInputMessage.mockClear();
     mockSetPendingArchiveRestoreActions.mockClear();
@@ -393,5 +396,43 @@ describe('useMessageInput submit telemetry integration', () => {
     });
 
     expect(mockRecordTurnCapabilitySendFailed).not.toHaveBeenCalled();
+  });
+
+  it('routes handleSubmit to redirectMessage when loading=true and busyInputMode is redirect (default)', async () => {
+    chatStoreRef.state = buildChatState({
+      loading: true,
+      inputMessage: 'redirect instruction',
+    });
+
+    const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+    const { result } = renderHook(() => useMessageInput());
+
+    await act(async () => {
+      await result.current.handleSubmit();
+    });
+
+    expect(mockRedirectMessage).toHaveBeenCalledWith('redirect instruction');
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('routes handleSubmit to enqueue when loading=true and busyInputMode is queue', async () => {
+    chatStoreRef.state = buildChatState({
+      loading: true,
+      inputMessage: 'follow-up task',
+      agentConfig: {
+        busyInputMode: 'queue',
+      },
+    });
+
+    const { useMessageInput } = await import('@/hooks/message-input/useMessageInput');
+    const { result } = renderHook(() => useMessageInput());
+
+    await act(async () => {
+      await result.current.handleSubmit();
+    });
+
+    expect(mockEnqueue).toHaveBeenCalledWith('follow-up task', [], undefined, null);
+    expect(mockRedirectMessage).not.toHaveBeenCalled();
+    expect(mockSendMessage).not.toHaveBeenCalled();
   });
 });

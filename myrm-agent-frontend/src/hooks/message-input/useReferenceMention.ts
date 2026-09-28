@@ -14,7 +14,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
-import { suggestReferences, searchCitableChats, type ReferenceSuggestion, type ReferenceSuggestionSource, type SearchResult } from '@/services/chat';
+import {
+  suggestReferences,
+  searchCitableChats,
+  type ReferenceSuggestion,
+  type ReferenceSuggestionSource,
+  type SearchResult,
+} from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
