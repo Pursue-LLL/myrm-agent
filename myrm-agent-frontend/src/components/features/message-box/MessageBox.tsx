@@ -61,7 +61,7 @@ import MemoryInsightPanel from './MemoryInsightPanel';
 import { resolveMessageCreatedAtMs } from './memoryLifecyclePhases';
 import { FileMutationWarning } from './FileMutationWarning';
 import { WorkspaceMergeWarning } from './WorkspaceMergeWarning';
-import { TtsrInterventionBadge } from './TtsrInterventionBadge';
+import { TtsrInterventionBadge, groupTtsrInterventions } from './TtsrInterventionBadge';
 import { StagedArtifactsNotice } from './StagedArtifactsNotice';
 import WorkflowTemplateSaveCard from './WorkflowTemplateSaveCard';
 import ToolImageGallery from './ToolImageGallery';
@@ -810,16 +810,18 @@ const MessageBox = ({
             {/* 时间旅行流规则拦截与纠偏徽章 (TTSR) */}
             {message.ttsrInterventions && message.ttsrInterventions.length > 0 && (
               <div className="space-y-1.5 my-1.5">
-                {message.ttsrInterventions.map((intervention) => (
+                {groupTtsrInterventions(message.ttsrInterventions).map((group) => (
                   <TtsrInterventionBadge
-                    key={`${intervention.ruleId}-${intervention.retryCount ?? 1}`}
-                    ruleId={intervention.ruleId}
-                    ruleName={intervention.ruleName}
-                    reminder={intervention.reminder}
-                    target={intervention.target}
-                    retryCount={intervention.retryCount}
-                    maxRetries={intervention.maxRetries}
-                    timestamp={intervention.timestamp}
+                    key={group.ruleId}
+                    ruleId={group.ruleId}
+                    ruleName={group.ruleName}
+                    reminder={group.reminder}
+                    target={group.target}
+                    retryCount={group.retryCount}
+                    maxRetries={group.maxRetries}
+                    timestamp={group.timestamp}
+                    attemptsCount={group.attemptsCount}
+                    history={group.history}
                   />
                 ))}
               </div>

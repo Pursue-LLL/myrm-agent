@@ -13,6 +13,28 @@ import React, { useState } from 'react';
 import { ShieldAlert, Sparkles, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 
+export interface TtsrInterventionItem {
+  ruleId: string;
+  ruleName: string;
+  reminder: string;
+  target?: 'assistant' | 'thinking' | 'tool_args' | 'all';
+  retryCount?: number;
+  maxRetries?: number;
+  timestamp?: string | number | Date;
+}
+
+export interface GroupedTtsrIntervention {
+  ruleId: string;
+  ruleName: string;
+  reminder: string;
+  target?: 'assistant' | 'thinking' | 'tool_args' | 'all';
+  retryCount?: number;
+  maxRetries?: number;
+  timestamp?: string | number | Date;
+  attemptsCount: number;
+  history: TtsrInterventionItem[];
+}
+
 export interface TtsrInterventionBadgeProps {
   ruleId: string;
   ruleName: string;
@@ -21,7 +43,62 @@ export interface TtsrInterventionBadgeProps {
   retryCount?: number;
   maxRetries?: number;
   timestamp?: string | number | Date;
+  attemptsCount?: number;
+  history?: TtsrInterventionItem[];
   className?: string;
+}
+
+/**
+ * 按 ruleId 将多次流规则干预记录进行纯函数分组与时序折叠
+ */
+export function groupTtsrInterventions(
+  interventions?: TtsrInterventionItem[] | null
+): GroupedTtsrIntervention[] {
+  if (!interventions || interventions.length === 0) {
+    return [];
+  }
+
+  const groupsMap = new Map<string, GroupedTtsrIntervention>();
+
+  for (const item of interventions) {
+    const existing = groupsMap.get(item.ruleId);
+    if (!existing) {
+      groupsMap.set(item.ruleId, {
+        ruleId: item.ruleId,
+        ruleName: item.ruleName,
+        reminder: item.reminder,
+        target: item.target ?? 'all',
+        retryCount: item.retryCount,
+        maxRetries: item.maxRetries,
+        timestamp: item.timestamp,
+        attemptsCount: 1,
+        history: [{ ...item }],
+      });
+    } else {
+      existing.attemptsCount += 1;
+      existing.history.push({ ...item });
+      if (item.ruleName) {
+        existing.ruleName = item.ruleName;
+      }
+      if (item.reminder) {
+        existing.reminder = item.reminder;
+      }
+      if (item.target) {
+        existing.target = item.target;
+      }
+      if (item.timestamp) {
+        existing.timestamp = item.timestamp;
+      }
+      if (typeof item.retryCount === 'number') {
+        existing.retryCount = Math.max(existing.retryCount ?? 0, item.retryCount);
+      }
+      if (typeof item.maxRetries === 'number') {
+        existing.maxRetries = Math.max(existing.maxRetries ?? 2, item.maxRetries);
+      }
+    }
+  }
+
+  return Array.from(groupsMap.values());
 }
 
 const formatTimestamp = (raw?: string | number | Date): string | null => {
@@ -60,6 +137,8 @@ export const TtsrInterventionBadge: React.FC<TtsrInterventionBadgeProps> = ({
   retryCount = 1,
   maxRetries = 2,
   timestamp,
+  attemptsCount,
+  history,
   className,
 }) => {
   const [expanded, setExpanded] = useState(false);
@@ -98,7 +177,8 @@ export const TtsrInterventionBadge: React.FC<TtsrInterventionBadgeProps> = ({
               <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono text-muted-foreground bg-muted">
                 <RotateCcw className="h-2.5 w-2.5" aria-hidden="true" />
                 <span>
-                  Auto-Corrected ({retryCount}/{maxRetries})
+                  Auto-Corrected ({retryCount}/{maxRetries}
+                  {attemptsCount && attemptsCount > 1 ? ` · ${attemptsCount} attempts` : ''})
                 </span>
               </span>
             )}
@@ -143,6 +223,25 @@ export const TtsrInterventionBadge: React.FC<TtsrInterventionBadgeProps> = ({
             Protected Scope: {scopeLabel}
           </div>
           <p className="whitespace-pre-wrap">{reminder}</p>
+          {history && history.length > 1 && (
+            <div className="mt-2 pt-2 border-t border-amber-500/10 dark:border-amber-400/10 space-y-1">
+              <div className="text-[10px] text-muted-foreground font-semibold">
+                Intervention Timeline ({history.length} attempts):
+              </div>
+              {history.map((h, idx) => {
+                const hTime = formatTimestamp(h.timestamp);
+                return (
+                  <div key={idx} className="text-[11px] text-muted-foreground flex items-baseline justify-between gap-2">
+                    <span>
+                      Attempt #{idx + 1}
+                      {h.retryCount ? ` (retry ${h.retryCount})` : ''}
+                    </span>
+                    {hTime && <span className="text-[10px] opacity-75">{hTime}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </output>
