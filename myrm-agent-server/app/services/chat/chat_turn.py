@@ -241,6 +241,38 @@ class _ChatTurnMixin(_ChatServiceBase):
             clean_content, _ = extract_and_strip_think_blocks(msg.content)
             composer_text = clean_content.strip()
 
+            target_messages = all_messages[message_index:] if message_index >= 0 else []
+            target_deleted_ids = [m.id for m in target_messages]
+
+        if not target_deleted_ids:
+            return RewindResult(
+                success=False,
+                deleted_count=0,
+                composer_text=composer_text,
+                message_index=message_index,
+                goal_paused=False,
+                error="NOTHING_TO_REWIND",
+            )
+
+        # Phase 1: Physical workspace revert (executed before DB message deletion)
+        # Prevents split-brain data loss if file I/O fails.
+        file_revert: dict[str, list[str]] = {}
+        if revert_files:
+            pre_snap_id = await _ChatTurnMixin._snapshot_pre_rewind(chat_id)
+            try:
+                file_revert = await _ChatTurnMixin._revert_files_for_messages(chat_id, target_deleted_ids)
+            except Exception as exc:
+                logger.error(
+                    "Physical file revert failed for chat=%s, executing rollback compensation: %s",
+                    chat_id,
+                    exc,
+                )
+                if pre_snap_id:
+                    await _ChatTurnMixin._restore_pre_rewind_snapshot(chat_id, pre_snap_id)
+                raise exc
+
+        # Phase 2: Atomic database mutation and checkpoint sync
+        async with UnitOfWork() as uow:
             deleted_ids = await _ChatServiceBase._cr(uow).delete_messages_after(
                 chat_id,
                 msg,
@@ -263,21 +295,7 @@ class _ChatTurnMixin(_ChatServiceBase):
         await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
         goal_paused = await pause_active_goal_for_rewind(chat_id)
 
-        file_revert: dict[str, list[str]] = {}
-        if revert_files:
-            pre_snap_id = await _ChatTurnMixin._snapshot_pre_rewind(chat_id)
-            try:
-                file_revert = await _ChatTurnMixin._revert_files_for_messages(chat_id, deleted_ids)
-            except Exception as exc:
-                logger.error(
-                    "Physical file revert failed for chat=%s, executing rollback compensation: %s",
-                    chat_id,
-                    exc,
-                )
-                if pre_snap_id:
-                    await _ChatTurnMixin._restore_pre_rewind_snapshot(chat_id, pre_snap_id)
-                raise exc
-        else:
+        if not revert_files:
             await _ChatTurnMixin._cleanup_orphan_snapshots(chat_id, deleted_ids)
 
         return RewindResult(

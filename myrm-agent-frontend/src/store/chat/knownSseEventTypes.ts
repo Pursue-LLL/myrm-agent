@@ -70,6 +70,7 @@ export const HARNESS_AGENT_EVENT_TYPE_VALUES = [
   'browser_view_update',
   'desktop_view_update',
   'desktop_control_approval_request',
+  'desktop_envelope_progress',
   'ptc_notify',
   'locator_self_healed',
   'browser_takeover_requested',

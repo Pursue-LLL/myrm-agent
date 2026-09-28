@@ -95,9 +95,12 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
     let cancelled = false;
     setPreview({ status: 'checking', fileCount: 0, skippedCount: 0, files: [] });
 
-    const assistantIds = useChatStore
-      .getState()
-      .messages.slice(messageIndex)
+    const currentMessages = useChatStore.getState().messages;
+    const authoritativeIndex = currentMessages.findIndex((m) => m.messageId === messageId);
+    const resolvedIndex = authoritativeIndex >= 0 ? authoritativeIndex : messageIndex;
+
+    const assistantIds = currentMessages
+      .slice(resolvedIndex)
       .filter((m) => m.role === 'assistant')
       .map((m) => m.messageId);
 
@@ -175,10 +178,14 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       const activation = parseExplicitSkillActivation(composerRaw);
       const composerText = activation ? activation.instruction : stripUserMessageDisplayText(composerRaw);
 
-      useChatStore.setState((state) => ({
-        messages: state.messages.slice(0, messageIndex),
-        inputMessage: composerText,
-      }));
+      useChatStore.setState((state) => {
+        const authorIndex = state.messages.findIndex((m) => m.messageId === messageId);
+        const sliceIndex = authorIndex >= 0 ? authorIndex : messageIndex;
+        return {
+          messages: state.messages.slice(0, sliceIndex),
+          inputMessage: composerText,
+        };
+      });
 
       const revertedCount = payload.reverted_files?.length ?? 0;
       const notices: string[] = [];
@@ -193,6 +200,19 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
         description: notices.length > 0 ? notices.join(' ') : t('successDescription'),
       });
       onOpenChange(false);
+
+      if (typeof window !== 'undefined') {
+        requestAnimationFrame(() => {
+          const textarea = document.querySelector<HTMLTextAreaElement>(
+            'textarea[data-testid="chat-input-textarea"], textarea'
+          );
+          if (textarea) {
+            textarea.focus();
+            const len = textarea.value.length;
+            textarea.setSelectionRange(len, len);
+          }
+        });
+      }
     } catch (error) {
       if (error instanceof ApiError && error.code === 409) {
         toast({

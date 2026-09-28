@@ -647,3 +647,10 @@ async def test_rewind_both_scope_triggers_rollback_compensation_on_revert_failur
 
     assert response.status_code == 500
     assert restored_snapshots == [(chat_id, "snap-pre-comp")]
+
+    # Assert database messages are preserved (two-phase rollback prevents split-brain)
+    from app.services.chat.chat_service import ChatService
+    messages_after = await ChatService.get_all_messages(chat_id)
+    assert any(m.id == ids["u2"] for m in messages_after), "Target message must not be deleted if file revert fails!"
+
+

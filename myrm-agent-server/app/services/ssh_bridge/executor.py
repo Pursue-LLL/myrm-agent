@@ -19,7 +19,7 @@ import time
 from datetime import datetime, timezone
 from typing import Callable, Sequence
 
-from myrm_agent_harness.toolkits.ssh_remote import ReadOnlySSHValidator
+from myrm_agent_harness.api import ReadOnlySSHValidator
 
 from app.services.ssh_bridge.manager import SSHAssetManager
 from app.services.ssh_bridge.models import (

@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from myrm_agent_harness.toolkits.ssh_remote import ReadOnlySSHValidator
+from myrm_agent_harness.api import ReadOnlySSHValidator
 
 from app.services.ssh_vault.change_window import (
     ProtectedChangeWindowService,
