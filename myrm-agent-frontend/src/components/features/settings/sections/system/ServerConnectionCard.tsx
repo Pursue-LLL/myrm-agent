@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconPlug, IconCheck, IconAlertCircle } from '@/components/features/icons/PremiumIcons';
 import { isTauriRuntime, getRemoteGatewayConfig, setRemoteGatewayConfig } from '@/lib/deploy-mode';
@@ -14,6 +14,13 @@ import {
 } from '@/lib/remote-profiles';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
+import {
+  clearPendingSwitch,
+  getLastGood,
+  getPendingSwitch,
+  setLastGood,
+  setPendingSwitch,
+} from '@/lib/connection-switch-guard';
 import RemoteFirstRunChooser from './RemoteFirstRunChooser';
 import ServerConnectionCloudSection from './ServerConnectionCloudSection';
 
@@ -84,6 +91,76 @@ const ServerConnectionCard = memo(() => {
     setShowFirstRun(false);
   }, []);
 
+  const failedUrlRef = useRef<string | null>(null);
+
+  // Post-reload verification: a pending switch that lands on an unreachable
+  // target rolls back to last-known-good instead of stranding the user.
+  useEffect(() => {
+    const pending = getPendingSwitch();
+    if (!pending) {
+      return;
+    }
+    const current = getRemoteGatewayConfig();
+    const targetUrl = current?.url ?? null;
+    // Only verify switches this card initiated (pending target matches live config).
+    if (targetUrl !== pending.url) {
+      clearPendingSwitch();
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const healthy = targetUrl === null || (await testRemoteHealth(targetUrl));
+      if (cancelled) {
+        return;
+      }
+      if (healthy) {
+        setLastGood({ enabled: true, url: targetUrl });
+        clearPendingSwitch();
+        return;
+      }
+      const lastGood = getLastGood();
+      if (lastGood === null) {
+        setRemoteGatewayConfig(null);
+      } else if (lastGood.url === null) {
+        setRemoteGatewayConfig(null);
+      } else {
+        setRemoteGatewayConfig({ enabled: true, url: lastGood.url });
+      }
+      clearPendingSwitch();
+      refresh();
+      toast.error(t('restoredLastGood'));
+      window.location.reload();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [t, refresh]);
+
+  // Health-gated switch commit: unhealthy targets abort unless the user
+  // explicitly forces by repeating the same action (manual override).
+  const commitSwitch = useCallback(
+    async (nextUrl: string | null, apply: () => void) => {
+      if (nextUrl !== null) {
+        const healthy = await testRemoteHealth(nextUrl);
+        if (!healthy) {
+          if (failedUrlRef.current === nextUrl) {
+            failedUrlRef.current = null;
+          } else {
+            failedUrlRef.current = nextUrl;
+            toast.error(t('gateFailed'));
+            return;
+          }
+        }
+      }
+      failedUrlRef.current = null;
+      const current = getRemoteGatewayConfig();
+      setLastGood({ enabled: current !== null, url: current?.url ?? null });
+      setPendingSwitch({ url: nextUrl, at: Date.now() });
+      apply();
+    },
+    [t],
+  );
+
   const handleTest = useCallback(async () => {
     const trimmed = urlInput.trim().replace(/\/+$/, '');
     if (!isValidServerUrl(trimmed)) {
@@ -108,23 +185,31 @@ const ServerConnectionCard = memo(() => {
       toast.error(t('duplicateProfile'));
       return;
     }
-    setRemoteGatewayConfig({ enabled: true, url: created.url });
-    setNameInput('');
-    refresh();
-    toast.success(t('connected'));
-    void notifyRemoteFollow(true).then(() => window.location.reload());
-  }, [nameInput, urlInput, t, refresh]);
-
-  const handleSelect = useCallback(
-    (id: string) => {
-      if (!setActiveRemoteProfileId(id)) {
-        return;
-      }
+    void commitSwitch(created.url, () => {
+      setRemoteGatewayConfig({ enabled: true, url: created.url });
+      setNameInput('');
       refresh();
       toast.success(t('connected'));
       void notifyRemoteFollow(true).then(() => window.location.reload());
+    });
+  }, [nameInput, urlInput, t, refresh, commitSwitch]);
+
+  const handleSelect = useCallback(
+    (id: string) => {
+      const profile = listRemoteProfiles().find((item) => item.id === id) ?? null;
+      if (!profile) {
+        return;
+      }
+      void commitSwitch(profile.url, () => {
+        if (!setActiveRemoteProfileId(id)) {
+          return;
+        }
+        refresh();
+        toast.success(t('connected'));
+        void notifyRemoteFollow(true).then(() => window.location.reload());
+      });
     },
-    [t, refresh],
+    [t, refresh, commitSwitch],
   );
 
   const handleRemove = useCallback(
@@ -136,14 +221,16 @@ const ServerConnectionCard = memo(() => {
   );
 
   const handleDisconnect = useCallback(() => {
-    setRemoteGatewayConfig(null);
-    setIsRemote(false);
-    setUrlInput('');
-    setTestState('idle');
-    refresh();
-    toast.success(t('disconnected'));
-    void notifyRemoteFollow(false).then(() => window.location.reload());
-  }, [t, refresh]);
+    void commitSwitch(null, () => {
+      setRemoteGatewayConfig(null);
+      setIsRemote(false);
+      setUrlInput('');
+      setTestState('idle');
+      refresh();
+      toast.success(t('disconnected'));
+      void notifyRemoteFollow(false).then(() => window.location.reload());
+    });
+  }, [t, refresh, commitSwitch]);
 
   const handleCloudConnected = useCallback(() => {
     refresh();

@@ -5300,7 +5300,9 @@
         "wizardDesc": "Use this computer, connect a remote server, or use cloud hosting. You can change this anytime.",
         "optLocal": "This computer",
         "optRemote": "Remote server",
-        "optCloud": "Cloud hosting"
+        "optCloud": "Cloud hosting",
+        "gateFailed": "Unreachable server — not switched. Click again to force.",
+        "restoredLastGood": "Switched back to the last working connection."
       },
       "webuiAccess": {
         "title": "WebUI access password",

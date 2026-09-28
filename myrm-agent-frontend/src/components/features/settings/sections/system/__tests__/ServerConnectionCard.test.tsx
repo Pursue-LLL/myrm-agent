@@ -20,6 +20,52 @@ vi.mock('@/lib/utils/toast', () => ({
   },
 }));
 
+describe('ServerConnectionCard switch guard', () => {
+  it('blocks switching to a dead server and forces on repeat', async () => {
+    const testing = await import('@testing-library/react');
+    const { toast } = await import('@/lib/utils/toast');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
+    localStorage.clear();
+    localStorage.setItem(
+      'myrm-remote-first-run-seen',
+      '1',
+    );
+    localStorage.setItem(
+      'myrm-remote-gateway-roster',
+      JSON.stringify({
+        profiles: [{ id: 'p1', name: 'Pi', url: 'http://127.0.0.1:9', kind: 'server' }],
+        activeId: null,
+      }),
+    );
+
+    vi.resetModules();
+    vi.doMock('@/lib/deploy-mode', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
+      return { ...actual, isTauriRuntime: () => true };
+    });
+    const { default: TauriCard } = await import('../ServerConnectionCard');
+    const { unmount } = testing.render(<TauriCard />);
+
+    // Card boots in local mode; flip to remote so the profile list renders.
+    testing.fireEvent.click(testing.screen.getByLabelText('modeLocal'));
+    testing.fireEvent.click((await testing.screen.findAllByText('save'))[0]);
+    await testing.waitFor(() => {
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith('gateFailed');
+    });
+    // Still local: no pending switch committed.
+    expect(localStorage.getItem('myrm-connection-pending-switch')).toBeNull();
+
+    // Second click on the same dead URL forces the switch.
+    testing.fireEvent.click(testing.screen.getAllByText('save')[0]);
+    await testing.waitFor(() => {
+      expect(localStorage.getItem('myrm-connection-pending-switch')).not.toBeNull();
+    });
+    unmount();
+    vi.doUnmock('@/lib/deploy-mode');
+    vi.unstubAllGlobals();
+  });
+});
+
 describe('ServerConnectionCard runtime gating', () => {
   it('renders nothing outside Tauri so web users never see the desktop card', () => {
     const { container } = render(<ServerConnectionCard />);

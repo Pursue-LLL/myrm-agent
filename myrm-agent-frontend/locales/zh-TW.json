@@ -17892,7 +17892,9 @@
         "wizardDesc": "使用本機、連接遠端伺服器，或使用雲託管，隨時可以更改。",
         "optLocal": "本機",
         "optRemote": "遠端伺服器",
-        "optCloud": "雲託管"
+        "optCloud": "雲託管",
+        "gateFailed": "伺服器不可達——未切換，再點一次強制切換。",
+        "restoredLastGood": "已恢復到上次可用連接。"
       },
       "push": {
         "deniedHint": "通知已被封鎖。請在瀏覽器設定中啟用。",

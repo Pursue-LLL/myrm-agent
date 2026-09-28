@@ -17892,7 +17892,9 @@
         "wizardDesc": "Dieser Computer, ein Remote-Server oder Cloud-Hosting. Jederzeit änderbar.",
         "optLocal": "Dieser Computer",
         "optRemote": "Remote-Server",
-        "optCloud": "Cloud"
+        "optCloud": "Cloud",
+        "gateFailed": "Server nicht erreichbar — nicht gewechselt. Erneut klicken zum Erzwingen.",
+        "restoredLastGood": "Zur letzten funktionierenden Verbindung zurückgekehrt."
       },
       "push": {
         "deniedHint": "Benachrichtigungen sind blockiert. Aktivieren Sie sie in den Browsereinstellungen.",

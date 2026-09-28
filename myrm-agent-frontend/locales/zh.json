@@ -5300,7 +5300,9 @@
         "wizardDesc": "使用本机、连接远端服务器，或使用云托管，随时可以更改。",
         "optLocal": "本机",
         "optRemote": "远端服务器",
-        "optCloud": "云托管"
+        "optCloud": "云托管",
+        "gateFailed": "服务器不可达——未切换，再点一次强制切换。",
+        "restoredLastGood": "已恢复到上次可用连接。"
       },
       "webuiAccess": {
         "title": "WebUI 访问密码",
