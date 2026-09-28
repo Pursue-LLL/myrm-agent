@@ -871,6 +871,19 @@
       "modeAllow": "Allow",
       "modeAsk": "Require Approval",
       "modeDeny": "Deny",
+      "modeAllowShort": "Allow",
+      "modeAskShort": "Ask",
+      "modeDenyShort": "Deny",
+      "capabilitySurfaceSaved": "Capability surface permission updated",
+      "capabilityPresetApplied": "Security posture preset applied",
+      "capabilityMatrix": {
+        "title": "Capability Surface Matrix (Always / Ask / Deny)",
+        "desc": "Fine-grained tri-state posture governing knowledge bases, outbound network, candidate artifacts, remote tools, and workspace filesystem."
+      },
+      "matrixPresets": {
+        "title": "Capability Baseline Presets",
+        "desc": "Quickly set fine-grained Always/Ask/Deny tri-state posture across all 6 core surfaces."
+      },
       "approvalTimeout": "Approval Timeout",
       "approvalTimeoutDesc": "Seconds to wait for your approval before auto-resolving a tool call.",
       "seconds": "seconds",

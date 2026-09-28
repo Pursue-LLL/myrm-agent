@@ -13364,6 +13364,19 @@
       "modeAllow": "許可",
       "modeAsk": "承認が必要",
       "modeDeny": "拒否",
+      "modeAllowShort": "常に許可",
+      "modeAskShort": "確認する",
+      "modeDenyShort": "禁止",
+      "capabilitySurfaceSaved": "機能領域の権限が更新されました",
+      "capabilityPresetApplied": "セキュリティプリセットが適用されました",
+      "capabilityMatrix": {
+        "title": "機能領域権限マトリクス (Always / Ask / Deny)",
+        "desc": "ナレッジベース、ネットワーク発信、候補作成、リモートツール、ローカルファイルを包括的に管理する3値ポリシー。"
+      },
+      "matrixPresets": {
+        "title": "機能領域ベースラインプリセット",
+        "desc": "6つの中核機能領域全体で細粒度のAlways/Ask/Denyセキュリティ体制をワンクリックで設定します。"
+      },
       "approvalTimeout": "承認タイムアウト",
       "approvalTimeoutDesc": "ユーザー承認を待つ秒数。タイムアウト後に自動処理されます。",
       "seconds": "秒",

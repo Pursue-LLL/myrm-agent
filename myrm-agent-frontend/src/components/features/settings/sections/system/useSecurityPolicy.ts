@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from '@/lib/utils/toast';
 import { getConfigSyncManager } from '@/services/config';
 import useProviderStore from '@/store/useProviderStore';
@@ -9,32 +9,42 @@ import type {
   SecurityConfigValue,
   PathPolicyConfig,
 } from '@/services/config/types';
-import {
-  flattenPermissions,
-  buildPermissions,
-  DEFAULT_CONFIG,
-  createEmptyRule,
-  DOMAIN_PATTERN,
-} from './securityPolicyUtils';
+import { flattenPermissions, buildPermissions, DEFAULT_CONFIG, deriveCapabilityMatrix } from './securityPolicyUtils';
 import { useManagedPolicyEffective } from '@/hooks/useManagedPolicyEffective';
+import { useCapabilityRulesPolicy } from './useCapabilityRulesPolicy';
+import { useNetworkCommandPolicy } from './useNetworkCommandPolicy';
+import { parseProfileConfig, parseNLGeneratedConfig } from './securityProfileUtils';
 
 const syncManager = getConfigSyncManager();
 
+export interface SecuritySaveOverrides {
+  rules?: PermissionRuleConfig[];
+  capabilityMatrix?: Record<string, PermissionAction>;
+  timeout?: number;
+  pathPolicy?: PathPolicyConfig;
+  behavior?: 'deny' | 'allow';
+  domains?: string[];
+  blockedDomains?: string[];
+  cmdDenylist?: string[];
+  hitl?: boolean;
+  injection?: 'log_only' | 'fail_closed';
+  planConfirm?: boolean;
+  yoloMode?: boolean;
+  autoReview?: boolean;
+  autoReviewModelStr?: string | null;
+}
+
 export function useSecurityPolicy(t: (key: string, fallback?: Record<string, string>) => string) {
-  const [rules, setRules] = useState<PermissionRuleConfig[]>([]);
   const [timeout, setTimeout] = useState(DEFAULT_CONFIG.approvalTimeoutSeconds);
   const [timeoutBehavior, setTimeoutBehavior] = useState<'deny' | 'allow'>('deny');
   const [allowedRoots, setAllowedRoots] = useState<string[]>([]);
-  const [networkAllowlist, setNetworkAllowlist] = useState<string[]>([]);
-  const [networkBlocklist, setNetworkBlocklist] = useState<string[]>([]);
-  const [commandDenylist, setCommandDenylist] = useState<string[]>([]);
-  const [domainHitlEnabled, setDomainHitlEnabled] = useState(true);
   const [injectionPolicy, setInjectionPolicy] = useState<'log_only' | 'fail_closed'>('log_only');
   const [planConfirmEnabled, setPlanConfirmEnabled] = useState(false);
   const [yoloModeEnabled, setYoloModeEnabled] = useState(false);
   const [autoReviewEnabled, setAutoReviewEnabled] = useState(true);
   const [autoReviewModel, setAutoReviewModel] = useState<SingleModelSelection | null>(null);
   const [loaded, setLoaded] = useState(false);
+
   const {
     policy: managedPolicyEffective,
     active: managedPolicyActive,
@@ -46,17 +56,87 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
   const { providers, getEnabledModels } = useProviderStore();
   const enabledModels = getEnabledModels();
 
+  const stateRef = useRef({
+    rules: [] as PermissionRuleConfig[],
+    capabilityMatrix: {} as Record<string, PermissionAction>,
+    timeout,
+    timeoutBehavior,
+    allowedRoots,
+    networkAllowlist: [] as string[],
+    networkBlocklist: [] as string[],
+    commandDenylist: [] as string[],
+    domainHitlEnabled: true,
+    injectionPolicy,
+    planConfirmEnabled,
+    yoloModeEnabled,
+    autoReviewEnabled,
+    autoReviewModel,
+  });
+
+  const save = useCallback((overrides: SecuritySaveOverrides = {}) => {
+    const s = stateRef.current;
+    const value: SecurityConfigValue = {
+      permissions: buildPermissions(overrides.rules ?? s.rules),
+      capabilityMatrix: overrides.capabilityMatrix ?? s.capabilityMatrix,
+      approvalTimeoutSeconds: overrides.timeout ?? s.timeout,
+      approvalTimeoutBehavior: overrides.behavior ?? s.timeoutBehavior,
+      pathPolicy:
+        'pathPolicy' in overrides
+          ? overrides.pathPolicy
+          : s.allowedRoots.length > 0
+            ? { allowedRoots: s.allowedRoots }
+            : undefined,
+      networkAllowlist: overrides.domains ?? s.networkAllowlist,
+      networkBlocklist: overrides.blockedDomains ?? s.networkBlocklist,
+      commandDenylist: overrides.cmdDenylist ?? s.commandDenylist,
+      domainHitlEnabled: overrides.hitl ?? s.domainHitlEnabled,
+      injectionPolicy: overrides.injection ?? s.injectionPolicy,
+      planConfirmEnabled: overrides.planConfirm ?? s.planConfirmEnabled,
+      yoloModeEnabled: overrides.yoloMode ?? s.yoloModeEnabled,
+      autoReviewEnabled: overrides.autoReview ?? s.autoReviewEnabled,
+      autoReviewModel:
+        'autoReviewModelStr' in overrides
+          ? overrides.autoReviewModelStr || undefined
+          : s.autoReviewModel
+            ? `${s.autoReviewModel.providerId}/${s.autoReviewModel.model}`
+            : undefined,
+    };
+    syncManager.set('securityConfig', value);
+  }, []);
+
+  const capabilityRules = useCapabilityRulesPolicy({ onSave: save, t });
+  const networkCommand = useNetworkCommandPolicy({ onSave: save, t });
+
+  stateRef.current = {
+    rules: capabilityRules.rules,
+    capabilityMatrix: capabilityRules.capabilityMatrix,
+    timeout,
+    timeoutBehavior,
+    allowedRoots,
+    networkAllowlist: networkCommand.networkAllowlist,
+    networkBlocklist: networkCommand.networkBlocklist,
+    commandDenylist: networkCommand.commandDenylist,
+    domainHitlEnabled: networkCommand.domainHitlEnabled,
+    injectionPolicy,
+    planConfirmEnabled,
+    yoloModeEnabled,
+    autoReviewEnabled,
+    autoReviewModel,
+  };
+
   useEffect(() => {
     const cached = syncManager.get('securityConfig') as SecurityConfigValue | null;
     if (cached) {
-      setRules(flattenPermissions(cached.permissions ?? DEFAULT_CONFIG.permissions));
+      const flattened = flattenPermissions(cached.permissions ?? DEFAULT_CONFIG.permissions);
+      capabilityRules.setRules(flattened);
+      capabilityRules.setCapabilityMatrix(deriveCapabilityMatrix(cached.capabilityMatrix, flattened));
       setTimeout(cached.approvalTimeoutSeconds);
       setTimeoutBehavior(cached.approvalTimeoutBehavior ?? 'deny');
       setAllowedRoots(cached.pathPolicy?.allowedRoots ?? []);
-      setNetworkAllowlist(cached.networkAllowlist ?? []);
-      setNetworkBlocklist(cached.networkBlocklist ?? []);
-      setCommandDenylist(cached.commandDenylist ?? []);
-      setDomainHitlEnabled(cached.domainHitlEnabled ?? false);
+      networkCommand.setNetworkAllowlist(cached.networkAllowlist ?? []);
+      networkCommand.setNetworkBlocklist(cached.networkBlocklist ?? []);
+      networkCommand.setCommandDenylist(cached.commandDenylist ?? []);
+      networkCommand.setDomainHitlEnabled(cached.domainHitlEnabled ?? false);
       setInjectionPolicy(cached.injectionPolicy ?? 'log_only');
       setPlanConfirmEnabled(cached.planConfirmEnabled ?? false);
       setYoloModeEnabled(cached.yoloModeEnabled ?? false);
@@ -73,7 +153,9 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
         }
       }
     } else {
-      setRules(flattenPermissions(DEFAULT_CONFIG.permissions));
+      const defaultRules = flattenPermissions(DEFAULT_CONFIG.permissions);
+      capabilityRules.setRules(defaultRules);
+      capabilityRules.setCapabilityMatrix(deriveCapabilityMatrix(undefined, defaultRules));
     }
     setLoaded(true);
   }, []);
@@ -86,64 +168,6 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     syncYoloFromConfig();
     return syncManager.subscribe('securityConfig', syncYoloFromConfig);
   }, []);
-
-  const save = useCallback(
-    (
-      overrides: {
-        rules?: PermissionRuleConfig[];
-        timeout?: number;
-        pathPolicy?: PathPolicyConfig;
-        behavior?: 'deny' | 'allow';
-        domains?: string[];
-        blockedDomains?: string[];
-        cmdDenylist?: string[];
-        hitl?: boolean;
-        injection?: 'log_only' | 'fail_closed';
-        planConfirm?: boolean;
-        yoloMode?: boolean;
-        autoReview?: boolean;
-        autoReviewModelStr?: string | null;
-      } = {},
-    ) => {
-      const value: SecurityConfigValue = {
-        permissions: buildPermissions(overrides.rules ?? rules),
-        approvalTimeoutSeconds: overrides.timeout ?? timeout,
-        approvalTimeoutBehavior: overrides.behavior ?? timeoutBehavior,
-        pathPolicy:
-          'pathPolicy' in overrides ? overrides.pathPolicy : allowedRoots.length > 0 ? { allowedRoots } : undefined,
-        networkAllowlist: overrides.domains ?? networkAllowlist,
-        networkBlocklist: overrides.blockedDomains ?? networkBlocklist,
-        commandDenylist: overrides.cmdDenylist ?? commandDenylist,
-        domainHitlEnabled: overrides.hitl ?? domainHitlEnabled,
-        injectionPolicy: overrides.injection ?? injectionPolicy,
-        planConfirmEnabled: overrides.planConfirm ?? planConfirmEnabled,
-        yoloModeEnabled: overrides.yoloMode ?? yoloModeEnabled,
-        autoReviewEnabled: overrides.autoReview ?? autoReviewEnabled,
-        autoReviewModel:
-          'autoReviewModelStr' in overrides
-            ? overrides.autoReviewModelStr || undefined
-            : autoReviewModel
-              ? `${autoReviewModel.providerId}/${autoReviewModel.model}`
-              : undefined,
-      };
-      syncManager.set('securityConfig', value);
-    },
-    [
-      rules,
-      timeout,
-      timeoutBehavior,
-      allowedRoots,
-      networkAllowlist,
-      networkBlocklist,
-      commandDenylist,
-      domainHitlEnabled,
-      injectionPolicy,
-      planConfirmEnabled,
-      yoloModeEnabled,
-      autoReviewEnabled,
-      autoReviewModel,
-    ],
-  );
 
   const savePathPolicy = useCallback(
     (roots: string[]) => {
@@ -190,146 +214,6 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
       save({ behavior: val });
     },
     [save],
-  );
-
-  const handleAddRule = useCallback(() => {
-    setRules((prev) => [...prev, createEmptyRule()]);
-  }, []);
-
-  const handleRemoveRule = useCallback(
-    (idx: number) => {
-      setRules((prev) => {
-        const next = prev.filter((_, i) => i !== idx);
-        save({ rules: next });
-        return next;
-      });
-      toast.success(t('ruleRemoved'));
-    },
-    [save, t],
-  );
-
-  const handleRuleChange = useCallback(
-    (idx: number, field: keyof PermissionRuleConfig, value: string) => {
-      setRules((prev) => {
-        const next = prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r));
-        save({ rules: next });
-        return next;
-      });
-    },
-    [save],
-  );
-
-  const handleAddDomain = useCallback(
-    (domain: string) => {
-      const raw = domain
-        .trim()
-        .toLowerCase()
-        .replace(/^https?:\/\//, '')
-        .replace(/\/.*$/, '');
-      if (!raw) {
-        return;
-      }
-      if (!DOMAIN_PATTERN.test(raw)) {
-        toast.error(t('domainAllowlist.invalidDomain'));
-        return;
-      }
-      if (networkAllowlist.includes(raw)) {
-        toast.error(t('domainAllowlist.duplicateDomain'));
-        return;
-      }
-      const next = [...networkAllowlist, raw];
-      setNetworkAllowlist(next);
-      save({ domains: next });
-      toast.success(t('domainAllowlist.domainAdded'));
-    },
-    [networkAllowlist, save, t],
-  );
-
-  const handleRemoveDomain = useCallback(
-    (idx: number) => {
-      const next = networkAllowlist.filter((_, i) => i !== idx);
-      setNetworkAllowlist(next);
-      save({ domains: next });
-      toast.success(t('domainAllowlist.domainRemoved'));
-    },
-    [networkAllowlist, save, t],
-  );
-
-  const handleAddBlockedDomain = useCallback(
-    (domain: string) => {
-      const raw = domain
-        .trim()
-        .toLowerCase()
-        .replace(/^https?:\/\//, '')
-        .replace(/\/.*$/, '');
-      if (!raw) {
-        return;
-      }
-      if (!DOMAIN_PATTERN.test(raw)) {
-        toast.error(t('domainBlocklist.invalidDomain'));
-        return;
-      }
-      if (networkBlocklist.includes(raw)) {
-        toast.error(t('domainBlocklist.duplicateDomain'));
-        return;
-      }
-      const next = [...networkBlocklist, raw];
-      setNetworkBlocklist(next);
-      save({ blockedDomains: next });
-      toast.success(t('domainBlocklist.domainAdded'));
-    },
-    [networkBlocklist, save, t],
-  );
-
-  const handleRemoveBlockedDomain = useCallback(
-    (idx: number) => {
-      const next = networkBlocklist.filter((_, i) => i !== idx);
-      setNetworkBlocklist(next);
-      save({ blockedDomains: next });
-      toast.success(t('domainBlocklist.domainRemoved'));
-    },
-    [networkBlocklist, save, t],
-  );
-
-  const handleAddCommandPattern = useCallback(
-    (pattern: string) => {
-      const trimmed = pattern.trim();
-      if (!trimmed) {
-        return;
-      }
-      if (!trimmed.includes('*') && !trimmed.includes('?') && !trimmed.includes('[') && trimmed.length < 2) {
-        toast.error(t('invalidCommandPattern'));
-        return;
-      }
-      if (commandDenylist.includes(trimmed)) {
-        toast.error(t('duplicateCommandPattern'));
-        return;
-      }
-      const next = [...commandDenylist, trimmed];
-      setCommandDenylist(next);
-      save({ cmdDenylist: next });
-      toast.success(t('commandPatternAdded'));
-    },
-    [commandDenylist, save, t],
-  );
-
-  const handleRemoveCommandPattern = useCallback(
-    (idx: number) => {
-      const next = commandDenylist.filter((_, i) => i !== idx);
-      setCommandDenylist(next);
-      save({ cmdDenylist: next });
-      toast.success(t('commandPatternRemoved'));
-    },
-    [commandDenylist, save, t],
-  );
-
-  const handleDomainHitlToggle = useCallback(
-    (checked: boolean) => {
-      setDomainHitlEnabled(checked);
-      save({ hitl: checked });
-      toast.success(t('domainAllowlist.saved'));
-    },
-    [save, t],
   );
 
   const handleInjectionPolicyToggle = useCallback(
@@ -397,146 +281,79 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
 
   const handleProfileSelect = useCallback(
     (profile: { config_json: Record<string, unknown> }) => {
-      const cfg = profile.config_json;
+      const parsed = parseProfileConfig(profile.config_json);
 
-      const perms = cfg.permissions as Record<string, PermissionAction | Record<string, PermissionAction>> | undefined;
-      if (perms) {
-        setRules(flattenPermissions(perms));
+      if (parsed.rules && parsed.derivedMatrix) {
+        capabilityRules.setRules(parsed.rules);
+        capabilityRules.setCapabilityMatrix(parsed.derivedMatrix);
       }
-
-      const pp = cfg.pathPolicy as { allowedRoots?: string[] } | undefined;
-      const roots = pp?.allowedRoots ?? [];
-      setAllowedRoots(roots);
-
-      const cfgTimeout = cfg.approvalTimeoutSeconds as number | undefined;
-      if (cfgTimeout !== undefined) {
-        setTimeout(cfgTimeout);
-      }
-
-      const b = cfg.approvalTimeoutBehavior as 'deny' | 'allow' | undefined;
-      if (b) {
-        setTimeoutBehavior(b);
-      }
-
-      const na = cfg.networkAllowlist as string[] | undefined;
-      if (na) {
-        setNetworkAllowlist(na);
-      }
-
-      const nb = cfg.networkBlocklist as string[] | undefined;
-      if (nb) {
-        setNetworkBlocklist(nb);
-      }
-
-      const cd = cfg.commandDenylist as string[] | undefined;
-      if (cd) {
-        setCommandDenylist(cd);
-      }
-
-      const dh = cfg.domainHitlEnabled as boolean | undefined;
-      if (dh !== undefined) {
-        setDomainHitlEnabled(dh);
-      }
-
-      const ip = cfg.injectionPolicy as 'log_only' | 'fail_closed' | undefined;
-      if (ip !== undefined) {
-        setInjectionPolicy(ip);
-      }
-
-      const pc = cfg.planConfirmEnabled as boolean | undefined;
-      if (pc !== undefined) {
-        setPlanConfirmEnabled(pc);
-      }
-
-      const ym = cfg.yoloModeEnabled as boolean | undefined;
-      if (ym !== undefined) {
-        setYoloModeEnabled(ym);
-      }
-
-      const ar = cfg.autoReviewEnabled as boolean | undefined;
-      if (ar !== undefined) {
-        setAutoReviewEnabled(ar);
-      }
+      setAllowedRoots(parsed.roots);
+      if (parsed.timeout !== undefined) setTimeout(parsed.timeout);
+      if (parsed.behavior) setTimeoutBehavior(parsed.behavior);
+      if (parsed.domains) networkCommand.setNetworkAllowlist(parsed.domains);
+      if (parsed.blockedDomains) networkCommand.setNetworkBlocklist(parsed.blockedDomains);
+      if (parsed.cmdDenylist) networkCommand.setCommandDenylist(parsed.cmdDenylist);
+      if (parsed.hitl !== undefined) networkCommand.setDomainHitlEnabled(parsed.hitl);
+      if (parsed.injection !== undefined) setInjectionPolicy(parsed.injection);
+      if (parsed.planConfirm !== undefined) setPlanConfirmEnabled(parsed.planConfirm);
+      if (parsed.yoloMode !== undefined) setYoloModeEnabled(parsed.yoloMode);
+      if (parsed.autoReview !== undefined) setAutoReviewEnabled(parsed.autoReview);
 
       save({
-        rules: perms ? flattenPermissions(perms) : undefined,
-        pathPolicy: roots.length > 0 ? { allowedRoots: roots } : undefined,
-        timeout: cfgTimeout,
-        behavior: b,
-        domains: na,
-        blockedDomains: nb,
-        cmdDenylist: cd,
-        hitl: dh,
-        injection: ip,
-        planConfirm: pc,
-        yoloMode: ym,
-        autoReview: ar,
+        rules: parsed.rules,
+        capabilityMatrix: parsed.capabilityMatrix,
+        pathPolicy: parsed.roots.length > 0 ? { allowedRoots: parsed.roots } : undefined,
+        timeout: parsed.timeout,
+        behavior: parsed.behavior,
+        domains: parsed.domains,
+        blockedDomains: parsed.blockedDomains,
+        cmdDenylist: parsed.cmdDenylist,
+        hitl: parsed.hitl,
+        injection: parsed.injection,
+        planConfirm: parsed.planConfirm,
+        yoloMode: parsed.yoloMode,
+        autoReview: parsed.autoReview,
       });
 
       toast.success('Profile loaded');
     },
-    [save],
+    [capabilityRules, networkCommand, save],
   );
 
   const handleNLApply = useCallback(
     (generated: Record<string, unknown>) => {
-      const perms = generated.permissions as
-        Record<string, PermissionAction | Record<string, PermissionAction>> | undefined;
-      const newRules = perms ? flattenPermissions(perms) : undefined;
+      const parsed = parseNLGeneratedConfig(generated);
 
-      const pp = generated.pathPolicy as { allowedRoots?: string[] } | undefined;
-      const newRoots = pp?.allowedRoots ?? undefined;
-
-      const na = generated.networkAllowlist as string[] | undefined;
-      const nb = generated.networkBlocklist as string[] | undefined;
-      const cd = generated.commandDenylist as string[] | undefined;
-      const hitl = generated.domainHitlEnabled;
-      const planConfirm = generated.planConfirmEnabled;
-
-      if (newRules) {
-        setRules(newRules);
-      }
-      if (newRoots) {
-        setAllowedRoots(newRoots);
-      }
-      if (na) {
-        setNetworkAllowlist(na);
-      }
-      if (nb) {
-        setNetworkBlocklist(nb);
-      }
-      if (cd) {
-        setCommandDenylist(cd);
-      }
-      if (hitl !== undefined) {
-        setDomainHitlEnabled(Boolean(hitl));
-      }
-      if (planConfirm !== undefined) {
-        setPlanConfirmEnabled(Boolean(planConfirm));
-      }
+      if (parsed.rules) capabilityRules.setRules(parsed.rules);
+      if (parsed.roots) setAllowedRoots(parsed.roots);
+      if (parsed.domains) networkCommand.setNetworkAllowlist(parsed.domains);
+      if (parsed.blockedDomains) networkCommand.setNetworkBlocklist(parsed.blockedDomains);
+      if (parsed.cmdDenylist) networkCommand.setCommandDenylist(parsed.cmdDenylist);
+      if (parsed.hitl !== undefined) networkCommand.setDomainHitlEnabled(parsed.hitl);
+      if (parsed.planConfirm !== undefined) setPlanConfirmEnabled(parsed.planConfirm);
 
       save({
-        rules: newRules,
-        pathPolicy: newRoots ? { allowedRoots: newRoots } : undefined,
-        domains: na,
-        blockedDomains: nb,
-        cmdDenylist: cd,
-        hitl: hitl !== undefined ? Boolean(hitl) : undefined,
-        planConfirm: planConfirm !== undefined ? Boolean(planConfirm) : undefined,
+        rules: parsed.rules,
+        pathPolicy: parsed.roots ? { allowedRoots: parsed.roots } : undefined,
+        domains: parsed.domains,
+        blockedDomains: parsed.blockedDomains,
+        cmdDenylist: parsed.cmdDenylist,
+        hitl: parsed.hitl,
+        planConfirm: parsed.planConfirm,
       });
     },
-    [save],
+    [capabilityRules, networkCommand, save],
   );
 
   return {
-    rules,
+    rules: capabilityRules.rules,
     timeout,
     timeoutBehavior,
     allowedRoots,
-    networkAllowlist,
-    networkBlocklist,
-    commandDenylist,
-    domainHitlEnabled,
+    networkAllowlist: networkCommand.networkAllowlist,
+    networkBlocklist: networkCommand.networkBlocklist,
+    commandDenylist: networkCommand.commandDenylist,
+    domainHitlEnabled: networkCommand.domainHitlEnabled,
     injectionPolicy,
     planConfirmEnabled,
     yoloModeEnabled,
@@ -554,16 +371,16 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     handleRemoveRoot,
     handleTimeoutChange,
     handleTimeoutBehaviorChange,
-    handleAddRule,
-    handleRemoveRule,
-    handleRuleChange,
-    handleAddDomain,
-    handleRemoveDomain,
-    handleAddBlockedDomain,
-    handleRemoveBlockedDomain,
-    handleAddCommandPattern,
-    handleRemoveCommandPattern,
-    handleDomainHitlToggle,
+    handleAddRule: capabilityRules.handleAddRule,
+    handleRemoveRule: capabilityRules.handleRemoveRule,
+    handleRuleChange: capabilityRules.handleRuleChange,
+    handleAddDomain: networkCommand.handleAddDomain,
+    handleRemoveDomain: networkCommand.handleRemoveDomain,
+    handleAddBlockedDomain: networkCommand.handleAddBlockedDomain,
+    handleRemoveBlockedDomain: networkCommand.handleRemoveBlockedDomain,
+    handleAddCommandPattern: networkCommand.handleAddCommandPattern,
+    handleRemoveCommandPattern: networkCommand.handleRemoveCommandPattern,
+    handleDomainHitlToggle: networkCommand.handleDomainHitlToggle,
     handleInjectionPolicyToggle,
     handlePlanConfirmToggle,
     handleYoloModeToggle,
@@ -571,5 +388,8 @@ export function useSecurityPolicy(t: (key: string, fallback?: Record<string, str
     handleAutoReviewModelChange,
     handleProfileSelect,
     handleNLApply,
+    capabilityMatrix: capabilityRules.capabilityMatrix,
+    handleCapabilityChange: capabilityRules.handleCapabilityChange,
+    handleCapabilityPresetApply: capabilityRules.handleCapabilityPresetApply,
   };
 }

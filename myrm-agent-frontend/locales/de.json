@@ -13358,6 +13358,19 @@
       "modeAllow": "Erlauben",
       "modeAsk": "Genehmigung erforderlich",
       "modeDeny": "Ablehnen",
+      "modeAllowShort": "Erlauben",
+      "modeAskShort": "Fragen",
+      "modeDenyShort": "Blockieren",
+      "capabilitySurfaceSaved": "Berechtigung für Funktionsbereich aktualisiert",
+      "capabilityPresetApplied": "Sicherheits-Voreinstellung angewendet",
+      "capabilityMatrix": {
+        "title": "Funktionsbereich-Berechtigungsmatrix (Always / Ask / Deny)",
+        "desc": "Feingranulare Drei-Zustands-Richtlinie für Wissensdatenbanken, Netzwerk, Entwurfs-Artefakte, Remote-Tools und Dateisystem."
+      },
+      "matrixPresets": {
+        "title": "Funktionsbereich-Vorlagen",
+        "desc": "Schnelle Konfiguration der Always/Ask/Deny-Haltung über alle 6 Kernbereiche hinweg."
+      },
       "approvalTimeout": "Genehmigungs-Timeout",
       "approvalTimeoutDesc": "Sekunden, die auf Ihre Genehmigung gewartet wird, bevor ein Tool-Aufruf automatisch aufgelöst wird.",
       "seconds": "Sekunden",

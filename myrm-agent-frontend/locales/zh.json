@@ -871,6 +871,19 @@
       "modeAllow": "允许",
       "modeAsk": "需要审批",
       "modeDeny": "拒绝",
+      "modeAllowShort": "始终允许",
+      "modeAskShort": "每次询问",
+      "modeDenyShort": "严格禁止",
+      "capabilitySurfaceSaved": "能力面权限已更新",
+      "capabilityPresetApplied": "安全基准预设已应用",
+      "capabilityMatrix": {
+        "title": "能力面权限矩阵 (Always / Ask / Deny)",
+        "desc": "细粒度三态策略，统一管控知识库读写、网络出站与检索、暂存工件创建、外部远程工具与本地工作区文件。"
+      },
+      "matrixPresets": {
+        "title": "能力面基准预设",
+        "desc": "一键快速配置跨 6 大核心能力面的细粒度 Always/Ask/Deny 安全态势。"
+      },
       "approvalTimeout": "审批超时",
       "approvalTimeoutDesc": "等待用户审批的秒数，超时后自动处理。",
       "seconds": "秒",

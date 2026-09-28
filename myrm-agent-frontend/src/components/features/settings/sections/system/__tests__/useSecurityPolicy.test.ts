@@ -38,6 +38,15 @@ vi.mock('../securityPolicyUtils', () => ({
   DEFAULT_CONFIG: { approvalTimeoutSeconds: 120 },
   createEmptyRule: () => ({ pattern: '', action: 'ask' }),
   DOMAIN_PATTERN: /^(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/i,
+  deriveCapabilityMatrix: () => ({
+    knowledge_read: 'allow',
+    knowledge_write: 'ask',
+    web_egress: 'allow',
+    candidate_create: 'allow',
+    remote_tools: 'ask',
+    local_filesystem: 'ask',
+  }),
+  syncCapabilityActionToRules: (rules: unknown[]) => rules,
 }));
 
 const t = (key: string) => key;
@@ -152,5 +161,56 @@ describe('useSecurityPolicy – command denylist toast feedback', () => {
     expect(toast.success).not.toHaveBeenCalled();
     expect(toast.error).not.toHaveBeenCalled();
     expect(mockSet).not.toHaveBeenCalled();
+  });
+});
+
+describe('useSecurityPolicy – capability surface matrix', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('updates capability matrix and calls syncManager when surface action changes', () => {
+    const { result } = renderHook(() => useSecurityPolicy(t));
+
+    act(() => {
+      result.current.handleCapabilityChange('knowledge_write', 'deny');
+    });
+
+    expect(result.current.capabilityMatrix.knowledge_write).toBe('deny');
+    expect(toast.success).toHaveBeenCalledWith('capabilitySurfaceSaved');
+    expect(mockSet).toHaveBeenCalledWith(
+      'securityConfig',
+      expect.objectContaining({
+        capabilityMatrix: expect.objectContaining({
+          knowledge_write: 'deny',
+        }),
+      }),
+    );
+  });
+
+  it('applies capability preset matrix correctly', () => {
+    const { result } = renderHook(() => useSecurityPolicy(t));
+
+    const autonomousPreset = {
+      knowledge_read: 'allow' as const,
+      knowledge_write: 'allow' as const,
+      web_egress: 'allow' as const,
+      candidate_create: 'allow' as const,
+      remote_tools: 'allow' as const,
+      local_filesystem: 'allow' as const,
+    };
+
+    act(() => {
+      result.current.handleCapabilityPresetApply(autonomousPreset);
+    });
+
+    expect(result.current.capabilityMatrix).toEqual(autonomousPreset);
+    expect(toast.success).toHaveBeenCalledWith('capabilityPresetApplied');
+    expect(mockSet).toHaveBeenCalledWith(
+      'securityConfig',
+      expect.objectContaining({
+        capabilityMatrix: autonomousPreset,
+      }),
+    );
   });
 });

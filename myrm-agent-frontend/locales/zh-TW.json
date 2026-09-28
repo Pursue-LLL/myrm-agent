@@ -13364,6 +13364,19 @@
       "modeAllow": "允許",
       "modeAsk": "需要審批",
       "modeDeny": "拒絕",
+      "modeAllowShort": "一律允許",
+      "modeAskShort": "每次詢問",
+      "modeDenyShort": "嚴格禁止",
+      "capabilitySurfaceSaved": "能力面權限已更新",
+      "capabilityPresetApplied": "安全基準預設已套用",
+      "capabilityMatrix": {
+        "title": "能力面權限矩陣 (Always / Ask / Deny)",
+        "desc": "細粒度三態原則，統一控管知識庫讀寫、網路出站與檢索、暫存工件建立、外部遠端工具與本機工作區檔案。"
+      },
+      "matrixPresets": {
+        "title": "能力面基準預設",
+        "desc": "一鍵快速設定跨 6 大核心能力面的細粒度 Always/Ask/Deny 安全態勢。"
+      },
       "approvalTimeout": "審批超時",
       "approvalTimeoutDesc": "等待使用者審批的秒數，超時後自動處理。",
       "seconds": "秒",

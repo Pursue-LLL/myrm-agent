@@ -375,6 +375,7 @@ export interface SecurityConfigValue {
   permissions: Record<string, PermissionAction | Record<string, PermissionAction>>;
   approvalTimeoutSeconds: number;
   approvalTimeoutBehavior?: 'deny' | 'allow';
+  capabilityMatrix?: Record<string, PermissionAction>;
   pathPolicy?: PathPolicyConfig;
   networkAllowlist?: string[];
   networkBlocklist?: string[];

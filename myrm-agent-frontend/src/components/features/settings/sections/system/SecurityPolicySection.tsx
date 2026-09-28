@@ -17,9 +17,11 @@ import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import { Switch } from '@/components/primitives/switch';
-import EnabledModelSelect from '../../default-model/EnabledModelSelect';
 import type { PermissionRuleConfig } from '@/services/config/types';
 import SettingsSection from '../SettingsSection';
+import { CapabilitySurfaceMatrixGrid } from './CapabilitySurfaceMatrixGrid';
+import { CustomRulesListEditor } from './CustomRulesListEditor';
+import { SmartIntentGuardEditor } from './SmartIntentGuardEditor';
 import { PathPolicyEditor } from './PathPolicyEditor';
 import { DomainAllowlistEditor } from './DomainAllowlistEditor';
 import { CommandDenylistEditor } from './CommandDenylistEditor';
@@ -31,7 +33,7 @@ import SecurityProfileSelector from './SecurityProfileSelector';
 import SecurityPrivacyPanel from './SecurityPrivacyPanel';
 import { DataFlowDisclosurePanel } from './DataFlowDisclosurePanel';
 import { DualTrackAuditDashboard } from './DualTrackAuditDashboard';
-import { BUILTIN_BLACKLIST, KNOWN_PERMISSIONS, buildPermissions } from './securityPolicyUtils';
+import { BUILTIN_BLACKLIST, buildPermissions } from './securityPolicyUtils';
 import { useSecurityPolicy } from './useSecurityPolicy';
 
 const SecurityPolicySection = memo(() => {
@@ -156,107 +158,25 @@ const SecurityPolicySection = memo(() => {
       </SettingsSection>
 
       <SettingsSection
-        title={t('rulesTitle')}
-        description={t('rulesDesc')}
-        action={
-          <Button variant="outline" size="sm" onClick={policy.handleAddRule}>
-            <IconPlus className="h-4 w-4 mr-1" />
-            {t('addRule')}
-          </Button>
-        }
+        title={t('capabilityMatrix.title', { default: 'Capability Surface Matrix (Always / Ask / Deny)' })}
+        description={t('capabilityMatrix.desc', {
+          default:
+            'Fine-grained tri-state posture governing knowledge bases, outbound network, candidate artifacts, remote tools, and workspace filesystem.',
+        })}
       >
-        <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-2 mb-3">
-          <p className="text-xs font-medium text-foreground">
-            {t('delegationPermissionsGuide.title', { default: 'About delegation permissions' })}
-          </p>
-          <ul className="text-xs text-muted-foreground space-y-1.5 list-none pl-0">
-            <li>
-              <span className="font-medium text-foreground">{tPerm('spawn_subagent')}</span>
-              {' — '}
-              {t('delegationPermissionsGuide.internalDesc', {
-                default: 'Spins up a helper agent inside Myrm for research, audit, or parallel work.',
-              })}
-            </li>
-            <li>
-              <span className="font-medium text-foreground">{tPerm('invoke_external_agent')}</span>
-              {' — '}
-              {t('delegationPermissionsGuide.externalDesc', {
-                default: 'Runs Claude Code, Codex, or another CLI program on your computer.',
-              })}
-            </li>
-            <li className="text-muted-foreground/90">
-              {t('delegationPermissionsGuide.bindingHint', {
-                default:
-                  'To limit which custom agents a main agent can spawn, configure sub-agent bindings under Settings → Agents → Subagents.',
-              })}
-            </li>
-          </ul>
-        </div>
-        {policy.rules.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">{t('noRules')}</p>
-        ) : (
-          <div className="space-y-3">
-            {policy.rules.map((rule: PermissionRuleConfig, idx: number) => (
-              <div
-                key={idx}
-                className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 rounded-lg border border-border bg-background"
-              >
-                <Select value={rule.permission} onValueChange={(v) => policy.handleRuleChange(idx, 'permission', v)}>
-                  <SelectTrigger className="flex-1 min-w-0">
-                    <SelectValue placeholder={t('permissionPlaceholder')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {KNOWN_PERMISSIONS.map((perm) => (
-                      <SelectItem key={perm} value={perm}>
-                        {tPerm(perm, { default: tCap(perm, { default: perm }) })}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  placeholder={t('patternPlaceholder')}
-                  value={rule.pattern}
-                  onChange={(e) => policy.handleRuleChange(idx, 'pattern', e.target.value)}
-                  className="flex-1 min-w-0 text-sm"
-                />
-                <Select value={rule.action} onValueChange={(v) => policy.handleRuleChange(idx, 'action', v)}>
-                  <SelectTrigger className="w-36 shrink-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="allow">
-                      <div className="flex items-center gap-2">
-                        <IconShieldCheck className="h-3.5 w-3.5 text-green-500" />
-                        {t('modeAllow')}
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="ask">
-                      <div className="flex items-center gap-2">
-                        <IconShieldAlert className="h-3.5 w-3.5 text-amber-500" />
-                        {t('modeAsk')}
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="deny">
-                      <div className="flex items-center gap-2">
-                        <IconBan className="h-3.5 w-3.5 text-destructive" />
-                        {t('modeDeny')}
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => policy.handleRemoveRule(idx)}
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
-                >
-                  <IconTrash className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+        <CapabilitySurfaceMatrixGrid
+          matrix={policy.capabilityMatrix}
+          onChange={policy.handleCapabilityChange}
+          onApplyPreset={policy.handleCapabilityPresetApply}
+        />
       </SettingsSection>
+
+      <CustomRulesListEditor
+        rules={policy.rules}
+        onAddRule={policy.handleAddRule}
+        onRemoveRule={policy.handleRemoveRule}
+        onRuleChange={policy.handleRuleChange}
+      />
 
       <SettingsSection title={t('blacklistTitle')} description={t('blacklistDesc')}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -329,73 +249,14 @@ const SecurityPolicySection = memo(() => {
         </div>
       </SettingsSection>
 
-      <SettingsSection
-        title={t('autoReview.title', { default: 'Smart Intent Guard' })}
-        description={t('autoReview.description', {
-          default:
-            'Use an LLM to automatically review high-risk tool calls (like shell commands or network requests) against your original intent. If the action matches your intent, it is silently approved, reducing interruption fatigue.',
-        })}
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4 p-4 rounded-lg border border-border bg-background">
-            <div className="flex-1 space-y-1">
-              <div className="flex items-center gap-2">
-                <IconShieldCheck className="h-4 w-4 text-green-500" />
-                <span className="font-medium">
-                  {t('autoReview.enableLabel', { default: 'Enable Smart Intent Guard' })}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {t('autoReview.enableDesc', {
-                  default:
-                    'When enabled, an LLM will evaluate potentially dangerous tool calls before interrupting you.',
-                })}
-              </p>
-            </div>
-            <Switch checked={policy.autoReviewEnabled} onCheckedChange={policy.handleAutoReviewToggle} />
-          </div>
-
-          <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-3">
-            <EnabledModelSelect
-              label={t('autoReview.selectModel', { default: 'Select Reviewer Model' })}
-              value={policy.autoReviewModel}
-              onChange={policy.handleAutoReviewModelChange}
-              enabledModels={policy.enabledModels}
-              providers={policy.providers}
-              placeholder={t('autoReview.selectModelPlaceholder', {
-                default: 'Select a fast model (e.g. GPT-4o-mini)',
-              })}
-            />
-            {policy.autoReviewEnabled && !policy.autoReviewModel && policy.enabledModels.length > 0 && (
-              <div className="flex items-start gap-2 p-2.5 rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50">
-                <IconShieldCheck className="h-3.5 w-3.5 text-blue-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-blue-700 dark:text-blue-400">
-                  {t('autoReview.noModelHint', {
-                    default:
-                      'Smart Intent Guard is active using your default model. For optimal latency and cost, consider selecting a dedicated fast model (e.g. GPT-4o-mini).',
-                  })}
-                </p>
-              </div>
-            )}
-            {policy.autoReviewEnabled && policy.autoReviewModel && (
-              <p className="text-xs text-muted-foreground mt-2">
-                {t('autoReview.modelRecommendation', {
-                  default:
-                    'Recommendation: Use a fast, low-cost model like GPT-4o-mini or Claude 3 Haiku for optimal latency.',
-                })}
-              </p>
-            )}
-            {policy.autoReviewEnabled && policy.autoReviewModel && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {t('autoReview.shellEscalationHint', {
-                  default:
-                    'Note: In Smart Intent Guard mode, high-risk operations (e.g. shell commands) will be reviewed by the security model even if your permission rules set them to "Allow". Trivially safe commands (ls, cat, git status, etc.) are fast-tracked without LLM review.',
-                })}
-              </p>
-            )}
-          </div>
-        </div>
-      </SettingsSection>
+      <SmartIntentGuardEditor
+        autoReviewEnabled={policy.autoReviewEnabled}
+        autoReviewModel={policy.autoReviewModel}
+        enabledModels={policy.enabledModels}
+        providers={policy.providers}
+        onToggle={policy.handleAutoReviewToggle}
+        onModelChange={policy.handleAutoReviewModelChange}
+      />
 
       <SettingsSection
         title={t('planReview.title', { default: 'Plan Review' })}

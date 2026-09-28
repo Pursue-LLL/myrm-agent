@@ -75,6 +75,8 @@ def _build_security_config_for_mode(mode: str) -> SecurityConfig:
             PermissionRule("search_files", "*", PermissionAction.ALLOW),
             PermissionRule("get_file_info", "*", PermissionAction.ALLOW),
             PermissionRule("web_search", "*", PermissionAction.ALLOW),
+            PermissionRule("knowledge_read", "*", PermissionAction.ALLOW),
+            PermissionRule("knowledge_write", "*", PermissionAction.DENY),
             PermissionRule("shell_exec", "*", PermissionAction.DENY),
             PermissionRule("code_interpreter", "*", PermissionAction.DENY),
             PermissionRule("file_write", "*", PermissionAction.DENY),

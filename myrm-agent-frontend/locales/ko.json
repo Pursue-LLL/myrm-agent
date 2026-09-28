@@ -13358,6 +13358,19 @@
       "modeAllow": "허용",
       "modeAsk": "승인 필요",
       "modeDeny": "거부",
+      "modeAllowShort": "항상 허용",
+      "modeAskShort": "확인 요청",
+      "modeDenyShort": "차단",
+      "capabilitySurfaceSaved": "기능 영역 권한이 업데이트되었습니다",
+      "capabilityPresetApplied": "보안 프리셋이 적용되었습니다",
+      "capabilityMatrix": {
+        "title": "기능 영역 권한 매트릭스 (Always / Ask / Deny)",
+        "desc": "지식 베이스, 네트워크 아웃바운드, 후보 생성, 원격 도구 및 로컬 파일 시스템을 총괄 관리하는 3단계 정책."
+      },
+      "matrixPresets": {
+        "title": "기능 영역 기준 프리셋",
+        "desc": "6개 핵심 기능 영역 전반에 걸쳐 Always/Ask/Deny 3단계 보안 태세를 신속하게 구성합니다."
+      },
       "approvalTimeout": "승인 제한 시간",
       "approvalTimeoutDesc": "도구 호출이 자동 처리되기 전에 승인을 기다리는 시간(초).",
       "seconds": "초",
