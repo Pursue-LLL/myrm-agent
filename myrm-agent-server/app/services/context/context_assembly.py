@@ -74,12 +74,14 @@ class ContextAssemblyService:
             extra_namespaces = (
                 [str(item) for item in extra_namespaces_raw] if isinstance(extra_namespaces_raw, list) else None
             )
+            project_id = getattr(agent, "project_id", None)
             binding = resolve_context_binding(
                 namespaces=extra_namespaces,
                 agent_id=agent.agent_id or "default",
                 channel_id=agent.memory_channel_id or agent.channel_name,
                 conversation_id=agent.memory_conversation_id or effective_chat_id,
                 task_id=agent.memory_task_id,
+                project_id=project_id,
                 shared_context_ids=agent.memory_shared_context_ids,
                 memory_policy=agent.memory_policy,
                 task_workspace_root=task_root,
@@ -127,6 +129,7 @@ class ContextAssemblyService:
             channel_id="web_chat",
             conversation_id=chat.id,
             task_id=None,
+            project_id=chat.project_id,
             shared_context_ids=shared_context_ids,
             memory_policy=memory_policy,
             task_workspace_root=task_workspace_root,

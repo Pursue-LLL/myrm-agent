@@ -23,9 +23,6 @@ from uuid import uuid4
 from myrm_agent_harness.toolkits.memory.types import ConflictResolution
 from sqlalchemy import select
 
-from app.database.connection import get_session
-from app.database.models import PendingMemory
-
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
         ConflictCallback,
@@ -58,6 +55,7 @@ async def _record_conflict_ledger_event(
             MemoryOperationStatus,
         )
 
+        from app.database.connection import get_session
         from app.services.memory.ledger.operation_ledger import (
             MemoryOperationLedgerService,
         )
@@ -112,7 +110,18 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
             else dt.now(UTC) + timedelta(hours=_CONFLICT_AUTO_RESOLVE_HOURS)
         )
 
+        raw_type = getattr(ctx, "memory_type", None)
+        if raw_type is not None and hasattr(raw_type, "value") and isinstance(raw_type.value, str):
+            mem_type_str = raw_type.value
+        elif isinstance(raw_type, str):
+            mem_type_str = raw_type
+        else:
+            mem_type_str = "semantic"
+
         try:
+            from app.database.connection import get_session
+            from app.database.models import PendingMemory
+
             async with get_session() as db:
                 existing_id = await db.scalar(
                     select(PendingMemory.id).where(
@@ -135,7 +144,7 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
                 record = PendingMemory(
                     id=conflict_id,
                     agent_id=agent_id,
-                    memory_type=ctx.memory_type.value,
+                    memory_type=mem_type_str,
                     content=ctx.new_content,
                     metadata_json={
                         "merge_suggestion": ctx.merge_suggestion,
@@ -164,7 +173,7 @@ def create_conflict_callback(agent_id: str | None = None) -> ConflictCallback:
             await _record_conflict_ledger_event(
                 conflict_id=conflict_id,
                 high_risk=high_risk,
-                memory_type=ctx.memory_type.value,
+                memory_type=mem_type_str,
             )
         except Exception:
             logger.warning(

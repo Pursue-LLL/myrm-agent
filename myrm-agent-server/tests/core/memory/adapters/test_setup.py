@@ -156,7 +156,7 @@ async def test_create_memory_manager_appends_shared_context_namespaces(tmp_path:
         "shared:customer-a",
         "shared:launch-plan",
     ]
-    assert manager.scope.primary_namespace == "conversation:chat-123"
+    assert manager.scope.primary_namespace == "agent:builder"
 
 
 @pytest.mark.asyncio
@@ -531,7 +531,7 @@ async def test_create_conflict_callback_falls_back_on_db_error(tmp_path: Path) -
             "app.database.connection.get_session",
             return_value=fake_db,
         ),
-        mock_patch("app.core.memory.adapters.setup.logger.warning") as mock_warning,
+        mock_patch("app.core.memory.adapters.conflict_callback.logger.warning") as mock_warning,
     ):
         callback = create_conflict_callback(agent_id="agent-x")
         result = await callback(ctx)

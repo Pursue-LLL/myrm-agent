@@ -111,6 +111,7 @@ def derive_binding_namespaces(
     channel_id: str | None,
     conversation_id: str | None,
     task_id: str | None,
+    project_id: str | None = None,
     memory_policy: AgentMemoryPolicy | None,
 ) -> list[str]:
     resolved_agent_id, resolved_channel_id, resolved_conversation_id, resolved_task_id = resolve_scope_identifiers(
@@ -120,6 +121,8 @@ def derive_binding_namespaces(
         task_id=task_id,
         memory_policy=memory_policy,
     )
+
+    clean_project_id = project_id.strip() if project_id else None
 
     candidates: dict[MemoryScopeLevel, str] = {
         MemoryScopeLevel.GLOBAL: "global",
@@ -131,6 +134,30 @@ def derive_binding_namespaces(
         candidates[MemoryScopeLevel.CONVERSATION] = f"conversation:{resolved_conversation_id}"
     if resolved_task_id:
         candidates[MemoryScopeLevel.TASK] = f"task:{resolved_task_id}"
+
+    if clean_project_id:
+        project_ns = f"project:{clean_project_id}"
+        # Zero-leakage immunity: strip any foreign project namespaces
+        clean_incoming = [
+            ns for ns in (namespaces or [])
+            if not (ns.startswith("project:") and ns != project_ns)
+        ]
+        shared_ns = _shared_context_namespaces(shared_context_ids)
+
+        if memory_policy is not None:
+            levels = memory_policy.read_scopes or _SCOPE_ORDER
+            scoped = [candidates[level] for level in _SCOPE_ORDER if level in levels and level in candidates]
+            # Primary namespace is always project_ns for writes; read scopes provide one-way inheritance
+            return list(dict.fromkeys([project_ns, *scoped, *clean_incoming, *shared_ns]))
+
+        derived = [project_ns, candidates[MemoryScopeLevel.GLOBAL]]
+        if resolved_channel_id:
+            derived.append(candidates[MemoryScopeLevel.CHANNEL])
+        if resolved_conversation_id:
+            derived.append(candidates[MemoryScopeLevel.CONVERSATION])
+        if resolved_task_id:
+            derived.append(candidates[MemoryScopeLevel.TASK])
+        return list(dict.fromkeys([project_ns, *derived, *clean_incoming, *shared_ns]))
 
     if memory_policy is not None:
         levels = memory_policy.read_scopes or _SCOPE_ORDER

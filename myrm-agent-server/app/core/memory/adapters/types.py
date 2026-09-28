@@ -35,6 +35,7 @@ class ResolvedContextBinding:
     channel_id: str | None = None
     conversation_id: str | None = None
     task_id: str | None = None
+    project_id: str | None = None
     bundle_id: str = DEFAULT_BUNDLE_ID
     schema_version: int = CONTEXT_BUNDLE_SCHEMA_VERSION
     volume_layout_version: int = VOLUME_LAYOUT_VERSION

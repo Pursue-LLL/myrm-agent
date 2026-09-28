@@ -376,6 +376,7 @@ class GeneralAgent(ToolSetupMixin):
             channel_id=self.memory_channel_id or self.channel_name,
             conversation_id=self.memory_conversation_id or effective_chat_id,
             task_id=self.memory_task_id,
+            project_id=self.project_id,
             shared_context_ids=self.memory_shared_context_ids,
             memory_policy=self.memory_policy,
             task_workspace_root=task_root,

@@ -446,6 +446,7 @@ class CustomAgentFactory:
                             channel_id=None,
                             conversation_id=None,
                             task_id=None,
+                            project_id=getattr(config, "project_id", None) or getattr(self, "_project_id", None),
                             memory_policy=getattr(profile, "memory_policy", None),
                         ),
                         embedding_config=embedding_cfg,
