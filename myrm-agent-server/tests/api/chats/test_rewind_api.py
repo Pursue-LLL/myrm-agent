@@ -654,3 +654,133 @@ async def test_rewind_both_scope_triggers_rollback_compensation_on_revert_failur
     assert any(m.id == ids["u2"] for m in messages_after), "Target message must not be deleted if file revert fails!"
 
 
+@pytest.mark.asyncio
+async def test_rewind_chat_not_found(async_client: httpx.AsyncClient) -> None:
+    non_existent_id = f"non-existent-{uuid.uuid4().hex[:8]}"
+    response = await async_client.post(
+        f"/api/v1/chats/{non_existent_id}/rewind",
+        json={"message_id": str(uuid.uuid4())},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_rewind_session_busy_returns_409(
+    async_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    chat_id = f"rewind-busy-{uuid.uuid4().hex[:8]}"
+    await _create_chat(chat_id)
+
+    from app.services.chat.chat_turn import RewindResult
+
+    async def _fake_busy(*args: object, **kwargs: object) -> RewindResult:
+        return RewindResult(
+            success=False,
+            deleted_count=0,
+            composer_text="",
+            message_index=-1,
+            goal_paused=False,
+            error="SESSION_BUSY",
+        )
+
+    monkeypatch.setattr(
+        "app.services.chat.chat_service.ChatService.rewind_to_message",
+        _fake_busy,
+    )
+
+    response = await async_client.post(
+        f"/api/v1/chats/{chat_id}/rewind",
+        json={"message_id": str(uuid.uuid4())},
+    )
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_rewind_nothing_to_rewind_returns_400(
+    async_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    chat_id = f"rewind-nothing-{uuid.uuid4().hex[:8]}"
+    await _create_chat(chat_id)
+
+    from app.services.chat.chat_turn import RewindResult
+
+    async def _fake_nothing(*args: object, **kwargs: object) -> RewindResult:
+        return RewindResult(
+            success=False,
+            deleted_count=0,
+            composer_text="",
+            message_index=-1,
+            goal_paused=False,
+            error="NOTHING_TO_REWIND",
+        )
+
+    monkeypatch.setattr(
+        "app.services.chat.chat_service.ChatService.rewind_to_message",
+        _fake_nothing,
+    )
+
+    response = await async_client.post(
+        f"/api/v1/chats/{chat_id}/rewind",
+        json={"message_id": str(uuid.uuid4())},
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_rewind_generic_failure_returns_500(
+    async_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    chat_id = f"rewind-fail-{uuid.uuid4().hex[:8]}"
+    await _create_chat(chat_id)
+
+    from app.services.chat.chat_turn import RewindResult
+
+    async def _fake_fail(*args: object, **kwargs: object) -> RewindResult:
+        return RewindResult(
+            success=False,
+            deleted_count=0,
+            composer_text="",
+            message_index=-1,
+            goal_paused=False,
+            error="UNKNOWN_CRASH",
+        )
+
+    monkeypatch.setattr(
+        "app.services.chat.chat_service.ChatService.rewind_to_message",
+        _fake_fail,
+    )
+
+    response = await async_client.post(
+        f"/api/v1/chats/{chat_id}/rewind",
+        json={"message_id": str(uuid.uuid4())},
+    )
+    assert response.status_code == 500
+
+
+@pytest.mark.asyncio
+async def test_rewind_continuity_sync_error_returns_500(
+    async_client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    chat_id = f"rewind-continuity-{uuid.uuid4().hex[:8]}"
+    await _create_chat(chat_id)
+
+    async def _fake_raise(*args: object, **kwargs: object) -> None:
+        raise ContinuitySyncError("Checkpoint thread sync failed")
+
+    monkeypatch.setattr(
+        "app.services.chat.chat_service.ChatService.rewind_to_message",
+        _fake_raise,
+    )
+
+    response = await async_client.post(
+        f"/api/v1/chats/{chat_id}/rewind",
+        json={"message_id": str(uuid.uuid4())},
+    )
+    assert response.status_code == 500
+
+
+
