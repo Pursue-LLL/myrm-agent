@@ -4931,6 +4931,7 @@
         "laneLabels": {
           "instruction_lane": "命令とペルソナ",
           "memory_lane": "事実と環境設定（グローバルメモリ）",
+          "session_lane": "セッションレーン（全対話）",
           "skill_lane": "スキル",
           "credential_lane": "APIキー",
           "cron_lane": "スケジュールタスク（Cron）"
@@ -4945,6 +4946,7 @@
         "coverageLabels": {
           "instruction_lane": "命令とペルソナ",
           "memory_lane": "事実と環境設定（グローバルメモリ）",
+          "session_lane": "セッションレーン",
           "memory_persona": "メモリ / 人格",
           "skills_review": "スキル",
           "api_keys_manual": "APIキー",
@@ -4998,11 +5000,17 @@
           "invalid_schedule": "無効または未対応のスケジュール",
           "prompt_injection": "プロンプトがセキュリティスキャンでブロックされました",
           "unsupported_job_type": "未対応のタスクタイプ"
-        }
+        },
+        "sessionsTitle": "セッションレーン — {count} 件の過去セッションを検出",
+        "resumptionReady": "即時再開可能",
+        "sessionsDesc": "外部アシスタントから完全なトランスクリプトを忠実に抽出。チャットリストに直接インポートされ、サンドボックスパスと Prompt Cache 親和性を保持します。",
+        "turnsCount": "{turns} ターンの対話 · {tools} 回のツール呼び出し"
       },
       "result": {
         "title": "インポート完了",
         "totalImported": "成功インポート {count} 件メモリ",
+        "sessionsImported": "{count} 件の過去セッションを正常にインポートし、コンテキストをマウントしました",
+        "resumeChat": "会話を再開",
         "skillsSubmitted": "{count} 個のスキルをレビュー用に送信しました",
         "nextStepsWithSkills": "上記のレビューキューでスキルを承認してください。MCP とチャンネルは設定で手動構成してください",
         "nextStepsMemoryOnly": "MCP とチャンネルは設定で手動構成してください",

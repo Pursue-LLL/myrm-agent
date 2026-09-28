@@ -42,6 +42,7 @@
 | `instruction_writer.py` | 核心 | 写入 Agent.systemPrompt、personalSettings、`.myrm/rules` | ✅ |
 | `memory_import_binding.py` | 辅助 | 全局 namespace MemoryManager 工厂 | ✅ |
 | `instruction_rollback.py` | 辅助 | 与 memory import batch 绑定的指令车道回滚 | ✅ |
+| `session_lane.py` | 核心 | 外部竞品（Claude Code, Codex 等）转录本会话车道服务：dry-run 预览转换、confirm 批量落库 Chat / Message 表、挂载初始轻量上下文、严格保持静态前缀一致以最大化 Prompt Cache 命中 | ✅ |
 | `skill_binding.py` | 辅助 | 技能审核通过后绑定 Agent profile | ✅ |
 | `mcp_config_converter.py` | 核心 | 竞品 MCP 配置 → MCPMigrationItem → config dict / preview；无状态转换器；并发策略映射（`supports_parallel_*` ↔ `hostSerial`）；transport 别名收敛（`http` → `streamable_http`）；可选保活间隔映射（`keepalive*` → `keepaliveInterval`；仅 remote transport 生效，`stdio` 或低于 5 秒时标记 `keepaliveIntervalIgnored` 供前端解释） | ✅ |
 | `workbuddy_skills_mapping.py` | 辅助 | WorkBuddy Top 20 核心技能映射映射表与解析器 | ✅ |

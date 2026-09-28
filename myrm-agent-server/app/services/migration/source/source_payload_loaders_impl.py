@@ -109,7 +109,50 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
     return result
 
 
+def _serialize_transcript(parsed: object) -> dict[str, object]:
+    from myrm_agent_harness.runtime.context.transcripts import TranscriptParseResult
+
+    if not isinstance(parsed, TranscriptParseResult):
+        return {}
+    return {
+        "session_id": parsed.session_id,
+        "title": parsed.title,
+        "source_platform": parsed.source_platform,
+        "created_at": parsed.created_at,
+        "updated_at": parsed.updated_at,
+        "detected_workspace_hint": parsed.detected_workspace_hint,
+        "total_tool_calls": parsed.total_tool_calls,
+        "total_tokens_approx": parsed.total_tokens_approx,
+        "turns": [
+            {
+                "turn_id": t.turn_id,
+                "role": t.role.value,
+                "content": t.content,
+                "thinking_trace": t.thinking_trace,
+                "timestamp": t.timestamp,
+                "source_event_type": t.source_event_type,
+                "tool_calls": [
+                    {
+                        "call_id": tc.call_id,
+                        "tool_name": tc.tool_name,
+                        "arguments": tc.arguments,
+                        "output": tc.output,
+                        "exit_code": tc.exit_code,
+                        "is_error": tc.is_error,
+                        "compacted": tc.compacted,
+                        "original_size_bytes": tc.original_size_bytes,
+                    }
+                    for tc in t.tool_calls
+                ],
+            }
+            for t in parsed.turns
+        ],
+    }
+
+
 def load_codex(root: Path, file_paths: list[str]) -> dict[str, object]:
+    from myrm_agent_harness.runtime.context.transcripts import CodexTranscriptParser
+
     from .._loader_utils import read_json
     from ..obsidian_vault_hints import collect_codex_obsidian_vault_hints
 
@@ -133,10 +176,38 @@ def load_codex(root: Path, file_paths: list[str]) -> dict[str, object]:
     if vault_hints:
         result["obsidian_vault_hints"] = vault_hints
 
+    # Discover and parse Codex sessions
+    codex_sessions: list[dict[str, object]] = []
+    parser = CodexTranscriptParser()
+    session_files: list[Path] = [
+        Path(fp) for fp in file_paths if fp.endswith(".json") and "session" in fp.lower() and Path(fp).is_file()
+    ]
+    if not session_files and root.is_dir():
+        for cand_dir in [root / "sessions", root]:
+            if cand_dir.is_dir():
+                for p in cand_dir.glob("*.json"):
+                    if p.is_file() and p.name not in ("config.json", "settings.json"):
+                        session_files.append(p)
+    seen_paths: set[Path] = set()
+    for sf in session_files:
+        if sf in seen_paths:
+            continue
+        seen_paths.add(sf)
+        try:
+            parsed_res = parser.parse_file(sf)
+            if parsed_res.turns:
+                codex_sessions.append(_serialize_transcript(parsed_res))
+        except Exception:
+            continue
+    if codex_sessions:
+        result["sessions"] = codex_sessions
+
     return result
 
 
 def load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
+    from myrm_agent_harness.runtime.context.transcripts import ClaudeTranscriptParser
+
     from .._loader_utils import read_json
 
     result: dict[str, object] = {}
@@ -177,6 +248,35 @@ def load_claude(root: Path, file_paths: list[str]) -> dict[str, object]:
         skills = load_skill_directories(skills_dir, source="claude")
         if skills:
             result["skills"] = skills
+
+    # Discover and parse Claude Code session transcripts
+    claude_sessions: list[dict[str, object]] = []
+    claude_parser = ClaudeTranscriptParser()
+    session_files: list[Path] = [
+        Path(fp) for fp in file_paths if fp.endswith(".jsonl") and Path(fp).is_file()
+    ]
+    if not session_files and root.is_dir():
+        for cand_dir in [root / "sessions", root / "projects", root]:
+            if cand_dir.is_dir():
+                for p in cand_dir.glob("*.jsonl"):
+                    if p.is_file():
+                        session_files.append(p)
+                for p in cand_dir.glob("*/*.jsonl"):
+                    if p.is_file():
+                        session_files.append(p)
+    seen_claude_paths: set[Path] = set()
+    for sf in session_files:
+        if sf in seen_claude_paths:
+            continue
+        seen_claude_paths.add(sf)
+        try:
+            parsed_res = claude_parser.parse_file(sf)
+            if parsed_res.turns:
+                claude_sessions.append(_serialize_transcript(parsed_res))
+        except Exception:
+            continue
+    if claude_sessions:
+        result["sessions"] = claude_sessions
 
     return result
 

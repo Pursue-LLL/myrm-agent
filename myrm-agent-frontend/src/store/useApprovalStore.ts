@@ -77,8 +77,6 @@ export interface ApprovalPayloadData {
   title?: string;
   target_type?: 'wiki' | 'procedural' | 'skill_gap' | string;
   trigger_condition?: string;
-  /** Ephemeral credential approval fields */
-  required_credentials?: string[];
   rationale?: string;
   confidence?: number;
   source_queries?: string[];

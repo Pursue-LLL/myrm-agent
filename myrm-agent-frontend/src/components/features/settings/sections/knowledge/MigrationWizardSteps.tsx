@@ -41,6 +41,7 @@ import type {
   MemoryImportDryRunResponse,
   MemoryImportReadiness,
   MigrationLanePreviewItem,
+  SessionMigrationPreviewItem,
   TokenEconomicsComparison,
 } from '@/services/memory/archive';
 import type { SkillMigrationSubmitResponse } from '@/services/skill/migration';
@@ -62,6 +63,7 @@ export interface TranslationFn {
 const COVERAGE_LABEL_KEYS = new Set([
   'instruction_lane',
   'memory_lane',
+  'session_lane',
   'memory_persona',
   'skills_review',
   'api_keys_manual',
@@ -472,6 +474,42 @@ function HermesArchitectureMappingCard({ t }: { t: TranslationFn }) {
   );
 }
 
+function SessionPreviewCard({
+  sessions,
+  t,
+}: {
+  sessions: SessionMigrationPreviewItem[];
+  t: TranslationFn;
+}) {
+  if (sessions.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4 text-left">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-foreground">
+          {t('preview.sessionsTitle', { count: sessions.length })}
+        </h3>
+        <Badge variant="secondary" className="text-[10px] bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+          {t('preview.resumptionReady')}
+        </Badge>
+      </div>
+      <p className="text-xs text-muted-foreground">{t('preview.sessionsDesc')}</p>
+      <div className="max-h-48 overflow-y-auto space-y-1.5 divide-y divide-border/20">
+        {sessions.map((s) => (
+          <div key={s.session_id} className="pt-1.5 first:pt-0 flex items-center justify-between text-xs">
+            <span className="truncate font-medium text-foreground max-w-[65%]">{s.title || s.session_id}</span>
+            <span className="text-[11px] text-muted-foreground">
+              {t('preview.turnsCount', { turns: s.turn_count, tools: s.tool_call_count })}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TokenEconomicsCard({
   data,
   sourceName,
@@ -586,6 +624,8 @@ export function PreviewStep({
       <CoverageMatrix items={dryRun.coverage_items ?? []} t={t} />
 
       <MigrationLaneMatrix lanes={dryRun.migration_lanes ?? []} t={t} />
+
+      <SessionPreviewCard sessions={dryRun.session_preview ?? []} t={t} />
 
       {source.competitor === 'hermes' && <HermesArchitectureMappingCard t={t} />}
 
@@ -1013,6 +1053,11 @@ export function ResultStep({
             )}
           </>
         )}
+        {(result.imported_session_count ?? 0) > 0 && (
+          <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+            {t('result.sessionsImported', { count: result.imported_session_count ?? 0 })}
+          </p>
+        )}
         <div className={cn('rounded-xl border px-4 py-3 text-left text-xs', IMPORT_READINESS_STYLES[readinessStatus])}>
           <p className="font-medium">{t(`result.readinessStatus.${readinessStatus}`)}</p>
           <p className="mt-1 opacity-90">{t('result.readinessSummary')}</p>
@@ -1096,6 +1141,11 @@ export function ResultStep({
         {!memoryEnableConversationSearch && (
           <Button size="sm" variant="secondary" className="h-8 text-xs" onClick={handleEnableConversationSearch}>
             {t('result.enableConversationSearch')}
+          </Button>
+        )}
+        {(result.imported_session_count ?? 0) > 0 && result.imported_chat_ids?.[0] && (
+          <Button asChild size="sm" variant="default" className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white">
+            <Link href={`/chat/${result.imported_chat_ids[0]}`}>{t('result.resumeChat')}</Link>
           </Button>
         )}
         {result.target_agent_id && (

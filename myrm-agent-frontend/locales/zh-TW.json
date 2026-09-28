@@ -4963,6 +4963,7 @@
         "laneLabels": {
           "instruction_lane": "指令與人設",
           "memory_lane": "事實與偏好（全域性記憶）",
+          "session_lane": "會話車道（全量對話）",
           "skill_lane": "技能",
           "credential_lane": "API 金鑰",
           "cron_lane": "定時任務（Cron）"
@@ -4977,6 +4978,7 @@
         "coverageLabels": {
           "instruction_lane": "指令與人設",
           "memory_lane": "事實與偏好（全域性記憶）",
+          "session_lane": "會話車道",
           "memory_persona": "記憶 / 人格",
           "skills_review": "技能",
           "api_keys_manual": "API Keys",
@@ -5042,11 +5044,17 @@
           "sessionSearchDesc": "本地毫秒級全文精準回溯，0 外部中介軟體依賴",
           "externalMcpTarget": "漸進式披露與安全沙箱工具體系",
           "externalMcpDesc": "Direct FC + Skill PTC + 嚴格權限審計，超越外掛矩陣"
-        }
+        },
+        "sessionsTitle": "會話車道 — 檢測到 {count} 個歷史會話",
+        "resumptionReady": "可直接續聊",
+        "sessionsDesc": "從外部助手高保真提取完整轉錄本，匯入後直接落庫會話列表，保留沙箱路徑與 Prompt Cache 親和性。",
+        "turnsCount": "{turns} 輪對話 · {tools} 次工具調用"
       },
       "result": {
         "title": "匯入完成",
         "totalImported": "成功匯入 {count} 條記憶",
+        "sessionsImported": "已匯入 {count} 個歷史會話，已掛載初始上下文",
+        "resumeChat": "立即前往會話續聊",
         "skillsSubmitted": "{count} 個技能已提交稽核",
         "nextStepsWithSkills": "請在上方稽核佇列批准技能；MCP 與渠道請在設定中手動補配",
         "nextStepsMemoryOnly": "MCP 與渠道請在設定中手動補配",

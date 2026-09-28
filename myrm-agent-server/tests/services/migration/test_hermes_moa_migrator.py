@@ -188,6 +188,11 @@ class TestMigrateHermesMoaOverlay:
                 new_callable=AsyncMock,
             ),
             patch(f"{MODULE}.UnitOfWork") as uow_cls,
+            patch(
+                f"{MODULE}._filter_valid_reference_selections",
+                new_callable=AsyncMock,
+                side_effect=lambda s: (s, []),
+            ),
         ):
             uow_cls.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
             uow_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -220,7 +225,14 @@ class TestMigrateHermesMoaOverlay:
                 "reference_model_selections": [{"providerId": "anthropic", "model": "claude"}],
             },
         }
-        with patch(f"{MODULE}.AgentService.get_agent_by_id", new_callable=AsyncMock) as get_agent:
+        with (
+            patch(f"{MODULE}.AgentService.get_agent_by_id", new_callable=AsyncMock) as get_agent,
+            patch(
+                f"{MODULE}._filter_valid_reference_selections",
+                new_callable=AsyncMock,
+                side_effect=lambda s: (s, []),
+            ),
+        ):
             get_agent.return_value = mock_agent
             result = await migrate_hermes_moa_overlay(hermes_config, "agent-123")
 

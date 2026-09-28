@@ -274,6 +274,7 @@ myrm_agent_harness.runtime.context.file_access_tracker
 myrm_agent_harness.runtime.context.offload
 myrm_agent_harness.runtime.context.session.session_context_pins
 myrm_agent_harness.runtime.context.session.session_continuity
+myrm_agent_harness.runtime.context.transcripts
 myrm_agent_harness.runtime.context.transparent_reader
 myrm_agent_harness.runtime.deps.lazy_deps
 myrm_agent_harness.runtime.events

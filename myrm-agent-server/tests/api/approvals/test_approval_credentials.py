@@ -97,12 +97,6 @@ async def test_stage_credentials_success_and_resolve(client) -> None:
 
 @pytest.mark.asyncio
 async def test_deny_approval_wipes_ephemeral_credentials(client) -> None:
-    from myrm_agent_harness.core.security.ephemeral_credentials import (
-        get_ephemeral_credential_store,
-    )
-
-    from app.services.approvals.registry import ApprovalRegistry
-
     record = await ApprovalRegistry.create_approval(
         agent_id="agent-deny-test",
         action_type="shell_execution",

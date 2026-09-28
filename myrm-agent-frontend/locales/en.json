@@ -12047,6 +12047,7 @@
         "laneLabels": {
           "instruction_lane": "Instructions & persona",
           "memory_lane": "Facts & preferences (global memory)",
+          "session_lane": "Session Lane (Full Transcripts)",
           "skill_lane": "Skills",
           "credential_lane": "API keys",
           "cron_lane": "Scheduled tasks (cron)"
@@ -12061,6 +12062,7 @@
         "coverageLabels": {
           "instruction_lane": "Instructions & persona",
           "memory_lane": "Facts & preferences (global memory)",
+          "session_lane": "Session Lane",
           "memory_persona": "Memory / persona",
           "skills_review": "Skills",
           "api_keys_manual": "API keys",
@@ -12114,11 +12116,17 @@
           "title": "Token usage comparison",
           "description": "{count} skill(s) detected — here is how per-turn token cost compares",
           "savings": "{percent}% saved"
-        }
+        },
+        "sessionsTitle": "Session Lane — {count} session(s) detected",
+        "resumptionReady": "Ready for Resumption",
+        "sessionsDesc": "Full conversational transcripts extracted from external assistant. Directly imported into your chat list, preserving sandbox paths and prompt cache affinity.",
+        "turnsCount": "{turns} turns · {tools} tool calls"
       },
       "result": {
         "title": "Import Complete",
         "totalImported": "Successfully imported {count} memories",
+        "sessionsImported": "Successfully imported {count} historical session(s) with context mounted",
+        "resumeChat": "Resume Chat",
         "skillsSubmitted": "{count} skill(s) submitted for review",
         "nextStepsWithSkills": "Approve skills in the pending queue above; configure MCP and channels in Settings",
         "nextStepsMemoryOnly": "Configure MCP and channels manually in Settings",

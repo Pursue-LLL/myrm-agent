@@ -17,7 +17,7 @@ from app.services.migration.source.source_payload_loader import supported_source
 
 def test_manifest_ids_match_expected_sources() -> None:
     ids = [item.id for item in migration_source_manifest_entries()]
-    assert ids == ["hermes", "openclaw", "claude", "codex", "chatgpt", "gbrain", "pi"]
+    assert ids == ["hermes", "openclaw", "claude", "codex", "chatgpt", "gemini", "gbrain", "pi", "plur"]
 
 
 def test_local_scan_ids_match_loader_closed_set() -> None:
@@ -33,14 +33,24 @@ def test_import_map_covers_upload_only_chatgpt() -> None:
 
 def test_manifest_payload_is_json_safe() -> None:
     payload = migration_source_manifest_payload()
-    assert len(payload) == 7
+    assert len(payload) == 9
     assert payload[0]["id"] == "hermes"
-    assert payload[-1]["id"] == "pi"
-    assert payload[-1]["discover_modes"] == ["local_scan"]
+    assert payload[-1]["id"] == "plur"
+    assert payload[-1]["discover_modes"] == ["zip_upload"]
 
 
 def test_deep_link_ids_include_all_manifest_sources() -> None:
-    assert migration_source_deep_link_ids() == {"hermes", "openclaw", "claude", "codex", "chatgpt", "gbrain", "pi"}
+    assert migration_source_deep_link_ids() == {
+        "hermes",
+        "openclaw",
+        "claude",
+        "codex",
+        "chatgpt",
+        "gemini",
+        "plur",
+        "gbrain",
+        "pi",
+    }
 
 
 def test_manifest_is_authoritative_for_frontend_consumers() -> None:

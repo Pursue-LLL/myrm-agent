@@ -200,7 +200,7 @@ async def resolve_approval(
 
     if normalized_decision == "deny" and req.ephemeral_credential_handles:
         try:
-            from myrm_agent_harness.core.security.ephemeral_credentials import (
+            from myrm_agent_harness.api import (
                 get_ephemeral_credential_store,
             )
 

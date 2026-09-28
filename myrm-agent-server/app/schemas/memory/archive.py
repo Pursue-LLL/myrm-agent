@@ -244,6 +244,10 @@ class MemoryImportDryRunResponse(BaseModel):
         default_factory=list,
         description="Hermes cron jobs skipped during preview (name + reason)",
     )
+    session_preview: list[dict[str, object]] = Field(
+        default_factory=list,
+        description="Parsed competitor sessions preview (title, turn_count, tool_count, workspace_hint)",
+    )
 
 
 class MemoryImportConfirmRequest(BaseModel):
@@ -254,6 +258,10 @@ class MemoryImportConfirmRequest(BaseModel):
     apply_instructions: bool = Field(
         True,
         description="Apply instruction lane from the bound dry-run session",
+    )
+    import_sessions: bool = Field(
+        True,
+        description="Persist parsed competitor sessions into native chats and messages",
     )
 
 
@@ -328,6 +336,8 @@ class MemoryImportConfirmResponse(MemoryImportResponse):
         None,
         description="Hermes cron migration result after confirm",
     )
+    imported_session_count: int = Field(0, description="Total chat sessions created and ready for continuation")
+    imported_chat_ids: list[str] = Field(default_factory=list, description="IDs of imported chats ready for resumption")
 
 
 class MemoryImportReadinessRecheckRequest(BaseModel):

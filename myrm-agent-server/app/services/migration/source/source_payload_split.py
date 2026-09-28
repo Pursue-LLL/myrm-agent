@@ -121,6 +121,7 @@ def extract_memory_payload(
         "skills",
         "openclaw_skills",
         "mcp_servers",
+        "sessions",
     ):
         memory.pop(key, None)
 

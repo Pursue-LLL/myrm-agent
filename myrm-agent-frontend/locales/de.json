@@ -5130,6 +5130,7 @@
         "laneLabels": {
           "instruction_lane": "Anweisungen und Persona",
           "memory_lane": "Fakten & Vorlieben (globales Gedächtnis)",
+          "session_lane": "Sitzungsspur (Vollständige Dialoge)",
           "skill_lane": "Fähigkeiten",
           "credential_lane": "API Schlüssel",
           "cron_lane": "Geplante Aufgaben (cron)"
@@ -5144,6 +5145,7 @@
         "coverageLabels": {
           "instruction_lane": "Anweisungen und Persona",
           "memory_lane": "Fakten & Vorlieben (globales Gedächtnis)",
+          "session_lane": "Sitzungsspur",
           "memory_persona": "Erinnerung / Persona",
           "skills_review": "Fähigkeiten",
           "api_keys_manual": "API Schlüssel",
@@ -5197,11 +5199,17 @@
           "invalid_schedule": "Ungültiger oder nicht unterstützter Zeitplan",
           "prompt_injection": "Eingabeaufforderung durch Sicherheitsscan blockiert",
           "unsupported_job_type": "Nicht unterstützter Aufgabentyp"
-        }
+        },
+        "sessionsTitle": "Sitzungsspur — {count} historische Sitzung(en) erkannt",
+        "resumptionReady": "Bereit zur Fortsetzung",
+        "sessionsDesc": "Vollständige Dialogprotokolle aus externem Assistenten extrahiert. Direkt in Ihre Chatliste importiert, unter Beibehaltung von Sandbox-Pfaden und Prompt-Cache-Affinität.",
+        "turnsCount": "{turns} Dialogrunden · {tools} Werkzeugaufrufe"
       },
       "result": {
         "title": "Import abgeschlossen",
         "totalImported": "{count}-Speicher erfolgreich importiert",
+        "sessionsImported": "{count} historische Sitzung(en) erfolgreich importiert und Kontext eingehängt",
+        "resumeChat": "Chat fortsetzen",
         "skillsSubmitted": "{count} Fähigkeiten zur Überprüfung eingereicht",
         "nextStepsWithSkills": "Fertigkeiten in der oben stehenden Warteschlange genehmigen; Konfigurieren Sie MCP und Kanäle in den Einstellungen",
         "nextStepsMemoryOnly": "Konfigurieren Sie MCP und Kanäle manuell in den Einstellungen",

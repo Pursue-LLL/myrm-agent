@@ -98,6 +98,10 @@ def build_coverage_items(loaded_payload: dict[str, object]) -> list[dict[str, st
     if any(loaded_payload.get(key) for key in memory_keys):
         rows.append({"key": "memory", "status": "ready", "label": "memory_lane"})
 
+    session_keys = ("sessions", "claude_sessions", "codex_sessions", "openclaw_sessions", "pi_sessions")
+    if any(loaded_payload.get(key) for key in session_keys):
+        rows.append({"key": "session", "status": "ready", "label": "session_lane"})
+
     skills = extract_pending_skills(loaded_payload)
     if skills:
         rows.append({"key": "skills", "status": "review", "label": "skills_review"})

@@ -5088,6 +5088,7 @@
         "laneLabels": {
           "instruction_lane": "지침 및 페르소나",
           "memory_lane": "사실 및 선호도 (전역 메모리)",
+          "session_lane": "세션 레인 (전체 대화)",
           "skill_lane": "스킬",
           "credential_lane": "API 키",
           "cron_lane": "예약 작업 (크론)"
@@ -5102,6 +5103,7 @@
         "coverageLabels": {
           "instruction_lane": "지침 및 페르소나",
           "memory_lane": "사실 및 선호도 (전역 메모리)",
+          "session_lane": "세션 레인",
           "memory_persona": "메모리 / 페르소나",
           "skills_review": "스킬",
           "api_keys_manual": "API 키",
@@ -5155,11 +5157,17 @@
           "invalid_schedule": "잘못되었거나 지원되지 않는 일정",
           "prompt_injection": "안전 스캔에 의해 프롬프트 차단됨",
           "unsupported_job_type": "지원되지 않는 작업 유형"
-        }
+        },
+        "sessionsTitle": "세션 레인 — {count}개의 이전 세션 감지됨",
+        "resumptionReady": "즉시 재개 가능",
+        "sessionsDesc": "외부 어시스턴트에서 완전한 대화록을 충실히 추출했습니다. 채팅 목록으로 직접 가져와 샌드박스 경로 및 Prompt Cache 선호도를 보존합니다.",
+        "turnsCount": "{turns}턴 대화 · {tools}회 도구 호출"
       },
       "result": {
         "title": "가져오기 완료",
         "totalImported": "메모리 {count}개를 성공적으로 가져왔습니다",
+        "sessionsImported": "이전 세션 {count}개를 성공적으로 가져오고 컨텍스트를 마운트했습니다",
+        "resumeChat": "대화 재개",
         "skillsSubmitted": "스킬 {count}개가 검토를 위해 제출되었습니다",
         "nextStepsWithSkills": "위의 대기 큐에서 스킬을 승인하고 설정에서 MCP와 채널을 구성하세요",
         "nextStepsMemoryOnly": "설정에서 MCP와 채널을 수동으로 구성하세요",

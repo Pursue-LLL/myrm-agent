@@ -12048,6 +12048,7 @@
         "laneLabels": {
           "instruction_lane": "指令与人设",
           "memory_lane": "事实与偏好（全局记忆）",
+          "session_lane": "会话车道（全量对话）",
           "skill_lane": "技能",
           "credential_lane": "API 密钥",
           "cron_lane": "定时任务（Cron）"
@@ -12062,6 +12063,7 @@
         "coverageLabels": {
           "instruction_lane": "指令与人设",
           "memory_lane": "事实与偏好（全局记忆）",
+          "session_lane": "会话车道",
           "memory_persona": "记忆 / 人格",
           "skills_review": "技能",
           "api_keys_manual": "API Keys",
@@ -12115,11 +12117,17 @@
           "title": "每轮 Token 用量对比",
           "description": "检测到 {count} 个技能 — 以下是每轮对话 Token 开销对比",
           "savings": "节省 {percent}%"
-        }
+        },
+        "sessionsTitle": "会话车道 — 检测到 {count} 个历史会话",
+        "resumptionReady": "可直接续聊",
+        "sessionsDesc": "从外部助手高保真提取完整转录本，导入后直接落库会话列表，保留沙箱路径与 Prompt Cache 亲和性。",
+        "turnsCount": "{turns} 轮对话 · {tools} 次工具调用"
       },
       "result": {
         "title": "导入完成",
         "totalImported": "成功导入 {count} 条记忆",
+        "sessionsImported": "已导入 {count} 个历史会话，已挂载初始上下文",
+        "resumeChat": "立即前往会话续聊",
         "skillsSubmitted": "{count} 个技能已提交审核",
         "nextStepsWithSkills": "请在上方审核队列批准技能；MCP 与渠道请在设置中手动补配",
         "nextStepsMemoryOnly": "MCP 与渠道请在设置中手动补配",

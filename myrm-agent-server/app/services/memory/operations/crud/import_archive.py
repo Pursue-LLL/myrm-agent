@@ -278,6 +278,7 @@ async def dry_run_import_memories(
     providers_configured = await external_source_providers_configured()
     workspace_bind_candidates: list[WorkspaceBindCandidate] = []
     cron_skipped_preview: list[CronMigrationSkippedPreviewItem] = []
+    session_preview: list[dict[str, object]] = []
 
     if is_competitor:
         loaded_payload = load_source_payload(body.payload)
@@ -417,6 +418,30 @@ async def dry_run_import_memories(
                 ),
             ]
 
+        sessions_data = loaded_payload.get("sessions")
+        if isinstance(sessions_data, list) and sessions_data:
+            session_preview = [
+                {
+                    "session_id": str(s.get("session_id", "")),
+                    "title": str(s.get("title", "")),
+                    "turn_count": len(s.get("turns") or []),
+                    "tool_call_count": int(s.get("total_tool_calls") or 0),
+                    "source_platform": str(s.get("source_platform", "")),
+                    "workspace_hint": s.get("detected_workspace_hint"),
+                }
+                for s in sessions_data
+                if isinstance(s, dict)
+            ]
+            session_metadata["session_migration"] = sessions_data
+            lane_previews.append(
+                MigrationLanePreview(
+                    lane="session",
+                    status="ready",
+                    label="session_lane",
+                    detail=f"{len(session_preview)} session(s) ready for resumption",
+                ),
+            )
+
     async with get_session() as db:
         dry_run_id, result, payload_hash, expires_at = await MemoryImportSessionService(db).create_dry_run(
             import_payload,
@@ -485,6 +510,7 @@ async def dry_run_import_memories(
         mcp_servers_preview=mcp_servers_preview if is_competitor else [],
         workspace_bind_candidates=workspace_bind_candidates,
         cron_skipped=cron_skipped_preview if is_competitor else [],
+        session_preview=session_preview,
     )
 
 
@@ -650,6 +676,27 @@ async def confirm_import_memories(
                         {"cron_rollback": cron_apply_result.to_metadata_dict()},
                     )
 
+            imported_session_count = 0
+            imported_chat_ids: list[str] = []
+            session_migration_data = metadata.get("session_migration")
+            if body.import_sessions and isinstance(session_migration_data, list) and session_migration_data:
+                from app.services.migration.session_lane import SessionMigrationService
+
+                target_agent_id = instruction_result.target_agent_id if instruction_result else None
+                session_service_lane = SessionMigrationService(db)
+                session_res = await session_service_lane.confirm_sessions(
+                    sessions=session_migration_data,
+                    target_workspace_override=workspace_root,
+                    target_agent_id=target_agent_id,
+                )
+                imported_session_count = session_res.imported_count
+                imported_chat_ids = session_res.created_chat_ids
+                if imported_chat_ids:
+                    await MemoryImportLedgerService(db).merge_batch_metadata(
+                        result.import_batch_id,
+                        {"session_rollback": {"created_chat_ids": imported_chat_ids}},
+                    )
+
             try:
                 snapshot = await MemoryCommandCenterService(db, manager).build_snapshot()
                 diagnostic_run = await MemoryDiagnosticsService(db, manager).run_diagnostics(
@@ -750,6 +797,8 @@ async def confirm_import_memories(
         readiness=readiness,
         workspace_bind_candidates=workspace_bind_candidates,
         cron_import_summary=cron_import_summary,
+        imported_session_count=imported_session_count,
+        imported_chat_ids=imported_chat_ids,
     )
 
 

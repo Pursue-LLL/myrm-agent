@@ -277,6 +277,16 @@ export interface CronImportSummary {
   skipped_count: number;
 }
 
+export interface SessionMigrationPreviewItem {
+  session_id: string;
+  title: string;
+  turn_count: number;
+  tool_call_count: number;
+  source_platform: string;
+  workspace_hint?: string | null;
+  created_at_iso?: string;
+}
+
 export interface MemoryImportDryRunResponse {
   dry_run_id: string;
   payload_hash: string;
@@ -293,6 +303,7 @@ export interface MemoryImportDryRunResponse {
   mcp_servers_preview?: MCPServerPreviewItem[];
   workspace_bind_candidates?: MigrationWorkspaceBindCandidate[];
   cron_skipped?: CronMigrationSkippedPreviewItem[];
+  session_preview?: SessionMigrationPreviewItem[];
 }
 
 export interface MigrationWorkspaceBindCandidate {
@@ -317,6 +328,8 @@ export interface MemoryImportConfirmResponse extends MemoryImportResponse {
   readiness?: MemoryImportReadiness | null;
   workspace_bind_candidates?: MigrationWorkspaceBindCandidate[];
   cron_import_summary?: CronImportSummary | null;
+  imported_session_count?: number;
+  imported_chat_ids?: string[];
 }
 
 export interface MemoryImportReadinessIssue {
@@ -560,10 +573,15 @@ export const dryRunImportMemories = async (
 export const confirmImportMemories = async (
   dryRunId: string,
   skipDuplicates = true,
+  importSessions = true,
 ): Promise<MemoryImportConfirmResponse> => {
   return apiRequest<MemoryImportConfirmResponse>('/memory/import/confirm', {
     method: 'POST',
-    body: JSON.stringify({ dry_run_id: dryRunId, skip_duplicates: skipDuplicates }),
+    body: JSON.stringify({
+      dry_run_id: dryRunId,
+      skip_duplicates: skipDuplicates,
+      import_sessions: importSessions,
+    }),
   });
 };
 
