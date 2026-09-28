@@ -74,6 +74,7 @@ const ServerConnectionCard = memo(() => {
   const [urlInput, setUrlInput] = useState(currentConfig?.url ?? '');
   const [testState, setTestState] = useState<ConnectionTestState>('idle');
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [switchingKey, setSwitchingKey] = useState<string | null>(null);
   const [showFirstRun, setShowFirstRun] = useState(
     () => typeof window !== 'undefined' && !window.localStorage.getItem(FIRST_RUN_SEEN_KEY),
   );
@@ -148,9 +149,12 @@ const ServerConnectionCard = memo(() => {
 
   // Health-gated switch commit: unhealthy targets abort unless the user
   // explicitly forces by repeating the same action (manual override).
+  // Trusted switches (cloud profiles verified by OAuth/discovery) skip both
+  // the probe and the pending record, but still refresh last-good.
+  // Returns true when the switch was applied.
   const commitSwitch = useCallback(
-    async (nextUrl: string | null, apply: () => void) => {
-      if (nextUrl !== null) {
+    async (nextUrl: string | null, apply: () => void, trusted = false): Promise<boolean> => {
+      if (!trusted && nextUrl !== null) {
         const healthy = await testRemoteHealth(nextUrl);
         if (!healthy) {
           if (failedUrlRef.current === nextUrl) {
@@ -158,15 +162,18 @@ const ServerConnectionCard = memo(() => {
           } else {
             failedUrlRef.current = nextUrl;
             toast.error(t('gateFailed'));
-            return;
+            return false;
           }
         }
       }
       failedUrlRef.current = null;
       const current = getRemoteGatewayConfig();
       setLastGood({ activeId: getActiveRemoteProfileId(), url: current?.url ?? null });
-      setPendingSwitch({ url: nextUrl, at: Date.now() });
+      if (!trusted) {
+        setPendingSwitch({ url: nextUrl, at: Date.now() });
+      }
       apply();
+      return true;
     },
     [t],
   );
@@ -195,12 +202,17 @@ const ServerConnectionCard = memo(() => {
       toast.error(t('duplicateProfile'));
       return;
     }
+    setSwitchingKey('add');
     void commitSwitch(created.url, () => {
       setRemoteGatewayConfig({ enabled: true, url: created.url });
       setNameInput('');
       refresh();
       toast.success(t('connected'));
       void notifyRemoteFollow(true).then(() => window.location.reload());
+    }).then((applied) => {
+      if (!applied) {
+        setSwitchingKey(null);
+      }
     });
   }, [nameInput, urlInput, t, refresh, commitSwitch]);
 
@@ -210,13 +222,25 @@ const ServerConnectionCard = memo(() => {
       if (!profile) {
         return;
       }
-      void commitSwitch(profile.url, () => {
-        if (!setActiveRemoteProfileId(id)) {
-          return;
+      // Cloud profiles carry OAuth/discovery verification, so they skip the
+      // unauthenticated health probe (same exemption as the test button).
+      setSwitchingKey(id);
+      void commitSwitch(
+        profile.url,
+        () => {
+          if (!setActiveRemoteProfileId(id)) {
+            setSwitchingKey(null);
+            return;
+          }
+          refresh();
+          toast.success(t('connected'));
+          void notifyRemoteFollow(true).then(() => window.location.reload());
+        },
+        profile.kind === 'cloud',
+      ).then((applied) => {
+        if (!applied) {
+          setSwitchingKey(null);
         }
-        refresh();
-        toast.success(t('connected'));
-        void notifyRemoteFollow(true).then(() => window.location.reload());
       });
     },
     [t, refresh, commitSwitch],
@@ -344,9 +368,10 @@ const ServerConnectionCard = memo(() => {
                         <button
                           type="button"
                           onClick={() => handleSelect(p.id)}
-                          className="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-600 transition-colors"
+                          disabled={switchingKey === p.id}
+                          className="px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-600 disabled:opacity-50 transition-colors"
                         >
-                          {t('save')}
+                          {switchingKey === p.id ? t('testing') : t('save')}
                         </button>
                       )}
                       <button
@@ -410,10 +435,10 @@ const ServerConnectionCard = memo(() => {
               <button
                 type="button"
                 onClick={handleAddConnect}
-                disabled={!urlInput.trim()}
+                disabled={!urlInput.trim() || switchingKey === 'add'}
                 className="flex-1 px-5 py-2.5 rounded-xl bg-indigo-500 text-white text-sm font-bold hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {t('save')}
+                {switchingKey === 'add' ? t('testing') : t('save')}
               </button>
             </div>
 

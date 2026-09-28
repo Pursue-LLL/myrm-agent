@@ -24,6 +24,7 @@ describe('ServerConnectionCard switch guard', () => {
   it('blocks switching to a dead server and forces on repeat', async () => {
     const testing = await import('@testing-library/react');
     const { toast } = await import('@/lib/utils/toast');
+    vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
     localStorage.clear();
     localStorage.setItem('myrm-remote-first-run-seen', '1');
@@ -62,9 +63,97 @@ describe('ServerConnectionCard switch guard', () => {
     vi.unstubAllGlobals();
   });
 
+  it('switches to a cloud profile without probing and shows busy state', async () => {
+    const testing = await import('@testing-library/react');
+    const { toast } = await import('@/lib/utils/toast');
+    vi.clearAllMocks();
+    // Even a dead network must not block cloud profiles (OAuth-verified).
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
+    localStorage.clear();
+    localStorage.setItem('myrm-remote-first-run-seen', '1');
+    localStorage.setItem(
+      'myrm-remote-gateway-roster',
+      JSON.stringify({
+        profiles: [
+          { id: 'p0', name: 'Local Pi', url: 'http://127.0.0.1:9', kind: 'server' },
+          { id: 'c1', name: 'Cloud', url: 'https://cp.example/proxy/me', kind: 'cloud', cpBaseUrl: 'https://cp.example' },
+        ],
+        activeId: 'p0',
+      }),
+    );
+
+    vi.resetModules();
+    vi.doMock('@/lib/deploy-mode', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
+      return { ...actual, isTauriRuntime: () => true };
+    });
+    const { default: TauriCard } = await import('../ServerConnectionCard');
+    const { unmount } = testing.render(<TauriCard />);
+
+    // Boots remote (p0 active); the only save button belongs to the cloud profile.
+    testing.fireEvent.click((await testing.screen.findAllByText('save'))[0]);
+    // Single click connects: no gate failure, pending stays empty.
+    await testing.waitFor(() => {
+      expect(vi.mocked(toast.success)).toHaveBeenCalledWith('connected');
+    });
+    expect(vi.mocked(toast.error)).not.toHaveBeenCalledWith('gateFailed');
+    expect(localStorage.getItem('myrm-connection-pending-switch')).toBeNull();
+    const roster = JSON.parse(localStorage.getItem('myrm-remote-gateway-roster') ?? '{}');
+    expect(roster.activeId).toBe('c1');
+    expect(roster.profiles).toHaveLength(2);
+    unmount();
+    vi.doUnmock('@/lib/deploy-mode');
+    vi.unstubAllGlobals();
+  });
+
+  it('disables the switch button while probing', async () => {
+    const testing = await import('@testing-library/react');
+    let resolveProbe: (value: Response) => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveProbe = resolve;
+          }),
+      ),
+    );
+    localStorage.clear();
+    localStorage.setItem('myrm-remote-first-run-seen', '1');
+    localStorage.setItem(
+      'myrm-remote-gateway-roster',
+      JSON.stringify({
+        profiles: [{ id: 'p1', name: 'Pi', url: 'http://127.0.0.1:9', kind: 'server' }],
+        activeId: null,
+      }),
+    );
+
+    vi.resetModules();
+    vi.doMock('@/lib/deploy-mode', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
+      return { ...actual, isTauriRuntime: () => true };
+    });
+    const { default: TauriCard } = await import('../ServerConnectionCard');
+    const { unmount } = testing.render(<TauriCard />);
+
+    testing.fireEvent.click(testing.screen.getByLabelText('modeLocal'));
+    testing.fireEvent.click((await testing.screen.findAllByText('save'))[0]);
+    // Probe in flight: button shows testing state and is disabled.
+    const busy = await testing.screen.findByText('testing');
+    expect((busy as HTMLButtonElement).disabled).toBe(true);
+    resolveProbe(new Response('{}', { status: 200 }));
+    await testing.waitFor(() => {
+      expect(localStorage.getItem('myrm-connection-pending-switch')).not.toBeNull();
+    });
+    unmount();
+    vi.doUnmock('@/lib/deploy-mode');
+    vi.unstubAllGlobals();
+  });
+
   it('rolls a dead switch back to a cloud profile by id without junk profiles', async () => {
     const testing = await import('@testing-library/react');
     const { toast } = await import('@/lib/utils/toast');
+    vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down')));
     localStorage.clear();
     localStorage.setItem('myrm-remote-first-run-seen', '1');
