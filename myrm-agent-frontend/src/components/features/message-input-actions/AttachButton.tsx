@@ -12,6 +12,7 @@ import useProviderStore from '@/store/useProviderStore';
 import { hasConfiguredVisionCapability, hasVisionFallbackForVideo } from '@/store/config/visionCapability';
 import { showVisionNotConfiguredToast } from '@/store/config/visionConfigGap';
 import { resetUploadController, getUploadSignal } from '@/services/uploadController';
+import { admitAndCompressFiles } from '@/lib/utils/imageAdmission';
 
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024; // 100MB — aligned with backend VideoAnalysisEngine limit
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25MB — aligned with STT provider limits (Whisper/Groq/Deepgram)
@@ -101,13 +102,15 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: (files
 
   // Sandbox 模式：文件上传处理
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    if (selectedFiles.length === 0) {
+    const rawSelectedFiles = Array.from(e.target.files || []);
+    if (rawSelectedFiles.length === 0) {
       return;
     }
 
     // Reset input value so the same file can be re-selected after switching models
     e.target.value = '';
+
+    const selectedFiles = await admitAndCompressFiles(rawSelectedFiles);
 
     const capWarn = checkModelCapability(selectedFiles.map((f) => f.name));
     if (capWarn) {

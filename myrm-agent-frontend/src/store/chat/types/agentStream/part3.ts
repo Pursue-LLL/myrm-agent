@@ -122,6 +122,31 @@ export interface DesktopControlApprovalRequestStreamEvent extends BaseAgentEvent
   };
 }
 
+export interface DesktopEnvelopeProgressStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.DESKTOP_ENVELOPE_PROGRESS;
+  data: {
+    task_id?: string;
+    used_actions?: number;
+    max_actions?: number;
+    remaining_budget?: number;
+    can_extend?: boolean;
+    hard_limit?: number;
+  };
+}
+
+export interface TtsrTriggeredStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.TTSR_TRIGGERED;
+  data: {
+    rule_id: string;
+    rule_name: string;
+    reminder: string;
+    target?: 'assistant' | 'thinking' | 'tool_args' | 'all';
+    retry_count?: number;
+    max_retries?: number;
+    matched_text?: string;
+  };
+}
+
 export interface BrowserTakeoverRequestedStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.BROWSER_TAKEOVER_REQUESTED;
   data: {

@@ -81,6 +81,7 @@ import type {
   BrowserTakeoverRequestedStreamEvent,
   BrowserViewUpdateStreamEvent,
   DesktopControlApprovalRequestStreamEvent,
+  DesktopEnvelopeProgressStreamEvent,
   DesktopViewUpdateStreamEvent,
   FileDiffStreamEvent,
   FileMutationFailedStreamEvent,
@@ -89,6 +90,7 @@ import type {
   PtcNotifyStreamEvent,
   ToolImageOutputStreamEvent,
   ToolProgressStreamEvent,
+  TtsrTriggeredStreamEvent,
 } from './part3';
 
 export type AgentStreamEvent =
@@ -166,4 +168,6 @@ export type AgentStreamEvent =
   | GoalStatusStreamEvent
   | FissionTopologyUpdateStreamEvent
   | VerificationVerdictStreamEvent
-  | WorkingMemoryStreamEvent;
+  | WorkingMemoryStreamEvent
+  | DesktopEnvelopeProgressStreamEvent
+  | TtsrTriggeredStreamEvent;

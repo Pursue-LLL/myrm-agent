@@ -20,6 +20,7 @@ import useProviderStore from '@/store/useProviderStore';
 import { hasConfiguredVisionCapability, hasVisionFallbackForVideo } from '@/store/config/visionCapability';
 import { showVisionNotConfiguredToast } from '@/store/config/visionConfigGap';
 import { resetUploadController, getUploadSignal } from '@/services/uploadController';
+import { admitAndCompressFiles } from '@/lib/utils/imageAdmission';
 import type { ActionMode, File as ChatFile } from '@/store/chat/types';
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -48,10 +49,12 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
   );
 
   const uploadInputFiles = useCallback(
-    async (inputFiles: globalThis.File[]) => {
-      if (inputFiles.length === 0) {
+    async (rawInputFiles: globalThis.File[]) => {
+      if (rawInputFiles.length === 0) {
         return;
       }
+
+      const inputFiles = await admitAndCompressFiles(rawInputFiles);
 
       // 1. 瞬时乐观插入：为每个输入文件分配临时 ID 与 Object URL，以 uploading 状态推入 UI
       const pendingItems = inputFiles.map((f) => {
@@ -206,10 +209,12 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
   );
 
   const handleDroppedFiles = useCallback(
-    async (droppedFiles: globalThis.File[]) => {
+    async (rawDroppedFiles: globalThis.File[]) => {
       if (actionMode === 'fast') {
         return;
       }
+
+      const droppedFiles = await admitAndCompressFiles(rawDroppedFiles);
 
       const oversized = droppedFiles.find((f) => {
         const ext = getFileExtension(f.name);

@@ -14,7 +14,7 @@ import { fetchModelCapabilitiesBatch, type ModelCapabilities } from '@/services/
 import { getLiteLLMModelName } from '@/store/config/providerTypes';
 import useProviderStore from '@/store/useProviderStore';
 
-interface EnabledModel {
+export interface EnabledModel {
   providerId: string;
   providerName: string;
   model: string;

@@ -4,16 +4,16 @@ import React, { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconShieldCheck } from '@/components/features/icons/PremiumIcons';
 import { Switch } from '@/components/primitives/switch';
-import EnabledModelSelect from '../../default-model/EnabledModelSelect';
-import type { SingleModelSelection, ProviderConfig, ModelOption } from '@/store/config/providerTypes';
+import EnabledModelSelect, { type EnabledModel } from '../../default-model/EnabledModelSelect';
+import type { SingleModelSelection, ProviderConfig } from '@/store/config/providerTypes';
 import SettingsSection from '../SettingsSection';
 
 interface SmartIntentGuardEditorProps {
   autoReviewEnabled: boolean;
   autoReviewModel: SingleModelSelection | null;
-  enabledModels: ModelOption[];
+  enabledModels: EnabledModel[];
   providers: ProviderConfig[];
-  onToggle: () => void;
+  onToggle: (checked: boolean) => void;
   onModelChange: (model: SingleModelSelection | null) => void;
 }
 
