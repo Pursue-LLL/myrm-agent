@@ -6,9 +6,10 @@
  * - useLiveMeetingNotes: live meeting session orchestration hook
  *
  * [POS]
- * Live meeting notes hook. Owns the live session id, drains finalized transcript lines
- * to the server (single-flight queue), and exposes the rolling structured-notes snapshot
- * for the in-meeting Live board. Best-effort: a dropped line never breaks the voice session.
+ * Live meeting notes hook. Owns the live session id (resumed across reloads via
+ * sessionStorage when a stable key is given), drains finalized transcript lines to the
+ * server (single-flight queue), and exposes the rolling structured-notes snapshot for the
+ * in-meeting Live board. Best-effort: a dropped line never breaks the voice session.
  */
 
 'use client';
@@ -28,13 +29,37 @@ export interface UseLiveMeetingNotesReturn {
   reset: () => void;
 }
 
+const STORAGE_PREFIX = 'myrm-live-notes:';
+
 function newSessionId(): string {
   const rand = Math.random().toString(16).slice(2, 10);
   return `live-${Date.now().toString(36)}-${rand}`;
 }
 
-export function useLiveMeetingNotes(): UseLiveMeetingNotesReturn {
-  const [sessionId, setSessionId] = useState(newSessionId);
+function storageKey(sessionKey: string): string {
+  return `${STORAGE_PREFIX}${sessionKey}`;
+}
+
+/** Resume the live session id for a stable key (e.g. chatId) across page reloads. */
+function resolveInitialSessionId(sessionKey: string | undefined): string {
+  if (!sessionKey || typeof window === 'undefined') {
+    return newSessionId();
+  }
+  try {
+    const existing = window.sessionStorage.getItem(storageKey(sessionKey));
+    if (existing) {
+      return existing;
+    }
+    const fresh = newSessionId();
+    window.sessionStorage.setItem(storageKey(sessionKey), fresh);
+    return fresh;
+  } catch {
+    return newSessionId();
+  }
+}
+
+export function useLiveMeetingNotes(sessionKey?: string): UseLiveMeetingNotesReturn {
+  const [sessionId, setSessionId] = useState(() => resolveInitialSessionId(sessionKey));
   const [snapshot, setSnapshot] = useState<LiveMeetingSnapshot | null>(null);
   const inFlightRef = useRef(false);
   const queueRef = useRef<string[]>([]);
@@ -77,18 +102,29 @@ export function useLiveMeetingNotes(): UseLiveMeetingNotesReturn {
     try {
       const result = await finalizeLiveMeeting(sessionId);
       setSnapshot(result);
+      if (sessionKey && typeof window !== 'undefined') {
+        window.sessionStorage.removeItem(storageKey(sessionKey));
+      }
       return result;
     } catch {
       return null;
     }
-  }, [sessionId]);
+  }, [sessionId, sessionKey]);
 
   const reset = useCallback(() => {
     queueRef.current = [];
     inFlightRef.current = false;
     setSnapshot(null);
-    setSessionId(newSessionId());
-  }, []);
+    const next = newSessionId();
+    if (sessionKey && typeof window !== 'undefined') {
+      try {
+        window.sessionStorage.setItem(storageKey(sessionKey), next);
+      } catch {
+        // ignore storage failures
+      }
+    }
+    setSessionId(next);
+  }, [sessionKey]);
 
   return useMemo(
     () => ({ sessionId, snapshot, ingest, finalize, reset }),

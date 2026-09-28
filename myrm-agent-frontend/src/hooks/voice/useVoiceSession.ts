@@ -181,7 +181,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
   const tts = useTTS({ mode: ttsMode, provider: ttsProvider });
 
-  const liveNotes = useLiveMeetingNotes();
+  const liveNotes = useLiveMeetingNotes(chatId);
 
   const agentBridge = useVoiceAgentBridge({
     enabled: mode === 'agent_bridge',
