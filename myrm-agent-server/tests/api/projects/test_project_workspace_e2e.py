@@ -16,49 +16,11 @@ app = build_minimal_app(
     "files",
     "wiki",
 )
+from tests.api.agent.conftest import _build_mock_user_configs
 from tests.api.agent.utils import (
     check_e2e_errors,
     get_model_selection,
 )
-
-
-def _build_user_configs_from_env():
-    """Build ``UserConfigs`` from ``.env.test`` env vars.
-
-    Mirrors ``tests/api/eval/test_workspace_isolation_e2e.py``: ``openai-like/``
-    prefixes need ``openai/`` normalization with a ``base_url`` so LiteLLM can
-    reach the custom OpenAI-compatible endpoint.
-    """
-    from app.core.channel_bridge.config_loader import UserConfigs
-    from app.core.types import ModelConfig
-
-    api_key = os.environ.get("BASIC_API_KEY", "")
-    base_url = os.environ.get("BASIC_BASE_URL")
-    raw_model = os.environ.get("BASIC_MODEL", "openai-like/test")
-
-    if raw_model.startswith("openai-like/"):
-        model = "openai/" + raw_model.split("/", 1)[1]
-    else:
-        model = raw_model
-
-    return UserConfigs(
-        model_cfg=ModelConfig(model=model, api_key=api_key, base_url=base_url),
-        search_cfg=None,
-        search_is_user_configured=False,
-        retrieval_dict={},
-        personal_settings_dict={},
-        mcp_dict={},
-        providers_dict={
-            "providers": [
-                {
-                    "id": "openai-like",
-                    "isEnabled": True,
-                    "apiKeys": [{"isActive": True, "key": api_key}],
-                    "apiUrl": base_url,
-                }
-            ]
-        },
-    )
 
 
 @pytest.fixture
@@ -91,7 +53,7 @@ class TestProjectWorkspaceE2E:
 
         _reset_checkpointer_for_testing()
         set_checkpointer(MemorySaver())
-        mock_configs = _build_user_configs_from_env()
+        mock_configs = _build_mock_user_configs()
         try:
             with patch(
                 "app.core.channel_bridge.config_loader.load_user_configs",
