@@ -44,6 +44,9 @@ _IDLE_CONVERGE_WALL_SEC: Final[float] = 45.0
 # outlast it — a shorter poll reported failure while the daemon was still legitimately
 # starting, which masqueraded as a permanently broken plane.
 _MUX_COLD_START_WAIT_SEC: Final[float] = 20.0
+# mux.log is appended to continuously with no rotation; cap it so a long-lived workspace
+# cannot grow the daemon log without bound (observed 409 MB).
+_MUX_LOG_MAX_BYTES: Final[int] = 64 * 1024 * 1024
 
 
 class PlaneHealthState(str, Enum):
@@ -354,6 +357,23 @@ def _resolve_node_executable() -> str | None:
     return None
 
 
+def _bound_log_growth(log_file: Path) -> None:
+    """Keep the mux daemon log bounded.
+
+    mux.log has no rotation and the daemon appends continuously (measured ~18 KB/min even
+    idle, far more while lanes race to cold-start); it had reached 409 MB with each new
+    spawn appending to the same huge file, and derived errors files grow unbounded too.
+    Reset it once past the cap so disk use cannot grow without limit. Best-effort: a log
+    that cannot be trimmed must never block an attach.
+    """
+    try:
+        if log_file.stat().st_size < _MUX_LOG_MAX_BYTES:
+            return
+        log_file.write_text("", encoding="utf-8")
+    except OSError:
+        return
+
+
 def _start_mux_daemon_if_needed() -> bool:
     """Start mux with the same env contract as chrome-e2e-preflight _start_mux_daemon."""
     if _mux_daemon_count_live() >= 1:
@@ -396,6 +416,7 @@ def _start_mux_daemon_if_needed() -> bool:
         "MCP_MUX_UPSTREAM_STDERR": os.getenv("MCP_MUX_UPSTREAM_STDERR", "1"),
     }
     log_file = mux_dir / "mux.log"
+    _bound_log_growth(log_file)
     try:
         log_handle = log_file.open("a", encoding="utf-8")
     except OSError:
