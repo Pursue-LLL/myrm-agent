@@ -1,3 +1,4 @@
+/* oxlint-disable jsx-a11y/prefer-tag-over-role */
 'use client';
 
 import { memo, useState, useCallback } from 'react';
@@ -53,6 +54,16 @@ export const LocalSkillPreviewCard = memo(
       [isActionBlocked, skill.skill_id, onToggle],
     );
 
+    const handleKeyDown = useCallback(
+      (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleCardClick();
+        }
+      },
+      [handleCardClick],
+    );
+
     const toggleFindings = useCallback((e: React.MouseEvent) => {
       e.stopPropagation();
       setIsFindingsExpanded((prev) => !prev);
@@ -61,6 +72,9 @@ export const LocalSkillPreviewCard = memo(
     return (
       <div
         data-testid={`preview-skill-card-${skill.name}`}
+        role="button"
+        tabIndex={isActionBlocked ? -1 : 0}
+        onKeyDown={handleKeyDown}
         className={`rounded-lg border p-3 shadow-xs transition-colors ${
           isActionBlocked
             ? 'border-destructive/40 bg-destructive/5 dark:bg-destructive/10 cursor-not-allowed opacity-90'

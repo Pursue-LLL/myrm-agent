@@ -60,7 +60,9 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
     // 可采纳的安全候选技能列表（默认过滤掉安全门禁拦截项，若勾选受控免责则全量可选）
     const adoptableSkills = useMemo(() => {
       return skills.filter((s) => {
-        if (!s.skill_id) return false;
+        if (!s.skill_id) {
+          return false;
+        }
         const score = s.security_score ?? (s.security?.score ?? (s.is_safe ? 100 : 40));
         return allowUntrusted || score >= 50;
       });
