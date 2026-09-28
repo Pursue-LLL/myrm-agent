@@ -621,6 +621,47 @@ async def resolve_desktop_approval(body: DesktopApprovalResolveBody) -> JSONResp
     )
 
 
+class DesktopEnvelopePauseBody(BaseModel):
+    task_id: str = ""
+
+
+@router.post("/desktop/envelope/pause")
+async def pause_desktop_envelope(body: DesktopEnvelopePauseBody | None = None) -> JSONResponse:
+    """Emergency pause: immediately revoke active desktop intent envelope."""
+    import asyncio
+
+    from app.ai_agents.desktop_control.gate import DesktopControlGate
+
+    task_id = (body.task_id if body else "").strip()
+    paused = False
+    for gate in list(DesktopControlGate._live_gates):
+        if gate.envelope_manager.pause_envelope(task_id or None):
+            paused = True
+            asyncio.create_task(gate.envelope_manager.emit_progress(task_id or None))
+    return JSONResponse(content={"ok": True, "paused": paused})
+
+
+@router.get("/desktop/envelope/status")
+async def get_desktop_envelope_status(task_id: str = "") -> JSONResponse:
+    """Query active envelope status (remaining budget, limits)."""
+    from app.ai_agents.desktop_control.gate import DesktopControlGate
+
+    target_task_id = task_id.strip()
+    for gate in list(DesktopControlGate._live_gates):
+        spec = gate.envelope_manager.get_envelope(target_task_id or None)
+        if spec is not None:
+            return JSONResponse(
+                content={
+                    "active": True,
+                    "task_id": spec.task_id,
+                    "used_actions": spec.used_actions,
+                    "max_actions": spec.max_actions,
+                    "remaining_budget": spec.remaining_budget(),
+                }
+            )
+    return JSONResponse(content={"active": False})
+
+
 class DesktopApprovalTestSeedBody(BaseModel):
     app_name: str = "TextEdit"
     operation: str = "foreground_control"

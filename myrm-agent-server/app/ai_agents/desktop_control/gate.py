@@ -70,10 +70,10 @@ _MAX_GRANTS = 500
 def _extract_text_to_type(operation: str) -> str:
     norm_op = operation.strip()
     lower_op = norm_op.lower()
-    for prefix in ("type:", "type ", "key:", "key "):
+    for prefix in ("type:", "type ", "key:", "key ", "hotkey:", "hotkey "):
         if lower_op.startswith(prefix):
             return norm_op[len(prefix):].strip()
-    if ":" in norm_op and any(k in lower_op for k in ("type", "input", "write", "text")):
+    if ":" in norm_op and any(k in lower_op for k in ("type", "input", "write", "text", "key", "hotkey")):
         return norm_op.split(":", 1)[1].strip()
     return ""
 
@@ -93,11 +93,13 @@ class DesktopControlGate:
         preapproved_trust_keys: Collection[str] | None = None,
         unattended_fail_fast: bool = False,
         envelope_manager: DesktopEnvelopeManager | None = None,
+        task_id: str = "",
     ) -> None:
         self._workspace_root = Path(workspace_root) if workspace_root else None
         self._auto_grant = auto_grant
         self._default_timeout = default_timeout_seconds
         self._unattended_fail_fast = unattended_fail_fast
+        self._task_id = task_id.strip()
         self._envelope_manager = envelope_manager if envelope_manager is not None else DesktopEnvelopeManager()
         self._session_approved_keys: set[str] = set()
         self._always_approved_keys: set[str] = set()
@@ -220,9 +222,11 @@ class DesktopControlGate:
         window_title: str = "",
         app_id: str = "",
         require_app_approval: bool = True,
+        task_id: str = "",
     ) -> ForegroundPermissionResult:
         del estimated_duration_seconds
 
+        effective_task_id = (task_id or self._task_id).strip()
         trust_key = resolve_trust_key(app_name=app_name, app_id=app_id) or ""
         fingerprint = approval_fingerprint(operation=operation, trust_key=trust_key)
 
@@ -245,7 +249,8 @@ class DesktopControlGate:
             return ForegroundPermissionResult(granted=False)
 
         # Non-interruptive Intent Envelope Evaluation
-        if require_app_approval and self._envelope_manager.active_envelope is not None:
+        envelope = self._envelope_manager.get_envelope(effective_task_id or None)
+        if require_app_approval and envelope is not None:
             text_to_type = _extract_text_to_type(operation)
 
             allowed, check_reason, check_detail = self._envelope_manager.evaluate_and_consume(
@@ -253,9 +258,10 @@ class DesktopControlGate:
                 app_id=app_id,
                 window_title=window_title,
                 text_to_type=text_to_type,
+                task_id=effective_task_id or None,
             )
             if allowed:
-                asyncio.create_task(self._envelope_manager.emit_progress())
+                asyncio.create_task(self._envelope_manager.emit_progress(effective_task_id or None))
                 return ForegroundPermissionResult(
                     granted=True,
                     scope=ForegroundPermissionScope.once,
@@ -322,6 +328,7 @@ class DesktopControlGate:
                     pending=pending, request_id=request_id, trust_key=trust_key,
                     fingerprint=fingerprint, operation=operation, app_name=app_name,
                     app_id=app_id, require_app_approval=require_app_approval,
+                    task_id=effective_task_id,
                 )
             DesktopApprovalRegistry._settle_timeout(request_id)
             DesktopApprovalRegistry.record_decision(
@@ -336,6 +343,7 @@ class DesktopControlGate:
             pending=pending, request_id=request_id, trust_key=trust_key,
             fingerprint=fingerprint, operation=operation, app_name=app_name,
             app_id=app_id, require_app_approval=require_app_approval, result=result,
+            task_id=effective_task_id,
         )
 
     def _settle_user_decision(
@@ -350,6 +358,7 @@ class DesktopControlGate:
         app_id: str,
         require_app_approval: bool,
         result: ForegroundPermissionResult | None = None,
+        task_id: str = "",
     ) -> ForegroundPermissionResult:
         """Apply one explicit user decision (grant persists, denial endures).
 
@@ -370,16 +379,17 @@ class DesktopControlGate:
                 elif decided.scope == ForegroundPermissionScope.always:
                     self._persist_app(app_name, app_id)
                 elif decided.scope == ForegroundPermissionScope.envelope:
+                    envelope_task_id = (task_id or self._task_id).strip() or request_id
                     self._envelope_manager.register_envelope(
                         IntentEnvelopeSpec(
-                            task_id=request_id,
+                            task_id=envelope_task_id,
                             allowed_app_names=(app_name.strip(),),
                             allowed_app_ids=(app_id.strip(),) if app_id.strip() else (),
                             max_actions=30,
                             idle_timeout_seconds=180.0,
                         )
                     )
-                    asyncio.create_task(self._envelope_manager.emit_progress(request_id))
+                    asyncio.create_task(self._envelope_manager.emit_progress(envelope_task_id))
             DesktopApprovalRegistry.record_decision(
                 request_id=request_id, trust_key=trust_key, fingerprint=fingerprint,
                 operation=operation, decision="granted", scope=decided.scope.value,

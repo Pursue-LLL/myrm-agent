@@ -265,3 +265,70 @@ async def test_gate_with_envelope_keystroke_violation_escalation(tmp_path: pytes
         req_args = mock_sink.emit.call_args_list[0][0][0]
         assert "[KEYSTROKE_VIOLATION]" in req_args["data"]["reason"]
 
+
+def test_envelope_manager_pause_emergency_stop(envelope_manager: DesktopEnvelopeManager) -> None:
+    spec1 = IntentEnvelopeSpec(task_id="t1", allowed_app_names=("TextEdit",), max_actions=10)
+    spec2 = IntentEnvelopeSpec(task_id="t2", allowed_app_names=("Notes",), max_actions=10)
+    envelope_manager.register_envelope(spec1)
+    envelope_manager.register_envelope(spec2)
+
+    # Emergency pause t1 only
+    paused = envelope_manager.pause_envelope(task_id="t1")
+    assert paused is True
+    assert envelope_manager.get_envelope("t1") is None
+    # t2 remains active
+    assert envelope_manager.get_envelope("t2") is not None
+
+    # Global emergency pause
+    paused_all = envelope_manager.pause_envelope()
+    assert paused_all is True
+    assert envelope_manager.active_envelope is None
+    assert envelope_manager.get_envelope("t2") is None
+
+
+@pytest.mark.asyncio
+async def test_gate_envelope_task_id_isolation(tmp_path: pytest.TempPathFactory) -> None:
+    mgr = DesktopEnvelopeManager()
+    spec1 = IntentEnvelopeSpec(task_id="task_A", allowed_app_names=("TextEdit",), max_actions=5)
+    spec2 = IntentEnvelopeSpec(task_id="task_B", allowed_app_names=("Notes",), max_actions=5)
+    mgr.register_envelope(spec1)
+    mgr.register_envelope(spec2)
+
+    gate_a = DesktopControlGate(
+        workspace_root=str(tmp_path),
+        envelope_manager=mgr,
+        register_live=False,
+        task_id="task_A",
+    )
+    gate_b = DesktopControlGate(
+        workspace_root=str(tmp_path),
+        envelope_manager=mgr,
+        register_live=False,
+        task_id="task_B",
+    )
+
+    # Gate A operates on TextEdit under task_A
+    res_a = await gate_a(
+        reason="Edit file",
+        operation="type: hello",
+        estimated_duration_seconds=0.1,
+        app_name="TextEdit",
+        app_id="com.apple.TextEdit",
+    )
+    assert res_a.granted is True
+    assert spec1.used_actions == 1
+    assert spec2.used_actions == 0
+
+    # Gate B operates on Notes under task_B
+    res_b = await gate_b(
+        reason="Take note",
+        operation="type: world",
+        estimated_duration_seconds=0.1,
+        app_name="Notes",
+        app_id="com.apple.Notes",
+    )
+    assert res_b.granted is True
+    assert spec1.used_actions == 1
+    assert spec2.used_actions == 1
+
+

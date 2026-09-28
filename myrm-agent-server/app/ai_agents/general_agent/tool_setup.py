@@ -960,11 +960,13 @@ class ToolSetupMixin(ExternalAgentsMixin):
             execution_mode = ExecutionMode.background_strict if is_local_mode() else ExecutionMode.background_best_effort
             run_trust_keys = tuple(getattr(self, "desktop_preapproved_trust_keys", ()) or ())
             run_fail_fast = bool(getattr(self, "desktop_unattended_fail_fast", False))
+            agent_task_id = str(getattr(self, "session_id", None) or getattr(self, "task_id", None) or "").strip()
             gate = DesktopControlGate(
                 workspace_root=workspace_root,
                 auto_grant=auto_grant,
                 preapproved_trust_keys=run_trust_keys,
                 unattended_fail_fast=run_fail_fast,
+                task_id=agent_task_id,
             )
             config_kwargs: dict[str, object] = {"execution_mode": execution_mode}
             if constraints:

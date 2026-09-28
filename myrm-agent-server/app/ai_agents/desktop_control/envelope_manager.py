@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Sequence
 from typing import Literal
 
 from myrm_agent_harness.core.events.types import AgentEventType
@@ -87,6 +88,16 @@ class DesktopEnvelopeManager:
             self._envelopes_by_task.clear()
             self._last_active_by_task.clear()
 
+    def pause_envelope(self, task_id: str | None = None) -> bool:
+        """Pause and revoke active intent envelope immediately (emergency stop)."""
+        if task_id:
+            had = task_id in self._envelopes_by_task
+            self.clear_envelope(task_id)
+            return had
+        had_any = self._active_envelope is not None or bool(self._envelopes_by_task)
+        self.clear_envelope()
+        return had_any
+
     def extend_lease(
         self,
         additional_steps: int = _DEFAULT_LEASE_EXTEND_STEP,
@@ -119,6 +130,7 @@ class DesktopEnvelopeManager:
         app_id: str,
         window_title: str = "",
         text_to_type: str = "",
+        keys_to_press: Sequence[str] | str | None = None,
         parent_app_id: str | None = None,
         is_system_dialog: bool = False,
         task_id: str | None = None,
@@ -155,6 +167,7 @@ class DesktopEnvelopeManager:
             envelope=envelope,
             window=window,
             text_to_type=text_to_type,
+            keys_to_press=keys_to_press,
         )
 
         if result.allowed:
