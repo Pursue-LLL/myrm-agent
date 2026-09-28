@@ -120,7 +120,7 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
 
   // 确认采纳路径并持久化（调用原子采纳接口，启用用户勾选的技能）
   const handleConfirmAdopt = useCallback(
-    async (selectedSkillIds: string[]) => {
+    async (selectedSkillIds: string[], allowUntrusted?: boolean) => {
       if (!previewData) {
         return;
       }
@@ -128,7 +128,7 @@ const LocalPathsConfig = memo(({ className }: LocalPathsConfigProps) => {
       setIsAdopting(true);
       try {
         const targetPath = newPath.trim();
-        await adoptLocalSkillPath(targetPath, selectedSkillIds);
+        await adoptLocalSkillPath(targetPath, selectedSkillIds, undefined, allowUntrusted);
         setNewPath('');
         setIsPreviewOpen(false);
         setPreviewData(null);

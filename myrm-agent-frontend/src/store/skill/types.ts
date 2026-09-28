@@ -290,6 +290,7 @@ export interface SkillActions {
     path: string,
     selectedSkillIds: string[],
     agentId?: string,
+    allowUntrusted?: boolean,
   ) => Promise<LocalSkillPathAdoptResponse>;
   updateEvolutionStrategy: (strategy: string) => Promise<void>;
   scanLocalSkills: () => Promise<void>;

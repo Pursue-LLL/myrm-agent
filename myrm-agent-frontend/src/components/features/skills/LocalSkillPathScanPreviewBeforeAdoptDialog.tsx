@@ -31,7 +31,7 @@ interface LocalSkillPathScanPreviewBeforeAdoptDialogProps {
   onOpenChange: (open: boolean) => void;
   previewData: LocalSkillPathPreviewResponse | null;
   isAdopting: boolean;
-  onConfirmAdopt: (selectedSkillIds: string[]) => void;
+  onConfirmAdopt: (selectedSkillIds: string[], allowUntrusted?: boolean) => void;
   onAddPathOnly?: () => void;
 }
 
@@ -46,20 +46,30 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
   }: LocalSkillPathScanPreviewBeforeAdoptDialogProps) => {
     const t = useTranslations('settings.skills.local');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [allowUntrusted, setAllowUntrusted] = useState(false);
 
     const skills = useMemo(() => previewData?.skills || [], [previewData]);
 
-    // 可采纳的安全候选技能列表（过滤掉安全门禁拦截项与空id）
-    const adoptableSkills = useMemo(() => {
-      return skills.filter((s) => {
+    const hasBlockedSkills = useMemo(() => {
+      return skills.some((s) => {
         const score = s.security_score ?? (s.security?.score ?? (s.is_safe ? 100 : 40));
-        return s.skill_id && score >= 50;
+        return score < 50;
       });
     }, [skills]);
+
+    // 可采纳的安全候选技能列表（默认过滤掉安全门禁拦截项，若勾选受控免责则全量可选）
+    const adoptableSkills = useMemo(() => {
+      return skills.filter((s) => {
+        if (!s.skill_id) return false;
+        const score = s.security_score ?? (s.security?.score ?? (s.is_safe ? 100 : 40));
+        return allowUntrusted || score >= 50;
+      });
+    }, [skills, allowUntrusted]);
 
     // 初始化默认勾选所有非冲突且通过安全门禁的有效技能
     useEffect(() => {
       if (open && previewData?.skills) {
+        setAllowUntrusted(false);
         const defaultSelected = previewData.skills
           .filter((s) => {
             const score = s.security_score ?? (s.security?.score ?? (s.is_safe ? 100 : 40));
@@ -187,12 +197,33 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
                       skill={skill}
                       isSelected={selectedIds.includes(skill.skill_id)}
                       onToggle={handleToggleSkill}
+                      allowUntrusted={allowUntrusted}
                     />
                   ))}
                 </div>
               </ScrollArea>
             )}
           </div>
+
+          {/* Controlled Override Banner for High-Risk Skills */}
+          {hasBlockedSkills && (
+            <div
+              data-testid="allow-untrusted-warning-banner"
+              className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/15 p-2.5 text-xs text-amber-900 dark:text-amber-200"
+            >
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <label className="flex items-center gap-2 cursor-pointer flex-1 select-none font-medium">
+                <input
+                  type="checkbox"
+                  data-testid="allow-untrusted-skills-checkbox"
+                  checked={allowUntrusted}
+                  onChange={(e) => setAllowUntrusted(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-amber-400 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                />
+                <span>{t('previewDialog.allowUntrustedDescription')}</span>
+              </label>
+            </div>
+          )}
 
           <DialogFooter className="flex items-center justify-between gap-2 pt-2 border-t">
             {onAddPathOnly ? (
@@ -223,7 +254,13 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
                 data-testid="preview-adopt-confirm-btn"
                 variant="default"
                 size="sm"
-                onClick={() => onConfirmAdopt(selectedIds)}
+                onClick={() => {
+                  if (allowUntrusted) {
+                    onConfirmAdopt(selectedIds, true);
+                  } else {
+                    onConfirmAdopt(selectedIds);
+                  }
+                }}
                 disabled={isAdopting || total_discovered === 0 || selectedIds.length === 0}
               >
                 {isAdopting ? (

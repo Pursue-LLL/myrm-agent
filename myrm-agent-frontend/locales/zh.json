@@ -4181,7 +4181,8 @@
           "showFindings": "展开风险明细 ({count})",
           "hideFindings": "收起风险明细",
           "line": "第 {line} 行",
-          "threatLevel": "等级"
+          "threatLevel": "等级",
+          "allowUntrustedDescription": "已知晓安全风险，允许受控采纳未受信任技能"
         }
       },
       "instances": {

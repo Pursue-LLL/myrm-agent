@@ -226,7 +226,7 @@ async def adopt_local_skill_path(
                 score = int(item.get("security_score", 100))
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Security gate blocked: Skill '{item.get('name')}' has a security score of {score}/100 (< 50 threshold). {item.get('threat_summary', '')}. Pass allow_untrusted=True to force override.",
+                    detail=f"Security gate blocked: Skill '{item.get('name')}' has a security score of {score}/100 (< 50 threshold). {item.get('threat_summary', '')}. Explicit administrator override required to adopt untrusted skills.",
                 )
 
     config = await skills_service.user_config.get_config()

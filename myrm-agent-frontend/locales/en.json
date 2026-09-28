@@ -4181,7 +4181,8 @@
           "showFindings": "View Risk Findings ({count})",
           "hideFindings": "Hide Risk Findings",
           "line": "Line {line}",
-          "threatLevel": "Severity"
+          "threatLevel": "Severity",
+          "allowUntrustedDescription": "Acknowledge security risks and allow adopting untrusted skills"
         }
       },
       "instances": {

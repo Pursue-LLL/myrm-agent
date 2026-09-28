@@ -16368,7 +16368,8 @@
           "showFindings": "Risikodetails anzeigen ({count})",
           "hideFindings": "Risikodetails ausblenden",
           "line": "Zeile {line}",
-          "threatLevel": "Schweregrad"
+          "threatLevel": "Schweregrad",
+          "allowUntrustedDescription": "Sicherheitsrisiken zur Kenntnis nehmen und nicht vertrauenswürdige Skills zulassen"
         },
         "discoveredSkillsBadge": "{count} Skills",
         "pathNotFoundBadge": "Pfad nicht gefunden",

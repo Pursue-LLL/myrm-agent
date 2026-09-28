@@ -29,6 +29,7 @@ const mockTranslations: Record<string, string> = {
   'previewDialog.hideFindings': '收起风险明细',
   'previewDialog.line': '第 {line} 行',
   'previewDialog.threatLevel': '等级',
+  'previewDialog.allowUntrustedDescription': '已知晓安全风险，允许受控采纳未受信任技能',
 };
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
@@ -354,4 +355,64 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
     fireEvent.click(toggleFindingsBtn);
     expect(screen.queryByTestId('findings-inspection-panel')).not.toBeInTheDocument();
   });
+
+  it('supports controlled override for blocked skills and passes allowUntrusted to onConfirmAdopt', () => {
+    const previewWithBlocked: LocalSkillPathPreviewResponse = {
+      resolved_path: '/home/user/admin-skills',
+      exists: true,
+      is_directory: true,
+      total_discovered: 1,
+      skills: [
+        {
+          name: 'k8s-pod-restart',
+          version: '1.0.0',
+          skill_id: 'local::k8s-pod-restart',
+          relative_path: 'k8s-pod-restart/SKILL.md',
+          is_conflicted: false,
+          security_score: 45,
+          security: {
+            score: 45,
+            threat_summary: 'Detected system command execution',
+            findings: [],
+          },
+          required_tools: [],
+        },
+      ],
+      warning_message: null,
+    };
+
+    render(
+      <LocalSkillPathScanPreviewBeforeAdoptDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        previewData={previewWithBlocked}
+        isAdopting={false}
+        onConfirmAdopt={onConfirmAdopt}
+      />,
+    );
+
+    // Controlled override warning banner should be rendered
+    expect(screen.getByTestId('allow-untrusted-warning-banner')).toBeInTheDocument();
+    const checkbox = screen.getByTestId('preview-skill-checkbox-k8s-pod-restart');
+    // Initially disabled because score < 50
+    expect(checkbox).toBeDisabled();
+
+    // Toggle allow-untrusted override
+    const allowUntrustedCheckbox = screen.getByTestId('allow-untrusted-skills-checkbox');
+    expect(allowUntrustedCheckbox).not.toBeChecked();
+    fireEvent.click(allowUntrustedCheckbox);
+    expect(allowUntrustedCheckbox).toBeChecked();
+
+    // Now the skill checkbox should become enabled
+    expect(checkbox).not.toBeDisabled();
+    fireEvent.click(checkbox);
+
+    // Click confirm adopt button
+    const adoptBtn = screen.getByRole('button', { name: '确认采纳并保存路径' });
+    expect(adoptBtn).not.toBeDisabled();
+    fireEvent.click(adoptBtn);
+
+    expect(onConfirmAdopt).toHaveBeenCalledWith(['local::k8s-pod-restart'], true);
+  });
 });
+

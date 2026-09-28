@@ -16368,7 +16368,8 @@
           "showFindings": "위험 상세 보기 ({count})",
           "hideFindings": "위험 상세 숨기기",
           "line": "{line}번째 줄",
-          "threatLevel": "심각도"
+          "threatLevel": "심각도",
+          "allowUntrustedDescription": "보안 위험을 인지하고 신뢰할 수 없는 스킬 채택을 허용합니다"
         },
         "discoveredSkillsBadge": "{count}개 스킬",
         "pathNotFoundBadge": "경로를 찾을 수 없음",

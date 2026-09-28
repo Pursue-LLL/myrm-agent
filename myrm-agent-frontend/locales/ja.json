@@ -16555,7 +16555,8 @@
           "showFindings": "リスク詳細を表示 ({count})",
           "hideFindings": "リスク詳細を非表示",
           "line": "{line} 行目",
-          "threatLevel": "重大度"
+          "threatLevel": "重大度",
+          "allowUntrustedDescription": "セキュリティリスクを認識した上で、信頼されていないスキルの採用を許可する"
         },
         "discoveredSkillsBadge": "{count} 個のスキル",
         "pathNotFoundBadge": "パスが見つかりません",

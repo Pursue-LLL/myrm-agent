@@ -16555,7 +16555,8 @@
           "showFindings": "展開風險明細 ({count})",
           "hideFindings": "收起風險明細",
           "line": "第 {line} 行",
-          "threatLevel": "等級"
+          "threatLevel": "等級",
+          "allowUntrustedDescription": "已知曉安全風險，允許受控採納未受信任技能"
         },
         "discoveredSkillsBadge": "{count} 個技能",
         "pathNotFoundBadge": "路徑不存在",

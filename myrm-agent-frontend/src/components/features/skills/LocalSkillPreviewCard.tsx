@@ -18,37 +18,39 @@ interface LocalSkillPreviewCardProps {
   skill: LocalSkillPreviewItem;
   isSelected: boolean;
   onToggle: (skillId: string) => void;
+  allowUntrusted?: boolean;
 }
 
 export const LocalSkillPreviewCard = memo(
-  ({ skill, isSelected, onToggle }: LocalSkillPreviewCardProps) => {
+  ({ skill, isSelected, onToggle, allowUntrusted = false }: LocalSkillPreviewCardProps) => {
     const t = useTranslations('settings.skills.local');
     const [isFindingsExpanded, setIsFindingsExpanded] = useState(false);
 
     const score = skill.security_score ?? (skill.security?.score ?? (skill.is_safe ? 100 : 40));
     const isSecurityBlocked = score < 50;
+    const isActionBlocked = isSecurityBlocked && !allowUntrusted;
     const findings = skill.security?.findings ?? [];
 
     const handleCardClick = useCallback(() => {
-      if (isSecurityBlocked) {
+      if (isActionBlocked) {
         return;
       }
       if (skill.skill_id) {
         onToggle(skill.skill_id);
       }
-    }, [isSecurityBlocked, skill.skill_id, onToggle]);
+    }, [isActionBlocked, skill.skill_id, onToggle]);
 
     const handleCheckboxChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {
         e.stopPropagation();
-        if (isSecurityBlocked) {
+        if (isActionBlocked) {
           return;
         }
         if (skill.skill_id) {
           onToggle(skill.skill_id);
         }
       },
-      [isSecurityBlocked, skill.skill_id, onToggle],
+      [isActionBlocked, skill.skill_id, onToggle],
     );
 
     const toggleFindings = useCallback((e: React.MouseEvent) => {
@@ -60,11 +62,15 @@ export const LocalSkillPreviewCard = memo(
       <div
         data-testid={`preview-skill-card-${skill.name}`}
         className={`rounded-lg border p-3 shadow-xs transition-colors ${
-          isSecurityBlocked
+          isActionBlocked
             ? 'border-destructive/40 bg-destructive/5 dark:bg-destructive/10 cursor-not-allowed opacity-90'
-            : isSelected
-              ? 'border-primary/60 bg-primary/5 dark:bg-primary/10 cursor-pointer'
-              : 'border-border bg-card hover:border-border/90 cursor-pointer'
+            : isSecurityBlocked
+              ? isSelected
+                ? 'border-amber-500/60 bg-amber-500/10 dark:bg-amber-500/15 cursor-pointer'
+                : 'border-amber-500/40 bg-amber-500/5 dark:bg-amber-500/10 hover:border-amber-500/60 cursor-pointer'
+              : isSelected
+                ? 'border-primary/60 bg-primary/5 dark:bg-primary/10 cursor-pointer'
+                : 'border-border bg-card hover:border-border/90 cursor-pointer'
         }`}
         onClick={handleCardClick}
       >
@@ -73,11 +79,11 @@ export const LocalSkillPreviewCard = memo(
             <input
               type="checkbox"
               data-testid={`preview-skill-checkbox-${skill.name}`}
-              checked={isSelected && !isSecurityBlocked}
-              disabled={isSecurityBlocked}
+              checked={isSelected && !isActionBlocked}
+              disabled={isActionBlocked}
               onChange={handleCheckboxChange}
               className={`mt-1 h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary shrink-0 ${
-                isSecurityBlocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                isActionBlocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
               }`}
               onClick={(e) => e.stopPropagation()}
             />
@@ -162,7 +168,7 @@ export const LocalSkillPreviewCard = memo(
         )}
 
         {/* Tool Dependencies */}
-        {skill.required_tools.length > 0 && (
+        {(skill.required_tools?.length ?? 0) > 0 && (
           <div className="mt-2 flex items-center gap-1.5 flex-wrap ml-6">
             <Wrench className="h-3 w-3 text-muted-foreground shrink-0" />
             <span className="text-[10px] text-muted-foreground">{t('previewDialog.tools')}:</span>

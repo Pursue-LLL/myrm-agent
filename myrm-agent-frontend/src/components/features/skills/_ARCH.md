@@ -11,9 +11,9 @@
 | `CuratorSettingsPanel.tsx`                               | 组件 | Skill Curator 自动提炼策略设置                                                                                                                                               | ✅    |
 | `EvolutionStrategyConfig.tsx`                            | 组件 | 技能进化策略（Shadow A/B、阈值）配置                                                                                                                                         | ✅    |
 | `LocalPathsConfig.tsx`                                   | 组件 | 本地技能扫描路径配置                                                                                                                                                         | ✅    |
-| `LocalSkillPathScanPreviewBeforeAdoptDialog.tsx`         | 组件 | 本地技能路径预检与采纳对话框（安全门禁阻断、全选联动与路径采纳）                                                                             | ✅    |
-| `LocalSkillPreviewCard.tsx`                              | 辅助 | 本地技能预览卡片（三级安全评分徽章、门禁阻断提示、违规审计明细折叠展开）                                                                     | ✅    |
-| `__tests__/LocalSkillPathScanPreviewBeforeAdoptDialog.test.tsx` | 测试 | 本地技能预检采纳弹窗与安全门禁回归测试（空状态、评分徽章、门禁阻断禁用、全选排除、风险展开）                                                  | ✅    |
+| `LocalSkillPathScanPreviewBeforeAdoptDialog.tsx`         | 组件 | 本地技能路径预检与采纳对话框（安全门禁阻断、受控免责放行二次确认、全选联动与路径采纳）                                                       | ✅    |
+| `LocalSkillPreviewCard.tsx`                              | 辅助 | 本地技能预览卡片（三级安全评分徽章、门禁阻断提示、受控免责解锁状态、违规审计明细折叠展开）                                                   | ✅    |
+| `__tests__/LocalSkillPathScanPreviewBeforeAdoptDialog.test.tsx` | 测试 | 本地技能预检采纳弹窗与安全门禁回归测试（空状态、评分徽章、门禁阻断禁用、受控免责放行、全选排除、风险展开）                                  | ✅    |
 | `ScanConfirmDialog.tsx`                                  | 组件 | 目录扫描发现新技能确认对话框                                                                                                                                                 | ✅    |
 | `SkillBatchImportDialog.tsx`                             | 组件 | 批量导入技能包（zip/url）；通过 `services/archiveSecurityErrorCore` 按后端 `error_code` 稳定映射预览/导入失败文案。                                                          | ✅    |
 | `__tests__/SkillBatchImportDialog.test.tsx`              | 测试 | 组件级回归：preview/confirm 失败时按 `error_code` 映射用户文案与 toast 分支。                                                                                                | ✅    |

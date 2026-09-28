@@ -239,6 +239,7 @@ export async function adoptLocalSkillPath(
   path: string,
   selectedSkillIds: string[],
   agentId?: string,
+  allowUntrusted?: boolean,
 ): Promise<LocalSkillPathAdoptResponse> {
   return apiRequest<LocalSkillPathAdoptResponse>(`${SKILLS_API_PREFIX}/local/paths/adopt`, {
     method: 'POST',
@@ -246,6 +247,7 @@ export async function adoptLocalSkillPath(
       path,
       selected_skill_ids: selectedSkillIds,
       agent_id: agentId || null,
+      allow_untrusted: Boolean(allowUntrusted),
     }),
   });
 }
