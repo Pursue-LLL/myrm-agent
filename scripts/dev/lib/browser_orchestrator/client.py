@@ -309,7 +309,9 @@ def _default_socket_path() -> str:
 _SOCKET_PATH = os.environ.get("BROWSER_ORCHESTRATOR_SOCKET", _default_socket_path())
 _REQUEST_TIMEOUT_SEC = 30.0
 _CONNECT_TIMEOUT_SEC = 5.0
-_MAX_SOCKET_MESSAGE_BYTES = 1_048_576
+_MAX_SOCKET_MESSAGE_BYTES = int(
+    os.environ.get("BROWSER_ORCHESTRATOR_MAX_SOCKET_MESSAGE_BYTES", str(16 * 1024 * 1024))
+)
 
 
 class SessionResult(TypedDict):

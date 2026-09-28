@@ -64,10 +64,20 @@ _IMAGE_FILENAME = "e2e-upload-staged.jpg"
 # while the compressed JPEG stays far under every provider per-image ceiling.
 _IMAGE_TARGET_BYTES = 3_560_000
 
-_ATTACH_INJECT_JS = """async (b64, filename) => {
+_ATTACH_CHUNK_RESET_JS = "(() => { window.__MYRM_ATTACH_CHUNKS__ = []; return { ok: true }; })()"
+
+_ATTACH_CHUNK_PUSH_JS = """(chunk) => {
+  if (!window.__MYRM_ATTACH_CHUNKS__) window.__MYRM_ATTACH_CHUNKS__ = [];
+  window.__MYRM_ATTACH_CHUNKS__.push(chunk);
+  return { ok: true };
+}"""
+
+_ATTACH_ASSEMBLE_AND_DISPATCH_JS = """async (filename) => {
   const input = document.querySelector('input[type="file"]');
   if (!input) return { ok: false, err: 'file-input-missing' };
-  const binary = atob(b64);
+  const b64Full = (window.__MYRM_ATTACH_CHUNKS__ || []).join('');
+  delete window.__MYRM_ATTACH_CHUNKS__;
+  const binary = atob(b64Full);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) {
     bytes[i] = binary.charCodeAt(i);
@@ -78,7 +88,7 @@ _ATTACH_INJECT_JS = """async (b64, filename) => {
   input.files = transfer.files;
   input.dispatchEvent(new Event('input', { bubbles: true }));
   input.dispatchEvent(new Event('change', { bubbles: true }));
-  return { ok: true };
+  return { ok: true, size: file.size };
 }"""
 
 _ATTACH_LIST_READY_JS = """(() => {
@@ -322,12 +332,22 @@ async def _run_image_flow(
     b64 = base64.b64encode(image_bytes).decode("ascii")
     assert len(b64) > 4 * 1024 * 1024, "staged JPEG base64 must cross 4 MiB trigger"
 
+    await chat.evaluate(_ATTACH_CHUNK_RESET_JS, intent=EvaluateIntent.AGENT_SUBMIT)
+    chunk_size = 256 * 1024
+    for i in range(0, len(b64), chunk_size):
+        chunk = b64[i : i + chunk_size]
+        pushed = await chat.evaluate(
+            f"({_ATTACH_CHUNK_PUSH_JS})({json.dumps(chunk)})",
+            intent=EvaluateIntent.AGENT_SUBMIT,
+        )
+        assert isinstance(pushed, dict) and pushed.get("ok") is True, pushed
+
     injected = await chat.evaluate(
-        f"({_ATTACH_INJECT_JS})({json.dumps(b64)}, {json.dumps(_IMAGE_FILENAME)})",
+        f"({_ATTACH_ASSEMBLE_AND_DISPATCH_JS})({json.dumps(_IMAGE_FILENAME)})",
         intent=EvaluateIntent.AGENT_SUBMIT,
     )
     assert isinstance(injected, dict) and injected.get("ok") is True, injected
-    _LOGGER.info("STAGE: attachment injected, wait thumbnail")
+    _LOGGER.info("STAGE: attachment injected (size=%s), wait thumbnail", injected.get("size"))
 
     thumbnail_probe: dict[str, object] = {}
     upload_deadline = __import__("time").monotonic() + 90.0

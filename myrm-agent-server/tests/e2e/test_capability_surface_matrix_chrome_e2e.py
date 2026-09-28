@@ -14,6 +14,7 @@ Covers the full real-user workflow in the WebUI Settings Security tab:
 from __future__ import annotations
 
 import json
+import time
 
 import pytest
 
@@ -168,15 +169,33 @@ def test_capability_surface_matrix_chrome_e2e() -> None:
         guarded_active = wait_for_state(client, page, _GUARDED_PRESET_ACTIVE_JS, timeout_sec=20.0)
         assert guarded_active.get("ready") is True, f"Guarded preset not active: {json.dumps(guarded_active)}"
 
-        # 5. 校验后端配置接口返回数据落盘一致性
-        res: dict[str, object] = http_json("GET", f"{api_base}/api/v1/config/securityConfig")
-        cfg_val = res.get("value") if isinstance(res, dict) and "value" in res else res
-        assert isinstance(cfg_val, dict), f"Invalid config payload: {res}"
-        matrix = cfg_val.get("capabilityMatrix")
-        assert isinstance(matrix, dict), f"capabilityMatrix not persisted: {cfg_val}"
-        assert matrix.get("remote_tools") == "deny", f"remote_tools not deny: {matrix}"
-        assert matrix.get("web_egress") == "ask", f"web_egress not ask: {matrix}"
+        # 5. 校验后端配置接口返回数据落盘一致性（轮询等待异步落盘）
+        deadline = time.monotonic() + 20.0
+        matrix: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            res: dict[str, object] = http_json("GET", f"{api_base}/api/v1/config/securityConfig")
+            cfg_val = res.get("value") if isinstance(res, dict) and "value" in res else res
+            if isinstance(cfg_val, dict):
+                m = cfg_val.get("capabilityMatrix")
+                if isinstance(m, dict) and m.get("remote_tools") == "deny":
+                    matrix = m
+                    break
+            time.sleep(0.5)
+
+        assert matrix.get("remote_tools") == "deny", f"remote_tools not deny in backend: {matrix}"
+        assert matrix.get("web_egress") == "ask", f"web_egress not ask in backend: {matrix}"
 
         # 6. 环境恢复与清理：重置为 Balanced 预设，避免污染其他测试
         client.evaluate(page, _CLICK_BALANCED_PRESET_JS, timeout_sec=15.0)
         wait_for_state(client, page, _BALANCED_PRESET_ACTIVE_JS, timeout_sec=20.0)
+
+        # 等待 Balanced 预设落盘完成
+        reset_deadline = time.monotonic() + 10.0
+        while time.monotonic() < reset_deadline:
+            res = http_json("GET", f"{api_base}/api/v1/config/securityConfig")
+            cfg_val = res.get("value") if isinstance(res, dict) and "value" in res else res
+            if isinstance(cfg_val, dict):
+                m = cfg_val.get("capabilityMatrix")
+                if isinstance(m, dict) and m.get("knowledge_write") == "ask" and m.get("remote_tools") == "ask":
+                    break
+            time.sleep(0.5)
