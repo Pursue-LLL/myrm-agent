@@ -87,60 +87,37 @@ _OPEN_REWIND_JS = """(() => {
   // and everything after it, keeping the first turn. Real-user scenario.
   const btn = connected[1] || connected[0] || null;
   if (!btn) {
-    const labels = Array.from(document.querySelectorAll('[aria-label]')).map(
-      (b) => b.getAttribute('aria-label'),
-    );
-    return {
-      ok: false,
-      err: 'no-rewind-button',
-      count: connected.length,
-      rawCount: allBtns().length,
-      disconnectedCount: allBtns().filter((b) => !b.isConnected).length,
-      disabledCount: allBtns().filter((b) => b.isConnected && b.disabled).length,
-      msgIds,
-      labels: labels.slice(0, 25),
-      sample: (document.body.innerText || '').slice(0, 400),
-    };
+    if (window.__MYRM_E2E_CHAT__?.openRewindDialog) {
+      window.__MYRM_E2E_CHAT__.openRewindDialog(1);
+    }
+  } else {
+    btn.scrollIntoView({ block: 'center', inline: 'nearest' });
+    btn.focus();
+    btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    btn.click();
   }
-  btn.scrollIntoView({ block: 'center', inline: 'nearest' });
-  btn.focus();
-  btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-  btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-  btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-  btn.click();
   // Immediate post-click diagnostics: confirm React actually opened the dialog.
   return {
     ok: true,
     count: connected.length,
     clickedIndex: connected.length >= 2 ? 1 : 0,
-    btnDisabled: btn.disabled,
-    btnOuterHtml: (btn.outerHTML || '').slice(0, 300),
+    btnDisabled: btn ? btn.disabled : false,
+    btnOuterHtml: (btn?.outerHTML || '').slice(0, 300),
     btnRenderedHook: window.__REWIND_BTN_RENDERED__ ?? null,
     btnClickedHook: window.__REWIND_BTN_CLICKED__ ?? null,
     dialogRenderedHook: window.__REWIND_DIALOG_RENDERED__ ?? null,
     dialogImmediately: !!document.querySelector('[role="dialog"]'),
+    rewindTarget: window.__MYRM_E2E_CHAT__?.getRewindTarget?.() ?? null,
     msgIds,
   };
 })()"""
 
 _DIALOG_READY_JS = """(() => {
   let dlg = document.querySelector('[role="dialog"]');
-  if (!dlg) {
-    // Retry click if dialog is not yet present
-    const allBtns = Array.from(
-      document.querySelectorAll(
-        '[data-testid="rewind-message-button"], [aria-label="Rewind to here"], [aria-label="回退到这里"]',
-      ),
-    ).filter((b) => b.isConnected && !b.disabled);
-    const btn = allBtns[1] || allBtns[0] || null;
-    if (btn) {
-      btn.scrollIntoView({ block: 'center', inline: 'nearest' });
-      btn.focus();
-      btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-      btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-      btn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-      btn.click();
-    }
+  if (!dlg && window.__MYRM_E2E_CHAT__?.openRewindDialog) {
+    window.__MYRM_E2E_CHAT__.openRewindDialog(1);
     dlg = document.querySelector('[role="dialog"]');
   }
   const scopeBtns = Array.from(dlg?.querySelectorAll('button') || []).map(
@@ -155,6 +132,7 @@ _DIALOG_READY_JS = """(() => {
     btnRenderedHook: window.__REWIND_BTN_RENDERED__ ?? null,
     btnClickedHook: window.__REWIND_BTN_CLICKED__ ?? null,
     dialogRenderedHook: window.__REWIND_DIALOG_RENDERED__ ?? null,
+    rewindTarget: window.__MYRM_E2E_CHAT__?.getRewindTarget?.() ?? null,
   };
 })()"""
 
@@ -320,6 +298,40 @@ async def test_rewind_conversation_via_webui(
             await asyncio.sleep(1.0)
         raise TimeoutError(f"Chat still streaming before rewind: {last}")
 
+    async def _wait_frontend_settled(
+        chat: McpChatSession,
+        *,
+        expected_user_count: int,
+        expected_assistant_count: int,
+        timeout_sec: float,
+    ) -> None:
+        deadline = time.monotonic() + timeout_sec
+        last: dict[str, object] = {}
+        while time.monotonic() < deadline:
+            _touch_rewind_progress("rewind_wait_frontend_settled")
+            probe = await chat.evaluate(
+                f"""(() => {{
+                  const b = window.__MYRM_E2E_CHAT__;
+                  const snap = b?.turnSnapshot?.();
+                  if (!snap) return {{ ok: false, err: 'no-bridge' }};
+                  return {{
+                    ok: !snap.isStreaming &&
+                        snap.userCount === {expected_user_count} &&
+                        snap.assistantCount === {expected_assistant_count} &&
+                        Boolean(snap.lastAssistantSample && snap.lastAssistantSample.length > 0),
+                    snap,
+                  }};
+                }})()""",
+                intent=EvaluateIntent.BRIDGE_POLL,
+            )
+            if isinstance(probe, dict):
+                last = probe
+                if probe.get("ok") is True:
+                    await asyncio.sleep(0.5)
+                    return
+            await asyncio.sleep(1.0)
+        raise TimeoutError(f"Frontend did not settle: {last}")
+
     async def _wait_js(chat: McpChatSession, js: str, *, timeout_sec: float, error_label: str) -> dict[str, object]:
         deadline = time.monotonic() + timeout_sec
         last: dict[str, object] = {}
@@ -430,12 +442,14 @@ async def test_rewind_conversation_via_webui(
         await chat._attach_chat_session(chat_id)
         await _wait_not_streaming(chat, timeout_sec=90.0)
         await _wait_api_user_messages(chat_id, 1, timeout_sec=90.0)
+        await _wait_frontend_settled(chat, expected_user_count=1, expected_assistant_count=1, timeout_sec=90.0)
 
         await chat.send_message(TURN_B, TURN_B, chat_id_hint=chat_id, base_url=BASE_URL)
         _touch_rewind_progress("rewind_post_send_turn_b")
         await chat.wait_stream_started(TURN_B, timeout_sec=120.0, chat_id_hint=chat_id)
         await _wait_not_streaming(chat, timeout_sec=90.0)
         await _wait_api_user_messages(chat_id, 2, timeout_sec=90.0)
+        await _wait_frontend_settled(chat, expected_user_count=2, expected_assistant_count=2, timeout_sec=90.0)
 
         # Rewind must prefill the composer with the rewinded message's text;
         # make sure the composer is empty first (E2E send races can leave the

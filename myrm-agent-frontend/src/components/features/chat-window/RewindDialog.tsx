@@ -1,6 +1,14 @@
 /**
- * Rewind Dialog — choose what to roll back (conversation and/or file changes)
- * and confirm before rewinding to before a user message.
+ * [INPUT]
+ * @/services/chat::rewindToMessage (POS: Chat session truncation and rollback API client)
+ * @/store/useChatStore::useChatStore (POS: Global chat store for message state)
+ *
+ * [OUTPUT]
+ * RewindDialog: Dialog component for rollback scope selection and confirmation
+ *
+ * [POS]
+ * Modal dialog for rollbacks. Provides scope choice (conversation vs conversation + files)
+ * and file change preview before dispatching rewind request.
  */
 
 'use client';

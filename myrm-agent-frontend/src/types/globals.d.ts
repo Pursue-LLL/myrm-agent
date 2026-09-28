@@ -150,6 +150,9 @@ interface Window {
     setGoalBudgetTokens: (tokens: number | null) => void;
     setGoalConvergenceWindow?: (window: number | null) => void;
     getGoalMode: () => boolean;
+    openRewindDialog?: (userIndex?: number) => boolean;
+    closeRewindDialog?: () => void;
+    getRewindTarget?: () => { chatId: string; messageId: string; messageIndex: number } | null;
     getActiveGoalSnapshot?: () => {
       status: string;
       reason: string | null;

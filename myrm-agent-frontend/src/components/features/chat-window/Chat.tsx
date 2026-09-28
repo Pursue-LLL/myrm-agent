@@ -58,6 +58,8 @@ import { ListTree } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import VisualApprovalAttentionBar from './approval/VisualApprovalAttentionBar';
 import VisualApprovalOsOverlaySync from './approval/VisualApprovalOsOverlaySync';
+import { useRewindStore } from '@/store/chat/useRewindStore';
+import { RewindDialog } from './RewindDialog';
 import ScrollToBottomButton from './ScrollToBottomButton';
 import type { Message } from '@/store/chat/types/messages';
 
@@ -118,6 +120,9 @@ const Chat = ({
       setActiveSessionAnalyticsMessageId: state.setActiveSessionAnalyticsMessageId,
     })),
   );
+
+  const rewindTarget = useRewindStore((s) => s.target);
+  const closeRewind = useRewindStore((s) => s.closeRewind);
 
   // Streaming hot path: the manual subscription (DefaultLane wakeup) is the
   // only messages source. `messages` must NOT be selected via useShallow:
@@ -607,6 +612,17 @@ const Chat = ({
               }}
             />
           )}
+          {rewindTarget && (
+            <RewindDialog
+              open={true}
+              onOpenChange={(open) => {
+                if (!open) closeRewind();
+              }}
+              chatId={rewindTarget.chatId}
+              messageId={rewindTarget.messageId}
+              messageIndex={rewindTarget.messageIndex}
+            />
+          )}
         </div>
         {isGoalsEnabled && (
           <div className="hidden lg:flex h-full shrink-0">
@@ -659,6 +675,17 @@ const Chat = ({
               setActiveSessionAnalyticsMessageId(null);
               setActiveSessionAnalyticsId(null);
             }}
+          />
+        )}
+        {rewindTarget && (
+          <RewindDialog
+            open={true}
+            onOpenChange={(open) => {
+              if (!open) closeRewind();
+            }}
+            chatId={rewindTarget.chatId}
+            messageId={rewindTarget.messageId}
+            messageIndex={rewindTarget.messageIndex}
           />
         )}
       </div>

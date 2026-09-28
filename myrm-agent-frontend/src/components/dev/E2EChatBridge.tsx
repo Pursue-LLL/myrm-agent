@@ -48,6 +48,7 @@ import { isModelAvailable } from '@/lib/model-binding';
 import { shouldPreserveE2eActionMode, shouldRunPrepareAutomationSend } from '@/components/dev/e2eChatBridgeSendPolicy';
 import { buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
 import { getConfigSyncManager } from '@/services/config/ConfigSyncManager';
+import { useRewindStore } from '@/store/chat/useRewindStore';
 
 function isLocalDevHost(): boolean {
   if (typeof window === 'undefined') {
@@ -1224,6 +1225,29 @@ export default function E2EChatBridge() {
         });
       },
       getGoalMode: () => useChatStore.getState().isGoalMode,
+      openRewindDialog: (userIndex = 1) => {
+        const state = useChatStore.getState();
+        const userEntries: Array<{ messageId: string; index: number }> = [];
+        state.messages.forEach((m, idx) => {
+          if (m.role === 'user') {
+            userEntries.push({ messageId: m.messageId, index: idx });
+          }
+        });
+        const targetEntry = userEntries[userIndex] || userEntries[0] || null;
+        if (targetEntry && state.chatId) {
+          useRewindStore.getState().openRewind({
+            chatId: state.chatId,
+            messageId: targetEntry.messageId,
+            messageIndex: targetEntry.index,
+          });
+          return true;
+        }
+        return false;
+      },
+      closeRewindDialog: () => {
+        useRewindStore.getState().closeRewind();
+      },
+      getRewindTarget: () => useRewindStore.getState().target,
       getActiveGoalSnapshot: () => {
         const goal = useGoalStore.getState().activeGoal;
         if (!goal) {
