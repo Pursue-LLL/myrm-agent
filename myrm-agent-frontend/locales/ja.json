@@ -16543,6 +16543,7 @@
           "warning": "リスク検出",
           "cancel": "キャンセル",
           "adopt": "採用してパスを追加",
+          "adoptWithRisk": "リスクを含むスキルを採用",
           "adopting": "採用中...",
           "tools": "必要なツール",
           "addPathOnly": "パスのみ追加",

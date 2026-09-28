@@ -4169,6 +4169,7 @@
           "warning": "潜在安全风险",
           "cancel": "取消",
           "adopt": "确认采纳并保存路径",
+          "adoptWithRisk": "包含风险技能并采纳",
           "adopting": "采纳保存中...",
           "addPathOnly": "仅添加路径",
           "selectAll": "全选",

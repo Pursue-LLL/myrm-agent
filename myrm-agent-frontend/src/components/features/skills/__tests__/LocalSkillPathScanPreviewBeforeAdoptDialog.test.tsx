@@ -30,6 +30,7 @@ const mockTranslations: Record<string, string> = {
   'previewDialog.line': '第 {line} 行',
   'previewDialog.threatLevel': '等级',
   'previewDialog.allowUntrustedDescription': '已知晓安全风险，允许受控采纳未受信任技能',
+  'previewDialog.adoptWithRisk': '包含风险技能并采纳',
 };
 
 const stableT = (key: string, params?: Record<string, unknown>) => {
@@ -407,9 +408,10 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
     expect(checkbox).not.toBeDisabled();
     fireEvent.click(checkbox);
 
-    // Click confirm adopt button
-    const adoptBtn = screen.getByRole('button', { name: '确认采纳并保存路径' });
+    // Click confirm adopt button which now dynamically reflects risk warning
+    const adoptBtn = screen.getByTestId('preview-adopt-confirm-btn');
     expect(adoptBtn).not.toBeDisabled();
+    expect(adoptBtn).toHaveTextContent('包含风险技能并采纳');
     fireEvent.click(adoptBtn);
 
     expect(onConfirmAdopt).toHaveBeenCalledWith(['local::k8s-pod-restart'], true);

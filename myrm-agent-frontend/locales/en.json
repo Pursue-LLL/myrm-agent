@@ -4169,6 +4169,7 @@
           "warning": "Risk Detected",
           "cancel": "Cancel",
           "adopt": "Adopt & Add Path",
+          "adoptWithRisk": "Adopt with Untrusted Skills",
           "adopting": "Adopting...",
           "addPathOnly": "Add Path Only",
           "selectAll": "Select All",

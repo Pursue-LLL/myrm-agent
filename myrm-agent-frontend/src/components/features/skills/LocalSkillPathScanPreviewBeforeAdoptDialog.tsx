@@ -68,6 +68,22 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
       });
     }, [skills, allowUntrusted]);
 
+    // 检查是否有选中的技能是安全门禁拦截项（需二次预警提示）
+    const hasBlockedSelected = useMemo(() => {
+      if (!allowUntrusted) {
+        return false;
+      }
+      const blockedSet = new Set(
+        skills
+          .filter((s) => {
+            const score = s.security_score ?? (s.security?.score ?? (s.is_safe ? 100 : 40));
+            return score < 50;
+          })
+          .map((s) => s.skill_id),
+      );
+      return selectedIds.some((id) => blockedSet.has(id));
+    }, [skills, selectedIds, allowUntrusted]);
+
     // 初始化默认勾选所有非冲突且通过安全门禁的有效技能
     useEffect(() => {
       if (open && previewData?.skills) {
@@ -254,7 +270,7 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
               </Button>
               <Button
                 data-testid="preview-adopt-confirm-btn"
-                variant="default"
+                variant={hasBlockedSelected ? 'destructive' : 'default'}
                 size="sm"
                 onClick={() => {
                   if (allowUntrusted) {
@@ -269,6 +285,11 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
                   <>
                     <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                     {t('previewDialog.adopting')}
+                  </>
+                ) : hasBlockedSelected ? (
+                  <>
+                    <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
+                    {t('previewDialog.adoptWithRisk')}
                   </>
                 ) : (
                   t('previewDialog.adopt')

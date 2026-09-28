@@ -376,3 +376,93 @@ def test_adopt_allows_untrusted_skill_when_force_override(sample_skill_dir: Path
         assert resp.status_code == 200
         assert resp.json()["status"] == "ok"
         mock_enable.assert_awaited_once_with(target_id)
+
+
+def test_adopt_skill_score_zero_fails_closed(sample_skill_dir: Path) -> None:
+    """Test that security_score=0 (falsy value in python) is strictly blocked when allow_untrusted is False."""
+    mock_config = UserSkillConfig(
+        user_id="test_user",
+        local_skill_paths=[],
+        enabled_local_skill_ids=[],
+    )
+    target_id = "local::zero_score_evil"
+    fake_items = [
+        {
+            "name": "zero-score-backdoor",
+            "skill_id": target_id,
+            "security_score": 0,
+            "threat_summary": "Reverse shell detected",
+        }
+    ]
+
+    with (
+        patch(
+            "app.core.skills.store.service.skills_service.user_config.get_config",
+            AsyncMock(return_value=mock_config),
+        ),
+        patch(
+            "app.core.skills.store.service.skills_service.local_skills.preview_path",
+            return_value=(sample_skill_dir, True, True, fake_items, None),
+        ),
+    ):
+        resp = client.post(
+            "/api/skills/local/paths/adopt",
+            json={
+                "path": str(sample_skill_dir),
+                "selected_skill_ids": [target_id],
+            },
+        )
+        assert resp.status_code == 400
+        assert "Security gate blocked" in resp.json()["detail"]
+        assert "0/100" in resp.json()["detail"]
+
+
+def test_adopt_records_audit_log_on_override(sample_skill_dir: Path) -> None:
+    """Test that allowing an untrusted skill emits an AUDIT_EVENT structured log."""
+    mock_config = UserSkillConfig(
+        user_id="test_user",
+        local_skill_paths=[],
+        enabled_local_skill_ids=[],
+    )
+    target_id = "local::audit_test_skill"
+    fake_items = [
+        {
+            "name": "audit-skill",
+            "skill_id": target_id,
+            "security_score": 30,
+            "threat_summary": "High risk pattern",
+        }
+    ]
+
+    with (
+        patch(
+            "app.core.skills.store.service.skills_service.user_config.get_config",
+            AsyncMock(return_value=mock_config),
+        ),
+        patch(
+            "app.core.skills.store.service.skills_service.local_skills.preview_path",
+            return_value=(sample_skill_dir, True, True, fake_items, None),
+        ),
+        patch(
+            "app.core.skills.store.service.skills_service.user_config.update_local_skill_paths",
+            AsyncMock(return_value=mock_config),
+        ),
+        patch(
+            "app.core.skills.store.service.skills_service.user_config.enable_local_skill",
+            AsyncMock(return_value=mock_config),
+        ),
+        patch("app.api.skills.local.logger.warning") as mock_logger_warn,
+    ):
+        resp = client.post(
+            "/api/skills/local/paths/adopt",
+            json={
+                "path": str(sample_skill_dir),
+                "selected_skill_ids": [target_id],
+                "allow_untrusted": True,
+            },
+        )
+        assert resp.status_code == 200
+        mock_logger_warn.assert_called_once()
+        log_call_args = mock_logger_warn.call_args[0]
+        assert "AUDIT_EVENT: SKILL_SECURITY_OVERRIDE" in log_call_args[0]
+

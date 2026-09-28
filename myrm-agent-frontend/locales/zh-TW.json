@@ -16543,6 +16543,7 @@
           "warning": "潛在安全風險",
           "cancel": "取消",
           "adopt": "確認採納並儲存路徑",
+          "adoptWithRisk": "包含風險技能並採納",
           "adopting": "採納儲存中...",
           "tools": "依賴工具",
           "addPathOnly": "僅添加路徑",

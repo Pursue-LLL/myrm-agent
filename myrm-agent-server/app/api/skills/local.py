@@ -217,16 +217,26 @@ async def adopt_local_skill_path(
         )
 
     # Preflight security gate: probe path and block adopting skills with score < 50 unless allow_untrusted=True
-    if request.selected_skill_ids and not request.allow_untrusted:
+    if request.selected_skill_ids:
         _, _, _, preview_items_raw, _ = skills_service.local_skills.preview_path(raw_path=raw_path)
         preview_by_id = {str(item.get("skill_id")): item for item in preview_items_raw if item.get("skill_id")}
         for sid in request.selected_skill_ids:
             item = preview_by_id.get(sid.strip())
-            if item and int(item.get("security_score", 100)) < 50:
-                score = int(item.get("security_score", 100))
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Security gate blocked: Skill '{item.get('name')}' has a security score of {score}/100 (< 50 threshold). {item.get('threat_summary', '')}. Explicit administrator override required to adopt untrusted skills.",
+            if not item:
+                continue
+            raw_score = item.get("security_score")
+            score = int(raw_score) if raw_score is not None else (100 if item.get("is_safe", True) else 40)
+            if score < 50:
+                if not request.allow_untrusted:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Security gate blocked: Skill '{item.get('name')}' has a security score of {score}/100 (< 50 threshold). {item.get('threat_summary', '')}. Explicit administrator override required to adopt untrusted skills.",
+                    )
+                logger.warning(
+                    "AUDIT_EVENT: SKILL_SECURITY_OVERRIDE path=%s skill_id=%s score=%d operator_action=allow_untrusted",
+                    raw_path,
+                    sid.strip(),
+                    score,
                 )
 
     config = await skills_service.user_config.get_config()

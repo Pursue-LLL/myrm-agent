@@ -16356,6 +16356,7 @@
           "warning": "위험 감지",
           "cancel": "취소",
           "adopt": "채택 및 경로 추가",
+          "adoptWithRisk": "위험 스킬을 포함하여 채택",
           "adopting": "채택 중...",
           "tools": "필요한 도구",
           "addPathOnly": "경로만 추가",

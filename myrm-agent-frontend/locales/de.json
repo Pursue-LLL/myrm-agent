@@ -16356,6 +16356,7 @@
           "warning": "Risiko erkannt",
           "cancel": "Abbrechen",
           "adopt": "Übernehmen & Pfad hinzufügen",
+          "adoptWithRisk": "Mit Risiko-Skills übernehmen",
           "adopting": "Wird übernommen...",
           "tools": "Erforderliche Tools",
           "addPathOnly": "Nur Pfad hinzufügen",

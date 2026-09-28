@@ -124,28 +124,30 @@ export const LocalSkillPreviewCard = memo(
                   <Badge
                     variant="destructive"
                     data-testid="security-score-badge-blocked"
-                    className="text-[10px] px-1.5 py-0 gap-1"
+                    className="text-[10px] px-1.5 py-0 gap-1 font-medium"
                   >
                     <ShieldAlert className="h-2.5 w-2.5" />
-                    <span>{score}分 · {t('previewDialog.securityBlocked')}</span>
+                    <span>
+                      {score < 30 ? 'Critical' : 'High'} · {score}/100 · {t('previewDialog.securityBlocked')}
+                    </span>
                   </Badge>
                 ) : score >= 80 ? (
                   <Badge
                     variant="outline"
                     data-testid="security-score-badge-safe"
-                    className="text-[10px] px-1.5 py-0 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 gap-1"
+                    className="text-[10px] px-1.5 py-0 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 gap-1 font-medium"
                   >
                     <ShieldCheck className="h-2.5 w-2.5" />
-                    <span>{score}分 · {t('previewDialog.safe')}</span>
+                    <span>{score}/100 · {t('previewDialog.safe')}</span>
                   </Badge>
                 ) : (
                   <Badge
                     variant="outline"
                     data-testid="security-score-badge-warning"
-                    className="text-[10px] px-1.5 py-0 border-amber-500/40 text-amber-600 dark:text-amber-400 gap-1"
+                    className="text-[10px] px-1.5 py-0 border-amber-500/40 text-amber-600 dark:text-amber-400 gap-1 font-medium"
                   >
                     <ShieldAlert className="h-2.5 w-2.5" />
-                    <span>{score}分 · {t('previewDialog.warning')}</span>
+                    <span>{score}/100 · {t('previewDialog.warning')}</span>
                   </Badge>
                 )}
               </div>
