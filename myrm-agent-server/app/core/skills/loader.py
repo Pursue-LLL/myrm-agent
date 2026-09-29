@@ -95,9 +95,9 @@ async def create_skill_backend(
         skill_ids: 用户选择的技能 ID 列表（可选）
         user_id: 用户 ID（可选，权限过滤）
         workspace_path: 项目工作目录（可选，用于扫描项目级技能）
-        allowed_prebuilt_ids: Agent Profile 允许的 prebuilt 技能 ID 白名单。
-            None = 不过滤（向后兼容，加载全部 prebuilt）；
-            frozenset() = 空集合（0 prebuilt 进入 Runtime）
+        allowed_prebuilt_ids: 用户启用的 prebuilt 技能 ID 白名单。
+            None 或空集合 = 不挂载 prebuilt 后端；
+            非空 = 仅挂载白名单内的 prebuilt 技能
 
     Returns:
         组装好的 SkillBackend

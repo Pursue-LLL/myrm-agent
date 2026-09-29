@@ -147,7 +147,7 @@ async def build_general_agent(
 
     storage_backend = get_storage_provider()
 
-    # 3. Load Skills (with prebuilt whitelist from Agent Profile)
+    # 3. Load Skills (prebuilt visibility follows the user's enabled-prebuilt set)
     workspace_root = agent_wrapper.declared_allowed_roots[0] if agent_wrapper.declared_allowed_roots else None
 
     from app.core.skills.store.user_config import UserSkillConfigManager
