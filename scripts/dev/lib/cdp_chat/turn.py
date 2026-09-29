@@ -6,7 +6,15 @@ import asyncio
 import json
 import time
 
+from dev_gate.contract import EvaluateIntent
+from e2e_core.wave_ledger import maybe_register_e2e_chat
+
 import cdp_chat.support as cdp_chat_support
+from cdp_chat.send_turn_contract import (
+    SendTurnError,
+    SendTurnPhase,
+    is_live_send_turn_profile,
+)
 from cdp_chat.submit import CdpChatSubmit
 from cdp_chat.support import (
     BRIDGE_TURN_SNAPSHOT_JS,
@@ -18,9 +26,6 @@ from cdp_chat.support import (
     chat_messages_have_ok,
     is_persisted_e2e_goal,
 )
-from dev_gate.contract import EvaluateIntent
-from e2e_core.wave_ledger import maybe_register_e2e_chat
-from cdp_chat.send_turn_contract import SendTurnError, SendTurnPhase, is_live_send_turn_profile
 
 
 def _touch_live_turn_progress(node: str) -> None:
@@ -40,6 +45,9 @@ def _bridge_has_completion(bridge: dict[str, object]) -> bool:
         or bridge.get("hasOk")
         or bridge.get("hasDone")
     )
+
+
+_SUBMIT_CONSUMED_WAIT_SEC = 45.0
 
 
 class CdpChatTurn(CdpChatSubmit):
@@ -634,6 +642,30 @@ class CdpChatTurn(CdpChatSubmit):
             await asyncio.sleep(1.0 + attempt)
         raise RuntimeError(f"E2E bridge attachToChat failed: {last}")
 
+    async def _wait_submit_consumed(
+        self,
+        prompt_for_wait: str,
+        *,
+        baseline_user_msgs: int,
+        chat_id_hint: str | None,
+    ) -> dict[str, object] | None:
+        """Wait until the submit persisted (stream or userCount advance).
+
+        Returns the wait result when consumed, None on timeout. A None means
+        the click dispatched but the turn never existed server-side.
+        """
+        try:
+            return await asyncio.wait_for(
+                self.wait_stream_started(
+                    prompt_for_wait,
+                    min_user_msgs=baseline_user_msgs + 1,
+                    chat_id_hint=chat_id_hint,
+                ),
+                timeout=_SUBMIT_CONSUMED_WAIT_SEC,
+            )
+        except TimeoutError:
+            return None
+
     async def fast_desktop_agent_submit(
         self,
         text: str,
@@ -735,20 +767,51 @@ class CdpChatTurn(CdpChatSubmit):
         if not submit.get("ok"):
             raise RuntimeError(f"fast desktop native submit failed: {submit}")
         if wait_stream_started:
-            try:
-                started = await asyncio.wait_for(
-                    self.wait_stream_started(
-                        prompt_for_wait,
-                        min_user_msgs=baseline_user_msgs + 1,
-                        chat_id_hint=chat_id,
-                    ),
-                    timeout=45.0,
+            started = await self._wait_submit_consumed(
+                prompt_for_wait,
+                baseline_user_msgs=baseline_user_msgs,
+                chat_id_hint=chat_id,
+            )
+            if started is None:
+                # R-ax15/ax16: native click reported ok but nothing persisted
+                # server-side (userCount stuck at baseline). A mux reclaim
+                # between setInputMessage and click wipes the filled input, so
+                # the click submits emptiness. Re-fill + re-click once; if the
+                # turn is still silent afterwards it can never complete, so
+                # fail fast instead of burning the run on fiction.
+                self._emit_bridge_diag(
+                    "SUBMIT_NOT_CONSUMED refill-and-reclick once "
+                    f"baseline={baseline_user_msgs} chat_id={(chat_id or '')[:8]}..."
                 )
-            except TimeoutError:
-                started = await self.main_state(
-                    prompt_for_wait, intent=EvaluateIntent.BRIDGE_POLL
+                await self.evaluate(
+                    PREPARE_AUTOMATION_SEND_JS,
+                    intent=EvaluateIntent.SYNC_PROBE,
                 )
-                started["streamProbe"] = "deferred_to_wait_turn_done"
+                await self.evaluate(
+                    f"""(() => {{
+                      const bridge = window.__MYRM_E2E_CHAT__;
+                      bridge?.setInputMessage?.({json.dumps(text)});
+                      return {{ ok: true, inputLen: {len(text)} }};
+                    }})()""",
+                    intent=EvaluateIntent.SYNC_PROBE,
+                )
+                resubmit = await self.submit_native_click()
+                if not resubmit.get("ok"):
+                    raise RuntimeError(f"fast desktop resubmit failed: {resubmit}")
+                started = await self._wait_submit_consumed(
+                    prompt_for_wait,
+                    baseline_user_msgs=baseline_user_msgs,
+                    chat_id_hint=chat_id,
+                )
+                if started is None:
+                    raise RuntimeError(
+                        "fast desktop submit not consumed after refill "
+                        f"(baseline_user_msgs={baseline_user_msgs} "
+                        f"chat_id={(chat_id or '').strip() or '-'}): "
+                        "message never persisted server-side; check mux reclaim "
+                        "stall, chat route attach, or send-button staleness"
+                    )
+                started["streamProbe"] = "consumed_after_refill"
         else:
             started = {
                 "streamProbe": "skipped_for_follow_up_nudge",
