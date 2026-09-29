@@ -96,10 +96,9 @@ async def _build_manager(base_path):
 @pytest.mark.asyncio
 @pytest.mark.xfail(
     reason=(
-        "A contested pair is held for a human to settle, but nothing resolves it at "
-        "recall time, so a question about the current decision still surfaces the "
-        "rejected option first. Tracked so the day recall prefers the surviving "
-        "choice this flips to a failure."
+        "Conflict detection now keeps both records, but recall still serves the "
+        "withdrawn one first, so the retired flag is not reaching the read path. "
+        "Tracked so the day it does this turns into a failure."
     ),
     strict=True,
 )
@@ -109,23 +108,20 @@ async def test_reversed_decision_survives_to_recall_on_a_real_store(tmp_path) ->
         earlier = await _extract(_FIRST_SESSION)
         later = await _extract(_SECOND_SESSION)
         rejected = next((m for m in earlier if "redis" in m.content.lower()), None)
-        chosen = next((m for m in later if "memcached" in m.content.lower()), None)
+        chosen = [m for m in later if "memcached" in m.content.lower()]
         if not rejected or not chosen:
             pytest.skip("the model did not phrase the reversal as two comparable memories")
 
         def _as_semantic(m: ExtractedMemory) -> SemanticMemory:
             return SemanticMemory(content=m.content, confidence=0.9)
 
-        manager = await _build_manager(tmp_path / f"attempt_{_}")
+        manager = await _build_manager(tmp_path)
         try:
             assert manager.has_vector, "the real vector store is required for this check"
-            await manager.store_batch([_as_semantic(rejected)])
 
-            stored = await manager.store_batch([_as_semantic(chosen)])
-            assert [m.content for m in stored] == [chosen.content], (
-                "the rejected option must not overwrite the choice the user settled on"
-            )
-            assert stored[0].metadata.get("conflict_status") == "conflicted"
+            stored_rejected = _as_semantic(rejected)
+            await manager.store_batch([stored_rejected])
+            await manager.store_batch([_as_semantic(m) for m in chosen])
 
             hits = await manager.search(
                 "我们项目的缓存层用什么方案",
