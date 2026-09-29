@@ -17,6 +17,7 @@ def _make_chat(
     wait_outcomes: list[object],
     submit_outcomes: list[dict[str, object]] | None = None,
     api_counts: list[int] | None = None,
+    bridge_outcomes: list[object] | None = None,
     monkeypatch: pytest.MonkeyPatch | None = None,
 ) -> CdpChatTurn:
     if monkeypatch is not None:
@@ -27,6 +28,7 @@ def _make_chat(
     state = {
         "wait_calls": 0,
         "submit_calls": 0,
+        "bridge_calls": 0,
         "evaluate_calls": 0,
         "diags": [],
     }
@@ -45,6 +47,18 @@ def _make_chat(
             return submit_outcomes.pop(0)
         return {"ok": True, "mode": "nativeClick"}
 
+    async def _submit_via_dev_bridge(*_: object, **__: object) -> dict[str, object]:
+        state["bridge_calls"] += 1
+        if bridge_outcomes is None:
+            raise AssertionError("unexpected bridge primary submit")
+        if not bridge_outcomes:
+            raise AssertionError("missing bridge submit outcome")
+        current = bridge_outcomes.pop(0)
+        if isinstance(current, BaseException):
+            raise current
+        assert isinstance(current, dict)
+        return current
+
     async def _wait_stream_started(*_: object, **__: object) -> dict[str, object]:
         state["wait_calls"] += 1
         if not wait_outcomes:
@@ -62,12 +76,24 @@ def _make_chat(
 
     async def _best_effort_count(*_: object, **__: object) -> int:
         if not pending_counts:
-            raise AssertionError("unexpected api user count probe")
+            raise AssertionError("unexpected api user count outcome")
         if len(pending_counts) > 1:
             return pending_counts.pop(0)
         return pending_counts[0]
 
+    async def _main_state(*_: object, **__: object) -> dict[str, object]:
+        return {
+            "userMsgs": 0,
+            "sending": False,
+            "hasUserPrompt": False,
+            "bridgeChatId": "chat-1",
+            "path": "/chat/chat-1",
+            "sample": "",
+        }
+
     object.__setattr__(chat, "_best_effort_user_message_count", _best_effort_count)
+    object.__setattr__(chat, "_submit_via_dev_bridge", _submit_via_dev_bridge)
+    object.__setattr__(chat, "main_state", _main_state)
     object.__setattr__(chat, "ensure_react_e2e_bridge", _ensure_bridge)
     object.__setattr__(chat, "evaluate", _evaluate)
     object.__setattr__(chat, "submit_native_click", _submit_native_click)
@@ -78,18 +104,67 @@ def _make_chat(
 
 @pytest.mark.asyncio
 async def test_submit_consumed_first_try_no_refill() -> None:
-    # okViaApi confirmed: no API grace probe may run (api stub raises).
-    chat = _make_chat(wait_outcomes=[{"okViaApi": True, "userMsgs": 1}])
+    # Bridge atomic seals: native click never fires, no API grace probe
+    # may run (api stub raises).
+    chat = _make_chat(
+        wait_outcomes=[{"okViaApi": True, "userMsgs": 1}],
+        bridge_outcomes=[{"ok": True, "mode": "sendTurnSealed", "chatId": "chat-9"}],
+    )
     result = await chat.fast_desktop_agent_submit(
         "do stuff",
         "do stuff",
         baseline_user_msgs_hint=0,
     )
+    submit = result.get("submit")
+    assert isinstance(submit, dict)
+    assert submit.get("primary") == "bridgeAtomic"
+    assert submit.get("mode") == "sendTurnSealed"
     started = result.get("started")
     assert isinstance(started, dict)
     assert started.get("streamProbe", "") != "consumed_after_refill"
     state = chat._unit_state  # noqa: SLF001
     assert state["wait_calls"] == 1
+    assert state["submit_calls"] == 0
+    assert state["bridge_calls"] == 1
+
+
+@pytest.mark.asyncio
+async def test_submit_bridge_miss_falls_back_to_native() -> None:
+    chat = _make_chat(
+        wait_outcomes=[{"okViaApi": True, "userMsgs": 1}],
+        bridge_outcomes=[
+            {"ok": False, "err": "send-not-ready", "mode": "sendTurnNotReady"}
+        ],
+    )
+    result = await chat.fast_desktop_agent_submit(
+        "do stuff",
+        "do stuff",
+        baseline_user_msgs_hint=0,
+    )
+    submit = result.get("submit")
+    assert isinstance(submit, dict)
+    assert submit.get("mode") == "nativeClick"
+    assert "primary" not in submit
+    state = chat._unit_state  # noqa: SLF001
+    assert state["bridge_calls"] == 1
+    assert state["submit_calls"] == 1
+    assert any("BRIDGE_PRIMARY_MISS" in diag for diag in state["diags"])
+
+
+@pytest.mark.asyncio
+async def test_submit_bridge_transport_error_falls_back_to_native() -> None:
+    chat = _make_chat(
+        wait_outcomes=[{"okViaApi": True, "userMsgs": 1}],
+        bridge_outcomes=[RuntimeError("mux gone")],
+    )
+    result = await chat.fast_desktop_agent_submit(
+        "do stuff",
+        "do stuff",
+        baseline_user_msgs_hint=0,
+    )
+    assert result.get("submit", {}).get("mode") == "nativeClick"
+    state = chat._unit_state  # noqa: SLF001
+    assert state["bridge_calls"] == 1
     assert state["submit_calls"] == 1
 
 
@@ -103,6 +178,10 @@ async def test_submit_silent_then_refill_consumes(
             {"okViaApi": True, "userMsgs": 1},
         ],
         api_counts=[0],
+        bridge_outcomes=[
+            {"ok": False, "err": "send-not-ready", "mode": "sendTurnNotReady"},
+            {"ok": True, "mode": "sendTurnSealed", "chatId": "chat-1"},
+        ],
         monkeypatch=monkeypatch,
     )
     result = await chat.fast_desktop_agent_submit(
@@ -114,17 +193,18 @@ async def test_submit_silent_then_refill_consumes(
     started = result.get("started")
     assert isinstance(started, dict)
     assert started.get("streamProbe") == "consumed_after_refill"
+    submit = result.get("submit")
+    assert isinstance(submit, dict)
+    assert submit.get("primary") == "bridgeAtomicRefill"
     state = chat._unit_state  # noqa: SLF001
     assert state["wait_calls"] == 2
-    assert state["submit_calls"] == 2
-    # initial prepare+setInput plus refill prepare+setInput (attach probes
-    # excluded: exact evaluate count is an attach-internal detail)
-    assert state["evaluate_calls"] >= 4
+    assert state["submit_calls"] == 1
+    assert state["bridge_calls"] == 2
     assert any("SUBMIT_NOT_CONSUMED" in diag for diag in state["diags"])
 
 
 @pytest.mark.asyncio
-async def test_submit_silent_twice_raises_fail_fast(
+async def test_submit_silent_twice_raises_fail_fast_with_snapshot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     chat = _make_chat(
@@ -133,18 +213,26 @@ async def test_submit_silent_twice_raises_fail_fast(
             TimeoutError("UI send did not start stream"),
         ],
         api_counts=[0, 0],
+        bridge_outcomes=[
+            {"ok": False, "err": "send-not-ready", "mode": "sendTurnNotReady"},
+            {"ok": False, "err": "chat-still-busy", "mode": "sendTurnBusy"},
+        ],
         monkeypatch=monkeypatch,
     )
-    with pytest.raises(RuntimeError, match="not consumed after refill"):
+    with pytest.raises(RuntimeError, match="not consumed after refill") as excinfo:
         await chat.fast_desktop_agent_submit(
             "do stuff",
             "do stuff",
             chat_id_hint="chat-1",
             baseline_user_msgs_hint=0,
         )
+    message = str(excinfo.value)
+    assert "final=" in message
+    assert "apiUsers" in message
     state = chat._unit_state  # noqa: SLF001
     assert state["wait_calls"] == 2
     assert state["submit_calls"] == 2
+    assert state["bridge_calls"] == 2
 
 
 @pytest.mark.asyncio
@@ -158,6 +246,10 @@ async def test_submit_ui_sending_flag_without_persistence_triggers_refill(
             {"okViaApi": True, "userMsgs": 1},
         ],
         api_counts=[0],
+        bridge_outcomes=[
+            {"ok": False, "err": "send-not-ready", "mode": "sendTurnNotReady"},
+            {"ok": True, "mode": "sendTurnSealed", "chatId": "chat-1"},
+        ],
         monkeypatch=monkeypatch,
     )
     result = await chat.fast_desktop_agent_submit(
@@ -171,7 +263,8 @@ async def test_submit_ui_sending_flag_without_persistence_triggers_refill(
     assert started.get("streamProbe") == "consumed_after_refill"
     state = chat._unit_state  # noqa: SLF001
     assert state["wait_calls"] == 2
-    assert state["submit_calls"] == 2
+    assert state["submit_calls"] == 1
+    assert state["bridge_calls"] == 2
 
 
 @pytest.mark.asyncio
@@ -182,6 +275,9 @@ async def test_submit_slow_api_backstop_accepts_without_refill(
     chat = _make_chat(
         wait_outcomes=[{"sending": True, "userMsgs": 0}],
         api_counts=[0, 0, 1],
+        bridge_outcomes=[
+            {"ok": False, "err": "send-not-ready", "mode": "sendTurnNotReady"}
+        ],
         monkeypatch=monkeypatch,
     )
     result = await chat.fast_desktop_agent_submit(
@@ -205,6 +301,9 @@ async def test_submit_timeout_with_api_persisted_accepts_backstop(
     chat = _make_chat(
         wait_outcomes=[TimeoutError("UI send did not start stream")],
         api_counts=[2],
+        bridge_outcomes=[
+            {"ok": False, "err": "send-not-ready", "mode": "sendTurnNotReady"}
+        ],
         monkeypatch=monkeypatch,
     )
     result = await chat.fast_desktop_agent_submit(
@@ -224,7 +323,8 @@ async def test_submit_timeout_with_api_persisted_accepts_backstop(
 
 @pytest.mark.asyncio
 async def test_submit_no_wait_flag_unchanged_fire_and_forget() -> None:
-    chat = _make_chat(wait_outcomes=[])
+    # Nudge path: bridge primary must never fire.
+    chat = _make_chat(wait_outcomes=[], bridge_outcomes=[])
     result = await chat.fast_desktop_agent_submit(
         "nudge",
         "nudge",

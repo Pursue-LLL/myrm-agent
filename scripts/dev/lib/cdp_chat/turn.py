@@ -731,6 +731,102 @@ class CdpChatTurn(CdpChatSubmit):
             > baseline_user_msgs
         )
 
+    async def _bridge_primary_submit(
+        self,
+        text: str,
+        *,
+        baseline_user_msgs: int,
+    ) -> dict[str, object]:
+        """Bridge atomic submit first (R-ax22/F1).
+
+        submitAndObserveTurn fills with flushSync, enforces named guards
+        (empty-message/no-chat-id/send-not-ready/busy/model-unavailable)
+        and seals only on API+UI admission (sendTurnSealed). Any failure
+        carries an err code, so the silent-nothing class cannot pass.
+        Transport errors are normalized to err dicts for fallback routing.
+        """
+        try:
+            result = await self._submit_via_dev_bridge(
+                text,
+                baseline_user_msgs=baseline_user_msgs,
+            )
+        except (RuntimeError, TimeoutError, OSError) as exc:
+            return {
+                "ok": False,
+                "err": f"bridge-submit-transport: {type(exc).__name__}: {exc}",
+                "mode": "bridgeTransportError",
+            }
+        if isinstance(result, dict):
+            return result
+        return {"ok": False, "err": "bridge-submit-invalid", "mode": "bridgeSubmitInvalid"}
+
+    async def _native_fill_and_click(self, text: str) -> dict[str, object]:
+        """Fill input + native click once (v48 path primitive)."""
+        await self.evaluate(
+            PREPARE_AUTOMATION_SEND_JS,
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
+        await self.evaluate(
+            f"""(() => {{
+              const bridge = window.__MYRM_E2E_CHAT__;
+              bridge?.setInputMessage?.({json.dumps(text)});
+              return {{ ok: true, inputLen: {len(text)} }};
+            }})()""",
+            intent=EvaluateIntent.SYNC_PROBE,
+        )
+        clicked = await self.submit_native_click()
+        return (
+            clicked
+            if isinstance(clicked, dict)
+            else {"ok": False, "err": "native-click-invalid"}
+        )
+
+    async def _final_submit_snapshot(
+        self,
+        prompt_for_wait: str,
+        chat_id: str | None,
+        *,
+        baseline_user_msgs: int,
+    ) -> dict[str, object]:
+        """Best-effort failure snapshot (R-ax22/F2).
+
+        The consume-timeout previously discarded the wait observation;
+        preserve UI + API state so the next failure carries forensics.
+        Never raises.
+        """
+        snapshot: dict[str, object] = {
+            "userMsgs": None,
+            "sending": None,
+            "hasUserPrompt": None,
+            "bridgeChatId": None,
+            "path": None,
+            "mainSampleLen": None,
+            "apiUsers": None,
+            "baseline": baseline_user_msgs,
+        }
+        try:
+            probe = await self.main_state(
+                prompt_for_wait, intent=EvaluateIntent.BRIDGE_POLL
+            )
+        except (RuntimeError, TimeoutError, OSError):
+            probe = None
+        if isinstance(probe, dict):
+            for key in (
+                "userMsgs",
+                "sending",
+                "hasUserPrompt",
+                "bridgeChatId",
+                "path",
+            ):
+                snapshot[key] = probe.get(key)
+            snapshot["mainSampleLen"] = len(str(probe.get("sample") or ""))
+        normalized = (chat_id or "").strip()
+        if normalized:
+            snapshot["apiUsers"] = await self._best_effort_user_message_count(
+                normalized
+            )
+        return snapshot
+
     async def fast_desktop_agent_submit(
         self,
         text: str,
@@ -740,7 +836,13 @@ class CdpChatTurn(CdpChatSubmit):
         baseline_user_msgs_hint: int | None = None,
         wait_stream_started: bool = True,
     ) -> dict[str, object]:
-        """Desktop approval E2E: setInputMessage + nativeClick (matches v48 PASS path)."""
+        """Desktop approval E2E submit (R-ax22/F1).
+
+        Initial sends (wait_stream_started=True) try the bridge atomic path
+        first and fall back to setInputMessage + nativeClick (v48 path).
+        Nudge sends (wait_stream_started=False) keep the native
+        fire-and-forget path unchanged.
+        """
         chat_id = chat_id_hint
         baseline_user_msgs = (
             max(0, int(baseline_user_msgs_hint))
@@ -755,19 +857,22 @@ class CdpChatTurn(CdpChatSubmit):
         await self.ensure_react_e2e_bridge(timeout_sec=bridge_timeout)
         if chat_id:
             await self._attach_chat_session(chat_id)
-        await self.evaluate(
-            PREPARE_AUTOMATION_SEND_JS,
-            intent=EvaluateIntent.SYNC_PROBE,
-        )
-        await self.evaluate(
-            f"""(() => {{
-              const bridge = window.__MYRM_E2E_CHAT__;
-              bridge?.setInputMessage?.({json.dumps(text)});
-              return {{ ok: true, inputLen: {len(text)} }};
-            }})()""",
-            intent=EvaluateIntent.SYNC_PROBE,
-        )
-        submit = await self.submit_native_click()
+        submit: dict[str, object] | None = None
+        if wait_stream_started:
+            bridge_submit = await self._bridge_primary_submit(
+                text,
+                baseline_user_msgs=baseline_user_msgs,
+            )
+            if bridge_submit.get("ok"):
+                submit = {**bridge_submit, "primary": "bridgeAtomic"}
+            else:
+                self._emit_bridge_diag(
+                    "BRIDGE_PRIMARY_MISS "
+                    f"err={bridge_submit.get('err')} "
+                    f"mode={bridge_submit.get('mode')} — native fallback"
+                )
+        if submit is None:
+            submit = await self._native_fill_and_click(text)
         recoverable_submit_errors = {"no send button", "send disabled"}
         submit_err = str(submit.get("err") or "")
         submit_probe = (
@@ -806,19 +911,7 @@ class CdpChatTurn(CdpChatSubmit):
                     )
                 except TimeoutError:
                     pass
-            await self.evaluate(
-                PREPARE_AUTOMATION_SEND_JS,
-                intent=EvaluateIntent.SYNC_PROBE,
-            )
-            await self.evaluate(
-                f"""(() => {{
-                  const bridge = window.__MYRM_E2E_CHAT__;
-                  bridge?.setInputMessage?.({json.dumps(text)});
-                  return {{ ok: true, inputLen: {len(text)} }};
-                }})()""",
-                intent=EvaluateIntent.SYNC_PROBE,
-            )
-            submit = await self.submit_native_click()
+            submit = await self._native_fill_and_click(text)
         if (
             not submit.get("ok")
             and str(submit.get("err") or "") in recoverable_submit_errors
@@ -852,35 +945,34 @@ class CdpChatTurn(CdpChatSubmit):
                         "userMsgs": baseline_user_msgs + 1,
                     }
             if not consumed:
-                # R-ax15/ax16/ax19/ax21: native click reported ok but nothing
-                # persisted server-side (userCount stuck at baseline past
-                # grace; UI flags can stick on a wedged transport). A mux
-                # reclaim between setInputMessage and click wipes the filled
-                # input, so the click submits emptiness. Re-attach (route may
-                # have moved under reclaim), re-fill + re-click once; if the
-                # turn is still silent afterwards it can never complete, so
-                # fail fast instead of burning the run on fiction.
+                # R-ax15/ax16/ax19/ax21/ax22: click reported ok but nothing
+                # persisted server-side. Refill via the bridge atomic path
+                # first (flushSync fill + named errors + admission seal),
+                # native re-click once as fallback. Still silent afterwards: a
+                # turn can never complete, so fail fast with forensics instead
+                # of burning the run on fiction.
                 self._emit_bridge_diag(
-                    "SUBMIT_NOT_CONSUMED refill-and-reclick once "
+                    "SUBMIT_NOT_CONSUMED refill once "
                     f"baseline={baseline_user_msgs} chat_id={(chat_id or '')[:8]}..."
                 )
                 if chat_id:
                     await self._attach_chat_session(chat_id)
-                await self.evaluate(
-                    PREPARE_AUTOMATION_SEND_JS,
-                    intent=EvaluateIntent.SYNC_PROBE,
+                resubmit = await self._bridge_primary_submit(
+                    text,
+                    baseline_user_msgs=baseline_user_msgs,
                 )
-                await self.evaluate(
-                    f"""(() => {{
-                      const bridge = window.__MYRM_E2E_CHAT__;
-                      bridge?.setInputMessage?.({json.dumps(text)});
-                      return {{ ok: true, inputLen: {len(text)} }};
-                    }})()""",
-                    intent=EvaluateIntent.SYNC_PROBE,
-                )
-                resubmit = await self.submit_native_click()
+                if resubmit.get("ok"):
+                    resubmit = {**resubmit, "primary": "bridgeAtomicRefill"}
+                else:
+                    self._emit_bridge_diag(
+                        "BRIDGE_REFILL_MISS "
+                        f"err={resubmit.get('err')} "
+                        f"mode={resubmit.get('mode')} — native reclick"
+                    )
+                    resubmit = await self._native_fill_and_click(text)
                 if not resubmit.get("ok"):
                     raise RuntimeError(f"fast desktop resubmit failed: {resubmit}")
+                submit = resubmit
                 started = await self._wait_submit_consumed(
                     prompt_for_wait,
                     baseline_user_msgs=baseline_user_msgs,
@@ -893,10 +985,16 @@ class CdpChatTurn(CdpChatSubmit):
                     baseline_user_msgs=baseline_user_msgs,
                 )
                 if not consumed:
+                    final_snapshot = await self._final_submit_snapshot(
+                        prompt_for_wait,
+                        chat_id,
+                        baseline_user_msgs=baseline_user_msgs,
+                    )
                     raise RuntimeError(
                         "fast desktop submit not consumed after refill "
                         f"(baseline_user_msgs={baseline_user_msgs} "
-                        f"chat_id={(chat_id or '').strip() or '-'}): "
+                        f"chat_id={(chat_id or '').strip() or '-'} "
+                        f"final={final_snapshot}): "
                         "message never persisted server-side; check mux reclaim "
                         "stall, chat route attach, or send-button staleness"
                     )
