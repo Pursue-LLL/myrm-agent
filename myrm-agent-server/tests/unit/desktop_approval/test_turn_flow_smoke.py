@@ -148,6 +148,49 @@ async def test_ensure_chat_route_forces_target_when_surface_mismatch(
 
 
 @pytest.mark.asyncio
+async def test_ensure_chat_route_navigate_wall_timeout_on_mux_stall(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """R-ax7: stalled mux navigate must fail fast, never hang past pytest-timeout."""
+
+    async def _hanging_to_thread(*_: object, **__: object) -> object:
+        await asyncio.sleep(30.0)
+        return None
+
+    monkeypatch.setattr(turn_flow.asyncio, "to_thread", _hanging_to_thread)
+    monkeypatch.setattr(turn_flow, "_CHAT_ROUTE_NAVIGATE_WALL_SEC", 0.05)
+    chat = _RouteChat()
+    with pytest.raises(RuntimeError, match="restore chat route navigate wall-timeout"):
+        await turn_flow._ensure_chat_route(chat, "chat-1")  # noqa: SLF001
+
+
+class _OffTargetPanelChat:
+    def __init__(self) -> None:
+        self._client = _RouteClient()
+        self._page = object()
+
+    async def evaluate(self, *_: object, **__: object) -> dict[str, object]:
+        return {"onChatUi": False, "href": "about:blank"}
+
+
+@pytest.mark.asyncio
+async def test_inspector_panel_navigate_wall_timeout_on_mux_stall(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """R-ax7: banner-path panel navigate must fail fast under mux stall."""
+
+    async def _hanging_to_thread(*_: object, **__: object) -> object:
+        await asyncio.sleep(30.0)
+        return None
+
+    monkeypatch.setattr(turn_flow.asyncio, "to_thread", _hanging_to_thread)
+    monkeypatch.setattr(turn_flow, "_INSPECTOR_PANEL_NAVIGATE_WALL_SEC", 0.05)
+    chat = _OffTargetPanelChat()
+    with pytest.raises(RuntimeError, match="inspector panel navigate wall-timeout"):
+        await turn_flow.ensure_desktop_inspector_panel_open(chat, chat_id="chat-1")  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
 async def test_complete_turn_after_approval_recovers_on_empty_snapshot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -73,6 +73,12 @@ def _api_done_wait_tick() -> None:
 _CHAT_ROUTE_PROBE_TIMEOUT_SEC = 20.0
 _CHAT_ROUTE_NAVIGATE_TIMEOUT_SEC = 45.0
 _CHAT_ROUTE_BRIDGE_TIMEOUT_SEC = 45.0
+# R-wall: raw `to_thread(navigate)` has no bound when the mux/CDP transport
+# stalls (ax7: seeded pending then 600s pytest-timeout inside banner wait).
+# Cap each route navigate so the banner/turn deadlines fire with diagnosis
+# instead of hanging past pytest-timeout.
+_CHAT_ROUTE_NAVIGATE_WALL_SEC = 150.0
+_INSPECTOR_PANEL_NAVIGATE_WALL_SEC = 90.0
 _FORCE_CHAT_NAVIGATE_TIMEOUT_SEC = 50.0
 _FORCE_CHAT_SHELL_READY_TIMEOUT_SEC = 35.0
 _FORCE_CHAT_BRIDGE_TIMEOUT_SEC = 35.0
@@ -176,6 +182,9 @@ async def _ensure_chat_route(chat: McpChatSession, chat_id: str) -> None:
     navigate_timeout = signoff_parallel_force_chat_timeout_sec(_CHAT_ROUTE_NAVIGATE_TIMEOUT_SEC)
     route_timeout = signoff_parallel_force_chat_timeout_sec(_CHAT_ROUTE_BRIDGE_TIMEOUT_SEC)
     progress(f"restore chat route chat_id={chat_id}")
+    # Wall-guarded: to_thread(navigate) never returns on mux reclaim stall;
+    # bound it so the caller deadline (not pytest-timeout) owns the failure.
+    navigate_wall = min(navigate_timeout + 105.0, _CHAT_ROUTE_NAVIGATE_WALL_SEC)
     await _await_with_wall_timeout(
         asyncio.to_thread(
             chat._client.navigate,
@@ -183,7 +192,7 @@ async def _ensure_chat_route(chat: McpChatSession, chat_id: str) -> None:
             target,
             timeout_ms=120_000,
         ),
-        timeout_sec=navigate_timeout,
+        timeout_sec=navigate_wall,
         label="restore chat route navigate",
     )
     await _await_with_wall_timeout(
@@ -200,6 +209,7 @@ async def _ensure_chat_route(chat: McpChatSession, chat_id: str) -> None:
     if post_probe.get("onTarget"):
         return
     progress(f"chat route mismatch after surface restore; force chat route once more chat_id={chat_id}")
+    navigate_wall = min(navigate_timeout + 105.0, _CHAT_ROUTE_NAVIGATE_WALL_SEC)
     await _await_with_wall_timeout(
         asyncio.to_thread(
             chat._client.navigate,
@@ -207,7 +217,7 @@ async def _ensure_chat_route(chat: McpChatSession, chat_id: str) -> None:
             target,
             timeout_ms=120_000,
         ),
-        timeout_sec=navigate_timeout,
+        timeout_sec=navigate_wall,
         label="force chat route navigate",
     )
     await _await_with_wall_timeout(
@@ -734,11 +744,17 @@ async def ensure_desktop_inspector_panel_open(
         href = str(on_chat.get("href") if isinstance(on_chat, dict) else on_chat or "")
         progress(f"navigate before openPanel (href={href})")
         target = _chat_url(chat_id) if chat_id else BASE_URL
-        await asyncio.to_thread(
-            chat._client.navigate,
-            chat._page,
-            target,
-            timeout_ms=120_000,
+        # Wall-guarded: banner path runs before APPROVAL_CLICK_DEADLINE_SEC;
+        # an unbounded navigate on stalled mux hung ax7 past pytest-timeout.
+        await _await_with_wall_timeout(
+            asyncio.to_thread(
+                chat._client.navigate,
+                chat._page,
+                target,
+                timeout_ms=120_000,
+            ),
+            timeout_sec=_INSPECTOR_PANEL_NAVIGATE_WALL_SEC,
+            label="inspector panel navigate",
         )
         await chat.ensure_react_e2e_bridge(timeout_sec=90.0)
         if chat_id:

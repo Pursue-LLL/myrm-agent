@@ -13,7 +13,9 @@ from tests.e2e.desktop_approval.gate_probe import (
     _merge_desktop_progress,
     _record_pending_seed_fallback,
     _record_synthetic_dref_fallback,
+    _seed_pending_desktop_approval_with_budget,
     _send_interact_nudge,
+    _server_side_turn_alive,
     _wait_desktop_tool_activity_failfast,
     _wait_nudge_send_surface,
     interact_without_gate_handoff_elapsed,
@@ -419,6 +421,129 @@ async def test_wait_desktop_tool_activity_raises_on_cumulative_api_timeout_budge
 
 
 @pytest.mark.asyncio
+async def test_server_side_turn_alive_true_when_user_advanced(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _user_count_2(*_: object, **__: object) -> int:
+        return 2
+
+    async def _no_activity(*_: object, **__: object) -> dict[str, object]:
+        return {"stepCount": 0, "isStreaming": False, "lastTool": ""}
+
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._chat_user_message_count_fast",
+        _user_count_2,
+    )
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._desktop_tool_progress_api_fast",
+        _no_activity,
+    )
+    assert await _server_side_turn_alive(chat_id="chat-1", baseline_user_msgs=1) is True
+
+
+@pytest.mark.asyncio
+async def test_server_side_turn_alive_true_when_assistant_streaming(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _user_count_0(*_: object, **__: object) -> int:
+        return 0
+
+    async def _streaming(*_: object, **__: object) -> dict[str, object]:
+        return {"stepCount": 0, "isStreaming": True, "lastTool": ""}
+
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._chat_user_message_count_fast",
+        _user_count_0,
+    )
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._desktop_tool_progress_api_fast",
+        _streaming,
+    )
+    assert await _server_side_turn_alive(chat_id="chat-1", baseline_user_msgs=0) is True
+
+
+@pytest.mark.asyncio
+async def test_server_side_turn_alive_false_on_total_silence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _user_count_0(*_: object, **__: object) -> int:
+        return 0
+
+    async def _silent(*_: object, **__: object) -> dict[str, object]:
+        return {"stepCount": 0, "isStreaming": False, "lastTool": ""}
+
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._chat_user_message_count_fast",
+        _user_count_0,
+    )
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._desktop_tool_progress_api_fast",
+        _silent,
+    )
+    assert await _server_side_turn_alive(chat_id="chat-1", baseline_user_msgs=0) is False
+
+
+@pytest.mark.asyncio
+async def test_seed_refused_on_silent_turn_never_calls_seed_api(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _user_count_0(*_: object, **__: object) -> int:
+        return 0
+
+    async def _silent(*_: object, **__: object) -> dict[str, object]:
+        return {"stepCount": 0, "isStreaming": False, "lastTool": ""}
+
+    def _fail_on_seed(**_: object) -> str:
+        raise AssertionError("seed API must not be called on silent turn")
+
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._chat_user_message_count_fast",
+        _user_count_0,
+    )
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._desktop_tool_progress_api_fast",
+        _silent,
+    )
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe.seed_pending_desktop_approval_for_test",
+        _fail_on_seed,
+    )
+    budget = _DesktopFallbackBudget(synthetic_dref_limit=1, pending_seed_limit=1)
+    request_id = await _seed_pending_desktop_approval_with_budget(
+        budget,
+        reason="unit-test silent turn",
+        chat_id="chat-1",
+        baseline_user_msgs=0,
+    )
+    assert request_id is None
+    assert budget.pending_seed_used == 0
+
+
+@pytest.mark.asyncio
+async def test_seed_proceeds_without_chat_context_legacy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _fail_on_probe(*_: object, **__: object) -> object:
+        raise AssertionError("no API probe expected without chat_id")
+
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._chat_user_message_count_fast",
+        _fail_on_probe,
+    )
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe.seed_pending_desktop_approval_for_test",
+        lambda **_: "req-legacy-1",
+    )
+    budget = _DesktopFallbackBudget(synthetic_dref_limit=1, pending_seed_limit=1)
+    request_id = await _seed_pending_desktop_approval_with_budget(
+        budget,
+        reason="unit-test legacy",
+    )
+    assert request_id == "req-legacy-1"
+    assert budget.pending_seed_used == 1
+
+
+@pytest.mark.asyncio
 async def test_ensure_nudge_chat_surface_guarded_returns_false_on_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -538,6 +663,14 @@ async def test_send_interact_nudge_seeds_pending_when_follow_up_recover_fails(
     monkeypatch.setattr(
         "tests.e2e.desktop_approval.gate_probe.seed_pending_desktop_approval_for_test",
         lambda **_: "req-seed-1",
+    )
+
+    async def _turn_alive(*_: object, **__: object) -> bool:
+        return True
+
+    monkeypatch.setattr(
+        "tests.e2e.desktop_approval.gate_probe._server_side_turn_alive",
+        _turn_alive,
     )
     budget = _DesktopFallbackBudget(synthetic_dref_limit=2, pending_seed_limit=2)
     chat = _NudgeRetryChat([RuntimeError("transport closed")])

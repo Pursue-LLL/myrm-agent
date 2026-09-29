@@ -260,11 +260,55 @@ def _record_pending_seed_fallback(
         )
 
 
+async def _server_side_turn_alive(
+    *,
+    chat_id: str,
+    baseline_user_msgs: int = 0,
+) -> bool:
+    """R-ax15: True when the server persisted turn activity for this chat.
+
+    A synthetic pending seed is only legitimate when the UI transport is
+    wedged but the turn is alive server-side. Seeding on total silence
+    (no user message persisted past baseline, no assistant steps/streaming)
+    masks a dead send and burns the run on fiction (ax15: 10min for nothing).
+    Unknown chat (empty id) preserves the legacy seed path.
+    """
+    normalized = chat_id.strip()
+    if not normalized:
+        return True
+    user_count = await _chat_user_message_count_fast(normalized)
+    if user_count > baseline_user_msgs:
+        return True
+    api_progress = await _desktop_tool_progress_api_fast(normalized)
+    if isinstance(api_progress, dict):
+        if int(api_progress.get("stepCount") or 0) > 0:
+            return True
+        if bool(api_progress.get("isStreaming")):
+            return True
+        if str(api_progress.get("lastTool") or "").startswith("desktop_"):
+            return True
+    return False
+
+
 async def _seed_pending_desktop_approval_with_budget(
     budget: _DesktopFallbackBudget,
     *,
     reason: str,
+    chat_id: str = "",
+    baseline_user_msgs: int = 0,
 ) -> str | None:
+    if chat_id.strip() and not await _server_side_turn_alive(
+        chat_id=chat_id,
+        baseline_user_msgs=baseline_user_msgs,
+    ):
+        progress(
+            "seed refused: server-side turn silent "
+            f"(no user advance past baseline={baseline_user_msgs}, "
+            "no assistant steps/streaming) "
+            f"chat_id={chat_id.strip()[:8]}... reason={reason} — "
+            "seeding would mask a dead send; continue gate stage for honest fail-fast"
+        )
+        return None
     request_id = await asyncio.to_thread(
         seed_pending_desktop_approval_for_test,
         app_name="TextEdit",
@@ -896,6 +940,8 @@ async def _send_interact_nudge(
             seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                 fallback_budget,
                 reason=("E2E fallback: seed desktop approval when follow-up send surface is not ready"),
+                chat_id=normalized_chat_id,
+                baseline_user_msgs=baseline_user_msgs,
             )
             if seeded_request_id:
                 progress(
@@ -942,6 +988,8 @@ async def _send_interact_nudge(
                     seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                         fallback_budget,
                         reason=f"{seed_reason_prefix} surface repair timeout",
+                        chat_id=chat_id,
+                        baseline_user_msgs=baseline_user_msgs,
                     )
                     if seeded_request_id:
                         progress(
@@ -957,6 +1005,8 @@ async def _send_interact_nudge(
                     seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                         fallback_budget,
                         reason=f"{seed_reason_prefix} retry surface not ready",
+                        chat_id=chat_id,
+                        baseline_user_msgs=baseline_user_msgs,
                     )
                     if seeded_request_id:
                         progress(
@@ -990,6 +1040,8 @@ async def _send_interact_nudge(
                 seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                     fallback_budget,
                     reason=("E2E fallback: seed desktop approval when follow-up submit advanced userCount without interact"),
+                    chat_id=normalized_chat_id,
+                    baseline_user_msgs=baseline_user_msgs,
                 )
                 if seeded_request_id:
                     progress(
@@ -1012,6 +1064,8 @@ async def _send_interact_nudge(
                     seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                         fallback_budget,
                         reason=("E2E fallback: seed desktop approval after follow-up resend surface not ready"),
+                        chat_id=normalized_chat_id,
+                        baseline_user_msgs=retry_user_msgs,
                     )
                     if seeded_request_id:
                         progress(
@@ -1045,6 +1099,8 @@ async def _send_interact_nudge(
                     seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                         fallback_budget,
                         reason=("E2E fallback: seed desktop approval when follow-up resend advanced userCount without interact"),
+                        chat_id=normalized_chat_id,
+                        baseline_user_msgs=retry_user_msgs,
                     )
                     if seeded_request_id:
                         progress(
@@ -1057,6 +1113,8 @@ async def _send_interact_nudge(
                     seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                         fallback_budget,
                         reason="E2E fallback: seed desktop approval after nudge stall",
+                        chat_id=normalized_chat_id,
+                        baseline_user_msgs=retry_user_msgs,
                     )
                     if seeded_request_id:
                         progress(
@@ -1085,6 +1143,8 @@ async def _send_interact_nudge(
             seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                 fallback_budget,
                 reason=("E2E fallback: seed desktop approval when steer nudge surface repair timed out"),
+                chat_id=normalized_chat_id,
+                baseline_user_msgs=baseline_user_msgs,
             )
             if seeded_request_id:
                 progress(
@@ -1116,6 +1176,8 @@ async def _send_interact_nudge(
                     seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                         fallback_budget,
                         reason=("E2E fallback: seed desktop approval when steer follow-up surface is not ready"),
+                        chat_id=normalized_chat_id,
+                        baseline_user_msgs=baseline_user_msgs,
                     )
                     if seeded_request_id:
                         progress(
@@ -1478,6 +1540,7 @@ async def _wait_desktop_tool_activity_failfast(
                 seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                     fallback_budget,
                     reason="E2E fallback: seed desktop approval after idle no-tool window",
+                    chat_id=chat_id,
                 )
                 if seeded_request_id:
                     progress(f"idle no-tool window seeded pending desktop approval fallback request_id={seeded_request_id}")
@@ -1707,6 +1770,7 @@ async def ensure_interact_gate(
             seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                 fallback_budget,
                 reason="E2E fallback: seed desktop approval during repeated vision loop",
+                chat_id=chat_id,
             )
             if seeded_request_id:
                 progress(f"vision-loop mid-round seeded pending desktop approval fallback request_id={seeded_request_id}")
@@ -1782,6 +1846,7 @@ async def ensure_interact_gate(
             seeded_request_id = await _seed_pending_desktop_approval_with_budget(
                 fallback_budget,
                 reason="E2E fallback: seed desktop approval after pending-gate stall",
+                chat_id=chat_id,
             )
             if seeded_request_id:
                 progress(f"rescue stage seeded pending desktop approval fallback request_id={seeded_request_id}")
@@ -1823,6 +1888,7 @@ async def ensure_interact_gate(
         seeded_request_id = await _seed_pending_desktop_approval_with_budget(
             fallback_budget,
             reason="E2E fallback: seed desktop approval after vision/snapshot loop",
+            chat_id=chat_id,
         )
         if seeded_request_id:
             progress(f"vision/snapshot loop seeded pending desktop approval fallback request_id={seeded_request_id}")
