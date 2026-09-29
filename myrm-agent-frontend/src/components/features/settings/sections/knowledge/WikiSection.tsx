@@ -1,3 +1,15 @@
+/**
+ * [INPUT]
+ * @/lib/api::apiRequest,ApiError (POS: 前端统一请求入口)
+ * @/services/wikiService::wikiService,buildWikiApiPath (POS: Frontend Wiki API client)
+ * @/components/features/settings/sections/knowledge/wiki/WikiRawSourceTree::WikiRawSourceTree (POS: Wiki raw source file tree component)
+ *
+ * [OUTPUT]
+ * WikiSection: Wiki 知识库配置主面板，支持概念/审核/队列/原始文件树浏览与导入管理。
+ *
+ * [POS]
+ * Settings 知识库模块核心面板组件。编排 Wiki 知识库总览、原始文件、审核队列与统计。
+ */
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -788,7 +800,18 @@ export function WikiSection() {
 
     if (await tryE2eStatsFetch()) {
       setIsLoadingStats(false);
-      setIsLoadingRawTree(false);
+      try {
+        const [rawTree, queueStatus] = await Promise.all([
+          wikiService.getRawTree(agentScopeId),
+          wikiService.getQueueStatus(agentScopeId),
+        ]);
+        setRawTreeData(rawTree);
+        setCompileRun(queueStatus.compile_run ?? null);
+      } catch (error) {
+        console.warn('Failed to load wiki ingest trees:', error);
+      } finally {
+        setIsLoadingRawTree(false);
+      }
       return;
     }
 

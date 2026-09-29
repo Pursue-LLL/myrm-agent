@@ -207,7 +207,7 @@ class InterruptedTurnMarker(Base):
         nullable=False,
         index=True,
     )
-    message_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_message_id: Mapped[str] = mapped_column(String(255), nullable=False)
     action_mode: Mapped[str] = mapped_column(String(50), nullable=False, default="fast")
     agent_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     serialized_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)

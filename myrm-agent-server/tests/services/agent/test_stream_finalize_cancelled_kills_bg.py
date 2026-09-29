@@ -25,6 +25,7 @@ def _make_session(chat_id: str | None) -> tuple[AgentStreamSession, MagicMock]:
     session.params = MagicMock(message_id="msg-1")
     session.cancel_token = MagicMock()
     session.cancel_token.cancel = cancel_mock
+    session.collector = MagicMock()
     return cast(AgentStreamSession, session), cancel_mock
 
 

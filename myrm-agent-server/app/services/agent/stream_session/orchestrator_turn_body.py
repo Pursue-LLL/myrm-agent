@@ -41,7 +41,7 @@ from app.services.agent.params import (
     _resolve_model_config,
     convert_to_general_agent_params,
 )
-from app.services.agent.steering_registry import SteeringRegistry
+from app.services.agent.steering import SteeringRegistry
 from app.services.agent.stream_session import chat_history_bootstrap
 from app.services.agent.stream_session.migration_bound_project import (
     apply_migration_bound_project,

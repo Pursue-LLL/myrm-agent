@@ -8,7 +8,7 @@
 
 | 路径                                                   | 职责                                                                                                                                                                   | 模式            |
 | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| `/`, `/chat`, `/[chatId]`                              | 主对话                                                                                                                                                                 | 全模式          |
+| `/`, `/chat`, `/[chatId]`, `/chat/[chatId]`          | 主对话（`/chat/:chatId` 经 `next.config.ts` rewrite 指向 `/:chatId` 保证测试与深链兼容）                                               | 全模式          |
 | `/settings`, `/settings/[tab]`                         | 设置页（`DEPRECATED_TAB_MAP` 别名永久重定向，如 `persona→personalization`）                                                                                            | 全模式          |
 | `/auth/login`, `/auth/setup`                           | WebUI 本地管理员                                                                                                                                                       | local / desktop |
 | `/auth/oauth/callback`                                 | CP OAuth（含 `?desktop=1` 桌面回跳经深链交回 token）                                                                                                                   | SaaS 构建+桌面  |

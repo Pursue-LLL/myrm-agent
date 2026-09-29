@@ -728,3 +728,52 @@ except Exception:
 3. **排查「门禁随机红」优先怀疑瞬态文件状态**（生成目录、buildinfo、lock、dist），而不是先怀疑代码回归——同一命令跑出两种结论本身就是最强的「非确定性」证据。
 
 ---
+
+## BUG-AGENT-2026-09-29-001: Chrome E2E 会话路由 404 漂移与审批弹窗阻挡
+
+| 属性 | 值 |
+|------|------|
+| 发现日期 | 2026-09-29 |
+| 修复日期 | 2026-09-29 |
+| 严重程度 | P1（阻塞 Chrome E2E / Dev Gate / CDMCP Mux 回归） |
+| 影响范围 | `myrm-agent-frontend/next.config.ts`, `scripts/dev/lib/cdp_chat/support.py`, `myrm-agent-server/app/services/meeting_notes/service.py`, `tests/support/chrome_mcp_e2e.py` |
+| 出现次数 | 1（已彻底修复并通过端到端物理对账） |
+
+### 现象
+
+1. **会话路由 404 漂移**：Chrome E2E 测试及 Dev Gate 在通过 CDP 访问或探测 `/chat/{chatId}` 时，前端 Next.js 页面返回 `404: This page could not be found`，导致会话页面加载超时假死；
+2. **遗留审批模态弹窗遮挡**：Settings 或 Chat 页面加载后，顶层被历史并发用例残留的 `批量审批 (7 个工具)` 弹窗覆盖，阻挡后续 UI 点击断言；
+3. **会议纪要与 Wiki 发布契约泄露**：`publish_meeting_notes` 偶发报告绝对本地路径而非 Vault 相对路径，且在并发大模型推理时 30s 默认超时不足造成偶发 `TimeoutError`。
+
+### 根因
+
+1. 前端真实动态会话路径为根级别 `src/app/[chatId]/page.tsx`，而 `next.config.ts` 的 `rewrites()` 缺少针对 `/chat/:chatId` 的动态重写规则，且测试端 `support.py` 的正则仅支持根路径匹配；
+2. 测试端的弹窗规避脚本 `DISMISS_MODALS_JS` 仅匹配了常见的单次关闭按钮（Dismiss/Skip/稍后再说），未覆盖 `全部拒绝|Reject all` 这类批量审批操作，导致批量审批悬挂弹窗无法被自动清退；
+3. `publish_meeting_notes` 在处理 `RawPublishResult` 时错误地对对象进行了直接字符串化（`str(published)`），导致内部绝对路径泄露；并且 `http_json` 硬编码 30.0s 超时时间，不适应高负载大模型提炼请求。
+
+### 修复
+
+1. **会话路由重写与正则泛化**：
+   - `next.config.ts`: 在 `rewrites()` 中添加 `{ source: '/chat/:chatId', destination: '/:chatId' }`；
+   - `support.py`: 更新 `_CHAT_ID_PATH_RE` 兼容可选的前缀 `/chat/`；
+2. **批量审批自动规避**：
+   - `support.py`: 在 `DISMISS_MODALS_JS` 的按钮文本正则中增加 `|全部拒绝|Reject all`；
+3. **发布契约与超时解耦**：
+   - `service.py`: 严格按强契约返回 `[published.relative_path] if published.written else []`，拦截安全拦截或跳过的产物并隔离绝对路径；
+   - `tests/support/chrome_mcp_e2e.py`: `http_json` 增加 `timeout_sec` 参数，支持耗时路由传入 90s 超时；
+   - 统一规范 settings 子路由尾部斜杠归一化 `_normalize_settings_url`。
+
+### 验证
+
+1. `curl -s -I http://127.0.0.1:3000/chat/c-test-12345` 响应 `HTTP/1.1 200 OK`；
+2. `test_turn_flow_smoke.py` 14 个测试全通；
+3. `test_browser_takeover_chrome_e2e.py` 全量 4 个测试（含真实模型 LIVE SHPOIB 隔离后端会话流）100% 物理通过（Exit Code 0，169s 完成）；
+4. `test_meeting_notes_service_coverage.py` 覆盖单测全绿。
+
+### 踩坑经验
+
+1. **动态路由别名必须配置双向对齐**：当产品根路径存在动态参数匹配（`/[chatId]`）而测试/外部深链约定使用语义化前缀（`/chat/:chatId`）时，必须在 Next.js `rewrites()` 声明动态重写，不可仅依赖静态页面；
+2. **测试环境模态弹窗规避必须涵盖所有阻断类型**：不能只考虑业务级 onboarding 引导页，还要将安全/审批系统的强阻断弹窗（全部同意/全部拒绝）纳入自动兜底清理规则；
+3. **契约字段与返回对象解耦**：发布类服务返回的路径绝不能直接调用 `str(obj)`，必须显式提取相对路径属性（如 `relative_path`），避免因对象表示方法变更泄露环境物理路径。
+
+---

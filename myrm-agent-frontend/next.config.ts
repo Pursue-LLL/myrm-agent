@@ -209,6 +209,10 @@ const nextConfig: NextConfig = {
     const apiPort = process.env.API_PORT || '8080';
     return [
       {
+        source: '/chat/:chatId',
+        destination: '/:chatId',
+      },
+      {
         source: '/api/v1/:path*',
         destination: `http://${apiHost}:${apiPort}/api/v1/:path*`,
       },

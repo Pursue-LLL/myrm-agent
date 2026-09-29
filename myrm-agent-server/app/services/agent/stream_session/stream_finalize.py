@@ -27,7 +27,7 @@ from app.services.agent.gateway import (
 from app.services.agent.memory_brief_telemetry import (
     enqueue_memory_brief_status_telemetry,
 )
-from app.services.agent.steering_registry import SteeringRegistry
+from app.services.agent.steering import SteeringRegistry
 from app.services.agent.stream_session._memory_status_helpers import (
     build_memory_brief_status_payload,
     observe_memory_brief_status_payload,

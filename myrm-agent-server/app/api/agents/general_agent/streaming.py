@@ -11,7 +11,7 @@ from pydantic.alias_generators import to_camel
 from app.config.settings import settings
 from app.core.infra.limiter import limiter
 from app.services.agent.params import AgentRequest
-from app.services.agent.steering_registry import SteeringRegistry
+from app.services.agent.steering import SteeringRegistry
 from app.services.agent.stream_session import run_agent_stream
 
 logger = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ async def steer_agent(
         return error_response(message="Steering message cannot be empty", code=400)
 
     if body.mode.strip().lower() == "policy":
-        from app.services.agent.steering_policy import policy_steer
+        from app.services.agent.steering import policy_steer
 
         outcome = policy_steer(chat_id, body.message, quoted_ref=body.quoted_ref)
         if outcome["status"] == "no_active":
@@ -129,7 +129,7 @@ async def steer_metrics(
 ) -> JSONResponse:
     from app.core.utils.response_utils import error_response, success_response
     from app.remote_access.mobile_gate import require_mobile_pair_chat_access
-    from app.services.agent.steering_policy import policy_metrics
+    from app.services.agent.steering import policy_metrics
 
     require_mobile_pair_chat_access(http_request, chat_id)
     if not SteeringRegistry.has_active(chat_id):

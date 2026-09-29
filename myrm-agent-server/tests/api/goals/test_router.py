@@ -325,7 +325,7 @@ async def test_update_objective_with_steering(client: TestClient):
 
     from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
-    from app.services.agent.steering_registry import SteeringRegistry
+    from app.services.agent.steering import SteeringRegistry
 
     session_id = f"test_session_obj_steer_{uuid.uuid4().hex}"
 

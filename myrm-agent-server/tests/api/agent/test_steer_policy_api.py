@@ -8,8 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
-from app.services.agent.steering_policy import reset_for_tests
-from app.services.agent.steering_registry import SteeringRegistry
+from app.services.agent.steering import SteeringRegistry, reset_for_tests
 
 
 @pytest.fixture

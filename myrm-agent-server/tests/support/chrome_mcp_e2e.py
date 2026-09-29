@@ -276,6 +276,7 @@ def http_json(
     body: dict[str, object] | None = None,
     *,
     expected_statuses: frozenset[int] = frozenset({200, 201, 204}),
+    timeout_sec: float = 30.0,
 ) -> object:
     from e2e_core.effect_guard import assert_http_effect_allowed
 
@@ -301,7 +302,7 @@ def http_json(
     try:
         response = _e2e_api_urlopen(
             request,
-            timeout_sec=30.0,
+            timeout_sec=timeout_sec,
             max_attempts=3,
         )  # noqa: S310 - loopback only
         with response as http_response:
@@ -683,9 +684,10 @@ _WIKI_SETTINGS_SHELL_READY_JS = """(() => {
   const layout = document.querySelector('[data-testid="app-layout"]');
   const settingsLayout = document.querySelector('[data-testid="settings-layout"]');
   const deferredLoading = document.querySelector('[data-testid="settings-deferred-loading"]');
+  const pathname = location.pathname.replace(/\\/+$/, '');
   return {
     ready:
-      location.pathname.endsWith('/settings/wiki') &&
+      pathname.endsWith('/settings/wiki') &&
       !!layout &&
       !deferredLoading &&
       (!!shell || !!dedupTab),
@@ -1021,6 +1023,25 @@ def _is_settings_route(url_or_path: str) -> bool:
     return _settings_route_path(url_or_path).startswith("/settings")
 
 
+def _normalize_settings_url(url_or_path: str) -> str:
+    from urllib.parse import urlparse
+
+    raw = url_or_path.strip()
+    if raw.startswith("http://") or raw.startswith("https://"):
+        parsed = urlparse(raw)
+        path = parsed.path or "/"
+        if path != "/" and path.endswith("/"):
+            path = path.rstrip("/")
+        query = f"?{parsed.query}" if parsed.query else ""
+        return f"{parsed.scheme}://{parsed.netloc}{path}{query}"
+    path = raw.split("?", 1)[0].split("#", 1)[0]
+    path = path if path.startswith("/") else f"/{path}"
+    if path != "/" and path.endswith("/"):
+        path = path.rstrip("/")
+    query = f"?{raw.split('?', 1)[1]}" if "?" in raw else ""
+    return f"{path}{query}"
+
+
 def _is_blank_page_url(url_or_path: str) -> bool:
     """True for manual-navigation hosts (about:blank/empty) with no app content."""
     stripped = (url_or_path or "").strip()
@@ -1037,6 +1058,8 @@ def wait_for_settings_layout(
     """Wait for SettingsLayout hydration — never use chat bridge on /settings/*."""
     if not page_url:
         page_url = f"{get_e2e_ui_url().rstrip('/')}/settings"
+    else:
+        page_url = _normalize_settings_url(page_url)
     bounded = _bounded_settings_ui_wait_sec(timeout_sec)
     layout_ready: dict[str, object] = {}
     max_attempts = 2 if _parallel_chrome_e2e_active() else 3
@@ -1150,7 +1173,7 @@ def open_settings_subroute(
     if path_only == "/settings":
         target_url = shell_url
     else:
-        target_url = f"{ui_base}{path_only}{query}"
+        target_url = _normalize_settings_url(f"{ui_base}{path_only}{query}")
 
     if _parallel_chrome_e2e_active():
         parallel_budget = _warm_ui_parallel_wait_sec(90.0)
@@ -1276,7 +1299,7 @@ def open_wiki_settings_mcp_page(
         wait_for_wiki_settings_shell(
             client,
             page,
-            page_url=wiki_page_url,
+            page_url=_normalize_settings_url(wiki_page_url),
             timeout_sec=_bounded_settings_ui_wait_sec(45.0),
             require_shell=True,
         )

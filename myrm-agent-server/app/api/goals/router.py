@@ -561,7 +561,7 @@ async def update_goal_objective(session_id: str, request: ObjectiveUpdateRequest
 
     from myrm_agent_harness.agent.goals.steering_prompts import build_objective_updated_steering_message
 
-    from app.services.agent.steering_registry import SteeringRegistry
+    from app.services.agent.steering import SteeringRegistry
 
     steering_msg = build_objective_updated_steering_message(updated)
     steered = SteeringRegistry.steer(session_id, steering_msg)

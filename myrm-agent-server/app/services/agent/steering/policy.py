@@ -3,7 +3,7 @@
 [INPUT]
 - myrm_agent_harness.agent.orchestration.steering::SteeringQueue (POS: Bounded
   inbound steering queue with dedup, envelope, metrics and snapshots.)
-- app.services.agent.steering_registry::SteeringRegistry (POS: Session-level
+- app.services.agent.steering.registry::SteeringRegistry (POS: Session-level
   SteeringToken registry bridging HTTP endpoints and running sessions.)
 
 [OUTPUT]
@@ -28,7 +28,7 @@ from myrm_agent_harness.agent.orchestration.steering import (
     drain_into_token,
 )
 
-from app.services.agent.steering_registry import SteeringRegistry
+from app.services.agent.steering.registry import SteeringRegistry
 
 logger = logging.getLogger(__name__)
 

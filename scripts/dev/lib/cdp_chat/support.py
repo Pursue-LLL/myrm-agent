@@ -955,7 +955,7 @@ def post_goal_status_action(
 
 
 _CHAT_ID_PATH_RE = re.compile(
-    r"^/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|c-[a-z0-9\-]+)$",
+    r"^/(?:chat/)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|c-[a-z0-9\-]+)$",
     re.IGNORECASE,
 )
 
@@ -1115,7 +1115,7 @@ DISMISS_MODALS_JS = """
   }
   Array.from(document.querySelectorAll('button')).forEach((b) => {
     const text = (b.textContent || '').trim();
-    if (/稍后再说|Later|Skip for now|关闭|Dismiss|Not now|跳过|Skip/i.test(text)) {
+    if (/稍后再说|Later|Skip for now|关闭|Dismiss|Not now|跳过|Skip|全部拒绝|Reject all/i.test(text)) {
       b.click();
     }
   });

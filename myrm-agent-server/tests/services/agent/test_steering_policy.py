@@ -4,12 +4,12 @@ import pytest
 from myrm_agent_harness.agent.orchestration.steering import MAX_NOTE_CHARS
 from myrm_agent_harness.utils.runtime.steering import SteeringToken
 
-from app.services.agent.steering_policy import (
+from app.services.agent.steering import (
+    SteeringRegistry,
     policy_metrics,
     policy_steer,
     reset_for_tests,
 )
-from app.services.agent.steering_registry import SteeringRegistry
 
 
 @pytest.fixture(autouse=True)
