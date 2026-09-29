@@ -19,7 +19,10 @@ from myrm_agent_harness.toolkits.storage.types import SkillType
 from app.core.skills import prebuilt_sync
 from app.core.skills.models import UserSkillConfig
 from app.core.skills.store.reader import list_prebuilt_skills
-from app.core.skills.store.user_config import UserSkillConfigManager
+from app.core.skills.store.user_config import (
+    _DEFAULT_ENABLED_PREBUILT_SKILLS,
+    UserSkillConfigManager,
+)
 
 
 def _load_registered_tool_names() -> set[str]:
@@ -99,13 +102,49 @@ async def test_sync_is_idempotent(storage: LocalStorageBackend) -> None:
 
 @pytest.mark.asyncio
 async def test_ensure_prebuilt_enabled_new_user(storage: LocalStorageBackend) -> None:
+    """A fresh install ships the curated default skill set, and only skills that exist."""
     prebuilt_sync._synced = False  # noqa: SLF001
     result = await prebuilt_sync.sync_prebuilt_seeds(storage)
     manager = UserSkillConfigManager(storage)
 
     config = await manager.ensure_prebuilt_enabled_after_sync(list(result.skill_ids))
 
+    assert config.enabled_prebuilt_ids == list(_DEFAULT_ENABLED_PREBUILT_SKILLS)
+    assert set(config.enabled_prebuilt_ids) <= set(result.skill_ids)
+
+
+@pytest.mark.asyncio
+async def test_ensure_prebuilt_new_user_drops_missing_default_ids(
+    storage: LocalStorageBackend,
+) -> None:
+    """A default skill missing upstream must not persist as a dead id."""
+    prebuilt_sync._synced = False  # noqa: SLF001
+    result = await prebuilt_sync.sync_prebuilt_seeds(storage)
+    manager = UserSkillConfigManager(storage)
+    available = [
+        sid for sid in result.skill_ids if sid not in _DEFAULT_ENABLED_PREBUILT_SKILLS
+    ]
+
+    config = await manager.ensure_prebuilt_enabled_after_sync(list(available))
+
     assert config.enabled_prebuilt_ids == []
+
+
+@pytest.mark.asyncio
+async def test_ensure_prebuilt_never_overwrites_existing_selection(
+    storage: LocalStorageBackend,
+) -> None:
+    """The curated default applies to fresh installs only; user choice always wins."""
+    manager = UserSkillConfigManager(storage)
+    await manager.save_config(
+        UserSkillConfig(user_id="sandbox", enabled_prebuilt_ids=["self-qa"])
+    )
+    prebuilt_sync._synced = False  # noqa: SLF001
+    result = await prebuilt_sync.sync_prebuilt_seeds(storage)
+
+    config = await manager.ensure_prebuilt_enabled_after_sync(list(result.skill_ids))
+
+    assert config.enabled_prebuilt_ids == ["self-qa"]
 
 
 @pytest.mark.asyncio

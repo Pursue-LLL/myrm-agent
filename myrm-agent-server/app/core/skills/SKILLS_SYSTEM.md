@@ -82,7 +82,7 @@ prebuilt_sync.py                 启动时同步到 storage + 清理幽灵条目
     → 写入 skills/prebuilt/{id}/_metadata.json（供 list_prebuilt_skills 发现）
     → 清理 storage 中已无对应 seed 目录的孤儿 SKILL.md 与 _metadata.json
 user_config.ensure_prebuilt_enabled_after_sync()
-    → 新安装（无 config 文件）：默认不启动任何技能（enabled_prebuilt_ids = []，零启动纯净基线）
+    → 新安装（无 config 文件）：默认启用精选通用办公技能集（`_DEFAULT_ENABLED_PREBUILT_SKILLS`：数据分析 / 深度调研 / 文档解析 / PDF 生成）
     → 已有配置：保持用户已选启用列表；从 enabled/disabled 列表移除已无 seed 的幽灵 ID
 builtin_initializer                  BuiltIn Agent 不绑定 user 技能（skill_ids = []）；
                                       预置体可用技能 = 用户全局启用的 prebuilt 集（agent 绑定不参与该判定）
