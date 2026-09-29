@@ -418,6 +418,7 @@ myrm_agent_harness.toolkits.mcp.lifecycle
 myrm_agent_harness.toolkits.mcp.oauth
 myrm_agent_harness.toolkits.mcp.security
 myrm_agent_harness.toolkits.memory
+myrm_agent_harness.toolkits.memory.agent_surface.mcp_server
 myrm_agent_harness.toolkits.memory.backup
 myrm_agent_harness.toolkits.memory.config
 myrm_agent_harness.toolkits.memory.conversation_search.types
@@ -431,7 +432,6 @@ myrm_agent_harness.toolkits.memory.integration.summarizer
 myrm_agent_harness.toolkits.memory.integration.tree_manager
 myrm_agent_harness.toolkits.memory.integration.types
 myrm_agent_harness.toolkits.memory.manager
-myrm_agent_harness.toolkits.memory.mcp_server
 myrm_agent_harness.toolkits.memory.memory_search_policy
 myrm_agent_harness.toolkits.memory.metrics
 myrm_agent_harness.toolkits.memory.proactive
