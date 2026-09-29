@@ -321,6 +321,33 @@ async def test_submit_timeout_with_api_persisted_accepts_backstop(
     assert state["submit_calls"] == 1
 
 
+def test_bridge_miss_summary_surfaces_observe_forensics() -> None:
+    summary = CdpChatTurn._bridge_miss_summary(  # noqa: SLF001
+        {
+            "ok": False,
+            "err": "send-turn-observe-timeout",
+            "mode": "sendTurnObserveTimeout",
+            "debug": {
+                "phase": "OBSERVE",
+                "apiUsers": 0,
+                "userCount": 4,
+                "streaming": False,
+            },
+        }
+    )
+    assert "apiUsers=0" in summary
+    assert "userCount=4" in summary
+    assert "streaming=False" in summary
+    assert "phase=OBSERVE" in summary
+
+
+def test_bridge_miss_summary_empty_without_debug() -> None:
+    assert (
+        CdpChatTurn._bridge_miss_summary({"ok": False, "err": "x"})  # noqa: SLF001
+        == ""
+    )
+
+
 @pytest.mark.asyncio
 async def test_submit_no_wait_flag_unchanged_fire_and_forget() -> None:
     # Nudge path: bridge primary must never fire.

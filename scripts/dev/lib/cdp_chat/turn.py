@@ -760,6 +760,22 @@ class CdpChatTurn(CdpChatSubmit):
             return result
         return {"ok": False, "err": "bridge-submit-invalid", "mode": "bridgeSubmitInvalid"}
 
+    @staticmethod
+    def _bridge_miss_summary(result: dict[str, object]) -> str:
+        """One-line miss forensics (R-ax27/F1).
+
+        The bridge result debug carries apiUsers/userCount/streaming at
+        observe-timeout; surfacing it here preserves the decisive datum
+        even when the run dies before printing the submit dict.
+        """
+        debug = result.get("debug")
+        if not isinstance(debug, dict):
+            return ""
+        return (
+            f" apiUsers={debug.get('apiUsers')} userCount={debug.get('userCount')} "
+            f"streaming={debug.get('streaming')} phase={debug.get('phase')}"
+        )
+
     async def _native_fill_and_click(self, text: str) -> dict[str, object]:
         """Fill input + native click once (v48 path primitive)."""
         await self.evaluate(
@@ -869,7 +885,8 @@ class CdpChatTurn(CdpChatSubmit):
                 self._emit_bridge_diag(
                     "BRIDGE_PRIMARY_MISS "
                     f"err={bridge_submit.get('err')} "
-                    f"mode={bridge_submit.get('mode')} — native fallback"
+                    f"mode={bridge_submit.get('mode')}"
+                    f"{self._bridge_miss_summary(bridge_submit)} — native fallback"
                 )
         if submit is None:
             submit = await self._native_fill_and_click(text)
@@ -967,7 +984,8 @@ class CdpChatTurn(CdpChatSubmit):
                     self._emit_bridge_diag(
                         "BRIDGE_REFILL_MISS "
                         f"err={resubmit.get('err')} "
-                        f"mode={resubmit.get('mode')} — native reclick"
+                        f"mode={resubmit.get('mode')}"
+                        f"{self._bridge_miss_summary(resubmit)} — native reclick"
                     )
                     resubmit = await self._native_fill_and_click(text)
                 if not resubmit.get("ok"):
