@@ -27,7 +27,10 @@ import re
 import shutil
 import subprocess
 import tempfile
+import uuid
 from pathlib import Path
+
+from myrm_agent_harness.toolkits.wiki import WikiStructure
 
 from app.channels.types import VoiceConfig
 from app.channels.voice.stt import transcribe
@@ -43,6 +46,8 @@ logger = logging.getLogger(__name__)
 _CHUNK_SECONDS = 600
 _MAX_PARALLEL_ASR = 3
 _WIKI_SOURCE_DIR = "meeting-notes"
+# Upper bound for the title-collision suffix walk before falling back to a random one.
+_MAX_MEETING_NOTE_COLLISIONS = 50
 
 _FFPROBE_DURATION_RE = re.compile(r"duration=(\d+(?:\.\d+)?)")
 _FFMPEG_TS_DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)")
@@ -170,7 +175,7 @@ async def process_meeting_audio(
     *,
     voice_config: VoiceConfig,
     llm: object,  # BaseChatModel; typed loosely to avoid circular import in orchestration layer
-    structure: object,  # WikiStructure from harness wiki compiler
+    structure: WikiStructure,
     agent_id: str | None = None,
     chunk_seconds: int = _CHUNK_SECONDS,
     max_parallel: int = _MAX_PARALLEL_ASR,
@@ -283,8 +288,25 @@ def _render_minutes_markdown(
     return "\n".join(lines)
 
 
+def _free_meeting_note_path(structure: WikiStructure, slug: str) -> str:
+    """Return a free ``meeting-notes/<slug>.md`` path, suffixing on name collisions.
+
+    The raw publish gate skips an existing path, so a recurring LLM-authored title
+    would otherwise drop a whole meeting deliverable without any error. Suffixing keeps
+    every meeting: the first note keeps the clean name, later ones get ``-2``, ``-3``…
+    """
+    candidate = f"{_WIKI_SOURCE_DIR}/{slug}.md"
+    if not structure.get_raw_file_path(candidate).exists():
+        return candidate
+    for suffix in range(2, _MAX_MEETING_NOTE_COLLISIONS + 2):
+        candidate = f"{_WIKI_SOURCE_DIR}/{slug}-{suffix}.md"
+        if not structure.get_raw_file_path(candidate).exists():
+            return candidate
+    return f"{_WIKI_SOURCE_DIR}/{slug}-{uuid.uuid4().hex[:8]}.md"
+
+
 async def publish_meeting_notes(
-    structure: object,
+    structure: WikiStructure,
     notes: StructuredMeetingNotes,
     transcript: str,
     agent_id: str | None,
@@ -303,7 +325,7 @@ async def publish_meeting_notes(
 
     title = notes.title or "Meeting Notes"
     slug = sanitize_path_segment(f"meeting-{title}")
-    relative_path = f"{_WIKI_SOURCE_DIR}/{slug}.md"
+    relative_path = _free_meeting_note_path(structure, slug)
     content = (
         build_frontmatter(
             source="meeting_notes",
@@ -315,7 +337,7 @@ async def publish_meeting_notes(
         + _render_minutes_markdown(notes, transcript, 0.0)
     )
     published = await publish_source_markdown(
-        structure,  # type: ignore[arg-type]
+        structure,
         relative_path=relative_path,
         content=content,
         auto_compile=auto_compile,

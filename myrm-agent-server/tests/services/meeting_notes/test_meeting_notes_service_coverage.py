@@ -192,10 +192,13 @@ async def test_process_meeting_audio_orchestrates_pipeline(
 
 
 async def test_publish_meeting_notes_renders_risks(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    from myrm_agent_harness.toolkits.wiki import WikiStructure
+
     import app.services.wiki.source_sync.publish_helpers as helpers
 
+    structure = WikiStructure(base_dir=tmp_path)
     captured: dict[str, Any] = {}
 
     async def _fake_publish(structure: object, *, relative_path: str, content: str, **_kwargs: object) -> Any:
@@ -208,7 +211,9 @@ async def test_publish_meeting_notes_renders_risks(
     monkeypatch.setattr(helpers, "sanitize_path_segment", lambda segment: segment)
 
     notes = StructuredMeetingNotes(title="Plan", summary="S", risks=("Vendor lock-in",))
-    published = await svc_mod.publish_meeting_notes(object(), notes, "[00:00] hi", None, True, None)
+    published = await svc_mod.publish_meeting_notes(
+        structure, notes, "[00:00] hi", None, True, None
+    )
 
     assert "## Risks" in captured["content"]
     assert captured["relative_path"].startswith("meeting-notes/")
@@ -216,10 +221,14 @@ async def test_publish_meeting_notes_renders_risks(
 
 
 async def test_publish_meeting_notes_skips_unwritten_result(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """A blocked/skipped publish must not be reported as a published path."""
+    from myrm_agent_harness.toolkits.wiki import WikiStructure
+
     import app.services.wiki.source_sync.publish_helpers as helpers
+
+    structure = WikiStructure(base_dir=tmp_path)
 
     async def _fake_publish(structure: object, *, relative_path: str, content: str, **_kwargs: object) -> Any:
         return _raw_publish_result(relative_path, written=False, security_blocked=True)
@@ -229,7 +238,22 @@ async def test_publish_meeting_notes_skips_unwritten_result(
     monkeypatch.setattr(helpers, "sanitize_path_segment", lambda segment: segment)
 
     notes = StructuredMeetingNotes(title="Plan", summary="S", risks=("r",))
-    assert await svc_mod.publish_meeting_notes(object(), notes, "t", None, False, None) == []
+    assert await svc_mod.publish_meeting_notes(structure, notes, "t", None, False, None) == []
+
+
+def test_free_meeting_note_path_suffixes_on_collision(tmp_path: Path) -> None:
+    """A repeated LLM title must not silently drop the meeting deliverable."""
+    from myrm_agent_harness.toolkits.wiki import WikiStructure
+
+    structure = WikiStructure(base_dir=tmp_path)
+    assert svc_mod._free_meeting_note_path(structure, "meeting-Plan") == "meeting-notes/meeting-Plan.md"
+
+    (tmp_path / "raw" / "meeting-notes").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "raw" / "meeting-notes" / "meeting-Plan.md").write_text("x", encoding="utf-8")
+    assert svc_mod._free_meeting_note_path(structure, "meeting-Plan") == "meeting-notes/meeting-Plan-2.md"
+
+    (tmp_path / "raw" / "meeting-notes" / "meeting-Plan-2.md").write_text("x", encoding="utf-8")
+    assert svc_mod._free_meeting_note_path(structure, "meeting-Plan") == "meeting-notes/meeting-Plan-3.md"
 
 
 def test_render_minutes_markdown_includes_risks() -> None:

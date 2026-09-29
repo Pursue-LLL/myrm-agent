@@ -23,18 +23,21 @@ describe('liveMeeting service', () => {
     apiRequest.mockResolvedValue({ success: true });
   });
 
-  it('posts finalized transcript + timestamp to the ingest endpoint', async () => {
-    await ingestLiveTranscript('meeting-1', 'hello world', 12);
+  it('posts finalized transcript + line id + timestamp to the ingest endpoint', async () => {
+    await ingestLiveTranscript('meeting-1', { id: 'line-1', text: 'hello world', timestamp: 12 });
     expect(apiRequest).toHaveBeenCalledWith(
       'http://test/api/v1/wiki/meeting-notes/live/meeting-1/ingest',
-      { method: 'POST', body: JSON.stringify({ text: 'hello world', timestamp: 12 }) },
+      {
+        method: 'POST',
+        body: JSON.stringify({ text: 'hello world', line_id: 'line-1', timestamp: 12 }),
+      },
     );
   });
 
-  it('omits timestamp when not provided', async () => {
-    await ingestLiveTranscript('meeting-1', 'hi');
+  it('omits timestamp when not provided but always sends the line id', async () => {
+    await ingestLiveTranscript('meeting-1', { id: 'line-2', text: 'hi' });
     const [, options] = apiRequest.mock.calls[0] as [string, { body: string }];
-    expect(options.body).toBe(JSON.stringify({ text: 'hi' }));
+    expect(options.body).toBe(JSON.stringify({ text: 'hi', line_id: 'line-2' }));
   });
 
   it('reads the snapshot and finalizes the session', async () => {

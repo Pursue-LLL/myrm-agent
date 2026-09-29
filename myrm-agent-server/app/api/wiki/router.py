@@ -3318,6 +3318,12 @@ from app.services.meeting_notes.service import publish_meeting_notes  # noqa: E4
 class LiveNotesIngestRequest(BaseModel):
     text: str = Field(..., min_length=1, description="Finalized transcript chunk")
     timestamp: float | None = Field(default=None, ge=0, description="Seconds since session start")
+    line_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=64,
+        description="Client-generated id of this transcript line; replays are ignored",
+    )
 
 
 class LiveNotesSnapshotResponse(BaseModel):
@@ -3375,7 +3381,7 @@ async def ingest_live_meeting_transcript(
     """Ingest one finalized transcript chunk; refresh rolling notes when due."""
     try:
         session = await get_live_notes_registry().get_or_create(session_id)
-        if not session.ingest(payload.text, payload.timestamp):
+        if not session.ingest(payload.text, payload.timestamp, line_id=payload.line_id):
             return _live_notes_response(session, refreshed=False)
         refreshed = None
         try:

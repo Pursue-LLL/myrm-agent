@@ -94,11 +94,11 @@ def _ingest_live_transcript(
 ) -> dict[str, object]:
     """Drive the real ingest contract the Live board uses; return the last snapshot."""
     snapshot: dict[str, object] = {}
-    for text, timestamp in lines:
+    for index, (text, timestamp) in enumerate(lines):
         payload = http_json(
             "POST",
             f"{api_url.rstrip('/')}/api/v1/wiki/meeting-notes/live/{session_id}/ingest",
-            {"text": text, "timestamp": timestamp},
+            {"text": text, "timestamp": timestamp, "line_id": f"{session_id}-line-{index}"},
             timeout_sec=90.0,
         )
         assert isinstance(payload, dict)
@@ -125,15 +125,29 @@ def test_live_meeting_notes_publish_real_wiki_note_visible_in_ui() -> None:
     published_path: str | None = None
 
     try:
-        # 1) Real ingest through the REST contract the Live board calls.
+        # 1) Real ingest through the REST contract the Live board calls. Line ids make
+        #    ingest idempotent, so the count is exact even when the client retries.
         live = _ingest_live_transcript(api_url, session_id, lines)
         assert live["session_id"] == session_id
-        # Ingest is intentionally append-only and not idempotent, so a retried POST
-        # can add a line twice; assert the invariant, not an exact counter.
-        assert int(live["line_count"]) >= len(lines), live
+        assert int(live["line_count"]) == len(lines), live
         assert int(live["transcript_chars"]) > 200
 
-        # 2) finalize forces the real distillation and publishes to the real wiki.
+        # 2) Replay the first line (at-least-once delivery): must not be counted twice.
+        replay = http_json(
+            "POST",
+            f"{api_url.rstrip('/')}/api/v1/wiki/meeting-notes/live/{session_id}/ingest",
+            {
+                "text": lines[0][0],
+                "timestamp": lines[0][1],
+                "line_id": f"{session_id}-line-0",
+            },
+            timeout_sec=90.0,
+        )
+        assert isinstance(replay, dict)
+        assert int(replay["line_count"]) == len(lines), f"replayed line was duplicated: {replay}"
+        assert int(replay["transcript_chars"]) == int(live["transcript_chars"]), replay
+
+        # 3) finalize forces the real distillation and publishes to the real wiki.
         final = http_json(
             "POST",
             f"{api_url.rstrip('/')}/api/v1/wiki/meeting-notes/live/{session_id}/finalize?auto_compile=false",
@@ -153,7 +167,7 @@ def test_live_meeting_notes_publish_real_wiki_note_visible_in_ui() -> None:
             f"published note is not this run's meeting: {published_path}"
         )
 
-        # 3) The real LLM must have produced structured content.
+        # 4) The real LLM must have produced structured content.
         title = str(final["title"] or "")
         summary = str(final["summary"] or "")
         risks = final["risks"] or []
@@ -161,7 +175,7 @@ def test_live_meeting_notes_publish_real_wiki_note_visible_in_ui() -> None:
         assert len(summary) > 20, f"real LLM produced no summary: {final}"
         assert isinstance(risks, list) and risks, f"real LLM produced no risks: {final}"
 
-        # 4) Real browser: the published meeting note must be visible in the real
+        # 5) Real browser: the published meeting note must be visible in the real
         #    knowledge UI raw-source tree (rawPath auto-expands to the node).
         slug = published_path.rsplit("/", 1)[-1].removesuffix(".md")
         warm_ui_route("/settings/wiki")

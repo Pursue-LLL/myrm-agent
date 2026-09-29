@@ -21,6 +21,13 @@ export interface LiveMeetingActionItem {
   due_hint: string | null;
 }
 
+/** One finalized transcript utterance, with the id that makes its ingest idempotent. */
+export interface LiveTranscriptLine {
+  id: string;
+  text: string;
+  timestamp?: number;
+}
+
 export interface LiveMeetingSnapshot {
   success: boolean;
   session_id: string;
@@ -41,14 +48,22 @@ function sessionPath(sessionId: string): string {
   return buildWikiApiPath(`/wiki/meeting-notes/live/${encodeURIComponent(sessionId)}`);
 }
 
+/**
+ * Send one finalized transcript line. `lineId` must be stable for the lifetime of that
+ * utterance: a retried request with the same id is ignored by the server instead of
+ * duplicating the line in the transcript and the distilled minutes.
+ */
 export async function ingestLiveTranscript(
   sessionId: string,
-  text: string,
-  timestamp?: number,
+  line: LiveTranscriptLine,
 ): Promise<LiveMeetingSnapshot> {
   return apiRequest<LiveMeetingSnapshot>(getApiUrl(`${sessionPath(sessionId)}/ingest`), {
     method: 'POST',
-    body: JSON.stringify({ text, ...(timestamp !== undefined ? { timestamp } : {}) }),
+    body: JSON.stringify({
+      text: line.text,
+      line_id: line.id,
+      ...(line.timestamp !== undefined ? { timestamp: line.timestamp } : {}),
+    }),
   });
 }
 

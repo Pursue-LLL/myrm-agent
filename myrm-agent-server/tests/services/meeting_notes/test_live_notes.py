@@ -63,6 +63,35 @@ def test_ingest_ignores_empty_and_counts_lines() -> None:
     assert "hello" in session.render_transcript()
 
 
+def test_ingest_is_idempotent_per_line_id() -> None:
+    """A replayed line id must not be appended twice (at-least-once delivery)."""
+    session = LiveNotesSession("s1", clock=_Clock())
+    assert session.ingest("hello", 0.0, line_id="l1") is True
+    assert session.ingest("hello", 0.0, line_id="l1") is False
+    assert session.line_count == 1
+    assert session.transcript_chars == len("hello")
+    # A different id with identical text is a genuinely repeated utterance: keep it.
+    assert session.ingest("hello", 1.0, line_id="l2") is True
+    assert session.line_count == 2
+
+
+def test_ingest_without_line_id_always_appends() -> None:
+    session = LiveNotesSession("s1", clock=_Clock())
+    assert session.ingest("same words", 0.0) is True
+    assert session.ingest("same words", 0.0) is True
+    assert session.line_count == 2
+
+
+def test_line_id_dedupe_window_is_bounded() -> None:
+    session = LiveNotesSession("s1", clock=_Clock())
+    for index in range(600):
+        session.ingest(f"line {index}", line_id=f"l{index}")
+    # The window only has to outlive a retry, so old ids are forgotten instead of
+    # growing without bound across a long meeting.
+    assert session.line_count == 600
+    assert session.ingest("replay of the oldest", line_id="l0") is True
+
+
 def test_render_transcript_uses_session_relative_timestamps() -> None:
     clock = _Clock()
     session = LiveNotesSession("s1", clock=clock)

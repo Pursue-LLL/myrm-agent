@@ -19,12 +19,13 @@ import {
   finalizeLiveMeeting,
   ingestLiveTranscript,
   type LiveMeetingSnapshot,
+  type LiveTranscriptLine,
 } from '@/services/liveMeeting';
 
 export interface UseLiveMeetingNotesReturn {
   sessionId: string;
   snapshot: LiveMeetingSnapshot | null;
-  ingest: (text: string) => void;
+  ingest: (text: string, timestamp?: number) => void;
   finalize: () => Promise<LiveMeetingSnapshot | null>;
 }
 
@@ -33,6 +34,14 @@ const STORAGE_PREFIX = 'myrm-live-notes:';
 function newSessionId(): string {
   const rand = Math.random().toString(16).slice(2, 10);
   return `live-${Date.now().toString(36)}-${rand}`;
+}
+
+/** Stable per-utterance id so a replayed ingest cannot duplicate the line. */
+function newLineId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `line-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 10)}`;
 }
 
 function storageKey(sessionKey: string): string {
@@ -61,7 +70,7 @@ export function useLiveMeetingNotes(sessionKey?: string): UseLiveMeetingNotesRet
   const [sessionId] = useState(() => resolveInitialSessionId(sessionKey));
   const [snapshot, setSnapshot] = useState<LiveMeetingSnapshot | null>(null);
   const inFlightRef = useRef(false);
-  const queueRef = useRef<string[]>([]);
+  const queueRef = useRef<LiveTranscriptLine[]>([]);
 
   const flush = useCallback(async () => {
     if (inFlightRef.current) {
@@ -86,12 +95,12 @@ export function useLiveMeetingNotes(sessionKey?: string): UseLiveMeetingNotesRet
   }, [sessionId]);
 
   const ingest = useCallback(
-    (text: string) => {
+    (text: string, timestamp?: number) => {
       const cleaned = text.trim();
       if (!cleaned) {
         return;
       }
-      queueRef.current.push(cleaned);
+      queueRef.current.push({ id: newLineId(), text: cleaned, ...(timestamp !== undefined ? { timestamp } : {}) });
       void flush();
     },
     [flush],

@@ -32,6 +32,9 @@ from app.services.meeting_notes.service import distill_meeting_notes
 _DEFAULT_REFRESH_SECONDS = 120.0
 _DEFAULT_MIN_NEW_CHARS = 200
 _MAX_TRANSCRIPT_CHARS = 120_000
+# Upper bound on remembered line ids. The dedupe window only has to outlive a retried
+# request, so a small ring is enough; bounding it keeps long meetings memory-flat.
+_DEDUPE_WINDOW = 512
 
 
 @dataclass(frozen=True)
@@ -76,19 +79,31 @@ class LiveNotesSession:
         self._last_refreshed_at: float | None = None
         self._chars_since_refresh = 0
         self._notes: StructuredMeetingNotes | None = None
+        self._seen_line_ids: dict[str, None] = {}
         self._lock = asyncio.Lock()
 
     # -- ingestion ---------------------------------------------------------
-    def ingest(self, text: str, timestamp: float | None = None) -> bool:
-        """Append a finalized transcript line. Returns True when it was non-empty.
+    def ingest(self, text: str, timestamp: float | None = None, *, line_id: str | None = None) -> bool:
+        """Append a finalized transcript line. Returns True when it was recorded.
 
         ``timestamp`` is seconds since session start; when omitted the session-relative
         wall time is derived from the injected clock (never the raw clock value, which
         would render as meaningless absolute minutes).
+
+        ``line_id`` makes ingestion idempotent under at-least-once delivery: a replayed
+        request (client retry, proxy replay) carrying an id already seen in this session
+        is ignored instead of duplicating the line in the transcript and the minutes.
+        Identifiers are only compared, never stored beyond ``_DEDUPE_WINDOW``.
         """
         cleaned = text.strip()
         if not cleaned:
             return False
+        if line_id is not None and line_id in self._seen_line_ids:
+            return False
+        if line_id is not None:
+            self._seen_line_ids[line_id] = None
+            if len(self._seen_line_ids) > _DEDUPE_WINDOW:
+                del self._seen_line_ids[next(iter(self._seen_line_ids))]
         ts = float(timestamp) if timestamp is not None else float(self._clock()) - self._started_at
         self._lines.append(_TranscriptLine(timestamp=max(0.0, ts), text=cleaned))
         self._chars_since_refresh += len(cleaned)
