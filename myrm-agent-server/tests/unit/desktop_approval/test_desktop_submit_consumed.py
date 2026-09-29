@@ -5,9 +5,9 @@ native click may report ok while nothing persists server-side (mux reclaim
 wiping the filled input). The submit must re-fill + re-click once, and fail
 fast when the turn stays silent.
 """
-
 from __future__ import annotations
 
+import cdp_chat.turn as turn_module
 import pytest
 from cdp_chat.turn import CdpChatTurn
 
@@ -17,7 +17,12 @@ def _make_chat(
     wait_outcomes: list[object],
     submit_outcomes: list[dict[str, object]] | None = None,
     api_counts: list[int] | None = None,
+    monkeypatch: pytest.MonkeyPatch | None = None,
 ) -> CdpChatTurn:
+    if monkeypatch is not None:
+        # Keep the API grace loop millisecond-scale in unit tests.
+        monkeypatch.setattr(turn_module, "_SUBMIT_API_GRACE_SEC", 0.05)
+        monkeypatch.setattr(turn_module, "_SUBMIT_API_GRACE_POLL_SEC", 0.001)
     chat = CdpChatTurn.__new__(CdpChatTurn)
     state = {
         "wait_calls": 0,
@@ -57,8 +62,10 @@ def _make_chat(
 
     async def _best_effort_count(*_: object, **__: object) -> int:
         if not pending_counts:
-            raise AssertionError("missing api user count outcome")
-        return pending_counts.pop(0)
+            raise AssertionError("unexpected api user count probe")
+        if len(pending_counts) > 1:
+            return pending_counts.pop(0)
+        return pending_counts[0]
 
     object.__setattr__(chat, "_best_effort_user_message_count", _best_effort_count)
     object.__setattr__(chat, "ensure_react_e2e_bridge", _ensure_bridge)
@@ -71,7 +78,8 @@ def _make_chat(
 
 @pytest.mark.asyncio
 async def test_submit_consumed_first_try_no_refill() -> None:
-    chat = _make_chat(wait_outcomes=[{"userMsgs": 1, "isStreaming": True}])
+    # okViaApi confirmed: no API grace probe may run (api stub raises).
+    chat = _make_chat(wait_outcomes=[{"okViaApi": True, "userMsgs": 1}])
     result = await chat.fast_desktop_agent_submit(
         "do stuff",
         "do stuff",
@@ -86,10 +94,16 @@ async def test_submit_consumed_first_try_no_refill() -> None:
 
 
 @pytest.mark.asyncio
-async def test_submit_silent_then_refill_consumes() -> None:
+async def test_submit_silent_then_refill_consumes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     chat = _make_chat(
-        wait_outcomes=[TimeoutError("UI send did not start stream"), {"userMsgs": 1}],
+        wait_outcomes=[
+            TimeoutError("UI send did not start stream"),
+            {"okViaApi": True, "userMsgs": 1},
+        ],
         api_counts=[0],
+        monkeypatch=monkeypatch,
     )
     result = await chat.fast_desktop_agent_submit(
         "do stuff",
@@ -110,13 +124,16 @@ async def test_submit_silent_then_refill_consumes() -> None:
 
 
 @pytest.mark.asyncio
-async def test_submit_silent_twice_raises_fail_fast() -> None:
+async def test_submit_silent_twice_raises_fail_fast(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     chat = _make_chat(
         wait_outcomes=[
             TimeoutError("UI send did not start stream"),
             TimeoutError("UI send did not start stream"),
         ],
         api_counts=[0, 0],
+        monkeypatch=monkeypatch,
     )
     with pytest.raises(RuntimeError, match="not consumed after refill"):
         await chat.fast_desktop_agent_submit(
@@ -131,11 +148,17 @@ async def test_submit_silent_twice_raises_fail_fast() -> None:
 
 
 @pytest.mark.asyncio
-async def test_submit_ui_sending_flag_without_persistence_triggers_refill() -> None:
-    """R-ax19: stuck UI `sending` flag alone must not count as consumed."""
+async def test_submit_ui_sending_flag_without_persistence_triggers_refill(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """R-ax19/ax21: stuck UI flags alone must not count as consumed."""
     chat = _make_chat(
-        wait_outcomes=[{"sending": True, "userMsgs": 0}, {"userMsgs": 1}],
+        wait_outcomes=[
+            {"sending": True, "userMsgs": 0},
+            {"okViaApi": True, "userMsgs": 1},
+        ],
         api_counts=[0],
+        monkeypatch=monkeypatch,
     )
     result = await chat.fast_desktop_agent_submit(
         "do stuff",
@@ -152,11 +175,14 @@ async def test_submit_ui_sending_flag_without_persistence_triggers_refill() -> N
 
 
 @pytest.mark.asyncio
-async def test_submit_slow_api_backstop_accepts_without_refill() -> None:
+async def test_submit_slow_api_backstop_accepts_without_refill(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Slow API: UI wait inconclusive but message landed -> no double-send."""
     chat = _make_chat(
         wait_outcomes=[{"sending": True, "userMsgs": 0}],
-        api_counts=[1],
+        api_counts=[0, 0, 1],
+        monkeypatch=monkeypatch,
     )
     result = await chat.fast_desktop_agent_submit(
         "do stuff",
@@ -173,10 +199,13 @@ async def test_submit_slow_api_backstop_accepts_without_refill() -> None:
 
 
 @pytest.mark.asyncio
-async def test_submit_timeout_with_api_persisted_accepts_backstop() -> None:
+async def test_submit_timeout_with_api_persisted_accepts_backstop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     chat = _make_chat(
         wait_outcomes=[TimeoutError("UI send did not start stream")],
         api_counts=[2],
+        monkeypatch=monkeypatch,
     )
     result = await chat.fast_desktop_agent_submit(
         "do stuff",

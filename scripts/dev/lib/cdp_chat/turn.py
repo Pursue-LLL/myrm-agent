@@ -48,6 +48,8 @@ def _bridge_has_completion(bridge: dict[str, object]) -> bool:
 
 
 _SUBMIT_CONSUMED_WAIT_SEC = 45.0
+_SUBMIT_API_GRACE_SEC = 30.0
+_SUBMIT_API_GRACE_POLL_SEC = 5.0
 
 
 class CdpChatTurn(CdpChatSubmit):
@@ -670,20 +672,45 @@ class CdpChatTurn(CdpChatSubmit):
     @staticmethod
     def _submit_consumed_confirmed(
         started: dict[str, object] | None,
-        *,
-        baseline_user_msgs: int,
     ) -> bool:
-        """True only on hard persistence signals (R-ax19).
+        """True only on API-confirmed persistence signals (R-ax21).
 
-        UI `sending`/`hasUserPrompt` flags can stick when the transport is
-        wedged (spinner shown, nothing reaches the server). Trust only
-        API-confirmed results or an actual userMsgs advance.
+        UI `sending`/`hasUserPrompt`/`userMsgs` are browser-local: on a
+        wedged transport the UI shows the message while the server never
+        receives it (ax21: wait returned via UI userMsgs, API userCount
+        stayed 0 forever). Trust only okViaApi/okViaUiTurn, both of which
+        require a server round-trip.
         """
         if not isinstance(started, dict):
             return False
-        if started.get("okViaApi") or started.get("okViaUiTurn"):
+        return bool(started.get("okViaApi") or started.get("okViaUiTurn"))
+
+    async def _submit_api_grace_advance(
+        self,
+        chat_id: str | None,
+        *,
+        baseline_user_msgs: int,
+        timeout_sec: float | None = None,
+    ) -> bool:
+        """Poll API userCount briefly for slow-server persistence (R-ax21).
+
+        Guards the refill decision: a healthy-but-slow backend may persist
+        after the UI wait gave up. Accept on advance (avoids double-send);
+        refill only on confirmed absence.
+        """
+        normalized = (chat_id or "").strip()
+        if not normalized:
             return True
-        return int(started.get("userMsgs") or 0) >= baseline_user_msgs + 1
+        effective = _SUBMIT_API_GRACE_SEC if timeout_sec is None else timeout_sec
+        deadline = time.monotonic() + effective
+        while time.monotonic() < deadline:
+            if await self._submit_persisted_in_api(
+                normalized,
+                baseline_user_msgs=baseline_user_msgs,
+            ):
+                return True
+            await asyncio.sleep(_SUBMIT_API_GRACE_POLL_SEC)
+        return False
 
     async def _submit_persisted_in_api(
         self,
@@ -810,16 +837,14 @@ class CdpChatTurn(CdpChatSubmit):
                 baseline_user_msgs=baseline_user_msgs,
                 chat_id_hint=chat_id,
             )
-            consumed = self._submit_consumed_confirmed(
-                started,
-                baseline_user_msgs=baseline_user_msgs,
-            )
-            if not consumed and await self._submit_persisted_in_api(
+            consumed = self._submit_consumed_confirmed(started)
+            if not consumed and await self._submit_api_grace_advance(
                 chat_id,
                 baseline_user_msgs=baseline_user_msgs,
             ):
-                # Slow API backstop: UI wait saw no hard signal, but the
-                # message did land. Accept without refill (avoids double-send).
+                # Slow-server backstop: UI wait saw no hard signal, but the
+                # message landed within grace. Accept without refill
+                # (avoids double-send).
                 consumed = True
                 if not isinstance(started, dict):
                     started = {
@@ -827,17 +852,20 @@ class CdpChatTurn(CdpChatSubmit):
                         "userMsgs": baseline_user_msgs + 1,
                     }
             if not consumed:
-                # R-ax15/ax16/ax19: native click reported ok but nothing
-                # persisted server-side (userCount stuck at baseline; UI
-                # `sending` flags can stick on a wedged transport). A mux
+                # R-ax15/ax16/ax19/ax21: native click reported ok but nothing
+                # persisted server-side (userCount stuck at baseline past
+                # grace; UI flags can stick on a wedged transport). A mux
                 # reclaim between setInputMessage and click wipes the filled
-                # input, so the click submits emptiness. Re-fill + re-click
-                # once; if the turn is still silent afterwards it can never
-                # complete, so fail fast instead of burning the run on fiction.
+                # input, so the click submits emptiness. Re-attach (route may
+                # have moved under reclaim), re-fill + re-click once; if the
+                # turn is still silent afterwards it can never complete, so
+                # fail fast instead of burning the run on fiction.
                 self._emit_bridge_diag(
                     "SUBMIT_NOT_CONSUMED refill-and-reclick once "
                     f"baseline={baseline_user_msgs} chat_id={(chat_id or '')[:8]}..."
                 )
+                if chat_id:
+                    await self._attach_chat_session(chat_id)
                 await self.evaluate(
                     PREPARE_AUTOMATION_SEND_JS,
                     intent=EvaluateIntent.SYNC_PROBE,
@@ -859,9 +887,8 @@ class CdpChatTurn(CdpChatSubmit):
                     chat_id_hint=chat_id,
                 )
                 consumed = self._submit_consumed_confirmed(
-                    started,
-                    baseline_user_msgs=baseline_user_msgs,
-                ) or await self._submit_persisted_in_api(
+                    started
+                ) or await self._submit_api_grace_advance(
                     chat_id,
                     baseline_user_msgs=baseline_user_msgs,
                 )
