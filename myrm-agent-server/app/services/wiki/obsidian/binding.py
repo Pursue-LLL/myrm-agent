@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - get_obsidian_vault_binding: Retrieve currently bound vault configuration.
-- set_obsidian_vault_binding: Set or update bound vault path, watermark, and settings.
+- set_obsidian_vault_binding: Set or update bound vault path and sync watermark.
 - scan_vault_mtime_watermark: Quick mtime check to compute modified or added markdown/canvas files.
 
 [POS]
@@ -34,12 +34,11 @@ OBSIDIAN_VAULT_CONFIG_KEY = "obsidian_vault_binding"
 
 @dataclass
 class ObsidianVaultBinding:
-    """Configured Obsidian Vault binding state.
+    """Bound Obsidian Vault directory and its sync watermark.
 
-    Only fields with a real executor are persisted here. Sync is driven by
-    explicit user action through ``sync_vault_delta``, never implicitly, so no
-    ``auto_sync_on_recall`` toggle exists — a flag nothing reads is a promise
-    the product cannot keep.
+    A sandboxed deployment cannot stat a directory on the user's own device, so
+    the binding is only meaningful when the backend runs on the same machine as
+    the vault.
     """
 
     vault_path: str
