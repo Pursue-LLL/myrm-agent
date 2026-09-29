@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from app.services.meeting_notes.live_notes import (  # noqa: E402
     LiveNotesRegistry,
     LiveNotesSession,
+    get_live_notes_registry,
 )
 
 
@@ -133,3 +134,12 @@ async def test_registry_evicts_oldest_when_bounded() -> None:
     assert await registry.get("a") is None
     assert await registry.get("b") is not None
     assert await registry.get("c") is not None
+
+
+async def test_refresh_bypasses_throttle_and_registry_is_singleton() -> None:
+    session = LiveNotesSession("s1", refresh_seconds=3600, min_new_chars=10_000, clock=_Clock())
+    session.ingest("only a few chars")
+    llm = _FakeLLM()
+    snapshot = await session.refresh(llm)
+    assert snapshot.notes is not None
+    assert get_live_notes_registry() is get_live_notes_registry()
