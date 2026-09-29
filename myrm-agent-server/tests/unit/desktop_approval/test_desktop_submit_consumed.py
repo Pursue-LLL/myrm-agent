@@ -30,6 +30,7 @@ def _make_chat(
         "submit_calls": 0,
         "bridge_calls": 0,
         "evaluate_calls": 0,
+        "abort_calls": 0,
         "diags": [],
     }
     object.__setattr__(chat, "_unit_state", state)
@@ -37,8 +38,12 @@ def _make_chat(
     async def _ensure_bridge(*_: object, **__: object) -> None:
         return None
 
-    async def _evaluate(*_: object, **__: object) -> dict[str, object]:
+    async def _evaluate(expression: object, *args: object, **kwargs: object) -> dict[str, object]:
+        _ = args
+        _ = kwargs
         state["evaluate_calls"] += 1
+        if isinstance(expression, str) and "abortActiveStream" in expression:
+            state["abort_calls"] += 1
         return {"ok": True}
 
     async def _submit_native_click(*_: object, **__: object) -> dict[str, object]:
@@ -233,6 +238,7 @@ async def test_submit_silent_twice_raises_fail_fast_with_snapshot(
     assert state["wait_calls"] == 2
     assert state["submit_calls"] == 2
     assert state["bridge_calls"] == 2
+    assert state["abort_calls"] == 1
 
 
 @pytest.mark.asyncio

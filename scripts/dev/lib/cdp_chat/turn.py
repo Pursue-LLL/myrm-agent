@@ -1008,6 +1008,19 @@ class CdpChatTurn(CdpChatSubmit):
                         chat_id,
                         baseline_user_msgs=baseline_user_msgs,
                     )
+                    # Hygiene: a hung POST (no-timeout SSE fetch) would keep
+                    # loading=true and poison every later send via the busy
+                    # guard. Abort best-effort so the next attempt starts
+                    # from a clean store; never mask the original failure.
+                    try:
+                        await self.evaluate(
+                            "(() => {"
+                            " window.__MYRM_E2E_CHAT__?.abortActiveStream?.();"
+                            " return { ok: true }; })()",
+                            intent=EvaluateIntent.SYNC_PROBE,
+                        )
+                    except (RuntimeError, TimeoutError, OSError):
+                        pass
                     raise RuntimeError(
                         "fast desktop submit not consumed after refill "
                         f"(baseline_user_msgs={baseline_user_msgs} "
