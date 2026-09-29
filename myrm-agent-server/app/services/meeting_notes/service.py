@@ -321,4 +321,6 @@ async def publish_meeting_notes(
         auto_compile=auto_compile,
         compiler_enqueue=compiler_enqueue,
     )
-    return [str(published)] if published else []
+    # Report the vault-relative path only, and only for a real write: stringifying the
+    # result object would leak the absolute local path and claim success for a skip.
+    return [published.relative_path] if published.written else []

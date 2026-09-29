@@ -31,6 +31,23 @@ class _FakeLLM:
         return _FakeResponse(self._content)
 
 
+def _raw_publish_result(relative_path: str, *, written: bool, security_blocked: bool = False) -> Any:
+    """Build the real harness result object so mocks cannot drift from the contract."""
+    from myrm_agent_harness.toolkits.wiki.pipeline.raw_gate import RawPublishResult
+
+    return RawPublishResult(
+        relative_path=relative_path,
+        absolute_path=Path("/tmp/e2e") / relative_path,
+        content_hash="0" * 64,
+        written=written,
+        skipped=not written,
+        superseded=False,
+        created=written,
+        security_verdict="blocked" if security_blocked else "clean",
+        security_blocked=security_blocked,
+    )
+
+
 def test_resolve_ffmpeg_env_override(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     binary = tmp_path / "ffmpeg"
     binary.write_text("#!/bin/sh\n", encoding="utf-8")
@@ -181,10 +198,10 @@ async def test_publish_meeting_notes_renders_risks(
 
     captured: dict[str, Any] = {}
 
-    async def _fake_publish(structure: object, *, relative_path: str, content: str, **_kwargs: object) -> str:
+    async def _fake_publish(structure: object, *, relative_path: str, content: str, **_kwargs: object) -> Any:
         captured["content"] = content
         captured["relative_path"] = relative_path
-        return relative_path
+        return _raw_publish_result(relative_path, written=True)
 
     monkeypatch.setattr(helpers, "publish_source_markdown", _fake_publish)
     monkeypatch.setattr(helpers, "build_frontmatter", lambda **_kwargs: "---\n")
@@ -196,6 +213,23 @@ async def test_publish_meeting_notes_renders_risks(
     assert "## Risks" in captured["content"]
     assert captured["relative_path"].startswith("meeting-notes/")
     assert published == [captured["relative_path"]]
+
+
+async def test_publish_meeting_notes_skips_unwritten_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A blocked/skipped publish must not be reported as a published path."""
+    import app.services.wiki.source_sync.publish_helpers as helpers
+
+    async def _fake_publish(structure: object, *, relative_path: str, content: str, **_kwargs: object) -> Any:
+        return _raw_publish_result(relative_path, written=False, security_blocked=True)
+
+    monkeypatch.setattr(helpers, "publish_source_markdown", _fake_publish)
+    monkeypatch.setattr(helpers, "build_frontmatter", lambda **_kwargs: "---\n")
+    monkeypatch.setattr(helpers, "sanitize_path_segment", lambda segment: segment)
+
+    notes = StructuredMeetingNotes(title="Plan", summary="S", risks=("r",))
+    assert await svc_mod.publish_meeting_notes(object(), notes, "t", None, False, None) == []
 
 
 def test_render_minutes_markdown_includes_risks() -> None:
