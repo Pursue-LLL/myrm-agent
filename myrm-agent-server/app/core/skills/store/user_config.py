@@ -19,12 +19,13 @@ from ..models import UserSkillConfig
 logger = logging.getLogger(__name__)
 
 # 全新安装时默认启用的预置技能：跨行业通用的本地处理型工作流，开箱即可完成
-# 读文档 / 数据分析 / 深度调研 / 导出 PDF 四类高频办公任务，无需用户先配置。
+# 读文档 / 数据分析 / 深度调研 / 生成办公文档 / 导出 PDF 五类高频办公任务，无需用户先配置。
 # 仅在此处生效——已有配置文件的用户始终保留自己的启用选择。
 _DEFAULT_ENABLED_PREBUILT_SKILLS: tuple[str, ...] = (
     "data-analysis",
     "deep-research",
     "document-extraction",
+    "office-document",
     "pdf-generator",
 )
 
