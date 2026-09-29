@@ -119,6 +119,39 @@ async def test_create_skill_backend_loads_prebuilt(
 
 
 @pytest.mark.asyncio
+async def test_fresh_install_binds_exactly_curated_default_skills(
+    storage: LocalStorageBackend,
+) -> None:
+    """首装全链路：无配置 → 种子同步 → 默认集落库 → loader 白名单 → 恰好绑定精选技能。"""
+    from app.core.skills.loader import create_skill_backend
+
+    service = SkillsService(storage=storage)
+    sync_result = await prebuilt_sync.sync_prebuilt_seeds(storage)
+    config = await service.user_config.ensure_prebuilt_enabled_after_sync(list(sync_result.skill_ids))
+
+    # 字面期望值而非从常量推导：精选集增删必须让本用例显式失败
+    expected = [
+        "data-analysis",
+        "deep-research",
+        "document-extraction",
+        "office-document",
+        "pdf-generator",
+    ]
+    assert config.enabled_prebuilt_ids == expected
+    assert set(expected) <= set(sync_result.skill_ids)
+
+    with patch("app.core.skills.store.service.skills_service", service):
+        backend = await create_skill_backend(
+            storage=storage,
+            allowed_prebuilt_ids=frozenset(config.enabled_prebuilt_ids),
+        )
+
+    # 本次调用未传 user_id/skill_ids/workspace，routes 仅含白名单化的 /prebuilt/
+    bound = {s.name for s in await backend.list_skills()}
+    assert bound == set(expected)
+
+
+@pytest.mark.asyncio
 async def test_resolve_skill_env_map_with_real_backend(
     storage: LocalStorageBackend,
 ) -> None:
