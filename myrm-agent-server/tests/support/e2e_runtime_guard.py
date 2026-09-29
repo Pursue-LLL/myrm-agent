@@ -513,6 +513,7 @@ def assert_chrome_attach_health() -> None:
     ]
     deadline = time.monotonic() + float(max(wait_sec, 1))
     last_detail = "unknown attach probe failure"
+    next_ui_heal_at = 0.0
     while time.monotonic() < deadline:
         remaining = deadline - time.monotonic()
         proc_timeout = min(60, max(1, int(remaining)))
@@ -526,6 +527,18 @@ def assert_chrome_attach_health() -> None:
         if proc.returncode == 0:
             return
         last_detail = proc.stderr.strip() or proc.stdout.strip() or f"exit={proc.returncode}"
+        now = time.monotonic()
+        if now >= next_ui_heal_at:
+            lowered = last_detail.lower()
+            if any(k in lowered for k in ("shellhot=false", "frontendepoch=missing", "connection refused", "ui_dead", "missing next")):
+                try:
+                    from e2e_core.warm_ui_heal import heal_shared_frontend_attach
+
+                    monorepo_root = Path(__file__).resolve().parents[4]
+                    heal_shared_frontend_attach(monorepo_root, flock_wait_sec=15.0)
+                except (ImportError, OSError, RuntimeError):
+                    pass
+                next_ui_heal_at = time.monotonic() + 30.0
         if time.monotonic() >= deadline:
             break
         sleep_for = min(float(poll_sec), max(0.0, deadline - time.monotonic()))
