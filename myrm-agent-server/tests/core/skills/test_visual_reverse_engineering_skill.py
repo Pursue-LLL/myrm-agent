@@ -9,6 +9,7 @@ Verifies:
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,14 @@ from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
 from app.core.skills import prebuilt_sync
 from app.core.skills.store.service import SkillsService
+
+
+@pytest.fixture(autouse=True)
+def reset_sync_flag() -> Iterator[None]:
+    """隔离种子同步的进程级闩，避免本文件的同步调用影响后续测试。"""
+    prebuilt_sync._synced = False  # noqa: SLF001
+    yield
+    prebuilt_sync._synced = False  # noqa: SLF001
 
 
 def test_visual_reverse_engineering_frontmatter_validity() -> None:
