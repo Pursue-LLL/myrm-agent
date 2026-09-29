@@ -16,6 +16,7 @@ def _make_chat(
     *,
     wait_outcomes: list[object],
     submit_outcomes: list[dict[str, object]] | None = None,
+    api_counts: list[int] | None = None,
 ) -> CdpChatTurn:
     chat = CdpChatTurn.__new__(CdpChatTurn)
     state = {
@@ -52,6 +53,14 @@ def _make_chat(
     def _emit_diag(message: str) -> None:
         state["diags"].append(message)
 
+    pending_counts = list(api_counts) if api_counts is not None else []
+
+    async def _best_effort_count(*_: object, **__: object) -> int:
+        if not pending_counts:
+            raise AssertionError("missing api user count outcome")
+        return pending_counts.pop(0)
+
+    object.__setattr__(chat, "_best_effort_user_message_count", _best_effort_count)
     object.__setattr__(chat, "ensure_react_e2e_bridge", _ensure_bridge)
     object.__setattr__(chat, "evaluate", _evaluate)
     object.__setattr__(chat, "submit_native_click", _submit_native_click)
@@ -80,10 +89,12 @@ async def test_submit_consumed_first_try_no_refill() -> None:
 async def test_submit_silent_then_refill_consumes() -> None:
     chat = _make_chat(
         wait_outcomes=[TimeoutError("UI send did not start stream"), {"userMsgs": 1}],
+        api_counts=[0],
     )
     result = await chat.fast_desktop_agent_submit(
         "do stuff",
         "do stuff",
+        chat_id_hint="chat-1",
         baseline_user_msgs_hint=0,
     )
     started = result.get("started")
@@ -92,8 +103,9 @@ async def test_submit_silent_then_refill_consumes() -> None:
     state = chat._unit_state  # noqa: SLF001
     assert state["wait_calls"] == 2
     assert state["submit_calls"] == 2
-    # initial prepare+setInput (2 evaluates) + refill prepare+setInput (2)
-    assert state["evaluate_calls"] == 4
+    # initial prepare+setInput plus refill prepare+setInput (attach probes
+    # excluded: exact evaluate count is an attach-internal detail)
+    assert state["evaluate_calls"] >= 4
     assert any("SUBMIT_NOT_CONSUMED" in diag for diag in state["diags"])
 
 
@@ -104,16 +116,81 @@ async def test_submit_silent_twice_raises_fail_fast() -> None:
             TimeoutError("UI send did not start stream"),
             TimeoutError("UI send did not start stream"),
         ],
+        api_counts=[0, 0],
     )
     with pytest.raises(RuntimeError, match="not consumed after refill"):
         await chat.fast_desktop_agent_submit(
             "do stuff",
             "do stuff",
+            chat_id_hint="chat-1",
             baseline_user_msgs_hint=0,
         )
     state = chat._unit_state  # noqa: SLF001
     assert state["wait_calls"] == 2
     assert state["submit_calls"] == 2
+
+
+@pytest.mark.asyncio
+async def test_submit_ui_sending_flag_without_persistence_triggers_refill() -> None:
+    """R-ax19: stuck UI `sending` flag alone must not count as consumed."""
+    chat = _make_chat(
+        wait_outcomes=[{"sending": True, "userMsgs": 0}, {"userMsgs": 1}],
+        api_counts=[0],
+    )
+    result = await chat.fast_desktop_agent_submit(
+        "do stuff",
+        "do stuff",
+        chat_id_hint="chat-1",
+        baseline_user_msgs_hint=0,
+    )
+    started = result.get("started")
+    assert isinstance(started, dict)
+    assert started.get("streamProbe") == "consumed_after_refill"
+    state = chat._unit_state  # noqa: SLF001
+    assert state["wait_calls"] == 2
+    assert state["submit_calls"] == 2
+
+
+@pytest.mark.asyncio
+async def test_submit_slow_api_backstop_accepts_without_refill() -> None:
+    """Slow API: UI wait inconclusive but message landed -> no double-send."""
+    chat = _make_chat(
+        wait_outcomes=[{"sending": True, "userMsgs": 0}],
+        api_counts=[1],
+    )
+    result = await chat.fast_desktop_agent_submit(
+        "do stuff",
+        "do stuff",
+        chat_id_hint="chat-1",
+        baseline_user_msgs_hint=0,
+    )
+    started = result.get("started")
+    assert isinstance(started, dict)
+    assert started.get("chatId") == "chat-1"
+    state = chat._unit_state  # noqa: SLF001
+    assert state["wait_calls"] == 1
+    assert state["submit_calls"] == 1
+
+
+@pytest.mark.asyncio
+async def test_submit_timeout_with_api_persisted_accepts_backstop() -> None:
+    chat = _make_chat(
+        wait_outcomes=[TimeoutError("UI send did not start stream")],
+        api_counts=[2],
+    )
+    result = await chat.fast_desktop_agent_submit(
+        "do stuff",
+        "do stuff",
+        chat_id_hint="chat-1",
+        baseline_user_msgs_hint=1,
+    )
+    started = result.get("started")
+    assert isinstance(started, dict)
+    assert started.get("okViaApiBackstop") is True
+    assert started.get("chatId") == "chat-1"
+    state = chat._unit_state  # noqa: SLF001
+    assert state["wait_calls"] == 1
+    assert state["submit_calls"] == 1
 
 
 @pytest.mark.asyncio

@@ -649,10 +649,11 @@ class CdpChatTurn(CdpChatSubmit):
         baseline_user_msgs: int,
         chat_id_hint: str | None,
     ) -> dict[str, object] | None:
-        """Wait until the submit persisted (stream or userCount advance).
+        """Wait until the submit shows activity (stream, userCount, API).
 
-        Returns the wait result when consumed, None on timeout. A None means
-        the click dispatched but the turn never existed server-side.
+        Returns the wait result when activity observed, None on timeout. The
+        result still needs confirmation (UI `sending` flags can stick on a
+        wedged transport without server persistence).
         """
         try:
             return await asyncio.wait_for(
@@ -665,6 +666,43 @@ class CdpChatTurn(CdpChatSubmit):
             )
         except TimeoutError:
             return None
+
+    @staticmethod
+    def _submit_consumed_confirmed(
+        started: dict[str, object] | None,
+        *,
+        baseline_user_msgs: int,
+    ) -> bool:
+        """True only on hard persistence signals (R-ax19).
+
+        UI `sending`/`hasUserPrompt` flags can stick when the transport is
+        wedged (spinner shown, nothing reaches the server). Trust only
+        API-confirmed results or an actual userMsgs advance.
+        """
+        if not isinstance(started, dict):
+            return False
+        if started.get("okViaApi") or started.get("okViaUiTurn"):
+            return True
+        return int(started.get("userMsgs") or 0) >= baseline_user_msgs + 1
+
+    async def _submit_persisted_in_api(
+        self,
+        chat_id: str | None,
+        *,
+        baseline_user_msgs: int,
+    ) -> bool:
+        """Direct API userCount check (slow-API backstop before refill).
+
+        Prevents double-send: refill only when the server really has nothing.
+        Unknown chat preserves the legacy trust path.
+        """
+        normalized = (chat_id or "").strip()
+        if not normalized:
+            return True
+        return (
+            await self._best_effort_user_message_count(normalized)
+            > baseline_user_msgs
+        )
 
     async def fast_desktop_agent_submit(
         self,
@@ -772,13 +810,30 @@ class CdpChatTurn(CdpChatSubmit):
                 baseline_user_msgs=baseline_user_msgs,
                 chat_id_hint=chat_id,
             )
-            if started is None:
-                # R-ax15/ax16: native click reported ok but nothing persisted
-                # server-side (userCount stuck at baseline). A mux reclaim
-                # between setInputMessage and click wipes the filled input, so
-                # the click submits emptiness. Re-fill + re-click once; if the
-                # turn is still silent afterwards it can never complete, so
-                # fail fast instead of burning the run on fiction.
+            consumed = self._submit_consumed_confirmed(
+                started,
+                baseline_user_msgs=baseline_user_msgs,
+            )
+            if not consumed and await self._submit_persisted_in_api(
+                chat_id,
+                baseline_user_msgs=baseline_user_msgs,
+            ):
+                # Slow API backstop: UI wait saw no hard signal, but the
+                # message did land. Accept without refill (avoids double-send).
+                consumed = True
+                if not isinstance(started, dict):
+                    started = {
+                        "okViaApiBackstop": True,
+                        "userMsgs": baseline_user_msgs + 1,
+                    }
+            if not consumed:
+                # R-ax15/ax16/ax19: native click reported ok but nothing
+                # persisted server-side (userCount stuck at baseline; UI
+                # `sending` flags can stick on a wedged transport). A mux
+                # reclaim between setInputMessage and click wipes the filled
+                # input, so the click submits emptiness. Re-fill + re-click
+                # once; if the turn is still silent afterwards it can never
+                # complete, so fail fast instead of burning the run on fiction.
                 self._emit_bridge_diag(
                     "SUBMIT_NOT_CONSUMED refill-and-reclick once "
                     f"baseline={baseline_user_msgs} chat_id={(chat_id or '')[:8]}..."
@@ -803,7 +858,14 @@ class CdpChatTurn(CdpChatSubmit):
                     baseline_user_msgs=baseline_user_msgs,
                     chat_id_hint=chat_id,
                 )
-                if started is None:
+                consumed = self._submit_consumed_confirmed(
+                    started,
+                    baseline_user_msgs=baseline_user_msgs,
+                ) or await self._submit_persisted_in_api(
+                    chat_id,
+                    baseline_user_msgs=baseline_user_msgs,
+                )
+                if not consumed:
                     raise RuntimeError(
                         "fast desktop submit not consumed after refill "
                         f"(baseline_user_msgs={baseline_user_msgs} "
@@ -811,6 +873,7 @@ class CdpChatTurn(CdpChatSubmit):
                         "message never persisted server-side; check mux reclaim "
                         "stall, chat route attach, or send-button staleness"
                     )
+                started = started if isinstance(started, dict) else {}
                 started["streamProbe"] = "consumed_after_refill"
         else:
             started = {
