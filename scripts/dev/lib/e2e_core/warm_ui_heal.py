@@ -281,6 +281,7 @@ def heal_shared_frontend_attach(
     flock_wait_sec: float = _ATTACH_FLOCK_WAIT_SEC,
     subprocess_timeout_sec: float = _ATTACH_SUBPROCESS_TIMEOUT_SEC,
     poll_sec: float = 5.0,
+    warmup_routes: tuple[str, ...] = ("/", "/meeting"),
 ) -> str:
     """Single-writer attach frontend heal across parallel chrome_e2e ADMIT sessions."""
     if is_frontend_dev_paused():
@@ -372,6 +373,9 @@ def heal_shared_frontend_attach(
                 file=sys.stderr,
             )
             return "leader_failed"
+        if warmup_routes:
+            for route_to_warm in warmup_routes:
+                _route_probe_ok(route_to_warm, timeout_sec=15.0)
         _write_heal_stamp()
         return "leader_ok"
     finally:
