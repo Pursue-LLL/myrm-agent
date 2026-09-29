@@ -94,14 +94,6 @@ async def _build_manager(base_path):
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 @pytest.mark.asyncio
-@pytest.mark.xfail(
-    reason=(
-        "Conflict detection now keeps both records, but recall still serves the "
-        "withdrawn one first, so the retired flag is not reaching the read path. "
-        "Tracked so the day it does this turns into a failure."
-    ),
-    strict=True,
-)
 async def test_reversed_decision_survives_to_recall_on_a_real_store(tmp_path) -> None:
     """The store must serve the surviving choice and hold both records for a human."""
     if True:
