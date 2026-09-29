@@ -84,7 +84,8 @@ prebuilt_sync.py                 启动时同步到 storage + 清理幽灵条目
 user_config.ensure_prebuilt_enabled_after_sync()
     → 新安装（无 config 文件）：默认不启动任何技能（enabled_prebuilt_ids = []，零启动纯净基线）
     → 已有配置：保持用户已选启用列表；从 enabled/disabled 列表移除已无 seed 的幽灵 ID
-builtin_initializer                  BuiltIn Agent 默认不加载任何技能（skill_ids = []，纯指令模式）
+builtin_initializer                  BuiltIn Agent 不绑定 user 技能（skill_ids = []）；
+                                      预置体可用技能 = 用户全局启用的 prebuilt 集（agent 绑定不参与该判定）
 ```
 
 存储路径约定见 `myrm_agent_harness.toolkits.storage.paths`（`SKILL_METADATA_FILE = _metadata.json`）。
