@@ -126,7 +126,6 @@ def _run_heal_flocked(
             wait_sec=wait_sec,
         )
     from e2e_core.stack_mutation_policy import backend_heal_file_lock
-    import subprocess
 
     try:
         with backend_heal_file_lock(default_backend_heal_flock_file(), wait_sec):

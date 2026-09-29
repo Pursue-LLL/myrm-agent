@@ -12,7 +12,6 @@ on its own, which is why the reversal is split across sessions.
 """
 
 import os
-from datetime import UTC, datetime
 
 import pytest
 from dotenv import load_dotenv

@@ -7,7 +7,6 @@ Preserves machine tokens (E2E_LEASE_WAIT, E2E_MUX_ADMISSION_WAIT) for grep/tests
 from __future__ import annotations
 
 import argparse
-import sys
 
 
 def format_lease_wait(
