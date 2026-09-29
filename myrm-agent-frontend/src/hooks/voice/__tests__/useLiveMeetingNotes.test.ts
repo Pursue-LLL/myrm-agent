@@ -47,6 +47,72 @@ describe('useLiveMeetingNotes', () => {
     expect(second.result.current.sessionId).toBe(sessionId);
   });
 
+  it('still works when sessionStorage is unavailable', async () => {
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    try {
+      const { result } = renderHook(() => useLiveMeetingNotes('chat-locked'));
+      expect(result.current.sessionId).toMatch(/^live-/);
+      act(() => {
+        result.current.ingest('line while storage is blocked');
+      });
+      await waitFor(() => expect(ingestLiveTranscript).toHaveBeenCalledTimes(1));
+    } finally {
+      getItem.mockRestore();
+      setItem.mockRestore();
+    }
+  });
+
+  it('keeps a distinct session per key and per anonymous use', () => {
+    const a = renderHook(() => useLiveMeetingNotes('chat-a'));
+    const b = renderHook(() => useLiveMeetingNotes('chat-b'));
+    const anonymous = renderHook(() => useLiveMeetingNotes());
+    expect(a.result.current.sessionId).not.toBe(b.result.current.sessionId);
+    expect(anonymous.result.current.sessionId).toMatch(/^live-/);
+  });
+
+  it('finalize publishes the snapshot and clears the stored key', async () => {
+    const { result } = renderHook(() => useLiveMeetingNotes('chat-final'));
+    const sessionId = result.current.sessionId;
+    let resolved: unknown = null;
+    await act(async () => {
+      resolved = await result.current.finalize();
+    });
+    expect(finalizeLiveMeeting).toHaveBeenCalledWith(sessionId);
+    expect(resolved).toEqual(EMPTY_SNAPSHOT);
+    expect(window.sessionStorage.getItem('myrm-live-notes:chat-final')).toBeNull();
+  });
+
+  it('returns null and keeps working when finalize fails', async () => {
+    finalizeLiveMeeting.mockRejectedValueOnce(new Error('network down'));
+    const { result } = renderHook(() => useLiveMeetingNotes('chat-final-fail'));
+    let resolved: unknown = 'unset';
+    await act(async () => {
+      resolved = await result.current.finalize();
+    });
+    expect(resolved).toBeNull();
+    // The session is not torn down by a failed finalize.
+    act(() => {
+      result.current.ingest('after a failed finalize');
+    });
+    await waitFor(() => expect(ingestLiveTranscript).toHaveBeenCalledTimes(1));
+  });
+
+  it('never lets a failed ingest break the voice session', async () => {
+    ingestLiveTranscript.mockRejectedValueOnce(new Error('500'));
+    const { result } = renderHook(() => useLiveMeetingNotes('chat-ingest-fail'));
+    act(() => {
+      result.current.ingest('first');
+      result.current.ingest('second');
+    });
+    // The queue keeps draining after the failure instead of stalling on it.
+    await waitFor(() => expect(ingestLiveTranscript).toHaveBeenCalledTimes(2));
+  });
+
   it('drains finalized transcript lines through the service with a stable line id', async () => {
     const { result } = renderHook(() => useLiveMeetingNotes('chat-2'));
     act(() => {

@@ -247,23 +247,68 @@ async def distill_meeting_notes(transcript: str, llm: object) -> StructuredMeeti
         return StructuredMeetingNotes(
             title="Meeting Notes", summary=str(content)[:4000]
         )
-    action_items = tuple(
-        MeetingActionItem(
-            description=str(item.get("description", "")),
-            owner=item.get("owner") or None,
-            due_hint=item.get("due_hint") or None,
-        )
-        for item in payload.get("action_items", [])
-        if isinstance(item, dict) and item.get("description")
-    )
+    if not isinstance(payload, dict):
+        # Valid JSON that is not a minutes object (bare list/scalar): same degradation
+        # path as unparsable output, so a chatty model never turns into a failed meeting.
+        logger.warning("Meeting notes LLM response was not a JSON object; using raw summary")
+        return StructuredMeetingNotes(title="Meeting Notes", summary=str(content)[:4000])
     return StructuredMeetingNotes(
-        title=str(payload.get("title", "Meeting Notes"))[:80],
-        summary=str(payload.get("summary", "")),
-        decisions=tuple(str(d) for d in payload.get("decisions", [])),
-        debate_points=tuple(str(d) for d in payload.get("debate_points", [])),
-        risks=tuple(str(r) for r in payload.get("risks", [])),
-        action_items=action_items,
+        title=_as_title(payload.get("title")),
+        summary=str(payload.get("summary") or ""),
+        decisions=_as_text_tuple(payload.get("decisions")),
+        debate_points=_as_text_tuple(payload.get("debate_points")),
+        risks=_as_text_tuple(payload.get("risks")),
+        action_items=_as_action_items(payload.get("action_items")),
     )
+
+
+def _as_text_tuple(value: object) -> tuple[str, ...]:
+    """Coerce one LLM list field into clean, non-empty strings.
+
+    Real models return a bare string for a single-item list, ``null`` for "none", and
+    occasionally nested structures. Without coercion a bare string would be iterated
+    per character (one "risk" per letter) and ``null`` would raise, losing the meeting.
+    """
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        text = value.strip()
+        return (text,) if text else ()
+    if isinstance(value, (list, tuple)):
+        return tuple(text for text in (str(item).strip() for item in value) if text)
+    text = str(value).strip()
+    return (text,) if text else ()
+
+
+def _as_title(value: object) -> str:
+    """Return a usable meeting title, never the literal ``"None"``."""
+    text = str(value or "").strip()
+    return text[:80] if text else "Meeting Notes"
+
+
+def _as_action_items(value: object) -> tuple[MeetingActionItem, ...]:
+    """Coerce the action-item field, accepting the shapes models actually emit."""
+    if isinstance(value, (str, dict)):
+        value = [value]
+    if not isinstance(value, (list, tuple)):
+        return ()
+    items: list[MeetingActionItem] = []
+    for raw in value:
+        if isinstance(raw, dict):
+            description = str(raw.get("description") or "").strip()
+            owner = raw.get("owner") or None
+            due_hint = raw.get("due_hint") or None
+        elif isinstance(raw, str):
+            description = raw.strip()
+            owner, due_hint = None, None
+        else:
+            # Numbers/bools/nested lists are model noise, never an action item.
+            continue
+        if description:
+            items.append(
+                MeetingActionItem(description=description, owner=owner, due_hint=due_hint)
+            )
+    return tuple(items)
 
 
 def _render_minutes_markdown(

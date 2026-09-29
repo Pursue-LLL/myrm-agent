@@ -42,7 +42,7 @@ from myrm_agent_harness.toolkits.wiki.pipeline.cognitive_map import (
     WikiMapEvent,
     WikiMapEventType,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.api.dependencies import get_optional_llm_for_user
 from app.api.memory.utils import get_optional_memory_manager
@@ -3317,13 +3317,27 @@ from app.services.meeting_notes.service import publish_meeting_notes  # noqa: E4
 
 class LiveNotesIngestRequest(BaseModel):
     text: str = Field(..., min_length=1, description="Finalized transcript chunk")
-    timestamp: float | None = Field(default=None, ge=0, description="Seconds since session start")
+    timestamp: float | None = Field(
+        default=None,
+        ge=0,
+        allow_inf_nan=False,
+        description="Seconds since session start; must be finite",
+    )
     line_id: str = Field(
         ...,
         min_length=1,
         max_length=64,
         description="Client-generated id of this transcript line; replays are ignored",
     )
+
+    @field_validator("text")
+    @classmethod
+    def _reject_blank_line(cls, value: str) -> str:
+        # A blank line would be silently dropped by the session; reject it here so the
+        # caller learns its utterance never reached the minutes.
+        if not value.strip():
+            raise ValueError("text must contain a non-blank transcript line")
+        return value.strip()
 
 
 class LiveNotesSnapshotResponse(BaseModel):

@@ -20,6 +20,7 @@ framework code; it is a thin, deterministic scheduler around the existing distil
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 from dataclasses import dataclass
 
@@ -104,7 +105,10 @@ class LiveNotesSession:
             self._seen_line_ids[line_id] = None
             if len(self._seen_line_ids) > _DEDUPE_WINDOW:
                 del self._seen_line_ids[next(iter(self._seen_line_ids))]
-        ts = float(timestamp) if timestamp is not None else float(self._clock()) - self._started_at
+        raw_ts = float(timestamp) if timestamp is not None else float(self._clock()) - self._started_at
+        # A non-finite stamp would render as ``[nan:..]`` and, for an infinite one, make
+        # ``inf // 60`` NaN and raise when formatting; clamp it at the only write point.
+        ts = raw_ts if math.isfinite(raw_ts) else 0.0
         self._lines.append(_TranscriptLine(timestamp=max(0.0, ts), text=cleaned))
         self._chars_since_refresh += len(cleaned)
         return True

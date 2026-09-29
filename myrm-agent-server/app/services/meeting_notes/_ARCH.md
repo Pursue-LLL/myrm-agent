@@ -25,5 +25,7 @@
 - **发布契约规范**：`publish_meeting_notes` 仅返回真实写入（`written=True`）的库相对路径（Vault-relative path，如 `meeting-notes/*.md`），绝不泄露宿主机绝对路径，对安全拦截或跳过的结果返回空列表。
 - **同名不丢会议**：目标文件已存在时按 `-2`/`-3`… 自动改用空闲文件名（`_free_meeting_note_path`），避免 LLM 同名标题被 raw gate 跳过而导致整场会议静默丢失。
 - **转录幂等**：`LiveNotesSession.ingest` 接受 `line_id`，重复 id 视为重投直接忽略（去重窗口 `_DEDUPE_WINDOW` 有界），保证 at-least-once 投递下逐字稿不重复。
+- **时间戳防污染**：`ingest` 在唯一写入点用 `math.isfinite` 钳制非有限值——`inf // 60` 会得到 NaN 并在 `render_transcript` 抛错，进而让 finalize 500、整场会议纪要丢失。
+- **LLM 载荷强转**：`distill_meeting_notes` 经 `_as_title` / `_as_text_tuple` / `_as_action_items` 归一化——真实模型会把单条列表写成裸字符串（否则逐字符炸成 23 条“风险”）、把“无”写成 `null`（否则 TypeError）、甚至返回非对象 JSON（否则 AttributeError）；非对象载荷与非法 JSON 同样降级为原文摘要，绝不让模型啰嗦变成会议失败。
 - **≠** 声纹识别模型管理：diarization 委托 STT 供应商能力（xAI 云端已支持；本地 pyannote 为后续可配增强，不在本层硬编码）。
 - **≠** 会议日历/预约调度。

@@ -74,30 +74,47 @@ def _transcript_lines(codename: str) -> tuple[tuple[str, float], ...]:
         ),
     )
 
-_NOTE_RENDERED_JS = """(() => {
+_NOTE_RENDERED_JS = """(async () => {
   const text = document.body ? document.body.innerText : '';
   const hasShell = Boolean(document.querySelector('[data-testid="wiki-settings-shell"]'));
-  // Look for the note slug in document body text or specific raw tree items
   const slug = __SLUG__;
-  const hasNoteNode = text.includes(slug) || Boolean(document.querySelector(`[data-raw-path*="${slug}"]`));
+  const hasNoteNode = text.includes(slug);
+
+  // Probe the same endpoint the page uses, so a failure tells us whether the backend
+  // omitted the note or the tree simply had not rendered yet.
+  let apiStatus = -1;
+  let apiHasNode = false;
+  let apiError = '';
+  try {
+    const response = await fetch('/api/v1/wiki/raw/tree', { headers: { accept: 'application/json' } });
+    apiStatus = response.status;
+    const payload = await response.json();
+    apiHasNode = JSON.stringify(payload ?? []).includes(slug);
+  } catch (error) {
+    apiError = String(error);
+  }
+
   return {
     ready: hasShell && hasNoteNode,
     hasShell,
     hasNoteNode,
+    apiStatus,
+    apiHasNode,
+    apiError,
     sample: text.slice(0, 600),
   };
 })()"""
 
 
 def _ingest_live_transcript(
-    api_url: str, session_id: str, lines: tuple[tuple[str, float], ...]
+    base_url: str, session_id: str, lines: tuple[tuple[str, float], ...]
 ) -> dict[str, object]:
     """Drive the real ingest contract the Live board uses; return the last snapshot."""
     snapshot: dict[str, object] = {}
     for index, (text, timestamp) in enumerate(lines):
         payload = http_json(
             "POST",
-            f"{api_url.rstrip('/')}/api/v1/wiki/meeting-notes/live/{session_id}/ingest",
+            f"{base_url.rstrip('/')}/api/v1/wiki/meeting-notes/live/{session_id}/ingest",
             {"text": text, "timestamp": timestamp, "line_id": f"{session_id}-line-{index}"},
             timeout_sec=90.0,
         )
@@ -118,6 +135,10 @@ def test_live_meeting_notes_publish_real_wiki_note_visible_in_ui() -> None:
     api_url = get_e2e_api_url()
     ui_url = get_e2e_ui_url()
     prepare_e2e_ui_session(api_url)
+    # The browser page talks to the backend behind the WebUI origin, while a pinned
+    # private-epoch API can run against an isolated wiki vault. Drive the meeting flow
+    # through the WebUI origin so the test and the page observe one backend and one vault.
+    base_url = ui_url
 
     session_id = f"e2e-live-{uuid.uuid4().hex[:12]}"
     codename = random.choice(_PROJECT_CODENAMES)
@@ -127,7 +148,7 @@ def test_live_meeting_notes_publish_real_wiki_note_visible_in_ui() -> None:
     try:
         # 1) Real ingest through the REST contract the Live board calls. Line ids make
         #    ingest idempotent, so the count is exact even when the client retries.
-        live = _ingest_live_transcript(api_url, session_id, lines)
+        live = _ingest_live_transcript(base_url, session_id, lines)
         assert live["session_id"] == session_id
         assert int(live["line_count"]) == len(lines), live
         assert int(live["transcript_chars"]) > 200
@@ -135,7 +156,7 @@ def test_live_meeting_notes_publish_real_wiki_note_visible_in_ui() -> None:
         # 2) Replay the first line (at-least-once delivery): must not be counted twice.
         replay = http_json(
             "POST",
-            f"{api_url.rstrip('/')}/api/v1/wiki/meeting-notes/live/{session_id}/ingest",
+            f"{base_url.rstrip('/')}/api/v1/wiki/meeting-notes/live/{session_id}/ingest",
             {
                 "text": lines[0][0],
                 "timestamp": lines[0][1],
@@ -150,7 +171,7 @@ def test_live_meeting_notes_publish_real_wiki_note_visible_in_ui() -> None:
         # 3) finalize forces the real distillation and publishes to the real wiki.
         final = http_json(
             "POST",
-            f"{api_url.rstrip('/')}/api/v1/wiki/meeting-notes/live/{session_id}/finalize?auto_compile=false",
+            f"{base_url.rstrip('/')}/api/v1/wiki/meeting-notes/live/{session_id}/finalize?auto_compile=false",
             timeout_sec=90.0,
         )
         assert isinstance(final, dict)
@@ -197,7 +218,7 @@ def test_live_meeting_notes_publish_real_wiki_note_visible_in_ui() -> None:
         if published_path is not None:
             http_json(
                 "DELETE",
-                f"{api_url.rstrip('/')}/api/v1/wiki/raw/{urllib.parse.quote(published_path, safe='/')}",
+                f"{base_url.rstrip('/')}/api/v1/wiki/raw/{urllib.parse.quote(published_path, safe='/')}",
                 {"forget_reason": "e2e live meeting notes cleanup"},
                 expected_statuses=frozenset({200, 204, 404}),
                 timeout_sec=60.0,

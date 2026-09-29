@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -80,6 +81,40 @@ def test_ingest_without_line_id_always_appends() -> None:
     assert session.ingest("same words", 0.0) is True
     assert session.ingest("same words", 0.0) is True
     assert session.line_count == 2
+
+
+def test_negative_and_nonfinite_timestamps_never_render_as_garbage() -> None:
+    """Clock skew or a bad client must not produce ``[nan:..]`` or crash finalization.
+
+    An infinite stamp is the dangerous one: ``inf // 60`` evaluates to NaN, which used to
+    raise inside ``render_transcript`` and lose the whole meeting's minutes.
+    """
+    session = LiveNotesSession("s1", clock=_Clock())
+    session.ingest("negative stamp", -42.0)
+    session.ingest("not a number", float("nan"))
+    session.ingest("endless meeting", float("inf"))
+    session.ingest("huge but finite", 1e18)
+
+    rendered = session.render_transcript()
+    markers = re.findall(r"^\[(\d+):(\d{2})\]", rendered, flags=re.MULTILINE)
+    assert len(markers) == session.line_count, rendered
+    for minutes, seconds in markers:
+        assert minutes.isdigit() and seconds.isdigit()
+        assert 0 <= int(seconds) < 60
+    assert rendered.splitlines()[0] == "[00:00] negative stamp"
+
+
+def test_transcript_overflow_keeps_the_most_recent_tail() -> None:
+    """A marathon meeting must stay bounded and keep the freshest speech."""
+    session = LiveNotesSession("s1", clock=_Clock())
+    marker = "OLDEST-LINE"
+    session.ingest(marker)
+    session.ingest("x" * 130_000)
+    session.ingest("NEWEST-LINE")
+    rendered = session.render_transcript()
+    assert len(rendered) <= 120_000
+    assert "NEWEST-LINE" in rendered
+    assert marker not in rendered
 
 
 def test_line_id_dedupe_window_is_bounded() -> None:
