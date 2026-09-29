@@ -64,7 +64,7 @@ const REASONING_MODEL_PATTERNS: RegExp[] = [
   /kimi-k[2-9]/,
 
   // MiniMax
-  /minimax-m[1-3]/,
+  /minimax-m\d+/,
 
   // MiMo
   /mimo/,

@@ -52,6 +52,8 @@ describe('isReasoningModelByName', () => {
     expect(isReasoningModelByName('magistral')).toBe(true);
     expect(isReasoningModelByName('kimi-k2-thinking')).toBe(true);
     expect(isReasoningModelByName('minimax-m1')).toBe(true);
+    expect(isReasoningModelByName('minimax-m3.1-flash-preview')).toBe(true);
+    expect(isReasoningModelByName('minimax-m4')).toBe(true);
     expect(isReasoningModelByName('mimo')).toBe(true);
     expect(isReasoningModelByName('step-3')).toBe(true);
     expect(isReasoningModelByName('glm-z1')).toBe(true);
