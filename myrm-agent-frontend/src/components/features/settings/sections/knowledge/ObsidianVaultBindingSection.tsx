@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Input } from '@/components/primitives/input';
-import { IconFolder, IconRefresh, IconCheck, IconTrash } from '@/components/features/icons/PremiumIcons';
+import { IconFolder, IconRefresh, IconCheck, IconTrash, IconDownload } from '@/components/features/icons/PremiumIcons';
+import { isLocalMode } from '@/lib/deploy-mode';
 import { wikiService } from '@/services/wikiService';
 
 interface ObsidianVaultBindingSectionProps {
@@ -22,7 +23,16 @@ export function ObsidianVaultBindingSection({ agentScopeId }: ObsidianVaultBindi
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastWatermark, setLastWatermark] = useState<number>(0);
 
+  // A sandboxed cloud instance has no filesystem access to the user's laptop, so
+  // a local path can never resolve there. Offering the field would only ever
+  // produce a binding that silently fails on first sync.
+  const canBindLocalPath = isLocalMode();
+
   const fetchBinding = useCallback(async () => {
+    if (!canBindLocalPath) {
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       const res = await wikiService.getObsidianVaultBinding();
@@ -39,7 +49,7 @@ export function ObsidianVaultBindingSection({ agentScopeId }: ObsidianVaultBindi
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [canBindLocalPath]);
 
   useEffect(() => {
     void fetchBinding();
@@ -51,11 +61,7 @@ export function ObsidianVaultBindingSection({ agentScopeId }: ObsidianVaultBindi
     }
     try {
       setIsSaving(true);
-      const res = await wikiService.bindObsidianVault({
-        vault_path: vaultPath.trim(),
-        auto_sync_on_recall: true,
-        allow_inbox_write: true,
-      });
+      const res = await wikiService.bindObsidianVault({ vault_path: vaultPath.trim() });
       setIsBound(res.is_bound);
       setLastWatermark(res.last_sync_watermark);
       toast.success(t('bindSuccess'));
@@ -110,11 +116,16 @@ export function ObsidianVaultBindingSection({ agentScopeId }: ObsidianVaultBindi
         <CardDescription>{t('description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {isLoading ? (
+        {!canBindLocalPath ? (
+          <div className="flex flex-col gap-3 rounded-lg border border-dashed bg-muted/30 p-4 sm:flex-row sm:items-center">
+            <IconDownload className="w-5 h-5 shrink-0 self-start text-purple-600 dark:text-purple-400" />
+            <p className="text-xs leading-relaxed text-muted-foreground">{t('cloudHint')}</p>
+          </div>
+        ) : isLoading ? (
           <div className="text-xs text-muted-foreground">{t('loading')}</div>
         ) : isBound ? (
           <div className="space-y-3">
-            <div className="flex items-center justify-between rounded-lg border bg-muted/40 p-3">
+            <div className="flex flex-col gap-3 rounded-lg border bg-muted/40 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1 overflow-hidden pr-2">
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center rounded-md bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-0.5 text-xs font-medium">

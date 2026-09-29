@@ -2622,17 +2622,18 @@
         "syncSuccess": "同步成功",
         "syncFailed": "同步失败",
         "title": "Obsidian 本地知识库绑定",
-        "description": "将本地 Obsidian 笔记目录绑定至知识库，支持自动增量同步与收集箱写入。",
+        "description": "绑定本地 Obsidian 知识库，按需将笔记导入知识库。",
         "loading": "加载中...",
         "statusBound": "已绑定",
         "watermarkLabel": "上次同步时间戳",
         "syncing": "同步中...",
         "syncDelta": "增量同步",
-        "boundHint": "知识库将定期监测本地目录变动并增量索引。",
+        "boundHint": "点击「增量同步」导入上次同步以来新增或修改的笔记。",
         "pathPlaceholder": "输入本地 Obsidian 知识库绝对路径（例如：/Users/name/Documents/Vault）",
         "binding": "绑定中...",
         "bindButton": "绑定知识库",
-        "unboundHint": "绑定后，Agent 可直接搜索该知识库中的笔记，并将关键成果归档至知识库收集箱。"
+        "unboundHint": "绑定后点击「增量同步」导入笔记，导入后即可在对话中直接向 Agent 提问这些内容。",
+        "cloudHint": "当前为云端沙箱部署，无法读取你设备上的文件夹。请在知识库区域使用 Obsidian 导入功能上传知识库压缩包。"
       },
       "querying": "查询中...",
       "compiling": "编译中...",
@@ -15917,12 +15918,6 @@
       "sourceQueries": "关联历史用户提问",
       "confidence": "置信度",
       "content": "沉淀内容"
-    },
-    "obsidianInbox": {
-      "defaultTitle": "Obsidian 笔记",
-      "badge": "Obsidian 收集箱",
-      "noteContent": "笔记内容",
-      "destination": "知识库"
     },
     "noContent": "无内容可预览",
     "mcpElicitationTitle": "MCP 服务确认",

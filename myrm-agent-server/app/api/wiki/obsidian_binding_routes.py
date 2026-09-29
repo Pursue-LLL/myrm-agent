@@ -45,17 +45,11 @@ class VaultBindingResponse(BaseModel):
     vault_path: str = ""
     is_active: bool = False
     last_sync_watermark: float = 0.0
-    auto_sync_on_recall: bool = True
-    allow_inbox_write: bool = True
-    inbox_folder_name: str = "_Myrm_Inbox"
     updated_at: float = 0.0
 
 
 class BindVaultRequest(BaseModel):
     vault_path: str = Field(..., description="Absolute path to the local Obsidian Vault")
-    auto_sync_on_recall: bool = Field(True, description="Sync delta files before recall")
-    allow_inbox_write: bool = Field(True, description="Enable agent write-back to inbox")
-    inbox_folder_name: str = Field("_Myrm_Inbox", description="Inbox folder relative name")
 
 
 class VaultDeltaSyncResponse(BaseModel):
@@ -81,9 +75,6 @@ async def get_binding() -> VaultBindingResponse:
         vault_path=binding.vault_path,
         is_active=binding.is_active,
         last_sync_watermark=binding.last_sync_watermark,
-        auto_sync_on_recall=binding.auto_sync_on_recall,
-        allow_inbox_write=binding.allow_inbox_write,
-        inbox_folder_name=binding.inbox_folder_name,
         updated_at=binding.updated_at,
     )
 
@@ -100,9 +91,6 @@ async def bind_vault(request: BindVaultRequest) -> VaultBindingResponse:
         vault_path=str(p),
         is_active=True,
         last_sync_watermark=0.0,
-        auto_sync_on_recall=request.auto_sync_on_recall,
-        allow_inbox_write=request.allow_inbox_write,
-        inbox_folder_name=request.inbox_folder_name,
     )
     saved = await set_obsidian_vault_binding(binding)
 
@@ -111,9 +99,6 @@ async def bind_vault(request: BindVaultRequest) -> VaultBindingResponse:
         vault_path=saved.vault_path,
         is_active=saved.is_active,
         last_sync_watermark=saved.last_sync_watermark,
-        auto_sync_on_recall=saved.auto_sync_on_recall,
-        allow_inbox_write=saved.allow_inbox_write,
-        inbox_folder_name=saved.inbox_folder_name,
         updated_at=saved.updated_at,
     )
 

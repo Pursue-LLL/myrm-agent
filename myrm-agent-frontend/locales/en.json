@@ -2622,17 +2622,18 @@
         "syncSuccess": "Synced successfully",
         "syncFailed": "Sync failed",
         "title": "Obsidian Vault Binding",
-        "description": "Bind a local Obsidian vault to the knowledge base with incremental sync and inbox writes.",
+        "description": "Bind a local Obsidian vault so you can import its notes into the knowledge base on demand.",
         "loading": "Loading...",
         "statusBound": "Bound",
         "watermarkLabel": "Last Sync Watermark",
         "syncing": "Syncing...",
         "syncDelta": "Sync Delta",
-        "boundHint": "Knowledge base monitors local directory changes and indexes incrementally.",
+        "boundHint": "Click Sync Delta to import notes added or changed since the last sync.",
         "pathPlaceholder": "Enter absolute path to Obsidian vault (e.g., /Users/name/Documents/Vault)",
         "binding": "Binding...",
         "bindButton": "Bind Vault",
-        "unboundHint": "Once bound, agents can search notes and archive key deliverables to the inbox."
+        "unboundHint": "After binding, use Sync Delta to import notes — once imported you can ask the agent about them in chat.",
+        "cloudHint": "This deployment runs in a cloud sandbox and cannot read folders on your device. Use the Obsidian import option in the knowledge base section to upload a vault archive."
       },
       "querying": "Querying...",
       "compiling": "Compiling...",
@@ -15921,12 +15922,6 @@
       "sourceQueries": "Source Queries",
       "confidence": "Confidence",
       "content": "Patch Content"
-    },
-    "obsidianInbox": {
-      "defaultTitle": "Obsidian Note",
-      "badge": "Obsidian Inbox",
-      "noteContent": "Note Content",
-      "destination": "Vault"
     },
     "noContent": "No content to preview",
     "mcpElicitationTitle": "MCP Server Confirmation",

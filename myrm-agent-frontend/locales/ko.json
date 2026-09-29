@@ -8991,12 +8991,6 @@
       "sourceQueries": "관련 이전 쿼리",
       "confidence": "신뢰도",
       "content": "패치 내용"
-    },
-    "obsidianInbox": {
-      "defaultTitle": "Obsidian 메모",
-      "badge": "Obsidian 수집함",
-      "noteContent": "메모 내용",
-      "destination": "보관함"
     }
   },
   "notifications": {
@@ -15709,17 +15703,18 @@
         "syncSuccess": "동기화 완료",
         "syncFailed": "동기화 실패",
         "title": "Obsidian 로컬 보관함 연결",
-        "description": "로컬 Obsidian 노트 디렉터리를 지식베이스에 연결하여 증분 동기화 및 수집함 작성을 지원합니다.",
+        "description": "로컬 Obsidian 보관함을 연결해 필요할 때 노트를 지식베이스로 가져옵니다.",
         "loading": "로딩 중...",
         "statusBound": "연결됨",
         "watermarkLabel": "마지막 동기화 타임스탬프",
         "syncing": "동기화 중...",
         "syncDelta": "증분 동기화",
-        "boundHint": "지식베이스가 로컬 디렉터리 변경 사항을 정기적으로 감지하고 증분 인덱싱합니다.",
+        "boundHint": "「증분 동기화」를 클릭하면 마지막 동기화 이후 추가·변경된 노트를 가져옵니다.",
         "pathPlaceholder": "Obsidian 보관함의 절대 경로 입력 (예: /Users/name/Documents/Vault)",
         "binding": "연결 중...",
         "bindButton": "보관함 연결",
-        "unboundHint": "연결 후 에이전트가 노트를 검색하고 결과물을 수집함에 보관할 수 있습니다."
+        "unboundHint": "연결 후 「증분 동기화」로 노트를 가져오면 채팅에서 에이전트에게 질문할 수 있습니다.",
+        "cloudHint": "현재 배포는 클라우드 샌드박스 환경이어서 기기의 폴더를 읽을 수 없습니다. 지식베이스 영역의 Obsidian 가져오기 기능으로 보관함 압축 파일을 업로드하세요."
       },
       "needsReview": "검토 필요",
       "countUnit": "편",

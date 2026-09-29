@@ -8991,12 +8991,6 @@
       "sourceQueries": "Zugehörige Quell-Suchanfragen",
       "confidence": "Konfidenz",
       "content": "Patch-Inhalt"
-    },
-    "obsidianInbox": {
-      "defaultTitle": "Obsidian-Notiz",
-      "badge": "Obsidian-Eingang",
-      "noteContent": "Notizinhalt",
-      "destination": "Tresor"
     }
   },
   "notifications": {
@@ -15709,17 +15703,18 @@
         "syncSuccess": "Erfolgreich synchronisiert",
         "syncFailed": "Synchronisierung fehlgeschlagen",
         "title": "Obsidian-Tresor-Verknüpfung",
-        "description": "Verknüpfen Sie ein lokales Obsidian-Notizverzeichnis mit der Wissensdatenbank für inkrementelle Synchronisierung.",
+        "description": "Binden Sie einen lokalen Obsidian-Tresor an, um dessen Notizen bei Bedarf in die Wissensdatenbank zu importieren.",
         "loading": "Wird geladen...",
         "statusBound": "Verknüpft",
         "watermarkLabel": "Letzter Synchronisierungszeitstempel",
         "syncing": "Synchronisierung...",
         "syncDelta": "Delta-Sync",
-        "boundHint": "Die Wissensdatenbank überwacht lokale Änderungen und indiziert inkrementell.",
+        "boundHint": "Klicken Sie auf „Delta-Sync“, um seit dem letzten Sync hinzugefügte oder geänderte Notizen zu importieren.",
         "pathPlaceholder": "Geben Sie den absoluten Pfad zum Obsidian-Tresor ein (z. B. /Users/name/Documents/Vault)",
         "binding": "Verknüpfung läuft...",
         "bindButton": "Tresor verknüpfen",
-        "unboundHint": "Nach der Verknüpfung können Agents Notizen durchsuchen und wichtige Ergebnisse im Eingang archivieren."
+        "unboundHint": "Nach dem Binden importieren Sie Notizen über „Delta-Sync“ und können den Agenten danach im Chat dazu befragen.",
+        "cloudHint": "Dieser Betrieb läuft in einer Cloud-Sandbox und kann keine Ordner auf Ihrem Gerät lesen. Nutzen Sie den Obsidian-Import in der Wissensdatenbank, um ein Tresor-Archiv hochzuladen."
       },
       "needsReview": "Überprüfung erforderlich",
       "countUnit": "Artikel",

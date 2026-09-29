@@ -14,7 +14,10 @@ Obsidian 集成域子包 — 导入适配与导出 presets。
 |------|------|------|-------|
 | `__init__.py` | 门面 | 聚合导出 adapter/export 公开符号 | ✅ |
 | `adapter.py` | 适配器 | Obsidian Vault 导入：`prepare_obsidian_file()` 转换 frontmatter/inline tags/images；`adapt_obsidian_file()` 仅测试/legacy 直写；生产 import 经 `router` → harness `publish_raw` | ✅ |
+| `binding.py` | 状态 | Vault 路径绑定与 mtime 水位差量扫描（`ObsidianVaultBinding` / `scan_vault_mtime_watermark`） | ✅ |
 | `export.py` | 适配器 | `.obsidian/graph.json` + README for Settings download | ✅ |
+
+> 绑定仅在本机部署（LOCAL / TAURI）可用：云端沙箱无法访问用户设备目录，绑定入口由前端按 `isLocalMode()` 隐藏。
 
 ## 依赖
 

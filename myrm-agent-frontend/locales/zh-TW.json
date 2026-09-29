@@ -8835,12 +8835,6 @@
       "confidence": "置信度",
       "content": "沉澱內容"
     },
-    "obsidianInbox": {
-      "defaultTitle": "Obsidian 筆記",
-      "badge": "Obsidian 收集箱",
-      "noteContent": "筆記內容",
-      "destination": "知識庫"
-    },
     "noContent": "無內容可預覽",
     "payloadData": "審批資料",
     "commentsOptional": "備註（可選）",
@@ -15560,17 +15554,18 @@
         "syncSuccess": "同步成功",
         "syncFailed": "同步失敗",
         "title": "Obsidian 本地知識庫綁定",
-        "description": "將本地 Obsidian 筆記目錄綁定至知識庫，支援自動增量同步與收集箱寫入。",
+        "description": "綁定本地 Obsidian 知識庫，依需將筆記匯入知識庫。",
         "loading": "載入中...",
         "statusBound": "已綁定",
         "watermarkLabel": "上次同步時間戳",
         "syncing": "同步中...",
         "syncDelta": "增量同步",
-        "boundHint": "知識庫將定期監測本地目錄變動並增量索引。",
+        "boundHint": "點擊「增量同步」匯入上次同步以來新增或修改的筆記。",
         "pathPlaceholder": "輸入本地 Obsidian 知識庫絕對路徑（例如：/Users/name/Documents/Vault）",
         "binding": "綁定中...",
         "bindButton": "綁定知識庫",
-        "unboundHint": "綁定後，Agent 可直接搜尋該知識庫中的筆記，並將關鍵成果歸檔至知識庫收集箱。"
+        "unboundHint": "綁定後點擊「增量同步」匯入筆記，匯入後即可在對話中直接向 Agent 提問這些內容。",
+        "cloudHint": "目前為雲端沙箱部署，無法讀取你裝置上的資料夾。請在知識庫區域使用 Obsidian 匯入功能上傳知識庫壓縮檔。"
       },
       "repairingTypes": "修復中...",
       "repairingPublication": "修復發布狀態中...",

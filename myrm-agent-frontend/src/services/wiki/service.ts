@@ -986,9 +986,6 @@ export const wikiService = {
     vault_path: string;
     is_active: boolean;
     last_sync_watermark: number;
-    auto_sync_on_recall: boolean;
-    allow_inbox_write: boolean;
-    inbox_folder_name: string;
     updated_at: number;
   }> => {
     return apiRequest(buildWikiApiPath('/wiki/vault/binding'));
@@ -996,17 +993,11 @@ export const wikiService = {
 
   bindObsidianVault: async (body: {
     vault_path: string;
-    auto_sync_on_recall?: boolean;
-    allow_inbox_write?: boolean;
-    inbox_folder_name?: string;
   }): Promise<{
     is_bound: boolean;
     vault_path: string;
     is_active: boolean;
     last_sync_watermark: number;
-    auto_sync_on_recall: boolean;
-    allow_inbox_write: boolean;
-    inbox_folder_name: string;
     updated_at: number;
   }> => {
     return apiRequest(buildWikiApiPath('/wiki/vault/bind'), {

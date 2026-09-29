@@ -34,14 +34,17 @@ OBSIDIAN_VAULT_CONFIG_KEY = "obsidian_vault_binding"
 
 @dataclass
 class ObsidianVaultBinding:
-    """Configured Obsidian Vault binding state."""
+    """Configured Obsidian Vault binding state.
+
+    Only fields with a real executor are persisted here. Sync is driven by
+    explicit user action through ``sync_vault_delta``, never implicitly, so no
+    ``auto_sync_on_recall`` toggle exists — a flag nothing reads is a promise
+    the product cannot keep.
+    """
 
     vault_path: str
     is_active: bool = True
     last_sync_watermark: float = 0.0
-    auto_sync_on_recall: bool = True
-    allow_inbox_write: bool = True
-    inbox_folder_name: str = "_Myrm_Inbox"
     created_at: float = 0.0
     updated_at: float = 0.0
 
@@ -71,9 +74,6 @@ async def get_obsidian_vault_binding() -> ObsidianVaultBinding | None:
             vault_path=str(val.get("vault_path", "")),
             is_active=bool(val.get("is_active", True)),
             last_sync_watermark=float(val.get("last_sync_watermark", 0.0)),
-            auto_sync_on_recall=bool(val.get("auto_sync_on_recall", True)),
-            allow_inbox_write=bool(val.get("allow_inbox_write", True)),
-            inbox_folder_name=str(val.get("inbox_folder_name", "_Myrm_Inbox")),
             created_at=float(val.get("created_at", 0.0)),
             updated_at=float(val.get("updated_at", 0.0)),
         )

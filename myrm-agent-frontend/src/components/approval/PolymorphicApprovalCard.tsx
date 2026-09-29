@@ -286,8 +286,8 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     }
     return undefined;
   }, [approval.payload?.required_credentials]);
-  const [showCredentialCard, setShowCredentialCard] = useState<boolean>(
-    () => Boolean(requiredCredentials && requiredCredentials.length > 0)
+  const [showCredentialCard, setShowCredentialCard] = useState<boolean>(() =>
+    Boolean(requiredCredentials && requiredCredentials.length > 0),
   );
   const [stagedCredentialHandles, setStagedCredentialHandles] = useState<string[]>([]);
   const { resolvedTheme } = useTheme();
@@ -591,7 +591,14 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                             <span>检测到敏感能力边界申请</span>
                           </div>
                           <div className="space-y-1.5 pl-6">
-                            {(args.escalations as Array<{ command?: string; base_cmd?: string; reason?: string; details?: string }>).map((esc, escIdx) => {
+                            {(
+                              args.escalations as Array<{
+                                command?: string;
+                                base_cmd?: string;
+                                reason?: string;
+                                details?: string;
+                              }>
+                            ).map((esc, escIdx) => {
                               const reasonKey = esc.reason || '';
                               const labelMap: Record<string, string> = {
                                 symlink_creation: '创建符号链接 (Symlink)',
@@ -607,7 +614,10 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                                 git_remote_sync: 'Git 远程分支同步/推送 (Git Remote Push)',
                               };
                               return (
-                                <div key={escIdx} className="flex flex-wrap items-center gap-2 text-xs text-foreground/90">
+                                <div
+                                  key={escIdx}
+                                  className="flex flex-wrap items-center gap-2 text-xs text-foreground/90"
+                                >
                                   <span className="font-medium text-amber-800 dark:text-amber-300">
                                     {labelMap[reasonKey] || reasonKey || '能力越界'}:
                                   </span>
@@ -799,44 +809,6 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                     </li>
                   ))}
                 </ul>
-              </div>
-            )}
-          </div>
-        );
-      }
-      case 'obsidian_inbox_write': {
-        const payload = approval.payload ?? {};
-        const title = (payload.title as string) || approval.reason || t('obsidianInbox.defaultTitle');
-        const content = (payload.content as string) || '';
-        const targetVault = (payload.target_vault as string) || '';
-        const inboxFolder = (payload.inbox_folder as string) || '_Myrm_Inbox';
-        const subfolder = (payload.subfolder as string) || '';
-
-        return (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/40 p-3">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-1 text-xs font-medium">
-                  {t('obsidianInbox.badge')}
-                </span>
-                <span className="font-semibold text-sm">{title}</span>
-              </div>
-              <div className="text-xs text-muted-foreground font-mono">
-                {inboxFolder}
-                {subfolder ? `/${subfolder}` : ''}
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <h5 className="font-medium text-xs text-muted-foreground">{t('obsidianInbox.noteContent')}</h5>
-              <div className="rounded-lg bg-muted p-3 font-mono text-xs whitespace-pre-wrap overflow-x-auto leading-relaxed max-h-60">
-                {content || t('noContent')}
-              </div>
-            </div>
-
-            {targetVault && (
-              <div className="text-[11px] text-muted-foreground px-1 font-mono truncate" title={targetVault}>
-                {t('obsidianInbox.destination')}: {targetVault}
               </div>
             )}
           </div>

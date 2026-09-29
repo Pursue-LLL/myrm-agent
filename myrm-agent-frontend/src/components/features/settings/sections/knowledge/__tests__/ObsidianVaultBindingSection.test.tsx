@@ -1,7 +1,8 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ObsidianVaultBindingSection } from '../ObsidianVaultBindingSection';
 import { wikiService } from '@/services/wikiService';
+import { isLocalMode } from '@/lib/deploy-mode';
 
 vi.mock('@/services/wikiService', () => ({
   wikiService: {
@@ -10,6 +11,10 @@ vi.mock('@/services/wikiService', () => ({
     unbindObsidianVault: vi.fn(),
     syncObsidianVaultDelta: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/deploy-mode', () => ({
+  isLocalMode: vi.fn(() => true),
 }));
 
 const stableT = (key: string) => key;
@@ -27,6 +32,7 @@ vi.mock('sonner', () => ({
 describe('ObsidianVaultBindingSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isLocalMode).mockReturnValue(true);
   });
 
   it('renders unbound state when no vault is bound', async () => {
@@ -35,9 +41,6 @@ describe('ObsidianVaultBindingSection', () => {
       vault_path: '',
       is_active: false,
       last_sync_watermark: 0,
-      auto_sync_on_recall: true,
-      allow_inbox_write: true,
-      inbox_folder_name: '_Myrm_Inbox',
       updated_at: 0,
     });
 
@@ -55,9 +58,6 @@ describe('ObsidianVaultBindingSection', () => {
       vault_path: '/Users/test/Vault',
       is_active: true,
       last_sync_watermark: 1700000000,
-      auto_sync_on_recall: true,
-      allow_inbox_write: true,
-      inbox_folder_name: '_Myrm_Inbox',
       updated_at: 1700000000,
     });
 
@@ -67,5 +67,17 @@ describe('ObsidianVaultBindingSection', () => {
       expect(screen.getByText('/Users/test/Vault')).toBeDefined();
       expect(screen.getByText('syncDelta')).toBeDefined();
     });
+  });
+
+  it('hides the local path binding in sandbox deployments', async () => {
+    vi.mocked(isLocalMode).mockReturnValue(false);
+
+    render(<ObsidianVaultBindingSection />);
+
+    await waitFor(() => {
+      expect(screen.getByText('cloudHint')).toBeDefined();
+    });
+    expect(screen.queryByPlaceholderText('pathPlaceholder')).toBeNull();
+    expect(wikiService.getObsidianVaultBinding).not.toHaveBeenCalled();
   });
 });
