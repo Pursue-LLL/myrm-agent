@@ -18,6 +18,7 @@ from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 from myrm_agent_harness.toolkits.storage.paths import (
     SKILL_METADATA_FILE,
     get_skill_metadata_path,
+    get_user_skill_config_path,
 )
 from myrm_agent_harness.toolkits.storage.types import SkillType
 
@@ -114,6 +115,21 @@ async def test_sync_is_idempotent(storage: LocalStorageBackend) -> None:
     assert first.synced_count >= 1
     assert second.synced_count == 0
     assert len(first.skill_ids) == len(second.skill_ids)
+
+
+@pytest.mark.asyncio
+async def test_corrupt_config_falls_back_without_clobbering_source(
+    storage: LocalStorageBackend,
+) -> None:
+    """损坏的配置不能让技能子系统不可用，且原文件须保持原样供人工排查。"""
+    config_path = get_user_skill_config_path()
+    broken = "{ not-json"
+    await storage.write_text(config_path, broken)
+
+    config = await UserSkillConfigManager(storage).get_config()
+
+    assert config.enabled_prebuilt_ids == []
+    assert await storage.read_text(config_path) == broken
 
 
 def test_default_enabled_prebuilt_skills_resolve_to_real_seeds() -> None:
