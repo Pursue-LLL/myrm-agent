@@ -152,6 +152,34 @@ async def test_fresh_install_binds_exactly_curated_default_skills(
 
 
 @pytest.mark.asyncio
+async def test_disabling_a_curated_default_survives_resync(
+    storage: LocalStorageBackend,
+) -> None:
+    """用户关闭精选默认项后，后续同步与装配都不得再把它挂回来。"""
+    from app.core.skills.loader import create_skill_backend
+
+    service = SkillsService(storage=storage)
+    result = await prebuilt_sync.sync_prebuilt_seeds(storage)
+    await service.user_config.ensure_prebuilt_enabled_after_sync(list(result.skill_ids))
+    await service.user_config.disable_prebuilt_skill("pdf-generator")
+
+    for _ in range(2):  # 模拟两次重启：每次启动都会再次调用 ensure/sync
+        await service.user_config.ensure_prebuilt_enabled_after_sync(list(result.skill_ids))
+        config = await service.user_config.get_config()
+        assert "pdf-generator" not in config.enabled_prebuilt_ids
+        assert "pdf-generator" in config.disabled_prebuilt_ids
+
+        with patch("app.core.skills.store.service.skills_service", service):
+            backend = await create_skill_backend(
+                storage=storage,
+                allowed_prebuilt_ids=frozenset(config.enabled_prebuilt_ids),
+            )
+        bound = {s.name for s in await backend.list_skills()}
+        assert "pdf-generator" not in bound
+        assert bound  # 其余默认项仍应可用
+
+
+@pytest.mark.asyncio
 async def test_resolve_skill_env_map_with_real_backend(
     storage: LocalStorageBackend,
 ) -> None:
