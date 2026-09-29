@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from myrm_agent_harness.backends.skills._utils import SkillMetadataError, parse_skill_frontmatter
+from myrm_agent_harness.backends.skills._utils import (
+    SkillFrontmatter,
+    SkillMetadataError,
+    parse_skill_frontmatter,
+)
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 from myrm_agent_harness.toolkits.storage.paths import (
     SKILL_METADATA_FILE,
@@ -35,38 +40,32 @@ def _load_registered_tool_names() -> set[str]:
     return load_registered_names()
 
 
-def _iter_prebuilt_seed_skill_ids() -> set[str]:
-    """种子库真实 skill_id 集合，取值口径与 prebuilt_sync 落盘一致（frontmatter 优先、目录名兜底）。"""
+def _iter_prebuilt_seeds() -> Iterator[tuple[str, SkillFrontmatter]]:
+    """遍历官方种子目录，产出 (目录名, frontmatter)；跳过非目录与元数据非法的种子。"""
     seeds_dir = Path(prebuilt_sync.__file__).resolve().parents[3] / "assets" / "prebuilt_skills"
-    skill_ids: set[str] = set()
     for skill_dir in sorted(seeds_dir.iterdir()):
         skill_md = skill_dir / "SKILL.md"
         if not skill_dir.is_dir() or not skill_md.exists():
             continue
-        text = skill_md.read_text(encoding="utf-8")
         try:
-            frontmatter = parse_skill_frontmatter(text, skill_dir.name)
+            yield skill_dir.name, parse_skill_frontmatter(
+                skill_md.read_text(encoding="utf-8"), skill_dir.name
+            )
         except SkillMetadataError:
             continue
-        skill_ids.add(frontmatter.name or skill_dir.name)
-    return skill_ids
+
+
+def _iter_prebuilt_seed_skill_ids() -> set[str]:
+    """种子库真实 skill_id 集合，取值口径与 prebuilt_sync 落盘一致（frontmatter 优先、目录名兜底）。"""
+    return {frontmatter.name or dir_name for dir_name, frontmatter in _iter_prebuilt_seeds()}
 
 
 def _iter_prebuilt_seed_allowed_tools() -> list[tuple[str, list[str]]]:
-    seeds_dir = Path(prebuilt_sync.__file__).resolve().parents[3] / "assets" / "prebuilt_skills"
     entries: list[tuple[str, list[str]]] = []
-    for skill_dir in sorted(seeds_dir.iterdir()):
-        skill_md = skill_dir / "SKILL.md"
-        if not skill_dir.is_dir() or not skill_md.exists():
-            continue
-        text = skill_md.read_text(encoding="utf-8")
-        try:
-            frontmatter = parse_skill_frontmatter(text, skill_dir.name)
-        except SkillMetadataError:
-            continue
+    for dir_name, frontmatter in _iter_prebuilt_seeds():
         if not frontmatter.allowed_tools:
             continue
-        entries.append((skill_dir.name, frontmatter.allowed_tools.split()))
+        entries.append((dir_name, frontmatter.allowed_tools.split()))
     return entries
 
 
@@ -117,8 +116,7 @@ async def test_sync_is_idempotent(storage: LocalStorageBackend) -> None:
     assert len(first.skill_ids) == len(second.skill_ids)
 
 
-@pytest.mark.asyncio
-async def test_default_enabled_prebuilt_skills_resolve_to_real_seeds() -> None:
+def test_default_enabled_prebuilt_skills_resolve_to_real_seeds() -> None:
     """默认精选集必须逐个命中真实种子 skill_id，否则新装默认集会静默退化为空且无告警。"""
     assert set(_DEFAULT_ENABLED_PREBUILT_SKILLS) <= _iter_prebuilt_seed_skill_ids()
 
