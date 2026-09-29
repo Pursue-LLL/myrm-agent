@@ -9,11 +9,12 @@
  * - recordPromptHistory, getPromptHistory, clearPromptHistory: Pure helpers for external access.
  *
  * [POS]
- * Mobile input enhancement layer. Provides bounded (max 20) session-isolated history
- * navigation mimicking terminal up/down arrow behavior for touch-screen mobile devices.
+ * Mobile prompt history state machine. Keeps a bounded (max 20) session-isolated
+ * history stack and a single backward-walk cursor, mirroring terminal up-arrow recall
+ * for touch screens. The user draft is owned by the consumer, not by this hook.
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 const MAX_HISTORY_ITEMS = 20;
 
@@ -49,8 +50,8 @@ export interface UseMobilePromptHistoryReturn {
   historyCount: number;
   currentIndex: number;
   pushHistory: (prompt: string) => void;
-  navigatePrevious: (currentInput: string) => string | null;
-  navigateNext: () => string | null;
+  /** 向更早的一条回溯；已在最旧一条时返回 null，由调用方回到自己的草稿。 */
+  navigatePrevious: () => string | null;
   resetNavigation: () => void;
 }
 
@@ -58,65 +59,29 @@ export function useMobilePromptHistory(chatId: string): UseMobilePromptHistoryRe
   // -1 indicates user is not browsing history (active draft mode)
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [historyCount, setHistoryCount] = useState<number>(() => getPromptHistory(chatId).length);
-  const draftBufferRef = useRef<string>('');
 
   const pushHistory = useCallback(
     (prompt: string) => {
       recordPromptHistory(chatId, prompt);
       setHistoryCount(getPromptHistory(chatId).length);
       setCurrentIndex(-1);
-      draftBufferRef.current = '';
     },
     [chatId],
   );
 
   const resetNavigation = useCallback(() => {
     setCurrentIndex(-1);
-    draftBufferRef.current = '';
   }, []);
 
-  const navigatePrevious = useCallback(
-    (currentInput: string): string | null => {
-      const history = getPromptHistory(chatId);
-      if (history.length === 0) {
-        return null;
-      }
-
-      if (currentIndex === -1) {
-        // Save current user draft before entering historical navigation
-        draftBufferRef.current = currentInput;
-        const targetIndex = history.length - 1;
-        setCurrentIndex(targetIndex);
-        return history[targetIndex] ?? null;
-      }
-
-      if (currentIndex > 0) {
-        const targetIndex = currentIndex - 1;
-        setCurrentIndex(targetIndex);
-        return history[targetIndex] ?? null;
-      }
-
-      // Already at the oldest recorded item
-      return history[0] ?? null;
-    },
-    [chatId, currentIndex],
-  );
-
-  const navigateNext = useCallback((): string | null => {
+  const navigatePrevious = useCallback((): string | null => {
     const history = getPromptHistory(chatId);
-    if (history.length === 0 || currentIndex === -1) {
+    if (history.length === 0) {
       return null;
     }
 
-    if (currentIndex < history.length - 1) {
-      const targetIndex = currentIndex + 1;
-      setCurrentIndex(targetIndex);
-      return history[targetIndex] ?? null;
-    }
-
-    // Navigated past the newest record -> restore user draft
-    setCurrentIndex(-1);
-    return draftBufferRef.current;
+    const targetIndex = currentIndex === -1 ? history.length - 1 : Math.max(currentIndex - 1, 0);
+    setCurrentIndex(targetIndex);
+    return history[targetIndex] ?? null;
   }, [chatId, currentIndex]);
 
   const history = getPromptHistory(chatId);
@@ -126,7 +91,6 @@ export function useMobilePromptHistory(chatId: string): UseMobilePromptHistoryRe
     currentIndex,
     pushHistory,
     navigatePrevious,
-    navigateNext,
     resetNavigation,
   };
 }

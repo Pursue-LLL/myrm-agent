@@ -8640,6 +8640,7 @@
       "approveAll": "全部批准",
       "quickCommand": "快速指令",
       "quickCommandPlaceholder": "发送新指令...",
+      "quickCommandInputLabel": "移动端指挥条输入框",
       "steerPlaceholder": "发送纠偏指令...",
       "send": "发送",
       "verifications": "验收条件",

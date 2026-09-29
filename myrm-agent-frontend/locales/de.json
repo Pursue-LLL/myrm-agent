@@ -1533,6 +1533,7 @@
       "approveAll": "Alle genehmigen",
       "quickCommand": "Schnellbefehl",
       "quickCommandPlaceholder": "Senden Sie eine neue Anweisung...",
+      "quickCommandInputLabel": "Mobile Befehlseingabe",
       "steerPlaceholder": "Den Agenten umleiten...",
       "send": "Senden",
       "verifications": "Akzeptanzkriterien",

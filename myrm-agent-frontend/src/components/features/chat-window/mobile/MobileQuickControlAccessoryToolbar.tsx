@@ -21,7 +21,6 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils/classnameUtils';
 
 export interface MobileQuickControlAccessoryToolbarProps {
-  chatId: string;
   historyCount: number;
   historyCurrentIndex: number;
   currentValue: string;

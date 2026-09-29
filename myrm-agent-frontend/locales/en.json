@@ -8640,6 +8640,7 @@
       "approveAll": "Approve All",
       "quickCommand": "Quick Command",
       "quickCommandPlaceholder": "Send a new instruction...",
+      "quickCommandInputLabel": "Mobile command input",
       "steerPlaceholder": "Redirect the agent...",
       "send": "Send",
       "verifications": "Acceptance Criteria",

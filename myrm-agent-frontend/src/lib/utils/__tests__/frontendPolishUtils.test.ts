@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isImeComposing } from '../imeUtils';
+import { isImeComposing, IME_CONFIRM_ENTER_WINDOW_MS } from '../imeUtils';
 import { parseTitleIndex, disambiguateChatTitle } from '../titleUtils';
 import {
   isAbsolutePath,
@@ -50,6 +50,29 @@ describe('Frontend Polish Utilities Suite', () => {
         nativeEvent: { isComposing: false },
       };
       expect(isImeComposing(event as unknown as React.KeyboardEvent)).toBe(false);
+    });
+
+    it('swallows the Safari confirm Enter that arrives right after compositionend', () => {
+      document.dispatchEvent(new Event('compositionend'));
+
+      // Safari 顺序：compositionend -> keydown(Enter, isComposing=false, keyCode=13)
+      const safariConfirmEnter: ImeEventLike = { key: 'Enter', keyCode: 13, isComposing: false };
+      expect(isImeComposing(safariConfirmEnter as unknown as React.KeyboardEvent)).toBe(true);
+    });
+
+    it('releases the guard once the confirm window has elapsed', () => {
+      document.dispatchEvent(new Event('compositionend'));
+
+      const laterEnter: ImeEventLike = { key: 'Enter', keyCode: 13, isComposing: false };
+      const afterWindow = Date.now() + IME_CONFIRM_ENTER_WINDOW_MS + 1;
+      expect(isImeComposing(laterEnter as unknown as React.KeyboardEvent, afterWindow)).toBe(false);
+    });
+
+    it('never swallows non-Enter keys inside the confirm window', () => {
+      document.dispatchEvent(new Event('compositionend'));
+
+      const arrow: ImeEventLike = { key: 'ArrowUp', keyCode: 38, isComposing: false };
+      expect(isImeComposing(arrow as unknown as React.KeyboardEvent)).toBe(false);
     });
   });
 

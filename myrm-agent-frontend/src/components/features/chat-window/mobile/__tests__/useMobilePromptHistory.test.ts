@@ -60,7 +60,7 @@ describe('useMobilePromptHistory', () => {
   });
 
   describe('hook navigation', () => {
-    it('navigates previous and next through history preserving user draft', () => {
+    it('walks backwards through history and stays on the oldest item', () => {
       const { result } = renderHook(() => useMobilePromptHistory(chatId));
 
       act(() => {
@@ -71,48 +71,31 @@ describe('useMobilePromptHistory', () => {
       expect(result.current.historyCount).toBe(2);
       expect(result.current.currentIndex).toBe(-1);
 
-      // User has typed a draft "my draft" and presses Up
       let navigated: string | null = null;
       act(() => {
-        navigated = result.current.navigatePrevious('my draft');
+        navigated = result.current.navigatePrevious();
       });
       expect(navigated).toBe('Command B');
       expect(result.current.currentIndex).toBe(1);
 
-      // Press Up again -> Command A
       act(() => {
-        navigated = result.current.navigatePrevious('Command B');
+        navigated = result.current.navigatePrevious();
       });
       expect(navigated).toBe('Command A');
       expect(result.current.currentIndex).toBe(0);
 
-      // Press Up at oldest item -> stays Command A
       act(() => {
-        navigated = result.current.navigatePrevious('Command A');
+        navigated = result.current.navigatePrevious();
       });
       expect(navigated).toBe('Command A');
       expect(result.current.currentIndex).toBe(0);
-
-      // Press Down -> Command B
-      act(() => {
-        navigated = result.current.navigateNext();
-      });
-      expect(navigated).toBe('Command B');
-      expect(result.current.currentIndex).toBe(1);
-
-      // Press Down past newest item -> restores original draft
-      act(() => {
-        navigated = result.current.navigateNext();
-      });
-      expect(navigated).toBe('my draft');
-      expect(result.current.currentIndex).toBe(-1);
     });
 
     it('returns null when navigating empty history', () => {
       const { result } = renderHook(() => useMobilePromptHistory(chatId));
       let navigated: string | null = null;
       act(() => {
-        navigated = result.current.navigatePrevious('current');
+        navigated = result.current.navigatePrevious();
       });
       expect(navigated).toBeNull();
     });
@@ -123,12 +106,28 @@ describe('useMobilePromptHistory', () => {
         result.current.pushHistory('Cmd 1');
       });
       act(() => {
-        result.current.navigatePrevious('draft');
+        result.current.navigatePrevious();
       });
       expect(result.current.currentIndex).toBe(0);
 
       act(() => {
         result.current.resetNavigation();
+      });
+      expect(result.current.currentIndex).toBe(-1);
+    });
+
+    it('leaves browsing mode when a new prompt is pushed', () => {
+      const { result } = renderHook(() => useMobilePromptHistory(chatId));
+      act(() => {
+        result.current.pushHistory('Cmd 1');
+      });
+      act(() => {
+        result.current.navigatePrevious();
+      });
+      expect(result.current.currentIndex).toBe(0);
+
+      act(() => {
+        result.current.pushHistory('Cmd 2');
       });
       expect(result.current.currentIndex).toBe(-1);
     });
@@ -145,7 +144,7 @@ describe('useMobilePromptHistory', () => {
       expect(result.current.historyCount).toBe(1);
       let recovered: string | null = null;
       act(() => {
-        recovered = result.current.navigatePrevious('');
+        recovered = result.current.navigatePrevious();
       });
       expect(recovered).toBe(uncommittedDraft);
     });

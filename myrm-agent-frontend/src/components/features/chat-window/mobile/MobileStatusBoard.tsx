@@ -6,14 +6,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Square, Activity, Send, MessageCircleQuestion } from 'lucide-react';
+import { ArrowLeft, Square, Activity, MessageCircleQuestion } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 
 import { scheduleMobilePairRefresh } from '@/lib/mobileRemote';
 import { useE2EEStatus } from '@/lib/e2ee/useE2EEStatus';
 import E2EESecurityPanel from '@/components/features/e2ee/E2EESecurityPanel';
-import SpeechInputButton from '@/components/features/message-input-actions/SpeechInputButton';
 import { Button } from '@/components/primitives/button';
 import { partitionApprovalQueue } from '@/lib/approval/visualApprovalSurface';
 import { useToolApprovalResolve } from '@/hooks/approval/useToolApprovalResolve';
@@ -28,8 +27,7 @@ import { useGoalStore } from '@/store/chat/goals/useGoalStore';
 import { MobileStatusApprovalsSection } from './MobileStatusApprovalsSection';
 import { MobileStatusMessageBody } from './MobileStatusMessageBody';
 import { MobilePushDiscoveryBanner } from './MobilePushDiscoveryBanner';
-import { MobileQuickControlAccessoryToolbar } from './MobileQuickControlAccessoryToolbar';
-import { useMobilePromptHistory } from './useMobilePromptHistory';
+import { MobileQuickCommandComposer } from './MobileQuickCommandComposer';
 import RunStatusChip from '@/components/features/copilot/RunStatusChip';
 import SessionAdvisorPanel from '@/components/features/copilot/SessionAdvisorPanel';
 
@@ -55,7 +53,6 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const desktopLoading = useDesktopInspectorStore((state) => state.isSnapshotLoading);
   const browserLoading = useBrowserInspectorStore((state) => state.isSnapshotLoading);
   const { resolveRequest, approveAll, rejectAll, isLoading: isApprovalLoading } = useToolApprovalResolve();
-  const [quickInput, setQuickInput] = useState('');
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [previewTab, setPreviewTab] = useState<'browser' | 'desktop'>('browser');
@@ -64,14 +61,6 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   const e2ee = useE2EEStatus();
   const { plan } = usePlanStore();
   const activeGoal = useGoalStore((s) => s.activeGoal);
-
-  const {
-    historyCount,
-    currentIndex: historyCurrentIndex,
-    pushHistory,
-    navigatePrevious,
-    resetNavigation,
-  } = useMobilePromptHistory(chatId);
 
   useGoalPlanSync(chatId);
 
@@ -154,39 +143,20 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
     };
   }, [lightboxSrc]);
 
-  const handleSendQuickCommand = useCallback(() => {
-    const text = quickInput.trim();
-    if (!text) {
-      return;
-    }
-    const askMatch = text.match(/^\/(?:ask|side)\s*(.*)$/i);
-    if (askMatch) {
-      setAdvisorQuestion(askMatch[1]?.trim() ?? '');
-      setAdvisorOpen(true);
-      setQuickInput('');
-      resetNavigation();
-      return;
-    }
-    pushHistory(text);
-    if (loading) {
-      steerMessage(text);
-    } else {
-      sendMessage(text);
-    }
-    setQuickInput('');
-    resetNavigation();
-  }, [quickInput, sendMessage, steerMessage, loading, pushHistory, resetNavigation]);
+  const handleSubmitCommand = useCallback(
+    (text: string) => {
+      if (loading) {
+        steerMessage(text);
+      } else {
+        sendMessage(text);
+      }
+    },
+    [loading, sendMessage, steerMessage],
+  );
 
-  const handleNavigateHistory = useCallback(() => {
-    const prev = navigatePrevious(quickInput);
-    if (prev !== null) {
-      setQuickInput(prev);
-    }
-  }, [navigatePrevious, quickInput]);
-
-  const inputRef = useRef<HTMLInputElement>(null);
-  const handleRequestFocusInput = useCallback(() => {
-    inputRef.current?.focus();
+  const handleOpenAdvisor = useCallback((question: string) => {
+    setAdvisorQuestion(question);
+    setAdvisorOpen(true);
   }, []);
 
   const handleOpenFullConversation = useCallback(() => {
@@ -216,17 +186,15 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
         <div className="ml-3 flex min-w-0 flex-col">
           <h1 className="text-base font-semibold leading-tight">{t('title')}</h1>
           <span className="text-xs text-muted-foreground">{loading ? t('running') : t('finished')}</span>
-          {loading ? (
-            <Button
-              type="button"
-              variant="link"
-              className="h-auto justify-start p-0 text-xs font-normal text-primary"
-              data-testid="mobile-command-view-full-conversation"
-              onClick={handleOpenFullConversation}
-            >
-              {t('viewFull')} &rarr;
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto justify-start p-0 text-xs font-normal text-primary"
+            data-testid="mobile-command-view-full-conversation"
+            onClick={handleOpenFullConversation}
+          >
+            {t('viewFull')} &rarr;
+          </Button>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <Button
@@ -234,7 +202,7 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
             variant="outline"
             size="sm"
             className="h-8 gap-1 px-2 text-xs"
-            onClick={() => setAdvisorOpen(true)}
+            onClick={() => handleOpenAdvisor('')}
           >
             <MessageCircleQuestion className="h-3.5 w-3.5" />
             {t('advisorOpen')}
@@ -297,64 +265,13 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
       </div>
 
       <div className="border-t bg-background/80 backdrop-blur-md pb-safe">
-        <MobileQuickControlAccessoryToolbar
+        <MobileQuickCommandComposer
           chatId={chatId}
-          historyCount={historyCount}
-          historyCurrentIndex={historyCurrentIndex}
-          currentValue={quickInput}
-          onNavigateHistory={handleNavigateHistory}
-          onRequestFocusInput={handleRequestFocusInput}
-          onPasteText={(text) => {
-            setQuickInput((prev) => (prev ? `${prev} ${text}` : text));
-          }}
-          onOpenAdvisor={() => {
-            setAdvisorQuestion('');
-            setAdvisorOpen(true);
-          }}
-          onClearInput={() => {
-            const trimmed = quickInput.trim();
-            if (trimmed.length > 3) {
-              pushHistory(trimmed);
-            }
-            setQuickInput('');
-            resetNavigation();
-          }}
+          loading={loading}
+          messages={messages}
+          onSubmit={handleSubmitCommand}
+          onOpenAdvisor={handleOpenAdvisor}
         />
-        <div className="p-3 pt-1.5 flex items-center gap-2">
-          <SpeechInputButton
-            mode="push-to-talk"
-            onTranscript={(text) => {
-              const trimmed = text.trim();
-              if (!trimmed) {
-                return;
-              }
-              pushHistory(trimmed);
-              if (loading) {
-                steerMessage(trimmed);
-              } else {
-                sendMessage(trimmed);
-              }
-              resetNavigation();
-            }}
-          />
-          <input
-            ref={inputRef}
-            type="text"
-            value={quickInput}
-            onChange={(e) => setQuickInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSendQuickCommand()}
-            placeholder={loading ? t('steerPlaceholder') : t('quickCommandPlaceholder')}
-            className="flex-1 h-10 rounded-xl border bg-secondary/50 px-3 text-sm outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
-          />
-          <Button
-            size="icon"
-            className="h-10 w-10 rounded-xl shrink-0"
-            onClick={handleSendQuickCommand}
-            disabled={!quickInput.trim()}
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
 
         {loading && (
           <div className="px-3 pb-3">

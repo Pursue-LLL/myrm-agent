@@ -144,7 +144,7 @@ describe('MobileStatusBoard full conversation link', () => {
     };
   });
 
-  it('shows viewFull link while run is loading and navigates to main chat', () => {
+  it('keeps viewFull link reachable while the run is loading and navigates to main chat', () => {
     render(<MobileStatusBoard chatId="chat-abc" />);
 
     const link = screen.getByTestId('mobile-command-view-full-conversation');
@@ -153,10 +153,13 @@ describe('MobileStatusBoard full conversation link', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/chat-abc');
   });
 
-  it('hides viewFull link when run is not loading', () => {
+  it('keeps viewFull link reachable when idle so long prompts are never a dead end', () => {
     chatStoreState.loading = false;
     render(<MobileStatusBoard chatId="chat-abc" />);
 
-    expect(screen.queryByTestId('mobile-command-view-full-conversation')).toBeNull();
+    const link = screen.getByTestId('mobile-command-view-full-conversation');
+    fireEvent.click(link);
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/chat-abc');
   });
 });

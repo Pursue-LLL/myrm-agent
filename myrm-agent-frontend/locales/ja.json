@@ -1547,6 +1547,7 @@
       "approveAll": "すべて承認",
       "quickCommand": "クイックコマンド",
       "quickCommandPlaceholder": "新しい指示を送信...",
+      "quickCommandInputLabel": "モバイル指揮バー入力",
       "steerPlaceholder": "エージェントを誘導...",
       "send": "送信",
       "verifications": "検収条件",

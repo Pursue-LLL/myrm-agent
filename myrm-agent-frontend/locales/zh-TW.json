@@ -1564,6 +1564,7 @@
       "approveAll": "全部批准",
       "quickCommand": "快速指令",
       "quickCommandPlaceholder": "傳送新指令...",
+      "quickCommandInputLabel": "行動端指揮列輸入框",
       "steerPlaceholder": "傳送糾偏指令...",
       "send": "傳送",
       "verifications": "驗收條件",

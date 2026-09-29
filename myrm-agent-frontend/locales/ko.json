@@ -1510,6 +1510,7 @@
       "approveAll": "모두 승인",
       "quickCommand": "빠른 명령",
       "quickCommandPlaceholder": "새 지침 보내기...",
+      "quickCommandInputLabel": "모바일 지휘 입력창",
       "steerPlaceholder": "에이전트 방향 전환...",
       "send": "보내기",
       "verifications": "수용 기준",

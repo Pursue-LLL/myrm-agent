@@ -44,7 +44,6 @@ describe('MobileQuickControlAccessoryToolbar', () => {
   it('renders accessory buttons correctly', () => {
     render(
       <MobileQuickControlAccessoryToolbar
-        chatId="chat-1"
         historyCount={3}
         historyCurrentIndex={-1}
         currentValue=""
@@ -65,7 +64,6 @@ describe('MobileQuickControlAccessoryToolbar', () => {
   it('disables history button when historyCount is 0', () => {
     render(
       <MobileQuickControlAccessoryToolbar
-        chatId="chat-1"
         historyCount={0}
         historyCurrentIndex={-1}
         currentValue=""
@@ -83,7 +81,6 @@ describe('MobileQuickControlAccessoryToolbar', () => {
   it('displays active history index badge when browsing history', () => {
     render(
       <MobileQuickControlAccessoryToolbar
-        chatId="chat-1"
         historyCount={5}
         historyCurrentIndex={2}
         currentValue="some history prompt"
@@ -100,7 +97,6 @@ describe('MobileQuickControlAccessoryToolbar', () => {
   it('triggers onNavigateHistory and onOpenAdvisor clicks', () => {
     render(
       <MobileQuickControlAccessoryToolbar
-        chatId="chat-1"
         historyCount={2}
         historyCurrentIndex={-1}
         currentValue=""
@@ -121,7 +117,6 @@ describe('MobileQuickControlAccessoryToolbar', () => {
   it('renders clear button when currentValue is present and triggers onClearInput', () => {
     render(
       <MobileQuickControlAccessoryToolbar
-        chatId="chat-1"
         historyCount={2}
         historyCurrentIndex={-1}
         currentValue="typed text"
@@ -146,7 +141,6 @@ describe('MobileQuickControlAccessoryToolbar', () => {
 
     render(
       <MobileQuickControlAccessoryToolbar
-        chatId="chat-1"
         historyCount={0}
         historyCurrentIndex={-1}
         currentValue=""
@@ -173,7 +167,6 @@ describe('MobileQuickControlAccessoryToolbar', () => {
 
     render(
       <MobileQuickControlAccessoryToolbar
-        chatId="chat-1"
         historyCount={2}
         historyCurrentIndex={-1}
         currentValue="some draft"
@@ -214,7 +207,6 @@ describe('MobileQuickControlAccessoryToolbar', () => {
 
     render(
       <MobileQuickControlAccessoryToolbar
-        chatId="chat-1"
         historyCount={0}
         historyCurrentIndex={-1}
         currentValue=""
@@ -242,7 +234,6 @@ describe('MobileQuickControlAccessoryToolbar', () => {
 
     render(
       <MobileQuickControlAccessoryToolbar
-        chatId="chat-1"
         historyCount={0}
         historyCurrentIndex={-1}
         currentValue=""

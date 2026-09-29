@@ -7,6 +7,7 @@ import { IconActivity, IconArrowRight, IconChevronUp, IconPlus } from '@/compone
 import { scheduleMobilePairRefresh, storeMobilePairToken } from '@/lib/mobileRemote';
 import { useE2EEStatus } from '@/lib/e2ee/useE2EEStatus';
 import E2EESecurityPanel from '@/components/features/e2ee/E2EESecurityPanel';
+import { isImeComposing } from '@/lib/utils/imeUtils';
 import type { ActiveSession } from '@/services/agent';
 import { remoteAccessService } from '@/services/remoteAccess';
 import type { SpawnOptionAgent, SpawnOptionProject } from '@/services/remoteAccess';
@@ -247,6 +248,9 @@ export default function MobileSessionHub() {
                   value={taskMessage}
                   onChange={(e) => setTaskMessage(e.target.value)}
                   onKeyDown={(e) => {
+                    if (isImeComposing(e)) {
+                      return;
+                    }
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       void handleSubmit();

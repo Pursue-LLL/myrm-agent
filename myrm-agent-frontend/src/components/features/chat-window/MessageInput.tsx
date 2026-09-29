@@ -92,31 +92,7 @@ import { WechatArticleComposerHint } from './WechatArticleComposerHint';
 import { ContextSpilloverBadge } from '../message-box/ContextSpilloverBadge';
 import { useChatTurnPrewarm } from '@/hooks/chat/useChatTurnPrewarm';
 import { ChatInlineTeamRunVisibilityStrip } from './subagent/ChatInlineTeamRunVisibilityStrip';
-
-const KEYTERM_PATTERN =
-  /(?:[A-Z][a-z]+(?:[A-Z][a-z]+)+|[A-Z]{2,}[a-z]*|[a-zA-Z][\w.-]{2,}(?:\.[\w]+)+|[\u4e00-\u9fff]{2,4}(?:[\u4e00-\u9fff]+)?)/g;
-const MAX_KEYTERMS = 15;
-
-function extractKeyterms(messages: { content: string; role: string }[]): string[] {
-  const recent = messages.slice(-6);
-  const text = recent.map((m) => m.content).join(' ');
-  const matches = text.match(KEYTERM_PATTERN);
-  if (!matches) {
-    return [];
-  }
-
-  const counts = new Map<string, number>();
-  for (const m of matches) {
-    const lower = m.toLowerCase();
-    counts.set(lower, (counts.get(lower) || 0) + 1);
-  }
-
-  return [...counts.entries()]
-    .filter(([, c]) => c >= 1)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, MAX_KEYTERMS)
-    .map(([term]) => term);
-}
+import { extractKeyterms } from './speechKeyterms';
 import {
   AlertDialog,
   AlertDialogAction,
