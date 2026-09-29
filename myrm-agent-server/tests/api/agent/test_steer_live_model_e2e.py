@@ -31,7 +31,7 @@ def test_live_steer_lands_mid_run(app: FastAPI, setup_test_database) -> None:
     """A steer sent while a real model turn streams must report steered:true."""
     chat_id = f"live-steer-{uuid.uuid4().hex[:8]}"
     stop = threading.Event()
-    outcome: dict[str, object] = {"steered": False, "attempts": 0}
+    outcome: dict[str, object] = {"steered": False, "policy_steered": False, "attempts": 0}
     stream_status: dict[str, object] = {}
 
     def _pump_stream() -> None:
@@ -72,6 +72,18 @@ def test_live_steer_lands_mid_run(app: FastAPI, setup_test_database) -> None:
                     data = resp.json()
                     if data.get("success") is True:
                         outcome["steered"] = True
+                    policy_resp = steer_client.post(
+                        f"/api/v1/agents/chats/{chat_id}/steer",
+                        json={
+                            "message": "keep each fact to one sentence",
+                            "mode": "policy",
+                            "quotedRef": "live-e2e",
+                        },
+                    )
+                    policy_data = policy_resp.json()
+                    if policy_data.get("success") is True:
+                        outcome["policy_steered"] = True
+                    if outcome["steered"] is True and outcome["policy_steered"] is True:
                         return
                     time.sleep(1.0)
 
@@ -87,3 +99,4 @@ def test_live_steer_lands_mid_run(app: FastAPI, setup_test_database) -> None:
     assert stream_status.get("http") == 200, stream_status
     assert int(stream_status.get("chunks", 0)) > 0, stream_status
     assert outcome["steered"] is True, outcome
+    assert outcome["policy_steered"] is True, outcome
