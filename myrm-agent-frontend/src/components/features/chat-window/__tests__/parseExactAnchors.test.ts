@@ -58,4 +58,16 @@ Proceed with tests.`;
     expect(res.anchors.codeSymbols).toEqual(['Bar']);
     expect(res.cleanedSummary).toBe('# Markdown Summary');
   });
+
+  it('tolerates variable header levels like ## ⚓ Exact Anchor Index', () => {
+    const md = `## ⚓ Exact Anchor Index (Deterministic Machine Symbols)
+- **Git Commits**: \`abc1234\`
+- **Modified Files**: \`test.ts\`
+
+# Final Section`;
+    const res = parseExactAnchors(md);
+    expect(res.anchors.commitShas).toEqual(['abc1234']);
+    expect(res.anchors.filePaths).toEqual(['test.ts']);
+    expect(res.cleanedSummary).toBe('# Final Section');
+  });
 });

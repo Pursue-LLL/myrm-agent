@@ -98,19 +98,19 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
           {filePaths.slice(0, 2).map((path) => (
             <span
               key={path}
-              className="inline-flex items-center gap-1 rounded bg-zinc-100/80 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-300"
+              className="inline-flex max-w-[130px] items-center gap-1 rounded bg-zinc-100/80 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-300"
             >
-              <FileCode className="h-2.5 w-2.5 text-zinc-500" />
-              {path.split('/').pop()}
+              <FileCode className="h-2.5 w-2.5 shrink-0 text-zinc-500" />
+              <span className="truncate">{path.split('/').pop()}</span>
             </span>
           ))}
           {codeSymbols.slice(0, 2).map((sym) => (
             <span
               key={sym}
-              className="inline-flex items-center gap-1 rounded bg-zinc-100/80 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-300"
+              className="inline-flex max-w-[110px] items-center gap-1 rounded bg-zinc-100/80 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-300"
             >
-              <Code2 className="h-2.5 w-2.5 text-zinc-500" />
-              {sym}
+              <Code2 className="h-2.5 w-2.5 shrink-0 text-zinc-500" />
+              <span className="truncate">{sym}</span>
             </span>
           ))}
           {totalCount > 6 && <span className="text-[10px] text-zinc-400">+{totalCount - 6} more</span>}
@@ -171,14 +171,15 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
                         handleCopy(path, id);
                         onSymbolClick?.(path, 'filePaths');
                       }}
-                      className="group inline-flex items-center gap-1 rounded-md border border-zinc-200/80 bg-zinc-50/50 px-2 py-0.5 font-mono text-[10px] text-zinc-700 transition-colors hover:border-primary/50 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      className="group inline-flex max-w-full sm:max-w-md items-center gap-1 rounded-md border border-zinc-200/80 bg-zinc-50/50 px-2 py-0.5 font-mono text-[10px] text-zinc-700 transition-colors hover:border-primary/50 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                       title="Click to copy path"
+                      aria-label={`Copy path: ${path}`}
                     >
-                      <span>{path}</span>
+                      <span className="truncate" title={path}>{path}</span>
                       {isCopied ? (
-                        <Check className="h-2.5 w-2.5 text-emerald-500" />
+                        <Check className="h-2.5 w-2.5 shrink-0 text-emerald-500" />
                       ) : (
-                        <Copy className="h-2.5 w-2.5 opacity-40 group-hover:opacity-100" />
+                        <Copy className="h-2.5 w-2.5 shrink-0 opacity-40 group-hover:opacity-100" />
                       )}
                     </button>
                   );
@@ -206,14 +207,15 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
                         handleCopy(sym, id);
                         onSymbolClick?.(sym, 'codeSymbols');
                       }}
-                      className="group inline-flex items-center gap-1 rounded-md border border-zinc-200/80 bg-zinc-50/50 px-2 py-0.5 font-mono text-[10px] text-zinc-700 transition-colors hover:border-primary/50 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      className="group inline-flex max-w-full sm:max-w-xs items-center gap-1 rounded-md border border-zinc-200/80 bg-zinc-50/50 px-2 py-0.5 font-mono text-[10px] text-zinc-700 transition-colors hover:border-primary/50 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                       title="Click to copy symbol"
+                      aria-label={`Copy symbol: ${sym}`}
                     >
-                      <span>{sym}</span>
+                      <span className="truncate" title={sym}>{sym}</span>
                       {isCopied ? (
-                        <Check className="h-2.5 w-2.5 text-emerald-500" />
+                        <Check className="h-2.5 w-2.5 shrink-0 text-emerald-500" />
                       ) : (
-                        <Copy className="h-2.5 w-2.5 opacity-40 group-hover:opacity-100" />
+                        <Copy className="h-2.5 w-2.5 shrink-0 opacity-40 group-hover:opacity-100" />
                       )}
                     </button>
                   );
@@ -238,14 +240,15 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
                       key={ep}
                       type="button"
                       onClick={() => handleCopy(ep, id)}
-                      className="group inline-flex items-center gap-1 rounded-md border border-zinc-200/80 bg-zinc-50/50 px-2 py-0.5 font-mono text-[10px] text-zinc-700 transition-colors hover:border-primary/50 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      className="group inline-flex max-w-full sm:max-w-sm items-center gap-1 rounded-md border border-zinc-200/80 bg-zinc-50/50 px-2 py-0.5 font-mono text-[10px] text-zinc-700 transition-colors hover:border-primary/50 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                       title="Click to copy endpoint"
+                      aria-label={`Copy endpoint: ${ep}`}
                     >
-                      <span>{ep}</span>
+                      <span className="truncate" title={ep}>{ep}</span>
                       {isCopied ? (
-                        <Check className="h-2.5 w-2.5 text-emerald-500" />
+                        <Check className="h-2.5 w-2.5 shrink-0 text-emerald-500" />
                       ) : (
-                        <Copy className="h-2.5 w-2.5 opacity-40 group-hover:opacity-100" />
+                        <Copy className="h-2.5 w-2.5 shrink-0 opacity-40 group-hover:opacity-100" />
                       )}
                     </button>
                   );
@@ -265,7 +268,7 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
                 {errorSpans.map((err, i) => (
                   <div
                     key={`err-${i}`}
-                    className="rounded-md border border-amber-200/60 bg-amber-50/40 p-2 font-mono text-[10px] text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
+                    className="break-all whitespace-pre-wrap rounded-md border border-amber-200/60 bg-amber-50/40 p-2 font-mono text-[10px] text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200"
                   >
                     {err}
                   </div>

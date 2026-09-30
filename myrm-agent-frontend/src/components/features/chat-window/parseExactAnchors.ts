@@ -30,7 +30,7 @@ const EMPTY_ANCHORS: ExactAnchorData = {
 
 const JSON_ANCHOR_REGEX = /<!--\s*EXACT_ANCHOR_JSON:\s*(\{[\s\S]*?\})\s*-->/;
 const MARKDOWN_ANCHOR_BLOCK_REGEX =
-  /(?:^|\n)###\s+⚓\s+Exact Anchor Index \(Deterministic Machine Symbols\)([\s\S]*?)(?=(?:\n###|\n##|\n#|$))/;
+  /(?:^|\n)#{2,4}\s+⚓\s+Exact Anchor Index[^\n]*\n([\s\S]*?)(?=(?:\n#{1,4}\s+[^⚓]|$))/i;
 
 function extractBacktickItems(line: string): string[] {
   const matches: string[] = [];
