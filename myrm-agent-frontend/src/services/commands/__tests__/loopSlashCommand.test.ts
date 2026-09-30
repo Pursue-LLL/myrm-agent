@@ -14,12 +14,12 @@ vi.mock('@/services/i18nToastService', () => ({
   showI18nToast: vi.fn(),
 }));
 
-const mockCreateCronJob = vi.fn();
-const mockTriggerCronJob = vi.fn();
+const mockStartSessionLoop = vi.fn();
+const mockStopSessionLoop = vi.fn();
 
-vi.mock('@/services/cron', () => ({
-  createCronJob: (...args: unknown[]) => mockCreateCronJob(...args),
-  triggerCronJob: (...args: unknown[]) => mockTriggerCronJob(...args),
+vi.mock('@/services/sessionLoop', () => ({
+  startSessionLoop: (...args: unknown[]) => mockStartSessionLoop(...args),
+  stopSessionLoop: (...args: unknown[]) => mockStopSessionLoop(...args),
 }));
 
 let mockChatState = {
@@ -194,61 +194,67 @@ describe('executeLoopSlashCommand', () => {
       actionMode: 'agent' as const,
       agentConfig: { agentId: 'persona_dev' },
     };
-    mockCreateCronJob.mockResolvedValue({ id: 'cron_job_999' });
-    mockTriggerCronJob.mockResolvedValue({ triggered: true });
+    mockStartSessionLoop.mockResolvedValue({
+      is_active: true,
+      status: 'active',
+      current_delay_human: '5m',
+    });
+    mockStopSessionLoop.mockResolvedValue({
+      is_active: false,
+      status: 'stopped',
+    });
   });
 
   it('returns warning when streaming', async () => {
     mockChatState.loading = true;
     const res = await executeLoopSlashCommand('/loop 5m check status');
     expect(res.success).toBe(false);
-    expect(mockCreateCronJob).not.toHaveBeenCalled();
+    expect(mockStartSessionLoop).not.toHaveBeenCalled();
+  });
+
+  it('returns error when chatId is missing', async () => {
+    mockChatState.chatId = '';
+    const res = await executeLoopSlashCommand('/loop 5m check status');
+    expect(res.success).toBe(false);
+    expect(res.error).toBe('No active chat session');
+    expect(mockStartSessionLoop).not.toHaveBeenCalled();
   });
 
   it('returns info when prompt is missing', async () => {
     const res = await executeLoopSlashCommand('/loop');
     expect(res.success).toBe(false);
-    expect(mockCreateCronJob).not.toHaveBeenCalled();
+    expect(mockStartSessionLoop).not.toHaveBeenCalled();
   });
 
   it('returns info and blocks job creation when only interval is provided without prompt', async () => {
     const res = await executeLoopSlashCommand('/loop 5m');
     expect(res.success).toBe(false);
     expect(res.error).toBe('Missing loop prompt');
-    expect(mockCreateCronJob).not.toHaveBeenCalled();
+    expect(mockStartSessionLoop).not.toHaveBeenCalled();
   });
 
-  it('successfully creates job and triggers first-run', async () => {
+  it('successfully stops active loop when /loop stop is called', async () => {
+    const res = await executeLoopSlashCommand('/loop stop');
+    expect(res.success).toBe(true);
+    expect(mockStopSessionLoop).toHaveBeenCalledWith('chat_test_123');
+    expect(mockStartSessionLoop).not.toHaveBeenCalled();
+  });
+
+  it('handles stop failure gracefully', async () => {
+    mockStopSessionLoop.mockRejectedValue(new Error('Stop failed'));
+    const res = await executeLoopSlashCommand('/loop stop');
+    expect(res.success).toBe(false);
+    expect(res.error).toBe('Failed to stop loop');
+  });
+
+  it('successfully starts session loop with prompt', async () => {
     const res = await executeLoopSlashCommand('/loop 5m 检查构建');
     expect(res.success).toBe(true);
-    expect(mockCreateCronJob).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Loop: 检查构建',
-        job_type: 'agent',
-        schedule: { kind: 'interval', interval_ms: 300_000 },
-        prompt: '检查构建',
-        chat_id: 'chat_test_123',
-        agent_id: 'persona_dev',
-        session_target: 'main',
-      }),
-    );
-    expect(mockTriggerCronJob).toHaveBeenCalledWith('cron_job_999');
+    expect(mockStartSessionLoop).toHaveBeenCalledWith('chat_test_123', '/loop 5m 检查构建');
   });
 
-  it('handles long prompt truncation for job name', async () => {
-    const longPrompt = '这是一段非常非常非常非常长长长长长长长长长长长长长长的循环巡检任务描述';
-    const res = await executeLoopSlashCommand(`/loop 1h ${longPrompt}`);
-    expect(res.success).toBe(true);
-    expect(mockCreateCronJob).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: expect.stringMatching(/^Loop: .*?\.\.\.$/),
-        prompt: longPrompt,
-      }),
-    );
-  });
-
-  it('handles API failure gracefully', async () => {
-    mockCreateCronJob.mockRejectedValue(new Error('Network error'));
+  it('handles start API failure gracefully', async () => {
+    mockStartSessionLoop.mockRejectedValue(new Error('Network error'));
     const res = await executeLoopSlashCommand('/loop 10m 检查网络');
     expect(res.success).toBe(false);
     expect(res.error).toBe('Loop command exception');

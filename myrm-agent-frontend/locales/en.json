@@ -7320,7 +7320,7 @@
       "goalCleared": "Goal cleared",
       "goalActionFailed": "Goal command failed",
       "loop": "Create or manage a recurring scheduled task for this conversation",
-      "loopUsage": "Usage: /loop [interval] <prompt> (e.g. /loop 10m check deploy, /loop 1h check metrics)",
+      "loopUsage": "Usage: /loop [interval] [--times N] [--until condition] <prompt>, or /loop stop",
       "loopMissingPrompt": "Please provide a task prompt for /loop",
       "loopCreated": "Scheduled loop task created (Interval: {interval}), first run triggered",
       "loopCreateFailed": "Failed to create loop task",
@@ -7335,7 +7335,8 @@
       "review_week": "Weekly voice corpus digest — aggregate multi-meeting recordings to extract key conclusions and blocker reports",
       "design_image": "Structured image synthesis — generate commercial-grade assets with Prompt-as-Code atomic schemas and style presets",
       "ask": "Open session advisor for read-only side Q&A (/side)",
-      "btwDisambiguation": "In Myrm, /btw starts a background task. For side Q&A while a run is active, use /ask or /side instead."
+      "btwDisambiguation": "In Myrm, /btw starts a background task. For side Q&A while a run is active, use /ask or /side instead.",
+      "loopStopped": "Current session loop stopped"
     }
   },
   "copilot": {

@@ -252,7 +252,7 @@
       "goalCleared": "목표 해제됨",
       "goalActionFailed": "목표 명령 실패",
       "loop": "이 대화에 대한 정기 예약 작업을 생성하거나 관리합니다",
-      "loopUsage": "사용법: /loop [간격] <프롬프트> (예: /loop 10m 배포 확인, /loop 1h 모니터링)",
+      "loopUsage": "사용법: /loop [간격] [--times N] [--until 조건] <프롬프트>, 또는 /loop stop",
       "loopMissingPrompt": "/loop 작업 프롬프트를 입력하세요",
       "loopCreated": "예약된 루프 작업 생성됨 (간격: {interval}), 첫 실행 시작됨",
       "loopCreateFailed": "루프 작업 생성 실패",
@@ -267,7 +267,8 @@
       "review_week": "주간 음성 자료 파노라마 요약 — 이번 주 여러 회의 및 음성 녹음을 집계하여 핵심 결론과 미해결 차단 요인 보고서 도출",
       "design_image": "구조화된 이미지 생성 — Prompt-as-Code 원자적 스키마와 스타일 프리셋으로 상업용 이미지 생성",
       "ask": "읽기 전용 사이드 Q&A를 위한 세션 어드바이저 열기 (/side)",
-      "btwDisambiguation": "Myrm에서 /btw는 백그라운드 작업을 시작합니다. 실행 중 사이드 Q&A는 /ask 또는 /side를 사용하세요."
+      "btwDisambiguation": "Myrm에서 /btw는 백그라운드 작업을 시작합니다. 실행 중 사이드 Q&A는 /ask 또는 /side를 사용하세요.",
+      "loopStopped": "현재 세션 루프가 중지되었습니다"
     }
   },
   "copilot": {

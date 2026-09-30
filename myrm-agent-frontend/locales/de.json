@@ -252,7 +252,7 @@
       "goalCleared": "Ziel gelöscht",
       "goalActionFailed": "Zielbefehl fehlgeschlagen",
       "loop": "Wiederkehrende geplante Aufgabe für diese Konversation erstellen oder verwalten",
-      "loopUsage": "Verwendung: /loop [Intervall] <Prompt> (z.B. /loop 10m Deploy prüfen, /loop 1h Überwachung)",
+      "loopUsage": "Verwendung: /loop [Intervall] [--times N] [--until Bedingung] <Prompt>, oder /loop stop",
       "loopMissingPrompt": "Bitte geben Sie einen Aufgaben-Prompt für /loop an",
       "loopCreated": "Geplante Loop-Aufgabe erstellt (Intervall: {interval}), erste Ausführung gestartet",
       "loopCreateFailed": "Loop-Aufgabe konnte nicht erstellt werden",
@@ -267,7 +267,8 @@
       "review_week": "Wöchentliche Sprachkorpus-Zusammenfassung — Mehrere Besprechungsaufzeichnungen aggregieren, um Schlüsselfolgerungen und Blocker-Berichte zu extrahieren",
       "design_image": "Strukturierte Bildsynthese — Erstellen Sie kommerzielle Assets mit Prompt-as-Code-Atomschemata und Stil-Voreinstellungen",
       "ask": "Session-Berater für schreibgeschützte Nebenfragen öffnen (/side)",
-      "btwDisambiguation": "In Myrm startet /btw eine Hintergrundaufgabe. Für Nebenfragen während eines Laufs verwenden Sie /ask oder /side."
+      "btwDisambiguation": "In Myrm startet /btw eine Hintergrundaufgabe. Für Nebenfragen während eines Laufs verwenden Sie /ask oder /side.",
+      "loopStopped": "Aktuelle Sitzungsschleife gestoppt"
     }
   },
   "copilot": {

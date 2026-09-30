@@ -477,8 +477,8 @@ export function buildBuiltinActions(): SlashAction[] {
       id: 'builtin:loop',
       name: 'loop',
       description: 'commands.builtin.loop',
-      argsHint: '[interval] <prompt>',
-      aliases: ['repeat', 'cron'],
+      argsHint: '[--interval <time>] [--times <N>] [--until <cond>] <prompt> | stop',
+      aliases: ['repeat'],
       type: 'action',
       execute: async (inputValue: string) => {
         const { executeLoopSlashCommand } = await import('@/services/commands/loopSlashCommand');

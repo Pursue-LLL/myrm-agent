@@ -1,21 +1,19 @@
 /**
  * [INPUT]
- * - @/services/cron::createCronJob, triggerCronJob (POS: Cron 任务创建与触发客户端)
- * - @/store/useChatStore (POS: 活跃聊天与 Agent 状态)
- * - @/store/useConfigStore (POS: 模型与个人配置)
+ * - @/services/sessionLoop::startSessionLoop, stopSessionLoop (POS: 会话级循环调度客户端)
+ * - @/store/useChatStore (POS: 活跃聊天与状态)
  * - @/services/i18nToastService::showI18nToast (POS: i18n toast 封装)
  *
  * [OUTPUT]
  * - parseNaturalInterval: 自然语言时间解析函数 (中英文单位支持，下限 60,000ms)
  * - parseLoopCommandInput: /loop 命令入参解析函数 -> { intervalMs, prompt }
- * - executeLoopSlashCommand: 执行 /loop slash 命令创建周期任务并即时首跑
+ * - executeLoopSlashCommand: 执行 /loop slash 命令创建或管理会话周期任务
  *
  * [POS]
  * 原生 /loop Slash 命令执行与调度解析服务。供 builtinActions 与输入框交互复用。
  */
 
 import { showI18nToast } from '@/services/i18nToastService';
-import { resolveEffectiveAgentId } from '@/store/chat/messageRequest';
 import type { ActionResult } from '@/types/command';
 
 export const DEFAULT_LOOP_INTERVAL_MS = 600_000; // 10m
@@ -231,54 +229,58 @@ export function formatIntervalReadable(ms: number): string {
  */
 export async function executeLoopSlashCommand(inputValue: string): Promise<ActionResult> {
   const { default: useChatStore } = await import('@/store/useChatStore');
-  const { createCronJob, triggerCronJob } = await import('@/services/cron');
+  const { startSessionLoop, stopSessionLoop } = await import('@/services/sessionLoop');
 
-  const { chatId, loading, actionMode, agentConfig } = useChatStore.getState();
+  const { chatId, loading } = useChatStore.getState();
 
   if (loading) {
     showI18nToast('commands.builtin.loopCreateFailed', undefined, { type: 'warning' });
-    return { success: false, error: 'Cannot create loop task while streaming' };
+    return { success: false, error: 'Cannot manage loop task while streaming' };
   }
 
-  const { intervalMs, prompt } = parseLoopCommandInput(inputValue);
+  if (!chatId) {
+    showI18nToast('commands.builtin.loopCreateFailed', undefined, { type: 'error' });
+    return { success: false, error: 'No active chat session' };
+  }
 
-  if (!prompt) {
+  const cleanArgs = inputValue
+    .trim()
+    .replace(/^(?:\/)?(?:loop|repeat)\s*/i, '')
+    .trim();
+
+  // 1. 处理停止命令: /loop stop
+  if (cleanArgs.toLowerCase() === 'stop') {
+    try {
+      await stopSessionLoop(chatId);
+      showI18nToast('commands.builtin.loopStopped', undefined, { type: 'info' });
+      return { success: true, newInputValue: '' };
+    } catch (err) {
+      console.error('[LoopSlashCommand] Stop exception:', err);
+      showI18nToast('commands.builtin.loopCreateFailed', undefined, { type: 'error' });
+      return { success: false, error: 'Failed to stop loop' };
+    }
+  }
+
+  // 2. 检查空 prompt（当未传入参数或仅传了时间却无任务内容时）
+  const { prompt, intervalMs } = parseLoopCommandInput(inputValue);
+  if (!prompt && !cleanArgs.startsWith('--')) {
     showI18nToast('commands.builtin.loopUsage', undefined, { type: 'info' });
     return { success: false, error: 'Missing loop prompt' };
   }
 
-  const readableInterval = formatIntervalReadable(intervalMs);
-  const jobName = prompt.length > 25 ? `${prompt.slice(0, 25)}...` : prompt;
-
+  // 3. 启动或更新会话级自适应循环调度
   try {
-    const job = await createCronJob({
-      name: `Loop: ${jobName}`,
-      job_type: 'agent',
-      schedule: {
-        kind: 'interval',
-        interval_ms: intervalMs,
-      },
-      prompt,
-      chat_id: chatId || undefined,
-      agent_id: resolveEffectiveAgentId(actionMode, agentConfig),
-      session_target: 'main',
-      delete_after_run: false,
-    });
-
-    if (job?.id) {
-      // 首跑即时触发策略 (Immediate First-run Policy)
-      triggerCronJob(job.id).catch((err: unknown) => {
-        console.warn('[LoopSlashCommand] First-run trigger failed:', err);
-      });
-
-      showI18nToast('commands.builtin.loopCreated', { interval: readableInterval }, { type: 'success' });
+    const status = await startSessionLoop(chatId, inputValue);
+    if (status && (status.is_active || status.status === 'active')) {
+      const displayInterval = status.current_delay_human || formatIntervalReadable(intervalMs);
+      showI18nToast('commands.builtin.loopCreated', { interval: displayInterval }, { type: 'success' });
       return { success: true, newInputValue: '' };
     }
 
     showI18nToast('commands.builtin.loopCreateFailed', undefined, { type: 'error' });
-    return { success: false, error: 'Failed to create loop job' };
+    return { success: false, error: 'Failed to start session loop' };
   } catch (error) {
-    console.error('[LoopSlashCommand] Creation exception:', error);
+    console.error('[LoopSlashCommand] Start exception:', error);
     showI18nToast('commands.builtin.loopCreateFailed', undefined, { type: 'error' });
     return { success: false, error: 'Loop command exception' };
   }

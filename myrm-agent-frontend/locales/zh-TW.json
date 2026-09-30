@@ -252,7 +252,7 @@
       "goalCleared": "目標已清除",
       "goalActionFailed": "目標命令執行失敗",
       "loop": "為當前對話建立或管理週期性循環任務",
-      "loopUsage": "用法：/loop [間隔] <任務描述>（例如：/loop 10m 檢查建置狀態，/loop 1h 監控競品）",
+      "loopUsage": "用法：/loop [間隔] [--times N] [--until 條件] <任務描述>，或 /loop stop",
       "loopMissingPrompt": "請輸入 /loop 循環任務的具體內容",
       "loopCreated": "已建立循環任務（週期：{interval}），已立即觸發首輪執行",
       "pet": "打開寵物圖鑑或管理精靈覆蓋層",
@@ -267,7 +267,8 @@
       "design_image": "結構化視覺生圖 — 運用 Prompt-as-Code 原子規範與商業風格庫生成高一致性配圖",
       "ask": "打開會話顧問進行唯讀旁路問答（/side）",
       "btwDisambiguation": "在 Myrm 中，/btw 用於啟動後台任務。主對話運行中時如需旁路問答，請使用 /ask 或 /side。",
-      "loopCreateFailed": "建立循環任務失敗"
+      "loopCreateFailed": "建立循環任務失敗",
+      "loopStopped": "已停止當前對話循環任務"
     }
   },
   "copilot": {

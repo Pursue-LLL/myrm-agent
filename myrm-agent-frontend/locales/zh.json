@@ -7320,7 +7320,7 @@
       "goalCleared": "目标已清除",
       "goalActionFailed": "目标命令执行失败",
       "loop": "为当前会话创建或管理周期性循环任务",
-      "loopUsage": "用法：/loop [间隔] <任务描述>（例如：/loop 10m 检查构建状态，/loop 1h 监控竞品）",
+      "loopUsage": "用法：/loop [间隔] [--times N] [--until 条件] <任务描述>，或 /loop stop",
       "loopMissingPrompt": "请输入 /loop 循环任务的具体内容",
       "loopCreated": "已创建循环任务（周期：{interval}），已立即触发首轮执行",
       "loopCreateFailed": "创建循环任务失败",
@@ -7335,7 +7335,8 @@
       "review_week": "听记素材全景提炼 — 聚合本周多场会议与语音素材，提炼关键结论与未决阻碍报告",
       "design_image": "结构化视觉生图 — 运用 Prompt-as-Code 原子规范与商业风格库生成高一致性配图",
       "ask": "打开会话顾问进行只读旁路问答（/side）",
-      "btwDisambiguation": "在 Myrm 中，/btw 用于启动后台任务。主对话运行中时如需旁路问答，请使用 /ask 或 /side。"
+      "btwDisambiguation": "在 Myrm 中，/btw 用于启动后台任务。主对话运行中时如需旁路问答，请使用 /ask 或 /side。",
+      "loopStopped": "已停止当前会话循环任务"
     }
   },
   "copilot": {
