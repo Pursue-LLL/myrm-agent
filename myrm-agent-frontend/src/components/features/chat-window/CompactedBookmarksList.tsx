@@ -1,5 +1,20 @@
 'use client';
 
+/**
+ * Context compaction branch bookmarks list and quick fork controls.
+ *
+ * [INPUT]
+ * - bookmarks: ContextBranchRecord list (POS: Context branch snapshot records)
+ * - onRetryLoad: Reload callback
+ * - labels: Translated localized string labels
+ *
+ * [OUTPUT]
+ * - CompactedBookmarksList: Rendered list of context snapshot bookmarks with fork triggers
+ *
+ * [POS]
+ * Presentation layer component managing compaction snapshot bookmarks display and fork action delegation.
+ */
+
 import React from 'react';
 import { BookmarkSimple } from '@phosphor-icons/react';
 import type { ContextBranchRecord } from '@/services/chat';

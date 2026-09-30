@@ -3,7 +3,7 @@
  *
  * [INPUT]
  * @/hooks/useLoopStatus::useLoopStatus
- * lucide-react::{RefreshCw, Square, Timer, AlertCircle, Clock}
+ * lucide-react::{RefreshCw, Square, Timer, Clock, Target}
  *
  * [OUTPUT]
  * LoopStatusBar component for ChatWindow
@@ -17,7 +17,7 @@
 import React, { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Square, Timer, AlertCircle, Clock } from 'lucide-react';
+import { RefreshCw, Square, Timer, Clock, Target } from 'lucide-react';
 import { useLoopStatus } from '@/hooks/useLoopStatus';
 
 interface LoopStatusBarProps {
@@ -88,6 +88,21 @@ export function LoopStatusBar({ chatId, className = '' }: LoopStatusBarProps) {
                     <span>
                       {t('loopScheduler.backoffCount', { count: status.consecutive_unchanged }) ||
                         `退避 x${status.consecutive_unchanged}`}
+                    </span>
+                  </span>
+                ) : null}
+
+                {/* Stop condition badge */}
+                {status.until_condition ? (
+                  <span
+                    data-testid="loop-until-badge"
+                    className="inline-flex max-w-[160px] truncate items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400"
+                    title={status.until_condition}
+                  >
+                    <Target className="h-3 w-3 shrink-0" />
+                    <span className="truncate">
+                      {t('loopScheduler.untilCondition', { condition: status.until_condition }) ||
+                        `终止条件: ${status.until_condition}`}
                     </span>
                   </span>
                 ) : null}

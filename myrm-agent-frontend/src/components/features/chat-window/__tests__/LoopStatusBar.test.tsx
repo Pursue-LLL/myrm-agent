@@ -26,6 +26,9 @@ const stableT = (key: string, values?: Record<string, unknown>) => {
   if (key === 'loopScheduler.runs') {
     return `第 ${values?.fired} 轮`;
   }
+  if (key === 'loopScheduler.untilCondition') {
+    return `终止条件: ${values?.condition}`;
+  }
   return key;
 };
 
@@ -152,5 +155,33 @@ describe('LoopStatusBar Component', () => {
     await waitFor(() => {
       expect(sessionLoopService.stopSessionLoop).toHaveBeenCalledWith('chat-test-3', 'user_stopped');
     });
+  });
+
+  it('renders stop condition badge when until_condition is present', async () => {
+    vi.mocked(sessionLoopService.getSessionLoopStatus).mockResolvedValue({
+      chat_id: 'chat-test-until',
+      is_active: true,
+      status: 'active',
+      mode: 'interval',
+      prompt: 'Check deployment port',
+      current_delay_seconds: 60,
+      current_delay_human: '1m',
+      next_due_in_seconds: 40,
+      next_due_in_human: '40s',
+      ticks_fired: 1,
+      times_limit: 0,
+      until_condition: 'port 8080 is open',
+      consecutive_unchanged: 0,
+      last_stop_reason: null,
+      paused_reason: null,
+    });
+
+    render(<LoopStatusBar chatId="chat-test-until" />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loop-until-badge')).toBeDefined();
+    });
+
+    expect(screen.getByText('终止条件: port 8080 is open')).toBeDefined();
   });
 });

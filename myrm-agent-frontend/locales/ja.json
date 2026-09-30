@@ -270,7 +270,8 @@
       "btwDisambiguation": "Myrmでは /btw はバックグラウンドタスクを開始します。実行中のサイドQ&Aには /ask または /side を使用してください。",
       "loopStopped": "現在のセッションループを停止しました",
       "loopStatusActive": "現在のループ実行中 (間隔: {interval}、実行回数: {ticks} 回)",
-      "loopStatusInactive": "この会話で実行中のループはありません"
+      "loopStatusInactive": "この会話で実行中のループはありません",
+      "loopTargetReached": "セッションループが終了条件を達成し完了しました"
     }
   },
   "copilot": {

@@ -7338,7 +7338,8 @@
       "btwDisambiguation": "In Myrm, /btw starts a background task. For side Q&A while a run is active, use /ask or /side instead.",
       "loopStopped": "Current session loop stopped",
       "loopStatusActive": "Current loop active (Interval: {interval}, ticks: {ticks})",
-      "loopStatusInactive": "No active loop in this conversation"
+      "loopStatusInactive": "No active loop in this conversation",
+      "loopTargetReached": "Session loop target condition reached and completed"
     }
   },
   "copilot": {

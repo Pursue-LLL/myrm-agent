@@ -1,5 +1,20 @@
 'use client';
 
+/**
+ * Context compaction history archive modal dialog.
+ *
+ * [INPUT]
+ * - messages: Array of Message entities (POS: Conversational message record stream)
+ * - isOpen: Modal visibility toggle state
+ * - onClose: Modal close callback
+ *
+ * [OUTPUT]
+ * - CompactedArchiveModal: Fullscreen overlay modal displaying verbatim archived messages
+ *
+ * [POS]
+ * Presentation layer component for inspecting compacted historical chat messages.
+ */
+
 import React from 'react';
 import { ClockCounterClockwise, X } from '@phosphor-icons/react';
 import { format } from 'date-fns';

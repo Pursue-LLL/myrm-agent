@@ -270,7 +270,8 @@
       "btwDisambiguation": "Myrm에서 /btw는 백그라운드 작업을 시작합니다. 실행 중 사이드 Q&A는 /ask 또는 /side를 사용하세요.",
       "loopStopped": "현재 세션 루프가 중지되었습니다",
       "loopStatusActive": "현재 루프 실행 중 (간격: {interval}, 실행 횟수: {ticks}회)",
-      "loopStatusInactive": "이 대화에 실행 중인 루프가 없습니다"
+      "loopStatusInactive": "이 대화에 실행 중인 루프가 없습니다",
+      "loopTargetReached": "세션 루프가 종료 조건을 달성하여 완료되었습니다"
     }
   },
   "copilot": {

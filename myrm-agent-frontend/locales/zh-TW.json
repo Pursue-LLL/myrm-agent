@@ -270,7 +270,8 @@
       "loopCreateFailed": "建立循環任務失敗",
       "loopStopped": "已停止當前對話循環任務",
       "loopStatusActive": "當前循環執行中（週期：{interval}，已執行 {ticks} 輪）",
-      "loopStatusInactive": "當前對話暫無執行中的循環任務"
+      "loopStatusInactive": "當前對話暫無執行中的循環任務",
+      "loopTargetReached": "會話循環已達成終止條件並自動完成"
     }
   },
   "copilot": {

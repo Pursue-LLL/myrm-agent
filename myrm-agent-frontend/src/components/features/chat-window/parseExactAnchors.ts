@@ -1,3 +1,18 @@
+/**
+ * Exact anchor machine symbols parser for context compaction summary.
+ *
+ * [INPUT]
+ * - CompactionAnchorStrip::ExactAnchorData (POS: Exact anchor machine symbols data contract)
+ * - summaryText: Raw markdown compaction summary string
+ * - metaAnchors?: Structured metadata anchor payload
+ *
+ * [OUTPUT]
+ * - parseExactAnchors: Pure functional parser extracting exact machine symbols and cleaning markdown
+ *
+ * [POS]
+ * Context compaction parser utility for deterministic anchor symbol extraction.
+ */
+
 import type { ExactAnchorData } from './CompactionAnchorStrip';
 
 export interface ParseExactAnchorsResult {

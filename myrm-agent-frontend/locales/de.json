@@ -270,7 +270,8 @@
       "btwDisambiguation": "In Myrm startet /btw eine Hintergrundaufgabe. Für Nebenfragen während eines Laufs verwenden Sie /ask oder /side.",
       "loopStopped": "Aktuelle Sitzungsschleife gestoppt",
       "loopStatusActive": "Aktive Schleife läuft (Intervall: {interval}, Durchläufe: {ticks})",
-      "loopStatusInactive": "Keine aktive Schleife in dieser Konversation"
+      "loopStatusInactive": "Keine aktive Schleife in dieser Konversation",
+      "loopTargetReached": "Sitzungsschleife hat Zielbedingung erreicht und wurde beendet"
     }
   },
   "copilot": {

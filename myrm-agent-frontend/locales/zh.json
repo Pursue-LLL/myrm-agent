@@ -7338,7 +7338,8 @@
       "btwDisambiguation": "在 Myrm 中，/btw 用于启动后台任务。主对话运行中时如需旁路问答，请使用 /ask 或 /side。",
       "loopStopped": "已停止当前会话循环任务",
       "loopStatusActive": "当前循环运行中（周期：{interval}，已执行 {ticks} 轮）",
-      "loopStatusInactive": "当前会话暂无运行中的循环任务"
+      "loopStatusInactive": "当前会话暂无运行中的循环任务",
+      "loopTargetReached": "会话循环已达成终止条件并自动完成"
     }
   },
   "copilot": {
