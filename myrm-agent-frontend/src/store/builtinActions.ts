@@ -477,7 +477,7 @@ export function buildBuiltinActions(): SlashAction[] {
       id: 'builtin:loop',
       name: 'loop',
       description: 'commands.builtin.loop',
-      argsHint: '[--interval <time>] [--times <N>] [--until <cond>] <prompt> | stop',
+      argsHint: '[--interval <time>] [--times <N>] [--until <cond>] <prompt> | status | stop',
       aliases: ['repeat'],
       type: 'action',
       execute: async (inputValue: string) => {

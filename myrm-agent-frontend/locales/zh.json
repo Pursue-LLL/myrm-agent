@@ -7336,7 +7336,9 @@
       "design_image": "结构化视觉生图 — 运用 Prompt-as-Code 原子规范与商业风格库生成高一致性配图",
       "ask": "打开会话顾问进行只读旁路问答（/side）",
       "btwDisambiguation": "在 Myrm 中，/btw 用于启动后台任务。主对话运行中时如需旁路问答，请使用 /ask 或 /side。",
-      "loopStopped": "已停止当前会话循环任务"
+      "loopStopped": "已停止当前会话循环任务",
+      "loopStatusActive": "当前循环运行中（周期：{interval}，已执行 {ticks} 轮）",
+      "loopStatusInactive": "当前会话暂无运行中的循环任务"
     }
   },
   "copilot": {

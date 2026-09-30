@@ -268,7 +268,9 @@
       "design_image": "구조화된 이미지 생성 — Prompt-as-Code 원자적 스키마와 스타일 프리셋으로 상업용 이미지 생성",
       "ask": "읽기 전용 사이드 Q&A를 위한 세션 어드바이저 열기 (/side)",
       "btwDisambiguation": "Myrm에서 /btw는 백그라운드 작업을 시작합니다. 실행 중 사이드 Q&A는 /ask 또는 /side를 사용하세요.",
-      "loopStopped": "현재 세션 루프가 중지되었습니다"
+      "loopStopped": "현재 세션 루프가 중지되었습니다",
+      "loopStatusActive": "현재 루프 실행 중 (간격: {interval}, 실행 횟수: {ticks}회)",
+      "loopStatusInactive": "이 대화에 실행 중인 루프가 없습니다"
     }
   },
   "copilot": {

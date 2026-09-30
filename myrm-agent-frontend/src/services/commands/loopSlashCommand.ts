@@ -229,7 +229,7 @@ export function formatIntervalReadable(ms: number): string {
  */
 export async function executeLoopSlashCommand(inputValue: string): Promise<ActionResult> {
   const { default: useChatStore } = await import('@/store/useChatStore');
-  const { startSessionLoop, stopSessionLoop } = await import('@/services/sessionLoop');
+  const { startSessionLoop, stopSessionLoop, getSessionLoopStatus } = await import('@/services/sessionLoop');
 
   const { chatId, loading } = useChatStore.getState();
 
@@ -248,10 +248,37 @@ export async function executeLoopSlashCommand(inputValue: string): Promise<Actio
     .replace(/^(?:\/)?(?:loop|repeat)\s*/i, '')
     .trim();
 
-  // 1. 处理停止命令: /loop stop
+  // 1. 处理状态查询: /loop status
+  if (cleanArgs.toLowerCase() === 'status') {
+    try {
+      const status = await getSessionLoopStatus(chatId);
+      if (status && (status.is_active || status.status === 'active')) {
+        showI18nToast(
+          'commands.builtin.loopStatusActive',
+          {
+            interval: status.current_delay_human,
+            ticks: status.ticks_fired,
+          },
+          { type: 'info' },
+        );
+      } else {
+        showI18nToast('commands.builtin.loopStatusInactive', undefined, { type: 'info' });
+      }
+      return { success: true, newInputValue: '' };
+    } catch (err) {
+      console.error('[LoopSlashCommand] Status query exception:', err);
+      showI18nToast('commands.builtin.loopCreateFailed', undefined, { type: 'error' });
+      return { success: false, error: 'Failed to query loop status' };
+    }
+  }
+
+  // 2. 处理停止命令: /loop stop
   if (cleanArgs.toLowerCase() === 'stop') {
     try {
       await stopSessionLoop(chatId);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('session-loop-changed', { detail: { chatId } }));
+      }
       showI18nToast('commands.builtin.loopStopped', undefined, { type: 'info' });
       return { success: true, newInputValue: '' };
     } catch (err) {
@@ -261,17 +288,20 @@ export async function executeLoopSlashCommand(inputValue: string): Promise<Actio
     }
   }
 
-  // 2. 检查空 prompt（当未传入参数或仅传了时间却无任务内容时）
+  // 3. 检查空 prompt（当未传入参数或仅传了时间却无任务内容时）
   const { prompt, intervalMs } = parseLoopCommandInput(inputValue);
   if (!prompt && !cleanArgs.startsWith('--')) {
     showI18nToast('commands.builtin.loopUsage', undefined, { type: 'info' });
     return { success: false, error: 'Missing loop prompt' };
   }
 
-  // 3. 启动或更新会话级自适应循环调度
+  // 4. 启动或更新会话级自适应循环调度
   try {
     const status = await startSessionLoop(chatId, inputValue);
     if (status && (status.is_active || status.status === 'active')) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('session-loop-changed', { detail: { chatId } }));
+      }
       const displayInterval = status.current_delay_human || formatIntervalReadable(intervalMs);
       showI18nToast('commands.builtin.loopCreated', { interval: displayInterval }, { type: 'success' });
       return { success: true, newInputValue: '' };

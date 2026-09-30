@@ -16,10 +16,12 @@ vi.mock('@/services/i18nToastService', () => ({
 
 const mockStartSessionLoop = vi.fn();
 const mockStopSessionLoop = vi.fn();
+const mockGetSessionLoopStatus = vi.fn();
 
 vi.mock('@/services/sessionLoop', () => ({
   startSessionLoop: (...args: unknown[]) => mockStartSessionLoop(...args),
   stopSessionLoop: (...args: unknown[]) => mockStopSessionLoop(...args),
+  getSessionLoopStatus: (...args: unknown[]) => mockGetSessionLoopStatus(...args),
 }));
 
 let mockChatState = {
@@ -203,6 +205,12 @@ describe('executeLoopSlashCommand', () => {
       is_active: false,
       status: 'stopped',
     });
+    mockGetSessionLoopStatus.mockResolvedValue({
+      is_active: false,
+      status: 'none',
+      current_delay_human: '',
+      ticks_fired: 0,
+    });
   });
 
   it('returns warning when streaming', async () => {
@@ -233,10 +241,47 @@ describe('executeLoopSlashCommand', () => {
     expect(mockStartSessionLoop).not.toHaveBeenCalled();
   });
 
-  it('successfully stops active loop when /loop stop is called', async () => {
+  it('reports active status when /loop status is called and loop is active', async () => {
+    mockGetSessionLoopStatus.mockResolvedValue({
+      is_active: true,
+      status: 'active',
+      current_delay_human: '5m',
+      ticks_fired: 3,
+    });
+    const res = await executeLoopSlashCommand('/loop status');
+    expect(res.success).toBe(true);
+    expect(mockGetSessionLoopStatus).toHaveBeenCalledWith('chat_test_123');
+    expect(mockStartSessionLoop).not.toHaveBeenCalled();
+  });
+
+  it('reports inactive status when /loop status is called and no loop is running', async () => {
+    mockGetSessionLoopStatus.mockResolvedValue({
+      is_active: false,
+      status: 'none',
+      current_delay_human: '',
+      ticks_fired: 0,
+    });
+    const res = await executeLoopSlashCommand('/loop status');
+    expect(res.success).toBe(true);
+    expect(mockGetSessionLoopStatus).toHaveBeenCalledWith('chat_test_123');
+    expect(mockStartSessionLoop).not.toHaveBeenCalled();
+  });
+
+  it('handles status query exception gracefully', async () => {
+    mockGetSessionLoopStatus.mockRejectedValue(new Error('Query error'));
+    const res = await executeLoopSlashCommand('/loop status');
+    expect(res.success).toBe(false);
+    expect(res.error).toBe('Failed to query loop status');
+  });
+
+  it('successfully stops active loop when /loop stop is called and dispatches event', async () => {
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
     const res = await executeLoopSlashCommand('/loop stop');
     expect(res.success).toBe(true);
     expect(mockStopSessionLoop).toHaveBeenCalledWith('chat_test_123');
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'session-loop-changed' }),
+    );
     expect(mockStartSessionLoop).not.toHaveBeenCalled();
   });
 
@@ -247,10 +292,14 @@ describe('executeLoopSlashCommand', () => {
     expect(res.error).toBe('Failed to stop loop');
   });
 
-  it('successfully starts session loop with prompt', async () => {
+  it('successfully starts session loop with prompt and dispatches event', async () => {
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
     const res = await executeLoopSlashCommand('/loop 5m 检查构建');
     expect(res.success).toBe(true);
     expect(mockStartSessionLoop).toHaveBeenCalledWith('chat_test_123', '/loop 5m 检查构建');
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'session-loop-changed' }),
+    );
   });
 
   it('handles start API failure gracefully', async () => {

@@ -268,7 +268,9 @@
       "ask": "打開會話顧問進行唯讀旁路問答（/side）",
       "btwDisambiguation": "在 Myrm 中，/btw 用於啟動後台任務。主對話運行中時如需旁路問答，請使用 /ask 或 /side。",
       "loopCreateFailed": "建立循環任務失敗",
-      "loopStopped": "已停止當前對話循環任務"
+      "loopStopped": "已停止當前對話循環任務",
+      "loopStatusActive": "當前循環執行中（週期：{interval}，已執行 {ticks} 輪）",
+      "loopStatusInactive": "當前對話暫無執行中的循環任務"
     }
   },
   "copilot": {

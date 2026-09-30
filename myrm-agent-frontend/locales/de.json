@@ -268,7 +268,9 @@
       "design_image": "Strukturierte Bildsynthese — Erstellen Sie kommerzielle Assets mit Prompt-as-Code-Atomschemata und Stil-Voreinstellungen",
       "ask": "Session-Berater für schreibgeschützte Nebenfragen öffnen (/side)",
       "btwDisambiguation": "In Myrm startet /btw eine Hintergrundaufgabe. Für Nebenfragen während eines Laufs verwenden Sie /ask oder /side.",
-      "loopStopped": "Aktuelle Sitzungsschleife gestoppt"
+      "loopStopped": "Aktuelle Sitzungsschleife gestoppt",
+      "loopStatusActive": "Aktive Schleife läuft (Intervall: {interval}, Durchläufe: {ticks})",
+      "loopStatusInactive": "Keine aktive Schleife in dieser Konversation"
     }
   },
   "copilot": {

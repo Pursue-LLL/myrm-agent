@@ -14,11 +14,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  getSessionLoopStatus,
-  stopSessionLoop,
-  type SessionLoopStatus,
-} from '@/services/sessionLoop';
+import { getSessionLoopStatus, stopSessionLoop, type SessionLoopStatus } from '@/services/sessionLoop';
 
 export interface UseLoopStatusResult {
   status: SessionLoopStatus | null;
@@ -155,6 +151,25 @@ export function useLoopStatus(chatId: string | undefined): UseLoopStatusResult {
       }
     };
   }, [status?.is_active, countdown, fetchStatus]);
+
+  // Instant event synchronization: listen for session-loop-changed events
+  useEffect(() => {
+    if (typeof window === 'undefined' || !chatId) {
+      return;
+    }
+
+    const handleLoopChanged = (e: Event) => {
+      const detail = (e as CustomEvent<{ chatId?: string }>).detail;
+      if (!detail?.chatId || detail.chatId === chatId) {
+        void fetchStatus();
+      }
+    };
+
+    window.addEventListener('session-loop-changed', handleLoopChanged);
+    return () => {
+      window.removeEventListener('session-loop-changed', handleLoopChanged);
+    };
+  }, [chatId, fetchStatus]);
 
   const handleStopLoop = useCallback(
     async (reason: string = 'user_stopped'): Promise<void> => {
