@@ -24,6 +24,14 @@ if str(_LIB) not in sys.path:
 
 from cdp_chat.support import get_e2e_api_url  # noqa: E402
 
+from tests.support.chrome_mcp_e2e import (  # noqa: E402
+    get_e2e_ui_url,
+    open_mcp_page,
+    prepare_e2e_ui_session,
+    wait_for_state,
+    warm_ui_route,
+)
+
 
 def _api_request(
     path: str, method: str = "GET", data: dict[str, object] | None = None
@@ -148,3 +156,87 @@ def test_session_loop_http_lifecycle_e2e() -> None:
     )
     assert stop_until_resp is not None
     assert stop_until_resp.get("success") is True
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_session_loop_ui_capsule_and_stop_chrome_e2e() -> None:
+    """Verifies Chrome WebUI renders LoopStatusBar capsule and responds to stop button."""
+    if not _is_backend_ready():
+        pytest.skip("Backend is not ready for live E2E")
+
+    api_base = get_e2e_api_url()
+    prepare_e2e_ui_session(api_base)
+    warm_ui_route("/")
+
+    chat_id = f"e2e-ui-loop-{int(time.time())}"
+    start_res = _api_request(
+        f"/api/v1/chats/{chat_id}/loop/start",
+        method="POST",
+        data={"command": "/loop 3m cluster telemetry monitoring --times 5 --until zero failure"},
+    )
+    assert start_res is not None and start_res.get("success") is True
+
+    try:
+        with open_mcp_page(f"{get_e2e_ui_url()}/chat/{chat_id}") as (client, page):
+            # Dispatch event to notify useLoopStatus of newly activated loop
+            client.evaluate(
+                page,
+                f"window.dispatchEvent(new CustomEvent('session-loop-changed', {{ detail: {{ chatId: '{chat_id}' }} }}));",
+                timeout_sec=10.0,
+            )
+
+            # Wait for capsule to render in DOM
+            bar_state = wait_for_state(
+                client,
+                page,
+                """(() => {
+                    const el = document.querySelector('[data-testid="session-loop-status-bar"]');
+                    if (!el) return { ready: false };
+                    const text = el.textContent || '';
+                    const hasUntil = !!el.querySelector('[data-testid="loop-until-badge"]');
+                    const hasStop = !!el.querySelector('[data-testid="stop-session-loop-btn"]');
+                    return { ready: true, text, hasUntil, hasStop };
+                })()""",
+                timeout_sec=30.0,
+            )
+            assert bar_state.get("ready") is True, f"LoopStatusBar not visible: {bar_state}"
+            assert bar_state.get("hasUntil") is True, "Target condition badge missing"
+            assert bar_state.get("hasStop") is True, "Stop button missing"
+            assert "cluster telemetry" in str(bar_state.get("text")), f"Prompt missing: {bar_state}"
+
+            # Click stop button via DOM action
+            stopped_eval = client.evaluate(
+                page,
+                """(() => {
+                    const btn = document.querySelector('[data-testid="stop-session-loop-btn"]');
+                    if (!btn) return { clicked: false };
+                    btn.click();
+                    return { clicked: true };
+                })()""",
+                timeout_sec=10.0,
+            )
+            assert isinstance(stopped_eval, dict) and stopped_eval.get("clicked") is True
+
+            # Verify API confirms loop transition to stopped
+            time.sleep(1.0)
+            status = _api_request(f"/api/v1/chats/{chat_id}/loop/status")
+            assert status is not None
+            data = status.get("data")
+            assert isinstance(data, dict)
+            assert data.get("is_active") is False
+            assert data.get("status") == "stopped"
+            assert data.get("last_stop_reason") == "user_stopped"
+    finally:
+        _api_request(
+            f"/api/v1/chats/{chat_id}/loop/stop",
+            method="POST",
+            data={"reason": "cleanup"},
+        )
