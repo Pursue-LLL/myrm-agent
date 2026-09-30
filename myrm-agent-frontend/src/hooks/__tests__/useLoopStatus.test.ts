@@ -2,6 +2,11 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { useLoopStatus } from '../useLoopStatus';
 import * as sessionLoopService from '@/services/sessionLoop';
+import { showI18nToast } from '@/services/i18nToastService';
+
+vi.mock('@/services/i18nToastService', () => ({
+  showI18nToast: vi.fn(),
+}));
 
 vi.mock('@/services/sessionLoop', () => ({
   getSessionLoopStatus: vi.fn(),
@@ -104,5 +109,117 @@ describe('useLoopStatus', () => {
     });
 
     expect(sessionLoopService.getSessionLoopStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it('triggers loopTargetReached toast when status transitions from active to completed due to model_signal', async () => {
+    vi.mocked(sessionLoopService.getSessionLoopStatus)
+      .mockResolvedValueOnce({
+        chat_id: 'chat_123',
+        is_active: true,
+        status: 'active',
+        mode: 'interval',
+        prompt: 'run build',
+        current_delay_seconds: 300,
+        current_delay_human: '5m',
+        next_due_in_seconds: 300,
+        next_due_in_human: '5m',
+        ticks_fired: 2,
+        times_limit: 0,
+        until_condition: 'build green',
+        consecutive_unchanged: 0,
+        last_stop_reason: null,
+        paused_reason: null,
+      })
+      .mockResolvedValueOnce({
+        chat_id: 'chat_123',
+        is_active: false,
+        status: 'completed',
+        mode: 'interval',
+        prompt: 'run build',
+        current_delay_seconds: 300,
+        current_delay_human: '5m',
+        next_due_in_seconds: 0,
+        next_due_in_human: '0s',
+        ticks_fired: 3,
+        times_limit: 0,
+        until_condition: 'build green',
+        consecutive_unchanged: 0,
+        last_stop_reason: 'model_signal',
+        paused_reason: null,
+      });
+
+    const { result } = renderHook(() => useLoopStatus('chat_123'));
+
+    await waitFor(() => {
+      expect(result.current.status?.is_active).toBe(true);
+    });
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('session-loop-changed', {
+          detail: { chatId: 'chat_123' },
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.status?.is_active).toBe(false);
+      expect(result.current.status?.last_stop_reason).toBe('model_signal');
+    });
+
+    expect(showI18nToast).toHaveBeenCalledWith('commands.builtin.loopTargetReached', undefined, {
+      type: 'success',
+    });
+  });
+
+  it('does not trigger loopTargetReached toast when stopped by user', async () => {
+    vi.mocked(sessionLoopService.getSessionLoopStatus).mockResolvedValue({
+      chat_id: 'chat_123',
+      is_active: true,
+      status: 'active',
+      mode: 'interval',
+      prompt: 'run build',
+      current_delay_seconds: 300,
+      current_delay_human: '5m',
+      next_due_in_seconds: 300,
+      next_due_in_human: '5m',
+      ticks_fired: 1,
+      times_limit: 0,
+      until_condition: '',
+      consecutive_unchanged: 0,
+      last_stop_reason: null,
+      paused_reason: null,
+    });
+
+    vi.mocked(sessionLoopService.stopSessionLoop).mockResolvedValue({
+      chat_id: 'chat_123',
+      is_active: false,
+      status: 'stopped',
+      mode: 'interval',
+      prompt: 'run build',
+      current_delay_seconds: 300,
+      current_delay_human: '5m',
+      next_due_in_seconds: 0,
+      next_due_in_human: '0s',
+      ticks_fired: 1,
+      times_limit: 0,
+      until_condition: '',
+      consecutive_unchanged: 0,
+      last_stop_reason: 'user_stopped',
+      paused_reason: null,
+    });
+
+    const { result } = renderHook(() => useLoopStatus('chat_123'));
+
+    await waitFor(() => {
+      expect(result.current.status?.is_active).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.stopLoop('user_stopped');
+    });
+
+    expect(showI18nToast).not.toHaveBeenCalled();
+    expect(result.current.status?.is_active).toBe(false);
   });
 });

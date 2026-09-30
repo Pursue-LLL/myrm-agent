@@ -175,6 +175,38 @@ describe('parseLoopCommandInput', () => {
     expect(res.intervalMs).toBe(7_200_000);
     expect(res.prompt).toBe('Check Metrics');
   });
+
+  it('extracts --times and --until flags correctly', () => {
+    const res1 = parseLoopCommandInput('/loop 5m check deploy --times 10');
+    expect(res1.intervalMs).toBe(300_000);
+    expect(res1.prompt).toBe('check deploy');
+    expect(res1.times).toBe(10);
+    expect(res1.until).toBeUndefined();
+
+    const res2 = parseLoopCommandInput('/loop 10m run test --until completed');
+    expect(res2.intervalMs).toBe(600_000);
+    expect(res2.prompt).toBe('run test');
+    expect(res2.times).toBeUndefined();
+    expect(res2.until).toBe('completed');
+
+    const res3 = parseLoopCommandInput('/loop 5m check status --times 5 --until build is green');
+    expect(res3.intervalMs).toBe(300_000);
+    expect(res3.prompt).toBe('check status');
+    expect(res3.times).toBe(5);
+    expect(res3.until).toBe('build is green');
+  });
+
+  it('extracts flags and returns empty prompt when prompt body is missing', () => {
+    const res1 = parseLoopCommandInput('/loop 5m --times 10');
+    expect(res1.intervalMs).toBe(300_000);
+    expect(res1.prompt).toBe('');
+    expect(res1.times).toBe(10);
+
+    const res2 = parseLoopCommandInput('/loop --until done');
+    expect(res2.intervalMs).toBe(DEFAULT_LOOP_INTERVAL_MS);
+    expect(res2.prompt).toBe('');
+    expect(res2.until).toBe('done');
+  });
 });
 
 describe('formatIntervalReadable', () => {
@@ -238,6 +270,18 @@ describe('executeLoopSlashCommand', () => {
     const res = await executeLoopSlashCommand('/loop 5m');
     expect(res.success).toBe(false);
     expect(res.error).toBe('Missing loop prompt');
+    expect(mockStartSessionLoop).not.toHaveBeenCalled();
+  });
+
+  it('blocks job creation when flags are provided but task prompt is empty', async () => {
+    const res1 = await executeLoopSlashCommand('/loop 5m --times 10');
+    expect(res1.success).toBe(false);
+    expect(res1.error).toBe('Missing loop prompt');
+
+    const res2 = await executeLoopSlashCommand('/loop --until done');
+    expect(res2.success).toBe(false);
+    expect(res2.error).toBe('Missing loop prompt');
+
     expect(mockStartSessionLoop).not.toHaveBeenCalled();
   });
 

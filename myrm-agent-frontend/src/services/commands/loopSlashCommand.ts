@@ -124,13 +124,17 @@ function isPureIntervalExpression(str: string): boolean {
   return pattern.test(normalized);
 }
 
-/**
- * 解析 /loop 命令的输入字符串为 (intervalMs, prompt)
- */
-export function parseLoopCommandInput(rawInput: string): {
+export interface ParsedLoopCommandInput {
   intervalMs: number;
   prompt: string;
-} {
+  times?: number;
+  until?: string;
+}
+
+/**
+ * 解析 /loop 命令的输入字符串为 (intervalMs, prompt, times?, until?)
+ */
+export function parseLoopCommandInput(rawInput: string): ParsedLoopCommandInput {
   const args = rawInput
     .trim()
     .replace(/^(?:\/)?(?:loop|repeat|cron)\s*/i, '')
@@ -139,47 +143,75 @@ export function parseLoopCommandInput(rawInput: string): {
     return { intervalMs: DEFAULT_LOOP_INTERVAL_MS, prompt: '' };
   }
 
+  let processedArgs = args;
+  let until: string | undefined;
+  let times: number | undefined;
+
+  // 1. 提取并剥离 --until <condition>
+  const untilMatch = processedArgs.match(/(?:^|\s)--until\s+([\s\S]+)$/i);
+  if (untilMatch && untilMatch.index !== undefined) {
+    until = untilMatch[1].trim();
+    processedArgs = processedArgs.slice(0, untilMatch.index).trim();
+  }
+
+  // 2. 提取并剥离 --times <N>
+  const timesMatch = processedArgs.match(/(?:^|\s)--times\s+(\d+)(?:\s|$)/i);
+  if (timesMatch && timesMatch.index !== undefined) {
+    times = parseInt(timesMatch[1], 10);
+    processedArgs = (
+      processedArgs.slice(0, timesMatch.index) +
+      ' ' +
+      processedArgs.slice(timesMatch.index + timesMatch[0].length)
+    ).trim();
+  }
+
+  if (!processedArgs) {
+    return { intervalMs: DEFAULT_LOOP_INTERVAL_MS, prompt: '', times, until };
+  }
+
   // 0. 纯时间表达无 prompt: e.g. "/loop 5m", "/loop every 1h", "/loop 每天", "/loop 10"
-  if (isPureIntervalExpression(args)) {
-    return { intervalMs: parseNaturalInterval(args), prompt: '' };
+  if (isPureIntervalExpression(processedArgs)) {
+    return { intervalMs: parseNaturalInterval(processedArgs), prompt: '', times, until };
   }
 
   // 1. 特殊前缀短语: e.g. "半小时 检查构建" 或 "每隔半小时 检查构建"
-  const specialPrefixMatch = args.match(
+  const specialPrefixMatch = processedArgs.match(
     /^(?:every\s+|each\s+|每隔?\s*)?(半小时|半个小时|半个钟头|1个半小时|一个半小时|每天|每日)\s+([\s\S]+)$/i,
   );
   if (specialPrefixMatch) {
     const intervalStr = specialPrefixMatch[1];
     const prompt = cleanPrompt(specialPrefixMatch[2]);
-    return { intervalMs: parseNaturalInterval(intervalStr), prompt };
+    return { intervalMs: parseNaturalInterval(intervalStr), prompt, times, until };
   }
 
   // 2. 带有单位的前缀: e.g. "5m do something", "10分钟 检查PR", "every 2 hours do something", "每隔2小时 检查"
   const unitRegex =
     '(?:s|sec|secs|second|seconds|秒|秒钟|m|min|mins|minute|minutes|分|分钟|h|hr|hrs|hour|hours|个?小时|个?钟头|d|day|days|天)';
-  const prefixMatch = args.match(
+  const prefixMatch = processedArgs.match(
     new RegExp(`^(?:every\\s+|each\\s+|每隔?\\s*)?(\\d+\\s*${unitRegex})\\s+([\\s\\S]+)$`, 'i'),
   );
   if (prefixMatch) {
     const intervalStr = prefixMatch[1];
     const prompt = cleanPrompt(prefixMatch[2]);
-    return { intervalMs: parseNaturalInterval(intervalStr), prompt };
+    return { intervalMs: parseNaturalInterval(intervalStr), prompt, times, until };
   }
 
   // 3. 纯数字前缀 (默认按分钟处理): e.g. "10 检查构建"
-  const prefixDigitMatch = args.match(/^(\d+)\s+([\s\S]+)$/);
+  const prefixDigitMatch = processedArgs.match(/^(\d+)\s+([\s\S]+)$/);
   if (prefixDigitMatch) {
     const val = parseInt(prefixDigitMatch[1], 10);
     if (val >= 1 && val <= 1440) {
       return {
         intervalMs: Math.max(val * 60_000, MIN_LOOP_INTERVAL_MS),
         prompt: cleanPrompt(prefixDigitMatch[2]),
+        times,
+        until,
       };
     }
   }
 
   // 4. 后缀 interval: e.g. "check something every 2 hours" 或 "检查构建 每隔10分钟"
-  const suffixMatch = args.match(
+  const suffixMatch = processedArgs.match(
     new RegExp(
       `\\s+(?:every|each|每隔?)\\s*(\\d+\\s*${unitRegex}|半小时|半个小时|半个钟头|1个半小时|一个半小时|每天|每日)\\s*$`,
       'i',
@@ -187,20 +219,20 @@ export function parseLoopCommandInput(rawInput: string): {
   );
   if (suffixMatch && suffixMatch.index !== undefined) {
     const intervalStr = suffixMatch[1];
-    const prompt = cleanPrompt(args.slice(0, suffixMatch.index));
-    return { intervalMs: parseNaturalInterval(intervalStr), prompt };
+    const prompt = cleanPrompt(processedArgs.slice(0, suffixMatch.index));
+    return { intervalMs: parseNaturalInterval(intervalStr), prompt, times, until };
   }
 
   // 5. 纯后缀单位: e.g. "check something 10m" 或 "检查构建 10分钟"
-  const suffixPlainMatch = args.match(new RegExp(`\\s+(\\d+\\s*${unitRegex})\\s*$`, 'i'));
+  const suffixPlainMatch = processedArgs.match(new RegExp(`\\s+(\\d+\\s*${unitRegex})\\s*$`, 'i'));
   if (suffixPlainMatch && suffixPlainMatch.index !== undefined) {
     const intervalStr = suffixPlainMatch[1];
-    const prompt = cleanPrompt(args.slice(0, suffixPlainMatch.index));
-    return { intervalMs: parseNaturalInterval(intervalStr), prompt };
+    const prompt = cleanPrompt(processedArgs.slice(0, suffixPlainMatch.index));
+    return { intervalMs: parseNaturalInterval(intervalStr), prompt, times, until };
   }
 
   // 6. 默认回退: 整个文本作为 prompt
-  return { intervalMs: DEFAULT_LOOP_INTERVAL_MS, prompt: cleanPrompt(args) };
+  return { intervalMs: DEFAULT_LOOP_INTERVAL_MS, prompt: cleanPrompt(processedArgs), times, until };
 }
 
 /**
@@ -288,9 +320,9 @@ export async function executeLoopSlashCommand(inputValue: string): Promise<Actio
     }
   }
 
-  // 3. 检查空 prompt（当未传入参数或仅传了时间却无任务内容时）
+  // 3. 检查空 prompt（当未传入任务内容时，包括仅传时间或参数的情况）
   const { prompt, intervalMs } = parseLoopCommandInput(inputValue);
-  if (!prompt && !cleanArgs.startsWith('--')) {
+  if (!prompt) {
     showI18nToast('commands.builtin.loopUsage', undefined, { type: 'info' });
     return { success: false, error: 'Missing loop prompt' };
   }

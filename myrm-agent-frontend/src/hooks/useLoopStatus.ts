@@ -14,6 +14,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { showI18nToast } from '@/services/i18nToastService';
 import { getSessionLoopStatus, stopSessionLoop, type SessionLoopStatus } from '@/services/sessionLoop';
 
 export interface UseLoopStatusResult {
@@ -50,6 +51,21 @@ export function useLoopStatus(chatId: string | undefined): UseLoopStatusResult {
       const data = await getSessionLoopStatus(chatId);
       if (!mountedRef.current) {
         return;
+      }
+
+      // Check for completion target reached transition:
+      // When previous loop was active for the same chat, and current status became completed/inactive due to model signal or until condition
+      const prev = statusRef.current;
+      if (
+        prev &&
+        prev.chat_id === data.chat_id &&
+        prev.is_active &&
+        !data.is_active &&
+        (data.last_stop_reason === 'model_signal' ||
+          data.last_stop_reason === 'until_met' ||
+          (data.status === 'completed' && data.last_stop_reason !== 'user_stopped'))
+      ) {
+        showI18nToast('commands.builtin.loopTargetReached', undefined, { type: 'success' });
       }
 
       setStatus(data);

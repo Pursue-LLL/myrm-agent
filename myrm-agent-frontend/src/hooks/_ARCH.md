@@ -36,7 +36,7 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 | `useManagedPolicyEffective.ts` | Org MAP effective 只读状态（mount + CP sync SSE + tab visible / Tauri focus refetch；共享 inflight fetch）      | ✅    |
 | `useOrgModelPolicySync.ts`     | Org model policy visibility / Tauri focus refetch（picker 打开时由 store.loadPolicy 拉取最新 whitelist）        | ✅    |
 | `useOrgModelPolicy.ts`         | Settings 等页面的 org model policy hook（`isModelAllowed` 委托 store SSOT）                                     | ✅    |
-| `useLoopStatus.ts`             | 会话级循环调度响应式状态机：长/短自适应轮询、1s 倒计时、`session-loop-changed` 浏览器事件即时同步与一键停止控制 | ✅    |
+| `useLoopStatus.ts`             | 会话级循环调度响应式状态机：长/短自适应轮询、1s 倒计时、`session-loop-changed` 浏览器事件即时同步、目标达成 Toast 自动通知与一键停止控制 | ✅    |
 
 ## 测试
 
@@ -45,7 +45,7 @@ React 自定义 Hooks：连接 UI 与 `@/store`、`@/services`、`@/lib`。按�
 | `<domain>/__tests__/`                         | hook 单元测试与实现同域共置（colocated）                                                                    |
 | `__tests__/useManagedPolicyEffective.test.ts` | 根级 MAP hook（mount / visibility refetch / SSE push / revision skip / inflight dedupe / stale YOLO clear） |
 | `__tests__/useOrgModelPolicy.test.ts`         | 根级 org model policy hook（fail-closed 委托 store / whitelist 匹配）                                       |
-| `__tests__/useLoopStatus.test.ts`             | 根级 loop hook（周期倒计时、`session-loop-changed` 事件瞬时刷新、卸载时清理定时器）                         |
+| `__tests__/useLoopStatus.test.ts`             | 根级 loop hook（周期倒计时、`session-loop-changed` 事件瞬时刷新、卸载清理、目标达成 Toast 通知与手动停止抑制） |
 
 政策 SSOT：根 [_ARCH.md](../../_ARCH.md)「测试」表（默认 colocated）。
 
