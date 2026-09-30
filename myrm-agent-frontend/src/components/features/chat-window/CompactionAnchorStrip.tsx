@@ -175,7 +175,9 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
                       title="Click to copy path"
                       aria-label={`Copy path: ${path}`}
                     >
-                      <span className="truncate" title={path}>{path}</span>
+                      <span className="truncate" title={path}>
+                        {path}
+                      </span>
                       {isCopied ? (
                         <Check className="h-2.5 w-2.5 shrink-0 text-emerald-500" />
                       ) : (
@@ -211,7 +213,9 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
                       title="Click to copy symbol"
                       aria-label={`Copy symbol: ${sym}`}
                     >
-                      <span className="truncate" title={sym}>{sym}</span>
+                      <span className="truncate" title={sym}>
+                        {sym}
+                      </span>
                       {isCopied ? (
                         <Check className="h-2.5 w-2.5 shrink-0 text-emerald-500" />
                       ) : (
@@ -244,7 +248,9 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
                       title="Click to copy endpoint"
                       aria-label={`Copy endpoint: ${ep}`}
                     >
-                      <span className="truncate" title={ep}>{ep}</span>
+                      <span className="truncate" title={ep}>
+                        {ep}
+                      </span>
                       {isCopied ? (
                         <Check className="h-2.5 w-2.5 shrink-0 text-emerald-500" />
                       ) : (

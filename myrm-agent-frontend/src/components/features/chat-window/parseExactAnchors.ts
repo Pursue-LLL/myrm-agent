@@ -30,7 +30,7 @@ const EMPTY_ANCHORS: ExactAnchorData = {
 
 const JSON_ANCHOR_REGEX = /<!--\s*EXACT_ANCHOR_JSON:\s*(\{[\s\S]*?\})\s*-->/;
 const MARKDOWN_ANCHOR_BLOCK_REGEX =
-  /(?:^|\n)#{2,4}\s+⚓\s+Exact Anchor Index[^\n]*\n([\s\S]*?)(?=(?:\n#{1,4}\s+[^⚓]|$))/i;
+  /(?:^|\n)(?:#{2,4}\s+⚓\s+Exact Anchor Index|\[Verified Exact Anchors[^\n\]]*\])[^\n]*\n([\s\S]*?)(?=(?:\n#{1,4}\s+[^⚓]|\n<preserve_context>|$))/i;
 
 function extractBacktickItems(line: string): string[] {
   const matches: string[] = [];
@@ -80,7 +80,7 @@ export function parseExactAnchors(summaryText: string, metaAnchors?: ExactAnchor
         codeSymbols: Array.isArray(parsed.code_symbols) ? (parsed.code_symbols as string[]) : [],
         apiEndpoints: Array.isArray(parsed.api_endpoints) ? (parsed.api_endpoints as string[]) : [],
       };
-      const cleanedSummary = summaryText.replace(JSON_ANCHOR_REGEX, '').trim();
+      const cleanedSummary = summaryText.replace(JSON_ANCHOR_REGEX, '').replace(MARKDOWN_ANCHOR_BLOCK_REGEX, '').trim();
       return { anchors, cleanedSummary };
     } catch {
       // Fallback to markdown parsing

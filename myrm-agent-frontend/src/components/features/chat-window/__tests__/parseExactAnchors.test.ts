@@ -70,4 +70,46 @@ Proceed with tests.`;
     expect(res.anchors.filePaths).toEqual(['test.ts']);
     expect(res.cleanedSummary).toBe('# Final Section');
   });
+
+  it('parses dual-mode backend gold standard output with JSON comment and markdown table', () => {
+    const backendGoldStandard = `# Context Compaction
+
+### ⚓ Exact Anchor Index (Machine-Extracted Truth)
+<!-- Immutable historical anchors; do not hallucinate alternatives -->
+- **Git Commits**: \`7f8a91c\`
+- **Modified Files**: \`docker-compose.prod.yml\`, \`nginx.conf\`
+- **Key Symbols**: \`ConfigParser\`
+- **API Endpoints**: \`/api/v1/health\`
+- **Resolved Errors**:
+  * \`FATAL ERROR: heap out of memory\`
+<!-- EXACT_ANCHOR_JSON: {"commit_shas":["7f8a91c"],"file_paths":["docker-compose.prod.yml","nginx.conf"],"error_spans":["FATAL ERROR: heap out of memory"],"code_symbols":["ConfigParser"],"api_endpoints":["/api/v1/health"]} -->
+
+## Active Task
+Continue deployment.`;
+
+    const res = parseExactAnchors(backendGoldStandard);
+    expect(res.anchors.commitShas).toEqual(['7f8a91c']);
+    expect(res.anchors.filePaths).toEqual(['docker-compose.prod.yml', 'nginx.conf']);
+    expect(res.anchors.codeSymbols).toEqual(['ConfigParser']);
+    expect(res.anchors.apiEndpoints).toEqual(['/api/v1/health']);
+    expect(res.anchors.errorSpans).toEqual(['FATAL ERROR: heap out of memory']);
+    expect(res.cleanedSummary).toContain('# Context Compaction');
+    expect(res.cleanedSummary).toContain('## Active Task');
+    expect(res.cleanedSummary).not.toContain('⚓ Exact Anchor Index');
+    expect(res.cleanedSummary).not.toContain('EXACT_ANCHOR_JSON');
+  });
+
+  it('tolerates legacy [Verified Exact Anchors] format gracefully', () => {
+    const legacyMd = `[Verified Exact Anchors - Machine-Extracted Truth]
+- **Git Commits**: \`c0ffee1\`
+- **Modified Files**: \`legacy.py\`
+
+## Summary
+Done.`;
+    const res = parseExactAnchors(legacyMd);
+    expect(res.anchors.commitShas).toEqual(['c0ffee1']);
+    expect(res.anchors.filePaths).toEqual(['legacy.py']);
+    expect(res.cleanedSummary).toContain('## Summary');
+    expect(res.cleanedSummary).not.toContain('Verified Exact Anchors');
+  });
 });

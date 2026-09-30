@@ -84,6 +84,8 @@ def test_session_loop_http_lifecycle_e2e() -> None:
     assert isinstance(data_start, dict)
     assert data_start.get("is_active") is True
     assert data_start.get("status") == "active"
+    assert data_start.get("mode") == "interval"
+    assert data_start.get("prompt") == "check cluster telemetry"
     assert data_start.get("times_limit") == 5
 
     # 3. Status shows active and has countdown
@@ -92,7 +94,8 @@ def test_session_loop_http_lifecycle_e2e() -> None:
     data_active = status_active.get("data")
     assert isinstance(data_active, dict)
     assert data_active.get("is_active") is True
-    assert data_active.get("prompt") == "/loop 1m check cluster telemetry"
+    assert data_active.get("prompt") == "check cluster telemetry"
+    assert data_active.get("current_delay_human") == "1m"
 
     # 4. Stop loop with user reason
     stop_resp = _api_request(
@@ -115,3 +118,28 @@ def test_session_loop_http_lifecycle_e2e() -> None:
     assert isinstance(data_final, dict)
     assert data_final.get("is_active") is False
     assert data_final.get("status") == "stopped"
+
+    # 6. Verify loop with --until condition parameter
+    chat_id_until = f"e2e-loop-until-{int(time.time())}"
+    start_until_resp = _api_request(
+        f"/api/v1/chats/{chat_id_until}/loop/start",
+        method="POST",
+        data={"command": "/loop 2m tail logs --until error rate drops below 1%"},
+    )
+    assert start_until_resp is not None
+    assert start_until_resp.get("success") is True
+    data_until = start_until_resp.get("data")
+    assert isinstance(data_until, dict)
+    assert data_until.get("is_active") is True
+    assert data_until.get("prompt") == "tail logs"
+    assert data_until.get("until_condition") == "error rate drops below 1%"
+    assert data_until.get("current_delay_human") == "2m"
+
+    # Clean up until loop
+    stop_until_resp = _api_request(
+        f"/api/v1/chats/{chat_id_until}/loop/stop",
+        method="POST",
+        data={"reason": "user_stopped"},
+    )
+    assert stop_until_resp is not None
+    assert stop_until_resp.get("success") is True
