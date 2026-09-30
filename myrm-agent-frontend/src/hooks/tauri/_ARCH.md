@@ -14,6 +14,7 @@ Tauri 桌面端集成：runtime invoke、tray、全局快捷键桥接、应用�
 | `useAppUpdate.ts`           | Tauri 应用更新检查/下载/安装                                                                                        |
 | `useUpdateHandoff.ts`       | 跨重启更新交接事务感知与原子判定（成功升级/未生效降级识别与防抖）                                                   |
 | `usePowerLock.ts`           | Agent 忙碌时阻止系统休眠                                                                                            |
+| `useDesktopWakeRecovery.ts` | 桌面端系统休眠/唤醒自动重连自愈 Hook（挂载于 AppLayout 根生命周期，开盖后毫秒级恢复会话状态与重连）                 |
 
 ## 依赖
 
