@@ -136,7 +136,13 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
                 Ok(msg) => {
                     println!("✅ {}", msg);
                     let handle = runtime::watchdog::spawn_watchdog(&app_handle, backend_port);
+                    let wake_handle = runtime::wake::spawn_wake_detector(
+                        app_handle.clone(),
+                        handle.wake_notify(),
+                        backend_port,
+                    );
                     app_handle.manage(handle);
+                    app_handle.manage(wake_handle);
                 }
                 Err(e) => {
                     eprintln!("❌ Failed to auto-start backend: {}", e);

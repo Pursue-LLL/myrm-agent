@@ -26,6 +26,7 @@ pub mod setup_token;
 pub mod sidecar_version_manager;
 pub mod survivor_diag;
 pub mod watchdog;
+pub mod wake;
 
 #[allow(unused_imports)]
 pub use process_registry::{ManagedProcessEntry, ProcessRegistry, ProcessRole, ProcessStatus};

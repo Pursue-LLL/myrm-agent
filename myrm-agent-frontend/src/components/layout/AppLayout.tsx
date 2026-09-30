@@ -12,6 +12,7 @@ import { PanelLeftOpen } from 'lucide-react';
 import { useTrayStatus } from '@/hooks/tauri/useTrayStatus';
 import { useTabBadge } from '@/hooks/shell/useTabBadge';
 import { usePowerLock } from '@/hooks/tauri/usePowerLock';
+import { useDesktopWakeRecovery } from '@/hooks/tauri/useDesktopWakeRecovery';
 import { useGlobalShortcuts } from '@/hooks/shell/useGlobalShortcuts';
 import { useVisibilityThrottling } from '@/hooks/ui/useVisibilityThrottling';
 import { useTrafficLightInsets } from '@/hooks/ui/useTrafficLightInsets';
@@ -81,6 +82,7 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
   useTrayStatus();
   useTabBadge();
   usePowerLock();
+  useDesktopWakeRecovery();
   useVisibilityThrottling();
   useTrayEvents();
   useGlobalShortcuts();

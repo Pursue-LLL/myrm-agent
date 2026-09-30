@@ -311,4 +311,6 @@ export interface ChatState {
   _processSuggestions: (lastMsg: Message) => Promise<void>;
   // 内部辅助变量
   isReady: boolean;
+  isWakeRecovering: boolean;
+  setWakeRecovering: (recovering: boolean) => void;
 }

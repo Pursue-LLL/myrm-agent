@@ -31,10 +31,14 @@ const RESTART_DELAYS: [Duration; 3] = [
 const RESTART_WINDOW: Duration = Duration::from_secs(300);
 const MAX_RESTARTS_IN_WINDOW: usize = 3;
 
+use std::sync::Arc;
+use tokio::sync::Notify;
+
 /// Watchdog handle returned to caller for lifecycle coordination.
 pub struct WatchdogHandle {
     _task: JoinHandle<()>,
     cancel_tx: watch::Sender<bool>,
+    wake_notify: Arc<Notify>,
 }
 
 impl WatchdogHandle {
@@ -42,30 +46,52 @@ impl WatchdogHandle {
     pub fn cancel(&self) {
         let _ = self.cancel_tx.send(true);
     }
+
+    /// Obtain a handle to trigger immediate wake check.
+    pub fn wake_notify(&self) -> Arc<Notify> {
+        self.wake_notify.clone()
+    }
+
+    /// Trigger an immediate out-of-band health check.
+    #[allow(dead_code)]
+    pub fn trigger_check(&self) {
+        self.wake_notify.notify_one();
+    }
 }
 
 /// Spawn a watchdog task that monitors backend health and auto-restarts on crash.
 pub fn spawn_watchdog(app: &AppHandle, port: u16) -> WatchdogHandle {
     let app_handle = app.clone();
     let (cancel_tx, cancel_rx) = watch::channel(false);
+    let wake_notify = Arc::new(Notify::new());
+    let wake_rx = wake_notify.clone();
 
     let task = tauri::async_runtime::spawn(async move {
-        run_watchdog(app_handle, port, cancel_rx).await;
+        run_watchdog(app_handle, port, cancel_rx, wake_rx).await;
     });
 
     WatchdogHandle {
         _task: task,
         cancel_tx,
+        wake_notify,
     }
 }
 
-async fn run_watchdog(app: AppHandle, port: u16, mut cancel_rx: watch::Receiver<bool>) {
+async fn run_watchdog(
+    app: AppHandle,
+    port: u16,
+    mut cancel_rx: watch::Receiver<bool>,
+    wake_notify: Arc<Notify>,
+) {
     let mut restart_timestamps: Vec<Instant> = Vec::new();
     let mut last_error = String::new();
 
     loop {
         tokio::select! {
             _ = tokio::time::sleep(HEALTH_CHECK_INTERVAL) => {}
+            _ = wake_notify.notified() => {
+                println!("[watchdog] Wake notification received, running 0-delay health check");
+            }
             _ = cancel_rx.changed() => {
                 if *cancel_rx.borrow() {
                     println!("[watchdog] Cancelled by graceful shutdown");
