@@ -238,7 +238,7 @@ myrm_agent_harness.core.security.credential_vault
 myrm_agent_harness.core.security.detection.leak_detector
 myrm_agent_harness.core.security.guards.ssrf
 myrm_agent_harness.core.security.http.secure_fetch
-myrm_agent_harness.core.security.path_security
+myrm_agent_harness.core.security.path
 myrm_agent_harness.core.security.tool_registry
 myrm_agent_harness.eval
 myrm_agent_harness.eval.builder
@@ -282,6 +282,7 @@ myrm_agent_harness.runtime.events.bus
 myrm_agent_harness.runtime.events.idle_events
 myrm_agent_harness.runtime.events.skill_events
 myrm_agent_harness.runtime.events.system_events
+myrm_agent_harness.runtime.loop
 myrm_agent_harness.runtime.maintenance
 myrm_agent_harness.runtime.maintenance.protocols
 myrm_agent_harness.runtime.maintenance.scheduler

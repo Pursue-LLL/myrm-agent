@@ -3080,6 +3080,23 @@
           "description": "Speichernutzung ist hoch. Große Jobs werden bis zur Entspannung verschoben."
         }
       }
+    },
+    "loopScheduler": {
+      "title": "Schleifen-Scheduler aktiv",
+      "activeTitle": "Adaptiver Schleifenlauf aktiv",
+      "pausedTitle": "Schleife pausiert (Benutzereingabe)",
+      "completedTitle": "Schleifenziel erreicht",
+      "stoppedTitle": "Schleife gestoppt",
+      "stop": "Stopp",
+      "stopping": "Wird gestoppt...",
+      "nextRunIn": "Nächstes Aufwachen: {time}",
+      "cadence": "Takt: {cadence}",
+      "runs": "Durchlauf {fired}",
+      "runsLimit": "Durchlauf {fired}/{limit}",
+      "backoffCount": "Verzögerung x{count}",
+      "untilCondition": "Stoppbedingung: {condition}",
+      "userActivityPaused": "Benutzer aktiv, Schleife aufgeschoben",
+      "tooltip": "Sitzungsbezogener adaptiver Exponential-Backoff-Schleifen-Scheduler"
     }
   },
   "mode": {

@@ -3080,6 +3080,23 @@
           "description": "記憶體佔用偏高，大任務可能延後到壓力緩解。"
         }
       }
+    },
+    "loopScheduler": {
+      "title": "循環調度巡檢中",
+      "activeTitle": "自適應循環運行中",
+      "pausedTitle": "循環已暫停 (使用者輸入中)",
+      "completedTitle": "循環已達成目標",
+      "stoppedTitle": "循環已停止",
+      "stop": "停止",
+      "stopping": "停止中...",
+      "nextRunIn": "下次喚醒: {time}",
+      "cadence": "週期: {cadence}",
+      "runs": "第 {fired} 輪",
+      "runsLimit": "第 {fired}/{limit} 輪",
+      "backoffCount": "退避 x{count}",
+      "untilCondition": "終止條件: {condition}",
+      "userActivityPaused": "檢測到使用者主動輸入，循環已順延避讓",
+      "tooltip": "會話級自適應指數退避自喚醒輪詢調度引擎"
     }
   },
   "mode": {

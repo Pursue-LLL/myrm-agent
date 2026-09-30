@@ -192,6 +192,7 @@ Called from other HTTP trees or lifecycle hooks:
 | `rules/` | TTSR zero-tax stream rules and boundary guards |
 | `ssh_bridge/` | Secure tunneling and key authentication bridge for remote hosts |
 | `meeting_notes/` | Meeting audio scribe: chunked ASR scheduling + LLM minutes distillation + wiki raw publish |
+| `loop/` | Session-scoped loop scheduling with turn arbiter (`api/chats/{chat_id}/loop`) |
 
 **Rule of thumb:** add HTTP in `api/`; add orchestration in `services/`; add reusable primitives in `core/`; never duplicate harness execution logic in server.
 

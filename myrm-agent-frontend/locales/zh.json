@@ -10164,6 +10164,23 @@
           "description": "内存占用偏高，大任务可能延后到压力缓解。"
         }
       }
+    },
+    "loopScheduler": {
+      "title": "循环调度巡检中",
+      "activeTitle": "自适应循环运行中",
+      "pausedTitle": "循环已暂停 (用户输入中)",
+      "completedTitle": "循环已达成目标",
+      "stoppedTitle": "循环已停止",
+      "stop": "停止",
+      "stopping": "停止中...",
+      "nextRunIn": "下次唤醒: {time}",
+      "cadence": "周期: {cadence}",
+      "runs": "第 {fired} 轮",
+      "runsLimit": "第 {fired}/{limit} 轮",
+      "backoffCount": "退避 x{count}",
+      "untilCondition": "终止条件: {condition}",
+      "userActivityPaused": "检测到用户主动输入，循环已顺延避让",
+      "tooltip": "会话级自适应指数退避自唤醒轮询调度引擎"
     }
   },
   "mode": {

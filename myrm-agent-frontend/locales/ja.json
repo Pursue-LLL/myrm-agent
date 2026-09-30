@@ -3080,6 +3080,23 @@
           "description": "メモリ使用が高めです。圧力緩和まで大型ジョブは延期されます。"
         }
       }
+    },
+    "loopScheduler": {
+      "title": "ループスケジューラ実行中",
+      "activeTitle": "適応型ループ実行中",
+      "pausedTitle": "ループ一時停止中 (ユーザー操作)",
+      "completedTitle": "ループ目標達成",
+      "stoppedTitle": "ループ停止済み",
+      "stop": "停止",
+      "stopping": "停止中...",
+      "nextRunIn": "次回実行: {time}",
+      "cadence": "周期: {cadence}",
+      "runs": "第 {fired} 回",
+      "runsLimit": "第 {fired}/{limit} 回",
+      "backoffCount": "バックオフ x{count}",
+      "untilCondition": "終了条件: {condition}",
+      "userActivityPaused": "ユーザー操作を検出、ループ待機中",
+      "tooltip": "セッション対応適応型指数バックオフループスケジューラ"
     }
   },
   "mode": {

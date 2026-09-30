@@ -121,6 +121,7 @@ SERVICES_ONLY_DOMAINS: frozenset[str] = frozenset(
         "hosting",
         "infra",
         "locked_use",
+        "loop",
         "mascot",
         "meeting_notes",
         "mobile_adb",

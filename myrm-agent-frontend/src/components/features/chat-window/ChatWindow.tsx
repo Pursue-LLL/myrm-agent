@@ -30,6 +30,7 @@ import { useProjectStore } from '@/store/useProjectStore';
 import { MemoryRecallDegradedBanner } from '@/components/features/message-box/MemoryRecallDegradedBanner';
 import ChatWindowSatellites, { GoalControlPlane, GoalStatusCard, LifeStatusCapsule } from './ChatWindowSatellites';
 import { FiveContractDeliveryStatusPanel } from './FiveContractDeliveryStatusPanel';
+import { LoopStatusBar } from './LoopStatusBar';
 import { ParentChatLink } from './ParentChatLink';
 import { ChatCronLink } from './ChatCronLink';
 import SessionRevertButton from '../message-actions/SessionRevertButton';
@@ -641,6 +642,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
             <ExtensionDisconnectedBanner />
             <ExtensionTakeoverBanner />
             <WorkspaceTrustBanner workspacePath={activeWorkspacePath} />
+            <LoopStatusBar chatId={id} />
             <MemoryRecallDegradedBanner
               compact
               dismissStorageKey={id ? `memory-recall-degraded:${id}` : undefined}

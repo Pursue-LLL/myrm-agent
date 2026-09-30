@@ -3080,6 +3080,23 @@
           "description": "메모리 사용이 높습니다. 압력이 내려가면 대형 작업이 실행됩니다."
         }
       }
+    },
+    "loopScheduler": {
+      "title": "루프 스케줄러 실행 중",
+      "activeTitle": "적응형 루프 활성",
+      "pausedTitle": "루프 일시중지됨 (사용자 입력 중)",
+      "completedTitle": "루프 목표 달성",
+      "stoppedTitle": "루프 중지됨",
+      "stop": "중지",
+      "stopping": "중지 중...",
+      "nextRunIn": "다음 실행: {time}",
+      "cadence": "주기: {cadence}",
+      "runs": "{fired}회 실행",
+      "runsLimit": "{fired}/{limit}회 실행",
+      "backoffCount": "백오프 x{count}",
+      "untilCondition": "종료 조건: {condition}",
+      "userActivityPaused": "사용자 입력 감지, 루프 연기됨",
+      "tooltip": "세션 범위 적응형 지수 백오프 루프 스케줄러"
     }
   },
   "mode": {

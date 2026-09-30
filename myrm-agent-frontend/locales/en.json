@@ -10164,6 +10164,23 @@
           "description": "Memory use is high. Large jobs may be deferred until pressure drops."
         }
       }
+    },
+    "loopScheduler": {
+      "title": "Loop scheduler running",
+      "activeTitle": "Adaptive loop active",
+      "pausedTitle": "Loop paused (user active)",
+      "completedTitle": "Loop completed target",
+      "stoppedTitle": "Loop stopped",
+      "stop": "Stop",
+      "stopping": "Stopping...",
+      "nextRunIn": "Next wakeup: {time}",
+      "cadence": "Cadence: {cadence}",
+      "runs": "Run {fired}",
+      "runsLimit": "Run {fired}/{limit}",
+      "backoffCount": "Backoff x{count}",
+      "untilCondition": "Stop condition: {condition}",
+      "userActivityPaused": "User active, loop deferred",
+      "tooltip": "Session-scoped adaptive exponential backoff loop scheduler"
     }
   },
   "mode": {
