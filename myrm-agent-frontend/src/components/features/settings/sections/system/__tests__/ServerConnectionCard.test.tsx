@@ -76,7 +76,13 @@ describe('ServerConnectionCard switch guard', () => {
       JSON.stringify({
         profiles: [
           { id: 'p0', name: 'Local Pi', url: 'http://127.0.0.1:9', kind: 'server' },
-          { id: 'c1', name: 'Cloud', url: 'https://cp.example/proxy/me', kind: 'cloud', cpBaseUrl: 'https://cp.example' },
+          {
+            id: 'c1',
+            name: 'Cloud',
+            url: 'https://cp.example/proxy/me',
+            kind: 'cloud',
+            cpBaseUrl: 'https://cp.example',
+          },
         ],
         activeId: 'p0',
       }),

@@ -95,9 +95,7 @@ export function SSHVaultPanel() {
         if (!prev) return prev;
         return {
           ...prev,
-          hosts: prev.hosts.map((h) =>
-            h.host_alias === host.host_alias ? { ...h, is_read_only: newReadOnly } : h,
-          ),
+          hosts: prev.hosts.map((h) => (h.host_alias === host.host_alias ? { ...h, is_read_only: newReadOnly } : h)),
         };
       });
       toast({
@@ -225,30 +223,31 @@ export function SSHVaultPanel() {
                       </Badge>
                     )}
 
-                    {probe && (() => {
-                      const isOnline = probe.is_reachable ?? probe.reachable;
-                      return (
-                        <span
-                          className={`text-xs flex items-center gap-1 font-mono ${
-                            isOnline ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
-                          }`}
-                        >
-                          {isOnline ? (
-                            <>
-                              <CheckCircle className="h-3.5 w-3.5" />
-                              {probe.latency_ms !== undefined && probe.latency_ms !== null
-                                ? `${probe.latency_ms.toFixed(1)}ms`
-                                : 'Online'}
-                            </>
-                          ) : (
-                            <>
-                              <WarningCircle className="h-3.5 w-3.5" />
-                              Offline
-                            </>
-                          )}
-                        </span>
-                      );
-                    })()}
+                    {probe &&
+                      (() => {
+                        const isOnline = probe.is_reachable ?? probe.reachable;
+                        return (
+                          <span
+                            className={`text-xs flex items-center gap-1 font-mono ${
+                              isOnline ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'
+                            }`}
+                          >
+                            {isOnline ? (
+                              <>
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                {probe.latency_ms !== undefined && probe.latency_ms !== null
+                                  ? `${probe.latency_ms.toFixed(1)}ms`
+                                  : 'Online'}
+                              </>
+                            ) : (
+                              <>
+                                <WarningCircle className="h-3.5 w-3.5" />
+                                Offline
+                              </>
+                            )}
+                          </span>
+                        );
+                      })()}
                   </div>
 
                   <div className="text-xs text-muted-foreground font-mono">
@@ -318,11 +317,7 @@ export function SSHVaultPanel() {
       )}
 
       {breakGlassHost && (
-        <BreakGlassModal
-          isOpen={!!breakGlassHost}
-          onClose={() => setBreakGlassHost(null)}
-          hostAlias={breakGlassHost}
-        />
+        <BreakGlassModal isOpen={!!breakGlassHost} onClose={() => setBreakGlassHost(null)} hostAlias={breakGlassHost} />
       )}
     </div>
   );

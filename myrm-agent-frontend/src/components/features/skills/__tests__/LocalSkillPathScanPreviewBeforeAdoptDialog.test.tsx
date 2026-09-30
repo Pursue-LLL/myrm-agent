@@ -426,4 +426,3 @@ describe('LocalSkillPathScanPreviewBeforeAdoptDialog Component Tests', () => {
     expect(onConfirmAdopt).toHaveBeenCalledWith(['local::k8s-pod-restart'], true);
   });
 });
-

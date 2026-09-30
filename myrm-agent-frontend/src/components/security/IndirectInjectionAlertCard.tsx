@@ -2,14 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  ShieldAlert,
-  CheckCircle2,
-  RefreshCw,
-  ExternalLink,
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react';
+import { ShieldAlert, CheckCircle2, RefreshCw, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 
 export interface IndirectInjectionIncident {
   sessionId: string;
@@ -59,19 +52,13 @@ export const IndirectInjectionAlertCard: React.FC<IndirectInjectionAlertCardProp
     >
       <div className="flex items-start gap-3 sm:gap-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10 dark:bg-destructive/20 text-destructive">
-          {isResolved ? (
-            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-          ) : (
-            <ShieldAlert className="h-5 w-5" />
-          )}
+          {isResolved ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : <ShieldAlert className="h-5 w-5" />}
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className="text-sm sm:text-base font-semibold text-foreground">
-              {isResolved
-                ? '外部威胁已隔离并恢复安全'
-                : '安全主动防御：非受信网页威胁已阻断'}
+              {isResolved ? '外部威胁已隔离并恢复安全' : '安全主动防御：非受信网页威胁已阻断'}
             </h4>
             <span className="inline-flex items-center rounded-md bg-destructive/15 px-2 py-0.5 text-xs font-medium text-destructive dark:bg-destructive/25">
               {isResolved ? '已自愈' : '主动硬拦截'}
@@ -87,9 +74,7 @@ export const IndirectInjectionAlertCard: React.FC<IndirectInjectionAlertCardProp
           {incident.sourceDomain && (
             <div className="mt-2 text-xs text-muted-foreground/80 flex items-center gap-1.5 font-mono">
               <span>威胁来源:</span>
-              <span className="truncate max-w-[260px] text-foreground font-medium">
-                {incident.sourceDomain}
-              </span>
+              <span className="truncate max-w-[260px] text-foreground font-medium">{incident.sourceDomain}</span>
             </div>
           )}
 
@@ -140,11 +125,7 @@ export const IndirectInjectionAlertCard: React.FC<IndirectInjectionAlertCardProp
               className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             >
               <span>{showDetails ? '收起详情' : '技术详情'}</span>
-              {showDetails ? (
-                <ChevronUp className="h-3 w-3" />
-              ) : (
-                <ChevronDown className="h-3 w-3" />
-              )}
+              {showDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
 
             {onViewAudit && (

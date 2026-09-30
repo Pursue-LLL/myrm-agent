@@ -23,6 +23,10 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { showI18nToast } from '@/services/i18nToastService';
 import { resolveE2eApiBase } from '@/lib/deploy-mode';
+import { CompactionAnchorStrip } from './CompactionAnchorStrip';
+import { parseExactAnchors } from './parseExactAnchors';
+import { CompactedArchiveModal } from './CompactedArchiveModal';
+import { CompactedBookmarksList } from './CompactedBookmarksList';
 
 const markdownLinkComponents = {
   a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
@@ -316,6 +320,11 @@ export const CompactedSummaryView = () => {
     return () => root.removeEventListener('click', onNativeClick);
   }, [bookmarks, handleForkFromBookmark]);
 
+  const { anchors, cleanedSummary } = useMemo(
+    () => parseExactAnchors(compactedSummary || '', lastCompactionMeta?.exactAnchors),
+    [compactedSummary, lastCompactionMeta],
+  );
+
   if (!compactedSummary) {
     return null;
   }
@@ -385,6 +394,8 @@ export const CompactedSummaryView = () => {
           </div>
         </div>
 
+        {!isEditing && <CompactionAnchorStrip anchors={anchors} className="mb-3" />}
+
         {isEditing ? (
           <textarea
             value={editValue}
@@ -398,7 +409,7 @@ export const CompactedSummaryView = () => {
               rehypePlugins={[rehypeKatex]}
               components={markdownLinkComponents}
             >
-              {compactedSummary}
+              {cleanedSummary}
             </ReactMarkdown>
           </div>
         )}
@@ -420,121 +431,37 @@ export const CompactedSummaryView = () => {
           </div>
         )}
 
-        <div
-          data-testid="compacted-summary-bookmarks"
-          data-bookmarks-state={
-            bookmarksLoading
-              ? 'loading'
-              : contextBranchesLoadError
-                ? 'error'
-                : bookmarks.length === 0
-                  ? 'empty'
-                  : 'ready'
-          }
-          className="mt-3 pt-3 border-t border-border/50 flex flex-col gap-1.5"
-        >
-          <span className="text-[10px] font-medium text-muted-foreground">{t('bookmarksTitle')}</span>
-          {bookmarksLoading ? (
-            <span className="text-[10px] text-muted-foreground">{t('bookmarksLoading')}</span>
-          ) : contextBranchesLoadError ? (
-            <div className="flex items-center gap-2 text-[10px]">
-              <span className="text-rose-600 dark:text-rose-400">{t('bookmarksLoadError')}</span>
-              <button
-                type="button"
-                onClick={() => void loadBookmarks()}
-                className="text-primary hover:text-primary/80 transition-colors"
-              >
-                {t('bookmarksRetry')}
-              </button>
-            </div>
-          ) : bookmarks.length === 0 ? (
-            <span className="text-[10px] text-muted-foreground">{t('bookmarksEmpty')}</span>
-          ) : (
-            <ul className="flex flex-col gap-1 max-h-28 overflow-y-auto">
-              {bookmarks.map((bookmark) => {
-                const bookmarkTime = formatBookmarkTime(bookmark.created_at);
-                const isForking = forkingBranchId === bookmark.branch_id;
-                return (
-                  <li
-                    key={bookmark.branch_id}
-                    data-testid="compacted-summary-bookmark-item"
-                    className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2 text-[10px] text-foreground/80 min-w-0"
-                    title={bookmark.snapshot_path}
-                  >
-                    <div className="flex items-center gap-1 min-w-0 flex-1">
-                      <BookmarkSimple size={10} weight="duotone" className="shrink-0 text-primary/70" />
-                      <span className="truncate">{bookmarkDisplayLabel(bookmark)}</span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 sm:ml-auto">
-                      {bookmarkTime ? <span className="tabular-nums text-muted-foreground">{bookmarkTime}</span> : null}
-                      <button
-                        type="button"
-                        data-testid="compacted-summary-bookmark-fork"
-                        data-branch-id={bookmark.branch_id}
-                        disabled={isForking}
-                        className="text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
-                      >
-                        {isForking ? t('bookmarkForking') : t('bookmarkFork')}
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+        <CompactedBookmarksList
+          bookmarks={bookmarks}
+          bookmarksLoading={bookmarksLoading}
+          contextBranchesLoadError={contextBranchesLoadError}
+          forkingBranchId={forkingBranchId}
+          onRetryLoad={() => void loadBookmarks()}
+          formatBookmarkTime={formatBookmarkTime}
+          bookmarkDisplayLabel={bookmarkDisplayLabel}
+          labels={{
+            bookmarksTitle: t('bookmarksTitle'),
+            bookmarksLoading: t('bookmarksLoading'),
+            bookmarksLoadError: t('bookmarksLoadError'),
+            bookmarksRetry: t('bookmarksRetry'),
+            bookmarksEmpty: t('bookmarksEmpty'),
+            bookmarkForking: t('bookmarkForking'),
+            bookmarkFork: t('bookmarkFork'),
+          }}
+        />
       </div>
 
-      {isArchiveOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 md:p-8">
-          <div className="bg-background border shadow-xl rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="p-4 border-b flex items-center justify-between bg-muted/30">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <ClockCounterClockwise size={20} weight="duotone" />
-                {t('archiveTitle')}
-              </h2>
-              <button type="button" onClick={() => setIsArchiveOpen(false)} className="p-2 hover:bg-muted rounded-full">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto flex-1 space-y-6">
-              {isLoadingArchive ? (
-                <div className="flex justify-center p-8">
-                  <div className="w-8 h-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                </div>
-              ) : archiveMessages.length === 0 ? (
-                <div className="text-center text-muted-foreground p-8">{t('archiveEmpty')}</div>
-              ) : (
-                archiveMessages.map((msg, idx) => (
-                  <div
-                    key={msg.messageId || idx}
-                    className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
-                  >
-                    <div className="text-xs text-muted-foreground mb-1">
-                      {msg.role === 'user' ? t('roleUser') : t('roleAssistant')} •{' '}
-                      {msg.createdAt ? format(new Date(msg.createdAt), 'yyyy-MM-dd HH:mm:ss') : ''}
-                    </div>
-                    <div
-                      className={`prose dark:prose-invert prose-sm break-words w-full max-w-[85%] rounded-2xl px-4 py-3 text-sm ${
-                        msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
-                      }`}
-                    >
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
-                        components={markdownLinkComponents}
-                      >
-                        {msg.content || ''}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <CompactedArchiveModal
+        isOpen={isArchiveOpen}
+        isLoading={isLoadingArchive}
+        messages={archiveMessages}
+        title={t('archiveTitle')}
+        emptyLabel={t('archiveEmpty')}
+        roleUserLabel={t('roleUser')}
+        roleAssistantLabel={t('roleAssistant')}
+        onClose={() => setIsArchiveOpen(false)}
+        markdownLinkComponents={markdownLinkComponents}
+      />
     </div>
   );
 };

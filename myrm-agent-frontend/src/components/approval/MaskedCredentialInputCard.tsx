@@ -1,18 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useId } from 'react';
-import {
-  Key,
-  ShieldCheck,
-  Eye,
-  EyeOff,
-  Plus,
-  Trash2,
-  Clock,
-  AlertTriangle,
-  CheckCircle2,
-  Lock,
-} from 'lucide-react';
+import { Key, ShieldCheck, Eye, EyeOff, Plus, Trash2, Clock, AlertTriangle, CheckCircle2, Lock } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Badge } from '@/components/primitives/badge';
@@ -121,9 +110,7 @@ export function MaskedCredentialInputCard({
 
   const handleUpdateDraft = useCallback(
     <K extends keyof CredentialDraft>(id: string, field: K, value: CredentialDraft[K]) => {
-      setDrafts((prev) =>
-        prev.map((d) => (d.id === id ? { ...d, [field]: value } : d)),
-      );
+      setDrafts((prev) => prev.map((d) => (d.id === id ? { ...d, [field]: value } : d)));
     },
     [],
   );
@@ -223,9 +210,7 @@ export function MaskedCredentialInputCard({
       <div className="flex items-center justify-between gap-2 pb-3 border-b border-amber-500/20">
         <div className="flex items-center gap-2">
           <Key className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          <span className="text-sm font-medium text-foreground">
-            Ephemeral Credentials & Single-Use Gate
-          </span>
+          <span className="text-sm font-medium text-foreground">Ephemeral Credentials & Single-Use Gate</span>
           <Badge
             variant="outline"
             className="flex items-center gap-1 border-amber-500/40 text-[11px] text-amber-700 dark:text-amber-300"
@@ -251,9 +236,8 @@ export function MaskedCredentialInputCard({
       </div>
 
       <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-        Pass sensitive credentials (e.g. database password, OAuth tokens) directly to the
-        sandbox process. Secrets are isolated in ephemeral memory, never written to disk, and
-        never exposed to LLM context or chat logs.
+        Pass sensitive credentials (e.g. database password, OAuth tokens) directly to the sandbox process. Secrets are
+        isolated in ephemeral memory, never written to disk, and never exposed to LLM context or chat logs.
       </p>
 
       {/* Staged summaries view */}
@@ -324,158 +308,137 @@ export function MaskedCredentialInputCard({
 
           {/* Input drafts form */}
           <div className="mt-3 space-y-3">
-          {drafts.map((draft, idx) => {
-            const keyValidation = draft.key ? validateKeyName(draft.key) : { isValid: true };
-            return (
-              <div
-                key={draft.id}
-                className="rounded-md border border-border/60 bg-background/80 p-2.5 space-y-2"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-medium text-muted-foreground">
-                    Credential #{idx + 1}
-                  </span>
-                  {drafts.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveRow(draft.id)}
-                      className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                      disabled={disabled}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {/* Key input */}
-                  <div>
-                    <label
-                      htmlFor={`cred-key-${draft.id}`}
-                      className="text-[11px] text-muted-foreground block mb-0.5"
-                    >
-                      Variable Key (e.g. DB_PASS)
-                    </label>
-                    <Input
-                      id={`cred-key-${draft.id}`}
-                      type="text"
-                      placeholder="API_SECRET_KEY"
-                      value={draft.key}
-                      onChange={(e) =>
-                        handleUpdateDraft(draft.id, 'key', e.target.value.toUpperCase())
-                      }
-                      disabled={disabled || isStaging}
-                      className="h-8 text-xs font-mono"
-                    />
-                    {!keyValidation.isValid && (
-                      <p className="mt-1 text-[10px] text-destructive flex items-center gap-1">
-                        <AlertTriangle className="h-3 w-3 shrink-0" />
-                        {keyValidation.error}
-                      </p>
+            {drafts.map((draft, idx) => {
+              const keyValidation = draft.key ? validateKeyName(draft.key) : { isValid: true };
+              return (
+                <div key={draft.id} className="rounded-md border border-border/60 bg-background/80 p-2.5 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-medium text-muted-foreground">Credential #{idx + 1}</span>
+                    {drafts.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveRow(draft.id)}
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                        disabled={disabled}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     )}
                   </div>
 
-                  {/* Secret input */}
-                  <div>
-                    <label
-                      htmlFor={`cred-secret-${draft.id}`}
-                      className="text-[11px] text-muted-foreground block mb-0.5"
-                    >
-                      Secret Value (Masked)
-                    </label>
-                    <div className="relative">
-                      <Input
-                        id={`cred-secret-${draft.id}`}
-                        type={draft.showSecret ? 'text' : 'password'}
-                        placeholder="••••••••••••"
-                        value={draft.secret}
-                        onChange={(e) =>
-                          handleUpdateDraft(draft.id, 'secret', e.target.value)
-                        }
-                        disabled={disabled || isStaging}
-                        className="h-8 text-xs pr-8 font-mono"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleUpdateDraft(draft.id, 'showSecret', !draft.showSecret)
-                        }
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
-                        tabIndex={-1}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {/* Key input */}
+                    <div>
+                      <label
+                        htmlFor={`cred-key-${draft.id}`}
+                        className="text-[11px] text-muted-foreground block mb-0.5"
                       >
-                        {draft.showSecret ? (
-                          <EyeOff className="h-3.5 w-3.5" />
-                        ) : (
-                          <Eye className="h-3.5 w-3.5" />
-                        )}
-                      </button>
+                        Variable Key (e.g. DB_PASS)
+                      </label>
+                      <Input
+                        id={`cred-key-${draft.id}`}
+                        type="text"
+                        placeholder="API_SECRET_KEY"
+                        value={draft.key}
+                        onChange={(e) => handleUpdateDraft(draft.id, 'key', e.target.value.toUpperCase())}
+                        disabled={disabled || isStaging}
+                        className="h-8 text-xs font-mono"
+                      />
+                      {!keyValidation.isValid && (
+                        <p className="mt-1 text-[10px] text-destructive flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3 shrink-0" />
+                          {keyValidation.error}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Secret input */}
+                    <div>
+                      <label
+                        htmlFor={`cred-secret-${draft.id}`}
+                        className="text-[11px] text-muted-foreground block mb-0.5"
+                      >
+                        Secret Value (Masked)
+                      </label>
+                      <div className="relative">
+                        <Input
+                          id={`cred-secret-${draft.id}`}
+                          type={draft.showSecret ? 'text' : 'password'}
+                          placeholder="••••••••••••"
+                          value={draft.secret}
+                          onChange={(e) => handleUpdateDraft(draft.id, 'secret', e.target.value)}
+                          disabled={disabled || isStaging}
+                          className="h-8 text-xs pr-8 font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateDraft(draft.id, 'showSecret', !draft.showSecret)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                          tabIndex={-1}
+                        >
+                          {draft.showSecret ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* TTL & Policy info */}
+                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/40">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      <span>TTL:</span>
+                      <select
+                        value={draft.ttlSeconds}
+                        onChange={(e) => handleUpdateDraft(draft.id, 'ttlSeconds', Number(e.target.value))}
+                        disabled={disabled || isStaging}
+                        className="bg-transparent border border-border/60 rounded px-1.5 py-0.5 text-[11px] text-foreground focus:outline-none"
+                      >
+                        <option value={30}>30s</option>
+                        <option value={60}>60s (Default)</option>
+                        <option value={120}>2 mins</option>
+                        <option value={300}>5 mins</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Lock className="h-3 w-3 text-amber-500" />
+                      <span>Single-use ticket enforced</span>
                     </div>
                   </div>
                 </div>
+              );
+            })}
 
-                {/* TTL & Policy info */}
-                <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/40">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    <span>TTL:</span>
-                    <select
-                      value={draft.ttlSeconds}
-                      onChange={(e) =>
-                        handleUpdateDraft(draft.id, 'ttlSeconds', Number(e.target.value))
-                      }
-                      disabled={disabled || isStaging}
-                      className="bg-transparent border border-border/60 rounded px-1.5 py-0.5 text-[11px] text-foreground focus:outline-none"
-                    >
-                      <option value={30}>30s</option>
-                      <option value={60}>60s (Default)</option>
-                      <option value={120}>2 mins</option>
-                      <option value={300}>5 mins</option>
-                    </select>
-                  </div>
+            {/* Action buttons */}
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddRow}
+                disabled={disabled || isStaging}
+                className="h-7 text-xs"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Add Another Key
+              </Button>
 
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <Lock className="h-3 w-3 text-amber-500" />
-                    <span>Single-use ticket enforced</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Action buttons */}
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddRow}
-              disabled={disabled || isStaging}
-              className="h-7 text-xs"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Add Another Key
-            </Button>
-
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleStageCredentials}
-              disabled={
-                disabled ||
-                isStaging ||
-                drafts.every((d) => !d.key.trim() || !d.secret)
-              }
-              className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
-            >
-              <ShieldCheck className="h-3.5 w-3.5 mr-1" />
-              {isStaging ? 'Securing...' : 'Stage Masked Credentials'}
-            </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleStageCredentials}
+                disabled={disabled || isStaging || drafts.every((d) => !d.key.trim() || !d.secret)}
+                className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+                {isStaging ? 'Securing...' : 'Stage Masked Credentials'}
+              </Button>
+            </div>
           </div>
-        </div>
-      </>
-    )}
-  </div>
-);
+        </>
+      )}
+    </div>
+  );
 }

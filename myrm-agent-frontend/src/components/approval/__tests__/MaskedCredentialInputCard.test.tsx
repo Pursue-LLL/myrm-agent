@@ -20,11 +20,7 @@ describe('MaskedCredentialInputCard', () => {
   it('renders correctly with default single-use badge and inputs', () => {
     const handleStagedChange = vi.fn();
     render(
-      <MaskedCredentialInputCard
-        approvalId="app_test_123"
-        stagedHandles={[]}
-        onStagedChange={handleStagedChange}
-      />,
+      <MaskedCredentialInputCard approvalId="app_test_123" stagedHandles={[]} onStagedChange={handleStagedChange} />,
     );
 
     expect(screen.getByText('Ephemeral Credentials & Single-Use Gate')).toBeDefined();
@@ -35,13 +31,7 @@ describe('MaskedCredentialInputCard', () => {
   });
 
   it('toggles password visibility between masked and text', () => {
-    render(
-      <MaskedCredentialInputCard
-        approvalId="app_test_123"
-        stagedHandles={[]}
-        onStagedChange={vi.fn()}
-      />,
-    );
+    render(<MaskedCredentialInputCard approvalId="app_test_123" stagedHandles={[]} onStagedChange={vi.fn()} />);
 
     const secretInput = screen.getByPlaceholderText('••••••••••••') as HTMLInputElement;
     expect(secretInput.type).toBe('password');
@@ -55,20 +45,12 @@ describe('MaskedCredentialInputCard', () => {
   });
 
   it('validates and blocks dangerous system environment variables', () => {
-    render(
-      <MaskedCredentialInputCard
-        approvalId="app_test_123"
-        stagedHandles={[]}
-        onStagedChange={vi.fn()}
-      />,
-    );
+    render(<MaskedCredentialInputCard approvalId="app_test_123" stagedHandles={[]} onStagedChange={vi.fn()} />);
 
     const keyInput = screen.getByPlaceholderText('API_SECRET_KEY') as HTMLInputElement;
     fireEvent.change(keyInput, { target: { value: 'PATH' } });
 
-    expect(
-      screen.getByText('"PATH" is a protected system environment variable and is blocked'),
-    ).toBeDefined();
+    expect(screen.getByText('"PATH" is a protected system environment variable and is blocked')).toBeDefined();
   });
 
   it('stages credentials securely via API and updates staged summaries', async () => {
@@ -90,11 +72,7 @@ describe('MaskedCredentialInputCard', () => {
     });
 
     render(
-      <MaskedCredentialInputCard
-        approvalId="app_test_123"
-        stagedHandles={[]}
-        onStagedChange={handleStagedChange}
-      />,
+      <MaskedCredentialInputCard approvalId="app_test_123" stagedHandles={[]} onStagedChange={handleStagedChange} />,
     );
 
     const keyInput = screen.getByPlaceholderText('API_SECRET_KEY');

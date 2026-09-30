@@ -32,28 +32,20 @@ export interface SessionLoopStatus {
   paused_reason: string | null;
 }
 
-export const startSessionLoop = async (
-  chatId: string,
-  command: string,
-): Promise<SessionLoopStatus> => {
+export const startSessionLoop = async (chatId: string, command: string): Promise<SessionLoopStatus> => {
   return apiRequest<SessionLoopStatus>(`/chats/${chatId}/loop/start`, {
     method: 'POST',
     body: JSON.stringify({ command }),
   });
 };
 
-export const stopSessionLoop = async (
-  chatId: string,
-  reason: string = 'user_stopped',
-): Promise<SessionLoopStatus> => {
+export const stopSessionLoop = async (chatId: string, reason: string = 'user_stopped'): Promise<SessionLoopStatus> => {
   return apiRequest<SessionLoopStatus>(`/chats/${chatId}/loop/stop`, {
     method: 'POST',
     body: JSON.stringify({ reason }),
   });
 };
 
-export const getSessionLoopStatus = async (
-  chatId: string,
-): Promise<SessionLoopStatus> => {
+export const getSessionLoopStatus = async (chatId: string): Promise<SessionLoopStatus> => {
   return apiRequest<SessionLoopStatus>(`/chats/${chatId}/loop/status`);
 };

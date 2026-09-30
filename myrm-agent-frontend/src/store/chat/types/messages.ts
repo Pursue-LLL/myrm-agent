@@ -26,9 +26,18 @@ export interface McpAppView {
   toolName?: string;
 }
 
+export interface ExactAnchorMeta {
+  commitShas?: string[];
+  filePaths?: string[];
+  errorSpans?: string[];
+  codeSymbols?: string[];
+  apiEndpoints?: string[];
+}
+
 export interface LastCompactionMeta {
   tokensSaved: number;
   snapshotPath?: string;
+  exactAnchors?: ExactAnchorMeta;
 }
 
 export interface StagedArtifactView {

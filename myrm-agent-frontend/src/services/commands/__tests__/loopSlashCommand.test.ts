@@ -279,9 +279,7 @@ describe('executeLoopSlashCommand', () => {
     const res = await executeLoopSlashCommand('/loop stop');
     expect(res.success).toBe(true);
     expect(mockStopSessionLoop).toHaveBeenCalledWith('chat_test_123');
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'session-loop-changed' }),
-    );
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'session-loop-changed' }));
     expect(mockStartSessionLoop).not.toHaveBeenCalled();
   });
 
@@ -297,9 +295,7 @@ describe('executeLoopSlashCommand', () => {
     const res = await executeLoopSlashCommand('/loop 5m 检查构建');
     expect(res.success).toBe(true);
     expect(mockStartSessionLoop).toHaveBeenCalledWith('chat_test_123', '/loop 5m 检查构建');
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'session-loop-changed' }),
-    );
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'session-loop-changed' }));
   });
 
   it('handles start API failure gracefully', async () => {

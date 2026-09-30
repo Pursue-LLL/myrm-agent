@@ -2,15 +2,7 @@
 
 import { memo, useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  FolderOpen,
-  CheckCircle2,
-  AlertTriangle,
-  Loader2,
-  Layers,
-  CheckSquare,
-  Square,
-} from 'lucide-react';
+import { FolderOpen, CheckCircle2, AlertTriangle, Loader2, Layers, CheckSquare, Square } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -52,7 +44,7 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
 
     const hasBlockedSkills = useMemo(() => {
       return skills.some((s) => {
-        const score = s.security_score ?? (s.security?.score ?? (s.is_safe ? 100 : 40));
+        const score = s.security_score ?? s.security?.score ?? (s.is_safe ? 100 : 40);
         return score < 50;
       });
     }, [skills]);
@@ -63,7 +55,7 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
         if (!s.skill_id) {
           return false;
         }
-        const score = s.security_score ?? (s.security?.score ?? (s.is_safe ? 100 : 40));
+        const score = s.security_score ?? s.security?.score ?? (s.is_safe ? 100 : 40);
         return allowUntrusted || score >= 50;
       });
     }, [skills, allowUntrusted]);
@@ -76,7 +68,7 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
       const blockedSet = new Set(
         skills
           .filter((s) => {
-            const score = s.security_score ?? (s.security?.score ?? (s.is_safe ? 100 : 40));
+            const score = s.security_score ?? s.security?.score ?? (s.is_safe ? 100 : 40);
             return score < 50;
           })
           .map((s) => s.skill_id),
@@ -90,7 +82,7 @@ export const LocalSkillPathScanPreviewBeforeAdoptDialog = memo(
         setAllowUntrusted(false);
         const defaultSelected = previewData.skills
           .filter((s) => {
-            const score = s.security_score ?? (s.security?.score ?? (s.is_safe ? 100 : 40));
+            const score = s.security_score ?? s.security?.score ?? (s.is_safe ? 100 : 40);
             return !s.is_conflicted && s.skill_id && score >= 50;
           })
           .map((s) => s.skill_id);

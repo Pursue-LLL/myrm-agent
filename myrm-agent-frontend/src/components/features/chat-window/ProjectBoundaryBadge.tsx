@@ -67,9 +67,7 @@ export default function ProjectBoundaryBadge({ className = '' }: ProjectBoundary
       title={tooltipText}
     >
       <FolderLock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-      <span className="font-medium truncate max-w-[180px] sm:max-w-[240px]">
-        {matchedProject.name}
-      </span>
+      <span className="font-medium truncate max-w-[180px] sm:max-w-[240px]">{matchedProject.name}</span>
       <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-900 dark:text-emerald-100 font-semibold tracking-wide">
         隔离保护
       </span>

@@ -3,15 +3,7 @@
 
 import { memo, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  AlertTriangle,
-  ShieldCheck,
-  ShieldAlert,
-  Wrench,
-  ChevronDown,
-  ChevronUp,
-  FileCode,
-} from 'lucide-react';
+import { AlertTriangle, ShieldCheck, ShieldAlert, Wrench, ChevronDown, ChevronUp, FileCode } from 'lucide-react';
 import { Badge } from '@/components/primitives/badge';
 import type { LocalSkillPreviewItem } from '@/store/skill/types';
 
@@ -27,7 +19,7 @@ export const LocalSkillPreviewCard = memo(
     const t = useTranslations('settings.skills.local');
     const [isFindingsExpanded, setIsFindingsExpanded] = useState(false);
 
-    const score = skill.security_score ?? (skill.security?.score ?? (skill.is_safe ? 100 : 40));
+    const score = skill.security_score ?? skill.security?.score ?? (skill.is_safe ? 100 : 40);
     const isSecurityBlocked = score < 50;
     const isActionBlocked = isSecurityBlocked && !allowUntrusted;
     const findings = skill.security?.findings ?? [];
@@ -138,7 +130,9 @@ export const LocalSkillPreviewCard = memo(
                     className="text-[10px] px-1.5 py-0 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 gap-1 font-medium"
                   >
                     <ShieldCheck className="h-2.5 w-2.5" />
-                    <span>{score}/100 · {t('previewDialog.safe')}</span>
+                    <span>
+                      {score}/100 · {t('previewDialog.safe')}
+                    </span>
                   </Badge>
                 ) : (
                   <Badge
@@ -147,15 +141,15 @@ export const LocalSkillPreviewCard = memo(
                     className="text-[10px] px-1.5 py-0 border-amber-500/40 text-amber-600 dark:text-amber-400 gap-1 font-medium"
                   >
                     <ShieldAlert className="h-2.5 w-2.5" />
-                    <span>{score}/100 · {t('previewDialog.warning')}</span>
+                    <span>
+                      {score}/100 · {t('previewDialog.warning')}
+                    </span>
                   </Badge>
                 )}
               </div>
 
               {skill.description && (
-                <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
-                  {skill.description}
-                </p>
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{skill.description}</p>
               )}
             </div>
           </div>
@@ -231,9 +225,7 @@ export const LocalSkillPreviewCard = memo(
                     <FileCode className="h-3 w-3 text-destructive shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono font-medium text-destructive">
-                          {finding.threat_type}
-                        </span>
+                        <span className="font-mono font-medium text-destructive">{finding.threat_type}</span>
                         <Badge variant="outline" className="text-[9px] px-1 py-0 uppercase">
                           {finding.severity}
                         </Badge>
@@ -243,9 +235,7 @@ export const LocalSkillPreviewCard = memo(
                           </span>
                         )}
                       </div>
-                      <p className="text-muted-foreground mt-0.5 text-[10px]">
-                        {finding.description}
-                      </p>
+                      <p className="text-muted-foreground mt-0.5 text-[10px]">{finding.description}</p>
                     </div>
                   </div>
                 ))}

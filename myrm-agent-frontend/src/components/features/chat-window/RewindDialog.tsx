@@ -204,7 +204,7 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       if (typeof window !== 'undefined') {
         requestAnimationFrame(() => {
           const textarea = document.querySelector<HTMLTextAreaElement>(
-            'textarea[data-testid="chat-input-textarea"], textarea'
+            'textarea[data-testid="chat-input-textarea"], textarea',
           );
           if (textarea) {
             textarea.focus();
@@ -291,9 +291,7 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
                 >
                   {preview.files.map((file) => {
                     const fileName = file.path.split('/').pop() || file.path;
-                    const dirName = file.path.includes('/')
-                      ? file.path.substring(0, file.path.lastIndexOf('/'))
-                      : '';
+                    const dirName = file.path.includes('/') ? file.path.substring(0, file.path.lastIndexOf('/')) : '';
                     const opLower = file.operation?.toLowerCase();
                     const isAdded = opLower === 'create' || opLower === 'add';
                     const isDeleted = opLower === 'delete' || opLower === 'remove';
@@ -301,14 +299,10 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
                     const badgeClass = isAdded
                       ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
                       : isDeleted
-                      ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
-                      : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+                        ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                        : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
 
-                    const opKey = isAdded
-                      ? 'operationAdded'
-                      : isDeleted
-                      ? 'operationDeleted'
-                      : 'operationModified';
+                    const opKey = isAdded ? 'operationAdded' : isDeleted ? 'operationDeleted' : 'operationModified';
 
                     return (
                       <div

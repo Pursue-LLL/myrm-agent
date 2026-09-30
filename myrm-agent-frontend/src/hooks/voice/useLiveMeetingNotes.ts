@@ -119,8 +119,5 @@ export function useLiveMeetingNotes(sessionKey?: string): UseLiveMeetingNotesRet
     }
   }, [sessionId, sessionKey]);
 
-  return useMemo(
-    () => ({ sessionId, snapshot, ingest, finalize }),
-    [sessionId, snapshot, ingest, finalize],
-  );
+  return useMemo(() => ({ sessionId, snapshot, ingest, finalize }), [sessionId, snapshot, ingest, finalize]);
 }

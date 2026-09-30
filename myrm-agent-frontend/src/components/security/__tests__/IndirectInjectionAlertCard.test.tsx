@@ -1,10 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import {
-  IndirectInjectionAlertCard,
-  type IndirectInjectionIncident,
-} from '../IndirectInjectionAlertCard';
+import { IndirectInjectionAlertCard, type IndirectInjectionIncident } from '../IndirectInjectionAlertCard';
 
 describe('IndirectInjectionAlertCard', () => {
   beforeEach(() => {
@@ -52,12 +49,7 @@ describe('IndirectInjectionAlertCard', () => {
 
   it('triggers onRemediate and transitions to resolved state', async () => {
     const onRemediate = vi.fn().mockResolvedValue(undefined);
-    render(
-      <IndirectInjectionAlertCard
-        incident={mockIncident}
-        onRemediate={onRemediate}
-      />,
-    );
+    render(<IndirectInjectionAlertCard incident={mockIncident} onRemediate={onRemediate} />);
 
     const remediateButton = screen.getByText('净化受污染上下文并继续');
     fireEvent.click(remediateButton);
@@ -72,12 +64,7 @@ describe('IndirectInjectionAlertCard', () => {
 
   it('calls onViewAudit when audit log button is clicked', () => {
     const onViewAudit = vi.fn();
-    render(
-      <IndirectInjectionAlertCard
-        incident={mockIncident}
-        onViewAudit={onViewAudit}
-      />,
-    );
+    render(<IndirectInjectionAlertCard incident={mockIncident} onViewAudit={onViewAudit} />);
 
     const auditButton = screen.getByText('安全日志');
     fireEvent.click(auditButton);

@@ -474,13 +474,7 @@ function HermesArchitectureMappingCard({ t }: { t: TranslationFn }) {
   );
 }
 
-function SessionPreviewCard({
-  sessions,
-  t,
-}: {
-  sessions: SessionMigrationPreviewItem[];
-  t: TranslationFn;
-}) {
+function SessionPreviewCard({ sessions, t }: { sessions: SessionMigrationPreviewItem[]; t: TranslationFn }) {
   if (sessions.length === 0) {
     return null;
   }
@@ -1144,7 +1138,12 @@ export function ResultStep({
           </Button>
         )}
         {(result.imported_session_count ?? 0) > 0 && result.imported_chat_ids?.[0] && (
-          <Button asChild size="sm" variant="default" className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white">
+          <Button
+            asChild
+            size="sm"
+            variant="default"
+            className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
             <Link href={`/chat/${result.imported_chat_ids[0]}`}>{t('result.resumeChat')}</Link>
           </Button>
         )}

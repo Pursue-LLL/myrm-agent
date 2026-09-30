@@ -53,10 +53,7 @@ function sessionPath(sessionId: string): string {
  * utterance: a retried request with the same id is ignored by the server instead of
  * duplicating the line in the transcript and the distilled minutes.
  */
-export async function ingestLiveTranscript(
-  sessionId: string,
-  line: LiveTranscriptLine,
-): Promise<LiveMeetingSnapshot> {
+export async function ingestLiveTranscript(sessionId: string, line: LiveTranscriptLine): Promise<LiveMeetingSnapshot> {
   return apiRequest<LiveMeetingSnapshot>(getApiUrl(`${sessionPath(sessionId)}/ingest`), {
     method: 'POST',
     body: JSON.stringify({

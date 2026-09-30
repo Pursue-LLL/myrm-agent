@@ -56,7 +56,17 @@ const AUDIO_CONSTRAINTS: MediaStreamConstraints = {
 };
 
 export function useVoiceAgentBridge(options: UseVoiceAgentBridgeOptions): UseVoiceAgentBridgeReturn {
-  const { enabled, agentId, chatId, keyterms, onError, onAgentResponse, onAgentToolUse, onAgentTurnChange, onSttFinal } = options;
+  const {
+    enabled,
+    agentId,
+    chatId,
+    keyterms,
+    onError,
+    onAgentResponse,
+    onAgentToolUse,
+    onAgentTurnChange,
+    onSttFinal,
+  } = options;
 
   const [state, setState] = useState<AgentBridgeState>('disconnected');
   const [interimText, setInterimText] = useState('');

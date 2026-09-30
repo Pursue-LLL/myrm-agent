@@ -116,9 +116,7 @@ export function BreakGlassModal({ isOpen, onClose, hostAlias }: BreakGlassModalP
         {issuedResult ? (
           <div className="space-y-4 py-2">
             <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm">
-              <div className="font-medium text-emerald-600 dark:text-emerald-400 mb-1">
-                {t('breakGlassSuccess')}
-              </div>
+              <div className="font-medium text-emerald-600 dark:text-emerald-400 mb-1">{t('breakGlassSuccess')}</div>
               <p className="text-xs text-muted-foreground mb-3">
                 Host: <span className="font-mono font-semibold">{issuedResult.host_alias}</span> | Expires:{' '}
                 {new Date(issuedResult.expires_at * 1000).toLocaleTimeString()}

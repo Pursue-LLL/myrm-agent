@@ -40,7 +40,9 @@ const makeMessage = (id: string, role: Message['role']): Message => ({
 
 const renderDialog = (messageIndex = 2, messageId = 'u2') => {
   const onOpenChange = vi.fn();
-  render(<RewindDialog open onOpenChange={onOpenChange} chatId="c1" messageId={messageId} messageIndex={messageIndex} />);
+  render(
+    <RewindDialog open onOpenChange={onOpenChange} chatId="c1" messageId={messageId} messageIndex={messageIndex} />,
+  );
   return { onOpenChange };
 };
 

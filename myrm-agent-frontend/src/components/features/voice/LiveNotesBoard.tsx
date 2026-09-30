@@ -34,10 +34,7 @@ const LiveNotesBoard = memo(function LiveNotesBoard({ snapshot, className }: Liv
 
   return (
     <div
-      className={cn(
-        'flex h-full flex-col rounded-xl border border-border bg-card/60 backdrop-blur-sm',
-        className,
-      )}
+      className={cn('flex h-full flex-col rounded-xl border border-border bg-card/60 backdrop-blur-sm', className)}
       data-testid="live-notes-board"
       aria-live="polite"
     >

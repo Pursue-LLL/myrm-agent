@@ -306,12 +306,7 @@ const useSkillStore = create<SkillStore>((set, get) => ({
     return apiPreviewLocalSkillPath(path);
   },
 
-  adoptLocalSkillPath: async (
-    path: string,
-    selectedSkillIds: string[],
-    agentId?: string,
-    allowUntrusted?: boolean,
-  ) => {
+  adoptLocalSkillPath: async (path: string, selectedSkillIds: string[], agentId?: string, allowUntrusted?: boolean) => {
     const res = await apiAdoptLocalSkillPath(path, selectedSkillIds, agentId, allowUntrusted);
     await get().fetchLocalSkillPaths();
     await get().fetchLocalSkills();

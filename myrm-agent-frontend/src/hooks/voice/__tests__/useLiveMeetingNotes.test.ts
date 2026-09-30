@@ -134,9 +134,7 @@ describe('useLiveMeetingNotes', () => {
       result.current.ingest('second line');
     });
     await waitFor(() => expect(ingestLiveTranscript).toHaveBeenCalledTimes(2));
-    const ids = ingestLiveTranscript.mock.calls.map(
-      ([, line]) => (line as LiveTranscriptLine).id,
-    );
+    const ids = ingestLiveTranscript.mock.calls.map(([, line]) => (line as LiveTranscriptLine).id);
     expect(new Set(ids).size).toBe(2);
   });
 

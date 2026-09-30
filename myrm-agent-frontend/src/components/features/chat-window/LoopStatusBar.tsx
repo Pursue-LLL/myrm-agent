@@ -70,10 +70,7 @@ export function LoopStatusBar({ chatId, className = '' }: LoopStatusBarProps) {
                   : 'bg-primary/10 text-primary dark:bg-primary/20'
               }`}
             >
-              <RefreshCw
-                className={`h-4 w-4 ${isPaused ? '' : 'animate-spin'}`}
-                style={{ animationDuration: '3s' }}
-              />
+              <RefreshCw className={`h-4 w-4 ${isPaused ? '' : 'animate-spin'}`} style={{ animationDuration: '3s' }} />
             </div>
 
             <div className="flex min-w-0 flex-col">
@@ -102,16 +99,12 @@ export function LoopStatusBar({ chatId, className = '' }: LoopStatusBarProps) {
                         fired: status.ticks_fired,
                         limit: status.times_limit,
                       }) || `第 ${status.ticks_fired}/${status.times_limit} 轮`
-                    : t('loopScheduler.runs', { fired: status.ticks_fired }) ||
-                      `第 ${status.ticks_fired} 轮`}
+                    : t('loopScheduler.runs', { fired: status.ticks_fired }) || `第 ${status.ticks_fired} 轮`}
                 </span>
               </div>
 
               {/* Truncated prompt */}
-              <p
-                className="max-w-md truncate text-xs text-muted-foreground max-sm:max-w-[200px]"
-                title={status.prompt}
-              >
+              <p className="max-w-md truncate text-xs text-muted-foreground max-sm:max-w-[200px]" title={status.prompt}>
                 {status.prompt}
               </p>
             </div>
@@ -142,11 +135,7 @@ export function LoopStatusBar({ chatId, className = '' }: LoopStatusBarProps) {
               className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20 active:scale-95 disabled:opacity-50"
             >
               <Square className="h-3 w-3 fill-current" />
-              <span>
-                {isStopping
-                  ? t('loopScheduler.stopping') || '停止中...'
-                  : t('loopScheduler.stop') || '停止'}
-              </span>
+              <span>{isStopping ? t('loopScheduler.stopping') || '停止中...' : t('loopScheduler.stop') || '停止'}</span>
             </button>
           </div>
         </div>
