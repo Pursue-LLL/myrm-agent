@@ -10,6 +10,7 @@ from .core import router as core_router
 from .export_pack import router as export_pack_router
 from .fork import router as fork_router
 from .handoff import router as handoff_router
+from .loop import router as loop_router
 from .memory_extract import router as memory_extract_router
 from .messages import router as messages_router
 from .outline import router as outline_router
@@ -35,6 +36,7 @@ router.include_router(overlays_router)
 router.include_router(core_router)
 router.include_router(title_router)
 router.include_router(turn_router)
+router.include_router(loop_router)
 router.include_router(rewind_router)
 router.include_router(compaction_router)
 router.include_router(copilot_router)

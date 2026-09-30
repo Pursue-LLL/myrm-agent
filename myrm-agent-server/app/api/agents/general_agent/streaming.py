@@ -28,6 +28,9 @@ async def agent_stream(
     from app.remote_access.mobile_gate import require_mobile_pair_chat_access
 
     require_mobile_pair_chat_access(http_request, request.chat_id)
+    from app.services.loop.session_turn_arbiter import SessionTurnArbiter
+
+    SessionTurnArbiter.get_instance().record_user_activity(request.chat_id)
     return await run_agent_stream(request, http_request)
 
 
