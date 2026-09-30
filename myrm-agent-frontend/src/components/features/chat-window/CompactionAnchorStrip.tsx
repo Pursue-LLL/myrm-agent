@@ -16,7 +16,7 @@
  * and one-click clipboard copying.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { GitCommit, FileCode, Code2, Network, AlertTriangle, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 
 export interface ExactAnchorData {
@@ -36,6 +36,15 @@ export interface CompactionAnchorStripProps {
 export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }: CompactionAnchorStripProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
 
   const { commitShas = [], filePaths = [], errorSpans = [], codeSymbols = [], apiEndpoints = [] } = anchors;
 
@@ -45,7 +54,10 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
   const handleCopy = useCallback((text: string, id: string) => {
     navigator.clipboard?.writeText(text);
     setCopiedKey(id);
-    setTimeout(() => {
+    if (copyTimerRef.current) {
+      clearTimeout(copyTimerRef.current);
+    }
+    copyTimerRef.current = setTimeout(() => {
       setCopiedKey((current) => (current === id ? null : current));
     }, 1800);
   }, []);
@@ -268,7 +280,7 @@ export function CompactionAnchorStrip({ anchors, className = '', onSymbolClick }
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="h-3 w-3" />
-                <span>Resolved Errors ({errorSpans.length})</span>
+                <span>Error Signatures ({errorSpans.length})</span>
               </div>
               <div className="space-y-1">
                 {errorSpans.map((err, i) => (

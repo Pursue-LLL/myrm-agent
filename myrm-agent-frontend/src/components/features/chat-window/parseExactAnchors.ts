@@ -124,7 +124,7 @@ export function parseExactAnchors(summaryText: string, metaAnchors?: ExactAnchor
       } else if (/endpoints?/i.test(line)) {
         inErrorsSection = false;
         apiEndpoints.push(...extractBacktickItems(line));
-      } else if (/errors?/i.test(line)) {
+      } else if (/(?:errors?|signatures?)/i.test(line)) {
         inErrorsSection = true;
         errorSpans.push(...extractBacktickItems(line));
       }

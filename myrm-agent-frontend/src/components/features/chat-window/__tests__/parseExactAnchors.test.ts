@@ -80,7 +80,7 @@ Proceed with tests.`;
 - **Modified Files**: \`docker-compose.prod.yml\`, \`nginx.conf\`
 - **Key Symbols**: \`ConfigParser\`
 - **API Endpoints**: \`/api/v1/health\`
-- **Resolved Errors**:
+- **Error Signatures**:
   * \`FATAL ERROR: heap out of memory\`
 <!-- EXACT_ANCHOR_JSON: {"commit_shas":["7f8a91c"],"file_paths":["docker-compose.prod.yml","nginx.conf"],"error_spans":["FATAL ERROR: heap out of memory"],"code_symbols":["ConfigParser"],"api_endpoints":["/api/v1/health"]} -->
 

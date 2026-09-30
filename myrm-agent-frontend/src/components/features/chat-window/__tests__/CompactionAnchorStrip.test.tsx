@@ -54,7 +54,7 @@ describe('CompactionAnchorStrip', () => {
     fireEvent.click(toggleBtn);
     expect(screen.getByText('Commits (1)')).toBeInTheDocument();
     expect(screen.getByText('Files (1)')).toBeInTheDocument();
-    expect(screen.getByText('Resolved Errors (1)')).toBeInTheDocument();
+    expect(screen.getByText('Error Signatures (1)')).toBeInTheDocument();
     expect(screen.getByText('SyntaxError: unexpected token')).toBeInTheDocument();
 
     // Click to collapse
