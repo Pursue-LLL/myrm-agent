@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - @/services/sessionLoop::startSessionLoop, stopSessionLoop (POS: 会话级循环调度客户端)
+ * - @/services/sessionLoop::startSessionLoop, stopSessionLoop, getSessionLoopStatus (POS: 会话级循环调度客户端)
  * - @/store/useChatStore (POS: 活跃聊天与状态)
  * - @/services/i18nToastService::showI18nToast (POS: i18n toast 封装)
  *
