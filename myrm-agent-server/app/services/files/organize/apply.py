@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 def _resolve_workspace(workspace: str) -> str:
     """Resolve and validate workspace root (avoids api-layer import)."""
-    from myrm_agent_harness.core.security.path_security import is_dangerous_path
+    from myrm_agent_harness.core.security.path import is_dangerous_path
 
     from app.core.utils.errors import validation_error
 

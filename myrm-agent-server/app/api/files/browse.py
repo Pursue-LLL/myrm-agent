@@ -3,9 +3,9 @@
 [INPUT]
 - myrm_agent_harness.agent.security.path_security::is_within_boundary
   (POS: Path security — boundary check immune to symlink escape)
-- myrm_agent_harness.core.security.path_security::is_dangerous_path
+- myrm_agent_harness.core.security.path::is_dangerous_path
   (POS: Path security — single source of truth for dangerous paths)
-- myrm_agent_harness.core.security.path_security::is_sensitive_file
+- myrm_agent_harness.core.security.path::is_sensitive_file
   (POS: Path security — sensitive file pattern matching)
 - myrm_agent_harness.toolkits.filesystem_suggest::WorkspacePathIndexer, rank_basename
   (POS: SSOT for /browse/search file enumeration and ranking)
@@ -524,7 +524,7 @@ def _search_files(
     max_results: int,
 ) -> list[FileSearchResult]:
     """Retrieve workspace files and perform fuzzy scoring."""
-    from myrm_agent_harness.core.security.path_security import is_dangerous_path, is_sensitive_file
+    from myrm_agent_harness.core.security.path import is_dangerous_path, is_sensitive_file
     from myrm_agent_harness.toolkits.filesystem_suggest import WorkspacePathIndexer, rank_basename
 
     root_path = Path(root).expanduser().resolve()

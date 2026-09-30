@@ -50,7 +50,7 @@ def _is_protected_basename(name: str) -> bool:
 
 def _resolve_workspace(workspace: str) -> str:
     """Resolve and validate workspace root (avoids api-layer import)."""
-    from myrm_agent_harness.core.security.path_security import is_dangerous_path
+    from myrm_agent_harness.core.security.path import is_dangerous_path
 
     from app.core.utils.errors import validation_error
 
@@ -64,7 +64,7 @@ def _resolve_workspace(workspace: str) -> str:
 
 def _validate_target(target: str, workspace: str, *, allow_sensitive: bool = False) -> str:
     """Resolve target path and run boundary + danger + sensitive checks."""
-    from myrm_agent_harness.core.security.path_security import (
+    from myrm_agent_harness.core.security.path import (
         is_dangerous_path,
         is_sensitive_file,
         is_within_boundary,
@@ -260,6 +260,6 @@ def _relative_to_workspace(workspace: str, path: str) -> str:
 
 
 def _path_within_scope(path: str, scope_resolved: str) -> bool:
-    from myrm_agent_harness.core.security.path_security import is_within_boundary
+    from myrm_agent_harness.core.security.path import is_within_boundary
 
     return is_within_boundary(path, scope_resolved)

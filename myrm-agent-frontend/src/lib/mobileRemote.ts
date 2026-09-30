@@ -173,6 +173,9 @@ export async function mobileApiRequest<T>(path: string, init: RequestInit = {}):
 export async function mobileRemotePost<T>(path: string, body: Record<string, unknown>): Promise<T> {
   return mobileApiRequest<T>(path, {
     method: 'POST',
+    // FastAPI only parses a JSON body when the content type says so; without
+    // this header every remote POST is rejected with 422 "field required".
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
 }

@@ -671,7 +671,7 @@ async def serve_wiki_asset(
     filename: str,
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
 ) -> FileResponse:
-    from myrm_agent_harness.core.security.path_security import safe_join_path
+    from myrm_agent_harness.core.security.path import safe_join_path
 
     assets_dir = archiver._structure.wiki_dir / "assets"
     try:

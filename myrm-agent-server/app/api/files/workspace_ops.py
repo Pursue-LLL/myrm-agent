@@ -8,9 +8,9 @@ sensitive-file guard · filename legality · delete protection · upload caps.
 Read-only endpoints remain in browse.py — this module handles writes only.
 
 [INPUT]
-- myrm_agent_harness.core.security.path_security::is_within_boundary
-- myrm_agent_harness.core.security.path_security::is_dangerous_path
-- myrm_agent_harness.core.security.path_security::is_sensitive_file
+- myrm_agent_harness.core.security.path::is_within_boundary
+- myrm_agent_harness.core.security.path::is_dangerous_path
+- myrm_agent_harness.core.security.path::is_sensitive_file
 - app.config.settings::settings.rate_limit.file_upload
 - app.core.infra.limiter::limiter
 - app.core.utils.errors::validation_error
@@ -100,7 +100,7 @@ class UploadResult(BaseModel):
 
 def _resolve_workspace(workspace: str) -> str:
     """Resolve and validate workspace root."""
-    from myrm_agent_harness.core.security.path_security import is_dangerous_path
+    from myrm_agent_harness.core.security.path import is_dangerous_path
 
     resolved = os.path.realpath(os.path.expanduser(workspace))
     if is_dangerous_path(resolved):
@@ -112,7 +112,7 @@ def _resolve_workspace(workspace: str) -> str:
 
 def _validate_target(target: str, workspace: str, *, allow_sensitive: bool = False) -> str:
     """Resolve target path and run boundary + danger + sensitive checks."""
-    from myrm_agent_harness.core.security.path_security import (
+    from myrm_agent_harness.core.security.path import (
         is_dangerous_path,
         is_sensitive_file,
         is_within_boundary,
