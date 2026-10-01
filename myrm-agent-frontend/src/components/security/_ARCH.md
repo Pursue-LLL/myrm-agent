@@ -10,6 +10,7 @@ GitHub Security Center 页面组件（`/security`）。与 Settings 内 Agent �
 | ---------------------------------------- | ------------------------------ |
 | `SecurityDashboard.tsx`                  | 页面容器：Tab 切换、数据拉取   |
 | `SecuritySetupPanel.tsx`                 | Webhook + monitored repos 配置 |
+| `IndirectInjectionAlertCard.tsx`         | 间接注入主动阻断与上下文净化自愈卡片（双主题自适应、无原生 emoji、ToC 安全抽屉） |
 | `DependenciesTab.tsx`                    | 告警与 Dependabot PR           |
 | `RateLimitTab.tsx`                       | 平台限流（SaaS）               |
 | `AuditLogsTab.tsx` / `AuditStatsTab.tsx` | 平台审计                       |
