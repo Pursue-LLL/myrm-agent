@@ -603,7 +603,7 @@ describe('chatExport', () => {
 
       expect(mockHtml2canvas).toHaveBeenCalled();
       expect(capturedTarget).not.toBe(element);
-      expect(capturedTarget?.textContent).toContain('[REDACTED_API_KEY]');
+      expect((capturedTarget as HTMLElement | null)?.textContent).toContain('[REDACTED_API_KEY]');
       expect(element.textContent).toContain('sk-proj-');
       expect(linkMock.click).toHaveBeenCalled();
     });
