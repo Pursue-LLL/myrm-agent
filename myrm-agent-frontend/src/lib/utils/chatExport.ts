@@ -360,39 +360,27 @@ export async function downloadMessageAsDocx(message: Message, includeReasoning: 
   await triggerDownload(docxBlob, buildFilename(extractMessageTitle(message.content), 'docx'));
 }
 
-function createRedactedOffscreenClone(element: HTMLElement): { target: HTMLElement; cleanup: () => void } {
-  if (typeof document === 'undefined') {
-    return { target: element, cleanup: () => {} };
-  }
-  const clone = element.cloneNode(true) as HTMLElement;
-  const walker = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
-  let node: Node | null;
-  while ((node = walker.nextNode())) {
-    if (node.nodeValue) {
-      node.nodeValue = redactSensitiveClientText(node.nodeValue);
-    }
-  }
-  clone.style.cssText = `position:fixed;left:-9999px;top:0;width:${element.offsetWidth || 800}px`;
-  document.body.appendChild(clone);
-  return {
-    target: clone,
-    cleanup: () => {
-      if (clone.parentNode) clone.parentNode.removeChild(clone);
-    },
-  };
-}
-
 export async function downloadMessageAsImage(element: HTMLElement, message: Message, redact = true): Promise<void> {
   const { default: html2canvas } = await import('html2canvas');
-  const { target, cleanup } = redact ? createRedactedOffscreenClone(element) : { target: element, cleanup: () => {} };
-  try {
-    const canvas = await html2canvas(target, { useCORS: true, backgroundColor: null, scale: 2 });
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to create image blob'))), 'image/png');
-    });
-    await triggerDownload(blob, buildFilename(extractMessageTitle(message.content), 'png'));
-  } finally {
-    cleanup();
-  }
+  const canvas = await html2canvas(element, {
+    useCORS: true,
+    backgroundColor: null,
+    scale: 2,
+    onclone: (clonedDoc: Document, clonedEl: HTMLElement) => {
+      if (redact) {
+        const walker = clonedDoc.createTreeWalker(clonedEl, NodeFilter.SHOW_TEXT);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+          if (node.nodeValue) {
+            node.nodeValue = redactSensitiveClientText(node.nodeValue);
+          }
+        }
+      }
+    },
+  });
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to create image blob'))), 'image/png');
+  });
+  await triggerDownload(blob, buildFilename(extractMessageTitle(message.content), 'png'));
 }
 

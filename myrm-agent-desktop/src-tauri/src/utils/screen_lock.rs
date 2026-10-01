@@ -340,7 +340,21 @@ mod platform {
     use super::ScreenLockError;
 
     pub fn is_screen_locked() -> bool {
-        false // TODO: WTSQuerySessionInformation
+        #[link(name = "user32")]
+        extern "system" {
+            fn OpenInputDesktop(flags: u32, inherit: i32, access: u32) -> isize;
+            fn CloseDesktop(hdesk: isize) -> i32;
+        }
+        unsafe {
+            // DESKTOP_SWITCHDESKTOP = 0x0100
+            let hdesk = OpenInputDesktop(0, 0, 0x0100);
+            if hdesk == 0 {
+                true
+            } else {
+                CloseDesktop(hdesk);
+                false
+            }
+        }
     }
 
     pub fn unlock_screen() -> Result<(), ScreenLockError> {

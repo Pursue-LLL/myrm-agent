@@ -104,13 +104,14 @@ describe('chatExportHtml - buildHtmlDocument', () => {
     expect(html).toContain('navigator.clipboard.writeText');
   });
 
-  it('includes print media query to hide interactive buttons and avoid code truncation', async () => {
+  it('includes print media query to hide interactive buttons, avoid code truncation, and invert background', async () => {
     const data = createMockExportData();
     const html = await buildHtmlDocument(data, 'light', 'en');
 
     expect(html).toContain('@media print');
     expect(html).toContain('.copy-code-btn{display:none!important}');
     expect(html).toContain('page-break-inside:avoid');
+    expect(html).toContain('background:#fff!important;color:#0f172a!important');
   });
 });
 

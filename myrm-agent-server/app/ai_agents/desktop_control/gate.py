@@ -27,6 +27,7 @@ import weakref
 from collections.abc import Collection
 from pathlib import Path
 
+from myrm_agent_harness.api.security import get_default_screen_detector
 from myrm_agent_harness.core.events.types import AgentEventType
 from myrm_agent_harness.toolkits.computer_use.app_identity import (
     resolve_trust_key,
@@ -229,6 +230,15 @@ class DesktopControlGate:
         effective_task_id = (task_id or self._task_id).strip()
         trust_key = resolve_trust_key(app_name=app_name, app_id=app_id) or ""
         fingerprint = approval_fingerprint(operation=operation, trust_key=trust_key)
+
+        if get_default_screen_detector().is_locked():
+            logger.warning(
+                "Desktop approval fast-denied: screen is locked (app=%r op=%r fp=%s)",
+                app_name,
+                operation,
+                fingerprint,
+            )
+            return ForegroundPermissionResult(granted=False)
 
         if self._auto_grant:
             logger.warning("Desktop approval auto-granted (sandbox, app=%r op=%r fp=%s)", app_name, operation, fingerprint)

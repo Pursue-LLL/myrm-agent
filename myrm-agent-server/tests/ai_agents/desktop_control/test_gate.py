@@ -537,3 +537,21 @@ def test_revoke_trusted_app_hits_live_gate_when_api_workspace_differs(
     assert gate.list_trusted_apps() == []
     payload = json.loads((approval_dir / "approved_apps.json").read_text(encoding="utf-8"))
     assert payload["apps"] == {}
+
+
+@pytest.mark.asyncio
+async def test_screen_locked_fast_denies_approval(tmp_path: Path) -> None:
+    gate = DesktopControlGate(workspace_root=str(tmp_path), auto_grant=True)
+    with patch("app.ai_agents.desktop_control.gate.get_default_screen_detector") as mock_det:
+        mock_instance = MagicMock()
+        mock_instance.is_locked.return_value = True
+        mock_det.return_value = mock_instance
+
+        result = await gate(
+            reason="test on locked screen",
+            operation="click",
+            estimated_duration_seconds=1.0,
+            app_name="Safari",
+        )
+        assert result.granted is False
+

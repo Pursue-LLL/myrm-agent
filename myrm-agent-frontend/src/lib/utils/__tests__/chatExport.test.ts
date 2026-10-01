@@ -572,14 +572,18 @@ describe('chatExport', () => {
       expect(linkMock.download).toContain('.png');
     });
 
-    it('should redact sensitive text in cloned offscreen DOM without mutating original DOM', async () => {
+    it('should redact sensitive text in onclone sandbox without mutating original DOM', async () => {
       const mockBlob = new Blob(['test'], { type: 'image/png' });
-      let capturedTarget: HTMLElement | null = null;
+      let clonedTargetCaptured: HTMLElement | null = null;
       const mockCanvas = {
         toBlob: vi.fn((cb: (blob: Blob | null) => void) => cb(mockBlob)),
       };
-      const mockHtml2canvas = vi.fn().mockImplementation((target: HTMLElement) => {
-        capturedTarget = target;
+      const mockHtml2canvas = vi.fn().mockImplementation((target: HTMLElement, options?: { onclone?: (doc: Document, el: HTMLElement) => void }) => {
+        if (options?.onclone) {
+          const cloned = target.cloneNode(true) as HTMLElement;
+          options.onclone(document, cloned);
+          clonedTargetCaptured = cloned;
+        }
         return Promise.resolve(mockCanvas);
       });
       vi.doMock('html2canvas', () => ({ default: mockHtml2canvas }));
@@ -601,9 +605,9 @@ describe('chatExport', () => {
       const message = createMockMessage();
       await downloadImage(element, message, true);
 
-      expect(mockHtml2canvas).toHaveBeenCalled();
-      expect(capturedTarget).not.toBe(element);
-      expect((capturedTarget as HTMLElement | null)?.textContent).toContain('[REDACTED_API_KEY]');
+      expect(mockHtml2canvas).toHaveBeenCalledWith(element, expect.objectContaining({ scale: 2 }));
+      expect(clonedTargetCaptured).not.toBe(element);
+      expect((clonedTargetCaptured as HTMLElement | null)?.textContent).toContain('[REDACTED_API_KEY]');
       expect(element.textContent).toContain('sk-proj-');
       expect(linkMock.click).toHaveBeenCalled();
     });
