@@ -443,3 +443,45 @@ async def test_sync_workspace_todos_for_active_branch_on_undo_clears_file(tmp_pa
     assert not todos_path(workspace_root).is_file()
 
 
+@pytest.mark.asyncio
+async def test_sync_workspace_todos_for_active_branch_on_regenerate(tmp_path: Path) -> None:
+    """When regenerating last turn, inactive sibling assistant todos are folded away from workspace."""
+    from app.services.chat.chat_todo_sync import sync_workspace_todos_for_active_branch
+
+    workspace_root = str(tmp_path / "ws_regen")
+    chat_id = "chat_regen_test"
+
+    base_store = TodoStore(
+        todos=[TodoItem(id="base1", content="Initial approved plan", status=TodoStatus.COMPLETED)],
+        revision=1,
+    )
+    base_msg = _create_fake_message(
+        chat_id=chat_id,
+        content="Base plan message",
+        extra_data={"tool_result_details": base_store.model_dump()},
+    )
+
+    write_todos_sync_to_workspace(
+        workspace_root,
+        TodoStore(
+            todos=[
+                TodoItem(id="base1", content="Initial approved plan", status=TodoStatus.COMPLETED),
+                TodoItem(id="stale1", content="Abandoned sibling draft", status=TodoStatus.IN_PROGRESS),
+            ],
+            revision=2,
+        ),
+    )
+
+    with patch("app.services.chat.chat_service.ChatService.get_all_messages", new_callable=AsyncMock) as mock_msgs:
+        mock_msgs.return_value = [base_msg]
+        with patch("app.services.chat.chat_todo_sync._resolve_workspace_root_safely", new_callable=AsyncMock) as mock_root:
+            mock_root.return_value = workspace_root
+            await sync_workspace_todos_for_active_branch(chat_id)
+
+    synced = read_todos_sync_from_workspace(workspace_root)
+    assert synced is not None
+    assert len(synced.todos) == 1
+    assert synced.todos[0].id == "base1"
+    assert synced.todos[0].status == TodoStatus.COMPLETED
+
+

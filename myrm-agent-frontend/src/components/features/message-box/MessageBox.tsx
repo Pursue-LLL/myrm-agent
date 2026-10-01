@@ -309,6 +309,8 @@ const MessageBox = ({
           recordQualityOutcomeNegative('chat', 1, `chat:${message.messageId}`);
         }
 
+        void usePlanStore.getState().fetchPlan(chatId);
+
         const cleanQuery = stripDatetimeTag(result.query);
         await sendMessage(cleanQuery);
       }

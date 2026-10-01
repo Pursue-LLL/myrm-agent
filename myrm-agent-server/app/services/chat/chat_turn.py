@@ -118,6 +118,7 @@ class _ChatTurnMixin(_ChatServiceBase):
                 return RegenerateResult(success=False, query="", sibling_group_id="")
             query, group_id = await _ChatServiceBase._cr(uow).deactivate_last_assistant_siblings(chat_id, last_user)
         await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
+        await _ChatTurnMixin._sync_todos_for_active_branch(chat_id)
         return RegenerateResult(success=True, query=query, sibling_group_id=group_id)
 
     @staticmethod
