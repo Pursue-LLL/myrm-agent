@@ -25,4 +25,3 @@
 - `chatExportHtml.ts`：会话离线独立 HTML 渲染构建器 — 基于 Rehype AST 引擎生成安全 HTML，集成代码高亮、iframe 挂件与自包含代码块一键复制交互按钮，保证 100% 零原生 Emoji 并自包含渲染。
 - `chatExportHtmlTemplates.ts`：会话 HTML 导出组件与样式模板库 — 封装深浅双主题 CSS 变量、Highlight.js 语法主题、离线响应式自适应布局、原生代码复制交互脚本与反馈动画、主题切换交互脚本与多语言元数据统计标签。
 - `clientRedact.ts`：客户端轻量敏感凭据脱敏清洗工具 — 提供 `redactSensitiveClientText` 与 `containsSensitiveData` 纯函数，覆盖 OpenAI/Anthropic 风格 API Keys、GitHub Tokens、AWS 密钥、PEM 私钥、JWT 签名凭据与键值对密码，防御单条消息与前端导出 CWE-312 敏感信息明文泄露。
-
