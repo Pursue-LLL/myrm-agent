@@ -49,7 +49,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `sandbox_worktree.py` | ✅ 辅助 | Git worktree 生命周期管理：create/cleanup/merge/status，供 converter.py 和 sandbox API 共用；cleanup 默认 safe（dirty worktree 保留防丢数据），用户显式丢弃（`disable_sandbox`/chat 永久删除/清空回收站）或 merge 成功后 `force=True`；merge 失败自动 `git merge --abort` 恢复 repo（防 MERGE_HEAD 阻塞后续 merge）并收集冲突文件列表返回给调用方；分支名由 `_sandbox_branch_name` 单一公式生成（SSOT，与 kanban `_worktree_branch_name` 对称）；worktree add/remove/分支删除/merge 组合与错误类型复用 `app.core.utils.git_worktree` | ✅ |
 | `effective_workspace.py` | ✅ 核心 | SSOT：`resolve_effective_chat_workspace` — project.workspace_path > chat.workspace_dir > JIT sandbox；供 GET chat、converter、sandbox API、files suggest/browse、fork、`ensure_default_workspace_dir` 共用 | ✅ |
 | `context_bomb_guard.py` | ✅ 核心 | 入站大文本门禁（>16,000 字符）与透明沙箱工作区文件外溢（`.myrm/spillover/payload_<sha256>.md`）、Prompt Cache 保护引用注入与 24h 过期自动清扫看门狗 | ✅ |
-| `chat_todo_sync.py` | [Pass] 核心 | 会话树分支局部状态折叠解析（`resolve_session_todo_store`）与全部分支突变（retry/undo/truncate/rewind/switch_sibling）物理工作区进度文件原子对齐同步（`sync_workspace_todos_for_active_branch`） | [Pass] |
+| `chat_todo_sync.py` | [Pass] 核心 | 会话树分支局部状态折叠解析（`resolve_session_todo_store`）与全部分支突变（retry/regenerate/undo/truncate/rewind/switch_sibling）物理工作区进度文件原子对齐同步（`sync_workspace_todos_for_active_branch`） | [Pass] |
 
 ---
 
