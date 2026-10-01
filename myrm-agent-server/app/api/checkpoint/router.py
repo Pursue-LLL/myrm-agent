@@ -18,6 +18,7 @@ from myrm_agent_harness.agent.sub_agents.checkpoint.saver import (
 )
 
 from ._snapshot_notify import notify_agent_of_restore
+from .airbag import airbag_router
 from .schemas import (
     CheckpointInfo,
     CheckpointListResponse,
@@ -34,6 +35,7 @@ from .schemas import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/checkpoint", tags=["checkpoint"])
+router.include_router(airbag_router)
 
 # Global instances
 _checkpoint_storage = SubagentCheckpointStorage()
