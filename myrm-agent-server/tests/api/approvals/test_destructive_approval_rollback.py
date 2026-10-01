@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from unittest.mock import patch
+
 import pytest
 
 from app.services.approvals.registry import ApprovalRegistry
@@ -29,19 +30,23 @@ async def test_resolve_strips_allow_always_for_destructive_action(client) -> Non
         thread_id="thread-dest-1",
     )
 
-    # Attempt to resolve with allow_always
-    resp = client.post(
-        f"/api/v1/approvals/{record.id}/resolve",
-        json={
-            "action": "approve",
-            "allow_always": "session:bash_code_execute_tool",
-            "ttl_seconds": 3600,
-        },
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["status"] == "approved"
-    assert data["allow_always"] is None
+    with patch("app.services.event.app_event_bus.AppEventBus.publish") as mock_publish:
+        resp = client.post(
+            f"/api/v1/approvals/{record.id}/resolve",
+            json={
+                "decision": "approve",
+                "allow_always": "session:bash_code_execute_tool",
+                "ttl_seconds": 3600,
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "approved"
+
+        # Verify event published has allow_always=None
+        mock_publish.assert_called_once()
+        published_event = mock_publish.call_args[0][0]
+        assert published_event.data.get("allow_always") is None
 
 
 @pytest.mark.asyncio
@@ -64,7 +69,7 @@ async def test_rollback_approval_no_snapshot(client) -> None:
 
     resp = client.post(f"/api/v1/approvals/{record.id}/rollback")
     assert resp.status_code == 400
-    assert "no snapshot" in resp.json()["detail"].lower()
+    assert "workspace snapshot id" in resp.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
@@ -75,20 +80,22 @@ async def test_rollback_approval_success(client) -> None:
         action_type="subagent_approval",
         payload={
             "snapshotId": "commit_stash_mock_snapshot",
-            "workspaceRoot": "/mock/workspace",
         },
         chat_id="chat-dest-3",
         thread_id="thread-dest-3",
     )
 
     with patch(
-        "app.api.approvals.router.rollback_workspace_snapshot",
+        "myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot.rollback_workspace_snapshot",
         return_value=True,
     ) as mock_rollback:
-        resp = client.post(f"/api/v1/approvals/{record.id}/rollback")
+        resp = client.post(
+            f"/api/v1/approvals/{record.id}/rollback",
+            json={"workspace_path": "/mock/workspace"},
+        )
         assert resp.status_code == 200
         res_data = resp.json()
-        assert res_data["status"] == "success"
+        assert res_data["ok"] is True
         assert res_data["snapshot_id"] == "commit_stash_mock_snapshot"
-        assert res_data["restored"] is True
-        mock_rollback.assert_called_once_with("commit_stash_mock_snapshot", "/mock/workspace")
+        assert "Workspace successfully rolled back" in res_data["message"]
+        mock_rollback.assert_called_once()

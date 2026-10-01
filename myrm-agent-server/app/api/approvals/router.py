@@ -572,9 +572,7 @@ async def rollback_approval_snapshot(
     """Rollback the workspace state to the pre-destructive snapshot captured for this approval."""
     from pathlib import Path
 
-    from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import (
-        rollback_workspace_snapshot,
-    )
+    from myrm_agent_harness.api.security import rollback_workspace_snapshot
 
     record = await ApprovalRegistry.get_approval(approval_id)
     if not record:
