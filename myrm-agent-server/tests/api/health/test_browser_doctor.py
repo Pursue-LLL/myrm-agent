@@ -329,29 +329,25 @@ def test_cloud_connection_failure_reports_error(
     assert "handshake refused" in data["error"]
 
 
+@patch("app.services.config.service.config_service.get")
 def test_cloud_connection_no_ws_library(
+    mock_get: object,
     client: TestClient,
 ) -> None:
     """POST /browser/test-cloud-connection reports error when no WS lib is installed."""
-    with (
-        patch(
-            "app.services.config.service.config_service.get",
-            return_value=_config_record(
-                {
-                    "enabled": True,
-                    "provider": "steel",
-                    "apiKey": "test-key",
-                    "websocketUrl": "wss://test.provider/ws",
-                }
-            ),
-        ),
-        patch.dict(
-            sys.modules,
-            {
-                "websockets": None,
-                "aiohttp": None,
-            },
-        ),
+    mock_get.return_value = _config_record(  # type: ignore[attr-defined]
+        {
+            "enabled": True,
+            "provider": "browserbase",
+            "credential": "test-key",
+        }
+    )
+    with patch.dict(
+        sys.modules,
+        {
+            "websockets": None,
+            "aiohttp": None,
+        },
     ):
         response = client.post("/api/v1/health/browser/test-cloud-connection")
 
@@ -419,17 +415,15 @@ def test_proxy_connection_success(
             "proxies": ["http://user:pass@127.0.0.1:8888", "http://127.0.0.1:9999"],
         }
     )
-    mock_response = AsyncMock()
+    mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {"origin": "203.0.113.9"}
-    mock_client = AsyncMock()
-    mock_client.__aenter__.return_value = mock_client
-    mock_client.get.return_value = mock_response
+    mock_client = MagicMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.get = AsyncMock(return_value=mock_response)
 
-    with (
-        patch("httpx.AsyncClient", return_value=mock_client),
-        patch("app.api.health.browser.httpx.AsyncClient", return_value=mock_client),
-    ):
+    with patch("app.api.health.browser.httpx.AsyncClient", return_value=mock_client):
         response = client.post("/api/v1/health/browser/test-proxy-connection")
 
     assert response.status_code == 200
@@ -449,16 +443,14 @@ def test_proxy_connection_http_error(
     mock_get.return_value = _config_record(  # type: ignore[attr-defined]
         {"enabled": True, "proxies": ["http://127.0.0.1:8888"]}
     )
-    mock_response = AsyncMock()
+    mock_response = MagicMock()
     mock_response.status_code = 407
-    mock_client = AsyncMock()
-    mock_client.__aenter__.return_value = mock_client
-    mock_client.get.return_value = mock_response
+    mock_client = MagicMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.get = AsyncMock(return_value=mock_response)
 
-    with (
-        patch("httpx.AsyncClient", return_value=mock_client),
-        patch("app.api.health.browser.httpx.AsyncClient", return_value=mock_client),
-    ):
+    with patch("app.api.health.browser.httpx.AsyncClient", return_value=mock_client):
         response = client.post("/api/v1/health/browser/test-proxy-connection")
 
     assert response.status_code == 200
@@ -476,11 +468,12 @@ def test_proxy_connection_exception(
     mock_get.return_value = _config_record(  # type: ignore[attr-defined]
         {"enabled": True, "proxies": ["http://127.0.0.1:8888"]}
     )
-    mock_client = AsyncMock()
-    mock_client.__aenter__.return_value = mock_client
-    mock_client.get.side_effect = ConnectionError("proxy unreachable")
+    mock_client = MagicMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.get = AsyncMock(side_effect=ConnectionError("proxy unreachable"))
 
-    with patch("httpx.AsyncClient", return_value=mock_client):
+    with patch("app.api.health.browser.httpx.AsyncClient", return_value=mock_client):
         response = client.post("/api/v1/health/browser/test-proxy-connection")
 
     assert response.status_code == 200

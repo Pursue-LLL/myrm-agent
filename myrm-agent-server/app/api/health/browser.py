@@ -24,6 +24,7 @@ Server business layer. 浏览器运行时健康检查与诊断的 HTTP 端点集
 
 import asyncio
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter(tags=["health"])
@@ -242,8 +243,6 @@ async def test_browser_proxy_connection() -> dict[str, object]:
         Connection test result with status, latency, and proxy count
     """
     import time as _time
-
-    import httpx
 
     from app.schemas.config import BrowserProxyConfigValue
     from app.services.config.service import config_service
