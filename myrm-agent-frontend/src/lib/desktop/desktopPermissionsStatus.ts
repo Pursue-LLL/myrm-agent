@@ -18,6 +18,8 @@ export type DesktopPermissionsStatus = {
   capture_ready: boolean;
   platform: string;
   settings_deeplinks: Record<string, string>;
+  screen_locked?: boolean;
+  screen_sleeping?: boolean;
 };
 
 export function desktopPermissionsPath(probeCapture = false): string {

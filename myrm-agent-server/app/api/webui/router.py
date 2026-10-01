@@ -394,12 +394,18 @@ async def get_desktop_permissions(probe_capture: bool = False) -> JSONResponse:
     """
     session = None
     try:
+        from myrm_agent_harness.toolkits.computer_use.screen_detector import (
+            ScreenLockState,
+            get_default_screen_detector,
+        )
         from myrm_agent_harness.toolkits.computer_use.session import (
             create_computer_session,
         )
 
         session = create_computer_session()
         status = await session.check_permissions(probe_capture=probe_capture)
+        detector = get_default_screen_detector()
+        screen_state = detector.get_state()
         return JSONResponse(
             content={
                 "accessibility": status.accessibility,
@@ -410,6 +416,8 @@ async def get_desktop_permissions(probe_capture: bool = False) -> JSONResponse:
                 "capture_ready": status.capture_ready,
                 "platform": status.platform,
                 "settings_deeplinks": status.settings_deeplinks,
+                "screen_locked": screen_state in (ScreenLockState.LOCKED, ScreenLockState.SLEEPING),
+                "screen_sleeping": screen_state == ScreenLockState.SLEEPING,
             }
         )
     except Exception as e:
@@ -424,6 +432,25 @@ async def get_desktop_permissions(probe_capture: bool = False) -> JSONResponse:
     finally:
         if session is not None:
             await session.close()
+
+
+@router.get("/desktop/screen-lock/status")
+async def get_desktop_screen_lock_status() -> JSONResponse:
+    """Query current desktop physical lock and display sleep status."""
+    from myrm_agent_harness.toolkits.computer_use.screen_detector import (
+        ScreenLockState,
+        get_default_screen_detector,
+    )
+
+    detector = get_default_screen_detector()
+    state = detector.get_state()
+    return JSONResponse(
+        content={
+            "locked": state in (ScreenLockState.LOCKED, ScreenLockState.SLEEPING),
+            "state": state.value,
+            "is_headless": detector.is_headless,
+        }
+    )
 
 
 async def _ephemeral_foreground_desktop_snapshot() -> dict[str, object] | None:

@@ -221,3 +221,21 @@ class TestGetDesktopPermissions:
         assert data["error"] == "permissions_check_failed"
         assert data["message"] == "Desktop permissions check failed"
         mock_session.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_screen_lock_status_endpoint(self, client: httpx.AsyncClient) -> None:
+        from myrm_agent_harness.toolkits.computer_use.screen_detector import (
+            ScreenLockState,
+            get_default_screen_detector,
+        )
+
+        detector = get_default_screen_detector()
+        detector.set_override_state(ScreenLockState.LOCKED)
+        try:
+            response = await client.get("/webui/desktop/screen-lock/status")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["locked"] is True
+            assert data["state"] == "locked"
+        finally:
+            detector.set_override_state(None)

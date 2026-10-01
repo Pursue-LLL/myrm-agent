@@ -16,13 +16,19 @@
 
 import { memo, useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { MonitorCheck, CheckCircle2, XCircle, CircleDashed, ExternalLink, RefreshCw, Copy } from 'lucide-react';
+import { MonitorCheck, CheckCircle2, XCircle, CircleDashed, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { apiRequest } from '@/lib/api';
 import { toast } from '@/lib/utils/toast';
 import { showsLocalIntegrationTabs } from '@/lib/deploy-mode';
-import { isSystemSettingsDeepLink, openPermissionDeepLink } from '@/lib/desktop/permissionDeepLink';
+import { openPermissionDeepLink } from '@/lib/desktop/permissionDeepLink';
 import { desktopPermissionsPath, type DesktopPermissionsStatus } from '@/lib/desktop/desktopPermissionsStatus';
+import {
+  PermissionRow,
+  CaptureProbeRow,
+  ScreenLockRow,
+  DeeplinkItem,
+} from './DesktopPermissionsRows';
 
 type HeaderTone = 'verified' | 'unverified' | 'capture_failed' | 'missing';
 
@@ -240,6 +246,16 @@ const DesktopPermissionsCardLocal = memo(() => {
           statusMissingLabel={t('statusMissing')}
         />
 
+        {/* Physical Screen Lock & Sleep Interruption Gate */}
+        {status?.screen_locked !== undefined && (
+          <ScreenLockRow
+            label="Lock Screen Guardian"
+            description="Physical sleep & lock-screen gate halts automated inputs immediately"
+            isLocked={status.screen_locked}
+            isLoading={isLoading}
+          />
+        )}
+
         {/* Deeplinks / repair hints */}
         {showFixHints && (
           <div className="p-5 space-y-3">
@@ -323,138 +339,3 @@ const DesktopPermissionsCard = memo(() => {
 DesktopPermissionsCard.displayName = 'DesktopPermissionsCard';
 
 export default DesktopPermissionsCard;
-
-// ============================================================================
-// Sub-components
-// ============================================================================
-
-const PermissionRow = memo<{
-  label: string;
-  description: string;
-  granted: boolean;
-  isLoading: boolean;
-  statusOkLabel: string;
-  statusMissingLabel: string;
-}>(({ label, description, granted, isLoading, statusOkLabel, statusMissingLabel }) => (
-  <div className="px-5 py-4 flex items-center justify-between">
-    <div className="flex items-center gap-3 flex-1 min-w-0">
-      <div
-        className={cn(
-          'w-2 h-2 rounded-full',
-          isLoading ? 'bg-muted-foreground animate-pulse' : granted ? 'bg-emerald-500' : 'bg-rose-500',
-        )}
-      />
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </div>
-    </div>
-    <span
-      className={cn(
-        'text-xs font-medium px-2.5 py-1 rounded-full',
-        isLoading
-          ? 'bg-muted text-muted-foreground'
-          : granted
-            ? 'bg-emerald-500/10 text-emerald-500'
-            : 'bg-rose-500/10 text-rose-500',
-      )}
-    >
-      {isLoading ? '...' : granted ? statusOkLabel : statusMissingLabel}
-    </span>
-  </div>
-));
-
-PermissionRow.displayName = 'PermissionRow';
-
-const CaptureProbeRow = memo<{
-  label: string;
-  description: string;
-  capturable: boolean | null;
-  isLoading: boolean;
-  statusOkLabel: string;
-  statusUnverifiedLabel: string;
-  statusMissingLabel: string;
-}>(({ label, description, capturable, isLoading, statusOkLabel, statusUnverifiedLabel, statusMissingLabel }) => {
-  const tone = isLoading ? 'loading' : capturable === true ? 'ok' : capturable === false ? 'missing' : 'unverified';
-  const badge =
-    tone === 'loading'
-      ? '...'
-      : tone === 'ok'
-        ? statusOkLabel
-        : tone === 'missing'
-          ? statusMissingLabel
-          : statusUnverifiedLabel;
-
-  return (
-    <div className="px-5 py-4 flex items-center justify-between">
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div
-          className={cn(
-            'w-2 h-2 rounded-full',
-            tone === 'loading' && 'bg-muted-foreground animate-pulse',
-            tone === 'ok' && 'bg-emerald-500',
-            tone === 'missing' && 'bg-rose-500',
-            tone === 'unverified' && 'bg-sky-500',
-          )}
-        />
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">{label}</p>
-          <p className="text-xs text-muted-foreground">{description}</p>
-        </div>
-      </div>
-      <span
-        className={cn(
-          'text-xs font-medium px-2.5 py-1 rounded-full',
-          tone === 'loading' && 'bg-muted text-muted-foreground',
-          tone === 'ok' && 'bg-emerald-500/10 text-emerald-500',
-          tone === 'missing' && 'bg-rose-500/10 text-rose-500',
-          tone === 'unverified' && 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
-        )}
-      >
-        {badge}
-      </span>
-    </div>
-  );
-});
-
-CaptureProbeRow.displayName = 'CaptureProbeRow';
-
-const DeeplinkItem = memo<{
-  label: string;
-  value: string;
-  onCopy: (value: string) => void;
-  onOpen: (url: string) => void;
-  openSettingsTitle: string;
-  copyCommandTitle: string;
-}>(({ label, value, onCopy, onOpen, openSettingsTitle, copyCommandTitle }) => {
-  const isSystemLink = isSystemSettingsDeepLink(value);
-  const isCommand = !isSystemLink;
-
-  return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/20">
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-foreground capitalize">{label.replace(/_/g, ' ')}</p>
-        <p className="text-xs text-muted-foreground font-mono truncate">{value}</p>
-      </div>
-      {isCommand ? (
-        <button
-          onClick={() => onCopy(value)}
-          className="p-1.5 rounded-lg hover:bg-muted/50 transition-colors flex-shrink-0"
-          title={copyCommandTitle}
-        >
-          <Copy className="w-3.5 h-3.5 text-muted-foreground" />
-        </button>
-      ) : (
-        <button
-          onClick={() => onOpen(value)}
-          className="p-1.5 rounded-lg hover:bg-muted/50 transition-colors flex-shrink-0"
-          title={openSettingsTitle}
-        >
-          <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
-        </button>
-      )}
-    </div>
-  );
-});
-
-DeeplinkItem.displayName = 'DeeplinkItem';
