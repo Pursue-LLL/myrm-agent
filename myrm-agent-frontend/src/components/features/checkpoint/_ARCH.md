@@ -17,6 +17,8 @@
 | `FileSnapshotCard.tsx`  | 组件 | 单个文件快照卡片（触发类型/文件数/时间戳）               | ✅    |
 | `FileSnapshotList.tsx`  | 组件 | 文件快照列表（创建版本/恢复/删除/清理/查看 diff）        | ✅    |
 | `FileSnapshotPanel.tsx` | 入口 | 浮动按钮 + 侧滑面板，集成到 ChatWindow                   | ✅    |
+| `TaskAirbagCapsule.tsx` | 组件 | 无人值守长任务安全气囊状态指示与审查入口胶囊             | ✅    |
+| `TimeTravelRollbackModal.tsx` | 核心 | 时光倒流审查模态框（变动文件统计/外部不可逆警示/一键复原） | ✅    |
 
 ## 关键设计
 

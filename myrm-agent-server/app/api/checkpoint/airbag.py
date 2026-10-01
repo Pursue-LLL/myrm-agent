@@ -1,4 +1,18 @@
-"""Task safety airbag REST endpoints for unattended autonomous runs."""
+"""Task safety airbag REST endpoints for unattended autonomous runs.
+
+[INPUT]
+- app.services.checkpoint.task_airbag_service::get_task_airbag_service (POS: Singleton service managing airbag lifecycle and persistence.)
+
+[OUTPUT]
+- airbag_router: APIRouter for arming, inspecting status, rolling back, and dismissing airbags.
+- ArmAirbagRequest / ArmAirbagResponse: DTO models for arming airbag.
+- AirbagStatusResponse: DTO model for cumulative mutation summary.
+- RollbackAirbagRequest / RollbackAirbagResponse: DTO models for triggering time-travel rollback.
+- DismissAirbagRequest / DismissAirbagResponse: DTO models for dismissing airbag.
+
+[POS]
+Server-layer checkpoint API: REST endpoints for task safety airbag.
+"""
 
 from __future__ import annotations
 
