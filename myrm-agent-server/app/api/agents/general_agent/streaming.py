@@ -69,6 +69,8 @@ class SteerRequest(BaseModel):
     message: str
     mode: str = "direct"
     quoted_ref: str | None = None
+    in_reply_to_call_id: str | None = None
+    question_context: str | None = None
 
     class Config:
         alias_generator = to_camel
@@ -89,10 +91,14 @@ async def steer_agent(
     if not body.message.strip():
         return error_response(message="Steering message cannot be empty", code=400)
 
+    steer_payload = body.message.strip()
+    if body.question_context and body.question_context.strip():
+        steer_payload = f"[In reply to: {body.question_context.strip()}] {steer_payload}"
+
     if body.mode.strip().lower() == "policy":
         from app.services.agent.steering import policy_steer
 
-        outcome = policy_steer(chat_id, body.message, quoted_ref=body.quoted_ref)
+        outcome = policy_steer(chat_id, steer_payload, quoted_ref=body.quoted_ref)
         if outcome["status"] == "no_active":
             return error_response(message="No active agent for this chat", code=404)
         if outcome["status"] == "too_large":
@@ -115,9 +121,18 @@ async def steer_agent(
             }
         )
 
-    success = SteeringRegistry.steer(chat_id, body.message)
+    success = SteeringRegistry.steer(chat_id, steer_payload)
 
     if success:
+        if body.in_reply_to_call_id:
+            from app.services.memory.consolidation_service import ConsolidationService
+
+            ConsolidationService.record_steering_decision(
+                session_id=chat_id,
+                reply=body.message.strip(),
+                question_context=body.question_context,
+                call_id=body.in_reply_to_call_id,
+            )
         logger.info("User steered agent: chat_id=%s", chat_id)
         return success_response(data={"steered": True, "chat_id": chat_id})
 

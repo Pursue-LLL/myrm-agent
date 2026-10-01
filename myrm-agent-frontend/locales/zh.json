@@ -5584,18 +5584,19 @@
         "memory": "系统内存",
         "disk": "磁盘空间",
         "proxy": "代理配置",
-        "orphan_processes": "孤儿进程",
+        "orphan_processes": "孤儿进程与沙箱治理",
         "browser_launch": "启动测试",
         "extension_relay": "浏览器扩展"
       },
-      "cleanupOrphans": "清理孤儿进程",
+      "cleanupOrphans": "清理孤儿与沙箱缓存",
       "cleaning": "清理中…",
-      "confirmCleanupTitle": "确认清理孤儿进程？",
-      "confirmCleanupDescription": "将终止 {count} 个残留的浏览器自动化进程。此操作不会关闭正常使用的浏览器窗口。",
+      "confirmCleanupTitle": "确认清理残留资源？",
+      "confirmCleanupDescription": "将终止残留的自动化进程并清理陈旧沙箱缓存，释放磁盘空间。此操作不会关闭正常使用的浏览器窗口。",
       "cleaned": "已清理 {count} 个孤儿进程",
       "cleanedWithReclaimed": "已清理 {count} 个孤儿进程，释放 {size} 磁盘空间",
-      "cleanupPartial": "有 {failed} 个进程未能终止",
-      "cleanupFailed": "清理孤儿进程失败"
+      "reclaimedOnly": "已清理陈旧沙箱缓存，释放 {size} 磁盘空间",
+      "cleanupPartial": "有 {failed} 项未能清理",
+      "cleanupFailed": "清理失败"
     },
     "cloudBrowser": {
       "title": "云浏览器",
@@ -10231,6 +10232,19 @@
       "untilCondition": "终止条件: {condition}",
       "userActivityPaused": "检测到用户主动输入，循环已顺延避让",
       "tooltip": "会话级自适应指数退避自唤醒轮询调度引擎"
+    },
+    "asyncMessage": {
+      "progressReport": "实时进度通报",
+      "milestone": "阶段性成果",
+      "decisionInquiry": "非阻塞决策征询",
+      "confirmedDecision": "已确认决策：",
+      "resolvedBadge": "已解决",
+      "recommendedPlan": "推荐采纳预案",
+      "adopt": "采纳",
+      "customReply": "自定义回复",
+      "collapseCustom": "收起自定义",
+      "inputPlaceholder": "输入指导或补充说明...",
+      "send": "发送"
     }
   },
   "mode": {

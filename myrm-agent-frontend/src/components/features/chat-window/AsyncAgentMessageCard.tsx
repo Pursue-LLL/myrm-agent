@@ -14,6 +14,7 @@
  * 支持一键采纳预案或自定义回复，无感驱动 SteeringToken 注入。
  */
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Radio,
   Milestone,
@@ -49,6 +50,7 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
   onSteerReply,
   className,
 }) => {
+  const t = useTranslations('chat.asyncMessage');
   const [resolved, setResolved] = useState(false);
   const [resolvedText, setResolvedText] = useState<string | null>(null);
   const [customReply, setCustomReply] = useState('');
@@ -108,6 +110,7 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
       <div
         role="status"
         aria-live="polite"
+        data-call-id={callId}
         className={cn(
           'my-2 flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-xs transition-all duration-200 dark:border-emerald-500/20 dark:bg-emerald-500/10',
           className,
@@ -115,10 +118,10 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
       >
         <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
           <CheckCircle2 className="h-3.5 w-3.5" />
-          <span className="font-medium">已确认决策：</span>
+          <span className="font-medium">{t('confirmedDecision')}</span>
           <span className="line-clamp-1 opacity-90">{resolvedText}</span>
         </div>
-        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">RESOLVED</span>
+        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('resolvedBadge')}</span>
       </div>
     );
   }
@@ -130,6 +133,7 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
     <div
       role="region"
       aria-label={`Agent ${category} update`}
+      data-call-id={callId}
       className={cn(
         'group relative my-2 w-full rounded-xl border p-3.5 transition-all duration-200 text-xs shadow-xs',
         isQuestion && 'border-amber-500/30 bg-amber-500/5 dark:border-amber-500/20 dark:bg-amber-500/5',
@@ -163,10 +167,9 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
               !isQuestion && !isMilestone && 'text-blue-700 dark:text-blue-300',
             )}
           >
-            {isQuestion ? '非阻塞决策征询' : isMilestone ? '阶段性成果' : '实时进度通报'}
+            {isQuestion ? t('decisionInquiry') : isMilestone ? t('milestone') : t('progressReport')}
           </span>
         </div>
-        <span className="text-[10px] text-muted-foreground font-mono opacity-80">ID: {callId.slice(-6)}</span>
       </div>
 
       <div className="text-foreground/90 font-normal leading-relaxed pl-7">{message}</div>
@@ -176,7 +179,7 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
           <div className="flex items-center justify-between gap-2">
             <div>
               <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-0.5">
-                推荐采纳预案
+                {t('recommendedPlan')}
               </span>
               <p className="text-foreground/80 leading-snug">{recommendation}</p>
             </div>
@@ -184,10 +187,10 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
               type="button"
               disabled={isSubmitting}
               onClick={handleAdoptRecommendation}
-              className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground shadow-xs hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              className="inline-flex shrink-0 items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground shadow-xs hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer"
             >
               <Check className="h-3 w-3" />
-              <span>采纳</span>
+              <span>{t('adopt')}</span>
             </button>
           </div>
 
@@ -195,9 +198,9 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
             <button
               type="button"
               onClick={() => setShowCustomInput((prev) => !prev)}
-              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
-              <span>{showCustomInput ? '收起自定义' : '自定义回复'}</span>
+              <span>{showCustomInput ? t('collapseCustom') : t('customReply')}</span>
               {showCustomInput ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
           </div>
@@ -208,16 +211,16 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
                 type="text"
                 value={customReply}
                 onChange={(e) => setCustomReply(e.target.value)}
-                placeholder="输入指导或补充说明..."
+                placeholder={t('inputPlaceholder')}
                 className="flex-1 rounded-md border border-input bg-background px-2.5 py-1 text-xs focus:outline-hidden focus:ring-1 focus:ring-ring"
               />
               <button
                 type="submit"
                 disabled={isSubmitting || !customReply.trim()}
-                className="inline-flex items-center gap-1 rounded-md bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-1 rounded-md bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50 transition-colors cursor-pointer"
               >
                 <CornerDownLeft className="h-3 w-3" />
-                <span>发送</span>
+                <span>{t('send')}</span>
               </button>
             </form>
           )}
@@ -246,9 +249,9 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
             <button
               type="button"
               onClick={() => setShowCustomInput((prev) => !prev)}
-              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
-              <span>{showCustomInput ? '收起自定义回复' : '自定义回复'}</span>
+              <span>{showCustomInput ? t('collapseCustom') : t('customReply')}</span>
               {showCustomInput ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
           </div>
@@ -259,16 +262,16 @@ export const AsyncAgentMessageCard: React.FC<AsyncAgentMessageCardProps> = ({
                 type="text"
                 value={customReply}
                 onChange={(e) => setCustomReply(e.target.value)}
-                placeholder="输入指导或补充说明..."
+                placeholder={t('inputPlaceholder')}
                 className="flex-1 rounded-md border border-input bg-background px-2.5 py-1 text-xs focus:outline-hidden focus:ring-1 focus:ring-ring"
               />
               <button
                 type="submit"
                 disabled={isSubmitting || !customReply.trim()}
-                className="inline-flex items-center gap-1 rounded-md bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-1 rounded-md bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50 transition-colors cursor-pointer"
               >
                 <CornerDownLeft className="h-3 w-3" />
-                <span>发送</span>
+                <span>{t('send')}</span>
               </button>
             </form>
           )}

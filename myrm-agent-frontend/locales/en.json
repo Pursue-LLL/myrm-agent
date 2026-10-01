@@ -5584,18 +5584,19 @@
         "memory": "System Memory",
         "disk": "Disk Space",
         "proxy": "Proxy",
-        "orphan_processes": "Orphan Processes",
+        "orphan_processes": "Orphans & Sandbox Caches",
         "browser_launch": "Launch Test",
         "extension_relay": "Browser Extension"
       },
-      "cleanupOrphans": "Clean up orphan processes",
+      "cleanupOrphans": "Clean up orphans & sandboxes",
       "cleaning": "Cleaning…",
-      "confirmCleanupTitle": "Confirm cleanup of orphan processes?",
-      "confirmCleanupDescription": "This terminates {count} leftover browser automation process(es). It will not close normal browser windows.",
+      "confirmCleanupTitle": "Confirm cleanup of residual resources?",
+      "confirmCleanupDescription": "This terminates leftover automation processes and prunes stale sandbox caches to reclaim disk space. It will not close normal browser windows.",
       "cleaned": "Cleaned {count} orphan process(es)",
       "cleanedWithReclaimed": "Cleaned {count} orphan process(es) and reclaimed {size} disk space",
-      "cleanupPartial": "{failed} process(es) could not be terminated",
-      "cleanupFailed": "Failed to clean up orphan processes"
+      "reclaimedOnly": "Cleaned stale sandbox caches, {size} disk space reclaimed",
+      "cleanupPartial": "{failed} item(s) could not be cleaned",
+      "cleanupFailed": "Failed to clean up residual resources"
     },
     "cloudBrowser": {
       "title": "Cloud Browser",
@@ -10231,6 +10232,19 @@
       "untilCondition": "Stop condition: {condition}",
       "userActivityPaused": "User active, loop deferred",
       "tooltip": "Session-scoped adaptive exponential backoff loop scheduler"
+    },
+    "asyncMessage": {
+      "progressReport": "Live Progress Update",
+      "milestone": "Milestone Reached",
+      "decisionInquiry": "Non-blocking Inquiry",
+      "confirmedDecision": "Confirmed decision:",
+      "resolvedBadge": "RESOLVED",
+      "recommendedPlan": "Recommended Option",
+      "adopt": "Adopt",
+      "customReply": "Custom reply",
+      "collapseCustom": "Collapse custom",
+      "inputPlaceholder": "Enter instructions or notes...",
+      "send": "Send"
     }
   },
   "mode": {

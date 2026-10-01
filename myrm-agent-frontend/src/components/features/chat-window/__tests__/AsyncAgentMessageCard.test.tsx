@@ -3,13 +3,36 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AsyncAgentMessageCard } from '../AsyncAgentMessageCard';
 
+const mockDict: Record<string, string> = {
+  progressReport: '实时进度通报',
+  milestone: '阶段性成果',
+  decisionInquiry: '非阻塞决策征询',
+  confirmedDecision: '已确认决策：',
+  resolvedBadge: '已解决',
+  recommendedPlan: '推荐采纳预案',
+  adopt: '采纳',
+  customReply: '自定义回复',
+  collapseCustom: '收起自定义',
+  inputPlaceholder: '输入指导或补充说明...',
+  send: '发送',
+};
+
+const stableT = (key: string) => mockDict[key] ?? key;
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => stableT,
+}));
+
 describe('AsyncAgentMessageCard', () => {
-  it('renders progress notification with correct title and message', () => {
-    render(<AsyncAgentMessageCard callId="async_msg_123456" message="Scanning files..." category="progress" />);
+  it('renders progress notification with correct title, message and data-call-id without leaking raw ID in UI', () => {
+    const { container } = render(
+      <AsyncAgentMessageCard callId="async_msg_123456" message="Scanning files..." category="progress" />,
+    );
 
     expect(screen.getByText('实时进度通报')).toBeDefined();
     expect(screen.getByText('Scanning files...')).toBeDefined();
-    expect(screen.getByText('ID: 123456')).toBeDefined();
+    expect(container.querySelector('[data-call-id="async_msg_123456"]')).not.toBeNull();
+    expect(screen.queryByText(/ID:/i)).toBeNull();
   });
 
   it('renders milestone notification', () => {

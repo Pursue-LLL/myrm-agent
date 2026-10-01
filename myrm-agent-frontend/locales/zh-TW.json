@@ -3162,6 +3162,19 @@
       "step3Desc": "WeeklyReview blueprint aggregating metrics",
       "step3Prompt": "Retrieve completed tasks and daily journal logs from this week, and compile a structured weekly summary report following conclusion-first, data-backed metrics, and blocker retrospective.",
       "oneClickAction": "Load Workflow Prompt"
+    },
+    "asyncMessage": {
+      "progressReport": "即時進度通報",
+      "milestone": "階段性成果",
+      "decisionInquiry": "非阻塞決策徵詢",
+      "confirmedDecision": "已確認決策：",
+      "resolvedBadge": "已解決",
+      "recommendedPlan": "推薦採納預案",
+      "adopt": "採納",
+      "customReply": "自訂回覆",
+      "collapseCustom": "收起自訂",
+      "inputPlaceholder": "輸入指導或補充說明...",
+      "send": "發送"
     }
   },
   "mode": {
@@ -18194,17 +18207,19 @@
         "memory": "系統記憶體",
         "disk": "磁碟空間",
         "proxy": "代理設定",
-        "orphan_processes": "孤兒進程",
+        "orphan_processes": "孤兒進程與沙箱治理",
         "browser_launch": "啟動測試",
         "extension_relay": "瀏覽器擴充"
       },
-      "cleanupOrphans": "清理孤兒進程",
+      "cleanupOrphans": "清理孤兒與沙箱快取",
       "cleaning": "清理中…",
-      "confirmCleanupTitle": "確認清理孤兒進程？",
-      "confirmCleanupDescription": "將終止 {count} 個殘留的瀏覽器自動化進程。此操作不會關閉正常使用的瀏覽器視窗。",
+      "confirmCleanupTitle": "確認清理殘留資源？",
+      "confirmCleanupDescription": "將終止殘留的自動化進程並清理陳舊沙箱快取，釋放磁碟空間。此操作不會關閉正常使用的瀏覽器視窗。",
       "cleaned": "已清理 {count} 個孤兒進程",
-      "cleanupPartial": "有 {failed} 個進程未能終止",
-      "cleanupFailed": "清理孤兒進程失敗"
+      "cleanedWithReclaimed": "已清理 {count} 個孤兒進程，釋放 {size} 磁碟空間",
+      "reclaimedOnly": "已清理陳舊沙箱快取，釋放 {size} 磁碟空間",
+      "cleanupPartial": "有 {failed} 項未能清理",
+      "cleanupFailed": "清理殘留資源失敗"
     },
     "cloudBrowser": {
       "title": "雲瀏覽器",

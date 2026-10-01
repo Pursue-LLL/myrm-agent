@@ -3162,6 +3162,19 @@
       "step3Desc": "WeeklyReview blueprint aggregating metrics",
       "step3Prompt": "Retrieve completed tasks and daily journal logs from this week, and compile a structured weekly summary report following conclusion-first, data-backed metrics, and blocker retrospective.",
       "oneClickAction": "Load Workflow Prompt"
+    },
+    "asyncMessage": {
+      "progressReport": "進捗状況の速報",
+      "milestone": "マイルストーン達成",
+      "decisionInquiry": "非ブロッキング確認",
+      "confirmedDecision": "確認済みの決定：",
+      "resolvedBadge": "解決済み",
+      "recommendedPlan": "推奨プラン",
+      "adopt": "採用",
+      "customReply": "カスタム返信",
+      "collapseCustom": "カスタム入力を閉じる",
+      "inputPlaceholder": "指示や補足を入力...",
+      "send": "送信"
     }
   },
   "mode": {
@@ -18194,18 +18207,19 @@
         "memory": "システムメモリ",
         "disk": "ディスク容量",
         "proxy": "プロキシ",
-        "orphan_processes": "孤立プロセス",
+        "orphan_processes": "孤立プロセスとサンドボックス管理",
         "browser_launch": "起動テスト",
         "extension_relay": "ブラウザ拡張機能"
       },
-      "cleanupOrphans": "孤立プロセスをクリーンアップ",
+      "cleanupOrphans": "孤立プロセスとサンドボックスをクリーンアップ",
       "cleaning": "クリーンアップ中…",
-      "confirmCleanupTitle": "孤立プロセスをクリーンアップしてもよろしいですか？",
-      "confirmCleanupDescription": "残っている {count} 個のブラウザ自動化プロセスを終了します。通常のブラウザウィンドウは閉じません。",
+      "confirmCleanupTitle": "残存リソースのクリーンアップを確認しますか？",
+      "confirmCleanupDescription": "残っているブラウザ自動化プロセスを終了し、古いサンドボックスキャッシュを削除してディスク容量を解放します。通常のブラウザウィンドウは閉じません。",
       "cleaned": "{count} 個の孤立プロセスをクリーンアップしました",
       "cleanedWithReclaimed": "{count} 個の孤立プロセスをクリーンアップし、{size} のディスク容量を解放しました",
-      "cleanupPartial": "{failed} 個のプロセスを終了できませんでした",
-      "cleanupFailed": "孤立プロセスのクリーンアップに失敗しました"
+      "reclaimedOnly": "古いサンドボックスキャッシュをクリーンアップし、{size} のディスク容量を解放しました",
+      "cleanupPartial": "{failed} 項目のクリーンアップに失敗しました",
+      "cleanupFailed": "残存リソースのクリーンアップに失敗しました"
     },
     "cloudBrowser": {
       "title": "クラウドブラウザ",

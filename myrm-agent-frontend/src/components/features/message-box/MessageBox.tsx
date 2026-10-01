@@ -803,8 +803,10 @@ const MessageBox = ({
                           questionContext,
                         });
                       } else {
-                        // 降级回填（Hermes #64578 机制）：流已结束，回填输入框供下一轮发送
-                        store.setInputMessage(reply);
+                        // 降级回填（Hermes #64578 机制）：流已结束，若已有草稿则换行追加防冲，否则直接回填
+                        const existing = store.inputMessage?.trim();
+                        const nextMessage = existing ? `${store.inputMessage.trimEnd()}\n\n${reply}` : reply;
+                        store.setInputMessage(nextMessage);
                       }
                     }}
                   />

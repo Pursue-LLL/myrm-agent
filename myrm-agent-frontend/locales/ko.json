@@ -3162,6 +3162,19 @@
       "step3Desc": "WeeklyReview blueprint aggregating metrics",
       "step3Prompt": "Retrieve completed tasks and daily journal logs from this week, and compile a structured weekly summary report following conclusion-first, data-backed metrics, and blocker retrospective.",
       "oneClickAction": "Load Workflow Prompt"
+    },
+    "asyncMessage": {
+      "progressReport": "실시간 진행 상황",
+      "milestone": "단계별 성과 달성",
+      "decisionInquiry": "비차단 결정 문의",
+      "confirmedDecision": "확인된 결정:",
+      "resolvedBadge": "해결됨",
+      "recommendedPlan": "추천 방안",
+      "adopt": "채택",
+      "customReply": "사용자 지정 답장",
+      "collapseCustom": "사용자 지정 접기",
+      "inputPlaceholder": "지침 또는 메모 입력...",
+      "send": "전송"
     }
   },
   "mode": {
@@ -18194,18 +18207,19 @@
         "memory": "시스템 메모리",
         "disk": "디스크 공간",
         "proxy": "프록시",
-        "orphan_processes": "고아 프로세스",
+        "orphan_processes": "고아 프로세스 및 샌드박스 관리",
         "browser_launch": "시작 테스트",
         "extension_relay": "브라우저 확장"
       },
-      "cleanupOrphans": "고아 프로세스 정리",
+      "cleanupOrphans": "고아 프로세스 및 샌드박스 정리",
       "cleaning": "정리 중…",
-      "confirmCleanupTitle": "고아 프로세스를 정리하시겠습니까?",
-      "confirmCleanupDescription": "남아 있는 {count}개의 브라우저 자동화 프로세스를 종료합니다. 일반 브라우저 창은 닫지 않습니다.",
+      "confirmCleanupTitle": "잔여 리소스 정리를 확인하시겠습니까?",
+      "confirmCleanupDescription": "남아 있는 브라우저 자동화 프로세스를 종료하고 오래된 샌드박스 캐시를 정리하여 디스크 공간을 확보합니다. 일반 브라우저 창은 닫지 않습니다.",
       "cleaned": "고아 프로세스 {count}개를 정리했습니다",
       "cleanedWithReclaimed": "고아 프로세스 {count}개를 정리하고 {size}의 디스크 공간을 확보했습니다",
-      "cleanupPartial": "{failed}개 프로세스를 종료하지 못했습니다",
-      "cleanupFailed": "고아 프로세스 정리에 실패했습니다"
+      "reclaimedOnly": "오래된 샌드박스 캐시를 정리하고 {size}의 디스크 공간을 확보했습니다",
+      "cleanupPartial": "{failed}개 항목을 정리하지 못했습니다",
+      "cleanupFailed": "잔여 리소스 정리에 실패했습니다"
     },
     "cloudBrowser": {
       "title": "클라우드 브라우저",

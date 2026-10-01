@@ -8,8 +8,23 @@ import type { Message } from '@/store/chat/types';
 
 const mockSteerMessage = vi.fn().mockResolvedValue(true);
 const mockSetInputMessage = vi.fn();
+let mockCurrentInputMessage = '';
 
-const stableT = (key: string) => key;
+const mockDict: Record<string, string> = {
+  progressReport: '实时进度通报',
+  milestone: '阶段性成果',
+  decisionInquiry: '非阻塞决策征询',
+  confirmedDecision: '已确认决策：',
+  resolvedBadge: '已解决',
+  recommendedPlan: '推荐采纳预案',
+  adopt: '采纳',
+  customReply: '自定义回复',
+  collapseCustom: '收起自定义',
+  inputPlaceholder: '输入指导或补充说明...',
+  send: '发送',
+};
+
+const stableT = (key: string) => mockDict[key] ?? key;
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -25,6 +40,7 @@ vi.mock('@/store/useChatStore', () => ({
         messages: [],
         enabledBuiltinTools: [],
         currentBuiltinTools: [],
+        inputMessage: mockCurrentInputMessage,
         sendMessage: vi.fn(),
       }),
     {
@@ -33,9 +49,13 @@ vi.mock('@/store/useChatStore', () => ({
         messages: [],
         enabledBuiltinTools: [],
         currentBuiltinTools: [],
+        inputMessage: mockCurrentInputMessage,
         sendMessage: vi.fn(),
         steerMessage: mockSteerMessage,
-        setInputMessage: mockSetInputMessage,
+        setInputMessage: (val: string) => {
+          mockCurrentInputMessage = val;
+          mockSetInputMessage(val);
+        },
         setState: vi.fn(),
       }),
       setState: vi.fn(),
@@ -63,6 +83,7 @@ vi.mock('@/components/features/message-box/MarkdownContent', () => ({
 describe('MessageBox AsyncAgentMessageCard integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCurrentInputMessage = '';
   });
 
   const baseAssistantMessage: Message = {
@@ -119,6 +140,24 @@ describe('MessageBox AsyncAgentMessageCard integration', () => {
 
     expect(mockSteerMessage).not.toHaveBeenCalled();
     expect(mockSetInputMessage).toHaveBeenCalledWith('Proceed with Non-GAAP standard metrics');
+  });
+
+  it('appends to existing user draft with double newline instead of clobbering when stream completed', async () => {
+    mockCurrentInputMessage = 'Here is my draft instruction.';
+
+    render(
+      <MessageBox message={baseAssistantMessage} messageIndex={1} isLast={true} loading={false} />,
+    );
+
+    const adoptBtn = screen.getByRole('button', { name: /采纳/i });
+    await act(async () => {
+      fireEvent.click(adoptBtn);
+    });
+
+    expect(mockSteerMessage).not.toHaveBeenCalled();
+    expect(mockSetInputMessage).toHaveBeenCalledWith(
+      'Here is my draft instruction.\n\nProceed with Non-GAAP standard metrics',
+    );
   });
 
   it('triggers steerMessage when user clicks suggested reply chip while streaming', async () => {
