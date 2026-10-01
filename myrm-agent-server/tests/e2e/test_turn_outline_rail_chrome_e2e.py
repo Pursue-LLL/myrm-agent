@@ -117,7 +117,7 @@ def test_turn_outline_rail_navigation_chrome_e2e() -> None:
         f"  await bridge.attachToChat({json.dumps(chat_id)});\n"
         "  const snap = bridge.turnSnapshot?.() ?? {};\n"
         "  return {\n"
-        f"    ok: snap.chatId === {json.dumps(chat_id)} && (snap.messageCount ?? 0) >= 10,\n"
+        f"    ok: snap.chatId === {json.dumps(chat_id)} && ((snap.messageCount ?? ((snap.userCount || 0) + (snap.assistantCount || 0))) >= 10),\n"
         "    snap,\n"
         "  };\n"
         "})()"

@@ -1152,6 +1152,7 @@ export default function E2EChatBridge() {
         const slashBoundSkillResolvedCount = boundSkillIds.length;
         return {
           chatId: state.chatId?.trim() || null,
+          messageCount: state.messages.length,
           userCount: users.length,
           assistantCount: assistants.length,
           lastAssistantRoutingTier: lastAssistant?.routingTier ?? null,

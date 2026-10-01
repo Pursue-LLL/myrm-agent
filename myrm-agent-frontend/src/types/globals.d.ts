@@ -129,6 +129,7 @@ interface Window {
     _submitBaselineUsers?: number;
     turnSnapshot: () => {
       chatId: string | null;
+      messageCount?: number;
       userCount: number;
       assistantCount?: number;
       isStreaming: boolean;
