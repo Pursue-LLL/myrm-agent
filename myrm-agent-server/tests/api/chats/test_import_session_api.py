@@ -112,7 +112,7 @@ async def test_import_transcript_json_success(client: AsyncClient, test_db: Asyn
     user_msg = next(m for m in messages if m.role == "user")
     asst_msg = next(m for m in messages if m.role == "assistant")
     assert user_msg.content == "Fix null pointer in user_service.py"
-    assert "🛠️" in asst_msg.content
+    assert "[Tool]" in asst_msg.content
     assert "Fixed by adding defensive None check" in asst_msg.content
 
 
