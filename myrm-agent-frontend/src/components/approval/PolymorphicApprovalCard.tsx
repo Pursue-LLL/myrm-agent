@@ -71,6 +71,7 @@ import { useTheme } from 'next-themes';
 import useApprovalStore from '@/store/useApprovalStore';
 import { MaskedCredentialInputCard } from '@/components/approval/MaskedCredentialInputCard';
 import { DestructiveConfirmationBanner } from '@/components/approval/DestructiveConfirmationBanner';
+import { DestructiveUndoCard } from '@/components/approval/DestructiveUndoCard';
 
 type DrawerDecisionAction = 'approve' | 'reject' | 'edit';
 type CardDialogMode = 'default' | 'editing';
@@ -1394,6 +1395,21 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                   ephemeral_credential_handles:
                     stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
                 });
+                if (isIrreversibleDestructive && destructiveSnapshotId) {
+                  toast.custom(
+                    (toastId) => (
+                      <DestructiveUndoCard
+                        approvalId={approval.approval_id}
+                        snapshotId={destructiveSnapshotId}
+                        onRollbackSuccess={() => toast.dismiss(toastId)}
+                      />
+                    ),
+                    {
+                      duration: 10 * 60 * 1000,
+                      id: `destructive-undo-${approval.approval_id}`,
+                    },
+                  );
+                }
               }}
               disabled={isSubmitting || (isIrreversibleDestructive && !destructiveConfirmed)}
             >
