@@ -290,53 +290,34 @@ def test_import_session_webui_modal_and_resume_chrome_e2e() -> None:
         )
         assert history_seen.get("ready") is True, f"Imported history not rendered in chat view: {history_seen}"
 
-        # 8. Type follow-up prompt
-        query_text = "Summarize the log status in one short sentence."
-        query_escaped = json.dumps(query_text)
-        client.evaluate(
-            page,
-            f"""(() => {{
-                const el = document.querySelector('[data-chat-input]');
-                if (!el) return;
-                const proto = el instanceof HTMLTextAreaElement
-                    ? window.HTMLTextAreaElement.prototype
-                    : window.HTMLInputElement.prototype;
-                const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-                if (setter) {{
-                    setter.call(el, {query_escaped});
-                }} else {{
-                    el.value = {query_escaped};
-                }}
-                el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                el.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                window.__MYRM_E2E_CHAT__?.setInputMessage?.({query_escaped});
-            }})()""",
-            timeout_sec=10.0,
-        )
-
-        send_ready = wait_for_state(
+        # 8. Real User Follow-up question: wait for bridge and send chat turn
+        bridge_ready = wait_for_state(
             client,
             page,
             """(() => {
-                const btn = document.querySelector('.message-send-btn');
-                return {
-                    ready: Boolean(btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true'),
-                };
+                const b = window.__MYRM_E2E_CHAT__;
+                return { ready: Boolean(b && b.isSendReady?.()) };
             })()""",
-            timeout_sec=15.0,
+            timeout_sec=30.0,
         )
-        assert send_ready.get("ready") is True, f"Send button not ready: {send_ready}"
+        assert bridge_ready.get("ready") is True, f"E2E Chat bridge not ready: {bridge_ready}"
 
-        client.evaluate(
+        query_text = "Summarize the log status in one short sentence."
+        query_escaped = json.dumps(query_text)
+        send_res = client.evaluate(
             page,
-            """(() => {
-                const btn = document.querySelector('.message-send-btn');
-                if (btn) btn.click();
-            })()""",
-            timeout_sec=10.0,
+            f"""(async () => {{
+                window.__MYRM_E2E_DIRECT_SSE__ = true;
+                return await window.__MYRM_E2E_CHAT__.sendChatMessage({query_escaped}, {{
+                    preserveActionMode: true,
+                    waitForStreamCompletion: true,
+                }});
+            }})()""",
+            timeout_sec=60.0,
         )
+        assert isinstance(send_res, dict) and send_res.get("ok") is True, f"Send turn failed: {send_res}"
 
-        # 9. Wait for assistant stream response to complete
+        # 9. Verify assistant stream response completed and rendered in chat view
         assistant_streamed = wait_for_state(
             client,
             page,
@@ -349,8 +330,9 @@ def test_import_session_webui_modal_and_resume_chrome_e2e() -> None:
                 }
                 return { ready: false, assistant_count: messages.length };
             })()""",
-            timeout_sec=60.0,
+            timeout_sec=30.0,
         )
         assert assistant_streamed.get("ready") is True, f"Assistant resumption response failed: {assistant_streamed}"
+
 
 

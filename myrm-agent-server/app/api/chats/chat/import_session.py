@@ -191,7 +191,7 @@ async def _process_import(
         title=effective_title,
         first_message=first_msg,
         last_message=last_msg,
-        action_mode="fast",
+        action_mode="agent",
         source=f"imported_{clean_res.source_tool}",
         workspace_dir=workspace_dir,
         is_incognito=False,
