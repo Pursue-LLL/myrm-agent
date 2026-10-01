@@ -56,7 +56,7 @@ import ApprovalScopeNoteLine from '@/components/approval/ApprovalScopeNoteLine';
 import CompactFileWriteApprovalRow from '@/components/approval/CompactFileWriteApprovalRow';
 import SaveSkillApprovalPreview from '@/components/approval/SaveSkillApprovalPreview';
 import { isSaveSkillApproval } from '@/lib/approval/saveSkillApproval';
-import { ShieldCheck, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, AlertOctagon, FileWarning } from 'lucide-react';
 import {
   extractShellCommand,
   getShellEditInputEntries,
@@ -70,6 +70,7 @@ import {
 import { useTheme } from 'next-themes';
 import useApprovalStore from '@/store/useApprovalStore';
 import { MaskedCredentialInputCard } from '@/components/approval/MaskedCredentialInputCard';
+import { DestructiveConfirmationBanner } from '@/components/approval/DestructiveConfirmationBanner';
 
 type DrawerDecisionAction = 'approve' | 'reject' | 'edit';
 type CardDialogMode = 'default' | 'editing';
@@ -290,6 +291,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     Boolean(requiredCredentials && requiredCredentials.length > 0),
   );
   const [stagedCredentialHandles, setStagedCredentialHandles] = useState<string[]>([]);
+  const [destructiveConfirmed, setDestructiveConfirmed] = useState(false);
   const { resolvedTheme } = useTheme();
 
   const isDark = resolvedTheme === 'dark';
@@ -318,16 +320,54 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
     }
     return configs.some((c) => c?.sociallyIrreversible === true);
   }, [approval.payload?.reviewConfigs]);
-  const hasAnyHideAllowAlways = useMemo(() => {
-    if (isSociallyIrreversible) {
+
+  const isIrreversibleDestructive = useMemo(() => {
+    if (approval.payload?.irreversibleDestructive === true) {
       return true;
     }
     const configs = approval.payload?.reviewConfigs;
     if (!configs || !Array.isArray(configs)) {
       return false;
     }
-    return configs.some((c) => c?.hideAllowAlways === true || c?.isSpend === true);
-  }, [isSociallyIrreversible, approval.payload?.reviewConfigs]);
+    return configs.some((c) => c?.irreversibleDestructive === true);
+  }, [approval.payload?.irreversibleDestructive, approval.payload?.reviewConfigs]);
+
+  const destructiveBlastRadius = useMemo(() => {
+    const configs = approval.payload?.reviewConfigs;
+    if (!configs || !Array.isArray(configs)) {
+      return undefined;
+    }
+    const found = configs.find((c) => c?.blastRadius);
+    return found?.blastRadius;
+  }, [approval.payload?.reviewConfigs]);
+
+  const destructiveSnapshotId = useMemo(() => {
+    if (approval.payload?.snapshotId) {
+      return approval.payload.snapshotId;
+    }
+    const configs = approval.payload?.reviewConfigs;
+    if (!configs || !Array.isArray(configs)) {
+      return undefined;
+    }
+    const found = configs.find((c) => c?.snapshotId);
+    return found?.snapshotId;
+  }, [approval.payload?.snapshotId, approval.payload?.reviewConfigs]);
+
+  const hasAnyHideAllowAlways = useMemo(() => {
+    if (isSociallyIrreversible || isIrreversibleDestructive) {
+      return true;
+    }
+    const configs = approval.payload?.reviewConfigs;
+    if (!configs || !Array.isArray(configs)) {
+      return false;
+    }
+    return configs.some(
+      (c) =>
+        c?.hideAllowAlways === true ||
+        c?.isSpend === true ||
+        c?.irreversibleDestructive === true,
+    );
+  }, [isSociallyIrreversible, isIrreversibleDestructive, approval.payload?.reviewConfigs]);
 
   const spendConfig = useMemo(() => {
     const configs = approval.payload?.reviewConfigs;
@@ -1192,6 +1232,15 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
         </div>
       )}
 
+      {isIrreversibleDestructive && (
+        <DestructiveConfirmationBanner
+          blastRadius={destructiveBlastRadius}
+          snapshotId={destructiveSnapshotId}
+          onConfirmationChange={setDestructiveConfirmed}
+          disabled={isSubmitting}
+        />
+      )}
+
       {isSociallyIrreversible && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3">
           <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
@@ -1295,7 +1344,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                     stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
                 });
               }}
-              disabled={isSubmitting}
+              disabled={isSubmitting || (isIrreversibleDestructive && !destructiveConfirmed)}
             >
               <AlertTriangle className="mr-1 h-3.5 w-3.5" />
               {t('smartDenied.overrideOnce')}
@@ -1327,6 +1376,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
               </Button>
             )}
             <Button
+              variant={isIrreversibleDestructive ? 'destructive' : 'default'}
               onClick={() => {
                 let edited_payload: Record<string, unknown> | undefined = undefined;
                 if (approval.action_type === 'tool_clarification') {
@@ -1345,9 +1395,9 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
                     stagedCredentialHandles.length > 0 ? stagedCredentialHandles : undefined,
                 });
               }}
-              disabled={isSubmitting}
+              disabled={isSubmitting || (isIrreversibleDestructive && !destructiveConfirmed)}
             >
-              {t('approve')}
+              {isIrreversibleDestructive ? t('irreversibleDestructive.confirmButton') : t('approve')}
             </Button>
           </>
         )}

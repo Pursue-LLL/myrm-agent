@@ -9040,6 +9040,23 @@
       "title": "Sozial irreversible Aktion",
       "description": "Dieser Vorgang wirkt sich auf externe Systeme aus (Remote-Push, Benachrichtigung oder Veroeffentlichung) und kann lokal nicht rueckgaengig gemacht werden. Eine explizite Genehmigung ist erforderlich."
     },
+    "irreversibleDestructive": {
+      "title": "Irreversible zerstoererische Aktion Hard Stop Line",
+      "description": "Dieser Vorgang umfasst rekursives Loeschen, Git-Ueberschreiben oder Datentraeger-Loeschungen. Automatische Genehmigung ist streng untersagt und erfordert eine zweistufige Bestaetigung.",
+      "blastRadiusLabel": "Geschaetzter Explosionsradius",
+      "snapshotReady": "Schatten-Snapshot bereit",
+      "snapshotNone": "Kein Git-Repository: Kein automatischer Snapshot verfuegbar, Aktion kann nicht rueckgaengig gemacht werden",
+      "confirmPrompt": "Geben Sie CONFIRM ein, um die zerstoererische Operation zu bestaetigen",
+      "confirmButton": "Zerstoererische Operation autorisieren",
+      "slideConfirm": "Wischen, um die Ausfuehrung zu bestaetigen"
+    },
+    "destructiveUndo": {
+      "title": "Zerstoererische Aktion ausgefuehrt",
+      "description": "Wesentliche Aenderungen wurden am Arbeitsbereich vorgenommen. Ein sicherer Schatten-Snapshot ist fuer ein Rueckgaengigmachen verfuegbar.",
+      "rollbackButton": "Rueckgaengig machen & Snapshot wiederherstellen",
+      "rollbackSuccess": "Arbeitsbereich erfolgreich auf den Zustand vor der Zerstoerung zurueckgesetzt",
+      "rollbackFailed": "Snapshot-Rollback fehlgeschlagen, bitte Arbeitsbereich pruefen"
+    },
     "batchCostTitle": "Batch-Aufgabenkosten Genehmigung",
     "batchCostDescription": "Der Agent moechte mehrere Sub-Agenten starten. Pruefen Sie die geschaetzten Kosten, bevor Sie fortfahren.",
     "batchCostEstimated": "Geschaetzte Kosten",

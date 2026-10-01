@@ -16122,6 +16122,23 @@
       "title": "Socially Irreversible Action",
       "description": "This operation affects external systems (remote push, notification, or package publishing) and cannot be undone locally. Explicit approval is required."
     },
+    "irreversibleDestructive": {
+      "title": "Irreversible Destructive Action Hard Stop Line",
+      "description": "This operation contains recursive deletion, Git destructive overwrite, or block device wipes. Auto-approval is strictly forbidden and requires two-stage explicit confirmation.",
+      "blastRadiusLabel": "Estimated Blast Radius",
+      "snapshotReady": "Shadow snapshot ready",
+      "snapshotNone": "Non-Git directory: no automatic snapshot available, operation cannot be undone",
+      "confirmPrompt": "Type CONFIRM to authorize destructive operation",
+      "confirmButton": "Authorize Destructive Action",
+      "slideConfirm": "Slide to confirm execution"
+    },
+    "destructiveUndo": {
+      "title": "Destructive Operation Executed",
+      "description": "Major changes applied to workspace. A safe shadow snapshot is available for one-click rollback.",
+      "rollbackButton": "Undo & Rollback Snapshot",
+      "rollbackSuccess": "Workspace successfully rolled back to pre-destructive state",
+      "rollbackFailed": "Failed to rollback snapshot, please verify workspace state"
+    },
     "batchCostTitle": "Batch Task Cost Approval",
     "batchCostDescription": "The agent wants to spawn multiple subagents. Review the estimated cost before proceeding.",
     "batchCostEstimated": "Estimated Cost",

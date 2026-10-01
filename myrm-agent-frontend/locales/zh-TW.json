@@ -9052,6 +9052,23 @@
       "title": "社會性不可逆操作",
       "description": "此操作涉及外部系統（遠端主幹推送、外部通知廣播或版本發佈），無法在本地復原，必須由您顯式核准。"
     },
+    "irreversibleDestructive": {
+      "title": "不可逆破壞性操作硬阻斷紅線",
+      "description": "此操作包含遞迴強刪、Git 破壞性覆寫或底層裝置抹除。嚴禁自動放行，需顯式二次確認。",
+      "blastRadiusLabel": "影響爆炸半徑",
+      "snapshotReady": "已建立影子版本快照",
+      "snapshotNone": "非 Git 倉庫，無版本快照保護，操作不可撤銷",
+      "confirmPrompt": "請輸入 CONFIRM 確認執行破壞性操作",
+      "confirmButton": "確認執行破壞性操作",
+      "slideConfirm": "滑動以二次確認執行"
+    },
+    "destructiveUndo": {
+      "title": "破壞性操作已執行",
+      "description": "工作區已發生重大變更。已為您建立安全影子快照，支援限時無損回復。",
+      "rollbackButton": "一鍵撤銷並回復快照",
+      "rollbackSuccess": "工作區已成功回復至破壞前狀態",
+      "rollbackFailed": "回復快照失敗，請檢查工作區狀態"
+    },
     "batchCostTitle": "批次任務費用確認",
     "batchCostDescription": "智慧體即將派發多個子任務。請確認預估費用後再繼續。",
     "batchCostEstimated": "預估費用",

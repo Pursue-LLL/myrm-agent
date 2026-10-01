@@ -558,3 +558,56 @@ async def cleanup_test_hardened_mock_approval(
                 cleaned_ids.append(item.id)
 
     return {"ok": True, "cleaned_count": len(cleaned_ids), "cleaned_ids": cleaned_ids}
+
+
+class RollbackSnapshotRequest(BaseModel):
+    workspace_path: str | None = None
+
+
+@router.post("/{approval_id}/rollback")
+async def rollback_approval_snapshot(
+    approval_id: str,
+    req: RollbackSnapshotRequest | None = None,
+) -> dict[str, object]:
+    """Rollback the workspace state to the pre-destructive snapshot captured for this approval."""
+    from pathlib import Path
+
+    from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import (
+        rollback_workspace_snapshot,
+    )
+
+    record = await ApprovalRegistry.get_approval(approval_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
+
+    payload = record.payload or {}
+    snapshot_id = payload.get("snapshotId") or payload.get("snapshot_id")
+    if not snapshot_id:
+        review_configs = payload.get("reviewConfigs", [])
+        if isinstance(review_configs, list):
+            for cfg in review_configs:
+                if isinstance(cfg, dict) and cfg.get("snapshotId"):
+                    snapshot_id = cfg["snapshotId"]
+                    break
+
+    if not snapshot_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No workspace snapshot ID associated with this approval",
+        )
+
+    wpath = Path(req.workspace_path).resolve() if (req and req.workspace_path) else Path.cwd()
+    success = rollback_workspace_snapshot(wpath, snapshot_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to rollback workspace snapshot",
+        )
+
+    return {
+        "ok": True,
+        "approval_id": approval_id,
+        "snapshot_id": snapshot_id,
+        "message": "Workspace successfully rolled back to pre-destructive state",
+    }
+

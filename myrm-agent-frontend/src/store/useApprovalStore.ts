@@ -67,7 +67,19 @@ export interface ApprovalPayloadData {
     actionDigest?: string;
     autoModeSuspended?: string;
     sociallyIrreversible?: boolean;
+    irreversibleDestructive?: boolean;
+    blastRadius?: {
+      command?: string;
+      reason?: string;
+      destructiveCount?: number;
+      impact_scope?: string;
+      affected_targets?: string[];
+      summary_reason?: string;
+    };
+    snapshotId?: string;
   }>;
+  irreversibleDestructive?: boolean;
+  snapshotId?: string;
   /** Per-tool reviewer reasons from interrupt payload */
   reviewerReasons?: string[];
   /** MCP elicitation approval: server name and requested input schema */

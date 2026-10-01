@@ -40,7 +40,7 @@ async def test_db() -> AsyncIterator[AsyncSession]:
 @pytest.fixture
 async def client(test_db: AsyncSession) -> AsyncIterator[AsyncClient]:
     test_app = FastAPI()
-    test_app.include_router(import_session_router, prefix="/api")
+    test_app.include_router(import_session_router, prefix="/api/chats")
 
     async def override_get_db() -> AsyncIterator[AsyncSession]:
         yield test_db

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import sys
-import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -161,6 +160,8 @@ def test_import_session_webui_modal_and_resume_chrome_e2e() -> None:
     warm_ui_route("/")
 
     with open_mcp_page(f"{get_e2e_ui_url()}/") as (client, page):
+        dismiss_blocking_modals(client, page)
+
         # 1 & 2. Open import modal and ensure paste tab textarea is ready
         modal_state = wait_for_state(
             client,
@@ -188,30 +189,32 @@ def test_import_session_webui_modal_and_resume_chrome_e2e() -> None:
 
         # 3. Enter transcript in paste mode and click Import
         payload_escaped = json.dumps(_SAMPLE_HERMES_TRANSCRIPT)
-        input_eval = client.evaluate(
+        submitted = wait_for_state(
+            client,
             page,
             f"""(() => {{
                 const textarea = document.querySelector('[data-testid="import-paste-textarea"]');
-                if (!textarea) return {{ ok: false, reason: 'textarea-missing' }};
-                const proto = window.HTMLTextAreaElement.prototype;
-                const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-                if (setter) {{
-                    setter.call(textarea, {payload_escaped});
-                }} else {{
-                    textarea.value = {payload_escaped};
-                }}
-                textarea.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                textarea.dispatchEvent(new Event('change', {{ bubbles: true }}));
-
                 const submitBtn = document.querySelector('[data-testid="import-submit-btn"]');
-                if (!submitBtn) return {{ ok: false, reason: 'submit-missing' }};
-                if (submitBtn.disabled) return {{ ok: false, reason: 'submit-disabled' }};
+                if (!textarea || !submitBtn) return {{ ready: false, reason: "elements_missing" }};
+                if (!textarea.value) {{
+                    const proto = window.HTMLTextAreaElement.prototype;
+                    const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+                    if (setter) {{
+                        setter.call(textarea, {payload_escaped});
+                    }} else {{
+                        textarea.value = {payload_escaped};
+                    }}
+                    textarea.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    textarea.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    return {{ ready: false, reason: "value_dispatched" }};
+                }}
+                if (submitBtn.disabled) return {{ ready: false, reason: "submit_disabled" }};
                 submitBtn.click();
-                return {{ ok: true }};
+                return {{ ready: true }};
             }})()""",
-            timeout_sec=10.0,
+            timeout_sec=15.0,
         )
-        assert isinstance(input_eval, dict) and input_eval.get("ok") is True, f"Submit failed: {input_eval}"
+        assert submitted.get("ready") is True, f"Submit failed: {submitted}"
 
         # 4. Wait for import result stats banner to render
         result_state = wait_for_state(
@@ -220,7 +223,7 @@ def test_import_session_webui_modal_and_resume_chrome_e2e() -> None:
             """(() => {
                 const stats = document.querySelector('[data-testid="import-result-stats"]');
                 const resumeBtn = document.querySelector('[data-testid="import-resume-btn"]');
-                if (!stats || !resumeBtn) return { ready: false };
+                if (!stats || !resumeBtn) return { ready: false, reason: "waiting_stats" };
                 const text = stats.textContent || '';
                 return { ready: true, text };
             })()""",
@@ -231,18 +234,19 @@ def test_import_session_webui_modal_and_resume_chrome_e2e() -> None:
         assert "1" in stats_text  # 1 Turn
         assert "%" in stats_text  # Compression %
 
-        # 5. Click resume button and verify URL navigation to /chat/
-        nav_eval = client.evaluate(
+        # 5. Click resume button and verify URL navigation to /chat_{platform}_...
+        resume_clicked = wait_for_state(
+            client,
             page,
             """(() => {
                 const resumeBtn = document.querySelector('[data-testid="import-resume-btn"]');
-                if (!resumeBtn) return { clicked: false };
+                if (!resumeBtn) return { ready: false, reason: "waiting_resume_btn" };
                 resumeBtn.click();
-                return { clicked: true };
+                return { ready: true };
             })()""",
             timeout_sec=10.0,
         )
-        assert isinstance(nav_eval, dict) and nav_eval.get("clicked") is True
+        assert resume_clicked.get("ready") is True, f"Resume button click failed: {resume_clicked}"
 
         navigated = wait_for_state(
             client,
