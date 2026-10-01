@@ -363,10 +363,7 @@ export function PolymorphicApprovalCard({ approval, onResolve, isSubmitting }: P
       return false;
     }
     return configs.some(
-      (c) =>
-        c?.hideAllowAlways === true ||
-        c?.isSpend === true ||
-        c?.irreversibleDestructive === true,
+      (c) => c?.hideAllowAlways === true || c?.isSpend === true || c?.irreversibleDestructive === true,
     );
   }, [isSociallyIrreversible, isIrreversibleDestructive, approval.payload?.reviewConfigs]);
 

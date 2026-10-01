@@ -66,9 +66,7 @@ export function DestructiveConfirmationBanner({
             )}
           </div>
 
-          {blastRadius.summary_reason && (
-            <p className="text-muted-foreground">{blastRadius.summary_reason}</p>
-          )}
+          {blastRadius.summary_reason && <p className="text-muted-foreground">{blastRadius.summary_reason}</p>}
 
           {Array.isArray(blastRadius.affected_targets) && blastRadius.affected_targets.length > 0 && (
             <div className="space-y-1">
@@ -112,9 +110,7 @@ export function DestructiveConfirmationBanner({
         >
           <span>{t('confirmPrompt')}</span>
           {isConfirmed && (
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">
-              已就绪 / Ready
-            </span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-[11px]">已就绪 / Ready</span>
           )}
         </label>
         <div className="relative">

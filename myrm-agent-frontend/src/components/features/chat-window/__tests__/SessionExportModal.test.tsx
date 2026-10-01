@@ -119,16 +119,12 @@ describe('SessionExportModal', () => {
 
     await waitFor(() => {
       expect(exportChatMock).toHaveBeenCalledWith('c123', { redactSecrets: true });
-      expect(downloadAsHtmlMock).toHaveBeenCalledWith(
-        mockExportData,
-        'light',
-        expect.any(String),
-        { includeReasoning: true, includeToolCalls: true },
-      );
+      expect(downloadAsHtmlMock).toHaveBeenCalledWith(mockExportData, 'light', expect.any(String), {
+        includeReasoning: true,
+        includeToolCalls: true,
+      });
       expect(onOpenChange).toHaveBeenCalledWith(false);
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({ title: '已安全脱敏导出', variant: 'default' }),
-      );
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: '已安全脱敏导出', variant: 'default' }));
     });
   });
 
@@ -183,9 +179,7 @@ describe('SessionExportModal', () => {
         includeSubagents: true,
       });
       expect(onOpenChange).toHaveBeenCalledWith(false);
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({ title: '导出会话成功', variant: 'default' }),
-      );
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: '导出会话成功', variant: 'default' }));
     });
   });
 
@@ -216,9 +210,7 @@ describe('SessionExportModal', () => {
     fireEvent.click(screen.getByText('下载所选格式'));
 
     await waitFor(() => {
-      expect(toastMock).toHaveBeenCalledWith(
-        expect.objectContaining({ title: '没有可导出的消息' }),
-      );
+      expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ title: '没有可导出的消息' }));
       expect(downloadAsHtmlMock).not.toHaveBeenCalled();
       expect(onOpenChange).not.toHaveBeenCalled();
     });

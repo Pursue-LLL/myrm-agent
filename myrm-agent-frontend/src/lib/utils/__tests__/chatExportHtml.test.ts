@@ -87,4 +87,20 @@ describe('chatExportHtml - buildHtmlDocument', () => {
     expect(htmlEn).toContain('Thinking');
     expect(htmlEn).toContain('Exported from Myrm');
   });
+
+  it('renders code-header with copy button and interactive clipboard script', async () => {
+    const data = createMockExportData();
+    const html = await buildHtmlDocument(data, 'dark', 'en');
+
+    // Code block container and header
+    expect(html).toContain('class="code-block"');
+    expect(html).toContain('class="code-header"');
+    expect(html).toContain('<span class="code-lang">sql</span>');
+    expect(html).toContain('<button class="copy-code-btn" type="button" aria-label="Copy code">Copy</button>');
+
+    // Interactive script includes copy delegation and fallback
+    expect(html).toContain('.copy-code-btn');
+    expect(html).toContain('showCopied');
+    expect(html).toContain('navigator.clipboard.writeText');
+  });
 });

@@ -1,5 +1,6 @@
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import { sanitizeFilename, triggerDownload } from '@/lib/utils/fileUtils';
+import { redactSensitiveClientText } from '@/lib/utils/clientRedact';
 import type { Message, Source } from '@/store/chat/types';
 /**
  * [INPUT] 聊天详情页与聊天列表传入的导出数据；Message 用于单条消息导出。
@@ -84,23 +85,15 @@ function formatTimestamp(iso: string): string {
 }
 
 export function formatDuration(ms: number): string {
-  if (ms < 1000) {
-    return `${ms}ms`;
-  }
-  if (ms < 60_000) {
-    return `${(ms / 1000).toFixed(1)}s`;
-  }
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
   return `${(ms / 60_000).toFixed(1)}m`;
 }
 
 function formatTokenCount(n: number): string {
-  if (n < 1000) {
-    return String(n);
-  }
-  if (n < 10_000) {
-    return (n / 1000).toFixed(1) + 'k';
-  }
-  return Math.round(n / 1000) + 'k';
+  if (n < 1000) return String(n);
+  if (n < 10_000) return `${(n / 1000).toFixed(1)}k`;
+  return `${Math.round(n / 1000)}k`;
 }
 
 export function formatUsd(n: number): string {
@@ -331,12 +324,14 @@ function formatSourcesFootnotes(sources?: Source[]): string {
   return `\n\nCitations:\n${lines.join('\n')}`;
 }
 
-function formatMessageMarkdown(message: Message, includeReasoning: boolean): string {
+function formatMessageMarkdown(message: Message, includeReasoning: boolean, redact = true): string {
   const lines: string[] = [];
-  if (includeReasoning && message.reasoning) {
-    lines.push('<details>', '<summary>Thinking</summary>', '', message.reasoning, '', '</details>', '');
+  const reasoning = redact && message.reasoning ? redactSensitiveClientText(message.reasoning) : message.reasoning;
+  if (includeReasoning && reasoning) {
+    lines.push('<details>', '<summary>Thinking</summary>', '', reasoning, '', '</details>', '');
   }
-  lines.push(message.content);
+  const content = redact ? redactSensitiveClientText(message.content) : message.content;
+  lines.push(content);
   lines.push(formatSourcesFootnotes(message.sources));
   return lines.join('\n').trim();
 }
@@ -345,16 +340,17 @@ function extractMessageTitle(content: string): string {
   return content.split('\n')[0]?.slice(0, 80) || 'message';
 }
 
-function buildSingleMessageExportData(message: Message, markdown: string): ExportData {
+function buildSingleMessageExportData(message: Message, markdown: string, redacted = true): ExportData {
   const ts = message.createdAt?.toISOString?.() ?? new Date().toISOString();
   return {
     chat: { id: message.chatId, title: null, source: 'myrm', createdAt: ts },
     messages: [{ role: message.role, content: markdown, createdAt: ts, metadata: {} }],
+    redacted,
   };
 }
 
-export function downloadMessageAsMarkdown(message: Message, includeReasoning: boolean): void {
-  const content = formatMessageMarkdown(message, includeReasoning);
+export function downloadMessageAsMarkdown(message: Message, includeReasoning: boolean, redact = true): void {
+  const content = formatMessageMarkdown(message, includeReasoning, redact);
   downloadFile(content, buildFilename(extractMessageTitle(message.content), 'md'), 'text/markdown;charset=utf-8');
 }
 
@@ -363,17 +359,18 @@ export async function downloadMessageAsHtml(
   includeReasoning: boolean,
   theme: 'light' | 'dark' = 'light',
   lang: 'en' | 'zh' = 'en',
+  redact = true,
 ): Promise<void> {
-  const markdown = formatMessageMarkdown(message, includeReasoning);
+  const markdown = formatMessageMarkdown(message, includeReasoning, redact);
   const { buildHtmlDocument } = await import('./chatExportHtml');
-  const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown), theme, lang);
+  const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown, redact), theme, lang);
   downloadFile(html, buildFilename(extractMessageTitle(message.content), 'html'), 'text/html;charset=utf-8');
 }
 
-export async function downloadMessageAsDocx(message: Message, includeReasoning: boolean): Promise<void> {
-  const markdown = formatMessageMarkdown(message, includeReasoning);
+export async function downloadMessageAsDocx(message: Message, includeReasoning: boolean, redact = true): Promise<void> {
+  const markdown = formatMessageMarkdown(message, includeReasoning, redact);
   const { buildHtmlDocument } = await import('./chatExportHtml');
-  const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown), 'light', 'en');
+  const html = await buildHtmlDocument(buildSingleMessageExportData(message, markdown, redact), 'light', 'en');
   const { toDocx } = await import('docshift');
   const docxBlob = await toDocx(html);
   await triggerDownload(docxBlob, buildFilename(extractMessageTitle(message.content), 'docx'));
@@ -381,11 +378,7 @@ export async function downloadMessageAsDocx(message: Message, includeReasoning: 
 
 export async function downloadMessageAsImage(element: HTMLElement, message: Message): Promise<void> {
   const { default: html2canvas } = await import('html2canvas');
-  const canvas = await html2canvas(element, {
-    useCORS: true,
-    backgroundColor: null,
-    scale: 2,
-  });
+  const canvas = await html2canvas(element, { useCORS: true, backgroundColor: null, scale: 2 });
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to create image blob'))), 'image/png');
   });

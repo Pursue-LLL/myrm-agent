@@ -76,7 +76,7 @@ describe('chatExport', () => {
       const data = createMockExportData({ redacted: true });
       const md = formatChatAsMarkdown(data);
       expect(md).toContain('[Security] Sensitive secrets and credentials have been automatically redacted');
-      expect(md).not.toContain('🔒');
+      expect(md).not.toContain('\u{1F512}');
     });
 
     it('should filter non-visible roles', () => {
@@ -429,6 +429,27 @@ describe('chatExport', () => {
       const message = createMockMessage({ sources: undefined });
       downloadMessageAsMarkdown(message, false);
       expect(linkMock.click).toHaveBeenCalled();
+    });
+
+    it('should automatically redact sensitive tokens in message content and reasoning by default', () => {
+      const message = createMockMessage({
+        content: 'Use this secret token: sk-live1234567890abcdef1234567890 for auth',
+        reasoning: 'Calling API with Bearer token: ghp_1234567890abcdefghijklmnopqrstuvwxyzAB',
+      });
+      const blobSpy = vi.spyOn(globalThis, 'Blob').mockImplementation(function (this: Blob, parts?: BlobPart[]) {
+        (this as unknown as { _content: string })._content = parts?.[0]?.toString() ?? '';
+        return this;
+      } as unknown as typeof Blob);
+
+      downloadMessageAsMarkdown(message, true);
+
+      const blobContent = (blobSpy.mock.instances[0] as unknown as { _content: string })._content;
+      expect(blobContent).not.toContain('sk-live1234567890abcdef1234567890');
+      expect(blobContent).toContain('[REDACTED_API_KEY]');
+      expect(blobContent).not.toContain('ghp_1234567890abcdefghijklmnopqrstuvwxyzAB');
+      expect(blobContent).toContain('[REDACTED_GH_TOKEN]');
+
+      blobSpy.mockRestore();
     });
 
     it('should sanitize filename from first line', () => {

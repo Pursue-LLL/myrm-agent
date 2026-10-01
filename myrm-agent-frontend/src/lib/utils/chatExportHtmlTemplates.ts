@@ -49,8 +49,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Ar
 .msg-body blockquote{border-left:3px solid var(--accent);padding-left:12px;color:var(--muted);margin:0.5em 0}
 .msg-body a{color:var(--accent);text-decoration:none}.msg-body a:hover{text-decoration:underline}
 .msg-body img{max-width:100%;border-radius:8px;margin:0.5em 0}
-.code-block{position:relative;margin:0.8em 0;border-radius:8px;overflow:hidden;background:var(--code-bg)}
-.code-lang{position:absolute;top:6px;right:10px;font-size:0.7em;color:var(--muted);text-transform:uppercase}
+.code-block{position:relative;margin:0.8em 0;border-radius:8px;overflow:hidden;background:var(--code-bg);border:1px solid var(--border)}
+.code-header{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:rgba(0,0,0,0.03);border-bottom:1px solid var(--border);font-size:0.75em}
+[data-theme="dark"] .code-header{background:rgba(255,255,255,0.04)}
+.code-lang{color:var(--muted);text-transform:uppercase;font-family:"SF Mono",Menlo,Monaco,"Courier New",monospace;font-weight:600}
+.copy-code-btn{background:transparent;border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:0.9em;color:var(--muted);cursor:pointer;transition:all 0.15s ease;user-select:none}
+.copy-code-btn:hover{color:var(--fg);border-color:var(--muted);background:var(--card)}
+.copy-code-btn.copied{color:#10b981;border-color:#10b981;font-weight:600}
 .code-block pre{margin:0;padding:14px;overflow-x:auto;font-size:0.88em;line-height:1.5}
 .code-block code{font-family:"SF Mono",Menlo,Monaco,"Courier New",monospace}
 .msg-body code:not(.hljs){background:var(--code-bg);padding:2px 5px;border-radius:4px;font-size:0.9em;font-family:"SF Mono",Menlo,Monaco,"Courier New",monospace}
@@ -110,11 +115,13 @@ export function getInteractiveJs(): string {
 (function(){
   var t=document.getElementById('theme-toggle');
   var root=document.documentElement;
-  t.addEventListener('click',function(){
-    var d=root.getAttribute('data-theme')==='dark'?'light':'dark';
-    root.setAttribute('data-theme',d);
-    t.textContent=d==='dark'?'Light':'Dark';
-  });
+  if(t){
+    t.addEventListener('click',function(){
+      var d=root.getAttribute('data-theme')==='dark'?'light':'dark';
+      root.setAttribute('data-theme',d);
+      t.textContent=d==='dark'?'Light':'Dark';
+    });
+  }
   window.addEventListener('message',function(e){
     if(!e.data||e.data.type!=='wh'||typeof e.data.h!=='number')return;
     document.querySelectorAll('.widget-iframe').forEach(function(f){
@@ -122,6 +129,48 @@ export function getInteractiveJs(): string {
         f.style.height=Math.min(Math.max(e.data.h,100),600)+'px';
       }
     });
+  });
+  function showCopied(btn){
+    var orig=btn.textContent;
+    btn.textContent='Copied!';
+    btn.classList.add('copied');
+    setTimeout(function(){
+      btn.textContent=orig;
+      btn.classList.remove('copied');
+    },1500);
+  }
+  function fallbackCopy(text,btn){
+    try{
+      var ta=document.createElement('textarea');
+      ta.value=text;
+      ta.style.position='fixed';
+      ta.style.opacity='0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showCopied(btn);
+    }catch(err){}
+  }
+  document.addEventListener('click',function(e){
+    var target=e.target;
+    if(!target||typeof target.closest!=='function')return;
+    var btn=target.closest('.copy-code-btn');
+    if(!btn)return;
+    var block=btn.closest('.code-block');
+    if(!block)return;
+    var code=block.querySelector('pre code');
+    if(!code)return;
+    var text=code.innerText||code.textContent||'';
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){
+        showCopied(btn);
+      }).catch(function(){
+        fallbackCopy(text,btn);
+      });
+    }else{
+      fallbackCopy(text,btn);
+    }
   });
 })();
 `;

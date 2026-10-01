@@ -47,7 +47,7 @@ describe('DestructiveUndoCard', () => {
         approvalId="app_123"
         snapshotId="snap123456789abcdef"
         onRollbackSuccess={mockRollbackSuccess}
-      />
+      />,
     );
 
     expect(screen.getByText('破坏性操作已执行')).toBeDefined();

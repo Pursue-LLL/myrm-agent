@@ -128,10 +128,11 @@ async function getMarkdownEngine() {
                 return;
               }
 
-              const lang =
-                Array.isArray(codeNode.properties?.className) && typeof codeNode.properties.className[0] === 'string'
-                  ? codeNode.properties.className[0].replace('language-', '')
-                  : '';
+              const langClass = Array.isArray(codeNode.properties?.className)
+                ? (codeNode.properties.className.find((c) => typeof c === 'string' && c.startsWith('language-')) as
+                    string | undefined)
+                : undefined;
+              const lang = langClass ? langClass.replace('language-', '') : '';
 
               const textNode = codeNode.children[0];
               const codeText = textNode?.type === 'text' ? textNode.value : '';
@@ -148,11 +149,14 @@ async function getMarkdownEngine() {
                 return SKIP;
               }
 
-              const langLabel = lang ? `<span class="code-lang">${esc(lang)}</span>` : '';
+              const langSpan = lang
+                ? `<span class="code-lang">${esc(lang)}</span>`
+                : '<span class="code-lang">code</span>';
+              const headerHtml = `<div class="code-header">${langSpan}<button class="copy-code-btn" type="button" aria-label="Copy code">Copy</button></div>`;
               node.tagName = 'div';
               node.properties = { className: ['code-block'] };
               node.children = [
-                { type: 'raw', value: langLabel } as unknown as ElementContent,
+                { type: 'raw', value: headerHtml } as unknown as ElementContent,
                 {
                   type: 'element',
                   tagName: 'pre',

@@ -48,13 +48,7 @@ export interface SessionExportModalProps {
   initialFormat?: ExportFormatType;
 }
 
-export function SessionExportModal({
-  open,
-  onOpenChange,
-  chatId,
-  chatTitle,
-  initialFormat,
-}: SessionExportModalProps) {
+export function SessionExportModal({ open, onOpenChange, chatId, chatTitle, initialFormat }: SessionExportModalProps) {
   const t = useTranslations('chat');
   const { resolvedTheme } = useTheme();
   const [selectedFormat, setSelectedFormat] = useState<ExportFormatType>(initialFormat ?? 'html');

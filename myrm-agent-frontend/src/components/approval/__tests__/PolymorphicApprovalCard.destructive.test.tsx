@@ -15,7 +15,8 @@ const stableT = (key: string) => {
     confirmPrompt: '请输入 CONFIRM 确认执行破坏性操作',
     confirmButton: '确认执行破坏性操作',
     'irreversibleDestructive.title': '不可逆破坏性操作硬阻断红线',
-    'irreversibleDestructive.description': '此操作包含递归强删、Git 破坏性覆写或底层设备抹除。严禁自动放行，需显式二次确认。',
+    'irreversibleDestructive.description':
+      '此操作包含递归强删、Git 破坏性覆写或底层设备抹除。严禁自动放行，需显式二次确认。',
     'irreversibleDestructive.confirmButton': '确认执行破坏性操作',
     approve: 'Approve',
     reject: 'Reject',
