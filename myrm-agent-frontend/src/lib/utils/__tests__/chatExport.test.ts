@@ -551,21 +551,61 @@ describe('chatExport', () => {
       const mockHtml2canvas = vi.fn().mockResolvedValue(mockCanvas);
       vi.doMock('html2canvas', () => ({ default: mockHtml2canvas }));
 
+      const origCreateElement = document.createElement.bind(document);
       const linkMock = { href: '', download: '', click: vi.fn(), style: {} };
-      vi.spyOn(document, 'createElement').mockReturnValue(linkMock as unknown as HTMLAnchorElement);
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+        if (tag === 'a') return linkMock as unknown as HTMLAnchorElement;
+        return origCreateElement(tag);
+      });
       vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
       vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
       vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
       vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
       const { downloadMessageAsImage: downloadImage } = await import('../chatExport');
-      const element = document.createElement('div');
+      const element = origCreateElement('div');
       const message = createMockMessage();
-      await downloadImage(element, message);
+      await downloadImage(element, message, false);
 
       expect(mockHtml2canvas).toHaveBeenCalledWith(element, expect.objectContaining({ scale: 2 }));
       expect(linkMock.click).toHaveBeenCalled();
       expect(linkMock.download).toContain('.png');
+    });
+
+    it('should redact sensitive text in cloned offscreen DOM without mutating original DOM', async () => {
+      const mockBlob = new Blob(['test'], { type: 'image/png' });
+      let capturedTarget: HTMLElement | null = null;
+      const mockCanvas = {
+        toBlob: vi.fn((cb: (blob: Blob | null) => void) => cb(mockBlob)),
+      };
+      const mockHtml2canvas = vi.fn().mockImplementation((target: HTMLElement) => {
+        capturedTarget = target;
+        return Promise.resolve(mockCanvas);
+      });
+      vi.doMock('html2canvas', () => ({ default: mockHtml2canvas }));
+
+      const origCreateElement = document.createElement.bind(document);
+      const linkMock = { href: '', download: '', click: vi.fn(), style: {} };
+      vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+        if (tag === 'a') return linkMock as unknown as HTMLAnchorElement;
+        return origCreateElement(tag);
+      });
+      vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+      vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
+      vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
+      vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+      const { downloadMessageAsImage: downloadImage } = await import('../chatExport');
+      const element = origCreateElement('div');
+      element.textContent = 'API key is sk-proj-123456789012345678901234567890';
+      const message = createMockMessage();
+      await downloadImage(element, message, true);
+
+      expect(mockHtml2canvas).toHaveBeenCalled();
+      expect(capturedTarget).not.toBe(element);
+      expect(capturedTarget?.textContent).toContain('[REDACTED_API_KEY]');
+      expect(element.textContent).toContain('sk-proj-');
+      expect(linkMock.click).toHaveBeenCalled();
     });
 
     it('should reject when toBlob returns null', async () => {
@@ -579,7 +619,7 @@ describe('chatExport', () => {
       const element = document.createElement('div');
       const message = createMockMessage();
 
-      await expect(downloadImage(element, message)).rejects.toThrow('Failed to create image blob');
+      await expect(downloadImage(element, message, false)).rejects.toThrow('Failed to create image blob');
     });
   });
 });

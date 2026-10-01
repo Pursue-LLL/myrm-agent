@@ -90,7 +90,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Ar
 .thinking-content{margin-top:8px;white-space:pre-wrap;color:var(--fg);font-family:"SF Mono",Menlo,Monaco,"Courier New",monospace;font-size:0.92em;line-height:1.5}
 .footer{text-align:center;padding:20px;color:var(--muted);font-size:0.8em;border-top:1px solid var(--border);margin-top:24px}
 @media(max-width:640px){body{padding:8px}.export-header{padding:14px}.message{padding:12px}.stats{flex-direction:column;gap:6px}}
-@media print{.theme-toggle{display:none}.widget-source{display:none}.code-block,.message{break-inside:avoid}body{max-width:none;padding:0}}
+@media print{.theme-toggle,.copy-code-btn{display:none!important}.widget-source{display:none}.code-block,pre,.message,.tool-activity{page-break-inside:avoid;break-inside:avoid}body{max-width:none;padding:0;background:#fff!important;color:#000!important}}
 `;
 }
 

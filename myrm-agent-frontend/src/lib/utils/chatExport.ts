@@ -78,11 +78,7 @@ function buildFilename(title: string | null, ext: string): string {
 }
 
 function formatTimestamp(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
+  try { return new Date(iso).toLocaleString(); } catch { return iso; }
 }
 
 export function formatDuration(ms: number): string {
@@ -103,38 +99,25 @@ export function formatUsd(n: number): string {
 
 function buildSummarySection(data: ExportData): string[] {
   const lines: string[] = [];
-
   const usage = data.usageSummary;
   if (usage && (usage.totalCalls > 0 || usage.totalTokens > 0)) {
     lines.push('## Session Summary', '');
-    if (usage.totalCalls > 0) {
-      lines.push(`- **API Calls**: ${usage.totalCalls}`);
-    }
-    if (usage.totalTokens > 0) {
-      lines.push(`- **Tokens**: ${formatTokenCount(usage.totalTokens)}`);
-    }
-    if (usage.totalUsd > 0) {
-      lines.push(`- **Cost**: ${formatUsd(usage.totalUsd)}`);
-    }
+    if (usage.totalCalls > 0) lines.push(`- **API Calls**: ${usage.totalCalls}`);
+    if (usage.totalTokens > 0) lines.push(`- **Tokens**: ${formatTokenCount(usage.totalTokens)}`);
+    if (usage.totalUsd > 0) lines.push(`- **Cost**: ${formatUsd(usage.totalUsd)}`);
     lines.push('');
   }
 
   const tools = data.toolSummary;
   if (tools && tools.toolsUsed.length > 0) {
-    lines.push('## Tool Activity', '');
-    lines.push('| Tool | Calls | Duration |');
-    lines.push('|------|-------|----------|');
+    lines.push('## Tool Activity', '', '| Tool | Calls | Duration |', '|------|-------|----------|');
     for (const t of tools.toolsUsed) {
       lines.push(`| ${t.name} | ${t.count} | ${formatDuration(t.totalMs)} |`);
     }
-    lines.push(`| **Total** | **${tools.totalToolCalls}** | **${formatDuration(tools.totalDurationMs)}** |`);
-    lines.push('');
+    lines.push(`| **Total** | **${tools.totalToolCalls}** | **${formatDuration(tools.totalDurationMs)}** |`, '');
   }
 
-  if (lines.length > 0) {
-    lines.push('---', '');
-  }
-
+  if (lines.length > 0) lines.push('---', '');
   return lines;
 }
 
@@ -377,11 +360,39 @@ export async function downloadMessageAsDocx(message: Message, includeReasoning: 
   await triggerDownload(docxBlob, buildFilename(extractMessageTitle(message.content), 'docx'));
 }
 
-export async function downloadMessageAsImage(element: HTMLElement, message: Message): Promise<void> {
-  const { default: html2canvas } = await import('html2canvas');
-  const canvas = await html2canvas(element, { useCORS: true, backgroundColor: null, scale: 2 });
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to create image blob'))), 'image/png');
-  });
-  await triggerDownload(blob, buildFilename(extractMessageTitle(message.content), 'png'));
+function createRedactedOffscreenClone(element: HTMLElement): { target: HTMLElement; cleanup: () => void } {
+  if (typeof document === 'undefined') {
+    return { target: element, cleanup: () => {} };
+  }
+  const clone = element.cloneNode(true) as HTMLElement;
+  const walker = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    if (node.nodeValue) {
+      node.nodeValue = redactSensitiveClientText(node.nodeValue);
+    }
+  }
+  clone.style.cssText = `position:fixed;left:-9999px;top:0;width:${element.offsetWidth || 800}px`;
+  document.body.appendChild(clone);
+  return {
+    target: clone,
+    cleanup: () => {
+      if (clone.parentNode) clone.parentNode.removeChild(clone);
+    },
+  };
 }
+
+export async function downloadMessageAsImage(element: HTMLElement, message: Message, redact = true): Promise<void> {
+  const { default: html2canvas } = await import('html2canvas');
+  const { target, cleanup } = redact ? createRedactedOffscreenClone(element) : { target: element, cleanup: () => {} };
+  try {
+    const canvas = await html2canvas(target, { useCORS: true, backgroundColor: null, scale: 2 });
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Failed to create image blob'))), 'image/png');
+    });
+    await triggerDownload(blob, buildFilename(extractMessageTitle(message.content), 'png'));
+  } finally {
+    cleanup();
+  }
+}
+
