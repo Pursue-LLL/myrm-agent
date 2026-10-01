@@ -46,6 +46,7 @@ class _FakeShellTask:
     vault_log_ref: str | None = None
     waiting_for_input: bool = False
     stdin_closed: bool = False
+    interactive_prompt: object | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -395,3 +396,25 @@ def test_shell_row_to_response() -> None:
     assert resp.task_id == "j1"
     assert resp.pid == 5678
     assert resp.chat_id == "chat-1"
+
+
+def test_shell_row_to_response_maps_interactive_prompt() -> None:
+    from app.api.background_tasks.router import _shell_row_to_response
+
+    row = _FakeShellTask(
+        task_id="shell:prompt",
+        interactive_prompt={
+            "kind": "confirm",
+            "question": "Proceed?",
+            "default_value": "y",
+            "options": [
+                {"id": "confirm-1", "label": "y", "value": "y", "submit": True},
+                {"id": "confirm-2", "label": "n", "value": "n", "submit": True},
+            ],
+        },
+    )
+    resp = _shell_row_to_response(row)
+
+    assert resp.interactive_prompt is not None
+    assert resp.interactive_prompt.kind == "confirm"
+    assert [option.value for option in resp.interactive_prompt.options] == ["y", "n"]

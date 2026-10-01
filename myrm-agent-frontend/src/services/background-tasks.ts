@@ -4,6 +4,20 @@ export type BackgroundTaskKind = 'agent' | 'shell';
 
 export type BackgroundTaskStatus = 'running' | 'completed' | 'failed' | 'timed_out' | 'cancelled' | 'orphaned';
 
+export interface BackgroundPromptOption {
+  id: string;
+  label: string;
+  value: string;
+  submit?: boolean;
+}
+
+export interface BackgroundPrompt {
+  kind: 'confirm' | 'choice' | 'action';
+  question: string;
+  default_value?: string | null;
+  options: BackgroundPromptOption[];
+}
+
 export interface BackgroundTask {
   kind: BackgroundTaskKind;
   task_id: string;
@@ -21,6 +35,7 @@ export interface BackgroundTask {
   vault_log_ref?: string | null;
   waiting_for_input?: boolean;
   stdin_closed?: boolean;
+  interactive_prompt?: BackgroundPrompt | null;
 }
 
 export interface BackgroundTaskListResponse {

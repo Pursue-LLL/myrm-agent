@@ -292,12 +292,13 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
     setSteerInput('');
   };
 
-  const handleShellInputSend = async (taskId: string) => {
-    if (!shellInput.trim()) {
+  const handleShellInputSend = async (taskId: string, value?: string) => {
+    const nextValue = value ?? shellInput;
+    if (value === undefined && !nextValue.trim()) {
       return;
     }
     try {
-      await sendShellBackgroundStdin(taskId, shellInput, { submit: true });
+      await sendShellBackgroundStdin(taskId, nextValue, { submit: true });
       toast.success(t('shellInputSuccess'));
       setShellInputTaskId(null);
       setShellInput('');
@@ -462,6 +463,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                           onToggleShellInput={handleToggleShellInput}
                           onSteer={handleSteer}
                           onShellInputSend={handleShellInputSend}
+                          onPromptOptionSelect={(taskId, option) => handleShellInputSend(taskId, option.value)}
                           onShellInputClose={handleShellInputClose}
                           onCancel={handleCancel}
                           onNavigateChat={handleNavigateChat}
@@ -494,6 +496,7 @@ export default function BackgroundTasksPanel({ trigger }: BackgroundTasksPanelPr
                           onToggleShellInput={handleToggleShellInput}
                           onSteer={handleSteer}
                           onShellInputSend={handleShellInputSend}
+                          onPromptOptionSelect={(taskId, option) => handleShellInputSend(taskId, option.value)}
                           onShellInputClose={handleShellInputClose}
                           onCancel={handleCancel}
                           onNavigateChat={handleNavigateChat}

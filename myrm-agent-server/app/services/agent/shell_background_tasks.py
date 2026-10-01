@@ -18,11 +18,29 @@ from __future__ import annotations
 from typing import Literal
 
 from myrm_agent_harness.api.hooks import map_store_status_to_shell_task_status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ValidationError
 
 from app.platform_utils.workspace_session import to_rest_chat_id
 
 ShellTaskStatus = Literal["running", "completed", "failed", "cancelled", "orphaned"]
+
+
+class ShellPromptOption(BaseModel):
+    """One explicitly answerable terminal option."""
+
+    id: str = Field(min_length=1, max_length=64)
+    label: str = Field(min_length=1, max_length=80)
+    value: str = Field(min_length=0, max_length=32)
+    submit: bool = True
+
+
+class ShellPrompt(BaseModel):
+    """Structured interactive terminal prompt extracted from a bounded tail."""
+
+    kind: Literal["confirm", "choice", "action"]
+    question: str = Field(min_length=1, max_length=200)
+    options: list[ShellPromptOption] = Field(min_length=2, max_length=6)
+    default_value: str | None = Field(default=None, max_length=32)
 
 
 class ShellBackgroundTaskDTO(BaseModel):
@@ -44,6 +62,7 @@ class ShellBackgroundTaskDTO(BaseModel):
     vault_log_ref: str | None = None
     waiting_for_input: bool = False
     stdin_closed: bool = False
+    interactive_prompt: ShellPrompt | None = None
 
 
 def _map_shell_status(raw: str, exit_code: int | None) -> ShellTaskStatus:
@@ -96,7 +115,62 @@ def _vault_log_ref_from_store(job_id: str) -> str | None:
     return record.vault_log_ref
 
 
-def _row_from_registry_info(info: object) -> ShellBackgroundTaskDTO:
+def _coerce_interactive_prompt(value: object) -> ShellPrompt | None:
+    """Return a validated prompt, or None for absent or malformed payloads."""
+    if not isinstance(value, dict):
+        return None
+    try:
+        return ShellPrompt.model_validate(value)
+    except ValidationError:
+        return None
+
+
+def _prompt_lines_from_output(payload: object) -> list[str] | None:
+    """Return bounded text lines from one output stream, or None when absent."""
+    if not isinstance(payload, dict):
+        return None
+    stdout = payload.get("stdout")
+    if isinstance(stdout, list):
+        lines = [line for line in stdout[-12:] if isinstance(line, str)]
+        if lines:
+            return lines[-12:]
+    stderr = payload.get("stderr")
+    if isinstance(stderr, list):
+        lines = [line for line in stderr[-12:] if isinstance(line, str)]
+        if lines:
+            return lines[-12:]
+    return None
+
+
+def _interactive_prompt_for_live_task(registry: object, info: object) -> ShellPrompt | None:
+    """Parse a structured prompt from bounded output only for a waiting live job."""
+    status = getattr(info, "status", None)
+    waiting = bool(getattr(info, "waiting_for_input", False))
+    pid = getattr(info, "pid", None)
+    if status != "running" or not waiting or not isinstance(pid, int):
+        return None
+    get_output = getattr(registry, "get_output", None)
+    if not callable(get_output):
+        return None
+    try:
+        payload = get_output(pid, max_lines=12)
+    except Exception:
+        return None
+    lines = _prompt_lines_from_output(payload)
+    if lines is None:
+        return None
+
+    from myrm_agent_harness.toolkits.code_execution.utils.log_distiller import (
+        extract_terminal_prompt,
+    )
+
+    prompt = extract_terminal_prompt(lines)
+    if prompt is None:
+        return None
+    return _coerce_interactive_prompt(prompt.to_dict())
+
+
+def _row_from_registry_info(registry: object, info: object) -> ShellBackgroundTaskDTO:
     from myrm_agent_harness.api.hooks import BackgroundProcessInfo
 
     assert isinstance(info, BackgroundProcessInfo)
@@ -126,6 +200,9 @@ def _row_from_registry_info(info: object) -> ShellBackgroundTaskDTO:
         vault_log_ref=info.vault_log_ref or _vault_log_ref_from_store(info.job_id),
         waiting_for_input=info.waiting_for_input if status == "running" else False,
         stdin_closed=info.stdin_closed if status == "running" else False,
+        interactive_prompt=(
+            _interactive_prompt_for_live_task(registry, info) if status == "running" else None
+        ),
     )
 
 
@@ -162,7 +239,7 @@ def list_shell_background_tasks() -> list[ShellBackgroundTaskDTO]:
     merged: dict[str, ShellBackgroundTaskDTO] = {}
 
     for info in registry.list_processes():
-        row = _row_from_registry_info(info)
+        row = _row_from_registry_info(registry, info)
         merged[row.job_id] = row
 
     store = get_background_job_store()

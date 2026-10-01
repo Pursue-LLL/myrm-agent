@@ -36,6 +36,7 @@ from app.api.background_tasks.test_seed_voice_done import (
 from app.core.channel_bridge.setup import get_background_task_handler
 from app.services.agent.shell_background_tasks import (
     ShellBackgroundTaskDTO,
+    ShellPrompt,
     cancel_shell_background_task,
     find_shell_background_task,
     list_shell_background_tasks,
@@ -67,6 +68,7 @@ class BackgroundTaskResponse(BaseModel):
     vault_log_ref: str | None = None
     waiting_for_input: bool = False
     stdin_closed: bool = False
+    interactive_prompt: ShellPrompt | None = None
 
 
 class BackgroundTaskListResponse(BaseModel):
@@ -108,6 +110,7 @@ def _shell_row_to_response(row: ShellBackgroundTaskDTO) -> BackgroundTaskRespons
         vault_log_ref=row.vault_log_ref,
         waiting_for_input=row.waiting_for_input,
         stdin_closed=row.stdin_closed,
+        interactive_prompt=row.interactive_prompt,
     )
 
 

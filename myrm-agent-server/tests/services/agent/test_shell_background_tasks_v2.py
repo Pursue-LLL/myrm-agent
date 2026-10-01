@@ -44,6 +44,75 @@ def test_shell_dto_includes_waiting_for_input_when_running() -> None:
     assert rows[0].waiting_for_input is True
 
 
+def test_shell_dto_builds_prompt_from_registry_output() -> None:
+    info = BackgroundProcessInfo(
+        job_id="job-prompt",
+        pid=101,
+        command="npm create vite",
+        session_id="chat-prompt",
+        started_at=1.0,
+        status="running",
+        waiting_for_input=True,
+    )
+
+    class _FakeRegistry:
+        def list_processes(self) -> list[BackgroundProcessInfo]:
+            return [info]
+
+        def get_output(self, pid: int, *, max_lines: int = 100) -> dict[str, object]:
+            assert pid == 101
+            assert max_lines == 12
+            return {
+                "stdout": [
+                    "Select the deployment target:",
+                    "1) staging",
+                    "2) production",
+                    "Enter choice:",
+                ],
+                "stderr": [],
+            }
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=_FakeRegistry(),
+    ):
+        rows = list_shell_background_tasks()
+
+    prompt = rows[0].interactive_prompt
+    assert prompt is not None
+    assert prompt.kind == "choice"
+    assert prompt.question == "Select the deployment target:"
+    assert [option.value for option in prompt.options] == ["1", "2"]
+
+
+def test_shell_dto_skips_output_without_recognized_prompt() -> None:
+    info = BackgroundProcessInfo(
+        job_id="job-no-prompt",
+        pid=102,
+        command="npm install",
+        session_id="chat-prompt",
+        started_at=1.0,
+        status="running",
+        waiting_for_input=True,
+    )
+
+    class _FakeRegistry:
+        def list_processes(self) -> list[BackgroundProcessInfo]:
+            return [info]
+
+        def get_output(self, pid: int, *, max_lines: int = 100) -> dict[str, object]:
+            assert pid == 102
+            return {"stdout": ["added 12 packages"], "stderr": []}
+
+    with patch(
+        "myrm_agent_harness.api.hooks.get_background_registry",
+        return_value=_FakeRegistry(),
+    ):
+        rows = list_shell_background_tasks()
+
+    assert rows[0].interactive_prompt is None
+
+
 def test_shell_dto_includes_stdin_closed_when_running() -> None:
     info = BackgroundProcessInfo(
         job_id="job-closed",

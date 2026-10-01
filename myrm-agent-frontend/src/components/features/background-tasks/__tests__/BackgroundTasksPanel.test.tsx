@@ -238,4 +238,43 @@ describe('BackgroundTasksPanel with Search and Filter', () => {
       expect(screen.queryByText('Execute project frontend build')).toBeNull();
     });
   });
+
+  it('submits a structured terminal option with one touch', async () => {
+    mockListBackgroundTasks.mockResolvedValue({
+      tasks: [
+        {
+          task_id: 'shell-prompt-1',
+          kind: 'shell',
+          prompt: 'npm create vite',
+          status: 'running',
+          created_at: Math.floor(Date.now() / 1000) - 10,
+          job_id: 'job-prompt-1',
+          waiting_for_input: true,
+          stdin_closed: false,
+          interactive_prompt: {
+            kind: 'confirm',
+            question: 'Proceed?',
+            default_value: 'y',
+            options: [
+              { id: 'confirm-1', label: 'y', value: 'y', submit: true },
+              { id: 'confirm-2', label: 'n', value: 'n', submit: true },
+            ],
+          },
+        },
+      ],
+      registry_ephemeral: false,
+    });
+
+    render(<BackgroundTasksPanel trigger={<button data-testid="panel-trigger">Open</button>} />);
+
+    const trigger = screen.getByTestId('panel-trigger');
+    fireEvent.click(trigger);
+
+    expect(await screen.findByText('Proceed?')).toBeDefined();
+    fireEvent.click(screen.getByTestId('background-task-prompt-option-confirm-1'));
+
+    await waitFor(() => {
+      expect(mockSendShellBackgroundStdin).toHaveBeenCalledWith('shell-prompt-1', 'y', { submit: true });
+    });
+  });
 });

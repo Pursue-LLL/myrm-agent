@@ -8,7 +8,7 @@ import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { Textarea } from '@/components/primitives/textarea';
 import { cn } from '@/lib/utils/classnameUtils';
-import type { BackgroundTask } from '@/services/background-tasks';
+import type { BackgroundPromptOption, BackgroundTask } from '@/services/background-tasks';
 import { STATUS_CONFIG } from './backgroundTasksPanel.constants';
 
 interface BackgroundTaskRowProps {
@@ -24,8 +24,9 @@ interface BackgroundTaskRowProps {
   onToggleSteer: (taskId: string) => void;
   onToggleShellInput: (taskId: string) => void;
   onSteer: (taskId: string) => void;
-  onShellInputSend: (taskId: string) => void;
+  onShellInputSend: (taskId: string, value?: string) => void;
   onShellInputClose: (taskId: string) => void;
+  onPromptOptionSelect: (taskId: string, option: BackgroundPromptOption) => void;
   onCancel: (taskId: string) => void;
   onNavigateChat: (chatId: string) => void;
   onViewVaultLog?: (chatId: string, vaultLogRef: string) => void;
@@ -46,6 +47,7 @@ export function BackgroundTaskRow({
   onSteer,
   onShellInputSend,
   onShellInputClose,
+  onPromptOptionSelect,
   onCancel,
   onNavigateChat,
   onViewVaultLog,
@@ -56,6 +58,14 @@ export function BackgroundTaskRow({
   const StatusIcon = config.icon;
   const canViewVaultLog = Boolean(task.vault_log_ref && task.chat_id && onViewVaultLog);
   const LogActionIcon = canViewVaultLog ? FileText : Navigation;
+  const interactivePrompt =
+    task.kind === 'shell' &&
+    task.status === 'running' &&
+    task.waiting_for_input === true &&
+    Array.isArray(task.interactive_prompt?.options) &&
+    task.interactive_prompt.options.length > 0
+      ? task.interactive_prompt
+      : null;
 
   const handleSecondaryAction = () => {
     if (!task.chat_id) {
@@ -137,6 +147,29 @@ export function BackgroundTaskRow({
             <p className="mt-1.5 line-clamp-2 rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground/80">
               {task.result_preview}
             </p>
+          )}
+
+          {interactivePrompt && (
+            <div className="mt-2 rounded-xl border border-border/50 bg-muted/30 p-2">
+              <p className="line-clamp-2 text-xs font-medium leading-snug text-foreground">
+                {interactivePrompt.question}
+              </p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={interactivePrompt.question}>
+                {interactivePrompt.options.map((option) => (
+                  <Button
+                    key={option.id}
+                    variant="secondary"
+                    size="sm"
+                    className="h-8 px-2.5 text-xs"
+                    data-testid={`background-task-prompt-option-${option.id}`}
+                    onClick={() => onPromptOptionSelect(task.task_id, option)}
+                    disabled={!allowShellInput}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
           )}
 
           {task.status === 'running' ? (
