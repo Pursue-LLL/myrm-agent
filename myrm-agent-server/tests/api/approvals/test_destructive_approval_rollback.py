@@ -106,3 +106,33 @@ async def test_rollback_approval_success(client) -> None:
         assert res_data["snapshot_id"] == "commit_stash_mock_snapshot"
         assert "Workspace successfully rolled back" in res_data["message"]
         mock_rollback.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_rollback_approval_expired_ttl(client) -> None:
+    """Rollback on approval older than 10 minutes (600s) must be rejected with 400."""
+    from datetime import datetime, timedelta, timezone
+
+    record = await ApprovalRegistry.create_approval(
+        agent_id="agent-dest-test",
+        action_type="subagent_approval",
+        payload={
+            "snapshotId": "commit_stash_old_snapshot",
+        },
+        chat_id="chat-dest-4",
+        thread_id="thread-dest-4",
+    )
+
+    # Artificially age the record to 15 minutes ago
+    fifteen_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=15)
+    with patch(
+        "app.services.approvals.registry.ApprovalRegistry.get_approval",
+        return_value=MagicMock(
+            id=record.id,
+            created_at=fifteen_mins_ago,
+            payload={"snapshotId": "commit_stash_old_snapshot"},
+        ),
+    ):
+        resp = client.post(f"/api/v1/approvals/{record.id}/rollback")
+        assert resp.status_code == 400
+        assert "expired" in resp.json()["detail"].lower()

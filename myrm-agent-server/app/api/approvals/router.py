@@ -579,6 +579,20 @@ async def rollback_approval_snapshot(
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
 
+    if record.created_at:
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        record_time = record.created_at
+        if record_time.tzinfo is None:
+            record_time = record_time.replace(tzinfo=timezone.utc)
+        elapsed_seconds = (now - record_time).total_seconds()
+        if elapsed_seconds > 600.0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Rollback window has expired ({elapsed_seconds:.0f}s elapsed, maximum allowed is 600s)",
+            )
+
     payload = record.payload or {}
     snapshot_id = payload.get("snapshotId") or payload.get("snapshot_id")
     if not snapshot_id:
