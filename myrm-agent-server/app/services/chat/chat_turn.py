@@ -56,7 +56,7 @@ class _ChatTurnMixin(_ChatServiceBase):
     @staticmethod
     async def _sync_todos_after_rewind(chat_id: str) -> None:
         """Align physical workspace todos.json with folded active branch state after rewind."""
-        from app.api.goals.plan import sync_workspace_todos_after_rewind
+        from app.services.chat.chat_todo_sync import sync_workspace_todos_after_rewind
 
         await sync_workspace_todos_after_rewind(chat_id)
 
