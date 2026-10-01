@@ -156,7 +156,7 @@ export function formatChatAsMarkdown(data: ExportData, options?: ExportFormatOpt
   const lines: string[] = [`# ${title}`, '', `> Exported from Myrm · ${new Date().toLocaleString()}`, ''];
 
   if (data.redacted) {
-    lines.push('> 🔒 Sensitive secrets and credentials have been automatically redacted.', '');
+    lines.push('> [Security] Sensitive secrets and credentials have been automatically redacted.', '');
   }
 
   if (data.agentInfo) {

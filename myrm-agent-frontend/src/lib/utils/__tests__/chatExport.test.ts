@@ -75,7 +75,8 @@ describe('chatExport', () => {
     it('should include redacted notice when redacted is true', () => {
       const data = createMockExportData({ redacted: true });
       const md = formatChatAsMarkdown(data);
-      expect(md).toContain('Sensitive secrets and credentials have been automatically redacted');
+      expect(md).toContain('[Security] Sensitive secrets and credentials have been automatically redacted');
+      expect(md).not.toContain('🔒');
     });
 
     it('should filter non-visible roles', () => {

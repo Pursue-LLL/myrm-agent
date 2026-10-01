@@ -266,6 +266,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
                 <>
                   <input
                     ref={fileInputRef}
+                    data-testid="import-file-input"
                     type="file"
                     accept=".json,.jsonl"
                     className="hidden"

@@ -263,3 +263,94 @@ def test_import_session_webui_modal_and_resume_chrome_e2e() -> None:
         )
         assert navigated.get("ready") is True, f"Did not navigate to chat: {navigated}"
         assert str(navigated.get("pathname", "")).startswith("/chat_")
+
+        # 6. Real User: Follow-up question in chat interface and wait for model streaming
+        input_ready = wait_for_state(
+            client,
+            page,
+            """(() => {
+                const el = document.querySelector('[data-chat-input]');
+                return { ready: Boolean(el) };
+            })()""",
+            timeout_sec=30.0,
+        )
+        assert input_ready.get("ready") is True, f"Chat input did not appear: {input_ready}"
+
+        # 7. Verify imported messages are rendered in chat history
+        history_seen = wait_for_state(
+            client,
+            page,
+            """(() => {
+                const text = document.body?.innerText || '';
+                return {
+                    ready: text.includes("Debug token leak") || text.includes("Leak resolved safely"),
+                };
+            })()""",
+            timeout_sec=20.0,
+        )
+        assert history_seen.get("ready") is True, f"Imported history not rendered in chat view: {history_seen}"
+
+        # 8. Type follow-up prompt
+        query_text = "Summarize the log status in one short sentence."
+        query_escaped = json.dumps(query_text)
+        client.evaluate(
+            page,
+            f"""(() => {{
+                const el = document.querySelector('[data-chat-input]');
+                if (!el) return;
+                const proto = el instanceof HTMLTextAreaElement
+                    ? window.HTMLTextAreaElement.prototype
+                    : window.HTMLInputElement.prototype;
+                const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+                if (setter) {{
+                    setter.call(el, {query_escaped});
+                }} else {{
+                    el.value = {query_escaped};
+                }}
+                el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                window.__MYRM_E2E_CHAT__?.setInputMessage?.({query_escaped});
+            }})()""",
+            timeout_sec=10.0,
+        )
+
+        send_ready = wait_for_state(
+            client,
+            page,
+            """(() => {
+                const btn = document.querySelector('.message-send-btn');
+                return {
+                    ready: Boolean(btn && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true'),
+                };
+            })()""",
+            timeout_sec=15.0,
+        )
+        assert send_ready.get("ready") is True, f"Send button not ready: {send_ready}"
+
+        client.evaluate(
+            page,
+            """(() => {
+                const btn = document.querySelector('.message-send-btn');
+                if (btn) btn.click();
+            })()""",
+            timeout_sec=10.0,
+        )
+
+        # 9. Wait for assistant stream response to complete
+        assistant_streamed = wait_for_state(
+            client,
+            page,
+            """(() => {
+                const messages = Array.from(document.querySelectorAll('[data-test-id="assistant-message"]'));
+                if (messages.length >= 2) {
+                    const latest = messages[messages.length - 1];
+                    const content = latest.textContent || '';
+                    return { ready: content.length > 5, content: content.slice(0, 80) };
+                }
+                return { ready: false, assistant_count: messages.length };
+            })()""",
+            timeout_sec=60.0,
+        )
+        assert assistant_streamed.get("ready") is True, f"Assistant resumption response failed: {assistant_streamed}"
+
+

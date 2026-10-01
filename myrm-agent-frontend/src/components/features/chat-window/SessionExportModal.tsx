@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useTransition } from 'react';
+import { useState, useCallback, useEffect, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import {
@@ -45,18 +45,31 @@ export interface SessionExportModalProps {
   onOpenChange: (open: boolean) => void;
   chatId: string;
   chatTitle?: string | null;
+  initialFormat?: ExportFormatType;
 }
 
-export function SessionExportModal({ open, onOpenChange, chatId, chatTitle }: SessionExportModalProps) {
+export function SessionExportModal({
+  open,
+  onOpenChange,
+  chatId,
+  chatTitle,
+  initialFormat,
+}: SessionExportModalProps) {
   const t = useTranslations('chat');
   const { resolvedTheme } = useTheme();
-  const [selectedFormat, setSelectedFormat] = useState<ExportFormatType>('html');
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormatType>(initialFormat ?? 'html');
   const [redactSecrets, setRedactSecrets] = useState(true);
   const [includeReasoning, setIncludeReasoning] = useState(true);
   const [includeToolCalls, setIncludeToolCalls] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (open && initialFormat) {
+      setSelectedFormat(initialFormat);
+    }
+  }, [open, initialFormat]);
 
   const handleExport = useCallback(async () => {
     if (!chatId || isExporting) {
@@ -354,7 +367,7 @@ export function SessionExportModal({ open, onOpenChange, chatId, chatTitle }: Se
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-border/50">
+        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-border/50">
           <Button
             type="button"
             variant="outline"

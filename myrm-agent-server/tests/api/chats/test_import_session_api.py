@@ -139,3 +139,76 @@ async def test_import_transcript_empty_payload(client: AsyncClient) -> None:
         json={"raw_content": "   "},
     )
     assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_import_transcript_empty_file(client: AsyncClient) -> None:
+    files = {"file": ("empty.jsonl", io.BytesIO(b"   "), "application/jsonl")}
+    resp = await client.post("/api/chats/import-transcript/file", files=files)
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_import_transcript_invalid_format(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/api/chats/import-transcript",
+        json={"raw_content": "This is completely random invalid text without any conversation structure"},
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_import_transcript_secret_scrubbing(client: AsyncClient, test_db: AsyncSession) -> None:
+    lines = [
+        json.dumps({
+            "role": "user",
+            "content": "Connect with AWS key AKIAIOSFODNN7EXAMPLE and anthropic key sk-ant-api03-abcdef1234567890abcdef1234567890",
+        }),
+        json.dumps({"role": "assistant", "content": "Acknowledged. Establishing secure connection."}),
+    ]
+    resp = await client.post(
+        "/api/chats/import-transcript",
+        json={"raw_content": "\n".join(lines)},
+    )
+    assert resp.status_code == 200
+    chat_id = resp.json()["chat_id"]
+
+    msg_stmt = select(Message).where(Message.chat_id == chat_id, Message.role == "user")
+    msg_res = await test_db.execute(msg_stmt)
+    user_msg = msg_res.scalars().first()
+    assert user_msg is not None
+    assert "AKIAIOSFODNN7EXAMPLE" not in user_msg.content
+    assert "sk-ant" not in user_msg.content
+    assert "[REDACTED_" in user_msg.content
+
+
+@pytest.mark.asyncio
+async def test_import_transcript_multi_turns_and_tools(client: AsyncClient, test_db: AsyncSession) -> None:
+    lines = [
+        json.dumps({"role": "user", "content": "Turn 1 request"}),
+        json.dumps({
+            "role": "assistant",
+            "content": "Turn 1 thinking",
+            "tool_calls": [
+                {"id": "c1", "type": "function", "function": {"name": "curl", "arguments": "{}"}}
+            ],
+        }),
+        json.dumps({"role": "tool", "name": "curl", "content": "HTTP 200 OK\n" * 50}),
+        json.dumps({"role": "assistant", "content": "Turn 1 answer"}),
+        json.dumps({"role": "user", "content": "Turn 2 request"}),
+        json.dumps({"role": "assistant", "content": "Turn 2 answer"}),
+    ]
+    resp = await client.post(
+        "/api/chats/import-transcript",
+        json={"raw_content": "\n".join(lines)},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["turns_count"] == 2
+    assert data["reduction_ratio"] > 0.0
+
+    msg_stmt = select(Message).where(Message.chat_id == data["chat_id"])
+    msg_res = await test_db.execute(msg_stmt)
+    messages = list(msg_res.scalars().all())
+    assert len(messages) == 4
+

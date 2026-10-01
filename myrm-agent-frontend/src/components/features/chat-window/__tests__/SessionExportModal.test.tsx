@@ -239,4 +239,28 @@ describe('SessionExportModal', () => {
       );
     });
   });
+
+  it('honors initialFormat prop and automatically selects designated format', async () => {
+    const onOpenChange = vi.fn();
+    render(
+      <SessionExportModal
+        open
+        onOpenChange={onOpenChange}
+        chatId="c123"
+        chatTitle="Test Session"
+        initialFormat="zip"
+      />,
+    );
+
+    fireEvent.click(screen.getByText('下载所选格式'));
+
+    await waitFor(() => {
+      expect(exportSessionZipPackMock).toHaveBeenCalledWith('c123', {
+        redactSecrets: true,
+        includeArtifacts: true,
+        includeSubagents: true,
+      });
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
 });
