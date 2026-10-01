@@ -21,7 +21,7 @@
 - `encodingUtils.ts`：UTF-8 安全 Base64 编解码引擎 — `safeBase64DecodeUtf8` 与 `safeBase64EncodeUtf8` 纯函数，基于原生 `TextDecoder('utf-8')` / `TextEncoder` 还原多字节 Unicode 字节流，杜绝原生 `atob` 导致的中文、日韩文与 Emoji 数据乱码崩溃，具备优雅容错降级保护。
 - `urlUtils.ts`：URL 协议安全性与外部跳转校验工具 — 提供 `isValidExternalUrl` 严格协议白名单校验（仅放行 `http:` 与 `https:`），阻断 `javascript:`、`data:` 与桌面本地伪协议，防御工件与应用外链 XSS 及客户端沙箱逃逸。
 - `imageAdmission.ts`：端侧图片准入与轻量速压防线 — `admitAndCompressImageFile` 与 `admitAndCompressFiles` 纯函数，入队/上传前执行尺寸（<=2048px）与体积（<=4MB）预检，基于 `OffscreenCanvas` / `createImageBitmap` 异步等比缩放与无损感知 WebP 压缩，杜绝超大原图（30MB+）阻塞网络带宽与网关 413 崩溃，保全动图（GIF）与矢量图（SVG）。
-- `chatExport.ts`：会话多格式导出排版与文件构建纯函数 — 支持 Markdown / JSON 结构化格式化、工业级敏感凭据安全脱敏正则过滤、细粒度思考链/工具细节包含控制、单条消息导出 CWE-312 脱敏保护、客户端自适应下载触发。
+- `chatExport.ts`：会话多格式导出排版与文件构建纯函数 — 支持 Markdown / JSON 结构化格式化、工业级敏感凭据安全脱敏正则过滤、细粒度思考链/工具细节包含控制、单条消息导出 CWE-312 脱敏保护（含图片导出离屏 DOM 克隆安全清洗）、客户端自适应下载触发。
 - `chatExportHtml.ts`：会话离线独立 HTML 渲染构建器 — 基于 Rehype AST 引擎生成安全 HTML，集成代码高亮、iframe 挂件与自包含代码块一键复制交互按钮，保证 100% 零原生 Emoji 并自包含渲染。
-- `chatExportHtmlTemplates.ts`：会话 HTML 导出组件与样式模板库 — 封装深浅双主题 CSS 变量、Highlight.js 语法主题、离线响应式自适应布局、原生代码复制交互脚本与反馈动画、主题切换交互脚本与多语言元数据统计标签。
+- `chatExportHtmlTemplates.ts`：会话 HTML 导出组件与样式模板库 — 封装深浅双主题 CSS 变量、Highlight.js 语法主题、离线响应式自适应布局、打印态样式隔离防截断、原生代码复制交互脚本与反馈动画、主题切换交互脚本与多语言元数据统计标签。
 - `clientRedact.ts`：客户端轻量敏感凭据脱敏清洗工具 — 提供 `redactSensitiveClientText` 与 `containsSensitiveData` 纯函数，覆盖 OpenAI/Anthropic 风格 API Keys、GitHub Tokens、AWS 密钥、PEM 私钥、JWT 签名凭据与键值对密码，防御单条消息与前端导出 CWE-312 敏感信息明文泄露。
