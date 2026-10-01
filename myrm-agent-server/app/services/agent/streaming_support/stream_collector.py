@@ -418,6 +418,7 @@ class StreamContentCollector:
         self._staged_artifacts: list[dict[str, object]] = []
         self._pending_evicted: list[dict[str, object]] = []
         self._sibling_group_id: str | None = sibling_group_id
+        self._tool_result_details: dict[str, object] | None = None
         self._chat_id: str | None = chat_id
         self._subscribers: list[asyncio.Queue[dict[str, object]]] = []
 
@@ -613,6 +614,9 @@ class StreamContentCollector:
         elif event_type == "ttsr_triggered":
             collect_ttsr_intervention(self._ttsr_interventions, data)
         elif event_type == "tasks_steps":
+            tool_details = event.get("tool_result_details")
+            if isinstance(tool_details, dict):
+                self._tool_result_details = tool_details
             step = _merge_tasks_step(self._progress_steps, event, data)
             if self._pending_evicted:
                 remaining: list[dict[str, object]] = []
@@ -840,6 +844,7 @@ class StreamContentCollector:
         self._reasoning_parts.clear()
         self._reasoning_char_count = 0
         self._reasoning_truncated = False
+        self._tool_result_details = None
 
     def _append_failover_step(self, step_key: str, item_text: str) -> None:
         """Append a failover progress step, deduplicating STATUS + SSE notify channels.
@@ -981,6 +986,8 @@ class StreamContentCollector:
             result["councilPhases"] = list(self._council_phases)
         if self._ttsr_interventions:
             result["ttsrInterventions"] = list(self._ttsr_interventions)
+        if self._tool_result_details:
+            result["tool_result_details"] = self._tool_result_details
         if self.reasoning:
             result["reasoning"] = self.reasoning
             if self._reasoning_truncated:

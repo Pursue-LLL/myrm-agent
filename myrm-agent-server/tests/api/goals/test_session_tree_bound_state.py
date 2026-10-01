@@ -300,3 +300,83 @@ async def test_sync_workspace_todos_after_rewind_restores_earlier_state(tmp_path
     assert len(synced.todos) == 1
     assert synced.todos[0].id == "s1"
     assert synced.todos[0].status == TodoStatus.IN_PROGRESS
+
+
+def test_stream_collector_captures_and_persists_tool_result_details() -> None:
+    """StreamContentCollector must capture tool_result_details from tasks_steps into extra_data."""
+    from app.services.agent.streaming_support.stream_collector import StreamContentCollector
+
+    collector = StreamContentCollector(chat_id="test_chat")
+
+    details_payload = {
+        "goal": "Build authentication",
+        "revision": 2,
+        "todos": [
+            {"id": "t1", "content": "Create User model", "status": "completed"},
+            {"id": "t2", "content": "JWT handler", "status": "in_progress"},
+        ],
+    }
+
+    # Feed tasks_steps carrying tool_result_details
+    collector.feed_event(
+        {
+            "type": "tasks_steps",
+            "step_key": "progress_root",
+            "tool_name": "todo_write",
+            "tool_result_details": details_payload,
+            "data": [{"text": "Build authentication"}],
+        }
+    )
+
+    extra = collector.extra_data
+    assert extra is not None
+    assert "tool_result_details" in extra
+    assert extra["tool_result_details"] == details_payload
+
+    # Verify folded state from the collected extra_data
+    from myrm_agent_harness.runtime.context.tree_state import fold_branch_todo_state
+
+    msg = _create_fake_message(chat_id="test_chat", content="Plan updated", extra_data=extra)
+    folded = fold_branch_todo_state([msg])
+    assert folded is not None
+    assert folded.goal == "Build authentication"
+    assert len(folded.todos) == 2
+
+
+@pytest.mark.asyncio
+async def test_sync_workspace_todos_after_rewind_protects_existing_file(tmp_path: Path) -> None:
+    """When messages exist but fold yields no store, workspace file is preserved rather than unlinked."""
+    from app.services.chat.chat_todo_sync import sync_workspace_todos_after_rewind
+
+    workspace_root = str(tmp_path / "ws_safe")
+    chat_id = "chat_safe_rewind"
+
+    # Pre-populate workspace with an existing file
+    initial_store = TodoStore(
+        todos=[TodoItem(id="x1", content="Existing step", status=TodoStatus.PENDING)],
+        revision=1,
+    )
+    write_todos_sync_to_workspace(workspace_root, initial_store)
+    assert todos_path(workspace_root).is_file()
+
+    # Remaining messages exist (e.g. user prompt only, without tool details)
+    msg_without_todos = _create_fake_message(
+        chat_id=chat_id,
+        content="Hello, help me write code",
+        extra_data=None,
+    )
+
+    with patch("app.config.settings.get_settings") as mock_settings:
+        mock_settings.return_value.database.harness_dir = str(tmp_path)
+        with patch("app.services.chat.chat_service.ChatService.get_all_messages", new_callable=AsyncMock) as mock_msgs:
+            mock_msgs.return_value = [msg_without_todos]
+            with patch("app.services.chat.chat_todo_sync._resolve_workspace_root_safely", new_callable=AsyncMock) as mock_root:
+                mock_root.return_value = workspace_root
+                await sync_workspace_todos_after_rewind(chat_id)
+
+    # Workspace file must NOT have been unlinked!
+    assert todos_path(workspace_root).is_file()
+    preserved = read_todos_sync_from_workspace(workspace_root)
+    assert preserved is not None
+    assert preserved.todos[0].id == "x1"
+

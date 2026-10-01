@@ -97,10 +97,18 @@ async def sync_workspace_todos_after_rewind(chat_id: str) -> None:
 
         if remaining_store is not None and remaining_store.todos:
             write_todos_sync_to_workspace(workspace_root, remaining_store)
-        else:
+        elif not messages:
+            # All messages in the conversation were rewound (cleared to initial state)
             path = todos_path(workspace_root)
             if path.is_file():
                 path.unlink(missing_ok=True)
+        else:
+            # Remaining messages exist, but fold yielded no todo store.
+            # Guard against aggressive deletion of pre-existing workspace files.
+            logger.debug(
+                "Skipping workspace todos unlink after rewind for chat %s: messages exist but no folded store",
+                chat_id,
+            )
     except Exception as exc:
         logger.warning("Failed to sync workspace todos after rewind for chat %s: %s", chat_id, exc)
 
