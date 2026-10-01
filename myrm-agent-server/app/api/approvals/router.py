@@ -245,6 +245,18 @@ async def resolve_approval(
                 get_event_bus,
             )
 
+            payload = record.payload or {}
+            review_configs = payload.get("reviewConfigs", [])
+            is_destructive = payload.get("irreversibleDestructive") is True or any(
+                isinstance(cfg, dict) and cfg.get("irreversibleDestructive") is True for cfg in review_configs
+            )
+            effective_allow_always = None if is_destructive else req.allow_always
+            if is_destructive and req.allow_always:
+                logger.warning(
+                    "[APPROVAL_ROUTER] Suppressed allow_always for irreversible destructive approval %s",
+                    record.id,
+                )
+
             bus = get_event_bus()
             bus.publish(
                 AppEvent(
@@ -257,7 +269,7 @@ async def resolve_approval(
                         "agent_id": record.agent_id,
                         "decision": normalized_decision,
                         "comment": req.comment,
-                        "allow_always": req.allow_always,
+                        "allow_always": effective_allow_always,
                         "ttl_seconds": req.ttl_seconds,
                         "edited_payload": req.edited_payload,
                         "ephemeral_credential_handles": req.ephemeral_credential_handles,

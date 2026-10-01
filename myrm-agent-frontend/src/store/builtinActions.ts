@@ -553,5 +553,46 @@ export function buildBuiltinActions(): SlashAction[] {
         return { success: true, newInputValue: directive };
       },
     },
+    {
+      id: 'builtin:export',
+      name: 'export',
+      description: 'commands.builtin.export',
+      argsHint: '[html|md|json|zip|copy]',
+      aliases: ['save', 'share'],
+      type: 'action',
+      execute: async (inputValue: string) => {
+        const { default: useChatStore } = await import('@/store/useChatStore');
+        const { chatId } = useChatStore.getState();
+        if (!chatId) {
+          return { success: false, error: 'No active chat' };
+        }
+        const rawArgs = inputValue
+          .replace(/^\/(?:export|save|share)\s*/i, '')
+          .trim()
+          .toLowerCase();
+
+        if (rawArgs === 'copy') {
+          const { exportChat } = await import('@/services/chat');
+          const { copyAsMarkdown } = await import('@/lib/utils/chatExport');
+          try {
+            const data = await exportChat(chatId, { redactSecrets: true });
+            await copyAsMarkdown(data);
+            showI18nToast('chat.exportChat.copySuccessRedacted', undefined, { type: 'success' });
+            return { success: true, newInputValue: '' };
+          } catch {
+            return { success: false, error: 'Copy failed' };
+          }
+        }
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('myrm:open-session-export', {
+              detail: { chatId, format: rawArgs || undefined },
+            }),
+          );
+        }
+        return { success: true, newInputValue: '' };
+      },
+    },
   ];
 }

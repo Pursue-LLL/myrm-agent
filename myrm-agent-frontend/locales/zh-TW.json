@@ -271,7 +271,8 @@
       "loopStopped": "已停止當前對話循環任務",
       "loopStatusActive": "當前循環執行中（週期：{interval}，已執行 {ticks} 輪）",
       "loopStatusInactive": "當前對話暫無執行中的循環任務",
-      "loopTargetReached": "會話循環已達成終止條件並自動完成"
+      "loopTargetReached": "會話循環已達成終止條件並自動完成",
+      "export": "匯出對話或複製 Markdown（支援 HTML/MD/JSON/ZIP）"
     }
   },
   "copilot": {
@@ -1962,7 +1963,25 @@
       "noMessages": "無訊息可匯出",
       "print": "列印",
       "exportZipPack": "匯出對話封包 (.zip)",
-      "exportZipFailed": "匯出工作階段記錄包失敗"
+      "exportZipFailed": "匯出工作階段記錄包失敗",
+      "modalTitle": "匯出對話與知識分享",
+      "selectFormat": "選擇匯出格式",
+      "options": "匯出選項",
+      "recommended": "推薦",
+      "htmlDesc": "自包含單檔案，內建暗色模式、公式與程式碼高亮",
+      "markdownDesc": "標準文件，便於知識庫與筆記系統沉澱",
+      "jsonDesc": "機器可讀完整封包，便於二次解析與加工",
+      "zipDesc": "包含對話原始事件日誌、子代理軌跡與所有工件",
+      "redactSecretsLabel": "自動脫敏敏感憑證",
+      "redactSecretsHint": "自動遮蔽 API Key、Token、私鑰與密碼等安全機密",
+      "includeReasoningLabel": "包含模型思考過程 (Thinking)",
+      "includeReasoningHint": "保留大模型的深度推理鏈折疊卡片",
+      "includeToolCallsLabel": "包含工具調用與耗時分析",
+      "includeToolCallsHint": "記錄工具調用參數摘要、執行耗時與成功狀態",
+      "downloadAction": "下載所選格式",
+      "tooltip": "匯出對話或複製 Markdown",
+      "copied": "已複製",
+      "action": "匯出"
     },
     "ideHandoff": {
       "openInIDE": "在 IDE 中開啟",
@@ -2780,7 +2799,8 @@
       "time_night_0": "幫我梳理複雜系統的重構思路與邊界隔離",
       "time_night_1": "深度推演算法實現的時間與空間複雜度瓶頸",
       "time_night_2": "整理個人知識庫並歸檔過時筆記",
-      "time_night_3": "撰寫技術部落格大綱並提煉核心論點"
+      "time_night_3": "撰寫技術部落格大綱並提煉核心論點",
+      "agent_pptx": "Help me generate a reporting PPTX presentation with takeaway headlines and 16:9 business layout"
     },
     "subagent": {
       "viewResults": "檢視結果"
@@ -3127,6 +3147,21 @@
       "untilCondition": "終止條件: {condition}",
       "userActivityPaused": "檢測到使用者主動輸入，循環已順延避讓",
       "tooltip": "會話級自適應指數退避自喚醒輪詢調度引擎"
+    },
+    "personalClosedLoop": {
+      "badge": "Trinity Loop",
+      "title": "Personal Workflow Loop: Todo · Log · Weekly Report",
+      "desc": "Take Kanban tasks as input, record daily factual logs, and automatically aggregate into a structured weekly review for refined personal delivery.",
+      "step1Title": "Todo Breakdown",
+      "step1Desc": "Kanban task planning and phase tracking",
+      "step1Prompt": "Help me organize and break down current key tasks, prioritize them, and synchronize them into Kanban board.",
+      "step2Title": "Daily Reconciliation",
+      "step2Desc": "DailyJournal capturing facts and decision blockers",
+      "step2Prompt": "Help me document today's work journal (Daily Journal), listing key facts, core decision blockers, and progress evidence.",
+      "step3Title": "Smart Weekly Report",
+      "step3Desc": "WeeklyReview blueprint aggregating metrics",
+      "step3Prompt": "Retrieve completed tasks and daily journal logs from this week, and compile a structured weekly summary report following conclusion-first, data-backed metrics, and blocker retrospective.",
+      "oneClickAction": "Load Workflow Prompt"
     }
   },
   "mode": {

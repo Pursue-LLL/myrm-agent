@@ -940,11 +940,21 @@ export const listConversationRecallEntries = async (params: {
   };
 };
 
+export interface ExportChatOptions {
+  redactSecrets?: boolean;
+}
+
 /**
  * Fetch all chat data for export (metadata + messages).
  */
-export const exportChat = async (chatId: string): Promise<ExportData> => {
-  return apiRequest(`/chats/${chatId}/export`) as Promise<ExportData>;
+export const exportChat = async (chatId: string, options?: ExportChatOptions): Promise<ExportData> => {
+  const params = new URLSearchParams();
+  if (options?.redactSecrets !== undefined) {
+    params.set('redact_secrets', String(options.redactSecrets));
+  }
+  const query = params.toString();
+  const url = query ? `/chats/${chatId}/export?${query}` : `/chats/${chatId}/export`;
+  return apiRequest(url) as Promise<ExportData>;
 };
 
 /**

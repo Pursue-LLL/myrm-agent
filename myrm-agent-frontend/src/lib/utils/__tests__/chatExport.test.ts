@@ -179,6 +179,45 @@ describe('chatExport', () => {
       const parsed = JSON.parse(json);
       expect(parsed.usageSummary).toBeUndefined();
     });
+
+    it('should respect includeReasoning: false and includeToolCalls: false in formatChatAsMarkdown', () => {
+      const data = createMockExportData({
+        messages: [
+          {
+            role: 'assistant',
+            content: 'Hello with thinking',
+            createdAt: '2026-05-30T10:00:00Z',
+            metadata: { reasoning: 'Secret reasoning chain' },
+          },
+        ],
+        toolSummary: { totalToolCalls: 1, totalDurationMs: 100, toolsUsed: [{ name: 'bash', count: 1, totalMs: 100 }] },
+      });
+      const mdWithout = formatChatAsMarkdown(data, { includeReasoning: false, includeToolCalls: false });
+      expect(mdWithout).not.toContain('<summary>Thinking</summary>');
+      expect(mdWithout).not.toContain('## Tool Activity');
+
+      const mdWith = formatChatAsMarkdown(data, { includeReasoning: true, includeToolCalls: true });
+      expect(mdWith).toContain('<summary>Thinking</summary>');
+      expect(mdWith).toContain('## Tool Activity');
+    });
+
+    it('should respect includeReasoning: false and includeToolCalls: false in formatChatAsJson', () => {
+      const data = createMockExportData({
+        messages: [
+          {
+            role: 'assistant',
+            content: 'Hello with thinking',
+            createdAt: '2026-05-30T10:00:00Z',
+            metadata: { reasoning: 'Secret reasoning chain' },
+          },
+        ],
+        toolSummary: { totalToolCalls: 1, totalDurationMs: 100, toolsUsed: [{ name: 'bash', count: 1, totalMs: 100 }] },
+      });
+      const jsonWithout = formatChatAsJson(data, { includeReasoning: false, includeToolCalls: false });
+      const parsed = JSON.parse(jsonWithout);
+      expect(parsed.messages[0].metadata.reasoning).toBeUndefined();
+      expect(parsed.toolSummary).toBeUndefined();
+    });
   });
 
   describe('downloadFile', () => {

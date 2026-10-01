@@ -7281,6 +7281,7 @@
       "recentlyUsed": "Recently Used"
     },
     "builtin": {
+      "export": "Export session or copy Markdown (supports HTML/MD/JSON/ZIP)",
       "compact": "Compress conversation context to save tokens",
       "focus": "Clear chat history but keep the sandbox environment intact (Saves tokens)",
       "yolo": "Toggle YOLO mode – auto-approve all tool executions",
@@ -9092,7 +9093,25 @@
       "noMessages": "No messages to export",
       "print": "Print",
       "exportZipPack": "Export Session Archive (.zip)",
-      "exportZipFailed": "Failed to export session log pack"
+      "exportZipFailed": "Failed to export session log pack",
+      "modalTitle": "Export & Share Session",
+      "selectFormat": "Select Export Format",
+      "options": "Export Options",
+      "recommended": "Recommended",
+      "htmlDesc": "Self-contained single file with dark mode, math formulas and code highlights",
+      "markdownDesc": "Standard document, ideal for knowledge bases and note apps",
+      "jsonDesc": "Machine-readable full data pack for secondary processing",
+      "zipDesc": "Complete archive with event logs, subagent traces, and artifacts",
+      "redactSecretsLabel": "Redact sensitive secrets",
+      "redactSecretsHint": "Mask API keys, tokens, private keys and passwords automatically",
+      "includeReasoningLabel": "Include model thinking process (Reasoning)",
+      "includeReasoningHint": "Keep collapsible cards for deep reasoning chains",
+      "includeToolCallsLabel": "Include tool activity and latency",
+      "includeToolCallsHint": "Record tool call parameters summary, duration and success state",
+      "downloadAction": "Download Selected Format",
+      "tooltip": "Export session or copy Markdown",
+      "copied": "Copied",
+      "action": "Export"
     },
     "ideHandoff": {
       "openInIDE": "Open in IDE",

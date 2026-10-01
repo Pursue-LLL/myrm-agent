@@ -7281,6 +7281,7 @@
       "recentlyUsed": "最近使用"
     },
     "builtin": {
+      "export": "导出会话或复制 Markdown 到剪贴板（支持 HTML/MD/JSON/ZIP）",
       "compact": "压缩对话上下文以节省 Token",
       "focus": "清除聊天历史但保留沙箱环境（节省 Token）",
       "yolo": "切换 YOLO 模式 – 自动审批所有工具执行",
@@ -9092,7 +9093,25 @@
       "noMessages": "无消息可导出",
       "print": "打印",
       "exportZipPack": "导出会话归档包 (.zip)",
-      "exportZipFailed": "导出会话日志包失败"
+      "exportZipFailed": "导出会话日志包失败",
+      "modalTitle": "导出会话与知识分享",
+      "selectFormat": "选择导出格式",
+      "options": "导出选项",
+      "recommended": "推荐",
+      "htmlDesc": "自包含单文件，内置暗色模式、公式与高亮",
+      "markdownDesc": "标准文档，易于知识库与文档管理系统沉淀",
+      "jsonDesc": "机器可读完整数据包，便于二次解析与加工",
+      "zipDesc": "包含会话原始事件日志、子代理轨迹与所有工件",
+      "redactSecretsLabel": "自动脱敏敏感凭据",
+      "redactSecretsHint": "自动屏蔽 API Key、Token、私钥与密码等安全机密",
+      "includeReasoningLabel": "包含模型思考过程 (Thinking)",
+      "includeReasoningHint": "保留大模型的深度推理链折叠卡片",
+      "includeToolCallsLabel": "包含工具调用与耗时分析",
+      "includeToolCallsHint": "记录工具调用入参摘要、执行耗时与成功状态",
+      "downloadAction": "下载所选格式",
+      "tooltip": "导出会话或复制 Markdown",
+      "copied": "已复制",
+      "action": "导出"
     },
     "ideHandoff": {
       "openInIDE": "在 IDE 中打开",

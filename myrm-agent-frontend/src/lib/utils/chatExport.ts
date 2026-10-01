@@ -144,7 +144,14 @@ function buildSummarySection(data: ExportData): string[] {
   return lines;
 }
 
-export function formatChatAsMarkdown(data: ExportData): string {
+export interface ExportFormatOptions {
+  includeReasoning?: boolean;
+  includeToolCalls?: boolean;
+}
+
+export function formatChatAsMarkdown(data: ExportData, options?: ExportFormatOptions): string {
+  const includeReasoning = options?.includeReasoning ?? true;
+  const includeToolCalls = options?.includeToolCalls ?? true;
   const title = data.chat.title || 'Untitled';
   const lines: string[] = [`# ${title}`, '', `> Exported from Myrm · ${new Date().toLocaleString()}`, ''];
 
@@ -166,7 +173,9 @@ export function formatChatAsMarkdown(data: ExportData): string {
   }
 
   lines.push('---', '');
-  lines.push(...buildSummarySection(data));
+  if (includeToolCalls) {
+    lines.push(...buildSummarySection(data));
+  }
 
   let mdTurnIndex = 0;
   for (const msg of data.messages) {
@@ -176,13 +185,15 @@ export function formatChatAsMarkdown(data: ExportData): string {
     const role = msg.role === 'user' ? 'User' : 'Assistant';
     lines.push(`**${role}** · ${formatTimestamp(msg.createdAt)}`);
     lines.push('');
-    const reasoning = (msg.metadata?.reasoning_content ?? msg.metadata?.reasoning) as string | undefined;
-    if (reasoning) {
-      lines.push('<details>', '<summary>Thinking</summary>', '', reasoning, '', '</details>', '');
+    if (includeReasoning) {
+      const reasoning = (msg.metadata?.reasoning_content ?? msg.metadata?.reasoning) as string | undefined;
+      if (reasoning) {
+        lines.push('<details>', '<summary>Thinking</summary>', '', reasoning, '', '</details>', '');
+      }
     }
     lines.push(msg.content);
     lines.push('');
-    if (msg.role === 'assistant' && data.toolCallDetails) {
+    if (includeToolCalls && msg.role === 'assistant' && data.toolCallDetails) {
       const turnCalls = data.toolCallDetails.filter((d) => d.turnIndex === mdTurnIndex);
       if (turnCalls.length > 0) {
         const totalMs = turnCalls.reduce((s, d) => s + (d.durationMs ?? 0), 0);
@@ -204,17 +215,30 @@ export function formatChatAsMarkdown(data: ExportData): string {
   return lines.join('\n');
 }
 
-export function formatChatAsJson(data: ExportData): string {
+export function formatChatAsJson(data: ExportData, options?: ExportFormatOptions): string {
+  const includeReasoning = options?.includeReasoning ?? true;
+  const includeToolCalls = options?.includeToolCalls ?? true;
+
+  const messages = data.messages.map((msg) => {
+    if (includeReasoning) {
+      return msg;
+    }
+    const cleanMeta = { ...msg.metadata };
+    delete cleanMeta.reasoning;
+    delete cleanMeta.reasoning_content;
+    return { ...msg, metadata: cleanMeta };
+  });
+
   return JSON.stringify(
     {
       title: data.chat.title,
       source: data.chat.source,
       exportedAt: new Date().toISOString(),
       ...(data.agentInfo ? { agentInfo: data.agentInfo } : {}),
-      messages: data.messages,
+      messages,
       ...(data.usageSummary ? { usageSummary: data.usageSummary } : {}),
-      ...(data.toolSummary ? { toolSummary: data.toolSummary } : {}),
-      ...(data.toolCallDetails ? { toolCallDetails: data.toolCallDetails } : {}),
+      ...(includeToolCalls && data.toolSummary ? { toolSummary: data.toolSummary } : {}),
+      ...(includeToolCalls && data.toolCallDetails ? { toolCallDetails: data.toolCallDetails } : {}),
     },
     null,
     2,
@@ -227,13 +251,13 @@ export function downloadFile(content: string, filename: string, mimeType: string
   });
 }
 
-export function downloadAsMarkdown(data: ExportData): void {
-  const content = formatChatAsMarkdown(data);
+export function downloadAsMarkdown(data: ExportData, options?: ExportFormatOptions): void {
+  const content = formatChatAsMarkdown(data, options);
   downloadFile(content, buildFilename(data.chat.title, 'md'), 'text/markdown;charset=utf-8');
 }
 
-export function downloadAsJson(data: ExportData): void {
-  const content = formatChatAsJson(data);
+export function downloadAsJson(data: ExportData, options?: ExportFormatOptions): void {
+  const content = formatChatAsJson(data, options);
   downloadFile(content, buildFilename(data.chat.title, 'json'), 'application/json;charset=utf-8');
 }
 
@@ -241,14 +265,15 @@ export async function downloadAsHtml(
   data: ExportData,
   theme: 'light' | 'dark' = 'light',
   lang: 'en' | 'zh' = 'en',
+  options?: ExportFormatOptions,
 ): Promise<void> {
   const { buildHtmlDocument } = await import('./chatExportHtml');
-  const html = await buildHtmlDocument(data, theme, lang);
+  const html = await buildHtmlDocument(data, theme, lang, options);
   downloadFile(html, buildFilename(data.chat.title, 'html'), 'text/html;charset=utf-8');
 }
 
-export async function copyAsMarkdown(data: ExportData): Promise<void> {
-  const content = formatChatAsMarkdown(data);
+export async function copyAsMarkdown(data: ExportData, options?: ExportFormatOptions): Promise<void> {
+  const content = formatChatAsMarkdown(data, options);
   try {
     await writeToClipboard(content);
   } catch {

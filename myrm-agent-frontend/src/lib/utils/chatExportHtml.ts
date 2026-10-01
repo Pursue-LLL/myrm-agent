@@ -8,6 +8,7 @@ import {
   formatUsd,
   type AgentInfo,
   type ExportData,
+  type ExportFormatOptions,
   type ExportMessage,
   type ToolCallDetail,
   type ToolSummary,
@@ -274,6 +275,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Ar
 .tool-details li{padding:3px 0;color:var(--fg);font-family:"SF Mono",Menlo,Monaco,"Courier New",monospace;font-size:0.92em}
 .tool-details .tool-dur{color:var(--muted);font-size:0.9em}
 .tool-details .tool-fail{color:#e53e3e;font-weight:600}
+.thinking-block{margin-bottom:10px;padding:8px 12px;background:var(--stats-bg);border:1px solid var(--border);border-radius:8px;font-size:0.85em}
+.thinking-block summary{cursor:pointer;font-weight:600;color:var(--muted);user-select:none}
+.thinking-block summary:hover{color:var(--fg)}
+.thinking-content{margin-top:8px;white-space:pre-wrap;color:var(--fg);font-family:"SF Mono",Menlo,Monaco,"Courier New",monospace;font-size:0.92em;line-height:1.5}
 .footer{text-align:center;padding:20px;color:var(--muted);font-size:0.8em;border-top:1px solid var(--border);margin-top:24px}
 @media(max-width:640px){body{padding:8px}.export-header{padding:14px}.message{padding:12px}.stats{flex-direction:column;gap:6px}}
 @media print{.theme-toggle{display:none}.widget-source{display:none}.code-block,.message{break-inside:avoid}body{max-width:none;padding:0}}
@@ -333,6 +338,7 @@ interface HtmlLabels {
   total: string;
   apiCalls: string;
   cost: string;
+  thinking: string;
 }
 
 function getLabels(lang: 'en' | 'zh'): HtmlLabels {
@@ -352,6 +358,7 @@ function getLabels(lang: 'en' | 'zh'): HtmlLabels {
         total: '总计',
         apiCalls: 'API 调用',
         cost: '费用',
+        thinking: '深度思考',
       }
     : {
         msgs: 'Messages',
@@ -368,6 +375,7 @@ function getLabels(lang: 'en' | 'zh'): HtmlLabels {
         total: 'Total',
         apiCalls: 'API Calls',
         cost: 'Cost',
+        thinking: 'Thinking',
       };
 }
 
@@ -451,7 +459,10 @@ export async function buildHtmlDocument(
   data: ExportData,
   theme: 'light' | 'dark' = 'light',
   lang: 'en' | 'zh' = 'en',
+  options?: ExportFormatOptions,
 ): Promise<string> {
+  const includeReasoning = options?.includeReasoning ?? true;
+  const includeToolCalls = options?.includeToolCalls ?? true;
   const title = data.chat.title || 'Untitled';
   const stats = computeStats(data.messages);
   const exportDate = new Date().toLocaleString();
@@ -465,8 +476,20 @@ export async function buildHtmlDocument(
     }
     const htmlContent = await renderMarkdown(msg.content);
     let msgHtml = renderMessageHtml(msg, htmlContent);
+
+    if (includeReasoning) {
+      const reasoning = (msg.metadata?.reasoning_content ?? msg.metadata?.reasoning) as string | undefined;
+      if (reasoning) {
+        const thinkingHtml = `<details class="thinking-block"><summary>${esc(labels.thinking)}</summary><div class="thinking-content">${esc(reasoning)}</div></details>\n`;
+        const bodyIdx = msgHtml.indexOf('<div class="msg-body">');
+        if (bodyIdx !== -1) {
+          msgHtml = msgHtml.slice(0, bodyIdx) + thinkingHtml + msgHtml.slice(bodyIdx);
+        }
+      }
+    }
+
     if (msg.role === 'assistant') {
-      if (data.toolCallDetails) {
+      if (includeToolCalls && data.toolCallDetails) {
         const toolDetailsHtml = renderToolCallDetailsHtml(data.toolCallDetails, assistantTurnIndex, labels);
         if (toolDetailsHtml) {
           const lastClose = msgHtml.lastIndexOf('</div>');
@@ -480,7 +503,7 @@ export async function buildHtmlDocument(
 
   const themeToggleText = theme === 'dark' ? '☀ Light' : '☾ Dark';
   const usageHtml = renderUsageStats(data.usageSummary, labels);
-  const toolActivityHtml = renderToolActivityHtml(data.toolSummary, labels);
+  const toolActivityHtml = includeToolCalls ? renderToolActivityHtml(data.toolSummary, labels) : '';
   const agentCardHtml = renderAgentCard(data.agentInfo, labels);
 
   return `<!DOCTYPE html>

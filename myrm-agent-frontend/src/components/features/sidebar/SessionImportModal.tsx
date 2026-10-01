@@ -143,16 +143,19 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
       return;
     }
     const cid = importResult.chat_id;
+    router.push(`/${cid}`);
     handleModalClose(false);
     if (onImportSuccess) {
       onImportSuccess(cid);
     }
-    router.push(`/chat/${cid}`);
   }, [importResult, handleModalClose, onImportSuccess, router]);
 
   return (
     <Dialog open={open} onOpenChange={handleModalClose}>
-      <DialogContent data-testid="session-import-modal" className="max-w-xl w-[92vw] p-0 overflow-hidden bg-background/95 backdrop-blur-md border border-border/80 shadow-2xl rounded-2xl">
+      <DialogContent
+        data-testid="session-import-modal"
+        className="max-w-xl w-[92vw] p-0 overflow-hidden bg-background/95 backdrop-blur-md border border-border/80 shadow-2xl rounded-2xl"
+      >
         <DialogHeader className="p-6 pb-4 border-b border-border/40">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary flex-shrink-0">
@@ -176,7 +179,10 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
         <div className="p-6 space-y-5">
           {/* Result Banner after import */}
           {importResult ? (
-            <div data-testid="import-result-stats" className="p-5 rounded-xl bg-card border border-primary/30 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div
+              data-testid="import-result-stats"
+              className="p-5 rounded-xl bg-card border border-primary/30 space-y-4 animate-in fade-in zoom-in-95 duration-200"
+            >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2.5 text-primary">
                   <CheckCircle2 className="w-5 h-5" />

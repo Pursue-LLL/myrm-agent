@@ -127,18 +127,19 @@ def test_import_session_http_lifecycle_e2e() -> None:
     # 2. Verify messages persisted to SQLite without CoT
     messages_resp = _api_request(f"/api/v1/chats/{chat_id}/messages")
     assert messages_resp is not None, "Failed to retrieve messages"
-    messages = messages_resp.get("messages") or messages_resp.get("data")
+    raw_data = messages_resp.get("data") if isinstance(messages_resp.get("data"), dict) else messages_resp
+    messages = raw_data.get("messages", []) if isinstance(raw_data, dict) else []
     assert isinstance(messages, list) and len(messages) >= 2
 
     # User message check (secret redacted)
-    user_msg = messages[0]
-    assert "sk-ant" not in user_msg.get("content", "")
-    assert "[REDACTED_" in user_msg.get("content", "")
+    user_msg = next((m for m in messages if m.get("role") == "user"), {})
+    assert "sk-ant" not in str(user_msg.get("content", ""))
+    assert "[REDACTED_" in str(user_msg.get("content", ""))
 
     # Assistant message check (thinking stripped)
-    asst_msg = messages[1]
-    assert "<thinking>" not in asst_msg.get("content", "")
-    assert "All logs inspected" in asst_msg.get("content", "")
+    asst_msg = next((m for m in messages if m.get("role") == "assistant"), {})
+    assert "<thinking>" not in str(asst_msg.get("content", ""))
+    assert "All logs inspected" in str(asst_msg.get("content", ""))
 
 
 @pytest.mark.chrome_e2e(
@@ -160,34 +161,30 @@ def test_import_session_webui_modal_and_resume_chrome_e2e() -> None:
     warm_ui_route("/")
 
     with open_mcp_page(f"{get_e2e_ui_url()}/") as (client, page):
-        # 1. Wait for sidebar import button and click it
-        btn_state = wait_for_state(
-            client,
-            page,
-            """(() => {
-                const btn = document.querySelector('[data-testid="import-session-btn"]');
-                if (!btn) return { ready: false };
-                btn.click();
-                return { ready: true };
-            })()""",
-            timeout_sec=20.0,
-        )
-        assert btn_state.get("ready") is True, f"Import button missing in sidebar: {btn_state}"
-
-        # 2. Wait for modal to open
+        # 1 & 2. Open import modal and ensure paste tab textarea is ready
         modal_state = wait_for_state(
             client,
             page,
             """(() => {
                 const modal = document.querySelector('[data-testid="session-import-modal"]');
+                if (!modal) {
+                    const btn = document.querySelector('[data-testid="import-session-btn"]');
+                    if (btn) btn.click();
+                    return { ready: false, step: "waiting_modal" };
+                }
+                const textarea = document.querySelector('[data-testid="import-paste-textarea"]');
+                if (textarea) {
+                    return { ready: true, step: "textarea_ready" };
+                }
                 const pasteTab = document.querySelector('[data-testid="import-tab-paste"]');
-                if (!modal || !pasteTab) return { ready: false };
-                pasteTab.click();
-                return { ready: true };
+                if (pasteTab) {
+                    pasteTab.click();
+                }
+                return { ready: false, step: "waiting_paste_tab" };
             })()""",
-            timeout_sec=15.0,
+            timeout_sec=30.0,
         )
-        assert modal_state.get("ready") is True, f"Modal did not open: {modal_state}"
+        assert modal_state.get("ready") is True, f"Modal did not become ready: {modal_state}"
 
         # 3. Enter transcript in paste mode and click Import
         payload_escaped = json.dumps(_SAMPLE_HERMES_TRANSCRIPT)
@@ -196,12 +193,19 @@ def test_import_session_webui_modal_and_resume_chrome_e2e() -> None:
             f"""(() => {{
                 const textarea = document.querySelector('[data-testid="import-paste-textarea"]');
                 if (!textarea) return {{ ok: false, reason: 'textarea-missing' }};
-                textarea.value = {payload_escaped};
+                const proto = window.HTMLTextAreaElement.prototype;
+                const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+                if (setter) {{
+                    setter.call(textarea, {payload_escaped});
+                }} else {{
+                    textarea.value = {payload_escaped};
+                }}
                 textarea.dispatchEvent(new Event('input', {{ bubbles: true }}));
                 textarea.dispatchEvent(new Event('change', {{ bubbles: true }}));
 
                 const submitBtn = document.querySelector('[data-testid="import-submit-btn"]');
-                if (!submitBtn || submitBtn.disabled) return {{ ok: false, reason: 'submit-disabled' }};
+                if (!submitBtn) return {{ ok: false, reason: 'submit-missing' }};
+                if (submitBtn.disabled) return {{ ok: false, reason: 'submit-disabled' }};
                 submitBtn.click();
                 return {{ ok: true }};
             }})()""",
@@ -240,6 +244,17 @@ def test_import_session_webui_modal_and_resume_chrome_e2e() -> None:
         )
         assert isinstance(nav_eval, dict) and nav_eval.get("clicked") is True
 
-        time.sleep(2.0)
-        url_check = client.evaluate(page, "window.location.pathname", timeout_sec=5.0)
-        assert isinstance(url_check, str) and "/chat/" in url_check, f"Did not navigate to chat: {url_check}"
+        navigated = wait_for_state(
+            client,
+            page,
+            """(() => {
+                const path = window.location.pathname || '';
+                return {
+                    ready: path.startsWith('/chat_'),
+                    pathname: path,
+                };
+            })()""",
+            timeout_sec=30.0,
+        )
+        assert navigated.get("ready") is True, f"Did not navigate to chat: {navigated}"
+        assert str(navigated.get("pathname", "")).startswith("/chat_")

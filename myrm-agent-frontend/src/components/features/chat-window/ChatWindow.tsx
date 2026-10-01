@@ -35,6 +35,7 @@ import { ParentChatLink } from './ParentChatLink';
 import { ChatCronLink } from './ChatCronLink';
 import SessionRevertButton from '../message-actions/SessionRevertButton';
 import ReplayAction from './ReplayAction';
+import SessionExportButton from './SessionExportButton';
 import WorkingStateBadge from './WorkingStateBadge';
 import RunStatusChip from '@/components/features/copilot/RunStatusChip';
 import SessionAdvisorPanel from '@/components/features/copilot/SessionAdvisorPanel';
@@ -605,6 +606,7 @@ const ChatWindow = ({ id }: ChatWindowProps) => {
                   <ChatCronLink chatId={id} />
                   <SessionRevertButton sessionId={id} />
                   <ReplayAction chatId={id} />
+                  <SessionExportButton chatId={id} />
                 </div>
                 {/* 活跃会话 双 Tab 切换器 */}
                 <div className="inline-flex items-center rounded-lg bg-muted/60 p-0.5 text-xs font-medium border border-border/40">

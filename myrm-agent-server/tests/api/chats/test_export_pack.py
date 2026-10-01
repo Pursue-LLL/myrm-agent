@@ -116,14 +116,23 @@ async def test_export_pack_get_zip_content(
         db.add(version)
         await db.commit()
 
-    # 写入根事件日志
+    # 写入根事件日志（包含 API Key 和 PEM 私钥）
+    pem_key = (
+        "-----BEGIN RSA PRIVATE KEY-----\n"
+        "MIIEowIBAAKCAQEA0Y123456789abcdefghijklmnopqrstuvwxyz0123456789\n"
+        "-----END RSA PRIVATE KEY-----"
+    )
     raw_event = json.dumps(
         {
             "seq": 1,
             "ts": 1700000000.0,
             "type": "tool_start",
             "sid": chat_id,
-            "data": {"tool": "bash", "command": "pytest --secret=sk-ant-api03-abcdefg"},
+            "data": {
+                "tool": "bash",
+                "command": "pytest --secret=sk-ant-api03-abcdefg",
+                "private_key": pem_key,
+            },
         }
     ) + "\n"
     (log_dir / f"{chat_id}.jsonl").write_text(raw_event, encoding="utf-8")
@@ -166,6 +175,7 @@ async def test_export_pack_get_zip_content(
         session_log_content = zf.read("session.jsonl").decode("utf-8")
         assert "sk-ant-api03-abcdefg" not in session_log_content
         assert "sk-ant...defg" in session_log_content
+        assert "MIIEowIBAAKCAQEA0Y123456789" not in session_log_content
 
         # 校验工件内容完整性
         art_file = [name for name in namelist if name.startswith("artifacts/patch.diff/")][0]

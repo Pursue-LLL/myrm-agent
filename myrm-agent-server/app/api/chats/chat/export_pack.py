@@ -121,8 +121,8 @@ async def _generate_zip_stream(
         try:
             raw_text = root_log_path.read_text(encoding="utf-8", errors="replace")
             if redact_secrets:
-                lines = [redact_sensitive_text(line) for line in raw_text.splitlines(keepends=True)]
-                root_log_bytes = "".join(lines).encode("utf-8")
+                redacted_text = redact_sensitive_text(raw_text)
+                root_log_bytes = redacted_text.encode("utf-8")
             else:
                 root_log_bytes = raw_text.encode("utf-8")
         except Exception as exc:
@@ -148,8 +148,8 @@ async def _generate_zip_stream(
             try:
                 sub_text = log_file.read_text(encoding="utf-8", errors="replace")
                 if redact_secrets:
-                    sub_lines = [redact_sensitive_text(line) for line in sub_text.splitlines(keepends=True)]
-                    sub_bytes = "".join(sub_lines).encode("utf-8")
+                    redacted_sub = redact_sensitive_text(sub_text)
+                    sub_bytes = redacted_sub.encode("utf-8")
                 else:
                     sub_bytes = sub_text.encode("utf-8")
                 arc_path = _sanitize_arcname(f"subagents/{sub_id}/session.jsonl")

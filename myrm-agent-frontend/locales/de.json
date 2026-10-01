@@ -271,7 +271,8 @@
       "loopStopped": "Aktuelle Sitzungsschleife gestoppt",
       "loopStatusActive": "Aktive Schleife läuft (Intervall: {interval}, Durchläufe: {ticks})",
       "loopStatusInactive": "Keine aktive Schleife in dieser Konversation",
-      "loopTargetReached": "Sitzungsschleife hat Zielbedingung erreicht und wurde beendet"
+      "loopTargetReached": "Sitzungsschleife hat Zielbedingung erreicht und wurde beendet",
+      "export": "Sitzung exportieren oder Markdown kopieren (unterstützt HTML/MD/JSON/ZIP)"
     }
   },
   "copilot": {
@@ -1877,7 +1878,25 @@
       "noMessages": "Keine Nachrichten zum Exportieren",
       "print": "Drucken",
       "exportZipPack": "Sitzungsarchiv exportieren (.zip)",
-      "exportZipFailed": "Fehler beim Exportieren des Sitzungsprotokoll-Pakets"
+      "exportZipFailed": "Fehler beim Exportieren des Sitzungsprotokoll-Pakets",
+      "modalTitle": "Sitzung exportieren & Wissen teilen",
+      "selectFormat": "Exportformat auswählen",
+      "options": "Exportoptionen",
+      "recommended": "Empfohlen",
+      "htmlDesc": "Eigenständige Einzeldatei mit Dunkelmodus, Formeln und Syntaxhervorhebung",
+      "markdownDesc": "Standarddokument, ideal für Wissensdatenbanken und Notiz-Apps",
+      "jsonDesc": "Maschinenlesbares Komplettpaket zur Weiterverarbeitung",
+      "zipDesc": "Vollständiges Archiv mit Ereignisprotokollen, Subagent-Spuren und Artefakten",
+      "redactSecretsLabel": "Vertrauliche Zugangsdaten schwärzen",
+      "redactSecretsHint": "API-Schlüssel, Tokens, private Schlüssel und Passwörter automatisch maskieren",
+      "includeReasoningLabel": "Denkprozess des Modells (Thinking) einbeziehen",
+      "includeReasoningHint": "Einklappbare Karten für tiefe Denkketten beibehalten",
+      "includeToolCallsLabel": "Tool-Aufrufe und Latenz analysieren",
+      "includeToolCallsHint": "Parameterzusammenfassung, Ausführungszeit und Status der Tools protokollieren",
+      "downloadAction": "Ausgewähltes Format herunterladen",
+      "tooltip": "Sitzung exportieren oder Markdown kopieren",
+      "copied": "Kopiert",
+      "action": "Exportieren"
     },
     "ideHandoff": {
       "openInIDE": "In IDE öffnen",
@@ -2356,7 +2375,8 @@
       "time_night_0": "Refactoring-Strategien und Schnittstellenisolierung für komplexe Systeme strukturieren",
       "time_night_1": "Engpässe bei der Zeit- und Speicherkomplexität von Algorithmen analysieren",
       "time_night_2": "Persönliche Wissensdatenbank organisieren und veraltete Notizen archivieren",
-      "time_night_3": "Gliederung für einen technischen Blogbeitrag und Kernargumente verfassen"
+      "time_night_3": "Gliederung für einen technischen Blogbeitrag und Kernargumente verfassen",
+      "agent_pptx": "Help me generate a reporting PPTX presentation with takeaway headlines and 16:9 business layout"
     },
     "cancel_request": "Anfrage stornieren",
     "performanceDiagnostics": "Leistungsdiagnostik",
@@ -3127,6 +3147,21 @@
       "untilCondition": "Stoppbedingung: {condition}",
       "userActivityPaused": "Benutzer aktiv, Schleife aufgeschoben",
       "tooltip": "Sitzungsbezogener adaptiver Exponential-Backoff-Schleifen-Scheduler"
+    },
+    "personalClosedLoop": {
+      "badge": "Trinity Loop",
+      "title": "Personal Workflow Loop: Todo · Log · Weekly Report",
+      "desc": "Take Kanban tasks as input, record daily factual logs, and automatically aggregate into a structured weekly review for refined personal delivery.",
+      "step1Title": "Todo Breakdown",
+      "step1Desc": "Kanban task planning and phase tracking",
+      "step1Prompt": "Help me organize and break down current key tasks, prioritize them, and synchronize them into Kanban board.",
+      "step2Title": "Daily Reconciliation",
+      "step2Desc": "DailyJournal capturing facts and decision blockers",
+      "step2Prompt": "Help me document today's work journal (Daily Journal), listing key facts, core decision blockers, and progress evidence.",
+      "step3Title": "Smart Weekly Report",
+      "step3Desc": "WeeklyReview blueprint aggregating metrics",
+      "step3Prompt": "Retrieve completed tasks and daily journal logs from this week, and compile a structured weekly summary report following conclusion-first, data-backed metrics, and blocker retrospective.",
+      "oneClickAction": "Load Workflow Prompt"
     }
   },
   "mode": {

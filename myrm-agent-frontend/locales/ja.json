@@ -271,7 +271,8 @@
       "loopStopped": "現在のセッションループを停止しました",
       "loopStatusActive": "現在のループ実行中 (間隔: {interval}、実行回数: {ticks} 回)",
       "loopStatusInactive": "この会話で実行中のループはありません",
-      "loopTargetReached": "セッションループが終了条件を達成し完了しました"
+      "loopTargetReached": "セッションループが終了条件を達成し完了しました",
+      "export": "セッションのエクスポートまたは Markdown のコピー (HTML/MD/JSON/ZIP 対応)"
     }
   },
   "copilot": {
@@ -1973,7 +1974,25 @@
       "noMessages": "なしメッセージ可エクスポート",
       "print": "印刷",
       "exportZipPack": "セッションアーカイブをエクスポート (.zip)",
-      "exportZipFailed": "セッションログパックのエクスポートに失敗しました"
+      "exportZipFailed": "セッションログパックのエクスポートに失敗しました",
+      "modalTitle": "セッションのエクスポートとナレッジ共有",
+      "selectFormat": "エクスポート形式の選択",
+      "options": "エクスポートオプション",
+      "recommended": "おすすめ",
+      "htmlDesc": "ダークモード、数式、構文ハイライトを含むスタンドアロン単一ファイル",
+      "markdownDesc": "ナレッジベースやメモツールに適した標準ドキュメント",
+      "jsonDesc": "二次処理や解析に適した完全な機械可読データパック",
+      "zipDesc": "生イベントログ、サブエージェントの軌跡、すべての成果物を含む完全アーカイブ",
+      "redactSecretsLabel": "機密認証情報を自動マスキング",
+      "redactSecretsHint": "API キー、トークン、秘密鍵、パスワードを自動的にマスクします",
+      "includeReasoningLabel": "モデルの思考プロセス (Thinking) を含める",
+      "includeReasoningHint": "推論チェーンの折りたたみカードを保持します",
+      "includeToolCallsLabel": "ツール実行と所要時間分析を含める",
+      "includeToolCallsHint": "ツール呼び出しの引数概要、所要時間、ステータスを記録します",
+      "downloadAction": "選択した形式でダウンロード",
+      "tooltip": "セッションをエクスポートまたは Markdown をコピー",
+      "copied": "コピーしました",
+      "action": "エクスポート"
     },
     "ideHandoff": {
       "openInIDE": "IDEで開く",
@@ -2767,7 +2786,8 @@
       "time_night_0": "複雑なシステムのリファクタリング方針と境界分離を整理する",
       "time_night_1": "アルゴリズムの時間・空間計算量のボトルネックを分析する",
       "time_night_2": "個人ナレッジベースを整理し古いノートをアーカイブする",
-      "time_night_3": "技術ブログのアウトラインとコア論点をまとめる"
+      "time_night_3": "技術ブログのアウトラインとコア論点をまとめる",
+      "agent_pptx": "Help me generate a reporting PPTX presentation with takeaway headlines and 16:9 business layout"
     },
     "lifeOperator": {
       "contextHeader": "時間帯別コンテキストオペレーター",
@@ -3127,6 +3147,21 @@
       "untilCondition": "終了条件: {condition}",
       "userActivityPaused": "ユーザー操作を検出、ループ待機中",
       "tooltip": "セッション対応適応型指数バックオフループスケジューラ"
+    },
+    "personalClosedLoop": {
+      "badge": "Trinity Loop",
+      "title": "Personal Workflow Loop: Todo · Log · Weekly Report",
+      "desc": "Take Kanban tasks as input, record daily factual logs, and automatically aggregate into a structured weekly review for refined personal delivery.",
+      "step1Title": "Todo Breakdown",
+      "step1Desc": "Kanban task planning and phase tracking",
+      "step1Prompt": "Help me organize and break down current key tasks, prioritize them, and synchronize them into Kanban board.",
+      "step2Title": "Daily Reconciliation",
+      "step2Desc": "DailyJournal capturing facts and decision blockers",
+      "step2Prompt": "Help me document today's work journal (Daily Journal), listing key facts, core decision blockers, and progress evidence.",
+      "step3Title": "Smart Weekly Report",
+      "step3Desc": "WeeklyReview blueprint aggregating metrics",
+      "step3Prompt": "Retrieve completed tasks and daily journal logs from this week, and compile a structured weekly summary report following conclusion-first, data-backed metrics, and blocker retrospective.",
+      "oneClickAction": "Load Workflow Prompt"
     }
   },
   "mode": {

@@ -271,7 +271,8 @@
       "loopStopped": "현재 세션 루프가 중지되었습니다",
       "loopStatusActive": "현재 루프 실행 중 (간격: {interval}, 실행 횟수: {ticks}회)",
       "loopStatusInactive": "이 대화에 실행 중인 루프가 없습니다",
-      "loopTargetReached": "세션 루프가 종료 조건을 달성하여 완료되었습니다"
+      "loopTargetReached": "세션 루프가 종료 조건을 달성하여 완료되었습니다",
+      "export": "대화 내보내기 또는 Markdown 복사 (HTML/MD/JSON/ZIP 지원)"
     }
   },
   "copilot": {
@@ -1877,7 +1878,25 @@
       "noMessages": "내보낼 메시지가 없습니다",
       "print": "인쇄",
       "exportZipPack": "세션 아카이브 내보내기 (.zip)",
-      "exportZipFailed": "세션 로그 팩 내보내기 실패"
+      "exportZipFailed": "세션 로그 팩 내보내기 실패",
+      "modalTitle": "대화 내보내기 및 지식 공유",
+      "selectFormat": "내보내기 형식 선택",
+      "options": "내보내기 옵션",
+      "recommended": "추천",
+      "htmlDesc": "다크 모드, 수식 및 코드 하이라이트가 포함된 독립형 단일 파일",
+      "markdownDesc": "지식 베이스 및 노트 앱에 적합한 표준 문서",
+      "jsonDesc": "2차 분석 및 처리를 위한 기계 판독 가능 전체 데이터 팩",
+      "zipDesc": "이벤트 로그, 서브에이전트 추적 및 모든 산출물이 포함된 완전한 아카이브",
+      "redactSecretsLabel": "민감한 자격 증명 자동 마스킹",
+      "redactSecretsHint": "API 키, 토큰, 프라이빗 키 및 비밀번호를 자동으로 마스킹합니다",
+      "includeReasoningLabel": "모델 사고 과정 (Thinking) 포함",
+      "includeReasoningHint": "심층 추론 체인 접기 카드를 유지합니다",
+      "includeToolCallsLabel": "도구 호출 및 소요 시간 분석 포함",
+      "includeToolCallsHint": "도구 호출 매개변수 요약, 실행 시간 및 성공 상태를 기록합니다",
+      "downloadAction": "선택한 형식으로 다운로드",
+      "tooltip": "대화 내보내기 또는 Markdown 복사",
+      "copied": "복사됨",
+      "action": "내보내기"
     },
     "ideHandoff": {
       "openInIDE": "IDE에서 열기",
@@ -2358,7 +2377,8 @@
       "time_night_0": "복잡한 시스템 리팩터링 방향 및 경계 격리 방안 정리하기",
       "time_night_1": "알고리즘의 시간 및 공간 복잡도 병목 심층 분석하기",
       "time_night_2": "개인 지식 베이스를 정리하고 오래된 노트 아카이브하기",
-      "time_night_3": "기술 블로그 개요 작성 및 핵심 주장 정리하기"
+      "time_night_3": "기술 블로그 개요 작성 및 핵심 주장 정리하기",
+      "agent_pptx": "Help me generate a reporting PPTX presentation with takeaway headlines and 16:9 business layout"
     },
     "cancel_request": "요청 취소",
     "performanceDiagnostics": "성능 진단",
@@ -3127,6 +3147,21 @@
       "untilCondition": "종료 조건: {condition}",
       "userActivityPaused": "사용자 입력 감지, 루프 연기됨",
       "tooltip": "세션 범위 적응형 지수 백오프 루프 스케줄러"
+    },
+    "personalClosedLoop": {
+      "badge": "Trinity Loop",
+      "title": "Personal Workflow Loop: Todo · Log · Weekly Report",
+      "desc": "Take Kanban tasks as input, record daily factual logs, and automatically aggregate into a structured weekly review for refined personal delivery.",
+      "step1Title": "Todo Breakdown",
+      "step1Desc": "Kanban task planning and phase tracking",
+      "step1Prompt": "Help me organize and break down current key tasks, prioritize them, and synchronize them into Kanban board.",
+      "step2Title": "Daily Reconciliation",
+      "step2Desc": "DailyJournal capturing facts and decision blockers",
+      "step2Prompt": "Help me document today's work journal (Daily Journal), listing key facts, core decision blockers, and progress evidence.",
+      "step3Title": "Smart Weekly Report",
+      "step3Desc": "WeeklyReview blueprint aggregating metrics",
+      "step3Prompt": "Retrieve completed tasks and daily journal logs from this week, and compile a structured weekly summary report following conclusion-first, data-backed metrics, and blocker retrospective.",
+      "oneClickAction": "Load Workflow Prompt"
     }
   },
   "mode": {
