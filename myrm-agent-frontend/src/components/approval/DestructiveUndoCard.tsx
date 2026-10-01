@@ -74,13 +74,12 @@ export function DestructiveUndoCard({
 
   if (hasRolledBack) {
     return (
-      <div
-        className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-800 dark:text-emerald-300"
-        role="status"
+      <output
+        className="flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-800 dark:text-emerald-300 block"
       >
         <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
         <span>{t('rollbackSuccess')}</span>
-      </div>
+      </output>
     );
   }
 

@@ -14,6 +14,9 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
+from myrm_agent_harness.api.security import (
+    rollback_workspace_snapshot,
+)
 from pydantic import BaseModel
 
 from app.api.approvals.credentials import router as credentials_router
@@ -571,8 +574,6 @@ async def rollback_approval_snapshot(
 ) -> dict[str, object]:
     """Rollback the workspace state to the pre-destructive snapshot captured for this approval."""
     from pathlib import Path
-
-    from myrm_agent_harness.api.security import rollback_workspace_snapshot
 
     record = await ApprovalRegistry.get_approval(approval_id)
     if not record:

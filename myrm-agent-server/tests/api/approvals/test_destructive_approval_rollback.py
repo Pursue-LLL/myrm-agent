@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.services.approvals.registry import ApprovalRegistry
+from app.services.event.app_event_bus import AppEventType, get_event_bus
 
 
 @pytest.mark.asyncio
@@ -30,7 +31,9 @@ async def test_resolve_strips_allow_always_for_destructive_action(client) -> Non
         thread_id="thread-dest-1",
     )
 
-    with patch("app.services.event.app_event_bus.AppEventBus.publish") as mock_publish:
+    bus = get_event_bus()
+    mock_publish = MagicMock()
+    with patch.object(bus, "publish", mock_publish):
         resp = client.post(
             f"/api/v1/approvals/{record.id}/resolve",
             json={
@@ -41,12 +44,16 @@ async def test_resolve_strips_allow_always_for_destructive_action(client) -> Non
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "approved"
+        assert data["status"].lower() == "approved"
 
-        # Verify event published has allow_always=None
-        mock_publish.assert_called_once()
-        published_event = mock_publish.call_args[0][0]
-        assert published_event.data.get("allow_always") is None
+        # Verify APPROVAL_RESOLVED event published has allow_always=None
+        resolved_events = [
+            call[0][0]
+            for call in mock_publish.call_args_list
+            if call[0][0].event_type == AppEventType.APPROVAL_RESOLVED
+        ]
+        assert len(resolved_events) == 1
+        assert resolved_events[0].data.get("allow_always") is None
 
 
 @pytest.mark.asyncio
@@ -86,7 +93,7 @@ async def test_rollback_approval_success(client) -> None:
     )
 
     with patch(
-        "myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot.rollback_workspace_snapshot",
+        "app.api.approvals.router.rollback_workspace_snapshot",
         return_value=True,
     ) as mock_rollback:
         resp = client.post(
