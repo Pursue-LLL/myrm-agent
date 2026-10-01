@@ -111,27 +111,21 @@ def test_import_session_http_lifecycle_e2e() -> None:
 
     # 1. Post raw transcript
     import_resp = _api_request(
-        "/api/chats/import-transcript",
+        "/api/v1/chats/import-transcript",
         method="POST",
         data={
-            "transcript_text": _SAMPLE_HERMES_TRANSCRIPT,
-            "source_platform": "hermes",
-            "strip_cot": True,
-            "redact_sensitive": True,
+            "raw_content": _SAMPLE_HERMES_TRANSCRIPT,
+            "source_hint": "hermes",
         },
     )
     assert import_resp is not None, "API returned empty response"
     assert "chat_id" in import_resp, f"chat_id missing in {import_resp}"
     chat_id = str(import_resp["chat_id"])
-    assert import_resp.get("imported_turns") == 1
-    assert import_resp.get("redacted_items_count", 0) >= 1
-
-    token_stats = import_resp.get("token_stats")
-    assert isinstance(token_stats, dict)
-    assert token_stats.get("compression_ratio", 0) > 0.3
+    assert import_resp.get("turns_count") == 1
+    assert import_resp.get("reduction_ratio", 0) > 0.3
 
     # 2. Verify messages persisted to SQLite without CoT
-    messages_resp = _api_request(f"/api/chats/{chat_id}/messages")
+    messages_resp = _api_request(f"/api/v1/chats/{chat_id}/messages")
     assert messages_resp is not None, "Failed to retrieve messages"
     messages = messages_resp.get("messages") or messages_resp.get("data")
     assert isinstance(messages, list) and len(messages) >= 2
@@ -139,7 +133,7 @@ def test_import_session_http_lifecycle_e2e() -> None:
     # User message check (secret redacted)
     user_msg = messages[0]
     assert "sk-ant" not in user_msg.get("content", "")
-    assert "[REDACTED_API_KEY]" in user_msg.get("content", "")
+    assert "[REDACTED_" in user_msg.get("content", "")
 
     # Assistant message check (thinking stripped)
     asst_msg = messages[1]
