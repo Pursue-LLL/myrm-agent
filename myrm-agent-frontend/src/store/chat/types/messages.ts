@@ -235,6 +235,13 @@ export type Message = {
   siblingGroupId?: string;
   siblingCount?: number;
   siblingIndex?: number;
+  asyncUserMessages?: Array<{
+    callId: string;
+    message: string;
+    category?: 'progress' | 'milestone' | 'question';
+    recommendation?: string | null;
+    suggested_replies?: string[];
+  }>;
 };
 
 export interface File {

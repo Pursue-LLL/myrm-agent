@@ -69,6 +69,7 @@ import ToolImageGallery from './ToolImageGallery';
 import SessionRecordingCard from './SessionRecordingCard';
 import VisualApprovalInlineSection from '@/components/features/chat-window/approval/VisualApprovalInlineSection';
 import { CouncilResultCard } from '@/components/features/chat-window/CouncilResultCard';
+import { AsyncAgentMessageCard } from '@/components/features/chat-window/AsyncAgentMessageCard';
 import { ChevronDown, ChevronRight, BrainCircuit } from 'lucide-react';
 import { MessageToc } from './MessageToc';
 import { McpAppSection } from './McpAppSection';
@@ -781,6 +782,34 @@ const MessageBox = ({
                 answer={message.humanGate.answer}
                 timedOut={message.humanGate.timedOut}
               />
+            )}
+
+            {/* 智能体长任务中途主动异步汇报与非阻塞交互卡片 */}
+            {message.asyncUserMessages && message.asyncUserMessages.length > 0 && (
+              <div className="flex flex-col gap-2 my-2">
+                {message.asyncUserMessages.map((asyncMsg) => (
+                  <AsyncAgentMessageCard
+                    key={asyncMsg.callId}
+                    callId={asyncMsg.callId}
+                    message={asyncMsg.message}
+                    category={asyncMsg.category}
+                    recommendation={asyncMsg.recommendation}
+                    suggested_replies={asyncMsg.suggested_replies}
+                    onSteerReply={async (reply, callId, questionContext) => {
+                      const store = useChatStore.getState();
+                      if (isLast && loading) {
+                        await store.steerMessage(reply, {
+                          inReplyToCallId: callId,
+                          questionContext,
+                        });
+                      } else {
+                        // 降级回填（Hermes #64578 机制）：流已结束，回填输入框供下一轮发送
+                        store.setInputMessage(reply);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
             )}
 
             <WaterDropCostView
