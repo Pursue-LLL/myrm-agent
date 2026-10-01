@@ -99,6 +99,7 @@ class _ChatMessageMixin(_ChatServiceBase):
         message_id: str | None = None,
         extra_data: dict[str, object] | None = None,
         sibling_group_id: str | None = None,
+        is_incognito: bool = False,
     ) -> MessageDTO:
         if role not in ALLOWED_MESSAGE_ROLES:
             raise ValueError(f"Invalid message role: {role!r}. Must be one of {ALLOWED_MESSAGE_ROLES}")
@@ -122,6 +123,24 @@ class _ChatMessageMixin(_ChatServiceBase):
                     "original_char_count": spill_res.original_char_count,
                     "sha256": spill_res.content_sha256,
                 }
+
+        from app.services.chat.ephemeral_session_store import EphemeralSessionStore
+
+        ephemeral_store = EphemeralSessionStore.get_instance()
+        if is_incognito or await ephemeral_store.has_session(chat_id):
+            msg = MessageDTO(
+                id=message_id or str(uuid4()),
+                chat_id=chat_id,
+                role=role,
+                content=final_content,
+                sent_at=sent_at,
+                sent_timezone=sent_timezone,
+                extra_data=extra_data,
+                sibling_group_id=sibling_group_id,
+                created_at=datetime.utcnow(),
+            )
+            await ephemeral_store.append_message(chat_id, msg)
+            return msg
 
         try:
             from app.core.eval.adaptive import mark_chat_activity
@@ -292,6 +311,14 @@ class _ChatMessageMixin(_ChatServiceBase):
         chat_id: str, *, before: str | None = None, limit: int = 10
     ) -> tuple[list[MessageDTO], bool]:
         limit = min(limit, 100)
+        from app.services.chat.ephemeral_session_store import EphemeralSessionStore
+
+        ephemeral_store = EphemeralSessionStore.get_instance()
+        if await ephemeral_store.has_session(chat_id):
+            mem_msgs = await ephemeral_store.get_messages(chat_id)
+            result_msgs = list(reversed(mem_msgs[:limit]))
+            return (result_msgs, len(mem_msgs) > limit)
+
         async with UnitOfWork() as uow:
             messages = await _ChatServiceBase._cr(uow).get_messages_paginated(chat_id, before, limit + 1)
             has_more = len(messages) > limit
@@ -300,11 +327,26 @@ class _ChatMessageMixin(_ChatServiceBase):
 
     @staticmethod
     async def get_all_messages(chat_id: str) -> list[MessageDTO]:
+        from app.services.chat.ephemeral_session_store import EphemeralSessionStore
+
+        ephemeral_store = EphemeralSessionStore.get_instance()
+        if await ephemeral_store.has_session(chat_id):
+            return await ephemeral_store.get_messages(chat_id)
+
         async with UnitOfWork() as uow:
             return await _ChatServiceBase._cr(uow).get_all_messages(chat_id)
 
     @staticmethod
     async def get_message_by_id(chat_id: str, message_id: str) -> MessageDTO | None:
+        from app.services.chat.ephemeral_session_store import EphemeralSessionStore
+
+        ephemeral_store = EphemeralSessionStore.get_instance()
+        if await ephemeral_store.has_session(chat_id):
+            for m in await ephemeral_store.get_messages(chat_id):
+                if m.id == message_id:
+                    return m
+            return None
+
         async with UnitOfWork() as uow:
             return await _ChatServiceBase._cr(uow).get_message_by_id(chat_id, message_id)
 
@@ -338,15 +380,18 @@ class _ChatMessageMixin(_ChatServiceBase):
                 extra_data=extra_data,
                 sibling_group_id=sibling_group_id,
             )
-            await record_memory_influence_event(
-                chat_id=chat_id,
-                message_id=msg.id,
-                content=content,
-                extra_data=extra_data,
-            )
+            from app.services.chat.ephemeral_session_store import EphemeralSessionStore
 
-            # Sync usage ledger to DB (O(1) dashboard querying)
-            await sync_chat_usage(chat_id)
+            if not await EphemeralSessionStore.get_instance().has_session(chat_id):
+                await record_memory_influence_event(
+                    chat_id=chat_id,
+                    message_id=msg.id,
+                    content=content,
+                    extra_data=extra_data,
+                )
+
+                # Sync usage ledger to DB (O(1) dashboard querying)
+                await sync_chat_usage(chat_id)
 
         except Exception as e:
             logger.error("Failed to persist assistant message for chat %s: %s", chat_id, e)

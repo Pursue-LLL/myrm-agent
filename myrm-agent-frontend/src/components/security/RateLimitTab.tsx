@@ -74,7 +74,7 @@ export function RateLimitTab({ rateLimitData, rateLimitLive }: RateLimitTabProps
                       {Math.floor(status.windowSeconds / 60)}
                       {t('rateLimitMinutes')}
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3 px-4 text-right" aria-label={t('rateLimitColUsage')}>
                       <div className="flex items-center justify-end gap-2">
                         <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div

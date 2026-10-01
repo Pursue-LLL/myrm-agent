@@ -334,7 +334,17 @@ def test_cloud_connection_no_ws_library(
 ) -> None:
     """POST /browser/test-cloud-connection reports error when no WS lib is installed."""
     with (
-        patch("app.services.config.service.config_service.get"),
+        patch(
+            "app.services.config.service.config_service.get",
+            return_value=_config_record(
+                {
+                    "enabled": True,
+                    "provider": "steel",
+                    "apiKey": "test-key",
+                    "websocketUrl": "wss://test.provider/ws",
+                }
+            ),
+        ),
         patch.dict(
             sys.modules,
             {
@@ -416,7 +426,10 @@ def test_proxy_connection_success(
     mock_client.__aenter__.return_value = mock_client
     mock_client.get.return_value = mock_response
 
-    with patch("httpx.AsyncClient", return_value=mock_client):
+    with (
+        patch("httpx.AsyncClient", return_value=mock_client),
+        patch("app.api.health.browser.httpx.AsyncClient", return_value=mock_client),
+    ):
         response = client.post("/api/v1/health/browser/test-proxy-connection")
 
     assert response.status_code == 200
@@ -442,7 +455,10 @@ def test_proxy_connection_http_error(
     mock_client.__aenter__.return_value = mock_client
     mock_client.get.return_value = mock_response
 
-    with patch("httpx.AsyncClient", return_value=mock_client):
+    with (
+        patch("httpx.AsyncClient", return_value=mock_client),
+        patch("app.api.health.browser.httpx.AsyncClient", return_value=mock_client),
+    ):
         response = client.post("/api/v1/health/browser/test-proxy-connection")
 
     assert response.status_code == 200

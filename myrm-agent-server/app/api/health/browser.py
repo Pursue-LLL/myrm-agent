@@ -40,7 +40,9 @@ async def browser_health() -> dict[str, object]:
 
     try:
         pool = get_configured_browser_pool()
-        health_status = await pool.health()
+        health_status = pool.health()
+        if asyncio.iscoroutine(health_status):
+            health_status = await health_status
         if isinstance(health_status, dict):
             return {str(k): v for k, v in health_status.items()}
         return {"status": str(health_status)}
