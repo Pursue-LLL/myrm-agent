@@ -21,6 +21,7 @@ import { PlayIcon, PauseIcon, XCircleIcon, CheckCircleIcon, AlertIcon, GoalIcon 
 import { GoalStatusExpanded } from './GoalStatusExpanded';
 import type { GoalStatus } from './goalStatusTypes';
 import { translateGoalReason, computeEtaSeconds, formatEta } from './goalStatusUtils';
+import { TaskAirbagCapsule } from '@/components/features/checkpoint/TaskAirbagCapsule';
 
 export type { GoalStatus, GoalState, AcceptanceResultItem, AcceptanceHistoryEntry } from './goalStatusTypes';
 
@@ -403,31 +404,39 @@ function GoalStatusHeader({
         </div>
       </div>
 
-      {!isTerminal && (
-        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-          {goal.status === 'wait' ? (
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAction('unwait')}>
-              <PlayIcon className="h-4 w-4" />
+      <div
+        role="presentation"
+        className="flex items-center gap-2"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <TaskAirbagCapsule taskId={goal.goalId} />
+        {!isTerminal && (
+          <div className="flex items-center gap-1">
+            {goal.status === 'wait' ? (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAction('unwait')}>
+                <PlayIcon className="h-4 w-4" />
+              </Button>
+            ) : goal.status === 'active' ? (
+              <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="goal-pause-trigger" onClick={onPause}>
+                <PauseIcon className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAction('resume')}>
+                <PlayIcon className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive"
+              onClick={() => onAction('cancel')}
+            >
+              <XCircleIcon className="h-4 w-4" />
             </Button>
-          ) : goal.status === 'active' ? (
-            <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="goal-pause-trigger" onClick={onPause}>
-              <PauseIcon className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAction('resume')}>
-              <PlayIcon className="h-4 w-4" />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-destructive hover:text-destructive"
-            onClick={() => onAction('cancel')}
-          >
-            <XCircleIcon className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

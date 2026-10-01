@@ -49,7 +49,9 @@ export const TimeTravelRollbackModal: React.FC<TimeTravelRollbackModalProps> = (
       if (res.success && res.status === 'rolled_back') {
         toast({
           title: '时光倒流成功',
-          description: '工作区已原子无损回滚至任务起跑点。',
+          description: res.rescueSnapshotId
+            ? `工作区已原子无损回滚至起跑点（已建立翻车现场救援快照 ${res.rescueSnapshotId.slice(0, 7)}）。`
+            : '工作区已原子无损回滚至任务起跑点。',
           variant: 'default',
         });
         window.dispatchEvent(new CustomEvent('app_resync_required'));
@@ -164,7 +166,9 @@ export const TimeTravelRollbackModal: React.FC<TimeTravelRollbackModalProps> = (
 
           {/* Mutated File List */}
           <div className="space-y-1.5">
-            <div className="text-xs font-medium text-muted-foreground">受影响文件列表（共 {status.totalFilesChanged} 项）：</div>
+            <div className="text-xs font-medium text-muted-foreground">
+              受影响文件列表（共 {status.totalFilesChanged} 项）：
+            </div>
             <div className="max-h-48 overflow-y-auto rounded-lg border border-border bg-muted/20 p-2 space-y-1 font-mono text-xs">
               {status.modifiedFiles.map((f) => (
                 <div key={`m-${f}`} className="flex items-center gap-2 text-foreground/90">

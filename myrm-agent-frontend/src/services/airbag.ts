@@ -38,6 +38,7 @@ export interface RollbackAirbagResponse {
   success: boolean;
   taskId: string;
   status: 'rolled_back' | 'failed';
+  rescueSnapshotId?: string | null;
 }
 
 export interface DismissAirbagResponse {
@@ -77,10 +78,7 @@ export const armAirbag = async (taskId: string, workspacePath: string): Promise<
 /**
  * Query cumulative status of an airbag
  */
-export const getAirbagStatus = async (
-  taskId: string,
-  workspacePath?: string,
-): Promise<AirbagStatusResponse> => {
+export const getAirbagStatus = async (taskId: string, workspacePath?: string): Promise<AirbagStatusResponse> => {
   const params = new URLSearchParams();
   if (workspacePath) {
     params.append('workspace_path', workspacePath);
@@ -93,10 +91,7 @@ export const getAirbagStatus = async (
 /**
  * Trigger time-travel rollback for a task
  */
-export const rollbackAirbag = async (
-  taskId: string,
-  workspacePath?: string,
-): Promise<RollbackAirbagResponse> => {
+export const rollbackAirbag = async (taskId: string, workspacePath?: string): Promise<RollbackAirbagResponse> => {
   return toCamel<RollbackAirbagResponse>(
     await apiRequest('/checkpoint/airbag/rollback', {
       method: 'POST',
@@ -108,10 +103,7 @@ export const rollbackAirbag = async (
 /**
  * Dismiss airbag when user confirms changes are safe
  */
-export const dismissAirbag = async (
-  taskId: string,
-  workspacePath?: string,
-): Promise<DismissAirbagResponse> => {
+export const dismissAirbag = async (taskId: string, workspacePath?: string): Promise<DismissAirbagResponse> => {
   return toCamel<DismissAirbagResponse>(
     await apiRequest('/checkpoint/airbag/dismiss', {
       method: 'POST',

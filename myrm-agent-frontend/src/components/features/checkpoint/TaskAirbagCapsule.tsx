@@ -1,3 +1,4 @@
+// @orphan-ok Task Safety Airbag Capsule badge for autonomous run cards
 'use client';
 
 /**
@@ -25,11 +26,7 @@ interface TaskAirbagCapsuleProps {
   className?: string;
 }
 
-export const TaskAirbagCapsule: React.FC<TaskAirbagCapsuleProps> = ({
-  taskId,
-  workspacePath,
-  className = '',
-}) => {
+export const TaskAirbagCapsule: React.FC<TaskAirbagCapsuleProps> = ({ taskId, workspacePath, className = '' }) => {
   const [status, setStatus] = useState<AirbagStatusResponse | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -57,6 +54,7 @@ export const TaskAirbagCapsule: React.FC<TaskAirbagCapsuleProps> = ({
   return (
     <>
       <div
+        data-testid="task-airbag-capsule"
         className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
           status.totalFilesChanged > 0
             ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
@@ -65,7 +63,7 @@ export const TaskAirbagCapsule: React.FC<TaskAirbagCapsuleProps> = ({
       >
         <div className="flex items-center gap-1">
           <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-          <span>安全气囊已就绪</span>
+          <span className="hidden sm:inline">安全气囊已就绪</span>
         </div>
 
         {status.totalFilesChanged > 0 && (
