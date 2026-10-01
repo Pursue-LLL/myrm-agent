@@ -104,7 +104,7 @@ def _detect_and_parse_high_fidelity(
     return None
 
 
-@router.post("/chats/import-transcript", response_model=ImportTranscriptResponse)
+@router.post("/import-transcript", response_model=ImportTranscriptResponse)
 async def import_transcript_json(
     req: ImportTranscriptRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -126,7 +126,7 @@ async def import_transcript_json(
     )
 
 
-@router.post("/chats/import-transcript/file", response_model=ImportTranscriptResponse)
+@router.post("/import-transcript/file", response_model=ImportTranscriptResponse)
 async def import_transcript_file(
     db: Annotated[AsyncSession, Depends(get_db)],
     file: UploadFile = File(...),

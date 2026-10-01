@@ -127,6 +127,64 @@ describe('desktopWakeRecovery', () => {
       expect(loadChatHistory).toHaveBeenCalledWith(1);
       expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
     });
+
+    it('handles loadChatHistory failure gracefully and still executes background task sync', async () => {
+      const loadChatHistory = vi.fn().mockRejectedValue(new Error('History service unavailable'));
+      const notifyBackgroundTasks = vi.fn();
+
+      const mockState = {
+        chatId: undefined,
+        loading: false,
+        loadMessages: vi.fn(),
+        loadChatHistory,
+        setLoading: vi.fn(),
+      };
+
+      const payload: WakeEventPayload = {
+        phase: 'ready',
+        timestamp: Date.now(),
+        sidecar_alive: true,
+      };
+
+      await expect(
+        handleWakePhaseTransition(payload, {
+          getState: () => mockState as unknown as ReturnType<typeof useChatStore.getState>,
+          notifyBackgroundTasks,
+        }),
+      ).resolves.toBeUndefined();
+
+      expect(loadChatHistory).toHaveBeenCalledWith(1);
+      expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles notifyBackgroundTasks failure gracefully without rethrowing', async () => {
+      const notifyBackgroundTasks = vi.fn().mockImplementation(() => {
+        throw new Error('Background task bus dropped');
+      });
+
+      const mockState = {
+        chatId: undefined,
+        loading: false,
+        loadMessages: vi.fn(),
+        loadChatHistory: vi.fn().mockResolvedValue(undefined),
+        setLoading: vi.fn(),
+      };
+
+      const payload: WakeEventPayload = {
+        phase: 'ready',
+        timestamp: Date.now(),
+        sidecar_alive: true,
+      };
+
+      await expect(
+        handleWakePhaseTransition(payload, {
+          getState: () => mockState as unknown as ReturnType<typeof useChatStore.getState>,
+          notifyBackgroundTasks,
+        }),
+      ).resolves.toBeUndefined();
+
+      expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('setupDesktopWakeRecovery in Web mode', () => {
@@ -219,6 +277,15 @@ describe('desktopWakeRecovery', () => {
       const mockTauriUnlisten = vi.fn();
       let eventHandler: ((event: { payload: WakeEventPayload }) => void) | undefined;
 
+      const loadChatHistory = vi.fn().mockResolvedValue(undefined);
+      vi.spyOn(useChatStore, 'getState').mockReturnValue({
+        chatId: 'chat-tauri',
+        loading: false,
+        loadMessages: vi.fn(),
+        loadChatHistory,
+        setLoading: vi.fn(),
+      } as unknown as ReturnType<typeof useChatStore.getState>);
+
       vi.doMock('@tauri-apps/api/event', () => ({
         listen: vi.fn(async (event: string, cb: (event: { payload: WakeEventPayload }) => void) => {
           if (event === 'app:system-wake') {
@@ -230,6 +297,21 @@ describe('desktopWakeRecovery', () => {
 
       const unlisten = await setupDesktopWakeRecovery();
       expect(typeof unlisten).toBe('function');
+      expect(eventHandler).toBeDefined();
+
+      // 模拟 Tauri 触发原生 app:system-wake 事件
+      if (eventHandler) {
+        eventHandler({
+          payload: {
+            phase: 'ready',
+            timestamp: Date.now(),
+            sidecar_alive: true,
+          },
+        });
+      }
+      await Promise.resolve();
+
+      expect(loadChatHistory).toHaveBeenCalledWith(1);
 
       unlisten();
       expect(mockTauriUnlisten).toHaveBeenCalledTimes(1);

@@ -152,7 +152,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
 
   return (
     <Dialog open={open} onOpenChange={handleModalClose}>
-      <DialogContent className="max-w-xl w-[92vw] p-0 overflow-hidden bg-background/95 backdrop-blur-md border border-border/80 shadow-2xl rounded-2xl">
+      <DialogContent data-testid="session-import-modal" className="max-w-xl w-[92vw] p-0 overflow-hidden bg-background/95 backdrop-blur-md border border-border/80 shadow-2xl rounded-2xl">
         <DialogHeader className="p-6 pb-4 border-b border-border/40">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary flex-shrink-0">
@@ -176,7 +176,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
         <div className="p-6 space-y-5">
           {/* Result Banner after import */}
           {importResult ? (
-            <div className="p-5 rounded-xl bg-card border border-primary/30 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div data-testid="import-result-stats" className="p-5 rounded-xl bg-card border border-primary/30 space-y-4 animate-in fade-in zoom-in-95 duration-200">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2.5 text-primary">
                   <CheckCircle2 className="w-5 h-5" />
@@ -215,7 +215,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
                 <Button variant="outline" size="sm" onClick={resetState}>
                   {t('chat.import.importAnother') || 'Import Another'}
                 </Button>
-                <Button size="sm" onClick={navigateToChat} className="gap-2">
+                <Button data-testid="import-resume-btn" size="sm" onClick={navigateToChat} className="gap-2">
                   <span>{t('chat.import.resumeNow') || 'Resume Chat Now'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </Button>
@@ -227,6 +227,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
               <div className="flex p-1 rounded-xl bg-muted/50 border border-border/40 text-xs">
                 <button
                   type="button"
+                  data-testid="import-tab-upload"
                   onClick={() => setActiveTab('upload')}
                   className={cn(
                     'flex-1 py-1.5 rounded-lg font-medium transition-all duration-150 flex items-center justify-center gap-2',
@@ -240,6 +241,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
                 </button>
                 <button
                   type="button"
+                  data-testid="import-tab-paste"
                   onClick={() => setActiveTab('paste')}
                   className={cn(
                     'flex-1 py-1.5 rounded-lg font-medium transition-all duration-150 flex items-center justify-center gap-2',
@@ -307,6 +309,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
                 /* Paste mode */
                 <div className="space-y-1.5">
                   <textarea
+                    data-testid="import-paste-textarea"
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}
                     placeholder={
@@ -334,6 +337,7 @@ export const SessionImportModal: React.FC<SessionImportModalProps> = ({ open, on
                   {t('common.cancel') || 'Cancel'}
                 </Button>
                 <Button
+                  data-testid="import-submit-btn"
                   size="sm"
                   onClick={executeImport}
                   disabled={

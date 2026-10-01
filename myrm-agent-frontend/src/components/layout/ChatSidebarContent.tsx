@@ -248,6 +248,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
           </button>
           <button
             onClick={() => setImportModalOpen(true)}
+            data-testid="import-session-btn"
             className={cn(
               'p-2.5 rounded-xl cursor-pointer text-sm brand-interactive-hover flex items-center justify-center flex-shrink-0',
               'bg-background dark:bg-background',
