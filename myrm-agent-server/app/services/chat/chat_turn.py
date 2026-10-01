@@ -54,6 +54,13 @@ class _ChatTurnMixin(_ChatServiceBase):
         await sync_chat_checkpoint_from_db(chat_id)
 
     @staticmethod
+    async def _sync_todos_after_rewind(chat_id: str) -> None:
+        """Align physical workspace todos.json with folded active branch state after rewind."""
+        from app.api.goals.plan import sync_workspace_todos_after_rewind
+
+        await sync_workspace_todos_after_rewind(chat_id)
+
+    @staticmethod
     async def _sync_usage_after_mutation(chat_id: str) -> None:
         """Rebuild the Chat.total_* usage cache after message mutations.
 
@@ -293,6 +300,7 @@ class _ChatTurnMixin(_ChatServiceBase):
 
         await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
         await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
+        await _ChatTurnMixin._sync_todos_after_rewind(chat_id)
         goal_paused = await pause_active_goal_for_rewind(chat_id)
 
         if not revert_files:

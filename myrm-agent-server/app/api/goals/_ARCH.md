@@ -8,8 +8,11 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 入口 | Goal API exports. | ✅ |
-| `router.py` | 路由 | Goal HTTP 端点：`GET /goals/active`（全局活跃 Goal 聚合）、`GET/POST /{session_id}/status`（状态查询与更新）、subgoals、constraints、objective、budget、plan、DAG、queue 管理 | ✅ |
+| `__init__.py` | 入口 | Goal API exports. | [Pass] |
+| `router.py` | 主路由 | Goal HTTP 聚合端点：`GET /goals/active`、状态与生命周期操作、子路由挂载 | [Pass] |
+| `plan.py` | 路由与重演 | `GET /{session_id}/plan` 与 `GET /{session_id}/dag`，会话分支状态重演与工作区回退 | [Pass] |
+| `queue.py` | 路由 | Goal 队列管理（查询、取消、重排）端点 | [Pass] |
+| `constraints.py` | 路由 | Goal 约束管理与目标动态热编辑端点 | [Pass] |
 
 ## 关键常量
 

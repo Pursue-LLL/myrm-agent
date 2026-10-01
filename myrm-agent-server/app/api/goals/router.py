@@ -23,6 +23,17 @@ from pydantic import BaseModel
 from app.api.dependencies import get_optional_llm_for_user
 from app.services.agent.goals.goal_registry import GoalRegistry
 
+from .constraints import (
+    ConstraintsUpdateRequest,
+    ObjectiveUpdateRequest,
+    constraints_router,
+    get_goal_constraints,
+    update_goal_constraints,
+    update_goal_objective,
+)
+from .plan import get_goal_dag, get_goal_plan, plan_router
+from .queue import QueueReorderRequest, get_goal_queue, queue_router
+
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.types import Goal
 
@@ -36,6 +47,9 @@ def verify_goals_enabled() -> None:
 
 
 router = APIRouter(prefix="/goals", tags=["goals"], dependencies=[Depends(verify_goals_enabled)])
+router.include_router(plan_router)
+router.include_router(queue_router)
+router.include_router(constraints_router)
 
 
 _NON_TERMINAL_STATUSES: frozenset[GoalStatus] = frozenset(
@@ -306,34 +320,6 @@ async def draft_goal(
     )
 
 
-@router.get("/{session_id}/plan")
-async def get_goal_plan(session_id: str) -> dict[str, object]:
-    """Get the current todo progress for a session's goal (plan-compat shape)."""
-    try:
-        from pathlib import Path
-
-        from myrm_agent_harness.agent.meta_tools.progress.storage import read_todos_sync_from_workspace
-        from myrm_agent_harness.toolkits.code_execution import create_workspace_service
-
-        from app.config.settings import get_settings
-        from app.platform_utils.workspace_session import to_workspace_session_id
-
-        workspace_svc = create_workspace_service(
-            root_dir=Path(get_settings().database.harness_dir),
-        )
-        workspace_session_id = to_workspace_session_id(session_id)
-        workspace = await workspace_svc.get_or_create(session_id=workspace_session_id)
-        workspace_root = workspace_svc.get_workspace_absolute_path(workspace)
-
-        store = read_todos_sync_from_workspace(workspace_root)
-        if not store or not store.todos:
-            return {"plan": None}
-
-        return {"plan": store.to_plan_compat()}
-    except Exception as e:
-        logger.error("Failed to get goal progress: %s", e)
-        raise HTTPException(status_code=500, detail="Failed to get goal progress") from e
-
 
 @router.post("/{session_id}/budget")
 async def update_goal_budget(session_id: str, request: GoalBudgetUpdateRequest) -> dict[str, object]:
@@ -377,197 +363,21 @@ async def update_goal_budget(session_id: str, request: GoalBudgetUpdateRequest) 
         raise HTTPException(status_code=500, detail="Failed to update goal budget") from e
 
 
-@router.get("/{session_id}/dag")
-async def get_goal_dag(session_id: str) -> dict[str, object]:
-    """Flat todo nodes for legacy DAG consumers (linear todos, no dependency edges)."""
-    try:
-        from pathlib import Path
 
-        from myrm_agent_harness.agent.meta_tools.progress.storage import read_todos_sync_from_workspace
-        from myrm_agent_harness.toolkits.code_execution import create_workspace_service
-
-        from app.config.settings import get_settings
-        from app.platform_utils.workspace_session import to_workspace_session_id
-
-        workspace_svc = create_workspace_service(
-            root_dir=Path(get_settings().database.harness_dir),
-        )
-        workspace_session_id = to_workspace_session_id(session_id)
-        workspace = await workspace_svc.get_or_create(session_id=workspace_session_id)
-        workspace_root = workspace_svc.get_workspace_absolute_path(workspace)
-
-        store = read_todos_sync_from_workspace(workspace_root)
-        if not store or not store.todos:
-            return {"nodes": [], "edges": []}
-
-        nodes = [
-            {
-                "id": item.id,
-                "data": {
-                    "label": item.content,
-                    "status": item.status.value,
-                    "expected_output": "",
-                    "risk_level": "low",
-                },
-            }
-            for item in store.todos
-        ]
-        return {"nodes": nodes, "edges": []}
-    except Exception as e:
-        logger.error("Failed to get goal DAG: %s", e)
-        raise HTTPException(status_code=500, detail="Failed to get goal DAG") from e
-
-
-# ---------------------------------------------------------------------------
-# Queue endpoints
-# ---------------------------------------------------------------------------
-
-
-class QueueReorderRequest(BaseModel):
-    ordered_goal_ids: list[str]
-
-
-@router.get("/{session_id}/queue")
-async def get_goal_queue(session_id: str) -> dict[str, object]:
-    """Get all queued goals for a session."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
-
-    queued = await provider.get_queued_goals(session_id)
-    return {"queue": [g.to_dict() for g in queued]}
-
-
-@router.delete("/{session_id}/queue/{goal_id}")
-async def cancel_queued_goal(session_id: str, goal_id: str) -> dict[str, str]:
-    """Cancel (remove) a specific goal from the queue."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
-
-    try:
-        await provider.cancel_queued_goal(session_id, goal_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Queued goal not found") from None
-    return {"status": "success", "goal_id": goal_id}
-
-
-@router.post("/{session_id}/queue/reorder")
-async def reorder_goal_queue(session_id: str, request: QueueReorderRequest) -> dict[str, str]:
-    """Reorder the goal queue by providing ordered goal IDs."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
-
-    await provider.reorder_queue(session_id, request.ordered_goal_ids)
-    return {"status": "success"}
-
-
-# ---------------------------------------------------------------------------
-# Constraints endpoints
-# ---------------------------------------------------------------------------
-
-
-class ConstraintsUpdateRequest(BaseModel):
-    constraints: list[str]
-
-
-@router.put("/{session_id}/constraints")
-async def update_goal_constraints(session_id: str, request: ConstraintsUpdateRequest) -> dict[str, object]:
-    """Set or replace constraints on the latest goal for a session."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
-
-    goal = await provider.get_latest_goal(session_id)
-    if not goal:
-        raise HTTPException(status_code=404, detail="No goal found for this session")
-
-    filtered = [c for c in request.constraints if c.strip()]
-    updated = await provider.update_constraints(goal.goal_id, filtered)
-    return {"status": "success", "constraints": updated.constraints}
-
-
-@router.get("/{session_id}/constraints")
-async def get_goal_constraints(session_id: str) -> dict[str, object]:
-    """Get constraints for the latest goal in a session."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
-
-    goal = await provider.get_latest_goal(session_id)
-    if not goal:
-        raise HTTPException(status_code=404, detail="No goal found for this session")
-
-    return {"constraints": goal.constraints}
-
-
-# ---------------------------------------------------------------------------
-# Objective hot-edit endpoint
-# ---------------------------------------------------------------------------
-
-MAX_OBJECTIVE_LENGTH = 2000
-
-
-class ObjectiveUpdateRequest(BaseModel):
-    objective: str
-
-
-@router.patch("/{session_id}/objective")
-async def update_goal_objective(session_id: str, request: ObjectiveUpdateRequest) -> dict[str, object]:
-    """Update the objective of the latest goal and inject a steering message."""
-    objective = request.objective.strip()
-    if not objective:
-        raise HTTPException(status_code=400, detail="Objective cannot be empty")
-    if len(objective) > MAX_OBJECTIVE_LENGTH:
-        raise HTTPException(status_code=400, detail=f"Objective exceeds {MAX_OBJECTIVE_LENGTH} characters")
-
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
-
-    goal = await provider.get_latest_goal(session_id)
-    if not goal:
-        raise HTTPException(status_code=404, detail="No goal found for this session")
-
-    try:
-        updated = await provider.update_objective(goal.goal_id, objective)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-    from myrm_agent_harness.agent.goals.steering_prompts import build_objective_updated_steering_message
-
-    from app.services.agent.steering import SteeringRegistry
-
-    steering_msg = build_objective_updated_steering_message(updated)
-    steered = SteeringRegistry.steer(session_id, steering_msg)
-
-    return {
-        "status": "success",
-        "goal": updated.to_dict(),
-        "steered": steered,
-    }
+__all__ = [
+    "ConstraintsUpdateRequest",
+    "GoalBudgetUpdateRequest",
+    "GoalDraftRequest",
+    "GoalDraftResponse",
+    "GoalStatusUpdateRequest",
+    "ObjectiveUpdateRequest",
+    "QueueReorderRequest",
+    "get_goal_constraints",
+    "get_goal_dag",
+    "get_goal_plan",
+    "get_goal_queue",
+    "router",
+    "update_goal_budget",
+    "update_goal_constraints",
+    "update_goal_objective",
+]
