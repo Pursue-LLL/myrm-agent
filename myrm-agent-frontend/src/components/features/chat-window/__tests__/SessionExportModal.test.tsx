@@ -23,7 +23,9 @@ const {
 }));
 
 const stableT = (key: string, values?: Record<string, string | number | undefined>): string => {
-  if (values?.defaultMessage) return String(values.defaultMessage);
+  if (values?.defaultMessage) {
+    return String(values.defaultMessage);
+  }
   return key;
 };
 
