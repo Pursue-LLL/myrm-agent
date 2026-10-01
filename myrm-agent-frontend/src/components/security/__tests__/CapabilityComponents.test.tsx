@@ -141,4 +141,20 @@ describe('CapabilityViolationAlertCard', () => {
 
     expect(onViewAudit).toHaveBeenCalledTimes(1);
   });
+
+  it('triggers onRevoke and updates UI to revoked state', async () => {
+    const onRevoke = vi.fn().mockResolvedValue(undefined);
+    render(<CapabilityViolationAlertCard incident={mockIncident} onRevoke={onRevoke} />);
+
+    const revokeBtn = screen.getByTestId('capability-revoke-button');
+    expect(revokeBtn).toBeDefined();
+    expect(screen.getByText('立即撤销授权并熔断')).toBeDefined();
+
+    fireEvent.click(revokeBtn);
+    expect(onRevoke).toHaveBeenCalledWith('cap_subagent_worker_7766');
+
+    const revokedBadge = await screen.findByTestId('capability-violation-alert-revoked');
+    expect(revokedBadge).toBeDefined();
+    expect(screen.getByText(/该权能句柄已即时级联撤销并熔断/)).toBeDefined();
+  });
 });

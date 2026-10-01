@@ -13,6 +13,8 @@ import {
   Globe,
   Terminal,
   CheckCircle2,
+  Ban,
+  Loader2,
 } from 'lucide-react';
 
 export interface CapabilityViolationIncident {
@@ -30,6 +32,7 @@ interface CapabilityViolationAlertCardProps {
   incident: CapabilityViolationIncident;
   onDismiss?: (incidentId: string) => void;
   onViewAudit?: () => void;
+  onRevoke?: (capabilityId: string) => Promise<void> | void;
   className?: string;
 }
 
@@ -70,10 +73,13 @@ export const CapabilityViolationAlertCard: React.FC<CapabilityViolationAlertCard
   incident,
   onDismiss,
   onViewAudit,
+  onRevoke,
   className = '',
 }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [isDismissed, setIsDismissed] = useState(incident.isDismissed ?? false);
+  const [isRevoking, setIsRevoking] = useState(false);
+  const [isRevoked, setIsRevoked] = useState(false);
 
   const handleDismiss = () => {
     setIsDismissed(true);
@@ -81,6 +87,33 @@ export const CapabilityViolationAlertCard: React.FC<CapabilityViolationAlertCard
       onDismiss(incident.incidentId);
     }
   };
+
+  const handleRevoke = async () => {
+    if (!onRevoke || isRevoking) {
+      return;
+    }
+    try {
+      setIsRevoking(true);
+      await onRevoke(incident.capabilityId);
+      setIsRevoked(true);
+    } finally {
+      setIsRevoking(false);
+    }
+  };
+
+  if (isRevoked) {
+    return (
+      <div
+        className={`w-full max-w-2xl rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-foreground flex items-center justify-between ${className}`}
+        data-testid="capability-violation-alert-revoked"
+      >
+        <span className="flex items-center gap-1.5 font-medium text-destructive">
+          <Ban className="h-4 w-4" />
+          该权能句柄已即时级联撤销并熔断 (ID: {incident.capabilityId.slice(0, 10)})
+        </span>
+      </div>
+    );
+  }
 
   if (isDismissed) {
     return (
@@ -183,6 +216,28 @@ export const CapabilityViolationAlertCard: React.FC<CapabilityViolationAlertCard
             >
               我知道了并确认安全
             </button>
+
+            {onRevoke && (
+              <button
+                type="button"
+                onClick={handleRevoke}
+                disabled={isRevoking}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground hover:bg-destructive/90 focus:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors disabled:opacity-50"
+                data-testid="capability-revoke-button"
+              >
+                {isRevoking ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>正在撤销...</span>
+                  </>
+                ) : (
+                  <>
+                    <Ban className="h-3.5 w-3.5" />
+                    <span>立即撤销授权并熔断</span>
+                  </>
+                )}
+              </button>
+            )}
 
             {onViewAudit && (
               <button

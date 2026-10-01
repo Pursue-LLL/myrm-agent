@@ -30,7 +30,9 @@ export const IndirectInjectionAlertCard: React.FC<IndirectInjectionAlertCardProp
   const [showDetails, setShowDetails] = useState(false);
 
   const handleRemediate = async () => {
-    if (isRemediating || isResolved) return;
+    if (isRemediating || isResolved) {
+      return;
+    }
     setIsRemediating(true);
     try {
       if (onRemediate) {
