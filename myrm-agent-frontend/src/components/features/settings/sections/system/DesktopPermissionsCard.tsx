@@ -6,6 +6,7 @@
  * - @/lib/utils/toast::toast (POS: 全局 toast 通知)
  * - @/lib/desktop/permissionDeepLink (POS: 桌面权限引导深链 SSOT)
  * - @/lib/desktop/desktopPermissionsStatus (POS: permissions API FE 契约)
+ * - ./DesktopPermissionsRows (POS: 桌面权限卡片子组件视图行)
  *
  * [OUTPUT]
  * - DesktopPermissionsCard: 桌面自动化就绪检测卡片；OS 授权 + 功能捕获探针三态 + 始终信任应用列表
