@@ -222,6 +222,18 @@ async def trigger_goal_stream(
         goal.objective[:60],
     )
 
+    # Arm unattended task safety airbag (zero-copy shadow snapshot baseline)
+    try:
+        from pathlib import Path
+
+        from app.config.settings import settings
+        from app.services.checkpoint.task_airbag_service import get_task_airbag_service
+
+        ws_dir = str(Path(settings.project_dir).expanduser().resolve())
+        await get_task_airbag_service().arm_airbag(goal.goal_id, ws_dir)
+    except Exception as exc:
+        logger.warning("Failed to automatically arm safety airbag for goal %s: %s", goal.goal_id, exc)
+
     user_cfgs = await load_user_configs()
     model_cfg = resolve_model_config(user_cfgs.providers_dict)
     model_cfg = enrich_model_capabilities(model_cfg, user_cfgs.providers_dict)

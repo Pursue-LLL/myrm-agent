@@ -61,6 +61,7 @@ class RollbackAirbagResponse(BaseModel):
     success: bool
     task_id: str
     status: Literal["rolled_back", "failed"]
+    rescue_snapshot_id: str | None = None
 
 
 class DismissAirbagRequest(BaseModel):
@@ -121,10 +122,12 @@ async def rollback_airbag(req: RollbackAirbagRequest) -> RollbackAirbagResponse:
     success = await service.rollback_airbag(req.task_id, req.workspace_path)
     if not success:
         raise HTTPException(status_code=500, detail=f"Time-travel rollback failed for task: {req.task_id}")
+    manifest = service._active_manifests.get(req.task_id)
     return RollbackAirbagResponse(
         success=True,
         task_id=req.task_id,
         status="rolled_back",
+        rescue_snapshot_id=manifest.rescue_snapshot_id if manifest else None,
     )
 
 

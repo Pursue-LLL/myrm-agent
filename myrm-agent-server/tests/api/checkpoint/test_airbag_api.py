@@ -90,7 +90,9 @@ async def test_arm_and_get_status_airbag_api(async_client: httpx.AsyncClient, gi
         json={"task_id": task_id, "workspace_path": str(git_dir)},
     )
     assert rollback_resp.status_code == 200
-    assert rollback_resp.json()["status"] == "rolled_back"
+    rb_data = rollback_resp.json()
+    assert rb_data["status"] == "rolled_back"
+    assert rb_data["rescue_snapshot_id"] is not None
     assert (git_dir / "index.js").read_text(encoding="utf-8") == "console.log('init');\n"
 
     # 4. Dismiss

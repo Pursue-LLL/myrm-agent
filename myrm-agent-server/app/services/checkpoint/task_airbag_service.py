@@ -32,7 +32,7 @@ from myrm_agent_harness.api.security import (
     TaskAirbagStatus,
     arm_task_airbag,
     get_task_airbag_diff,
-    rollback_task_airbag,
+    rollback_task_airbag_with_rescue,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,6 +61,7 @@ class TaskAirbagService:
                 "created_at_epoch_ms": manifest.created_at_epoch_ms,
                 "status": manifest.status.value,
                 "external_effects": list(manifest.external_effects),
+                "rescue_snapshot_id": manifest.rescue_snapshot_id,
             }
             temp_path = path.with_suffix(".tmp")
             temp_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -83,6 +84,7 @@ class TaskAirbagService:
                 created_at_epoch_ms=data["created_at_epoch_ms"],
                 status=TaskAirbagStatus(data.get("status", TaskAirbagStatus.ARMED.value)),
                 external_effects=tuple(data.get("external_effects", [])),
+                rescue_snapshot_id=data.get("rescue_snapshot_id"),
             )
         except Exception as exc:
             logger.warning("Failed to load airbag manifest for task '%s': %s", task_id, exc)
@@ -136,13 +138,36 @@ class TaskAirbagService:
             logger.error("Cannot rollback: no airbag manifest found for task '%s'", task_id)
             return False
 
-        success = await rollback_task_airbag(manifest)
+        success, rescue_id = await rollback_task_airbag_with_rescue(manifest)
         if success:
-            updated = manifest.with_status(TaskAirbagStatus.ROLLED_BACK)
+            updated = manifest.with_status(TaskAirbagStatus.ROLLED_BACK, rescue_snapshot_id=rescue_id)
             self._active_manifests[task_id] = updated
             self._persist_manifest(updated)
+            self._broadcast_rollback_event(task_id, rescue_id)
             return True
         return False
+
+    def _broadcast_rollback_event(self, task_id: str, rescue_id: str | None) -> None:
+        """Publish system notification event on successful time-travel rollback."""
+        try:
+            from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
+
+            get_event_bus().publish(
+                AppEvent(
+                    event_type=AppEventType.SYSTEM_NOTIFICATION,
+                    data={
+                        "title": "时光倒流回滚成功",
+                        "message": f"任务 {task_id} 已原子重置还原至起跑点",
+                        "meta_data": {
+                            "kind": "airbag_rolled_back",
+                            "task_id": task_id,
+                            "rescue_snapshot_id": rescue_id,
+                        },
+                    },
+                )
+            )
+        except Exception as exc:
+            logger.debug("Failed to publish airbag rollback event: %s", exc)
 
     def dismiss_airbag(self, task_id: str, workspace_path: str | None = None) -> bool:
         """User confirms changes; safely dismisses the airbag."""
