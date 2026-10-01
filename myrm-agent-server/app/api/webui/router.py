@@ -394,7 +394,7 @@ async def get_desktop_permissions(probe_capture: bool = False) -> JSONResponse:
     """
     session = None
     try:
-        from myrm_agent_harness.toolkits.computer_use.screen_detector import (
+        from myrm_agent_harness.api.security import (
             ScreenLockState,
             get_default_screen_detector,
         )
@@ -437,7 +437,7 @@ async def get_desktop_permissions(probe_capture: bool = False) -> JSONResponse:
 @router.get("/desktop/screen-lock/status")
 async def get_desktop_screen_lock_status() -> JSONResponse:
     """Query current desktop physical lock and display sleep status."""
-    from myrm_agent_harness.toolkits.computer_use.screen_detector import (
+    from myrm_agent_harness.api.security import (
         ScreenLockState,
         get_default_screen_detector,
     )
