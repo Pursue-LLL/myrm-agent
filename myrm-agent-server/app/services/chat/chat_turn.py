@@ -54,11 +54,13 @@ class _ChatTurnMixin(_ChatServiceBase):
         await sync_chat_checkpoint_from_db(chat_id)
 
     @staticmethod
-    async def _sync_todos_after_rewind(chat_id: str) -> None:
-        """Align physical workspace todos.json with folded active branch state after rewind."""
-        from app.services.chat.chat_todo_sync import sync_workspace_todos_after_rewind
+    async def _sync_todos_for_active_branch(chat_id: str) -> None:
+        """Align physical workspace todos.json with folded active branch state after mutations."""
+        from app.services.chat.chat_todo_sync import sync_workspace_todos_for_active_branch
 
-        await sync_workspace_todos_after_rewind(chat_id)
+        await sync_workspace_todos_for_active_branch(chat_id)
+
+    _sync_todos_after_rewind = _sync_todos_for_active_branch
 
     @staticmethod
     async def _sync_usage_after_mutation(chat_id: str) -> None:
@@ -97,6 +99,7 @@ class _ChatTurnMixin(_ChatServiceBase):
         if result.success:
             await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
             await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
+            await _ChatTurnMixin._sync_todos_for_active_branch(chat_id)
         return result
 
     @staticmethod
@@ -124,6 +127,7 @@ class _ChatTurnMixin(_ChatServiceBase):
             ok = await _ChatServiceBase._cr(uow).switch_active_sibling(sibling_group_id, target_message_id)
         if ok:
             await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
+            await _ChatTurnMixin._sync_todos_for_active_branch(chat_id)
         return ok
 
     @staticmethod
@@ -156,6 +160,7 @@ class _ChatTurnMixin(_ChatServiceBase):
         if result.success and result.deleted_count > 0:
             await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
             await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
+            await _ChatTurnMixin._sync_todos_for_active_branch(chat_id)
         return result
 
     @staticmethod
@@ -183,6 +188,7 @@ class _ChatTurnMixin(_ChatServiceBase):
         if result.success and result.deleted_count > 0:
             await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
             await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
+            await _ChatTurnMixin._sync_todos_for_active_branch(chat_id)
         return result
 
     @staticmethod
@@ -300,7 +306,7 @@ class _ChatTurnMixin(_ChatServiceBase):
 
         await _ChatTurnMixin._sync_checkpoint_after_mutation(chat_id)
         await _ChatTurnMixin._sync_usage_after_mutation(chat_id)
-        await _ChatTurnMixin._sync_todos_after_rewind(chat_id)
+        await _ChatTurnMixin._sync_todos_for_active_branch(chat_id)
         goal_paused = await pause_active_goal_for_rewind(chat_id)
 
         if not revert_files:

@@ -16,6 +16,7 @@ import { useCallback, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { switchSibling, getSiblings } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
+import { usePlanStore } from '@/store/chat/goals/usePlanStore';
 
 interface SiblingNavProps {
   chatId: string;
@@ -50,6 +51,7 @@ export default function SiblingNav({ chatId, siblingGroupId, siblingIndex, sibli
         const result = await switchSibling(chatId, siblingGroupId, target.id);
         if (result.success) {
           await reloadMessages(chatId);
+          void usePlanStore.getState().fetchPlan(chatId);
         }
       } catch (err) {
         console.error('Switch sibling failed:', err);

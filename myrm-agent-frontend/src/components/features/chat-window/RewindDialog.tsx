@@ -31,6 +31,7 @@ import { getAuthHeaders } from '@/lib/utils/authHeaders';
 import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { useToast } from '@/hooks/shared/useToast';
 import useChatStore from '@/store/useChatStore';
+import { usePlanStore } from '@/store/chat/goals/usePlanStore';
 import { stripUserMessageDisplayText, parseExplicitSkillActivation } from '@/lib/utils/messageUtils';
 
 interface RewindDialogProps {
@@ -186,6 +187,7 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
           inputMessage: composerText,
         };
       });
+      void usePlanStore.getState().fetchPlan(chatId);
 
       const revertedCount = payload.reverted_files?.length ?? 0;
       const notices: string[] = [];

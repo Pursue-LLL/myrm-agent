@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.api.goals.router::router (POS: Goal endpoints router)
-- app.api.goals.plan::resolve_session_todo_store, sync_workspace_todos_after_rewind (POS: Target functions)
+- app.api.goals.plan::resolve_session_todo_store, sync_workspace_todos_for_active_branch (POS: Target functions)
 - myrm_agent_harness.agent.meta_tools.progress.schemas::TodoItem, TodoStatus, TodoStore
 - myrm_agent_harness.runtime.context.tree_state::create_compaction_todo_anchor
 
@@ -379,4 +379,67 @@ async def test_sync_workspace_todos_after_rewind_protects_existing_file(tmp_path
     preserved = read_todos_sync_from_workspace(workspace_root)
     assert preserved is not None
     assert preserved.todos[0].id == "x1"
+
+
+@pytest.mark.asyncio
+async def test_sync_workspace_todos_for_active_branch_on_sibling_switch(tmp_path: Path) -> None:
+    """Switching active branch aligns workspace file with new sibling branch state."""
+    from app.services.chat.chat_todo_sync import sync_workspace_todos_for_active_branch
+
+    workspace_root = str(tmp_path / "ws_sibling")
+    chat_id = "chat_sibling_test"
+
+    # Branch 1 had Stripe plan
+    branch_1_store = TodoStore(
+        todos=[TodoItem(id="b1", content="Stripe checkout", status=TodoStatus.COMPLETED)],
+        revision=1,
+    )
+    write_todos_sync_to_workspace(workspace_root, branch_1_store)
+
+    # User switches to Branch 2 with PayPal plan
+    branch_2_store = TodoStore(
+        todos=[TodoItem(id="b2", content="PayPal checkout", status=TodoStatus.IN_PROGRESS)],
+        revision=2,
+    )
+    branch_2_msg = _create_fake_message(
+        chat_id=chat_id,
+        content="Switched to PayPal branch",
+        extra_data={"tool_result_details": branch_2_store.model_dump()},
+    )
+
+    with patch("app.services.chat.chat_service.ChatService.get_all_messages", new_callable=AsyncMock) as mock_msgs:
+        mock_msgs.return_value = [branch_2_msg]
+        with patch("app.services.chat.chat_todo_sync._resolve_workspace_root_safely", new_callable=AsyncMock) as mock_root:
+            mock_root.return_value = workspace_root
+            await sync_workspace_todos_for_active_branch(chat_id)
+
+    synced = read_todos_sync_from_workspace(workspace_root)
+    assert synced is not None
+    assert len(synced.todos) == 1
+    assert synced.todos[0].id == "b2"
+    assert synced.todos[0].status == TodoStatus.IN_PROGRESS
+
+
+@pytest.mark.asyncio
+async def test_sync_workspace_todos_for_active_branch_on_undo_clears_file(tmp_path: Path) -> None:
+    """When all messages in conversation are undone/cleared, workspace file is cleanly unlinked."""
+    from app.services.chat.chat_todo_sync import sync_workspace_todos_for_active_branch
+
+    workspace_root = str(tmp_path / "ws_undo")
+    chat_id = "chat_undo_test"
+
+    write_todos_sync_to_workspace(
+        workspace_root,
+        TodoStore(todos=[TodoItem(id="u1", content="To be undone", status=TodoStatus.IN_PROGRESS)]),
+    )
+    assert todos_path(workspace_root).is_file()
+
+    with patch("app.services.chat.chat_service.ChatService.get_all_messages", new_callable=AsyncMock) as mock_msgs:
+        mock_msgs.return_value = []
+        with patch("app.services.chat.chat_todo_sync._resolve_workspace_root_safely", new_callable=AsyncMock) as mock_root:
+            mock_root.return_value = workspace_root
+            await sync_workspace_todos_for_active_branch(chat_id)
+
+    assert not todos_path(workspace_root).is_file()
+
 

@@ -25,6 +25,7 @@ import { findActivePendingDirectoryRequest } from '@/store/chat/directoryRequest
 import useChatStore, { Message } from '@/store/useChatStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 import useConfigStore from '@/store/useConfigStore';
+import { usePlanStore } from '@/store/chat/goals/usePlanStore';
 import type { McpAppView, ProgressItem, Source, ToolImageOutput } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 import { mergeMessageSources } from '@/store/chat/messageStream/streamHelpers';
@@ -360,6 +361,7 @@ const MessageBox = ({
           useChatStore.setState((state) => ({
             messages: state.messages.slice(0, userMessageIndex),
           }));
+          void usePlanStore.getState().fetchPlan(chatId);
         }
       }
     } catch (error) {

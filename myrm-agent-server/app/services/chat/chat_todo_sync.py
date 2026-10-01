@@ -8,11 +8,12 @@
 
 [OUTPUT]
 - resolve_session_todo_store: Resolves authoritative todo store with branch-fold priority
-- sync_workspace_todos_after_rewind: Realigns workspace progress file with remaining messages
+- sync_workspace_todos_for_active_branch: Realigns workspace progress file with current active branch messages
+- sync_workspace_todos_after_rewind: Backward-compatible alias for sync_workspace_todos_for_active_branch
 
 [POS]
 Provides service-layer business logic for active conversation branch todo folding
-and physical workspace alignment after conversation rewind mutations.
+and physical workspace alignment after conversation tree mutations (rewind, retry, undo, sibling switch).
 """
 
 from __future__ import annotations
@@ -80,10 +81,11 @@ async def resolve_session_todo_store(session_id: str) -> TodoStore | None:
         return None
 
 
-async def sync_workspace_todos_after_rewind(chat_id: str) -> None:
-    """Resynchronize workspace todos.json with folded state of remaining messages after rewind.
+async def sync_workspace_todos_for_active_branch(chat_id: str) -> None:
+    """Resynchronize workspace todos.json with folded state of current active branch messages.
 
-    Prevents split-brain state where physical workspace retains future tasks from deleted turns.
+    Prevents split-brain state where physical workspace retains future or abandoned
+    tasks after rewind, retry, undo, or sibling branch switching.
     """
     from app.services.chat.chat_service import ChatService
 
@@ -98,7 +100,7 @@ async def sync_workspace_todos_after_rewind(chat_id: str) -> None:
         if remaining_store is not None and remaining_store.todos:
             write_todos_sync_to_workspace(workspace_root, remaining_store)
         elif not messages:
-            # All messages in the conversation were rewound (cleared to initial state)
+            # All messages in the conversation were rewound/cleared to initial state
             path = todos_path(workspace_root)
             if path.is_file():
                 path.unlink(missing_ok=True)
@@ -106,14 +108,18 @@ async def sync_workspace_todos_after_rewind(chat_id: str) -> None:
             # Remaining messages exist, but fold yielded no todo store.
             # Guard against aggressive deletion of pre-existing workspace files.
             logger.debug(
-                "Skipping workspace todos unlink after rewind for chat %s: messages exist but no folded store",
+                "Skipping workspace todos unlink after mutation for chat %s: messages exist but no folded store",
                 chat_id,
             )
     except Exception as exc:
-        logger.warning("Failed to sync workspace todos after rewind for chat %s: %s", chat_id, exc)
+        logger.warning("Failed to sync workspace todos for active branch on chat %s: %s", chat_id, exc)
+
+
+sync_workspace_todos_after_rewind = sync_workspace_todos_for_active_branch
 
 
 __all__ = [
     "resolve_session_todo_store",
     "sync_workspace_todos_after_rewind",
+    "sync_workspace_todos_for_active_branch",
 ]
