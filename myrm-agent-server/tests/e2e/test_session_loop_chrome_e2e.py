@@ -36,8 +36,15 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
 def _api_request(
     path: str, method: str = "GET", data: dict[str, object] | None = None
 ) -> dict[str, object] | None:
+    from e2e_core.effect_guard import assert_http_effect_allowed
+
     url = f"{get_e2e_api_url()}{path}"
     payload = json.dumps(data).encode("utf-8") if data is not None else None
+    # 与静态契约的 method 判定保持一致：带 body 的 GET 实为 POST
+    effective_method = method.upper()
+    if payload is not None and effective_method == "GET":
+        effective_method = "POST"
+    assert_http_effect_allowed(method=effective_method, url=url)
     req = urllib.request.Request(
         url,
         data=payload,
