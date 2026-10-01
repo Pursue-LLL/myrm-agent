@@ -738,13 +738,8 @@ async def test_force_push_unknown_target_agent_returns_404(agent_db, monkeypatch
     assert agents == []
 
 
-@pytest.mark.asyncio
-async def test_sandbox_rejects_bundled_skills_real_db(
-    agent_db,
-    skill_store: SkillCreationService,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """In sandbox deployment, bundled-skill imports fail closed end-to-end."""
+def _sandbox_capabilities(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin sandbox deploy mode with a cleared capability snapshot."""
     from app.config.deploy_mode import get_deploy_mode
     from app.platform_utils.deployment_capabilities import (
         _reset_capabilities_cache_for_testing,
@@ -753,6 +748,71 @@ async def test_sandbox_rejects_bundled_skills_real_db(
     get_deploy_mode.cache_clear()
     _reset_capabilities_cache_for_testing()
     monkeypatch.setenv("DEPLOY_MODE", "sandbox")
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+
+
+def _restore_capabilities(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.config.deploy_mode import get_deploy_mode
+    from app.platform_utils.deployment_capabilities import (
+        _reset_capabilities_cache_for_testing,
+    )
+
+    monkeypatch.delenv("DEPLOY_MODE", raising=False)
+    monkeypatch.delenv("MYRM_ALLOW_LOCAL_SKILLS", raising=False)
+    get_deploy_mode.cache_clear()
+    _reset_capabilities_cache_for_testing()
+
+
+@pytest.mark.asyncio
+async def test_sandbox_accepts_bundled_skills_by_default_real_db(
+    agent_db,
+    skill_store: SkillCreationService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sandbox deployments allow local skills by default, so bundled-skill
+    imports succeed end-to-end (see DeploymentCapabilities)."""
+    _sandbox_capabilities(monkeypatch)
+
+    try:
+        monkeypatch.setattr("app.core.skills.creation.service.skill_creation_service", skill_store)
+        transport = ASGITransport(app=_import_app())
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/api/admin/import-agent-profile",
+                json={
+                    "package": _build_package(),
+                    "force": False,
+                    "marketplace_entry_id": "entry-sandbox",
+                },
+            )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["status"] == "installed"
+
+        # Skill was written and the publisher agent was created (the
+        # bundled subagent is materialized as a second agent row).
+        assert (skill_store.base_path / "pub-skill" / "SKILL.md").is_file()
+        async with agent_db() as session:
+            agents = (await session.execute(select(Agent))).scalars().all()
+        assert {a.name for a in agents} >= {"Publisher Agent", "Publisher Sub"}
+    finally:
+        _restore_capabilities(monkeypatch)
+
+
+@pytest.mark.asyncio
+async def test_bundled_skills_rejected_when_local_skills_disabled_real_db(
+    agent_db,
+    skill_store: SkillCreationService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """With MYRM_ALLOW_LOCAL_SKILLS=0, bundled-skill imports fail closed."""
+    _sandbox_capabilities(monkeypatch)
+    monkeypatch.setenv("MYRM_ALLOW_LOCAL_SKILLS", "0")
+    from app.config.deploy_mode import get_deploy_mode
+    from app.platform_utils.deployment_capabilities import (
+        _reset_capabilities_cache_for_testing,
+    )
+
     get_deploy_mode.cache_clear()
     _reset_capabilities_cache_for_testing()
 
@@ -769,7 +829,7 @@ async def test_sandbox_rejects_bundled_skills_real_db(
                 },
             )
         assert resp.status_code == 400
-        assert "bundled skills are not supported in sandbox" in resp.text
+        assert "bundled skills require local skill writes" in resp.text
 
         # No skill was written, no agent was created.
         assert not (skill_store.base_path / "pub-skill").exists()
@@ -777,9 +837,7 @@ async def test_sandbox_rejects_bundled_skills_real_db(
             agents = (await session.execute(select(Agent))).scalars().all()
         assert agents == []
     finally:
-        monkeypatch.delenv("DEPLOY_MODE", raising=False)
-        get_deploy_mode.cache_clear()
-        _reset_capabilities_cache_for_testing()
+        _restore_capabilities(monkeypatch)
 
 
 @pytest.mark.asyncio

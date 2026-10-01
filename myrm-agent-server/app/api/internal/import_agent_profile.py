@@ -12,7 +12,7 @@
 CP-to-sandbox internal endpoint for marketplace Agent installation and force-push updates.
 Receives a serialized Agent package, enforces contract/integrity + optional CP transport
 signature verification, then creates/updates the Agent + dependencies locally.
-Bundled-skill packages are rejected in sandbox deployment (local skills disabled).
+Bundled-skill packages are rejected when local skill writes are disabled (MYRM_ALLOW_LOCAL_SKILLS=0).
 When `force=True`, snapshots the existing Agent before overwriting so the user can rollback.
 Force-push is a config update path: skill/subagent bindings are established by the
 initial import (which remaps IDs to the local store) and are never overwritten by
