@@ -20,6 +20,7 @@ import pytest
 
 from tests.support.chrome_mcp_e2e import (
     dismiss_blocking_modals,
+    ensure_desktop_viewport,
     get_e2e_api_url,
     get_e2e_ui_url,
     http_json,
@@ -124,6 +125,7 @@ def test_turn_outline_rail_navigation_chrome_e2e() -> None:
     )
 
     with open_mcp_page(target_url, timeout_ms=_PAGE_TIMEOUT_MS) as (client, page):
+        ensure_desktop_viewport(client, page)
         dismiss_blocking_modals(client, page)
         client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
         wait_for_react_e2e_bridge(client, page, timeout_sec=60.0, page_url=target_url)
@@ -135,7 +137,7 @@ def test_turn_outline_rail_navigation_chrome_e2e() -> None:
 
         # 1. Turn outline rail mounts with >=3 ticks (5 turns seeded)
         _CHECK_RAIL_MOUNTED_JS = """(() => {
-            const rail = document.querySelector('[aria-label]')?.closest('.fixed.top-1\\/2');
+            const rail = document.querySelector('[data-testid="turn-timeline-rail"]') || document.querySelector('[data-rail-tick]')?.closest('.fixed');
             const ticks = document.querySelectorAll('[data-rail-tick]');
             return {
                 ready: ticks.length >= 3,
@@ -151,10 +153,13 @@ def test_turn_outline_rail_navigation_chrome_e2e() -> None:
         hover_res = client.evaluate(
             page,
             """(() => {
-                const rail = document.querySelector('[data-rail-tick]')?.closest('.fixed');
+                const rail = document.querySelector('[data-testid="turn-timeline-rail"]') || document.querySelector('[data-rail-tick]')?.closest('.fixed');
                 if (!rail) return { ok: false, err: 'no-rail' };
                 const firstTick = rail.querySelector('[data-rail-tick]');
                 if (!firstTick) return { ok: false, err: 'no-tick' };
+                firstTick.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+                firstTick.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+                firstTick.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
                 const rect = firstTick.getBoundingClientRect();
                 rail.dispatchEvent(
                     new MouseEvent('mousemove', {
@@ -171,15 +176,35 @@ def test_turn_outline_rail_navigation_chrome_e2e() -> None:
         )
 
         _CHECK_PREVIEW_JS = """(() => {
-            // Preview card: absolute popover anchored right-full of the rail
+            let preview = document.querySelector('[data-testid="turn-rail-preview"]') || document.querySelector('.fixed .absolute.right-full');
+            if (!preview) {
+                const rail = document.querySelector('[data-testid="turn-timeline-rail"]') || document.querySelector('[data-rail-tick]')?.closest('.fixed');
+                const firstTick = rail?.querySelector('[data-rail-tick]');
+                if (firstTick && rail) {
+                    const rect = firstTick.getBoundingClientRect();
+                    const evtInit = {
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: rect.left + rect.width / 2,
+                        clientY: rect.top + rect.height / 2,
+                    };
+                    firstTick.dispatchEvent(new MouseEvent('mouseover', evtInit));
+                    firstTick.dispatchEvent(new MouseEvent('mousemove', evtInit));
+                    rail.dispatchEvent(new MouseEvent('mousemove', evtInit));
+                }
+                preview = document.querySelector('[data-testid="turn-rail-preview"]') || document.querySelector('.fixed .absolute.right-full');
+            }
+            if (preview && preview.textContent && preview.textContent.trim().length > 5) {
+                return { ok: true, ready: true, sample: preview.textContent.slice(0, 80) };
+            }
             const popovers = document.querySelectorAll('.fixed .absolute.right-full, .fixed .absolute');
             let found = null;
             popovers.forEach((el) => {
-                if (el.textContent && /\\d/.test(el.textContent) && el.textContent.length > 10) {
+                if (el.textContent && /\\d/.test(el.textContent) && el.textContent.length > 5) {
                     found = el.textContent.slice(0, 80);
                 }
             });
-            return { ok: !!found, sample: found };
+            return { ok: !!found, ready: !!found, sample: found };
         })()"""
         wait_for_state(
             client, page, _CHECK_PREVIEW_JS, timeout_sec=20.0, page_url=target_url

@@ -170,6 +170,7 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
     return (
       <div
         ref={barRef}
+        data-testid="turn-timeline-rail"
         className={cn(
           'fixed top-1/2 -translate-y-1/2 z-30 flex flex-col items-center py-4 px-1.5',
           'hidden md:flex select-none',
@@ -201,6 +202,26 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
                 className="group flex items-center justify-center cursor-pointer p-0 border-0 bg-transparent outline-none focus-visible:ring-1 focus-visible:ring-primary"
                 style={{ height: 12 }}
                 onClick={() => handleTickClick(item)}
+                onMouseEnter={(e) => {
+                  setHoveredIdx(idx);
+                  setShowPreview(true);
+                  const bar = barRef.current;
+                  if (bar) {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    const b = bar.getBoundingClientRect();
+                    previewTopRef.current = r.top + r.height / 2 - b.top;
+                  }
+                }}
+                onFocus={(e) => {
+                  setHoveredIdx(idx);
+                  setShowPreview(true);
+                  const bar = barRef.current;
+                  if (bar) {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    const b = bar.getBoundingClientRect();
+                    previewTopRef.current = r.top + r.height / 2 - b.top;
+                  }
+                }}
                 aria-label={t('jumpToTurn', { index: item.turnIndex })}
               >
                 {isLoadingThis ? (
@@ -231,6 +252,7 @@ export const TurnTimelineRail = memo<TurnTimelineRailProps>(
         {/* 悬浮轮次大纲精炼预览卡片 */}
         {showPreview && activeHoverItem && (
           <div
+            data-testid="turn-rail-preview"
             className="absolute right-full mr-3.5 max-w-[280px] w-max p-2.5 rounded-lg
                 bg-popover text-popover-foreground text-xs leading-relaxed
                 shadow-xl border border-border/80 backdrop-blur-md
