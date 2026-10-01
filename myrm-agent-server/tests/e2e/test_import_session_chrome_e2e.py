@@ -22,6 +22,7 @@ if str(_LIB) not in sys.path:
 from cdp_chat.support import get_e2e_api_url  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
+    dismiss_blocking_modals,
     get_e2e_ui_url,
     open_mcp_page,
     prepare_e2e_ui_session,

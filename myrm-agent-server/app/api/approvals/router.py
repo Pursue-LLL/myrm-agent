@@ -55,7 +55,7 @@ class ResolveApprovalRequest(BaseModel):
     decision: str  # "approve" | "deny" | "reject" (frontend alias)
     edited_payload: dict[str, Any] | None = None
     comment: str | None = None
-    allow_always: bool | AllowAlwaysValue | None = None
+    allow_always: bool | str | AllowAlwaysValue | None = None
     ttl_seconds: int | float | None = None
     ephemeral_credential_handles: list[str] | None = None
 
