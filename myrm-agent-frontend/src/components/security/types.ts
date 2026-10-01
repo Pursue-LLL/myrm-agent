@@ -94,3 +94,17 @@ export interface AuditLogStats {
 }
 
 export type SecurityTabType = 'dependencies' | 'rate-limit' | 'audit-logs' | 'audit-stats';
+
+export interface AutonomyBreakerIncident {
+  incidentId: string;
+  sessionId: string;
+  reason: string;
+  errorDetails: string;
+  triggeredTool: string;
+  previousLevel: number;
+  degradedLevel: number;
+  breakerState: 'open' | 'closed' | 'half_open';
+  timestamp?: string;
+  consecutiveFailures?: number;
+  isDismissed?: boolean;
+}
