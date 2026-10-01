@@ -10,6 +10,7 @@ from .core import router as core_router
 from .export_pack import router as export_pack_router
 from .fork import router as fork_router
 from .handoff import router as handoff_router
+from .import_session import router as import_session_router
 from .loop import router as loop_router
 from .memory_extract import router as memory_extract_router
 from .messages import router as messages_router
@@ -42,6 +43,7 @@ router.include_router(compaction_router)
 router.include_router(copilot_router)
 router.include_router(fork_router)
 router.include_router(handoff_router)
+router.include_router(import_session_router)
 router.include_router(sandbox_router)
 router.include_router(share_router)
 router.include_router(trajectory_router)

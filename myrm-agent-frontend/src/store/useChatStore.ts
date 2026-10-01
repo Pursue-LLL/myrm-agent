@@ -187,7 +187,6 @@ const useChatStore = create<ChatState>()(
       notFound: false,
       loadError: false,
       isReady: false,
-      isWakeRecovering: false,
       _messageUpdateScheduled: false,
       regenerateSiblingGroupId: undefined,
       regenerateInstruction: undefined,
@@ -1209,8 +1208,6 @@ const useChatStore = create<ChatState>()(
           set({ chatHistoryItems: prev });
         }
       },
-
-      setWakeRecovering: (recovering: boolean) => set({ isWakeRecovering: recovering }),
     };
   }),
 );

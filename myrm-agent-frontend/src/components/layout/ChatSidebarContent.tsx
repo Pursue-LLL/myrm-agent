@@ -25,8 +25,9 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
-import { FolderOpen, Trash2 } from 'lucide-react';
+import { FolderOpen, Trash2, UploadCloud } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
+import SessionImportModal from '@/components/features/sidebar/SessionImportModal';
 import { SearchDialog, SearchTrigger } from '@/components/features/app-shell/search-dialog';
 import ChatHistoryList from '@/components/features/sidebar/ChatHistoryList';
 import { useWorkspaceFiles } from '@/components/features/workspace-browser/useWorkspaceFiles';
@@ -131,6 +132,7 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
     const t = useTranslations();
     const router = useRouter();
     const [searchDialogOpen, setSearchDialogOpen] = useState(false);
+    const [importModalOpen, setImportModalOpen] = useState(false);
 
     // -----------------------------------------------------------------------
     // Main Agent workspace (Web/SaaS)
@@ -213,12 +215,12 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
           </SearchDialog>
         </div>
 
-        {/* New Chat Button */}
-        <div className="px-3 pb-3 flex-shrink-0">
+        {/* New Chat & Import Session Buttons */}
+        <div className="px-3 pb-3 flex-shrink-0 flex items-center gap-2">
           <button
             onClick={onNewChat}
             className={cn(
-              'w-full flex items-center gap-3 p-2.5 rounded-xl cursor-pointer text-sm brand-interactive-hover',
+              'flex-1 flex items-center gap-2.5 p-2.5 rounded-xl cursor-pointer text-sm brand-interactive-hover',
               'bg-background dark:bg-background',
               'border border-border/60 dark:border-border/60',
               'text-foreground dark:text-foreground',
@@ -227,12 +229,12 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
             )}
           >
             <svg
-              width="20"
-              height="20"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              className="text-current"
+              className="text-current flex-shrink-0"
             >
               <path
                 d="M12.5 14.5v-6m-3 3h6m-3 8.5a8.5 8.5 0 1 0-8.057-5.783c.108.32.162.481.172.604a.899.899 0 0 1-.028.326c-.03.12-.098.245-.232.494l-1.636 3.027c-.233.432-.35.648-.324.815a.5.5 0 0 0 .234.35c.144.087.388.062.876.011l5.121-.529c.155-.016.233-.024.303-.021.07.002.12.009.187.024.069.016.155.05.329.116A8.478 8.478 0 0 0 12.5 20z"
@@ -242,7 +244,22 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
                 strokeLinejoin="round"
               />
             </svg>
-            <span className="whitespace-nowrap">{t('chat.newChat')}</span>
+            <span className="whitespace-nowrap font-medium">{t('chat.newChat')}</span>
+          </button>
+          <button
+            onClick={() => setImportModalOpen(true)}
+            className={cn(
+              'p-2.5 rounded-xl cursor-pointer text-sm brand-interactive-hover flex items-center justify-center flex-shrink-0',
+              'bg-background dark:bg-background',
+              'border border-border/60 dark:border-border/60',
+              'text-muted-foreground hover:text-foreground',
+              'transition-all duration-200 ease-in-out',
+              'active:scale-[0.98]',
+            )}
+            title={t('chat.import.buttonTitle') || 'Import external session'}
+            aria-label={t('chat.import.buttonTitle') || 'Import external session'}
+          >
+            <UploadCloud size={18} />
           </button>
         </div>
 
@@ -317,6 +334,9 @@ export const ChatSidebarContent = memo<ChatSidebarContentProps>(
 
         {/* Extension Slot: 侧边栏底部操作区 */}
         <ExtensionSlot name="sidebar.footer.action" className="px-3 pb-2 pt-1 border-t border-border/40" />
+
+        {/* Modal: 跨工具会话纯净导入 */}
+        <SessionImportModal open={importModalOpen} onOpenChange={setImportModalOpen} />
       </div>
     );
   },

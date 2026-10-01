@@ -34,7 +34,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database.models import Base, Chat, Message
 from app.services.migration.session_lane import SessionMigrationService
-from app.services.migration.source.source_payload_loaders_impl import load_claude, load_codex
+from app.services.migration.source.source_payload_loaders_impl import load_claude, load_codex, load_hermes
 
 
 @pytest.fixture
@@ -219,3 +219,33 @@ def test_load_codex_with_sessions(tmp_path: Path) -> None:
     sessions = res["sessions"]
     assert isinstance(sessions, list) and len(sessions) == 1
     assert sessions[0].get("title") == "Codex Refactoring Session"
+
+
+def test_load_hermes_with_sessions(tmp_path: Path) -> None:
+    session_file = tmp_path / "sessions" / "session_999.json"
+    session_file.parent.mkdir(parents=True, exist_ok=True)
+
+    data = {
+        "id": "hermes-sess-1",
+        "title": "Hermes CI Debugging Session",
+        "created_at": 1700000000.0,
+        "messages": [
+            {
+                "role": "user",
+                "content": "Check why CI build failed",
+            },
+            {
+                "role": "assistant",
+                "content": "Checking test runner logs now.",
+            },
+        ],
+    }
+    with open(session_file, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+
+    res = load_hermes(tmp_path, [str(session_file)])
+    assert "sessions" in res
+    sessions = res["sessions"]
+    assert isinstance(sessions, list) and len(sessions) == 1
+    assert sessions[0].get("title") == "Hermes CI Debugging Session"
+

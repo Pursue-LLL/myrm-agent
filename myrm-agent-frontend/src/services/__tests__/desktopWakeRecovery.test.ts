@@ -2,16 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { handleWakePhaseTransition, type WakeEventPayload } from '../desktopWakeRecovery';
 
 describe('desktopWakeRecovery', () => {
-  it('handles phase "waking" by toggling wake recovering state to true', async () => {
-    const setWakeRecovering = vi.fn();
+  it('handles phase "waking" silently without triggering network side effects', async () => {
     const mockState = {
-      setWakeRecovering,
       chatId: 'chat-123',
       loading: false,
       loadMessages: vi.fn(),
       loadChatHistory: vi.fn(),
       setLoading: vi.fn(),
     };
+    const notifyBackgroundTasks = vi.fn();
 
     const payload: WakeEventPayload = {
       phase: 'waking',
@@ -21,20 +20,21 @@ describe('desktopWakeRecovery', () => {
 
     await handleWakePhaseTransition(payload, {
       getState: () => mockState as unknown as ReturnType<typeof import('@/store/useChatStore').default.getState>,
+      notifyBackgroundTasks,
     });
 
-    expect(setWakeRecovering).toHaveBeenCalledWith(true);
     expect(mockState.loadMessages).not.toHaveBeenCalled();
+    expect(mockState.loadChatHistory).not.toHaveBeenCalled();
+    expect(notifyBackgroundTasks).not.toHaveBeenCalled();
   });
 
-  it('handles phase "ready" by recovering stuck loading session and refreshing history', async () => {
-    const setWakeRecovering = vi.fn();
+  it('handles phase "ready" by recovering stuck loading session, refreshing history, and syncing background tasks', async () => {
     const loadMessages = vi.fn().mockResolvedValue(undefined);
     const loadChatHistory = vi.fn().mockResolvedValue(undefined);
     const setLoading = vi.fn();
+    const notifyBackgroundTasks = vi.fn();
 
     const mockState = {
-      setWakeRecovering,
       chatId: 'chat-active',
       loading: true,
       loadMessages,
@@ -51,22 +51,22 @@ describe('desktopWakeRecovery', () => {
 
     await handleWakePhaseTransition(payload, {
       getState: () => mockState as unknown as ReturnType<typeof import('@/store/useChatStore').default.getState>,
+      notifyBackgroundTasks,
     });
 
-    expect(setWakeRecovering).toHaveBeenCalledWith(false);
     expect(loadMessages).toHaveBeenCalledWith('chat-active');
     expect(setLoading).toHaveBeenCalledWith(false);
     expect(loadChatHistory).toHaveBeenCalledWith(1);
+    expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
   });
 
   it('guarantees setLoading(false) even if loadMessages throws on network recovery lag', async () => {
-    const setWakeRecovering = vi.fn();
     const loadMessages = vi.fn().mockRejectedValue(new Error('Network offline'));
     const loadChatHistory = vi.fn().mockResolvedValue(undefined);
     const setLoading = vi.fn();
+    const notifyBackgroundTasks = vi.fn();
 
     const mockState = {
-      setWakeRecovering,
       chatId: 'chat-flaky',
       loading: true,
       loadMessages,
@@ -82,21 +82,21 @@ describe('desktopWakeRecovery', () => {
 
     await handleWakePhaseTransition(payload, {
       getState: () => mockState as unknown as ReturnType<typeof import('@/store/useChatStore').default.getState>,
+      notifyBackgroundTasks,
     });
 
-    expect(setWakeRecovering).toHaveBeenCalledWith(false);
     expect(setLoading).toHaveBeenCalledWith(false);
     expect(loadChatHistory).toHaveBeenCalledWith(1);
+    expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
   });
 
   it('skips message recovery if no active chat or not loading', async () => {
-    const setWakeRecovering = vi.fn();
     const loadMessages = vi.fn();
     const loadChatHistory = vi.fn().mockResolvedValue(undefined);
     const setLoading = vi.fn();
+    const notifyBackgroundTasks = vi.fn();
 
     const mockState = {
-      setWakeRecovering,
       chatId: undefined,
       loading: false,
       loadMessages,
@@ -112,11 +112,12 @@ describe('desktopWakeRecovery', () => {
 
     await handleWakePhaseTransition(payload, {
       getState: () => mockState as unknown as ReturnType<typeof import('@/store/useChatStore').default.getState>,
+      notifyBackgroundTasks,
     });
 
-    expect(setWakeRecovering).toHaveBeenCalledWith(false);
     expect(loadMessages).not.toHaveBeenCalled();
     expect(setLoading).not.toHaveBeenCalled();
     expect(loadChatHistory).toHaveBeenCalledWith(1);
+    expect(notifyBackgroundTasks).toHaveBeenCalledTimes(1);
   });
 });

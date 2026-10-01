@@ -109,6 +109,37 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
             if isinstance(strategies, dict):
                 result["credential_pool_strategies"] = strategies
 
+    from myrm_agent_harness.runtime.context.transcripts import HermesTranscriptParser
+
+    hermes_sessions: list[dict[str, object]] = []
+    hermes_parser = HermesTranscriptParser()
+    session_files: list[Path] = [
+        Path(fp)
+        for fp in file_paths
+        if (fp.endswith(".json") or fp.endswith(".jsonl"))
+        and "session" in fp.lower()
+        and Path(fp).is_file()
+    ]
+    if not session_files and root.is_dir():
+        for cand_dir in [root / "sessions", root / "history", root]:
+            if cand_dir.is_dir():
+                for p in cand_dir.glob("*.json*"):
+                    if p.is_file() and p.name not in ("auth.json", "config.json", "jobs.json", "settings.json"):
+                        session_files.append(p)
+    seen_hermes_paths: set[Path] = set()
+    for sf in session_files:
+        if sf in seen_hermes_paths:
+            continue
+        seen_hermes_paths.add(sf)
+        try:
+            parsed_res = hermes_parser.parse_file(sf)
+            if parsed_res.turns:
+                hermes_sessions.append(_serialize_transcript(parsed_res))
+        except Exception:
+            continue
+    if hermes_sessions:
+        result["sessions"] = hermes_sessions
+
     return result
 
 
