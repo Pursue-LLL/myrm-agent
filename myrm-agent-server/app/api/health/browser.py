@@ -13,6 +13,7 @@
 [INPUT]
 - app.config.browser::get_configured_browser_pool (POS: 浏览器池配置)
 - myrm_agent_harness.toolkits.browser::run_doctor (POS: 浏览器诊断)
+- myrm_agent_harness.toolkits.browser::cleanup_orphan_processes / cleanup_stale_automation_sandboxes (POS: 浏览器孤儿进程与沙箱清理)
 - app.lifecycle.browser::resolve_browser_proxy_pool (POS: 代理池解析)
 
 [OUTPUT]
@@ -132,29 +133,64 @@ async def cleanup_browser_orphans(
     """
     from myrm_agent_harness.toolkits.browser import (
         cleanup_orphan_processes,
+        cleanup_stale_automation_sandboxes,
         find_orphan_automation_processes,
     )
 
     try:
         orphans = await asyncio.to_thread(find_orphan_automation_processes)
+        orphan_pids = [int(o["pid"]) for o in orphans]
 
-        if not orphans:
-            return {
+        if orphan_pids:
+            proc_result = await asyncio.to_thread(
+                cleanup_orphan_processes, orphan_pids, force=confirm
+            )
+        else:
+            proc_result = {
                 "killed": 0,
-                "dry_run": False,
-                "message": "No orphan automation processes found",
-                "orphans": [],
+                "dry_run": not confirm,
+                "failed": [],
             }
 
-        orphan_pids = [o["pid"] for o in orphans]
-        result = cleanup_orphan_processes(orphan_pids, force=confirm)
+        sandbox_result = await asyncio.to_thread(
+            cleanup_stale_automation_sandboxes,
+            max_age_hours=24.0,
+            dry_run=not confirm,
+        )
+
+        killed = int(proc_result.get("killed", 0))
+        sandboxes_pruned = int(sandbox_result.get("pruned", 0))
+        reclaimed_bytes = int(sandbox_result.get("reclaimed_bytes", 0))
+        failed_items = list(proc_result.get("failed", [])) + list(
+            sandbox_result.get("failed", [])
+        )
+
+        reclaimed_mb = round(reclaimed_bytes / (1024 * 1024), 1)
+        if confirm:
+            msg_parts: list[str] = []
+            if killed > 0:
+                msg_parts.append(f"Killed {killed} process(es)")
+            if sandboxes_pruned > 0:
+                msg_parts.append(
+                    f"pruned {sandboxes_pruned} sandbox(es) ({reclaimed_mb} MB reclaimed)"
+                )
+            msg = (
+                ", ".join(msg_parts)
+                if msg_parts
+                else "No orphan processes or stale sandboxes needed cleanup"
+            )
+        else:
+            candidates_count = sandbox_result.get("candidates_inspected", 0)
+            msg = f"Dry-run: {len(orphan_pids)} process(es) and {candidates_count} sandbox candidate(s)"
 
         return {
-            "killed": result["killed"],
-            "dry_run": result["dry_run"],
-            "message": result.get("message", f"Killed {result['killed']} process(es)"),
+            "killed": killed,
+            "sandboxes_pruned": sandboxes_pruned,
+            "reclaimed_bytes": reclaimed_bytes,
+            "dry_run": not confirm,
+            "message": msg,
             "orphans": orphans,
-            "failed": result.get("failed", []),
+            "failed": failed_items,
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to process orphans") from exc

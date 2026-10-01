@@ -173,6 +173,37 @@ def test_cleanup_browser_orphans_when_none_found(
     data = response.json()
     assert data["killed"] == 0
     assert data["orphans"] == []
+    assert "sandboxes_pruned" in data
+    assert "reclaimed_bytes" in data
+
+
+@patch("myrm_agent_harness.toolkits.browser.cleanup_stale_automation_sandboxes")
+@patch("myrm_agent_harness.toolkits.browser.cleanup_orphan_processes")
+@patch("myrm_agent_harness.toolkits.browser.find_orphan_automation_processes")
+def test_cleanup_browser_orphans_prunes_sandboxes_and_reports_bytes(
+    mock_find: object,
+    mock_cleanup: object,
+    mock_sandbox_cleanup: object,
+    client: TestClient,
+) -> None:
+    """DELETE with confirm=true prunes sandboxes and returns disk space reclaimed."""
+    mock_find.return_value = [{"pid": 9999, "name": "Chromium"}]  # type: ignore[attr-defined]
+    mock_cleanup.return_value = {"killed": 1, "dry_run": False, "failed": []}  # type: ignore[attr-defined]
+    mock_sandbox_cleanup.return_value = {  # type: ignore[attr-defined]
+        "pruned": 5,
+        "reclaimed_bytes": 104857600,
+        "failed": [],
+        "dry_run": False,
+    }
+
+    response = client.delete("/api/v1/health/browser/orphans?confirm=true")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["killed"] == 1
+    assert data["sandboxes_pruned"] == 5
+    assert data["reclaimed_bytes"] == 104857600
+    assert "pruned 5 sandbox(es) (100.0 MB reclaimed)" in data["message"]
 
 
 def _config_record(value: dict[str, object]) -> SimpleNamespace:

@@ -5593,6 +5593,7 @@
       "confirmCleanupTitle": "Confirm cleanup of orphan processes?",
       "confirmCleanupDescription": "This terminates {count} leftover browser automation process(es). It will not close normal browser windows.",
       "cleaned": "Cleaned {count} orphan process(es)",
+      "cleanedWithReclaimed": "Cleaned {count} orphan process(es) and reclaimed {size} disk space",
       "cleanupPartial": "{failed} process(es) could not be terminated",
       "cleanupFailed": "Failed to clean up orphan processes"
     },

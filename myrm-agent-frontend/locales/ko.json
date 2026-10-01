@@ -18203,6 +18203,7 @@
       "confirmCleanupTitle": "고아 프로세스를 정리하시겠습니까?",
       "confirmCleanupDescription": "남아 있는 {count}개의 브라우저 자동화 프로세스를 종료합니다. 일반 브라우저 창은 닫지 않습니다.",
       "cleaned": "고아 프로세스 {count}개를 정리했습니다",
+      "cleanedWithReclaimed": "고아 프로세스 {count}개를 정리하고 {size}의 디스크 공간을 확보했습니다",
       "cleanupPartial": "{failed}개 프로세스를 종료하지 못했습니다",
       "cleanupFailed": "고아 프로세스 정리에 실패했습니다"
     },

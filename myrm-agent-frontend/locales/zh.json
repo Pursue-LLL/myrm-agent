@@ -5593,6 +5593,7 @@
       "confirmCleanupTitle": "确认清理孤儿进程？",
       "confirmCleanupDescription": "将终止 {count} 个残留的浏览器自动化进程。此操作不会关闭正常使用的浏览器窗口。",
       "cleaned": "已清理 {count} 个孤儿进程",
+      "cleanedWithReclaimed": "已清理 {count} 个孤儿进程，释放 {size} 磁盘空间",
       "cleanupPartial": "有 {failed} 个进程未能终止",
       "cleanupFailed": "清理孤儿进程失败"
     },

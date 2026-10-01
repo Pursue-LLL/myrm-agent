@@ -18203,6 +18203,7 @@
       "confirmCleanupTitle": "Verwaiste Prozesse bereinigen?",
       "confirmCleanupDescription": "Dadurch werden {count} verbleibende Prozesse der Browserautomatisierung beendet. Normale Browserfenster werden nicht geschlossen.",
       "cleaned": "{count} verwaiste Prozesse bereinigt",
+      "cleanedWithReclaimed": "{count} verwaiste Prozesse bereinigt und {size} Speicherplatz freigegeben",
       "cleanupPartial": "{failed} Prozess(e) konnten nicht beendet werden",
       "cleanupFailed": "Bereinigung der verwaisten Prozesse fehlgeschlagen"
     },

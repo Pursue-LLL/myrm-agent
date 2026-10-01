@@ -18203,6 +18203,7 @@
       "confirmCleanupTitle": "孤立プロセスをクリーンアップしてもよろしいですか？",
       "confirmCleanupDescription": "残っている {count} 個のブラウザ自動化プロセスを終了します。通常のブラウザウィンドウは閉じません。",
       "cleaned": "{count} 個の孤立プロセスをクリーンアップしました",
+      "cleanedWithReclaimed": "{count} 個の孤立プロセスをクリーンアップし、{size} のディスク容量を解放しました",
       "cleanupPartial": "{failed} 個のプロセスを終了できませんでした",
       "cleanupFailed": "孤立プロセスのクリーンアップに失敗しました"
     },

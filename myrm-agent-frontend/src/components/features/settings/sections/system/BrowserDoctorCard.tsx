@@ -38,9 +38,19 @@ interface OrphanCleanupFailed {
 
 interface OrphanCleanupResult {
   killed?: number;
+  sandboxes_pruned?: number;
+  reclaimed_bytes?: number;
   dry_run?: boolean;
   message?: string;
   failed?: OrphanCleanupFailed[];
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / Math.pow(1024, i);
+  return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -166,7 +176,17 @@ const BrowserDoctorCard = memo(() => {
         setCleanupMessage(t('cleanupPartial', { failed: failed.length }));
       } else {
         setCleanupHasFailures(false);
-        setCleanupMessage(t('cleaned', { count: data.killed ?? 0 }));
+        const reclaimed = data.reclaimed_bytes ?? 0;
+        if (reclaimed > 0) {
+          setCleanupMessage(
+            t('cleanedWithReclaimed', {
+              count: data.killed ?? 0,
+              size: formatBytes(reclaimed),
+            }),
+          );
+        } else {
+          setCleanupMessage(t('cleaned', { count: data.killed ?? 0 }));
+        }
       }
       setCleanupOpen(false);
       await fetchDoctor(launchTest);
