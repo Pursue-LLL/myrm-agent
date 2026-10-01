@@ -146,3 +146,67 @@ async def test_chat_message_mixin_bypasses_db_for_incognito() -> None:
     retrieved = await _ChatMessageMixin.get_all_messages(chat_id)
     assert len(retrieved) == 1
     assert retrieved[0].id == msg.id
+
+
+def test_zdr_rest_api_endpoints() -> None:
+    """Verify REST API endpoints: /status, /attestation, /reconnect, /wipe."""
+    from fastapi.testclient import TestClient
+
+    from tests.support.minimal_app import build_minimal_app
+
+    app = build_minimal_app(preset="chats")
+
+    with TestClient(app) as client:
+        non_existent = "non-existent-zdr"
+        # 1. Status for non-existent session
+        res = client.get(f"/api/v1/chats/{non_existent}/zdr/status")
+        assert res.status_code == 200
+        assert res.json()["data"]["is_active_ephemeral"] is False
+
+        # 2. Append message directly to simulate incognito session
+        store = EphemeralSessionStore.get_instance()
+        chat_id = "api-test-chat-zdr"
+        import asyncio
+
+        msg = MessageDTO(
+            id="m_api",
+            chat_id=chat_id,
+            role="user",
+            content="Top secret message",
+            sent_at=datetime.now(timezone.utc),
+            sent_timezone="UTC",
+            created_at=datetime.now(timezone.utc),
+        )
+        asyncio.run(store.append_message(chat_id, msg))
+
+        # 3. Status for active session
+        res = client.get(f"/api/v1/chats/{chat_id}/zdr/status")
+        assert res.status_code == 200
+        data = res.json()["data"]
+        assert data["is_active_ephemeral"] is True
+        assert data["zero_disk_retention"] is True
+        assert data["message_count"] == 1
+
+        # 4. Attestation
+        res = client.get(f"/api/v1/chats/{chat_id}/zdr/attestation")
+        assert res.status_code == 200
+        attest_data = res.json()["data"]
+        assert attest_data["chat_id"] == chat_id
+        assert attest_data["zero_disk_storage_verified"] is True
+        assert len(attest_data["signature"]) == 64
+
+        # 5. Reconnect
+        res = client.post(f"/api/v1/chats/{chat_id}/zdr/reconnect")
+        assert res.status_code == 200
+        assert res.json()["data"]["reconnected"] is True
+
+        # 6. Wipe
+        res = client.post(f"/api/v1/chats/{chat_id}/zdr/wipe")
+        assert res.status_code == 200
+        assert res.json()["data"]["wiped"] is True
+
+        # 7. Status after wipe
+        res = client.get(f"/api/v1/chats/{chat_id}/zdr/status")
+        assert res.status_code == 200
+        assert res.json()["data"]["is_active_ephemeral"] is False
+
