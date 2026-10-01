@@ -1,3 +1,19 @@
+/**
+ * Task Safety Airbag API client for unattended autonomous runs.
+ *
+ * [INPUT]
+ * - @/lib/api::apiRequest (POS: 统一 HTTP 客户端请求工具)
+ *
+ * [OUTPUT]
+ * - armAirbag: 武装任务安全气囊接口
+ * - getAirbagStatus: 获取气囊当前状态与变更清单接口
+ * - rollbackAirbag: 触发时光倒流无损回滚接口
+ * - dismissAirbag: 归档解除气囊接口
+ *
+ * [POS]
+ * 前端服务层：任务安全气囊与时光倒流 API 适配器。
+ */
+
 import { apiRequest } from '@/lib/api';
 
 export interface ArmAirbagResponse {

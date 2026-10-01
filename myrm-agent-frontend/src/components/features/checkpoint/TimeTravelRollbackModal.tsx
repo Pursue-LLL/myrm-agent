@@ -1,5 +1,20 @@
 'use client';
 
+/**
+ * Time-Travel Rollback Modal for unattended autonomous run inspection and recovery.
+ *
+ * [INPUT]
+ * - @/services/airbag::rollbackAirbag (POS: 触发时光倒流无损回滚接口)
+ * - @/services/airbag::dismissAirbag (POS: 归档解除气囊接口)
+ * - @/hooks/shared/useToast::toast (POS: 全局轻提示交互钩子)
+ *
+ * [OUTPUT]
+ * - TimeTravelRollbackModal: 时光倒流审查与原子还原对话框
+ *
+ * [POS]
+ * 前端检查点特性层：无人值守长任务时光倒流审查与原子撤销交互弹窗。
+ */
+
 import React, { useState } from 'react';
 import { ShieldCheck, AlertTriangle, RotateCcw, X, FileEdit, FilePlus, FileMinus } from 'lucide-react';
 import { AirbagStatusResponse, rollbackAirbag, dismissAirbag } from '@/services/airbag';

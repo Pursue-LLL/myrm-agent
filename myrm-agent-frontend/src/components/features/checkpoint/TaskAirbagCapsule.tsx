@@ -1,5 +1,19 @@
 'use client';
 
+/**
+ * Task Safety Airbag Capsule badge for autonomous run cards.
+ *
+ * [INPUT]
+ * - @/services/airbag::getAirbagStatus (POS: 获取气囊当前状态与变更清单接口)
+ * - ./TimeTravelRollbackModal::TimeTravelRollbackModal (POS: 时光倒流审查与原子撤销交互弹窗)
+ *
+ * [OUTPUT]
+ * - TaskAirbagCapsule: 呈现长任务挂机安全气囊状态与时光倒流触发入口的胶囊徽章
+ *
+ * [POS]
+ * 前端检查点特性层：长任务卡片安全气囊状态徽章与审查入口。
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { ShieldCheck, History, RotateCcw } from 'lucide-react';
 import { getAirbagStatus, AirbagStatusResponse } from '@/services/airbag';
