@@ -72,7 +72,7 @@ async def test_harvest_session_blind_spots_creates_approval(app, setup_test_data
     )
 
     with patch(
-        "app.services.agent.platform_config.load_platform_llm",
+        "app.services.agent.platform_config.load_platform_evolution_llm",
         AsyncMock(return_value=mock_llm),
     ):
         created_count = await harvest_session_blind_spots(limit=10, since_hours=24)
