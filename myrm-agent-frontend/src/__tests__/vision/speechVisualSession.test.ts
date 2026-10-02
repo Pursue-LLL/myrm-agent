@@ -1,3 +1,4 @@
+import { expectNonNull } from '@/test-utils/expectDefined';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { SpeechVisualSession } from '@/lib/vision/speechVisualSession';
 
@@ -15,9 +16,7 @@ describe('SpeechVisualSession', () => {
   it('returns a valid window after begin + end', () => {
     session.beginSpeech(5000);
     const window = session.endSpeech(8000);
-    if (window === null) {
-      throw new Error('endSpeech should return a window');
-    }
+    expectNonNull(window, 'endSpeech window');
     expect(window.speechStartAt).toBe(5000);
     expect(window.speechEndAt).toBe(8000);
     expect(window.frameWindowStartAt).toBeLessThan(window.speechStartAt);
@@ -27,9 +26,7 @@ describe('SpeechVisualSession', () => {
   it('uses preRoll and postRoll correctly', () => {
     session.beginSpeech(10000);
     const window = session.endSpeech(15000, 1000, 500);
-    if (window === null) {
-      throw new Error('endSpeech should return a window');
-    }
+    expectNonNull(window, 'endSpeech window');
 
     expect(window.frameWindowStartAt).toBe(10000 - 1000);
     expect(window.frameWindowEndAt).toBe(15000 + 500);
@@ -40,9 +37,7 @@ describe('SpeechVisualSession', () => {
   it('uses default preRoll/postRoll (500/300)', () => {
     session.beginSpeech(10000);
     const window = session.endSpeech(15000);
-    if (window === null) {
-      throw new Error('endSpeech should return a window');
-    }
+    expectNonNull(window, 'endSpeech window');
 
     expect(window.frameWindowStartAt).toBe(10000 - 500);
     expect(window.frameWindowEndAt).toBe(15000 + 300);
@@ -52,9 +47,7 @@ describe('SpeechVisualSession', () => {
     session.beginSpeech(5000);
     session.beginSpeech(6000);
     const window = session.endSpeech(8000);
-    if (window === null) {
-      throw new Error('endSpeech should return a window');
-    }
+    expectNonNull(window, 'endSpeech window');
 
     expect(window.speechStartAt).toBe(5000);
   });
@@ -70,9 +63,7 @@ describe('SpeechVisualSession', () => {
     session.reset();
     session.beginSpeech(5000);
     const window = session.endSpeech(7000);
-    if (window === null) {
-      throw new Error('endSpeech should return a window');
-    }
+    expectNonNull(window, 'endSpeech window');
 
     expect(window.speechStartAt).toBe(5000);
     expect(window.speechEndAt).toBe(7000);
@@ -81,13 +72,9 @@ describe('SpeechVisualSession', () => {
   it('allows multiple endSpeech calls after one beginSpeech', () => {
     session.beginSpeech(1000);
     const w1 = session.endSpeech(2000);
-    if (w1 === null) {
-      throw new Error('endSpeech should return a window');
-    }
+    expectNonNull(w1, 'endSpeech window');
     const w2 = session.endSpeech(3000);
-    if (w2 === null) {
-      throw new Error('endSpeech should return a window');
-    }
+    expectNonNull(w2, 'endSpeech window');
     expect(w1.speechEndAt).toBe(2000);
     expect(w2.speechEndAt).toBe(3000);
     expect(w2.speechStartAt).toBe(1000);
@@ -98,9 +85,7 @@ describe('SpeechVisualSession', () => {
     session.beginSpeech();
     const after = Date.now();
     const window = session.endSpeech(after + 1000);
-    if (window === null) {
-      throw new Error('endSpeech should return a window');
-    }
+    expectNonNull(window, 'endSpeech window');
     expect(window.speechStartAt).toBeGreaterThanOrEqual(before);
     expect(window.speechStartAt).toBeLessThanOrEqual(after);
   });
