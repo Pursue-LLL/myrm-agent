@@ -255,14 +255,19 @@ def _wait_assistant_reply(chat_id: str, api_url: str, *, timeout_sec: float = 18
 def _wait_pending_concept(
     api_url: str,
     concept: str,
+    agent_id: str,
     *,
     timeout_sec: float = 90.0,
 ) -> dict[str, object]:
-    """Poll the pending list until the gate-staged concept shows up."""
+    """Poll the agent-scope pending list until the gate-staged concept shows up.
+
+    The wiki write rides the session agent's vault (``?agent_id=`` scope), so
+    the global view stays empty — poll the same scope the UI panel reads.
+    """
     deadline = time.monotonic() + timeout_sec
     last: list[dict[str, object]] = []
     while time.monotonic() < deadline:
-        body = http_json("GET", f"{api_url}/api/v1/wiki/pending?limit=50")
+        body = http_json("GET", f"{api_url}/api/v1/wiki/pending?agent_id={agent_id}&limit=50")
         assert isinstance(body, dict)
         edits = body.get("pending_edits")
         if isinstance(edits, list):
@@ -272,7 +277,7 @@ def _wait_pending_concept(
                 return hit
         time.sleep(2.0)
     pytest.fail(
-        f"concept {concept} never landed in the pending list after {timeout_sec}s; "
+        f"concept {concept} never landed in the agent-scope pending list after {timeout_sec}s; "
         f"last_head={[str(e.get('concept_name')) for e in last[:5]]}"
     )
 
@@ -282,15 +287,17 @@ def _is_transport_retryable(exc: BaseException) -> bool:
 
 
 def _run_real_chat_gate_flow(api_url: str, ui_url: str) -> None:
-    base_stats = http_json("GET", f"{api_url}/api/v1/wiki/pending?limit=1")["stats"]
-    assert isinstance(base_stats, dict)
-    base_pending = int(base_stats["pending"])
-
     suffix = uuid.uuid4().hex[:8]
     concept = f"E2E-Real-Gate-{suffix}"
     agent_id = _create_wiki_agent(api_url, f"Wiki Gate Probe {suffix}")
     chat_id = f"e2ewikigate{suffix}"
     _create_chat(api_url, chat_id, "Wiki Pending Gate E2E", agent_id)
+    base_stats = http_json(
+        "GET", f"{api_url}/api/v1/wiki/pending?agent_id={agent_id}&limit=1"
+    )["stats"]
+    assert isinstance(base_stats, dict)
+    base_pending = int(base_stats["pending"])
+    base_rejected = int(base_stats["rejected"])
 
     # ── Real model turn: the agent must call the wiki tool; the fail-closed
     # gate blocks the publish and stages the draft for review. ──
@@ -305,13 +312,15 @@ def _run_real_chat_gate_flow(api_url: str, ui_url: str) -> None:
     # Keep the real model's answer on record (-s) — evidence of the live turn.
     print(f"[real-model reply] {reply[:240]}")
 
-    # ── Gate interception: the unique concept must land in the pending list. ──
-    staged = _wait_pending_concept(api_url, concept, timeout_sec=90.0)
+    # ── Gate interception: the unique concept must land in the agent-scope
+    # pending list (same vault the UI panel reads for this agent). ──
+    staged = _wait_pending_concept(api_url, concept, agent_id, timeout_sec=90.0)
     edit_id = staged.get("id")
     assert isinstance(edit_id, int), staged
 
-    # ── Real panel: the staged draft must be visible with the badge at base+1. ──
-    panel_url = f"{ui_url.rstrip('/')}{_PANEL_PATH}"
+    # ── Real panel in the agent scope: the staged draft must be visible with
+    # the badge at base+1 (the ?agentId= scope pins the panel vault). ──
+    panel_url = f"{ui_url.rstrip('/')}{_PANEL_PATH}&agentId={agent_id}"
     with open_wiki_settings_mcp_page(panel_url, timeout_ms=120_000, request_timeout_sec=180.0) as (client, page):
         client.evaluate(page, _SKIP_DEFERRED_LOCALE_JS, timeout_sec=15.0)
         reload_mcp_page(
@@ -361,10 +370,12 @@ def _run_real_chat_gate_flow(api_url: str, ui_url: str) -> None:
         assert rejected_state.get("errors") == [], rejected_state
 
     # Authoritative REST check after the UI action (model reply kept for the report).
-    final_stats = http_json("GET", f"{api_url}/api/v1/wiki/pending?limit=1")["stats"]
+    final_stats = http_json(
+        "GET", f"{api_url}/api/v1/wiki/pending?agent_id={agent_id}&limit=1"
+    )["stats"]
     assert isinstance(final_stats, dict)
     assert int(final_stats["pending"]) == base_pending, final_stats
-    assert int(final_stats["rejected"]) == int(base_stats["rejected"]) + 1, final_stats
+    assert int(final_stats["rejected"]) == base_rejected + 1, final_stats
 
 
 def _run_with_transport_retry(runner: Callable[[str, str], None], api_url: str, ui_url: str) -> None:
