@@ -264,3 +264,51 @@ def test_memory_keyword_recall_cross_chat_live() -> None:
     # context-free chat can only surface it through keyword recall.
     assert "kestrel" in lowered, f"codename keyword missing from recall reply: {text[:400]}"
     assert "uv" in lowered, f"package-manager keyword missing from recall reply: {text[:400]}"
+
+
+# CJK keywords: the recall reply must surface Chinese tokens that only exist
+# in the persisted memory — proves the jieba tokenization chain (BM25 sparse
+# channel) serves CJK segments, the dominant locale for real users.
+_WRITE_PROMPT_CJK = "请记住:我家的猫叫雪球,今年三岁,最爱吃冻干鸡肉零食。"
+_RECALL_PROMPT_CJK = "我家的猫叫什么名字?它最爱吃什么零食?"
+
+
+@pytest.mark.chrome_e2e(
+    execution_mode="PRIVATE",
+    access_scope="NAMESPACE_WRITE",
+    workload="STANDARD",
+    private_reason="exclusive_backend",
+)
+@pytest.mark.integration
+@pytest.mark.timeout(600)
+def test_memory_keyword_recall_cross_chat_cjk_live() -> None:
+    """Write a CJK fact in chat A, ask keyword-only in fresh chat B, recall must hit."""
+    api_url = get_e2e_api_url()
+    ui_url = get_e2e_ui_url()
+
+    prepare_e2e_ui_session(api_url)
+    seed_live_e2e_providers(api_url)
+    if not wait_e2e_provider_ready(timeout_sec=90.0):
+        pytest.fail("Provider not ready — run ./myrm ready --chrome")
+
+    suffix = uuid.uuid4().hex[:8]
+    agent_id = _create_agent(api_url, f"Memory Recall CJK Probe {suffix}")
+    chat_one = f"e2ekwrecall{suffix}c"
+    chat_two = f"e2ekwrecall{suffix}d"
+    _create_chat(api_url, chat_one, "Memory CJK Recall Write E2E", agent_id)
+    _create_chat(api_url, chat_two, "Memory CJK Recall Ask E2E", agent_id)
+
+    # ── Turn 1: write the distinctive CJK fact (real model, real extraction) ──
+    _open_chat_and_send(ui_url, chat_one, _WRITE_PROMPT_CJK)
+    _wait_assistant_reply(chat_one, api_url, timeout_sec=180.0)
+    _await_memory_write_ledger(api_url, chat_one, timeout_sec=120.0)
+
+    # ── Turn 2: context-free chat, CJK keyword-only recall ──
+    _open_chat_and_send(ui_url, chat_two, _RECALL_PROMPT_CJK)
+    reply = _wait_assistant_reply(chat_two, api_url, timeout_sec=180.0)
+
+    text = str(reply.get("content") or reply.get("message") or "")
+    # "雪球" and "冻干" only exist in the memory persisted from chat one; a
+    # context-free chat can only surface them through CJK keyword recall.
+    assert "雪球" in text, f"CJK cat-name keyword missing from recall reply: {text[:400]}"
+    assert "冻干" in text, f"CJK snack keyword missing from recall reply: {text[:400]}"
