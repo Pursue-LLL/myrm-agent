@@ -191,7 +191,11 @@ export function WikiPendingEdits({
           <div className="flex items-center gap-2 flex-wrap">
             <WikiScopeChip scopeLabel={scopeLabel} />
             {stats.pending > 0 && (
-              <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20">
+              <Badge
+                variant="secondary"
+                className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20"
+                data-testid="pending-stats-badge"
+              >
                 {stats.pending} {t('pendingEdits.status.pending')}
               </Badge>
             )}

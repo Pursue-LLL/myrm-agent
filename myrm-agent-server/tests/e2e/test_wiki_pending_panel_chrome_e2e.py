@@ -51,8 +51,7 @@ _PANEL_STATE_JS = """(() => {{
   const list = document.querySelector('[data-testid="pending-edits-list"]');
   const items = list ? list.children.length : 0;
   const loadMore = !!document.querySelector('[data-testid="pending-load-more"]');
-  const badge = [...document.querySelectorAll('span')]
-    .find((s) => String(s.className).includes('bg-amber'));
+  const badge = document.querySelector('[data-testid="pending-stats-badge"]');
   const badgeNum = badge ? ((badge.textContent.match(/\\d+/) || [''])[0]) : '';
   const text = list ? list.textContent : '';
   return {{
