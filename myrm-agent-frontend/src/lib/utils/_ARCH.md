@@ -15,6 +15,7 @@
 - `fileUtils.ts`：通用文件工具 — 扩展名分类（image/video/audio/pdf/document/text）、MIME 推断（getMimeType）、扩展名提取（getFileExtension）、文件名非法字符清理（sanitizeFilename）、Web/Tauri 展示 URL（getDisplayUrl）、base64 转换（fetchFileAsBase64DataURL）、SHA-256 哈希（computeFileHash）、「路径→内容」DEFLATE zip 打包（buildZipFromFiles）、文件下载（triggerDownload：Web a[download] / Tauri 系统保存对话框 + fs 写入）。
 - `imeUtils.ts`：输入法组合输入守卫 — `isImeComposing` 统一判断 `nativeEvent.isComposing`、`event.isComposing`、`key === 'Process'` 与 `keyCode === 229`；另用 document 级 `compositionend` 观察器维护 `IME_CONFIRM_ENTER_WINDOW_MS`（100ms）时间窗，补偿 Safari / WebKit（含 Tauri macOS WebView）「先派发 compositionend、再派发确认 keydown 且 isComposing 已为 false、keyCode 已为 13」的顺序倒置，保障 Windows/macOS/iOS/Android 输入法候选词确认不误触发消息提交。
 - `titleUtils.ts`：会话标题消歧与序号自增 — `parseTitleIndex` 与 `disambiguateChatTitle` 纯函数，确保自动生成和重命名标题时保持全局列表唯一可辨（如自动追加 `(2)`、`(3)`）。
+- `timeUtils.ts`：挂钟时间工具 — `formatDuration` 紧凑运行时长（42s/8m 30s，对齐后端 `_format_duration`）、`getUserTimezone` IANA 时区、`getCurrentTimestamp` unix 秒、`formatMessageTimestamp` 消息时间戳标签（`Intl.DateTimeFormat` 六语言原生，hourCycle h23 保持 24 小时制；模块级 formatter 缓存；今日/昨日/同年/跨年四档措辞）。
 - `pathValidation.ts`：全平台路径规范、工作区校验与展示截断 — 支持 POSIX、Windows 盘符、Windows UNC 共享路径识别与反斜杠/正斜杠归一化，提供 `validateWorkspacePath` 进行 ~ 波浪号路径解析与非法控制字符防护，以及 `formatPathForDisplay` 智能居中省略截断。
 - `skillUtils.ts`：Skill 多语言描述容灾守卫 — `resolveSkillDescription` 统一去除空串与空白，并在缺失时回退默认国际化文案，杜绝卡片与详情页空白。
 - `typeUtils.ts`：安全字典与类型守卫 — `isRecord`、`asRecord` 与 `safeGet`，彻底防止服务端 dict-like 异常或嵌套层级缺失导致的 WebUI 运行时白屏与崩溃。
@@ -22,7 +23,5 @@
 - `encodingUtils.ts`：UTF-8 安全 Base64 编解码引擎 — `safeBase64DecodeUtf8` 与 `safeBase64EncodeUtf8` 纯函数，基于原生 `TextDecoder('utf-8')` / `TextEncoder` 还原多字节 Unicode 字节流，杜绝原生 `atob` 导致的中文、日韩文与 Emoji 数据乱码崩溃，具备优雅容错降级保护。
 - `urlUtils.ts`：URL 协议安全性与外部跳转校验工具 — 提供 `isValidExternalUrl` 严格协议白名单校验（仅放行 `http:` 与 `https:`），阻断 `javascript:`、`data:` 与桌面本地伪协议，防御工件与应用外链 XSS 及客户端沙箱逃逸。
 - `imageAdmission.ts`：端侧图片准入与轻量速压防线 — `admitAndCompressImageFile` 与 `admitAndCompressFiles` 纯函数，入队/上传前执行尺寸（<=2048px）与体积（<=4MB）预检，基于 `OffscreenCanvas` / `createImageBitmap` 异步等比缩放与无损感知 WebP 压缩，杜绝超大原图（30MB+）阻塞网络带宽与网关 413 崩溃，保全动图（GIF）与矢量图（SVG）。
-- `chatExport.ts`：会话多格式导出排版与文件构建纯函数 — 支持 Markdown / JSON 结构化格式化、工业级敏感凭据安全脱敏正则过滤、细粒度思考链/工具细节包含控制、单条消息导出 CWE-312 脱敏保护（含图片导出 html2canvas 原生 onclone 沙箱安全清洗）、客户端自适应下载触发。
-- `chatExportHtml.ts`：会话离线独立 HTML 渲染构建器 — 基于 Rehype AST 引擎生成安全 HTML，集成代码高亮、iframe 挂件与自包含代码块一键复制交互按钮，保证 100% 零原生 Emoji 并自包含渲染。
-- `chatExportHtmlTemplates.ts`：会话 HTML 导出组件与样式模板库 — 封装深浅双主题 CSS 变量、Highlight.js 语法主题、离线响应式自适应布局、打印态样式隔离防截断与暗黑模式白底强制反转、原生代码复制交互脚本与反馈动画、主题切换交互脚本与多语言元数据统计标签。
+- `chat-export/`：会话导出域子包 — `index.ts` 聚合出口（对外唯一门面 `@/lib/utils/chat-export`）；`chatExport.ts` 多格式导出排版与文件构建纯函数（Markdown / JSON 结构化格式化、敏感凭据脱敏过滤、单条消息 CWE-312 保护、客户端自适应下载）；`chatExportHtml.ts` 离线独立 HTML 渲染构建器（Rehype AST 安全 HTML、代码高亮、iframe 挂件、零原生 Emoji 自包含渲染，`chatExport.ts` 惰性动态加载）；`chatExportHtmlTemplates.ts` 深浅双主题样式模板库（主题 CSS 变量、Highlight.js 语法主题、打印态隔离、复制交互脚本、多语言统计标签，包内私有）。
 - `clientRedact.ts`：客户端轻量敏感凭据脱敏清洗工具 — 提供 `redactSensitiveClientText` 与 `containsSensitiveData` 纯函数，覆盖 OpenAI/Anthropic 风格 API Keys、GitHub Tokens、AWS 密钥、PEM 私钥、JWT 签名凭据与键值对密码，防御单条消息与前端导出 CWE-312 敏感信息明文泄露。

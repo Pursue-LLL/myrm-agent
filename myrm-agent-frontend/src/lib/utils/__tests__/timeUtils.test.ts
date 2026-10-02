@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getUserTimezone, getCurrentTimestamp, formatTimeDifference, formatMessageTimestamp } from '../timeUtils';
+import { getUserTimezone, getCurrentTimestamp, formatMessageTimestamp } from '../timeUtils';
 
 describe('timeUtils', () => {
   describe('getUserTimezone', () => {
@@ -31,90 +31,6 @@ describe('timeUtils', () => {
 
     it('should return a number', () => {
       expect(typeof getCurrentTimestamp()).toBe('number');
-    });
-  });
-
-  describe('formatTimeDifference', () => {
-    it('should format seconds correctly', () => {
-      const date1 = new Date('2024-01-01T00:00:00Z');
-      const date2 = new Date('2024-01-01T00:00:30Z');
-
-      expect(formatTimeDifference(date1, date2)).toBe('30 seconds');
-    });
-
-    it('should format single second correctly', () => {
-      const date1 = new Date('2024-01-01T00:00:00Z');
-      const date2 = new Date('2024-01-01T00:00:01Z');
-
-      expect(formatTimeDifference(date1, date2)).toBe('1 second');
-    });
-
-    it('should format minutes correctly', () => {
-      const date1 = new Date('2024-01-01T00:00:00Z');
-      const date2 = new Date('2024-01-01T00:05:00Z');
-
-      expect(formatTimeDifference(date1, date2)).toBe('5 minutes');
-    });
-
-    it('should format single minute correctly', () => {
-      const date1 = new Date('2024-01-01T00:00:00Z');
-      const date2 = new Date('2024-01-01T00:01:00Z');
-
-      expect(formatTimeDifference(date1, date2)).toBe('1 minute');
-    });
-
-    it('should format hours correctly', () => {
-      const date1 = new Date('2024-01-01T00:00:00Z');
-      const date2 = new Date('2024-01-01T03:00:00Z');
-
-      expect(formatTimeDifference(date1, date2)).toBe('3 hours');
-    });
-
-    it('should format single hour correctly', () => {
-      const date1 = new Date('2024-01-01T00:00:00Z');
-      const date2 = new Date('2024-01-01T01:00:00Z');
-
-      expect(formatTimeDifference(date1, date2)).toBe('1 hour');
-    });
-
-    it('should format days correctly', () => {
-      const date1 = new Date('2024-01-01T00:00:00Z');
-      const date2 = new Date('2024-01-04T00:00:00Z');
-
-      expect(formatTimeDifference(date1, date2)).toBe('3 days');
-    });
-
-    it('should format single day correctly', () => {
-      const date1 = new Date('2024-01-01T00:00:00Z');
-      const date2 = new Date('2024-01-02T00:00:00Z');
-
-      expect(formatTimeDifference(date1, date2)).toBe('1 day');
-    });
-
-    it('should format years correctly', () => {
-      const date1 = new Date('2024-01-01T00:00:00Z');
-      const date2 = new Date('2026-01-01T00:00:00Z');
-
-      expect(formatTimeDifference(date1, date2)).toBe('2 years');
-    });
-
-    it('should format single year correctly', () => {
-      const date1 = new Date('2024-01-01T00:00:00Z');
-      const date2 = new Date('2025-01-01T00:00:00Z');
-
-      expect(formatTimeDifference(date1, date2)).toBe('1 year');
-    });
-
-    it('should work with string dates', () => {
-      const result = formatTimeDifference('2024-01-01T00:00:00Z', '2024-01-01T00:00:45Z');
-      expect(result).toBe('45 seconds');
-    });
-
-    it('should handle reversed date order', () => {
-      const date1 = new Date('2024-01-01T00:05:00Z');
-      const date2 = new Date('2024-01-01T00:00:00Z');
-
-      expect(formatTimeDifference(date1, date2)).toBe('5 minutes');
     });
   });
 
@@ -160,7 +76,7 @@ describe('timeUtils', () => {
     it('should show full date with year for different year (en)', () => {
       const date = new Date(2023, 11, 25, 18, 30);
       const result = formatMessageTimestamp(date, 'en', 'Yesterday');
-      expect(result.label).toMatch(/Dec 25, 2023 18:30/);
+      expect(result.label).toMatch(/Dec 25, 2023, 18:30/);
     });
 
     it('should show full date with year for different year (zh)', () => {
@@ -195,10 +111,12 @@ describe('timeUtils', () => {
       expect(result.label).toBeTruthy();
     });
 
-    it('should fallback to enUS for unknown locale', () => {
+    it('should degrade gracefully for unknown locale without throwing', () => {
       const date = new Date(2023, 5, 10, 12, 0);
-      const result = formatMessageTimestamp(date, 'fr', 'Hier');
-      expect(result.label).toMatch(/Jun 10, 2023 12:00/);
+      // Intl 对未登记语言标签按运行时默认 locale 优雅降级，年份与 24 小时制时间恒存在
+      const result = formatMessageTimestamp(date, 'xx', 'Hier');
+      expect(result.label).toContain('2023');
+      expect(result.label).toContain('12:00');
     });
 
     it('should generate hover title with full date info', () => {

@@ -49,7 +49,7 @@ vi.mock('@/services/chatExportPack', () => ({
   exportSessionZipPack: (...args: unknown[]) => exportSessionZipPackMock(...args),
 }));
 
-vi.mock('@/lib/utils/chatExport', () => ({
+vi.mock('@/lib/utils/chat-export', () => ({
   downloadAsHtml: (...args: unknown[]) => downloadAsHtmlMock(...args),
   downloadAsMarkdown: (...args: unknown[]) => downloadAsMarkdownMock(...args),
   downloadAsJson: (...args: unknown[]) => downloadAsJsonMock(...args),

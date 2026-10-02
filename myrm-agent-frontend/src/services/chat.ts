@@ -1,5 +1,5 @@
 import { API_BASE_URL, apiRequest, fetchWithTimeout } from '@/lib/api';
-import type { ExportData } from '@/lib/utils/chatExport';
+import type { ExportData } from '@/lib/utils/chat-export';
 import { Message, type ActionMode, type ModelSelection } from '@/store/chat/types';
 import { requestManager } from '@/lib/utils/requestManager';
 

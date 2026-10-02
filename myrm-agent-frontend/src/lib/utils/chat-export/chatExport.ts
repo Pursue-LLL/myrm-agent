@@ -86,14 +86,22 @@ function formatTimestamp(iso: string): string {
 }
 
 export function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
+  if (ms < 60_000) {
+    return `${(ms / 1000).toFixed(1)}s`;
+  }
   return `${(ms / 60_000).toFixed(1)}m`;
 }
 
 function formatTokenCount(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 10_000) return `${(n / 1000).toFixed(1)}k`;
+  if (n < 1000) {
+    return String(n);
+  }
+  if (n < 10_000) {
+    return `${(n / 1000).toFixed(1)}k`;
+  }
   return `${Math.round(n / 1000)}k`;
 }
 
@@ -106,9 +114,15 @@ function buildSummarySection(data: ExportData): string[] {
   const usage = data.usageSummary;
   if (usage && (usage.totalCalls > 0 || usage.totalTokens > 0)) {
     lines.push('## Session Summary', '');
-    if (usage.totalCalls > 0) lines.push(`- **API Calls**: ${usage.totalCalls}`);
-    if (usage.totalTokens > 0) lines.push(`- **Tokens**: ${formatTokenCount(usage.totalTokens)}`);
-    if (usage.totalUsd > 0) lines.push(`- **Cost**: ${formatUsd(usage.totalUsd)}`);
+    if (usage.totalCalls > 0) {
+      lines.push(`- **API Calls**: ${usage.totalCalls}`);
+    }
+    if (usage.totalTokens > 0) {
+      lines.push(`- **Tokens**: ${formatTokenCount(usage.totalTokens)}`);
+    }
+    if (usage.totalUsd > 0) {
+      lines.push(`- **Cost**: ${formatUsd(usage.totalUsd)}`);
+    }
     lines.push('');
   }
 
@@ -121,7 +135,9 @@ function buildSummarySection(data: ExportData): string[] {
     lines.push(`| **Total** | **${tools.totalToolCalls}** | **${formatDuration(tools.totalDurationMs)}** |`, '');
   }
 
-  if (lines.length > 0) lines.push('---', '');
+  if (lines.length > 0) {
+    lines.push('---', '');
+  }
   return lines;
 }
 

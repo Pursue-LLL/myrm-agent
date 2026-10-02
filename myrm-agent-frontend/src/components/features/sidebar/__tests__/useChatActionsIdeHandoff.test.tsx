@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useChatActions } from '../useChatActions';
 import { exportChat } from '@/services/chat';
-import { copyAsMarkdown } from '@/lib/utils/chatExport';
+import { copyAsMarkdown } from '@/lib/utils/chat-export';
 import { desktopBridge } from '@/lib/desktopBridge';
 import { toast } from '@/hooks/shared/useToast';
 
@@ -23,7 +23,7 @@ vi.mock('@/services/chat', () => ({
   getChatShareStatus: vi.fn().mockResolvedValue({ shared: false }),
 }));
 
-vi.mock('@/lib/utils/chatExport', () => ({
+vi.mock('@/lib/utils/chat-export', () => ({
   copyAsMarkdown: vi.fn(),
   downloadAsHtml: vi.fn(),
   downloadAsJson: vi.fn(),

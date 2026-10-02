@@ -573,7 +573,7 @@ export function buildBuiltinActions(): SlashAction[] {
 
         if (rawArgs === 'copy') {
           const { exportChat } = await import('@/services/chat');
-          const { copyAsMarkdown } = await import('@/lib/utils/chatExport');
+          const { copyAsMarkdown } = await import('@/lib/utils/chat-export');
           try {
             const data = await exportChat(chatId, { redactSecrets: true });
             await copyAsMarkdown(data);

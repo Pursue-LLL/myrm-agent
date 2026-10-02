@@ -11,7 +11,7 @@ import {
   formatUsd,
   type ExportData,
 } from '../chatExport';
-import { sanitizeFilename } from '../fileUtils';
+import { sanitizeFilename } from '../../fileUtils';
 import type { Message, Source } from '@/store/chat/types';
 
 function createMockMessage(overrides: Partial<Message> = {}): Message {
@@ -554,7 +554,9 @@ describe('chatExport', () => {
       const origCreateElement = document.createElement.bind(document);
       const linkMock = { href: '', download: '', click: vi.fn(), style: {} };
       vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-        if (tag === 'a') return linkMock as unknown as HTMLAnchorElement;
+        if (tag === 'a') {
+          return linkMock as unknown as HTMLAnchorElement;
+        }
         return origCreateElement(tag);
       });
       vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
@@ -593,7 +595,9 @@ describe('chatExport', () => {
       const origCreateElement = document.createElement.bind(document);
       const linkMock = { href: '', download: '', click: vi.fn(), style: {} };
       vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-        if (tag === 'a') return linkMock as unknown as HTMLAnchorElement;
+        if (tag === 'a') {
+          return linkMock as unknown as HTMLAnchorElement;
+        }
         return origCreateElement(tag);
       });
       vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);

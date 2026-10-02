@@ -1,14 +1,14 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { batchExportAsZip, type BatchExportProgress } from '../batchExport';
-import { type ExportData } from '../chatExport';
+import { type ExportData } from '../chat-export';
 
 vi.mock('@/services/chat', () => ({
   exportChat: vi.fn(),
 }));
 
-vi.mock('../chatExport', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../chatExport')>();
+vi.mock('../chat-export', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../chat-export')>();
   return {
     ...actual,
     formatChatAsMarkdown: vi.fn((data: ExportData) => `# ${data.chat.title}\n\ncontent`),

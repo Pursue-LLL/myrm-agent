@@ -18,7 +18,7 @@ import {
   downloadMessageAsDocx,
   downloadMessageAsHtml,
   downloadMessageAsImage,
-} from '@/lib/utils/chatExport';
+} from '@/lib/utils/chat-export';
 import type { Message } from '@/store/chat/types';
 
 const LONG_CONTENT_THRESHOLD = 50_000;

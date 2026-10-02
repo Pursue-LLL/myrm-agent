@@ -36,7 +36,7 @@ import {
   downloadAsJson,
   copyAsMarkdown,
   type ExportFormatOptions,
-} from '@/lib/utils/chatExport';
+} from '@/lib/utils/chat-export';
 
 export type ExportFormatType = 'html' | 'markdown' | 'json' | 'zip';
 

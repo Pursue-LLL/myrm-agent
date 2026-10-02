@@ -1,5 +1,5 @@
 import { exportChat } from '@/services/chat';
-import { formatChatAsMarkdown, formatChatAsJson, type ExportData } from './chatExport';
+import { formatChatAsMarkdown, formatChatAsJson, type ExportData } from './chat-export';
 import { sanitizeFilename } from './fileUtils';
 
 /**
@@ -47,7 +47,7 @@ async function formatContent(
     case 'json':
       return formatChatAsJson(data);
     case 'html': {
-      const { buildHtmlDocument } = await import('./chatExportHtml');
+      const { buildHtmlDocument } = await import('./chat-export/chatExportHtml');
       return buildHtmlDocument(data, theme, lang);
     }
   }

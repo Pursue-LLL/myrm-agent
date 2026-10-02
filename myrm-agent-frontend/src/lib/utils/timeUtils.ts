@@ -1,13 +1,42 @@
-import { isToday, isYesterday, format } from 'date-fns';
-import { zhCN, enUS, ja, ko, de } from 'date-fns/locale';
+/**
+ * [POS]
+ * Wall-clock time helpers: compact run durations (mirroring the backend
+ * `_format_duration`), IANA timezone, unix seconds, and locale-aware
+ * message timestamp labels via Intl.DateTimeFormat (all six app locales
+ * natively; hourCycle h23 keeps the 24-hour clock).
+ *
+ * [OUTPUT]
+ * - formatDuration
+ * - getUserTimezone
+ * - getCurrentTimestamp
+ * - formatMessageTimestamp
+ */
 
-const DATE_FNS_LOCALES: Record<string, import('date-fns').Locale> = {
-  zh: zhCN,
-  en: enUS,
-  ja,
-  ko,
-  de,
-};
+type TimestampVariant = 'time' | 'monthday' | 'fulldate';
+
+// Message lists render a label per message; reuse immutable formatters
+// instead of reallocating per row (same pattern as relativeTime.ts).
+const tsFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function getTsFormatter(variant: TimestampVariant, locale: string): Intl.DateTimeFormat {
+  const key = `${variant}|${locale}`;
+  let formatter = tsFormatterCache.get(key);
+  if (formatter === undefined) {
+    formatter = new Intl.DateTimeFormat(locale, {
+      ...(variant === 'time' ? {} : { month: 'short', day: 'numeric' }),
+      ...(variant === 'fulldate' ? { year: 'numeric' } : {}),
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    });
+    tsFormatterCache.set(key, formatter);
+  }
+  return formatter;
+}
+
+function isSameCalendarDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
 
 /**
  * Format a wall-clock duration compactly: 42s / 8m 30s / 1h 5m.
@@ -62,43 +91,6 @@ export const getCurrentTimestamp = (): number => {
 };
 
 /**
- * 将两个日期之间的时间差格式化为人类可读的字符串。
- */
-export const formatTimeDifference = (date1: Date | string, date2: Date | string): string => {
-  const d1 = date1 instanceof Date ? date1 : new Date(date1);
-  const d2 = date2 instanceof Date ? date2 : new Date(date2);
-
-  const diffInSeconds = Math.floor(Math.abs(d2.getTime() - d1.getTime()) / 1000);
-
-  const SECONDS_IN_MINUTE = 60;
-  const SECONDS_IN_HOUR = 3600;
-  const SECONDS_IN_DAY = 86400;
-  const SECONDS_IN_YEAR = 31536000;
-
-  if (diffInSeconds < SECONDS_IN_MINUTE) {
-    return `${diffInSeconds} second${diffInSeconds !== 1 ? 's' : ''}`;
-  }
-
-  const minutes = Math.floor(diffInSeconds / SECONDS_IN_MINUTE);
-  if (diffInSeconds < SECONDS_IN_HOUR) {
-    return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
-  }
-
-  const hours = Math.floor(diffInSeconds / SECONDS_IN_HOUR);
-  if (diffInSeconds < SECONDS_IN_DAY) {
-    return `${hours} hour${hours !== 1 ? 's' : ''}`;
-  }
-
-  const days = Math.floor(diffInSeconds / SECONDS_IN_DAY);
-  if (diffInSeconds < SECONDS_IN_YEAR) {
-    return `${days} day${days !== 1 ? 's' : ''}`;
-  }
-
-  const years = Math.floor(diffInSeconds / SECONDS_IN_YEAR);
-  return `${years} year${years !== 1 ? 's' : ''}`;
-};
-
-/**
  * 格式化消息时间戳为智能显示格式。
  *
  * @returns {{ label: string; title: string }} label 为简短显示，title 为 hover 完整时间。
@@ -113,20 +105,19 @@ export const formatMessageTimestamp = (
     return { label: '', title: '' };
   }
 
-  const loc = DATE_FNS_LOCALES[locale] ?? enUS;
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
 
   let label: string;
-  if (isToday(d)) {
-    label = format(d, 'HH:mm', { locale: loc });
-  } else if (isYesterday(d)) {
-    label = `${yesterdayLabel} ${format(d, 'HH:mm', { locale: loc })}`;
-  } else if (d.getFullYear() === new Date().getFullYear()) {
-    label = locale === 'zh' ? format(d, 'M月d日 HH:mm', { locale: loc }) : format(d, 'MMM d, HH:mm', { locale: loc });
+  if (isSameCalendarDay(d, now)) {
+    label = getTsFormatter('time', locale).format(d);
+  } else if (isSameCalendarDay(d, yesterday)) {
+    label = `${yesterdayLabel} ${getTsFormatter('time', locale).format(d)}`;
+  } else if (d.getFullYear() === now.getFullYear()) {
+    label = getTsFormatter('monthday', locale).format(d);
   } else {
-    label =
-      locale === 'zh'
-        ? format(d, 'yyyy年M月d日 HH:mm', { locale: loc })
-        : format(d, 'MMM d, yyyy HH:mm', { locale: loc });
+    label = getTsFormatter('fulldate', locale).format(d);
   }
 
   const title = d.toLocaleString(locale === 'zh' ? 'zh-CN' : locale, {

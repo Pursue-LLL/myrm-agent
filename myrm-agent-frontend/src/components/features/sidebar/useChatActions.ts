@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ChatItem, updateChatTitle, deleteChat, exportChat } from '@/services/chat';
 import { revealChatArtifacts } from '@/services/file';
-import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown, printChat } from '@/lib/utils/chatExport';
+import { copyAsMarkdown, downloadAsHtml, downloadAsJson, downloadAsMarkdown, printChat } from '@/lib/utils/chat-export';
 import { desktopBridge } from '@/lib/desktopBridge';
 import { buildIdeDeepLink, type IdeHandoffTarget } from '@/lib/ide-handoff';
 import useChatStore from '@/store/useChatStore';
