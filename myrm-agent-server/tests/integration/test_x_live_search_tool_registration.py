@@ -13,6 +13,8 @@ from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from app.core.skills.gates.oauth_availability import X_LIVE_SEARCH_SKILL_ID
 
 SCRIPT_PATH = Path(__file__).resolve().parents[2] / "assets" / "prebuilt_skills" / "x-live-search" / "scripts" / "search.py"
@@ -68,10 +70,12 @@ class TestXLiveSearchSandboxScript:
         ]
 
     def test_normalize_handles_exceed_max(self) -> None:
-        import pytest
+        with pytest.raises(ValueError, match="Maximum 20 handles"):
+            x_search_script._normalize_handles([f"user{i}" for i in range(22)])
 
-        with pytest.raises(ValueError, match="Maximum 10 handles"):
-            x_search_script._normalize_handles([f"user{i}" for i in range(12)])
+    def test_normalize_handles_at_max_boundary(self) -> None:
+        handles = x_search_script._normalize_handles([f"user{i}" for i in range(20)])
+        assert len(handles) == 20
 
     def test_validate_date_range(self) -> None:
         assert x_search_script._validate_date_range("2026-08-01", "2026-08-31") is None
@@ -145,3 +149,16 @@ class TestXLiveSearchSandboxScript:
         # Disallowed scheme / host fallback to default
         assert x_search_script._validate_base_url("http://malicious.site/v1") == x_search_script._DEFAULT_XAI_BASE_URL
         assert x_search_script._validate_base_url("https://attacker.com/v1") == x_search_script._DEFAULT_XAI_BASE_URL
+
+    def test_source_label(self) -> None:
+        # xAI `url_citation` titles are inline citation numbers ("1", "2"), not page titles.
+        assert x_search_script._source_label("1", "https://x.com/elonmusk/status/123") == "@elonmusk post"
+        assert x_search_script._source_label("", "https://x.com/karpathy") == "@karpathy"
+        assert x_search_script._source_label("4", "https://www.x.com/sama/status/9") == "@sama post"
+        # Real page titles are preserved.
+        assert x_search_script._source_label("My Blog Post", "https://example.com/post") == "My Blog Post"
+        # Numeric title on a non-x.com URL falls back to the URL itself.
+        assert x_search_script._source_label("2", "https://example.com/post") == "https://example.com/post"
+        # Reserved x.com path prefixes carry no handle; fall back to the URL.
+        assert x_search_script._source_label("3", "https://x.com/i/lists/1") == "https://x.com/i/lists/1"
+        assert x_search_script._source_label("5", "https://x.com/search?q=ai") == "https://x.com/search?q=ai"
