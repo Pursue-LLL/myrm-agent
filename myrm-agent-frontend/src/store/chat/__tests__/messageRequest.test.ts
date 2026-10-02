@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { setGlobalTranslator } from '@/services/i18nToastService';
 import * as api from '@/lib/api';
 import { createAISearchStream } from '@/services/chat';
+import { expectDefined } from '@/test-utils/expectDefined';
 import { normalizeLocaleForBackend } from '@/lib/utils/locale';
 import type { AgentConfig } from '@/store/chat/types';
 import type { MentionReference } from '@/store/chat/types';
@@ -1253,6 +1254,42 @@ describe('messageRequest - mention reference lifetime contract', () => {
       ],
     });
     expect(requestBody.mention_references?.[0]).not.toHaveProperty('artifact_id');
+  });
+
+  it('truncates oversized artifact_range content to the inline budget with a marker', async () => {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+
+    const oversized = 'x'.repeat(40_000);
+    const state = {
+      ...baseState,
+      mentionReferences: [
+        {
+          type: 'artifact_range',
+          label: 'huge.xlsx',
+          range: 'Sheet1!A1:ZZ9999',
+          source: 'generated',
+          size: oversized.length,
+          content: oversized,
+        } satisfies MentionReference,
+      ],
+    };
+    await createMessageRequest('总结这个选区', 'msg-artifact-range-trunc', state, null);
+
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    expect(requestBody).toMatchObject({
+      mention_references: [
+        {
+          type: 'artifact_range',
+          label: 'huge.xlsx',
+          content: expect.stringContaining('…[truncated]'),
+        },
+      ],
+    });
+    const sentContent = (requestBody.mention_references as Array<{ content?: string }>)[0]?.content;
+    expectDefined(sentContent, 'truncated selection content');
+    expect(sentContent.length).toBe(32_013); // 32_000 chars + "\n…[truncated]" suffix
   });
 
   it('attaches auto_moa_reasoning and auto_moa_preset_id when agentConfig auto_on_reasoning is enabled', async () => {

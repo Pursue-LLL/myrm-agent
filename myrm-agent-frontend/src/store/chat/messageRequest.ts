@@ -176,6 +176,18 @@ export interface ChatActionsMethods {
 }
 
 const LINE_RANGE_REFERENCE_PATTERN = /^@(.+):(\d+)(?:-(\d+))?$/;
+// Selection snippets must stay under the server's 100KB per-part inline budget:
+// 32_000 chars * 3 bytes (worst-case UTF-8) = 96KB, so selections always inline
+// instead of tripping the protocol's field cap or the too-large degradation path.
+const SELECTION_CONTENT_MAX_CHARS = 32_000;
+const SELECTION_TRUNCATION_SUFFIX = '\n…[truncated]';
+
+function truncateSelectionContent(content: string): string {
+  if (content.length <= SELECTION_CONTENT_MAX_CHARS) {
+    return content;
+  }
+  return `${content.slice(0, SELECTION_CONTENT_MAX_CHARS)}${SELECTION_TRUNCATION_SUFFIX}`;
+}
 
 const mentionReferenceKey = (reference: MentionReference) =>
   `${reference.type}:${reference.path ?? reference.fileId ?? reference.url ?? reference.label}:${reference.startLine ?? ''}:${reference.endLine ?? ''}`;
@@ -926,7 +938,7 @@ export const createMessageRequest = async (
           end_line: reference.endLine,
           ...(reference.conceptName ? { concept_name: reference.conceptName } : {}),
           ...(reference.range ? { range: reference.range } : {}),
-          ...(reference.content ? { content: reference.content } : {}),
+          ...(reference.content ? { content: truncateSelectionContent(reference.content) } : {}),
         }));
       }
       if (agentReferences.length > 0) {
