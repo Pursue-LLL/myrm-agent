@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Bell, RefreshCw } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import { apiRequest } from '@/lib/api';
 import useAuthStore from '@/store/useAuthStore';
 import { cn } from '@/lib/utils/classnameUtils';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { toast } from '@/lib/utils/toast';
 
 interface SystemNotificationMeta {
@@ -37,6 +37,7 @@ interface NotificationListResponse {
 
 export default function NotificationBell() {
   const t = useTranslations('notifications');
+  const locale = useLocale();
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
@@ -199,7 +200,7 @@ export default function NotificationBell() {
                       <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{notif.message}</p>
                       <div className="flex items-center justify-between pt-1">
                         <p className="text-[10px] text-muted-foreground/70">
-                          {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
+                          {formatRelativeTime(notif.created_at, locale)}
                         </p>
                         {notif.type === 'error' && notif.meta_data?.delivery_id && !notif.meta_data?.retried && (
                           <button

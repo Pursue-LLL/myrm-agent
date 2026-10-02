@@ -11,12 +11,15 @@ import {
   IconClock,
   IconPlus,
   IconUsers,
+  IconX,
 } from '@/components/features/icons/PremiumIcons';
 import { scheduleMobilePairRefresh, storeMobilePairToken } from '@/lib/mobileRemote';
 import { useE2EEStatus } from '@/lib/e2ee/useE2EEStatus';
 import E2EESecurityPanel from '@/components/features/e2ee/E2EESecurityPanel';
 import { isImeComposing } from '@/lib/utils/imeUtils';
 import { formatRelativeTime } from '@/lib/utils/relativeTime';
+import { cancelActiveChatAgent } from '@/services/chat';
+import { showI18nToast } from '@/services/i18nToastService';
 import type { ActiveSession, RecentSession } from '@/services/agent';
 import { remoteAccessService } from '@/services/remoteAccess';
 import type { SpawnOptionAgent, SpawnOptionProject } from '@/services/remoteAccess';
@@ -40,6 +43,7 @@ export default function MobileSessionHub() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openingChatId, setOpeningChatId] = useState<string | null>(null);
+  const [stoppingChatId, setStoppingChatId] = useState<string | null>(null);
   const e2ee = useE2EEStatus();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -149,6 +153,22 @@ export default function MobileSessionHub() {
     [router, t],
   );
 
+  const stopSession = useCallback(
+    async (chatId: string) => {
+      setStoppingChatId(chatId);
+      try {
+        await cancelActiveChatAgent(chatId);
+        showI18nToast('agent.mobileCommand.stopTaskSuccess', undefined, { type: 'success' });
+        await loadSessions();
+      } catch {
+        showI18nToast('agent.mobileCommand.stopTaskFailed', undefined, { type: 'warning' });
+      } finally {
+        setStoppingChatId(null);
+      }
+    },
+    [loadSessions],
+  );
+
   const usedSlots = slots ? Math.max(0, slots.max - slots.available) : sessions.length;
   const maxSlots = slots?.max ?? 0;
   const sectionsVisible = sessions.length > 0 || recentSessions.length > 0;
@@ -212,30 +232,44 @@ export default function MobileSessionHub() {
                 <ul className="flex flex-col gap-3">
                   {sessions.map((session) => (
                     <li key={session.chatId}>
-                      <button
-                        type="button"
-                        onClick={() => void openSession(session.chatId)}
-                        disabled={openingChatId === session.chatId}
-                        aria-label={agentDisplayName(session.agentId, session.agentName, session.agentType, locale)}
-                        className="group block w-full rounded-2xl border border-border/70 bg-card/80 p-4 text-left shadow-sm backdrop-blur transition-all hover:border-primary/40 hover:bg-accent/30 disabled:cursor-wait disabled:opacity-70"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0 space-y-1">
-                            <p className="truncate text-sm font-semibold text-foreground">
-                              {agentDisplayName(session.agentId, session.agentName, session.agentType, locale)}
-                            </p>
-                            <p className="truncate font-mono text-[11px] text-muted-foreground">{session.chatId}</p>
+                      <div className="group rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm backdrop-blur transition-all hover:border-primary/40 hover:bg-accent/30">
+                        <button
+                          type="button"
+                          onClick={() => void openSession(session.chatId)}
+                          disabled={openingChatId === session.chatId}
+                          aria-label={agentDisplayName(session.agentId, session.agentName, session.agentType, locale)}
+                          className="block w-full text-left disabled:cursor-wait disabled:opacity-70"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0 space-y-1">
+                              <p className="truncate text-sm font-semibold text-foreground">
+                                {agentDisplayName(session.agentId, session.agentName, session.agentType, locale)}
+                              </p>
+                              <p className="truncate font-mono text-[11px] text-muted-foreground">{session.chatId}</p>
+                            </div>
+                            <div className="flex shrink-0 flex-col items-end gap-1">
+                              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                                {openingChatId === session.chatId
+                                  ? t('opening')
+                                  : t('elapsed', { seconds: session.elapsedSeconds })}
+                              </span>
+                              <IconArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                            </div>
                           </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1">
-                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                              {openingChatId === session.chatId
-                                ? t('opening')
-                                : t('elapsed', { seconds: session.elapsedSeconds })}
-                            </span>
-                            <IconArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
-                          </div>
+                        </button>
+                        <div className="mt-3 flex items-center justify-end border-t border-border/50 pt-3">
+                          <button
+                            type="button"
+                            onClick={() => void stopSession(session.chatId)}
+                            disabled={stoppingChatId === session.chatId}
+                            aria-label={t('stop')}
+                            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-60"
+                          >
+                            <IconX className="h-3 w-3" />
+                            {stoppingChatId === session.chatId ? t('stopping') : t('stop')}
+                          </button>
                         </div>
-                      </button>
+                      </div>
                     </li>
                   ))}
                 </ul>

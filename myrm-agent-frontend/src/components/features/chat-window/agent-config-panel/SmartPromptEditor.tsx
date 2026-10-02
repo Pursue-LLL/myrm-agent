@@ -4,7 +4,7 @@ import { useTheme } from 'next-themes';
 import { Loader2, History } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { isImeComposing } from '@/lib/utils/imeUtils';
 import {
@@ -13,7 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/primitives/dropdown-menu';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 
 import type { editor } from 'monaco-editor';
 
@@ -46,6 +46,7 @@ export const SmartPromptEditor: React.FC<SmartPromptEditorProps> = ({
   isGenerating = false,
 }) => {
   const t = useTranslations('agent.configEditor');
+  const locale = useLocale();
   const { resolvedTheme } = useTheme();
   const monaco = useMonaco();
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
@@ -174,7 +175,7 @@ export const SmartPromptEditor: React.FC<SmartPromptEditorProps> = ({
                     <div className="flex items-center justify-between w-full">
                       <span className="font-medium text-xs">v{h.version}</span>
                       <span className="text-[10px] text-muted-foreground">
-                        {formatDistanceToNow(new Date(h.createdAt), { addSuffix: true })}
+                        {formatRelativeTime(h.createdAt, locale)}
                       </span>
                     </div>
                     <span className="text-xs text-muted-foreground line-clamp-1 mt-1">{h.systemPrompt}</span>

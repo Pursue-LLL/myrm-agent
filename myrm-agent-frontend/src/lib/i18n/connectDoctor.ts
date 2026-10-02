@@ -7,7 +7,6 @@
  * - resolveDoctorMessageKey
  * - resolveDoctorSeverity
  * - resolveDoctorStatusKey
- * - formatDoctorRelativeTime
  *
  * [POS]
  * Maps server doctor detail codes to connectWizard i18n message keys and a
@@ -22,11 +21,7 @@
  * table, keeping toast, wizard, and card rendering in sync.
  */
 
-import { formatDistanceToNow } from 'date-fns';
-import { de, enUS, ja, ko, zhCN, zhTW } from 'date-fns/locale';
-
 export type DoctorSeverity = 'ok' | 'warn' | 'error';
-
 /** Server doctor detail code → connectWizard message key. */
 const DOCTOR_DETAIL_MESSAGE_KEYS: Record<string, string> = {
   verified: 'doctorHealthyVerified',
@@ -91,25 +86,4 @@ export function resolveDoctorStatusKey(checked: boolean, severity: DoctorSeverit
     return 'doctorStatusWarn';
   }
   return 'doctorStatusFail';
-}
-
-const RELATIVE_LOCALES: Record<string, import('date-fns').Locale> = {
-  zh: zhCN,
-  'zh-TW': zhTW,
-  en: enUS,
-  ja,
-  ko,
-  de,
-};
-
-/**
- * Format an ISO timestamp as a localized relative time ("2 hours ago").
- * Returns an empty string for invalid timestamps.
- */
-export function formatDoctorRelativeTime(iso: string, locale: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-  return formatDistanceToNow(date, { addSuffix: true, locale: RELATIVE_LOCALES[locale] ?? enUS });
 }

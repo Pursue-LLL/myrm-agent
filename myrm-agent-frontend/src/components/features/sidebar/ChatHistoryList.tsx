@@ -2,13 +2,12 @@
 
 import type { ChatItem } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
-import { formatDistanceToNow } from 'date-fns';
-import { zhCN, enUS } from 'date-fns/locale';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { AlertCircle, RefreshCw, Pin, ChevronDown, ListChecks, Loader2, Search, X } from 'lucide-react';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
 import { useCallback, useEffect, memo, useMemo, useRef, useState, type DragEvent } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   DndContext,
@@ -161,15 +160,11 @@ const ChatHistoryList = memo<ChatHistoryListProps>(({ isExpanded, currentChatId,
     return () => observer.disconnect();
   }, [chatHistoryPagination, chatHistoryLoading, loadMoreChatHistory]);
 
-  const formatTime = useMemo(() => {
-    const locale = typeof window !== 'undefined' && window.navigator.language.startsWith('zh') ? zhCN : enUS;
-
-    return (date: Date) =>
-      formatDistanceToNow(date, {
-        addSuffix: true,
-        locale,
-      });
-  }, []);
+  const appLocale = useLocale();
+  const formatTime = useMemo(
+    () => (date: Date) => formatRelativeTime(date.toISOString(), appLocale),
+    [appLocale],
+  );
 
   useEffect(() => {
     return () => {

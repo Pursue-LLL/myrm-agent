@@ -1,9 +1,8 @@
 'use client';
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { formatDistanceToNow } from 'date-fns';
-import { enUS, zhCN } from 'date-fns/locale';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { toast } from 'sonner';
 import { Copy, KeyRound, Plus, Shield, Trash2 } from 'lucide-react';
 import SettingsSection from '../SettingsSection';
@@ -43,7 +42,6 @@ interface TunnelAdminPanelProps {
 const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
   const t = useTranslations('settings.enterprise');
   const locale = useLocale();
-  const dateFnsLocale = useMemo(() => (locale.startsWith('zh') ? zhCN : enUS), [locale]);
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -229,10 +227,7 @@ const TunnelAdminPanel = memo(({ orgId }: TunnelAdminPanelProps) => {
                     tunnel.last_error_at !== undefined && (
                       <p className="text-xs text-muted-foreground">
                         {t('tunnelLastErrorAt', {
-                          time: formatDistanceToNow(new Date(tunnel.last_error_at * 1000), {
-                            addSuffix: true,
-                            locale: dateFnsLocale,
-                          }),
+                          time: formatRelativeTime(new Date(tunnel.last_error_at * 1000).toISOString(), locale),
                         })}
                       </p>
                     )}

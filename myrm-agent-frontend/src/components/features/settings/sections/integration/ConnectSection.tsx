@@ -42,11 +42,11 @@ import {
 import { toast } from '@/hooks/shared/useToast';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 import {
-  formatDoctorRelativeTime,
   resolveDoctorMessageKey,
   resolveDoctorSeverity,
   resolveDoctorStatusKey,
 } from '@/lib/i18n/connectDoctor';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { cn } from '@/lib/utils';
 import SettingsSection from '../SettingsSection';
 import {
@@ -270,7 +270,7 @@ const ConnectSection = memo(() => {
                   {connector.last_doctor_at && (
                     <span>
                       {t('doctorLastChecked', {
-                        time: formatDoctorRelativeTime(connector.last_doctor_at, locale),
+                        time: formatRelativeTime(connector.last_doctor_at, locale),
                       })}
                     </span>
                   )}

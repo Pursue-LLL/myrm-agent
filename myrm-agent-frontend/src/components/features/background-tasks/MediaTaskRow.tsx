@@ -12,8 +12,8 @@
  */
 
 import { Navigation } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { formatDistanceToNow } from 'date-fns';
+import { useLocale, useTranslations } from 'next-intl';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { IconCheckCircle, IconLoader, IconStop, IconXCircle } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -35,6 +35,7 @@ const ACTIVE_STATUS_DOT: Record<'pending' | 'queued' | 'running', string> = {
 
 export function MediaTaskRow({ task, variant = 'active', onCancel, onNavigateChat }: MediaTaskRowProps) {
   const t = useTranslations('backgroundTasks.media');
+  const locale = useLocale();
   const prompt = getMediaTaskPrompt(task.payload);
   const chatId = getMediaTaskChatId(task.payload);
   const typeLabel = task.task_type === 'video_generate' ? t('videoGenerate') : t('imageGenerate');
@@ -95,9 +96,7 @@ export function MediaTaskRow({ task, variant = 'active', onCancel, onNavigateCha
             <span>{statusLabel}</span>
             <span className="text-border">·</span>
             <span>
-              {formatDistanceToNow(new Date(task.updated_at), {
-                addSuffix: true,
-              })}
+              {formatRelativeTime(task.updated_at, locale)}
             </span>
           </div>
 

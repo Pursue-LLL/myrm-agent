@@ -5,10 +5,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import React from 'react';
 
-vi.mock('date-fns', () => ({
-  formatDistanceToNow: () => '5 minutes ago',
-}));
-
 const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), prefetch: vi.fn() }),
@@ -40,6 +36,7 @@ const stableT = (namespace?: string) => (key: string) => {
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace?: string) => stableT(namespace),
+  useLocale: () => 'en',
 }));
 
 vi.mock('@/components/primitives/popover', () => ({

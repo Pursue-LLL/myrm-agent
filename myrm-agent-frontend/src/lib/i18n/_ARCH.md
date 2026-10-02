@@ -14,6 +14,7 @@
 | 文件                        | 职责                                                                                                                      |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | `streamNotificationCopy.ts` | `resolveStreamLocale`、`getClarificationNotificationTitle`、`preloadNotificationCopy`（idle 动态加载 notifications 切片） |
+| `connectDoctor.ts`          | 连接诊断文案解析 — 诊断 detail → i18n message key / `DoctorSeverity` / status key 映射（`resolveDoctorMessageKey` / `resolveDoctorSeverity` / `resolveDoctorStatusKey`） |
 
 ## 依赖
 

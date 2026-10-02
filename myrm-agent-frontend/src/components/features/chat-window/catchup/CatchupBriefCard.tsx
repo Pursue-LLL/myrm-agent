@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { CheckCircle2, Clock, AlertCircle, FileCode, Wrench, Activity, MessageSquare } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Button } from '@/components/primitives/button';
 import { Badge } from '@/components/primitives/badge';
 import type { CatchupBrief } from '@/services/chat';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 interface CatchupBriefCardProps {
   brief: CatchupBrief;
@@ -17,6 +17,7 @@ interface CatchupBriefCardProps {
 
 export const CatchupBriefCard: React.FC<CatchupBriefCardProps> = ({ brief, onRead, onNavigate }) => {
   const t = useTranslations('Catchup');
+  const locale = useLocale();
 
   const getStatusIcon = () => {
     switch (brief.status) {
@@ -59,7 +60,7 @@ export const CatchupBriefCard: React.FC<CatchupBriefCardProps> = ({ brief, onRea
             </span>
           </CardTitle>
           <div className="text-xs text-muted-foreground mt-1">
-            {formatDistanceToNow(new Date(brief.updated_at), { addSuffix: true })}
+            {formatRelativeTime(brief.updated_at, locale)}
           </div>
         </div>
         <Badge

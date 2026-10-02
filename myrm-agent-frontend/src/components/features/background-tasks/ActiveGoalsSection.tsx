@@ -1,8 +1,8 @@
 'use client';
 
 import { Navigation, Target } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { formatDistanceToNow } from 'date-fns';
+import { useLocale, useTranslations } from 'next-intl';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { IconStop } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -16,6 +16,7 @@ interface ActiveGoalsSectionProps {
 
 export function ActiveGoalsSection({ goals, onNavigateChat, onGoalAction }: ActiveGoalsSectionProps) {
   const t = useTranslations('backgroundTasks');
+  const locale = useLocale();
 
   if (goals.length === 0) {
     return null;
@@ -40,7 +41,7 @@ export function ActiveGoalsSection({ goals, onNavigateChat, onGoalAction }: Acti
                     <span className={cn('h-1.5 w-1.5 rounded-full', style.dotColor)} />
                     <span>{t(style.i18nKey)}</span>
                     <span className="text-border">·</span>
-                    <span>{formatDistanceToNow(new Date(goal.created_at), { addSuffix: true })}</span>
+                    <span>{formatRelativeTime(goal.created_at, locale)}</span>
                     {goal.tokens_used > 0 && (
                       <>
                         <span className="text-border">·</span>

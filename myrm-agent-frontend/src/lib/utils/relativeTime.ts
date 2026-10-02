@@ -4,6 +4,19 @@
  * (auto "just now"/"x minutes ago" phrasing; all six app locales supported natively).
  */
 
+const rtfCache = new Map<string, Intl.RelativeTimeFormat>();
+
+function getFormatter(locale: string): Intl.RelativeTimeFormat {
+  // Hub polls every 5s and renders up to 10 cards per pass; formatters are
+  // immutable per locale, so reuse one instance instead of reallocating.
+  let formatter = rtfCache.get(locale);
+  if (formatter === undefined) {
+    formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+    rtfCache.set(locale, formatter);
+  }
+  return formatter;
+}
+
 export function formatRelativeTime(isoTimestamp: string, locale: string): string {
   const then = new Date(isoTimestamp).getTime();
   if (Number.isNaN(then)) {
@@ -11,7 +24,7 @@ export function formatRelativeTime(isoTimestamp: string, locale: string): string
   }
   const diffSeconds = Math.round((then - Date.now()) / 1000);
   const absSeconds = Math.abs(diffSeconds);
-  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  const formatter = getFormatter(locale);
   if (absSeconds < 60) {
     return formatter.format(diffSeconds, 'second');
   }

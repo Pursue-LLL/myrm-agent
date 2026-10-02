@@ -31,6 +31,7 @@ vi.mock('@/components/features/icons/PremiumIcons', () => ({
   IconClock: () => null,
   IconPlus: () => null,
   IconUsers: () => null,
+  IconX: () => null,
 }));
 
 vi.mock('@/lib/mobileRemote', () => ({
@@ -53,6 +54,19 @@ vi.mock('@/components/agent/builtin-agent-i18n', () => ({
 
 vi.mock('@/services/remoteAccess', () => ({
   remoteAccessService: mockRemoteAccess,
+}));
+
+const { mockCancelActiveChatAgent, mockShowI18nToast } = vi.hoisted(() => ({
+  mockCancelActiveChatAgent: vi.fn(),
+  mockShowI18nToast: vi.fn(),
+}));
+
+vi.mock('@/services/chat', () => ({
+  cancelActiveChatAgent: mockCancelActiveChatAgent,
+}));
+
+vi.mock('@/services/i18nToastService', () => ({
+  showI18nToast: mockShowI18nToast,
 }));
 
 import MobileSessionHub from '../MobileSessionHub';
@@ -192,5 +206,59 @@ describe('MobileSessionHub sections and concurrency gating', () => {
 
     expect(screen.getByText('slotsFull')).toBeDefined();
     expect(mockRemoteAccess.spawnMobileSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('MobileSessionHub stop from running card', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    mockRemoteAccess.getMobileSessions.mockResolvedValue({
+      activeSessions: [
+        { chatId: 'c1', agentId: 'a1', agentType: 'general', agentName: 'Research Agent', elapsedSeconds: 42 },
+      ],
+      recentSessions: [],
+      maxConcurrent: 3,
+      availableSlots: 2,
+    });
+    mockRemoteAccess.getSpawnOptions.mockResolvedValue({
+      agents: [{ id: 'agent-a', name: 'Agent A', avatar: null }],
+      projects: [],
+      defaultAgentId: 'agent-a',
+    });
+    mockRemoteAccess.spawnMobileSession.mockResolvedValue({ token: 'tok', mobilePath: '/mobile/status/new' });
+    mockCancelActiveChatAgent.mockResolvedValue({ cancelled: true, chat_id: 'c1' });
+  });
+
+  it('stops a running session from the card and refreshes the list', async () => {
+    render(<MobileSessionHub />);
+    await act(async () => {});
+
+    const callsBefore = mockRemoteAccess.getMobileSessions.mock.calls.length;
+    await act(async () => {
+      fireEvent.click(screen.getByText('stop'));
+    });
+
+    expect(mockCancelActiveChatAgent).toHaveBeenCalledWith('c1');
+    expect(mockShowI18nToast).toHaveBeenCalledWith('agent.mobileCommand.stopTaskSuccess', undefined, {
+      type: 'success',
+    });
+    // A successful stop immediately pulls a fresh session list.
+    expect(mockRemoteAccess.getMobileSessions.mock.calls.length).toBeGreaterThan(callsBefore);
+  });
+
+  it('signals a warning toast when stopping fails', async () => {
+    mockCancelActiveChatAgent.mockRejectedValue(new Error('cancel rejected'));
+
+    render(<MobileSessionHub />);
+    await act(async () => {});
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('stop'));
+    });
+
+    expect(mockShowI18nToast).toHaveBeenCalledWith('agent.mobileCommand.stopTaskFailed', undefined, {
+      type: 'warning',
+    });
   });
 });

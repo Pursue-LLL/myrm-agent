@@ -1,9 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { formatDistanceToNow } from 'date-fns';
-import { zhCN, enUS } from 'date-fns/locale';
+import { useLocale, useTranslations } from 'next-intl';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { ChevronDown, GitCompare, History, Loader2, RefreshCw, RotateCcw } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -37,8 +36,7 @@ interface SkillVersionsPanelProps {
 export function SkillVersionsPanel({ skillId, onActivated, className }: SkillVersionsPanelProps) {
   const t = useTranslations('settings.skillOptimization.versions');
   const tSkills = useTranslations('settings.skills');
-  const localeKey = useTranslations('settings.skills.history');
-  const locale = localeKey('locale') === 'zh' ? zhCN : enUS;
+  const appLocale = useLocale();
   const { theme } = useTheme();
 
   const [versions, setVersions] = useState<SkillVersionSummary[]>([]);
@@ -163,7 +161,7 @@ export function SkillVersionsPanel({ skillId, onActivated, className }: SkillVer
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {formatDistanceToNow(new Date(v.created_at), { addSuffix: true, locale })} · {v.created_by}
+                      {formatRelativeTime(v.created_at, appLocale)} · {v.created_by}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">

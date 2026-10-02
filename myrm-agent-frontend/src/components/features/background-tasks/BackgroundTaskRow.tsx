@@ -1,8 +1,8 @@
 'use client';
 
 import { Navigation, FileText, Terminal } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { formatDistanceToNow } from 'date-fns';
+import { useLocale, useTranslations } from 'next-intl';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { IconStop } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
@@ -54,7 +54,12 @@ export function BackgroundTaskRow({
 }: BackgroundTaskRowProps) {
   const t = useTranslations('backgroundTasks');
   const tChat = useTranslations('chat');
+  const locale = useLocale();
   const config = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.running;
+  // `?? null` folds the optional `undefined` into `null` so `!== null` narrows.
+  const progressPercent = task.progress_percent ?? null;
+  const shellPid = task.pid ?? null;
+  const exitCode = task.exit_code ?? null;
   const StatusIcon = config.icon;
   const canViewVaultLog = Boolean(task.vault_log_ref && task.chat_id && onViewVaultLog);
   const LogActionIcon = canViewVaultLog ? FileText : Navigation;
@@ -68,14 +73,13 @@ export function BackgroundTaskRow({
       : null;
 
   const handleSecondaryAction = () => {
-    if (!task.chat_id) {
+    if (onViewVaultLog && task.chat_id && task.vault_log_ref) {
+      onViewVaultLog(task.chat_id, task.vault_log_ref);
       return;
     }
-    if (canViewVaultLog) {
-      onViewVaultLog!(task.chat_id, task.vault_log_ref!);
-      return;
+    if (task.chat_id) {
+      onNavigateChat(task.chat_id);
     }
-    onNavigateChat(task.chat_id);
   };
 
   return (
@@ -89,20 +93,18 @@ export function BackgroundTaskRow({
             <span>{t(task.status)}</span>
             <span className="text-border">·</span>
             <span>
-              {formatDistanceToNow(new Date(task.created_at * 1000), {
-                addSuffix: true,
-              })}
+              {formatRelativeTime(new Date(task.created_at * 1000).toISOString(), locale)}
             </span>
-            {task.kind === 'shell' && task.pid != null && (
+            {shellPid !== null && task.kind === 'shell' && (
               <>
                 <span className="text-border">·</span>
-                <span>{t('shellPid', { pid: task.pid })}</span>
+                <span>{t('shellPid', { pid: shellPid })}</span>
               </>
             )}
-            {task.exit_code != null && task.status !== 'running' && (
+            {exitCode !== null && task.status !== 'running' && (
               <>
                 <span className="text-border">·</span>
-                <span>{t('exitCode', { code: task.exit_code })}</span>
+                <span>{t('exitCode', { code: exitCode })}</span>
               </>
             )}
             {task.kind === 'shell' && task.status === 'running' && task.stdin_closed && (
@@ -130,11 +132,11 @@ export function BackgroundTaskRow({
             </p>
           )}
 
-          {task.progress_percent != null && task.status === 'running' && (
+          {progressPercent !== null && task.status === 'running' && (
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${Math.min(100, Math.max(0, task.progress_percent))}%` }}
+                style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
               />
             </div>
           )}
@@ -192,7 +194,7 @@ export function BackgroundTaskRow({
                       variant="ghost"
                       size="sm"
                       className="h-6 px-2 text-xs"
-                      onClick={() => onNavigateChat(task.chat_id!)}
+                      onClick={handleSecondaryAction}
                     >
                       <LogActionIcon className="mr-1 h-3 w-3" />
                       {t('navigate')}

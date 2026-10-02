@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
-import { formatDistanceToNow } from 'date-fns';
-import { zhCN, enUS } from 'date-fns/locale';
+import { useLocale, useTranslations } from 'next-intl';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import { RefreshCw, Undo2, CheckCircle2, XCircle, FileClock, History } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
@@ -51,9 +50,7 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
   const [isRollingBack, setIsRollingBack] = useState<string | null>(null);
   const [pendingRollback, setPendingRollback] = useState<{ id: string; name: string } | null>(null);
   const { theme } = useTheme();
-
-  // Using English as default locale for date formatting if not zh
-  const locale = t('locale') === 'zh' ? zhCN : enUS;
+  const appLocale = useLocale();
 
   const fetchHistory = useCallback(async () => {
     setIsLoading(true);
@@ -134,16 +131,14 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
         <div className="divide-y divide-border/50 max-h-[500px] overflow-y-auto">
           {records.map((record) => {
             const isExpanded = expandedId === record.id;
-            const timeAgo = formatDistanceToNow(new Date(record.resolved_at || record.created_at), {
-              addSuffix: true,
-              locale,
-            });
+            const timeAgo = formatRelativeTime(record.resolved_at || record.created_at, appLocale);
 
             return (
               <div key={record.id} className="p-4 transition-colors hover:bg-muted/30">
                 <div className="flex items-start justify-between gap-4">
-                  <div
-                    className="flex-1 min-w-0 cursor-pointer group"
+                  <button
+                    type="button"
+                    className="flex-1 min-w-0 cursor-pointer group text-left"
                     onClick={() => setExpandedId(isExpanded ? null : record.id)}
                   >
                     <div className="flex items-center gap-2 mb-1">
@@ -165,7 +160,7 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
                       >
                         {t(`status.${record.status}`)}
                       </Badge>
-                      {record.quality_delta?.before_score != null && (
+                      {record.quality_delta && record.quality_delta.before_score !== null && (
                         <Badge
                           variant="outline"
                           className="text-[10px] py-0 h-4 px-1.5 font-mono bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
@@ -180,7 +175,7 @@ export function SkillHistoryPanel({ className }: { className?: string }) {
                       <span>{timeAgo}</span>
                       <span>ID: {record.skill_id.split('::').pop()}</span>
                     </div>
-                  </div>
+                  </button>
 
                   {record.status === 'approved' && (
                     <Button

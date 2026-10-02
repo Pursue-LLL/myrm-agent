@@ -12,8 +12,7 @@ import {
 } from '@/components/features/icons/PremiumIcons';
 import { EmptyState } from '@/components/primitives/empty-state';
 import { ListDetailSkeleton } from '@/components/primitives/skeleton-templates';
-import { formatDistanceToNow } from 'date-fns';
-import { enUS, zhCN } from 'date-fns/locale';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 
 interface ArtifactVersion {
   id: string;
@@ -36,7 +35,6 @@ interface Artifact {
 export const ArtifactsCenter: React.FC = () => {
   const t = useTranslations('artifacts');
   const locale = useLocale();
-  const distanceLocale = locale.startsWith('zh') ? zhCN : enUS;
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,17 +96,18 @@ export const ArtifactsCenter: React.FC = () => {
         </h2>
         <div className="space-y-2">
           {artifacts.map((a) => (
-            <div
+            <button
               key={a.id}
+              type="button"
               onClick={() => loadVersions(a)}
-              className={`p-3 rounded-lg cursor-pointer transition-all duration-200 border ${selectedArtifact?.id === a.id ? 'bg-primary/5 border-primary/30' : 'bg-background hover:bg-muted/50 border-transparent'}`}
+              className={`w-full text-left p-3 rounded-lg cursor-pointer transition-all duration-200 border ${selectedArtifact?.id === a.id ? 'bg-primary/5 border-primary/30' : 'bg-background hover:bg-muted/50 border-transparent'}`}
             >
               <h3 className="font-medium text-sm truncate">{a.name}</h3>
               <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                 <IconClock className="w-3 h-3" />
-                {formatDistanceToNow(new Date(a.updated_at), { addSuffix: true, locale: distanceLocale })}
+                {formatRelativeTime(a.updated_at, locale)}
               </p>
-            </div>
+            </button>
           ))}
           {artifacts.length === 0 && (
             <EmptyState
@@ -151,7 +150,7 @@ export const ArtifactsCenter: React.FC = () => {
                   <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border bg-card transition-all hover:shadow-md">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-medium text-primary px-2 py-1 bg-primary/10 rounded-full">
-                        v{selectedArtifact.versions!.length - index}
+                        v{(selectedArtifact.versions?.length ?? 0) - index}
                       </span>
                       <span className="text-xs text-muted-foreground">{new Date(v.created_at).toLocaleString()}</span>
                     </div>
