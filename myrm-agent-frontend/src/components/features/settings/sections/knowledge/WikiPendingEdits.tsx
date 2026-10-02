@@ -27,6 +27,9 @@ interface WikiPendingEditsProps {
 
 type PendingEditFilter = 'all' | 'concepts' | 'synthesis';
 
+// Mirrors the server-side default page size of GET /wiki/pending.
+const PENDING_PAGE_SIZE = 50;
+
 function isSynthesisEdit(edit: PendingEdit): boolean {
   return edit.concept_name.startsWith('Comparisons/');
 }
@@ -45,19 +48,25 @@ export function WikiPendingEdits({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editContent, setEditContent] = useState<string>('');
 
-  const loadPending = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await wikiService.getPendingEdits(agentScopeId);
-      setEdits(res.pending_edits);
-      setStats(res.stats);
-    } catch (error) {
-      console.error('Failed to load pending edits:', error);
-      toast.error(t('errors.loadPendingFailed'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [agentScopeId, t]);
+  const loadPending = useCallback(
+    async (offset = 0) => {
+      setIsLoading(true);
+      try {
+        const res =
+          offset > 0
+            ? await wikiService.getPendingEdits(agentScopeId, PENDING_PAGE_SIZE, offset)
+            : await wikiService.getPendingEdits(agentScopeId);
+        setEdits((prev) => (offset > 0 ? [...prev, ...res.pending_edits] : res.pending_edits));
+        setStats(res.stats);
+      } catch (error) {
+        console.error('Failed to load pending edits:', error);
+        toast.error(t('errors.loadPendingFailed'));
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [agentScopeId, t]
+  );
 
   useEffect(() => {
     setFilter(initialFilter);
@@ -292,6 +301,18 @@ export function WikiPendingEdits({
               );
             })}
           </div>
+        )}
+
+        {edits.length > 0 && edits.length < (stats.pending ?? 0) && (
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => void loadPending(edits.length)}
+            disabled={isLoading}
+            data-testid="pending-load-more"
+          >
+            {t('pendingEdits.loadMore')}
+          </Button>
         )}
       </CardContent>
     </Card>

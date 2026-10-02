@@ -1844,11 +1844,13 @@ async def resume_compile_circuit(
 @router.get("/pending", response_model=PendingEditsResponse)
 async def get_pending_edits(
     archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+    limit: Annotated[int, Query(ge=1, le=200, description="Page size of pending drafts")] = 50,
+    offset: Annotated[int, Query(ge=0, description="Skips older pages of pending drafts")] = 0,
 ) -> PendingEditsResponse:
-    """Get stats and list of pending Wiki edits (HITL)."""
+    """Get stats and one page of pending Wiki edits (HITL); stats stay exact."""
     stats = archiver._pending_mgr.get_stats()
     stats["synthesis_pending"] = archiver._pending_mgr.count_synthesis_pending()
-    edits = archiver._pending_mgr.get_pending_edits(limit=50)
+    edits = archiver._pending_mgr.get_pending_edits(limit=limit, offset=offset)
     return PendingEditsResponse(stats=stats, pending_edits=edits)
 
 

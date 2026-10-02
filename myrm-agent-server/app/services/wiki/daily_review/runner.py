@@ -41,6 +41,8 @@ _SILENT = "[SILENT]"
 # One daily cron cycle: anything ingested since the previous run is reported by the
 # next run exactly once, independent of calendar-day or timezone boundaries.
 _REPORT_WINDOW = timedelta(hours=24)
+# Window-stat page size; exhausting pages keeps the breakdown exact at any volume.
+_STATS_PAGE_SIZE = 500
 
 
 def _window_cutoffs() -> tuple[float, str]:
@@ -71,12 +73,19 @@ def _window_draft_stats(
 
     Status-agnostic (approved/rejected drafts keep counting) and deduped per concept:
     add_pending_edit replaces same-concept drafts, so a recompiled concept must not be
-    counted twice within one window.
+    counted twice within one window. Pages are exhausted so the breakdown always
+    matches the exact box total, even in bulk-compile storms.
     """
     # Rows arrive newest-first; keep the newest draft per concept name.
     latest_per_concept: dict[str, PendingWikiEdit] = {}
-    for edit in pending_mgr.get_edits_created_since(iso_cutoff):
-        latest_per_concept.setdefault(edit["concept_name"], edit)
+    page_offset = 0
+    while True:
+        page = pending_mgr.get_edits_created_since(iso_cutoff, offset=page_offset)
+        for edit in page:
+            latest_per_concept.setdefault(edit["concept_name"], edit)
+        if len(page) < _STATS_PAGE_SIZE:
+            break
+        page_offset += _STATS_PAGE_SIZE
     counts = {dimension: 0 for dimension in _DIMENSIONS}
     other_drafts = 0
     for edit in latest_per_concept.values():

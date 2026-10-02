@@ -347,6 +347,47 @@ def test_wiki_pending_edits(client: TestClient) -> None:
         assert response.status_code in [200, 401, 403]
 
 
+async def test_wiki_pending_pagination_reaches_every_draft(client: TestClient) -> None:
+    """Pages reach drafts beyond the first 50 while stats stay exact."""
+    import tempfile
+
+    from myrm_agent_harness.toolkits.wiki import WikiStructure
+    from myrm_agent_harness.toolkits.wiki.pipeline.pending import WikiPendingEditsManager
+
+    from app.services.wiki.vault import reset_wiki_archiver_cache_for_tests
+
+    vault_root = Path(tempfile.mkdtemp(prefix="wiki_pending_pages_")) / "wiki"
+    reset_wiki_archiver_cache_for_tests()
+    try:
+        with patch("app.services.wiki.vault.service.resolve_wiki_vault_path", return_value=vault_root):
+            structure = WikiStructure(vault_root)
+            structure.ensure_structure()
+            mgr = WikiPendingEditsManager(structure)
+            for i in range(54):
+                mgr.add_pending_edit(f"Knowledge/Paged Draft {i:02d}", f"content {i}")
+
+            page_one = client.get("/api/v1/wiki/pending?limit=50")
+            assert page_one.status_code == 200, page_one.text
+            first = page_one.json()
+            assert len(first["pending_edits"]) == 50
+            assert first["stats"]["pending"] == 54
+
+            page_two = client.get("/api/v1/wiki/pending?limit=50&offset=50")
+            second = page_two.json()
+            assert len(second["pending_edits"]) == 4
+            assert second["stats"]["pending"] == 54
+
+            first_ids = {edit["id"] for edit in first["pending_edits"]}
+            second_ids = {edit["id"] for edit in second["pending_edits"]}
+            assert first_ids.isdisjoint(second_ids), "pages must not overlap"
+            assert len(first_ids | second_ids) == 54, "pagination must reach every draft"
+
+            rejected = client.get("/api/v1/wiki/pending?limit=201")
+            assert rejected.status_code == 422, "limit must stay bounded"
+    finally:
+        reset_wiki_archiver_cache_for_tests()
+
+
 def test_wiki_concept_get_not_found(client: TestClient) -> None:
     """Test GET /api/v1/wiki/concepts/{name} returns 404 for non-existent concept."""
     response = client.get("/api/v1/wiki/concepts/nonexistent_concept_xyz")

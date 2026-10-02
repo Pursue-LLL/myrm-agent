@@ -15493,6 +15493,7 @@
           "synthesisPending": "진화 합성"
         },
         "noFiltered": "이 필터와 일치하는 초안이 없습니다",
+        "loadMore": "더 많은 초안 불러오기",
         "filterAll": "모두",
         "filterConcepts": "개념 초안",
         "filterSynthesis": "진화 합성",

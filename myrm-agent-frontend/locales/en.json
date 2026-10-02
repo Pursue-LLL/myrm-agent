@@ -3169,6 +3169,7 @@
         "cancelEdit": "Cancel Edit",
         "noPending": "No pending edits to review",
         "noFiltered": "No drafts match this filter",
+        "loadMore": "Load more drafts",
         "filterAll": "All",
         "filterConcepts": "Concept drafts",
         "filterSynthesis": "Evolution synthesis",

@@ -15498,6 +15498,7 @@
           "synthesisPending": "演變合成"
         },
         "noFiltered": "當前篩選條件下沒有草稿",
+        "loadMore": "載入更多草稿",
         "filterAll": "全部",
         "filterConcepts": "概念草稿",
         "filterSynthesis": "演變合成",

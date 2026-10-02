@@ -205,6 +205,27 @@ async def test_window_draft_stats_are_status_agnostic_and_deduped() -> None:
     assert total_drafts == 3  # exact pending box size, uncapped by LIMIT 50
 
 
+async def test_window_draft_stats_exhaust_pages_beyond_one_page() -> None:
+    """Bulk-compile storms keep the window breakdown equal to the exact box total."""
+    from myrm_agent_harness.toolkits.wiki.pipeline.pending import WikiPendingEditsManager
+
+    from app.services.wiki.daily_review.runner import _STATS_PAGE_SIZE, _window_draft_stats
+
+    structure = WikiStructure(tempfile.mkdtemp(prefix="daily_review_storm_"))
+    structure.ensure_structure()
+    mgr = WikiPendingEditsManager(structure)
+    storm_size = _STATS_PAGE_SIZE + 5
+    for i in range(storm_size):
+        mgr.add_pending_edit(f"Knowledge/Storm Draft {i:03d}", f"content {i}")
+
+    counts, other_drafts, total_drafts = _window_draft_stats(mgr, "2000-01-01 00:00:00")
+
+    assert counts == {"Projects": 0, "Knowledge": storm_size, "Methods": 0, "Comparisons": 0}
+    assert other_drafts == 0
+    assert total_drafts == storm_size
+    assert sum(counts.values()) + other_drafts == total_drafts, "breakdown must match the exact total"
+
+
 async def test_archiver_compiler_uses_four_dimension_prompt() -> None:
     from app.services.wiki.daily_review import FOUR_DIMENSION_EXTRACT_PROMPT
     from app.services.wiki.vault import get_wiki_archiver

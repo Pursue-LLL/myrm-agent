@@ -1233,7 +1233,7 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         ),
         category="commerce",
         tags=("commerce", "merchant", "digest", "kpi"),
-        sort_order=4,
+        sort_order=20,
         default_required_capabilities=_CAP_RESEARCH,
         default_tools_allowed=_TOOLS_RESEARCH,
         _schedule_builder="time_weekdays",

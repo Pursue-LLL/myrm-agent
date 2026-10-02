@@ -15498,6 +15498,7 @@
           "synthesisPending": "進化合成"
         },
         "noFiltered": "このフィルタに一致する草稿はありません",
+        "loadMore": "さらに草稿を読み込む",
         "filterAll": "すべて",
         "filterConcepts": "概念の草稿",
         "filterSynthesis": "進化合成",

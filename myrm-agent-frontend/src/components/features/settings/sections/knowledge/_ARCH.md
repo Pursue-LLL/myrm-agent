@@ -30,7 +30,7 @@ Settings 记忆与知识子系统：记忆浏览、Wiki、Checkpoint、外部助
 | `WikiIgnorePanel.tsx`               | 组件   | `.wikiignore` 编辑（Settings → Wiki · agent scope）                                                    | ✅    |
 | `WikiDuplicateReviewPanel.tsx`      | 组件   | Raw corpus dedup 审核面板                                                                              | ✅    |
 | `WikiQueuePanel.tsx`                | 组件   | Wiki 入库队列                                                                                          | ✅    |
-| `WikiPendingEdits.tsx`              | 组件   | Wiki 待审编辑                                                                                          | ✅    |
+| `WikiPendingEdits.tsx`              | 组件   | Wiki 待审编辑（分页「加载更多」直达全部草稿，审批动作后回首页刷新）                                      | ✅    |
 | `WikiConceptsList.tsx`              | 组件   | Wiki 概念列表                                                                                          | ✅    |
 | `WikiScopeChip.tsx`                 | 组件   | Wiki 作用域标记 chip                                                                                   | ✅    |
 | `WikiAgentScopeContext.tsx`         | 组件   | Wiki agent scope 上下文                                                                                | ✅    |

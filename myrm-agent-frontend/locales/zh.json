@@ -3169,6 +3169,7 @@
         "cancelEdit": "取消编辑",
         "noPending": "没有需要审核的草稿",
         "noFiltered": "当前筛选条件下没有草稿",
+        "loadMore": "加载更多草稿",
         "filterAll": "全部",
         "filterConcepts": "概念草稿",
         "filterSynthesis": "演变合成",

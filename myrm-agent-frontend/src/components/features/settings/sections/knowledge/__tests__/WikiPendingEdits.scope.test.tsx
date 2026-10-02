@@ -174,4 +174,39 @@ describe('WikiPendingEdits agent scope reload', () => {
 
     expect(screen.queryByText('pendingEdits.openSourceChat')).toBeNull();
   });
+
+  it('loads the next page when drafts exist beyond the first page', async () => {
+    getPendingEditsMock.mockImplementation((...args: unknown[]) => {
+      const offset = args[2] as number | undefined;
+      const draft =
+        offset === undefined
+          ? { id: 1, concept_name: 'First-Page Draft' }
+          : { id: 2, concept_name: 'Second-Page Draft' };
+      return Promise.resolve({
+        stats: { pending: 51 },
+        pending_edits: [
+          {
+            ...draft,
+            proposed_content: 'draft',
+            status: 'pending',
+            created_at: '2026-07-29T00:00:00.000Z',
+            updated_at: '2026-07-29T00:00:00.000Z',
+          },
+        ],
+      });
+    });
+
+    render(<WikiPendingEdits agentScopeId="agent-a" scopeLabel="Agent A" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('First-Page Draft')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByText('pendingEdits.loadMore'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Second-Page Draft')).toBeTruthy();
+    });
+    expect(getPendingEditsMock).toHaveBeenCalledWith('agent-a', 50, 1);
+  });
 });

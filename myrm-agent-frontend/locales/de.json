@@ -15493,6 +15493,7 @@
           "synthesisPending": "Evolutionssynthese"
         },
         "noFiltered": "Keine Entwürfe passen zu diesem Filter",
+        "loadMore": "Weitere Entwürfe laden",
         "filterAll": "Alle",
         "filterConcepts": "Konzeptentwürfe",
         "filterSynthesis": "Evolutionssynthese",

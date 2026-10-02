@@ -692,8 +692,20 @@ export const wikiService = {
     });
   },
 
-  getPendingEdits: async (agentId?: string | null): Promise<PendingEditsResponse> => {
-    return apiRequest<PendingEditsResponse>(buildWikiApiPath('/wiki/pending', agentId));
+  getPendingEdits: async (
+    agentId?: string | null,
+    limit?: number,
+    offset?: number
+  ): Promise<PendingEditsResponse> => {
+    const base = buildWikiApiPath('/wiki/pending', agentId);
+    const params = [
+      limit !== undefined ? `limit=${limit}` : null,
+      offset !== undefined ? `offset=${offset}` : null,
+    ]
+      .filter((part): part is string => part !== null)
+      .join('&');
+    const path = params ? `${base}${base.includes('?') ? '&' : '?'}${params}` : base;
+    return apiRequest<PendingEditsResponse>(path);
   },
 
   approveEdit: async (id: number, modifiedContent?: string, agentId?: string | null): Promise<OperationResult> => {
