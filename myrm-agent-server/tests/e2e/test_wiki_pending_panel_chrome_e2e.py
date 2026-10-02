@@ -35,6 +35,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     http_json,
     open_wiki_settings_mcp_page,
     prepare_e2e_ui_session,
+    reload_mcp_page,
     wait_for_state,
     wait_for_wiki_settings_shell,
     warm_ui_route,
@@ -64,6 +65,8 @@ _PANEL_STATE_JS = """(() => {{
     marker104: text.includes({marker_tail_104!r}),
     marker005: text.includes({marker_tail_005!r}),
     errors: (window.__e2eErrors || []).slice(-6),
+    hasAppLayout: !!document.querySelector('[data-testid="app-layout"]'),
+    bodyLength: (document.body?.innerText || '').length,
     href: location.href,
   }};
 }})()"""
@@ -92,6 +95,15 @@ _INSTALL_ERROR_HOOKS_JS = """(() => {
     window.__e2eErrors.push(`rejection: ${r.stack || String(r)}`);
   });
   return true;
+})()"""
+
+_SKIP_DEFERRED_LOCALE_JS = """(() => {
+  try {
+    sessionStorage.setItem('e2e_skip_deferred_locale', 'true');
+  } catch (err) {
+    return { ok: false, err: String(err) };
+  }
+  return { ok: true };
 })()"""
 
 _LOAD_MORE_CLICK_JS = """(() => {
@@ -210,6 +222,20 @@ def _run_panel_flow(api_url: str, ui_url: str) -> None:
             timeout_ms=120_000,
             request_timeout_sec=180.0,
         ) as (client, page):
+            # The deferred-locale fetch (/api/i18n/deferred) stalls on parked
+            # non-frontmost tabs and leaves the settings shell on its
+            # SettingsSkeleton forever — every deferred namespace is fetched
+            # fresh on reload anyway. Skip it for this session (the frontend's
+            # own e2e switch) and reload so the gate flips synchronously; all
+            # assertions below ride on testids/numbers/markup, never i18n copy.
+            client.evaluate(page, _SKIP_DEFERRED_LOCALE_JS, timeout_sec=15.0)
+            reload_mcp_page(
+                client,
+                page,
+                target_url=panel_url,
+                timeout_ms=90_000,
+                ignore_cache=True,
+            )
             client.evaluate(page, _INSTALL_ERROR_HOOKS_JS, timeout_sec=15.0)
             client.evaluate(page, _DISMISS_MIGRATION_JS, timeout_sec=15.0)
             dismiss_blocking_modals(client, page, recover_url=panel_url)
