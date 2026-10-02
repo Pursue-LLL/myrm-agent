@@ -304,6 +304,14 @@ function bumpE2eSendGeneration(_reason: string): number {
   return next;
 }
 
+function requireE2eChatBridge(): NonNullable<Window['__MYRM_E2E_CHAT__']> {
+  const bridge = window.__MYRM_E2E_CHAT__;
+  if (!bridge) {
+    throw new Error('E2E chat bridge not initialized');
+  }
+  return bridge;
+}
+
 const SEND_TURN_REV = 'R72-F';
 const SEND_TURN_NO_OP_MS = 3_000;
 
@@ -809,7 +817,7 @@ export default function E2EChatBridge() {
           boundAgentId: agentConfig?.agentId ?? null,
           yoloModeEnabled: securityConfig?.yoloModeEnabled ?? null,
           configInitialized: syncManager.isInitialized,
-          hasSecurityConfig: securityConfig != null,
+          hasSecurityConfig: securityConfig !== null && securityConfig !== undefined,
         };
       },
       debugProviderState: () => {
@@ -1043,7 +1051,7 @@ export default function E2EChatBridge() {
           opts?.preserveActionMode === true,
           opts?.ephemeralSubagents,
         );
-        window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
+        requireE2eChatBridge().lastSubmitResult = result;
         return result;
       },
       kickoffChatMessage: async (
@@ -1060,7 +1068,7 @@ export default function E2EChatBridge() {
             : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
         const profile = opts?.profile === 'read' ? 'read' : 'live';
         const result = await submitAndObserveTurn(text, baselineUsers, profile, opts?.preserveActionMode === true);
-        window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
+        requireE2eChatBridge().lastSubmitResult = result;
         return result;
       },
       submitAndObserveTurn: async (
@@ -1084,7 +1092,7 @@ export default function E2EChatBridge() {
           opts?.preserveActionMode === true,
           opts?.ephemeralSubagents,
         );
-        window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
+        requireE2eChatBridge().lastSubmitResult = result;
         return result;
       },
       handleSubmit: async () => {
@@ -1103,12 +1111,13 @@ export default function E2EChatBridge() {
           }
           return '';
         };
+        const e2eBridge = window.__MYRM_E2E_CHAT__;
         const baselineUsers =
-          typeof window.__MYRM_E2E_CHAT__?._submitBaselineUsers === 'number'
-            ? window.__MYRM_E2E_CHAT__!._submitBaselineUsers!
-            : (window.__MYRM_E2E_CHAT__?.turnSnapshot?.().userCount ?? 0);
+          typeof e2eBridge?._submitBaselineUsers === 'number'
+            ? e2eBridge._submitBaselineUsers
+            : (e2eBridge?.turnSnapshot?.().userCount ?? 0);
         const result = await submitAndObserveTurn(resolveMessage(), baselineUsers, 'live');
-        window.__MYRM_E2E_CHAT__!.lastSubmitResult = result;
+        requireE2eChatBridge().lastSubmitResult = result;
       },
       getInputMessage: () => useChatStore.getState().inputMessage,
       peekOutboundUserMessage: () => {
@@ -1634,7 +1643,7 @@ export default function E2EChatBridge() {
       releaseActiveStreamForApiResume: () => {
         const chatState = useChatStore.getState();
         const paneId = useWorkspaceStore.getState().panes.find((pane) => pane.chatId === chatState.chatId)?.id;
-        const paneAbort = paneId != null ? useWorkspaceStore.getState().getPaneAbortController(paneId) : null;
+        const paneAbort = paneId !== null && paneId !== undefined ? useWorkspaceStore.getState().getPaneAbortController(paneId) : null;
         const controller = paneAbort ?? chatState.abortController;
         let released = false;
         if (controller && !controller.signal.aborted) {

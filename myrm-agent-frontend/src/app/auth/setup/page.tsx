@@ -166,7 +166,6 @@ export default function SetupPasswordPage() {
                   placeholder={t('setup.placeholderUsername')}
                   disabled={loading || !tempToken}
                   autoComplete="username"
-                  autoFocus
                   minLength={2}
                   maxLength={50}
                 />

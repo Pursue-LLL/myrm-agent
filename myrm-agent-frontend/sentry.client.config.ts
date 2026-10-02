@@ -16,6 +16,9 @@
  */
 
 import * as Sentry from "@sentry/nextjs";
+// 浏览器侧 integration 走 @sentry/react（与 @sentry/nextjs 同版本树）：
+// @sentry/nextjs 浏览器入口仅导出 browserTracingIntegration，replayIntegration 需经 react SDK
+import { browserTracingIntegration, replayIntegration } from "@sentry/react";
 
 const SENTRY_ENABLED = process.env.NEXT_PUBLIC_SENTRY_ENABLED === "true";
 
@@ -44,8 +47,8 @@ if (SENTRY_ENABLED) {
 
       // Integrations
       integrations: [
-        Sentry.browserTracingIntegration(),
-        Sentry.replayIntegration({
+        browserTracingIntegration(),
+        replayIntegration({
           // Capture replays on errors only (not all sessions)
           maskAllText: true,
           blockAllMedia: true,

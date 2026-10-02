@@ -89,7 +89,10 @@ export default function SubscriptionPage() {
   const { subscription, isLoading, error, refresh, isPaidPlan } = useSubscription();
   const { catalog } = useBillingCatalog();
   const topupWuPerUsd = catalog?.topup_wu_per_usd ?? 1000;
-  const planCatalog = catalog ? mergeBillingCatalog(catalog.plans) : [];
+  const planCatalog = useMemo(
+    () => (catalog ? mergeBillingCatalog(catalog.plans) : []),
+    [catalog],
+  );
   const { user, isInitialized } = useAuthStore();
   const isLocal = isLocalMode();
   const sandbox = isSandbox();
@@ -131,26 +134,22 @@ export default function SubscriptionPage() {
   const canOpenPortal = Boolean(subscription.billing_customer_id) || (sandbox && isPaidPlan);
   const isEmptyState = !isLoading && !error && subscription.plan_type === 'free' && !subscription.current_period_end;
 
-  const planKeys = planCatalog.map((plan) => plan.key);
-  const planName = useMemo(() => {
+  const { planName, planDescription } = useMemo(() => {
+    const planKeys = planCatalog.map((plan) => plan.key);
     if (sandbox && (planKeys as readonly string[]).includes(subscription.plan_type)) {
-      return tBilling(`plans.${subscription.plan_type as BillingPlanKey}.name`);
+      return {
+        planName: tBilling(`plans.${subscription.plan_type as BillingPlanKey}.name`),
+        planDescription: tBilling(`plans.${subscription.plan_type as BillingPlanKey}.description`),
+      };
     }
     if (subscription.plan_type === 'free' || subscription.plan_type === 'pro') {
-      return tPricing(`${subscription.plan_type}.name`);
+      return {
+        planName: tPricing(`${subscription.plan_type}.name`),
+        planDescription: tPricing(`${subscription.plan_type}.description`),
+      };
     }
-    return subscription.plan_type;
-  }, [subscription.plan_type, sandbox, tBilling, tPricing]);
-
-  const planDescription = useMemo(() => {
-    if (sandbox && (planKeys as readonly string[]).includes(subscription.plan_type)) {
-      return tBilling(`plans.${subscription.plan_type as BillingPlanKey}.description`);
-    }
-    if (subscription.plan_type === 'free' || subscription.plan_type === 'pro') {
-      return tPricing(`${subscription.plan_type}.description`);
-    }
-    return '';
-  }, [subscription.plan_type, sandbox, tBilling, tPricing]);
+    return { planName: subscription.plan_type, planDescription: '' };
+  }, [subscription.plan_type, sandbox, planCatalog, tBilling, tPricing]);
 
   const ambientBackground = (
     <>
