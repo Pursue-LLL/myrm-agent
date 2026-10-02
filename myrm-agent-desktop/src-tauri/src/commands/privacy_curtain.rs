@@ -14,13 +14,14 @@
 //! - show/hide/active/set_texts/report_physical_input IPC
 //! - curtain_state.json 文件桥（server 无人值守 watcher 读写）
 //! - curtain:state-changed / curtain:physical-input 事件
+//! - spawn_privacy_curtain_watcher（见 privacy_curtain_watcher.rs）
 //!
 //! [POS]
 //! 帷幕是唯一视觉事实源：watcher 只按锁屏态+auto_engaged/pending 标记流转，
 //! 手动帷幕（auto_engaged=false）不受 watcher 干涉，仅显式命令收起。
 //! 输入感知=点击可靠（未聚焦窗口收不到键盘，锁屏态键盘落在登录窗无害），
 //! 如实以看板文案告知"交互即锁定"。Linux 不支持帷幕（fail-fast），
-//! Windows <2004 WDA 失败时降级为不拉帷幕（维持既有 Guardian 行为）。
+//! Windows <2004 WDA 失败时降级为不拉帷幕（由 Lock-Screen Guardian 兜底）。
 
 use std::fs;
 use std::path::PathBuf;
@@ -34,7 +35,6 @@ use crate::utils::screen_lock;
 const CURTAIN_LABEL_PREFIX: &str = "privacy-curtain-";
 /// 帷幕状态桥文件名（server 侧经 MYRM_CURTAIN_STATE_FILE 环境变量定位）。
 pub const CURTAIN_STATE_FILE: &str = "curtain_state.json";
-const WATCHER_TICK_MS: u64 = 1000;
 
 /// 文件桥状态：server 无人值守 watcher 与 Tauri 帷幕状态机的共享事实。
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -88,14 +88,14 @@ fn current_texts() -> CurtainTexts {
         .unwrap_or_else(default_texts)
 }
 
-fn now_ms() -> u64 {
+pub(crate) fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
 }
 
-fn log_audit(action: &str, success: bool, reason: &str) {
+pub(crate) fn log_audit(action: &str, success: bool, reason: &str) {
     println!(
         "[AUDIT] privacy_curtain: action={} success={} reason={} ts={}",
         action,
@@ -114,7 +114,7 @@ fn state_path(app: &AppHandle) -> PathBuf {
         .join(CURTAIN_STATE_FILE)
 }
 
-fn read_state(app: &AppHandle) -> CurtainState {
+pub(crate) fn read_state(app: &AppHandle) -> CurtainState {
     fs::read_to_string(state_path(app))
         .ok()
         .and_then(|content| serde_json::from_str(&content).ok())
@@ -131,7 +131,7 @@ fn write_state(app: &AppHandle, state: &CurtainState) {
     }
 }
 
-fn mutate_state(app: &AppHandle, apply: impl FnOnce(&mut CurtainState)) {
+pub(crate) fn mutate_state(app: &AppHandle, apply: impl FnOnce(&mut CurtainState)) {
     let mut state = read_state(app);
     let before = state.active;
     apply(&mut state);
@@ -149,6 +149,7 @@ fn html_escape(input: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+        .replace('\'', "&#39;")
 }
 
 fn curtain_html(texts: &CurtainTexts) -> String {
@@ -207,7 +208,7 @@ fn curtain_html(texts: &CurtainTexts) -> String {
 
 // ── 帷幕窗口管理 ──────────────────────────────────────────────────
 
-fn curtain_windows(app: &AppHandle) -> Vec<tauri::WebviewWindow> {
+pub(crate) fn curtain_windows(app: &AppHandle) -> Vec<tauri::WebviewWindow> {
     app.webview_windows()
         .into_iter()
         .filter(|(label, _)| label.starts_with(CURTAIN_LABEL_PREFIX))
@@ -215,7 +216,7 @@ fn curtain_windows(app: &AppHandle) -> Vec<tauri::WebviewWindow> {
         .collect()
 }
 
-fn close_curtain_windows(app: &AppHandle) {
+pub(crate) fn close_curtain_windows(app: &AppHandle) {
     for window in curtain_windows(app) {
         let _ = window.destroy();
     }
@@ -270,10 +271,7 @@ fn build_curtain_window(
         .maximizable(false)
         .minimizable(false)
         .closable(false)
-        .inner_size(
-            size.width as f64 / scale,
-            size.height as f64 / scale,
-        )
+        .inner_size(size.width as f64 / scale, size.height as f64 / scale)
         .position(position.x as f64 / scale, position.y as f64 / scale)
         .build()
         .map_err(|e| e.to_string())?;
@@ -284,7 +282,7 @@ fn build_curtain_window(
 }
 
 /// 幂等重建全部帷幕窗（每显示器一窗；先清孤儿窗再按当前显示器布局重建）。
-fn deploy_curtain_windows(app: &AppHandle) -> Result<(), String> {
+pub(crate) fn deploy_curtain_windows(app: &AppHandle) -> Result<(), String> {
     if cfg!(target_os = "linux") {
         return Err("Privacy curtain is not supported on Linux".to_string());
     }
@@ -301,11 +299,10 @@ fn deploy_curtain_windows(app: &AppHandle) -> Result<(), String> {
     }
 
     let html = curtain_html(&current_texts());
-    let mut built = Vec::with_capacity(monitors.len());
     for (index, monitor) in monitors.iter().enumerate() {
-        built.push(build_curtain_window(app, index, monitor, &html)?);
+        // 逐窗构建并校验（任一显示器失败即整体回滚孤儿窗由调用方清理重试）。
+        build_curtain_window(app, index, monitor, &html)?;
     }
-    let _ = built; // 窗口由 Tauri 事件循环持有，此处仅确保创建成功
     Ok(())
 }
 
@@ -365,92 +362,13 @@ pub fn curtain_report_physical_input(app: AppHandle, source: String) -> Result<(
         state.pending_auto_unlock = false;
     });
     log_audit("physical_input", true, &source);
-    let _ = app.emit("curtain:physical-input", serde_json::json!({ "source": source }));
+    let _ = app.emit(
+        "curtain:physical-input",
+        serde_json::json!({ "source": source }),
+    );
     let locked = screen_lock::lock_screen();
     log_audit("relock_on_input", locked.is_ok(), "curtain input guard");
     Ok(())
-}
-
-// ── 锁屏 watcher ─────────────────────────────────────────────────
-
-fn curtain_enabled(app: &AppHandle) -> bool {
-    app.try_state::<crate::config::ConfigManager>()
-        .map(|manager| manager.load().privacy_curtain_enabled)
-        .unwrap_or(false)
-}
-
-/// 锁屏触发的帷幕状态机（1s tick）：
-/// - locked 且帷幕未拉 → 自动拉起（auto_engaged=true，静默期基准初始化）；
-/// - unlocked 且 pending_auto_unlock → server 代解锁，保持帷幕并消费标记；
-/// - unlocked 且 auto 帷幕在（无 pending）→ 用户本人解锁，收起帷幕；
-/// - 手动帷幕（auto_engaged=false）与未启用开关时不干涉；
-/// - 帷幕在且显示器数量变化 → 幂等重建（热插拔跟随）。
-pub fn spawn_privacy_curtain_watcher(app: AppHandle) {
-    std::thread::spawn(move || loop {
-        std::thread::sleep(std::time::Duration::from_millis(WATCHER_TICK_MS));
-
-        let enabled = curtain_enabled(&app);
-        let state = read_state(&app);
-        let windows = curtain_windows(&app);
-
-        if !enabled {
-            if state.active || !windows.is_empty() {
-                close_curtain_windows(&app);
-                mutate_state(&app, |s| {
-                    s.active = false;
-                    s.auto_engaged = false;
-                });
-                log_audit("auto_release", true, "curtain disabled");
-            }
-            continue;
-        }
-
-        let locked = screen_lock::is_screen_locked();
-
-        if locked && !state.active && windows.is_empty() {
-            match deploy_curtain_windows(&app) {
-                Ok(()) => {
-                    mutate_state(&app, |s| {
-                        s.active = true;
-                        s.auto_engaged = true;
-                        s.last_physical_input_ms = now_ms();
-                    });
-                    log_audit("auto_engage", true, "screen locked");
-                }
-                Err(reason) => log_audit("auto_engage", false, &reason),
-            }
-            continue;
-        }
-
-        if !locked {
-            if state.pending_auto_unlock {
-                mutate_state(&app, |s| {
-                    s.pending_auto_unlock = false;
-                });
-                log_audit("keep_on_unlock", true, "server-initiated unlock");
-            } else if state.auto_engaged {
-                close_curtain_windows(&app);
-                mutate_state(&app, |s| {
-                    s.active = false;
-                    s.auto_engaged = false;
-                });
-                log_audit("auto_release", true, "user unlocked");
-            }
-            continue;
-        }
-
-        // locked 且帷幕已拉：显示器热插拔跟随（数量不一致才重建，避免闪烁）。
-        let monitor_count = app
-            .available_monitors()
-            .map(|monitors| monitors.len())
-            .unwrap_or(windows.len());
-        if !windows.is_empty() && windows.len() != monitor_count {
-            match deploy_curtain_windows(&app) {
-                Ok(()) => log_audit("rebuild", true, "display layout changed"),
-                Err(reason) => log_audit("rebuild", false, &reason),
-            }
-        }
-    });
 }
 
 #[cfg(test)]

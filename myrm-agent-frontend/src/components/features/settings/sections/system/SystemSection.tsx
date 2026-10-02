@@ -415,6 +415,7 @@ const SystemSection = memo(() => {
               <p className="text-xs text-muted-foreground">{t('config.closeToTrayDesc')}</p>
             </div>
             <button
+              aria-label={t('config.closeToTray')}
               onClick={() => handleChange('closeToTray', !localConfig.closeToTray)}
               className={cn(
                 'relative w-12 h-6 rounded-full transition-colors',
@@ -439,6 +440,7 @@ const SystemSection = memo(() => {
               <p className="text-xs text-muted-foreground">{t('config.autoLaunchAtLoginDesc')}</p>
             </div>
             <button
+              aria-label={t('config.autoLaunchAtLogin')}
               onClick={() => handleChange('autoLaunchAtLogin', !localConfig.autoLaunchAtLogin)}
               className={cn(
                 'relative w-12 h-6 rounded-full transition-colors',
@@ -531,6 +533,7 @@ const SystemSection = memo(() => {
               <p className="text-xs text-muted-foreground">{t('config.enableWebUIDesc')}</p>
             </div>
             <button
+              aria-label={t('config.enableWebUI')}
               onClick={() => handleChange('enableWebUIMode', !localConfig.enableWebUIMode)}
               className={cn(
                 'relative w-12 h-6 rounded-full transition-colors',
@@ -556,6 +559,7 @@ const SystemSection = memo(() => {
                   <p className="text-xs text-muted-foreground">{t('config.enableRemoteDesc')}</p>
                 </div>
                 <button
+                  aria-label={t('config.enableRemote')}
                   onClick={() => handleChange('enableRemoteAccess', !localConfig.enableRemoteAccess)}
                   className={cn(
                     'relative w-12 h-6 rounded-full transition-colors',
@@ -613,6 +617,7 @@ const SystemSection = memo(() => {
                 </div>
                 <button
                   type="button"
+                  aria-label={t('config.requirePassword')}
                   onClick={() => void handleRequirePasswordToggle()}
                   className={cn(
                     'relative w-12 h-6 rounded-full transition-colors',

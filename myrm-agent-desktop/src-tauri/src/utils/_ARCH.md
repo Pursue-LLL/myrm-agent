@@ -21,7 +21,7 @@
 |------|------|------|-------|
 | `mod.rs` | 聚合 | 子模块声明 | — |
 | `power.rs` | 核心 | RAII 电源锁（macOS IOKit / Win32 / systemd-inhibit） | — |
-| `screen_lock.rs` | 核心 | 锁屏检测、解锁、Keychain 密码 | — |
+| `screen_lock.rs` | 核心 | 锁屏检测、锁定/解锁、Keychain 密码 | — |
 | `auth.rs` | 核心 | macOS 提权修复隔离属性 | — |
 | `quarantine.rs` | 核心 | com.apple.quarantine 扫描与静默修复 | — |
 | `updater_safety.rs` | 核心 | 启动期 OTA pubkey 占位符强校验 | ✅ |

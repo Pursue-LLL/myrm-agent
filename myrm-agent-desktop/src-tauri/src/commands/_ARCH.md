@@ -21,6 +21,9 @@ Leaf IPC command modules invoked from the main webview, session webviews, and pe
 | `power.rs` | 核心 | 节能与睡眠抑制控制 IPC | ✅ |
 | `recovery.rs` | 核心 | 崩溃状态收集与恢复 IPC | ✅ |
 | `screen_lock.rs` | 核心 | 屏幕锁定感知与隐私保护 IPC | ✅ |
+| `privacy_curtain.rs` | 核心 | 工位防窥帷幕：每显示器置顶黑幕窗口、输入守卫回锁、curtain_state.json 文件桥 | ✅ |
+| `privacy_curtain_watcher.rs` | 核心 | 锁屏 watcher 状态机：1s tick 自动拉/收帷幕、配置缓存 30s 刷新、显示器热插拔幂等重建 | ✅ |
 | `mod.rs` | 辅助 | 模块导出 | — |
 
 Pet-surface webview 仅允许调用：`pet_surface_set_ignore_cursor`、`pet_surface_set_focusable`、`pet_surface_focus_main_window`、`pet_surface_toggle_main_window`（见 `ipc_security/policy.rs`）。
+Curtain webview 仅允许调用：`curtain_report_physical_input`（见 `ipc_security/policy.rs`）。
