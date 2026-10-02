@@ -1,6 +1,7 @@
 /**
  * [INPUT]
- * - @/lib/deploy-mode::getApiBaseUrl, getBackendBaseUrl (POS: 前端部署模式与基础地址解析层)
+ * - @/lib/deploy-mode::getApiBaseUrl (POS: 前端部署模式与基础地址解析层)
+ * - @/lib/utils/backend-url::BACKEND_BASE_URL, createDynamicUrl (POS: 后端服务基础地址层)
  *
  * [OUTPUT]
  * - API_BASE_URL: 规范化的 API 基础地址。
@@ -15,16 +16,16 @@ import { buildAuthLoginPath } from '@/lib/auth-redirect';
 import { ensureLocalBackendReady, markLocalBackendUnreachable } from '@/lib/backend-health';
 import {
   getApiBaseUrl,
-  getBackendBaseUrl,
   isLocalMode,
   resolveE2eApiBase,
   shouldRedirectToLoginOnAuthFailure,
 } from '@/lib/deploy-mode';
+import { BACKEND_BASE_URL, createDynamicUrl } from '@/lib/utils/backend-url';
 import { BACKEND_UNREACHABLE_CODE, resolveBackendUnreachableMessage } from '@/lib/local-backend-dev';
 import { clearAuthToken } from '@/lib/guest';
 import { withMobilePairHeaders } from '@/lib/mobileRemote';
 import { toast } from '@/lib/utils/toast';
-import { redactErrorMessage } from '@/lib/utils/errorRedactor';
+import { redactErrorMessage } from '@/lib/utils/error-handling';
 import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
 import useConfigStore from '@/store/useConfigStore';
 
@@ -40,17 +41,9 @@ function redirectToLoginAfterAuthFailure(): void {
   }
 }
 
-function createDynamicUrl(resolve: () => string): string {
-  return {
-    toString: () => resolve(),
-    valueOf: () => resolve(),
-  } as unknown as string;
-}
-
 export const API_BASE_URL = createDynamicUrl(getApiBaseUrl);
 
-// 后端服务基础 URL（不含 API 路径前缀）
-export const BACKEND_BASE_URL = createDynamicUrl(getBackendBaseUrl);
+export { BACKEND_BASE_URL };
 
 /**
  * 获取完整的API地址
@@ -690,7 +683,7 @@ function displayApiErrorToast(error: unknown, duration: number | undefined, dedu
  * @param duration - 显示时长（毫秒），默认根据severity自动判断
  */
 export const showApiError = (error: unknown, duration?: number): void => {
-  void import('./utils/errorManager')
+  void import('./utils/error-handling')
     .then(({ errorManager }) => {
       displayApiErrorToast(error, duration, errorManager);
     })

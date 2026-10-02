@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - src/lib/utils/errorRedactor::redactErrorMessage, redactErrorPayload, redactErrorObject (POS: 敏感字段脱敏纯函数)
+ * - src/lib/utils/error-handling/errorRedactor::redactErrorMessage, redactErrorPayload, redactErrorObject (POS: 敏感字段脱敏纯函数)
  * - src/lib/utils/toast::toast (POS: 前端通知分发器)
  *
  * [OUTPUT]

@@ -3,7 +3,7 @@
 import React, { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
-import { redactErrorMessage } from '@/lib/utils/errorRedactor';
+import { redactErrorMessage } from '@/lib/utils/error-handling';
 
 interface Props {
   children: ReactNode;

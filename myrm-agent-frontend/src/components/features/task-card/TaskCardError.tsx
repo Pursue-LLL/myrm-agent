@@ -17,7 +17,7 @@ import { AlertCircle, RotateCcw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/primitives/button';
-import { redactErrorMessage } from '@/lib/utils/errorRedactor';
+import { redactErrorMessage } from '@/lib/utils/error-handling';
 import type { TaskError } from '@/store/tasks/types';
 
 interface TaskCardErrorProps {

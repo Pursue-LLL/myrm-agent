@@ -1,4 +1,4 @@
-import { BACKEND_BASE_URL } from '@/lib/api';
+import { BACKEND_BASE_URL } from '@/lib/utils/backend-url';
 
 /**
  * 获取后端服务基础 URL（不含 API 路径前缀）

@@ -15,6 +15,6 @@
 ## 依赖
 
 - `@/lib/utils/fileUtils`（POS: 通用文件工具）— 文件名清理与下载触发。
-- `@/lib/utils/clientRedact`（POS: 客户端轻量敏感凭据脱敏清洗工具）— 导出内容脱敏。
+- `@/lib/utils/error-handling`（POS: 客户端轻量敏感凭据脱敏清洗工具）— 导出内容脱敏。
 - `@/lib/utils/clipboardUtils`（POS: 剪贴板工具）— Markdown 复制写入。
 - `@/services/chat`（POS: 聊天 API 请求层）— 单聊天导出数据源（`batchExport.ts` 批量编排消费）。

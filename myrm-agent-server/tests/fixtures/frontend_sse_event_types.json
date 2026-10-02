@@ -7,6 +7,7 @@
   "artifact_focus",
   "artifacts",
   "artifacts_ready",
+  "async_user_message",
   "async_wakeup",
   "bash_command_executed",
   "browser_takeover_completed",

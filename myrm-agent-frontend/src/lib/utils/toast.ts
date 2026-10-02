@@ -4,7 +4,7 @@
  */
 
 import { toast as sonnerToast, ExternalToast } from 'sonner';
-import { redactErrorMessage } from './errorRedactor';
+import { redactErrorMessage } from './error-handling';
 
 /** Toast 选项（兼容 shadcn/ui toast） */
 interface ToastOptions extends ExternalToast {

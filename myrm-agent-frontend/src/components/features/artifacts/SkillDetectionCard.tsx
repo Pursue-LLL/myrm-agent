@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { Artifact } from '@/store/chat/types';
 import { Wand2, Download, Package, Loader2, Check } from 'lucide-react';
 import { extractSkillDirectory } from '@/lib/constants/paths';
-import { getFriendlyErrorMessage } from '@/lib/utils/skillErrorMapper';
+import { getFriendlyErrorMessage } from '@/lib/utils/error-handling';
 import { Button } from '@/components/primitives/button';
 import { toast } from '@/hooks/shared/useToast';
 import { packageWorkspaceDirectory, uploadSkill } from '@/services/skill';

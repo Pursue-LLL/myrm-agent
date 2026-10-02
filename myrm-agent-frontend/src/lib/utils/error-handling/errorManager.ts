@@ -4,7 +4,7 @@
  * 防止短时间内相同错误重复显示，提升用户体验
  */
 
-import { ApiError } from '../api';
+import type { ApiError } from '@/lib/api';
 
 class ErrorManager {
   private errorCache = new Map<string, number>();

@@ -76,7 +76,7 @@ vi.mock('@/store/useChatStore', () => ({
   default: (selector: (state: object) => unknown) => selector({ agentConfig: { selectedSkillIds: [] } } as object),
 }));
 
-vi.mock('@/lib/utils/skillErrorMapper', () => ({
+vi.mock('@/lib/utils/error-handling', () => ({
   getFriendlyErrorMessage: (msg: string) => msg,
 }));
 

@@ -513,6 +513,7 @@ myrm_agent_harness.toolkits.wiki.pipeline.corpus_dedup.snippets
 myrm_agent_harness.toolkits.wiki.pipeline.ingress
 myrm_agent_harness.toolkits.wiki.pipeline.ingress.asset_store
 myrm_agent_harness.toolkits.wiki.pipeline.ingress.wikiignore
+myrm_agent_harness.toolkits.wiki.pipeline.pending
 myrm_agent_harness.toolkits.wiki.pipeline.publication
 myrm_agent_harness.toolkits.wiki.pipeline.raw_gate
 myrm_agent_harness.toolkits.wiki.portability
