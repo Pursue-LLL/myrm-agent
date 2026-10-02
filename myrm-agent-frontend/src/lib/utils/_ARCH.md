@@ -28,3 +28,26 @@
 - `media/`：媒体凭据域子包 — 图片/TTS/视频三通道凭据就绪判定与警告收集（CredentialReadiness）、provider 状态映射与后端状态拉取（ProviderStatus），barrel 门面 `@/lib/utils/media`。详见 [media/_ARCH.md](media/_ARCH.md)。
 - `locale/`：Locale 域子包 — cookie 常量、客户端读取、后端格式映射、营销参数解析、RFC 7231 Accept-Language 协商（localeUtils）与多语言文本选择（localeText），barrel 门面 `@/lib/utils/locale`。详见 [locale/_ARCH.md](locale/_ARCH.md)。
 - `clientRedact.ts`：客户端轻量敏感凭据脱敏清洗工具 — 提供 `redactSensitiveClientText` 与 `containsSensitiveData` 纯函数，覆盖 OpenAI/Anthropic 风格 API Keys、GitHub Tokens、AWS 密钥、PEM 私钥、JWT 签名凭据与键值对密码，防御单条消息与前端导出 CWE-312 敏感信息明文泄露。
+- `apiConfig.ts`：后端服务基础 URL 访问 — `getBackendUrl` 统一后端基础地址出口（不含 API 路径前缀）。
+- `authHeaders.ts`：认证请求头构建 — 认证 token 读取（localStorage `auth_token`）与 `getAuthHeaders` 请求头组装，SSR 安全（window 未定义返回空）。
+- `avatar-utils.ts`：智能体头像解析工具层 — `parseAvatarUrl` 统一解析 avatar URL（icon:/lucide:/emoji:/home:///http(s):///gradient: 六格式）与 `isIconAvatar` 快捷判断、`ParsedAvatar` 结果类型。
+- `classnameUtils.ts`：类名合并 — `cn` 组合 clsx 条件拼接与 tailwind-merge 冲突消解。
+- `clipboardUtils.ts`：Tauri/Web 双环境剪贴板封装 — `isTauri` 运行环境检测与 `writeToClipboard` 双路径写入（Tauri 插件 / Web API）。
+- `completionSound.ts`：完成提示音 — Web Audio API 双音符柔和提示（G4→C5 纯四度），零外部音频文件依赖，仅在用户非注视页面时播放。
+- `componentPreloader.ts`：重型组件预加载 — hover 触发 Monaco/Sandpack 提前加载，优化首次渲染体验。
+- `cronEstimate.ts`：定时表达式估算 — cron/interval/once 三类调度月执行次数估算。
+- `diagnostic-export.ts`：诊断导出 — `formatDoctorReportAsMarkdown` GitHub Issue 友好格式化、`buildDiagnosticBundle` 诊断 JSON 组装（含客户端上下文）、复制与下载触发。
+- `domUtils.ts`：DOM 滚动检测 — `isNearBottom` 滚动接近底部判定（阈值可调）。
+- `errorManager.ts`：错误去重管理器 — 30 秒窗口内相同错误去重展示（errorCache Map 时间戳记录）。
+- `hardwareSimulator.ts`：硬件阶梯估算 — HardwareRungInfo 阶梯信息与 64k 上下文 KV Cache 内存估算。
+- `messageUtils.ts`：消息处理工具 — 时间戳标签剥离、ui_action JSON 块剥离、用户消息展示清理、explicit skill wire（`[use s1,s2]`）解析与构建、skill chip 展示名、markdown 纯化、浏览器时区获取。
+- `modelFormatUtils.ts`：数值紧凑格式化 — token 数量 K/M 紧凑展示。
+- `networkResilience.ts`：网络韧性策略层 — HTTP 状态码瞬时错误可重试判定、WebSocket close code 可重试判定、`FatalNetworkError` 不可重试错误类、归档恢复校验失效识别，统一重试与 fail-fast 决策。
+- `reactCodeProcessor.ts`：React 代码检测 — `isValidReactCode` 有效性判定（React import/JSX/export 三要素）与工件预览依赖处理。
+- `reactUtils.ts`：React children 工具 — `getChildrenAsText` children prop 纯文本转换。
+- `requestManager.ts`：全局请求管理 — 流式 AI 搜索请求注册、跟踪与取消（AbortController 集合管理）。
+- `skillErrorMapper.ts`：技能错误映射 — 后端技术性错误关键词到用户友好翻译键的正则映射。
+- `stageTaskCount.ts`：阶段任务计数推导 — subagent 树节点推导 Scope/Fan-out/Verify/Synthesize 细粒度阶段进度（done/total 比率）与上游阻塞指示。
+- `teammateMessage.ts`：teammate 消息归一 — `normalizeTeammateEntry` 消息行（message_id/from/to/body/created_at）到 `TeammateMessageEntry` 归一。
+- `toast.ts`：Toast 统一包装 — 兼容 shadcn/ui 与 Sonner 双 API 形态，错误信息经 `errorRedactor` 脱敏后展示。
+- `urlLinkify.ts`：URL 链接化 — 纯文本 URL 转可点击 `<a>` 标签（noopener noreferrer 安全属性）。
