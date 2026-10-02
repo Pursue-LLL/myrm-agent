@@ -1,24 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { getUserTimezone, getCurrentTimestamp, formatMessageTimestamp } from '../timeUtils';
+import { describe, it, expect } from 'vitest';
+import { getCurrentTimestamp, formatMessageTimestamp } from '../timeUtils';
 
 describe('timeUtils', () => {
-  describe('getUserTimezone', () => {
-    it('should return IANA timezone string', () => {
-      const timezone = getUserTimezone();
-      expect(typeof timezone).toBe('string');
-      expect(timezone.length).toBeGreaterThan(0);
-    });
-
-    it('should fallback to UTC when Intl API throws', () => {
-      vi.spyOn(Intl, 'DateTimeFormat').mockImplementationOnce(() => {
-        throw new Error('Intl error');
-      });
-
-      expect(getUserTimezone()).toBe('UTC');
-      vi.restoreAllMocks();
-    });
-  });
-
   describe('getCurrentTimestamp', () => {
     it('should return current timestamp in seconds', () => {
       const before = Date.now() / 1000;

@@ -1,11 +1,34 @@
 /**
  * [POS]
- * Chat export barrel — the package's public entry. Consumers import from
- * `@/lib/utils/chat-export`; the HTML builder and template internals stay
- * package-private (lazy-loaded by chatExport.ts via relative dynamic import).
- *
- * [OUTPUT]
- * - re-exports everything from `./chatExport` (ExportData types, Markdown/JSON/HTML/Docx builders, clipboard & download actions)
+ * Chat-export domain facade. Explicit re-export list is the single
+ * compiler-enforced public surface: adding an export inside the package
+ * without listing it here leaves it package-private (typecheck breaks
+ * consumer imports instead of silently leaking symbols).
  */
-
-export * from './chatExport';
+export type {
+  ExportMessage,
+  ExportChat,
+  ExportData,
+  ToolUsageEntry,
+  ToolSummary,
+  UsageSummary,
+  AgentInfo,
+  ToolCallDetail,
+  ExportFormatOptions,
+} from './chatExport';
+export {
+  formatChatAsMarkdown,
+  formatChatAsJson,
+  downloadFile,
+  downloadAsMarkdown,
+  downloadAsJson,
+  downloadAsHtml,
+  copyAsMarkdown,
+  printChat,
+  downloadMessageAsMarkdown,
+  downloadMessageAsDocx,
+  downloadMessageAsHtml,
+  downloadMessageAsImage,
+} from './chatExport';
+export type { BatchExportFormat, BatchExportProgress, BatchExportResult } from './batchExport';
+export { batchExportAsZip } from './batchExport';

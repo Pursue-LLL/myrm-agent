@@ -9,7 +9,7 @@ import { batchMoveChats } from '@/services/projects';
 import useChatStore from '@/store/useChatStore';
 import { toast } from '@/hooks/shared/useToast';
 import { triggerDownload } from '@/lib/utils/fileUtils';
-import { batchExportAsZip, type BatchExportFormat, type BatchExportProgress } from '@/lib/utils/batchExport';
+import { batchExportAsZip, type BatchExportFormat, type BatchExportProgress } from '@/lib/utils/chat-export';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 
 interface BatchOperationBarProps {

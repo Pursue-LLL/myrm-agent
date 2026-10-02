@@ -7,7 +7,6 @@
  *
  * [OUTPUT]
  * - formatDuration
- * - getUserTimezone
  * - getCurrentTimestamp
  * - formatMessageTimestamp
  */
@@ -78,19 +77,6 @@ export function formatDuration(startIso: string | null | undefined, endIso: stri
   const remMinutes = minutes % 60;
   return remMinutes === 0 ? `${hours}h` : `${hours}h ${remMinutes}m`;
 }
-
-/**
- * Get the user's current IANA timezone.
- *
- * @returns IANA timezone string (e.g., "Asia/Shanghai", "America/New_York").
- */
-export const getUserTimezone = (): string => {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    return 'UTC';
-  }
-};
 
 /**
  * Get the current timestamp in seconds (Unix timestamp as float).

@@ -7,10 +7,12 @@ import type { Message, Source } from '@/store/chat/types';
  *         fileUtils::sanitizeFilename (POS: 通用文件工具 — 文件名非法字符清理)；
  *         fileUtils::triggerDownload (POS: 通用文件工具 — 文件下载，Web a[download] / Tauri 系统保存对话框)；
  *         clientRedact::redactSensitiveClientText (POS: 客户端轻量敏感凭据脱敏清洗工具 — OpenAI/GitHub/AWS/私钥/JWT/密钥对脱敏，CWE-312 防护)。
- * [OUTPUT] ExportMessage, ExportChat, ExportData, formatChatAsMarkdown, formatChatAsJson,
+ * [OUTPUT] Types: ExportMessage, ExportChat, ExportData, ToolUsageEntry, ToolSummary,
+ *          UsageSummary, AgentInfo, ToolCallDetail, ExportFormatOptions;
+ *          formatChatAsMarkdown, formatChatAsJson, downloadFile,
  *          downloadAsMarkdown, downloadAsJson, downloadAsHtml, copyAsMarkdown, printChat,
- *          downloadMessageAsMarkdown, downloadMessageAsDocx, downloadMessageAsHtml, downloadMessageAsImage,
- *          downloadFile.
+ *          downloadMessageAsMarkdown, downloadMessageAsDocx, downloadMessageAsHtml, downloadMessageAsImage;
+ *          formatDuration, formatUsd (package-internal: consumed by chatExportHtmlTemplates).
  * [POS] 聊天导出数据与文件生成工具（聊天级 + 单条消息级 + 打印）。
  */
 export interface ExportMessage {

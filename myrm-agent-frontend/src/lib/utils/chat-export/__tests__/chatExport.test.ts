@@ -7,8 +7,6 @@ import {
   downloadAsMarkdown,
   downloadAsJson,
   downloadMessageAsMarkdown,
-  formatDuration,
-  formatUsd,
   type ExportData,
 } from '../chatExport';
 import { sanitizeFilename } from '../../fileUtils';
@@ -37,30 +35,6 @@ function createMockExportData(overrides: Partial<ExportData> = {}): ExportData {
 }
 
 describe('chatExport', () => {
-  describe('formatDuration', () => {
-    it('should format milliseconds', () => {
-      expect(formatDuration(500)).toBe('500ms');
-    });
-
-    it('should format seconds', () => {
-      expect(formatDuration(3500)).toBe('3.5s');
-    });
-
-    it('should format minutes', () => {
-      expect(formatDuration(90_000)).toBe('1.5m');
-    });
-  });
-
-  describe('formatUsd', () => {
-    it('should format small amounts with 4 decimals', () => {
-      expect(formatUsd(0.005)).toBe('$0.0050');
-    });
-
-    it('should format normal amounts with 2 decimals', () => {
-      expect(formatUsd(1.5)).toBe('$1.50');
-    });
-  });
-
   describe('formatChatAsMarkdown', () => {
     it('should include title and messages', () => {
       const data = createMockExportData();
@@ -131,6 +105,7 @@ describe('chatExport', () => {
       expect(md).toContain('Session Summary');
       expect(md).toContain('API Calls');
       expect(md).toContain('5.0k');
+      expect(md).toContain('$0.05');
     });
 
     it('should include tool summary when present', () => {
@@ -144,6 +119,7 @@ describe('chatExport', () => {
       const md = formatChatAsMarkdown(data);
       expect(md).toContain('Tool Activity');
       expect(md).toContain('web_search');
+      expect(md).toContain('3.0s');
     });
 
     it('should handle null title', () => {
