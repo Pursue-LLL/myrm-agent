@@ -9968,13 +9968,6 @@
     "btnFix": "Autorisieren und reparieren"
   },
   "messageFilter": {
-  "curtain": {
-    "board": {
-      "primary": "KI arbeitet — Bildschirm geschützt",
-      "sub": "Diese Workstation führt eine automatisierte Sitzung aus. Inhalte bleiben verborgen, bis die Eigentümerin oder der Eigentümer zurückkehrt.",
-      "hint": "Jede Interaktion sperrt diesen Bildschirm sofort"
-    }
-  },
   "settings": {
       "title": "Nachrichtenfilterung",
       "description": "Konfigurieren Sie Nachrichtenfilterregeln und PII-Erkennungseinstellungen.",

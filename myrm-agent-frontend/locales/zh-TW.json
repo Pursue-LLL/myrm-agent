@@ -9968,13 +9968,6 @@
     "btnFix": "一鍵授權修復"
   },
   "messageFilter": {
-  "curtain": {
-    "board": {
-      "primary": "AI 正在作業 — 螢幕已保護",
-      "sub": "本機正在執行自動化任務，螢幕內容已被遮蔽，任務擁有者返回前持續保護。",
-      "hint": "任何操作將立即鎖定此螢幕"
-    }
-  },
   "settings": {
       "title": "訊息過濾",
       "description": "配置訊息過濾規則和 PII 檢測設定。",

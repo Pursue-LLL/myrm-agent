@@ -65,6 +65,7 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "screen_is_locked"
             | "screen_lock_has_password"
             | "screen_lock_platform_support"
+            | "privacy_curtain_active"
     );
 
     let critical = matches!(
@@ -107,6 +108,10 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "close_session_window"
             | "set_tray_status"
             | "update_tray_info"
+            | "show_privacy_curtain"
+            | "hide_privacy_curtain"
+            | "curtain_set_texts"
+            | "curtain_report_physical_input"
     );
 
     if !(read_only || critical || stateful) {
@@ -139,6 +144,8 @@ fn policy_for_command(command: &str) -> Option<CommandPolicy> {
             | "export_local_sqlite"
             | "reveal_app_folder"
             | "issue_sensitive_action_ticket"
+            | "show_privacy_curtain"
+            | "hide_privacy_curtain"
     ) {
         SurfacePolicy::MainOnly
     } else {
@@ -170,6 +177,10 @@ fn is_pet_surface_webview_label(label: &str) -> bool {
     label == PET_SURFACE_WEBVIEW_LABEL
 }
 
+fn is_curtain_webview_label(label: &str) -> bool {
+    label.starts_with("privacy-curtain-")
+}
+
 pub fn authorize_request(command: &str, webview_label: &str) -> Result<(), DeniedInvoke> {
     let Some(policy) = policy_for_command(command) else {
         return Err(DeniedInvoke {
@@ -186,8 +197,9 @@ pub fn authorize_request(command: &str, webview_label: &str) -> Result<(), Denie
     let is_session = is_session_webview_label(webview_label);
 
     let is_pet_surface = is_pet_surface_webview_label(webview_label);
+    let is_curtain = is_curtain_webview_label(webview_label);
 
-    if !is_main && !is_session && !is_pet_surface {
+    if !is_main && !is_session && !is_pet_surface && !is_curtain {
         return Err(DeniedInvoke {
             command: command.to_string(),
             webview_label: webview_label.to_string(),
@@ -223,6 +235,19 @@ pub fn authorize_request(command: &str, webview_label: &str) -> Result<(), Denie
             webview_label: webview_label.to_string(),
             reason_code: "pet_surface_command_scope",
             reason: "IPC command is not allowed from pet surface webview".to_string(),
+            risk: policy.risk,
+            deny_mode: policy.deny_mode,
+        });
+    }
+
+    // 帷幕窗 HTML 是唯一非受控前端的调用面：只放行物理输入上报，
+    // 其余命令一律拒绝（防注入页面借帷幕窗触达任意 IPC）。
+    if is_curtain && command != "curtain_report_physical_input" {
+        return Err(DeniedInvoke {
+            command: command.to_string(),
+            webview_label: webview_label.to_string(),
+            reason_code: "curtain_command_scope",
+            reason: "IPC command is not allowed from privacy curtain webview".to_string(),
             risk: policy.risk,
             deny_mode: policy.deny_mode,
         });
