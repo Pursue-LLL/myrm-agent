@@ -186,11 +186,27 @@ def _force_mux_heal_before_retry() -> None:
     _require_e2e_cdp_ready(budget_sec=20.0)
 
 
+def _seal_warm_shell(panel_url: str) -> None:
+    """Re-seal the platform warm shell for the wiki settings route.
+
+    The idle-tab hygiene prune may have closed the warm shell tab after a
+    previous session; without re-sealing, the owned page mounts on a cold
+    shell and its panel hydration intermittently never lands.
+    """
+    try:
+        from e2e_core.warm_shell_registry import seal_platform_shell
+
+        seal_platform_shell(ui_url=panel_url, route_path="/settings/wiki")
+    except ImportError:
+        pass
+
+
 def _run_panel_flow(api_url: str, ui_url: str) -> None:
     base_stats = _api_pending_stats(api_url)
     base_pending = int(base_stats["pending"])
     base_rejected = int(base_stats["rejected"])
     panel_url = f"{ui_url.rstrip('/')}{_PANEL_PATH}"
+    _seal_warm_shell(panel_url)
 
     seeded = http_json("POST", f"{api_url}/api/v1/chats/test/seed-pending-drift-fixture")
     assert isinstance(seeded, dict)
