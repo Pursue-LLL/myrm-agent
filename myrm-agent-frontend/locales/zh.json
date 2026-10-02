@@ -5341,7 +5341,7 @@
         "restoredLastGood": "已恢复到上次可用连接。",
         "activeSessionsDialog": {
           "title": "存在活跃会话",
-          "description": "本地有 {count} 个会话正在生成。切换后将等待其完成并断开本地流，会话记录仍会保留。",
+          "description": "本地有 {count} 个会话正在生成。切换会等待其完成并刷新页面；会话记录仍会保留。",
           "confirm": "仍然切换",
           "cancel": "取消"
         }

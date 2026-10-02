@@ -204,3 +204,19 @@ class TestSteerEndpoint:
         SteeringRegistry.register("chat-buffered-e2e", token)
         assert token.redirect_requested
         assert token.activate() == ["redirect immediately"]
+
+    def test_steer_with_question_context_prefixes_message(self, client: TestClient) -> None:
+        """Verify steer request with question_context formats enriched payload for Agent."""
+        token = SteeringToken()
+        SteeringRegistry.register("chat-reply", token)
+        resp = client.post(
+            "/api/v1/agents/chats/chat-reply/steer",
+            json={
+                "message": "Adopt option 1",
+                "inReplyToCallId": "async_msg_123",
+                "questionContext": "Keep legacy endpoints?",
+            },
+        )
+        assert resp.json()["success"] is True
+        msgs = token.activate()
+        assert msgs == ["[In reply to: Keep legacy endpoints?] Adopt option 1"]

@@ -118,13 +118,9 @@ export const AutonomyBreakerAlertCard: React.FC<AutonomyBreakerAlertCardProps> =
             </div>
             <p className="text-xs text-rose-800/80 dark:text-rose-300/80 mt-0.5">
               检测到工具异常重试或未授信动作，自治等级已由{' '}
-              <span className="font-mono font-semibold underline">
-                {getAutonomyLevelLabel(incident.previousLevel)}
-              </span>{' '}
+              <span className="font-mono font-semibold underline">{getAutonomyLevelLabel(incident.previousLevel)}</span>{' '}
               强制降级为{' '}
-              <span className="font-mono font-semibold underline">
-                {getAutonomyLevelLabel(incident.degradedLevel)}
-              </span>
+              <span className="font-mono font-semibold underline">{getAutonomyLevelLabel(incident.degradedLevel)}</span>
             </p>
           </div>
         </div>
@@ -160,9 +156,7 @@ export const AutonomyBreakerAlertCard: React.FC<AutonomyBreakerAlertCardProps> =
           className="mt-3 p-3 rounded-lg bg-background/80 dark:bg-muted/40 border border-border text-xs font-mono overflow-x-auto max-h-48 scrollbar-thin text-foreground"
           data-testid="breaker-error-details"
         >
-          <div className="text-[11px] font-semibold text-muted-foreground mb-1">
-            诊断堆栈与上下文信息:
-          </div>
+          <div className="text-[11px] font-semibold text-muted-foreground mb-1">诊断堆栈与上下文信息:</div>
           <pre className="whitespace-pre-wrap break-all text-[11px] leading-relaxed">
             {incident.errorDetails || '未提供详细错误堆栈'}
           </pre>
@@ -222,11 +216,7 @@ export const AutonomyBreakerAlertCard: React.FC<AutonomyBreakerAlertCardProps> =
               className="text-xs px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50"
               data-testid="recover-btn"
             >
-              {isProcessing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RotateCcw className="h-3.5 w-3.5" />
-              )}
+              {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
               <span>确认并试探恢复</span>
             </button>
           )}

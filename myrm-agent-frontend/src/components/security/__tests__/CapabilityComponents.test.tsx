@@ -1,14 +1,8 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import {
-  CapabilityAttenuationCapsule,
-  type AttenuatedCapabilityInfo,
-} from '../CapabilityAttenuationCapsule';
-import {
-  CapabilityViolationAlertCard,
-  type CapabilityViolationIncident,
-} from '../CapabilityViolationAlertCard';
+import { CapabilityAttenuationCapsule, type AttenuatedCapabilityInfo } from '../CapabilityAttenuationCapsule';
+import { CapabilityViolationAlertCard, type CapabilityViolationIncident } from '../CapabilityViolationAlertCard';
 
 describe('CapabilityAttenuationCapsule', () => {
   beforeEach(() => {

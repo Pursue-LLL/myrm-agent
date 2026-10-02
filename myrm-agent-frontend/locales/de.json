@@ -18071,7 +18071,7 @@
         "restoredLastGood": "Zur letzten funktionierenden Verbindung zurückgekehrt.",
         "activeSessionsDialog": {
           "title": "Aktive Sitzungen erkannt",
-          "description": "{count} Sitzungen werden lokal noch generiert. Beim Wechsel wird auf deren Abschluss gewartet und der lokale Stream getrennt; der Sitzungsverlauf bleibt erhalten.",
+          "description": "{count} Sitzungen werden lokal noch generiert. Der Wechsel wartet auf deren Abschluss und lädt die Seite dann neu; der Sitzungsverlauf bleibt erhalten.",
           "confirm": "Trotzdem wechseln",
           "cancel": "Abbrechen"
         }

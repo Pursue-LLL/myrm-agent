@@ -419,6 +419,7 @@ class StreamContentCollector:
         self._pending_evicted: list[dict[str, object]] = []
         self._sibling_group_id: str | None = sibling_group_id
         self._tool_result_details: dict[str, object] | None = None
+        self._async_user_messages: list[dict[str, object]] = []
         self._chat_id: str | None = chat_id
         self._subscribers: list[asyncio.Queue[dict[str, object]]] = []
 
@@ -489,6 +490,7 @@ class StreamContentCollector:
             "reasoning": "".join(self._reasoning_parts),
             "progress_steps": ordered_steps,
             "sources": ordered_sources,
+            "async_user_messages": list(self._async_user_messages),
         }
 
     def subscribe(self) -> tuple[dict[str, object], asyncio.Queue[dict[str, object]]]:
@@ -802,6 +804,16 @@ class StreamContentCollector:
                     "status": "success",
                 }
             )
+        elif event_type == "async_user_message":
+            msg_data = string_keyed_dict(data) if isinstance(data, dict) else None
+            if msg_data is None:
+                msg_data = {
+                    k: v
+                    for k, v in event.items()
+                    if k in {"call_id", "message", "category", "recommendation"}
+                }
+            if msg_data and msg_data.get("message"):
+                self._async_user_messages.append(msg_data)
 
     @property
     def content(self) -> str:
@@ -964,6 +976,8 @@ class StreamContentCollector:
             result["sessionRecording"] = self._session_recording
         if self._clarification:
             result["clarification"] = self._clarification
+        if self._async_user_messages:
+            result["asyncUserMessages"] = list(self._async_user_messages)
         if self._directory_request:
             result["directoryRequest"] = self._directory_request
         if self._plan_confirmation:

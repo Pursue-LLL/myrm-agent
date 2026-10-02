@@ -37,7 +37,8 @@ _SERVER_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_SERVER_ROOT))
 
 QUERY = "查询明天从北京到上海的高铁车票"
-RUNS_PER_MODE = 3
+RUNS_PER_MODE = 1
+VERBOSE = True
 
 # ── Credentials ───────────────────────────────────────────────────────────
 from tests.support.test_secrets import load_test_secrets
@@ -110,18 +111,22 @@ def _stream_sse(body: dict[str, object]) -> tuple[list[dict[str, object]], list[
     return events, answer_parts
 
 
-def bench_myrm_server() -> dict[str, object]:
+def bench_myrm_server(surface_mode: str = "auto") -> dict[str, object]:
     """Run benchmark against real Myrm server via SSE stream with auto-approval."""
     try:
         health = httpx.get(f"{MYRM_SERVER}/api/v1/health", timeout=5).json()
         if health.get("status") != "healthy":
-            return {"mode": "Myrm Server", "error": f"Server not healthy: {health}"}
+            return {"mode": f"Myrm {surface_mode.upper()}", "error": f"Server not healthy: {health}"}
     except Exception as e:
-        return {"mode": "Myrm Server", "error": f"Server unreachable: {e}"}
+        return {"mode": f"Myrm {surface_mode.upper()}", "error": f"Server unreachable: {e}"}
 
     provider_id = _infer_provider_id(RAW_MODEL)
     mcp_cfg = _resolve_12306_mcp_cfg()
     chat_id = f"bench-12306-{uuid.uuid4().hex[:8]}"
+
+    engine_params: dict[str, object] | None = None
+    if surface_mode != "auto":
+        engine_params = {"mcp_surface_mode": surface_mode}
 
     request_body: dict[str, object] = {
         "messageId": str(uuid.uuid4()),
@@ -137,19 +142,58 @@ def bench_myrm_server() -> dict[str, object]:
         "enableMemory": False,
         "mcp_cfg": [mcp_cfg],
     }
+    if engine_params:
+        request_body["engine_params"] = engine_params
 
+    mode_label = f"Myrm {surface_mode.upper()}"
     t_start = time.monotonic()
     tool_calls_total = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
+    total_cached_tokens = 0
     final_answer = ""
     max_rounds = 8
 
     try:
         for _round_idx in range(max_rounds):
+            if VERBOSE:
+                print(f"    --- SSE round {_round_idx + 1} ---")
             events, answer_parts = _stream_sse(request_body)
 
             for ev in events:
-                if ev.get("type") == "tasks_steps":
+                etype = ev.get("type", "")
+                if etype == "tasks_steps":
                     tool_calls_total += 1
+                    tool_name = ev.get("tool_name", "?")
+                    status = ev.get("status", "?")
+                    if VERBOSE:
+                        data_preview = str(ev.get("data", ""))[:120]
+                        print(f"    [step {tool_calls_total}] tool={tool_name} status={status} | {data_preview}")
+                elif etype == "token_usage":
+                    data = ev.get("data", {})
+                    if isinstance(data, dict):
+                        usage = data.get("usage", data)
+                        if isinstance(usage, dict):
+                            total_prompt_tokens += int(usage.get("prompt_tokens", 0) or 0)
+                            total_completion_tokens += int(usage.get("completion_tokens", 0) or 0)
+                            total_cached_tokens += int(usage.get("cached_tokens", 0) or 0)
+                        if VERBOSE:
+                            model = data.get("model_name", "?")
+                            cost = data.get("cost_usd", 0)
+                            print(f"    [token] model={model} prompt={usage.get('prompt_tokens', 0)} "
+                                  f"completion={usage.get('completion_tokens', 0)} cost=${cost}")
+                elif etype == "tool_approval_request" and VERBOSE:
+                    tool_name = ev.get("tool_name", ev.get("data", {}).get("tool_name", "?") if isinstance(ev.get("data"), dict) else "?")
+                    print(f"    [approval] tool={tool_name}")
+                elif etype == "message_end" and VERBOSE:
+                    usage = ev.get("usage", {})
+                    status = ev.get("completion_status", "?")
+                    print(f"    [end] status={status} usage={usage}")
+                elif etype == "tools_snapshot" and VERBOSE:
+                    tools = ev.get("data", [])
+                    if isinstance(tools, list):
+                        names = [t.get("name", "?") for t in tools if isinstance(t, dict)]
+                        print(f"    [tools_snapshot] {len(names)} tools: {', '.join(names[:15])}")
             if answer_parts:
                 final_answer += "".join(answer_parts)
 
@@ -179,6 +223,8 @@ def bench_myrm_server() -> dict[str, object]:
                 "enableMemory": False,
                 "mcp_cfg": [mcp_cfg],
             }
+            if engine_params:
+                request_body["engine_params"] = engine_params
             if needs_approval:
                 request_body["resumeValue"] = {
                     "decisions": [{"type": "approve", "extensions": {"allowAlways": True}}],
@@ -187,20 +233,20 @@ def bench_myrm_server() -> dict[str, object]:
                 request_body["resumeValue"] = {"resume": True}
 
     except Exception as e:
-        return {"mode": "Myrm Server", "error": str(e)}
+        return {"mode": mode_label, "error": str(e)}
 
     total_time = time.monotonic() - t_start
 
     return {
-        "mode": "Myrm Server",
+        "mode": mode_label,
         "rounds": 0,
         "tool_calls": tool_calls_total,
         "total_time": total_time,
         "llm_time": 0.0,
         "mcp_time": 0.0,
-        "total_input": 0,
-        "total_output": 0,
-        "cached": 0,
+        "total_input": total_prompt_tokens,
+        "total_output": total_completion_tokens,
+        "cached": total_cached_tokens,
         "answer_preview": final_answer[:200],
     }
 
@@ -286,7 +332,8 @@ def print_run_result(r: dict[str, object], idx: int) -> None:
         return
     print(
         f"  Run {idx}: [{mode}] {r['total_time']:.1f}s total "
-        f"| {r['tool_calls']}次工具调用"
+        f"| {r['tool_calls']}次工具调用 "
+        f"| prompt={r['total_input']} completion={r['total_output']} cached={r['cached']}"
     )
     if r.get("answer_preview"):
         preview = str(r["answer_preview"])[:80].replace("\n", " ")
@@ -310,9 +357,18 @@ def print_summary(label: str, runs: list[dict[str, object]]) -> None:
     print(f"    工具调用数:  avg={avg('tool_calls'):.1f}")
 
 
+def print_token_summary(label: str, runs: list[dict[str, object]]) -> None:
+    valid = [r for r in runs if not r.get("error")]
+    if not valid:
+        return
+    n = len(valid)
+    avg = lambda key: sum(r[key] for r in valid) / n  # noqa: E731
+    print(f"    prompt tokens: avg={avg('total_input'):.0f} | completion: avg={avg('total_output'):.0f} | cached: avg={avg('cached'):.0f}")
+
+
 def main() -> None:
     print("=" * 80)
-    print("  Myrm Server (真实) vs Hermes CLI (真实) — 公平基准测试")
+    print("  Myrm PTC vs DIRECT_FC — 同框架 MCP 路由模式对比")
     print(f"  模型: {MODEL}")
     print(f"  API: {BASE_URL}")
     print(f"  Myrm: {MYRM_SERVER}")
@@ -320,48 +376,50 @@ def main() -> None:
     print(f"  每模式运行: {RUNS_PER_MODE} 次")
     print("=" * 80)
 
-    myrm_results: list[dict[str, object]] = []
-    hermes_results: list[dict[str, object]] = []
+    ptc_results: list[dict[str, object]] = []
+    direct_results: list[dict[str, object]] = []
 
     for i in range(1, RUNS_PER_MODE + 1):
         print(f"\n── Run {i}/{RUNS_PER_MODE} ──────────────────────────────────")
 
-        # Myrm Server
-        print("  [Myrm Server] 执行中...")
-        r = bench_myrm_server()
-        myrm_results.append(r)
+        print("  [Myrm AUTO/PTC] 执行中...")
+        r = bench_myrm_server(surface_mode="auto")
+        ptc_results.append(r)
         print_run_result(r, i)
 
-        # Hermes CLI
-        print("  [Hermes CLI] 执行中...")
-        r = bench_hermes()
-        hermes_results.append(r)
+        print("  [Myrm DIRECT_FC] 执行中...")
+        r = bench_myrm_server(surface_mode="direct_fc")
+        direct_results.append(r)
         print_run_result(r, i)
 
     # ── Summary ──
     print("\n" + "=" * 80)
     print("  汇总报告")
     print("=" * 80)
-    print_summary("Myrm Server", myrm_results)
-    print_summary("Hermes CLI", hermes_results)
+    print_summary("Myrm AUTO/PTC", ptc_results)
+    print_token_summary("Myrm AUTO/PTC", ptc_results)
+    print_summary("Myrm DIRECT_FC", direct_results)
+    print_token_summary("Myrm DIRECT_FC", direct_results)
 
     # ── Comparison ──
     print("\n" + "=" * 80)
     print("  对比")
     print("=" * 80)
 
-    for label, results in [("Myrm Server", myrm_results), ("Hermes CLI", hermes_results)]:
+    for label, results in [("Myrm AUTO/PTC", ptc_results), ("Myrm DIRECT_FC", direct_results)]:
         valid = [r for r in results if not r.get("error")]
         if valid:
             avg_time = sum(r["total_time"] for r in valid) / len(valid)
             avg_tools = sum(r["tool_calls"] for r in valid) / len(valid)
-            print(f"  {label:<16} avg={avg_time:.1f}s | tools={avg_tools:.1f}")
+            avg_input = sum(r["total_input"] for r in valid) / len(valid)
+            avg_output = sum(r["total_output"] for r in valid) / len(valid)
+            print(f"  {label:<18} avg={avg_time:.1f}s | tools={avg_tools:.1f} | prompt={avg_input:.0f} | completion={avg_output:.0f}")
         else:
-            print(f"  {label:<16} FAILED")
+            print(f"  {label:<18} FAILED")
 
-    print("\n  注: 两者均使用真实框架、同一模型、同一MCP、同一查询")
-    print("  注: Myrm 通过 SSE 端点调用真实 server (含 PTC/middleware/security)")
-    print("  注: Hermes 通过 CLI --oneshot 调用真实框架")
+    print("\n  注: 两者均使用真实 Myrm Server、同一模型、同一MCP、同一查询")
+    print("  注: AUTO/PTC = 12306 (2077 tokens) 走 PTC/Skill 路径")
+    print("  注: DIRECT_FC = 12306 (8工具) 全量 schema 直接注入 LLM context")
 
 
 if __name__ == "__main__":

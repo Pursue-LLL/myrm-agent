@@ -78,7 +78,11 @@ function buildFilename(title: string | null, ext: string): string {
 }
 
 function formatTimestamp(iso: string): string {
-  try { return new Date(iso).toLocaleString(); } catch { return iso; }
+  try {
+    return new Date(iso).toLocaleString();
+  } catch {
+    return iso;
+  }
 }
 
 export function formatDuration(ms: number): string {
@@ -383,4 +387,3 @@ export async function downloadMessageAsImage(element: HTMLElement, message: Mess
   });
   await triggerDownload(blob, buildFilename(extractMessageTitle(message.content), 'png'));
 }
-

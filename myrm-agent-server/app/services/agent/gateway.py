@@ -2,7 +2,8 @@
 
 Unified entry point for all Agent executions.
 Provides global + per-user concurrency control, memory pressure circuit breaker,
-execution timeout, graceful drain on shutdown, and structured logging.
+execution watchdog (idle-silence threshold with a hard wall-clock ceiling),
+graceful drain on shutdown, and structured logging.
 
 [INPUT]
 - AsyncGenerator[dict, None]: bound agent stream from any Agent type
@@ -77,6 +78,7 @@ class GatewayConfig:
     max_per_user: int = 3
     queue_timeout: float = 10.0
     execution_timeout: float = 300.0
+    execution_hard_ceiling: float = 3600.0
 
     @classmethod
     def from_settings(cls) -> GatewayConfig:
@@ -88,6 +90,7 @@ class GatewayConfig:
             max_per_user=ag.max_per_user,
             queue_timeout=ag.queue_timeout,
             execution_timeout=ag.execution_timeout,
+            execution_hard_ceiling=ag.execution_hard_ceiling,
         )
 
 
@@ -122,7 +125,7 @@ class AgentGateway:
     - Per-user concurrency limit (prevents single-user monopoly)
     - Memory pressure circuit breaker (queues new agents until pressure resolves)
     - Queue timeout (graceful 429 instead of infinite wait)
-    - Execution timeout (kills zombie agents)
+    - Execution timeout (idle-silence watchdog + hard wall-clock ceiling)
     - Structured logging (duration, status, agent_type)
 
     Implements PressureSubscriber to receive memory pressure notifications.
@@ -150,11 +153,12 @@ class AgentGateway:
         self._pressure_resolved.set()
 
         logger.info(
-            "AgentGateway initialized: max_global=%d, max_per_user=%d, queue_timeout=%.0fs, execution_timeout=%.0fs",
+            "AgentGateway initialized: max_global=%d, max_per_user=%d, queue_timeout=%.0fs, idle_timeout=%.0fs, hard_ceiling=%.0fs",
             cfg.max_global,
             cfg.max_per_user,
             cfg.queue_timeout,
             cfg.execution_timeout,
+            cfg.execution_hard_ceiling,
         )
 
     @property
@@ -551,12 +555,16 @@ class AgentGateway:
         """Return True when an agent execution is in-flight for the session."""
         return session_id in self._active_sessions
 
-    def _resolve_effective_timeout(self, *, goal_active: bool, fission_active: bool) -> float:
-        """Resolve execution timeout by tier (goal > fission > default).
+    def _resolve_idle_threshold(self, *, goal_active: bool, fission_active: bool) -> float:
+        """Resolve the idle-silence threshold by tier (goal > fission > default).
 
-        - goal_active: 长时任务禁用常规超时。
-        - fission_active: Swarm Fission 并行子任务需 2x 时间。
-        - default: 配置的 execution_timeout。
+        The threshold bounds the longest gap between two consecutive agent
+        events, not total runtime — an actively streaming session is never
+        killed no matter how long it runs (up to the hard ceiling).
+
+        - goal_active: long-running goals tolerate long silent phases.
+        - fission_active: Swarm Fission parallel subtasks need 2x patience.
+        - default: the configured execution_timeout.
         """
         if goal_active:
             return self.GOAL_ACTIVE_TIMEOUT_SECONDS
@@ -596,7 +604,8 @@ class AgentGateway:
         Raises:
             AgentDrainingError: Gateway is draining (graceful shutdown).
             AgentQueueTimeout: Queue wait exceeded queue_timeout.
-            AgentExecutionTimeout: Execution exceeded execution_timeout.
+            AgentExecutionTimeout: Stream stayed silent beyond the tiered
+                idle threshold, or total runtime exceeded the hard ceiling.
             AgentBusyError: Session is already active.
         """
         if self._draining:
@@ -697,11 +706,20 @@ class AgentGateway:
                 return scrub_sensitive_info(data)
             return data
 
-        effective_timeout = self._resolve_effective_timeout(goal_active=goal_active, fission_active=fission_active)
+        idle_threshold = self._resolve_idle_threshold(goal_active=goal_active, fission_active=fission_active)
+        loop = asyncio.get_running_loop()
+        hard_deadline = loop.time() + self._config.execution_hard_ceiling
+
+        def _next_deadline() -> float:
+            """Watchdog deadline: idle silence or the hard wall-clock cap, whichever hits first."""
+            return min(loop.time() + idle_threshold, hard_deadline)
 
         try:
-            async with asyncio.timeout(effective_timeout):
+            async with asyncio.timeout_at(_next_deadline()) as watchdog:
                 async for event in stream:
+                    # Every arriving event proves the agent is alive: push the
+                    # idle deadline forward (still capped by the hard ceiling).
+                    watchdog.reschedule(_next_deadline())
                     if interrupt_event.is_set():
                         status = "interrupted"
                         logger.info("Agent interrupted for sandbox user")
@@ -715,7 +733,9 @@ class AgentGateway:
                         yield {"payload": scrubbed}
         except TimeoutError:
             status = "timeout"
-            raise AgentExecutionTimeout(f"Execution timeout ({effective_timeout:.0f}s)") from None
+            raise AgentExecutionTimeout(
+                f"Execution timeout (idle>{idle_threshold:.0f}s or ceiling {self._config.execution_hard_ceiling:.0f}s)"
+            ) from None
         except GeneratorExit:
             status = "cancelled"
             raise

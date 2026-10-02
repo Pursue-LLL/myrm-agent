@@ -17,17 +17,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import {
-  ShieldCheck,
-  EyeOff,
-  Flame,
-  Download,
-  CheckCircle2,
-  Lock,
-  Copy,
-  Check,
-  FileCheck,
-} from 'lucide-react';
+import { ShieldCheck, EyeOff, Flame, Download, CheckCircle2, Lock, Copy, Check, FileCheck } from 'lucide-react';
 import type { ZDRSessionState, ZDRComplianceAttestationDTO } from './types';
 
 interface ZDRComplianceDrawerProps {
@@ -147,9 +137,7 @@ export const ZDRComplianceDrawer: React.FC<ZDRComplianceDrawerProps> = ({
                   {copiedDigest ? 'Copied' : 'Copy Proof'}
                 </button>
               </div>
-              <p className="font-mono text-[10px] text-muted-foreground truncate">
-                zdr-sha256-{sessionState.chatId}
-              </p>
+              <p className="font-mono text-[10px] text-muted-foreground truncate">zdr-sha256-{sessionState.chatId}</p>
             </div>
 
             {/* Action Buttons */}

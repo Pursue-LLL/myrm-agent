@@ -18071,7 +18071,7 @@
         "restoredLastGood": "已恢復到上次可用連接。",
         "activeSessionsDialog": {
           "title": "存在活躍會話",
-          "description": "本地有 {count} 個會話正在生成。切換後將等待其完成並斷開本地串流，會話記錄仍會保留。",
+          "description": "本地有 {count} 個會話正在生成。切換會等待其完成並重新整理頁面；會話記錄仍會保留。",
           "confirm": "仍然切換",
           "cancel": "取消"
         }

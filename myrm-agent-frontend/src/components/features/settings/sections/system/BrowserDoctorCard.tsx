@@ -178,12 +178,21 @@ const BrowserDoctorCard = memo(() => {
         setCleanupHasFailures(false);
         const reclaimed = data.reclaimed_bytes ?? 0;
         if (reclaimed > 0) {
-          setCleanupMessage(
-            t('cleanedWithReclaimed', {
-              count: data.killed ?? 0,
-              size: formatBytes(reclaimed),
-            }),
-          );
+          const killedCount = data.killed ?? 0;
+          if (killedCount > 0) {
+            setCleanupMessage(
+              t('cleanedWithReclaimed', {
+                count: killedCount,
+                size: formatBytes(reclaimed),
+              }),
+            );
+          } else {
+            setCleanupMessage(
+              t('reclaimedOnly', {
+                size: formatBytes(reclaimed),
+              }),
+            );
+          }
         } else {
           setCleanupMessage(t('cleaned', { count: data.killed ?? 0 }));
         }
@@ -200,8 +209,11 @@ const BrowserDoctorCard = memo(() => {
 
   const healthy = report?.overall_healthy ?? false;
   const orphanCheck = report?.checks?.orphan_processes;
-  const hasOrphans = orphanCheck !== undefined && orphanCheck.status !== 'ok';
+  const staleSandboxes =
+    typeof orphanCheck?.details?.stale_sandboxes === 'number' ? orphanCheck.details.stale_sandboxes : 0;
   const orphanCount = typeof orphanCheck?.details?.count === 'number' ? orphanCheck.details.count : 0;
+  const hasOrphans =
+    (orphanCheck !== undefined && orphanCheck.status !== 'ok') || orphanCount > 0 || staleSandboxes > 0;
 
   return (
     <section className="space-y-4">
@@ -311,7 +323,9 @@ const BrowserDoctorCard = memo(() => {
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>{t('confirmCleanupTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('confirmCleanupDescription', { count: orphanCount })}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {t('confirmCleanupDescription', { count: Math.max(orphanCount, staleSandboxes) })}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={cleaning}>{t('cancel')}</AlertDialogCancel>

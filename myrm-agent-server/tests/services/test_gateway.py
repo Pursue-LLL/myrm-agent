@@ -26,6 +26,7 @@ def _cfg(**overrides: float | int) -> GatewayConfig:
         "max_per_user": 3,
         "queue_timeout": 2.0,
         "execution_timeout": 5.0,
+        "execution_hard_ceiling": 60.0,
     }
     defaults.update(overrides)
     return GatewayConfig(**defaults)  # type: ignore[arg-type]
@@ -523,32 +524,37 @@ class TestGatewayErrorCleanup:
 
 
 class TestGatewayExecutionTimeout:
+    """Idle-silence watchdog with a hard wall-clock ceiling.
+
+    - 静默间隙超过分层 idle 阈值 → 杀
+    - 活跃事件流不会因总时长被杀（硬顶之内）
+    - 硬顶（execution_hard_ceiling）是总时长背板
+    """
+
     @pytest.mark.asyncio
-    async def test_execution_timeout(self) -> None:
+    async def test_idle_silence_kills_session(self) -> None:
         gw = AgentGateway(_cfg(execution_timeout=0.1))
 
-        async def infinite():
-            while True:
-                await asyncio.sleep(0.01)
-                yield {}
+        async def silent_after_first():
+            yield {"step": 0}
+            await asyncio.sleep(5.0)
 
         with pytest.raises(AgentExecutionTimeout):
-            async for _ in gw.execute_stream(infinite(), agent_type="test"):
+            async for _ in gw.execute_stream(silent_after_first(), agent_type="test"):
                 pass
 
         assert gw.active_count == 0
 
     @pytest.mark.asyncio
-    async def test_execution_timeout_cleans_session(self) -> None:
+    async def test_idle_silence_kills_cleans_session(self) -> None:
         gw = AgentGateway(_cfg(execution_timeout=0.1))
 
-        async def infinite():
-            while True:
-                await asyncio.sleep(0.01)
-                yield {}
+        async def silent_after_first():
+            yield {"step": 0}
+            await asyncio.sleep(5.0)
 
         with pytest.raises(AgentExecutionTimeout):
-            async for _ in gw.execute_stream(infinite(), agent_type="t", session_id="timeout_sid"):
+            async for _ in gw.execute_stream(silent_after_first(), agent_type="t", session_id="timeout_sid"):
                 pass
 
         assert "timeout_sid" not in gw._active_sessions
@@ -556,53 +562,105 @@ class TestGatewayExecutionTimeout:
         assert "u1" not in gw._interrupt_events
 
     @pytest.mark.asyncio
-    async def test_goal_active_extends_timeout(self) -> None:
-        """goal_active=True should use 3600s timeout instead of execution_timeout."""
+    async def test_active_stream_survives_beyond_old_wall_clock(self) -> None:
+        """活跃流每 0.03s 产出事件：总时长 0.3s 远超 0.1s idle 阈值也必须存活。
+
+        旧实现（固定总时长墙）会把这条流杀死；idle 语义下事件即心跳。
+        """
         gw = AgentGateway(_cfg(execution_timeout=0.1))
 
-        async def slow_stream():
-            for i in range(3):
-                await asyncio.sleep(0.05)
+        async def chatty_stream():
+            for i in range(10):
+                await asyncio.sleep(0.03)
                 yield {"step": i}
 
-        # Without goal_active: 0.1s timeout would kill a 0.15s stream
-        # With goal_active: 3600s timeout allows it to complete
-        events = [e async for e in gw.execute_stream(slow_stream(), agent_type="test", session_id="goal_s1", goal_active=True)]
-        assert len(events) == 3
+        events = [e async for e in gw.execute_stream(chatty_stream(), agent_type="test", session_id="chatty_s1")]
+        assert len(events) == 10
         assert gw.active_count == 0
 
     @pytest.mark.asyncio
-    async def test_fission_active_extends_timeout(self) -> None:
-        """fission_active=True should complete a stream slower than the base timeout."""
-        gw = AgentGateway(_cfg(execution_timeout=0.5))
+    async def test_hard_ceiling_caps_total_runtime(self) -> None:
+        """永不静默的流仍会被硬顶背板杀死。"""
+        gw = AgentGateway(_cfg(execution_timeout=60.0, execution_hard_ceiling=0.15))
 
-        async def slow_stream():
-            # 0.6s 总耗时：必 > 0.5s 基础超时（无 fission 会超时），
-            # 远 < 1.0s（2x）可完成，上限留 0.4s 余量抵御高负载抖动。
-            for i in range(3):
-                await asyncio.sleep(0.2)
-                yield {"step": i}
+        async def infinite():
+            while True:
+                await asyncio.sleep(0.01)
+                yield {}
+
+        with pytest.raises(AgentExecutionTimeout):
+            async for _ in gw.execute_stream(infinite(), agent_type="test", session_id="ceiling_s1"):
+                pass
+
+        assert gw.active_count == 0
+        assert "ceiling_s1" not in gw._active_sessions
+
+    @pytest.mark.asyncio
+    async def test_default_tier_kills_long_idle_gap(self) -> None:
+        """对照：无 goal/fission 时，超过默认 idle 阈值的间隙被杀。"""
+        gw = AgentGateway(_cfg(execution_timeout=0.1))
+
+        async def gap_stream():
+            yield {"step": 0}
+            await asyncio.sleep(0.15)
+            yield {"step": 1}
+
+        with pytest.raises(AgentExecutionTimeout):
+            async for _ in gw.execute_stream(gap_stream(), agent_type="test", session_id="gap_s1"):
+                pass
+
+    @pytest.mark.asyncio
+    async def test_goal_active_tolerates_long_idle_gap(self) -> None:
+        """goal_active=True 将 idle 阈值升至 3600s：0.15s 静默间隙在 0.1s 基础阈值下存活。"""
+        gw = AgentGateway(_cfg(execution_timeout=0.1))
+
+        async def gap_stream():
+            yield {"step": 0}
+            await asyncio.sleep(0.15)
+            yield {"step": 1}
 
         events = [
             e
             async for e in gw.execute_stream(
-                slow_stream(),
+                gap_stream(),
+                agent_type="test",
+                session_id="goal_s1",
+                goal_active=True,
+            )
+        ]
+        assert len(events) == 2
+        assert gw.active_count == 0
+
+    @pytest.mark.asyncio
+    async def test_fission_active_tolerates_idle_gap(self) -> None:
+        """fission_active=True 将 idle 阈值翻倍：0.15s 间隙超过 0.1s 基础阈值但低于 0.2s。"""
+        gw = AgentGateway(_cfg(execution_timeout=0.1))
+
+        async def gap_stream():
+            yield {"step": 0}
+            await asyncio.sleep(0.15)
+            yield {"step": 1}
+
+        events = [
+            e
+            async for e in gw.execute_stream(
+                gap_stream(),
                 agent_type="test",
                 session_id="fission_s1",
                 fission_active=True,
             )
         ]
-        assert len(events) == 3
+        assert len(events) == 2
         assert gw.active_count == 0
 
-    def test_resolve_effective_timeout_tiers(self) -> None:
-        """确定性验证超时分层：goal > fission > default（不依赖 wall-clock）。"""
+    def test_resolve_idle_threshold_tiers(self) -> None:
+        """确定性验证 idle 阈值分层：goal > fission > default（不依赖 wall-clock）。"""
         gw = AgentGateway(_cfg(execution_timeout=5.0))
-        assert gw._resolve_effective_timeout(goal_active=False, fission_active=False) == 5.0
-        assert gw._resolve_effective_timeout(goal_active=False, fission_active=True) == 10.0
-        assert gw._resolve_effective_timeout(goal_active=True, fission_active=False) == 3600.0
+        assert gw._resolve_idle_threshold(goal_active=False, fission_active=False) == 5.0
+        assert gw._resolve_idle_threshold(goal_active=False, fission_active=True) == 10.0
+        assert gw._resolve_idle_threshold(goal_active=True, fission_active=False) == 3600.0
         # goal 优先级高于 fission
-        assert gw._resolve_effective_timeout(goal_active=True, fission_active=True) == 3600.0
+        assert gw._resolve_idle_threshold(goal_active=True, fission_active=True) == 3600.0
 
 
 class TestGatewayMultipleActiveSessions:
@@ -1189,13 +1247,12 @@ class TestGatewaySessionStatusEvents:
 
         mux.publish_session_status = capture_publish  # type: ignore[assignment]
 
-        async def infinite():
-            while True:
-                await asyncio.sleep(0.01)
-                yield {}
+        async def silent_after_first():
+            yield {}
+            await asyncio.sleep(5.0)
 
         with pytest.raises(AgentExecutionTimeout):
-            async for _ in gw.execute_stream(infinite(), agent_type="test", session_id="timeout-test"):
+            async for _ in gw.execute_stream(silent_after_first(), agent_type="test", session_id="timeout-test"):
                 pass
 
         assert published == ["timeout-test:generating", "timeout-test:idle"]

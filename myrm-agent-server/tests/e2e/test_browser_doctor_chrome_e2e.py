@@ -63,21 +63,36 @@ _BROWSER_DOCTOR_REPORT_JS = """(() => {
   const text = document.body?.innerText || '';
   const hasPatchright = /Patchright Engine|Patchright 引擎/.test(text);
   const hasBadge = /Browser stack healthy|浏览器栈正常|Issues detected|发现问题/.test(text);
+  const hasOrphanCheck = /Orphans & Sandbox Caches|孤儿进程与沙箱治理/.test(text);
   return {
-    ready: hasPatchright && hasBadge,
+    ready: hasPatchright && hasBadge && hasOrphanCheck,
     hasPatchright,
     hasBadge,
-    snippet: text.slice(0, 1200),
+    hasOrphanCheck,
+    snippet: text.slice(0, 1600),
   };
 })()"""
 
+_CLICK_RUN_DIAGNOSIS_JS = """(() => {
+  const buttons = Array.from(document.querySelectorAll('button'));
+  const runBtn = buttons.find(b => /Run diagnostics|运行诊断/.test(b.innerText || ''));
+  if (!runBtn) {
+    return { ok: false, error: 'Run button not found' };
+  }
+  if (runBtn.disabled) {
+    return { ok: false, error: 'Run button is disabled' };
+  }
+  runBtn.click();
+  return { ok: true };
+})()"""
 
-@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="READ", workload="STANDARD")
+
+@pytest.mark.chrome_e2e(execution_mode="PRIVATE", access_scope="READ", workload="STANDARD", private_reason="exclusive_backend")
 @pytest.mark.e2e_search_policy("empty")
 @pytest.mark.integration
 @pytest.mark.timeout(600)
 def test_chrome_ui_browser_doctor_card_renders_report() -> None:
-    """Browser Doctor card must render and surface a real diagnosis report."""
+    """Browser Doctor card must render, surface report, and support run diagnostics click."""
     api_url = get_e2e_api_url()
     prepare_e2e_ui_session(api_url)
 
@@ -122,3 +137,18 @@ def test_chrome_ui_browser_doctor_card_renders_report() -> None:
         assert report.get("ready") is True, json.dumps(report, indent=2, ensure_ascii=False)
         assert report.get("hasPatchright") is True
         assert report.get("hasBadge") is True
+        assert report.get("hasOrphanCheck") is True
+
+        # Real user action: trigger re-diagnosis via Run button
+        click_result = client.evaluate(page, _CLICK_RUN_DIAGNOSIS_JS, timeout_sec=15.0)
+        assert click_result.get("ok") is True, json.dumps(click_result, indent=2)
+
+        # Verify report re-renders successfully after user click
+        report_after = wait_for_state(
+            client,
+            page,
+            _BROWSER_DOCTOR_REPORT_JS,
+            timeout_sec=_warm_ui_parallel_wait_sec(90.0),
+        )
+        assert report_after.get("ready") is True, json.dumps(report_after, indent=2, ensure_ascii=False)
+        assert report_after.get("hasOrphanCheck") is True

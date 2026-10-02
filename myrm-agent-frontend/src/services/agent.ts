@@ -696,12 +696,23 @@ export interface FleetOverviewResponse {
 
 export interface ActiveSession {
   chatId: string;
+  agentId: string | null;
   agentType: string;
+  agentName: string | null;
   elapsedSeconds: number;
+}
+
+export interface RecentSession {
+  chatId: string;
+  title: string | null;
+  agentId: string | null;
+  agentName: string | null;
+  updatedAt: string;
 }
 
 export interface ActiveSessionsResponse {
   activeSessions: ActiveSession[];
+  recentSessions: RecentSession[];
   maxConcurrent: number;
   availableSlots: number;
 }

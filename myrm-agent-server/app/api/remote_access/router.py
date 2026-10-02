@@ -29,10 +29,8 @@ from app.remote_access.e2ee import (
 )
 from app.remote_access.mobile_gate import (
     extract_pair_token,
-    pair_token_authorizes_path,
     require_mobile_pair_chat_access,
-    requires_mobile_remote_gate,
-    resolve_request_pair_token,
+    require_remote_access_gate,
 )
 from app.remote_access.pairing import (
     BROWSER_TAKEOVER_PURPOSE,
@@ -155,10 +153,12 @@ async def issue_pairing_token(body: PairingTokenRequest, request: Request) -> di
     if caller_parsed and caller_parsed.get("purpose") == MOBILE_HUB_LIST_PURPOSE:
         if not body.chat_id:
             raise HTTPException(status_code=400, detail="chat_id required to open a session")
-        gateway = get_agent_gateway()
-        active_chat_ids = {str(session.get("chatId")) for session in gateway.get_active_sessions() if session.get("chatId")}
-        if body.chat_id not in active_chat_ids:
-            raise HTTPException(status_code=404, detail="No active session for this chat")
+        from app.services.chat.chat_service import ChatService
+
+        # Running and finished hub cards alike may mint control tokens; only
+        # chat existence matters (trashed chats are excluded by the repo).
+        if await ChatService.get_chat_metadata(body.chat_id) is None:
+            raise HTTPException(status_code=404, detail="Chat not found")
         token = create_pairing_token(chat_id=body.chat_id, purpose=MOBILE_HUB_CONTROL_PURPOSE)
         mobile_path = mobile_path_for_pairing_token(
             token=token,
@@ -219,14 +219,7 @@ async def mobile_spawn_options(
     pair: str | None = Query(default=None, min_length=8),
 ) -> dict[str, object]:
     """Return agent and project lists for mobile session spawn form."""
-    trust_zone = getattr(request.state, "trust_zone", None)
-    path = request.url.path
-    pair_token = resolve_request_pair_token(request, pair)
-    if requires_mobile_remote_gate(trust_zone=trust_zone, path=path):
-        session_user = getattr(request.state, "session_username", None)
-        pair_ok = bool(pair_token and pair_token_authorizes_path(pair_token, path))
-        if not pair_ok and not session_user:
-            raise HTTPException(status_code=401, detail="Valid pairing token or WebUI session required")
+    require_remote_access_gate(request, pair)
 
     from app.services.agent.agent_service import AgentService
     from app.services.project.project_service import ProjectService
@@ -251,19 +244,12 @@ async def mobile_spawn_options(
 @limiter.limit("30/minute")
 async def mobile_spawn(body: MobileSpawnRequest, request: Request) -> dict[str, object]:
     """Create a new chat session from Mobile Hub and return a scoped pair token."""
-    trust_zone = getattr(request.state, "trust_zone", None)
-    path = request.url.path
-    pair_token = resolve_request_pair_token(request)
-    if requires_mobile_remote_gate(trust_zone=trust_zone, path=path):
-        session_user = getattr(request.state, "session_username", None)
-        pair_ok = bool(pair_token and pair_token_authorizes_path(pair_token, path))
-        if not pair_ok and not session_user:
-            raise HTTPException(status_code=401, detail="Valid pairing token or WebUI session required")
+    require_remote_access_gate(request)
 
     import uuid
 
     from app.database.dto import ChatCreate
-    from app.services.chat.chat_crud import ChatService
+    from app.services.chat.chat_service import ChatService
 
     chat_id = str(uuid.uuid4())
     chat_data = ChatCreate(chat_id=chat_id, title=body.initial_message[:80], agent_id=body.agent_id)
@@ -299,22 +285,23 @@ async def mobile_sessions(
     request: Request,
     pair: str | None = Query(default=None, min_length=8),
 ) -> dict[str, object]:
-    trust_zone = getattr(request.state, "trust_zone", None)
-    path = request.url.path
-    pair_token = resolve_request_pair_token(request, pair)
-    if requires_mobile_remote_gate(trust_zone=trust_zone, path=path):
-        session_user = getattr(request.state, "session_username", None)
-        pair_ok = bool(pair_token and pair_token_authorizes_path(pair_token, path))
-        if not pair_ok and not session_user:
-            raise HTTPException(status_code=401, detail="Valid pairing token or WebUI session required")
-    elif pair_token and not pair_token_authorizes_path(pair_token, path):
-        raise HTTPException(status_code=401, detail="Invalid or expired pairing token")
+    require_remote_access_gate(request, pair)
+
+    from app.remote_access.mobile_hub_payload import (
+        annotate_active_sessions,
+        build_recent_sessions,
+        resolve_agent_display_names,
+    )
 
     gateway = get_agent_gateway()
+    agent_names = await resolve_agent_display_names()
+    active_sessions, active_chat_ids = annotate_active_sessions(gateway, agent_names)
+    recent_sessions = await build_recent_sessions(active_chat_ids, agent_names)
     return e2ee_success_response(
         request,
         data={
-            "activeSessions": gateway.get_active_sessions(),
+            "activeSessions": active_sessions,
+            "recentSessions": recent_sessions,
             "maxConcurrent": gateway.config.max_per_user,
             "availableSlots": gateway.get_available_slots(),
         },
@@ -328,17 +315,7 @@ async def mobile_takeover_snapshot(
     pair: str | None = Query(default=None, min_length=8),
 ) -> dict[str, object]:
     """Return browser snapshot for mobile takeover live preview."""
-    trust_zone = getattr(request.state, "trust_zone", None)
-    path = request.url.path
-    pair_token = resolve_request_pair_token(request, pair)
-    if requires_mobile_remote_gate(trust_zone=trust_zone, path=path):
-        session_user = getattr(request.state, "session_username", None)
-        pair_ok = bool(pair_token and pair_token_authorizes_path(pair_token, path))
-        if not pair_ok and not session_user:
-            raise HTTPException(status_code=401, detail="Valid pairing token or WebUI session required")
-    elif pair_token and not pair_token_authorizes_path(pair_token, path):
-        raise HTTPException(status_code=401, detail="Invalid or expired pairing token")
-
+    require_remote_access_gate(request, pair)
     require_mobile_pair_chat_access(request, chat_id)
     from app.services.agent.browser_snapshot import (
         BrowserSnapshotUnavailableError,
@@ -365,14 +342,7 @@ async def receive_node_event(body: NodeEventRequest, request: Request) -> dict[s
     Dispatches the event to CronScheduler.dispatch_system_event which matches
     against active SystemEventTrigger rules.
     """
-    trust_zone = getattr(request.state, "trust_zone", None)
-    path = request.url.path
-    if requires_mobile_remote_gate(trust_zone=trust_zone, path=path):
-        pair_token = resolve_request_pair_token(request)
-        session_user = getattr(request.state, "session_username", None)
-        pair_ok = bool(pair_token and pair_token_authorizes_path(pair_token, path))
-        if not pair_ok and not session_user:
-            raise HTTPException(status_code=401, detail="Valid pairing token or WebUI session required")
+    require_remote_access_gate(request, strict_pair=False)
 
     from app.core.cron.adapters.setup import get_cron_scheduler
 

@@ -43,9 +43,7 @@ export const CapabilityAttenuationCapsule: React.FC<CapabilityAttenuationCapsule
         aria-label="查看细粒度安全授权范围"
       >
         <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-        <span className="font-mono text-[11px]">
-          {isReadOnly ? '只读受限沙箱' : '零信任 OCap 拘禁'}
-        </span>
+        <span className="font-mono text-[11px]">{isReadOnly ? '只读受限沙箱' : '零信任 OCap 拘禁'}</span>
         {capability.remainingTtlSeconds !== undefined && (
           <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground ml-1">
             <Clock className="h-3 w-3" />

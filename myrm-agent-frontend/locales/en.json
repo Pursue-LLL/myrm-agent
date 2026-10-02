@@ -5341,7 +5341,7 @@
         "restoredLastGood": "Switched back to the last working connection.",
         "activeSessionsDialog": {
           "title": "Active sessions detected",
-          "description": "{count} sessions are still generating locally. Switching waits for them to finish and disconnects the local stream; session history is preserved.",
+          "description": "{count} sessions are still generating locally. The switch waits for them to finish, then refreshes the page; session history is preserved.",
           "confirm": "Switch anyway",
           "cancel": "Cancel"
         }

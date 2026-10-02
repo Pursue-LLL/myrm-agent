@@ -24,12 +24,7 @@ import { toast } from '@/lib/utils/toast';
 import { showsLocalIntegrationTabs } from '@/lib/deploy-mode';
 import { openPermissionDeepLink } from '@/lib/desktop/permissionDeepLink';
 import { desktopPermissionsPath, type DesktopPermissionsStatus } from '@/lib/desktop/desktopPermissionsStatus';
-import {
-  PermissionRow,
-  CaptureProbeRow,
-  ScreenLockRow,
-  DeeplinkItem,
-} from './DesktopPermissionsRows';
+import { PermissionRow, CaptureProbeRow, ScreenLockRow, DeeplinkItem } from './DesktopPermissionsRows';
 
 type HeaderTone = 'verified' | 'unverified' | 'capture_failed' | 'missing';
 

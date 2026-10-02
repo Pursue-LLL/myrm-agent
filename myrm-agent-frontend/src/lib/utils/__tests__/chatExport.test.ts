@@ -578,14 +578,16 @@ describe('chatExport', () => {
       const mockCanvas = {
         toBlob: vi.fn((cb: (blob: Blob | null) => void) => cb(mockBlob)),
       };
-      const mockHtml2canvas = vi.fn().mockImplementation((target: HTMLElement, options?: { onclone?: (doc: Document, el: HTMLElement) => void }) => {
-        if (options?.onclone) {
-          const cloned = target.cloneNode(true) as HTMLElement;
-          options.onclone(document, cloned);
-          clonedTargetCaptured = cloned;
-        }
-        return Promise.resolve(mockCanvas);
-      });
+      const mockHtml2canvas = vi
+        .fn()
+        .mockImplementation((target: HTMLElement, options?: { onclone?: (doc: Document, el: HTMLElement) => void }) => {
+          if (options?.onclone) {
+            const cloned = target.cloneNode(true) as HTMLElement;
+            options.onclone(document, cloned);
+            clonedTargetCaptured = cloned;
+          }
+          return Promise.resolve(mockCanvas);
+        });
       vi.doMock('html2canvas', () => ({ default: mockHtml2canvas }));
 
       const origCreateElement = document.createElement.bind(document);

@@ -319,7 +319,8 @@ class AgentGatewaySettings(BaseSettings):
     max_concurrent: int = 20  # AGENT_MAX_CONCURRENT
     max_per_user: int = 3  # AGENT_MAX_PER_USER
     queue_timeout: float = 10.0  # AGENT_QUEUE_TIMEOUT (seconds)
-    execution_timeout: float = 300.0  # AGENT_EXECUTION_TIMEOUT (seconds)
+    execution_timeout: float = 300.0  # AGENT_EXECUTION_TIMEOUT (seconds, idle silence threshold)
+    execution_hard_ceiling: float = 3600.0  # AGENT_EXECUTION_HARD_CEILING (seconds, total wall-clock cap)
 
 
 # ---------------------------------------------------------------------------

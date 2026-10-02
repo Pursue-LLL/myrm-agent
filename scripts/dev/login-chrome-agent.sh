@@ -52,6 +52,7 @@ open -na "${CHROME_APP}" --args \
   "--user-data-dir=${DATA_DIR}" \
   "--no-first-run" \
   "--no-default-browser-check" \
+  "--disable-features=MacAppCodeSignClone" \
   "${LOGIN_URL}" \
   >>"${LOG_FILE}" 2>&1
 

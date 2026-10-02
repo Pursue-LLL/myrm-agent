@@ -705,17 +705,32 @@ const useChatStore = create<ChatState>()(
           }
         });
       },
-      steerMessage: async (message: string, options?: { mode?: string; quotedRef?: string }) => {
+      steerMessage: async (
+        message: string,
+        options?: { mode?: string; quotedRef?: string; inReplyToCallId?: string; questionContext?: string },
+      ) => {
         const { chatId } = get();
         if (!chatId) {
           return false;
         }
-        const payload: { message: string; mode?: string; quotedRef?: string } = { message };
+        const payload: {
+          message: string;
+          mode?: string;
+          quotedRef?: string;
+          in_reply_to_call_id?: string;
+          question_context?: string;
+        } = { message };
         if (options?.mode !== undefined) {
           payload.mode = options.mode;
         }
         if (options?.quotedRef !== undefined) {
           payload.quotedRef = options.quotedRef;
+        }
+        if (options?.inReplyToCallId !== undefined) {
+          payload.in_reply_to_call_id = options.inReplyToCallId;
+        }
+        if (options?.questionContext !== undefined) {
+          payload.question_context = options.questionContext;
         }
         try {
           const { isMobileRemoteSurface, mobileRemotePost } = await import('@/lib/mobileRemote');

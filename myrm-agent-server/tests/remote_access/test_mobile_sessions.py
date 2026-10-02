@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock
+from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException
@@ -31,6 +32,18 @@ def _response_body(result: object) -> dict[str, object]:
     raise TypeError(f"Unexpected mobile_sessions result type: {type(result)!r}")
 
 
+def _stub_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Neutralize hub payload assembly for auth-semantics tests."""
+    monkeypatch.setattr(
+        "app.remote_access.mobile_hub_payload.resolve_agent_display_names",
+        AsyncMock(return_value={}),
+    )
+    monkeypatch.setattr(
+        "app.remote_access.mobile_hub_payload.build_recent_sessions",
+        AsyncMock(return_value=[]),
+    )
+
+
 @pytest.mark.asyncio
 async def test_mobile_sessions_requires_pair_on_remote_exposed() -> None:
     request = _mock_request(trust_zone=TrustZone.REMOTE_EXPOSED.value)
@@ -51,6 +64,7 @@ async def test_mobile_sessions_accepts_valid_pair_on_remote_exposed(monkeypatch:
     gateway.config.max_per_user = 2
     gateway.get_available_slots.return_value = 2
     monkeypatch.setattr("app.api.remote_access.router.get_agent_gateway", lambda: gateway)
+    _stub_payload(monkeypatch)
 
     result = await mobile_sessions(request, pair=token)
     body = _response_body(result)
@@ -67,7 +81,60 @@ async def test_mobile_sessions_allows_local_trusted_without_pair(monkeypatch: py
     gateway.config.max_per_user = 2
     gateway.get_available_slots.return_value = 2
     monkeypatch.setattr("app.api.remote_access.router.get_agent_gateway", lambda: gateway)
+    _stub_payload(monkeypatch)
 
     result = await mobile_sessions(request, pair=None)
     body = _response_body(result)
     assert body["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_mobile_sessions_assembles_recent_with_agent_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Active cards get agentName injected; finished chats (minus active ones) form recentSessions."""
+    request = _mock_request(trust_zone=TrustZone.LOCAL_TRUSTED.value)
+
+    gateway = MagicMock()
+    gateway.get_active_sessions.return_value = [
+        {"chatId": "c-active", "agentType": "general", "elapsedSeconds": 2.0, "agentId": "a1"},
+    ]
+    gateway.config.max_per_user = 3
+    gateway.get_available_slots.return_value = 2
+    monkeypatch.setattr("app.api.remote_access.router.get_agent_gateway", lambda: gateway)
+
+    agent_row = MagicMock()
+    agent_row.id = "a1"
+    agent_row.display_name = "Research Agent"
+    monkeypatch.setattr(
+        "app.services.agent.agent_service.AgentService.get_agent_list",
+        AsyncMock(return_value=([agent_row], 1)),
+    )
+
+    active_chat = MagicMock()
+    active_chat.id = "c-active"
+    active_chat.title = "Still Running"
+    active_chat.agent_id = "a1"
+    active_chat.updated_at = datetime(2026, 10, 2, 3, 0, 0)
+    finished_chat = MagicMock()
+    finished_chat.id = "c-done"
+    finished_chat.title = "Finished Report"
+    finished_chat.agent_id = "a1"
+    finished_chat.updated_at = datetime(2026, 10, 2, 2, 0, 0)
+    monkeypatch.setattr(
+        "app.services.chat.chat_service.ChatService.get_chat_list",
+        AsyncMock(return_value=([active_chat, finished_chat], 2)),
+    )
+
+    result = await mobile_sessions(request, pair=None)
+    body = _response_body(result)
+    data = body["data"]
+
+    assert data["activeSessions"][0]["agentName"] == "Research Agent"
+    # 活跃会话不重复出现在最近完成区
+    assert [item["chatId"] for item in data["recentSessions"]] == ["c-done"]
+    assert data["recentSessions"][0] == {
+        "chatId": "c-done",
+        "title": "Finished Report",
+        "agentId": "a1",
+        "agentName": "Research Agent",
+        "updatedAt": "2026-10-02T02:00:00",
+    }

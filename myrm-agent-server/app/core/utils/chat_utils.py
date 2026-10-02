@@ -137,8 +137,12 @@ def _expand_agent_history(content: str) -> list[BaseMessage]:
         tool_messages: list[ToolMessage] = []
 
         for tc in tool_calls_data:
-            tc_id = f"hist_{uuid4().hex[:8]}"
             tc_name = str(tc.get("name", "unknown"))
+            if tc_name == "send_user_message_async":
+                # Non-blocking async messages do NOT participate in LLM context (0 token tax, 100% prompt cache lock)
+                continue
+
+            tc_id = f"hist_{uuid4().hex[:8]}"
             tc_args = tc.get("args", {})
 
             lc_tool_calls.append(
@@ -159,8 +163,9 @@ def _expand_agent_history(content: str) -> list[BaseMessage]:
                 )
             )
 
-        messages.append(AIMessage(content="", tool_calls=lc_tool_calls))
-        messages.extend(tool_messages)
+        if lc_tool_calls:
+            messages.append(AIMessage(content="", tool_calls=lc_tool_calls))
+            messages.extend(tool_messages)
 
     if text_content:
         messages.append(AIMessage(content=text_content))

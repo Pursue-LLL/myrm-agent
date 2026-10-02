@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState, useCallback, useEffect, useRef } from 'react';
+import { memo, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconPlug, IconCheck, IconAlertCircle } from '@/components/features/icons/PremiumIcons';
 import { isTauriRuntime, getRemoteGatewayConfig, setRemoteGatewayConfig } from '@/lib/deploy-mode';
@@ -17,32 +17,14 @@ import {
 } from '@/lib/remote-profiles';
 import { cn } from '@/lib/utils/classnameUtils';
 import { toast } from '@/lib/utils/toast';
-import {
-  clearPendingSwitch,
-  getLastGood,
-  getPendingSwitch,
-  isPendingFresh,
-  setLastGood,
-  setPendingSwitch,
-} from '@/lib/connection-switch-guard';
+import { setLastGood, setPendingSwitch } from '@/lib/connection-switch-guard';
 import RemoteFirstRunChooser from './RemoteFirstRunChooser';
 import ServerConnectionCloudSection from './ServerConnectionCloudSection';
+import { testRemoteHealth, useConnectionsRollbackGuard } from './useConnectionsRollbackGuard';
 
 const FIRST_RUN_SEEN_KEY = 'myrm-remote-first-run-seen';
 
 type ConnectionTestState = 'idle' | 'testing' | 'success' | 'failed';
-
-async function testRemoteHealth(url: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${url}/health`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(8000),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
 
 function isValidServerUrl(raw: string): boolean {
   try {
@@ -86,6 +68,9 @@ const ServerConnectionCard = memo(() => {
 
   const failedUrlRef = useRef<string | null>(null);
 
+  // reload 后 pending 切换复验与回滚（不可达目标恢复 last-good）。
+  useConnectionsRollbackGuard({ onRestored: refresh });
+
   // 切断当前活跃连接前确认：后端有生成中会话时弹窗告知（切换等待其完成
   // 并断开本地流）。查询失败（后端已停/不可达）时放行，避免锁死切换路径。
   const guardActiveSessions = useCallback(async (proceed: () => void): Promise<void> => {
@@ -117,67 +102,6 @@ const ServerConnectionCard = memo(() => {
     },
     [pendingConfirm],
   );
-
-  // Post-reload verification: a pending switch that lands on an unreachable
-  // target rolls back to last-known-good instead of stranding the user.
-  useEffect(() => {
-    if (!isTauriRuntime()) {
-      return;
-    }
-    const pending = getPendingSwitch();
-    if (!pending || !isPendingFresh(pending)) {
-      clearPendingSwitch();
-      return;
-    }
-    const current = getRemoteGatewayConfig();
-    const targetUrl = current?.url ?? null;
-    // Only verify switches this card initiated (pending target matches live config).
-    if (targetUrl !== pending.url) {
-      clearPendingSwitch();
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const healthy = targetUrl === null || (await testRemoteHealth(targetUrl));
-      if (cancelled) {
-        return;
-      }
-      if (healthy) {
-        setLastGood({ activeId: getActiveRemoteProfileId(), url: targetUrl });
-        clearPendingSwitch();
-        return;
-      }
-      // Restore by roster id: stored urls are resolved API bases, which differ
-      // from raw profile urls for cloud profiles. Rollback never writes new
-      // profiles; unknown ids fall back to local.
-      const lastGood = getLastGood();
-      const profiles = listRemoteProfiles();
-      const byId = lastGood?.activeId ? profiles.find((p) => p.id === lastGood.activeId) : undefined;
-      const byUrl = lastGood?.url ? profiles.find((p) => p.url === lastGood.url) : undefined;
-      const restoreId = byId?.id ?? byUrl?.id ?? null;
-      let rolledBackToLocal = false;
-      if (restoreId === null) {
-        setRemoteGatewayConfig(null);
-        rolledBackToLocal = true;
-        // 回滚到本地：显式重启本地后端（remote_follow flag 复位），
-        // 不再依赖已被修复禁止的 watchdog 复活救场。
-        await switchRemoteFollow(false);
-      } else {
-        setActiveRemoteProfileId(restoreId);
-      }
-      clearPendingSwitch();
-      refresh();
-      toast.error(t('restoredLastGood'));
-      if (!rolledBackToLocal) {
-        // 仅 remote→remote 回滚需手动刷新；本地回滚由 switch 的
-        // `app:connections-changed` 事件统一驱动（含 session windows）。
-        window.location.reload();
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [t, refresh]);
 
   // Health-gated switch commit: unhealthy targets abort unless the user
   // explicitly forces by repeating the same action (manual override).

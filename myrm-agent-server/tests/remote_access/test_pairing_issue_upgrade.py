@@ -42,12 +42,13 @@ def _build_app() -> FastAPI:
 
 
 def test_hub_list_pair_mints_scoped_control_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    from unittest.mock import MagicMock
+    from unittest.mock import AsyncMock, MagicMock
+
+    from app.services.chat.chat_service import ChatService
 
     list_token = create_pairing_token(purpose=MOBILE_HUB_LIST_PURPOSE)
-    gateway = MagicMock()
-    gateway.get_active_sessions.return_value = [{"chatId": "chat-42", "agentType": "general", "elapsedSeconds": 1.0}]
-    monkeypatch.setattr("app.api.remote_access.router.get_agent_gateway", lambda: gateway)
+    # Only chat existence matters now (running or finished alike).
+    monkeypatch.setattr(ChatService, "get_chat_metadata", AsyncMock(return_value=MagicMock()))
 
     client = TestClient(_build_app())
     response = client.post(
@@ -65,13 +66,14 @@ def test_hub_list_pair_mints_scoped_control_token(monkeypatch: pytest.MonkeyPatc
     assert parsed["purpose"] == MOBILE_HUB_CONTROL_PURPOSE
 
 
-def test_hub_list_pair_rejects_inactive_chat(monkeypatch: pytest.MonkeyPatch) -> None:
-    from unittest.mock import MagicMock
+def test_hub_list_pair_rejects_missing_chat(monkeypatch: pytest.MonkeyPatch) -> None:
+    from unittest.mock import AsyncMock
+
+    from app.services.chat.chat_service import ChatService
 
     list_token = create_pairing_token(purpose=MOBILE_HUB_LIST_PURPOSE)
-    gateway = MagicMock()
-    gateway.get_active_sessions.return_value = [{"chatId": "chat-live", "agentType": "general", "elapsedSeconds": 1.0}]
-    monkeypatch.setattr("app.api.remote_access.router.get_agent_gateway", lambda: gateway)
+    # Missing (or trashed — excluded by the repo) chats never mint tokens.
+    monkeypatch.setattr(ChatService, "get_chat_metadata", AsyncMock(return_value=None))
 
     client = TestClient(_build_app())
     response = client.post(

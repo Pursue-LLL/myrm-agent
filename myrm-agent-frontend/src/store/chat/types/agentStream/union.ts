@@ -16,6 +16,7 @@ import type {
   ArtifactContentStreamEvent,
   ArtifactFocusStreamEvent,
   ArtifactsStreamEvent,
+  AsyncUserMessageStreamEvent,
   ClarificationRequiredStreamEvent,
   CorrectionLearnedStreamEvent,
   CapabilityGapStreamEvent,
@@ -108,6 +109,7 @@ export type AgentStreamEvent =
   | ToolApprovalRequestStreamEvent
   | ApprovalProcessedStreamEvent
   | ApprovalRequiredStreamEvent
+  | AsyncUserMessageStreamEvent
   | ClarificationRequiredStreamEvent
   | DirectoryRequestRequiredStreamEvent
   | RedirectedStreamEvent

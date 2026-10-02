@@ -22,7 +22,8 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js 进程生�
 |------|------|------|-------|
 | `mod.rs` | 核心 | 模块聚合、`TOXIC_ENV_VARS` 毒性环境变量黑名单、`suppress_console_window`、`spawn_backend_monitors`/`stop_backend_monitors`（watchdog+wake 统一挂载/停挂，幂等替换） | ✅ |
 | `sidecar_version_manager.rs` | 核心 | Sidecar 独立引擎版本状态机（versions.json、原子写入、三级降级链路与坏版本拉黑） | ✅ |
-| `python_backend.rs` | 核心 | Python Sidecar 启停、版本自适应解析、就绪探测与启动超时自动回滚自愈；`graceful_stop_backend` 全路径统一优雅停机（停 monitors → POST `/api/v1/system/shutdown` → 等待自退 → 兜底强杀） | ✅ |
+| `python_backend.rs` | 核心 | Python Sidecar 启动、版本自适应解析、就绪探测与启动超时自动回滚自愈（停机序列经 `python_backend_stop`） | ✅ |
+| `python_backend_stop.rs` | 核心 | 后端优雅停机序列层 `graceful_stop_backend`（停 monitors → POST `/api/v1/system/shutdown` → 等待自退 → 兜底强杀），全部停机路径共享 | ✅ |
 | `nextjs_frontend.rs` | 核心 | Next.js Standalone 进程（Tauri 启动时始终自启） | — |
 | `watchdog.rs` | 核心 | 后端崩溃监控与指数退避重启（stop_backend_monitors 停挂，支持 wake_notify 快速快检） | ✅ |
 | `wake.rs` | 核心 | 系统休眠唤醒侦测器（单调时钟时间跃迁 + 原生通知）与两阶段自愈协调器（cancel 走 watch channel，停挂不丢消息） | ✅ |

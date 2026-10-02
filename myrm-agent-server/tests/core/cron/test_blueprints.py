@@ -170,6 +170,39 @@ class TestWikiMaintainBlueprint:
         assert result.command == "__wiki_maintain__:full"
 
 
+class TestDailyReviewCompoundingBlueprint:
+    """Specific tests for the daily_review_compounding blueprint."""
+
+    def test_exists_in_registry(self) -> None:
+        bp = get_blueprint("daily_review_compounding")
+        assert bp is not None
+        assert bp.id == "daily_review_compounding"
+
+    def test_fill_sets_router_command(self) -> None:
+        result = fill_blueprint(
+            "daily_review_compounding",
+            {"time": "21:30", "weekdays": "everyday"},
+        )
+        assert result is not None
+        assert result.command == "__wiki_daily_review_compound__"
+        assert result.job_type == "router"
+        assert result.timeout_seconds == 300
+
+    def test_fill_produces_2130_cron(self) -> None:
+        result = fill_blueprint("daily_review_compounding", {"time": "21:30", "weekdays": "everyday"})
+        assert result is not None
+        assert result.schedule.expr == "30 21 * * *"
+
+    def test_prompt_mentions_silent(self) -> None:
+        result = fill_blueprint(
+            "daily_review_compounding",
+            {"time": "21:30", "weekdays": "everyday"},
+            locale="en",
+        )
+        assert result is not None
+        assert "[SILENT]" in result.prompt
+
+
 class TestWikiVaultWeeklyHealthBlueprint:
     """Specific tests for the wiki_vault_weekly_health (list-only) blueprint."""
 

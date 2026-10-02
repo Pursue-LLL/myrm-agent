@@ -114,4 +114,3 @@ describe('chatExportHtml - buildHtmlDocument', () => {
     expect(html).toContain('background:#fff!important;color:#0f172a!important');
   });
 });
-

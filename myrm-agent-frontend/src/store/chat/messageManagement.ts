@@ -494,6 +494,16 @@ function parseMessages(raw: Message[]): Message[] {
       parsed.ttsrInterventions = normalizeTtsrInterventions(rawTtsrInterventions);
     }
 
+    const rawAsyncUserMessages = metadata.asyncUserMessages ?? metadata.async_user_messages;
+    if (Array.isArray(rawAsyncUserMessages) && !parsed.asyncUserMessages) {
+      parsed.asyncUserMessages = rawAsyncUserMessages.map((item: Record<string, unknown>) => ({
+        callId: (item.callId ?? item.call_id ?? '') as string,
+        message: (item.message ?? '') as string,
+        category: (item.category ?? 'progress') as 'progress' | 'milestone' | 'question',
+        recommendation: (item.recommendation ?? null) as string | null,
+      }));
+    }
+
     return parsed;
   });
 }

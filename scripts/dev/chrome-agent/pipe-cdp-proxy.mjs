@@ -97,7 +97,7 @@ function buildChromeLaunchArgs() {
         '--remote-debugging-pipe',
         '--no-first-run',
         '--no-default-browser-check',
-        '--disable-features=DialMediaRouteProvider',
+        '--disable-features=DialMediaRouteProvider,MacAppCodeSignClone',
         // Silence crash recovery bubble & crash reports
         '--disable-session-crashed-bubble',
         '--disable-infobars',

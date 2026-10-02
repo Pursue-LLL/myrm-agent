@@ -43,6 +43,7 @@ export const AgentEventType = {
   CLARIFICATION_REQUIRED: 'clarification_required',
   DIRECTORY_REQUEST_REQUIRED: 'directory_request_required',
   APPROVAL_PROCESSED: 'approval_processed',
+  ASYNC_USER_MESSAGE: 'async_user_message',
   GOAL_STATUS: 'goal_status',
   RATE_LIMIT_UPDATED: 'rate_limit_updated',
   RATE_LIMIT_WARNING: 'rate_limit_warning',
@@ -444,4 +445,17 @@ export interface PhaseTransitionPayload {
 export interface PhaseTransitionStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.PHASE_TRANSITION;
   data: PhaseTransitionPayload;
+}
+
+export interface AsyncUserMessagePayload {
+  call_id: string;
+  callId?: string;
+  message: string;
+  category?: 'progress' | 'milestone' | 'question';
+  recommendation?: string | null;
+}
+
+export interface AsyncUserMessageStreamEvent extends BaseAgentEvent {
+  type: typeof AgentEventType.ASYNC_USER_MESSAGE;
+  data: AsyncUserMessagePayload;
 }

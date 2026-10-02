@@ -119,6 +119,10 @@ async def list_browser_orphans() -> dict[str, object]:
 @router.delete("/browser/orphans")
 async def cleanup_browser_orphans(
     confirm: bool = Query(False, description="Must be True to actually kill processes"),
+    max_age_hours: float | None = Query(
+        None,
+        description="Minimum age in hours for sandbox cleanup (defaults to 0.0 on confirm=True, 24.0 on dry-run probe)",
+    ),
 ) -> dict[str, object]:
     """Clean up orphan automation browser processes.
 
@@ -127,6 +131,7 @@ async def cleanup_browser_orphans(
 
     Args:
         confirm: Must be True to execute cleanup (safety confirmation)
+        max_age_hours: Minimum age in hours for sandbox cleanup
 
     Returns:
         Cleanup result with dry_run flag, killed count, and failed list
@@ -152,9 +157,14 @@ async def cleanup_browser_orphans(
                 "failed": [],
             }
 
+        effective_max_age = (
+            max_age_hours
+            if max_age_hours is not None
+            else (0.0 if confirm else 24.0)
+        )
         sandbox_result = await asyncio.to_thread(
             cleanup_stale_automation_sandboxes,
-            max_age_hours=24.0,
+            max_age_hours=effective_max_age,
             dry_run=not confirm,
         )
 

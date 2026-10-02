@@ -102,6 +102,8 @@ CHROME_LAUNCH_ARGS=(
   --disable-backgrounding-occluded-windows
   --disable-renderer-backgrounding
   --disable-background-timer-throttling
+  # AMFI code sign clone suppression: block 1.4GB clone copy per instance on macOS
+  --disable-features=MacAppCodeSignClone
 )
 
 # Reset crash flags in Preferences if present to suppress restore bubble

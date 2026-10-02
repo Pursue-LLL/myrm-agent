@@ -179,6 +179,33 @@ def requires_mobile_remote_gate(*, trust_zone: str | None, path: str) -> bool:
     return trust_zone == TrustZone.REMOTE_EXPOSED.value and is_mobile_remote_api_path(path)
 
 
+def require_remote_access_gate(
+    request: object,
+    pair_query: str | None = None,
+    *,
+    strict_pair: bool = True,
+) -> None:
+    """Enforce remote-exposed admission for a hub endpoint in one call.
+
+    Remote zones demand a path-scoped pair token or a WebUI session; in any
+    zone a presented pair token must still be valid when ``strict_pair``.
+    """
+    from fastapi import HTTPException
+
+    state = getattr(request, "state", None)
+    url = getattr(request, "url", None)
+    path = str(getattr(url, "path", "")) if url is not None else ""
+    trust_zone = getattr(state, "trust_zone", None)
+    pair_token = resolve_request_pair_token(request, pair_query)
+    if requires_mobile_remote_gate(trust_zone=trust_zone, path=path):
+        session_user = getattr(state, "session_username", None)
+        pair_ok = bool(pair_token and pair_token_authorizes_path(pair_token, path))
+        if not pair_ok and not session_user:
+            raise HTTPException(status_code=401, detail="Valid pairing token or WebUI session required")
+    elif strict_pair and pair_token and not pair_token_authorizes_path(pair_token, path):
+        raise HTTPException(status_code=401, detail="Invalid or expired pairing token")
+
+
 def require_mobile_pair_chat_access(request: object, chat_id: str | None) -> None:
     """Reject pair-token requests when ``chat_id`` does not match the scoped token binding."""
     from fastapi import HTTPException
@@ -216,5 +243,6 @@ __all__ = [
     "pair_token_authorizes_path",
     "pair_token_grants_access",
     "require_mobile_pair_chat_access",
+    "require_remote_access_gate",
     "requires_mobile_remote_gate",
 ]

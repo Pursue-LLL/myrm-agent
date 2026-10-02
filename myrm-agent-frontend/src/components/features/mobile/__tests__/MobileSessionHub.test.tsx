@@ -26,8 +26,11 @@ vi.mock('next-intl', () => ({
 vi.mock('@/components/features/icons/PremiumIcons', () => ({
   IconActivity: () => null,
   IconArrowRight: () => null,
+  IconCheckCircle: () => null,
   IconChevronUp: () => null,
+  IconClock: () => null,
   IconPlus: () => null,
+  IconUsers: () => null,
 }));
 
 vi.mock('@/lib/mobileRemote', () => ({
@@ -45,7 +48,7 @@ vi.mock('@/components/features/e2ee/E2EESecurityPanel', () => ({
 }));
 
 vi.mock('@/components/agent/builtin-agent-i18n', () => ({
-  getBuiltinAgentName: (id: string) => id,
+  getBuiltinAgentName: (_id: string, name: string) => name,
 }));
 
 vi.mock('@/services/remoteAccess', () => ({
@@ -68,7 +71,12 @@ describe('MobileSessionHub task composition', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
-    mockRemoteAccess.getMobileSessions.mockResolvedValue({ activeSessions: [] });
+    mockRemoteAccess.getMobileSessions.mockResolvedValue({
+      activeSessions: [],
+      recentSessions: [],
+      maxConcurrent: 3,
+      availableSlots: 3,
+    });
     mockRemoteAccess.getSpawnOptions.mockResolvedValue({
       agents: [{ id: 'agent-a', name: 'Agent A', avatar: null }],
       projects: [],
@@ -124,6 +132,65 @@ describe('MobileSessionHub task composition', () => {
       fireEvent.keyDown(getTextarea(), { key: 'Enter', shiftKey: true });
     });
 
+    expect(mockRemoteAccess.spawnMobileSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('MobileSessionHub sections and concurrency gating', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    mockRemoteAccess.getSpawnOptions.mockResolvedValue({
+      agents: [{ id: 'agent-a', name: 'Agent A', avatar: null }],
+      projects: [],
+      defaultAgentId: 'agent-a',
+    });
+    mockRemoteAccess.spawnMobileSession.mockResolvedValue({ token: 'tok', mobilePath: '/mobile/status/new' });
+  });
+
+  it('renders running and recently finished sections with agent names and slot badge', async () => {
+    mockRemoteAccess.getMobileSessions.mockResolvedValue({
+      activeSessions: [
+        { chatId: 'c1', agentId: 'a1', agentType: 'general', agentName: 'Research Agent', elapsedSeconds: 42 },
+      ],
+      recentSessions: [
+        { chatId: 'c2', title: 'Finished Report', agentId: 'a1', agentName: 'Research Agent', updatedAt: new Date().toISOString() },
+      ],
+      maxConcurrent: 3,
+      availableSlots: 2,
+    });
+
+    render(<MobileSessionHub />);
+    await act(async () => {});
+
+    expect(screen.getByText('sectionActive')).toBeDefined();
+    expect(screen.getByText('sectionRecent')).toBeDefined();
+    // Active card title and recent card agent line both carry the display name.
+    expect(screen.getAllByText('Research Agent').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Finished Report')).toBeDefined();
+    expect(screen.getByText('slotsBadge')).toBeDefined();
+  });
+
+  it('blocks spawn with a warning when all parallel slots are busy', async () => {
+    mockRemoteAccess.getMobileSessions.mockResolvedValue({
+      activeSessions: [
+        { chatId: 'c1', agentId: 'a1', agentType: 'general', agentName: 'Research Agent', elapsedSeconds: 42 },
+      ],
+      recentSessions: [],
+      maxConcurrent: 1,
+      availableSlots: 0,
+    });
+
+    render(<MobileSessionHub />);
+    await act(async () => {});
+    await openTaskForm();
+
+    fireEvent.change(getTextarea(), { target: { value: '再开一个任务' } });
+    await act(async () => {
+      fireEvent.keyDown(getTextarea(), { key: 'Enter' });
+    });
+
+    expect(screen.getByText('slotsFull')).toBeDefined();
     expect(mockRemoteAccess.spawnMobileSession).not.toHaveBeenCalled();
   });
 });

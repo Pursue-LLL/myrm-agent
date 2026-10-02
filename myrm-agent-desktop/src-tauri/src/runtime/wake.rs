@@ -40,9 +40,8 @@ pub struct WakeDetectorHandle {
 impl WakeDetectorHandle {
     #[allow(dead_code)]
     pub fn cancel(&self) {
-        // watch channel (not Notify): a stored `true` is observed whenever the
-        // loop polls `changed()`, so cancellation cannot be lost while the
-        // task sits in the sleep branch of the select.
+        // watch channel: a stored `true` persists until observed by the
+        // polling loop, so cancellation survives any sleep-branch timing.
         let _ = self.cancel_tx.send(true);
     }
 }

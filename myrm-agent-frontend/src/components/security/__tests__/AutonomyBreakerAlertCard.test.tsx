@@ -63,12 +63,7 @@ describe('AutonomyBreakerAlertCard', () => {
     });
     const handleRecover = vi.fn().mockReturnValue(recoverPromise);
 
-    render(
-      <AutonomyBreakerAlertCard
-        incident={mockIncident}
-        onAcknowledgeAndRecover={handleRecover}
-      />
-    );
+    render(<AutonomyBreakerAlertCard incident={mockIncident} onAcknowledgeAndRecover={handleRecover} />);
 
     const recoverBtn = screen.getByTestId('recover-btn');
 
@@ -92,12 +87,7 @@ describe('AutonomyBreakerAlertCard', () => {
   it('handles manual degrade action correctly', async () => {
     const handleDegrade = vi.fn().mockResolvedValue(undefined);
 
-    render(
-      <AutonomyBreakerAlertCard
-        incident={mockIncident}
-        onDegradeToManual={handleDegrade}
-      />
-    );
+    render(<AutonomyBreakerAlertCard incident={mockIncident} onDegradeToManual={handleDegrade} />);
 
     const degradeBtn = screen.getByTestId('degrade-btn');
     fireEvent.click(degradeBtn);
@@ -113,12 +103,7 @@ describe('AutonomyBreakerAlertCard', () => {
 
   it('calls onViewAudit when audit button is clicked', () => {
     const handleViewAudit = vi.fn();
-    render(
-      <AutonomyBreakerAlertCard
-        incident={mockIncident}
-        onViewAudit={handleViewAudit}
-      />
-    );
+    render(<AutonomyBreakerAlertCard incident={mockIncident} onViewAudit={handleViewAudit} />);
 
     const auditBtn = screen.getByText('审计记录');
     fireEvent.click(auditBtn);

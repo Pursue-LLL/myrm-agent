@@ -45,12 +45,7 @@ describe('ZDRComplianceDrawer', () => {
 
   it('triggers onWipeSession callback on wipe click', async () => {
     const handleWipe = vi.fn().mockResolvedValue(undefined);
-    render(
-      <ZDRComplianceDrawer
-        sessionState={mockSession}
-        onWipeSession={handleWipe}
-      />
-    );
+    render(<ZDRComplianceDrawer sessionState={mockSession} onWipeSession={handleWipe} />);
 
     fireEvent.click(screen.getByTestId('zdr-status-badge'));
     const wipeBtn = screen.getByTestId('zdr-wipe-btn');
@@ -64,12 +59,7 @@ describe('ZDRComplianceDrawer', () => {
 
   it('triggers onDownloadAttestation callback', async () => {
     const handleDownload = vi.fn().mockResolvedValue(undefined);
-    render(
-      <ZDRComplianceDrawer
-        sessionState={mockSession}
-        onDownloadAttestation={handleDownload}
-      />
-    );
+    render(<ZDRComplianceDrawer sessionState={mockSession} onDownloadAttestation={handleDownload} />);
 
     fireEvent.click(screen.getByTestId('zdr-status-badge'));
     const downloadBtn = screen.getByTestId('zdr-download-btn');
