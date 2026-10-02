@@ -90,6 +90,9 @@ class MemoryToWikiArchiver:
         self._llm = llm
         from app.config.deploy_mode import is_local_mode
 
+        from app.services.wiki.daily_review.prompts import FOUR_DIMENSION_EXTRACT_PROMPT
+        from myrm_agent_harness.toolkits.wiki.core.config import WikiCompileConfig
+
         resolved_config = config or WikiConfig()
         if is_local_mode() and not resolved_config.enable_version_control:
             resolved_config = replace(resolved_config, enable_version_control=True)
@@ -149,7 +152,18 @@ class MemoryToWikiArchiver:
             embedding=embedding,
         )
 
-        self._compiler = WikiCompiler(llm, self._structure, self._config, indexer=indexer)
+        self._compiler = WikiCompiler(
+            llm,
+            self._structure,
+            self._config,
+            # Four-dimension routing: every compiled concept name lands under
+            # Projects / Knowledge / Methods / Comparisons via the existing
+            # WikiCompileConfig extension point (harness zero-change).
+            compile_config=WikiCompileConfig(
+                extract_concepts_prompt_template=FOUR_DIMENSION_EXTRACT_PROMPT,
+            ),
+            indexer=indexer,
+        )
         self._query_engine = WikiQueryEngine(
             llm,
             self._structure,

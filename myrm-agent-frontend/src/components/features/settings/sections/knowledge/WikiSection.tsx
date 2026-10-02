@@ -75,6 +75,7 @@ import WikiSourceSyncPanel from './WikiSourceSyncPanel';
 import SecondBrainSetupCard from './SecondBrainSetupCard';
 import { ObsidianVaultActions } from './ObsidianVaultActions';
 import MeetingNotesImportCard from './MeetingNotesImportCard';
+import DailyReviewCard from './DailyReviewCard';
 import { consumeMigrationObsidianVaultImport } from '@/lib/migrationChatHandoff';
 import { healthReportFromMaintainResponse, resolveHealthIssueNavigationTarget } from './wiki/wikiSectionUtils';
 import { WikiLayersLedgerPanel } from './wiki/WikiLayersLedgerPanel';
@@ -1448,6 +1449,8 @@ export function WikiSection() {
             />
 
             <MeetingNotesImportCard />
+
+            <DailyReviewCard />
 
             {/* Wiki Query */}
             <Card>

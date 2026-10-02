@@ -425,6 +425,26 @@ SUPPLEMENTAL_BY_ID: dict[str, BlueprintLocaleSupplement] = {
             "ko": ("위키 건강 점검 작업(router 모드, 목록 전용). 서버 생성 목록을 그대로 전달."),
         },
     },
+    "daily_review_compounding": {
+        "title": {
+            "ja": "デイリーレビューの知識化",
+            "de": "Tagesreview-Veredelung",
+            "ko": "일일 회고 지식화",
+        },
+        "description": {
+            "ja": "当日のデイリーレビューを Projects/Knowledge/Methods/Comparisons の四次元ドラフトに編訳し、人間レビュー待ちに",
+            "de": "Tagesreviews abends zu vierdimensionalen Wissensentwürfen (Projekte/Wissen/Methoden/Vergleiche) verdichten, wartend auf Prüfung",
+            "ko": "당일 회고를 프로젝트/지식/방법/비교 4차원 지식 초안으로 편찬하여 인간 검토 대기",
+        },
+        "prompt_template": {
+            "ja": ("デイリーレビュー知識化ジョブ（router モード）。サーバー生成の要約をそのまま配信。入力がなければ [SILENT] のみ。"),
+            "de": (
+                "Tagesreview-Veredelungsjob (Router-Modus). Server-Zusammenfassung unverändert ausliefern. "
+                "Ohne Eingabe nur [SILENT]."
+            ),
+            "ko": ("일일 회고 지식화 작업(router 모드). 서버 요약을 그대로 전달. 입력이 없으면 [SILENT]만 반환."),
+        },
+    },
     "wiki_corpus_dedup": {
         "title": {
             "ja": "Wiki コーパス重複スキャン",

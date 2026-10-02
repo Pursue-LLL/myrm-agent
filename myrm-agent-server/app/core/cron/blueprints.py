@@ -1011,6 +1011,46 @@ _RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (
         _schedule_builder="time_weekday",
     ),
     CronBlueprint(
+        id="daily_review_compounding",
+        icon="NotebookPen",
+        title={"en": "Daily Review Compounding", "zh": "每日复盘知识化"},
+        description={
+            "en": "Compile today's daily-review journals into four-dimension knowledge drafts awaiting review",
+            "zh": "晚间汇总当日复盘日志，自动萃取为项目/知识/方法/对比四维知识草稿，等待人工审核",
+        },
+        prompt_template={
+            "en": (
+                "Daily review compounding job (router mode). The compounding summary is produced "
+                "by the server; deliver it as-is. Reply [SILENT] when nothing was ingested."
+            ),
+            "zh": ("每日复盘知识化任务（router 模式）。汇总摘要由服务端生成，请原样投递。若无复盘输入则回复 [SILENT]。"),
+        },
+        slots=(
+            BlueprintSlot(name="time", type="time", label="time", default="21:30"),
+            BlueprintSlot(
+                name="weekdays",
+                type="enum",
+                label="weekdays",
+                default="everyday",
+                options=("everyday", "weekdays", "weekends"),
+            ),
+        ),
+        category="productivity",
+        tags=("wiki", "daily-review", "knowledge", "compounding", "second-brain", "automation"),
+        sort_order=19,
+        default_required_capabilities=(),
+        default_tools_allowed=(),
+        job_defaults=BlueprintJobDefaults(
+            job_type="router",
+            session_target="isolated",
+            deduplicate=True,
+            skip_if_active=True,
+            timeout_seconds=300,
+            command="__wiki_daily_review_compound__",
+        ),
+        _schedule_builder="time_weekdays",
+    ),
+    CronBlueprint(
         id="wiki_corpus_dedup",
         icon="Copy",
         title={"en": "Wiki Corpus Dedup Scan", "zh": "知识库语料去重扫描"},

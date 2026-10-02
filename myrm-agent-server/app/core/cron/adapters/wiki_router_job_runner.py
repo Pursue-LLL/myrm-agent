@@ -3,9 +3,10 @@
 [INPUT]
 - app.services.wiki.source_sync.runner::run_wiki_source_sync (POS: wiki pull orchestration)
 - app.services.wiki.maintain::run_wiki_maintain_job (POS: wiki maintain SSOT)
+- app.services.wiki.daily_review::run_wiki_daily_review_compound_job (POS: daily review compounding SSOT)
 
 [OUTPUT]
-- WikiRouterJobRunner: cron adapter for __wiki_source_sync__ and __wiki_maintain__ commands
+- WikiRouterJobRunner: cron adapter for __wiki_source_sync__ / __wiki_maintain__ / __wiki_daily_review_compound__ commands
 
 [POS]
 Cron adapter bridging harness RouterJobRunner to deterministic wiki router jobs.
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 WIKI_SOURCE_SYNC_COMMAND = "__wiki_source_sync__"
 WIKI_MAINTAIN_COMMAND_PREFIX = "__wiki_maintain__"
 WIKI_DEDUP_COMMAND = "__wiki_dedup__"
+WIKI_DAILY_REVIEW_COMPOUND_COMMAND = "__wiki_daily_review_compound__"
 
 
 def parse_wiki_maintain_mode(command: str | None) -> MaintainMode | str | None:
@@ -56,6 +58,9 @@ class WikiRouterJobRunner:
 
         if job.command == WIKI_DEDUP_COMMAND:
             return await self._run_dedup(job, context=context)
+
+        if job.command == WIKI_DAILY_REVIEW_COMPOUND_COMMAND:
+            return await self._run_daily_review_compound(job, context=context)
 
         return await self._passthrough.run(job, context=context)
 
@@ -109,4 +114,20 @@ class WikiRouterJobRunner:
             return JobResult(success=True, output=output, exit_code=exit_code)
         except Exception as exc:
             logger.error("Wiki dedup cron failed for job %s: %s", job.id, exc)
+            return JobResult(success=False, error=str(exc), exit_code=1)
+
+    async def _run_daily_review_compound(self, job: CronJob, *, context: str = "") -> JobResult:
+        try:
+            from app.services.agent.llm_access import get_optional_llm_for_user
+            from app.services.wiki.daily_review import run_wiki_daily_review_compound_job
+
+            llm = await get_optional_llm_for_user()
+            result = await run_wiki_daily_review_compound_job(llm=llm, agent_id=job.agent_id)
+            output = result.summary_text
+            if context.strip() and output != "[SILENT]":
+                output = f"{context.strip()}\n{output}"
+            exit_code = 0 if output == "[SILENT]" else 1
+            return JobResult(success=True, output=output, exit_code=exit_code)
+        except Exception as exc:
+            logger.error("Wiki daily review compounding cron failed for job %s: %s", job.id, exc)
             return JobResult(success=False, error=str(exc), exit_code=1)

@@ -21,6 +21,7 @@ Wiki 知识库服务层：Memory→Wiki 归档、vault 路径 SSOT、启动迁�
 | `memory_to_wiki.py` | 核心 | 记忆转 Wiki（`publish_raw` + enqueue compile；security_blocked 跳过）；支持 harness SessionNotes 与 legacy JSON；`query_wiki` 返回结构化 QueryResult | ✅ |
 | `vault/` | 域 | vault 生命周期 + 路径 SSOT + export + git hooks；见 [`vault/_ARCH.md`](vault/_ARCH.md) | ✅ |
 | `maintain/` | 域 | maintain 编排 + schemas + state 持久化；见 [`maintain/_ARCH.md`](maintain/_ARCH.md) | ✅ |
+| `daily_review/` | 域 | 每日复盘知识化 — 复盘原文 verbatim 存证（`ingest.py` → raw/DailyReview）+ 四维分流提取提示词（`prompts.py` 注入 archiver compiler）+ cron 汇总兜底（`runner.py`，`__wiki_daily_review_compound__`）+ 四张标准模板幂等种子（`templates.py`，marker 防复活用户删除）；见 `daily_review/prompts.py` 等 | ✅ |
 | `governance/` | 域 | 知识生命周期治理（老化扫描 90d + 归档 + 撤销 + 复活）；见 [`governance/_ARCH.md`](governance/_ARCH.md) | ✅ |
 | `obsidian/` | 域 | Obsidian 导入适配 + export presets；见 [`obsidian/_ARCH.md`](obsidian/_ARCH.md) | ✅ |
 | `agent_scope.py` | 辅助 | chat_id → agent_id（vault 选择）+ agent_id → UserConfig scope key 规范化（state/config store 共用） | ✅ |

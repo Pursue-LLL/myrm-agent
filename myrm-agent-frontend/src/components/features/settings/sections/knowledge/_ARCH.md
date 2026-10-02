@@ -25,6 +25,7 @@ Settings 记忆与知识子系统：记忆浏览、Wiki、Checkpoint、外部助
 | `SecondBrainPitfallGuardrails.tsx`  | 组件   | Second Brain 落地陷阱护栏                                                                              | ✅    |
 | `CodexWikiCompletionLane.tsx`       | 组件   | Codex Wiki 补全泳道                                                                                    | ✅    |
 | `WikiSection.tsx`                   | 核心   | Wiki Settings 入口                                                                                     | ✅    |
+| `DailyReviewCard.tsx`               | 组件   | 每日复盘一键知识化卡（textarea 复盘输入 → POST /wiki/daily-review 存证编译；双语/响应式；结果区分已存证/同日幂等跳过） | ✅    |
 | `WikiSourceSyncPanel.tsx`           | 组件   | Wiki 外部来源同步配置（Feishu/Gmail/GDrive/RSS + 手动同步）                                            | ✅    |
 | `WikiIgnorePanel.tsx`               | 组件   | `.wikiignore` 编辑（Settings → Wiki · agent scope）                                                    | ✅    |
 | `WikiDuplicateReviewPanel.tsx`      | 组件   | Raw corpus dedup 审核面板                                                                              | ✅    |

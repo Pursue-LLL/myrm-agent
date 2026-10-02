@@ -399,6 +399,8 @@ class WikiApplyResponse(BaseModel):
     created: bool = False
     appended: bool = False
     content_hash: str = ""
+    staged_for_review: bool = False
+    pending_edit_id: int | None = None
 
 
 class WikiCompoundRequestBody(BaseModel):
@@ -412,6 +414,29 @@ class WikiCompoundResponse(BaseModel):
     pending_edit_id: int
     concept_name: str
     message: str
+
+
+class WikiDailyReviewRequestBody(BaseModel):
+    text: str = Field(..., min_length=1, description="Daily review journal text (verbatim evidence)")
+    title: str = Field("", max_length=120, description="Optional short title for the review file name")
+
+
+class WikiDailyReviewResponse(BaseModel):
+    success: bool
+    raw_path: str
+    enqueued: bool
+    skipped: bool = False
+    message: str
+
+
+class WikiTemplateSeedRequest(BaseModel):
+    force: bool = Field(False, description="Re-seed all four standard templates even if they exist")
+
+
+class WikiTemplateSeedResponse(BaseModel):
+    success: bool
+    seeded: list[str]
+    templates: list[str]
 
 
 class QueueStatusResponse(BaseModel):
@@ -1505,6 +1530,7 @@ def _wiki_apply_http_status(code: str) -> int:
         "forbidden_for_agent": 403,
         "invalid_frontmatter": 422,
         "invalid_request": 422,
+        "publish_blocked": 422,
         "timeline_rejected": 422,
     }
     return mapping.get(code, 400)
@@ -1581,6 +1607,8 @@ async def apply_wiki_mutation_endpoint(
         created=result.created,
         appended=result.appended,
         content_hash=result.content_hash,
+        staged_for_review=result.staged_for_review,
+        pending_edit_id=result.pending_edit_id,
     )
 
 
@@ -1627,6 +1655,57 @@ async def compound_chat_message_to_wiki(
         pending_edit_id=result.pending_edit_id,
         concept_name=result.concept_name,
         message="Chat Q&A staged for wiki review",
+    )
+
+
+@router.post("/daily-review", response_model=WikiDailyReviewResponse)
+async def ingest_daily_review_endpoint(
+    request: WikiDailyReviewRequestBody,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+) -> WikiDailyReviewResponse:
+    """Ingest a daily-review journal verbatim into raw/DailyReview and enqueue compilation."""
+    from app.services.wiki.daily_review import ingest_daily_review_text
+
+    try:
+        result = await ingest_daily_review_text(archiver, text=request.text, title=request.title)
+    except Exception as exc:
+        logger.error("Daily review ingest failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Daily review ingest failed") from exc
+
+    if result.security_blocked:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "security_blocked", "message": result.message},
+        )
+    if not result.success:
+        raise HTTPException(
+            status_code=500,
+            detail={"code": "ingest_failed", "message": result.message},
+        )
+
+    await _after_wiki_vault_mutation(archiver, "daily review ingest")
+    return WikiDailyReviewResponse(
+        success=True,
+        raw_path=result.raw_relative_path,
+        enqueued=result.enqueued,
+        skipped=result.skipped,
+        message=result.message,
+    )
+
+
+@router.post("/templates/seed", response_model=WikiTemplateSeedResponse)
+async def seed_standard_templates_endpoint(
+    request: WikiTemplateSeedRequest,
+    archiver: Annotated[MemoryToWikiArchiver, Depends(_get_wiki_archiver)],
+) -> WikiTemplateSeedResponse:
+    """Seed the four standard markdown templates into concepts/templates/ (idempotent)."""
+    from app.services.wiki.daily_review import STANDARD_TEMPLATE_NAMES, seed_standard_templates
+
+    seeded = seed_standard_templates(archiver._structure, force=request.force)
+    return WikiTemplateSeedResponse(
+        success=True,
+        seeded=list(seeded),
+        templates=list(STANDARD_TEMPLATE_NAMES),
     )
 
 

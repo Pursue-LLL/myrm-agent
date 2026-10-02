@@ -3234,6 +3234,18 @@
         "debates": "关键争论点",
         "actionItems": "待办任务",
         "risks": "风险"
+      },
+      "dailyReview": {
+        "title": "每日复盘一键知识化",
+        "description": "把今天的复盘原样存为证据，自动萃取分流到项目/知识/方法/对比四维知识体系，草稿经人工审核后发布",
+        "placeholder": "今日进展：交付了什么、推进到哪里\n关键决策：决策与依据\n教训与方法：可复用的做法、踩过的坑\n对比与权衡：今天做过什么选型对比",
+        "titleLabel": "标题（可选）",
+        "submitButton": "存证并编译",
+        "submitting": "提交中…",
+        "staged": "复盘已存证并进入编译队列，四维知识草稿将在生成后等待人工审核",
+        "skipped": "今天已提交过同名复盘，未重复入库",
+        "empty": "请输入复盘内容",
+        "error": "提交失败，请稍后重试"
       }
     },
     "skills": {
@@ -19451,7 +19463,14 @@
     "submit": "开始任务",
     "submitting": "正在创建…",
     "spawnFailed": "创建任务失败。",
-    "loadOptionsFailed": "加载选项失败。"
+    "loadOptionsFailed": "加载选项失败。",
+    "sectionActive": "进行中",
+    "activeEmpty": "当前没有进行中的任务。",
+    "sectionRecent": "最近完成",
+    "recentEmpty": "完成的任务会出现在这里。",
+    "agentFallback": "智能体",
+    "slotsBadge": "已占用 {used}/{max}",
+    "slotsFull": "并行额度已满，请先结束或等待一个进行中的任务。"
   },
   "whatsNew": {
     "title": "v{version} 新功能",

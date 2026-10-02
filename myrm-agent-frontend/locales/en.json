@@ -3234,6 +3234,18 @@
         "debates": "Key Debate Points",
         "actionItems": "Action Items",
         "risks": "Risks"
+      },
+      "dailyReview": {
+        "title": "Daily Review Compounding",
+        "description": "Store today's review verbatim as evidence; it is distilled into Projects / Knowledge / Methods / Comparisons drafts that await human review",
+        "placeholder": "Progress: what was delivered, where things stand\nDecisions: choices and rationale\nLessons: reusable practices, pitfalls hit\nTrade-offs: comparisons made today",
+        "titleLabel": "Title (optional)",
+        "submitButton": "Store & Compile",
+        "submitting": "Submitting…",
+        "staged": "Review stored as evidence and enqueued; four-dimension drafts will await human review",
+        "skipped": "A review with the same title was already stored today; duplicate skipped",
+        "empty": "Please enter your review first",
+        "error": "Submission failed; please retry later"
       }
     },
     "skills": {
@@ -19451,7 +19463,14 @@
     "submit": "Start Task",
     "submitting": "Starting…",
     "spawnFailed": "Failed to create task.",
-    "loadOptionsFailed": "Failed to load options."
+    "loadOptionsFailed": "Failed to load options.",
+    "sectionActive": "In progress",
+    "activeEmpty": "No tasks are running right now.",
+    "sectionRecent": "Recently finished",
+    "recentEmpty": "Finished tasks will show up here.",
+    "agentFallback": "Agent",
+    "slotsBadge": "{used}/{max} in use",
+    "slotsFull": "All parallel slots are busy. Finish or stop a running task first."
   },
   "whatsNew": {
     "title": "What's New in v{version}",

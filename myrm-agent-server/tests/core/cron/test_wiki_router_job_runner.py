@@ -14,12 +14,14 @@ from myrm_agent_harness.toolkits.cron.types import (
 from myrm_agent_harness.toolkits.wiki.maintenance.modes import MaintainMode
 
 from app.core.cron.adapters.wiki_router_job_runner import (
+    WIKI_DAILY_REVIEW_COMPOUND_COMMAND,
     WIKI_DEDUP_COMMAND,
     WIKI_MAINTAIN_COMMAND_PREFIX,
     WIKI_SOURCE_SYNC_COMMAND,
     WikiRouterJobRunner,
     parse_wiki_maintain_mode,
 )
+from app.services.wiki.daily_review.schemas import WikiDailyReviewCompoundResult
 from app.services.wiki.dedup_runner import WikiDedupRunResult
 from app.services.wiki.maintain import WikiMaintainRunResult
 from app.services.wiki.source_sync.schemas import (
@@ -123,6 +125,49 @@ async def test_run_dedup_command_silent() -> None:
     ) as run_mock:
         result = await runner.run(_router_job(command=WIKI_DEDUP_COMMAND))
     run_mock.assert_awaited_once()
+    assert result.success is True
+    assert result.output == "[SILENT]"
+    assert result.exit_code == 0
+
+
+@pytest.mark.asyncio
+async def test_run_daily_review_compound_command() -> None:
+    runner = WikiRouterJobRunner()
+    compound_result = WikiDailyReviewCompoundResult(
+        summary_text="今日复盘 2 条已入库并编译：新增 3 篇四维草稿待审",
+        today_review_files=2,
+        today_pending_drafts=3,
+        total_pending_drafts=3,
+    )
+    with patch(
+        "app.services.wiki.daily_review.run_wiki_daily_review_compound_job",
+        new=AsyncMock(return_value=compound_result),
+    ) as run_mock:
+        with patch(
+            "app.services.agent.llm_access.get_optional_llm_for_user",
+            new=AsyncMock(return_value=MagicMock()),
+        ):
+            result = await runner.run(_router_job(command=WIKI_DAILY_REVIEW_COMPOUND_COMMAND))
+    run_mock.assert_awaited_once()
+    assert run_mock.await_args.kwargs["agent_id"] == "agent-1"
+    assert result.success is True
+    assert "四维草稿" in result.output
+    assert result.exit_code == 1
+
+
+@pytest.mark.asyncio
+async def test_run_daily_review_compound_silent() -> None:
+    runner = WikiRouterJobRunner()
+    compound_result = WikiDailyReviewCompoundResult(summary_text="[SILENT]")
+    with patch(
+        "app.services.wiki.daily_review.run_wiki_daily_review_compound_job",
+        new=AsyncMock(return_value=compound_result),
+    ):
+        with patch(
+            "app.services.agent.llm_access.get_optional_llm_for_user",
+            new=AsyncMock(return_value=MagicMock()),
+        ):
+            result = await runner.run(_router_job(command=WIKI_DAILY_REVIEW_COMPOUND_COMMAND))
     assert result.success is True
     assert result.output == "[SILENT]"
     assert result.exit_code == 0
