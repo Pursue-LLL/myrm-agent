@@ -160,7 +160,25 @@ class ServerGoalManager(GoalManager):
                     desktop_session = gateway.get_active_desktop_session(self.session_id)
                     if desktop_session is not None:
                         try:
-                            action_result = await desktop_session.take_screenshot()
+                            from app.services.locked_use.curtain_bridge import (
+                                locked_use_enabled_from_env,
+                                read_curtain_state,
+                            )
+                            from app.services.locked_use.service import (
+                                LockedUseConfig,
+                                locked_use_session,
+                            )
+
+                            # 帷幕拉起时锁屏下评估截图无价值；Locked Use 授权 + 帷幕态
+                            # 下临时解锁取真实画面（pending 协议保证帷幕保持遮蔽）。
+                            curtain = read_curtain_state()
+                            authorized = locked_use_enabled_from_env() and bool(
+                                curtain and curtain.active
+                            )
+                            async with locked_use_session(
+                                LockedUseConfig(enabled=authorized)
+                            ):
+                                action_result = await desktop_session.take_screenshot()
                             if action_result and action_result.success and action_result.screenshot_base64:
                                 screenshot_b64 = action_result.screenshot_base64
                         except Exception as e:

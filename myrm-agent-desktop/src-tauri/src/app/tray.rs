@@ -85,6 +85,7 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let sep1 = PredefinedMenuItem::separator(app)?;
     let settings_i = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
     let workspace_i = MenuItem::with_id(app, "workspace", "Workspace", true, None::<&str>)?;
+    let curtain_i = MenuItem::with_id(app, "privacy_curtain", "Privacy Curtain", true, None::<&str>)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
 
@@ -99,6 +100,7 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             &sep1,
             &settings_i,
             &workspace_i,
+            &curtain_i,
             &sep2,
             &quit_i,
         ],
@@ -127,6 +129,19 @@ pub fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
             "new_chat" => show_and_navigate(app, "tray:new_chat"),
             "settings" => show_and_navigate(app, "tray:settings"),
             "workspace" => show_and_navigate(app, "tray:workspace"),
+            // 帷幕切换：拉起状态则收起，未拉起则手动拉起（手动帷幕不受锁屏 watcher 干涉）。
+            "privacy_curtain" => {
+                let active = crate::commands::privacy_curtain::privacy_curtain_active(app.clone())
+                    .unwrap_or(false);
+                let result = if active {
+                    crate::commands::privacy_curtain::hide_privacy_curtain(app.clone())
+                } else {
+                    crate::commands::privacy_curtain::show_privacy_curtain(app.clone(), None)
+                };
+                if let Err(reason) = result {
+                    eprintln!("⚠️ Privacy curtain toggle failed: {reason}");
+                }
+            }
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {

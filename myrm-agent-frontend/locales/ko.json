@@ -1,4 +1,11 @@
 {
+  "curtain": {
+    "board": {
+      "primary": "AI 작업 중 — 화면 보호됨",
+      "sub": "이 워크스테이션에서는 자동화 세션이 실행 중입니다. 소유자가 돌아올 때까지 콘텐츠는 계속 가려져 보호됩니다.",
+      "hint": "조작하면 이 화면이 즉시 잠깁니다"
+    }
+  },
   "recovery": {
     "title": "에이전트 시작 및 구성 복구 센터",
     "description": "시작 중 에이전트 구성 요소 또는 구성에 이상이 감지되었습니다. 마지막으로 확인된 정상 구성으로 롤백하거나 진단 번들을 내보낼 수 있습니다.",
@@ -9961,7 +9968,14 @@
     "btnFix": "인증 및 수정"
   },
   "messageFilter": {
-    "settings": {
+  "curtain": {
+    "board": {
+      "primary": "AI 작업 중 — 화면 보호됨",
+      "sub": "이 워크스테이션에서는 자동화 세션이 실행 중입니다. 소유자가 돌아올 때까지 콘텐츠는 계속 가려져 보호됩니다.",
+      "hint": "조작하면 이 화면이 즉시 잠깁니다"
+    }
+  },
+  "settings": {
       "title": "메시지 필터링",
       "description": "메시지 필터링 규칙과 PII 감지 설정을 구성합니다.",
       "enabled": "필터링 활성화",
@@ -12727,6 +12741,19 @@
       "toastSaveFailed": "비밀번호 저장 실패: {error}",
       "toastDeleted": "비밀번호가 키체인에서 삭제되었습니다",
       "toastDeleteFailed": "삭제 실패: {error}"
+    },
+    "privacyCurtain": {
+      "title": "프라이버시 커튼",
+      "autoTitle": "잠금 시 자동 전개",
+      "autoDesc": "화면을 잠그고 자리를 비운 순간 전체 화면을 가립니다. 에이전트는 제외 캡처 채널로 작업을 계속하고, 지나가는 사람에게는 검은 보드만 보입니다",
+      "activeBadge": "커튼 전개됨",
+      "inactiveBadge": "커튼 대기 중",
+      "engage": "지금 전개",
+      "release": "커튼 해제",
+      "toastEngaged": "커튼을 전개했습니다 (수동)",
+      "toastReleased": "커튼을 해제했습니다",
+      "toastFailed": "커튼 작업 실패: {error}",
+      "lockedUseHint": "무인 실행 시 위의 Locked Use를 함께 켜세요. 대기 시간이 지나면 커튼을 유지한 채 자동으로 잠금을 해제해 작업을 이어갑니다."
     },
     "desktopPermissions": {
       "title": "데스크톱 자동화 준비 상태",

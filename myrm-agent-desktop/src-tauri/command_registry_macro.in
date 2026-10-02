@@ -35,6 +35,26 @@ macro_rules! tauri_command_registry {
             ("screen_lock_delete_password", crate::commands::screen_lock::screen_lock_delete_password),
             ("screen_lock_platform_support", crate::commands::screen_lock::screen_lock_platform_support),
             (
+                "show_privacy_curtain",
+                crate::commands::privacy_curtain::show_privacy_curtain
+            ),
+            (
+                "hide_privacy_curtain",
+                crate::commands::privacy_curtain::hide_privacy_curtain
+            ),
+            (
+                "privacy_curtain_active",
+                crate::commands::privacy_curtain::privacy_curtain_active
+            ),
+            (
+                "curtain_set_texts",
+                crate::commands::privacy_curtain::curtain_set_texts
+            ),
+            (
+                "curtain_report_physical_input",
+                crate::commands::privacy_curtain::curtain_report_physical_input
+            ),
+            (
                 "show_visual_approval_overlay",
                 crate::commands::visual_approval_overlay::show_visual_approval_overlay
             ),

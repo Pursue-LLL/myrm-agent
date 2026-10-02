@@ -676,6 +676,7 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 approval_required=self.memory_require_confirmation,
                 dedup_llm=self._lite_llm,
                 time_decay_half_life_days=time_decay_half_life_days,
+                reranker_config=self.reranker_config if self.enable_advanced_retrieval else None,
                 on_conflict=on_conflict,
                 on_consolidation_complete=on_consolidation_complete,
                 base_path=self.memory_base_path,
@@ -973,6 +974,10 @@ class ToolSetupMixin(ExternalAgentsMixin):
                 config_kwargs["image_constraints"] = constraints
             config = ComputerUseConfig(**config_kwargs)
             session = create_desktop_session(config=config, permission_callback=gate)
+            from app.services.locked_use.curtain_bridge import apply_excluded_capture_titles
+
+            if apply_excluded_capture_titles(session):
+                logger.info("Curtain capture exclusion injected into desktop session")
             computer_tools = create_desktop_tools(session)
             tools.extend(computer_tools)
             self._desktop_session = session

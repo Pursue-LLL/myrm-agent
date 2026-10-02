@@ -44,6 +44,7 @@ if TYPE_CHECKING:
         ConflictCallback,
         ConsolidationCompleteCallback,
     )
+    from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,7 @@ def _manager_cache_key(
     memory_policy: AgentMemoryPolicy | None,
     recall_mode: RecallMode,
     time_decay_half_life_days: float | None = None,
+    reranker_config: RerankerConfig | None = None,
 ) -> tuple[object, ...]:
     return (
         str(base_path.resolve()),
@@ -104,6 +106,9 @@ def _manager_cache_key(
         embedding_config.model,
         embedding_config.api_key,
         embedding_config.api_base,
+        reranker_config.model if reranker_config else None,
+        reranker_config.api_key if reranker_config else None,
+        reranker_config.api_base if reranker_config else None,
         id(dedup_llm) if dedup_llm is not None else None,
         id(consolidation_llm) if consolidation_llm is not None else None,
         tuple(namespaces or ()),
@@ -124,6 +129,7 @@ async def create_memory_manager(
     consolidation_llm: object | None = None,
     recall_mode: RecallMode = RecallMode.HYBRID,
     time_decay_half_life_days: float | None = None,
+    reranker_config: RerankerConfig | None = None,
     on_conflict: ConflictCallback | None = None,
     on_consolidation_complete: ConsolidationCompleteCallback | None = None,
     base_path: str | Path | None = None,
@@ -164,6 +170,7 @@ async def create_memory_manager(
         memory_policy=binding.memory_policy,
         recall_mode=recall_mode,
         time_decay_half_life_days=time_decay_half_life_days,
+        reranker_config=reranker_config,
     )
 
     async with _memory_manager_cache_lock:
@@ -205,6 +212,7 @@ async def create_memory_manager(
             recall_mode=recall_mode,
             vector_store=store,
             time_decay_half_life_days=time_decay_half_life_days,
+            reranker_config=reranker_config,
             on_conflict=on_conflict,
             on_consolidation_complete=on_consolidation_complete,
         )

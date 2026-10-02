@@ -138,6 +138,11 @@ async def locked_use_session(
         if cfg.enabled and is_mac:
             if MacScreenUnlocker.is_locked():
                 logger.info("Screen is locked. Attempting temporary unlock for CU session...")
+                # 帷幕协议：代解锁前先落 pending 标记（Tauri watcher 观察到
+                # 解锁态时据此保持帷幕；无帷幕/非桌面端时幂等无害）。
+                from app.services.locked_use.curtain_bridge import mark_pending_auto_unlock
+
+                mark_pending_auto_unlock()
                 was_unlocked_by_us = await MacScreenUnlocker.unlock()
                 if was_unlocked_by_us:
                     logger.info("Screen successfully unlocked")

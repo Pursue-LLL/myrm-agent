@@ -52,6 +52,11 @@ pub fn is_screen_locked() -> bool {
     platform::is_screen_locked()
 }
 
+/// Lock the screen immediately (curtain physical-input guard path).
+pub fn lock_screen() -> Result<(), ScreenLockError> {
+    platform::lock_screen()
+}
+
 /// RAII guard that re-locks the screen on drop.
 pub struct ScreenUnlockGuard {
     active: Arc<AtomicBool>,

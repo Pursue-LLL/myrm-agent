@@ -240,6 +240,15 @@ async def optimized_lifespan(app_instance: FastAPI) -> AsyncIterator[None]:
     except Exception as e:
         logger.error("[Startup] Branch watcher failed to start: %s", e)
 
+    # 无人值守帷幕编排（CU 会话锁屏态代解锁；非桌面端部署零成本空转）。
+    try:
+        from app.services.locked_use.unattended import start_unattended_curtain_watcher
+
+        start_unattended_curtain_watcher()
+        logger.info("[Startup] Unattended curtain watcher started")
+    except Exception as e:
+        logger.error("[Startup] Unattended curtain watcher failed to start: %s", e)
+
     asyncio.create_task(pause_orphaned_active_goals())
 
     # Dispatch @startup system event for trigger-based cron jobs

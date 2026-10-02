@@ -191,6 +191,19 @@ pub async fn start_backend_with_config(
         .env("PORT", config.port.to_string())
         .env("HOST", &config.host);
 
+    // 帷幕状态桥：server 无人值守 watcher 与 Tauri 帷幕状态机共享的文件路径。
+    if let Ok(data_dir) = app.path().app_data_dir() {
+        cmd.env(
+            "MYRM_CURTAIN_STATE_FILE",
+            data_dir.join(crate::commands::privacy_curtain::CURTAIN_STATE_FILE),
+        );
+    }
+
+    // Locked Use 能力开关传递（server 侧代解锁授权判定，与帷幕开关注册同源）。
+    if let Some(manager) = app.try_state::<ConfigManager>() {
+        cmd.env("MYRM_LOCKED_USE_ENABLED", manager.load().locked_use_enabled.to_string());
+    }
+
     if let Some(ref data_dir) = config.custom_data_dir {
         cmd.env("MYRM_DATA_DIR", data_dir);
         println!("📂 Custom data dir: {}", data_dir);

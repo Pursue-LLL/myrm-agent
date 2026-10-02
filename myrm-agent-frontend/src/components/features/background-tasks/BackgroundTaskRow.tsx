@@ -92,9 +92,7 @@ export function BackgroundTaskRow({
             <span className={cn('h-1.5 w-1.5 rounded-full', config.dotColor)} />
             <span>{t(task.status)}</span>
             <span className="text-border">·</span>
-            <span>
-              {formatRelativeTime(new Date(task.created_at * 1000).toISOString(), locale)}
-            </span>
+            <span>{formatRelativeTime(new Date(task.created_at * 1000).toISOString(), locale)}</span>
             {shellPid !== null && task.kind === 'shell' && (
               <>
                 <span className="text-border">·</span>
@@ -190,12 +188,7 @@ export function BackgroundTaskRow({
                       {t('viewFullLog')}
                     </Button>
                   ) : (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs"
-                      onClick={handleSecondaryAction}
-                    >
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={handleSecondaryAction}>
                       <LogActionIcon className="mr-1 h-3 w-3" />
                       {t('navigate')}
                     </Button>

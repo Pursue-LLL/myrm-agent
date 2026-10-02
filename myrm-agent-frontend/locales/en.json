@@ -1,4 +1,11 @@
 {
+  "curtain": {
+    "board": {
+      "primary": "AI is working — screen protected",
+      "sub": "This workstation is running an automated session. Content stays hidden until the owner returns.",
+      "hint": "Any interaction locks this screen instantly"
+    }
+  },
   "settings": {
     "providerBalance": {
       "statusHealthy": "Healthy",
@@ -31,6 +38,19 @@
       "toastSaveFailed": "Failed to save password: {error}",
       "toastDeleted": "Password deleted from Keychain",
       "toastDeleteFailed": "Failed to delete: {error}"
+    },
+    "privacyCurtain": {
+      "title": "Privacy Curtain",
+      "autoTitle": "Auto engage on lock",
+      "autoDesc": "Blank all displays the moment you lock and leave: the agent keeps working through an excluded capture channel, passers-by see only the dark board",
+      "activeBadge": "Curtain engaged",
+      "inactiveBadge": "Curtain idle",
+      "engage": "Engage now",
+      "release": "Release curtain",
+      "toastEngaged": "Curtain engaged (manual)",
+      "toastReleased": "Curtain released",
+      "toastFailed": "Curtain operation failed: {error}",
+      "lockedUseHint": "For unattended runs, enable Locked Use above so the agent can quietly re-unlock after the quiet period while the curtain stays up."
     },
     "desktopPermissions": {
       "title": "Desktop Automation Readiness",

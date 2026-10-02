@@ -1,4 +1,11 @@
 {
+  "curtain": {
+    "board": {
+      "primary": "AI 正在作业 — 屏幕已保护",
+      "sub": "本机正在运行自动化任务，屏幕内容已被遮蔽，任务所有者返回前持续保护。",
+      "hint": "任何操作将立即锁定此屏幕"
+    }
+  },
   "settings": {
     "providerBalance": {
       "statusHealthy": "额度充足",
@@ -31,6 +38,19 @@
       "toastSaveFailed": "保存密码失败: {error}",
       "toastDeleted": "密码已从 Keychain 删除",
       "toastDeleteFailed": "删除失败: {error}"
+    },
+    "privacyCurtain": {
+      "title": "工位防窥帷幕",
+      "autoTitle": "锁屏离机自动拉起",
+      "autoDesc": "锁屏离开的瞬间全屏遮蔽：Agent 经排除截图通道继续作业，路过者只见黑色看板",
+      "activeBadge": "帷幕已拉起",
+      "inactiveBadge": "帷幕未拉起",
+      "engage": "立即拉起",
+      "release": "收起帷幕",
+      "toastEngaged": "帷幕已拉起（手动）",
+      "toastReleased": "帷幕已收起",
+      "toastFailed": "帷幕操作失败: {error}",
+      "lockedUseHint": "无人值守挂机时，建议同时开启上方 Locked Use：静默期满后 Agent 可在帷幕保持遮蔽下自动解锁续跑。"
     },
     "desktopPermissions": {
       "title": "桌面自动化就绪检测",

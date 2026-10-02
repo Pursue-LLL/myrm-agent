@@ -18,6 +18,7 @@ import { useGlobalShortcuts } from '@/hooks/shell/useGlobalShortcuts';
 import { useVisibilityThrottling } from '@/hooks/ui/useVisibilityThrottling';
 import { useTrafficLightInsets } from '@/hooks/ui/useTrafficLightInsets';
 import { useTrayEvents } from '@/hooks/tauri/useTrayEvents';
+import { useCurtainTexts } from '@/hooks/tauri/useCurtainTexts';
 import { useCrashLoopGuard } from '@/hooks/shell/useCrashLoopGuard';
 import BudgetExceededDialog from '@/components/billing/BudgetExceededDialog';
 import UpgradeNudgeDialog from '@/components/billing/UpgradeNudgeDialog';
@@ -87,6 +88,7 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
   useConnectionsChangedReload();
   useVisibilityThrottling();
   useTrayEvents();
+  useCurtainTexts();
   useGlobalShortcuts();
   useWuBalanceWatcher();
   const { crashLoopActive, errorMessage: crashError, dismiss: dismissCrashLoop } = useCrashLoopGuard();

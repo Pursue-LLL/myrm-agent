@@ -106,6 +106,9 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     app.manage(PythonBackend::new());
     app.manage(NextJSFrontend::new());
 
+    // 工位防窥帷幕 watcher：锁屏触发自动拉起帷幕（独立于后端生命周期的隐私层）。
+    commands::privacy_curtain::spawn_privacy_curtain_watcher(app.handle().clone());
+
     if let Err(e) = tray::setup_tray(&app.handle().clone()) {
         println!("⚠️ Failed to setup tray: {e}");
     }

@@ -1,4 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
+import { expectNonNull } from '@/test-utils/expectDefined';
 
 import {
   generateCompanion,
@@ -276,12 +277,14 @@ describe('companionGenerator', () => {
     it('returns progress info for non-Legendary', () => {
       const result = checkEvolution('Rare', 50, Date.now() - 10 * 86400000, 20);
       expect(result.progress).not.toBeNull();
-      expect(result.progress!.petCount.required).toBeGreaterThan(0);
+      expectNonNull(result.progress, 'result.progress');
+      expect(result.progress.petCount.required).toBeGreaterThan(0);
     });
 
     it('handles null hatchedAt gracefully', () => {
       const result = checkEvolution('Common', 100, null, 100);
-      expect(result.progress!.daysActive.current).toBe(0);
+      expectNonNull(result.progress, 'result.progress');
+      expect(result.progress.daysActive.current).toBe(0);
     });
   });
 

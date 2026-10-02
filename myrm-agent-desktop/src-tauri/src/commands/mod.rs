@@ -13,6 +13,7 @@ pub mod config;
 pub mod data_migration;
 pub mod pet_surface;
 pub mod power;
+pub mod privacy_curtain;
 pub mod process_registry;
 pub mod recovery;
 pub mod screen_lock;

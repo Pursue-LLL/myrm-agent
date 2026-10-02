@@ -55,3 +55,19 @@ async def notification_stream(request: Request) -> StreamingResponse:
         media_type="text/event-stream",
         headers=SSE_RESPONSE_HEADERS,
     )
+
+
+@router.get("/curtain")
+async def curtain_status() -> dict[str, object]:
+    """Privacy curtain live status (unavailable on non-Tauri deployments)."""
+    from app.services.locked_use.curtain_bridge import read_curtain_state
+
+    state = read_curtain_state()
+    if state is None:
+        return {"available": False, "active": False}
+    return {
+        "available": True,
+        "active": state.active,
+        "autoEngaged": state.auto_engaged,
+        "pendingAutoUnlock": state.pending_auto_unlock,
+    }

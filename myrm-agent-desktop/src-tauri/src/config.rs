@@ -65,6 +65,10 @@ pub struct SystemConfig {
     #[serde(default)]
     pub locked_use_enabled: bool,
 
+    /// 是否启用工位防窥帷幕（锁屏时自动全屏遮蔽 + 截图通道排除），默认关闭
+    #[serde(default)]
+    pub privacy_curtain_enabled: bool,
+
     /// Appshot 截屏隐私黑名单：前台应用名命中时跳过截图，防止敏感应用内容被发往云端 LLM
     #[serde(default = "default_appshot_excluded_apps")]
     pub appshot_excluded_apps: Vec<String>,
@@ -131,6 +135,7 @@ impl Default for SystemConfig {
             global_shortcut: "Option+Space".to_string(),
             appshot_shortcut: "CommandOrControl+Shift+A".to_string(),
             locked_use_enabled: false,
+            privacy_curtain_enabled: false,
             appshot_excluded_apps: default_appshot_excluded_apps(),
             voice_ptt_shortcut: default_voice_ptt_shortcut(),
             inline_input_shortcut: default_inline_input_shortcut(),

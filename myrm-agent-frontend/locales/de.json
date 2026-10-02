@@ -1,4 +1,11 @@
 {
+  "curtain": {
+    "board": {
+      "primary": "KI arbeitet — Bildschirm geschützt",
+      "sub": "Diese Workstation führt eine automatisierte Sitzung aus. Inhalte bleiben verborgen, bis die Eigentümerin oder der Eigentümer zurückkehrt.",
+      "hint": "Jede Interaktion sperrt diesen Bildschirm sofort"
+    }
+  },
   "recovery": {
     "title": "Agent-Start- und Konfigurations-Wiederherstellungszentrum",
     "description": "Beim Start wurden Anomalien in Komponenten oder Konfigurationen festgestellt. Sie können zur letzten funktionierenden Konfiguration zurückkehren oder ein Diagnosepaket exportieren.",
@@ -9961,7 +9968,14 @@
     "btnFix": "Autorisieren und reparieren"
   },
   "messageFilter": {
-    "settings": {
+  "curtain": {
+    "board": {
+      "primary": "KI arbeitet — Bildschirm geschützt",
+      "sub": "Diese Workstation führt eine automatisierte Sitzung aus. Inhalte bleiben verborgen, bis die Eigentümerin oder der Eigentümer zurückkehrt.",
+      "hint": "Jede Interaktion sperrt diesen Bildschirm sofort"
+    }
+  },
+  "settings": {
       "title": "Nachrichtenfilterung",
       "description": "Konfigurieren Sie Nachrichtenfilterregeln und PII-Erkennungseinstellungen.",
       "enabled": "Filterung aktivieren",
@@ -12727,6 +12741,19 @@
       "toastSaveFailed": "Passwort konnte nicht gespeichert werden: {error}",
       "toastDeleted": "Passwort aus dem Schlüsselbund gelöscht",
       "toastDeleteFailed": "Fehler beim Löschen: {error}"
+    },
+    "privacyCurtain": {
+      "title": "Privatsphäre-Vorhang",
+      "autoTitle": "Automatisch beim Sperren",
+      "autoDesc": "Sobald Sie den Bildschirm sperren und gehen, werden alle Displays abgedunkelt: Der Agent arbeitet über einen ausgeschlossenen Aufnahmekanal weiter, Vorbeigehende sehen nur das schwarze Board",
+      "activeBadge": "Vorhang aktiv",
+      "inactiveBadge": "Vorhang inaktiv",
+      "engage": "Jetzt aktivieren",
+      "release": "Vorhang lösen",
+      "toastEngaged": "Vorhang aktiviert (manuell)",
+      "toastReleased": "Vorhang gelöst",
+      "toastFailed": "Vorhang-Vorgang fehlgeschlagen: {error}",
+      "lockedUseHint": "Für unbeaufsichtigte Läufe aktivieren Sie oben zusätzlich Locked Use: Nach Ablauf der Ruhephase entsperrt der Agent automatisch weiter, während der Vorhang stehen bleibt."
     },
     "desktopPermissions": {
       "title": "Desktop-Automatisierung – Bereitschaft",

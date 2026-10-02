@@ -16,6 +16,7 @@ import CaptchaSolverCard from './CaptchaSolverCard';
 import CloudBrowserCard from './CloudBrowserCard';
 import { AccessCard } from './AccessCard';
 import LockedUseCard from './LockedUseCard';
+import PrivacyCurtainCard from './PrivacyCurtainCard';
 import DesktopPermissionsCard from './DesktopPermissionsCard';
 import MemoryMonitorCard from '../knowledge/MemoryMonitorCard';
 import { DoctorDashboard } from '../../../health/DoctorDashboard';
@@ -703,6 +704,9 @@ const SystemSection = memo(() => {
 
       {/* Locked Use (Computer Use + Screen Lock) */}
       <LockedUseCard enabled={config.lockedUseEnabled} onToggle={(v) => handleChange('lockedUseEnabled', v)} />
+
+      {/* Privacy Curtain (unattended workstation shield) */}
+      <PrivacyCurtainCard enabled={config.privacyCurtainEnabled} onToggle={(v) => handleChange('privacyCurtainEnabled', v)} />
 
       {/* Desktop Permissions Diagnostic */}
       <DesktopPermissionsCard />

@@ -1,4 +1,11 @@
 {
+  "curtain": {
+    "board": {
+      "primary": "AI 正在作業 — 螢幕已保護",
+      "sub": "本機正在執行自動化任務，螢幕內容已被遮蔽，任務擁有者返回前持續保護。",
+      "hint": "任何操作將立即鎖定此螢幕"
+    }
+  },
   "recovery": {
     "title": "Agent 啟動與配置自愈中心",
     "description": "檢測到當前 Agent 綁定的組件或配置在啟動期存在異常。您可以一鍵恢復至最後已知良好配置，或匯出診斷包進行排查。",
@@ -9961,7 +9968,14 @@
     "btnFix": "一鍵授權修復"
   },
   "messageFilter": {
-    "settings": {
+  "curtain": {
+    "board": {
+      "primary": "AI 正在作業 — 螢幕已保護",
+      "sub": "本機正在執行自動化任務，螢幕內容已被遮蔽，任務擁有者返回前持續保護。",
+      "hint": "任何操作將立即鎖定此螢幕"
+    }
+  },
+  "settings": {
       "title": "訊息過濾",
       "description": "配置訊息過濾規則和 PII 檢測設定。",
       "enabled": "啟用過濾",
@@ -12727,6 +12741,19 @@
       "toastSaveFailed": "儲存密碼失敗: {error}",
       "toastDeleted": "密碼已從 Keychain 刪除",
       "toastDeleteFailed": "刪除失敗: {error}"
+    },
+    "privacyCurtain": {
+      "title": "工位防窺帷幕",
+      "autoTitle": "鎖屏離機自動拉起",
+      "autoDesc": "鎖屏離開的瞬間全螢幕遮蔽：Agent 透過排除截圖通道繼續作業，路過者只見黑色看板",
+      "activeBadge": "帷幕已拉起",
+      "inactiveBadge": "帷幕未拉起",
+      "engage": "立即拉起",
+      "release": "收起帷幕",
+      "toastEngaged": "帷幕已拉起（手動）",
+      "toastReleased": "帷幕已收起",
+      "toastFailed": "帷幕操作失敗: {error}",
+      "lockedUseHint": "無人值守掛機時，建議同時開啟上方 Locked Use：靜默期滿後 Agent 可在帷幕保持遮蔽下自動解鎖續跑。"
     },
     "desktopPermissions": {
       "title": "桌面自動化就緒檢測",
