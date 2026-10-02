@@ -4,29 +4,35 @@
 - app.services.wiki.vault (POS: shared archiver + vault path SSOT)
 - app.services.wiki.daily_review.ingest (POS: DAILY_REVIEW_RAW_DIR SSOT)
 - myrm_agent_harness.toolkits.wiki::WikiStructure (POS: vault filesystem abstraction)
+- myrm_agent_harness.toolkits.wiki::WikiPendingEditsManager (POS: HITL pending review draft manager)
 
 [OUTPUT]
 - run_wiki_daily_review_compound_job(): 24h-window review digest + stuck-queue rescue compile + HITL summary
-    10|
+
 [POS]
 Router-mode cron entry for __wiki_daily_review_compound__. Reports review journals ingested
-within the last 24h (a calendar-day gate would permanently skip evening and overnight
-writers), rescues a stalled compile queue (compile_all when idle), and summarizes the
-drafts the window produced regardless of review status (approved/rejected drafts keep
-counting so numbers reflect real output, not just what is still queued). Reply [SILENT]
-when no review was ingested within the window.
+within the last 24h so evening and overnight writers are always covered, rescues a
+stalled compile queue (compile_all when idle), and summarizes the drafts the window
+produced regardless of review status (approved/rejected drafts keep counting so numbers
+reflect real output, not just what is still queued). Reply [SILENT] when no review was
+ingested within the window.
 """
 
 from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 from langchain_core.language_models import BaseChatModel
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 
 from app.services.wiki.daily_review.ingest import DAILY_REVIEW_RAW_DIR
 from app.services.wiki.daily_review.schemas import WikiDailyReviewCompoundResult
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.wiki import WikiPendingEditsManager
+    from myrm_agent_harness.toolkits.wiki.pipeline.pending import PendingWikiEdit
 
 logger = logging.getLogger(__name__)
 
@@ -58,30 +64,29 @@ def _list_window_review_files(structure: WikiStructure, epoch_cutoff: float) -> 
     )
 
 
-def _window_draft_stats(archiver: object, iso_cutoff: str) -> tuple[dict[str, int], int, int]:
+def _window_draft_stats(
+    pending_mgr: WikiPendingEditsManager, iso_cutoff: str
+) -> tuple[dict[str, int], int, int]:
     """Count window-produced drafts per dimension plus out-of-dimension and box totals.
 
     Status-agnostic (approved/rejected drafts keep counting) and deduped per concept:
     add_pending_edit replaces same-concept drafts, so a recompiled concept must not be
     counted twice within one window.
     """
-    pending_mgr = getattr(archiver, "_pending_mgr", None)
-    if pending_mgr is None:
-        return {}, 0, 0
     # Rows arrive newest-first; keep the newest draft per concept name.
-    latest_per_concept: dict[str, dict[str, object]] = {}
+    latest_per_concept: dict[str, PendingWikiEdit] = {}
     for edit in pending_mgr.get_edits_created_since(iso_cutoff):
-        latest_per_concept.setdefault(str(edit.get("concept_name", "")), edit)
+        latest_per_concept.setdefault(edit["concept_name"], edit)
     counts = {dimension: 0 for dimension in _DIMENSIONS}
     other_drafts = 0
     for edit in latest_per_concept.values():
-        first_segment = str(edit.get("concept_name", "")).split("/", 1)[0]
+        first_segment = edit["concept_name"].split("/", 1)[0]
         if first_segment in counts:
             counts[first_segment] += 1
         else:
             other_drafts += 1
     # Exact box size: get_pending_edits caps at 50 rows, get_stats does not.
-    total_drafts = int(pending_mgr.get_stats().get("pending", 0))
+    total_drafts = pending_mgr.get_stats().get("pending", 0)
     return counts, other_drafts, total_drafts
 
 
@@ -126,9 +131,12 @@ async def run_wiki_daily_review_compound_job(
         pending_compiles = int(queue_stats.get("pending", 0))
         processing_compiles = int(queue_stats.get("processing", 0))
 
-    dimension_counts, other_drafts, total_drafts = (
-        _window_draft_stats(archiver, iso_cutoff) if archiver is not None else ({}, 0, 0)
-    )
+    if archiver is None:
+        dimension_counts, other_drafts, total_drafts = {}, 0, 0
+    else:
+        dimension_counts, other_drafts, total_drafts = _window_draft_stats(
+            archiver._pending_mgr, iso_cutoff
+        )
     window_drafts = sum(dimension_counts.values()) + other_drafts
 
     dimension_parts = [f"{name} {count}" for name, count in dimension_counts.items() if count > 0]
@@ -149,7 +157,9 @@ async def run_wiki_daily_review_compound_job(
         )
         if pending_compiles > 0 or processing_compiles > 0:
             summary_text += f" {pending_compiles + processing_compiles} compile(s) still queued."
-        summary_text += " [Review drafts in the knowledge governance panel](/settings/knowledge?wikiTab=pendingEdits)"
+        # Cron output renders as plain text in every surface (run history, push feed),
+        # so the pending panel is referenced by URL only, never as a markdown link.
+        summary_text += " Review them at /settings/knowledge?wikiTab=pendingEdits."
 
     return WikiDailyReviewCompoundResult(
         summary_text=summary_text,

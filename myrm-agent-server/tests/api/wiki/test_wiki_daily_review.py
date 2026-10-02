@@ -126,7 +126,7 @@ async def test_daily_review_compound_job_summarizes_recent_ingest(client: TestCl
 
 
 async def test_daily_review_compound_job_llm_summary_links_pending_panel() -> None:
-    """The compiled-summary branch reports real window output and links the panel."""
+    """The compiled-summary branch reports real window output and points at the panel."""
     from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
     from app.services.wiki.daily_review import DAILY_REVIEW_RAW_DIR, run_wiki_daily_review_compound_job
@@ -149,6 +149,9 @@ async def test_daily_review_compound_job_llm_summary_links_pending_panel() -> No
     assert result.window_drafts == 0
     assert "0 draft(s) produced (none)" in result.summary_text
     assert "wikiTab=pendingEdits" in result.summary_text
+    # Cron output renders as plain text in every surface; markdown link syntax
+    # would leak raw "[text](url)" noise into run history and push feeds.
+    assert "](" not in result.summary_text
 
 
 async def test_daily_review_compound_job_covers_overnight_writer(client: TestClient) -> None:
@@ -185,10 +188,6 @@ async def test_window_draft_stats_are_status_agnostic_and_deduped() -> None:
 
     from app.services.wiki.daily_review.runner import _window_draft_stats
 
-    class _FakeArchiver:
-        def __init__(self, mgr: WikiPendingEditsManager) -> None:
-            self._pending_mgr = mgr
-
     structure = WikiStructure(tempfile.mkdtemp(prefix="daily_review_stats_"))
     structure.ensure_structure()
     mgr = WikiPendingEditsManager(structure)
@@ -199,9 +198,7 @@ async def test_window_draft_stats_are_status_agnostic_and_deduped() -> None:
     # Recompiling the same concept replaces the old draft; it must count once.
     mgr.add_pending_edit("Knowledge/ReviewedByUser", "draft v2")
 
-    counts, other_drafts, total_drafts = _window_draft_stats(
-        _FakeArchiver(mgr), "2000-01-01 00:00:00"
-    )
+    counts, other_drafts, total_drafts = _window_draft_stats(mgr, "2000-01-01 00:00:00")
 
     assert counts == {"Projects": 0, "Knowledge": 1, "Methods": 1, "Comparisons": 0}
     assert other_drafts == 1
