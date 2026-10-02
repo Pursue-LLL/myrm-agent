@@ -318,6 +318,10 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
       if (archiveRestoreResult) {
         progressStep.archive_restore_result = archiveRestoreResult;
       }
+      const msg = state.messages[messageIndex];
+      if (!msg.progressSteps) {
+        msg.progressSteps = [];
+      }
       if (
         stepKey === 'archive_restore_blocked' ||
         stepKey === 'context_compaction' ||
@@ -329,7 +333,7 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         stepKey === 'empty_response_recovery' ||
         stepKey === 'context_truncation'
       ) {
-        const existingStep = state.messages[messageIndex].progressSteps!.find((step) =>
+        const existingStep = msg.progressSteps.find((step) =>
           stepKey === 'model_failover'
             ? step.step_key?.startsWith('model_failover')
             : stepKey === 'context_compaction'
@@ -352,10 +356,10 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
             Object.assign(existingStep, progressStep);
           }
         } else {
-          state.messages[messageIndex].progressSteps!.push(progressStep);
+          msg.progressSteps.push(progressStep);
         }
       } else {
-        state.messages[messageIndex].progressSteps!.push(progressStep);
+        msg.progressSteps.push(progressStep);
       }
       if ((stepKey === 'consensus_active' || stepKey === 'moa_overlay_active') && data.data?.reference_models) {
         const models = data.data.reference_models as string[];
@@ -365,10 +369,11 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
       }
       if (stepKey === 'consensus_reference_done' && data.data) {
         const rd = data.data as Record<string, unknown>;
-        if (!state.messages[messageIndex].consensusRefs) {
-          state.messages[messageIndex].consensusRefs = [];
+        const msg = state.messages[messageIndex];
+        if (!msg.consensusRefs) {
+          msg.consensusRefs = [];
         }
-        state.messages[messageIndex].consensusRefs!.push({
+        msg.consensusRefs.push({
           model: String(rd.model ?? ''),
           success: Boolean(rd.success),
           elapsed: typeof rd.elapsed === 'number' ? rd.elapsed : 0,
@@ -377,10 +382,11 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
       }
       if (stepKey === 'moa_ref_done' && data.data) {
         const rd = data.data as Record<string, unknown>;
-        if (!state.messages[messageIndex].consensusRefs) {
-          state.messages[messageIndex].consensusRefs = [];
+        const msg = state.messages[messageIndex];
+        if (!msg.consensusRefs) {
+          msg.consensusRefs = [];
         }
-        state.messages[messageIndex].consensusRefs!.push({
+        msg.consensusRefs.push({
           model: String(rd.model ?? ''),
           success: Boolean(rd.success),
           elapsed: typeof rd.elapsed === 'number' ? rd.elapsed : 0,
